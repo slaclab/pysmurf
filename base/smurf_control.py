@@ -4,8 +4,9 @@ import sys
 from logger import SmurfLogger
 # import smurf_control.command
 from smurf.command.smurf_command import SmurfCommandMixin as SmurfCommandMixin
+from smurf.util.smurf_util import SmurfUtilMixin as SmurfUtilMixin
 
-class SmurfControl(SmurfCommandMixin):
+class SmurfControl(SmurfCommandMixin, SmurfUtilMixin):
     '''
     Base class for controlling Smurf
     '''
@@ -30,7 +31,7 @@ class SmurfControl(SmurfCommandMixin):
     Overall progress on a task
     """
 
-    def __init__(self, log=None, **kwargs):
+    def __init__(self, log=None, epics_root=None, **kwargs):
         # Set up logging
         self.log = log
         if self.log is None:
@@ -39,6 +40,12 @@ class SmurfControl(SmurfCommandMixin):
             verb = kwargs.pop('verbose', Nonse)
             if verb is not None:
                 self.set_verbose(verb)
+
+        # Setting paths for easier commands
+        self.epics_root = epics_root
+        self.sysgencryo = self.epics_root + \
+            ':AMCc:FpgaTopLevel:AppTop:AppCore:SysgenCryo:'
+
 
     def init_log(self, verbose=0, logger=SmurfLogger, logfile=None,
                  log_timestamp=True, log_prefix=None, **kwargs):
