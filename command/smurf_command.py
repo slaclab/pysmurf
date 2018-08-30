@@ -1,5 +1,6 @@
 import numpy as np
 import os
+import epics
 
 class SmurfCommandMixin():
 
@@ -17,7 +18,7 @@ class SmurfCommandMixin():
             self.log('caget ' + cmd, self.LOG_USER)
 
         if execute:
-            print('This needs to be implemented with pyrogue')
+            epics.caput(cmd)
 
     def _caget(self, cmd, log=False, execute=True):
         '''
@@ -28,13 +29,21 @@ class SmurfCommandMixin():
         cmd : The pyrogue command to be exectued. Input as a string
         log : Whether to log the data or not. Default False
         execute : Whether to actually execute the command. Defualt True.
+
+        Returns:
+        --------
+        ret : The requested value
         '''
         if log:
             self.log('caput ' + cmd, self.LOG_USER)
 
         if execute:
-            print('This needs to be implemented with pyrogue')
-            # write the value if log is True
+            ret = epics.caget(cmd)
+            if log:
+                self.log(ret)
+            return ret
+        else:
+            return None
 
     def get_amplitude_scale_array(self, band, **kwargs):
         '''
@@ -64,6 +73,6 @@ class SmurfCommandMixin():
         --------
         fb_on (boolean array) : An array of whether the feedback is on or off.
         '''
-        return self_caget(self.sysgencryo + 
+        return self._caget(self.sysgencryo + 
             'Base[{}]:CryoChannels:feedbackEnableArray'.format(int(band)),
             **kwargs)        

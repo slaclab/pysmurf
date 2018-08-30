@@ -1,7 +1,7 @@
 import numpy as np
 import os
 import sys
-from logger import SmurfLogger
+from .logger import SmurfLogger
 # import smurf_control.command
 from smurf.command.smurf_command import SmurfCommandMixin as SmurfCommandMixin
 from smurf.util.smurf_util import SmurfUtilMixin as SmurfUtilMixin
