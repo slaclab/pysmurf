@@ -1,6 +1,7 @@
 import numpy as np
+from pysmurf.base import SmurfBase
 
-class SmurfUtilMixin():
+class SmurfUtilMixin(SmurfBase):
 
     def which_on(self, band):
         '''
