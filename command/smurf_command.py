@@ -41,11 +41,44 @@ class SmurfCommandMixin(SmurfBase):
 
         if execute:
             ret = epics.caget(cmd)
-            if log:
+            if write_log:
                 self.log(ret)
             return ret
         else:
             return None
+
+    _number_sub_bands = 'numberSubBands'
+    def get_number_sub_bands(self, band, **kwargs):
+        '''
+        Returns the number of subbands in a band.
+        To do - possibly hide this function.
+
+        Args:
+        -----
+        band (int): The band to count
+
+        Returns:
+        --------
+        n_subbands (int): The number of subbands in the band
+        '''
+        return self._caget(self._band_root(band) + self._number_sub_bands, band, 
+            **kwargs)
+
+    _number_channels = 'numberChannels'
+    def get_number_channels(self, band, **kwargs):
+        '''
+        Returns the number of channels in a band.
+
+        Args:
+        -----
+        band (int): The band to count
+
+        Returns:
+        --------
+        n_channels (int): The number of channels in the band
+        '''
+        return self._caget(self._band_root(band) + self._number_channels, band,
+            **kwargs)
 
     def set_defaults_pv(self, **kwargs):
         '''
@@ -291,6 +324,19 @@ class SmurfCommandMixin(SmurfBase):
         '''
         '''
         return self._caget(self._band_root(band) + self._band_center_mhz, 
+            **kwargs)
+
+    _digitizer_frequency_mhz = 'digitizerFrequencyMHz'
+    def set_digitizer_frequency_mhz(self, band, val, **kwargs):
+        '''
+        '''
+        self._caput(self._band_root(band) + self._digitizer_frequency_mhz, val, 
+            **kwargs)
+
+    def get_digitizer_frequency_mhz(self, band, **kwargs):
+        '''
+        '''
+        return self._caget(self._band_root(band) + self._digitizer_frequency_mhz, 
             **kwargs)
 
     _synthesis_scale = 'synthesisScale'

@@ -120,22 +120,25 @@ class SmurfUtilMixin(SmurfBase):
 
         return channel_order
 
-    def get_subband_from_channel(root, band, channelorderfile, channel):
+    def get_subband_from_channel(self, band, channel, channelorderfile=None):
         """ returns subband number given a channel number
         Args:
-         root (str): epics root (eg mitch_epics)
-         band (int): which band we're working in
-         channelorderfile(str): path to file containing order of channels
-         channel (int): ranges 0..511, cryo channel number
+        root (str): epics root (eg mitch_epics)
+        band (int): which band we're working in
+        channel (int): ranges 0..511, cryo channel number
+
+        Optional Args:
+        channelorderfile(str): path to file containing order of channels
+
+        Returns:
+        subband (int) : The subband the channel lives in
         """
 
-        base_root = root + ":" + SysgenCryo + "Base[{0}]:".format(band)
-        n_subbands = epics.caget(base_root+ 'numberSubBands')
-        n_channels = epics.caget(base_root+ 'numberChannels')
+        n_subbands = self.get_number_sub_bands(band)
+        n_channels = self.get_number_channels(band)
         #n_subbands = 128 # just for testing while not hooked up to epics server
         #n_channels = 512
         n_chanpersubband = n_channels / n_subbands
-
 
         if channel > n_channels:
             raise ValueError('channel number exceeds number of channels')
@@ -149,19 +152,17 @@ class SmurfUtilMixin(SmurfBase):
         subband = idx // n_chanpersubband
         return int(subband)
 
-    def get_subband_centers(root, band, asOffset = False):
+    def get_subband_centers(self, band, asOffset = False):
         """ returns frequency in MHz of subband centers
         Args:
-         root (str): epics root
          band (int): which band
          asOffset (bool): whether to return as offset from band center \
                  (default is no, which returns absolute values)
         """
 
-        base_root = root + ":" + SysgenCryo + "Base[{0}]:".format(band)
-        digitizerFrequencyMHz = epics.caget(base_root + 'digitizerFrequencyMHz')
-        bandCenterMHz = epics.caget(base_root + 'bandCenterMHz')
-        n_subbands = epics.caget(base_root + 'numberSubBands')
+        digitizerFrequencyMHz = self.get_digitizer_frequency_mhz(band)
+        bandCenterMHz = self.get_band_center_mhz(band)
+        n_subbands = self.get_number_channels(band)
 
         subband_width_MHz = 2 * digitizerFrequencyMHz / n_subbands
 
@@ -171,18 +172,16 @@ class SmurfUtilMixin(SmurfBase):
 
         return subbands, subband_centers
 
-    def get_channels_in_subband(root, band, channelorderfile, subband):
+    def get_channels_in_subband(self, band, channelorderfile, subband):
         """ returns channels in subband
         Args:
-         root (str): epics root
          band (int): which band
          channelorderfile(str): path to file specifying channel order
          subband (int): subband number, ranges from 0..127
         """
 
-        base_root = root + ":" + SysgenCryo + "Base[{0}]:".format(band)
-        n_subbands = epics.caget(base_root + 'numberSubBands')
-        n_channels = epics.caget(base_root + 'numberChannels')
+        n_subbands = self.get_number_sub_bands(band)
+        n_channels = self.get_number_channels(band)
         n_chanpersubband = int(n_channels / n_subbands)
 
         if subband > n_subbands:
