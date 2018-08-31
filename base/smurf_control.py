@@ -98,6 +98,26 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin):
             self.set_dsp_enable(b, smurf_init_config['dspEnable'], 
                 write_log=True, **kwargs)
 
+            # This should be part of exp.cfg
+            if b == 2:
+                self.set_data_out_mux(6, "UserData", write_log=True, **kwargs)
+                self.set_data_out_mux(7, "UserData", write_log=True, **kwargs)
+                self.set_iq_swap_in(b, 1, write_log=True, **kwargs)
+                self.set_iq_swap_out(b, 0, write_log=True, **kwargs)
+            elif b ==3 :
+                self.set_data_out_mux(8, "UserData", write_log=True, **kwargs)
+                self.set_data_out_mux(9, "UserData", write_log=True, **kwargs)
+                self.set_iq_swap_in(b, 0, write_log=True, **kwargs)
+                self.set_iq_swap_out(b, 0, write_log=True, **kwargs)
+
+        self.set_jesd_link_disable(1)
+        self.set_jesd_link_disable(0)
+
+        self.set_remap()
+        self.reset_rtm()
+        self.set_dac_enable(0, 1)
+        self.set_dac_enable(1, 1)
+
     def make_dir(self, directory):
         """check if a directory exists; if not, make it
 

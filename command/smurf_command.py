@@ -316,3 +316,74 @@ class SmurfCommandMixin(SmurfBase):
         '''
         '''
         return self._caget(self._band_root(band) + self._dsp_enable, **kwargs)
+
+    # ADC commands
+    _adc_remap = "Remap[0]"  # Why is this hardcoded 0
+    def set_remap(self, **kwargs):
+        '''
+        This command should probably be renamed to something more descriptive.
+        '''
+        self._caput(self.adc_root + self._adc_remap, 1, **kwargs)
+
+    # DAC commands
+    _dac_enable = "enable"
+    def set_dac_enable(self, b, val, **kwargs):
+        '''
+        Enables DAC
+        '''
+        self._caput(self.dac_root.format(b) + self._dac_enable, val, **kwargs)
+
+    def get_dac_enable(self, b, **kwargs):
+        '''
+        Gets enable status of DAC
+        '''
+        self._caget(self.dac_root.format(b) + self._dac_enable, **kwargs)
+
+    # Jesd commands
+    _data_out_mux = 'dataOutMux[{}]'
+    def set_data_out_mux(self, b, val, **kwargs):
+        '''
+        '''
+        self._caput(self.jesd_root + 
+            self._data_out_mux.format(b), val, **kwargs)
+
+    def get_data_out_mux(self, b, **kwargs):
+        '''
+        '''
+        return self._caget(self.jesd_root + self._data_out_mux.format(b), val, 
+            **kwargs)
+
+    _link_disable = 'LINK_DISABLE'
+    def set_jesd_link_disable(self, val, **kwargs):
+        '''
+        Disables jesd link
+        '''
+        self._caput(self.jesd_root_rx + self._link_disable, val, **kwargs)
+
+    def get_jesd_link_disable(self, **kwargs):
+        '''
+        Disables jesd link
+        '''
+        return self._caget(self.jesd_root_rx + self._link_disable, val, 
+            **kwargs)
+
+    # rtm commands
+    _reset_rtm = 'resetRtm'
+    def reset_rtm(self, **kwargs):
+        '''
+        Resets the rear transition module (RTM)
+        '''
+        self._caput(self.rtm_cryo_det_root + self._reset_rtm, 1, **kwargs)
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -42,7 +42,11 @@ class SmurfBase(object):
         self.sysgencryo = self.epics_root + \
             ':AMCc:FpgaTopLevel:AppTop:AppCore:SysgenCryo:'
         self.band_root = self.sysgencryo + 'Base[{}]:'
-        self.adc_root = self.sysgencryo + 'CryoAdcMux'
+        self.adc_root = self.sysgencryo + 'CryoAdcMux:'
+        self.dac_root = self.epics_root + \
+            ':AMCc:FpgaTopLevel:AppTop:AppCore:MicrowaveMuxCore[0]:DAC[{}]:'
+        self.rtm_cryo_det_root = self.epics_root + \
+            ':AMCc:FpgaTopLevel:AppTop:AppCore:RtmCryoDet:'
 
         # Tx -> DAC , Rx <- ADC
         self.jesd_root = self.epics_root + \
