@@ -66,35 +66,37 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin):
 
         self.set_defaults_pv()
 
-        smurfInitCfg = self.config.get('init')
-        bands = smurfInitCfg['bands']
+        # The per band configs. May want to make available per-band values.
+        smurf_init_config = self.config.get('init')
+        bands = smurf_init_config['bands']
         for b in bands:
-            self.set_iq_swap_in(b, smurfInitCfg['iqSwapIn'], write_log=True, 
+            self.set_iq_swap_in(b, smurf_init_config['iqSwapIn'], 
+                write_log=True, **kwargs)
+            self.set_iq_swap_out(b, smurf_init_config['iqSwapOut'], 
+                write_log=True, **kwargs)
+            self.set_ref_phase_delay(b, smurf_init_config['refPhaseDelay'], 
+                write_log=True, **kwargs)
+            self.set_ref_phase_delay_fine(b, 
+                smurf_init_config['refPhaseDelayFine'], write_log=True, 
                 **kwargs)
-            self.set_iq_swap_out(b, smurfInitCfg['iqSwapOut'], write_log=True,
+            self.set_tone_scale(b, smurf_init_config['toneScale'], 
+                write_log=True, **kwargs)
+            self.set_analysis_scale(b, smurf_init_config['analysisScale'], 
+                write_log=True, **kwargs)
+            self.set_feedback_enable(b, smurf_init_config['feedbackEnable'],
+                write_log=True, **kwargs)
+            self.set_feedback_gain(b, smurf_init_config['feedbackGain'], 
+                write_log=True, **kwargs)
+            self.set_lms_gain(b, smurf_init_config['lmsGain'], write_log=True,
                 **kwargs)
-            self.set_ref_phase_delay(b, smurfInitCfg['refPhaseDelay'], 
+            self.set_feedback_polarity(b, smurf_init_config['feedbackPolarity'], 
                 write_log=True, **kwargs)
-            self.set_ref_phase_delay_fine(b, smurfInitCfg['refPhaseDelayFine'],
+            self.set_band_center_mhz(b, smurf_init_config['bandCenterMHz'],
                 write_log=True, **kwargs)
-            self.set_tone_scale(b, smurfInitCfg['toneScale'], write_log=True,
-                **kwargs)
-            self.set_analysis_scale(b, smurfInitCfg['analysisScale'], 
+            self.set_synthesis_scale(b, smurf_init_config['synthesisScale'],
                 write_log=True, **kwargs)
-            self.set_feedback_enable(b, smurfInitCfg['feedbackEnable'],
+            self.set_dsp_enable(b, smurf_init_config['dspEnable'], 
                 write_log=True, **kwargs)
-            self.set_feedback_gain(b, smurfInitCfg['feedbackGain'], 
-                write_log=True, **kwargs)
-            self.set_lms_gain(b, smurfInitCfg['lmsGain'], write_log=True,
-                **kwargs)
-            self.set_feedback_polarity(b, smurfInitCfg['feedbackPolarity'], 
-                write_log=True, **kwargs)
-            self.set_band_center_mhz(b, smurfInitCfg['bandCenterMHz'],
-                write_log=True, **kwargs)
-            self.set_synthesis_scale(b, smurfInitCfg['synthesisScale'],
-                write_log=True, **kwargs)
-            self.set_dsp_enable(b, smurfInitCfg['dspEnable'], write_log=True,
-                **kwargs)
 
     def make_dir(self, directory):
         """check if a directory exists; if not, make it
