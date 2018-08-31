@@ -1,41 +1,42 @@
 import numpy as np
 import os
 import epics
+import time
 from pysmurf.base import SmurfBase
 
 class SmurfCommandMixin(SmurfBase):
 
-    def _caput(self, cmd, val, log=False, execute=True):
+    def _caput(self, cmd, val, write_log=False, execute=True, **kwargs):
         '''
         Wrapper around pyrogue lcaput. Puts variables into epics
 
         Args:
         -----
         cmd : The pyrogue command to be exectued. Input as a string
-        log : Whether to log the data or not. Default False
+        write_log : Whether to log the data or not. Default False
         execute : Whether to actually execute the command. Defualt True.
         '''
-        if log:
-            self.log('caget ' + cmd + val, self.LOG_USER)
+        if write_log:
+            self.log('caput ' + cmd + ' ' + str(val), self.LOG_USER)
 
         if execute:
             epics.caput(cmd, val)
 
-    def _caget(self, cmd, log=False, execute=True):
+    def _caget(self, cmd, write_log=False, execute=True, **kwargs):
         '''
         Wrapper around pyrogue lcaget. Puts variables into epics
 
         Args:
         -----
         cmd : The pyrogue command to be exectued. Input as a string
-        log : Whether to log the data or not. Default False
+        write_log : Whether to log the data or not. Default False
         execute : Whether to actually execute the command. Defualt True.
 
         Returns:
         --------
         ret : The requested value
         '''
-        if log:
+        if write_log:
             self.log('caput ' + cmd, self.LOG_USER)
 
         if execute:
@@ -46,6 +47,15 @@ class SmurfCommandMixin(SmurfBase):
         else:
             return None
 
+    def set_defaults_pv(self, **kwargs):
+        '''
+        '''
+        self._caput(self.epics_root + ':AMCc:setDefaults', 1, **kwargs)
+        self.log('Setting defaults. Waiting 5 seconds', self.LOG_INFO)
+        time.sleep(5)  # This is done in our original script. Not sure why.
+        self.log('Done waiting 5 seconds. Defaults are set.', self.LOG_INFO)
+
+    _amplitude_scale_array = 'CryoChannels:amplitudeScaleArray'
     def get_amplitude_scale_array(self, band, **kwargs):
         '''
         Gets the array of amplitudes
@@ -58,8 +68,8 @@ class SmurfCommandMixin(SmurfBase):
         --------
         amplitudes (array) : The tone amplitudes
         '''
-        return self._caget(self._band_root(band) + 
-            ':CryoChannels:amplitudeScaleArray', **kwargs)
+        return self._caget(self._band_root(band) + self._amplitude_scale_array, 
+            **kwargs)
 
     def get_feedback_enable_array(self, band, **kwargs):
         '''
@@ -73,10 +83,10 @@ class SmurfCommandMixin(SmurfBase):
         --------
         fb_on (boolean array) : An array of whether the feedback is on or off.
         '''
-        return self._caget(self._band_root(band) + 
-            'CryoChannels:feedbackEnableArray', **kwargs)
+        return self._caget(self._band_root(band) + self._amplitude_scale_array, 
+            **kwargs)
 
-
+    _single_channel_readout = 'singleChannelReadout'
     def set_single_channel_readout(self, band, val, **kwargs):
         '''
         Sets the singleChannelReadout bit.
@@ -85,14 +95,17 @@ class SmurfCommandMixin(SmurfBase):
         -----
         band (int): The band to set to single channel readout
         '''
-        self._caput(self._band_root(band) + 'singleChannelReadout', val, **kwargs)
+        self._caput(self._band_root(band) + self._single_channel_readout, val, 
+            **kwargs)
 
     def get_single_channel_readout(self, band):
         '''
 
         '''
-        return self._caget(self._band_root(band) + 'singleChannelReadout', **kwargs)
+        return self._caget(self._band_root(band) + self._single_channel_readout, 
+            **kwargs)
 
+    _single_channel_readout2 = 'singleChannelReadout2'
     def set_single_channel_readout2(self, band, val, **kwargs):
         '''
         Sets the singleChannelReadout2 bit.
@@ -101,45 +114,205 @@ class SmurfCommandMixin(SmurfBase):
         -----
         band (int): The band to set to single channel readout
         '''
-        self._caput(self._band_root(band) + 'singleChannelReadout2', val, **kwargs)
+        self._caput(self._band_root(band) + self._single_channel_readout2, val, 
+            **kwargs)
 
 
     def get_single_channel_readout2(self, band, **kwargs):
         '''
 
         '''
-        return self._caget(self._band_root(band) + 'singleChannelReadout2', **kwargs)
+        return self._caget(self._band_root(band) + self._single_channel_readout2, 
+            **kwargs)
 
 
+    _iq_stream_enable = 'iqStreamEnable'
     def set_iq_stream_enable(self, band, val, **kwargs):
         '''
         '''
-        self._caput(self._band_root(band) + 'iqStreamEnable', val, **kwargs)
+        self._caput(self._band_root(band) + self._iq_stream_enable, val, **kwargs)
 
     def get_iq_stream_enable(self, band, **kwargs):
         '''
         '''
-        return self._caget(self._band_root(band)  + 'Base[{}]:iqStreamEnable', 
+        return self._caget(self._band_root(band)  + self._iq_stream_enable, 
             **kwargs)
 
+    _decimation = 'decimation'
     def set_decimation(self, band, val, **kwargs):
         '''
         '''
-        self._caput(self._band_root(band) + 'decimation', val, **kwargs)
+        self._caput(self._band_root(band) + self._decimation, val, **kwargs)
 
     def get_decimation(self, band, **kwargs):
         '''
         '''
-        return self._caget(self._band_root(band) + 'decimation', **kwargs)
+        return self._caget(self._band_root(band) + self._decimation, **kwargs)
 
-    def set_filterAlpha(self, band, val, **kwargs):
+    _filter_alpha = 'filterAlpha'
+    def set_filter_alpha(self, band, val, **kwargs):
         '''
         '''
-        self._caput(self._band_root(band) + 'filterAlpha', val, **kwargs)
+        self._caput(self._band_root(band) + self._filter_alpha, val, **kwargs)
 
-    def get_filterAlpha(self, band, **kwargs):
+    def get_filter_alpha(self, band, **kwargs):
         '''
         '''
-        return self._caget(self._band_root(band) + 'Base[{}]:filterAlpha', **kwargs)
+        return self._caget(self._band_root(band) + self._filter_alpha, **kwargs)
 
+    _iq_swap_in = 'iqSwapIn'
+    def set_iq_swap_in(self, band, val, **kwargs):
+        '''
+        '''
+        self._caput(self._band_root(band) + self._iq_swap_in, val, **kwargs)
 
+    def get_iq_swap_in(self, band, **kwargs):
+        '''
+        '''
+        return self._caget(self._band_root(band) + self._iq_swap_in, **kwargs)
+
+    _iq_swap_out = 'iqSwapOut'
+    def set_iq_swap_out(self, band, val, **kwargs):
+        '''
+        '''
+        self._caput(self._band_root(band) + self._iq_swap_out, val, **kwargs)
+
+    def get_iq_swap_out(self, band, **kwargs):
+        '''
+        '''
+        return self._caget(self._band_root(band) + self._iq_swap_out, **kwargs)
+
+    _ref_phase_delay = 'refPhaseDelay'
+    def set_ref_phase_delay(self, band, val, **kwargs):
+        '''
+        '''
+        self._caput(self._band_root(band) + self._ref_phase_delay, val, 
+            **kwargs)
+
+    def get_ref_phase_delay(self, band, **kwargs):
+        '''
+        '''
+        return self._caget(self._band_root(band) + self._ref_phase_delay, 
+            **kwargs)
+
+    _ref_phase_delay_fine = 'refPhaseDelayFine'
+    def set_ref_phase_delay_fine(self, band, val, **kwargs):
+        '''
+        '''
+        self._caput(self._band_root(band) + self._ref_phase_delay_fine, val, 
+        **kwargs)
+
+    def get_ref_phase_delay_fine(self, band, **kwargs):
+        '''
+        '''
+        return self._caget(self._band_root(band) + self._ref_phase_delay_fine, 
+            **kwargs)
+
+    _tone_scale = 'toneScale'
+    def set_tone_scale(self, band, val, **kwargs):
+        '''
+        '''
+        self._caput(self._band_root(band) + self._tone_scale, val, **kwargs)
+
+    def get_tone_scale(self, band, **kwargs):
+        '''
+        '''
+        return self._caget(self._band_root(band) + self._tone_scale, **kwargs)
+
+    _analysis_scale = 'analysisScale'
+    def set_analysis_scale(self, band, val, **kwargs):
+        '''
+        '''
+        self._caput(self._band_root(band) + self._analysis_scale, val, **kwargs)
+
+    def get_analysis_scale(self, band, **kwargs):
+        '''
+        '''
+        return self._caget(self._band_root(band) + self._analysis_scale, 
+            **kwargs)
+
+    _feedback_enable = 'feedbackEnable'
+    def set_feedback_enable(self, band, val, **kwargs):
+        '''
+        '''
+        self._caput(self._band_root(band) + self._feedback_enable, val, 
+            **kwargs)
+
+    def get_feedback_enable(self, band, **kwargs):
+        '''
+        '''
+        return self._caget(self._band_root(band) + self._feedback_enable, 
+            **kwargs)
+
+    _feedback_gain = 'feedbackGain'
+    def set_feedback_gain(self, band, val, **kwargs):
+        '''
+        '''
+        self._caput(self._band_root(band) + self._feedback_gain, val, **kwargs)
+
+    def get_feedback_gain(self, band, **kwargs):
+        '''
+        '''
+        return self._caget(self._band_root(band) + self._feedback_gain, 
+            **kwargs)
+
+    _lms_gain = 'lmsGain'
+    def set_lms_gain(self, band, val, **kwargs):
+        '''
+        '''
+        self._caput(self._band_root(band) + self._lms_gain, val, **kwargs)
+
+    def get_lms_gain(self, band, **kwargs):
+        '''
+        '''
+        return self._caget(self._band_root(band) + self._lms_gain, **kwargs)
+
+    _feedback_polarity = 'feedbackPolarity'
+    def set_feedback_polarity(self, band, val, **kwargs):
+        '''
+        '''
+        self._caput(self._band_root(band) + self._feedback_polarity, val, 
+            **kwargs)
+
+    def get_feedback_polarity(self, band, **kwargs):
+        '''
+        '''
+        return self._caget(self._band_root(band) + self._feedback_polarity, 
+            **kwargs)
+
+    _band_center_mhz = 'bandCenterMHz'
+    def set_band_center_mhz(self, band, val, **kwargs):
+        '''
+        '''
+        self._caput(self._band_root(band) + self._band_center_mhz, val, 
+            **kwargs)
+
+    def get_band_center_mhz(self, band, **kwargs):
+        '''
+        '''
+        return self._caget(self._band_root(band) + self._band_center_mhz, 
+            **kwargs)
+
+    _synthesis_scale = 'synthesisScale'
+    def set_synthesis_scale(self, band, val, **kwargs):
+        '''
+        '''
+        self._caput(self._band_root(band) + self._synthesis_scale, val, 
+            **kwargs)
+
+    def get_synthesis_scale(self, band, **kwargs):
+        '''
+        '''
+        return self._caget(self._band_root(band) + self._synthesis_scale, 
+            **kwargs)
+
+    _dsp_enable = 'dspEnable'
+    def set_dsp_enable(self, band, val, **kwargs):
+        '''
+        '''
+        self._caput(self._band_root(band) + self._dsp_enable, val, **kwargs)
+
+    def get_dsp_enable(self, band, **kwargs):
+        '''
+        '''
+        return self._caget(self._band_root(band) + self._dsp_enable, **kwargs)

@@ -32,15 +32,23 @@ class SmurfBase(object):
         if self.log is None:
             self.log = self.init_log(**kwargs)
         else:
-            verb = kwargs.pop('verbose', Nonse)
+            verb = kwargs.pop('verbose', None)
             if verb is not None:
                 self.set_verbose(verb)
 
-        # Setting paths for easier commands
+        # Setting paths for easier commands - Is there a better way to do this
+        # than just hardcoding paths?
         self.epics_root = epics_root
         self.sysgencryo = self.epics_root + \
             ':AMCc:FpgaTopLevel:AppTop:AppCore:SysgenCryo:'
         self.band_root = self.sysgencryo + 'Base[{}]:'
+        self.adc_root = self.sysgencryo + 'CryoAdcMux'
+
+        # Tx -> DAC , Rx <- ADC
+        self.jesd_root = self.epics_root + \
+            ':AMCc:FpgaTopLevel:AppTop:AppTopJesd[0]:JesdTx:'
+        self.jesd_root_rx = self.epics_root + \
+            ':AMCc:FpgaTopLevel:AppTop:AppTopJesd[0]:JesdRx:'
 
 
     def _band_root(self, band):
