@@ -37,16 +37,15 @@ class SmurfBase(object):
                 self.set_verbose(verb)
 
         # Setting paths for easier commands - Is there a better way to do this
-        # than just hardcoding paths?
+        # than just hardcoding paths? This needs to be cleaned up somehow
         self.epics_root = epics_root
         self.sysgencryo = self.epics_root + \
             ':AMCc:FpgaTopLevel:AppTop:AppCore:SysgenCryo:'
         self.band_root = self.sysgencryo + 'Base[{}]:'
+        self.cryo_root = self.band_root + 'CryoChannels:'
         self.adc_root = self.sysgencryo + 'CryoAdcMux:'
         self.dac_root = self.epics_root + \
             ':AMCc:FpgaTopLevel:AppTop:AppCore:MicrowaveMuxCore[0]:DAC[{}]:'
-        self.rtm_cryo_det_root = self.epics_root + \
-            ':AMCc:FpgaTopLevel:AppTop:AppCore:RtmCryoDet:'
 
         # Tx -> DAC , Rx <- ADC
         self.jesd_root = self.epics_root + \
@@ -54,21 +53,11 @@ class SmurfBase(object):
         self.jesd_root_rx = self.epics_root + \
             ':AMCc:FpgaTopLevel:AppTop:AppTopJesd[0]:JesdRx:'
 
-
-    def _band_root(self, band):
-        '''
-        Helper function that returns the epics path to a band.
-
-        Args:
-        -----
-        band (int): The band to access
-
-        Returns:
-        --------
-        path (string) : The string to be passed to caget/caput to access
-            the input band.
-        '''
-        return self.band_root.format(int(band))
+        # RTM paths
+        self.rtm_cryo_det_root = self.epics_root + \
+            ':AMCc:FpgaTopLevel:AppTop:AppCore:RtmCryoDet:'
+        self.rtm_spi_root = self.rtm_cryo_det_root + \
+            'RtmSpiSr:'
 
     def init_log(self, verbose=0, logger=SmurfLogger, logfile=None,
                  log_timestamp=True, log_prefix=None, **kwargs):
@@ -126,3 +115,33 @@ class SmurfBase(object):
         log to STDOUT.
         """
         self.log.set_logfile(logfile)
+
+    def _band_root(self, band):
+        '''
+        Helper function that returns the epics path to a band.
+
+        Args:
+        -----
+        band (int): The band to access
+
+        Returns:
+        --------
+        path (string) : The string to be passed to caget/caput to access
+            the input band.
+        '''
+        return self.band_root.format(int(band))
+
+    def _cryo_root(self, band):
+        '''
+        Helper function that returns the epics path to cryoroot.
+
+        Args:
+        -----
+        band (int): The band to access
+
+        Returns:
+        --------
+        path (string) : The string to be passed to caget/caput to access
+            the input band.
+        '''
+        return self.cryo_root.format(int(band))

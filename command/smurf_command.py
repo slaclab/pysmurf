@@ -6,21 +6,42 @@ from pysmurf.base import SmurfBase
 
 class SmurfCommandMixin(SmurfBase):
 
-    def _caput(self, cmd, val, write_log=False, execute=True, **kwargs):
+    def _caput(self, cmd, val, write_log=False, execute=True, wait_before=None,
+        wait_after=None, **kwargs):
         '''
         Wrapper around pyrogue lcaput. Puts variables into epics
 
         Args:
         -----
         cmd : The pyrogue command to be exectued. Input as a string
-        write_log : Whether to log the data or not. Default False
-        execute : Whether to actually execute the command. Defualt True.
+        val: The value to put into epics
+
+        Optional Args:
+        --------------
+        write_log (bool) : Whether to log the data or not. Default False
+        execute (bool) : Whether to actually execute the command. Defualt True.
+        wait_before (int) : If not None, the number of seconds to wait before
+            issuing the command
+        wait_after (int) : If not None, the number of seconds to wait after
+            issuing the command
         '''
+        if wait_before is not None:
+            if write_log:
+                self.log('Waiting {:3.2f} seconds before...'.format(wait_before),
+                    self.LOG_USER)
+            time.sleep(wait_before)
         if write_log:
             self.log('caput ' + cmd + ' ' + str(val), self.LOG_USER)
 
         if execute:
             epics.caput(cmd, val)
+
+        if wait_after is not None:
+            if write_log:
+                self.log('Waiting {:3.2f} seconds after...'.format(wait_after),
+                    self.LOG_USER)
+            time.sleep(wait_after)
+            self.log('Done waiting.', self.LOG_USER)
 
     def _caget(self, cmd, write_log=False, execute=True, **kwargs):
         '''
@@ -83,12 +104,107 @@ class SmurfCommandMixin(SmurfBase):
     def set_defaults_pv(self, **kwargs):
         '''
         '''
-        self._caput(self.epics_root + ':AMCc:setDefaults', 1, **kwargs)
-        self.log('Setting defaults. Waiting 5 seconds', self.LOG_INFO)
-        time.sleep(5)  # This is done in our original script. Not sure why.
-        self.log('Done waiting 5 seconds. Defaults are set.', self.LOG_INFO)
+        self._caput(self.epics_root + ':AMCc:setDefaults', 1, wait_after=5,
+            **kwargs)
+        # This sleep is in the original script. Not sure why.
+        self.log('Defaults are set.', self.LOG_INFO)
 
-    _amplitude_scale_array = 'CryoChannels:amplitudeScaleArray'
+    _eta_scan_freqs = 'etaScanFreqs'
+    def set_eta_scan_freqs(self, band, val, **kwargs):
+        '''
+        '''
+        self._caput(self._cryo_root(band) + self._eta_scan_freqs, val, 
+            **kwargs)
+
+    def get_eta_scan_freqs(self, band, **kwargs):
+        '''
+        '''
+        return self._caget(self._cryo_root(band) + self._eta_scan_freqs, 
+            **kwargs)
+
+    _eta_scan_amplitude = 'etaScanAmplitude'
+    def set_eta_scan_amplitude(self, band, val, **kwargs):
+        '''
+        '''
+        self._caput(self._cryo_root(band) + self._eta_scan_amplitude, val, 
+            **kwargs)
+
+    def get_eta_scan_amplitude(self, band, **kwargs):
+        '''
+        '''
+        return self._caget(self._cryo_root(band) + self._eta_scan_amplitude, 
+            **kwargs)
+
+    _eta_scan_channel = 'etaScanChannel'
+    def set_eta_scan_channel(self, band, val, **kwargs):
+        '''
+        '''
+        self._caput(self._cryo_root(band) + self._eta_scan_channel, val, 
+            **kwargs)
+
+    def get_eta_scan_channel(self, band, **kwargs):
+        '''
+        '''
+        return self._caget(self._cryo_root(band) + self._eta_scan_channel, 
+            **kwargs)
+
+    _eta_scan_dwell = 'etaScanDwell'
+    def set_eta_scan_dwell(self, band, val, **kwargs):
+        '''
+        '''
+        self._caput(self._cryo_root(band) + self._eta_scan_dwell, val, **kwargs)
+
+    def get_eta_scan_dwell(self, band, **kwargs):
+        '''
+        '''
+        return self._caget(self._cryo_root(band) + self._eta_scan_dwell, 
+            **kwargs)
+
+    _run_eta_scan = 'runEtaScan'
+    def set_run_eta_scan(self, band, val, **kwargs):
+        '''
+        '''
+        self._caput(self._cryo_root(band) + self._run_eta_scan, val, **kwargs)
+
+    def get_run_eta_scan(self, band, **kwargs):
+        '''
+        '''
+        return self._caget(self._cryo_root(band) + self._run_eta_scan, **kwargs)    
+
+    _eta_scan_results_real = 'eteaScanResultsReal'
+    def get_eta_scan_results_real(self, band, count, **kwargs):
+        '''
+        '''
+        return self._caget(self._cryo_root(band) + self._eta_scan_result_real,
+            count=count, **kwargs)
+
+    _eta_scan_results_imag = 'etaScanResultsImag'
+    def get_eta_scan_results_imag(self, band, count, **kwargs):
+        '''
+        '''
+        return self._caget(self._cryo_root(band) + self._eta_scan_results_imag,
+            count=count, **kwargs)
+
+    _amplitude_scales = 'setAmplitudeScales'
+    def set_amplitude_scales(self, band, val, **kwargs):
+        '''
+        '''
+        self._caput(self._cryo_root(band) + self._amplitude_scales, val, 
+            **kwargs)
+
+    def get_amplitude_scales(self, band, **kwargs):
+        '''
+        '''
+        return self._caput(self._cryo_root(band) + self._amplitude_scales,
+            **kwargs)
+
+    _amplitude_scale_array = 'amplitudeScaleArray'
+    def set_amplitude_scale_array(self, band, val, **kwargs):
+        '''
+        '''
+        self._caput(self._cryo_root(band) + self._amplitude_scale_array, val,
+            **kwargs)
+
     def get_amplitude_scale_array(self, band, **kwargs):
         '''
         Gets the array of amplitudes
@@ -101,8 +217,16 @@ class SmurfCommandMixin(SmurfBase):
         --------
         amplitudes (array) : The tone amplitudes
         '''
-        return self._caget(self._band_root(band) + self._amplitude_scale_array, 
+        return self._caget(self._cryo_root(band) + self._amplitude_scale_array, 
             **kwargs)
+
+    _feedback_enable_array = 'feedbackEnableArray'
+    def set_feedback_enable_array(self, band, val, **kwargs):
+        '''
+        '''
+        self._caput(self._cryo_root(band) + self._feedback_enable_array, val,
+            **kwargs)
+
 
     def get_feedback_enable_array(self, band, **kwargs):
         '''
@@ -116,7 +240,7 @@ class SmurfCommandMixin(SmurfBase):
         --------
         fb_on (boolean array) : An array of whether the feedback is on or off.
         '''
-        return self._caget(self._band_root(band) + self._amplitude_scale_array, 
+        return self._caget(self._cryo_root(band) + self._feedback_enable_array, 
             **kwargs)
 
     _single_channel_readout = 'singleChannelReadout'
@@ -150,14 +274,11 @@ class SmurfCommandMixin(SmurfBase):
         self._caput(self._band_root(band) + self._single_channel_readout2, val, 
             **kwargs)
 
-
     def get_single_channel_readout2(self, band, **kwargs):
         '''
-
         '''
         return self._caget(self._band_root(band) + self._single_channel_readout2, 
             **kwargs)
-
 
     _iq_stream_enable = 'iqStreamEnable'
     def set_iq_stream_enable(self, band, val, **kwargs):
@@ -421,10 +542,16 @@ class SmurfCommandMixin(SmurfBase):
         '''
         self._caput(self.rtm_cryo_det_root + self._reset_rtm, 1, **kwargs)
 
+    _cfg_reg_ena_bit = 'CfgRegEnaBit'
+    def set_cfg_reg_ena_bit(self, val, **kwargs):
+        '''
+        '''
+        self._caput(self.rtm_spi_root + self._cfg_reg_ena_bit, val, **kwargs)
 
-
-
-
+    def get_cfg_reg_ena_bit(self, **kwargs):
+        '''
+        '''
+        return self._caget(self.rtm_spi_root + self._cfg_reg_ena_bit, **kwargs)
 
 
 

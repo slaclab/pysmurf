@@ -18,6 +18,14 @@ class SmurfUtilMixin(SmurfBase):
         amps = self.get_amplitude_scale_array(band)
         return np.ravel(np.where(amps != 0))
 
+    def band_off(self, band, **kwargs):
+        '''
+        Turns off all tones in a band
+        '''
+        self.set_amplitude_scales(band, 0, **kwargs)
+        self.set_feedback_enable_array(band, np.zeros(512, dtype=int), **kwargs)
+        self.set_cfg_reg_ena_bit(0, wait_after=.11, **kwargs)
+
     def freq_to_subband(self, freq, band_center, subband_order):
         '''Look up subband number of a channel frequency
 
