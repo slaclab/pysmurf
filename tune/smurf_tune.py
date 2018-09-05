@@ -1,4 +1,5 @@
 import numpy as np
+import os
 from pysmurf.base import SmurfBase
 
 class SmurfTuneMixin(SmurfBase):
@@ -7,14 +8,23 @@ class SmurfTuneMixin(SmurfBase):
     '''
 
 
-    def find_frequencies(self, band, subband=np.array([63]), drive_power=10,
-        n_read=2):
+    def find_frequencies(self, band, subband=np.arange(13,115), drive_power=10,
+        n_read=2, make_plot=False, save_plot=True, save_name='find_freqs.png'):
         '''
+        Finds the resonances in a band (and specified subbands)
+
+        Args:
+        -----
+        band (int) : The band to search
 
         Optional Args:
         --------------
+        subband (int) : An int array for the subbands
         drive_power (int) : The drive amplitude
         n_read (int) : The number sweeps to do per subband
+        make_plot (bool) : make the plot frequency sweep. Default False.
+        save_plot (bool) : save the plot. Default True.
+        save_name (string) : What to name the plot. default find_freqs.png
         '''
 
         n_subbands = self.get_number_sub_bands(band)
@@ -23,6 +33,45 @@ class SmurfTuneMixin(SmurfBase):
         n_subchannels = n_channels / n_subbands # 16
 
         band_center = self.get_band_center_mhz(band)
+
+        f, resp = full_band_ampl_sweep(band, subband, drive_power, n_read)
+
+        if make_plot:
+            plot_find_frequencies(f, resp, save_plot=save_plot, 
+                save_name=save_name)
+
+        return f, resp
+
+    def plot_find_frequencies(self, f=None, resp=None, filename=None, 
+        save_plot=True, save_name='find_freqs.png'):
+        '''
+        Plots the response of the frequency sweep. Must input f and resp, or
+        give a path to a numpy file containing the data for offline plotting.
+
+        Optional Args:
+        --------------
+        save_plot (bool) : save the plot. Default True.
+        save_name (string) : What to name the plot. default find_freqs.png
+        '''
+        if (f is None or resp is None) or filename is None:
+            self.log('No input data or file given. Nothing to plot.')
+            return
+        else:
+            if filename is not None:
+                f, resp = np.load(filename)
+
+            import matplotlib.pyplot as plt
+            fig = plt.figure()
+
+            for sb in subband:
+                plt.plot(f[sb,:], np.abs(resp[sb,:]), color='k')
+            plt.title("findfreqs response")
+            plt.xlabel("Frequency offset from Subband Center (MHz)")
+            plt.ylabel("Normalized Amplitude")
+
+            if save_plot:
+                plt.savefig(os.path.join(self.plot_dir, save_name),
+                    bbox_inches='tight')
 
 
     def full_band_ampl_sweep(band, subband, drive, N_read):
@@ -124,5 +173,7 @@ class SmurfTuneMixin(SmurfBase):
 
             response[index] = Ielem + 1j*Qelem
 
+        if make_plot:
+            import matplotlib.pyplot as plt
 
         return response, freqs
