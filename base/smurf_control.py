@@ -28,7 +28,7 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin):
                 make_logfile=make_logfile, **kwargs)
 
     def initialize(self, cfg_file, data_dir=None, name=None, 
-        make_logfile=True, **kwargs):
+        make_logfile=True, output_dir_only=False, **kwargs):
         '''
         Initizializes SMuRF with desired parameters set in experiment.cfg.
         Largely stolen from a Cyndia/Shawns SmurfTune script
@@ -65,64 +65,65 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin):
         else:
             self.log.set_logfile(None)
 
-        self.log('Initializing...', self.LOG_USER)
+        if not output_dir_only:
+            self.log('Initializing...', self.LOG_USER)
 
-        self.set_defaults_pv()
+            self.set_defaults_pv()
 
-        # The per band configs. May want to make available per-band values.
-        smurf_init_config = self.config.get('init')
-        bands = smurf_init_config['bands']
-        for b in bands:
-            self.set_iq_swap_in(b, smurf_init_config['iqSwapIn'], 
-                write_log=True, **kwargs)
-            self.set_iq_swap_out(b, smurf_init_config['iqSwapOut'], 
-                write_log=True, **kwargs)
-            self.set_ref_phase_delay(b, smurf_init_config['refPhaseDelay'], 
-                write_log=True, **kwargs)
-            self.set_ref_phase_delay_fine(b, 
-                smurf_init_config['refPhaseDelayFine'], write_log=True, 
-                **kwargs)
-            self.set_tone_scale(b, smurf_init_config['toneScale'], 
-                write_log=True, **kwargs)
-            self.set_analysis_scale(b, smurf_init_config['analysisScale'], 
-                write_log=True, **kwargs)
-            self.set_feedback_enable(b, smurf_init_config['feedbackEnable'],
-                write_log=True, **kwargs)
-            self.set_feedback_gain(b, smurf_init_config['feedbackGain'], 
-                write_log=True, **kwargs)
-            self.set_lms_gain(b, smurf_init_config['lmsGain'], write_log=True,
-                **kwargs)
-            self.set_feedback_polarity(b, smurf_init_config['feedbackPolarity'], 
-                write_log=True, **kwargs)
-            self.set_band_center_mhz(b, smurf_init_config['bandCenterMHz'],
-                write_log=True, **kwargs)
-            self.set_synthesis_scale(b, smurf_init_config['synthesisScale'],
-                write_log=True, **kwargs)
-            self.set_dsp_enable(b, smurf_init_config['dspEnable'], 
-                write_log=True, **kwargs)
+            # The per band configs. May want to make available per-band values.
+            smurf_init_config = self.config.get('init')
+            bands = smurf_init_config['bands']
+            for b in bands:
+                self.set_iq_swap_in(b, smurf_init_config['iqSwapIn'], 
+                    write_log=True, **kwargs)
+                self.set_iq_swap_out(b, smurf_init_config['iqSwapOut'], 
+                    write_log=True, **kwargs)
+                self.set_ref_phase_delay(b, smurf_init_config['refPhaseDelay'], 
+                    write_log=True, **kwargs)
+                self.set_ref_phase_delay_fine(b, 
+                    smurf_init_config['refPhaseDelayFine'], write_log=True, 
+                    **kwargs)
+                self.set_tone_scale(b, smurf_init_config['toneScale'], 
+                    write_log=True, **kwargs)
+                self.set_analysis_scale(b, smurf_init_config['analysisScale'], 
+                    write_log=True, **kwargs)
+                self.set_feedback_enable(b, smurf_init_config['feedbackEnable'],
+                    write_log=True, **kwargs)
+                self.set_feedback_gain(b, smurf_init_config['feedbackGain'], 
+                    write_log=True, **kwargs)
+                self.set_lms_gain(b, smurf_init_config['lmsGain'], write_log=True,
+                    **kwargs)
+                self.set_feedback_polarity(b, smurf_init_config['feedbackPolarity'], 
+                    write_log=True, **kwargs)
+                self.set_band_center_mhz(b, smurf_init_config['bandCenterMHz'],
+                    write_log=True, **kwargs)
+                self.set_synthesis_scale(b, smurf_init_config['synthesisScale'],
+                    write_log=True, **kwargs)
+                self.set_dsp_enable(b, smurf_init_config['dspEnable'], 
+                    write_log=True, **kwargs)
 
-            # This should be part of exp.cfg
-            if b == 2:
-                self.set_data_out_mux(6, "UserData", write_log=True, **kwargs)
-                self.set_data_out_mux(7, "UserData", write_log=True, **kwargs)
-                self.set_iq_swap_in(b, 1, write_log=True, **kwargs)
-                self.set_iq_swap_out(b, 0, write_log=True, **kwargs)
-            elif b ==3 :
-                self.set_data_out_mux(8, "UserData", write_log=True, **kwargs)
-                self.set_data_out_mux(9, "UserData", write_log=True, **kwargs)
-                self.set_iq_swap_in(b, 0, write_log=True, **kwargs)
-                self.set_iq_swap_out(b, 0, write_log=True, **kwargs)
+                # This should be part of exp.cfg
+                if b == 2:
+                    self.set_data_out_mux(6, "UserData", write_log=True, **kwargs)
+                    self.set_data_out_mux(7, "UserData", write_log=True, **kwargs)
+                    self.set_iq_swap_in(b, 1, write_log=True, **kwargs)
+                    self.set_iq_swap_out(b, 0, write_log=True, **kwargs)
+                elif b ==3 :
+                    self.set_data_out_mux(8, "UserData", write_log=True, **kwargs)
+                    self.set_data_out_mux(9, "UserData", write_log=True, **kwargs)
+                    self.set_iq_swap_in(b, 0, write_log=True, **kwargs)
+                    self.set_iq_swap_out(b, 0, write_log=True, **kwargs)
 
-            # Make band dictionaries
-            self.frequency_resp[band] = {}
+                # Make band dictionaries
+                self.frequency_resp[band] = {}
 
-        self.set_jesd_link_disable(1)
-        self.set_jesd_link_disable(0)
+            self.set_jesd_link_disable(1)
+            self.set_jesd_link_disable(0)
 
-        self.set_remap()
-        self.reset_rtm()
-        self.set_dac_enable(0, 1)
-        self.set_dac_enable(1, 1)
+            self.set_remap()
+            self.reset_rtm()
+            self.set_dac_enable(0, 1)
+            self.set_dac_enable(1, 1)
 
     def make_dir(self, directory):
         """check if a directory exists; if not, make it
