@@ -26,6 +26,46 @@ class SmurfUtilMixin(SmurfBase):
         self.set_feedback_enable_array(band, np.zeros(512, dtype=int), **kwargs)
         self.set_cfg_reg_ena_bit(0, wait_after=.11, **kwargs)
 
+
+    def get_fpga_status(self):
+        '''
+        Loads FPGA status checks if JESD is ok.
+
+        Returns:
+        ret (dict) : A dictionary containing uptime, fpga_version, git_hash,
+            build_stamp, jesd_tx_enable, and jesd_tx_valid
+        '''
+        uptime = self.get_fpga_uptime()
+        fpga_version = self.get_fpga_version()
+        git_hash = self.get_fpga_git_hash()
+        build_stamp = self.get_fpga_build_stamp()
+
+        git_hash = ''.join([chr(y) for y in git_hash]) # convert from int to ascii
+        build_stamp = ''.join([chr(y) for y in build_stamp])
+
+        self.log("Build stamp: " + str(build_stamp) + "\n", self.LOG_USER)
+        self.log("FPGA version: Ox" + str(fpga_version) + "\n", self.LOG_USER)
+        self.log("FPGA uptime: " + str(uptime) + "\n", self.LOG_USER)
+
+        jesd_tx_enable = self.get_jesd_tx_enable()
+        jesd_tx_valid = self.get_jesd_tx_data_valid()
+        if jesd_tx_enable != jesd_tx_valid:
+            self.log("JESD Tx DOWN", self.LOG_USER)
+        else:
+            self.log("JESD Tx Okay", self.LOG_USER)
+
+        # dict containing all values
+        ret = {
+            'uptime' : uptime,
+            'fpga_version' : fpga_version,
+            'git_hash' : git_hash,
+            'build_stamp' : build_stamp,
+            'jesd_tx_enable' : jesd_tx_enable,
+            'jesd_tx_valid' : jesd_tx_valid
+        }
+
+        return ret
+
     def freq_to_subband(self, freq, band_center, subband_order):
         '''Look up subband number of a channel frequency
 
@@ -160,7 +200,7 @@ class SmurfUtilMixin(SmurfBase):
         subband = idx // n_chanpersubband
         return int(subband)
 
-    def get_subband_centers(self, band, asOffset = False):
+    def get_subband_centers(self, band, asOffset=False):
         """ returns frequency in MHz of subband centers
         Args:
          band (int): which band

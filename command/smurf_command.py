@@ -195,7 +195,7 @@ class SmurfCommandMixin(SmurfBase):
     def get_amplitude_scales(self, band, **kwargs):
         '''
         '''
-        return self._caput(self._cryo_root(band) + self._amplitude_scales,
+        return self._caget(self._cryo_root(band) + self._amplitude_scales,
             **kwargs)
 
     _amplitude_scale_array = 'amplitudeScaleArray'
@@ -511,13 +511,13 @@ class SmurfCommandMixin(SmurfBase):
     def set_data_out_mux(self, b, val, **kwargs):
         '''
         '''
-        self._caput(self.jesd_root + 
+        self._caput(self.jesd_tx_root + 
             self._data_out_mux.format(b), val, **kwargs)
 
     def get_data_out_mux(self, b, **kwargs):
         '''
         '''
-        return self._caget(self.jesd_root + self._data_out_mux.format(b), val, 
+        return self._caget(self.jesd_tx_root + self._data_out_mux.format(b), val, 
             **kwargs)
 
     _link_disable = 'LINK_DISABLE'
@@ -525,14 +525,56 @@ class SmurfCommandMixin(SmurfBase):
         '''
         Disables jesd link
         '''
-        self._caput(self.jesd_root_rx + self._link_disable, val, **kwargs)
+        self._caput(self.jesd_rx_root + self._link_disable, val, **kwargs)
 
     def get_jesd_link_disable(self, **kwargs):
         '''
         Disables jesd link
         '''
-        return self._caget(self.jesd_root_rx + self._link_disable, val, 
+        return self._caget(self.jesd_rx_root + self._link_disable, val, 
             **kwargs)
+
+    _jesd_tx_enable = 'Enable'
+    def get_jesd_tx_enable(self, **kwargs):
+        '''
+        '''
+        return self._caget(self.jesd_tx_root + self._jesd_tx_enable, **kwargs)
+
+    _jesdtx_valid = 'DataValid'
+    def get_jesd_tx_data_valid(self, **kwargs):
+        return self._caget(self.jesd_tx_root + self._jesd_tx_enable, **kwargs)
+
+    _fpga_uptime = 'UpTimeCnt'
+    def get_fpga_uptime(self, **kwargs):
+        '''
+        Returns:
+        uptime (float) : The FPGA uptime
+        '''
+        return self._caget(self.axi_version + self._fpga_uptime, **kwargs)
+
+    _fpga_version = 'FpgaVersion'
+    def get_fpga_version(self, **kwargs):
+        '''
+        Returns:
+        version (str) : The FPGA version
+        '''
+        return self._caget(self.axi_version + self._fpga_version, **kwargs)
+
+    _fpga_git_hash = 'GitHash'
+    def get_fpga_git_hash(self, **kwargs):
+        '''
+        Returns:
+        git_hash (str) : The git has of the FPGA
+        '''
+        return self._caget(self.axi_version + self._fpga_git_hash, **kwargs)
+
+    _fpga_build_stamp = 'BuildStamp'
+    def get_fpga_build_stamp(self, **kwargs):
+        '''
+        Returns:
+        build_stamp (str) : The FPGA build stamp
+        '''
+        return self._caget(self.axi_version + self._fpga_build_stamp, **kwargs)
 
     # rtm commands
     _reset_rtm = 'resetRtm'
@@ -553,8 +595,46 @@ class SmurfCommandMixin(SmurfBase):
         '''
         return self._caget(self.rtm_spi_root + self._cfg_reg_ena_bit, **kwargs)
 
+    def flux_ramp_on(self, **kwargs):
+        '''
+        Turns on the flux ramp - a useful wrapper for set_cfg_reg_ena_bit
+        '''
+        self.set_reg_ena_bit(1, **kwargs)
 
+    def flux_ramp_off(self, **kwargs):
+        '''
+        Turns off the flux ramp - a useful wrapper for set_cfg_reg_ena_bit
+        '''
+        self.set_reg_ena_bit(0, **kwargs)
 
+    _hemt_v = 'HemtBiasDacCtrlRegCh[33]'
+    def set_hemt_v(self, val, override=False, **kwargs):
+        '''
+        Sets the HEMT voltage in units of bits. Need to figure out the
+        conversion into real units.
+
+        There is a hardcoded maximum value. If exceeded, no voltage is set. This
+        check can be ignored using the override optional argument.
+
+        Args:
+        -----
+        val (int) : The voltage in bits
+
+        Optional Args:
+        --------------
+        override (bool) : Allows exceeding the hardcoded limit. Default False.
+        '''
+        if val > 350E3 and not override:
+            self.log('Input voltage too high. Not doing anything.' + 
+                ' If you really want it higher, use the override optinal arg.')
+        else:
+            self._caput(self.rtm_spi_max_root + self._hemt_v, val, **kwargs)
+
+    def get_hemt_v(self, **kwargs):
+        '''
+        Returns the HEMT voltage in bits.
+        '''
+        return self._caget(self.rtm_spi_max_root + self._hemt_v, **kwargs)
 
 
 

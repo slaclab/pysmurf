@@ -42,15 +42,17 @@ class SmurfBase(object):
         self.sysgencryo = self.epics_root + \
             ':AMCc:FpgaTopLevel:AppTop:AppCore:SysgenCryo:'
         self.band_root = self.sysgencryo + 'Base[{}]:'
-        self.cryo_root = self.band_root + 'CryoChannels:'
         self.adc_root = self.sysgencryo + 'CryoAdcMux:'
+        self.cryo_root = self.band_root + 'CryoChannels:'
         self.dac_root = self.epics_root + \
             ':AMCc:FpgaTopLevel:AppTop:AppCore:MicrowaveMuxCore[0]:DAC[{}]:'
 
         # Tx -> DAC , Rx <- ADC
-        self.jesd_root = self.epics_root + \
+        self.axi_version = self.epics_root + \
+            ':AMCc:FpgaTopLevel:AmcCarrierCore:AxiVersion:'
+        self.jesd_tx_root = self.epics_root + \
             ':AMCc:FpgaTopLevel:AppTop:AppTopJesd[0]:JesdTx:'
-        self.jesd_root_rx = self.epics_root + \
+        self.jesd_rx_root = self.epics_root + \
             ':AMCc:FpgaTopLevel:AppTop:AppTopJesd[0]:JesdRx:'
 
         # RTM paths
@@ -58,6 +60,8 @@ class SmurfBase(object):
             ':AMCc:FpgaTopLevel:AppTop:AppCore:RtmCryoDet:'
         self.rtm_spi_root = self.rtm_cryo_det_root + \
             'RtmSpiSr:'
+        self.rtm_spi_max_root = self.rtm_cryo_det_root + \
+            'RtmSpiMax:'
 
     def init_log(self, verbose=0, logger=SmurfLogger, logfile=None,
                  log_timestamp=True, log_prefix=None, **kwargs):

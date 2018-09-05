@@ -62,6 +62,8 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin):
         if make_logfile:
             self.log_file = os.path.join(self.output_dir, name + '.log')
             self.log.set_logfile(self.log_file)
+        else:
+            self.log.set_logfile(None)
 
         self.log('Initializing...', self.LOG_USER)
 
