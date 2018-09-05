@@ -1,6 +1,8 @@
 import numpy as np
 import os
+import time
 from pysmurf.base import SmurfBase
+
 
 class SmurfTuneMixin(SmurfBase):
     '''
@@ -8,7 +10,7 @@ class SmurfTuneMixin(SmurfBase):
     '''
 
 
-    def find_frequencies(self, band, subband=np.arange(13,115), drive_power=10,
+    def find_freq(self, band, subband=np.arange(13,115), drive_power=10,
         n_read=2, make_plot=False, save_plot=True, save_name='find_freqs.png'):
         '''
         Finds the resonances in a band (and specified subbands)
@@ -37,16 +39,31 @@ class SmurfTuneMixin(SmurfBase):
         f, resp = full_band_ampl_sweep(band, subband, drive_power, n_read)
 
         if make_plot:
-            plot_find_frequencies(f, resp, save_plot=save_plot, 
+            plot_find_freq(f, resp, save_plot=save_plot, 
                 save_name=save_name)
+
+        timestamp = int(time.time())  # ignore fractional seconds
+
+        # Save data
+        save_name = '{}_find_freq.txt'.format(timestamp)
+        np.savetxt(os.path.join(self.output_dir, save_name), 
+            np.array([f, resp]))
+
+        self.freq_resp[band]['f'] = f
+        self.freq_resp[band]['resp'] = resp
+        if 'timestamp' in self.freq_resp[band]:
+            self.freq_resp[band]['timestamp'] = \
+                np.append(self.freq_resp[band]['timestamp'], timestamp)
+        else:
+            self.freq_resp[band]['timestamp'] = np.array([timestamp])
 
         return f, resp
 
-    def plot_find_frequencies(self, f=None, resp=None, filename=None, 
+    def plot_find_freq(self, f=None, resp=None, filename=None, 
         save_plot=True, save_name='find_freqs.png'):
         '''
         Plots the response of the frequency sweep. Must input f and resp, or
-        give a path to a numpy file containing the data for offline plotting.
+        give a path to a text file containing the data for offline plotting.
 
         Optional Args:
         --------------

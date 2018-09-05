@@ -63,6 +63,8 @@ class SmurfBase(object):
         self.rtm_spi_max_root = self.rtm_cryo_det_root + \
             'RtmSpiMax:'
 
+        self.freq_resp = {}
+
     def init_log(self, verbose=0, logger=SmurfLogger, logfile=None,
                  log_timestamp=True, log_prefix=None, **kwargs):
         """

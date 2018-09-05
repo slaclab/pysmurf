@@ -113,6 +113,9 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin):
                 self.set_iq_swap_in(b, 0, write_log=True, **kwargs)
                 self.set_iq_swap_out(b, 0, write_log=True, **kwargs)
 
+            # Make band dictionaries
+            self.frequency_resp[band] = {}
+
         self.set_jesd_link_disable(1)
         self.set_jesd_link_disable(0)
 
