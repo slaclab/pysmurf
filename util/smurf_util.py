@@ -97,7 +97,7 @@ class SmurfUtilMixin(SmurfBase):
         
         return subband_no, offset
 
-    def get_channel_order(self, channelorderfile=None):
+    def get_channel_order(self, channel_orderfile=None):
         ''' produces order of channels from a user-supplied input file
 
 

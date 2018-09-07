@@ -110,13 +110,13 @@ class SmurfCommandMixin(SmurfBase):
         self.log('Defaults are set.', self.LOG_INFO)
 
     _eta_scan_freqs = 'etaScanFreqs'
-    def set_eta_scan_freqs(self, band, val, **kwargs):
+    def set_eta_scan_freq(self, band, val, **kwargs):
         '''
         '''
         self._caput(self._cryo_root(band) + self._eta_scan_freqs, val, 
             **kwargs)
 
-    def get_eta_scan_freqs(self, band, **kwargs):
+    def get_eta_scan_freq(self, band, **kwargs):
         '''
         '''
         return self._caget(self._cryo_root(band) + self._eta_scan_freqs, 
@@ -171,11 +171,11 @@ class SmurfCommandMixin(SmurfBase):
         '''
         return self._caget(self._cryo_root(band) + self._run_eta_scan, **kwargs)    
 
-    _eta_scan_results_real = 'eteaScanResultsReal'
+    _eta_scan_results_real = 'etaScanResultsReal'
     def get_eta_scan_results_real(self, band, count, **kwargs):
         '''
         '''
-        return self._caget(self._cryo_root(band) + self._eta_scan_result_real,
+        return self._caget(self._cryo_root(band) + self._eta_scan_results_real,
             count=count, **kwargs)
 
     _eta_scan_results_imag = 'etaScanResultsImag'
@@ -540,7 +540,7 @@ class SmurfCommandMixin(SmurfBase):
         '''
         return self._caget(self.jesd_tx_root + self._jesd_tx_enable, **kwargs)
 
-    _jesdtx_valid = 'DataValid'
+    _jesd_tx_valid = 'DataValid'
     def get_jesd_tx_data_valid(self, **kwargs):
         return self._caget(self.jesd_tx_root + self._jesd_tx_enable, **kwargs)
 

@@ -65,6 +65,9 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin):
         else:
             self.log.set_logfile(None)
 
+        # Dictionary for frequency response
+        self.freq_resp = {}
+
         if not output_dir_only:
             self.log('Initializing...', self.LOG_USER)
 
@@ -115,7 +118,7 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin):
                     self.set_iq_swap_out(b, 0, write_log=True, **kwargs)
 
                 # Make band dictionaries
-                self.frequency_resp[band] = {}
+                self.freq_resp[b] = {}
 
             self.set_jesd_link_disable(1)
             self.set_jesd_link_disable(0)

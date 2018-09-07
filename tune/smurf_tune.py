@@ -9,7 +9,6 @@ class SmurfTuneMixin(SmurfBase):
     This contains all the tuning scripts
     '''
 
-
     def find_freq(self, band, subband=np.arange(13,115), drive_power=10,
         n_read=2, make_plot=False, save_plot=True):
         '''
@@ -26,9 +25,9 @@ class SmurfTuneMixin(SmurfBase):
         n_read (int) : The number sweeps to do per subband
         make_plot (bool) : make the plot frequency sweep. Default False.
         save_plot (bool) : save the plot. Default True.
-        save_name (string) : What to name the plot. default find_freqs.png
+        save_name (string) : What to name the plot. default find_freq.png
         '''
-        f, resp = full_band_ampl_sweep(band, subband, drive_power, n_read)
+        f, resp = self.full_band_ampl_sweep(band, subband, drive_power, n_read)
 
         timestamp = int(time.time())  # ignore fractional seconds
 
@@ -39,7 +38,7 @@ class SmurfTuneMixin(SmurfBase):
         np.savetxt(os.path.join(self.output_dir, 
             save_name.format(timestamp, 'resp')), resp)
 
-        # Place in dictionary
+        # Place in dictionary - dictionary declared in smurf_control
         self.freq_resp[band]['subband'] = subband
         self.freq_resp[band]['f'] = f
         self.freq_resp[band]['resp'] = resp
@@ -50,13 +49,18 @@ class SmurfTuneMixin(SmurfBase):
             self.freq_resp[band]['timestamp'] = np.array([timestamp])
 
         # Find resonances
-        res_freq = self.find_all_peaks(self.freq_resp[band]['f'],
+        res_freq = self.find_all_peak(self.freq_resp[band]['f'],
             self.freq_resp[band]['resp'], subband)
         self.freq_resp[band]['resonance'] = res_freq
 
+        # Save resonances
+        np.savetxt(os.path.join(self.output_dir,
+            save_name.format(timestamp, 'resonance')), 
+            self.freq_resp[band]['resonance'])
+
         # Call plotting
         if make_plot:
-            plot_find_freq(self.freq_resp[band]['f'], 
+            self.plot_find_freq(self.freq_resp[band]['f'], 
                 self.freq_resp[band]['resp'], save_plot=save_plot, 
                 save_name=save_name.replace('.txt', '.png').format(timestamp,
                     band))
@@ -75,7 +79,7 @@ class SmurfTuneMixin(SmurfBase):
         Optional Args:
         --------------
         save_plot (bool) : save the plot. Default True.
-        save_name (string) : What to name the plot. default find_freqs.png
+        save_name (string) : What to name the plot. default find_freq.png
         '''
         if subband is None:
             subband = np.arange(128)
@@ -96,7 +100,7 @@ class SmurfTuneMixin(SmurfBase):
                 color = cm(float(i)/len(subband)/2. + .5*(i%2))
                 plt.plot(f[sb,:], np.abs(resp[sb,:]), '.', markersize=4, 
                     color=color)
-            plt.title("findfreqs response")
+            plt.title("findfreq response")
             plt.xlabel("Frequency offset (MHz)")
             plt.ylabel("Normalized Amplitude")
 
@@ -105,7 +109,7 @@ class SmurfTuneMixin(SmurfBase):
                     bbox_inches='tight')
 
 
-    def full_band_ampl_sweep(band, subband, drive, N_read):
+    def full_band_ampl_sweep(self, band, subband, drive, N_read):
         """sweep a full band in amplitude, for finding frequencies
 
         args:
@@ -117,8 +121,8 @@ class SmurfTuneMixin(SmurfBase):
 
         returns:
         --------
-            freqs (list, n_freqs x 1) = frequencies swept
-            resp (array, n_freqs x 2) = complex response
+            freq (list, n_freq x 1) = frequencies swept
+            resp (array, n_freq x 2) = complex response
         """
 
         digitizer_freq = self.get_digitizer_frequency_mhz(band)  # in MHz
@@ -128,23 +132,23 @@ class SmurfTuneMixin(SmurfBase):
 
         subband_width = 2 * digitizer_freq / n_subbands
 
-        scan_freqs = np.arange(-3, 3.1, 0.1) # take out this hardcode
+        scan_freq = np.arange(-3, 3.1, 0.1) # take out this hardcode
 
-        resp = np.zeros((n_subbands, np.shape(scan_freqs)[0]), dtype=complex)
-        freqs = np.zeros((n_subbands, np.shape(scan_freqs)[0]))
+        resp = np.zeros((n_subbands, np.shape(scan_freq)[0]), dtype=complex)
+        freq = np.zeros((n_subbands, np.shape(scan_freq)[0]))
 
-        subband_nos, subband_centers = get_subband_centers(band)
+        subband_nos, subband_centers = self.get_subband_centers(band)
 
         self.log('Working on band {:d}'.format(band), self.LOG_INFO)
-        for subband in subbands:
-            self.log('sweeping subband no: {}'.format(subband), self.LOG_INFO)
-            r, f = fast_eta_scan(band, subband, scan_freqs, N_read, 
+        for sb in subband:
+            self.log('sweeping subband no: {}'.format(sb), self.LOG_INFO)
+            r, f = self.fast_eta_scan(band, sb, scan_freq, N_read, 
                 drive)
-            resp[subband,:] = r
-            freqs[subband,:] = f
-            freqs[subband,:] = scan_freqs + \
-                subband_centers[subband_nos.index(subband)]
-        return freqs, resp
+            resp[sb,:] = r
+            freq[sb,:] = f
+            freq[sb,:] = scan_freq + \
+                subband_centers[subband_nos.index(sb)]
+        return freq, resp
 
 
     def peak_finder(self, x, y, threshold):
@@ -192,7 +196,7 @@ class SmurfTuneMixin(SmurfBase):
 
         Args:
         -----
-        freqs (vector): should be a single row of the broader freqs array
+        freq (vector): should be a single row of the broader freq array
         response (complex vector): complex response for just this subband
 
         Optional Args:
@@ -301,8 +305,8 @@ class SmurfTuneMixin(SmurfBase):
 
         Args:
         -----
-        freqs (array):  (n_subbands x n_freqs_swept) array of frequencies swept
-        response (complex array): n_subbands x n_freqs_swept array of complex 
+        freq (array):  (n_subbands x n_freq_swept) array of frequencies swept
+        response (complex array): n_subbands x n_freq_swept array of complex 
             response
         subbands (list of ints): subbands that we care to search in
 
@@ -334,15 +338,15 @@ class SmurfTuneMixin(SmurfBase):
         res = np.vstack((peaks, subbands))
         return res
 
-    def fast_eta_scan(self, band, subband, freqs, n_read, drive, 
+    def fast_eta_scan(self, band, subband, freq, n_read, drive, 
         make_plot=False):
         """copy of fastEtaScan.m from Matlab. Sweeps quickly across a range of
-        freqs and gets I, Q response
+        freq and gets I, Q response
 
         Args:
          band (int): which 500MHz band to scan
          subband (int): which subband to scan
-         freqs (n_freqs x 1 array): frequencies to scan relative to subband 
+         freq (n_freq x 1 array): frequencies to scan relative to subband 
             center
          n_read (int): number of times to scan
          drive (int): tone power
@@ -351,9 +355,9 @@ class SmurfTuneMixin(SmurfBase):
         make_plot (bool): Make eta plots
 
         Outputs:
-         resp (n_freqs x 2 array): real, imag response as a function of 
+         resp (n_freq x 2 array): real, imag response as a function of 
             frequency
-         freqs (n_freqs x n_read array): frequencies scanned, relative to 
+         freq (n_freq x n_read array): frequencies scanned, relative to 
             subband center
         """
         n_subbands = self.get_number_sub_bands(band)
@@ -365,21 +369,21 @@ class SmurfTuneMixin(SmurfBase):
         first_channel_per_subband = channel_order[0::channels_per_subband]
         subchan = first_channel_per_subband[subband]
 
-        self.set_eta_scan_freqs(band, freqs)
+        self.set_eta_scan_freq(band, freq)
         self.set_eta_scan_amplitude(band, drive)
         self.set_eta_scan_channel(band, subchan)
         self.set_eta_scan_dwell(band, 0)
 
         self.set_run_eta_scan(band, 1)
 
-        I = self.get_eta_scan_results_real(band, count=len(freqs))
-        Q = self.get_eta_scan_results_imag(band, count=len(freqs))
+        I = self.get_eta_scan_results_real(band, count=len(freq))
+        Q = self.get_eta_scan_results_imag(band, count=len(freq))
 
-        band_off(epics_root, band)
+        self.band_off(band)
 
-        response = np.zeros((len(freqs), ), dtype=complex)
+        response = np.zeros((len(freq), ), dtype=complex)
 
-        for index in range(len(freqs)):
+        for index in range(len(freq)):
             Ielem = I[index]
             Qelem = Q[index]
             if Ielem > 2**23:
@@ -394,5 +398,53 @@ class SmurfTuneMixin(SmurfBase):
 
         if make_plot:
             import matplotlib.pyplot as plt
+            # To do : make plotting
 
-        return response, freqs
+        return freq, response
+
+    def setup_notches(self, band, resonance=None, drive=10, sweep_width=.3, 
+        sweep_df=.005):
+        """
+
+        Args:
+        -----
+        band (int) : The 500 MHz band to setup.
+
+        Optional Args:
+        --------------
+        resonance (float array) : A 2 dimensional array with resonance 
+            frequencies and the subband they are in. If given, this will take 
+            precedent over the one in self.freq_resp.
+        drive (int) : The power to drive the resonators. Default 10.
+        sweep_width (float) : The range to scan around the input resonance in
+            units of MHz. Default .3
+        sweep_df (float) : The sweep step size in MHz. Default .005
+
+        Returns:
+        --------
+
+        """
+
+        # Check if any resonances are stored
+        if 'resonance' not in self.freq_resp[band] and resonance is None:
+            self.log('No resonances stored in band {}'.format(band) +
+                '. Run find_freq first.', self.LOG_ERROR)
+            return
+
+        if resonance is not None:
+            input_res = resonance[0,:]
+            input_subband = resonance[1,:]
+        else:
+            input_res = self.freq_resp[band]['resonance'][0]
+            input_subband = self.freq_resp[band]['resonance'][1]
+
+        n_subbands = self.get_number_sub_bands(band)
+        n_channels = self.get_number_channels(band)
+        n_subchannels = n_channels / n_subbands
+
+        # Loop over inputs and do eta scans
+        for i, (f, sb) in enumerate(zip(input_res, input_subband)):
+            freq, res = fast_eta_scan(band, sb)
+
+
+
