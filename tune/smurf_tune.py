@@ -132,7 +132,7 @@ class SmurfTuneMixin(SmurfBase):
 
         subband_width = 2 * digitizer_freq / n_subbands
 
-        scan_freq = np.arange(-3, 3.1, 0.1) # take out this hardcode
+        scan_freq = np.arange(-3, 3.1, 0.1)  # take out this hardcode
 
         resp = np.zeros((n_subbands, np.shape(scan_freq)[0]), dtype=complex)
         freq = np.zeros((n_subbands, np.shape(scan_freq)[0]))
@@ -142,7 +142,7 @@ class SmurfTuneMixin(SmurfBase):
         self.log('Working on band {:d}'.format(band), self.LOG_INFO)
         for sb in subband:
             self.log('sweeping subband no: {}'.format(sb), self.LOG_INFO)
-            r, f = self.fast_eta_scan(band, sb, scan_freq, N_read, 
+            f, r = self.fast_eta_scan(band, sb, scan_freq, N_read, 
                 drive)
             resp[sb,:] = r
             freq[sb,:] = f
@@ -249,7 +249,7 @@ class SmurfTuneMixin(SmurfBase):
 
         import scipy.signal as signal
         peak_ind, props = signal.find_peaks(-np.abs(resp), distance=10, 
-            prominence=.05)
+            prominence=.025)
 
         if make_plot:
             self.plot_find_peak(freq, resp_input, peak_ind, save_plot=save_plot,

@@ -77,6 +77,8 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin):
             smurf_init_config = self.config.get('init')
             bands = smurf_init_config['bands']
             for b in bands:
+                self.set_feedback_limit_khz(b, 225)  # why 225?
+
                 self.set_iq_swap_in(b, smurf_init_config['iqSwapIn'], 
                     write_log=True, **kwargs)
                 self.set_iq_swap_out(b, smurf_init_config['iqSwapOut'], 
@@ -98,11 +100,9 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin):
                     write_log=True, **kwargs)
                 self.set_feedback_polarity(b, smurf_init_config['feedbackPolarity'], 
                     write_log=True, **kwargs)
-                self.set_band_center_mhz(b, smurf_init_config['bandCenterMHz'],
-                    write_log=True, **kwargs)
+                # self.set_band_center_mhz(b, smurf_init_config['bandCenterMHz'],
+                #     write_log=True, **kwargs)
                 self.set_synthesis_scale(b, smurf_init_config['synthesisScale'],
-                    write_log=True, **kwargs)
-                self.set_dsp_enable(b, smurf_init_config['dspEnable'], 
                     write_log=True, **kwargs)
 
                 # This should be part of exp.cfg
@@ -121,19 +121,15 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin):
                     self.set_iq_swap_in(b, 0, write_log=True, **kwargs)
                     self.set_iq_swap_out(b, 0, write_log=True, **kwargs)
 
+                self.set_dsp_enable(b, smurf_init_config['dspEnable'], 
+                    write_log=True, **kwargs)
+
                 # Make band dictionaries
                 self.freq_resp[b] = {}
 
-            # self.set_jesd_link_disable(1)
-            # self.set_jesd_link_disable(0)
-
-            # self.set_remap()
             self.cpld_reset(0, write_log=True)
-            # self.reset_rtm()
-            # self.set_dac_enable(0, 1)
-            # self.set_dac_enable(1, 1)
 
-            for i in xrange(1,5):
+            for i in np.arange(1,5):
                 self.set_att_uc(i, 0, write_log=True)
                 self.set_att_dc(i, 0, write_log=True)
 

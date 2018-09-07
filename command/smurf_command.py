@@ -409,6 +409,17 @@ class SmurfCommandMixin(SmurfBase):
         return self._caget(self._band_root(band) + self._feedback_gain, 
             **kwargs)
 
+    _feedback_limit = 'feedbackLimit'
+    def set_feedback_limit(self, band, val, **kwargs):
+        """
+        """
+        self._caput(self._band_root(band) + self._feedback_limit, val, **kwargs)
+
+    def get_feedback_limit(self, band, **kwargs):
+        """
+        """
+        return self._caget(self._band_root(band) + self._feedback_limit, **kwargs)
+
     _lms_gain = 'lmsGain'
     def set_lms_gain(self, band, val, **kwargs):
         '''
@@ -612,7 +623,7 @@ class SmurfCommandMixin(SmurfBase):
         self._caput(self.rtm_cryo_det_root + self._reset_rtm, 1, **kwargs)
 
     _cpld_reset = 'CpldReset'
-    def reset_rtm(self, val, **kwargs):
+    def cpld_reset(self, val, **kwargs):
         '''
         '''
         self._caput(self.rtm_cryo_det_root + self._cpld_reset, val, **kwargs)    

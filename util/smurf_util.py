@@ -27,6 +27,24 @@ class SmurfUtilMixin(SmurfBase):
         self.set_cfg_reg_ena_bit(0, wait_after=.11, **kwargs)
 
 
+    def set_feedback_limit_khz(self, band, feedback_limit_khz):
+        '''
+        '''
+        digitizer_freq_mhz = self.get_digitizer_frequency_mhz(band)
+        bandcenter = self.get_band_center_mhz(band)
+        n_subband = self.get_number_sub_bands(band)
+
+        subband_bandwidth = 2 * digitizer_freq_mhz / n_subband
+        desired_feedback_limit_mhz = feedback_limit_khz/1000.
+
+        if desired_feedback_limit_mhz > subband_bandwidth/2:
+            desired_feedback_limit_mhz = subband_bandwidth/2
+
+        desired_feedback_limit_dec = np.floor(desired_feedback_limit_mhz/
+            (subband_bandwidth/2.))
+
+
+
     def get_fpga_status(self):
         '''
         Loads FPGA status checks if JESD is ok.
@@ -210,13 +228,13 @@ class SmurfUtilMixin(SmurfBase):
 
         digitizerFrequencyMHz = self.get_digitizer_frequency_mhz(band)
         bandCenterMHz = self.get_band_center_mhz(band)
-        n_subbands = self.get_number_channels(band)
+        n_subbands = self.get_number_sub_bands(band)
 
         subband_width_MHz = 2 * digitizerFrequencyMHz / n_subbands
 
         subbands = list(range(n_subbands))
         subband_centers = (np.arange(1, n_subbands + 1) - n_subbands/2) * \
-                subband_width_MHz/2
+            subband_width_MHz/2
 
         return subbands, subband_centers
 
