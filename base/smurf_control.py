@@ -94,8 +94,8 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin):
                     write_log=True, **kwargs)
                 self.set_feedback_gain(b, smurf_init_config['feedbackGain'], 
                     write_log=True, **kwargs)
-                self.set_lms_gain(b, smurf_init_config['lmsGain'], write_log=True,
-                    **kwargs)
+                self.set_lms_gain(b, smurf_init_config['lmsGain'], 
+                    write_log=True, **kwargs)
                 self.set_feedback_polarity(b, smurf_init_config['feedbackPolarity'], 
                     write_log=True, **kwargs)
                 self.set_band_center_mhz(b, smurf_init_config['bandCenterMHz'],
@@ -107,26 +107,35 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin):
 
                 # This should be part of exp.cfg
                 if b == 2:
-                    self.set_data_out_mux(6, "UserData", write_log=True, **kwargs)
-                    self.set_data_out_mux(7, "UserData", write_log=True, **kwargs)
+                    self.set_data_out_mux(6, "UserData", write_log=True, 
+                        **kwargs)
+                    self.set_data_out_mux(7, "UserData", write_log=True, 
+                        **kwargs)
                     self.set_iq_swap_in(b, 1, write_log=True, **kwargs)
                     self.set_iq_swap_out(b, 0, write_log=True, **kwargs)
                 elif b ==3 :
-                    self.set_data_out_mux(8, "UserData", write_log=True, **kwargs)
-                    self.set_data_out_mux(9, "UserData", write_log=True, **kwargs)
+                    self.set_data_out_mux(8, "UserData", write_log=True, 
+                        **kwargs)
+                    self.set_data_out_mux(9, "UserData", write_log=True, 
+                        **kwargs)
                     self.set_iq_swap_in(b, 0, write_log=True, **kwargs)
                     self.set_iq_swap_out(b, 0, write_log=True, **kwargs)
 
                 # Make band dictionaries
                 self.freq_resp[b] = {}
 
-            self.set_jesd_link_disable(1)
-            self.set_jesd_link_disable(0)
+            # self.set_jesd_link_disable(1)
+            # self.set_jesd_link_disable(0)
 
-            self.set_remap()
-            self.reset_rtm()
-            self.set_dac_enable(0, 1)
-            self.set_dac_enable(1, 1)
+            # self.set_remap()
+            self.cpld_reset(0, write_log=True)
+            # self.reset_rtm()
+            # self.set_dac_enable(0, 1)
+            # self.set_dac_enable(1, 1)
+
+            for i in xrange(1,5):
+                self.set_att_uc(i, 0, write_log=True)
+                self.set_att_dc(i, 0, write_log=True)
 
     def make_dir(self, directory):
         """check if a directory exists; if not, make it

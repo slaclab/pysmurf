@@ -227,7 +227,6 @@ class SmurfCommandMixin(SmurfBase):
         self._caput(self._cryo_root(band) + self._feedback_enable_array, val,
             **kwargs)
 
-
     def get_feedback_enable_array(self, band, **kwargs):
         '''
         Gets the array of feedbacks enables
@@ -484,6 +483,34 @@ class SmurfCommandMixin(SmurfBase):
         '''
         return self._caget(self._band_root(band) + self._dsp_enable, **kwargs)
 
+    # Attenuator
+    _uc = 'UC[{}]'
+    def set_att_uc(self, b, val, **kwargs):
+        '''
+        Set the upconverter attenuator
+        '''
+        self._caput(self.att_root + self._uc.format(int(b)), val, **kwargs)
+
+    def get_att_uc(self, b, **kwargs):
+        '''
+        Get the upconverter attenuator value
+        '''
+        return self._caget(self.att_root + self._uc.format(int(b)), **kwargs)
+
+
+    _dc = 'DC[{}]'
+    def set_att_dc(self, b, val, **kwargs):
+        '''
+        Set the down-converter attenuator
+        '''
+        self._caput(self.att_root + self._dc.format(int(b)), val, **kwargs)
+
+    def get_att_dc(self,b,  **kwargs):
+        '''
+        Get the down-converter attenuator value
+        '''
+        return self._caget(self.att_root + self._dc.format(int(b)), **kwargs)
+
     # ADC commands
     _adc_remap = "Remap[0]"  # Why is this hardcoded 0
     def set_remap(self, **kwargs):
@@ -583,6 +610,12 @@ class SmurfCommandMixin(SmurfBase):
         Resets the rear transition module (RTM)
         '''
         self._caput(self.rtm_cryo_det_root + self._reset_rtm, 1, **kwargs)
+
+    _cpld_reset = 'CpldReset'
+    def reset_rtm(self, val, **kwargs):
+        '''
+        '''
+        self._caput(self.rtm_cryo_det_root + self._cpld_reset, val, **kwargs)    
 
     _cfg_reg_ena_bit = 'CfgRegEnaBit'
     def set_cfg_reg_ena_bit(self, val, **kwargs):

@@ -46,6 +46,9 @@ class SmurfBase(object):
         self.cryo_root = self.band_root + 'CryoChannels:'
         self.dac_root = self.epics_root + \
             ':AMCc:FpgaTopLevel:AppTop:AppCore:MicrowaveMuxCore[0]:DAC[{}]:'
+        self.att_root = self.epics_root + \
+            ':AMCc:FpgaTopLevel:AppTop:AppCore:MicrowaveMuxCore[0]:ATT:'
+
 
         # Tx -> DAC , Rx <- ADC
         self.axi_version = self.epics_root + \
