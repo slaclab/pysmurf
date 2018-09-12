@@ -113,12 +113,24 @@ class SmurfCommandMixin(SmurfBase):
     _eta_scan_freqs = 'etaScanFreqs'
     def set_eta_scan_freq(self, band, val, **kwargs):
         '''
+        Sets the frequency to do the eta scan
+
+        Args:
+        -----
+        band (int) : The band to count
+        val (int) :  The frequency to scan
         '''
         self._caput(self._cryo_root(band) + self._eta_scan_freqs, val, 
             **kwargs)
 
     def get_eta_scan_freq(self, band, **kwargs):
         '''
+        Args:
+        -----
+        band (int): The band to count
+
+        Returns:
+        freq (int) : The frequency of the scan
         '''
         return self._caget(self._cryo_root(band) + self._eta_scan_freqs, 
             **kwargs)
@@ -320,11 +332,21 @@ class SmurfCommandMixin(SmurfBase):
     _filter_alpha = 'filterAlpha'
     def set_filter_alpha(self, band, val, **kwargs):
         '''
+        Coefficient for single pole low pass fitler before readout (when c
+        hannels are multiplexed, decimated)
+        y[n] = alpha*x[n] + (1 - alpha)*y[n-1]
+        matlab to visualize 
+        h = fvtool([alpha], [1 -(1-alpha)]); h.Fs = 2.4e6;
         '''
         self._caput(self._band_root(band) + self._filter_alpha, val, **kwargs)
 
     def get_filter_alpha(self, band, **kwargs):
         '''
+        Coefficient for single pole low pass fitler before readout (when 
+        channels are multiplexed, decimated)
+        y[n] = alpha*x[n] + (1 - alpha)*y[n-1]
+        matlab to visualize 
+        h = fvtool([alpha], [1 -(1-alpha)]); h.Fs = 2.4e6;
         '''
         return self._caget(self._band_root(band) + self._filter_alpha, **kwargs)
 
@@ -353,12 +375,16 @@ class SmurfCommandMixin(SmurfBase):
     _ref_phase_delay = 'refPhaseDelay'
     def set_ref_phase_delay(self, band, val, **kwargs):
         '''
+        Corrects for roundtrip cable delay
+        freqError = IQ * etaMag, rotated by etaPhase+refPhaseDelay
         '''
         self._caput(self._band_root(band) + self._ref_phase_delay, val, 
             **kwargs)
 
     def get_ref_phase_delay(self, band, **kwargs):
         '''
+        Corrects for roundtrip cable delay
+        freqError = IQ * etaMag, rotated by etaPhase+refPhaseDelay
         '''
         return self._caget(self._band_root(band) + self._ref_phase_delay, 
             **kwargs)
@@ -386,6 +412,54 @@ class SmurfCommandMixin(SmurfBase):
         '''
         '''
         return self._caget(self._band_root(band) + self._tone_scale, **kwargs)
+
+    _waveform_select = 'waveformSelect'
+    def set_waveform_select(self, band, val, **kwargs):
+        """
+        0x0 select DSP -> DAC
+        0x1 selects waveform table -> DAC (toneFile)
+        """
+        self._caput(self._band_root(band) + self._waveform_select, val, 
+            **kwargs)
+
+    def get_waveform_select(self, band, **kwargs):
+        """
+        0x0 select DSP -> DAC
+        0x1 selects waveform table -> DAC (toneFile)
+        """
+        return self._caget(self._band_root(band) + self._waveform_select, 
+            **kwargs)
+
+    _waveform_start = 'waveformStart'
+    def set_waveform_start(self, band, val, **kwargs):
+        """
+        0x1 enables waveform table
+        """
+        self._caput(self._band_root(band) + self._waveform_start, val, 
+            **kwargs)
+
+    def get_waveform_start(self, band, **kwargs):
+        """
+        0x1 enables waveform table
+        """
+        return self._caget(self._band_root(band) + self._waveform_start, 
+            **kwargs)    
+
+    _rf_enable = 'rfEnable'
+    def set_rf_enable(self, band, val, **kwargs):
+        """
+        0x0 output all 0s to DAC
+        0x1 enable output to DAC (from DSP or waveform table)
+        """
+        self._caput(self._band_root(band) + self._rf_enable, val, 
+            **kwargs)
+
+    def get_rf_enable(self, band, **kwargs):
+        """
+        0x0 output all 0s to DAC
+        0x1 enable output to DAC (from DSP or waveform table)
+        """
+        return self._caget(self._band_root(band) + self._rf_enable, **kwargs) 
 
     _analysis_scale = 'analysisScale'
     def set_analysis_scale(self, band, val, **kwargs):
@@ -427,13 +501,30 @@ class SmurfCommandMixin(SmurfBase):
     _feedback_limit = 'feedbackLimit'
     def set_feedback_limit(self, band, val, **kwargs):
         """
+        freq = centerFreq + feedbackFreq
+        abs(freq) < centerFreq + feedbackLimit
         """
         self._caput(self._band_root(band) + self._feedback_limit, val, **kwargs)
 
     def get_feedback_limit(self, band, **kwargs):
         """
+        freq = centerFreq + feedbackFreq
+        abs(freq) < centerFreq + feedbackLimit
         """
-        return self._caget(self._band_root(band) + self._feedback_limit, **kwargs)
+        return self._caget(self._band_root(band) + self._feedback_limit, 
+            **kwargs)
+
+    _lms_delay = 'lmsDelay'
+    def set_lms_delay(self, band, val, **kwargs):
+        """
+        Match system latency for LMS feedback (2.4MHz ticks)
+        """
+        self._caput(self.band_root(band) + self._lms_delay, val, **kwargs)
+
+    def get_lms_delay(self, band, **kwargs):
+        """
+        """
+        return self._caget(self.band_root(band) + self._lms_delay, **kwargs)
 
     _lms_gain = 'lmsGain'
     def set_lms_gain(self, band, val, **kwargs):
@@ -445,6 +536,102 @@ class SmurfCommandMixin(SmurfBase):
         '''
         '''
         return self._caget(self._band_root(band) + self._lms_gain, **kwargs)
+
+    _lms_rst_dly = 'lmsEnable1'
+    def set_lms_rst_dly(self, band, val, **kwargs):
+        """
+        Enable 1st harmonic tracking
+        """
+        self._caput(self.band_root(band) + self._lms_rst_dly, val, **kwargs)
+
+    def get_lms_rst_dly(self, band, **kwargs):
+        """
+        """
+        return self._caget(self.band_root(band) + self._lms_rst_dly, **kwargs)
+
+    _lms_enable2 = 'lmsEnable2'
+    def set_lms_enable2(self, band, val, **kwargs):
+        """
+        Enable 2nd harmonic tracking
+        """
+        self._caput(self.band_root(band) + self._lms_enable2, val, **kwargs)
+
+    def get_lms_enable2(self, band, **kwargs):
+        """
+        """
+        return self._caget(self.band_root(band) + self._lms_enable2, **kwargs)
+
+    _lms_enable3 = 'lmsEnable3'
+    def set_lms_enable3(self, band, val, **kwargs):
+        """
+        Enable 1st harmonic tracking
+        """
+        self._caput(self.band_root(band) + self._lms_enable3, val, **kwargs)
+
+    def get_lms_enable3(self, band, **kwargs):
+        """
+        """
+        return self._caget(self.band_root(band) + self._lms_enable3, **kwargs)
+
+    _lms_rst_dly = 'lmsRstDly'
+    def set_lms_rst_dly(self, band, val, **kwargs):
+        """
+        Disable feedback after reset (2.4MHz ticks)
+        """
+        self._caput(self.band_root(band) + self._lms_rst_dly, val, **kwargs)
+
+    def get_lms_rst_dly(self, band, **kwargs):
+        """
+        """
+        return self._caget(self.band_root(band) + self._lms_rst_dly, **kwargs)
+
+    _lms_freq = 'lmsFreq'
+    def set_lms_freq(self, band, val, **kwargs):
+        """
+        LMS frequency = flux ramp freq * nPhi0
+        """
+        self._caput(self.band_root(band) + self._lms_freq, val, **kwargs)
+
+    def get_lms_freq(self, band, **kwargs):
+        """
+        """
+        return self._caget(self.band_root(band) + self._lms_freq, **kwargs)
+
+    _lms_freq_hz = 'lmsFreqHz'
+    def set_lms_freq_hz(self, band, val, **kwargs):
+        """
+        LMS frequency = flux ramp freq * nPhi0
+        """
+        self._caput(self.band_root(band) + self._lms_freq_hz, val, **kwargs)
+
+    def get_lms_freq_hz(self, band, **kwargs):
+        """
+        """
+        return self._caget(self.band_root(band) + self._lms_freq_hz, **kwargs)
+
+    _lms_dly_fine = 'lmsDlyFine'
+    def set_lms_dly_fine(self, band, val, **kwargs):
+        """
+        fine delay control (38.4MHz ticks)
+        """
+        self._caput(self.band_root(band) + self._lms_dly_fine, val, **kwargs)
+
+    def get_lms_dly_fine(self, band, **kwargs):
+        """
+        """
+        return self._caget(self.band_root(band) + self._lms_dly_fine, **kwargs)
+
+    _lms_delay2 = 'lmsDelay2'
+    def set_lms_delay2(self, band, val, **kwargs):
+        """
+        delay DDS counter reset (307.2MHz ticks)
+        """
+        self._caput(self.band_root(band) + self._lms_delay2, val, **kwargs)
+
+    def get_lms_delay2(self, band, **kwargs):
+        """
+        """
+        return self._caget(self.band_root(band) + self._lms_delay2, **kwargs)
 
     _feedback_polarity = 'feedbackPolarity'
     def set_feedback_polarity(self, band, val, **kwargs):
@@ -570,8 +757,8 @@ class SmurfCommandMixin(SmurfBase):
     def get_data_out_mux(self, b, **kwargs):
         '''
         '''
-        return self._caget(self.jesd_tx_root + self._data_out_mux.format(b), val, 
-            **kwargs)
+        return self._caget(self.jesd_tx_root + self._data_out_mux.format(b), 
+            val, **kwargs)
 
     _link_disable = 'LINK_DISABLE'
     def set_jesd_link_disable(self, val, **kwargs):
@@ -698,6 +885,106 @@ class SmurfCommandMixin(SmurfBase):
         Returns flux ramp freq in units of Hz
         """
         return 3.0725E5/(self.get_ramp_max_cnt(self, **kwargs)+1)
+
+    _low_cycle = 'LowCycle'
+    def set_low_cylce(self, val, **kwargs):
+        """
+        CPLD's clock: low cycle duration (zero inclusive). 
+        Along with HighCycle, sets the frequency of the clock going to the RTM.
+        """
+        self._caput(self.rtm_cryo_det_root + self._low_cycle, val, **kwargs)
+    
+    def get_low_cylce(self, val, **kwargs):
+        """
+        CPLD's clock: low cycle duration (zero inclusive). 
+        Along with HighCycle, sets the frequency of the clock going to the RTM.
+        """
+        return self._caget(self.rtm_cryo_det_root + self._low_cycle, **kwargs)
+ 
+    _high_cycle = 'HighCycle'
+    def set_high_cylce(self, val, **kwargs):
+        """
+        CPLD's clock: high cycle duration (zero inclusive).
+        Along with LowCycle, sets the frequency of the clock going to the RTM.
+        """
+        self._caput(self.rtm_cryo_det_root + self._high_cycle, val, **kwargs)
+    
+    def get_high_cylce(self, val, **kwargs):
+        """
+        CPLD's clock: high cycle duration (zero inclusive).
+        Along with LowCycle, sets the frequency of the clock going to the RTM.
+        """
+        return self._caget(self.rtm_cryo_det_root + self._high_cycle, **kwargs)
+
+    _select_ramp = 'SelectRamp'
+    def set_select_ramp(self, val, **kwargs):
+        """
+        Select Ramp to the CPLD
+        0x1 = Fast flux Ramp
+        0x0 = Slow flux ramp
+        """
+        self._caput(self.rtm_cryo_det_root + self._select_ramp, val, **kwargs)
+
+    def get_select_ramp(self, **kwargs):
+        """
+        Select Ramp to the CPLD
+        0x1 = Fast flux Ramp
+        0x0 = Slow flux ramp
+        """
+        return self._caget(self.rtm_cryo_det_root + self._select_ramp, **kwargs)
+
+    _enable_ramp = 'EnabletRamp'
+    def set_enable_ramp(self, val, **kwargs):
+        """
+        Select Ramp to the CPLD
+        0x1 = Fast flux Ramp
+        0x0 = Slow flux ramp
+        """
+        self._caput(self.rtm_cryo_det_root + self._enable_ramp, val, **kwargs)
+
+    def get_enable_ramp(self, **kwargs):
+        """
+        Select Ramp to the CPLD
+        0x1 = Fast flux Ramp
+        0x0 = Slow flux ramp
+        """
+        return self._caget(self.rtm_cryo_det_root + self._enable_ramp, **kwargs)
+
+    _ramp_start_mode = 'RampStartMode'
+    def set_ramp_start_mode(self, val, **kwargs):
+        """
+        Select Ramp to the CPLD
+        0x1 = Fast flux Ramp
+        0x0 = Slow flux ramp
+        """
+        self._caput(self.rtm_cryo_det_root + self._ramp_start_mode, val, 
+            **kwargs)
+
+    def get_ramp_start_mode(self, **kwargs):
+        """
+        Select Ramp to the CPLD
+        0x1 = Fast flux Ramp
+        0x0 = Slow flux ramp
+        """
+        return self._caget(self.rtm_cryo_det_root + self._ramp_start_mode, 
+            **kwargs)
+
+    _pulse_width = 'PulseWidth'
+    def set_pulse_width(self, val, **kwargs):
+        """
+        Select Ramp to the CPLD
+        0x1 = Fast flux Ramp
+        0x0 = Slow flux ramp
+        """
+        self._caput(self.rtm_cryo_det_root + self._pulse_width, val, **kwargs)
+
+    def get_pulse_width(self, **kwargs):
+        """
+        Select Ramp to the CPLD
+        0x1 = Fast flux Ramp
+        0x0 = Slow flux ramp
+        """
+        return self._caget(self.rtm_cryo_det_root + self._pulse_width, **kwargs)
 
     _hemt_v = 'HemtBiasDacCtrlRegCh[33]'
     def set_hemt_v(self, val, override=False, **kwargs):
