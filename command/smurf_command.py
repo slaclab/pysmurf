@@ -103,6 +103,7 @@ class SmurfCommandMixin(SmurfBase):
 
     def set_defaults_pv(self, **kwargs):
         '''
+        Sets the default epics variables
         '''
         self._caput(self.epics_root + ':AMCc:setDefaults', 1, wait_after=5,
             **kwargs)
@@ -254,7 +255,7 @@ class SmurfCommandMixin(SmurfBase):
         self._caput(self._band_root(band) + self._single_channel_readout, val, 
             **kwargs)
 
-    def get_single_channel_readout(self, band):
+    def get_single_channel_readout(self, band, **kwargs):
         '''
 
         '''
@@ -277,6 +278,20 @@ class SmurfCommandMixin(SmurfBase):
         '''
         '''
         return self._caget(self._band_root(band) + self._single_channel_readout2, 
+            **kwargs)
+
+    _stream_enable = 'streamEnable'
+    def set_stream_enable(self, band, val, **kwargs):
+        """
+        Enable/disable streaming data
+        """
+        self._caput(self._band_root(band) + self._stream_enable, val, **kwargs)
+
+    def get_stream_enable(self, band, **kwargs):
+        """
+        Enable/disable streaming data
+        """
+        return self._caget(self._band_root(band) + self._stream_enable, 
             **kwargs)
 
     _iq_stream_enable = 'iqStreamEnable'
@@ -651,6 +666,39 @@ class SmurfCommandMixin(SmurfBase):
         '''
         self.set_reg_ena_bit(0, **kwargs)
 
+    _ramp_max_cnt = 'RampMaxCnt'
+    def set_ramp_max_cnt(self, val, **kwargs):
+        """
+        Internal Ramp's maximum count. Sets the trigger repetition rate. This
+        is effectively the flux ramp frequency.
+
+        RampMaxCnt = 307199 means flux ramp is 1kHz (307.2e6/(RampMaxCnt+1))
+        """
+        self._caput(self.rtm_cryo_det_root + self._ramp_max_cnt, val, **kwargs)
+
+    def get_ramp_max_cnt(self, **kwargs):
+        """
+        Internal Ramp's maximum count. Sets the trigger repetition rate. This
+        is effectively the flux ramp frequency.
+
+        RampMaxCnt = 307199 means flux ramp is 1kHz (307.2e6/(RampMaxCnt+1))
+        """
+        return self._caget(self.rtm_cryo_det_root + self._ramp_max_cnt, 
+            **kwargs)
+
+    def set_flux_ramp_freq(self, val, **kwargs):
+        """
+        Wrapper function for set_ramp_max_cnt. Takes input in Hz.
+        """
+        cnt = 3.072E5/float(val)-1
+        self.set_ramp_max_cnt(cnt, **kwargs)
+
+    def get_flux_ramp_freq(self, **kwargs):
+        """
+        Returns flux ramp freq in units of Hz
+        """
+        return 3.0725E5/(self.get_ramp_max_cnt(self, **kwargs)+1)
+
     _hemt_v = 'HemtBiasDacCtrlRegCh[33]'
     def set_hemt_v(self, val, override=False, **kwargs):
         '''
@@ -681,6 +729,33 @@ class SmurfCommandMixin(SmurfBase):
         return self._caget(self.rtm_spi_max_root + self._hemt_v, **kwargs)
 
 
+    _stream_datafile = 'dataFile'
+    def set_streaming_datafile(self, val, as_string=True, **kwargs):
+        """
+        """
+        if as_string:
+            val = [ord(x) for x in val]
+        self._caput(self.streaming_root + self._stream_datafile, val, **kwargs)
 
+    def get_streaming_datafile(self, as_string=True, **kwargs):
+        """
+        """
+        val = self._caget(self.streaming_root + self._stream_datafile, 
+            **kwargs)
+        if as_string:
+            val = ''.join([chr(x) for x in val])
+        return val
 
+    _streaming_file_open = 'open'
+    def set_streaming_file_open(self, val, **kwargs):
+        """
+        """
+        self._caput(self.streaming_root + self._streaming_file_open, val, 
+            **kwargs)
+
+    def get_streaming_file_open(self, **kwargs):
+        """
+        """
+        return self._caget(self.streaming_root + self._streaming_file_open,  
+            **kwargs)
 

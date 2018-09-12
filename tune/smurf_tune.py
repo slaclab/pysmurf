@@ -2,7 +2,7 @@ import numpy as np
 import os
 import time
 from pysmurf.base import SmurfBase
-
+from scipy import optimize
 
 class SmurfTuneMixin(SmurfBase):
     '''
@@ -90,7 +90,8 @@ class SmurfTuneMixin(SmurfBase):
             return
         else:
             if filename is not None:
-                f, resp = np.load(filename)
+                f = np.loadtxt(filename)
+                resp = np.genfromtxt(filename.replace('_freq', '_resp'))
 
             import matplotlib.pyplot as plt
             cm = plt.cm.get_cmap('viridis')
@@ -445,6 +446,76 @@ class SmurfTuneMixin(SmurfBase):
         # Loop over inputs and do eta scans
         for i, (f, sb) in enumerate(zip(input_res, input_subband)):
             freq, res = fast_eta_scan(band, sb)
+
+    def estimate_eta_parameter(self, freq, resp):
+        '''
+        Estimates the eta parameter.
+
+        Args:
+        -----
+        freq (float array) : The frequency of the eta scan
+        resp (imag array) : The response of the eta scan
+
+        Returns:
+        --------
+
+        '''
+        I = np.real(resp)
+        Q = np.imag(resp)
+
+        # Define helper functions
+        def calc_R(xc, yc):
+            """ 
+            calculate the distance of each 2D points from the center (xc, yc)
+            """
+            return np.sqrt((I-xc)**2 + (Q-yc)**2)
+
+        def f_2(c):
+            """
+            Calculate the algebraic distance between the data points and the 
+            mean circle centered at c=(xc, yc)
+            """
+            Ri = calc_R(*c)
+            return Ri - np.mean(Ri)
+
+        f = np.mean(I), np.mean(Q)
+        center_est, ier = optimize.leastsq(f_2, f)
+
+        I2, Q2 = center_est
+        Ri = calc_R(*center_est)
+        R = Ri.mean()
+        resid = np.sum((Ri - R)**2)
+
+        return I2, Q2, R, resid
+
+
+    def plot_eta_estimate(self, freq, resp, Ic=None, Qc=None, r=None):
+        """
+        """
+        import matplotlib.pyplot as plt
+
+        I = np.real(resp)
+        Q = np.imag(resp)
+
+        phase = np.unwrap(np.arctan2(I, Q))  # radians
+
+        fig, ax = plt.subplots(2, 2, figsize=(8,6))
+        ax[0,0].plot(freq, I, label='I')
+        ax[0,0].plot(freq, Q, label='Q')
+        ax[0,0].plot(freq, np.abs(resp), color='k', label='amp')
+        ax[0,0].legend()
+        ax[0,0].set_ylabel('Resp')
+
+        ax[0,1].plot(freq, np.rad2deg(phase), color='k')
+        ax[0,1].set_ylabel('Phase [deg]')
+
+        # IQ circle
+        ax[1,0].plot(I, Q, '.')
+        if Ic is not None and Qc is not None and r is not None:
+            i = np.arange(0,2*np.pi+.05, .05)
+            i_model = r*np.sin(i) + Ic
+            q_model = r*np.cos(i) + Qc
+            ax[1,0].plot(i_model, q_model, color='k')
 
 
 

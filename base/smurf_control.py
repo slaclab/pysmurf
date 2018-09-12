@@ -53,8 +53,9 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin):
         self.base_dir = os.path.abspath(self.data_dir)
 
         # create output and plot directories
-        self.output_dir = os.path.join(self.base_dir, name, 'outputs')
-        self.plot_dir = os.path.join(self.base_dir, name, 'plots')
+        self.output_dir = os.path.join(self.base_dir, self.date, name, 
+            'outputs')
+        self.plot_dir = os.path.join(self.base_dir, self.date, name, 'plots')
         self.make_dir(self.output_dir)
         self.make_dir(self.plot_dir)
 

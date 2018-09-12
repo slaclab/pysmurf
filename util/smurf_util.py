@@ -1,7 +1,58 @@
 import numpy as np
 from pysmurf.base import SmurfBase
+import time
+import os
 
 class SmurfUtilMixin(SmurfBase):
+
+    def take_debug_data(self, band, channel=None, single_channel_readout=1):
+        """
+        """
+        # Set proper single channel readout
+        if channel is not None:
+            if single_channel_readout == 1:
+                self.set_single_channel_readout(band, 1)
+                self.set_single_channel_readout2(band, 0)
+            elif single_channel-readout == 2:
+                self.set_single_channel_readout(band, 0)
+                self.set_single_channel_readout2(band, 1)
+            else:
+                self.log('single_channel_readout must be 1 or 2', 
+                    self.LOG_ERROR)
+                raise ValueError('single_channel_readout must be 1 or 2')
+
+
+    def stream_data_on(self, band):
+        """
+        Turns on streaming data on specified channel
+        """
+        # Check if flux ramp is non-zero
+        ramp_max_cnt = self.get_ramp_max_cnt()
+        if ramp_max_cnt == 0:
+            self.log('Flux ramp frequency is zero. Cannot take data.', 
+                self.LOG_ERROR)
+        else:
+            if self.get_single_channel_readout(band) and \
+                self.get_single_channel_readout2(band):
+                self.log('Streaming all channels on band {}'.format(band), 
+                    self.LOG_USER)
+
+            # Make the data file
+            timestamp = '%10i' % time.time()
+            data_filename = os.path.join(self.output_dir, timestamp)
+            self.log('Writing to file : {}'.format(data_filename), 
+                self.LOG_USER)
+            self.set_streaming_datafile(data_filename)
+            self.set_streaming_file_open(1)  # Open the file
+
+            self.set_stream_enable(band, 1, write_log=True)
+
+    def stream_data_off(self, band):
+        """
+        Turns off streaming data on specified band
+        """
+        self.set_stream_enable(band, 0)
+
 
     def which_on(self, band):
         '''

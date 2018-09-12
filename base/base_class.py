@@ -48,6 +48,8 @@ class SmurfBase(object):
             ':AMCc:FpgaTopLevel:AppTop:AppCore:MicrowaveMuxCore[0]:DAC[{}]:'
         self.att_root = self.epics_root + \
             ':AMCc:FpgaTopLevel:AppTop:AppCore:MicrowaveMuxCore[0]:ATT:'
+            
+        self.streaming_root = self.epics_root + ':AMCc:streamingInterface:'
 
 
         # Tx -> DAC , Rx <- ADC
