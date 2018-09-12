@@ -1120,9 +1120,12 @@ class SmurfCommandMixin(SmurfBase):
     _stream_datafile = 'dataFile'
     def set_streaming_datafile(self, val, as_string=True, **kwargs):
         """
+
         """
         if as_string:
             val = [ord(x) for x in val]
+            # must be exactly 300 elements long. Pad with trailing zeros
+            val = np.append(val, np.zeros(300-len(val), dtype=int))
         self._caput(self.streaming_root + self._stream_datafile, val, **kwargs)
 
     def get_streaming_datafile(self, as_string=True, **kwargs):

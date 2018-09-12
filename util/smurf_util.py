@@ -25,6 +25,14 @@ class SmurfUtilMixin(SmurfBase):
     def stream_data_on(self, band):
         """
         Turns on streaming data on specified channel
+
+        Args:
+        -----
+        band (int) : The band to stream data
+
+        Returns:
+        --------
+        data_filename (string): The fullpath to where the data is stored
         """
         # Check if flux ramp is non-zero
         ramp_max_cnt = self.get_ramp_max_cnt()
@@ -39,7 +47,7 @@ class SmurfUtilMixin(SmurfBase):
 
             # Make the data file
             timestamp = '%10i' % time.time()
-            data_filename = os.path.join(self.output_dir, timestamp)
+            data_filename = os.path.join(self.output_dir, timestamp+'.dat')
             self.log('Writing to file : {}'.format(data_filename), 
                 self.LOG_USER)
             self.set_streaming_datafile(data_filename)
@@ -47,11 +55,14 @@ class SmurfUtilMixin(SmurfBase):
 
             self.set_stream_enable(band, 1, write_log=True)
 
+            return data_filename
+
     def stream_data_off(self, band):
         """
         Turns off streaming data on specified band
         """
         self.set_stream_enable(band, 0)
+        self.set_streaming_file_open(0)  # Close the file
 
 
     def which_on(self, band):
