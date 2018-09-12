@@ -138,12 +138,27 @@ class SmurfCommandMixin(SmurfBase):
     _eta_scan_amplitude = 'etaScanAmplitude'
     def set_eta_scan_amplitude(self, band, val, **kwargs):
         '''
+        Sets the amplitude of the eta scan.
+
+        Args:
+        -----
+        band (int) : The band to set
+        val (in) : The eta scan amplitude. Typical value is 9 to 11.
         '''
         self._caput(self._cryo_root(band) + self._eta_scan_amplitude, val, 
             **kwargs)
 
     def get_eta_scan_amplitude(self, band, **kwargs):
         '''
+        Gets the amplitude of the eta scan.
+
+        Args:
+        -----
+        band (int) : The band to set
+
+        Returns:
+        --------
+        amp (int) : The eta scan amplitude
         '''
         return self._caget(self._cryo_root(band) + self._eta_scan_amplitude, 
             **kwargs)
@@ -151,42 +166,97 @@ class SmurfCommandMixin(SmurfBase):
     _eta_scan_channel = 'etaScanChannel'
     def set_eta_scan_channel(self, band, val, **kwargs):
         '''
+        Sets the channel to eta scan.
+
+        Args:
+        -----
+        band (int) : The band to set
+        val (int) : The channel to set
         '''
         self._caput(self._cryo_root(band) + self._eta_scan_channel, val, 
             **kwargs)
 
     def get_eta_scan_channel(self, band, **kwargs):
         '''
+        Gets the channel to eta scan.
+
+        Args:
+        -----
+        band (int) : The band to set
+
+        Returns:
+        --------
+        chan (int) : The channel that is being eta scanned
         '''
         return self._caget(self._cryo_root(band) + self._eta_scan_channel, 
             **kwargs)
 
     _eta_scan_dwell = 'etaScanDwell'
     def set_eta_scan_dwell(self, band, val, **kwargs):
-        '''
-        '''
+        """
+        Swets how long to dwell while eta scanning.
+
+        Args:
+        -----
+        band (int) : The band to eta scan.
+        val (int) : The time to dwell
+        """
         self._caput(self._cryo_root(band) + self._eta_scan_dwell, val, **kwargs)
 
     def get_eta_scan_dwell(self, band, **kwargs):
-        '''
-        '''
+        """
+        Gets how long to dwell
+
+        Args:
+        -----
+        band (int) : The band being eta scanned
+
+        Returns:
+        --------
+        dwell (int) : The time to dwell during an eta scan.
+        """
         return self._caget(self._cryo_root(band) + self._eta_scan_dwell, 
             **kwargs)
 
     _run_eta_scan = 'runEtaScan'
     def set_run_eta_scan(self, band, val, **kwargs):
-        '''
-        '''
+        """
+        Runs the eta scan. Set the channel using set_eta_scan_channel()
+
+        Args:
+        -----
+        band (int) : The band to eta scan. 
+        val (bool) : Start the eta scan. 
+        """
         self._caput(self._cryo_root(band) + self._run_eta_scan, val, **kwargs)
 
     def get_run_eta_scan(self, band, **kwargs):
-        '''
-        '''
+        """
+        Gets the status of eta scan.
+
+        Args:
+        -----
+        band (int) : The band that is being checked
+
+        Returns:
+        --------
+        status (int) : Whether the band is eta scanning.
+        """
         return self._caget(self._cryo_root(band) + self._run_eta_scan, **kwargs)    
 
     _eta_scan_results_real = 'etaScanResultsReal'
     def get_eta_scan_results_real(self, band, count, **kwargs):
         '''
+        Gets the real component of the eta scan.
+
+        Args:
+        -----
+        band (int) : The to get eta scans
+        count (int) : The number of samples to read
+
+        Returns:
+        --------
+        resp (float array) : THe real component of the most recent eta scan
         '''
         return self._caget(self._cryo_root(band) + self._eta_scan_results_real,
             count=count, **kwargs)
@@ -194,6 +264,16 @@ class SmurfCommandMixin(SmurfBase):
     _eta_scan_results_imag = 'etaScanResultsImag'
     def get_eta_scan_results_imag(self, band, count, **kwargs):
         '''
+        Gets the imaginary component of the eta scan.
+
+        Args:
+        -----
+        band (int) : The to get eta scans
+        count (int) : The number of samples to read
+
+        Returns:
+        --------
+        resp (float array) : THe imaginary component of the most recent eta scan
         '''
         return self._caget(self._cryo_root(band) + self._eta_scan_results_imag,
             count=count, **kwargs)
@@ -353,22 +433,30 @@ class SmurfCommandMixin(SmurfBase):
     _iq_swap_in = 'iqSwapIn'
     def set_iq_swap_in(self, band, val, **kwargs):
         '''
+        Swaps I&Q into DSP (from ADC).  Tones being output by the system will 
+        flip about the band center (e.g. 4.25GHz, 5.25GHz etc.)
         '''
         self._caput(self._band_root(band) + self._iq_swap_in, val, **kwargs)
 
     def get_iq_swap_in(self, band, **kwargs):
         '''
+        Swaps I&Q into DSP (from ADC).  Tones being output by the system will 
+        flip about the band center (e.g. 4.25GHz, 5.25GHz etc.)
         '''
         return self._caget(self._band_root(band) + self._iq_swap_in, **kwargs)
 
     _iq_swap_out = 'iqSwapOut'
     def set_iq_swap_out(self, band, val, **kwargs):
         '''
+        Swaps I&Q out of DSP (to DAC).  Swapping I&Q flips spectrum around band 
+        center.
         '''
         self._caput(self._band_root(band) + self._iq_swap_out, val, **kwargs)
 
     def get_iq_swap_out(self, band, **kwargs):
         '''
+        Swaps I&Q out of DSP (to DAC).  Swapping I&Q flips spectrum around band 
+        center.
         '''
         return self._caget(self._band_root(band) + self._iq_swap_out, **kwargs)
 
@@ -405,11 +493,13 @@ class SmurfCommandMixin(SmurfBase):
     _tone_scale = 'toneScale'
     def set_tone_scale(self, band, val, **kwargs):
         '''
+        Scales the sum of 16 tones before synthesizer.
         '''
         self._caput(self._band_root(band) + self._tone_scale, val, **kwargs)
 
     def get_tone_scale(self, band, **kwargs):
         '''
+        Scales the sum of 16 tones before synthesizer.
         '''
         return self._caget(self._band_root(band) + self._tone_scale, **kwargs)
 
@@ -523,31 +613,35 @@ class SmurfCommandMixin(SmurfBase):
 
     def get_lms_delay(self, band, **kwargs):
         """
+        Match system latency for LMS feedback (2.4MHz ticks)
         """
         return self._caget(self.band_root(band) + self._lms_delay, **kwargs)
 
     _lms_gain = 'lmsGain'
     def set_lms_gain(self, band, val, **kwargs):
         '''
+        LMS gain, powers of 2
         '''
         self._caput(self._band_root(band) + self._lms_gain, val, **kwargs)
 
     def get_lms_gain(self, band, **kwargs):
         '''
+        LMS gain, powers of 2
         '''
         return self._caget(self._band_root(band) + self._lms_gain, **kwargs)
 
-    _lms_rst_dly = 'lmsEnable1'
-    def set_lms_rst_dly(self, band, val, **kwargs):
+    _lms_enable1 = 'lmsEnable1'
+    def set_lms_enable1(self, band, val, **kwargs):
         """
         Enable 1st harmonic tracking
         """
-        self._caput(self.band_root(band) + self._lms_rst_dly, val, **kwargs)
+        self._caput(self.band_root(band) + self._lms_enable1, val, **kwargs)
 
-    def get_lms_rst_dly(self, band, **kwargs):
+    def get_lms_enable1(self, band, **kwargs):
         """
+        Enable 1st harmonic tracking
         """
-        return self._caget(self.band_root(band) + self._lms_rst_dly, **kwargs)
+        return self._caget(self.band_root(band) + self._lms_enable1, **kwargs)
 
     _lms_enable2 = 'lmsEnable2'
     def set_lms_enable2(self, band, val, **kwargs):
@@ -558,18 +652,20 @@ class SmurfCommandMixin(SmurfBase):
 
     def get_lms_enable2(self, band, **kwargs):
         """
+        Enable 2nd harmonic tracking
         """
         return self._caget(self.band_root(band) + self._lms_enable2, **kwargs)
 
     _lms_enable3 = 'lmsEnable3'
     def set_lms_enable3(self, band, val, **kwargs):
         """
-        Enable 1st harmonic tracking
+        Enable 3rd harmonic tracking
         """
         self._caput(self.band_root(band) + self._lms_enable3, val, **kwargs)
 
     def get_lms_enable3(self, band, **kwargs):
         """
+        Enable 3rd harmonic tracking
         """
         return self._caget(self.band_root(band) + self._lms_enable3, **kwargs)
 
@@ -582,6 +678,7 @@ class SmurfCommandMixin(SmurfBase):
 
     def get_lms_rst_dly(self, band, **kwargs):
         """
+        Disable feedback after reset (2.4MHz ticks)
         """
         return self._caget(self.band_root(band) + self._lms_rst_dly, **kwargs)
 
@@ -594,6 +691,7 @@ class SmurfCommandMixin(SmurfBase):
 
     def get_lms_freq(self, band, **kwargs):
         """
+        LMS frequency = flux ramp freq * nPhi0
         """
         return self._caget(self.band_root(band) + self._lms_freq, **kwargs)
 
@@ -606,6 +704,7 @@ class SmurfCommandMixin(SmurfBase):
 
     def get_lms_freq_hz(self, band, **kwargs):
         """
+        LMS frequency = flux ramp freq * nPhi0
         """
         return self._caget(self.band_root(band) + self._lms_freq_hz, **kwargs)
 
@@ -618,6 +717,7 @@ class SmurfCommandMixin(SmurfBase):
 
     def get_lms_dly_fine(self, band, **kwargs):
         """
+        fine delay control (38.4MHz ticks)
         """
         return self._caget(self.band_root(band) + self._lms_dly_fine, **kwargs)
 
@@ -630,6 +730,7 @@ class SmurfCommandMixin(SmurfBase):
 
     def get_lms_delay2(self, band, **kwargs):
         """
+        delay DDS counter reset (307.2MHz ticks)
         """
         return self._caget(self.band_root(band) + self._lms_delay2, **kwargs)
 
