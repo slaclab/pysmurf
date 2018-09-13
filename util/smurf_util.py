@@ -2,6 +2,8 @@ import numpy as np
 from pysmurf.base import SmurfBase
 import time
 import os
+import struct
+import time
 
 class SmurfUtilMixin(SmurfBase):
 
@@ -12,15 +14,34 @@ class SmurfUtilMixin(SmurfBase):
         if channel is not None:
             if single_channel_readout == 1:
                 self.set_single_channel_readout(band, 1)
-                self.set_single_channel_readout2(band, 0)
+                self.set_single_channel_readout_opt2(band, 0)
             elif single_channel-readout == 2:
                 self.set_single_channel_readout(band, 0)
-                self.set_single_channel_readout2(band, 1)
+                self.set_single_channel_readout_opt2(band, 1)
             else:
                 self.log('single_channel_readout must be 1 or 2', 
                     self.LOG_ERROR)
                 raise ValueError('single_channel_readout must be 1 or 2')
 
+
+    def take_stream_data(self, band, meas_time):
+        """
+        Takes streaming data for a given amount of time
+        Args:
+        -----
+        band (int) : The band to stream data
+        meas_time (float) : The amount of time to observe for in seconds
+
+        Returns:
+        --------
+        data_filename (string): The fullpath to where the data is stored
+        """
+        self.log('Staring to take data.', self.LOG_USER)
+        data_filename = self.stream_data_on(band)
+        time.sleep(meas_time)
+        self.stream_data_off(band)
+        self.log('Done taking data.', self.LOG_USER)
+        return data_filename
 
     def stream_data_on(self, band):
         """
@@ -41,7 +62,7 @@ class SmurfUtilMixin(SmurfBase):
                 self.LOG_ERROR)
         else:
             if self.get_single_channel_readout(band) and \
-                self.get_single_channel_readout2(band):
+                self.get_single_channel_readout_opt2(band):
                 self.log('Streaming all channels on band {}'.format(band), 
                     self.LOG_USER)
 
@@ -60,10 +81,45 @@ class SmurfUtilMixin(SmurfBase):
     def stream_data_off(self, band):
         """
         Turns off streaming data on specified band
+
+        Args:
+        -----
+        band (int) : The band to turn off stream data
         """
         self.set_stream_enable(band, 0)
         self.set_streaming_file_open(0)  # Close the file
 
+    def read_stream_data(self, datafile):
+        """
+        Loads data taken with the fucntion stream_data_on
+        """
+
+        file_writer_header_size = 2  # 32-bit words
+        smurf_header_size = 4  # 32-bit words
+        header_size = file_writer_header_size + smurf_header_size
+        smurf_data_size = 1024;  # 32-bit words
+        nominal_frame_size = header_size + smurf_data_size;
+
+        with open(datafile, mode='rb') as file:
+            file_content = file.read()
+
+        # Convert binary file to int array. The < indicates little-endian
+        raw_dat = np.asarray(struct.unpack("<" + "i" * ((len(file_content)) // 4), 
+            file_content))
+
+        # To do : add bad frame check
+        frame_start = np.ravel(np.where(1 + raw_dat/4==nominal_frame_size))
+        n_frame = len(frame_start)
+
+        I = np.zeros((512, n_frame))
+        Q = np.zeros((512, n_frame))
+        for i in np.arange(n_frame):
+            start = frame_start[i] + header_size
+            end = start + 512*2
+            I[:,i] = raw_dat[start:end:2]
+            Q[:,i] = raw_dat[start+1:end+1:2]
+
+        return I, Q
 
     def which_on(self, band):
         '''
@@ -323,3 +379,24 @@ class SmurfUtilMixin(SmurfBase):
             n_chanpersubband + n_chanpersubband]
 
         return subband_chans
+
+    def iq_to_phase(self, i, q):
+        """
+        Changes IQ to phase
+
+        Args:
+        -----
+        i (float array)
+        q (float arry)
+
+        Returns:
+        --------
+        phase (float array) : 
+        """
+        return np.unwrap(np.arctan2(q, i))
+
+
+
+
+
+

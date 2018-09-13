@@ -462,6 +462,7 @@ class SmurfTuneMixin(SmurfBase):
         '''
         I = np.real(resp)
         Q = np.imag(resp)
+        amp = np.sqrt(I**2 + Q**2)
 
         # Define helper functions
         def calc_R(xc, yc):
@@ -486,36 +487,63 @@ class SmurfTuneMixin(SmurfBase):
         R = Ri.mean()
         resid = np.sum((Ri - R)**2)
 
-        return I2, Q2, R, resid
+        center_idx = np.ravel(np.where(amp==np.min(amp)))[0]
+        left = center_idx - 5
+        right = center_idx + 5
+
+        eta = (freq[right]-freq[left])/(resp[right]-resp[left])
+
+        return I2, Q2, R, resid, eta
 
 
-    def plot_eta_estimate(self, freq, resp, Ic=None, Qc=None, r=None):
+    def plot_eta_estimate(self, freq, resp, Ic=None, Qc=None, r=None, eta=None):
         """
         """
         import matplotlib.pyplot as plt
+        from matplotlib.gridspec import GridSpec
 
         I = np.real(resp)
         Q = np.imag(resp)
+        amp = np.sqrt(I**2 + Q**2)
+        phase = np.unwrap(np.arctan2(Q, I))  # radians
 
-        phase = np.unwrap(np.arctan2(I, Q))  # radians
+        center_idx = np.ravel(np.where(amp==np.min(amp)))[0]
 
-        fig, ax = plt.subplots(2, 2, figsize=(8,6))
-        ax[0,0].plot(freq, I, label='I')
-        ax[0,0].plot(freq, Q, label='Q')
-        ax[0,0].plot(freq, np.abs(resp), color='k', label='amp')
-        ax[0,0].legend()
-        ax[0,0].set_ylabel('Resp')
+        fig = plt.figure(figsize=(8,4.5))
+        gs=GridSpec(2,3)
+        ax0 = fig.add_subplot(gs[0,0])
+        ax1 = fig.add_subplot(gs[1,0], sharex=ax0)
+        ax2 = fig.add_subplot(gs[:,1:])
+        ax0.plot(freq, I, label='I', linestyle=':', color='k')
+        ax0.plot(freq, Q, label='Q', linestyle='--', color='k')
+        ax0.scatter(freq, amp, c=np.arange(len(freq)), s=3,
+            label='amp')
+        ax0.legend()
+        ax0.set_ylabel('Resp')
 
-        ax[0,1].plot(freq, np.rad2deg(phase), color='k')
-        ax[0,1].set_ylabel('Phase [deg]')
+        idx = np.arange(-5,5.1,5, dtype=int)+center_idx
+        ax0.plot(freq[idx], amp[idx], 'rx')
+
+        ax1.scatter(freq, np.rad2deg(phase), c=np.arange(len(freq)), s=3)
+        ax1.plot(freq[idx], np.rad2deg(phase[idx]), 'rx')
+        ax1.set_ylabel('Phase [deg]')
 
         # IQ circle
-        ax[1,0].plot(I, Q, '.')
+        ax2.axhline(0, color='k', linestyle=':', alpha=.5)
+        ax2.axvline(0, color='k', linestyle=':', alpha=.5)
+
+        ax2.scatter(I, Q, c=np.arange(len(freq)), s=3)
         if Ic is not None and Qc is not None and r is not None:
             i = np.arange(0,2*np.pi+.05, .05)
             i_model = r*np.sin(i) + Ic
             q_model = r*np.cos(i) + Qc
-            ax[1,0].plot(i_model, q_model, color='k')
+            ax2.plot(i_model, q_model, color='k')
+
+            respp = eta*resp
+            Ip = np.real(respp)
+            Qp = np.imag(respp)
+            ax2.scatter(Ip, Qp, c=np.arange(len(freq)), s=3)
 
 
+        plt.tight_layout()
 

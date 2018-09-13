@@ -5,9 +5,12 @@ import time
 from pysmurf.command.smurf_command import SmurfCommandMixin as SmurfCommandMixin
 from pysmurf.util.smurf_util import SmurfUtilMixin as SmurfUtilMixin
 from pysmurf.tune.smurf_tune import SmurfTuneMixin as SmurfTuneMixin
+from pysmurf.debug.smurf_noise import SmurfNoiseMixin as SmurfNoiseMixin
+from pysmurf.debug.smurf_iv import SmurfIVMixin as SmurfIVMixin
 from pysmurf.base.smurf_config import SmurfConfig as SmurfConfig
 
-class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin):
+class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin, 
+    SmurfNoiseMixin, SmurfIVMixin):
     '''
     Base class for controlling Smurf. Loads all the mixins.
     '''

@@ -354,8 +354,8 @@ class SmurfCommandMixin(SmurfBase):
         return self._caget(self._band_root(band) + self._single_channel_readout, 
             **kwargs)
 
-    _single_channel_readout2 = 'singleChannelReadout2'
-    def set_single_channel_readout2(self, band, val, **kwargs):
+    _single_channel_readout2 = 'singleChannelReadoutOpt2'
+    def set_single_channel_readout_opt2(self, band, val, **kwargs):
         '''
         Sets the singleChannelReadout2 bit.
 
@@ -366,7 +366,7 @@ class SmurfCommandMixin(SmurfBase):
         self._caput(self._band_root(band) + self._single_channel_readout2, val, 
             **kwargs)
 
-    def get_single_channel_readout2(self, band, **kwargs):
+    def get_single_channel_readout_opt2(self, band, **kwargs):
         '''
         '''
         return self._caget(self._band_root(band) + self._single_channel_readout2, 
@@ -985,7 +985,7 @@ class SmurfCommandMixin(SmurfBase):
         """
         Returns flux ramp freq in units of Hz
         """
-        return 3.0725E5/(self.get_ramp_max_cnt(self, **kwargs)+1)
+        return 3.0725E5/(self.get_ramp_max_cnt(**kwargs)+1)
 
     _low_cycle = 'LowCycle'
     def set_low_cylce(self, val, **kwargs):
