@@ -4,6 +4,7 @@ import time
 import os
 import struct
 import time
+import epics
 
 class SmurfUtilMixin(SmurfBase):
 
@@ -89,6 +90,7 @@ class SmurfUtilMixin(SmurfBase):
         self.set_stream_enable(band, 0)
         self.set_streaming_file_open(0)  # Close the file
 
+
     def read_stream_data(self, datafile):
         """
         Loads data taken with the fucntion stream_data_on
@@ -124,6 +126,41 @@ class SmurfUtilMixin(SmurfBase):
 
         return timestamp, I, Q
 
+    def read_stream_data_daq(data_length, bay=0, hw_trigger=False):
+        """
+        """
+        # Ask mitch why this is what it is...
+        if bay == 0:
+            stream0 = self.epics_root + ":AMCc:Stream0"
+            stream1 = self.epics_root + ":AMCc:Stream1"
+        else:
+            stream0 = self.epics_root + ":AMCc:Stream4"
+            stream1 = self.epics_root + ":AMCc:Stream5"
+
+        epics.camonitor(stream0)
+        epics.camonitor(stream1)
+
+        time.wait(.1)
+
+        r0 = self._caget(stream0)
+        r1 = self._caget(stream1)
+
+        if not hwTrigger:
+            self.set_trigger_daq(1)
+        else:
+            self._caput(self.epics_root + 
+                ':AMCc:FpgaTopLevel:AppTop:DaqMuxV2[0]:ArmHwTrigger', 1)
+
+        time.wait(10)
+
+        r0 = self._caget(stream0)
+        r1 = self._caget(stream1)
+
+        epics.camonitor_clear(stream0)
+        epics.camonitor_clear(stream1)
+
+        return stream0, stream1
+
     def read_adc_data(self, adc_number, data_length, hw_tragger=False):
         """
         """
@@ -134,6 +171,7 @@ class SmurfUtilMixin(SmurfBase):
             bay = 0
 
         self.setup_daq_mux('adc', adc_number, data_length)
+
 
     def setup_daq_mux(self, converter, converter_number, data_length):
         """
@@ -154,11 +192,30 @@ class SmurfUtilMixin(SmurfBase):
             daq_mux_channel1 = daq_mux_channel0 + 1
 
         # setup buffer size
+        self.set_buffer_size(data_length)
 
         # input mux select
         self.set_input_mux_sel(0, daq_mux_channel0, **kwargs)
         self.set_input_mux_sel(1, daq_mux_channel1, **kwargs)
 
+
+    def set_buffer_size(self, size):
+        """
+        Sets the buffer size for reading and writing DAQs
+
+        Args:
+        -----
+        size (int) : The buffer size in number of points
+        """
+        # Change DAQ data buffer size
+        self.set_buffer_size(size, write_log=True)
+
+        # Change waveform engine buffer size
+        for daq_num in np.arange(4):
+            s = self.get_waveform_start_addr(daq_num)
+            e = s + 4*size
+            self.set_waveform_end_addr(daq_num, )
+            self.log('DAQ number {}: start {} - end {}'.format(daq_num, s))
 
 
     def which_on(self, band):

@@ -111,7 +111,8 @@ class SmurfTuneMixin(SmurfBase):
 
 
     def full_band_ampl_sweep(self, band, subband, drive, N_read):
-        """sweep a full band in amplitude, for finding frequencies
+        """sweep a full band in amplitude, for finding frequencies. This is the
+        old, slower method that is replaced by full_band_resp.
 
         args:
         -----
@@ -125,6 +126,8 @@ class SmurfTuneMixin(SmurfBase):
             freq (list, n_freq x 1) = frequencies swept
             resp (array, n_freq x 2) = complex response
         """
+        self.log('This is an older version. Now use full_band_resp()', 
+            self.LOG_USER)
 
         digitizer_freq = self.get_digitizer_frequency_mhz(band)  # in MHz
         n_subbands = self.get_number_sub_bands(band)
@@ -150,6 +153,11 @@ class SmurfTuneMixin(SmurfBase):
             freq[sb,:] = scan_freq + \
                 subband_centers[subband_nos.index(sb)]
         return freq, resp
+
+    def full_band_resp(self, band):
+        """
+
+        """
 
 
     def peak_finder(self, x, y, threshold):
