@@ -113,13 +113,53 @@ class SmurfUtilMixin(SmurfBase):
 
         I = np.zeros((512, n_frame))
         Q = np.zeros((512, n_frame))
+        timestamp = np.zeros(n_frame)
+
         for i in np.arange(n_frame):
+            timestamp[i] = raw_dat[frame_start[i]+2]
             start = frame_start[i] + header_size
             end = start + 512*2
             I[:,i] = raw_dat[start:end:2]
             Q[:,i] = raw_dat[start+1:end+1:2]
 
-        return I, Q
+        return timestamp, I, Q
+
+    def read_adc_data(self, adc_number, data_length, hw_tragger=False):
+        """
+        """
+        if adc_number > 3:
+            bay = 1
+            adc_number = adc_number - 4
+        else:
+            bay = 0
+
+        self.setup_daq_mux('adc', adc_number, data_length)
+
+    def setup_daq_mux(self, converter, converter_number, data_length):
+        """
+        Sets up for either ADC or DAC data taking.
+
+        Args:
+        -----
+        converter (str) : Whether it is the ADC or DAC. choices are 'adc' and 
+            'dac'
+        converter_number (int) : The ADC or DAC number to take data on.
+        data_length (int) : The amount of data to take.
+        """
+        if coverter.lower() == 'adc':
+            daq_mux_channel0 = (converter_number + 1)*2
+            daq_mux_channel1 = daq_mux_channel0 + 1
+        elif coverter.lower() == 'dac':
+            daq_mux_channel0 = (converter_number + 1)*2 + 10
+            daq_mux_channel1 = daq_mux_channel0 + 1
+
+        # setup buffer size
+
+        # input mux select
+        self.set_input_mux_sel(0, daq_mux_channel0, **kwargs)
+        self.set_input_mux_sel(1, daq_mux_channel1, **kwargs)
+
+
 
     def which_on(self, band):
         '''
@@ -160,7 +200,6 @@ class SmurfUtilMixin(SmurfBase):
 
         desired_feedback_limit_dec = np.floor(desired_feedback_limit_mhz/
             (subband_bandwidth/2.))
-
 
 
     def get_fpga_status(self):

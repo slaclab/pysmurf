@@ -19,10 +19,10 @@ for i in np.arange(150,155):
 	freq = np.ravel(eta[i][4])
 
 	if len(resp) > 0:
-		I, Q, r, resid = S.estimate_eta_parameter(freq, resp)
+		I, Q, r, resid, eta_est = S.estimate_eta_parameter(freq, resp)
 		print(I)
 		print(Q)
 		print(r)
-		S.plot_eta_estimate(freq, resp, Ic=I, Qc=Q, r=r)
+		S.plot_eta_estimate(freq, resp, Ic=I, Qc=Q, r=r, eta=eta_est)
 
 

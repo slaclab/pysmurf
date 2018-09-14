@@ -51,14 +51,17 @@ class SmurfBase(object):
             
         self.streaming_root = self.epics_root + ':AMCc:streamingInterface:'
 
-
         # Tx -> DAC , Rx <- ADC
         self.axi_version = self.epics_root + \
             ':AMCc:FpgaTopLevel:AmcCarrierCore:AxiVersion:'
+        self.waveform_engine_buffers_root = ':AMCc:FpgaTopLevel:'+ \
+            'AmcCarrierCore:AmcCarrierBsa:BsaWaveformEngine[0]:' + \
+            'WaveformEngineBuffers:'
         self.jesd_tx_root = self.epics_root + \
             ':AMCc:FpgaTopLevel:AppTop:AppTopJesd[0]:JesdTx:'
         self.jesd_rx_root = self.epics_root + \
             ':AMCc:FpgaTopLevel:AppTop:AppTopJesd[0]:JesdRx:'
+        self.daq_mux_root = ':AMCc:FpgaTopLevel:AppTop:DaqMuxV2[0]:'
 
         # RTM paths
         self.rtm_cryo_det_root = self.epics_root + \

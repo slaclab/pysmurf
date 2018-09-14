@@ -7,7 +7,7 @@ from pysmurf.base import SmurfBase
 class SmurfCommandMixin(SmurfBase):
 
     def _caput(self, cmd, val, write_log=False, execute=True, wait_before=None,
-        wait_after=None, **kwargs):
+        wait_after=None, wait_done=False, **kwargs):
         '''
         Wrapper around pyrogue lcaput. Puts variables into epics
 
@@ -24,6 +24,8 @@ class SmurfCommandMixin(SmurfBase):
             issuing the command
         wait_after (int) : If not None, the number of seconds to wait after
             issuing the command
+        wait_done (bool) : Wait for the command to be finished before returning.
+            Default False.
         '''
         if wait_before is not None:
             if write_log:
@@ -34,7 +36,7 @@ class SmurfCommandMixin(SmurfBase):
             self.log('caput ' + cmd + ' ' + str(val), self.LOG_USER)
 
         if execute:
-            epics.caput(cmd, val)
+            epics.caput(cmd, val, wait=wait_done)
 
         if wait_after is not None:
             if write_log:
@@ -604,18 +606,31 @@ class SmurfCommandMixin(SmurfBase):
         return self._caget(self._band_root(band) + self._feedback_limit, 
             **kwargs)
 
+    _noise_select = 'noiseSelect'
+    def set_noise_select(self, band, val, **kwargs):
+        """
+        """
+        self._caput(self, self._band_root(band) + self._noise_select, val, 
+            **kwargs)
+
+    def get_noise_select(self, band, **kwargs):
+        """
+        """
+        return self._caget(self, self._band_root(band) + self_noise_select, 
+            **kwargs)
+
     _lms_delay = 'lmsDelay'
     def set_lms_delay(self, band, val, **kwargs):
         """
         Match system latency for LMS feedback (2.4MHz ticks)
         """
-        self._caput(self.band_root(band) + self._lms_delay, val, **kwargs)
+        self._caput(self._band_root(band) + self._lms_delay, val, **kwargs)
 
     def get_lms_delay(self, band, **kwargs):
         """
         Match system latency for LMS feedback (2.4MHz ticks)
         """
-        return self._caget(self.band_root(band) + self._lms_delay, **kwargs)
+        return self._caget(self._band_root(band) + self._lms_delay, **kwargs)
 
     _lms_gain = 'lmsGain'
     def set_lms_gain(self, band, val, **kwargs):
@@ -885,6 +900,19 @@ class SmurfCommandMixin(SmurfBase):
     def get_jesd_tx_data_valid(self, **kwargs):
         return self._caget(self.jesd_tx_root + self._jesd_tx_enable, **kwargs)
 
+    _start_addr = 'StartAddr[{}]'
+    def set_start_addr(self, b, val, **kwargs):
+        """
+        """
+        self._caput(self.waveform_engine_buffers_root + \
+            self._start_addr.format(b), val, **kwargs)
+
+    def self.get_start_addr(self, val, **kwargs):
+        """
+        """
+        return self._caget(self.waveform_engine_buffers_root + \
+            self._start_addr.format(b), **kwargs)
+
     _fpga_uptime = 'UpTimeCnt'
     def get_fpga_uptime(self, **kwargs):
         '''
@@ -916,6 +944,19 @@ class SmurfCommandMixin(SmurfBase):
         build_stamp (str) : The FPGA build stamp
         '''
         return self._caget(self.axi_version + self._fpga_build_stamp, **kwargs)
+
+    _input_mux_sel = 'InputMuxSel[{}]'
+    def set_input_mux_sel(self, b, val, **kwargs):
+        """
+        """
+        self._caput(self.daq_mux_root + self._input_mux_sel.format(b), val,
+            **kwargs)
+
+    def get_input_mux_sel(self, b, **kwargs):
+        """
+        """
+        self._caget(self.daq_mux_root + self._input_mux_sel.format(b), 
+            **kwargs)
 
     # rtm commands
     _reset_rtm = 'resetRtm'
