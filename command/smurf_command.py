@@ -650,104 +650,104 @@ class SmurfCommandMixin(SmurfBase):
         """
         Enable 1st harmonic tracking
         """
-        self._caput(self.band_root(band) + self._lms_enable1, val, **kwargs)
+        self._caput(self._band_root(band) + self._lms_enable1, val, **kwargs)
 
     def get_lms_enable1(self, band, **kwargs):
         """
         Enable 1st harmonic tracking
         """
-        return self._caget(self.band_root(band) + self._lms_enable1, **kwargs)
+        return self._caget(self._band_root(band) + self._lms_enable1, **kwargs)
 
     _lms_enable2 = 'lmsEnable2'
     def set_lms_enable2(self, band, val, **kwargs):
         """
         Enable 2nd harmonic tracking
         """
-        self._caput(self.band_root(band) + self._lms_enable2, val, **kwargs)
+        self._caput(self._band_root(band) + self._lms_enable2, val, **kwargs)
 
     def get_lms_enable2(self, band, **kwargs):
         """
         Enable 2nd harmonic tracking
         """
-        return self._caget(self.band_root(band) + self._lms_enable2, **kwargs)
+        return self._caget(self._band_root(band) + self._lms_enable2, **kwargs)
 
     _lms_enable3 = 'lmsEnable3'
     def set_lms_enable3(self, band, val, **kwargs):
         """
         Enable 3rd harmonic tracking
         """
-        self._caput(self.band_root(band) + self._lms_enable3, val, **kwargs)
+        self._caput(self._band_root(band) + self._lms_enable3, val, **kwargs)
 
     def get_lms_enable3(self, band, **kwargs):
         """
         Enable 3rd harmonic tracking
         """
-        return self._caget(self.band_root(band) + self._lms_enable3, **kwargs)
+        return self._caget(self._band_root(band) + self._lms_enable3, **kwargs)
 
     _lms_rst_dly = 'lmsRstDly'
     def set_lms_rst_dly(self, band, val, **kwargs):
         """
         Disable feedback after reset (2.4MHz ticks)
         """
-        self._caput(self.band_root(band) + self._lms_rst_dly, val, **kwargs)
+        self._caput(self._band_root(band) + self._lms_rst_dly, val, **kwargs)
 
     def get_lms_rst_dly(self, band, **kwargs):
         """
         Disable feedback after reset (2.4MHz ticks)
         """
-        return self._caget(self.band_root(band) + self._lms_rst_dly, **kwargs)
+        return self._caget(self._band_root(band) + self._lms_rst_dly, **kwargs)
 
     _lms_freq = 'lmsFreq'
     def set_lms_freq(self, band, val, **kwargs):
         """
         LMS frequency = flux ramp freq * nPhi0
         """
-        self._caput(self.band_root(band) + self._lms_freq, val, **kwargs)
+        self._caput(self._band_root(band) + self._lms_freq, val, **kwargs)
 
     def get_lms_freq(self, band, **kwargs):
         """
         LMS frequency = flux ramp freq * nPhi0
         """
-        return self._caget(self.band_root(band) + self._lms_freq, **kwargs)
+        return self._caget(self._band_root(band) + self._lms_freq, **kwargs)
 
     _lms_freq_hz = 'lmsFreqHz'
     def set_lms_freq_hz(self, band, val, **kwargs):
         """
         LMS frequency = flux ramp freq * nPhi0
         """
-        self._caput(self.band_root(band) + self._lms_freq_hz, val, **kwargs)
+        self._caput(self._band_root(band) + self._lms_freq_hz, val, **kwargs)
 
     def get_lms_freq_hz(self, band, **kwargs):
         """
         LMS frequency = flux ramp freq * nPhi0
         """
-        return self._caget(self.band_root(band) + self._lms_freq_hz, **kwargs)
+        return self._caget(self._band_root(band) + self._lms_freq_hz, **kwargs)
 
     _lms_dly_fine = 'lmsDlyFine'
     def set_lms_dly_fine(self, band, val, **kwargs):
         """
         fine delay control (38.4MHz ticks)
         """
-        self._caput(self.band_root(band) + self._lms_dly_fine, val, **kwargs)
+        self._caput(self._band_root(band) + self._lms_dly_fine, val, **kwargs)
 
     def get_lms_dly_fine(self, band, **kwargs):
         """
         fine delay control (38.4MHz ticks)
         """
-        return self._caget(self.band_root(band) + self._lms_dly_fine, **kwargs)
+        return self._caget(self._band_root(band) + self._lms_dly_fine, **kwargs)
 
     _lms_delay2 = 'lmsDelay2'
     def set_lms_delay2(self, band, val, **kwargs):
         """
         delay DDS counter reset (307.2MHz ticks)
         """
-        self._caput(self.band_root(band) + self._lms_delay2, val, **kwargs)
+        self._caput(self._band_root(band) + self._lms_delay2, val, **kwargs)
 
     def get_lms_delay2(self, band, **kwargs):
         """
         delay DDS counter reset (307.2MHz ticks)
         """
-        return self._caget(self.band_root(band) + self._lms_delay2, **kwargs)
+        return self._caget(self._band_root(band) + self._lms_delay2, **kwargs)
 
     _feedback_polarity = 'feedbackPolarity'
     def set_feedback_polarity(self, band, val, **kwargs):
@@ -900,18 +900,18 @@ class SmurfCommandMixin(SmurfBase):
     def get_jesd_tx_data_valid(self, **kwargs):
         return self._caget(self.jesd_tx_root + self._jesd_tx_enable, **kwargs)
 
-    _start_addr = 'StartAddr[{}]'
-    def set_start_addr(self, b, val, **kwargs):
-        """
-        """
-        self._caput(self.waveform_engine_buffers_root + \
-            self._start_addr.format(b), val, **kwargs)
+    # _start_addr = 'StartAddr[{}]'
+    # def set_start_addr(self, b, val, **kwargs):
+    #     """
+    #     """
+    #     self._caput(self.waveform_engine_buffers_root + \
+    #         self._start_addr.format(b), val, **kwargs)
 
-    def self.get_start_addr(self, val, **kwargs):
-        """
-        """
-        return self._caget(self.waveform_engine_buffers_root + \
-            self._start_addr.format(b), **kwargs)
+    # def get_start_addr(self, val, **kwargs):
+    #     """
+    #     """
+    #     return self._caget(self.waveform_engine_buffers_root + \
+    #         self._start_addr.format(b), **kwargs)
 
     _fpga_uptime = 'UpTimeCnt'
     def get_fpga_uptime(self, **kwargs):
@@ -956,6 +956,60 @@ class SmurfCommandMixin(SmurfBase):
         """
         """
         self._caget(self.daq_mux_root + self._input_mux_sel.format(b), 
+            **kwargs)
+
+    _data_buffer_size = 'DataBufferSize'
+    def set_data_buffer_size(self, val, **kwargs):
+        """
+        Sets the data buffer size for the DAQx
+        """
+        self._caput(self.daq_mux_root + self._data_buffer_size, val, **kwargs)
+
+    def get_data_buffer_size(self, **kwargs):
+        """
+        Gets the data buffer size for the DAQs
+        """
+        return self._caget(self.daq_mux_root + self._data_buffer_size, 
+            **kwargs)
+
+    # Waveform engine commands
+    _start_addr = 'StartAddr[{}]'
+    def set_waveform_start_addr(self, b, val, **kwargs):
+        """
+        """
+        self._caput(self.waveform_engine_buffers_root + 
+            self._start_addr.format(b), val, **kwargs)
+
+    def get_waveform_start_addr(self, b, **kwargs):
+        """
+        """
+        return self._caget(self.waveform_engine_buffers_root + 
+            self._start_addr.format(b), **kwargs)
+
+    _end_addr = 'EndAddr[{}]'
+    def set_waveform_end_addr(self, b, val, **kwargs):
+        """
+        """
+        self._caput(self.waveform_engine_buffers_root + 
+            self._end_addr.format(b), val, **kwargs)
+
+    def get_waveform_end_addr(self, b, **kwargs):
+        """
+        """
+        return self._caget(self.waveform_engine_buffers_root + 
+            self._end_addr.format(b), **kwargs)
+
+    _trigger_daq = 'TriggerDaq'
+    def set_trigger_daq(self, val, **kwargs):
+        """
+        """
+        self._caput(self.waveform_engine_buffers_root + self._trigger_daq, val, 
+            **kwargs)
+
+    def get_trigger_daq(self, **kwargs):
+        """
+        """
+        self._caget(self.waveform_engine_buffers_root + self._trigger_daq, 
             **kwargs)
 
     # rtm commands
