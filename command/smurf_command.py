@@ -1037,6 +1037,69 @@ class SmurfCommandMixin(SmurfBase):
         '''
         return self._caget(self.rtm_spi_root + self._cfg_reg_ena_bit, **kwargs)
 
+    _tes_bias_enable = 'TesBiasDacCtrlRegCh[{}]'
+    def set_tes_bias_enable(self, daq, val, **kwargs):
+        """
+        """
+        self._caput(self.rtm_spi_max_root + self._tes_bias_enable.format(daq), 
+            val, **kwargs)
+
+
+    def get_tes_bias_enable(self, daq, **kwargs):
+        """
+        """
+        return self._caget(self.rtm_spi_max_root + self._tes_bias.format(daq), 
+            **kwargs)
+
+
+    _bit_to_V = 2.035/float(2**19)
+    _dac_num_50k = 2
+    def set_50k_amp_gate_voltage(self, voltage, **kwargs):
+        """
+        """
+        if voltage > 0 or voltage < -1.:
+            self.log('Voltage must be between -1 and 0. Doing nothing.')
+        else:
+            self.set_tes_bias(self._dac_num_50k, voltage/self._bit_to_V, 
+                **kwargs)
+
+    def get_50k_amp_gate_voltage(self, **kwargs):
+        """
+        """
+        return self.bit_to_V * self.get_tes_bias(self._dac_num_50k, **kwargs)
+
+    _tes_bias = 'TesBiasDacDataRegCh[{}]'
+    def set_tes_bias(self, daq, val, **kwargs):
+        """
+        Sets the TES bias current
+
+        Args:
+        -----
+        val (int) : the TES bias current in unit
+        """
+
+        if val > 2**19-1:
+            val = 2**19-1
+            self.log('Bias too high. Must be <= than 2^19-1. Setting to ' + 
+                'max value', self.LOG_ERROR)
+        elif val < -2**19:
+            val = -2**19
+            self.log('Bias too low. Must be >= than -2^19. Setting to ' + 
+                'min value', self.LOG_ERROR)
+        self._caput(self.rtm_spi_max_root + self._tes_bias.format(daq), val, 
+            **kwargs)
+
+    def get_tes_bias(self, daq, **kwargs):
+        """
+        Gets the TES bias current
+
+        Returns:
+        --------
+        bias (int) : The TES bias current
+        """
+        return self._caget(self.rtm_spi_max_root + self._tes_bias.format(daq), 
+            **kwargs)
+
     def flux_ramp_on(self, **kwargs):
         '''
         Turns on the flux ramp - a useful wrapper for set_cfg_reg_ena_bit
@@ -1182,8 +1245,26 @@ class SmurfCommandMixin(SmurfBase):
         """
         return self._caget(self.rtm_cryo_det_root + self._pulse_width, **kwargs)
 
-    _hemt_v = 'HemtBiasDacCtrlRegCh[33]'
-    def set_hemt_v(self, val, override=False, **kwargs):
+    _hemt_v_enable = 'HemtBiasDacCtrlRegCh[33]'
+    def set_hemt_enable(self, val, **kwargs):
+        """
+        """
+        self._caput(self.rtm_spi_max_root + self._hemt_v_enable, val)
+
+
+    _bit_to_V_hemt = .576/3.0E5  # empirically found
+    def set_hemt_gate_voltage(self, voltage, override=False, **kwargs):
+        """
+        """
+        if (voltage > .75 or voltage < 0 ) and not override:
+            self.log('Input voltage too high. Not doing anything.' + 
+                ' If you really want it higher, use the override optinal arg.')
+        else:
+            self.set_hemt_bias(int(voltage/self._bit_to_V_hemt), 
+                override=override, **kwargs)
+
+    _hemt_v = 'HemtBiasDacDataRegCh[33]'
+    def set_hemt_bias(self, val, override=False, **kwargs):
         '''
         Sets the HEMT voltage in units of bits. Need to figure out the
         conversion into real units.
@@ -1205,7 +1286,7 @@ class SmurfCommandMixin(SmurfBase):
         else:
             self._caput(self.rtm_spi_max_root + self._hemt_v, val, **kwargs)
 
-    def get_hemt_v(self, **kwargs):
+    def get_hemt_bias(self, **kwargs):
         '''
         Returns the HEMT voltage in bits.
         '''
