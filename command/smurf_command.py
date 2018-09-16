@@ -1003,13 +1003,13 @@ class SmurfCommandMixin(SmurfBase):
     def set_trigger_daq(self, val, **kwargs):
         """
         """
-        self._caput(self.waveform_engine_buffers_root + self._trigger_daq, val, 
+        self._caput(self.daq_mux_root + self._trigger_daq, val, 
             **kwargs)
 
     def get_trigger_daq(self, **kwargs):
         """
         """
-        self._caget(self.waveform_engine_buffers_root + self._trigger_daq, 
+        self._caget(self.daq_mux_root + self._trigger_daq, 
             **kwargs)
 
     # rtm commands

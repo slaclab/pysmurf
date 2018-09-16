@@ -126,7 +126,7 @@ class SmurfUtilMixin(SmurfBase):
 
         return timestamp, I, Q
 
-    def read_stream_data_daq(data_length, bay=0, hw_trigger=False):
+    def read_stream_data_daq(self, data_length, bay=0, hw_trigger=False):
         """
         """
         # Ask mitch why this is what it is...
@@ -140,18 +140,18 @@ class SmurfUtilMixin(SmurfBase):
         epics.camonitor(stream0)
         epics.camonitor(stream1)
 
-        time.wait(.1)
+        time.sleep(.1)
 
         r0 = self._caget(stream0)
         r1 = self._caget(stream1)
 
-        if not hwTrigger:
+        if not hw_trigger:
             self.set_trigger_daq(1)
         else:
             self._caput(self.epics_root + 
                 ':AMCc:FpgaTopLevel:AppTop:DaqMuxV2[0]:ArmHwTrigger', 1)
 
-        time.wait(10)
+        time.sleep(10)
 
         r0 = self._caget(stream0)
         r1 = self._caget(stream1)
@@ -159,9 +159,9 @@ class SmurfUtilMixin(SmurfBase):
         epics.camonitor_clear(stream0)
         epics.camonitor_clear(stream1)
 
-        return stream0, stream1
+        return r0, r1
 
-    def read_adc_data(self, adc_number, data_length, hw_tragger=False):
+    def read_adc_data(self, adc_number, data_length, hw_trigger=False):
         """
         """
         if adc_number > 3:
@@ -172,6 +172,8 @@ class SmurfUtilMixin(SmurfBase):
 
         self.setup_daq_mux('adc', adc_number, data_length)
 
+        res = self.read_stream_data_daq(data_length, hw_trigger=hw_trigger)
+        return res
 
     def setup_daq_mux(self, converter, converter_number, data_length):
         """
@@ -184,10 +186,10 @@ class SmurfUtilMixin(SmurfBase):
         converter_number (int) : The ADC or DAC number to take data on.
         data_length (int) : The amount of data to take.
         """
-        if coverter.lower() == 'adc':
+        if converter.lower() == 'adc':
             daq_mux_channel0 = (converter_number + 1)*2
             daq_mux_channel1 = daq_mux_channel0 + 1
-        elif coverter.lower() == 'dac':
+        elif converter.lower() == 'dac':
             daq_mux_channel0 = (converter_number + 1)*2 + 10
             daq_mux_channel1 = daq_mux_channel0 + 1
 
@@ -195,8 +197,8 @@ class SmurfUtilMixin(SmurfBase):
         self.set_buffer_size(data_length)
 
         # input mux select
-        self.set_input_mux_sel(0, daq_mux_channel0, **kwargs)
-        self.set_input_mux_sel(1, daq_mux_channel1, **kwargs)
+        self.set_input_mux_sel(0, daq_mux_channel0)
+        self.set_input_mux_sel(1, daq_mux_channel1)
 
 
     def set_buffer_size(self, size):
@@ -208,14 +210,13 @@ class SmurfUtilMixin(SmurfBase):
         size (int) : The buffer size in number of points
         """
         # Change DAQ data buffer size
-        self.set_buffer_size(size, write_log=True)
 
         # Change waveform engine buffer size
         for daq_num in np.arange(4):
             s = self.get_waveform_start_addr(daq_num)
             e = s + 4*size
-            self.set_waveform_end_addr(daq_num, )
-            self.log('DAQ number {}: start {} - end {}'.format(daq_num, s))
+            self.set_waveform_end_addr(daq_num, e)
+            self.log('DAQ number {}: start {} - end {}'.format(daq_num, s, e))
 
 
     def which_on(self, band):
