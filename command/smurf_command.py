@@ -974,31 +974,52 @@ class SmurfCommandMixin(SmurfBase):
 
     # Waveform engine commands
     _start_addr = 'StartAddr[{}]'
-    def set_waveform_start_addr(self, b, val, **kwargs):
+    def set_waveform_start_addr(self, b, val, convert=True, **kwargs):
         """
         """
+        if convert:
+            val = self.int_to_hex_string(val)
         self._caput(self.waveform_engine_buffers_root + 
             self._start_addr.format(b), val, **kwargs)
 
-    def get_waveform_start_addr(self, b, **kwargs):
+    def get_waveform_start_addr(self, b, convert=True, **kwargs):
         """
+
+        Optional Arg:
+        -------------
+        convert (bool) : Convert the output from a string of hex values to an
+            int. Default (True)
         """
-        return self._caget(self.waveform_engine_buffers_root + 
+        val = self._caget(self.waveform_engine_buffers_root + 
             self._start_addr.format(b), **kwargs)
+        if convert:
+            return self.hex_string_to_int(val)
+        else:
+            return val
 
     _end_addr = 'EndAddr[{}]'
-    def set_waveform_end_addr(self, b, val, **kwargs):
+    def set_waveform_end_addr(self, b, val, convert=True, **kwargs):
         """
+
+        Optional Arg:
+        -------------
+        convert (bool) : Convert the input from an int to a string of hex
+            values. Default (True)
         """
+        if convert:
+            val = self.int_to_hex_string(val)
         self._caput(self.waveform_engine_buffers_root + 
             self._end_addr.format(b), val, **kwargs)
 
-    def get_waveform_end_addr(self, b, **kwargs):
+    def get_waveform_end_addr(self, b, convert=True, **kwargs):
         """
         """
-        return self._caget(self.waveform_engine_buffers_root + 
+        val = self._caget(self.waveform_engine_buffers_root + 
             self._end_addr.format(b), **kwargs)
-
+        if convert:
+            return self.hex_string_to_int(val)
+        else:
+            return val
     _trigger_daq = 'TriggerDaq'
     def set_trigger_daq(self, val, **kwargs):
         """

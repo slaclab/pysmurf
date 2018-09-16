@@ -213,9 +213,9 @@ class SmurfUtilMixin(SmurfBase):
 
         # Change waveform engine buffer size
         for daq_num in np.arange(4):
-            s = self.get_waveform_start_addr(daq_num)
+            s = self.get_waveform_start_addr(daq_num, convert=True)
             e = s + 4*size
-            self.set_waveform_end_addr(daq_num, e)
+            self.set_waveform_end_addr(daq_num, e, convert=True)
             self.log('DAQ number {}: start {} - end {}'.format(daq_num, s, e))
 
 
@@ -493,7 +493,21 @@ class SmurfUtilMixin(SmurfBase):
         return np.unwrap(np.arctan2(q, i))
 
 
+    def hex_string_to_int(self, s):
+        """
+        """
+        return np.int(''.join([chr(x) for x in s]),0)
 
 
+    def int_to_hex_string(self, i):
+        """
+        """
+        # Must be array length 300
+        s = np.zeros(300, dtype=int)
+        i_hex = hex(i)[2:]
+        for j in np.arange(len(i_hex)):
+            s[j] = int(i_hex[j])
+
+        return s
 
 
