@@ -45,15 +45,16 @@ class SmurfCommandMixin(SmurfBase):
             time.sleep(wait_after)
             self.log('Done waiting.', self.LOG_USER)
 
-    def _caget(self, cmd, write_log=False, execute=True, **kwargs):
+    def _caget(self, cmd, write_log=False, execute=True, count=None, **kwargs):
         '''
-        Wrapper around pyrogue lcaget. Puts variables into epics
+        Wrapper around pyrogue lcaget. Gets variables from epics
 
         Args:
         -----
         cmd : The pyrogue command to be exectued. Input as a string
         write_log : Whether to log the data or not. Default False
         execute : Whether to actually execute the command. Defualt True.
+        count (int or None) : number of elements to return for array data
 
         Returns:
         --------
@@ -63,7 +64,7 @@ class SmurfCommandMixin(SmurfBase):
             self.log('caput ' + cmd, self.LOG_USER)
 
         if execute:
-            ret = epics.caget(cmd)
+            ret = epics.caget(cmd, count=count)
             if write_log:
                 self.log(ret)
             return ret

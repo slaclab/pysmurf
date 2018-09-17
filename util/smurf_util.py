@@ -142,8 +142,10 @@ class SmurfUtilMixin(SmurfBase):
 
         time.sleep(.1)
 
-        r0 = self._caget(stream0)
-        r1 = self._caget(stream1)
+        r0 = self._caget(stream0, count=data_length)
+        print(r0)
+        print(np.shape(r0))
+        r1 = self._caget(stream1, count=data_length)
 
         if not hw_trigger:
             self.set_trigger_daq(1)
@@ -151,10 +153,11 @@ class SmurfUtilMixin(SmurfBase):
             self._caput(self.epics_root + 
                 ':AMCc:FpgaTopLevel:AppTop:DaqMuxV2[0]:ArmHwTrigger', 1)
 
-        time.sleep(10)
+        time.sleep(2)
 
-        r0 = self._caget(stream0)
-        r1 = self._caget(stream1)
+        r0 = self._caget(stream0, count=data_length)
+        print(np.shape(r0))
+        r1 = self._caget(stream1, count=data_length)
 
         epics.camonitor_clear(stream0)
         epics.camonitor_clear(stream1)
@@ -172,8 +175,11 @@ class SmurfUtilMixin(SmurfBase):
 
         self.setup_daq_mux('adc', adc_number, data_length)
 
-        res = self.read_stream_data_daq(data_length, hw_trigger=hw_trigger)
-        return res
+        res = self.read_stream_data_daq(data_length, bay=bay,
+            hw_trigger=hw_trigger)
+        dat = res[1] + 1.j * res[0]
+
+        return dat
 
     def setup_daq_mux(self, converter, converter_number, data_length):
         """
@@ -197,8 +203,8 @@ class SmurfUtilMixin(SmurfBase):
         self.set_buffer_size(data_length)
 
         # input mux select
-        self.set_input_mux_sel(0, daq_mux_channel0)
-        self.set_input_mux_sel(1, daq_mux_channel1)
+        self.set_input_mux_sel(0, daq_mux_channel0, write_log=True)
+        self.set_input_mux_sel(1, daq_mux_channel1, write_log=True)
 
 
     def set_buffer_size(self, size):
@@ -212,6 +218,7 @@ class SmurfUtilMixin(SmurfBase):
         # Change DAQ data buffer size
 
         # Change waveform engine buffer size
+        self.set_data_buffer_size(size, write_log=True)
         for daq_num in np.arange(4):
             s = self.get_waveform_start_addr(daq_num, convert=True)
             e = s + 4*size
@@ -495,12 +502,30 @@ class SmurfUtilMixin(SmurfBase):
 
     def hex_string_to_int(self, s):
         """
+        Converts hex string, which is an array of characters, into an int.
+
+        Args:
+        -----
+        s (character array) : An array of chars to be turned into a single int.
+
+        Returns:
+        --------
+        i (int64) : The 64 bit int
         """
         return np.int(''.join([chr(x) for x in s]),0)
 
 
     def int_to_hex_string(self, i):
         """
+        Converts an int into a string of characters.
+
+        Args:
+        -----
+        i (int64) : A 64 bit int to convert into hex.
+
+        Returns:
+        --------
+        s (char array) : A character array representing the int
         """
         # Must be array length 300
         s = np.zeros(300, dtype=int)

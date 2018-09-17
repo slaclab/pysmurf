@@ -15,8 +15,10 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
     Base class for controlling Smurf. Loads all the mixins.
     '''
 
-    def __init__(self, epics_root='mitch_epics', cfg_file=None, data_dir=None,
-        name=None, make_logfile=True, **kwargs):
+    def __init__(self, epics_root='mitch_epics', 
+        cfg_file='/home/cryo/pysmurf/cfg_files/experiment_fp28.cfg', 
+        data_dir=None, name=None, make_logfile=True, output_dir_only=False,
+        **kwargs):
         '''
         Args:
         -----
@@ -28,7 +30,8 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
 
         if cfg_file is not None or data_dir is not None:
             self.initialize(cfg_file=cfg_file, data_dir=data_dir, name=name,
-                make_logfile=make_logfile, **kwargs)
+                make_logfile=make_logfile, output_dir_only=output_dir_only,
+                **kwargs)
 
     def initialize(self, cfg_file, data_dir=None, name=None, 
         make_logfile=True, output_dir_only=False, **kwargs):
