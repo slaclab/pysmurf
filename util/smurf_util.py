@@ -249,6 +249,14 @@ class SmurfUtilMixin(SmurfBase):
         self.set_feedback_enable_array(band, np.zeros(512, dtype=int), **kwargs)
         self.set_cfg_reg_ena_bit(0, wait_after=.11, **kwargs)
 
+    def channel_off(self, band, channel, **kwargs):
+        """
+        Turns off tones for a single channel
+        """
+        self.log('Turning off band {} channel {}'.format(band, channel), 
+            self.LOG_USER)
+        self.set_amplitude_scale_channel(band, channel, 0, **kwargs)
+        self.set_feedback_enable_channel(band, channel, 0, **kwargs)
 
     def set_feedback_limit_khz(self, band, feedback_limit_khz):
         '''

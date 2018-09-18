@@ -156,7 +156,7 @@ class SmurfTuneMixin(SmurfBase):
 
     def full_band_resp(self, band):
         """
-
+        
         """
 
 
@@ -555,3 +555,56 @@ class SmurfTuneMixin(SmurfBase):
 
         plt.tight_layout()
 
+
+    def tracking_setup(self, band, channel, reset_rate_khz=4.):
+        """
+        Args:
+        -----
+        band (int) : The band number
+        channel (int) : The channel to check
+        """
+
+        self.set_cpld_reset(1)
+        self.set_cpld_reset(0)
+
+        fraction_full_scaled = .99
+
+        # To do: Move to experiment config
+        flux_ramp_full_scale_to_phi0 = 2.825/0.75
+
+        lms_delay   = 6  # nominally match refPhaseDelay
+        lms_gain    = 7  # incrases by power of 2, can also use etaMag to fine tune
+        lms_enable1 = 1  # 1st harmonic tracking
+        lms_enable2 = 1  # 2nd harmonic tracking
+        lms_enable3 = 1  # 3rd harmonic tracking
+        lms_rst_dly  = 31  # disable error term for 31 2.4MHz ticks after reset
+        lms_freq_hz  = flux_ramp_full_scale_to_phi0 * fraction_full_scale*\
+            (reset_rate_khz*10^3)  # fundamental tracking frequency guess
+        lms_delay2    = 255  # delay DDS counter resets, 307.2MHz ticks
+        lms_delay_fine = 0
+        iq_stream_enable = 0  # stream IQ data from tracking loop
+
+        self.set_lms_delay(band, lms_delay)
+        self.set_lms_dly_fine(band, lms_delay_fine)
+        self.set_lms_gain(band, lms_gain)
+        self.set_lms_enable1(band, lms_enable1)
+        self.set_lms_enable2(band, lms_enable2)
+        self.set_lms_enable3(band, lms_enable3)
+        self.set_lms_rst_dly(band, lms_rst_dly)
+        self.set_lms_freq_hz(band, lms_freq_hz)
+        self.set_lms_delay2(band, lms_delay2)
+        self.set_iq_stream_enable(band, iq_stream_enable)
+
+
+
+    def flux_ramp_setup(self, reset_rate_khz, fraction_full_scale, df_range, 
+        do_read):
+        """
+        """
+        # Disable flux ramp
+        self.set_cfg_reg_ena_bit(0)
+        digitizerFrequencyMHz=614.4
+        dspClockFrequencyMHz=digitizerFrequencyMHz/2
+
+        desiredRampMaxCnt = ((dspClockFrequencyMHz*10^3)/
+            (desiredResetRatekHz)) - 1

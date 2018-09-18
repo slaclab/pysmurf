@@ -44,6 +44,7 @@ class SmurfBase(object):
         self.band_root = self.sysgencryo + 'Base[{}]:'
         self.adc_root = self.sysgencryo + 'CryoAdcMux:'
         self.cryo_root = self.band_root + 'CryoChannels:'
+        self.channel_root = self.cryo_root + 'CryoChannel[{}]:'
         self.dac_root = self.epics_root + \
             ':AMCc:FpgaTopLevel:AppTop:AppCore:MicrowaveMuxCore[0]:DAC[{}]:'
         self.att_root = self.epics_root + \
@@ -161,3 +162,19 @@ class SmurfBase(object):
             the input band.
         '''
         return self.cryo_root.format(int(band))
+
+    def _channel_root(self, band, channel):
+        """
+        Helper function that returns the epics path to channel root.
+
+        Args:
+        -----
+        band (int) : The band to access
+        channel (int) : The channel to access.
+
+        Returns:
+        --------
+        path (string) : The string to be passed to caget/caput to access
+            the input band.
+        """
+        return self.channel_root.format(int(band), int(channel))

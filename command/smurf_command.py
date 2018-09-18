@@ -85,7 +85,7 @@ class SmurfCommandMixin(SmurfBase):
         --------
         n_subbands (int): The number of subbands in the band
         '''
-        return self._caget(self._band_root(band) + self._number_sub_bands, band, 
+        return self._caget(self._band_root(band) + self._number_sub_bands, 
             **kwargs)
 
     _number_channels = 'numberChannels'
@@ -101,7 +101,7 @@ class SmurfCommandMixin(SmurfBase):
         --------
         n_channels (int): The number of channels in the band
         '''
-        return self._caget(self._band_root(band) + self._number_channels, band,
+        return self._caget(self._band_root(band) + self._number_channels,
             **kwargs)
 
     def set_defaults_pv(self, **kwargs):
@@ -750,6 +750,19 @@ class SmurfCommandMixin(SmurfBase):
         """
         return self._caget(self._band_root(band) + self._lms_delay2, **kwargs)
 
+    _iq_stream_enable = 'iqStreamEnable'
+    def set_iq_stream_enable(self, band, val, **kwargs):
+        """
+        """
+        self._caput(self._band_root(band) + self._iq_stream_enable, val, 
+            **kwargs)
+
+    def get_iq_stream_enable(self, band, **kwargs):
+        """
+        """
+        return self._caget(self._band_root(band) + self._iq_stream_enable, 
+            **kwargs)
+
     _feedback_polarity = 'feedbackPolarity'
     def set_feedback_polarity(self, band, val, **kwargs):
         '''
@@ -812,6 +825,36 @@ class SmurfCommandMixin(SmurfBase):
         '''
         '''
         return self._caget(self._band_root(band) + self._dsp_enable, **kwargs)
+
+    # Single channel commands
+    _amplitude_scale_channel = 'amplitudeScale'
+    def set_amplitude_scale_channel(self, band, channel, val, **kwargs):
+        """
+        Set the amplitude scale for a single channel
+        """
+        self._caput(self._channel_root(band, channel) + 
+            self._amplitude_scale_channel, val, **kwargs)
+
+    def get_amplitude_scale_channel(self, band, channel, **kwargs):
+        """
+        """
+        self._caget(self._channel_root(band, channel) + 
+            self._amplitude_scale_channel, **kwargs)
+
+    _feedback_enable = 'feedbackEnable'
+    def set_feedback_enable_channel(self, band, channel, val, **kwargs):
+        """
+        Set the feedback for a single channel
+        """
+        self._caput(self._channel_root(band, channel) + 
+            self._feedback_enable, val, **kwargs)
+
+    def get_feedback_enable_channel(self, band, channel, **kwargs):
+        """
+        Get the feedback for a single channel
+        """
+        self._caget(self._channel_root(band, channel) + 
+            self._feedback_enable, **kwargs)
 
     # Attenuator
     _uc = 'UC[{}]'
@@ -1043,10 +1086,18 @@ class SmurfCommandMixin(SmurfBase):
         self._caput(self.rtm_cryo_det_root + self._reset_rtm, 1, **kwargs)
 
     _cpld_reset = 'CpldReset'
-    def cpld_reset(self, val, **kwargs):
-        '''
-        '''
+    def set_cpld_reset(self, val, **kwargs):
+        """
+        Args:
+        -----
+        val (int) : Set to 1 for a cpld reset
+        """
         self._caput(self.rtm_cryo_det_root + self._cpld_reset, val, **kwargs)    
+
+    def get_cpld_reset(self, **kwargs):
+        """
+        """
+        return self._caget(self.rtm_cryo_det_root + self._cpld_reset, **kwargs)
 
     _cfg_reg_ena_bit = 'CfgRegEnaBit'
     def set_cfg_reg_ena_bit(self, val, **kwargs):
@@ -1088,7 +1139,7 @@ class SmurfCommandMixin(SmurfBase):
     def get_50k_amp_gate_voltage(self, **kwargs):
         """
         """
-        return self.bit_to_V * self.get_tes_bias(self._dac_num_50k, **kwargs)
+        return self._bit_to_V * self.get_tes_bias(self._dac_num_50k, **kwargs)
 
     _tes_bias = 'TesBiasDacDataRegCh[{}]'
     def set_tes_bias(self, daq, val, **kwargs):
