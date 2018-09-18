@@ -181,6 +181,24 @@ class SmurfUtilMixin(SmurfBase):
 
         return dat
 
+    def read_dac_data(self, dac_number, data_length, hw_trigger=False):
+        """
+        Read the data directly off the DAC
+        """
+        if dac_number > 3:
+            bay = 1
+            dac_number = dac_number - 4
+        else:
+            bay = 0
+
+        self.setup_daq_mux('dac', dac_number, data_length)
+
+        res = self.read_stream_data_daq(data_length, bay=bay, 
+            hw_trigger=hw_trigger)
+        dat = res[1] + 1.j * res[0]
+
+        return dat
+
     def setup_daq_mux(self, converter, converter_number, data_length):
         """
         Sets up for either ADC or DAC data taking.
