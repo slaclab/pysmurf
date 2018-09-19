@@ -582,7 +582,7 @@ class SmurfTuneMixin(SmurfBase):
         plt.tight_layout()
 
 
-    def tracking_setup(self, band, channel, reset_rate_khz=4.):
+    def tracking_setup(self, band, channel, reset_rate_khz=4., write_log=False):
         """
         Args:
         -----
@@ -593,7 +593,7 @@ class SmurfTuneMixin(SmurfBase):
         self.set_cpld_reset(1)
         self.set_cpld_reset(0)
 
-        fraction_full_scaled = .99
+        fraction_full_scale = .99
 
         # To do: Move to experiment config
         flux_ramp_full_scale_to_phi0 = 2.825/0.75
@@ -610,21 +610,28 @@ class SmurfTuneMixin(SmurfBase):
         lms_delay_fine = 0
         iq_stream_enable = 0  # stream IQ data from tracking loop
 
-        self.set_lms_delay(band, lms_delay)
-        self.set_lms_dly_fine(band, lms_delay_fine)
-        self.set_lms_gain(band, lms_gain)
-        self.set_lms_enable1(band, lms_enable1)
-        self.set_lms_enable2(band, lms_enable2)
-        self.set_lms_enable3(band, lms_enable3)
-        self.set_lms_rst_dly(band, lms_rst_dly)
-        self.set_lms_freq_hz(band, lms_freq_hz)
-        self.set_lms_delay2(band, lms_delay2)
-        self.set_iq_stream_enable(band, iq_stream_enable)
+        self.set_lms_delay(band, lms_delay, write_log=write_log)
+        self.set_lms_dly_fine(band, lms_delay_fine, write_log=write_log)
+        self.set_lms_gain(band, lms_gain, write_log=write_log)
+        self.set_lms_enable1(band, lms_enable1, write_log=write_log)
+        self.set_lms_enable2(band, lms_enable2, write_log=write_log)
+        self.set_lms_enable3(band, lms_enable3, write_log=write_log)
+        self.set_lms_rst_dly(band, lms_rst_dly, write_log=write_log)
+        self.set_lms_freq_hz(band, lms_freq_hz, write_log=write_log)
+        self.set_lms_delay2(band, lms_delay2, write_log=write_log)
+        self.set_iq_stream_enable(band, iq_stream_enable, write_log=write_log)
 
+        self.flux_ramp_setup(reset_rate_khz, fraction_full_scale, 
+            write_log=write_log)
 
+        # self.set_lms_freq_hz(lms_freq_hz)
 
-    def flux_ramp_setup(self, reset_rate_khz, fraction_full_scale, df_range, 
-        do_read):
+        self.flux_ramp_on(write_log=write_log)
+
+        self.set_iq_stream_enable(band, 1, write_log=write_log)
+
+    def flux_ramp_setup(self, reset_rate_khz, fraction_full_scale, df_range=.1, 
+        do_read=False):
         """
         """
         # Disable flux ramp
