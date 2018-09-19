@@ -140,7 +140,7 @@ class SmurfUtilMixin(SmurfBase):
 
         pvs = [stream0, stream1]
         sg  = SyncGroup(pvs)
-         
+
         # trigger PV
         if not hw_trigger:
             self.set_trigger_daq(1, write_log=True)
@@ -148,8 +148,8 @@ class SmurfUtilMixin(SmurfBase):
             self._caput(self.epics_root + 
                 ':AMCc:FpgaTopLevel:AppTop:DaqMuxV2[0]:ArmHwTrigger', 1, 
                 write_log=True)
-
         sg.wait()
+
         vals = sg.get_values()
         print(vals[pvs[0]])
 

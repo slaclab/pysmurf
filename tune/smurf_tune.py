@@ -160,10 +160,12 @@ class SmurfTuneMixin(SmurfBase):
         """
         
         """
-        self.set_noise_select(band, 1, write_log=True)
+        self.set_noise_select(band, 1, wait_done=True, write_log=True)
+        time.sleep(2)
         adc = self.read_adc_data(band, n_samples, hw_trigger=True)
+        time.sleep(2)
         dac = self.read_dac_data(band, n_samples, hw_trigger=True)
-        self.set_noise_select(band, 0, write_log=True)
+        self.set_noise_select(band, 0, wait_done=True, write_log=True)
 
         if band == 2:
             dac = np.conj(dac)
