@@ -1099,7 +1099,6 @@ class SmurfCommandMixin(SmurfBase):
         """
         return self._caget(self.rtm_cryo_det_root + self._cpld_reset, **kwargs)
 
-<<<<<<< HEAD
     def cpld_toggle(self, **kwargs):
         """
         Toggles the cpld reset bit.
