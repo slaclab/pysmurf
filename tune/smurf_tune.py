@@ -3,6 +3,8 @@ import os
 import time
 from pysmurf.base import SmurfBase
 from scipy import optimize
+import scipy.signal as signal
+
 
 class SmurfTuneMixin(SmurfBase):
     '''
@@ -154,11 +156,35 @@ class SmurfTuneMixin(SmurfBase):
                 subband_centers[subband_nos.index(sb)]
         return freq, resp
 
-    def full_band_resp(self, band):
+    def full_band_resp(self, band, n_samples=2**19, make_plot=False):
         """
         
         """
+        self.set_noise_select(band, 1, write_log=True)
+        adc = self.read_adc_data(band, n_samples, hw_trigger=True)
+        dac = self.read_dac_data(band, n_samples, hw_trigger=True)
+        self.set_noise_select(band, 0, write_log=True)
 
+        if band == 2:
+            dac = np.conj(dac)
+
+        # To do : Implement cross correlation to get shift
+
+        f, p_dac = signal.welch(dac, fs=614.4E6, nperseg=n_samples/2)
+        f, p_adc = signal.welch(adc, fs=614.4E6, nperseg=n_samples/2)
+        f, p_cross = signal.csd(dac, adc, fs=614.4E6, nperseg=n_samples/2)
+
+        resp = p_cross / p_adc
+
+        if make_plot:
+            import matplotlib.pyplot as plt
+            fig, ax = plt.subplots(3, figsize=(5,8), sharex=True)
+            ax[0].semilogy(f, p_dac)
+            ax[1].semilogy(f, p_adc)
+            ax[2].semilogy(f, p_cross)
+
+            fig, ax = plt.subplots(1, figsize=(5,3.5))
+            ax.semilogy(f, np.abs(resp))
 
     def peak_finder(self, x, y, threshold):
         """finds peaks in x,y data with some threshhold

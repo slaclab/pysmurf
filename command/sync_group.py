@@ -38,5 +38,6 @@ class SyncGroup(object):
         t0 = time.time()
         while not all([n in self.values for n in self.pvnames]):
             epics.ca.poll()  # better performance using this over time.sleep()
+            # time.sleep(.001)
             if time.time() - t0 > self.timeout:
                 raise Exception('Timeout waiting for PVs to update.')

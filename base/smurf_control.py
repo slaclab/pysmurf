@@ -134,7 +134,7 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
                 # Make band dictionaries
                 self.freq_resp[b] = {}
 
-            self.cpld_reset(0, write_log=True)
+            self.set_cpld_reset(0, write_log=True)
 
             for i in np.arange(1,5):
                 self.set_att_uc(i, 0, write_log=True)

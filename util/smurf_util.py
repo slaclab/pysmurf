@@ -1,5 +1,6 @@
 import numpy as np
 from pysmurf.base import SmurfBase
+from pysmurf.command.sync_group import SyncGroup as SyncGroup
 import time
 import os
 import struct
@@ -137,31 +138,24 @@ class SmurfUtilMixin(SmurfBase):
             stream0 = self.epics_root + ":AMCc:Stream4"
             stream1 = self.epics_root + ":AMCc:Stream5"
 
-        epics.camonitor(stream0)
-        epics.camonitor(stream1)
-
-        time.sleep(.1)
-
-        r0 = self._caget(stream0, count=data_length)
-        print(r0)
-        print(np.shape(r0))
-        r1 = self._caget(stream1, count=data_length)
-
+        pvs = [stream0, stream1]
+        sg  = SyncGroup(pvs)
+         
+        # trigger PV
         if not hw_trigger:
-            self.set_trigger_daq(1)
+            self.set_trigger_daq(1, write_log=True)
         else:
             self._caput(self.epics_root + 
-                ':AMCc:FpgaTopLevel:AppTop:DaqMuxV2[0]:ArmHwTrigger', 1)
+                ':AMCc:FpgaTopLevel:AppTop:DaqMuxV2[0]:ArmHwTrigger', 1, 
+                write_log=True)
 
-        time.sleep(2)
+        sg.wait()
+        vals = sg.get_values()
+        print(vals[pvs[0]])
 
-        r0 = self._caget(stream0, count=data_length)
-        print(np.shape(r0))
-        r1 = self._caget(stream1, count=data_length)
-
-        epics.camonitor_clear(stream0)
-        epics.camonitor_clear(stream1)
-
+        r0 = vals[pvs[0]]
+        r1 = vals[pvs[1]]
+        
         return r0, r1
 
     def read_adc_data(self, adc_number, data_length, hw_trigger=False):

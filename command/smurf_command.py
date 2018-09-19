@@ -611,13 +611,13 @@ class SmurfCommandMixin(SmurfBase):
     def set_noise_select(self, band, val, **kwargs):
         """
         """
-        self._caput(self, self._band_root(band) + self._noise_select, val, 
+        self._caput(self._band_root(band) + self._noise_select, val, 
             **kwargs)
 
     def get_noise_select(self, band, **kwargs):
         """
         """
-        return self._caget(self, self._band_root(band) + self_noise_select, 
+        return self._caget(self._band_root(band) + self_noise_select, 
             **kwargs)
 
     _lms_delay = 'lmsDelay'
@@ -1099,6 +1099,13 @@ class SmurfCommandMixin(SmurfBase):
         """
         return self._caget(self.rtm_cryo_det_root + self._cpld_reset, **kwargs)
 
+    def cpld_toggle(self, **kwargs):
+        """
+        Toggles the cpld reset bit.
+        """
+        self.set_cpld_reset(1, wait_done=True, **kwargs)
+        self.set_cpld_reset(0, wait_done=True, **kwargs)
+
     _cfg_reg_ena_bit = 'CfgRegEnaBit'
     def set_cfg_reg_ena_bit(self, val, **kwargs):
         '''
@@ -1140,6 +1147,21 @@ class SmurfCommandMixin(SmurfBase):
         """
         """
         return self._bit_to_V * self.get_tes_bias(self._dac_num_50k, **kwargs)
+
+    def set_50k_amp_enable(self, disable=False, **kwargs):
+        """
+        Sets the 50K amp bit to 2 for enable and 0 for disable. Also 
+        automatically sets the gate voltage to 0.
+
+        Opt Args:
+        ---------
+        disable (bool) : Disable the 50K amplifier. Default False.
+        """
+        self.set_50k_amp_gate_voltage(0, wait_done=True, **kwargs)
+        if disable:
+            self.set_tes_bias_enable(self._dac_num_50k, 0, **kwargs)
+        else:
+            self.set_tes_bias_enable(self._dac_num_50k, 2, **kwargs)
 
     _tes_bias = 'TesBiasDacDataRegCh[{}]'
     def set_tes_bias(self, daq, val, **kwargs):
@@ -1319,10 +1341,18 @@ class SmurfCommandMixin(SmurfBase):
         return self._caget(self.rtm_cryo_det_root + self._pulse_width, **kwargs)
 
     _hemt_v_enable = 'HemtBiasDacCtrlRegCh[33]'
-    def set_hemt_enable(self, val, **kwargs):
+    def set_hemt_enable(self, disable=False, **kwargs):
         """
+        Sets bit to 2 for enable and 0 for disable. Also automatically sets 
+        HEMT gate voltage to 0.
         """
-        self._caput(self.rtm_spi_max_root + self._hemt_v_enable, val)
+        self.set_hemt_gate_voltage(0, wait_done=True, **kwargs)
+        if disable:
+            self._caput(self.rtm_spi_max_root + self._hemt_v_enable, 0, 
+                **kwargs)
+        else:
+            self._caput(self.rtm_spi_max_root + self._hemt_v_enable, 2, 
+                **kwargs)
 
 
     _bit_to_V_hemt = .576/3.0E5  # empirically found
@@ -1364,6 +1394,12 @@ class SmurfCommandMixin(SmurfBase):
         Returns the HEMT voltage in bits.
         '''
         return self._caget(self.rtm_spi_max_root + self._hemt_v, **kwargs)
+
+    def get_hemt_gate_voltage(self, **kwargs):
+        '''
+        Returns the HEMT voltage in bits.
+        '''
+        return self._bit_to_V_hemt*self.get_hemt_bias(**kwargs)
 
 
     _stream_datafile = 'dataFile'

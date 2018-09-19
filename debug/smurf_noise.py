@@ -8,7 +8,7 @@ class SmurfNoiseMixin(SmurfBase):
     def take_noise_psd(self, band, meas_time, channel=None, nperseg=2**12, 
         detrend='constant', fs=None, low_freq=np.array([.1, 1.]), 
         high_freq=np.array([1., 5.]), make_channel_plot=True,
-        make_summary_plot=True):
+        make_summary_plot=True, save_data=False):
         """
         """
         if channel is None:
@@ -75,15 +75,23 @@ class SmurfNoiseMixin(SmurfBase):
                     bbox_inches='tight')
                 plt.close()
 
+        if save_data:
+            for i, (l, h) in enumerate(zip(low_freq, high_freq)):
+                save_name = basename+'_{:3.2f}_{:3.2f}.txt'.format(l, h)
+                np.savetxt(os.path.join(self.plot_dir, save_name), 
+                    noise_floors[i])
+
         if make_summary_plot:
             bins = np.arange(0,351,10)
             for i, (l, h) in enumerate(zip(low_freq, high_freq)):
                 fig, ax = plt.subplots(1, figsize=(4,3))
                 ax.hist(noise_floors[i,~np.isnan(noise_floors[i])], bins=bins)
-                ax.text(0.03, 0.95, '{:3.2f}'.format(l) + '-' +'{:3.2f} Hz'.format(h),
+                ax.text(0.03, 0.95, '{:3.2f}'.format(l) + '-' +
+                    '{:3.2f} Hz'.format(h),
                     transform=ax.transAxes, fontsize=10)
 
-                plot_name = basename+'_b{}_{}_{}_noise_hist.png'.format(band, l, h)
+                plot_name = basename + \
+                    '_b{}_{}_{}_noise_hist.png'.format(band, l, h)
                 plt.savefig(os.path.join(self.plot_dir, plot_name), 
                     bbox_inches='tight')
                 plt.close()
