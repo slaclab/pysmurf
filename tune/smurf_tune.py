@@ -632,12 +632,47 @@ class SmurfTuneMixin(SmurfBase):
 
     def flux_ramp_setup(self, reset_rate_khz, fraction_full_scale, df_range=.1, 
         do_read=False):
+
         """
         """
         # Disable flux ramp
         self.set_cfg_reg_ena_bit(0)
-        digitizerFrequencyMHz=614.4
-        dspClockFrequencyMHz=digitizerFrequencyMHz/2
+        digitizer_frequency_mhz = 614.4
+        dsp_clock_frequency_mhz = digitizer_frequency_mhz/2
 
-        desiredRampMaxCnt = ((dspClockFrequencyMHz*10^3)/
-            (desiredResetRatekHz)) - 1
+        desired_ramp_max_cnt = ((dsp_clock_frequency_mhz*10^3)/
+            (reset_rate_khz)) - 1
+
+        ramp_max_cnt = np.floor(desired_ramp_max_cnt)
+
+        reset_rate = (dsp_clock_frequency_mhz * 1.0E6)/(ramp_max_cnt + 1)
+        high_cycle = 5
+        low_cycle = 5
+        rtm_clock = (dsp_clock_frequency_mhz * 1.0E6)/ \
+            (high_cycle + low_cycle + 2)
+        trial_rtm_clock = rtm_clock
+
+        full_scale_rate = fraction_full_scale * reset_rate
+        des_fast_slow_step_size = (full_scale_rate * 2**20) / rtm_clock
+        trial_fast_slow_step_size = np.round(des_fast_slow_step_size)
+        fast_slow_step_size = trial_fast_slow_step_size
+
+        trial_full_scale_rate = trial_fast_slow_step_size * \
+            trial_rtm_clock / (2**20)
+        trial_reset_rate = (dsp_clock_frequency_mhz*1.0E6)/(ramp_max_cnt + 1)
+        trial_fraction_full_scale = trial_full_scale_rate/trial_reset_rate
+        fraction_full_scale = trial_fraction_full_scale
+        diff_from_des = np.abs(trial_fraction_full_scale - 
+            desired_fraction_full_scale)
+
+        fast_slow_rst_value = np.floor((2**20)*(1-fraction_full_scale)/2.);
+
+        self.log('Percent of full scale {:3.2f}'.format(fraction_full_scale))
+
+        self.set_low_cycle(low_cycle)
+        self.set_high_cycle(high_cycle)
+
+        self.set_k_relay(3)
+
+        self.set_ramp_max_cnt(ramp_max_cnt)
+        self.set_select_ramp(1)

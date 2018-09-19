@@ -1099,12 +1099,46 @@ class SmurfCommandMixin(SmurfBase):
         """
         return self._caget(self.rtm_cryo_det_root + self._cpld_reset, **kwargs)
 
+<<<<<<< HEAD
     def cpld_toggle(self, **kwargs):
         """
         Toggles the cpld reset bit.
         """
         self.set_cpld_reset(1, wait_done=True, **kwargs)
         self.set_cpld_reset(0, wait_done=True, **kwargs)
+
+    _low_cycle = 'LowCycle'
+    def set_low_cycle(self, val, **kwargs):
+        """
+        """
+        self._caput(self.rtm_cryo_det_root + self._low_cycle, val, **kwargs)
+
+    def get_low_cycle(self, **kwargs):
+        """
+        """
+        return self._caget(self.rtm_cryo_det_root + self._low_cycle, **kwargs)
+
+    _high_cycle = 'HighCycle'
+    def set_high_cycle(self, val, **kwargs):
+        """
+        """
+        self._caput(self.rtm_cryo_det_root + self._high_cycle, val, **kwargs)
+
+    def get_high_cycle(self, **kwargs):
+        """
+        """
+        return self._caget(self.rtm_cryo_det_root + self._high_cycle, **kwargs)
+
+    _k_relay = 'KRelay'
+    def set_k_relay(self, val, **kwargs):
+        """
+        """
+        self._caput(self.rtm_cryo_det_root + self._k_relay, val, **kwargs)
+
+    def get_k_relay(self, **kwargs):
+        """
+        """
+        return self._caget(self.rtm_cryo_det_root + self._k_relay, **kwargs)
 
     _cfg_reg_ena_bit = 'CfgRegEnaBit'
     def set_cfg_reg_ena_bit(self, val, **kwargs):
