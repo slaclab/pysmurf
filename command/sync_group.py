@@ -5,11 +5,11 @@ import epics
 This class is written by Mitch to read PVs simultanesouly
 """
 class SyncGroup(object):
-    def __init__(self, pvs, timeout=30.0):
+    def __init__(self, pvs, timeout=30.0, skip_first=True):
         self.pvnames = pvs
         self.values = dict()
         self.timeout = timeout
-        self.first = [True] * len(pvs)
+        self.first = [skip_first] * len(pvs)
         self.pvs = [epics.PV(pv, callback=self.channel_changed, 
             auto_monitor=True) for pv in pvs]
 
