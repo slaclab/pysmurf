@@ -64,7 +64,8 @@ class SmurfNoiseMixin(SmurfBase):
                 ax[2].set_yscale('log')
                 ax[2].set_xscale('log')
 
-                ax[2].axhline(noise_floors[i,-1], color='k', linestyle='--')
+                ax[2].axhline(noise_floors[-1,ch], color='k', linestyle='--')
+                print(noise_floors[-1, ch])
 
                 ax[0].set_title('Band {} Ch {:03}'.format(band, ch))
 

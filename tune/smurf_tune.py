@@ -161,9 +161,8 @@ class SmurfTuneMixin(SmurfBase):
         
         """
         self.set_noise_select(band, 1, wait_done=True, write_log=True)
-        time.sleep(2)
         adc = self.read_adc_data(band, n_samples, hw_trigger=True)
-        time.sleep(2)
+        time.sleep(1)  # Need to wait, otherwise dac call interferes with adc
         dac = self.read_dac_data(band, n_samples, hw_trigger=True)
         self.set_noise_select(band, 0, wait_done=True, write_log=True)
 
@@ -181,12 +180,23 @@ class SmurfTuneMixin(SmurfBase):
         if make_plot:
             import matplotlib.pyplot as plt
             fig, ax = plt.subplots(3, figsize=(5,8), sharex=True)
-            ax[0].semilogy(f, p_dac)
-            ax[1].semilogy(f, p_adc)
-            ax[2].semilogy(f, p_cross)
+            f_plot = f / 1.0E6
+            ax[0].semilogy(f_plot, p_dac)
+            ax[0].set_ylabel('DAC')
+            ax[1].semilogy(f_plot, p_adc)
+            ax[1].set_ylabel('ADC')
+            ax[2].semilogy(f_plot, p_cross)
+            ax[2].set_ylabel('Cross')
+            ax[2].set_xlabel('Frequency [MHz]')
 
-            fig, ax = plt.subplots(1, figsize=(5,3.5))
-            ax.semilogy(f, np.abs(resp))
+            plt.tight_layout()
+
+            fig, ax = plt.subplots(1)
+            ax.plot(f_plot, np.abs(resp))
+            ax.plot(f_plot, np.real(resp))
+            ax.plot(f_plot, np.imag(resp))
+
+        return f, resp
 
     def peak_finder(self, x, y, threshold):
         """finds peaks in x,y data with some threshhold
@@ -634,47 +644,12 @@ class SmurfTuneMixin(SmurfBase):
 
     def flux_ramp_setup(self, reset_rate_khz, fraction_full_scale, df_range=.1, 
         do_read=False):
-
         """
         """
         # Disable flux ramp
         self.set_cfg_reg_ena_bit(0)
-        digitizer_frequency_mhz = 614.4
-        dsp_clock_frequency_mhz = digitizer_frequency_mhz/2
+        digitizerFrequencyMHz=614.4
+        dspClockFrequencyMHz=digitizerFrequencyMHz/2
 
-        desired_ramp_max_cnt = ((dsp_clock_frequency_mhz*10^3)/
-            (reset_rate_khz)) - 1
-
-        ramp_max_cnt = np.floor(desired_ramp_max_cnt)
-
-        reset_rate = (dsp_clock_frequency_mhz * 1.0E6)/(ramp_max_cnt + 1)
-        high_cycle = 5
-        low_cycle = 5
-        rtm_clock = (dsp_clock_frequency_mhz * 1.0E6)/ \
-            (high_cycle + low_cycle + 2)
-        trial_rtm_clock = rtm_clock
-
-        full_scale_rate = fraction_full_scale * reset_rate
-        des_fast_slow_step_size = (full_scale_rate * 2**20) / rtm_clock
-        trial_fast_slow_step_size = np.round(des_fast_slow_step_size)
-        fast_slow_step_size = trial_fast_slow_step_size
-
-        trial_full_scale_rate = trial_fast_slow_step_size * \
-            trial_rtm_clock / (2**20)
-        trial_reset_rate = (dsp_clock_frequency_mhz*1.0E6)/(ramp_max_cnt + 1)
-        trial_fraction_full_scale = trial_full_scale_rate/trial_reset_rate
-        fraction_full_scale = trial_fraction_full_scale
-        diff_from_des = np.abs(trial_fraction_full_scale - 
-            desired_fraction_full_scale)
-
-        fast_slow_rst_value = np.floor((2**20)*(1-fraction_full_scale)/2.);
-
-        self.log('Percent of full scale {:3.2f}'.format(fraction_full_scale))
-
-        self.set_low_cycle(low_cycle)
-        self.set_high_cycle(high_cycle)
-
-        self.set_k_relay(3)
-
-        self.set_ramp_max_cnt(ramp_max_cnt)
-        self.set_select_ramp(1)
+        desiredRampMaxCnt = ((dspClockFrequencyMHz*10^3)/
+            (desiredResetRatekHz)) - 1
