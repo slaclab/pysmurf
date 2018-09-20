@@ -555,4 +555,11 @@ class SmurfUtilMixin(SmurfBase):
 
         return s
 
+    def get_timestamp(self):
+        """
+        Returns:
+        timestampe (str): Timestamp as a string
+        """
+        return '{:10}'.format(int(time.time()))
+
 

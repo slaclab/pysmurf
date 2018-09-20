@@ -51,9 +51,9 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
         self.date = time.strftime("%Y%m%d")
 
         # name
-        self.the_time = time.time()
+        self.start_time = self.get_timestamp()
         if name is None:
-            name = '%10i' % (self.the_time)
+            name = self.start_time
         self.name = name
 
         self.base_dir = os.path.abspath(self.data_dir)
@@ -149,3 +149,10 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
 
         if not os.path.exists(directory):
             os.makedirs(directory)
+
+    def get_timestamp(self):
+        """
+        Returns:
+        timestampe (str): Timestamp as a string
+        """
+        return '{:10}'.format(int(time.time()))
