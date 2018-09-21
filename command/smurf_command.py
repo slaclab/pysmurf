@@ -7,7 +7,7 @@ from pysmurf.base import SmurfBase
 class SmurfCommandMixin(SmurfBase):
 
     def _caput(self, cmd, val, write_log=False, execute=True, wait_before=None,
-        wait_after=None, wait_done=False, **kwargs):
+        wait_after=None, wait_done=True, **kwargs):
         '''
         Wrapper around pyrogue lcaput. Puts variables into epics
 
@@ -25,7 +25,7 @@ class SmurfCommandMixin(SmurfBase):
         wait_after (int) : If not None, the number of seconds to wait after
             issuing the command
         wait_done (bool) : Wait for the command to be finished before returning.
-            Default False.
+            Default True.
         '''
         if wait_before is not None:
             if write_log:
@@ -1467,4 +1467,41 @@ class SmurfCommandMixin(SmurfBase):
         """
         return self._caget(self.streaming_root + self._streaming_file_open,  
             **kwargs)
+
+    # Cryo card comands
+    def get_cryo_card_temp(self):
+        """
+        """
+        return self.C.read_temperature()
+
+    def get_cryo_card_hemt_bias(self):
+        """
+        """
+        return self.C.read_hemt_bias()
+
+    def get_cryo_card_50k_bias(self):
+        """
+        """
+        return self.C.read_50k_bias()
+
+    def get_cryo_card_cycle_count(self):
+        """
+        """
+        self.log('Not doing anything because not implement in cryo_card.py')
+        # return self.C.read_cycle_count()
+
+    def get_cryo_card_relays(self):
+        """
+        """
+        return self.C.read_relays()
+
+    def set_cryo_card_relays(self, relay):
+        """
+        """
+        self.C.write_relays(relay)
+
+    def set_cryo_card_delatch_bit(self, bit):
+        """
+        """
+        self.C.delatch_bit(bit)
 

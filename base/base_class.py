@@ -1,5 +1,6 @@
 import numpy as np
 from .logger import SmurfLogger
+from pysmurf.command.cryo_card import CryoCard
 
 class SmurfBase(object):
     '''
@@ -73,7 +74,11 @@ class SmurfBase(object):
             'RtmSpiSr:'
         self.rtm_spi_max_root = self.rtm_cryo_det_root + \
             'RtmSpiMax:'
+        self.rtm_spi_cryo_root = self.rtm_cryo_det_root + \
+            'SpiCryo:'
 
+        self.C = CryoCard(self.rtm_spi_cryo_root + 'read', 
+            self.rtm_spi_cryo_root + 'write')
         self.freq_resp = {}
 
     def init_log(self, verbose=0, logger=SmurfLogger, logfile=None,

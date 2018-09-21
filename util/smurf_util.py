@@ -148,6 +148,7 @@ class SmurfUtilMixin(SmurfBase):
             self._caput(self.epics_root + 
                 ':AMCc:FpgaTopLevel:AppTop:DaqMuxV2[0]:ArmHwTrigger', 1, 
                 write_log=True)
+        time.sleep(.1)
         sg.wait()
 
         vals = sg.get_values()

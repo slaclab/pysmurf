@@ -156,14 +156,16 @@ class SmurfTuneMixin(SmurfBase):
                 subband_centers[subband_nos.index(sb)]
         return freq, resp
 
-    def full_band_resp(self, band, n_samples=2**19, make_plot=False):
+    def full_band_resp(self, band, n_samples=2**19, make_plot=False, 
+        save_data=False):
         """
         
         """
         self.set_noise_select(band, 1, wait_done=True, write_log=True)
         adc = self.read_adc_data(band, n_samples, hw_trigger=True)
-        time.sleep(1)  # Need to wait, otherwise dac call interferes with adc
+        time.sleep(2)  # Need to wait, otherwise dac call interferes with adc
         dac = self.read_dac_data(band, n_samples, hw_trigger=True)
+        time.sleep(.5)
         self.set_noise_select(band, 0, wait_done=True, write_log=True)
 
         if band == 2:
@@ -175,7 +177,7 @@ class SmurfTuneMixin(SmurfBase):
         f, p_adc = signal.welch(adc, fs=614.4E6, nperseg=n_samples/2)
         f, p_cross = signal.csd(dac, adc, fs=614.4E6, nperseg=n_samples/2)
 
-        resp = p_cross / p_adc
+        resp = p_cross / p_dac
 
         if make_plot:
             import matplotlib.pyplot as plt
@@ -185,16 +187,27 @@ class SmurfTuneMixin(SmurfBase):
             ax[0].set_ylabel('DAC')
             ax[1].semilogy(f_plot, p_adc)
             ax[1].set_ylabel('ADC')
-            ax[2].semilogy(f_plot, p_cross)
+            ax[2].semilogy(f_plot, np.abs(p_cross))
             ax[2].set_ylabel('Cross')
             ax[2].set_xlabel('Frequency [MHz]')
 
             plt.tight_layout()
 
             fig, ax = plt.subplots(1)
-            ax.plot(f_plot, np.abs(resp))
-            ax.plot(f_plot, np.real(resp))
-            ax.plot(f_plot, np.imag(resp))
+            ax.plot(f_plot, np.log10(np.abs(resp)))
+            ax.set_xlim(-250, 250)
+            # ax.plot(f_plot, np.real(resp))
+            # ax.plot(f_plot, np.imag(resp))
+
+        if save_data:
+            save_name = self.get_timestamp() + '_{}_full_band_resp.txt'
+            np.savetxt(os.path.join(self.output_dir, save_name.format('freq')), 
+                f)
+            np.savetxt(os.path.join(self.output_dir, save_name.format('real')), 
+                np.real(resp))
+            np.savetxt(os.path.join(self.output_dir, save_name.format('imag')), 
+                np.imag(resp))
+            
 
         return f, resp
 
@@ -236,9 +249,8 @@ class SmurfTuneMixin(SmurfBase):
                     in_peak = 0
         return peakstruct_max, peakstruct_nabove, peakstruct_freq
 
-    def find_peak(self, freq, resp, normalize=False, 
-        n_samp_drop=1, threshold=.5, margin_factor=1., phase_min_cut=1, 
-        phase_max_cut=1, make_plot=False, save_plot=True, save_name=None):
+    def find_peak(self, freq, resp, make_plot=False, save_plot=True, 
+        save_name=None):
         """find the peaks within a given subband
 
         Args:
@@ -248,61 +260,27 @@ class SmurfTuneMixin(SmurfBase):
 
         Optional Args:
         --------------
-        normalize (bool) : 
-        n_samp_drop (int) :
-        threshold (float) :
-        margin_factor (float):
-        phase_min_cut (int) :
-        phase_max_cut (int) :
+
 
         Returns:
         -------_
         resonances (list of floats) found in this subband
         """
-        resp_input = np.copy(resp)
-        if np.isnan(resp).any():
-            if np.isnan(resp).all():
-                self.log("Warning - All values are NAN. Skipping", 
-                    self.LOG_ERROR)                
-                return
-            self.log("Warning - at least one NAN. Interpolating...", 
-                self.LOG_ERROR)
-            idx = ~np.isnan(resp)
-            resp = np.interp(freq, freq[idx], resp[idx])
 
-        # This was what was in Cyndia and Shawns code. Im deprecating this
-        # for now.
-        # df = freq[1] - freq[0]
-        # Idat = np.real(resp)
-        # Qdat = np.imag(resp)
-        # phase = np.unwrap(np.arctan2(Qdat, Idat))
+        [gradient_locations1] = np.where(np.diff(np.unwrap(np.angle(resp))) 
+            < -0.1)
+        [gradient_locations2] = np.where(np.diff(np.abs(resp)) > 0.005)
+        gradient_locations = list(set(gradient_locations1) & 
+            (set(gradient_locations2) | set(gradient_locations2 - 1) |
+                set(gradient_locations2 + 1)))
 
-        # diff_phase = np.diff(phase)
-        # diff_freq = np.add(freq[:-1], df / 2)  # lose an index from diff
-
-        # if normalize==True:
-        #     norm_min = min(diff_phase[nsampdrop:-nsampdrop])
-        #     norm_max = max(diff_phase[nsampdrop:-nsampdrop])
-
-        #     diff_phase = (diff_phase - norm_min) / (norm_max - norm_min)
-        #
-        # peakstruct_max, peakstruct_nabove, peakstruct_freq = \
-        #     self.peak_finder(diff_freq, diff_phase, threshold)
-
-        # return peakstruct_max, peakstruct_nabove, peakstruct_freq
-
-        # For now use scipy - needs scipy
-        # hardcoded values should be exposed in some meaningful way
-
-        import scipy.signal as signal
-        peak_ind, props = signal.find_peaks(-np.abs(resp), distance=10, 
-            prominence=.025)
 
         if make_plot:
             self.plot_find_peak(freq, resp_input, peak_ind, save_plot=save_plot,
                 save_name=save_name)
 
-        return freq[peak_ind]
+        # return freq[peak_ind]
+        return gradient_locations
 
     def plot_find_peak(self, freq, resp, peak_ind, save_plot=True, 
         save_name=None):
