@@ -1217,6 +1217,7 @@ class SmurfCommandMixin(SmurfBase):
         self._caput(self.rtm_spi_max_root + self._tes_bias.format(daq), val, 
             **kwargs)
 
+
     def get_tes_bias(self, daq, **kwargs):
         """
         Gets the TES bias current
@@ -1228,17 +1229,29 @@ class SmurfCommandMixin(SmurfBase):
         return self._caget(self.rtm_spi_max_root + self._tes_bias.format(daq), 
             **kwargs)
 
+    _bit_to_volt = 10./2**19
+    def set_tes_bias_volt(self, dac_num, val, **kwargs):
+        """
+        """
+        self.set_tes_bias(dac_num, val/self._bit_to_volt, **kwargs)
+
+
+    def get_tes_bias_volt(self, dac_num, **kwargs):
+        """
+        """
+        return self._bit_to_volt * self.get_tes_bias(dac_num, **kwargs)
+
     def flux_ramp_on(self, **kwargs):
         '''
         Turns on the flux ramp - a useful wrapper for set_cfg_reg_ena_bit
         '''
-        self.set_reg_ena_bit(1, **kwargs)
+        self.set_cfg_reg_ena_bit(1, **kwargs)
 
     def flux_ramp_off(self, **kwargs):
         '''
         Turns off the flux ramp - a useful wrapper for set_cfg_reg_ena_bit
         '''
-        self.set_reg_ena_bit(0, **kwargs)
+        self.set_cfg_reg_ena_bit(0, **kwargs)
 
     _ramp_max_cnt = 'RampMaxCnt'
     def set_ramp_max_cnt(self, val, **kwargs):

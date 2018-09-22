@@ -556,6 +556,36 @@ class SmurfUtilMixin(SmurfBase):
 
         return s
 
+    def set_tes_bias_bipolar(self, bias_num, volt, do_enable=True, **kwargs):
+        """
+
+        Opt args:
+        --------
+        do_enable (bool) : Sets the enable bit
+        """
+
+        bias_order = np.array([9, 11, 13, 15, 16, 14, 12, 10, 7, 5, 3, 1, 8, 6, 
+            4, 2])
+        dac_positives = np.array([2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 
+            26, 28, 30, 32])
+        dac_negatives = np.array([1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 
+            25, 27, 29, 31])
+
+        dac_idx = np.ravel(np.where(bias_order == bias_num))
+
+        dac_positive = dac_positives[dac_idx][0]
+        dac_negative = dac_negatives[dac_idx][0]
+
+        volts_pos = volt / 2
+        volts_neg = - volt / 2
+
+        if do_enable:
+            self.set_tes_bias_enable(dac_positive, 2, **kwargs)
+            self.set_tes_bias_enable(dac_negative, 2, **kwargs)
+
+        self.set_tes_bias_volt(dac_positive, volts_pos, **kwargs)
+        self.set_tes_bias_volt(dac_negative, volts_neg, **kwargs)
+
     def get_timestamp(self):
         """
         Returns:

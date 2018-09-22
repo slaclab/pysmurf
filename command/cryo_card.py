@@ -1,9 +1,12 @@
-
 import epics
 import time
 import pysmurf
 import os
 import time
+
+"""
+This is written by Joe Frisch.
+"""
 
 def write_csv(filename, header, line):
     should_write_header = os.path.exists(filename)
@@ -56,7 +59,6 @@ class CryoCard():
    def delatch_bit(self, bit): # bit is the pattern for the desired relay, eg 0x4 for 100
       current_relay = self.read_relays()
       set_relay = current_relay + bit
-      print("setting relay to: " + hex(set_relay))
       self.write_relays(set_relay)
       time.sleep(0.1)
       self.write_relays(current_relay) # return to original state

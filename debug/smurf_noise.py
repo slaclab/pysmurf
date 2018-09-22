@@ -29,20 +29,17 @@ class SmurfNoiseMixin(SmurfBase):
 
         import matplotlib.pyplot as plt
 
-        pA_per_phi0 = 9e-6 # pA/Phi0
-
         noise_floors = np.zeros((len(low_freq), n_channel))*np.nan
 
         if not show_plot:
             plt.ioff()
         for c, ch in enumerate(channel):
             phase = self.iq_to_phase(I[ch], Q[ch])
-            phase -= np.mean(phase)
 
             # Calculate to power spectrum and convert to pA
             f, Pxx = signal.welch(phase, nperseg=nperseg, 
                 fs=fs, detrend=detrend)
-            Pxx = np.sqrt(Pxx)/(2*np.pi)*pA_per_phi0*1e12
+            Pxx = np.sqrt(Pxx)/(2*np.pi)*self.pA_per_phi0*1e12
             for i, (l, h) in enumerate(zip(low_freq, high_freq)):
                 idx = np.logical_and(f>l, f<h)
                 noise_floors[i, ch] = np.mean(Pxx[idx])
@@ -53,10 +50,10 @@ class SmurfNoiseMixin(SmurfBase):
                 ax[0].plot(Q[ch], label='Q')
                 ax[0].legend()
                 ax[0].set_ylabel('I/Q')
-                ax[0].set_xlabel('Time')
+                ax[0].set_xlabel('Sample Num')
 
-                ax[1].plot(pA_per_phi0 * phase / (2*np.pi))
-                ax[1].set_xlabel('Time')
+                ax[1].plot(self.pA_per_phi0 * phase / (2*np.pi))
+                ax[1].set_xlabel('Sample Num')
                 ax[1].set_ylabel('Phase [pA]')
 
                 ax[2].plot(f, Pxx)
