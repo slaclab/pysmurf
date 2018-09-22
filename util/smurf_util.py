@@ -138,6 +138,11 @@ class SmurfUtilMixin(SmurfBase):
             stream0 = self.epics_root + ":AMCc:Stream4"
             stream1 = self.epics_root + ":AMCc:Stream5"
 
+        print('camonitoring')
+        epics.camonitor(stream0)
+        epics.camonitor(stream1)
+        print('done camonitoring')
+        
         pvs = [stream0, stream1]
         sg  = SyncGroup(pvs)
 

@@ -110,8 +110,17 @@ class SmurfCommandMixin(SmurfBase):
         '''
         self._caput(self.epics_root + ':AMCc:setDefaults', 1, wait_after=5,
             **kwargs)
-        # This sleep is in the original script. Not sure why.
         self.log('Defaults are set.', self.LOG_INFO)
+
+    def set_read_all(self, **kwargs):
+        """
+        ReadAll sends a command to read all register to the pyrogue server
+        Registers must upated in order to PVs to update. 
+        This call is necesary to read register with pollIntervale=0.
+        """
+        self._caput(self.epics_root + ':AMCc:ReadAll', 1, **kwargs)
+        self.log('ReadAll sent', self.LOG_INFO)        
+
 
     _eta_scan_freqs = 'etaScanFreqs'
     def set_eta_scan_freq(self, band, val, **kwargs):

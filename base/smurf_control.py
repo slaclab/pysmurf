@@ -78,14 +78,13 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
         if not output_dir_only:
             self.log('Initializing...', self.LOG_USER)
 
-            self.set_defaults_pv()
+            self.set_read_all(write_log=True)
+            self.set_defaults_pv(write_log=True)
 
             # The per band configs. May want to make available per-band values.
             smurf_init_config = self.config.get('init')
             bands = smurf_init_config['bands']
             for b in bands:
-                self.set_feedback_limit_khz(b, 225)  # why 225?
-
                 self.set_iq_swap_in(b, smurf_init_config['iqSwapIn'], 
                     write_log=True, **kwargs)
                 self.set_iq_swap_out(b, smurf_init_config['iqSwapOut'], 
@@ -105,6 +104,9 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
                     write_log=True, **kwargs)
                 self.set_lms_gain(b, smurf_init_config['lmsGain'], 
                     write_log=True, **kwargs)
+
+                self.set_feedback_limit_khz(b, 225)  # why 225?
+
                 self.set_feedback_polarity(b, smurf_init_config['feedbackPolarity'], 
                     write_log=True, **kwargs)
                 # self.set_band_center_mhz(b, smurf_init_config['bandCenterMHz'],
