@@ -1391,6 +1391,10 @@ class SmurfCommandMixin(SmurfBase):
         """
         Sets bit to 2 for enable and 0 for disable. Also automatically sets 
         HEMT gate voltage to 0.
+
+        Opt Args:
+        ---------
+        disable (bool): If True, sets the bit to 0. 
         """
         self.set_hemt_gate_voltage(0, wait_done=True, **kwargs)
         if disable:
@@ -1404,6 +1408,17 @@ class SmurfCommandMixin(SmurfBase):
     _bit_to_V_hemt = .576/3.0E5  # empirically found
     def set_hemt_gate_voltage(self, voltage, override=False, **kwargs):
         """
+        Sets the HEMT gate voltage in units of volts. 
+
+        Args:
+        -----
+        voltage (float): The voltage applied to the HEMT gate. Must be between
+            0 and .75. 
+
+        Opt Args:
+        ---------
+        override (bool): Override thee limits on HEMT gate voltage. Default
+            False.
         """
         if (voltage > .75 or voltage < 0 ) and not override:
             self.log('Input voltage too high. Not doing anything.' + 
@@ -1449,34 +1464,65 @@ class SmurfCommandMixin(SmurfBase):
 
 
     _stream_datafile = 'dataFile'
-    def set_streaming_datafile(self, val, as_string=True, **kwargs):
+    def set_streaming_datafile(self, datafile, as_string=True, **kwargs):
         """
+        Sets the datafile to write streaming data
 
+        Args:
+        -----
+        datafile (str or length 300 int array): The name of the datafile
+
+        Opt Args:
+        ---------
+        as_string (bool): The input data is a string. If False, the input
+            data must be a length 300 character int. Default True.
         """
         if as_string:
-            val = [ord(x) for x in val]
+            datafile = [ord(x) for x in datafile]
             # must be exactly 300 elements long. Pad with trailing zeros
-            val = np.append(val, np.zeros(300-len(val), dtype=int))
-        self._caput(self.streaming_root + self._stream_datafile, val, **kwargs)
+            datafile = np.append(datafile, np.zeros(300-len(datafile), 
+                dtype=int))
+        self._caput(self.streaming_root + self._stream_datafile, datafile, 
+            **kwargs)
 
     def get_streaming_datafile(self, as_string=True, **kwargs):
         """
+        Gets the datafile that streaming data is written to.
+
+        Returns:
+        --------
+        datafile (str or length 300 int array): The name of the datafile
+
+        Opt Args:
+        ---------
+        as_string (bool): The output data returns as a string. If False, the 
+            input data must be a length 300 character int. Default True.
         """
-        val = self._caget(self.streaming_root + self._stream_datafile, 
+        datafile = self._caget(self.streaming_root + self._stream_datafile, 
             **kwargs)
         if as_string:
-            val = ''.join([chr(x) for x in val])
-        return val
+            datafile = ''.join([chr(x) for x in datafile])
+        return datafile
 
     _streaming_file_open = 'open'
     def set_streaming_file_open(self, val, **kwargs):
         """
+        Sets the streaming file open. 1 for streaming on. 0 for streaming off.
+
+        Args:
+        -----
+        val (int): The streaming status
         """
         self._caput(self.streaming_root + self._streaming_file_open, val, 
             **kwargs)
 
     def get_streaming_file_open(self, **kwargs):
         """
+        Gets the streaming file status. 1 is streaming, 0 is not.
+
+        Returns:
+        --------
+        val (int): The streaming status.
         """
         return self._caget(self.streaming_root + self._streaming_file_open,  
             **kwargs)
@@ -1484,37 +1530,62 @@ class SmurfCommandMixin(SmurfBase):
     # Cryo card comands
     def get_cryo_card_temp(self):
         """
+        Returns:
+        --------
+        temp (float): Temperature of the cryostat card in Celcius
         """
         return self.C.read_temperature()
 
     def get_cryo_card_hemt_bias(self):
         """
+        Returns:
+        --------
+        bias (float): The HEMT bias in volts
         """
         return self.C.read_hemt_bias()
 
     def get_cryo_card_50k_bias(self):
         """
+        Returns:
+        --------
+        bias (float): The 50K bias in volts
         """
         return self.C.read_50k_bias()
 
     def get_cryo_card_cycle_count(self):
         """
+        Returns:
+        --------
+        cycle_count (float): The cycle count
         """
         self.log('Not doing anything because not implement in cryo_card.py')
         # return self.C.read_cycle_count()
 
     def get_cryo_card_relays(self):
         """
+        Returns:
+        --------
+        relays (hex): The cryo card relays value
         """
         return self.C.read_relays()
 
     def set_cryo_card_relays(self, relay):
         """
+        Sets the cryo card relays
+
+        Args:
+        -----
+        relays (hex): The cryo card relays
         """
         self.C.write_relays(relay)
 
     def set_cryo_card_delatch_bit(self, bit):
         """
+        Delatches the cryo card for a bit.
+
+        Args:
+        -----
+        bit (int): The bit to temporarily delatch
         """
         self.C.delatch_bit(bit)
 

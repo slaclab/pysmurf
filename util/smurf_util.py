@@ -558,10 +558,12 @@ class SmurfUtilMixin(SmurfBase):
 
     def set_tes_bias_bipolar(self, bias_num, volt, do_enable=True, **kwargs):
         """
+        bias_num (int): The gate number to bias
+        volt (float): The TES bias to command in voltage.
 
         Opt args:
         --------
-        do_enable (bool) : Sets the enable bit
+        do_enable (bool) : Sets the enable bit. Default is True.
         """
 
         bias_order = np.array([9, 11, 13, 15, 16, 14, 12, 10, 7, 5, 3, 1, 8, 6, 
@@ -585,6 +587,23 @@ class SmurfUtilMixin(SmurfBase):
 
         self.set_tes_bias_volt(dac_positive, volts_pos, **kwargs)
         self.set_tes_bias_volt(dac_negative, volts_neg, **kwargs)
+
+    def set_amplifier_bias(self, bias_hemt=.54, bias_50k=-.71, **kwargs):
+        """
+        Sets the HEMT and 50 K amp voltages.
+
+        Opt Args:
+        ---------
+        bias_hemt (float): The HEMT bias voltage in units of volts
+        bias_50k (float): The 50K bias voltage in units of volts
+
+        """
+        self.set_tes_bias_enable(**kwargs)
+        self.set_50k_amp_enable(**kwargs)
+
+        self.set_hemt_gate_voltage(bias_hemt, **kwargs)
+        self.set_50k_gate_voltage(bias_50k, **kwargs)
+
 
     def get_timestamp(self):
         """

@@ -1,6 +1,5 @@
 import epics
 import time
-import pysmurf
 import os
 import time
 

@@ -10,6 +10,32 @@ class SmurfNoiseMixin(SmurfBase):
         high_freq=np.array([1., 5.]), make_channel_plot=True,
         make_summary_plot=True, save_data=False, show_plot=False):
         """
+        Takes a timestream of noise and calculates its PSD.
+
+        Args:
+        -----
+        band (int): The band to take noise data on
+        meas_time (float): The amount of time to observe in seconds.
+
+        Opt Args:
+        ---------
+        channel (int array): The channels to plot. Note that this script always
+            takes data on all the channels. This only sets the ones to plot.
+            If None, plots all channels that are on. Default is None.
+        nperseg (int): The number of elements per segment in the PSD. Default
+            2**12.
+        detrend (str): Extends the scipy.signal.welch detrend. Default is 
+            'constant'
+        fs (float): Sample frequency. If None, reads it in. Default is None.
+        low_freq (float array):
+        high_freq (float array):
+        make_channel_plot (bool): Whether to make the individual channel
+            plots. Default is True.
+        make_summary_plot (bool): Whether to make the summary plots. Default
+            is True.
+        save_data (bool): Whether to save the band averaged data as a text file.
+            Default is False.
+        show_plot (bool): Show the plot on the screen. Default False.
         """
         if channel is None:
             channel = self.which_on(band)
