@@ -168,3 +168,40 @@ class SmurfNoiseMixin(SmurfBase):
         for ch in np.arange(n_channel):
             if noise[ch] > cutoff:
                 self.channel_off(band, ch)
+
+    def analyze_noise_vs_bias(self, bias, datafile, channel=None, band=None,
+        nperseg=2**12, detrend='constant', fs=None):
+        """
+
+        """
+        if band is None and channel is None:
+            channel = np.arange(512)
+        elif band is not None:
+            channel = self.which_on(band)
+
+        if fs is None:
+            self.log('No flux ramp freq given. Loading current flux ramp'+
+                'frequency', self.LOG_USER)
+            fs = self.get_flux_ramp_freq()*1.0E3
+
+        fig = {}
+        ax = {}
+        for ch in channel:
+            fig[ch], ax[0] = plt.subplots(1)
+
+        cm = plt.get_cmap('viridis')
+
+        for i, (b, d) in enumerate(zip(bias, d)):
+            timestamp, I, Q = self.read_stream_data(d)
+            for ch in channel:
+                phase = self.iq_to_phase(I[ch], Q[ch]) * 1.334  # convert to uA
+                f, Pxx = signal.welch(phase, nperseg=nperseg, 
+                    fs=fs, detrend=detrend)
+
+                color = cm(float(i)/len(bias))
+                ax[ch].plot(f, Pxx, color=color, label='{:3.2f}'.format(b))
+
+        for ch in channel:
+            ax[ch].set_xlabel(r'Freq [Hz]')
+            ax[ch].set_ylabel(r'$[\mu A^2/Hz]$')
+            ax[ch].set_yscale('log')
