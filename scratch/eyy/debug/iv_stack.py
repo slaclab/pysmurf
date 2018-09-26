@@ -17,7 +17,6 @@ for i, ch in enumerate(channels):
     ax.plot(bias[::-1], ivs[ch]['R']/ivs[ch]['Rn'],
         label='Ch {:03}'.format(ch))
 
-
 ax.legend()
 ax.set_ylim(0,1.1)
 ax.set_xlim(0,10)

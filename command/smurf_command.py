@@ -118,8 +118,9 @@ class SmurfCommandMixin(SmurfBase):
         Registers must upated in order to PVs to update. 
         This call is necesary to read register with pollIntervale=0.
         """
-        self._caput(self.epics_root + ':AMCc:ReadAll', 1, **kwargs)
-        self.log('ReadAll sent', self.LOG_INFO)        
+        self._caput(self.epics_root + ':AMCc:ReadAll', 1, wait_after=5,
+            **kwargs)
+        self.log('ReadAll sent', self.LOG_INFO)
 
 
     _eta_scan_freqs = 'etaScanFreqs'

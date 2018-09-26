@@ -2,6 +2,7 @@ import numpy as np
 from scipy import signal
 from pysmurf.base import SmurfBase
 import os
+import time
 
 class SmurfNoiseMixin(SmurfBase):
 
@@ -126,6 +127,30 @@ class SmurfNoiseMixin(SmurfBase):
         plt.ion()
 
         return noise_floors
+
+    def noise_vs_bias(self, band):
+        """
+        """
+        channel = self.which_on(band)
+        n_channel = self.get_number_channels(band)
+
+        bias = np.arange(8, 0, -.2)
+        for b in bias:
+            self.log('Bias {}'.format(b))
+            # drive high current through the TES to attempt to drive nomral
+            self.set_tes_bias_bipolar(4, 19.9)
+            time.sleep(.1)
+            self.set_cryo_card_relays(0x10004)
+            time.sleep(.5)
+            self.set_cryo_card_relays(0x10000)
+            time.sleep(.1)
+            self.set_tes_bias_bipolar(4, b)
+            time.sleep(1)
+
+            datafile = self.take_stream_data(band, 30.)
+
+            self.log('datafile {}'.format(datafile))
+
 
     def turn_off_noisy_channels(self, band, noise, cutoff=150):
         """

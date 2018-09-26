@@ -88,7 +88,7 @@ class SmurfUtilMixin(SmurfBase):
         -----
         band (int) : The band to turn off stream data
         """
-        self.set_stream_enable(band, 0)
+        self.set_stream_enable(band, 0, write_log=True)
         self.set_streaming_file_open(0)  # Close the file
 
 
@@ -603,11 +603,11 @@ class SmurfUtilMixin(SmurfBase):
         bias_50k (float): The 50K bias voltage in units of volts
 
         """
-        self.set_tes_bias_enable(**kwargs)
+        self.set_hemt_enable(**kwargs)
         self.set_50k_amp_enable(**kwargs)
 
         self.set_hemt_gate_voltage(bias_hemt, **kwargs)
-        self.set_50k_gate_voltage(bias_50k, **kwargs)
+        self.set_50k_amp_gate_voltage(bias_50k, **kwargs)
 
 
     def get_timestamp(self):

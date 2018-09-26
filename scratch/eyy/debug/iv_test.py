@@ -16,8 +16,8 @@ timestamp, I, Q = S.read_stream_data(datafile)
 # ch = 0
 # chs = np.array([0, 16, 32, 64, 139, 147, 179, 203, 245, 288, 395, 398, 415, 
 #     427, 447, 459])
-# chs = np.array([16])
-chs = np.arange(16)
+chs = np.array([16])
+# chs = np.arange(16)
 
 bias = np.arange(19.9, 0, -.1)
 
