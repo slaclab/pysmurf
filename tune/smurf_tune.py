@@ -164,8 +164,13 @@ class SmurfTuneMixin(SmurfBase):
         self.set_noise_select(band, 1, wait_done=True, write_log=True)
         adc = self.read_adc_data(band, n_samples, hw_trigger=True)
         time.sleep(.5)  # Need to wait, otherwise dac call interferes with adc
+        # adc = self.read_adc_data(band, n_samples, hw_trigger=True)
+        # time.sleep(.5)  # Need to wait, otherwise dac call interferes with adc
+
         dac = self.read_dac_data(band, n_samples, hw_trigger=True)
         time.sleep(.5)
+        # dac = self.read_dac_data(band, n_samples, hw_trigger=True)
+        # time.sleep(.5)
         self.set_noise_select(band, 0, wait_done=True, write_log=True)
 
         if band == 2:

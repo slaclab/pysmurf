@@ -128,30 +128,6 @@ class SmurfNoiseMixin(SmurfBase):
 
         return noise_floors
 
-    def noise_vs_bias(self, band):
-        """
-        """
-        channel = self.which_on(band)
-        n_channel = self.get_number_channels(band)
-
-        bias = np.arange(8, 0, -.2)
-        for b in bias:
-            self.log('Bias {}'.format(b))
-            # drive high current through the TES to attempt to drive nomral
-            self.set_tes_bias_bipolar(4, 19.9)
-            time.sleep(.1)
-            self.set_cryo_card_relays(0x10004)
-            time.sleep(.5)
-            self.set_cryo_card_relays(0x10000)
-            time.sleep(.1)
-            self.set_tes_bias_bipolar(4, b)
-            time.sleep(1)
-
-            datafile = self.take_stream_data(band, 30.)
-
-            self.log('datafile {}'.format(datafile))
-
-
     def turn_off_noisy_channels(self, band, noise, cutoff=150):
         """
         Args:
@@ -169,39 +145,135 @@ class SmurfNoiseMixin(SmurfBase):
             if noise[ch] > cutoff:
                 self.channel_off(band, ch)
 
+    def noise_vs_bias(self, band, bias_high=6, bias_low=3, step_size=.1,
+        meas_time=30., analyze=False, channel=None, nperseg=2**13,
+        detrend='constant', fs=None):
+        """
+        This ramps the TES voltage from bias_high to bias_low and takes noise
+        measurements. You can make it analyze the data and make plots with the
+        optional argument analyze=True. Note that the analysis is a little
+        slow.
+
+        Args:
+        -----
+        band (int): The band to take noise vs bias data on
+
+        Opt Args:
+        bias_high (float): The bias voltage to start at
+        bias_low (float): The bias votlage to end at
+        step_size (float): The step in voltage.
+        meas_time (float): The amount of time to take data at each TES bias.
+        analyze (bool): Whether to analyze the data
+        channel (int): The channel to run analysis on. Note that data is taken
+            on all channels. This only affects what is analyzed. You can always
+            run the analyze script later.
+        nperseg (int): The number of samples per segment in the PSD.
+        detrend (str): Whether to detrend the data before taking the PSD.
+            Default is to remove a constant.
+        fs (float): The sample frequency.
+        """
+        bias = np.arange(bias_high, bias_low-step_size, -1*step_size)
+
+        psd_dir = os.path.join(self.output_dir, 'psd')
+        self.make_dir(psd_dir)
+
+
+        timestamp = self.get_timestamp()
+        np.savetxt(os.path.join(psd_dir, '{}_bias.txt'.format(timestamp)),
+            bias)
+        datafiles = np.array([], dtype=str)
+
+        for b in bias:
+            self.log('Bias {}'.format(b))
+            self.overbias_tes(4, tes_bias=b)
+
+            self.log('Taking data')
+            datafile = self.take_stream_data(band, meas_time)
+            datafiles = np.append(datafiles, datafile)
+            self.log('datafile {}'.format(datafile))
+
+        self.log('Done with noise vs bias')
+        np.savetxt(os.path.join(psd_dir, '{}_datafiles.txt'.format(timestamp)),
+            datafiles, fmt='%s')
+
+        if analyze:
+            self.analyze_noise_vs_bias(bias, datafiles, channel=channel, 
+                band=band, nperseg=nperseg, detrend=detrend, fs=fs, 
+                save_plot=True, show_plot=False, data_timestamp=timestamp)
+
     def analyze_noise_vs_bias(self, bias, datafile, channel=None, band=None,
-        nperseg=2**12, detrend='constant', fs=None):
+        nperseg=2**13, detrend='constant', fs=None, save_plot=True, 
+        show_plot=False, data_timestamp=None):
         """
 
         """
+        import matplotlib.pyplot as plt
+
+        if not show_plot:
+            plt.ioff()
+
         if band is None and channel is None:
             channel = np.arange(512)
-        elif band is not None:
+        elif band is not None and channel is None:
             channel = self.which_on(band)
 
         if fs is None:
-            self.log('No flux ramp freq given. Loading current flux ramp'+
+            self.log('No flux ramp freq given. Loading current flux ramp' +
                 'frequency', self.LOG_USER)
             fs = self.get_flux_ramp_freq()*1.0E3
 
-        fig = {}
-        ax = {}
-        for ch in channel:
-            fig[ch], ax[0] = plt.subplots(1)
-
-        cm = plt.get_cmap('viridis')
-
-        for i, (b, d) in enumerate(zip(bias, d)):
+        # Analyze data and save
+        for i, (b, d) in enumerate(zip(bias, datafile)):
             timestamp, I, Q = self.read_stream_data(d)
+            basename, _ = os.path.splitext(os.path.basename(d))
+            dirname = os.path.dirname(d)
+            psd_dir = os.path.join(dirname, 'psd')
+            self.make_dir(psd_dir)
+
             for ch in channel:
                 phase = self.iq_to_phase(I[ch], Q[ch]) * 1.334  # convert to uA
                 f, Pxx = signal.welch(phase, nperseg=nperseg, 
                     fs=fs, detrend=detrend)
+                Pxx = np.sqrt(Pxx) * 1.0E6  # pA
+                np.savetxt(os.path.join(psd_dir, basename + 
+                    '_psd_ch{:03}.txt'.format(ch)), np.array([f, Pxx]))
+
+            # Explicitly remove objects from memory
+            del timestamp
+            del I
+            del Q
+
+        # Make plot
+        cm = plt.get_cmap('viridis')
+        for ch in channel:
+            fig, ax = plt.subplots(1)
+            for i, (b, d) in enumerate(zip(bias, datafile)):
+                basename, _ = os.path.splitext(os.path.basename(d))
+                dirname = os.path.dirname(d)
+
+                print(os.path.join(psd_dir, basename + 
+                    '_psd_ch{:03}.txt'.format(ch)))
+
+                f, Pxx =  np.loadtxt(os.path.join(psd_dir, basename + 
+                    '_psd_ch{:03}.txt'.format(ch)))
 
                 color = cm(float(i)/len(bias))
-                ax[ch].plot(f, Pxx, color=color, label='{:3.2f}'.format(b))
+                ax.plot(f, Pxx, color=color, label='{:3.2f}'.format(b))        
+                ax.set_xlabel(r'Freq [Hz]')
+                ax.set_ylabel(r'$pA/\sqrt{Hz}]$')
+                ax.set_yscale('log')
+                ax.set_xscale('log')
+                ax.legend()
+                ax.set_title('Channel {:03}'.format(ch))
 
-        for ch in channel:
-            ax[ch].set_xlabel(r'Freq [Hz]')
-            ax[ch].set_ylabel(r'$[\mu A^2/Hz]$')
-            ax[ch].set_yscale('log')
+            if show_plot:
+                plt.show()
+
+            if save_plot:
+                plot_name = 'noise_vs_bias_band{}_ch{:03}.png'.format(band,
+                    ch)
+                if data_timestamp is not None:
+                    plot_name = '{}_'.format(data_timestamp) + plot_name
+                else:
+                    plot_name = '{}_'.format(self.get_timestamp) + plot_name
+                plt.savefig(os.path.join(self.plot_dir, plot_name))

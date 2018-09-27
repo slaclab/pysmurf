@@ -138,10 +138,10 @@ class SmurfUtilMixin(SmurfBase):
             stream0 = self.epics_root + ":AMCc:Stream4"
             stream1 = self.epics_root + ":AMCc:Stream5"
 
-        print('camonitoring')
-        epics.camonitor(stream0)
-        epics.camonitor(stream1)
-        print('done camonitoring')
+        # print('camonitoring')
+        # epics.camonitor(stream0)
+        # epics.camonitor(stream1)
+        # print('done camonitoring')
         
         pvs = [stream0, stream1]
         sg  = SyncGroup(pvs)
@@ -617,4 +617,54 @@ class SmurfUtilMixin(SmurfBase):
         """
         return '{:10}'.format(int(time.time()))
 
+    def get_hemt_drain_current(self):
+        """
+        Returns:
+        --------
+        cur (float): Drain current in mA
+        """
+
+        # These values are hard coded and empirically found by Shawn
+        hemt_offset=0.100693  #Volts
+        hemt_Vd_series_resistor=200  #Ohm
+        hemt_Id_mA=2.*1000.*(self.get_cryo_card_hemt_bias()-
+            hemt_offset)/hemt_Vd_series_resistor
+
+        return hemt_Id_mA
+
+    def get_50k_amp_drain_current(self):
+        """
+
+        """
+        asu_amp_Vd_series_resistor=10 #Ohm
+        asu_amp_Id=2.*1000.*(self.get_cryo_card_50k_bias()/
+            asu_amp_Vd_series_resistor)
+
+    def overbias_tes(self, dac, overbias_voltage=19.9, overbias_wait=.5,
+        tes_bias=19.9):
+        """
+        Args:
+        -----
+        dac (int): The TES dac pair (Note band 3 is DAC 4)
+
+        Opt Args:
+        ---------
+        overbias_voltage (float): The value of the TES bias in the high current
+            mode. Default 19.9.
+        overbias_wait (float): The time to stay in high current mode in seconds.
+            Default is .5
+        tes_bias (float): The value of the TES bias when put back in low current
+            mode. Default is 19.9.
+        """
+        # drive high current through the TES to attempt to drive nomral
+        self.set_tes_bias_bipolar(4, overbias_voltage)
+        time.sleep(.1)
+        self.set_cryo_card_relays(0x10004)
+        time.sleep(overbias_wait)
+        self.set_cryo_card_relays(0x10000)
+        time.sleep(.1)
+        self.set_tes_bias_bipolar(4, tes_bias)
+        self.log('Waiting 5 seconds to cool', self.LOG_USER)
+        time.sleep(5)
+        self.log('Done waiting.', self.LOG_USER)
 

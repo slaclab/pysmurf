@@ -51,6 +51,7 @@ class SmurfIVMixin(SmurfBase):
         datafile = self.stream_data_on(band)
 
         for b in bias:
+            self.log('Bias at {:4.3f}'.format(b))
             self.set_tes_bias_bipolar(4, b)  # 4 is for band 3
             time.sleep(wait_time)
 

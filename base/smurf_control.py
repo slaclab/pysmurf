@@ -56,6 +56,8 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
             name = self.start_time
         self.name = name
 
+
+
         self.base_dir = os.path.abspath(self.data_dir)
 
         # create output and plot directories
@@ -78,10 +80,10 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
         self.freq_resp = {}
 
         if setup:
-            self.setup()
+            self.setup(**kwargs)
 
 
-    def setup(self):
+    def setup(self, **kwargs):
         """
         Sets the PVs to the default values from the experiment.cfg file
         """
@@ -150,6 +152,8 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
         for i in np.arange(1,5):
             self.set_att_uc(i, 0, write_log=True)
             self.set_att_dc(i, 0, write_log=True)
+
+        self.cpld_toggle()
 
     def make_dir(self, directory):
         """check if a directory exists; if not, make it
