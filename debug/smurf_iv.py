@@ -98,25 +98,35 @@ class SmurfIVMixin(SmurfBase):
                 if not show_plot:
                     plt.close()
 
-            r, rn = self.analyze_slow_iv(bias, phase, basename=basename, 
+            r, rn, idx = self.analyze_slow_iv(bias, phase, basename=basename, 
                 band=band, channel=ch, make_plot=make_plot, show_plot=show_plot,
                 save_plot=save_plot)
             ivs[ch] = {
                 'R' : r,
-                'Rn' : rn
+                'Rn' : rn,
+                'idx': idx
             }
 
         np.save(os.path.join(self.output_dir, basename + '_iv'), ivs)
 
     def analyze_slow_iv(self, v_bias, resp, make_plot=True, show_plot=False,
-        save_plot=True, basename=None, band=None, channel=None, **kwargs):
+        save_plot=True, basename=None, band=None, channel=None, R_sh=.0002,
+        **kwargs):
         """
         Analyzes the IV curve taken with slow_iv()
 
         Args:
+        -----
         v_bias (float array): The commanded bias in voltage. Length n_steps
         resp (float array): The TES response. Of length n_pts (not the same 
             as n_steps)
+
+        Returns:
+        --------
+        R (float array): 
+        R_n (float): 
+        idx (int array): 
+        R_sh (float): Shunt resistance
         """
         n_pts = len(resp)
         n_step = len(v_bias)
@@ -174,7 +184,6 @@ class SmurfIVMixin(SmurfBase):
         
         sc_fit = np.polyfit(i_bias[:sc_idx], resp_bin[:sc_idx], 1)
 
-        R_sh = .003
         R = R_sh * (i_bias/(resp_bin) - 1)
         R_n = np.mean(R[nb_idx:])
 
@@ -199,9 +208,7 @@ class SmurfIVMixin(SmurfBase):
                 transform=ax[0].transAxes, fontsize=12, 
                 horizontalalignment='right')
 
-
             ax[1].plot(i_bias, R/R_n, '.')
-            # ax[1].axhline(R_n, color='k', linestyle=':')
             ax[1].axhline(1, color='k', linestyle='--')
             ax[1].set_ylabel(r'$R/R_N$')
             ax[1].set_xlabel(r'$I_{b}$ ' + '$[\mu A]$')
@@ -214,14 +221,28 @@ class SmurfIVMixin(SmurfBase):
                 r' $m\Omega$' , transform=ax[1].transAxes, fontsize=12,
                 horizontalalignment='right')
 
-            # axt = ax[0].twiny()
-            # axt.set_xlim(ax[0].get_xlim())
-            # axt.set_xticks()
+            # Make top label in volts
+            axt = ax[0].twiny()
+            axt.set_xlim(ax[0].get_xlim())
+            ib_max = np.max(i_bias)
+            ib_min = np.min(i_bias)
+            delta = float(ib_max - ib_min)/5
+            vb_max = np.max(v_bias)
+            vb_min = np.min(v_bias)
+            delta_v = float(vb_max - vb_min)/5
+            axt.set_xticks(np.arange(ib_min, ib_max+delta, delta))
+            axt.set_xticklabels(['{:3.2f}'.format(x) for x in 
+                np.arange(vb_min, vb_max+delta_v, delta_v)])
+            axt.set_xlabel(r'$Commanded V_{b}$ [V]')
 
             if band is not None and channel is not None:
-                ax[0].set_title('Band {} Ch {:03}'.format(band, channel))
+                fig.suptitle('Band {} Ch {:03}'.format(band, channel))
 
-            plt.tight_layout()
+            if basename is not None:
+                ax[0].text(.95, .88, basename , transform=ax[0].transAxes, 
+                    fontsize=12, horizontalalignment='right')
+
+            # plt.tight_layout()
 
             if save_plot:
                 if basename is None:
@@ -235,6 +256,6 @@ class SmurfIVMixin(SmurfBase):
             else:
                 plt.close()
 
-        return R, R_n
+        return R, R_n, np.array([sc_idx, nb_idx])
 
 

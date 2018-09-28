@@ -634,7 +634,9 @@ class SmurfUtilMixin(SmurfBase):
 
     def get_50k_amp_drain_current(self):
         """
-
+        Returns:
+        --------
+        cur (float): The drain current in mA
         """
         asu_amp_Vd_series_resistor=10 #Ohm
         asu_amp_Id=2.*1000.*(self.get_cryo_card_50k_bias()/

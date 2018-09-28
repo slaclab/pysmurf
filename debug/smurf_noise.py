@@ -146,6 +146,7 @@ class SmurfNoiseMixin(SmurfBase):
                 self.channel_off(band, ch)
 
     def noise_vs_bias(self, band, bias_high=6, bias_low=3, step_size=.1,
+        bias=None,
         meas_time=30., analyze=False, channel=None, nperseg=2**13,
         detrend='constant', fs=None):
         """
@@ -159,6 +160,9 @@ class SmurfNoiseMixin(SmurfBase):
         band (int): The band to take noise vs bias data on
 
         Opt Args:
+        ---------
+        bias (float array): The array of bias values to step through. If None,
+            uses values in defined by bias_high, bias_low, and step_size.
         bias_high (float): The bias voltage to start at
         bias_low (float): The bias votlage to end at
         step_size (float): The step in voltage.
@@ -172,7 +176,10 @@ class SmurfNoiseMixin(SmurfBase):
             Default is to remove a constant.
         fs (float): The sample frequency.
         """
-        bias = np.arange(bias_high, bias_low-step_size, -1*step_size)
+        if bias is None:
+            if step_size > 0:
+                step_size *= -1
+            bias = np.arange(bias_high, bias_low-step_size, step_size)
 
         psd_dir = os.path.join(self.output_dir, 'psd')
         self.make_dir(psd_dir)
@@ -205,7 +212,25 @@ class SmurfNoiseMixin(SmurfBase):
         nperseg=2**13, detrend='constant', fs=None, save_plot=True, 
         show_plot=False, data_timestamp=None):
         """
+        Analysis script associated with noise_vs_bias.
 
+        Args:
+        -----
+        bias (float array): The bias in voltage.
+        datafile (str array): The paths to the datafiles. Must be same length 
+            as bias array.
+
+        Opt Args:
+        ---------
+        channel (int array): The channels to analyze.
+        band (int): The band where the data is taken.
+        nperseg (int): Passed to scipy.signal.welch. Number of elements per 
+            segment of the PSD.
+        detrend (str): Passed to scipy.signal.welch.
+        fs (float): Passed to scipy.signal.welch. The sample rate.
+        save_plot (bool): Whether to save the plot. Default is True.
+        show_plot (bool): Whether to how the plot. Default is False.
+        data_timestamp (str): The string used as a save name. Default is None.
         """
         import matplotlib.pyplot as plt
 
@@ -276,4 +301,5 @@ class SmurfNoiseMixin(SmurfBase):
                     plot_name = '{}_'.format(data_timestamp) + plot_name
                 else:
                     plot_name = '{}_'.format(self.get_timestamp) + plot_name
-                plt.savefig(os.path.join(self.plot_dir, plot_name))
+                plt.savefig(os.path.join(self.plot_dir, plot_name),
+                    bbox_inches='tight')
