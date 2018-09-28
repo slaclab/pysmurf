@@ -98,34 +98,66 @@ class SmurfUtilMixin(SmurfBase):
         """
 
         file_writer_header_size = 2  # 32-bit words
-        smurf_header_size = 4  # 32-bit words
-        header_size = file_writer_header_size + smurf_header_size
-        smurf_data_size = 1024;  # 32-bit words
-        nominal_frame_size = header_size + smurf_data_size;
 
-        with open(datafile, mode='rb') as file:
-            file_content = file.read()
+        version = file_content[8]
 
-        # Convert binary file to int array. The < indicates little-endian
-        raw_dat = np.asarray(struct.unpack("<" + "i" * ((len(file_content)) // 4), 
-            file_content))
+        if version == 0:
+            smurf_header_size = 4  # 32-bit words
+            header_size = file_writer_header_size + smurf_header_size
+            smurf_data_size = 1024;  # 32-bit words
+            nominal_frame_size = header_size + smurf_data_size;
 
-        # To do : add bad frame check
-        frame_start = np.ravel(np.where(1 + raw_dat/4==nominal_frame_size))
-        n_frame = len(frame_start)
 
-        I = np.zeros((512, n_frame))
-        Q = np.zeros((512, n_frame))
-        timestamp = np.zeros(n_frame)
+            # Convert binary file to int array. The < indicates little-endian
+            raw_dat = np.asarray(struct.unpack("<" + "i" * ((len(file_content)) // 4),
+                file_content))
 
-        for i in np.arange(n_frame):
-            timestamp[i] = raw_dat[frame_start[i]+2]
-            start = frame_start[i] + header_size
-            end = start + 512*2
-            I[:,i] = raw_dat[start:end:2]
-            Q[:,i] = raw_dat[start+1:end+1:2]
+            # To do : add bad frame check
+            frame_start = np.ravel(np.where(1 + raw_dat/4==nominal_frame_size))
+            n_frame = len(frame_start)
 
-        return timestamp, I, Q
+            I = np.zeros((512, n_frame))
+            Q = np.zeros((512, n_frame))
+            timestamp = np.zeros(n_frame)
+
+            for i in np.arange(n_frame):
+                timestamp[i] = raw_dat[frame_start[i]+2]
+                start = frame_start[i] + header_size
+                end = start + 512*2
+                I[:,i] = raw_dat[start:end:2]
+                Q[:,i] = raw_dat[start+1:end+1:2]
+
+            phase = np.arctan2(Q, I)
+
+        elif version == 1:
+        # this works if we've already remove dropped frames.  Use timestamp/frame counter to look for drops
+            keys = ['h0', 'h1', 'version', 'crate_id', 'slot_number', 'number_of_channels', 'rtm_dac_config0',
+                    'rtm_dac_config1',  'rtm_dac_config2', 'rtm_dac_config3', 'rtm_dac_config4', 'rtm_dac_config5',
+                    'flux_ramp_increment', 'flux_ramp_start', 'base_rate_since_1_Hz', 'base_rate_since_TM',
+                    'timestamp_ns', 'timestamp_s', 'fixed_rate_marker', 'sequence_counter', 'tes_relay',
+                    'mce_word']
+            data_keys = [f'data{i}' for i in range(4096)]
+            keys.extend(data_keys)
+
+            keys_dics = dict( zip( keys, range(len(keys)) ) )
+
+            frames        = [i for i in Struct('2I2BHI6Q6IH2xI2Q24x4096h').iter_unpack(file_content)]
+            #frame_counter = [i[keys['sequence_counter']] for i in frames]
+            #timestamp_s   = [i[keys['timestamp_s']] for i in frames]
+            #timestamp_ns  = [i[keys['timestamp_ns']] for i in frames]
+
+            phase = np.zeros((4096, len(frames)))
+            for i in range(4096):
+                phase[i,:] = np.asarray([j[keys[f'data{i}']] for j in frames])
+
+            phase     = phase * np.pi # scale to rad
+            timestamp = [i[keys['sequence_counter']] for i in frames]
+
+        else:
+            raise Exception(f'Frame version {version} not supported')
+
+        return timestamp, phase
+
 
     def read_stream_data_daq(self, data_length, bay=0, hw_trigger=False):
         """
