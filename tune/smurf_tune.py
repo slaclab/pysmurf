@@ -229,7 +229,8 @@ class SmurfTuneMixin(SmurfBase):
 
 
 
-    def find_peak(self, freq, resp, grad_cut=.1, make_plot=False, save_plot=True, 
+    def find_peak(self, freq, resp, grad_cut=.05, freq_min=-2.5E8, 
+        freq_max=2.5E8, make_plot=False, amp_cut=.4, save_plot=True, 
         save_name=None):
         """find the peaks within a given subband
 
@@ -244,66 +245,62 @@ class SmurfTuneMixin(SmurfBase):
 
         Returns:
         -------_
-        resonances (list of floats) found in this subband
+        resonances (float array): The frequency of the resonances in the band
         """
 
         angle = np.unwrap(np.angle(resp))
-        grad = np.diff(angle)
-
-        import matplotlib.pyplot as plt
-        fig, ax = plt.subplots(1, sharex=True)
+        grad = np.ediff1d(angle, to_end=[np.nan])
+        amp = np.abs(resp)
 
         grad_loc = np.array(grad > grad_cut)
-        starts, ends = self.find_flag_blocks(grad_loc, min_gap=10)
-        ax.plot(grad)
+
+        # med = pd.rolling_median(grad, 100, center=True)
+        # Really annoying - pandas has several implementations of rolling_median
+
+        window = 500
+        import pandas as pd
+        # med_grad = pd.Series(grad).rolling(window=window, center=True).median()
+        med_amp = pd.Series(amp).rolling(window=window, center=True).median()
+        # n_els = len(grad)
+        # med_grad = np.zeros(n_els)*np.nan
+        # med_amp = np.zeros(n_els)*np.nan
+        #         w2 = int(window/2)
+        # for i in np.arange(w2, n_els - w2):
+        #     med_grad[i] = np.median(grad[i-w2:i+w2])
+        #     med_amp[i] = np.median(amp[i-w2:i+w2])
+
+        starts, ends = self.find_flag_blocks(self.pad_flags(grad_loc, 
+            before_pad=20, after_pad=20, min_gap=10))
+
+        peak = np.array([], dtype=int)
         for s, e in zip(starts, ends):
-            ax.axvspan(s, e, color='k', alpha=.1)
-
-
-        # [gradient_locations2] = np.where(np.diff(np.abs(resp)) > 0.005)
-        # gradient_locations = list(set(gradient_locations1) & 
-        #     (set(gradient_locations2) | set(gradient_locations2 - 1) |
-        #         set(gradient_locations2 + 1)))
+            if freq[s] > freq_min and freq[e] < freq_max:
+                idx = np.ravel(np.where(amp[s:e] == np.min(amp[s:e])))[0]
+                idx += s
+                if med_amp[idx] - amp[idx] > amp_cut:
+                    peak = np.append(peak, idx)
 
         if make_plot:
-            self.plot_find_peak(freq, resp, gradient_locations, 
-                save_plot=save_plot, save_name=save_name)
+            import matplotlib.pyplot as plt
+            fig, ax = plt.subplots(2, sharex=True)
 
-        # return freq[peak_ind]
-        return gradient_locations
+            ax[0].plot(freq, grad)
+            ax[1].plot(freq,amp)
+            ax[1].plot(freq, med_amp)
+            ax[1].plot(freq[peak], amp[peak], 'kx')
 
-    def pad_flags(self, f, before_pad=0, after_pad=0, min_gap=0, min_length=0):
-        """                                                                                  
-        Pad a flag field with more flags before, after, and between gaps                     
-                                                                               
-        Args:                                                                                
-            f (bool array): a flag field 
-            before_pad (int): samples to flag before each existing flag 
-            after_pad (int): samples to flag after each existing flag  
-            min_gap (int): flag all gaps between exisitng flags shorter than this            
-            min_length (int): remove flag blocks that are shorter than this from             
-                flag.                                                                        
-                                                                                             
-        Returns:                                                                             
-            Padded flag field as a boolean array                                             
-        """
-        before, after = find_flag_blocks(f)
-        after += 1 # change to point after block, not last element                           
+            for s, e in zip(starts, ends):
+                ax[0].axvspan(freq[s], freq[e], color='k', alpha=.1)
+                ax[1].axvspan(freq[s], freq[e], color='k', alpha=.1)
 
-        # extend after index wherever it is less than gap from the next before               
-        inds = np.where(np.subtract(before[1:],after[:-1]) < min_gap)[0]
-        after[inds] = before[inds+1]
+            if save_plot:
+                if save_name is None:
+                    self.log('Warning, using default name for saving ' +
+                        'find_freq plot', self.LOG_USER)
+                    save_name = 'find_freq.png'
+                plt.savefig(os.path.join(plot_dir, save_name))
 
-        before -= before_pad
-        after += after_pad
-
-        padded = np.zeros_like(f)
-
-        for b, a in zip(before, after):
-            if (a-after_pad)-(b+before_pad) > min_length:
-                padded[np.max([0,b]):a] = True
-
-        return padded
+        return freq[peak]
 
     def find_flag_blocks(self, flag, minimum=None, min_gap=None):
         """                                                                                  
@@ -311,24 +308,23 @@ class SmurfTuneMixin(SmurfBase):
                                                                                              
         Arguments                                                                            
         ---------                                                                            
-            flag : bool, array_like                                                          
-                The array in which to find blocks                                            
-            minimum : int (optional)                                                         
-                The minimum length of block to return. Discards shorter blocks               
-            min_gap : int (optional)                                                         
-                The minimum gap between flag blocks. Fills in gaps smaller.                  
-                                                                                             
-        Returns                                                                              
-        -------                                                                              
-            starts, ends : int arrays                                                        
-                The start and end indices for each block.                                    
-                NOTE: the end index is the last index in the block. Add 1 for                
-                slicing, where the upper limit should be after the block                     
+        flag : bool, array_like 
+            The array in which to find blocks 
+        minimum : int (optional)
+            The minimum length of block to return. Discards shorter blocks 
+        min_gap : int (optional)
+            The minimum gap between flag blocks. Fills in gaps smaller.
+
+        Returns
+        ------- 
+        starts, ends : int arrays
+            The start and end indices for each block.
+            NOTE: the end index is the last index in the block. Add 1 for 
+            slicing, where the upper limit should be after the block 
         """
-        print(flag)
         if min_gap is not None:
             _flag = self.pad_flags(np.asarray(flag, dtype=bool),
-                              min_gap=min_gap).astype(np.int8)
+                min_gap=min_gap).astype(np.int8)
         else:
             _flag = np.asarray(flag).astype(int)
 
@@ -345,6 +341,26 @@ class SmurfTuneMixin(SmurfBase):
             return start[inds],end[inds]
         else:
             return start,end
+
+    def pad_flags(self, f, before_pad=0, after_pad=0, min_gap=0, min_length=0):
+        """
+        """
+        before, after = self.find_flag_blocks(f)
+        after += 1 
+
+        inds = np.where(np.subtract(before[1:],after[:-1]) < min_gap)[0]
+        after[inds] = before[inds+1]
+
+        before -= before_pad
+        after += after_pad
+
+        padded = np.zeros_like(f)
+
+        for b, a in zip(before, after):
+            if (a-after_pad)-(b+before_pad) > min_length:
+                padded[np.max([0,b]):a] = True
+
+        return padded
 
     def plot_find_peak(self, freq, resp, peak_ind, save_plot=True, 
         save_name=None):
