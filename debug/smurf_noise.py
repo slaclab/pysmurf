@@ -45,7 +45,9 @@ class SmurfNoiseMixin(SmurfBase):
         datafile = self.take_stream_data(band, meas_time)
         basename, _ = os.path.splitext(os.path.basename(datafile))
 
-        timestamp, I, Q = self.read_stream_data(datafile)
+        # timestamp, I, Q = self.read_stream_data(datafile)
+        timestamp, phase = self.read_stream_data(datafile)
+        phase *= 1.443
 
         if fs is None:
             self.log('No flux ramp freq given. Loading current flux ramp'+
@@ -61,35 +63,36 @@ class SmurfNoiseMixin(SmurfBase):
         if not show_plot:
             plt.ioff()
         for c, ch in enumerate(channel):
-            phase = self.iq_to_phase(I[ch], Q[ch])
+            # phase = self.iq_to_phase(I[ch], Q[ch])
 
             # Calculate to power spectrum and convert to pA
-            f, Pxx = signal.welch(phase, nperseg=nperseg, 
+            ch_idx = 512*band + ch
+            f, Pxx = signal.welch(phase[ch], nperseg=nperseg, 
                 fs=fs, detrend=detrend)
-            Pxx = np.sqrt(Pxx)/(2*np.pi)*self.pA_per_phi0*1e12
+            Pxx = np.sqrt(Pxx) * 1.0E6
             for i, (l, h) in enumerate(zip(low_freq, high_freq)):
                 idx = np.logical_and(f>l, f<h)
                 noise_floors[i, ch] = np.mean(Pxx[idx])
 
             if make_channel_plot:
-                fig, ax = plt.subplots(3, figsize=(5,7))
-                ax[0].plot(I[ch], label='I')
-                ax[0].plot(Q[ch], label='Q')
-                ax[0].legend()
-                ax[0].set_ylabel('I/Q')
+                fig, ax = plt.subplots(2, figsize=(5,4))
+                # ax[0].plot(I[ch], label='I')
+                # ax[0].plot(Q[ch], label='Q')
+                # ax[0].legend()
+                # ax[0].set_ylabel('I/Q')
+                # ax[0].set_xlabel('Sample Num')
+
+                ax[0].plot(phase[ch] - np.mean(phase[ch]))
                 ax[0].set_xlabel('Sample Num')
+                ax[0].set_ylabel('Phase [pA]')
 
-                ax[1].plot(self.pA_per_phi0 * phase / (2*np.pi))
-                ax[1].set_xlabel('Sample Num')
-                ax[1].set_ylabel('Phase [pA]')
+                ax[1].plot(f, Pxx)
+                ax[1].set_xlabel('Freq [Hz]')
+                ax[1].set_ylabel('Amp [pA/rtHz]')
+                ax[1].set_yscale('log')
+                ax[1].set_xscale('log')
 
-                ax[2].plot(f, Pxx)
-                ax[2].set_xlabel('Freq [Hz]')
-                ax[2].set_ylabel('Amp [pA/rtHz]')
-                ax[2].set_yscale('log')
-                ax[2].set_xscale('log')
-
-                ax[2].axhline(noise_floors[-1,ch], color='k', linestyle='--')
+                ax[1].axhline(noise_floors[-1,ch], color='k', linestyle='--')
                 print(noise_floors[-1, ch])
 
                 ax[0].set_title('Band {} Ch {:03}'.format(band, ch))
@@ -249,15 +252,18 @@ class SmurfNoiseMixin(SmurfBase):
 
         # Analyze data and save
         for i, (b, d) in enumerate(zip(bias, datafile)):
-            timestamp, I, Q = self.read_stream_data(d)
+            # timestamp, I, Q = self.read_stream_data(d)
+            timestamp, phase = self.read_stream_data(d)
+            phase *= 1.443
+
             basename, _ = os.path.splitext(os.path.basename(d))
             dirname = os.path.dirname(d)
             psd_dir = os.path.join(dirname, 'psd')
             self.make_dir(psd_dir)
 
             for ch in channel:
-                phase = self.iq_to_phase(I[ch], Q[ch]) * 1.334  # convert to uA
-                f, Pxx = signal.welch(phase, nperseg=nperseg, 
+                # phase = self.iq_to_phase(I[ch], Q[ch]) * 1.334  # convert to uA
+                f, Pxx = signal.welch(phase[ch], nperseg=nperseg, 
                     fs=fs, detrend=detrend)
                 Pxx = np.sqrt(Pxx) * 1.0E6  # pA
                 np.savetxt(os.path.join(psd_dir, basename + 

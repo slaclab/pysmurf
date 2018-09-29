@@ -156,21 +156,24 @@ class SmurfTuneMixin(SmurfBase):
                 subband_centers[subband_nos.index(sb)]
         return freq, resp
 
-    def full_band_resp(self, band, n_samples=2**19, make_plot=False, 
+    def full_band_resp(self, band, n_samples=2**18, make_plot=False, 
         save_data=False):
         """
         
         """
+        self.set_trigger_hw_arm(0, write_log=True)  # Default setup sets to 1
+
         self.set_noise_select(band, 1, wait_done=True, write_log=True)
-        adc = self.read_adc_data(band, n_samples, hw_trigger=True)
-        time.sleep(.5)  # Need to wait, otherwise dac call interferes with adc
-        # adc = self.read_adc_data(band, n_samples, hw_trigger=True)
-        # time.sleep(.5)  # Need to wait, otherwise dac call interferes with adc
+        try:
+            adc = self.read_adc_data(band, n_samples, hw_trigger=True)
+        except Exception:
+            print('ADC read failed. Trying one more time')
+            adc = self.read_adc_data(band, n_samples, hw_trigger=True)
+        time.sleep(.1)  # Need to wait, otherwise dac call interferes with adc
 
         dac = self.read_dac_data(band, n_samples, hw_trigger=True)
-        time.sleep(.5)
-        # dac = self.read_dac_data(band, n_samples, hw_trigger=True)
-        # time.sleep(.5)
+        time.sleep(.1)
+
         self.set_noise_select(band, 0, wait_done=True, write_log=True)
 
         if band == 2:
@@ -182,12 +185,21 @@ class SmurfTuneMixin(SmurfBase):
         f, p_adc = signal.welch(adc, fs=614.4E6, nperseg=n_samples/2)
         f, p_cross = signal.csd(dac, adc, fs=614.4E6, nperseg=n_samples/2)
 
+        idx = np.argsort(f)
+        f = f[idx]
+        p_dac = p_dac[idx]
+        p_adc = p_adc[idx]
+        p_cross = p_cross[idx]
+
         resp = p_cross / p_dac
 
         if make_plot:
             import matplotlib.pyplot as plt
             fig, ax = plt.subplots(3, figsize=(5,8), sharex=True)
             f_plot = f / 1.0E6
+
+            plot_idx = np.where(np.logical_and(f_plot>-250, f_plot<250))
+
             ax[0].semilogy(f_plot, p_dac)
             ax[0].set_ylabel('DAC')
             ax[1].semilogy(f_plot, p_adc)
@@ -199,8 +211,7 @@ class SmurfTuneMixin(SmurfBase):
             plt.tight_layout()
 
             fig, ax = plt.subplots(1)
-            ax.plot(f_plot, np.log10(np.abs(resp)))
-            ax.set_xlim(-250, 250)
+            ax.plot(f_plot[plot_idx], np.log10(np.abs(resp[plot_idx])))
             # ax.plot(f_plot, np.real(resp))
             # ax.plot(f_plot, np.imag(resp))
 
@@ -216,45 +227,9 @@ class SmurfTuneMixin(SmurfBase):
 
         return f, resp
 
-    def peak_finder(self, x, y, threshold):
-        """finds peaks in x,y data with some threshhold
 
-        Not currently being used
-        """
-        in_peak = 0
 
-        peakstruct_max = []
-        peakstruct_nabove = []
-        peakstruct_freq = []
-
-        for idx in range(len(y)):
-            freq = x[idx]
-            amp = y[idx]
-
-            if in_peak == 0:
-                pk_max = 0
-                pk_freq = 0
-                pk_nabove = 0
-
-            if amp > threshold:
-                if in_peak == 0: # start a new peak
-                    n_peaks = n_peaks + 1
-
-                in_peak = 1
-                pk_nabove = pk_nabove + 1
-
-                if amp > pk_max: # keep moving until find the top
-                    pk_max = amp
-                    pk_freq = freq
-
-                if idx == len(y) or y[idx + 1] < threshhold:
-                    peakstruct_max.append(pk_max)
-                    peakstruct_nabove.append(pk_nabove)
-                    peakstruct_freq.append(pk_freq)
-                    in_peak = 0
-        return peakstruct_max, peakstruct_nabove, peakstruct_freq
-
-    def find_peak(self, freq, resp, make_plot=False, save_plot=True, 
+    def find_peak(self, freq, resp, grad_cut=.1, make_plot=False, save_plot=True, 
         save_name=None):
         """find the peaks within a given subband
 
@@ -272,20 +247,104 @@ class SmurfTuneMixin(SmurfBase):
         resonances (list of floats) found in this subband
         """
 
-        [gradient_locations1] = np.where(np.diff(np.unwrap(np.angle(resp))) 
-            < -0.1)
-        [gradient_locations2] = np.where(np.diff(np.abs(resp)) > 0.005)
-        gradient_locations = list(set(gradient_locations1) & 
-            (set(gradient_locations2) | set(gradient_locations2 - 1) |
-                set(gradient_locations2 + 1)))
+        angle = np.unwrap(np.angle(resp))
+        grad = np.diff(angle)
 
+        import matplotlib.pyplot as plt
+        fig, ax = plt.subplots(1, sharex=True)
+
+        grad_loc = np.array(grad > grad_cut)
+        starts, ends = self.find_flag_blocks(grad_loc, min_gap=10)
+        ax.plot(grad)
+        for s, e in zip(starts, ends):
+            ax.axvspan(s, e, color='k', alpha=.1)
+
+
+        # [gradient_locations2] = np.where(np.diff(np.abs(resp)) > 0.005)
+        # gradient_locations = list(set(gradient_locations1) & 
+        #     (set(gradient_locations2) | set(gradient_locations2 - 1) |
+        #         set(gradient_locations2 + 1)))
 
         if make_plot:
-            self.plot_find_peak(freq, resp_input, peak_ind, save_plot=save_plot,
-                save_name=save_name)
+            self.plot_find_peak(freq, resp, gradient_locations, 
+                save_plot=save_plot, save_name=save_name)
 
         # return freq[peak_ind]
         return gradient_locations
+
+    def pad_flags(self, f, before_pad=0, after_pad=0, min_gap=0, min_length=0):
+        """                                                                                  
+        Pad a flag field with more flags before, after, and between gaps                     
+                                                                               
+        Args:                                                                                
+            f (bool array): a flag field 
+            before_pad (int): samples to flag before each existing flag 
+            after_pad (int): samples to flag after each existing flag  
+            min_gap (int): flag all gaps between exisitng flags shorter than this            
+            min_length (int): remove flag blocks that are shorter than this from             
+                flag.                                                                        
+                                                                                             
+        Returns:                                                                             
+            Padded flag field as a boolean array                                             
+        """
+        before, after = find_flag_blocks(f)
+        after += 1 # change to point after block, not last element                           
+
+        # extend after index wherever it is less than gap from the next before               
+        inds = np.where(np.subtract(before[1:],after[:-1]) < min_gap)[0]
+        after[inds] = before[inds+1]
+
+        before -= before_pad
+        after += after_pad
+
+        padded = np.zeros_like(f)
+
+        for b, a in zip(before, after):
+            if (a-after_pad)-(b+before_pad) > min_length:
+                padded[np.max([0,b]):a] = True
+
+        return padded
+
+    def find_flag_blocks(self, flag, minimum=None, min_gap=None):
+        """                                                                                  
+        Find blocks of adjacent points in a boolean array with the same value.               
+                                                                                             
+        Arguments                                                                            
+        ---------                                                                            
+            flag : bool, array_like                                                          
+                The array in which to find blocks                                            
+            minimum : int (optional)                                                         
+                The minimum length of block to return. Discards shorter blocks               
+            min_gap : int (optional)                                                         
+                The minimum gap between flag blocks. Fills in gaps smaller.                  
+                                                                                             
+        Returns                                                                              
+        -------                                                                              
+            starts, ends : int arrays                                                        
+                The start and end indices for each block.                                    
+                NOTE: the end index is the last index in the block. Add 1 for                
+                slicing, where the upper limit should be after the block                     
+        """
+        print(flag)
+        if min_gap is not None:
+            _flag = self.pad_flags(np.asarray(flag, dtype=bool),
+                              min_gap=min_gap).astype(np.int8)
+        else:
+            _flag = np.asarray(flag).astype(int)
+
+        marks = np.diff(_flag)
+        start = np.where(marks == 1)[0]+1
+        if _flag[0]:
+            start = np.concatenate([[0],start])
+        end = np.where(marks == -1)[0]
+        if _flag[-1]:
+            end = np.concatenate([end,[len(_flag)-1]])
+
+        if minimum is not None:
+            inds = np.where(end - start + 1 > minimum)[0]
+            return start[inds],end[inds]
+        else:
+            return start,end
 
     def plot_find_peak(self, freq, resp, peak_ind, save_plot=True, 
         save_name=None):
@@ -572,7 +631,6 @@ class SmurfTuneMixin(SmurfBase):
             Ip = np.real(respp)
             Qp = np.imag(respp)
             ax2.scatter(Ip, Qp, c=np.arange(len(freq)), s=3)
-
 
         plt.tight_layout()
 

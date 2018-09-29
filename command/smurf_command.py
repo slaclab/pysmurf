@@ -627,7 +627,7 @@ class SmurfCommandMixin(SmurfBase):
     def get_noise_select(self, band, **kwargs):
         """
         """
-        return self._caget(self._band_root(band) + self_noise_select, 
+        return self._caget(self._band_root(band) + self._noise_select, 
             **kwargs)
 
     _lms_delay = 'lmsDelay'
@@ -1074,6 +1074,7 @@ class SmurfCommandMixin(SmurfBase):
             return self.hex_string_to_int(val)
         else:
             return val
+
     _trigger_daq = 'TriggerDaq'
     def set_trigger_daq(self, val, **kwargs):
         """
@@ -1086,6 +1087,17 @@ class SmurfCommandMixin(SmurfBase):
         """
         self._caget(self.daq_mux_root + self._trigger_daq, 
             **kwargs)
+
+    _trigger_hw_arm = 'TriggerHwArm'
+    def set_trigger_hw_arm(self, val, **kwargs):
+        """
+        """
+        self._caput(self.daq_mux_root + self._trigger_hw_arm, val, **kwargs)
+
+    def get_trigger_hw_arm(self, **kwargs):
+        """
+        """
+        return self._caget(self.daq_mux_root + self._trigger_hw_arm, **kwargs)
 
     # rtm commands
     _reset_rtm = 'resetRtm'

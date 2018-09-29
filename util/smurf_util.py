@@ -95,9 +95,16 @@ class SmurfUtilMixin(SmurfBase):
     def read_stream_data(self, datafile):
         """
         Loads data taken with the fucntion stream_data_on
+
+        Args:
+        -----
+        datafile (str): The full path to the data to read
         """
 
         file_writer_header_size = 2  # 32-bit words
+
+        with open(datafile, mode='rb') as file:
+            file_content = file.read()
 
         version = file_content[8]
 
@@ -109,8 +116,8 @@ class SmurfUtilMixin(SmurfBase):
 
 
             # Convert binary file to int array. The < indicates little-endian
-            raw_dat = np.asarray(struct.unpack("<" + "i" * ((len(file_content)) // 4),
-                file_content))
+            raw_dat = np.asarray(struct.unpack("<" + "i" * 
+                ((len(file_content)) // 4), file_content))
 
             # To do : add bad frame check
             frame_start = np.ravel(np.where(1 + raw_dat/4==nominal_frame_size))
@@ -130,28 +137,37 @@ class SmurfUtilMixin(SmurfBase):
             phase = np.arctan2(Q, I)
 
         elif version == 1:
-        # this works if we've already remove dropped frames.  Use timestamp/frame counter to look for drops
-            keys = ['h0', 'h1', 'version', 'crate_id', 'slot_number', 'number_of_channels', 'rtm_dac_config0',
-                    'rtm_dac_config1',  'rtm_dac_config2', 'rtm_dac_config3', 'rtm_dac_config4', 'rtm_dac_config5',
-                    'flux_ramp_increment', 'flux_ramp_start', 'base_rate_since_1_Hz', 'base_rate_since_TM',
-                    'timestamp_ns', 'timestamp_s', 'fixed_rate_marker', 'sequence_counter', 'tes_relay',
-                    'mce_word']
+            # this works if we've already remove dropped frames.  
+            # Use timestamp/frame counter to look for drops
+            keys = ['h0', 'h1', 'version', 'crate_id', 'slot_number', 
+                'number_of_channels', 'rtm_dac_config0', 'rtm_dac_config1',  
+                'rtm_dac_config2', 'rtm_dac_config3', 'rtm_dac_config4', 
+                'rtm_dac_config5', 'flux_ramp_increment', 'flux_ramp_start', 
+                'base_rate_since_1_Hz', 'base_rate_since_TM', 'timestamp_ns', 
+                'timestamp_s', 'fixed_rate_marker', 'sequence_counter', 
+                'tes_relay','mce_word'
+            ]
+
             data_keys = [f'data{i}' for i in range(4096)]
+            # print(data_keys)
+
             keys.extend(data_keys)
 
             keys_dics = dict( zip( keys, range(len(keys)) ) )
 
-            frames        = [i for i in Struct('2I2BHI6Q6IH2xI2Q24x4096h').iter_unpack(file_content)]
+            frames = [i for i in 
+                struct.Struct('2I2BHI6Q6IH2xI2Q24x4096h').iter_unpack(file_content)]
             #frame_counter = [i[keys['sequence_counter']] for i in frames]
             #timestamp_s   = [i[keys['timestamp_s']] for i in frames]
             #timestamp_ns  = [i[keys['timestamp_ns']] for i in frames]
 
             phase = np.zeros((4096, len(frames)))
             for i in range(4096):
-                phase[i,:] = np.asarray([j[keys[f'data{i}']] for j in frames])
+                phase[i,:] = np.asarray([j[keys_dics[f'data{i}']] for j in 
+                    frames])
 
-            phase     = phase * np.pi # scale to rad
-            timestamp = [i[keys['sequence_counter']] for i in frames]
+            phase = phase.astype(float) / 2**15 * np.pi # scale to rad
+            timestamp = [i[keys_dics['sequence_counter']] for i in frames]
 
         else:
             raise Exception(f'Frame version {version} not supported')
@@ -169,14 +185,9 @@ class SmurfUtilMixin(SmurfBase):
         else:
             stream0 = self.epics_root + ":AMCc:Stream4"
             stream1 = self.epics_root + ":AMCc:Stream5"
-
-        # print('camonitoring')
-        # epics.camonitor(stream0)
-        # epics.camonitor(stream1)
-        # print('done camonitoring')
         
         pvs = [stream0, stream1]
-        sg  = SyncGroup(pvs)
+        sg  = SyncGroup(pvs, skip_first=True)
 
         # trigger PV
         if not hw_trigger:
@@ -198,6 +209,14 @@ class SmurfUtilMixin(SmurfBase):
 
     def read_adc_data(self, adc_number, data_length, hw_trigger=False):
         """
+        Args:
+        -----
+        adc_number (int):
+        data_length (int):
+
+        Opt Args:
+        ---------
+        hw_trigger (bool)
         """
         if adc_number > 3:
             bay = 1
@@ -270,9 +289,11 @@ class SmurfUtilMixin(SmurfBase):
         # Change waveform engine buffer size
         self.set_data_buffer_size(size, write_log=True)
         for daq_num in np.arange(4):
-            s = self.get_waveform_start_addr(daq_num, convert=True)
+            s = self.get_waveform_start_addr(daq_num, convert=True, 
+                write_log=False)
             e = s + 4*size
-            self.set_waveform_end_addr(daq_num, e, convert=True)
+            self.set_waveform_end_addr(daq_num, e, convert=True, 
+                write_log=False)
             self.log('DAQ number {}: start {} - end {}'.format(daq_num, s, e))
 
 
@@ -587,9 +608,9 @@ class SmurfUtilMixin(SmurfBase):
         """
         # Must be array length 300
         s = np.zeros(300, dtype=int)
-        i_hex = hex(i)[2:]
+        i_hex = hex(i)
         for j in np.arange(len(i_hex)):
-            s[j] = int(i_hex[j])
+            s[j] = ord(i_hex[j])
 
         return s
 

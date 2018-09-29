@@ -26,7 +26,7 @@ class SmurfIVMixin(SmurfBase):
         bias_step (int): The step size in volts. Default .1
         """
         # Look for good channels
-        channel = self.which_on(band)
+        channels = self.which_on(band)
         n_channel = self.get_number_channels(band)
 
         # drive high current through the TES to attempt to drive nomral
@@ -62,56 +62,83 @@ class SmurfIVMixin(SmurfBase):
         basename, _ = os.path.splitext(os.path.basename(datafile))
         np.save(os.path.join(basename + '_iv_bias.txt'), bias)
 
+        iv_raw_data = {}
+        iv_raw_data['bias'] = bias
+        iv_raw_data['band'] = band
+        iv_raw_data['channels'] = channels
+        iv_raw_data['datafile'] = datafile
+        iv_raw_data['basename'] = basename
+        iv_raw_data['output_dir'] = self.output_dir
+        iv_raw_data['plot_dir'] = self.plot_dir
+        fn_iv_raw_data = os.path.join(self.output_dir, basename + '_iv_raw_data.npy')
+        np.save(fn_iv_raw_data,iv_raw_data)
+
+        self.analyze_slow_iv_from_file(fn_iv_raw_data,make_plot = make_plot,\
+                                           show_plot = show_plot,save_plot = save_plot)
+
+    def analyze_slow_iv_from_file(self,fn_iv_raw_data,make_plot = True,show_plot = False,\
+                                      save_plot = True):
+
+        iv_raw_data = np.load(fn_iv_raw_data).item()
+        bias = iv_raw_data['bias']
+        band = iv_raw_data['band']
+        channels = iv_raw_data['channels']
+        datafile = iv_raw_data['datafile']
+        basename = iv_raw_data['basename']
+        output_dir = iv_raw_data['output_dir']
+        plot_dir = iv_raw_data['plot_dir']
+
         ivs = {}
         ivs['bias'] = bias
 
-
-        for c, ch in enumerate(channel):
-            timestamp, I, Q = self.read_stream_data(datafile)
-            phase = self.iq_to_phase(I[ch], Q[ch]) * 1.443
+        for c, ch in enumerate(channels):
+            # timestamp, I, Q = self.read_stream_data(datafile)
+            # phase = self.iq_to_phase(I[ch], Q[ch]) * 1.443
+            timestamp, phase = self.read_stream_data(datafile)
+            phase *= 1.443
             if make_plot:
                 import matplotlib.pyplot as plt
                 
                 if not show_plot:
                     plt.ioff()
 
-                fig, ax = plt.subplots(2, sharex=True)
+                fig, ax = plt.subplots(1, sharex=True)
 
-                ax[0].plot(I[ch], label='I')
-                ax[0].plot(Q[ch], label='Q')
-                ax[0].legend()
-                ax[0].set_ylabel('I/Q')
-                ax[0].set_xlabel('Sample Num')
+                # ax[0].plot(I[ch], label='I')
+                # ax[0].plot(Q[ch], label='Q')
+                # ax[0].legend()
+                # ax[0].set_ylabel('I/Q')
+                # ax[0].set_xlabel('Sample Num')
 
-                ax[1].plot(self.pA_per_phi0 * phase / (2*np.pi))
-                ax[1].set_xlabel('Sample Num')
-                ax[1].set_ylabel('Phase [pA]')
+                ax.plot(self.pA_per_phi0 * phase[ch]/ (2*np.pi))
+                ax.set_xlabel('Sample Num')
+                ax.set_ylabel('Phase [pA]')
 
-                ax[0].set_title('Band {} Ch {:03}'.format(band, ch))
+                ax.set_title('Band {} Ch {:03}'.format(band, ch))
                 plt.tight_layout()
 
                 plot_name = basename + \
                     '_IV_stream_b{}_ch{:03}.png'.format(band, ch)
                 if save_plot:
-                    plt.savefig(os.path.join(self.plot_dir, plot_name), 
+                    plt.savefig(os.path.join(plot_dir, plot_name), 
                         bbox_inches='tight', dpi=300)
                 if not show_plot:
                     plt.close()
 
-            r, rn, idx = self.analyze_slow_iv(bias, phase, basename=basename, 
+            r, rn, idx = self.analyze_slow_iv(bias, phase[ch], basename=basename, 
                 band=band, channel=ch, make_plot=make_plot, show_plot=show_plot,
-                save_plot=save_plot)
+                save_plot=save_plot,plot_dir = plot_dir)
             ivs[ch] = {
                 'R' : r,
                 'Rn' : rn,
                 'idx': idx
             }
 
-        np.save(os.path.join(self.output_dir, basename + '_iv'), ivs)
+        np.save(os.path.join(output_dir, basename + '_iv'), ivs)
 
     def analyze_slow_iv(self, v_bias, resp, make_plot=True, show_plot=False,
         save_plot=True, basename=None, band=None, channel=None, R_sh=.0002,
-        **kwargs):
+        plot_dir = None,**kwargs):
         """
         Analyzes the IV curve taken with slow_iv()
 
@@ -194,8 +221,6 @@ class SmurfIVMixin(SmurfBase):
 
             ax[0].plot(i_bias, norm_fit[0] * i_bias , linestyle='--', color='k')  
 
-        
-
             ax[0].plot(i_bias[:sc_idx], 
                 sc_fit[0] * i_bias[:sc_idx] + sc_fit[1], linestyle='--', 
                 color='k')
@@ -242,14 +267,14 @@ class SmurfIVMixin(SmurfBase):
                 ax[0].text(.95, .88, basename , transform=ax[0].transAxes, 
                     fontsize=12, horizontalalignment='right')
 
-            # plt.tight_layout()
-
             if save_plot:
                 if basename is None:
                     basename = self.get_timestamp()
                 plot_name = basename + \
                         '_IV_curve_b{}_ch{:03}.png'.format(band, channel)
-                plt.savefig(os.path.join(self.plot_dir, plot_name),
+                if plot_dir == None:
+                    plot_dir = self.plot_dir
+                plt.savefig(os.path.join(plot_dir, plot_name),
                     bbox_inches='tight', dpi=300)
             if show_plot:
                 plt.show()
@@ -258,4 +283,4 @@ class SmurfIVMixin(SmurfBase):
 
         return R, R_n, np.array([sc_idx, nb_idx])
 
-
+        
