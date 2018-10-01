@@ -7,160 +7,112 @@ import scipy.signal as signal
 
 
 class SmurfTuneMixin(SmurfBase):
-    '''
+    """
     This contains all the tuning scripts
-    '''
+    """
 
-    def find_freq(self, band, subband=np.arange(13,115), drive_power=10,
-        n_read=2, make_plot=False, save_plot=True):
-        '''
-        Finds the resonances in a band (and specified subbands)
+    def tune_band(self, band, freq=None, resp=None, n_samples=2**18, 
+        make_plot=True, save_plot=True, save_data=True, grad_cut=.05,
+        freq_min=-2.5E8, freq_max=2.5E8, amp_cut=.25):
+        """
+        This does the full_band_resp, which takes the raw resonance data.
+        It then finds the where the reseonances are. Using the resonance
+        locations, it does calculates the eta parameters.
 
         Args:
         -----
-        band (int) : The band to search
+        band (int): The band to tune
 
-        Optional Args:
-        --------------
-        subband (int) : An int array for the subbands
-        drive_power (int) : The drive amplitude
-        n_read (int) : The number sweeps to do per subband
-        make_plot (bool) : make the plot frequency sweep. Default False.
-        save_plot (bool) : save the plot. Default True.
-        save_name (string) : What to name the plot. default find_freq.png
-        '''
-        f, resp = self.full_band_ampl_sweep(band, subband, drive_power, n_read)
+        Opt Args:
+        ---------
+        freq (float array): The frequency information. If both freq and resp
+            are not None, it will skip full_band_resp.
+        resp (float array): The response information. If both freq and resp
+            are not None, it will skip full_band_resp.
+        n_samples (int): The number of samples to take in full_band_resp.
+            Default is 2^18.
+        make_plot (bool): Whether to make plots. This is slow, so if you want
+            to tune quickly, set to False. Default True.
+        save_plot (bool): Whether to save the plot. If True, it will close the
+            plots before they are shown. If False, plots will be brought to the
+            screen.
+        save_data (bool): If True, saves the data to disk.
+        grad_cut (float): The value of the gradient of phase to look for 
+            resonances. Default is .05
+        amp_cut (float): The distance from the median value to decide whether
+            there is a resonance. Default is .25.
+        freq_min (float): The minimum frequency relative to the center of
+            the band to look for resonances. Units of Hz. Defaults is -2.5E8
+        freq_max (float): The maximum frequency relative to the center of
+            the band to look for resonances. Units of Hz. Defaults is 2.5E8
 
-        timestamp = int(time.time())  # ignore fractional seconds
-
-        # Save data
-        save_name = '{}_amp_sweep_{}.txt'
-        np.savetxt(os.path.join(self.output_dir, 
-            save_name.format(timestamp, 'freq')), f)
-        np.savetxt(os.path.join(self.output_dir, 
-            save_name.format(timestamp, 'resp')), resp)
-
-        # Place in dictionary - dictionary declared in smurf_control
-        self.freq_resp[band]['subband'] = subband
-        self.freq_resp[band]['f'] = f
-        self.freq_resp[band]['resp'] = resp
-        if 'timestamp' in self.freq_resp[band]:
-            self.freq_resp[band]['timestamp'] = \
-                np.append(self.freq_resp[band]['timestamp'], timestamp)
-        else:
-            self.freq_resp[band]['timestamp'] = np.array([timestamp])
-
-        # Find resonances
-        res_freq = self.find_all_peak(self.freq_resp[band]['f'],
-            self.freq_resp[band]['resp'], subband)
-        self.freq_resp[band]['resonance'] = res_freq
-
-        # Save resonances
-        np.savetxt(os.path.join(self.output_dir,
-            save_name.format(timestamp, 'resonance')), 
-            self.freq_resp[band]['resonance'])
-
-        # Call plotting
-        if make_plot:
-            self.plot_find_freq(self.freq_resp[band]['f'], 
-                self.freq_resp[band]['resp'], save_plot=save_plot, 
-                save_name=save_name.replace('.txt', '.png').format(timestamp,
-                    band))
-
-        return f, resp
-
-    def plot_find_freq(self, f=None, resp=None, subband=None, filename=None, 
-        save_plot=True, save_name='amp_sweep.png'):
-        '''
-        Plots the response of the frequency sweep. Must input f and resp, or
-        give a path to a text file containing the data for offline plotting.
-
-        To do:
-        Add ability to use timestamp and multiple plots
-
-        Optional Args:
-        --------------
-        save_plot (bool) : save the plot. Default True.
-        save_name (string) : What to name the plot. default find_freq.png
-        '''
-        if subband is None:
-            subband = np.arange(128)
-        subband = np.asarray(subband)
-
-        if (f is None or resp is None) and filename is None:
-            self.log('No input data or file given. Nothing to plot.')
-            return
-        else:
-            if filename is not None:
-                f = np.loadtxt(filename)
-                resp = np.genfromtxt(filename.replace('_freq', '_resp'))
-
-            import matplotlib.pyplot as plt
-            cm = plt.cm.get_cmap('viridis')
-            fig = plt.figure(figsize=(10,4))
-
-            for i, sb in enumerate(subband):
-                color = cm(float(i)/len(subband)/2. + .5*(i%2))
-                plt.plot(f[sb,:], np.abs(resp[sb,:]), '.', markersize=4, 
-                    color=color)
-            plt.title("findfreq response")
-            plt.xlabel("Frequency offset (MHz)")
-            plt.ylabel("Normalized Amplitude")
-
-            if save_plot:
-                plt.savefig(os.path.join(self.plot_dir, save_name),
-                    bbox_inches='tight')
-
-
-    def full_band_ampl_sweep(self, band, subband, drive, N_read):
-        """sweep a full band in amplitude, for finding frequencies. This is the
-        old, slower method that is replaced by full_band_resp.
-
-        args:
-        -----
-            band (int) = bandNo (500MHz band)
-            subband (int) = which subbands to sweep
-            drive (int) = drive power (defaults to 10)
-            n_read (int) = numbers of times to sweep, defaults to 2
-
-        returns:
+        Returns:
         --------
-            freq (list, n_freq x 1) = frequencies swept
-            resp (array, n_freq x 2) = complex response
+        res (dict): A dictionary with resonance frequency, eta, eta_phase,
+            R^2, and amplitude.
+
         """
-        self.log('This is an older version. Now use full_band_resp()', 
-            self.LOG_USER)
+        timestamp = self.get_timestamp()
 
-        digitizer_freq = self.get_digitizer_frequency_mhz(band)  # in MHz
-        n_subbands = self.get_number_sub_bands(band)
-        n_channels = self.get_number_channels(band)
-        band_center = self.get_band_center_mhz(band)  # in MHz
+        if freq is None or resp is None:
+            self.log('Running full band resp')
+            freq, resp = self.full_band_resp(band, n_samples=n_samples,
+                make_plot=make_plot, save_data=save_data, timestamp=timestamp)
 
-        subband_width = 2 * digitizer_freq / n_subbands
+        make_subband_plot = False
+        if make_plot:
+            make_subband_plot = True
+        peaks = self.find_peak(freq, resp, band=band, make_plot=make_plot, 
+            save_plot=save_plot, grad_cut=grad_cut, freq_min=freq_min,
+            freq_max=freq_max, amp_cut=amp_cut, 
+            make_subband_plot=make_subband_plot, timestamp=timestamp)
 
-        scan_freq = np.arange(-3, 3.1, 0.1)  # take out this hardcode
+        resonances = {}
+        for i, p in enumerate(peaks):
+            eta_scaled, eta_phase_deg, r2, amp = self.eta_fit(freq, resp, p, 
+                .2e6, 614.4/128, make_plot=make_plot, save_plot=save_plot,
+                res_num=i, band=band, timestamp=timestamp)
+            resonances[i] = {
+                'freq': p,
+                'eta': eta_scaled,
+                'eta_phase': eta_phase_deg,
+                'r2': r2,
+                'amp': amp
+            }
 
-        resp = np.zeros((n_subbands, np.shape(scan_freq)[0]), dtype=complex)
-        freq = np.zeros((n_subbands, np.shape(scan_freq)[0]))
+        is save_data:
+            np.save(os.path.join(self.output_dir, 
+                '{}_b{}_resonances'.format(timestamp, band)))
 
-        subband_nos, subband_centers = self.get_subband_centers(band)
+        return resonances
 
-        self.log('Working on band {:d}'.format(band), self.LOG_INFO)
-        for sb in subband:
-            self.log('sweeping subband no: {}'.format(sb), self.LOG_INFO)
-            f, r = self.fast_eta_scan(band, sb, scan_freq, N_read, 
-                drive)
-            resp[sb,:] = r
-            freq[sb,:] = f
-            freq[sb,:] = scan_freq + \
-                subband_centers[subband_nos.index(sb)]
-        return freq, resp
+
 
     def full_band_resp(self, band, n_samples=2**18, make_plot=False, 
-        save_data=False):
+        save_data=False, timestamp=None):
         """
-        
+        Injects high amplitude noise with known waveform. The ADC measures it.
+        The cross correlation contains the information about the resonances.
+
+        Args:
+        -----
+        band (int): The band to sweep.
+
+        Opt Args:
+        ---------
+        n_samples (int): The number of samples to take. Default 2^18.
+        make_plot (bool): Whether the make plots. Default is False.
+        save_data (bool): Whether to save the plot.
+        timestamp (str): The timestamp as a string.
+
+        Returns:
+        --------
+        f (float array): The frequency information. Length n_samples/2
+        resp (complex array): The response information. Length n_samples/2
         """
+        if timestamp is None:
+            timestamp = self.get_timestamp
+
         self.set_trigger_hw_arm(0, write_log=True)  # Default setup sets to 1
 
         self.set_noise_select(band, 1, wait_done=True, write_log=True)
@@ -172,7 +124,7 @@ class SmurfTuneMixin(SmurfBase):
         time.sleep(.1)  # Need to wait, otherwise dac call interferes with adc
 
         dac = self.read_dac_data(band, n_samples, hw_trigger=True)
-        time.sleep(.1)
+        time.sleep(.05)
 
         self.set_noise_select(band, 0, wait_done=True, write_log=True)
 
@@ -216,7 +168,7 @@ class SmurfTuneMixin(SmurfBase):
             # ax.plot(f_plot, np.imag(resp))
 
         if save_data:
-            save_name = self.get_timestamp() + '_{}_full_band_resp.txt'
+            save_name = timestamp + '_{}_full_band_resp.txt'
             np.savetxt(os.path.join(self.output_dir, save_name.format('freq')), 
                 f)
             np.savetxt(os.path.join(self.output_dir, save_name.format('real')), 
@@ -227,11 +179,9 @@ class SmurfTuneMixin(SmurfBase):
 
         return f, resp
 
-
-
-    def find_peak(self, freq, resp, grad_cut=.05, freq_min=-2.5E8, 
-        freq_max=2.5E8, make_plot=False, amp_cut=.4, save_plot=True, 
-        save_name=None):
+    def find_peak(self, freq, resp, grad_cut=.05, freq_min=-2.5E8, band=None,
+        freq_max=2.5E8, make_plot=False, amp_cut=.25, save_plot=True, 
+        make_subband_plot=False, timestamp=None):
         """find the peaks within a given subband
 
         Args:
@@ -239,14 +189,16 @@ class SmurfTuneMixin(SmurfBase):
         freq (vector): should be a single row of the broader freq array
         response (complex vector): complex response for just this subband
 
-        Optional Args:
-        --------------
+        Opt Args:
+        ---------
 
 
         Returns:
         -------_
         resonances (float array): The frequency of the resonances in the band
         """
+        if timestamp is None:
+            timestamp = self.get_timestamp()
 
         angle = np.unwrap(np.angle(resp))
         grad = np.ediff1d(angle, to_end=[np.nan])
@@ -259,15 +211,8 @@ class SmurfTuneMixin(SmurfBase):
 
         window = 500
         import pandas as pd
-        # med_grad = pd.Series(grad).rolling(window=window, center=True).median()
+
         med_amp = pd.Series(amp).rolling(window=window, center=True).median()
-        # n_els = len(grad)
-        # med_grad = np.zeros(n_els)*np.nan
-        # med_amp = np.zeros(n_els)*np.nan
-        #         w2 = int(window/2)
-        # for i in np.arange(w2, n_els - w2):
-        #     med_grad[i] = np.median(grad[i-w2:i+w2])
-        #     med_amp[i] = np.median(amp[i-w2:i+w2])
 
         starts, ends = self.find_flag_blocks(self.pad_flags(grad_loc, 
             before_pad=20, after_pad=20, min_gap=10))
@@ -280,25 +225,96 @@ class SmurfTuneMixin(SmurfBase):
                 if med_amp[idx] - amp[idx] > amp_cut:
                     peak = np.append(peak, idx)
 
+        # Make summary plot
         if make_plot:
             import matplotlib.pyplot as plt
-            fig, ax = plt.subplots(2, sharex=True)
+            fig, ax = plt.subplots(1)
 
-            ax[0].plot(freq, grad)
-            ax[1].plot(freq,amp)
-            ax[1].plot(freq, med_amp)
-            ax[1].plot(freq[peak], amp[peak], 'kx')
+            plot_freq = freq*1.0E-6
+
+            ax.plot(plot_freq,amp)
+            ax.plot(plot_freq, med_amp)
+            ax.plot(plot_freq[peak], amp[peak], 'kx')
 
             for s, e in zip(starts, ends):
-                ax[0].axvspan(freq[s], freq[e], color='k', alpha=.1)
-                ax[1].axvspan(freq[s], freq[e], color='k', alpha=.1)
+                ax.axvspan(plot_freq[s], plot_freq[e], color='k', alpha=.1)
+
+            ax.set_ylabel('Amp')
+            ax.set_xlabel('Freq [MHz]')
 
             if save_plot:
-                if save_name is None:
-                    self.log('Warning, using default name for saving ' +
-                        'find_freq plot', self.LOG_USER)
-                    save_name = 'find_freq.png'
-                plt.savefig(os.path.join(plot_dir, save_name))
+                save_name = '{}_plot_freq.png'.format(timestamp)
+                plt.savefig(os.path.join(self.plot_dir, save_name))
+                plt.close()
+
+        # Make plot per subband
+        if make_subband_plot:
+            import matplotlib.pyplot as plt
+            subbands, subband_freq = self.get_subband_centers(band, 
+                hardcode=True)  # remove hardcode mode
+            plot_freq = freq * 1.0E-6
+            plot_width = 5.5  # width of plotting in MHz
+            width = (subband_freq[1] - subband_freq[0])
+
+            for sb, sbf in zip(subbands, subband_freq):
+                self.log('Making plot for subband {}'.format(sb))
+                idx = np.logical_and(plot_freq > sbf - plot_width/2.,
+                    plot_freq < sbf + plot_width/2.)
+                f = plot_freq[idx]
+                p = angle[idx]
+                x = np.arange(len(p))
+                fp = np.polyfit(x, p, 1)
+                p = p - x*fp[0] - fp[1]
+
+                g = grad[idx]
+                a = amp[idx]
+                ma = med_amp[idx]
+
+                fig, ax = plt.subplots(2, sharex=True)
+                ax[0].plot(f, p, label='Phase')
+                ax[0].plot(f, g, label=r'$\Delta$ phase')
+                ax[1].plot(f, a, label='Amp')
+                ax[1].plot(f, ma, label='Median Amp')
+                for s, e in zip(starts, ends):
+                    if (plot_freq[s] in f) or (plot_freq[e] in f):
+                        ax[0].axvspan(plot_freq[s], plot_freq[e], color='k', 
+                            alpha=.1)
+                        ax[1].axvspan(plot_freq[s], plot_freq[e], color='k', 
+                            alpha=.1)
+
+                for pp in peak:
+                    if plot_freq[pp] > sbf - plot_width/2. and \
+                        plot_freq[pp] < sbf + plot_width/2.:
+                        ax[1].plot(plot_freq[pp], amp[pp], 'xk')
+
+                ax[0].legend(loc='upper right')
+                ax[1].legend(loc='upper right')
+
+                ax[0].axvline(sbf, color='k' ,linestyle=':', alpha=.4)
+                ax[1].axvline(sbf, color='k' ,linestyle=':', alpha=.4)
+                ax[0].axvline(sbf - width/2., color='k' ,linestyle='--', 
+                    alpha=.4)
+                ax[0].axvline(sbf + width/2., color='k' ,linestyle='--', 
+                    alpha=.4)
+                ax[1].axvline(sbf - width/2., color='k' ,linestyle='--', 
+                    alpha=.4)
+                ax[1].axvline(sbf + width/2., color='k' ,linestyle='--', 
+                    alpha=.4)
+
+                ax[1].set_xlim((sbf-plot_width/2., sbf+plot_width/2.))
+
+                ax[0].set_ylabel('[Rad]')
+                ax[1].set_xlabel('Freq [MHz]')
+                ax[1].set_ylabel('Amp')
+
+                ax[0].set_title('Band {} Subband {}'.format(band,
+                    sb, sbf))
+
+                if save_plot:
+                    save_name = '{}_sb{}_find_freq.png'.format(timestamp, sb)
+                    plt.savefig(os.path.join(self.plot_dir, save_name),
+                        bbox_inches='tight')
+                    plt.close()
 
         return freq[peak]
 
@@ -402,110 +418,142 @@ class SmurfTuneMixin(SmurfBase):
                 bbox_inches='tight')
             plt.close()
 
-    def find_all_peak(self, freq, resp, subband, normalize=False, 
-        n_samp_drop=1, threshold=.5, margin_factor=1., phase_min_cut=1, 
-        phase_max_cut=1):
+    def eta_fit(self, freq, resp, peak_freq, delF, subbandHalfWidth, 
+        make_plot=False, save_plot=True, band=None, timestamp=None, 
+        res_num=None):
         """
-        find the peaks within each subband requested from a fullbandamplsweep
-
-        Args:
-        -----
-        freq (array):  (n_subbands x n_freq_swept) array of frequencies swept
-        response (complex array): n_subbands x n_freq_swept array of complex 
-            response
-        subbands (list of ints): subbands that we care to search in
-
-        Optional Args:
-        --------------
-        normalize (bool) : 
-        n_samp_drop (int) :
-        threshold (float) :
-        margin_factor (float):
-        phase_min_cut (int) :
-        phase_max_cut (int) :
+        Cyndia's eta finding code
         """
-        peaks = np.array([])
-        subbands = np.array([])
+        if timestamp is None:
+            timestamp = self.get_timestamp()
 
-        for sb in subband:
-            peak = self.find_peak(freq[sb,:], resp[sb,:], 
-                normalize=normalize, n_samp_drop=n_samp_drop, 
-                threshold=threshold, margin_factor=margin_factor,
-                phase_min_cut=phase_min_cut, phase_max_cut=phase_max_cut,
-                make_plot=True, save_plot=True,
-                save_name='find_peak_subband{:03}.png'.format(int(sb)))
-
-            if peak is not None:
-                peaks = np.append(peaks, peak)
-                subbands = np.append(subbands, 
-                    np.ones_like(peak, dtype=int)*sb)
-
-        res = np.vstack((peaks, subbands))
-        return res
-
-    def fast_eta_scan(self, band, subband, freq, n_read, drive, 
-        make_plot=False):
-        """copy of fastEtaScan.m from Matlab. Sweeps quickly across a range of
-        freq and gets I, Q response
-
-        Args:
-         band (int): which 500MHz band to scan
-         subband (int): which subband to scan
-         freq (n_freq x 1 array): frequencies to scan relative to subband 
-            center
-         n_read (int): number of times to scan
-         drive (int): tone power
-
-        Optional Args:
-        make_plot (bool): Make eta plots
-
-        Outputs:
-         resp (n_freq x 2 array): real, imag response as a function of 
-            frequency
-         freq (n_freq x n_read array): frequencies scanned, relative to 
-            subband center
-        """
-        n_subbands = self.get_number_sub_bands(band)
-        n_channels = self.get_number_channels(band)
-
-        channel_order = self.get_channel_order(None) # fix this later
-
-        channels_per_subband = int(n_channels / n_subbands)
-        first_channel_per_subband = channel_order[0::channels_per_subband]
-        subchan = first_channel_per_subband[subband]
-
-        self.set_eta_scan_freq(band, freq)
-        self.set_eta_scan_amplitude(band, drive)
-        self.set_eta_scan_channel(band, subchan)
-        self.set_eta_scan_dwell(band, 0)
-
-        self.set_run_eta_scan(band, 1)
-
-        I = self.get_eta_scan_results_real(band, count=len(freq))
-        Q = self.get_eta_scan_results_imag(band, count=len(freq))
-
-        self.band_off(band)
-
-        response = np.zeros((len(freq), ), dtype=complex)
-
-        for index in range(len(freq)):
-            Ielem = I[index]
-            Qelem = Q[index]
-            if Ielem > 2**23:
-                Ielem = Ielem - 2**24
-            if Qelem > 2**23:
-                Qelem = Qelem - 2**24
+        amp = np.abs(resp)
+        
+        fit = np.polyfit(freq, np.unwrap(np.angle(resp)), 1)
+        fitted_line = np.poly1d(fit)  
+        phase = np.unwrap(np.angle(resp) - fitted_line(freq))
+        
+        min_idx = np.ravel(np.where(freq == peak_freq))[0]
+        
+        try:
+            left = np.where(freq < peak_freq - delF)[0][-1]
+        except IndexError:
+            left = 0
+        right = np.where(freq > peak_freq + delF)[0][0]
+        
             
-            Ielem = Ielem / 2**23
-            Qelem = Qelem / 2**23
+        eta = (freq[right] - freq[left]) / (resp[right] - resp[left])
+        eta_mag = np.abs(eta)
+        eta_angle = np.angle(eta)
+        eta_scaled = eta_mag * 1e-6/ subbandHalfWidth # convert to MHz
+        eta_phase_deg = eta_angle * 180 / np.pi
 
-            response[index] = Ielem + 1j*Qelem
+        def r2_value(x, y, deg):
+            fit = np.polyfit(x,y,deg)
+            fitted_line = np.poly1d(fit)
+            yhat = fitted_line(x)
+            ybar = np.sum(y) / len(y)
+            ssreg = np.sum((yhat - ybar)**2)
+            sstot = np.sum((y - ybar)**2)
+            
+            return ssreg / sstot
 
+        r2 = r2_value(freq[left:right], phase[left:right],1)
+    
         if make_plot:
-            import matplotlib.pyplot as plt
-            # To do : make plotting
+            self.log('Making plot for band {} res {:03}'.format(band, res_num))
+            self.plot_eta_fit(freq[left:right], resp[left:right], 
+                eta=eta, eta_mag=eta_mag, eta_angle=eta_angle, r2=r2,
+                save_plot=save_plot, timestamp=timestamp, band=band,
+                res_num=res_num)
 
-        return freq, response
+        return eta_scaled, eta_phase_deg, r2, amp
+
+    def plot_eta_fit(self, freq, resp, eta=None, eta_mag=None, 
+        eta_angle=None, r2=None, save_plot=True, timestamp=None, 
+        res_num=None, band=None):
+        """
+        """
+        if timestamp is None:
+            timestamp = self.get_timestamp()
+
+        import matplotlib.pyplot as plt
+        from matplotlib.gridspec import GridSpec
+
+        I = np.real(resp)
+        Q = np.imag(resp)
+        amp = np.sqrt(I**2 + Q**2)
+        phase = np.unwrap(np.arctan2(Q, I))  # radians
+
+        plot_freq = freq*1.0E-6
+
+        center_idx = np.ravel(np.where(amp==np.min(amp)))[0]
+
+        fig = plt.figure(figsize=(8,4.5))
+        gs=GridSpec(2,3)
+        ax0 = fig.add_subplot(gs[0,0])
+        ax1 = fig.add_subplot(gs[1,0], sharex=ax0)
+        ax2 = fig.add_subplot(gs[:,1:])
+        ax0.plot(plot_freq, I, label='I', linestyle=':', color='k')
+        ax0.plot(plot_freq, Q, label='Q', linestyle='--', color='k')
+        ax0.scatter(plot_freq, amp, c=np.arange(len(freq)), s=3,
+            label='amp')
+        ax0.legend(fontsize=10, loc='lower right')
+        ax0.set_ylabel('Resp')
+
+        idx = np.arange(-5,5.1,5, dtype=int)+center_idx
+        ax0.plot(plot_freq[idx], amp[idx], 'rx')
+
+        ax1.scatter(plot_freq, np.rad2deg(phase), c=np.arange(len(freq)), s=3)
+        ax1.plot(plot_freq[idx], np.rad2deg(phase[idx]), 'rx')
+        ax1.set_ylabel('Phase [deg]')
+
+        # IQ circle
+        ax2.axhline(0, color='k', linestyle=':', alpha=.5)
+        ax2.axvline(0, color='k', linestyle=':', alpha=.5)
+
+        ax2.scatter(I, Q, c=np.arange(len(freq)), s=3)
+        ax2.set_xlabel('I')
+        ax2.set_ylabel('Q')
+
+        lab = ''
+        if eta is not None:
+            if eta_mag is not None:
+                lab = r'$\eta/\eta_{mag}$' + \
+                ': {:4.3f}+{:4.3f}'.format(np.real(eta/eta_mag), 
+                    np.imag(eta/eta_mag)) + '\n'
+            else:
+                lab = lab + r'$\eta$' + ': {}'.format(eta) + '\n'
+        if eta_mag is not None:
+            lab = lab + r'$\eta_{mag}$' + ': {:1.3e}'.format(eta_mag) + '\n'
+        if eta_angle is not None:
+            lab = lab + r'$\eta_{ang}$' + \
+                ': {:3.2f}'.format(np.rad2deg(eta_angle)) + '\n'
+        if r2 is not None:
+            lab = lab + r'$R^2$' + ' :{:4.3f}'.format(r2)
+
+        ax2.text(.03, .80, lab, transform=ax2.transAxes, fontsize=10)
+
+        if eta is not None:
+            if eta_mag is not None:
+                eta = eta/eta_mag
+            respp = eta*resp
+            Ip = np.real(respp)
+            Qp = np.imag(respp)
+            ax2.scatter(Ip, Qp, c=np.arange(len(freq)), cmap='inferno', s=3)
+
+        plt.tight_layout()
+
+        if save_plot:
+            if res_num is not None and band is not None:
+                save_name = '{}_eta_b{}_res{:03}.png'.format(timestamp, band, 
+                    res_num)
+            else:
+                save_name = '{}_eta.png'.format(timestamp)
+            plt.savefig(os.path.join(self.plot_dir, save_name), 
+                bbox_inches='tight')
+            plt.close()
+
 
     def setup_notches(self, band, resonance=None, drive=10, sweep_width=.3, 
         sweep_df=.005):
@@ -550,105 +598,6 @@ class SmurfTuneMixin(SmurfBase):
         # Loop over inputs and do eta scans
         for i, (f, sb) in enumerate(zip(input_res, input_subband)):
             freq, res = fast_eta_scan(band, sb)
-
-    def estimate_eta_parameter(self, freq, resp):
-        '''
-        Estimates the eta parameter.
-
-        Args:
-        -----
-        freq (float array) : The frequency of the eta scan
-        resp (imag array) : The response of the eta scan
-
-        Returns:
-        --------
-
-        '''
-        I = np.real(resp)
-        Q = np.imag(resp)
-        amp = np.sqrt(I**2 + Q**2)
-
-        # Define helper functions
-        def calc_R(xc, yc):
-            """ 
-            calculate the distance of each 2D points from the center (xc, yc)
-            """
-            return np.sqrt((I-xc)**2 + (Q-yc)**2)
-
-        def f_2(c):
-            """
-            Calculate the algebraic distance between the data points and the 
-            mean circle centered at c=(xc, yc)
-            """
-            Ri = calc_R(*c)
-            return Ri - np.mean(Ri)
-
-        f = np.mean(I), np.mean(Q)
-        center_est, ier = optimize.leastsq(f_2, f)
-
-        I2, Q2 = center_est
-        Ri = calc_R(*center_est)
-        R = Ri.mean()
-        resid = np.sum((Ri - R)**2)
-
-        center_idx = np.ravel(np.where(amp==np.min(amp)))[0]
-        left = center_idx - 5
-        right = center_idx + 5
-
-        eta = (freq[right]-freq[left])/(resp[right]-resp[left])
-
-        return I2, Q2, R, resid, eta
-
-
-    def plot_eta_estimate(self, freq, resp, Ic=None, Qc=None, r=None, eta=None):
-        """
-        """
-        import matplotlib.pyplot as plt
-        from matplotlib.gridspec import GridSpec
-
-        I = np.real(resp)
-        Q = np.imag(resp)
-        amp = np.sqrt(I**2 + Q**2)
-        phase = np.unwrap(np.arctan2(Q, I))  # radians
-
-        center_idx = np.ravel(np.where(amp==np.min(amp)))[0]
-
-        fig = plt.figure(figsize=(8,4.5))
-        gs=GridSpec(2,3)
-        ax0 = fig.add_subplot(gs[0,0])
-        ax1 = fig.add_subplot(gs[1,0], sharex=ax0)
-        ax2 = fig.add_subplot(gs[:,1:])
-        ax0.plot(freq, I, label='I', linestyle=':', color='k')
-        ax0.plot(freq, Q, label='Q', linestyle='--', color='k')
-        ax0.scatter(freq, amp, c=np.arange(len(freq)), s=3,
-            label='amp')
-        ax0.legend()
-        ax0.set_ylabel('Resp')
-
-        idx = np.arange(-5,5.1,5, dtype=int)+center_idx
-        ax0.plot(freq[idx], amp[idx], 'rx')
-
-        ax1.scatter(freq, np.rad2deg(phase), c=np.arange(len(freq)), s=3)
-        ax1.plot(freq[idx], np.rad2deg(phase[idx]), 'rx')
-        ax1.set_ylabel('Phase [deg]')
-
-        # IQ circle
-        ax2.axhline(0, color='k', linestyle=':', alpha=.5)
-        ax2.axvline(0, color='k', linestyle=':', alpha=.5)
-
-        ax2.scatter(I, Q, c=np.arange(len(freq)), s=3)
-        if Ic is not None and Qc is not None and r is not None:
-            i = np.arange(0,2*np.pi+.05, .05)
-            i_model = r*np.sin(i) + Ic
-            q_model = r*np.cos(i) + Qc
-            ax2.plot(i_model, q_model, color='k')
-
-            respp = eta*resp
-            Ip = np.real(respp)
-            Qp = np.imag(respp)
-            ax2.scatter(Ip, Qp, c=np.arange(len(freq)), s=3)
-
-        plt.tight_layout()
 
 
     def tracking_setup(self, band, channel, reset_rate_khz=4., write_log=False):

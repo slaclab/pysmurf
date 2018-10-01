@@ -56,8 +56,6 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
             name = self.start_time
         self.name = name
 
-
-
         self.base_dir = os.path.abspath(self.data_dir)
 
         # create output and plot directories
@@ -66,8 +64,6 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
         self.plot_dir = os.path.join(self.base_dir, self.date, name, 'plots')
         self.make_dir(self.output_dir)
         self.make_dir(self.plot_dir)
-
-
 
         # name the logfile and create flags for it
         if make_logfile:
