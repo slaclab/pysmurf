@@ -199,7 +199,7 @@ class SmurfUtilMixin(SmurfBase):
         sg.wait()
 
         vals = sg.get_values()
-        
+
         r0 = vals[pvs[0]]
         r1 = vals[pvs[1]]
         
@@ -511,17 +511,17 @@ class SmurfUtilMixin(SmurfBase):
         if channel < 0:
             raise ValueError('channel number is less than zero!')
 
-        chanOrder = getChannelOrder(channelorderfile)
+        chanOrder = self.get_channel_order(channelorderfile)
         idx = chanOrder.index(channel)
 
         subband = idx // n_chanpersubband
         return int(subband)
 
-    def get_subband_centers(self, band, asOffset=False, hardcode=False):
+    def get_subband_centers(self, band, as_offset=True, hardcode=False):
         """ returns frequency in MHz of subband centers
         Args:
          band (int): which band
-         asOffset (bool): whether to return as offset from band center \
+         as_offset (bool): whether to return as offset from band center \
                  (default is no, which returns absolute values)
         """
 
@@ -543,14 +543,26 @@ class SmurfUtilMixin(SmurfBase):
         subband_centers = (np.arange(1, n_subbands + 1) - n_subbands/2) * \
             subband_width_MHz/2
 
+        if not as_offset:
+            subband_centers += self.get_band_center_mhz(band)
+
         return subbands, subband_centers
 
-    def get_channels_in_subband(self, band, channelorderfile, subband):
-        """ returns channels in subband
+    def get_channels_in_subband(self, band, subband, channelorderfile=None):
+        """
+        Returns channels in subband
         Args:
-         band (int): which band
-         channelorderfile(str): path to file specifying channel order
-         subband (int): subband number, ranges from 0..127
+        -----
+        band (int): which band
+        subband (int): subband number, ranges from 0..127
+
+        Opt Args:
+        ---------
+        channelorderfile (str): path to file specifying channel order
+         
+        Returns:
+        --------
+        subband_chans (int array): The channels in the subband
         """
 
         n_subbands = self.get_number_sub_bands(band)
@@ -563,7 +575,7 @@ class SmurfUtilMixin(SmurfBase):
         if subband < 0:
             raise ValueError("requested subband less than zero")
 
-        chanOrder = getChannelOrder(channelorderfile)
+        chanOrder = self.get_channel_order(channelorderfile)
         subband_chans = chanOrder[subband * n_chanpersubband : subband * \
             n_chanpersubband + n_chanpersubband]
 

@@ -89,7 +89,15 @@ class SmurfTuneMixin(SmurfBase):
             np.save(os.path.join(self.output_dir, 
                 '{}_b{}_resonances'.format(timestamp, band)), resonances)
 
-        self.log('Done tuning')
+        self.log('Assigning channels')
+
+        f = [resonances[k]['freq']*1.0E-6 for k in resonances.keys()]
+        subbands, channels, offsets = self.assign_channels(f, band=band)
+
+        for i, k in enumerate(resonances.keys()):
+            resonances[k].update({'subband': subbands[i]})
+            resonances[k].update({'channel': channels[i]})
+            resonances[k].update({'offset': offsets[i]})
 
         return resonances
 
@@ -182,7 +190,6 @@ class SmurfTuneMixin(SmurfBase):
             np.savetxt(os.path.join(self.output_dir, save_name.format('imag')), 
                 np.imag(resp))
             
-
         return f, resp
 
     def find_peak(self, freq, resp, grad_cut=.05, freq_min=-2.5E8, band=None,
@@ -560,6 +567,63 @@ class SmurfTuneMixin(SmurfBase):
                 bbox_inches='tight')
             plt.close()
 
+    def get_closest_subband(self, f, band):
+        """
+        Returns the closest subband number for a given input frequency.
+        
+        """
+        # get subband centers:
+        subbands, centers = self.get_subband_centers(band, as_offset=True)
+        if self.check_freq_scale(f, centers[0]):
+            pass
+        else:
+            raise ValueError('{} and {}'.format(f, centers[0]))
+            
+        idx = np.argmin([abs(x - f) for x in centers])
+        return idx
+
+    def check_freq_scale(self, f1, f2):
+        """
+        """
+        if abs(f1/f2) > 1e3:
+            return False
+        else:
+            return True
+
+    def assign_channels(self, freq, band=None, bandcenter=None, 
+        channel_per_subband=4):
+        """
+        """
+        if band is None and bandcenter is None:
+            self.log('Must have band or bandcenter', self.LOG_ERROR)
+            raise ValueError('Must have band or bandcenter')
+
+        subbands = np.zeros(len(freq), dtype=int)
+        channels = -1 * np.ones(len(freq), dtype=int)
+        offsets = np.zeros(len(freq))
+        
+        # Assign all frequencies to a subband
+        for idx in range(len(freq)):
+            subbands[idx] = self.get_closest_subband(freq[idx], band)
+            subband_center = self.get_subband_centers(band, 
+                as_offset=True)[1][subbands[idx]]
+
+            offsets[idx] = freq[idx] - subband_center
+        
+        # Assign unique channel numbers
+        for unique_subband in set(subbands):
+            chans = self.get_channels_in_subband(band, int(unique_subband))
+            mask = np.where(subbands == unique_subband)[0]
+            if len(mask) > channel_per_subband:
+                concat_mask = mask[:channel_per_subband]
+            else:
+                concat_mask = mask[:]
+            
+            chans = chans[:len(list(concat_mask)[0])] #I am so sorry
+            
+            channels[mask[:len(chans)]] = chans
+        
+        return subbands, channels, offsets
 
     def setup_notches(self, band, resonance=None, drive=10, sweep_width=.3, 
         sweep_df=.005):
