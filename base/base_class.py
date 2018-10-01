@@ -27,7 +27,7 @@ class SmurfBase(object):
     Overall progress on a task
     """
 
-    def __init__(self, log=None, epics_root=None, **kwargs):
+    def __init__(self, log=None, epics_root=None, offline=False, **kwargs):
         # Set up logging
         self.log = log
         if self.log is None:
@@ -36,6 +36,10 @@ class SmurfBase(object):
             verb = kwargs.pop('verbose', None)
             if verb is not None:
                 self.set_verbose(verb)
+
+        self.offline = offline
+        if self.offline == True:
+            self.log('Offline mode')
 
         # Constants
         self.pA_per_phi0 = 9.E-6

@@ -66,22 +66,27 @@ class SmurfTuneMixin(SmurfBase):
         make_subband_plot = False
         if make_plot:
             make_subband_plot = True
+
+        # Find peaks
         peaks = self.find_peak(freq, resp, band=band, make_plot=make_plot, 
             save_plot=save_plot, grad_cut=grad_cut, freq_min=freq_min,
             freq_max=freq_max, amp_cut=amp_cut, 
             make_subband_plot=make_subband_plot, timestamp=timestamp)
 
+        # Eta scans
         resonances = {}
         for i, p in enumerate(peaks):
-            eta_scaled, eta_phase_deg, r2, amp = self.eta_fit(freq, resp, p, 
-                .2e6, 614.4/128, make_plot=make_plot, save_plot=save_plot,
-                res_num=i, band=band, timestamp=timestamp)
+            eta, eta_scaled, eta_phase_deg, r2, eta_mag = self.eta_fit(freq, 
+                resp, p, .2e6, 614.4/128, make_plot=make_plot, 
+                save_plot=save_plot, res_num=i, band=band, timestamp=timestamp)
+
             resonances[i] = {
                 'freq': p,
-                'eta': eta_scaled,
+                'eta': eta,
+                'eta_scaled': eta_scaled,
                 'eta_phase': eta_phase_deg,
                 'r2': r2,
-                'amp': amp
+                'eta_mag': eta_mag
             }
 
         if save_data:
@@ -89,8 +94,8 @@ class SmurfTuneMixin(SmurfBase):
             np.save(os.path.join(self.output_dir, 
                 '{}_b{}_resonances'.format(timestamp, band)), resonances)
 
+        # Assign resonances to channels
         self.log('Assigning channels')
-
         f = [resonances[k]['freq']*1.0E-6 for k in resonances.keys()]
         subbands, channels, offsets = self.assign_channels(f, band=band)
 
@@ -99,11 +104,14 @@ class SmurfTuneMixin(SmurfBase):
             resonances[k].update({'channel': channels[i]})
             resonances[k].update({'offset': offsets[i]})
 
-        return resonances
+        self.freq_resp = resonances
+        np.save(os.path.join(self.output_dir, 
+            '{}_freq_resp'.format(timestamp)), self.freq_resp)
+        self.log('Done')
 
 
     def full_band_resp(self, band, n_samples=2**18, make_plot=False, 
-        save_data=False, timestamp=None):
+        save_plot=True, save_data=False, timestamp=None):
         """
         Injects high amplitude noise with known waveform. The ADC measures it.
         The cross correlation contains the information about the resonances.
@@ -173,13 +181,25 @@ class SmurfTuneMixin(SmurfBase):
             ax[2].semilogy(f_plot, np.abs(p_cross))
             ax[2].set_ylabel('Cross')
             ax[2].set_xlabel('Frequency [MHz]')
+            ax[0].set_title(timestamp)
 
             plt.tight_layout()
 
+            if save_plot:
+                plt.savefig(self.plot_dir, 
+                    '{}_b{}_full_band_resp_raw.png'.format(timestamp, band))
+                plt.close()
+
             fig, ax = plt.subplots(1)
+
             ax.plot(f_plot[plot_idx], np.log10(np.abs(resp[plot_idx])))
-            # ax.plot(f_plot, np.real(resp))
-            # ax.plot(f_plot, np.imag(resp))
+            ax.set_xlabel('Freq [MHz]')
+            ax.set_ylabel('Response')
+            ax.set_title(timestamp)
+            if save_plot:
+                plt.savefig(self.plot_dir, 
+                    '{}_b{}_full_band_resp.png'.format(timestamp, band))
+                plt.close()
 
         if save_data:
             save_name = timestamp + '_{}_full_band_resp.txt'
@@ -191,6 +211,7 @@ class SmurfTuneMixin(SmurfBase):
                 np.imag(resp))
             
         return f, resp
+
 
     def find_peak(self, freq, resp, grad_cut=.05, freq_min=-2.5E8, band=None,
         freq_max=2.5E8, make_plot=False, amp_cut=.25, save_plot=True, 
@@ -480,7 +501,7 @@ class SmurfTuneMixin(SmurfBase):
                 save_plot=save_plot, timestamp=timestamp, band=band,
                 res_num=res_num)
 
-        return eta_scaled, eta_phase_deg, r2, amp
+        return eta, eta_scaled, eta_phase_deg, r2, eta_mag
 
     def plot_eta_fit(self, freq, resp, eta=None, eta_mag=None, 
         eta_angle=None, r2=None, save_plot=True, timestamp=None, 
@@ -619,7 +640,7 @@ class SmurfTuneMixin(SmurfBase):
             else:
                 concat_mask = mask[:]
             
-            chans = chans[:len(list(concat_mask)[0])] #I am so sorry
+            chans = chans[:len(list(concat_mask))] #I am so sorry
             
             channels[mask[:len(chans)]] = chans
         

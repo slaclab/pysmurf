@@ -85,8 +85,11 @@ class SmurfCommandMixin(SmurfBase):
         --------
         n_subbands (int): The number of subbands in the band
         '''
-        return self._caget(self._band_root(band) + self._number_sub_bands, 
-            **kwargs)
+        if self.offline:
+            return 128
+        else:
+            return self._caget(self._band_root(band) + self._number_sub_bands, 
+                **kwargs)
 
     _number_channels = 'numberChannels'
     def get_number_channels(self, band, **kwargs):
@@ -101,8 +104,11 @@ class SmurfCommandMixin(SmurfBase):
         --------
         n_channels (int): The number of channels in the band
         '''
-        return self._caget(self._band_root(band) + self._number_channels,
-            **kwargs)
+        if self.offline:
+            return 512
+        else:
+            return self._caget(self._band_root(band) + self._number_channels,
+                **kwargs)
 
     def set_defaults_pv(self, **kwargs):
         '''
@@ -796,8 +802,15 @@ class SmurfCommandMixin(SmurfBase):
     def get_band_center_mhz(self, band, **kwargs):
         '''
         '''
-        return self._caget(self._band_root(band) + self._band_center_mhz, 
-            **kwargs)
+        if self.offline:
+            if band == 3:
+                bc = 5.25E3
+            elif band == 2:
+                bc = 5.75E3
+            return bc
+        else:
+            return self._caget(self._band_root(band) + self._band_center_mhz, 
+                **kwargs)
 
     _digitizer_frequency_mhz = 'digitizerFrequencyMHz'
     def set_digitizer_frequency_mhz(self, band, val, **kwargs):
@@ -809,8 +822,11 @@ class SmurfCommandMixin(SmurfBase):
     def get_digitizer_frequency_mhz(self, band, **kwargs):
         '''
         '''
-        return self._caget(self._band_root(band) + self._digitizer_frequency_mhz, 
-            **kwargs)
+        if self.offline:
+            return 614.4
+        else:
+            return self._caget(self._band_root(band) + 
+                self._digitizer_frequency_mhz, **kwargs)
 
     _synthesis_scale = 'synthesisScale'
     def set_synthesis_scale(self, band, val, **kwargs):

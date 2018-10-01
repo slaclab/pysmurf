@@ -18,7 +18,7 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
     def __init__(self, epics_root='mitch_epics', 
         cfg_file='/home/cryo/pysmurf/cfg_files/experiment_fp28.cfg', 
         data_dir=None, name=None, make_logfile=True, output_dir_only=False,
-        setup=True, **kwargs):
+        setup=True, offline=False, **kwargs):
         '''
         Args:
         -----
@@ -26,7 +26,7 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
         cfg_file (string) : Path the config file
         data_dir (string) : Path to the data dir
         '''
-        super().__init__(epics_root=epics_root, **kwargs)
+        super().__init__(epics_root=epics_root, offline=offline, **kwargs)
 
         if cfg_file is not None or data_dir is not None:
             self.initialize(cfg_file=cfg_file, data_dir=data_dir, name=name,
