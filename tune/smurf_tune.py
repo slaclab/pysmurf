@@ -54,6 +54,10 @@ class SmurfTuneMixin(SmurfBase):
         """
         timestamp = self.get_timestamp()
 
+        if make_plot and save_plot:
+            import matplotlib.pyplot as plt
+            plt.ioff()
+
         if freq is None or resp is None:
             self.log('Running full band resp')
             freq, resp = self.full_band_resp(band, n_samples=n_samples,
@@ -80,12 +84,14 @@ class SmurfTuneMixin(SmurfBase):
                 'amp': amp
             }
 
-        is save_data:
+        if save_data:
+            self.log('Saving resonances to {}'.format(self.output_dir))
             np.save(os.path.join(self.output_dir, 
-                '{}_b{}_resonances'.format(timestamp, band)))
+                '{}_b{}_resonances'.format(timestamp, band)), resonances)
+
+        self.log('Done tuning')
 
         return resonances
-
 
 
     def full_band_resp(self, band, n_samples=2**18, make_plot=False, 
@@ -119,7 +125,7 @@ class SmurfTuneMixin(SmurfBase):
         try:
             adc = self.read_adc_data(band, n_samples, hw_trigger=True)
         except Exception:
-            print('ADC read failed. Trying one more time')
+            self.log('ADC read failed. Trying one more time')
             adc = self.read_adc_data(band, n_samples, hw_trigger=True)
         time.sleep(.1)  # Need to wait, otherwise dac call interferes with adc
 

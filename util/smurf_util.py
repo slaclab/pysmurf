@@ -149,7 +149,6 @@ class SmurfUtilMixin(SmurfBase):
             ]
 
             data_keys = [f'data{i}' for i in range(4096)]
-            # print(data_keys)
 
             keys.extend(data_keys)
 
@@ -200,8 +199,7 @@ class SmurfUtilMixin(SmurfBase):
         sg.wait()
 
         vals = sg.get_values()
-        print(vals[pvs[0]])
-
+        
         r0 = vals[pvs[0]]
         r1 = vals[pvs[1]]
         
