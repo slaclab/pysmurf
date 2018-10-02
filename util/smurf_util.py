@@ -139,19 +139,19 @@ class SmurfUtilMixin(SmurfBase):
             data_keys = [f'data{i}' for i in range(4096)]
             keys.extend(data_keys)
 
-            keys_dics = dict( zip( keys, range(len(keys)) ) )
+            keys_dict = dict( zip( keys, range(len(keys)) ) )
 
-            frames        = [i for i in Struct('2I2BHI6Q6IH2xI2Q24x4096h').iter_unpack(file_content)]
+            frames        = [i for i in struct.Struct('2I2BHI6Q6IH2xI2Q24x4096h').iter_unpack(file_content)]
             #frame_counter = [i[keys['sequence_counter']] for i in frames]
             #timestamp_s   = [i[keys['timestamp_s']] for i in frames]
             #timestamp_ns  = [i[keys['timestamp_ns']] for i in frames]
 
             phase = np.zeros((4096, len(frames)))
             for i in range(4096):
-                phase[i,:] = np.asarray([j[keys[f'data{i}']] for j in frames])
+                phase[i,:] = np.asarray([j[keys_dict[f'data{i}']] for j in frames])
 
-            phase     = phase * np.pi # scale to rad
-            timestamp = [i[keys['sequence_counter']] for i in frames]
+            phase     = phase * np.pi / 2**15 # scale to rad
+            timestamp = [i[keys_dict['sequence_counter']] for i in frames]
 
         else:
             raise Exception(f'Frame version {version} not supported')
