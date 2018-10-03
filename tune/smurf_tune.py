@@ -755,7 +755,7 @@ class SmurfTuneMixin(SmurfBase):
             freq, res = fast_eta_scan(band, sb)
 
 
-    def tracking_setup(self, band, channel, reset_rate_khz=4., write_log=False):
+    def tracking_setup(self, band, channel, reset_rate_khz=4., write_log=False, do_Plots = False):
         """
         Args:
         -----
@@ -801,6 +801,13 @@ class SmurfTuneMixin(SmurfBase):
 
         self.flux_ramp_on(write_log=write_log)
 
+        if doPlots:
+            import matplotlib.pyplot as plt
+
+            # set channel
+            # set single channel readout mode
+
+
         self.set_iq_stream_enable(band, 1, write_log=write_log)
 
     def flux_ramp_setup(self, reset_rate_khz, fraction_full_scale, df_range=.1, 
@@ -808,7 +815,9 @@ class SmurfTuneMixin(SmurfBase):
         """
         """
         # Disable flux ramp
-        self.set_cfg_reg_ena_bit(0) # let us switch this to flux ramp on/off
+        self.flux_ramp_off() # no write log?
+        #self.set_cfg_reg_ena_bit(0) # let us switch this to flux ramp on/off
+
         digitizerFrequencyMHz=614.4
         dspClockFrequencyMHz=digitizerFrequencyMHz/2
 
@@ -838,7 +847,35 @@ class SmurfTuneMixin(SmurfBase):
 
         if diffDesiredFractionFullScale > df_range:
             raise ValueError("Difference from desired fraction of full scale exceeded! {} vs acceptable {}".format(diffDesiredFractionFullScale, df_range))
-            self.log("Difference from desired fraction of full scale exceeded! P{} vs acceptable {}".format(diffDesiredFractionFullScale, df_range))
+            self.log("Difference from desired fraction of full scale exceeded! P{} vs acceptable {}".format(diffDesiredFractionFullScale, df_range), self.LOG_USER)
 
         if rtmClock < 2e6:
+            raise ValueError("RTM clock rate = {} is too low (SPI clock runs at 1MHz)".format(rtmClock * 1e-6))
+            self.log("RTM clock rate = {} is too low (SPI clock runs at 1MHz)".format(rtmClock * 1e-6), self.LOG_USER)
+            return
+
+        FastSlowRstValue = np.floor((2**20) * (1 - fractionFullScale)/2)
+
+        KRelay = 3 #where do these values come from
+        SelectRamp = 1
+        RampStartMode = 0
+        PulseWidth = 400
+        DebounceWidth = 255
+        RampSlope = 0
+        ModeControl = 0
+        EnableRampTrigger = 1
+
+        self.set_low_cycle(LowCycle) #writelog?
+        self.set_high_cycle(HighCycle)
+        self.set_k_relay(KRelay)
+        self.set_ramp_start_mode(RampStartMode)
+        self.set_pulse_width(PulseWidth)
+        self.set_debounce_width(DebounceWidth)
+        self.set_ramp_slop(RampSlope)
+        self.set_mode_control(ModeControl)
+        self.set_enable_ramp_trigger(EnableRampTrigger)
+
+
+
+
 

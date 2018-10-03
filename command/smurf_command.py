@@ -1217,6 +1217,127 @@ class SmurfCommandMixin(SmurfBase):
         """
         return self._caget(self.rtm_cryo_det_root + self._k_relay, **kwargs)
 
+    _ramp_max_cnt = 'RampMaxCnt'
+    def set_ramp_max_cnt(self, val, **kwargs):
+        """
+        """
+        self._caput(self.rtm_cryo_det_root + self._ramp_max_cnt, val, **kwargs)
+
+    def get_ramp_max_cnt(self, **kwargs):
+        """
+        """
+        return self._caget(self.rtm_cryo_det_root + self._ramp_max_cnt, 
+            **kwargs)
+
+    _select_ramp = 'SelectRamp'
+    def set_select_ramp(self, val, **kwargs):
+        """
+        """
+        self._caput(self.rtm_cryo_det_root + self._select_ramp, val, **kwargs)
+
+    def get_select_ramp(self, **kwargs):
+        """
+        """
+        return self._caget(self.rtm_cryo_dte_root + self._select_ramp, **kwargs)
+
+    _ramp_start_mode = 'RampStartMode'
+    def set_ramp_start_mode(self, val, **kwargs):
+        """
+        """
+        self._caput(self.rtm_cryo_det_root + self._ramp_start_mode, val,
+            **kwargs)
+
+    def get_ramp_start_mode(self, **kwargs):
+        """
+        """
+        return self._caget(self.rtm_cryo_det_root + self._ramp_start_mode, 
+            **kwargs)
+
+    _pulse_width = 'PulseWidth'
+    def set_pulse_width(self, val, **kwargs):
+        """
+        """
+        self._caput(self.rtm_cryo_det_root + self._pulse_width, val, **kwargs)
+
+    def get_pulse_width(self, **kwargs):
+        """
+        """
+        return self._caget(self.rtm_cryo_det_root + self._pulse_width, **kwargs)
+
+    _debounce_width = 'DebounceWidth'
+    def set_debounce_width(self, val, **kwargs):
+        """
+        """
+        self._caput(self.rtm_cryo_det_root + self._debounce_width, val, 
+            **kwargs)
+
+    def get_debounce_width(self, **kwargs):
+        """
+        """
+        return self._caget(self.rtm_cryo_det_root + self._debounce_width, 
+            **kwargs)
+
+    _ramp_slope = 'RampSlope'
+    def set_ramp_slope(self, val, **kwargs):
+        """
+        """
+        self._caput(self.rtm_spi_root + self._ramp_slope, val, **kwargs)
+
+    def get_ramp_slope(self, **kwargs):
+        """
+        """
+        return self._caget(self.rtm_spi_root + self._ramp_slope, **kwargs)
+
+    _mode_control = 'ModeControl'
+    def set_mode_control(self, val, **kwargs):
+        """
+        """
+        self._caput(self.rtm_spi_root + self._mode_control, val, **kwargs)
+
+    def get_mode_control(self, **kwargs):
+        """
+        """
+        return self._caget(self.rtm_spi_root + self._mode_control, **kwargs)
+
+    _fast_slow_step_size = 'FastSlowStepSize'
+    def set_fast_slow_step_size(self, val, **kwargs):
+        """
+        """
+        self._caput(self.rtm_spi_root + self._fast_slow_step_size, val, 
+            **kwargs)
+
+    def get_fast_slow_step_size(self, **kwargs):
+        """
+        """
+        return self._caget(self.rtm_spi_root + self._fast_slow_step_size, 
+            **kwargs)
+
+    _fast_slow_rst_value = 'FastSlowRstValue'
+    def set_fast_slow_rst_value(self, val, **kwargs):
+        """
+        """
+        self._caput(self.rtm_spi_root + self._fast_slow_rst_value, val, 
+            **kwargs)
+
+    def get_fast_slow_rst_value(self, **kwargs):
+        """
+        """
+        return self._caget(self.rtm_spi_root + self._fast_slow_rst_value, 
+            **kwargs)
+    
+    _enable_ramp_trigger = 'EnableTrampTrigger'
+    def set_enable_ramp_trigger(self, val, **kwargs):
+        """
+        """
+        self._caput(self.rtm_cryo_det_root + self._enable_ramp_trigger, val,
+            **kwargs)
+
+    def get_enable_ramp_trigger(self, **kwargs):
+        """
+        """
+        return self._caget(self.rtm_cryo_det_root + self._enable_ramp_trigger,
+            **kwargs)
+
     _cfg_reg_ena_bit = 'CfgRegEnaBit'
     def set_cfg_reg_ena_bit(self, val, **kwargs):
         '''
