@@ -107,6 +107,8 @@ class SmurfTuneMixin(SmurfBase):
         self.freq_resp = resonances
         np.save(os.path.join(self.output_dir, 
             '{}_freq_resp'.format(timestamp)), self.freq_resp)
+
+        self.relock(band)
         self.log('Done')
 
 
@@ -141,11 +143,15 @@ class SmurfTuneMixin(SmurfBase):
         try:
             adc = self.read_adc_data(band, n_samples, hw_trigger=True)
         except Exception:
-            self.log('ADC read failed. Trying one more time')
+            self.log('ADC read failed. Trying one more time', self.LOG_ERROR)
             adc = self.read_adc_data(band, n_samples, hw_trigger=True)
         time.sleep(.1)  # Need to wait, otherwise dac call interferes with adc
 
-        dac = self.read_dac_data(band, n_samples, hw_trigger=True)
+        try:
+            dac = self.read_dac_data(band, n_samples, hw_trigger=True)
+        except:
+            self.log('ADC read failed. Trying one more time', self.LOG_ERROR)
+            dac = self.read_dac_data(band, n_samples, hw_trigger=True)
         time.sleep(.05)
 
         self.set_noise_select(band, 0, wait_done=True, write_log=True)
@@ -186,8 +192,9 @@ class SmurfTuneMixin(SmurfBase):
             plt.tight_layout()
 
             if save_plot:
-                plt.savefig(self.plot_dir, 
-                    '{}_b{}_full_band_resp_raw.png'.format(timestamp, band))
+                plt.savefig(os.path.join(self.plot_dir, 
+                    '{}_b{}_full_band_resp_raw.png'.format(timestamp, band)),
+                    bbox_inches='tight')
                 plt.close()
 
             fig, ax = plt.subplots(1)
@@ -197,8 +204,9 @@ class SmurfTuneMixin(SmurfBase):
             ax.set_ylabel('Response')
             ax.set_title(timestamp)
             if save_plot:
-                plt.savefig(self.plot_dir, 
-                    '{}_b{}_full_band_resp.png'.format(timestamp, band))
+                plt.savefig(os.path.join(self.plot_dir, 
+                    '{}_b{}_full_band_resp.png'.format(timestamp, band)),
+                    bbox_inches='tight')
                 plt.close()
 
         if save_data:
@@ -213,23 +221,40 @@ class SmurfTuneMixin(SmurfBase):
         return f, resp
 
 
-    def find_peak(self, freq, resp, grad_cut=.05, freq_min=-2.5E8, band=None,
-        freq_max=2.5E8, make_plot=False, amp_cut=.25, save_plot=True, 
+    def find_peak(self, freq, resp, grad_cut=.05, amp_cut=.25, freq_min=-2.5E8, 
+        freq_max=2.5E8, make_plot=False, save_plot=True, band=None,
         make_subband_plot=False, timestamp=None):
         """find the peaks within a given subband
 
         Args:
         -----
-        freq (vector): should be a single row of the broader freq array
-        response (complex vector): complex response for just this subband
+        freq (float array): should be a single row of the broader freq array
+        resp (complex array): complex response for just this subband
 
         Opt Args:
         ---------
+        grad_cut (float): The value of the gradient of phase to look for 
+            resonances. Default is .05
+        amp_cut (float): The distance from the median value to decide whether
+            there is a resonance. Default is .25.
+        freq_min (float): The minimum frequency relative to the center of
+            the band to look for resonances. Units of Hz. Defaults is -2.5E8
+        freq_max (float): The maximum frequency relative to the center of
+            the band to look for resonances. Units of Hz. Defaults is 2.5E8
+        make_plot (bool): Whether to make a plot. Default is False.
+        make_subband_plot (bool): Whether to make a plot per subband. This is
+            very slow. Default is False.
+        save_plot (bool): Whether to save the plot to self.plot_dir. Default
+            is True.
+        band (int): The band to take find the peaks in. Mainly for saving
+            and plotting.
+        timestamp (str): The timestamp. Mainly for saving and plotting
 
 
         Returns:
         -------_
         resonances (float array): The frequency of the resonances in the band
+            in Hz.
         """
         if timestamp is None:
             timestamp = self.get_timestamp()
@@ -535,11 +560,7 @@ class SmurfTuneMixin(SmurfBase):
         ax0.legend(fontsize=10, loc='lower right')
         ax0.set_ylabel('Resp')
 
-        idx = np.arange(-5,5.1,5, dtype=int)+center_idx
-        ax0.plot(plot_freq[idx], amp[idx], 'rx')
-
         ax1.scatter(plot_freq, np.rad2deg(phase), c=np.arange(len(freq)), s=3)
-        ax1.plot(plot_freq[idx], np.rad2deg(phase[idx]), 'rx')
         ax1.set_ylabel('Phase [deg]')
 
         # IQ circle
@@ -645,6 +666,49 @@ class SmurfTuneMixin(SmurfBase):
             channels[mask[:len(chans)]] = chans
         
         return subbands, channels, offsets
+
+    def relock(self, band, amp_scale=11.):
+        """
+        """
+        digitzer_freq = self.get_digitizer_frequency_mhz(band)
+        n_subband = self.get_number_sub_bands(band)
+        n_channels = self.get_number_channels(band)
+
+        subband = digitzer_freq/(n_subband/2.)  # Oversample by 2
+
+        amplitude_scale = np.zeros(n_channels)
+        center_freq = np.zeros(n_channels)
+        feedback_enable = np.zeros(n_channels)
+        eta_phase = np.zeros(n_channels)
+        eta_mag = np.zeros(n_channels)
+
+        # Populate arrays
+        counter = 0
+        for k in self.freq_resp.keys():
+            ch = self.freq_resp[k]['channel']
+            if ch > -1:
+                center_freq[ch] = self.freq_resp[k]['offset']
+                amplitude_scale[ch] = amp_scale
+                feedback_enable[ch] = 1
+                eta_phase[ch] = self.freq_resp[k]['eta_phase']
+                eta_mag[ch] = self.freq_resp[k]['eta_scaled']
+                counter += 1
+
+        # Set the actualy variables
+        self.set_center_frequency_array(band, center_freq, write_log=True,
+            log_level=self.LOG_INFO)
+        self.set_amplitude_scale_array(band, amplitude_scale.astype(int),
+            write_log=True, log_level=self.LOG_INFO)
+        self.set_feedback_enable_array(band, feedback_enable.astype(int),
+            write_log=True, log_level=self.LOG_INFO)
+        self.set_eta_phase_array(band, eta_phase, write_log=True,
+            log_level=self.LOG_INFO)
+        self.set_eta_mag_array(band, eta_mag, write_log=True, 
+            log_level=self.LOG_INFO)
+
+        self.log('Setting on {} channels on band {}'.format(counter, band),
+            self.LOG_USER)
+
 
     def setup_notches(self, band, resonance=None, drive=10, sweep_width=.3, 
         sweep_df=.005):

@@ -7,7 +7,7 @@ class SmurfIVMixin(SmurfBase):
 
     def slow_iv(self, band, wait_time=.1, bias=None, bias_high=19.9, bias_low=0, 
         bias_step=.1, show_plot=False, high_current_wait=.25, make_plot=True,
-        save_plot=True):
+        save_plot=True, channels=None):
         """
         Steps the TES bias down slowly. Starts at bias_high to bias_low with
         step size bias_step. Waits wait_time between changing steps.
@@ -26,7 +26,8 @@ class SmurfIVMixin(SmurfBase):
         bias_step (int): The step size in volts. Default .1
         """
         # Look for good channels
-        channels = self.which_on(band)
+        if channels is None:
+            channels = self.which_on(band)
         n_channel = self.get_number_channels(band)
 
         # drive high current through the TES to attempt to drive nomral
@@ -70,14 +71,15 @@ class SmurfIVMixin(SmurfBase):
         iv_raw_data['basename'] = basename
         iv_raw_data['output_dir'] = self.output_dir
         iv_raw_data['plot_dir'] = self.plot_dir
-        fn_iv_raw_data = os.path.join(self.output_dir, basename + '_iv_raw_data.npy')
-        np.save(fn_iv_raw_data,iv_raw_data)
+        fn_iv_raw_data = os.path.join(self.output_dir, basename + 
+            '_iv_raw_data.npy')
+        np.save(os.path.join(self.output_dir, fn_iv_raw_data), iv_raw_data)
 
-        self.analyze_slow_iv_from_file(fn_iv_raw_data,make_plot = make_plot,\
-                                           show_plot = show_plot,save_plot = save_plot)
+        self.analyze_slow_iv_from_file(fn_iv_raw_data, make_plot=make_plot,
+            show_plot=show_plot, save_plot=save_plot)
 
-    def analyze_slow_iv_from_file(self,fn_iv_raw_data,make_plot = True,show_plot = False,\
-                                      save_plot = True):
+    def analyze_slow_iv_from_file(self, fn_iv_raw_data, make_plot=True,
+        show_plot=False, save_plot=True):
 
         iv_raw_data = np.load(fn_iv_raw_data).item()
         bias = iv_raw_data['bias']
@@ -91,11 +93,12 @@ class SmurfIVMixin(SmurfBase):
         ivs = {}
         ivs['bias'] = bias
 
+        timestamp, phase = self.read_stream_data(datafile)
+        phase *= 1.443
+
         for c, ch in enumerate(channels):
             # timestamp, I, Q = self.read_stream_data(datafile)
             # phase = self.iq_to_phase(I[ch], Q[ch]) * 1.443
-            timestamp, phase = self.read_stream_data(datafile)
-            phase *= 1.443
             if make_plot:
                 import matplotlib.pyplot as plt
                 
@@ -104,13 +107,7 @@ class SmurfIVMixin(SmurfBase):
 
                 fig, ax = plt.subplots(1, sharex=True)
 
-                # ax[0].plot(I[ch], label='I')
-                # ax[0].plot(Q[ch], label='Q')
-                # ax[0].legend()
-                # ax[0].set_ylabel('I/Q')
-                # ax[0].set_xlabel('Sample Num')
-
-                ax.plot(self.pA_per_phi0 * phase[ch]/ (2*np.pi))
+                ax.plot(phase[ch])
                 ax.set_xlabel('Sample Num')
                 ax.set_ylabel('Phase [pA]')
 
@@ -193,7 +190,7 @@ class SmurfIVMixin(SmurfBase):
         sc_idx = np.ravel(np.where(d_resp == np.max(d_resp)))[0]
 
         if sc_idx == 0:
-            return None, None
+            return None, None, None
 
         # index of the start of the normal branch
         nb_idx = n_step-2

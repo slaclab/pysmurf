@@ -67,7 +67,7 @@ class SmurfNoiseMixin(SmurfBase):
 
             # Calculate to power spectrum and convert to pA
             ch_idx = 512*band + ch
-            f, Pxx = signal.welch(phase[ch], nperseg=nperseg, 
+            f, Pxx = signal.welch(phase[ch_idx], nperseg=nperseg, 
                 fs=fs, detrend=detrend)
             Pxx = np.sqrt(Pxx) * 1.0E6
             for i, (l, h) in enumerate(zip(low_freq, high_freq)):
@@ -82,7 +82,7 @@ class SmurfNoiseMixin(SmurfBase):
                 # ax[0].set_ylabel('I/Q')
                 # ax[0].set_xlabel('Sample Num')
 
-                ax[0].plot(phase[ch] - np.mean(phase[ch]))
+                ax[0].plot(phase[ch_idx] - np.mean(phase[ch_idx]))
                 ax[0].set_xlabel('Sample Num')
                 ax[0].set_ylabel('Phase [pA]')
 

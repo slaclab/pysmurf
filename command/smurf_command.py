@@ -7,7 +7,7 @@ from pysmurf.base import SmurfBase
 class SmurfCommandMixin(SmurfBase):
 
     def _caput(self, cmd, val, write_log=False, execute=True, wait_before=None,
-        wait_after=None, wait_done=True, **kwargs):
+        wait_after=None, wait_done=True, log_level=0):
         '''
         Wrapper around pyrogue lcaput. Puts variables into epics
 
@@ -33,7 +33,7 @@ class SmurfCommandMixin(SmurfBase):
                     self.LOG_USER)
             time.sleep(wait_before)
         if write_log:
-            self.log('caput ' + cmd + ' ' + str(val), self.LOG_USER)
+            self.log('caput ' + cmd + ' ' + str(val), log_level)
 
         if execute:
             epics.caput(cmd, val, wait=wait_done)
@@ -43,9 +43,10 @@ class SmurfCommandMixin(SmurfBase):
                 self.log('Waiting {:3.2f} seconds after...'.format(wait_after),
                     self.LOG_USER)
             time.sleep(wait_after)
-            self.log('Done waiting.', self.LOG_USER)
+            self.log('Done waiting.', log_level)
 
-    def _caget(self, cmd, write_log=False, execute=True, count=None, **kwargs):
+    def _caget(self, cmd, write_log=False, execute=True, count=None,
+        log_level=0):
         '''
         Wrapper around pyrogue lcaget. Gets variables from epics
 
@@ -61,7 +62,7 @@ class SmurfCommandMixin(SmurfBase):
         ret : The requested value
         '''
         if write_log:
-            self.log('caput ' + cmd, self.LOG_USER)
+            self.log('caput ' + cmd, log_level)
 
         if execute:
             ret = epics.caget(cmd, count=count)
@@ -595,6 +596,20 @@ class SmurfCommandMixin(SmurfBase):
         return self._caget(self._band_root(band) + self._feedback_enable, 
             **kwargs)
 
+    _center_frequency_array = 'centerFrequencyArray'
+    def set_center_frequency_array(self, band, val, **kwargs):
+        """
+        Sets all the center frequencies in a band
+        """
+        self._caput(self._cryo_root(band) + self._center_frequency_array, val,
+            **kwargs)
+
+    def get_center_frequency_array(self, band, **kwargs):
+        """
+        """
+        return self._caget(self._cryo_root(band) + self._center_frequency_array, 
+            **kwargs)
+
     _feedback_gain = 'feedbackGain'
     def set_feedback_gain(self, band, val, **kwargs):
         '''
@@ -605,6 +620,31 @@ class SmurfCommandMixin(SmurfBase):
         '''
         '''
         return self._caget(self._band_root(band) + self._feedback_gain, 
+            **kwargs)
+
+    _eta_phase_array = 'etaPhaseArray'
+    def set_eta_phase_array(self, band, val, **kwargs):
+        """
+        """
+        self._caput(self._cryo_root(band) + self._eta_phase_array, val, 
+            **kwargs)
+
+    def get_eta_phase_array(self, band, **kwargs):
+        """
+        """
+        return self._caget(self._cryo_root(band) + self._eta_phase_array, 
+            **kwargs)
+
+    _eta_mag_array = 'etaMagArray'
+    def set_eta_mag_array(self, band, val, **kwargs):
+        """
+        """
+        self._caput(self._cryo_root(band) + self._eta_mag_array, val, **kwargs)
+
+    def get_eta_mag_array(self, band, **kwargs):
+        """
+        """
+        return self._caget(self._cryo_root(band) + self._eta_mag_array, 
             **kwargs)
 
     _feedback_limit = 'feedbackLimit'

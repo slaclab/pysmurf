@@ -92,13 +92,17 @@ class SmurfUtilMixin(SmurfBase):
         self.set_streaming_file_open(0)  # Close the file
 
 
-    def read_stream_data(self, datafile):
+    def read_stream_data(self, datafile, unwrap=True):
         """
         Loads data taken with the fucntion stream_data_on
 
         Args:
         -----
         datafile (str): The full path to the data to read
+
+        Opt Args:
+        ---------
+        unwrap (bool): Whether to unwrap the data
         """
 
         file_writer_header_size = 2  # 32-bit words
@@ -107,6 +111,9 @@ class SmurfUtilMixin(SmurfBase):
             file_content = file.read()
 
         version = file_content[8]
+        print('Version: %s' % (version))
+
+        self.log('Data version {}'.format(version), self.LOG_INFO)
 
         if version == 0:
             smurf_header_size = 4  # 32-bit words
@@ -170,6 +177,9 @@ class SmurfUtilMixin(SmurfBase):
 
         else:
             raise Exception(f'Frame version {version} not supported')
+
+        if unwrap:
+            phase = np.unwrap(phase, axis=-1)
 
         return timestamp, phase
 
