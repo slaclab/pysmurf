@@ -808,9 +808,37 @@ class SmurfTuneMixin(SmurfBase):
         """
         """
         # Disable flux ramp
-        self.set_cfg_reg_ena_bit(0)
+        self.set_cfg_reg_ena_bit(0) # let us switch this to flux ramp on/off
         digitizerFrequencyMHz=614.4
         dspClockFrequencyMHz=digitizerFrequencyMHz/2
 
         desiredRampMaxCnt = ((dspClockFrequencyMHz*10^3)/
             (desiredResetRatekHz)) - 1
+        rampMaxCnt = np.floor(desiredRampMaxCnt)
+
+        resetRate = (dspClockFrequencyMHz * 1e6) / (rampMaxCnt + 1)
+
+        HighCycle = 5 # not sure why these are hardcoded
+        LowCycle = 5
+        rtmClock = (dspClockFrequencyMHz * 1e6) / (HighCycle + LowCycle + 2)
+        trailRTMClock = rtmClock
+
+        fullScaleRate = fraction_full_scale * resetRate
+        desFastSlowStepSize = (fullScaleRate * 2**20) / rtmClock
+        trialFastSlowStepSize = round(desFastSlowStepSize)
+        FastSlowStepSize = trialFastSlowStepSize
+
+        trialFullScaleRate = trialFastSlowStepSize * trialRTMClock / (2**20)
+        trialResetRate = (dspClockFrequencyMHz * 1e6) / (RampMaxCnt + 1)
+        trialFractionFullScale = trialFullScaleRate / trialResetRate
+        fractionFullScale = trialFractionFullScale
+        diffDesiredFractionFullScale = np.abs(trialFractionFullScale - frac_full_scale)
+
+        self.log("Percent full scale = {}%".format(100 * fractionFullScale), self.LOG_USER)
+
+        if diffDesiredFractionFullScale > df_range:
+            raise ValueError("Difference from desired fraction of full scale exceeded! {} vs acceptable {}".format(diffDesiredFractionFullScale, df_range))
+            self.log("Difference from desired fraction of full scale exceeded! P{} vs acceptable {}".format(diffDesiredFractionFullScale, df_range))
+
+        if rtmClock < 2e6:
+
