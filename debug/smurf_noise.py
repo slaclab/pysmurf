@@ -1,5 +1,6 @@
 import numpy as np
 from scipy import signal
+from scipy import optimize
 from pysmurf.base import SmurfBase
 import os
 import time
@@ -8,7 +9,7 @@ class SmurfNoiseMixin(SmurfBase):
 
     def take_noise_psd(self, band, meas_time, channel=None, nperseg=2**12, 
         detrend='constant', fs=None, low_freq=np.array([.1, 1.]), 
-        high_freq=np.array([1., 5.]), make_channel_plot=True,
+        high_freq=np.array([1., 10.]), make_channel_plot=True,
         make_summary_plot=True, save_data=False, show_plot=False):
         """
         Takes a timestream of noise and calculates its PSD.
@@ -66,7 +67,8 @@ class SmurfNoiseMixin(SmurfBase):
             # phase = self.iq_to_phase(I[ch], Q[ch])
 
             # Calculate to power spectrum and convert to pA
-            ch_idx = 512*band + ch
+            #ch_idx = 512*band + ch
+            ch_idx = ch
             f, Pxx = signal.welch(phase[ch_idx], nperseg=nperseg, 
                 fs=fs, detrend=detrend)
             Pxx = np.sqrt(Pxx) * 1.0E6
@@ -151,7 +153,7 @@ class SmurfNoiseMixin(SmurfBase):
     def noise_vs_bias(self, band, bias_high=6, bias_low=3, step_size=.1,
         bias=None,
         meas_time=30., analyze=False, channel=None, nperseg=2**13,
-        detrend='constant', fs=None):
+        detrend='constant', fs=None,show_plot = False):
         """
         This ramps the TES voltage from bias_high to bias_low and takes noise
         measurements. You can make it analyze the data and make plots with the
@@ -178,11 +180,12 @@ class SmurfNoiseMixin(SmurfBase):
         detrend (str): Whether to detrend the data before taking the PSD.
             Default is to remove a constant.
         fs (float): The sample frequency.
+        show_plot: Whether to show analysis plots. Defaults to False.
         """
         if bias is None:
             if step_size > 0:
                 step_size *= -1
-            bias = np.arange(bias_high, bias_low-step_size, step_size)
+            bias = np.arange(bias_high, bias_low-np.absolute(step_size), step_size)
 
         psd_dir = os.path.join(self.output_dir, 'psd')
         self.make_dir(psd_dir)
@@ -209,7 +212,7 @@ class SmurfNoiseMixin(SmurfBase):
         if analyze:
             self.analyze_noise_vs_bias(bias, datafiles, channel=channel, 
                 band=band, nperseg=nperseg, detrend=detrend, fs=fs, 
-                save_plot=True, show_plot=False, data_timestamp=timestamp)
+                save_plot=True, show_plot=show_plot, data_timestamp=timestamp)
 
     def analyze_noise_vs_bias(self, bias, datafile, channel=None, band=None,
         nperseg=2**13, detrend='constant', fs=None, save_plot=True, 
@@ -269,10 +272,33 @@ class SmurfNoiseMixin(SmurfBase):
                 np.savetxt(os.path.join(psd_dir, basename + 
                     '_psd_ch{:03}.txt'.format(ch)), np.array([f, Pxx]))
 
+                fig,ax = plt.subplots(1)
+                ax.plot(phase[ch])
+                ax.set_title('Channel {:03}'.format(ch))
+                ax.set_xlabel(r'Time index')
+                ax.set_ylabel(r'Phase')
+                
+                if show_plot:
+                    plt.show()
+                if save_plot:
+                    plt.savefig(os.path.join(self.plot_dir, basename + \
+                                    '_timestream_ch{:03}.png'.format(ch)),\
+                                    bbox_inches='tight')
+
             # Explicitly remove objects from memory
             del timestamp
-            del I
-            del Q
+            #del I
+            #del Q
+
+        def noise_model(freq,wl,n,f_knee):
+            '''
+            Crude model for noise modeling.
+            wl (float): white-noise level
+            n (float): exponent of 1/f^n component
+            f_knee (float): frequency at which white noise = 1/f^n component
+            '''
+            A = wl*(f_knee**n)
+            return A/(freq**n) + wl
 
         # Make plot
         cm = plt.get_cmap('viridis')
@@ -289,11 +315,29 @@ class SmurfNoiseMixin(SmurfBase):
                     '_psd_ch{:03}.txt'.format(ch)))
 
                 color = cm(float(i)/len(bias))
-                ax.plot(f, Pxx, color=color, label='{:3.2f}'.format(b))        
+                ax.plot(f, Pxx, color=color, label='{:3.2f}'.format(b))
+
+                # fit to noise model; catch error if fit is bad
+                try:
+                    p0 = [100.,0.5,1.]
+                    popt,pcov = optimize.curve_fit(noise_model,f[1:],Pxx[1:],p0 = p0)
+                    df = f[1] - f[0]
+                    f_fit = np.arange(f[1],f[-1] + df,df/10.)
+                    Pxx_fit = noise_model(f_fit,*popt)
+                    wl,n,f_knee = popt
+                    print('ch. %i, bias = %.2f, white-noise level = %.2f pA/rtHz, n = %.2f, f_knee = %.2f Hz' \
+                              % (ch,b,wl,n,f_knee))
+
+                    ax.plot(f_fit,Pxx_fit,color = color,linestyle = '--')
+                    ax.plot(f,wl + np.zeros(len(f)),color = color,linestyle = ':')
+                    ax.plot(f_knee,2.*wl,marker = 'o',linestyle = 'none',color = color)
+                except:
+                    print('%s, bias = %.2f: bad fit to noise model' % (d,b))
+
                 ax.set_xlabel(r'Freq [Hz]')
                 ax.set_ylabel(r'$pA/\sqrt{Hz}]$')
-                ax.set_yscale('log')
                 ax.set_xscale('log')
+                ax.set_yscale('log')
                 ax.legend()
                 ax.set_title('Channel {:03}'.format(ch))
 

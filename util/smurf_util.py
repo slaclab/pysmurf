@@ -9,7 +9,9 @@ import epics
 
 class SmurfUtilMixin(SmurfBase):
 
-    def take_debug_data(self, band, channel=None, single_channel_readout=1):
+    def take_debug_data(self, band, n_pts = 2**16, channel=None, \
+                            single_channel_readout=1):
+        """
         """
         """
         # Set proper single channel readout
@@ -24,7 +26,8 @@ class SmurfUtilMixin(SmurfBase):
                 self.log('single_channel_readout must be 1 or 2', 
                     self.LOG_ERROR)
                 raise ValueError('single_channel_readout must be 1 or 2')
-
+        """        
+        self.setup_daq_mux('adc',band,n_pts)
 
     def take_stream_data(self, band, meas_time):
         """
@@ -74,9 +77,10 @@ class SmurfUtilMixin(SmurfBase):
             self.log('Writing to file : {}'.format(data_filename), 
                 self.LOG_USER)
             self.set_streaming_datafile(data_filename)
-            self.set_streaming_file_open(1)  # Open the file
-
+            
+            # start streaming before opening file to avoid transient filter step
             self.set_stream_enable(band, 1, write_log=True)
+            self.set_streaming_file_open(1)  # Open the file
 
             return data_filename
 
@@ -723,8 +727,8 @@ class SmurfUtilMixin(SmurfBase):
         asu_amp_Id=2.*1000.*(self.get_cryo_card_50k_bias()/
             asu_amp_Vd_series_resistor)
 
-    def overbias_tes(self, dac, overbias_voltage=19.9, overbias_wait=.5,
-        tes_bias=19.9):
+    def overbias_tes(self, dac, overbias_voltage=19.9, overbias_wait=0.5,
+        tes_bias=19.9,cool_wait = 20.):
         """
         Args:
         -----
@@ -738,6 +742,8 @@ class SmurfUtilMixin(SmurfBase):
             Default is .5
         tes_bias (float): The value of the TES bias when put back in low current
             mode. Default is 19.9.
+        cool_wait (float): The time to wait after setting the TES bias for transients
+            to die off
         """
         # drive high current through the TES to attempt to drive nomral
         self.set_tes_bias_bipolar(4, overbias_voltage)
@@ -747,7 +753,7 @@ class SmurfUtilMixin(SmurfBase):
         self.set_cryo_card_relays(0x10000)
         time.sleep(.1)
         self.set_tes_bias_bipolar(4, tes_bias)
-        self.log('Waiting 5 seconds to cool', self.LOG_USER)
-        time.sleep(5)
+        self.log('Waiting %.2f seconds to cool' % (cool_wait), self.LOG_USER)
+        time.sleep(cool_wait)
         self.log('Done waiting.', self.LOG_USER)
 
