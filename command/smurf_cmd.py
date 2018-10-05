@@ -6,6 +6,8 @@ import os
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
 import pysmurf
 
+cfg_filename = 'experiment_k7_17.cfg'
+
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
@@ -22,11 +24,28 @@ if __name__ == "__main__":
     parser.add_argument('--bias-voltage', action='store', default=-1,
         help='The bias voltage to set')
 
+    # IV commands
+    parser.add_argument('--slow-iv', action='store_true', default=False,
+        help='Take IV curve using the slow method.')
+    parser.add_argument('--iv-band', action='store', type=int, default=-1,
+        help='The band to take the IV curve in')
+    parser.add_argument('--iv-wait-time', action='store', type=float,
+        default=.1, help='The wait time between steps in bias for IV taking')
+    parser.add_argument('--iv-bias-high', action='store', type=float,
+        default=19.9, help='The high bias in volts.')
+    parser.add_argument('--iv-bias-low', action='store', type=float,
+        default=0., help='The low bias in volts.')
+    parser.add_argument('--iv-high-current-wait', action='store', type=float,
+        default=.25, help='The time in seconds to wait in the high current mode')
+    parser.add_argument('--iv-bias-step', action=store, type=float, default=.1,
+        help='The bias step amplitude in units of volts.')
+
+
     args = parser.parse_args()
 
-    S = pysmurf.SmurfControl(cfg_file=os.path.join(os.path.dirname(__file__), '..', 
-                                                   'cfg_files' ,'experiment_k7_17.cfg'),
-        smurf_cmd_mode=True, setup=False)
+    S = pysmurf.SmurfControl(cfg_file=os.path.join(os.path.dirname(__file__), 
+        '..', 'cfg_files' , cfg_name), smurf_cmd_mode=True, 
+        setup=False)
 
     if args.log is not None:
         S.log(args.log)
@@ -34,5 +53,11 @@ if __name__ == "__main__":
     if args.tes_bias:
         S.set_tes_bias_bipolar(args.bias_group, args.bias_voltage, 
             write_log=True)
+
+    if args.slow_iv:
+        S.slow_iv(args.iv_band, wait_time=args.iv_wait_time, 
+            bias_high=args.iv_bias_high, bias_low=args.iv_bias_low,
+            high_current_wait=args.iv_high_current_wait, 
+            bias_step=args.iv_bias_step)
 
     
