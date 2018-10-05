@@ -9,14 +9,8 @@ import epics
 
 class SmurfUtilMixin(SmurfBase):
 
-<<<<<<< HEAD
-    def take_debug_data(self, band, n_pts = 2**16, channel=None, \
-                            single_channel_readout=1):
-        """
-=======
     def take_debug_data(self, band, channel=None, nsamp=2**19, filename=None, 
             IQstream=1, single_channel_readout=1):
->>>>>>> bbdd4771f0ca8d16901b48ca172db0eae50fdbaf
         """
         """
         # Set proper single channel readout
@@ -31,10 +25,6 @@ class SmurfUtilMixin(SmurfBase):
                 self.log('single_channel_readout must be 1 or 2', 
                     self.LOG_ERROR)
                 raise ValueError('single_channel_readout must be 1 or 2')
-<<<<<<< HEAD
-        """        
-        self.setup_daq_mux('adc',band,n_pts)
-=======
 
         # Set IQstream
         if IQstream==1:
@@ -79,9 +69,9 @@ class SmurfUtilMixin(SmurfBase):
         done=False
         while not done:
             done=True
-            for j=0:3:
+            for k in range(5):
                 wr_addr = self.get_waveform_wr_addr(0)
-                empty = self.get_waveform_empty(j)
+                empty = self.get_waveform_empty(k)
                 if not empty:
                     done=False
             time.sleep(1)
@@ -95,12 +85,12 @@ class SmurfUtilMixin(SmurfBase):
         self.log('Done taking data', self.LOG_USER)
 
         header, data = process_data(data_filename)
-
+        '''
         if single_channel_readout:
             #[f, df, sync] = decodeSingleChannel.m
         else:
             #[f, df, sync] = decodeData.m
-
+        '''
         return f, df, sync
 
     def process_data(filename, dtype=np.uint32):
@@ -126,7 +116,7 @@ class SmurfUtilMixin(SmurfBase):
         rawdata = np.fromfile(filename, dtype='<f4', count=count)
 
         rawdata = np.reshape(rawdata, (-1, n_chan)) # -1 is equiv to [] in Matlab here
-
+        '''
         if dtype==np.uint32:
             header = rawdata[:2, :]
             data = np.delete(rawdata, [:2], 0).astype(dtype)
@@ -140,19 +130,13 @@ class SmurfUtilMixin(SmurfBase):
             header = header1 # what am I doing
         else:
             raise TypeError('Type {} not yet supported!'.format(dtype))
-
+        '''
         if header[1,1] == 2:
             header = np.fliplr(header)
             data = np.fliplr(data)
 
         return header, data
 
-
-
-
-
-
->>>>>>> bbdd4771f0ca8d16901b48ca172db0eae50fdbaf
 
     def take_stream_data(self, band, meas_time):
         """
