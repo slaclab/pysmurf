@@ -18,7 +18,7 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
     def __init__(self, epics_root='mitch_epics', 
         cfg_file='/home/cryo/pysmurf/cfg_files/experiment_fp28.cfg', 
         data_dir=None, name=None, make_logfile=True, 
-        setup=True, offline=False, **kwargs):
+        setup=True, offline=False, smurf_cmd_mode=False, **kwargs):
         '''
         Args:
         -----
@@ -31,10 +31,10 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
         if cfg_file is not None or data_dir is not None:
             self.initialize(cfg_file=cfg_file, data_dir=data_dir, name=name,
                 make_logfile=make_logfile,
-                setup=setup, **kwargs)
+                setup=setup, smurf_cmd_mode=smurf_cmd_mode, **kwargs)
 
     def initialize(self, cfg_file, data_dir=None, name=None, 
-        make_logfile=True, setup=True, **kwargs):
+        make_logfile=True, setup=True, smurf_cmd_mode=False, **kwargs):
         '''
         Initizializes SMuRF with desired parameters set in experiment.cfg.
         Largely stolen from a Cyndia/Shawns SmurfTune script
@@ -42,38 +42,55 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
 
         self.config = SmurfConfig(cfg_file)
 
-        # define data dir
-        if data_dir is not None:
-            self.data_dir = data_dir
-        else:
-            self.data_dir = self.config.get('default_data_dir')
+        if smurf_cmd_mode:
+            # Get data dir
+            self.data_dir = self.config.get('smurf_cmd_dir')
+            self.start_time = self.get_timestamp()
 
-        self.date = time.strftime("%Y%m%d")
+            # Define output and plot dirs
+            self.base_dir = os.path.abspath(self.data_dir)
+            self.output_dir = os.path.join(self.base_dir, 'outputs')
+            self.plot_dir = os.path.join(self.base_dir, 'plots')
+            self.make_dir(self.output_dir)
+            self.make_dir(self.plot_dir)
 
-        # name
-        self.start_time = self.get_timestamp()
-        if name is None:
-            name = self.start_time
-        self.name = name
-
-        self.base_dir = os.path.abspath(self.data_dir)
-
-        # create output and plot directories
-        self.output_dir = os.path.join(self.base_dir, self.date, name, 
-            'outputs')
-        self.plot_dir = os.path.join(self.base_dir, self.date, name, 'plots')
-        self.make_dir(self.output_dir)
-        self.make_dir(self.plot_dir)
-
-        # name the logfile and create flags for it
-        if make_logfile:
-            self.log_file = os.path.join(self.output_dir, name + '.log')
+            # Set logfile
+            self.log_file = os.path.join(self.output_dir, 'smurf_cmd.log')
             self.log.set_logfile(self.log_file)
-        else:
-            self.log.set_logfile(None)
 
-        # Dictionary for frequency response
-        self.freq_resp = {}
+        else:
+            # define data dir
+            if data_dir is not None:
+                self.data_dir = data_dir
+            else:
+                self.data_dir = self.config.get('default_data_dir')
+
+            self.date = time.strftime("%Y%m%d")
+
+            # name
+            self.start_time = self.get_timestamp()
+            if name is None:
+                name = self.start_time
+            self.name = name
+
+            self.base_dir = os.path.abspath(self.data_dir)
+
+            # create output and plot directories
+            self.output_dir = os.path.join(self.base_dir, self.date, name, 
+                'outputs')
+            self.plot_dir = os.path.join(self.base_dir, self.date, name, 'plots')
+            self.make_dir(self.output_dir)
+            self.make_dir(self.plot_dir)
+
+            # name the logfile and create flags for it
+            if make_logfile:
+                self.log_file = os.path.join(self.output_dir, name + '.log')
+                self.log.set_logfile(self.log_file)
+            else:
+                self.log.set_logfile(None)
+
+            # Dictionary for frequency response
+            self.freq_resp = {}
 
         if setup:
             self.setup(**kwargs)
