@@ -21,7 +21,7 @@ if __name__ == "__main__":
         help='Set the tes bias. Must also set --bias-group and --bias-voltage')
     parser.add_argument('--bias-group', action='store', default=-1, type=int,
         help='The bias group to set the TES bias', choices=np.arange(8, dtype=int))
-    parser.add_argument('--bias-voltage', action='store', default=-1,
+    parser.add_argument('--bias-voltage', action='store', default=-1,type=float,
         help='The bias voltage to set')
 
     # IV commands
@@ -37,14 +37,13 @@ if __name__ == "__main__":
         default=0., help='The low bias in volts.')
     parser.add_argument('--iv-high-current-wait', action='store', type=float,
         default=.25, help='The time in seconds to wait in the high current mode')
-    parser.add_argument('--iv-bias-step', action=store, type=float, default=.1,
+    parser.add_argument('--iv-bias-step', action='store', type=float, default=.1,
         help='The bias step amplitude in units of volts.')
-
 
     args = parser.parse_args()
 
     S = pysmurf.SmurfControl(cfg_file=os.path.join(os.path.dirname(__file__), 
-        '..', 'cfg_files' , cfg_name), smurf_cmd_mode=True, 
+        '..', 'cfg_files' , cfg_filename), smurf_cmd_mode=True, 
         setup=False)
 
     if args.log is not None:
@@ -55,9 +54,12 @@ if __name__ == "__main__":
             write_log=True)
 
     if args.slow_iv:
-        S.slow_iv(args.iv_band, wait_time=args.iv_wait_time, 
-            bias_high=args.iv_bias_high, bias_low=args.iv_bias_low,
-            high_current_wait=args.iv_high_current_wait, 
-            bias_step=args.iv_bias_step)
+        if args.iv_band < 0:
+            S.log('Must input a valid band number using --iv-band')
+        else:
+            S.slow_iv(args.iv_band, wait_time=args.iv_wait_time, 
+                      bias_high=args.iv_bias_high, bias_low=args.iv_bias_low,
+                      high_current_wait=args.iv_high_current_wait, 
+                      bias_step=args.iv_bias_step)
 
     
