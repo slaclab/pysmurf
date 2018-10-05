@@ -243,7 +243,7 @@ class SmurfUtilMixin(SmurfBase):
         flux_ramp_strobe = np.floor((strobes - ch0_strobe) / 2)
 
         # decode frequencies
-        freqs = data(:,nF)
+        freqs = data[:,nF]
         neg = np.where(freqs >= 2**23)[0]
         f = np.double(freqs)
         if len(neg) > 0:
@@ -251,7 +251,7 @@ class SmurfUtilMixin(SmurfBase):
 
         f = np.transpose(f) * subband_halfwidth_MHz / 2**23
 
-        dfreqs = data(:,nDF)
+        dfreqs = data[:,nDF]
         neg = np.where(dfreqs >= 2**23)[0]
         df = np.double(dfreqs)
         if len(neg) > 0:
