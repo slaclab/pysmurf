@@ -67,6 +67,8 @@ class SmurfBase(object):
             ':AMCc:FpgaTopLevel:'+ \
             'AmcCarrierCore:AmcCarrierBsa:BsaWaveformEngine[0]:' + \
             'WaveformEngineBuffers:'
+        self.stream_data_writer_root = self.epics_root + \
+            'AMCc:streamDataWriter:'
         self.jesd_tx_root = self.epics_root + \
             ':AMCc:FpgaTopLevel:AppTop:AppTopJesd[0]:JesdTx:'
         self.jesd_rx_root = self.epics_root + \

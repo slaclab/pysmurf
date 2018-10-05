@@ -1130,6 +1130,65 @@ class SmurfCommandMixin(SmurfBase):
             return self.hex_string_to_int(val)
         else:
             return val
+    
+    _wr_addr = 'WrAddr[{}]'
+    def set_waveform_wr_addr(self, b, val, convert=True, **kwargs):
+        """
+        """
+        if convert:
+            val = self.int_to_hex_string(val)
+        self._caput(self.waveform_engine_buffers_root + 
+            self._wr_addr.formmat(b), val, **kwargs)
+
+    def get_waveform_wr_addr(self, b, convert=True, **kwargs):
+        """
+        """
+        val = self._caget(self.waveform_engine_buffers_root + 
+            self._wr_addr.format(b), **kwargs)
+        if convert:
+            return self.hex_string_to_int(val)
+        else:
+            return val
+
+    _empty = 'Empty[{}]'
+    def set_waveform_empty(self, b, val, **kwargs):
+        """
+        """
+        self._caput(self.waveform_engine_buffers_root + 
+            self._empty.format(b), **kwargs)
+
+    def get_waveform_empty(self, b, **kwargs):
+        """
+        """
+        return self._caget(self.waveform_engine_buffers_root + 
+            self._empty.format(b), **kwargs)
+
+    _data_file = 'dataFile'
+    def set_streamdatawriter_datafile(self, val, **kwargs):
+        """
+        """
+        self._caput(self.stream_data_writer_root + self._data_file,
+            val, **kwargs)
+
+    def get_streamdatawriter_datafile(self, **kwargs):
+        """
+        """
+        return self._caget(self.stream_data_writer_root + 
+            self._data_file, **kwargs)
+
+    _datawriter_open = 'open'
+    def set_streamdatawriter_open(self, val, **kwargs):
+        """
+        """
+        self._caput(self.stream_data_writer_root + 
+            self._datawriter_open, val, **kwargs)
+
+    def get_streamdatawriter_open(self, **kwargs):
+        """
+        """
+        return self._caget(self.stream_data_writer_root + 
+            self._datawriter_open, **kwargs)
+
 
     _trigger_daq = 'TriggerDaq'
     def set_trigger_daq(self, val, **kwargs):
