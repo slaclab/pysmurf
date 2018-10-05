@@ -186,7 +186,7 @@ class SmurfUtilMixin(SmurfBase):
                     self.LOG_USER)
 
             # Make the data file
-            timestamp = '%10i' % time.time()
+            timestamp = self.get_timestamp()
             data_filename = os.path.join(self.output_dir, timestamp+'.dat')
             self.log('Writing to file : {}'.format(data_filename), 
                 self.LOG_USER)
