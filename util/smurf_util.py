@@ -84,21 +84,11 @@ class SmurfUtilMixin(SmurfBase):
 
         self.log('Done taking data', self.LOG_USER)
 
-<<<<<<< HEAD
-=======
-        header, data = process_data(data_filename)
-        '''
->>>>>>> 26eeef99750bd997db04981a64b2d488956c9591
-        if single_channel_readout:
+        if single_channel_readout==1:
             f, df, sync = self.decode_single_channel(data_filename)
         else:
-<<<<<<< HEAD
             f, df, sync = self.decode_data(data_filename)
 
-=======
-            #[f, df, sync] = decodeData.m
-        '''
->>>>>>> 26eeef99750bd997db04981a64b2d488956c9591
         return f, df, sync
 
     def process_data(self, filename, dtype=np.uint32):
@@ -121,15 +111,10 @@ class SmurfUtilMixin(SmurfBase):
         n_chan = 2 # number of stream channels
         header_size = 4 # 8 bytes in 16-bit word
 
-        rawdata = np.fromfile(filename, dtype='<f4', count=count).astype(dtype)
+        rawdata = np.fromfile(filename, dtype='<f4').astype(dtype)
 
-<<<<<<< HEAD
         rawdata = np.reshape(rawdata, (-1, n_chan)) # -1 is equiv to [] in Matlab
 
-=======
-        rawdata = np.reshape(rawdata, (-1, n_chan)) # -1 is equiv to [] in Matlab here
-        '''
->>>>>>> 26eeef99750bd997db04981a64b2d488956c9591
         if dtype==np.uint32:
             header = rawdata[:2, :]
             data = np.delete(rawdata, (0,1), 0).astype(dtype)
@@ -146,7 +131,6 @@ class SmurfUtilMixin(SmurfBase):
             header = header1[::2] + header1[1::2] * (2**16) # what am I doing
         else:
             raise TypeError('Type {} not yet supported!'.format(dtype))
-        '''
         if header[1,1] == 2:
             header = np.fliplr(header)
             data = np.fliplr(data)
@@ -202,7 +186,6 @@ class SmurfUtilMixin(SmurfBase):
             self.log('Number of points not a multiple of 512. Cannot decode',
                 self.LOG_ERROR)
 
-        flux_ramp_strobe_f = flux_ramp_strobe(f_first, f_last, nF) # what is this?
 
         # frequency errors
         ch0_idx_df = np.where(ch0_strobe[:,1] == 1)[0]
@@ -224,7 +207,6 @@ class SmurfUtilMixin(SmurfBase):
         else:
             df = []
 
-        flux_ramp_strobe_df = flux_ramp_strobe(d_first, d_last, nDF)
         return f, df, flux_ramp_strobe
 
     def decode_single_channel(self, filename, swapFdF=False):
@@ -277,15 +259,8 @@ class SmurfUtilMixin(SmurfBase):
 
         df = np.transpose(df) * subband_halfwidth_MHz / 2**23
 
-<<<<<<< HEAD
         return f, df, flux_ramp_strobe
 
-
-
-
-
-=======
->>>>>>> 26eeef99750bd997db04981a64b2d488956c9591
     def take_stream_data(self, band, meas_time):
         """
         Takes streaming data for a given amount of time
