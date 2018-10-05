@@ -69,9 +69,9 @@ class SmurfUtilMixin(SmurfBase):
         done=False
         while not done:
             done=True
-            for j=0:3:
+            for k in range(5):
                 wr_addr = self.get_waveform_wr_addr(0)
-                empty = self.get_waveform_empty(j)
+                empty = self.get_waveform_empty(k)
                 if not empty:
                     done=False
             time.sleep(1)
@@ -84,11 +84,21 @@ class SmurfUtilMixin(SmurfBase):
 
         self.log('Done taking data', self.LOG_USER)
 
+<<<<<<< HEAD
+=======
+        header, data = process_data(data_filename)
+        '''
+>>>>>>> 26eeef99750bd997db04981a64b2d488956c9591
         if single_channel_readout:
             f, df, sync = self.decode_single_channel(data_filename)
         else:
+<<<<<<< HEAD
             f, df, sync = self.decode_data(data_filename)
 
+=======
+            #[f, df, sync] = decodeData.m
+        '''
+>>>>>>> 26eeef99750bd997db04981a64b2d488956c9591
         return f, df, sync
 
     def process_data(self, filename, dtype=np.uint32):
@@ -113,8 +123,13 @@ class SmurfUtilMixin(SmurfBase):
 
         rawdata = np.fromfile(filename, dtype='<f4', count=count).astype(dtype)
 
+<<<<<<< HEAD
         rawdata = np.reshape(rawdata, (-1, n_chan)) # -1 is equiv to [] in Matlab
 
+=======
+        rawdata = np.reshape(rawdata, (-1, n_chan)) # -1 is equiv to [] in Matlab here
+        '''
+>>>>>>> 26eeef99750bd997db04981a64b2d488956c9591
         if dtype==np.uint32:
             header = rawdata[:2, :]
             data = np.delete(rawdata, (0,1), 0).astype(dtype)
@@ -131,7 +146,7 @@ class SmurfUtilMixin(SmurfBase):
             header = header1[::2] + header1[1::2] * (2**16) # what am I doing
         else:
             raise TypeError('Type {} not yet supported!'.format(dtype))
-
+        '''
         if header[1,1] == 2:
             header = np.fliplr(header)
             data = np.fliplr(data)
@@ -262,12 +277,15 @@ class SmurfUtilMixin(SmurfBase):
 
         df = np.transpose(df) * subband_halfwidth_MHz / 2**23
 
+<<<<<<< HEAD
         return f, df, flux_ramp_strobe
 
 
 
 
 
+=======
+>>>>>>> 26eeef99750bd997db04981a64b2d488956c9591
     def take_stream_data(self, band, meas_time):
         """
         Takes streaming data for a given amount of time
@@ -316,9 +334,10 @@ class SmurfUtilMixin(SmurfBase):
             self.log('Writing to file : {}'.format(data_filename), 
                 self.LOG_USER)
             self.set_streaming_datafile(data_filename)
-            self.set_streaming_file_open(1)  # Open the file
-
+            
+            # start streaming before opening file to avoid transient filter step
             self.set_stream_enable(band, 1, write_log=True)
+            self.set_streaming_file_open(1)  # Open the file
 
             return data_filename
 
@@ -977,8 +996,8 @@ class SmurfUtilMixin(SmurfBase):
         asu_amp_Id=2.*1000.*(self.get_cryo_card_50k_bias()/
             asu_amp_Vd_series_resistor)
 
-    def overbias_tes(self, dac, overbias_voltage=19.9, overbias_wait=.5,
-        tes_bias=19.9):
+    def overbias_tes(self, dac, overbias_voltage=19.9, overbias_wait=0.5,
+        tes_bias=19.9,cool_wait = 20.):
         """
         Args:
         -----
@@ -992,6 +1011,8 @@ class SmurfUtilMixin(SmurfBase):
             Default is .5
         tes_bias (float): The value of the TES bias when put back in low current
             mode. Default is 19.9.
+        cool_wait (float): The time to wait after setting the TES bias for transients
+            to die off
         """
         # drive high current through the TES to attempt to drive nomral
         self.set_tes_bias_bipolar(4, overbias_voltage)
@@ -1001,7 +1022,7 @@ class SmurfUtilMixin(SmurfBase):
         self.set_cryo_card_relays(0x10000)
         time.sleep(.1)
         self.set_tes_bias_bipolar(4, tes_bias)
-        self.log('Waiting 5 seconds to cool', self.LOG_USER)
-        time.sleep(5)
+        self.log('Waiting %.2f seconds to cool' % (cool_wait), self.LOG_USER)
+        time.sleep(cool_wait)
         self.log('Done waiting.', self.LOG_USER)
 

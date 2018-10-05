@@ -12,7 +12,7 @@ class SmurfTuneMixin(SmurfBase):
     """
 
     def tune_band(self, band, freq=None, resp=None, n_samples=2**18, 
-        make_plot=True, save_plot=True, save_data=True, grad_cut=.05,
+        make_plot=True, plot_chans = [], save_plot=True, save_data=True, grad_cut=.05,
         freq_min=-2.5E8, freq_max=2.5E8, amp_cut=.25):
         """
         This does the full_band_resp, which takes the raw resonance data.
@@ -33,6 +33,8 @@ class SmurfTuneMixin(SmurfBase):
             Default is 2^18.
         make_plot (bool): Whether to make plots. This is slow, so if you want
             to tune quickly, set to False. Default True.
+	plot_chans (list): if making plots, which channels to plot. If empty,
+	    will just plot all of them
         save_plot (bool): Whether to save the plot. If True, it will close the
             plots before they are shown. If False, plots will be brought to the
             screen.
@@ -64,8 +66,8 @@ class SmurfTuneMixin(SmurfBase):
                 make_plot=make_plot, save_data=save_data, timestamp=timestamp)
 
         make_subband_plot = False
-        if make_plot:
-            make_subband_plot = True
+        #if make_plot:
+            #make_subband_plot = True
 
         # Find peaks
         peaks = self.find_peak(freq, resp, band=band, make_plot=make_plot, 
@@ -76,8 +78,8 @@ class SmurfTuneMixin(SmurfBase):
         # Eta scans
         resonances = {}
         for i, p in enumerate(peaks):
-            eta, eta_scaled, eta_phase_deg, r2, eta_mag = self.eta_fit(freq, 
-                resp, p, .2e6, 614.4/128, make_plot=make_plot, 
+            eta, eta_scaled, eta_phase_deg, r2, eta_mag, latency = self.eta_fit(freq, 
+                resp, p, .2e6, 614.4/128, make_plot=make_plot, plot_chans = plot_chans,
                 save_plot=save_plot, res_num=i, band=band, timestamp=timestamp)
 
             resonances[i] = {
@@ -86,7 +88,8 @@ class SmurfTuneMixin(SmurfBase):
                 'eta_scaled': eta_scaled,
                 'eta_phase': eta_phase_deg,
                 'r2': r2,
-                'eta_mag': eta_mag
+                'eta_mag': eta_mag,
+                'latency': latency
             }
 
         if save_data:
@@ -110,6 +113,7 @@ class SmurfTuneMixin(SmurfBase):
 
         self.relock(band)
         self.log('Done')
+        return resonances
 
 
     def full_band_resp(self, band, n_samples=2**18, make_plot=False, 
@@ -478,8 +482,8 @@ class SmurfTuneMixin(SmurfBase):
             plt.close()
 
     def eta_fit(self, freq, resp, peak_freq, delF, subbandHalfWidth, 
-        make_plot=False, save_plot=True, band=None, timestamp=None, 
-        res_num=None):
+        make_plot=False, plot_chans =  [], save_plot=True, band=None, 
+	timestamp=None, res_num=None):
         """
         Cyndia's eta finding code
         """
@@ -502,6 +506,7 @@ class SmurfTuneMixin(SmurfBase):
         
             
         eta = (freq[right] - freq[left]) / (resp[right] - resp[left])
+        latency = (np.unwrap(np.angle(resp))[-1] - np.unwrap(np.angle(resp))[0]) / (freq[-1] - freq[0])/2/np.pi
         eta_mag = np.abs(eta)
         eta_angle = np.angle(eta)
         eta_scaled = eta_mag * 1e-6/ subbandHalfWidth # convert to MHz
@@ -520,16 +525,23 @@ class SmurfTuneMixin(SmurfBase):
         r2 = r2_value(freq[left:right], phase[left:right],1)
     
         if make_plot:
-            self.log('Making plot for band {} res {:03}'.format(band, res_num))
-            self.plot_eta_fit(freq[left:right], resp[left:right], 
-                eta=eta, eta_mag=eta_mag, eta_angle=eta_angle, r2=r2,
-                save_plot=save_plot, timestamp=timestamp, band=band,
-                res_num=res_num)
+            if len(plot_chans) == 0:
+                self.log('Making plot for band {} res {:03}'.format(band, res_num))
+                self.plot_eta_fit(freq[left:right], resp[left:right], 
+                    eta=eta, eta_mag=eta_mag, eta_angle=eta_angle, r2=r2,
+                    save_plot=save_plot, timestamp=timestamp, band=band,
+                    res_num=res_num)
+            else:
+                if res_num in plot_chans:
+                    self.log('Making plot for band {} res {:03}'.format(band, res_num))
+                    self.plot_eta_fit(freq[left:right], resp[left:right], eta=eta, 
+                        eta_mag=eta_mag, eta_phase_deg=eta_phase_deg, r2=r2, save_plot=save_plot,
+                        timestamp=timestamp, band=band, res_num=res_num)
 
-        return eta, eta_scaled, eta_phase_deg, r2, eta_mag
+        return eta, eta_scaled, eta_phase_deg, r2, eta_mag, latency
 
     def plot_eta_fit(self, freq, resp, eta=None, eta_mag=None, 
-        eta_angle=None, r2=None, save_plot=True, timestamp=None, 
+        eta_phase_deg=None, r2=None, save_plot=True, timestamp=None, 
         res_num=None, band=None):
         """
         """
@@ -581,9 +593,9 @@ class SmurfTuneMixin(SmurfBase):
                 lab = lab + r'$\eta$' + ': {}'.format(eta) + '\n'
         if eta_mag is not None:
             lab = lab + r'$\eta_{mag}$' + ': {:1.3e}'.format(eta_mag) + '\n'
-        if eta_angle is not None:
+        if eta_phase_deg is not None:
             lab = lab + r'$\eta_{ang}$' + \
-                ': {:3.2f}'.format(np.rad2deg(eta_angle)) + '\n'
+                ': {:3.2f}'.format(eta_phase_deg) + '\n'
         if r2 is not None:
             lab = lab + r'$R^2$' + ' :{:4.3f}'.format(r2)
 

@@ -1,5 +1,6 @@
 import numpy as np
 from scipy import signal
+from scipy import optimize
 from pysmurf.base import SmurfBase
 import os
 import time
@@ -8,7 +9,7 @@ class SmurfNoiseMixin(SmurfBase):
 
     def take_noise_psd(self, band, meas_time, channel=None, nperseg=2**12, 
         detrend='constant', fs=None, low_freq=np.array([.1, 1.]), 
-        high_freq=np.array([1., 5.]), make_channel_plot=True,
+        high_freq=np.array([1., 10.]), make_channel_plot=True,
         make_summary_plot=True, save_data=False, show_plot=False):
         """
         Takes a timestream of noise and calculates its PSD.
@@ -57,25 +58,43 @@ class SmurfNoiseMixin(SmurfBase):
         self.log('Plotting channels {}'.format(channel), self.LOG_USER)
 
         import matplotlib.pyplot as plt
+        plt.rcParams["patch.force_edgecolor"] = True
 
         noise_floors = np.zeros((len(low_freq), n_channel))*np.nan
+        wl_list = []
+        f_knee_list = []
+        n_list = []
 
+        plt.ion()
         if not show_plot:
             plt.ioff()
         for c, ch in enumerate(channel):
             # phase = self.iq_to_phase(I[ch], Q[ch])
 
             # Calculate to power spectrum and convert to pA
-            ch_idx = 512*band + ch
+            #ch_idx = 512*band + ch
+            ch_idx = ch
             f, Pxx = signal.welch(phase[ch_idx], nperseg=nperseg, 
                 fs=fs, detrend=detrend)
             Pxx = np.sqrt(Pxx) * 1.0E6
+
+            good_fit = False
+            try:
+                popt,pcov,f_fit,Pxx_fit = self.analyze_psd(f,Pxx)
+                wl,n,f_knee = popt
+                wl_list.append(wl)
+                f_knee_list.append(f_knee)
+                n_list.append(n)
+                good_fit = True
+            except:
+                print('Band %i, ch. %i: bad fit to noise model' % (band,ch))
+
             for i, (l, h) in enumerate(zip(low_freq, high_freq)):
                 idx = np.logical_and(f>l, f<h)
                 noise_floors[i, ch] = np.mean(Pxx[idx])
 
             if make_channel_plot:
-                fig, ax = plt.subplots(2, figsize=(5,4))
+                fig, ax = plt.subplots(2, figsize=(8,6))
                 # ax[0].plot(I[ch], label='I')
                 # ax[0].plot(Q[ch], label='Q')
                 # ax[0].legend()
@@ -87,12 +106,16 @@ class SmurfNoiseMixin(SmurfBase):
                 ax[0].set_ylabel('Phase [pA]')
 
                 ax[1].plot(f, Pxx)
+                if good_fit:
+                    ax[1].plot(f_fit,Pxx_fit,linestyle = '--')
+                    ax[1].plot(f_knee,2.*wl,linestyle = 'none',marker = 'o')
+                    ax[1].plot(f_fit,wl + np.zeros(len(f_fit)),linestyle = ':')
                 ax[1].set_xlabel('Freq [Hz]')
                 ax[1].set_ylabel('Amp [pA/rtHz]')
                 ax[1].set_yscale('log')
                 ax[1].set_xscale('log')
 
-                ax[1].axhline(noise_floors[-1,ch], color='k', linestyle='--')
+                #ax[1].axhline(noise_floors[-1,ch], color='k', linestyle='--')
                 print(noise_floors[-1, ch])
 
                 ax[0].set_title('Band {} Ch {:03}'.format(band, ch))
@@ -102,7 +125,9 @@ class SmurfNoiseMixin(SmurfBase):
                 plot_name = basename+'_b{}_ch{:03}.png'.format(band, ch)
                 plt.savefig(os.path.join(self.plot_dir, plot_name), 
                     bbox_inches='tight')
-                if not show_plot:
+                if show_plot:
+                    plt.show()
+                else:
                     plt.close()
 
         if save_data:
@@ -114,7 +139,7 @@ class SmurfNoiseMixin(SmurfBase):
         if make_summary_plot:
             bins = np.arange(0,351,10)
             for i, (l, h) in enumerate(zip(low_freq, high_freq)):
-                fig, ax = plt.subplots(1, figsize=(4,3))
+                fig, ax = plt.subplots(1, figsize=(8,6))
                 ax.hist(noise_floors[i,~np.isnan(noise_floors[i])], bins=bins)
                 ax.text(0.03, 0.95, '{:3.2f}'.format(l) + '-' +
                     '{:3.2f} Hz'.format(h),
@@ -124,10 +149,28 @@ class SmurfNoiseMixin(SmurfBase):
                     '_b{}_{}_{}_noise_hist.png'.format(band, l, h)
                 plt.savefig(os.path.join(self.plot_dir, plot_name), 
                     bbox_inches='tight')
-                if not show_plot:
+                if show_plot:
+                    plt.show()
+                else:
                     plt.close()
 
-        plt.ion()
+            if len(wl_list) > 0:
+                n_fit = len(wl_list)
+                n_attempt = len(channel)
+                fig,ax = plt.subplots(1,3)
+                fig.suptitle('%s: band %i noise parameters (%i fit of %i attempted)' % (basename,band,n_fit,n_attempt))
+                ax[0].hist(wl_list)
+                ax[0].set_xlabel('White-noise level (pA/rtHz)')
+                ax[1].hist(n_list)
+                ax[1].set_xlabel('Noise index')
+                ax[2].hist(f_knee_list)
+                ax[2].set_xlabel('Knee frequency')
+                plt.tight_layout()
+                fig.subplots_adjust(top = 0.9)
+                noise_params_hist_fname = basename + '_b{}_noise_params.png'.format(band)
+                plt.savefig(os.path.join(self.plot_dir,noise_params_hist_fname),\
+                                bbox_inches = 'tight')
+                plt.show()
 
         return noise_floors
 
@@ -151,7 +194,7 @@ class SmurfNoiseMixin(SmurfBase):
     def noise_vs_bias(self, band, bias_high=6, bias_low=3, step_size=.1,
         bias=None,
         meas_time=30., analyze=False, channel=None, nperseg=2**13,
-        detrend='constant', fs=None):
+        detrend='constant', fs=None,show_plot = False):
         """
         This ramps the TES voltage from bias_high to bias_low and takes noise
         measurements. You can make it analyze the data and make plots with the
@@ -178,11 +221,12 @@ class SmurfNoiseMixin(SmurfBase):
         detrend (str): Whether to detrend the data before taking the PSD.
             Default is to remove a constant.
         fs (float): The sample frequency.
+        show_plot: Whether to show analysis plots. Defaults to False.
         """
         if bias is None:
             if step_size > 0:
                 step_size *= -1
-            bias = np.arange(bias_high, bias_low-step_size, step_size)
+            bias = np.arange(bias_high, bias_low-np.absolute(step_size), step_size)
 
         psd_dir = os.path.join(self.output_dir, 'psd')
         self.make_dir(psd_dir)
@@ -209,7 +253,7 @@ class SmurfNoiseMixin(SmurfBase):
         if analyze:
             self.analyze_noise_vs_bias(bias, datafiles, channel=channel, 
                 band=band, nperseg=nperseg, detrend=detrend, fs=fs, 
-                save_plot=True, show_plot=False, data_timestamp=timestamp)
+                save_plot=True, show_plot=show_plot, data_timestamp=timestamp)
 
     def analyze_noise_vs_bias(self, bias, datafile, channel=None, band=None,
         nperseg=2**13, detrend='constant', fs=None, save_plot=True, 
@@ -269,10 +313,23 @@ class SmurfNoiseMixin(SmurfBase):
                 np.savetxt(os.path.join(psd_dir, basename + 
                     '_psd_ch{:03}.txt'.format(ch)), np.array([f, Pxx]))
 
+                fig,ax = plt.subplots(1)
+                ax.plot(phase[ch])
+                ax.set_title('Channel {:03}'.format(ch))
+                ax.set_xlabel(r'Time index')
+                ax.set_ylabel(r'Phase')
+                
+                if show_plot:
+                    plt.show()
+                if save_plot:
+                    plt.savefig(os.path.join(self.plot_dir, basename + \
+                                    '_timestream_ch{:03}.png'.format(ch)),\
+                                    bbox_inches='tight')
+
             # Explicitly remove objects from memory
             del timestamp
-            del I
-            del Q
+            #del I
+            #del Q
 
         # Make plot
         cm = plt.get_cmap('viridis')
@@ -289,11 +346,25 @@ class SmurfNoiseMixin(SmurfBase):
                     '_psd_ch{:03}.txt'.format(ch)))
 
                 color = cm(float(i)/len(bias))
-                ax.plot(f, Pxx, color=color, label='{:3.2f}'.format(b))        
+                ax.plot(f, Pxx, color=color, label='{:3.2f}'.format(b))
+
+                # fit to noise model; catch error if fit is bad
+                try:
+                    popt,pcov,f_fit,Pxx_fit = self.analyze_psd(f,Pxx)
+                    wl,n,f_knee = popt
+                    print('ch. %i, bias = %.2f, white-noise level = %.2f pA/rtHz, n = %.2f, f_knee = %.2f Hz' \
+                              % (ch,b,wl,n,f_knee))
+
+                    ax.plot(f_fit,Pxx_fit,color = color,linestyle = '--')
+                    ax.plot(f,wl + np.zeros(len(f)),color = color,linestyle = ':')
+                    ax.plot(f_knee,2.*wl,marker = 'o',linestyle = 'none',color = color)
+                except:
+                    print('%s, bias = %.2f: bad fit to noise model' % (d,b))
+
                 ax.set_xlabel(r'Freq [Hz]')
                 ax.set_ylabel(r'$pA/\sqrt{Hz}]$')
-                ax.set_yscale('log')
                 ax.set_xscale('log')
+                ax.set_yscale('log')
                 ax.legend()
                 ax.set_title('Channel {:03}'.format(ch))
 
@@ -309,3 +380,21 @@ class SmurfNoiseMixin(SmurfBase):
                     plot_name = '{}_'.format(self.get_timestamp) + plot_name
                 plt.savefig(os.path.join(self.plot_dir, plot_name),
                     bbox_inches='tight')
+
+    def analyze_psd(self,f,Pxx):
+        def noise_model(freq,wl,n,f_knee):
+            '''
+            Crude model for noise modeling.
+            wl (float): white-noise level
+            n (float): exponent of 1/f^n component
+            f_knee (float): frequency at which white noise = 1/f^n component
+            '''
+            A = wl*(f_knee**n)
+            return A/(freq**n) + wl
+
+        p0 = [100.,0.5,1.]
+        popt,pcov = optimize.curve_fit(noise_model,f[1:],Pxx[1:],p0 = p0)
+        df = f[1] - f[0]
+        f_fit = np.arange(f[1],f[-1] + df,df/10.)
+        Pxx_fit = noise_model(f_fit,*popt)
+        return popt,pcov,f_fit,Pxx_fit
