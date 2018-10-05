@@ -9,7 +9,8 @@ import epics
 
 class SmurfUtilMixin(SmurfBase):
 
-    def take_debug_data(self, band, channel=None, single_channel_readout=1):
+    def take_debug_data(self, band, channel=None, nsamp=2**19, filename=None, 
+            IQstream=1, single_channel_readout=1):
         """
         """
         # Set proper single channel readout
@@ -17,13 +18,129 @@ class SmurfUtilMixin(SmurfBase):
             if single_channel_readout == 1:
                 self.set_single_channel_readout(band, 1)
                 self.set_single_channel_readout_opt2(band, 0)
-            elif single_channel-readout == 2:
+            elif single_channel_readout == 2:
                 self.set_single_channel_readout(band, 0)
                 self.set_single_channel_readout_opt2(band, 1)
             else:
                 self.log('single_channel_readout must be 1 or 2', 
                     self.LOG_ERROR)
                 raise ValueError('single_channel_readout must be 1 or 2')
+
+        # Set IQstream
+        if IQstream==1:
+            self.set_iq_stream_enable(band, 1)
+        else:
+            self.set_iq_stream_enable(band, 0)
+
+        # set filename
+        if filename is not None:
+            data_filename = os.path.join(self.output_dir, filename+'.dat')
+            self.log('Writing to file : {}'.format(data_filename),
+                self.LOG_USER)
+        else:
+            timestamp = '%10i' % time.time()
+            data_filename = os.path.join(self.output_dir, timestamp+'.dat')
+            self.log('Writing to file : {}'.format(data_filename),
+                self.LOG_USER)
+
+        dtype = 'debug'
+        dchannel = 0 # I don't really know what this means and I'm sorry -CY
+        self.setup_daq_mux(dtype, dchannel, nsamp, band=band)
+
+        self.log('Data acquisition in progress...', self.LOG_USER)
+
+        self.log('Setting file name...', self.LOG_USER)
+
+        char_array = [ord(c) for c in data_filename] # convert to ascii
+        write_data = np.zeros(300, dtype=int)
+        for j in np.arange(len(char_array)):
+            write_data[j] = c[j]
+
+        self.set_streamdatawriter_datafile(write_data) # write this
+
+        self.set_streamdatawriter_open('True') # str and not bool
+
+        self.set_trigger_daq(1, write_log=True) # this seems to = TriggerDM
+
+        end_addr = self.get_waveform_end_addr(0) # not sure why this is 0
+
+        time.sleep(1) # maybe unnecessary
+
+        done=False
+        while not done:
+            done=True
+            for j=0:3:
+                wr_addr = self.get_waveform_wr_addr(0)
+                empty = self.get_waveform_empty(j)
+                if not empty:
+                    done=False
+            time.sleep(1)
+
+        time.sleep(1) # do we need all of these?
+        self.log('Finished acquisition', self.LOG_USER)
+        
+        self.log('Closing file...', self.LOG_USER)
+        self.set_streamdatawriter_open('False')
+
+        self.log('Done taking data', self.LOG_USER)
+
+        header, data = process_data(data_filename)
+
+        if single_channel_readout:
+            #[f, df, sync] = decodeSingleChannel.m
+        else:
+            #[f, df, sync] = decodeData.m
+
+        return f, df, sync
+
+    def process_data(filename, dtype=np.uint32):
+        """
+        reads a file taken with take_debug_data and processes it into
+           data + header
+
+        Args:
+        -----
+        filename (str): path to file
+
+        Optional:
+        dtype (np dtype): datatype to cast to, defaults unsigned 32 bit int
+
+        Returns:
+        -----
+        header (np array)
+        data (np array)
+        """
+        n_chan = 2 # number of stream channels
+        header_size = 4 # 8 bytes in 16-bit word
+
+        rawdata = np.fromfile(filename, dtype='<f4', count=count)
+
+        rawdata = np.reshape(rawdata, (-1, n_chan)) # -1 is equiv to [] in Matlab here
+
+        if dtype==np.uint32:
+            header = rawdata[:2, :]
+            data = np.delete(rawdata, [:2], 0).astype(dtype)
+        elif dtype==np.int32:
+            header[:,0] = rawdata[:2,0].astype(np.uint32)
+            header[:,1] = rawdata[:2,1].astype(np.uint32)
+            data = np.delete(rawdata, [:2], 0).astype(dtype)
+        elif dtype==np.int16:
+            header1[:,0] = rawdata[:5,0].astype(np.uint16)
+            header1[:,1] = rawdata[:5,1].astype(np.uint16)
+            header = header1 # what am I doing
+        else:
+            raise TypeError('Type {} not yet supported!'.format(dtype))
+
+        if header[1,1] == 2:
+            header = np.fliplr(header)
+            data = np.fliplr(data)
+
+        return header, data
+
+
+
+
+
 
 
     def take_stream_data(self, band, meas_time):
@@ -258,16 +375,17 @@ class SmurfUtilMixin(SmurfBase):
 
         return dat
 
-    def setup_daq_mux(self, converter, converter_number, data_length):
+    def setup_daq_mux(self, converter, converter_number, data_length, band=0):
         """
         Sets up for either ADC or DAC data taking.
 
         Args:
         -----
-        converter (str) : Whether it is the ADC or DAC. choices are 'adc' and 
-            'dac'
+        converter (str) : Whether it is the ADC or DAC. choices are 'adc', 
+            'dac', or 'debug'. The last one takes data on a single band.
         converter_number (int) : The ADC or DAC number to take data on.
         data_length (int) : The amount of data to take.
+        band (int): which band to get data on
         """
         if converter.lower() == 'adc':
             daq_mux_channel0 = (converter_number + 1)*2
@@ -275,6 +393,17 @@ class SmurfUtilMixin(SmurfBase):
         elif converter.lower() == 'dac':
             daq_mux_channel0 = (converter_number + 1)*2 + 10
             daq_mux_channel1 = daq_mux_channel0 + 1
+        else:
+            if band==2:
+                daq_mux_channel0 = 22 # these come from the mysterious mind of Steve
+                daq_mux_channel1 = 23
+            elif band==3:
+                daq_mux_channel0 = 24
+                daq_mux_channel1 = 25
+            else:
+                self.log("Error! Cannot take debug data on this band", 
+                    self.LOG_ERROR)
+
 
         # setup buffer size
         self.set_buffer_size(data_length)
