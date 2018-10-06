@@ -87,7 +87,7 @@ class SmurfUtilMixin(SmurfBase):
 
         self.log('Done taking data', self.LOG_USER)
 
-        if single_channel_readout == 1:
+        if single_channel_readout > 0:
             f, df, sync = self.decode_single_channel(data_filename)
         else:
             f, df, sync = self.decode_data(data_filename)
@@ -184,7 +184,7 @@ class SmurfUtilMixin(SmurfBase):
             f[neg] = f[neg] - 2**24
 
         if np.remainder(len(f),512)==0:
-            f = np.reshape(f, (-1, 512)) # -1 is [] in Matlab
+            f = np.reshape(f, (-1, 512)) * subband_halfwidth_MHz / 2**23 # -1 is [] in Matlab
         else:
             self.log('Number of points not a multiple of 512. Cannot decode',
                 self.LOG_ERROR)

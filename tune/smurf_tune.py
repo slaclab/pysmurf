@@ -790,7 +790,8 @@ class SmurfTuneMixin(SmurfBase):
         lms_enable3 = 1  # 3rd harmonic tracking
         lms_rst_dly  = 31  # disable error term for 31 2.4MHz ticks after reset
         lms_freq_hz  = flux_ramp_full_scale_to_phi0 * fraction_full_scale*\
-            (reset_rate_khz*10^3)  # fundamental tracking frequency guess
+            (reset_rate_khz*1e3)  # fundamental tracking frequency guess
+        self.log("Using lmsFreqHz = {}".format(lms_freq_hz), self.LOG_USER)
         lms_delay2    = 255  # delay DDS counter resets, 307.2MHz ticks
         lms_delay_fine = 0
         iq_stream_enable = 0  # stream IQ data from tracking loop
@@ -806,21 +807,67 @@ class SmurfTuneMixin(SmurfBase):
         self.set_lms_delay2(band, lms_delay2, write_log=write_log)
         self.set_iq_stream_enable(band, iq_stream_enable, write_log=write_log)
 
-        self.flux_ramp_setup(reset_rate_khz, fraction_full_scale, 
-            write_log=write_log)
+        self.flux_ramp_setup(reset_rate_khz, fraction_full_scale) # write_log?
 
         # self.set_lms_freq_hz(lms_freq_hz)
 
         self.flux_ramp_on(write_log=write_log)
 
-        if doPlots:
+        if do_Plots:
             import matplotlib.pyplot as plt
 
-            # set channel
-            # set single channel readout mode
+        # take one dataset with all channels
+        f, df, sync = self.take_debug_data(band, IQstream = iq_stream_enable, 
+            single_channel_readout=0)
+        df_std = np.std(df, 0)
+        channels_on = list(set(np.where(df_std > 0)[0]) & set(self.which_on(band)))
+        self.log("Number of channels on = {}".format(len(channels_on)), 
+            self.LOG_USER)
+        self.log("Flux ramp demod. mean error std = {} kHz".format(np.mean(df_std[channels_on]) * 1e3), self.LOG_USER)
+        self.log("Flux ramp demod. median error std = {} kHz".format(np.median(df_std[channels_on]) * 1e3), self.LOG_USER)
+        f_span = np.max(f,0) - np.min(f,0)
+        self.log("Flux ramp demod. mean p2p swing = {} kHz".format(np.mean(f_span[channels_on]) * 1e3), self.LOG_USER)
+        self.log("Flux ramp demod. median p2p swing = {} kHz".format(np.median(f_span[channels_on]) * 1e3), self.LOG_USER)
+        if do_Plots:
+            plt.figure()
+            plt.hist(df_std[channels_on] * 1e3)            
+            plt.xlabel('Flux ramp demod error std (kHz)')
+            plt.ylabel('number of channels')
+            plt.title('LMS freq = {}, n_channels = {}'.format(lms_freq_hz, 
+                len(channels_on)))
+            #plt.show()
+
+            plt.figure()
+            plt.hist(f_span[channels_on] * 1e3)
+            plt.xlabel('Flux ramp amplitude (kHz)')
+            plt.ylabel('number of channels')
+            plt.title('LMS freq = {}, n_channels = {}'.format(lms_freq_hz, 
+                len(channels_on)))
+            #plt.show()
+
+            #take another dataset with just the single channel
+            # right now this only happens if plots are made
+            self.log("Taking data on single channel number {}".format(channel), 
+                self.LOG_USER)
+            f, df, sync = self.take_debug_data(band, channel=channel, IQstream = 
+                iq_stream_enable, single_channel_readout=2)
+
+            plt.figure()
+            plt.subplot(211)
+            plt.plot(f[:2500])
+            plt.ylabel('tracked frequency (MHz)')
+            plt.title('LMS freq: {}'.format(lms_freq_hz))
+            plt.subplot(212)
+            plt.plot(df[:2500])
+            plt.ylabel('frequency error (MHz)')
+            plt.xlabel('Sample number (sample rate 2.4e6 MHz)')
+            plt.title('RMS error: {}'.format(np.std(df)))
 
 
         self.set_iq_stream_enable(band, 1, write_log=write_log)
+
+        if do_Plots: # for debugging; later probably want to save
+            plt.show()
 
     def flux_ramp_setup(self, reset_rate_khz, fraction_full_scale, df_range=.1, 
         do_read=False):
@@ -833,8 +880,8 @@ class SmurfTuneMixin(SmurfBase):
         digitizerFrequencyMHz=614.4
         dspClockFrequencyMHz=digitizerFrequencyMHz/2
 
-        desiredRampMaxCnt = ((dspClockFrequencyMHz*10^3)/
-            (desiredResetRatekHz)) - 1
+        desiredRampMaxCnt = ((dspClockFrequencyMHz*1e3)/
+            (reset_rate_khz)) - 1
         rampMaxCnt = np.floor(desiredRampMaxCnt)
 
         resetRate = (dspClockFrequencyMHz * 1e6) / (rampMaxCnt + 1)
@@ -842,7 +889,7 @@ class SmurfTuneMixin(SmurfBase):
         HighCycle = 5 # not sure why these are hardcoded
         LowCycle = 5
         rtmClock = (dspClockFrequencyMHz * 1e6) / (HighCycle + LowCycle + 2)
-        trailRTMClock = rtmClock
+        trialRTMClock = rtmClock
 
         fullScaleRate = fraction_full_scale * resetRate
         desFastSlowStepSize = (fullScaleRate * 2**20) / rtmClock
@@ -850,10 +897,10 @@ class SmurfTuneMixin(SmurfBase):
         FastSlowStepSize = trialFastSlowStepSize
 
         trialFullScaleRate = trialFastSlowStepSize * trialRTMClock / (2**20)
-        trialResetRate = (dspClockFrequencyMHz * 1e6) / (RampMaxCnt + 1)
+        trialResetRate = (dspClockFrequencyMHz * 1e6) / (rampMaxCnt + 1)
         trialFractionFullScale = trialFullScaleRate / trialResetRate
         fractionFullScale = trialFractionFullScale
-        diffDesiredFractionFullScale = np.abs(trialFractionFullScale - frac_full_scale)
+        diffDesiredFractionFullScale = np.abs(trialFractionFullScale - fraction_full_scale)
 
         self.log("Percent full scale = {}%".format(100 * fractionFullScale), self.LOG_USER)
 
@@ -880,11 +927,15 @@ class SmurfTuneMixin(SmurfBase):
         self.set_low_cycle(LowCycle) #writelog?
         self.set_high_cycle(HighCycle)
         self.set_k_relay(KRelay)
+        self.set_ramp_max_cnt(rampMaxCnt)
+        self.set_select_ramp(SelectRamp)
         self.set_ramp_start_mode(RampStartMode)
         self.set_pulse_width(PulseWidth)
         self.set_debounce_width(DebounceWidth)
-        self.set_ramp_slop(RampSlope)
+        self.set_ramp_slope(RampSlope)
         self.set_mode_control(ModeControl)
+        self.set_fast_slow_step_size(FastSlowStepSize)
+        self.set_fast_slow_rst_value(FastSlowRstValue)
         self.set_enable_ramp_trigger(EnableRampTrigger)
 
 

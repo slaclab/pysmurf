@@ -1384,7 +1384,7 @@ class SmurfCommandMixin(SmurfBase):
         return self._caget(self.rtm_spi_root + self._fast_slow_rst_value, 
             **kwargs)
     
-    _enable_ramp_trigger = 'EnableTrampTrigger'
+    _enable_ramp_trigger = 'EnableRampTrigger'
     def set_enable_ramp_trigger(self, val, **kwargs):
         """
         """
