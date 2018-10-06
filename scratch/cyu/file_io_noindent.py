@@ -21,9 +21,11 @@ def process_data(filename, dtype=np.uint32):
     n_chan = 2 # number of stream channels
     header_size = 4 # 8 bytes in 16-bit word
 
-    rawdata = np.fromfile(filename, dtype='<f4').astype(dtype)
+    rawdata = np.fromfile(filename, dtype='<u4').astype(dtype)
 
-    rawdata = np.reshape(rawdata, (-1, n_chan)) # -1 is equiv to [] in Matlab
+    rawdata = np.transpose(np.reshape(rawdata, (n_chan,-1))) # -1 
+	# is equiv to [] in Matlab and transpose is a weird Python/Matlab
+	# incompatibility
 
     if dtype==np.uint32:
         header = rawdata[:2, :]
@@ -92,7 +94,7 @@ def decode_data(filename, swapFdF=False):
         f[neg] = f[neg] - 2**24
 
     if np.remainder(len(f),512)==0:
-        f = np.transpose(np.reshape(f, (512, -1))) # -1 is [] in Matlab
+        f = np.reshape(f, (-1, 512)) # -1 is [] in Matlab
 
     #flux_ramp_strobe_f = flux_ramp_strobe[f_first, f_last, nF] # what is this?
 
@@ -108,8 +110,7 @@ def decode_data(filename, swapFdF=False):
             df[neg] = df[neg] - 2**24
 
         if np.remainder(len(df), 512) == 0:
-            df = np.transpose(np.reshape(df, (512, -1)) * subband_halfwidth_MHz
-                / 2**23)
+            df = np.reshape(df, (-1, 512)) * subband_halfwidth_MHz/ 2**23
     else:
         df = []
 
