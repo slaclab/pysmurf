@@ -25,6 +25,9 @@ class SmurfUtilMixin(SmurfBase):
                 self.log('single_channel_readout must be 1 or 2', 
                     self.LOG_ERROR)
                 raise ValueError('single_channel_readout must be 1 or 2')
+        else: # exit single channel otherwise
+            self.set_single_channel_readout(band, 0)
+            self.set_single_channel_readout_opt2(band, 0)
 
         # Set IQstream
         if IQstream==1:
@@ -54,7 +57,7 @@ class SmurfUtilMixin(SmurfBase):
         char_array = [ord(c) for c in data_filename] # convert to ascii
         write_data = np.zeros(300, dtype=int)
         for j in np.arange(len(char_array)):
-            write_data[j] = c[j]
+            write_data[j] = char_array[j]
 
         self.set_streamdatawriter_datafile(write_data) # write this
 
@@ -69,7 +72,7 @@ class SmurfUtilMixin(SmurfBase):
         done=False
         while not done:
             done=True
-            for k in range(5):
+            for k in range(4):
                 wr_addr = self.get_waveform_wr_addr(0)
                 empty = self.get_waveform_empty(k)
                 if not empty:
@@ -84,7 +87,7 @@ class SmurfUtilMixin(SmurfBase):
 
         self.log('Done taking data', self.LOG_USER)
 
-        if single_channel_readout==1:
+        if single_channel_readout == 1:
             f, df, sync = self.decode_single_channel(data_filename)
         else:
             f, df, sync = self.decode_data(data_filename)
@@ -113,7 +116,7 @@ class SmurfUtilMixin(SmurfBase):
 
         rawdata = np.fromfile(filename, dtype='<u4').astype(dtype)
 
-        rawdata = np.reshape(rawdata, (n_chan, -1)) # -1 is equiv to [] in Matlab
+        rawdata = np.transpose(np.reshape(rawdata, (n_chan, -1))) # -1 is equiv to [] in Matlab
 
         if dtype==np.uint32:
             header = rawdata[:2, :]
@@ -199,9 +202,9 @@ class SmurfUtilMixin(SmurfBase):
                 df[neg] = df[neg] - 2**24
 
             if np.remainder(len(df), 512) == 0:
-                df = np.reshape(df, (-1, 512) * subband_halfwidth_MHz / 2**23)
+                df = np.reshape(df, (-1, 512)) * subband_halfwidth_MHz / 2**23
             else:
-                self.log('Number of points not a multkple of 512. Cannot decode', 
+                self.log('Number of points not a multiple of 512. Cannot decode', 
                     self.LOG_ERROR)
         else:
             df = []
