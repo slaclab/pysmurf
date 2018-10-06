@@ -111,9 +111,9 @@ class SmurfUtilMixin(SmurfBase):
         n_chan = 2 # number of stream channels
         header_size = 4 # 8 bytes in 16-bit word
 
-        rawdata = np.fromfile(filename, dtype='<f4').astype(dtype)
+        rawdata = np.fromfile(filename, dtype='<u4').astype(dtype)
 
-        rawdata = np.reshape(rawdata, (-1, n_chan)) # -1 is equiv to [] in Matlab
+        rawdata = np.reshape(rawdata, (n_chan, -1)) # -1 is equiv to [] in Matlab
 
         if dtype==np.uint32:
             header = rawdata[:2, :]
@@ -156,7 +156,7 @@ class SmurfUtilMixin(SmurfBase):
 
         subband_halfwidth_MHz = 4.8 # can we remove this hardcode
         if swapFdF:
-            nF = 1
+            nF = 1 # weirdly, I'm not sure this information gets used
             nDF = 0
         else:
             nF = 0
@@ -181,7 +181,7 @@ class SmurfUtilMixin(SmurfBase):
             f[neg] = f[neg] - 2**24
 
         if np.remainder(len(f),512)==0:
-            f = np.transpose(np.reshape(f, (512, -1))) # -1 is [] in Matlab
+            f = np.reshape(f, (-1, 512)) # -1 is [] in Matlab
         else:
             self.log('Number of points not a multiple of 512. Cannot decode',
                 self.LOG_ERROR)
@@ -199,8 +199,7 @@ class SmurfUtilMixin(SmurfBase):
                 df[neg] = df[neg] - 2**24
 
             if np.remainder(len(df), 512) == 0:
-                df = np.transpose(np.reshape(df, (512, -1) * subband_halfwidth_MHz
-                    / 2**23))
+                df = np.reshape(df, (-1, 512) * subband_halfwidth_MHz / 2**23)
             else:
                 self.log('Number of points not a multkple of 512. Cannot decode', 
                     self.LOG_ERROR)
