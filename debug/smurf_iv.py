@@ -30,20 +30,13 @@ class SmurfIVMixin(SmurfBase):
             channels = self.which_on(band)
         n_channel = self.get_number_channels(band)
 
-        # drive high current through the TES to attempt to drive nomral
-        self.set_tes_bias_bipolar(4, 19.9)
-        time.sleep(.1)
-        self.log('Driving high current through TES. ' + \
-            'Waiting {}'.format(high_current_wait))
-        self.set_cryo_card_relays(0x10004)
-        time.sleep(high_current_wait)
-        self.set_cryo_card_relays(0x10000)
-        time.sleep(.1)
-
-        self.log('Staring to take IV.', self.LOG_USER)
-
         if bias is None:
             bias = np.arange(bias_high, bias_low, -bias_step)
+
+        self.overbias_tes(4, overbias_wait=.5, tes_bias=np.max(bias), 
+            cool_wait=1.)
+
+        self.log('Staring to take IV.', self.LOG_USER)
         self.log('Starting TES bias ramp.', self.LOG_USER)
 
         self.set_tes_bias_bipolar(4, bias[0])

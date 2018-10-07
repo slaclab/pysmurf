@@ -12,8 +12,8 @@ class SmurfTuneMixin(SmurfBase):
     """
 
     def tune_band(self, band, freq=None, resp=None, n_samples=2**18, 
-        make_plot=True, plot_chans = [], save_plot=True, save_data=True, grad_cut=.05,
-        freq_min=-2.5E8, freq_max=2.5E8, amp_cut=.25):
+        make_plot=True, plot_chans = [], save_plot=True, save_data=True, 
+        grad_cut=.05, freq_min=-2.5E8, freq_max=2.5E8, amp_cut=.25):
         """
         This does the full_band_resp, which takes the raw resonance data.
         It then finds the where the reseonances are. Using the resonance
@@ -33,8 +33,8 @@ class SmurfTuneMixin(SmurfBase):
             Default is 2^18.
         make_plot (bool): Whether to make plots. This is slow, so if you want
             to tune quickly, set to False. Default True.
-	plot_chans (list): if making plots, which channels to plot. If empty,
-	    will just plot all of them
+        plot_chans (list): if making plots, which channels to plot. If empty,
+	       will just plot all of them
         save_plot (bool): Whether to save the plot. If True, it will close the
             plots before they are shown. If False, plots will be brought to the
             screen.

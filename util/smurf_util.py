@@ -974,8 +974,10 @@ class SmurfUtilMixin(SmurfBase):
             asu_amp_Vd_series_resistor)
 
     def overbias_tes(self, dac, overbias_voltage=19.9, overbias_wait=0.5,
-        tes_bias=19.9,cool_wait = 20.):
+        tes_bias=19.9, cool_wait=20.):
         """
+        Warning: This is horribly hardcoded. Needs a fix soon.
+
         Args:
         -----
         dac (int): The TES dac pair (Note band 3 is DAC 4)
@@ -988,15 +990,17 @@ class SmurfUtilMixin(SmurfBase):
             Default is .5
         tes_bias (float): The value of the TES bias when put back in low current
             mode. Default is 19.9.
-        cool_wait (float): The time to wait after setting the TES bias for transients
-            to die off
+        cool_wait (float): The time to wait after setting the TES bias for 
+            transients to die off.
         """
         # drive high current through the TES to attempt to drive nomral
         self.set_tes_bias_bipolar(4, overbias_voltage)
         time.sleep(.1)
-        self.set_cryo_card_relays(0x10004)
+        self.set_cryo_card_relays(0x10004, write_log=True)
+        self.log('Driving high current through TES. ' + \
+            'Waiting {}'.format(overbias_wait), self.LOG_USER)
         time.sleep(overbias_wait)
-        self.set_cryo_card_relays(0x10000)
+        self.set_cryo_card_relays(0x10000, write_log=True)
         time.sleep(.1)
         self.set_tes_bias_bipolar(4, tes_bias)
         self.log('Waiting %.2f seconds to cool' % (cool_wait), self.LOG_USER)
