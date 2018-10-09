@@ -32,7 +32,8 @@ class CryoCard():
       self.busy_retry = 0  # counts number of retries due to relay busy status    
  
    def do_read(self, address):
-      epics.caput(self.writepv, cmd_make(1, address, 0)) #need double write to make sure buffer is updated
+      #need double write to make sure buffer is updated
+      epics.caput(self.writepv, cmd_make(1, address, 0)) 
       for self.retry in range(0, self.max_retries):
          epics.caput(self.writepv, cmd_make(1, address, 0)) 
          data = epics.caget(self.readpv)
