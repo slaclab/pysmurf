@@ -79,8 +79,9 @@ class SmurfTuneMixin(SmurfBase):
         resonances = {}
         for i, p in enumerate(peaks):
             eta, eta_scaled, eta_phase_deg, r2, eta_mag, latency=self.eta_fit(freq, 
-                resp, p, .2e6, 614.4/128, make_plot=make_plot, plot_chans = plot_chans,
-                save_plot=save_plot, res_num=i, band=band, timestamp=timestamp)
+                resp, p, .2e6, 614.4/128, make_plot=make_plot, 
+                plot_chans=plot_chans, save_plot=save_plot, res_num=i, 
+                band=band, timestamp=timestamp)
 
             resonances[i] = {
                 'freq': p,
@@ -116,7 +117,7 @@ class SmurfTuneMixin(SmurfBase):
         return resonances
 
 
-    def full_band_resp(self, band, n_samples=2**18, make_plot=False, 
+    def full_band_resp(self, band, n_scan=3, n_samples=2**18, make_plot=False, 
         save_plot=True, save_data=False, timestamp=None):
         """
         Injects high amplitude noise with known waveform. The ADC measures it.
@@ -141,41 +142,45 @@ class SmurfTuneMixin(SmurfBase):
         if timestamp is None:
             timestamp = self.get_timestamp
 
-        self.set_trigger_hw_arm(0, write_log=True)  # Default setup sets to 1
+        resp = np.zeros((n_scan, n_samples/2), dtype=complex)
+        for n in np.arange(n_scan):
+            self.set_trigger_hw_arm(0, write_log=True)  # Default setup sets to 1
 
-        self.set_noise_select(band, 1, wait_done=True, write_log=True)
-        try:
-            adc = self.read_adc_data(band, n_samples, hw_trigger=True)
-        except Exception:
-            self.log('ADC read failed. Trying one more time', self.LOG_ERROR)
-            adc = self.read_adc_data(band, n_samples, hw_trigger=True)
-        time.sleep(.1)  # Need to wait, otherwise dac call interferes with adc
+            self.set_noise_select(band, 1, wait_done=True, write_log=True)
+            try:
+                adc = self.read_adc_data(band, n_samples, hw_trigger=True)
+            except Exception:
+                self.log('ADC read failed. Trying one more time', self.LOG_ERROR)
+                adc = self.read_adc_data(band, n_samples, hw_trigger=True)
+            time.sleep(.05)  # Need to wait, otherwise dac call interferes with adc
 
-        try:
-            dac = self.read_dac_data(band, n_samples, hw_trigger=True)
-        except:
-            self.log('ADC read failed. Trying one more time', self.LOG_ERROR)
-            dac = self.read_dac_data(band, n_samples, hw_trigger=True)
-        time.sleep(.05)
+            try:
+                dac = self.read_dac_data(band, n_samples, hw_trigger=True)
+            except:
+                self.log('ADC read failed. Trying one more time', self.LOG_ERROR)
+                dac = self.read_dac_data(band, n_samples, hw_trigger=True)
+            time.sleep(.05)
 
-        self.set_noise_select(band, 0, wait_done=True, write_log=True)
+            self.set_noise_select(band, 0, wait_done=True, write_log=True)
 
-        if band == 2:
-            dac = np.conj(dac)
+            if band == 2:
+                dac = np.conj(dac)
 
-        # To do : Implement cross correlation to get shift
+            # To do : Implement cross correlation to get shift
 
-        f, p_dac = signal.welch(dac, fs=614.4E6, nperseg=n_samples/2)
-        f, p_adc = signal.welch(adc, fs=614.4E6, nperseg=n_samples/2)
-        f, p_cross = signal.csd(dac, adc, fs=614.4E6, nperseg=n_samples/2)
+            f, p_dac = signal.welch(dac, fs=614.4E6, nperseg=n_samples/2)
+            f, p_adc = signal.welch(adc, fs=614.4E6, nperseg=n_samples/2)
+            f, p_cross = signal.csd(dac, adc, fs=614.4E6, nperseg=n_samples/2)
 
-        idx = np.argsort(f)
-        f = f[idx]
-        p_dac = p_dac[idx]
-        p_adc = p_adc[idx]
-        p_cross = p_cross[idx]
+            idx = np.argsort(f)
+            f = f[idx]
+            p_dac = p_dac[idx]
+            p_adc = p_adc[idx]
+            p_cross = p_cross[idx]
 
-        resp = p_cross / p_dac
+            resp[n] = p_cross / p_dac
+
+        resp = np.mean(resp, axis=0)
 
         if make_plot:
             import matplotlib.pyplot as plt
@@ -379,11 +384,11 @@ class SmurfTuneMixin(SmurfBase):
         return freq[peak]
 
     def find_flag_blocks(self, flag, minimum=None, min_gap=None):
-        """                                                                                  
-        Find blocks of adjacent points in a boolean array with the same value.               
-                                                                                             
-        Arguments                                                                            
-        ---------                                                                            
+        """ 
+        Find blocks of adjacent points in a boolean array with the same value. 
+
+        Arguments 
+        --------- 
         flag : bool, array_like 
             The array in which to find blocks 
         minimum : int (optional)
@@ -768,7 +773,8 @@ class SmurfTuneMixin(SmurfBase):
             freq, res = fast_eta_scan(band, sb)
 
 
-    def tracking_setup(self, band, channel, reset_rate_khz=4., write_log=False, do_Plots = False):
+    def tracking_setup(self, band, channel, reset_rate_khz=4., write_log=False, 
+        do_Plots = False):
         """
         Args:
         -----
@@ -784,13 +790,13 @@ class SmurfTuneMixin(SmurfBase):
         # To do: Move to experiment config
         flux_ramp_full_scale_to_phi0 = 2.825/0.75
 
-        lms_delay   = 6  # nominally match refPhaseDelay
-        lms_gain    = 7  # incrases by power of 2, can also use etaMag to fine tune
+        lms_delay = 6  # nominally match refPhaseDelay
+        lms_gain = 7  # incrases by power of 2, can also use etaMag to fine tune
         lms_enable1 = 1  # 1st harmonic tracking
         lms_enable2 = 1  # 2nd harmonic tracking
         lms_enable3 = 1  # 3rd harmonic tracking
-        lms_rst_dly  = 31  # disable error term for 31 2.4MHz ticks after reset
-        lms_freq_hz  = flux_ramp_full_scale_to_phi0 * fraction_full_scale*\
+        lms_rst_dly = 31  # disable error term for 31 2.4MHz ticks after reset
+        lms_freq_hz = flux_ramp_full_scale_to_phi0 * fraction_full_scale*\
             (reset_rate_khz*1e3)  # fundamental tracking frequency guess
         self.log("Using lmsFreqHz = {}".format(lms_freq_hz), self.LOG_USER)
         lms_delay2    = 255  # delay DDS counter resets, 307.2MHz ticks
@@ -833,6 +839,7 @@ class SmurfTuneMixin(SmurfBase):
             "{} kHz".format(np.mean(f_span[channels_on]) * 1e3), self.LOG_USER)
         self.log("Flux ramp demod. median p2p swing = "+
             "{} kHz".format(np.median(f_span[channels_on]) * 1e3), self.LOG_USER)
+
         if do_Plots:
             plt.figure()
             plt.hist(df_std[channels_on] * 1e3)            
@@ -905,20 +912,27 @@ class SmurfTuneMixin(SmurfBase):
         trialResetRate = (dspClockFrequencyMHz * 1e6) / (rampMaxCnt + 1)
         trialFractionFullScale = trialFullScaleRate / trialResetRate
         fractionFullScale = trialFractionFullScale
-        diffDesiredFractionFullScale = np.abs(trialFractionFullScale - fraction_full_scale)
+        diffDesiredFractionFullScale = np.abs(trialFractionFullScale - 
+            fraction_full_scale)
 
-        self.log("Percent full scale = {}%".format(100 * fractionFullScale), self.LOG_USER)
+        self.log("Percent full scale = {}%".format(100 * fractionFullScale), 
+            self.LOG_USER)
 
         if diffDesiredFractionFullScale > df_range:
-            raise ValueError("Difference from desired fraction of full scale "+
-                "exceeded! {} vs acceptable {}".format(diffDesiredFractionFullScale, df_range))
+            raise ValueError("Difference from desired fraction of full scale " +
+                "exceeded! {}".format(diffDesiredFractionFullScale) +
+                " vs acceptable {}".format(df_range))
             self.log("Difference from desired fraction of full scale exceeded!" +
-                " P{} vs acceptable {}".format(diffDesiredFractionFullScale, df_range), 
+                " P{} vs acceptable {}".format(diffDesiredFractionFullScale, 
+                    df_range), 
                 self.LOG_USER)
 
         if rtmClock < 2e6:
-            raise ValueError("RTM clock rate = {} is too low (SPI clock runs at 1MHz)".format(rtmClock * 1e-6))
-            self.log("RTM clock rate = {} is too low (SPI clock runs at 1MHz)".format(rtmClock * 1e-6), self.LOG_USER)
+            raise ValueError("RTM clock rate = "+
+                "{} is too low (SPI clock runs at 1MHz)".format(rtmClock*1e-6))
+            self.log("RTM clock rate = "+
+                "{} is too low (SPI clock runs at 1MHz)".format(rtmClock * 1e-6), 
+                self.LOG_USER)
             return
 
         FastSlowRstValue = np.floor((2**20) * (1 - fractionFullScale)/2)

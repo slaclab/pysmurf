@@ -116,7 +116,8 @@ class SmurfUtilMixin(SmurfBase):
 
         rawdata = np.fromfile(filename, dtype='<u4').astype(dtype)
 
-        rawdata = np.transpose(np.reshape(rawdata, (n_chan, -1))) # -1 is equiv to [] in Matlab
+        # -1 is equiv to [] in Matlab
+        rawdata = np.transpose(np.reshape(rawdata, (n_chan, -1))) 
 
         if dtype==np.uint32:
             header = rawdata[:2, :]
@@ -184,7 +185,8 @@ class SmurfUtilMixin(SmurfBase):
             f[neg] = f[neg] - 2**24
 
         if np.remainder(len(f),512)==0:
-            f = np.reshape(f, (-1, 512)) * subband_halfwidth_MHz / 2**23 # -1 is [] in Matlab
+            # -1 is [] in Matlab
+            f = np.reshape(f, (-1, 512)) * subband_halfwidth_MHz / 2**23 
         else:
             self.log('Number of points not a multiple of 512. Cannot decode',
                 self.LOG_ERROR)
@@ -440,9 +442,10 @@ class SmurfUtilMixin(SmurfBase):
         if not hw_trigger:
             self.set_trigger_daq(1, write_log=True)
         else:
-            self._caput(self.epics_root + 
-                ':AMCc:FpgaTopLevel:AppTop:DaqMuxV2[0]:ArmHwTrigger', 1, 
-                write_log=True)
+            self.set_arm_hw_trigger(1, write_log=True)
+            # self._caput(self.epics_root + 
+            #     ':AMCc:FpgaTopLevel:AppTop:DaqMuxV2[0]:ArmHwTrigger', 1, 
+            #     write_log=True)
         time.sleep(.1)
         sg.wait()
 
@@ -761,8 +764,7 @@ class SmurfUtilMixin(SmurfBase):
 
         n_subbands = self.get_number_sub_bands(band)
         n_channels = self.get_number_channels(band)
-        #n_subbands = 128 # just for testing while not hooked up to epics server
-        #n_channels = 512
+
         n_chanpersubband = n_channels / n_subbands
 
         if channel > n_channels:
@@ -941,13 +943,6 @@ class SmurfUtilMixin(SmurfBase):
         self.set_50k_amp_gate_voltage(bias_50k, **kwargs)
 
 
-    def get_timestamp(self):
-        """
-        Returns:
-        timestampe (str): Timestamp as a string
-        """
-        return '{:10}'.format(int(time.time()))
-
     def get_hemt_drain_current(self):
         """
         Returns:
@@ -972,6 +967,7 @@ class SmurfUtilMixin(SmurfBase):
         asu_amp_Vd_series_resistor=10 #Ohm
         asu_amp_Id=2.*1000.*(self.get_cryo_card_50k_bias()/
             asu_amp_Vd_series_resistor)
+
 
     def overbias_tes(self, dac, overbias_voltage=19.9, overbias_wait=0.5,
         tes_bias=19.9, cool_wait=20.):

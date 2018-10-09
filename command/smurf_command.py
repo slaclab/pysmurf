@@ -32,7 +32,7 @@ class SmurfCommandMixin(SmurfBase):
                 self.log('Waiting {:3.2f} seconds before...'.format(wait_before),
                     self.LOG_USER)
             time.sleep(wait_before)
-            
+
         if write_log:
             log_str = 'caput ' + cmd + ' ' + str(val)
             if self.offline:
@@ -1206,6 +1206,12 @@ class SmurfCommandMixin(SmurfBase):
         """
         self._caget(self.daq_mux_root + self._trigger_daq, 
             **kwargs)
+
+    _arm_hw_trigger = "ArmHwTrigger"
+    def set_arm_hw_trigger(self, val, **kwargs):
+        """
+        """
+        self._caput(self.daq_mux_root + self._arm_hw_trigger, val, **kwargs)
 
     _trigger_hw_arm = 'TriggerHwArm'
     def set_trigger_hw_arm(self, val, **kwargs):

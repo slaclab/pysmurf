@@ -150,7 +150,6 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
                 smurf_init_config[band_str]['synthesisScale'],
                 write_log=True, **kwargs)
 
-
             for dmx in np.array(smurf_init_config[band_str]["data_out_mux"]):
                 self.set_data_out_mux(int(dmx), "UserData", write_log=True,
                     **kwargs)
