@@ -57,8 +57,9 @@ class SmurfNoiseMixin(SmurfBase):
 
         self.log('Plotting channels {}'.format(channel), self.LOG_USER)
 
-        import matplotlib.pyplot as plt
-        plt.rcParams["patch.force_edgecolor"] = True
+        if make_summary_plot or make_channel_plot:
+            import matplotlib.pyplot as plt
+            plt.rcParams["patch.force_edgecolor"] = True
 
         noise_floors = np.zeros((len(low_freq), n_channel))*np.nan
         wl_list = []
@@ -87,9 +88,11 @@ class SmurfNoiseMixin(SmurfBase):
                     f_knee_list.append(f_knee)
                     n_list.append(n)
                     good_fit = True
-                    print('%i. Band %i, ch. %i: white noise = %.3e pA/rtHz' % (c,band,ch,wl))
+                    self.log('%i. Band %i, ch. %i: white noise = %.3e pA/rtHz'\
+                        % (c,band,ch,wl), self.LOG_INFO)
                 else:
-                    print('%i. Band %i, ch. %i: unphysical white-noise fit' % (c,band,ch))
+                    self.log('%i. Band %i, ch. %i: unphysical white-noise fit' \
+                        % (c,band,ch), self.LOG_INFO)
             except:
 
                 self.log('Band %i, ch. %i: bad fit to noise model' % (band,ch))
@@ -143,7 +146,7 @@ class SmurfNoiseMixin(SmurfBase):
         if make_summary_plot:
             bins = np.arange(0,351,10)
             for i, (l, h) in enumerate(zip(low_freq, high_freq)):
-                fig, ax = plt.subplots(1, figsize=(8,6))
+                fig, ax = plt.subplots(1, figsize=(10,6))
                 ax.hist(noise_floors[i,~np.isnan(noise_floors[i])], bins=bins)
                 ax.text(0.03, 0.95, '{:3.2f}'.format(l) + '-' +
                     '{:3.2f} Hz'.format(h),
@@ -177,7 +180,9 @@ class SmurfNoiseMixin(SmurfBase):
                 ax[1].hist(n_list)
                 ax[1].set_xlabel('Noise index')
                 ax[1].set_title('median = %.3e' % (n_median))
-                ax[2].hist(f_knee_list,bins=np.logspace(np.floor(np.log10(np.min(f_knee_list))),np.ceil(np.log10(np.max(f_knee_list))), 20))
+                ax[2].hist(f_knee_list,
+                    bins=np.logspace(np.floor(np.log10(np.min(f_knee_list))),
+                        np.ceil(np.log10(np.max(f_knee_list))), 20))
                 ax[2].set_xlabel('Knee frequency')
                 ax[2].set_xscale('log')
                 ax[2].set_title('median = %.3e Hz' % (f_knee_median))

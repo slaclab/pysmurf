@@ -11,8 +11,9 @@ class SmurfTuneMixin(SmurfBase):
     This contains all the tuning scripts
     """
 
-    def tune_band(self, band, freq=None, resp=None, n_samples=2**18, 
-        make_plot=True, plot_chans = [], save_plot=True, save_data=True, 
+    def tune_band(self, band, freq=None, resp=None, n_samples=2**19, 
+        make_plot=False, plot_chans = [], save_plot=True, save_data=True, 
+        make_subband_plot=False,
         grad_cut=.05, freq_min=-2.5E8, freq_max=2.5E8, amp_cut=.25):
         """
         This does the full_band_resp, which takes the raw resonance data.
@@ -64,10 +65,6 @@ class SmurfTuneMixin(SmurfBase):
             self.log('Running full band resp')
             freq, resp = self.full_band_resp(band, n_samples=n_samples,
                 make_plot=make_plot, save_data=save_data, timestamp=timestamp)
-
-        make_subband_plot = False
-        #if make_plot:
-            #make_subband_plot = True
 
         # Find peaks
         peaks = self.find_peak(freq, resp, band=band, make_plot=make_plot, 
@@ -142,7 +139,7 @@ class SmurfTuneMixin(SmurfBase):
         if timestamp is None:
             timestamp = self.get_timestamp
 
-        resp = np.zeros((n_scan, n_samples/2), dtype=complex)
+        resp = np.zeros((int(n_scan), int(n_samples/2)), dtype=complex)
         for n in np.arange(n_scan):
             self.set_trigger_hw_arm(0, write_log=True)  # Default setup sets to 1
 
@@ -179,8 +176,6 @@ class SmurfTuneMixin(SmurfBase):
             p_cross = p_cross[idx]
 
             resp[n] = p_cross / p_dac
-
-        resp = np.mean(resp, axis=0)
 
         if make_plot:
             import matplotlib.pyplot as plt
@@ -532,7 +527,7 @@ class SmurfTuneMixin(SmurfBase):
                 self.log('Making plot for band' + 
                     ' {} res {:03}'.format(band, res_num))
                 self.plot_eta_fit(freq[left:right], resp[left:right], 
-                    eta=eta, eta_mag=eta_mag, eta_angle=eta_angle, r2=r2,
+                    eta=eta, eta_mag=eta_mag, r2=r2,
                     save_plot=save_plot, timestamp=timestamp, band=band,
                     res_num=res_num)
             else:
