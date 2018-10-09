@@ -82,12 +82,16 @@ class SmurfNoiseMixin(SmurfBase):
             try:
                 popt,pcov,f_fit,Pxx_fit = self.analyze_psd(f,Pxx)
                 wl,n,f_knee = popt
-                wl_list.append(wl)
-                f_knee_list.append(f_knee)
-                n_list.append(n)
-                good_fit = True
+                if wl > 1. or f_knee < 1e-3:
+                    wl_list.append(wl)
+                    f_knee_list.append(f_knee)
+                    n_list.append(n)
+                    good_fit = True
+                    print('%i. Band %i, ch. %i: white noise = %.3e pA/rtHz' % (c,band,ch,wl))
+                else:
+                    print('%i. Band %i, ch. %i: unphysical white-noise fit' % (c,band,ch))
             except:
-                print('Band %i, ch. %i: bad fit to noise model' % (band,ch))
+                print('%i. Band %i, ch. %i: bad fit to noise model' % (c,band,ch))
 
             for i, (l, h) in enumerate(zip(low_freq, high_freq)):
                 idx = np.logical_and(f>l, f<h)
@@ -116,7 +120,7 @@ class SmurfNoiseMixin(SmurfBase):
                 ax[1].set_xscale('log')
 
                 #ax[1].axhline(noise_floors[-1,ch], color='k', linestyle='--')
-                print(noise_floors[-1, ch])
+                #print(c,ch,noise_floors[-1, ch])
 
                 ax[0].set_title('Band {} Ch {:03}'.format(band, ch))
 
@@ -155,16 +159,25 @@ class SmurfNoiseMixin(SmurfBase):
                     plt.close()
 
             if len(wl_list) > 0:
+                wl_median = np.median(wl_list)
+                n_median = np.median(n_list)
+                f_knee_median = np.median(f_knee_list)
+
                 n_fit = len(wl_list)
                 n_attempt = len(channel)
-                fig,ax = plt.subplots(1,3)
+                fig,ax = plt.subplots(1,3,figsize = (10,6))
                 fig.suptitle('%s: band %i noise parameters (%i fit of %i attempted)' % (basename,band,n_fit,n_attempt))
-                ax[0].hist(wl_list)
+                ax[0].hist(wl_list,bins=np.logspace(np.floor(np.log10(np.min(wl_list))),np.ceil(np.log10(np.max(wl_list))), 20))
                 ax[0].set_xlabel('White-noise level (pA/rtHz)')
+                ax[0].set_xscale('log')
+                ax[0].set_title('median = %.3e pA/rtHz' % (wl_median))
                 ax[1].hist(n_list)
                 ax[1].set_xlabel('Noise index')
-                ax[2].hist(f_knee_list)
+                ax[1].set_title('median = %.3e' % (n_median))
+                ax[2].hist(f_knee_list,bins=np.logspace(np.floor(np.log10(np.min(f_knee_list))),np.ceil(np.log10(np.max(f_knee_list))), 20))
                 ax[2].set_xlabel('Knee frequency')
+                ax[2].set_xscale('log')
+                ax[2].set_title('median = %.3e Hz' % (f_knee_median))
                 plt.tight_layout()
                 fig.subplots_adjust(top = 0.9)
                 noise_params_hist_fname = basename + '_b{}_noise_params.png'.format(band)
@@ -366,7 +379,7 @@ class SmurfNoiseMixin(SmurfBase):
                 ax.set_xscale('log')
                 ax.set_yscale('log')
                 ax.legend()
-                ax.set_title('Channel {:03}'.format(ch))
+                ax.set_title(basename + ' Channel {:03}'.format(ch))
 
             if show_plot:
                 plt.show()
