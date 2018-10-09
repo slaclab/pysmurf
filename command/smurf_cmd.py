@@ -59,7 +59,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     S = pysmurf.SmurfControl(cfg_file=os.path.join(os.path.dirname(__file__), 
-        '..', 'cfg_files' , cfg_name), smurf_cmd_mode=True, setup=False)
+        '..', 'cfg_files' , cfg_filename), smurf_cmd_mode=True, setup=False)
 
 
     if args.log is not None:
@@ -79,6 +79,14 @@ if __name__ == "__main__":
                       bias_step=args.iv_bias_step)
 
     if args.tune:
-        S.tune_band(args.tune_band, make_plot=args.tune_make_plot)
+        # Load values from the cfg file
+        tune_cfg = S.config.get("tune_band")
+        S.tune_band(args.tune_band, make_plot=args.tune_make_plot,
+            n_samples=tune_cfg.get('n_samples'), 
+            freq_max=tune_cfg.get('freq_max'),
+            freq_min=tune_cfg.get('freq_min'),
+            grad_cut=tune_cfg.get('grad_cut'),
+            amp_cut=tune.cfg.get('tune_cut'))
+
 
     

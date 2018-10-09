@@ -78,7 +78,7 @@ class SmurfTuneMixin(SmurfBase):
         # Eta scans
         resonances = {}
         for i, p in enumerate(peaks):
-            eta, eta_scaled, eta_phase_deg, r2, eta_mag, latency = self.eta_fit(freq, 
+            eta, eta_scaled, eta_phase_deg, r2, eta_mag, latency=self.eta_fit(freq, 
                 resp, p, .2e6, 614.4/128, make_plot=make_plot, plot_chans = plot_chans,
                 save_plot=save_plot, res_num=i, band=band, timestamp=timestamp)
 
@@ -268,9 +268,6 @@ class SmurfTuneMixin(SmurfBase):
         amp = np.abs(resp)
 
         grad_loc = np.array(grad > grad_cut)
-
-        # med = pd.rolling_median(grad, 100, center=True)
-        # Really annoying - pandas has several implementations of rolling_median
 
         window = 500
         import pandas as pd
@@ -506,7 +503,8 @@ class SmurfTuneMixin(SmurfBase):
         
             
         eta = (freq[right] - freq[left]) / (resp[right] - resp[left])
-        latency = (np.unwrap(np.angle(resp))[-1] - np.unwrap(np.angle(resp))[0]) / (freq[-1] - freq[0])/2/np.pi
+        latency = (np.unwrap(np.angle(resp))[-1] - \
+            np.unwrap(np.angle(resp))[0]) / (freq[-1] - freq[0])/2/np.pi
         eta_mag = np.abs(eta)
         eta_angle = np.angle(eta)
         eta_scaled = eta_mag * 1e-6/ subbandHalfWidth # convert to MHz
@@ -526,17 +524,20 @@ class SmurfTuneMixin(SmurfBase):
     
         if make_plot:
             if len(plot_chans) == 0:
-                self.log('Making plot for band {} res {:03}'.format(band, res_num))
+                self.log('Making plot for band' + 
+                    ' {} res {:03}'.format(band, res_num))
                 self.plot_eta_fit(freq[left:right], resp[left:right], 
                     eta=eta, eta_mag=eta_mag, eta_angle=eta_angle, r2=r2,
                     save_plot=save_plot, timestamp=timestamp, band=band,
                     res_num=res_num)
             else:
                 if res_num in plot_chans:
-                    self.log('Making plot for band {} res {:03}'.format(band, res_num))
-                    self.plot_eta_fit(freq[left:right], resp[left:right], eta=eta, 
-                        eta_mag=eta_mag, eta_phase_deg=eta_phase_deg, r2=r2, save_plot=save_plot,
-                        timestamp=timestamp, band=band, res_num=res_num)
+                    self.log('Making plot for band ' + 
+                        '{} res {:03}'.format(band, res_num))
+                    self.plot_eta_fit(freq[left:right], resp[left:right], 
+                        eta=eta, eta_mag=eta_mag, eta_phase_deg=eta_phase_deg, 
+                        r2=r2, save_plot=save_plot, timestamp=timestamp, 
+                        band=band, res_num=res_num)
 
         return eta, eta_scaled, eta_phase_deg, r2, eta_mag, latency
 
@@ -823,11 +824,15 @@ class SmurfTuneMixin(SmurfBase):
         channels_on = list(set(np.where(df_std > 0)[0]) & set(self.which_on(band)))
         self.log("Number of channels on = {}".format(len(channels_on)), 
             self.LOG_USER)
-        self.log("Flux ramp demod. mean error std = {} kHz".format(np.mean(df_std[channels_on]) * 1e3), self.LOG_USER)
-        self.log("Flux ramp demod. median error std = {} kHz".format(np.median(df_std[channels_on]) * 1e3), self.LOG_USER)
+        self.log("Flux ramp demod. mean error std = "+ 
+            "{} kHz".format(np.mean(df_std[channels_on]) * 1e3), self.LOG_USER)
+        self.log("Flux ramp demod. median error std = "+
+            "{} kHz".format(np.median(df_std[channels_on]) * 1e3), self.LOG_USER)
         f_span = np.max(f,0) - np.min(f,0)
-        self.log("Flux ramp demod. mean p2p swing = {} kHz".format(np.mean(f_span[channels_on]) * 1e3), self.LOG_USER)
-        self.log("Flux ramp demod. median p2p swing = {} kHz".format(np.median(f_span[channels_on]) * 1e3), self.LOG_USER)
+        self.log("Flux ramp demod. mean p2p swing = "+
+            "{} kHz".format(np.mean(f_span[channels_on]) * 1e3), self.LOG_USER)
+        self.log("Flux ramp demod. median p2p swing = "+
+            "{} kHz".format(np.median(f_span[channels_on]) * 1e3), self.LOG_USER)
         if do_Plots:
             plt.figure()
             plt.hist(df_std[channels_on] * 1e3)            
@@ -905,8 +910,11 @@ class SmurfTuneMixin(SmurfBase):
         self.log("Percent full scale = {}%".format(100 * fractionFullScale), self.LOG_USER)
 
         if diffDesiredFractionFullScale > df_range:
-            raise ValueError("Difference from desired fraction of full scale exceeded! {} vs acceptable {}".format(diffDesiredFractionFullScale, df_range))
-            self.log("Difference from desired fraction of full scale exceeded! P{} vs acceptable {}".format(diffDesiredFractionFullScale, df_range), self.LOG_USER)
+            raise ValueError("Difference from desired fraction of full scale "+
+                "exceeded! {} vs acceptable {}".format(diffDesiredFractionFullScale, df_range))
+            self.log("Difference from desired fraction of full scale exceeded!" +
+                " P{} vs acceptable {}".format(diffDesiredFractionFullScale, df_range), 
+                self.LOG_USER)
 
         if rtmClock < 2e6:
             raise ValueError("RTM clock rate = {} is too low (SPI clock runs at 1MHz)".format(rtmClock * 1e-6))

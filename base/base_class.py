@@ -41,8 +41,6 @@ class SmurfBase(object):
         if self.offline == True:
             self.log('Offline mode')
 
-        # Constants
-        self.pA_per_phi0 = 9.E-6
 
         # Setting paths for easier commands - Is there a better way to do this
         # than just hardcoding paths? This needs to be cleaned up somehow

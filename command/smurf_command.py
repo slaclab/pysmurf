@@ -32,10 +32,14 @@ class SmurfCommandMixin(SmurfBase):
                 self.log('Waiting {:3.2f} seconds before...'.format(wait_before),
                     self.LOG_USER)
             time.sleep(wait_before)
+            
         if write_log:
-            self.log('caput ' + cmd + ' ' + str(val), log_level)
+            log_str = 'caput ' + cmd + ' ' + str(val)
+            if self.offline:
+                log_str = 'OFFLINE - ' + log_str
+            self.log(log_str, log_level)
 
-        if execute:
+        if execute and not self.offline:
             epics.caput(cmd, val, wait=wait_done)
 
         if wait_after is not None:
@@ -64,7 +68,7 @@ class SmurfCommandMixin(SmurfBase):
         if write_log:
             self.log('caput ' + cmd, log_level)
 
-        if execute:
+        if execute and not self.offline:
             ret = epics.caget(cmd, count=count)
             if write_log:
                 self.log(ret)

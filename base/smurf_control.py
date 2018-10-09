@@ -14,8 +14,7 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
     '''
     Base class for controlling Smurf. Loads all the mixins.
     '''
-
-    def __init__(self, epics_root='mitch_epics', 
+    def __init__(self, epics_root=None, 
         cfg_file='/home/cryo/pysmurf/cfg_files/experiment_fp28.cfg', 
         data_dir=None, name=None, make_logfile=True, 
         setup=True, offline=False, smurf_cmd_mode=False, **kwargs):
@@ -26,6 +25,10 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
         cfg_file (string) : Path the config file
         data_dir (string) : Path to the data dir
         '''
+        self.config = SmurfConfig(cfg_file)
+        if epics_root is None:
+            epics_root = self.config.get('epics_root')
+
         super().__init__(epics_root=epics_root, offline=offline, **kwargs)
 
         if cfg_file is not None or data_dir is not None:
@@ -39,8 +42,6 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
         Initizializes SMuRF with desired parameters set in experiment.cfg.
         Largely stolen from a Cyndia/Shawns SmurfTune script
         '''
-
-        self.config = SmurfConfig(cfg_file)
 
         if smurf_cmd_mode:
             # Get data dir
@@ -92,6 +93,10 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
             # Dictionary for frequency response
             self.freq_resp = {}
 
+        # Useful constants
+        constant_cfg = self.config.get('constant')
+        self.pA_per_phi0 = constant_cfg.get('pA_per_phi0')
+
         if setup:
             self.setup(**kwargs)
 
@@ -109,50 +114,46 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
         smurf_init_config = self.config.get('init')
         bands = smurf_init_config['bands']
         for b in bands:
-            self.set_iq_swap_in(b, smurf_init_config['iqSwapIn'], 
+            band_str = 'band_{}'.format(b)
+            self.set_iq_swap_in(b, smurf_init_config[band_str]['iq_swap_in'], 
                 write_log=True, **kwargs)
-            self.set_iq_swap_out(b, smurf_init_config['iqSwapOut'], 
+            self.set_iq_swap_out(b, smurf_init_config[band_str]['iq_swap_out'], 
                 write_log=True, **kwargs)
-            self.set_ref_phase_delay(b, smurf_init_config['refPhaseDelay'], 
+            self.set_ref_phase_delay(b, 
+                smurf_init_config[band_str]['refPhaseDelay'], 
                 write_log=True, **kwargs)
             self.set_ref_phase_delay_fine(b, 
-                smurf_init_config['refPhaseDelayFine'], write_log=True, 
-                **kwargs)
-            self.set_tone_scale(b, smurf_init_config['toneScale'], 
+                smurf_init_config[band_str]['refPhaseDelayFine'], 
                 write_log=True, **kwargs)
-            self.set_analysis_scale(b, smurf_init_config['analysisScale'], 
+            self.set_tone_scale(b, smurf_init_config[band_str]['toneScale'], 
                 write_log=True, **kwargs)
-            self.set_feedback_enable(b, smurf_init_config['feedbackEnable'],
+            self.set_analysis_scale(b, 
+                smurf_init_config[band_str]['analysisScale'], 
                 write_log=True, **kwargs)
-            self.set_feedback_gain(b, smurf_init_config['feedbackGain'], 
+            self.set_feedback_enable(b, 
+                smurf_init_config[band_str]['feedbackEnable'],
                 write_log=True, **kwargs)
-            self.set_lms_gain(b, smurf_init_config['lmsGain'], 
+            self.set_feedback_gain(b, 
+                smurf_init_config[band_str]['feedbackGain'], 
+                write_log=True, **kwargs)
+            self.set_lms_gain(b, smurf_init_config[band_str]['lmsGain'], 
                 write_log=True, **kwargs)
 
             self.set_feedback_limit_khz(b, 225)  # why 225?
 
-            self.set_feedback_polarity(b, smurf_init_config['feedbackPolarity'], 
+            self.set_feedback_polarity(b, 
+                smurf_init_config[band_str]['feedbackPolarity'], 
                 write_log=True, **kwargs)
             # self.set_band_center_mhz(b, smurf_init_config['bandCenterMHz'],
             #     write_log=True, **kwargs)
-            self.set_synthesis_scale(b, smurf_init_config['synthesisScale'],
+            self.set_synthesis_scale(b, 
+                smurf_init_config[band_str]['synthesisScale'],
                 write_log=True, **kwargs)
 
-            # This should be part of exp.cfg
-            if b == 2:
-                self.set_data_out_mux(6, "UserData", write_log=True, 
+
+            for dmx in np.array(smurf_init_config[band_str]["data_out_mux"]):
+                self.set_data_out_mux(int(dmx), "UserData", write_log=True,
                     **kwargs)
-                self.set_data_out_mux(7, "UserData", write_log=True, 
-                    **kwargs)
-                self.set_iq_swap_in(b, 1, write_log=True, **kwargs)
-                self.set_iq_swap_out(b, 0, write_log=True, **kwargs)
-            elif b ==3 :
-                self.set_data_out_mux(8, "UserData", write_log=True, 
-                    **kwargs)
-                self.set_data_out_mux(9, "UserData", write_log=True, 
-                    **kwargs)
-                self.set_iq_swap_in(b, 0, write_log=True, **kwargs)
-                self.set_iq_swap_out(b, 0, write_log=True, **kwargs)
 
             self.set_dsp_enable(b, smurf_init_config['dspEnable'], 
                 write_log=True, **kwargs)
