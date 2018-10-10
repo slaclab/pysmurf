@@ -1015,18 +1015,20 @@ class SmurfUtilMixin(SmurfBase):
         new_relay = (1 << bias_group) | old_relay
         self.log('New relay {}'.format(bin(new_relay)))
         self.set_cryo_card_relays(new_relay, write_log=True)
-        time.sleep(1)
+        time.sleep(2)
 
 
     def set_tes_bias_low_current(self, bias_group):
         """
         """
         old_relay = self.get_cryo_card_relays()
+        old_relay = self.get_cryo_card_relays()
         self.log('Old relay {}'.format(bin(old_relay)))
-        new_relay = (1 << bias_group) | old_relay
-        self.log('New relay {}'.format(bin(new_relay)))
-        self.set_cryo_card_relays(new_relay, write_log=True)
-        time.sleep(1)
+        if old_relay & 1 << bias_group != 0:
+            new_relay = old_relay & ~(1 << bias_group)
+            self.log('New relay {}'.format(bin(new_relay)))
+            self.set_cryo_card_relays(new_relay, write_log=True)
+        time.sleep(2)
 
     def att_to_band(self, att):
         """
