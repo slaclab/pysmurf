@@ -97,6 +97,16 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
         constant_cfg = self.config.get('constant')
         self.pA_per_phi0 = constant_cfg.get('pA_per_phi0')
 
+        # Mapping from attenuator numbers to bands
+        att_cfg = self.config.get('attenuator')
+        keys = att_cfg.keys()
+        self.att_to_band = {}
+        self.att_to_band['band'] = np.zeros(len(keys))
+        self.att_to_band['att'] = np.zeros(len(keys))
+        for i, k in enumerate(keys):
+            self.att_to_band['band'][i] = att_cfg[k]
+            self.att_to_band['att'][i] = int(k[-1])
+
         if setup:
             self.setup(**kwargs)
 
@@ -163,8 +173,8 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
         self.set_cpld_reset(0, write_log=True)
 
         for i in np.arange(1,5):
-            self.set_att_uc(i, 0, write_log=True)
-            self.set_att_dc(i, 0, write_log=True)
+            self.set_att_uc(i, 0, input_band=False, write_log=True)
+            self.set_att_dc(i, 0, input_band=False, write_log=True)
 
         self.cpld_toggle()
 

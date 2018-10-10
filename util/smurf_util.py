@@ -1003,3 +1003,16 @@ class SmurfUtilMixin(SmurfBase):
         time.sleep(cool_wait)
         self.log('Done waiting.', self.LOG_USER)
 
+
+    def att_to_band(self, att):
+        """
+        Gives the band associated with a given attenuator number
+        """
+        return self.att_to_band['band'][np.ravel(
+            np.where(self.att_to_band['att']==att))[0]]
+
+    def band_to_att(self, band):
+        """
+        """
+        return self.att_to_band['att'][np.ravel(
+            np.where(self.att_to_band['band']==band))[0]]

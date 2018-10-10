@@ -928,10 +928,22 @@ class SmurfCommandMixin(SmurfBase):
 
     # Attenuator
     _uc = 'UC[{}]'
-    def set_att_uc(self, b, val, **kwargs):
+    def set_att_uc(self, b, val, input_band=True, **kwargs):
         '''
         Set the upconverter attenuator
+
+        Args:
+        -----
+        b (int): Either the band or the attenuator number.
+        val (int): The attenuator value
+
+        Opt Args:
+        ---------
+        input_band (bool): If True, the input is assumed to be the band number.
+            Otherwise the input is assumed to be the attenuator number
         '''
+        if input_band:
+            b = self.band_to_att(b)
         self._caput(self.att_root + self._uc.format(int(b)), val, **kwargs)
 
     def get_att_uc(self, b, **kwargs):
@@ -942,10 +954,22 @@ class SmurfCommandMixin(SmurfBase):
 
 
     _dc = 'DC[{}]'
-    def set_att_dc(self, b, val, **kwargs):
+    def set_att_dc(self, b, val, input_band=True, **kwargs):
         '''
         Set the down-converter attenuator
+
+        Args:
+        -----
+        b (int): Either the band or the attenuator number.
+        val (int): The attenuator value
+
+        Opt Args:
+        ---------
+        input_band (bool): If True, the input is assumed to be the band number.
+            Otherwise the input is assumed to be the attenuator number
         '''
+        if input_band:
+            b = self.band_to_att(b)
         self._caput(self.att_root + self._dc.format(int(b)), val, **kwargs)
 
     def get_att_dc(self,b,  **kwargs):
