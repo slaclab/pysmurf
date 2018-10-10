@@ -995,13 +995,15 @@ class SmurfUtilMixin(SmurfBase):
         # drive high current through the TES to attempt to drive nomral
         self.set_tes_bias_bipolar(bias_group, overbias_voltage)
         time.sleep(.1)
-        self.set_cryo_card_relays(0x10004)
+        # self.set_cryo_card_relays(0x10004, write_log=True)
+        self.set_tes_bias_high_current(bias_group)
         self.log('Driving high current through TES. ' + \
             'Waiting {}'.format(overbias_wait), self.LOG_USER)
         time.sleep(overbias_wait)
-        self.set_cryo_card_relays(0x10000)
+        self.set_tes_bias_low_current(bias_group)
+        # self.set_cryo_card_relays(0x10000, write_log=True)
         time.sleep(.1)
-        self.set_tes_bias_bipolar(4, tes_bias)
+        self.set_tes_bias_bipolar(bias_group, tes_bias)
         self.log('Waiting %.2f seconds to cool' % (cool_wait), self.LOG_USER)
         time.sleep(cool_wait)
         self.log('Done waiting.', self.LOG_USER)
@@ -1011,11 +1013,11 @@ class SmurfUtilMixin(SmurfBase):
         """
         """
         old_relay = self.get_cryo_card_relays()
+        old_relay = self.get_cryo_card_relays()
         self.log('Old relay {}'.format(bin(old_relay)))
         new_relay = (1 << bias_group) | old_relay
         self.log('New relay {}'.format(bin(new_relay)))
         self.set_cryo_card_relays(new_relay, write_log=True)
-        time.sleep(2)
 
 
     def set_tes_bias_low_current(self, bias_group):
@@ -1028,7 +1030,7 @@ class SmurfUtilMixin(SmurfBase):
             new_relay = old_relay & ~(1 << bias_group)
             self.log('New relay {}'.format(bin(new_relay)))
             self.set_cryo_card_relays(new_relay, write_log=True)
-        time.sleep(2)
+
 
     def att_to_band(self, att):
         """
