@@ -66,6 +66,52 @@ class SmurfTuneMixin(SmurfBase):
             freq, resp = self.full_band_resp(band, n_samples=n_samples,
                 make_plot=make_plot, save_data=save_data, timestamp=timestamp)
 
+            # Now let's scale/shift phase/mag to match what DSP sees
+
+            # fit phase, calculate delay +/- 250MHz
+            idx = np.where( (freq > -250e6) & (freq < 250e6) )
+# FIXME - using resp[0], should we average responses?
+            p     = np.polyfit(freq[idx], np.unwrap(np.angle(resp[0][idx])), 1)
+            delay = 1e6*np.abs(p[0]/(2*np.pi))
+
+# FIXME - ref_phase_delay should be calcuated here, not set
+            ref_phase_delay      = 6
+            ref_phase_delay_fine = 0
+            processing_delay     = 1.842391045639787 # empirical
+            # DSP sees cable delay + processing delay 
+            #   - refPhaseDelay/2.4 (2.4 MHz ticks) + ref_phase_delay_fine/207.2
+            comp_delay       = (delay + processing_delay
+                                 - ref_phase_delay/2.4 + ref_phase_delay_fine/307.2)
+            mag_scale        = 0.04232/0.1904    # empirical
+
+            # scale magnitude
+            mag_resp         = np.abs(resp[0])
+            comp_mag_resp    = mag_scale*mag_resp
+
+            # adjust slope of phase response
+            # finally there may also be some overall phase shift (DC)
+            phase_resp        = np.unwrap(np.angle(resp[0]))
+            idx0              = np.abs(freq).argmin()
+            tf_phase          = phase_resp[idx0]
+#FIXME
+            import epics
+            pv_root = 'mitch_epics:AMCc:FpgaTopLevel:AppTop:AppCore:SysgenCryo:Base[2]:CryoChannels:CryoChannel[0]:'
+            epics.caput(pv_root + 'etaMagScaled', 1)
+            epics.caput(pv_root + 'amplitudeScale', 10)
+            epics.caput(pv_root + 'etaPhaseDegree', 0)
+            dsp_I             = [epics.caget(pv_root + 'frequencyErrorMHz') for i in range(20)]
+            epics.caput(pv_root + 'etaPhaseDegree', 90)
+            dsp_Q             = [epics.caget(pv_root + 'frequencyErrorMHz') for i in range(20)]
+            dsp_phase         = np.arctan2(np.mean(dsp_Q), np.mean(dsp_I)) 
+            phase_shift       = dsp_phase - tf_phase
+            comp_phase_resp   = (comp_delay/delay)*phase_resp + phase_shift
+
+            # overall compensated response
+            comp_resp         = comp_mag_resp*(np.cos(comp_phase_resp) 
+                                          + 1j*np.sin(comp_phase_resp))
+
+            resp              = comp_resp
+            
         # Find peaks
         peaks = self.find_peak(freq, resp, band=band, make_plot=make_plot, 
             save_plot=save_plot, grad_cut=grad_cut, freq_min=freq_min,
