@@ -9,7 +9,8 @@ import epics
 
 class SmurfUtilMixin(SmurfBase):
 
-    def take_debug_data(self, band, channel=None, single_channel_readout=1):
+    def take_debug_data(self, band, channel=None, nsamp=2**19, filename=None, 
+            IQstream=1, single_channel_readout=1):
         """
         """
         # Set proper single channel readout
@@ -17,14 +18,252 @@ class SmurfUtilMixin(SmurfBase):
             if single_channel_readout == 1:
                 self.set_single_channel_readout(band, 1)
                 self.set_single_channel_readout_opt2(band, 0)
-            elif single_channel-readout == 2:
+            elif single_channel_readout == 2:
                 self.set_single_channel_readout(band, 0)
                 self.set_single_channel_readout_opt2(band, 1)
             else:
                 self.log('single_channel_readout must be 1 or 2', 
                     self.LOG_ERROR)
                 raise ValueError('single_channel_readout must be 1 or 2')
+        else: # exit single channel otherwise
+            self.set_single_channel_readout(band, 0)
+            self.set_single_channel_readout_opt2(band, 0)
 
+        # Set IQstream
+        if IQstream==1:
+            self.set_iq_stream_enable(band, 1)
+        else:
+            self.set_iq_stream_enable(band, 0)
+
+        # set filename
+        if filename is not None:
+            data_filename = os.path.join(self.output_dir, filename+'.dat')
+            self.log('Writing to file : {}'.format(data_filename),
+                self.LOG_USER)
+        else:
+            timestamp = '%10i' % time.time()
+            data_filename = os.path.join(self.output_dir, timestamp+'.dat')
+            self.log('Writing to file : {}'.format(data_filename),
+                self.LOG_USER)
+
+        dtype = 'debug'
+        dchannel = 0 # I don't really know what this means and I'm sorry -CY
+        self.setup_daq_mux(dtype, dchannel, nsamp, band=band)
+
+        self.log('Data acquisition in progress...', self.LOG_USER)
+
+        self.log('Setting file name...', self.LOG_USER)
+
+        char_array = [ord(c) for c in data_filename] # convert to ascii
+        write_data = np.zeros(300, dtype=int)
+        for j in np.arange(len(char_array)):
+            write_data[j] = char_array[j]
+
+        self.set_streamdatawriter_datafile(write_data) # write this
+
+        self.set_streamdatawriter_open('True') # str and not bool
+
+        self.set_trigger_daq(1, write_log=True) # this seems to = TriggerDM
+
+        end_addr = self.get_waveform_end_addr(0) # not sure why this is 0
+
+        time.sleep(1) # maybe unnecessary
+
+        done=False
+        while not done:
+            done=True
+            for k in range(4):
+                wr_addr = self.get_waveform_wr_addr(0)
+                empty = self.get_waveform_empty(k)
+                if not empty:
+                    done=False
+            time.sleep(1)
+
+        time.sleep(1) # do we need all of these?
+        self.log('Finished acquisition', self.LOG_USER)
+        
+        self.log('Closing file...', self.LOG_USER)
+        self.set_streamdatawriter_open('False')
+
+        self.log('Done taking data', self.LOG_USER)
+
+        if single_channel_readout > 0:
+            f, df, sync = self.decode_single_channel(data_filename)
+        else:
+            f, df, sync = self.decode_data(data_filename)
+
+        return f, df, sync
+
+    def process_data(self, filename, dtype=np.uint32):
+        """
+        reads a file taken with take_debug_data and processes it into
+           data + header
+
+        Args:
+        -----
+        filename (str): path to file
+
+        Optional:
+        dtype (np dtype): datatype to cast to, defaults unsigned 32 bit int
+
+        Returns:
+        -----
+        header (np array)
+        data (np array)
+        """
+        n_chan = 2 # number of stream channels
+        header_size = 4 # 8 bytes in 16-bit word
+
+        rawdata = np.fromfile(filename, dtype='<u4').astype(dtype)
+
+        # -1 is equiv to [] in Matlab
+        rawdata = np.transpose(np.reshape(rawdata, (n_chan, -1))) 
+
+        if dtype==np.uint32:
+            header = rawdata[:2, :]
+            data = np.delete(rawdata, (0,1), 0).astype(dtype)
+        elif dtype==np.int32:
+            header = np.zeros((2,2))
+            header[:,0] = rawdata[:2,0].astype(np.uint32)
+            header[:,1] = rawdata[:2,1].astype(np.uint32)
+            data = np.double(np.delete(rawdata, (0,1), 0))
+        elif dtype==np.int16:
+            header1 = np.zeros((4,2))
+            header1[:,0] = rawdata[:4,0].astype(np.uint16)
+            header1[:,1] = rawdata[:4,1].astype(np.uint16)
+            header1 = np.double(header1)
+            header = header1[::2] + header1[1::2] * (2**16) # what am I doing
+        else:
+            raise TypeError('Type {} not yet supported!'.format(dtype))
+        if header[1,1] == 2:
+            header = np.fliplr(header)
+            data = np.fliplr(data)
+
+        return header, data
+
+    def decode_data(self, filename, swapFdF=False):
+        """
+        take a dataset from take_debug_data and spit out results
+
+        Args:
+        -----
+        filename (str): path to file
+
+        Optional:
+        swapFdF (bool): whether the F and dF (or I/Q) streams are flipped
+
+        Returns:
+        -----
+        [f, df, sync] if iqStreamEnable = 0
+        [I, Q, sync] if iqStreamEnable = 1
+        """
+
+        subband_halfwidth_MHz = 4.8 # can we remove this hardcode
+        if swapFdF:
+            nF = 1 # weirdly, I'm not sure this information gets used
+            nDF = 0
+        else:
+            nF = 0
+            nDF = 1
+
+        header, rawdata = self.process_data(filename)
+
+        # decode strobes
+        strobes = np.floor(rawdata / (2**30))
+        data = rawdata - (2**30)*strobes
+        ch0_strobe = np.remainder(strobes, 2)
+        flux_ramp_strobe = np.floor((strobes - ch0_strobe) / 2)
+
+        # decode frequencies
+        ch0_idx = np.where(ch0_strobe[:,0] == 1)[0]
+        f_first = ch0_idx[0]
+        f_last = ch0_idx[-1]
+        freqs = data[f_first:f_last, 0]
+        neg = np.where(freqs >= 2**23)[0]
+        f = np.double(freqs)
+        if len(neg) > 0:
+            f[neg] = f[neg] - 2**24
+
+        if np.remainder(len(f),512)==0:
+            # -1 is [] in Matlab
+            f = np.reshape(f, (-1, 512)) * subband_halfwidth_MHz / 2**23 
+        else:
+            self.log('Number of points not a multiple of 512. Cannot decode',
+                self.LOG_ERROR)
+
+
+        # frequency errors
+        ch0_idx_df = np.where(ch0_strobe[:,1] == 1)[0]
+        if len(ch0_idx_df) > 0:
+            d_first = ch0_idx_df[0]
+            d_last = ch0_idx_df[-1]
+            dfreq = data[d_first:d_last, 1]
+            neg = np.where(dfreq >= 2**23)[0]
+            df = np.double(dfreq)
+            if len(neg) > 0:
+                df[neg] = df[neg] - 2**24
+
+            if np.remainder(len(df), 512) == 0:
+                df = np.reshape(df, (-1, 512)) * subband_halfwidth_MHz / 2**23
+            else:
+                self.log('Number of points not a multiple of 512. Cannot decode', 
+                    self.LOG_ERROR)
+        else:
+            df = []
+
+        return f, df, flux_ramp_strobe
+
+    def decode_single_channel(self, filename, swapFdF=False):
+        """
+        decode take_debug_data file if in singlechannel mode
+
+        Args:
+        -----
+        filename (str): path to file to decode
+
+        Optional:
+        swapFdF (bool): whether to swap f and df streams
+
+        Returns:
+        [f, df, sync] if iq_stream_enable = False
+        [I, Q, sync] if iq_stream_enable = True
+        """
+
+        subband_halfwidth_MHz = 4.8 # take out this hardcode
+
+        if swapFdF:
+            nF = 1
+            nDF = 0
+        else:
+            nF = 0
+            nDF = 1
+
+        header, rawdata = self.process_data(filename)
+
+        # decode strobes
+        strobes = np.floor(rawdata / (2**30))
+        data = rawdata - (2**30)*strobes
+        ch0_strobe = np.remainder(strobes, 2)
+        flux_ramp_strobe = np.floor((strobes - ch0_strobe) / 2)
+
+        # decode frequencies
+        freqs = data[:,nF]
+        neg = np.where(freqs >= 2**23)[0]
+        f = np.double(freqs)
+        if len(neg) > 0:
+            f[neg] = f[neg] - 2**24
+
+        f = np.transpose(f) * subband_halfwidth_MHz / 2**23
+
+        dfreqs = data[:,nDF]
+        neg = np.where(dfreqs >= 2**23)[0]
+        df = np.double(dfreqs)
+        if len(neg) > 0:
+            df[neg] = df[neg] - 2**24
+
+        df = np.transpose(df) * subband_halfwidth_MHz / 2**23
+
+        return f, df, flux_ramp_strobe
 
     def take_stream_data(self, band, meas_time):
         """
@@ -69,14 +308,15 @@ class SmurfUtilMixin(SmurfBase):
                     self.LOG_USER)
 
             # Make the data file
-            timestamp = '%10i' % time.time()
+            timestamp = self.get_timestamp()
             data_filename = os.path.join(self.output_dir, timestamp+'.dat')
             self.log('Writing to file : {}'.format(data_filename), 
                 self.LOG_USER)
             self.set_streaming_datafile(data_filename)
-            self.set_streaming_file_open(1)  # Open the file
-
+            
+            # start streaming before opening file to avoid transient filter step
             self.set_stream_enable(band, 1, write_log=True)
+            self.set_streaming_file_open(1)  # Open the file
 
             return data_filename
 
@@ -92,14 +332,28 @@ class SmurfUtilMixin(SmurfBase):
         self.set_streaming_file_open(0)  # Close the file
 
 
-    def read_stream_data(self, datafile):
+    def read_stream_data(self, datafile, unwrap=True):
         """
         Loads data taken with the fucntion stream_data_on
+
+        Args:
+        -----
+        datafile (str): The full path to the data to read
+
+        Opt Args:
+        ---------
+        unwrap (bool): Whether to unwrap the data
         """
 
         file_writer_header_size = 2  # 32-bit words
 
+        with open(datafile, mode='rb') as file:
+            file_content = file.read()
+
         version = file_content[8]
+        print('Version: %s' % (version))
+
+        self.log('Data version {}'.format(version), self.LOG_INFO)
 
         if version == 0:
             smurf_header_size = 4  # 32-bit words
@@ -109,8 +363,8 @@ class SmurfUtilMixin(SmurfBase):
 
 
             # Convert binary file to int array. The < indicates little-endian
-            raw_dat = np.asarray(struct.unpack("<" + "i" * ((len(file_content)) // 4),
-                file_content))
+            raw_dat = np.asarray(struct.unpack("<" + "i" * 
+                ((len(file_content)) // 4), file_content))
 
             # To do : add bad frame check
             frame_start = np.ravel(np.where(1 + raw_dat/4==nominal_frame_size))
@@ -130,31 +384,42 @@ class SmurfUtilMixin(SmurfBase):
             phase = np.arctan2(Q, I)
 
         elif version == 1:
-        # this works if we've already remove dropped frames.  Use timestamp/frame counter to look for drops
-            keys = ['h0', 'h1', 'version', 'crate_id', 'slot_number', 'number_of_channels', 'rtm_dac_config0',
-                    'rtm_dac_config1',  'rtm_dac_config2', 'rtm_dac_config3', 'rtm_dac_config4', 'rtm_dac_config5',
-                    'flux_ramp_increment', 'flux_ramp_start', 'base_rate_since_1_Hz', 'base_rate_since_TM',
-                    'timestamp_ns', 'timestamp_s', 'fixed_rate_marker', 'sequence_counter', 'tes_relay',
-                    'mce_word']
+            # this works if we've already remove dropped frames.  
+            # Use timestamp/frame counter to look for drops
+            keys = ['h0', 'h1', 'version', 'crate_id', 'slot_number', 
+                'number_of_channels', 'rtm_dac_config0', 'rtm_dac_config1',  
+                'rtm_dac_config2', 'rtm_dac_config3', 'rtm_dac_config4', 
+                'rtm_dac_config5', 'flux_ramp_increment', 'flux_ramp_start', 
+                'base_rate_since_1_Hz', 'base_rate_since_TM', 'timestamp_ns', 
+                'timestamp_s', 'fixed_rate_marker', 'sequence_counter', 
+                'tes_relay','mce_word'
+            ]
+
             data_keys = [f'data{i}' for i in range(4096)]
+
             keys.extend(data_keys)
 
-            keys_dict = dict( zip( keys, range(len(keys)) ) )
+            keys_dics = dict( zip( keys, range(len(keys)) ) )
 
-            frames        = [i for i in struct.Struct('2I2BHI6Q6IH2xI2Q24x4096h').iter_unpack(file_content)]
+            frames = [i for i in 
+                struct.Struct('2I2BHI6Q6IH2xI2Q24x4096h').iter_unpack(file_content)]
             #frame_counter = [i[keys['sequence_counter']] for i in frames]
             #timestamp_s   = [i[keys['timestamp_s']] for i in frames]
             #timestamp_ns  = [i[keys['timestamp_ns']] for i in frames]
 
             phase = np.zeros((4096, len(frames)))
             for i in range(4096):
-                phase[i,:] = np.asarray([j[keys_dict[f'data{i}']] for j in frames])
+                phase[i,:] = np.asarray([j[keys_dics[f'data{i}']] for j in 
+                    frames])
 
-            phase     = phase * np.pi / 2**15 # scale to rad
-            timestamp = [i[keys_dict['sequence_counter']] for i in frames]
+            phase = phase.astype(float) / 2**15 * np.pi # scale to rad
+            timestamp = [i[keys_dics['sequence_counter']] for i in frames]
 
         else:
             raise Exception(f'Frame version {version} not supported')
+
+        if unwrap:
+            phase = np.unwrap(phase, axis=-1)
 
         return timestamp, phase
 
@@ -169,27 +434,22 @@ class SmurfUtilMixin(SmurfBase):
         else:
             stream0 = self.epics_root + ":AMCc:Stream4"
             stream1 = self.epics_root + ":AMCc:Stream5"
-
-        # print('camonitoring')
-        # epics.camonitor(stream0)
-        # epics.camonitor(stream1)
-        # print('done camonitoring')
         
         pvs = [stream0, stream1]
-        sg  = SyncGroup(pvs)
+        sg  = SyncGroup(pvs, skip_first=True)
 
         # trigger PV
         if not hw_trigger:
             self.set_trigger_daq(1, write_log=True)
         else:
-            self._caput(self.epics_root + 
-                ':AMCc:FpgaTopLevel:AppTop:DaqMuxV2[0]:ArmHwTrigger', 1, 
-                write_log=True)
+            self.set_arm_hw_trigger(1, write_log=True)
+            # self._caput(self.epics_root + 
+            #     ':AMCc:FpgaTopLevel:AppTop:DaqMuxV2[0]:ArmHwTrigger', 1, 
+            #     write_log=True)
         time.sleep(.1)
         sg.wait()
 
         vals = sg.get_values()
-        print(vals[pvs[0]])
 
         r0 = vals[pvs[0]]
         r1 = vals[pvs[1]]
@@ -198,6 +458,14 @@ class SmurfUtilMixin(SmurfBase):
 
     def read_adc_data(self, adc_number, data_length, hw_trigger=False):
         """
+        Args:
+        -----
+        adc_number (int):
+        data_length (int):
+
+        Opt Args:
+        ---------
+        hw_trigger (bool)
         """
         if adc_number > 3:
             bay = 1
@@ -231,16 +499,17 @@ class SmurfUtilMixin(SmurfBase):
 
         return dat
 
-    def setup_daq_mux(self, converter, converter_number, data_length):
+    def setup_daq_mux(self, converter, converter_number, data_length, band=0):
         """
         Sets up for either ADC or DAC data taking.
 
         Args:
         -----
-        converter (str) : Whether it is the ADC or DAC. choices are 'adc' and 
-            'dac'
+        converter (str) : Whether it is the ADC or DAC. choices are 'adc', 
+            'dac', or 'debug'. The last one takes data on a single band.
         converter_number (int) : The ADC or DAC number to take data on.
         data_length (int) : The amount of data to take.
+        band (int): which band to get data on
         """
         if converter.lower() == 'adc':
             daq_mux_channel0 = (converter_number + 1)*2
@@ -248,6 +517,17 @@ class SmurfUtilMixin(SmurfBase):
         elif converter.lower() == 'dac':
             daq_mux_channel0 = (converter_number + 1)*2 + 10
             daq_mux_channel1 = daq_mux_channel0 + 1
+        else:
+            if band==2:
+                daq_mux_channel0 = 22 # these come from the mysterious mind of Steve
+                daq_mux_channel1 = 23
+            elif band==3:
+                daq_mux_channel0 = 24
+                daq_mux_channel1 = 25
+            else:
+                self.log("Error! Cannot take debug data on this band", 
+                    self.LOG_ERROR)
+
 
         # setup buffer size
         self.set_buffer_size(data_length)
@@ -270,9 +550,11 @@ class SmurfUtilMixin(SmurfBase):
         # Change waveform engine buffer size
         self.set_data_buffer_size(size, write_log=True)
         for daq_num in np.arange(4):
-            s = self.get_waveform_start_addr(daq_num, convert=True)
+            s = self.get_waveform_start_addr(daq_num, convert=True, 
+                write_log=False)
             e = s + 4*size
-            self.set_waveform_end_addr(daq_num, e, convert=True)
+            self.set_waveform_end_addr(daq_num, e, convert=True, 
+                write_log=False)
             self.log('DAQ number {}: start {} - end {}'.format(daq_num, s, e))
 
 
@@ -482,8 +764,7 @@ class SmurfUtilMixin(SmurfBase):
 
         n_subbands = self.get_number_sub_bands(band)
         n_channels = self.get_number_channels(band)
-        #n_subbands = 128 # just for testing while not hooked up to epics server
-        #n_channels = 512
+
         n_chanpersubband = n_channels / n_subbands
 
         if channel > n_channels:
@@ -492,23 +773,31 @@ class SmurfUtilMixin(SmurfBase):
         if channel < 0:
             raise ValueError('channel number is less than zero!')
 
-        chanOrder = getChannelOrder(channelorderfile)
+        chanOrder = self.get_channel_order(channelorderfile)
         idx = chanOrder.index(channel)
 
         subband = idx // n_chanpersubband
         return int(subband)
 
-    def get_subband_centers(self, band, asOffset=False):
+    def get_subband_centers(self, band, as_offset=True, hardcode=False):
         """ returns frequency in MHz of subband centers
         Args:
          band (int): which band
-         asOffset (bool): whether to return as offset from band center \
+         as_offset (bool): whether to return as offset from band center \
                  (default is no, which returns absolute values)
         """
 
-        digitizerFrequencyMHz = self.get_digitizer_frequency_mhz(band)
-        bandCenterMHz = self.get_band_center_mhz(band)
-        n_subbands = self.get_number_sub_bands(band)
+        if hardcode:
+            if band == 3:
+                bandCenterMHz = 5.25
+            elif band == 2:
+                bandCenterMHz = 5.75
+            digitizerFrequencyMHz = 614.4
+            n_subbands = 128
+        else:
+            digitizerFrequencyMHz = self.get_digitizer_frequency_mhz(band)
+            bandCenterMHz = self.get_band_center_mhz(band)
+            n_subbands = self.get_number_sub_bands(band)
 
         subband_width_MHz = 2 * digitizerFrequencyMHz / n_subbands
 
@@ -516,14 +805,26 @@ class SmurfUtilMixin(SmurfBase):
         subband_centers = (np.arange(1, n_subbands + 1) - n_subbands/2) * \
             subband_width_MHz/2
 
+        if not as_offset:
+            subband_centers += self.get_band_center_mhz(band)
+
         return subbands, subband_centers
 
-    def get_channels_in_subband(self, band, channelorderfile, subband):
-        """ returns channels in subband
+    def get_channels_in_subband(self, band, subband, channelorderfile=None):
+        """
+        Returns channels in subband
         Args:
-         band (int): which band
-         channelorderfile(str): path to file specifying channel order
-         subband (int): subband number, ranges from 0..127
+        -----
+        band (int): which band
+        subband (int): subband number, ranges from 0..127
+
+        Opt Args:
+        ---------
+        channelorderfile (str): path to file specifying channel order
+         
+        Returns:
+        --------
+        subband_chans (int array): The channels in the subband
         """
 
         n_subbands = self.get_number_sub_bands(band)
@@ -536,7 +837,7 @@ class SmurfUtilMixin(SmurfBase):
         if subband < 0:
             raise ValueError("requested subband less than zero")
 
-        chanOrder = getChannelOrder(channelorderfile)
+        chanOrder = self.get_channel_order(channelorderfile)
         subband_chans = chanOrder[subband * n_chanpersubband : subband * \
             n_chanpersubband + n_chanpersubband]
 
@@ -587,9 +888,9 @@ class SmurfUtilMixin(SmurfBase):
         """
         # Must be array length 300
         s = np.zeros(300, dtype=int)
-        i_hex = hex(i)[2:]
+        i_hex = hex(i)
         for j in np.arange(len(i_hex)):
-            s[j] = int(i_hex[j])
+            s[j] = ord(i_hex[j])
 
         return s
 
@@ -642,13 +943,6 @@ class SmurfUtilMixin(SmurfBase):
         self.set_50k_amp_gate_voltage(bias_50k, **kwargs)
 
 
-    def get_timestamp(self):
-        """
-        Returns:
-        timestampe (str): Timestamp as a string
-        """
-        return '{:10}'.format(int(time.time()))
-
     def get_hemt_drain_current(self):
         """
         Returns:
@@ -666,15 +960,20 @@ class SmurfUtilMixin(SmurfBase):
 
     def get_50k_amp_drain_current(self):
         """
-
+        Returns:
+        --------
+        cur (float): The drain current in mA
         """
         asu_amp_Vd_series_resistor=10 #Ohm
         asu_amp_Id=2.*1000.*(self.get_cryo_card_50k_bias()/
             asu_amp_Vd_series_resistor)
 
-    def overbias_tes(self, dac, overbias_voltage=19.9, overbias_wait=.5,
-        tes_bias=19.9):
+
+    def overbias_tes(self, dac, overbias_voltage=19.9, overbias_wait=0.5,
+        tes_bias=19.9, cool_wait=20.):
         """
+        Warning: This is horribly hardcoded. Needs a fix soon.
+
         Args:
         -----
         dac (int): The TES dac pair (Note band 3 is DAC 4)
@@ -687,16 +986,20 @@ class SmurfUtilMixin(SmurfBase):
             Default is .5
         tes_bias (float): The value of the TES bias when put back in low current
             mode. Default is 19.9.
+        cool_wait (float): The time to wait after setting the TES bias for 
+            transients to die off.
         """
         # drive high current through the TES to attempt to drive nomral
         self.set_tes_bias_bipolar(4, overbias_voltage)
         time.sleep(.1)
-        self.set_cryo_card_relays(0x10004)
+        self.set_cryo_card_relays(0x10004, write_log=True)
+        self.log('Driving high current through TES. ' + \
+            'Waiting {}'.format(overbias_wait), self.LOG_USER)
         time.sleep(overbias_wait)
-        self.set_cryo_card_relays(0x10000)
+        self.set_cryo_card_relays(0x10000, write_log=True)
         time.sleep(.1)
         self.set_tes_bias_bipolar(4, tes_bias)
-        self.log('Waiting 5 seconds to cool', self.LOG_USER)
-        time.sleep(5)
+        self.log('Waiting %.2f seconds to cool' % (cool_wait), self.LOG_USER)
+        time.sleep(cool_wait)
         self.log('Done waiting.', self.LOG_USER)
 

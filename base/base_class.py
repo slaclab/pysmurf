@@ -27,7 +27,7 @@ class SmurfBase(object):
     Overall progress on a task
     """
 
-    def __init__(self, log=None, epics_root=None, **kwargs):
+    def __init__(self, log=None, epics_root=None, offline=False, **kwargs):
         # Set up logging
         self.log = log
         if self.log is None:
@@ -37,8 +37,10 @@ class SmurfBase(object):
             if verb is not None:
                 self.set_verbose(verb)
 
-        # Constants
-        self.pA_per_phi0 = 9.E-6
+        self.offline = offline
+        if self.offline == True:
+            self.log('Offline mode')
+
 
         # Setting paths for easier commands - Is there a better way to do this
         # than just hardcoding paths? This needs to be cleaned up somehow
@@ -63,6 +65,8 @@ class SmurfBase(object):
             ':AMCc:FpgaTopLevel:'+ \
             'AmcCarrierCore:AmcCarrierBsa:BsaWaveformEngine[0]:' + \
             'WaveformEngineBuffers:'
+        self.stream_data_writer_root = self.epics_root + \
+            ':AMCc:streamDataWriter:'
         self.jesd_tx_root = self.epics_root + \
             ':AMCc:FpgaTopLevel:AppTop:AppTopJesd[0]:JesdTx:'
         self.jesd_rx_root = self.epics_root + \

@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 # datafile = '/home/common/data/cpu-b000-hp01/cryo_data/data2/20180921/1537569911/outputs/1537569951.dat'
 datafile = '/home/common/data/cpu-b000-hp01/cryo_data/data2/20180924/1537818448/outputs/1537818492.dat'
 data_dir = '/home/common/data/cpu-b000-hp01/cryo_data/data2/20180924/1537818448/outputs/'
-S = pysmurf.SmurfControl(make_logfile=False, output_dir_only=True, 
+S = pysmurf.SmurfControl(make_logfile=False, setup=False, 
     data_dir=data_dir)
 
 print('Loading data')
@@ -27,12 +27,13 @@ for ch in chs:
     phase = S.iq_to_phase(I[ch], Q[ch]) * 1.443
 
     print('Running IV analysis')
-    r, rn = S.analyze_slow_iv(bias, phase, make_plot=True, 
+    r, rn, idx = S.analyze_slow_iv(bias, phase, make_plot=True, 
         show_plot=True, save_plot=True, band=3, channel=ch, 
         basename='1537818492')
     ivs[ch] = {
         'R' : r,
-        'Rn' : rn
+        'Rn' : rn,
+        'idx': idx
     }
 
     plt.show()
