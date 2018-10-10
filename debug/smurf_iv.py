@@ -30,8 +30,10 @@ class SmurfIVMixin(SmurfBase):
             channels = self.which_on(band)
         n_channel = self.get_number_channels(band)
 
+        bias_num = 1
+
         # drive high current through the TES to attempt to drive nomral
-        self.set_tes_bias_bipolar(4, 19.9)
+        self.set_tes_bias_bipolar(bias_num, 19.9)
         time.sleep(.1)
         self.log('Driving high current through TES. ' + \
             'Waiting {}'.format(high_current_wait))
@@ -45,20 +47,20 @@ class SmurfIVMixin(SmurfBase):
         if bias is None:
             bias = np.arange(bias_high, bias_low, -bias_step)
 
-        self.overbias_tes(4, overbias_wait=.5, tes_bias=np.max(bias), 
+        self.overbias_tes(bias_num, overbias_wait=.5, tes_bias=np.max(bias), 
             cool_wait=1.)
 
         self.log('Staring to take IV.', self.LOG_USER)
         self.log('Starting TES bias ramp.', self.LOG_USER)
 
-        self.set_tes_bias_bipolar(4, bias[0])
+        self.set_tes_bias_bipolar(bias_num, bias[0])
         time.sleep(1)
 
         datafile = self.stream_data_on(band)
 
         for b in bias:
             self.log('Bias at {:4.3f}'.format(b))
-            self.set_tes_bias_bipolar(4, b)  # 4 is for band 3
+            self.set_tes_bias_bipolar(bias_num, b)  
             time.sleep(wait_time)
 
         self.log('Done with TES bias ramp', self.LOG_USER)
@@ -84,7 +86,7 @@ class SmurfIVMixin(SmurfBase):
             show_plot=show_plot, save_plot=save_plot)
 
     def analyze_slow_iv_from_file(self, fn_iv_raw_data, make_plot=True,
-        show_plot=False, save_plot=True):
+        show_plot=False, save_plot=True,R_sh=.0029):
 
         print('Loading raw data from %s' % (fn_iv_raw_data))
         iv_raw_data = np.load(fn_iv_raw_data).item()
@@ -134,7 +136,7 @@ class SmurfIVMixin(SmurfBase):
             r, rn, idx = self.analyze_slow_iv(bias, phase[ch_idx], 
                 basename=basename, 
                 band=band, channel=ch, make_plot=make_plot, show_plot=show_plot,
-                save_plot=save_plot,plot_dir = plot_dir)
+                save_plot=save_plot,plot_dir = plot_dir,R_sh = R_sh)
             ivs[ch] = {
                 'R' : r,
                 'Rn' : rn,
@@ -144,7 +146,7 @@ class SmurfIVMixin(SmurfBase):
         np.save(os.path.join(output_dir, basename + '_iv'), ivs)
 
     def analyze_slow_iv(self, v_bias, resp, make_plot=True, show_plot=False,
-        save_plot=True, basename=None, band=None, channel=None, R_sh=.0002,
+        save_plot=True, basename=None, band=None, channel=None, R_sh=.0029,
         plot_dir = None,**kwargs):
         """
         Analyzes the IV curve taken with slow_iv()
@@ -171,7 +173,8 @@ class SmurfIVMixin(SmurfBase):
 
         resp_bin = np.zeros(n_step)
 
-        i_bias = 1.0E6 * v_bias / 8.038E3  # Total line impedance and uA
+        r_inline = 26.66e3 # for K7; estimate from Dan (Oct. 10, 2018)
+        i_bias = 1.0E6 * v_bias / r_inline  # Total line impedance and uA
 
         if make_plot:
             print('Importing matplotlib...')

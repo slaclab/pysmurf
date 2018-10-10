@@ -995,11 +995,11 @@ class SmurfUtilMixin(SmurfBase):
         # drive high current through the TES to attempt to drive nomral
         self.set_tes_bias_bipolar(bias_group, overbias_voltage)
         time.sleep(.1)
-        self.set_cryo_card_relays(0x10004, write_log=True)
+        self.set_cryo_card_relays(0x10004)
         self.log('Driving high current through TES. ' + \
             'Waiting {}'.format(overbias_wait), self.LOG_USER)
         time.sleep(overbias_wait)
-        self.set_cryo_card_relays(0x10000, write_log=True)
+        self.set_cryo_card_relays(0x10000)
         time.sleep(.1)
         self.set_tes_bias_bipolar(4, tes_bias)
         self.log('Waiting %.2f seconds to cool' % (cool_wait), self.LOG_USER)
