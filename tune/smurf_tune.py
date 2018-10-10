@@ -77,12 +77,14 @@ class SmurfTuneMixin(SmurfBase):
 # FIXME - ref_phase_delay should be calcuated here, not set
             ref_phase_delay      = 6
             ref_phase_delay_fine = 0
-            processing_delay     = 1.842391045639787 # empirical
+            processing_delay     = 1.842391045639787 # empirical, may need to iterate on this **must be right** for tracking
             # DSP sees cable delay + processing delay 
-            #   - refPhaseDelay/2.4 (2.4 MHz ticks) + ref_phase_delay_fine/207.2
+            #   - refPhaseDelay/2.4 (2.4 MHz ticks) + ref_phase_delay_fine/307.2
             comp_delay       = (delay + processing_delay
                                  - ref_phase_delay/2.4 + ref_phase_delay_fine/307.2)
             mag_scale        = 0.04232/0.1904    # empirical
+
+            add_phase_slope  = (2*np.pi*1e-6)*(delay - comp_delay)
 
             # scale magnitude
             mag_resp         = np.abs(resp[0])
@@ -104,7 +106,7 @@ class SmurfTuneMixin(SmurfBase):
             dsp_Q             = [epics.caget(pv_root + 'frequencyErrorMHz') for i in range(20)]
             dsp_phase         = np.arctan2(np.mean(dsp_Q), np.mean(dsp_I)) 
             phase_shift       = dsp_phase - tf_phase
-            comp_phase_resp   = (comp_delay/delay)*phase_resp + phase_shift
+            comp_phase_resp   = phase_resp + freq*add_phase_slope + phase_shift
 
             # overall compensated response
             comp_resp         = comp_mag_resp*(np.cos(comp_phase_resp) 
