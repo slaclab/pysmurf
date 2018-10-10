@@ -5,7 +5,7 @@ import os
 
 class SmurfIVMixin(SmurfBase):
 
-    def slow_iv(self, band, wait_time=.1, bias=None, bias_high=19.9, bias_low=0, 
+    def slow_iv(self, band, bias_group, wait_time=.1, bias=None, bias_high=19.9, bias_low=0, 
         bias_step=.1, show_plot=False, high_current_wait=.25, make_plot=True,
         save_plot=True, channels=None):
         """
@@ -30,37 +30,35 @@ class SmurfIVMixin(SmurfBase):
             channels = self.which_on(band)
         n_channel = self.get_number_channels(band)
 
-        bias_num = 1
-
         # drive high current through the TES to attempt to drive nomral
-        self.set_tes_bias_bipolar(bias_num, 19.9)
-        time.sleep(.1)
-        self.log('Driving high current through TES. ' + \
-            'Waiting {}'.format(high_current_wait))
-        self.set_cryo_card_relays(0x10004)
-        time.sleep(high_current_wait)
-        self.set_cryo_card_relays(0x10000)
-        time.sleep(.1)
-
+        #self.set_tes_bias_bipolar(bias_num, 19.9)
+        #time.sleep(.1)
+        #self.log('Driving high current through TES. ' + \
+        #    'Waiting {}'.format(high_current_wait))
+        #self.set_cryo_card_relays(0x10004)
+        #time.sleep(high_current_wait)
+        #self.set_cryo_card_relays(0x10000)
+        #time.sleep(.1)
+        self.overbias_tes(bias_group)
         self.log('Starting to take IV.', self.LOG_USER)
 
         if bias is None:
             bias = np.arange(bias_high, bias_low, -bias_step)
 
-        self.overbias_tes(bias_num, overbias_wait=.5, tes_bias=np.max(bias), 
+        self.overbias_tes(bias_group, overbias_wait=.5, tes_bias=np.max(bias), 
             cool_wait=1.)
 
         self.log('Staring to take IV.', self.LOG_USER)
         self.log('Starting TES bias ramp.', self.LOG_USER)
 
-        self.set_tes_bias_bipolar(bias_num, bias[0])
+        self.set_tes_bias_bipolar(bias_group, bias[0])
         time.sleep(1)
 
         datafile = self.stream_data_on(band)
 
         for b in bias:
             self.log('Bias at {:4.3f}'.format(b))
-            self.set_tes_bias_bipolar(bias_num, b)  
+            self.set_tes_bias_bipolar(bias_group, b)  
             time.sleep(wait_time)
 
         self.log('Done with TES bias ramp', self.LOG_USER)
@@ -104,12 +102,15 @@ class SmurfIVMixin(SmurfBase):
         print('Reading stream data from %s' % (datafile))
         timestamp, phase = self.read_stream_data(datafile)
         phase *= 1.443
-
+        
+        rn_list = []
+        rn_accept_min = 1e-3
+        rn_accept_max = 1.
         for c, ch in enumerate(channels):
             print('%i. Analyzing ch. %i...' % (c,ch))
             # timestamp, I, Q = self.read_stream_data(datafile)
             # phase = self.iq_to_phase(I[ch], Q[ch]) * 1.443
-            ch_idx = 512 * band + ch
+            ch_idx = ch
             if make_plot:
                 import matplotlib.pyplot as plt
                 
@@ -137,6 +138,12 @@ class SmurfIVMixin(SmurfBase):
                 basename=basename, 
                 band=band, channel=ch, make_plot=make_plot, show_plot=show_plot,
                 save_plot=save_plot,plot_dir = plot_dir,R_sh = R_sh)
+            try:
+                print('rn = %.3e Ohm' % (rn))
+                if rn <= rn_accept_max and rn >= rn_accept_min:
+                    rn_list.append(rn)
+            except:
+                print('fitted rn is not float')
             ivs[ch] = {
                 'R' : r,
                 'Rn' : rn,
@@ -144,6 +151,17 @@ class SmurfIVMixin(SmurfBase):
             }
 
         np.save(os.path.join(output_dir, basename + '_iv'), ivs)
+
+        if make_plot:
+            plt.figure()
+            plt.hist(rn_list)
+            plt.xlabel('r_n')
+            plt.title('%s: %i of %i between %.3e and %.3e Ohm' % \
+                          (basename,len(rn_list),len(channels),rn_accept_min,rn_accept_max))
+            plot_filename = os.path.join(plot_dir,'%s_IV_rn_hist.png' % (basename) )
+            print('Saving r_n histogramto %s' % (plot_filename))
+            plt.savefig(plot_filename,bbox_inches='tight', dpi=300)
+            plt.show()
 
     def analyze_slow_iv(self, v_bias, resp, make_plot=True, show_plot=False,
         save_plot=True, basename=None, band=None, channel=None, R_sh=.0029,

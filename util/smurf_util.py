@@ -913,6 +913,7 @@ class SmurfUtilMixin(SmurfBase):
         dac_negatives = np.array([1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 
             25, 27, 29, 31])
 
+
         dac_idx = np.ravel(np.where(bias_order == bias_group))
 
         dac_positive = dac_positives[dac_idx][0]
