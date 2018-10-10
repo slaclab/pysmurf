@@ -107,6 +107,7 @@ class SmurfIVMixin(SmurfBase):
             print('%i. Analyzing ch. %i...' % (c,ch))
             # timestamp, I, Q = self.read_stream_data(datafile)
             # phase = self.iq_to_phase(I[ch], Q[ch]) * 1.443
+            ch_idx = 512 * band + ch
             if make_plot:
                 import matplotlib.pyplot as plt
                 
@@ -115,7 +116,7 @@ class SmurfIVMixin(SmurfBase):
 
                 fig, ax = plt.subplots(1, sharex=True)
 
-                ax.plot(phase[ch])
+                ax.plot(phase[ch_idx])
                 ax.set_xlabel('Sample Num')
                 ax.set_ylabel('Phase [pA]')
 
@@ -130,7 +131,8 @@ class SmurfIVMixin(SmurfBase):
                 if not show_plot:
                     plt.close()
 
-            r, rn, idx = self.analyze_slow_iv(bias, phase[ch], basename=basename, 
+            r, rn, idx = self.analyze_slow_iv(bias, phase[ch_idx], 
+                basename=basename, 
                 band=band, channel=ch, make_plot=make_plot, show_plot=show_plot,
                 save_plot=save_plot,plot_dir = plot_dir)
             ivs[ch] = {
