@@ -30,6 +30,18 @@ class SmurfIVMixin(SmurfBase):
             channels = self.which_on(band)
         n_channel = self.get_number_channels(band)
 
+        # drive high current through the TES to attempt to drive nomral
+        self.set_tes_bias_bipolar(4, 19.9)
+        time.sleep(.1)
+        self.log('Driving high current through TES. ' + \
+            'Waiting {}'.format(high_current_wait))
+        self.set_cryo_card_relays(0x10004)
+        time.sleep(high_current_wait)
+        self.set_cryo_card_relays(0x10000)
+        time.sleep(.1)
+
+        self.log('Starting to take IV.', self.LOG_USER)
+
         if bias is None:
             bias = np.arange(bias_high, bias_low, -bias_step)
 
@@ -74,6 +86,7 @@ class SmurfIVMixin(SmurfBase):
     def analyze_slow_iv_from_file(self, fn_iv_raw_data, make_plot=True,
         show_plot=False, save_plot=True):
 
+        print('Loading raw data from %s' % (fn_iv_raw_data))
         iv_raw_data = np.load(fn_iv_raw_data).item()
         bias = iv_raw_data['bias']
         band = iv_raw_data['band']
@@ -86,10 +99,12 @@ class SmurfIVMixin(SmurfBase):
         ivs = {}
         ivs['bias'] = bias
 
+        print('Reading stream data from %s' % (datafile))
         timestamp, phase = self.read_stream_data(datafile)
         phase *= 1.443
 
         for c, ch in enumerate(channels):
+            print('%i. Analyzing ch. %i...' % (c,ch))
             # timestamp, I, Q = self.read_stream_data(datafile)
             # phase = self.iq_to_phase(I[ch], Q[ch]) * 1.443
             if make_plot:
@@ -145,6 +160,8 @@ class SmurfIVMixin(SmurfBase):
         idx (int array): 
         R_sh (float): Shunt resistance
         """
+        print('Analyzing slow IV for channel %i' % (channel))
+
         n_pts = len(resp)
         n_step = len(v_bias)
 
@@ -155,6 +172,7 @@ class SmurfIVMixin(SmurfBase):
         i_bias = 1.0E6 * v_bias / 8.038E3  # Total line impedance and uA
 
         if make_plot:
+            print('Importing matplotlib...')
             import matplotlib.pyplot as plt
             if show_plot:
                 plt.ion()
@@ -205,6 +223,7 @@ class SmurfIVMixin(SmurfBase):
         R_n = np.mean(R[nb_idx:])
 
         if make_plot:
+            print('Making IV plots for ch. %i' % (channel))
             fig, ax = plt.subplots(2, sharex=True)
             ax[0].plot(i_bias, resp_bin, '.')
             ax[0].set_ylabel(r'$I_{TES}$ $[\mu A]$')
@@ -264,8 +283,9 @@ class SmurfIVMixin(SmurfBase):
                         '_IV_curve_b{}_ch{:03}.png'.format(band, channel)
                 if plot_dir == None:
                     plot_dir = self.plot_dir
-                plt.savefig(os.path.join(plot_dir, plot_name),
-                    bbox_inches='tight', dpi=300)
+                plot_filename = os.path.join(plot_dir, plot_name)
+                print('Saving IV curve to %s' % (plot_filename))
+                plt.savefig(plot_filename,bbox_inches='tight', dpi=300)
             if show_plot:
                 plt.show()
             else:
