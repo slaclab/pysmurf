@@ -1861,7 +1861,7 @@ class SmurfCommandMixin(SmurfBase):
         """
         return self.C.read_relays()
 
-    def set_cryo_card_relays(self, relay):
+    def set_cryo_card_relays(self, relay, write_log=False):
         """
         Sets the cryo card relays
 
@@ -1869,9 +1869,11 @@ class SmurfCommandMixin(SmurfBase):
         -----
         relays (hex): The cryo card relays
         """
+        if write_log:
+            self.log('Writing relay using cryo_card object. {}'.format(relay))
         self.C.write_relays(relay)
 
-    def set_cryo_card_delatch_bit(self, bit):
+    def set_cryo_card_delatch_bit(self, bit, write_log=False):
         """
         Delatches the cryo card for a bit.
 
@@ -1879,5 +1881,8 @@ class SmurfCommandMixin(SmurfBase):
         -----
         bit (int): The bit to temporarily delatch
         """
+        if write_log:
+            self.log('Setting delatch bit using cryo_card ' +
+                'object. {}'.format(bit))
         self.C.delatch_bit(bit)
 

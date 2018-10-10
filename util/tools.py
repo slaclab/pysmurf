@@ -2,10 +2,17 @@ import numpy as np
 from scipy.optimize import curve_fit
 
 def skewed_lorentzian(x, bkg, bkg_slp, skw, mintrans, res_f, Q):
+    """
+    Skewed Lorentzian
+    """
     return bkg + bkg_slp*(x-res_f)-(mintrans+skw*(x-res_f))/\
         (1+4*Q**2*((x-res_f)/res_f)**2)
 
 def fit_skewed_lorentzian(f, mag):
+    """
+    Fits frequency and magnitude data with a skewed lorentzian
+    """
+    
     # define the initial values
     bkg = (mag[0]+mag[-1])/2
     bkg_slp = (mag[-1]-mag[0])/(f[-1]-f[0])

@@ -782,9 +782,10 @@ class SmurfUtilMixin(SmurfBase):
     def get_subband_centers(self, band, as_offset=True, hardcode=False):
         """ returns frequency in MHz of subband centers
         Args:
-         band (int): which band
-         as_offset (bool): whether to return as offset from band center \
-                 (default is no, which returns absolute values)
+        -----
+        band (int): which band
+        as_offset (bool): whether to return as offset from band center 
+            (default is no, which returns absolute values)
         """
 
         if hardcode:
@@ -894,9 +895,10 @@ class SmurfUtilMixin(SmurfBase):
 
         return s
 
-    def set_tes_bias_bipolar(self, bias_num, volt, do_enable=True, **kwargs):
+
+    def set_tes_bias_bipolar(self, bias_group, volt, do_enable=True, **kwargs):
         """
-        bias_num (int): The gate number to bias
+        bias_group (int): The bias group
         volt (float): The TES bias to command in voltage.
 
         Opt args:
@@ -905,13 +907,13 @@ class SmurfUtilMixin(SmurfBase):
         """
 
         bias_order = np.array([9, 11, 13, 15, 16, 14, 12, 10, 7, 5, 3, 1, 8, 6, 
-            4, 2])
+            4, 2]) - 1  # -1 because bias_groups are 0 indexed. Chips are 1
         dac_positives = np.array([2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 
             26, 28, 30, 32])
         dac_negatives = np.array([1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 
             25, 27, 29, 31])
 
-        dac_idx = np.ravel(np.where(bias_order == bias_num))
+        dac_idx = np.ravel(np.where(bias_group == bias_num))
 
         dac_positive = dac_positives[dac_idx][0]
         dac_negative = dac_negatives[dac_idx][0]
@@ -925,6 +927,7 @@ class SmurfUtilMixin(SmurfBase):
 
         self.set_tes_bias_volt(dac_positive, volts_pos, **kwargs)
         self.set_tes_bias_volt(dac_negative, volts_neg, **kwargs)
+
 
     def set_amplifier_bias(self, bias_hemt=.54, bias_50k=-.71, **kwargs):
         """
@@ -969,14 +972,14 @@ class SmurfUtilMixin(SmurfBase):
             asu_amp_Vd_series_resistor)
 
 
-    def overbias_tes(self, dac, overbias_voltage=19.9, overbias_wait=0.5,
+    def overbias_tes(self, bias_group, overbias_voltage=19.9, overbias_wait=0.5,
         tes_bias=19.9, cool_wait=20.):
         """
         Warning: This is horribly hardcoded. Needs a fix soon.
 
         Args:
         -----
-        dac (int): The TES dac pair (Note band 3 is DAC 4)
+        bias_group (int): The bias group to overbias
 
         Opt Args:
         ---------
@@ -990,7 +993,7 @@ class SmurfUtilMixin(SmurfBase):
             transients to die off.
         """
         # drive high current through the TES to attempt to drive nomral
-        self.set_tes_bias_bipolar(4, overbias_voltage)
+        self.set_tes_bias_bipolar(bias_group, overbias_voltage)
         time.sleep(.1)
         self.set_cryo_card_relays(0x10004, write_log=True)
         self.log('Driving high current through TES. ' + \
@@ -1003,6 +1006,27 @@ class SmurfUtilMixin(SmurfBase):
         time.sleep(cool_wait)
         self.log('Done waiting.', self.LOG_USER)
 
+
+    def set_tes_bias_high_current(self, bias_group):
+        """
+        """
+        old_relay = self.get_cryo_card_relays()
+        self.log('Old relay {}'.format(bin(old_relay)))
+        new_relay = (1 << bias_group) | old_relay
+        self.log('New relay {}'.format(bin(new_relay)))
+        self.set_cryo_card_relays(new_relay, write_log=True)
+        time.sleep(1)
+
+
+    def set_tes_bias_low_current(self, bias_group):
+        """
+        """
+        old_relay = self.get_cryo_card_relays()
+        self.log('Old relay {}'.format(bin(old_relay)))
+        new_relay = (1 << bias_group) | old_relay
+        self.log('New relay {}'.format(bin(new_relay)))
+        self.set_cryo_card_relays(new_relay, write_log=True)
+        time.sleep(1)
 
     def att_to_band(self, att):
         """

@@ -107,6 +107,22 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
             self.att_to_band['band'][i] = att_cfg[k]
             self.att_to_band['att'][i] = int(k[-1])
 
+        # Mapping from chip number to frequency in GHz
+        chip_cfg = self.config.get('chip_to_freq')
+        keys = chip_cfg.keys()
+        self.chip_to_freq = np.zeros((len(keys), 3))
+        for i, k in enumerate(chip_cfg.keys()):
+            val = chip_cfg[k]
+            self.chip_to_freq[i] = [k, val[0], val[1]]
+
+        # Mapping from band to chip number
+        band_cfg = self.config.get('band_to_chip')
+        keys = band_cfg.keys()
+        self.band_to_chip = np.zeros((len(keys), 5))
+        for i, k in enumerate(keys):
+            val = band_cfg[k]
+            self.band_to_chip[i] = np.append([i], val)
+
         if setup:
             self.setup(**kwargs)
 
