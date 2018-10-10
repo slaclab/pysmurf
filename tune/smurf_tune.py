@@ -69,12 +69,12 @@ class SmurfTuneMixin(SmurfBase):
             # Now let's scale/shift phase/mag to match what DSP sees
 
             # fit phase, calculate delay +/- 250MHz
-            idx = np.where( (freq > -250e6) & (freq < 250e6) )
-# FIXME - using resp[0], should we average responses?
-            p     = np.polyfit(freq[idx], np.unwrap(np.angle(resp[0][idx])), 1)
+            idx = np.where( (freq > freq_min) & (freq < freq_max) )
+
+            p     = np.polyfit(freq[idx], np.unwrap(np.angle(resp[idx])), 1)
             delay = 1e6*np.abs(p[0]/(2*np.pi))
 
-# FIXME - ref_phase_delay should be calcuated here, not set
+            # FIXME - ref_phase_delay should be calcuated here, not set
             ref_phase_delay      = 6
             ref_phase_delay_fine = 0
             processing_delay     = 1.842391045639787 # empirical, may need to iterate on this **must be right** for tracking
@@ -87,12 +87,12 @@ class SmurfTuneMixin(SmurfBase):
             add_phase_slope  = (2*np.pi*1e-6)*(delay - comp_delay)
 
             # scale magnitude
-            mag_resp         = np.abs(resp[0])
+            mag_resp         = np.abs(resp)
             comp_mag_resp    = mag_scale*mag_resp
 
             # adjust slope of phase response
             # finally there may also be some overall phase shift (DC)
-            phase_resp        = np.unwrap(np.angle(resp[0]))
+            phase_resp        = np.unwrap(np.angle(resp))
             idx0              = np.abs(freq).argmin()
             tf_phase          = phase_resp[idx0]
 #FIXME
@@ -107,6 +107,7 @@ class SmurfTuneMixin(SmurfBase):
             dsp_phase         = np.arctan2(np.mean(dsp_Q), np.mean(dsp_I)) 
             phase_shift       = dsp_phase - tf_phase
             comp_phase_resp   = phase_resp + freq*add_phase_slope + phase_shift
+
 
             # overall compensated response
             comp_resp         = comp_mag_resp*(np.cos(comp_phase_resp) 
@@ -224,6 +225,8 @@ class SmurfTuneMixin(SmurfBase):
             p_cross = p_cross[idx]
 
             resp[n] = p_cross / p_dac
+
+        resp = np.mean(resp, axis=0)
 
         if make_plot:
             import matplotlib.pyplot as plt
