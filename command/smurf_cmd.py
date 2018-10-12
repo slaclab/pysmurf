@@ -20,7 +20,7 @@ if __name__ == "__main__":
 
     # Stupid log command
     parser.add_argument('--log', help='Logs input phrase', default=None,
-                       action='store')
+        action='store')
     
     # TES bias commands
     parser.add_argument('--tes-bias', action='store_true', default=False,
@@ -55,12 +55,19 @@ if __name__ == "__main__":
     parser.add_argument('--tune-make-plot', action='store_true', default=False,
         help='Whether to make plots for tuning. This is slow.')
 
+    # Start acq
+    parser.add_argument('--start-acq', action='store_true', default=False,
+        help='Start the data acquisition')
+
+    # Stop acq
+    parser.add_argument('--stop-acq', action='store_true', default=False,
+        help='Stop the data acquistion')
+
     # Extract inputs
     args = parser.parse_args()
 
     S = pysmurf.SmurfControl(cfg_file=os.path.join(os.path.dirname(__file__), 
         '..', 'cfg_files' , cfg_filename), smurf_cmd_mode=True, setup=False)
-
 
     if args.log is not None:
         S.log(args.log)
@@ -88,5 +95,15 @@ if __name__ == "__main__":
             grad_cut=tune_cfg.get('grad_cut'),
             amp_cut=tune.cfg.get('tune_cut'))
 
+    if args.start_acq:
+        bands = S.config.get('bands')
+        self.log('Starting streaming data')
+        for b in bands:
+            S.stream_data_on(b)
 
+    if args.stop_acq:
+        bands = S.config.get('bands')
+        self.log('Stopping streaming data')
+        for b in bands:
+            S.stream_data_off(b)
     
