@@ -4,7 +4,7 @@ import time
 from pysmurf.base import SmurfBase
 from scipy import optimize
 import scipy.signal as signal
-
+from ..util import tools
 
 class SmurfTuneMixin(SmurfBase):
     """
@@ -31,7 +31,7 @@ class SmurfTuneMixin(SmurfBase):
         resp (float array): The response information. If both freq and resp
             are not None, it will skip full_band_resp.
         n_samples (int): The number of samples to take in full_band_resp.
-            Default is 2^18.
+            Default is 2^19.
         make_plot (bool): Whether to make plots. This is slow, so if you want
             to tune quickly, set to False. Default True.
         plot_chans (list): if making plots, which channels to plot. If empty,
@@ -163,7 +163,7 @@ class SmurfTuneMixin(SmurfBase):
         return resonances
 
 
-    def full_band_resp(self, band, n_scan=3, n_samples=2**18, make_plot=False, 
+    def full_band_resp(self, band, n_scan=1, n_samples=2**19, make_plot=False, 
         save_plot=True, save_data=False, timestamp=None):
         """
         Injects high amplitude noise with known waveform. The ADC measures it.
@@ -186,7 +186,7 @@ class SmurfTuneMixin(SmurfBase):
         resp (complex array): The response information. Length n_samples/2
         """
         if timestamp is None:
-            timestamp = self.get_timestamp
+            timestamp = self.get_timestamp()
 
         resp = np.zeros((int(n_scan), int(n_samples/2)), dtype=complex)
         for n in np.arange(n_scan):
@@ -244,7 +244,7 @@ class SmurfTuneMixin(SmurfBase):
             ax[2].set_xlabel('Frequency [MHz]')
             ax[0].set_title(timestamp)
 
-            plt.tight_layout()
+            # plt.tight_layout()
 
             if save_plot:
                 plt.savefig(os.path.join(self.plot_dir, 
@@ -326,7 +326,7 @@ class SmurfTuneMixin(SmurfBase):
         med_amp = pd.Series(amp).rolling(window=window, center=True).median()
 
         starts, ends = self.find_flag_blocks(self.pad_flags(grad_loc, 
-            before_pad=20, after_pad=20, min_gap=10))
+            before_pad=50, after_pad=50, min_gap=50))
 
         peak = np.array([], dtype=int)
         for s, e in zip(starts, ends):
@@ -422,7 +422,7 @@ class SmurfTuneMixin(SmurfBase):
                     sb, sbf))
 
                 if save_plot:
-                    save_name = '{}_sb{}_find_freq.png'.format(timestamp, sb)
+                    save_name = '{}_sb{:03}_find_freq.png'.format(timestamp, sb)
                     plt.savefig(os.path.join(self.plot_dir, save_name),
                         bbox_inches='tight')
                     plt.close()
@@ -530,8 +530,8 @@ class SmurfTuneMixin(SmurfBase):
             plt.close()
 
     def eta_fit(self, freq, resp, peak_freq, delF, subbandHalfWidth, 
-        make_plot=False, plot_chans =  [], save_plot=True, band=None, 
-	timestamp=None, res_num=None):
+        make_plot=False, plot_chans=[], save_plot=True, band=None, 
+        timestamp=None, res_num=None):
         """
         Cyndia's eta finding code
         """
@@ -561,26 +561,31 @@ class SmurfTuneMixin(SmurfBase):
         eta_scaled = eta_mag * 1e-6/ subbandHalfWidth # convert to MHz
         eta_phase_deg = eta_angle * 180 / np.pi
 
-        def r2_value(x, y, deg):
-            fit = np.polyfit(x,y,deg)
-            fitted_line = np.poly1d(fit)
-            yhat = fitted_line(x)
-            ybar = np.sum(y) / len(y)
-            ssreg = np.sum((yhat - ybar)**2)
-            sstot = np.sum((y - ybar)**2)
+        # def r2_value(x, y, deg):
+        #     fit = np.polyfit(x,y,deg)
+        #     fitted_line = np.poly1d(fit)
+        #     yhat = fitted_line(x)
+        #     ybar = np.sum(y) / len(y)
+        #     ssreg = np.sum((yhat - ybar)**2)
+        #     sstot = np.sum((y - ybar)**2)
             
-            return ssreg / sstot
+        #     return ssreg / sstot
 
-        r2 = r2_value(freq[left:right], phase[left:right],1)
+        # r2 = r2_value(freq[left:right], phase[left:right],1)
+
+        sk_fit = tools.fit_skewed_lorentzian(freq[left:right], amp[left:right])
+        r2 = np.sum((amp[left:right] - tools.skewed_lorentzian(freq[left:right], 
+            *sk_fit))**2)
     
         if make_plot:
+            self.log('Saving plots to {}'.format(self.plot_dir))
             if len(plot_chans) == 0:
                 self.log('Making plot for band' + 
                     ' {} res {:03}'.format(band, res_num))
                 self.plot_eta_fit(freq[left:right], resp[left:right], 
                     eta=eta, eta_mag=eta_mag, r2=r2,
                     save_plot=save_plot, timestamp=timestamp, band=band,
-                    res_num=res_num)
+                    res_num=res_num, sk_fit=sk_fit)
             else:
                 if res_num in plot_chans:
                     self.log('Making plot for band ' + 
@@ -588,13 +593,14 @@ class SmurfTuneMixin(SmurfBase):
                     self.plot_eta_fit(freq[left:right], resp[left:right], 
                         eta=eta, eta_mag=eta_mag, eta_phase_deg=eta_phase_deg, 
                         r2=r2, save_plot=save_plot, timestamp=timestamp, 
-                        band=band, res_num=res_num)
+                        band=band, res_num=res_num, sk_fit=sk_fit)
 
         return eta, eta_scaled, eta_phase_deg, r2, eta_mag, latency
 
+
     def plot_eta_fit(self, freq, resp, eta=None, eta_mag=None, 
         eta_phase_deg=None, r2=None, save_plot=True, timestamp=None, 
-        res_num=None, band=None):
+        res_num=None, band=None, sk_fit=None):
         """
         """
         if timestamp is None:
@@ -612,7 +618,7 @@ class SmurfTuneMixin(SmurfBase):
 
         center_idx = np.ravel(np.where(amp==np.min(amp)))[0]
 
-        fig = plt.figure(figsize=(8,4.5))
+        fig = plt.figure(figsize=(9,4.5))
         gs=GridSpec(2,3)
         ax0 = fig.add_subplot(gs[0,0])
         ax1 = fig.add_subplot(gs[1,0], sharex=ax0)
@@ -621,6 +627,9 @@ class SmurfTuneMixin(SmurfBase):
         ax0.plot(plot_freq, Q, label='Q', linestyle='--', color='k')
         ax0.scatter(plot_freq, amp, c=np.arange(len(freq)), s=3,
             label='amp')
+        if sk_fit is not None:
+            ax0.plot(plot_freq, tools.skewed_lorentzian(plot_freq*1.0E6, 
+                *sk_fit), color='r', linestyle=':')
         ax0.legend(fontsize=10, loc='lower right')
         ax0.set_ylabel('Resp')
 
@@ -731,7 +740,22 @@ class SmurfTuneMixin(SmurfBase):
         
         return subbands, channels, offsets
 
-    def relock(self, band, amp_scale=11.):
+
+    def compare_tuning(self, tune, ref_tune):
+        """
+        Compares tuning file to a reference tuning file
+        """
+        if isinstance(tune, str):
+            self.log('Loading {}'.format(tune))
+            tune = np.load(tune)
+        if isinstance(ref_tune, str):
+            self.log('Loading reference {}'.format(tune))
+            tune = np.load(ref_tune)
+
+        return
+
+
+    def relock(self, band, amp_scale=11., r2_cut=.08):
         """
         """
         digitzer_freq = self.get_digitizer_frequency_mhz(band)
@@ -750,7 +774,7 @@ class SmurfTuneMixin(SmurfBase):
         counter = 0
         for k in self.freq_resp.keys():
             ch = self.freq_resp[k]['channel']
-            if ch > -1:
+            if ch > -1 and self.freq_resp[k]['r2']<r2_cut:
                 center_freq[ch] = self.freq_resp[k]['offset']
                 amplitude_scale[ch] = amp_scale
                 feedback_enable[ch] = 1

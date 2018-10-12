@@ -928,10 +928,22 @@ class SmurfCommandMixin(SmurfBase):
 
     # Attenuator
     _uc = 'UC[{}]'
-    def set_att_uc(self, b, val, **kwargs):
+    def set_att_uc(self, b, val, input_band=True, **kwargs):
         '''
         Set the upconverter attenuator
+
+        Args:
+        -----
+        b (int): Either the band or the attenuator number.
+        val (int): The attenuator value
+
+        Opt Args:
+        ---------
+        input_band (bool): If True, the input is assumed to be the band number.
+            Otherwise the input is assumed to be the attenuator number
         '''
+        if input_band:
+            b = self.band_to_att(b)
         self._caput(self.att_root + self._uc.format(int(b)), val, **kwargs)
 
     def get_att_uc(self, b, **kwargs):
@@ -942,10 +954,22 @@ class SmurfCommandMixin(SmurfBase):
 
 
     _dc = 'DC[{}]'
-    def set_att_dc(self, b, val, **kwargs):
+    def set_att_dc(self, b, val, input_band=True, **kwargs):
         '''
         Set the down-converter attenuator
+
+        Args:
+        -----
+        b (int): Either the band or the attenuator number.
+        val (int): The attenuator value
+
+        Opt Args:
+        ---------
+        input_band (bool): If True, the input is assumed to be the band number.
+            Otherwise the input is assumed to be the attenuator number
         '''
+        if input_band:
+            b = self.band_to_att(b)
         self._caput(self.att_root + self._dc.format(int(b)), val, **kwargs)
 
     def get_att_dc(self,b,  **kwargs):
@@ -1837,7 +1861,7 @@ class SmurfCommandMixin(SmurfBase):
         """
         return self.C.read_relays()
 
-    def set_cryo_card_relays(self, relay):
+    def set_cryo_card_relays(self, relay, write_log=False):
         """
         Sets the cryo card relays
 
@@ -1845,9 +1869,11 @@ class SmurfCommandMixin(SmurfBase):
         -----
         relays (hex): The cryo card relays
         """
+        if write_log:
+            self.log('Writing relay using cryo_card object. {}'.format(relay))
         self.C.write_relays(relay)
 
-    def set_cryo_card_delatch_bit(self, bit):
+    def set_cryo_card_delatch_bit(self, bit, write_log=False):
         """
         Delatches the cryo card for a bit.
 
@@ -1855,5 +1881,8 @@ class SmurfCommandMixin(SmurfBase):
         -----
         bit (int): The bit to temporarily delatch
         """
+        if write_log:
+            self.log('Setting delatch bit using cryo_card ' +
+                'object. {}'.format(bit))
         self.C.delatch_bit(bit)
 
