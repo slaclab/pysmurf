@@ -93,17 +93,19 @@ class SmurfTuneMixin(SmurfBase):
             # adjust slope of phase response
             # finally there may also be some overall phase shift (DC)
             phase_resp        = np.unwrap(np.angle(resp))
-            idx0              = np.abs(freq).argmin()
-            tf_phase          = phase_resp[idx0]
+            idx0              = np.abs(freq+0.8e6).argmin()
+            tf_phase          = phase_resp[idx0] + freq[idx0]*add_phase_slope
 #FIXME
             import epics
-            pv_root = 'mitch_epics:AMCc:FpgaTopLevel:AppTop:AppCore:SysgenCryo:Base[2]:CryoChannels:CryoChannel[0]:'
+            pv_root = 'mitch_epics:AMCc:FpgaTopLevel:AppTop:AppCore:SysgenCryo:Base[3]:CryoChannels:CryoChannel[0]:'
             epics.caput(pv_root + 'etaMagScaled', 1)
+            epics.caput(pv_root + 'centerFrequencyMHz', -0.8)
             epics.caput(pv_root + 'amplitudeScale', 10)
             epics.caput(pv_root + 'etaPhaseDegree', 0)
             dsp_I             = [epics.caget(pv_root + 'frequencyErrorMHz') for i in range(20)]
-            epics.caput(pv_root + 'etaPhaseDegree', 90)
+            epics.caput(pv_root + 'etaPhaseDegree', -90)
             dsp_Q             = [epics.caget(pv_root + 'frequencyErrorMHz') for i in range(20)]
+            epics.caput(pv_root + 'amplitudeScale', 0)
             dsp_phase         = np.arctan2(np.mean(dsp_Q), np.mean(dsp_I)) 
             phase_shift       = dsp_phase - tf_phase
             comp_phase_resp   = phase_resp + freq*add_phase_slope + phase_shift
@@ -227,6 +229,8 @@ class SmurfTuneMixin(SmurfBase):
             resp[n] = p_cross / p_dac
 
         resp = np.mean(resp, axis=0)
+        resp = resp[::-1]    # flip order
+        resp = np.conj(resp) # conj to make phase go right way
 
         if make_plot:
             import matplotlib.pyplot as plt
