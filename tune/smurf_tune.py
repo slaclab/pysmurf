@@ -62,9 +62,70 @@ class SmurfTuneMixin(SmurfBase):
             plt.ioff()
 
         if freq is None or resp is None:
+            self.flux_ramp_off()
             self.log('Running full band resp')
             freq, resp = self.full_band_resp(band, n_samples=n_samples,
                 make_plot=make_plot, save_data=save_data, timestamp=timestamp)
+
+             # Now let's scale/shift phase/mag to match what DSP sees
+
+            # fit phase, calculate delay +/- 250MHz
+            idx = np.where( (freq > freq_min) & (freq < freq_max) )
+
+            p     = np.polyfit(freq[idx], np.unwrap(np.angle(resp[idx])), 1)
+            delay = 1e6*np.abs(p[0]/(2*np.pi))
+
+            # FIXME - ref_phase_delay should be calcuated here, not set
+            ref_phase_delay      = 6
+            ref_phase_delay_fine = 0
+            processing_delay     = 1.842391045639787 # empirical, may need to iterate on this **must be right** for tracking
+            # DSP sees cable delay + processing delay 
+            #   - refPhaseDelay/2.4 (2.4 MHz ticks) + ref_phase_delay_fine/307.2
+            comp_delay       = (delay + processing_delay
+                                 - ref_phase_delay/2.4 + ref_phase_delay_fine/307.2)
+            mag_scale        = 0.04232/0.1904    # empirical
+
+            add_phase_slope  = (2*np.pi*1e-6)*(delay - comp_delay)
+
+            # scale magnitude
+            mag_resp         = np.abs(resp)
+            comp_mag_resp    = mag_scale*mag_resp
+
+            # adjust slope of phase response
+            # finally there may also be some overall phase shift (DC)
+            import matplotlib.pyplot as plt
+            fig, ax = plt.subplots(1)
+            ax.plot(freq, np.unwrap(np.angle(resp)))
+            plt.show()
+
+            phase_resp        = np.angle(resp)
+            idx0              = np.abs(freq+0.8e6).argmin()
+            tf_phase          = phase_resp[idx0] + freq[idx0]*add_phase_slope
+            #FIXME
+            import epics
+            pv_root = 'mitch_epics:AMCc:FpgaTopLevel:AppTop:AppCore:SysgenCryo:Base[3]:CryoChannels:CryoChannel[0]:'
+            epics.caput(pv_root + 'etaMagScaled', 1)
+            epics.caput(pv_root + 'centerFrequencyMHz', -0.8)
+            epics.caput(pv_root + 'amplitudeScale', 10)
+            epics.caput(pv_root + 'etaPhaseDegree', 0)
+            dsp_I             = [epics.caget(pv_root + 'frequencyErrorMHz') for i in range(20)]
+            epics.caput(pv_root + 'etaPhaseDegree', -90)
+            dsp_Q             = [epics.caget(pv_root + 'frequencyErrorMHz') for i in range(20)]
+            epics.caput(pv_root + 'amplitudeScale', 0)
+            dsp_phase         = np.arctan2(np.mean(dsp_Q), np.mean(dsp_I)) 
+            phase_shift       = dsp_phase - tf_phase
+            comp_phase_resp   = phase_resp + freq*add_phase_slope + phase_shift
+
+            # overall compensated response
+            comp_resp         = comp_mag_resp*(np.cos(comp_phase_resp) 
+                                          + 1j*np.sin(comp_phase_resp))
+
+            resp              = comp_resp
+
+        import matplotlib.pyplot as plt
+        fig, ax = plt.subplots(1)
+        ax.plot(freq, comp_phase_resp)
+        plt.show()
 
         # Find peaks
         peaks = self.find_peak(freq, resp, band=band, make_plot=make_plot, 
@@ -72,13 +133,15 @@ class SmurfTuneMixin(SmurfBase):
             freq_max=freq_max, amp_cut=amp_cut, 
             make_subband_plot=make_subband_plot, timestamp=timestamp)
 
+        uc_att = self.get_att_uc(band)
+
         # Eta scans
         resonances = {}
         for i, p in enumerate(peaks):
             eta, eta_scaled, eta_phase_deg, r2, eta_mag, latency=self.eta_fit(freq, 
-                resp, p, .2e6, 614.4/128, make_plot=make_plot, 
+                resp, p, .2E6, 614.4/128, make_plot=make_plot, 
                 plot_chans=plot_chans, save_plot=save_plot, res_num=i, 
-                band=band, timestamp=timestamp)
+                band=band, timestamp=timestamp, uc_att=uc_att)
 
             resonances[i] = {
                 'freq': p,
@@ -115,7 +178,7 @@ class SmurfTuneMixin(SmurfBase):
 
 
     def full_band_resp(self, band, n_scan=1, n_samples=2**19, make_plot=False, 
-        save_plot=True, save_data=False, timestamp=None):
+        save_plot=True, save_data=False, timestamp=None, save_raw_data=False):
         """
         Injects high amplitude noise with known waveform. The ADC measures it.
         The cross correlation contains the information about the resonances.
@@ -163,6 +226,13 @@ class SmurfTuneMixin(SmurfBase):
             if band == 2:
                 dac = np.conj(dac)
 
+            if save_raw_data:
+                self.log('Saving raw data...', self.LOG_USER)
+                np.save(os.path.join(self.output_dir, 
+                    '{}_adc'.format(timestamp)), adc)
+                np.save(os.path.join(self.output_dir,
+                    '{}_dac'.format(timestamp)), dac)
+
             # To do : Implement cross correlation to get shift
 
             f, p_dac = signal.welch(dac, fs=614.4E6, nperseg=n_samples/2)
@@ -178,6 +248,8 @@ class SmurfTuneMixin(SmurfBase):
             resp[n] = p_cross / p_dac
 
         resp = np.mean(resp, axis=0)
+        # f = np.flipud(f)
+        # f *= -1  # Flip frequency sign
 
         if make_plot:
             import matplotlib.pyplot as plt
@@ -482,7 +554,7 @@ class SmurfTuneMixin(SmurfBase):
 
     def eta_fit(self, freq, resp, peak_freq, delF, subbandHalfWidth, 
         make_plot=False, plot_chans=[], save_plot=True, band=None, 
-        timestamp=None, res_num=None):
+        timestamp=None, res_num=None, uc_att=0):
         """
         Cyndia's eta finding code
         """
@@ -508,6 +580,7 @@ class SmurfTuneMixin(SmurfBase):
         latency = (np.unwrap(np.angle(resp))[-1] - \
             np.unwrap(np.angle(resp))[0]) / (freq[-1] - freq[0])/2/np.pi
         eta_mag = np.abs(eta)
+        eta_mag /= (10*np.log10( uc_att / 2 ) )
         eta_angle = np.angle(eta)
         eta_scaled = eta_mag * 1e-6/ subbandHalfWidth # convert to MHz
         eta_phase_deg = eta_angle * 180 / np.pi
@@ -524,10 +597,13 @@ class SmurfTuneMixin(SmurfBase):
 
         # r2 = r2_value(freq[left:right], phase[left:right],1)
 
-        sk_fit = tools.fit_skewed_lorentzian(freq[left:right], amp[left:right])
-        r2 = np.sum((amp[left:right] - tools.skewed_lorentzian(freq[left:right], 
-            *sk_fit))**2)
-    
+        if left != right:
+            sk_fit = tools.fit_skewed_lorentzian(freq[left:right], amp[left:right])
+            r2 = np.sum((amp[left:right] - tools.skewed_lorentzian(freq[left:right], 
+                *sk_fit))**2)
+        else:
+            r2 = np.nan
+
         if make_plot:
             self.log('Saving plots to {}'.format(self.plot_dir))
             if len(plot_chans) == 0:
@@ -706,9 +782,14 @@ class SmurfTuneMixin(SmurfBase):
         return
 
 
-    def relock(self, band, amp_scale=11., r2_cut=.08):
+    def relock(self, band, res_num=None, amp_scale=11., r2_cut=.08):
         """
         """
+        if res_num is None:
+            res_num = np.arange(512)
+        else:
+            res_num = np.array(res_num)
+
         digitzer_freq = self.get_digitizer_frequency_mhz(band)
         n_subband = self.get_number_sub_bands(band)
         n_channels = self.get_number_channels(band)
@@ -725,7 +806,7 @@ class SmurfTuneMixin(SmurfBase):
         counter = 0
         for k in self.freq_resp.keys():
             ch = self.freq_resp[k]['channel']
-            if ch > -1 and self.freq_resp[k]['r2']<r2_cut:
+            if ch > -1 and self.freq_resp[k]['r2']<r2_cut and k in res_num:
                 center_freq[ch] = self.freq_resp[k]['offset']
                 amplitude_scale[ch] = amp_scale
                 feedback_enable[ch] = 1

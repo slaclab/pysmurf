@@ -73,8 +73,8 @@ class SmurfNoiseMixin(SmurfBase):
             # phase = self.iq_to_phase(I[ch], Q[ch])
 
             # Calculate to power spectrum and convert to pA
-            #ch_idx = 512*band + ch
-            ch_idx = ch
+            ch_idx = 512*band + ch
+            # ch_idx = ch
             f, Pxx = signal.welch(phase[ch_idx], nperseg=nperseg, 
                 fs=fs, detrend=detrend)
             Pxx = np.sqrt(Pxx) * 1.0E6
@@ -408,6 +408,7 @@ class SmurfNoiseMixin(SmurfBase):
                     plot_name = '{}_'.format(self.get_timestamp) + plot_name
                 plt.savefig(os.path.join(self.plot_dir, plot_name),
                     bbox_inches='tight')
+                plt.close()
 
 
     def analyze_psd(self, f, Pxx, p0=[100.,0.5,1.]):

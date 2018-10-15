@@ -5,10 +5,10 @@ import os
 
 class SmurfIVMixin(SmurfBase):
 
-    def slow_iv(self, band, bias_group, wait_time=.1, bias=None, bias_high=19.9, bias_low=0, 
-        bias_step=.1, show_plot=False, high_current_wait=.25, make_plot=True,
-        save_plot=True, channels=None,high_current_mode = False,\
-                    rn_accept_min = 1e-3,rn_accept_max = 1.,overbias_voltage = 19.9):
+    def slow_iv(self, band, bias_group, wait_time=.1, bias=None, bias_high=19.9, 
+        bias_low=0, bias_step=.1, show_plot=False, high_current_wait=.25, 
+        make_plot=True, save_plot=True, channels=None, high_current_mode=False,
+        rn_accept_min=1e-3, rn_accept_max=1., overbias_voltage=19.9):
         """
         Steps the TES bias down slowly. Starts at bias_high to bias_low with
         step size bias_step. Waits wait_time between changing steps.
@@ -263,8 +263,8 @@ class SmurfIVMixin(SmurfBase):
             return None, None, None
 
         # index of the start of the normal branch
-        nb_idx = n_step-2
-        for i in np.arange(n_step-2, sc_idx, -1):
+        nb_idx = n_step-50
+        for i in np.arange(n_step-50, sc_idx, -1):
             if d_resp[i] > 0:
                 nb_idx = i
                 break
@@ -285,6 +285,7 @@ class SmurfIVMixin(SmurfBase):
             print('Making IV plots for ch. %i' % (channel))
             fig, ax = plt.subplots(2, sharex=True)
             ax[0].plot(i_bias, resp_bin, '.')
+            ax[0].plot((i_bias[1:]+i_bias[:-1])/2, d_resp, 'r.')
             ax[0].set_ylabel(r'$I_{TES}$ $[\mu A]$')
 
             ax[0].plot(i_bias, norm_fit[0] * i_bias , linestyle='--', color='k')  
