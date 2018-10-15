@@ -73,8 +73,8 @@ class SmurfNoiseMixin(SmurfBase):
             # phase = self.iq_to_phase(I[ch], Q[ch])
 
             # Calculate to power spectrum and convert to pA
-            ch_idx = 512*band + ch
-            # ch_idx = ch
+            #ch_idx = 512*band + ch
+            ch_idx = ch
             f, Pxx = signal.welch(phase[ch_idx], nperseg=nperseg, 
                 fs=fs, detrend=detrend)
             Pxx = np.sqrt(Pxx) * 1.0E6
@@ -213,8 +213,8 @@ class SmurfNoiseMixin(SmurfBase):
             if noise[ch] > cutoff:
                 self.channel_off(band, ch)
 
-    def noise_vs_bias(self, band, bias_high=6, bias_low=3, step_size=.1,
-        bias=None,
+    def noise_vs_bias(self, band, bias_group,bias_high=6, bias_low=3, step_size=.1,
+        bias=None, high_current_mode=False,
         meas_time=30., analyze=False, channel=None, nperseg=2**13,
         detrend='constant', fs=None,show_plot = False):
         """
@@ -261,7 +261,9 @@ class SmurfNoiseMixin(SmurfBase):
 
         for b in bias:
             self.log('Bias {}'.format(b))
-            self.overbias_tes(4, tes_bias=b)
+            self.overbias_tes(bias_group, tes_bias=b, 
+                              high_current_mode=high_current_mode,
+                              cool_wait=300)
 
             self.log('Taking data')
             datafile = self.take_stream_data(band, meas_time)
@@ -347,9 +349,11 @@ class SmurfNoiseMixin(SmurfBase):
                     plt.savefig(os.path.join(self.plot_dir, basename + \
                                     '_timestream_ch{:03}.png'.format(ch)),\
                                     bbox_inches='tight')
+                    plt.close()
 
             # Explicitly remove objects from memory
             del timestamp
+            del phase
 
         # Make plot
         cm = plt.get_cmap('viridis')

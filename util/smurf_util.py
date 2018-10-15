@@ -277,7 +277,7 @@ class SmurfUtilMixin(SmurfBase):
         --------
         data_filename (string): The fullpath to where the data is stored
         """
-        self.log('Staring to take data.', self.LOG_USER)
+        self.log('Starting to take data.', self.LOG_USER)
         data_filename = self.stream_data_on(band)
         time.sleep(meas_time)
         self.stream_data_off(band)
@@ -316,6 +316,7 @@ class SmurfUtilMixin(SmurfBase):
             
             # start streaming before opening file to avoid transient filter step
             self.set_stream_enable(band, 1, write_log=True)
+            time.sleep(1.)
             self.set_streaming_file_open(1)  # Open the file
 
             return data_filename
@@ -974,7 +975,7 @@ class SmurfUtilMixin(SmurfBase):
 
 
     def overbias_tes(self, bias_group, overbias_voltage=19.9, overbias_wait=0.5,
-        tes_bias=19.9, cool_wait=20.):
+        tes_bias=19.9, cool_wait=20.,high_current_mode = False):
         """
         Warning: This is horribly hardcoded. Needs a fix soon.
 
@@ -997,13 +998,16 @@ class SmurfUtilMixin(SmurfBase):
         self.set_tes_bias_bipolar(bias_group, overbias_voltage)
         time.sleep(.1)
         # self.set_cryo_card_relays(0x10004, write_log=True)
-        self.set_tes_bias_high_current(bias_group)
+        self.set_cryo_card_relays(2**17 - 1) # dc-coupled mode with all bias relays on
+        #self.set_tes_bias_high_current(bias_group)
         self.log('Driving high current through TES. ' + \
             'Waiting {}'.format(overbias_wait), self.LOG_USER)
         time.sleep(overbias_wait)
-        self.set_tes_bias_low_current(bias_group)
-        # self.set_cryo_card_relays(0x10000, write_log=True)
-        time.sleep(.1)
+        if not high_current_mode:
+            #self.set_tes_bias_low_current(bias_group)
+            self.set_cryo_card_relays(2**16) # dc-coupled mode with all bias relays off
+            # self.set_cryo_card_relays(0x10000, write_log=True)
+            time.sleep(.1)
         self.set_tes_bias_bipolar(bias_group, tes_bias)
         self.log('Waiting %.2f seconds to cool' % (cool_wait), self.LOG_USER)
         time.sleep(cool_wait)
@@ -1019,7 +1023,6 @@ class SmurfUtilMixin(SmurfBase):
         new_relay = (1 << bias_group) | old_relay
         self.log('New relay {}'.format(bin(new_relay)))
         self.set_cryo_card_relays(new_relay, write_log=True)
-
 
     def set_tes_bias_low_current(self, bias_group):
         """
