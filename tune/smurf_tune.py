@@ -104,6 +104,7 @@ class SmurfTuneMixin(SmurfBase):
             import epics
             base_root = 'mitch_epics:AMCc:FpgaTopLevel:AppTop:AppCore:SysgenCryo:Base[' + str(band) ']:'
             epics.caput(base_root + 'refPhaseDelay', ref_phase_delay)
+            epics.caput(base_root + 'lmsDelay', ref_phase_delay)
             epics.caput(base_root + 'refPhaseDelayFine', ref_phase_delay_fine)
             pv_root = base_root + 'CryoChannels:CryoChannel[0]:'
             epics.caput(pv_root + 'etaMagScaled', 1)
