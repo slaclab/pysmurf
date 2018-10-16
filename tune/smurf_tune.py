@@ -1006,11 +1006,11 @@ class SmurfTuneMixin(SmurfBase):
         trialRTMClock = rtmClock
 
         fullScaleRate = fraction_full_scale * resetRate
-        desFastSlowStepSize = (fullScaleRate * 2**20) / rtmClock
+        desFastSlowStepSize = (fullScaleRate * 2**32) / rtmClock
         trialFastSlowStepSize = round(desFastSlowStepSize)
         FastSlowStepSize = trialFastSlowStepSize
 
-        trialFullScaleRate = trialFastSlowStepSize * trialRTMClock / (2**20)
+        trialFullScaleRate = trialFastSlowStepSize * trialRTMClock / (2**32)
         trialResetRate = (dspClockFrequencyMHz * 1e6) / (rampMaxCnt + 1)
         trialFractionFullScale = trialFullScaleRate / trialResetRate
         fractionFullScale = trialFractionFullScale
@@ -1037,7 +1037,7 @@ class SmurfTuneMixin(SmurfBase):
                 self.LOG_USER)
             return
 
-        FastSlowRstValue = np.floor((2**20) * (1 - fractionFullScale)/2)
+        FastSlowRstValue = np.floor((2**32) * (1 - fractionFullScale)/2)
 
         KRelay = 3 #where do these values come from
         SelectRamp = 1
