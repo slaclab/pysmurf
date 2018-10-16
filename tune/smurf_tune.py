@@ -939,20 +939,71 @@ class SmurfTuneMixin(SmurfBase):
         return subbands, channels, offsets
 
 
-    def compare_tuning(self, tune, ref_tune):
+    def compare_tuning(self, tune, ref_tune, make_plot=False):
         """
         Compares tuning file to a reference tuning file. Does not work yet.
 
         """
-        if isinstance(tune, str):
-            self.log('Loading {}'.format(tune))
-            tune = np.load(tune)
-        if isinstance(ref_tune, str):
-            self.log('Loading reference {}'.format(tune))
-            tune = np.load(ref_tune)
 
-        return
+        # Load data
+        tune, freq, resp = self.load_tuning(tune)
+        tune_ref, freq_ref, resp_ref = self.load_tuning(ref_tune)
 
+        if make_plot:
+            import matplotlib.pyplot as plt
+
+            plt_freq = freq * 1.0E-6
+            fig, ax = plt.subplots(2, sharex=True, figsize=(6,5))
+            ax[0].plot(plt_freq, np.abs(resp))
+            ax[0].plot(plt_freq, np.abs(resp_ref))
+
+            for k in tune.keys():
+                ax[0].axvline(tune[k]['freq']*1.0E-6, color='b', linestyle=':')
+            for k in tune_ref.keys():
+                ax[0].axvline(tune_ref[k]['freq']*1.0E-6, color='r', linestyle=':')
+
+
+            ax[1].plot(plt_freq, np.abs(resp) - np.abs(resp_ref))
+
+            plt.tight_layout()
+
+    def load_tuning(self, tune, load_raw=True):
+        """
+        Loads tuning files from disk.
+
+        Args:
+        -----
+        tune (str): The full path to the freq_resp.npy file.
+
+        Opt Args:
+        ---------
+        load_raw (bool): Whether to load the freq and response data. Default
+            is True.
+
+        Ret:
+        ----
+        tune (dict): The tuning file
+        freq (float array): The frequency information. Returns if load_raw is
+            True.
+        resp (complex array): The full band response information. Returns if
+            load_raw is True.
+        """
+        self.log('Loading {}'.format(tune), self.LOG_INFO)
+        if load_raw:
+            dirname = os.path.dirname(tune)
+            basename = os.path.basename(tune).split('_')[0]
+            freq = np.loadtxt(os.path.join(dirname, 
+                basename+'_freq_full_band_resp.txt'))
+            resp = np.loadtxt(os.path.join(dirname, 
+                basename+'_real_full_band_resp.txt')) + \
+                1.j * np.loadtxt(os.path.join(dirname, 
+                basename+'_imag_full_band_resp.txt'))
+        tune = np.load(tune).item()
+
+        if load_raw:
+            return tune, freq, resp
+        else:
+            return tune
 
     def relock(self, band, res_num=None, amp_scale=11, r2_max=.08, 
         q_max=100000, q_min=0):
