@@ -100,7 +100,7 @@ class SmurfTuneMixin(SmurfBase):
             plt.show()
 #FIXME - want to match phase at a frequency where there is no resonator
             match_freq_offset = -0.8 # match phase at -0.8 MHz
-            phase_resp        = np.unwrap(np.angle(resp))
+            phase_resp        = np.angle(resp)
             idx0              = np.abs(freq - match_freq_offset*1e6).argmin()
             tf_phase          = phase_resp[idx0] + freq[idx0]*add_phase_slope
 #FIXME - should we be doing epics caput/caget here?
