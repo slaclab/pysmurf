@@ -281,7 +281,7 @@ class SmurfNoiseMixin(SmurfBase):
 
     def analyze_noise_vs_bias(self, bias, datafile, channel=None, band=None,
         nperseg=2**13, detrend='constant', fs=None, save_plot=True, 
-        show_plot=False, data_timestamp=None):
+        show_plot=False, make_timestream_plot=False, data_timestamp=None):
         """
         Analysis script associated with noise_vs_bias.
 
@@ -337,19 +337,20 @@ class SmurfNoiseMixin(SmurfBase):
                 np.savetxt(os.path.join(psd_dir, basename + 
                     '_psd_ch{:03}.txt'.format(ch)), np.array([f, Pxx]))
 
-                fig,ax = plt.subplots(1)
-                ax.plot(phase[ch])
-                ax.set_title('Channel {:03}'.format(ch))
-                ax.set_xlabel(r'Time index')
-                ax.set_ylabel(r'Phase')
+                if make_timestream_plot:
+                    fig,ax = plt.subplots(1)
+                    ax.plot(phase[ch])
+                    ax.set_title('Channel {:03}'.format(ch))
+                    ax.set_xlabel(r'Time index')
+                    ax.set_ylabel(r'Phase')
                 
-                if show_plot:
-                    plt.show()
-                if save_plot:
-                    plt.savefig(os.path.join(self.plot_dir, basename + \
+                    if show_plot:
+                        plt.show()
+                    if save_plot:
+                        plt.savefig(os.path.join(self.plot_dir, basename + \
                                     '_timestream_ch{:03}.png'.format(ch)),\
                                     bbox_inches='tight')
-                    plt.close()
+                        plt.close()
 
             # Explicitly remove objects from memory
             del timestamp
@@ -409,6 +410,9 @@ class SmurfNoiseMixin(SmurfBase):
                 plt.savefig(os.path.join(self.plot_dir, plot_name),
                     bbox_inches='tight')
                 plt.close()
+            
+            del f
+            del Pxx
 
 
     def analyze_psd(self, f, Pxx, p0=[100.,0.5,1.]):
