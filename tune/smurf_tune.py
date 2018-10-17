@@ -229,9 +229,6 @@ class SmurfTuneMixin(SmurfBase):
 
             self.set_noise_select(band, 0, wait_done=True, write_log=True)
 
-            if band == 2:
-                dac = np.conj(dac)
-
             if save_raw_data:
                 self.log('Saving raw data...', self.LOG_USER)
                 np.save(os.path.join(self.output_dir, 
@@ -243,7 +240,7 @@ class SmurfTuneMixin(SmurfBase):
 
             f, p_dac = signal.welch(dac, fs=614.4E6, nperseg=n_samples/2)
             f, p_adc = signal.welch(adc, fs=614.4E6, nperseg=n_samples/2)
-            f, p_cross = signal.csd(dac, adc, fs=614.4E6, nperseg=n_samples/2)
+            f, p_cross = signal.csd(adc, dac, fs=614.4E6, nperseg=n_samples/2)
 
             idx = np.argsort(f)
             f = f[idx]
@@ -254,8 +251,6 @@ class SmurfTuneMixin(SmurfBase):
             resp[n] = p_cross / p_dac
 
         resp = np.mean(resp, axis=0)
-        resp = resp[::-1]    # flip order
-        resp = np.conj(resp) # conj to make phase go right way
 
         if make_plot:
             import matplotlib.pyplot as plt
