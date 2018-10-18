@@ -94,10 +94,6 @@ class SmurfTuneMixin(SmurfBase):
 
             # adjust slope of phase response
             # finally there may also be some overall phase shift (DC)
-            import matplotlib.pyplot as plt
-            fig, ax = plt.subplots(1)
-            ax.plot(freq, np.unwrap(np.angle(resp)))
-            plt.show()
 #FIXME - want to match phase at a frequency where there is no resonator
             match_freq_offset = -0.8 # match phase at -0.8 MHz
             phase_resp        = np.angle(resp)
@@ -105,10 +101,10 @@ class SmurfTuneMixin(SmurfBase):
             tf_phase          = phase_resp[idx0] + freq[idx0]*add_phase_slope
 #FIXME - should we be doing epics caput/caget here?
             import epics
-            base_root = 'mitch_epics:AMCc:FpgaTopLevel:AppTop:AppCore:SysgenCryo:Base[' + str(band) ']:'
-            epics.caput(base_root + 'refPhaseDelay', ref_phase_delay)
-            epics.caput(base_root + 'lmsDelay', ref_phase_delay)
-            epics.caput(base_root + 'refPhaseDelayFine', ref_phase_delay_fine)
+            base_root = 'mitch_epics:AMCc:FpgaTopLevel:AppTop:AppCore:SysgenCryo:Base[' + str(band) + ']:'
+            epics.caput(base_root + 'refPhaseDelay', int(ref_phase_delay))
+            epics.caput(base_root + 'lmsDelay', int(ref_phase_delay))
+            epics.caput(base_root + 'refPhaseDelayFine', int(ref_phase_delay_fine))
             pv_root = base_root + 'CryoChannels:CryoChannel[0]:'
             epics.caput(pv_root + 'etaMagScaled', 1)
             epics.caput(pv_root + 'centerFrequencyMHz', match_freq_offset)
@@ -128,10 +124,11 @@ class SmurfTuneMixin(SmurfBase):
 
             resp              = comp_resp
 
-        import matplotlib.pyplot as plt
-        fig, ax = plt.subplots(1)
-        ax.plot(freq, comp_phase_resp)
-        plt.show()
+#            import matplotlib.pyplot as plt
+#            fig, ax = plt.subplots(1)
+#            ax.plot(freq, np.unwrap(np.angle(resp)))
+#            plt.show()
+
 
         # Find peaks
         peaks = self.find_peak(freq, resp, band=band, make_plot=make_plot, 
@@ -240,7 +237,7 @@ class SmurfTuneMixin(SmurfBase):
 
             f, p_dac = signal.welch(dac, fs=614.4E6, nperseg=n_samples/2)
             f, p_adc = signal.welch(adc, fs=614.4E6, nperseg=n_samples/2)
-            f, p_cross = signal.csd(adc, dac, fs=614.4E6, nperseg=n_samples/2)
+            f, p_cross = signal.csd(dac, adc, fs=614.4E6, nperseg=n_samples/2)
 
             idx = np.argsort(f)
             f = f[idx]
