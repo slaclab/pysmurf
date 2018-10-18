@@ -1035,6 +1035,20 @@ class SmurfUtilMixin(SmurfBase):
             self.log('New relay {}'.format(bin(new_relay)))
             self.set_cryo_card_relays(new_relay, write_log=True)
 
+    def set_mode_dc(self):
+        """
+        Sets it DC coupling
+        """
+        # The 16th bit (0 indexed) is the AC/DC coupling
+        self.set_tes_bias_high_current(16)
+
+    def set_mode_ac(self):
+        """
+        Sets it to AC coupling
+        """
+        # The 16th bit (0 indexed) is the AC/DC coupling
+        self.set_tes_bias_low_current(16)
+
 
     def att_to_band(self, att):
         """
