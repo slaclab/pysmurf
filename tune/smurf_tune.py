@@ -69,7 +69,7 @@ class SmurfTuneMixin(SmurfBase):
             freq, resp = self.full_band_resp(band, n_samples=n_samples,
                 make_plot=make_plot, save_data=save_data, timestamp=timestamp)
 
-             # Now let's scale/shift phase/mag to match what DSP sees
+            # Now let's scale/shift phase/mag to match what DSP sees
 
             # fit phase, calculate delay +/- 250MHz
             idx = np.where( (freq > freq_min) & (freq < freq_max) )
@@ -77,12 +77,13 @@ class SmurfTuneMixin(SmurfBase):
             p     = np.polyfit(freq[idx], np.unwrap(np.angle(resp[idx])), 1)
             delay = 1e6*np.abs(p[0]/(2*np.pi))
 
-            # FIXME - ref_phase_delay should be calcuated here, not set
-            ref_phase_delay      = 6
-            ref_phase_delay_fine = 0
             processing_delay     = 1.842391045639787 # empirical, may need to iterate on this **must be right** for tracking
             # DSP sees cable delay + processing delay 
             #   - refPhaseDelay/2.4 (2.4 MHz ticks) + ref_phase_delay_fine/307.2
+            # calculate refPhaseDelay and refPhaseDelayFine
+            ref_phase_delay      = np.ceil( (delay + processing_delay) * 2.4 )
+            ref_phase_delay_fine = np.floor( np.abs(delay + processing_delay - ref_phase_delay/2.4) * 307.2 )
+
             comp_delay       = (delay + processing_delay
                                  - ref_phase_delay/2.4 + ref_phase_delay_fine/307.2)
             mag_scale        = 0.04232/0.1904    # empirical
@@ -96,14 +97,21 @@ class SmurfTuneMixin(SmurfBase):
             # adjust slope of phase response
             # finally there may also be some overall phase shift (DC)
 
+#FIXME - want to match phase at a frequency where there is no resonator
+            match_freq_offset = -0.8 # match phase at -0.8 MHz
+
             phase_resp        = np.angle(resp)
-            idx0              = np.abs(freq+0.8e6).argmin()
+            idx0              = np.abs(freq - match_freq_offset*1e6).argmin()
             tf_phase          = phase_resp[idx0] + freq[idx0]*add_phase_slope
-            #FIXME
+#FIXME - should we be doing epics caput/caget here?
             import epics
-            pv_root = 'mitch_epics:AMCc:FpgaTopLevel:AppTop:AppCore:SysgenCryo:Base[3]:CryoChannels:CryoChannel[0]:'
+            base_root = 'mitch_epics:AMCc:FpgaTopLevel:AppTop:AppCore:SysgenCryo:Base[' + str(band) + ']:'
+            epics.caput(base_root + 'refPhaseDelay', int(ref_phase_delay))
+            epics.caput(base_root + 'lmsDelay', int(ref_phase_delay))
+            epics.caput(base_root + 'refPhaseDelayFine', int(ref_phase_delay_fine))
+            pv_root = base_root + 'CryoChannels:CryoChannel[0]:'
             epics.caput(pv_root + 'etaMagScaled', 1)
-            epics.caput(pv_root + 'centerFrequencyMHz', -0.8)
+            epics.caput(pv_root + 'centerFrequencyMHz', match_freq_offset)
             epics.caput(pv_root + 'amplitudeScale', 10)
             epics.caput(pv_root + 'etaPhaseDegree', 0)
             dsp_I             = [epics.caget(pv_root + 'frequencyErrorMHz') for i in range(20)]
@@ -119,6 +127,12 @@ class SmurfTuneMixin(SmurfBase):
                                           + 1j*np.sin(comp_phase_resp))
 
             resp              = comp_resp
+
+#            import matplotlib.pyplot as plt
+#            fig, ax = plt.subplots(1)
+#            ax.plot(freq, np.unwrap(np.angle(resp)))
+#            plt.show()
+
 
 
         # Find peaks
@@ -267,8 +281,7 @@ class SmurfTuneMixin(SmurfBase):
 
             self.set_noise_select(band, 0, wait_done=True, write_log=True)
 
-            if band == 2:
-                dac = np.conj(dac)
+
 
             if correct_att:
                 att_uc = self.get_att_uc(band)
@@ -306,9 +319,6 @@ class SmurfTuneMixin(SmurfBase):
             resp[n] = p_cross / p_dac
 
         resp = np.mean(resp, axis=0)
-
-        # f = np.flipud(f)
-        # f *= -1  # Flip frequency sign
 
         if make_plot:
             import matplotlib.pyplot as plt
