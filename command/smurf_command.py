@@ -946,10 +946,12 @@ class SmurfCommandMixin(SmurfBase):
             b = self.band_to_att(b)
         self._caput(self.att_root + self._uc.format(int(b)), val, **kwargs)
 
-    def get_att_uc(self, b, **kwargs):
+    def get_att_uc(self, b, input_band=True, **kwargs):
         '''
         Get the upconverter attenuator value
         '''
+        if input_band:
+            b = self.band_to_att(b)
         return self._caget(self.att_root + self._uc.format(int(b)), **kwargs)
 
 
@@ -972,10 +974,12 @@ class SmurfCommandMixin(SmurfBase):
             b = self.band_to_att(b)
         self._caput(self.att_root + self._dc.format(int(b)), val, **kwargs)
 
-    def get_att_dc(self,b,  **kwargs):
+    def get_att_dc(self, b, input_band=True, **kwargs):
         '''
         Get the down-converter attenuator value
         '''
+        if input_band:
+            b = self.band_to_att(b)
         return self._caget(self.att_root + self._dc.format(int(b)), **kwargs)
 
     # ADC commands
