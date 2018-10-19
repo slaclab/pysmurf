@@ -180,6 +180,11 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
                 self.set_data_out_mux(int(dmx), "UserData", write_log=True,
                     **kwargs)
 
+            self.set_att_uc(b, smurf_init_config[band_str]['att_uc'],
+                write_log=True)
+            self.set_att_dc(b, smurf_init_config[band_str]['att_dc'],
+                write_log=True)
+
             self.set_dsp_enable(b, smurf_init_config['dspEnable'], 
                 write_log=True, **kwargs)
 
@@ -188,9 +193,9 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
 
         self.set_cpld_reset(0, write_log=True)
 
-        for i in np.arange(1,5):
-            self.set_att_uc(i, 0, input_band=False, write_log=True)
-            self.set_att_dc(i, 0, input_band=False, write_log=True)
+        # for i in np.arange(1,5):
+        #     self.set_att_uc(i, 0, input_band=False, write_log=True)
+        #     self.set_att_dc(i, 0, input_band=False, write_log=True)
 
         self.cpld_toggle()
 

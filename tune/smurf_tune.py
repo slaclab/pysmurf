@@ -126,7 +126,7 @@ class SmurfTuneMixin(SmurfBase):
             comp_resp         = comp_mag_resp*(np.cos(comp_phase_resp) 
                                           + 1j*np.sin(comp_phase_resp))
 
-            resp              = comp_resp
+            resp = comp_resp
 
 #            import matplotlib.pyplot as plt
 #            fig, ax = plt.subplots(1)
@@ -175,7 +175,7 @@ class SmurfTuneMixin(SmurfBase):
             resonances[k].update({'channel': channels[i]})
             resonances[k].update({'offset': offsets[i]})
 
-        self.freq_resp = resonances
+        self.freq_resp[band] = resonances
         np.save(os.path.join(self.output_dir, 
             '{}_freq_resp'.format(timestamp)), self.freq_resp)
 
@@ -514,7 +514,7 @@ class SmurfTuneMixin(SmurfBase):
                     sb, sbf))
 
                 if save_plot:
-                    save_name = '{}_sb{:03}_find_freq.png'.format(timestamp, sb)
+                    save_name = '{}_find_freq_b{}_sb{:03}.png'.format(timestamp, band, sb)
                     plt.savefig(os.path.join(self.plot_dir, save_name),
                         bbox_inches='tight')
                     plt.close()
@@ -704,12 +704,12 @@ class SmurfTuneMixin(SmurfBase):
             left = 0
         right = np.where(freq > peak_freq + delta_freq)[0][0]
             
-        # eta = (freq[right] - freq[left]) / (resp[right] - resp[left])
+        eta = (freq[right] - freq[left]) / (resp[right] - resp[left])
 
         # Get eta parameters
-        w = 5
-        eta = (np.mean(freq[right-w:right+w]) - np.mean(freq[left-w:left+w]))/ \
-            (np.mean(resp[right-w:right+w]) - np.mean(resp[left-w:left+w]))
+        # w = 5
+        # eta = (np.mean(freq[right-w:right+w]) - np.mean(freq[left-w:left+w]))/ \
+        #     (np.mean(resp[right-w:right+w]) - np.mean(resp[left-w:left+w]))
         latency = (np.unwrap(np.angle(resp))[-1] - \
             np.unwrap(np.angle(resp))[0]) / (freq[-1] - freq[0])/2/np.pi
         eta_mag = np.abs(eta)
@@ -1053,22 +1053,22 @@ class SmurfTuneMixin(SmurfBase):
 
         # Populate arrays
         counter = 0
-        for k in self.freq_resp.keys():
-            ch = self.freq_resp[k]['channel']
+        for k in self.freq_resp[band].keys():
+            ch = self.freq_resp[band][k]['channel']
             if ch < -1: 
                 self.log('No channel assigned: res {:03}'.format(k))
-            elif self.freq_resp[k]['r2'] > r2_max:
+            elif self.freq_resp[band][k]['r2'] > r2_max:
                 self.log('R2 too high: res {:03}'.format(k))
-            elif self.freq_resp[k]['Q'] < q_min:
+            elif self.freq_resp[band][k]['Q'] < q_min:
                 self.log('Q too low: res {:03}'.format(k))
-            elif self.freq_resp[k]['Q'] > q_max:
+            elif self.freq_resp[band][k]['Q'] > q_max:
                 self.log('Q too high: res {:03}'.format(k))
             else:
-                center_freq[ch] = self.freq_resp[k]['offset']
+                center_freq[ch] = self.freq_resp[band][k]['offset']
                 amplitude_scale[ch] = amp_scale
                 feedback_enable[ch] = 1
-                eta_phase[ch] = self.freq_resp[k]['eta_phase']
-                eta_mag[ch] = self.freq_resp[k]['eta_scaled']
+                eta_phase[ch] = self.freq_resp[band][k]['eta_phase']
+                eta_mag[ch] = self.freq_resp[band][k]['eta_scaled']
                 counter += 1
 
         # Set the actualy variables
