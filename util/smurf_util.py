@@ -975,7 +975,7 @@ class SmurfUtilMixin(SmurfBase):
 
 
     def overbias_tes(self, bias_group, overbias_voltage=19.9, overbias_wait=0.5,
-        tes_bias=19.9, cool_wait=20.,high_current_mode = False):
+        tes_bias=19.9, cool_wait=20., high_current_mode=False):
         """
         Warning: This is horribly hardcoded. Needs a fix soon.
 
@@ -994,19 +994,16 @@ class SmurfUtilMixin(SmurfBase):
         cool_wait (float): The time to wait after setting the TES bias for 
             transients to die off.
         """
-        # drive high current through the TES to attempt to drive nomral
+        # drive high current through the TES to attempt to drive normal
         self.set_tes_bias_bipolar(bias_group, overbias_voltage)
         time.sleep(.1)
-        # self.set_cryo_card_relays(0x10004, write_log=True)
-        self.set_cryo_card_relays(2**17 - 1) # dc-coupled mode with all bias relays on
-        #self.set_tes_bias_high_current(bias_group)
+
+        self.set_tes_bias_high_current(bias_group)
         self.log('Driving high current through TES. ' + \
             'Waiting {}'.format(overbias_wait), self.LOG_USER)
         time.sleep(overbias_wait)
         if not high_current_mode:
-            #self.set_tes_bias_low_current(bias_group)
-            self.set_cryo_card_relays(2**16) # dc-coupled mode with all bias relays off
-            # self.set_cryo_card_relays(0x10000, write_log=True)
+            self.set_tes_bias_low_current(bias_group)
             time.sleep(.1)
         self.set_tes_bias_bipolar(bias_group, tes_bias)
         self.log('Waiting %.2f seconds to cool' % (cool_wait), self.LOG_USER)
