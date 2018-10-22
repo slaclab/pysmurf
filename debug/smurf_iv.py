@@ -89,7 +89,7 @@ class SmurfIVMixin(SmurfBase):
         np.save(os.path.join(self.output_dir, fn_iv_raw_data), iv_raw_data)
 
         self.analyze_slow_iv_from_file(fn_iv_raw_data, make_plot=make_plot,
-            show_plot=show_plot, save_plot=save_plot,high_current_mode = high_current_mode,\
+            show_plot=show_plot, save_plot=save_plot,R_sh = 325e-6, high_current_mode = high_current_mode,\
                                            rn_accept_min = rn_accept_min,rn_accept_max = rn_accept_max)
 
     def analyze_slow_iv_from_file(self, fn_iv_raw_data, make_plot=True,
@@ -198,7 +198,7 @@ class SmurfIVMixin(SmurfBase):
             plt.show()
 
     def analyze_slow_iv(self, v_bias, resp, make_plot=True, show_plot=False,
-        save_plot=True, basename=None, band=None, channel=None, R_sh=.0029,
+        save_plot=True, basename=None, band=None, channel=None, R_sh=0.0029,
         plot_dir = None,high_current_mode = False,bias_group = None,**kwargs):
         """
         Analyzes the IV curve taken with slow_iv()
@@ -225,7 +225,8 @@ class SmurfIVMixin(SmurfBase):
 
         resp_bin = np.zeros(n_step)
 
-        r_inline = 26.66e3 # for K7; estimate from Dan (Oct. 10, 2018)
+        #r_inline = 26.66e3 # for K7; estimate from Dan (Oct. 10, 2018)
+        r_inline = 8.e3 # for FP Run 28; estimate from SWH (Oct. 19, 2018)
         if high_current_mode:
             r_inline /= 10.
         i_bias = 1.0E6 * v_bias / r_inline  # Total line impedance and uA
