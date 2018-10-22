@@ -77,18 +77,19 @@ class SmurfTuneMixin(SmurfBase):
             p     = np.polyfit(freq[idx], np.unwrap(np.angle(resp[idx])), 1)
             delay = 1e6*np.abs(p[0]/(2*np.pi))
 
-            processing_delay     = 1.842391045639787 # empirical, may need to iterate on this **must be right** for tracking
+            processing_delay  = 1.842391045639787 # empirical, may need to iterate on this **must be right** for tracking
             # DSP sees cable delay + processing delay 
             #   - refPhaseDelay/2.4 (2.4 MHz ticks) + ref_phase_delay_fine/307.2
             # calculate refPhaseDelay and refPhaseDelayFine
-            ref_phase_delay      = np.ceil( (delay + processing_delay) * 2.4 )
-            ref_phase_delay_fine = np.floor( np.abs(delay + processing_delay - ref_phase_delay/2.4) * 307.2 )
+            ref_phase_delay = np.ceil( (delay + processing_delay) * 2.4 )
+            ref_phase_delay_fine = np.floor( np.abs(delay + processing_delay - 
+                ref_phase_delay/2.4) * 307.2 )
 
-            comp_delay       = (delay + processing_delay
-                                 - ref_phase_delay/2.4 + ref_phase_delay_fine/307.2)
-            mag_scale        = 0.04232/0.1904    # empirical
+            comp_delay = (delay + processing_delay - ref_phase_delay/2.4 + 
+                ref_phase_delay_fine/307.2)
+            mag_scale = 0.04232/0.1904    # empirical
 
-            add_phase_slope  = (2*np.pi*1e-6)*(delay - comp_delay)
+            add_phase_slope = (2*np.pi*1e-6)*(delay - comp_delay)
 
             # scale magnitude
             mag_resp         = np.abs(resp)
@@ -106,18 +107,27 @@ class SmurfTuneMixin(SmurfBase):
 #FIXME - should we be doing epics caput/caget here?
             import epics
             base_root = 'mitch_epics:AMCc:FpgaTopLevel:AppTop:AppCore:SysgenCryo:Base[' + str(band) + ']:'
-            epics.caput(base_root + 'refPhaseDelay', int(ref_phase_delay))
-            epics.caput(base_root + 'lmsDelay', int(ref_phase_delay))
-            epics.caput(base_root + 'refPhaseDelayFine', int(ref_phase_delay_fine))
+            # epics.caput(base_root + 'refPhaseDelay', int(ref_phase_delay))
+            self.set_ref_phase_delay(band, int(ref_phase_delay))
+            # epics.caput(base_root + 'lmsDelay', int(ref_phase_delay))
+            self.set_lms_delay(band, int(ref_phase_delay))
+            # epics.caput(base_root + 'refPhaseDelayFine', int(ref_phase_delay_fine))
+            self.set_ref_phase_delay(band, int(ref_phase_delay_fine))
             pv_root = base_root + 'CryoChannels:CryoChannel[0]:'
-            epics.caput(pv_root + 'etaMagScaled', 1)
-            epics.caput(pv_root + 'centerFrequencyMHz', match_freq_offset)
-            epics.caput(pv_root + 'amplitudeScale', 10)
-            epics.caput(pv_root + 'etaPhaseDegree', 0)
-            dsp_I             = [epics.caget(pv_root + 'frequencyErrorMHz') for i in range(20)]
-            epics.caput(pv_root + 'etaPhaseDegree', -90)
-            dsp_Q             = [epics.caget(pv_root + 'frequencyErrorMHz') for i in range(20)]
-            epics.caput(pv_root + 'amplitudeScale', 0)
+            # epics.caput(pv_root + 'etaMagScaled', 1)
+            self.set_eta_mag_scaled_channel(band, 0, 1)
+            # epics.caput(pv_root + 'centerFrequencyMHz', match_freq_offset)
+            self.set_center_frequency_mhz_channel(band, 0, match_freq_offset)
+            # epics.caput(pv_root + 'amplitudeScale', 10)
+            self.set_amplitude_scale_channel(band, 0, 10)
+            # epics.caput(pv_root + 'etaPhaseDegree', 0)
+            self.set_eta_phase_degree_channel(band, 0, 0)
+            dsp_I = [epics.caget(pv_root + 'frequencyErrorMHz') for i in range(20)]
+            # epics.caput(pv_root + 'etaPhaseDegree', -90)
+            self.set_eta_phase_degree_channel(band, 0, -90)
+            dsp_Q = [epics.caget(pv_root + 'frequencyErrorMHz') for i in range(20)]
+            # epics.caput(pv_root + 'amplitudeScale', 0)
+            self.set_amplitude_scale_channel(band, 0, 0)
             dsp_phase         = np.arctan2(np.mean(dsp_Q), np.mean(dsp_I)) 
             phase_shift       = dsp_phase - tf_phase
             comp_phase_resp   = phase_resp + freq*add_phase_slope + phase_shift

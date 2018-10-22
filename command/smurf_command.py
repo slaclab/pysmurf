@@ -680,6 +680,7 @@ class SmurfCommandMixin(SmurfBase):
         return self._caget(self._band_root(band) + self._noise_select, 
             **kwargs)
 
+
     _lms_delay = 'lmsDelay'
     def set_lms_delay(self, band, val, **kwargs):
         """
@@ -925,6 +926,61 @@ class SmurfCommandMixin(SmurfBase):
         """
         self._caget(self._channel_root(band, channel) + 
             self._feedback_enable, **kwargs)
+
+    _eta_mag_scaled_channel = 'etaMagScaled'
+    def set_eta_mag_scaled_channel(self, band, channel, val, **kwargs):
+        """
+        """
+        self._caput(self._channel_root(band, channel) + 
+            self._eta_mag_scaled_channel, val, **kwargs)
+
+    def get_eta_mag_scaled_channel(self, band, channel, **kwargs):
+        """
+        """
+        return self._caget(self._channel_root(band, channel) +
+            self._eta_mag_scaled_channel, **kwargs)
+
+
+    _center_frequency_mhz_channel = 'centerFrequencyMHz'
+    def set_center_frequency_mhz_channel(self, band, channel, val, **kwargs):
+        """
+        """
+        self._caput(self._channel_root(band, channel) + 
+            self._center_frequency_mhz_channel, val, **kwargs)
+
+    def get_center_frequency_mhz_channel(self, band, channel, **kwargs):
+        """
+        """
+        return self._caget(self._channel_root(band, channel) +
+            self._center_frequency_mhz_channel, **kwargs)
+
+
+    _amplitude_scale_channel = 'amplitudeScale'
+    def set_amplitude_scale_channel(self, band, channel, val, **kwargs):
+        """
+        """
+        self._caput(self._channel_root(band, channel) + 
+            self._amplitude_scale_channel, val, **kwargs)
+
+    def get_amplitude_scale_channel(self, band, channel, **kwargs):
+        """
+        """
+        return self._caget(self._channel_root(band, channel) + 
+            self._amplitude_scale_channel, **kwargs)
+
+    _eta_phase_degree_channel = 'etaPhaseDegree'
+    def set_eta_phase_degree_channel(self, band, channel, val, **kwargs):
+        """
+        """
+        self._caput(self._channel_root(band, channel) +
+            self._eta_phase_degree_channel, val, **kwargs)
+
+    def get_eta_phase_degree_channel(self, band, channel, **kwargs):
+        """
+        """
+        return self._caget(self._channel_root(band, channel) +
+            self._eta_phase_degree_channel, **kwargs)
+
 
     # Attenuator
     _uc = 'UC[{}]'
