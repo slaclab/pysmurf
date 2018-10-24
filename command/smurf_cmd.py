@@ -83,6 +83,8 @@ if __name__ == "__main__":
 
     parser.add_argument('--tes-bump', action='store_true', default=False,
         help='Bump the TESs')
+    parser.add_argument('--tes-bump-wait', action='store', default=.5,
+        help='The time to stay at the high current.')
 
 
 
@@ -161,7 +163,7 @@ if __name__ == "__main__":
                 write_log=True)
 
     if args.tes_bump:
-        S.overbias_tes(args.bias_group)
+        S.overbias_tes(args.bias_group, overbias_wait=args.tes_bump_wait)
 
     if args.slow_iv:
         if args.iv_band < 0:
