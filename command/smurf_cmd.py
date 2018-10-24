@@ -2,6 +2,7 @@
 import argparse
 import numpy as np
 import sys
+import time
 import os
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
 import pysmurf
@@ -13,13 +14,58 @@ cfg_filename = 'experiment_k7_17.cfg'
 A function that mimics mce_cmd. This allows the user to run specific pysmurf
 commands from the command line.
 """
+def make_runfile(output_dir, row_len=60, num_rows=60, data_rate=60):
+    """
+    Make the runfile
+    """
+    S = pysmurf.SmurfControl(cfg_file=os.path.join(os.path.dirname(__file__), 
+        '..', 'cfg_files' , cfg_filename), smurf_cmd_mode=True, setup=False)
+
+    with open("./runfile/runfile_template.txt") as f:
+        lines = f.readlines()
+        line_holder = []
+        for l in lines:
+            # A bunch of replacements
+            if "ctime=<replace>" in l:
+                timestamp = S.get_timestamp()
+                S.log('Adding ctime {}'.format(timestamp))
+                l = l.replace("ctime=<replace>", "ctime={}".format(timestamp))
+            elif "Date:<replace>" in l:
+                time_string = time.strftime("%a %b %d %H:%M:%S %Y", 
+                    time.localtime())
+                S.log('Adding date {}'.format(time_string))
+                l = l.replace('Date:<replace>', "Date: {}".format(time_string))
+            elif "row_len : <replace>" in l:
+                S.log("Adding row_len {}".format(row_len))
+                l = l.replace('row_len : <replace>', 
+                    'row_len : {}'.format(row_len))
+            elif "num_rows : <replace>" in l:
+                S.log("Adding num_rows {}".format(num_rows))
+                l = l.replace('num_rows : <replace>', 
+                    'num_rows : {}'.format(row_len))
+            elif "num_rows_reported : <replace>" in l:
+                S.log("Adding num_rows_reported {}".format(num_rows))
+                l = l.replace('num_rows_reported : <replace>', 
+                    'num_rows_reported : {}'.format(row_len))
+            elif "data_rate : <replace>" in l:
+                S.log("Adding data_rate {}".format(data_rate))
+                l = l.replace('data_rate : <replace>', 
+                    'data_rate : {}'.format(row_len))
+            line_holder.append(l)
+
+    full_path = os.path.join(output_dir, 
+        'smurf_status_{}.txt'.format(S.get_timestamp()))
+    S.log("Writing to {}".format(full_path))
+    with open(full_path, "w") as f1:
+        f1.writelines(line_holder)
+
 
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
 
     # Offline mode
-    parser.add_arguments('--offline', help='For offline debugging', 
+    parser.add_argument('--offline', help='For offline debugging', 
         default=False, action='store_true')
 
     # Stupid log command
@@ -75,6 +121,12 @@ if __name__ == "__main__":
         help='Start the data acquisition')
     parser.add_argument('--make-runfile', action='store_true', default=False,
         help='Make a runfile. Needed for data acquistion.')
+    parser.add_argument('--row-len', action='store', default=60, type=int,
+        help='The variable to stuff into the runfile. See the MCE wiki')
+    parser.add_argument('--num-rows', action='store', default=60, type=int,
+        help='The variable to stuff into the runfile. See the MCE wiki')
+    parser.add_argument('--data-rate', action='store', default=60, type=int,
+        help='The variable to stuff into the runfile. See the MCE wiki')
 
     # Stop acq
     parser.add_argument('--stop-acq', action='store_true', default=False,
@@ -88,9 +140,9 @@ if __name__ == "__main__":
     # Check for too many commands
     n_cmds = (args.log is not None) + args.tes_bias + args.slow_iv + \
         args.tune + args.start_acq + args.stop_acq + args.make_runfile + \
-        args.last_tune + args.use_tune + args.tes_bump
+        args.last_tune + (args.use_tune is not None) + args.tes_bump
     if n_cmds > 1:
-        break
+        sys.exit(0)
 
     S = pysmurf.SmurfControl(cfg_file=os.path.join(os.path.dirname(__file__), 
         '..', 'cfg_files' , cfg_filename), smurf_cmd_mode=True, setup=False, 
@@ -100,7 +152,7 @@ if __name__ == "__main__":
         S.log(args.log)
 
     if args.tes_bias:
-        if args.bias group == -1:
+        if args.bias_group == -1:
             for b in np.arange(8):
                 S.set_tes_bias_bipolar(b, args.bias_voltage, 
                     write_log=True)
@@ -139,6 +191,8 @@ if __name__ == "__main__":
 
     if args.make_runfile:
         S.log('Making runfile')
+        make_runfile(S.output_dir, row_len=args.row_len, num_rows=args.num_rows,
+            data_rate=args.data_rate)
 
     if args.start_acq:
         bands = S.config.get('bands')
@@ -154,3 +208,4 @@ if __name__ == "__main__":
             S.stream_data_off(b)
             # TO do: Add command to stop sending data over
     
+
