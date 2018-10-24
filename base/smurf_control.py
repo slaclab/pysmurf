@@ -123,6 +123,14 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
             val = band_cfg[k]
             self.band_to_chip[i] = np.append([i], val)
 
+        # Mapping from peripheral interface controller (PIC) to dac
+        pic_cfg = self.config.get('pic_to_dac')
+        keys = pic_cfg.keys()
+        self.pic_to_daq = np.zeros(len(keys), 3)
+        for i, k in enumerate(keys):
+            val = pic_cfg[k]
+            self.pic_to_daq[i] = np.append([k], val)
+
         if setup:
             self.setup(**kwargs)
 
