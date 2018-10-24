@@ -17,7 +17,8 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
     def __init__(self, epics_root=None, 
         cfg_file='/home/cryo/pysmurf/cfg_files/experiment_fp28.cfg', 
         data_dir=None, name=None, make_logfile=True, 
-        setup=True, offline=False, smurf_cmd_mode=False, **kwargs):
+        setup=True, offline=False, smurf_cmd_mode=False, no_dir=False,
+        **kwargs):
         '''
         Args:
         -----
@@ -34,16 +35,21 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
         if cfg_file is not None or data_dir is not None:
             self.initialize(cfg_file=cfg_file, data_dir=data_dir, name=name,
                 make_logfile=make_logfile,
-                setup=setup, smurf_cmd_mode=smurf_cmd_mode, **kwargs)
+                setup=setup, smurf_cmd_mode=smurf_cmd_mode, 
+                no_dir=no_dir, **kwargs)
 
     def initialize(self, cfg_file, data_dir=None, name=None, 
-        make_logfile=True, setup=True, smurf_cmd_mode=False, **kwargs):
+        make_logfile=True, setup=True, smurf_cmd_mode=False, 
+        no_dir=False, **kwargs):
         '''
         Initizializes SMuRF with desired parameters set in experiment.cfg.
         Largely stolen from a Cyndia/Shawns SmurfTune script
         '''
 
-        if smurf_cmd_mode:
+        if no_dir:
+            print('Warning! Not making output directories!'+ \
+                'This will break may things!')
+        elif smurf_cmd_mode:
             # Get data dir
             self.data_dir = self.config.get('smurf_cmd_dir')
             self.start_time = self.get_timestamp()
@@ -58,7 +64,6 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
             # Set logfile
             self.log_file = os.path.join(self.output_dir, 'smurf_cmd.log')
             self.log.set_logfile(self.log_file)
-
         else:
             # define data dir
             if data_dir is not None:
@@ -123,13 +128,13 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
             val = band_cfg[k]
             self.band_to_chip[i] = np.append([i], val)
 
-        # Mapping from peripheral interface controller (PIC) to dac
-        pic_cfg = self.config.get('pic_to_dac')
+        # Mapping from peripheral interface controller (PIC) to bias group
+        pic_cfg = self.config.get('pic_to_bias_group')
         keys = pic_cfg.keys()
-        self.pic_to_daq = np.zeros(len(keys), 3)
+        self.pic_to_bias_group = np.zeros((len(keys), 2), dtype=int)
         for i, k in enumerate(keys):
             val = pic_cfg[k]
-            self.pic_to_daq[i] = np.append([k], val)
+            self.pic_to_bias_group[i] = [k, val]
 
         if setup:
             self.setup(**kwargs)

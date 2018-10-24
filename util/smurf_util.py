@@ -1013,24 +1013,50 @@ class SmurfUtilMixin(SmurfBase):
 
     def set_tes_bias_high_current(self, bias_group):
         """
+        Sets the bias group to high current mode. Note that the bias group
+        number is not the same as the relay number. The conversion is
+        handled in this function.
+
+        Args:
+        -----
+        bias_group (int): The bias group to set to high current mode
         """
         old_relay = self.get_cryo_card_relays()
         old_relay = self.get_cryo_card_relays()
         self.log('Old relay {}'.format(bin(old_relay)))
-        new_relay = (1 << bias_group) | old_relay
+        if bias_group < 16:
+            r = np.ravel(self.pic_to_bias_group[np.where(
+                self.pic_to_bias_group[:,1]==bias_group)])[0]
+        else:
+            r = bias_groups
+        new_relay = (1 << r) | old_relay
         self.log('New relay {}'.format(bin(new_relay)))
         self.set_cryo_card_relays(new_relay, write_log=True)
+        self.get_cryo_card_relays()
 
     def set_tes_bias_low_current(self, bias_group):
         """
+        Sets the bias group to low current mode. Note that the bias group
+        number is not the same as the relay number. The conversion is
+        handled in this function.
+
+        Args:
+        -----
+        bias_group (int): The bias group to set to low current mode
         """
         old_relay = self.get_cryo_card_relays()
         old_relay = self.get_cryo_card_relays()
         self.log('Old relay {}'.format(bin(old_relay)))
-        if old_relay & 1 << bias_group != 0:
-            new_relay = old_relay & ~(1 << bias_group)
+        if bias_group < 16:
+            r = np.ravel(self.pic_to_bias_group[np.where(
+                self.pic_to_bias_group[:,1]==bias_group)])[0]
+        else:
+            r = bias_group
+        if old_relay & 1 << r != 0:
+            new_relay = old_relay & ~(1 << r)
             self.log('New relay {}'.format(bin(new_relay)))
             self.set_cryo_card_relays(new_relay, write_log=True)
+            self.get_cryo_card_relays()
 
     def set_mode_dc(self):
         """
