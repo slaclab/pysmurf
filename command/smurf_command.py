@@ -981,6 +981,13 @@ class SmurfCommandMixin(SmurfBase):
         return self._caget(self._channel_root(band, channel) +
             self._eta_phase_degree_channel, **kwargs)
 
+    _frequency_error_mhz = 'frequencyErrorMHz'
+    def get_frequency_error_mhz(self, band, channel, **kwargs):
+        """
+        """
+        return self._caget(self._channel_root(band, channel) +
+            self._frequency_error_mhz, val, **kwargs)
+
 
     # Attenuator
     _uc = 'UC[{}]'

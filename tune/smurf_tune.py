@@ -92,8 +92,8 @@ class SmurfTuneMixin(SmurfBase):
             add_phase_slope = (2*np.pi*1e-6)*(delay - comp_delay)
 
             # scale magnitude
-            mag_resp         = np.abs(resp)
-            comp_mag_resp    = mag_scale*mag_resp
+            mag_resp = np.abs(resp)
+            comp_mag_resp = mag_scale*mag_resp
 
             # adjust slope of phase response
             # finally there may also be some overall phase shift (DC)
@@ -101,19 +101,20 @@ class SmurfTuneMixin(SmurfBase):
 #FIXME - want to match phase at a frequency where there is no resonator
             match_freq_offset = -0.8 # match phase at -0.8 MHz
 
-            phase_resp        = np.angle(resp)
-            idx0              = np.abs(freq - match_freq_offset*1e6).argmin()
-            tf_phase          = phase_resp[idx0] + freq[idx0]*add_phase_slope
+            phase_resp = np.angle(resp)
+            idx0  = np.abs(freq - match_freq_offset*1e6).argmin()
+            tf_phase  = phase_resp[idx0] + freq[idx0]*add_phase_slope
 #FIXME - should we be doing epics caput/caget here?
-            import epics
-            base_root = 'mitch_epics:AMCc:FpgaTopLevel:AppTop:AppCore:SysgenCryo:Base[' + str(band) + ']:'
+            # import epics
+            # base_root = 'mitch_epics:AMCc:FpgaTopLevel:AppTop:AppCore:SysgenCryo:Base[' + str(band) + ']:'
             # epics.caput(base_root + 'refPhaseDelay', int(ref_phase_delay))
             self.set_ref_phase_delay(band, int(ref_phase_delay))
             # epics.caput(base_root + 'lmsDelay', int(ref_phase_delay))
             self.set_lms_delay(band, int(ref_phase_delay))
             # epics.caput(base_root + 'refPhaseDelayFine', int(ref_phase_delay_fine))
             self.set_ref_phase_delay(band, int(ref_phase_delay_fine))
-            pv_root = base_root + 'CryoChannels:CryoChannel[0]:'
+            
+            # pv_root = base_root + 'CryoChannels:CryoChannel[0]:'
             # epics.caput(pv_root + 'etaMagScaled', 1)
             self.set_eta_mag_scaled_channel(band, 0, 1)
             # epics.caput(pv_root + 'centerFrequencyMHz', match_freq_offset)
@@ -122,28 +123,23 @@ class SmurfTuneMixin(SmurfBase):
             self.set_amplitude_scale_channel(band, 0, 10)
             # epics.caput(pv_root + 'etaPhaseDegree', 0)
             self.set_eta_phase_degree_channel(band, 0, 0)
-            dsp_I = [epics.caget(pv_root + 'frequencyErrorMHz') for i in range(20)]
+            # dsp_I = [epics.caget(pv_root + 'frequencyErrorMHz') for i in range(20)]
+            dsp_I = [self.get_frequency_error_mhz(band, 0) for i in range(20)]
             # epics.caput(pv_root + 'etaPhaseDegree', -90)
             self.set_eta_phase_degree_channel(band, 0, -90)
-            dsp_Q = [epics.caget(pv_root + 'frequencyErrorMHz') for i in range(20)]
+            # dsp_Q = [epics.caget(pv_root + 'frequencyErrorMHz') for i in range(20)]
+            dsp_Q = [self.get_frequency_error_mhz(band, 0) for i in range(20)]
             # epics.caput(pv_root + 'amplitudeScale', 0)
             self.set_amplitude_scale_channel(band, 0, 0)
-            dsp_phase         = np.arctan2(np.mean(dsp_Q), np.mean(dsp_I)) 
-            phase_shift       = dsp_phase - tf_phase
-            comp_phase_resp   = phase_resp + freq*add_phase_slope + phase_shift
+            dsp_phase = np.arctan2(np.mean(dsp_Q), np.mean(dsp_I)) 
+            phase_shift = dsp_phase - tf_phase
+            comp_phase_resp = phase_resp + freq*add_phase_slope + phase_shift
 
             # overall compensated response
-            comp_resp         = comp_mag_resp*(np.cos(comp_phase_resp) 
-                                          + 1j*np.sin(comp_phase_resp))
+            comp_resp = comp_mag_resp*(np.cos(comp_phase_resp) + \
+                1j*np.sin(comp_phase_resp))
 
             resp = comp_resp
-
-#            import matplotlib.pyplot as plt
-#            fig, ax = plt.subplots(1)
-#            ax.plot(freq, np.unwrap(np.angle(resp)))
-#            plt.show()
-
-
 
         # Find peaks
         peaks = self.find_peak(freq, resp, band=band, make_plot=make_plot, 
