@@ -128,6 +128,14 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
             val = band_cfg[k]
             self.band_to_chip[i] = np.append([i], val)
 
+        # bias group to pair
+        bias_group_cfg = self.config.get('bias_group_to_pair')
+        keys = bias_group_cfg.keys()
+        self.bias_group_to_pair = np.zeros((len(keys), 3), dtype=int)
+        for i, k in enumerate(keys):
+            val = bias_group_cfg[k]
+            self.bias_group_to_pair[i] = np.append([k], val)
+
         # Mapping from peripheral interface controller (PIC) to bias group
         pic_cfg = self.config.get('pic_to_bias_group')
         keys = pic_cfg.keys()
