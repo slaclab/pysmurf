@@ -1953,3 +1953,12 @@ class SmurfCommandMixin(SmurfBase):
                 'object. {}'.format(bit))
         self.C.delatch_bit(bit)
 
+    _smurf_to_gcp_stream = 'userConfig[0]'  # bit for streaming
+    def set_smurf_to_gcp_stream(self, val, **kwargs):
+        """
+        Turns on or off streaming from smurf to GCP
+        """
+        if type(val) is bool:
+            val = 2 * (not val)
+        self._caput(self.timing_header + 
+                    self._smurf_to_gcp_stream, val, **kwargs)

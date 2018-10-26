@@ -197,17 +197,18 @@ if __name__ == "__main__":
             data_rate=args.data_rate)
 
     if args.start_acq:
-        bands = S.config.get('bands')
-        self.log('Starting streaming data')
+        bands = S.config.get('init').get('bands')
+        S.log('Starting streaming data')
         for b in bands:
             S.stream_data_on(b)
-            # To do: Add command to actually send data over
+        S.set_smurf_to_gcp_stream(True, write_log=True)
+
+        
 
     if args.stop_acq:
         bands = np.array(S.config.get('init').get('bands'))
-        self.log('Stopping streaming data')
+        S.log('Stopping streaming data')
         for b in bands:
             S.stream_data_off(b)
-            # TO do: Add command to stop sending data over
-    
+        S.set_smurf_to_gcp_stream(False, write_log=True)
 
