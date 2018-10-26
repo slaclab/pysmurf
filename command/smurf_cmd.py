@@ -14,14 +14,16 @@ cfg_filename = 'experiment_k7_17.cfg'
 A function that mimics mce_cmd. This allows the user to run specific pysmurf
 commands from the command line.
 """
-def make_runfile(output_dir, row_len=60, num_rows=60, data_rate=60):
+def make_runfile(output_dir, row_len=60, num_rows=60, data_rate=60,
+                 num_rows_reported=60):
     """
     Make the runfile
     """
     S = pysmurf.SmurfControl(cfg_file=os.path.join(os.path.dirname(__file__), 
         '..', 'cfg_files' , cfg_filename), smurf_cmd_mode=True, setup=False)
 
-    with open("./runfile/runfile_template.txt") as f:
+    with open(os.path.join(os.path.dirname(__file__),
+                           "runfile/runfile_template.txt")) as f:
         lines = f.readlines()
         line_holder = []
         for l in lines:
@@ -42,15 +44,15 @@ def make_runfile(output_dir, row_len=60, num_rows=60, data_rate=60):
             elif "num_rows : <replace>" in l:
                 S.log("Adding num_rows {}".format(num_rows))
                 l = l.replace('num_rows : <replace>', 
-                    'num_rows : {}'.format(row_len))
+                    'num_rows : {}'.format(num_rows))
             elif "num_rows_reported : <replace>" in l:
-                S.log("Adding num_rows_reported {}".format(num_rows))
+                S.log("Adding num_rows_reported {}".format(num_rows_reported))
                 l = l.replace('num_rows_reported : <replace>', 
-                    'num_rows_reported : {}'.format(row_len))
+                    'num_rows_reported : {}'.format(num_rows_reported))
             elif "data_rate : <replace>" in l:
                 S.log("Adding data_rate {}".format(data_rate))
                 l = l.replace('data_rate : <replace>', 
-                    'data_rate : {}'.format(row_len))
+                    'data_rate : {}'.format(data_rate))
             line_holder.append(l)
 
     full_path = os.path.join(output_dir, 
@@ -121,11 +123,11 @@ if __name__ == "__main__":
     # Start acq
     parser.add_argument('--start-acq', action='store_true', default=False,
         help='Start the data acquisition')
-    parser.add_argument('--make-runfile', action='store_true', default=False,
-        help='Make a runfile. Needed for data acquistion.')
     parser.add_argument('--row-len', action='store', default=60, type=int,
         help='The variable to stuff into the runfile. See the MCE wiki')
     parser.add_argument('--num-rows', action='store', default=60, type=int,
+        help='The variable to stuff into the runfile. See the MCE wiki')
+    parser.add_argument('--num-rows-reported', action='store', default=60, type=int,
         help='The variable to stuff into the runfile. See the MCE wiki')
     parser.add_argument('--data-rate', action='store', default=60, type=int,
         help='The variable to stuff into the runfile. See the MCE wiki')
@@ -141,7 +143,7 @@ if __name__ == "__main__":
 
     # Check for too many commands
     n_cmds = (args.log is not None) + args.tes_bias + args.slow_iv + \
-        args.tune + args.start_acq + args.stop_acq + args.make_runfile + \
+        args.tune + args.start_acq + args.stop_acq + \
         args.last_tune + (args.use_tune is not None) + args.tes_bump
     if n_cmds > 1:
         sys.exit(0)
@@ -191,24 +193,30 @@ if __name__ == "__main__":
                 grad_cut=tune_cfg.get('grad_cut'),
                 amp_cut=tune.cfg.get('tune_cut'))
 
-    if args.make_runfile:
-        S.log('Making runfile')
-        make_runfile(S.output_dir, row_len=args.row_len, num_rows=args.num_rows,
-            data_rate=args.data_rate)
 
     if args.start_acq:
         bands = S.config.get('init').get('bands')
-        S.log('Starting streaming data')
-        for b in bands:
-            S.stream_data_on(b)
-        S.set_smurf_to_gcp_stream(True, write_log=True)
+        S.log('Setting PVs for streaming header')
+        S.set_num_rows(args.num_rows)
+        S.set_num_rows_reported(args.num_rows_reported)
+        S.set_data_rate(args.data_rate)
+        S.set_row_len(args.row_len)
 
+        S.log('Starting streaming data')
+        S.set_smurf_to_gcp_stream(True, write_log=True)
+        for b in S.config.get('init').get('bands'):
+            S.set_stream_enable(b, 1)
+
+        make_runfile(S.output_dir, num_rows=args.num_rows,
+            data_rate=args.data_rate, row_len=args.row_len,
+            num_rows_reported=args.num_rows_reported)
         
 
     if args.stop_acq:
         bands = np.array(S.config.get('init').get('bands'))
         S.log('Stopping streaming data')
-        for b in bands:
-            S.stream_data_off(b)
+        for b in S.config.get('init').get('bands'):
+            S.set_stream_enable(b, 0)
+
         S.set_smurf_to_gcp_stream(False, write_log=True)
 

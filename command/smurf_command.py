@@ -1956,9 +1956,54 @@ class SmurfCommandMixin(SmurfBase):
     _smurf_to_gcp_stream = 'userConfig[0]'  # bit for streaming
     def set_smurf_to_gcp_stream(self, val, **kwargs):
         """
-        Turns on or off streaming from smurf to GCP
+        Turns on or off streaming from smurf to GCP.
+        2 for stream off, 0 for stream on. Also takes bools.
         """
         if type(val) is bool:
             val = 2 * (not val)
         self._caput(self.timing_header + 
                     self._smurf_to_gcp_stream, val, **kwargs)
+
+    def get_smurf_to_gcp_stream(self, **kwargs):
+        """
+        """
+        self._caget(self.timing_header + 
+                    self._smurf_to_gcp_stream, **kwargs)
+
+    _num_rows = 'userConfig[2]'  # bit for num_rows
+    def set_num_rows(self, val, **kwargs):
+        """
+        """
+        old = self._caget(self.timing_header +
+                    self._num_rows)
+        new = (old & 0xFFFF0000) + ((val & 0xFFFF))
+        self._caput(self.timing_header +
+                    self._num_rows, new, **kwargs)
+
+    def set_num_rows_reported(self, val, **kwargs):
+        """
+        """
+        old = self._caget(self.timing_header +
+                    self._num_rows)
+        new = (old & 0x0000FFFF) + ((val & 0xFFFF) << 16)
+        self._caput(self.timing_header +
+                    self._num_rows, new, **kwargs)
+
+    _row_len = 'userConfig[4]'
+    def set_row_len(self, val, **kwargs):
+        """
+        """
+        old = self._caget(self.timing_header + 
+                    self._row_len)
+        new = (old & 0xFFFF0000) + ((val & 0xFFFF))
+        self._caput(self.timing_header + 
+                    self._row_len, new, **kwargs)
+
+    def set_data_rate(self, val, **kwargs):
+        """
+        """
+        old = self._caget(self.timing_header + 
+                    self._row_len)
+        new = (old & 0x0000FFFF) + ((val & 0xFFFF)<<16)
+        self._caput(self.timing_header +
+                    self._row_len, new, **kwargs)
