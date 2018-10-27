@@ -136,6 +136,10 @@ if __name__ == "__main__":
     parser.add_argument('--stop-acq', action='store_true', default=False,
         help='Stop the data acquistion')
 
+    # Soft reset
+    parser.add_argument('--soft-reset', action='store_true', default=False,
+        help='Soft reset SMuRF.')
+
     # Extract inputs
     args = parser.parse_args()
 
@@ -144,7 +148,8 @@ if __name__ == "__main__":
     # Check for too many commands
     n_cmds = (args.log is not None) + args.tes_bias + args.slow_iv + \
         args.tune + args.start_acq + args.stop_acq + \
-        args.last_tune + (args.use_tune is not None) + args.tes_bump
+        args.last_tune + (args.use_tune is not None) + args.tes_bump + \
+        args.soft_reset
     if n_cmds > 1:
         sys.exit(0)
 
@@ -219,4 +224,11 @@ if __name__ == "__main__":
             S.set_stream_enable(b, 0)
 
         S.set_smurf_to_gcp_stream(False, write_log=True)
+
+    if args.soft_reset:
+        S.log('Soft resetting')
+        S.set_smurf_to_gcp_clear(True)
+        time.sleep(.1)
+        S.set_smurf_to_gcp_clear(False)
+
 
