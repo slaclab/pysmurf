@@ -1954,21 +1954,57 @@ class SmurfCommandMixin(SmurfBase):
         self.C.delatch_bit(bit)
 
     _smurf_to_gcp_stream = 'userConfig[0]'  # bit for streaming
+    def get_user_config0(self, as_binary=False, **kwargs):
+        """
+        """
+        val =  self._caget(self.timing_header + 
+                           self._smurf_to_gcp_stream, **kwargs)
+        if as_binary:
+            val = bin(val)
+
+        return val
+
     def set_smurf_to_gcp_stream(self, val, **kwargs):
         """
         Turns on or off streaming from smurf to GCP.
-        2 for stream off, 0 for stream on. Also takes bools.
+        This only accepts bools. Annoyingly the bit is 
+        0 for streaming and 1 for off. This function takes
+        care of that, so True for streaming and False 
+        for off.
         """
-        if type(val) is bool:
-            val = 2 * (not val)
+        old_val = self.get_user_config0()
+        if val == False:
+            new_val = old_val | (1 << 1)
+        elif val == True:
+            new_val = old_val
+            if old_val & 1 << 1 != 0:
+                new_val = old_val & ~(1 << 1)
         self._caput(self.timing_header + 
-                    self._smurf_to_gcp_stream, val, **kwargs)
+                    self._smurf_to_gcp_stream, new_val, **kwargs)
 
     def get_smurf_to_gcp_stream(self, **kwargs):
         """
         """
-        self._caget(self.timing_header + 
+        return self._caget(self.timing_header + 
                     self._smurf_to_gcp_stream, **kwargs)
+
+    def set_smurf_to_gcp_clear(self, val, **kwargs):
+        """
+        Clears the wrap counter and average if set to 1.
+        Holds it clear until set back to 0.
+        """
+        clear_bit = 0
+        old_val = self.get_user_config0()
+        if val:
+            new_val = old_val | (1 << clear_bit)
+        elif ~val:
+            new_val = old_val
+            if old_val & 1 << clear_bit != 0:
+                new_val = old_val & ~(1 << clear_bit)
+
+        self._caput(self.timing_header +
+                    self._smurf_to_gcp_stream, new_val, **kwargs)
+        
 
     _num_rows = 'userConfig[2]'  # bit for num_rows
     def set_num_rows(self, val, **kwargs):
