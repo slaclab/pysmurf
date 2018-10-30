@@ -38,8 +38,8 @@ cc stop_dly : 10000
 cc awg_sequence_length : 0
 cc tdo_sample_dly : 2
 cc tck_half_period : 8
-rc1 row_len : 62
-rc1 num_rows : 2
+rc1 row_len : <replace>
+rc1 num_rows : <replace>
 rc1 fpga_temp : 36
 rc1 card_temp : 26
 rc1 card_id : 0x10b2b69
@@ -102,13 +102,13 @@ rc1 fb_const : 2988 130985 -1465 -2220 -500 1844 -1389 -978
 rc1 sample_dly : 52
 rc1 sample_num : 10
 rc1 fb_dly : 7
-rc1 num_rows_reported : 1
+rc1 num_rows_reported : <replace>
 rc1 num_cols_reported : 1
 rc1 fltr_type : 255
 rc1 integral_clamp : 0
 rc1 fltr_coeff : 32295 15915 32568 16188 3 14
-rc2 row_len : 62
-rc2 num_rows : 2
+rc2 row_len : <replace>
+rc2 num_rows : <replace>
 rc2 fpga_temp : 38
 rc2 card_temp : 28
 rc2 card_id : 0x10ad30a
@@ -171,13 +171,13 @@ rc2 fb_const : 415 -697 2216 3442 1112 -1915 0 -1598
 rc2 sample_dly : 52
 rc2 sample_num : 10
 rc2 fb_dly : 7
-rc2 num_rows_reported : 1
+rc2 num_rows_reported : <replace>
 rc2 num_cols_reported : 1
 rc2 fltr_type : 255
 rc2 integral_clamp : 0
 rc2 fltr_coeff : 32295 15915 32568 16188 3 14
-bc1 row_len : 62
-bc1 num_rows : 2
+bc1 row_len : <replace>
+bc1 num_rows : <replace>
 bc1 fpga_temp : 24
 bc1 card_temp : 24
 bc1 card_id : 0x160ee55
@@ -189,8 +189,8 @@ bc1 scratch : 0 0 0 0 0 0 0 0
 bc1 flux_fb : 25365 25436 26227 30483 1151 24894 25970 27152 25465 24890 25788 19429 14645 14065 8203 21162 50000 50000 50000 50000 52500 47500 50000 50000 47500 47500 50000 42500 35000 35000 0 32500
 bc1 bias : 0 0 0 0 0 0 0 0 0 0 0 0
 bc1 flux_fb_upper : 50000 50000 50000 50000 52500 47500 50000 50000 47500 47500 50000 42500 35000 35000 0 32500
-bc2 row_len : 62
-bc2 num_rows : 2
+bc2 row_len : <replace>
+bc2 num_rows : <replace>
 bc2 fpga_temp : 24
 bc2 card_temp : 24
 bc2 card_id : 0x20f37d4
@@ -235,8 +235,8 @@ bc2 fb_col28 : 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
 bc2 fb_col29 : 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
 bc2 fb_col30 : 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
 bc2 fb_col31 : 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
-bc3 row_len : 62
-bc3 num_rows : 2
+bc3 row_len : <replace>
+bc3 num_rows : <replace>
 bc3 fpga_temp : 26
 bc3 card_temp : 24
 bc3 card_id : 0x160ea78
@@ -248,8 +248,8 @@ bc3 scratch : 0 0 0 0 0 0 0 0
 bc3 flux_fb : 3000 3000 3000 3000 3000 3000 3000 3000 3000 3000 3000 3000 3000 3000 3000 3000 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
 bc3 bias : 0 0 0 0 0 0 0 0 0 0 0 0
 bc3 flux_fb_upper : 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
-ac row_len : 62
-ac num_rows : 2
+ac row_len : <replace>
+ac num_rows : <replace>
 ac fpga_temp : 26
 ac card_temp : 26
 ac card_id : 0x19c2427
