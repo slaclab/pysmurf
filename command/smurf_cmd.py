@@ -148,6 +148,14 @@ if __name__ == "__main__":
         default=.25, help='The time in seconds to wait in the high current mode')
     parser.add_argument('--iv-bias-step', action='store', type=float, default=.1,
         help='The bias step amplitude in units of volts.')
+    parser.add_argument('--iv-bias-high-current', actio='store', type=float,
+        defualt=None, help='The TES bias in units of uA.')
+    parser.add_argument('--iv-bias-high-current', action='store', type=float,
+        defualt=-None, help='The TES high bias in units of uA.')
+    parser.add_argument('--iv-bias-low-current', action='store', type=float,
+        defualt=None, help='The TES low bias in units of uA.')
+    parser.add_argument('--iv-bias-step-current', action='store', type=float,
+        default=None, help='The step in units of uA')
 
     # Tuning
     parser.add_argument('--tune', action='store_true', default=False,
@@ -222,10 +230,28 @@ if __name__ == "__main__":
         if args.iv_band < 0:
             S.log('Must input a valid band number using --iv-band')
         else:
-            S.slow_iv(args.iv_band, wait_time=args.iv_wait_time, 
-                      bias_high=args.iv_bias_high, bias_low=args.iv_bias_low,
-                      high_current_wait=args.iv_high_current_wait, 
-                      bias_step=args.iv_bias_step)
+            iv_bias_high = args.iv_bias_high
+            iv_bias_low = args.iv_bias_low
+            iv_bias_step = args.iv_bias_step
+
+            if args.iv_bias_high_current is not None and \
+                args.iv_bias_low_current is not None and \
+                args.iv_bias_step_current is not None:
+                
+                S.log('IV input in current mode.')
+
+                # Convert from current to voltage units
+                iv_bias_high = args.iv_bias_high_current * 1.0E-6 * \
+                    self.bias_line_resistance
+                iv_bias_low = args.iv_bias_low_current * 1.0E-6 * \
+                    self.bias_line_resistance
+                iv_bias_step = args.iv_bias_step_current * 1.0E-6 * \
+                    self.bias_line_resistance
+            else:
+                S.slow_iv(args.iv_band, wait_time=args.iv_wait_time, 
+                          bias_high=iv_bias_high, bias_low=iv_bias_low,
+                          high_current_wait=args.iv_high_current_wait, 
+                          bias_step=iv_bias_step)
 
     if args.tune:
         # Load values from the cfg file
