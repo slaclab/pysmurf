@@ -1088,3 +1088,36 @@ class SmurfUtilMixin(SmurfBase):
         """
         return self.att_to_band['att'][np.ravel(
             np.where(self.att_to_band['band']==band))[0]]
+
+
+    def smurf_to_gcp_start_acq(self, num_rows, num_rows_reported, data_rate, 
+        row_len):
+        """
+        """
+        bands = self.config.get('init').get('bands')
+        self.log('Setting PVs for streaming header')
+        self.set_num_rows(num_rows)
+        self.set_num_rows_reported(num_rows_reported)
+        self.set_data_rate(.data_rate)
+        self.set_row_len(row_len)
+
+        self.log('Starting streaming data')
+        self.set_smurf_to_gcp_stream(True, write_log=True)
+        for b in bands:
+            self.set_stream_enable(b, 1)
+
+    def smurf_to_gcp_stop_acq(self):
+        bands = np.array(self.config.get('init').get('bands'))
+        self.log('Stopping streaming data')
+        for b in bands:
+            S.set_stream_enable(b, 0)
+
+    def smurf_to_gcp_frames(self, n_frames, sample_rate=30.):
+        """
+        Sends the amount of data requested by the user in units of n_frames.
+
+        Args:
+        -----
+        n_frames (int); The number of frames to keep data streaming on.
+        """
+        S.set_smurf_to_gcp

@@ -62,6 +62,49 @@ def make_runfile(output_dir, row_len=60, num_rows=60, data_rate=60,
         f1.writelines(line_holder)
 
 
+def start_acq(S, num_rows, num_rows_reported, data_rate, 
+    row_len):
+    """
+    """
+    bands = S.config.get('init').get('bands')
+    S.log('Setting PVs for streaming header')
+    S.set_num_rows(num_rows)
+    S.set_num_rows_reported(num_rows_reported)
+    S.set_data_rate(.data_rate)
+    S.set_row_len(row_len)
+
+    S.log('Starting streaming data')
+    S.set_smurf_to_gcp_stream(True, write_log=True)
+    for b in bands:
+        S.set_stream_enable(b, 1)
+
+def stop_acq(S):
+    """
+    """
+    bands = np.array(S.config.get('init').get('bands'))
+    S.log('Stopping streaming data')
+    for b in bands:
+        S.set_stream_enable(b, 0)
+    S.set_smurf_to_gcp_stream(False, write_log=True)
+
+def acq_n_frames(S, num_rows, num_rows_reported, data_rate, 
+    row_len, n_frames):
+    """
+    Sends the amount of data requested by the user in units of n_frames.
+
+    Args:
+    -----
+    n_frames (int); The number of frames to keep data streaming on.
+    """
+    start_acq(S, num_rows, num_rows_reported, data_rate, row_len)
+    make_runfile(S.output_dir, num_rows=num_rows, data_rate=data_rate, 
+        row_len=row_len, num_rows_reported=num_rows_reported)
+    sample_rate = 50E6/num_rows/data_rate/row_len
+    wait_time = n_frames/sample_rate
+    time.sleep(wait_time)
+    stop_acq(S)
+
+
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
@@ -127,10 +170,13 @@ if __name__ == "__main__":
         help='The variable to stuff into the runfile. See the MCE wiki')
     parser.add_argument('--num-rows', action='store', default=60, type=int,
         help='The variable to stuff into the runfile. See the MCE wiki')
-    parser.add_argument('--num-rows-reported', action='store', default=60, type=int,
+    parser.add_argument('--num-rows-reported', action='store', default=60, 
+        type=int,
         help='The variable to stuff into the runfile. See the MCE wiki')
     parser.add_argument('--data-rate', action='store', default=60, type=int,
         help='The variable to stuff into the runfile. See the MCE wiki')
+    parser.add_argument('--n-frames', action='store', default=-1, type=int,
+        help='The number of frames to acquire.')
 
     # Stop acq
     parser.add_argument('--stop-acq', action='store_true', default=False,
@@ -200,30 +246,20 @@ if __name__ == "__main__":
 
 
     if args.start_acq:
-        bands = S.config.get('init').get('bands')
-        S.log('Setting PVs for streaming header')
-        S.set_num_rows(args.num_rows)
-        S.set_num_rows_reported(args.num_rows_reported)
-        S.set_data_rate(args.data_rate)
-        S.set_row_len(args.row_len)
-
-        S.log('Starting streaming data')
-        S.set_smurf_to_gcp_stream(True, write_log=True)
-        for b in S.config.get('init').get('bands'):
-            S.set_stream_enable(b, 1)
-
-        make_runfile(S.output_dir, num_rows=args.num_rows,
-            data_rate=args.data_rate, row_len=args.row_len,
-            num_rows_reported=args.num_rows_reported)
-        
+        if args.n_frames < 0:
+            acq_n_frames(S, args.num_rows, args.num_rows_reported,
+            args.data_rate, args.row_len, args.n_frames)
+        else:
+            start_acq(S, args.num_rows, args.num_rows_reported,
+                args.data_rate, args.row_len)
+            make_runfile(S.output_dir, num_rows=args.num_rows,
+                data_rate=args.data_rate, row_len=args.row_len,
+                num_rows_reported=args.num_rows_reported)
+    
 
     if args.stop_acq:
-        bands = np.array(S.config.get('init').get('bands'))
-        S.log('Stopping streaming data')
-        for b in S.config.get('init').get('bands'):
-            S.set_stream_enable(b, 0)
+        stop_acq(S)
 
-        S.set_smurf_to_gcp_stream(False, write_log=True)
 
     if args.soft_reset:
         S.log('Soft resetting')
