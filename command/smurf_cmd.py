@@ -123,8 +123,11 @@ if __name__ == "__main__":
     parser.add_argument('--bias-group', action='store', default=-1, type=int,
         help='The bias group to set the TES bias. If -1, then sets all.', 
         choices=np.arange(8, dtype=int))
-    parser.add_argument('--bias-voltage', action='store', default=0.,type=float,
-        help='The bias voltage to set')
+    parser.add_argument('--bias-voltage', action='store', default=0., 
+        type=float, help='The bias voltage to set')
+    parser.add_argument('--bias-current', action='store', default=0.,
+        type=float, help='The bias current to set. If greater than zero ' +
+        'overrides bias-voltage')
 
     parser.add_argument('--tes-bump', action='store_true', default=False,
         help='Bump the TESs')
@@ -186,6 +189,9 @@ if __name__ == "__main__":
     parser.add_argument('--n-frames', action='store', default=-1, type=int,
         help='The number of frames to acquire.')
 
+    parser.add_argument('--make-runfile', action='store_true', default=False,
+        help='Make a new runfile.')
+
     # Stop acq
     parser.add_argument('--stop-acq', action='store_true', default=False,
         help='Stop the data acquistion')
@@ -203,7 +209,7 @@ if __name__ == "__main__":
     n_cmds = (args.log is not None) + args.tes_bias + args.slow_iv + \
         args.tune + args.start_acq + args.stop_acq + \
         args.last_tune + (args.use_tune is not None) + args.tes_bump + \
-        args.soft_reset
+        args.soft_reset + args.make_runfile
     if n_cmds > 1:
         sys.exit(0)
 
@@ -215,12 +221,16 @@ if __name__ == "__main__":
         S.log(args.log)
 
     if args.tes_bias:
+        bias_voltage = args.bias_voltage
+        if args.bias_current > 0:
+            bias_voltage = args.bias_current * 1.0E-6 * \
+                self.bias_line_resistance
         if args.bias_group == -1:
             for b in np.arange(8):
-                S.set_tes_bias_bipolar(b, args.bias_voltage, 
+                S.set_tes_bias_bipolar(b, bias_voltage, 
                     write_log=True)
         else:
-            S.set_tes_bias_bipolar(args.bias_group, args.bias_voltage, 
+            S.set_tes_bias_bipolar(args.bias_group, bias_voltage, 
                 write_log=True)
 
     if args.tes_bump:
@@ -292,5 +302,10 @@ if __name__ == "__main__":
         S.set_smurf_to_gcp_clear(True)
         time.sleep(.1)
         S.set_smurf_to_gcp_clear(False)
+
+    if args.make_runfile:
+        make_runfile(S.output_dir, num_rows=args.num_rows,
+            data_rate=args.data_rate, row_len=args.row_len,
+            num_rows_reported=args.num_rows_reported)
 
 

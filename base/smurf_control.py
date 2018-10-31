@@ -144,6 +144,7 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
             val = pic_cfg[k]
             self.pic_to_bias_group[i] = [k, val]
 
+        # The resistance in line with the TES bias
         self.bias_line_resistance = self.config.get('bias_line_resistance')
 
         if setup:
