@@ -986,7 +986,7 @@ class SmurfCommandMixin(SmurfBase):
         """
         """
         return self._caget(self._channel_root(band, channel) +
-            self._frequency_error_mhz, val, **kwargs)
+            self._frequency_error_mhz, **kwargs)
 
 
     # Attenuator
