@@ -950,6 +950,26 @@ class SmurfUtilMixin(SmurfBase):
         self.set_hemt_gate_voltage(bias_hemt, **kwargs)
         self.set_50k_amp_gate_voltage(bias_50k, **kwargs)
 
+    def print_amplifier_biases(self):
+        # for printout
+        s=[]
+
+        # 4K
+        hemt_Id_mA=self.get_hemt_drain_current()
+        hemt_gate_bias_volts=self.get_hemt_gate_voltage()
+
+        s.append('hemtVg= %0.3fV'%hemt_gate_bias_volts)
+        s.append('hemtId= %0.3fmA'%hemt_Id_mA)
+
+        # 50K
+        fiftyk_Id_mA=self.get_50k_amp_drain_current()
+        fiftyk_amp_gate_bias_volts=self.get_50k_amp_gate_voltage()
+
+        s.append('50kVg= %0.3fV'%fiftyk_amp_gate_bias_volts)
+        s.append('50kId= %0.3fmA'%fiftyk_Id_mA)
+
+        # print out
+        print((("{: >20}"*len(s)).rstrip()).format(*s))
 
     def get_hemt_drain_current(self):
         """
@@ -973,9 +993,10 @@ class SmurfUtilMixin(SmurfBase):
         cur (float): The drain current in mA
         """
         asu_amp_Vd_series_resistor=10 #Ohm
-        asu_amp_Id=2.*1000.*(self.get_cryo_card_50k_bias()/
+        asu_amp_Id_mA=2.*1000.*(self.get_cryo_card_50k_bias()/
             asu_amp_Vd_series_resistor)
 
+        return asu_amp_Id_mA
 
     def overbias_tes(self, bias_group, overbias_voltage=19.9, overbias_wait=0.5,
         tes_bias=19.9, cool_wait=20., high_current_mode=False):
