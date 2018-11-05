@@ -66,6 +66,8 @@ class SmurfTuneMixin(SmurfBase):
             self.band_off(band)
             self.flux_ramp_off()
             self.log('Running full band resp')
+            # Inject high amplitude noise with known waveform, measure it, and 
+            # then find resonators and etaParameters from cross-correlation.
             freq, resp = self.full_band_resp(band, n_samples=n_samples,
                 make_plot=make_plot, save_data=save_data, timestamp=timestamp)
 
@@ -77,6 +79,8 @@ class SmurfTuneMixin(SmurfBase):
             p     = np.polyfit(freq[idx], np.unwrap(np.angle(resp[idx])), 1)
             delay = 1e6*np.abs(p[0]/(2*np.pi))
 
+            # delay from signal being sent out, coming through the system, and then 
+            # being read as data.  
             processing_delay  = 1.842391045639787 # empirical, may need to iterate on this **must be right** for tracking
             # DSP sees cable delay + processing delay 
             #   - refPhaseDelay/2.4 (2.4 MHz ticks) + ref_phase_delay_fine/307.2
@@ -87,7 +91,7 @@ class SmurfTuneMixin(SmurfBase):
 
             comp_delay = (delay + processing_delay - ref_phase_delay/2.4 + 
                 ref_phase_delay_fine/307.2)
-            mag_scale = 0.04232/0.1904    # empirical
+            mag_scale = 100.*0.04232/0.1904    # empirical
 
             add_phase_slope = (2*np.pi*1e-6)*(delay - comp_delay)
 
@@ -1069,6 +1073,8 @@ class SmurfTuneMixin(SmurfBase):
                 self.log('Q too low: res {:03}'.format(k))
             elif self.freq_resp[band][k]['Q'] > q_max:
                 self.log('Q too high: res {:03}'.format(k))
+            elif k not in res_num:
+                self.log('Not in resonator list')
             else:
                 center_freq[ch] = self.freq_resp[band][k]['offset']
                 amplitude_scale[ch] = amp_scale
@@ -1274,14 +1280,4 @@ class SmurfTuneMixin(SmurfBase):
         self.set_select_ramp(SelectRamp)
         self.set_ramp_start_mode(RampStartMode)
         self.set_pulse_width(PulseWidth)
-        self.set_debounce_width(DebounceWidth)
-        self.set_ramp_slope(RampSlope)
-        self.set_mode_control(ModeControl)
-        self.set_fast_slow_step_size(FastSlowStepSize)
-        self.set_fast_slow_rst_value(FastSlowRstValue)
-        self.set_enable_ramp_trigger(EnableRampTrigger)
-
-
-
-
-
+        self.set_

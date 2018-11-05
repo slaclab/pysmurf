@@ -424,6 +424,29 @@ class SmurfUtilMixin(SmurfBase):
 
         return timestamp, phase
 
+    def read_stream_data_gcp_save(self, datafile, channel,
+        unwrap=True, downsample=1):
+        """
+        Reads the special data that is designed to be a copy of the GCP data.
+        """
+        extractdatadir = os.path.dirname(os.path.abspath(__file__ ))
+        datadir = os.path.dirname(datafile)
+        savedir = os.path.join(datadir, 'channel_data')
+        savefile = os.path.join(savedir, 'ch{:03}.txt'.format(channel))
+        self.make_dir(savedir)
+
+        self.log('Reading : {}'.format(datafile))
+        self.log('Saving to : {}'.format(savedir))
+
+        cmd = '{} {} {} {} {} {} 0'.format(os.path.join(extractdatadir, 
+            'extractdata'), datafile, savefile, channel, channel, downsample)
+        self.log(cmd)
+        os.system(cmd)
+
+        timestamp, phase = np.loadtxt(savefile).T
+
+        return timestamp, phase
+
 
     def read_stream_data_daq(self, data_length, bay=0, hw_trigger=False):
         """

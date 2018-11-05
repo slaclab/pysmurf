@@ -90,7 +90,7 @@ class SmurfIVMixin(SmurfBase):
         np.save(os.path.join(self.output_dir, fn_iv_raw_data), iv_raw_data)
 
         self.analyze_slow_iv_from_file(fn_iv_raw_data, make_plot=make_plot,
-            show_plot=show_plot, save_plot=save_plot,R_sh = 325e-6, 
+            show_plot=show_plot, save_plot=save_plot, R_sh=325e-6, 
             high_current_mode=high_current_mode, rn_accept_min=rn_accept_min,
             rn_accept_max=rn_accept_max)
 
@@ -111,17 +111,18 @@ class SmurfIVMixin(SmurfBase):
         ivs = {}
         ivs['bias'] = bias
 
-        timestamp, phase = self.read_stream_data(datafile)
-        phase *= 1.443
+        # timestamp, phase = self.read_stream_data(datafile)
+        # phase *= 1.443
         
         rn_list = []
         phase_excursion_list = []
         for c, ch in enumerate(channels):
             # timestamp, I, Q = self.read_stream_data(datafile)
             # phase = self.iq_to_phase(I[ch], Q[ch]) * 1.443
+            timestamp, phase = self.read_stream_data_gcp_save(datafile, ch)
             ch_idx = ch
-            phase_ch = phase[ch_idx]
-            phase_excursion = max(phase_ch) - min(phase_ch)
+            # phase_ch = phase[ch_idx]
+            phase_excursion = max(phase) - min(phase)
             # don't analyze channels with a small phase excursion; these are probably just noise
             if phase_excursion < phase_excursion_min:
                 continue
@@ -136,7 +137,7 @@ class SmurfIVMixin(SmurfBase):
 
                 fig, ax = plt.subplots(1, sharex=True)
 
-                ax.plot(phase_ch)
+                ax.plot(phase)
                 ax.set_xlabel('Sample Num')
                 ax.set_ylabel('Phase [pA]')
 
@@ -152,7 +153,7 @@ class SmurfIVMixin(SmurfBase):
                 if not show_plot:
                     plt.close()
 
-            r, rn, idx = self.analyze_slow_iv(bias, phase[ch_idx], 
+            r, rn, idx = self.analyze_slow_iv(bias, phase, 
                 basename=basename, band=band, channel=ch, make_plot=make_plot, 
                 show_plot=show_plot, save_plot=save_plot,plot_dir = plot_dir,
                 R_sh = R_sh, high_current_mode = high_current_mode,
