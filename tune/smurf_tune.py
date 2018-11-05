@@ -1280,4 +1280,9 @@ class SmurfTuneMixin(SmurfBase):
         self.set_select_ramp(SelectRamp)
         self.set_ramp_start_mode(RampStartMode)
         self.set_pulse_width(PulseWidth)
-        self.set_
+        self.set_debounce_width(DebounceWidth)
+        self.set_ramp_slope(RampSlope)
+        self.set_mode_control(ModeControl)
+        self.set_fast_slow_step_size(FastSlowStepSize)
+        self.set_fast_slow_rst_value(FastSlowRstValue)
+        self.set_enable_ramp_trigger(EnableRampTrigger)
