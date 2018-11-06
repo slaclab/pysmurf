@@ -324,10 +324,24 @@ class SmurfUtilMixin(SmurfBase):
 
             return data_filename
 
-    def set_gcp_datafile(self, data_filename):
+    def set_gcp_datafile(self, data_filename, num_averages=0, receiver_ip='192.168.3.3',
+                         port_number='#5344', data_frames=1000000):
         """
         """
-        return
+        config_dir = self.config.get('smurf2mce_dir')
+        if config_dir is None:
+            self.log('No smurf2mce directory in config file.', self.LOG_ERROR)
+        
+        file = open(config_dir, 'w')
+
+        file.write('num_averages {}'.format(num_averages))
+        file.write('receiver_ip {}'.format(receiver_ip))
+        file.write('port_number {}'.format(port_number))
+        file.write('data_file_name {}'.format(data_filename))
+        file.write('data_frames {}'.format(data_frames))
+
+        file.close()
+        
 
     def stream_data_off(self, band):
         """
