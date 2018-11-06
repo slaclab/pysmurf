@@ -2061,4 +2061,4 @@ class SmurfCommandMixin(SmurfBase):
         new = (old & 0x0000FFFF) + ((val & 0xFFFF)<<16)
         self._caput(self.timing_header +
                     self._row_len, new, **kwargs)
-     
+        
