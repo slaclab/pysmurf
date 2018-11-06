@@ -284,7 +284,7 @@ class SmurfUtilMixin(SmurfBase):
         self.log('Done taking data.', self.LOG_USER)
         return data_filename
 
-    def stream_data_on(self, band):
+    def stream_data_on(self, band, gcp_mode=True):
         """
         Turns on streaming data on specified channel
 
@@ -312,7 +312,10 @@ class SmurfUtilMixin(SmurfBase):
             data_filename = os.path.join(self.output_dir, timestamp+'.dat')
             self.log('Writing to file : {}'.format(data_filename), 
                 self.LOG_USER)
-            self.set_streaming_datafile(data_filename)
+            if gcp_mode:
+                self.set_streaming_datafile('/dev/null')
+            else:
+                self.set_streaming_datafile(data_filename)
             
             # start streaming before opening file to avoid transient filter step
             self.set_stream_enable(band, 1, write_log=True)
@@ -320,6 +323,11 @@ class SmurfUtilMixin(SmurfBase):
             self.set_streaming_file_open(1)  # Open the file
 
             return data_filename
+
+    def set_gcp_datafile(self, data_filename):
+        """
+        """
+        return
 
     def stream_data_off(self, band):
         """

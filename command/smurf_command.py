@@ -1982,6 +1982,24 @@ class SmurfCommandMixin(SmurfBase):
         self._caput(self.timing_header + 
                     self._smurf_to_gcp_stream, new_val, **kwargs)
 
+    def set_smurf_to_gcp_writer(self, val, **kwargs):
+        """
+        Turns on or off data writer from smurf to GCP.
+        This only accepts bools. Annoyingly the bit is 
+        0 for streaming and 1 for off. This function takes
+        care of that, so True for streaming and False 
+        for off.
+        """
+        old_val = self.get_user_config0()
+        if val == False:
+            new_val = old_val | (2 << 1)
+        elif val == True:
+            new_val = old_val
+            if old_val & 2 << 1 != 0:
+                new_val = old_val & ~(2 << 1)
+        self._caput(self.timing_header + 
+                    self._smurf_to_gcp_stream, new_val, **kwargs)
+
     def get_smurf_to_gcp_stream(self, **kwargs):
         """
         """
@@ -2043,3 +2061,4 @@ class SmurfCommandMixin(SmurfBase):
         new = (old & 0x0000FFFF) + ((val & 0xFFFF)<<16)
         self._caput(self.timing_header +
                     self._row_len, new, **kwargs)
+     
