@@ -15,7 +15,8 @@ class SmurfIVMixin(SmurfBase):
 
         Args:
         -----
-        daq (int) : The DAQ number
+        band (int) : The frequency band to take the data in
+        bias_group (int) : The bias group to take data on.
 
         Opt Args:
         ---------

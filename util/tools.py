@@ -33,5 +33,7 @@ def fit_skewed_lorentzian(f, mag):
                 bounds=(low_bounds,up_bounds))
     except RuntimeError:
         popt=np.zeros((6,))
+    except ValueError:
+        popt=np.zeros((6,))
 
     return popt
