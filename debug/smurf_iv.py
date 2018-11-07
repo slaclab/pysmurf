@@ -63,6 +63,7 @@ class SmurfIVMixin(SmurfBase):
         time.sleep(1)
 
         datafile = self.stream_data_on(band)
+        self.log('writing to {}'.format(datafile))
 
         for b in bias:
             self.log('Bias at {:4.3f}'.format(b))
@@ -98,6 +99,9 @@ class SmurfIVMixin(SmurfBase):
     def analyze_slow_iv_from_file(self, fn_iv_raw_data, make_plot=True,
         show_plot=False, save_plot=True, R_sh=.0029, high_current_mode=False,
         rn_accept_min = 1e-3, rn_accept_max = 1., phase_excursion_min=3.):
+        """
+        """
+        self.log('Analyzing from file: {}'.format(fn_iv_raw_data))
 
         iv_raw_data = np.load(fn_iv_raw_data).item()
         bias = iv_raw_data['bias']
@@ -118,6 +122,7 @@ class SmurfIVMixin(SmurfBase):
         rn_list = []
         phase_excursion_list = []
         for c, ch in enumerate(channels):
+            self.log('Analyzing channel {}'.format(ch))
             # timestamp, I, Q = self.read_stream_data(datafile)
             # phase = self.iq_to_phase(I[ch], Q[ch]) * 1.443
             timestamp, phase = self.read_stream_data_gcp_save(datafile, ch)
@@ -125,8 +130,8 @@ class SmurfIVMixin(SmurfBase):
             # phase_ch = phase[ch_idx]
             phase_excursion = max(phase) - min(phase)
             # don't analyze channels with a small phase excursion; these are probably just noise
-            if phase_excursion < phase_excursion_min:
-                continue
+            #if phase_excursion < phase_excursion_min:
+            #    continue
             
             phase_excursion_list.append(phase_excursion)
             if make_plot:
@@ -149,6 +154,7 @@ class SmurfIVMixin(SmurfBase):
                 plot_name = basename + \
                     '_IV_stream_b{}_g{}_ch{:03}.png'.format(band,bias_group,ch)
                 if save_plot:
+                    # self.log('Saving IV plot to {}'.format(os.path.join(plot_dir, plot_name)))
                     plt.savefig(os.path.join(plot_dir, plot_name), 
                         bbox_inches='tight', dpi=300)
                 if not show_plot:
@@ -156,7 +162,7 @@ class SmurfIVMixin(SmurfBase):
 
             r, rn, idx = self.analyze_slow_iv(bias, phase, 
                 basename=basename, band=band, channel=ch, make_plot=make_plot, 
-                show_plot=show_plot, save_plot=save_plot,plot_dir = plot_dir,
+                show_plot=show_plot, save_plot=save_plot, plot_dir=plot_dir,
                 R_sh = R_sh, high_current_mode = high_current_mode,
                 bias_group=bias_group)
             try:
@@ -172,34 +178,34 @@ class SmurfIVMixin(SmurfBase):
 
         np.save(os.path.join(output_dir, basename + '_iv'), ivs)
 
-        if make_plot:
-            import matplotlib.pyplot as plt
-            plt.ion()
-            plt.figure()
-            plt.hist(rn_list)
-            plt.xlabel('r_n')
-            plt.title('%s, band %i, group %i: %i btwn. %.3e and %.3e Ohm' % \
-                          (basename,band,bias_group,len(rn_list),\
-                               rn_accept_min,rn_accept_max))
-            plot_filename = os.path.join(plot_dir,'%s_IV_rn_hist.png' % (basename))
-            plt.savefig(plot_filename, bbox_inches='tight', dpi=300)
-            plt.show()
+        #if make_plot:
+            #import matplotlib.pyplot as plt
+            #plt.ion()
+            #plt.figure()
+            #plt.hist(rn_list)
+            #plt.xlabel('r_n')
+            #plt.title('%s, band %i, group %i: %i btwn. %.3e and %.3e Ohm' % \
+            #              (basename,band,bias_group,len(rn_list),\
+            #                   rn_accept_min,rn_accept_max))
+            #plot_filename = os.path.join(plot_dir,'%s_IV_rn_hist.png' % (basename))
+            #plt.savefig(plot_filename, bbox_inches='tight', dpi=300)
+            #plt.show()
 
-            plt.figure()
-            plt.hist(phase_excursion_list, 
-                bins=np.logspace(np.floor(np.log10(
-                    np.min(phase_excursion_list))),
-                np.ceil(np.log10(np.max(phase_excursion_list))),20))
-            plt.xlabel('phase excursion')
-            plt.ylabel('number of channels')
-            plt.title('%s, band %i, group %i: %i with phase excursion > %.3e' % (basename,band,bias_group,len(phase_excursion_list),phase_excursion_min))
-            plt.xscale('log')
-            phase_hist_filename = os.path.join(plot_dir,'%s_IV_phase_excursion_hist.png' % (basename))
-            plt.savefig(phase_hist_filename,bbox_inches='tight',dpi=300)
-            plt.show()
+            #plt.figure()
+            #plt.hist(phase_excursion_list, 
+            #    bins=np.logspace(np.floor(np.log10(
+            #        np.min(phase_excursion_list))),
+            #    np.ceil(np.log10(np.max(phase_excursion_list))),20))
+            #plt.xlabel('phase excursion')
+            #plt.ylabel('number of channels')
+            #plt.title('%s, band %i, group %i: %i with phase excursion > %.3e' % (basename,band,bias_group,len(phase_excursion_list),phase_excursion_min))
+            #plt.xscale('log')
+            #phase_hist_filename = os.path.join(plot_dir,'%s_IV_phase_excursion_hist.png' % (basename))
+            #plt.savefig(phase_hist_filename,bbox_inches='tight',dpi=300)
+            #plt.show()
 
     def analyze_slow_iv(self, v_bias, resp, make_plot=True, show_plot=False,
-        save_plot=True, basename=None, band=None, channel=None, R_sh=0.0029,
+        save_plot=True, basename=None, band=None, channel=None, R_sh=.003,
         plot_dir = None,high_current_mode = False,bias_group = None,**kwargs):
         """
         Analyzes the IV curve taken with slow_iv()
@@ -260,10 +266,10 @@ class SmurfIVMixin(SmurfBase):
         sc_idx = np.ravel(np.where(d_resp == np.max(d_resp)))[0]
 
         if sc_idx == 0:
-            return None, None, None
-
+            #return None, None, None
+            sc_idx = 5
         # index of the start of the normal branch
-        nb_idx = n_step-50
+        nb_idx = n_step-5
         for i in np.arange(n_step-50, sc_idx, -1):
             if d_resp[i] > 0:
                 nb_idx = i
@@ -275,12 +281,15 @@ class SmurfIVMixin(SmurfBase):
             norm_fit = np.polyfit(i_bias[nb_idx:], resp_bin[nb_idx:], 1)
 
         resp_bin -= norm_fit[1]  # now in real current units
-        
+        print(i_bias)
+        print(resp_bin)
+
         sc_fit = np.polyfit(i_bias[:sc_idx], resp_bin[:sc_idx], 1)
 
         R = R_sh * (i_bias/(resp_bin) - 1)
         R_n = np.mean(R[nb_idx:])
 
+        self.log('make_plot {}'.format(make_plot))
         if make_plot:
             fig, ax = plt.subplots(2, sharex=True)
             ax[0].plot(i_bias, resp_bin, '.')
@@ -344,6 +353,7 @@ class SmurfIVMixin(SmurfBase):
                 if plot_dir == None:
                     plot_dir = self.plot_dir
                 plot_filename = os.path.join(plot_dir, plot_name)
+                self.log('Saving IV plot to:{}'.format(plot_filename))
                 plt.savefig(plot_filename,bbox_inches='tight', dpi=300)
             if show_plot:
                 plt.show()

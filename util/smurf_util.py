@@ -314,13 +314,18 @@ class SmurfUtilMixin(SmurfBase):
                 self.LOG_USER)
             if gcp_mode:
                 self.set_streaming_datafile('/dev/null')
+                self.set_gcp_datafile(data_filename)
             else:
                 self.set_streaming_datafile(data_filename)
             
             # start streaming before opening file to avoid transient filter step
             self.set_stream_enable(band, 1, write_log=True)
             time.sleep(1.)
-            self.set_streaming_file_open(1)  # Open the file
+
+            if gcp_mode:
+                self.set_smurf_to_gcp_writer(True, write_log=True)
+            else:
+                self.set_streaming_file_open(1)  # Open the file
 
             return data_filename
 
@@ -328,22 +333,23 @@ class SmurfUtilMixin(SmurfBase):
                          port_number='#5344', data_frames=1000000):
         """
         """
-        config_dir = self.config.get('smurf2mce_dir')
+        config_dir = self.config.get('smurf2mce_cfg_dir')
+        print(config_dir)
         if config_dir is None:
             self.log('No smurf2mce directory in config file.', self.LOG_ERROR)
         
         file = open(config_dir, 'w')
 
-        file.write('num_averages {}'.format(num_averages))
-        file.write('receiver_ip {}'.format(receiver_ip))
-        file.write('port_number {}'.format(port_number))
-        file.write('data_file_name {}'.format(data_filename))
+        file.write('num_averages {}\n'.format(num_averages))
+        file.write('receiver_ip {}\n'.format(receiver_ip))
+        file.write('port_number {}\n'.format(port_number))
+        file.write('data_file_name {}\n'.format(data_filename))
         file.write('data_frames {}'.format(data_frames))
 
         file.close()
         
 
-    def stream_data_off(self, band):
+    def stream_data_off(self, band, gcp_mode=True):
         """
         Turns off streaming data on specified band
 
@@ -352,7 +358,10 @@ class SmurfUtilMixin(SmurfBase):
         band (int) : The band to turn off stream data
         """
         self.set_stream_enable(band, 0, write_log=True)
-        self.set_streaming_file_open(0)  # Close the file
+        if gcp_mode:
+            self.set_smurf_to_gcp_writer(False, write_log=True)
+        else:
+            self.set_streaming_file_open(0)  # Close the file
 
 
     def read_stream_data(self, datafile, unwrap=True):
@@ -451,18 +460,20 @@ class SmurfUtilMixin(SmurfBase):
         """
         Reads the special data that is designed to be a copy of the GCP data.
         """
+        import glob
+        datafile = glob.glob(datafile+'*')[-1]
         extractdatadir = os.path.dirname(os.path.abspath(__file__ ))
         datadir = os.path.dirname(datafile)
         savedir = os.path.join(datadir, 'channel_data')
         savefile = os.path.join(savedir, 'ch{:03}.txt'.format(channel))
         self.make_dir(savedir)
 
-        self.log('Reading : {}'.format(datafile))
-        self.log('Saving to : {}'.format(savedir))
+        #self.log('Reading : {}'.format(datafile))
+        #self.log('Saving to : {}'.format(savedir))
 
         cmd = '{} {} {} {} {} {} 0'.format(os.path.join(extractdatadir, 
             'extractdata'), datafile, savefile, channel, channel, downsample)
-        self.log(cmd)
+        #self.log(cmd)
         os.system(cmd)
 
         timestamp, phase = np.loadtxt(savefile).T

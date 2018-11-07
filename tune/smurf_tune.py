@@ -106,6 +106,7 @@ class SmurfTuneMixin(SmurfBase):
             match_freq_offset = -0.8 # match phase at -0.8 MHz
 
             phase_resp = np.angle(resp)
+
             idx0  = np.abs(freq - match_freq_offset*1e6).argmin()
             tf_phase  = phase_resp[idx0] + freq[idx0]*add_phase_slope
 #FIXME - should we be doing epics caput/caget here?
@@ -137,6 +138,8 @@ class SmurfTuneMixin(SmurfBase):
             self.set_amplitude_scale_channel(band, 0, 0)
             dsp_phase = np.arctan2(np.mean(dsp_Q), np.mean(dsp_I)) 
             phase_shift = dsp_phase - tf_phase
+            print(phase_shift)
+            print(add_phase_slope)
             comp_phase_resp = phase_resp + freq*add_phase_slope + phase_shift
 
             # overall compensated response
