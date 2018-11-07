@@ -234,7 +234,8 @@ class SmurfIVMixin(SmurfBase):
         # r_inline = 8.e3 # for FP Run 28; estimate from SWH (Oct. 19, 2018)
         r_inline = self.bias_line_resistance
         if high_current_mode:
-            r_inline /= 10.
+            # high-current mode generates higher current by decreases the in-line resistance
+            r_inline /= self.high_low_current_ratio
         i_bias = 1.0E6 * v_bias / r_inline  # Total line impedance and uA
 
         if make_plot:
