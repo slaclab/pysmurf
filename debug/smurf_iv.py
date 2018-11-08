@@ -283,19 +283,18 @@ class SmurfIVMixin(SmurfBase):
                 nb_idx = i
                 break
 
-        norm_fit = np.polyfit(i_bias[nb_idx:], resp_bin[nb_idx:], 1)
+        nb_fit_idx = int(np.mean((n_step,nb_idx)))
+        norm_fit = np.polyfit(i_bias[nb_fit_idx:], resp_bin[nb_fit_idx:], 1)
         if norm_fit[0] < 0:  # Check for flipped polarity
             resp_bin = -1 * resp_bin
-            norm_fit = np.polyfit(i_bias[nb_idx:], resp_bin[nb_idx:], 1)
+            norm_fit = np.polyfit(i_bias[nb_fit_idx:], resp_bin[nb_fit_idx:], 1)
 
         resp_bin -= norm_fit[1]  # now in real current units
-        print(i_bias)
-        print(resp_bin)
 
         sc_fit = np.polyfit(i_bias[:sc_idx], resp_bin[:sc_idx], 1)
 
         R = R_sh * (i_bias/(resp_bin) - 1)
-        R_n = np.mean(R[nb_idx:])
+        R_n = np.mean(R[nb_fit_idx:])
 
         self.log('make_plot {}'.format(make_plot))
         if make_plot:
