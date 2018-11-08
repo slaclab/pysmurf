@@ -128,12 +128,13 @@ class SmurfIVMixin(SmurfBase):
             timestamp, phase = self.read_stream_data_gcp_save(datafile, ch)
             ch_idx = ch
             # phase_ch = phase[ch_idx]
+         
             phase_excursion = max(phase) - min(phase)
             # don't analyze channels with a small phase excursion; these are probably just noise
-            #if phase_excursion < phase_excursion_min:
-            #    continue
-            
+            if phase_excursion < phase_excursion_min:
+                continue
             phase_excursion_list.append(phase_excursion)
+
             if make_plot:
                 import matplotlib.pyplot as plt
                 plt.rcParams["patch.force_edgecolor"] = True
@@ -178,31 +179,34 @@ class SmurfIVMixin(SmurfBase):
 
         np.save(os.path.join(output_dir, basename + '_iv'), ivs)
 
-        #if make_plot:
-            #import matplotlib.pyplot as plt
-            #plt.ion()
-            #plt.figure()
-            #plt.hist(rn_list)
-            #plt.xlabel('r_n')
-            #plt.title('%s, band %i, group %i: %i btwn. %.3e and %.3e Ohm' % \
-            #              (basename,band,bias_group,len(rn_list),\
-            #                   rn_accept_min,rn_accept_max))
-            #plot_filename = os.path.join(plot_dir,'%s_IV_rn_hist.png' % (basename))
-            #plt.savefig(plot_filename, bbox_inches='tight', dpi=300)
-            #plt.show()
+        if make_plot:
+            import matplotlib.pyplot as plt
+            if not show_plot:
+                plt.ioff()
+            plt.figure()
+            plt.hist(rn_list)
+            plt.xlabel('r_n')
+            plt.title('%s, band %i, group %i: %i btwn. %.3e and %.3e Ohm' % \
+                          (basename,band,bias_group,len(rn_list),\
+                               rn_accept_min,rn_accept_max))
+            plot_filename = os.path.join(plot_dir,'%s_IV_rn_hist.png' % (basename))
+            plt.savefig(plot_filename, bbox_inches='tight', dpi=300)
+            if not show_plot:
+                plt.close()
 
-            #plt.figure()
-            #plt.hist(phase_excursion_list, 
-            #    bins=np.logspace(np.floor(np.log10(
-            #        np.min(phase_excursion_list))),
-            #    np.ceil(np.log10(np.max(phase_excursion_list))),20))
-            #plt.xlabel('phase excursion')
-            #plt.ylabel('number of channels')
-            #plt.title('%s, band %i, group %i: %i with phase excursion > %.3e' % (basename,band,bias_group,len(phase_excursion_list),phase_excursion_min))
-            #plt.xscale('log')
-            #phase_hist_filename = os.path.join(plot_dir,'%s_IV_phase_excursion_hist.png' % (basename))
-            #plt.savefig(phase_hist_filename,bbox_inches='tight',dpi=300)
-            #plt.show()
+            plt.figure()
+            plt.hist(phase_excursion_list, 
+                bins=np.logspace(np.floor(np.log10(
+                    np.min(phase_excursion_list))),
+                np.ceil(np.log10(np.max(phase_excursion_list))),20))
+            plt.xlabel('phase excursion')
+            plt.ylabel('number of channels')
+            plt.title('%s, band %i, group %i: %i with phase excursion > %.3e' % (basename,band,bias_group,len(phase_excursion_list),phase_excursion_min))
+            plt.xscale('log')
+            phase_hist_filename = os.path.join(plot_dir,'%s_IV_phase_excursion_hist.png' % (basename))
+            plt.savefig(phase_hist_filename,bbox_inches='tight',dpi=300)
+            if not show_plot:
+                plt.close()
 
     def analyze_slow_iv(self, v_bias, resp, make_plot=True, show_plot=False,
         save_plot=True, basename=None, band=None, channel=None, R_sh=.003,
