@@ -6,6 +6,7 @@ from scipy import optimize
 import scipy.signal as signal
 from collections import Counter
 from ..util import tools
+from pysmurf.command.sync_group import SyncGroup as SyncGroup
 
 class SmurfTuneMixin(SmurfBase):
     """
@@ -14,8 +15,8 @@ class SmurfTuneMixin(SmurfBase):
 
     def tune_band(self, band, freq=None, resp=None, n_samples=2**19, 
         make_plot=False, plot_chans = [], save_plot=True, save_data=True, 
-        make_subband_plot=False, subband=None,
-        grad_cut=.05, freq_min=-2.5E8, freq_max=2.5E8, amp_cut=.25):
+        make_subband_plot=False, subband=None, n_scan=5,subband_plot_with_slow=False,
+        grad_cut=.05, freq_min=-2.5E8, freq_max=2.5E8, amp_cut=1):
         """
         This does the full_band_resp, which takes the raw resonance data.
         It then finds the where the reseonances are. Using the resonance
@@ -69,7 +70,8 @@ class SmurfTuneMixin(SmurfBase):
             # Inject high amplitude noise with known waveform, measure it, and 
             # then find resonators and etaParameters from cross-correlation.
             freq, resp = self.full_band_resp(band, n_samples=n_samples,
-                make_plot=make_plot, save_data=save_data, timestamp=timestamp)
+                make_plot=make_plot, save_data=save_data, timestamp=timestamp,
+                n_scan=n_scan)
 
             # Now let's scale/shift phase/mag to match what DSP sees
 
@@ -91,7 +93,7 @@ class SmurfTuneMixin(SmurfBase):
 
             comp_delay = (delay + processing_delay - ref_phase_delay/2.4 + 
                 ref_phase_delay_fine/307.2)
-            mag_scale = 100.*0.04232/0.1904    # empirical
+            mag_scale = 5.*0.04232/0.1904    # empirical
 
             add_phase_slope = (2*np.pi*1e-6)*(delay - comp_delay)
 
@@ -152,13 +154,14 @@ class SmurfTuneMixin(SmurfBase):
         peaks = self.find_peak(freq, resp, band=band, make_plot=make_plot, 
             save_plot=save_plot, grad_cut=grad_cut, freq_min=freq_min,
             freq_max=freq_max, amp_cut=amp_cut, 
-            make_subband_plot=make_subband_plot, timestamp=timestamp)
+            make_subband_plot=make_subband_plot, timestamp=timestamp,
+            subband_plot_with_slow=subband_plot_with_slow)
 
         # Eta scans
         resonances = {}
         for i, p in enumerate(peaks):
             eta, eta_scaled, eta_phase_deg, r2, eta_mag, latency, Q=self.eta_fit(freq, 
-                resp, p, .4E6, make_plot=make_plot, 
+                resp, p, 50E3, make_plot=make_plot, 
                 plot_chans=plot_chans, save_plot=save_plot, res_num=i, 
                 band=band, timestamp=timestamp)
 
@@ -383,7 +386,7 @@ class SmurfTuneMixin(SmurfBase):
 
     def find_peak(self, freq, resp, grad_cut=.05, amp_cut=.25, freq_min=-2.5E8, 
         freq_max=2.5E8, make_plot=False, save_plot=True, band=None,
-        make_subband_plot=False, timestamp=None):
+        make_subband_plot=False, subband_plot_with_slow=False, timestamp=None):
         """find the peaks within a given subband
 
         Args:
@@ -525,6 +528,13 @@ class SmurfTuneMixin(SmurfBase):
 
                 ax[0].set_title('Band {} Subband {}'.format(band,
                     sb, sbf))
+
+                if subband_plot_with_slow:
+                    ff = np.arange(-3, 3.1, .05)
+                    rr, ii = self.eta_scan(band, sb, ff, 10, write_log=False)
+                    dd = rr + 1.j*ii
+                    sbc = self.get_subband_centers(band)
+                    ax[1].plot(ff+sbc[1][sb], np.abs(dd)/2.5E6)
 
                 if save_plot:
                     save_name = '{}_find_freq_b{}_sb{:03}.png'.format(timestamp, band, sb)
@@ -715,8 +725,14 @@ class SmurfTuneMixin(SmurfBase):
             left = np.where(freq < peak_freq - delta_freq)[0][-1]
         except IndexError:
             left = 0
+        try:
+            left_plot = np.where(freq < peak_freq - 5*delta_freq)[0][-1]
+        except IndexError:
+            left = 0
+
         right = np.where(freq > peak_freq + delta_freq)[0][0]
-            
+        right_plot = np.where(freq > peak_freq + 5*delta_freq)[0][0]
+        
         eta = (freq[right] - freq[left]) / (resp[right] - resp[left])
 
         # Get eta parameters
@@ -733,8 +749,8 @@ class SmurfTuneMixin(SmurfBase):
 
 
         if left != right:
-            sk_fit = tools.fit_skewed_lorentzian(freq[left:right], amp[left:right])
-            r2 = np.sum((amp[left:right] - tools.skewed_lorentzian(freq[left:right], 
+            sk_fit = tools.fit_skewed_lorentzian(freq[left_plot:right_plot], amp[left_plot:right_plot])
+            r2 = np.sum((amp[left_plot:right_plot] - tools.skewed_lorentzian(freq[left_plot:right_plot], 
                 *sk_fit))**2)
             Q = sk_fit[5]
         else:
@@ -746,7 +762,7 @@ class SmurfTuneMixin(SmurfBase):
             if len(plot_chans) == 0:
                 self.log('Making plot for band' + 
                     ' {} res {:03}'.format(band, res_num))
-                self.plot_eta_fit(freq[left:right], resp[left:right], 
+                self.plot_eta_fit(freq[left_plot:right_plot], resp[left_plot:right_plot], 
                     eta=eta, eta_mag=eta_mag, r2=r2,
                     save_plot=save_plot, timestamp=timestamp, band=band,
                     res_num=res_num, sk_fit=sk_fit)
@@ -754,7 +770,7 @@ class SmurfTuneMixin(SmurfBase):
                 if res_num in plot_chans:
                     self.log('Making plot for band ' + 
                         '{} res {:03}'.format(band, res_num))
-                    self.plot_eta_fit(freq[left:right], resp[left:right], 
+                    self.plot_eta_fit(freq[left_plot:right_plot], resp[left_plot:right_plot], 
                         eta=eta, eta_mag=eta_mag, eta_phase_deg=eta_phase_deg, 
                         r2=r2, save_plot=save_plot, timestamp=timestamp, 
                         band=band, res_num=res_num, sk_fit=sk_fit)
@@ -1102,6 +1118,35 @@ class SmurfTuneMixin(SmurfBase):
             self.LOG_USER)
 
 
+    def eta_scan(self, band, subband, freq, drive, write_log=False):
+        """
+        Same as slow eta scans
+        """
+        n_subband = self.get_number_sub_bands(band)
+        n_channel = self.get_number_channels(band)
+        channel_order = self.get_channel_order()
+        first_channel = channel_order[::n_channel//n_subband]
+
+        self.set_eta_scan_channel(band, first_channel[subband], 
+                                  write_log=write_log)
+        self.set_eta_scan_amplitude(band, drive, write_log=write_log)
+        self.set_eta_scan_freq(band, freq, write_log=write_log)
+        self.set_eta_scan_dwell(band, 0, write_log=write_log)
+
+        self.set_run_eta_scan(band, 1, wait_done=False, write_log=write_log)
+        pvs = [self._cryo_root(band) + self._eta_scan_results_real,
+               self._cryo_root(band) + self._eta_scan_results_imag]
+
+        #sg = SyncGroup(pvs, skip_first=False)
+
+        #vals = sg.get_values()
+        #rr = vals[pvs[0]]
+        #ii = vals[pvs[1]]
+        #time.sleep(1)
+        rr = self.get_eta_scan_results_real(2, len(freq))
+        ii = self.get_eta_scan_results_imag(2, len(freq))
+
+        return rr, ii
 
     def tracking_setup(self, band, channel, reset_rate_khz=4., write_log=False, 
         do_Plots = False):
