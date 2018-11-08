@@ -298,7 +298,7 @@ class SmurfIVMixin(SmurfBase):
         if make_plot:
             fig, ax = plt.subplots(2, sharex=True)
             ax[0].plot(i_bias, resp_bin, '.')
-            ax[0].plot((i_bias[1:]+i_bias[:-1])/2, d_resp, 'r.')
+            #ax[0].plot((i_bias[1:]+i_bias[:-1])/2, d_resp, 'r.')
             ax[0].set_ylabel(r'$I_{TES}$ $[\mu A]$')
 
             ax[0].plot(i_bias, norm_fit[0] * i_bias , linestyle='--', color='k')  

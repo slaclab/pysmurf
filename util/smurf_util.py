@@ -477,6 +477,7 @@ class SmurfUtilMixin(SmurfBase):
         os.system(cmd)
 
         timestamp, phase = np.loadtxt(savefile).T
+        phase = phase.astype(float) / 2**15 * np.pi # scale to rad
 
         return timestamp, phase
 
