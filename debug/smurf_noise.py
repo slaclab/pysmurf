@@ -48,7 +48,7 @@ class SmurfNoiseMixin(SmurfBase):
 
         # timestamp, I, Q = self.read_stream_data(datafile)
         timestamp, phase = self.read_stream_data(datafile)
-        phase *= 1.443
+        phase *= self.pA_per_phi0/(2.*np.pi) # phase converted to pA
 
         if fs is None:
             self.log('No flux ramp freq given. Loading current flux ramp'+
@@ -72,12 +72,12 @@ class SmurfNoiseMixin(SmurfBase):
         for c, ch in enumerate(channel):
             # phase = self.iq_to_phase(I[ch], Q[ch])
 
-            # Calculate to power spectrum and convert to pA
+            # Calculate to power spectrum
             ch_idx = 512*band + ch
             # ch_idx = ch
             f, Pxx = signal.welch(phase[ch_idx], nperseg=nperseg, 
                 fs=fs, detrend=detrend)
-            Pxx = np.sqrt(Pxx) * 1.0E6
+            Pxx = np.sqrt(Pxx)
 
             good_fit = False
             try:
@@ -322,7 +322,7 @@ class SmurfNoiseMixin(SmurfBase):
         for i, (b, d) in enumerate(zip(bias, datafile)):
             # timestamp, I, Q = self.read_stream_data(d)
             timestamp, phase = self.read_stream_data(d)
-            phase *= 1.443
+            phase *= self.pA_per_phi0/(2.*np.pi) # phase converted to pA
 
             basename, _ = os.path.splitext(os.path.basename(d))
             dirname = os.path.dirname(d)
@@ -333,7 +333,7 @@ class SmurfNoiseMixin(SmurfBase):
                 # phase = self.iq_to_phase(I[ch], Q[ch]) * 1.334  # convert to uA
                 f, Pxx = signal.welch(phase[ch], nperseg=nperseg, 
                     fs=fs, detrend=detrend)
-                Pxx = np.sqrt(Pxx) * 1.0E6  # pA
+                Pxx = np.sqrt(Pxx)  # pA
                 np.savetxt(os.path.join(psd_dir, basename + 
                     '_psd_ch{:03}.txt'.format(ch)), np.array([f, Pxx]))
 
@@ -342,7 +342,7 @@ class SmurfNoiseMixin(SmurfBase):
                     ax.plot(phase[ch])
                     ax.set_title('Channel {:03}'.format(ch))
                     ax.set_xlabel(r'Time index')
-                    ax.set_ylabel(r'Phase')
+                    ax.set_ylabel(r'Phase (pA)')
                 
                     if show_plot:
                         plt.show()

@@ -100,6 +100,7 @@ class SmurfIVMixin(SmurfBase):
         show_plot=False, save_plot=True, R_sh=.0029, high_current_mode=False,
         rn_accept_min = 1e-3, rn_accept_max = 1., phase_excursion_min=3.):
         """
+        phase_excursion: abs(max - min) of phase in radians
         """
         self.log('Analyzing from file: {}'.format(fn_iv_raw_data))
 
@@ -146,7 +147,7 @@ class SmurfIVMixin(SmurfBase):
 
                 ax.plot(phase)
                 ax.set_xlabel('Sample Num')
-                ax.set_ylabel('Phase [pA]')
+                ax.set_ylabel('Phase [rad.]')
 
                 ax.set_title('Band {}, Group {}, Ch {:03}'.format(band,
                     bias_group, ch))
@@ -199,9 +200,9 @@ class SmurfIVMixin(SmurfBase):
                 bins=np.logspace(np.floor(np.log10(
                     np.min(phase_excursion_list))),
                 np.ceil(np.log10(np.max(phase_excursion_list))),20))
-            plt.xlabel('phase excursion')
+            plt.xlabel('phase excursion (rad.)')
             plt.ylabel('number of channels')
-            plt.title('%s, band %i, group %i: %i with phase excursion > %.3e' % (basename,band,bias_group,len(phase_excursion_list),phase_excursion_min))
+            plt.title('%s, band %i, group %i: %i with phase excursion > %.3e rad.' % (basename,band,bias_group,len(phase_excursion_list),phase_excursion_min))
             plt.xscale('log')
             phase_hist_filename = os.path.join(plot_dir,'%s_IV_phase_excursion_hist.png' % (basename))
             plt.savefig(phase_hist_filename,bbox_inches='tight',dpi=300)
@@ -217,8 +218,8 @@ class SmurfIVMixin(SmurfBase):
         Args:
         -----
         v_bias (float array): The commanded bias in voltage. Length n_steps
-        resp (float array): The TES response. Of length n_pts (not the same 
-            as n_steps
+        resp (float array): The TES phase response in radians. Of length 
+                            n_pts (not the same as n_steps
 
         Returns:
         --------
@@ -227,6 +228,8 @@ class SmurfIVMixin(SmurfBase):
         idx (int array): 
         R_sh (float): Shunt resistance
         """
+        resp *= self.pA_per_phi0/(2.*np.pi*1e6) # convert phase to uA
+
         n_pts = len(resp)
         n_step = len(v_bias)
 
@@ -240,7 +243,7 @@ class SmurfIVMixin(SmurfBase):
         if high_current_mode:
             # high-current mode generates higher current by decreases the in-line resistance
             r_inline /= self.high_low_current_ratio
-        i_bias = 1.0E6 * v_bias / r_inline  # Total line impedance and uA
+        i_bias = 1.0E6 * v_bias / r_inline 
 
         if make_plot:
             import matplotlib.pyplot as plt
