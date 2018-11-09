@@ -111,32 +111,17 @@ class SmurfTuneMixin(SmurfBase):
 
             idx0  = np.abs(freq - match_freq_offset*1e6).argmin()
             tf_phase  = phase_resp[idx0] + freq[idx0]*add_phase_slope
-#FIXME - should we be doing epics caput/caget here?
-            # import epics
-            # base_root = 'mitch_epics:AMCc:FpgaTopLevel:AppTop:AppCore:SysgenCryo:Base[' + str(band) + ']:'
-            # epics.caput(base_root + 'refPhaseDelay', int(ref_phase_delay))
             self.set_ref_phase_delay(band, int(ref_phase_delay))
-            # epics.caput(base_root + 'lmsDelay', int(ref_phase_delay))
             self.set_lms_delay(band, int(ref_phase_delay))
-            # epics.caput(base_root + 'refPhaseDelayFine', int(ref_phase_delay_fine))
-            self.set_ref_phase_delay(band, int(ref_phase_delay_fine))
+            self.set_ref_phase_delay_fine(band, int(ref_phase_delay_fine))
             
-            # pv_root = base_root + 'CryoChannels:CryoChannel[0]:'
-            # epics.caput(pv_root + 'etaMagScaled', 1)
             self.set_eta_mag_scaled_channel(band, 0, 1)
-            # epics.caput(pv_root + 'centerFrequencyMHz', match_freq_offset)
             self.set_center_frequency_mhz_channel(band, 0, match_freq_offset)
-            # epics.caput(pv_root + 'amplitudeScale', 10)
             self.set_amplitude_scale_channel(band, 0, 10)
-            # epics.caput(pv_root + 'etaPhaseDegree', 0)
             self.set_eta_phase_degree_channel(band, 0, 0)
-            # dsp_I = [epics.caget(pv_root + 'frequencyErrorMHz') for i in range(20)]
             dsp_I = [self.get_frequency_error_mhz(band, 0) for i in range(20)]
-            # epics.caput(pv_root + 'etaPhaseDegree', -90)
             self.set_eta_phase_degree_channel(band, 0, -90)
-            # dsp_Q = [epics.caget(pv_root + 'frequencyErrorMHz') for i in range(20)]
             dsp_Q = [self.get_frequency_error_mhz(band, 0) for i in range(20)]
-            # epics.caput(pv_root + 'amplitudeScale', 0)
             self.set_amplitude_scale_channel(band, 0, 0)
             dsp_phase = np.arctan2(np.mean(dsp_Q), np.mean(dsp_I)) 
             phase_shift = dsp_phase - tf_phase
