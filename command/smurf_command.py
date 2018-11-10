@@ -1645,36 +1645,6 @@ class SmurfCommandMixin(SmurfBase):
         """
         return 3.0725E5/(self.get_ramp_max_cnt(**kwargs)+1)
 
-    _low_cycle = 'LowCycle'
-    def set_low_cylce(self, val, **kwargs):
-        """
-        CPLD's clock: low cycle duration (zero inclusive). 
-        Along with HighCycle, sets the frequency of the clock going to the RTM.
-        """
-        self._caput(self.rtm_cryo_det_root + self._low_cycle, val, **kwargs)
-    
-    def get_low_cylce(self, val, **kwargs):
-        """
-        CPLD's clock: low cycle duration (zero inclusive). 
-        Along with HighCycle, sets the frequency of the clock going to the RTM.
-        """
-        return self._caget(self.rtm_cryo_det_root + self._low_cycle, **kwargs)
- 
-    _high_cycle = 'HighCycle'
-    def set_high_cylce(self, val, **kwargs):
-        """
-        CPLD's clock: high cycle duration (zero inclusive).
-        Along with LowCycle, sets the frequency of the clock going to the RTM.
-        """
-        self._caput(self.rtm_cryo_det_root + self._high_cycle, val, **kwargs)
-    
-    def get_high_cylce(self, val, **kwargs):
-        """
-        CPLD's clock: high cycle duration (zero inclusive).
-        Along with LowCycle, sets the frequency of the clock going to the RTM.
-        """
-        return self._caget(self.rtm_cryo_det_root + self._high_cycle, **kwargs)
-
     _select_ramp = 'SelectRamp'
     def set_select_ramp(self, val, **kwargs):
         """
