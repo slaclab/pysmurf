@@ -704,7 +704,7 @@ class SmurfUtilMixin(SmurfBase):
 
         return ret
 
-    def freq_to_subband(self, freq, band_center, subband_order):
+    def freq_to_subband(self, freq, band):
         '''Look up subband number of a channel frequency
 
         To do: This probably should not be hard coded. If these values end
@@ -713,26 +713,26 @@ class SmurfUtilMixin(SmurfBase):
         Args:
         -----
         freq (float): frequency in MHz
-        band_center (float): frequency in MHz of the band center
-        subband_order (list): order of subbands within the band
+        band (float): The band to place the resonator
 
         Returns:
         --------
-        subband_no (int): subband (0..31) of the frequency within the band
+        subband_no (int): subband (0..128) of the frequency within the band
         offset (float): offset from subband center
         '''
-        try:
-            order = [int(x) for x in subband_order] # convert it to a list
-        except ValueError:
-            order = [8, 24, 9, 25, 10, 26, 11, 27, 12, 28, 13, 29, 14, 30, 15,\
-                    31, 0, 16, 1, 17, 2, 18, 3, 19, 4, 20, 5, 21, 6, 22, 7, 23]
+        dig_freq = self.get_digitizer_frequency_mhz(band)
+        num_subband = self.get_number_sub_bands(band)
+        band_center = self.get_band_center_mhz(band)
+        subband_width = 2*dig_freq/num_subband
+        
+        subbands, subband_centers = self.get_subband_centers(band, as_offset=False)
 
-        # can we pull these hardcodes out?
-        bb = floor((freq - (band_center - 307.2 - 9.6)) / 19.2)
-        offset = freq - (band_center - 307.2) - bb * 19.2
-        
-        subband_no = order[bb]
-        
+        df = np.abs(freq - subband_centers)
+        idx = np.ravel(np.where(df == np.min(df)))[0]
+
+        subband_no = subbands[idx]
+        offset = freq - subband_centers[idx]
+
         return subband_no, offset
 
     def get_channel_order(self, channel_orderfile=None):
