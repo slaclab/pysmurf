@@ -10,7 +10,8 @@ class SmurfNoiseMixin(SmurfBase):
     def take_noise_psd(self, band, meas_time, channel=None, nperseg=2**12, 
         detrend='constant', fs=None, low_freq=np.array([.1, 1.]), 
         high_freq=np.array([1., 10.]), make_channel_plot=True,
-        make_summary_plot=True, save_data=False, show_plot=False):
+        make_summary_plot=True, save_data=False, show_plot=False,
+                       gcp_mode=False):
         """
         Takes a timestream of noise and calculates its PSD.
 
@@ -43,7 +44,7 @@ class SmurfNoiseMixin(SmurfBase):
             channel = self.which_on(band)
         n_channel = self.get_number_channels(band)
 
-        datafile = self.take_stream_data(band, meas_time)
+        datafile = self.take_stream_data(band, meas_time, gcp_mode=gcp_mode)
         basename, _ = os.path.splitext(os.path.basename(datafile))
 
         # timestamp, I, Q = self.read_stream_data(datafile)
@@ -73,8 +74,8 @@ class SmurfNoiseMixin(SmurfBase):
             # phase = self.iq_to_phase(I[ch], Q[ch])
 
             # Calculate to power spectrum
-            ch_idx = 512*band + ch
-            # ch_idx = ch
+            # ch_idx = 512*band + ch
+            ch_idx = ch
             f, Pxx = signal.welch(phase[ch_idx], nperseg=nperseg, 
                 fs=fs, detrend=detrend)
             Pxx = np.sqrt(Pxx)
@@ -216,7 +217,7 @@ class SmurfNoiseMixin(SmurfBase):
     def noise_vs_bias(self, band, bias_group,bias_high=6, bias_low=3, step_size=.1,
         bias=None, high_current_mode=False,
         meas_time=30., analyze=False, channel=None, nperseg=2**13,
-        detrend='constant', fs=None,show_plot = False):
+        detrend='constant', fs=None,show_plot = False,cool_wait = 30.):
         """
         This ramps the TES voltage from bias_high to bias_low and takes noise
         measurements. You can make it analyze the data and make plots with the
@@ -263,7 +264,7 @@ class SmurfNoiseMixin(SmurfBase):
             self.log('Bias {}'.format(b))
             self.overbias_tes(bias_group, tes_bias=b, 
                               high_current_mode=high_current_mode,
-                              cool_wait=300)
+                              cool_wait=cool_wait)
 
             self.log('Taking data')
             datafile = self.take_stream_data(band, meas_time)

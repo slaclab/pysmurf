@@ -5,10 +5,11 @@ import os
 
 class SmurfIVMixin(SmurfBase):
 
-    def slow_iv(self, band, bias_group, wait_time=.1, bias=None, bias_high=19.9, 
+    def slow_iv(self, band, bias_group, wait_time=.25, bias=None, bias_high=19.9, 
         bias_low=0, bias_step=.1, show_plot=False, high_current_wait=.25, 
         make_plot=True, save_plot=True, channels=None, high_current_mode=False,
-        rn_accept_min=1e-3, rn_accept_max=1., overbias_voltage=19.9):
+        rn_accept_min=1e-3, rn_accept_max=1., overbias_voltage=19.9,
+        gcp_mode=False):
         """
         Steps the TES bias down slowly. Starts at bias_high to bias_low with
         step size bias_step. Waits wait_time between changing steps.
@@ -62,7 +63,7 @@ class SmurfIVMixin(SmurfBase):
         self.set_tes_bias_bipolar(bias_group, bias[0])
         time.sleep(1)
 
-        datafile = self.stream_data_on(band)
+        datafile = self.stream_data_on(band, gcp_mode=gcp_mode)
         self.log('writing to {}'.format(datafile))
 
         for b in bias:
@@ -73,7 +74,7 @@ class SmurfIVMixin(SmurfBase):
         self.log('Done with TES bias ramp', self.LOG_USER)
         self.set_cryo_card_relays(2**16)
 
-        self.stream_data_off(band)
+        self.stream_data_off(band, gcp_mode=gcp_mode)
 
         basename, _ = os.path.splitext(os.path.basename(datafile))
         np.save(os.path.join(basename + '_iv_bias.txt'), bias)
@@ -92,13 +93,14 @@ class SmurfIVMixin(SmurfBase):
         np.save(os.path.join(self.output_dir, fn_iv_raw_data), iv_raw_data)
 
         self.analyze_slow_iv_from_file(fn_iv_raw_data, make_plot=make_plot,
-            show_plot=show_plot, save_plot=save_plot, R_sh=325e-6, 
+            show_plot=show_plot, save_plot=save_plot, R_sh=3e-3, 
             high_current_mode=high_current_mode, rn_accept_min=rn_accept_min,
-            rn_accept_max=rn_accept_max)
+            rn_accept_max=rn_accept_max, gcp_mode=gcp_mode)
 
     def analyze_slow_iv_from_file(self, fn_iv_raw_data, make_plot=True,
-        show_plot=False, save_plot=True, R_sh=.0029, high_current_mode=False,
-        rn_accept_min = 1e-3, rn_accept_max = 1., phase_excursion_min=3.):
+        show_plot=False, save_plot=True, R_sh=3e-3, high_current_mode=False,
+        rn_accept_min = 1e-3, rn_accept_max = 1., phase_excursion_min=3.,
+                                  gcp_mode=False):
         """
         phase_excursion: abs(max - min) of phase in radians
         """
@@ -117,8 +119,9 @@ class SmurfIVMixin(SmurfBase):
         ivs = {}
         ivs['bias'] = bias
 
-        # timestamp, phase = self.read_stream_data(datafile)
-        # phase *= 1.443
+        if not gcp_mode:
+            timestamp, phase_all = self.read_stream_data(datafile)
+            phase_all *= 1.443
         
         rn_list = []
         phase_excursion_list = []
@@ -126,7 +129,10 @@ class SmurfIVMixin(SmurfBase):
             self.log('Analyzing channel {}'.format(ch))
             # timestamp, I, Q = self.read_stream_data(datafile)
             # phase = self.iq_to_phase(I[ch], Q[ch]) * 1.443
-            timestamp, phase = self.read_stream_data_gcp_save(datafile, ch)
+            if gcp_mode:
+                timestamp, phase = self.read_stream_data_gcp_save(datafile, ch)
+            else:
+                phase = phase_all[ch]
             ch_idx = ch
             # phase_ch = phase[ch_idx]
          
@@ -210,7 +216,7 @@ class SmurfIVMixin(SmurfBase):
                 plt.close()
 
     def analyze_slow_iv(self, v_bias, resp, make_plot=True, show_plot=False,
-        save_plot=True, basename=None, band=None, channel=None, R_sh=.003,
+        save_plot=True, basename=None, band=None, channel=None, R_sh=3e-3,
         plot_dir = None,high_current_mode = False,bias_group = None,**kwargs):
         """
         Analyzes the IV curve taken with slow_iv()
