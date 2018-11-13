@@ -265,7 +265,7 @@ class SmurfUtilMixin(SmurfBase):
 
         return f, df, flux_ramp_strobe
 
-    def take_stream_data(self, band, meas_time):
+    def take_stream_data(self, band, meas_time, gcp_mode=False):
         """
         Takes streaming data for a given amount of time
         Args:
@@ -278,9 +278,9 @@ class SmurfUtilMixin(SmurfBase):
         data_filename (string): The fullpath to where the data is stored
         """
         self.log('Starting to take data.', self.LOG_USER)
-        data_filename = self.stream_data_on(band)
+        data_filename = self.stream_data_on(band, gcp_mode=gcp_mode)
         time.sleep(meas_time)
-        self.stream_data_off(band)
+        self.stream_data_off(band, gcp_mode=gcp_mode)
         self.log('Done taking data.', self.LOG_USER)
         return data_filename
 
@@ -334,9 +334,10 @@ class SmurfUtilMixin(SmurfBase):
         """
         """
         config_dir = self.config.get('smurf2mce_cfg_dir')
-        print(config_dir)
         if config_dir is None:
             self.log('No smurf2mce directory in config file.', self.LOG_ERROR)
+
+        print(receiver_ip)
         
         file = open(config_dir, 'w')
 
@@ -475,6 +476,8 @@ class SmurfUtilMixin(SmurfBase):
             'extractdata'), datafile, savefile, channel, channel, downsample)
         #self.log(cmd)
         os.system(cmd)
+
+        time.sleep(5)
 
         timestamp, phase = np.loadtxt(savefile).T
         phase = phase.astype(float) / 2**15 * np.pi # scale to rad
@@ -990,6 +993,36 @@ class SmurfUtilMixin(SmurfBase):
         self.set_tes_bias_volt(dac_positive, volts_pos, **kwargs)
         self.set_tes_bias_volt(dac_negative, volts_neg, **kwargs)
 
+    def get_tes_bias_bipolar(self, bias_group, return_raw=False, **kwargs):
+        """
+        Returns the bias voltage in units of Volts
+
+        Args:
+        -----
+        bias_group (int) : The number of the bias group
+
+        Opt Args:
+        ---------
+        return_raw (bool) : Default is False. If True, returns pos and neg
+           terminal values.
+        """
+        bias_order = self.bias_group_to_pair[:,0]
+        dac_positives = self.bias_group_to_pair[:,1]
+        dac_negatives = self.bias_group_to_pair[:,2]
+
+        dac_idx = np.ravel(np.where(bias_order == bias_group))
+
+        dac_positive = dac_positives[dac_idx][0]
+        dac_negative = dac_negatives[dac_idx][0]
+
+        volts_pos = self.get_tes_bias_volt(dac_positive, **kwargs)
+        volts_neg = self.get_tes_bias_volt(dac_negative, **kwargs)
+        
+        if return_raw:
+            return volts_pos, volts_neg
+        else:
+            return volts_pos - volts_neg
+
 
     def set_amplifier_bias(self, bias_hemt=.54, bias_50k=-.71, **kwargs):
         """
@@ -1055,7 +1088,7 @@ class SmurfUtilMixin(SmurfBase):
 
         return asu_amp_Id_mA
 
-    def overbias_tes(self, bias_group, overbias_voltage=19.9, overbias_wait=0.5,
+    def overbias_tes(self, bias_group, overbias_voltage=19.9, overbias_wait=5.,
         tes_bias=19.9, cool_wait=20., high_current_mode=False):
         """
         Warning: This is horribly hardcoded. Needs a fix soon.
