@@ -7,7 +7,7 @@ import os
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
 import pysmurf
 
-cfg_filename = 'experiment_k7_17.cfg'
+cfg_filename = 'experiment_k7_run19.cfg'
 
 
 """
@@ -70,7 +70,7 @@ def start_acq(S, num_rows, num_rows_reported, data_rate,
     S.log('Setting PVs for streaming header')
     S.set_num_rows(num_rows)
     S.set_num_rows_reported(num_rows_reported)
-    S.set_data_rate(.data_rate)
+    S.set_data_rate(data_rate)
     S.set_row_len(row_len)
 
     S.log('Starting streaming data')
@@ -151,12 +151,10 @@ if __name__ == "__main__":
         default=.25, help='The time in seconds to wait in the high current mode')
     parser.add_argument('--iv-bias-step', action='store', type=float, default=.1,
         help='The bias step amplitude in units of volts.')
-    parser.add_argument('--iv-bias-high-current', actio='store', type=float,
-        defualt=None, help='The TES bias in units of uA.')
     parser.add_argument('--iv-bias-high-current', action='store', type=float,
-        defualt=-None, help='The TES high bias in units of uA.')
+        default=None, help='The TES high bias in units of uA.')
     parser.add_argument('--iv-bias-low-current', action='store', type=float,
-        defualt=None, help='The TES low bias in units of uA.')
+        default=None, help='The TES low bias in units of uA.')
     parser.add_argument('--iv-bias-step-current', action='store', type=float,
         default=None, help='The step in units of uA')
 
@@ -224,7 +222,7 @@ if __name__ == "__main__":
         bias_voltage = args.bias_voltage
         if args.bias_current > 0:
             bias_voltage = args.bias_current * 1.0E-6 * \
-                self.bias_line_resistance
+                S.bias_line_resistance
         if args.bias_group == -1:
             for b in np.arange(8):
                 S.set_tes_bias_bipolar(b, bias_voltage, 
@@ -282,10 +280,11 @@ if __name__ == "__main__":
 
 
     if args.start_acq:
-        if args.n_frames < 0:
+        if args.n_frames > 0:
             acq_n_frames(S, args.num_rows, args.num_rows_reported,
             args.data_rate, args.row_len, args.n_frames)
         else:
+            S.log('Starting continuous acquisition')
             start_acq(S, args.num_rows, args.num_rows_reported,
                 args.data_rate, args.row_len)
             make_runfile(S.output_dir, num_rows=args.num_rows,
