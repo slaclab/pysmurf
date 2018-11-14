@@ -215,6 +215,10 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
             # Make band dictionaries
             self.freq_resp[b] = {}
 
+        flux_ramp_cfg = self.config.get('flux_ramp')
+        self.set_select_ramp(flux_ramp_cfg['select_ramp'], write_log=True)
+        self.set_ramp_start_mode(flux_ramp_cfg['ramp_start_mode'], write_log=True)
+
         self.set_cpld_reset(0, write_log=True)
 
         # for i in np.arange(1,5):

@@ -1646,14 +1646,14 @@ class SmurfCommandMixin(SmurfBase):
         return 3.0725E5/(self.get_ramp_max_cnt(**kwargs)+1)
 
     _low_cycle = 'LowCycle'
-    def set_low_cylce(self, val, **kwargs):
+    def set_low_cycle(self, val, **kwargs):
         """
         CPLD's clock: low cycle duration (zero inclusive). 
         Along with HighCycle, sets the frequency of the clock going to the RTM.
         """
         self._caput(self.rtm_cryo_det_root + self._low_cycle, val, **kwargs)
     
-    def get_low_cylce(self, val, **kwargs):
+    def get_low_cycle(self, val, **kwargs):
         """
         CPLD's clock: low cycle duration (zero inclusive). 
         Along with HighCycle, sets the frequency of the clock going to the RTM.
@@ -1661,14 +1661,14 @@ class SmurfCommandMixin(SmurfBase):
         return self._caget(self.rtm_cryo_det_root + self._low_cycle, **kwargs)
  
     _high_cycle = 'HighCycle'
-    def set_high_cylce(self, val, **kwargs):
+    def set_high_cycle(self, val, **kwargs):
         """
         CPLD's clock: high cycle duration (zero inclusive).
         Along with LowCycle, sets the frequency of the clock going to the RTM.
         """
         self._caput(self.rtm_cryo_det_root + self._high_cycle, val, **kwargs)
     
-    def get_high_cylce(self, val, **kwargs):
+    def get_high_cycle(self, val, **kwargs):
         """
         CPLD's clock: high cycle duration (zero inclusive).
         Along with LowCycle, sets the frequency of the clock going to the RTM.
@@ -1692,7 +1692,7 @@ class SmurfCommandMixin(SmurfBase):
         """
         return self._caget(self.rtm_cryo_det_root + self._select_ramp, **kwargs)
 
-    _enable_ramp = 'EnabletRamp'
+    _enable_ramp = 'EnableRamp'
     def set_enable_ramp(self, val, **kwargs):
         """
         Select Ramp to the CPLD
@@ -1713,8 +1713,9 @@ class SmurfCommandMixin(SmurfBase):
     def set_ramp_start_mode(self, val, **kwargs):
         """
         Select Ramp to the CPLD
-        0x1 = Fast flux Ramp
-        0x0 = Slow flux ramp
+	0x2 = trigger from external system
+        0x1 = trigger from timing system
+        0x0 = trigger from internal system
         """
         self._caput(self.rtm_cryo_det_root + self._ramp_start_mode, val, 
             **kwargs)
@@ -1722,8 +1723,9 @@ class SmurfCommandMixin(SmurfBase):
     def get_ramp_start_mode(self, **kwargs):
         """
         Select Ramp to the CPLD
-        0x1 = Fast flux Ramp
-        0x0 = Slow flux ramp
+	0x2 = trigger from external system
+        0x1 = trigger from timing system
+        0x0 = trigger from internal system
         """
         return self._caget(self.rtm_cryo_det_root + self._ramp_start_mode, 
             **kwargs)

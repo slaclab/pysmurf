@@ -77,7 +77,7 @@ class SmurfTuneMixin(SmurfBase):
             p     = np.polyfit(freq[idx], np.unwrap(np.angle(resp[idx])), 1)
             delay = 1e6*np.abs(p[0]/(2*np.pi))
 
-            processing_delay  = 1.842391045639787 # empirical, may need to iterate on this **must be right** for tracking
+            processing_delay  = 1.842391045639787 * 4# empirical, may need to iterate on this **must be right** for tracking
             # DSP sees cable delay + processing delay 
             #   - refPhaseDelay/2.4 (2.4 MHz ticks) + ref_phase_delay_fine/307.2
             # calculate refPhaseDelay and refPhaseDelayFine
@@ -1077,7 +1077,7 @@ class SmurfTuneMixin(SmurfBase):
                 eta_mag[ch] = self.freq_resp[band][k]['eta_scaled']
                 counter += 1
 
-        # Set the actualy variables
+        # Set the actual variables
         self.set_center_frequency_array(band, center_freq, write_log=True,
             log_level=self.LOG_INFO)
         self.set_amplitude_scale_array(band, amplitude_scale.astype(int),
@@ -1202,15 +1202,15 @@ class SmurfTuneMixin(SmurfBase):
         if do_Plots: # for debugging; later probably want to save
             plt.show()
 
-    def flux_ramp_setup(self, reset_rate_khz, fraction_full_scale, df_range=.1, 
-        do_read=False):
+    def flux_ramp_setup(self, reset_rate_khz, fraction_full_scale, band = 2, 
+	df_range=.1, do_read=False):
         """
         """
         # Disable flux ramp
         self.flux_ramp_off() # no write log?
         #self.set_cfg_reg_ena_bit(0) # let us switch this to flux ramp on/off
 
-        digitizerFrequencyMHz=614.4
+        digitizerFrequencyMHz = self.get_digitizer_frequency_mhz(band)
         dspClockFrequencyMHz=digitizerFrequencyMHz/2
 
         desiredRampMaxCnt = ((dspClockFrequencyMHz*1e3)/
@@ -1259,8 +1259,8 @@ class SmurfTuneMixin(SmurfBase):
         FastSlowRstValue = np.floor((2**32) * (1 - fractionFullScale)/2)
 
         KRelay = 3 #where do these values come from
-        SelectRamp = 1
-        RampStartMode = 0
+        SelectRamp = self.get_select_ramp() # from config file
+        RampStartMode = self.get_ramp_start_mode() # from config file
         PulseWidth = 400
         DebounceWidth = 255
         RampSlope = 0
