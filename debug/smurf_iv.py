@@ -121,8 +121,12 @@ class SmurfIVMixin(SmurfBase):
             # phase = self.iq_to_phase(I[ch], Q[ch]) * 1.443
             ch_idx = ch
             phase_ch = phase[ch_idx]
-            phase_excursion = max(phase_ch) - min(phase_ch)
-            # don't analyze channels with a small phase excursion; these are probably just noise
+            try:
+                phase_excursion = max(phase_ch) - min(phase_ch)
+                # don't analyze channels with a small phase excursion; these are probably just noise
+            except ValueError:
+                phase_excursion = 0 # I think something about nan values is messing up?
+
             if phase_excursion < phase_excursion_min:
                 continue
             
