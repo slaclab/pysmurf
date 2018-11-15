@@ -738,6 +738,28 @@ class SmurfUtilMixin(SmurfBase):
 
         return subband_no, offset
 
+    def channel_to_freq(self, band, channel):
+        """
+        Gives the frequency of the channel.
+
+        Args:
+        -----
+        band (int) : The band the channel is in
+        channel (int) :  The channel number
+
+        Ret:
+        ----
+        freq (float): The channel frequency in MHz
+        """
+        if band is None or channel is None:
+            return None
+
+        subband = self.get_subband_from_channel(band, channel)
+        _, sbc = self.get_subband_centers(band, as_offset=False)
+        offset = self.get_center_frequency_mhz_channel(band, channel)
+
+        return sbc[subband] + offset
+
     def get_channel_order(self, channel_orderfile=None):
         ''' produces order of channels from a user-supplied input file
 
@@ -993,6 +1015,23 @@ class SmurfUtilMixin(SmurfBase):
         self.set_tes_bias_volt(dac_positive, volts_pos, **kwargs)
         self.set_tes_bias_volt(dac_negative, volts_neg, **kwargs)
 
+    def set_tes_bias_off(self, **kwargs):
+        """
+        Turns off all TES biases
+        """
+        for dac in np.arange(1,33):
+            self.set_tes_bias_volt(dac, 0, **kwargs)
+
+    def tes_bias_dac_ramp(self, dac, volt_min=-9.9, volt_max=9.9, step_size=.01, wait_time=.05):
+        """
+        """
+        bias = volt_min
+        while True:
+            self.set_tes_bias_volt(dac, bias, wait_after=wait_time)
+            bias += step_size
+            if bias > volt_max:
+                bias = volt_min
+
     def get_tes_bias_bipolar(self, bias_group, return_raw=False, **kwargs):
         """
         Returns the bias voltage in units of Volts
@@ -1040,7 +1079,7 @@ class SmurfUtilMixin(SmurfBase):
         self.set_hemt_gate_voltage(bias_hemt, **kwargs)
         self.set_50k_amp_gate_voltage(bias_50k, **kwargs)
 
-    def print_amplifier_biases(self):
+    def print_amplifier_biases(self, write_log=False):
         # for printout
         s=[]
 
@@ -1048,18 +1087,21 @@ class SmurfUtilMixin(SmurfBase):
         hemt_Id_mA=self.get_hemt_drain_current()
         hemt_gate_bias_volts=self.get_hemt_gate_voltage()
 
-        s.append('hemtVg= %0.3fV'%hemt_gate_bias_volts)
-        s.append('hemtId= %0.3fmA'%hemt_Id_mA)
+        s.append('Commanded hemtVg= %0.3fV '%hemt_gate_bias_volts)
+        s.append('Read hemtId= %0.3fmA '%hemt_Id_mA)
 
         # 50K
         fiftyk_Id_mA=self.get_50k_amp_drain_current()
         fiftyk_amp_gate_bias_volts=self.get_50k_amp_gate_voltage()
 
-        s.append('50kVg= %0.3fV'%fiftyk_amp_gate_bias_volts)
-        s.append('50kId= %0.3fmA'%fiftyk_Id_mA)
+        s.append('Commanded 50kVg= %0.3fV '%fiftyk_amp_gate_bias_volts)
+        s.append('Read 50kId= %0.3fmA '%fiftyk_Id_mA)
 
         # print out
         print((("{: >20}"*len(s)).rstrip()).format(*s))
+
+        if write_log:
+            self.log((("{: >20}"*len(s)).rstrip()).format(*s))
 
     def get_hemt_drain_current(self, hemt_offset=.100693):
         """

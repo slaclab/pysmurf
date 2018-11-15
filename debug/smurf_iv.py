@@ -6,7 +6,7 @@ import os
 class SmurfIVMixin(SmurfBase):
 
     def slow_iv(self, band, bias_group, wait_time=.25, bias=None, bias_high=19.9, 
-        bias_low=0, bias_step=.1, show_plot=False, high_current_wait=.25, 
+        bias_low=0, bias_step=.1, show_plot=False, overbias_wait=.25, cool_wait=10,
         make_plot=True, save_plot=True, channels=None, high_current_mode=False,
         rn_accept_min=1e-3, rn_accept_max=1., overbias_voltage=19.9,
         gcp_mode=False):
@@ -37,20 +37,9 @@ class SmurfIVMixin(SmurfBase):
         else:
             overbias = False
 
-        # drive high current through the TES to attempt to drive nomral
-        #self.set_tes_bias_bipolar(bias_num, 19.9)
-        #time.sleep(.1)
-        #self.log('Driving high current through TES. ' + \
-        #    'Waiting {}'.format(high_current_wait))
-        #self.set_cryo_card_relays(0x10004)
-        #time.sleep(high_current_wait)
-        #self.set_cryo_card_relays(0x10000)
-        #time.sleep(.1)
         if bias is None:
             bias = np.arange(bias_high, bias_low, -bias_step)
             
-        overbias_wait = 5.
-        cool_wait = 10.
         if overbias:
             self.overbias_tes(bias_group, overbias_wait=overbias_wait, 
                 tes_bias=np.max(bias), cool_wait=cool_wait,
@@ -302,7 +291,6 @@ class SmurfIVMixin(SmurfBase):
         R = R_sh * (i_bias/(resp_bin) - 1)
         R_n = np.mean(R[nb_fit_idx:])
 
-        self.log('make_plot {}'.format(make_plot))
         if make_plot:
             fig, ax = plt.subplots(2, sharex=True)
             ax[0].plot(i_bias, resp_bin, '.')
@@ -322,6 +310,9 @@ class SmurfIVMixin(SmurfBase):
             ax[0].text(.95, .04, 'SC slope: {:3.2f}'.format(sc_fit[0]), 
                 transform=ax[0].transAxes, fontsize=12, 
                 horizontalalignment='right')
+            ax[0].text(.95, .18, 
+                        'Res freq: {:5.4f}'.format(self.channel_to_freq(band, channel)), 
+                        transform=ax[0].transAxes, fontsize=12, horizontalalignment='right')
 
             ax[1].plot(i_bias, R/R_n, '.')
             ax[1].axhline(1, color='k', linestyle='--')
@@ -376,3 +367,70 @@ class SmurfIVMixin(SmurfBase):
         return R, R_n, np.array([sc_idx, nb_idx])
 
         
+
+    def find_tes(self, band, bias_group, bias=np.arange(0,4,.2),
+                 make_plot=True, make_debug_plot=False, delta_peak_cutoff=.2):
+        """
+        This changes the bias on the bias groups and attempts to find
+        resonators. 
+
+
+        Ret:
+        ----
+        res_freq (float array) : The frequency of the resonators that
+           have TESs.
+        """
+        if make_plot:
+            import matplotlib.pyplot as plot
+
+        f, d = self.full_band_resp(band)
+        
+        ds = np.zeros(len(bias), len(d), dtype=complex)
+
+        # Find resonators at different TES biases
+        for i, b in enumerate(bias):
+            self.set_tes_bipolar(bias_group, b, wait_after=.1)
+            _, ds[i] = self.full_band_resp(band)
+
+        # Find resonator peaks
+        peaks = self.find_peak(f, ds[0])
+
+        # Difference from zero bias
+        delta_ds = ds[1:] - ds[0]
+        
+        # The delta_ds at resonances
+        delta_ds_peaks = np.zeros((len(peaks), len(bias)-1))
+        for i, p in enumerate(peaks):
+            idx = np.where(f == p)[0][0]
+            delta_ds_peaks[i] = np.abs(delta_ds[:,idx])
+            if make_debug_plot:
+                n_lines = 8
+                if i % n_lines == 0:
+                    plt.figure()
+                plt.plot(bias[1:], delta_ds_peaks[i], 
+                         label='{:6.5f}'.format(f[idx]*1.0E-6))
+                if i % n_lines == n_lines-1:
+                    plt.legend()
+                    plt.xlabel('Bias [V]')
+                    plt.ylabel('Res Amp')
+
+        peak_span = np.max(delta_ds_peaks, axis=1) - \
+            np.min(delta_ds_peaks, axis=1)
+
+
+        if make_plot:
+            fig, ax = plt.subplots(2, sharex=True)
+            cm = plt.get_cmap('viridis')
+
+            for i, b in enumerate(bias):
+                color = cm(i/len(bias))
+                ax[0].plot(f*1.0E-6, np.abs(ds[i]), color=color, 
+                         label='{:3.2f}'.format(b))
+            ax[0].legend()
+            
+            ax[1].plot(peaks * 1.0E-6, peak_span, '.')
+
+            ax[1].axhline(delta_peak_cutoff, color='k', linestyle=':')
+
+        idx = np.ravel(np.where(peak_span > delta_peak_cutoff))
+        return peaks[idx]

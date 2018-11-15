@@ -125,8 +125,9 @@ class SmurfNoiseMixin(SmurfBase):
                 ax[1].set_xscale('log')
 
                 self.log(noise_floors[-1, ch])
-
-                ax[0].set_title('Band {} Ch {:03}'.format(band, ch))
+                
+                res_freq = self.channel_to_freq(band, ch)
+                ax[0].set_title('Band {} Ch {:03} - {:5.4f}'.format(band, ch, res_freq))
 
                 plt.tight_layout()
 
@@ -341,7 +342,8 @@ class SmurfNoiseMixin(SmurfBase):
                 if make_timestream_plot:
                     fig,ax = plt.subplots(1)
                     ax.plot(phase[ch])
-                    ax.set_title('Channel {:03}'.format(ch))
+                    res_freq = self.channel_to_freq(band, ch)
+                    ax.set_title('Channel {:03} - {:5.4f} MHz'.format(ch, res_freq))
                     ax.set_xlabel(r'Time index')
                     ax.set_ylabel(r'Phase (pA)')
                 
@@ -373,7 +375,7 @@ class SmurfNoiseMixin(SmurfBase):
 
                 color = cm(float(i)/len(bias))
                 ax.plot(f, Pxx, color=color, label='{:3.2f}'.format(b))
-
+                ax.set_xlim(min(f),max(f))
                 # fit to noise model; catch error if fit is bad
                 try:
                     popt,pcov,f_fit,Pxx_fit = self.analyze_psd(f,Pxx)
@@ -388,15 +390,17 @@ class SmurfNoiseMixin(SmurfBase):
                         linestyle=':')
                     ax.plot(f_knee,2.*wl,marker = 'o',linestyle = 'none',
                         color=color)
-                except:
+                except Exception as e: 
+                    print(e)
                     self.log('%s, bias = %.2f: bad fit to noise model' % (d,b))
 
-                ax.set_xlabel(r'Freq [Hz]')
-                ax.set_ylabel(r'$pA/\sqrt{Hz}]$')
-                ax.set_xscale('log')
-                ax.set_yscale('log')
-                ax.legend()
-                ax.set_title(basename + ' Channel {:03}'.format(ch))
+            ax.set_xlabel(r'Freq [Hz]')
+            ax.set_ylabel(r'$pA/\sqrt{Hz}]$')
+            ax.set_xscale('log')
+            ax.set_yscale('log')
+            ax.legend()
+            res_freq = self.channel_to_freq(band, ch)
+            ax.set_title(basename + ' Channel {:03} - {:5.4f}'.format(ch, res_freq))
 
             if show_plot:
                 plt.show()
@@ -426,8 +430,12 @@ class SmurfNoiseMixin(SmurfBase):
             '''
             A = wl*(f_knee**n)
             return A/(freq**n) + wl
+        bounds_low = [0.,-np.inf,0.]
+        bounds_high = [np.inf,np.inf,np.inf]
+        bounds = (bounds_low,bounds_high)
 
-        popt, pcov = optimize.curve_fit(noise_model, f[1:], Pxx[1:], p0=p0)
+        popt, pcov = optimize.curve_fit(noise_model, f[1:], Pxx[1:], p0=p0, bounds=bounds,\
+                                            maxfev = 1600)
         df = f[1] - f[0]
         f_fit = np.arange(f[1],f[-1] + df,df/10.)
         Pxx_fit = noise_model(f_fit,*popt)
