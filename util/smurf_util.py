@@ -432,7 +432,7 @@ class SmurfUtilMixin(SmurfBase):
 
             keys.extend(data_keys)
 
-            keys_dics = dict( zip( keys, range(len(keys)) ) )
+            keys_dict = dict( zip( keys, range(len(keys)) ) )
 
             frames = [i for i in 
                 struct.Struct('2I2BHI6Q6IH2xI2Q24x4096h').iter_unpack(file_content)]
@@ -442,11 +442,11 @@ class SmurfUtilMixin(SmurfBase):
 
             phase = np.zeros((4096, len(frames)))
             for i in range(4096):
-                phase[i,:] = np.asarray([j[keys_dics[f'data{i}']] for j in 
+                phase[i,:] = np.asarray([j[keys_dict[f'data{i}']] for j in 
                     frames])
 
             phase = phase.astype(float) / 2**15 * np.pi # scale to rad
-            timestamp = [i[keys_dics['sequence_counter']] for i in frames]
+            timestamp = [i[keys_dict['sequence_counter']] for i in frames]
 
         else:
             raise Exception(f'Frame version {version} not supported')
@@ -463,24 +463,32 @@ class SmurfUtilMixin(SmurfBase):
         """
         import glob
         datafile = glob.glob(datafile+'*')[-1]
-        extractdatadir = os.path.dirname(os.path.abspath(__file__ ))
-        datadir = os.path.dirname(datafile)
-        savedir = os.path.join(datadir, 'channel_data')
-        savefile = os.path.join(savedir, 'ch{:03}.txt'.format(channel))
-        self.make_dir(savedir)
 
-        #self.log('Reading : {}'.format(datafile))
-        #self.log('Saving to : {}'.format(savedir))
+        with open(datafile, mode='rb') as file:
+            file_content = file.read()
 
-        cmd = '{} {} {} {} {} {} 0'.format(os.path.join(extractdatadir, 
-            'extractdata'), datafile, savefile, channel, channel, downsample)
-        #self.log(cmd)
-        os.system(cmd)
+        keys = ['protocol_version','crate_id','slot_number','number_of_channels',
+                'rtm_dac_config0', 'rtm_dac_config1', 'rtm_dac_config2', 'rtm_dac_config3',
+                'rtm_dac_config4', 'rtm_dac_config5','flux_ramp_increment','flux_ramp_start',
+                'rate_since_1Hz', 'rate_since_TM', 'nanoseconds', 'seconds', 'fixed_rate_marker',
+                'sequence_counter', 'tes_relay_config', 'mce_word', 'user_word0', 'user_word1',
+                'user_word2'
+        ]
 
-        time.sleep(5)
+        data_keys = [f'data{i}' for i in range(528)]
 
-        timestamp, phase = np.loadtxt(savefile).T
-        phase = phase.astype(float) / 2**15 * np.pi # scale to rad
+        keys.extend(data_keys)
+        keys_dict = dict( zip( keys, range(len(keys)) ) )
+
+        frames = [i for i in struct.Struct('3BxI6Q8I5Q528i').iter_unpack(file_content)]
+
+        phase = np.zeros(528, len(frames))
+        for i in range(528):
+                phase[i,:] = np.asarray([j[keys_dict[f'data{i}']] for j in
+                             frames])
+
+        phase = phase.astype(float) / 2**15 * np.pi # where is decimal?  Is it in rad?
+        timestamp = [i[keys_dict['sequence_counter']] for i in frames]
 
         return timestamp, phase
 
