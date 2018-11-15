@@ -432,7 +432,7 @@ class SmurfUtilMixin(SmurfBase):
 
             keys.extend(data_keys)
 
-            keys_dics = dict( zip( keys, range(len(keys)) ) )
+            keys_dict = dict( zip( keys, range(len(keys)) ) )
 
             frames = [i for i in 
                 struct.Struct('2I2BHI6Q6IH2xI2Q24x4096h').iter_unpack(file_content)]
