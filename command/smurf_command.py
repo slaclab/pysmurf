@@ -639,6 +639,19 @@ class SmurfCommandMixin(SmurfBase):
         return self._caget(self._cryo_root(band) + self._eta_phase_array, 
             **kwargs)
 
+    _frequency_error_array = 'frequencyErrorArray'
+    def set_frequency_error_array(self, band, val, **kwargs):
+        """
+        """
+        self._caput(self._cryo_root(band) + self._frequency_error_array, val, 
+            **kwargs)
+
+    def get_frequency_error_array(self, band, **kwargs):
+        """
+        """
+        return self._caget(self._cryo_root(band) + self._frequency_error_array, 
+            **kwargs)
+
     _eta_mag_array = 'etaMagArray'
     def set_eta_mag_array(self, band, val, **kwargs):
         """
@@ -1897,6 +1910,22 @@ class SmurfCommandMixin(SmurfBase):
         relays (hex): The cryo card relays value
         """
         return self.C.read_relays()
+
+    def set_cryo_card_relay_bit(self,bitPosition,oneOrZero):
+        """
+        Sets a single cryo card relay to the value provided
+
+        Args:
+        -----
+        bitPosition (int): Which bit to set.  Must be in [0-16].
+        oneOrZero (int): What value to set the bit to.  Must be either 0 or 1.
+        """
+        assert (bitPosition in range(17)), 'bitPosition must be in [0,...,16]'
+        assert (oneOrZero in [0,1]), 'oneOrZero must be either 0 or 1'
+        currentRelay = self.get_cryo_card_relays()
+        nextRelay = currentRelay & ~(1<<bitPosition)
+        nextRelay = nextRelay | (oneOrZero<<bitPosition)
+        self.set_cryo_card_relays(nextRelay)
 
     def set_cryo_card_relays(self, relay, write_log=False):
         """
