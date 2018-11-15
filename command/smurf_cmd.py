@@ -58,6 +58,7 @@ def make_runfile(output_dir, row_len=60, num_rows=60, data_rate=60,
     full_path = os.path.join(output_dir, 
         'smurf_status_{}.txt'.format(S.get_timestamp()))
     S.log("Writing to {}".format(full_path))
+    print(full_path)
     with open(full_path, "w") as f1:
         f1.writelines(line_holder)
 
@@ -70,7 +71,7 @@ def start_acq(S, num_rows, num_rows_reported, data_rate,
     S.log('Setting PVs for streaming header')
     S.set_num_rows(num_rows)
     S.set_num_rows_reported(num_rows_reported)
-    S.set_data_rate(.data_rate)
+    S.set_data_rate(data_rate)
     S.set_row_len(row_len)
 
     S.log('Starting streaming data')
@@ -151,12 +152,10 @@ if __name__ == "__main__":
         default=.25, help='The time in seconds to wait in the high current mode')
     parser.add_argument('--iv-bias-step', action='store', type=float, default=.1,
         help='The bias step amplitude in units of volts.')
-    parser.add_argument('--iv-bias-high-current', actio='store', type=float,
-        defualt=None, help='The TES bias in units of uA.')
     parser.add_argument('--iv-bias-high-current', action='store', type=float,
-        defualt=-None, help='The TES high bias in units of uA.')
+        default=None, help='The TES high bias in units of uA.')
     parser.add_argument('--iv-bias-low-current', action='store', type=float,
-        defualt=None, help='The TES low bias in units of uA.')
+        default=None, help='The TES low bias in units of uA.')
     parser.add_argument('--iv-bias-step-current', action='store', type=float,
         default=None, help='The step in units of uA')
 
