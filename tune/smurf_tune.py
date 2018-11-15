@@ -22,7 +22,7 @@ class SmurfTuneMixin(SmurfBase):
         """
         This does the full_band_resp, which takes the raw resonance data.
         It then finds the where the reseonances are. Using the resonance
-        locations, it does calculates the eta parameters.
+        locations, it calculates the eta parameters.
 
         Args:
         -----
