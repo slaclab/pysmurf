@@ -236,7 +236,7 @@ class SmurfTuneMixin(SmurfBase):
 
     def full_band_resp(self, band, n_scan=1, n_samples=2**19, make_plot=False, 
         save_plot=True, save_data=False, timestamp=None, save_raw_data=False,
-        correct_att=True):
+        correct_att=True, swap=False):
         """
         Injects high amplitude noise with known waveform. The ADC measures it.
         The cross correlation contains the information about the resonances.
@@ -307,6 +307,9 @@ class SmurfTuneMixin(SmurfBase):
                     '{}_dac'.format(timestamp)), dac)
 
             # To do : Implement cross correlation to get shift
+            
+            if swap:
+                adc = adc[::-1]
 
             f, p_dac = signal.welch(dac, fs=614.4E6, nperseg=n_samples/2)
             f, p_adc = signal.welch(adc, fs=614.4E6, nperseg=n_samples/2)
@@ -1200,34 +1203,39 @@ class SmurfTuneMixin(SmurfBase):
         return rr, ii
 
     def tracking_setup(self, band, channel, reset_rate_khz=4., write_log=False, 
-        make_plot=False, normalize_fudge_factor=1):
+        make_plot=False, save_plot=True, show_plot=True,
+        lms_freq_hz=4000., flux_ramp=True, fraction_full_scale=.99,
+        lms_enable1=True, lms_enable2=True, lms_enable3=True):
         """
         Args:
         -----
         band (int) : The band number
         channel (int) : The channel to check
         """
+        if not flux_ramp:
+            self.log('WARNING: THIS WILL NOT TURN ON FLUX RAMP!')
+            
         if make_plot:
             import matplotlib.pyplot as plt
-            plt.ion()
-        
-        self.set_cpld_reset(1)
-        self.set_cpld_reset(0)
-
-        fraction_full_scale = .99
+            if show_plot:
+                plt.ion()
+            else:
+                plt.ioff()
 
         # To do: Move to experiment config
         flux_ramp_full_scale_to_phi0 = 2.825/0.75
 
         lms_delay = 6  # nominally match refPhaseDelay
         lms_gain = 7  # incrases by power of 2, can also use etaMag to fine tune
-        lms_enable1 = 1  # 1st harmonic tracking
-        lms_enable2 = 1  # 2nd harmonic tracking
-        lms_enable3 = 1  # 3rd harmonic tracking
+        if not flux_ramp:
+            lms_enable1 = 0
+            lms_enable2 = 0
+            lms_enable3 = 0
+                
+
         lms_rst_dly = 31  # disable error term for 31 2.4MHz ticks after reset
         #lms_freq_hz = flux_ramp_full_scale_to_phi0 * fraction_full_scale*\
         #    (reset_rate_khz*1e3)  * normalize_fudge_factor# fundamental tracking frequency guess
-        lms_freq_hz = 4000*normalize_fudge_factor
         self.log("Using lmsFreqHz = {}".format(lms_freq_hz), self.LOG_USER)
         lms_delay2    = 255  # delay DDS counter resets, 307.2MHz ticks
         lms_delay_fine = 0
@@ -1245,7 +1253,8 @@ class SmurfTuneMixin(SmurfBase):
         self.set_iq_stream_enable(band, iq_stream_enable, write_log=write_log)
 
         self.flux_ramp_setup(reset_rate_khz, fraction_full_scale) # write_log?
-        self.flux_ramp_on(write_log=write_log)
+        if flux_ramp:
+            self.flux_ramp_on(write_log=write_log)
 
         # take one dataset with all channels
         f, df, sync = self.take_debug_data(band, IQstream = iq_stream_enable, 
@@ -1265,59 +1274,61 @@ class SmurfTuneMixin(SmurfBase):
             "{} kHz".format(np.median(f_span[channels_on]) * 1e3), self.LOG_USER)
 
         if make_plot:
+            timestamp = self.get_timestamp()
             plt.figure()
-            plt.hist(df_std[channels_on] * 1e3)            
+            plt.hist(df_std[channels_on] * 1e3,bins = 20)            
             plt.xlabel('Flux ramp demod error std (kHz)')
             plt.ylabel('number of channels')
             plt.title('LMS freq = {}, n_channels = {}'.format(lms_freq_hz, 
                 len(channels_on)))
 
-            plt.savefig(os.path.join(self.plot_dir,self.get_timestamp() + 
+            if save_plot:
+                plt.savefig(os.path.join(self.plot_dir, timestamp + 
                                      '_FRtrackingErrorHist.png'))
+            if not show_plot:
+                plt.close()
 
             plt.figure()
-            plt.hist(f_span[channels_on] * 1e3)
+            plt.hist(f_span[channels_on] * 1e3,bins = 20)
             plt.xlabel('Flux ramp amplitude (kHz)')
             plt.ylabel('number of channels')
             plt.title('LMS freq = {}, n_channels = {}'.format(lms_freq_hz, 
                 len(channels_on)))
-            plt.savefig(os.path.join(self.plot_dir,self.get_timestamp() + 
-                                     '_FRtrackingAmplitudeHist.png'))
+            if save_plot:
+                plt.savefig(os.path.join(self.plot_dir, timestamp + 
+                            '_FRtrackingAmplitudeHist.png'))
+            if not show_plot:
+                plt.close()
 
             self.log("Taking data on single channel number {}".format(channel), 
                 self.LOG_USER)
 
-            #plt.figure()
-            #plt.subplot(211)
-            #plt.plot(f[:2500, channel])
-            
-            #plt.ylabel('tracked frequency (MHz)')
-            #plt.title('LMS freq: {}'.format(lms_freq_hz))
-            #plt.subplot(212)
-            #plt.plot(df[:2500, channel])
-            #plt.ylabel('frequency error (MHz)')
-            #plt.xlabel('Sample number (sample rate 2.4e6 MHz)')
-            #plt.title('RMS error: {:5.4f}'.format(df_std[channel]))
-            #plt.savefig(os.path.join(self.plot_dir, self.get_timestamp() + 
-            #                         '_FRtracking_band{}_ch{:03}.png'.format(band,channel)),
-            #            bbox_inches='tight')
-
 
             n_els = 2500
             fig, ax = plt.subplots(2, sharex=True)
-            ax[0].plot(f[:n_els], channel)
+            ax[0].plot(f[:n_els, channel])
             ax[0].set_ylabel('Tracked Freq [MHz]')
-            ax[0].text(.05, .9, 'LMS Freq {}'.format(lms_freq_hz), fontsize=10,
+            ax[0].text(.025, .9, 'LMS Freq {}'.format(lms_freq_hz), fontsize=10,
                         transform=ax[0].transAxes)
-            
+
+            ax[0].text(.9, .9, 'Band {} Ch {:03}'.format(band, channel), fontsize=10,
+                        transform=ax[0].transAxes, horizontalalignment='right')
+
             ax[1].plot(df[:n_els, channel])
             ax[1].set_ylabel('Freq Error [MHz]')
             ax[1].set_xlabel('Samp Num')
-            ax[1].text(.05, .9, 'RMS error: {:5.4f}'.format(df_std[channel]),
+            ax[1].text(.025, .9, 'RMS error: {:5.4f} \n'.format(df_std[channel]) +
+                        'FR amp: {:3.2f}'.format(fraction_full_scale),
                         fontsize=10, transform=ax[1].transAxes)
-            plt.savefig(os.path.join(self.plot_dir, self.get_timestamp() + 
+
+            plt.tight_layout()
+
+            if save_plot:
+                plt.savefig(os.path.join(self.plot_dir, timestamp + 
                                      '_FRtracking_band{}_ch{:03}.png'.format(band,channel)),
                         bbox_inches='tight')
+            if not show_plot:
+                plt.close()
 
         self.set_iq_stream_enable(band, 1, write_log=write_log)
 
@@ -1347,11 +1358,11 @@ class SmurfTuneMixin(SmurfBase):
         trialRTMClock = rtmClock
 
         fullScaleRate = fraction_full_scale * resetRate
-        desFastSlowStepSize = (fullScaleRate * 2**32) / rtmClock
+        desFastSlowStepSize = (fullScaleRate * 2**20) / rtmClock
         trialFastSlowStepSize = round(desFastSlowStepSize)
         FastSlowStepSize = trialFastSlowStepSize
 
-        trialFullScaleRate = trialFastSlowStepSize * trialRTMClock / (2**32)
+        trialFullScaleRate = trialFastSlowStepSize * trialRTMClock / (2**20)
         trialResetRate = (dspClockFrequencyMHz * 1e6) / (rampMaxCnt + 1)
         trialFractionFullScale = trialFullScaleRate / trialResetRate
         fractionFullScale = trialFractionFullScale
@@ -1378,7 +1389,7 @@ class SmurfTuneMixin(SmurfBase):
                 self.LOG_USER)
             return
 
-        FastSlowRstValue = np.floor((2**32) * (1 - fractionFullScale)/2)
+        FastSlowRstValue = np.floor((2**20) * (1 - fractionFullScale)/2)
 
         KRelay = 3 #where do these values come from
         SelectRamp = 1
@@ -1404,7 +1415,8 @@ class SmurfTuneMixin(SmurfBase):
         self.set_enable_ramp_trigger(EnableRampTrigger)
 
     def check_lock(self, band, f_min=.05, f_max=.2, df_max=.03,
-                   make_plot=False, **kwargs):
+                   make_plot=False, flux_ramp=True, fraction_full_scale=.99,
+                   lms_freq_hz = 4000.,**kwargs):
         """
         Checks the bad resonators
         
@@ -1416,15 +1428,27 @@ class SmurfTuneMixin(SmurfBase):
         ---------
         f_min (float) : The maximum frequency swing.
         f_max (float) : The minimium frequency swing
+        df_max (float) : The maximum value of the stddev of df
+        make_plot (bool) : Whether to make plots. Default False
+        flux_ramp (bool) : Whether to flux ramp or not. Default True
+        faction_full_scale (float): Number between 0 and 1. The amplitude
+           of the flux ramp.
         """
         self.log('Checking lock on band {}'.format(band))
         
         channels = self.which_on(band)
         n_chan = len(channels)
+        
         self.log('Currently {} channels on'.format(n_chan))
 
         # Tracking setup returns information on all channels in a band
-        f, df, sync = self.tracking_setup(band, 0, make_plot=False)
+        f, df, sync = self.tracking_setup(band, 0, make_plot=False,
+                                  flux_ramp=flux_ramp,fraction_full_scale=fraction_full_scale,
+                                  lms_freq_hz = lms_freq_hz)
+
+        high_cut = np.array([])
+        low_cut = np.array([])
+        df_cut = np.array([])
 
         if make_plot:
             import matplotlib.pyplot as plt
@@ -1440,16 +1464,27 @@ class SmurfTuneMixin(SmurfBase):
                 plt.title(ch)
 
             if f_span > f_max:
-                self.log('Ch {:03} above max: {:4.3f}'.format(ch, f_span))
+                #self.log('Ch {:03} above max: {:4.3f}'.format(ch, f_span))
                 self.set_amplitude_scale_channel(band, ch, 0, **kwargs)
+                high_cut = np.append(high_cut, ch)
             elif f_span < f_min:
-                self.log('Ch {:03} below min: {:4.3f}'.format(ch, f_span))
+                #self.log('Ch {:03} below min: {:4.3f}'.format(ch, f_span))
                 self.set_amplitude_scale_channel(band, ch, 0, **kwargs)
+                low_cut = np.append(low_cut, ch)
             elif df_rms > df_max:
-                self.log('Ch {:03} df rms high: {:4.3f}'.format(ch, df_rms))
+                #self.log('Ch {:03} df rms high: {:4.3f}'.format(ch, df_rms))
                 self.set_amplitude_scale_channel(band, ch, 0, **kwargs)
-            else:
-                self.log('Ch {:03} acceptable: {:4.3f}'.format(ch, f_span))
+                df_cut = np.append(df_cut, ch)
+            #else:
+            #    self.log('Ch {:03} acceptable: {:4.3f}'.format(ch, f_span))
 
-        n_chan_after = len(self.which_on(band))
-        self.log('Started with {}. Now {}'.format(n_chan, n_chan_after))
+        chan_after = self.which_on(band)
+        
+        self.log('High cut channels {}'.format(high_cut))
+        self.log('Low cut channels {}'.format(low_cut))
+        self.log('df cut channels {}'.format(df_cut))
+        self.log('Good channels {}'.format(chan_after))
+        self.log('High cut count: {}'.format(len(high_cut)))
+        self.log('Low cut count: {}'.format(len(low_cut)))
+        self.log('df cut count: {}'.format(len(df_cut)))
+        self.log('Started with {}. Now {}'.format(n_chan, len(chan_after)))
