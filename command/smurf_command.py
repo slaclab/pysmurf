@@ -47,7 +47,8 @@ class SmurfCommandMixin(SmurfBase):
                 self.log('Waiting {:3.2f} seconds after...'.format(wait_after),
                     self.LOG_USER)
             time.sleep(wait_after)
-            self.log('Done waiting.', log_level)
+            if write_log:
+                self.log('Done waiting.', self.LOG_USER)
 
     def _caget(self, cmd, write_log=False, execute=True, count=None,
         log_level=0):
