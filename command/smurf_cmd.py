@@ -277,7 +277,7 @@ if __name__ == "__main__":
                 freq_max=tune_cfg.get('freq_max'),
                 freq_min=tune_cfg.get('freq_min'),
                 grad_cut=tune_cfg.get('grad_cut'),
-                amp_cut=tune.cfg.get('tune_cut'))
+                amp_cut=tune_cfg.get('tune_cut'))
 
 
     if args.start_acq:
