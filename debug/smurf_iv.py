@@ -94,6 +94,94 @@ class SmurfIVMixin(SmurfBase):
             high_current_mode=high_current_mode, rn_accept_min=rn_accept_min,
             rn_accept_max=rn_accept_max)
 
+    def slow_iv_all(self, wait_time=.1, bias=None, bias_high=19.9, 
+        bias_low=0, bias_step=.1, show_plot=False, high_current_wait=.25, 
+        make_plot=True, save_plot=True, channels=None, high_current_mode=False,
+        rn_accept_min=1e-3, rn_accept_max=1., overbias_voltage=19.9):
+        """
+        Steps the TES bias down slowly. Starts at bias_high to bias_low with
+        step size bias_step. Waits wait_time between changing steps.
+
+        Args:
+        -----
+        daq (int) : The DAQ number
+
+        Opt Args:
+        ---------
+        wait_time (float): The amount of time between changing TES biases in 
+            seconds. Default .1 sec.
+        bias (float array): A float array of bias values. Must go high to low.
+        bias_high (int): The maximum TES bias in volts. Default 19.9
+        bias_low (int): The minimum TES bias in volts. Default 0
+        bias_step (int): The step size in volts. Default .1
+        """
+
+        if overbias_voltage != 0.:
+            overbias = True
+        else:
+            overbias = False
+
+        # drive high current through the TES to attempt to drive nomral
+        #self.set_tes_bias_bipolar(bias_num, 19.9)
+        #time.sleep(.1)
+        #self.log('Driving high current through TES. ' + \
+        #    'Waiting {}'.format(high_current_wait))
+        #self.set_cryo_card_relays(0x10004)
+        #time.sleep(high_current_wait)
+        #self.set_cryo_card_relays(0x10000)
+        #time.sleep(.1)
+        if bias is None:
+            bias = np.arange(bias_high, bias_low, -bias_step)
+            
+        overbias_wait = 5.
+        cool_wait = 10.
+        if overbias:
+            self.overbias_tes_all(overbias_wait=overbias_wait, 
+                tes_bias=np.max(bias), cool_wait=cool_wait,
+                high_current_mode=high_current_mode,
+                overbias_voltage=overbias_voltage)
+
+        self.log('Staring to take IV.', self.LOG_USER)
+        self.log('Starting TES bias ramp.', self.LOG_USER)
+
+        bias_groups = np.arange(8)
+        for g in bias_groups:
+            self.set_tes_bias_bipolar(g, bias[0])
+            time.sleep(1 / 10) # divide everything by 10 to account for looping
+
+        #datafile = self.stream_data_on(band)
+
+        for b in bias:
+            for g in bias_groups:
+                self.log('Bias at {:4.3f}'.format(b))
+                self.set_tes_bias_bipolar(g, b)  
+                time.sleep(wait_time/10) # slightly more than factor of 8 from loops
+
+        self.log('Done with TES bias ramp', self.LOG_USER)
+        self.set_cryo_card_relays(2**16)
+
+        #self.stream_data_off(band)
+
+        #basename, _ = os.path.splitext(os.path.basename(datafile))
+        #np.save(os.path.join(basename + '_iv_bias_all.txt'), bias)
+
+        #iv_raw_data = {}
+        #iv_raw_data['bias'] = bias
+        #iv_raw_data['datafile'] = datafile
+        #iv_raw_data['basename'] = basename
+        #iv_raw_data['output_dir'] = self.output_dir
+        #iv_raw_data['plot_dir'] = self.plot_dir
+        #fn_iv_raw_data = os.path.join(self.output_dir, basename + 
+            #'_iv_raw_data.npy')
+        #np.save(os.path.join(self.output_dir, fn_iv_raw_data), iv_raw_data)
+
+        #self.analyze_slow_iv_from_file(fn_iv_raw_data, make_plot=make_plot,
+            #show_plot=show_plot, save_plot=save_plot,R_sh = 325e-6, 
+            #high_current_mode=high_current_mode, rn_accept_min=rn_accept_min,
+            #rn_accept_max=rn_accept_max)
+
+ 
+
     def analyze_slow_iv_from_file(self, fn_iv_raw_data, make_plot=True,
         show_plot=False, save_plot=True, R_sh=.0029, high_current_mode=False,
         rn_accept_min = 1e-3, rn_accept_max = 1., phase_excursion_min=3.):
