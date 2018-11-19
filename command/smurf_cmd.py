@@ -7,7 +7,7 @@ import os
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
 import pysmurf
 
-cfg_filename = 'experiment_k7_17.cfg'
+cfg_filename = 'experiment_k7_18.cfg'
 
 
 """
@@ -22,8 +22,10 @@ def make_runfile(output_dir, row_len=60, num_rows=60, data_rate=60,
     S = pysmurf.SmurfControl(cfg_file=os.path.join(os.path.dirname(__file__), 
         '..', 'cfg_files' , cfg_filename), smurf_cmd_mode=True, setup=False)
 
-    with open(os.path.join(os.path.dirname(__file__),
-                           "runfile/runfile_template.txt")) as f:
+    
+    # 20181119 dB, modified to use the correct format runfile.
+    #with open(os.path.join(os.path.dirname(__file__),"runfile/runfile_template.txt")) as f:
+    with open(os.path.join(os.path.dirname(__file__),"runfile/runfile.default.bicep53")) as f:
         lines = f.readlines()
         line_holder = []
         for l in lines:
@@ -58,7 +60,10 @@ def make_runfile(output_dir, row_len=60, num_rows=60, data_rate=60,
     full_path = os.path.join(output_dir, 
         'smurf_status_{}.txt'.format(S.get_timestamp()))
     S.log("Writing to {}".format(full_path))
-    print(full_path)
+    #20181119 mod by dB to dump content of runfile, not path of runfile
+    #print(full_path)
+    for line in line_holder:
+        print(line)
     with open(full_path, "w") as f1:
         f1.writelines(line_holder)
 
@@ -132,8 +137,8 @@ if __name__ == "__main__":
 
     parser.add_argument('--tes-bump', action='store_true', default=False,
         help='Bump the TESs')
-    parser.add_argument('--tes-bump-wait', action='store', default=.5,
-        help='The time to stay at the high current.')
+    parser.add_argument('--tes-bump-wait', action='store', default=.5, 
+        type=float, help='The time to stay at the high current.')
 
 
 
@@ -223,7 +228,7 @@ if __name__ == "__main__":
         bias_voltage = args.bias_voltage
         if args.bias_current > 0:
             bias_voltage = args.bias_current * 1.0E-6 * \
-                self.bias_line_resistance
+                S.bias_line_resistance
         if args.bias_group == -1:
             for b in np.arange(8):
                 S.set_tes_bias_bipolar(b, bias_voltage, 
@@ -233,12 +238,16 @@ if __name__ == "__main__":
                 write_log=True)
 
     if args.tes_bump:
-        S.overbias_tes(args.bias_group, overbias_wait=args.tes_bump_wait)
+        if args.bias_group < 0:
+            S.overbias_tes_all(overbias_wait=args.tes_bump_wait)
+        else:
+            S.overbias_tes(args.bias_group, overbias_wait=args.tes_bump_wait)
 
     if args.slow_iv:
-        if args.iv_band < 0:
-            S.log('Must input a valid band number using --iv-band')
-        else:
+        #if args.iv_band < 0:
+            #S.log('Must input a valid band number using --iv-band')
+        #else:
+        if args.iv_band < 3: #take out this line later!! this is Cyndia's workaround
             iv_bias_high = args.iv_bias_high
             iv_bias_low = args.iv_bias_low
             iv_bias_step = args.iv_bias_step
@@ -251,16 +260,22 @@ if __name__ == "__main__":
 
                 # Convert from current to voltage units
                 iv_bias_high = args.iv_bias_high_current * 1.0E-6 * \
-                    self.bias_line_resistance
+                    S.bias_line_resistance
                 iv_bias_low = args.iv_bias_low_current * 1.0E-6 * \
-                    self.bias_line_resistance
+                    S.bias_line_resistance
                 iv_bias_step = args.iv_bias_step_current * 1.0E-6 * \
-                    self.bias_line_resistance
-            else:
-                S.slow_iv(args.iv_band, wait_time=args.iv_wait_time, 
-                          bias_high=iv_bias_high, bias_low=iv_bias_low,
-                          high_current_wait=args.iv_high_current_wait, 
-                          bias_step=iv_bias_step)
+                    S.bias_line_resistance
+            if args.bias_group < 0: # all
+                S.slow_iv_all(wait_time=args.iv_wait_time,
+                    bias_high=iv_bias_high, bias_low = iv_bias_low,
+                    high_current_wait=args.iv_high_current_wait,
+                    bias_step=args.iv_bias_step)
+            else: # individual bias group
+                S.slow_iv(args.iv_band, args.bias_group, 
+                    wait_time=args.iv_wait_time, bias_high=iv_bias_high, 
+                    bias_low=iv_bias_low, 
+                    high_current_wait=args.iv_high_current_wait, 
+                    bias_step=iv_bias_step)
 
     if args.tune:
         # Load values from the cfg file
@@ -281,9 +296,9 @@ if __name__ == "__main__":
 
 
     if args.start_acq:
-        if args.n_frames < 0:
+        if args.n_frames > 0: # was this a typo? used to be < 
             acq_n_frames(S, args.num_rows, args.num_rows_reported,
-            args.data_rate, args.row_len, args.n_frames)
+                args.data_rate, args.row_len, args.n_frames)
         else:
             start_acq(S, args.num_rows, args.num_rows_reported,
                 args.data_rate, args.row_len)
