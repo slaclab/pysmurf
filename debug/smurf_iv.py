@@ -505,7 +505,7 @@ class SmurfIVMixin(SmurfBase):
         return peaks[idx]
 
     def estimate_opt_eff(self,iv_fn_hot,iv_fn_cold,t_hot=293.,t_cold=77.,\
-                             channels = None):
+                             channels = None,dPdT_lim = (0.,0.5)):
         ivs_hot = np.load(iv_fn_hot).item()
         ivs_cold = np.load(iv_fn_cold).item()
     
@@ -530,6 +530,7 @@ class SmurfIVMixin(SmurfBase):
 
         dT = t_hot - t_cold
         dPdT_list = []
+        n_outliers = 0
         for ch in ivs_hot:
             if channels is not None:
                 if ch not in channels:
@@ -550,7 +551,13 @@ class SmurfIVMixin(SmurfBase):
                 print('Missing in-transition electrical powers for Ch. %i' % (ch))
                 continue
             dPdT = (Ptrans_cold - Ptrans_hot)/dT
-            dPdT_list.append(dPdT)
+            if dPdT_lim is not None:
+                if dPdT >= dPdT_lim[0] and dPdT <= dPdT_lim[1]:
+                    dPdT_list.append(dPdT)
+                else:
+                    n_outliers += 1
+            else:
+                dPdT_list.append(dPdT)
                 
             fig_pr,ax_pr = plt.subplots(1,sharex=True)
             ax_pr.set_xlabel(r'$R_\mathrm{TES}$ [$\Omega$]')
@@ -562,7 +569,7 @@ class SmurfIVMixin(SmurfBase):
             ax_pr.plot(R_hot,P_hot,label=label_hot,color='b')
             ax_pr.plot(R_cold,P_cold,label=label_cold,color='r')
             ax_pr.legend(loc='best')
-            fig_pr.suptitle('Band {}, Group {}, Ch {:03}: dP/dT = {:.3f} pW/K'.format(band,group, ch, dPdT))
+            fig_pr.suptitle('Band {}, Group {}, Ch {:03}: dP/dT = {:.3f} pW/K)'.format(band,group, ch, dPdT))
             ax_pr.grid()
             
             plot_name = basename_hot + '_' + basename_cold + '_optEff_b{}_g{}_ch{:03}.png'.format(band, group, ch)
@@ -572,9 +579,10 @@ class SmurfIVMixin(SmurfBase):
             plt.close()
 
         plt.figure()
-        plt.hist(dPdT_list)
+        plt.hist(dPdT_list,edgecolor='k')
         plt.xlabel('dP/dT [pW/K]')
         plt.grid()
+        plt.title('Band {}, Group {} ({} outliers)'.format(band,group,n_outliers))
         plot_name = basename_hot + '_' + basename_cold + '_dPdT_hist_b{}_g{}.png'.format(band,group)
         hist_filename = os.path.join(plot_dir,plot_name)
         self.log('Saving optical-efficiency histogram to:{}'.format(hist_filename))
