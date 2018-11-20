@@ -375,7 +375,8 @@ class SmurfNoiseMixin(SmurfBase):
         # Make plot
         cm = plt.get_cmap('plasma')
         for ch in channel:
-            fig, ax = plt.subplots(1)
+            fig, ax = plt.subplots(2)
+            wl_list = []
             for i, (b, d) in enumerate(zip(bias, datafile)):
                 basename, _ = os.path.splitext(os.path.basename(d))
                 dirname = os.path.dirname(d)
@@ -387,34 +388,46 @@ class SmurfNoiseMixin(SmurfBase):
                     '_psd_ch{:03}.txt'.format(ch)))
 
                 color = cm(float(i)/len(bias))
-                ax.plot(f, Pxx, color=color, label='{:.2f} V'.format(b))
-                ax.set_xlim(min(f[1:]),max(f[1:]))
-                ax.set_ylim(psd_ylim)
+                ax[0].plot(f, Pxx, color=color, label='{:.2f} V'.format(b))
+                ax[0].set_xlim(min(f[1:]),max(f[1:]))
+                ax[0].set_ylim(psd_ylim)
                 # fit to noise model; catch error if fit is bad
-                try:
-                    popt,pcov,f_fit,Pxx_fit = self.analyze_psd(f,Pxx)
-                    wl,n,f_knee = popt
-                    self.log('ch. {}, bias = {:.2f}'.format(ch,b) +
+                popt,pcov,f_fit,Pxx_fit = self.analyze_psd(f,Pxx)
+                wl,n,f_knee = popt
+                self.log('ch. {}, bias = {:.2f}'.format(ch,b) +
                         ', white-noise level = {:.2f}'.format(wl) +
                         ' pA/rtHz, n = {:.2f}'.format(n) + 
                         ', f_knee = {:.2f} Hz'.format(f_knee))
+                wl_list.append(wl)
 
-                    ax.plot(f_fit, Pxx_fit, color=color, linestyle='--')
-                    ax.plot(f, wl + np.zeros(len(f)), color=color,
+                ax[0].plot(f_fit, Pxx_fit, color=color, linestyle='--')
+                ax[0].plot(f, wl + np.zeros(len(f)), color=color,
                         linestyle=':')
-                    ax.plot(f_knee,2.*wl,marker = 'o',linestyle = 'none',
+                ax[0].plot(f_knee,2.*wl,marker = 'o',linestyle = 'none',
                         color=color)
-                except Exception as e: 
-                    print(e)
-                    self.log('%s, bias = %.2f: bad fit to noise model' % (d,b))
+                
+                ax[1].plot(b,wl,color=color,marker='s',linestyle='none')
 
-            ax.set_xlabel(r'Freq [Hz]')
-            ax.set_ylabel(r'$\mathrm{pA}/\sqrt{\mathrm{Hz}}]$')
-            ax.set_xscale('log')
-            ax.set_yscale('log')
-            ax.legend()
+            ax[0].set_xlabel(r'Freq [Hz]')
+            ax[0].set_ylabel(r'PSD [$\mathrm{pA}/\sqrt{\mathrm{Hz}}$]')
+            ax[0].set_xscale('log')
+            ax[0].set_yscale('log')
+            ax[0].legend(loc = 'upper right')
             res_freq = self.channel_to_freq(band, ch)
-            ax.set_title(basename + ' Band {}, Group {}, Channel {:03} - {:.1f} MHz'.format(band,bias_group,ch, res_freq))
+
+            ax[1].set_xlabel(r'Commanded bias voltage [V]')
+            ax[1].set_ylabel(r'White-noise level [$\mathrm{pA}/\sqrt{\mathrm{Hz}}$]')
+            bottom = max(0.95*min(wl_list),0.)
+            top_desired = 1.05*max(wl_list)
+            if psd_ylim is not None:
+                top = min(psd_ylim[1],top_desired)
+            else:
+                top = top_desired
+            ax[1].set_ylim(bottom=bottom, top=top)
+            ax[1].grid()
+
+            fig.suptitle(basename + ' Band {}, Group {}, Channel {:03} - {:.1f} MHz'.format(band,bias_group,ch, res_freq))
+            plt.tight_layout(rect=[0.,0.03,1.,0.95])
 
             if show_plot:
                 plt.show()
@@ -426,10 +439,12 @@ class SmurfNoiseMixin(SmurfBase):
                     plot_name = '{}_'.format(data_timestamp) + plot_name
                 else:
                     plot_name = '{}_'.format(self.get_timestamp()) + plot_name
-                plt.savefig(os.path.join(self.plot_dir, plot_name),
+                plot_fn = os.path.join(self.plot_dir, plot_name)
+                self.log('Saving plot to %s' % (plot_fn))
+                plt.savefig(plot_fn,
                     bbox_inches='tight')
                 plt.close()
-            
+
             del f
             del Pxx
 
