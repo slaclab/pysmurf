@@ -155,13 +155,14 @@ class SmurfNoiseMixin(SmurfBase):
                     noise_floors[i])
 
         if make_summary_plot:
-            bins = np.arange(0,351,10)
+            bins = np.arange(0,351,20)
             for i, (l, h) in enumerate(zip(low_freq, high_freq)):
                 fig, ax = plt.subplots(1, figsize=(10,6))
                 ax.hist(noise_floors[i,~np.isnan(noise_floors[i])], bins=bins)
                 ax.text(0.03, 0.95, '{:3.2f}'.format(l) + '-' +
                     '{:3.2f} Hz'.format(h),
                     transform=ax.transAxes, fontsize=10)
+                ax.set_xlabel(r'Mean noise [$\mathrm{pA}/\sqrt{\mathrm{Hz}}$]')
 
                 plot_name = basename + \
                     '_b{}_{}_{}_noise_hist.png'.format(band, l, h)
@@ -180,7 +181,7 @@ class SmurfNoiseMixin(SmurfBase):
                 n_fit = len(wl_list)
                 n_attempt = len(channel)
 
-                fig,ax = plt.subplots(1,3)
+                fig,ax = plt.subplots(1,3,figsize=(10,6))
                 fig.suptitle('{}: band {} noise parameters'.format(basename, band) + 
                     ' ({} fit of {} attempted)'.format(n_fit, n_attempt))
                 ax[0].hist(wl_list,bins=np.logspace(np.floor(np.log10(np.min(wl_list))),
@@ -449,7 +450,7 @@ class SmurfNoiseMixin(SmurfBase):
             del Pxx
 
 
-    def analyze_psd(self, f, Pxx, p0=[100.,0.5,0.001]):
+    def analyze_psd(self, f, Pxx, p0=[100.,0.5,0.01]):
         def noise_model(freq, wl, n, f_knee):
             '''
             Crude model for noise modeling.
@@ -459,7 +460,7 @@ class SmurfNoiseMixin(SmurfBase):
             '''
             A = wl*(f_knee**n)
             return A/(freq**n) + wl
-        bounds_low = [0.,-np.inf,0.]
+        bounds_low = [0.,0.,0.] # constrain 1/f^n to be red spectrum
         bounds_high = [np.inf,np.inf,np.inf]
         bounds = (bounds_low,bounds_high)
 
