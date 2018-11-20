@@ -1455,8 +1455,90 @@ class SmurfTuneMixin(SmurfBase):
         self.set_iq_stream_enable(band, 1, write_log=write_log)
 
         return f, df, sync
-        
 
+    _num_flux_ramp_dac_bits=16
+    _cryo_card_flux_ramp_relay_bit=16
+    _cryo_card_relay_wait=0.25#sec
+    def unset_fixed_flux_ramp_bias(self,acCouple=True):
+        """
+        Alias for setting ModeControl=0
+        """
+
+        # make sure flux ramp is configured off before switching back into mode=1
+        self.flux_ramp_off() 
+
+        self.log("Setting flux ramp ModeControl to 0.",self.LOG_USER)        
+        self.set_mode_control(0)
+
+        ## Don't want to flip relays more than we have to.  Check if it's in the correct
+        ## position ; only explicitly flip to DC if we have to.
+        if acCouple and (self.get_cryo_card_relays() >> self._cryo_card_flux_ramp_relay_bit & 1):
+            self.log("Flux ramp set to DC mode (rly=0).",
+                     self.LOG_USER)
+            self.set_cryo_card_relay_bit(self._cryo_card_flux_ramp_relay_bit,0)
+
+            # make sure it gets picked up by cryo card before handing back
+            while (self.get_cryo_card_relays() >> self._cryo_card_flux_ramp_relay_bit & 1):
+                self.log("Waiting for cryo card to update",
+                         self.LOG_USER)
+                time.sleep(self._cryo_card_relay_wait)
+
+
+    def set_fixed_flux_ramp_bias(self,fractionFullScale):
+        """
+        ???
+
+        Args:
+        -----
+        fractionFullScale (float) : Fraction of full flux ramp scale to output from [-1,1]
+        """
+
+        # fractionFullScale must be between [0,1]
+        if abs(np.abs(fractionFullScale))>1:
+            raise ValueError("fractionFullScale = {} not in [-1,1]".format(fractionFullScale))
+
+        ## Disable flux ramp if it was on
+        ## Doesn't seem to effect the fixed DC value being output
+        ## if already in fixed flux ramp mode ModeControl=1
+        self.flux_ramp_off() 
+
+        ## Don't want to flip relays more than we have to.  Check if it's in the correct
+        ## position ; only explicitly flip to DC if we have to.
+        if not (self.get_cryo_card_relays() >> self._cryo_card_flux_ramp_relay_bit & 1):
+            self.log("Flux ramp relay is either in AC mode or we haven't set it yet - explicitly setting to DC mode (=1).",
+                     self.LOG_USER)
+            self.set_cryo_card_relay_bit(self._cryo_card_flux_ramp_relay_bit,1)
+
+            while not (self.get_cryo_card_relays() >> self._cryo_card_flux_ramp_relay_bit & 1):
+                self.log("Waiting for cryo card to update",
+                         self.LOG_USER)
+                time.sleep(self._cryo_card_relay_wait)
+                
+        ## ModeControl must be 1
+        mode_control=self.get_mode_control()
+        if not mode_control==1:
+
+            #before switching to ModeControl=1, make sure DAC is set to output zero V
+            LTC1668RawDacData0=np.floor(0.5*(2**self._num_flux_ramp_dac_bits))
+            self.log("Before switching to fixed DC flux ramp output, explicitly setting flux ramp DAC to zero (LTC1668RawDacData0={})".format(mode_control,LTC1668RawDacData0), 
+                     self.LOG_USER)
+            self.set_flux_ramp_dac(LTC1668RawDacData0)
+
+            self.log("Flux ramp ModeControl is {} - changing to 1 for fixed DC output.".format(mode_control), 
+                     self.LOG_USER)
+            self.set_mode_control(1)
+
+        ## Compute and set flux ramp DAC to requested value
+        LTC1668RawDacData = np.floor((2**self._num_flux_ramp_dac_bits)*(1-np.abs(fractionFullScale))/2);
+        ## 2s complement
+        if fractionFullScale<0:
+            LTC1668RawDacData = 2**self._num_flux_ramp_dac_bits-LTC1668RawDacData-1
+        self.log("Setting flux ramp to {}% of full scale (LTC1668RawDacData={})".format(100 * fractionFullScale,
+                                                                                        int(LTC1668RawDacData)), 
+                 self.LOG_USER)
+        self.set_flux_ramp_dac(LTC1668RawDacData)        
+
+    _num_flux_ramp_counter_bits=20
     def flux_ramp_setup(self, reset_rate_khz, fraction_full_scale, df_range=.1, 
         do_read=False):
         """
@@ -1480,11 +1562,11 @@ class SmurfTuneMixin(SmurfBase):
         trialRTMClock = rtmClock
 
         fullScaleRate = fraction_full_scale * resetRate
-        desFastSlowStepSize = (fullScaleRate * 2**20) / rtmClock
+        desFastSlowStepSize = (fullScaleRate * 2**self._num_flux_ramp_counter_bits) / rtmClock
         trialFastSlowStepSize = round(desFastSlowStepSize)
         FastSlowStepSize = trialFastSlowStepSize
 
-        trialFullScaleRate = trialFastSlowStepSize * trialRTMClock / (2**20)
+        trialFullScaleRate = trialFastSlowStepSize * trialRTMClock / (2**self._num_flux_ramp_counter_bits)
         trialResetRate = (dspClockFrequencyMHz * 1e6) / (rampMaxCnt + 1)
         trialFractionFullScale = trialFullScaleRate / trialResetRate
         fractionFullScale = trialFractionFullScale
@@ -1511,7 +1593,7 @@ class SmurfTuneMixin(SmurfBase):
                 self.LOG_USER)
             return
 
-        FastSlowRstValue = np.floor((2**20) * (1 - fractionFullScale)/2)
+        FastSlowRstValue = np.floor((2**self._num_flux_ramp_counter_bits) * (1 - fractionFullScale)/2)
 
         KRelay = 3 #where do these values come from
         SelectRamp = 1

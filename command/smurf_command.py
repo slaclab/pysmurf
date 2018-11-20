@@ -1462,6 +1462,17 @@ class SmurfCommandMixin(SmurfBase):
         """
         return self._caget(self.rtm_spi_root + self._ramp_slope, **kwargs)
 
+    _flux_ramp_dac = 'LTC1668RawDacData'
+    def set_flux_ramp_dac(self, val, **kwargs):
+        """
+        """
+        self._caput(self.rtm_spi_root + self._flux_ramp_dac, val, **kwargs)
+
+    def get_flux_ramp_dac(self, **kwargs):
+        """
+        """
+        return self._caget(self.rtm_spi_root + self._flux_ramp_dac, **kwargs)
+
     _mode_control = 'ModeControl'
     def set_mode_control(self, val, **kwargs):
         """
