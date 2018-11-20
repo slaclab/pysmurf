@@ -313,7 +313,7 @@ class SmurfUtilMixin(SmurfBase):
             self.log('Writing to file : {}'.format(data_filename), 
                 self.LOG_USER)
             if gcp_mode:
-                self.set_streaming_datafile('/dev/null')
+                #self.set_streaming_datafile('/dev/null')
                 self.set_gcp_datafile(data_filename)
             else:
                 self.set_streaming_datafile(data_filename)
@@ -329,15 +329,13 @@ class SmurfUtilMixin(SmurfBase):
 
             return data_filename
 
-    def set_gcp_datafile(self, data_filename, num_averages=0, receiver_ip='192.168.3.3',
-                         port_number='#5344', data_frames=1000000):
+    def set_gcp_datafile(self, data_filename, num_averages=0, receiver_ip='192.168.3.1',
+                         port_number='3334', data_frames=1000000):
         """
         """
         config_dir = self.config.get('smurf2mce_cfg_dir')
         if config_dir is None:
             self.log('No smurf2mce directory in config file.', self.LOG_ERROR)
-
-        print(receiver_ip)
         
         file = open(config_dir, 'w')
 
@@ -361,11 +359,12 @@ class SmurfUtilMixin(SmurfBase):
         self.set_stream_enable(band, 0, write_log=True)
         if gcp_mode:
             self.set_smurf_to_gcp_writer(False, write_log=True)
+            self.set_gcp_datafile('/data/cryo/mas_data_pipe')
         else:
             self.set_streaming_file_open(0)  # Close the file
 
 
-    def read_stream_data(self, datafile, unwrap=True):
+    def read_stream_data(self, datafile, unwrap=True, gcp_mode=True):
         """
         Loads data taken with the fucntion stream_data_on
 
@@ -377,6 +376,11 @@ class SmurfUtilMixin(SmurfBase):
         ---------
         unwrap (bool): Whether to unwrap the data
         """
+        if gcp_mode:
+            self.log('Treating data as GCP file')
+            timestamp, phase = self.read_stream_data_gcp_save(datafile)
+            return timestamp, phase
+
 
         file_writer_header_size = 2  # 32-bit words
 
@@ -456,7 +460,7 @@ class SmurfUtilMixin(SmurfBase):
 
         return timestamp, phase
 
-    def read_stream_data_gcp_save(self, datafile, channel,
+    def read_stream_data_gcp_save(self, datafile,
         unwrap=True, downsample=1):
         """
         Reads the special data that is designed to be a copy of the GCP data.
@@ -482,7 +486,7 @@ class SmurfUtilMixin(SmurfBase):
 
         frames = [i for i in struct.Struct('3BxI6Q8I5Q528i').iter_unpack(file_content)]
 
-        phase = np.zeros(528, len(frames))
+        phase = np.zeros((528, len(frames)))
         for i in range(528):
                 phase[i,:] = np.asarray([j[keys_dict[f'data{i}']] for j in
                              frames])
@@ -1251,4 +1255,11 @@ class SmurfUtilMixin(SmurfBase):
             np.where(self.att_to_band['band']==band))[0]]
 
 
+    def make_gcp_mask_file(self, bands=[2,3], channels_per_band=512):
+        """
+        """
+        chs = np.array([])
+        for b in bands:
+            chs = np.append(chs, self.which_on(b)+b*channels_per_band)
 
+        return chs

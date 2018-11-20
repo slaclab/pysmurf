@@ -185,6 +185,129 @@ class SmurfTuneMixin(SmurfBase):
         self.log('Done')
         return resonances
 
+    def tune_band_quad(self, band, del_f=.01, n_samples=2**19,
+        make_plot=False, plot_chans=[], save_plot=True, save_data=True,
+        subband=None, n_scan=1, grad_cut=.05, freq_min=-2.5E8, 
+        freq_max=2.5E8, amp_cut=1,  n_pts=20):
+        """
+        """
+        timestamp = self.get_timestamp()
+
+        if make_plot and save_plot:
+            import matplotlib.pyplot as plt
+            plt.ioff()
+
+        self.band_off(band)
+        self.flux_ramp_off()
+        self.log('Running full band resp')
+
+
+        # Find resonators with noise blast
+        freq, resp = self.full_band_resp(band, n_samples=n_samples,
+                                         make_plot=make_plot, save_data=save_data, 
+                                         timestamp=timestamp, n_scan=n_scan)
+        
+        peaks = self.find_peak(freq, resp, band=band, make_plot=make_plot,
+            save_plot=save_plot, grad_cut=grad_cut, freq_min=freq_min,
+            freq_max=freq_max, amp_cut=amp_cut,
+            make_subband_plot=make_subband_plot, timestamp=timestamp,
+            subband_plot_with_slow=subband_plot_with_slow)
+
+        # Assign resonances to channels                                                       
+        resonances = {}
+        self.log('Assigning channels')
+        for i, p in enumerate(peaks):
+            resonances[i] = {'peak' : p}
+
+        subbands, channels, offsets = self.assign_channels(peaks*1.0E-6, band=band)
+
+        for i, k in enumerate(resonances.keys()):
+            resonances[k].update({'subband': subbands[i]})
+            resonances[k].update({'channel': channels[i]})
+            resonances[k].update({'offset': offsets[i]})
+
+            # Fill with dummy values so relock does not fail
+            resonances[k].update({'eta': 0})
+            resonances[k].update({'eta_scaled': 0})
+            resonances[k].update({'eta_phase': 0})
+            resonances[k].update({'r2': 0})
+            resonances[k].update({'eta_mag': 0})
+            resonances[k].update({'latency': 0})
+            resonances[k].update({'Q': 0})
+
+        self.freq_resp[band] = resonances
+        self.relock(band, check_vals=False)
+
+        channels = self.which_on(band)
+
+        feedback_array = np.zeros_like(self.get_feedback_enable_array(band))
+        self.set_feedback_enable_array(band, feedback_array)
+
+        eta_mag_array = np.zeros_like(self.get_eta_mag_array(band))
+        eta_mag_array[channels] = 1
+        self.set_eta_mag_array(band, eta_mag_array)
+
+        self.log('Measuring eta_phase = 0')
+        eta_phase_array = np.zeros_like(self.get_eta_phase_array(band))
+        self.set_eta_phase_array(band, eta_phase_array)
+
+        adc0 = np.zeros((n_pts, len(channels)))
+        for i in np.arange(n_pts):
+            adc0[i] = self.get_frequency_error_array(band)[channels]
+
+        self.log('Measuring eta phase = 90')
+        eta_phase_array[channels] = 90.
+        self.set_eta_phase_array(band, eta_phase_array)
+        
+        adc90 = np.zeros_like(adc0)
+        for i in np.arange(n_pts):
+            adc90[i] = self.get_frequency_error_array(band)[channels]
+
+        adc0_est = np.median(adc0, axis=0)
+        adc90_est = np.median(adc90, axis=0)
+
+        in_phase_rad = np.arctan2(adc90_est, adc0_est)
+        quad_phase_rad = in_phase_rad + np.pi/2.
+        in_phase_deg = np.rad2deg(in_phase_rad)
+        quad_phase_deg = np.rad2deg(quad_phase_rad)
+
+        self.log('In phase: {:4.2f}  Quad phase: {:4.2f}'.format(in_phase_deg, quad_phase_deg))
+
+        center_freq_array = self.get_center_frequency_array(band)
+
+        eta_phase_array[channels] = [tools.limit_phase_deg(qpd) for qpd in quad_phase_deg]
+        self.set_eta_phase_array(band, eta_phase_array)
+
+        self.log('Measuring eta_mag')
+        adc_plus = np.zeros((n_pts, len(channels)))
+        adc_minus = np.zeros((n_pts, len(channels)))
+
+        self.set_center_frequency_array(band, center_freq_array+del_f)
+        for i in np.arange(n_pts):
+            adc_plus[i] = self.get_frequency_error_array(band)[channels]
+
+        self.set_center_frequency_array(band, center_freq_array-del_f)
+        for i in np.arange(n_pts):
+            adc_minus[i] = self.get_frequency_error_array(band)[channels]
+        
+        self.set_center_frequency_array(band, center_freq_array)
+            
+        adc_plus_est = np.median(adc_plus, axis=0)
+        adc_minus_est = np.median(adc_minus, axis=0)
+        
+        dig_freq = self.get_digitizer_frequency_mhz(band)
+        n_subband = self.get_number_sub_bands(band)
+        sb_halfwidth = dig_freq / n_subband  # MHz
+
+        eta_est = (2*del_f/(adc_plus_est - adc_minus_est))
+        eta_mag = np.abs(eta_est)
+        eta_scaled = eta_mag / sb_halfwidth
+
+        eta_phase_array = self.get_eta_phase_array(band)
+        eta_phase_array[channels]=[tools.limit_phase_deg(eP+180) if eE<0 else eP for (eP,eE) in zip(eta_phase_array[channels], etaEst)]
+        self.set_eta_phase_array(band, eta_phase_array)
+        
+                        
     def plot_tune_summary(self, band, resonances=None):
         """
         Plots summary of tuning
@@ -1056,7 +1179,7 @@ class SmurfTuneMixin(SmurfBase):
             return tune
 
     def relock(self, band, res_num=None, amp_scale=11, r2_max=.08, 
-        q_max=100000, q_min=0):
+        q_max=100000, q_min=0, check_vals=False):
         """
         Turns on the tones. Also cuts bad resonators.
 
@@ -1097,11 +1220,11 @@ class SmurfTuneMixin(SmurfBase):
             ch = self.freq_resp[band][k]['channel']
             if ch < -1: 
                 self.log('No channel assigned: res {:03}'.format(k))
-            elif self.freq_resp[band][k]['r2'] > r2_max:
+            elif self.freq_resp[band][k]['r2'] > r2_max and check_vals:
                 self.log('R2 too high: res {:03}'.format(k))
-            elif self.freq_resp[band][k]['Q'] < q_min:
+            elif self.freq_resp[band][k]['Q'] < q_min and check_vals:
                 self.log('Q too low: res {:03}'.format(k))
-            elif self.freq_resp[band][k]['Q'] > q_max:
+            elif self.freq_resp[band][k]['Q'] > q_max and check_vals:
                 self.log('Q too high: res {:03}'.format(k))
             elif k not in res_num:
                 self.log('Not in resonator list')
@@ -1205,7 +1328,7 @@ class SmurfTuneMixin(SmurfBase):
     def tracking_setup(self, band, channel, reset_rate_khz=4., write_log=False, 
         make_plot=False, save_plot=True, show_plot=True,
         lms_freq_hz=4000., flux_ramp=True, fraction_full_scale=.99,
-        lms_enable1=True, lms_enable2=True, lms_enable3=True):
+        lms_enable1=True, lms_enable2=True, lms_enable3=True, lms_gain=7):
         """
         Args:
         -----
@@ -1226,7 +1349,6 @@ class SmurfTuneMixin(SmurfBase):
         flux_ramp_full_scale_to_phi0 = 2.825/0.75
 
         lms_delay = 6  # nominally match refPhaseDelay
-        lms_gain = 7  # incrases by power of 2, can also use etaMag to fine tune
         if not flux_ramp:
             lms_enable1 = 0
             lms_enable2 = 0
@@ -1276,7 +1398,7 @@ class SmurfTuneMixin(SmurfBase):
         if make_plot:
             timestamp = self.get_timestamp()
             plt.figure()
-            plt.hist(df_std[channels_on] * 1e3,bins = 20)            
+            plt.hist(df_std[channels_on] * 1e3,bins = 20,edgecolor = 'k')            
             plt.xlabel('Flux ramp demod error std (kHz)')
             plt.ylabel('number of channels')
             plt.title('LMS freq = {}, n_channels = {}'.format(lms_freq_hz, 
@@ -1289,7 +1411,7 @@ class SmurfTuneMixin(SmurfBase):
                 plt.close()
 
             plt.figure()
-            plt.hist(f_span[channels_on] * 1e3,bins = 20)
+            plt.hist(f_span[channels_on] * 1e3,bins = 20,edgecolor='k')
             plt.xlabel('Flux ramp amplitude (kHz)')
             plt.ylabel('number of channels')
             plt.title('LMS freq = {}, n_channels = {}'.format(lms_freq_hz, 
@@ -1441,10 +1563,15 @@ class SmurfTuneMixin(SmurfBase):
         
         self.log('Currently {} channels on'.format(n_chan))
 
-        # Tracking setup returns information on all channels in a band
+#        # Tracking setup returns information on all channels in a band
         f, df, sync = self.tracking_setup(band, 0, make_plot=False,
                                   flux_ramp=flux_ramp,fraction_full_scale=fraction_full_scale,
                                   lms_freq_hz = lms_freq_hz)
+
+#        iq_stream_enable = 0  # stream IQ data from tracking loop
+#        self.set_iq_stream_enable(band, iq_stream_enable)
+#        f, df, sync = self.take_debug_data(band, IQstream = iq_stream_enable, 
+#            single_channel_readout=0)
 
         high_cut = np.array([])
         low_cut = np.array([])
@@ -1488,3 +1615,11 @@ class SmurfTuneMixin(SmurfBase):
         self.log('Low cut count: {}'.format(len(low_cut)))
         self.log('df cut count: {}'.format(len(df_cut)))
         self.log('Started with {}. Now {}'.format(n_chan, len(chan_after)))
+
+    def check_lock_flux_ramp_off(self, band,df_max=.03,
+                   make_plot=False, **kwargs):
+        """
+        Simple wrapper function for check_lock with the flux ramp off
+        """
+        self.check_lock(band, f_min=0., f_max=np.inf, df_max=df_max, 
+                        make_plot=make_plot, flux_ramp=False, **kwargs)

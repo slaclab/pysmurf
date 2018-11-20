@@ -37,3 +37,16 @@ def fit_skewed_lorentzian(f, mag):
         popt=np.zeros((6,))
 
     return popt
+
+
+def limit_phase_deg(phase,minphase=-180):
+    """
+    Brazenly stolen from                                                         
+    https://stackoverflow.com/questions/2320986/easy-way-to-keeping-angles-between-179-and-180-degrees
+    """
+    newPhase=phase
+    while newPhase<=minphase:
+        newPhase+=360
+    while newPhase>minphase+360:
+        newPhase-=360
+    return newPhase

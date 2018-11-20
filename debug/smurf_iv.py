@@ -6,10 +6,10 @@ import os
 class SmurfIVMixin(SmurfBase):
 
     def slow_iv(self, band, bias_group, wait_time=.25, bias=None, bias_high=19.9, 
-        bias_low=0, bias_step=.1, show_plot=False, overbias_wait=.25, cool_wait=10,
+        bias_low=0, bias_step=.1, show_plot=False, overbias_wait=5., cool_wait=30.,
         make_plot=True, save_plot=True, channels=None, high_current_mode=False,
         rn_accept_min=1e-3, rn_accept_max=1., overbias_voltage=19.9,
-        gcp_mode=False):
+        gcp_mode=True,grid_on=False):
         """
         Steps the TES bias down slowly. Starts at bias_high to bias_low with
         step size bias_step. Waits wait_time between changing steps.
@@ -46,6 +46,10 @@ class SmurfIVMixin(SmurfBase):
                 high_current_mode=high_current_mode,
                 overbias_voltage=overbias_voltage)
 
+        self.log('Turning lmsGain to 0.', self.LOG_USER)
+        lms_gain = self.get_lms_gain(band)
+        self.set_lms_gain(band, 0)
+
         self.log('Staring to take IV.', self.LOG_USER)
         self.log('Starting TES bias ramp.', self.LOG_USER)
 
@@ -61,6 +65,10 @@ class SmurfIVMixin(SmurfBase):
             time.sleep(wait_time)
 
         self.log('Done with TES bias ramp', self.LOG_USER)
+
+        self.log('Returning lmsGain to ' + str(lms_gain), self.LOG_USER)
+        self.set_lms_gain(band, lms_gain)
+
         self.set_cryo_card_relays(2**16)
 
         self.stream_data_off(band, gcp_mode=gcp_mode)
@@ -84,12 +92,12 @@ class SmurfIVMixin(SmurfBase):
         self.analyze_slow_iv_from_file(fn_iv_raw_data, make_plot=make_plot,
             show_plot=show_plot, save_plot=save_plot, R_sh=3e-3, 
             high_current_mode=high_current_mode, rn_accept_min=rn_accept_min,
-            rn_accept_max=rn_accept_max, gcp_mode=gcp_mode)
+            rn_accept_max=rn_accept_max, gcp_mode=gcp_mode,grid_on=grid_on)
 
     def analyze_slow_iv_from_file(self, fn_iv_raw_data, make_plot=True,
         show_plot=False, save_plot=True, R_sh=3e-3, high_current_mode=False,
         rn_accept_min = 1e-3, rn_accept_max = 1., phase_excursion_min=3.,
-                                  gcp_mode=False):
+                                  grid_on = False,gcp_mode=True):
         """
         phase_excursion: abs(max - min) of phase in radians
         """
@@ -108,9 +116,11 @@ class SmurfIVMixin(SmurfBase):
         ivs = {}
         ivs['bias'] = bias
 
-        if not gcp_mode:
+        if gcp_mode:
+            timestamp, phase_all = self.read_stream_data_gcp_save(datafile)
+        else:
             timestamp, phase_all = self.read_stream_data(datafile)
-            phase_all *= 1.443
+        phase_all *= 1.443
         
         rn_list = []
         phase_excursion_list = []
@@ -118,10 +128,8 @@ class SmurfIVMixin(SmurfBase):
             self.log('Analyzing channel {}'.format(ch))
             # timestamp, I, Q = self.read_stream_data(datafile)
             # phase = self.iq_to_phase(I[ch], Q[ch]) * 1.443
-            if gcp_mode:
-                timestamp, phase = self.read_stream_data_gcp_save(datafile, ch)
-            else:
-                phase = phase_all[ch]
+        
+            phase = phase_all[ch]
             ch_idx = ch
             # phase_ch = phase[ch_idx]
          
@@ -143,6 +151,8 @@ class SmurfIVMixin(SmurfBase):
                 ax.plot(phase)
                 ax.set_xlabel('Sample Num')
                 ax.set_ylabel('Phase [rad.]')
+                if grid_on:
+                    ax.grid()
 
                 ax.set_title('Band {}, Group {}, Ch {:03}'.format(band,
                     bias_group, ch))
@@ -157,11 +167,11 @@ class SmurfIVMixin(SmurfBase):
                 if not show_plot:
                     plt.close()
 
-            r, rn, idx = self.analyze_slow_iv(bias, phase, 
+            r, rn, idx,p_tes, p_trans = self.analyze_slow_iv(bias, phase, 
                 basename=basename, band=band, channel=ch, make_plot=make_plot, 
                 show_plot=show_plot, save_plot=save_plot, plot_dir=plot_dir,
                 R_sh = R_sh, high_current_mode = high_current_mode,
-                bias_group=bias_group)
+                bias_group=bias_group,grid_on=grid_on)
             try:
                 if rn <= rn_accept_max and rn >= rn_accept_min:
                     rn_list.append(rn)
@@ -170,7 +180,9 @@ class SmurfIVMixin(SmurfBase):
             ivs[ch] = {
                 'R' : r,
                 'Rn' : rn,
-                'idx': idx
+                'idx': idx,
+                'P': p_tes,
+                'Ptrans': p_trans
             }
 
         np.save(os.path.join(output_dir, basename + '_iv'), ivs)
@@ -206,7 +218,7 @@ class SmurfIVMixin(SmurfBase):
 
     def analyze_slow_iv(self, v_bias, resp, make_plot=True, show_plot=False,
         save_plot=True, basename=None, band=None, channel=None, R_sh=3e-3,
-        plot_dir = None,high_current_mode = False,bias_group = None,**kwargs):
+        plot_dir = None,high_current_mode = False,bias_group = None,grid_on = False,**kwargs):
         """
         Analyzes the IV curve taken with slow_iv()
 
@@ -302,7 +314,8 @@ class SmurfIVMixin(SmurfBase):
             ax[0].plot(i_bias[:sc_idx], 
                 sc_fit[0] * i_bias[:sc_idx] + sc_fit[1], linestyle='--', 
                 color='r')
-
+            if grid_on:
+                ax[0].grid()
             # Highlight the transition
             ax[0].axvspan(d_i[sc_idx], d_i[nb_idx], color='k', alpha=.15)
             ax[1].axvspan(d_i[sc_idx], d_i[nb_idx], color='k', alpha=.15)
@@ -311,7 +324,7 @@ class SmurfIVMixin(SmurfBase):
                 transform=ax[0].transAxes, fontsize=12, 
                 horizontalalignment='right')
             ax[0].text(.95, .18, 
-                        'Res freq: {:5.4f}'.format(self.channel_to_freq(band, channel)), 
+                        'Res freq: {:.1f} MHz'.format(self.channel_to_freq(band, channel)), 
                         transform=ax[0].transAxes, fontsize=12, horizontalalignment='right')
 
             ax[1].plot(i_bias, R/R_n, '.')
@@ -319,6 +332,8 @@ class SmurfIVMixin(SmurfBase):
             ax[1].set_ylabel(r'$R/R_N$')
             ax[1].set_xlabel(r'$I_{b}$ ' + '$[\mu A]$')
             ax[1].set_ylim(0, 1.1)
+            if grid_on:
+                ax[1].grid()
 
             ax[1].text(.95, .18, r'$R_{sh}$: ' + '{}'.format(R_sh*1.0E3) + 
                 r' $m\Omega$' , transform=ax[1].transAxes, fontsize=12,
@@ -364,9 +379,63 @@ class SmurfIVMixin(SmurfBase):
             else:
                 plt.close()
 
-        return R, R_n, np.array([sc_idx, nb_idx])
+        v_tes = i_bias*R_sh*R/(R+R_sh) # voltage over TES
+        p_tes = (v_tes**2)/R # electrical power on TES
 
-        
+        i_Rmin = 0
+        i_Rmax = len(R)-1
+        R_frac_min = 0.2
+        R_frac_max = 0.8
+        R_trans_min = R_frac_min*R_n
+        R_trans_max = R_frac_max*R_n
+        found_Rmin = False
+        found_Rmax = False
+        for i in range(len(R)):
+            R_temp = R[i]
+            if R_temp > R_trans_min and not found_Rmin:
+                i_Rmin = i
+                found_Rmin = True
+            elif R_temp > R_trans_max and not found_Rmax:
+                i_Rmax = i
+                found_Rmax = True
+
+        fig_pr,ax_pr = plt.subplots(1,sharex=True)
+        ax_pr.set_xlabel(r'$R_\mathrm{TES}$ [$\Omega$]')
+        ax_pr.set_ylabel(r'$P_\mathrm{TES}$ [pW]')
+        if found_Rmin and found_Rmax:
+            p_trans_median = np.median(p_tes[i_Rmin:i_Rmax])
+            ax_pr.axvline(x=R[i_Rmin],linestyle = ':',color = 'k')
+            ax_pr.axvline(x=R[i_Rmax],linestyle = ':',color = 'k')
+            label = r'Median power between $%.2f R_n$ and $%.2f R_n$: %.0f pW' \
+                % (R_frac_min,R_frac_max,p_trans_median)
+            ax_pr.axhline(y=p_trans_median,linestyle = ':',label = label,color = 'r')
+        else:
+            p_trans_median = None
+
+        ax_pr.plot(R,p_tes)
+        ax_pr.legend(loc='best')
+        fig_pr.suptitle('Band {}, Group {}, Ch {:03}'.format(band, 
+                    bias_group, channel))
+        if grid_on:
+            ax_pr.grid(which = 'major')
+            ax_pr.grid(which = 'minor',linestyle = '--')
+            ax_pr.minorticks_on()
+        if save_plot:
+            if basename is None:
+                basename = self.get_timestamp()
+            plot_name = basename + \
+                    '_PR_curve_b{}_g{}_ch{:03}.png'.format(band, bias_group, channel)
+            if plot_dir == None:
+                plot_dir = self.plot_dir
+            plot_filename = os.path.join(plot_dir, plot_name)
+            self.log('Saving PR plot to:{}'.format(plot_filename))
+            plt.savefig(plot_filename,bbox_inches='tight', dpi=300)
+        if show_plot:
+            plt.show()
+        else:
+            plt.close()
+
+        return R, R_n, np.array([sc_idx, nb_idx]), p_tes, p_trans_median
 
     def find_tes(self, band, bias_group, bias=np.arange(0,4,.2),
                  make_plot=True, make_debug_plot=False, delta_peak_cutoff=.2):
@@ -434,3 +503,80 @@ class SmurfIVMixin(SmurfBase):
 
         idx = np.ravel(np.where(peak_span > delta_peak_cutoff))
         return peaks[idx]
+
+    def estimate_opt_eff(self,iv_fn_hot,iv_fn_cold,t_hot=293.,t_cold=77.,\
+                             channels = None):
+        ivs_hot = np.load(iv_fn_hot).item()
+        ivs_cold = np.load(iv_fn_cold).item()
+    
+        iv_fn_raw_hot = iv_fn_hot.split('.')[0] + '_raw_data.npy'
+        iv_fn_raw_cold = iv_fn_cold.split('.')[0] + '_raw_data.npy'
+
+        ivs_raw_hot = np.load(iv_fn_raw_hot).item()
+        ivs_raw_cold = np.load(iv_fn_raw_cold).item()
+    
+        basename_hot = ivs_raw_hot['basename']
+        basename_cold = ivs_raw_cold['basename']
+
+        band = ivs_raw_hot['band']
+        assert ivs_raw_cold['band'] == band, \
+            'Files must contain IVs from the same band'
+        group = ivs_raw_hot['bias group']
+        assert ivs_raw_cold['bias group'], \
+            'Files must contain IVs from the same bias group'
+    
+        import matplotlib.pyplot as plt
+        plot_dir = self.plot_dir
+
+        dT = t_hot - t_cold
+        dPdT_list = []
+        for ch in ivs_hot:
+            if channels is not None:
+                if ch not in channels:
+                    continue
+            elif not isinstance(ch,np.int64):
+                continue
+            
+            if ch not in ivs_cold:
+                continue
+                
+            P_hot = ivs_hot[ch]['P']
+            P_cold = ivs_cold[ch]['P']
+            R_hot = ivs_hot[ch]['R']
+            R_cold = ivs_cold[ch]['R']
+            Ptrans_hot = ivs_hot[ch]['Ptrans']
+            Ptrans_cold = ivs_cold[ch]['Ptrans']
+            if Ptrans_hot is None or Ptrans_cold is None:
+                print('Missing in-transition electrical powers for Ch. %i' % (ch))
+                continue
+            dPdT = (Ptrans_cold - Ptrans_hot)/dT
+            dPdT_list.append(dPdT)
+                
+            fig_pr,ax_pr = plt.subplots(1,sharex=True)
+            ax_pr.set_xlabel(r'$R_\mathrm{TES}$ [$\Omega$]')
+            ax_pr.set_ylabel(r'$P_\mathrm{TES}$ [pW]')
+            label_hot = '%s: %.0f K' % (basename_hot,t_hot)
+            label_cold = '%s: %.0f K' % (basename_cold,t_cold)
+            ax_pr.axhline(y=Ptrans_hot,linestyle = '--',color = 'b')
+            ax_pr.axhline(y=Ptrans_cold,linestyle = '--',color = 'r')
+            ax_pr.plot(R_hot,P_hot,label=label_hot,color='b')
+            ax_pr.plot(R_cold,P_cold,label=label_cold,color='r')
+            ax_pr.legend(loc='best')
+            fig_pr.suptitle('Band {}, Group {}, Ch {:03}: dP/dT = {:.3f} pW/K'.format(band,group, ch, dPdT))
+            ax_pr.grid()
+            
+            plot_name = basename_hot + '_' + basename_cold + '_optEff_b{}_g{}_ch{:03}.png'.format(band, group, ch)
+            plot_filename = os.path.join(plot_dir, plot_name)
+            self.log('Saving optical-efficiency plot to:{}'.format(plot_filename))
+            plt.savefig(plot_filename,bbox_inches='tight', dpi=300)
+            plt.close()
+
+        plt.figure()
+        plt.hist(dPdT_list)
+        plt.xlabel('dP/dT [pW/K]')
+        plt.grid()
+        plot_name = basename_hot + '_' + basename_cold + '_dPdT_hist_b{}_g{}.png'.format(band,group)
+        hist_filename = os.path.join(plot_dir,plot_name)
+        self.log('Saving optical-efficiency histogram to:{}'.format(hist_filename))
+        plt.savefig(hist_filename,bbox_inches='tight',dpi=300)
+        plt.close()
