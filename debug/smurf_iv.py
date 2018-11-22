@@ -69,7 +69,7 @@ class SmurfIVMixin(SmurfBase):
         self.log('Returning lmsGain to ' + str(lms_gain), self.LOG_USER)
         self.set_lms_gain(band, lms_gain)
 
-        self.set_cryo_card_relays(2**16)
+        #self.set_cryo_card_relays(2**16)
 
         self.stream_data_off(band, gcp_mode=gcp_mode)
 
