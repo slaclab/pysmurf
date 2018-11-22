@@ -120,7 +120,7 @@ class SmurfIVMixin(SmurfBase):
             timestamp, phase_all = self.read_stream_data_gcp_save(datafile)
         else:
             timestamp, phase_all = self.read_stream_data(datafile)
-        phase_all *= 1.443
+        #phase_all *= 1.443
         
         rn_list = []
         phase_excursion_list = []
@@ -136,6 +136,7 @@ class SmurfIVMixin(SmurfBase):
             phase_excursion = max(phase) - min(phase)
             # don't analyze channels with a small phase excursion; these are probably just noise
             if phase_excursion < phase_excursion_min:
+                self.log('Skipping channel {} because phase_excursion is less than phase_excursion_min.'.format(ch))
                 continue
             phase_excursion_list.append(phase_excursion)
 
