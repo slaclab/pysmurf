@@ -317,7 +317,7 @@ if __name__ == "__main__":
     if args.soft_reset:
         S.log('Soft resetting')
         S.set_smurf_to_gcp_clear(True)
-        time.sleep(.1)
+        time.sleep(.1) # make this longer, maybe? just a thought. it lasts ~15s in MCE
         S.set_smurf_to_gcp_clear(False)
 
     if args.make_runfile:
