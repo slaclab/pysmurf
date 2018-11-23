@@ -133,8 +133,8 @@ class SmurfIVMixin(SmurfBase):
         if bias is None:
             bias = np.arange(bias_high, bias_low, -bias_step)
             
-        overbias_wait = 5.
-        cool_wait = 10.
+        overbias_wait = 2.
+        cool_wait = 5. # CYNDIA CHANGED THIS AT POLE I'M SORRY 20181123
         if overbias:
             self.overbias_tes_all(overbias_wait=overbias_wait, 
                 tes_bias=np.max(bias), cool_wait=cool_wait,
