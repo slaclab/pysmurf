@@ -296,6 +296,9 @@ if __name__ == "__main__":
 
 
     if args.start_acq:
+        if args.n_frames >= 1000000000:
+            args.n_frames = -1 # if it is a big number then just make it continuous
+
         if args.n_frames > 0: # was this a typo? used to be < 
             acq_n_frames(S, args.num_rows, args.num_rows_reported,
                 args.data_rate, args.row_len, args.n_frames)
