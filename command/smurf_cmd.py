@@ -183,9 +183,9 @@ if __name__ == "__main__":
         help='Start the data acquisition')
     parser.add_argument('--row-len', action='store', default=60, type=int,
         help='The variable to stuff into the runfile. See the MCE wiki')
-    parser.add_argument('--num-rows', action='store', default=60, type=int,
+    parser.add_argument('--num-rows', action='store', default=33, type=int,
         help='The variable to stuff into the runfile. See the MCE wiki')
-    parser.add_argument('--num-rows-reported', action='store', default=60, 
+    parser.add_argument('--num-rows-reported', action='store', default=33, 
         type=int,
         help='The variable to stuff into the runfile. See the MCE wiki')
     parser.add_argument('--data-rate', action='store', default=60, type=int,
