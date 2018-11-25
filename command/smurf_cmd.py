@@ -204,6 +204,13 @@ if __name__ == "__main__":
     parser.add_argument('--soft-reset', action='store_true', default=False,
         help='Soft reset SMuRF.')
 
+    # Setup, in case smurf went down and you have to start over
+    # do we want this to be folded into tuning with an if statement?
+    # separate for now
+    # CY 20181125
+    parser.add_argument('--setup', action='store_true', default=False, 
+        help='Setup SMuRF and load defaults.')
+
     # Extract inputs
     args = parser.parse_args()
 
@@ -319,6 +326,11 @@ if __name__ == "__main__":
         S.set_smurf_to_gcp_clear(True)
         time.sleep(.1) # make this longer, maybe? just a thought. it lasts ~15s in MCE
         S.set_smurf_to_gcp_clear(False)
+
+    if args.setup:
+        S.log('Running setup')
+        S.setup()
+        # anything we need to do with setting up streaming?
 
     if args.make_runfile:
         make_runfile(S.output_dir, num_rows=args.num_rows,
