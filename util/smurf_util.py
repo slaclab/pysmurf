@@ -558,6 +558,60 @@ class SmurfUtilMixin(SmurfBase):
                 write_log=False)
             self.log('DAQ number {}: start {} - end {}'.format(daq_num, s, e))
 
+    def config_cryo_channel(self, band, channel, frequencyMHz, amplitude, 
+        feedback_enable, eta_phase, eta_mag):
+        """
+        Set parameters on a single cryo channel
+
+        Args:
+        -----
+        band (int) : The band for the channel
+        channel (int) : which channel to configure
+        frequencyMHz (float) : the frequency offset from the subband center in MHz
+        amplitude (int) : amplitude scale to set for the channel (0..15)
+        feedback_enable (bool) : whether to enable feedback for the channel
+        eta_phase (float) : feedback eta phase, in degrees (-180..180) 
+        eta_mag (float) : feedback eta magnitude
+        """
+
+        n_subbands = self.get_number_sub_bands(band)
+        digitizerFrequencyMHz = self.get_digitizer_frequency_mhz(band)
+        subband_width = digitizerFrequencyMHz / (n_subbands / 2)
+
+        # some checks to make sure we put in values within the correct ranges
+
+        if frequencyMHz > subband_width / 2:
+            print("frequencyMHz exceeds subband width! setting to top of subband")
+            freq = subband_width / 2
+        elif frequencyMHz < - subband_width / 2:
+            print("frequencyMHz below subband width! setting to bottom of subband")
+            freq = -subband_width / 2
+        else:
+            freq = frequencyMHz
+
+        if amplitude > 15:
+            print("amplitude too high! setting to 15")
+            ampl = 15
+        elif amplitude < 0:
+            print("amplitude too low! setting to 0")
+            ampl = 0
+        else:
+            ampl = amplitude
+
+        # get phase within -180..180
+        phase = eta_phase
+        while phase > 180:
+            phase = phase - 360
+        while phase < -180:
+            phase = phase + 360
+
+        # now set all the PV's
+        self.set_center_frequency_mhz_channel(band, channel, freq)
+        self.set_amplitude_scale_channel(band, channel, ampl)
+        self.set_eta_phase_degree_channel(band, channel, phase)
+        self.set_eta_mag_scaled_channel(band, channel, eta_mag)
+
+        return
 
     def which_on(self, band):
         '''
