@@ -7,7 +7,7 @@ import os
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
 import pysmurf
 
-cfg_filename = 'experiment_k7_18.cfg'
+cfg_filename = 'experiment_kx_mapodaq.cfg'
 
 
 """
@@ -220,7 +220,7 @@ if __name__ == "__main__":
     n_cmds = (args.log is not None) + args.tes_bias + args.slow_iv + \
         args.tune + args.start_acq + args.stop_acq + \
         args.last_tune + (args.use_tune is not None) + args.tes_bump + \
-        args.soft_reset + args.make_runfile
+        args.soft_reset + args.make_runfile + args.setup
     if n_cmds > 1:
         sys.exit(0)
 
@@ -315,7 +315,7 @@ if __name__ == "__main__":
             make_runfile(S.output_dir, num_rows=args.num_rows,
                 data_rate=args.data_rate, row_len=args.row_len,
                 num_rows_reported=args.num_rows_reported)
-    
+            # why are we making a runfile though? do we intend to dump it? 
 
     if args.stop_acq:
         stop_acq(S)
