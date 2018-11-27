@@ -147,6 +147,9 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
         # The resistance in line with the TES bias
         self.bias_line_resistance = self.config.get('bias_line_resistance')
 
+        # The TES shunt resistance
+        self.R_sh = self.config.get('R_sh')
+
         # The ratio of current for high-current mode to low-current mode;
         # also the inverse of the in-line resistance for the bias lines.
         self.high_low_current_ratio = self.config.get('high_low_current_ratio')
