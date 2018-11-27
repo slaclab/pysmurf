@@ -89,13 +89,14 @@ class SmurfIVMixin(SmurfBase):
             '_iv_raw_data.npy')
         np.save(os.path.join(self.output_dir, fn_iv_raw_data), iv_raw_data)
 
+        R_sh=self.R_sh
         self.analyze_slow_iv_from_file(fn_iv_raw_data, make_plot=make_plot,
-            show_plot=show_plot, save_plot=save_plot, R_sh=3e-3, 
+            show_plot=show_plot, save_plot=save_plot, R_sh=R_sh, 
             high_current_mode=high_current_mode, rn_accept_min=rn_accept_min,
             rn_accept_max=rn_accept_max, gcp_mode=gcp_mode,grid_on=grid_on)
 
     def analyze_slow_iv_from_file(self, fn_iv_raw_data, make_plot=True,
-        show_plot=False, save_plot=True, R_sh=3e-3, high_current_mode=False,
+        show_plot=False, save_plot=True, R_sh=None, high_current_mode=False,
         rn_accept_min = 1e-3, rn_accept_max = 1., phase_excursion_min=3.,
                                   grid_on = False,gcp_mode=True):
         """
@@ -120,7 +121,6 @@ class SmurfIVMixin(SmurfBase):
             timestamp, phase_all = self.read_stream_data_gcp_save(datafile)
         else:
             timestamp, phase_all = self.read_stream_data(datafile)
-        #phase_all *= 1.443
         
         rn_list = []
         phase_excursion_list = []
@@ -218,7 +218,7 @@ class SmurfIVMixin(SmurfBase):
                 plt.close()
 
     def analyze_slow_iv(self, v_bias, resp, make_plot=True, show_plot=False,
-        save_plot=True, basename=None, band=None, channel=None, R_sh=3e-3,
+        save_plot=True, basename=None, band=None, channel=None, R_sh=None,
         plot_dir = None,high_current_mode = False,bias_group = None,grid_on = False,**kwargs):
         """
         Analyzes the IV curve taken with slow_iv()
@@ -236,6 +236,10 @@ class SmurfIVMixin(SmurfBase):
         idx (int array): 
         R_sh (float): Shunt resistance
         """
+
+        if R_sh is None:
+            R_sh=self.R_sh
+
         resp *= self.pA_per_phi0/(2.*np.pi*1e6) # convert phase to uA
 
         n_pts = len(resp)
@@ -245,8 +249,6 @@ class SmurfIVMixin(SmurfBase):
 
         resp_bin = np.zeros(n_step)
 
-        #r_inline = 26.66e3 # for K7; estimate from Dan (Oct. 10, 2018)
-        # r_inline = 8.e3 # for FP Run 28; estimate from SWH (Oct. 19, 2018)
         r_inline = self.bias_line_resistance
         if high_current_mode:
             # high-current mode generates higher current by decreases the in-line resistance
