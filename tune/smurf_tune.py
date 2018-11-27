@@ -1205,6 +1205,10 @@ class SmurfTuneMixin(SmurfBase):
     def flux_ramp_setup(self, reset_rate_khz, fraction_full_scale, band = 2, 
 	df_range=.1, do_read=False):
         """
+        Set flux ramp sawtooth rate and amplitude. If there are errors, check 
+        that you are using an allowed reset rate! Not all rates are allowed.
+
+        Allowed rates: 1, 2, 3, 4, 5, 6, 8, 10, 12, 15 kHz
         """
         # Disable flux ramp
         self.flux_ramp_off() # no write log?
@@ -1280,7 +1284,7 @@ class SmurfTuneMixin(SmurfBase):
         self.set_fast_slow_step_size(FastSlowStepSize)
         self.set_fast_slow_rst_value(FastSlowRstValue)
         self.set_enable_ramp_trigger(EnableRampTrigger)
-
+        self.set_ramp_rate(reset_rate_khz) # also set timing trigger
 
 
 

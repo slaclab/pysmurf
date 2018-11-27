@@ -1181,4 +1181,34 @@ class SmurfUtilMixin(SmurfBase):
             np.where(self.att_to_band['band']==band))[0]]
 
 
+    def flux_ramp_rate_to_PV(self, val):
+        """
+        Convert between the desired flux ramp reset rate and the PV number
+        for the timing triggers.
 
+        Hardcoded somewhere that we can't access; this is just a lookup table
+        Allowed reset rates (kHz): 1, 2, 3, 4, 5, 6, 8, 10, 12, 15
+
+        Returns:
+        rate_sel (int): the rate sel PV for the timing trigger
+        """
+
+        rates_kHz = np.array([15, 12, 10, 8, 6, 5, 4, 3, 2, 1])
+
+        try:
+            idx = np.where(rates_kHz == val)[0][0] # weird numpy thing sorry
+            return idx
+        except IndexError:
+            print("Reset rate not allowed! Look up help for allowed values")
+            return
+
+    def flux_ramp_PV_to_rate(self, val):
+        """
+        Convert between PV number in timing triggers and output flux ramp reset rate
+
+        Returns:
+        reset_rate (int): the flux ramp reset rate, in kHz
+        """
+
+        rates_kHz = [15, 12, 10, 8, 6, 5, 4, 3, 2, 1]
+        return rates_kHz[val]  

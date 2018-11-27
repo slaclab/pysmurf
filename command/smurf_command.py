@@ -1413,6 +1413,35 @@ class SmurfCommandMixin(SmurfBase):
         return self._caget(self.rtm_cryo_det_root + self._ramp_start_mode, 
             **kwargs)
 
+    timing_crate_root = ":AMCc:FpgaTopLevel:AmcCarrierCore:AmcCarrierTiming:EvrV2CoreTriggers"
+    _trigger_rate_sel = ":EvrV2ChannelReg[0]:RateSel" 
+    def set_ramp_rate(self, val, **kwargs):
+        """
+        flux ramp sawtooth reset rate in kHz
+
+        Allowed rates: 1, 2, 3, 4, 5, 6, 8, 10, 12, 15kHz (hardcoded by timing)
+        """
+        rate_sel = self.flux_ramp_rate_to_PV(val)
+
+        if rate_sel is not None:
+            self._caput(self.epics_root + self.timing_crate_root + 
+                self._trigger_rate_sel, rate_sel, **kwargs)
+        else:
+            print("Rate requested is not allowed by timing triggers. Allowed rates are 1, 2, 3, 4, 5, 6, 8, 10, 12, 15kHz only")
+
+    def get_ramp_rate(self, **kwargs):
+        """
+        flux ramp sawtooth reset rate in kHz
+        """
+
+        rate_sel = self._caget(self.epics_root + self.timing_crate_root + 
+            self._trigger_rate_sel, **kwargs)
+
+        reset_rate = self.flux_ramp_PV_to_rate(rate_sel)
+
+        return reset_rate
+
+
     _pulse_width = 'PulseWidth'
     def set_pulse_width(self, val, **kwargs):
         """
