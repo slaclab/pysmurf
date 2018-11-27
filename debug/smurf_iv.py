@@ -1,7 +1,7 @@
 import numpy as np
 from pysmurf.base import SmurfBase
 import time
-import os
+import os,sys
 
 class SmurfIVMixin(SmurfBase):
 
@@ -60,9 +60,12 @@ class SmurfIVMixin(SmurfBase):
         self.log('writing to {}'.format(datafile))
 
         for b in bias:
-            self.log('Bias at {:4.3f}'.format(b))
+            #self.log('Bias at {:4.3f}'.format(b))
+            sys.stdout.write('\rBias at {:4.3f} V\033[K'.format(b))
+            sys.stdout.flush()
             self.set_tes_bias_bipolar(bias_group, b)  
             time.sleep(wait_time)
+        sys.stdout.write('\n')
 
         self.log('Done with TES bias ramp', self.LOG_USER)
 
