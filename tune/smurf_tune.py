@@ -359,7 +359,7 @@ class SmurfTuneMixin(SmurfBase):
 
     def full_band_resp(self, band, n_scan=1, n_samples=2**19, make_plot=False, 
         save_plot=True, save_data=False, timestamp=None, save_raw_data=False,
-        correct_att=True, swap=False):
+        correct_att=True, swap=False, hw_trigger=True):
         """
         Injects high amplitude noise with known waveform. The ADC measures it.
         The cross correlation contains the information about the resonances.
@@ -391,17 +391,17 @@ class SmurfTuneMixin(SmurfBase):
 
             self.set_noise_select(band, 1, wait_done=True, write_log=True)
             try:
-                adc = self.read_adc_data(band, n_samples, hw_trigger=True)
+                adc = self.read_adc_data(band, n_samples, hw_trigger=hw_trigger)
             except Exception:
                 self.log('ADC read failed. Trying one more time', self.LOG_ERROR)
-                adc = self.read_adc_data(band, n_samples, hw_trigger=True)
+                adc = self.read_adc_data(band, n_samples, hw_trigger=hw_trigger)
             time.sleep(.05)  # Need to wait, otherwise dac call interferes with adc
 
             try:
-                dac = self.read_dac_data(band, n_samples, hw_trigger=True)
+                dac = self.read_dac_data(band, n_samples, hw_trigger=hw_trigger)
             except:
                 self.log('ADC read failed. Trying one more time', self.LOG_ERROR)
-                dac = self.read_dac_data(band, n_samples, hw_trigger=True)
+                dac = self.read_dac_data(band, n_samples, hw_trigger=hw_trigger)
             time.sleep(.05)
 
             self.set_noise_select(band, 0, wait_done=True, write_log=True)
