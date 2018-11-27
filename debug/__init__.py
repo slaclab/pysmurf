@@ -1,3 +1,3 @@
 '''
-init for util dir
+init for debug dir
 '''
