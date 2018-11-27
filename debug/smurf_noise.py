@@ -264,40 +264,66 @@ class SmurfNoiseMixin(SmurfBase):
                 step_size *= -1
             bias = np.arange(bias_high, bias_low-np.absolute(step_size), step_size)
 
+        self.noise_vs(band=band,bias_group=bias_group,var='bias',var_range=bias,
+                 meas_time=meas_time, analyze=analyze, channel=channel, nperseg=nperseg,
+                 detrend=detrend, fs=fs, show_plot=show_plot,
+                 gcp_mode=gcp_mode, psd_ylim=psd_ylim,
+                 cool_wait=cool_wait, high_current_mode=high_current_mode)
+
+    def noise_vs(self, band, var, var_range, 
+                 meas_time=30, analyze=False, channel=None, nperseg=2**13,
+                 detrend='constant', fs=None, show_plot=False,
+                 gcp_mode=True, psd_ylim=None,
+                 **kwargs):
+
+        # aliases
+        biasaliases=['bias']
+
+        # vs TES bias
+        if var in biasaliases:  
+            # requirement
+            assert ('bias_group' in kwargs.keys()),'Must specify bias_group.'
+            # defaults
+            if 'high_current_mode' not in kwargs.keys():
+                kwargs['high_current_mode']=False
+            if 'cool_wait' not in kwargs.keys():
+                kwargs['cool_wait']=30.
+                
         psd_dir = os.path.join(self.output_dir, 'psd')
         self.make_dir(psd_dir)
 
-
         timestamp = self.get_timestamp()
         np.savetxt(os.path.join(psd_dir, '{}_bias.txt'.format(timestamp)),
-            bias)
+            var_range)
         datafiles = np.array([], dtype=str)
 
-        for b in bias:
-            self.log('Bias {}'.format(b))
-            self.overbias_tes(bias_group, tes_bias=b, 
-                              high_current_mode=high_current_mode,
-                              cool_wait=cool_wait)
+        for v in var_range:
+            if var in biasaliases:
+                self.log('Bias {}'.format(v))
+                self.overbias_tes(kwargs['bias_group'], tes_bias=v, 
+                                  high_current_mode=kwargs['high_current_mode'],
+                                  cool_wait=kwargs['cool_wait'])
 
             self.log('Taking data')
             datafile = self.take_stream_data(band, meas_time,gcp_mode = gcp_mode)
             datafiles = np.append(datafiles, datafile)
             self.log('datafile {}'.format(datafile))
+            
+        self.log('Done with noise vs %s'%(var))
 
-        self.log('Done with noise vs bias')
         np.savetxt(os.path.join(psd_dir, '{}_datafiles.txt'.format(timestamp)),
             datafiles, fmt='%s')
 
         if analyze:
-            self.analyze_noise_vs_bias(bias, datafiles, channel=channel, 
-                band=band, bias_group = bias_group,nperseg=nperseg, detrend=detrend, fs=fs, 
+            self.analyze_noise_vs_bias(var_range, datafiles, channel=channel, 
+                band=band, bias_group = kwargs['bias_group'], nperseg=nperseg, detrend=detrend, fs=fs, 
                 save_plot=True, show_plot=show_plot, data_timestamp=timestamp,
                 gcp_mode=gcp_mode,psd_ylim=psd_ylim)
 
     def analyze_noise_vs_bias(self, bias, datafile, channel=None, band=None,
         nperseg=2**13, detrend='constant', fs=None, save_plot=True, 
         show_plot=False, make_timestream_plot=False, data_timestamp=None,
-        psd_ylim = None,gcp_mode = True,bias_group=None):
+        psd_ylim = None,gcp_mode = True,bias_group=None,smooth_len=7):
         """
         Analysis script associated with noise_vs_bias.
 
@@ -318,6 +344,7 @@ class SmurfNoiseMixin(SmurfBase):
         save_plot (bool): Whether to save the plot. Default is True.
         show_plot (bool): Whether to how the plot. Default is False.
         data_timestamp (str): The string used as a save name. Default is None.
+        smooth_len (int): length of window over which to smooth PSDs for plotting
         """
         import matplotlib.pyplot as plt
 
@@ -387,9 +414,21 @@ class SmurfNoiseMixin(SmurfBase):
 
                 f, Pxx =  np.loadtxt(os.path.join(psd_dir, basename + 
                     '_psd_ch{:03}.txt'.format(ch)))
+                # smooth Pxx for plotting
+                if smooth_len >= 3:
+                    window_len = smooth_len
+                    self.log('Smoothing PSDs for plotting with window of length %i' % (window_len))
+                    s = np.r_[Pxx[window_len-1:0:-1],Pxx,Pxx[-2:-window_len-1:-1]]
+                    w = np.hanning(window_len)
+                    Pxx_smooth_ext = np.convolve(w/w.sum(),s,mode='valid')
+                    ndx_add = window_len % 2
+                    Pxx_smooth = Pxx_smooth_ext[(window_len//2)-1+ndx_add:-(window_len//2)-1+ndx_add]
+                else:
+                    self.log('No smoothing of PSDs for plotting.')
+                    Pxx_smooth = Pxx
 
                 color = cm(float(i)/len(bias))
-                ax[0].plot(f, Pxx, color=color, label='{:.2f} V'.format(b))
+                ax[0].plot(f, Pxx_smooth, color=color, label='{:.2f} V'.format(b))
                 ax[0].set_xlim(min(f[1:]),max(f[1:]))
                 ax[0].set_ylim(psd_ylim)
                 # fit to noise model; catch error if fit is bad
