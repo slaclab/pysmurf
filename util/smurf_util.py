@@ -330,7 +330,7 @@ class SmurfUtilMixin(SmurfBase):
             return data_filename
 
     def set_gcp_datafile(self, data_filename, num_averages=0, receiver_ip='192.168.3.1',
-                         port_number='3334', data_frames=1000000):
+                         port_number='#3334', data_frames=1000000):
         """
         """
         config_dir = self.config.get('smurf2mce_cfg_dir')
@@ -444,9 +444,10 @@ class SmurfUtilMixin(SmurfBase):
             #timestamp_s   = [i[keys['timestamp_s']] for i in frames]
             #timestamp_ns  = [i[keys['timestamp_ns']] for i in frames]
 
-            phase = np.zeros((4096, len(frames)))
-            for i in range(4096):
-                phase[i,:] = np.asarray([j[keys_dict[f'data{i}']] for j in 
+            phase = np.zeros((512, len(frames)))
+            for i in range(512):
+                k = i + 1024
+                phase[i,:] = np.asarray([j[keys_dict[f'data{k}']] for j in 
                     frames])
 
             phase = phase.astype(float) / 2**15 * np.pi # scale to rad
