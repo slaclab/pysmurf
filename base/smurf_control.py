@@ -112,6 +112,14 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
             self.att_to_band['band'][i] = att_cfg[k]
             self.att_to_band['att'][i] = int(k[-1])
 
+        # Cold amplifier biases
+        amp_cfg = self.config.get('amplifier')
+        keys = amp_cfg.keys()
+        if 'hemt_Vg' in keys:
+            self.hemt_Vg=amp_cfg['hemt_Vg']
+        if 'LNA_Vg' in keys:
+            self.LNA_Vg=amp_cfg['LNA_Vg']
+
         # Mapping from chip number to frequency in GHz
         chip_cfg = self.config.get('chip_to_freq')
         keys = chip_cfg.keys()

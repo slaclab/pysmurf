@@ -1076,21 +1076,86 @@ class SmurfUtilMixin(SmurfBase):
             return volts_pos - volts_neg
 
 
-    def set_amplifier_bias(self, bias_hemt=.54, bias_50k=-.71, **kwargs):
+    def set_amplifier_bias(self, bias_hemt=None, bias_50k=None, **kwargs):
         """
-        Sets the HEMT and 50 K amp voltages.
+        Sets the HEMT and 50 K amp (if present) voltages.  If no
+        arguments given, looks for default biases in cfg
+        (amplifier:hemt_Vg and amplifier:LNA_Vg).  If nothing found in
+        cfg file, does nothing to either bias.  Enable is written to
+        both amplifier bias DACs regardless of whether or not they are
+        set to new values - need to check that this is ok.  If user
+        specifies values those override cfg file defaults.  Prints
+        resulting amplifier biases at the end with a short wait in
+        case there's latency between setting and reading.
 
         Opt Args:
         ---------
         bias_hemt (float): The HEMT bias voltage in units of volts
         bias_50k (float): The 50K bias voltage in units of volts
-
         """
-        self.set_hemt_enable(**kwargs)
-        self.set_50k_amp_enable(**kwargs)
 
-        self.set_hemt_gate_voltage(bias_hemt, **kwargs)
-        self.set_50k_amp_gate_voltage(bias_50k, **kwargs)
+        ############################################################################
+        ### 4K HEMT
+        self.set_hemt_enable(**kwargs)
+        # if nothing specified take default from cfg file, if 
+        # it's specified there
+        bias_hemt_from_cfg=False
+        if bias_hemt is None and hasattr(self,'hemt_Vg'):
+            bias_hemt=self.hemt_Vg
+            bias_hemt_from_cfg=True
+        # if user gave a value or value was found in cfg file,
+        # set it and tell the user
+        if not bias_hemt is None:
+            if bias_hemt_from_cfg:
+                self.log('Setting HEMT LNA Vg from config file to Vg={0:.{1}f}'.format(bias_hemt, 4), 
+                         self.LOG_USER)
+            else:
+                self.log('Setting HEMT LNA Vg to requested Vg={0:.{1}f}'.format(bias_hemt, 4), 
+                         self.LOG_USER)
+
+            self.set_hemt_gate_voltage(bias_hemt, **kwargs)
+
+        # otherwise do nothing and warn the user
+        else:
+            self.log('No value specified for 50K LNA Vg and didn\'t find a default in cfg (amplifier[\'hemt_Vg\']).', 
+                     self.LOG_ERROR)
+        ### done with 4K HEMT
+        ############################################################################
+
+        ############################################################################
+        ### 50K LNA (if present - could make this smarter and more general)
+        self.set_50k_amp_enable(**kwargs)
+        # if nothing specified take default from cfg file, if 
+        # it's specified there
+        bias_50k_from_cfg=False
+        if bias_50k is None and hasattr(self,'LNA_Vg'):
+            bias_50k=self.LNA_Vg
+            bias_50k_from_cfg=True
+        # if user gave a value or value was found in cfg file,
+        # set it and tell the user
+        if not bias_50k is None:
+            if bias_50k_from_cfg:
+                self.log('Setting 50K LNA Vg from config file to Vg={0:.{1}f}'.format(bias_50k, 4), 
+                         self.LOG_USER)
+            else:
+                self.log('Setting 50K LNA Vg to requested Vg={0:.{1}f}'.format(bias_50k, 4), 
+                         self.LOG_USER)
+
+            self.set_50k_amp_gate_voltage(bias_50k, **kwargs)
+
+        # otherwise do nothing and warn the user
+        else:
+            self.log('No value specified for 50K LNA Vg and didn\'t find a default in cfg (amplifier[\'LNA_Vg\']).', 
+                     self.LOG_ERROR)
+        ### done with 50K LNA
+        ############################################################################
+
+        #print amplifier biases after setting Vgs
+        self.print_amplifier_bias()
+
+
+    # alias
+    set_amplifier_biases=set_amplifier_bias
 
     def print_amplifier_biases(self, write_log=False):
         # for printout
@@ -1115,6 +1180,9 @@ class SmurfUtilMixin(SmurfBase):
 
         if write_log:
             self.log((("{: >20}"*len(s)).rstrip()).format(*s))
+
+    # alias
+    print_amplifier_bias=print_amplifier_biases
 
     def get_hemt_drain_current(self, hemt_offset=.100693):
         """

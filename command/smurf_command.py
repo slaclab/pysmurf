@@ -1574,14 +1574,12 @@ class SmurfCommandMixin(SmurfBase):
 
     def set_50k_amp_enable(self, disable=False, **kwargs):
         """
-        Sets the 50K amp bit to 2 for enable and 0 for disable. Also 
-        automatically sets the gate voltage to 0.
+        Sets the 50K amp bit to 2 for enable and 0 for disable.
 
         Opt Args:
         ---------
         disable (bool) : Disable the 50K amplifier. Default False.
         """
-        self.set_50k_amp_gate_voltage(0, wait_done=True, **kwargs)
         if disable:
             self.set_tes_bias_enable(self._dac_num_50k, 0, **kwargs)
         else:
@@ -1747,17 +1745,17 @@ class SmurfCommandMixin(SmurfBase):
         """
         return self._caget(self.rtm_cryo_det_root + self._pulse_width, **kwargs)
 
+    # can't write a get for this right now because read back isn't implemented
+    # I think...
     _hemt_v_enable = 'HemtBiasDacCtrlRegCh[33]'
-    def set_hemt_enable(self, disable=False, **kwargs):
+    def set_hemt_enable(self, disable=False, zero_gate=False, **kwargs):
         """
-        Sets bit to 2 for enable and 0 for disable. Also automatically sets 
-        HEMT gate voltage to 0.
+        Sets bit to 2 for enable and 0 for disable.
 
         Opt Args:
         ---------
         disable (bool): If True, sets the bit to 0. 
         """
-        self.set_hemt_gate_voltage(0, wait_done=True, **kwargs)
         if disable:
             self._caput(self.rtm_spi_max_root + self._hemt_v_enable, 0, 
                 **kwargs)
