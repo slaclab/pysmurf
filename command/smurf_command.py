@@ -601,6 +601,13 @@ class SmurfCommandMixin(SmurfBase):
         return self._caget(self._band_root(band) + self._feedback_enable, 
             **kwargs)
 
+    _loop_filter_output_array = 'loopFilterOutputArray'
+    def get_loop_filter_output_array(self, band, **kwargs):
+        """
+        """
+        return self._caget(self._cryo_root(band) + self._loop_filter_output_array, 
+            **kwargs)
+
     _center_frequency_array = 'centerFrequencyArray'
     def set_center_frequency_array(self, band, val, **kwargs):
         """
