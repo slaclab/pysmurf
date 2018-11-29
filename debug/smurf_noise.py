@@ -320,18 +320,45 @@ class SmurfNoiseMixin(SmurfBase):
                 save_plot=True, show_plot=show_plot, data_timestamp=timestamp,
                 gcp_mode=gcp_mode,psd_ylim=psd_ylim)
 
+    def get_datafiles_from_file(self,fn_datafiles):
+        '''
+        For, e.g., noise_vs_bias, the list of datafiles is recorded in a txt file. This function
+        simply extracts those filenames and returns them as a list.
+        fn_datafiles (str): full path to txt containing names of data files
+        Returns: datafiles (list): strings of data-file names.
+        '''
+        datafiles = []
+        f_datafiles = open(fn_datafiles,'r')
+        for line in f_datafiles:
+            datafiles.append(line.split()[0])
+        return datafiles
+
+    def get_biases_from_file(self,fn_biases):
+        '''
+        For, e.g., noise_vs_bias, the list of commanded bias voltages is recorded in a txt file.
+        This function simply extracts those values and returns them as a list.
+        fn_biases (str): full path to txt containing list of bias voltages
+        Returns biases (list): floats of commanded bias voltages
+        '''
+        biases = []
+        f_biases = open(fn_biases,'r')
+        for line in f_biases:
+            biases.append(float(line.split()[0]))
+        return biases
+
     def analyze_noise_vs_bias(self, bias, datafile, channel=None, band=None,
         nperseg=2**13, detrend='constant', fs=None, save_plot=True, 
         show_plot=False, make_timestream_plot=False, data_timestamp=None,
-        psd_ylim = None,gcp_mode = True,bias_group=None,smooth_len=7):
+        psd_ylim = None,gcp_mode = True,bias_group=None,smooth_len=7,
+        show_legend=True):
         """
         Analysis script associated with noise_vs_bias.
 
         Args:
         -----
-        bias (float array): The bias in voltage.
+        bias (float array): The bias in voltage. Can also pass an absolute path to a txt containing the bias points.
         datafile (str array): The paths to the datafiles. Must be same length 
-            as bias array.
+            as bias array. Can also pass an absolute path to a txt containing the names of the datafiles.
 
         Opt Args:
         ---------
@@ -360,6 +387,14 @@ class SmurfNoiseMixin(SmurfBase):
             self.log('No flux ramp freq given. Loading current flux ramp' +
                 'frequency', self.LOG_USER)
             fs = self.get_flux_ramp_freq()*1.0E3
+
+        if isinstance(bias,str):
+            self.log('Biases being read from file: %s' % (bias))
+            bias = self.get_biases_from_file(bias)
+        
+        if isinstance(datafile,str):
+            self.log('Noise data files being read from file: %s' % (datafile))
+            datafile = self.get_datafiles_from_file(datafile)
 
         # Analyze data and save
         for i, (b, d) in enumerate(zip(bias, datafile)):
@@ -422,7 +457,7 @@ class SmurfNoiseMixin(SmurfBase):
                     w = np.hanning(window_len)
                     Pxx_smooth_ext = np.convolve(w/w.sum(),s,mode='valid')
                     ndx_add = window_len % 2
-                    Pxx_smooth = Pxx_smooth_ext[(window_len//2)-1+ndx_add:-(window_len//2)-1+ndx_add]
+                    Pxx_smooth = Pxx_smooth_ext[(window_len//2)-1+ndx_add:-(window_len//2)]
                 else:
                     self.log('No smoothing of PSDs for plotting.')
                     Pxx_smooth = Pxx
@@ -452,7 +487,8 @@ class SmurfNoiseMixin(SmurfBase):
             ax[0].set_ylabel(r'PSD [$\mathrm{pA}/\sqrt{\mathrm{Hz}}$]')
             ax[0].set_xscale('log')
             ax[0].set_yscale('log')
-            ax[0].legend(loc = 'upper right')
+            if show_legend:
+                ax[0].legend(loc = 'upper right')
             res_freq = self.channel_to_freq(band, ch)
 
             ax[1].set_xlabel(r'Commanded bias voltage [V]')
