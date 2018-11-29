@@ -1149,8 +1149,10 @@ class SmurfUtilMixin(SmurfBase):
                      self.LOG_ERROR)
         ### done with 50K LNA
         ############################################################################
-
-        #print amplifier biases after setting Vgs
+        
+        # add some latency in case PIC needs it 
+        time.sleep(1)
+        # print amplifier biases after setting Vgs
         self.print_amplifier_bias()
 
 
