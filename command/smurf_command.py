@@ -1105,6 +1105,18 @@ class SmurfCommandMixin(SmurfBase):
         return self._caget(self.jesd_rx_root + self._link_disable, val, 
             **kwargs)
 
+    _jesd_rx_enable = 'Enable'
+    def get_jesd_rx_enable(self, **kwargs):
+        """
+        """
+        return self._caget(self.jesd_rx_root + self._jesd_rx_enable, **kwargs)
+
+    _jesd_rx_valid = 'DataValid'
+    def get_jesd_rx_data_valid(self, **kwargs):
+        """
+        """
+        return self._caget(self.jesd_rx_root + self._jesd_rx_valid, **kwargs)
+
     _jesd_tx_enable = 'Enable'
     def get_jesd_tx_enable(self, **kwargs):
         '''
@@ -1113,7 +1125,7 @@ class SmurfCommandMixin(SmurfBase):
 
     _jesd_tx_valid = 'DataValid'
     def get_jesd_tx_data_valid(self, **kwargs):
-        return self._caget(self.jesd_tx_root + self._jesd_tx_enable, **kwargs)
+        return self._caget(self.jesd_tx_root + self._jesd_tx_valid, **kwargs)
 
     # _start_addr = 'StartAddr[{}]'
     # def set_start_addr(self, b, val, **kwargs):

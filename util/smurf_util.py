@@ -678,9 +678,9 @@ class SmurfUtilMixin(SmurfBase):
         git_hash = ''.join([chr(y) for y in git_hash]) # convert from int to ascii
         build_stamp = ''.join([chr(y) for y in build_stamp])
 
-        self.log("Build stamp: " + str(build_stamp) + "\n", self.LOG_USER)
-        self.log("FPGA version: Ox" + str(fpga_version) + "\n", self.LOG_USER)
-        self.log("FPGA uptime: " + str(uptime) + "\n", self.LOG_USER)
+        self.log("Build stamp: " + str(build_stamp), self.LOG_USER)
+        self.log("FPGA version: Ox" + str(fpga_version), self.LOG_USER)
+        self.log("FPGA uptime: " + str(uptime), self.LOG_USER)
 
         jesd_tx_enable = self.get_jesd_tx_enable()
         jesd_tx_valid = self.get_jesd_tx_data_valid()
@@ -689,6 +689,15 @@ class SmurfUtilMixin(SmurfBase):
         else:
             self.log("JESD Tx Okay", self.LOG_USER)
 
+        jesd_rx_enable = self.get_jesd_rx_enable()
+        jesd_rx_valid = self.get_jesd_rx_data_valid()
+        if jesd_rx_enable != jesd_rx_valid:
+            self.log("JESD Rx DOWN", self.LOG_USER)
+        else:
+            self.log("JESD Rx Okay", self.LOG_USER)
+
+        
+
         # dict containing all values
         ret = {
             'uptime' : uptime,
@@ -696,7 +705,9 @@ class SmurfUtilMixin(SmurfBase):
             'git_hash' : git_hash,
             'build_stamp' : build_stamp,
             'jesd_tx_enable' : jesd_tx_enable,
-            'jesd_tx_valid' : jesd_tx_valid
+            'jesd_tx_valid' : jesd_tx_valid,
+            'jesd_rx_enable': jesd_rx_enable,
+            'jesd_rx_valid' : jesd_rx_valid,
         }
 
         return ret
