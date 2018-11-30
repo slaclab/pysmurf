@@ -1122,7 +1122,7 @@ class SmurfUtilMixin(SmurfBase):
             r = np.ravel(self.pic_to_bias_group[np.where(
                 self.pic_to_bias_group[:,1]==bias_group)])[0]
         else:
-            r = bias_groups
+            r = bias_group
         new_relay = (1 << r) | old_relay
         self.log('New relay {}'.format(bin(new_relay)))
         self.set_cryo_card_relays(new_relay, write_log=True)
