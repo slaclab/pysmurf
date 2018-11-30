@@ -86,6 +86,12 @@ class SmurfBase(object):
         self.rtm_spi_cryo_root = self.rtm_cryo_det_root + \
             'SpiCryo:'
 
+        # Timing paths
+        self.trigger_root = self.epics_root + \
+            ':AMCc:FpgaTopLevel:AmcCarrierCore:AmcCarrierTiming:' + \
+            'EvrV2CoreTriggers:'
+
+
         self.C = CryoCard(self.rtm_spi_cryo_root + 'read', 
             self.rtm_spi_cryo_root + 'write')
         self.freq_resp = {}

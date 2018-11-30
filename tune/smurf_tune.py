@@ -1095,7 +1095,7 @@ class SmurfTuneMixin(SmurfBase):
 
 
     def tracking_setup(self, band, channel, reset_rate_khz=4., write_log=False, 
-        do_Plots = False):
+        do_plots=False):
         """
         Args:
         -----
@@ -1141,7 +1141,7 @@ class SmurfTuneMixin(SmurfBase):
 
         self.flux_ramp_on(write_log=write_log)
 
-        if do_Plots:
+        if do_plots:
             import matplotlib.pyplot as plt
 
         # take one dataset with all channels
@@ -1161,7 +1161,7 @@ class SmurfTuneMixin(SmurfBase):
         self.log("Flux ramp demod. median p2p swing = "+
             "{} kHz".format(np.median(f_span[channels_on]) * 1e3), self.LOG_USER)
 
-        if do_Plots:
+        if do_plots:
             plt.figure()
             plt.hist(df_std[channels_on] * 1e3)            
             plt.xlabel('Flux ramp demod error std (kHz)')
@@ -1199,17 +1199,19 @@ class SmurfTuneMixin(SmurfBase):
 
         self.set_iq_stream_enable(band, 1, write_log=write_log)
 
-        if do_Plots: # for debugging; later probably want to save
+        if do_plots: # for debugging; later probably want to save
             plt.show()
 
     def flux_ramp_setup(self, reset_rate_khz, fraction_full_scale, band = 2, 
-	df_range=.1, do_read=False):
+	df_range=.1, do_read=False, write_log=False):
         """
         Set flux ramp sawtooth rate and amplitude. If there are errors, check 
         that you are using an allowed reset rate! Not all rates are allowed.
 
         Allowed rates: 1, 2, 3, 4, 5, 6, 8, 10, 12, 15 kHz
         """
+        flux_ramp_bit_depth = 32
+
         # Disable flux ramp
         self.flux_ramp_off() # no write log?
         #self.set_cfg_reg_ena_bit(0) # let us switch this to flux ramp on/off
@@ -1229,11 +1231,11 @@ class SmurfTuneMixin(SmurfBase):
         trialRTMClock = rtmClock
 
         fullScaleRate = fraction_full_scale * resetRate
-        desFastSlowStepSize = (fullScaleRate * 2**32) / rtmClock
+        desFastSlowStepSize = (fullScaleRate * 2**flux_ramp_bit_depth) / rtmClock
         trialFastSlowStepSize = round(desFastSlowStepSize)
         FastSlowStepSize = trialFastSlowStepSize
 
-        trialFullScaleRate = trialFastSlowStepSize * trialRTMClock / (2**32)
+        trialFullScaleRate = trialFastSlowStepSize * trialRTMClock / (2**flux_ramp_bit_depth)
         trialResetRate = (dspClockFrequencyMHz * 1e6) / (rampMaxCnt + 1)
         trialFractionFullScale = trialFullScaleRate / trialResetRate
         fractionFullScale = trialFractionFullScale
@@ -1260,7 +1262,7 @@ class SmurfTuneMixin(SmurfBase):
                 self.LOG_USER)
             return
 
-        FastSlowRstValue = np.floor((2**32) * (1 - fractionFullScale)/2)
+        FastSlowRstValue = np.floor((2**flux_ramp_bit_depth) * (1 - fractionFullScale)/2)
 
         KRelay = 3 #where do these values come from
         SelectRamp = self.get_select_ramp() # from config file
@@ -1271,20 +1273,20 @@ class SmurfTuneMixin(SmurfBase):
         ModeControl = 0
         EnableRampTrigger = 1
 
-        self.set_low_cycle(LowCycle) #writelog?
-        self.set_high_cycle(HighCycle)
-        self.set_k_relay(KRelay)
-        self.set_ramp_max_cnt(rampMaxCnt)
-        self.set_select_ramp(SelectRamp)
-        self.set_ramp_start_mode(RampStartMode)
-        self.set_pulse_width(PulseWidth)
-        self.set_debounce_width(DebounceWidth)
-        self.set_ramp_slope(RampSlope)
-        self.set_mode_control(ModeControl)
-        self.set_fast_slow_step_size(FastSlowStepSize)
-        self.set_fast_slow_rst_value(FastSlowRstValue)
-        self.set_enable_ramp_trigger(EnableRampTrigger)
-        self.set_ramp_rate(reset_rate_khz) # also set timing trigger
+        self.set_low_cycle(LowCycle, write_log=write_log) #writelog?
+        self.set_high_cycle(HighCycle, write_log=write_log)
+        self.set_k_relay(KRelay, write_log=write_log)
+        self.set_ramp_max_cnt(rampMaxCnt, write_log=write_log)
+        self.set_select_ramp(SelectRamp, write_log=write_log)
+        self.set_ramp_start_mode(RampStartMode, write_log=write_log)
+        self.set_pulse_width(PulseWidth, write_log=write_log)
+        self.set_debounce_width(DebounceWidth, write_log=write_log)
+        self.set_ramp_slope(RampSlope, write_log=write_log)
+        self.set_mode_control(ModeControl, write_log=write_log)
+        self.set_fast_slow_step_size(FastSlowStepSize, write_log=write_log)
+        self.set_fast_slow_rst_value(FastSlowRstValue, write_log=write_log)
+        self.set_enable_ramp_trigger(EnableRampTrigger, write_log=write_log)
+        self.set_ramp_rate(reset_rate_khz, write_log=write_log) # also set timing trigger
 
 
 
