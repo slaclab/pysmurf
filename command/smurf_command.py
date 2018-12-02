@@ -6,8 +6,11 @@ from pysmurf.base import SmurfBase
 
 class SmurfCommandMixin(SmurfBase):
 
+
+    _global_poll_enable = ':AMCc:enable'
     def _caput(self, cmd, val, write_log=False, execute=True, wait_before=None,
-        wait_after=None, wait_done=True, log_level=0):
+        wait_after=None, wait_done=True, log_level=0, enable_poll=True, 
+        disable_poll=True):
         '''
         Wrapper around pyrogue lcaput. Puts variables into epics
 
@@ -19,6 +22,7 @@ class SmurfCommandMixin(SmurfBase):
         Optional Args:
         --------------
         write_log (bool) : Whether to log the data or not. Default False
+        log_level (int): 
         execute (bool) : Whether to actually execute the command. Defualt True.
         wait_before (int) : If not None, the number of seconds to wait before
             issuing the command
@@ -27,6 +31,9 @@ class SmurfCommandMixin(SmurfBase):
         wait_done (bool) : Wait for the command to be finished before returning.
             Default True.
         '''
+        if enable_poll:
+            epics.caput(self.epics_root + self._global_poll_enable, True)
+
         if wait_before is not None:
             if write_log:
                 self.log('Waiting {:3.2f} seconds before...'.format(wait_before),
@@ -49,8 +56,11 @@ class SmurfCommandMixin(SmurfBase):
             time.sleep(wait_after)
             self.log('Done waiting.', log_level)
 
+        if disable_poll:
+            epics.caput(self.epics_root + self._global_poll_enable, False)
+
     def _caget(self, cmd, write_log=False, execute=True, count=None,
-        log_level=0):
+        log_level=0, enable_poll=True, disable_poll=True):
         '''
         Wrapper around pyrogue lcaget. Gets variables from epics
 
@@ -65,6 +75,9 @@ class SmurfCommandMixin(SmurfBase):
         --------
         ret : The requested value
         '''
+        if enable_poll:
+            epics.caput(self.epics_root+ self._global_poll_enable, True)
+
         if write_log:
             self.log('caput ' + cmd, log_level)
 
@@ -75,6 +88,18 @@ class SmurfCommandMixin(SmurfBase):
             return ret
         else:
             return None
+
+        if disable_poll:
+            epics.caput(self.epics_root+ self._global_poll_enable, False)
+
+    def get_enable(self, **kwargs):
+        """
+        Returns the status of the global poll bit epics_root:AMCc:enable.
+        If False, pyrogue is not currently polling the server. PVs will 
+        not be updating.
+        """
+        return self._caget(self.epics_root + self._global_poll_enable, 
+                           enable_poll=False, disable_poll=False, **kwargs)
 
     _number_sub_bands = 'numberSubBands'
     def get_number_sub_bands(self, band, **kwargs):
@@ -1947,31 +1972,56 @@ class SmurfCommandMixin(SmurfBase):
             **kwargs)
 
     # Cryo card comands
-    def get_cryo_card_temp(self):
+    def get_cryo_card_temp(self, enable_poll=True, disable_poll=True):
         """
         Returns:
         --------
         temp (float): Temperature of the cryostat card in Celcius
         """
-        return self.C.read_temperature()
+        if enable_poll:
+            epics.caput(self.epics_root + self._global_poll_enable, True)
+        
+        T = self.C.read_temperature()
+        
+        if disable_poll:
+            epics.caput(self.epics_root + self._global_poll_enable, False)
+        
+        return T
+        
 
-    def get_cryo_card_hemt_bias(self):
+    def get_cryo_card_hemt_bias(self, enable_poll=True, disable_poll=True):
         """
         Returns:
         --------
         bias (float): The HEMT bias in volts
         """
-        return self.C.read_hemt_bias()
+        if enable_poll:
+            epics.caput(self.epics_root + self._global_poll_enable, True)
 
-    def get_cryo_card_50k_bias(self):
+        hemt_bias = self.C.read_hemt_bias()
+
+        if disable_poll:
+            epics.caput(self.epics_root + self._global_poll_enable, False)
+
+        return hemt_bias
+
+    def get_cryo_card_50k_bias(self, enable_poll=True, disable_poll=True):
         """
         Returns:
         --------
         bias (float): The 50K bias in volts
         """
-        return self.C.read_50k_bias()
+        if enable_poll:
+            epics.caput(self.epics_root + self._global_poll_enable, True)
 
-    def get_cryo_card_cycle_count(self):
+        bias = self.C.read_50k_bias()
+
+        if disable_poll:
+            epics.caput(self.epics_root + self._global_poll_enable, False)
+
+        return bias
+
+    def get_cryo_card_cycle_count(self, enable_poll=True, disable_poll=True):
         """
         Returns:
         --------
@@ -1980,15 +2030,24 @@ class SmurfCommandMixin(SmurfBase):
         self.log('Not doing anything because not implement in cryo_card.py')
         # return self.C.read_cycle_count()
 
-    def get_cryo_card_relays(self):
+    def get_cryo_card_relays(self, enable_poll=True, disable_poll=True):
         """
         Returns:
         --------
         relays (hex): The cryo card relays value
         """
-        return self.C.read_relays()
+        if enable_poll:
+            epics.caput(self.epics_root + self._global_poll_enable, True)
 
-    def set_cryo_card_relays(self, relay, write_log=False):
+        relay = self.C.read_relays()
+
+        if disable_poll:
+            epics.caput(self.epics_root + self._global_poll_enable, False)
+
+        return relay
+
+    def set_cryo_card_relays(self, relay, write_log=False, enable_poll=True,
+                             disable_poll=True):
         """
         Sets the cryo card relays
 
@@ -1998,9 +2057,18 @@ class SmurfCommandMixin(SmurfBase):
         """
         if write_log:
             self.log('Writing relay using cryo_card object. {}'.format(relay))
+
+        if enable_poll:
+            epics.caput(self.epics_root + self._global_poll_enable, True)
+
         self.C.write_relays(relay)
 
-    def set_cryo_card_delatch_bit(self, bit, write_log=False):
+        if disable_poll:
+            epics.caput(self.epics_root + self._global_poll_enable, True)
+
+
+    def set_cryo_card_delatch_bit(self, bit, write_log=False, enable_poll=True,
+                                  disable_poll=True):
         """
         Delatches the cryo card for a bit.
 
@@ -2008,10 +2076,17 @@ class SmurfCommandMixin(SmurfBase):
         -----
         bit (int): The bit to temporarily delatch
         """
+        if enable_poll:
+            epics.caput(self.epics_root + self._global_poll_enable, True)
+
         if write_log:
             self.log('Setting delatch bit using cryo_card ' +
                 'object. {}'.format(bit))
         self.C.delatch_bit(bit)
+
+        if disable_poll:
+            epics.caput(self.epics_root + self._global_poll_enable, False)
+
 
     _smurf_to_gcp_stream = 'userConfig[0]'  # bit for streaming
     def get_user_config0(self, as_binary=False, **kwargs):

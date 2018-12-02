@@ -1210,7 +1210,7 @@ class SmurfTuneMixin(SmurfBase):
 
         Allowed rates: 1, 2, 3, 4, 5, 6, 8, 10, 12, 15 kHz
         """
-        flux_ramp_bit_depth = 32
+        flux_ramp_bit_depth = 20
 
         # Disable flux ramp
         self.flux_ramp_off() # no write log?
@@ -1273,7 +1273,7 @@ class SmurfTuneMixin(SmurfBase):
         ModeControl = 0
         EnableRampTrigger = 1
 
-        self.set_low_cycle(LowCycle, write_log=write_log) #writelog?
+        self.set_low_cycle(LowCycle, write_log=write_log)
         self.set_high_cycle(HighCycle, write_log=write_log)
         self.set_k_relay(KRelay, write_log=write_log)
         self.set_ramp_max_cnt(rampMaxCnt, write_log=write_log)

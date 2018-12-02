@@ -147,6 +147,12 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
         # The resistance in line with the TES bias
         self.bias_line_resistance = self.config.get('bias_line_resistance')
 
+        # The smurf to mce config data
+        smurf_to_mce_cfg = self.config.get('smurf_to_mce')
+        self.smurf_to_mce_file = smurf_to_mce_cfg.get('smurf_to_mce_file')
+        self.smurf_to_mce_ip = smurf_to_mce_cfg.get('receiver_ip')
+        self.smurf_to_mce_port = smurf_to_mce_cfg.get('port_number')
+
         if setup:
             self.setup(**kwargs)
 
@@ -228,6 +234,9 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
 
         self.set_cpld_reset(0, write_log=write_log)
         self.cpld_toggle(write_log=write_log)
+
+        # Setup SMuRF to MCE converter
+        self.make_smurf_to_gcp_config()
 
         # Make sure flux ramp starts off
         self.flux_ramp_off(write_log=write_log)

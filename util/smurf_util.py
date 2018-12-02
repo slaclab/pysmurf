@@ -6,6 +6,7 @@ import os
 import struct
 import time
 import epics
+from scipy import signal
 
 class SmurfUtilMixin(SmurfBase):
 
@@ -1229,7 +1230,77 @@ class SmurfUtilMixin(SmurfBase):
         Why not?
         """
 
-        aphorisms = ['If stupidity is trying the same thing over and over and hoping for different results, then let’s all be a little stupid from time to time.', 'None of it matters anyways.', 'Being and truth are continents divided by an ocean of nothingness.', 'Self-reference is the enemy of aphorism.', 'Spring marks the symbolic return of life inevitably doomed come deathly winter.', 'In this frozen wasteland we are free to abandon all hope.', 'Life is a lone, desperate howl into an infinite abyss that can neither comprehend nor respond.', 'The only absolute knowledge attainable by man is that life is meaningless.', 'That which sustains you will eventually destroy you.', 'Oh no. We are in the hands of engineers!', 'Because I said so.', 'No idea, but hopefully Mitch fixes it.', 'Party parrot!!!', 'There are some enterprises in which a careful disorderliness is the true method.', 'Not sure, maybe try eating an orange?', ]
+        aphorisms = ['If stupidity is trying the same thing over and over and hoping for different results, then let’s all be a little stupid from time to time.', 'None of it matters anyways.', 'Being and truth are continents divided by an ocean of nothingness.', 'Self-reference is the enemy of aphorism.', 'Spring marks the symbolic return of life inevitably doomed come deathly winter.', 'In this frozen wasteland we are free to abandon all hope.', 'Life is a lone, desperate howl into an infinite abyss that can neither comprehend nor respond.', 'The only absolute knowledge attainable by man is that life is meaningless.', 'That which sustains you will eventually destroy you.', 'Oh no. We are in the hands of engineers!', 'Because I said so.', 'No idea, but hopefully Mitch fixes it.', 'Party parrot!!!', 'There are some enterprises in which a careful disorderliness is the true method.', 'Not sure, maybe try eating an orange?', 'Probably just best to go home and take a nap.']
 
-        print(np.random.choice(aphorisms))
+        self.log(np.random.choice(aphorisms))
         return
+
+    def make_smurf_to_gcp_config(self, num_averages=0, filename=None,
+                                 file_name_extend=False, 
+                                 data_frames=2000000,
+                                 filter_order=4, filter_freq=63):
+        """
+        Makes the config file that the Joe-writer uses to set the IP
+        address, port number, data file name, etc.
+
+        The IP and port are set in the config file. They cannot be updated
+        in runtime. 
+
+        Opt args:
+        ---------
+        num_averages (int): If 0, SMuRF output fromes to MCE are triggered
+           by the sync box. A new frame is generated for each sync word.
+           If > 0, then an output frame is generated for every num_averages
+           number of smurf frames.
+        filename (str): The filename to save the data to. If not provided,
+           automatically uses the current timestamp.
+        filename_extend (bool): If True, appends the data file name with 
+           the current timestamp. This is a relic of Joes original code.
+           Default is False and should probably always be False.
+        data_frames (int): The number of frames to store. Works up to 
+           2000000, which is about a 5GB file. Default is 2000000
+        filter_order (int): The order of the Butterworth filter. Default 4.
+        filter_freq (float): The frequency of the lowpass. Default 63.
+        """
+        if filename is None:
+            filename = self.get_timestamp() + '.dat'
+        data_file_name = os.path.join(self.data_dir, filename)
+        
+        flux_ramp_freq = self.get_flux_ramp_freq() * 1E3  # in Hz
+
+        self.log('Making SMuRF to MCE config file.')
+
+        print(filter_order)
+        print(filter_freq)
+        print(flux_ramp_freq)
+
+        b, a = signal.butter(filter_order, 2*filter_freq / flux_ramp_freq)
+
+        with open(self.smurf_to_mce_file, "w") as f:
+            f.write("num_averages " + str(num_averages) + '\n');
+            f.write("receiver_ip " + self.smurf_to_mce_ip + '\n');
+            f.write("port_number " + str(self.smurf_to_mce_port) + '\n')
+            f.write("data_file_name " + data_file_name + '\n');
+            f.write("file_name_extend " + str(int(file_name_extend)) + '\n')
+            f.write("data_frames " + str(data_frames) + '\n')
+            f.write("filter_order " + str(filter_order) +"\n");
+            for n in range(0,filter_order+1):
+                f.write("filter_a"+str(n)+" "+str(a[n]) + "\n")
+            for n in range(0,filter_order+1):
+                f.write("filter_b"+str(n)+" "+str(b[n]) + "\n")
+
+        ret = {
+            "config_file": self.smurf_to_mce_file,
+            "num_averages": num_averages,
+            "receiver_ip": self.smurf_to_mce_ip,
+            "port_number": self.smurf_to_mce_port,
+            "data_file_name": data_file_name,
+            "file_name_extend": file_name_extend,
+            "data_frames": data_frames,
+            "flux_ramp_freq": flux_ramp_freq,
+            "filter_order": filter_order,
+            "filter_a": a,
+            "filter_b": b
+        }
+
+        return ret
