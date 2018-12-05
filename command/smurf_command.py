@@ -2099,6 +2099,13 @@ class SmurfCommandMixin(SmurfBase):
 
         return val
 
+    def set_user_config0(self, val, as_binary=False, **kwargs):
+        """
+        """
+        self._caput(self.timing_header + 
+                    self._smurf_to_gcp_stream, val, **kwargs)
+
+
     def set_smurf_to_gcp_stream(self, val, **kwargs):
         """
         Turns on or off streaming from smurf to GCP.
@@ -2154,6 +2161,25 @@ class SmurfCommandMixin(SmurfBase):
             new_val = old_val
             if old_val & 1 << clear_bit != 0:
                 new_val = old_val & ~(1 << clear_bit)
+
+        self._caput(self.timing_header +
+                    self._smurf_to_gcp_stream, new_val, **kwargs)
+
+    def set_smurf_to_gcp_cfg_read(self, val, **kwargs):
+        """
+        If set to True, constantly reads smurf2mce.cfg at the MCE
+        rate (~200 Hz). This is for updating IP address. Constantly
+        reading the cfg file causes occasional dropped frames. So
+        it should be set to False after the cfg is read.
+        """
+        read_bit = 3
+        old_val = self.get_user_config0()
+        if val:
+            new_val = old_val | (1 << read_bit)
+        elif ~val:
+            new_val = old_val
+            if old_val & 1 << read_bit != 0:
+                new_val = old_val & ~(1 << read_bit)
 
         self._caput(self.timing_header +
                     self._smurf_to_gcp_stream, new_val, **kwargs)

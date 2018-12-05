@@ -89,8 +89,8 @@ def stop_acq(S):
     """
     bands = np.array(S.config.get('init').get('bands'))
     S.log('Stopping streaming data')
-    for b in bands:
-        S.set_stream_enable(b, 0)
+    #for b in bands:
+    #    S.set_stream_enable(b, 0)
     S.set_smurf_to_gcp_stream(False, write_log=True)
 
 def acq_n_frames(S, num_rows, num_rows_reported, data_rate, 
@@ -139,8 +139,6 @@ if __name__ == "__main__":
         help='Bump the TESs')
     parser.add_argument('--tes-bump-wait', action='store', default=.5, 
         type=float, help='The time to stay at the high current.')
-
-
 
     # IV commands
     parser.add_argument('--slow-iv', action='store_true', default=False,
@@ -319,7 +317,6 @@ if __name__ == "__main__":
 
     if args.stop_acq:
         stop_acq(S)
-
 
     if args.soft_reset:
         S.log('Soft resetting')

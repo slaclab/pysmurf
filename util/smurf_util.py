@@ -353,7 +353,7 @@ class SmurfUtilMixin(SmurfBase):
             file_content = file.read()
 
         version = file_content[8]
-        print('Version: %s' % (version))
+        self.log('Version: %s' % (version))
 
         self.log('Data version {}'.format(version), self.LOG_INFO)
 
@@ -985,7 +985,7 @@ class SmurfUtilMixin(SmurfBase):
         self.set_hemt_gate_voltage(bias_hemt, **kwargs)
         self.set_50k_amp_gate_voltage(bias_50k, **kwargs)
 
-    def print_amplifier_biases(self):
+    def get_amplifier_biases(self):
         # for printout
         s=[]
 
@@ -993,18 +993,18 @@ class SmurfUtilMixin(SmurfBase):
         hemt_Id_mA=self.get_hemt_drain_current()
         hemt_gate_bias_volts=self.get_hemt_gate_voltage()
 
-        s.append('hemtVg= %0.3fV'%hemt_gate_bias_volts)
-        s.append('hemtId= %0.3fmA'%hemt_Id_mA)
-
         # 50K
         fiftyk_Id_mA=self.get_50k_amp_drain_current()
         fiftyk_amp_gate_bias_volts=self.get_50k_amp_gate_voltage()
+        
+        ret = {
+            'hemt_Vg' : hemt_gate_bias_volts,
+            'hemt_Id' : hemt_Id_mA,
+            '50K_Vg' : fiftyk_amp_gate_bias_volts,
+            '50K_Id' : fiftyk_Id_mA
+        }
 
-        s.append('50kVg= %0.3fV'%fiftyk_amp_gate_bias_volts)
-        s.append('50kId= %0.3fmA'%fiftyk_Id_mA)
-
-        # print out
-        print((("{: >20}"*len(s)).rstrip()).format(*s))
+        return ret
 
     def get_hemt_drain_current(self):
         """
@@ -1211,7 +1211,7 @@ class SmurfUtilMixin(SmurfBase):
             idx = np.where(rates_kHz == val)[0][0] # weird numpy thing sorry
             return idx
         except IndexError:
-            print("Reset rate not allowed! Look up help for allowed values")
+            self.log("Reset rate not allowed! Look up help for allowed values")
             return
 
     def flux_ramp_PV_to_rate(self, val):
@@ -1234,6 +1234,14 @@ class SmurfUtilMixin(SmurfBase):
 
         self.log(np.random.choice(aphorisms))
         return
+
+    def read_smurf_to_gcp_config(self):
+        """
+        Toggles the smurf_to_gcp read bit.
+        """
+        self.log('Reading SMuRF to GCP config file')
+        self.set_smurf_to_gcp_cfg_read(True, wait_after=.1)
+        self.set_smurf_to_gcp_cfg_read(False)
 
     def make_smurf_to_gcp_config(self, num_averages=0, filename=None,
                                  file_name_extend=False, 
@@ -1267,12 +1275,12 @@ class SmurfUtilMixin(SmurfBase):
         data_file_name = os.path.join(self.data_dir, filename)
         
         flux_ramp_freq = self.get_flux_ramp_freq() * 1E3  # in Hz
+        if flux_ramp_freq < 1000:
+            flux_ramp_freq = 4000
+            self.log('Flux ramp frequency is below 1kHz.'\
+                      ' Setting a filter using 4kHz')
 
         self.log('Making SMuRF to MCE config file.')
-
-        print(filter_order)
-        print(filter_freq)
-        print(flux_ramp_freq)
 
         b, a = signal.butter(filter_order, 2*filter_freq / flux_ramp_freq)
 

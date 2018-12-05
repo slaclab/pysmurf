@@ -237,6 +237,8 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
 
         # Setup SMuRF to MCE converter
         self.make_smurf_to_gcp_config()
+        time.sleep(.1)
+        self.read_smurf_to_gcp_config()  # Only for IP address
 
         # Make sure flux ramp starts off
         self.flux_ramp_off(write_log=write_log)
