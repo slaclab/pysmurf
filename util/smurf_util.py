@@ -388,7 +388,7 @@ class SmurfUtilMixin(SmurfBase):
             file_content = file.read()
 
         version = file_content[8]
-        print('Version: %s' % (version))
+        self.log('Version: %s' % (version))
 
         self.log('Data version {}'.format(version), self.LOG_INFO)
 
@@ -654,19 +654,19 @@ class SmurfUtilMixin(SmurfBase):
         # some checks to make sure we put in values within the correct ranges
 
         if frequencyMHz > subband_width / 2:
-            print("frequencyMHz exceeds subband width! setting to top of subband")
+            self.log("frequencyMHz exceeds subband width! setting to top of subband")
             freq = subband_width / 2
         elif frequencyMHz < - subband_width / 2:
-            print("frequencyMHz below subband width! setting to bottom of subband")
+            self.log("frequencyMHz below subband width! setting to bottom of subband")
             freq = -subband_width / 2
         else:
             freq = frequencyMHz
 
         if amplitude > 15:
-            print("amplitude too high! setting to 15")
+            self.log("amplitude too high! setting to 15")
             ampl = 15
         elif amplitude < 0:
-            print("amplitude too low! setting to 0")
+            self.log("amplitude too low! setting to 0")
             ampl = 0
         else:
             ampl = amplitude
@@ -1243,7 +1243,6 @@ class SmurfUtilMixin(SmurfBase):
         s.append('Commanded 50kVg= %0.3fV '%fiftyk_amp_gate_bias_volts)
         s.append('Read 50kId= %0.3fmA '%fiftyk_Id_mA)
 
-        # print out
         print((("{: >20}"*len(s)).rstrip()).format(*s))
 
         if write_log:
@@ -1466,7 +1465,7 @@ class SmurfUtilMixin(SmurfBase):
             idx = np.where(rates_kHz == val)[0][0] # weird numpy thing sorry
             return idx
         except IndexError:
-            print("Reset rate not allowed! Look up help for allowed values")
+            self.log("Reset rate not allowed! Look up help for allowed values")
             return
 
     def flux_ramp_PV_to_rate(self, val):
