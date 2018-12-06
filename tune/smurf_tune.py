@@ -86,6 +86,7 @@ class SmurfTuneMixin(SmurfBase):
             # delay from signal being sent out, coming through the system, and then 
             # being read as data.  
             processing_delay  = 1.842391045639787 # empirical, may need to iterate on this **must be right** for tracking
+
             # DSP sees cable delay + processing delay 
             #   - refPhaseDelay/2.4 (2.4 MHz ticks) + ref_phase_delay_fine/307.2
             # calculate refPhaseDelay and refPhaseDelayFine
@@ -1236,7 +1237,7 @@ class SmurfTuneMixin(SmurfBase):
                 eta_mag[ch] = self.freq_resp[band][k]['eta_scaled']
                 counter += 1
 
-        # Set the actualy variables
+        # Set the actual variables
         self.set_center_frequency_array(band, center_freq, write_log=True,
             log_level=self.LOG_INFO)
         self.set_amplitude_scale_array(band, amplitude_scale.astype(int),
@@ -1375,6 +1376,7 @@ class SmurfTuneMixin(SmurfBase):
         self.set_iq_stream_enable(band, iq_stream_enable, write_log=write_log)
 
         self.flux_ramp_setup(reset_rate_khz, fraction_full_scale) # write_log?
+
         if flux_ramp:
             self.flux_ramp_on(write_log=write_log)
 
@@ -1397,6 +1399,7 @@ class SmurfTuneMixin(SmurfBase):
 
         if make_plot:
             timestamp = self.get_timestamp()
+
             plt.figure()
             plt.hist(df_std[channels_on] * 1e3,bins = 20,edgecolor = 'k')            
             plt.xlabel('Flux ramp demod error std (kHz)')
@@ -1456,9 +1459,9 @@ class SmurfTuneMixin(SmurfBase):
 
         return f, df, sync
 
-    _num_flux_ramp_dac_bits=16
-    _cryo_card_flux_ramp_relay_bit=16
-    _cryo_card_relay_wait=0.25#sec
+    _num_flux_ramp_dac_bits = 16
+    _cryo_card_flux_ramp_relay_bit = 16
+    _cryo_card_relay_wait = 0.25 #sec
     def unset_fixed_flux_ramp_bias(self,acCouple=True):
         """
         Alias for setting ModeControl=0
@@ -1542,12 +1545,18 @@ class SmurfTuneMixin(SmurfBase):
     def flux_ramp_setup(self, reset_rate_khz, fraction_full_scale, df_range=.1, 
         do_read=False):
         """
+        Set flux ramp sawtooth rate and amplitude. If there are errors, check 
+        that you are using an allowed reset rate! Not all rates are allowed.
+
+        Allowed rates: 1, 2, 3, 4, 5, 6, 8, 10, 12, 15 kHz
         """
+        flux_ramp_bit_depth = 32
+
         # Disable flux ramp
         self.flux_ramp_off() # no write log?
         #self.set_cfg_reg_ena_bit(0) # let us switch this to flux ramp on/off
 
-        digitizerFrequencyMHz=614.4
+        digitizerFrequencyMHz = self.get_digitizer_frequency_mhz(band)
         dspClockFrequencyMHz=digitizerFrequencyMHz/2
 
         desiredRampMaxCnt = ((dspClockFrequencyMHz*1e3)/
@@ -1567,6 +1576,7 @@ class SmurfTuneMixin(SmurfBase):
         FastSlowStepSize = trialFastSlowStepSize
 
         trialFullScaleRate = trialFastSlowStepSize * trialRTMClock / (2**self._num_flux_ramp_counter_bits)
+
         trialResetRate = (dspClockFrequencyMHz * 1e6) / (rampMaxCnt + 1)
         trialFractionFullScale = trialFullScaleRate / trialResetRate
         fractionFullScale = trialFractionFullScale
@@ -1595,9 +1605,10 @@ class SmurfTuneMixin(SmurfBase):
 
         FastSlowRstValue = np.floor((2**self._num_flux_ramp_counter_bits) * (1 - fractionFullScale)/2)
 
+
         KRelay = 3 #where do these values come from
-        SelectRamp = 1
-        RampStartMode = 0
+        SelectRamp = self.get_select_ramp() # from config file
+        RampStartMode = self.get_ramp_start_mode() # from config file
         PulseWidth = 400
         DebounceWidth = 255
         RampSlope = 0
@@ -1645,15 +1656,11 @@ class SmurfTuneMixin(SmurfBase):
         
         self.log('Currently {} channels on'.format(n_chan))
 
-#        # Tracking setup returns information on all channels in a band
+        # Tracking setup returns information on all channels in a band
         f, df, sync = self.tracking_setup(band, 0, make_plot=False,
                                   flux_ramp=flux_ramp,fraction_full_scale=fraction_full_scale,
                                   lms_freq_hz = lms_freq_hz)
 
-#        iq_stream_enable = 0  # stream IQ data from tracking loop
-#        self.set_iq_stream_enable(band, iq_stream_enable)
-#        f, df, sync = self.take_debug_data(band, IQstream = iq_stream_enable, 
-#            single_channel_readout=0)
 
         high_cut = np.array([])
         low_cut = np.array([])
