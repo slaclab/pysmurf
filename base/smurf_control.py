@@ -165,12 +165,15 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
         if setup:
             self.setup(**kwargs)
 
+    #@SmurfUtilMixin.jesd_decorator
+    #def test_decorator():
+    #     print('Testing decorator...')
 
     def setup(self, **kwargs):
         """
         Sets the PVs to the default values from the experiment.cfg file
         """
-        self.log('Setting up...', self.LOG_USER)
+        self.log('Setting up...', (self.LOG_USER))
 
         self.set_read_all(write_log=True)
         self.set_defaults_pv(write_log=True)
