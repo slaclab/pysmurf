@@ -188,8 +188,8 @@ class SmurfIVMixin(SmurfBase):
 
     def analyze_slow_iv_from_file(self, fn_iv_raw_data, make_plot=True,
         show_plot=False, save_plot=True, R_sh=None, high_current_mode=False,
-        rn_accept_min = 1e-3, rn_accept_max = 1., phase_excursion_min=3.,
-                                  grid_on = False,gcp_mode=True):
+        rn_accept_min=1e-3, rn_accept_max=1., phase_excursion_min=3.,
+        grid_on=False, gcp_mode=True):
         """
         phase_excursion: abs(max - min) of phase in radians
         """
@@ -307,7 +307,8 @@ class SmurfIVMixin(SmurfBase):
 
     def analyze_slow_iv(self, v_bias, resp, make_plot=True, show_plot=False,
         save_plot=True, basename=None, band=None, channel=None, R_sh=None,
-        plot_dir = None,high_current_mode = False,bias_group = None,grid_on = False,**kwargs):
+        plot_dir=None, high_current_mode=False, bias_group = None,
+        grid_on=False, **kwargs):
         """
         Analyzes the IV curve taken with slow_iv()
 
@@ -495,11 +496,12 @@ class SmurfIVMixin(SmurfBase):
         ax_pr.set_ylabel(r'$P_\mathrm{TES}$ [pW]')
         if found_Rmin and found_Rmax:
             p_trans_median = np.median(p_tes[i_Rmin:i_Rmax])
-            ax_pr.axvline(x=R[i_Rmin],linestyle = ':',color = 'k')
-            ax_pr.axvline(x=R[i_Rmax],linestyle = ':',color = 'k')
+            ax_pr.axvline(x=R[i_Rmin], linestyle=':', color='k')
+            ax_pr.axvline(x=R[i_Rmax], linestyle=':', color='k')
             label = r'Median power between $%.2f R_n$ and $%.2f R_n$: %.0f pW' \
                 % (R_frac_min,R_frac_max,p_trans_median)
-            ax_pr.axhline(y=p_trans_median,linestyle = ':',label = label,color = 'r')
+            ax_pr.axhline(y=p_trans_median, linestyle=':', label=label,
+                color='r')
         else:
             p_trans_median = None
 
@@ -508,8 +510,8 @@ class SmurfIVMixin(SmurfBase):
         fig_pr.suptitle('Band {}, Group {}, Ch {:03}'.format(band, 
                     bias_group, channel))
         if grid_on:
-            ax_pr.grid(which = 'major')
-            ax_pr.grid(which = 'minor',linestyle = '--')
+            ax_pr.grid(which='major')
+            ax_pr.grid(which='minor', linestyle='--')
             ax_pr.minorticks_on()
         if save_plot:
             if basename is None:
@@ -595,8 +597,10 @@ class SmurfIVMixin(SmurfBase):
         idx = np.ravel(np.where(peak_span > delta_peak_cutoff))
         return peaks[idx]
 
-    def estimate_opt_eff(self,iv_fn_hot,iv_fn_cold,t_hot=293.,t_cold=77.,\
-                             channels = None,dPdT_lim = (0.,0.5)):
+    def estimate_opt_eff(self, iv_fn_hot, iv_fn_cold,t_hot=293.,t_cold=77.,
+        channels = None, dPdT_lim=(0.,0.5)):
+        """
+        """
         ivs_hot = np.load(iv_fn_hot).item()
         ivs_cold = np.load(iv_fn_cold).item()
     

@@ -851,7 +851,6 @@ class SmurfTuneMixin(SmurfBase):
         
         if use_slow_eta:
             band_center = self.get_band_center_mhz(band)
-            print(peak_freq*1.0E-6+band_center)
             f_slow, resp_slow, eta_slow = self.eta_estimator(band, peak_freq*1.0E-6+band_center)
 
         # Get eta parameters
@@ -996,7 +995,7 @@ class SmurfTuneMixin(SmurfBase):
             I_slow = np.real(resp_slow)
             Q_slow = np.imag(resp_slow)
             phase_slow = np.unwrap(np.arctan2(Q_slow, I_slow))  # radians
-            print(np.shape(phase_slow))
+
             ax0.scatter(f_slow-band_center, np.abs(resp_slow), 
                         c=np.arange(len(f_slow)), cmap='Greys', s=3)
             ax1.scatter(f_slow-band_center, np.rad2deg(phase_slow),c=np.arange(len(f_slow)),

@@ -1249,7 +1249,7 @@ class SmurfUtilMixin(SmurfBase):
             self.log((("{: >20}"*len(s)).rstrip()).format(*s))
 
     # alias
-    print_amplifier_bias=print_amplifier_biases
+    print_amplifier_bias = print_amplifier_biases
 
     def get_hemt_drain_current(self, hemt_offset=.100693):
         """

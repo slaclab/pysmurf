@@ -11,7 +11,7 @@ class SmurfNoiseMixin(SmurfBase):
         detrend='constant', fs=None, low_freq=np.array([.1, 1.]), 
         high_freq=np.array([1., 10.]), make_channel_plot=True,
         make_summary_plot=True, save_data=False, show_plot=False,
-        grid_on=False,gcp_mode=True,datafile = None):
+        grid_on=False, gcp_mode=True, datafile=None):
         """
         Takes a timestream of noise and calculates its PSD.
 
@@ -39,7 +39,8 @@ class SmurfNoiseMixin(SmurfBase):
         save_data (bool): Whether to save the band averaged data as a text file.
             Default is False.
         show_plot (bool): Show the plot on the screen. Default False.
-        datefile: if data has already been taken, can point to a file to bypass data taking and just analyze
+        datefile (str): if data has already been taken, can point to a file to 
+            bypass data taking and just analyze.
         """
         if channel is None:
             channel = self.which_on(band)
@@ -52,7 +53,7 @@ class SmurfNoiseMixin(SmurfBase):
         basename, _ = os.path.splitext(os.path.basename(datafile))
 
         # timestamp, I, Q = self.read_stream_data(datafile)
-        timestamp, phase = self.read_stream_data(datafile,gcp_mode = gcp_mode)
+        timestamp, phase = self.read_stream_data(datafile, gcp_mode=gcp_mode)
         phase *= self.pA_per_phi0/(2.*np.pi) # phase converted to pA
 
         if fs is None:
@@ -540,9 +541,9 @@ class SmurfNoiseMixin(SmurfBase):
         bounds = (bounds_low,bounds_high)
 
         try:
-            popt, pcov = optimize.curve_fit(noise_model, f[1:], Pxx[1:], p0=p0, bounds=bounds)
+            popt, pcov = optimize.curve_fit(noise_model, f[1:], Pxx[1:], p0=p0, 
+                bounds=bounds)
         except Exception as e:
-            print(e)
             wl = np.mean(Pxx[1:])
             print('Unable to fit noise model. Reporting mean noise: %.2f pA/rtHz' % (wl))
             popt = [wl,1.,0.]
