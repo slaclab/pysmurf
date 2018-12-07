@@ -155,12 +155,20 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
         # The resistance in line with the TES bias
         self.bias_line_resistance = self.config.get('bias_line_resistance')
 
+
         # The TES shunt resistance
         self.R_sh = self.config.get('R_sh')
 
         # The ratio of current for high-current mode to low-current mode;
         # also the inverse of the in-line resistance for the bias lines.
         self.high_low_current_ratio = self.config.get('high_low_current_ratio')
+
+        # The smurf to mce config data
+        smurf_to_mce_cfg = self.config.get('smurf_to_mce')
+        self.smurf_to_mce_file = smurf_to_mce_cfg.get('smurf_to_mce_file')
+        self.smurf_to_mce_ip = smurf_to_mce_cfg.get('receiver_ip')
+        self.smurf_to_mce_port = smurf_to_mce_cfg.get('port_number')
+
 
         if setup:
             self.setup(**kwargs)
@@ -247,9 +255,15 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
         self.set_cpld_reset(0, write_log=write_log)
         self.cpld_toggle(write_log=write_log)
 
+        # Setup SMuRF to MCE converter
+        self.make_smurf_to_gcp_config()
+        time.sleep(.1)
+        self.read_smurf_to_gcp_config()  # Only for IP address
+
         # Make sure flux ramp starts off
         self.flux_ramp_off(write_log=write_log)
-        
+        self.flux_ramp_setup(4, .5, write_log=write_log)  # Default values.
+
         # Turn off GCP streaming
         self.set_smurf_to_gcp_stream(False, write_log=write_log)
         self.set_smurf_to_gcp_writer(False, write_log=write_log)

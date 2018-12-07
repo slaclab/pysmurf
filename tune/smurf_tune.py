@@ -1549,7 +1549,7 @@ class SmurfTuneMixin(SmurfBase):
 
         Allowed rates: 1, 2, 3, 4, 5, 6, 8, 10, 12, 15 kHz
         """
-        flux_ramp_bit_depth = 32
+        flux_ramp_bit_depth = 20
 
         # Disable flux ramp
         self.flux_ramp_off() # no write log?
@@ -1659,7 +1659,6 @@ class SmurfTuneMixin(SmurfBase):
         f, df, sync = self.tracking_setup(band, 0, make_plot=False,
                                   flux_ramp=flux_ramp,fraction_full_scale=fraction_full_scale,
                                   lms_freq_hz = lms_freq_hz)
-
 
         high_cut = np.array([])
         low_cut = np.array([])
