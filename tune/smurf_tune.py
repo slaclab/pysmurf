@@ -1327,7 +1327,7 @@ class SmurfTuneMixin(SmurfBase):
 
     def tracking_setup(self, band, channel, reset_rate_khz=4., write_log=False, 
         make_plot=False, save_plot=True, show_plot=True,
-        lms_freq_hz=4000., flux_ramp=True, fraction_full_scale=.99,
+        lms_freq_hz=4000., flux_ramp=True, fraction_full_scale=.4950,
         lms_enable1=True, lms_enable2=True, lms_enable3=True, lms_gain=7):
         """
         Args:
