@@ -3,8 +3,9 @@ import os
 import epics
 import time
 from pysmurf.base import SmurfBase
+from pysmurf.command.sync_group import SyncGroup as SyncGroup
 
-class SmurfCommandMixin(SmurfBase):
+class SmurfCommandMixin(SmurfBase):        
 
     def _caput(self, cmd, val, write_log=False, execute=True, wait_before=None,
         wait_after=None, wait_done=True, log_level=0):
@@ -134,6 +135,28 @@ class SmurfCommandMixin(SmurfBase):
             **kwargs)
         self.log('ReadAll sent', self.LOG_INFO)
 
+    def run_pwr_up_sys_ref(self,bay=0, **kwargs):
+        """
+        """
+        triggerPV=self.sysref.format(bay) + 'LMK:PwrUpSysRef'
+        self._caput(triggerPV, 1, wait_after=5, **kwargs)
+        self.log('{} sent'.format(triggerPV), self.LOG_USER)
+
+    def run_parallel_eta_scan(self, band, sync_group=True, **kwargs):
+        """
+        runParallelScan 
+        """
+        triggerPV=self._cryo_root(band) + 'runParallelEtaScan'
+        monitorPV=self._cryo_root(band) + 'etaScanInProgress'
+        
+        self._caput(triggerPV, 1, wait_after=5, **kwargs)
+        self.log('{} sent'.format(triggerPV), self.LOG_USER)
+        
+        if sync_group:
+            sg = SyncGroup([monitorPV])
+            sg.wait()
+            vals = sg.get_values()
+            self.log('parallel etaScan complete ; etaScanInProgress = {}'.format(vals[monitorPV]), self.LOG_USER)        
 
     _eta_scan_freqs = 'etaScanFreqs'
     def set_eta_scan_freq(self, band, val, **kwargs):
@@ -1076,17 +1099,17 @@ class SmurfCommandMixin(SmurfBase):
 
     # DAC commands
     _dac_enable = "enable"
-    def set_dac_enable(self, b, val, **kwargs):
+    def set_dac_enable(self, dac, val, **kwargs):
         '''
         Enables DAC
         '''
-        self._caput(self.dac_root.format(b) + self._dac_enable, val, **kwargs)
+        self._caput(self.dac_root.format(dac) + self._dac_enable, val, **kwargs)
 
-    def get_dac_enable(self, b, **kwargs):
+    def get_dac_enable(self, dac, **kwargs):
         '''
         Gets enable status of DAC
         '''
-        self._caget(self.dac_root.format(b) + self._dac_enable, **kwargs)
+        return self._caget(self.dac_root.format(dac) + self._dac_enable, **kwargs)
 
     # Jesd commands
     _data_out_mux = 'dataOutMux[{}]'
@@ -1101,6 +1124,22 @@ class SmurfCommandMixin(SmurfBase):
         '''
         return self._caget(self.jesd_tx_root + self._data_out_mux.format(b), 
             val, **kwargs)
+
+    # Jesd DAC commands
+    _jesd_reset_n = "JesdRstN"
+    def set_jesd_reset_n(self, dac, val, **kwargs):
+        self._caput(self.dac_root.format(dac) + self._jesd_reset_n, val, **kwargs)
+
+    _jesd_rx_enable = 'Enable'
+    def get_jesd_rx_enable(self, **kwargs):
+        return self._caget(self.jesd_rx_root + self._jesd_rx_enable, **kwargs)
+
+    def set_jesd_rx_enable(self, val, **kwargs):
+        self._caput(self.jesd_rx_root + self._jesd_rx_enable, val, **kwargs)
+
+    _jesd_rx_data_valid = 'DataValid'
+    def get_jesd_rx_data_valid(self, **kwargs):
+        return self._caget(self.jesd_rx_root + self._jesd_rx_data_valid, **kwargs)
 
     _link_disable = 'LINK_DISABLE'
     def set_jesd_link_disable(self, val, **kwargs):
@@ -1118,13 +1157,14 @@ class SmurfCommandMixin(SmurfBase):
 
     _jesd_tx_enable = 'Enable'
     def get_jesd_tx_enable(self, **kwargs):
-        '''
-        '''
         return self._caget(self.jesd_tx_root + self._jesd_tx_enable, **kwargs)
 
-    _jesd_tx_valid = 'DataValid'
+    def set_jesd_tx_enable(self, val, **kwargs):
+        self._caput(self.jesd_tx_root + self._jesd_tx_enable, val, **kwargs)
+
+    _jesd_tx_data_valid = 'DataValid'
     def get_jesd_tx_data_valid(self, **kwargs):
-        return self._caget(self.jesd_tx_root + self._jesd_tx_enable, **kwargs)
+        return self._caget(self.jesd_tx_root + self._jesd_tx_data_valid, **kwargs)
 
     # _start_addr = 'StartAddr[{}]'
     # def set_start_addr(self, b, val, **kwargs):
