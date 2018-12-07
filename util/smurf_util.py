@@ -292,13 +292,13 @@ class SmurfUtilMixin(SmurfBase):
         self.log('Done taking data.', self.LOG_USER)
         return data_filename
 
-    def stream_data_on(self, band, gcp_mode=True):
+    def stream_data_on(self, bands, gcp_mode=True):
         """
         Turns on streaming data on specified channel
 
         Args:
         -----
-        band (int) : The band to stream data
+        bands (int array) : The bands to stream data
 
         Returns:
         --------
@@ -310,10 +310,10 @@ class SmurfUtilMixin(SmurfBase):
             self.log('Flux ramp frequency is zero. Cannot take data.', 
                 self.LOG_ERROR)
         else:
-            if self.get_single_channel_readout(band) and \
-                self.get_single_channel_readout_opt2(band):
-                self.log('Streaming all channels on band {}'.format(band), 
-                    self.LOG_USER)
+            #if self.get_single_channel_readout(band) and \
+            #    self.get_single_channel_readout_opt2(band):
+            #    self.log('Streaming all channels on band {}'.format(band), 
+            #        self.LOG_USER)
 
             # Make the data file
             timestamp = self.get_timestamp()
@@ -327,7 +327,8 @@ class SmurfUtilMixin(SmurfBase):
                 self.set_streaming_datafile(data_filename)
             
             # start streaming before opening file to avoid transient filter step
-            self.set_stream_enable(band, 1, write_log=True)
+            for band in bands:
+                self.set_stream_enable(band, 1, write_log=True)
             time.sleep(1.)
 
             if gcp_mode:
@@ -356,20 +357,21 @@ class SmurfUtilMixin(SmurfBase):
         file.close()
         
 
-    def stream_data_off(self, band, gcp_mode=True):
+    def stream_data_off(self, bands, gcp_mode=True):
         """
         Turns off streaming data on specified band
 
         Args:
         -----
-        band (int) : The band to turn off stream data
+        bands (int array) : The band to turn off stream data
         """
-        self.set_stream_enable(band, 0, write_log=True)
         if gcp_mode:
             self.set_smurf_to_gcp_writer(False, write_log=True)
             self.set_gcp_datafile('/data/cryo/mas_data_pipe')
         else:
             self.set_streaming_file_open(0)  # Close the file
+        for band in bands:
+            self.set_stream_enable(band, 0, write_log=True)
 
 
     def read_stream_data(self, datafile, unwrap=True, gcp_mode=True):
