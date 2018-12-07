@@ -57,8 +57,9 @@ class SmurfBase(object):
             ':AMCc:FpgaTopLevel:AppTop:AppCore:MicrowaveMuxCore[0]:ATT:'
         self.timing_header = self.epics_root + \
             ':AMCc:FpgaTopLevel:AppTop:AppCore:TimingHeader:'
-            
         self.streaming_root = self.epics_root + ':AMCc:streamingInterface:'
+        self.sysref = self.epics_root + \
+            ':AMCc:FpgaTopLevel:AppTop:AppCore:MicrowaveMuxCore[{}]:'
 
         # Tx -> DAC , Rx <- ADC
         self.axi_version = self.epics_root + \
