@@ -94,6 +94,14 @@ class SmurfUtilMixin(SmurfBase):
 
         return f, df, sync
 
+    # the JesdWatchdog will check if an instance of the JesdWatchdog is already
+    # running and kill itself if there is
+    def start_jesd_watchdog(self):
+        import pysmurf.watchdog.JesdWatchdog as JesdWatchdog
+        import subprocess
+        import sys
+        pid = subprocess.Popen([sys.executable,JesdWatchdog.__file__])
+
     def process_data(self, filename, dtype=np.uint32):
         """
         reads a file taken with take_debug_data and processes it into
@@ -467,7 +475,10 @@ class SmurfUtilMixin(SmurfBase):
         Reads the special data that is designed to be a copy of the GCP data.
         """
         import glob
-        datafile = glob.glob(datafile+'*')[-1]
+        try:
+            datafile = glob.glob(datafile+'*')[-1]
+        except:
+            print('datafile=%s'%datafile)
 
         with open(datafile, mode='rb') as file:
             file_content = file.read()
@@ -680,6 +691,92 @@ class SmurfUtilMixin(SmurfBase):
         desired_feedback_limit_dec = np.floor(desired_feedback_limit_mhz/
             (subband_bandwidth/2.))
 
+    # if no guidance given, tries to reset both
+    def recover_jesd(self,recover_jesd_rx=True,recover_jesd_tx=True):
+        if recover_jesd_rx:
+            #1. Toggle JesdRx:Enable 0x3F3 -> 0x0 -> 0x3F3
+            self.set_jesd_rx_enable(0x0)
+            self.set_jesd_rx_enable(0x3F3)
+
+        if recover_jesd_tx:
+            #1. Toggle JesdTx:Enable 0x3CF -> 0x0 -> 0x3CF
+            self.set_jesd_tx_enable(0x0)
+            self.set_jesd_tx_enable(0x3CF)
+
+            #2. Toggle AMCcc:FpgaTopLevel:AppTop:AppCore:MicrowaveMuxCore[0]:DAC[0]:JesdRstN 0x1 -> 0x0 -> 0x1
+            self.set_jesd_reset_n(0,0x0)
+            self.set_jesd_reset_n(0,0x1)
+
+            #3. Toggle AMCcc:FpgaTopLevel:AppTop:AppCore:MicrowaveMuxCore[0]:DAC[1]:JesdRstN 0x1 -> 0x0 -> 0x1
+            self.set_jesd_reset_n(1,0x0)
+            self.set_jesd_reset_n(1,0x1)
+
+        # probably overkill...shouldn't call this function if you're not going to do anything 
+        if (recover_jesd_rx or recover_jesd_tx):
+            # powers up the SYSREF which is required to sync fpga and adc/dac jesd
+            self.run_pwr_up_sys_ref()
+
+        # check if Jesds recovered - enable printout
+        (jesd_tx_ok,jesd_rx_ok)=self.check_jesd(silent_if_valid=False)
+                
+        # raise exception if failed to recover
+        if (jesd_rx_ok and jesd_tx_ok):
+            self.log('Recovered Jesd.', self.LOG_USER)
+        else:
+            which_jesd_down='Jesd Rx and Tx are both down'
+            if (jesd_rx_ok or jesd_tx_ok):
+                which_jesd_down = ('Jesd Rx is down' if jesd_tx_ok else 'Jesd Tx is down')
+            self.log('Failed to recover Jesds ...', self.LOG_ERROR)
+            raise ValueError(which_jesd_down)
+
+    def jesd_decorator(decorated):
+        def jesd_decorator_function(self):
+            # check JESDs
+            (jesd_tx_ok0,jesd_rx_ok0)=self.check_jesd(silent_if_valid=True)
+            
+            # if either JESD is down, try to fix
+            if not (jesd_rx_ok0 and jesd_tx_ok0):
+                which_jesd_down0='Jesd Rx and Tx are both down'
+                if (jesd_rx_ok0 or jesd_tx_ok0):
+                    which_jesd_down0 = ('Jesd Rx is down' if jesd_tx_ok0 else 'Jesd Tx is down')
+                    
+                self.log('%s ... will attempt to recover.'%which_jesd_down0, self.LOG_ERROR)
+
+                # attempt to recover ; if it fails it will assert
+                self.recover_jesd(recover_jesd_rx=(not jesd_rx_ok0),recover_jesd_tx=(not jesd_tx_ok0))
+
+                # rely on recover to assert if it failed
+                self.log('Successfully recovered Jesd but may need to redo some setup ... rerun command at your own risk.', self.LOG_USER)
+
+            # don't continue running the desired command by default. 
+            # just because Jesds are back doesn't mean we're in a sane
+            # state.  User may need to relock/etc.
+            if (jesd_rx_ok0 and jesd_tx_ok0):
+                decorated()
+                
+        return jesd_decorator_function
+
+    def check_jesd(self,silent_if_valid=False):
+        # JESD Tx
+        jesd_tx_enable = self.get_jesd_tx_enable()
+        jesd_tx_valid = self.get_jesd_tx_data_valid()
+        jesd_tx_ok = (jesd_tx_enable==jesd_tx_valid)
+        if not jesd_tx_ok:
+            self.log("JESD Tx DOWN", self.LOG_ERROR)
+        else:
+            if not silent_if_valid:
+                self.log("JESD Tx Okay", self.LOG_USER)
+
+        # JESD Rx
+        jesd_rx_enable = self.get_jesd_rx_enable()
+        jesd_rx_valid = self.get_jesd_rx_data_valid()
+        jesd_rx_ok = (jesd_rx_enable==jesd_rx_valid)        
+        if not jesd_rx_ok:
+            self.log("JESD Rx DOWN", self.LOG_ERROR)
+        else:
+            if not silent_if_valid:
+                self.log("JESD Rx Okay", self.LOG_USER)
+        return (jesd_tx_ok,jesd_rx_ok)
 
     def get_fpga_status(self):
         '''
@@ -707,6 +804,7 @@ class SmurfUtilMixin(SmurfBase):
             self.log("JESD Tx DOWN", self.LOG_USER)
         else:
             self.log("JESD Tx Okay", self.LOG_USER)
+
 
         # dict containing all values
         ret = {
