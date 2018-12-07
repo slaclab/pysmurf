@@ -7,7 +7,7 @@ import os
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
 import pysmurf
 
-cfg_filename = 'experiment_k7_run19.cfg'
+cfg_filename = 'experiment_kx_mapodaq.cfg'
 
 
 """
@@ -22,8 +22,11 @@ def make_runfile(output_dir, row_len=60, num_rows=60, data_rate=60,
     S = pysmurf.SmurfControl(cfg_file=os.path.join(os.path.dirname(__file__), 
         '..', 'cfg_files' , cfg_filename), smurf_cmd_mode=True, setup=False)
 
+    
+    # 20181119 dB, modified to use the correct format runfile.
+    #with open(os.path.join(os.path.dirname(__file__),"runfile/runfile_template.txt")) as f:
     with open(os.path.join(os.path.dirname(__file__),
-                           "runfile/runfile_template.txt")) as f:
+        "runfile/runfile.default.bicep53")) as f:
         lines = f.readlines()
         line_holder = []
         for l in lines:
@@ -58,9 +61,14 @@ def make_runfile(output_dir, row_len=60, num_rows=60, data_rate=60,
     full_path = os.path.join(output_dir, 
         'smurf_status_{}.txt'.format(S.get_timestamp()))
 
+    #20181119 mod by dB to dump content of runfile, not path of runfile
+    #print(full_path)
+    for line in line_holder:
+        print(line)
+    with open(full_path, "w") as f1:
+        f1.writelines(line_holder)
+
     S.log("Writing to {}".format(full_path))
-#    with open(full_path, "w") as f1:
-#        f1.writelines(line_holder)
     sys.stdout.writelines(line_holder)
 
 def start_acq(S, num_rows, num_rows_reported, data_rate, 
@@ -84,8 +92,8 @@ def stop_acq(S):
     """
     bands = np.array(S.config.get('init').get('bands'))
     S.log('Stopping streaming data')
-    for b in bands:
-        S.set_stream_enable(b, 0)
+    #for b in bands:
+    #    S.set_stream_enable(b, 0)
     S.set_smurf_to_gcp_stream(False, write_log=True)
 
 def acq_n_frames(S, num_rows, num_rows_reported, data_rate, 
@@ -132,10 +140,8 @@ if __name__ == "__main__":
 
     parser.add_argument('--tes-bump', action='store_true', default=False,
         help='Bump the TESs')
-    parser.add_argument('--tes-bump-wait', action='store', default=.5,
-        help='The time to stay at the high current.')
-
-
+    parser.add_argument('--tes-bump-wait', action='store', default=.5, 
+        type=float, help='The time to stay at the high current.')
 
     # IV commands
     parser.add_argument('--slow-iv', action='store_true', default=False,
@@ -178,9 +184,9 @@ if __name__ == "__main__":
         help='Start the data acquisition')
     parser.add_argument('--row-len', action='store', default=60, type=int,
         help='The variable to stuff into the runfile. See the MCE wiki')
-    parser.add_argument('--num-rows', action='store', default=60, type=int,
+    parser.add_argument('--num-rows', action='store', default=33, type=int,
         help='The variable to stuff into the runfile. See the MCE wiki')
-    parser.add_argument('--num-rows-reported', action='store', default=60, 
+    parser.add_argument('--num-rows-reported', action='store', default=33, 
         type=int,
         help='The variable to stuff into the runfile. See the MCE wiki')
     parser.add_argument('--data-rate', action='store', default=60, type=int,
@@ -199,6 +205,13 @@ if __name__ == "__main__":
     parser.add_argument('--soft-reset', action='store_true', default=False,
         help='Soft reset SMuRF.')
 
+    # Setup, in case smurf went down and you have to start over
+    # do we want this to be folded into tuning with an if statement?
+    # separate for now
+    # CY 20181125
+    parser.add_argument('--setup', action='store_true', default=False, 
+        help='Setup SMuRF and load defaults.')
+
     # Extract inputs
     args = parser.parse_args()
 
@@ -208,7 +221,7 @@ if __name__ == "__main__":
     n_cmds = (args.log is not None) + args.tes_bias + args.slow_iv + \
         args.tune + args.start_acq + args.stop_acq + \
         args.last_tune + (args.use_tune is not None) + args.tes_bump + \
-        args.soft_reset + args.make_runfile
+        args.soft_reset + args.make_runfile + args.setup
     if n_cmds > 1:
         sys.exit(0)
 
@@ -233,22 +246,29 @@ if __name__ == "__main__":
                 write_log=True)
 
     if args.tes_bump:
-        S.overbias_tes(args.bias_group, overbias_wait=args.tes_bump_wait)
+        if args.bias_group < 0:
+            S.overbias_tes_all(overbias_wait=args.tes_bump_wait)
+        else:
+            S.overbias_tes(args.bias_group, overbias_wait=args.tes_bump_wait)
 
     if args.slow_iv:
         if args.iv_band < 0:
-            S.log('Must input a valid band number using --iv-band. Arbitrarily setting to 2')
+            S.log('Must input a valid band number using --iv-band.' + \
+                ' Arbitrarily setting to 2')
             args.iv_band = 2
         
         iv_bias_high = args.iv_bias_high
         iv_bias_low = args.iv_bias_low
         iv_bias_step = args.iv_bias_step
 
-        if args.iv_bias_high_current is not None and args.iv_bias_low_current is not None and args.iv_bias_step_current is not None:
+        if args.iv_bias_high_current is not None and \
+            args.iv_bias_low_current is not None and \
+            args.iv_bias_step_current is not None:
+
 
             S.log('IV input in current mode.')
 
-                # Convert from current to voltage units
+            # Convert from current to voltage units
             iv_bias_high = args.iv_bias_high_current * 1.0E-6 * \
                     S.bias_line_resistance
             iv_bias_low = args.iv_bias_low_current * 1.0E-6 * \
@@ -271,6 +291,19 @@ if __name__ == "__main__":
                           overbias_wait=args.iv_high_current_wait, 
                           bias_step=iv_bias_step)
 
+        if args.bias_group < 0: # all
+            S.slow_iv_all(wait_time=args.iv_wait_time,
+                bias_high=iv_bias_high, bias_low = iv_bias_low,
+                high_current_wait=args.iv_high_current_wait,
+                bias_step=args.iv_bias_step)
+        else: # individual bias group
+            S.slow_iv(args.iv_band, args.bias_group, 
+                wait_time=args.iv_wait_time, bias_high=iv_bias_high, 
+                bias_low=iv_bias_low, 
+                high_current_wait=args.iv_high_current_wait, 
+                bias_step=iv_bias_step)
+
+
     if args.tune:
         # Load values from the cfg file
         tune_cfg = S.config.get("tune_band")
@@ -286,13 +319,17 @@ if __name__ == "__main__":
                 freq_max=tune_cfg.get('freq_max'),
                 freq_min=tune_cfg.get('freq_min'),
                 grad_cut=tune_cfg.get('grad_cut'),
-                amp_cut=tune.cfg.get('tune_cut'))
+                amp_cut=tune_cfg.get('tune_cut'))
 
 
     if args.start_acq:
-        if args.n_frames > 0:
+
+        if args.n_frames >= 1000000000:
+            args.n_frames = -1 # if it is a big number then just make it continuous
+
+        if args.n_frames > 0: # was this a typo? used to be < 
             acq_n_frames(S, args.num_rows, args.num_rows_reported,
-                         args.data_rate, args.row_len, args.n_frames)
+                args.data_rate, args.row_len, args.n_frames)
         else:
             S.log('Starting continuous acquisition')
             start_acq(S, args.num_rows, args.num_rows_reported,
@@ -300,17 +337,21 @@ if __name__ == "__main__":
             make_runfile(S.output_dir, num_rows=args.num_rows,
                 data_rate=args.data_rate, row_len=args.row_len,
                 num_rows_reported=args.num_rows_reported)
-    
+            # why are we making a runfile though? do we intend to dump it? 
 
     if args.stop_acq:
         stop_acq(S)
 
-
     if args.soft_reset:
         S.log('Soft resetting')
         S.set_smurf_to_gcp_clear(True)
-        time.sleep(.1)
+        time.sleep(.1) # make this longer, maybe? just a thought. it lasts ~15s in MCE
         S.set_smurf_to_gcp_clear(False)
+
+    if args.setup:
+        S.log('Running setup')
+        S.setup()
+        # anything we need to do with setting up streaming?
 
     if args.make_runfile:
         make_runfile(S.output_dir, num_rows=args.num_rows,

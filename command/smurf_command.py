@@ -7,8 +7,11 @@ from pysmurf.command.sync_group import SyncGroup as SyncGroup
 
 class SmurfCommandMixin(SmurfBase):        
 
+
+    _global_poll_enable = ':AMCc:enable'
     def _caput(self, cmd, val, write_log=False, execute=True, wait_before=None,
-        wait_after=None, wait_done=True, log_level=0):
+        wait_after=None, wait_done=True, log_level=0, enable_poll=True, 
+        disable_poll=True):
         '''
         Wrapper around pyrogue lcaput. Puts variables into epics
 
@@ -20,6 +23,7 @@ class SmurfCommandMixin(SmurfBase):
         Optional Args:
         --------------
         write_log (bool) : Whether to log the data or not. Default False
+        log_level (int): 
         execute (bool) : Whether to actually execute the command. Defualt True.
         wait_before (int) : If not None, the number of seconds to wait before
             issuing the command
@@ -28,6 +32,9 @@ class SmurfCommandMixin(SmurfBase):
         wait_done (bool) : Wait for the command to be finished before returning.
             Default True.
         '''
+        if enable_poll:
+            epics.caput(self.epics_root + self._global_poll_enable, True)
+
         if wait_before is not None:
             if write_log:
                 self.log('Waiting {:3.2f} seconds before...'.format(wait_before),
@@ -51,8 +58,11 @@ class SmurfCommandMixin(SmurfBase):
             if write_log:
                 self.log('Done waiting.', self.LOG_USER)
 
+        if disable_poll:
+            epics.caput(self.epics_root + self._global_poll_enable, False)
+
     def _caget(self, cmd, write_log=False, execute=True, count=None,
-        log_level=0):
+        log_level=0, enable_poll=True, disable_poll=True):
         '''
         Wrapper around pyrogue lcaget. Gets variables from epics
 
@@ -67,6 +77,9 @@ class SmurfCommandMixin(SmurfBase):
         --------
         ret : The requested value
         '''
+        if enable_poll:
+            epics.caput(self.epics_root+ self._global_poll_enable, True)
+
         if write_log:
             self.log('caput ' + cmd, log_level)
 
@@ -77,6 +90,18 @@ class SmurfCommandMixin(SmurfBase):
             return ret
         else:
             return None
+
+        if disable_poll:
+            epics.caput(self.epics_root+ self._global_poll_enable, False)
+
+    def get_enable(self, **kwargs):
+        """
+        Returns the status of the global poll bit epics_root:AMCc:enable.
+        If False, pyrogue is not currently polling the server. PVs will 
+        not be updating.
+        """
+        return self._caget(self.epics_root + self._global_poll_enable, 
+                           enable_poll=False, disable_poll=False, **kwargs)
 
     _number_sub_bands = 'numberSubBands'
     def get_number_sub_bands(self, band, **kwargs):
@@ -890,12 +915,13 @@ class SmurfCommandMixin(SmurfBase):
 
     def get_band_center_mhz(self, band, **kwargs):
         '''
+        Returns the center frequency of the band in MHz
         '''
         if self.offline:
             if band == 3:
-                bc = 5.25E3
-            elif band == 2:
                 bc = 5.75E3
+            elif band == 2:
+                bc = 5.25E3
             return bc
         else:
             return self._caget(self._band_root(band) + self._band_center_mhz, 
@@ -910,6 +936,7 @@ class SmurfCommandMixin(SmurfBase):
 
     def get_digitizer_frequency_mhz(self, band, **kwargs):
         '''
+        Returns the digitizer frequency in MHz.
         '''
         if self.offline:
             return 614.4
@@ -945,7 +972,15 @@ class SmurfCommandMixin(SmurfBase):
     _amplitude_scale_channel = 'amplitudeScale'
     def set_amplitude_scale_channel(self, band, channel, val, **kwargs):
         """
-        Set the amplitude scale for a single channel
+        Set the amplitude scale for a single channel. The amplitude scale
+        defines the power of the tone. 
+
+        Args:
+        -----
+        band (int): The band the channel is in
+        channel (int): The channel number
+        val (int): The value of the tone amplitude. Acceptable units are
+            0 to 15. 
         """
         self._caput(self._channel_root(band, channel) + 
             self._amplitude_scale_channel, val, **kwargs)
@@ -1154,6 +1189,18 @@ class SmurfCommandMixin(SmurfBase):
         '''
         return self._caget(self.jesd_rx_root + self._link_disable, val, 
             **kwargs)
+
+    _jesd_rx_enable = 'Enable'
+    def get_jesd_rx_enable(self, **kwargs):
+        """
+        """
+        return self._caget(self.jesd_rx_root + self._jesd_rx_enable, **kwargs)
+
+    _jesd_rx_valid = 'DataValid'
+    def get_jesd_rx_data_valid(self, **kwargs):
+        """
+        """
+        return self._caget(self.jesd_rx_root + self._jesd_rx_valid, **kwargs)
 
     _jesd_tx_enable = 'Enable'
     def get_jesd_tx_enable(self, **kwargs):
@@ -1405,28 +1452,6 @@ class SmurfCommandMixin(SmurfBase):
         self.set_cpld_reset(1, wait_done=True, **kwargs)
         self.set_cpld_reset(0, wait_done=True, **kwargs)
 
-    _low_cycle = 'LowCycle'
-    def set_low_cycle(self, val, **kwargs):
-        """
-        """
-        self._caput(self.rtm_cryo_det_root + self._low_cycle, val, **kwargs)
-
-    def get_low_cycle(self, **kwargs):
-        """
-        """
-        return self._caget(self.rtm_cryo_det_root + self._low_cycle, **kwargs)
-
-    _high_cycle = 'HighCycle'
-    def set_high_cycle(self, val, **kwargs):
-        """
-        """
-        self._caput(self.rtm_cryo_det_root + self._high_cycle, val, **kwargs)
-
-    def get_high_cycle(self, **kwargs):
-        """
-        """
-        return self._caget(self.rtm_cryo_det_root + self._high_cycle, **kwargs)
-
     _k_relay = 'KRelay'
     def set_k_relay(self, val, **kwargs):
         """
@@ -1473,6 +1498,42 @@ class SmurfCommandMixin(SmurfBase):
         """
         return self._caget(self.rtm_cryo_det_root + self._ramp_start_mode, 
             **kwargs)
+
+    _enable_ramp_trigger = 'EnableRampeTrigger'
+    def set_enable_ramp_trigger(self, val, **kwargs):
+        """
+        """
+        self._caput(self.rtm_cryo_det_root + self._enable_ramp_trigger,
+                    vale, **kwargs)
+
+    timing_crate_root = ":AMCc:FpgaTopLevel:AmcCarrierCore:AmcCarrierTiming:EvrV2CoreTriggers"
+    _trigger_rate_sel = ":EvrV2ChannelReg[0]:RateSel" 
+    def set_ramp_rate(self, val, **kwargs):
+        """
+        flux ramp sawtooth reset rate in kHz
+
+        Allowed rates: 1, 2, 3, 4, 5, 6, 8, 10, 12, 15kHz (hardcoded by timing)
+        """
+        rate_sel = self.flux_ramp_rate_to_PV(val)
+
+        if rate_sel is not None:
+            self._caput(self.epics_root + self.timing_crate_root + 
+                self._trigger_rate_sel, rate_sel, **kwargs)
+        else:
+            print("Rate requested is not allowed by timing triggers. Allowed rates are 1, 2, 3, 4, 5, 6, 8, 10, 12, 15kHz only")
+
+    def get_ramp_rate(self, **kwargs):
+        """
+        flux ramp sawtooth reset rate in kHz
+        """
+
+        rate_sel = self._caget(self.epics_root + self.timing_crate_root + 
+            self._trigger_rate_sel, **kwargs)
+
+        reset_rate = self.flux_ramp_PV_to_rate(rate_sel)
+
+        return reset_rate
+
 
     _pulse_width = 'PulseWidth'
     def set_pulse_width(self, val, **kwargs):
@@ -1715,6 +1776,37 @@ class SmurfCommandMixin(SmurfBase):
         """
         return 3.0725E5/(self.get_ramp_max_cnt(**kwargs)+1)
 
+
+    _low_cycle = 'LowCycle'
+    def set_low_cycle(self, val, **kwargs):
+        """
+        CPLD's clock: low cycle duration (zero inclusive). 
+        Along with HighCycle, sets the frequency of the clock going to the RTM.
+        """
+        self._caput(self.rtm_cryo_det_root + self._low_cycle, val, **kwargs)
+    
+    def get_low_cycle(self, val, **kwargs):
+        """
+        CPLD's clock: low cycle duration (zero inclusive). 
+        Along with HighCycle, sets the frequency of the clock going to the RTM.
+        """
+        return self._caget(self.rtm_cryo_det_root + self._low_cycle, **kwargs)
+ 
+    _high_cycle = 'HighCycle'
+    def set_high_cycle(self, val, **kwargs):
+        """
+        CPLD's clock: high cycle duration (zero inclusive).
+        Along with LowCycle, sets the frequency of the clock going to the RTM.
+        """
+        self._caput(self.rtm_cryo_det_root + self._high_cycle, val, **kwargs)
+    
+    def get_high_cycle(self, val, **kwargs):
+        """
+        CPLD's clock: high cycle duration (zero inclusive).
+        Along with LowCycle, sets the frequency of the clock going to the RTM.
+        """
+        return self._caget(self.rtm_cryo_det_root + self._high_cycle, **kwargs)
+
     _select_ramp = 'SelectRamp'
     def set_select_ramp(self, val, **kwargs):
         """
@@ -1732,7 +1824,7 @@ class SmurfCommandMixin(SmurfBase):
         """
         return self._caget(self.rtm_cryo_det_root + self._select_ramp, **kwargs)
 
-    _enable_ramp = 'EnabletRamp'
+    _enable_ramp = 'EnableRamp'
     def set_enable_ramp(self, val, **kwargs):
         """
         Select Ramp to the CPLD
@@ -1753,8 +1845,9 @@ class SmurfCommandMixin(SmurfBase):
     def set_ramp_start_mode(self, val, **kwargs):
         """
         Select Ramp to the CPLD
-        0x1 = Fast flux Ramp
-        0x0 = Slow flux ramp
+	0x2 = trigger from external system
+        0x1 = trigger from timing system
+        0x0 = trigger from internal system
         """
         self._caput(self.rtm_cryo_det_root + self._ramp_start_mode, val, 
             **kwargs)
@@ -1762,8 +1855,9 @@ class SmurfCommandMixin(SmurfBase):
     def get_ramp_start_mode(self, **kwargs):
         """
         Select Ramp to the CPLD
-        0x1 = Fast flux Ramp
-        0x0 = Slow flux ramp
+	0x2 = trigger from external system
+        0x1 = trigger from timing system
+        0x0 = trigger from internal system
         """
         return self._caget(self.rtm_cryo_det_root + self._ramp_start_mode, 
             **kwargs)
@@ -1927,31 +2021,56 @@ class SmurfCommandMixin(SmurfBase):
             **kwargs)
 
     # Cryo card comands
-    def get_cryo_card_temp(self):
+    def get_cryo_card_temp(self, enable_poll=True, disable_poll=True):
         """
         Returns:
         --------
         temp (float): Temperature of the cryostat card in Celcius
         """
-        return self.C.read_temperature()
+        if enable_poll:
+            epics.caput(self.epics_root + self._global_poll_enable, True)
+        
+        T = self.C.read_temperature()
+        
+        if disable_poll:
+            epics.caput(self.epics_root + self._global_poll_enable, False)
+        
+        return T
+        
 
-    def get_cryo_card_hemt_bias(self):
+    def get_cryo_card_hemt_bias(self, enable_poll=True, disable_poll=True):
         """
         Returns:
         --------
         bias (float): The HEMT bias in volts
         """
-        return self.C.read_hemt_bias()
+        if enable_poll:
+            epics.caput(self.epics_root + self._global_poll_enable, True)
 
-    def get_cryo_card_50k_bias(self):
+        hemt_bias = self.C.read_hemt_bias()
+
+        if disable_poll:
+            epics.caput(self.epics_root + self._global_poll_enable, False)
+
+        return hemt_bias
+
+    def get_cryo_card_50k_bias(self, enable_poll=True, disable_poll=True):
         """
         Returns:
         --------
         bias (float): The 50K bias in volts
         """
-        return self.C.read_50k_bias()
+        if enable_poll:
+            epics.caput(self.epics_root + self._global_poll_enable, True)
 
-    def get_cryo_card_cycle_count(self):
+        bias = self.C.read_50k_bias()
+
+        if disable_poll:
+            epics.caput(self.epics_root + self._global_poll_enable, False)
+
+        return bias
+
+    def get_cryo_card_cycle_count(self, enable_poll=True, disable_poll=True):
         """
         Returns:
         --------
@@ -1960,13 +2079,21 @@ class SmurfCommandMixin(SmurfBase):
         self.log('Not doing anything because not implement in cryo_card.py')
         # return self.C.read_cycle_count()
 
-    def get_cryo_card_relays(self):
+    def get_cryo_card_relays(self, enable_poll=True, disable_poll=True):
         """
         Returns:
         --------
         relays (hex): The cryo card relays value
         """
-        return self.C.read_relays()
+        if enable_poll:
+            epics.caput(self.epics_root + self._global_poll_enable, True)
+
+        relay = self.C.read_relays()
+
+        if disable_poll:
+            epics.caput(self.epics_root + self._global_poll_enable, False)
+
+        return relay
 
     def set_cryo_card_relay_bit(self,bitPosition,oneOrZero):
         """
@@ -1984,7 +2111,11 @@ class SmurfCommandMixin(SmurfBase):
         nextRelay = nextRelay | (oneOrZero<<bitPosition)
         self.set_cryo_card_relays(nextRelay)
 
-    def set_cryo_card_relays(self, relay, write_log=False):
+
+
+    def set_cryo_card_relays(self, relay, write_log=False, enable_poll=True,
+                             disable_poll=True):
+
         """
         Sets the cryo card relays
 
@@ -1994,9 +2125,18 @@ class SmurfCommandMixin(SmurfBase):
         """
         if write_log:
             self.log('Writing relay using cryo_card object. {}'.format(relay))
+
+        if enable_poll:
+            epics.caput(self.epics_root + self._global_poll_enable, True)
+
         self.C.write_relays(relay)
 
-    def set_cryo_card_delatch_bit(self, bit, write_log=False):
+        if disable_poll:
+            epics.caput(self.epics_root + self._global_poll_enable, True)
+
+
+    def set_cryo_card_delatch_bit(self, bit, write_log=False, enable_poll=True,
+                                  disable_poll=True):
         """
         Delatches the cryo card for a bit.
 
@@ -2004,10 +2144,17 @@ class SmurfCommandMixin(SmurfBase):
         -----
         bit (int): The bit to temporarily delatch
         """
+        if enable_poll:
+            epics.caput(self.epics_root + self._global_poll_enable, True)
+
         if write_log:
             self.log('Setting delatch bit using cryo_card ' +
                 'object. {}'.format(bit))
         self.C.delatch_bit(bit)
+
+        if disable_poll:
+            epics.caput(self.epics_root + self._global_poll_enable, False)
+
 
     _smurf_to_gcp_stream = 'userConfig[0]'  # bit for streaming
     def get_user_config0(self, as_binary=False, **kwargs):
@@ -2019,6 +2166,13 @@ class SmurfCommandMixin(SmurfBase):
             val = bin(val)
 
         return val
+
+    def set_user_config0(self, val, as_binary=False, **kwargs):
+        """
+        """
+        self._caput(self.timing_header + 
+                    self._smurf_to_gcp_stream, val, **kwargs)
+
 
     def set_smurf_to_gcp_stream(self, val, **kwargs):
         """
@@ -2062,6 +2216,24 @@ class SmurfCommandMixin(SmurfBase):
         return self._caget(self.timing_header + 
                     self._smurf_to_gcp_stream, **kwargs)
 
+    def set_smurf_to_gcp_writer(self, val, **kwargs):
+        """                                                                                                                                 
+        Turns on or off data writer from smurf to GCP.                                                                                      
+        This only accepts bools. Annoyingly the bit is                                                                                      
+        0 for streaming and 1 for off. This function takes                                                                                  
+        care of that, so True for streaming and False                                                                                       
+        for off.                                                                                                                            
+        """
+        old_val = self.get_user_config0()
+        if val == False:
+            new_val = old_val | (2 << 1)
+        elif val == True:
+            new_val = old_val
+            if old_val & 2 << 1 != 0:
+                new_val = old_val & ~(2 << 1)
+        self._caput(self.timing_header +
+                    self._smurf_to_gcp_stream, new_val, **kwargs)
+
     def set_smurf_to_gcp_clear(self, val, **kwargs):
         """
         Clears the wrap counter and average if set to 1.
@@ -2075,6 +2247,25 @@ class SmurfCommandMixin(SmurfBase):
             new_val = old_val
             if old_val & 1 << clear_bit != 0:
                 new_val = old_val & ~(1 << clear_bit)
+
+        self._caput(self.timing_header +
+                    self._smurf_to_gcp_stream, new_val, **kwargs)
+
+    def set_smurf_to_gcp_cfg_read(self, val, **kwargs):
+        """
+        If set to True, constantly reads smurf2mce.cfg at the MCE
+        rate (~200 Hz). This is for updating IP address. Constantly
+        reading the cfg file causes occasional dropped frames. So
+        it should be set to False after the cfg is read.
+        """
+        read_bit = 3
+        old_val = self.get_user_config0()
+        if val:
+            new_val = old_val | (1 << read_bit)
+        elif ~val:
+            new_val = old_val
+            if old_val & 1 << read_bit != 0:
+                new_val = old_val & ~(1 << read_bit)
 
         self._caput(self.timing_header +
                     self._smurf_to_gcp_stream, new_val, **kwargs)
@@ -2117,4 +2308,59 @@ class SmurfCommandMixin(SmurfBase):
         new = (old & 0x0000FFFF) + ((val & 0xFFFF)<<16)
         self._caput(self.timing_header +
                     self._row_len, new, **kwargs)
-        
+
+
+    # Triggering commands
+    _trigger_width = 'EvrV2TriggerReg[{}]:Width'
+    def set_trigger_width(self, chan, val, **kwargs):
+        """
+        Mystery value that seems to make the timing system work
+        """
+        self._caput(self.trigger_root + self._trigger_width.format(chan),
+                    val, **kwargs)
+
+
+    _trigger_enable = 'EvrV2TriggerReg[{}]:Enable'
+    def set_trigger_enable(self, chan, val, **kwargs):
+        """
+        """
+        self._caput(self.trigger_root + self._trigger_enable.format(chan),
+                   val, **kwargs)
+
+
+    _trigger_channel_reg_enable = 'EvrV2ChannelReg[{}]:enable'
+    def set_evr_channel_reg_enable(self, chan, val, **kwargs):
+        """
+        """
+        self.log('set_evr_channel_reg_enable sets 2 bits. enable and Enable.')
+        self._caput(self.trigger_root +
+                    self._trigger_channel_reg_enable.replace('enable', 'Enable').format(chan), int(val),
+                    **kwargs)
+        self._caput(self.trigger_root + 
+                    self._trigger_channel_reg_enable.format(chan), val,
+                    **kwargs)
+
+    _trigger_reg_enable = 'EvrV2TriggerReg[{}]:enable'
+    def set_evr_trigger_reg_enable(self, chan, val, **kwargs):
+        """
+        """
+        self._caput(self.trigger_root +
+                    self._trigger_reg_enable.format(chan), val,
+                    **kwargs)
+
+    _trigger_channel_reg_count = 'EvrV2ChannelReg[{}]:Count'
+    def get_evr_channel_reg_count(self, chan, **kwargs):
+        """
+        """
+        return self._caget(self.trigger_root + 
+                    self._trigger_channel_reg_count.format(chan),
+                    **kwargs)
+
+    _trigger_channel_reg_dest_sel = 'EvrV2ChannelReg[{}]:DestSel'
+    def set_evr_trigger_channel_reg_dest_sel(self, chan, val, **kwargs):
+        """
+        """
+        self._caput(self.trigger_root + 
+                    self._trigger_channel_reg_dest_sel.format(chan),
+                    val, **kwargs)
+

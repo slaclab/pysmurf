@@ -98,10 +98,98 @@ class SmurfIVMixin(SmurfBase):
             high_current_mode=high_current_mode, rn_accept_min=rn_accept_min,
             rn_accept_max=rn_accept_max, gcp_mode=gcp_mode,grid_on=grid_on)
 
+    def slow_iv_all(self, wait_time=.1, bias=None, bias_high=19.9, 
+        bias_low=0, bias_step=.1, show_plot=False, high_current_wait=.25, 
+        make_plot=True, save_plot=True, channels=None, high_current_mode=False,
+        rn_accept_min=1e-3, rn_accept_max=1., overbias_voltage=19.9):
+        """
+        Steps the TES bias down slowly. Starts at bias_high to bias_low with
+        step size bias_step. Waits wait_time between changing steps.
+
+        Args:
+        -----
+        daq (int) : The DAQ number
+
+        Opt Args:
+        ---------
+        wait_time (float): The amount of time between changing TES biases in 
+            seconds. Default .1 sec.
+        bias (float array): A float array of bias values. Must go high to low.
+        bias_high (int): The maximum TES bias in volts. Default 19.9
+        bias_low (int): The minimum TES bias in volts. Default 0
+        bias_step (int): The step size in volts. Default .1
+        """
+
+        if overbias_voltage != 0.:
+            overbias = True
+        else:
+            overbias = False
+
+        # drive high current through the TES to attempt to drive nomral
+        #self.set_tes_bias_bipolar(bias_num, 19.9)
+        #time.sleep(.1)
+        #self.log('Driving high current through TES. ' + \
+        #    'Waiting {}'.format(high_current_wait))
+        #self.set_cryo_card_relays(0x10004)
+        #time.sleep(high_current_wait)
+        #self.set_cryo_card_relays(0x10000)
+        #time.sleep(.1)
+        if bias is None:
+            bias = np.arange(bias_high, bias_low, -bias_step)
+            
+        overbias_wait = 2.
+        cool_wait = 5. # CYNDIA CHANGED THIS AT POLE I'M SORRY 20181123
+        if overbias:
+            self.overbias_tes_all(overbias_wait=overbias_wait, 
+                tes_bias=np.max(bias), cool_wait=cool_wait,
+                high_current_mode=high_current_mode,
+                overbias_voltage=overbias_voltage)
+
+        self.log('Staring to take IV.', self.LOG_USER)
+        self.log('Starting TES bias ramp.', self.LOG_USER)
+
+        bias_groups = np.arange(8)
+        for g in bias_groups:
+            self.set_tes_bias_bipolar(g, bias[0])
+            time.sleep(1 / 10) # divide everything by 10 to account for looping
+
+        #datafile = self.stream_data_on(band)
+
+        for b in bias:
+            for g in bias_groups:
+                self.log('Bias at {:4.3f}'.format(b))
+                self.set_tes_bias_bipolar(g, b)  
+                time.sleep(wait_time/10) # slightly more than factor of 8 from loops
+
+        self.log('Done with TES bias ramp', self.LOG_USER)
+        self.set_cryo_card_relays(2**16)
+
+        #self.stream_data_off(band)
+
+        #basename, _ = os.path.splitext(os.path.basename(datafile))
+        #np.save(os.path.join(basename + '_iv_bias_all.txt'), bias)
+
+        #iv_raw_data = {}
+        #iv_raw_data['bias'] = bias
+        #iv_raw_data['datafile'] = datafile
+        #iv_raw_data['basename'] = basename
+        #iv_raw_data['output_dir'] = self.output_dir
+        #iv_raw_data['plot_dir'] = self.plot_dir
+        #fn_iv_raw_data = os.path.join(self.output_dir, basename + 
+            #'_iv_raw_data.npy')
+        #np.save(os.path.join(self.output_dir, fn_iv_raw_data), iv_raw_data)
+
+        #self.analyze_slow_iv_from_file(fn_iv_raw_data, make_plot=make_plot,
+            #show_plot=show_plot, save_plot=save_plot,R_sh = 325e-6, 
+            #high_current_mode=high_current_mode, rn_accept_min=rn_accept_min,
+            #rn_accept_max=rn_accept_max)
+
+ 
+
     def analyze_slow_iv_from_file(self, fn_iv_raw_data, make_plot=True,
         show_plot=False, save_plot=True, R_sh=None, high_current_mode=False,
-        rn_accept_min = 1e-3, rn_accept_max = 1., phase_excursion_min=3.,
-                                  grid_on = False,gcp_mode=True):
+        rn_accept_min=1e-3, rn_accept_max=1., phase_excursion_min=3.,
+        grid_on=False, gcp_mode=True):
         """
         phase_excursion: abs(max - min) of phase in radians
         """
@@ -129,17 +217,15 @@ class SmurfIVMixin(SmurfBase):
         phase_excursion_list = []
         for c, ch in enumerate(channels):
             self.log('Analyzing channel {}'.format(ch))
-            # timestamp, I, Q = self.read_stream_data(datafile)
-            # phase = self.iq_to_phase(I[ch], Q[ch]) * 1.443
         
             phase = phase_all[ch]
             ch_idx = ch
-            # phase_ch = phase[ch_idx]
          
             phase_excursion = max(phase) - min(phase)
-            # don't analyze channels with a small phase excursion; these are probably just noise
+
             if phase_excursion < phase_excursion_min:
-                self.log('Skipping channel {} because phase_excursion is less than phase_excursion_min.'.format(ch))
+                self.log('Skipping channel {}'.format(ch) +\
+                    ' phase excursion > min'.format(ch))
                 continue
             phase_excursion_list.append(phase_excursion)
 
@@ -165,7 +251,6 @@ class SmurfIVMixin(SmurfBase):
                 plot_name = basename + \
                     '_IV_stream_b{}_g{}_ch{:03}.png'.format(band,bias_group,ch)
                 if save_plot:
-                    # self.log('Saving IV plot to {}'.format(os.path.join(plot_dir, plot_name)))
                     plt.savefig(os.path.join(plot_dir, plot_name), 
                         bbox_inches='tight', dpi=300)
                 if not show_plot:
@@ -222,7 +307,8 @@ class SmurfIVMixin(SmurfBase):
 
     def analyze_slow_iv(self, v_bias, resp, make_plot=True, show_plot=False,
         save_plot=True, basename=None, band=None, channel=None, R_sh=None,
-        plot_dir = None,high_current_mode = False,bias_group = None,grid_on = False,**kwargs):
+        plot_dir=None, high_current_mode=False, bias_group = None,
+        grid_on=False, **kwargs):
         """
         Analyzes the IV curve taken with slow_iv()
 
@@ -410,11 +496,12 @@ class SmurfIVMixin(SmurfBase):
         ax_pr.set_ylabel(r'$P_\mathrm{TES}$ [pW]')
         if found_Rmin and found_Rmax:
             p_trans_median = np.median(p_tes[i_Rmin:i_Rmax])
-            ax_pr.axvline(x=R[i_Rmin],linestyle = ':',color = 'k')
-            ax_pr.axvline(x=R[i_Rmax],linestyle = ':',color = 'k')
+            ax_pr.axvline(x=R[i_Rmin], linestyle=':', color='k')
+            ax_pr.axvline(x=R[i_Rmax], linestyle=':', color='k')
             label = r'Median power between $%.2f R_n$ and $%.2f R_n$: %.0f pW' \
                 % (R_frac_min,R_frac_max,p_trans_median)
-            ax_pr.axhline(y=p_trans_median,linestyle = ':',label = label,color = 'r')
+            ax_pr.axhline(y=p_trans_median, linestyle=':', label=label,
+                color='r')
         else:
             p_trans_median = None
 
@@ -423,8 +510,8 @@ class SmurfIVMixin(SmurfBase):
         fig_pr.suptitle('Band {}, Group {}, Ch {:03}'.format(band, 
                     bias_group, channel))
         if grid_on:
-            ax_pr.grid(which = 'major')
-            ax_pr.grid(which = 'minor',linestyle = '--')
+            ax_pr.grid(which='major')
+            ax_pr.grid(which='minor', linestyle='--')
             ax_pr.minorticks_on()
         if save_plot:
             if basename is None:
@@ -510,8 +597,10 @@ class SmurfIVMixin(SmurfBase):
         idx = np.ravel(np.where(peak_span > delta_peak_cutoff))
         return peaks[idx]
 
-    def estimate_opt_eff(self,iv_fn_hot,iv_fn_cold,t_hot=293.,t_cold=77.,\
-                             channels = None,dPdT_lim = (0.,0.5)):
+    def estimate_opt_eff(self, iv_fn_hot, iv_fn_cold,t_hot=293.,t_cold=77.,
+        channels = None, dPdT_lim=(0.,0.5)):
+        """
+        """
         ivs_hot = np.load(iv_fn_hot).item()
         ivs_cold = np.load(iv_fn_cold).item()
     

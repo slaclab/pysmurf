@@ -6,6 +6,7 @@ import os
 import struct
 import time
 import epics
+from scipy import signal
 
 class SmurfUtilMixin(SmurfBase):
 
@@ -398,7 +399,7 @@ class SmurfUtilMixin(SmurfBase):
             file_content = file.read()
 
         version = file_content[8]
-        print('Version: %s' % (version))
+        self.log('Version: %s' % (version))
 
         self.log('Data version {}'.format(version), self.LOG_INFO)
 
@@ -644,6 +645,60 @@ class SmurfUtilMixin(SmurfBase):
                 write_log=False)
             self.log('DAQ number {}: start {} - end {}'.format(daq_num, s, e))
 
+    def config_cryo_channel(self, band, channel, frequencyMHz, amplitude, 
+        feedback_enable, eta_phase, eta_mag):
+        """
+        Set parameters on a single cryo channel
+
+        Args:
+        -----
+        band (int) : The band for the channel
+        channel (int) : which channel to configure
+        frequencyMHz (float) : the frequency offset from the subband center in MHz
+        amplitude (int) : amplitude scale to set for the channel (0..15)
+        feedback_enable (bool) : whether to enable feedback for the channel
+        eta_phase (float) : feedback eta phase, in degrees (-180..180) 
+        eta_mag (float) : feedback eta magnitude
+        """
+
+        n_subbands = self.get_number_sub_bands(band)
+        digitizerFrequencyMHz = self.get_digitizer_frequency_mhz(band)
+        subband_width = digitizerFrequencyMHz / (n_subbands / 2)
+
+        # some checks to make sure we put in values within the correct ranges
+
+        if frequencyMHz > subband_width / 2:
+            self.log("frequencyMHz exceeds subband width! setting to top of subband")
+            freq = subband_width / 2
+        elif frequencyMHz < - subband_width / 2:
+            self.log("frequencyMHz below subband width! setting to bottom of subband")
+            freq = -subband_width / 2
+        else:
+            freq = frequencyMHz
+
+        if amplitude > 15:
+            self.log("amplitude too high! setting to 15")
+            ampl = 15
+        elif amplitude < 0:
+            self.log("amplitude too low! setting to 0")
+            ampl = 0
+        else:
+            ampl = amplitude
+
+        # get phase within -180..180
+        phase = eta_phase
+        while phase > 180:
+            phase = phase - 360
+        while phase < -180:
+            phase = phase + 360
+
+        # now set all the PV's
+        self.set_center_frequency_mhz_channel(band, channel, freq)
+        self.set_amplitude_scale_channel(band, channel, ampl)
+        self.set_eta_phase_degree_channel(band, channel, phase)
+        self.set_eta_mag_scaled_channel(band, channel, eta_mag)
+
+        return
 
     def which_on(self, band):
         '''
@@ -796,9 +851,9 @@ class SmurfUtilMixin(SmurfBase):
         git_hash = ''.join([chr(y) for y in git_hash]) # convert from int to ascii
         build_stamp = ''.join([chr(y) for y in build_stamp])
 
-        self.log("Build stamp: " + str(build_stamp) + "\n", self.LOG_USER)
-        self.log("FPGA version: Ox" + str(fpga_version) + "\n", self.LOG_USER)
-        self.log("FPGA uptime: " + str(uptime) + "\n", self.LOG_USER)
+        self.log("Build stamp: " + str(build_stamp), self.LOG_USER)
+        self.log("FPGA version: Ox" + str(fpga_version), self.LOG_USER)
+        self.log("FPGA uptime: " + str(uptime), self.LOG_USER)
 
         jesd_tx_enable = self.get_jesd_tx_enable()
         jesd_tx_valid = self.get_jesd_tx_data_valid()
@@ -806,6 +861,13 @@ class SmurfUtilMixin(SmurfBase):
             self.log("JESD Tx DOWN", self.LOG_USER)
         else:
             self.log("JESD Tx Okay", self.LOG_USER)
+
+        jesd_rx_enable = self.get_jesd_rx_enable()
+        jesd_rx_valid = self.get_jesd_rx_data_valid()
+        if jesd_rx_enable != jesd_rx_valid:
+            self.log("JESD Rx DOWN", self.LOG_USER)
+        else:
+            self.log("JESD Rx Okay", self.LOG_USER)
 
 
         # dict containing all values
@@ -815,7 +877,9 @@ class SmurfUtilMixin(SmurfBase):
             'git_hash' : git_hash,
             'build_stamp' : build_stamp,
             'jesd_tx_enable' : jesd_tx_enable,
-            'jesd_tx_valid' : jesd_tx_valid
+            'jesd_tx_valid' : jesd_tx_valid,
+            'jesd_rx_enable': jesd_rx_enable,
+            'jesd_rx_valid' : jesd_rx_valid,
         }
 
         return ret
@@ -872,6 +936,7 @@ class SmurfUtilMixin(SmurfBase):
         offset = self.get_center_frequency_mhz_channel(band, channel)
 
         return sbc[subband] + offset
+
 
     def get_channel_order(self, channel_orderfile=None):
         ''' produces order of channels from a user-supplied input file
@@ -1256,35 +1321,29 @@ class SmurfUtilMixin(SmurfBase):
         self.print_amplifier_bias()
 
 
-    # alias
-    set_amplifier_biases=set_amplifier_bias
-
-    def print_amplifier_biases(self, write_log=False):
-        # for printout
-        s=[]
-
+    def get_amplifier_biases(self, write_log=True):
         # 4K
         hemt_Id_mA=self.get_hemt_drain_current()
         hemt_gate_bias_volts=self.get_hemt_gate_voltage()
 
-        s.append('Commanded hemtVg= %0.3fV '%hemt_gate_bias_volts)
-        s.append('Read hemtId= %0.3fmA '%hemt_Id_mA)
-
         # 50K
         fiftyk_Id_mA=self.get_50k_amp_drain_current()
         fiftyk_amp_gate_bias_volts=self.get_50k_amp_gate_voltage()
-
-        s.append('Commanded 50kVg= %0.3fV '%fiftyk_amp_gate_bias_volts)
-        s.append('Read 50kId= %0.3fmA '%fiftyk_Id_mA)
-
-        # print out
-        print((("{: >20}"*len(s)).rstrip()).format(*s))
+        
+        ret = {
+            'hemt_Vg' : hemt_gate_bias_volts,
+            'hemt_Id' : hemt_Id_mA,
+            '50K_Vg' : fiftyk_amp_gate_bias_volts,
+            '50K_Id' : fiftyk_Id_mA
+        }
 
         if write_log:
-            self.log((("{: >20}"*len(s)).rstrip()).format(*s))
+            self.log(ret)
+
+        return ret
 
     # alias
-    print_amplifier_bias=print_amplifier_biases
+    get_amplifier_bias = get_amplifier_biases
 
     def get_hemt_drain_current(self, hemt_offset=.100693):
         """
@@ -1349,6 +1408,53 @@ class SmurfUtilMixin(SmurfBase):
         time.sleep(cool_wait)
         self.log('Done waiting.', self.LOG_USER)
 
+    def overbias_tes_all(self, overbias_voltage=19.9, overbias_wait=0.5,
+        tes_bias=19.9, cool_wait=20., high_current_mode=False):
+        """
+        Warning: This is horribly hardcoded. Needs a fix soon.
+        CY edit 20181119 to make it even worse lol
+
+        Args:
+        -----
+
+        Opt Args:
+        ---------
+        overbias_voltage (float): The value of the TES bias in the high current
+            mode. Default 19.9.
+        overbias_wait (float): The time to stay in high current mode in seconds.
+            Default is .5
+        tes_bias (float): The value of the TES bias when put back in low current
+            mode. Default is 19.9.
+        cool_wait (float): The time to wait after setting the TES bias for 
+            transients to die off.
+        """
+        # drive high current through the TES to attempt to drive normal
+
+        bias_groups = np.arange(8)
+
+        for g in bias_groups:
+            self.set_tes_bias_bipolar(g, overbias_voltage)
+            time.sleep(.1)
+
+        for g in bias_groups:
+            self.set_tes_bias_high_current(g)
+        self.log('Driving high current through TES. ' + \
+            'Waiting {}'.format(overbias_wait), self.LOG_USER)
+        time.sleep(overbias_wait)
+
+        if not high_current_mode:
+            for g in bias_groups:
+                self.set_tes_bias_low_current(g)
+                time.sleep(.1)
+
+        for g in bias_groups:
+            self.set_tes_bias_bipolar(g, tes_bias)
+        self.log('Waiting %.2f seconds to cool' % (cool_wait), self.LOG_USER)
+        time.sleep(cool_wait)
+        self.log('Done waiting.', self.LOG_USER)
+
+
+
 
     def set_tes_bias_high_current(self, bias_group):
         """
@@ -1367,7 +1473,7 @@ class SmurfUtilMixin(SmurfBase):
             r = np.ravel(self.pic_to_bias_group[np.where(
                 self.pic_to_bias_group[:,1]==bias_group)])[0]
         else:
-            r = bias_groups
+            r = bias_group
         new_relay = (1 << r) | old_relay
         self.log('New relay {}'.format(bin(new_relay)))
         self.set_cryo_card_relays(new_relay, write_log=True)
@@ -1434,3 +1540,123 @@ class SmurfUtilMixin(SmurfBase):
             chs = np.append(chs, self.which_on(b)+b*channels_per_band)
 
         return chs
+
+    def flux_ramp_rate_to_PV(self, val):
+        """
+        Convert between the desired flux ramp reset rate and the PV number
+        for the timing triggers.
+
+        Hardcoded somewhere that we can't access; this is just a lookup table
+        Allowed reset rates (kHz): 1, 2, 3, 4, 5, 6, 8, 10, 12, 15
+
+        Returns:
+        rate_sel (int): the rate sel PV for the timing trigger
+        """
+
+        rates_kHz = np.array([15, 12, 10, 8, 6, 5, 4, 3, 2, 1])
+
+        try:
+            idx = np.where(rates_kHz == val)[0][0] # weird numpy thing sorry
+            return idx
+        except IndexError:
+            self.log("Reset rate not allowed! Look up help for allowed values")
+            return
+
+    def flux_ramp_PV_to_rate(self, val):
+        """
+        Convert between PV number in timing triggers and output flux ramp reset rate
+
+        Returns:
+        reset_rate (int): the flux ramp reset rate, in kHz
+        """
+
+        rates_kHz = [15, 12, 10, 8, 6, 5, 4, 3, 2, 1]
+        return rates_kHz[val]  
+
+    def why(self):
+        """
+        Why not?
+        """
+
+        aphorisms = ['If stupidity is trying the same thing over and over and hoping for different results, then let’s all be a little stupid from time to time.', 'None of it matters anyways.', 'Being and truth are continents divided by an ocean of nothingness.', 'Self-reference is the enemy of aphorism.', 'Spring marks the symbolic return of life inevitably doomed come deathly winter.', 'In this frozen wasteland we are free to abandon all hope.', 'Life is a lone, desperate howl into an infinite abyss that can neither comprehend nor respond.', 'The only absolute knowledge attainable by man is that life is meaningless.', 'That which sustains you will eventually destroy you.', 'Oh no. We are in the hands of engineers!', 'Because I said so.', 'No idea, but hopefully Mitch fixes it.', 'Party parrot!!!', 'There are some enterprises in which a careful disorderliness is the true method.', 'Not sure, maybe try eating an orange?', 'Probably just best to go home and take a nap.']
+
+        self.log(np.random.choice(aphorisms))
+        return
+
+    def read_smurf_to_gcp_config(self):
+        """
+        Toggles the smurf_to_gcp read bit.
+        """
+        self.log('Reading SMuRF to GCP config file')
+        self.set_smurf_to_gcp_cfg_read(True, wait_after=.1)
+        self.set_smurf_to_gcp_cfg_read(False)
+
+    def make_smurf_to_gcp_config(self, num_averages=0, filename=None,
+                                 file_name_extend=False, 
+                                 data_frames=2000000,
+                                 filter_order=4, filter_freq=63):
+        """
+        Makes the config file that the Joe-writer uses to set the IP
+        address, port number, data file name, etc.
+
+        The IP and port are set in the config file. They cannot be updated
+        in runtime. 
+
+        Opt args:
+        ---------
+        num_averages (int): If 0, SMuRF output fromes to MCE are triggered
+           by the sync box. A new frame is generated for each sync word.
+           If > 0, then an output frame is generated for every num_averages
+           number of smurf frames.
+        filename (str): The filename to save the data to. If not provided,
+           automatically uses the current timestamp.
+        filename_extend (bool): If True, appends the data file name with 
+           the current timestamp. This is a relic of Joes original code.
+           Default is False and should probably always be False.
+        data_frames (int): The number of frames to store. Works up to 
+           2000000, which is about a 5GB file. Default is 2000000
+        filter_order (int): The order of the Butterworth filter. Default 4.
+        filter_freq (float): The frequency of the lowpass. Default 63.
+        """
+        if filename is None:
+            filename = self.get_timestamp() + '.dat'
+        data_file_name = os.path.join(self.data_dir, filename)
+        
+        flux_ramp_freq = self.get_flux_ramp_freq() * 1E3  # in Hz
+        if flux_ramp_freq < 1000:
+            flux_ramp_freq = 4000
+            self.log('Flux ramp frequency is below 1kHz.'\
+                      ' Setting a filter using 4kHz')
+
+        self.log('Making SMuRF to MCE config file.')
+
+        b, a = signal.butter(filter_order, 2*filter_freq / flux_ramp_freq)
+
+        with open(self.smurf_to_mce_file, "w") as f:
+            f.write("num_averages " + str(num_averages) + '\n');
+            f.write("receiver_ip " + self.smurf_to_mce_ip + '\n');
+            f.write("port_number " + str(self.smurf_to_mce_port) + '\n')
+            f.write("data_file_name " + data_file_name + '\n');
+            f.write("file_name_extend " + str(int(file_name_extend)) + '\n')
+            f.write("data_frames " + str(data_frames) + '\n')
+            f.write("filter_order " + str(filter_order) +"\n");
+            for n in range(0,filter_order+1):
+                f.write("filter_a"+str(n)+" "+str(a[n]) + "\n")
+            for n in range(0,filter_order+1):
+                f.write("filter_b"+str(n)+" "+str(b[n]) + "\n")
+
+        ret = {
+            "config_file": self.smurf_to_mce_file,
+            "num_averages": num_averages,
+            "receiver_ip": self.smurf_to_mce_ip,
+            "port_number": self.smurf_to_mce_port,
+            "data_file_name": data_file_name,
+            "file_name_extend": file_name_extend,
+            "data_frames": data_frames,
+            "flux_ramp_freq": flux_ramp_freq,
+            "filter_order": filter_order,
+            "filter_a": a,
+            "filter_b": b
+        }
+
+        return ret

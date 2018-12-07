@@ -155,12 +155,20 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
         # The resistance in line with the TES bias
         self.bias_line_resistance = self.config.get('bias_line_resistance')
 
+
         # The TES shunt resistance
         self.R_sh = self.config.get('R_sh')
 
         # The ratio of current for high-current mode to low-current mode;
         # also the inverse of the in-line resistance for the bias lines.
         self.high_low_current_ratio = self.config.get('high_low_current_ratio')
+
+        # The smurf to mce config data
+        smurf_to_mce_cfg = self.config.get('smurf_to_mce')
+        self.smurf_to_mce_file = smurf_to_mce_cfg.get('smurf_to_mce_file')
+        self.smurf_to_mce_ip = smurf_to_mce_cfg.get('receiver_ip')
+        self.smurf_to_mce_port = smurf_to_mce_cfg.get('port_number')
+
 
         if setup:
             self.setup(**kwargs)
@@ -169,14 +177,14 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
     #def test_decorator():
     #     print('Testing decorator...')
 
-    def setup(self, **kwargs):
+    def setup(self, write_log=True, **kwargs):
         """
         Sets the PVs to the default values from the experiment.cfg file
         """
         self.log('Setting up...', (self.LOG_USER))
 
-        self.set_read_all(write_log=True)
-        self.set_defaults_pv(write_log=True)
+        self.set_read_all(write_log=write_log)
+        self.set_defaults_pv(write_log=write_log)
 
         # The per band configs. May want to make available per-band values.
         smurf_init_config = self.config.get('init')
@@ -184,62 +192,90 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
         for b in bands:
             band_str = 'band_{}'.format(b)
             self.set_iq_swap_in(b, smurf_init_config[band_str]['iq_swap_in'], 
-                write_log=True, **kwargs)
+                write_log=write_log, **kwargs)
             self.set_iq_swap_out(b, smurf_init_config[band_str]['iq_swap_out'], 
-                write_log=True, **kwargs)
+                write_log=write_log, **kwargs)
             self.set_ref_phase_delay(b, 
                 smurf_init_config[band_str]['refPhaseDelay'], 
-                write_log=True, **kwargs)
+                write_log=write_log, **kwargs)
             self.set_ref_phase_delay_fine(b, 
                 smurf_init_config[band_str]['refPhaseDelayFine'], 
-                write_log=True, **kwargs)
+                write_log=write_log, **kwargs)
             self.set_tone_scale(b, smurf_init_config[band_str]['toneScale'], 
-                write_log=True, **kwargs)
+                write_log=write_log, **kwargs)
             self.set_analysis_scale(b, 
                 smurf_init_config[band_str]['analysisScale'], 
-                write_log=True, **kwargs)
+                write_log=write_log, **kwargs)
             self.set_feedback_enable(b, 
                 smurf_init_config[band_str]['feedbackEnable'],
-                write_log=True, **kwargs)
+                write_log=write_log, **kwargs)
             self.set_feedback_gain(b, 
                 smurf_init_config[band_str]['feedbackGain'], 
-                write_log=True, **kwargs)
+                write_log=write_log, **kwargs)
             self.set_lms_gain(b, smurf_init_config[band_str]['lmsGain'], 
-                write_log=True, **kwargs)
+                write_log=write_log, **kwargs)
 
             self.set_feedback_limit_khz(b, 225)  # why 225?
 
             self.set_feedback_polarity(b, 
                 smurf_init_config[band_str]['feedbackPolarity'], 
-                write_log=True, **kwargs)
-            # self.set_band_center_mhz(b, smurf_init_config['bandCenterMHz'],
-            #     write_log=True, **kwargs)
+                write_log=write_log, **kwargs)
             self.set_synthesis_scale(b, 
                 smurf_init_config[band_str]['synthesisScale'],
-                write_log=True, **kwargs)
+                write_log=write_log, **kwargs)
 
             for dmx in np.array(smurf_init_config[band_str]["data_out_mux"]):
-                self.set_data_out_mux(int(dmx), "UserData", write_log=True,
+                self.set_data_out_mux(int(dmx), "UserData", write_log=write_log,
                     **kwargs)
 
             self.set_att_uc(b, smurf_init_config[band_str]['att_uc'],
-                write_log=True)
+                write_log=write_log)
             self.set_att_dc(b, smurf_init_config[band_str]['att_dc'],
-                write_log=True)
+                write_log=write_log)
 
             self.set_dsp_enable(b, smurf_init_config['dspEnable'], 
-                write_log=True, **kwargs)
+                write_log=write_log, **kwargs)
 
             # Make band dictionaries
             self.freq_resp[b] = {}
 
-        self.set_cpld_reset(0, write_log=True)
+        self.set_trigger_width(0, 10, write_log=write_log)  # mystery bit that makes triggering work
+        self.set_trigger_enable(0, 1, write_log=write_log)
+        self.set_evr_channel_reg_enable(0, True, write_log=write_log)
+        self.set_evr_trigger_reg_enable(0, True, write_log=write_log)
+        self.set_evr_trigger_channel_reg_dest_sel(0, 0x20000, write_log=write_log)
 
-        # for i in np.arange(1,5):
-        #     self.set_att_uc(i, 0, input_band=False, write_log=True)
-        #     self.set_att_dc(i, 0, input_band=False, write_log=True)
+        self.set_enable_ramp_trigger(1, write_log=True)
 
-        self.cpld_toggle()
+        flux_ramp_cfg = self.config.get('flux_ramp')
+        self.set_select_ramp(flux_ramp_cfg['select_ramp'], write_log=write_log)
+        self.set_ramp_start_mode(flux_ramp_cfg['ramp_start_mode'], 
+                                 write_log=write_log)
+
+        self.set_cpld_reset(0, write_log=write_log)
+        self.cpld_toggle(write_log=write_log)
+
+        # Setup SMuRF to MCE converter
+        self.make_smurf_to_gcp_config()
+        time.sleep(.1)
+        self.read_smurf_to_gcp_config()  # Only for IP address
+
+        # Make sure flux ramp starts off
+        self.flux_ramp_off(write_log=write_log)
+        self.flux_ramp_setup(4, .5, write_log=write_log)  # Default values.
+
+        # Turn off GCP streaming
+        self.set_smurf_to_gcp_stream(False, write_log=write_log)
+        self.set_smurf_to_gcp_writer(False, write_log=write_log)
+
+        # Turn on stream enable (this should only send data to the PCIE)
+        for b in bands:
+            self.set_stream_enable(b, 1, write_log=write_log)
+
+        self.set_smurf_to_gcp_clear(1, write_log=write_log, wait_after=1)
+        self.set_smurf_to_gcp_clear(0, write_log=write_log)
+
+        self.log('Done with setup')
 
     def make_dir(self, directory):
         """check if a directory exists; if not, make it
