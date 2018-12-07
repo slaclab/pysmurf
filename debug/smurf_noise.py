@@ -270,6 +270,27 @@ class SmurfNoiseMixin(SmurfBase):
                  gcp_mode=gcp_mode, psd_ylim=psd_ylim,
                  cool_wait=cool_wait, high_current_mode=high_current_mode)
 
+    def noise_vs_amplitude(self, band, amplitude_high=11, amplitude_low=9, step_size=1,
+                           amplitudes=None,
+                           meas_time=30., analyze=False, channel=None, nperseg=2**13,
+                           detrend='constant', fs=None, show_plot = False,
+                           gcp_mode = True,
+                           psd_ylim = None):
+        """
+        Args:
+        -----
+        band (int): The band to take noise vs bias data on
+        """
+        if amplitudes is None:
+            if step_size > 0:
+                step_size *= -1
+            amplitudes = np.arange(amplitude_high, amplitude_low-np.absolute(step_size), step_size)
+
+        self.noise_vs(band=band,var='amplitude',var_range=amplitudes,
+                 meas_time=meas_time, analyze=analyze, channel=channel, nperseg=nperseg,
+                 detrend=detrend, fs=fs, show_plot=show_plot,
+                 gcp_mode=gcp_mode, psd_ylim=psd_ylim)
+
     def noise_vs(self, band, var, var_range, 
                  meas_time=30, analyze=False, channel=None, nperseg=2**13,
                  detrend='constant', fs=None, show_plot=False,
@@ -278,6 +299,7 @@ class SmurfNoiseMixin(SmurfBase):
 
         # aliases
         biasaliases=['bias']
+        amplitudealiases=['amplitude']
 
         # vs TES bias
         if var in biasaliases:  
@@ -288,21 +310,54 @@ class SmurfNoiseMixin(SmurfBase):
                 kwargs['high_current_mode']=False
             if 'cool_wait' not in kwargs.keys():
                 kwargs['cool_wait']=30.
+
+        if var in amplitudealiases:  
+            # no parameters (yet) but need to null this until we rework the analysis
+            kwargs['bias_group']=-1
+            pass
                 
         psd_dir = os.path.join(self.output_dir, 'psd')
         self.make_dir(psd_dir)
 
         timestamp = self.get_timestamp()
-        np.savetxt(os.path.join(psd_dir, '{}_bias.txt'.format(timestamp)),
+        np.savetxt(os.path.join(psd_dir, '{}_{}.txt'.format(timestamp,var)),
             var_range)
         datafiles = np.array([], dtype=str)
 
         for v in var_range:
+
             if var in biasaliases:
                 self.log('Bias {}'.format(v))
                 self.overbias_tes(kwargs['bias_group'], tes_bias=v, 
                                   high_current_mode=kwargs['high_current_mode'],
                                   cool_wait=kwargs['cool_wait'])
+
+            if var in amplitudealiases:
+                self.log('Tone amplitude {}'.format(v))
+                
+                ## turn off flux ramp
+                self.log('Turning flux ramp off.')
+                self.flux_ramp_off()
+
+                ## which channels are configured?
+                channels=self.which_on(band)
+
+                ## change amplitude for configured channels
+                self.log('Setting amplitude of all configured channels to {}.'.format(var))
+                feedbackEnableArray0=self.get_feedback_enable_array(band)
+                self.set_feedback_enable_array(band,np.zeros(feedbackEnableArray0.shape,dtype='int'))
+                amplitudeScaleArray=self.get_amplitude_scale_array(band)
+                amplitudeScaleArray[channels]=v
+                self.set_amplitude_scale_array(band,amplitudeScaleArray)
+
+                ## reLock
+                self.log('Re-locking channels at new tone amplitude.')
+                self.run_parallel_eta_scan(band)
+                
+                ## turn on flux ramp and track
+                lms_freq_hz=self.get_lms_freq_hz(band)
+                self.log('Turning flux ramp back on and setting up tracking (lms_freq_hz={}).'.format(lms_freq_hz))
+                self.tracking_setup(band,channels[0],lms_freq_hz=lms_freq_hz)
 
             self.log('Taking data')
             datafile = self.take_stream_data(band, meas_time,gcp_mode = gcp_mode)
