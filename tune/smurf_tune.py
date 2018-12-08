@@ -1542,7 +1542,7 @@ class SmurfTuneMixin(SmurfBase):
 
     _num_flux_ramp_counter_bits=20
     def flux_ramp_setup(self, reset_rate_khz, fraction_full_scale, df_range=.1, 
-        do_read=False):
+        do_read=False, band=2):
         """
         Set flux ramp sawtooth rate and amplitude. If there are errors, check 
         that you are using an allowed reset rate! Not all rates are allowed.
