@@ -1553,7 +1553,7 @@ class SmurfTuneMixin(SmurfBase):
         self.flux_ramp_off() # no write log?
         #self.set_cfg_reg_ena_bit(0) # let us switch this to flux ramp on/off
 
-        digitizerFrequencyMHz = 614.4000244140625
+        digitizerFrequencyMHz = self.get_digitizer_frequency_mhz(band)
         dspClockFrequencyMHz=digitizerFrequencyMHz/2
 
         desiredRampMaxCnt = ((dspClockFrequencyMHz*1e3)/
