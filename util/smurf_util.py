@@ -1318,8 +1318,7 @@ class SmurfUtilMixin(SmurfBase):
         # add some latency in case PIC needs it 
         time.sleep(1)
         # print amplifier biases after setting Vgs
-        self.print_amplifier_bias()
-
+        amplifier_biases=self.get_amplifier_biases()
 
     def get_amplifier_biases(self, write_log=True):
         # 4K
