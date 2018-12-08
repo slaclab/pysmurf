@@ -85,7 +85,8 @@ class SmurfTuneMixin(SmurfBase):
 
             # delay from signal being sent out, coming through the system, and then 
             # being read as data.  
-            processing_delay  = 1.842391045639787 # empirical, may need to iterate on this **must be right** for tracking
+            # empirical, may need to iterate on this **must be right** for tracking
+            processing_delay  = 1.842391045639787 
 
             # DSP sees cable delay + processing delay 
             #   - refPhaseDelay/2.4 (2.4 MHz ticks) + ref_phase_delay_fine/307.2
@@ -107,7 +108,7 @@ class SmurfTuneMixin(SmurfBase):
             # adjust slope of phase response
             # finally there may also be some overall phase shift (DC)
 
-#FIXME - want to match phase at a frequency where there is no resonator
+            #FIXME - want to match phase at a frequency where there is no resonator
             match_freq_offset = -0.8 # match phase at -0.8 MHz
 
             phase_resp = np.angle(resp)
@@ -147,8 +148,8 @@ class SmurfTuneMixin(SmurfBase):
         # Eta scans
         resonances = {}
         for i, p in enumerate(peaks):
-            eta, eta_scaled, eta_phase_deg, r2, eta_mag, latency, Q=self.eta_fit(freq, 
-                resp, p, 50E3, make_plot=make_plot, 
+            eta, eta_scaled, eta_phase_deg, r2, eta_mag, latency, Q= \
+                self.eta_fit(freq, resp, p, 50E3, make_plot=make_plot, 
                 plot_chans=plot_chans, save_plot=save_plot, res_num=i, 
                 band=band, timestamp=timestamp, use_slow_eta=use_slow_eta)
 
@@ -272,7 +273,8 @@ class SmurfTuneMixin(SmurfBase):
         in_phase_deg = np.rad2deg(in_phase_rad)
         quad_phase_deg = np.rad2deg(quad_phase_rad)
 
-        self.log('In phase: {:4.2f}  Quad phase: {:4.2f}'.format(in_phase_deg, quad_phase_deg))
+        self.log('In phase: {:4.2f}'.format(in_phase_deg) + \
+            ' Quad phase: {:4.2f}'.format(quad_phase_deg))
 
         center_freq_array = self.get_center_frequency_array(band)
 
@@ -305,7 +307,8 @@ class SmurfTuneMixin(SmurfBase):
         eta_scaled = eta_mag / sb_halfwidth
 
         eta_phase_array = self.get_eta_phase_array(band)
-        eta_phase_array[channels]=[tools.limit_phase_deg(eP+180) if eE<0 else eP for (eP,eE) in zip(eta_phase_array[channels], etaEst)]
+        eta_phase_array[channels]=[tools.limit_phase_deg(eP+180) if eE<0 \
+            else eP for (eP,eE) in zip(eta_phase_array[channels], etaEst)]
         self.set_eta_phase_array(band, eta_phase_array)
         
                         
@@ -851,7 +854,8 @@ class SmurfTuneMixin(SmurfBase):
         
         if use_slow_eta:
             band_center = self.get_band_center_mhz(band)
-            f_slow, resp_slow, eta_slow = self.eta_estimator(band, peak_freq*1.0E-6+band_center)
+            f_slow, resp_slow, eta_slow = self.eta_estimator(band, 
+                peak_freq*1.0E-6+band_center)
 
         # Get eta parameters
         # w = 5
@@ -867,8 +871,10 @@ class SmurfTuneMixin(SmurfBase):
 
 
         if left != right:
-            sk_fit = tools.fit_skewed_lorentzian(freq[left_plot:right_plot], amp[left_plot:right_plot])
-            r2 = np.sum((amp[left_plot:right_plot] - tools.skewed_lorentzian(freq[left_plot:right_plot], 
+            sk_fit = tools.fit_skewed_lorentzian(freq[left_plot:right_plot], 
+                amp[left_plot:right_plot])
+            r2 = np.sum((amp[left_plot:right_plot] - 
+                tools.skewed_lorentzian(freq[left_plot:right_plot], 
                 *sk_fit))**2)
             Q = sk_fit[5]
         else:
@@ -879,7 +885,8 @@ class SmurfTuneMixin(SmurfBase):
             if len(plot_chans) == 0:
                 self.log('Making plot for band' + 
                     ' {} res {:03}'.format(band, res_num))
-                self.plot_eta_fit(freq[left_plot:right_plot], resp[left_plot:right_plot], 
+                self.plot_eta_fit(freq[left_plot:right_plot], 
+                    resp[left_plot:right_plot], 
                     eta=eta, eta_mag=eta_mag, r2=r2,
                     save_plot=save_plot, timestamp=timestamp, band=band,
                     res_num=res_num, sk_fit=sk_fit, f_slow=f_slow, resp_slow=resp_slow)
@@ -887,7 +894,8 @@ class SmurfTuneMixin(SmurfBase):
                 if res_num in plot_chans:
                     self.log('Making plot for band ' + 
                         '{} res {:03}'.format(band, res_num))
-                    self.plot_eta_fit(freq[left_plot:right_plot], resp[left_plot:right_plot], 
+                    self.plot_eta_fit(freq[left_plot:right_plot], 
+                        resp[left_plot:right_plot], 
                         eta=eta, eta_mag=eta_mag, eta_phase_deg=eta_phase_deg, 
                         r2=r2, save_plot=save_plot, timestamp=timestamp, 
                         band=band, res_num=res_num, sk_fit=sk_fit, 
@@ -997,10 +1005,11 @@ class SmurfTuneMixin(SmurfBase):
             phase_slow = np.unwrap(np.arctan2(Q_slow, I_slow))  # radians
 
             ax0.scatter(f_slow-band_center, np.abs(resp_slow), 
-                        c=np.arange(len(f_slow)), cmap='Greys', s=3)
-            ax1.scatter(f_slow-band_center, np.rad2deg(phase_slow),c=np.arange(len(f_slow)),
-                        cmap='Greys', s=3)
-            ax2.scatter(I_slow, Q_slow, c=np.arange(len(f_slow)), cmap='Greys', s=3)
+                c=np.arange(len(f_slow)), cmap='Greys', s=3)
+            ax1.scatter(f_slow-band_center, np.rad2deg(phase_slow),
+                c=np.arange(len(f_slow)), cmap='Greys', s=3)
+            ax2.scatter(I_slow, Q_slow, c=np.arange(len(f_slow)), cmap='Greys', 
+                s=3)
 
         plt.tight_layout()
 
@@ -1133,7 +1142,8 @@ class SmurfTuneMixin(SmurfBase):
             for k in tune.keys():
                 ax[0].axvline(tune[k]['freq']*1.0E-6, color='b', linestyle=':')
             for k in tune_ref.keys():
-                ax[0].axvline(tune_ref[k]['freq']*1.0E-6, color='r', linestyle=':')
+                ax[0].axvline(tune_ref[k]['freq']*1.0E-6, color='r', 
+                    linestyle=':')
 
 
             ax[1].plot(plt_freq, np.abs(resp) - np.abs(resp_ref))
@@ -1356,8 +1366,7 @@ class SmurfTuneMixin(SmurfBase):
                 
 
         lms_rst_dly = 31  # disable error term for 31 2.4MHz ticks after reset
-        #lms_freq_hz = flux_ramp_full_scale_to_phi0 * fraction_full_scale*\
-        #    (reset_rate_khz*1e3)  * normalize_fudge_factor# fundamental tracking frequency guess
+
         self.log("Using lmsFreqHz = {}".format(lms_freq_hz), self.LOG_USER)
         lms_delay2    = 255  # delay DDS counter resets, 307.2MHz ticks
         lms_delay_fine = 0
@@ -1449,8 +1458,8 @@ class SmurfTuneMixin(SmurfBase):
 
             if save_plot:
                 plt.savefig(os.path.join(self.plot_dir, timestamp + 
-                                     '_FRtracking_band{}_ch{:03}.png'.format(band,channel)),
-                        bbox_inches='tight')
+                    '_FRtracking_band{}_ch{:03}.png'.format(band,channel)),
+                    bbox_inches='tight')
             if not show_plot:
                 plt.close()
 
@@ -1474,13 +1483,15 @@ class SmurfTuneMixin(SmurfBase):
 
         ## Don't want to flip relays more than we have to.  Check if it's in the correct
         ## position ; only explicitly flip to DC if we have to.
-        if acCouple and (self.get_cryo_card_relays() >> self._cryo_card_flux_ramp_relay_bit & 1):
+        if acCouple and (self.get_cryo_card_relays() >> 
+            self._cryo_card_flux_ramp_relay_bit & 1):
             self.log("Flux ramp set to DC mode (rly=0).",
                      self.LOG_USER)
             self.set_cryo_card_relay_bit(self._cryo_card_flux_ramp_relay_bit,0)
 
             # make sure it gets picked up by cryo card before handing back
-            while (self.get_cryo_card_relays() >> self._cryo_card_flux_ramp_relay_bit & 1):
+            while (self.get_cryo_card_relays() >> 
+                self._cryo_card_flux_ramp_relay_bit & 1):
                 self.log("Waiting for cryo card to update",
                          self.LOG_USER)
                 time.sleep(self._cryo_card_relay_wait)
@@ -1492,7 +1503,8 @@ class SmurfTuneMixin(SmurfBase):
 
         Args:
         -----
-        fractionFullScale (float) : Fraction of full flux ramp scale to output from [-1,1]
+        fractionFullScale (float) : Fraction of full flux ramp scale to output 
+        from [-1,1]
         """
 
         # fractionFullScale must be between [0,1]
@@ -1522,21 +1534,25 @@ class SmurfTuneMixin(SmurfBase):
 
             #before switching to ModeControl=1, make sure DAC is set to output zero V
             LTC1668RawDacData0=np.floor(0.5*(2**self._num_flux_ramp_dac_bits))
-            self.log("Before switching to fixed DC flux ramp output, explicitly setting flux ramp DAC to zero (LTC1668RawDacData0={})".format(mode_control,LTC1668RawDacData0), 
+            self.log("Before switching to fixed DC flux ramp output, " + 
+                " explicitly setting flux ramp DAC to zero "+
+                "(LTC1668RawDacData0={})".format(mode_control,LTC1668RawDacData0), 
                      self.LOG_USER)
             self.set_flux_ramp_dac(LTC1668RawDacData0)
 
-            self.log("Flux ramp ModeControl is {} - changing to 1 for fixed DC output.".format(mode_control), 
+            self.log("Flux ramp ModeControl is {}".format(mode_control) +
+                " - changing to 1 for fixed DC output.", 
                      self.LOG_USER)
             self.set_mode_control(1)
 
         ## Compute and set flux ramp DAC to requested value
-        LTC1668RawDacData = np.floor((2**self._num_flux_ramp_dac_bits)*(1-np.abs(fractionFullScale))/2);
+        LTC1668RawDacData = np.floor((2**self._num_flux_ramp_dac_bits)*
+            (1-np.abs(fractionFullScale))/2);
         ## 2s complement
         if fractionFullScale<0:
             LTC1668RawDacData = 2**self._num_flux_ramp_dac_bits-LTC1668RawDacData-1
-        self.log("Setting flux ramp to {}% of full scale (LTC1668RawDacData={})".format(100 * fractionFullScale,
-                                                                                        int(LTC1668RawDacData)), 
+        self.log("Setting flux ramp to {}".format(100 * fractionFullScale, 
+            int(LTC1668RawDacData)) + "% of full scale (LTC1668RawDacData={})", 
                  self.LOG_USER)
         self.set_flux_ramp_dac(LTC1668RawDacData)        
 
