@@ -1540,7 +1540,6 @@ class SmurfTuneMixin(SmurfBase):
                  self.LOG_USER)
         self.set_flux_ramp_dac(LTC1668RawDacData)        
 
-    _num_flux_ramp_counter_bits=20
     def flux_ramp_setup(self, reset_rate_khz, fraction_full_scale, df_range=.1, 
         do_read=False):
         """
@@ -1549,13 +1548,12 @@ class SmurfTuneMixin(SmurfBase):
 
         Allowed rates: 1, 2, 3, 4, 5, 6, 8, 10, 12, 15 kHz
         """
-        flux_ramp_bit_depth = 20
 
         # Disable flux ramp
         self.flux_ramp_off() # no write log?
         #self.set_cfg_reg_ena_bit(0) # let us switch this to flux ramp on/off
 
-        digitizerFrequencyMHz = self.get_digitizer_frequency_mhz(band)
+        digitizerFrequencyMHz = 614.4000244140625
         dspClockFrequencyMHz=digitizerFrequencyMHz/2
 
         desiredRampMaxCnt = ((dspClockFrequencyMHz*1e3)/
@@ -1570,11 +1568,11 @@ class SmurfTuneMixin(SmurfBase):
         trialRTMClock = rtmClock
 
         fullScaleRate = fraction_full_scale * resetRate
-        desFastSlowStepSize = (fullScaleRate * 2**self._num_flux_ramp_counter_bits) / rtmClock
+        desFastSlowStepSize = (fullScaleRate * 2**self.num_flux_ramp_counter_bits) / rtmClock
         trialFastSlowStepSize = round(desFastSlowStepSize)
         FastSlowStepSize = trialFastSlowStepSize
 
-        trialFullScaleRate = trialFastSlowStepSize * trialRTMClock / (2**self._num_flux_ramp_counter_bits)
+        trialFullScaleRate = trialFastSlowStepSize * trialRTMClock / (2**self.num_flux_ramp_counter_bits)
 
         trialResetRate = (dspClockFrequencyMHz * 1e6) / (rampMaxCnt + 1)
         trialFractionFullScale = trialFullScaleRate / trialResetRate
@@ -1602,7 +1600,7 @@ class SmurfTuneMixin(SmurfBase):
                 self.LOG_USER)
             return
 
-        FastSlowRstValue = np.floor((2**self._num_flux_ramp_counter_bits) * (1 - fractionFullScale)/2)
+        FastSlowRstValue = np.floor((2**self.num_flux_ramp_counter_bits) * (1 - fractionFullScale)/2)
 
 
         KRelay = 3 #where do these values come from

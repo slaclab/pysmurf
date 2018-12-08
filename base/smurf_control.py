@@ -120,6 +120,14 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
         if 'LNA_Vg' in keys:
             self.LNA_Vg=amp_cfg['LNA_Vg']
 
+
+        # Flux ramp hardware detail
+        flux_ramp_cfg = self.config.get('flux_ramp')
+        keys = flux_ramp_cfg.keys()
+        self.num_flux_ramp_counter_bits=20
+        if 'num_flux_ramp_counter_bits' in keys:
+            self.num_flux_ramp_counter_bits=flux_ramp_cfg['num_flux_ramp_counter_bits']
+
         # Mapping from chip number to frequency in GHz
         chip_cfg = self.config.get('chip_to_freq')
         keys = chip_cfg.keys()
@@ -154,7 +162,6 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
 
         # The resistance in line with the TES bias
         self.bias_line_resistance = self.config.get('bias_line_resistance')
-
 
         # The TES shunt resistance
         self.R_sh = self.config.get('R_sh')
