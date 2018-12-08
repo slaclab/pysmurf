@@ -10,8 +10,8 @@ class SmurfCommandMixin(SmurfBase):
 
     _global_poll_enable = ':AMCc:enable'
     def _caput(self, cmd, val, write_log=False, execute=True, wait_before=None,
-        wait_after=None, wait_done=True, log_level=0, enable_poll=True, 
-        disable_poll=True):
+        wait_after=None, wait_done=True, log_level=0, enable_poll=False, 
+        disable_poll=False):
         '''
         Wrapper around pyrogue lcaput. Puts variables into epics
 
@@ -62,7 +62,7 @@ class SmurfCommandMixin(SmurfBase):
             epics.caput(self.epics_root + self._global_poll_enable, False)
 
     def _caget(self, cmd, write_log=False, execute=True, count=None,
-        log_level=0, enable_poll=True, disable_poll=True):
+        log_level=0, enable_poll=False, disable_poll=False):
         '''
         Wrapper around pyrogue lcaget. Gets variables from epics
 
@@ -2021,7 +2021,7 @@ class SmurfCommandMixin(SmurfBase):
             **kwargs)
 
     # Cryo card comands
-    def get_cryo_card_temp(self, enable_poll=True, disable_poll=True):
+    def get_cryo_card_temp(self, enable_poll=False, disable_poll=False):
         """
         Returns:
         --------
@@ -2038,7 +2038,7 @@ class SmurfCommandMixin(SmurfBase):
         return T
         
 
-    def get_cryo_card_hemt_bias(self, enable_poll=True, disable_poll=True):
+    def get_cryo_card_hemt_bias(self, enable_poll=False, disable_poll=False):
         """
         Returns:
         --------
@@ -2054,7 +2054,7 @@ class SmurfCommandMixin(SmurfBase):
 
         return hemt_bias
 
-    def get_cryo_card_50k_bias(self, enable_poll=True, disable_poll=True):
+    def get_cryo_card_50k_bias(self, enable_poll=False, disable_poll=False):
         """
         Returns:
         --------
@@ -2070,7 +2070,7 @@ class SmurfCommandMixin(SmurfBase):
 
         return bias
 
-    def get_cryo_card_cycle_count(self, enable_poll=True, disable_poll=True):
+    def get_cryo_card_cycle_count(self, enable_poll=False, disable_poll=False):
         """
         Returns:
         --------
@@ -2079,7 +2079,7 @@ class SmurfCommandMixin(SmurfBase):
         self.log('Not doing anything because not implement in cryo_card.py')
         # return self.C.read_cycle_count()
 
-    def get_cryo_card_relays(self, enable_poll=True, disable_poll=True):
+    def get_cryo_card_relays(self, enable_poll=False, disable_poll=False):
         """
         Returns:
         --------
@@ -2095,7 +2095,7 @@ class SmurfCommandMixin(SmurfBase):
 
         return relay
 
-    def set_cryo_card_relay_bit(self,bitPosition,oneOrZero):
+    def set_cryo_card_relay_bit(self, bitPosition, oneOrZero):
         """
         Sets a single cryo card relay to the value provided
 
@@ -2113,8 +2113,8 @@ class SmurfCommandMixin(SmurfBase):
 
 
 
-    def set_cryo_card_relays(self, relay, write_log=False, enable_poll=True,
-                             disable_poll=True):
+    def set_cryo_card_relays(self, relay, write_log=False, enable_poll=False,
+                             disable_poll=False):
 
         """
         Sets the cryo card relays
@@ -2135,8 +2135,8 @@ class SmurfCommandMixin(SmurfBase):
             epics.caput(self.epics_root + self._global_poll_enable, True)
 
 
-    def set_cryo_card_delatch_bit(self, bit, write_log=False, enable_poll=True,
-                                  disable_poll=True):
+    def set_cryo_card_delatch_bit(self, bit, write_log=False, enable_poll=False,
+                                  disable_poll=False):
         """
         Delatches the cryo card for a bit.
 
