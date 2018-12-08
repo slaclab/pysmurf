@@ -1541,7 +1541,7 @@ class SmurfTuneMixin(SmurfBase):
         self.set_flux_ramp_dac(LTC1668RawDacData)        
 
     def flux_ramp_setup(self, reset_rate_khz, fraction_full_scale, df_range=.1, 
-        do_read=False, band=2):
+        do_read=False, band=2, write_log=False):
         """
         Set flux ramp sawtooth rate and amplitude. If there are errors, check 
         that you are using an allowed reset rate! Not all rates are allowed.
@@ -1550,7 +1550,7 @@ class SmurfTuneMixin(SmurfBase):
         """
 
         # Disable flux ramp
-        self.flux_ramp_off() # no write log?
+        self.flux_ramp_off(write_log=write_log) # no write log?
         #self.set_cfg_reg_ena_bit(0) # let us switch this to flux ramp on/off
 
         digitizerFrequencyMHz = self.get_digitizer_frequency_mhz(band)
@@ -1600,7 +1600,9 @@ class SmurfTuneMixin(SmurfBase):
                 self.LOG_USER)
             return
 
-        FastSlowRstValue = np.floor((2**self.num_flux_ramp_counter_bits) * (1 - fractionFullScale)/2)
+
+        FastSlowRstValue = np.floor((2**self._num_flux_ramp_counter_bits) * 
+            (1 - fractionFullScale)/2)
 
 
         KRelay = 3 #where do these values come from
@@ -1612,19 +1614,20 @@ class SmurfTuneMixin(SmurfBase):
         ModeControl = 0
         EnableRampTrigger = 1
 
-        self.set_low_cycle(LowCycle) #writelog?
-        self.set_high_cycle(HighCycle)
-        self.set_k_relay(KRelay)
-        self.set_ramp_max_cnt(rampMaxCnt)
-        self.set_select_ramp(SelectRamp)
-        self.set_ramp_start_mode(RampStartMode)
-        self.set_pulse_width(PulseWidth)
-        self.set_debounce_width(DebounceWidth)
-        self.set_ramp_slope(RampSlope)
-        self.set_mode_control(ModeControl)
-        self.set_fast_slow_step_size(FastSlowStepSize)
-        self.set_fast_slow_rst_value(FastSlowRstValue)
-        self.set_enable_ramp_trigger(EnableRampTrigger)
+        self.set_low_cycle(LowCycle, write_log=write_log) 
+        self.set_high_cycle(HighCycle, write_log=write_log)
+        self.set_k_relay(KRelay, write_log=write_log)
+        self.set_ramp_max_cnt(rampMaxCnt, write_log=write_log)
+        self.set_select_ramp(SelectRamp, write_log=write_log)
+        self.set_ramp_start_mode(RampStartMode, write_log=write_log)
+        self.set_pulse_width(PulseWidth, write_log=write_log)
+        self.set_debounce_width(DebounceWidth, write_log=write_log)
+        self.set_ramp_slope(RampSlope, write_log=write_log)
+        self.set_mode_control(ModeControl, write_log=write_log)
+        self.set_fast_slow_step_size(FastSlowStepSize, write_log=write_log)
+        self.set_fast_slow_rst_value(FastSlowRstValue, write_log=write_log)
+        self.set_enable_ramp_trigger(EnableRampTrigger, write_log=write_log)
+        self.set_ramp_rate(reset_rate_khz, write_log=write_log)
 
     def check_lock(self, band, f_min=.05, f_max=.2, df_max=.03,
                    make_plot=False, flux_ramp=True, fraction_full_scale=.99,
