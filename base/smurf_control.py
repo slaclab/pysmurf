@@ -269,7 +269,7 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
 
         # Make sure flux ramp starts off
         self.flux_ramp_off(write_log=write_log)
-        self.flux_ramp_setup(4, .5, write_log=write_log)  # Default values.
+        self.flux_ramp_setup(4, .5)  # Default values.
 
         # Turn off GCP streaming
         self.set_smurf_to_gcp_stream(False, write_log=write_log)
