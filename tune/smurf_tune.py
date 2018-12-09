@@ -1617,7 +1617,7 @@ class SmurfTuneMixin(SmurfBase):
             return
 
 
-        FastSlowRstValue = np.floor((2**self._num_flux_ramp_counter_bits) * 
+        FastSlowRstValue = np.floor((2**self.num_flux_ramp_counter_bits) * 
             (1 - fractionFullScale)/2)
 
 
