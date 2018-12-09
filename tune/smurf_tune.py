@@ -1646,8 +1646,8 @@ class SmurfTuneMixin(SmurfBase):
         self.set_ramp_rate(reset_rate_khz, write_log=write_log)
 
     def check_lock(self, band, f_min=.05, f_max=.2, df_max=.03,
-                   make_plot=False, flux_ramp=True, fraction_full_scale=.99,
-                   lms_freq_hz = 4000.,**kwargs):
+        make_plot=False, flux_ramp=True, fraction_full_scale=.99,
+        lms_freq_hz = 4000.,**kwargs):
         """
         Checks the bad resonators
         
@@ -1674,8 +1674,8 @@ class SmurfTuneMixin(SmurfBase):
 
         # Tracking setup returns information on all channels in a band
         f, df, sync = self.tracking_setup(band, 0, make_plot=False,
-                                  flux_ramp=flux_ramp,fraction_full_scale=fraction_full_scale,
-                                  lms_freq_hz = lms_freq_hz)
+            flux_ramp=flux_ramp, fraction_full_scale=fraction_full_scale,
+            lms_freq_hz = lms_freq_hz)
 
         high_cut = np.array([])
         low_cut = np.array([])
@@ -1726,4 +1726,4 @@ class SmurfTuneMixin(SmurfBase):
         Simple wrapper function for check_lock with the flux ramp off
         """
         self.check_lock(band, f_min=0., f_max=np.inf, df_max=df_max, 
-                        make_plot=make_plot, flux_ramp=False, **kwargs)
+            make_plot=make_plot, flux_ramp=False, **kwargs)

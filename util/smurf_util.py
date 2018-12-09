@@ -282,6 +282,11 @@ class SmurfUtilMixin(SmurfBase):
         band (int) : The band to stream data
         meas_time (float) : The amount of time to observe for in seconds
 
+        Opt Args:
+        ---------
+        gcp_mode (bool) : Determines whether to write data using the 
+            smurf2mce (gcp) mode. Default is True.
+
         Returns:
         --------
         data_filename (string): The fullpath to where the data is stored
@@ -295,16 +300,22 @@ class SmurfUtilMixin(SmurfBase):
 
     def stream_data_on(self, bands, gcp_mode=True):
         """
-        Turns on streaming data on specified channel
+        Turns on streaming data on specified bands
 
         Args:
         -----
         bands (int array) : The bands to stream data
 
+        Opt Args:
+        ---------
+        gcp_mode (bool) : Determines whether to write data using the 
+            smurf2mce (gcp) mode. Default is True.
+
         Returns:
         --------
         data_filename (string): The fullpath to where the data is stored
         """
+        bands = np.ravel(np.array(bands))
         # Check if flux ramp is non-zero
         ramp_max_cnt = self.get_ramp_max_cnt()
         if ramp_max_cnt == 0:
@@ -323,7 +334,9 @@ class SmurfUtilMixin(SmurfBase):
                 self.LOG_USER)
             if gcp_mode:
                 #self.set_streaming_datafile('/dev/null')
-                self.set_gcp_datafile(data_filename)
+                # self.set_gcp_datafile(data_filename)
+                ret = self.make_smurf_to_gcp_config(filename=data_filename)
+                self.read_smurf_to_gcp_config()
             else:
                 self.set_streaming_datafile(data_filename)
             
@@ -339,8 +352,8 @@ class SmurfUtilMixin(SmurfBase):
 
             return data_filename
 
-    def set_gcp_datafile(self, data_filename, num_averages=0, receiver_ip='192.168.3.1',
-                         port_number='#3334', data_frames=1000000):
+    def set_gcp_datafile(self, data_filename, num_averages=0, 
+        receiver_ip='192.168.3.1', port_number='#3334', data_frames=1000000):
         """
         """
         config_dir = self.config.get('smurf2mce_cfg_dir')
@@ -366,9 +379,10 @@ class SmurfUtilMixin(SmurfBase):
         -----
         bands (int array) : The band to turn off stream data
         """
+        bands = np.ravel(np.array(bands))
         if gcp_mode:
             self.set_smurf_to_gcp_writer(False, write_log=True)
-            self.set_gcp_datafile('/data/cryo/mas_data_pipe')
+            # self.set_gcp_datafile('/data/cryo/mas_data_pipe')
         else:
             self.set_streaming_file_open(0)  # Close the file
         for band in bands:
@@ -1582,6 +1596,7 @@ class SmurfUtilMixin(SmurfBase):
         self.log(np.random.choice(aphorisms))
         return
 
+
     def read_smurf_to_gcp_config(self):
         """
         Toggles the smurf_to_gcp read bit.
@@ -1590,10 +1605,10 @@ class SmurfUtilMixin(SmurfBase):
         self.set_smurf_to_gcp_cfg_read(True, wait_after=.1)
         self.set_smurf_to_gcp_cfg_read(False)
 
+
     def make_smurf_to_gcp_config(self, num_averages=0, filename=None,
-                                 file_name_extend=False, 
-                                 data_frames=2000000,
-                                 filter_order=4, filter_freq=63):
+        file_name_extend=False, data_frames=2000000, filter_order=4, 
+        filter_freq=63):
         """
         Makes the config file that the Joe-writer uses to set the IP
         address, port number, data file name, etc.
