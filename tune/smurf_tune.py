@@ -139,11 +139,11 @@ class SmurfTuneMixin(SmurfBase):
             resp = comp_resp
 
         # Find peaks
-        peaks = self.find_peak(freq, resp, band=band, make_plot=make_plot, 
+        peaks = self.find_peak(freq, resp, rolling_med=True, band=band, make_plot=make_plot, 
             save_plot=save_plot, grad_cut=grad_cut, freq_min=freq_min,
             freq_max=freq_max, amp_cut=amp_cut, 
             make_subband_plot=make_subband_plot, timestamp=timestamp,
-            subband_plot_with_slow=subband_plot_with_slow)
+            subband_plot_with_slow=subband_plot_with_slow, pad=50, min_gap=50)
 
         # Eta scans
         resonances = {}
@@ -500,9 +500,10 @@ class SmurfTuneMixin(SmurfBase):
         return f, resp
 
 
-    def find_peak(self, freq, resp, grad_cut=.05, amp_cut=.25, freq_min=-2.5E8, 
-        freq_max=2.5E8, make_plot=False, save_plot=True, band=None,
-        make_subband_plot=False, subband_plot_with_slow=False, timestamp=None):
+    def find_peak(self, freq, resp, rolling_med=False, window=500,
+	grad_cut=.05, amp_cut=.25, freq_min=-2.5E8, freq_max=2.5E8, make_plot=False, 
+	save_plot=True, band=None, make_subband_plot=False, 
+	subband_plot_with_slow=False, timestamp=None, pad=2, min_gap=2):
         """find the peaks within a given subband
 
         Args:
@@ -512,10 +513,12 @@ class SmurfTuneMixin(SmurfBase):
 
         Opt Args:
         ---------
+        rolling_med (bool): whether to use a rolling median for the background
+        window (int): number of samples to window together for rolling med
         grad_cut (float): The value of the gradient of phase to look for 
             resonances. Default is .05
-        amp_cut (float): The distance from the median value to decide whether
-            there is a resonance. Default is .25.
+        amp_cut (float): The fractional distance from the median value to decide
+            whether there is a resonance. Default is .25.
         freq_min (float): The minimum frequency relative to the center of
             the band to look for resonances. Units of Hz. Defaults is -2.5E8
         freq_max (float): The maximum frequency relative to the center of
@@ -528,6 +531,9 @@ class SmurfTuneMixin(SmurfBase):
         band (int): The band to take find the peaks in. Mainly for saving
             and plotting.
         timestamp (str): The timestamp. Mainly for saving and plotting
+        pad (int): number of samples to pad on either side of a resonance search 
+            window
+        min_gap (int): minimum number of samples between resonances
 
 
         Returns:
@@ -544,20 +550,22 @@ class SmurfTuneMixin(SmurfBase):
 
         grad_loc = np.array(grad > grad_cut)
 
-        window = 500
-        import pandas as pd
+        if rolling_med:
+            import pandas as pd
 
-        med_amp = pd.Series(amp).rolling(window=window, center=True).median()
+            med_amp = pd.Series(amp).rolling(window=window, center=True).median()
+        else:
+            med_amp = np.median(amp) * np.ones(len(amp))
 
         starts, ends = self.find_flag_blocks(self.pad_flags(grad_loc, 
-            before_pad=50, after_pad=50, min_gap=50))
+            before_pad=pad, after_pad=pad, min_gap=min_gap))
 
         peak = np.array([], dtype=int)
         for s, e in zip(starts, ends):
             if freq[s] > freq_min and freq[e] < freq_max:
                 idx = np.ravel(np.where(amp[s:e] == np.min(amp[s:e])))[0]
                 idx += s
-                if med_amp[idx] - amp[idx] > amp_cut:
+                if 1-amp[idx]/med_amp[idx] > amp_cut:
                     peak = np.append(peak, idx)
 
         # Make summary plot
@@ -1939,7 +1947,7 @@ class SmurfTuneMixin(SmurfBase):
                     in_peak = 0
         return peakstruct_max, peakstruct_nabove, peakstruct_freq
 
-    def find_peak(self, freq, resp, normalize=False, 
+    def find_peak_2(self, freq, resp, normalize=False, 
         n_samp_drop=1, threshold=.5, margin_factor=1., phase_min_cut=1, 
         phase_max_cut=1, make_plot=False, save_plot=True, save_name=None):
         """find the peaks within a given subband
@@ -2051,9 +2059,10 @@ class SmurfTuneMixin(SmurfBase):
                 bbox_inches='tight')
             plt.close()
 
-    def find_all_peak(self, freq, resp, subband, normalize=False, 
-        n_samp_drop=1, threshold=.5, margin_factor=1., phase_min_cut=1, 
-        phase_max_cut=1, save_plot=False):
+    def find_all_peak(self, freq, resp, subband, rolling_med=False, window=500,
+        grad_cut=0.05, amp_cut=0.25, freq_min=-2.5E8, freq_max=2.5E8, 
+        make_plot=False, save_plot=True, band=None, make_subband_plot=False, 
+        subband_plot_with_slow=False, timestamp=None, pad=2, min_gap=2):
         """
         find the peaks within each subband requested from a fullbandamplsweep
 
@@ -2066,12 +2075,7 @@ class SmurfTuneMixin(SmurfBase):
 
         Optional Args:
         --------------
-        normalize (bool) : 
-        n_samp_drop (int) :
-        threshold (float) :
-        margin_factor (float):
-        phase_min_cut (int) :
-        phase_max_cut (int) :
+	see find_peak for optional arguments. Used the same defaults here.
         """
         peaks = np.array([])
         subbands = np.array([])
@@ -2079,11 +2083,12 @@ class SmurfTuneMixin(SmurfBase):
 
         for sb in subband:
             peak = self.find_peak(freq[sb,:], resp[sb,:], 
-                normalize=normalize, n_samp_drop=n_samp_drop, 
-                threshold=threshold, margin_factor=margin_factor,
-                phase_min_cut=phase_min_cut, phase_max_cut=phase_max_cut,
-                make_plot=True, save_plot=save_plot,
-                save_name=timestamp+'find_peak_subband{:03}.png'.format(int(sb)))
+                rolling_med=rolling_med, window=window, grad_cut=grad_cut,
+                amp_cut=amp_cut, freq_min=freq_min, freq_max=freq_max, 
+                make_plot=make_plot, save_plot=save_plot, band=band, 
+                make_subband_plot=make_subband_plot, 
+                subband_plot_with_slow=subband_plot_with_slow, 
+                timestamp=timestamp, pad=pad, min_gap=min_gap)
 
             if peak is not None:
                 peaks = np.append(peaks, peak)
