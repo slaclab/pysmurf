@@ -9,7 +9,7 @@ class SmurfIVMixin(SmurfBase):
         bias_low=0, bias_step=.1, show_plot=False, overbias_wait=5., cool_wait=30.,
         make_plot=True, save_plot=True, channels=None, high_current_mode=False,
         rn_accept_min=1e-3, rn_accept_max=1., overbias_voltage=19.9,
-        gcp_mode=True,grid_on=False):
+        gcp_mode=True,grid_on=False, phase_excursion_min=1):
         """
         Steps the TES bias down slowly. Starts at bias_high to bias_low with
         step size bias_step. Waits wait_time between changing steps.
@@ -27,6 +27,7 @@ class SmurfIVMixin(SmurfBase):
         bias_high (int): The maximum TES bias in volts. Default 19.9
         bias_low (int): The minimum TES bias in volts. Default 0
         bias_step (int): The step size in volts. Default .1
+        phase_excursion_min (int): The minimum phase excursion allowable
         """
         # Look for good channels
         if channels is None:
@@ -96,7 +97,8 @@ class SmurfIVMixin(SmurfBase):
         self.analyze_slow_iv_from_file(fn_iv_raw_data, make_plot=make_plot,
             show_plot=show_plot, save_plot=save_plot, R_sh=R_sh, 
             high_current_mode=high_current_mode, rn_accept_min=rn_accept_min,
-            rn_accept_max=rn_accept_max, gcp_mode=gcp_mode,grid_on=grid_on)
+            rn_accept_max=rn_accept_max, gcp_mode=gcp_mode,grid_on=grid_on,
+            phase_excursion_min=phase_excursion_min)
 
     def slow_iv_all(self, wait_time=.1, bias=None, bias_high=19.9, 
         bias_low=0, bias_step=.1, show_plot=False, high_current_wait=.25, 
@@ -283,7 +285,9 @@ class SmurfIVMixin(SmurfBase):
 
         print(phase_excursion_list)
 
-        if make_plot:
+        if len(phase_excursion_list) == 0:
+            self.log('phase excursion list length 0')
+        elif make_plot:
             import matplotlib.pyplot as plt
             if not show_plot:
                 plt.ioff()
