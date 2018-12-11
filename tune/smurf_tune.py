@@ -1384,6 +1384,132 @@ class SmurfTuneMixin(SmurfBase):
 
         return rr, ii
 
+    def flux_ramp_check(self, band, reset_rate_khz=4, 
+                        fraction_full_scale=.495, flux_ramp=True,
+                        save_plot=True, show_plot=False):
+        """
+        """
+        import matplotlib.pyplot as plt
+        from matplotlib.gridspec import GridSpec
+        if show_plot:
+            plt.ion()
+        else:
+            plt.ioff()
+
+        old_fb = self.get_feedback_enable_array(band)
+
+        # Turn off feedback
+        self.set_feedback_enable_array(band, np.zeros_like(old_fb))
+        d, df, sync = self.tracking_setup(band,0, reset_rate_khz=reset_rate_khz,
+                                          fraction_full_scale=fraction_full_scale,
+                                          make_plot=False,
+                                          save_plot=False, show_plot=False,
+                                          lms_enable1=False, lms_enable2=False,
+                                          lms_enable3=False, flux_ramp=flux_ramp)
+
+
+        n_samp, n_chan = np.shape(df)
+
+        dd = np.ravel(np.where(np.diff(sync[:,0]) !=0))
+        first_idx = dd[0]//512
+        second_idx = dd[4]//512
+        dt = int(second_idx-first_idx)  # In slow samples
+        n_fr = int(len(sync[:,0])/512/dt)
+        reset_idx = np.arange(first_idx, n_fr*dt + first_idx+1, dt)
+
+        # Reset to the previous FB state
+        self.set_feedback_enable_array(band, old_fb)
+
+        fs = self.get_digitizer_frequency_mhz(band) * 1.0E6 /2/512
+
+        # Only plot channels that are on - group by subband
+        chan = self.which_on(band)
+        freq = np.zeros(len(chan), dtype=float)
+        subband = np.zeros(len(chan), dtype=int)
+        for i, c in enumerate(chan):
+            freq[i] = self.channel_to_freq(band, c)
+            (subband[i], _) = self.freq_to_subband(freq[i], band)
+
+        unique_subband = np.unique(subband)
+
+        cm = plt.get_cmap('viridis')
+        
+        timestamp = self.get_timestamp()
+
+        self.log('Making plots...')
+        scale = 1.0E3
+        
+        n_high = 3
+        highs = np.zeros((n_high, len(chan)))
+
+        for sb in unique_subband:
+            idx = np.ravel(np.where(subband == sb))
+            chs = chan[idx]
+            # fig, ax = plt.subplots(1, 2, figsize=(8,4), sharey=True)
+            fig = plt.figure(figsize=(8,6))
+            gs = GridSpec(2,2)
+            ax0 = fig.add_subplot(gs[0,:])
+            ax1 = fig.add_subplot(gs[1,0])
+            ax2 = fig.add_subplot(gs[1,1])
+
+            for i, c in enumerate(chs):
+                color = cm(i/len(chs))
+                ax0.plot(np.arange(n_samp)/fs*scale,
+                         df[:,c], label='ch {}'.format(c),
+                         color=color)
+                holder = np.zeros((n_fr-1, dt))
+                for i in np.arange(n_fr-1):
+                    holder[i] = df[first_idx+dt*i:first_idx+dt*(i+1),c]
+                ds = np.mean(holder, axis=0)
+                ax1.plot(np.arange(len(ds))/fs*scale, ds, color=color)
+                ff, pp = signal.welch(df[:,c], fs=fs)
+                ax2.semilogy(ff/1.0E3, pp, color=color)
+                
+                sort_idx = np.argsort(pp)[::-1]
+                print(sort_idx)
+                highs[:,i] = ff[sort_idx[:n_high]]
+                print(ff[sort_idx[:n_high]])
+
+            for k in reset_idx:
+                ax0.axvline(k/fs*scale, color='k', alpha=.6, linestyle=':')
+
+            ax0.legend(loc='upper left')
+            ax1.set_xlabel('Time [ms]')
+            ax2.set_xlabel('Freq [kHz]')
+            fig.suptitle('Band {} Subband {}'.format(band, sb))
+
+            if save_plot:
+                save_name = timestamp
+                if not flux_ramp:
+                    save_name = save_name + '_no_FR'
+                save_name = save_name+ \
+                    '_b{}_sb{:03}_flux_ramp_check.png'.format(band, sb)
+                plt.savefig(os.path.join(self.plot_dir, save_name),
+                            bbox_inches='tight')
+                if not show_plot:
+                    plt.close()
+
+        # Make summary plot
+        highs = highs * 1.0E-3
+        step_size = np.max(ff)*1.0E-3/20
+        bins = np.arange(0, 20*step_size, step_size)
+        fig, ax = plt.subplots(n_high, sharex=True, figsize=(5,8))
+        for h in np.arange(n_high):
+            ax[h].hist(highs[h], bins=bins)
+            ax[h].set_ylabel('{} count'.format(h))
+        ax[n_high-1].set_ylabel('freq [kHz]')
+
+        if save_plot:
+            save_name = timestamp
+            if not flux_ramp:
+                save_name = save_name + '_no_FR'
+            save_name = save_name + 'flux_ramp_check_max.png'
+            plt.savefig(os.path.join(self.plot_dir, save_name),
+                        bbox_inches='tight')
+            if not show_plot:
+                plt.close()
+        return d, df, sync
+
     def tracking_setup(self, band, channel, reset_rate_khz=4., write_log=False, 
         make_plot=False, save_plot=True, show_plot=True,
         lms_freq_hz=4000., flux_ramp=True, fraction_full_scale=.4950,
