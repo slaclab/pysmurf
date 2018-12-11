@@ -571,7 +571,7 @@ class SmurfTuneMixin(SmurfBase):
         # Make summary plot
         if make_plot:
             import matplotlib.pyplot as plt
-            fig, ax = plt.subplots(1)
+            fig, ax = plt.subplots(1, figsize=(8,4))
 
             plot_freq = freq
 
@@ -584,11 +584,22 @@ class SmurfTuneMixin(SmurfBase):
 
             ax.set_ylabel('Amp')
             ax.set_xlabel('Freq [MHz]')
-            ax.set_title('%s: band %i, subband %i' % (timestamp,band,subband))
+            title = timestamp
+            if band is not None:
+                title = title + ' band {}'.format(band)
+            if subband is not None:
+                title = title + ' subband {}'.format(subband)
+            ax.set_title(title)
 
             if save_plot:
-                save_name = '{}_b{}_sb{:03}_plot_freq.png'.format(timestamp,band,subband)
-                plt.savefig(os.path.join(self.plot_dir, save_name))
+                save_name = timestamp
+                if band is not None:
+                    save_name = save_name + '_b{}'.format(int(band))
+                if subband is not None:
+                    save_name = save_name + '_sb{}'.format(int(subband))
+                save_name = save_name + '_find_freq.png'
+                plt.savefig(os.path.join(self.plot_dir, save_name),
+                            bbox_inches='tight', dpi=300)
                 plt.close()
 
         # Make plot per subband
@@ -596,7 +607,7 @@ class SmurfTuneMixin(SmurfBase):
             import matplotlib.pyplot as plt
             subbands, subband_freq = self.get_subband_centers(band, 
                 hardcode=True)  # remove hardcode mode
-            plot_freq = freq * 1.0E-6
+            plot_freq = freq
             plot_width = 5.5  # width of plotting in MHz
             width = (subband_freq[1] - subband_freq[0])
 
@@ -604,68 +615,71 @@ class SmurfTuneMixin(SmurfBase):
                 self.log('Making plot for subband {}'.format(sb))
                 idx = np.logical_and(plot_freq > sbf - plot_width/2.,
                     plot_freq < sbf + plot_width/2.)
-                f = plot_freq[idx]
-                p = angle[idx]
-                x = np.arange(len(p))
-                fp = np.polyfit(x, p, 1)
-                p = p - x*fp[0] - fp[1]
+                if np.sum(idx) > 1:
+                    f = plot_freq[idx]
+                    p = angle[idx]
+                    x = np.arange(len(p))
+                    fp = np.polyfit(x, p, 1)
+                    p = p - x*fp[0] - fp[1]
 
-                g = grad[idx]
-                a = amp[idx]
-                ma = med_amp[idx]
+                    g = grad[idx]
+                    a = amp[idx]
+                    ma = med_amp[idx]
 
-                fig, ax = plt.subplots(2, sharex=True)
-                ax[0].plot(f, p, label='Phase')
-                ax[0].plot(f, g, label=r'$\Delta$ phase')
-                ax[1].plot(f, a, label='Amp')
-                ax[1].plot(f, ma, label='Median Amp')
-                for s, e in zip(starts, ends):
-                    if (plot_freq[s] in f) or (plot_freq[e] in f):
-                        ax[0].axvspan(plot_freq[s], plot_freq[e], color='k', 
-                            alpha=.1)
-                        ax[1].axvspan(plot_freq[s], plot_freq[e], color='k', 
-                            alpha=.1)
+                    fig, ax = plt.subplots(2, sharex=True)
+                    ax[0].plot(f, p, label='Phase')
+                    ax[0].plot(f, g, label=r'$\Delta$ phase')
+                    ax[1].plot(f, a, label='Amp')
+                    ax[1].plot(f, ma, label='Median Amp')
+                    for s, e in zip(starts, ends):
+                        if (plot_freq[s] in f) or (plot_freq[e] in f):
+                            ax[0].axvspan(plot_freq[s], plot_freq[e], color='k', 
+                                          alpha=.1)
+                            ax[1].axvspan(plot_freq[s], plot_freq[e], color='k', 
+                                          alpha=.1)
 
-                for pp in peak:
-                    if plot_freq[pp] > sbf - plot_width/2. and \
-                        plot_freq[pp] < sbf + plot_width/2.:
-                        ax[1].plot(plot_freq[pp], amp[pp], 'xk')
+                    for pp in peak:
+                        if plot_freq[pp] > sbf - plot_width/2. and \
+                                plot_freq[pp] < sbf + plot_width/2.:
+                            ax[1].plot(plot_freq[pp], amp[pp], 'xk')
 
-                ax[0].legend(loc='upper right')
-                ax[1].legend(loc='upper right')
+                    ax[0].legend(loc='upper right')
+                    ax[1].legend(loc='upper right')
 
-                ax[0].axvline(sbf, color='k' ,linestyle=':', alpha=.4)
-                ax[1].axvline(sbf, color='k' ,linestyle=':', alpha=.4)
-                ax[0].axvline(sbf - width/2., color='k' ,linestyle='--', 
-                    alpha=.4)
-                ax[0].axvline(sbf + width/2., color='k' ,linestyle='--', 
-                    alpha=.4)
-                ax[1].axvline(sbf - width/2., color='k' ,linestyle='--', 
-                    alpha=.4)
-                ax[1].axvline(sbf + width/2., color='k' ,linestyle='--', 
-                    alpha=.4)
+                    ax[0].axvline(sbf, color='k' ,linestyle=':', alpha=.4)
+                    ax[1].axvline(sbf, color='k' ,linestyle=':', alpha=.4)
+                    ax[0].axvline(sbf - width/2., color='k' ,linestyle='--', 
+                                  alpha=.4)
+                    ax[0].axvline(sbf + width/2., color='k' ,linestyle='--', 
+                                  alpha=.4)
+                    ax[1].axvline(sbf - width/2., color='k' ,linestyle='--', 
+                                  alpha=.4)
+                    ax[1].axvline(sbf + width/2., color='k' ,linestyle='--', 
+                                  alpha=.4)
 
-                ax[1].set_xlim((sbf-plot_width/2., sbf+plot_width/2.))
+                    ax[1].set_xlim((sbf-plot_width/2., sbf+plot_width/2.))
 
-                ax[0].set_ylabel('[Rad]')
-                ax[1].set_xlabel('Freq [MHz]')
-                ax[1].set_ylabel('Amp')
+                    ax[0].set_ylabel('[Rad]')
+                    ax[1].set_xlabel('Freq [MHz]')
+                    ax[1].set_ylabel('Amp')
 
-                ax[0].set_title('Band {} Subband {}'.format(band,
-                    sb, sbf))
+                    ax[0].set_title('Band {} Subband {}'.format(band,
+                                                                sb, sbf))
 
-                if subband_plot_with_slow:
-                    ff = np.arange(-3, 3.1, .05)
-                    rr, ii = self.eta_scan(band, sb, ff, 10, write_log=False)
-                    dd = rr + 1.j*ii
-                    sbc = self.get_subband_centers(band)
-                    ax[1].plot(ff+sbc[1][sb], np.abs(dd)/2.5E6)
+                    if subband_plot_with_slow:
+                        ff = np.arange(-3, 3.1, .05)
+                        rr, ii = self.eta_scan(band, sb, ff, 10, write_log=False)
+                        dd = rr + 1.j*ii
+                        sbc = self.get_subband_centers(band)
+                        ax[1].plot(ff+sbc[1][sb], np.abs(dd)/2.5E6)
 
-                if save_plot:
-                    save_name = '{}_find_freq_b{}_sb{:03}.png'.format(timestamp, band, sb)
-                    plt.savefig(os.path.join(self.plot_dir, save_name),
-                        bbox_inches='tight')
-                    plt.close()
+                    if save_plot:
+                        save_name = '{}_find_freq_b{}_sb{:03}.png'.format(timestamp, band, sb)
+                        plt.savefig(os.path.join(self.plot_dir, save_name),
+                                    bbox_inches='tight')
+                        plt.close()
+                else:
+                    self.log('No data for subband {}'.format(sb))
 
         return freq[peak]
 
@@ -1142,8 +1156,6 @@ class SmurfTuneMixin(SmurfBase):
             channels[mask[:len(chans)]] = chans
 
         # Prune channels that are too close
-        print(freq)
-        print(close_idx)
         channels[~close_idx] = -1
         
         return subbands, channels, offsets
@@ -1767,7 +1779,7 @@ class SmurfTuneMixin(SmurfBase):
 
 
     def find_freq(self, band, subband=np.arange(13,115), drive_power=10,
-        n_read=2, make_plot=False, save_plot=True):
+        n_read=2, make_plot=False, save_plot=True, window=50, rolling_med=True):
         '''
         Finds the resonances in a band (and specified subbands)
 
@@ -1783,12 +1795,14 @@ class SmurfTuneMixin(SmurfBase):
         make_plot (bool) : make the plot frequency sweep. Default False.
         save_plot (bool) : save the plot. Default True.
         save_name (string) : What to name the plot. default find_freq.png
+        rolling_med (bool) : Whether to iterate on a rolling median or just
+           the median of the whole sample.
+        window (int) : The width of the rolling median window
         '''
         self.log('Sweeping across frequencies')
         f, resp = self.full_band_ampl_sweep(band, subband, drive_power, n_read)
 
         timestamp = self.get_timestamp()
-        timestamp = int(time.time())  # ignore fractional seconds
 
         # Save data
         save_name = '{}_amp_sweep_{}.txt'
@@ -1809,8 +1823,8 @@ class SmurfTuneMixin(SmurfBase):
 
         # Find resonances
         res_freq = self.find_all_peak(self.freq_resp[band]['f'],
-            self.freq_resp[band]['resp'], subband,make_plot=make_plot,
-            band=band)
+            self.freq_resp[band]['resp'], subband, make_plot=make_plot,
+            band=band, rolling_med=rolling_med, window=window)
         self.freq_resp[band]['resonance'] = res_freq
 
         # Save resonances
@@ -2061,8 +2075,8 @@ class SmurfTuneMixin(SmurfBase):
                 bbox_inches='tight')
             plt.close()
 
-    def find_all_peak(self, freq, resp, subband, rolling_med=False, window=500,
-        grad_cut=0.05, amp_cut=0.25, freq_min=-2.5E8, freq_max=2.5E8, 
+    def find_all_peak(self, freq, resp, subband=None, rolling_med=False, 
+        window=500, grad_cut=0.05, amp_cut=0.25, freq_min=-2.5E8, freq_max=2.5E8, 
         make_plot=False, save_plot=True, band=None, make_subband_plot=False, 
         subband_plot_with_slow=False, timestamp=None, pad=2, min_gap=2):
         """
@@ -2083,23 +2097,44 @@ class SmurfTuneMixin(SmurfBase):
         subbands = np.array([])
         timestamp = self.get_timestamp()
 
-        for sb in subband:
-            peak = self.find_peak(freq[sb,:], resp[sb,:], 
+        #for sb in subband:
+        #    peak = self.find_peak(freq[sb,:], resp[sb,:], 
+        #        rolling_med=rolling_med, window=window, grad_cut=grad_cut,
+        #        amp_cut=amp_cut, freq_min=freq_min, freq_max=freq_max, 
+        #        make_plot=make_plot, save_plot=save_plot, band=band, 
+        #        make_subband_plot=make_subband_plot, 
+        #        subband_plot_with_slow=subband_plot_with_slow, 
+        #        timestamp=timestamp, pad=pad, min_gap=min_gap,
+        #        subband=sb)
+
+        #    if peak is not None:
+        #        peaks = np.append(peaks, peak)
+        #        subbands = np.append(subbands, 
+        #            np.ones_like(peak, dtype=int)*sb)
+
+        # Stack all the frequency and response data into a 
+        sb, _ = np.where(freq !=0)
+        idx = np.unique(sb)
+        f_stack = np.ravel(freq[idx])
+        r_stack = np.ravel(resp[idx])
+        
+        # Frequency is interleaved, so sort it
+        s = np.argsort(f_stack)
+        f_stack = f_stack[s]
+        r_stack = r_stack[s]
+
+        peaks = self.find_peak(f_stack, r_stack,
                 rolling_med=rolling_med, window=window, grad_cut=grad_cut,
-                amp_cut=amp_cut, freq_min=freq_min, freq_max=freq_max, 
-                make_plot=make_plot, save_plot=save_plot, band=band, 
-                make_subband_plot=make_subband_plot, 
-                subband_plot_with_slow=subband_plot_with_slow, 
-                timestamp=timestamp, pad=pad, min_gap=min_gap,
-                subband=sb)
+                amp_cut=amp_cut, freq_min=freq_min, freq_max=freq_max,
+                make_plot=make_plot, save_plot=save_plot, band=band,
+                make_subband_plot=make_subband_plot,
+                subband_plot_with_slow=subband_plot_with_slow,
+                timestamp=timestamp, pad=pad, min_gap=min_gap)
 
-            if peak is not None:
-                peaks = np.append(peaks, peak)
-                subbands = np.append(subbands, 
-                    np.ones_like(peak, dtype=int)*sb)
 
-        res = np.vstack((peaks, subbands))
-        return res
+        #res = np.vstack((peaks, subbands))
+        #return res
+        return peaks
 
     def fast_eta_scan(self, band, subband, freq, n_read, drive, 
         make_plot=False):
@@ -2196,12 +2231,12 @@ class SmurfTuneMixin(SmurfBase):
             return
 
         if resonance is not None:
-            input_res = resonance[0,:]
-            input_subband = resonance[1,:]
+            input_res = resonance
+            #input_subband = resonance[1,:]
         else:
-            input_res = self.freq_resp[band]['resonance'][0]
-            input_subband = self.freq_resp[band]['resonance'][1]
-            #input_subband = self.freq_resp[band]['subband']
+            input_res = self.freq_resp[band]['resonance']
+            # input_subband = self.freq_resp[band]['resonance'][1]
+            # input_subband = self.freq_resp[band]['subband']
 
         n_subbands = self.get_number_sub_bands(band)
         n_channels = self.get_number_channels(band)
@@ -2214,8 +2249,11 @@ class SmurfTuneMixin(SmurfBase):
         resonances = {}
         band_center = self.get_band_center_mhz(band)
         input_res = input_res + band_center
-        for i, (f, sb) in enumerate(zip(input_res, input_subband)):
-            self.log('freq {:5.4f} sb {}'.format(f, sb))
+        # for i, (f, sb) in enumerate(zip(input_res, input_subband)):
+        n_res = len(input_res)
+        for i, f in enumerate(input_res):
+            # self.log('freq {:5.4f} sb {}'.format(f, sb))
+            self.log('freq {:5.4f} - {} of {}'.format(f, i, n_res))
             freq, resp, eta = self.eta_estimator(band, f, drive, 
                                                  f_sweep_half=sweep_width,
                                                  df_sweep=df_sweep)
