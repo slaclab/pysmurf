@@ -755,6 +755,11 @@ class SmurfTuneMixin(SmurfBase):
         """
         import matplotlib.pyplot as plt
 
+        if save_plot:
+            plt.ioff()
+        else:
+            plt.ion()
+
         Idat = np.real(resp)
         Qdat = np.imag(resp)
         phase = np.unwrap(np.arctan2(Qdat, Idat))
@@ -1023,7 +1028,7 @@ class SmurfTuneMixin(SmurfBase):
                 bbox_inches='tight')
             plt.close()
 
-    def get_closest_subband(self, f, band):
+    def get_closest_subband(self, f, band, as_offset=True):
         """
         Gives the closest subband number for a given input frequency.
 
@@ -1037,7 +1042,7 @@ class SmurfTuneMixin(SmurfBase):
         subband (int): The subband that contains the frequency
         """
         # get subband centers:
-        subbands, centers = self.get_subband_centers(band, as_offset=True)
+        subbands, centers = self.get_subband_centers(band, as_offset=as_offset)
         if self.check_freq_scale(f, centers[0]):
             pass
         else:
@@ -1065,7 +1070,7 @@ class SmurfTuneMixin(SmurfBase):
             return True
 
     def assign_channels(self, freq, band=None, bandcenter=None, 
-        channel_per_subband=4):
+        channel_per_subband=4, as_offset=True, min_offset=0.5):
         """
         Figures out the subbands and channels to assign to resonators
 
@@ -1082,6 +1087,8 @@ class SmurfTuneMixin(SmurfBase):
             band or subband center.
         channel_per_subband (int): The number of channels to assign per
             subband. Default is 4.
+        min_offset (float): The minimum offset between two resonators in MHz.
+            If closer, then both are ignored.
 
         Ret:
         ----
@@ -1089,6 +1096,12 @@ class SmurfTuneMixin(SmurfBase):
         channels (int array): An array of channel numbers to assign resonators
         offsets (float array): The frequency offset from the subband center
         """
+        freq = np.sort(freq)  # Just making sure its in sequential order
+        d_freq = np.diff(freq)
+        close_idx = d_freq > min_offset
+        close_idx = np.logical_and(np.hstack((close_idx, True)), 
+            np.hstack((True, close_idx)))
+
         if band is None and bandcenter is None:
             self.log('Must have band or bandcenter', self.LOG_ERROR)
             raise ValueError('Must have band or bandcenter')
@@ -1099,9 +1112,10 @@ class SmurfTuneMixin(SmurfBase):
         
         # Assign all frequencies to a subband
         for idx in range(len(freq)):
-            subbands[idx] = self.get_closest_subband(freq[idx], band)
+            subbands[idx] = self.get_closest_subband(freq[idx], band, 
+                                                     as_offset=as_offset)
             subband_center = self.get_subband_centers(band, 
-                as_offset=True)[1][subbands[idx]]
+                as_offset=as_offset)[1][subbands[idx]]
 
             offsets[idx] = freq[idx] - subband_center
         
@@ -1117,6 +1131,11 @@ class SmurfTuneMixin(SmurfBase):
             chans = chans[:len(list(concat_mask))] #I am so sorry
             
             channels[mask[:len(chans)]] = chans
+
+        # Prune channels that are too close
+        print(freq)
+        print(close_idx)
+        channels[~close_idx] = -1
         
         return subbands, channels, offsets
 
@@ -1226,24 +1245,25 @@ class SmurfTuneMixin(SmurfBase):
 
         # Populate arrays
         counter = 0
-        for k in self.freq_resp[band].keys():
-            ch = self.freq_resp[band][k]['channel']
-            if ch < -1: 
+        for k in self.freq_resp[band]['resonances'].keys():
+            ch = self.freq_resp[band]['resonances'][k]['channel']
+            self.log('Channel {}'.format(ch))
+            if ch < 0: 
                 self.log('No channel assigned: res {:03}'.format(k))
-            elif self.freq_resp[band][k]['r2'] > r2_max and check_vals:
+            elif self.freq_resp[band]['resonances'][k]['r2'] > r2_max and check_vals:
                 self.log('R2 too high: res {:03}'.format(k))
-            elif self.freq_resp[band][k]['Q'] < q_min and check_vals:
+            elif self.freq_resp[band]['resonances'][k]['Q'] < q_min and check_vals:
                 self.log('Q too low: res {:03}'.format(k))
-            elif self.freq_resp[band][k]['Q'] > q_max and check_vals:
+            elif self.freq_resp[band]['resonances'][k]['Q'] > q_max and check_vals:
                 self.log('Q too high: res {:03}'.format(k))
             elif k not in res_num:
                 self.log('Not in resonator list')
             else:
-                center_freq[ch] = self.freq_resp[band][k]['offset']
+                center_freq[ch] = self.freq_resp[band]['resonances'][k]['offset']
                 amplitude_scale[ch] = amp_scale
                 feedback_enable[ch] = 1
-                eta_phase[ch] = self.freq_resp[band][k]['eta_phase']
-                eta_mag[ch] = self.freq_resp[band][k]['eta_scaled']
+                eta_phase[ch] = self.freq_resp[band]['resonances'][k]['eta_phase']
+                eta_mag[ch] = self.freq_resp[band]['resonances'][k]['eta_scaled']
                 counter += 1
 
         # Set the actual variables
@@ -1269,8 +1289,8 @@ class SmurfTuneMixin(SmurfBase):
         """
         subband, offset = self.freq_to_subband(freq, band)
         f_sweep = np.arange(offset-f_sweep_half, offset+f_sweep_half, df_sweep)
-        rr, ii = self.eta_scan(band, subband, f_sweep, drive)
-        resp = rr + 1.j*ii
+        f, resp = self.fast_eta_scan(band, subband, f_sweep, 2, drive)
+        # resp = rr + 1.j*ii
 
         a_resp = np.abs(resp)
         idx = np.ravel(np.where(a_resp == np.min(a_resp)))[0]
@@ -1280,7 +1300,11 @@ class SmurfTuneMixin(SmurfBase):
             left = np.where(f_sweep < f0 - delta_freq)[0][-1]
         except IndexError:
             left = 0
-        right = np.where(f_sweep > f0 + delta_freq)[0][0]
+
+        try:
+            right = np.where(f_sweep > f0 + delta_freq)[0][0]
+        except:
+            right = len(f_sweep)-1
 
         subband_half_width = self.get_digitizer_frequency_mhz(band)/\
             self.get_number_sub_bands(band)
@@ -1292,6 +1316,10 @@ class SmurfTuneMixin(SmurfBase):
         eta_scaled = eta_mag/subband_half_width
         
         sb, sbc = self.get_subband_centers(band, as_offset=False)
+
+        # import matplotlib.pyplot as plt
+        # plt.figure()
+        # plt.plot(f_sweep, np.abs(resp))
 
         return f_sweep+sbc[subband], resp, eta
 
@@ -1727,3 +1755,518 @@ class SmurfTuneMixin(SmurfBase):
         """
         self.check_lock(band, f_min=0., f_max=np.inf, df_max=df_max, 
             make_plot=make_plot, flux_ramp=False, **kwargs)
+
+
+    def find_freq(self, band, subband=np.arange(13,115), drive_power=10,
+        n_read=2, make_plot=False, save_plot=True):
+        '''
+        Finds the resonances in a band (and specified subbands)
+
+        Args:
+        -----
+        band (int) : The band to search
+
+        Optional Args:
+        --------------
+        subband (int) : An int array for the subbands
+        drive_power (int) : The drive amplitude
+        n_read (int) : The number sweeps to do per subband
+        make_plot (bool) : make the plot frequency sweep. Default False.
+        save_plot (bool) : save the plot. Default True.
+        save_name (string) : What to name the plot. default find_freq.png
+        '''
+        self.log('Sweeping across frequencies')
+        f, resp = self.full_band_ampl_sweep(band, subband, drive_power, n_read)
+
+        timestamp = self.get_timestamp()
+        timestamp = int(time.time())  # ignore fractional seconds
+
+        # Save data
+        save_name = '{}_amp_sweep_{}.txt'
+        np.savetxt(os.path.join(self.output_dir, 
+            save_name.format(timestamp, 'freq')), f)
+        np.savetxt(os.path.join(self.output_dir, 
+            save_name.format(timestamp, 'resp')), resp)
+
+        # Place in dictionary - dictionary declared in smurf_control
+        self.freq_resp[band]['subband'] = subband
+        self.freq_resp[band]['f'] = f
+        self.freq_resp[band]['resp'] = resp
+        if 'timestamp' in self.freq_resp[band]:
+            self.freq_resp[band]['timestamp'] = \
+                np.append(self.freq_resp[band]['timestamp'], timestamp)
+        else:
+            self.freq_resp[band]['timestamp'] = np.array([timestamp])
+
+        # Find resonances
+        res_freq = self.find_all_peak(self.freq_resp[band]['f'],
+            self.freq_resp[band]['resp'], subband)
+        self.freq_resp[band]['resonance'] = res_freq
+
+        # Save resonances
+        np.savetxt(os.path.join(self.output_dir,
+            save_name.format(timestamp, 'resonance')), 
+            self.freq_resp[band]['resonance'])
+
+        # Call plotting
+        if make_plot:
+            self.plot_find_freq(self.freq_resp[band]['f'], 
+                self.freq_resp[band]['resp'], save_plot=save_plot, 
+                save_name=save_name.replace('.txt', '.png').format(timestamp,
+                    band))
+
+        return f, resp
+
+    def plot_find_freq(self, f=None, resp=None, subband=None, filename=None, 
+        save_plot=True, save_name='amp_sweep.png'):
+        '''
+        Plots the response of the frequency sweep. Must input f and resp, or
+        give a path to a text file containing the data for offline plotting.
+
+        To do:
+        Add ability to use timestamp and multiple plots
+
+        Optional Args:
+        --------------
+        save_plot (bool) : save the plot. Default True.
+        save_name (string) : What to name the plot. default find_freq.png
+        '''
+        if subband is None:
+            subband = np.arange(128)
+        subband = np.asarray(subband)
+
+        if (f is None or resp is None) and filename is None:
+            self.log('No input data or file given. Nothing to plot.')
+            return
+        else:
+            if filename is not None:
+                f, resp = np.load(filename)
+
+            import matplotlib.pyplot as plt
+            cm = plt.cm.get_cmap('viridis')
+            fig = plt.figure(figsize=(10,4))
+
+            for i, sb in enumerate(subband):
+                color = cm(float(i)/len(subband)/2. + .5*(i%2))
+                plt.plot(f[sb,:], np.abs(resp[sb,:]), '.', markersize=4, 
+                    color=color)
+            plt.title("findfreq response")
+            plt.xlabel("Frequency offset (MHz)")
+            plt.ylabel("Normalized Amplitude")
+
+            if save_plot:
+                plt.savefig(os.path.join(self.plot_dir, save_name),
+                    bbox_inches='tight')
+
+
+    def full_band_ampl_sweep(self, band, subband, drive, N_read):
+        """sweep a full band in amplitude, for finding frequencies
+
+        args:
+        -----
+            band (int) = bandNo (500MHz band)
+            subband (int) = which subbands to sweep
+            drive (int) = drive power (defaults to 10)
+            n_read (int) = numbers of times to sweep, defaults to 2
+
+        returns:
+        --------
+            freq (list, n_freq x 1) = frequencies swept
+            resp (array, n_freq x 2) = complex response
+        """
+
+        digitizer_freq = self.get_digitizer_frequency_mhz(band)  # in MHz
+        n_subbands = self.get_number_sub_bands(band)
+        n_channels = self.get_number_channels(band)
+        band_center = self.get_band_center_mhz(band)  # in MHz
+
+        subband_width = 2 * digitizer_freq / n_subbands
+
+        scan_freq = np.arange(-3, 3.1, 0.1)  # take out this hardcode
+
+        resp = np.zeros((n_subbands, np.shape(scan_freq)[0]), dtype=complex)
+        freq = np.zeros((n_subbands, np.shape(scan_freq)[0]))
+
+        subband_nos, subband_centers = self.get_subband_centers(band)
+
+        self.log('Working on band {:d}'.format(band), self.LOG_INFO)
+        for sb in subband:
+            self.log('sweeping subband no: {}'.format(sb), self.LOG_INFO)
+            f, r = self.fast_eta_scan(band, sb, scan_freq, N_read, 
+                drive)
+            resp[sb,:] = r
+            freq[sb,:] = f
+            freq[sb,:] = scan_freq + \
+                subband_centers[subband_nos.index(sb)]
+        return freq, resp
+
+
+    def peak_finder(self, x, y, threshold):
+        """finds peaks in x,y data with some threshhold
+
+        Not currently being used
+        """
+        in_peak = 0
+
+        peakstruct_max = []
+        peakstruct_nabove = []
+        peakstruct_freq = []
+
+        for idx in range(len(y)):
+            freq = x[idx]
+            amp = y[idx]
+
+            if in_peak == 0:
+                pk_max = 0
+                pk_freq = 0
+                pk_nabove = 0
+
+            if amp > threshold:
+                if in_peak == 0: # start a new peak
+                    n_peaks = n_peaks + 1
+
+                in_peak = 1
+                pk_nabove = pk_nabove + 1
+
+                if amp > pk_max: # keep moving until find the top
+                    pk_max = amp
+                    pk_freq = freq
+
+                if idx == len(y) or y[idx + 1] < threshhold:
+                    peakstruct_max.append(pk_max)
+                    peakstruct_nabove.append(pk_nabove)
+                    peakstruct_freq.append(pk_freq)
+                    in_peak = 0
+        return peakstruct_max, peakstruct_nabove, peakstruct_freq
+
+    def find_peak(self, freq, resp, normalize=False, 
+        n_samp_drop=1, threshold=.5, margin_factor=1., phase_min_cut=1, 
+        phase_max_cut=1, make_plot=False, save_plot=True, save_name=None):
+        """find the peaks within a given subband
+
+        Args:
+        -----
+        freq (vector): should be a single row of the broader freq array
+        response (complex vector): complex response for just this subband
+
+        Optional Args:
+        --------------
+        normalize (bool) : 
+        n_samp_drop (int) :
+        threshold (float) :
+        margin_factor (float):
+        phase_min_cut (int) :
+        phase_max_cut (int) :
+
+        Returns:
+        -------_
+        resonances (list of floats) found in this subband
+        """
+        resp_input = np.copy(resp)
+        if np.isnan(resp).any():
+            if np.isnan(resp).all():
+                self.log("Warning - All values are NAN. Skipping", 
+                    self.LOG_ERROR)                
+                return
+            self.log("Warning - at least one NAN. Interpolating...", 
+                self.LOG_ERROR)
+            idx = ~np.isnan(resp)
+            resp = np.interp(freq, freq[idx], resp[idx])
+
+        # This was what was in Cyndia and Shawns code. Im deprecating this
+        # for now.
+        # df = freq[1] - freq[0]
+        # Idat = np.real(resp)
+        # Qdat = np.imag(resp)
+        # phase = np.unwrap(np.arctan2(Qdat, Idat))
+
+        # diff_phase = np.diff(phase)
+        # diff_freq = np.add(freq[:-1], df / 2)  # lose an index from diff
+
+        # if normalize==True:
+        #     norm_min = min(diff_phase[nsampdrop:-nsampdrop])
+        #     norm_max = max(diff_phase[nsampdrop:-nsampdrop])
+
+        #     diff_phase = (diff_phase - norm_min) / (norm_max - norm_min)
+        #
+        # peakstruct_max, peakstruct_nabove, peakstruct_freq = \
+        #     self.peak_finder(diff_freq, diff_phase, threshold)
+
+        # return peakstruct_max, peakstruct_nabove, peakstruct_freq
+
+        # For now use scipy - needs scipy
+        # hardcoded values should be exposed in some meaningful way
+
+        import scipy.signal as signal
+        peak_ind, props = signal.find_peaks(-np.abs(resp), distance=10, 
+            prominence=.025)
+
+        if make_plot:
+            self.plot_find_peak(freq, resp_input, peak_ind, save_plot=save_plot,
+                save_name=save_name)
+
+        return freq[peak_ind]
+
+    def plot_find_peak(self, freq, resp, peak_ind, save_plot=True, 
+        save_name=None):
+        """
+        """
+        import matplotlib.pyplot as plt
+        if save_plot:
+            plt.ioff()
+        else:
+            plt.ion()
+
+        Idat = np.real(resp)
+        Qdat = np.imag(resp)
+        phase = np.unwrap(np.arctan2(Qdat, Idat))
+        
+        fig, ax = plt.subplots(2, sharex=True, figsize=(6,4))
+        ax[0].plot(freq, np.abs(resp), label='amp', color='b')
+        ax[0].plot(freq, Idat, label='I', color='r', linestyle=':', alpha=.5)
+        ax[0].plot(freq, Qdat, label='Q', color='g', linestyle=':', alpha=.5)
+        ax[0].legend(loc='lower right')
+        ax[1].plot(freq, phase, color='b')
+        ax[1].set_ylim((-np.pi, np.pi))
+
+        if len(peak_ind):  # empty array returns False
+            ax[0].plot(freq[peak_ind], np.abs(resp[peak_ind]), 'x', color='k')
+            ax[1].plot(freq[peak_ind], phase[peak_ind], 'x', color='k')
+        else:
+            self.log('No peak_ind values.', self.LOG_USER)
+
+        fig.suptitle("Peak Finding")
+        ax[1].set_xlabel("Frequency offset from Subband Center (MHz)")
+        ax[0].set_ylabel("Response")
+        ax[1].set_ylabel("Phase [rad]")
+
+        if save_plot:
+            if save_name is None:
+                self.log('Using default name for saving: find_peak.png \n' +
+                    'Highly recommended that you input a non-default name')
+                save_name = 'find_peak.png'
+            else:
+                self.log('Plotting saved to {}'.format(save_name))
+            plt.savefig(os.path.join(self.plot_dir, save_name),
+                bbox_inches='tight')
+            plt.close()
+
+    def find_all_peak(self, freq, resp, subband, normalize=False, 
+        n_samp_drop=1, threshold=.5, margin_factor=1., phase_min_cut=1, 
+        phase_max_cut=1, save_plot=False):
+        """
+        find the peaks within each subband requested from a fullbandamplsweep
+
+        Args:
+        -----
+        freq (array):  (n_subbands x n_freq_swept) array of frequencies swept
+        response (complex array): n_subbands x n_freq_swept array of complex 
+            response
+        subbands (list of ints): subbands that we care to search in
+
+        Optional Args:
+        --------------
+        normalize (bool) : 
+        n_samp_drop (int) :
+        threshold (float) :
+        margin_factor (float):
+        phase_min_cut (int) :
+        phase_max_cut (int) :
+        """
+        peaks = np.array([])
+        subbands = np.array([])
+        timestamp = self.get_timestamp()
+
+        for sb in subband:
+            peak = self.find_peak(freq[sb,:], resp[sb,:], 
+                normalize=normalize, n_samp_drop=n_samp_drop, 
+                threshold=threshold, margin_factor=margin_factor,
+                phase_min_cut=phase_min_cut, phase_max_cut=phase_max_cut,
+                make_plot=True, save_plot=save_plot,
+                save_name=timestamp+'find_peak_subband{:03}.png'.format(int(sb)))
+
+            if peak is not None:
+                peaks = np.append(peaks, peak)
+                subbands = np.append(subbands, 
+                    np.ones_like(peak, dtype=int)*sb)
+
+        res = np.vstack((peaks, subbands))
+        return res
+
+    def fast_eta_scan(self, band, subband, freq, n_read, drive, 
+        make_plot=False):
+        """copy of fastEtaScan.m from Matlab. Sweeps quickly across a range of
+        freq and gets I, Q response
+
+        Args:
+         band (int): which 500MHz band to scan
+         subband (int): which subband to scan
+         freq (n_freq x 1 array): frequencies to scan relative to subband 
+            center
+         n_read (int): number of times to scan
+         drive (int): tone power
+
+        Optional Args:
+        make_plot (bool): Make eta plots
+
+        Outputs:
+         resp (n_freq x 2 array): real, imag response as a function of 
+            frequency
+         freq (n_freq x n_read array): frequencies scanned, relative to 
+            subband center
+        """
+        n_subbands = self.get_number_sub_bands(band)
+        n_channels = self.get_number_channels(band)
+
+        channel_order = self.get_channel_order(None) # fix this later
+
+        channels_per_subband = int(n_channels / n_subbands)
+        first_channel_per_subband = channel_order[0::channels_per_subband]
+        subchan = first_channel_per_subband[subband]
+
+        self.set_eta_scan_freq(band, freq)
+        self.set_eta_scan_amplitude(band, drive)
+        self.set_eta_scan_channel(band, subchan)
+        self.set_eta_scan_dwell(band, 0)
+
+        self.set_run_eta_scan(band, 1)
+
+        I = self.get_eta_scan_results_real(band, count=len(freq))
+        Q = self.get_eta_scan_results_imag(band, count=len(freq))
+
+        self.band_off(band)
+
+        response = np.zeros((len(freq), ), dtype=complex)
+
+        for index in range(len(freq)):
+            Ielem = I[index]
+            Qelem = Q[index]
+            if Ielem > 2**23:
+                Ielem = Ielem - 2**24
+            if Qelem > 2**23:
+                Qelem = Qelem - 2**24
+            
+            Ielem = Ielem / 2**23
+            Qelem = Qelem / 2**23
+
+            response[index] = Ielem + 1j*Qelem
+
+        if make_plot:
+            import matplotlib.pyplot as plt
+            # To do : make plotting
+
+        return freq, response
+
+    def setup_notches(self, band, resonance=None, drive=10, sweep_width=.3, 
+        df_sweep=.005, subband_half_width=614.4/128):
+        """
+
+        Args:
+        -----
+        band (int) : The 500 MHz band to setup.
+
+        Optional Args:
+        --------------
+        resonance (float array) : A 2 dimensional array with resonance 
+            frequencies and the subband they are in. If given, this will take 
+            precedent over the one in self.freq_resp.
+        drive (int) : The power to drive the resonators. Default 10.
+        sweep_width (float) : The range to scan around the input resonance in
+            units of MHz. Default .3
+        sweep_df (float) : The sweep step size in MHz. Default .005
+
+        Returns:
+        --------
+
+        """
+
+        # Check if any resonances are stored
+        if 'resonance' not in self.freq_resp[band] and resonance is None:
+            self.log('No resonances stored in band {}'.format(band) +
+                '. Run find_freq first.', self.LOG_ERROR)
+            return
+
+        if resonance is not None:
+            input_res = resonance[0,:]
+            input_subband = resonance[1,:]
+        else:
+            input_res = self.freq_resp[band]['resonance'][0]
+            input_subband = self.freq_resp[band]['resonance'][1]
+            #input_subband = self.freq_resp[band]['subband']
+
+        n_subbands = self.get_number_sub_bands(band)
+        n_channels = self.get_number_channels(band)
+        n_subchannels = n_channels / n_subbands
+
+        sweep = np.arange(-sweep_width, sweep_width+df_sweep, df_sweep)
+
+
+        # Loop over inputs and do eta scans
+        resonances = {}
+        band_center = self.get_band_center_mhz(band)
+        input_res = input_res + band_center
+        for i, (f, sb) in enumerate(zip(input_res, input_subband)):
+            self.log('freq {:5.4f} sb {}'.format(f, sb))
+            freq, resp, eta = self.eta_estimator(band, f, drive, 
+                                                 f_sweep_half=sweep_width,
+                                                 df_sweep=df_sweep)
+            eta_phase_deg = np.angle(eta)*180/np.pi
+            eta_mag = np.abs(eta)
+            eta_scaled = eta_mag / subband_half_width
+            
+            abs_resp = np.abs(resp)
+            idx = np.ravel(np.where(abs_resp == np.min(abs_resp)))[0]
+            # _, sbc = self.get_subband_centers(band, as_offset=True)
+
+            f_min = freq[idx]
+
+            resonances[i] = {
+                'freq' : f_min,
+                'eta' : eta,
+                'eta_scaled' : eta_scaled,
+                'eta_phase' : eta_phase_deg,
+                'r2' : 1,  # This is BS
+                'eta_mag' : eta_mag,
+                'latency': 0 ,  # This is also BS
+                'Q' : 1  # This is also also BS
+            }
+
+        self.freq_resp[band]['resonances'] = resonances
+
+        # Assign resonances to channels                                                       
+        self.log('Assigning channels')
+        f = [resonances[k]['freq'] for k in resonances.keys()]
+        subbands, channels, offsets = self.assign_channels(f, band=band, 
+                                                           as_offset=False)
+
+        for i, k in enumerate(resonances.keys()):
+            resonances[k].update({'subband': subbands[i]})
+            resonances[k].update({'channel': channels[i]})
+            resonances[k].update({'offset': offsets[i]})
+
+        self.relock(band)
+    
+    def save_tune(self):
+        """
+        Saves the tuning information (self.freq_resp) to tuning directory
+        """
+        timestamp = self.get_timestamp()
+        savedir = os.path.join(self.tune_dir, timestamp+"_tune")
+        self.log('Saving to : {}.npy'.format(savedir))
+        np.save(savedir, self.freq_resp)
+
+        return savedir + ".npy"
+
+    def load_tune(self, filename):
+        """
+        Loads the tuning information (self.freq_resp) from tuning directory
+
+        Args:
+        -----
+        filename (str) : The name of the tuning.
+        """
+        fs = np.load(filename).item()
+        self.log('Loaded...')
+        self.log('{}'.format(fs))
+
+        self.freq_resp = fs

@@ -215,11 +215,16 @@ class SmurfIVMixin(SmurfBase):
         
         rn_list = []
         phase_excursion_list = []
+
+        # Load GCP mask
+        mask = np.loadtxt(self.smurf_to_mce_mask_file)
+
         for c, ch in enumerate(channels):
             self.log('Analyzing channel {}'.format(ch))
         
-            phase = phase_all[ch]
-            ch_idx = ch
+            ch_idx = np.where(mask == 512*band + ch)[0][0]
+
+            phase = phase_all[ch_idx]
          
             phase_excursion = max(phase) - min(phase)
 
@@ -260,7 +265,7 @@ class SmurfIVMixin(SmurfBase):
                 basename=basename, band=band, channel=ch, make_plot=make_plot, 
                 show_plot=show_plot, save_plot=save_plot, plot_dir=plot_dir,
                 R_sh = R_sh, high_current_mode = high_current_mode,
-                bias_group=bias_group,grid_on=grid_on)
+                bias_group=bias_group, grid_on=grid_on)
             try:
                 if rn <= rn_accept_max and rn >= rn_accept_min:
                     rn_list.append(rn)
@@ -275,6 +280,8 @@ class SmurfIVMixin(SmurfBase):
             }
 
         np.save(os.path.join(output_dir, basename + '_iv'), ivs)
+
+        print(phase_excursion_list)
 
         if make_plot:
             import matplotlib.pyplot as plt
