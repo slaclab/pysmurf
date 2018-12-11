@@ -50,12 +50,15 @@ class SmurfNoiseMixin(SmurfBase):
             datafile = self.take_stream_data(band, meas_time, gcp_mode=gcp_mode)
         else:
             self.log('Reading data from %s' % (datafile))
+
         basename, _ = os.path.splitext(os.path.basename(datafile))
 
         # timestamp, I, Q = self.read_stream_data(datafile)
         timestamp, phase = self.read_stream_data(datafile, gcp_mode=gcp_mode)
         phase *= self.pA_per_phi0/(2.*np.pi) # phase converted to pA
 
+        # Load GCP mask
+        mask = np.loadtxt(self.smurf_to_mce_mask_file)
         if fs is None:
             self.log('No flux ramp freq given. Loading current flux ramp'+
                 'frequency', self.LOG_USER)
@@ -80,7 +83,7 @@ class SmurfNoiseMixin(SmurfBase):
 
             # Calculate to power spectrum
             # ch_idx = 512*band + ch
-            ch_idx = ch
+            ch_idx = np.where(mask == 512*band + ch)[0][0]
             f, Pxx = signal.welch(phase[ch_idx], nperseg=nperseg, 
                 fs=fs, detrend=detrend)
             Pxx = np.sqrt(Pxx)
@@ -231,7 +234,7 @@ class SmurfNoiseMixin(SmurfBase):
         bias=None, high_current_mode=False,
         meas_time=30., analyze=False, channel=None, nperseg=2**13,
         detrend='constant', fs=None,show_plot = False,cool_wait = 30.,gcp_mode = True,
-        psd_ylim = None):
+        psd_ylim = (10.,1000.)):
         """
         This ramps the TES voltage from bias_high to bias_low and takes noise
         measurements. You can make it analyze the data and make plots with the
