@@ -57,8 +57,10 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
             # Define output and plot dirs
             self.base_dir = os.path.abspath(self.data_dir)
             self.output_dir = os.path.join(self.base_dir, 'outputs')
+            self.tune_dir = os.path.join(self.output_dir, 'tune')
             self.plot_dir = os.path.join(self.base_dir, 'plots')
             self.make_dir(self.output_dir)
+            self.make_dir(self.tune_dir)
             self.make_dir(self.plot_dir)
 
             # Set logfile
@@ -84,8 +86,10 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
             # create output and plot directories
             self.output_dir = os.path.join(self.base_dir, self.date, name, 
                 'outputs')
+            self.tune_dir = os.path.join(self.output_dir, 'tune')
             self.plot_dir = os.path.join(self.base_dir, self.date, name, 'plots')
             self.make_dir(self.output_dir)
+            self.make_dir(self.tune_dir)
             self.make_dir(self.plot_dir)
 
             # name the logfile and create flags for it
@@ -95,8 +99,7 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
             else:
                 self.log.set_logfile(None)
 
-            # Dictionary for frequency response
-            self.freq_resp = {}
+
 
         # Useful constants
         constant_cfg = self.config.get('constant')
@@ -175,8 +178,15 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
         self.smurf_to_mce_file = smurf_to_mce_cfg.get('smurf_to_mce_file')
         self.smurf_to_mce_ip = smurf_to_mce_cfg.get('receiver_ip')
         self.smurf_to_mce_port = smurf_to_mce_cfg.get('port_number')
+        self.smurf_to_mce_mask_file = smurf_to_mce_cfg.get('mask_file')
 
-
+        # Dictionary for frequency response
+        self.freq_resp = {}
+        smurf_init_config = self.config.get('init')
+        bands = smurf_init_config['bands']
+        for b in bands:
+            # Make band dictionaries
+            self.freq_resp[b] = {}
         if setup:
             self.setup(**kwargs)
 
@@ -243,8 +253,7 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
             self.set_dsp_enable(b, smurf_init_config['dspEnable'], 
                 write_log=write_log, **kwargs)
 
-            # Make band dictionaries
-            self.freq_resp[b] = {}
+            
 
         self.set_trigger_width(0, 10, write_log=write_log)  # mystery bit that makes triggering work
         self.set_trigger_enable(0, 1, write_log=write_log)

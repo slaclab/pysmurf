@@ -274,7 +274,7 @@ class SmurfUtilMixin(SmurfBase):
 
         return f, df, flux_ramp_strobe
 
-    def take_stream_data(self, band, meas_time, gcp_mode=False):
+    def take_stream_data(self, band, meas_time, gcp_mode=True):
         """
         Takes streaming data for a given amount of time
         Args:
@@ -501,11 +501,12 @@ class SmurfUtilMixin(SmurfBase):
             file_content = file.read()
 
         keys = ['protocol_version','crate_id','slot_number','number_of_channels',
-                'rtm_dac_config0', 'rtm_dac_config1', 'rtm_dac_config2', 'rtm_dac_config3',
-                'rtm_dac_config4', 'rtm_dac_config5','flux_ramp_increment','flux_ramp_start',
-                'rate_since_1Hz', 'rate_since_TM', 'nanoseconds', 'seconds', 'fixed_rate_marker',
-                'sequence_counter', 'tes_relay_config', 'mce_word', 'user_word0', 'user_word1',
-                'user_word2'
+                'rtm_dac_config0', 'rtm_dac_config1', 'rtm_dac_config2', 
+                'rtm_dac_config3', 'rtm_dac_config4', 'rtm_dac_config5',
+                'flux_ramp_increment','flux_ramp_start', 'rate_since_1Hz', 
+                'rate_since_TM', 'nanoseconds', 'seconds', 'fixed_rate_marker',
+                'sequence_counter', 'tes_relay_config', 'mce_word', 
+                'user_word0', 'user_word1', 'user_word2'
         ]
 
         data_keys = [f'data{i}' for i in range(528)]
@@ -517,13 +518,15 @@ class SmurfUtilMixin(SmurfBase):
 
         phase = np.zeros((528, len(frames)))
         for i in range(528):
-                phase[i,:] = np.asarray([j[keys_dict[f'data{i}']] for j in
-                             frames])
+            phase[i,:] = np.asarray([j[keys_dict[f'data{i}']] for j in
+                         frames])
 
         phase = phase.astype(float) / 2**15 * np.pi # where is decimal?  Is it in rad?
-        timestamp = [i[keys_dict['sequence_counter']] for i in frames]
+        # timestamp = [i[keys_dict['sequence_counter']] for i in frames]
 
-        return timestamp, phase
+        # Joe's timestamp - 64 bit UTC.
+        timestamp2 = [i[keys_dict['rtm_dac_config5']] for i in frames] 
+        return timestamp2, phase
 
 
     def read_stream_data_daq(self, data_length, bay=0, hw_trigger=False):
@@ -1273,15 +1276,15 @@ class SmurfUtilMixin(SmurfBase):
         bias_50k (float): The 50K bias voltage in units of volts
         """
 
-        ############################################################################
+        ########################################################################
         ### 4K HEMT
         self.set_hemt_enable(**kwargs)
         # if nothing specified take default from cfg file, if 
         # it's specified there
         bias_hemt_from_cfg=False
         if bias_hemt is None and hasattr(self,'hemt_Vg'):
-            bias_hemt=self.hemt_Vg
-            bias_hemt_from_cfg=True
+            bias_hemt = self.hemt_Vg
+            bias_hemt_from_cfg = True
         # if user gave a value or value was found in cfg file,
         # set it and tell the user
         if not bias_hemt is None:
@@ -1299,9 +1302,9 @@ class SmurfUtilMixin(SmurfBase):
             self.log('No value specified for 50K LNA Vg and didn\'t find a default in cfg (amplifier[\'hemt_Vg\']).', 
                      self.LOG_ERROR)
         ### done with 4K HEMT
-        ############################################################################
+        ########################################################################
 
-        ############################################################################
+        ########################################################################
         ### 50K LNA (if present - could make this smarter and more general)
         self.set_50k_amp_enable(**kwargs)
         # if nothing specified take default from cfg file, if 
@@ -1675,3 +1678,33 @@ class SmurfUtilMixin(SmurfBase):
         }
 
         return ret
+
+    def make_gcp_mask(self, band=None, smurf_chans=None, gcp_chans=None, 
+        read_gcp_mask=True):
+        """
+        """
+        gcp_chans = np.array([], dtype=int)
+        if smurf_chans is None and band is not None:
+            band = np.ravel(np.array(band))
+            n_chan = self.get_number_channels(band)
+            gcp_chans = np.arange(n_chan) + n_chan*band
+        elif smurf_chans is not None:
+            keys = smurf_chans.keys()
+            for k in keys:
+                self.log('Band {}'.format(k))
+                n_chan = self.get_number_channels(k)
+                for ch in smurf_chans[k]:
+                    gcp_chans = np.append(gcp_chans, ch + n_chan*k)
+
+        if len(gcp_chans) > 512:
+            self.log('WARNING: too many gcp channels!')
+            return
+
+        self.log('Making gcp mask file. {} channels added'.format(len(gcp_chans)))
+        np.savetxt(self.smurf_to_mce_mask_file, gcp_chans, fmt='%i')
+
+        if read_gcp_mask:
+            self.log('Reading newly made mask file.')
+            self.read_smurf_to_gcp_config()
+
+
