@@ -1393,6 +1393,26 @@ class SmurfTuneMixin(SmurfBase):
         -----
         band (int) : The band number
         channel (int) : The channel to check
+
+        Opt Args:
+        ---------
+        reset_rate_khz (float) : The flux ramp frequency
+        write_log (bool) : Whether to write output to the log
+        make_plot (bool) : Whether to make plots. Default False.
+        save_plot (bool) : Whether to save plots. Default True.
+        show_plot (bool) : Whether to display the plot. Default True.
+        lms_freq_hz (float) : The frequency of the tracking algorithm.
+           Default is 4000
+        flux_ramp (bool) : Whether to turn on flux ramp. Default True.
+        fraction_full_scale (float) : The flux ramp amplitude, as a
+           fraction of the maximum. Default is .4950.
+        lms_enable1 (bool) : Whether to use the first harmonic for tracking.
+           Default True.
+        lms_enable2 (bool) : Whether to use the second harmonic for tracking.
+           Default True.
+        lms_enable3 (bool) : Whether to use the third harmonic for tracking.
+           Default True.
+        lms_gain (int) : The tracking gain parameters. Default 7.
         """
         if not flux_ramp:
             self.log('WARNING: THIS WILL NOT TURN ON FLUX RAMP!')
