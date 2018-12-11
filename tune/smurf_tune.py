@@ -502,8 +502,8 @@ class SmurfTuneMixin(SmurfBase):
 
     def find_peak(self, freq, resp, rolling_med=False, window=500,
 	grad_cut=.05, amp_cut=.25, freq_min=-2.5E8, freq_max=2.5E8, make_plot=False, 
-	save_plot=True, band=None, make_subband_plot=False, 
-	subband_plot_with_slow=False, timestamp=None, pad=2, min_gap=2):
+	save_plot=True, band=None,subband=None, make_subband_plot=False, 
+	subband_plot_with_slow=False, timestamp=None, pad=2, min_gap=2,plot_title=None):
         """find the peaks within a given subband
 
         Args:
@@ -573,7 +573,7 @@ class SmurfTuneMixin(SmurfBase):
             import matplotlib.pyplot as plt
             fig, ax = plt.subplots(1)
 
-            plot_freq = freq*1.0E-6
+            plot_freq = freq
 
             ax.plot(plot_freq,amp)
             ax.plot(plot_freq, med_amp)
@@ -584,9 +584,10 @@ class SmurfTuneMixin(SmurfBase):
 
             ax.set_ylabel('Amp')
             ax.set_xlabel('Freq [MHz]')
+            ax.set_title('%s: band %i, subband %i' % (timestamp,band,subband))
 
             if save_plot:
-                save_name = '{}_plot_freq.png'.format(timestamp)
+                save_name = '{}_b{}_sb{:03}_plot_freq.png'.format(timestamp,band,subband)
                 plt.savefig(os.path.join(self.plot_dir, save_name))
                 plt.close()
 
@@ -1808,7 +1809,8 @@ class SmurfTuneMixin(SmurfBase):
 
         # Find resonances
         res_freq = self.find_all_peak(self.freq_resp[band]['f'],
-            self.freq_resp[band]['resp'], subband)
+            self.freq_resp[band]['resp'], subband,make_plot=make_plot,
+            band=band)
         self.freq_resp[band]['resonance'] = res_freq
 
         # Save resonances
@@ -1890,16 +1892,16 @@ class SmurfTuneMixin(SmurfBase):
 
         subband_width = 2 * digitizer_freq / n_subbands
 
-        scan_freq = np.arange(-3, 3.1, 0.1)  # take out this hardcode
+        scan_freq = np.arange(-3, 3.05, 0.05)  # take out this hardcode
 
         resp = np.zeros((n_subbands, np.shape(scan_freq)[0]), dtype=complex)
         freq = np.zeros((n_subbands, np.shape(scan_freq)[0]))
 
         subband_nos, subband_centers = self.get_subband_centers(band)
 
-        self.log('Working on band {:d}'.format(band), self.LOG_INFO)
+        self.log('Working on band {:d}'.format(band))
         for sb in subband:
-            self.log('sweeping subband no: {}'.format(sb), self.LOG_INFO)
+            self.log('Sweeping subband no: {}'.format(sb))
             f, r = self.fast_eta_scan(band, sb, scan_freq, N_read, 
                 drive)
             resp[sb,:] = r
@@ -2088,7 +2090,8 @@ class SmurfTuneMixin(SmurfBase):
                 make_plot=make_plot, save_plot=save_plot, band=band, 
                 make_subband_plot=make_subband_plot, 
                 subband_plot_with_slow=subband_plot_with_slow, 
-                timestamp=timestamp, pad=pad, min_gap=min_gap)
+                timestamp=timestamp, pad=pad, min_gap=min_gap,
+                subband=sb)
 
             if peak is not None:
                 peaks = np.append(peaks, peak)
@@ -2163,7 +2166,7 @@ class SmurfTuneMixin(SmurfBase):
         return freq, response
 
     def setup_notches(self, band, resonance=None, drive=10, sweep_width=.3, 
-        df_sweep=.005, subband_half_width=614.4/128):
+        df_sweep=.005, subband_half_width=614.4/128,min_offset = 0.1):
         """
 
         Args:
@@ -2179,6 +2182,7 @@ class SmurfTuneMixin(SmurfBase):
         sweep_width (float) : The range to scan around the input resonance in
             units of MHz. Default .3
         sweep_df (float) : The sweep step size in MHz. Default .005
+        min_offset (float): minimum distance in MHz between two resonators for assigning channels
 
         Returns:
         --------
@@ -2242,7 +2246,7 @@ class SmurfTuneMixin(SmurfBase):
         self.log('Assigning channels')
         f = [resonances[k]['freq'] for k in resonances.keys()]
         subbands, channels, offsets = self.assign_channels(f, band=band, 
-                                                           as_offset=False)
+                                        as_offset=False,min_offset=min_offset)
 
         for i, k in enumerate(resonances.keys()):
             resonances[k].update({'subband': subbands[i]})
