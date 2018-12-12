@@ -312,54 +312,82 @@ class SmurfTuneMixin(SmurfBase):
         self.set_eta_phase_array(band, eta_phase_array)
         
                         
-    def plot_tune_summary(self, band, resonances=None):
+    def plot_tune_summary(self, band):
         """
         Plots summary of tuning
         """
         import matplotlib.pyplot as plt
 
-        if resonances is None:
-            resonances = self.freq_resp
+        resonances = self.freq_resp[band]['resonances']
+        timestamp = self.freq_resp[band]['timestamp'][0]
+
+        keys = resonances.keys()
 
         fig, ax = plt.subplots(2,2, figsize=(10,6))
 
         # Histogram of resonances
-        r2 = np.array([resonances[band][k]['r2'] for k in 
-            resonances.keys()])
-        idx = ~np.isnan(r2)
-        m = np.median(r2[idx])
-        ax[0,0].hist(r2[idx], bins=np.arange(0, 5*m, m/3))
-        ax[0,0].axvline(m, color='k', linestyle='--')
-        ax[0,0].set_xlabel(r'$R^2$')
-        ax[0,0].set_ylabel('count')
-        ax[0,0].text(.75, .92, 'Med: {:4.3f}'.format(m), 
-            transform=ax[0,0].transAxes)
+        # r2 = np.array([resonances[k]['r2'] for k in 
+        #    resonances.keys()])
+        # idx = ~np.isnan(r2)
+        #m = np.median(r2[idx])
+        #ax[0,0].hist(r2[idx], bins=np.arange(0, 5*m, m/3))
+        #ax[0,0].axvline(m, color='k', linestyle='--')
+        #ax[0,0].set_xlabel(r'$R^2$')
+        #ax[0,0].set_ylabel('count')
+        #ax[0,0].text(.75, .92, 'Med: {:4.3f}'.format(m), 
+        #    transform=ax[0,0].transAxes)
 
         # Q
-        Q = np.array([resonances[band][k]['Q'] for k in 
-            resonances.keys()])
-        idx = ~np.isnan(Q)
-        m = np.median(Q[idx])
-        ax[1,0].hist(Q[idx], bins=np.arange(0, 5*m, m/3))
-        ax[1,0].axvline(m, color='k', linestyle='--')
-        ax[1,0].set_xlabel(r'$Q$')
-        ax[1,0].set_ylabel('count')
-        ax[1,0].text(.75, .92, 'Med: {:4.1f}'.format(m), 
-            transform=ax[1,0].transAxes)
+        #Q = np.array([resonances[k]['Q'] for k in 
+        #    resonances.keys()])
+        #idx = ~np.isnan(Q)
+        #m = np.median(Q[idx])
+        #ax[1,0].hist(Q[idx], bins=np.arange(0, 5*m, m/3))
+        #ax[1,0].axvline(m, color='k', linestyle='--')
+        #ax[1,0].set_xlabel(r'$Q$')
+        #ax[1,0].set_ylabel('count')
+        #ax[1,0].text(.75, .92, 'Med: {:4.1f}'.format(m), 
+        #    transform=ax[1,0].transAxes)
 
         # Subband
-        sb = np.array([resonances[band][k]['subband'] for k in 
-            resonances.keys()])
+        sb = np.array([resonances[k]['subband'] for k in keys])
         c = Counter(sb)
         y = np.array([c[i] for i in np.arange(128)])
-        ax[0,1].plot(np.arange(128), y, '.')
+        ax[0,0].plot(np.arange(128), y, '.', color='k')
         for i in np.arange(0, 128, 16):
-            ax[0,1].axvspan(i-.5, i+7.5, color='k', alpha=.2)
-        ax[0,1].set_xlim((0, 128))
-        ax[0,1].set_xlabel('Subband')
-        ax[0,1].set_ylabel('# Res')
+            ax[0,0].axvspan(i-.5, i+7.5, color='k', alpha=.2)
+        ax[0,0].set_ylim((-.2, np.max(y)+1.2))
+        ax[0,0].set_yticks(np.arange(0,np.max(y)+.1))
+        ax[0,0].set_xlim((0, 128))
+        ax[0,0].set_xlabel('Subband')
+        ax[0,0].set_ylabel('# Res')
+        ax[0,0].text(.02, .92, 'Total: {}'.format(len(sb)),
+                      fontsize=10, transform=ax[0,0].transAxes)
 
-        plt.tight_layout()
+
+        eta = np.array([resonances[k]['eta'] for k in keys])
+        f = np.array([resonances[k]['freq'] for k in keys])
+        ax[0,1].plot(f, np.real(eta), '.', label='Real')
+        ax[0,1].plot(f, np.imag(eta), '.', label='Imag')
+        ax[0,1].plot(f, np.abs(eta), '.', label='Abs', color='k')
+        ax[0,1].legend(loc='lower right')
+        bc = self.get_band_center_mhz(band)
+        ax[0,1].set_xlim((bc-250, bc+250))
+        ax[0,1].set_xlabel('Freq [MHz]')
+        ax[0,1].set_ylabel('Eta')
+    
+
+        phase = np.array([resonances[k]['eta_phase'] for k in keys])
+        ax[1,1].plot(f, phase, color='k')
+        ax[1,1].set_xlim((bc-250, bc+250))
+        ax[1,1].set_ylim((-180,180))
+        ax[1,1].set_yticks(np.arange(-180, 180.1, 90))
+        ax[1,1].set_xlabel('Freq [MHz]')
+        ax[1,1].set_ylabel('Eta phase')
+
+        fig.suptitle('Band {} - {}'.format(band, timestamp))
+        plt.subplots_adjust(left=.08, right=.95, top=.92, bottom=.08, 
+                            wspace=.21, hspace=.21)
 
     def full_band_resp(self, band, n_scan=1, n_samples=2**19, make_plot=False, 
         save_plot=True, save_data=False, timestamp=None, save_raw_data=False,
