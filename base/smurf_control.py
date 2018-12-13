@@ -292,6 +292,9 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
         self.set_smurf_to_gcp_clear(1, write_log=write_log, wait_after=1)
         self.set_smurf_to_gcp_clear(0, write_log=write_log)
 
+        self.set_amplifier_bias(write_log=write_log)
+        _ = self.get_amplifier_bias()
+        
         self.log('Done with setup')
 
     def make_dir(self, directory):
