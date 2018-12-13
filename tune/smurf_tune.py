@@ -1111,8 +1111,9 @@ class SmurfTuneMixin(SmurfBase):
                 save_name = '{}_eta.png'.format(timestamp)
             plt.savefig(os.path.join(self.plot_dir, save_name), 
                 bbox_inches='tight')
-            if not show_plot:
-                plt.close()
+
+        if not show_plot:
+            plt.close()
 
     def get_closest_subband(self, f, band, as_offset=True):
         """
@@ -1291,8 +1292,8 @@ class SmurfTuneMixin(SmurfBase):
         else:
             return tune
 
-    def relock(self, band, res_num=None, amp_scale=11, r2_max=.08, 
-        q_max=100000, q_min=0, check_vals=False):
+    def relock(self, band, res_num=None, drive=None, r2_max=.08, 
+        q_max=100000, q_min=0, check_vals=False, min_gap=None):
         """
         Turns on the tones. Also cuts bad resonators.
 
@@ -1304,7 +1305,7 @@ class SmurfTuneMixin(SmurfBase):
         ---------
         res_num (int array): The resonators to lock. If None, tries all the
             resonators.
-        amp_scale (int): The tone amplitudes to set
+        drive (int): The tone amplitudes to set
         r2_max (float): The highest allowable R^2 value
         q_max (float): The maximum resonator Q factor
         q_min (float): The minimum resonator Q factor
@@ -1314,6 +1315,8 @@ class SmurfTuneMixin(SmurfBase):
         else:
             res_num = np.array(res_num)
 
+        if drive is None:
+            drive = self.freq_resp[band]['drive']
 
         digitzer_freq = self.get_digitizer_frequency_mhz(band)
         n_subband = self.get_number_sub_bands(band)
@@ -1327,13 +1330,22 @@ class SmurfTuneMixin(SmurfBase):
         eta_phase = np.zeros(n_channels)
         eta_mag = np.zeros(n_channels)
 
+        f = [self.freq_resp[band]['resonances'][k]['freq'] \
+                     for k in self.freq_resp[band]['resonances'].keys()]
+            
+
         # Populate arrays
         counter = 0
         for k in self.freq_resp[band]['resonances'].keys():
             ch = self.freq_resp[band]['resonances'][k]['channel']
-            self.log('Channel {}'.format(ch))
+            idx = np.where(f == self.freq_resp[band]['resonances'][k]['freq'])[0][0]
+            f_gap = np.min(np.abs(np.append(f[:idx], f[idx+1:])-f[idx]))
+
+            self.log('Res {:03} - Channel {}'.format(k, ch))
             if ch < 0: 
                 self.log('No channel assigned: res {:03}'.format(k))
+            elif min_gap is not None and f_gap < min_gap:
+                self.log('Closest resonator is {:3.3f} MHz away'.format(f_gap))
             elif self.freq_resp[band]['resonances'][k]['r2'] > r2_max and check_vals:
                 self.log('R2 too high: res {:03}'.format(k))
             elif self.freq_resp[band]['resonances'][k]['Q'] < q_min and check_vals:
@@ -1344,7 +1356,7 @@ class SmurfTuneMixin(SmurfBase):
                 self.log('Not in resonator list')
             else:
                 center_freq[ch] = self.freq_resp[band]['resonances'][k]['offset']
-                amplitude_scale[ch] = amp_scale
+                amplitude_scale[ch] = drive
                 feedback_enable[ch] = 1
                 eta_phase[ch] = self.freq_resp[band]['resonances'][k]['eta_phase']
                 eta_mag[ch] = self.freq_resp[band]['resonances'][k]['eta_scaled']
@@ -1673,6 +1685,9 @@ class SmurfTuneMixin(SmurfBase):
         self.log("Flux ramp demod. median p2p swing = "+
             "{} kHz".format(np.median(f_span[channels_on]) * 1e3), self.LOG_USER)
 
+        for c in channels_on:
+            self.log('ch {} - f_span {}'.format(c, f_span[c]))
+
         if make_plot:
             timestamp = self.get_timestamp()
 
@@ -1701,9 +1716,23 @@ class SmurfTuneMixin(SmurfBase):
             if not show_plot:
                 plt.close()
 
+
+            fig, ax = plt.subplots(1)
+            ax.plot(f_span[channels_on], df_std[channels_on], '.')
+            ax.set_xlabel('FR Amp')
+            ax.set_ylabel('RF demod error')
+            x = np.array([0, np.max(f_span[channels_on])])
+            y = x/10.
+            ax.plot(x,y, color='k', linestyle=':')
+            if save_plot:
+                plt.savefig(os.path.join(self.plot_dir, timestamp + 
+                            '_FR_amp_v_err.png'))
+            if not show_plot:
+                plt.close()
+
+
             self.log("Taking data on single channel number {}".format(channel), 
                 self.LOG_USER)
-
 
             n_els = 2500
             fig, ax = plt.subplots(2, sharex=True)
@@ -1996,7 +2025,7 @@ class SmurfTuneMixin(SmurfBase):
 
     def check_lock(self, band, f_min=.05, f_max=.2, df_max=.03,
         make_plot=False, flux_ramp=True, fraction_full_scale=.99,
-        lms_freq_hz = 4000.,**kwargs):
+        lms_freq_hz=4000., reset_rate_khz=4., **kwargs):
         """
         Checks the bad resonators
         
@@ -2024,7 +2053,7 @@ class SmurfTuneMixin(SmurfBase):
         # Tracking setup returns information on all channels in a band
         f, df, sync = self.tracking_setup(band, 0, make_plot=False,
             flux_ramp=flux_ramp, fraction_full_scale=fraction_full_scale,
-            lms_freq_hz = lms_freq_hz)
+            lms_freq_hz=lms_freq_hz, reset_rate_khz=reset_rate_khz)
 
         high_cut = np.array([])
         low_cut = np.array([])
@@ -2037,6 +2066,8 @@ class SmurfTuneMixin(SmurfBase):
             f_chan = f[:,ch]
             f_span = np.max(f_chan) - np.min(f_chan)
             df_rms = np.std(df[:,ch])
+
+            self.log('Ch {} f_span {} df_rms {}'.format(ch, f_span, df_rms))
 
             if make_plot:
                 plt.figure()
@@ -2553,6 +2584,7 @@ class SmurfTuneMixin(SmurfBase):
 
         sweep = np.arange(-sweep_width, sweep_width+df_sweep, df_sweep)
 
+        self.freq_resp[band]['drive'] = drive
 
         # Loop over inputs and do eta scans
         resonances = {}
@@ -2601,6 +2633,8 @@ class SmurfTuneMixin(SmurfBase):
             resonances[k].update({'subband': subbands[i]})
             resonances[k].update({'channel': channels[i]})
             resonances[k].update({'offset': offsets[i]})
+
+        self.save_tune()
 
         self.relock(band)
     
