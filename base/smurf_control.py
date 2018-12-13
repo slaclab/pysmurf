@@ -187,6 +187,7 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
         for b in bands:
             # Make band dictionaries
             self.freq_resp[b] = {}
+            self.freq_resp[b]['lock_status'] = {}
         if setup:
             self.setup(**kwargs)
 
@@ -303,9 +304,14 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
         if not os.path.exists(directory):
             os.makedirs(directory)
 
-    def get_timestamp(self):
+    def get_timestamp(self, as_int=False):
         """
         Returns:
         timestampe (str): Timestamp as a string
         """
-        return '{:10}'.format(int(time.time()))
+        t = '{:10}'.format(int(time.time()))
+
+        if as_int:
+            return int(t)
+        else:
+            return t
