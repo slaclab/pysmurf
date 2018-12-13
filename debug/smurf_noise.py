@@ -455,6 +455,8 @@ class SmurfNoiseMixin(SmurfBase):
             self.log('Noise data files being read from file: %s' % (datafile))
             datafile = self.get_datafiles_from_file(datafile)
 
+        mask = np.loadtxt(self.smurf_to_mce_mask_file)
+
         # Analyze data and save
         for i, (b, d) in enumerate(zip(bias, datafile)):
             # timestamp, I, Q = self.read_stream_data(d)
@@ -467,8 +469,9 @@ class SmurfNoiseMixin(SmurfBase):
             self.make_dir(psd_dir)
 
             for ch in channel:
+                ch_idx = np.where(mask == 512*band + ch)[0][0]
                 # phase = self.iq_to_phase(I[ch], Q[ch]) * 1.334  # convert to uA
-                f, Pxx = signal.welch(phase[ch], nperseg=nperseg, 
+                f, Pxx = signal.welch(phase[ch_idx], nperseg=nperseg, 
                     fs=fs, detrend=detrend)
                 Pxx = np.sqrt(Pxx)  # pA
                 np.savetxt(os.path.join(psd_dir, basename + 
