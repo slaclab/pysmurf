@@ -147,6 +147,9 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
             val = band_cfg[k]
             self.band_to_chip[i] = np.append([i], val)
 
+        # bias groups available
+        self.all_groups = self.config.get('all_bias_groups')
+
         # bias group to pair
         bias_group_cfg = self.config.get('bias_group_to_pair')
         keys = bias_group_cfg.keys()
