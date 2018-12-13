@@ -2658,7 +2658,6 @@ class SmurfTuneMixin(SmurfBase):
         filename (str) : The name of the tuning.
         """
         fs = np.load(filename).item()
-        self.log('Loaded...')
-        self.log('{}'.format(fs))
-
+        self.log('Loading...')
         self.freq_resp = fs
+        self.log('Done loading tuning')

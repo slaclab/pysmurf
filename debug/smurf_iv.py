@@ -9,7 +9,7 @@ class SmurfIVMixin(SmurfBase):
         bias_low=0, bias_step=.1, show_plot=False, overbias_wait=5., cool_wait=30.,
         make_plot=True, save_plot=True, channels=None, high_current_mode=False,
         rn_accept_min=1e-3, rn_accept_max=1., overbias_voltage=19.9,
-        gcp_mode=True,grid_on=False, phase_excursion_min=1):
+        gcp_mode=True, grid_on=False, phase_excursion_min=1):
         """
         Steps the TES bias down slowly. Starts at bias_high to bias_low with
         step size bias_step. Waits wait_time between changing steps.
