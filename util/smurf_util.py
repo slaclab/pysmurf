@@ -7,6 +7,7 @@ import struct
 import time
 import epics
 from scipy import signal
+import shutil
 
 class SmurfUtilMixin(SmurfBase):
 
@@ -274,12 +275,11 @@ class SmurfUtilMixin(SmurfBase):
 
         return f, df, flux_ramp_strobe
 
-    def take_stream_data(self, band, meas_time, gcp_mode=True):
+    def take_stream_data(self, meas_time, gcp_mode=True):
         """
         Takes streaming data for a given amount of time
         Args:
         -----
-        band (int) : The band to stream data
         meas_time (float) : The amount of time to observe for in seconds
 
         Opt Args:
@@ -292,15 +292,15 @@ class SmurfUtilMixin(SmurfBase):
         data_filename (string): The fullpath to where the data is stored
         """
         self.log('Starting to take data.', self.LOG_USER)
-        data_filename = self.stream_data_on(band, gcp_mode=gcp_mode)
+        data_filename = self.stream_data_on(gcp_mode=gcp_mode)
         time.sleep(meas_time)
-        self.stream_data_off(band, gcp_mode=gcp_mode)
+        self.stream_data_off(gcp_mode=gcp_mode)
         self.log('Done taking data.', self.LOG_USER)
         return data_filename
 
-    def stream_data_on(self, bands, gcp_mode=True):
+    def stream_data_on(self, gcp_mode=True):
         """
-        Turns on streaming data on specified bands
+        Turns on streaming data.
 
         Args:
         -----
@@ -315,17 +315,19 @@ class SmurfUtilMixin(SmurfBase):
         --------
         data_filename (string): The fullpath to where the data is stored
         """
-        bands = np.ravel(np.array(bands))
+        bands = self.config.get('init').get('bands')
+
         # Check if flux ramp is non-zero
         ramp_max_cnt = self.get_ramp_max_cnt()
         if ramp_max_cnt == 0:
             self.log('Flux ramp frequency is zero. Cannot take data.', 
                 self.LOG_ERROR)
         else:
-            #if self.get_single_channel_readout(band) and \
-            #    self.get_single_channel_readout_opt2(band):
-            #    self.log('Streaming all channels on band {}'.format(band), 
-            #        self.LOG_USER)
+            # start streaming before opening file to avoid transient filter step
+            for band in bands:
+                self.set_stream_enable(band, 1, write_log=True)
+            time.sleep(1.)
+
 
             # Make the data file
             timestamp = self.get_timestamp()
@@ -333,17 +335,17 @@ class SmurfUtilMixin(SmurfBase):
             self.log('Writing to file : {}'.format(data_filename), 
                 self.LOG_USER)
             if gcp_mode:
-                #self.set_streaming_datafile('/dev/null')
-                # self.set_gcp_datafile(data_filename)
                 ret = self.make_smurf_to_gcp_config(filename=data_filename)
+                smurf_chans = {}
+                for b in bands:
+                    smurf_chans[b] = self.which_on(b)
+                self.make_gcp_mask(smurf_chans=smurf_chans)
+                shutil.copy(self.smurf_to_mce_mask_file,
+                            os.path.join(self.output_dir, timestamp+'_mask.txt'))
                 self.read_smurf_to_gcp_config()
             else:
                 self.set_streaming_datafile(data_filename)
             
-            # start streaming before opening file to avoid transient filter step
-            for band in bands:
-                self.set_stream_enable(band, 1, write_log=True)
-            time.sleep(1.)
 
             if gcp_mode:
                 self.set_smurf_to_gcp_writer(True, write_log=True)
@@ -351,6 +353,7 @@ class SmurfUtilMixin(SmurfBase):
                 self.set_streaming_file_open(1)  # Open the file
 
             return data_filename
+
 
     def set_gcp_datafile(self, data_filename, num_averages=0, 
         receiver_ip='192.168.3.1', port_number='#3334', data_frames=1000000):
@@ -371,7 +374,7 @@ class SmurfUtilMixin(SmurfBase):
         file.close()
         
 
-    def stream_data_off(self, bands, gcp_mode=True):
+    def stream_data_off(self, gcp_mode=True):
         """
         Turns off streaming data on specified band
 
@@ -379,14 +382,14 @@ class SmurfUtilMixin(SmurfBase):
         -----
         bands (int array) : The band to turn off stream data
         """
-        bands = np.ravel(np.array(bands))
+        bands = self.config.get('init').get('bands')
         if gcp_mode:
             self.set_smurf_to_gcp_writer(False, write_log=True)
             # self.set_gcp_datafile('/data/cryo/mas_data_pipe')
         else:
             self.set_streaming_file_open(0)  # Close the file
-        for band in bands:
-            self.set_stream_enable(band, 0, write_log=True)
+        #for band in bands:
+        #    self.set_stream_enable(band, 0, write_log=True)
 
 
     def read_stream_data(self, datafile, unwrap=True, gcp_mode=True):
@@ -403,8 +406,8 @@ class SmurfUtilMixin(SmurfBase):
         """
         if gcp_mode:
             self.log('Treating data as GCP file')
-            timestamp, phase = self.read_stream_data_gcp_save(datafile)
-            return timestamp, phase
+            timestamp, phase, mask = self.read_stream_data_gcp_save(datafile)
+            return timestamp, phase, mask
 
 
         file_writer_header_size = 2  # 32-bit words
@@ -512,7 +515,7 @@ class SmurfUtilMixin(SmurfBase):
         data_keys = [f'data{i}' for i in range(528)]
 
         keys.extend(data_keys)
-        keys_dict = dict( zip( keys, range(len(keys)) ) )
+        keys_dict = dict(zip(keys, range(len(keys))))
 
         frames = [i for i in struct.Struct('3BxI6Q8I5Q528i').iter_unpack(file_content)]
 
@@ -522,11 +525,27 @@ class SmurfUtilMixin(SmurfBase):
                          frames])
 
         phase = phase.astype(float) / 2**15 * np.pi # where is decimal?  Is it in rad?
-        # timestamp = [i[keys_dict['sequence_counter']] for i in frames]
 
         # Joe's timestamp - 64 bit UTC.
-        timestamp2 = [i[keys_dict['rtm_dac_config5']] for i in frames] 
-        return timestamp2, phase
+        timestamp2 = np.array([i[keys_dict['rtm_dac_config5']] for i in frames])
+
+        print(datafile.replace('.dat','_mask.txt'))
+        mask = self.make_mask_dict(datafile.replace('.dat','_mask.txt'))
+
+        return timestamp2, phase, mask
+
+
+    def make_mask_dict(self, mask_file):
+        """
+        """
+        mask = np.loadtxt(mask_file)
+        bands = np.unique(mask // 512).astype(int)
+        ret = np.ones((np.max(bands)+1, 512), dtype=int) * -1
+        
+        for gcp_chan, smurf_chan in enumerate(mask):
+            ret[int(smurf_chan//512), int(smurf_chan%512)] = gcp_chan
+            
+        return ret
 
 
     def read_stream_data_daq(self, data_length, bay=0, hw_trigger=False):
@@ -1295,7 +1314,7 @@ class SmurfUtilMixin(SmurfBase):
                 self.log('Setting HEMT LNA Vg to requested Vg={0:.{1}f}'.format(bias_hemt, 4), 
                          self.LOG_USER)
 
-            self.set_hemt_gate_voltage(bias_hemt, **kwargs)
+            self.set_hemt_gate_voltage(bias_hemt, override=True, **kwargs)
 
         # otherwise do nothing and warn the user
         else:
@@ -1424,7 +1443,7 @@ class SmurfUtilMixin(SmurfBase):
         time.sleep(cool_wait)
         self.log('Done waiting.', self.LOG_USER)
 
-    def overbias_tes_all(self, overbias_voltage=19.9, overbias_wait=0.5,
+    def overbias_tes_all(self, bias_groups=np.arange(8), overbias_voltage=19.9, overbias_wait=0.5,
         tes_bias=19.9, cool_wait=20., high_current_mode=False):
         """
         Warning: This is horribly hardcoded. Needs a fix soon.
@@ -1435,6 +1454,7 @@ class SmurfUtilMixin(SmurfBase):
 
         Opt Args:
         ---------
+        bias_groups (array): which bias groups to overbias. defaults to all of them.
         overbias_voltage (float): The value of the TES bias in the high current
             mode. Default 19.9.
         overbias_wait (float): The time to stay in high current mode in seconds.
@@ -1445,8 +1465,6 @@ class SmurfUtilMixin(SmurfBase):
             transients to die off.
         """
         # drive high current through the TES to attempt to drive normal
-
-        bias_groups = np.arange(8)
 
         for g in bias_groups:
             self.set_tes_bias_bipolar(g, overbias_voltage)
@@ -1612,7 +1630,7 @@ class SmurfUtilMixin(SmurfBase):
 
     def make_smurf_to_gcp_config(self, num_averages=0, filename=None,
         file_name_extend=False, data_frames=2000000, filter_order=4, 
-        filter_freq=63):
+        filter_freq=None):
         """
         Makes the config file that the Joe-writer uses to set the IP
         address, port number, data file name, etc.
@@ -1636,6 +1654,9 @@ class SmurfUtilMixin(SmurfBase):
         filter_order (int): The order of the Butterworth filter. Default 4.
         filter_freq (float): The frequency of the lowpass. Default 63.
         """
+        if filter_freq is None:
+            filter_freq = self.config.get('smurf_to_mce').get('filter_freq')
+
         if filename is None:
             filename = self.get_timestamp() + '.dat'
         data_file_name = os.path.join(self.data_dir, filename)
@@ -1662,6 +1683,8 @@ class SmurfUtilMixin(SmurfBase):
                 f.write("filter_a"+str(n)+" "+str(a[n]) + "\n")
             for n in range(0,filter_order+1):
                 f.write("filter_b"+str(n)+" "+str(b[n]) + "\n")
+
+        f.close()
 
         ret = {
             "config_file": self.smurf_to_mce_file,
