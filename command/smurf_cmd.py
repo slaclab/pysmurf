@@ -247,7 +247,7 @@ if __name__ == "__main__":
 
     if args.tes_bump:
         if args.bias_group < 0:
-            S.overbias_tes_all(overbias_wait=args.tes_bump_wait)
+            S.overbias_tes_all(overbias_wait=args.tes_bump_wait, bias_groups=S.all_groups)
         else:
             S.overbias_tes(args.bias_group, overbias_wait=args.tes_bump_wait)
 
@@ -286,13 +286,8 @@ if __name__ == "__main__":
         if iv_bias_step < 0:
             iv_bias_step = np.abs(iv_bias_step)
 
-        S.slow_iv(args.iv_band, 3, wait_time=args.iv_wait_time, 
-                          bias_high=iv_bias_high, bias_low=iv_bias_low,
-                          overbias_wait=args.iv_high_current_wait, 
-                          bias_step=iv_bias_step)
-
         if args.bias_group < 0: # all
-            S.slow_iv_all(wait_time=args.iv_wait_time,
+            S.slow_iv_all(bias_groups=S.all_groups, wait_time=args.iv_wait_time,
                 bias_high=iv_bias_high, bias_low = iv_bias_low,
                 high_current_wait=args.iv_high_current_wait,
                 bias_step=args.iv_bias_step)
