@@ -47,18 +47,16 @@ class SmurfNoiseMixin(SmurfBase):
         n_channel = self.get_number_channels(band)
 
         if datafile == None:
-            datafile = self.take_stream_data(band, meas_time, gcp_mode=gcp_mode)
+            datafile = self.take_stream_data(meas_time, gcp_mode=gcp_mode)
         else:
             self.log('Reading data from %s' % (datafile))
 
         basename, _ = os.path.splitext(os.path.basename(datafile))
 
         # timestamp, I, Q = self.read_stream_data(datafile)
-        timestamp, phase = self.read_stream_data(datafile, gcp_mode=gcp_mode)
+        timestamp, phase, mask = self.read_stream_data_gcp_save(datafile)
         phase *= self.pA_per_phi0/(2.*np.pi) # phase converted to pA
 
-        # Load GCP mask
-        mask = np.loadtxt(self.smurf_to_mce_mask_file)
         if fs is None:
             self.log('No flux ramp freq given. Loading current flux ramp'+
                 'frequency', self.LOG_USER)
@@ -83,7 +81,8 @@ class SmurfNoiseMixin(SmurfBase):
 
             # Calculate to power spectrum
             # ch_idx = 512*band + ch
-            ch_idx = np.where(mask == 512*band + ch)[0][0]
+            # ch_idx = np.where(mask == 512*band + ch)[0][0]
+            ch_idx = mask[band, ch]
             f, Pxx = signal.welch(phase[ch_idx], nperseg=nperseg, 
                 fs=fs, detrend=detrend)
             Pxx = np.sqrt(Pxx)
@@ -109,11 +108,7 @@ class SmurfNoiseMixin(SmurfBase):
 
             if make_channel_plot:
                 fig, ax = plt.subplots(2, figsize=(8,6))
-                # ax[0].plot(I[ch], label='I')
-                # ax[0].plot(Q[ch], label='Q')
-                # ax[0].legend()
-                # ax[0].set_ylabel('I/Q')
-                # ax[0].set_xlabel('Sample Num')
+
                 sampleNums = np.arange(len(phase[ch_idx]))
                 t_array = sampleNums/fs
 
@@ -244,6 +239,7 @@ class SmurfNoiseMixin(SmurfBase):
         Args:
         -----
         band (int): The band to take noise vs bias data on
+        bias_group (int or int array): which bias group(s) to bias/read back.
 
         Opt Args:
         ---------
@@ -332,7 +328,12 @@ class SmurfNoiseMixin(SmurfBase):
 
             if var in biasaliases:
                 self.log('Bias {}'.format(v))
-                self.overbias_tes(kwargs['bias_group'], tes_bias=v, 
+                if type(kwargs['bias_group']) is int: # only received one group
+                    self.overbias_tes(kwargs['bias_group'], tes_bias=v, 
+                                  high_current_mode=kwargs['high_current_mode'],
+                                  cool_wait=kwargs['cool_wait'])
+                else:
+                    self.overbias_tes_all(kwargs['bias_group'], tes_bias=v,
                                   high_current_mode=kwargs['high_current_mode'],
                                   cool_wait=kwargs['cool_wait'])
 
@@ -364,7 +365,7 @@ class SmurfNoiseMixin(SmurfBase):
                 self.tracking_setup(band,channels[0],lms_freq_hz=lms_freq_hz)
 
             self.log('Taking data')
-            datafile = self.take_stream_data(band, meas_time,gcp_mode = gcp_mode)
+            datafile = self.take_stream_data(meas_time,gcp_mode=gcp_mode)
             datafiles = np.append(datafiles, datafile)
             self.log('datafile {}'.format(datafile))
             
@@ -408,7 +409,7 @@ class SmurfNoiseMixin(SmurfBase):
     def analyze_noise_vs_bias(self, bias, datafile, channel=None, band=None,
         nperseg=2**13, detrend='constant', fs=None, save_plot=True, 
         show_plot=False, make_timestream_plot=False, data_timestamp=None,
-        psd_ylim = None,gcp_mode = True,bias_group=None,smooth_len=7,
+        psd_ylim = None,gcp_mode = True,bias_group=None,smooth_len=11,
         show_legend=True):
         """
         Analysis script associated with noise_vs_bias.
@@ -430,9 +431,11 @@ class SmurfNoiseMixin(SmurfBase):
         save_plot (bool): Whether to save the plot. Default is True.
         show_plot (bool): Whether to how the plot. Default is False.
         data_timestamp (str): The string used as a save name. Default is None.
+        bias_group (int or int array): which bias groups were used. Default is None. 
         smooth_len (int): length of window over which to smooth PSDs for plotting
         """
         import matplotlib.pyplot as plt
+        from matplotlib.gridspec import GridSpec
 
         if not show_plot:
             plt.ioff()
@@ -460,7 +463,7 @@ class SmurfNoiseMixin(SmurfBase):
         # Analyze data and save
         for i, (b, d) in enumerate(zip(bias, datafile)):
             # timestamp, I, Q = self.read_stream_data(d)
-            timestamp, phase = self.read_stream_data(d,gcp_mode=gcp_mode)
+            timestamp, phase, mask = self.read_stream_data_gcp_save(d)
             phase *= self.pA_per_phi0/(2.*np.pi) # phase converted to pA
 
             basename, _ = os.path.splitext(os.path.basename(d))
@@ -469,8 +472,9 @@ class SmurfNoiseMixin(SmurfBase):
             self.make_dir(psd_dir)
 
             for ch in channel:
-                ch_idx = np.where(mask == 512*band + ch)[0][0]
+                # ch_idx = np.where(mask == 512*band + ch)[0][0]
                 # phase = self.iq_to_phase(I[ch], Q[ch]) * 1.334  # convert to uA
+                ch_idx = mask[band, ch]
                 f, Pxx = signal.welch(phase[ch_idx], nperseg=nperseg, 
                     fs=fs, detrend=detrend)
                 Pxx = np.sqrt(Pxx)  # pA
@@ -500,7 +504,10 @@ class SmurfNoiseMixin(SmurfBase):
         # Make plot
         cm = plt.get_cmap('plasma')
         for ch in channel:
-            fig, ax = plt.subplots(2)
+            fig = plt.figure(figsize = (8,5))
+            gs = GridSpec(1,3)
+            ax0 = fig.add_subplot(gs[:2])
+            ax1 = fig.add_subplot(gs[2])
             wl_list = []
             for i, (b, d) in enumerate(zip(bias, datafile)):
                 basename, _ = os.path.splitext(os.path.basename(d))
@@ -525,9 +532,9 @@ class SmurfNoiseMixin(SmurfBase):
                     Pxx_smooth = Pxx
 
                 color = cm(float(i)/len(bias))
-                ax[0].plot(f, Pxx_smooth, color=color, label='{:.2f} V'.format(b))
-                ax[0].set_xlim(min(f[1:]),max(f[1:]))
-                ax[0].set_ylim(psd_ylim)
+                ax0.plot(f, Pxx_smooth, color=color, label='{:.2f} V'.format(b))
+                ax0.set_xlim(min(f[1:]),max(f[1:]))
+                ax0.set_ylim(psd_ylim)
                 # fit to noise model; catch error if fit is bad
                 popt,pcov,f_fit,Pxx_fit = self.analyze_psd(f,Pxx)
                 wl,n,f_knee = popt
@@ -537,41 +544,51 @@ class SmurfNoiseMixin(SmurfBase):
                         ', f_knee = {:.2f} Hz'.format(f_knee))
                 wl_list.append(wl)
 
-                ax[0].plot(f_fit, Pxx_fit, color=color, linestyle='--')
-                ax[0].plot(f, wl + np.zeros(len(f)), color=color,
+                ax0.plot(f_fit, Pxx_fit, color=color, linestyle='--')
+                ax0.plot(f, wl + np.zeros(len(f)), color=color,
                         linestyle=':')
-                ax[0].plot(f_knee,2.*wl,marker = 'o',linestyle = 'none',
+                ax0.plot(f_knee,2.*wl,marker = 'o',linestyle = 'none',
                         color=color)
                 
-                ax[1].plot(b,wl,color=color,marker='s',linestyle='none')
+                ax1.plot(b,wl,color=color,marker='s',linestyle='none')
 
-            ax[0].set_xlabel(r'Freq [Hz]')
-            ax[0].set_ylabel(r'PSD [$\mathrm{pA}/\sqrt{\mathrm{Hz}}$]')
-            ax[0].set_xscale('log')
-            ax[0].set_yscale('log')
+            ax0.set_xlabel(r'Freq [Hz]')
+            ax0.set_ylabel(r'PSD [$\mathrm{pA}/\sqrt{\mathrm{Hz}}$]')
+            ax0.set_xscale('log')
+            ax0.set_yscale('log')
             if show_legend:
-                ax[0].legend(loc = 'upper right')
+                ax0.legend(loc = 'upper right')
             res_freq = self.channel_to_freq(band, ch)
 
-            ax[1].set_xlabel(r'Commanded bias voltage [V]')
-            ax[1].set_ylabel(r'White-noise level [$\mathrm{pA}/\sqrt{\mathrm{Hz}}$]')
+            ax1.set_xlabel(r'Commanded bias voltage [V]')
+            ax1.set_ylabel(r'White-noise level [$\mathrm{pA}/\sqrt{\mathrm{Hz}}$]')
             bottom = max(0.95*min(wl_list),0.)
             top_desired = 1.05*max(wl_list)
             if psd_ylim is not None:
                 top = min(psd_ylim[1],top_desired)
             else:
                 top = top_desired
-            ax[1].set_ylim(bottom=bottom, top=top)
-            ax[1].grid()
+            ax1.set_ylim(bottom=bottom, top=top)
+            ax1.grid()
 
-            fig.suptitle(basename + ' Band {}, Group {}, Channel {:03} - {:.1f} MHz'.format(band,bias_group,ch, res_freq))
+            if type(bias_group) is not int: # ie if there were more than one
+                fig_title_string = ''
+                file_name_string = ''
+                for g in bias_group:
+                    fig_title_string += str(g) + ',' # I'm sorry but the satellite was down
+                    file_name_string += str(g) + '_'
+            else:
+                fig_title_string = str(bias_group) + ','
+                file_name_string = str(bias_group) + '_'
+
+            fig.suptitle(basename + ' Band {}, Group {} Channel {:03} - {:.1f} MHz'.format(band,fig_title_string,ch, res_freq))
             plt.tight_layout(rect=[0.,0.03,1.,0.95])
 
             if show_plot:
                 plt.show()
 
             if save_plot:
-                plot_name = 'noise_vs_bias_band{}_g{}_ch{:03}.png'.format(band,bias_group,
+                plot_name = 'noise_vs_bias_band{}_g{}ch{:03}.png'.format(band,file_name_string,
                     ch)
                 if data_timestamp is not None:
                     plot_name = '{}_'.format(data_timestamp) + plot_name
@@ -601,11 +618,19 @@ class SmurfNoiseMixin(SmurfBase):
         bounds_high = [np.inf,np.inf,np.inf]
         bounds = (bounds_low,bounds_high)
 
+        freq_max = 0.5*self.config.get('smurf_to_mce').get('filter_freq')  # maximum frequency for noise-model; roll-off of low-pass filter in Hz
+        n_pts = len(f)
+        i_max = n_pts - 1 # index of max. frequency; highest index if freq array never gets above freq_max
+        for i in range(1,n_pts):
+            if f[i] > freq_max:
+                i_max = i
+                break
+
         try:
-            popt, pcov = optimize.curve_fit(noise_model, f[1:], Pxx[1:], p0=p0, 
+            popt, pcov = optimize.curve_fit(noise_model, f[1:i_max+1], Pxx[1:i_max+1], p0=p0, 
                 bounds=bounds)
         except Exception as e:
-            wl = np.mean(Pxx[1:])
+            wl = np.mean(Pxx[1:i_max+1])
             print('Unable to fit noise model. Reporting mean noise: %.2f pA/rtHz' % (wl))
             popt = [wl,1.,0.]
             pcov = None

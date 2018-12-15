@@ -9,7 +9,7 @@ class SmurfIVMixin(SmurfBase):
         bias_low=0, bias_step=.1, show_plot=False, overbias_wait=5., cool_wait=30.,
         make_plot=True, save_plot=True, channels=None, high_current_mode=False,
         rn_accept_min=1e-3, rn_accept_max=1., overbias_voltage=19.9,
-        gcp_mode=True, grid_on=False, phase_excursion_min=1):
+        gcp_mode=True, grid_on=False, phase_excursion_min=3.):
         """
         Steps the TES bias down slowly. Starts at bias_high to bias_low with
         step size bias_step. Waits wait_time between changing steps.
@@ -57,16 +57,18 @@ class SmurfIVMixin(SmurfBase):
         self.set_tes_bias_bipolar(bias_group, bias[0])
         time.sleep(1)
 
-        datafile = self.stream_data_on(band, gcp_mode=gcp_mode)
+        datafile = self.stream_data_on(gcp_mode=gcp_mode)
         self.log('writing to {}'.format(datafile))
 
         for b in bias:
-            #self.log('Bias at {:4.3f}'.format(b))
-            sys.stdout.write('\rBias at {:4.3f} V\033[K'.format(b))
-            sys.stdout.flush()
+            self.log('Bias at {:4.3f}'.format(b))
+            #sys.stdout.write('\rBias at {:4.3f} V\033[K'.format(b))
+            #sys.stdout.flush()
             self.set_tes_bias_bipolar(bias_group, b)  
             time.sleep(wait_time)
-        sys.stdout.write('\n')
+        #sys.stdout.write('\n')
+
+        self.stream_data_off(gcp_mode=gcp_mode)
 
         self.log('Done with TES bias ramp', self.LOG_USER)
 
@@ -75,7 +77,7 @@ class SmurfIVMixin(SmurfBase):
 
         #self.set_cryo_card_relays(2**16)
 
-        self.stream_data_off(band, gcp_mode=gcp_mode)
+
 
         basename, _ = os.path.splitext(os.path.basename(datafile))
         np.save(os.path.join(basename + '_iv_bias.txt'), bias)
@@ -100,20 +102,19 @@ class SmurfIVMixin(SmurfBase):
             rn_accept_max=rn_accept_max, gcp_mode=gcp_mode,grid_on=grid_on,
             phase_excursion_min=phase_excursion_min)
 
-    def slow_iv_all(self, wait_time=.1, bias=None, bias_high=19.9, 
-        bias_low=0, bias_step=.1, show_plot=False, high_current_wait=.25, 
+    def slow_iv_all(self, bias_groups=np.arange(8), wait_time=.1, bias=None, bias_high=19.9, gcp_mode=True, 
+        bias_low=0, bias_step=.1, show_plot=False, high_current_wait=.25, cool_wait=30,
         make_plot=True, save_plot=True, channels=None, high_current_mode=False,
-        rn_accept_min=1e-3, rn_accept_max=1., overbias_voltage=19.9):
+        rn_accept_min=1e-3, rn_accept_max=1., overbias_voltage=19.9, grid_on=True, phase_excursion_min=3.):
         """
         Steps the TES bias down slowly. Starts at bias_high to bias_low with
         step size bias_step. Waits wait_time between changing steps.
 
-        Args:
-        -----
-        daq (int) : The DAQ number
 
         Opt Args:
         ---------
+        bias_groups (np array): which bias groups to take the IV on. defaults
+            to all (0..7)
         wait_time (float): The amount of time between changing TES biases in 
             seconds. Default .1 sec.
         bias (float array): A float array of bias values. Must go high to low.
@@ -140,22 +141,31 @@ class SmurfIVMixin(SmurfBase):
             bias = np.arange(bias_high, bias_low, -bias_step)
             
         overbias_wait = 2.
-        cool_wait = 5. # CYNDIA CHANGED THIS AT POLE I'M SORRY 20181123
         if overbias:
-            self.overbias_tes_all(overbias_wait=overbias_wait, 
-                tes_bias=np.max(bias), cool_wait=cool_wait,
-                high_current_mode=high_current_mode,
+            self.overbias_tes_all(bias_groups=bias_groups, 
+                overbias_wait=overbias_wait, tes_bias=np.max(bias), 
+                cool_wait=cool_wait, high_current_mode=high_current_mode,
                 overbias_voltage=overbias_voltage)
+
+        self.log('Turning lmsGain to 0.', self.LOG_USER)
+        lms_gain2 = self.get_lms_gain(2) # just do this on both bands
+        lms_gain3 = self.get_lms_gain(3) # should fix the hardcoding though -CY
+        self.set_lms_gain(2, 0)
+        self.set_lms_gain(3, 0)
 
         self.log('Staring to take IV.', self.LOG_USER)
         self.log('Starting TES bias ramp.', self.LOG_USER)
 
-        bias_groups = np.arange(8)
+        datafile = self.stream_data_on(gcp_mode=gcp_mode)
+        self.log('writing to {}'.format(datafile))
+
+        self.log('Staring to take IV.', self.LOG_USER)
+        self.log('Starting TES bias ramp.', self.LOG_USER)
+
+        #bias_groups = np.arange(8)
         for g in bias_groups:
             self.set_tes_bias_bipolar(g, bias[0])
-            time.sleep(1 / 10) # divide everything by 10 to account for looping
-
-        #datafile = self.stream_data_on(band)
+            time.sleep(wait_time/ 10) # divide everything by 10 to account for looping
 
         for b in bias:
             for g in bias_groups:
@@ -163,28 +173,36 @@ class SmurfIVMixin(SmurfBase):
                 self.set_tes_bias_bipolar(g, b)  
                 time.sleep(wait_time/10) # slightly more than factor of 8 from loops
 
+        self.stream_data_off(gcp_mode=gcp_mode)
         self.log('Done with TES bias ramp', self.LOG_USER)
-        self.set_cryo_card_relays(2**16)
 
-        #self.stream_data_off(band)
+        self.log('Returning lmsGain to original values', self.LOG_USER)
+        self.set_lms_gain(2, lms_gain2)
+        self.set_lms_gain(3, lms_gain3)
 
-        #basename, _ = os.path.splitext(os.path.basename(datafile))
-        #np.save(os.path.join(basename + '_iv_bias_all.txt'), bias)
 
-        #iv_raw_data = {}
-        #iv_raw_data['bias'] = bias
-        #iv_raw_data['datafile'] = datafile
-        #iv_raw_data['basename'] = basename
-        #iv_raw_data['output_dir'] = self.output_dir
-        #iv_raw_data['plot_dir'] = self.plot_dir
-        #fn_iv_raw_data = os.path.join(self.output_dir, basename + 
-            #'_iv_raw_data.npy')
-        #np.save(os.path.join(self.output_dir, fn_iv_raw_data), iv_raw_data)
 
-        #self.analyze_slow_iv_from_file(fn_iv_raw_data, make_plot=make_plot,
-            #show_plot=show_plot, save_plot=save_plot,R_sh = 325e-6, 
-            #high_current_mode=high_current_mode, rn_accept_min=rn_accept_min,
-            #rn_accept_max=rn_accept_max)
+        basename, _ = os.path.splitext(os.path.basename(datafile))
+        np.save(os.path.join(basename + '_iv_bias_all.txt'), bias)
+
+        iv_raw_data = {}
+        iv_raw_data['bias'] = bias
+        iv_raw_data['bias group'] = bias_groups
+        iv_raw_data['datafile'] = datafile
+        iv_raw_data['basename'] = basename
+        iv_raw_data['output_dir'] = self.output_dir
+        iv_raw_data['plot_dir'] = self.plot_dir
+        fn_iv_raw_data = os.path.join(self.output_dir, basename + 
+            '_iv_raw_data.npy')
+        np.save(os.path.join(self.output_dir, fn_iv_raw_data), iv_raw_data)
+
+
+        R_sh=self.R_sh
+        self.analyze_slow_iv_from_file(fn_iv_raw_data, make_plot=make_plot,
+            show_plot=show_plot, save_plot=save_plot, R_sh=R_sh,
+            high_current_mode=high_current_mode, rn_accept_min=rn_accept_min,
+            rn_accept_max=rn_accept_max, gcp_mode=gcp_mode,grid_on=grid_on,
+            phase_excursion_min=phase_excursion_min)
 
  
 
@@ -199,10 +217,15 @@ class SmurfIVMixin(SmurfBase):
 
         iv_raw_data = np.load(fn_iv_raw_data).item()
         bias = iv_raw_data['bias']
-        band = iv_raw_data['band']
+        #band = iv_raw_data['band']
         bias_group = iv_raw_data['bias group']
-        channels = iv_raw_data['channels']
+        #channels = iv_raw_data['channels']
         datafile = iv_raw_data['datafile']
+        
+        mask = self.make_mask_dict(datafile.replace('.dat','_mask.txt'))
+        band, chans = np.where(mask != -1)
+        print(band, chans)
+
         basename = iv_raw_data['basename']
         output_dir = iv_raw_data['output_dir']
         plot_dir = iv_raw_data['plot_dir']
@@ -211,7 +234,7 @@ class SmurfIVMixin(SmurfBase):
         ivs['bias'] = bias
 
         if gcp_mode:
-            timestamp, phase_all = self.read_stream_data_gcp_save(datafile)
+            timestamp, phase_all, mask = self.read_stream_data_gcp_save(datafile)
         else:
             timestamp, phase_all = self.read_stream_data(datafile)
         
@@ -219,20 +242,21 @@ class SmurfIVMixin(SmurfBase):
         phase_excursion_list = []
 
         # Load GCP mask
-        mask = np.loadtxt(self.smurf_to_mce_mask_file)
 
-        for c, ch in enumerate(channels):
+
+        for c, (b, ch) in enumerate(zip(band,chans)):
+            print(b,ch)
             self.log('Analyzing channel {}'.format(ch))
         
-            ch_idx = np.where(mask == 512*band + ch)[0][0]
-
+            # ch_idx = np.where(mask == 512*band + ch)[0][0]
+            ch_idx = mask[b, ch]
             phase = phase_all[ch_idx]
          
             phase_excursion = max(phase) - min(phase)
 
             if phase_excursion < phase_excursion_min:
                 self.log('Skipping channel {}'.format(ch) +\
-                    ' phase excursion > min'.format(ch))
+                    ' phase excursion < min'.format(ch))
                 continue
             phase_excursion_list.append(phase_excursion)
 
@@ -255,8 +279,13 @@ class SmurfIVMixin(SmurfBase):
                     bias_group, ch))
                 plt.tight_layout()
 
+                bg_str = ""
+                for bg in np.unique(bias_group):
+                    bg_str = bg_str + str(bg)
+
+
                 plot_name = basename + \
-                    '_IV_stream_b{}_g{}_ch{:03}.png'.format(band,bias_group,ch)
+                    '_IV_stream_b{}_g{}_ch{:03}.png'.format(b, bg_str, ch)
                 if save_plot:
                     plt.savefig(os.path.join(plot_dir, plot_name), 
                         bbox_inches='tight', dpi=300)
@@ -264,10 +293,10 @@ class SmurfIVMixin(SmurfBase):
                     plt.close()
 
             r, rn, idx,p_tes, p_trans = self.analyze_slow_iv(bias, phase, 
-                basename=basename, band=band, channel=ch, make_plot=make_plot, 
+                basename=basename, band=b, channel=ch, make_plot=make_plot, 
                 show_plot=show_plot, save_plot=save_plot, plot_dir=plot_dir,
                 R_sh = R_sh, high_current_mode = high_current_mode,
-                bias_group=bias_group, grid_on=grid_on)
+                grid_on=grid_on)
             try:
                 if rn <= rn_accept_max and rn >= rn_accept_min:
                     rn_list.append(rn)
@@ -295,7 +324,7 @@ class SmurfIVMixin(SmurfBase):
             plt.hist(rn_list)
             plt.xlabel('r_n')
             plt.title('%s, band %i, group %i: %i btwn. %.3e and %.3e Ohm' % \
-                          (basename,band,bias_group,len(rn_list),\
+                          (basename, band, len(rn_list),\
                                rn_accept_min,rn_accept_max))
             plot_filename = os.path.join(plot_dir,'%s_IV_rn_hist.png' % (basename))
             plt.savefig(plot_filename, bbox_inches='tight', dpi=300)
@@ -336,7 +365,8 @@ class SmurfIVMixin(SmurfBase):
         idx (int array): 
         R_sh (float): Shunt resistance
         """
-
+        print('band {}'.format(band))
+        print('channel {}'.format(channel))
         if R_sh is None:
             R_sh=self.R_sh
 
@@ -459,9 +489,25 @@ class SmurfIVMixin(SmurfBase):
                 np.arange(vb_min, vb_max+delta_v, delta_v)])
             axt.set_xlabel(r'$Commanded V_{b}$ [V]')
 
-            if band is not None and channel is not None and bias_group is not None:
-                fig.suptitle('Band {}, Group {}, Ch {:03}'.format(band, 
-                    bias_group, channel))
+            #if band is not None and channel is not None and bias_group is not None:
+            #    fig.suptitle('Band {}, Group {}, Ch {:03}'.format(band, 
+            #        bias_group, channel))
+
+            title = "IV curve"
+            plot_name = "IV_curve"
+            if band is not None:
+                title = title + 'Band {}'.format(band)
+                plot_name = plot_name + '_b{}'.format(band)
+            if bias_group is not None:
+                title = title + ' BG {}'.format(bias_group)
+                plot_name = plot_name + '_bg{}'.format(bias_group)
+            if channel is not None:
+                title = title + ' Ch {:03}'.format(channel)
+                plot_name = plot_name + '_ch{:03}'.format(channel)
+
+            fig.suptitle(title)
+
+            plot_name = plot_name + '.png'
 
             if basename is not None:
                 ax[0].text(.95, .88, basename , transform=ax[0].transAxes, 
@@ -470,8 +516,7 @@ class SmurfIVMixin(SmurfBase):
             if save_plot:
                 if basename is None:
                     basename = self.get_timestamp()
-                plot_name = basename + \
-                    '_IV_curve_b{}_g{}_ch{:03}.png'.format(band, bias_group, channel)
+                plot_name = basename + plot_name
                 if plot_dir == None:
                     plot_dir = self.plot_dir
                 plot_filename = os.path.join(plot_dir, plot_name)
@@ -694,3 +739,5 @@ class SmurfIVMixin(SmurfBase):
         self.log('Saving optical-efficiency histogram to:{}'.format(hist_filename))
         plt.savefig(hist_filename,bbox_inches='tight',dpi=300)
         plt.close()
+
+
