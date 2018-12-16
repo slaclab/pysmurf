@@ -31,6 +31,9 @@ class SmurfCommandMixin(SmurfBase):
             issuing the command
         wait_done (bool) : Wait for the command to be finished before returning.
             Default True.
+        enable_poll (bool) : Allows requests of all PVs. Default False.
+        disable_poll (bool) : Disables requests of all PVs after issueing command.
+            Default False.
         '''
         if enable_poll:
             epics.caput(self.epics_root + self._global_poll_enable, True)
@@ -72,6 +75,9 @@ class SmurfCommandMixin(SmurfBase):
         write_log : Whether to log the data or not. Default False
         execute : Whether to actually execute the command. Defualt True.
         count (int or None) : number of elements to return for array data
+        enable_poll (bool) : Allows requests of all PVs. Default False.
+        disable_poll (bool) : Disables requests of all PVs after issueing command.
+            Default False.
 
         Returns:
         --------
@@ -103,6 +109,7 @@ class SmurfCommandMixin(SmurfBase):
         return self._caget(self.epics_root + self._global_poll_enable, 
                            enable_poll=False, disable_poll=False, **kwargs)
 
+
     _number_sub_bands = 'numberSubBands'
     def get_number_sub_bands(self, band, **kwargs):
         '''
@@ -123,6 +130,7 @@ class SmurfCommandMixin(SmurfBase):
             return self._caget(self._band_root(band) + self._number_sub_bands, 
                 **kwargs)
 
+
     _number_channels = 'numberChannels'
     def get_number_channels(self, band, **kwargs):
         '''
@@ -142,6 +150,7 @@ class SmurfCommandMixin(SmurfBase):
             return self._caget(self._band_root(band) + self._number_channels,
                 **kwargs)
 
+
     def set_defaults_pv(self, **kwargs):
         '''
         Sets the default epics variables
@@ -149,6 +158,7 @@ class SmurfCommandMixin(SmurfBase):
         self._caput(self.epics_root + ':AMCc:setDefaults', 1, wait_after=5,
             **kwargs)
         self.log('Defaults are set.', self.LOG_INFO)
+
 
     def set_read_all(self, **kwargs):
         """
@@ -160,12 +170,14 @@ class SmurfCommandMixin(SmurfBase):
             **kwargs)
         self.log('ReadAll sent', self.LOG_INFO)
 
+
     def run_pwr_up_sys_ref(self,bay=0, **kwargs):
         """
         """
         triggerPV=self.sysref.format(bay) + 'LMK:PwrUpSysRef'
         self._caput(triggerPV, 1, wait_after=5, **kwargs)
         self.log('{} sent'.format(triggerPV), self.LOG_USER)
+
 
     def run_parallel_eta_scan(self, band, sync_group=True, **kwargs):
         """
@@ -183,6 +195,7 @@ class SmurfCommandMixin(SmurfBase):
             vals = sg.get_values()
             self.log('parallel etaScan complete ; etaScanInProgress = {}'.format(vals[monitorPV]), self.LOG_USER)        
 
+
     _eta_scan_freqs = 'etaScanFreqs'
     def set_eta_scan_freq(self, band, val, **kwargs):
         '''
@@ -195,6 +208,7 @@ class SmurfCommandMixin(SmurfBase):
         '''
         self._caput(self._cryo_root(band) + self._eta_scan_freqs, val, 
             **kwargs)
+
 
     def get_eta_scan_freq(self, band, **kwargs):
         '''
@@ -1915,7 +1929,7 @@ class SmurfCommandMixin(SmurfBase):
             False.
         """
         self.set_hemt_enable(2)
-        if (voltage > .75 or voltage < 0 ) and not override:
+        if (voltage > 1 or voltage < -1 ) and not override:
             self.log('Input voltage too high. Not doing anything.' + 
                 ' If you really want it higher, use the override optinal arg.')
         else:
@@ -2278,6 +2292,11 @@ class SmurfCommandMixin(SmurfBase):
     _num_rows = 'userConfig[2]'  # bit for num_rows
     def set_num_rows(self, val, **kwargs):
         """
+        Sets num_rows in the SMuRF header. This is written in userConfig[2].
+
+        Args:
+        -----
+        val (int): The value of num_rows
         """
         old = self._caget(self.timing_header +
                     self._num_rows)
@@ -2287,6 +2306,12 @@ class SmurfCommandMixin(SmurfBase):
 
     def set_num_rows_reported(self, val, **kwargs):
         """
+        Sets num_rows_reported in the SMuRF header. This is written 
+        in userConfig[2].
+
+        Args:
+        -----
+        val (int): The value of num_rows_reported
         """
         old = self._caget(self.timing_header +
                     self._num_rows)
@@ -2297,6 +2322,11 @@ class SmurfCommandMixin(SmurfBase):
     _row_len = 'userConfig[4]'
     def set_row_len(self, val, **kwargs):
         """
+        Sets row_len in the SMuRF header. This is written in userConfig[4]
+
+        Args:
+        -----
+        val (int): The value of row_len
         """
         old = self._caget(self.timing_header + 
                     self._row_len)
@@ -2306,6 +2336,11 @@ class SmurfCommandMixin(SmurfBase):
 
     def set_data_rate(self, val, **kwargs):
         """
+        Sets data_rates in the SMuRF header. This is written in userConfig[4].
+
+        Args:
+        -----
+        val (int): The value of data_rate
         """
         old = self._caget(self.timing_header + 
                     self._row_len)
