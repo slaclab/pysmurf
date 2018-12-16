@@ -1898,7 +1898,8 @@ class SmurfCommandMixin(SmurfBase):
                 **kwargs)
 
 
-    _bit_to_V_hemt = .576/3.0E5  # empirically found
+    _bit_to_V_hemt = 2*.576/3.0E5  # empirically found
+    _bit_to_V_hemt_offset = 2**18
     def set_hemt_gate_voltage(self, voltage, override=False, **kwargs):
         """
         Sets the HEMT gate voltage in units of volts. 
@@ -1918,7 +1919,8 @@ class SmurfCommandMixin(SmurfBase):
             self.log('Input voltage too high. Not doing anything.' + 
                 ' If you really want it higher, use the override optinal arg.')
         else:
-            self.set_hemt_bias(int(voltage/self._bit_to_V_hemt), 
+            self.set_hemt_bias(int(voltage/self._bit_to_V_hemt + 
+                                   self._bit_to_V_hemt_offset), 
                 override=override, **kwargs)
 
     _hemt_v = 'HemtBiasDacDataRegCh[33]'
