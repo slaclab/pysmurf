@@ -1956,7 +1956,8 @@ class SmurfCommandMixin(SmurfBase):
         '''
         Returns the HEMT voltage in bits.
         '''
-        return self._bit_to_V_hemt*self.get_hemt_bias(**kwargs)
+        return self._bit_to_V_hemt*(self.get_hemt_bias(**kwargs) -
+                                    self._bit_to_V_hemt_offset)
 
 
     _stream_datafile = 'dataFile'
