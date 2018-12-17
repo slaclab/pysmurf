@@ -679,7 +679,7 @@ class SmurfUtilMixin(SmurfBase):
             e = s + 4*size
             self.set_waveform_end_addr(daq_num, e, convert=True, 
                 write_log=False)
-            self.log('DAQ number {}: start {} - end {}'.format(daq_num, s, e))
+            #self.log('DAQ number {}: start {} - end {}'.format(daq_num, s, e))
 
     def config_cryo_channel(self, band, channel, frequencyMHz, amplitude, 
         feedback_enable, eta_phase, eta_mag):
@@ -782,7 +782,9 @@ class SmurfUtilMixin(SmurfBase):
             desired_feedback_limit_mhz = subband_bandwidth/2
 
         desired_feedback_limit_dec = np.floor(desired_feedback_limit_mhz/
-            (subband_bandwidth/2.))
+            (subband_bandwidth/2**16.))
+
+        self.set_feedback_limit(band, desired_feedback_limit_dec)
 
     # if no guidance given, tries to reset both
     def recover_jesd(self,recover_jesd_rx=True,recover_jesd_tx=True):
@@ -1731,3 +1733,18 @@ class SmurfUtilMixin(SmurfBase):
             self.read_smurf_to_gcp_config()
 
 
+    def all_off(self):
+        """
+        Turns off EVERYTHING
+        """
+        self.log('Turning off tones')
+        bands = self.config.get('init').get('bands')
+        for b in bands:
+            self.band_off(b)
+
+        self.log('Turning off flux ramp')
+        self.flux_ramp_off()
+
+        self.log('Turning off all TES biases')
+        for bg in np.arange(8):
+            self.set_tes_bias_bipolar(bg, 0)
