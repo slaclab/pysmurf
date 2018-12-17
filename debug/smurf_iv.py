@@ -39,7 +39,7 @@ class SmurfIVMixin(SmurfBase):
             overbias = False
 
         if bias is None:
-            bias = np.arange(bias_high, bias_low, -bias_step)
+            bias = np.arange(bias_high, bias_low-bias_step, -bias_step)
             
         if overbias:
             self.overbias_tes(bias_group, overbias_wait=overbias_wait, 
@@ -209,7 +209,7 @@ class SmurfIVMixin(SmurfBase):
     def analyze_slow_iv_from_file(self, fn_iv_raw_data, make_plot=True,
         show_plot=False, save_plot=True, R_sh=None, high_current_mode=False,
         rn_accept_min=1e-3, rn_accept_max=1., phase_excursion_min=3.,
-        grid_on=False, gcp_mode=True):
+        grid_on=False, gcp_mode=True,R_op_target=0.03):
         """
         phase_excursion: abs(max - min) of phase in radians
         """
@@ -224,7 +224,6 @@ class SmurfIVMixin(SmurfBase):
         
         mask = self.make_mask_dict(datafile.replace('.dat','_mask.txt'))
         band, chans = np.where(mask != -1)
-        print(band, chans)
 
         basename = iv_raw_data['basename']
         output_dir = iv_raw_data['output_dir']
@@ -240,13 +239,10 @@ class SmurfIVMixin(SmurfBase):
         
         rn_list = []
         phase_excursion_list = []
-
-        # Load GCP mask
-
-
+        v_bias_target_list = []
+        p_trans_list = []
         for c, (b, ch) in enumerate(zip(band,chans)):
-            print(b,ch)
-            self.log('Analyzing channel {}'.format(ch))
+            self.log('Analyzing band {} channel {}'.format(b,ch))
         
             # ch_idx = np.where(mask == 512*band + ch)[0][0]
             ch_idx = mask[b, ch]
@@ -255,8 +251,7 @@ class SmurfIVMixin(SmurfBase):
             phase_excursion = max(phase) - min(phase)
 
             if phase_excursion < phase_excursion_min:
-                self.log('Skipping channel {}'.format(ch) +\
-                    ' phase excursion < min'.format(ch))
+                self.log('Skipping channel {}:  phase excursion < min'.format(ch))
                 continue
             phase_excursion_list.append(phase_excursion)
 
@@ -275,7 +270,7 @@ class SmurfIVMixin(SmurfBase):
                 if grid_on:
                     ax.grid()
 
-                ax.set_title('Band {}, Group {}, Ch {:03}'.format(band,
+                ax.set_title('Band {}, Group {}, Ch {:03}'.format(np.unique(band),
                     bias_group, ch))
                 plt.tight_layout()
 
@@ -292,11 +287,13 @@ class SmurfIVMixin(SmurfBase):
                 if not show_plot:
                     plt.close()
 
-            r, rn, idx,p_tes, p_trans = self.analyze_slow_iv(bias, phase, 
+            r,rn,idx,p_tes,p_trans,v_bias_target = self.analyze_slow_iv(bias, phase, 
                 basename=basename, band=b, channel=ch, make_plot=make_plot, 
                 show_plot=show_plot, save_plot=save_plot, plot_dir=plot_dir,
                 R_sh = R_sh, high_current_mode = high_current_mode,
-                grid_on=grid_on)
+                grid_on=grid_on,R_op_target=R_op_target)
+            v_bias_target_list.append(v_bias_target)
+            p_trans_list.append(p_trans)
             try:
                 if rn <= rn_accept_max and rn >= rn_accept_min:
                     rn_list.append(rn)
@@ -308,11 +305,9 @@ class SmurfIVMixin(SmurfBase):
                 'idx': idx,
                 'P': p_tes,
                 'Ptrans': p_trans
-            }
+            }   
 
         np.save(os.path.join(output_dir, basename + '_iv'), ivs)
-
-        print(phase_excursion_list)
 
         if len(phase_excursion_list) == 0:
             self.log('phase excursion list length 0')
@@ -322,10 +317,8 @@ class SmurfIVMixin(SmurfBase):
                 plt.ioff()
             plt.figure()
             plt.hist(rn_list)
-            plt.xlabel('r_n')
-            plt.title('%s, band %i, group %i: %i btwn. %.3e and %.3e Ohm' % \
-                          (basename, band, len(rn_list),\
-                               rn_accept_min,rn_accept_max))
+            plt.xlabel(r'$R_N$ ($\Omega$)')
+            plt.title('{}, band {}, group {}: {} btwn. {:.3e} and {:.3e} $\Omega$'.format(basename, np.unique(band), bias_group, len(rn_list),rn_accept_min,rn_accept_max))
             plot_filename = os.path.join(plot_dir,'%s_IV_rn_hist.png' % (basename))
             plt.savefig(plot_filename, bbox_inches='tight', dpi=300)
             if not show_plot:
@@ -338,17 +331,37 @@ class SmurfIVMixin(SmurfBase):
                 np.ceil(np.log10(np.max(phase_excursion_list))),20))
             plt.xlabel('phase excursion (rad.)')
             plt.ylabel('number of channels')
-            plt.title('%s, band %i, group %i: %i with phase excursion > %.3e rad.' % (basename,band,bias_group,len(phase_excursion_list),phase_excursion_min))
+            plt.title('{}, band {}, group {}: {} with phase excursion > {:.3e} rad.'.format(basename,np.unique(band),bias_group,len(phase_excursion_list),phase_excursion_min))
             plt.xscale('log')
             phase_hist_filename = os.path.join(plot_dir,'%s_IV_phase_excursion_hist.png' % (basename))
             plt.savefig(phase_hist_filename,bbox_inches='tight',dpi=300)
             if not show_plot:
                 plt.close()
 
+            plt.figure()
+            plt.hist(v_bias_target_list,bins=20)
+            plt.xlabel('Optimal commanded voltage bias (V)')
+            plt.ylabel('Number of channels')
+            plt.title('{}, band {}, group{}: target {:.1f}'.format(basename,np.unique(band),bias_group,R_op_target/1e-3) + ' $\mathrm{m}\Omega$ op. res.')
+            v_bias_filename = os.path.join(plot_dir,'%s_v_bias_target_hist.png' % (basename))
+            plt.savefig(v_bias_filename,bbox_inches='tight',dpi=300)
+            if not show_plot:
+                plt.close()
+
+            plt.figure()
+            plt.hist(p_trans_list)
+            plt.xlabel('In-transition electrical power (pW)')
+            plt.ylabel('Number of channels')
+            plt.title('{}, band {}, group{}'.format(basename,np.unique(band),bias_group))
+            p_trans_filename = os.path.join(plot_dir,'%s_p_trans_hist.png' % (basename))
+            plt.savefig(p_trans_filename,bbox_inches='tight',dpi=300)
+            if not show_plot:
+                plt.close()
+
     def analyze_slow_iv(self, v_bias, resp, make_plot=True, show_plot=False,
         save_plot=True, basename=None, band=None, channel=None, R_sh=None,
         plot_dir=None, high_current_mode=False, bias_group = None,
-        grid_on=False, **kwargs):
+        grid_on=False,R_op_target=0.03, **kwargs):
         """
         Analyzes the IV curve taken with slow_iv()
 
@@ -365,8 +378,6 @@ class SmurfIVMixin(SmurfBase):
         idx (int array): 
         R_sh (float): Shunt resistance
         """
-        print('band {}'.format(band))
-        print('channel {}'.format(channel))
         if R_sh is None:
             R_sh=self.R_sh
 
@@ -402,25 +413,25 @@ class SmurfIVMixin(SmurfBase):
 
         d_resp = np.diff(resp_bin)
         d_resp = d_resp[::-1]
-        d_v = (v_bias[:-1] + v_bias[1:])/2.
-        d_v = d_v[::-1]
-        d_i = (i_bias[:-1] + i_bias[1:])/2.
-        d_i = d_i[::-1]
+        dd_resp = np.diff(d_resp)
         v_bias = v_bias[::-1]
         i_bias = i_bias[::-1]
         resp_bin = resp_bin[::-1]
 
         # index of the end of the superconducting branch
-        sc_idx = np.ravel(np.where(d_resp == np.max(d_resp)))[0]
-
+        dd_resp_abs = np.abs(dd_resp)
+        sc_idx = np.ravel(np.where(dd_resp_abs == np.max(dd_resp_abs)))[0] + 1
         if sc_idx == 0:
-            #return None, None, None
-            sc_idx = 5
+            sc_idx = 1
+
         # index of the start of the normal branch
-        nb_idx = n_step-5
-        for i in np.arange(n_step-50, sc_idx, -1):
-            if d_resp[i] > 0:
-                nb_idx = i
+        nb_idx_default = int(0.8*n_step) # default to partway from beginning of IV curve
+        nb_idx = nb_idx_default
+        for i in np.arange(nb_idx_default, sc_idx, -1):
+            # look for minimum of IV curve outside of superconducting region
+            # but get the sign right by looking at the sc branch
+            if d_resp[i]*np.mean(d_resp[:sc_idx]) < 0.: 
+                nb_idx = i+1
                 break
 
         nb_fit_idx = int(np.mean((n_step,nb_idx)))
@@ -436,64 +447,39 @@ class SmurfIVMixin(SmurfBase):
         R = R_sh * (i_bias/(resp_bin) - 1)
         R_n = np.mean(R[nb_fit_idx:])
 
+        v_tes = i_bias*R_sh*R/(R+R_sh) # voltage over TES
+        p_tes = (v_tes**2)/R # electrical power on TES
+
+        i_R_op = 0
+        i_Rmin = 0
+        i_Rmax = len(R)-1
+        R_frac_min = 0.2
+        R_frac_max = 0.8
+        R_trans_min = R_frac_min*R_n
+        R_trans_max = R_frac_max*R_n
+        found_Rmin = False
+        found_Rmax = False
+        found_R_op = False
+        for i in range(len(R)-1,-1,-1):
+            R_temp = R[i]
+            if R_temp < R_trans_max and not found_Rmax:
+                i_Rmax = i
+                found_Rmax = True
+            elif R_temp < R_trans_min and not found_Rmin:
+                i_Rmin = i
+                found_Rmin = True
+        for i in range(len(R)-1,-1,-1):
+            if R[i] < R_op_target:
+                i_R_op = i
+                break
+        i_op_target = i_bias[i_R_op]
+        v_bias_target = v_bias[i_R_op]
+        v_tes_target = v_tes[i_R_op]
+
         if make_plot:
             fig, ax = plt.subplots(2, sharex=True)
-            ax[0].plot(i_bias, resp_bin, '.')
-            #ax[0].plot((i_bias[1:]+i_bias[:-1])/2, d_resp, 'r.')
-            ax[0].set_ylabel(r'$I_{TES}$ $[\mu A]$')
 
-            ax[0].plot(i_bias, norm_fit[0] * i_bias , linestyle='--', color='k')  
-
-            ax[0].plot(i_bias[:sc_idx], 
-                sc_fit[0] * i_bias[:sc_idx] + sc_fit[1], linestyle='--', 
-                color='r')
-            if grid_on:
-                ax[0].grid()
-            # Highlight the transition
-            ax[0].axvspan(d_i[sc_idx], d_i[nb_idx], color='k', alpha=.15)
-            ax[1].axvspan(d_i[sc_idx], d_i[nb_idx], color='k', alpha=.15)
-
-            ax[0].text(.95, .04, 'SC slope: {:3.2f}'.format(sc_fit[0]), 
-                transform=ax[0].transAxes, fontsize=12, 
-                horizontalalignment='right')
-            ax[0].text(.95, .18, 
-                        'Res freq: {:.1f} MHz'.format(self.channel_to_freq(band, channel)), 
-                        transform=ax[0].transAxes, fontsize=12, horizontalalignment='right')
-
-            ax[1].plot(i_bias, R/R_n, '.')
-            ax[1].axhline(1, color='k', linestyle='--')
-            ax[1].set_ylabel(r'$R/R_N$')
-            ax[1].set_xlabel(r'$I_{b}$ ' + '$[\mu A]$')
-            ax[1].set_ylim(0, 1.1)
-            if grid_on:
-                ax[1].grid()
-
-            ax[1].text(.95, .18, r'$R_{sh}$: ' + '{}'.format(R_sh*1.0E3) + 
-                r' $m\Omega$' , transform=ax[1].transAxes, fontsize=12,
-                horizontalalignment='right')
-            ax[1].text(.95, .04, r'$R_{N}$: ' + '{:3.2f}'.format(R_n*1.0E3) + 
-                r' $m\Omega$' , transform=ax[1].transAxes, fontsize=12,
-                horizontalalignment='right')
-
-            # Make top label in volts
-            axt = ax[0].twiny()
-            axt.set_xlim(ax[0].get_xlim())
-            ib_max = np.max(i_bias)
-            ib_min = np.min(i_bias)
-            delta = float(ib_max - ib_min)/5
-            vb_max = np.max(v_bias)
-            vb_min = np.min(v_bias)
-            delta_v = float(vb_max - vb_min)/5
-            axt.set_xticks(np.arange(ib_min, ib_max+delta, delta))
-            axt.set_xticklabels(['{:3.2f}'.format(x) for x in 
-                np.arange(vb_min, vb_max+delta_v, delta_v)])
-            axt.set_xlabel(r'$Commanded V_{b}$ [V]')
-
-            #if band is not None and channel is not None and bias_group is not None:
-            #    fig.suptitle('Band {}, Group {}, Ch {:03}'.format(band, 
-            #        bias_group, channel))
-
-            title = "IV curve"
+            title = ""
             plot_name = "IV_curve"
             if band is not None:
                 title = title + 'Band {}'.format(band)
@@ -504,87 +490,116 @@ class SmurfIVMixin(SmurfBase):
             if channel is not None:
                 title = title + ' Ch {:03}'.format(channel)
                 plot_name = plot_name + '_ch{:03}'.format(channel)
+            if basename is None:
+                basename = self.get_timestamp()
+            if band is not None and channel is not None:
+                title += ', {:.1f} MHz'.format(self.channel_to_freq(band, channel))
+            title += r', $R_\mathrm{sh}$ = ' + '${:.1f}$ '.format(R_sh*1.0E3) + \
+                '$\mathrm{m}\Omega$'
+            plot_name = basename + '_' + plot_name
+            title = basename + ' ' + title
+            plot_name += '.png'
 
             fig.suptitle(title)
 
-            plot_name = plot_name + '.png'
+            ax[0].plot(i_bias, resp_bin, '.')
+            #ax[0].plot((i_bias[1:]+i_bias[:-1])/2, d_resp, 'r.')
+            ax[0].set_ylabel(r'$I_\mathrm{TES}$ $[\mu A]$')
 
-            if basename is not None:
-                ax[0].text(.95, .88, basename , transform=ax[0].transAxes, 
-                    fontsize=12, horizontalalignment='right')
+            ax[0].plot(i_bias, norm_fit[0] * i_bias , linestyle='--', color='k',
+                       label=r'$R_N$' + '  = ${:.1f}$'.format(R_n/1e-3) + \
+                           r' $\mathrm{m}\Omega$')  
+            ax[0].plot(i_bias[:sc_idx], 
+                sc_fit[0] * i_bias[:sc_idx] + sc_fit[1], linestyle='--', 
+                color='r',label=r's.c. slope = {:.2f}'.format(sc_fit[0]))
+            if grid_on:
+                ax[0].grid()
+
+            # Highlight the transition
+            ax[0].axvspan(i_bias[sc_idx], i_bias[nb_idx], color='k', alpha=.15)
+            ax[1].axvspan(i_bias[sc_idx], i_bias[nb_idx], color='k', alpha=.15)
+
+            # indicate target bias point
+            for i in range(2):
+                if i == 1:
+                    label = r'$R = {:.1f}$ '.format(R_op_target/1e-3) + r'$\mathrm{m}\Omega$'
+                else:
+                    label = None
+                ax[i].axvline(i_op_target,color='g',linestyle='--',label=label)
+
+            ax[0].legend(loc='best')
+            ax[1].legend(loc='best')
+            ax[1].plot(i_bias, R/R_n, '.')
+            ax[1].axhline(1, color='k', linestyle='--')
+            ax[1].set_ylabel(r'$R/R_N$')
+            ax[1].set_xlabel(r'$I_{b}$ [$\mu\mathrm{A}$]')
+            ax[1].set_ylim(0, 1.1)
+            if grid_on:
+                ax[1].grid()
+
+            # Make top label in volts
+            axt = ax[0].twiny()
+            axt.set_xlim(ax[0].get_xlim())
+            ib_max = np.max(i_bias)
+            ib_min = np.min(i_bias)
+            n_ticks = 5
+            delta = float(ib_max - ib_min)/n_ticks
+            vb_max = np.max(v_bias)
+            vb_min = np.min(v_bias)
+            delta_v = float(vb_max - vb_min)/n_ticks
+            axt.set_xticks(np.arange(ib_min, ib_max+delta, delta))
+            axt.set_xticklabels(['{:.2f}'.format(x) for x in 
+                np.arange(vb_min, vb_max+delta_v, delta_v)])
+            axt.set_xlabel(r'Commanded $V_b$ [V]')
+
+            plt.tight_layout()
+            fig.subplots_adjust(top=0.85)
 
             if save_plot:
-                if basename is None:
-                    basename = self.get_timestamp()
-                plot_name = basename + plot_name
                 if plot_dir == None:
                     plot_dir = self.plot_dir
                 plot_filename = os.path.join(plot_dir, plot_name)
-                self.log('Saving IV plot to:{}'.format(plot_filename))
+                self.log('Saving IV plot to: {}'.format(plot_filename))
                 plt.savefig(plot_filename,bbox_inches='tight', dpi=300)
             if show_plot:
                 plt.show()
             else:
                 plt.close()
 
-        v_tes = i_bias*R_sh*R/(R+R_sh) # voltage over TES
-        p_tes = (v_tes**2)/R # electrical power on TES
-
-        i_Rmin = 0
-        i_Rmax = len(R)-1
-        R_frac_min = 0.2
-        R_frac_max = 0.8
-        R_trans_min = R_frac_min*R_n
-        R_trans_max = R_frac_max*R_n
-        found_Rmin = False
-        found_Rmax = False
-        for i in range(len(R)):
-            R_temp = R[i]
-            if R_temp > R_trans_min and not found_Rmin:
-                i_Rmin = i
-                found_Rmin = True
-            elif R_temp > R_trans_max and not found_Rmax:
-                i_Rmax = i
-                found_Rmax = True
 
         fig_pr,ax_pr = plt.subplots(1,sharex=True)
-        ax_pr.set_xlabel(r'$R_\mathrm{TES}$ [$\Omega$]')
+        ax_pr.set_xlabel(r'$R_\mathrm{TES}$ [$\mathrm{m}\Omega$]')
+        ax_pr.set_xlim(0.,1.05*R_n/1e-3)
         ax_pr.set_ylabel(r'$P_\mathrm{TES}$ [pW]')
+        ax_pr.set_yscale('log')
         if found_Rmin and found_Rmax:
             p_trans_median = np.median(p_tes[i_Rmin:i_Rmax])
-            ax_pr.axvline(x=R[i_Rmin], linestyle=':', color='k')
-            ax_pr.axvline(x=R[i_Rmax], linestyle=':', color='k')
-            label = r'Median power between $%.2f R_n$ and $%.2f R_n$: %.0f pW' \
+            ax_pr.axvspan(R_trans_min/1e-3,R_trans_max/1e-3, color='k', alpha=.15)
+            label = r'Median electrical power between $%.2f R_N$ and $%.2f R_N$: %.1f pW' \
                 % (R_frac_min,R_frac_max,p_trans_median)
             ax_pr.axhline(y=p_trans_median, linestyle=':', label=label,
                 color='r')
         else:
             p_trans_median = None
 
-        ax_pr.plot(R,p_tes)
+        ax_pr.plot(R/1e-3,p_tes)
         ax_pr.legend(loc='best')
-        fig_pr.suptitle('Band {}, Group {}, Ch {:03}'.format(band, 
-                    bias_group, channel))
+        fig_pr.suptitle(title)
         if grid_on:
             ax_pr.grid(which='major')
             ax_pr.grid(which='minor', linestyle='--')
             ax_pr.minorticks_on()
         if save_plot:
-            if basename is None:
-                basename = self.get_timestamp()
-            plot_name = basename + \
-                    '_PR_curve_b{}_g{}_ch{:03}.png'.format(band, bias_group, channel)
-            if plot_dir == None:
-                plot_dir = self.plot_dir
-            plot_filename = os.path.join(plot_dir, plot_name)
-            self.log('Saving PR plot to:{}'.format(plot_filename))
-            plt.savefig(plot_filename,bbox_inches='tight', dpi=300)
+            plot_name_pr = plot_name.replace('IV_curve','PR_curve')
+            plot_filename_pr = os.path.join(plot_dir, plot_name_pr)
+            self.log('Saving PR plot to: {}'.format(plot_filename_pr))
+            plt.savefig(plot_filename_pr,bbox_inches='tight', dpi=300)
         if show_plot:
             plt.show()
         else:
             plt.close()
 
-        return R, R_n, np.array([sc_idx, nb_idx]), p_tes, p_trans_median
+        return R, R_n, np.array([sc_idx, nb_idx]), p_tes, p_trans_median, v_bias_target
 
     def find_tes(self, band, bias_group, bias=np.arange(0,4,.2),
                  make_plot=True, make_debug_plot=False, delta_peak_cutoff=.2):
