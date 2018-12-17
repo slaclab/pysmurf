@@ -185,6 +185,8 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
 
         # Dictionary for frequency response
         self.freq_resp = {}
+        self.lms_freq_hz = None
+        self.fraction_full_scale = .5
         smurf_init_config = self.config.get('init')
         bands = smurf_init_config['bands']
         for b in bands:
@@ -193,6 +195,7 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
             self.freq_resp[b]['lock_status'] = {}
         if setup:
             self.setup(**kwargs)
+
 
     #@SmurfUtilMixin.jesd_decorator
     #def test_decorator():
