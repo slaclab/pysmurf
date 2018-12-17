@@ -862,7 +862,7 @@ class SmurfTuneMixin(SmurfBase):
             plt.close()
 
     def eta_fit(self, freq, resp, peak_freq, delta_freq, 
-        subband_half_width=614.4E6/128, make_plot=False, plot_chans=[], 
+        subband_half_width=614.4/128, make_plot=False, plot_chans=[], 
         save_plot=True, band=None, timestamp=None, res_num=None,
         use_slow_eta=False):
         """
@@ -938,7 +938,7 @@ class SmurfTuneMixin(SmurfBase):
         eta_mag = np.abs(eta)
         # eta_mag /= (10*np.log10( uc_att / 2 ) )
         eta_angle = np.angle(eta)
-        eta_scaled = eta_mag * subband_half_width
+        eta_scaled = eta_mag / subband_half_width
         eta_phase_deg = eta_angle * 180 / np.pi
 
 
