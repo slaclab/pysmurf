@@ -183,6 +183,13 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
         self.smurf_to_mce_port = smurf_to_mce_cfg.get('port_number')
         self.smurf_to_mce_mask_file = smurf_to_mce_cfg.get('mask_file')
 
+        # Bad resonator mask
+        bm_config = self.config.get('bad_mask')
+        bm_keys = bm_config.keys()
+        self.bad_mask = np.zeros((len(bm_keys), 2))
+        for i, k in enumerate(bm_keys):
+            self.bad_mask[i] = bm_config[k]
+
         # Dictionary for frequency response
         self.freq_resp = {}
         self.lms_freq_hz = {}

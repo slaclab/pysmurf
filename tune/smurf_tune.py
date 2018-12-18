@@ -1334,7 +1334,7 @@ class SmurfTuneMixin(SmurfBase):
 
         f = [self.freq_resp[band]['resonances'][k]['freq'] \
                      for k in self.freq_resp[band]['resonances'].keys()]
-            
+                 
 
         # Populate arrays
         counter = 0
@@ -1344,6 +1344,10 @@ class SmurfTuneMixin(SmurfBase):
             f_gap = np.min(np.abs(np.append(f[:idx], f[idx+1:])-f[idx]))
 
             self.log('Res {:03} - Channel {}'.format(k, ch))
+            for ll, hh in self.bad_mask:
+                if f[idx] > ll and f[idx] < hh:
+                    self.log('{:4.3f} in bad list.'.format(f[idx]))
+                    ch = -1
             if ch < 0: 
                 self.log('No channel assigned: res {:03}'.format(k))
             elif min_gap is not None and f_gap < min_gap:
@@ -1764,7 +1768,7 @@ class SmurfTuneMixin(SmurfBase):
             timestamp = self.get_timestamp()
 
             fig,ax = plt.subplots(1,3,figsize = (15,5))
-            fig.suptitle('LMS freq = {}, n_channels = {}'.format(lms_freq_hz,len(channels_on)))
+            fig.suptitle('LMS freq = {:.2f}, n_channels = {}'.format(lms_freq_hz,len(channels_on)))
             
             ax[0].hist(df_std[channels_on] * 1e3,bins = 20,edgecolor = 'k')            
             ax[0].set_xlabel('Flux ramp demod error std (kHz)')
