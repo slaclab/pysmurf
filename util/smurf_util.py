@@ -1445,7 +1445,7 @@ class SmurfUtilMixin(SmurfBase):
         time.sleep(cool_wait)
         self.log('Done waiting.', self.LOG_USER)
 
-    def overbias_tes_all(self, bias_groups=np.arange(8), overbias_voltage=19.9, 
+    def overbias_tes_all(self, bias_groups=None, overbias_voltage=19.9, 
         overbias_wait=1.0, tes_bias=19.9, cool_wait=20., high_current_mode=False):
         """
         Warning: This is horribly hardcoded. Needs a fix soon.
@@ -1457,7 +1457,7 @@ class SmurfUtilMixin(SmurfBase):
 
         Opt Args:
         ---------
-        bias_groups (array): which bias groups to overbias. defaults to all of them.
+        bias_groups (array): which bias groups to overbias. defaults to all_groups
         overbias_voltage (float): The value of the TES bias in the high current
             mode. Default 19.9.
         overbias_wait (float): The time to stay in high current mode in seconds.
@@ -1468,6 +1468,9 @@ class SmurfUtilMixin(SmurfBase):
             transients to die off.
         """
         # drive high current through the TES to attempt to drive normal
+        if bias_groups is None:
+            bias_groups = self.all_groups
+
 
         for g in bias_groups:
             self.set_tes_bias_bipolar(g, overbias_voltage)
