@@ -351,6 +351,7 @@ class SmurfIVMixin(SmurfBase):
             plt.figure()
             plt.hist(p_trans_list)
             plt.xlabel('In-transition electrical power (pW)')
+            plt.xlim(left=0.)
             plt.ylabel('Number of channels')
             plt.title('{}, band {}, group{}'.format(basename,np.unique(band),bias_group))
             p_trans_filename = os.path.join(plot_dir,'%s_p_trans_hist.png' % (basename))
