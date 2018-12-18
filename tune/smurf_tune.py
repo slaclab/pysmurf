@@ -616,8 +616,9 @@ class SmurfTuneMixin(SmurfBase):
             import matplotlib.pyplot as plt
             fig, ax = plt.subplots(1, figsize=(8,4))
 
-            bandCenterMHz = self.config.get('init').get('band_{}'.format(band)).get('bandCenterMHz')
-            plot_freq = freq + bandCenterMHz
+            if band is not None:
+                bandCenterMHz = self.get_band_center_mhz(band)
+                plot_freq = freq + bandCenterMHz
 
             ax.plot(plot_freq,amp)
             ax.plot(plot_freq, med_amp)
@@ -1698,7 +1699,7 @@ class SmurfTuneMixin(SmurfBase):
         if lms_freq_hz is None:
             lms_freq_hz = self.estimate_lms_freq(band, 
                 fraction_full_scale=fraction_full_scale)
-            self.lms_freq_hz = lms_freq_hz
+            self.lms_freq_hz[band] = lms_freq_hz
             self.log('Using lms_freq_estimator : {}'.format(lms_freq_hz))
 
 
@@ -2108,7 +2109,7 @@ class SmurfTuneMixin(SmurfBase):
             fraction_full_scale = self.fraction_full_scale
 
         if lms_freq_hz is None:
-            lms_freq_hz = self.lms_freq_hz
+            lms_freq_hz = self.lms_freq_hz[band]
 
         channels = self.which_on(band)
         n_chan = len(channels)

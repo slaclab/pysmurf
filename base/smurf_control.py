@@ -185,7 +185,7 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
 
         # Dictionary for frequency response
         self.freq_resp = {}
-        self.lms_freq_hz = None
+        self.lms_freq_hz = {}
         self.fraction_full_scale = .5
         smurf_init_config = self.config.get('init')
         bands = smurf_init_config['bands']
@@ -193,6 +193,7 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
             # Make band dictionaries
             self.freq_resp[b] = {}
             self.freq_resp[b]['lock_status'] = {}
+            self.lms_freq_hz[b] = 4000
         if setup:
             self.setup(**kwargs)
 
