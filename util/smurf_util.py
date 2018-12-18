@@ -1445,11 +1445,12 @@ class SmurfUtilMixin(SmurfBase):
         time.sleep(cool_wait)
         self.log('Done waiting.', self.LOG_USER)
 
-    def overbias_tes_all(self, bias_groups=np.arange(8), overbias_voltage=19.9, overbias_wait=0.5,
-        tes_bias=19.9, cool_wait=20., high_current_mode=False):
+    def overbias_tes_all(self, bias_groups=np.arange(8), overbias_voltage=19.9, 
+        overbias_wait=1.0, tes_bias=19.9, cool_wait=20., high_current_mode=False):
         """
         Warning: This is horribly hardcoded. Needs a fix soon.
         CY edit 20181119 to make it even worse lol
+        EY edit 20181112 made it slightly better...
 
         Args:
         -----
@@ -1472,24 +1473,26 @@ class SmurfUtilMixin(SmurfBase):
             self.set_tes_bias_bipolar(g, overbias_voltage)
             time.sleep(.1)
 
-        for g in bias_groups:
-            self.set_tes_bias_high_current(g)
+        # for g in bias_groups:
+        # self.set_tes_bias_high_current(g)
+        self.set_tes_bias_high_current(bias_groups)
         self.log('Driving high current through TES. ' + \
             'Waiting {}'.format(overbias_wait), self.LOG_USER)
         time.sleep(overbias_wait)
 
         if not high_current_mode:
-            for g in bias_groups:
-                self.set_tes_bias_low_current(g)
-                time.sleep(.1)
+            self.log('settting to low current')
+            self.set_tes_bias_low_current(bias_groups)
+            #for g in bias_groups:
+            #    self.set_tes_bias_low_current(g)
+            #    time.sleep(.1)
 
         for g in bias_groups:
             self.set_tes_bias_bipolar(g, tes_bias)
-        self.log('Waiting %.2f seconds to cool' % (cool_wait), self.LOG_USER)
+        self.log('Waiting {:3.2f} seconds to cool'.format(cool_wait), 
+                 self.LOG_USER)
         time.sleep(cool_wait)
         self.log('Done waiting.', self.LOG_USER)
-
-
 
 
     def set_tes_bias_high_current(self, bias_group):
@@ -1500,17 +1503,20 @@ class SmurfUtilMixin(SmurfBase):
 
         Args:
         -----
-        bias_group (int): The bias group to set to high current mode
+        bias_group (int): The bias group(s) to set to high current mode
         """
         old_relay = self.get_cryo_card_relays()
-        old_relay = self.get_cryo_card_relays()
+        old_relay = self.get_cryo_card_relays()  # querey twice to ensure update
+        new_relay = np.copy(old_relay)
         self.log('Old relay {}'.format(bin(old_relay)))
-        if bias_group < 16:
-            r = np.ravel(self.pic_to_bias_group[np.where(
-                self.pic_to_bias_group[:,1]==bias_group)])[0]
-        else:
-            r = bias_group
-        new_relay = (1 << r) | old_relay
+        bias_group = np.ravel(np.array(bias_group))
+        for bg in bias_group:
+            if bg < 16:
+                r = np.ravel(self.pic_to_bias_group[np.where(
+                            self.pic_to_bias_group[:,1]==bg)])[0]
+            else:
+                r = bg
+            new_relay = (1 << r) | new_relay
         self.log('New relay {}'.format(bin(new_relay)))
         self.set_cryo_card_relays(new_relay, write_log=True)
         self.get_cryo_card_relays()
@@ -1526,18 +1532,21 @@ class SmurfUtilMixin(SmurfBase):
         bias_group (int): The bias group to set to low current mode
         """
         old_relay = self.get_cryo_card_relays()
-        old_relay = self.get_cryo_card_relays()
+        old_relay = self.get_cryo_card_relays()  # querey twice to ensure update
+        new_relay = np.copy(old_relay)
+        bias_group = np.ravel(np.array(bias_group))
         self.log('Old relay {}'.format(bin(old_relay)))
-        if bias_group < 16:
-            r = np.ravel(self.pic_to_bias_group[np.where(
-                self.pic_to_bias_group[:,1]==bias_group)])[0]
-        else:
-            r = bias_group
-        if old_relay & 1 << r != 0:
-            new_relay = old_relay & ~(1 << r)
-            self.log('New relay {}'.format(bin(new_relay)))
-            self.set_cryo_card_relays(new_relay, write_log=True)
-            self.get_cryo_card_relays()
+        for bg in bias_group:
+            if bg < 16:
+                r = np.ravel(self.pic_to_bias_group[np.where(
+                            self.pic_to_bias_group[:,1]==bg)])[0]
+            else:
+                r = bg
+            if old_relay & 1 << r != 0:
+                new_relay = new_relay & ~(1 << r)
+        self.log('New relay {}'.format(bin(new_relay)))
+        self.set_cryo_card_relays(new_relay, write_log=True)
+        self.get_cryo_card_relays()
 
     def set_mode_dc(self):
         """
