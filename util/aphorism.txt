@@ -22,3 +22,4 @@ pysmurf is not Google
 Go write an AI to figure it out.
 Fourty-two
 I have made a huge mistake...
+Is anything really causally connected to anything else?
