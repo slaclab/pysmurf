@@ -10,10 +10,30 @@ S = pysmurf.SmurfControl(setup=False,
     make_logfile=False)
 
 savedir = '/home/cryo/ey/nonlinear_lms'
+bias_vals = np.arange(5, 1.9, -.1)
+lms_freqs = np.arange(10000,13501,500)
 
-def test(S):
-    lms_freqs = np.arange(10000,15000,500)
-    bias_vals = np.arange(5, 1.9, -.1)
+def plot_sib():
+    s = np.zeros((len(lms_freqs), len(bias_vals), 125))
+    for i, lms in enumerate(lms_freqs):
+        s[i] = np.load(os.path.join(savedir, 'sibs_{}.npy'.format(lms)))
+
+    cm = plt.get_cmap('viridis')
+    for c in np.arange(125):
+        plt.figure()
+        for i, l in enumerate(lms_freqs):
+            color = cm(i/len(lms_freqs))
+            plt.plot(bias_vals, s[i,:,c], color=color, label='lms {}'.format(l))
+
+        plt.legend()
+        plt.xlabel('Bias Voltage [V]')
+        plt.ylabel(r'$S_{IB}$')
+        plt.title('{:03}'.format(c))
+        plt.savefig(os.path.join(savedir, 'S_vs_lms{:03}'.format(c)))
+        plt.close()
+    
+
+def test(S):    
     n_bias = len(bias_vals)
     n_chans = len(S.which_on(2))
     for lms in lms_freqs:
