@@ -1302,15 +1302,16 @@ class SmurfTuneMixin(SmurfBase):
                     break
         self.write_master_assignment(band,freqs_master,subbands_master,channels_master,groups=groups_master)
 
-    def compare_tuning(self, tune, ref_tune, make_plot=False):
+    def compare_tune(self, tune, ref_tune=None, make_plot=False):
         """
         Compares tuning file to a reference tuning file. Does not work yet.
 
         """
 
         # Load data
-        tune, freq, resp = self.load_tuning(tune)
-        tune_ref, freq_ref, resp_ref = self.load_tuning(ref_tune)
+        res1 = self.load_tune(tune)
+        if ref_tune is None:
+            res2 = self.freq_resp
 
         if make_plot:
             import matplotlib.pyplot as plt
@@ -1331,43 +1332,6 @@ class SmurfTuneMixin(SmurfBase):
 
             plt.tight_layout()
 
-    def load_tuning(self, tune, load_raw=True):
-        """
-        Loads tuning files from disk.
-
-        Args:
-        -----
-        tune (str): The full path to the freq_resp.npy file.
-
-        Opt Args:
-        ---------
-        load_raw (bool): Whether to load the freq and response data. Default
-            is True.
-
-        Ret:
-        ----
-        tune (dict): The tuning file
-        freq (float array): The frequency information. Returns if load_raw is
-            True.
-        resp (complex array): The full band response information. Returns if
-            load_raw is True.
-        """
-        self.log('Loading {}'.format(tune), self.LOG_INFO)
-        if load_raw:
-            dirname = os.path.dirname(tune)
-            basename = os.path.basename(tune).split('_')[0]
-            freq = np.loadtxt(os.path.join(dirname, 
-                basename+'_freq_full_band_resp.txt'))
-            resp = np.loadtxt(os.path.join(dirname, 
-                basename+'_real_full_band_resp.txt')) + \
-                1.j * np.loadtxt(os.path.join(dirname, 
-                basename+'_imag_full_band_resp.txt'))
-        tune = np.load(tune).item()
-
-        if load_raw:
-            return tune, freq, resp
-        else:
-            return tune
 
     def relock(self, band, res_num=None, drive=None, r2_max=.08, 
         q_max=100000, q_min=0, check_vals=False, min_gap=None):
@@ -1457,6 +1421,143 @@ class SmurfTuneMixin(SmurfBase):
 
         self.log('Setting on {} channels on band {}'.format(counter, band),
             self.LOG_USER)
+
+    def _get_eta_scan_result_from_key(self, band, key):
+        """
+        """
+        if 'resonances' not in self.freq_resp[band].keys():
+            self.log('No tuning. Run setup_notches() or load_tune()')
+            return None
+
+        return np.array([self.freq_resp[band]['resonances'][k][key]
+                         for k in self.freq_resp[band]['resonances'].keys()])
+
+
+    def get_eta_scan_result_freq(self, band):
+        """
+        Convenience function that gets the frequency results from
+        eta scans.
+
+        Args:
+        -----
+        band (int) : The band
+
+        Ret:
+        freq (float array) : The frequency in MHz of the resonators.
+        """
+        return self._get_eta_scan_result_from_key(band, 'freq')
+
+
+    def get_eta_scan_result_eta(self, band):
+        """
+        Convenience function that gets thee eta values from
+        eta scans.
+
+        Args:
+        -----
+        band (int) : The band
+
+        Ret:
+        ----
+        eta (complex array) : The eta of the resonators.
+        """
+        return self._get_eta_scan_result_from_key(band, 'eta')
+
+    def get_eta_scan_result_eta_mag(self, band):
+        """
+        Convenience function that gets thee eta mags from
+        eta scans.
+
+        Args:
+        -----
+        band (int) : The band
+
+        Ret:
+        ----
+        eta_mag (float array) : The eta of the resonators.
+        """
+        return self._get_eta_scan_result_from_key(band, 'eta_mag')
+
+    def get_eta_scan_result_eta_scaled(self, band):
+        """
+        Convenience function that gets the eta scaled from
+        eta scans. eta_scaled is eta_mag/digitizer_freq_mhz/n_subbands
+
+        Args:
+        -----
+        band (int) : The band
+
+        Ret:
+        ----
+        eta_mag (float array) : The eta_scaled of the resonators.
+        """
+        return self._get_eta_scan_result_from_key(band, 'eta_scaled')
+
+
+    def get_eta_scan_result_eta_phase(self, band):
+        """
+        Convenience function that gets the eta phase values from
+        eta scans.
+
+        Args:
+        -----
+        band (int) : The band
+
+        Ret:
+        ----
+        eta_phase (float array) : The eta_phase of the resonators.
+        """
+        return self._get_eta_scan_result_from_key(band, 'eta_phase')
+
+
+    def get_eta_scan_result_channel(self, band):
+        """
+        Convenience function that gets the channel assignments from
+        eta scans.
+
+        Args:
+        -----
+        band (int) : The band
+
+        Ret:
+        ----
+        channels (int array) : The channels of the resonators.
+        """
+        return self._get_eta_scan_result_from_key(band, 'channel')
+
+
+    def get_eta_scan_result_subband(self, band):
+        """
+        Convenience function that gets the subband from
+        eta scans.
+
+        Args:
+        -----
+        band (int) : The band
+
+        Ret:
+        ----
+        subband (float array) : The subband of the resonators.
+        """
+        return self._get_eta_scan_result_from_key(band, 'subband')
+
+
+    def get_eta_scan_result_offset(self, band):
+        """
+        Convenience function that gets the offset from center frequency 
+        from eta scans.
+
+        Args:
+        -----
+        band (int) : The band
+
+        Ret:
+        ----
+        offset (float array) : The offset from the subband centers  of 
+           the resonators.
+        """
+        return self._get_eta_scan_result_from_key(band, 'offset')
+
 
 
     def reestimate_eta(self, band, drive=None):
@@ -2802,19 +2903,27 @@ class SmurfTuneMixin(SmurfBase):
 
         return savedir + ".npy"
 
-    def load_tune(self, filename):
+    def load_tune(self, filename, override=True):
         """
         Loads the tuning information (self.freq_resp) from tuning directory
 
         Args:
         -----
         filename (str) : The name of the tuning.
+
+        Opt Args:
+        ---------
+        override (bool) : Whether to replace self.freq_resp. Default
+            is True.
         """
-        fs = np.load(filename).item()
         self.log('Loading...')
-        self.freq_resp = fs
+        fs = np.load(filename).item()
         self.log('Done loading tuning')
 
+        if override:
+            self.freq_resp = fs
+        else:
+            return fs
 
     def parallel_scan(self, band, channels, drive,
                       scan_freq=np.arange(-3, 3, .1)):
