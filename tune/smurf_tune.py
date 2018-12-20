@@ -1158,8 +1158,19 @@ class SmurfTuneMixin(SmurfBase):
         else:
             return True
 
+    def get_master_assignment(self,band):
+            fn = self.channel_assignment_files['band_%i' % (band)]
+            self.log('Drawing channel assignments from {}'.format(fn))
+            d = np.loadtxt(fn,delimiter=',')
+            freqs = d[:,0]
+            subbands = d[:,1].astype(int)
+            channels = d[:,2].astype(int)
+            groups = d[:,3].astype(int)
+            return freqs,subbands,channels,groups
+
     def assign_channels(self, freq, band=None, bandcenter=None, 
-        channel_per_subband=4, as_offset=True, min_offset=0.5):
+        channel_per_subband=4, as_offset=True, min_offset=0.5,
+                        new_master_assignment=True):
         """
         Figures out the subbands and channels to assign to resonators
 
@@ -1186,10 +1197,6 @@ class SmurfTuneMixin(SmurfBase):
         offsets (float array): The frequency offset from the subband center
         """
         freq = np.sort(freq)  # Just making sure its in sequential order
-        d_freq = np.diff(freq)
-        close_idx = d_freq > min_offset
-        close_idx = np.logical_and(np.hstack((close_idx, True)), 
-            np.hstack((True, close_idx)))
 
         if band is None and bandcenter is None:
             self.log('Must have band or bandcenter', self.LOG_ERROR)
@@ -1199,33 +1206,101 @@ class SmurfTuneMixin(SmurfBase):
         channels = -1 * np.ones(len(freq), dtype=int)
         offsets = np.zeros(len(freq))
         
-        # Assign all frequencies to a subband
-        for idx in range(len(freq)):
-            subbands[idx] = self.get_closest_subband(freq[idx], band, 
+        if not new_master_assignment:
+            freq_master,subbands_master,channels_master,_ = self.get_master_assignment(band)
+            for idx in range(len(freq)):
+                f = freq[idx]
+                for i in range(len(freq_master)):
+                    f_master = freq_master[i]
+                    if np.absolute(f-f_master) < min_offset:
+                        ch = channels_master[i]
+                        channels[idx] = ch
+                        sb =  subbands_master[i]
+                        subbands[idx] = sb
+                        sb_center = self.get_subband_centers(band,as_offset=as_offset)[1][sb]
+                        offsets[idx] = f-sb_center
+                        self.log('Matching {:.2f} MHz to {:.2f} MHz in master channel list: assigning to subband {}, ch. {}'.format(f,f_master,sb,ch))
+                        continue
+        else:
+            d_freq = np.diff(freq)
+            close_idx = d_freq > min_offset
+            close_idx = np.logical_and(np.hstack((close_idx, True)), 
+                                       np.hstack((True, close_idx)))
+            # Assign all frequencies to a subband
+            for idx in range(len(freq)):
+                subbands[idx] = self.get_closest_subband(freq[idx], band, 
                                                      as_offset=as_offset)
-            subband_center = self.get_subband_centers(band, 
-                as_offset=as_offset)[1][subbands[idx]]
-
-            offsets[idx] = freq[idx] - subband_center
+                subband_center = self.get_subband_centers(band, 
+                                          as_offset=as_offset)[1][subbands[idx]]
+                offsets[idx] = freq[idx] - subband_center
         
-        # Assign unique channel numbers
-        for unique_subband in set(subbands):
-            chans = self.get_channels_in_subband(band, int(unique_subband))
-            mask = np.where(subbands == unique_subband)[0]
-            if len(mask) > channel_per_subband:
-                concat_mask = mask[:channel_per_subband]
-            else:
-                concat_mask = mask[:]
+            # Assign unique channel numbers
+            for unique_subband in set(subbands):
+                chans = self.get_channels_in_subband(band, int(unique_subband))
+                mask = np.where(subbands == unique_subband)[0]
+                if len(mask) > channel_per_subband:
+                    concat_mask = mask[:channel_per_subband]
+                else:
+                    concat_mask = mask[:]
             
-            chans = chans[:len(list(concat_mask))] #I am so sorry
+                chans = chans[:len(list(concat_mask))] #I am so sorry
             
-            channels[mask[:len(chans)]] = chans
+                channels[mask[:len(chans)]] = chans
 
-        # Prune channels that are too close
-        channels[~close_idx] = -1
+            # Prune channels that are too close
+            channels[~close_idx] = -1        
+
+            # write the channel assignments to file
+            self.write_master_assignment(band,freq,subbands,channels)
         
         return subbands, channels, offsets
 
+    def write_master_assignment(self,band,freqs,subbands,channels,groups=None):
+        '''
+        writes a comma-separated list in the form band, freq (MHz), subband, channel, group.
+        Group number defaults to -1.
+        '''
+        if groups is None:
+            groups = -np.ones(len(freqs),dtype=int)
+
+        fn = self.channel_assignment_files['band_%i' % (band)]
+        self.log('Writing new channel assignment to {}'.format(fn))
+        f = open(fn,'w')
+        for i in range(len(channels)):   
+            f.write('%.1f,%i,%i,%i\n' % (freqs[i],subbands[i],channels[i],groups[i]))
+        f.close()
+
+    def make_master_assignment_from_file(self,band,tuning_filename):
+        self.log('Drawing band-{} tuning data from {}'.format(band,tuning_filename))
+        d = np.load(tuning_filename).item()[band]['resonances']
+        freqs = []
+        subbands = []
+        channels = []
+        for i in range(len(d)):
+            freqs.append(d[i]['freq'])
+            subbands.append(d[i]['subband'])
+            channels.append(d[i]['channel'])
+        self.write_master_assignment(band,freqs,subbands,channels)
+    
+    def get_group_list(self,band,group):
+        _,_,channels,groups = self.get_master_assignment(band)
+        chs_in_group = []
+        for i in range(len(channels)):
+            if groups[i] == group:
+                chs_in_group.append(channels[i])
+        return chs_in_group
+
+    def write_group_assignment(self,band,group,ch_list):
+        '''
+        Combs master channel assignment and assigns group number to all channels in ch_list. Does not affect other channels in the master file.
+        '''
+        freqs_master,subbands_master,channels_master,groups_master = self.get_master_assignment(band)
+        for i in range(len(ch_list)):
+            for j in range(len(channels_master)):
+                if ch_list[i] == channels_master[j]:
+                    groups_master[j] = group
+                    break
+        self.write_master_assignment(band,freqs_master,subbands_master,channels_master,groups=groups_master)
 
     def compare_tuning(self, tune, ref_tune, make_plot=False):
         """
@@ -1389,6 +1464,8 @@ class SmurfTuneMixin(SmurfBase):
         """
         if drive is None:
             drive = self.freq_resp[band]['drive']
+        else:
+            self.freq_resp[band]['drive'] = drive
 
         resonances = self.freq_resp[band]['resonances']
         self.freq_resp[band]['resonances_old'] = resonances
@@ -2613,8 +2690,9 @@ class SmurfTuneMixin(SmurfBase):
 
         return freq, response
 
-    def setup_notches(self, band, resonance=None, drive=10, sweep_width=.3, 
-        df_sweep=.002, subband_half_width=614.4/128, min_offset=0.1):
+    def setup_notches(self, band, resonance=None, drive=None, sweep_width=.3, 
+        df_sweep=.002, subband_half_width=614.4/128, min_offset=0.1,
+                      new_master_assignment=True):
         """
 
         Args:
@@ -2642,6 +2720,10 @@ class SmurfTuneMixin(SmurfBase):
             self.log('No resonances stored in band {}'.format(band) +
                 '. Run find_freq first.', self.LOG_ERROR)
             return
+
+        if drive is None:
+            drive = self.config.get('init')['band_{}'.format(band)].get('amplitude_scale')
+            self.log('No drive given. Using value in config file: {}'.format(drive))
 
         if resonance is not None:
             input_res = resonance
@@ -2697,7 +2779,8 @@ class SmurfTuneMixin(SmurfBase):
         self.log('Assigning channels')
         f = [resonances[k]['freq'] for k in resonances.keys()]
         subbands, channels, offsets = self.assign_channels(f, band=band, 
-                                        as_offset=False,min_offset=min_offset)
+                                        as_offset=False,min_offset=min_offset,
+                                        new_master_assignment=new_master_assignment)
 
         for i, k in enumerate(resonances.keys()):
             resonances[k].update({'subband': subbands[i]})
