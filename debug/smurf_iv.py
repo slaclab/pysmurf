@@ -80,7 +80,7 @@ class SmurfIVMixin(SmurfBase):
 
 
         basename, _ = os.path.splitext(os.path.basename(datafile))
-        np.save(os.path.join(basename + '_iv_bias.txt'), bias)
+        np.save(os.path.join(self.output_dir, basename + '_iv_bias'), bias)
 
         iv_raw_data = {}
         iv_raw_data['bias'] = bias
@@ -103,7 +103,7 @@ class SmurfIVMixin(SmurfBase):
             phase_excursion_min=phase_excursion_min)
 
     def slow_iv_all(self, bias_groups=np.arange(8), wait_time=.1, bias=None, bias_high=19.9, gcp_mode=True, 
-        bias_low=0, bias_step=.1, show_plot=False, high_current_wait=.25, cool_wait=30,
+        bias_low=0, bias_step=.1, show_plot=False, high_current_wait=1., cool_wait=30,
         make_plot=True, save_plot=True, channels=None, high_current_mode=False,
         rn_accept_min=1e-3, rn_accept_max=1., overbias_voltage=19.9, grid_on=True, phase_excursion_min=3.):
         """
@@ -128,15 +128,6 @@ class SmurfIVMixin(SmurfBase):
         else:
             overbias = False
 
-        # drive high current through the TES to attempt to drive nomral
-        #self.set_tes_bias_bipolar(bias_num, 19.9)
-        #time.sleep(.1)
-        #self.log('Driving high current through TES. ' + \
-        #    'Waiting {}'.format(high_current_wait))
-        #self.set_cryo_card_relays(0x10004)
-        #time.sleep(high_current_wait)
-        #self.set_cryo_card_relays(0x10000)
-        #time.sleep(.1)
         if bias is None:
             bias = np.arange(bias_high, bias_low, -bias_step)
             
@@ -180,8 +171,6 @@ class SmurfIVMixin(SmurfBase):
         self.set_lms_gain(2, lms_gain2)
         self.set_lms_gain(3, lms_gain3)
 
-
-
         basename, _ = os.path.splitext(os.path.basename(datafile))
         np.save(os.path.join(basename + '_iv_bias_all.txt'), bias)
 
@@ -196,7 +185,6 @@ class SmurfIVMixin(SmurfBase):
             '_iv_raw_data.npy')
         np.save(os.path.join(self.output_dir, fn_iv_raw_data), iv_raw_data)
 
-
         R_sh=self.R_sh
         self.analyze_slow_iv_from_file(fn_iv_raw_data, make_plot=make_plot,
             show_plot=show_plot, save_plot=save_plot, R_sh=R_sh,
@@ -205,7 +193,6 @@ class SmurfIVMixin(SmurfBase):
             phase_excursion_min=phase_excursion_min)
 
  
-
     def analyze_slow_iv_from_file(self, fn_iv_raw_data, make_plot=True,
         show_plot=False, save_plot=True, R_sh=None, high_current_mode=False,
         rn_accept_min=1e-3, rn_accept_max=1., phase_excursion_min=3.,
@@ -293,7 +280,8 @@ class SmurfIVMixin(SmurfBase):
                 R_sh = R_sh, high_current_mode = high_current_mode,
                 grid_on=grid_on,R_op_target=R_op_target)
             v_bias_target_list.append(v_bias_target)
-            p_trans_list.append(p_trans)
+            if p_trans is not None:
+                p_trans_list.append(p_trans)
             try:
                 if rn <= rn_accept_max and rn >= rn_accept_min:
                     rn_list.append(rn)
@@ -338,11 +326,14 @@ class SmurfIVMixin(SmurfBase):
             if not show_plot:
                 plt.close()
 
-            plt.figure()
-            plt.hist(v_bias_target_list,bins=20)
+            plt.figure(figsize=(8,5))
+            v_bias_target_median = np.median(v_bias_target_list)
+            plt.hist(v_bias_target_list,bins=20,
+                     label='median = {:.2f} V'.format(v_bias_target_median))
             plt.xlabel('Optimal commanded voltage bias (V)')
             plt.ylabel('Number of channels')
-            plt.title('{}, band {}, group{}: target {:.1f}'.format(basename,np.unique(band),bias_group,R_op_target/1e-3) + ' $\mathrm{m}\Omega$ op. res.')
+            plt.title('{}, band {}, group{}: target '.format(basename,np.unique(band),bias_group) + '$R_\mathrm{op} = $' + '{:.1f}'.format(R_op_target/1e-3) + ' $\mathrm{m}\Omega$')
+            plt.legend(loc='best')
             v_bias_filename = os.path.join(plot_dir,'%s_v_bias_target_hist.png' % (basename))
             plt.savefig(v_bias_filename,bbox_inches='tight',dpi=300)
             if not show_plot:
@@ -494,7 +485,7 @@ class SmurfIVMixin(SmurfBase):
             if basename is None:
                 basename = self.get_timestamp()
             if band is not None and channel is not None:
-                title += ', {:.1f} MHz'.format(self.channel_to_freq(band, channel))
+                title += ', {:.2f} MHz'.format(self.channel_to_freq(band, channel))
             title += r', $R_\mathrm{sh}$ = ' + '${:.1f}$ '.format(R_sh*1.0E3) + \
                 '$\mathrm{m}\Omega$'
             plot_name = basename + '_' + plot_name
@@ -607,6 +598,21 @@ class SmurfIVMixin(SmurfBase):
         """
         This changes the bias on the bias groups and attempts to find
         resonators. 
+
+        Args:
+        -----
+        band (int) : The band to search.
+        bias_group (int): The bias group to search
+        
+        Opt Args:
+        ---------
+        bias (float array) : The TES biases in volts to set to look
+            for TESs.
+        make_plot (bool) : Whether to make a summary plot. Default True.
+        make_debug_plot (bool) : Whether to make debugging plots. 
+            Default is False.
+        delta_peak_cutoff (float) : The minimum a TES must move in MHz.
+            Default is 0.2. 
 
 
         Ret:

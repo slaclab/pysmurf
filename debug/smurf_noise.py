@@ -135,7 +135,7 @@ class SmurfNoiseMixin(SmurfBase):
                 self.log(noise_floors[-1, ch])
                 
                 res_freq = self.channel_to_freq(band, ch)
-                ax[0].set_title('Band {} Ch {:03} - {:.1f} MHz'.format(band, ch, res_freq))
+                ax[0].set_title('Band {} Ch {:03} - {:.2f} MHz'.format(band, ch, res_freq))
 
                 plt.tight_layout()
 
@@ -224,6 +224,7 @@ class SmurfNoiseMixin(SmurfBase):
         for ch in np.arange(n_channel):
             if noise[ch] > cutoff:
                 self.channel_off(band, ch)
+
 
     def noise_vs_bias(self, band, bias_group,bias_high=6, bias_low=3, step_size=.1,
         bias=None, high_current_mode=False,
@@ -348,6 +349,7 @@ class SmurfNoiseMixin(SmurfBase):
                 channels=self.which_on(band)
 
                 ## change amplitude for configured channels
+                '''
                 self.log('Setting amplitude of all configured channels to {}.'.format(var))
                 feedbackEnableArray0=self.get_feedback_enable_array(band)
                 self.set_feedback_enable_array(band,np.zeros(feedbackEnableArray0.shape,dtype='int'))
@@ -358,7 +360,10 @@ class SmurfNoiseMixin(SmurfBase):
                 ## reLock
                 self.log('Re-locking channels at new tone amplitude.')
                 self.run_parallel_eta_scan(band)
-                
+                '''
+                self.log('Tuning for amplitude = {}'.format(v))
+                self.setup_notches(band,drive=v)
+
                 ## turn on flux ramp and track
                 lms_freq_hz=self.get_lms_freq_hz(band)
                 self.log('Turning flux ramp back on and setting up tracking (lms_freq_hz={}).'.format(lms_freq_hz))
@@ -416,9 +421,11 @@ class SmurfNoiseMixin(SmurfBase):
 
         Args:
         -----
-        bias (float array): The bias in voltage. Can also pass an absolute path to a txt containing the bias points.
+        bias (float array): The bias in voltage. Can also pass an absolute 
+            path to a txt containing the bias points.
         datafile (str array): The paths to the datafiles. Must be same length 
-            as bias array. Can also pass an absolute path to a txt containing the names of the datafiles.
+            as bias array. Can also pass an absolute path to a txt containing 
+            the names of the datafiles.
 
         Opt Args:
         ---------
@@ -433,7 +440,9 @@ class SmurfNoiseMixin(SmurfBase):
         data_timestamp (str): The string used as a save name. Default is None.
         bias_group (int or int array): which bias groups were used. Default is None. 
         smooth_len (int): length of window over which to smooth PSDs for plotting
-        freq_range_summary (tup): frequencies between which to take mean noise for summary plot of noise vs. bias; if None, then plot white-noise level from model fit
+        freq_range_summary (tup): frequencies between which to take mean noise 
+            for summary plot of noise vs. bias; if None, then plot white-noise 
+            level from model fit
         """
         import matplotlib.pyplot as plt
         from matplotlib.gridspec import GridSpec
@@ -590,14 +599,15 @@ class SmurfNoiseMixin(SmurfBase):
             if type(bias_group) is not int: # ie if there were more than one
                 fig_title_string = ''
                 file_name_string = ''
-                for g in bias_group:
+                for i in range(len(bias_group)):
+                    g = bias_group[i]
                     fig_title_string += str(g) + ',' # I'm sorry but the satellite was down
                     file_name_string += str(g) + '_'
             else:
                 fig_title_string = str(bias_group) + ','
                 file_name_string = str(bias_group) + '_'
 
-            fig.suptitle(basename + ' Band {}, Group {} Channel {:03} - {:.1f} MHz'.format(band,fig_title_string,ch, res_freq))
+            fig.suptitle(basename + ' Band {}, Group {} Channel {:03} - {:.2f} MHz'.format(band,fig_title_string,ch, res_freq))
             plt.tight_layout(rect=[0.,0.03,1.,0.95])
 
             if show_plot:
@@ -623,17 +633,12 @@ class SmurfNoiseMixin(SmurfBase):
         
         # make summary histogram of noise vs. bias over all analyzed channels
         noise_est_data_bias = []
-        label_list = []
-        color_list = []
         for i in range(len(bias)):
             b = bias[i]
-            label_list.append('%.2f V' % (b))
-            color_list.append(cm(float(i)/len(bias)))
             noise_est_bias = []
             for j in range(len(noise_est_data)):
                 noise_est_bias.append(noise_est_data[j]['noise_est_list'][i])
             noise_est_data_bias.append(np.array(noise_est_bias))
-        plt.figure(figsize = (8,5))
         
         if psd_ylim is not None:
             bin_min = np.log10(psd_ylim[0])
@@ -642,16 +647,34 @@ class SmurfNoiseMixin(SmurfBase):
             bin_min = np.floor(np.log10(np.min(noise_est_data_bias)))
             bin_max = np.ceil(np.log10(np.max(noise_est_data_bias)))
 
-        plt.hist(noise_est_data_bias,label=label_list,color=color_list,
-                 align='mid',bins=np.logspace(bin_min,bin_max,10))
-        plt.legend(loc = 'best')
-        plt.xlabel(r'%s [$\mathrm{pA}/\sqrt{\mathrm{Hz}}$]' % (ylabel_summary))
+        plt.figure()
+        bins_hist = np.logspace(bin_min,bin_max,20)
+        hist_mat = np.zeros((len(bias),len(bins_hist)-1))
+        noise_est_median_list = []
+        for i in range(len(bias)):
+            hist_mat[i,:],_ = np.histogram(noise_est_data_bias[i],bins=bins_hist)
+            noise_est_median_list.append(np.median(noise_est_data_bias[i]))
+        X_hist,Y_hist = np.meshgrid(bins_hist,np.arange(len(bias)+1))
+        plt.pcolor(X_hist,Y_hist,hist_mat)
+        cbar = plt.colorbar()
+        cbar.set_label('Number of channels')
         plt.xscale('log')
-        plt.grid()
+        plt.xlabel(r'%s [$\mathrm{pA}/\sqrt{\mathrm{Hz}}$]' % (ylabel_summary))
+        plt.xlim(10**bin_min,10**bin_max)
+        plt.title(basename + ': Band {}, Group {}'.format(band,fig_title_string.strip(',')))
+        ytick_labels = []
+        for b in bias:
+            ytick_labels.append('{}'.format(b))
+        ytick_locs = np.arange(len(bias)) + 0.5
+        plt.yticks(ticks=ytick_locs,labels=ytick_labels)
+        plt.ylabel('Commanded bias voltage [V]')
+        plt.plot(noise_est_median_list,ytick_locs,linestyle='--',marker='o',
+                 color='r',label='Median')
+        plt.legend(loc='center left')
         if show_plot:
             plt.show()
         if save_plot:
-            plot_name = 'noise_vs_bias_band{}_g{}_hist.png'.format(band,file_name_string)
+            plot_name = 'noise_vs_bias_band{}_g{}hist.png'.format(band,file_name_string)
             if data_timestamp is not None:
                 plot_name = '{}_'.format(data_timestamp) + plot_name
             else:
