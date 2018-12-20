@@ -123,7 +123,6 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
         if 'LNA_Vg' in keys:
             self.LNA_Vg=amp_cfg['LNA_Vg']
 
-
         # Flux ramp hardware detail
         flux_ramp_cfg = self.config.get('flux_ramp')
         keys = flux_ramp_cfg.keys()
@@ -146,6 +145,9 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
         for i, k in enumerate(keys):
             val = band_cfg[k]
             self.band_to_chip[i] = np.append([i], val)
+            
+        # channel assignment file
+        self.channel_assignment_files = self.config.get('channel_assignment')
 
         # bias groups available
         self.all_groups = self.config.get('all_bias_groups')
