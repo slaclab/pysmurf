@@ -530,12 +530,12 @@ class SmurfUtilMixin(SmurfBase):
         timestamp2 = np.array([i[keys_dict['rtm_dac_config5']] for i in frames])
 
         print(datafile.replace('.dat','_mask.txt'))
-        mask = self.make_mask_dict(datafile.replace('.dat','_mask.txt'))
+        mask = self.make_mask_lookup(datafile.replace('.dat','_mask.txt'))
 
         return timestamp2, phase, mask
 
 
-    def make_mask_dict(self, mask_file):
+    def make_mask_lookup(self, mask_file):
         """
         """
         mask = np.loadtxt(mask_file)
@@ -1760,3 +1760,59 @@ class SmurfUtilMixin(SmurfBase):
         self.log('Turning off all TES biases')
         for bg in np.arange(8):
             self.set_tes_bias_bipolar(bg, 0)
+
+
+    def mask_num_to_gcp_num(self, mask_num):
+        """
+        Goes from the smurf2mce mask file to a gcp number.
+        Inverse of gcp_num_to_mask_num.
+
+        Args:
+        -----
+        mask_num (int) : The index in the mask file.
+
+        Ret:
+        ----
+        gcp_num (int) : The index of the channel in GCP.
+        """
+        return (mask_num*33)%528+mask_num//16
+
+
+    def gcp_num_to_mask_num(self, gcp_num):
+        """
+        Goes from a GCP number to the smurf2mce index.
+        Inverse of mask_num_to_gcp_num
+
+        Args:
+        ----
+        gcp_num (int) : The gcp index
+
+        Ret:
+        ----
+        mask_num (int) : The index in the mask.
+        """
+        return (gcp_num*16)%528 + gcp_num//33
+
+
+    def smurf_channel_to_gcp_num(self, band, channel, mask_file=None):
+        """
+        """
+        if mask_file is None:
+            mask_file = self.smurf_to_mce_mask_file
+
+        mask = self.make_mask_lookup(mask_file)
+
+        if mask[band, channel] == -1:
+            self.log('Band {} Ch {} not in mask file'.format(band, channel))
+            return None
+
+        return self.mask_num_to_gcp_num(mask[band, channel])
+
+    def gcp_num_to_smurf_channel(self, gcp_num, mask_file=None):
+        """
+        """
+        if mask_file is None:
+            mask_file = self.smurf_to_mce_mask_file
+        mask = np.loadtxt(mask_file)
+
+        return int(mask[gcp_num]//512), int(mask[gcp_num]%512)
