@@ -1880,7 +1880,18 @@ class SmurfUtilMixin(SmurfBase):
         resistance = np.abs(self.R_sh * (1-1/sib))
         siq = (2*sib-1)/(self.R_sh*i_amp) * 1.0E6/1.0E12  # convert to uA/pW
 
-        return bands, channels, resistance, sib, siq
+        ret = {}
+        for b in np.unique(bands):
+            ret[b] = {}
+            idx = np.where(bands == b)[0]
+            for i in idx:
+                c = channels[i]
+                ret[b][c] = {}
+                ret[b][c]['R'] = resistance[i]
+                ret[b][c]['Sib'] = sib[i]
+                ret[b][c]['Siq'] = siq[i]
+        #return bands, channels, resistance, sib, siq
+        return ret
 
     def all_off(self):
         """
