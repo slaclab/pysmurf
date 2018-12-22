@@ -1231,12 +1231,61 @@ class SmurfUtilMixin(SmurfBase):
         self.set_tes_bias_volt(dac_positive, volts_pos, **kwargs)
         self.set_tes_bias_volt(dac_negative, volts_neg, **kwargs)
 
+    def set_tes_bias_bipolar_array(self, volt_array, do_enable=True, **kwargs):
+        """
+        Set TES bipolar values for all DACs at once
+
+        Args:
+        -----
+        volt_array (float array): the TES bias to command in voltage. Should be (8,)
+
+        Opt args:
+        -----
+        do_enable (bool): Set the enable bit. Defaults to True
+        """
+
+        bias_order = self.bias_group_to_pair[:,0]
+        dac_positives = self.bias_group_to_pair[:,1]
+        dac_negatives = self.bias_group_to_pair[:,2]
+
+        n_bias_groups = 8
+
+        # initialize arrays of 0's
+        do_enable_array = np.zeros((32,), dtype=int)
+        bias_volt_array = np.zeros((32,))
+
+        if len(volt_array) != n_bias_groups:
+            self.log("Received the wrong number of biases. Expected " +
+                "n_bias_groups={}".format(n_bias_groups), self.LOG_ERROR)
+        else:
+            for idx in np.arange(n_bias_groups):
+                dac_idx = np.ravel(np.where(bias_order == idx))
+                dac_positive = dac_positives[dac_idx][0] - 1 # freakin Mitch 
+                dac_negative = dac_negatives[dac_idx][0] - 1 # 1 vs 0 indexing
+
+                volts_pos = volt_array[idx] / 2
+                volts_neg = - volt_array[idx] / 2
+
+                if do_enable:
+                    do_enable_array[dac_positive] = 2
+                    do_enable_array[dac_negative] = 2
+
+                bias_volt_array[dac_positive] = volts_pos
+                bias_volt_array[dac_negative] = volts_neg
+
+            if do_enable:
+                self.set_tes_bias_enable_array(do_enable_array, **kwargs)
+
+            self.set_tes_bias_array_volt(bias_volt_array, **kwargs)
+
+
     def set_tes_bias_off(self, **kwargs):
         """
         Turns off all TES biases
         """
-        for dac in np.arange(1,33):
-            self.set_tes_bias_volt(dac, 0, **kwargs)
+
+        bias_array = np.zeros((32,), dtype=int)
+        self.set_tes_bias_array(bias_array, **kwargs)
 
     def tes_bias_dac_ramp(self, dac, volt_min=-9.9, volt_max=9.9, step_size=.01, wait_time=.05):
         """
@@ -1278,6 +1327,40 @@ class SmurfUtilMixin(SmurfBase):
         else:
             return volts_pos - volts_neg
 
+    def get_tes_bias_bipolar_array(self, return_raw=False, **kwargs):
+       """
+       Returns array of bias voltages per bias group in units of volts.
+       Currently hard coded to return the first 8 as (8,) array. I'm sorry -CY
+
+       Opt Args:
+       -----
+       return_raw (bool): Default is False. If True, returns +/- terminal
+           vals as separate arrays (pos, then negative)
+       """
+
+       bias_order = self.bias_group_to_pair[:,0]
+       dac_positives = self.bias_group_to_pair[:,1]
+       dac_negatives = self.bias_group_to_pair[:,2]
+
+       n_bias_groups = 8 # fix this later!
+
+       bias_vals_pos = np.zeros((n_bias_groups,))
+       bias_vals_neg = np.zeros((n_bias_groups,))
+
+       volts_array = self.get_tes_bias_array_volt(**kwargs)
+
+       for idx in np.arange(n_bias_groups):
+           dac_idx = np.ravel(np.where(bias_order == idx))
+           dac_positive = dac_positives[dac_idx][0] - 1
+           dac_negative = dac_negatives[dac_idx][0] - 1
+
+           bias_vals_pos[idx] = volts_array[dac_positive]
+           bias_vals_neg[idx] = volts_array[dac_negative]
+
+       if return_raw:
+           return bias_vals_pos, bias_vals_neg
+       else:
+           return bias_vals_pos - bias_vals_neg
 
     def set_amplifier_bias(self, bias_hemt=None, bias_50k=None, **kwargs):
         """

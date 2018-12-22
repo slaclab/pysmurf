@@ -1773,16 +1773,17 @@ class SmurfCommandMixin(SmurfBase):
         """
 
         val[np.ravel(np.where(val > 2**19-1))] = 2**19-1
-        self.log('Bias too high for some values. Must be <= 2^19 -1. Setting to ' +
+        if len(np.ravel(np.where(val > 2**19-1))) > 0:
+            self.log('Bias too high for some values. Must be <= 2^19 -1. Setting to ' +
             'max value', self.LOG_ERROR)
 
         val[np.ravel(np.where(val < - 2**19))] = -2**19
-        self.log('Bias too low for some values. Must be >= -2^19. Setting to ' +
+        if len(np.ravel(np.where(val < - 2**19))) > 0:
+            self.log('Bias too low for some values. Must be >= -2^19. Setting to ' +
             'min value', self.LOG_ERROR)
-
         self._caput(self.rtm_spi_max_root + self._tes_bias_array, val, **kwargs)
 
-    def get_tes_bias_array(self, val, **kwargs):
+    def get_tes_bias_array(self, **kwargs):
         """
         Get the TES bias for all 32 DACs. Returns in DAC units. 
 
@@ -1816,7 +1817,9 @@ class SmurfCommandMixin(SmurfBase):
         val (float array): TES biases to set for each DAC. Expects np array
           of size (32,) in volts.
         """
-        self.set_tes_bias_array(val/self._bit_to_volt, **kwargs)
+        int_val = np.array(val / self._bit_to_volt, dtype=int)
+
+        self.set_tes_bias_array(int_val, **kwargs)
 
     def get_tes_bias_array_volt(self, **kwargs):
         """
