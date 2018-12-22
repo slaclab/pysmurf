@@ -1498,7 +1498,7 @@ class SmurfUtilMixin(SmurfBase):
         self.log('Done waiting.', self.LOG_USER)
 
 
-    def set_tes_bias_high_current(self, bias_group):
+    def set_tes_bias_high_current(self, bias_group, write_log=False):
         """
         Sets the bias group to high current mode. Note that the bias group
         number is not the same as the relay number. The conversion is
@@ -1521,10 +1521,10 @@ class SmurfUtilMixin(SmurfBase):
                 r = bg
             new_relay = (1 << r) | new_relay
         self.log('New relay {}'.format(bin(new_relay)))
-        self.set_cryo_card_relays(new_relay, write_log=True)
+        self.set_cryo_card_relays(new_relay, write_log=write_log)
         self.get_cryo_card_relays()
 
-    def set_tes_bias_low_current(self, bias_group):
+    def set_tes_bias_low_current(self, bias_group, write_log=False):
         """
         Sets the bias group to low current mode. Note that the bias group
         number is not the same as the relay number. The conversion is
@@ -1548,7 +1548,7 @@ class SmurfUtilMixin(SmurfBase):
             if old_relay & 1 << r != 0:
                 new_relay = new_relay & ~(1 << r)
         self.log('New relay {}'.format(bin(new_relay)))
-        self.set_cryo_card_relays(new_relay, write_log=True)
+        self.set_cryo_card_relays(new_relay, write_log=write_log)
         self.get_cryo_card_relays()
 
     def set_mode_dc(self):
@@ -1744,6 +1744,143 @@ class SmurfUtilMixin(SmurfBase):
             self.log('Reading newly made mask file.')
             self.read_smurf_to_gcp_config()
 
+    def bias_step(self, bias_group, wait_time=.5, step_size=.001, duration=5,
+                  fs=180., start_bias=None, make_plot=False, skip_samp_start=10,
+                  high_current_mode=True, skip_samp_end=10, plot_channels=None):
+        """
+        Toggles the TES bias high and back to its original state. From this, it
+        calculates the electrical responsivity (sib), the optical responsivity (siq),
+        and resistance.
+
+        This is optimized for high_current_mode. For low current mode, you will need
+        to step much slower. Try wait_time=1, step_size=.015, duration=10, 
+        skip_samp_start=50, skip_samp_end=50.
+
+        Note that only the resistance is well defined now because the phase response
+        has an un-set factor of -1. We will need to calibrate this out.
+
+        Args:
+        -----
+        bias_group (int of int array): The bias groups to toggle. The response will
+            return every detector that is on.
+        
+        Opt Args:
+        --------
+        wait_time (float) : The time to wait between steps
+        step_size (float) : The voltage to step up and down in volts (for low
+            current mode).
+        duration (float) : The total time of observation
+        fs (float) : Sample frequency.
+        start_bias (float) : The TES bias to start at. If None, uses the current
+            TES bias.
+        skip_samp_start (int) : The number of samples to skip before calculating
+            a DC level
+        skip_samp_end (int) : The number of samples to skip after calculating a
+            DC level.
+        high_current_mode (bool) : Whether to observe in high or low current mode.
+            Default is True.
+        make_plot (bool) : Whether to make plots. Must set some channels in plot_channels.
+        plot_channels (int array) : The channels to plot.
+
+        Ret:
+        ---
+        bands (int array) : The bands
+        channels (int array) : The channels
+        resistance (float array) : The inferred resistance of the TESs in Ohms
+        sib (float array) : The electrical responsivity. This may be incorrect until
+            we define a phase convention. This is dimensionless.
+        siq (float array) : The power responsivity. This may be incorrect until we
+            define a phase convention. This is in uA/pW
+
+        """
+        if duration < 10* wait_time:
+            self.log('Duration must bee 10x longer than wait_time for high enough' +
+                     ' signal to noise.')
+            return
+
+        bias_group = np.ravel(np.array(bias_group))
+        if start_bias is None:
+            start_bias = np.array([])
+            for bg in bias_group:
+                start_bias = np.append(start_bias, 
+                                       self.get_tes_bias_bipolar(bg))
+        else:
+            start_bias = np.ravel(np.array(start_bias))
+
+        n_step = int(np.floor(duration / wait_time / 2))
+
+        if high_current_mode:
+            self.set_tes_bias_high_current(bias_group)
+
+        filename = self.stream_data_on()
+
+        # Sets TES bias high then low
+        for i in np.arange(n_step):
+            for j, bg in enumerate(bias_group):
+                self.set_tes_bias_bipolar(bg, start_bias[j] + step_size,
+                                          wait_done=False)
+            time.sleep(wait_time)
+            for j, bg in enumerate(bias_group):
+                self.set_tes_bias_bipolar(bg, start_bias[j],
+                                          wait_done=False)
+            time.sleep(wait_time)
+
+        self.stream_data_off()  # record data
+
+        t, d, m = self.read_stream_data(filename)
+        d *= self.pA_per_phi0/(2*np.pi*1.0E6) # Convert to microamps                             
+        i_amp = step_size / self.bias_line_resistance * 1.0E6 # also uA 
+        if high_current_mode:
+            i_amp *= self.high_low_current_ratio
+
+        n_demod = int(np.floor(fs*wait_time))
+        demod = np.append(np.ones(n_demod),-np.ones(n_demod))
+
+        bands, channels = np.where(m!=-1)
+        resp = np.zeros(len(bands))
+        sib = np.zeros(len(bands))*np.nan
+
+        # The vector to multiply by to get the DC offset
+        n_tile = int(duration/wait_time/2)-1
+        print(n_tile)
+        high = np.tile(np.append(np.append(np.nan*np.zeros(skip_samp_start), 
+                                           np.ones(n_demod-skip_samp_start-skip_samp_end)),
+                                 np.nan*np.zeros(skip_samp_end+n_demod)),n_tile)
+        low = np.tile(np.append(np.append(np.nan*np.zeros(n_demod+skip_samp_start), 
+                                          np.ones(n_demod-skip_samp_start-skip_samp_end)),
+                                np.nan*np.zeros(skip_samp_end)),n_tile)
+
+        for i, (b, c) in enumerate(zip(bands, channels)):
+            mm = m[b, c]
+            # Convolve to find the start of the bias step
+            conv = np.convolve(d[mm,:4*n_demod], demod, mode='valid')
+            start_idx = (len(demod) + np.where(conv == np.max(conv))[0][0])%(2*n_demod)
+            x = np.arange(len(low)) + start_idx
+
+            # Calculate high and low state
+            h = np.nanmean(high*d[mm,start_idx:start_idx+len(high)])
+            l = np.nanmean(low*d[mm,start_idx:start_idx+len(low)])
+
+            resp[i] = h-l
+            sib[i] = resp[i] / i_amp
+
+            if make_plot and c in plot_channels:
+                import matplotlib.pyplot as plt
+                plt.figure()
+                plt.plot(conv)
+
+                plt.figure()
+                plt.plot(d[mm])
+                plt.axvline(start_idx, color='k', linestyle=':')
+                plt.plot(x, h*high)
+                plt.plot(x, l*low)
+                plt.title(resp[i])
+                plt.show()
+
+        resistance = np.abs(self.R_sh * (1-1/sib))
+        siq = (2*sib-1)/(self.R_sh*i_amp) * 1.0E6/1.0E12  # convert to uA/pW
+
+        return bands, channels, resistance, sib, siq
 
     def all_off(self):
         """
@@ -1816,3 +1953,4 @@ class SmurfUtilMixin(SmurfBase):
         mask = np.loadtxt(mask_file)
 
         return int(mask[gcp_num]//512), int(mask[gcp_num]%512)
+
