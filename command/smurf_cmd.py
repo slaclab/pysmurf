@@ -158,12 +158,6 @@ if __name__ == "__main__":
         default=.25, help='The time in seconds to wait in the high current mode')
     parser.add_argument('--iv-bias-step', action='store', type=float, default=.1,
         help='The bias step amplitude in units of volts.')
-    parser.add_argument('--iv-bias-high-current', action='store', type=float,
-        default=None, help='The TES high bias in units of uA.')
-    parser.add_argument('--iv-bias-low-current', action='store', type=float,
-        default=None, help='The TES low bias in units of uA.')
-    parser.add_argument('--iv-bias-step-current', action='store', type=float,
-        default=None, help='The step in units of uA')
 
     # Tuning
     parser.add_argument('--tune', action='store_true', default=False,
@@ -234,51 +228,37 @@ if __name__ == "__main__":
 
     if args.tes_bias:
         bias_voltage = args.bias_voltage
-        if args.bias_current > 0:
-            bias_voltage = args.bias_current * 1.0E-6 * \
-                S.bias_line_resistance
         if args.bias_group == -1:
-            for b in np.arange(8):
-                S.set_tes_bias_bipolar(b, bias_voltage, 
-                    write_log=True)
+            bias_voltage_array = np.zeros((8,)) # hard-coded number of bias groups
+            bias_voltage_array[S.all_groups] = bias_voltage # all_groups from cfg
         else:
             S.set_tes_bias_bipolar(args.bias_group, bias_voltage, 
                 write_log=True)
 
     if args.tes_bump:
-        if args.bias_group < 0:
-            S.overbias_tes_all(overbias_wait=args.tes_bump_wait, bias_groups=S.all_groups)
+
+        if S.high_current_mode_bool: # best thing I could think of, sorry -CY
+            tes_bias=2. # drop down to 2V to wait
         else:
-            S.overbias_tes(args.bias_group, overbias_wait=args.tes_bump_wait)
+            tes_bias=19.9 # factor of 10 from above
+
+        if args.bias_group < 0:
+            S.overbias_tes_all(overbias_wait=args.tes_bump_wait, bias_groups=S.all_groups, 
+                high_current_mode=S.high_current_mode_bool, tes_bias=tes_bias)
+        else:
+            S.overbias_tes(args.bias_group, overbias_wait=args.tes_bump_wait, 
+                high_current_mode=S.high_current_mode_bool, tes_bias=tes_bias)
 
     if args.slow_iv:
-        if args.iv_band < 0:
-            S.log('Must input a valid band number using --iv-band.' + \
-                ' Arbitrarily setting to 2')
-            args.iv_band = 2
-        
         iv_bias_high = args.iv_bias_high
         iv_bias_low = args.iv_bias_low
         iv_bias_step = args.iv_bias_step
 
-        if args.iv_bias_high_current is not None and \
-            args.iv_bias_low_current is not None and \
-            args.iv_bias_step_current is not None:
-
-
-            S.log('IV input in current mode.')
-
-            # Convert from current to voltage units
-            iv_bias_high = args.iv_bias_high_current * 1.0E-6 * \
-                    S.bias_line_resistance
-            iv_bias_low = args.iv_bias_low_current * 1.0E-6 * \
-                    S.bias_line_resistance
-            iv_bias_step = args.iv_bias_step_current * 1.0E-6 * \
-                    S.bias_line_resistance
-        
         S.log('bias high {}'.format(iv_bias_high))
         S.log('bias low {}'.format(iv_bias_low))
         S.log('bias step {}'.format(iv_bias_step))
+        # 20181223: CY took out IV biases in terms of current. Revert if you 
+        #  decide you want it back
 
         if iv_bias_high > 19.9:
             iv_bias_high = 19.9
@@ -290,13 +270,15 @@ if __name__ == "__main__":
             S.slow_iv_all(bias_groups=S.all_groups, wait_time=args.iv_wait_time,
                 bias_high=iv_bias_high, bias_low = iv_bias_low,
                 high_current_wait=args.iv_high_current_wait,
-                bias_step=args.iv_bias_step)
+                high_current_mode=S.high_current_mode_bool,
+                bias_step=args.iv_bias_step, make_plot=False)
         else: # individual bias group
-            S.slow_iv(args.iv_band, args.bias_group, 
+            S.slow_iv_all(bias_groups=np.array([args.bias_group]), 
                 wait_time=args.iv_wait_time, bias_high=iv_bias_high, 
                 bias_low=iv_bias_low, 
                 high_current_wait=args.iv_high_current_wait, 
-                bias_step=iv_bias_step)
+                high_current_mode=S.high_current_mode_bool,
+                bias_step=iv_bias_step, make_plot=False)
 
 
     if args.tune:
