@@ -193,9 +193,16 @@ class SmurfCommandMixin(SmurfBase):
             sg = SyncGroup([monitorPV])
             sg.wait()
             vals = sg.get_values()
-            self.log('parallel etaScan complete ; etaScanInProgress = {}'.format(vals[monitorPV]), self.LOG_USER)        
+            self.log('parallel etaScan complete ; etaScanInProgress = {}'.format(vals[monitorPV]), 
+                     self.LOG_USER)
 
-
+    _eta_scan_del_f = 'etaScanDelF'
+    def set_eta_scan_del_f(self, band, val, **kwargs):
+        """
+        """
+        self._caput(self._cryo_root(band) + self._eta_scan_del_f, val,
+                    **kwargs)
+        
     _eta_scan_freqs = 'etaScanFreqs'
     def set_eta_scan_freq(self, band, val, **kwargs):
         '''
@@ -1670,6 +1677,27 @@ class SmurfCommandMixin(SmurfBase):
         return self._caget(self.rtm_spi_max_root + self._tes_bias.format(daq), 
             **kwargs)
 
+    _tes_bias_enable_array = 'TesBiasDacCtrlRegChArray'
+    def set_tes_bias_enable_array(self, val, **kwargs):
+        """
+        Set the TES bias DAC enable bits all at once
+
+        Args: 
+          val (int array): length 32, addresses the DACs in DAC ordering
+        """
+
+        self._caput(self.rtm_spi_max_root + self._tes_bias_enable_array, val, 
+            **kwargs)
+
+    def get_tes_bias_enable_array(self, **kwargs):
+        """
+        Get the TES bias DAC enable bits all at once
+
+        Returns a numpy array of size (32,) for each of the DACs
+        """
+
+        return self._caget(self.rtm_spi_max_root + self._tes_bias_enable_array, 
+            **kwargs)
 
     _bit_to_V = 2.035/float(2**19)
     _dac_num_50k = 2
@@ -1707,7 +1735,7 @@ class SmurfCommandMixin(SmurfBase):
 
         Args:
         -----
-        val (int) : the TES bias current in unit
+        val (int) : the TES bias current in DAC units
         """
 
         if val > 2**19-1:
@@ -1733,6 +1761,39 @@ class SmurfCommandMixin(SmurfBase):
         return self._caget(self.rtm_spi_max_root + self._tes_bias.format(daq), 
             **kwargs)
 
+    _tes_bias_array = 'TesBiasDacDataRegChArray'
+    def set_tes_bias_array(self, val, **kwargs):
+        """
+        Set the TES bias DACs. Must give all 32 values.
+
+        Args:
+        -----
+        val (int array): TES biases to set for each DAC. Expects np array of size
+          (32,) in DAC units. 
+        """
+
+        val[np.ravel(np.where(val > 2**19-1))] = 2**19-1
+        self.log('Bias too high for some values. Must be <= 2^19 -1. Setting to ' +
+            'max value', self.LOG_ERROR)
+
+        val[np.ravel(np.where(val < - 2**19))] = -2**19
+        self.log('Bias too low for some values. Must be >= -2^19. Setting to ' +
+            'min value', self.LOG_ERROR)
+
+        self._caput(self.rtm_spi_max_root + self._tes_bias_array, val, **kwargs)
+
+    def get_tes_bias_array(self, val, **kwargs):
+        """
+        Get the TES bias for all 32 DACs. Returns in DAC units. 
+
+        Returns:
+        -----
+        bias_array (int array): Size (32,) array of DAC values, in DAC units
+        """
+
+        return self._caget(self.rtm_spi_max_root + self._tes_bias_array, 
+            **kwargs)
+
     _bit_to_volt = 10./2**19
     def set_tes_bias_volt(self, dac_num, val, **kwargs):
         """
@@ -1744,6 +1805,28 @@ class SmurfCommandMixin(SmurfBase):
         """
         """
         return self._bit_to_volt * self.get_tes_bias(dac_num, **kwargs)
+
+    def set_tes_bias_array_volt(self, val, **kwargs):
+        """
+        Set TES bias DACs. Must give 32 values. Converted to volts based on
+          DAC full scale.
+
+        Args:
+        -----
+        val (float array): TES biases to set for each DAC. Expects np array
+          of size (32,) in volts.
+        """
+        self.set_tes_bias_array(val/self._bit_to_volt, **kwargs)
+
+    def get_tes_bias_array_volt(self, **kwargs):
+        """
+        Get TES bias DAC settings in volt units. 
+
+        Returns:
+        -----
+        bias_array (float array): Size (32,) array of DAC values in volts
+        """
+        return self._bit_to_volt * self.get_tes_bias_array(**kwargs)
 
     def flux_ramp_on(self, **kwargs):
         '''
