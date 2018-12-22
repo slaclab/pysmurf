@@ -58,9 +58,10 @@ class SmurfNoiseMixin(SmurfBase):
         phase *= self.pA_per_phi0/(2.*np.pi) # phase converted to pA
 
         if fs is None:
-            self.log('No flux ramp freq given. Loading current flux ramp'+
-                'frequency', self.LOG_USER)
-            fs = self.get_flux_ramp_freq()*1.0E3
+            #self.log('No flux ramp freq given. Loading current flux ramp'+
+            #    'frequency', self.LOG_USER)
+            #fs = self.get_flux_ramp_freq()*1.0E3
+            fs - self.fs
 
         self.log('Plotting channels {}'.format(channel), self.LOG_USER)
 
@@ -227,7 +228,7 @@ class SmurfNoiseMixin(SmurfBase):
 
 
     def noise_vs_bias(self, band, bias_group,bias_high=6, bias_low=3, step_size=.1,
-        bias=None, high_current_mode=False,
+        bias=None, high_current_mode=False, overbias_voltage=19.9,
         meas_time=30., analyze=False, channel=None, nperseg=2**13,
         detrend='constant', fs=None,show_plot = False,cool_wait = 30.,gcp_mode = True,
         psd_ylim = (10.,1000.)):
@@ -249,6 +250,7 @@ class SmurfNoiseMixin(SmurfBase):
         bias_high (float): The bias voltage to start at
         bias_low (float): The bias votlage to end at
         step_size (float): The step in voltage.
+        overbias_voltage (float): voltage to set the overbias
         meas_time (float): The amount of time to take data at each TES bias.
         analyze (bool): Whether to analyze the data
         channel (int): The channel to run analysis on. Note that data is taken
@@ -268,7 +270,7 @@ class SmurfNoiseMixin(SmurfBase):
         self.noise_vs(band=band,bias_group=bias_group,var='bias',var_range=bias,
                  meas_time=meas_time, analyze=analyze, channel=channel, nperseg=nperseg,
                  detrend=detrend, fs=fs, show_plot=show_plot,
-                 gcp_mode=gcp_mode, psd_ylim=psd_ylim,
+                 gcp_mode=gcp_mode, psd_ylim=psd_ylim, overbias_voltage=overbias_voltage,
                  cool_wait=cool_wait, high_current_mode=high_current_mode)
 
     def noise_vs_amplitude(self, band, amplitude_high=11, amplitude_low=9, step_size=1,
@@ -297,6 +299,9 @@ class SmurfNoiseMixin(SmurfBase):
                  detrend='constant', fs=None, show_plot=False,
                  gcp_mode=True, psd_ylim=None,
                  **kwargs):
+
+        if fs is None:
+            fs = self.fs
 
         # aliases
         biasaliases=['bias']
@@ -332,11 +337,13 @@ class SmurfNoiseMixin(SmurfBase):
                 if type(kwargs['bias_group']) is int: # only received one group
                     self.overbias_tes(kwargs['bias_group'], tes_bias=v, 
                                   high_current_mode=kwargs['high_current_mode'],
-                                  cool_wait=kwargs['cool_wait'])
+                                  cool_wait=kwargs['cool_wait'],
+                                  overbias_voltage=kwargs['overbias_voltage'])
                 else:
                     self.overbias_tes_all(kwargs['bias_group'], tes_bias=v,
                                   high_current_mode=kwargs['high_current_mode'],
-                                  cool_wait=kwargs['cool_wait'])
+                                  cool_wait=kwargs['cool_wait'], 
+                                  overbias_voltage=kwargs['overbias_voltage'])
 
             if var in amplitudealiases:
                 self.log('Tone amplitude {}'.format(v))
@@ -456,9 +463,10 @@ class SmurfNoiseMixin(SmurfBase):
             channel = self.which_on(band)
 
         if fs is None:
-            self.log('No flux ramp freq given. Loading current flux ramp' +
-                'frequency', self.LOG_USER)
-            fs = self.get_flux_ramp_freq()*1.0E3
+            #self.log('No flux ramp freq given. Loading current flux ramp' +
+            #    'frequency', self.LOG_USER)
+            #fs = self.get_flux_ramp_freq()*1.0E3
+            fs = self.fs
 
         if isinstance(bias,str):
             self.log('Biases being read from file: %s' % (bias))
@@ -719,3 +727,53 @@ class SmurfNoiseMixin(SmurfBase):
         Pxx_fit = noise_model(f_fit,*popt)
 
         return popt,pcov,f_fit,Pxx_fit
+
+    def P_singleMode(self,f_center,bw,T):
+        '''
+        Optical power in a single mode in a bandwidth bw centered on frequency f_center from an optical load of temperature T.
+        SI units.
+        '''
+        h=6.63e-34
+        kB=1.38e-23
+        df=bw/1000.
+        f_array = np.arange(f_center-bw/2.,f_center+bw/2.+df,df)
+        P = 0.
+        for i in range(len(f_array)):
+            f=f_array[i]
+            P += df*h*f/(np.exp(h*f/(kB*T))-1.)
+        return P
+
+    def dPdT_singleMode(self,f_center,bw,T):
+        '''
+        Change in optical power per change in temperature (dP/dT) in a single mode in a bandwidth bw centered on frequency f_center from an optical load of temperature T.
+        SI units.
+        '''
+        dT = T/1e6
+        dP = self.P_singleMode(f_center,bw,T+dT) - self.P_singleMode(f_center,bw,T)
+        return dP/dT
+
+    def NET_CMB(self,NEI,V_b,R_tes,opt_eff,f_center=150e9,bw=32e9,R_sh=None,high_current_mode=False):
+        '''
+        Converts current spectral noise density to NET in uK rt(s). Assumes NEI is white-noise level.
+
+        NEI (float): current spectral density in pA/rtHz
+        V_b (float): commanded bias voltage in V
+        R_tes (float): resistance of TES at bias point in Ohm
+        opt_eff (float): optical efficiency (in the range 0-1)
+        f_center (float): center optical frequency of detector in Hz, e.g., 150 GHz for E4c
+        bw (float): effective optical bandwidth of detector in Hz, e.g., 32 GHz for E4c
+        R_sh (float): shunt resistance in Ohm; defaults to stored config figure
+        high_current_mode (bool): whether the bias voltage was set in high-current mode
+        '''
+        NEI *= 1e-12 # bring NEI to SI units, i.e., A/rt(Hz)
+        if high_current_mode:
+            V_b *= self.high_low_current_ratio
+        I_b = V_b/self.bias_line_resistance # bias current running through shunt+TES network
+        if R_sh is None:
+            R_sh = self.R_sh
+        V_tes = I_b*R_sh*R_tes/(R_sh+R_tes) # voltage across TES
+        NEP = V_tes*NEI # power spectral density
+        T_CMB = 2.7
+        dPdT = opt_eff*self.dPdT_singleMode(f_center,bw,T_CMB)
+        NET_SI = NEP/(dPdT*np.sqrt(2.)) # NET in SI units, i.e., K rt(s)
+        return NET_SI/1e-6 # NET in uK rt(s)

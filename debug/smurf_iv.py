@@ -129,7 +129,7 @@ class SmurfIVMixin(SmurfBase):
             overbias = False
 
         if bias is None:
-            bias = np.arange(bias_high, bias_low, -bias_step)
+            bias = np.arange(bias_high, bias_low-bias_step, -bias_step)
             
         overbias_wait = 2.
         if overbias:
@@ -156,13 +156,13 @@ class SmurfIVMixin(SmurfBase):
         #bias_groups = np.arange(8)
         for g in bias_groups:
             self.set_tes_bias_bipolar(g, bias[0])
-            time.sleep(wait_time/ 10) # divide everything by 10 to account for looping
+            time.sleep(wait_time/ len(bias_groups)) # divide everything by 10 to account for looping
 
         for b in bias:
             for g in bias_groups:
                 self.log('Bias at {:4.3f}'.format(b))
                 self.set_tes_bias_bipolar(g, b)  
-                time.sleep(wait_time/10) # slightly more than factor of 8 from loops
+                time.sleep(wait_time/len(bias_groups)) # slightly more than factor of 8 from loops
 
         self.stream_data_off(gcp_mode=gcp_mode)
         self.log('Done with TES bias ramp', self.LOG_USER)
@@ -172,7 +172,7 @@ class SmurfIVMixin(SmurfBase):
         self.set_lms_gain(3, lms_gain3)
 
         basename, _ = os.path.splitext(os.path.basename(datafile))
-        np.save(os.path.join(basename + '_iv_bias_all.txt'), bias)
+        np.save(os.path.join(self.output_dir, basename + '_iv_bias_all'), bias)
 
         iv_raw_data = {}
         iv_raw_data['bias'] = bias
@@ -196,7 +196,7 @@ class SmurfIVMixin(SmurfBase):
     def analyze_slow_iv_from_file(self, fn_iv_raw_data, make_plot=True,
         show_plot=False, save_plot=True, R_sh=None, high_current_mode=False,
         rn_accept_min=1e-3, rn_accept_max=1., phase_excursion_min=3.,
-        grid_on=False, gcp_mode=True,R_op_target=0.03):
+        grid_on=False, gcp_mode=True,R_op_target=0.03,chs=None):
         """
         phase_excursion: abs(max - min) of phase in radians
         """
@@ -209,7 +209,7 @@ class SmurfIVMixin(SmurfBase):
         #channels = iv_raw_data['channels']
         datafile = iv_raw_data['datafile']
         
-        mask = self.make_mask_dict(datafile.replace('.dat','_mask.txt'))
+        mask = self.make_mask_lookup(datafile.replace('.dat','_mask.txt'))
         band, chans = np.where(mask != -1)
 
         basename = iv_raw_data['basename']
@@ -229,6 +229,9 @@ class SmurfIVMixin(SmurfBase):
         v_bias_target_list = []
         p_trans_list = []
         for c, (b, ch) in enumerate(zip(band,chans)):
+            if (chs is not None) and (ch not in chs):
+                continue
+
             self.log('Analyzing band {} channel {}'.format(b,ch))
         
             # ch_idx = np.where(mask == 512*band + ch)[0][0]
@@ -467,6 +470,10 @@ class SmurfIVMixin(SmurfBase):
         i_op_target = i_bias[i_R_op]
         v_bias_target = v_bias[i_R_op]
         v_tes_target = v_tes[i_R_op]
+        if found_Rmin and found_Rmax:
+            p_trans_median = np.median(p_tes[i_Rmin:i_Rmax])
+        else:
+            p_trans_median = None
 
         if make_plot:
             fig, ax = plt.subplots(2, sharex=True)
@@ -559,37 +566,34 @@ class SmurfIVMixin(SmurfBase):
                 plt.close()
 
 
-        fig_pr,ax_pr = plt.subplots(1,sharex=True)
-        ax_pr.set_xlabel(r'$R_\mathrm{TES}$ [$\mathrm{m}\Omega$]')
-        ax_pr.set_xlim(0.,1.05*R_n/1e-3)
-        ax_pr.set_ylabel(r'$P_\mathrm{TES}$ [pW]')
-        ax_pr.set_yscale('log')
-        if found_Rmin and found_Rmax:
-            p_trans_median = np.median(p_tes[i_Rmin:i_Rmax])
-            ax_pr.axvspan(R_trans_min/1e-3,R_trans_max/1e-3, color='k', alpha=.15)
-            label = r'Median electrical power between $%.2f R_N$ and $%.2f R_N$: %.1f pW' \
-                % (R_frac_min,R_frac_max,p_trans_median)
-            ax_pr.axhline(y=p_trans_median, linestyle=':', label=label,
-                color='r')
-        else:
-            p_trans_median = None
+            fig_pr,ax_pr = plt.subplots(1,sharex=True)
+            ax_pr.set_xlabel(r'$R_\mathrm{TES}$ [$\mathrm{m}\Omega$]')
+            ax_pr.set_xlim(0.,1.05*R_n/1e-3)
+            ax_pr.set_ylabel(r'$P_\mathrm{TES}$ [pW]')
+            ax_pr.set_yscale('log')
+            if found_Rmin and found_Rmax:
+                ax_pr.axvspan(R_trans_min/1e-3,R_trans_max/1e-3, color='k', alpha=.15)
+                label = r'Median electrical power between $%.2f R_N$ and $%.2f R_N$: %.1f pW' \
+                    % (R_frac_min,R_frac_max,p_trans_median)
+                ax_pr.axhline(y=p_trans_median, linestyle=':', label=label,
+                              color='r')
 
-        ax_pr.plot(R/1e-3,p_tes)
-        ax_pr.legend(loc='best')
-        fig_pr.suptitle(title)
-        if grid_on:
-            ax_pr.grid(which='major')
-            ax_pr.grid(which='minor', linestyle='--')
-            ax_pr.minorticks_on()
-        if save_plot:
-            plot_name_pr = plot_name.replace('IV_curve','PR_curve')
-            plot_filename_pr = os.path.join(plot_dir, plot_name_pr)
-            self.log('Saving PR plot to: {}'.format(plot_filename_pr))
-            plt.savefig(plot_filename_pr,bbox_inches='tight', dpi=300)
-        if show_plot:
-            plt.show()
-        else:
-            plt.close()
+            ax_pr.plot(R/1e-3,p_tes,'.')
+            ax_pr.legend(loc='best')
+            fig_pr.suptitle(title)
+            if grid_on:
+                ax_pr.grid(which='major')
+                ax_pr.grid(which='minor', linestyle='--')
+                ax_pr.minorticks_on()
+            if save_plot:
+                plot_name_pr = plot_name.replace('IV_curve','PR_curve')
+                plot_filename_pr = os.path.join(plot_dir, plot_name_pr)
+                self.log('Saving PR plot to: {}'.format(plot_filename_pr))
+                plt.savefig(plot_filename_pr,bbox_inches='tight', dpi=300)
+            if show_plot:
+                plt.show()
+            else:
+                plt.close()
 
         return R, R_n, np.array([sc_idx, nb_idx]), p_tes, p_trans_median, v_bias_target
 
@@ -691,9 +695,9 @@ class SmurfIVMixin(SmurfBase):
         basename_hot = ivs_raw_hot['basename']
         basename_cold = ivs_raw_cold['basename']
 
-        band = ivs_raw_hot['band']
-        assert ivs_raw_cold['band'] == band, \
-            'Files must contain IVs from the same band'
+        #band = ivs_raw_hot['band']
+        #assert ivs_raw_cold['band'] == band, \
+        #    'Files must contain IVs from the same band'
         group = ivs_raw_hot['bias group']
         assert ivs_raw_cold['bias group'], \
             'Files must contain IVs from the same bias group'
@@ -724,6 +728,7 @@ class SmurfIVMixin(SmurfBase):
                 print('Missing in-transition electrical powers for Ch. %i' % (ch))
                 continue
             dPdT = (Ptrans_cold - Ptrans_hot)/dT
+            self.log('Group {}, Ch {:03}: dP/dT = {:.3f} pW/K'.format(group, ch, dPdT))
             if dPdT_lim is not None:
                 if dPdT >= dPdT_lim[0] and dPdT <= dPdT_lim[1]:
                     dPdT_list.append(dPdT)
@@ -731,7 +736,7 @@ class SmurfIVMixin(SmurfBase):
                     n_outliers += 1
             else:
                 dPdT_list.append(dPdT)
-                
+
             fig_pr,ax_pr = plt.subplots(1,sharex=True)
             ax_pr.set_xlabel(r'$R_\mathrm{TES}$ [$\Omega$]')
             ax_pr.set_ylabel(r'$P_\mathrm{TES}$ [pW]')
@@ -742,12 +747,12 @@ class SmurfIVMixin(SmurfBase):
             ax_pr.plot(R_hot,P_hot,label=label_hot,color='b')
             ax_pr.plot(R_cold,P_cold,label=label_cold,color='r')
             ax_pr.legend(loc='best')
-            fig_pr.suptitle('Band {}, Group {}, Ch {:03}: dP/dT = {:.3f} pW/K)'.format(band,group, ch, dPdT))
+            fig_pr.suptitle('Group {}, Ch {:03}: dP/dT = {:.3f} pW/K'.format(group, ch, dPdT))
             ax_pr.grid()
             
-            plot_name = basename_hot + '_' + basename_cold + '_optEff_b{}_g{}_ch{:03}.png'.format(band, group, ch)
+            plot_name = basename_hot + '_' + basename_cold + '_optEff_g{}_ch{:03}.png'.format(group, ch)
             plot_filename = os.path.join(plot_dir, plot_name)
-            self.log('Saving optical-efficiency plot to:{}'.format(plot_filename))
+            self.log('Saving optical-efficiency plot to {}'.format(plot_filename))
             plt.savefig(plot_filename,bbox_inches='tight', dpi=300)
             plt.close()
 
@@ -755,10 +760,11 @@ class SmurfIVMixin(SmurfBase):
         plt.hist(dPdT_list,edgecolor='k')
         plt.xlabel('dP/dT [pW/K]')
         plt.grid()
-        plt.title('Band {}, Group {} ({} outliers)'.format(band,group,n_outliers))
-        plot_name = basename_hot + '_' + basename_cold + '_dPdT_hist_b{}_g{}.png'.format(band,group)
+        dPdT_median = np.median(dPdT_list)
+        plt.title('Group {}, median = {:.3f} pW/K ({} outliers not plotted)'.format(group,dPdT_median,n_outliers))
+        plot_name = basename_hot + '_' + basename_cold + '_dPdT_hist_g{}.png'.format(group)
         hist_filename = os.path.join(plot_dir,plot_name)
-        self.log('Saving optical-efficiency histogram to:{}'.format(hist_filename))
+        self.log('Saving optical-efficiency histogram to {}'.format(hist_filename))
         plt.savefig(hist_filename,bbox_inches='tight',dpi=300)
         plt.close()
 
