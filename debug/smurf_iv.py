@@ -102,7 +102,7 @@ class SmurfIVMixin(SmurfBase):
             rn_accept_max=rn_accept_max, gcp_mode=gcp_mode,grid_on=grid_on,
             phase_excursion_min=phase_excursion_min)
 
-    def slow_iv_all(self, bias_groups=np.arange(8), wait_time=.1, bias=None, bias_high=19.9, gcp_mode=True, 
+    def slow_iv_all(self, self.all_groups, wait_time=.1, bias=None, bias_high=19.9, gcp_mode=True, 
         bias_low=0, bias_step=.1, show_plot=False, high_current_wait=1., cool_wait=30,
         make_plot=True, save_plot=True, channels=None, high_current_mode=False,
         rn_accept_min=1e-3, rn_accept_max=1., overbias_voltage=19.9, grid_on=True, phase_excursion_min=3.):
@@ -114,7 +114,7 @@ class SmurfIVMixin(SmurfBase):
         Opt Args:
         ---------
         bias_groups (np array): which bias groups to take the IV on. defaults
-            to all (0..7)
+            to the groups in the config file
         wait_time (float): The amount of time between changing TES biases in 
             seconds. Default .1 sec.
         bias (float array): A float array of bias values. Must go high to low.
@@ -198,7 +198,31 @@ class SmurfIVMixin(SmurfBase):
         rn_accept_min=1e-3, rn_accept_max=1., phase_excursion_min=3.,
         grid_on=False, gcp_mode=True,R_op_target=0.03,chs=None):
         """
-        phase_excursion: abs(max - min) of phase in radians
+        Function to analyze a load curve from its raw file. Can be used to 
+          analyze IV's/generate plots separately from issuing commands.
+
+        Args:
+        fn_iv_raw_data (str): *_iv_raw_data.npy file to analyze
+
+        Opt Args:
+        make_plot (bool): Defaults True. Usually this is the slowest part.
+        show_plot (bool): Defaults False.
+        save_plot (bool): Defaults True.
+        high_current_mode (bool): Whether to perform analysis assuming 
+          commanded TES biases (recorded in DAC voltage outputs) were in 
+          high current mode. Defaults False.
+        rn_accept_min (float): minimum accepted R_normal in fits. Defaults 1mOhm. 
+        rn_accept_max (float): maximum accepted R_normal in fits. Defaults 1Ohm. 
+        phase_excursion_min (float): abs(max - min) of phase in radians. Analysis 
+          ignores any channels without this phase excursion. Default 3.
+        grid_on (bool): Whether to draw the grid on the PR plot. Defaults False.
+        gcp_mode (bool): Whether data was streamed to file in GCP mode. 
+          Defaults true.
+        R_op_target (float): Target operating resistance. Function will 
+          generate a histogram indicating bias voltage needed to achieve 
+          this value. 
+        chs (int array): Which channels to analyze. Defaults to all 
+          the channels that are on and exceed phase_excursion_min
         """
         self.log('Analyzing from file: {}'.format(fn_iv_raw_data))
 
@@ -625,15 +649,17 @@ class SmurfIVMixin(SmurfBase):
            have TESs.
         """
         if make_plot:
-            import matplotlib.pyplot as plot
+            import matplotlib.pyplot as plt
+
+        self.flux_ramp_off()
 
         f, d = self.full_band_resp(band)
         
-        ds = np.zeros(len(bias), len(d), dtype=complex)
+        ds = np.zeros((len(bias), len(d)), dtype=complex)
 
         # Find resonators at different TES biases
         for i, b in enumerate(bias):
-            self.set_tes_bipolar(bias_group, b, wait_after=.1)
+            self.set_tes_bias_bipolar(bias_group, b, wait_after=.1)
             _, ds[i] = self.full_band_resp(band)
 
         # Find resonator peaks
@@ -682,6 +708,21 @@ class SmurfIVMixin(SmurfBase):
     def estimate_opt_eff(self, iv_fn_hot, iv_fn_cold,t_hot=293.,t_cold=77.,
         channels = None, dPdT_lim=(0.,0.5)):
         """
+        Estimate optical efficiency between two sets of load curves. Returns 
+          per-channel plots and a histogram.
+
+        Args:
+        iv_fn_hot (str): timestamp/filename of load curve taken at higher temp
+        iv_fn_cold (str): timestamp/filename of load curve taken at cooler temp
+
+        Opt Args:
+        t_hot (float): temperature in K of hotter load curve. Defaults to 293.
+        t_cold (float): temperature in K of cooler load curve. Defaults to 77.
+        channels (int array): which channels to analyze. Defaults to the ones 
+          populated in the colder load curve
+        dPdT_lim(len 2 tuple): min, max allowed values for dPdT. If calculated
+          val is outside this range, channel is excluded from histogram and 
+          added to outliers. Defaults to min=0pW/K, max=0.5pW/K.
         """
         ivs_hot = np.load(iv_fn_hot).item()
         ivs_cold = np.load(iv_fn_cold).item()
