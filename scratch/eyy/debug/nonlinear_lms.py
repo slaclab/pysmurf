@@ -10,28 +10,62 @@ S = pysmurf.SmurfControl(setup=False,
     make_logfile=False)
 
 savedir = '/home/cryo/ey/nonlinear_lms'
-bias_vals = np.arange(5, 1.9, -.1)
-lms_freqs = np.arange(10000,13501,500)
+bias_vals = np.arange(5, 1.0, -.025)
+lms_freqs = np.arange(12200, 12801, 50)
+lms_freqs_tmp = np.arange(12250, 12601, 50)
+bias_line_resistance = S.bias_line_resistance
 
-def plot_sib():
-    s = np.zeros((len(lms_freqs), len(bias_vals), 125))
-    for i, lms in enumerate(lms_freqs):
+
+def plot_sib(channels=None, show_plot=True, rs=.003):
+    if show_plot:
+        plt.ion()
+    else:
+        plt.ioff()
+    s = np.zeros((len(lms_freqs_tmp), len(bias_vals), 123))
+    for i, lms in enumerate(lms_freqs_tmp):
         s[i] = np.load(os.path.join(savedir, 'sibs_{}.npy'.format(lms)))
 
-    cm = plt.get_cmap('viridis')
-    for c in np.arange(125):
-        plt.figure()
-        for i, l in enumerate(lms_freqs):
-            color = cm(i/len(lms_freqs))
-            plt.plot(bias_vals, s[i,:,c], color=color, label='lms {}'.format(l))
+    if channels is None:
+        channels = np.arange(123)
+    else:
+        channels = np.ravel(np.array(channels))
 
-        plt.legend()
-        plt.xlabel('Bias Voltage [V]')
-        plt.ylabel(r'$S_{IB}$')
-        plt.title('{:03}'.format(c))
-        plt.savefig(os.path.join(savedir, 'S_vs_lms{:03}'.format(c)))
-        plt.close()
+    for c in channels:
+        print(s[0,:5,c])
+        if np.median(s[0,:5,c]) > 0 :
+            s[:,:,c] *= -1
+
+    r = np.abs(rs * (1-1./s))
+    siq = (2*s-1)/(rs*np.atleast_3d(bias_vals/bias_line_resistance)) * 1.0E6/1.0E12
+
+    cm = plt.get_cmap('viridis')
     
+
+
+    for c in channels:
+        fig, ax = plt.subplots(3, figsize=(5,8), sharex=True)
+        for i, l in enumerate(lms_freqs_tmp):
+            color = cm(i/len(lms_freqs_tmp))
+            ax[0].plot(bias_vals, s[i,:,c], color=color, label='lms {}'.format(l))
+            ax[1].plot(bias_vals, 1.0E3*r[i,:,c], color=color, label='lms {}'.format(l))
+            ax[2].plot(bias_vals, siq[i,:,c], color=color)
+
+        ax[0].legend()
+        ax[2].set_xlabel('Bias Voltage [V]')
+        ax[0].set_ylabel(r'$S_{IB}$')
+        ax[1].set_ylabel(r'$R$' + ' ' + '$[m \Omega]$')
+        ax[2].set_ylabel(r'$S_{IQ}$' + ' ' + '$[\mu A/pW]$')
+        fig.suptitle('{:03}'.format(c))
+
+        ax[0].set_ylim((-1.2, 1.2))
+        ax[1].set_ylim((0,75))
+
+        plt.savefig(os.path.join(savedir, 'S_vs_lms{:03}'.format(c)))
+        if not show_plot:
+            plt.close()
+    
+
+
 
 def test(S):    
     n_bias = len(bias_vals)
@@ -51,7 +85,7 @@ def test(S):
         
 
 
-def get_sib(S, bias_group, wait_time=1, step_size=.02, duration=10, fs=180,
+def get_sib(S, bias_group, wait_time=1, step_size=.015, duration=10, fs=180,
             start_bias=None, make_plot=False, skip_samp_start=50, skip_samp_end=10):
     bias_group = np.ravel(np.array(bias_group))
     if start_bias is None:
