@@ -178,6 +178,9 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
         # also the inverse of the in-line resistance for the bias lines.
         self.high_low_current_ratio = self.config.get('high_low_current_ratio')
 
+        # whether we are running in high vs low current mode
+        self.high_current_mode_bool = self.config.get('high_current_mode_bool')
+
         # Sampling frequency in gcp mode in Hz
         self.fs = self.config.get('fs')
 
