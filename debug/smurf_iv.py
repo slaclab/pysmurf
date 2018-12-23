@@ -102,7 +102,7 @@ class SmurfIVMixin(SmurfBase):
             rn_accept_max=rn_accept_max, gcp_mode=gcp_mode,grid_on=grid_on,
             phase_excursion_min=phase_excursion_min)
 
-    def slow_iv_all(self, self.all_groups, wait_time=.1, bias=None, bias_high=19.9, gcp_mode=True, 
+    def slow_iv_all(self, bias_groups=None, wait_time=.1, bias=None, bias_high=19.9, gcp_mode=True, 
         bias_low=0, bias_step=.1, show_plot=False, high_current_wait=1., cool_wait=30,
         make_plot=True, save_plot=True, channels=None, high_current_mode=False,
         rn_accept_min=1e-3, rn_accept_max=1., overbias_voltage=19.9, grid_on=True, phase_excursion_min=3.):
@@ -122,6 +122,8 @@ class SmurfIVMixin(SmurfBase):
         bias_low (int): The minimum TES bias in volts. Default 0
         bias_step (int): The step size in volts. Default .1
         """
+        if bias_groups is None:
+            bias_groups = self.all_groups
 
         if overbias_voltage != 0.:
             overbias = True
@@ -192,7 +194,108 @@ class SmurfIVMixin(SmurfBase):
             rn_accept_max=rn_accept_max, gcp_mode=gcp_mode,grid_on=grid_on,
             phase_excursion_min=phase_excursion_min)
 
- 
+    def partial_load_curve_all(self, bias_high_array, bias_low_array=None, 
+        wait_time=0.1, bias_step=0.1, gcp_mode=True, show_plot=False, 
+        make_plot=True, save_plot=True, channels=None, overbias_voltage=None,
+        overbias_wait=1.0, phase_excursion_min=1.):
+        """
+        Take a partial load curve on all bias groups. Function will step 
+        up to bias_high value, then step down. Will NOT change TES bias 
+        relay (ie, will stay in high current mode if already there). Will 
+        hold at the bias_low point at the end, so different bias groups 
+        may have different length ramps. 
+
+        Args:
+        -----
+        bias_high_array (float array): (8,) array of voltage biases, in
+          bias group order
+
+        Opt Args:
+        -----
+        bias_low_array (float array): (8,) array of voltage biases, in 
+          bias group order. Defaults to whatever is currently set
+        wait_time (float): Time to wait at each commanded bias value. Default 0.1
+        bias_step (float): Interval size to step the commanded voltage bias.
+          Default 0.1
+        gcp_mode (bool): whether to stream data in GCP mode. Default True.
+        show_plot (bool): whether to show plots. Default False.
+        make_plot (bool): whether to generate plots. Default True. 
+        save_plot (bool): whether to save generated plots. Default True.
+        channels (int array): which channels to analyze. Default to anything
+          that exceeds phase_excursion_min
+        overbias_voltage (float): value in V at which to overbias. If None, 
+          won't overbias. If value is set, uses high current mode.
+        overbias_wait (float): if overbiasing, time to hold the overbiased 
+          voltage in high current mode
+        phase_excursion_min (float): minimum change in phase to be analyzed, 
+          defined as abs(phase_max - phase_min). Default 1, units radians. 
+        """
+
+        original_biases = self.get_tes_bias_bipolar_array()
+
+        if bias_low_array is None: # default to current values
+            bias_low_array = original_biases
+
+        if overbias_voltage is not None: # only overbias if this is set
+            if self.high_current_mode_bool:
+                tes_bias = 2. # Probably should actually move this over to 
+            else: #overbias_tes_all
+                tes_bias = 19.9 
+            self.overbias_tes_all(overbias_voltage=overbias_voltage, 
+            overbias_wait=overbias_wait, tes_bias=tes_bias,
+            high_current_mode=self.high_current_mode_bool)
+
+        ### make arrays of voltages to set ###
+        # first, figure out the length of the longest sweep
+        bias_diff = bias_high_array - bias_low_array
+        max_spread_idx = np.ravel(np.where(bias_diff == max(bias_diff)))[0]
+        max_length = int(np.ceil(bias_diff[max_spread_idx]/bias_step))
+
+        # second, initialize bias array of size n_bias_groups by n_steps_max
+        bias_sweep_array = np.zeros((len(bias_high_array), max_length + 1))
+        # to be honest not sure if I need the +1 but adding it just in case
+
+        for idx in np.arange(len(bias_high_array)): # for each bias group
+            # third, re-initialize each bias group to be the low point
+            bias_sweep_array[idx,:] = bias_low_array[idx]
+
+            # fourth, override the first j entries of each with the sweep
+            sweep = np.arange(bias_high_array[idx], bias_low_array[idx]-bias_step,
+                -bias_step)
+            bias_sweep_array[idx, 0:len(sweep)] = sweep
+
+        self.log('Starting to take partial load curve.', self.LOG_USER)
+        self.log('Starting TES bias ramp.', self.LOG_USER)
+
+        datafile = self.stream_data_on(gcp_mode=gcp_mode)
+        self.log('writing to {}'.format(datafile))
+
+        # actually set the arrays
+        for step in np.size(bias_sweep_array)[1]:
+            self.set_tes_bias_bipolar_array(bias_sweep_array[:,step])
+            time.sleep(wait_time) # divide by something here? unclear.
+
+        # explicitly set back to the original biases
+        self.set_tes_bias_bipolar_array(original_biases)
+
+        self.stream_data_off(gcp_mode=gcp_mode)
+        self.log('Done with TES bias ramp', self.LOG_USER)
+
+        # should I be messing with lmsGain?
+
+        # save data and analyze it, probably
+
+
+        if make_plot:
+            # make some plots
+            import matplotlib.pyplot as plt
+            if save_plot:
+                # save some plots
+
+            if show_plot:
+                # show off some plots
+
+
     def analyze_slow_iv_from_file(self, fn_iv_raw_data, make_plot=True,
         show_plot=False, save_plot=True, R_sh=None, high_current_mode=False,
         rn_accept_min=1e-3, rn_accept_max=1., phase_excursion_min=3.,
@@ -663,7 +766,8 @@ class SmurfIVMixin(SmurfBase):
             _, ds[i] = self.full_band_resp(band)
 
         # Find resonator peaks
-        peaks = self.find_peak(f, ds[0])
+        peaks = self.find_peak(f, ds[0], rolling_med=True, window=2500, pad=50,
+                               min_gap=50)
 
         # Difference from zero bias
         delta_ds = ds[1:] - ds[0]
