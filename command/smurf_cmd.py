@@ -141,13 +141,13 @@ if __name__ == "__main__":
         type=float, help='The time to stay at the high current.')
 
     parser.add_argument('--bias-bump', action='store', default=False,
-        help='Bump the TES bias up and down')
+        help='Bump the TES bias up and down') 
     parser.add_argument('--bias-bump-step', action='store', default=0.01, 
-        type=float, help="Size of bias bump step in volts")
+        type=float, help="Size of bias bump step in volts") 
     parser.add_argument('--bias-bump-wait', action='store', default=5., 
         type=float, help="Time to dwell at stepped up/down bias")
     parser.add_argument('--bias-bump-between', action='store', default=3.,
-        type=float, help="Interval between up and down steps.")
+        type=float, help="Interval between up and down steps.") 
 
     # IV commands
     parser.add_argument('--slow-iv', action='store_true', default=False,
@@ -288,6 +288,9 @@ if __name__ == "__main__":
                 bias_step=iv_bias_step, make_plot=False)
 
     if args.bias_bump:
+        S.bias_bump(bias_group=S.all_groups, gcp_mode=True, 
+            gcp_wait=args.bias_bump_wait, gcp_between=args.bias_bump_between,
+            step_size=args.bias_bump_step) # always do this on all bias groups?
 
     if args.tune:
         # Load values from the cfg file
