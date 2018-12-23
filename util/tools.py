@@ -50,3 +50,27 @@ def limit_phase_deg(phase,minphase=-180):
     while newPhase>minphase+360:
         newPhase-=360
     return newPhase
+
+def P_singleMode(f_center,bw,T):
+    '''
+    Optical power in a single mode in a bandwidth bw centered on frequency f_center from an optical load of temperature T. 
+    SI units.                                
+    '''
+    h=6.63e-34
+    kB=1.38e-23
+    df=bw/1000.
+    f_array = np.arange(f_center-bw/2.,f_center+bw/2.+df,df)
+    P = 0.
+    for i in range(len(f_array)):
+        f=f_array[i]
+        P += df*h*f/(np.exp(h*f/(kB*T))-1.)
+    return P
+
+def dPdT_singleMode(f_center,bw,T):
+    '''                                 
+    Change in optical power per change in temperature (dP/dT) in a single mode in a bandwidth bw centered on frequency f_center from an optical load of temperature T.                                                                   
+    SI units.                                
+    '''
+    dT = T/1e6
+    dP = P_singleMode(f_center,bw,T+dT) - P_singleMode(f_center,bw,T)
+    return dP/dT
