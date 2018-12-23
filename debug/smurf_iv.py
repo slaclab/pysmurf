@@ -11,6 +11,8 @@ class SmurfIVMixin(SmurfBase):
         rn_accept_min=1e-3, rn_accept_max=1., overbias_voltage=19.9,
         gcp_mode=True, grid_on=False, phase_excursion_min=3.):
         """
+        >>>NOTE: DEPRECATED. USE SLOW_IV_ALL WITH A SINGLE-ELEMENT ARRAY INSTEAD.<<<
+
         Steps the TES bias down slowly. Starts at bias_high to bias_low with
         step size bias_step. Waits wait_time between changing steps.
 
@@ -155,16 +157,16 @@ class SmurfIVMixin(SmurfBase):
         self.log('Staring to take IV.', self.LOG_USER)
         self.log('Starting TES bias ramp.', self.LOG_USER)
 
-        #bias_groups = np.arange(8)
-        for g in bias_groups:
-            self.set_tes_bias_bipolar(g, bias[0])
-            time.sleep(wait_time/ len(bias_groups)) # divide everything by 10 to account for looping
+        bias_group_bool = np.zeros((8,)) # hard coded to have 8 bias groups
+        bias_group_bool[bias_groups] = 1 # only set things on the bias groups that are on
+
+        self.set_tes_bipolar_array(b[0] * bias_group_bool)
+        time.sleep(wait_time) # loops are in pyrogue now, which are faster?
 
         for b in bias:
-            for g in bias_groups:
-                self.log('Bias at {:4.3f}'.format(b))
-                self.set_tes_bias_bipolar(g, b)  
-                time.sleep(wait_time/len(bias_groups)) # slightly more than factor of 8 from loops
+            self.log('Bias at {:4.3f}'.format(b))
+            self.set_tes_bias_bipolar_array(b * bias_group_bool)
+            time.sleep(wait_time) # loops are now in pyrogue, so no division
 
         self.stream_data_off(gcp_mode=gcp_mode)
         self.log('Done with TES bias ramp', self.LOG_USER)
@@ -195,7 +197,7 @@ class SmurfIVMixin(SmurfBase):
             phase_excursion_min=phase_excursion_min)
 
     def partial_load_curve_all(self, bias_high_array, bias_low_array=None, 
-        wait_time=0.1, bias_step=0.1, gcp_mode=True, show_plot=False, 
+        wait_time=0.1, bias_step=0.1, gcp_mode=True, show_plot=False, analyze=True,  
         make_plot=True, save_plot=True, channels=None, overbias_voltage=None,
         overbias_wait=1.0, phase_excursion_min=1.):
         """
@@ -220,6 +222,7 @@ class SmurfIVMixin(SmurfBase):
         gcp_mode (bool): whether to stream data in GCP mode. Default True.
         show_plot (bool): whether to show plots. Default False.
         make_plot (bool): whether to generate plots. Default True. 
+        analyze (bool): whether to analyze the data. Default True.
         save_plot (bool): whether to save generated plots. Default True.
         channels (int array): which channels to analyze. Default to anything
           that exceeds phase_excursion_min
@@ -283,18 +286,26 @@ class SmurfIVMixin(SmurfBase):
 
         # should I be messing with lmsGain?
 
-        # save data and analyze it, probably
+        # save and analyze
+        basename, _ = os.path.splitext(os.path.basename(datafile))
+        np.save(os.path.join(self.output_dir, basename + '_plc_bias_all'), bias_sweep_array)
 
+        plc_raw_data = {}
+        plc_raw_data['bias'] = bias_sweep_array
+        plc_raw_data['bias group'] = np.where(original_biases != 0)
+        plc_raw_data['datafile'] = datafile
+        plc_raw_data['basename'] = basename
+        plc_raw_data['output_dir'] = self.output_dir
+        plc_raw_data['plot_dir'] = self.plot_dir
+        fn_plc_raw_data = os.path.join(self.output_dir, basename +
+            '_plc_raw_data.npy')
+        np.save(os.path.join(self.output_dir, fn_plc_raw_data), plc_raw_data)
 
-        if make_plot:
-            # make some plots
-            import matplotlib.pyplot as plt
-            if save_plot:
-                # save some plots
-
-            if show_plot:
-                # show off some plots
-
+        if analyze:
+            self.analyze_plc_from_file(fn_plc_raw_data, make_plot=make_plot,
+                show_plot=show_plot, save_plot=save_plot, R_sh=self.R_sh,
+                high_current_mode=self.high_current_mode_bool, gcp_mode=gcp_mode,
+                phase_excursion_min=phase_excursion_min, channels=channels)
 
     def analyze_slow_iv_from_file(self, fn_iv_raw_data, make_plot=True,
         show_plot=False, save_plot=True, R_sh=None, high_current_mode=False,
@@ -723,6 +734,102 @@ class SmurfIVMixin(SmurfBase):
                 plt.close()
 
         return R, R_n, np.array([sc_idx, nb_idx]), p_tes, p_trans_median, v_bias_target
+
+    def analyze_plc_from_file(self, fn_plc_raw_data, make_plot=True, show_plot=False, 
+        save_plot=True, R_sh=None, high_current_mode=None, phase_excursion_min=1., 
+        gcp_mode=True, channels=None):
+        """
+        Function to analyze a partial load curve from its raw file. Basically the same 
+        as the slow_iv analysis but without fitting the superconducting branch.
+
+        Args:
+        -----
+        fn_plc_raw_data (str): *_plc_raw_data.npy file to analyze
+
+        Opt Args:
+        -----
+        make_plot (bool): Defaults True. This is slow.
+        show_plot (bool): Defaults False.
+        save_plot (bool): Defaults True.
+        R_sh (float): shunt resistance; defaults to the value in the config file
+        high_current_mode (bool): Whether to perform analysis assuming that commanded 
+          voltages were in high current mode. Defaults to the value in the config file.
+        phase_excursion_min (float): abs(max-min) of phase in radian. Analysis will 
+          ignore any channels that do not meet this criterion. Default 1.
+        gcp_mode (bool): whether data was streamed to file in GCP mode. Default True.
+        channels (int array): which channels to analyze. Defaults to all channels that
+          are on and exceed phase_excursion_min 
+        """
+
+        self.log('Analyzing plc from file: {}'.format(fn_plc_raw_data))
+
+        plc_raw_data = np.load(fn_plc_raw_data).item()
+        bias_sweep_array = plc_raw_data['bias']
+        bias_group = plc_raw_data['band']
+        datafile = plc_raw_data['datafile']
+        basename = plc_raw_data['basename']
+        output_dir = plc_raw_data['output_dir']
+        plot_dir = plc_raw_data['plot_dir']
+
+        if gcp_mode:
+            timestamp, phase_all, mask = self.read_stream_data_gcp_save(datafile)
+        else:
+            timestamp, phase_all = self.read_stream_data(datafile)
+            mask = self.make_mask_lookup(datafile.replace('.dat', '_mask.txt'))
+            # ask Ed about this later
+
+        band, chans = np.where(mask != -1) #are these masks secretly the same?
+
+        rn_list = []
+        phase_excursion_list = []
+        v_bias_target_list = []
+        p_trans_list = []
+
+        for c, (b, ch) in enumerate(zip(band, chans)):
+            if (channels is not None) and (ch not in channels):
+                continue
+            self.log('Analyzing band {} channel {}'.format(b,ch))
+            ch_idx = mask[b,ch]
+            phase = phase_all[ch_idx]
+
+            phase_excursion = max(phase) - min(phase)
+            if phase_excursion < phase_excursion_min:
+                self.log('Skipping ch {}: phase excursion < min'.format(ch))
+                continue
+            phase_excursion_list.append(phase_excursion)
+
+            # need to figure out how to do analysis b/c channels have different biases :(
+            # would work once we had a permanent lookup table of ch to bias group...
+
+            if make_plot: # make the timestream plot
+                import matplotlib.pyplot as plt
+                plt.rcParams["patch.force_edgecolor"] = True
+
+                if not show_plot:
+                    plot.ioff()
+
+                fig, ax = plt.subplots(1, sharex=True)
+                ax.plot(phase)
+                ax.set_xlabel('Sample Num')
+                ax.set_ylabel('Phase [rad.]')
+                # no grid on for you, Ari
+                ax.set_title('Band {}, Group {}, Ch {:03}'.format(np.unique(band), 
+                    bias_group, ch)) # this is not going to be very useful...
+                plt.tight_layout()
+
+                if save_plot:
+                    bg_str = ""
+                    for bg in np.unique(bias_group):
+                        bg_str = bg_str + str(bg)
+
+                    plot_name = basename + \
+                        'plc_stream_b{}_g{}_ch{:03}.png'.format(b, bg_str, ch)
+                    plt.savefig(of.path.join(plot_dir, plt_name), bbox_inches='tight', 
+                        dpi=300)
+
+                if not show_plot:
+                    plt.close()
+
 
     def find_tes(self, band, bias_group, bias=np.arange(0,4,.2),
                  make_plot=True, make_debug_plot=False, delta_peak_cutoff=.2):
