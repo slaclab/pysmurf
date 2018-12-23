@@ -187,6 +187,100 @@ class SmurfTuneMixin(SmurfBase):
         self.log('Done')
         return resonances
 
+    def tune_band_parallel(self, band, n_samples=2**19,
+        make_plot=False, save_plot=True, save_data=True, show_plot=False,
+        make_subband_plot=False, subband=None, n_scan=2,
+        subband_plot_with_slow=False, window=5000, rolling_med=True,
+        grad_cut=.025, freq_min=-2.5E8, freq_max=2.5E8, amp_cut=.25,
+        load_peaks_from_file=True, del_f=.005):
+        """
+        Uses parallel eta scans to tune the band.
+        """
+        timestamp = self.get_timestamp()
+
+        if make_plot:
+            import matplotlib.pyplot as plt
+            if show_plot:
+                plt.ion()
+            else:
+                plt.ioff()
+
+        self.band_off(band)
+        self.flux_ramp_off()
+        self.log('Running full band resp')
+
+        if load_peaks_from_file:
+            peaks = np.loadtxt('/home/cryo/ey/all_resonators.txt', delimiter=',')
+            if band == 2:
+                peaks = peaks[peaks < 5.500] - 5.25
+            elif band == 3:
+                peaks = peaks[peaks > 5.500] - 5.75
+            peaks *= 1.0E9
+
+        else:
+            # Inject high amplitude noise with known waveform, measure it, and 
+            # then find resonators and etaParameters from cross-correlation.
+            att_uc = self.get_att_uc(band)
+            drive = self.config.get('init')['band_{}'.format(band)]['amplitude_scale']
+            self.set_att_uc(band, (15-drive)*6+att_uc, write_log=True)
+            freq, resp = self.full_band_resp(band, n_samples=n_samples,
+                make_plot=make_plot, save_data=save_data, show_plot=False,
+                timestamp=timestamp,
+                n_scan=n_scan)
+
+            self.set_att_uc(band, att_uc)
+
+            # Find peaks
+            peaks = self.find_peak(freq, resp, rolling_med=rolling_med, window=window, 
+                band=band, make_plot=make_plot,
+                save_plot=save_plot, show_plot=show_plot, grad_cut=grad_cut, freq_min=freq_min,
+                freq_max=freq_max, amp_cut=amp_cut,
+                make_subband_plot=make_subband_plot, timestamp=timestamp,
+                subband_plot_with_slow=subband_plot_with_slow, pad=50, min_gap=50)
+
+        # Assign resonances
+        resonances = {}
+        for i, p in enumerate(peaks):
+            resonances[i] = {
+                'freq': p*1.0E-6,  # in MHz
+                'r2' : 0,
+                'Q' : 1,
+                'eta_phase' : 1 , # Fill etas with arbitrary values for now
+                'eta_scaled' : 1
+            }
+        
+        # Assign resonances to channels                                              
+        self.log('Assigning channels')
+        f = [resonances[k]['freq'] for k in resonances.keys()]
+        subbands, channels, offsets = self.assign_channels(f, band=band)
+        for i, k in enumerate(resonances.keys()):
+            resonances[k].update({'subband': subbands[i]})
+            resonances[k].update({'channel': channels[i]})
+            resonances[k].update({'offset': offsets[i]})
+        self.freq_resp[band]['resonances'] = resonances
+        self.freq_resp[band]['drive'] = \
+            self.config.get('init')['band_{}'.format(band)]['amplitude_scale']
+
+        # Set the resonator frequencies without eta params
+        self.relock(band)
+        
+        # Run parallel eta scans
+        self.set_eta_scan_del_f(band, del_f)
+        self.run_parallel_eta_scan(band)
+
+        eta_phase = self.get_eta_phase_array(band)
+        eta_scaled = self.get_eta_mag_array(band)
+        chs = self.get_eta_scan_result_channel(band)
+        for i, ch in enumerate(chs):
+            if ch != -1:
+                resonances[i]['eta_phase'] = eta_phase[ch]
+                resonances[i]['eta_scaled'] = eta_scaled[ch]
+
+        self.freq_resp[band]['resonances'] = resonances
+
+
+        self.save_tune()
+
     def tune_band_quad(self, band, del_f=.01, n_samples=2**19,
         make_plot=False, plot_chans=[], save_plot=True, save_data=True,
         subband=None, n_scan=1, grad_cut=.05, freq_min=-2.5E8, 
@@ -405,8 +499,8 @@ class SmurfTuneMixin(SmurfBase):
 
 
     def full_band_resp(self, band, n_scan=1, n_samples=2**19, make_plot=False, 
-        save_plot=True, save_data=False, timestamp=None, save_raw_data=False,
-        correct_att=True, swap=False, hw_trigger=True):
+        save_plot=True, show_plot=False, save_data=False, timestamp=None, 
+        save_raw_data=False, correct_att=True, swap=False, hw_trigger=True):
         """
         Injects high amplitude noise with known waveform. The ADC measures it.
         The cross correlation contains the information about the resonances.
@@ -497,6 +591,11 @@ class SmurfTuneMixin(SmurfBase):
 
         if make_plot:
             import matplotlib.pyplot as plt
+            if show_plot:
+                plt.ion()
+            else:
+                plt.ioff()
+
             fig, ax = plt.subplots(3, figsize=(5,8), sharex=True)
             f_plot = f / 1.0E6
 
@@ -529,6 +628,9 @@ class SmurfTuneMixin(SmurfBase):
                 plt.savefig(os.path.join(self.plot_dir, 
                     '{}_b{}_full_band_resp.png'.format(timestamp, band)),
                     bbox_inches='tight')
+            if show_plot:
+                plt.show()
+            else:
                 plt.close()
 
         if save_data:
@@ -545,7 +647,7 @@ class SmurfTuneMixin(SmurfBase):
 
     def find_peak(self, freq, resp, rolling_med=False, window=500,
 	grad_cut=.05, amp_cut=.25, freq_min=-2.5E8, freq_max=2.5E8, make_plot=False, 
-	save_plot=True, band=None,subband=None, make_subband_plot=False, 
+	save_plot=True, show_plot=False, band=None,subband=None, make_subband_plot=False, 
 	subband_plot_with_slow=False, timestamp=None, pad=2, min_gap=2,plot_title=None):
         """find the peaks within a given subband
 
@@ -614,6 +716,11 @@ class SmurfTuneMixin(SmurfBase):
         # Make summary plot
         if make_plot:
             import matplotlib.pyplot as plt
+            if show_plot:
+                plt.ion()
+            else:
+                plt.ioff()
+
             fig, ax = plt.subplots(1, figsize=(8,4))
 
             if band is not None:
@@ -645,6 +752,9 @@ class SmurfTuneMixin(SmurfBase):
                 save_name = save_name + '_find_freq.png'
                 plt.savefig(os.path.join(self.plot_dir, save_name),
                             bbox_inches='tight', dpi=300)
+            if show_plot:
+                plt.show()
+            else:
                 plt.close()
 
         # Make plot per subband
@@ -1334,7 +1444,8 @@ class SmurfTuneMixin(SmurfBase):
 
 
     def relock(self, band, res_num=None, drive=None, r2_max=.08, 
-        q_max=100000, q_min=0, check_vals=False, min_gap=None):
+        q_max=100000, q_min=0, check_vals=False, min_gap=None,
+        write_log=False):
         """
         Turns on the tones. Also cuts bad resonators.
 
@@ -1347,9 +1458,11 @@ class SmurfTuneMixin(SmurfBase):
         res_num (int array): The resonators to lock. If None, tries all the
             resonators.
         drive (int): The tone amplitudes to set
+        check_vals (bool) : Whether to check r2 and Q values. Default is False.
         r2_max (float): The highest allowable R^2 value
         q_max (float): The maximum resonator Q factor
         q_min (float): The minimum resonator Q factor
+        min_gap (float) : Thee minimum distance between resonators.
         """
         if res_num is None:
             res_num = np.arange(512)
@@ -1374,31 +1487,36 @@ class SmurfTuneMixin(SmurfBase):
         f = [self.freq_resp[band]['resonances'][k]['freq'] \
                      for k in self.freq_resp[band]['resonances'].keys()]
                  
-
         # Populate arrays
         counter = 0
         for k in self.freq_resp[band]['resonances'].keys():
             ch = self.freq_resp[band]['resonances'][k]['channel']
             idx = np.where(f == self.freq_resp[band]['resonances'][k]['freq'])[0][0]
             f_gap = np.min(np.abs(np.append(f[:idx], f[idx+1:])-f[idx]))
-
-            self.log('Res {:03} - Channel {}'.format(k, ch))
+            if write_log:
+                self.log('Res {:03} - Channel {}'.format(k, ch))
             for ll, hh in self.bad_mask:
                 if f[idx] > ll and f[idx] < hh:
                     self.log('{:4.3f} in bad list.'.format(f[idx]))
                     ch = -1
             if ch < 0: 
-                self.log('No channel assigned: res {:03}'.format(k))
+                if write_log:
+                    self.log('No channel assigned: res {:03}'.format(k))
             elif min_gap is not None and f_gap < min_gap:
-                self.log('Closest resonator is {:3.3f} MHz away'.format(f_gap))
+                if write_log:
+                    self.log('Closest resonator is {:3.3f} MHz away'.format(f_gap))
             elif self.freq_resp[band]['resonances'][k]['r2'] > r2_max and check_vals:
-                self.log('R2 too high: res {:03}'.format(k))
+                if write_log:
+                    self.log('R2 too high: res {:03}'.format(k))
             elif self.freq_resp[band]['resonances'][k]['Q'] < q_min and check_vals:
-                self.log('Q too low: res {:03}'.format(k))
+                if write_log:
+                    self.log('Q too low: res {:03}'.format(k))
             elif self.freq_resp[band]['resonances'][k]['Q'] > q_max and check_vals:
-                self.log('Q too high: res {:03}'.format(k))
+                if write_log:
+                    self.log('Q too high: res {:03}'.format(k))
             elif k not in res_num:
-                self.log('Not in resonator list')
+                if write_log:
+                    self.log('Not in resonator list')
             else:
                 center_freq[ch] = self.freq_resp[band]['resonances'][k]['offset']
                 amplitude_scale[ch] = drive
@@ -2688,21 +2806,6 @@ class SmurfTuneMixin(SmurfBase):
         subbands = np.array([])
         timestamp = self.get_timestamp()
 
-        #for sb in subband:
-        #    peak = self.find_peak(freq[sb,:], resp[sb,:], 
-        #        rolling_med=rolling_med, window=window, grad_cut=grad_cut,
-        #        amp_cut=amp_cut, freq_min=freq_min, freq_max=freq_max, 
-        #        make_plot=make_plot, save_plot=save_plot, band=band, 
-        #        make_subband_plot=make_subband_plot, 
-        #        subband_plot_with_slow=subband_plot_with_slow, 
-        #        timestamp=timestamp, pad=pad, min_gap=min_gap,
-        #        subband=sb)
-
-        #    if peak is not None:
-        #        peaks = np.append(peaks, peak)
-        #        subbands = np.append(subbands, 
-        #            np.ones_like(peak, dtype=int)*sb)
-
         # Stack all the frequency and response data into a 
         sb, _ = np.where(freq !=0)
         idx = np.unique(sb)
@@ -2722,9 +2825,6 @@ class SmurfTuneMixin(SmurfBase):
                 subband_plot_with_slow=subband_plot_with_slow,
                 timestamp=timestamp, pad=pad, min_gap=min_gap)
 
-
-        #res = np.vstack((peaks, subbands))
-        #return res
         return peaks
 
     def fast_eta_scan(self, band, subband, freq, n_read, drive, 
@@ -2843,10 +2943,9 @@ class SmurfTuneMixin(SmurfBase):
         resonances = {}
         band_center = self.get_band_center_mhz(band)
         input_res = input_res + band_center
-        # for i, (f, sb) in enumerate(zip(input_res, input_subband)):
+
         n_res = len(input_res)
         for i, f in enumerate(input_res):
-            # self.log('freq {:5.4f} sb {}'.format(f, sb))
             self.log('freq {:5.4f} - {} of {}'.format(f, i+1, n_res))
             freq, resp, eta = self.eta_estimator(band, f, drive, 
                                                  f_sweep_half=sweep_width,
@@ -2857,7 +2956,6 @@ class SmurfTuneMixin(SmurfBase):
             
             abs_resp = np.abs(resp)
             idx = np.ravel(np.where(abs_resp == np.min(abs_resp)))[0]
-            # _, sbc = self.get_subband_centers(band, as_offset=True)
 
             f_min = freq[idx]
 
@@ -2874,7 +2972,6 @@ class SmurfTuneMixin(SmurfBase):
                 'resp_eta_scan' : resp
             }
 
-        self.freq_resp[band]['resonances'] = resonances
 
         # Assign resonances to channels                                                       
         self.log('Assigning channels')
@@ -2887,6 +2984,8 @@ class SmurfTuneMixin(SmurfBase):
             resonances[k].update({'subband': subbands[i]})
             resonances[k].update({'channel': channels[i]})
             resonances[k].update({'offset': offsets[i]})
+
+        self.freq_resp[band]['resonances'] = resonances
 
         self.save_tune()
 
@@ -3011,7 +3110,6 @@ class SmurfTuneMixin(SmurfBase):
         totmkr = 0
         lastmkr = 0
         for n in np.arange(n_sync):
-            # print('{} {} '.format(sync[n,0], n))
             mkrgap = mkrgap + 1
             if (sync[n,0] > 0) and (mkrgap > 500):
                 mkrgap = 0
@@ -3134,7 +3232,7 @@ class SmurfTuneMixin(SmurfBase):
         make_plot=False, save_plot=True, show_plot=True,
         lms_freq_hz=None, flux_ramp=True, fraction_full_scale=.4950,
         lms_enable1=True, lms_enable2=True, lms_enable3=True, lms_gain=7):
-        """                                                                                            
+        """
         """
         resonators = self.freq_resp[band]['resonances']
         keys = resonators.keys()
