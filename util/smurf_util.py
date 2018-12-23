@@ -1827,9 +1827,10 @@ class SmurfUtilMixin(SmurfBase):
             self.log('Reading newly made mask file.')
             self.read_smurf_to_gcp_config()
 
-    def bias_step(self, bias_group, wait_time=.5, step_size=.001, duration=5,
+    def bias_bump(self, bias_group, wait_time=.5, step_size=.001, duration=5,
                   fs=180., start_bias=None, make_plot=False, skip_samp_start=10,
-                  high_current_mode=True, skip_samp_end=10, plot_channels=None):
+                  high_current_mode=True, skip_samp_end=10, plot_channels=None,
+                  gcp_mode=False, gcp_wait=.5, gcp_between=1.):
         """
         Toggles the TES bias high and back to its original state. From this, it
         calculates the electrical responsivity (sib), the optical responsivity (siq),
@@ -1897,18 +1898,40 @@ class SmurfUtilMixin(SmurfBase):
 
         filename = self.stream_data_on()
 
-        # Sets TES bias high then low
-        for i in np.arange(n_step):
+        if gcp_mode:
+            self.log('Doing GCP mode bias bump')
             for j, bg in enumerate(bias_group):
                 self.set_tes_bias_bipolar(bg, start_bias[j] + step_size,
-                                          wait_done=False)
-            time.sleep(wait_time)
+                                           wait_done=False)
+            time.sleep(gcp_wait)
             for j, bg in enumerate(bias_group):
                 self.set_tes_bias_bipolar(bg, start_bias[j],
                                           wait_done=False)
-            time.sleep(wait_time)
+            time.sleep(gcp_between)
+            for j, bg in enumerate(bias_group):
+                self.set_tes_bias_bipolar(bg, start_bias[j] + step_size,
+                                           wait_done=False)
+            time.sleep(gcp_wait)
+            for j, bg in enumerate(bias_group):
+                self.set_tes_bias_bipolar(bg, start_bias[j],
+                                          wait_done=False)
+
+        else:
+            # Sets TES bias high then low
+            for i in np.arange(n_step):
+                for j, bg in enumerate(bias_group):
+                    self.set_tes_bias_bipolar(bg, start_bias[j] + step_size,
+                                              wait_done=False)
+                time.sleep(wait_time)
+                for j, bg in enumerate(bias_group):
+                    self.set_tes_bias_bipolar(bg, start_bias[j],
+                                              wait_done=False)
+                    time.sleep(wait_time)
 
         self.stream_data_off()  # record data
+
+        if gcp_mode:
+            return
 
         t, d, m = self.read_stream_data(filename)
         d *= self.pA_per_phi0/(2*np.pi*1.0E6) # Convert to microamps                             
