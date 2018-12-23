@@ -179,12 +179,19 @@ class SmurfCommandMixin(SmurfBase):
         self.log('{} sent'.format(triggerPV), self.LOG_USER)
 
 
+    _eta_scan_in_progress = 'etaScanInProgress'
+    def get_eta_scan_in_progress(self, band, **kwargs):
+        """
+        """
+        return self._caget(self._cryo_root(band) + self._eta_scan_in_progress,
+                    **kwargs)
+
     def run_parallel_eta_scan(self, band, sync_group=True, **kwargs):
         """
         runParallelScan 
         """
         triggerPV=self._cryo_root(band) + 'runParallelEtaScan'
-        monitorPV=self._cryo_root(band) + 'etaScanInProgress'
+        monitorPV=self._cryo_root(band) + self._eta_scan_in_progress
         
         self._caput(triggerPV, 1, wait_after=5, **kwargs)
         self.log('{} sent'.format(triggerPV), self.LOG_USER)
