@@ -151,8 +151,6 @@ class SmurfIVMixin(SmurfBase):
         self.log('Staring to take IV.', self.LOG_USER)
         self.log('Starting TES bias ramp.', self.LOG_USER)
 
-        datafile = self.stream_data_on(gcp_mode=gcp_mode)
-        self.log('writing to {}'.format(datafile))
 
         self.log('Staring to take IV.', self.LOG_USER)
         self.log('Starting TES bias ramp.', self.LOG_USER)
@@ -160,8 +158,11 @@ class SmurfIVMixin(SmurfBase):
         bias_group_bool = np.zeros((8,)) # hard coded to have 8 bias groups
         bias_group_bool[bias_groups] = 1 # only set things on the bias groups that are on
 
-        self.set_tes_bipolar_array(b[0] * bias_group_bool)
+        self.set_tes_bias_bipolar_array(bias[0] * bias_group_bool)
         time.sleep(wait_time) # loops are in pyrogue now, which are faster?
+
+        datafile = self.stream_data_on(gcp_mode=gcp_mode)
+        self.log('writing to {}'.format(datafile))
 
         for b in bias:
             self.log('Bias at {:4.3f}'.format(b))
