@@ -278,6 +278,7 @@ class SmurfUtilMixin(SmurfBase):
     def take_stream_data(self, meas_time, gcp_mode=True):
         """
         Takes streaming data for a given amount of time
+
         Args:
         -----
         meas_time (float) : The amount of time to observe for in seconds
@@ -297,6 +298,7 @@ class SmurfUtilMixin(SmurfBase):
         self.stream_data_off(gcp_mode=gcp_mode)
         self.log('Done taking data.', self.LOG_USER)
         return data_filename
+
 
     def stream_data_on(self, gcp_mode=True):
         """
@@ -353,25 +355,6 @@ class SmurfUtilMixin(SmurfBase):
                 self.set_streaming_file_open(1)  # Open the file
 
             return data_filename
-
-
-    def set_gcp_datafile(self, data_filename, num_averages=0, 
-        receiver_ip='192.168.3.1', port_number='#3334', data_frames=1000000):
-        """
-        """
-        config_dir = self.config.get('smurf2mce_cfg_dir')
-        if config_dir is None:
-            self.log('No smurf2mce directory in config file.', self.LOG_ERROR)
-        
-        file = open(config_dir, 'w')
-
-        file.write('num_averages {}\n'.format(num_averages))
-        file.write('receiver_ip {}\n'.format(receiver_ip))
-        file.write('port_number {}\n'.format(port_number))
-        file.write('data_file_name {}\n'.format(data_filename))
-        file.write('data_frames {}'.format(data_frames))
-
-        file.close()
         
 
     def stream_data_off(self, gcp_mode=True):
@@ -493,6 +476,21 @@ class SmurfUtilMixin(SmurfBase):
         unwrap=True, downsample=1):
         """
         Reads the special data that is designed to be a copy of the GCP data.
+
+        Args:
+        -----
+        datafile (str): The full path to the data made by stream_data_on
+        
+        Opt Args:
+        ---------
+        unwrap (bool) : Whether to unwrap units of 2pi. Default is True.
+        downsample (int): The amount to downsample.
+
+        Ret:
+        ----
+        t (float array): The timestamp data
+        d (float array): The resonator data in units of phi0
+        m (int array): The maskfile that maps smurf num to gcp num
         """
         import glob
         try:
@@ -536,6 +534,17 @@ class SmurfUtilMixin(SmurfBase):
 
     def make_mask_lookup(self, mask_file):
         """
+        Makes an n_band x n_channel array where the elements correspond
+        to the smurf_to_mce mask number. In other workds, mask[band, channel]
+        returns the GCP index in the mask that corresonds to band, channel.
+
+        Args:
+        -----
+        mask_file (str): The full path the a mask file
+
+        Ret:
+        ----
+        mask_lookup (int array): An array with the GCP numbers.
         """
         mask = np.atleast_1d(np.loadtxt(mask_file))
         bands = np.unique(mask // 512).astype(int)
@@ -823,6 +832,7 @@ class SmurfUtilMixin(SmurfBase):
             self.log('Failed to recover Jesds ...', self.LOG_ERROR)
             raise ValueError(which_jesd_down)
 
+
     def jesd_decorator(decorated):
         def jesd_decorator_function(self):
             # check JESDs
@@ -850,7 +860,17 @@ class SmurfUtilMixin(SmurfBase):
                 
         return jesd_decorator_function
 
-    def check_jesd(self,silent_if_valid=False):
+
+    def check_jesd(self, silent_if_valid=False):
+        """
+        Queries the Jesd tx and rx and compares the
+        data_valid and enable bits.
+
+        Opt Args:
+        ---------
+        silent_if_valid (bool) : If True, does not print
+            anything if things are working.
+        """
         # JESD Tx
         jesd_tx_enable = self.get_jesd_tx_enable()
         jesd_tx_valid = self.get_jesd_tx_data_valid()
@@ -1296,6 +1316,7 @@ class SmurfUtilMixin(SmurfBase):
             if bias > volt_max:
                 bias = volt_min
 
+
     def get_tes_bias_bipolar(self, bias_group, return_raw=False, **kwargs):
         """
         Returns the bias voltage in units of Volts
@@ -1325,6 +1346,7 @@ class SmurfUtilMixin(SmurfBase):
             return volts_pos, volts_neg
         else:
             return volts_pos - volts_neg
+
 
     def get_tes_bias_bipolar_array(self, return_raw=False, **kwargs):
        """
@@ -1797,6 +1819,23 @@ class SmurfUtilMixin(SmurfBase):
     def make_gcp_mask(self, band=None, smurf_chans=None, gcp_chans=None, 
         read_gcp_mask=True):
         """
+        Makes the gcp mask. Only the channels in this mask will be stored
+        by GCP.
+
+        If no optional arguments are given, mask will contain all channels
+        that are on. If both band and smurf_chans are supplied, a mask
+        in the input order is created.
+
+        Opt Args:
+        ---------
+        band (int array) : An array of band numbers. Must be the same
+            length as smurf_chans
+        smurf_chans (int_array) : An array of SMuRF channel numbers.
+            Must be the same length as band.
+        gcp_chans (int_array) : A list of smurf numbers to be passed
+            on as GCP channels.
+        read_gcp_mask (bool) : Whether to read in the new GCP mask file.
+            If not read in, it will take no effect. Default is True.
         """
         gcp_chans = np.array([], dtype=int)
         if smurf_chans is None and band is not None:
@@ -1819,8 +1858,10 @@ class SmurfUtilMixin(SmurfBase):
         np.savetxt(self.smurf_to_mce_mask_file, gcp_chans, fmt='%i')
 
         if read_gcp_mask:
-            self.log('Reading newly made mask file.')
             self.read_smurf_to_gcp_config()
+        else:
+            self.log('Warning: new mask has not been read in yet.')
+
 
     def bias_bump(self, bias_group, wait_time=.5, step_size=.001, duration=5,
                   fs=180., start_bias=None, make_plot=False, skip_samp_start=10,
