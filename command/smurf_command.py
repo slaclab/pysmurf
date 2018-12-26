@@ -203,6 +203,40 @@ class SmurfCommandMixin(SmurfBase):
             self.log('parallel etaScan complete ; etaScanInProgress = {}'.format(vals[monitorPV]), 
                      self.LOG_USER)
 
+    _run_serial_eta_scan = 'runSerialEtaScan'
+    def run_serial_eta_scan(self, band, sync_group=True, **kwargs):
+        """
+        Does an eta scan serially across the entire band. You must
+        already be tuned close to the resontor dip. Use
+        run_serial_gradient_descent to get it.
+
+        """
+        triggerPV = self._cryo_root(band) + self._run_serial_eta_scan
+        monitorPV = self._cryo_root(band) + self._eta_scan_in_progress
+
+        self._caput(triggerPV, 1, wait_after=5, **kwargs)
+        
+        if sync_group:
+            sg = SyncGroup([monitorPV])
+            sg.wait()
+            vals = sg.get_values()
+
+
+    _run_serial_gradient_descent = 'runSerialGradientDescent'
+    def run_serial_gradient_descent(self, band, sync_group=True, **kwargs):
+        """
+        """
+        triggerPV = self._cryo_root(band) + self._run_serial_gradient_descent
+        monitorPV = self._cryo_root(band) + self._eta_scan_in_progress
+
+        self._caput(triggerPV, 1, wait_after=5, **kwargs)
+
+        if sync_group:
+            sg = SyncGroup([monitorPV])
+            sg.wait()
+            vals = sg.get_values()
+
+
     _eta_scan_del_f = 'etaScanDelF'
     def set_eta_scan_del_f(self, band, val, **kwargs):
         """
