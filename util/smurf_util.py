@@ -1761,8 +1761,6 @@ class SmurfUtilMixin(SmurfBase):
             self.log('Flux ramp frequency is below 1kHz.'\
                       ' Setting a filter using 4kHz')
 
-        self.log('Making SMuRF to MCE config file.')
-
         b, a = signal.butter(filter_order, 2*filter_freq / flux_ramp_freq)
 
         with open(self.smurf_to_mce_file, "w") as f:

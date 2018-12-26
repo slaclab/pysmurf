@@ -203,7 +203,11 @@ class SmurfTuneMixin(SmurfBase):
         # then find resonators and etaParameters from cross-correlation.                                  
         att_uc = self.get_att_uc(band)
         drive = self.config.get('init')['band_{}'.format(band)]['amplitude_scale']
-        self.set_att_uc(band, (15-drive)*6+att_uc, write_log=True)
+
+        new_att_uc = (15-drive)*6+att_uc
+        if new_att_uc > 31:  # upconverter value cannot be bigger than 31
+            new_att_uc = 31
+        self.set_att_uc(band, new_att_uc, write_log=True)
         freq, resp = self.full_band_resp(band, n_samples=n_samples,
                                          make_plot=make_plot, save_data=save_data, 
                                          show_plot=False, timestamp=timestamp,
@@ -235,7 +239,7 @@ class SmurfTuneMixin(SmurfBase):
         self.log('Assigning channels')
         f = np.array([resonances[k]['freq'] for k in resonances.keys()])
         f += self.get_band_center_mhz(band)
-        subbands, channels, offsets = self.assign_channels(f, band=band)
+        subbands, channels, offsets = self.assign_channels(f, band=band, as_offset=False)
         for i, k in enumerate(resonances.keys()):
             resonances[k].update({'subband': subbands[i]})
             resonances[k].update({'channel': channels[i]})
@@ -248,7 +252,8 @@ class SmurfTuneMixin(SmurfBase):
         self.relock(band)
 
         # Find the resonator minima
-        self.run_serial_gradient_descent(band)
+        #self.run_serial_gradient_descent(band)
+        self.run_serial_min_search(band)
         
         # Calculate the eta params
         self.run_serial_eta_scan(band)

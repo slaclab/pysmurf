@@ -204,12 +204,22 @@ class SmurfCommandMixin(SmurfBase):
                      self.LOG_USER)
 
     _run_serial_eta_scan = 'runSerialEtaScan'
-    def run_serial_eta_scan(self, band, sync_group=True, **kwargs):
+    def run_serial_eta_scan(self, band, sync_group=True, timeout=240,
+                            **kwargs):
         """
         Does an eta scan serially across the entire band. You must
         already be tuned close to the resontor dip. Use
         run_serial_gradient_descent to get it.
 
+        Args:
+        ----_
+        band (int) : The band to eta scan
+
+        Opt Args:
+        --------
+        sync_group (bool) : Whether to use the sync group to monitor
+            the PV. Defauult is True.
+        timeout (float) : The maximum amount of time to wait for the PV.
         """
         triggerPV = self._cryo_root(band) + self._run_serial_eta_scan
         monitorPV = self._cryo_root(band) + self._eta_scan_in_progress
@@ -217,7 +227,34 @@ class SmurfCommandMixin(SmurfBase):
         self._caput(triggerPV, 1, wait_after=5, **kwargs)
         
         if sync_group:
-            sg = SyncGroup([monitorPV])
+            sg = SyncGroup([monitorPV], timeout=timeout)
+            sg.wait()
+            vals = sg.get_values()
+
+
+    _run_serial_min_search = 'runSerialMinSearch'
+    def run_serial_min_search(self, band, sync_group=True, timeout=240,
+                              **kwargs):
+        """
+        Does a brute force search for the resonator minima. Starts at
+        the currently set frequency.
+
+        Args:
+        ----
+        band (int) : The band the min search
+
+        Opt Args:
+        --------
+        sync_group (bool) : Whether to use the sync group to monitor
+            the PV. Defauult is True.
+        timeout (float) : The maximum amount of time to wait for the PV.
+        """
+        triggerPV = self._cryo_root(band) + self._run_serial_min_search
+        monitorPV = self._cryo_root(band) + self._eta_scan_in_progress
+        
+        self._caput(triggerPV, 1, wait_after=5, **kwargs)
+        if sync_group:
+            sg = SyncGroup([monitorPV], timeout=timeout)
             sg.wait()
             vals = sg.get_values()
 
@@ -225,6 +262,18 @@ class SmurfCommandMixin(SmurfBase):
     _run_serial_gradient_descent = 'runSerialGradientDescent'
     def run_serial_gradient_descent(self, band, sync_group=True, **kwargs):
         """
+        Does a gradient descent search for the minimum.
+
+
+        Args:
+        ----
+        band (int) : The band the min search
+
+        Opt Args:
+        --------
+        sync_group (bool) : Whether to use the sync group to monitor
+            the PV. Defauult is True.
+        timeout (float) : The maximum amount of time to wait for the PV.        
         """
         triggerPV = self._cryo_root(band) + self._run_serial_gradient_descent
         monitorPV = self._cryo_root(band) + self._eta_scan_in_progress

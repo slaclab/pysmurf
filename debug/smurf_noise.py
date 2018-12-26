@@ -229,6 +229,61 @@ class SmurfNoiseMixin(SmurfBase):
                 self.channel_off(band, ch)
 
 
+    def noise_vs_tone(self, band, tones=np.arange(10,15), meas_time=30,
+                      analyze=False, bias_group=None):
+        """
+        Assumes that the system is already tuned with reasonable
+        eta params.
+        """
+        timestamp = self.get_timestamp()
+
+        channels = self.which_on(band)
+        start_tones = self.get_amplitude_scale_array(band)
+        st = start_tones[channels[0]]
+
+        # Step down in amplitude to start at min
+        self.log('Slowly stepping down tone amplitude to get to min val')
+        if st != tones[0]:
+            for t in np.arange(st, np.min(tones)-1, -1):
+                self.log('Setting tones to {}'.format(t))
+                x = np.zeros(512, dtype=int)
+                x[channels] = t
+                self.set_amplitude_scale_array(band, x, wait_after=1)
+
+        # Take data
+        self.log('Taking data...')
+        datafiles = np.array([])
+        for i, t in enumerate(tones):
+            self.log('Measuring for tone power {}'.format(t))
+            x = np.zeros(512, dtype=int)
+            x[channels] = t
+            self.set_amplitude_scale_array(band, x, wait_after=3)
+            datafile = self.take_stream_data(meas_time)
+            datafiles = np.append(datafiles, datafile)
+
+        self.log('Saving data')
+        datafile_save = os.path.join(self.output_dir, timestamp +
+                                '_noise_vs_tone_datafile.txt')
+        tone_save = os.path.join(self.output_dir, timestamp +
+                                '_noise_vs_tone_tone.txt')
+        np.savetxt(datafile_save,datafiles, fmt='%s')
+        np.savetxt(tone_save, tones, fmt='%i')
+
+        self.log('Setting back to original tone power')
+        for t in np.arange(np.max(tones), st-1, -1):
+            self.log('Setting tones to {}'.format(t))
+            x = np.zeros(512, dtype=int)
+            x[channels] = t
+            self.set_amplitude_scale_array(band, x, wait_after=1)
+
+        self.set_amplitude_scale_array(band, start_tones)
+        
+        if analyze:
+            self.analyze_noise_vs_tone(tone_save, datafile_save,
+                                       band=band, bias_group=bias_group)
+        
+
+
     def noise_vs_bias(self, band, bias_group,bias_high=6, bias_low=3, step_size=.1,
         bias=None, high_current_mode=False, overbias_voltage=19.9,
         meas_time=30., analyze=False, channel=None, nperseg=2**13,
@@ -866,6 +921,17 @@ class SmurfNoiseMixin(SmurfBase):
 
     def noise_all_vs_noise_solo(self, band, meas_time=10):
         """
+        Measures the noise with all the resonators on, then measures
+        every channel individually.
+
+        Args:
+        -----
+        band (int) : The band number
+
+        Opt Args:
+        ---------
+        meas_time (float) : The measurement time per resonator in
+            seconds. Default is 10.
         """
         timestamp = self.get_timestamp()
 
@@ -880,9 +946,11 @@ class SmurfNoiseMixin(SmurfBase):
         ret = {'all': filename}
 
         for i, ch in enumerate(channel):
-            self.log('ch {:03} - {} of {}'.format(ch, i, n_channel))
+            self.log('ch {:03} - {} of {}'.format(ch, i+1, n_channel))
             self.band_off(band)
-            self.set_amplitude_scale_channel(band, ch, drive, wait_after=1)
+            self.flux_ramp_on()
+            self.set_amplitude_scale_channel(band, ch, drive)
+            self.set_feedback_enable_channel(band, ch, 1, wait_after=1)
             filename = self.take_stream_data(meas_time)
             ret[ch] = filename
 
@@ -890,10 +958,59 @@ class SmurfNoiseMixin(SmurfBase):
 
         return ret
 
-    def analyze_noise_all_vs_noise_solo(self, ret):
+    def analyze_noise_all_vs_noise_solo(self, ret, fs=None, nperseg=2**10,
+                                        make_channel_plot=False):
         """
+        analyzes the data from noise_all_vs_noise_solo
+
+        Args:
+        -----
+        ret (dict) : The returned values from noise_all_vs_noise_solo.
         """
+        if fs is None:
+            fs = self.fs
+
+        import matplotlib.pyplot as plt
+
         keys = ret.keys()
+        all_dir = ret.pop('all')
+
+        t, d, m = self.read_stream_data(all_dir)
+        d *= self.pA_per_phi0/(2*np.pi)  # convert to pA
+
+        wl_diff = np.zeros(len(keys))
+
+        for i, k in enumerate(ret.keys()):
+            self.log('{} : {}'.format(k, ret[k]))
+            tc, dc, mc = self.read_stream_data(ret[k])
+            dc *= self.pA_per_phi0/(2*np.pi)
+            band, channel = np.where(mc != -1)  # there should be only one
+            
+            ch_idx = m[band, channel][0]
+            f, Pxx = signal.welch(d[ch_idx], fs=fs, nperseg=nperseg)
+            Pxx = np.sqrt(Pxx)
+            popt, pcov, f_fit, Pxx_fit = self.analyze_psd(f, Pxx)
+            wl, n, f_knee = popt  # extract fit parameters
+
+            f_solo, Pxx_solo = signal.welch(dc[0], fs=fs, nperseg=nperseg)
+            Pxx_solo = np.sqrt(Pxx_solo)
+            popt_solo, pcov_solo, f_fit_solo, Pxx_fit_solo = \
+                self.analyze_psd(f, Pxx_solo)
+            wl_solo, n_solo, f_knee_solo = popt_solo
+            if make_channel_plot:
+                fig, ax = plt.subplots(2)
+                ax[0].plot(t-t[0], d[ch_idx]-np.median(d[ch_idx]))
+                ax[0].plot(tc-tc[0], dc[0]-np.median(dc[0]))
+                ax[1].semilogy(f, Pxx, alpha=.5, color='b')
+                ax[1].semilogy(f, Pxx_solo, alpha=.5, color='r')
+                ax[1].axhline(wl, color='b')
+                ax[1].axhline(wl_solo, color='r')
+                plt.show()
+
+            wl_diff[i] = wl - wl_solo
+
+        return wl_diff
+
 
     def NET_CMB(self,NEI,V_b,R_tes,opt_eff,f_center=150e9,bw=32e9,R_sh=None,high_current_mode=False):
         '''
