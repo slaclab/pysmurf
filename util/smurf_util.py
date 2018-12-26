@@ -529,7 +529,6 @@ class SmurfUtilMixin(SmurfBase):
         # Joe's timestamp - 64 bit UTC.
         timestamp2 = np.array([i[keys_dict['rtm_dac_config5']] for i in frames])
 
-        print(datafile.replace('.dat','_mask.txt'))
         mask = self.make_mask_lookup(datafile.replace('.dat','_mask.txt'))
 
         return timestamp2, phase, mask
@@ -538,7 +537,7 @@ class SmurfUtilMixin(SmurfBase):
     def make_mask_lookup(self, mask_file):
         """
         """
-        mask = np.loadtxt(mask_file)
+        mask = np.atleast_1d(np.loadtxt(mask_file))
         bands = np.unique(mask // 512).astype(int)
         ret = np.ones((np.max(bands)+1, 512), dtype=int) * -1
         
@@ -1726,8 +1725,7 @@ class SmurfUtilMixin(SmurfBase):
 
 
     def make_smurf_to_gcp_config(self, num_averages=0, filename=None,
-        file_name_extend=False, data_frames=2000000, filter_order=4, 
-        filter_freq=None):
+        file_name_extend=False, data_frames=2000000):
         """
         Makes the config file that the Joe-writer uses to set the IP
         address, port number, data file name, etc.
@@ -1748,11 +1746,10 @@ class SmurfUtilMixin(SmurfBase):
            Default is False and should probably always be False.
         data_frames (int): The number of frames to store. Works up to 
            2000000, which is about a 5GB file. Default is 2000000
-        filter_order (int): The order of the Butterworth filter. Default 4.
-        filter_freq (float): The frequency of the lowpass. Default 63.
         """
-        if filter_freq is None:
-            filter_freq = self.config.get('smurf_to_mce').get('filter_freq')
+
+        filter_freq = self.config.get('smurf_to_mce').get('filter_freq')
+        filter_order = self.config.get('smurf_to_mce').get('filter_order')
 
         if filename is None:
             filename = self.get_timestamp() + '.dat'
@@ -1948,7 +1945,7 @@ class SmurfUtilMixin(SmurfBase):
 
         # The vector to multiply by to get the DC offset
         n_tile = int(duration/wait_time/2)-1
-        print(n_tile)
+
         high = np.tile(np.append(np.append(np.nan*np.zeros(skip_samp_start), 
                                            np.ones(n_demod-skip_samp_start-skip_samp_end)),
                                  np.nan*np.zeros(skip_samp_end+n_demod)),n_tile)
