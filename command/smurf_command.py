@@ -260,7 +260,8 @@ class SmurfCommandMixin(SmurfBase):
 
 
     _run_serial_gradient_descent = 'runSerialGradientDescent'
-    def run_serial_gradient_descent(self, band, sync_group=True, **kwargs):
+    def run_serial_gradient_descent(self, band, sync_group=True, 
+                                    timeout=240, **kwargs):
         """
         Does a gradient descent search for the minimum.
 
@@ -281,7 +282,7 @@ class SmurfCommandMixin(SmurfBase):
         self._caput(triggerPV, 1, wait_after=5, **kwargs)
 
         if sync_group:
-            sg = SyncGroup([monitorPV])
+            sg = SyncGroup([monitorPV], timeout=timeout)
             sg.wait()
             vals = sg.get_values()
 
