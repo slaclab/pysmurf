@@ -10,7 +10,7 @@ S = pysmurf.SmurfControl(setup=False,
     make_logfile=False)
 
 savedir = '/home/cryo/ey/nonlinear_lms'
-bias_vals = np.arange(5, 1.0, -.025)
+bias_vals = np.arange(8, 1, -.5)
 lms_freqs = np.arange(12200, 12801, 50)
 lms_freqs_tmp = np.arange(12250, 12601, 50)
 bias_line_resistance = S.bias_line_resistance
@@ -40,8 +40,6 @@ def plot_sib(channels=None, show_plot=True, rs=.003):
 
     cm = plt.get_cmap('viridis')
     
-
-
     for c in channels:
         fig, ax = plt.subplots(3, figsize=(5,8), sharex=True)
         for i, l in enumerate(lms_freqs_tmp):
@@ -68,20 +66,23 @@ def plot_sib(channels=None, show_plot=True, rs=.003):
 
 
 def test(S):    
-    n_bias = len(bias_vals)
-    n_chans = len(S.which_on(2))
-    for lms in lms_freqs:
-        print(lms)
-        S.overbias_tes_all(bias_groups=np.array([1,2,3]), overbias_voltage=8, tes_bias=5, 
-                           high_current_mode=False, overbias_wait=1.5, cool_wait=90)
-        S.tracking_setup(2, fraction_full_scale=.72,lms_freq_hz=lms)
-        
-        resps = np.zeros((n_bias, n_chans))
-        sibs = np.zeros((n_bias, n_chans))
-        for i, bv in enumerate(bias_vals):
-            resps[i], sibs[i] = get_sib(S, np.array([1,2,3]), start_bias=bv)
-        np.save(os.path.join(savedir, 'resp_{}'.format(lms)), resps)
-        np.save(os.path.join(savedir, 'sibs_{}'.format(lms)), sibs)
+    #n_bias = len(bias_vals)
+    #n_chans = len(S.which_on(2))
+    for b in bias_vals:
+        print('Bias {}'.format(b))
+        S.overbias_tes_all(bias_groups=np.array([2]), overbias_voltage=8, tes_bias=b, 
+                           high_current_mode=True, overbias_wait=1.5, cool_wait=90)
+        for lms in lms_freqs:
+            print(lms)
+            S.tracking_setup(2, fraction_full_scale=.72,lms_freq_hz=lms)
+            r = S.bias_bump(2, step_size=.03)
+            np.save(os.path.join(savedir, 'r_bias{}_lms{}'.format(b, lms)), r)
+        #resps = np.zeros((n_bias, n_chans))
+        #sibs = np.zeros((n_bias, n_chans))
+        #for i, bv in enumerate(bias_vals):
+        #    resps[i], sibs[i] = get_sib(S, np.array([1,2,3]), start_bias=bv)
+        #np.save(os.path.join(savedir, 'resp_{}'.format(lms)), resps)
+        #np.save(os.path.join(savedir, 'sibs_{}'.format(lms)), sibs)
         
 
 
