@@ -230,34 +230,22 @@ class SmurfNoiseMixin(SmurfBase):
 
 
     def noise_vs_tone(self, band, tones=np.arange(10,15), meas_time=30,
-                      analyze=False, bias_group=None):
+                      analyze=False, bias_group=None, lms_freq_hz=None,
+                      fraction_full_scale=.72):
         """
-        Assumes that the system is already tuned with reasonable
-        eta params.
         """
         timestamp = self.get_timestamp()
 
-        channels = self.which_on(band)
-        start_tones = self.get_amplitude_scale_array(band)
-        st = start_tones[channels[0]]
-
-        # Step down in amplitude to start at min
-        self.log('Slowly stepping down tone amplitude to get to min val')
-        if st != tones[0]:
-            for t in np.arange(st, np.min(tones)-1, -1):
-                self.log('Setting tones to {}'.format(t))
-                x = np.zeros(512, dtype=int)
-                x[channels] = t
-                self.set_amplitude_scale_array(band, x, wait_after=1)
-
         # Take data
-        self.log('Taking data...')
         datafiles = np.array([])
         for i, t in enumerate(tones):
             self.log('Measuring for tone power {}'.format(t))
-            x = np.zeros(512, dtype=int)
-            x[channels] = t
-            self.set_amplitude_scale_array(band, x, wait_after=3)
+            self.tune_band_serial(band, drive=t)
+            self.tracking_setup(band, fraction_full_scale=fraction_full_scale,
+                                lms_freq_hz=lms_freq_hz)
+            self.check_lock(band, lms_freq_hz=lms_freq_hz)
+            time.sleep(2)
+            self.log(self.get_amplitude_scale_array(band))
             datafile = self.take_stream_data(meas_time)
             datafiles = np.append(datafiles, datafile)
 
@@ -269,14 +257,9 @@ class SmurfNoiseMixin(SmurfBase):
         np.savetxt(datafile_save,datafiles, fmt='%s')
         np.savetxt(tone_save, tones, fmt='%i')
 
-        self.log('Setting back to original tone power')
-        for t in np.arange(np.max(tones), st-1, -1):
-            self.log('Setting tones to {}'.format(t))
-            x = np.zeros(512, dtype=int)
-            x[channels] = t
-            self.set_amplitude_scale_array(band, x, wait_after=1)
+        #self.set_amplitude_scale_array(band, x, wait_after=1)
 
-        self.set_amplitude_scale_array(band, start_tones)
+        #self.set_amplitude_scale_array(band, start_tones)
         
         if analyze:
             self.analyze_noise_vs_tone(tone_save, datafile_save,
@@ -287,8 +270,8 @@ class SmurfNoiseMixin(SmurfBase):
     def noise_vs_bias(self, band, bias_group,bias_high=6, bias_low=3, step_size=.1,
         bias=None, high_current_mode=False, overbias_voltage=19.9,
         meas_time=30., analyze=False, channel=None, nperseg=2**13,
-        detrend='constant', fs=None,show_plot = False,cool_wait = 30.,gcp_mode = True,
-        psd_ylim = (10.,1000.)):
+        detrend='constant', fs=None, show_plot=False, cool_wait=30., gcp_mode=True,
+        psd_ylim=(10.,1000.), est_NET=False):
         """
         This ramps the TES voltage from bias_high to bias_low and takes noise
         measurements. You can make it analyze the data and make plots with the
@@ -328,7 +311,7 @@ class SmurfNoiseMixin(SmurfBase):
                  meas_time=meas_time, analyze=analyze, channel=channel, nperseg=nperseg,
                  detrend=detrend, fs=fs, show_plot=show_plot,
                  gcp_mode=gcp_mode, psd_ylim=psd_ylim, overbias_voltage=overbias_voltage,
-                 cool_wait=cool_wait, high_current_mode=high_current_mode)
+                 cool_wait=cool_wait, high_current_mode=high_current_mode, est_NET=est_NET)
 
     def noise_vs_amplitude(self, band, amplitude_high=11, amplitude_low=9, step_size=1,
                            amplitudes=None,
@@ -354,7 +337,7 @@ class SmurfNoiseMixin(SmurfBase):
     def noise_vs(self, band, var, var_range, 
                  meas_time=30, analyze=False, channel=None, nperseg=2**13,
                  detrend='constant', fs=None, show_plot=False,
-                 gcp_mode=True, psd_ylim=None,
+                 gcp_mode=True, psd_ylim=None, est_NET=False,
                  **kwargs):
 
         if fs is None:
@@ -386,7 +369,10 @@ class SmurfNoiseMixin(SmurfBase):
         np.savetxt(os.path.join(psd_dir, '{}_{}.txt'.format(timestamp,var)),
             var_range)
         datafiles = np.array([], dtype=str)
-        bias_step_files = np.array([],dtype=str)
+        if est_NET:
+            bias_step_files = np.array([],dtype=str)
+        else:
+            bias_step_files = None
 
         for v in var_range:
 
@@ -413,19 +399,6 @@ class SmurfNoiseMixin(SmurfBase):
                 ## which channels are configured?
                 channels=self.which_on(band)
 
-                ## change amplitude for configured channels
-                '''
-                self.log('Setting amplitude of all configured channels to {}.'.format(var))
-                feedbackEnableArray0=self.get_feedback_enable_array(band)
-                self.set_feedback_enable_array(band,np.zeros(feedbackEnableArray0.shape,dtype='int'))
-                amplitudeScaleArray=self.get_amplitude_scale_array(band)
-                amplitudeScaleArray[channels]=v
-                self.set_amplitude_scale_array(band,amplitudeScaleArray)
-
-                ## reLock
-                self.log('Re-locking channels at new tone amplitude.')
-                self.run_parallel_eta_scan(band)
-                '''
                 self.log('Tuning for amplitude = {}'.format(v))
                 self.setup_notches(band,drive=v)
 
@@ -433,14 +406,14 @@ class SmurfNoiseMixin(SmurfBase):
                 lms_freq_hz=self.get_lms_freq_hz(band)
                 self.log('Turning flux ramp back on and setting up tracking (lms_freq_hz={}).'.format(lms_freq_hz))
                 self.tracking_setup(band,channels[0],lms_freq_hz=lms_freq_hz)
-            
-            self.log('Performing bias bump...')
-            bias_step_results = self.bias_bump(kwargs['bias_group'],high_current_mode=kwargs['high_current_mode'],fs=fs)
-            bias_step_timestamp = self.get_timestamp()
-            bias_step_file = os.path.join(psd_dir,'{}_bias_step.npy'.format(bias_step_timestamp))
-            np.save(bias_step_file,bias_step_results)
-            bias_step_files = np.append(bias_step_files,bias_step_file)
-            self.log('Saving bias-step results to {}'.format(bias_step_file))
+            if est_NET:
+                self.log('Performing bias bump...')
+                bias_step_results = self.bias_bump(kwargs['bias_group'],high_current_mode=kwargs['high_current_mode'],fs=fs)
+                bias_step_timestamp = self.get_timestamp()
+                bias_step_file = os.path.join(psd_dir,'{}_bias_step.npy'.format(bias_step_timestamp))
+                np.save(bias_step_file,bias_step_results)
+                bias_step_files = np.append(bias_step_files,bias_step_file)
+                self.log('Saving bias-step results to {}'.format(bias_step_file))
 
             self.log('Taking data')
             datafile = self.take_stream_data(meas_time,gcp_mode=gcp_mode)
@@ -451,8 +424,9 @@ class SmurfNoiseMixin(SmurfBase):
 
         np.savetxt(os.path.join(psd_dir, '{}_datafiles.txt'.format(timestamp)),
             datafiles, fmt='%s')
-        np.savetxt(os.path.join(psd_dir,'{}_bias_step.txt'.format(timestamp)),
-            bias_step_files,fmt='%s')
+        if est_NET:
+            np.savetxt(os.path.join(psd_dir,'{}_bias_step.txt'.format(timestamp)),
+                       bias_step_files,fmt='%s')
 
         if analyze:
             self.analyze_noise_vs_bias(var_range, datafiles, bias_step_files=bias_step_files, channel=channel, 
