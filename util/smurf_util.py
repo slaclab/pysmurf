@@ -327,7 +327,7 @@ class SmurfUtilMixin(SmurfBase):
         else:
             # start streaming before opening file to avoid transient filter step
             for band in bands:
-                self.set_stream_enable(band, 1, write_log=True)
+                self.set_stream_enable(band, 1, write_log=False)
             time.sleep(1.)
 
 
@@ -1580,8 +1580,6 @@ class SmurfUtilMixin(SmurfBase):
             self.set_tes_bias_bipolar(g, overbias_voltage)
             time.sleep(.1)
 
-        # for g in bias_groups:
-        # self.set_tes_bias_high_current(g)
         self.set_tes_bias_high_current(bias_groups)
         self.log('Driving high current through TES. ' + \
             'Waiting {}'.format(overbias_wait), self.LOG_USER)
@@ -1590,9 +1588,6 @@ class SmurfUtilMixin(SmurfBase):
         if not high_current_mode:
             self.log('settting to low current')
             self.set_tes_bias_low_current(bias_groups)
-            #for g in bias_groups:
-            #    self.set_tes_bias_low_current(g)
-            #    time.sleep(.1)
 
         for g in bias_groups:
             self.set_tes_bias_bipolar(g, tes_bias)
@@ -1929,8 +1924,11 @@ class SmurfUtilMixin(SmurfBase):
 
         n_step = int(np.floor(duration / wait_time / 2))
 
+        i_bias = start_bias[0] / self.bias_line_resistance
+        
         if high_current_mode:
             self.set_tes_bias_high_current(bias_group)
+            i_bias *= self.high_low_current_ratio
 
         filename = self.stream_data_on()
 
@@ -2029,6 +2027,7 @@ class SmurfUtilMixin(SmurfBase):
             for i in idx:
                 c = channels[i]
                 ret[b][c] = {}
+                ret[b][c]['resp'] = resp[i]
                 ret[b][c]['R'] = resistance[i]
                 ret[b][c]['Sib'] = sib[i]
                 ret[b][c]['Siq'] = siq[i]

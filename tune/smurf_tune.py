@@ -192,31 +192,47 @@ class SmurfTuneMixin(SmurfBase):
         make_subband_plot=False, subband=None, n_scan=2,
         subband_plot_with_slow=False, window=5000, rolling_med=True,
         grad_cut=.025, freq_min=-2.5E8, freq_max=2.5E8, amp_cut=.25,
-        load_peaks_from_file=True, del_f=.005):
+        load_peaks_from_file=True, del_f=.005, drive=None,
+        new_master_assignment=False, from_old_tune=False,
+        old_tune=None):
         """
+        Tunes band using serial_gradient_descent and then
+        serial_eta_scan. 
         """
         timestamp = self.get_timestamp()
 
         self.flux_ramp_off()  # flux ramping messes up eta params
 
-        # Inject high amplitude noise with known waveform, measure it, and                                
-        # then find resonators and etaParameters from cross-correlation.                                  
-        att_uc = self.get_att_uc(band)
-        drive = self.config.get('init')['band_{}'.format(band)]['amplitude_scale']
+        if from_old_tune:
+            if old_tune is None:
+                self.log('Using default tuning file')
+                old_tune = '/data/smurf_data/20181224/1545702255/outputs/tune/1545719903_tune.npy'
+            self.load_tune(old_tune)
 
-        new_att_uc = (15-drive)*6+att_uc
-        if new_att_uc > 31:  # upconverter value cannot be bigger than 31
-            new_att_uc = 31
-        self.set_att_uc(band, new_att_uc, write_log=True)
-        freq, resp = self.full_band_resp(band, n_samples=n_samples,
+            resonances = np.copy(self.freq_resp[band]['resonances']).item()
+
+            if new_master_assignment:
+                f = np.array([resonances[k]['freq'] for k in resonances.keys()])
+                # f += self.get_band_center_mhz(band)
+                subbands, channels, offsets = self.assign_channels(f, band=band,
+                    as_offset=False, new_master_assignment=new_master_assignment)
+
+                for i, k in enumerate(resonances.keys()):
+                    resonances[k].update({'subband': subbands[i]})
+                    resonances[k].update({'channel': channels[i]})
+                    resonances[k].update({'offset': offsets[i]})
+                self.freq_resp[band]['resonances'] = resonances
+
+        else:
+            # Inject high amplitude noise with known waveform, measure it, and
+            # then find resonators and etaParameters from cross-correlation.                    
+            freq, resp = self.full_band_resp(band, n_samples=n_samples,
                                          make_plot=make_plot, save_data=save_data, 
                                          show_plot=False, timestamp=timestamp,
                                          n_scan=n_scan)
 
-        self.set_att_uc(band, att_uc)
-
-        # Find peaks                                                                                      
-        peaks = self.find_peak(freq, resp, rolling_med=rolling_med, window=window,
+            # Find peaks
+            peaks = self.find_peak(freq, resp, rolling_med=rolling_med, window=window,
                                band=band, make_plot=make_plot, save_plot=save_plot, 
                                show_plot=show_plot, grad_cut=grad_cut, freq_min=freq_min,
                                freq_max=freq_max, amp_cut=amp_cut,
@@ -224,44 +240,51 @@ class SmurfTuneMixin(SmurfBase):
                                subband_plot_with_slow=subband_plot_with_slow, pad=50, 
                                min_gap=50)
 
-        resonances = {}
-        for i, p in enumerate(peaks):
-            resonances[i] = {
-                'freq': p*1.0E-6,  # in MHz
-                'r2' : 0,
-                'Q' : 1,
-                'eta_phase' : 1 , # Fill etas with arbitrary values for now
-                'eta_scaled' : 1
-            }
+            resonances = {}
+            for i, p in enumerate(peaks):
+                resonances[i] = {
+                    'freq': p*1.0E-6,  # in MHz
+                    'r2' : 0,
+                    'Q' : 1,
+                    'eta_phase' : 1 , # Fill etas with arbitrary values for now
+                    'eta_scaled' : 1
+                }
 
+            # Assign resonances to channels
+            self.log('Assigning channels')
+            f = np.array([resonances[k]['freq'] for k in resonances.keys()])
+            f += self.get_band_center_mhz(band)
+            subbands, channels, offsets = self.assign_channels(f, band=band, 
+                as_offset=False, new_master_assignment=new_master_assignment)
 
-        # Assign resonances to channels
-        self.log('Assigning channels')
-        f = np.array([resonances[k]['freq'] for k in resonances.keys()])
-        f += self.get_band_center_mhz(band)
-        subbands, channels, offsets = self.assign_channels(f, band=band, as_offset=False)
-        for i, k in enumerate(resonances.keys()):
-            resonances[k].update({'subband': subbands[i]})
-            resonances[k].update({'channel': channels[i]})
-            resonances[k].update({'offset': offsets[i]})
-            self.freq_resp[band]['resonances'] = resonances
-        self.freq_resp[band]['drive'] = \
-            self.config.get('init')['band_{}'.format(band)]['amplitude_scale']
+            for i, k in enumerate(resonances.keys()):
+                resonances[k].update({'subband': subbands[i]})
+                resonances[k].update({'channel': channels[i]})
+                resonances[k].update({'offset': offsets[i]})
+                self.freq_resp[band]['resonances'] = resonances
+
+        if drive is None:
+            drive = \
+                self.config.get('init')['band_{}'.format(band)]['amplitude_scale']
+        self.freq_resp[band]['drive'] = drive
 
         # Set the resonator frequencies without eta params 
-        self.relock(band)
+        self.relock(band, drive=drive)
 
         # Find the resonator minima
-        #self.run_serial_gradient_descent(band)
-        self.run_serial_min_search(band)
+        self.log('Finding resonator minima...')
+        self.run_serial_gradient_descent(band, timeout=1200)
+        #self.run_serial_min_search(band)
         
         # Calculate the eta params
-        self.run_serial_eta_scan(band)
+        self.log('Calculating eta parameters...')
+        self.run_serial_eta_scan(band, timeout=1200)
 
         # Read back new eta parameters and populate freq_resp
         eta_phase = self.get_eta_phase_array(band)
         eta_scaled = self.get_eta_mag_array(band)
         chs = self.get_eta_scan_result_channel(band)
+
         for i, ch in enumerate(chs):
             if ch != -1:
                 resonances[i]['eta_phase'] = eta_phase[ch]
@@ -270,6 +293,8 @@ class SmurfTuneMixin(SmurfBase):
         self.freq_resp[band]['resonances'] = resonances
 
         self.save_tune()
+
+        self.log('Done with serial tuning')
 
     def tune_band_parallel(self, band, n_samples=2**19,
         make_plot=False, save_plot=True, save_data=True, show_plot=False,
@@ -1402,8 +1427,11 @@ class SmurfTuneMixin(SmurfBase):
         
         if not new_master_assignment:
             freq_master,subbands_master,channels_master,_ = self.get_master_assignment(band)
-            for idx in range(len(freq)):
+            n_freqs = len(freq)
+            n_unmatched = 0
+            for idx in range(n_freqs):
                 f = freq[idx]
+                found_match = False
                 for i in range(len(freq_master)):
                     f_master = freq_master[i]
                     if np.absolute(f-f_master) < min_offset:
@@ -1414,7 +1442,12 @@ class SmurfTuneMixin(SmurfBase):
                         sb_center = self.get_subband_centers(band,as_offset=as_offset)[1][sb]
                         offsets[idx] = f-sb_center
                         self.log('Matching {:.2f} MHz to {:.2f} MHz in master channel list: assigning to subband {}, ch. {}'.format(f,f_master,sb,ch))
-                        continue
+                        found_match = True
+                        break
+                if not found_match:
+                    n_unmatched += 1
+                    self.log('No match found for {:.2f} MHz'.format(f))
+            self.log('No channel assignment for {} of {} resonances.'.format(n_unmatched,n_freqs))
         else:
             d_freq = np.diff(freq)
             close_idx = d_freq > min_offset
@@ -1990,9 +2023,7 @@ class SmurfTuneMixin(SmurfBase):
                 ax2.semilogy(ff/1.0E3, pp, color=color)
                 
                 sort_idx = np.argsort(pp)[::-1]
-                #print(sort_idx)
-                #highs[:,i] = ff[sort_idx[:n_high]]
-                #print(ff[sort_idx[:n_high]])
+                
 
             for k in reset_idx:
                 ax0.axvline(k/fs*scale, color='k', alpha=.6, linestyle=':')
@@ -2467,7 +2498,7 @@ class SmurfTuneMixin(SmurfBase):
         self.set_enable_ramp_trigger(EnableRampTrigger, write_log=write_log)
         self.set_ramp_rate(reset_rate_khz, write_log=write_log)
 
-    def check_lock(self, band, f_min=.05, f_max=.2, df_max=.03,
+    def check_lock(self, band, f_min=.015, f_max=.2, df_max=.03,
         make_plot=False, flux_ramp=True, fraction_full_scale=None,
         lms_freq_hz=None, reset_rate_khz=4., **kwargs):
         """
@@ -3220,7 +3251,6 @@ class SmurfTuneMixin(SmurfBase):
 
                 sxarray = np.array([0])
                 pts = len(flux)
-
                 for rlen in np.arange(1, np.round(pts/2), dtype=int):
                     refsig = flux[:rlen]
                     sx = 0
@@ -3236,13 +3266,12 @@ class SmurfTuneMixin(SmurfBase):
                 scaled_array = sxarray / ac
 
                 pk = 0
-                for n in np.arange(np.round(pts/2), dtype=int):
+                for n in np.arange(np.round(pts/2)-1, dtype=int):
                     if scaled_array[n] > threshold:
                         if scaled_array[n] > scaled_array[pk]:
                             pk = n
                         else:
                             break;
-
                 
                 Xf = [-1, 0, 1]
                 Yf = [scaled_array[pk-1], scaled_array[pk], scaled_array[pk+1]]
