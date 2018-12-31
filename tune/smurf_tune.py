@@ -1,5 +1,6 @@
 import numpy as np
 import os
+import glob
 import time
 from pysmurf.base import SmurfBase
 from scipy import optimize
@@ -12,6 +13,70 @@ class SmurfTuneMixin(SmurfBase):
     """
     This contains all the tuning scripts
     """
+
+    def tune(self, load_tune=True, tune_file=None, last_tune=False, retune=False,
+             f_min=.02, f_max=.3, df_max=.03, fraction_full_scale=None, make_plot=False,
+             save_plot=True, show_plot=False):
+        """
+        This runs a tuning, does tracking setup, and prunes bad
+        channels using check lock. When this is done, we should
+        be ready to take data.
+
+        Args:
+        -----
+        load_tune (bool): Whether to load in a tuning file. If False, will
+            do a full tuning. This will be very slow (~ 1 hour)
+        tune_file (str): The tuning file to load in. Default is None. If
+            tune_file is None and last_tune is False, this will load the
+            default tune file defined in exp.cfg.
+        last_tune (bool): Whether to load the most recent tuning file. Default
+            is False.
+        retune (bool): Whether to re-run tune_band_serial to refind peaks and
+            eta params. This will take about 5 minutes. Default is False.
+        f_min (float): The minimum frequency swing allowable for check_lock.
+        f_max (float): The maximum frequency swing allowable for check_lock.
+        df_max (float): The maximum df stddev allowable for check_lock.
+        make_plot (bool): Whether to make a plot. Default is False.
+        save_plot (bool): If making plots, whether to save them. Default is True.
+        show_plot (bool): Whether to display the plots to screen. Default is False.
+        """
+        bands = self.config.get('init').get('bands')
+        tune_cfg = self.config.get('tune_band')
+        
+        # Load fraction_full_scale from file if not given
+        if fraction_full_scale is None:
+            fraction_full_scale = tune_cfg.get('fraction_full_scale')
+        
+        if load_tune:
+            if last_tune:
+                tune_file = self.last_tune()
+                self.log('Last tune is : {}'.format(tune_file))
+            elif tune_file is None:
+                tune_file = tune_cfg.get('default_tune')
+                self.log('Loading default tune file: {}'.format(tune_file))
+            self.load_tune(tune_file)
+
+        # Runs find_freq and setup_notches. This takes forever.
+        else:
+            for b in bands:
+                self.tune_band(b)
+
+        # Runs tune_band_serial to re-estimate eta params
+        if retune:
+            for b in bands:
+                self.log('Running tune band serial on band {}'.format(b))
+                self.tune_band_serial(b, from_old_tune=load_tune,
+                                      old_tune=tune_file, make_plot=make_plot,
+                                      show_plot=show_plot, save_plot=save_plot)
+
+        # Starts tracking and runs check_lock to prune bad resonators
+        for b in bands:
+            self.log('Tracking and checking band {}'.format(b))
+            self.track_and_check(b, fraction_full_scale=.6, f_min=f_min,
+                                 f_max=f_max, df_max=df_max, make_plot=make_plot
+                                 save_plot=save_plot, show_plot=show_plot)
+        
+        
 
     def tune_band(self, band, freq=None, resp=None, n_samples=2**19, 
         make_plot=False, plot_chans = [], save_plot=True, save_data=True, 
@@ -2239,6 +2304,26 @@ class SmurfTuneMixin(SmurfBase):
 
         return f, df, sync
 
+    def track_and_check(self, band, channel=None, reset_rate_khz=4., 
+        make_plot=False, save_plot=True, show_plot=True,
+        lms_freq_hz=None, flux_ramp=True, fraction_full_scale=None,
+        lms_enable1=True, lms_enable2=True, lms_enable3=True, lms_gain=7,
+        f_min=.015, f_max=.2, df_max=.03):
+        """
+        This runs tracking setup and check_lock to prune bad channels.
+        """
+        d, df, sync = self.tracking_setup(band, channel=channel, 
+        reset_rate_khz=reset_rate_khz,
+        make_plot=make_plot, save_plot=save_plot, show_plot=show_plot,
+        lms_freq_hz=lms_freq_hz, flux_ramp=flux_ramp, 
+        fraction_full_scale=fraction_full_scale,
+        lms_enable1=lms_enable1, lms_enable2=lms_enable2, lms_enable3=lms_enable3, 
+        lms_gain=lms_gain)
+
+        self.check_lock(band, f_min=f_min, f_max=f_max, df_max=df_max,
+        make_plot=make_plot, flux_ramp=flux_ramp, 
+        fraction_full_scale=fraction_full_scale,
+        lms_freq_hz=lms_freq_hz, reset_rate_khz=4.,)
     
     def eta_phase_check(self, band, rot_step_size=30, rot_max=360,
                         reset_rate_khz=4., 
@@ -3138,6 +3223,14 @@ class SmurfTuneMixin(SmurfBase):
             self.freq_resp = fs
         else:
             return fs
+
+    def last_tune(self):
+        """
+        Returns the full path to the most recent tuning file.
+        """
+        return np.sort(glob.glob(os.path.join(self.tune_dir, 
+                                              '*_tune.npy')))[-1]
+
 
     def parallel_scan(self, band, channels, drive,
                       scan_freq=np.arange(-3, 3, .1)):
