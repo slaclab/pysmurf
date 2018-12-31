@@ -1537,12 +1537,12 @@ class SmurfUtilMixin(SmurfBase):
         self.set_tes_bias_bipolar(bias_group, overbias_voltage)
         time.sleep(.1)
 
-        self.set_tes_bias_high_current(bias_group)
+        self.set_tes_bias_high_current()
         self.log('Driving high current through TES. ' + \
             'Waiting {}'.format(overbias_wait), self.LOG_USER)
         time.sleep(overbias_wait)
         if not high_current_mode:
-            self.set_tes_bias_low_current(bias_group)
+            self.set_tes_bias_low_current()
             time.sleep(.1)
         self.set_tes_bias_bipolar(bias_group, tes_bias)
         self.log('Waiting %.2f seconds to cool' % (cool_wait), self.LOG_USER)
@@ -1575,22 +1575,23 @@ class SmurfUtilMixin(SmurfBase):
         if bias_groups is None:
             bias_groups = self.all_groups
 
+        voltage_overbias_array = np.zeros((8,)) # currently hardcoded for 8 bias groups
+        voltage_overbias_array[bias_groups] = overbias_voltage
+        self.set_tes_bias_bipolar_array(voltage_overbias_array)
 
-        for g in bias_groups:
-            self.set_tes_bias_bipolar(g, overbias_voltage)
-            time.sleep(.1)
-
-        self.set_tes_bias_high_current(bias_groups)
+        self.set_tes_bias_high_current()
         self.log('Driving high current through TES. ' + \
             'Waiting {}'.format(overbias_wait), self.LOG_USER)
         time.sleep(overbias_wait)
 
         if not high_current_mode:
             self.log('settting to low current')
-            self.set_tes_bias_low_current(bias_groups)
+            self.set_tes_bias_low_current()
 
-        for g in bias_groups:
-            self.set_tes_bias_bipolar(g, tes_bias)
+        voltage_bias_array = np.zeros((8,)) # currently hardcoded for 8 bias groups
+        voltage_bias_array[bias_groups] = tes_bias
+        self.set_tes_bias_bipolar_array(voltage_bias_array)
+
         self.log('Waiting {:3.2f} seconds to cool'.format(cool_wait), 
                  self.LOG_USER)
         time.sleep(cool_wait)
@@ -1668,14 +1669,36 @@ class SmurfUtilMixin(SmurfBase):
         Sets it DC coupling
         """
         # The 16th bit (0 indexed) is the AC/DC coupling
-        self.set_tes_bias_high_current(16)
+        # self.set_tes_bias_high_current(16)
+        r = 16
+
+        old_relay = self.get_cryo_card_relays()
+        old_relay = self.get_cryo_card_relays() # query twice to ensure update
+        self.log('Old relay {}'.format(bin(old_relay)))
+
+        new_relay = np.copy(old_relay)
+        new_relay = (1 << r) | new_relay
+        self.log('New relay {}'.format(bin(new_relay)))
+        self.set_cryo_card_relays(new_relay, write_log=write_log)
+        self.get_cryo_card_relays()
 
     def set_mode_ac(self):
         """
         Sets it to AC coupling
         """
         # The 16th bit (0 indexed) is the AC/DC coupling
-        self.set_tes_bias_low_current(16)
+        # self.set_tes_bias_low_current(16)
+        old_relay = self.get_cryo_card_relays()
+        old_relay = self.get_cryo_card_relays()  # querey twice to ensure update
+        new_relay = np.copy(old_relay)
+
+        r = 16
+        if old_relay & 1 << r != 0:
+            new_relay = new_relay & ~(1 << r)
+
+        self.log('New relay {}'.format(bin(new_relay)))
+        self.set_cryo_card_relays(new_relay, write_log=write_log)
+        self.get_cryo_card_relays()
 
 
     def att_to_band(self, att):
@@ -1940,7 +1963,7 @@ class SmurfUtilMixin(SmurfBase):
         i_bias = start_bias[0] / self.bias_line_resistance
         
         if high_current_mode:
-            self.set_tes_bias_high_current(bias_group)
+            self.set_tes_bias_high_current()
             i_bias *= self.high_low_current_ratio
 
         filename = self.stream_data_on()
