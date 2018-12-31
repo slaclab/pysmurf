@@ -15,7 +15,7 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
     Base class for controlling Smurf. Loads all the mixins.
     '''
     def __init__(self, epics_root=None, 
-        cfg_file='/home/cryo/pysmurf/cfg_files/experiment_fp28.cfg', 
+        cfg_file='/home/cryo/pysmurf/cfg_files/experiment_k2umux.cfg', 
         data_dir=None, name=None, make_logfile=True, 
         setup=True, offline=False, smurf_cmd_mode=False, no_dir=False,
         **kwargs):
