@@ -7,7 +7,7 @@ import os
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
 import pysmurf
 
-cfg_filename = 'experiment_kx_mapodaq.cfg'
+cfg_filename = 'experiment_k2umux.cfg'
 
 
 """
@@ -168,8 +168,6 @@ if __name__ == "__main__":
     # Tuning
     parser.add_argument('--tune', action='store_true', default=False,
         help='Run tuning')
-    parser.add_argument('--tune-band', action='store', type=int, default=-1,
-        help='The band to tune.')
     parser.add_argument('--tune-make-plot', action='store_true', default=False,
         help='Whether to make plots for tuning. This is slow.')
 
@@ -232,6 +230,17 @@ if __name__ == "__main__":
     if args.log is not None:
         S.log(args.log)
 
+    ### Tuning related commands ###
+    if args.last_tune:
+        S.tune(last_tune=True, make_plot=args.tune_make_plot)
+
+    if args.use_tune is not None:
+        S.tune(tune_file = args.use_tune, make_plot=args.tune_make_plot)
+
+    if args.tune:
+        S.tune(retune=True, make_plot=args.tune_make_plot)
+
+    ### TES bias related commands ###
     if args.tes_bias:
         bias_voltage = args.bias_voltage
         if args.bias_group == -1:
