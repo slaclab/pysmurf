@@ -77,3 +77,40 @@ class SmurfConfig:
             return self.config[key]
         else:
             return None
+
+    def get_subkey(self, key, subkey):
+        """
+        Get the subkey value. A dumb thing that just formats strings for you.
+        Will return None if it can't find stuff
+
+        Args:
+          key (any): key in config
+          subkey (any): config subkey
+        """
+
+        if self.has(key):
+            sub_dict = self.config[key]
+            try:
+                return sub_dict[subkey]
+            except KeyError:
+                print("Key found, but subkey not found")
+                return None
+        else:
+            print("Key not found")
+            return None
+
+    def update_subkey(self, key, subkey, val):
+        """
+        More dumb wrappers for nested dictionaries.
+
+        Args:
+          key (any): key in config
+          subkey (any): config subkey
+          val (any): value to write
+        """
+
+        try: 
+            self.config[key][subkey] = val
+        except TypeError:
+            self.config[key] = {} # initialize an empty dictionary first
+            self.config[key][subkey] = val

@@ -57,7 +57,7 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
             # Define output and plot dirs
             self.base_dir = os.path.abspath(self.data_dir)
             self.output_dir = os.path.join(self.base_dir, 'outputs')
-            self.tune_dir = os.path.join(self.output_dir, 'tune')
+            self.tune_dir = self.config.get('tune_dir')
             self.plot_dir = os.path.join(self.base_dir, 'plots')
             self.make_dir(self.output_dir)
             self.make_dir(self.tune_dir)
@@ -86,7 +86,7 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
             # create output and plot directories
             self.output_dir = os.path.join(self.base_dir, self.date, name, 
                 'outputs')
-            self.tune_dir = os.path.join(self.output_dir, 'tune')
+            self.tune_dir = self.config.get('tune_dir')
             self.plot_dir = os.path.join(self.base_dir, self.date, name, 'plots')
             self.make_dir(self.output_dir)
             self.make_dir(self.tune_dir)
@@ -212,6 +212,8 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
         if setup:
             self.setup(**kwargs)
 
+        # create an outputs key for the cfg file
+        self.output_cfg = self.config.update('outputs', {})
 
     #@SmurfUtilMixin.jesd_decorator
     #def test_decorator():
@@ -325,7 +327,6 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
            Args:
             directory (str): path of directory to create
         """
-
         if not os.path.exists(directory):
             os.makedirs(directory)
 
@@ -340,3 +341,36 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
             return int(t)
         else:
             return t
+
+    def add_output(self, key, val):
+        """
+        Add a key to the output config.
+
+        Args:
+          key (any): the name of the key to update
+          val (any): value to assign to the key
+        """
+
+        S.output_cfg[key] = val
+
+    def write_output(self, filename=None):
+        """
+        Dump the current configuration to a file. This wraps around the config
+        file writing in the config object. Files are timestamped and dumped to
+        the S.output_dir, but contain no other info unless filename is provided
+
+        Opt Args:
+        -----
+        filename (str): string to attach to the filename in addition to the
+          timestamp
+        """
+
+        timestamp = self.get_timestamp()
+        if filename is not None:
+            output_file = timestamp + '_' + filename + '.cfg'
+        else:
+            output_file = timestamp + '.cfg'
+
+        full_path = os.path.join(self.output_dir, outputfile)
+        self.config.write(full_path)
+
