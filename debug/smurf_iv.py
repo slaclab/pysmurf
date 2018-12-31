@@ -645,7 +645,7 @@ class SmurfIVMixin(SmurfBase):
         v_tes_smooth = np.convolve(v_tes,w,mode='same')
         di_tes = np.diff(i_tes_smooth)
         dv_tes = np.diff(v_tes_smooth)
-        R_L = R_sh
+        R_L = 0.
         L = (dv_tes/di_tes - v_tes_smooth[:-1]/i_tes_smooth[:-1] - R_L)/(dv_tes/di_tes + v_tes_smooth[:-1]/i_tes_smooth[:-1] - R_L)
         si_etf = -1./v_tes[:-1]
         si = si_etf*L/(L+1)
@@ -661,14 +661,13 @@ class SmurfIVMixin(SmurfBase):
             for c in tableau:
                 colors.append(tableau[c])
 
-            fig = plt.figure(figsize = (10,7))
-            gs = GridSpec(4,3)
+            fig = plt.figure(figsize = (7,7))
+            gs = GridSpec(3,3)
             ax_ii = fig.add_subplot(gs[0,:2])
             ax_ri = fig.add_subplot(gs[1,:2])
             ax_pr = fig.add_subplot(gs[1,2])
-            ax_li = fig.add_subplot(gs[2,:2])
-            ax_si = fig.add_subplot(gs[3,:2])
-            ax_i = [ax_ii,ax_ri,ax_li,ax_si] # axes with I_b as x-axis
+            ax_si = fig.add_subplot(gs[2,:2])
+            ax_i = [ax_ii,ax_ri,ax_si] # axes with I_b as x-axis
 
             title = ""
             plot_name = "IV_curve"
@@ -729,7 +728,6 @@ class SmurfIVMixin(SmurfBase):
                 ax_i[i].set_xlim(min(i_bias),max(i_bias))
                 if i != len(ax_i)-1:
                     ax_i[i].set_xticklabels([])
-            ax_li.axhline(0.,color=color_norm,linestyle='--')
             ax_si.axhline(0.,color=color_norm,linestyle='--')
 
             ax_ii.legend(loc='best')
@@ -762,13 +760,10 @@ class SmurfIVMixin(SmurfBase):
                 np.arange(vb_min, vb_max+delta_v, delta_v)])
             axt.set_xlabel(r'Commanded $V_b$ [V]')
 
-            ax_li.plot(i_bias[:-1],L,color=color_meas)
-            ax_li.set_ylabel(r'$\mathcal{L}$ ($\beta = 0$)')
             ax_si.plot(i_bias[:-1],si,color=color_meas)
             ax_si.plot(i_bias[:-1],si_etf,linestyle = '--',
                        label=r'$-1/V_\mathrm{TES}$',color=color_etf)
             ax_si.set_ylabel(r'$S_I$ [$\mu\mathrm{V}^{-1}$]')
-            ax_li.set_ylim(bottom = -5.,top = min(max(L),100.))
             ax_si.set_ylim(-2./v_tes_target,2./v_tes_target)
             ax_si.legend(loc='upper right')
 
