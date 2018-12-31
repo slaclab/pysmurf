@@ -1597,20 +1597,26 @@ class SmurfUtilMixin(SmurfBase):
         self.log('Done waiting.', self.LOG_USER)
 
 
-    def set_tes_bias_high_current(self, bias_group, write_log=False):
+    def set_tes_bias_high_current(self, write_log=False):
         """
-        Sets the bias group to high current mode. Note that the bias group
-        number is not the same as the relay number. The conversion is
-        handled in this function.
+        Sets all bias groups to high current mode. Note that the bias group
+        number is not the same as the relay number. It also does not matter,
+        because Joe's code secretly flips all the relays when you flip one. 
 
         Args:
         -----
-        bias_group (int): The bias group(s) to set to high current mode
+        bias_group (int): The bias group(s) to set to high current mode REMOVED 
+          20190101 BECAUSE JOE'S CODE SECRETLY FLIPS ALL OF THEM ANYWAYS -CY
         """
         old_relay = self.get_cryo_card_relays()
         old_relay = self.get_cryo_card_relays()  # querey twice to ensure update
         new_relay = np.copy(old_relay)
         self.log('Old relay {}'.format(bin(old_relay)))
+
+        bias_group = 0 # just pick the first one arbitrarily
+        self.log('Flipping bias group 0 relay only; Joe code will secretly' +  
+            'flip all of them')
+
         bias_group = np.ravel(np.array(bias_group))
         for bg in bias_group:
             if bg < 16:
@@ -1623,19 +1629,26 @@ class SmurfUtilMixin(SmurfBase):
         self.set_cryo_card_relays(new_relay, write_log=write_log)
         self.get_cryo_card_relays()
 
-    def set_tes_bias_low_current(self, bias_group, write_log=False):
+    def set_tes_bias_low_current(self, write_log=False):
         """
-        Sets the bias group to low current mode. Note that the bias group
-        number is not the same as the relay number. The conversion is
-        handled in this function.
+        Sets all bias groups to low current mode. Note that the bias group
+        number is not the same as the relay number. It also does not matter, 
+        because Joe's code secretly flips all the relays when you flip one
 
         Args:
         -----
-        bias_group (int): The bias group to set to low current mode
+        bias_group (int): The bias group to set to low current mode REMOVED
+          20190101 BECAUSE JOE'S CODE WILL FLIP ALL BIAS GROUPS WHEN ONE IS 
+          COMMANDED -CY
         """
         old_relay = self.get_cryo_card_relays()
         old_relay = self.get_cryo_card_relays()  # querey twice to ensure update
         new_relay = np.copy(old_relay)
+
+        bias_group = 0
+        self.log('Flipping bias group 0 relay only; PIC code will flip all ' +
+            'of them')
+
         bias_group = np.ravel(np.array(bias_group))
         self.log('Old relay {}'.format(bin(old_relay)))
         for bg in bias_group:
