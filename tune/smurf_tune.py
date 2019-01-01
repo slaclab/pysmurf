@@ -73,7 +73,7 @@ class SmurfTuneMixin(SmurfBase):
         for b in bands:
             self.log('Tracking and checking band {}'.format(b))
             self.track_and_check(b, fraction_full_scale=.6, f_min=f_min,
-                                 f_max=f_max, df_max=df_max, make_plot=make_plot
+                                 f_max=f_max, df_max=df_max, make_plot=make_plot,
                                  save_plot=save_plot, show_plot=show_plot)
         
         
@@ -257,12 +257,30 @@ class SmurfTuneMixin(SmurfBase):
         make_subband_plot=False, subband=None, n_scan=2,
         subband_plot_with_slow=False, window=5000, rolling_med=True,
         grad_cut=.025, freq_min=-2.5E8, freq_max=2.5E8, amp_cut=.25,
-        load_peaks_from_file=True, del_f=.005, drive=None,
-        new_master_assignment=False, from_old_tune=False,
+        del_f=.005, drive=None, new_master_assignment=False, from_old_tune=False,
         old_tune=None):
         """
         Tunes band using serial_gradient_descent and then
-        serial_eta_scan. 
+        serial_eta_scan. This takes about 3 minutes per band if there
+        are about 150 resonators.
+
+        Args:
+        -----
+        band (int): The band the tune
+
+        Opt Args:
+        ---------
+        from_old_tune (bool): Whether to use an old tuning file. This
+            will load a tuning file and use its peak frequencies as 
+            a starting point for seria_gradient_descent.
+        old_tune (str): The full path to the tuning file.
+        new_master_assignment (bool): Whether to overwrite the previous
+            master_assignment list. Default is False.
+        make_plot (bool): Whether to make plots. Default is False.
+        save_plot (bool): If make_make plot is True, whether to save
+            the plots. Default is True.
+        show_plot (bool): If make_plot is True, whether to display
+            the plots to screen.
         """
         timestamp = self.get_timestamp()
 
@@ -271,7 +289,7 @@ class SmurfTuneMixin(SmurfBase):
         if from_old_tune:
             if old_tune is None:
                 self.log('Using default tuning file')
-                old_tune = '/data/smurf_data/20181224/1545702255/outputs/tune/1545719903_tune.npy'
+                old_tune = self.config.get('tune_band').get('default_tune')
             self.load_tune(old_tune)
 
             resonances = np.copy(self.freq_resp[band]['resonances']).item()
@@ -368,7 +386,8 @@ class SmurfTuneMixin(SmurfBase):
         grad_cut=.025, freq_min=-2.5E8, freq_max=2.5E8, amp_cut=.25,
         load_peaks_from_file=True, del_f=.005):
         """
-        Uses parallel eta scans to tune the band.
+        Uses parallel eta scans to tune the band. This does not work 
+        very well. Use tune_band_serial instead.
         """
         timestamp = self.get_timestamp()
 
@@ -604,15 +623,12 @@ class SmurfTuneMixin(SmurfBase):
         else:
             plt.ioff()
 
-        resonances = self.freq_resp[band]['resonances']
         timestamp = self.freq_resp[band]['find_freq']['timestamp'][0]
-
-        keys = resonances.keys()
 
         fig, ax = plt.subplots(2,2, figsize=(10,6))
 
         # Subband
-        sb = np.array([resonances[k]['subband'] for k in keys])
+        sb = self.get_eta_scan_result_subband(band)
         c = Counter(sb)
         y = np.array([c[i] for i in np.arange(128)])
         ax[0,0].plot(np.arange(128), y, '.', color='k')
@@ -626,9 +642,10 @@ class SmurfTuneMixin(SmurfBase):
         ax[0,0].text(.02, .92, 'Total: {}'.format(len(sb)),
                       fontsize=10, transform=ax[0,0].transAxes)
 
+        # Eta stuff
+        eta = self.get_eta_scan_result_eta(band)
+        f = self.get_eta_scan_result_freq(band)
 
-        eta = np.array([resonances[k]['eta'] for k in keys])
-        f = np.array([resonances[k]['freq'] for k in keys])
         ax[0,1].plot(f, np.real(eta), '.', label='Real')
         ax[0,1].plot(f, np.imag(eta), '.', label='Imag')
         ax[0,1].plot(f, np.abs(eta), '.', label='Abs', color='k')
@@ -637,9 +654,8 @@ class SmurfTuneMixin(SmurfBase):
         ax[0,1].set_xlim((bc-250, bc+250))
         ax[0,1].set_xlabel('Freq [MHz]')
         ax[0,1].set_ylabel('Eta')
-    
 
-        phase = np.array([resonances[k]['eta_phase'] for k in keys])
+        phase = np.rad2deg(np.angle(eta))
         ax[1,1].plot(f, phase, color='k')
         ax[1,1].set_xlim((bc-250, bc+250))
         ax[1,1].set_ylim((-180,180))
@@ -1302,8 +1318,6 @@ class SmurfTuneMixin(SmurfBase):
         amp = np.sqrt(I**2 + Q**2)
         phase = np.unwrap(np.arctan2(Q, I))  # radians
 
-        #if peak_freq is not None:
-        #    freq = freq - peak_freq
         if peak_freq is not None:
             plot_freq = freq - peak_freq
         else:
@@ -1401,6 +1415,7 @@ class SmurfTuneMixin(SmurfBase):
         if not show_plot:
             plt.close()
 
+
     def get_closest_subband(self, f, band, as_offset=True):
         """
         Gives the closest subband number for a given input frequency.
@@ -1424,6 +1439,7 @@ class SmurfTuneMixin(SmurfBase):
         idx = np.argmin([abs(x - f) for x in centers])
         return idx
 
+
     def check_freq_scale(self, f1, f2):
         """
         Makes sure that items are the same frequency scale (ie MHz, kHZ, etc.)
@@ -1442,19 +1458,48 @@ class SmurfTuneMixin(SmurfBase):
         else:
             return True
 
-    def get_master_assignment(self,band):
-            fn = self.channel_assignment_files['band_%i' % (band)]
-            self.log('Drawing channel assignments from {}'.format(fn))
-            d = np.loadtxt(fn,delimiter=',')
-            freqs = d[:,0]
-            subbands = d[:,1].astype(int)
-            channels = d[:,2].astype(int)
-            groups = d[:,3].astype(int)
-            return freqs,subbands,channels,groups
+    def load_master_assignment(self, band, filename):
+        """
+        By default, pysmurf loads the most recent master assignment.
+        Use this function to overwrite the default one.
+
+        Args:
+        -----
+        band (int): The band for the master assignment file
+        filename (str): The full path to the new master assignment
+            file. Should be in self.tune_dir.
+        """
+        self.log('Old master assignment file:'+
+                 ' {}'.format(self.channel_assignment_files['band_{}'.format(band)]))
+        self.channel_assignment_files['band_{}'.format(band)] = filename
+        self.log('New master assignment file:'+
+                 ' {}'.format(self.channel_assignment_files['band_{}'.format(band)]))
+        
+
+    def get_master_assignment(self, band):
+        """
+        Returns the master assignment list.
+
+        Ret:
+        ----
+        freqs (float array): The frequency of the resonators
+        subbands (int array): The subbands the channels are assigned to
+        channels (int array): The channels the resonators are assigned to
+        groups (int array): The bias group the channel is in
+        """
+        fn = self.channel_assignment_files['band_%i' % (band)]
+        self.log('Drawing channel assignments from {}'.format(fn))
+        d = np.loadtxt(fn,delimiter=',')
+        freqs = d[:,0]
+        subbands = d[:,1].astype(int)
+        channels = d[:,2].astype(int)
+        groups = d[:,3].astype(int)
+        return freqs, subbands, channels, groups
+
 
     def assign_channels(self, freq, band=None, bandcenter=None, 
         channel_per_subband=4, as_offset=True, min_offset=0.1,
-                        new_master_assignment=False):
+        new_master_assignment=False):
         """
         Figures out the subbands and channels to assign to resonators
 
@@ -1543,26 +1588,33 @@ class SmurfTuneMixin(SmurfBase):
             channels[~close_idx] = -1        
 
             # write the channel assignments to file
-            self.write_master_assignment(band,freq,subbands,channels)
+            self.write_master_assignment(band, freq, subbands, channels)
         
         return subbands, channels, offsets
 
-    def write_master_assignment(self,band,freqs,subbands,channels,groups=None):
+
+    def write_master_assignment(self, band, freqs, subbands, channels, groups=None):
         '''
         writes a comma-separated list in the form band, freq (MHz), subband, channel, group.
         Group number defaults to -1.
         '''
+        timestamp = self.get_timestamp()
         if groups is None:
             groups = -np.ones(len(freqs),dtype=int)
 
-        fn = self.channel_assignment_files['band_%i' % (band)]
+        #fn = self.channel_assignment_files['band_%i' % (band)]
+        fn = os.path.join(self.tune_dir, 
+                          '{}_channel_assignment_b{}.txt'.format(timestamp, int(band)))
         self.log('Writing new channel assignment to {}'.format(fn))
         f = open(fn,'w')
         for i in range(len(channels)):   
             f.write('%.1f,%i,%i,%i\n' % (freqs[i],subbands[i],channels[i],groups[i]))
         f.close()
 
-    def make_master_assignment_from_file(self,band,tuning_filename):
+        #self.channel_assignment_files['band_{}'.format(band)] = fn
+        self.load_master_assignment(band, fn)
+
+    def make_master_assignment_from_file(self, band, tuning_filename):
         self.log('Drawing band-{} tuning data from {}'.format(band,tuning_filename))
         d = np.load(tuning_filename).item()[band]['resonances']
         freqs = []
@@ -1572,7 +1624,8 @@ class SmurfTuneMixin(SmurfBase):
             freqs.append(d[i]['freq'])
             subbands.append(d[i]['subband'])
             channels.append(d[i]['channel'])
-        self.write_master_assignment(band,freqs,subbands,channels)
+        self.write_master_assignment(band, freqs, subbands, channels)
+
     
     def get_group_list(self,band,group):
         _,_,channels,groups = self.get_master_assignment(band)

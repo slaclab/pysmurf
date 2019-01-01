@@ -2,6 +2,7 @@ import numpy as np
 import os
 import sys
 import time
+import glob
 from pysmurf.command.smurf_command import SmurfCommandMixin as SmurfCommandMixin
 from pysmurf.util.smurf_util import SmurfUtilMixin as SmurfUtilMixin
 from pysmurf.tune.smurf_tune import SmurfTuneMixin as SmurfTuneMixin
@@ -147,7 +148,10 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
             self.band_to_chip[i] = np.append([i], val)
             
         # channel assignment file
-        self.channel_assignment_files = self.config.get('channel_assignment')
+        #self.channel_assignment_files = self.config.get('channel_assignment')
+        self.channel_assignment_files = {}
+        for b in self.config.get('init').get('bands'):
+            self.channel_assignment_files['band_{}'.format(b)] = np.sort(glob.glob(os.path.join(self.tune_dir, '*_channel_assignment_b{}.txt'.format(b))))[-1]
 
         # bias groups available
         self.all_groups = self.config.get('all_bias_groups')
@@ -214,10 +218,6 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
 
         # create an outputs key for the cfg file
         self.output_cfg = self.config.update('outputs', {})
-
-    #@SmurfUtilMixin.jesd_decorator
-    #def test_decorator():
-    #     print('Testing decorator...')
 
     def setup(self, write_log=True, **kwargs):
         """
