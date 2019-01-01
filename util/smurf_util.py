@@ -51,11 +51,7 @@ class SmurfUtilMixin(SmurfBase):
         dtype = 'debug'
         dchannel = 0 # I don't really know what this means and I'm sorry -CY
         self.setup_daq_mux(dtype, dchannel, nsamp, band=band)
-
         self.log('Data acquisition in progress...', self.LOG_USER)
-
-        self.log('Setting file name...', self.LOG_USER)
-
         char_array = [ord(c) for c in data_filename] # convert to ascii
         write_data = np.zeros(300, dtype=int)
         for j in np.arange(len(char_array)):
@@ -498,6 +494,8 @@ class SmurfUtilMixin(SmurfBase):
         except:
             print('datafile=%s'%datafile)
 
+        self.log('Reading {}'.format(datafile))
+
         with open(datafile, mode='rb') as file:
             file_content = file.read()
 
@@ -575,9 +573,7 @@ class SmurfUtilMixin(SmurfBase):
             self.set_trigger_daq(1, write_log=True)
         else:
             self.set_arm_hw_trigger(1, write_log=True)
-            # self._caput(self.epics_root + 
-            #     ':AMCc:FpgaTopLevel:AppTop:DaqMuxV2[0]:ArmHwTrigger', 1, 
-            #     write_log=True)
+
         time.sleep(.1)
         sg.wait()
 
@@ -665,8 +661,8 @@ class SmurfUtilMixin(SmurfBase):
         self.set_buffer_size(data_length)
 
         # input mux select
-        self.set_input_mux_sel(0, daq_mux_channel0, write_log=True)
-        self.set_input_mux_sel(1, daq_mux_channel1, write_log=True)
+        self.set_input_mux_sel(0, daq_mux_channel0, write_log=False)
+        self.set_input_mux_sel(1, daq_mux_channel1, write_log=False)
 
 
     def set_buffer_size(self, size):
@@ -680,7 +676,7 @@ class SmurfUtilMixin(SmurfBase):
         # Change DAQ data buffer size
 
         # Change waveform engine buffer size
-        self.set_data_buffer_size(size, write_log=True)
+        self.set_data_buffer_size(size, write_log=False)
         for daq_num in np.arange(4):
             s = self.get_waveform_start_addr(daq_num, convert=True, 
                 write_log=False)
@@ -1537,12 +1533,12 @@ class SmurfUtilMixin(SmurfBase):
         self.set_tes_bias_bipolar(bias_group, overbias_voltage)
         time.sleep(.1)
 
-        self.set_tes_bias_high_current()
+        self.set_tes_bias_high_current(bias_group)
         self.log('Driving high current through TES. ' + \
             'Waiting {}'.format(overbias_wait), self.LOG_USER)
         time.sleep(overbias_wait)
         if not high_current_mode:
-            self.set_tes_bias_low_current()
+            self.set_tes_bias_low_current(bias_group)
             time.sleep(.1)
         self.set_tes_bias_bipolar(bias_group, tes_bias)
         self.log('Waiting %.2f seconds to cool' % (cool_wait), self.LOG_USER)
@@ -1579,14 +1575,14 @@ class SmurfUtilMixin(SmurfBase):
         voltage_overbias_array[bias_groups] = overbias_voltage
         self.set_tes_bias_bipolar_array(voltage_overbias_array)
 
-        self.set_tes_bias_high_current()
+        self.set_tes_bias_high_current(bias_groups)
         self.log('Driving high current through TES. ' + \
             'Waiting {}'.format(overbias_wait), self.LOG_USER)
         time.sleep(overbias_wait)
 
         if not high_current_mode:
             self.log('settting to low current')
-            self.set_tes_bias_low_current()
+            self.set_tes_bias_low_current(bias_groups)
 
         voltage_bias_array = np.zeros((8,)) # currently hardcoded for 8 bias groups
         voltage_bias_array[bias_groups] = tes_bias
@@ -1598,7 +1594,7 @@ class SmurfUtilMixin(SmurfBase):
         self.log('Done waiting.', self.LOG_USER)
 
 
-    def set_tes_bias_high_current(self, write_log=False):
+    def set_tes_bias_high_current(self, bias_group, write_log=False):
         """
         Sets all bias groups to high current mode. Note that the bias group
         number is not the same as the relay number. It also does not matter,
@@ -1614,9 +1610,9 @@ class SmurfUtilMixin(SmurfBase):
         new_relay = np.copy(old_relay)
         self.log('Old relay {}'.format(bin(old_relay)))
 
-        bias_group = 0 # just pick the first one arbitrarily
-        self.log('Flipping bias group 0 relay only; Joe code will secretly' +  
-            'flip all of them')
+        # bias_group = 0 # just pick the first one arbitrarily
+        #self.log('Flipping bias group 0 relay only; Joe code will secretly' +  
+        #    'flip all of them')
 
         bias_group = np.ravel(np.array(bias_group))
         for bg in bias_group:
@@ -1630,7 +1626,7 @@ class SmurfUtilMixin(SmurfBase):
         self.set_cryo_card_relays(new_relay, write_log=write_log)
         self.get_cryo_card_relays()
 
-    def set_tes_bias_low_current(self, write_log=False):
+    def set_tes_bias_low_current(self, bias_group, write_log=False):
         """
         Sets all bias groups to low current mode. Note that the bias group
         number is not the same as the relay number. It also does not matter, 
@@ -1646,9 +1642,9 @@ class SmurfUtilMixin(SmurfBase):
         old_relay = self.get_cryo_card_relays()  # querey twice to ensure update
         new_relay = np.copy(old_relay)
 
-        bias_group = 0
-        self.log('Flipping bias group 0 relay only; PIC code will flip all ' +
-            'of them')
+        # bias_group = 0
+        #self.log('Flipping bias group 0 relay only; PIC code will flip all ' +
+        #    'of them')
 
         bias_group = np.ravel(np.array(bias_group))
         self.log('Old relay {}'.format(bin(old_relay)))
@@ -1963,7 +1959,7 @@ class SmurfUtilMixin(SmurfBase):
         i_bias = start_bias[0] / self.bias_line_resistance
         
         if high_current_mode:
-            self.set_tes_bias_high_current()
+            self.set_tes_bias_high_current(bias_group)
             i_bias *= self.high_low_current_ratio
 
         filename = self.stream_data_on()
