@@ -137,7 +137,7 @@ class SmurfIVMixin(SmurfBase):
 
         if bias is None:
             bias = np.arange(bias_high, bias_low-bias_step, -bias_step)
-            
+
         overbias_wait = 2.
         if overbias:
             self.overbias_tes_all(bias_groups=bias_groups, 
@@ -279,7 +279,7 @@ class SmurfIVMixin(SmurfBase):
         self.log('writing to {}'.format(datafile))
 
         # actually set the arrays
-        for step in np.size(bias_sweep_array)[1]:
+        for step in np.arange(np.shape(bias_sweep_array)[1]):
             self.set_tes_bias_bipolar_array(bias_sweep_array[:,step])
             time.sleep(wait_time) # divide by something here? unclear.
 
