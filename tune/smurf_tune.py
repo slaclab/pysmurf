@@ -72,7 +72,8 @@ class SmurfTuneMixin(SmurfBase):
         # Starts tracking and runs check_lock to prune bad resonators
         for b in bands:
             self.log('Tracking and checking band {}'.format(b))
-            self.track_and_check(b, fraction_full_scale=.6, f_min=f_min,
+            self.track_and_check(b, fraction_full_scale=fraction_full_scale, 
+                                 f_min=f_min,
                                  f_max=f_max, df_max=df_max, make_plot=make_plot,
                                  save_plot=save_plot, show_plot=show_plot)
         
@@ -2271,32 +2272,19 @@ class SmurfTuneMixin(SmurfBase):
         # take one dataset with all channels
         f, df, sync = self.take_debug_data(band, IQstream = iq_stream_enable, 
             single_channel_readout=0)
-
-        if lms_freq_hz is None:
-            lms_freq_hz = S.get_flux_ramp_freq()*1.0E3*S.flux_mod(df, sync)
-            self.log('lms_freq_hz set to {:5.2f}'.format(lms_freq_hz))
             
         df_std = np.std(df, 0)
         channels_on = list(set(np.where(df_std > 0)[0]) & set(self.which_on(band)))
         self.log("Number of channels on = {}".format(len(channels_on)), 
             self.LOG_USER)
-        #self.log("Flux ramp demod. mean error std = "+ 
-        #    "{} kHz".format(np.mean(df_std[channels_on]) * 1e3), self.LOG_USER)
-        #self.log("Flux ramp demod. median error std = "+
-        #    "{} kHz".format(np.median(df_std[channels_on]) * 1e3), self.LOG_USER)
-        f_span = np.max(f,0) - np.min(f,0)
-        #self.log("Flux ramp demod. mean p2p swing = "+
-        #    "{} kHz".format(np.mean(f_span[channels_on]) * 1e3), self.LOG_USER)
-        #self.log("Flux ramp demod. median p2p swing = "+
-        #    "{} kHz".format(np.median(f_span[channels_on]) * 1e3), self.LOG_USER)
 
-        #for c in channels_on:
-        #    self.log('ch {} - f_span {}'.format(c, f_span[c]))
+        f_span = np.max(f,0) - np.min(f,0)
+
 
         if make_plot:
             timestamp = self.get_timestamp()
 
-            fig,ax = plt.subplots(1,3,figsize = (15,5))
+            fig,ax = plt.subplots(1,3,figsize = (12,5))
             fig.suptitle('LMS freq = {:.2f}, n_channels = {}'.format(lms_freq_hz,len(channels_on)))
             
             ax[0].hist(df_std[channels_on] * 1e3,bins = 20,edgecolor = 'k')            
@@ -2310,7 +2298,7 @@ class SmurfTuneMixin(SmurfBase):
             ax[2].plot(f_span[channels_on]*1e3, df_std[channels_on]*1e3, '.')
             ax[2].set_xlabel('FR Amp (kHz)')
             ax[2].set_ylabel('RF demod error (kHz)')
-            x = np.array([0, np.max(f_span[channels_on])])
+            x = np.array([0, np.max(f_span[channels_on])*1.0E3])
             y = x/10.
             ax[2].plot(x,y, color='k', linestyle=':')
             
@@ -2325,24 +2313,30 @@ class SmurfTuneMixin(SmurfBase):
                 channel = np.ravel(np.array(channel))
                 self.log("Taking data on single channel number {}".format(channel), 
                          self.LOG_USER)
-
+                sync_idx = self.make_sync_flag(sync)
                 n_els = 2500
+                bbox = dict(boxstyle="round", ec='w', fc='w', alpha=.65)
+
                 for ch in channel:
                     fig, ax = plt.subplots(2, sharex=True)
                     ax[0].plot(f[:n_els, ch]*1e3)
                     ax[0].set_ylabel('Tracked Freq [kHz]')
-                    ax[0].text(.025, .9, 'LMS Freq {}'.format(lms_freq_hz), fontsize=10,
-                        transform=ax[0].transAxes)
+                    ax[0].text(.025, .9, 'LMS Freq {:5.2f}'.format(lms_freq_hz), fontsize=10,
+                        transform=ax[0].transAxes, bbox=bbox)
 
-                    ax[0].text(.9, .9, 'Band {} Ch {:03}'.format(band, ch), fontsize=10,
-                        transform=ax[0].transAxes, horizontalalignment='right')
+                    ax[0].text(.95, .9, 'Band {} Ch {:03}'.format(band, ch), fontsize=10,
+                        transform=ax[0].transAxes, horizontalalignment='right', bbox=bbox)
 
                     ax[1].plot(df[:n_els, ch]*1e3)
                     ax[1].set_ylabel('Freq Error [kHz]')
                     ax[1].set_xlabel('Samp Num')
-                    ax[1].text(.025, .9, 'RMS error = {:5.4f} kHz\n'.format(df_std[ch]*1e3) +
+                    ax[1].text(.025, .8, 'RMS error = {:5.4f} kHz\n'.format(df_std[ch]*1e3) +
                         'FR frac. full scale = {:3.2f}'.format(fraction_full_scale),
-                        fontsize=10, transform=ax[1].transAxes)
+                        fontsize=10, transform=ax[1].transAxes, bbox=bbox)
+
+                    for s in sync_idx:
+                        ax[0].axvline(s, color='k', linestyle=':', alpha=.5)
+                        ax[1].axvline(s, color='k', linestyle=':', alpha=.5)
 
                     plt.tight_layout()
 
@@ -2365,6 +2359,8 @@ class SmurfTuneMixin(SmurfBase):
         """
         This runs tracking setup and check_lock to prune bad channels.
         """
+        self.relock(band)
+        
         d, df, sync = self.tracking_setup(band, channel=channel, 
         reset_rate_khz=reset_rate_khz,
         make_plot=make_plot, save_plot=save_plot, show_plot=show_plot,
@@ -3255,19 +3251,25 @@ class SmurfTuneMixin(SmurfBase):
 
         return savedir + ".npy"
 
-    def load_tune(self, filename, override=True):
+    def load_tune(self, filename=None, override=True, last_tune=True):
         """
         Loads the tuning information (self.freq_resp) from tuning directory
 
-        Args:
-        -----
-        filename (str) : The name of the tuning.
 
         Opt Args:
         ---------
+        filename (str) : The name of the tuning.
+        last_tune (bool): Whether to use the most recent tuning file. Default
+            is True.
         override (bool) : Whether to replace self.freq_resp. Default
             is True.
         """
+        if filename is None and last_tune:
+            filename = self.last_tune()
+            self.log('Defaulting to last tuning: {}'.format(filename))
+        elif filename is not None and last_tune:
+            self.log('filename explicitly given. Overriding last_tune bool.')
+
         self.log('Loading...')
         fs = np.load(filename).item()
         self.log('Done loading tuning')
@@ -3329,7 +3331,7 @@ class SmurfTuneMixin(SmurfBase):
         return scan_freq, freq_error
 
 
-    def estimate_lms_freq(self, band, fraction_full_scale=.49,
+    def estimate_lms_freq(self, band, fraction_full_scale=None,
                           reset_rate_khz=4.):
         """
         
@@ -3337,6 +3339,9 @@ class SmurfTuneMixin(SmurfBase):
         ----
         The estimated lms frequency in Hz
         """
+        if fraction_full_scale is None:
+            fraction_full_scale = self.config.get('tune_band').get('fraction_full_scale')
+
         old_feedback = self.get_feedback_enable_array(band)
         self.set_feedback_enable_array(band, np.zeros(512, dtype=int))
 
@@ -3344,11 +3349,70 @@ class SmurfTuneMixin(SmurfBase):
             flux_ramp=True, fraction_full_scale=fraction_full_scale,
             reset_rate_khz=reset_rate_khz, lms_freq_hz=0)
 
-        s = self.flux_mod(df, sync)
+        s = self.flux_mod2(df, sync)
 
         self.set_feedback_enable_array(band, old_feedback)
 
         return reset_rate_khz * s * 1000  # convert to Hz
+
+
+    def flux_mod2(self, df, sync, min_scale=.002, make_plot=False, channel=None):
+        """
+        """
+        sync_flag = self.make_sync_flag(sync)
+
+        # The longest time between resets
+        max_len = np.max(np.diff(sync_flag)) 
+        n_sync = len(sync_flag) - 1
+        n_samp, n_chan = np.shape(df)
+
+        # Only for plotting
+        channel = np.ravel(np.array(channel))
+
+        if make_plot:
+            import matplotlib.pyplot as plt
+
+        peaks = np.zeros(n_chan)*np.nan
+
+        for ch in np.arange(n_chan):
+            if np.std(df[:,ch]) > min_scale:
+                # Holds the data for all flux ramps
+                flux_resp = np.zeros((n_sync, max_len)) * np.nan
+                for i in np.arange(n_sync):
+                    flux_resp[i] = df[sync_flag[i]:sync_flag[i+1],ch]
+
+                # Average over all the flux ramp sweeps to generate template
+                template = np.nanmean(flux_resp, axis=0)
+                template_mean = np.mean(template)
+                template -= template_mean
+
+                # Multiply the matrix with the first element, then array
+                # of first two elements, then array of first three...etc...
+                # The array that maximizes this tells you the frequency
+                corr_amp = np.zeros(max_len//2)
+                for i in np.arange(1, max_len//2):
+                    x = np.tile(template[:i], max_len//i+1)
+                    corr_amp[i] = np.sum(x[:max_len]*template)
+
+                peaks[ch] = np.ravel(np.where(corr_amp == np.max(corr_amp)))[0]
+
+                if make_plot and ch in channel:
+                    fig, ax = plt.subplots(2)
+                    for i in np.arange(n_sync):
+                        ax[0].plot(df[sync_flag[i]:sync_flag[i+1],ch]-
+                                   template_mean)
+                    ax[0].plot(template, color='k')
+                    ax[1].plot(corr_amp)
+                    ax[1].plot(peaks[ch], corr_amp[int(peaks[ch])], 'x' ,color='k')
+                    
+        return max_len/np.nanmedian(peaks)
+
+
+    def make_sync_flag(self, sync):
+        """
+        """
+        s, e = self.find_flag_blocks(sync[:,0], min_gap=1000)
+        return s//512
 
 
     def flux_mod(self, df, sync, threshold=.4, minscale=.02,
@@ -3372,10 +3436,13 @@ class SmurfTuneMixin(SmurfBase):
         lastmkr = 0
         for n in np.arange(n_sync):
             mkrgap = mkrgap + 1
-            if (sync[n,0] > 0) and (mkrgap > 500):
+            if (sync[n,0] > 0) and (mkrgap > 1000):
+
                 mkrgap = 0
                 totmkr = totmkr + 1
                 last_mkr = n
+                # print('n {}, totmkr {}, last_mkr {}, mkr1 {}, mkr2 {}'.format(n, mkrgap, totmkr, last_mkr, mkr1, mkr2))
+
                 if mkr1 == 0:
                     mkr1 = n
                 elif mkr2 == 0:
@@ -3397,6 +3464,7 @@ class SmurfTuneMixin(SmurfBase):
 
                 sxarray = np.array([0])
                 pts = len(flux)
+
                 for rlen in np.arange(1, np.round(pts/2), dtype=int):
                     refsig = flux[:rlen]
                     sx = 0
@@ -3418,7 +3486,12 @@ class SmurfTuneMixin(SmurfBase):
                             pk = n
                         else:
                             break;
-                
+
+                import matplotlib.pyplot as plt
+                plt.figure()
+                plt.plot(scaled_array)
+                plt.axvline(pk)
+
                 Xf = [-1, 0, 1]
                 Yf = [scaled_array[pk-1], scaled_array[pk], scaled_array[pk+1]]
                 V = np.polyfit(Xf, Yf, 2)
