@@ -131,9 +131,11 @@ if __name__ == "__main__":
         help='Set the tes bias. Must also set --bias-group and --bias-voltage')
     parser.add_argument('--bias-group', action='store', default=-1, type=int,
         help='The bias group to set the TES bias. If -1, then sets all.', 
-        choices=np.arange(8, dtype=int))
+        choices=np.array([-1,0,1,2,3,4,5,6,7], dtype=int))
     parser.add_argument('--bias-voltage', action='store', default=0., 
         type=float, help='The bias voltage to set')
+    parser.add_argument('--bias-voltage-array', action='store', 
+        default=None, help='Array of voltages to set per bias group')
 
     parser.add_argument('--overbias-tes', action='store_true', default=False,
         help='Overbias the TESs')
@@ -152,6 +154,8 @@ if __name__ == "__main__":
     # IV commands
     parser.add_argument('--slow-iv', action='store_true', default=False,
         help='Take IV curve using the slow method.')
+    parser.add_argument('--plc', action='store_true', default=False,
+        help='Take partial load curve.')
     parser.add_argument('--iv-band', action='store', type=int, default=-1,
         help='The band to take the IV curve in')
     parser.add_argument('--iv-wait-time', action='store', type=float,
@@ -217,7 +221,7 @@ if __name__ == "__main__":
 
     # Check for too many commands
     n_cmds = (args.log is not None) + args.tes_bias + args.slow_iv + \
-        args.tune + args.start_acq + args.stop_acq + \
+        args.plc + args.tune + args.start_acq + args.stop_acq + \
         args.last_tune + (args.use_tune is not None) + args.overbias_tes + \
         args.bias_bump + args.soft_reset + args.make_runfile + args.setup
     if n_cmds > 1:
@@ -244,8 +248,13 @@ if __name__ == "__main__":
     if args.tes_bias:
         bias_voltage = args.bias_voltage
         if args.bias_group == -1:
-            bias_voltage_array = np.zeros((8,)) # hard-coded number of bias groups
-            bias_voltage_array[S.all_groups] = bias_voltage # all_groups from cfg
+            if args.bias_voltage_array is not None:
+                bias_voltage_str = args.bias_voltage_array
+                bias_voltage_array = [float(bias) for bias in bias_voltage_str.split(" ")]
+                bias_voltage_array = np.array(bias_voltage_array)
+            else:
+                bias_voltage_array = np.zeros((8,)) # hard-coded number of bias groups
+                bias_voltage_array[S.all_groups] = bias_voltage # all_groups from cfg
             S.set_tes_bias_bipolar_array(bias_voltage_array, write_log=True)
         else:
             S.set_tes_bias_bipolar(args.bias_group, bias_voltage, 
@@ -283,12 +292,14 @@ if __name__ == "__main__":
             iv_bias_step = np.abs(iv_bias_step)
 
         if args.bias_group < 0: # all
+            S.log('running slow IV on all bias groups')
             S.slow_iv_all(bias_groups=S.all_groups, wait_time=args.iv_wait_time,
                 bias_high=iv_bias_high, bias_low = iv_bias_low,
                 high_current_wait=args.iv_high_current_wait,
                 high_current_mode=S.high_current_mode_bool,
-                bias_step=args.iv_bias_step, make_plot=False)
+                bias_step=iv_bias_step, make_plot=False)
         else: # individual bias group
+            S.log('running slow IV on bias group {}'.format(args.bias_group))
             S.slow_iv_all(bias_groups=np.array([args.bias_group]), 
                 wait_time=args.iv_wait_time, bias_high=iv_bias_high, 
                 bias_low=iv_bias_low, 
@@ -300,6 +311,19 @@ if __name__ == "__main__":
         S.bias_bump(bias_group=S.all_groups, gcp_mode=True, 
             gcp_wait=args.bias_bump_wait, gcp_between=args.bias_bump_between,
             step_size=args.bias_bump_step) # always do this on all bias groups?
+
+    if args.plc:
+        bias_high = np.zeros((8,))
+        bias_high[S.all_groups] = args.iv_bias_high
+        S.log('plc bias high {}'.format(bias_high))
+        S.log('plc bias low {}'.format(S.get_tes_bias_bipolar_array()))
+        S.log('plc bias step {}'.format(args.iv_bias_step))
+
+        iv_bias_step = np.abs(args.iv_bias_step)
+
+        S.log('running plc on all bias groups')
+        S.partial_load_curve_all(bias_high, bias_step=iv_bias_step, 
+            wait_time=args.iv_wait_time, analyze=False, make_plot=False)
 
     if args.tune:
         # Load values from the cfg file
