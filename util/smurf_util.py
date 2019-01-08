@@ -278,6 +278,7 @@ class SmurfUtilMixin(SmurfBase):
     def take_stream_data(self, meas_time, gcp_mode=True):
         """
         Takes streaming data for a given amount of time
+
         Args:
         -----
         meas_time (float) : The amount of time to observe for in seconds
@@ -297,6 +298,7 @@ class SmurfUtilMixin(SmurfBase):
         self.stream_data_off(gcp_mode=gcp_mode)
         self.log('Done taking data.', self.LOG_USER)
         return data_filename
+
 
     def stream_data_on(self, gcp_mode=True):
         """
@@ -325,7 +327,7 @@ class SmurfUtilMixin(SmurfBase):
         else:
             # start streaming before opening file to avoid transient filter step
             for band in bands:
-                self.set_stream_enable(band, 1, write_log=True)
+                self.set_stream_enable(band, 1, write_log=False)
             time.sleep(1.)
 
 
@@ -353,25 +355,6 @@ class SmurfUtilMixin(SmurfBase):
                 self.set_streaming_file_open(1)  # Open the file
 
             return data_filename
-
-
-    def set_gcp_datafile(self, data_filename, num_averages=0, 
-        receiver_ip='192.168.3.1', port_number='#3334', data_frames=1000000):
-        """
-        """
-        config_dir = self.config.get('smurf2mce_cfg_dir')
-        if config_dir is None:
-            self.log('No smurf2mce directory in config file.', self.LOG_ERROR)
-        
-        file = open(config_dir, 'w')
-
-        file.write('num_averages {}\n'.format(num_averages))
-        file.write('receiver_ip {}\n'.format(receiver_ip))
-        file.write('port_number {}\n'.format(port_number))
-        file.write('data_file_name {}\n'.format(data_filename))
-        file.write('data_frames {}'.format(data_frames))
-
-        file.close()
         
 
     def stream_data_off(self, gcp_mode=True):
@@ -493,6 +476,21 @@ class SmurfUtilMixin(SmurfBase):
         unwrap=True, downsample=1):
         """
         Reads the special data that is designed to be a copy of the GCP data.
+
+        Args:
+        -----
+        datafile (str): The full path to the data made by stream_data_on
+        
+        Opt Args:
+        ---------
+        unwrap (bool) : Whether to unwrap units of 2pi. Default is True.
+        downsample (int): The amount to downsample.
+
+        Ret:
+        ----
+        t (float array): The timestamp data
+        d (float array): The resonator data in units of phi0
+        m (int array): The maskfile that maps smurf num to gcp num
         """
         import glob
         try:
@@ -529,16 +527,26 @@ class SmurfUtilMixin(SmurfBase):
         # Joe's timestamp - 64 bit UTC.
         timestamp2 = np.array([i[keys_dict['rtm_dac_config5']] for i in frames])
 
-        print(datafile.replace('.dat','_mask.txt'))
-        mask = self.make_mask_dict(datafile.replace('.dat','_mask.txt'))
+        mask = self.make_mask_lookup(datafile.replace('.dat','_mask.txt'))
 
         return timestamp2, phase, mask
 
 
-    def make_mask_dict(self, mask_file):
+    def make_mask_lookup(self, mask_file):
         """
+        Makes an n_band x n_channel array where the elements correspond
+        to the smurf_to_mce mask number. In other workds, mask[band, channel]
+        returns the GCP index in the mask that corresonds to band, channel.
+
+        Args:
+        -----
+        mask_file (str): The full path the a mask file
+
+        Ret:
+        ----
+        mask_lookup (int array): An array with the GCP numbers.
         """
-        mask = np.loadtxt(mask_file)
+        mask = np.atleast_1d(np.loadtxt(mask_file))
         bands = np.unique(mask // 512).astype(int)
         ret = np.ones((np.max(bands)+1, 512), dtype=int) * -1
         
@@ -824,6 +832,7 @@ class SmurfUtilMixin(SmurfBase):
             self.log('Failed to recover Jesds ...', self.LOG_ERROR)
             raise ValueError(which_jesd_down)
 
+
     def jesd_decorator(decorated):
         def jesd_decorator_function(self):
             # check JESDs
@@ -851,7 +860,17 @@ class SmurfUtilMixin(SmurfBase):
                 
         return jesd_decorator_function
 
-    def check_jesd(self,silent_if_valid=False):
+
+    def check_jesd(self, silent_if_valid=False):
+        """
+        Queries the Jesd tx and rx and compares the
+        data_valid and enable bits.
+
+        Opt Args:
+        ---------
+        silent_if_valid (bool) : If True, does not print
+            anything if things are working.
+        """
         # JESD Tx
         jesd_tx_enable = self.get_jesd_tx_enable()
         jesd_tx_valid = self.get_jesd_tx_data_valid()
@@ -1231,12 +1250,61 @@ class SmurfUtilMixin(SmurfBase):
         self.set_tes_bias_volt(dac_positive, volts_pos, **kwargs)
         self.set_tes_bias_volt(dac_negative, volts_neg, **kwargs)
 
+    def set_tes_bias_bipolar_array(self, volt_array, do_enable=True, **kwargs):
+        """
+        Set TES bipolar values for all DACs at once
+
+        Args:
+        -----
+        volt_array (float array): the TES bias to command in voltage. Should be (8,)
+
+        Opt args:
+        -----
+        do_enable (bool): Set the enable bit. Defaults to True
+        """
+
+        bias_order = self.bias_group_to_pair[:,0]
+        dac_positives = self.bias_group_to_pair[:,1]
+        dac_negatives = self.bias_group_to_pair[:,2]
+
+        n_bias_groups = 8
+
+        # initialize arrays of 0's
+        do_enable_array = np.zeros((32,), dtype=int)
+        bias_volt_array = np.zeros((32,))
+
+        if len(volt_array) != n_bias_groups:
+            self.log("Received the wrong number of biases. Expected " +
+                "n_bias_groups={}".format(n_bias_groups), self.LOG_ERROR)
+        else:
+            for idx in np.arange(n_bias_groups):
+                dac_idx = np.ravel(np.where(bias_order == idx))
+                dac_positive = dac_positives[dac_idx][0] - 1 # freakin Mitch 
+                dac_negative = dac_negatives[dac_idx][0] - 1 # 1 vs 0 indexing
+
+                volts_pos = volt_array[idx] / 2
+                volts_neg = - volt_array[idx] / 2
+
+                if do_enable:
+                    do_enable_array[dac_positive] = 2
+                    do_enable_array[dac_negative] = 2
+
+                bias_volt_array[dac_positive] = volts_pos
+                bias_volt_array[dac_negative] = volts_neg
+
+            if do_enable:
+                self.set_tes_bias_enable_array(do_enable_array, **kwargs)
+
+            self.set_tes_bias_array_volt(bias_volt_array, **kwargs)
+
+
     def set_tes_bias_off(self, **kwargs):
         """
         Turns off all TES biases
         """
-        for dac in np.arange(1,33):
-            self.set_tes_bias_volt(dac, 0, **kwargs)
+
+        bias_array = np.zeros((32,), dtype=int)
+        self.set_tes_bias_array(bias_array, **kwargs)
 
     def tes_bias_dac_ramp(self, dac, volt_min=-9.9, volt_max=9.9, step_size=.01, wait_time=.05):
         """
@@ -1247,6 +1315,7 @@ class SmurfUtilMixin(SmurfBase):
             bias += step_size
             if bias > volt_max:
                 bias = volt_min
+
 
     def get_tes_bias_bipolar(self, bias_group, return_raw=False, **kwargs):
         """
@@ -1278,6 +1347,41 @@ class SmurfUtilMixin(SmurfBase):
         else:
             return volts_pos - volts_neg
 
+
+    def get_tes_bias_bipolar_array(self, return_raw=False, **kwargs):
+       """
+       Returns array of bias voltages per bias group in units of volts.
+       Currently hard coded to return the first 8 as (8,) array. I'm sorry -CY
+
+       Opt Args:
+       -----
+       return_raw (bool): Default is False. If True, returns +/- terminal
+           vals as separate arrays (pos, then negative)
+       """
+
+       bias_order = self.bias_group_to_pair[:,0]
+       dac_positives = self.bias_group_to_pair[:,1]
+       dac_negatives = self.bias_group_to_pair[:,2]
+
+       n_bias_groups = 8 # fix this later!
+
+       bias_vals_pos = np.zeros((n_bias_groups,))
+       bias_vals_neg = np.zeros((n_bias_groups,))
+
+       volts_array = self.get_tes_bias_array_volt(**kwargs)
+
+       for idx in np.arange(n_bias_groups):
+           dac_idx = np.ravel(np.where(bias_order == idx))
+           dac_positive = dac_positives[dac_idx][0] - 1
+           dac_negative = dac_negatives[dac_idx][0] - 1
+
+           bias_vals_pos[idx] = volts_array[dac_positive]
+           bias_vals_neg[idx] = volts_array[dac_negative]
+
+       if return_raw:
+           return bias_vals_pos, bias_vals_neg
+       else:
+           return bias_vals_pos - bias_vals_neg
 
     def set_amplifier_bias(self, bias_hemt=None, bias_50k=None, **kwargs):
         """
@@ -1476,8 +1580,6 @@ class SmurfUtilMixin(SmurfBase):
             self.set_tes_bias_bipolar(g, overbias_voltage)
             time.sleep(.1)
 
-        # for g in bias_groups:
-        # self.set_tes_bias_high_current(g)
         self.set_tes_bias_high_current(bias_groups)
         self.log('Driving high current through TES. ' + \
             'Waiting {}'.format(overbias_wait), self.LOG_USER)
@@ -1486,9 +1588,6 @@ class SmurfUtilMixin(SmurfBase):
         if not high_current_mode:
             self.log('settting to low current')
             self.set_tes_bias_low_current(bias_groups)
-            #for g in bias_groups:
-            #    self.set_tes_bias_low_current(g)
-            #    time.sleep(.1)
 
         for g in bias_groups:
             self.set_tes_bias_bipolar(g, tes_bias)
@@ -1498,7 +1597,7 @@ class SmurfUtilMixin(SmurfBase):
         self.log('Done waiting.', self.LOG_USER)
 
 
-    def set_tes_bias_high_current(self, bias_group):
+    def set_tes_bias_high_current(self, bias_group, write_log=False):
         """
         Sets the bias group to high current mode. Note that the bias group
         number is not the same as the relay number. The conversion is
@@ -1521,10 +1620,10 @@ class SmurfUtilMixin(SmurfBase):
                 r = bg
             new_relay = (1 << r) | new_relay
         self.log('New relay {}'.format(bin(new_relay)))
-        self.set_cryo_card_relays(new_relay, write_log=True)
+        self.set_cryo_card_relays(new_relay, write_log=write_log)
         self.get_cryo_card_relays()
 
-    def set_tes_bias_low_current(self, bias_group):
+    def set_tes_bias_low_current(self, bias_group, write_log=False):
         """
         Sets the bias group to low current mode. Note that the bias group
         number is not the same as the relay number. The conversion is
@@ -1548,7 +1647,7 @@ class SmurfUtilMixin(SmurfBase):
             if old_relay & 1 << r != 0:
                 new_relay = new_relay & ~(1 << r)
         self.log('New relay {}'.format(bin(new_relay)))
-        self.set_cryo_card_relays(new_relay, write_log=True)
+        self.set_cryo_card_relays(new_relay, write_log=write_log)
         self.get_cryo_card_relays()
 
     def set_mode_dc(self):
@@ -1643,8 +1742,7 @@ class SmurfUtilMixin(SmurfBase):
 
 
     def make_smurf_to_gcp_config(self, num_averages=0, filename=None,
-        file_name_extend=False, data_frames=2000000, filter_order=4, 
-        filter_freq=None):
+        file_name_extend=False, data_frames=2000000):
         """
         Makes the config file that the Joe-writer uses to set the IP
         address, port number, data file name, etc.
@@ -1665,11 +1763,10 @@ class SmurfUtilMixin(SmurfBase):
            Default is False and should probably always be False.
         data_frames (int): The number of frames to store. Works up to 
            2000000, which is about a 5GB file. Default is 2000000
-        filter_order (int): The order of the Butterworth filter. Default 4.
-        filter_freq (float): The frequency of the lowpass. Default 63.
         """
-        if filter_freq is None:
-            filter_freq = self.config.get('smurf_to_mce').get('filter_freq')
+
+        filter_freq = self.config.get('smurf_to_mce').get('filter_freq')
+        filter_order = self.config.get('smurf_to_mce').get('filter_order')
 
         if filename is None:
             filename = self.get_timestamp() + '.dat'
@@ -1680,8 +1777,6 @@ class SmurfUtilMixin(SmurfBase):
             flux_ramp_freq = 4000
             self.log('Flux ramp frequency is below 1kHz.'\
                       ' Setting a filter using 4kHz')
-
-        self.log('Making SMuRF to MCE config file.')
 
         b, a = signal.butter(filter_order, 2*filter_freq / flux_ramp_freq)
 
@@ -1719,6 +1814,23 @@ class SmurfUtilMixin(SmurfBase):
     def make_gcp_mask(self, band=None, smurf_chans=None, gcp_chans=None, 
         read_gcp_mask=True):
         """
+        Makes the gcp mask. Only the channels in this mask will be stored
+        by GCP.
+
+        If no optional arguments are given, mask will contain all channels
+        that are on. If both band and smurf_chans are supplied, a mask
+        in the input order is created.
+
+        Opt Args:
+        ---------
+        band (int array) : An array of band numbers. Must be the same
+            length as smurf_chans
+        smurf_chans (int_array) : An array of SMuRF channel numbers.
+            Must be the same length as band.
+        gcp_chans (int_array) : A list of smurf numbers to be passed
+            on as GCP channels.
+        read_gcp_mask (bool) : Whether to read in the new GCP mask file.
+            If not read in, it will take no effect. Default is True.
         """
         gcp_chans = np.array([], dtype=int)
         if smurf_chans is None and band is not None:
@@ -1741,9 +1853,186 @@ class SmurfUtilMixin(SmurfBase):
         np.savetxt(self.smurf_to_mce_mask_file, gcp_chans, fmt='%i')
 
         if read_gcp_mask:
-            self.log('Reading newly made mask file.')
             self.read_smurf_to_gcp_config()
+        else:
+            self.log('Warning: new mask has not been read in yet.')
 
+
+    def bias_bump(self, bias_group, wait_time=.5, step_size=.001, duration=5,
+                  fs=180., start_bias=None, make_plot=False, skip_samp_start=10,
+                  high_current_mode=True, skip_samp_end=10, plot_channels=None,
+                  gcp_mode=False, gcp_wait=.5, gcp_between=1.):
+        """
+        Toggles the TES bias high and back to its original state. From this, it
+        calculates the electrical responsivity (sib), the optical responsivity (siq),
+        and resistance.
+
+        This is optimized for high_current_mode. For low current mode, you will need
+        to step much slower. Try wait_time=1, step_size=.015, duration=10, 
+        skip_samp_start=50, skip_samp_end=50.
+
+        Note that only the resistance is well defined now because the phase response
+        has an un-set factor of -1. We will need to calibrate this out.
+
+        Args:
+        -----
+        bias_group (int of int array): The bias groups to toggle. The response will
+            return every detector that is on.
+        
+        Opt Args:
+        --------
+        wait_time (float) : The time to wait between steps
+        step_size (float) : The voltage to step up and down in volts (for low
+            current mode).
+        duration (float) : The total time of observation
+        fs (float) : Sample frequency.
+        start_bias (float) : The TES bias to start at. If None, uses the current
+            TES bias.
+        skip_samp_start (int) : The number of samples to skip before calculating
+            a DC level
+        skip_samp_end (int) : The number of samples to skip after calculating a
+            DC level.
+        high_current_mode (bool) : Whether to observe in high or low current mode.
+            Default is True.
+        make_plot (bool) : Whether to make plots. Must set some channels in plot_channels.
+        plot_channels (int array) : The channels to plot.
+
+        Ret:
+        ---
+        bands (int array) : The bands
+        channels (int array) : The channels
+        resistance (float array) : The inferred resistance of the TESs in Ohms
+        sib (float array) : The electrical responsivity. This may be incorrect until
+            we define a phase convention. This is dimensionless.
+        siq (float array) : The power responsivity. This may be incorrect until we
+            define a phase convention. This is in uA/pW
+
+        """
+        if duration < 10* wait_time:
+            self.log('Duration must bee 10x longer than wait_time for high enough' +
+                     ' signal to noise.')
+            return
+
+        bias_group = np.ravel(np.array(bias_group))
+        if start_bias is None:
+            start_bias = np.array([])
+            for bg in bias_group:
+                start_bias = np.append(start_bias, 
+                                       self.get_tes_bias_bipolar(bg))
+        else:
+            start_bias = np.ravel(np.array(start_bias))
+
+        n_step = int(np.floor(duration / wait_time / 2))
+
+        i_bias = start_bias[0] / self.bias_line_resistance
+        
+        if high_current_mode:
+            self.set_tes_bias_high_current(bias_group)
+            i_bias *= self.high_low_current_ratio
+
+        filename = self.stream_data_on()
+
+        if gcp_mode:
+            self.log('Doing GCP mode bias bump')
+            for j, bg in enumerate(bias_group):
+                self.set_tes_bias_bipolar(bg, start_bias[j] + step_size,
+                                           wait_done=False)
+            time.sleep(gcp_wait)
+            for j, bg in enumerate(bias_group):
+                self.set_tes_bias_bipolar(bg, start_bias[j],
+                                          wait_done=False)
+            time.sleep(gcp_between)
+            for j, bg in enumerate(bias_group):
+                self.set_tes_bias_bipolar(bg, start_bias[j] + step_size,
+                                           wait_done=False)
+            time.sleep(gcp_wait)
+            for j, bg in enumerate(bias_group):
+                self.set_tes_bias_bipolar(bg, start_bias[j],
+                                          wait_done=False)
+
+        else:
+            # Sets TES bias high then low
+            for i in np.arange(n_step):
+                for j, bg in enumerate(bias_group):
+                    self.set_tes_bias_bipolar(bg, start_bias[j] + step_size,
+                                              wait_done=False)
+                time.sleep(wait_time)
+                for j, bg in enumerate(bias_group):
+                    self.set_tes_bias_bipolar(bg, start_bias[j],
+                                              wait_done=False)
+                    time.sleep(wait_time)
+
+        self.stream_data_off()  # record data
+
+        if gcp_mode:
+            return
+
+        t, d, m = self.read_stream_data(filename)
+        d *= self.pA_per_phi0/(2*np.pi*1.0E6) # Convert to microamps                             
+        i_amp = step_size / self.bias_line_resistance * 1.0E6 # also uA 
+        if high_current_mode:
+            i_amp *= self.high_low_current_ratio
+
+        n_demod = int(np.floor(fs*wait_time))
+        demod = np.append(np.ones(n_demod),-np.ones(n_demod))
+
+        bands, channels = np.where(m!=-1)
+        resp = np.zeros(len(bands))
+        sib = np.zeros(len(bands))*np.nan
+
+        # The vector to multiply by to get the DC offset
+        n_tile = int(duration/wait_time/2)-1
+
+        high = np.tile(np.append(np.append(np.nan*np.zeros(skip_samp_start), 
+                                           np.ones(n_demod-skip_samp_start-skip_samp_end)),
+                                 np.nan*np.zeros(skip_samp_end+n_demod)),n_tile)
+        low = np.tile(np.append(np.append(np.nan*np.zeros(n_demod+skip_samp_start), 
+                                          np.ones(n_demod-skip_samp_start-skip_samp_end)),
+                                np.nan*np.zeros(skip_samp_end)),n_tile)
+
+        for i, (b, c) in enumerate(zip(bands, channels)):
+            mm = m[b, c]
+            # Convolve to find the start of the bias step
+            conv = np.convolve(d[mm,:4*n_demod], demod, mode='valid')
+            start_idx = (len(demod) + np.where(conv == np.max(conv))[0][0])%(2*n_demod)
+            x = np.arange(len(low)) + start_idx
+
+            # Calculate high and low state
+            h = np.nanmean(high*d[mm,start_idx:start_idx+len(high)])
+            l = np.nanmean(low*d[mm,start_idx:start_idx+len(low)])
+
+            resp[i] = h-l
+            sib[i] = resp[i] / i_amp
+
+            if make_plot and c in plot_channels:
+                import matplotlib.pyplot as plt
+                plt.figure()
+                plt.plot(conv)
+
+                plt.figure()
+                plt.plot(d[mm])
+                plt.axvline(start_idx, color='k', linestyle=':')
+                plt.plot(x, h*high)
+                plt.plot(x, l*low)
+                plt.title(resp[i])
+                plt.show()
+
+        resistance = np.abs(self.R_sh * (1-1/sib))
+        siq = (2*sib-1)/(self.R_sh*i_amp) * 1.0E6/1.0E12  # convert to uA/pW
+
+        ret = {}
+        for b in np.unique(bands):
+            ret[b] = {}
+            idx = np.where(bands == b)[0]
+            for i in idx:
+                c = channels[i]
+                ret[b][c] = {}
+                ret[b][c]['resp'] = resp[i]
+                ret[b][c]['R'] = resistance[i]
+                ret[b][c]['Sib'] = sib[i]
+                ret[b][c]['Siq'] = siq[i]
+        #return bands, channels, resistance, sib, siq
+        return ret
 
     def all_off(self):
         """
@@ -1760,3 +2049,60 @@ class SmurfUtilMixin(SmurfBase):
         self.log('Turning off all TES biases')
         for bg in np.arange(8):
             self.set_tes_bias_bipolar(bg, 0)
+
+
+    def mask_num_to_gcp_num(self, mask_num):
+        """
+        Goes from the smurf2mce mask file to a gcp number.
+        Inverse of gcp_num_to_mask_num.
+
+        Args:
+        -----
+        mask_num (int) : The index in the mask file.
+
+        Ret:
+        ----
+        gcp_num (int) : The index of the channel in GCP.
+        """
+        return (mask_num*33)%528+mask_num//16
+
+
+    def gcp_num_to_mask_num(self, gcp_num):
+        """
+        Goes from a GCP number to the smurf2mce index.
+        Inverse of mask_num_to_gcp_num
+
+        Args:
+        ----
+        gcp_num (int) : The gcp index
+
+        Ret:
+        ----
+        mask_num (int) : The index in the mask.
+        """
+        return (gcp_num*16)%528 + gcp_num//33
+
+
+    def smurf_channel_to_gcp_num(self, band, channel, mask_file=None):
+        """
+        """
+        if mask_file is None:
+            mask_file = self.smurf_to_mce_mask_file
+
+        mask = self.make_mask_lookup(mask_file)
+
+        if mask[band, channel] == -1:
+            self.log('Band {} Ch {} not in mask file'.format(band, channel))
+            return None
+
+        return self.mask_num_to_gcp_num(mask[band, channel])
+
+    def gcp_num_to_smurf_channel(self, gcp_num, mask_file=None):
+        """
+        """
+        if mask_file is None:
+            mask_file = self.smurf_to_mce_mask_file
+        mask = np.loadtxt(mask_file)
+
+        return int(mask[gcp_num]//512), int(mask[gcp_num]%512)
+

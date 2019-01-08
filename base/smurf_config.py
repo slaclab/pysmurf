@@ -51,7 +51,7 @@ class SmurfConfig:
         ## dump current config to outputfile ##
         with io.open(outputfile, 'w', encoding='utf8') as out_file:
             str_ = json.dumps(self.config, indent = 4, separators = (',', ': '))
-            out_file.write(to_unicode(str_))
+            out_file.write(str_)
 
     def has(self, key):
         """Reports if configuration has requested key.

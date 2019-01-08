@@ -10,28 +10,83 @@ S = pysmurf.SmurfControl(setup=False,
     make_logfile=False)
 
 savedir = '/home/cryo/ey/nonlinear_lms'
+bias_vals = np.arange(8, 1, -.5)
+lms_freqs = np.arange(12200, 12801, 50)
+lms_freqs_tmp = np.arange(12250, 12601, 50)
+bias_line_resistance = S.bias_line_resistance
 
-def test(S):
-    lms_freqs = np.arange(10000,15000,500)
-    bias_vals = np.arange(5, 1.9, -.1)
-    n_bias = len(bias_vals)
-    n_chans = len(S.which_on(2))
-    for lms in lms_freqs:
-        print(lms)
-        S.overbias_tes_all(bias_groups=np.array([1,2,3]), overbias_voltage=8, tes_bias=5, 
-                           high_current_mode=False, overbias_wait=1.5, cool_wait=90)
-        S.tracking_setup(2, fraction_full_scale=.72,lms_freq_hz=lms)
+
+def plot_sib(channels=None, show_plot=True, rs=.003):
+    if show_plot:
+        plt.ion()
+    else:
+        plt.ioff()
+    s = np.zeros((len(lms_freqs_tmp), len(bias_vals), 123))
+    for i, lms in enumerate(lms_freqs_tmp):
+        s[i] = np.load(os.path.join(savedir, 'sibs_{}.npy'.format(lms)))
+
+    if channels is None:
+        channels = np.arange(123)
+    else:
+        channels = np.ravel(np.array(channels))
+
+    for c in channels:
+        print(s[0,:5,c])
+        if np.median(s[0,:5,c]) > 0 :
+            s[:,:,c] *= -1
+
+    r = np.abs(rs * (1-1./s))
+    siq = (2*s-1)/(rs*np.atleast_3d(bias_vals/bias_line_resistance)) * 1.0E6/1.0E12
+
+    cm = plt.get_cmap('viridis')
+    
+    for c in channels:
+        fig, ax = plt.subplots(3, figsize=(5,8), sharex=True)
+        for i, l in enumerate(lms_freqs_tmp):
+            color = cm(i/len(lms_freqs_tmp))
+            ax[0].plot(bias_vals, s[i,:,c], color=color, label='lms {}'.format(l))
+            ax[1].plot(bias_vals, 1.0E3*r[i,:,c], color=color, label='lms {}'.format(l))
+            ax[2].plot(bias_vals, siq[i,:,c], color=color)
+
+        ax[0].legend()
+        ax[2].set_xlabel('Bias Voltage [V]')
+        ax[0].set_ylabel(r'$S_{IB}$')
+        ax[1].set_ylabel(r'$R$' + ' ' + '$[m \Omega]$')
+        ax[2].set_ylabel(r'$S_{IQ}$' + ' ' + '$[\mu A/pW]$')
+        fig.suptitle('{:03}'.format(c))
+
+        ax[0].set_ylim((-1.2, 1.2))
+        ax[1].set_ylim((0,75))
+
+        plt.savefig(os.path.join(savedir, 'S_vs_lms{:03}'.format(c)))
+        if not show_plot:
+            plt.close()
+    
+
+
+
+def test(S):    
+    #n_bias = len(bias_vals)
+    #n_chans = len(S.which_on(2))
+    for b in bias_vals:
+        print('Bias {}'.format(b))
+        S.overbias_tes_all(bias_groups=np.array([2]), overbias_voltage=8, tes_bias=b, 
+                           high_current_mode=True, overbias_wait=1.5, cool_wait=90)
+        for lms in lms_freqs:
+            print(lms)
+            S.tracking_setup(2, fraction_full_scale=.72,lms_freq_hz=lms)
+            r = S.bias_bump(2, step_size=.03)
+            np.save(os.path.join(savedir, 'r_bias{}_lms{}'.format(b, lms)), r)
+        #resps = np.zeros((n_bias, n_chans))
+        #sibs = np.zeros((n_bias, n_chans))
+        #for i, bv in enumerate(bias_vals):
+        #    resps[i], sibs[i] = get_sib(S, np.array([1,2,3]), start_bias=bv)
+        #np.save(os.path.join(savedir, 'resp_{}'.format(lms)), resps)
+        #np.save(os.path.join(savedir, 'sibs_{}'.format(lms)), sibs)
         
-        resps = np.zeros((n_bias, n_chans))
-        sibs = np.zeros((n_bias, n_chans))
-        for i, bv in enumerate(bias_vals):
-            resps[i], sibs[i] = get_sib(S, np.array([1,2,3]), start_bias=bv)
-        np.save(os.path.join(savedir, 'resp_{}'.format(lms)), resps)
-        np.save(os.path.join(savedir, 'sibs_{}'.format(lms)), sibs)
-        
 
 
-def get_sib(S, bias_group, wait_time=1, step_size=.02, duration=10, fs=180,
+def get_sib(S, bias_group, wait_time=1, step_size=.015, duration=10, fs=180,
             start_bias=None, make_plot=False, skip_samp_start=50, skip_samp_end=10):
     bias_group = np.ravel(np.array(bias_group))
     if start_bias is None:
