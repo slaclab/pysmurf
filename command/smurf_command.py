@@ -1147,6 +1147,13 @@ class SmurfCommandMixin(SmurfBase):
         self._caput(self.adc_root + self._adc_remap, 1, **kwargs)
 
     # DAC commands
+    _dac_temp = "Temperature"
+    def get_dac_temp(self, dac, **kwargs):
+        '''
+        Get temperature of the DAC in celsius
+        '''
+        return self._caget(self.dac_root.format(dac) + self._dac_temp, **kwargs)
+
     _dac_enable = "enable"
     def set_dac_enable(self, dac, val, **kwargs):
         '''
@@ -2038,12 +2045,53 @@ class SmurfCommandMixin(SmurfBase):
         return self._caget(self.streaming_root + self._streaming_file_open,  
             **kwargs)
 
+    # UltraScale+ FPGA
+    fpga_root = ":AMCc:FpgaTopLevel:AmcCarrierCore:AxiSysMonUltraScale"
+    _fpga_temperature = ":Temperature"
+    def get_fpga_temp(self, **kwargs):
+        """
+        Gets the temperature of the UltraScale+ FPGA.  Returns float32, 
+        the temperature in degrees Celsius.
+
+        Returns:
+        --------
+        val (float): The UltraScale+ FPGA temperature in degrees Celsius.
+        """
+        return self._caget(self.epics_root + self.fpga_root + self._fpga_temperature, **kwargs)
+
+    _fpga_vccint = ":VccInt"
+    def get_fpga_vccint(self, **kwargs):
+        """
+        Returns:
+        --------
+        val (float): The UltraScale+ FPGA VccInt in Volts.
+        """
+        return self._caget(self.epics_root + self.fpga_root + self._fpga_vccint, **kwargs)
+
+    _fpga_vccaux = ":VccAux"
+    def get_fpga_vccaux(self, **kwargs):
+        """
+        Returns:
+        --------
+        val (float): The UltraScale+ FPGA VccAux in Volts.
+        """
+        return self._caget(self.epics_root + self.fpga_root + self._fpga_vccaux, **kwargs)
+
+    _fpga_vccbram = ":VccBram"
+    def get_fpga_vccbram(self, **kwargs):
+        """
+        Returns:
+        --------
+        val (float): The UltraScale+ FPGA VccBram in Volts.
+        """
+        return self._caget(self.epics_root + self.fpga_root + self._fpga_vccbram, **kwargs)
+
     # Cryo card comands
     def get_cryo_card_temp(self, enable_poll=False, disable_poll=False):
         """
         Returns:
         --------
-        temp (float): Temperature of the cryostat card in Celcius
+        temp (float): Temperature of the cryostat card in Celsius
         """
         if enable_poll:
             epics.caput(self.epics_root + self._global_poll_enable, True)
