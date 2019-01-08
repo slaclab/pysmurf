@@ -60,9 +60,11 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
             self.output_dir = os.path.join(self.base_dir, 'outputs')
             self.tune_dir = self.config.get('tune_dir')
             self.plot_dir = os.path.join(self.base_dir, 'plots')
+            self.status_dir = self.config.get('status_dir')
             self.make_dir(self.output_dir)
             self.make_dir(self.tune_dir)
             self.make_dir(self.plot_dir)
+            self.make_dir(self.status_dir)
 
             # Set logfile
             self.log_file = os.path.join(self.output_dir, 'smurf_cmd.log')
@@ -89,9 +91,11 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
                 'outputs')
             self.tune_dir = self.config.get('tune_dir')
             self.plot_dir = os.path.join(self.base_dir, self.date, name, 'plots')
+            self.status_dir = self.config.get('status_dir')
             self.make_dir(self.output_dir)
             self.make_dir(self.tune_dir)
             self.make_dir(self.plot_dir)
+            self.make_dir(self.status_dir)
 
             # name the logfile and create flags for it
             if make_logfile:
@@ -216,14 +220,20 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
         if setup:
             self.setup(**kwargs)
 
-        # create an outputs key for the cfg file
-        self.output_cfg = self.config.update('outputs', {})
+        # initialize outputs cfg
+        self.config.update('outputs', {})
 
     def setup(self, write_log=True, **kwargs):
         """
         Sets the PVs to the default values from the experiment.cfg file
         """
         self.log('Setting up...', (self.LOG_USER))
+
+        self.log('Toggling DACs')
+        self.set_dac_reset(0, 1, write_log=write_log)
+        self.set_dac_reset(1, 1, write_log=write_log)
+        self.set_dac_reset(0, 0, write_log=write_log)
+        self.set_dac_reset(1, 0, write_log=write_log)
 
         self.set_read_all(write_log=write_log)
         self.set_defaults_pv(write_log=write_log)
@@ -351,26 +361,25 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
           val (any): value to assign to the key
         """
 
-        S.output_cfg[key] = val
+        self.config.update_subkey('outputs', key, val)
 
     def write_output(self, filename=None):
         """
         Dump the current configuration to a file. This wraps around the config
         file writing in the config object. Files are timestamped and dumped to
-        the S.output_dir, but contain no other info unless filename is provided
+        the S.output_dir by default.
 
         Opt Args:
         -----
-        filename (str): string to attach to the filename in addition to the
-          timestamp
+        filename (str): full path to output file
         """
 
         timestamp = self.get_timestamp()
         if filename is not None:
-            output_file = timestamp + '_' + filename + '.cfg'
+            output_file = filename 
         else:
             output_file = timestamp + '.cfg'
 
-        full_path = os.path.join(self.output_dir, outputfile)
+        full_path = os.path.join(self.output_dir, output_file)
         self.config.write(full_path)
 

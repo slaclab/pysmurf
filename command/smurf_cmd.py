@@ -19,9 +19,11 @@ def make_runfile(output_dir, row_len=60, num_rows=60, data_rate=60,
     """
     Make the runfile
     """
+    S.log('Making pysmurf object')
     S = pysmurf.SmurfControl(cfg_file=os.path.join(os.path.dirname(__file__), 
         '..', 'cfg_files' , cfg_filename), smurf_cmd_mode=True, setup=False)
 
+    S.log('Making Runfile')
     
     # 20181119 dB, modified to use the correct format runfile.
     #with open(os.path.join(os.path.dirname(__file__),"runfile/runfile_template.txt")) as f:
@@ -77,15 +79,15 @@ def start_acq(S, num_rows, num_rows_reported, data_rate,
     """
     bands = S.config.get('init').get('bands')
     S.log('Setting PVs for streaming header')
-    S.set_num_rows(num_rows)
-    S.set_num_rows_reported(num_rows_reported)
-    S.set_data_rate(data_rate)
-    S.set_row_len(row_len)
+    S.set_num_rows(num_rows, write_log=True)
+    S.set_num_rows_reported(num_rows_reported, write_log=True)
+    S.set_data_rate(data_rate, write_log=True)
+    S.set_row_len(row_len, write_log=True)
 
     S.log('Starting streaming data')
     S.set_smurf_to_gcp_stream(True, write_log=True)
     for b in bands:
-        S.set_stream_enable(b, 1)
+        S.set_stream_enable(b, 1, write_log=True)
 
 def stop_acq(S):
     """
@@ -139,7 +141,7 @@ if __name__ == "__main__":
 
     parser.add_argument('--overbias-tes', action='store_true', default=False,
         help='Overbias the TESs')
-    parser.add_argument('--overbias-tes-wait', action='store', default=.5, 
+    parser.add_argument('--overbias-tes-wait', action='store', default=1.5, 
         type=float, help='The time to stay at the high current.')
 
     parser.add_argument('--bias-bump', action='store', default=False,
@@ -174,12 +176,12 @@ if __name__ == "__main__":
         help='Run tuning')
     parser.add_argument('--tune-make-plot', action='store_true', default=False,
         help='Whether to make plots for tuning. This is slow.')
-
     parser.add_argument('--last-tune', action='store_true', default=False,
         help='Use the last tuning')
-
     parser.add_argument('--use-tune', action='store', type=str, default=None,
         help='The full path of a tuning file to use.')
+    parser.add_argument('--check-lock', action='store', default=False, 
+        help='Check tracking and kill unlocked channels.')
 
     # Start acq
     parser.add_argument('--start-acq', action='store_true', default=False,
@@ -199,9 +201,18 @@ if __name__ == "__main__":
     parser.add_argument('--make-runfile', action='store_true', default=False,
         help='Make a new runfile.')
 
+    parser.add_argument('--status', action='store_true', default=False,
+        help='Dump status to screen')
+
     # Stop acq
     parser.add_argument('--stop-acq', action='store_true', default=False,
         help='Stop the data acquistion')
+
+    # Turning stuff off
+    parser.add_argument('--flux-ramp-off', action='store_true', default=False,
+        help='Turn off flux ramp')
+    parser.add_argument('--all-off', action='store_true', default=False,
+        help='Turn off everything (tones, TES biases, flux ramp)')
 
     # Soft reset
     parser.add_argument('--soft-reset', action='store_true', default=False,
@@ -223,7 +234,8 @@ if __name__ == "__main__":
     n_cmds = (args.log is not None) + args.tes_bias + args.slow_iv + \
         args.plc + args.tune + args.start_acq + args.stop_acq + \
         args.last_tune + (args.use_tune is not None) + args.overbias_tes + \
-        args.bias_bump + args.soft_reset + args.make_runfile + args.setup
+        args.bias_bump + args.soft_reset + args.make_runfile + args.setup + \
+        args.flux_ramp_off + args.all_off + args.check_lock + args.status
     if n_cmds > 1:
         sys.exit(0)
 
@@ -236,13 +248,21 @@ if __name__ == "__main__":
 
     ### Tuning related commands ###
     if args.last_tune:
+        S.log('Loading in last tuning')
         S.tune(last_tune=True, make_plot=args.tune_make_plot)
 
     if args.use_tune is not None:
+        S.log('Loading old tune from file: {}'.format(args.use_tune))
         S.tune(tune_file = args.use_tune, make_plot=args.tune_make_plot)
 
     if args.tune:
+        S.log('Running a smurf tuning. Using old frequency file but new eta scan')
         S.tune(retune=True, make_plot=args.tune_make_plot)
+
+    if args.check_lock:
+        S.log('Running track and check')
+        for band in S.config.get('init')['bands']:
+            S.check_lock(band) # this might be too slow
 
     ### TES bias related commands ###
     if args.tes_bias:
@@ -325,24 +345,21 @@ if __name__ == "__main__":
         S.partial_load_curve_all(bias_high, bias_step=iv_bias_step, 
             wait_time=args.iv_wait_time, analyze=False, make_plot=False)
 
-    if args.tune:
-        # Load values from the cfg file
-        tune_cfg = S.config.get("tune_band")
-        if args.tune_band == -1:
-            init_cfg = S.config.get("init")
-            bands = np.array(init_cfg.get("bands"))
-        else:
-            bands = np.array(args.tune_band)
-        for b in bands:
-            S.log('Tuning band {}'.format(b))
-            S.tune_band(b, make_plot=args.tune_make_plot,
-                n_samples=tune_cfg.get('n_samples'), 
-                freq_max=tune_cfg.get('freq_max'),
-                freq_min=tune_cfg.get('freq_min'),
-                grad_cut=tune_cfg.get('grad_cut'),
-                amp_cut=tune_cfg.get('tune_cut'))
 
+    ### Turning stuff off ###
+    if args.flux_ramp_off:
+        S.log('Turning off flux ramp')
+        S.flux_ramp_off()
 
+    if args.all_off:
+        S.log('Turning off everything')
+        S.all_off()
+
+    ### Dump smurf status
+    if args.status:
+        print(S.dump_state(return_screen=True))
+
+    ### Acquistion and resetting commands ###
     if args.start_acq:
 
         if args.n_frames >= 1000000000:
@@ -378,5 +395,3 @@ if __name__ == "__main__":
         make_runfile(S.output_dir, num_rows=args.num_rows,
             data_rate=args.data_rate, row_len=args.row_len,
             num_rows_reported=args.num_rows_reported)
-
-
