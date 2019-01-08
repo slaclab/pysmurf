@@ -19,7 +19,7 @@ def make_runfile(output_dir, row_len=60, num_rows=60, data_rate=60,
     """
     Make the runfile
     """
-    S.log('Making pysmurf object')
+    #S.log('Making pysmurf object')
     S = pysmurf.SmurfControl(cfg_file=os.path.join(os.path.dirname(__file__), 
         '..', 'cfg_files' , cfg_filename), smurf_cmd_mode=True, setup=False)
 
@@ -339,7 +339,7 @@ if __name__ == "__main__":
         S.log('plc bias low {}'.format(S.get_tes_bias_bipolar_array()))
         S.log('plc bias step {}'.format(args.iv_bias_step))
 
-        iv_bias_step = np.abs(args.iv_bias_step)
+        iv_bias_step = np.abs(args.iv_bias_step) * 1.5 # speed this up relative to other mce's
 
         S.log('running plc on all bias groups')
         S.partial_load_curve_all(bias_high, bias_step=iv_bias_step, 
