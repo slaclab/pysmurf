@@ -108,7 +108,7 @@ class SmurfIVMixin(SmurfBase):
     def slow_iv_all(self, bias_groups=None, wait_time=.1, bias=None, 
                     bias_high=1.5, gcp_mode=True, bias_low=0, bias_step=.005, 
                     show_plot=False, high_current_wait=1., cool_wait=30,
-                    make_plot=True, save_plot=True, channels=None, 
+                    make_plot=True, save_plot=True, channels=None, band=None,
                     high_current_mode=True, overbias_voltage=8., 
                     grid_on=True, phase_excursion_min=3.):
         """
@@ -199,7 +199,7 @@ class SmurfIVMixin(SmurfBase):
         self.analyze_slow_iv_from_file(fn_iv_raw_data, make_plot=make_plot,
             show_plot=show_plot, save_plot=save_plot, R_sh=R_sh,
             gcp_mode=gcp_mode, grid_on=grid_on,
-            phase_excursion_min=phase_excursion_min)
+            phase_excursion_min=phase_excursion_min,chs=channels,band=band)
 
     def partial_load_curve_all(self, bias_high_array, bias_low_array=None, 
         wait_time=0.1, bias_step=0.1, gcp_mode=True, show_plot=False, analyze=True,  
@@ -313,9 +313,9 @@ class SmurfIVMixin(SmurfBase):
                 phase_excursion_min=phase_excursion_min, channels=channels)
 
     def analyze_slow_iv_from_file(self, fn_iv_raw_data, make_plot=True,
-        show_plot=False, save_plot=True, R_sh=None, phase_excursion_min=3., 
-                                  grid_on=False, gcp_mode=True, 
-                                  R_op_target=0.03,chs=None):
+                                  show_plot=False, save_plot=True, R_sh=None, 
+                                  phase_excursion_min=3., grid_on=False, gcp_mode=True, 
+                                  R_op_target=0.03,chs=None,band=None):
         """
         Function to analyze a load curve from its raw file. Can be used to 
           analyze IV's/generate plots separately from issuing commands.
@@ -343,13 +343,15 @@ class SmurfIVMixin(SmurfBase):
         iv_raw_data = np.load(fn_iv_raw_data).item()
         bias = iv_raw_data['bias']
         high_current_mode = iv_raw_data['high_current_mode']
-        #band = iv_raw_data['band']
         bias_group = iv_raw_data['bias group']
-        #channels = iv_raw_data['channels']
         datafile = iv_raw_data['datafile']
         
         mask = self.make_mask_lookup(datafile.replace('.dat','_mask.txt'))
-        band, chans = np.where(mask != -1)
+        bands, chans = np.where(mask != -1)
+        if band is not None:
+            band = [band]
+        else:
+            band = bands
 
         basename = iv_raw_data['basename']
         output_dir = iv_raw_data['output_dir']
@@ -617,9 +619,12 @@ class SmurfIVMixin(SmurfBase):
         resp_bin -= norm_fit[1]  # now in real current units
 
         sc_fit = np.polyfit(i_bias[:sc_idx], resp_bin[:sc_idx], 1)
+        resp_bin[:sc_idx] -= sc_fit[1] # subtract off unphysical y-offset in superconducting branch; this is probably due to an undetected phase wrap at the kink between the superconducting branch and the transition, so it is *probably* legitimate to remove it by hand. We don't use the offset of the superconducting branch for anything meaningful anyway. This will just make our plots look nicer.
+        sc_fit[1] = 0 # now change s.c. fit offset to 0 for plotting
 
         R = R_sh * (i_bias/(resp_bin) - 1)
         R_n = np.mean(R[nb_fit_idx:])
+        R_L = np.mean(R[1:sc_idx])
 
         v_tes = i_bias*R_sh*R/(R+R_sh) # voltage over TES
         p_tes = (v_tes**2)/R # electrical power on TES
@@ -645,12 +650,26 @@ class SmurfIVMixin(SmurfBase):
         w = (1./float(w_len))*np.ones(w_len) # window
         i_tes_smooth = np.convolve(i_tes,w,mode='same')
         v_tes_smooth = np.convolve(v_tes,w,mode='same')
+        r_tes_smooth = v_tes_smooth/i_tes_smooth
         di_tes = np.diff(i_tes_smooth)
         dv_tes = np.diff(v_tes_smooth)
-        R_L = 0.
-        L = (dv_tes/di_tes - v_tes_smooth[:-1]/i_tes_smooth[:-1] - R_L)/(dv_tes/di_tes + v_tes_smooth[:-1]/i_tes_smooth[:-1] - R_L)
-        si_etf = -1./v_tes[:-1]
-        si = si_etf*L/(L+1)
+        R_L_smooth = np.ones(len(r_tes_smooth))*R_L
+        R_L_smooth[:sc_idx] = dv_tes[:sc_idx]/di_tes[:sc_idx]
+        r_tes_smooth_noStray = r_tes_smooth - R_L_smooth
+        i0 = i_tes_smooth[:-1]
+        r0 = r_tes_smooth_noStray[:-1]
+        rL = R_L_smooth[:-1]
+        si_etf = -1./(i0*r0)
+        beta = 0.
+        si = -(1./i0)*( dv_tes/di_tes - (r0+rL+beta*r0) ) / \
+            ( (2.*r0-rL+beta*r0)*dv_tes/di_tes - 3.*rL*r0 - rL**2 )
+        '''
+        plt.figure()
+        plt.plot(i_bias[:-1],rL)
+        plt.plot(i_bias[:-1],R_L*np.ones(len(rL)))
+        plt.plot(i_bias[:-1],r0)
+        plt.show()
+        '''
         if i_R_op == len(si):
             i_R_op -= 1
         si_target = si[i_R_op]
@@ -710,7 +729,9 @@ class SmurfIVMixin(SmurfBase):
                            r' $\mathrm{m}\Omega$')  
             ax_ii.plot(i_bias[:sc_idx], 
                 sc_fit[0] * i_bias[:sc_idx] + sc_fit[1], linestyle='--', 
-                color=color_sc,label=r's.c. slope = {:.2f}'.format(sc_fit[0]))
+                color=color_sc,label=r'$R_L$' + \
+                           ' = ${:.0f}$'.format(R_L/1e-6) + \
+                           r' $\mu\mathrm{\Omega}$')
 
             label_target = r'$R = {:.0f}$ '.format(R_op_target/1e-3)+\
                         r'$\mathrm{m}\Omega$'

@@ -59,9 +59,6 @@ class SmurfNoiseMixin(SmurfBase):
         phase *= self.pA_per_phi0/(2.*np.pi) # phase converted to pA
 
         if fs is None:
-            #self.log('No flux ramp freq given. Loading current flux ramp'+
-            #    'frequency', self.LOG_USER)
-            #fs = self.get_flux_ramp_freq()*1.0E3
             fs = self.fs
 
         self.log('Plotting channels {}'.format(channel), self.LOG_USER)
@@ -79,11 +76,8 @@ class SmurfNoiseMixin(SmurfBase):
         if not show_plot:
             plt.ioff()
         for c, ch in enumerate(channel):
-            # phase = self.iq_to_phase(I[ch], Q[ch])
-
-            # Calculate to power spectrum
-            # ch_idx = 512*band + ch
-            # ch_idx = np.where(mask == 512*band + ch)[0][0]
+            if ch < 0:
+                continue
             ch_idx = mask[band, ch]
             f, Pxx = signal.welch(phase[ch_idx], nperseg=nperseg, 
                 fs=fs, detrend=detrend)
@@ -267,11 +261,12 @@ class SmurfNoiseMixin(SmurfBase):
         
 
 
-    def noise_vs_bias(self, band, bias_group,bias_high=6, bias_low=3, step_size=.1,
-        bias=None, high_current_mode=False, overbias_voltage=19.9,
-        meas_time=30., analyze=False, channel=None, nperseg=2**13,
-        detrend='constant', fs=None, show_plot=False, cool_wait=30., gcp_mode=True,
-        psd_ylim=(10.,1000.), est_NET=False):
+    def noise_vs_bias(self, band, bias_group,bias_high=1.5, bias_low=0., 
+                      step_size=0.25, bias=None, high_current_mode=True, 
+                      overbias_voltage=9., meas_time=30., analyze=False, 
+                      channel=None, nperseg=2**13, detrend='constant', 
+                      fs=None, show_plot=False, cool_wait=30., gcp_mode=True,
+                      psd_ylim=(10.,1000.),make_timestream_plot=False):
         """
         This ramps the TES voltage from bias_high to bias_low and takes noise
         measurements. You can make it analyze the data and make plots with the
@@ -307,11 +302,13 @@ class SmurfNoiseMixin(SmurfBase):
                 step_size *= -1
             bias = np.arange(bias_high, bias_low-np.absolute(step_size), step_size)
 
-        self.noise_vs(band=band, bias_group=bias_group, var='bias', var_range=bias,
-                 meas_time=meas_time, analyze=analyze, channel=channel, nperseg=nperseg,
-                 detrend=detrend, fs=fs, show_plot=show_plot,
-                 gcp_mode=gcp_mode, psd_ylim=psd_ylim, overbias_voltage=overbias_voltage,
-                 cool_wait=cool_wait, high_current_mode=high_current_mode, est_NET=est_NET)
+        self.noise_vs(band=band, bias_group=bias_group, var='bias', 
+                      var_range=bias, meas_time=meas_time, analyze=analyze, 
+                      channel=channel, nperseg=nperseg, detrend=detrend, 
+                      fs=fs, show_plot=show_plot, gcp_mode=gcp_mode, 
+                      psd_ylim=psd_ylim, overbias_voltage=overbias_voltage,
+                      cool_wait=cool_wait,high_current_mode=high_current_mode,
+                      make_timestream_plot=make_timestream_plot)
 
     def noise_vs_amplitude(self, band, amplitude_high=11, amplitude_low=9, step_size=1,
                            amplitudes=None,
@@ -337,7 +334,8 @@ class SmurfNoiseMixin(SmurfBase):
     def noise_vs(self, band, var, var_range, 
                  meas_time=30, analyze=False, channel=None, nperseg=2**13,
                  detrend='constant', fs=None, show_plot=False,
-                 gcp_mode=True, psd_ylim=None, **kwargs):
+                 gcp_mode=True, psd_ylim=None, make_timestream_plot=False,
+                 **kwargs):
 
         if fs is None:
             fs = self.fs
@@ -365,8 +363,8 @@ class SmurfNoiseMixin(SmurfBase):
         self.make_dir(psd_dir)
 
         timestamp = self.get_timestamp()
-        np.savetxt(os.path.join(psd_dir, '{}_{}.txt'.format(timestamp,var)),
-            var_range)
+        fn_var_values = os.path.join(psd_dir, '{}_{}.txt'.format(timestamp,var))
+        np.savetxt(fn_var_values,var_range)
         datafiles = np.array([], dtype=str)
 
         for v in var_range:
@@ -375,14 +373,14 @@ class SmurfNoiseMixin(SmurfBase):
                 self.log('Bias {}'.format(v))
                 if type(kwargs['bias_group']) is int: # only received one group
                     self.overbias_tes(kwargs['bias_group'], tes_bias=v, 
-                                  high_current_mode=kwargs['high_current_mode'],
-                                  cool_wait=kwargs['cool_wait'],
-                                  overbias_voltage=kwargs['overbias_voltage'])
+                                 high_current_mode=kwargs['high_current_mode'],
+                                 cool_wait=kwargs['cool_wait'],
+                                 overbias_voltage=kwargs['overbias_voltage'])
                 else:
                     self.overbias_tes_all(kwargs['bias_group'], tes_bias=v,
-                                  high_current_mode=kwargs['high_current_mode'],
-                                  cool_wait=kwargs['cool_wait'], 
-                                  overbias_voltage=kwargs['overbias_voltage'])
+                                 high_current_mode=kwargs['high_current_mode'],
+                                 cool_wait=kwargs['cool_wait'], 
+                                 overbias_voltage=kwargs['overbias_voltage'])
 
             if var in amplitudealiases:
                 self.log('Tone amplitude {}'.format(v))
@@ -409,8 +407,11 @@ class SmurfNoiseMixin(SmurfBase):
             
         self.log('Done with noise vs %s'%(var))
 
-        np.savetxt(os.path.join(psd_dir, '{}_datafiles.txt'.format(timestamp)),
-            datafiles, fmt='%s')
+        fn_datafiles = os.path.join(psd_dir, '{}_datafiles.txt'.format(timestamp))
+        np.savetxt(fn_datafiles,datafiles, fmt='%s')
+
+        self.log('Saving variables values to {}.'.format(fn_var_values))
+        self.log('Saving data filenames to {}.'.format(fn_datafiles))
 
         if analyze:
             self.analyze_noise_vs_bias(var_range, datafiles,  channel=channel, 
@@ -419,7 +420,8 @@ class SmurfNoiseMixin(SmurfBase):
                                        nperseg=nperseg, detrend=detrend, fs=fs, 
                                        save_plot=True, show_plot=show_plot, 
                                        data_timestamp=timestamp, 
-                                       gcp_mode=gcp_mode,psd_ylim=psd_ylim)
+                                       gcp_mode=gcp_mode,psd_ylim=psd_ylim,
+                                       make_timestream_plot=make_timestream_plot)
 
     def get_datafiles_from_file(self,fn_datafiles):
         '''
@@ -510,9 +512,10 @@ class SmurfNoiseMixin(SmurfBase):
     def analyze_noise_vs_bias(self, bias, datafile, channel=None, band=None,
         nperseg=2**13, detrend='constant', fs=None, save_plot=True, 
         show_plot=False, make_timestream_plot=False, data_timestamp=None,
-        psd_ylim=(10.,1000.), gcp_mode = True, bias_group=None, smooth_len=11,
+        psd_ylim=(10.,1000.), gcp_mode = True, bias_group=None, smooth_len=15,
         show_legend=True, freq_range_summary=None, R_sh=None,
-        high_current_mode=True, iv_data_filename=None, NEP_ymax=1000.):
+        high_current_mode=True, iv_data_filename=None, NEP_ylim=(10.,1000.),
+        f_center_GHz=150.,bw_GHz=32.):
         """
         Analysis script associated with noise_vs_bias.
 
@@ -601,24 +604,6 @@ class SmurfNoiseMixin(SmurfBase):
                 Pxx = np.sqrt(Pxx)  # pA
                 np.savetxt(os.path.join(psd_dir, basename + 
                     '_psd_ch{:03}.txt'.format(ch)), np.array([f, Pxx]))
-                '''
-                if make_timestream_plot:
-                    fig,ax = plt.subplots(1)
-                    ax.plot(phase[ch_idx])
-                    res_freq = self.channel_to_freq(band, ch)
-                    ax.set_title('Channel {:03} - {:5.4f} MHz'.format(ch, res_freq))
-                    ax.set_xlabel(r'Time index')
-                    ax.set_ylabel(r'Phase (pA)')
-                
-                    if show_plot:
-                        plt.show()
-                    if save_plot:
-                        fn_timestream = os.path.join(self.plot_dir, basename + \
-                                    '_timestream_ch{:03}.png'.format(ch))
-                        self.log('Saving timestream plot for bias = {.2f} to {}'.format(b,fn_timestream))
-                        plt.savefig(fn_timestream,bbox_inches='tight')
-                        plt.close()
-                '''
             # Explicitly remove objects from memory
             del timestamp
             del phase
@@ -626,6 +611,8 @@ class SmurfNoiseMixin(SmurfBase):
         # Make plot
         cm = plt.get_cmap('plasma')
         noise_est_data = []
+        if est_NEP:
+            NEP_est_data = []
         n_bias = len(bias)
         n_row = int(np.ceil(n_bias/2.)*3)
         h_NEI = int(n_row/3)
@@ -665,7 +652,8 @@ class SmurfNoiseMixin(SmurfBase):
                     axs_timestream.append(ax_i)
 
             noise_est_list = []
-            NEP_est_list = []
+            if est_NEP:
+                NEP_est_list = []
             for i, (b, d) in enumerate(zip(bias, datafile)):
                 basename, _ = os.path.splitext(os.path.basename(d))
                 dirname = os.path.dirname(d)
@@ -753,18 +741,27 @@ class SmurfNoiseMixin(SmurfBase):
                         ax_SI.plot(iv_bias,si)
                         v_tes = iv_band_data[ch]['v_tes'][:-1]
                         si_etf = -1./v_tes
-                        ax_SI.plot(iv_bias,si_etf,linestyle = '--')
+                        ax_SI.plot(iv_bias,si_etf,linestyle = '--',
+                                   label=r'$-1/V_\mathrm{TES}$')
                         trans_idxs = iv_band_data[ch]['trans idxs']
                         sc_idx = trans_idxs[0]
                         nb_idx = trans_idxs[1]
+                        R = iv_band_data[ch]['R']
+                        R_n = iv_band_data[ch]['R_n']
+                        R_frac_min = R[sc_idx]/R_n
+                        R_frac_max = R[nb_idx]/R_n
                         for ax in [ax_NEIwl,ax_NEPwl,ax_SI]:
+                            if ax == ax_SI:
+                                label_Rfrac = r'{:.2f}-{:.2f}'.format(R_frac_min,R_frac_max) + r'$R_\mathrm{N}$'
+                            else:
+                                label_Rfrac = None
                             ax.axvspan(iv_bias[sc_idx],iv_bias[nb_idx],
-                                       alpha=.15)
+                                       alpha=.15,label=label_Rfrac)
                     ax_SI.plot(b,np.interp(b,iv_bias,si),color=color,
                                marker='s',linestyle='none')
 
             ax_NEI.set_xlabel(r'Freq [Hz]')
-            ax_NEI.set_ylabel(r'PSD [$\mathrm{pA}/\sqrt{\mathrm{Hz}}$]')
+            ax_NEI.set_ylabel(r'NEI [$\mathrm{pA}/\sqrt{\mathrm{Hz}}$]')
             ax_NEI.set_xscale('log')
             ax_NEI.set_yscale('log')
             if show_legend:
@@ -787,10 +784,10 @@ class SmurfNoiseMixin(SmurfBase):
                 ax_NEIwl.set_xlabel(xlabel_bias)
 
             if freq_range_summary is not None:
-                ylabel_summary = r'Mean noise %.2f-%.2f Hz' % (freq_min,freq_max)
+                ylabel_summary = r'mean noise %.2f-%.2f Hz' % (freq_min,freq_max)
             else:
-                ylabel_summary = r'White-noise level'
-            ax_NEIwl.set_ylabel(r'%s [$\mathrm{pA}/\sqrt{\mathrm{Hz}}$]' % \
+                ylabel_summary = r'white-noise level'
+            ax_NEIwl.set_ylabel(r'NEI %s [$\mathrm{pA}/\sqrt{\mathrm{Hz}}$]' % \
                                (ylabel_summary))
             
             bottom = max(0.95*min(noise_est_list),0.)
@@ -803,23 +800,34 @@ class SmurfNoiseMixin(SmurfBase):
             ax_NEIwl.grid()
 
             if est_NEP:
-                ax_NEPwl.set_ylabel(r'%s [$\mathrm{aW}/\sqrt{\mathrm{Hz}}$]' % \
+                ax_NEPwl.set_ylabel(r'NEP %s [$\mathrm{aW}/\sqrt{\mathrm{Hz}}$]' % \
                                    (ylabel_summary))
                 ax_SI.set_ylabel(r'Estimated responsivity with $\beta = 0$ [$\mu\mathrm{V}^{-1}$]')
-
-                bottom_NEP = max(0.95*min(NEP_est_list),0.)
+                
+                bottom_NEP = 0.95*min(NEP_est_list)
                 top_NEP_desired = 1.05*max(NEP_est_list)
-                if NEP_ymax is not None:
-                    top_NEP = min(NEP_ymax,top_NEP_desired)
+                if NEP_ylim is not None:
+                    top_NEP = min(NEP_ylim[1],top_NEP_desired)
                 else:
                     top_NEP = top_NEP_desired
                 ax_NEPwl.set_ylim(bottom=bottom_NEP,top=top_NEP)
-
+                
+                ax_NEPwl.set_yscale('log')
                 v_tes_target = iv_band_data[ch]['v_tes_target']
                 ax_SI.set_ylim(-2./v_tes_target,0.5/v_tes_target)
 
                 ax_NEPwl.grid()
                 ax_SI.grid()
+
+                ax_NET = ax_NEPwl.twinx()
+                def NEPtoNET(NEP):
+                    return (1e-18/1e-6)*(1./np.sqrt(2.))*NEP/tools.dPdT_singleMode(f_center_GHz*1e9,bw_GHz*1e9,2.7)
+                bottom_NET = NEPtoNET(bottom_NEP)
+                top_NET = NEPtoNET(top_NEP)
+                ax_NET.set_ylim(bottom=bottom_NET,top=top_NET)
+                ax_NET.set_yscale('log')
+                ax_NET.set_ylabel(r'NET with opt. eff. = $100\%$ [$\mu\mathrm{K} \sqrt{\mathrm{s}}$]')
+                ax_SI.legend(loc='best')
 
             if type(bias_group) is not int: # ie if there were more than one
                 fig_title_string = ''
@@ -858,15 +866,29 @@ class SmurfNoiseMixin(SmurfBase):
 
             noise_est_dict = {'ch':ch,'noise_est_list':noise_est_list}
             noise_est_data.append(noise_est_dict)
+            if est_NEP:
+                NEP_est_dict = {'ch':ch,'NEP_est_list':NEP_est_list}
+                NEP_est_data.append(NEP_est_dict)
         
+        n_analyzed = len(noise_est_data)
+
         # make summary histogram of noise vs. bias over all analyzed channels
         noise_est_data_bias = []
+        if est_NEP:
+            NEP_est_data_bias = []
         for i in range(len(bias)):
             b = bias[i]
             noise_est_bias = []
+            if est_NEP:
+                NEP_est_bias = []
             for j in range(len(noise_est_data)):
                 noise_est_bias.append(noise_est_data[j]['noise_est_list'][i])
+            if est_NEP:
+                for j in range(len(NEP_est_data)):
+                    NEP_est_bias.append(NEP_est_data[j]['NEP_est_list'][i])
             noise_est_data_bias.append(np.array(noise_est_bias))
+            if est_NEP:
+                NEP_est_data_bias.append(np.array(NEP_est_bias))
         
         if psd_ylim is not None:
             bin_min = np.log10(psd_ylim[0])
@@ -887,9 +909,9 @@ class SmurfNoiseMixin(SmurfBase):
         cbar = plt.colorbar()
         cbar.set_label('Number of channels')
         plt.yscale('log')
-        plt.ylabel(r'%s [$\mathrm{pA}/\sqrt{\mathrm{Hz}}$]' % (ylabel_summary))
+        plt.ylabel(r'NEI %s [$\mathrm{pA}/\sqrt{\mathrm{Hz}}$]' % (ylabel_summary))
         plt.ylim(10**bin_min,10**bin_max)
-        plt.title(basename + ': Band {}, Group {}'.format(band,fig_title_string.strip(',')))
+        plt.title(basename + ': Band {}, Group {}, {} channels'.format(band,fig_title_string.strip(','),n_analyzed))
         xtick_labels = []
         for b in bias:
             xtick_labels.append('{}'.format(b))
@@ -897,7 +919,7 @@ class SmurfNoiseMixin(SmurfBase):
         plt.xticks(ticks=xtick_locs,labels=xtick_labels)
         plt.xlabel('Commanded bias voltage [V]')
         plt.plot(xtick_locs,noise_est_median_list,linestyle='--',marker='o',
-                 color='r',label='Median')
+                 color='r',label='Median NEI')
         plt.legend(loc='lower center')
         if show_plot:
             plt.show()
@@ -908,9 +930,51 @@ class SmurfNoiseMixin(SmurfBase):
             else:
                 plot_name = '{}_'.format(self.get_timestamp()) + plot_name
             plot_fn = os.path.join(self.plot_dir, plot_name)
-            self.log('\nSaving histogram to %s' % (plot_fn))
+            self.log('\nSaving NEI histogram to %s' % (plot_fn))
             plt.savefig(plot_fn,bbox_inches='tight')
             plt.close()
+            
+        if est_NEP:
+            if NEP_ylim is not None:
+                bin_NEP_min = np.log10(NEP_ylim[0])
+                bin_NEP_max = np.log10(NEP_ylim[1])
+            else:
+                bin_NEP_min = np.floor(np.log10(np.min(NEP_est_data_bias)))
+                bin_NEP_max = np.ceil(np.log10(np.max(NEP_est_data_bias)))
+
+            plt.figure()
+            bins_NEP_hist = np.logspace(bin_NEP_min,bin_NEP_max,20)
+            hist_NEP_mat = np.zeros((len(bins_NEP_hist)-1,len(bias)))
+            NEP_est_median_list = []
+            for i in range(len(bias)):
+                hist_NEP_mat[:,i],_ = np.histogram(NEP_est_data_bias[i],bins=bins_NEP_hist)
+                NEP_est_median_list.append(np.median(NEP_est_data_bias[i]))
+            X_NEP_hist,Y_NEP_hist = np.meshgrid(np.arange(len(bias),-1,-1),bins_NEP_hist)
+            plt.pcolor(X_NEP_hist,Y_NEP_hist,hist_NEP_mat)
+            cbar_NEP = plt.colorbar()
+            cbar_NEP.set_label('Number of channels')
+            plt.yscale('log')
+            plt.ylabel(r'NEP %s [$\mathrm{aW}/\sqrt{\mathrm{Hz}}$]' % (ylabel_summary))
+            plt.ylim(10**bin_NEP_min,10**bin_NEP_max)
+            plt.title(basename + ': Band {}, Group {}, {} channels'.format(band,fig_title_string.strip(','),n_analyzed))
+            plt.xticks(ticks=xtick_locs,labels=xtick_labels)
+            plt.xlabel('Commanded bias voltage [V]')
+            plt.plot(xtick_locs,NEP_est_median_list,linestyle='--',marker='o',
+                 color='r',label='Median NEP')
+            plt.legend(loc='lower center')
+            if show_plot:
+                plt.show()
+            if save_plot:
+                plot_name = 'noise_vs_bias_band{}_g{}NEP_hist.png'.format(band,file_name_string)
+                if data_timestamp is not None:
+                    plot_name = '{}_'.format(data_timestamp) + plot_name
+                else:
+                    plot_name = '{}_'.format(self.get_timestamp()) + plot_name
+                plot_fn = os.path.join(self.plot_dir, plot_name)
+                self.log('\nSaving NEP histogram to %s' % (plot_fn))
+                plt.savefig(plot_fn,bbox_inches='tight')
+                plt.close()
+
 
     def analyze_psd(self, f, Pxx, p0=[100.,0.5,0.01]):
         '''
