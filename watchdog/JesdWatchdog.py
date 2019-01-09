@@ -13,17 +13,18 @@ class JesdWatchdog(object):
         logging.basicConfig(filename=self.logfile,level=logging.ERROR)
 
         self.prefix = prefix
+        self.enabledPv     = epics.get_pv('SIOC:SMRF:ML00:AO001', callback=self.enableChanged, auto_monitor=True)
+        self.enable        = self.enabledPv.get()
         self.jesdtxreset_thread = None
         self.jesdrxreset_thread = None
         self.counterPv     = epics.get_pv('SIOC:SMRF:ML00:AO001CNT')
         self.counterPvProc = epics.get_pv('SIOC:SMRF:ML00:AO001CNT.PROC')
-        self.enabledPv     = epics.get_pv('SIOC:SMRF:ML00:AO001', callback=self.enableChanged, auto_monitor=True)
         self.JesdRxValidPv = epics.get_pv(prefix + ':AMCc:FpgaTopLevel:AppTop:AppTopJesd[0]:JesdRx:DataValid', callback=self.jesdValidChanged, auto_monitor=True)
         self.JesdTxValidPv = epics.get_pv(prefix + ':AMCc:FpgaTopLevel:AppTop:AppTopJesd[0]:JesdTx:DataValid', callback=self.jesdValidChanged, auto_monitor=True)
 
-        self.enable        = self.enabledPv.get()
 
     def enableChanged(self, pvname, value, *args, **kwargs):
+        print("Enable changed to " + str(value))
         self.enable = value
 
     @staticmethod
