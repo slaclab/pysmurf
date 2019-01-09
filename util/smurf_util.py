@@ -300,10 +300,6 @@ class SmurfUtilMixin(SmurfBase):
         """
         Turns on streaming data.
 
-        Args:
-        -----
-        bands (int array) : The bands to stream data
-
         Opt Args:
         ---------
         gcp_mode (bool) : Determines whether to write data using the 
@@ -320,12 +316,12 @@ class SmurfUtilMixin(SmurfBase):
         if ramp_max_cnt == 0:
             self.log('Flux ramp frequency is zero. Cannot take data.', 
                 self.LOG_ERROR)
+
         else:
             # start streaming before opening file to avoid transient filter step
             for band in bands:
                 self.set_stream_enable(band, 1, write_log=False)
             time.sleep(1.)
-
 
             # Make the data file
             timestamp = self.get_timestamp()
@@ -343,7 +339,6 @@ class SmurfUtilMixin(SmurfBase):
                 self.read_smurf_to_gcp_config()
             else:
                 self.set_streaming_datafile(data_filename)
-            
 
             if gcp_mode:
                 self.set_smurf_to_gcp_writer(True, write_log=True)
@@ -1571,7 +1566,8 @@ class SmurfUtilMixin(SmurfBase):
         if bias_groups is None:
             bias_groups = self.all_groups
 
-        voltage_overbias_array = np.zeros((8,)) # currently hardcoded for 8 bias groups
+        #voltage_overbias_array = np.zeros((8,)) # currently hardcoded for 8 bias groups
+        voltage_overbias_array = self.get_tes_bias_bipolar_array()
         voltage_overbias_array[bias_groups] = overbias_voltage
         self.set_tes_bias_bipolar_array(voltage_overbias_array)
 
@@ -1584,7 +1580,8 @@ class SmurfUtilMixin(SmurfBase):
             self.log('settting to low current')
             self.set_tes_bias_low_current(bias_groups)
 
-        voltage_bias_array = np.zeros((8,)) # currently hardcoded for 8 bias groups
+        # voltage_bias_array = np.zeros((8,)) # currently hardcoded for 8 bias groups
+        voltage_bias_array = self.get_tes_bias_bipolar_array()
         voltage_bias_array[bias_groups] = tes_bias
         self.set_tes_bias_bipolar_array(voltage_bias_array)
 
@@ -1711,14 +1708,14 @@ class SmurfUtilMixin(SmurfBase):
             np.where(self.att_to_band['band']==band))[0]]
 
 
-    def make_gcp_mask_file(self, bands=[2,3], channels_per_band=512):
-        """
-        """
-        chs = np.array([])
-        for b in bands:
-            chs = np.append(chs, self.which_on(b)+b*channels_per_band)
+#    def make_gcp_mask_file(self, bands=[2,3], channels_per_band=512):
+#        """
+#        """
+#        chs = np.array([])
+#        for b in bands:
+#            chs = np.append(chs, self.which_on(b)+b*channels_per_band)
 
-        return chs
+#        return chs
 
     def flux_ramp_rate_to_PV(self, val):
         """
@@ -1774,7 +1771,7 @@ class SmurfUtilMixin(SmurfBase):
 
 
     def make_smurf_to_gcp_config(self, num_averages=0, filename=None,
-        file_name_extend=False, data_frames=2000000):
+        file_name_extend=False, data_frames=2000000, filter_gain=None):
         """
         Makes the config file that the Joe-writer uses to set the IP
         address, port number, data file name, etc.
@@ -1795,10 +1792,14 @@ class SmurfUtilMixin(SmurfBase):
            Default is False and should probably always be False.
         data_frames (int): The number of frames to store. Works up to 
            2000000, which is about a 5GB file. Default is 2000000
+        gain (float): The number to multiply the data by. Default is 255.5
+            which makes it match GCP units.
         """
 
         filter_freq = self.config.get('smurf_to_mce').get('filter_freq')
         filter_order = self.config.get('smurf_to_mce').get('filter_order')
+        if filter_gain is None:
+            filter_gain = self.config.get('smurf_to_mce').get('filter_gain')
 
         if filename is None:
             filename = self.get_timestamp() + '.dat'
@@ -1820,6 +1821,7 @@ class SmurfUtilMixin(SmurfBase):
             f.write("file_name_extend " + str(int(file_name_extend)) + '\n')
             f.write("data_frames " + str(data_frames) + '\n')
             f.write("filter_order " + str(filter_order) +"\n");
+            f.write("filter_gain " + str(filter_gain) +"\n");
             for n in range(0,filter_order+1):
                 f.write("filter_a"+str(n)+" "+str(a[n]) + "\n")
             for n in range(0,filter_order+1):
@@ -1837,6 +1839,7 @@ class SmurfUtilMixin(SmurfBase):
             "data_frames": data_frames,
             "flux_ramp_freq": flux_ramp_freq,
             "filter_order": filter_order,
+            "filter_gain": filter_gain,
             "filter_a": a,
             "filter_b": b
         }
@@ -1882,7 +1885,9 @@ class SmurfUtilMixin(SmurfBase):
             return
 
         self.log('Making gcp mask file. {} channels added'.format(len(gcp_chans)))
-        np.savetxt(self.smurf_to_mce_mask_file, gcp_chans, fmt='%i')
+        #np.savetxt(self.smurf_to_mce_mask_file, gcp_chans, fmt='%i')
+        self.log('NOT ACTUALLY MAKING A MASK. NOW STATIC. UNCOMMENT ABOVE TO '+
+                 'GENERATE NEW MASK!!!')
 
         if read_gcp_mask:
             self.read_smurf_to_gcp_config()
@@ -2129,12 +2134,14 @@ class SmurfUtilMixin(SmurfBase):
 
         return self.mask_num_to_gcp_num(mask[band, channel])
 
+
     def gcp_num_to_smurf_channel(self, gcp_num, mask_file=None):
         """
         """
         if mask_file is None:
             mask_file = self.smurf_to_mce_mask_file
         mask = np.loadtxt(mask_file)
-
-        return int(mask[gcp_num]//512), int(mask[gcp_num]%512)
+        
+        mask_num = self.gcp_num_to_mask_num(gcp_num)
+        return int(mask[mask_num]//512), int(mask[mask_num]%512)
 
