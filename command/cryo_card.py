@@ -46,7 +46,7 @@ class CryoCard():
 
    def write_relays(self, relay):  # relay is the bit partern to set
       epics.caput(self.writepv, cmd_make(0, self.relay_address, relay)) 
-      time.sleep(0.05)
+      time.sleep(0.1)
       epics.caput(self.writepv, cmd_make(0, self.relay_address, relay)) 
 
    def read_relays(self):
