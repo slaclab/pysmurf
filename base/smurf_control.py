@@ -18,7 +18,7 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
     def __init__(self, epics_root=None, 
         cfg_file='/home/cryo/pysmurf/cfg_files/experiment_k2umux.cfg', 
         data_dir=None, name=None, make_logfile=True, 
-        setup=True, offline=False, smurf_cmd_mode=False, no_dir=False,
+        setup=False, offline=False, smurf_cmd_mode=False, no_dir=False,
         **kwargs):
         '''
         Args:
@@ -40,7 +40,7 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
                 no_dir=no_dir, **kwargs)
 
     def initialize(self, cfg_file, data_dir=None, name=None, 
-        make_logfile=True, setup=True, smurf_cmd_mode=False, 
+        make_logfile=True, setup=False, smurf_cmd_mode=False, 
         no_dir=False, **kwargs):
         '''
         Initizializes SMuRF with desired parameters set in experiment.cfg.
@@ -67,7 +67,8 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
             self.make_dir(self.status_dir)
 
             # Set logfile
-            self.log_file = os.path.join(self.output_dir, 'smurf_cmd.log')
+            datestr = time.strftime('%y%m%d_', time.gmtime())
+            self.log_file = os.path.join(self.output_dir, 'logs', datestr + 'smurf_cmd.log')
             self.log.set_logfile(self.log_file)
         else:
             # define data dir
@@ -103,8 +104,6 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
                 self.log.set_logfile(self.log_file)
             else:
                 self.log.set_logfile(None)
-
-
 
         # Useful constants
         constant_cfg = self.config.get('constant')
@@ -209,7 +208,7 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
         # Dictionary for frequency response
         self.freq_resp = {}
         self.lms_freq_hz = {}
-        self.fraction_full_scale = .5
+        self.fraction_full_scale = self.config.get('tune_band').get('fraction_full_scale')
         smurf_init_config = self.config.get('init')
         bands = smurf_init_config['bands']
         for b in bands:
