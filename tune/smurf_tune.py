@@ -1494,7 +1494,7 @@ class SmurfTuneMixin(SmurfBase):
         self.log('Writing new channel assignment to {}'.format(fn))
         f = open(fn,'w')
         for i in range(len(channels)):   
-            f.write('%.1f,%i,%i,%i\n' % (freqs[i],subbands[i],channels[i],groups[i]))
+            f.write('%.4f,%i,%i,%i\n' % (freqs[i],subbands[i],channels[i],groups[i]))
         f.close()
 
     def make_master_assignment_from_file(self,band,tuning_filename):
@@ -2601,7 +2601,7 @@ class SmurfTuneMixin(SmurfBase):
             make_plot=make_plot, flux_ramp=False, **kwargs)
 
 
-    def find_freq(self, band, subband=np.arange(13,115), drive_power=10,
+    def find_freq(self, band, subband=np.arange(13,115), drive_power=None,
         n_read=2, make_plot=False, save_plot=True, window=50, rolling_med=True):
         '''
         Finds the resonances in a band (and specified subbands)
@@ -2613,7 +2613,7 @@ class SmurfTuneMixin(SmurfBase):
         Optional Args:
         --------------
         subband (int) : An int array for the subbands
-        drive_power (int) : The drive amplitude
+        drive_power (int) : The drive amplitude.  If none given, takes from cfg.
         n_read (int) : The number sweeps to do per subband
         make_plot (bool) : make the plot frequency sweep. Default False.
         save_plot (bool) : save the plot. Default True.
@@ -2622,6 +2622,11 @@ class SmurfTuneMixin(SmurfBase):
            the median of the whole sample.
         window (int) : The width of the rolling median window
         '''
+
+        if drive_power is None:
+            drive_power = self.config.get('init')['band_{}'.format(band)].get('amplitude_scale')
+            self.log('No drive_power given. Using value in config file: {}'.format(drive_power))
+
         self.log('Sweeping across frequencies')
         f, resp = self.full_band_ampl_sweep(band, subband, drive_power, n_read)
 
