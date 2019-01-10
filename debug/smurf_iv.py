@@ -314,8 +314,9 @@ class SmurfIVMixin(SmurfBase):
 
     def analyze_slow_iv_from_file(self, fn_iv_raw_data, make_plot=True,
                                   show_plot=False, save_plot=True, R_sh=None, 
-                                  phase_excursion_min=3., grid_on=False, gcp_mode=True, 
-                                  R_op_target=0.03,chs=None,band=None):
+                                  phase_excursion_min=3., grid_on=False, 
+                                  gcp_mode=True, R_op_target=0.03,
+                                  chs=None, band=None):
         """
         Function to analyze a load curve from its raw file. Can be used to 
           analyze IV's/generate plots separately from issuing commands.
@@ -348,10 +349,6 @@ class SmurfIVMixin(SmurfBase):
         
         mask = self.make_mask_lookup(datafile.replace('.dat','_mask.txt'))
         bands, chans = np.where(mask != -1)
-        if band is not None:
-            band = [band]
-        else:
-            band = bands
 
         basename = iv_raw_data['basename']
         output_dir = iv_raw_data['output_dir']
@@ -360,7 +357,7 @@ class SmurfIVMixin(SmurfBase):
         # IV output dictionary
         ivs = {}
         ivs['high_current_mode'] = high_current_mode
-        for b in band:
+        for b in np.unique(bands):
             ivs[b] = {}
 
         if gcp_mode:
@@ -374,8 +371,12 @@ class SmurfIVMixin(SmurfBase):
         p_trans_list = []
         si_target_list = []
         v_tes_target_list = []
-        for c, (b, ch) in enumerate(zip(band,chans)):
+        for c, (b, ch) in enumerate(zip(bands,chans)):
             if (chs is not None) and (ch not in chs):
+                self.log('Not in desired channel list: skipping band {} ch. {}'.format(b,ch))
+                continue
+            elif (band is not None) and (b != band):
+                self.log('Not in desired band: skipping band {} ch. {}'.format(b,ch))
                 continue
 
             self.log('Analyzing band {} channel {}'.format(b,ch))

@@ -1205,7 +1205,8 @@ class SmurfUtilMixin(SmurfBase):
         return s
 
 
-    def set_tes_bias_bipolar(self, bias_group, volt, do_enable=True, **kwargs):
+    def set_tes_bias_bipolar(self, bias_group, volt, do_enable=True, flip_polarity=False,
+                             **kwargs):
         """
         bias_group (int): The bias group
         volt (float): The TES bias to command in voltage.
@@ -1233,6 +1234,11 @@ class SmurfUtilMixin(SmurfBase):
 
         volts_pos = volt / 2
         volts_neg = - volt / 2
+
+        if flip_polarity:
+            volts_pos *= -1
+            volts_neg *= -1
+
 
         if do_enable:
             self.set_tes_bias_enable(dac_positive, 2, **kwargs)
@@ -1505,7 +1511,7 @@ class SmurfUtilMixin(SmurfBase):
         return asu_amp_Id_mA
 
     def overbias_tes(self, bias_group, overbias_voltage=19.9, overbias_wait=5.,
-        tes_bias=19.9, cool_wait=20., high_current_mode=False):
+        tes_bias=19.9, cool_wait=20., high_current_mode=True, flip_polarity=False):
         """
         Warning: This is horribly hardcoded. Needs a fix soon.
 
@@ -1525,7 +1531,8 @@ class SmurfUtilMixin(SmurfBase):
             transients to die off.
         """
         # drive high current through the TES to attempt to drive normal
-        self.set_tes_bias_bipolar(bias_group, overbias_voltage)
+        self.set_tes_bias_bipolar(bias_group, overbias_voltage,
+                                  flip_polarity=flip_polarity)
         time.sleep(.1)
 
         self.set_tes_bias_high_current(bias_group)
@@ -1535,13 +1542,14 @@ class SmurfUtilMixin(SmurfBase):
         if not high_current_mode:
             self.set_tes_bias_low_current(bias_group)
             time.sleep(.1)
-        self.set_tes_bias_bipolar(bias_group, tes_bias)
+        self.set_tes_bias_bipolar(bias_group, tes_bias, flip_polarity=flip_polarity)
         self.log('Waiting %.2f seconds to cool' % (cool_wait), self.LOG_USER)
         time.sleep(cool_wait)
         self.log('Done waiting.', self.LOG_USER)
 
     def overbias_tes_all(self, bias_groups=None, overbias_voltage=19.9, 
-        overbias_wait=1.0, tes_bias=19.9, cool_wait=20., high_current_mode=False):
+        overbias_wait=1.0, tes_bias=19.9, cool_wait=20., 
+        high_current_mode=True):
         """
         Warning: This is horribly hardcoded. Needs a fix soon.
         CY edit 20181119 to make it even worse lol

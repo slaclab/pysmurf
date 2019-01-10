@@ -146,68 +146,6 @@ class SmurfTuneMixin(SmurfBase):
                 make_plot=make_plot, save_data=save_data, timestamp=timestamp,
                 n_scan=n_scan, show_plot=show_plot)
 
-            # Now let's scale/shift phase/mag to match what DSP sees
-
-            # fit phase, calculate delay +/- 250MHz
-            #idx = np.where( (freq > freq_min) & (freq < freq_max) )
-
-            #p     = np.polyfit(freq[idx], np.unwrap(np.angle(resp[idx])), 1)
-            #delay = 1e6*np.abs(p[0]/(2*np.pi))
-
-            # delay from signal being sent out, coming through the system, and then 
-            # being read as data.  
-            # empirical, may need to iterate on this **must be right** for tracking
-            #processing_delay  = 1.842391045639787 
-
-            # DSP sees cable delay + processing delay 
-            #   - refPhaseDelay/2.4 (2.4 MHz ticks) + ref_phase_delay_fine/307.2
-            # calculate refPhaseDelay and refPhaseDelayFine
-            #ref_phase_delay = np.ceil( (delay + processing_delay) * 2.4 )
-            #ref_phase_delay_fine = np.floor( np.abs(delay + processing_delay - 
-            #    ref_phase_delay/2.4) * 307.2 )
-
-            #comp_delay = (delay + processing_delay - ref_phase_delay/2.4 + 
-            #    ref_phase_delay_fine/307.2)
-            #mag_scale = 5.*0.04232/0.1904    # empirical
-
-            #add_phase_slope = (2*np.pi*1e-6)*(delay - comp_delay)
-
-            # scale magnitude
-            #mag_resp = np.abs(resp)
-            #comp_mag_resp = mag_scale*mag_resp
-
-            # adjust slope of phase response
-            # finally there may also be some overall phase shift (DC)
-
-            #FIXME - want to match phase at a frequency where there is no resonator
-            #match_freq_offset = -0.8 # match phase at -0.8 MHz
-
-            #phase_resp = np.angle(resp)
-
-            #idx0  = np.abs(freq - match_freq_offset*1e6).argmin()
-            #tf_phase  = phase_resp[idx0] + freq[idx0]*add_phase_slope
-            #self.set_ref_phase_delay(band, int(ref_phase_delay))
-            #self.set_lms_delay(band, int(ref_phase_delay))
-            #self.set_ref_phase_delay_fine(band, int(ref_phase_delay_fine))
-            
-            #self.set_eta_mag_scaled_channel(band, 0, 1)
-            #self.set_center_frequency_mhz_channel(band, 0, match_freq_offset)
-            #self.set_amplitude_scale_channel(band, 0, 10)
-            #self.set_eta_phase_degree_channel(band, 0, 0)
-            #dsp_I = [self.get_frequency_error_mhz(band, 0) for i in range(20)]
-            #self.set_eta_phase_degree_channel(band, 0, -90)
-            #dsp_Q = [self.get_frequency_error_mhz(band, 0) for i in range(20)]
-            #self.set_amplitude_scale_channel(band, 0, 0)
-            #dsp_phase = np.arctan2(np.mean(dsp_Q), np.mean(dsp_I)) 
-            #phase_shift = dsp_phase - tf_phase
-
-            #comp_phase_resp = phase_resp + freq*add_phase_slope + phase_shift
-
-            # overall compensated response
-            #comp_resp = comp_mag_resp*(np.cos(comp_phase_resp) + \
-            #    1j*np.sin(comp_phase_resp))
-
-            #resp = comp_resp
 
         # Find peaks
         peaks = self.find_peak(freq, resp, rolling_med=True, band=band, 
@@ -267,11 +205,11 @@ class SmurfTuneMixin(SmurfBase):
 
     def tune_band_serial(self, band, n_samples=2**19,
         make_plot=False, save_plot=True, save_data=True, show_plot=False,
-        make_subband_plot=False, subband=None, n_scan=2,
+        make_subband_plot=False, subband=None, n_scan=5,
         subband_plot_with_slow=False, window=5000, rolling_med=True,
         grad_cut=.03, freq_min=-2.5E8, freq_max=2.5E8, amp_cut=.25,
         del_f=.005, drive=None, new_master_assignment=False, from_old_tune=False,
-        old_tune=None):
+        old_tune=None, pad=50, min_gap=50):
         """
         Tunes band using serial_gradient_descent and then
         serial_eta_scan. This takes about 3 minutes per band if there
@@ -333,8 +271,8 @@ class SmurfTuneMixin(SmurfBase):
                                show_plot=show_plot, grad_cut=grad_cut, freq_min=freq_min,
                                freq_max=freq_max, amp_cut=amp_cut,
                                make_subband_plot=make_subband_plot, timestamp=timestamp,
-                               subband_plot_with_slow=subband_plot_with_slow, pad=100, 
-                               min_gap=50)
+                               subband_plot_with_slow=subband_plot_with_slow, pad=pad, 
+                               min_gap=min_gap)
 
             resonances = {}
             for i, p in enumerate(peaks):
@@ -1549,7 +1487,8 @@ class SmurfTuneMixin(SmurfBase):
         offsets = np.zeros(len(freq))
         
         if not new_master_assignment:
-            freq_master,subbands_master,channels_master,_ = self.get_master_assignment(band)
+            freq_master,subbands_master,channels_master,groups_master = \
+                self.get_master_assignment(band)
             n_freqs = len(freq)
             n_unmatched = 0
             for idx in range(n_freqs):
@@ -1562,9 +1501,11 @@ class SmurfTuneMixin(SmurfBase):
                         channels[idx] = ch
                         sb =  subbands_master[i]
                         subbands[idx] = sb
+                        g = groups_master[i]
                         sb_center = self.get_subband_centers(band,as_offset=as_offset)[1][sb]
                         offsets[idx] = f-sb_center
-                        self.log('Matching {:.2f} MHz to {:.2f} MHz in master channel list: assigning to subband {}, ch. {}'.format(f,f_master,sb,ch))
+                        self.log('Matching {:.2f} MHz to {:.2f} MHz in master channel list: assigning to subband {}, ch. {}, group {}'.format(f,f_master,\
+                                                                     sb,ch,g))
                         found_match = True
                         break
                 if not found_match:
