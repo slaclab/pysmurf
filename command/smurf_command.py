@@ -186,6 +186,101 @@ class SmurfCommandMixin(SmurfBase):
         return self._caget(self._cryo_root(band) + self._eta_scan_in_progress,
                     **kwargs)
 
+    _gradient_descent_max_iters = 'gradientDescentMaxIters'
+    def set_gradient_descent_max_iters(self, band, val, **kwargs):
+        """
+        """
+        self._caput(self._cryo_root(band) + self._gradient_descent_max_iters, val,
+                    **kwargs)
+
+    def get_gradient_descent_max_iters(self, band, **kwargs):
+        """
+        """
+        return self._caget(self._cryo_root(band) + self._gradient_descent_max_iters,
+                           **kwargs)
+
+
+    _gradient_descent_averages = 'gradientDescentAverages'
+    def set_gradient_descent_averages(self, band, val, **kwargs):
+        """
+        """
+        self._caput(self._cryo_root(band) + self._gradient_descent_averages, val,
+                    **kwargs)
+
+    def get_gradient_descent_averages(self, band, **kwargs):
+        """
+        """
+        return self._caget(self._cryo_root(band) + self._gradient_descent_averages,
+                           **kwargs)
+
+    _gradient_descent_gain = 'gradientDescentGain'
+    def set_gradient_descent_gain(self, band, val, **kwargs):
+        """
+        """
+        self._caput(self._cryo_root(band) + self._gradient_descent_gain, val,
+                    **kwargs)
+
+    def get_gradient_descent_gain(self, band, **kwargs):
+        """
+        """
+        return self._caget(self._cryo_root(band) + self._gradient_descent_gain,
+                           **kwargs)
+
+
+    _gradient_descent_converge_khz = 'gradientDescentConvergekHz'
+    def set_gradient_descent_converge_khz(self, band, val, **kwargs):
+        """
+        """
+        self._caput(self._cryo_root(band) + self._gradient_descent_converge_khz, val,
+                    **kwargs)
+
+    def get_gradient_descent_converge_khz(self, band, **kwargs):
+        """
+        """
+        return self._caget(self._cryo_root(band) + self._gradient_descent_converge_khz,
+                           **kwargs)
+
+    _gradient_descent_step_khz = 'gradientDescentStepkHz'
+    def set_gradient_descent_step_khz(self, band, val, **kwargs):
+        """
+        """
+        self._caput(self._cryo_root(band) + self._gradient_descent_step_khz, val,
+                    **kwargs)
+
+    def get_gradient_descent_step_khz(self, band, **kwargs):
+        """
+        """
+        return self._caget(self._cryo_root(band) + self._gradient_descent_step_khz,
+                           **kwargs)
+
+
+    _gradient_descent_momentum = 'gradientDescentMomentum'
+    def set_gradient_descent_momentum(self, band, val, **kwargs):
+        """
+        """
+        self._caput(self._cryo_root(band) + self._gradient_descent_momentum, val,
+                    **kwargs)
+
+    def get_gradient_descent_momentum(self, band, **kwargs):
+        """
+        """
+        return self._caget(self._cryo_root(band) + self._gradient_descent_momentum,
+                           **kwargs)
+
+    _gradient_descent_beta = 'gradientDescentBeta'
+    def set_gradient_descent_beta(self, band, val, **kwargs):
+        """
+        """
+        self._caput(self._cryo_root(band) + self._gradient_descent_beta, val,
+                    **kwargs)
+
+    def get_gradient_descent_beta(self, band, **kwargs):
+        """
+        """
+        return self._caget(self._cryo_root(band) + self._gradient_descent_beta,
+                           **kwargs)
+
+
     def run_parallel_eta_scan(self, band, sync_group=True, **kwargs):
         """
         runParallelScan 
@@ -285,6 +380,32 @@ class SmurfCommandMixin(SmurfBase):
             sg = SyncGroup([monitorPV], timeout=timeout)
             sg.wait()
             vals = sg.get_values()
+
+    _tune_file_path = 'tuneFilePath'
+    def set_tune_file_path(self, val, **kwargs):
+        """
+        """
+        self._caput(self.sysgencryo + self._tune_file_path,
+                    val, **kwargs)
+
+    def get_tune_file_path(self, **kwargs):
+        """
+        """
+        return self._caget(self.sysgencryo + self._tune_file_path,
+                           **kwargs)
+
+    _load_tune_file = 'loadTuneFile'
+    def set_load_tune_file(self, band, val, **kwargs):
+        """
+        """
+        self._caput(self._cryo_root(band) + self._load_tune_file,
+                    val, **kwargs)
+
+    def get_load_tune_file(self, band, **kwargs):
+        """
+        """
+        self._caget(self._cryo_root(band) + self._load_tune_file,
+                    **kwargs)
 
 
     _eta_scan_del_f = 'etaScanDelF'
@@ -1100,7 +1221,7 @@ class SmurfCommandMixin(SmurfBase):
     def get_amplitude_scale_channel(self, band, channel, **kwargs):
         """
         """
-        self._caget(self._channel_root(band, channel) + 
+        return self._caget(self._channel_root(band, channel) + 
             self._amplitude_scale_channel, **kwargs)
 
     _feedback_enable = 'feedbackEnable'
@@ -1115,7 +1236,7 @@ class SmurfCommandMixin(SmurfBase):
         """
         Get the feedback for a single channel
         """
-        self._caget(self._channel_root(band, channel) + 
+        return self._caget(self._channel_root(band, channel) + 
             self._feedback_enable, **kwargs)
 
     _eta_mag_scaled_channel = 'etaMagScaled'
@@ -2628,3 +2749,18 @@ class SmurfCommandMixin(SmurfBase):
                     self._trigger_channel_reg_dest_sel.format(chan),
                     val, **kwargs)
 
+
+    _dac_reset = 'dacReset[{}]'
+    def set_dac_reset(self, dac, val, **kwargs):
+        """
+        Toggles the physical reset line to DAC. Set to 1 then 0
+        """
+        self._caput(self.DBG + self._dac_reset.format(dac), val,
+                    **kwargs)
+
+    def get_dac_reset(self, dac, **kwargs):
+        """
+        """
+        return self._caget(self.DBG + self._dac_reset.format(dac),
+                           val, **kwargs)
+        

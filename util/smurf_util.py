@@ -51,11 +51,7 @@ class SmurfUtilMixin(SmurfBase):
         dtype = 'debug'
         dchannel = 0 # I don't really know what this means and I'm sorry -CY
         self.setup_daq_mux(dtype, dchannel, nsamp, band=band)
-
         self.log('Data acquisition in progress...', self.LOG_USER)
-
-        self.log('Setting file name...', self.LOG_USER)
-
         char_array = [ord(c) for c in data_filename] # convert to ascii
         write_data = np.zeros(300, dtype=int)
         for j in np.arange(len(char_array)):
@@ -304,10 +300,6 @@ class SmurfUtilMixin(SmurfBase):
         """
         Turns on streaming data.
 
-        Args:
-        -----
-        bands (int array) : The bands to stream data
-
         Opt Args:
         ---------
         gcp_mode (bool) : Determines whether to write data using the 
@@ -324,12 +316,12 @@ class SmurfUtilMixin(SmurfBase):
         if ramp_max_cnt == 0:
             self.log('Flux ramp frequency is zero. Cannot take data.', 
                 self.LOG_ERROR)
+
         else:
             # start streaming before opening file to avoid transient filter step
             for band in bands:
                 self.set_stream_enable(band, 1, write_log=False)
             time.sleep(1.)
-
 
             # Make the data file
             timestamp = self.get_timestamp()
@@ -347,7 +339,6 @@ class SmurfUtilMixin(SmurfBase):
                 self.read_smurf_to_gcp_config()
             else:
                 self.set_streaming_datafile(data_filename)
-            
 
             if gcp_mode:
                 self.set_smurf_to_gcp_writer(True, write_log=True)
@@ -498,6 +489,8 @@ class SmurfUtilMixin(SmurfBase):
         except:
             print('datafile=%s'%datafile)
 
+        self.log('Reading {}'.format(datafile))
+
         with open(datafile, mode='rb') as file:
             file_content = file.read()
 
@@ -575,9 +568,7 @@ class SmurfUtilMixin(SmurfBase):
             self.set_trigger_daq(1, write_log=True)
         else:
             self.set_arm_hw_trigger(1, write_log=True)
-            # self._caput(self.epics_root + 
-            #     ':AMCc:FpgaTopLevel:AppTop:DaqMuxV2[0]:ArmHwTrigger', 1, 
-            #     write_log=True)
+
         time.sleep(.1)
         sg.wait()
 
@@ -665,8 +656,8 @@ class SmurfUtilMixin(SmurfBase):
         self.set_buffer_size(data_length)
 
         # input mux select
-        self.set_input_mux_sel(0, daq_mux_channel0, write_log=True)
-        self.set_input_mux_sel(1, daq_mux_channel1, write_log=True)
+        self.set_input_mux_sel(0, daq_mux_channel0, write_log=False)
+        self.set_input_mux_sel(1, daq_mux_channel1, write_log=False)
 
 
     def set_buffer_size(self, size):
@@ -680,7 +671,7 @@ class SmurfUtilMixin(SmurfBase):
         # Change DAQ data buffer size
 
         # Change waveform engine buffer size
-        self.set_data_buffer_size(size, write_log=True)
+        self.set_data_buffer_size(size, write_log=False)
         for daq_num in np.arange(4):
             s = self.get_waveform_start_addr(daq_num, convert=True, 
                 write_log=False)
@@ -1214,7 +1205,8 @@ class SmurfUtilMixin(SmurfBase):
         return s
 
 
-    def set_tes_bias_bipolar(self, bias_group, volt, do_enable=True, **kwargs):
+    def set_tes_bias_bipolar(self, bias_group, volt, do_enable=True, flip_polarity=False,
+                             **kwargs):
         """
         bias_group (int): The bias group
         volt (float): The TES bias to command in voltage.
@@ -1242,6 +1234,11 @@ class SmurfUtilMixin(SmurfBase):
 
         volts_pos = volt / 2
         volts_neg = - volt / 2
+
+        if flip_polarity:
+            volts_pos *= -1
+            volts_neg *= -1
+
 
         if do_enable:
             self.set_tes_bias_enable(dac_positive, 2, **kwargs)
@@ -1514,7 +1511,7 @@ class SmurfUtilMixin(SmurfBase):
         return asu_amp_Id_mA
 
     def overbias_tes(self, bias_group, overbias_voltage=19.9, overbias_wait=5.,
-        tes_bias=19.9, cool_wait=20., high_current_mode=False):
+        tes_bias=19.9, cool_wait=20., high_current_mode=True, flip_polarity=False):
         """
         Warning: This is horribly hardcoded. Needs a fix soon.
 
@@ -1534,7 +1531,8 @@ class SmurfUtilMixin(SmurfBase):
             transients to die off.
         """
         # drive high current through the TES to attempt to drive normal
-        self.set_tes_bias_bipolar(bias_group, overbias_voltage)
+        self.set_tes_bias_bipolar(bias_group, overbias_voltage,
+                                  flip_polarity=flip_polarity)
         time.sleep(.1)
 
         self.set_tes_bias_high_current(bias_group)
@@ -1544,13 +1542,14 @@ class SmurfUtilMixin(SmurfBase):
         if not high_current_mode:
             self.set_tes_bias_low_current(bias_group)
             time.sleep(.1)
-        self.set_tes_bias_bipolar(bias_group, tes_bias)
+        self.set_tes_bias_bipolar(bias_group, tes_bias, flip_polarity=flip_polarity)
         self.log('Waiting %.2f seconds to cool' % (cool_wait), self.LOG_USER)
         time.sleep(cool_wait)
         self.log('Done waiting.', self.LOG_USER)
 
     def overbias_tes_all(self, bias_groups=None, overbias_voltage=19.9, 
-        overbias_wait=1.0, tes_bias=19.9, cool_wait=20., high_current_mode=False):
+        overbias_wait=1.0, tes_bias=19.9, cool_wait=20., 
+        high_current_mode=True):
         """
         Warning: This is horribly hardcoded. Needs a fix soon.
         CY edit 20181119 to make it even worse lol
@@ -1575,10 +1574,10 @@ class SmurfUtilMixin(SmurfBase):
         if bias_groups is None:
             bias_groups = self.all_groups
 
-
-        for g in bias_groups:
-            self.set_tes_bias_bipolar(g, overbias_voltage)
-            time.sleep(.1)
+        #voltage_overbias_array = np.zeros((8,)) # currently hardcoded for 8 bias groups
+        voltage_overbias_array = self.get_tes_bias_bipolar_array()
+        voltage_overbias_array[bias_groups] = overbias_voltage
+        self.set_tes_bias_bipolar_array(voltage_overbias_array)
 
         self.set_tes_bias_high_current(bias_groups)
         self.log('Driving high current through TES. ' + \
@@ -1589,8 +1588,11 @@ class SmurfUtilMixin(SmurfBase):
             self.log('settting to low current')
             self.set_tes_bias_low_current(bias_groups)
 
-        for g in bias_groups:
-            self.set_tes_bias_bipolar(g, tes_bias)
+        # voltage_bias_array = np.zeros((8,)) # currently hardcoded for 8 bias groups
+        voltage_bias_array = self.get_tes_bias_bipolar_array()
+        voltage_bias_array[bias_groups] = tes_bias
+        self.set_tes_bias_bipolar_array(voltage_bias_array)
+
         self.log('Waiting {:3.2f} seconds to cool'.format(cool_wait), 
                  self.LOG_USER)
         time.sleep(cool_wait)
@@ -1599,18 +1601,24 @@ class SmurfUtilMixin(SmurfBase):
 
     def set_tes_bias_high_current(self, bias_group, write_log=False):
         """
-        Sets the bias group to high current mode. Note that the bias group
-        number is not the same as the relay number. The conversion is
-        handled in this function.
+        Sets all bias groups to high current mode. Note that the bias group
+        number is not the same as the relay number. It also does not matter,
+        because Joe's code secretly flips all the relays when you flip one. 
 
         Args:
         -----
-        bias_group (int): The bias group(s) to set to high current mode
+        bias_group (int): The bias group(s) to set to high current mode REMOVED 
+          20190101 BECAUSE JOE'S CODE SECRETLY FLIPS ALL OF THEM ANYWAYS -CY
         """
         old_relay = self.get_cryo_card_relays()
         old_relay = self.get_cryo_card_relays()  # querey twice to ensure update
         new_relay = np.copy(old_relay)
         self.log('Old relay {}'.format(bin(old_relay)))
+
+        # bias_group = 0 # just pick the first one arbitrarily
+        #self.log('Flipping bias group 0 relay only; Joe code will secretly' +  
+        #    'flip all of them')
+
         bias_group = np.ravel(np.array(bias_group))
         for bg in bias_group:
             if bg < 16:
@@ -1625,17 +1633,24 @@ class SmurfUtilMixin(SmurfBase):
 
     def set_tes_bias_low_current(self, bias_group, write_log=False):
         """
-        Sets the bias group to low current mode. Note that the bias group
-        number is not the same as the relay number. The conversion is
-        handled in this function.
+        Sets all bias groups to low current mode. Note that the bias group
+        number is not the same as the relay number. It also does not matter, 
+        because Joe's code secretly flips all the relays when you flip one
 
         Args:
         -----
-        bias_group (int): The bias group to set to low current mode
+        bias_group (int): The bias group to set to low current mode REMOVED
+          20190101 BECAUSE JOE'S CODE WILL FLIP ALL BIAS GROUPS WHEN ONE IS 
+          COMMANDED -CY
         """
         old_relay = self.get_cryo_card_relays()
         old_relay = self.get_cryo_card_relays()  # querey twice to ensure update
         new_relay = np.copy(old_relay)
+
+        # bias_group = 0
+        #self.log('Flipping bias group 0 relay only; PIC code will flip all ' +
+        #    'of them')
+
         bias_group = np.ravel(np.array(bias_group))
         self.log('Old relay {}'.format(bin(old_relay)))
         for bg in bias_group:
@@ -1655,14 +1670,36 @@ class SmurfUtilMixin(SmurfBase):
         Sets it DC coupling
         """
         # The 16th bit (0 indexed) is the AC/DC coupling
-        self.set_tes_bias_high_current(16)
+        # self.set_tes_bias_high_current(16)
+        r = 16
+
+        old_relay = self.get_cryo_card_relays()
+        old_relay = self.get_cryo_card_relays() # query twice to ensure update
+        self.log('Old relay {}'.format(bin(old_relay)))
+
+        new_relay = np.copy(old_relay)
+        new_relay = (1 << r) | new_relay
+        self.log('New relay {}'.format(bin(new_relay)))
+        self.set_cryo_card_relays(new_relay, write_log=write_log)
+        self.get_cryo_card_relays()
 
     def set_mode_ac(self):
         """
         Sets it to AC coupling
         """
         # The 16th bit (0 indexed) is the AC/DC coupling
-        self.set_tes_bias_low_current(16)
+        # self.set_tes_bias_low_current(16)
+        old_relay = self.get_cryo_card_relays()
+        old_relay = self.get_cryo_card_relays()  # querey twice to ensure update
+        new_relay = np.copy(old_relay)
+
+        r = 16
+        if old_relay & 1 << r != 0:
+            new_relay = new_relay & ~(1 << r)
+
+        self.log('New relay {}'.format(bin(new_relay)))
+        self.set_cryo_card_relays(new_relay, write_log=write_log)
+        self.get_cryo_card_relays()
 
 
     def att_to_band(self, att):
@@ -1679,14 +1716,14 @@ class SmurfUtilMixin(SmurfBase):
             np.where(self.att_to_band['band']==band))[0]]
 
 
-    def make_gcp_mask_file(self, bands=[2,3], channels_per_band=512):
-        """
-        """
-        chs = np.array([])
-        for b in bands:
-            chs = np.append(chs, self.which_on(b)+b*channels_per_band)
+#    def make_gcp_mask_file(self, bands=[2,3], channels_per_band=512):
+#        """
+#        """
+#        chs = np.array([])
+#        for b in bands:
+#            chs = np.append(chs, self.which_on(b)+b*channels_per_band)
 
-        return chs
+#        return chs
 
     def flux_ramp_rate_to_PV(self, val):
         """
@@ -1742,7 +1779,7 @@ class SmurfUtilMixin(SmurfBase):
 
 
     def make_smurf_to_gcp_config(self, num_averages=0, filename=None,
-        file_name_extend=False, data_frames=2000000):
+        file_name_extend=False, data_frames=2000000, filter_gain=None):
         """
         Makes the config file that the Joe-writer uses to set the IP
         address, port number, data file name, etc.
@@ -1763,10 +1800,14 @@ class SmurfUtilMixin(SmurfBase):
            Default is False and should probably always be False.
         data_frames (int): The number of frames to store. Works up to 
            2000000, which is about a 5GB file. Default is 2000000
+        gain (float): The number to multiply the data by. Default is 255.5
+            which makes it match GCP units.
         """
 
         filter_freq = self.config.get('smurf_to_mce').get('filter_freq')
         filter_order = self.config.get('smurf_to_mce').get('filter_order')
+        if filter_gain is None:
+            filter_gain = self.config.get('smurf_to_mce').get('filter_gain')
 
         if filename is None:
             filename = self.get_timestamp() + '.dat'
@@ -1788,6 +1829,7 @@ class SmurfUtilMixin(SmurfBase):
             f.write("file_name_extend " + str(int(file_name_extend)) + '\n')
             f.write("data_frames " + str(data_frames) + '\n')
             f.write("filter_order " + str(filter_order) +"\n");
+            f.write("filter_gain " + str(filter_gain) +"\n");
             for n in range(0,filter_order+1):
                 f.write("filter_a"+str(n)+" "+str(a[n]) + "\n")
             for n in range(0,filter_order+1):
@@ -1805,6 +1847,7 @@ class SmurfUtilMixin(SmurfBase):
             "data_frames": data_frames,
             "flux_ramp_freq": flux_ramp_freq,
             "filter_order": filter_order,
+            "filter_gain": filter_gain,
             "filter_a": a,
             "filter_b": b
         }
@@ -1850,7 +1893,9 @@ class SmurfUtilMixin(SmurfBase):
             return
 
         self.log('Making gcp mask file. {} channels added'.format(len(gcp_chans)))
-        np.savetxt(self.smurf_to_mce_mask_file, gcp_chans, fmt='%i')
+        #np.savetxt(self.smurf_to_mce_mask_file, gcp_chans, fmt='%i')
+        self.log('NOT ACTUALLY MAKING A MASK. NOW STATIC. UNCOMMENT ABOVE TO '+
+                 'GENERATE NEW MASK!!!')
 
         if read_gcp_mask:
             self.read_smurf_to_gcp_config()
@@ -2097,12 +2142,14 @@ class SmurfUtilMixin(SmurfBase):
 
         return self.mask_num_to_gcp_num(mask[band, channel])
 
+
     def gcp_num_to_smurf_channel(self, gcp_num, mask_file=None):
         """
         """
         if mask_file is None:
             mask_file = self.smurf_to_mce_mask_file
         mask = np.loadtxt(mask_file)
-
-        return int(mask[gcp_num]//512), int(mask[gcp_num]%512)
+        
+        mask_num = self.gcp_num_to_mask_num(gcp_num)
+        return int(mask[mask_num]//512), int(mask[mask_num]%512)
 

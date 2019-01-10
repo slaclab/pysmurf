@@ -7,7 +7,7 @@ import os
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
 import pysmurf
 
-cfg_filename = 'experiment_kx_mapodaq.cfg'
+cfg_filename = 'experiment_k2umux.cfg'
 
 
 """
@@ -19,9 +19,11 @@ def make_runfile(output_dir, row_len=60, num_rows=60, data_rate=60,
     """
     Make the runfile
     """
+    #S.log('Making pysmurf object')
     S = pysmurf.SmurfControl(cfg_file=os.path.join(os.path.dirname(__file__), 
         '..', 'cfg_files' , cfg_filename), smurf_cmd_mode=True, setup=False)
 
+    S.log('Making Runfile')
     
     # 20181119 dB, modified to use the correct format runfile.
     #with open(os.path.join(os.path.dirname(__file__),"runfile/runfile_template.txt")) as f:
@@ -77,15 +79,15 @@ def start_acq(S, num_rows, num_rows_reported, data_rate,
     """
     bands = S.config.get('init').get('bands')
     S.log('Setting PVs for streaming header')
-    S.set_num_rows(num_rows)
-    S.set_num_rows_reported(num_rows_reported)
-    S.set_data_rate(data_rate)
-    S.set_row_len(row_len)
+    S.set_num_rows(num_rows, write_log=True)
+    S.set_num_rows_reported(num_rows_reported, write_log=True)
+    S.set_data_rate(data_rate, write_log=True)
+    S.set_row_len(row_len, write_log=True)
 
     S.log('Starting streaming data')
     S.set_smurf_to_gcp_stream(True, write_log=True)
     for b in bands:
-        S.set_stream_enable(b, 1)
+        S.set_stream_enable(b, 1, write_log=True)
 
 def stop_acq(S):
     """
@@ -131,13 +133,15 @@ if __name__ == "__main__":
         help='Set the tes bias. Must also set --bias-group and --bias-voltage')
     parser.add_argument('--bias-group', action='store', default=-1, type=int,
         help='The bias group to set the TES bias. If -1, then sets all.', 
-        choices=np.arange(8, dtype=int))
+        choices=np.array([-1,0,1,2,3,4,5,6,7], dtype=int))
     parser.add_argument('--bias-voltage', action='store', default=0., 
         type=float, help='The bias voltage to set')
+    parser.add_argument('--bias-voltage-array', action='store', 
+        default=None, help='Array of voltages to set per bias group')
 
     parser.add_argument('--overbias-tes', action='store_true', default=False,
         help='Overbias the TESs')
-    parser.add_argument('--overbias-tes-wait', action='store', default=.5, 
+    parser.add_argument('--overbias-tes-wait', action='store', default=1.5, 
         type=float, help='The time to stay at the high current.')
 
     parser.add_argument('--bias-bump', action='store', default=False,
@@ -152,6 +156,8 @@ if __name__ == "__main__":
     # IV commands
     parser.add_argument('--slow-iv', action='store_true', default=False,
         help='Take IV curve using the slow method.')
+    parser.add_argument('--plc', action='store_true', default=False,
+        help='Take partial load curve.')
     parser.add_argument('--iv-band', action='store', type=int, default=-1,
         help='The band to take the IV curve in')
     parser.add_argument('--iv-wait-time', action='store', type=float,
@@ -168,16 +174,14 @@ if __name__ == "__main__":
     # Tuning
     parser.add_argument('--tune', action='store_true', default=False,
         help='Run tuning')
-    parser.add_argument('--tune-band', action='store', type=int, default=-1,
-        help='The band to tune.')
     parser.add_argument('--tune-make-plot', action='store_true', default=False,
         help='Whether to make plots for tuning. This is slow.')
-
     parser.add_argument('--last-tune', action='store_true', default=False,
         help='Use the last tuning')
-
     parser.add_argument('--use-tune', action='store', type=str, default=None,
         help='The full path of a tuning file to use.')
+    parser.add_argument('--check-lock', action='store', default=False, 
+        help='Check tracking and kill unlocked channels.')
 
     # Start acq
     parser.add_argument('--start-acq', action='store_true', default=False,
@@ -197,9 +201,18 @@ if __name__ == "__main__":
     parser.add_argument('--make-runfile', action='store_true', default=False,
         help='Make a new runfile.')
 
+    parser.add_argument('--status', action='store_true', default=False,
+        help='Dump status to screen')
+
     # Stop acq
     parser.add_argument('--stop-acq', action='store_true', default=False,
         help='Stop the data acquistion')
+
+    # Turning stuff off
+    parser.add_argument('--flux-ramp-off', action='store_true', default=False,
+        help='Turn off flux ramp')
+    parser.add_argument('--all-off', action='store_true', default=False,
+        help='Turn off everything (tones, TES biases, flux ramp)')
 
     # Soft reset
     parser.add_argument('--soft-reset', action='store_true', default=False,
@@ -219,9 +232,10 @@ if __name__ == "__main__":
 
     # Check for too many commands
     n_cmds = (args.log is not None) + args.tes_bias + args.slow_iv + \
-        args.tune + args.start_acq + args.stop_acq + \
+        args.plc + args.tune + args.start_acq + args.stop_acq + \
         args.last_tune + (args.use_tune is not None) + args.overbias_tes + \
-        args.bias_bump + args.soft_reset + args.make_runfile + args.setup
+        args.bias_bump + args.soft_reset + args.make_runfile + args.setup + \
+        args.flux_ramp_off + args.all_off + args.check_lock + args.status
     if n_cmds > 1:
         sys.exit(0)
 
@@ -232,11 +246,35 @@ if __name__ == "__main__":
     if args.log is not None:
         S.log(args.log)
 
+    ### Tuning related commands ###
+    if args.last_tune:
+        S.log('Loading in last tuning')
+        S.tune(last_tune=True, make_plot=args.tune_make_plot)
+
+    if args.use_tune is not None:
+        S.log('Loading old tune from file: {}'.format(args.use_tune))
+        S.tune(tune_file = args.use_tune, make_plot=args.tune_make_plot)
+
+    if args.tune:
+        S.log('Running a smurf tuning. Using old frequency file but new eta scan')
+        S.tune(retune=True, make_plot=args.tune_make_plot)
+
+    if args.check_lock:
+        S.log('Running track and check')
+        for band in S.config.get('init')['bands']:
+            S.check_lock(band) # this might be too slow
+
+    ### TES bias related commands ###
     if args.tes_bias:
         bias_voltage = args.bias_voltage
         if args.bias_group == -1:
-            bias_voltage_array = np.zeros((8,)) # hard-coded number of bias groups
-            bias_voltage_array[S.all_groups] = bias_voltage # all_groups from cfg
+            if args.bias_voltage_array is not None:
+                bias_voltage_str = args.bias_voltage_array
+                bias_voltage_array = [float(bias) for bias in bias_voltage_str.split(" ")]
+                bias_voltage_array = np.array(bias_voltage_array)
+            else:
+                bias_voltage_array = np.zeros((8,)) # hard-coded number of bias groups
+                bias_voltage_array[S.all_groups] = bias_voltage # all_groups from cfg
             S.set_tes_bias_bipolar_array(bias_voltage_array, write_log=True)
         else:
             S.set_tes_bias_bipolar(args.bias_group, bias_voltage, 
@@ -274,12 +312,14 @@ if __name__ == "__main__":
             iv_bias_step = np.abs(iv_bias_step)
 
         if args.bias_group < 0: # all
+            S.log('running slow IV on all bias groups')
             S.slow_iv_all(bias_groups=S.all_groups, wait_time=args.iv_wait_time,
                 bias_high=iv_bias_high, bias_low = iv_bias_low,
                 high_current_wait=args.iv_high_current_wait,
                 high_current_mode=S.high_current_mode_bool,
-                bias_step=args.iv_bias_step, make_plot=False)
+                bias_step=iv_bias_step, make_plot=False)
         else: # individual bias group
+            S.log('running slow IV on bias group {}'.format(args.bias_group))
             S.slow_iv_all(bias_groups=np.array([args.bias_group]), 
                 wait_time=args.iv_wait_time, bias_high=iv_bias_high, 
                 bias_low=iv_bias_low, 
@@ -292,24 +332,34 @@ if __name__ == "__main__":
             gcp_wait=args.bias_bump_wait, gcp_between=args.bias_bump_between,
             step_size=args.bias_bump_step) # always do this on all bias groups?
 
-    if args.tune:
-        # Load values from the cfg file
-        tune_cfg = S.config.get("tune_band")
-        if args.tune_band == -1:
-            init_cfg = S.config.get("init")
-            bands = np.array(init_cfg.get("bands"))
-        else:
-            bands = np.array(args.tune_band)
-        for b in bands:
-            S.log('Tuning band {}'.format(b))
-            S.tune_band(b, make_plot=args.tune_make_plot,
-                n_samples=tune_cfg.get('n_samples'), 
-                freq_max=tune_cfg.get('freq_max'),
-                freq_min=tune_cfg.get('freq_min'),
-                grad_cut=tune_cfg.get('grad_cut'),
-                amp_cut=tune_cfg.get('tune_cut'))
+    if args.plc:
+        bias_high = np.zeros((8,))
+        bias_high[S.all_groups] = args.iv_bias_high
+        S.log('plc bias high {}'.format(bias_high))
+        S.log('plc bias low {}'.format(S.get_tes_bias_bipolar_array()))
+        S.log('plc bias step {}'.format(args.iv_bias_step))
+
+        iv_bias_step = np.abs(args.iv_bias_step) * 1.5 # speed this up relative to other mce's
+
+        S.log('running plc on all bias groups')
+        S.partial_load_curve_all(bias_high, bias_step=iv_bias_step, 
+            wait_time=args.iv_wait_time, analyze=False, make_plot=False)
 
 
+    ### Turning stuff off ###
+    if args.flux_ramp_off:
+        S.log('Turning off flux ramp')
+        S.flux_ramp_off()
+
+    if args.all_off:
+        S.log('Turning off everything')
+        S.all_off()
+
+    ### Dump smurf status
+    if args.status:
+        print(S.dump_state(return_screen=True))
+
+    ### Acquistion and resetting commands ###
     if args.start_acq:
 
         if args.n_frames >= 1000000000:
@@ -345,5 +395,3 @@ if __name__ == "__main__":
         make_runfile(S.output_dir, num_rows=args.num_rows,
             data_rate=args.data_rate, row_len=args.row_len,
             num_rows_reported=args.num_rows_reported)
-
-

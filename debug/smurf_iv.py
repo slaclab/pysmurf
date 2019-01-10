@@ -31,6 +31,7 @@ class SmurfIVMixin(SmurfBase):
         bias_step (int): The step size in volts. Default .1
         phase_excursion_min (int): The minimum phase excursion allowable
         """
+        self.log("WARNING: I AM NOW DEPRICATED. USE slow_iv_all")
         # Look for good channels
         if channels is None:
             channels = self.which_on(band)
@@ -104,10 +105,12 @@ class SmurfIVMixin(SmurfBase):
             rn_accept_max=rn_accept_max, gcp_mode=gcp_mode,grid_on=grid_on,
             phase_excursion_min=phase_excursion_min)
 
-    def slow_iv_all(self, bias_groups=None, wait_time=.1, bias=None, bias_high=19.9, gcp_mode=True, 
-        bias_low=0, bias_step=.1, show_plot=False, high_current_wait=1., cool_wait=30,
-        make_plot=True, save_plot=True, channels=None, high_current_mode=False,
-        overbias_voltage=19.9, grid_on=True, phase_excursion_min=3.):
+    def slow_iv_all(self, bias_groups=None, wait_time=.1, bias=None, 
+                    bias_high=1.5, gcp_mode=True, bias_low=0, bias_step=.005, 
+                    show_plot=False, high_current_wait=1., cool_wait=30,
+                    make_plot=True, save_plot=True, channels=None, band=None,
+                    high_current_mode=True, overbias_voltage=8., 
+                    grid_on=True, phase_excursion_min=3.):
         """
         Steps the TES bias down slowly. Starts at bias_high to bias_low with
         step size bias_step. Waits wait_time between changing steps.
@@ -134,7 +137,7 @@ class SmurfIVMixin(SmurfBase):
 
         if bias is None:
             bias = np.arange(bias_high, bias_low-bias_step, -bias_step)
-            
+
         overbias_wait = 2.
         if overbias:
             self.overbias_tes_all(bias_groups=bias_groups, 
@@ -181,6 +184,7 @@ class SmurfIVMixin(SmurfBase):
 
         iv_raw_data = {}
         iv_raw_data['bias'] = bias
+        iv_raw_data['high_current_mode'] = high_current_mode
         iv_raw_data['bias group'] = bias_groups
         iv_raw_data['datafile'] = datafile
         iv_raw_data['basename'] = basename
@@ -188,13 +192,14 @@ class SmurfIVMixin(SmurfBase):
         iv_raw_data['plot_dir'] = self.plot_dir
         fn_iv_raw_data = os.path.join(self.output_dir, basename + 
             '_iv_raw_data.npy')
+        self.log('Writing IV metadata to {}.'.format(fn_iv_raw_data))
         np.save(os.path.join(self.output_dir, fn_iv_raw_data), iv_raw_data)
 
         R_sh=self.R_sh
         self.analyze_slow_iv_from_file(fn_iv_raw_data, make_plot=make_plot,
             show_plot=show_plot, save_plot=save_plot, R_sh=R_sh,
-            high_current_mode=high_current_mode, gcp_mode=gcp_mode,
-            grid_on=grid_on,phase_excursion_min=phase_excursion_min)
+            gcp_mode=gcp_mode, grid_on=grid_on,
+            phase_excursion_min=phase_excursion_min,chs=channels,band=band)
 
     def partial_load_curve_all(self, bias_high_array, bias_low_array=None, 
         wait_time=0.1, bias_step=0.1, gcp_mode=True, show_plot=False, analyze=True,  
@@ -274,7 +279,7 @@ class SmurfIVMixin(SmurfBase):
         self.log('writing to {}'.format(datafile))
 
         # actually set the arrays
-        for step in np.size(bias_sweep_array)[1]:
+        for step in np.arange(np.shape(bias_sweep_array)[1]):
             self.set_tes_bias_bipolar_array(bias_sweep_array[:,step])
             time.sleep(wait_time) # divide by something here? unclear.
 
@@ -308,9 +313,10 @@ class SmurfIVMixin(SmurfBase):
                 phase_excursion_min=phase_excursion_min, channels=channels)
 
     def analyze_slow_iv_from_file(self, fn_iv_raw_data, make_plot=True,
-        show_plot=False, save_plot=True, R_sh=None, high_current_mode=False,
-        phase_excursion_min=3., grid_on=False, gcp_mode=True, 
-                                  R_op_target=0.03,chs=None):
+                                  show_plot=False, save_plot=True, R_sh=None, 
+                                  phase_excursion_min=3., grid_on=False, 
+                                  gcp_mode=True, R_op_target=0.03,
+                                  chs=None, band=None):
         """
         Function to analyze a load curve from its raw file. Can be used to 
           analyze IV's/generate plots separately from issuing commands.
@@ -322,9 +328,6 @@ class SmurfIVMixin(SmurfBase):
         make_plot (bool): Defaults True. Usually this is the slowest part.
         show_plot (bool): Defaults False.
         save_plot (bool): Defaults True.
-        high_current_mode (bool): Whether to perform analysis assuming 
-          commanded TES biases (recorded in DAC voltage outputs) were in 
-          high current mode. Defaults False.
         phase_excursion_min (float): abs(max - min) of phase in radians. Analysis 
           ignores any channels without this phase excursion. Default 3.
         grid_on (bool): Whether to draw the grid on the PR plot. Defaults False.
@@ -340,20 +343,22 @@ class SmurfIVMixin(SmurfBase):
 
         iv_raw_data = np.load(fn_iv_raw_data).item()
         bias = iv_raw_data['bias']
-        #band = iv_raw_data['band']
+        high_current_mode = iv_raw_data['high_current_mode']
         bias_group = iv_raw_data['bias group']
-        #channels = iv_raw_data['channels']
         datafile = iv_raw_data['datafile']
         
         mask = self.make_mask_lookup(datafile.replace('.dat','_mask.txt'))
-        band, chans = np.where(mask != -1)
+        bands, chans = np.where(mask != -1)
 
         basename = iv_raw_data['basename']
         output_dir = iv_raw_data['output_dir']
         plot_dir = iv_raw_data['plot_dir']
 
+        # IV output dictionary
         ivs = {}
-        ivs['bias'] = bias
+        ivs['high_current_mode'] = high_current_mode
+        for b in np.unique(bands):
+            ivs[b] = {}
 
         if gcp_mode:
             timestamp, phase_all, mask = self.read_stream_data_gcp_save(datafile)
@@ -366,8 +371,12 @@ class SmurfIVMixin(SmurfBase):
         p_trans_list = []
         si_target_list = []
         v_tes_target_list = []
-        for c, (b, ch) in enumerate(zip(band,chans)):
+        for c, (b, ch) in enumerate(zip(bands,chans)):
             if (chs is not None) and (ch not in chs):
+                self.log('Not in desired channel list: skipping band {} ch. {}'.format(b,ch))
+                continue
+            elif (band is not None) and (b != band):
+                self.log('Not in desired band: skipping band {} ch. {}'.format(b,ch))
                 continue
 
             self.log('Analyzing band {} channel {}'.format(b,ch))
@@ -443,15 +452,11 @@ class SmurfIVMixin(SmurfBase):
             v_bias_target_list.append(v_bias_target)
             si_target_list.append(si_target)
             v_tes_target_list.append(v_tes_target)
-            ivs[ch] = {
-                'R' : r,
-                'Rn' : rn,
-                'idx': idx,
-                'P': p_tes,
-                'Ptrans': p_trans
-            }   
+            ivs[b][ch] = iv_dict
 
-        np.save(os.path.join(output_dir, basename + '_iv'), ivs)
+        fn_iv_analyzed = basename + '_iv'
+        self.log('Writing analyzed IV data to {}.'.format(fn_iv_analyzed))
+        np.save(os.path.join(output_dir, fn_iv_analyzed), ivs)
 
         v_bias_target_median = np.median(v_bias_target_list)
         rn_median = np.median(rn_list)
@@ -496,7 +501,7 @@ class SmurfIVMixin(SmurfBase):
                         color=color_median,\
                         label='Median = {:.2f} V'.format(v_bias_target_median))
             ax_vbias.set_xlabel(r'Commanded voltage bias [V] for $R = $' + \
-                                    '{:.1f}'.format(R_op_target/1e-3) + \
+                                    '{:.0f}'.format(R_op_target/1e-3) + \
                                     r' $\mathrm{m}\Omega$')
             ax_vbias.legend(loc='best')            
 
@@ -515,7 +520,7 @@ class SmurfIVMixin(SmurfBase):
                               '{:.2f}'.format(si_goal) + \
                               ' $\mu\mathrm{V}^{-1}$')
             ax_si.set_xlabel('Responsivity [$\mu\mathrm{V}^{-1}$] at $R = $'+\
-                                 '{:.1f}'.format(R_op_target/1e-3) + \
+                                 '{:.0f}'.format(R_op_target/1e-3) + \
                                  ' $\mathrm{m}\Omega$')
             plt.legend(loc='best')
 
@@ -615,9 +620,12 @@ class SmurfIVMixin(SmurfBase):
         resp_bin -= norm_fit[1]  # now in real current units
 
         sc_fit = np.polyfit(i_bias[:sc_idx], resp_bin[:sc_idx], 1)
+        resp_bin[:sc_idx] -= sc_fit[1] # subtract off unphysical y-offset in superconducting branch; this is probably due to an undetected phase wrap at the kink between the superconducting branch and the transition, so it is *probably* legitimate to remove it by hand. We don't use the offset of the superconducting branch for anything meaningful anyway. This will just make our plots look nicer.
+        sc_fit[1] = 0 # now change s.c. fit offset to 0 for plotting
 
         R = R_sh * (i_bias/(resp_bin) - 1)
         R_n = np.mean(R[nb_fit_idx:])
+        R_L = np.mean(R[1:sc_idx])
 
         v_tes = i_bias*R_sh*R/(R+R_sh) # voltage over TES
         p_tes = (v_tes**2)/R # electrical power on TES
@@ -643,12 +651,26 @@ class SmurfIVMixin(SmurfBase):
         w = (1./float(w_len))*np.ones(w_len) # window
         i_tes_smooth = np.convolve(i_tes,w,mode='same')
         v_tes_smooth = np.convolve(v_tes,w,mode='same')
+        r_tes_smooth = v_tes_smooth/i_tes_smooth
         di_tes = np.diff(i_tes_smooth)
         dv_tes = np.diff(v_tes_smooth)
-        R_L = R_sh
-        L = (dv_tes/di_tes - v_tes_smooth[:-1]/i_tes_smooth[:-1] - R_L)/(dv_tes/di_tes + v_tes_smooth[:-1]/i_tes_smooth[:-1] - R_L)
-        si_etf = -1./v_tes[:-1]
-        si = si_etf*L/(L+1)
+        R_L_smooth = np.ones(len(r_tes_smooth))*R_L
+        R_L_smooth[:sc_idx] = dv_tes[:sc_idx]/di_tes[:sc_idx]
+        r_tes_smooth_noStray = r_tes_smooth - R_L_smooth
+        i0 = i_tes_smooth[:-1]
+        r0 = r_tes_smooth_noStray[:-1]
+        rL = R_L_smooth[:-1]
+        si_etf = -1./(i0*r0)
+        beta = 0.
+        si = -(1./i0)*( dv_tes/di_tes - (r0+rL+beta*r0) ) / \
+            ( (2.*r0-rL+beta*r0)*dv_tes/di_tes - 3.*rL*r0 - rL**2 )
+        '''
+        plt.figure()
+        plt.plot(i_bias[:-1],rL)
+        plt.plot(i_bias[:-1],R_L*np.ones(len(rL)))
+        plt.plot(i_bias[:-1],r0)
+        plt.show()
+        '''
         if i_R_op == len(si):
             i_R_op -= 1
         si_target = si[i_R_op]
@@ -661,14 +683,13 @@ class SmurfIVMixin(SmurfBase):
             for c in tableau:
                 colors.append(tableau[c])
 
-            fig = plt.figure(figsize = (10,7))
-            gs = GridSpec(4,3)
+            fig = plt.figure(figsize = (10,6))
+            gs = GridSpec(3,3)
             ax_ii = fig.add_subplot(gs[0,:2])
             ax_ri = fig.add_subplot(gs[1,:2])
             ax_pr = fig.add_subplot(gs[1,2])
-            ax_li = fig.add_subplot(gs[2,:2])
-            ax_si = fig.add_subplot(gs[3,:2])
-            ax_i = [ax_ii,ax_ri,ax_li,ax_si] # axes with I_b as x-axis
+            ax_si = fig.add_subplot(gs[2,:2])
+            ax_i = [ax_ii,ax_ri,ax_si] # axes with I_b as x-axis
 
             title = ""
             plot_name = "IV_curve"
@@ -705,31 +726,35 @@ class SmurfIVMixin(SmurfBase):
 
             ax_ii.plot(i_bias, norm_fit[0] * i_bias , linestyle='--', 
                        color=color_norm, label=r'$R_N$' + \
-                           '  = ${:.1f}$'.format(R_n/1e-3) + \
+                           '  = ${:.0f}$'.format(R_n/1e-3) + \
                            r' $\mathrm{m}\Omega$')  
             ax_ii.plot(i_bias[:sc_idx], 
                 sc_fit[0] * i_bias[:sc_idx] + sc_fit[1], linestyle='--', 
-                color=color_sc,label=r's.c. slope = {:.2f}'.format(sc_fit[0]))
+                color=color_sc,label=r'$R_L$' + \
+                           ' = ${:.0f}$'.format(R_L/1e-6) + \
+                           r' $\mu\mathrm{\Omega}$')
+
+            label_target = r'$R = {:.0f}$ '.format(R_op_target/1e-3)+\
+                        r'$\mathrm{m}\Omega$'
+            label_rfrac = '{:.2f}-{:.2f}'.format(R_frac_min,\
+                                             R_frac_max) + r'$R_N$'
 
             for i in range(len(ax_i)):
                 if ax_i[i] == ax_ri:
-                    label_target = r'$R = {:.1f}$ '.format(R_op_target/1e-3)+\
-                        r'$\mathrm{m}\Omega$'
-                    label_rfrac = '{:.2f}-{:.2f}'.format(R_frac_min,\
-                                             R_frac_max) + r'$R_N$'
+                    label_vline = label_target
+                    label_vspan = label_rfrac
                 else:
-                    label_target = None
-                    label_rfrac = None
+                    label_vline = None
+                    label_vspan = None
                 ax_i[i].axvline(i_op_target,color='g',linestyle='--',
-                                label=label_target)
+                                label=label_vline)
                 ax_i[i].axvspan(i_bias[sc_idx], i_bias[nb_idx], 
-                                color=color_etf, alpha=.15,label=label_rfrac)
+                                color=color_etf, alpha=.15,label=label_vspan)
                 if grid_on:
                     ax_i[i].grid()
                 ax_i[i].set_xlim(min(i_bias),max(i_bias))
                 if i != len(ax_i)-1:
                     ax_i[i].set_xticklabels([])
-            ax_li.axhline(0.,color=color_norm,linestyle='--')
             ax_si.axhline(0.,color=color_norm,linestyle='--')
 
             ax_ii.legend(loc='best')
@@ -762,13 +787,10 @@ class SmurfIVMixin(SmurfBase):
                 np.arange(vb_min, vb_max+delta_v, delta_v)])
             axt.set_xlabel(r'Commanded $V_b$ [V]')
 
-            ax_li.plot(i_bias[:-1],L,color=color_meas)
-            ax_li.set_ylabel(r'$\mathcal{L}$ ($\beta = 0$)')
             ax_si.plot(i_bias[:-1],si,color=color_meas)
             ax_si.plot(i_bias[:-1],si_etf,linestyle = '--',
                        label=r'$-1/V_\mathrm{TES}$',color=color_etf)
             ax_si.set_ylabel(r'$S_I$ [$\mu\mathrm{V}^{-1}$]')
-            ax_li.set_ylim(bottom = -5.,top = min(max(L),100.))
             ax_si.set_ylim(-2./v_tes_target,2./v_tes_target)
             ax_si.legend(loc='upper right')
 
@@ -779,13 +801,13 @@ class SmurfIVMixin(SmurfBase):
             label_pr = r'%.1f pW' % (p_trans_median)
             ax_pr.axvline(p_trans_median, linestyle='--', label=label_pr,
                               color=color_etf)
-            ax_pr.plot(p_tes[i_R_op],R[i_R_op]/R_n,'o',color=color_target)
+            ax_pr.plot(p_tes[i_R_op],R[i_R_op]/R_n,'o',color=color_target,
+                       label=label_target)
             ax_pr.legend(loc='best')
             if grid_on:
                 ax_pr.grid()
 
-            #plt.tight_layout()
-            fig.subplots_adjust(top=0.89)
+            fig.subplots_adjust(top=0.875)
 
             if save_plot:
                 if plot_dir == None:
@@ -806,8 +828,10 @@ class SmurfIVMixin(SmurfBase):
         iv_dict['p_trans'] = p_trans_median
         iv_dict['v_bias_target'] = v_bias_target
         iv_dict['si'] = si
+        iv_dict['v_bias'] = v_bias
         iv_dict['si_target'] = si_target
         iv_dict['v_tes_target'] = v_tes_target
+        iv_dict['v_tes'] = v_tes
 
         return iv_dict
 
@@ -907,8 +931,95 @@ class SmurfIVMixin(SmurfBase):
                     plt.close()
 
 
-    def find_tes(self, band, bias_group, bias=np.arange(0,4,.2),
-                 make_plot=True, make_debug_plot=False, delta_peak_cutoff=.2):
+    def find_bias_groups(self, make_plot=False, show_plot=False, 
+                         save_plot=True, min_gap=.5):
+        """
+        Loops through all the bias groups and ramps the TES bias.
+        It takes full_band resp at each TES bias and looks for
+        frequency swings. Using this data, it attempts to assign
+        channels to bias groups. 
+
+        Opt Args:
+        --------
+        make_plot (bool): Whether to make plots.
+        show_plot (bool): If make_plot is True, whether to show
+            the plot.
+        save_plot (bool): If make_plot is True, whether to save
+            the plot.
+        min_gap (float): The minimum allowable gap.
+        """
+        self.log('This is specific for the Keck K2 umux FPU.')
+        self.log('Working on band 2 first')
+        tes_freq = {}
+        for bg in np.arange(4):
+            # The frequency of TESs in MHz
+            tes_freq[bg] = self.find_tes(2, bg, make_plot=make_plot) + \
+                self.get_band_center_mhz(2)
+            
+        good_tes = {}
+
+        # Anything we see in BG 0 is noise.
+        bad_res = tes_freq[0]
+
+        for bg in np.arange(1,4):
+            good_tes[bg] = np.array([])
+            
+            # Find resonators too close to known bad resonators
+            for r in tes_freq[bg]:
+                if np.min(np.abs(bad_res - r)) > min_gap:
+                    good_tes[bg] = np.append(good_tes[bg], r)
+                    
+        ca_freq, ca_sb, ca_ch, ca_bg = self.get_master_assignment(2)
+
+        for bg in np.arange(1,4):
+            for tes in good_tes[bg]:
+                nearest = np.min(np.abs(ca_freq - tes))
+                print(nearest)
+                if nearest < min_gap:
+                    idx = np.where(np.abs(ca_freq-tes) == nearest)
+                    ca_bg[idx] = bg
+            
+        self.write_master_assignment(2, ca_freq, ca_sb, ca_ch,
+                                     groups=ca_bg)
+
+        self.log('Working on band 3')
+        for bg in np.arange(4,8):
+            # The frequency of TESs in MHz
+            tes_freq[bg] = self.find_tes(3, bg, make_plot=make_plot) + \
+                self.get_band_center_mhz(3)
+
+        # Anything we see in BG 6 is noise.
+        bad_res = tes_freq[6]
+
+        for bg in np.array([4,5,7]):
+            good_tes[bg] = np.array([])
+            
+            # Find resonators too close to known bad resonators
+            for r in tes_freq[bg]:
+                if np.min(np.abs(bad_res - r)) > min_gap:
+                    good_tes[bg] = np.append(good_tes[bg], r)
+                    
+        ca_freq, ca_sb, ca_ch, ca_bg = self.get_master_assignment(3)
+
+        for bg in np.array([4,5,7]):
+            for tes in good_tes[bg]:
+                nearest = np.min(np.abs(ca_freq - tes))
+                if nearest < min_gap:
+                    idx = np.where(np.abs(ca_freq-tes) == nearest)
+                    ca_bg[idx] = bg
+            
+        self.write_master_assignment(3, ca_freq, ca_sb, ca_ch,
+                                     groups=ca_bg)
+
+        #for k in good_tes.keys():
+        #    self.log('{} TESs in BG {}'.format(len(good_tes[k], k)))
+
+        return good_tes
+
+
+    def find_tes(self, band, bias_group, bias=np.arange(0,2.5,.4),
+                 make_plot=False, show_plot=False, save_plot=True,
+                 make_debug_plot=False, delta_peak_cutoff=.2):
         """
         This changes the bias on the bias groups and attempts to find
         resonators. 
@@ -940,7 +1051,8 @@ class SmurfIVMixin(SmurfBase):
         self.flux_ramp_off()
 
         f, d = self.full_band_resp(band)
-        
+        f *= 1.0E-6  # convert freq to MHz
+
         ds = np.zeros((len(bias), len(d)), dtype=complex)
 
         # Find resonators at different TES biases
@@ -976,21 +1088,44 @@ class SmurfIVMixin(SmurfBase):
 
 
         if make_plot:
+            if show_plot:
+                plt.ion()
+            else:
+                plt.ioff()
             fig, ax = plt.subplots(2, sharex=True)
             cm = plt.get_cmap('viridis')
 
             for i, b in enumerate(bias):
                 color = cm(i/len(bias))
-                ax[0].plot(f*1.0E-6, np.abs(ds[i]), color=color, 
+                ax[0].plot(f, np.abs(ds[i]), color=color, 
                          label='{:3.2f}'.format(b))
             ax[0].legend()
             
-            ax[1].plot(peaks * 1.0E-6, peak_span, '.')
+            ax[1].plot(peaks, peak_span, '.')
 
             ax[1].axhline(delta_peak_cutoff, color='k', linestyle=':')
+            fig.suptitle('band {} BG {}'.format(band, bias_group))
+            ax[1].set_xlabel('Freq [MHz]')
+
+            ax[0].axvspan(-250, -125, color='k', alpha=.1)
+            ax[1].axvspan(-250, -125, color='k', alpha=.1)
+            ax[0].axvspan(0, 125, color='k', alpha=.1)
+            ax[1].axvspan(0, 125, color='k', alpha=.1)
+
+
+            if save_plot:
+                timestamp = self.get_timestamp()
+                plt.savefig(os.path.join(self.plot_dir, 
+                                         '{}_find_tes.png'.format(timestamp)),
+                            bbox_inches='tight')
+            if show_plot:
+                plt.show()
+            else:
+                plt.close()
 
         idx = np.ravel(np.where(peak_span > delta_peak_cutoff))
         return peaks[idx]
+
 
     def estimate_opt_eff(self, iv_fn_hot, iv_fn_cold,t_hot=293.,t_cold=77.,
         channels = None, dPdT_lim=(0.,0.5)):

@@ -2,6 +2,7 @@ import numpy as np
 import os
 import sys
 import time
+import glob
 from pysmurf.command.smurf_command import SmurfCommandMixin as SmurfCommandMixin
 from pysmurf.util.smurf_util import SmurfUtilMixin as SmurfUtilMixin
 from pysmurf.tune.smurf_tune import SmurfTuneMixin as SmurfTuneMixin
@@ -15,9 +16,9 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
     Base class for controlling Smurf. Loads all the mixins.
     '''
     def __init__(self, epics_root=None, 
-        cfg_file='/home/cryo/pysmurf/cfg_files/experiment_fp28.cfg', 
+        cfg_file='/home/cryo/pysmurf/cfg_files/experiment_k2umux.cfg', 
         data_dir=None, name=None, make_logfile=True, 
-        setup=True, offline=False, smurf_cmd_mode=False, no_dir=False,
+        setup=False, offline=False, smurf_cmd_mode=False, no_dir=False,
         **kwargs):
         '''
         Args:
@@ -39,7 +40,7 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
                 no_dir=no_dir, **kwargs)
 
     def initialize(self, cfg_file, data_dir=None, name=None, 
-        make_logfile=True, setup=True, smurf_cmd_mode=False, 
+        make_logfile=True, setup=False, smurf_cmd_mode=False, 
         no_dir=False, **kwargs):
         '''
         Initizializes SMuRF with desired parameters set in experiment.cfg.
@@ -57,14 +58,17 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
             # Define output and plot dirs
             self.base_dir = os.path.abspath(self.data_dir)
             self.output_dir = os.path.join(self.base_dir, 'outputs')
-            self.tune_dir = os.path.join(self.output_dir, 'tune')
+            self.tune_dir = self.config.get('tune_dir')
             self.plot_dir = os.path.join(self.base_dir, 'plots')
+            self.status_dir = self.config.get('status_dir')
             self.make_dir(self.output_dir)
             self.make_dir(self.tune_dir)
             self.make_dir(self.plot_dir)
+            self.make_dir(self.status_dir)
 
             # Set logfile
-            self.log_file = os.path.join(self.output_dir, 'smurf_cmd.log')
+            datestr = time.strftime('%y%m%d_', time.gmtime())
+            self.log_file = os.path.join(self.output_dir, 'logs', datestr + 'smurf_cmd.log')
             self.log.set_logfile(self.log_file)
         else:
             # define data dir
@@ -86,11 +90,13 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
             # create output and plot directories
             self.output_dir = os.path.join(self.base_dir, self.date, name, 
                 'outputs')
-            self.tune_dir = os.path.join(self.output_dir, 'tune')
+            self.tune_dir = self.config.get('tune_dir')
             self.plot_dir = os.path.join(self.base_dir, self.date, name, 'plots')
+            self.status_dir = self.config.get('status_dir')
             self.make_dir(self.output_dir)
             self.make_dir(self.tune_dir)
             self.make_dir(self.plot_dir)
+            self.make_dir(self.status_dir)
 
             # name the logfile and create flags for it
             if make_logfile:
@@ -98,8 +104,6 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
                 self.log.set_logfile(self.log_file)
             else:
                 self.log.set_logfile(None)
-
-
 
         # Useful constants
         constant_cfg = self.config.get('constant')
@@ -147,7 +151,10 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
             self.band_to_chip[i] = np.append([i], val)
             
         # channel assignment file
-        self.channel_assignment_files = self.config.get('channel_assignment')
+        #self.channel_assignment_files = self.config.get('channel_assignment')
+        self.channel_assignment_files = {}
+        for b in self.config.get('init').get('bands'):
+            self.channel_assignment_files['band_{}'.format(b)] = np.sort(glob.glob(os.path.join(self.tune_dir, '*_channel_assignment_b{}.txt'.format(b))))[-1]
 
         # bias groups available
         self.all_groups = self.config.get('all_bias_groups')
@@ -201,7 +208,7 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
         # Dictionary for frequency response
         self.freq_resp = {}
         self.lms_freq_hz = {}
-        self.fraction_full_scale = .5
+        self.fraction_full_scale = self.config.get('tune_band').get('fraction_full_scale')
         smurf_init_config = self.config.get('init')
         bands = smurf_init_config['bands']
         for b in bands:
@@ -212,16 +219,20 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
         if setup:
             self.setup(**kwargs)
 
-
-    #@SmurfUtilMixin.jesd_decorator
-    #def test_decorator():
-    #     print('Testing decorator...')
+        # initialize outputs cfg
+        self.config.update('outputs', {})
 
     def setup(self, write_log=True, **kwargs):
         """
         Sets the PVs to the default values from the experiment.cfg file
         """
         self.log('Setting up...', (self.LOG_USER))
+
+        self.log('Toggling DACs')
+        self.set_dac_reset(0, 1, write_log=write_log)
+        self.set_dac_reset(1, 1, write_log=write_log)
+        self.set_dac_reset(0, 0, write_log=write_log)
+        self.set_dac_reset(1, 0, write_log=write_log)
 
         self.set_read_all(write_log=write_log)
         self.set_defaults_pv(write_log=write_log)
@@ -325,7 +336,6 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
            Args:
             directory (str): path of directory to create
         """
-
         if not os.path.exists(directory):
             os.makedirs(directory)
 
@@ -340,3 +350,35 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
             return int(t)
         else:
             return t
+
+    def add_output(self, key, val):
+        """
+        Add a key to the output config.
+
+        Args:
+          key (any): the name of the key to update
+          val (any): value to assign to the key
+        """
+
+        self.config.update_subkey('outputs', key, val)
+
+    def write_output(self, filename=None):
+        """
+        Dump the current configuration to a file. This wraps around the config
+        file writing in the config object. Files are timestamped and dumped to
+        the S.output_dir by default.
+
+        Opt Args:
+        -----
+        filename (str): full path to output file
+        """
+
+        timestamp = self.get_timestamp()
+        if filename is not None:
+            output_file = filename 
+        else:
+            output_file = timestamp + '.cfg'
+
+        full_path = os.path.join(self.output_dir, output_file)
+        self.config.write(full_path)
+
