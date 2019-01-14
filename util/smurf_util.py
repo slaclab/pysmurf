@@ -296,7 +296,8 @@ class SmurfUtilMixin(SmurfBase):
         return data_filename
 
 
-    def stream_data_on(self, gcp_mode=True):
+    def stream_data_on(self, gcp_mode=True, persistent_mode=False,
+                       data_frames=200000):
         """
         Turns on streaming data.
 
@@ -304,6 +305,11 @@ class SmurfUtilMixin(SmurfBase):
         ---------
         gcp_mode (bool) : Determines whether to write data using the 
             smurf2mce (gcp) mode. Default is True.
+        presistent_mode (bool) : If True, continuously streams data
+            and makes a new file, appended with .part#####, every time
+            the file reaches size data_frams.
+        data_frames (int): The size of the file in frames. Default
+            is 20000.
 
         Returns:
         --------
@@ -329,7 +335,9 @@ class SmurfUtilMixin(SmurfBase):
             self.log('Writing to file : {}'.format(data_filename), 
                 self.LOG_USER)
             if gcp_mode:
-                ret = self.make_smurf_to_gcp_config(filename=data_filename)
+                ret = self.make_smurf_to_gcp_config(filename=data_filename,
+                                                    file_name_extend=persistent_mode,
+                                                    data_frames=data_frames)
                 smurf_chans = {}
                 for b in bands:
                     smurf_chans[b] = self.which_on(b)
@@ -1665,7 +1673,7 @@ class SmurfUtilMixin(SmurfBase):
         self.set_cryo_card_relays(new_relay, write_log=write_log)
         self.get_cryo_card_relays()
 
-    def set_mode_dc(self):
+    def set_mode_dc(self, write_log=False):
         """
         Sets it DC coupling
         """
@@ -1683,7 +1691,7 @@ class SmurfUtilMixin(SmurfBase):
         self.set_cryo_card_relays(new_relay, write_log=write_log)
         self.get_cryo_card_relays()
 
-    def set_mode_ac(self):
+    def set_mode_ac(self, write_log=False):
         """
         Sets it to AC coupling
         """
@@ -1779,7 +1787,7 @@ class SmurfUtilMixin(SmurfBase):
 
 
     def make_smurf_to_gcp_config(self, num_averages=0, filename=None,
-        file_name_extend=False, data_frames=2000000, filter_gain=None):
+        file_name_extend=False, data_frames=200000, filter_gain=None):
         """
         Makes the config file that the Joe-writer uses to set the IP
         address, port number, data file name, etc.
@@ -1799,7 +1807,7 @@ class SmurfUtilMixin(SmurfBase):
            the current timestamp. This is a relic of Joes original code.
            Default is False and should probably always be False.
         data_frames (int): The number of frames to store. Works up to 
-           2000000, which is about a 5GB file. Default is 2000000
+           2000000, which is about a 5GB file. Default is 20000
         gain (float): The number to multiply the data by. Default is 255.5
             which makes it match GCP units.
         """
