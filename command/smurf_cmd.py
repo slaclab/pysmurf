@@ -76,6 +76,9 @@ def make_runfile(output_dir, row_len=60, num_rows=60, data_rate=60,
 def start_acq(S, num_rows, num_rows_reported, data_rate, 
     row_len):
     """
+    Function called by mce_start_acq. Starts data streaming and
+    sends the data to the MCE comptuer. Also starts the
+    local (smurf-srv) data writer
     """
     bands = S.config.get('init').get('bands')
     S.log('Setting PVs for streaming header')
@@ -86,17 +89,18 @@ def start_acq(S, num_rows, num_rows_reported, data_rate,
 
     S.log('Starting streaming data')
     S.set_smurf_to_gcp_stream(True, write_log=True)
+    S.stream_data_on(persistent_mode=True)  # Stream data to disk
     for b in bands:
         S.set_stream_enable(b, 1, write_log=True)
 
 def stop_acq(S):
     """
+    Function called by mce_stop_acq. Stops data streaming.
     """
     bands = np.array(S.config.get('init').get('bands'))
     S.log('Stopping streaming data')
-    #for b in bands:
-    #    S.set_stream_enable(b, 0)
     S.set_smurf_to_gcp_stream(False, write_log=True)
+    S.set_smurf_to_gcp_writer(False, write_log=True)
 
 def acq_n_frames(S, num_rows, num_rows_reported, data_rate, 
     row_len, n_frames):
