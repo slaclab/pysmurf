@@ -345,6 +345,7 @@ class SmurfIVMixin(SmurfBase):
         bias = iv_raw_data['bias']
         high_current_mode = iv_raw_data['high_current_mode']
         bias_group = iv_raw_data['bias group']
+        print(bias_group)
         datafile = iv_raw_data['datafile']
         
         mask = self.make_mask_lookup(datafile.replace('.dat','_mask.txt'))
@@ -428,7 +429,7 @@ class SmurfIVMixin(SmurfBase):
                 basename=basename, band=b, channel=ch, make_plot=make_plot, 
                 show_plot=show_plot, save_plot=save_plot, plot_dir=plot_dir,
                 R_sh = R_sh, high_current_mode = high_current_mode,
-                grid_on=grid_on,R_op_target=R_op_target)
+                grid_on=grid_on,R_op_target=R_op_target, bias_group=bias_group)
             r = iv_dict['R']
             rn = iv_dict['R_n']
             idx = iv_dict['trans idxs']
@@ -662,8 +663,11 @@ class SmurfIVMixin(SmurfBase):
         rL = R_L_smooth[:-1]
         si_etf = -1./(i0*r0)
         beta = 0.
-        si = -(1./i0)*( dv_tes/di_tes - (r0+rL+beta*r0) ) / \
-            ( (2.*r0-rL+beta*r0)*dv_tes/di_tes - 3.*rL*r0 - rL**2 )
+        xi = rL/r0
+        L = (dv_tes/di_tes - (1.+xi+beta)*r0)/(dv_tes/di_tes + (1.-xi)*r0)
+        #si = -(1./i0)*( dv_tes/di_tes - (r0+rL+beta*r0) ) / \
+        #    ( (2.*r0-rL+beta*r0)*dv_tes/di_tes - 3.*rL*r0 - rL**2 )
+        si = si_etf*L/(L+1.+beta+xi*(1.-L))
         '''
         plt.figure()
         plt.plot(i_bias[:-1],rL)
@@ -731,8 +735,8 @@ class SmurfIVMixin(SmurfBase):
             ax_ii.plot(i_bias[:sc_idx], 
                 sc_fit[0] * i_bias[:sc_idx] + sc_fit[1], linestyle='--', 
                 color=color_sc,label=r'$R_L$' + \
-                           ' = ${:.0f}$'.format(R_L/1e-6) + \
-                           r' $\mu\mathrm{\Omega}$')
+                           ' = ${:.3f}$'.format(R_L/1e-3) + \
+                           r' $\mathrm{m\Omega}$')
 
             label_target = r'$R = {:.0f}$ '.format(R_op_target/1e-3)+\
                         r'$\mathrm{m}\Omega$'
