@@ -284,6 +284,14 @@ if __name__ == "__main__":
         else:
             S.set_tes_bias_bipolar(args.bias_group, bias_voltage, 
                 write_log=True)
+        
+        # Turn off amplifiers if acquisition is stopped and all
+        # TES biases are zero
+        #if np.sum(S.get_tes_bias_bipolar_array()) == 0 and \
+        #        S.get_user_config0() == 6:
+        #    S.set_amplifier_bias(bias_hemt=0)
+
+
 
     if args.overbias_tes:
 
@@ -366,6 +374,11 @@ if __name__ == "__main__":
 
     ### Acquistion and resetting commands ###
     if args.start_acq:
+        
+        # Check if HEMT is properly biased. Acceptable value 8-12
+        #hemt_drain = S.get_hemt_drain_current()
+        #if hemt_drain > 12 or hemt_drain < 8:
+        #    S.set_amplifier_bias()
 
         if args.n_frames >= 1000000000:
             args.n_frames = -1 # if it is a big number then just make it continuous
