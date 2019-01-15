@@ -45,6 +45,7 @@ class SmurfBase(object):
         # Setting paths for easier commands - Is there a better way to do this
         # than just hardcoding paths? This needs to be cleaned up somehow
         self.epics_root = epics_root
+        self.amc_root = epics_root + ':AMCc:'
         self.app_core = self.epics_root + ':AMCc:FpgaTopLevel:AppTop:AppCore:'
         self.microwave_mux_core = self.app_core + 'MicrowaveMuxCore[0]:'
         self.DBG = self.microwave_mux_core + 'DBG:'

@@ -261,7 +261,8 @@ if __name__ == "__main__":
 
     if args.tune:
         S.log('Running a smurf tuning. Using old frequency file but new eta scan')
-        S.tune(retune=True, make_plot=args.tune_make_plot)
+        S.tune(retune=True, load_tune=False, 
+               make_plot=args.tune_make_plot)
 
     if args.check_lock:
         S.log('Running track and check')

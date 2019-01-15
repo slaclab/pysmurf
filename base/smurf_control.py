@@ -133,6 +133,8 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
         self.num_flux_ramp_counter_bits=20
         if 'num_flux_ramp_counter_bits' in keys:
             self.num_flux_ramp_counter_bits=flux_ramp_cfg['num_flux_ramp_counter_bits']
+        if "coupling" in keys:
+            self.flux_ramp_coupling = flux_ramp_cfg['coupling']
 
         # Mapping from chip number to frequency in GHz
         chip_cfg = self.config.get('chip_to_freq')
@@ -233,6 +235,7 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
         self.set_dac_reset(1, 1, write_log=write_log)
         self.set_dac_reset(0, 0, write_log=write_log)
         self.set_dac_reset(1, 0, write_log=write_log)
+        self.cpld_toggle()
 
         self.set_read_all(write_log=write_log)
         self.set_defaults_pv(write_log=write_log)
@@ -313,6 +316,10 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
         # Make sure flux ramp starts off
         self.flux_ramp_off(write_log=write_log)
         self.flux_ramp_setup(4, .5, write_log=write_log) 
+        if self.flux_ramp_coupling == "DC":
+            self.set_mode_dc(write_log=write_log)
+        elif self.flux_ramp_coupling == "AC":
+            self.set_mode_ac(write_log=write_log)
 
         # Turn off GCP streaming
         self.set_smurf_to_gcp_stream(False, write_log=write_log)

@@ -14,7 +14,7 @@ class SmurfTuneMixin(SmurfBase):
     This contains all the tuning scripts
     """
 
-    def tune(self, load_tune=True, tune_file=None, last_tune=False, retune=False,
+    def tune(self, load_tune=True, tune_file=None, last_tune=False, retune=False, slow_tune=False,
              f_min=.02, f_max=.3, df_max=.03, fraction_full_scale=None, make_plot=False,
              save_plot=True, show_plot=False, gradient_descent_averages=1):
         """
@@ -40,6 +40,13 @@ class SmurfTuneMixin(SmurfBase):
         save_plot (bool): If making plots, whether to save them. Default is True.
         show_plot (bool): Whether to display the plots to screen. Default is False.
         """
+        if self.flux_ramp_coupling == "DC":
+            self.log('Setting mode DC')
+            self.set_mode_dc()
+        elif self.flux_ramp_coupling == "AC":
+            self.log('Setting mode AC')
+            self.set_mode_ac()
+
         bands = self.config.get('init').get('bands')
         tune_cfg = self.config.get('tune_band')
         
@@ -57,7 +64,7 @@ class SmurfTuneMixin(SmurfBase):
             self.load_tune(tune_file)
 
         # Runs find_freq and setup_notches. This takes forever.
-        else:
+        elif slow_tune:
             cfg = self.config.get('init')
             for b in bands:
                 drive = cfg.get('band_{}'.format(b)).get('amplitude_scale')

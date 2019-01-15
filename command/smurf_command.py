@@ -2716,3 +2716,22 @@ class SmurfCommandMixin(SmurfBase):
         return self._caget(self.DBG + self._dac_reset.format(dac),
                            val, **kwargs)
         
+    _mcetransmit_debug = 'mcetransmitDebug'
+    def set_mcetransmit_debug(self, val, **kwargs):
+        """
+        """
+        self._caput(self.amc_root + self._mcetransmit_debug,
+                    val, **kwargs)
+
+    def get_mcetransmit_debug(self, **kwargs):
+        """
+        """
+        return self._caget(self.amc_root + self._mcetransmit_debug,
+                           **kwargs)
+
+    _run_garbage_collection = 'runGarbageCollection'
+    def set_run_garbage_collection(self, val, **kwargs):
+        """
+        """
+        self._caput(self.amc_root + self._run_garbage_collection,
+                    val, **kwargs)
