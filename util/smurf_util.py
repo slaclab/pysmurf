@@ -1274,10 +1274,20 @@ class SmurfUtilMixin(SmurfBase):
             self.log("Received the wrong number of biases. Expected " +
                 "n_bias_groups={}".format(n_bias_groups), self.LOG_ERROR)
         else:
+            # user may be using a DAC not in the 16x this is coded
+            # for for another purpose.  Protect their enable state.
+            # It turns out if you set the Ctrl (enable) register
+            # to zero for one of these DACs, it rails negative, 
+            # which sucks if, for instance, you're using it to 
+            # bias the gate of a cold RF amplifier.  FOR INSTANCE.
+            dacs_in_use=[]
             for idx in np.arange(n_bias_groups):
-                dac_idx = np.ravel(np.where(bias_order == idx))
+                dac_idx = np.ravel(np.where(bias_order == idx))                
+
                 dac_positive = dac_positives[dac_idx][0] - 1 # freakin Mitch 
+                dacs_in_use.append(dac_positive)
                 dac_negative = dac_negatives[dac_idx][0] - 1 # 1 vs 0 indexing
+                dacs_in_use.append(dac_negative)
 
                 volts_pos = volt_array[idx] / 2
                 volts_neg = - volt_array[idx] / 2
@@ -1287,7 +1297,16 @@ class SmurfUtilMixin(SmurfBase):
                     do_enable_array[dac_negative] = 2
 
                 bias_volt_array[dac_positive] = volts_pos
-                bias_volt_array[dac_negative] = volts_neg
+                bias_volt_array[dac_negative] = volts_neg                
+
+            # before mucking with enables, make sure to carry the current
+            # values of any DACs that shouldn't be accessed by this call.
+            current_enable_array=self.get_tes_bias_enable_array()
+            current_tes_bias_array_volt=self.get_tes_bias_array_volt()
+            for idx in np.where(current_enable_array!=do_enable_array)[0]:
+                if idx not in dacs_in_use:
+                    do_enable_array[idx]=current_enable_array[idx]
+                    bias_volt_array[idx]=current_tes_bias_array_volt[idx]
 
             if do_enable:
                 self.set_tes_bias_enable_array(do_enable_array, **kwargs)
@@ -1585,7 +1604,7 @@ class SmurfUtilMixin(SmurfBase):
         time.sleep(overbias_wait)
 
         if not high_current_mode:
-            self.log('settting to low current')
+            self.log('setting to low current')
             self.set_tes_bias_low_current(bias_groups)
 
         # voltage_bias_array = np.zeros((8,)) # currently hardcoded for 8 bias groups
@@ -1779,7 +1798,7 @@ class SmurfUtilMixin(SmurfBase):
 
 
     def make_smurf_to_gcp_config(self, num_averages=0, filename=None,
-        file_name_extend=False, data_frames=2000000, filter_gain=None):
+        file_name_extend=None, data_frames=None, filter_gain=None):
         """
         Makes the config file that the Joe-writer uses to set the IP
         address, port number, data file name, etc.
@@ -1795,7 +1814,7 @@ class SmurfUtilMixin(SmurfBase):
            number of smurf frames.
         filename (str): The filename to save the data to. If not provided,
            automatically uses the current timestamp.
-        filename_extend (bool): If True, appends the data file name with 
+        file_name_extend (bool): If True, appends the data file name with 
            the current timestamp. This is a relic of Joes original code.
            Default is False and should probably always be False.
         data_frames (int): The number of frames to store. Works up to 
@@ -1808,6 +1827,11 @@ class SmurfUtilMixin(SmurfBase):
         filter_order = self.config.get('smurf_to_mce').get('filter_order')
         if filter_gain is None:
             filter_gain = self.config.get('smurf_to_mce').get('filter_gain')
+
+        if data_frames is None:
+            data_frames = self.config.get('smurf_to_mce').get('data_frames')
+        if file_name_extend is None:
+            file_name_extend = self.config.get('smurf_to_mce').get('file_name_extend')
 
         if filename is None:
             filename = self.get_timestamp() + '.dat'
