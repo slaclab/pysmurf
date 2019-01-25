@@ -296,7 +296,7 @@ class SmurfUtilMixin(SmurfBase):
         return data_filename
 
 
-    def stream_data_on(self, gcp_mode=True):
+    def stream_data_on(self, write_config=True, gcp_mode=True):
         """
         Turns on streaming data.
 
@@ -326,6 +326,14 @@ class SmurfUtilMixin(SmurfBase):
             # Make the data file
             timestamp = self.get_timestamp()
             data_filename = os.path.join(self.output_dir, timestamp+'.dat')
+
+            # Optionally write PyRogue configuration
+            if write_config:
+                config_filename=os.path.join(self.output_dir, timestamp+'.yml')
+                self.log('Writing PyRogue configuration to file : {}'.format(config_filename), 
+                     self.LOG_USER)
+                self.write_config(config_filename)
+
             self.log('Writing to file : {}'.format(data_filename), 
                 self.LOG_USER)
             if gcp_mode:
@@ -1916,11 +1924,14 @@ class SmurfUtilMixin(SmurfBase):
             self.log('WARNING: too many gcp channels!')
             return
 
-        self.log('Making gcp mask file. {} channels added'.format(len(gcp_chans)))
-        #np.savetxt(self.smurf_to_mce_mask_file, gcp_chans, fmt='%i')
-        self.log('NOT ACTUALLY MAKING A MASK. NOW STATIC. UNCOMMENT ABOVE TO '+
-                 'GENERATE NEW MASK!!!')
-
+        static_mask = self.config.get('smurf_to_mce').get('static_mask')
+        if static_mask:
+            self.log('NOT DYNAMICALLY GENERATING THE MASK. STATIC. SET static_mask=0 '+
+                     'IN CFG TO DYNAMICALLY GENERATE MASKS!!!')
+        else:
+            self.log('Generating gcp mask file. {} channels added'.format(len(gcp_chans)))
+            np.savetxt(self.smurf_to_mce_mask_file, gcp_chans, fmt='%i')
+        
         if read_gcp_mask:
             self.read_smurf_to_gcp_config()
         else:
