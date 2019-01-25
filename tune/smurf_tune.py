@@ -16,7 +16,7 @@ class SmurfTuneMixin(SmurfBase):
 
     def tune(self, load_tune=True, tune_file=None, last_tune=False, retune=False,
              f_min=.02, f_max=.3, df_max=.03, fraction_full_scale=None, make_plot=False,
-             save_plot=True, show_plot=False, gradient_descent_averages=1):
+             save_plot=True, show_plot=False, gradient_descent_averages=1, new_master_assignment=False):
         """
         This runs a tuning, does tracking setup, and prunes bad
         channels using check lock. When this is done, we should
@@ -63,7 +63,8 @@ class SmurfTuneMixin(SmurfBase):
                 drive = cfg.get('band_{}'.format(b)).get('amplitude_scale')
                 self.find_freq(b, 
                     drive_power=drive)
-                self.setup_notches(b, drive=drive)
+                self.setup_notches(b, drive=drive, 
+                                   new_master_assignment=new_master_assignment)
 
         # Runs tune_band_serial to re-estimate eta params
         if retune:
@@ -72,7 +73,8 @@ class SmurfTuneMixin(SmurfBase):
                 self.log('Running tune band serial on band {}'.format(b))
                 self.tune_band_serial(b, from_old_tune=load_tune,
                                       old_tune=tune_file, make_plot=make_plot,
-                                      show_plot=show_plot, save_plot=save_plot)
+                                      show_plot=show_plot, save_plot=save_plot,
+                                      new_master_assignment=new_master_assignment)
 
         # Starts tracking and runs check_lock to prune bad resonators
         for b in bands:
