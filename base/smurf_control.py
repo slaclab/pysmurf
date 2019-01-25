@@ -299,7 +299,6 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
 
             # Tuning defaults - only set if present in cfg
             if hasattr(self,'gradient_descent_gain') and b in self.gradient_descent_gain.keys():
-                print('here!')
                 self.set_gradient_descent_gain(b, self.gradient_descent_gain[b], write_log=write_log, **kwargs)
             if hasattr(self,'gradient_descent_averages') and b in self.gradient_descent_averages.keys():
                 self.set_gradient_descent_averages(b, self.gradient_descent_averages[b], write_log=write_log, **kwargs)
