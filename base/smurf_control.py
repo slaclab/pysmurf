@@ -216,6 +216,16 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
             self.freq_resp[b] = {}
             self.freq_resp[b]['lock_status'] = {}
             self.lms_freq_hz[b] = 4000
+
+        # Load in tuning parameters, if present
+        tune_band_cfg=self.config.get('tune_band')
+        tune_band_keys=tune_band_cfg.keys()
+        for cfg_var in ['gradient_descent_gain', 'gradient_descent_averages', 'eta_scan_averages']:
+            if cfg_var in tune_band_keys:
+                setattr(self, cfg_var, {})
+                for b in  bands:
+                    getattr(self,cfg_var)[b]=tune_band_cfg[cfg_var][str(b)]
+
         if setup:
             self.setup(**kwargs)
 
@@ -287,7 +297,14 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
             self.set_dsp_enable(b, smurf_init_config['dspEnable'], 
                 write_log=write_log, **kwargs)
 
-            
+            # Tuning defaults - only set if present in cfg
+            if hasattr(self,'gradient_descent_gain') and b in self.gradient_descent_gain.keys():
+                print('here!')
+                self.set_gradient_descent_gain(b, self.gradient_descent_gain[b], write_log=write_log, **kwargs)
+            if hasattr(self,'gradient_descent_averages') and b in self.gradient_descent_averages.keys():
+                self.set_gradient_descent_averages(b, self.gradient_descent_averages[b], write_log=write_log, **kwargs)
+            if hasattr(self,'eta_scan_averages') and b in self.eta_scan_averages.keys():
+                self.set_eta_scan_averages(b, self.eta_scan_averages[b], write_log=write_log, **kwargs)
 
         self.set_trigger_width(0, 10, write_log=write_log)  # mystery bit that makes triggering work
         self.set_trigger_enable(0, 1, write_log=write_log)
