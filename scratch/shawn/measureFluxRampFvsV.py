@@ -6,7 +6,7 @@ import sys
 ## instead of takedebugdata try relaunch PyRogue, then loopFilterOutputArray, which is 
 ## the integral tracking term with lmsEnable[1..3]=0
 
-S = pysmurf.SmurfControl(make_logfile=False,setup=False,epics_root='test_epics',cfg_file='/usr/local/controls/Applications/smurf/pysmurf/pysmurf/cfg_files/experiment_fp28_smurfsrv03.cfg')
+S = pysmurf.SmurfControl(make_logfile=False,setup=False,epics_root='test_epics',cfg_file='/usr/local/controls/Applications/smurf/pysmurf/pysmurf/cfg_files/experiment_fp28_smurfsrv04.cfg')
 
 #######
 band=2
@@ -93,7 +93,9 @@ def plot(chans,raw_data):
     plt.show()
 ###
 
-plot([6],raw_data)
+sys.exit(1)
+
+plot([385],raw_data)
 
 ## try to analyze
 def fourier(x, *a):
