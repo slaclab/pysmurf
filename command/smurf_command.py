@@ -381,6 +381,18 @@ class SmurfCommandMixin(SmurfBase):
             sg.wait()
             vals = sg.get_values()
 
+    _writeconfig = ":AMCc:WriteConfig"
+    def write_config(self, val, **kwargs):
+        """
+        Writes the current PyRogue settings to a yml file.
+
+        Args:
+        ----
+        val (str) : The path (including file name) to write the yml file to.
+        """
+        self._caput(self.epics_root + self._writeconfig,
+                    val, **kwargs)
+
     _tune_file_path = 'tuneFilePath'
     def set_tune_file_path(self, val, **kwargs):
         """
