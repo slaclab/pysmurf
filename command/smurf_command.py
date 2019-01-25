@@ -509,6 +509,34 @@ class SmurfCommandMixin(SmurfBase):
         return self._caget(self._cryo_root(band) + self._eta_scan_channel, 
             **kwargs)
 
+    _eta_scan_averages = 'etaScanAverages'
+    def set_eta_scan_averages(self, band, val, **kwargs):
+        '''
+        Sets the number of frequency error averages to take at each point of the etaScan.
+
+        Args:
+        -----
+        band (int) : The band to set
+        val (int) : The channel to set
+        '''
+        self._caput(self._cryo_root(band) + self._eta_scan_averages, val, 
+            **kwargs)
+
+    def get_eta_scan_averages(self, band, **kwargs):
+        '''
+        Gets the number of frequency error averages taken at each point of the etaScan.
+
+        Args:
+        -----
+        band (int) : The band to set
+
+        Returns:
+        --------
+        eta_scan_averages (int) : The number of frequency error averages taken at each point of the etaScan.
+        '''
+        return self._caget(self._cryo_root(band) + self._eta_scan_averages, 
+            **kwargs)
+
     _eta_scan_dwell = 'etaScanDwell'
     def set_eta_scan_dwell(self, band, val, **kwargs):
         """
