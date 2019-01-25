@@ -44,12 +44,12 @@ def update_progress(progress):
 #for i in range(100):
 #    update_progress(float((i+1)/100.))    
 #    time.sleep(0.1)
-band=3
+band=2
 
 ## NEED TO CODE IN POWER, FREQUENCIES
 ## PROBABLY THOSE ARE COMING AS INPUTS THOUGH
 
-S = pysmurf.SmurfControl(make_logfile=False,setup=False,epics_root='test_epics',cfg_file='/usr/local/controls/Applications/smurf/pysmurf/pysmurf/cfg_files/experiment_fp28_smurfsrv03.cfg')
+S = pysmurf.SmurfControl(make_logfile=False,setup=False,epics_root='test_epics',cfg_file='/usr/local/controls/Applications/smurf/pysmurf/pysmurf/cfg_files/experiment_fp28_smurfsrv04.cfg')
 
 Npts=20
 ##sb64
