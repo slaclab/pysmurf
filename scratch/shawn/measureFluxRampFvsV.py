@@ -9,7 +9,7 @@ import sys
 S = pysmurf.SmurfControl(make_logfile=False,setup=False,epics_root='test_epics',cfg_file='/usr/local/controls/Applications/smurf/pysmurf/pysmurf/cfg_files/experiment_fp28_smurfsrv04.cfg')
 
 #######
-band=2
+band=3
 Npts=3
 bias=None
 wait_time=.05
@@ -22,6 +22,9 @@ save_plot=True
 channels=None
 gcp_mode=True
 grid_on=False
+#much slower than using loopFilterOutputArray,
+#and creates a bunch of files
+use_take_debug_data=False
 
 # Look for good channels
 if channels is None:
@@ -50,12 +53,17 @@ for b in bias:
     sys.stdout.flush()
     S.set_fixed_flux_ramp_bias(b)
     time.sleep(wait_time)
-    
-    fsamp=np.zeros(shape=(Npts,len(channels)))
-    for i in range(Npts):
-        fsamp[i,:]=S.get_loop_filter_output_array(band)[channels]
-    fsampmean=np.mean(fsamp,axis=0)
-    fs.append(fsampmean)
+
+    if use_take_debug_data:
+        f,df,sync=S.take_debug_data(band,IQstream=False,single_channel_readout=0)
+        fsampmean=np.mean(f,axis=0)
+        fs.append(fsampmean)
+    else:
+        fsamp=np.zeros(shape=(Npts,len(channels)))
+        for i in range(Npts):
+            fsamp[i,:]=S.get_loop_filter_output_array(band)[channels]
+        fsampmean=np.mean(fsamp,axis=0)
+        fs.append(fsampmean)
 
 sys.stdout.write('\n')
 
@@ -63,13 +71,24 @@ sys.stdout.write('\n')
 S.set_fixed_flux_ramp_bias(0)
 S.unset_fixed_flux_ramp_bias()
 
-#stack
-fvsfr=np.dstack(fs)[0]
-
 raw_data = {}
 
+fres=[S.channel_to_freq(band, ch) for ch in channels]
+raw_data['fres']=fres
 raw_data['channels']=channels
-raw_data['fvsfr']=fvsfr
+
+if use_take_debug_data:
+    #stack
+    fovsfr=np.dstack(fs)[0]
+    [sbs,sbc]=S.get_subband_centers(band)
+    fvsfr=fovsfr[channels]+[sbc[np.where(np.array(sbs)==S.get_subband_from_channel(band,ch))[0]]+S.get_band_center_mhz(band) for ch in channels]
+    raw_data['fvsfr']=fvsfr
+else:
+    #stack
+    lfovsfr=np.dstack(fs)[0]
+    raw_data['lfovsfr']=lfovsfr[channels]
+    raw_data['fvsfr']=np.array([arr/4.+fres for (arr,fres) in zip(lfovsfr,fres)])
+
 raw_data['bias'] = bias
 raw_data['band'] = band
 
