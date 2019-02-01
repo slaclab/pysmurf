@@ -54,7 +54,7 @@ class SmurfIVMixin(SmurfBase):
         lms_gain = self.get_lms_gain(band)
         self.set_lms_gain(band, 0)
 
-        self.log('Staring to take IV.', self.LOG_USER)
+        self.log('Starting to take IV.', self.LOG_USER)
         self.log('Starting TES bias ramp.', self.LOG_USER)
 
         self.set_tes_bias_bipolar(bias_group, bias[0])
@@ -151,11 +151,11 @@ class SmurfIVMixin(SmurfBase):
         self.set_lms_gain(2, 0)
         self.set_lms_gain(3, 0)
 
-        self.log('Staring to take IV.', self.LOG_USER)
+        self.log('Starting to take IV.', self.LOG_USER)
         self.log('Starting TES bias ramp.', self.LOG_USER)
 
 
-        self.log('Staring to take IV.', self.LOG_USER)
+        self.log('Starting to take IV.', self.LOG_USER)
         self.log('Starting TES bias ramp.', self.LOG_USER)
 
         bias_group_bool = np.zeros((8,)) # hard coded to have 8 bias groups

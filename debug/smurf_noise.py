@@ -67,7 +67,10 @@ class SmurfNoiseMixin(SmurfBase):
             import matplotlib.pyplot as plt
             plt.rcParams["patch.force_edgecolor"] = True
 
-        noise_floors = np.zeros((len(low_freq), n_channel))*np.nan
+        noise_floors = np.full((len(low_freq), n_channel),np.nan)
+        f_knees = np.full(n_channel,np.nan)
+        res_freqs = np.full(n_channel,np.nan)
+
         wl_list = []
         f_knee_list = []
         n_list = []
@@ -90,6 +93,7 @@ class SmurfNoiseMixin(SmurfBase):
                 if f_knee != 0.:
                     wl_list.append(wl)
                     f_knee_list.append(f_knee)
+                    f_knees[ch]=f_knee
                     n_list.append(n)
                     good_fit = True    
                 self.log('%i. Band %i, ch. %i:' % (c+1,band,ch) + ' white-noise level = {:.2f}'.format(wl) +
@@ -132,6 +136,8 @@ class SmurfNoiseMixin(SmurfBase):
                 self.log(noise_floors[-1, ch])
                 
                 res_freq = self.channel_to_freq(band, ch)
+                res_freqs[ch]=res_freq
+                
                 ax[0].set_title('Band {} Ch {:03} - {:.2f} MHz'.format(band, ch, res_freq))
 
                 plt.tight_layout()
@@ -148,7 +154,7 @@ class SmurfNoiseMixin(SmurfBase):
             for i, (l, h) in enumerate(zip(low_freq, high_freq)):
                 save_name = basename+'_{:3.2f}_{:3.2f}.txt'.format(l, h)
                 np.savetxt(os.path.join(self.plot_dir, save_name), 
-                    noise_floors[i])
+                           np.c_[res_freqs,noise_floors[i],f_knees])
 
         if make_summary_plot:
             bins = np.arange(0,351,20)
