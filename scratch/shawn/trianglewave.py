@@ -5,7 +5,7 @@ S = pysmurf.SmurfControl(make_logfile=False,setup=False,epics_root='test_epics',
 import numpy as np
 import time
 
-Vrange=np.linspace(0,0.195/6.,100)
+Vrange=np.linspace(0,0.195/6.,100)+S.get_tes_bias_bipolar(3)
 Vrange=[Vrange,Vrange[::-1]]
 Vrange=np.array(Vrange).flatten()
 

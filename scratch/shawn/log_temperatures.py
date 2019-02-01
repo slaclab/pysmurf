@@ -1,7 +1,7 @@
 import pysmurf
 import time
 
-time_btw_meas=15 # sec
+time_btw_meas=5 # sec
 
 S = pysmurf.SmurfControl(make_logfile=False,setup=False,epics_root='test_epics',cfg_file='/usr/local/controls/Applications/smurf/pysmurf/pysmurf/cfg_files/experiment_fp28_smurfsrv04.cfg')
 
@@ -12,8 +12,8 @@ print(hdr.rstrip())
 
 while True:
 
-    dac0_temp=S.get_dac_temp(0)
-    dac1_temp=S.get_dac_temp(1)
+    dac0_temp=-1#S.get_dac_temp(0)
+    dac1_temp=-1#S.get_dac_temp(1)
 
     fpga_temp=S.get_fpga_temp()
     fpgca_vccint=S.get_fpga_vccint()
