@@ -14,8 +14,9 @@ class SmurfTuneMixin(SmurfBase):
     This contains all the tuning scripts
     """
 
-    def tune(self, load_tune=True, tune_file=None, last_tune=False, retune=False, slow_tune=False,
-             f_min=.02, f_max=.3, df_max=.03, fraction_full_scale=None, make_plot=False,
+    def tune(self, load_tune=True, tune_file=None, last_tune=False, 
+             retune=False, slow_tune=False, f_min=.02, f_max=.3, 
+             df_max=.03, fraction_full_scale=None, make_plot=False,
              save_plot=True, show_plot=False, gradient_descent_averages=1):
         """
         This runs a tuning, does tracking setup, and prunes bad
@@ -248,7 +249,7 @@ class SmurfTuneMixin(SmurfBase):
             if old_tune is None:
                 self.log('Using default tuning file')
                 old_tune = self.config.get('tune_band').get('default_tune')
-            self.load_tune(old_tune)
+            self.load_tune(old_tune, band=band)
 
             resonances = np.copy(self.freq_resp[band]['resonances']).item()
 
@@ -3287,7 +3288,7 @@ class SmurfTuneMixin(SmurfBase):
 
         return savedir + ".npy"
 
-    def load_tune(self, filename=None, override=True, last_tune=True):
+    def load_tune(self, filename=None, override=True, last_tune=True, band=None):
         """
         Loads the tuning information (self.freq_resp) from tuning directory
 
@@ -3299,6 +3300,9 @@ class SmurfTuneMixin(SmurfBase):
             is True.
         override (bool) : Whether to replace self.freq_resp. Default
             is True.
+        band (int or int array) : if None, loads entire tune. If band
+            number is provided, only loads the tune for that band.
+            Not used at all unless override=True.
         """
         if filename is None and last_tune:
             filename = self.last_tune()
@@ -3312,6 +3316,15 @@ class SmurfTuneMixin(SmurfBase):
         if override:
             self.freq_resp = fs
             self.tune_file = filename
+            if band is None:
+                bands_in_file = list(fs.keys())
+                self.freq_resp = fs
+                self.tune_file = filename
+            else:
+                band = np.ravel(np.array(band))
+                self.log('Only loading tune data for bands={}.'.format(str(band)))
+                for b in band:
+                    self.freq_resp[b] = fs[b]
         else:
             return fs
 
