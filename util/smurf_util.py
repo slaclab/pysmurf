@@ -1519,7 +1519,7 @@ class SmurfUtilMixin(SmurfBase):
         return asu_amp_Id_mA
 
     def overbias_tes(self, bias_group, overbias_voltage=19.9, overbias_wait=5.,
-        tes_bias=19.9, cool_wait=20., high_current_mode=True, flip_polarity=False):
+        tes_bias=19.9, cool_wait=20., high_current_mode=False, flip_polarity=False):
         """
         Warning: This is horribly hardcoded. Needs a fix soon.
 
@@ -1557,7 +1557,7 @@ class SmurfUtilMixin(SmurfBase):
 
     def overbias_tes_all(self, bias_groups=None, overbias_voltage=19.9, 
         overbias_wait=1.0, tes_bias=19.9, cool_wait=20., 
-        high_current_mode=True):
+        high_current_mode=False):
         """
         Warning: This is horribly hardcoded. Needs a fix soon.
         CY edit 20181119 to make it even worse lol
@@ -1913,7 +1913,7 @@ class SmurfUtilMixin(SmurfBase):
 
     def bias_bump(self, bias_group, wait_time=.5, step_size=.001, duration=5,
                   fs=180., start_bias=None, make_plot=False, skip_samp_start=10,
-                  high_current_mode=True, skip_samp_end=10, plot_channels=None,
+                  high_current_mode=False, skip_samp_end=10, plot_channels=None,
                   gcp_mode=False, gcp_wait=.5, gcp_between=1.):
         """
         Toggles the TES bias high and back to its original state. From this, it

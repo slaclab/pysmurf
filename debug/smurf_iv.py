@@ -109,7 +109,7 @@ class SmurfIVMixin(SmurfBase):
                     bias_high=1.5, gcp_mode=True, bias_low=0, bias_step=.005, 
                     show_plot=False, high_current_wait=1., cool_wait=30,
                     make_plot=True, save_plot=True, channels=None, band=None,
-                    high_current_mode=True, overbias_voltage=8., 
+                    high_current_mode=False, overbias_voltage=8., 
                     grid_on=True, phase_excursion_min=3.):
         """
         Steps the TES bias down slowly. Starts at bias_high to bias_low with
