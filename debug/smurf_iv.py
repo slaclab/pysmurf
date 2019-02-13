@@ -316,7 +316,7 @@ class SmurfIVMixin(SmurfBase):
                                   show_plot=False, save_plot=True, R_sh=None, 
                                   phase_excursion_min=3., grid_on=False, 
                                   gcp_mode=True, R_op_target=0.03,
-                                  chs=None, band=None):
+                                  chs=None, band=None, iv_hist_tag=None):
         """
         Function to analyze a load curve from its raw file. Can be used to 
           analyze IV's/generate plots separately from issuing commands.
@@ -530,7 +530,10 @@ class SmurfIVMixin(SmurfBase):
             plt.suptitle('{}, band {}, group{}'.format(basename,\
                                              np.unique(band),bias_group))
             iv_hist_filename = os.path.join(plot_dir,\
-                                                '%s_IV_hist.png' % (basename))
+                                                '%s_IV_hist' % (basename))
+            if iv_hist_tag is not None:
+                iv_hist_filename += '_' + iv_hist_tag
+            iv_hist_filename += '.png'
             plt.savefig(iv_hist_filename,bbox_inches='tight')
             self.log('Saved IV histogram to {}'.format(iv_hist_filename))
             if not show_plot:

@@ -1868,20 +1868,22 @@ class SmurfUtilMixin(SmurfBase):
         Makes the gcp mask. Only the channels in this mask will be stored
         by GCP.
 
-        If no optional arguments are given, mask will contain all channels
-        that are on. If both band and smurf_chans are supplied, a mask
-        in the input order is created.
-
         Opt Args:
         ---------
         band (int array) : An array of band numbers. Must be the same
             length as smurf_chans
-        smurf_chans (int_array) : An array of SMuRF channel numbers.
-            Must be the same length as band.
+        smurf_chans (dict) : A dictionary of the form smurf_chans[band number] = int array of channel numbers in band.
         gcp_chans (int_array) : A list of smurf numbers to be passed
             on as GCP channels.
         read_gcp_mask (bool) : Whether to read in the new GCP mask file.
             If not read in, it will take no effect. Default is True.
+
+        Examples:
+        ---------
+        # To write to the mask all channels that are currently on:
+        for b in bands:
+            smurf_chans[b] = S.which_on(b)
+        make_gcp_mask(smurf_chans=smurf_chans)
         """
         gcp_chans = np.array([], dtype=int)
         if smurf_chans is None and band is not None:
