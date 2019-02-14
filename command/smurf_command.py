@@ -316,6 +316,10 @@ class SmurfCommandMixin(SmurfBase):
             the PV. Defauult is True.
         timeout (float) : The maximum amount of time to wait for the PV.
         """
+
+        # need flux ramp off for this - enforce
+        self.flux_ramp_off()
+
         triggerPV = self._cryo_root(band) + self._run_serial_eta_scan
         monitorPV = self._cryo_root(band) + self._eta_scan_in_progress
 
@@ -371,6 +375,10 @@ class SmurfCommandMixin(SmurfBase):
             the PV. Defauult is True.
         timeout (float) : The maximum amount of time to wait for the PV.        
         """
+
+        # need flux ramp off for this - enforce
+        self.flux_ramp_off()
+
         triggerPV = self._cryo_root(band) + self._run_serial_gradient_descent
         monitorPV = self._cryo_root(band) + self._eta_scan_in_progress
 
