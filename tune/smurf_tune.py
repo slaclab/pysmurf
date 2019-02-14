@@ -338,6 +338,7 @@ class SmurfTuneMixin(SmurfBase):
         chs = self.get_eta_scan_result_channel(band)
 
         chs = self.get_eta_scan_result_channel(band)
+
         for i, ch in enumerate(chs):
             if ch != -1:
                 resonances[i]['eta_phase'] = eta_phase[ch]
@@ -2447,7 +2448,7 @@ class SmurfTuneMixin(SmurfBase):
         self.check_lock(band, f_min=f_min, f_max=f_max, df_max=df_max,
                         make_plot=make_plot, flux_ramp=flux_ramp, 
                         fraction_full_scale=fraction_full_scale,
-                        lms_freq_hz=lms_freq_hz, reset_rate_khz=4.,)
+                        lms_freq_hz=lms_freq_hz, reset_rate_khz=4.)
     
     def eta_phase_check(self, band, rot_step_size=30, rot_max=360,
                         reset_rate_khz=4., 
