@@ -9,7 +9,7 @@ class SmurfIVMixin(SmurfBase):
         bias_low=0, bias_step=.1, show_plot=False, overbias_wait=5., cool_wait=30.,
         make_plot=True, save_plot=True, channels=None, high_current_mode=False,
         rn_accept_min=1e-3, rn_accept_max=1., overbias_voltage=19.9,
-        gcp_mode=True, grid_on=False, phase_excursion_min=3.):
+        gcp_mode=True, grid_on=True, phase_excursion_min=3.):
         """
         >>>NOTE: DEPRECATED. USE SLOW_IV_ALL WITH A SINGLE-ELEMENT ARRAY INSTEAD.<<<
 
@@ -315,7 +315,7 @@ class SmurfIVMixin(SmurfBase):
     def analyze_slow_iv_from_file(self, fn_iv_raw_data, make_plot=True,
                                   show_plot=False, save_plot=True, R_sh=None, 
                                   phase_excursion_min=3., grid_on=False, 
-                                  gcp_mode=True, R_op_target=0.03,
+                                  gcp_mode=True, R_op_target=0.007,
                                   chs=None, band=None):
         """
         Function to analyze a load curve from its raw file. Can be used to 
@@ -538,7 +538,7 @@ class SmurfIVMixin(SmurfBase):
     def analyze_slow_iv(self, v_bias, resp, make_plot=True, show_plot=False,
         save_plot=True, basename=None, band=None, channel=None, R_sh=None,
         plot_dir=None, high_current_mode=False, bias_group = None,
-        grid_on=False,R_op_target=0.03, **kwargs):
+        grid_on=False,R_op_target=0.007, **kwargs):
         """
         Analyzes the IV curve taken with slow_iv()
 
