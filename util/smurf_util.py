@@ -1725,7 +1725,7 @@ class SmurfUtilMixin(SmurfBase):
             new_relay = new_relay & ~(1 << r)
 
         self.log('New relay {}'.format(bin(new_relay)))
-        self.set_cryo_card_relays(new_relay, write_log=write_log)
+        self.set_cryo_card_relays(new_relay)
         self.get_cryo_card_relays()
 
 
