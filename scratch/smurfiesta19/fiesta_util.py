@@ -18,10 +18,14 @@ def extract_data(datafp, first=0, last=0, filt=1):
 
 def plot_most_recent_data(channels, labels = None, downsample = 1, flt=1):
     
-    list_of_dat_files = glob.glob('/data/smurf_data/%s/*/outputs/*.dat'%datetime.now().strftime('%Y%m%d'))
+    #list_of_dat_files = glob.glob('/data/smurf_data/%s/*/outputs/*.dat*'%datetime.now().strftime('%Y%m%d'))
+    list_of_dat_files = glob.glob('/data/smurf_data/%s/*/outputs/*.dat*'%'20190215')
     latest_file = max(list_of_dat_files, key=os.path.getctime)
     datafp=latest_file
     maskfname = datafp.split('.')[0]+'_mask.txt'
+
+    print('latest_file=%s'%latest_file)
+    print('maskfname=%s'%maskfname)
 
     mask = numpy.loadtxt(maskfname)
 
