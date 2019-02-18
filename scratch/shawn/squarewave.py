@@ -8,11 +8,16 @@ import sys
 
 dwell=1
 count=0
+v0=S.get_tes_bias_bipolar(3)
 while count<int(sys.argv[1]):
     print('count=%d'%count)
-    S.set_tes_bias_bipolar(3,0.195/200.)
+    val=0.195/10.+v0
+    print(val)
+    S.set_tes_bias_bipolar(3,val)
     time.sleep(dwell)
-    S.set_tes_bias_bipolar(3,0.0)
+    val=0.+v0
+    print(val)
+    S.set_tes_bias_bipolar(3,val)
     time.sleep(dwell)
     count=count+1
 
