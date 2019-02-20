@@ -374,7 +374,8 @@ class SmurfUtilMixin(SmurfBase):
         #    self.set_stream_enable(band, 0, write_log=True)
 
 
-    def read_stream_data(self, datafile, unwrap=True, gcp_mode=True):
+    def read_stream_data(self, datafile, channel=None, 
+                         unwrap=True, gcp_mode=True):
         """
         Loads data taken with the fucntion stream_data_on
 
@@ -384,11 +385,15 @@ class SmurfUtilMixin(SmurfBase):
 
         Opt Args:
         ---------
+        channel (int or int array): The channels to load. If None,
+           loads all channels
         unwrap (bool): Whether to unwrap the data
         """
         if gcp_mode:
             self.log('Treating data as GCP file')
-            timestamp, phase, mask = self.read_stream_data_gcp_save(datafile)
+            timestamp, phase, mask = self.read_stream_data_gcp_save(datafile,
+                                                                    channel=channel,
+                                                                    unwrap=unwrap)
             return timestamp, phase, mask
 
 
@@ -446,19 +451,24 @@ class SmurfUtilMixin(SmurfBase):
 
             keys.extend(data_keys)
 
-            keys_dict = dict( zip( keys, range(len(keys)) ) )
+            keys_dict = dict(zip(keys, range(len(keys))))
 
             frames = [i for i in 
                 struct.Struct('2I2BHI6Q6IH2xI2Q24x4096h').iter_unpack(file_content)]
-            #frame_counter = [i[keys['sequence_counter']] for i in frames]
-            #timestamp_s   = [i[keys['timestamp_s']] for i in frames]
-            #timestamp_ns  = [i[keys['timestamp_ns']] for i in frames]
 
-            phase = np.zeros((512, len(frames)))
-            for i in range(512):
-                k = i + 1024
-                phase[i,:] = np.asarray([j[keys_dict[f'data{k}']] for j in 
-                    frames])
+
+            
+            if channel is None:
+                phase = np.zeros((512, len(frames)))
+                for i in range(512):
+                    k = i + 1024
+                    phase[i,:] = np.asarray([j[keys_dict[f'data{k}']] for j in 
+                                             frames])
+            else:
+                print('Loading only channel {}'.format(channel))
+                k = channel + 1025
+                phase = np.zeros(len(frames))
+                phase = np.asarray([j[keys_dict[f'data{k}']] for j in frames])
 
             phase = phase.astype(float) / 2**15 * np.pi # scale to rad
             timestamp = [i[keys_dict['sequence_counter']] for i in frames]
@@ -471,7 +481,7 @@ class SmurfUtilMixin(SmurfBase):
 
         return timestamp, phase
 
-    def read_stream_data_gcp_save(self, datafile,
+    def read_stream_data_gcp_save(self, datafile, channel=None,
         unwrap=True, downsample=1):
         """
         Reads the special data that is designed to be a copy of the GCP data.
@@ -482,6 +492,7 @@ class SmurfUtilMixin(SmurfBase):
         
         Opt Args:
         ---------
+        channel (int or int array): Channels to load.
         unwrap (bool) : Whether to unwrap units of 2pi. Default is True.
         downsample (int): The amount to downsample.
 
@@ -499,8 +510,10 @@ class SmurfUtilMixin(SmurfBase):
 
         self.log('Reading {}'.format(datafile))
 
-        with open(datafile, mode='rb') as file:
-            file_content = file.read()
+        if channel is not None:
+            self.log('Only reading channel {}'.format(channel))
+
+
 
         keys = ['protocol_version','crate_id','slot_number','number_of_channels',
                 'rtm_dac_config0', 'rtm_dac_config1', 'rtm_dac_config2', 
@@ -516,19 +529,60 @@ class SmurfUtilMixin(SmurfBase):
         keys.extend(data_keys)
         keys_dict = dict(zip(keys, range(len(keys))))
 
-        frames = [i for i in struct.Struct('3BxI6Q8I5Q528i').iter_unpack(file_content)]
+        # Read in all channels by default
+        if channel is None:
+            channel = np.arange(512)
 
-        phase = np.zeros((528, len(frames)))
-        for i in range(528):
-            phase[i,:] = np.asarray([j[keys_dict[f'data{i}']] for j in
-                         frames])
+        channel = np.ravel(np.asarray(channel))
+        n_chan = len(channel)
+
+        # Indices for input channels
+        channel_mask = np.zeros(n_chan, dtype=int)
+        for i, c in enumerate(channel):
+            channel_mask[i] = keys_dict['data{}'.format(c)]
+
+        # Make holder arrays for phase and timestamp
+        phase = np.zeros((n_chan,0))
+        timestamp2 = np.array([])
+        counter = 0
+        n = 20000  # Number of elements to load at a time
+        tmp_phase = np.zeros((n_chan, n))
+        tmp_timestamp2 = np.zeros(n)
+        with open(datafile, mode='rb') as file:
+            while True:
+                chunk = file.read(2240)  # Frame size is 2240
+                if not chunk:
+                    # If frame is incomplete - meaning end of file
+                    phase = np.hstack((phase, tmp_phase[:,:counter%n]))
+                    timestamp2 = np.append(timestamp2, tmp_timestamp2[:counter%n])
+                    break
+                frame = struct.Struct('3BxI6Q8I5Q528i').unpack(chunk)
+
+                # Extract detector data
+                for i, c in enumerate(channel_mask):
+                    tmp_phase[i,counter%n] = frame[c]
+
+                # Timestamp data
+                tmp_timestamp2[counter%n] = frame[keys_dict['rtm_dac_config5']]
+
+                # Store the data in a useful array and reset tmp arrays
+                if counter % n == n - 1 :
+                    self.log('{} elements loaded'.format(counter+1))
+                    phase = np.hstack((phase, tmp_phase))
+                    timestamp2 = np.append(timestamp2, tmp_timestamp2)
+                    tmp_phase = np.zeros((n_chan, n))
+                    tmp_timestamp2 = np.zeros(n)
+                counter = counter + 1
 
         phase = phase.astype(float) / 2**15 * np.pi # where is decimal?  Is it in rad?
 
-        # Joe's timestamp - 64 bit UTC.
-        timestamp2 = np.array([i[keys_dict['rtm_dac_config5']] for i in frames])
+        rootpath = os.path.dirname(datafile)
+        filename = os.path.basename(datafile)
+        timestamp = filename.split('.')[0]
 
-        mask = self.make_mask_lookup(datafile.replace('.dat','_mask.txt'))
+        mask = self.make_mask_lookup(os.path.join(rootpath, 
+                                                  '{}_mask.txt'.format(timestamp)))
+        #mask = self.make_mask_lookup(datafile.replace('.dat','_mask.txt'))
 
         return timestamp2, phase, mask
 
