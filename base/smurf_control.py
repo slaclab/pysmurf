@@ -346,7 +346,7 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
 
         self.set_amplifier_bias(write_log=write_log)
         _ = self.get_amplifier_bias()
-        __ = self.C.read_temperature() # also read the temperature of the CC
+        self.log("Cryocard temperature = "+ str(self.C.read_temperature())) # also read the temperature of the CC
 
         self.log('Done with setup')
 
