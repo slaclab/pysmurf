@@ -8,6 +8,7 @@ import time
 import epics
 from scipy import signal
 import shutil
+import glob
 
 class SmurfUtilMixin(SmurfBase):
 
@@ -99,6 +100,84 @@ class SmurfUtilMixin(SmurfBase):
         import subprocess
         import sys
         pid = subprocess.Popen([sys.executable,JesdWatchdog.__file__])
+
+    def get_amcc_dump(self, ip='10.0.1.4',show_result=True):
+        import subprocess
+        result=subprocess.check_output(['amcc_dump','--all','10.0.1.4'])
+        result_string=result.decode('utf-8')
+
+        tablebreak='================================================================================'
+        ipslotbreak='--------------------------------------------------------------------------------'
+
+        ## break into tables
+        split_result_string=result_string.split(tablebreak)
+        # drop white space
+        split_result_string = list(filter(None,[s for s in split_result_string if not s.isspace()]))
+
+        amcc_dump_dict = {}
+        # loop over tables in returned data
+        for ii in range(0,len(split_result_string),2):
+            header = split_result_string[ii]
+            table = split_result_string[ii+1]
+
+            split_header=header.split('|')
+            split_header = list(filter(None,[s.lstrip().rstrip() for s in split_header if not s.isspace()]))
+            sh0=split_header[0]
+
+            ipslotbreakcnt=[]
+            ipslotbreakcntr=0
+            split_table=table.split('\n')
+            for s in split_table:
+                if ipslotbreak in s:
+                    ipslotbreakcntr+=1
+                ipslotbreakcnt.append(ipslotbreakcntr)
+
+            # loop over ip/slot combinations in returned data
+            for jj in range(0,max(ipslotbreakcnt),2):
+                this_ipslot_idxs=[ll for ll, xx in enumerate(ipslotbreakcnt) if xx in [jj,jj+1]]
+                split_table_subset=np.array(split_table)[this_ipslot_idxs[1:]]
+                split_table_subset=list(filter(None,[s.lstrip().rstrip() for s in split_table_subset if not s.isspace()]))
+                ipslot=split_table_subset[0]
+                table2=split_table_subset[2:]
+
+                if 'RTM' in sh0 or 'Bay Raw GPIO' in sh0:
+                    continue
+
+                split_ipslot=ipslot.split('|')
+                split_ipslot = list(filter(None,[s.lstrip().rstrip() for s in split_ipslot if not s.isspace()]))
+                ip=split_ipslot[0].split('/')[0]
+                slot=split_ipslot[0].split('/')[1]
+
+                if ip not in amcc_dump_dict.keys():
+                    amcc_dump_dict[ip]={}
+                if int(slot) not in amcc_dump_dict[ip].keys():
+                    amcc_dump_dict[ip][int(slot)]={}
+
+                if sh0 not in amcc_dump_dict[ip][int(slot)].keys():
+                    amcc_dump_dict[ip][int(slot)][sh0]={}
+
+                #if sh0 is 'BAY':
+                if sh0=="BAY":
+                    split_table2=table2
+                    split_table2=list(filter(None,[s.lstrip().rstrip() for s in split_table2]))
+                    for split_table3 in split_table2:
+                        split_table3=split_table3.split('|')
+                        split_table3 = list(filter(None,[s for s in split_table3]))
+                        st3k=split_table3[0].lstrip().rstrip()                
+                        if st3k not in amcc_dump_dict[ip][int(slot)][sh0].keys():
+                            amcc_dump_dict[ip][int(slot)][sh0][st3k]={}
+                        #add data
+                        for kk in range(1,len(split_header)-1):
+                            shkk=split_header[kk]
+                            st3kk=split_table3[kk].lstrip().rstrip()
+                            if shkk not in amcc_dump_dict[ip][int(slot)][sh0][st3k].keys():
+                                amcc_dump_dict[ip][int(slot)][sh0][st3k][shkk]=st3kk
+
+        if show_result:
+            import json
+            print(json.dumps(amcc_dump_dict, indent = 4))
+
+        return amcc_dump_dict
 
     def process_data(self, filename, dtype=np.uint32):
         """
@@ -375,7 +454,7 @@ class SmurfUtilMixin(SmurfBase):
 
 
     def read_stream_data(self, datafile, channel=None, 
-                         unwrap=True, gcp_mode=True):
+                         unwrap=True, gcp_mode=True, n_samp=None):
         """
         Loads data taken with the fucntion stream_data_on
 
@@ -392,8 +471,7 @@ class SmurfUtilMixin(SmurfBase):
         if gcp_mode:
             self.log('Treating data as GCP file')
             timestamp, phase, mask = self.read_stream_data_gcp_save(datafile,
-                                                                    channel=channel,
-                                                                    unwrap=unwrap)
+                channel=channel, unwrap=unwrap, n_samp=n_samp)
             return timestamp, phase, mask
 
 
@@ -482,7 +560,7 @@ class SmurfUtilMixin(SmurfBase):
         return timestamp, phase
 
     def read_stream_data_gcp_save(self, datafile, channel=None,
-        unwrap=True, downsample=1):
+        unwrap=True, downsample=1, n_samp=None):
         """
         Reads the special data that is designed to be a copy of the GCP data.
 
@@ -502,7 +580,6 @@ class SmurfUtilMixin(SmurfBase):
         d (float array): The resonator data in units of phi0
         m (int array): The maskfile that maps smurf num to gcp num
         """
-        import glob
         try:
             datafile = glob.glob(datafile+'*')[-1]
         except:
@@ -512,7 +589,6 @@ class SmurfUtilMixin(SmurfBase):
 
         if channel is not None:
             self.log('Only reading channel {}'.format(channel))
-
 
 
         keys = ['protocol_version','crate_id','slot_number','number_of_channels',
@@ -541,6 +617,9 @@ class SmurfUtilMixin(SmurfBase):
         for i, c in enumerate(channel):
             channel_mask[i] = keys_dict['data{}'.format(c)]
 
+        if n_samp is not None:
+            eval_n_samp = True
+
         # Make holder arrays for phase and timestamp
         phase = np.zeros((n_chan,0))
         timestamp2 = np.array([])
@@ -556,6 +635,12 @@ class SmurfUtilMixin(SmurfBase):
                     phase = np.hstack((phase, tmp_phase[:,:counter%n]))
                     timestamp2 = np.append(timestamp2, tmp_timestamp2[:counter%n])
                     break
+                elif eval_n_samp:
+                    if counter >= n_samp:
+                        phase = np.hstack((phase, tmp_phase[:,:counter%n]))
+                        timestamp2 = np.append(timestamp2, 
+                                               tmp_timestamp2[:counter%n])
+                        break
                 frame = struct.Struct('3BxI6Q8I5Q528i').unpack(chunk)
 
                 # Extract detector data
@@ -574,6 +659,7 @@ class SmurfUtilMixin(SmurfBase):
                     tmp_timestamp2 = np.zeros(n)
                 counter = counter + 1
 
+        phase = np.squeeze(phase)
         phase = phase.astype(float) / 2**15 * np.pi # where is decimal?  Is it in rad?
 
         rootpath = os.path.dirname(datafile)
