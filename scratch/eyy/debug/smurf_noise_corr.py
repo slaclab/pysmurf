@@ -106,3 +106,16 @@ plt.savefig(os.path.join(datadir.replace('outputs', 'plots'),
 plt.show()
 
 
+# Now do all the channels in frequency order
+cor_mat = np.zeros((2*512, 2*15, nperseg//2+1))
+
+bands = np.array([2,3])
+subbands = np.arange(128)
+counter = 0
+projection = np.zeros()
+for b in bands:
+    for sb in subbands:
+        chs = S.get_channels_in_subband(b, sb)
+        for i, ch in enumerate(chs):
+            if m[b, ch] != -1:
+                cor_mat[counter] =
