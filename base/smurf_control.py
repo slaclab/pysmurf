@@ -155,9 +155,10 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
         self.channel_assignment_files = {}
         if not no_dir:
             for b in self.config.get('init').get('bands'):
-                self.channel_assignment_files['band_{}'.format(b)] = \
-                    np.sort(glob.glob(os.path.join(self.tune_dir, 
-                            '*channel_assignment_b{}.txt'.format(b))))[-1]
+                continue
+                #self.channel_assignment_files['band_{}'.format(b)] = \
+                #    np.sort(glob.glob(os.path.join(self.tune_dir, 
+                #            '*channel_assignment_b{}.txt'.format(b))))[-1]
 
         # bias groups available
         self.all_groups = self.config.get('all_bias_groups')
@@ -208,6 +209,9 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
         for i, k in enumerate(bm_keys):
             self.bad_mask[i] = bm_config[k]
 
+        # Which MicrowaveMuxCore[#] blocks are being used?
+        self.bays=[0,1]
+
         # Dictionary for frequency response
         self.freq_resp = {}
         self.lms_freq_hz = {}
@@ -241,18 +245,24 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
         """
         self.log('Setting up...', (self.LOG_USER))
 
+        # Which bands are we configuring?
+        smurf_init_config = self.config.get('init')
+        bands = smurf_init_config['bands']
+
+        # Right now, resetting both DACs in both MicrowaveMuxCore blocks,
+        # but may want to determine at runtime which are actually needed and
+        # only reset the DAC in those.
         self.log('Toggling DACs')
-        self.set_dac_reset(0, 1, write_log=write_log)
-        self.set_dac_reset(1, 1, write_log=write_log)
-        self.set_dac_reset(0, 0, write_log=write_log)
-        self.set_dac_reset(1, 0, write_log=write_log)
+        dacs=[0,1]
+        for val in [1,0]:
+            for bay in self.bays:
+                for dac in dacs:
+                    self.set_dac_reset(bay, dac, val, write_log=write_log)
 
         self.set_read_all(write_log=write_log)
         self.set_defaults_pv(write_log=write_log)
 
         # The per band configs. May want to make available per-band values.
-        smurf_init_config = self.config.get('init')
-        bands = smurf_init_config['bands']
         for b in bands:
             band_str = 'band_{}'.format(b)
             self.set_iq_swap_in(b, smurf_init_config[band_str]['iq_swap_in'], 
@@ -289,7 +299,7 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
                 write_log=write_log, **kwargs)
 
             for dmx in np.array(smurf_init_config[band_str]["data_out_mux"]):
-                self.set_data_out_mux(int(dmx), "UserData", write_log=write_log,
+                self.set_data_out_mux(int(self.band_to_bay(b)), int(dmx), "UserData", write_log=write_log,
                     **kwargs)
 
             self.set_att_uc(b, smurf_init_config[band_str]['att_uc'],

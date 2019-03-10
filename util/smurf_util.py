@@ -935,32 +935,32 @@ class SmurfUtilMixin(SmurfBase):
         self.set_feedback_limit(band, desired_feedback_limit_dec)
 
     # if no guidance given, tries to reset both
-    def recover_jesd(self,recover_jesd_rx=True,recover_jesd_tx=True):
+    def recover_jesd(self,bay,recover_jesd_rx=True,recover_jesd_tx=True):
         if recover_jesd_rx:
             #1. Toggle JesdRx:Enable 0x3F3 -> 0x0 -> 0x3F3
-            self.set_jesd_rx_enable(0x0)
-            self.set_jesd_rx_enable(0x3F3)
+            self.set_jesd_rx_enable(bay,0x0)
+            self.set_jesd_rx_enable(bay,0x3F3)
 
         if recover_jesd_tx:
             #1. Toggle JesdTx:Enable 0x3CF -> 0x0 -> 0x3CF
-            self.set_jesd_tx_enable(0x0)
-            self.set_jesd_tx_enable(0x3CF)
+            self.set_jesd_tx_enable(bay,0x0)
+            self.set_jesd_tx_enable(bay,0x3CF)
 
             #2. Toggle AMCcc:FpgaTopLevel:AppTop:AppCore:MicrowaveMuxCore[0]:DAC[0]:JesdRstN 0x1 -> 0x0 -> 0x1
-            self.set_jesd_reset_n(0,0x0)
-            self.set_jesd_reset_n(0,0x1)
+            self.set_jesd_reset_n(bay,0,0x0)
+            self.set_jesd_reset_n(bay,0,0x1)
 
             #3. Toggle AMCcc:FpgaTopLevel:AppTop:AppCore:MicrowaveMuxCore[0]:DAC[1]:JesdRstN 0x1 -> 0x0 -> 0x1
-            self.set_jesd_reset_n(1,0x0)
-            self.set_jesd_reset_n(1,0x1)
+            self.set_jesd_reset_n(bay,1,0x0)
+            self.set_jesd_reset_n(bay,1,0x1)
 
         # probably overkill...shouldn't call this function if you're not going to do anything 
         if (recover_jesd_rx or recover_jesd_tx):
             # powers up the SYSREF which is required to sync fpga and adc/dac jesd
-            self.run_pwr_up_sys_ref()
+            self.run_pwr_up_sys_ref(bay)
 
         # check if Jesds recovered - enable printout
-        (jesd_tx_ok,jesd_rx_ok)=self.check_jesd(silent_if_valid=False)
+        (jesd_tx_ok,jesd_rx_ok)=self.check_jesd(bay,silent_if_valid=False)
                 
         # raise exception if failed to recover
         if (jesd_rx_ok and jesd_tx_ok):
@@ -1001,7 +1001,7 @@ class SmurfUtilMixin(SmurfBase):
         return jesd_decorator_function
 
 
-    def check_jesd(self, silent_if_valid=False):
+    def check_jesd(self, bay, silent_if_valid=False):
         """
         Queries the Jesd tx and rx and compares the
         data_valid and enable bits.
@@ -1012,8 +1012,8 @@ class SmurfUtilMixin(SmurfBase):
             anything if things are working.
         """
         # JESD Tx
-        jesd_tx_enable = self.get_jesd_tx_enable()
-        jesd_tx_valid = self.get_jesd_tx_data_valid()
+        jesd_tx_enable = self.get_jesd_tx_enable(bay)
+        jesd_tx_valid = self.get_jesd_tx_data_valid(bay)
         jesd_tx_ok = (jesd_tx_enable==jesd_tx_valid)
         if not jesd_tx_ok:
             self.log("JESD Tx DOWN", self.LOG_ERROR)
@@ -1022,8 +1022,8 @@ class SmurfUtilMixin(SmurfBase):
                 self.log("JESD Tx Okay", self.LOG_USER)
 
         # JESD Rx
-        jesd_rx_enable = self.get_jesd_rx_enable()
-        jesd_rx_valid = self.get_jesd_rx_data_valid()
+        jesd_rx_enable = self.get_jesd_rx_enable(bay)
+        jesd_rx_valid = self.get_jesd_rx_data_valid(bay)
         jesd_rx_ok = (jesd_rx_enable==jesd_rx_valid)        
         if not jesd_rx_ok:
             self.log("JESD Rx DOWN", self.LOG_ERROR)
@@ -1837,6 +1837,9 @@ class SmurfUtilMixin(SmurfBase):
     def band_to_att(self, band):
         """
         """
+        # for now, mod 4 ; assumes the band <-> att correspondence is the same
+        # for the LB and HB AMCs.
+        band=band%4
         return self.att_to_band['att'][np.ravel(
             np.where(self.att_to_band['band']==band))[0]]
 

@@ -171,7 +171,7 @@ class SmurfCommandMixin(SmurfBase):
         self.log('ReadAll sent', self.LOG_INFO)
 
 
-    def run_pwr_up_sys_ref(self,bay=0, **kwargs):
+    def run_pwr_up_sys_ref(self,bay, **kwargs):
         """
         """
         triggerPV=self.sysref.format(bay) + 'LMK:PwrUpSysRef'
@@ -1349,61 +1349,77 @@ class SmurfCommandMixin(SmurfBase):
             self._frequency_error_mhz, **kwargs)
 
 
+    def band_to_bay(self,b):
+        '''
+        Returns the bay index for the band.
+        Assumes LB is plugged into bay 0,  corresponding to bands [0,1,2,3] and that
+        HB is plugged into bay 1, corresponding to bands [4,5,6,7].
+
+        Args:
+        -----
+        b (int): Band number.
+        '''
+        if b in [0,1,2,3]:
+            bay=0
+        elif b in [4,5,6,7]:
+            bay=1
+        else:
+            assert False, 'band supplied to band_to_bay() must be and integer in [0,1,2,3,4,5,6,7] ...'
+        return bay
+
     # Attenuator
     _uc = 'UC[{}]'
-    def set_att_uc(self, b, val, input_band=True, **kwargs):
+    def set_att_uc(self, b, val, **kwargs):
         '''
         Set the upconverter attenuator
 
         Args:
         -----
-        b (int): Either the band or the attenuator number.
+        b (int): The band number.
         val (int): The attenuator value
-
-        Opt Args:
-        ---------
-        input_band (bool): If True, the input is assumed to be the band number.
-            Otherwise the input is assumed to be the attenuator number
         '''
-        if input_band:
-            b = self.band_to_att(b)
-        self._caput(self.att_root + self._uc.format(int(b)), val, **kwargs)
+        att = self.band_to_att(b)
+        bay = self.band_to_bay(b)
+        self._caput(self.att_root.format(int(bay)) + self._uc.format(int(att)), val, **kwargs)
 
-    def get_att_uc(self, b, input_band=True, **kwargs):
+    def get_att_uc(self, b, **kwargs):
         '''
         Get the upconverter attenuator value
+
+        Args:
+        -----
+        b (int): The band number.
         '''
-        if input_band:
-            b = self.band_to_att(b)
-        return self._caget(self.att_root + self._uc.format(int(b)), **kwargs)
+        att = self.band_to_att(b)
+        bay = self.band_to_bay(b)
+        return self._caget(self.att_root.format(int(bay)) + self._uc.format(int(att)), **kwargs)
 
 
     _dc = 'DC[{}]'
-    def set_att_dc(self, b, val, input_band=True, **kwargs):
+    def set_att_dc(self, b, val, **kwargs):
         '''
         Set the down-converter attenuator
 
         Args:
         -----
-        b (int): Either the band or the attenuator number.
+        b (int): The band number.
         val (int): The attenuator value
-
-        Opt Args:
-        ---------
-        input_band (bool): If True, the input is assumed to be the band number.
-            Otherwise the input is assumed to be the attenuator number
         '''
-        if input_band:
-            b = self.band_to_att(b)
-        self._caput(self.att_root + self._dc.format(int(b)), val, **kwargs)
+        att = self.band_to_att(b)
+        bay = self.band_to_bay(b)
+        self._caput(self.att_root.format(int(bay)) + self._dc.format(int(att)), val, **kwargs)
 
-    def get_att_dc(self, b, input_band=True, **kwargs):
+    def get_att_dc(self, b, **kwargs):
         '''
         Get the down-converter attenuator value
+
+        Args:
+        -----
+        b (int): The band number.
         '''
-        if input_band:
-            b = self.band_to_att(b)
-        return self._caget(self.att_root + self._dc.format(int(b)), **kwargs)
+        att = self.band_to_att(b)
+        bay = self.band_to_bay(b)
+        return self._caget(self.att_root.format(int(bay)) + self._dc.format(int(att)), **kwargs)
 
     # ADC commands
     _adc_remap = "Remap[0]"  # Why is this hardcoded 0
@@ -1415,91 +1431,104 @@ class SmurfCommandMixin(SmurfBase):
 
     # DAC commands
     _dac_temp = "Temperature"
-    def get_dac_temp(self, dac, **kwargs):
+    def get_dac_temp(self, bay, dac, **kwargs):
         '''
         Get temperature of the DAC in celsius
+
+        Args:
+        -----
+        bay (int): Which bay [0 or 1].
+        dac (int): Which DAC no. [0 or 1].
         '''
-        return self._caget(self.dac_root.format(dac) + self._dac_temp, **kwargs)
+        return self._caget(self.dac_root.format(bay,dac) + self._dac_temp, **kwargs)
 
     _dac_enable = "enable"
-    def set_dac_enable(self, dac, val, **kwargs):
+    def set_dac_enable(self, bay, dac, val, **kwargs):
         '''
         Enables DAC
-        '''
-        self._caput(self.dac_root.format(dac) + self._dac_enable, val, **kwargs)
 
-    def get_dac_enable(self, dac, **kwargs):
+        Args:
+        -----
+        bay (int): Which bay [0 or 1].
+        dac (int): Which DAC no. [0 or 1].
+        val (int): Value to set the DAC enable register to [0 or 1].
+        '''
+        self._caput(self.dac_root.format(bay,dac) + self._dac_enable, val, **kwargs)
+
+    def get_dac_enable(self, bay, dac, **kwargs):
         '''
         Gets enable status of DAC
+
+        Args:
+        -----
+        bay (int): Which bay [0 or 1].
+        dac (int): Which DAC no. [0 or 1].
         '''
-        return self._caget(self.dac_root.format(dac) + self._dac_enable, **kwargs)
+        return self._caget(self.dac_root.format(bay,dac) + self._dac_enable, **kwargs)
 
     # Jesd commands
     _data_out_mux = 'dataOutMux[{}]'
-    def set_data_out_mux(self, b, val, **kwargs):
+    def set_data_out_mux(self, bay, b, val, **kwargs):
         '''
         '''
-        self._caput(self.jesd_tx_root + 
+        self._caput(self.jesd_tx_root.format(int(bay)) + 
             self._data_out_mux.format(b), val, **kwargs)
 
-    def get_data_out_mux(self, b, **kwargs):
+    def get_data_out_mux(self, bay, b, **kwargs):
         '''
         '''
-        return self._caget(self.jesd_tx_root + self._data_out_mux.format(b), 
+        return self._caget(self.jesd_tx_root.format(int(bay)) + self._data_out_mux.format(b), 
             val, **kwargs)
 
     # Jesd DAC commands
     _jesd_reset_n = "JesdRstN"
-    def set_jesd_reset_n(self, dac, val, **kwargs):
-        self._caput(self.dac_root.format(dac) + self._jesd_reset_n, val, **kwargs)
+    def set_jesd_reset_n(self, bay, dac, val, **kwargs):
+        '''
+        Set DAC JesdRstN
+
+        Args:
+        -----
+        bay (int): Which bay [0 or 1].
+        dac (int): Which DAC no. [0 or 1].
+        val (int): Value to set JesdRstN to [0 or 1].
+        '''
+        self._caput(self.dac_root.format(bay,dac) + self._jesd_reset_n, val, **kwargs)
 
     _jesd_rx_enable = 'Enable'
-    def get_jesd_rx_enable(self, **kwargs):
-        return self._caget(self.jesd_rx_root + self._jesd_rx_enable, **kwargs)
+    def get_jesd_rx_enable(self, bay, **kwargs):
+        return self._caget(self.jesd_rx_root.format(int(bay)) + self._jesd_rx_enable, **kwargs)
 
-    def set_jesd_rx_enable(self, val, **kwargs):
-        self._caput(self.jesd_rx_root + self._jesd_rx_enable, val, **kwargs)
+    def set_jesd_rx_enable(self, bay, val, **kwargs):
+        self._caput(self.jesd_rx_root.format(int(bay)) + self._jesd_rx_enable, val, **kwargs)
 
     _jesd_rx_data_valid = 'DataValid'
-    def get_jesd_rx_data_valid(self, **kwargs):
-        return self._caget(self.jesd_rx_root + self._jesd_rx_data_valid, **kwargs)
+    def get_jesd_rx_data_valid(self, bay, **kwargs):
+        return self._caget(self.jesd_rx_root.format(int(bay)) + self._jesd_rx_data_valid, **kwargs)
 
     _link_disable = 'LINK_DISABLE'
-    def set_jesd_link_disable(self, val, **kwargs):
+    def set_jesd_link_disable(self, bay, val, **kwargs):
         '''
         Disables jesd link
         '''
-        self._caput(self.jesd_rx_root + self._link_disable, val, **kwargs)
+        self._caput(self.jesd_rx_root.format(int(bay)) + self._link_disable, val, **kwargs)
 
-    def get_jesd_link_disable(self, **kwargs):
+    def get_jesd_link_disable(self, bay, **kwargs):
         '''
         Disables jesd link
         '''
-        return self._caget(self.jesd_rx_root + self._link_disable, val, 
+        return self._caget(self.jesd_rx_root.format(int(bay)) + self._link_disable, val, 
             **kwargs)
 
-    _jesd_rx_enable = 'Enable'
-    def get_jesd_rx_enable(self, **kwargs):
-        """
-        """
-        return self._caget(self.jesd_rx_root + self._jesd_rx_enable, **kwargs)
-
-    _jesd_rx_valid = 'DataValid'
-    def get_jesd_rx_data_valid(self, **kwargs):
-        """
-        """
-        return self._caget(self.jesd_rx_root + self._jesd_rx_valid, **kwargs)
-
     _jesd_tx_enable = 'Enable'
-    def get_jesd_tx_enable(self, **kwargs):
-        return self._caget(self.jesd_tx_root + self._jesd_tx_enable, **kwargs)
+    def get_jesd_tx_enable(self, bay, **kwargs):
+        return self._caget(self.jesd_tx_root.format(int(bay)) + self._jesd_tx_enable, **kwargs)
 
-    def set_jesd_tx_enable(self, val, **kwargs):
-        self._caput(self.jesd_tx_root + self._jesd_tx_enable, val, **kwargs)
+    def set_jesd_tx_enable(self, bay, val, **kwargs):
+        self._caput(self.jesd_tx_root.format(int(bay)) + self._jesd_tx_enable, val, **kwargs)
 
     _jesd_tx_data_valid = 'DataValid'
-    def get_jesd_tx_data_valid(self, **kwargs):
-        return self._caget(self.jesd_tx_root + self._jesd_tx_data_valid, **kwargs)
+    def get_jesd_tx_data_valid(self, bay, **kwargs):
+        return self._caget(self.jesd_tx_root.format(int(bay)) + self._jesd_tx_data_valid, **kwargs)
 
     # _start_addr = 'StartAddr[{}]'
     # def set_start_addr(self, b, val, **kwargs):
@@ -2799,16 +2828,27 @@ class SmurfCommandMixin(SmurfBase):
 
 
     _dac_reset = 'dacReset[{}]'
-    def set_dac_reset(self, dac, val, **kwargs):
+    def set_dac_reset(self, bay, dac, val, **kwargs):
         """
         Toggles the physical reset line to DAC. Set to 1 then 0
+
+        Args:
+        -----
+        bay (int): Which bay [0 or 1].
+        dac (int): Which DAC no. [0 or 1].
         """
-        self._caput(self.DBG + self._dac_reset.format(dac), val,
+        self._caput(self.DBG.format(bay) + self._dac_reset.format(dac), val,
                     **kwargs)
 
-    def get_dac_reset(self, dac, **kwargs):
+    def get_dac_reset(self, bay, dac, **kwargs):
         """
+        Reads the physical reset DAC register.  Will be either 0 or 1.
+
+        Args:
+        -----
+        bay (int): Which bay [0 or 1].
+        dac (int): Which DAC no. [0 or 1].
         """
-        return self._caget(self.DBG + self._dac_reset.format(dac),
+        return self._caget(self.DBG.format(bay) + self._dac_reset.format(dac),
                            val, **kwargs)
         
