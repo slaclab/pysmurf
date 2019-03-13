@@ -802,7 +802,8 @@ class SmurfTuneMixin(SmurfBase):
 
         resp = np.zeros((int(n_scan), int(n_samples/2)), dtype=complex)
         for n in np.arange(n_scan):
-            self.set_trigger_hw_arm(0, write_log=True)  # Default setup sets to 1
+            bay=self.band_to_bay(band)
+            self.set_trigger_hw_arm(bay, 0, write_log=True)  # Default setup sets to 1
 
             self.set_noise_select(band, 1, wait_done=True, write_log=True)
             try:

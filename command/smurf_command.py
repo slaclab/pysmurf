@@ -1579,27 +1579,27 @@ class SmurfCommandMixin(SmurfBase):
     def set_input_mux_sel(self, b, val, **kwargs):
         """
         """
-        self._caput(self.daq_mux_root + self._input_mux_sel.format(b), val,
+        self._caput(self.daq_mux_root.format(int(self.band_to_bay(b))) + self._input_mux_sel.format(b), val,
             **kwargs)
 
     def get_input_mux_sel(self, b, **kwargs):
         """
         """
-        self._caget(self.daq_mux_root + self._input_mux_sel.format(b), 
+        self._caget(self.daq_mux_root.format(int(self.band_to_bay(b))) + self._input_mux_sel.format(b), 
             **kwargs)
 
     _data_buffer_size = 'DataBufferSize'
-    def set_data_buffer_size(self, val, **kwargs):
+    def set_data_buffer_size(self, bay, val, **kwargs):
         """
         Sets the data buffer size for the DAQx
         """
-        self._caput(self.daq_mux_root + self._data_buffer_size, val, **kwargs)
+        self._caput(self.daq_mux_root.format(bay) + self._data_buffer_size, val, **kwargs)
 
-    def get_data_buffer_size(self, **kwargs):
+    def get_data_buffer_size(self, bay, **kwargs):
         """
         Gets the data buffer size for the DAQs
         """
-        return self._caget(self.daq_mux_root + self._data_buffer_size, 
+        return self._caget(self.daq_mux_root.format(bay) + self._data_buffer_size, 
             **kwargs)
 
     # Waveform engine commands
@@ -1609,8 +1609,8 @@ class SmurfCommandMixin(SmurfBase):
         """
         if convert:
             val = self.int_to_hex_string(val)
-        self._caput(self.waveform_engine_buffers_root + 
-            self._start_addr.format(b), val, **kwargs)
+        self._caput(self.waveform_engine_buffers_root.format(int(self.band_to_bay(b))) + 
+            self._start_addr.format(b%4), val, **kwargs)
 
     def get_waveform_start_addr(self, b, convert=True, **kwargs):
         """
@@ -1620,8 +1620,9 @@ class SmurfCommandMixin(SmurfBase):
         convert (bool) : Convert the output from a string of hex values to an
             int. Default (True)
         """
-        val = self._caget(self.waveform_engine_buffers_root + 
-            self._start_addr.format(b), **kwargs)
+
+        val = self._caget(self.waveform_engine_buffers_root.format(int(self.band_to_bay(b))) + 
+                          self._start_addr.format(b%4), **kwargs)
         if convert:
             return self.hex_string_to_int(val)
         else:
@@ -1638,14 +1639,14 @@ class SmurfCommandMixin(SmurfBase):
         """
         if convert:
             val = self.int_to_hex_string(val)
-        self._caput(self.waveform_engine_buffers_root + 
-            self._end_addr.format(b), val, **kwargs)
+        self._caput(self.waveform_engine_buffers_root.format(int(self.band_to_bay(b))) + 
+            self._end_addr.format(b%4), val, **kwargs)
 
     def get_waveform_end_addr(self, b, convert=True, **kwargs):
         """
         """
-        val = self._caget(self.waveform_engine_buffers_root + 
-            self._end_addr.format(b), **kwargs)
+        val = self._caget(self.waveform_engine_buffers_root.format(int(self.band_to_bay(b))) + 
+            self._end_addr.format(b%4), **kwargs)
         if convert:
             return self.hex_string_to_int(val)
         else:
@@ -1657,14 +1658,14 @@ class SmurfCommandMixin(SmurfBase):
         """
         if convert:
             val = self.int_to_hex_string(val)
-        self._caput(self.waveform_engine_buffers_root + 
-            self._wr_addr.formmat(b), val, **kwargs)
+        self._caput(self.waveform_engine_buffers_root.format(int(self.band_to_bay(b))) + 
+            self._wr_addr.formmat(b%4), val, **kwargs)
 
     def get_waveform_wr_addr(self, b, convert=True, **kwargs):
         """
         """
-        val = self._caget(self.waveform_engine_buffers_root + 
-            self._wr_addr.format(b), **kwargs)
+        val = self._caget(self.waveform_engine_buffers_root.format(int(self.band_to_bay(b))) + 
+            self._wr_addr.format(b%4), **kwargs)
         if convert:
             return self.hex_string_to_int(val)
         else:
@@ -1674,14 +1675,14 @@ class SmurfCommandMixin(SmurfBase):
     def set_waveform_empty(self, b, val, **kwargs):
         """
         """
-        self._caput(self.waveform_engine_buffers_root + 
-            self._empty.format(b), **kwargs)
+        self._caput(self.waveform_engine_buffers_root.format(int(self.band_to_bay(b))) + 
+            self._empty.format(b%4), **kwargs)
 
     def get_waveform_empty(self, b, **kwargs):
         """
         """
-        return self._caget(self.waveform_engine_buffers_root + 
-            self._empty.format(b), **kwargs)
+        return self._caget(self.waveform_engine_buffers_root.format(int(self.band_to_bay(b))) + 
+            self._empty.format(b%4), **kwargs)
 
     _data_file = 'dataFile'
     def set_streamdatawriter_datafile(self, val, **kwargs):
@@ -1711,34 +1712,34 @@ class SmurfCommandMixin(SmurfBase):
 
 
     _trigger_daq = 'TriggerDaq'
-    def set_trigger_daq(self, val, **kwargs):
+    def set_trigger_daq(self, bay, val, **kwargs):
         """
         """
-        self._caput(self.daq_mux_root + self._trigger_daq, val, 
+        self._caput(self.daq_mux_root.format(bay) + self._trigger_daq, val, 
             **kwargs)
 
-    def get_trigger_daq(self, **kwargs):
+    def get_trigger_daq(self, bay, **kwargs):
         """
         """
-        self._caget(self.daq_mux_root + self._trigger_daq, 
+        self._caget(self.daq_mux_root.format(bay) + self._trigger_daq, 
             **kwargs)
 
     _arm_hw_trigger = "ArmHwTrigger"
-    def set_arm_hw_trigger(self, val, **kwargs):
+    def set_arm_hw_trigger(self, bay, val, **kwargs):
         """
         """
-        self._caput(self.daq_mux_root + self._arm_hw_trigger, val, **kwargs)
+        self._caput(self.daq_mux_root.format(bay) + self._arm_hw_trigger, val, **kwargs)
 
     _trigger_hw_arm = 'TriggerHwArm'
-    def set_trigger_hw_arm(self, val, **kwargs):
+    def set_trigger_hw_arm(self, bay, val, **kwargs):
         """
         """
-        self._caput(self.daq_mux_root + self._trigger_hw_arm, val, **kwargs)
+        self._caput(self.daq_mux_root.format(bay) + self._trigger_hw_arm, val, **kwargs)
 
-    def get_trigger_hw_arm(self, **kwargs):
+    def get_trigger_hw_arm(self, bay, **kwargs):
         """
         """
-        return self._caget(self.daq_mux_root + self._trigger_hw_arm, **kwargs)
+        return self._caget(self.daq_mux_root.format(bay) + self._trigger_hw_arm, **kwargs)
 
     # rtm commands
     _reset_rtm = 'resetRtm'
