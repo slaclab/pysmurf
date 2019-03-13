@@ -155,10 +155,9 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
         self.channel_assignment_files = {}
         if not no_dir:
             for b in self.config.get('init').get('bands'):
-                continue
-                #self.channel_assignment_files['band_{}'.format(b)] = \
-                #    np.sort(glob.glob(os.path.join(self.tune_dir, 
-                #            '*channel_assignment_b{}.txt'.format(b))))[-1]
+                self.channel_assignment_files['band_{}'.format(b)] = \
+                    np.sort(glob.glob(os.path.join(self.tune_dir, 
+                            '*channel_assignment_b{}.txt'.format(b))))[-1]
 
         # bias groups available
         self.all_groups = self.config.get('all_bias_groups')
@@ -249,6 +248,10 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
         smurf_init_config = self.config.get('init')
         bands = smurf_init_config['bands']
 
+        # determine which bays to configure from the 
+        # bands requested and the band-to-bay 
+        # correspondence
+        self.bays=np.unique([self.band_to_bay(band) for band in bands])
         # Right now, resetting both DACs in both MicrowaveMuxCore blocks,
         # but may want to determine at runtime which are actually needed and
         # only reset the DAC in those.
