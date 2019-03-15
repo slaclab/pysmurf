@@ -12,8 +12,8 @@ print(hdr.rstrip())
 
 while True:
 
-    dac0_temp=-1#S.get_dac_temp(0)
-    dac1_temp=-1#S.get_dac_temp(1)
+    dac0_temp=S.get_dac_temp(0,0)
+    dac1_temp=S.get_dac_temp(0,1)
 
     ctime=S.get_timestamp()
 
