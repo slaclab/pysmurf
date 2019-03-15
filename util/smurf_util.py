@@ -19,24 +19,24 @@ class SmurfUtilMixin(SmurfBase):
         # Set proper single channel readout
         if channel is not None:
             if single_channel_readout == 1:
-                self.set_single_channel_readout(band, 1)
-                self.set_single_channel_readout_opt2(band, 0)
+                self.set_single_channel_readout(band, 1, write_log=True)
+                self.set_single_channel_readout_opt2(band, 0, write_log=True)
             elif single_channel_readout == 2:
-                self.set_single_channel_readout(band, 0)
-                self.set_single_channel_readout_opt2(band, 1)
+                self.set_single_channel_readout(band, 0, write_log=True)
+                self.set_single_channel_readout_opt2(band, 1, write_log=True)
             else:
                 self.log('single_channel_readout must be 1 or 2', 
                     self.LOG_ERROR)
                 raise ValueError('single_channel_readout must be 1 or 2')
         else: # exit single channel otherwise
-            self.set_single_channel_readout(band, 0)
-            self.set_single_channel_readout_opt2(band, 0)
+            self.set_single_channel_readout(band, 0, write_log=True)
+            self.set_single_channel_readout_opt2(band, 0, write_log=True)
 
         # Set IQstream
         if IQstream==1:
-            self.set_iq_stream_enable(band, 1)
+            self.set_iq_stream_enable(band, 1, write_log=True)
         else:
-            self.set_iq_stream_enable(band, 0)
+            self.set_iq_stream_enable(band, 0, write_log=True)
 
         # set filename
         if filename is not None:
@@ -62,7 +62,8 @@ class SmurfUtilMixin(SmurfBase):
 
         self.set_streamdatawriter_open('True') # str and not bool
 
-        self.set_trigger_daq(1, write_log=True) # this seems to = TriggerDM
+        bay=self.band_to_bay(band)
+        self.set_trigger_daq(bay, 1, write_log=True) # this seems to = TriggerDM
 
         end_addr = self.get_waveform_end_addr(0) # not sure why this is 0
 
@@ -224,6 +225,11 @@ class SmurfUtilMixin(SmurfBase):
             header = np.fliplr(header)
             data = np.fliplr(data)
 
+        # This is totally a hack... Please fix me. EY
+        #if len(data)%512 == 2:
+        #    data = data[4098:,:]
+        #    self.log('STUPID HACK')
+
         return header, data
 
     def decode_data(self, filename, swapFdF=False):
@@ -263,6 +269,7 @@ class SmurfUtilMixin(SmurfBase):
         ch0_idx = np.where(ch0_strobe[:,0] == 1)[0]
         f_first = ch0_idx[0]
         f_last = ch0_idx[-1]
+
         freqs = data[f_first:f_last, 0]
         neg = np.where(freqs >= 2**23)[0]
         f = np.double(freqs)
@@ -288,6 +295,8 @@ class SmurfUtilMixin(SmurfBase):
             if len(neg) > 0:
                 df[neg] = df[neg] - 2**24
 
+            print(np.shape(df))
+            print(np.remainder(len(df), 512))
             if np.remainder(len(df), 512) == 0:
                 df = np.reshape(df, (-1, 512)) * subband_halfwidth_MHz / 2**23
             else:
@@ -714,9 +723,9 @@ class SmurfUtilMixin(SmurfBase):
 
         # trigger PV
         if not hw_trigger:
-            self.set_trigger_daq(1, write_log=True)
+            self.set_trigger_daq(bay, 1, write_log=True)
         else:
-            self.set_arm_hw_trigger(1, write_log=True)
+            self.set_arm_hw_trigger(bay, 1, write_log=True)
 
         time.sleep(.1)
         sg.wait()
@@ -783,6 +792,9 @@ class SmurfUtilMixin(SmurfBase):
         data_length (int) : The amount of data to take.
         band (int): which band to get data on
         """
+
+        bay=self.band_to_bay(band)
+
         if converter.lower() == 'adc':
             daq_mux_channel0 = (converter_number + 1)*2
             daq_mux_channel1 = daq_mux_channel0 + 1
@@ -802,14 +814,14 @@ class SmurfUtilMixin(SmurfBase):
 
 
         # setup buffer size
-        self.set_buffer_size(data_length)
+        self.set_buffer_size(bay, data_length)
 
         # input mux select
-        self.set_input_mux_sel(0, daq_mux_channel0, write_log=False)
-        self.set_input_mux_sel(1, daq_mux_channel1, write_log=False)
+        self.set_input_mux_sel(0, daq_mux_channel0, write_log=True)
+        self.set_input_mux_sel(1, daq_mux_channel1, write_log=True)
 
 
-    def set_buffer_size(self, size):
+    def set_buffer_size(self, bay, size):
         """
         Sets the buffer size for reading and writing DAQs
 
@@ -820,13 +832,13 @@ class SmurfUtilMixin(SmurfBase):
         # Change DAQ data buffer size
 
         # Change waveform engine buffer size
-        self.set_data_buffer_size(size, write_log=False)
+        self.set_data_buffer_size(bay, size, write_log=True)
         for daq_num in np.arange(4):
             s = self.get_waveform_start_addr(daq_num, convert=True, 
-                write_log=False)
+                write_log=True)
             e = s + 4*size
             self.set_waveform_end_addr(daq_num, e, convert=True, 
-                write_log=False)
+                write_log=True)
             #self.log('DAQ number {}: start {} - end {}'.format(daq_num, s, e))
 
     def config_cryo_channel(self, band, channel, frequencyMHz, amplitude, 
@@ -1189,7 +1201,7 @@ class SmurfUtilMixin(SmurfBase):
             raise ValueError('channel number is less than zero!')
 
         chanOrder = self.get_channel_order(channelorderfile)
-        idx = chanOrder.index(channel)
+        idx = np.where(chanOrder == channel)[0]
 
         subband = idx // n_chanpersubband
         return int(subband)
