@@ -1563,9 +1563,20 @@ class SmurfCommandMixin(SmurfBase):
     def get_fpga_git_hash(self, **kwargs):
         '''
         Returns:
-        git_hash (str) : The git has of the FPGA
+        git_hash (str) : The git hash of the FPGA
         '''
-        return self._caget(self.axi_version + self._fpga_git_hash, **kwargs)
+        gitHash=self._caget(self.axi_version + self._fpga_git_hash, **kwargs)
+        return ''.join([str(s, encoding='UTF-8') for s in gitHash])
+
+    _fpga_git_hash_short = 'GitHashShort'
+    def get_fpga_git_hash_short(self, **kwargs):
+        '''
+        Returns:
+        git_hash_short (str) : The short git hash of the FPGA
+        '''
+        gitHashShort=self._caget(self.axi_version + self._fpga_git_hash_short, **kwargs)
+        return ''.join([str(s, encoding='UTF-8') for s in gitHashShort])
+
 
     _fpga_build_stamp = 'BuildStamp'
     def get_fpga_build_stamp(self, **kwargs):
