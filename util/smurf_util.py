@@ -802,10 +802,10 @@ class SmurfUtilMixin(SmurfBase):
             daq_mux_channel0 = (converter_number + 1)*2 + 10
             daq_mux_channel1 = daq_mux_channel0 + 1
         else:
-            if band==2:
+            if band in [2,6]:
                 daq_mux_channel0 = 22 # these come from the mysterious mind of Steve
                 daq_mux_channel1 = 23
-            elif band==3:
+            elif band in [3,7]:
                 daq_mux_channel0 = 24
                 daq_mux_channel1 = 25
             else:
