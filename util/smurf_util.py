@@ -51,8 +51,6 @@ class SmurfUtilMixin(SmurfBase):
 
         dtype = 'debug'
         dchannel = 0 # I don't really know what this means and I'm sorry -CY
-        #self.log('Waiting %d sec before acquisition...'%(wait_before_acq), self.LOG_USER)
-        #time.sleep(wait_before_acq)
         self.setup_daq_mux(dtype, dchannel, nsamp, band=band, debug=debug)
         self.log('Data acquisition in progress...', self.LOG_USER)
         char_array = [ord(c) for c in data_filename] # convert to ascii
@@ -75,7 +73,7 @@ class SmurfUtilMixin(SmurfBase):
         while not done:
             done=True
             for k in range(4):
-                wr_addr = self.get_waveform_wr_addr(bay, engine=0) # why engine=0 here?
+                wr_addr = self.get_waveform_wr_addr(bay, engine=0)
                 empty = self.get_waveform_empty(bay, engine=k)
                 if not empty:
                     done=False
@@ -831,12 +829,13 @@ class SmurfUtilMixin(SmurfBase):
         # Change waveform engine buffer size
         self.set_data_buffer_size(bay, size, write_log=True)
         for daq_num in np.arange(4):
-            s = self.get_waveform_start_addr(bay, daq_num, convert=debug, 
-                write_log=True)
+            s = self.get_waveform_start_addr(bay, daq_num, convert=True, 
+                write_log=debug)
             e = s + 4*size
-            self.set_waveform_end_addr(bay, daq_num, e, convert=debug, 
-                write_log=True)
-            #self.log('DAQ number {}: start {} - end {}'.format(daq_num, s, e))
+            self.set_waveform_end_addr(bay, daq_num, e, convert=True, 
+                write_log=debug)
+            if debug:
+                self.log('DAQ number {}: start {} - end {}'.format(daq_num, s, e))
 
     def config_cryo_channel(self, band, channel, frequencyMHz, amplitude, 
         feedback_enable, eta_phase, eta_mag):
