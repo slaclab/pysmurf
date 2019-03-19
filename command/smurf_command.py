@@ -1380,7 +1380,7 @@ class SmurfCommandMixin(SmurfBase):
         '''
         att = self.band_to_att(b)
         bay = self.band_to_bay(b)
-        self._caput(self.att_root.format(int(bay)) + self._uc.format(int(att)), val, **kwargs)
+        self._caput(self.att_root.format(bay) + self._uc.format(int(att)), val, **kwargs)
 
     def get_att_uc(self, b, **kwargs):
         '''
@@ -1392,7 +1392,7 @@ class SmurfCommandMixin(SmurfBase):
         '''
         att = self.band_to_att(b)
         bay = self.band_to_bay(b)
-        return self._caget(self.att_root.format(int(bay)) + self._uc.format(int(att)), **kwargs)
+        return self._caget(self.att_root.format(bay) + self._uc.format(int(att)), **kwargs)
 
 
     _dc = 'DC[{}]'
@@ -1407,7 +1407,7 @@ class SmurfCommandMixin(SmurfBase):
         '''
         att = self.band_to_att(b)
         bay = self.band_to_bay(b)
-        self._caput(self.att_root.format(int(bay)) + self._dc.format(int(att)), val, **kwargs)
+        self._caput(self.att_root.format(bay) + self._dc.format(int(att)), val, **kwargs)
 
     def get_att_dc(self, b, **kwargs):
         '''
@@ -1419,7 +1419,7 @@ class SmurfCommandMixin(SmurfBase):
         '''
         att = self.band_to_att(b)
         bay = self.band_to_bay(b)
-        return self._caget(self.att_root.format(int(bay)) + self._dc.format(int(att)), **kwargs)
+        return self._caget(self.att_root.format(bay) + self._dc.format(int(att)), **kwargs)
 
     # ADC commands
     _adc_remap = "Remap[0]"  # Why is this hardcoded 0
@@ -1471,13 +1471,13 @@ class SmurfCommandMixin(SmurfBase):
     def set_data_out_mux(self, bay, b, val, **kwargs):
         '''
         '''
-        self._caput(self.jesd_tx_root.format(int(bay)) + 
+        self._caput(self.jesd_tx_root.format(bay) + 
             self._data_out_mux.format(b), val, **kwargs)
 
     def get_data_out_mux(self, bay, b, **kwargs):
         '''
         '''
-        return self._caget(self.jesd_tx_root.format(int(bay)) + self._data_out_mux.format(b), 
+        return self._caget(self.jesd_tx_root.format(bay) + self._data_out_mux.format(b), 
             val, **kwargs)
 
     # Jesd DAC commands
@@ -1496,52 +1496,39 @@ class SmurfCommandMixin(SmurfBase):
 
     _jesd_rx_enable = 'Enable'
     def get_jesd_rx_enable(self, bay, **kwargs):
-        return self._caget(self.jesd_rx_root.format(int(bay)) + self._jesd_rx_enable, **kwargs)
+        return self._caget(self.jesd_rx_root.format(bay) + self._jesd_rx_enable, **kwargs)
 
     def set_jesd_rx_enable(self, bay, val, **kwargs):
-        self._caput(self.jesd_rx_root.format(int(bay)) + self._jesd_rx_enable, val, **kwargs)
+        self._caput(self.jesd_rx_root.format(bay) + self._jesd_rx_enable, val, **kwargs)
 
     _jesd_rx_data_valid = 'DataValid'
     def get_jesd_rx_data_valid(self, bay, **kwargs):
-        return self._caget(self.jesd_rx_root.format(int(bay)) + self._jesd_rx_data_valid, **kwargs)
+        return self._caget(self.jesd_rx_root.format(bay) + self._jesd_rx_data_valid, **kwargs)
 
     _link_disable = 'LINK_DISABLE'
     def set_jesd_link_disable(self, bay, val, **kwargs):
         '''
         Disables jesd link
         '''
-        self._caput(self.jesd_rx_root.format(int(bay)) + self._link_disable, val, **kwargs)
+        self._caput(self.jesd_rx_root.format(bay) + self._link_disable, val, **kwargs)
 
     def get_jesd_link_disable(self, bay, **kwargs):
         '''
         Disables jesd link
         '''
-        return self._caget(self.jesd_rx_root.format(int(bay)) + self._link_disable, val, 
+        return self._caget(self.jesd_rx_root.format(bay) + self._link_disable, val, 
             **kwargs)
 
     _jesd_tx_enable = 'Enable'
     def get_jesd_tx_enable(self, bay, **kwargs):
-        return self._caget(self.jesd_tx_root.format(int(bay)) + self._jesd_tx_enable, **kwargs)
+        return self._caget(self.jesd_tx_root.format(bay) + self._jesd_tx_enable, **kwargs)
 
     def set_jesd_tx_enable(self, bay, val, **kwargs):
-        self._caput(self.jesd_tx_root.format(int(bay)) + self._jesd_tx_enable, val, **kwargs)
+        self._caput(self.jesd_tx_root.format(bay) + self._jesd_tx_enable, val, **kwargs)
 
     _jesd_tx_data_valid = 'DataValid'
     def get_jesd_tx_data_valid(self, bay, **kwargs):
-        return self._caget(self.jesd_tx_root.format(int(bay)) + self._jesd_tx_data_valid, **kwargs)
-
-    # _start_addr = 'StartAddr[{}]'
-    # def set_start_addr(self, b, val, **kwargs):
-    #     """
-    #     """
-    #     self._caput(self.waveform_engine_buffers_root + \
-    #         self._start_addr.format(b), val, **kwargs)
-
-    # def get_start_addr(self, val, **kwargs):
-    #     """
-    #     """
-    #     return self._caget(self.waveform_engine_buffers_root + \
-    #         self._start_addr.format(b), **kwargs)
+        return self._caget(self.jesd_tx_root.format(bay) + self._jesd_tx_data_valid, **kwargs)
 
     _fpga_uptime = 'UpTimeCnt'
     def get_fpga_uptime(self, **kwargs):
@@ -1587,16 +1574,16 @@ class SmurfCommandMixin(SmurfBase):
         return self._caget(self.axi_version + self._fpga_build_stamp, **kwargs)
 
     _input_mux_sel = 'InputMuxSel[{}]'
-    def set_input_mux_sel(self, b, val, **kwargs):
+    def set_input_mux_sel(self, bay, lane, val, **kwargs):
         """
         """
-        self._caput(self.daq_mux_root.format(int(self.band_to_bay(b))) + self._input_mux_sel.format(b), val,
+        self._caput(self.daq_mux_root.format(bay) + self._input_mux_sel.format(lane), val,
             **kwargs)
 
-    def get_input_mux_sel(self, b, **kwargs):
+    def get_input_mux_sel(self, bay, lane, **kwargs):
         """
         """
-        self._caget(self.daq_mux_root.format(int(self.band_to_bay(b))) + self._input_mux_sel.format(b), 
+        self._caget(self.daq_mux_root.format(bay) + self._input_mux_sel.format(lane), 
             **kwargs)
 
     _data_buffer_size = 'DataBufferSize'
@@ -1615,85 +1602,125 @@ class SmurfCommandMixin(SmurfBase):
 
     # Waveform engine commands
     _start_addr = 'StartAddr[{}]'
-    def set_waveform_start_addr(self, b, val, convert=True, **kwargs):
+    def set_waveform_start_addr(self, bay, engine, val, convert=True, **kwargs):
         """
-        """
-        if convert:
-            val = self.int_to_hex_string(val)
-        self._caput(self.waveform_engine_buffers_root.format(int(self.band_to_bay(b))) + 
-            self._start_addr.format(b%4), val, **kwargs)
-
-    def get_waveform_start_addr(self, b, convert=True, **kwargs):
-        """
+        bay=Which bay.
+        engine=Which waveform engine.
+        val=What value to set.
 
         Optional Arg:
         -------------
         convert (bool) : Convert the output from a string of hex values to an
             int. Default (True)
         """
+        if convert:
+            val = self.int_to_hex_string(val)
+        self._caput(self.waveform_engine_buffers_root.format(bay) + 
+            self._start_addr.format(engine), val, **kwargs)
 
-        val = self._caget(self.waveform_engine_buffers_root.format(int(self.band_to_bay(b))) + 
-                          self._start_addr.format(b%4), **kwargs)
+    def get_waveform_start_addr(self, bay, engine, convert=True, **kwargs):
+        """
+        bay=Which bay.
+        engine=Which waveform engine.
+
+        Optional Arg:
+        -------------
+        convert (bool) : Convert the output from a string of hex values to an
+            int. Default (True)
+        """
+        
+        val = self._caget(self.waveform_engine_buffers_root.format(bay) + 
+                          self._start_addr.format(engine), **kwargs)
         if convert:
             return self.hex_string_to_int(val)
         else:
             return val
 
     _end_addr = 'EndAddr[{}]'
-    def set_waveform_end_addr(self, b, val, convert=True, **kwargs):
+    def set_waveform_end_addr(self, bay, engine, val, convert=True, **kwargs):
         """
+        bay=Which bay.
+        engine=Which waveform engine.
+        val=What value to set.
 
         Optional Arg:
         -------------
-        convert (bool) : Convert the input from an int to a string of hex
-            values. Default (True)
+        convert (bool) : Convert the output from a string of hex values to an
+            int. Default (True)
         """
         if convert:
             val = self.int_to_hex_string(val)
-        self._caput(self.waveform_engine_buffers_root.format(int(self.band_to_bay(b))) + 
-            self._end_addr.format(b%4), val, **kwargs)
+        self._caput(self.waveform_engine_buffers_root.format(bay) + 
+            self._end_addr.format(engine), val, **kwargs)
 
-    def get_waveform_end_addr(self, b, convert=True, **kwargs):
+    def get_waveform_end_addr(self, bay, engine, convert=True, **kwargs):
         """
+        bay=Which bay.
+        engine=Which waveform engine.
+
+        Optional Arg:
+        -------------
+        convert (bool) : Convert the output from a string of hex values to an
+            int. Default (True)
         """
-        val = self._caget(self.waveform_engine_buffers_root.format(int(self.band_to_bay(b))) + 
-            self._end_addr.format(b%4), **kwargs)
+        val = self._caget(self.waveform_engine_buffers_root.format(bay) + 
+            self._end_addr.format(engine), **kwargs)
         if convert:
             return self.hex_string_to_int(val)
         else:
             return val
     
     _wr_addr = 'WrAddr[{}]'
-    def set_waveform_wr_addr(self, b, val, convert=True, **kwargs):
+    def set_waveform_wr_addr(self, bay, engine, val, convert=True, **kwargs):
         """
+        bay=Which bay.
+        engine=Which waveform engine.
+        val=What val to set.
+
+        Optional Arg:
+        -------------
+        convert (bool) : Convert the output from a string of hex values to an
+            int. Default (True)
         """
         if convert:
             val = self.int_to_hex_string(val)
-        self._caput(self.waveform_engine_buffers_root.format(int(self.band_to_bay(b))) + 
-            self._wr_addr.formmat(b%4), val, **kwargs)
+        self._caput(self.waveform_engine_buffers_root.format(bay) + 
+            self._wr_addr.format(engine), val, **kwargs)
 
-    def get_waveform_wr_addr(self, b, convert=True, **kwargs):
+    def get_waveform_wr_addr(self, bay, engine, convert=True, **kwargs):
         """
+        bay=Which bay.
+        engine=Which waveform engine.
+
+        Optional Arg:
+        -------------
+        convert (bool) : Convert the output from a string of hex values to an
+            int. Default (True)
         """
-        val = self._caget(self.waveform_engine_buffers_root.format(int(self.band_to_bay(b))) + 
-            self._wr_addr.format(b%4), **kwargs)
+        val = self._caget(self.waveform_engine_buffers_root.format(bay) + 
+            self._wr_addr.format(engine), **kwargs)
         if convert:
             return self.hex_string_to_int(val)
         else:
             return val
 
     _empty = 'Empty[{}]'
-    def set_waveform_empty(self, b, val, **kwargs):
+    def set_waveform_empty(self, bay, engine, val, **kwargs):
         """
+        bay=Which bay.
+        engine=Which waveform engine.
+        val=What value to set.
         """
-        self._caput(self.waveform_engine_buffers_root.format(int(self.band_to_bay(b))) + 
-            self._empty.format(b%4), **kwargs)
+        self._caput(self.waveform_engine_buffers_root.format(bay) + 
+            self._empty.format(engine), **kwargs)
 
-    def get_waveform_empty(self, b, **kwargs):
+    def get_waveform_empty(self, bay, engine, **kwargs):
         """
+        bay=Which bay.
+        engine=Which waveform engine.
         """
-        return self._caget(self.waveform_engine_buffers_root.format(int(self.band_to_bay(b))) + 
-            self._empty.format(b%4), **kwargs)
+        return self._caget(self.waveform_engine_buffers_root.format(bay) + 
+            self._empty.format(engine), **kwargs)
 
     _data_file = 'dataFile'
     def set_streamdatawriter_datafile(self, val, **kwargs):

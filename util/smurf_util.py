@@ -13,7 +13,7 @@ import glob
 class SmurfUtilMixin(SmurfBase):
 
     def take_debug_data(self, band, channel=None, nsamp=2**19, filename=None, 
-            IQstream=1, single_channel_readout=1):
+            IQstream=1, single_channel_readout=1, debug=False):
         """
         """
         # Set proper single channel readout
@@ -51,7 +51,9 @@ class SmurfUtilMixin(SmurfBase):
 
         dtype = 'debug'
         dchannel = 0 # I don't really know what this means and I'm sorry -CY
-        self.setup_daq_mux(dtype, dchannel, nsamp, band=band)
+        #self.log('Waiting %d sec before acquisition...'%(wait_before_acq), self.LOG_USER)
+        #time.sleep(wait_before_acq)
+        self.setup_daq_mux(dtype, dchannel, nsamp, band=band, debug=debug)
         self.log('Data acquisition in progress...', self.LOG_USER)
         char_array = [ord(c) for c in data_filename] # convert to ascii
         write_data = np.zeros(300, dtype=int)
@@ -65,7 +67,7 @@ class SmurfUtilMixin(SmurfBase):
         bay=self.band_to_bay(band)
         self.set_trigger_daq(bay, 1, write_log=True) # this seems to = TriggerDM
 
-        end_addr = self.get_waveform_end_addr(0) # not sure why this is 0
+        end_addr = self.get_waveform_end_addr(bay, engine=0) # why engine=0 here?
 
         time.sleep(1) # maybe unnecessary
 
@@ -73,8 +75,8 @@ class SmurfUtilMixin(SmurfBase):
         while not done:
             done=True
             for k in range(4):
-                wr_addr = self.get_waveform_wr_addr(0)
-                empty = self.get_waveform_empty(k)
+                wr_addr = self.get_waveform_wr_addr(bay, engine=0) # why engine=0 here?
+                empty = self.get_waveform_empty(bay, engine=k)
                 if not empty:
                     done=False
             time.sleep(1)
@@ -224,11 +226,6 @@ class SmurfUtilMixin(SmurfBase):
         if header[1,1] == 2:
             header = np.fliplr(header)
             data = np.fliplr(data)
-
-        # This is totally a hack... Please fix me. EY
-        #if len(data)%512 == 2:
-        #    data = data[4098:,:]
-        #    self.log('STUPID HACK')
 
         return header, data
 
@@ -780,7 +777,7 @@ class SmurfUtilMixin(SmurfBase):
 
         return dat
 
-    def setup_daq_mux(self, converter, converter_number, data_length, band=0):
+    def setup_daq_mux(self, converter, converter_number, data_length, band=0, debug=False):
         """
         Sets up for either ADC or DAC data taking.
 
@@ -814,14 +811,14 @@ class SmurfUtilMixin(SmurfBase):
 
 
         # setup buffer size
-        self.set_buffer_size(bay, data_length)
+        self.set_buffer_size(bay, data_length, debug)
 
         # input mux select
-        self.set_input_mux_sel(0, daq_mux_channel0, write_log=True)
-        self.set_input_mux_sel(1, daq_mux_channel1, write_log=True)
+        self.set_input_mux_sel(bay, 0, daq_mux_channel0, write_log=True)
+        self.set_input_mux_sel(bay, 1, daq_mux_channel1, write_log=True)
 
 
-    def set_buffer_size(self, bay, size):
+    def set_buffer_size(self, bay, size, debug=False):
         """
         Sets the buffer size for reading and writing DAQs
 
@@ -834,10 +831,10 @@ class SmurfUtilMixin(SmurfBase):
         # Change waveform engine buffer size
         self.set_data_buffer_size(bay, size, write_log=True)
         for daq_num in np.arange(4):
-            s = self.get_waveform_start_addr(daq_num, convert=True, 
+            s = self.get_waveform_start_addr(bay, daq_num, convert=debug, 
                 write_log=True)
             e = s + 4*size
-            self.set_waveform_end_addr(daq_num, e, convert=True, 
+            self.set_waveform_end_addr(bay, daq_num, e, convert=debug, 
                 write_log=True)
             #self.log('DAQ number {}: start {} - end {}'.format(daq_num, s, e))
 
