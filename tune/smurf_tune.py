@@ -2822,7 +2822,8 @@ class SmurfTuneMixin(SmurfBase):
 
 
     def find_freq(self, band, subband=np.arange(13,115), drive_power=None,
-        n_read=2, make_plot=False, save_plot=True, window=50, rolling_med=True):
+        n_read=2, make_plot=False, save_plot=True, window=50, rolling_med=True,
+                  make_subband_plot=False):
         '''
         Finds the resonances in a band (and specified subbands)
 
@@ -2873,7 +2874,7 @@ class SmurfTuneMixin(SmurfBase):
         # Find resonances
         res_freq = self.find_all_peak(self.freq_resp[band]['find_freq']['f'],
             self.freq_resp[band]['find_freq']['resp'], subband, make_plot=make_plot,
-            band=band, rolling_med=rolling_med, window=window)
+            band=band, rolling_med=rolling_med, window=window, make_subband_plot=make_subband_plot)
         self.freq_resp[band]['find_freq']['resonance'] = res_freq
 
         # Save resonances
