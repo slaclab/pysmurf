@@ -2365,8 +2365,10 @@ class SmurfTuneMixin(SmurfBase):
             ax[2].set_xlabel('FR Amp (kHz)')
             ax[2].set_ylabel('RF demod error (kHz)')
             x = np.array([0, np.max(f_span[channels_on])*1.0E3])
-            y = x/10.
-            ax[2].plot(x,y, color='k', linestyle=':')
+            y_factor = 10
+            y = x/y_factor
+            ax[2].plot(x,y, color='k', linestyle=':',label='1:%i' % (y_factor))
+            ax[2].legend(loc='best')
             
             if save_plot:
                 plt.savefig(os.path.join(self.plot_dir, timestamp + 

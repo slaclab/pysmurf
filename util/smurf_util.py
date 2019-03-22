@@ -1914,7 +1914,7 @@ class SmurfUtilMixin(SmurfBase):
         self.set_smurf_to_gcp_cfg_read(False)
 
 
-    def make_smurf_to_gcp_config(self, num_averages=0, filename=None,
+    def make_smurf_to_gcp_config(self, num_averages=None, filename=None,
         file_name_extend=None, data_frames=None, filter_gain=None):
         """
         Makes the config file that the Joe-writer uses to set the IP
@@ -1945,6 +1945,8 @@ class SmurfUtilMixin(SmurfBase):
         if filter_gain is None:
             filter_gain = self.config.get('smurf_to_mce').get('filter_gain')
 
+        if num_averages is None:
+            num_averages = self.config.get('smurf_to_mce').get('num_averages')
         if data_frames is None:
             data_frames = self.config.get('smurf_to_mce').get('data_frames')
         if file_name_extend is None:
