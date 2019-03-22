@@ -2050,7 +2050,7 @@ class SmurfCommandMixin(SmurfBase):
         return self._caget(self.rtm_spi_max_root + self._tes_bias_enable_array, 
             **kwargs)
 
-    _bit_to_V = 2.035/float(2**19)
+    _bit_to_V_50k = 2.035/float(2**19)
     _dac_num_50k = 2
     def set_50k_amp_gate_voltage(self, voltage, **kwargs):
         """
@@ -2058,13 +2058,13 @@ class SmurfCommandMixin(SmurfBase):
         if voltage > 0 or voltage < -1.:
             self.log('Voltage must be between -1 and 0. Doing nothing.')
         else:
-            self.set_tes_bias(self._dac_num_50k, voltage/self._bit_to_V, 
+            self.set_tes_bias(self._dac_num_50k, voltage/self._bit_to_V_50k, 
                 **kwargs)
 
     def get_50k_amp_gate_voltage(self, **kwargs):
         """
         """
-        return self._bit_to_V * self.get_tes_bias(self._dac_num_50k, **kwargs)
+        return self._bit_to_V_50k * self.get_tes_bias(self._dac_num_50k, **kwargs)
 
     def set_50k_amp_enable(self, disable=False, **kwargs):
         """
