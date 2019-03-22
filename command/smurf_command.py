@@ -389,6 +389,22 @@ class SmurfCommandMixin(SmurfBase):
             sg.wait()
             vals = sg.get_values()
 
+
+    _selextref = "SelExtRef"
+    def sel_ext_ref(self, bay, **kwargs):
+        """
+        Selects this bay to trigger off of external reference (through front panel)
+
+        Args:
+        ----
+        bay (int) : which bay to set to ext ref.  Either 0 or 1.
+        """
+        assert (bay in [0,1]),'bay must be an integer and in [0,1]'
+        triggerPV=self.microwave_mux_core.format(bay) + self._selextref
+        self._caput(triggerPV, 1, wait_after=5, **kwargs)
+        self.log('{} sent'.format(triggerPV), self.LOG_USER)
+
+            
     _writeconfig = ":AMCc:WriteConfig"
     def write_config(self, val, **kwargs):
         """
