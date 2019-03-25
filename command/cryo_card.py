@@ -23,7 +23,8 @@ class CryoCard():
       self.a50K_bias_address = 0x4
       self.temperature_address = 0x5
       self.cycle_count_address = 0x6  # used for testing
-      self.ps_en_address = 07 # PS enable (HEMT: bit 0, 50k: bit 1)
+      self.ps_en_address = 0x7 # PS enable (HEMT: bit 0, 50k: bit 1)
+      self.ac_dc_status_address = 0x8 # AC/DC mode status (bit 0: FRN_RLY, bit 1: FRP_RLY)
       self.adc_scale = 3.3/(1024.0 * 5);
       self.temperature_scale = 1/.028; # was 100
       self.temperature_offset =.25;
@@ -121,6 +122,22 @@ class CryoCard():
       data = self.do_read(self.ps_en_address)
       return(cmd_data(data))
 
+   def read_ac_dc_status(self):
+      """
+      Read the AC/DC mode relays readback status
+
+      Arguments
+      ---------
+      None
+
+      Return
+      ------
+      status (int): 2-bit number with the readback relay status
+          Bit 0: Status of FRN_RLY
+          Bit 1: Status of FRP_RLY
+      """
+      data = self.do_read(self.ac_dc_status_address)
+      return(cmd_data(data))
 
 
 # low level data conversion
