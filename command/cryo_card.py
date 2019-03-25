@@ -113,11 +113,11 @@ class CryoCard():
 
       Return
       ------
-      enables (int): 2-bit number to set the power supplies enables.
-         Bit 0 set the enable for HEMT power supply.
-         Bit 1 set the enable for 50k power supply.
-         Bit set to 1 mean enable power supply.
-         Bit set to 0 mean disable the power supply.
+      enables (int): 2-bit number with the status of the power supplies enables.
+         Bit 0 for the HEMT power supply.
+         Bit 1 for the 50k power supply.
+         Bit set to 1 means the power supply is enabled.
+         Bit set to 0 means the power supply is disabled.
       """
       data = self.do_read(self.ps_en_address)
       return(cmd_data(data))
