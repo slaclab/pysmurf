@@ -122,7 +122,7 @@ class CryoCard():
       data = self.do_read(self.ps_en_address)
       return(cmd_data(data))
 
-   def read_ac_dc_status(self):
+   def read_ac_dc_relay_status(self):
       """
       Read the AC/DC mode relays readback status
 
