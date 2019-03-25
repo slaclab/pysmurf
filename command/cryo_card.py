@@ -23,6 +23,7 @@ class CryoCard():
       self.a50K_bias_address = 0x4
       self.temperature_address = 0x5
       self.cycle_count_address = 0x6  # used for testing
+      self.ps_en_address = 07 # PS enable (HEMT: bit 0, 50k: bit 1)
       self.adc_scale = 3.3/(1024.0 * 5);
       self.temperature_scale = 1/.028; # was 100
       self.temperature_offset =.25;
@@ -81,6 +82,44 @@ class CryoCard():
    def read_cycle_count(self):
       data = self.do_read(self.count_address)
       return( cmd_data(data))  # do we have the right addres
+
+   def write_ps_en(self, enables):
+      """
+      Write the power supply enable signals.
+
+      Arguments
+      ---------
+      enables (int): 2-bit number to set the power supplies enables.
+         Bit 0 set the enable for HEMT power supply.
+         Bit 1 set the enable for 50k power supply.
+         Bit set to 1 mean enable power supply.
+         Bit set to 0 mean disable the power supply.
+
+      Returns
+      -------
+      Nothing
+      """
+      epics.caput(self.writepv, cmd_make(0, self.ps_en_address, enables))
+
+   def read_ps_en(self):
+      """
+      Read the power supply enable signals.
+
+      Arguments
+      ---------
+      None
+
+
+      Return
+      ------
+      enables (int): 2-bit number to set the power supplies enables.
+         Bit 0 set the enable for HEMT power supply.
+         Bit 1 set the enable for 50k power supply.
+         Bit set to 1 mean enable power supply.
+         Bit set to 0 mean disable the power supply.
+      """
+      data = self.do_read(self.ps_en_address)
+      return(cmd_data(data))
 
 
 
