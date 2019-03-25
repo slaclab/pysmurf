@@ -2737,6 +2737,34 @@ class SmurfCommandMixin(SmurfBase):
 
         return (en_value & 0x2 == 0x2)
 
+    def get_cryo_card_ac_dc_mode(self):
+        """
+        Get the operation mode, AC or DC, based on the readback of the relays.
+
+        Args:
+        -----
+        None
+
+        Returns:
+        --------
+        mode(str): return string describing the operation mode. If the relays readback
+        don't match, then the string 'ERROR' is returned.
+        """
+
+        # Read the relays status
+        status = self.C.read_ac_dc_relay_status()
+
+        # Both bit
+        if status == 0x0:
+            # When both readbacks are '0' we are in DC mode
+            return("DC")
+        elif status == 0x3:
+            # When both readback are '1' we are in AC mode
+            return("AC")
+        else:
+            # Anything else is an error
+            return("ERROR")
+
     _smurf_to_gcp_stream = 'userConfig[0]'  # bit for streaming
     def get_user_config0(self, as_binary=False, **kwargs):
         """
