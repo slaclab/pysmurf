@@ -2050,8 +2050,8 @@ class SmurfCommandMixin(SmurfBase):
         return self._caget(self.rtm_spi_max_root + self._tes_bias_enable_array,
             **kwargs)
 
-    _bit_to_V_50k = 2.035/float(2**19)
-    _dac_num_50k = 2
+    #_bit_to_V_50k = 2.035/float(2**19)
+    #_dac_num_50k = 2
     def set_50k_amp_gate_voltage(self, voltage, **kwargs):
         """
         """
@@ -2349,8 +2349,8 @@ class SmurfCommandMixin(SmurfBase):
                 **kwargs)
 
 
-    _bit_to_V_hemt = .576/3.0E5  # empirically found
-    _bit_to_V_hemt_offset = 0 # 2**18
+    #_bit_to_V_hemt = .576/3.0E5  # empirically found
+    #_bit_to_V_hemt_offset = 0 # 2**18
     def set_hemt_gate_voltage(self, voltage, override=False, **kwargs):
         """
         Sets the HEMT gate voltage in units of volts.
