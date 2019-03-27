@@ -217,7 +217,7 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
             self.bad_mask[i] = bm_config[k]
 
         # Which MicrowaveMuxCore[#] blocks are being used?
-        self.bays=[0,1]
+        self.bays=None
 
         # Dictionary for frequency response
         self.freq_resp = {}
@@ -370,6 +370,9 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
         self.log("Cryocard temperature = "+ str(self.C.read_temperature())) # also read the temperature of the CC
 
         self.log('Done with setup')
+        for bay in self.bays:
+            self.log('Select external reference for bay %i' % (bay))
+            self.sel_ext_ref(bay)
 
     def make_dir(self, directory):
         """check if a directory exists; if not, make it
