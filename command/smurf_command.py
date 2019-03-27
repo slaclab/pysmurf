@@ -2226,7 +2226,7 @@ class SmurfCommandMixin(SmurfBase):
         override (bool): Override thee limits on HEMT gate voltage. Default
             False.
         """
-        self.set_hemt_enable()
+        self.set_hemt_enable(2)
         if (voltage > 1 or voltage < -1 ) and not override:
             self.log('Input voltage too high. Not doing anything.' + 
                 ' If you really want it higher, use the override optinal arg.')

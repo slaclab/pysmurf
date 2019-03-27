@@ -1542,8 +1542,8 @@ class SmurfTuneMixin(SmurfBase):
         return freqs, subbands, channels, groups
 
 
-    def assign_channels(self, freq, band=None, bandcenter=None, 
-        channel_per_subband=4, as_offset=True, min_offset=0.1,
+    def assign_channels(self, freq, band=None, bandcenter=None,
+        channel_per_subband=4, as_offset=True, min_offset=0.2,
         new_master_assignment=False):
         """
         Figures out the subbands and channels to assign to resonators
