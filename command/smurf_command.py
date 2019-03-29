@@ -2052,10 +2052,10 @@ class SmurfCommandMixin(SmurfBase):
 
     #_bit_to_V_50k = 2.035/float(2**19)
     #_dac_num_50k = 2
-    def set_50k_amp_gate_voltage(self, voltage, **kwargs):
+    def set_50k_amp_gate_voltage(self, voltage, override=False, **kwargs):
         """
         """
-        if voltage > 0 or voltage < -1.:
+        if (voltage > 0 or voltage < -1.) and not override:
             self.log('Voltage must be between -1 and 0. Doing nothing.')
         else:
             self.set_tes_bias(self._dac_num_50k, voltage/self._bit_to_V_50k,
