@@ -848,8 +848,8 @@ class SmurfNoiseMixin(SmurfBase):
 
             fig.suptitle(basename + ' Band {}, Group {} Channel {:03} - {:.2f} MHz'.format(band,fig_title_string,ch, res_freq))
             #fig.subplots_adjust(top=0.1)
-            #plt.tight_layout()
-            plt.tight_layout(rect=[0.,0.03,1.,0.97])
+            plt.tight_layout()
+            #plt.tight_layout(rect=[0.,0.03,1.,0.97])
 
             if show_plot:
                 plt.show()
