@@ -2348,9 +2348,6 @@ class SmurfCommandMixin(SmurfBase):
             self._caput(self.rtm_spi_max_root + self._hemt_v_enable, 2,
                 **kwargs)
 
-
-    #_bit_to_V_hemt = .576/3.0E5  # empirically found
-    #_bit_to_V_hemt_offset = 0 # 2**18
     def set_hemt_gate_voltage(self, voltage, override=False, **kwargs):
         """
         Sets the HEMT gate voltage in units of volts.
@@ -2366,12 +2363,11 @@ class SmurfCommandMixin(SmurfBase):
             False.
         """
         self.set_hemt_enable()
-        if (voltage > 1 or voltage < -1 ) and not override:
+        if (voltage > self._hemt_gate_max_voltage or voltage < self._hemt_gate_min_voltage ) and not override:
             self.log('Input voltage too high. Not doing anything.' +
-                ' If you really want it higher, use the override optinal arg.')
+                ' If you really want it higher, use the override optional arg.')
         else:
-            self.set_hemt_bias(int(voltage/self._bit_to_V_hemt +
-                                   self._bit_to_V_hemt_offset),
+            self.set_hemt_bias(int(voltage/self._bit_to_V_hemt),
                 override=override, **kwargs)
 
     _hemt_v = 'HemtBiasDacDataRegCh[33]'
@@ -2407,8 +2403,7 @@ class SmurfCommandMixin(SmurfBase):
         '''
         Returns the HEMT voltage in bits.
         '''
-        return self._bit_to_V_hemt*(self.get_hemt_bias(**kwargs) -
-                                    self._bit_to_V_hemt_offset)
+        return self._bit_to_V_hemt*(self.get_hemt_bias(**kwargs))
 
 
     _stream_datafile = 'dataFile'
