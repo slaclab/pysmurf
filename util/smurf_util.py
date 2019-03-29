@@ -1616,7 +1616,7 @@ class SmurfUtilMixin(SmurfBase):
     # alias
     get_amplifier_bias = get_amplifier_biases
 
-    def get_hemt_drain_current(self, hemt_offset=.100693):
+    def get_hemt_drain_current(self):
         """
         Returns:
         --------
@@ -1626,8 +1626,7 @@ class SmurfUtilMixin(SmurfBase):
         # These values are hard coded and empirically found by Shawn
         # hemt_offset=0.100693  #Volts
         hemt_Vd_series_resistor=200  #Ohm
-        hemt_Id_mA=2.*1000.*(self.get_cryo_card_hemt_bias()-
-            hemt_offset)/hemt_Vd_series_resistor
+        hemt_Id_mA=2.*1000.*(self.get_cryo_card_hemt_bias())/hemt_Vd_series_resistor - self._hemt_Id_offset
 
         return hemt_Id_mA
 
