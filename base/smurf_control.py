@@ -132,8 +132,13 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
             self._bit_to_V_50k=amp_cfg['bit_to_V_50k']
         if 'bit_to_V_hemt' in keys:
             self._bit_to_V_hemt=amp_cfg['bit_to_V_hemt']
-        if 'bit_to_V_hemt_offset' in keys:
-            self._bit_to_V_hemt_offset=amp_cfg['bit_to_V_hemt_offset']
+        if 'hemt_Id_offset' in keys:
+            self._hemt_Id_offset=amp_cfg['hemt_Id_offset']
+        if 'hemt_gate_min_voltage' in keys:
+            self._hemt_gate_min_voltage=amp_cfg['hemt_gate_min_voltage']
+        if 'hemt_gate_max_voltage' in keys:
+            self._hemt_gate_max_voltage=amp_cfg['hemt_gate_max_voltage']
+
             
         # Flux ramp hardware detail
         flux_ramp_cfg = self.config.get('flux_ramp')
