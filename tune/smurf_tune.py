@@ -2563,7 +2563,7 @@ class SmurfTuneMixin(SmurfBase):
                 time.sleep(self._cryo_card_relay_wait)
 
 
-    def set_fixed_flux_ramp_bias(self,fractionFullScale):
+    def set_fixed_flux_ramp_bias(self,fractionFullScale,debug=True, do_config=True):
         """
         ???
 
@@ -2593,23 +2593,24 @@ class SmurfTuneMixin(SmurfBase):
                 self.log("Waiting for cryo card to update",
                          self.LOG_USER)
                 time.sleep(self._cryo_card_relay_wait)
-                
-        ## ModeControl must be 1
-        mode_control=self.get_mode_control()
-        if not mode_control==1:
 
-            #before switching to ModeControl=1, make sure DAC is set to output zero V
-            LTC1668RawDacData0=np.floor(0.5*(2**self._num_flux_ramp_dac_bits))
-            self.log("Before switching to fixed DC flux ramp output, " + 
-                " explicitly setting flux ramp DAC to zero "+
-                "(LTC1668RawDacData0={})".format(mode_control,LTC1668RawDacData0), 
-                     self.LOG_USER)
-            self.set_flux_ramp_dac(LTC1668RawDacData0)
+        if do_config:
+            ## ModeControl must be 1
+            mode_control=self.get_mode_control()
+            if not mode_control==1:
 
-            self.log("Flux ramp ModeControl is {}".format(mode_control) +
-                " - changing to 1 for fixed DC output.", 
-                     self.LOG_USER)
-            self.set_mode_control(1)
+                #before switching to ModeControl=1, make sure DAC is set to output zero V
+                LTC1668RawDacData0=np.floor(0.5*(2**self._num_flux_ramp_dac_bits))
+                self.log("Before switching to fixed DC flux ramp output, " + 
+                         " explicitly setting flux ramp DAC to zero "+
+                         "(LTC1668RawDacData0={})".format(mode_control,LTC1668RawDacData0), 
+                         self.LOG_USER)
+                self.set_flux_ramp_dac(LTC1668RawDacData0)
+
+                self.log("Flux ramp ModeControl is {}".format(mode_control) +
+                         " - changing to 1 for fixed DC output.", 
+                         self.LOG_USER)
+                self.set_mode_control(1)
 
         ## Compute and set flux ramp DAC to requested value
         LTC1668RawDacData = np.floor((2**self._num_flux_ramp_dac_bits)*
@@ -2617,9 +2618,10 @@ class SmurfTuneMixin(SmurfBase):
         ## 2s complement
         if fractionFullScale<0:
             LTC1668RawDacData = 2**self._num_flux_ramp_dac_bits-LTC1668RawDacData-1
-        self.log("Setting flux ramp to {}".format(100 * fractionFullScale, 
-            int(LTC1668RawDacData)) + "% of full scale (LTC1668RawDacData={})", 
-                 self.LOG_USER)
+        if debug:
+            self.log("Setting flux ramp to {}".format(100 * fractionFullScale, 
+                     int(LTC1668RawDacData)) + "% of full scale (LTC1668RawDacData={})", 
+                     self.LOG_USER)
         self.set_flux_ramp_dac(LTC1668RawDacData)        
 
     def flux_ramp_setup(self, reset_rate_khz, fraction_full_scale, df_range=.1, 
