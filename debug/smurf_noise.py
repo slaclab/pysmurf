@@ -125,7 +125,7 @@ class SmurfNoiseMixin(SmurfBase):
                     ax[1].plot(f_knee,2.*wl,linestyle = 'none',marker = 'o',label=r'$f_\mathrm{knee} = %.2f\,\mathrm{Hz}$' % (f_knee))
                     ax[1].plot(f_fit,wl + np.zeros(len(f_fit)),linestyle = ':',label=r'$\mathrm{wl} = %.0f\,\mathrm{pA}/\sqrt{\mathrm{Hz}}$' % (wl))
                     ax[1].legend(loc='best')
-                ax[1].set_xlabel('Freq [Hz]')
+                ax[1].set_xlabel('Frequency [Hz]')
                 ax[1].set_xlim(f[1],f[-1])
                 ax[1].set_ylabel('Amp [pA/rtHz]')
                 ax[1].set_yscale('log')
@@ -142,7 +142,7 @@ class SmurfNoiseMixin(SmurfBase):
 
                 plt.tight_layout()
 
-                plot_name = basename+'_b{}_ch{:03}.png'.format(band, ch)
+                plot_name = basename+'_noise_timestream_b{}_ch{:03}.png'.format(band, ch)
                 plt.savefig(os.path.join(self.plot_dir, plot_name), 
                     bbox_inches='tight')
                 if show_plot:
@@ -848,8 +848,8 @@ class SmurfNoiseMixin(SmurfBase):
 
             fig.suptitle(basename + ' Band {}, Group {} Channel {:03} - {:.2f} MHz'.format(band,fig_title_string,ch, res_freq))
             #fig.subplots_adjust(top=0.1)
-            #plt.tight_layout()
-            plt.tight_layout(rect=[0.,0.03,1.,0.97])
+            plt.tight_layout()
+            #plt.tight_layout(rect=[0.,0.03,1.,0.97])
 
             if show_plot:
                 plt.show()

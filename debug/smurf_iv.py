@@ -706,7 +706,7 @@ class SmurfIVMixin(SmurfBase):
                 basename = self.get_timestamp()
             if band is not None and channel is not None:
                 title += ', {:.2f} MHz'.format(self.channel_to_freq(band, channel))
-            title += r', $R_\mathrm{sh}$ = ' + '${:.1f}$ '.format(R_sh*1.0E3) + \
+            title += r', $R_\mathrm{sh}$ = ' + '${:.2f}$ '.format(R_sh*1.0E3) + \
                 '$\mathrm{m}\Omega$'
             plot_name = basename + '_' + plot_name
             title = basename + ' ' + title

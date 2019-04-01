@@ -126,7 +126,20 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
             self.hemt_Vg=amp_cfg['hemt_Vg']
         if 'LNA_Vg' in keys:
             self.LNA_Vg=amp_cfg['LNA_Vg']
+        if 'dac_num_50k' in keys:
+            self._dac_num_50k=amp_cfg['dac_num_50k']
+        if 'bit_to_V_50k' in keys:
+            self._bit_to_V_50k=amp_cfg['bit_to_V_50k']
+        if 'bit_to_V_hemt' in keys:
+            self._bit_to_V_hemt=amp_cfg['bit_to_V_hemt']
+        if 'hemt_Id_offset' in keys:
+            self._hemt_Id_offset=amp_cfg['hemt_Id_offset']
+        if 'hemt_gate_min_voltage' in keys:
+            self._hemt_gate_min_voltage=amp_cfg['hemt_gate_min_voltage']
+        if 'hemt_gate_max_voltage' in keys:
+            self._hemt_gate_max_voltage=amp_cfg['hemt_gate_max_voltage']
 
+            
         # Flux ramp hardware detail
         flux_ramp_cfg = self.config.get('flux_ramp')
         keys = flux_ramp_cfg.keys()
@@ -208,6 +221,9 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
         for i, k in enumerate(bm_keys):
             self.bad_mask[i] = bm_config[k]
 
+        # Which MicrowaveMuxCore[#] blocks are being used?
+        self.bays=None
+
         # Dictionary for frequency response
         self.freq_resp = {}
         self.lms_freq_hz = {}
@@ -241,18 +257,28 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
         """
         self.log('Setting up...', (self.LOG_USER))
 
+        # Which bands are we configuring?
+        smurf_init_config = self.config.get('init')
+        bands = smurf_init_config['bands']
+
+        # determine which bays to configure from the 
+        # bands requested and the band-to-bay 
+        # correspondence
+        self.bays=np.unique([self.band_to_bay(band) for band in bands])
+        # Right now, resetting both DACs in both MicrowaveMuxCore blocks,
+        # but may want to determine at runtime which are actually needed and
+        # only reset the DAC in those.
         self.log('Toggling DACs')
-        self.set_dac_reset(0, 1, write_log=write_log)
-        self.set_dac_reset(1, 1, write_log=write_log)
-        self.set_dac_reset(0, 0, write_log=write_log)
-        self.set_dac_reset(1, 0, write_log=write_log)
+        dacs=[0,1]
+        for val in [1,0]:
+            for bay in self.bays:
+                for dac in dacs:
+                    self.set_dac_reset(bay, dac, val, write_log=write_log)
 
         self.set_read_all(write_log=write_log)
         self.set_defaults_pv(write_log=write_log)
 
         # The per band configs. May want to make available per-band values.
-        smurf_init_config = self.config.get('init')
-        bands = smurf_init_config['bands']
         for b in bands:
             band_str = 'band_{}'.format(b)
             self.set_iq_swap_in(b, smurf_init_config[band_str]['iq_swap_in'], 
@@ -289,7 +315,7 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
                 write_log=write_log, **kwargs)
 
             for dmx in np.array(smurf_init_config[band_str]["data_out_mux"]):
-                self.set_data_out_mux(int(dmx), "UserData", write_log=write_log,
+                self.set_data_out_mux(int(self.band_to_bay(b)), int(dmx), "UserData", write_log=write_log,
                     **kwargs)
 
             self.set_att_uc(b, smurf_init_config[band_str]['att_uc'],
@@ -349,6 +375,9 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
         self.log("Cryocard temperature = "+ str(self.C.read_temperature())) # also read the temperature of the CC
 
         self.log('Done with setup')
+        for bay in self.bays:
+            self.log('Select external reference for bay %i' % (bay))
+            self.sel_ext_ref(bay)
 
     def make_dir(self, directory):
         """check if a directory exists; if not, make it

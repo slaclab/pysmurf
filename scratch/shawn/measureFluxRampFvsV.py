@@ -6,16 +6,18 @@ import sys
 ## instead of takedebugdata try relaunch PyRogue, then loopFilterOutputArray, which is 
 ## the integral tracking term with lmsEnable[1..3]=0
 
-S = pysmurf.SmurfControl(make_logfile=False,setup=False,epics_root='test_epics',cfg_file='/usr/local/controls/Applications/smurf/pysmurf/pysmurf/cfg_files/experiment_fp28_smurfsrv04.cfg')
+S = pysmurf.SmurfControl(make_logfile=False,setup=False,epics_root='test_epics2',cfg_file='/usr/local/controls/Applications/smurf/pysmurf/pysmurf/cfg_files/experiment_fp29_smurfsrv04.cfg')
 
 #######
-band=3
+band=2
 Npts=3
 bias=None
 wait_time=.05
-bias_low=-0.432
-bias_high=0.432
-bias_step=.002
+#bias_low=-0.432
+#bias_high=0.432
+bias_low=-0.45
+bias_high=0.45
+bias_step=.0015
 show_plot=False
 make_plot=True
 save_plot=True 
@@ -86,7 +88,7 @@ if use_take_debug_data:
 else:
     #stack
     lfovsfr=np.dstack(fs)[0]
-    raw_data['lfovsfr']=lfovsfr[channels]
+    raw_data['lfovsfr']=lfovsfr
     raw_data['fvsfr']=np.array([arr/4.+fres for (arr,fres) in zip(lfovsfr,fres)])
 
 raw_data['bias'] = bias

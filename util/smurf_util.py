@@ -13,30 +13,30 @@ import glob
 class SmurfUtilMixin(SmurfBase):
 
     def take_debug_data(self, band, channel=None, nsamp=2**19, filename=None, 
-            IQstream=1, single_channel_readout=1):
+            IQstream=1, single_channel_readout=1, debug=False):
         """
         """
         # Set proper single channel readout
         if channel is not None:
             if single_channel_readout == 1:
-                self.set_single_channel_readout(band, 1)
-                self.set_single_channel_readout_opt2(band, 0)
+                self.set_single_channel_readout(band, 1, write_log=True)
+                self.set_single_channel_readout_opt2(band, 0, write_log=True)
             elif single_channel_readout == 2:
-                self.set_single_channel_readout(band, 0)
-                self.set_single_channel_readout_opt2(band, 1)
+                self.set_single_channel_readout(band, 0, write_log=True)
+                self.set_single_channel_readout_opt2(band, 1, write_log=True)
             else:
                 self.log('single_channel_readout must be 1 or 2', 
                     self.LOG_ERROR)
                 raise ValueError('single_channel_readout must be 1 or 2')
         else: # exit single channel otherwise
-            self.set_single_channel_readout(band, 0)
-            self.set_single_channel_readout_opt2(band, 0)
+            self.set_single_channel_readout(band, 0, write_log=True)
+            self.set_single_channel_readout_opt2(band, 0, write_log=True)
 
         # Set IQstream
         if IQstream==1:
-            self.set_iq_stream_enable(band, 1)
+            self.set_iq_stream_enable(band, 1, write_log=True)
         else:
-            self.set_iq_stream_enable(band, 0)
+            self.set_iq_stream_enable(band, 0, write_log=True)
 
         # set filename
         if filename is not None:
@@ -51,7 +51,7 @@ class SmurfUtilMixin(SmurfBase):
 
         dtype = 'debug'
         dchannel = 0 # I don't really know what this means and I'm sorry -CY
-        self.setup_daq_mux(dtype, dchannel, nsamp, band=band)
+        self.setup_daq_mux(dtype, dchannel, nsamp, band=band, debug=debug)
         self.log('Data acquisition in progress...', self.LOG_USER)
         char_array = [ord(c) for c in data_filename] # convert to ascii
         write_data = np.zeros(300, dtype=int)
@@ -62,9 +62,10 @@ class SmurfUtilMixin(SmurfBase):
 
         self.set_streamdatawriter_open('True') # str and not bool
 
-        self.set_trigger_daq(1, write_log=True) # this seems to = TriggerDM
+        bay=self.band_to_bay(band)
+        self.set_trigger_daq(bay, 1, write_log=True) # this seems to = TriggerDM
 
-        end_addr = self.get_waveform_end_addr(0) # not sure why this is 0
+        end_addr = self.get_waveform_end_addr(bay, engine=0) # why engine=0 here?
 
         time.sleep(1) # maybe unnecessary
 
@@ -72,8 +73,8 @@ class SmurfUtilMixin(SmurfBase):
         while not done:
             done=True
             for k in range(4):
-                wr_addr = self.get_waveform_wr_addr(0)
-                empty = self.get_waveform_empty(k)
+                wr_addr = self.get_waveform_wr_addr(bay, engine=0)
+                empty = self.get_waveform_empty(bay, engine=k)
                 if not empty:
                     done=False
             time.sleep(1)
@@ -263,6 +264,7 @@ class SmurfUtilMixin(SmurfBase):
         ch0_idx = np.where(ch0_strobe[:,0] == 1)[0]
         f_first = ch0_idx[0]
         f_last = ch0_idx[-1]
+
         freqs = data[f_first:f_last, 0]
         neg = np.where(freqs >= 2**23)[0]
         f = np.double(freqs)
@@ -288,6 +290,8 @@ class SmurfUtilMixin(SmurfBase):
             if len(neg) > 0:
                 df[neg] = df[neg] - 2**24
 
+            print(np.shape(df))
+            print(np.remainder(len(df), 512))
             if np.remainder(len(df), 512) == 0:
                 df = np.reshape(df, (-1, 512)) * subband_halfwidth_MHz / 2**23
             else:
@@ -714,9 +718,9 @@ class SmurfUtilMixin(SmurfBase):
 
         # trigger PV
         if not hw_trigger:
-            self.set_trigger_daq(1, write_log=True)
+            self.set_trigger_daq(bay, 1, write_log=True)
         else:
-            self.set_arm_hw_trigger(1, write_log=True)
+            self.set_arm_hw_trigger(bay, 1, write_log=True)
 
         time.sleep(.1)
         sg.wait()
@@ -771,7 +775,7 @@ class SmurfUtilMixin(SmurfBase):
 
         return dat
 
-    def setup_daq_mux(self, converter, converter_number, data_length, band=0):
+    def setup_daq_mux(self, converter, converter_number, data_length, band=0, debug=False):
         """
         Sets up for either ADC or DAC data taking.
 
@@ -783,6 +787,9 @@ class SmurfUtilMixin(SmurfBase):
         data_length (int) : The amount of data to take.
         band (int): which band to get data on
         """
+
+        bay=self.band_to_bay(band)
+
         if converter.lower() == 'adc':
             daq_mux_channel0 = (converter_number + 1)*2
             daq_mux_channel1 = daq_mux_channel0 + 1
@@ -790,10 +797,10 @@ class SmurfUtilMixin(SmurfBase):
             daq_mux_channel0 = (converter_number + 1)*2 + 10
             daq_mux_channel1 = daq_mux_channel0 + 1
         else:
-            if band==2:
+            if band in [2,6]:
                 daq_mux_channel0 = 22 # these come from the mysterious mind of Steve
                 daq_mux_channel1 = 23
-            elif band==3:
+            elif band in [3,7]:
                 daq_mux_channel0 = 24
                 daq_mux_channel1 = 25
             else:
@@ -802,14 +809,14 @@ class SmurfUtilMixin(SmurfBase):
 
 
         # setup buffer size
-        self.set_buffer_size(data_length)
+        self.set_buffer_size(bay, data_length, debug)
 
         # input mux select
-        self.set_input_mux_sel(0, daq_mux_channel0, write_log=False)
-        self.set_input_mux_sel(1, daq_mux_channel1, write_log=False)
+        self.set_input_mux_sel(bay, 0, daq_mux_channel0, write_log=True)
+        self.set_input_mux_sel(bay, 1, daq_mux_channel1, write_log=True)
 
 
-    def set_buffer_size(self, size):
+    def set_buffer_size(self, bay, size, debug=False):
         """
         Sets the buffer size for reading and writing DAQs
 
@@ -820,14 +827,15 @@ class SmurfUtilMixin(SmurfBase):
         # Change DAQ data buffer size
 
         # Change waveform engine buffer size
-        self.set_data_buffer_size(size, write_log=False)
+        self.set_data_buffer_size(bay, size, write_log=True)
         for daq_num in np.arange(4):
-            s = self.get_waveform_start_addr(daq_num, convert=True, 
-                write_log=False)
+            s = self.get_waveform_start_addr(bay, daq_num, convert=True, 
+                write_log=debug)
             e = s + 4*size
-            self.set_waveform_end_addr(daq_num, e, convert=True, 
-                write_log=False)
-            #self.log('DAQ number {}: start {} - end {}'.format(daq_num, s, e))
+            self.set_waveform_end_addr(bay, daq_num, e, convert=True, 
+                write_log=debug)
+            if debug:
+                self.log('DAQ number {}: start {} - end {}'.format(daq_num, s, e))
 
     def config_cryo_channel(self, band, channel, frequencyMHz, amplitude, 
         feedback_enable, eta_phase, eta_mag):
@@ -935,32 +943,32 @@ class SmurfUtilMixin(SmurfBase):
         self.set_feedback_limit(band, desired_feedback_limit_dec)
 
     # if no guidance given, tries to reset both
-    def recover_jesd(self,recover_jesd_rx=True,recover_jesd_tx=True):
+    def recover_jesd(self,bay,recover_jesd_rx=True,recover_jesd_tx=True):
         if recover_jesd_rx:
             #1. Toggle JesdRx:Enable 0x3F3 -> 0x0 -> 0x3F3
-            self.set_jesd_rx_enable(0x0)
-            self.set_jesd_rx_enable(0x3F3)
+            self.set_jesd_rx_enable(bay,0x0)
+            self.set_jesd_rx_enable(bay,0x3F3)
 
         if recover_jesd_tx:
             #1. Toggle JesdTx:Enable 0x3CF -> 0x0 -> 0x3CF
-            self.set_jesd_tx_enable(0x0)
-            self.set_jesd_tx_enable(0x3CF)
+            self.set_jesd_tx_enable(bay,0x0)
+            self.set_jesd_tx_enable(bay,0x3CF)
 
             #2. Toggle AMCcc:FpgaTopLevel:AppTop:AppCore:MicrowaveMuxCore[0]:DAC[0]:JesdRstN 0x1 -> 0x0 -> 0x1
-            self.set_jesd_reset_n(0,0x0)
-            self.set_jesd_reset_n(0,0x1)
+            self.set_jesd_reset_n(bay,0,0x0)
+            self.set_jesd_reset_n(bay,0,0x1)
 
             #3. Toggle AMCcc:FpgaTopLevel:AppTop:AppCore:MicrowaveMuxCore[0]:DAC[1]:JesdRstN 0x1 -> 0x0 -> 0x1
-            self.set_jesd_reset_n(1,0x0)
-            self.set_jesd_reset_n(1,0x1)
+            self.set_jesd_reset_n(bay,1,0x0)
+            self.set_jesd_reset_n(bay,1,0x1)
 
         # probably overkill...shouldn't call this function if you're not going to do anything 
         if (recover_jesd_rx or recover_jesd_tx):
             # powers up the SYSREF which is required to sync fpga and adc/dac jesd
-            self.run_pwr_up_sys_ref()
+            self.run_pwr_up_sys_ref(bay)
 
         # check if Jesds recovered - enable printout
-        (jesd_tx_ok,jesd_rx_ok)=self.check_jesd(silent_if_valid=False)
+        (jesd_tx_ok,jesd_rx_ok)=self.check_jesd(bay,silent_if_valid=False)
                 
         # raise exception if failed to recover
         if (jesd_rx_ok and jesd_tx_ok):
@@ -1001,7 +1009,7 @@ class SmurfUtilMixin(SmurfBase):
         return jesd_decorator_function
 
 
-    def check_jesd(self, silent_if_valid=False):
+    def check_jesd(self, bay, silent_if_valid=False):
         """
         Queries the Jesd tx and rx and compares the
         data_valid and enable bits.
@@ -1012,8 +1020,8 @@ class SmurfUtilMixin(SmurfBase):
             anything if things are working.
         """
         # JESD Tx
-        jesd_tx_enable = self.get_jesd_tx_enable()
-        jesd_tx_valid = self.get_jesd_tx_data_valid()
+        jesd_tx_enable = self.get_jesd_tx_enable(bay)
+        jesd_tx_valid = self.get_jesd_tx_data_valid(bay)
         jesd_tx_ok = (jesd_tx_enable==jesd_tx_valid)
         if not jesd_tx_ok:
             self.log("JESD Tx DOWN", self.LOG_ERROR)
@@ -1022,8 +1030,8 @@ class SmurfUtilMixin(SmurfBase):
                 self.log("JESD Tx Okay", self.LOG_USER)
 
         # JESD Rx
-        jesd_rx_enable = self.get_jesd_rx_enable()
-        jesd_rx_valid = self.get_jesd_rx_data_valid()
+        jesd_rx_enable = self.get_jesd_rx_enable(bay)
+        jesd_rx_valid = self.get_jesd_rx_data_valid(bay)
         jesd_rx_ok = (jesd_rx_enable==jesd_rx_valid)        
         if not jesd_rx_ok:
             self.log("JESD Rx DOWN", self.LOG_ERROR)
@@ -1189,7 +1197,7 @@ class SmurfUtilMixin(SmurfBase):
             raise ValueError('channel number is less than zero!')
 
         chanOrder = self.get_channel_order(channelorderfile)
-        idx = chanOrder.index(channel)
+        idx = np.where(chanOrder == channel)[0]
 
         subband = idx // n_chanpersubband
         return int(subband)
@@ -1608,7 +1616,7 @@ class SmurfUtilMixin(SmurfBase):
     # alias
     get_amplifier_bias = get_amplifier_biases
 
-    def get_hemt_drain_current(self, hemt_offset=.100693):
+    def get_hemt_drain_current(self):
         """
         Returns:
         --------
@@ -1618,8 +1626,7 @@ class SmurfUtilMixin(SmurfBase):
         # These values are hard coded and empirically found by Shawn
         # hemt_offset=0.100693  #Volts
         hemt_Vd_series_resistor=200  #Ohm
-        hemt_Id_mA=2.*1000.*(self.get_cryo_card_hemt_bias()-
-            hemt_offset)/hemt_Vd_series_resistor
+        hemt_Id_mA=2.*1000.*(self.get_cryo_card_hemt_bias())/hemt_Vd_series_resistor - self._hemt_Id_offset
 
         return hemt_Id_mA
 
@@ -1837,6 +1844,9 @@ class SmurfUtilMixin(SmurfBase):
     def band_to_att(self, band):
         """
         """
+        # for now, mod 4 ; assumes the band <-> att correspondence is the same
+        # for the LB and HB AMCs.
+        band=band%4
         return self.att_to_band['att'][np.ravel(
             np.where(self.att_to_band['band']==band))[0]]
 
@@ -1903,7 +1913,7 @@ class SmurfUtilMixin(SmurfBase):
         self.set_smurf_to_gcp_cfg_read(False)
 
 
-    def make_smurf_to_gcp_config(self, num_averages=0, filename=None,
+    def make_smurf_to_gcp_config(self, num_averages=None, filename=None,
         file_name_extend=None, data_frames=None, filter_gain=None):
         """
         Makes the config file that the Joe-writer uses to set the IP
@@ -1934,6 +1944,8 @@ class SmurfUtilMixin(SmurfBase):
         if filter_gain is None:
             filter_gain = self.config.get('smurf_to_mce').get('filter_gain')
 
+        if num_averages is None:
+            num_averages = self.config.get('smurf_to_mce').get('num_averages')
         if data_frames is None:
             data_frames = self.config.get('smurf_to_mce').get('data_frames')
         if file_name_extend is None:

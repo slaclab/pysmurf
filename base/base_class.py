@@ -46,7 +46,7 @@ class SmurfBase(object):
         # than just hardcoding paths? This needs to be cleaned up somehow
         self.epics_root = epics_root
         self.app_core = self.epics_root + ':AMCc:FpgaTopLevel:AppTop:AppCore:'
-        self.microwave_mux_core = self.app_core + 'MicrowaveMuxCore[0]:'
+        self.microwave_mux_core = self.app_core + 'MicrowaveMuxCore[{}]:'
         self.DBG = self.microwave_mux_core + 'DBG:'
         self.sysgencryo = self.app_core + 'SysgenCryo:'
         self.band_root = self.sysgencryo + 'Base[{}]:'
@@ -54,9 +54,9 @@ class SmurfBase(object):
         self.cryo_root = self.band_root + 'CryoChannels:'
         self.channel_root = self.cryo_root + 'CryoChannel[{}]:'
         self.dac_root = self.epics_root + \
-            ':AMCc:FpgaTopLevel:AppTop:AppCore:MicrowaveMuxCore[0]:DAC[{}]:'
+            ':AMCc:FpgaTopLevel:AppTop:AppCore:MicrowaveMuxCore[{}]:DAC[{}]:'
         self.att_root = self.epics_root + \
-            ':AMCc:FpgaTopLevel:AppTop:AppCore:MicrowaveMuxCore[0]:ATT:'
+            ':AMCc:FpgaTopLevel:AppTop:AppCore:MicrowaveMuxCore[{}]:ATT:'
         self.timing_header = self.epics_root + \
             ':AMCc:FpgaTopLevel:AppTop:AppCore:TimingHeader:'
         self.streaming_root = self.epics_root + ':AMCc:streamingInterface:'
@@ -68,16 +68,16 @@ class SmurfBase(object):
             ':AMCc:FpgaTopLevel:AmcCarrierCore:AxiVersion:'
         self.waveform_engine_buffers_root = self.epics_root + \
             ':AMCc:FpgaTopLevel:'+ \
-            'AmcCarrierCore:AmcCarrierBsa:BsaWaveformEngine[0]:' + \
+            'AmcCarrierCore:AmcCarrierBsa:BsaWaveformEngine[{}]:' + \
             'WaveformEngineBuffers:'
         self.stream_data_writer_root = self.epics_root + \
             ':AMCc:streamDataWriter:'
         self.jesd_tx_root = self.epics_root + \
-            ':AMCc:FpgaTopLevel:AppTop:AppTopJesd[0]:JesdTx:'
+            ':AMCc:FpgaTopLevel:AppTop:AppTopJesd[{}]:JesdTx:'
         self.jesd_rx_root = self.epics_root + \
-            ':AMCc:FpgaTopLevel:AppTop:AppTopJesd[0]:JesdRx:'
+            ':AMCc:FpgaTopLevel:AppTop:AppTopJesd[{}]:JesdRx:'
         self.daq_mux_root = self.epics_root + \
-            ':AMCc:FpgaTopLevel:AppTop:DaqMuxV2[0]:'
+            ':AMCc:FpgaTopLevel:AppTop:DaqMuxV2[{}]:'
 
         # RTM paths
         self.rtm_cryo_det_root = self.epics_root + \

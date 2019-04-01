@@ -802,7 +802,8 @@ class SmurfTuneMixin(SmurfBase):
 
         resp = np.zeros((int(n_scan), int(n_samples/2)), dtype=complex)
         for n in np.arange(n_scan):
-            self.set_trigger_hw_arm(0, write_log=True)  # Default setup sets to 1
+            bay=self.band_to_bay(band)
+            self.set_trigger_hw_arm(bay, 0, write_log=True)  # Default setup sets to 1
 
             self.set_noise_select(band, 1, wait_done=True, write_log=True)
             try:
@@ -2364,8 +2365,10 @@ class SmurfTuneMixin(SmurfBase):
             ax[2].set_xlabel('FR Amp (kHz)')
             ax[2].set_ylabel('RF demod error (kHz)')
             x = np.array([0, np.max(f_span[channels_on])*1.0E3])
-            y = x/10.
-            ax[2].plot(x,y, color='k', linestyle=':')
+            y_factor = 10
+            y = x/y_factor
+            ax[2].plot(x,y, color='k', linestyle=':',label='1:%i' % (y_factor))
+            ax[2].legend(loc='best')
             
             if save_plot:
                 plt.savefig(os.path.join(self.plot_dir, timestamp + 
@@ -2560,7 +2563,7 @@ class SmurfTuneMixin(SmurfBase):
                 time.sleep(self._cryo_card_relay_wait)
 
 
-    def set_fixed_flux_ramp_bias(self,fractionFullScale):
+    def set_fixed_flux_ramp_bias(self,fractionFullScale,debug=True, do_config=True):
         """
         ???
 
@@ -2590,23 +2593,24 @@ class SmurfTuneMixin(SmurfBase):
                 self.log("Waiting for cryo card to update",
                          self.LOG_USER)
                 time.sleep(self._cryo_card_relay_wait)
-                
-        ## ModeControl must be 1
-        mode_control=self.get_mode_control()
-        if not mode_control==1:
 
-            #before switching to ModeControl=1, make sure DAC is set to output zero V
-            LTC1668RawDacData0=np.floor(0.5*(2**self._num_flux_ramp_dac_bits))
-            self.log("Before switching to fixed DC flux ramp output, " + 
-                " explicitly setting flux ramp DAC to zero "+
-                "(LTC1668RawDacData0={})".format(mode_control,LTC1668RawDacData0), 
-                     self.LOG_USER)
-            self.set_flux_ramp_dac(LTC1668RawDacData0)
+        if do_config:
+            ## ModeControl must be 1
+            mode_control=self.get_mode_control()
+            if not mode_control==1:
 
-            self.log("Flux ramp ModeControl is {}".format(mode_control) +
-                " - changing to 1 for fixed DC output.", 
-                     self.LOG_USER)
-            self.set_mode_control(1)
+                #before switching to ModeControl=1, make sure DAC is set to output zero V
+                LTC1668RawDacData0=np.floor(0.5*(2**self._num_flux_ramp_dac_bits))
+                self.log("Before switching to fixed DC flux ramp output, " + 
+                         " explicitly setting flux ramp DAC to zero "+
+                         "(LTC1668RawDacData0={})".format(mode_control,LTC1668RawDacData0), 
+                         self.LOG_USER)
+                self.set_flux_ramp_dac(LTC1668RawDacData0)
+
+                self.log("Flux ramp ModeControl is {}".format(mode_control) +
+                         " - changing to 1 for fixed DC output.", 
+                         self.LOG_USER)
+                self.set_mode_control(1)
 
         ## Compute and set flux ramp DAC to requested value
         LTC1668RawDacData = np.floor((2**self._num_flux_ramp_dac_bits)*
@@ -2614,9 +2618,10 @@ class SmurfTuneMixin(SmurfBase):
         ## 2s complement
         if fractionFullScale<0:
             LTC1668RawDacData = 2**self._num_flux_ramp_dac_bits-LTC1668RawDacData-1
-        self.log("Setting flux ramp to {}".format(100 * fractionFullScale, 
-            int(LTC1668RawDacData)) + "% of full scale (LTC1668RawDacData={})", 
-                 self.LOG_USER)
+        if debug:
+            self.log("Setting flux ramp to {}".format(100 * fractionFullScale, 
+                     int(LTC1668RawDacData)) + "% of full scale (LTC1668RawDacData={})", 
+                     self.LOG_USER)
         self.set_flux_ramp_dac(LTC1668RawDacData)        
 
     def flux_ramp_setup(self, reset_rate_khz, fraction_full_scale, df_range=.1, 
@@ -2821,7 +2826,8 @@ class SmurfTuneMixin(SmurfBase):
 
 
     def find_freq(self, band, subband=np.arange(13,115), drive_power=None,
-        n_read=2, make_plot=False, save_plot=True, window=50, rolling_med=True):
+        n_read=2, make_plot=False, save_plot=True, window=50, rolling_med=True,
+                  make_subband_plot=False):
         '''
         Finds the resonances in a band (and specified subbands)
 
@@ -2872,7 +2878,7 @@ class SmurfTuneMixin(SmurfBase):
         # Find resonances
         res_freq = self.find_all_peak(self.freq_resp[band]['find_freq']['f'],
             self.freq_resp[band]['find_freq']['resp'], subband, make_plot=make_plot,
-            band=band, rolling_med=rolling_med, window=window)
+            band=band, rolling_med=rolling_med, window=window, make_subband_plot=make_subband_plot)
         self.freq_resp[band]['find_freq']['resonance'] = res_freq
 
         # Save resonances
