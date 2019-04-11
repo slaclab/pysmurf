@@ -953,6 +953,21 @@ class SmurfCommandMixin(SmurfBase):
         return self._caget(self._cryo_root(band) + self._loop_filter_output_array,
             **kwargs)
 
+    _tone_frequency_offset_mhz = 'toneFrequencyOffsetMHz'
+    def get_tone_frequency_offset_mhz(self, band, **kwargs):
+        """
+        """
+        return self._caget(self._band_root(band) + self._tone_frequency_offset_mhz,
+            **kwargs)
+
+    def	set_tone_frequency_offset_mhz(self, band, val, **kwargs):
+        """
+        """
+        return self._caput(self._band_root(band) +
+                           self._tone_frequency_offset_mhz, val,
+                           **kwargs)
+
+    
     _center_frequency_array = 'centerFrequencyArray'
     def set_center_frequency_array(self, band, val, **kwargs):
         """

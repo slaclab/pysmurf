@@ -271,9 +271,9 @@ class SmurfUtilMixin(SmurfBase):
         if len(neg) > 0:
             f[neg] = f[neg] - 2**24
 
-        if np.remainder(len(f),512)==0:
+        if np.remainder(len(f), 416)==0:
             # -1 is [] in Matlab
-            f = np.reshape(f, (-1, 512)) * subband_halfwidth_MHz / 2**23 
+            f = np.reshape(f, (-1, 416)) * subband_halfwidth_MHz / 2**23 
         else:
             self.log('Number of points not a multiple of 512. Cannot decode',
                 self.LOG_ERROR)
@@ -290,10 +290,8 @@ class SmurfUtilMixin(SmurfBase):
             if len(neg) > 0:
                 df[neg] = df[neg] - 2**24
 
-            print(np.shape(df))
-            print(np.remainder(len(df), 512))
-            if np.remainder(len(df), 512) == 0:
-                df = np.reshape(df, (-1, 512)) * subband_halfwidth_MHz / 2**23
+            if np.remainder(len(df), 416) == 0:
+                df = np.reshape(df, (-1, 416)) * subband_halfwidth_MHz / 2**23
             else:
                 self.log('Number of points not a multiple of 512. Cannot decode', 
                     self.LOG_ERROR)
@@ -1146,9 +1144,6 @@ class SmurfUtilMixin(SmurfBase):
     def get_channel_order(self, channel_orderfile=None):
         ''' produces order of channels from a user-supplied input file
 
-
-        To Do : un-hardcode this.
-
         Args:
         -----
 
@@ -1160,28 +1155,34 @@ class SmurfUtilMixin(SmurfBase):
         channel_order (int array) : An array of channel orders
         '''
 
-        if channel_orderfile is not None:
-            with open(channel_orderfile) as f:
-                channel_order = f.read().splitlines()
-        else:
-            x4 = (np.arange(512, dtype=int) + 4)%512  # Off by four
-            channel_order = 128 + (x4%4)*32 + (x4//4)%2*256 - (x4//256)*128 + \
-                (((x4)%32)//16)*8 + (x4)%16//8*16 + (x4)%128//64*2 + \
-                (x4)%64//32*4 + (x4)%256//128
+        # if channel_orderfile is not None:
+        #    with open(channel_orderfile) as f:
+        #        channel_order = f.read().splitlines()
+        #else:
+        #    x4 = (np.arange(512, dtype=int) + 4)%512  # Off by four
+        #    channel_order = 128 + (x4%4)*32 + (x4//4)%2*256 - (x4//256)*128 + \
+        #        (((x4)%32)//16)*8 + (x4)%16//8*16 + (x4)%128//64*2 + \
+        #        (x4)%64//32*4 + (x4)%256//128
 
+        channel_order = np.tile(64*np.arange(4),64)+np.repeat(np.arange(64),4)
+        channel_order = np.append(channel_order, channel_order+256)
+        
         return channel_order
 
     def get_subband_from_channel(self, band, channel, channelorderfile=None):
         """ returns subband number given a channel number
         Args:
+        -----
         root (str): epics root (eg mitch_epics)
         band (int): which band we're working in
         channel (int): ranges 0..511, cryo channel number
 
-        Optional Args:
+        Opt Args:
+        ---------
         channelorderfile(str): path to file containing order of channels
 
-        Returns:
+        Ret:
+        ----
         subband (int) : The subband the channel lives in
         """
 
@@ -1200,6 +1201,7 @@ class SmurfUtilMixin(SmurfBase):
         idx = np.where(chanOrder == channel)[0]
 
         subband = idx // n_chanpersubband
+        
         return int(subband)
 
     def get_subband_centers(self, band, as_offset=True, hardcode=False):
