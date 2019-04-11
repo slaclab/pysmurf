@@ -87,7 +87,7 @@ class SmurfCommandMixin(SmurfBase):
             epics.caput(self.epics_root+ self._global_poll_enable, True)
 
         if write_log:
-            self.log('caput ' + cmd, log_level)
+            self.log('caget ' + cmd, log_level)
 
         if execute and not self.offline:
             ret = epics.caget(cmd, count=count)
@@ -963,10 +963,10 @@ class SmurfCommandMixin(SmurfBase):
     def	set_tone_frequency_offset_mhz(self, band, val, **kwargs):
         """
         """
-        return self._caput(self._band_root(band) +
-                           self._tone_frequency_offset_mhz, val,
-                           **kwargs)
-
+        self._caput(self._band_root(band) +
+                    self._tone_frequency_offset_mhz, val,
+                    **kwargs)
+        
     
     _center_frequency_array = 'centerFrequencyArray'
     def set_center_frequency_array(self, band, val, **kwargs):
