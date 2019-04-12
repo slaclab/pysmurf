@@ -15,6 +15,26 @@ class SmurfUtilMixin(SmurfBase):
     def take_debug_data(self, band, channel=None, nsamp=2**19, filename=None, 
             IQstream=1, single_channel_readout=1, debug=False):
         """
+        Takes raw debugging data
+
+        Args:
+        -----
+        band (int) : The band to take data on
+
+        Opt Args:
+        ---------
+        single_channel_readout (int) : Whether to look at one channel
+        channel (int) : The channel to take debug data on in single_channel_mode
+        nsamp (int) : The number of samples to take
+        filename (str) : The name of the file to save to.
+        IQstream (int) : Whether to take the raw IQ stream.
+        debug (bool) : 
+
+        Ret:
+        ----
+        f (float array) : The frequency response
+        df (float array) : The frequency error
+        sync (float array) : The sync count
         """
         # Set proper single channel readout
         if channel is not None:
@@ -448,11 +468,8 @@ class SmurfUtilMixin(SmurfBase):
         bands = self.config.get('init').get('bands')
         if gcp_mode:
             self.set_smurf_to_gcp_writer(False, write_log=True)
-            # self.set_gcp_datafile('/data/cryo/mas_data_pipe')
         else:
             self.set_streaming_file_open(0)  # Close the file
-        #for band in bands:
-        #    self.set_stream_enable(band, 0, write_log=True)
 
 
     def read_stream_data(self, datafile, channel=None, 
@@ -671,7 +688,6 @@ class SmurfUtilMixin(SmurfBase):
 
         mask = self.make_mask_lookup(os.path.join(rootpath, 
                                                   '{}_mask.txt'.format(timestamp)))
-        #mask = self.make_mask_lookup(datafile.replace('.dat','_mask.txt'))
 
         return timestamp2, phase, mask
 
@@ -732,14 +748,21 @@ class SmurfUtilMixin(SmurfBase):
 
     def read_adc_data(self, adc_number, data_length, hw_trigger=False):
         """
+        Reads data directly off the ADC.
+
         Args:
         -----
-        adc_number (int):
-        data_length (int):
+        adc_number (int): The number associated with the ADC.
+        data_length (int): The number of samples
 
         Opt Args:
         ---------
-        hw_trigger (bool)
+        hw_trigger (bool) : Whether to use the hardware trigger. If
+            False, uses an internal trigger.
+
+        Ret:
+        ----
+        dat (int array) : The raw ADC data.
         """
         if adc_number > 3:
             bay = 1
@@ -1164,8 +1187,15 @@ class SmurfUtilMixin(SmurfBase):
         #        (((x4)%32)//16)*8 + (x4)%16//8*16 + (x4)%128//64*2 + \
         #        (x4)%64//32*4 + (x4)%256//128
 
-        channel_order = np.tile(64*np.arange(4),64)+np.repeat(np.arange(64),4)
-        channel_order = np.append(channel_order, channel_order+256)
+        #channel_order = np.tile(64*np.arange(4),64)+np.repeat(np.arange(64),4)
+        #channel_order = np.append(channel_order, channel_order+256)
+
+        tone_freq_offset = self.get_tone_frequency_offset_mhz()
+        freqs = np.sort(np.unique(tone_freq_offset))
+
+        channel_order = np.zeros(len(tone_freq_offset), dtype=int)
+        for i, f in enumerate(freqs):
+            channel_order[4*i:4*(i+1)] = np.ravel(np.where(tone_freq_offset == f))
         
         return channel_order
 
