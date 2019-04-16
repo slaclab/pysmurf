@@ -11,7 +11,7 @@ class SmurfCommandMixin(SmurfBase):
     _global_poll_enable = ':AMCc:enable'
     def _caput(self, cmd, val, write_log=False, execute=True, wait_before=None,
         wait_after=None, wait_done=True, log_level=0, enable_poll=False,
-        disable_poll=False):
+        disable_poll=False, new_epics_root=None):
         '''
         Wrapper around pyrogue lcaput. Puts variables into epics
 
@@ -34,7 +34,15 @@ class SmurfCommandMixin(SmurfBase):
         enable_poll (bool) : Allows requests of all PVs. Default False.
         disable_poll (bool) : Disables requests of all PVs after issueing command.
             Default False.
+        new_epics_root (str) : Temporarily replaces current epics root with
+            a new one.
         '''
+        if new_epics_root is not None:
+            self.log('Temporarily using new epics root: {}'.format(new_epics_root))
+            old_epics_root = self.epics_root
+            self.epics_root = new_epics_root
+            cmd = cmd.replace(old_epics_root, self.epics_root)
+            
         if enable_poll:
             epics.caput(self.epics_root + self._global_poll_enable, True)
 
@@ -64,25 +72,42 @@ class SmurfCommandMixin(SmurfBase):
         if disable_poll:
             epics.caput(self.epics_root + self._global_poll_enable, False)
 
+        if new_epics_root is not None:
+            self.epics_root = old_epics_root
+            self.log('Returning back to original epics root'+
+                     ' : {}'.format(self.epics_root))
+        
     def _caget(self, cmd, write_log=False, execute=True, count=None,
-        log_level=0, enable_poll=False, disable_poll=False):
+               log_level=0, enable_poll=False, disable_poll=False,
+               new_epics_root=None):
         '''
         Wrapper around pyrogue lcaget. Gets variables from epics
 
         Args:
         -----
         cmd : The pyrogue command to be exectued. Input as a string
+
+        Opt Args:
+        ---------
         write_log : Whether to log the data or not. Default False
         execute : Whether to actually execute the command. Defualt True.
         count (int or None) : number of elements to return for array data
         enable_poll (bool) : Allows requests of all PVs. Default False.
         disable_poll (bool) : Disables requests of all PVs after issueing command.
             Default False.
+        new_epics_root (str) : Temporarily replaces current epics root with
+            a new one.
 
         Returns:
         --------
         ret : The requested value
         '''
+        if new_epics_root is not None:
+            self.log('Temporarily using new epics root: {}'.format(new_epics_root))
+            old_epics_root = self.epics_root
+            self.epics_root = new_epics_root
+            cmd = cmd.replace(old_epics_root, self.epics_root)
+            
         if enable_poll:
             epics.caput(self.epics_root+ self._global_poll_enable, True)
 
@@ -93,12 +118,18 @@ class SmurfCommandMixin(SmurfBase):
             ret = epics.caget(cmd, count=count)
             if write_log:
                 self.log(ret)
-            return ret
         else:
-            return None
+            ret = None
 
         if disable_poll:
             epics.caput(self.epics_root+ self._global_poll_enable, False)
+
+        if new_epics_root is not None:
+            self.epics_root = old_epics_root
+            self.log('Returning back to original epics root'+
+                     ' : {}'.format(self.epics_root))
+
+        return ret
 
     def get_enable(self, **kwargs):
         """
