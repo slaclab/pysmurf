@@ -1335,45 +1335,6 @@ class SmurfNoiseMixin(SmurfBase):
 
 
 
-    def plot_svd_summary(u, s, vh, save_plot=False, save_name=None, 
-        show_plot=True, title=None):
-        if not show_plot:
-            plt.ioff()
-        else:
-            plt.ion()
-
-        fig, ax = plt.subplots(1, 2, figsize=(10,5))
-
-        # heatmap of coefficients
-        sns.heatmap(u, vmin=-1, vmax=1, cmap='RdYlBu_r', 
-            xticklabels=2, yticklabels=2, linewidth=.1, 
-            ax=ax[0], square=True)
-        ax[0].set_xlabel('Mode Num')
-        ax[0].set_ylabel('Pair Num')
-
-        # Overall mode power
-        ax[1].plot(np.log10(s), '.')
-        ax[1].set_ylabel(r'$\log_{10}s$')
-        ax[1].set_xlabel('Mode num')
-
-        if title is not None:
-            fig.suptitle(title)
-
-        plt.tight_layout()
-
-        # Plot saving
-        if save_plot:
-            print('Saving to {}'.format(save_name))
-            if save_name is None:
-                raise IOError('To save plot, save_name must be provided')
-            else:
-                plt.savefig(save_name, bbox_inches='tight')
-
-        if show_plot:
-            plt.show()
-        else:
-            plt.close()
-
     def noise_svd(self, d, mask, mean_subtract=True):
         """
         Calculates the SVD modes of the input data.
