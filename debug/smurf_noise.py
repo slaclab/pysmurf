@@ -1481,6 +1481,7 @@ class SmurfNoiseMixin(SmurfBase):
         d (float array) : The input data
         u (float array) : The SVD coefficients
         s (float array) : The SVD amplitudes
+        mask (int array) : The channel mask
         vh (float arrry) : The SVD modes
 
         Opt Args:
