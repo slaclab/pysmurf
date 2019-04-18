@@ -1430,9 +1430,12 @@ class SmurfNoiseMixin(SmurfBase):
         fig, ax = plt.subplots(1, 2, figsize=(10,5))
 
         # heatmap of coefficients
+        n_det, _ = np.shape(u)
+        n_tick = 10
+        tick = n_det//n_tick
         sns.heatmap(u, vmin=-1, vmax=1, cmap='RdYlBu_r', 
-            xticklabels=2, yticklabels=2, linewidth=0, 
-            ax=ax[0], square=True)
+            xticklabels=tick, yticklabels=tick, linewidth=0, 
+            ax=ax[0], square=False)
         ax[0].set_xlabel('Mode Num')
         ax[0].set_ylabel('Resonator')
 
@@ -1457,7 +1460,7 @@ class SmurfNoiseMixin(SmurfBase):
             plt.close()
 
     def plot_svd_modes(self, vh, n_row=4, n_col=5, figsize=(10,7.5), 
-        save_plot=False, save_name=None, show_plot=True, sharey=True):
+        save_plot=False, save_name=None, show_plot=False, sharey=True):
         """
         Plots the first N modes where N is n_row x n_col.
 
@@ -1506,3 +1509,44 @@ class SmurfNoiseMixin(SmurfBase):
             plt.show()
         else:
             plt.close()
+
+
+    def remove_svd(self, d, mask, u, s, vh, modes=3):
+        """
+        Removes the requsted SVD modes
+
+        Args:
+        -----
+        d (float array) : The input data
+        u (float array) : The SVD coefficients
+        s (float array) : The SVD amplitudes
+        vh (float arrry) : The SVD modes
+
+        Opt Args:
+        ---------
+        modes (int or int array) : The modes to remove. If int, removes the first
+            N modes. If array, uses the modes indicated in the array. Default 3.
+
+        Ret:
+        ----
+        diff (float array) : The difference of the input data matrix and the 
+            requested SVD modes.
+        """
+        n_mode = np.size(s)
+        n_samp, _ = np.shape(vh)
+
+        dat = d[mask[np.where(mask!=-1)]]
+
+        if type(modes) is int:
+            modes = np.arange(modes)
+
+        # select the modes to subtract
+        diag = np.zeros((n_mode, n_samp))
+        for i, dd in enumerate(s):
+            if i in modes:
+                diag[i,i] = dd
+
+        # subtraction matrix
+        mat = np.dot(u, np.dot(diag, vh))
+
+        return dat - mat
