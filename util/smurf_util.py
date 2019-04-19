@@ -1120,7 +1120,7 @@ class SmurfUtilMixin(SmurfBase):
 
         return subband_no, offset
 
-    def channel_to_freq(self, band, channel):
+    def channel_to_freq(self, band, channel, yml=None):
         """
         Gives the frequency of the channel.
 
@@ -1136,9 +1136,10 @@ class SmurfUtilMixin(SmurfBase):
         if band is None or channel is None:
             return None
 
-        subband = self.get_subband_from_channel(band, channel)
-        _, sbc = self.get_subband_centers(band, as_offset=False)
-        offset = self.get_center_frequency_mhz_channel(band, channel)
+        subband = self.get_subband_from_channel(band, channel, yml=yml)
+        _, sbc = self.get_subband_centers(band, as_offset=False, yml=yml)
+        offset = float(self.get_center_frequency_mhz_channel(band, channel, 
+            yml=yml))
 
         return sbc[subband] + offset
 
@@ -1171,7 +1172,8 @@ class SmurfUtilMixin(SmurfBase):
 
         return channel_order
 
-    def get_subband_from_channel(self, band, channel, channelorderfile=None):
+    def get_subband_from_channel(self, band, channel, channelorderfile=None,
+        yml=None):
         """ returns subband number given a channel number
         Args:
         root (str): epics root (eg mitch_epics)
@@ -1185,8 +1187,8 @@ class SmurfUtilMixin(SmurfBase):
         subband (int) : The subband the channel lives in
         """
 
-        n_subbands = self.get_number_sub_bands(band)
-        n_channels = self.get_number_channels(band)
+        n_subbands = self.get_number_sub_bands(band, yml=yml)
+        n_channels = self.get_number_channels(band, yml=yml)
 
         n_chanpersubband = n_channels / n_subbands
 
@@ -1202,7 +1204,8 @@ class SmurfUtilMixin(SmurfBase):
         subband = idx // n_chanpersubband
         return int(subband)
 
-    def get_subband_centers(self, band, as_offset=True, hardcode=False):
+    def get_subband_centers(self, band, as_offset=True, hardcode=False, 
+        yml=None):
         """ returns frequency in MHz of subband centers
         Args:
         -----
@@ -1219,9 +1222,10 @@ class SmurfUtilMixin(SmurfBase):
             digitizerFrequencyMHz = 614.4
             n_subbands = 128
         else:
-            digitizerFrequencyMHz = self.get_digitizer_frequency_mhz(band)
-            bandCenterMHz = self.get_band_center_mhz(band)
-            n_subbands = self.get_number_sub_bands(band)
+            digitizerFrequencyMHz = self.get_digitizer_frequency_mhz(band, 
+                yml=yml)
+            bandCenterMHz = self.get_band_center_mhz(band, yml=yml)
+            n_subbands = self.get_number_sub_bands(band, yml=yml)
 
         subband_width_MHz = 2 * digitizerFrequencyMHz / n_subbands
 
@@ -1230,7 +1234,7 @@ class SmurfUtilMixin(SmurfBase):
             subband_width_MHz/2
 
         if not as_offset:
-            subband_centers += self.get_band_center_mhz(band)
+            subband_centers += self.get_band_center_mhz(band, yml=yml)
 
         return subbands, subband_centers
 
