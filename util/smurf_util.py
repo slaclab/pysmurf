@@ -778,10 +778,15 @@ class SmurfUtilMixin(SmurfBase):
 
         return dat
 
-    def read_dac_data(self, dac_number, data_length, hw_trigger=False):
+    def read_dac_data(self, dac_number, data_length=2**19, hw_trigger=False,
+                      do_plot=False, save_data=True, timestamp=None, show_plot=True,
+                      plot_ylimits=[None,None]):
         """
         Read the data directly off the DAC
         """
+        if timestamp is None:
+            timestamp = self.get_timestamp()
+        
         if dac_number > 3:
             bay = 1
             dac_number = dac_number - 4
@@ -790,9 +795,39 @@ class SmurfUtilMixin(SmurfBase):
 
         self.setup_daq_mux('dac', dac_number, data_length)
 
-        res = self.read_stream_data_daq(data_length, bay=bay, 
-            hw_trigger=hw_trigger)
+        res = self.read_stream_data_daq(data_length, bay=bay, hw_trigger=hw_trigger)
         dat = res[1] + 1.j * res[0]
+
+        if do_plot:
+            import matplotlib.pyplot as plt
+            if show_plot:
+                plt.ion()
+            else:
+                plt.ioff()
+
+            import scipy.signal as signal
+            f, p_dac = signal.welch(dat, fs=614.4E6, nperseg=data_length/2, return_onesided=False,detrend=False)            
+            f_plot = f / 1.0E6
+
+            idx = np.argsort(f)
+            f_plot = f_plot[idx]
+            p_dac = p_dac[idx]            
+
+            fig = plt.figure(figsize=(9,4.5))
+            ax=plt.gca()
+            if plot_ylimits[0] is not None:
+                plt.ylim(plot_ylimits[0],plt.ylim()[1])
+            if plot_ylimits[1] is not None:
+                plt.ylim(plt.ylim()[0],plot_ylimits[1])
+            ax.set_ylabel('DAC{}'.format(dac_number))
+            ax.set_xlabel('Frequency [MHz]')
+            ax.set_title(timestamp)            
+            ax.semilogy(f_plot, p_dac)
+            
+        if save_data:
+            outfn=os.path.join(self.output_dir,'{}_dac{}'.format(timestamp,dac_number))
+            self.log('Saving raw dac data to {}'.format(outfn), self.LOG_USER)
+            np.save(outfn, res)
 
         return dat
 
