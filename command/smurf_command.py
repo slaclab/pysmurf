@@ -205,7 +205,7 @@ class SmurfCommandMixin(SmurfBase):
     def run_pwr_up_sys_ref(self,bay, **kwargs):
         """
         """
-        triggerPV=self.sysref.format(bay) + 'LMK:PwrUpSysRef'
+        triggerPV=self.microwave_mux_core.format(bay) + 'LMK:PwrUpSysRef'
         self._caput(triggerPV, 1, wait_after=5, **kwargs)
         self.log('{} sent'.format(triggerPV), self.LOG_USER)
 
@@ -447,6 +447,70 @@ class SmurfCommandMixin(SmurfBase):
         """
         self._caput(self.epics_root + self._writeconfig,
                     val, **kwargs)
+
+
+    _tone_file_path = 'CsvFilePath'
+    def get_tone_file_path(self, bay, **kwargs):
+        """
+        Returns the tone file path that's currently being used for this bay.
+
+        Args:
+        ----
+        bay (int) : Which AMC bay (0 or 1).
+        """
+
+        ret=self._caget(self.dac_sig_gen.format(bay) + self._tone_file_path,**kwargs)
+        # convert to human-readable string
+        ret=''.join([str(s, encoding='UTF-8') for s in ret])
+        # strip \x00 - not sure why I have to do this
+        ret=ret.strip('\x00')
+        return ret
+
+    def set_tone_file_path(self, bay, val, **kwargs):
+        """
+        Sets the tone file path for this bay.
+
+        Args:
+        ----
+        bay (int) : Which AMC bay (0 or 1).
+        val (str) : Path (including csv file name) to tone file.
+        """
+        # make sure file exists before setting
+
+        if not os.path.exists(val):
+            self.log('Tone file {} does not exist!  Doing nothing!'.format(val),
+                     self.LOG_ERROR)
+            raise ValueError('Must provide a path to an existing tone file.')
+        
+        self._caput(self.dac_sig_gen.format(bay) + self._tone_file_path,
+                    val, **kwargs)
+
+    _load_tone_file = 'LoadCsvFile'        
+    def load_tone_file(self, bay, val=None, **kwargs):
+        """
+        Loads tone file specified in tone_file_path.
+
+        Args:
+        ----
+        bay (int) : Which AMC bay (0 or 1).
+
+        Optional Args:
+        --------------
+        val (str) : Path (including csv file name) to tone file.  If
+                    none provided, assumes something valid has already
+                    been loaded into DacSigGen[#]:CsvFilePath
+        """
+
+        # Set tone file path if provided.
+        if val is not None:
+            self.set_tone_file_path(bay, val)
+        else:
+            val=self.get_tone_file_path(bay)
+
+
+        self.log('Loading tone file : {}'.format(val),
+                 self.LOG_USER)        
+        self._caput(self.dac_sig_gen.format(bay) + self._load_tone_file, val, **kwargs)        
 
     _tune_file_path = 'tuneFilePath'
     def set_tune_file_path(self, val, **kwargs):
