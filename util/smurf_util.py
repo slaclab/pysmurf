@@ -2118,7 +2118,7 @@ class SmurfUtilMixin(SmurfBase):
     def bias_bump(self, bias_group, wait_time=.5, step_size=.001, duration=5,
                   fs=180., start_bias=None, make_plot=False, skip_samp_start=10,
                   high_current_mode=True, skip_samp_end=10, plot_channels=None,
-                  gcp_mode=False, gcp_wait=.5, gcp_between=1.):
+                  gcp_mode=False, gcp_wait=.5, gcp_between=1., dat_file=None):
         """
         Toggles the TES bias high and back to its original state. From this, it
         calculates the electrical responsivity (sib), the optical responsivity (siq),
@@ -2153,6 +2153,8 @@ class SmurfUtilMixin(SmurfBase):
             Default is True.
         make_plot (bool) : Whether to make plots. Must set some channels in plot_channels.
         plot_channels (int array) : The channels to plot.
+        dat_file (str) : filename to read bias-bump data from; if provided, data is read 
+            from file instead of being measured live
 
         Ret:
         ---
@@ -2187,39 +2189,42 @@ class SmurfUtilMixin(SmurfBase):
             self.set_tes_bias_high_current(bias_group)
             i_bias *= self.high_low_current_ratio
 
-        filename = self.stream_data_on()
+        if dat_file is None:
+            filename = self.stream_data_on()
 
-        if gcp_mode:
-            self.log('Doing GCP mode bias bump')
-            for j, bg in enumerate(bias_group):
-                self.set_tes_bias_bipolar(bg, start_bias[j] + step_size,
-                                           wait_done=False)
-            time.sleep(gcp_wait)
-            for j, bg in enumerate(bias_group):
-                self.set_tes_bias_bipolar(bg, start_bias[j],
-                                          wait_done=False)
-            time.sleep(gcp_between)
-            for j, bg in enumerate(bias_group):
-                self.set_tes_bias_bipolar(bg, start_bias[j] + step_size,
-                                           wait_done=False)
-            time.sleep(gcp_wait)
-            for j, bg in enumerate(bias_group):
-                self.set_tes_bias_bipolar(bg, start_bias[j],
-                                          wait_done=False)
-
-        else:
-            # Sets TES bias high then low
-            for i in np.arange(n_step):
+            if gcp_mode:
+                self.log('Doing GCP mode bias bump')
                 for j, bg in enumerate(bias_group):
                     self.set_tes_bias_bipolar(bg, start_bias[j] + step_size,
-                                              wait_done=False)
-                time.sleep(wait_time)
+                                           wait_done=False)
+                time.sleep(gcp_wait)
                 for j, bg in enumerate(bias_group):
                     self.set_tes_bias_bipolar(bg, start_bias[j],
+                                          wait_done=False)
+                time.sleep(gcp_between)
+                for j, bg in enumerate(bias_group):
+                    self.set_tes_bias_bipolar(bg, start_bias[j] + step_size,
+                                           wait_done=False)
+                time.sleep(gcp_wait)
+                for j, bg in enumerate(bias_group):
+                    self.set_tes_bias_bipolar(bg, start_bias[j],
+                                          wait_done=False)
+
+            else:
+                # Sets TES bias high then low
+                for i in np.arange(n_step):
+                    for j, bg in enumerate(bias_group):
+                        self.set_tes_bias_bipolar(bg, start_bias[j] + step_size,
                                               wait_done=False)
                     time.sleep(wait_time)
+                    for j, bg in enumerate(bias_group):
+                        self.set_tes_bias_bipolar(bg, start_bias[j],
+                                              wait_done=False)
+                        time.sleep(wait_time)
 
-        self.stream_data_off()  # record data
+            self.stream_data_off()  # record data
+        else:
+            filename = dat_file
 
         if gcp_mode:
             return
