@@ -2252,6 +2252,10 @@ class SmurfUtilMixin(SmurfBase):
                                           np.ones(n_demod-skip_samp_start-skip_samp_end)),
                                 np.nan*np.zeros(skip_samp_end)),n_tile)
 
+        timestamp = filename.split('/')[-1].split('.')[0]
+        if make_plot:
+            import matplotlib.pyplot as plt
+        
         for i, (b, c) in enumerate(zip(bands, channels)):
             mm = m[b, c]
             # Convolve to find the start of the bias step
@@ -2266,8 +2270,7 @@ class SmurfUtilMixin(SmurfBase):
             resp[i] = h-l
             sib[i] = resp[i] / i_amp
 
-            if make_plot and c in plot_channels:
-                import matplotlib.pyplot as plt
+            if c in plot_channels:
                 plt.figure()
                 plt.plot(conv)
 
@@ -2276,8 +2279,13 @@ class SmurfUtilMixin(SmurfBase):
                 plt.axvline(start_idx, color='k', linestyle=':')
                 plt.plot(x, h*high)
                 plt.plot(x, l*low)
+                plt.ylabel('TES current (uA)')
+                plt.xlabel('Samples')
                 plt.title(resp[i])
-                plt.show()
+                plot_fn = '%s/%s_biasBump_b%d_ch%03d' % (self.plot_dir,\
+                                                         timestamp,b,c)
+                plt.savefig(plot_fn)
+                self.log('Response plot saved to %s' % (plot_fn))
 
         resistance = np.abs(self.R_sh * (1-1/sib))
         siq = (2*sib-1)/(self.R_sh*i_amp) * 1.0E6/1.0E12  # convert to uA/pW
@@ -2370,3 +2378,52 @@ class SmurfUtilMixin(SmurfBase):
         mask_num = self.gcp_num_to_mask_num(gcp_num)
         return int(mask[mask_num]//512), int(mask[mask_num]%512)
 
+
+    def play_tone_file(self, band, tone_file=None, load_tone_file=True):
+        """
+        Plays the specified tone file on this band.  If no path provided
+        for tone file, assumes the path to the correct tone file has
+        already been loaded.
+
+        Args:
+        ----
+        band (int) : Which band to play tone file on.
+
+        Optional Args:
+        --------------
+        tone_file (str) : Path (including csv file name) to tone file.
+                          If none given, uses whatever's already been loaded.
+        load_tone_file (bool) : Whether or not to load the tone file.
+                                The tone file is loaded per DAC, so if you 
+                                already loaded the tone file for this DAC you 
+                                don't have to do it again.
+        """
+
+        # the bay corresponding to this band.
+        bay=self.band_to_bay(band)
+        
+        # load the tone file
+        if load_tone_file:
+            self.load_tone_file(bay,tone_file)
+
+        # play it!
+        self.log('Playing tone file {} on band {}'.format(tone_file,band),
+                 self.LOG_USER)        
+        self.set_waveform_select(band,1)
+
+    def stop_tone_file(self, band):
+        """
+        Stops playing tone file on the specified band and reverts
+        to DSP.
+
+        Args:
+        ----
+        band (int) : Which band to play tone file on.
+        """
+
+        self.set_waveform_select(band,0)
+
+        # may need to do this, not sure.  Try without
+        # for now.
+        #self.set_dsp_enable(band,1) 
+        
