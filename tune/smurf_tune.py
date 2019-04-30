@@ -2079,7 +2079,6 @@ class SmurfTuneMixin(SmurfBase):
                                           lms_enable1=False, lms_enable2=False,
                                           lms_enable3=False, flux_ramp=flux_ramp)
 
-
         n_samp, n_chan = np.shape(df)
 
         dd = np.ravel(np.where(np.diff(sync[:,0]) !=0))
@@ -2253,7 +2252,12 @@ class SmurfTuneMixin(SmurfBase):
                                            single_channel_readout=0, nsamp=nsamp)
             
             df_std = np.std(df, 0)
-            channels_on = list(set(np.where(df_std > 0)[0]) & set(self.which_on(band)))
+
+            #downselect_channels = self.get_downselect_channels()
+            #print(np.where(df_std>0))
+            df_channels = np.ravel(np.where(df_std >0))
+
+            channels_on = list(set(df_channels) & set(self.which_on(band)))
             self.log("Number of channels on = {}".format(len(channels_on)), 
                 self.LOG_USER)
 
@@ -2293,7 +2297,7 @@ class SmurfTuneMixin(SmurfBase):
                 self.log("Taking data on single channel number {}".format(channel), 
                          self.LOG_USER)
                 sync_idx = self.make_sync_flag(sync)
-                #n_els = 2500
+
                 bbox = dict(boxstyle="round", ec='w', fc='w', alpha=.65)
 
                 for ch in channel:
@@ -3503,7 +3507,7 @@ class SmurfTuneMixin(SmurfBase):
         end (int array) The end index of the sync
         """
         s, e = self.find_flag_blocks(sync[:,0], min_gap=1000)
-        return s//512
+        return s//416
 
 
     def flux_mod(self, df, sync, threshold=.4, minscale=.02,
