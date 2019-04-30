@@ -325,7 +325,7 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
 
             self.set_dsp_enable(b, smurf_init_config['dspEnable'], 
                 write_log=write_log, **kwargs)
-
+            
             # Tuning defaults - only set if present in cfg
             if hasattr(self,'gradient_descent_gain') and b in self.gradient_descent_gain.keys():
                 self.set_gradient_descent_gain(b, self.gradient_descent_gain[b], write_log=write_log, **kwargs)
@@ -334,6 +334,12 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
             if hasattr(self,'eta_scan_averages') and b in self.eta_scan_averages.keys():
                 self.set_eta_scan_averages(b, self.eta_scan_averages[b], write_log=write_log, **kwargs)
 
+
+        # Things that have to be done for both AMC bays, regardless of whether or not an AMC
+        # is plugged in there.
+        for bay in [0,1]:
+            self.set_trigger_hw_arm(bay, 0, write_log=write_log)
+        
         self.set_trigger_width(0, 10, write_log=write_log)  # mystery bit that makes triggering work
         self.set_trigger_enable(0, 1, write_log=write_log)
         self.set_evr_channel_reg_enable(0, True, write_log=write_log)
