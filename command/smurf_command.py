@@ -3153,3 +3153,29 @@ class SmurfCommandMixin(SmurfBase):
         return self._caget(self.DBG.format(bay) + self._dac_reset.format(dac),
                            val, **kwargs)
 
+
+    _debug_select0 = "DebugSelect[0]"
+    def set_debug_select0(self, val, **kwargs):
+        """
+        """
+        self._caput(self.app_core + self._debug_select0,
+                    val, **kwargs)
+    
+    def get_debug_select0(self, **kwargs):
+        """
+        """
+        return self._caget(self.app_core + self._debug_select0,
+                           **kwargs)
+
+    _debug_select1 = "DebugSelect[1]"
+    def set_debug_select1(self, val, **kwargs):
+        """                                                
+        """
+        self._caput(self.app_core + self._debug_select1,
+                    val, **kwargs)
+
+    def get_debug_select1(self, **kwargs):
+        """
+        """
+        return self._caget(self.app_core + self._debug_select1,
+                           **kwargs)
