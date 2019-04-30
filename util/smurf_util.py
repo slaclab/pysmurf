@@ -247,7 +247,8 @@ class SmurfUtilMixin(SmurfBase):
 
         return header, data
 
-    def decode_data(self, filename, swapFdF=False):
+    
+    def decode_data(self, filename, swapFdF=False, recast=True):
         """
         take a dataset from take_debug_data and spit out results
 
@@ -255,15 +256,17 @@ class SmurfUtilMixin(SmurfBase):
         -----
         filename (str): path to file
 
-        Optional:
+        Opt Args:
+        ---------
         swapFdF (bool): whether the F and dF (or I/Q) streams are flipped
+        recast (bool): Whether to recast from size 416 to 512. Default
+            True.
 
         Returns:
         -----
         [f, df, sync] if iqStreamEnable = 0
         [I, Q, sync] if iqStreamEnable = 1
         """
-
         subband_halfwidth_MHz = 4.8 # can we remove this hardcode
         if swapFdF:
             nF = 1 # weirdly, I'm not sure this information gets used
@@ -292,12 +295,10 @@ class SmurfUtilMixin(SmurfBase):
             f[neg] = f[neg] - 2**24
 
         if np.remainder(len(f), 416)==0:
-            # -1 is [] in Matlab
             f = np.reshape(f, (-1, 416)) * subband_halfwidth_MHz / 2**23 
         else:
-            self.log('Number of points not a multiple of 512. Cannot decode',
-                self.LOG_ERROR)
-
+            self.log('Number of points not a multiple of 416. Cannot decode',
+                     self.LOG_ERROR)
 
         # frequency errors
         ch0_idx_df = np.where(ch0_strobe[:,1] == 1)[0]
@@ -313,13 +314,32 @@ class SmurfUtilMixin(SmurfBase):
             if np.remainder(len(df), 416) == 0:
                 df = np.reshape(df, (-1, 416)) * subband_halfwidth_MHz / 2**23
             else:
-                self.log('Number of points not a multiple of 512. Cannot decode', 
-                    self.LOG_ERROR)
+                self.log('Number of points not a multiple of 416. Cannot decode', 
+                         self.LOG_ERROR)
         else:
             df = []
 
+        if recast:
+            nsamp, ndownselect = np.shape(f)
+            nsamp_df, _ = np.shape(df)
+            if nsamp != nsamp_df:
+                self.log('f and df are different sizes. Choosing the smaller'
+                         ' value. Not sure why this is happening.')
+                nsamp = np.min([nsamp, nsamp_df])
+            
+            ftmp = np.zeros((nsamp, 512))
+            dftmp = np.zeros_like(ftmp)
+
+            downselect_ind = self.get_downselect_channels()
+            ftmp[:, downselect_ind] = f[:nsamp]
+            dftmp[:, downselect_ind] = df[:nsamp]
+
+            f = ftmp
+            df = dftmp
+            
         return f, df, flux_ramp_strobe
 
+    
     def decode_single_channel(self, filename, swapFdF=False):
         """
         decode take_debug_data file if in singlechannel mode
@@ -854,11 +874,16 @@ class SmurfUtilMixin(SmurfBase):
             daq_mux_channel1 = daq_mux_channel0 + 1
         else:
             if band in [2,6]:
-                daq_mux_channel0 = 22 # these come from the mysterious mind of Steve
+                daq_mux_channel0 = 22
                 daq_mux_channel1 = 23
+            #    daq_mux_channel0 = 20
+            #    daq_mux_channel1 = 21
             elif band in [3,7]:
                 daq_mux_channel0 = 24
                 daq_mux_channel1 = 25
+            #elif band in [0]:
+            #    daq_mux_channel0 = 20
+            #    daq_mux_channel1 = 21
             else:
                 self.log("Error! Cannot take debug data on this band", 
                     self.LOG_ERROR)
@@ -866,11 +891,15 @@ class SmurfUtilMixin(SmurfBase):
 
         # setup buffer size
         self.set_buffer_size(bay, data_length, debug)
-
+        
         # input mux select
         self.set_input_mux_sel(bay, 0, daq_mux_channel0, write_log=True)
         self.set_input_mux_sel(bay, 1, daq_mux_channel1, write_log=True)
 
+        # This is currently hardcoded. Change me.
+        self.set_debug_select0(2, write_log=True)
+        self.set_debug_select1(2, write_log=True)
+        
 
     def set_buffer_size(self, bay, size, debug=False):
         """
@@ -1234,6 +1263,28 @@ class SmurfUtilMixin(SmurfBase):
         
         return channel_order
 
+    def get_downselect_channels(self, channel_orderfile=None):
+        """
+        take_debug_data, which is called by many functions including tracking_setup
+        processes only 416 of the 512 channels. Therefore every channel is not
+        returned.
+
+        Optional Args:
+        --------------
+        channelorderfile (str): path to a file that contains one channel per line
+        
+        Ret:
+        ----
+        downselect_channels (int array)
+        """
+        n_downselect = 416
+        n_chan = 512
+        n_cut = (n_chan - n_downselect)//2
+        
+        return np.sort(self.get_channel_order(
+            channel_orderfile=channel_orderfile)[n_cut:-n_cut])
+        
+    
     def get_subband_from_channel(self, band, channel, channelorderfile=None):
         """ returns subband number given a channel number
         Args:
