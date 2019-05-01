@@ -122,8 +122,10 @@ class SmurfNoiseMixin(SmurfBase):
                 ax[1].plot(f, Pxx)
                 if good_fit:
                     ax[1].plot(f_fit,Pxx_fit,linestyle = '--',label=r'$n=%.2f$' % (n))
-                    ax[1].plot(f_knee,2.*wl,linestyle = 'none',marker = 'o',label=r'$f_\mathrm{knee} = %.2f\,\mathrm{Hz}$' % (f_knee))
-                    ax[1].plot(f_fit,wl + np.zeros(len(f_fit)),linestyle = ':',label=r'$\mathrm{wl} = %.0f\,\mathrm{pA}/\sqrt{\mathrm{Hz}}$' % (wl))
+                    ax[1].plot(f_knee,2.*wl,linestyle = 'none',marker = 'o',
+                        label=r'$f_\mathrm{knee} = %.2f\,\mathrm{Hz}$' % (f_knee))
+                    ax[1].plot(f_fit,wl + np.zeros(len(f_fit)),linestyle = ':',
+                        label=r'$\mathrm{wl} = %.0f\,\mathrm{pA}/\sqrt{\mathrm{Hz}}$' % (wl))
                     ax[1].legend(loc='best')
                 ax[1].set_xlabel('Frequency [Hz]')
                 ax[1].set_xlim(f[1],f[-1])
@@ -330,12 +332,14 @@ class SmurfNoiseMixin(SmurfBase):
         if amplitudes is None:
             if step_size > 0:
                 step_size *= -1
-            amplitudes = np.arange(amplitude_high, amplitude_low-np.absolute(step_size), step_size)
+            amplitudes = np.arange(amplitude_high, 
+                amplitude_low-np.absolute(step_size), step_size)
 
         self.noise_vs(band=band,var='amplitude',var_range=amplitudes,
-                 meas_time=meas_time, analyze=analyze, channel=channel, nperseg=nperseg,
-                 detrend=detrend, fs=fs, show_plot=show_plot, make_timestream_plot=make_timestream_plot,
-                 gcp_mode=gcp_mode, psd_ylim=psd_ylim)
+                 meas_time=meas_time, analyze=analyze, channel=channel, 
+                 nperseg=nperseg, detrend=detrend, fs=fs, show_plot=show_plot, 
+                 make_timestream_plot=make_timestream_plot, gcp_mode=gcp_mode, 
+                 psd_ylim=psd_ylim)
 
     def noise_vs(self, band, var, var_range, 
                  meas_time=30, analyze=False, channel=None, nperseg=2**13,
@@ -393,10 +397,14 @@ class SmurfNoiseMixin(SmurfBase):
                 unit_override=''
                 xlabel_override='Tone amplitude [unit-less]'
                 self.log('Retuning at tone amplitude {}'.format(v))
-                self.set_amplitude_scale_array(band,np.array(self.get_amplitude_scale_array(band)*v/np.max(self.get_amplitude_scale_array(band)),dtype=int)) 
+                self.set_amplitude_scale_array(band,
+                    np.array(self.get_amplitude_scale_array(band)*v/
+                        np.max(self.get_amplitude_scale_array(band)),dtype=int)) 
                 self.run_serial_gradient_descent(band)
                 self.run_serial_eta_scan(band)
-                self.tracking_setup(band,lms_freq_hz=self.lms_freq_hz[band],save_plot=True, make_plot=True, channel=self.which_on(band),show_plot=False)
+                self.tracking_setup(band,lms_freq_hz=self.lms_freq_hz[band],
+                    save_plot=True, make_plot=True, channel=self.which_on(band),
+                    show_plot=False)
 
             self.log('Taking data')
             datafile = self.take_stream_data(meas_time,gcp_mode=gcp_mode)
@@ -420,12 +428,16 @@ class SmurfNoiseMixin(SmurfBase):
                                        data_timestamp=timestamp, 
                                        gcp_mode=gcp_mode,psd_ylim=psd_ylim,
                                        make_timestream_plot=make_timestream_plot,
-                                       xlabel_override=xlabel_override, unit_override=unit_override)
+                                       xlabel_override=xlabel_override, 
+                                       unit_override=unit_override)
 
     def get_datafiles_from_file(self,fn_datafiles):
         '''
-        For, e.g., noise_vs_bias, the list of datafiles is recorded in a txt file. This function
-        simply extracts those filenames and returns them as a list.
+        For, e.g., noise_vs_bias, the list of datafiles is recorded in a txt file. 
+        This function simply extracts those filenames and returns them as a list.
+
+        Args:
+        -----
         fn_datafiles (str): full path to txt containing names of data files
         Returns: datafiles (list): strings of data-file names.
         '''
@@ -437,8 +449,12 @@ class SmurfNoiseMixin(SmurfBase):
 
     def get_biases_from_file(self,fn_biases,dtype=float):
         '''
-        For, e.g., noise_vs_bias, the list of commanded bias voltages is recorded in a txt file.
-        This function simply extracts those values and returns them as a list.
+        For, e.g., noise_vs_bias, the list of commanded bias voltages is 
+        recorded in a txt file. This function simply extracts those values and 
+        returns them as a list.
+
+        Args:
+        -----
         fn_biases (str): full path to txt containing list of bias voltages
         Returns biases (list): floats of commanded bias voltages
         '''
@@ -580,7 +596,8 @@ class SmurfNoiseMixin(SmurfBase):
         if iv_data_filename is not None and band is not None:
             iv_band_data = self.get_iv_data(iv_data_filename,band,
                                            high_current_mode=high_current_mode)
-            self.log('IV data given. Estimating NEP. Skipping noise analysis for channels without responsivity estimates.')
+            self.log('IV data given. Estimating NEP. Skipping noise analysis'
+                ' for channels without responsivity estimates.')
             est_NEP = True
         else:
             est_NEP = False
