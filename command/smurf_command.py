@@ -1382,19 +1382,6 @@ class SmurfCommandMixin(SmurfBase):
         """
         return self._caget(self._band_root(band) + self._lms_dly_fine, **kwargs)
 
-    _lms_delay2 = 'lmsDelay2'
-    def set_lms_delay2(self, band, val, **kwargs):
-        """
-        delay DDS counter reset (307.2MHz ticks)
-        """
-        self._caput(self._band_root(band) + self._lms_delay2, val, **kwargs)
-
-    def get_lms_delay2(self, band, **kwargs):
-        """
-        delay DDS counter reset (307.2MHz ticks)
-        """
-        return self._caget(self._band_root(band) + self._lms_delay2, **kwargs)
-
     _iq_stream_enable = 'iqStreamEnable'
     def set_iq_stream_enable(self, band, val, **kwargs):
         """
