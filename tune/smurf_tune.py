@@ -2164,7 +2164,8 @@ class SmurfTuneMixin(SmurfBase):
         make_plot=False, save_plot=True, show_plot=True, nsamp=2**19,
         lms_freq_hz=None, meas_lms_freq=False, flux_ramp=True, fraction_full_scale=None,
         lms_enable1=True, lms_enable2=True, lms_enable3=True, lms_gain=7,
-        return_data=True, new_epics_root=None):
+        return_data=True, new_epics_root=None,
+        feedback_start_frac=None, feedback_end_frac=None):
         """
         Args:
         -----
@@ -2174,7 +2175,7 @@ class SmurfTuneMixin(SmurfBase):
         Opt Args:
         ---------
         reset_rate_khz (float) : The flux ramp frequency
-        write_log (bool) : Whether to write output to the log
+        write_log (bool) : Whether to write output to the log.  Default False.
         make_plot (bool) : Whether to make plots. Default False.
         save_plot (bool) : Whether to save plots. Default True.
         show_plot (bool) : Whether to display the plot. Default True.
@@ -2190,7 +2191,37 @@ class SmurfTuneMixin(SmurfBase):
         lms_enable3 (bool) : Whether to use the third harmonic for tracking.
            Default True.
         lms_gain (int) : The tracking gain parameters. Default 7.
+        feedback_start_frac (float) : The fraction of the full flux ramp at which to stop applying feedback in each flux ramp cycle.  Must be in [0,1).  Defaults to whatever's in the cfg file.
+        feedback_end_frac (float) : The fraction of the full flux ramp at which to stop applying feedback in each flux ramp cycle.  Must be >0.  Defaults to whatever's in the cfg file.
         """
+
+        ##
+        ## Load unprovided optional args from cfg
+        if feedback_start_frac is None:
+            feedback_start_frac = self.config.get('tune_band').get('feedback_start_frac')[str(band)]
+        if feedback_end_frac is None:
+            feedback_end_frac = self.config.get('tune_band').get('feedback_end_frac')[str(band)]
+        ## End loading unprovided optional args from cfg
+        ##
+
+        ##
+        ## Argument validation
+
+        # Validate feedback_start_frac and feedback_end_frac
+        if (feedback_start_frac < 0) or (feedback_start_frac >= 1):
+            raise ValueError("feedback_start_frac = {} not in [0,1)".format(feedback_start_frac))        
+        if (feedback_end_frac < 0):
+            raise ValueError("feedback_end_frac = {} not > 0".format(feedback_end_frac))
+        # If feedback_start_frac exceeds feedback_end_frac, then
+        # there's no range of the flux ramp cycle over which we're
+        # applying feedback.
+        if (feedback_end_frac < feedback_start_frac):
+            raise ValueError("feedback_end_frac = {} is not less than feedback_start_frac = {}".format(feedback_end_frac, feedback_start_frac))
+        # Done validating feedbackStart and feedbackEnd
+        
+        ## End argument validation
+        ##
+        
         if not flux_ramp:
             self.log('WARNING: THIS WILL NOT TURN ON FLUX RAMP!')
             
@@ -2205,7 +2236,7 @@ class SmurfTuneMixin(SmurfBase):
             fraction_full_scale = self.fraction_full_scale
         else:
             self.fraction_full_scale = fraction_full_scale
-
+        
         # Switched to a more stable estimator
         if lms_freq_hz is None:
             if meas_lms_freq:
@@ -2221,25 +2252,41 @@ class SmurfTuneMixin(SmurfBase):
             lms_enable2 = 0
             lms_enable3 = 0
 
-        lms_rst_dly = 31  # disable error term for 31 2.4MHz ticks after reset
-
         self.log("Using lmsFreqHz = {:.0f} Hz".format(lms_freq_hz), self.LOG_USER)
-        lms_delay2 = 255  # delay DDS counter resets, 307.2MHz ticks
-        lms_delay_fine = 0
-        iq_stream_enable = 0  # stream IQ data from tracking loop
 
         self.set_lms_gain(band, lms_gain, write_log=write_log)
         self.set_lms_enable1(band, lms_enable1, write_log=write_log)
         self.set_lms_enable2(band, lms_enable2, write_log=write_log)
         self.set_lms_enable3(band, lms_enable3, write_log=write_log)
-        # self.set_lms_rst_dly(band, lms_rst_dly, write_log=write_log)
         self.set_lms_freq_hz(band, lms_freq_hz, write_log=write_log)
-        # self.set_lms_delay2(band, lms_delay2, write_log=write_log)
+
+        iq_stream_enable = 0  # must be zero to access f,df stream        
         self.set_iq_stream_enable(band, iq_stream_enable, write_log=write_log)
 
         self.flux_ramp_setup(reset_rate_khz, fraction_full_scale,
                              write_log=write_log, new_epics_root=new_epics_root)
 
+        # Doing this after flux_ramp_setup so that if needed we can
+        # set feedback_end based on the flux ramp settings.
+
+        # Compute feedback_start/feedback_end from
+        # feedback_start_frac/feedback_end_frac.  We divide by 128
+        # because the flux ramp RampMaxCnt register is in units of
+        # 307.2 MHz ticks, while feedbackStart and feedbackEnd are in
+        # units of 2.4 MHz ticks (ie, 128 is (307.2 MHz)/(2.4 MHz)).
+        feedback_start = int( feedback_start_frac*(self.get_ramp_max_cnt()+1)/128 )        
+        feedback_end = int( feedback_end_frac*(self.get_ramp_max_cnt()+1)/128 )
+
+        # Set feedbackStart and feedbackEnd
+        self.set_feedback_start(band, feedback_start, write_log=write_log)
+        self.set_feedback_end(band, feedback_end, write_log=write_log)
+
+        self.log("Applying feedback over {:.1f}% of each flux ramp cycle (with feedbackStart={} and feedbackEnd={})".format(
+                                         (feedback_end_frac-feedback_start_frac)*100.,
+                                         feedback_start,
+                                         feedback_end),
+                 self.LOG_USER)
+        
         if flux_ramp:
             self.flux_ramp_on(write_log=write_log, new_epics_root=new_epics_root)
 
@@ -2671,7 +2718,7 @@ class SmurfTuneMixin(SmurfBase):
            of the flux ramp.
         """
         self.log('Checking lock on band {}'.format(band))
-        
+
         if fraction_full_scale is None:
             fraction_full_scale = self.fraction_full_scale
 
