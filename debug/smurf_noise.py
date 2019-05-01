@@ -96,7 +96,8 @@ class SmurfNoiseMixin(SmurfBase):
                     f_knees[ch]=f_knee
                     n_list.append(n)
                     good_fit = True    
-                self.log('%i. Band %i, ch. %i:' % (c+1,band,ch) + ' white-noise level = {:.2f}'.format(wl) +
+                self.log('%i. Band %i, ch. %i:' % (c+1,band,ch) + 
+                    ' white-noise level = {:.2f}'.format(wl) +
                         ' pA/rtHz, n = {:.2f}'.format(n) + 
                         ', f_knee = {:.2f} Hz'.format(f_knee))
             except Exception as e:
@@ -736,7 +737,8 @@ class SmurfNoiseMixin(SmurfBase):
                     idxs_est = np.logical_and(f>=freq_min,f<=freq_max)
                     noise_est = np.mean(Pxx[idxs_est])
                     self.log('ch. {}, bias = {:.2f}'.format(ch,b) + 
-                             ', mean current noise between {:.3e} and {:.3e} Hz = {:.2f} pA/rtHz'.format(freq_min,freq_max,noise_est))
+                             ', mean current noise between ' + 
+                             '{:.3e} and {:.3e} Hz = {:.2f} pA/rtHz'.format(freq_min,freq_max,noise_est))
                 else:
                     noise_est = wl
                 noise_est_list.append(noise_est)
@@ -773,7 +775,8 @@ class SmurfNoiseMixin(SmurfBase):
                         R_frac_max = R[nb_idx]/R_n
                         for ax in [ax_NEIwl,ax_NEPwl,ax_SI]:
                             if ax == ax_SI:
-                                label_Rfrac = r'{:.2f}-{:.2f}'.format(R_frac_min,R_frac_max) + r'$R_\mathrm{N}$'
+                                label_Rfrac = r'{:.2f}-{:.2f}'.format(R_frac_min,R_frac_max) + \
+                                    r'$R_\mathrm{N}$'
                             else:
                                 label_Rfrac = None
                             ax.axvspan(iv_bias[sc_idx],iv_bias[nb_idx],
@@ -826,7 +829,8 @@ class SmurfNoiseMixin(SmurfBase):
             if est_NEP:
                 ax_NEPwl.set_ylabel(r'NEP %s [$\mathrm{aW}/\sqrt{\mathrm{Hz}}$]' % \
                                    (ylabel_summary))
-                ax_SI.set_ylabel(r'Estimated responsivity with $\beta = 0$ [$\mu\mathrm{V}^{-1}$]')
+                ax_SI.set_ylabel(r'Estimated responsivity with $\beta' + 
+                    r' = 0$ [$\mu\mathrm{V}^{-1}$]')
                 
                 bottom_NEP = 0.95*min(NEP_est_list)
                 top_NEP_desired = 1.05*max(NEP_est_list)
@@ -865,7 +869,9 @@ class SmurfNoiseMixin(SmurfBase):
                 file_name_string = str(bias_group) + '_'
 
                 
-            fig.suptitle(basename + ' Band {}, Group {} Channel {:03} - {:.2f} MHz'.format(band,fig_title_string,ch, res_freq))
+            fig.suptitle(basename + 
+                ' Band {}, Group {}'.format(band,fig_title_string) + 
+                ' Channel {:03} - {:.2f} MHz'.format(ch, res_freq))
             #fig.subplots_adjust(top=0.1)
             plt.tight_layout()
             #plt.tight_layout(rect=[0.,0.03,1.,0.97])
@@ -874,8 +880,8 @@ class SmurfNoiseMixin(SmurfBase):
                 plt.show()
 
             if save_plot:
-                plot_name = 'noise_vs_bias_band{}_g{}ch{:03}.png'.format(band,file_name_string,
-                    ch)
+                plot_name = 'noise_vs_bias_band{}_g{}ch{:03}.png'.format(band,
+                    file_name_string, ch)
                 if data_timestamp is not None:
                     plot_name = '{}_'.format(data_timestamp) + plot_name
                 else:
@@ -936,7 +942,8 @@ class SmurfNoiseMixin(SmurfBase):
         plt.yscale('log')
         plt.ylabel(r'NEI %s [$\mathrm{pA}/\sqrt{\mathrm{Hz}}$]' % (ylabel_summary))
         plt.ylim(10**bin_min,10**bin_max)
-        plt.title(basename + ': Band {}, Group {}, {} channels'.format(band,fig_title_string.strip(','),n_analyzed))
+        plt.title(basename + 
+            ': Band {}, Group {}, {} channels'.format(band,fig_title_string.strip(','),n_analyzed))
         xtick_labels = []
         for b in bias:
             xtick_labels.append('{}'.format(b))
@@ -972,16 +979,19 @@ class SmurfNoiseMixin(SmurfBase):
             hist_NEP_mat = np.zeros((len(bins_NEP_hist)-1,len(bias)))
             NEP_est_median_list = []
             for i in range(len(bias)):
-                hist_NEP_mat[:,i],_ = np.histogram(NEP_est_data_bias[i],bins=bins_NEP_hist)
+                hist_NEP_mat[:,i],_ = np.histogram(NEP_est_data_bias[i],
+                    bins=bins_NEP_hist)
                 NEP_est_median_list.append(np.median(NEP_est_data_bias[i]))
-            X_NEP_hist,Y_NEP_hist = np.meshgrid(np.arange(len(bias),-1,-1),bins_NEP_hist)
+            X_NEP_hist,Y_NEP_hist = np.meshgrid(np.arange(len(bias),-1,-1),
+                bins_NEP_hist)
             plt.pcolor(X_NEP_hist,Y_NEP_hist,hist_NEP_mat)
             cbar_NEP = plt.colorbar()
             cbar_NEP.set_label('Number of channels')
             plt.yscale('log')
             plt.ylabel(r'NEP %s [$\mathrm{aW}/\sqrt{\mathrm{Hz}}$]' % (ylabel_summary))
             plt.ylim(10**bin_NEP_min,10**bin_NEP_max)
-            plt.title(basename + ': Band {}, Group {}, {} channels'.format(band,fig_title_string.strip(','),n_analyzed))
+            plt.title(basename + 
+                ': Band {}, Group {}, {} channels'.format(band,fig_title_string.strip(','),n_analyzed))
             plt.xticks(xtick_locs,xtick_labels)
             plt.xlabel('Commanded bias voltage [V]')
             plt.plot(xtick_locs,NEP_est_median_list,linestyle='--',marker='o',
@@ -1136,18 +1146,29 @@ class SmurfNoiseMixin(SmurfBase):
         return wl_diff
 
 
-    def NET_CMB(self,NEI,V_b,R_tes,opt_eff,f_center=150e9,bw=32e9,R_sh=None,high_current_mode=False):
+    def NET_CMB(self, NEI, V_b, R_tes, opt_eff, f_center=150e9, bw=32e9,
+        R_sh=None, high_current_mode=False):
         '''
-        Converts current spectral noise density to NET in uK rt(s). Assumes NEI is white-noise level.
+        Converts current spectral noise density to NET in uK rt(s). Assumes NEI 
+        is white-noise level.
 
+        Args
+        ----
         NEI (float): current spectral density in pA/rtHz
         V_b (float): commanded bias voltage in V
         R_tes (float): resistance of TES at bias point in Ohm
         opt_eff (float): optical efficiency (in the range 0-1)
+
+        Opt Args:
+        ---------
         f_center (float): center optical frequency of detector in Hz, e.g., 150 GHz for E4c
         bw (float): effective optical bandwidth of detector in Hz, e.g., 32 GHz for E4c
         R_sh (float): shunt resistance in Ohm; defaults to stored config figure
         high_current_mode (bool): whether the bias voltage was set in high-current mode
+
+        Ret:
+        ----
+        NET (float) : The noise equivalent temperature in units of uKrts
         '''
         NEI *= 1e-12 # bring NEI to SI units, i.e., A/rt(Hz)
         if high_current_mode:
@@ -1160,6 +1181,7 @@ class SmurfNoiseMixin(SmurfBase):
         T_CMB = 2.7
         dPdT = opt_eff*tools.dPdT_singleMode(f_center,bw,T_CMB)
         NET_SI = NEP/(dPdT*np.sqrt(2.)) # NET in SI units, i.e., K rt(s)
+
         return NET_SI/1e-6 # NET in uK rt(s)
 
     def analyze_noise_vs_tone(self, tone, datafile, channel=None, band=None,
@@ -1331,7 +1353,8 @@ class SmurfNoiseMixin(SmurfBase):
                 fig_title_string = str(bias_group) + ','
                 file_name_string = str(bias_group) + '_'
 
-            ax[0].set_title(basename + ' Band {}, Group {} Channel {:03} - {:.2f} MHz'.format(band,fig_title_string,ch, res_freq))
+            ax[0].set_title(basename + 
+                ' Band {}, Group {} Channel {:03} - {:.2f} MHz'.format(band,fig_title_string,ch, res_freq))
             plt.tight_layout(rect=[0.,0.03,1.,1.0])
 
             if show_plot:
