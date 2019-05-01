@@ -1,3 +1,6 @@
+import matplotlib
+matplotlib.use('Agg')
+
 import pysmurf
 import numpy as np
 import time
@@ -9,23 +12,20 @@ import sys
 S = pysmurf.SmurfControl(make_logfile=False,setup=False,epics_root='smurf_server_s5',cfg_file='/home/cryo/docker/pysmurf/hb-devel-dspv2/pysmurf/cfg_files/experiment_fp29_smurfsrv03_noExtRef_hbOnlyBay0.cfg')
 
 #######
-hbInBay0=True
+hbInBay0=False
 bands=[2,3]
 Npts=3
 bias=None
-wait_time=.05
+#wait_time=.05
+wait_time=1.
 #bias_low=-0.432
 #bias_high=0.432
-bias_low=-0.65
-bias_high=0.65
-Nsteps=1000
+bias_low=-0.8
+bias_high=0.8
+Nsteps=250
+#Nsteps=25
 bias_step=np.abs(bias_high-bias_low)/float(Nsteps)
-show_plot=False
-make_plot=True
-save_plot=True 
 channels=None
-gcp_mode=True
-grid_on=False
 #much slower than using loopFilterOutputArray,
 #and creates a bunch of files
 use_take_debug_data=False
@@ -60,13 +60,16 @@ for band in bands:
 
 bands=bands_with_channels_on
 
-amplitudes=[9,10,11,12,13,14,15]
+#amplitudes=[9,10,11,12,13,14,15]
+# [None] means don't change the amplitude, but still retunes
+amplitudes=[None]
 for amplitude in amplitudes:
 
     ### begin retune on all bands with tones
     for band in bands:
         S.log('Retuning at tone amplitude {}'.format(amplitude))
-        S.set_amplitude_scale_array(band,np.array(S.get_amplitude_scale_array(band)*amplitude/np.max(S.get_amplitude_scale_array(band)),dtype=int))
+        if amplitude is not None:
+            S.set_amplitude_scale_array(band,np.array(S.get_amplitude_scale_array(band)*amplitude/np.max(S.get_amplitude_scale_array(band)),dtype=int))
         S.run_serial_gradient_descent(band)
         S.run_serial_eta_scan(band)
         raw_data[band][amplitude]={}

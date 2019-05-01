@@ -685,7 +685,7 @@ class SmurfTuneMixin(SmurfBase):
         else:
             plt.ioff()
 
-        timestamp = self.freq_resp[band]['timestamp']
+        timestamp = self.freq_resp[band]['find_freq']['timestamp'][0]
 
         fig, ax = plt.subplots(2,2, figsize=(10,6))
 
