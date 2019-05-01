@@ -304,6 +304,10 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
                 write_log=write_log, **kwargs)
             self.set_lms_gain(b, smurf_init_config[band_str]['lmsGain'], 
                 write_log=write_log, **kwargs)
+            self.set_lms_delay(b, smurf_init_config[band_str]['lmsDelay'], 
+                write_log=write_log, **kwargs)
+            self.set_trigger_reset_delay(b, smurf_init_config[band_str]['trigRstDly'], 
+                write_log=write_log, **kwargs)            
 
             self.set_feedback_limit_khz(b, 225)  # why 225?
 

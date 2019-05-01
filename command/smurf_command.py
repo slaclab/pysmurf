@@ -1198,6 +1198,19 @@ class SmurfCommandMixin(SmurfBase):
         """
         return self._caget(self._band_root(band) + self._lms_delay, **kwargs)
 
+    _lms_delay = 'lmsDelay'
+    def set_lms_delay(self, band, val, **kwargs):
+        """
+        Match system latency for LMS feedback (2.4MHz ticks)
+        """
+        self._caput(self._band_root(band) + self._lms_delay, val, **kwargs)
+
+    def get_lms_delay(self, band, **kwargs):
+        """
+        Match system latency for LMS feedback (2.4MHz ticks)
+        """
+        return self._caget(self._band_root(band) + self._lms_delay, **kwargs)    
+
     _lms_gain = 'lmsGain'
     def set_lms_gain(self, band, val, **kwargs):
         '''
@@ -1210,6 +1223,27 @@ class SmurfCommandMixin(SmurfBase):
         LMS gain, powers of 2
         '''
         return self._caget(self._band_root(band) + self._lms_gain, **kwargs)
+
+    _trigger_reset_delay = 'trigRstDly'
+    def set_trigger_reset_delay(self, band, val, **kwargs):
+        '''
+        Trigger reset delay, set such that the ramp resets at the flux ramp glitch.  2.4 MHz ticks.
+
+        Args:
+        -----
+        band (int) : Which band.
+        '''
+        self._caput(self._band_root(band) + self._trigger_reset_delay, val, **kwargs)
+
+    def get_trigger_reset_delay(self, band, **kwargs):
+        '''
+        Trigger reset delay, set such that the ramp resets at the flux ramp glitch.  2.4 MHz ticks.
+
+        Args:
+        -----
+        band (int) : Which band.
+        '''
+        return self._caget(self._band_root(band) + self._trigger_reset_delay, **kwargs)    
 
     _lms_enable1 = 'lmsEnable1'
     def set_lms_enable1(self, band, val, **kwargs):

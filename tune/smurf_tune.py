@@ -2216,7 +2216,6 @@ class SmurfTuneMixin(SmurfBase):
             self.lms_freq_hz[band] = lms_freq_hz
             self.log('Using lms_freq_estimator : {:.0f} Hz'.format(lms_freq_hz))
 
-        lms_delay = 6  # nominally match refPhaseDelay
         if not flux_ramp:
             lms_enable1 = 0
             lms_enable2 = 0
@@ -2229,8 +2228,6 @@ class SmurfTuneMixin(SmurfBase):
         lms_delay_fine = 0
         iq_stream_enable = 0  # stream IQ data from tracking loop
 
-        self.set_lms_delay(band, lms_delay, write_log=write_log)
-        # self.set_lms_dly_fine(band, lms_delay_fine, write_log=write_log)
         self.set_lms_gain(band, lms_gain, write_log=write_log)
         self.set_lms_enable1(band, lms_enable1, write_log=write_log)
         self.set_lms_enable2(band, lms_enable2, write_log=write_log)
