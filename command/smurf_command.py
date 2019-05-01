@@ -837,18 +837,18 @@ class SmurfCommandMixin(SmurfBase):
         return self._caget(self._band_root(band) + self._single_channel_readout2,
             **kwargs)
 
-    _stream_enable = 'streamEnable'
-    def set_stream_enable(self, band, val, **kwargs):
+    _stream_enable = 'enableStreaming'
+    def set_stream_enable(self, val, **kwargs):
         """
-        Enable/disable streaming data
+        Enable/disable streaming data, for all bands.
         """
-        self._caput(self._band_root(band) + self._stream_enable, val, **kwargs)
+        self._caput(self.app_core + self._stream_enable, val, **kwargs)
 
-    def get_stream_enable(self, band, **kwargs):
+    def get_stream_enable(self, **kwargs):
         """
-        Enable/disable streaming data
+        Enable/disable streaming data, for all bands.
         """
-        return self._caget(self._band_root(band) + self._stream_enable,
+        return self._caget(self.app_core + self._stream_enable,
             **kwargs)
 
     _iq_stream_enable = 'iqStreamEnable'

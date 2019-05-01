@@ -440,8 +440,7 @@ class SmurfUtilMixin(SmurfBase):
 
         else:
             # start streaming before opening file to avoid transient filter step
-            for band in bands:
-                self.set_stream_enable(band, 1, write_log=False)
+            self.set_stream_enable(1, write_log=False)
             time.sleep(1.)
 
             # Make the data file

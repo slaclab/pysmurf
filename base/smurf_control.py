@@ -369,9 +369,8 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
         self.set_smurf_to_gcp_stream(False, write_log=write_log)
         self.set_smurf_to_gcp_writer(False, write_log=write_log)
 
-        # Turn on stream enable (this should only send data to the PCIE)
-        for b in bands:
-            self.set_stream_enable(b, 1, write_log=write_log)
+        # Turn on stream enable for all bands
+        self.set_stream_enable(1, write_log=write_log)
 
         self.set_smurf_to_gcp_clear(1, write_log=write_log, wait_after=1)
         self.set_smurf_to_gcp_clear(0, write_log=write_log)
