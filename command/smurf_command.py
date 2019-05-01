@@ -1243,7 +1243,53 @@ class SmurfCommandMixin(SmurfBase):
         -----
         band (int) : Which band.
         '''
-        return self._caget(self._band_root(band) + self._trigger_reset_delay, **kwargs)    
+        return self._caget(self._band_root(band) + self._trigger_reset_delay, **kwargs)
+
+    _feedback_start = 'feedbackStart'
+    def set_feedback_start(self, band, val, **kwargs):
+        '''
+	The flux ramp DAC value at which to start applying feedback in each flux ramp cycle.
+	In 2.4 MHz ticks.
+
+        Args:
+        -----
+        band (int) : Which band.
+        '''
+        self._caput(self._band_root(band) + self._feedback_start, val, **kwargs)
+
+    def get_feedback_start(self, band, **kwargs):
+        '''
+	The flux ramp DAC value at which to start applying feedback in each flux ramp cycle.
+	In 2.4 MHz ticks.	
+
+        Args:
+        -----
+        band (int) : Which band.
+        '''
+        return self._caget(self._band_root(band) + self._feedback_start, **kwargs)
+
+    _feedback_end = 'feedbackEnd'
+    def set_feedback_end(self, band, val, **kwargs):
+        '''
+	The flux ramp DAC value at which to stop applying feedback in each flux ramp cycle.
+	In 2.4 MHz ticks.
+
+        Args:
+        -----
+        band (int) : Which band.
+        '''
+        self._caput(self._band_root(band) + self._feedback_end, val, **kwargs)
+
+    def get_feedback_end(self, band, **kwargs):
+        '''
+	The flux ramp DAC value at which to stop applying feedback in each flux ramp cycle.
+	In 2.4 MHz ticks.	
+
+        Args:
+        -----
+        band (int) : Which band.
+        '''
+        return self._caget(self._band_root(band) + self._feedback_end, **kwargs)    
 
     _lms_enable1 = 'lmsEnable1'
     def set_lms_enable1(self, band, val, **kwargs):
