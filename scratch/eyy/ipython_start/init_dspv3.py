@@ -9,7 +9,7 @@ if slot==5:
     config_file='/data/pysmurf_cfg/experiment_fp29_smurfsrv03_noExtRef_hbOnlyBay0.cfg'
 elif slot==2:
     epics_prefix = 'smurf_server_s2'
-    config_file='/data/pysmurf_cfg/experiment_fp29_smurfsrv03_noExtRef_lbOnlyBay0.cfg'
+    config_file='/data/pysmurf_cfg/experiment_fp29_smurfsrv03_dspv3_noExtRef_lbOnlyBay0.cfg'
 else:
     assert False,"There's nothing in slot %d right now!"%slot
 
