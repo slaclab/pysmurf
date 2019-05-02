@@ -880,21 +880,10 @@ class SmurfUtilMixin(SmurfBase):
             daq_mux_channel0 = (converter_number + 1)*2 + 10
             daq_mux_channel1 = daq_mux_channel0 + 1
         else:
-            if band in [2,6]:
-                daq_mux_channel0 = 22
-                daq_mux_channel1 = 23
-            #    daq_mux_channel0 = 20
-            #    daq_mux_channel1 = 21
-            elif band in [3,7]:
-                daq_mux_channel0 = 24
-                daq_mux_channel1 = 25
-            #elif band in [0]:
-            #    daq_mux_channel0 = 20
-            #    daq_mux_channel1 = 21
-            else:
-                self.log("Error! Cannot take debug data on this band", 
-                    self.LOG_ERROR)
-
+            # In dspv3, daq_mux_channel0 and daq_mux_channel1 are now
+            # the same for all eight bands.
+            daq_mux_channel0 = 22
+            daq_mux_channel1 = 23
 
         # setup buffer size
         self.set_buffer_size(bay, data_length, debug)
@@ -903,10 +892,8 @@ class SmurfUtilMixin(SmurfBase):
         self.set_input_mux_sel(bay, 0, daq_mux_channel0, write_log=True)
         self.set_input_mux_sel(bay, 1, daq_mux_channel1, write_log=True)
 
-        # This is currently hardcoded. Change me.
-        self.set_debug_select0(2, write_log=True)
-        self.set_debug_select1(2, write_log=True)
-        
+        # which f,df stream to route to MUX, maybe?
+        self.set_debug_select(bay, band, write_log=True)
 
     def set_buffer_size(self, bay, size, debug=False):
         """
