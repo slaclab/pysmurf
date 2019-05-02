@@ -711,26 +711,34 @@ class SmurfUtilMixin(SmurfBase):
         return timestamp2, phase, mask
 
 
-    def make_mask_lookup(self, mask_file):
+    def make_mask_lookup(self, mask_file, mask_channel_offset=0):
         """
         Makes an n_band x n_channel array where the elements correspond
-        to the smurf_to_mce mask number. In other workds, mask[band, channel]
+        to the smurf_to_mce mask number. In other words, mask[band, channel]
         returns the GCP index in the mask that corresonds to band, channel.
 
         Args:
         -----
         mask_file (str): The full path the a mask file
 
+        Opt Args:
+        ---------
+        mask_channel_offset (int) : Offset to remove from channel 
+            numbers in GCP mask file after loading.  Default is 0.
+
         Ret:
         ----
         mask_lookup (int array): An array with the GCP numbers.
         """
+        if self.config.get('smurf_to_mce').get('mask_channel_offset') is not None:
+            mask_channel_offset=int(self.config.get('smurf_to_mce').get('mask_channel_offset'))
+        
         mask = np.atleast_1d(np.loadtxt(mask_file))
         bands = np.unique(mask // 512).astype(int)
         ret = np.ones((np.max(bands)+1, 512), dtype=int) * -1
         
         for gcp_chan, smurf_chan in enumerate(mask):
-            ret[int(smurf_chan//512), int(smurf_chan%512)] = gcp_chan
+            ret[int(smurf_chan//512), int((smurf_chan-mask_channel_offset)%512)] = gcp_chan
             
         return ret
 
@@ -2114,7 +2122,7 @@ class SmurfUtilMixin(SmurfBase):
         return ret
 
     def make_gcp_mask(self, band=None, smurf_chans=None, gcp_chans=None, 
-        read_gcp_mask=True):
+                      read_gcp_mask=True, mask_channel_offset=0):
         """
         Makes the gcp mask. Only the channels in this mask will be stored
         by GCP.
@@ -2133,7 +2141,12 @@ class SmurfUtilMixin(SmurfBase):
             on as GCP channels.
         read_gcp_mask (bool) : Whether to read in the new GCP mask file.
             If not read in, it will take no effect. Default is True.
+        mask_channel_offset (int) : Offset to add to channel numbers in GCP 
+            mask file.  Default is 0.
         """
+        if self.config.get('smurf_to_mce').get('mask_channel_offset') is not None:
+            mask_channel_offset=int(self.config.get('smurf_to_mce').get('mask_channel_offset'))
+        
         gcp_chans = np.array([], dtype=int)
         if smurf_chans is None and band is not None:
             band = np.ravel(np.array(band))
@@ -2145,7 +2158,16 @@ class SmurfUtilMixin(SmurfBase):
                 self.log('Band {}'.format(k))
                 n_chan = self.get_number_channels(k)
                 for ch in smurf_chans[k]:
-                    gcp_chans = np.append(gcp_chans, ch + n_chan*k)
+
+                    # optionally shift by an offset.  The offset is applied
+                    # circularly within each 512 channel band
+                    channel_offset = mask_channel_offset
+                    if (ch+channel_offset)<0:
+                        channel_offset+=n_chan
+                    if (ch+channel_offset+1)>n_chan:
+                        channel_offset-=n_chan    
+                    
+                    gcp_chans = np.append(gcp_chans, ch + n_chan*k + channel_offset)
 
         if len(gcp_chans) > 512:
             self.log('WARNING: too many gcp channels!')
