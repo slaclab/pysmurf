@@ -4,7 +4,7 @@ import subprocess
 
 time_btw_meas=5 # sec
 
-S = pysmurf.SmurfControl(make_logfile=False,setup=False,epics_root='test_epics2',cfg_file='/usr/local/controls/Applications/smurf/pysmurf/pysmurf/cfg_files/experiment_fp29_smurfsrv04.cfg')
+S = pysmurf.SmurfControl(make_logfile=False,setup=False,epics_root='smurf_server_s2',cfg_file='/data/pysmurf_cfg/experiment_fp29_smurfsrv03_dspv3_noExtRef_lbOnlyBay0.cfg')
 
 of=open('%s_temp.dat'%S.get_timestamp(),'w+')
 hdr='{0[0]:<15}{0[1]:<15}{0[2]:<15}{0[3]:<15}{0[4]:<15}{0[5]:<15}{0[6]:<15}{0[7]:<15}{0[8]:<15}{0[9]:<15}\n'.format(['ctime','BTemp','JTemp','dac0_temp','dac1_temp','fpga_temp','fpgca_vccint','fpgca_vccaux','fpgca_vccbram','cc_temp'])
