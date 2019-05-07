@@ -7,7 +7,7 @@ import os
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
 import pysmurf
 
-cfg_filename = 'experiment_k2umux.cfg'
+cfg_filename = 'experiment_k2umux_four_channel.cfg'
 
 
 """
