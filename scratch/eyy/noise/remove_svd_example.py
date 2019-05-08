@@ -4,12 +4,12 @@ import scipy.signal as signal
 import numpy as np
 import os
 
-S = pysmurf.SmurfControl(make_logfile=False,epics_root='test_epics2',
-                         cfg_file='/usr/local/controls/Applications/smurf/pysmurf/pysmurf/cfg_files/experiment_fp29_smurfsrv04.cfg')
+S = pysmurf.SmurfControl(cfg_file='/Users/edwardyoung/Documents/umux/pysmurf/cfg_files/experiment_k2umux.cfg',
+    data_dir='.', setup=False, offline=True, no_dir=True)
 
-datadir = '/data/smurf_data/20190125/1548453803/outputs/'
+datadir = '/Users/edwardyoung/Desktop/dat'
 # filename = '1548453806.dat'
-filename = '1548456428.dat'
+filename = '1557340156.dat'
 datafile = os.path.join(datadir, filename)
 
 t,d,m = S.read_stream_data(datafile)
