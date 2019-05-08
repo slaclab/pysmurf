@@ -573,7 +573,7 @@ class SmurfTuneMixin(SmurfBase):
         
                         
     def plot_tune_summary(self, band, eta_scan=False, show_plot=False,
-                          save_plot=True):
+        save_plot=True):
         """
         Plots summary of tuning. Requires self.freq_resp to be filled.
         In other words, you must run find_freq and setup_notches
@@ -1376,8 +1376,7 @@ class SmurfTuneMixin(SmurfBase):
 
     def plot_eta_fit(self, freq, resp, eta=None, eta_mag=None, peak_freq=None,
         eta_phase_deg=None, r2=None, save_plot=True, show_plot=False, timestamp=None, 
-        res_num=None, band=None, sk_fit=None, f_slow=None, resp_slow=None,
-        channel=None):
+        res_num=None, band=None, sk_fit=None, f_slow=None, resp_slow=None):
         """
         Plots the eta parameter fits
 
@@ -1476,8 +1475,15 @@ class SmurfTuneMixin(SmurfBase):
         ax2.text(.03, .81, lab, transform=ax2.transAxes, fontsize=10,
                   bbox=bbox)
 
-        if channel is not None:
-            ax2.text(.85, .92, 'Ch {:03}'.format(channel),
+        if res_num is not None or band is not None or timestamp is not None:
+            lab = ''
+            if timestamp is not None:
+                lab += '{} \n'.format(timestamp)
+            if band is not None
+                lab += 'B{}'.format(band)
+            if res_num is not None:
+                lab += ' res:{:03}'.format(res_num)
+            ax2.text(.85, .92, lab,
                       transform=ax2.transAxes, fontsize=10,
                       bbox=bbox)
 
