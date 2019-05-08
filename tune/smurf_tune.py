@@ -1479,7 +1479,7 @@ class SmurfTuneMixin(SmurfBase):
             lab = ''
             if timestamp is not None:
                 lab += '{} \n'.format(timestamp)
-            if band is not None
+            if band is not None:
                 lab += 'B{}'.format(band)
             if res_num is not None:
                 lab += ' res:{:03}'.format(res_num)
