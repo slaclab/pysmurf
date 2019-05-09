@@ -2383,7 +2383,7 @@ class SmurfTuneMixin(SmurfBase):
         make_plot=False, save_plot=True, show_plot=True,
         lms_freq_hz=None, flux_ramp=True, fraction_full_scale=None,
         lms_enable1=True, lms_enable2=True, lms_enable3=True, lms_gain=7,
-        f_min=.015, f_max=.2, df_max=.03):
+        f_min=.015, f_max=.2, df_max=.03, toggle_feedback=True):
         """
         This runs tracking setup and check_lock to prune bad channels.
         
@@ -2395,6 +2395,10 @@ class SmurfTuneMixin(SmurfBase):
         ---------
         reset_rate_khz (float); The flux ramp reset rate.
         channel (int or int array): List of channels to plot.
+        toggle_feedback (bool): Whether or not to reset feedback (both
+                                the global band feedbackEnable and the 
+                                lmsEnables between tracking_setup and 
+                                check_lock.
         """
         self.relock(band)
         
@@ -2407,6 +2411,9 @@ class SmurfTuneMixin(SmurfBase):
                             lms_enable1=lms_enable1, lms_enable2=lms_enable2, 
                             lms_enable3=lms_enable3, 
                             lms_gain=lms_gain, return_data=False)
+
+        if toggle_feedback:
+            self.toggle_feedback(band)
 
         self.check_lock(band, f_min=f_min, f_max=f_max, df_max=df_max,
                         make_plot=make_plot, flux_ramp=flux_ramp, 
