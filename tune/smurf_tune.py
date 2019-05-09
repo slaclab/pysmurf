@@ -1453,7 +1453,7 @@ class SmurfTuneMixin(SmurfBase):
 
         bbox = dict(boxstyle="round", ec='w', fc='w', alpha=.65)
         if peak_freq is not None:
-            ax0.text(.03, .9, '{:5.2f} MHz'.format(peak_freq),
+            ax0.text(.03, .87, '{:5.2f} MHz'.format(peak_freq),
                       transform=ax0.transAxes, fontsize=10,
                       bbox=bbox)
 
@@ -1472,20 +1472,21 @@ class SmurfTuneMixin(SmurfBase):
                 ': {:3.2f}'.format(eta_phase_deg) + '\n'
         if r2 is not None:
             lab = lab + r'$R^2$' + ' :{:4.3f}'.format(r2)
-        ax2.text(.03, .81, lab, transform=ax2.transAxes, fontsize=10,
-                  bbox=bbox)
+        ax2.text(.03, .97, lab, transform=ax2.transAxes, fontsize=10,
+                  bbox=bbox, horizontalalignment='left', verticalalignment='top')
 
         if res_num is not None or band is not None or timestamp is not None:
             lab = ''
             if timestamp is not None:
-                lab += '{} \n'.format(timestamp)
+                lab += '{}\n'.format(timestamp)
             if band is not None:
                 lab += 'B{}'.format(band)
             if res_num is not None:
                 lab += ' res:{:03}'.format(res_num)
-            ax2.text(.85, .92, lab,
-                      transform=ax2.transAxes, fontsize=10,
-                      bbox=bbox)
+            ax2.text(.97, .97, lab,
+                     transform=ax2.transAxes, fontsize=10,
+                     bbox=bbox, horizontalalignment='right',
+                     verticalalignment='top')
 
         if eta is not None:
             if eta_mag is not None:
