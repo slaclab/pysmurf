@@ -383,10 +383,15 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
         _ = self.get_amplifier_bias()
         self.log("Cryocard temperature = "+ str(self.C.read_temperature())) # also read the temperature of the CC
 
-        self.log('Done with setup')
-        for bay in self.bays:
-            self.log('Select external reference for bay %i' % (bay))
-            self.sel_ext_ref(bay)
+        # Assumes defaults.yml locks to fiber timing system by default
+        # (LmkReg_0x0147 : 0x0A)
+        if self.config.get('timing') is not None and self.config.get('timing').get('sel_ext_ref') is not  None:
+            if self.config.get('timing').get('sel_ext_ref'):
+                for bay in self.bays:
+                    self.log('Select external reference for bay %i' % (bay))
+                    self.sel_ext_ref(bay)
+            
+        self.log('Done with setup')            
 
     def make_dir(self, directory):
         """check if a directory exists; if not, make it
