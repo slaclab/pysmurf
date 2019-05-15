@@ -205,10 +205,9 @@ class SmurfCommandMixin(SmurfBase):
     def run_pwr_up_sys_ref(self,bay, **kwargs):
         """
         """
-        triggerPV=self.microwave_mux_core.format(bay) + 'LMK:PwrUpSysRef'
+        triggerPV=self.lmk.format(bay) + 'PwrUpSysRef'
         self._caput(triggerPV, 1, wait_after=5, **kwargs)
         self.log('{} sent'.format(triggerPV), self.LOG_USER)
-
 
     _eta_scan_in_progress = 'etaScanInProgress'
     def get_eta_scan_in_progress(self, band, **kwargs):
@@ -3233,3 +3232,42 @@ class SmurfCommandMixin(SmurfBase):
         """
         return self._caget(self.app_core + self._debug_select.format(bay),
                            **kwargs)
+
+    _output_config = "OutputConfig[{}]"
+    def set_crossbar_output_config(self, index, val, **kwargs):
+        """
+        """
+        self._caput(self.crossbar + self._output_config.format(index),
+                    val, **kwargs)
+    
+    def get_crossbar_output_config(self, index, **kwargs):
+        """
+        """
+        return self._caget(self.crossbar + self._output_config.format(index),
+                           **kwargs)    
+
+    _timing_link_up = "RxLinkUp"
+    def get_timing_link_up(self, **kwargs):
+        """
+        """
+        return self._caget(self.timing_status +
+                           self._timing_link_up, **kwargs)
+
+    ## IN PROGRESS
+    # assumes it's handed the decimal equivalent
+    _lmk_reg = "LmkReg_0x{:04X}"
+    def set_lmk_reg(self, bay, reg, val, **kwargs):
+        """
+        Can call like this get_lmk_reg(bay=0,reg=0x147,val=0xA)
+        to see only hex as in gui.
+        """
+        self._caput(self.lmk.format(bay) + self._lmk_reg.format(reg),
+                    val, **kwargs)    
+
+    def get_lmk_reg(self, bay, reg, **kwargs):
+        """
+        Can call like this hex(get_lmk_reg(bay=0,reg=0x147))
+        to see only hex as in gui.
+        """
+        return self._caget(self.lmk.format(bay) +
+                           self._lmk_reg.format(reg), **kwargs)        
