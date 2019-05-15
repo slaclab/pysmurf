@@ -1,3 +1,6 @@
+# Runlike this exec(open("measureFluxRampFvsV.py").read())
+# that way it will use your pysmurf S object.
+
 import pysmurf
 import numpy as np
 import time
@@ -6,19 +9,36 @@ import sys
 ## instead of takedebugdata try relaunch PyRogue, then loopFilterOutputArray, which is 
 ## the integral tracking term with lmsEnable[1..3]=0
 
-S = pysmurf.SmurfControl(make_logfile=False,setup=False,epics_root='smurf_server_s2',cfg_file='/data/pysmurf_cfg/experiment_fp29_smurfsrv03_noExtRef_lbOnlyBay0.cfg')
+#S = pysmurf.SmurfControl(make_logfile=False,setup=False,epics_root='smurf_server_s2',cfg_file='/data/pysmurf_cfg/experiment_fp29_smurfsrv03_noExtRef_lbOnlyBay0.cfg')
+
+import os
+fn_raw_data = os.path.join('./', '%s_fr_sweep_data.npy'%(S.get_timestamp()))
 
 #######
+#amplitudes_and_uc_atts=[(8,30),(9,30),(10,30),(11,30),(12,30),(12,24),(12,18),(12,12),(12,6),(12,0)]
+#amplitudes_and_uc_atts=[(8,30),(10,30),(12,30),(12,18),(12,6),(12,0)]
+#amplitudes_and_uc_atts=[(8,30),(10,30),(12,30),(12,18),(12,6),(12,0)]
+amplitudes_and_uc_atts=[(8,30)]
+#amplitudes_and_uc_atts=[(8,30)]
+#amplitudes=[9,10,11,12,13,14]
+# [(None,None)] means don't change the amplitude or uc_att, but still retunes
+#amplitudes=[9]
+
+# needs to be nonzero, or won't track flux ramp well,
+# particularly when stepping flux ramp by large amounts
+lmsGain=6
 hbInBay0=False
+relock=False 
 bands=[2,3]
-Npts=3
 bias=None
-wait_time=.05
+# no longer averaging as much or waiting as long between points in newer fw which has df filter
+wait_time=0.125
+Npts=3
 #bias_low=-0.432
 #bias_high=0.432
-bias_low=-0.8
-bias_high=0.8
-Nsteps=250
+bias_low=-0.45
+bias_high=0.45
+Nsteps=500
 #Nsteps=25
 bias_step=np.abs(bias_high-bias_low)/float(Nsteps)
 channels=None
@@ -35,9 +55,10 @@ print(channels[band])
 
 if bias is None:
     bias = np.arange(bias_low, bias_high, bias_step)
-
+    
 # final output data dictionary
 raw_data = {}
+raw_data['bias'] = bias
 print(channels[band])
 bands_with_channels_on=[]
 for band in bands:
@@ -48,7 +69,7 @@ for band in bands:
         S.set_lms_enable1(band, 0)
         S.set_lms_enable2(band, 0)
         S.set_lms_enable3(band, 0)
-        S.set_lms_gain(band, 0)
+        S.set_lms_gain(band, lmsGain)
 
         raw_data[band]={}
 
@@ -56,26 +77,59 @@ for band in bands:
 
 bands=bands_with_channels_on
 
-#amplitudes=[9,10,11,12,13,14,15]
-# [None] means don't change the amplitude, but still retunes
-amplitudes=[None]
-for amplitude in amplitudes:
+for (amplitude,uc_att) in amplitudes_and_uc_atts:
 
+    sys.stdout.write('\rSetting flux ramp bias to 0 V\033[K before tune'.format(bias_low))
+    S.set_fixed_flux_ramp_bias(0.)
+
+    # make sure we tune at bias low
+    #sys.stdout.write('\rSetting flux ramp bias low at {:4.3f} V\033[K'.format(bias_low))
+    #S.set_fixed_flux_ramp_bias(bias_low,do_config=True)
+    #time.sleep(wait_time)
+    
     ### begin retune on all bands with tones
     for band in bands:
-        S.log('Retuning at tone amplitude {}'.format(amplitude))
+        S.log('Retuning at tone amplitude {} and UC attenuator {}'.format(amplitude,uc_att))
+        if relock:
+            S.relock(band)
         if amplitude is not None:
             S.set_amplitude_scale_array(band,np.array(S.get_amplitude_scale_array(band)*amplitude/np.max(S.get_amplitude_scale_array(band)),dtype=int))
+        if uc_att is not None:
+            S.set_att_uc(band,uc_att)
         S.run_serial_gradient_descent(band)
         S.run_serial_eta_scan(band)
-        raw_data[band][amplitude]={}
+
+        # toggle feedback if functionality exists in this version of pysmurf
+        time.sleep(5)
+        if 'toggle_feedback' in dir(S):
+            S.toggle_feedback(band)
+        
+        raw_data[band][(amplitude,uc_att)]={}
         
     ### end retune
-    S.log('Starting to take flux ramp with amplitude={}.'.format(amplitude), S.LOG_USER)
 
+    ##
+    ## THIS DOESN'T WORK AND I DON'T UNDERSTAND WHY NOT
+    small_steps_to_starting_bias=None
+    if bias_low<0:
+        small_steps_to_starting_bias=np.arange(bias_low,0,bias_step)[::-1]
+    else:
+        small_steps_to_starting_bias=np.arange(0,bias_low,bias_step)
+    
+    # step from zero (where we tuned) down to starting bias
+    S.log('Slowly shift flux ramp voltage to place where we begin.'.format(amplitude,uc_att), S.LOG_USER)    
+    for b in small_steps_to_starting_bias:
+        sys.stdout.write('\rFlux ramp bias at {:4.3f} V\033[K'.format(b))
+        sys.stdout.flush()
+        S.set_fixed_flux_ramp_bias(b,do_config=False)
+        time.sleep(wait_time)        
+
+    ## make sure we start at bias_low
     sys.stdout.write('\rSetting flux ramp bias low at {:4.3f} V\033[K'.format(bias_low))
-    S.set_fixed_flux_ramp_bias(bias_low)
+    S.set_fixed_flux_ramp_bias(bias_low,do_config=False)
     time.sleep(wait_time)
+    
+    S.log('Starting to take flux ramp with amplitude={} and uc_att={}.'.format(amplitude,uc_att), S.LOG_USER)    
 
     fs={}
     for band in bands:
@@ -84,7 +138,7 @@ for amplitude in amplitudes:
     for b in bias:
         sys.stdout.write('\rFlux ramp bias at {:4.3f} V\033[K'.format(b))
         sys.stdout.flush()
-        S.set_fixed_flux_ramp_bias(b)
+        S.set_fixed_flux_ramp_bias(b,do_config=False)
         time.sleep(wait_time)
 
         for band in bands:
@@ -101,32 +155,30 @@ for amplitude in amplitudes:
 
     sys.stdout.write('\n')
 
-    S.log('Done taking flux ramp with amplitude={}.'.format(amplitude), S.LOG_USER)
+    S.log('Done taking flux ramp with amplitude={} and uc_att={}.'.format(amplitude,uc_att), S.LOG_USER)
 
     for band in bands:
 
         fres=[S.channel_to_freq(band, ch) for ch in channels[band]]
-        raw_data[band][amplitude]['fres']=np.array(fres) + (2e3 if hbInBay0 else 0)
-        raw_data[band][amplitude]['channels']=channels[band]
+        raw_data[band][(amplitude,uc_att)]['fres']=np.array(fres) + (2e3 if hbInBay0 else 0)
+        raw_data[band][(amplitude,uc_att)]['channels']=channels[band]
 
         if use_take_debug_data:
             #stack
             fovsfr=np.dstack(fs[band])[0]
             [sbs,sbc]=S.get_subband_centers(band)
             fvsfr=fovsfr[channels[band]]+[sbc[np.where(np.array(sbs)==S.get_subband_from_channel(band,ch))[0]]+S.get_band_center_mhz(band) for ch in channels[band]]
-            raw_data[band][amplitude]['fvsfr']=fvsfr + (2e3 if hbInBay0 else 0)
+            raw_data[band][(amplitude,uc_att)]['fvsfr']=fvsfr + (2e3 if hbInBay0 else 0)
         else:
             #stack
             lfovsfr=np.dstack(fs[band])[0]
-            raw_data[band][amplitude]['lfovsfr']=lfovsfr
-            raw_data[band][amplitude]['fvsfr']=np.array([arr/4.+fres for (arr,fres) in zip(lfovsfr,fres)]) + (2e3 if hbInBay0 else 0)
+            raw_data[band][(amplitude,uc_att)]['lfovsfr']=lfovsfr
+            raw_data[band][(amplitude,uc_att)]['fvsfr']=np.array([arr/4.+fres for (arr,fres) in zip(lfovsfr,fres)]) + (2e3 if hbInBay0 else 0)
 
-raw_data['bias'] = bias
-
+    # save dataset for each iteration, just to make sure it gets
+    # written to disk
+    np.save(fn_raw_data, raw_data)
+            
 # done - zero and unset
-S.set_fixed_flux_ramp_bias(0)
+S.set_fixed_flux_ramp_bias(0,do_config=False)
 S.unset_fixed_flux_ramp_bias()
-
-import os
-fn_raw_data = os.path.join('./', '%s_fr_sweep_data.npy'%(S.get_timestamp()))
-np.save(fn_raw_data, raw_data)
