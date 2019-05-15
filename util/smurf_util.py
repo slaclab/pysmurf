@@ -431,14 +431,25 @@ class SmurfUtilMixin(SmurfBase):
         data_filename (string): The fullpath to where the data is stored
         """
         bands = self.config.get('init').get('bands')
-
+        
         # Check if flux ramp is non-zero
         ramp_max_cnt = self.get_ramp_max_cnt()
         if ramp_max_cnt == 0:
             self.log('Flux ramp frequency is zero. Cannot take data.', 
                 self.LOG_ERROR)
-
         else:
+            # check which flux ramp relay state we're in
+            # read_ac_dc_relay_status() should be 0 in DC mode, 3 in
+            # AC mode.  this check is only possible if you're using
+            # one of the newer C02 cryostat cards.
+            flux_ramp_ac_dc_relay_status=self.C.read_ac_dc_relay_status()
+            if flux_ramp_ac_dc_relay_status == 0:
+                self.log("FLUX RAMP IS DC COUPLED.  HOPEFULLY THAT'S WHAT YOU WERE EXPECTING.".format(flux_ramp_ac_dc_relay_status), self.LOG_USER)
+            elif flux_ramp_ac_dc_relay_status == 3:
+                self.log("Flux ramp is AC-coupled.".format(flux_ramp_ac_dc_relay_status), self.LOG_USER)
+            else:
+                self.log("flux_ramp_ac_dc_relay_status = {} - NOT A VALID STATE.".format(flux_ramp_ac_dc_relay_status), self.LOG_ERROR)
+            
             # start streaming before opening file to avoid transient filter step
             self.set_stream_enable(1, write_log=False)
             time.sleep(1.)
@@ -1134,7 +1145,6 @@ class SmurfUtilMixin(SmurfBase):
                 decorated()
                 
         return jesd_decorator_function
-
 
     def check_jesd(self, bay, silent_if_valid=False):
         """
