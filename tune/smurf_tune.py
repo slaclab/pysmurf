@@ -263,11 +263,15 @@ class SmurfTuneMixin(SmurfBase):
 
         else:
             # Inject high amplitude noise with known waveform, measure it, and
-            # then find resonators and etaParameters from cross-correlation.                    
+            # then find resonators and etaParameters from cross-correlation.
+            old_att = self.get_att_uc(band)
+            self.set_att_uc(band, 0, wait_after=.5, write_log=True)
+            self.get_att_uc(band, write_log=True)
             freq, resp = self.full_band_resp(band, n_samples=n_samples,
                                          make_plot=make_plot, save_data=save_data, 
                                          show_plot=False, timestamp=timestamp,
                                          n_scan=n_scan)
+            self.set_att_uc(band, old_att, write_log=True)
 
             # Find peaks
             peaks = self.find_peak(freq, resp, rolling_med=rolling_med, window=window,
@@ -597,7 +601,7 @@ class SmurfTuneMixin(SmurfBase):
         else:
             plt.ioff()
 
-        timestamp = self.freq_resp[band]['find_freq']['timestamp'][0]
+        timestamp = self.freq_resp[band]['timestamp']
 
         fig, ax = plt.subplots(2,2, figsize=(10,6))
 
