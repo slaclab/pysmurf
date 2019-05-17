@@ -168,9 +168,11 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
         self.channel_assignment_files = {}
         if not no_dir:
             for b in self.config.get('init').get('bands'):
-                self.channel_assignment_files['band_{}'.format(b)] = \
-                    np.sort(glob.glob(os.path.join(self.tune_dir, 
-                            '*channel_assignment_b{}.txt'.format(b))))[-1]
+                all_channel_assignment_files=glob.glob(os.path.join(self.tune_dir, 
+                                                                    '*channel_assignment_b{}.txt'.format(b)))
+                if len(all_channel_assignment_files):
+                    self.channel_assignment_files['band_{}'.format(b)] = \
+                            np.sort(all_channel_assignment_files)[-1]
 
         # bias groups available
         self.all_groups = self.config.get('all_bias_groups')
