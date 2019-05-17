@@ -1489,8 +1489,9 @@ class SmurfTuneMixin(SmurfBase):
         filename (str): The full path to the new master assignment
             file. Should be in self.tune_dir.
         """
-        self.log('Old master assignment file:'+
-                 ' {}'.format(self.channel_assignment_files['band_{}'.format(band)]))
+        if 'band_{}'.format(band) in self.channel_assignment_files.keys():
+            self.log('Old master assignment file:'+
+                     ' {}'.format(self.channel_assignment_files['band_{}'.format(band)]))
         self.channel_assignment_files['band_{}'.format(band)] = filename
         self.log('New master assignment file:'+
                  ' {}'.format(self.channel_assignment_files['band_{}'.format(band)]))
@@ -1758,7 +1759,9 @@ class SmurfTuneMixin(SmurfBase):
         for k in self.freq_resp[band]['resonances'].keys():
             ch = self.freq_resp[band]['resonances'][k]['channel']
             idx = np.where(f == self.freq_resp[band]['resonances'][k]['freq'])[0][0]
-            f_gap = np.min(np.abs(np.append(f[:idx], f[idx+1:])-f[idx]))
+            f_gap=None
+            if len(f)>1:
+                f_gap = np.min(np.abs(np.append(f[:idx], f[idx+1:])-f[idx]))
             if write_log:
                 self.log('Res {:03} - Channel {}'.format(k, ch))
             for ll, hh in self.bad_mask:
@@ -1768,7 +1771,7 @@ class SmurfTuneMixin(SmurfBase):
             if ch < 0: 
                 if write_log:
                     self.log('No channel assigned: res {:03}'.format(k))
-            elif min_gap is not None and f_gap < min_gap:
+            elif min_gap is not None and f_gap is not None and f_gap < min_gap:
                 if write_log:
                     self.log('Closest resonator is {:3.3f} MHz away'.format(f_gap))
             elif self.freq_resp[band]['resonances'][k]['r2'] > r2_max and check_vals:
