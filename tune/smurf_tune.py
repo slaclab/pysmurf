@@ -601,7 +601,7 @@ class SmurfTuneMixin(SmurfBase):
         else:
             plt.ioff()
 
-        timestamp = self.freq_resp[band]['timestamp']
+        timestamp = self.get_timestamp()            
 
         fig, ax = plt.subplots(2,2, figsize=(10,6))
 
@@ -3445,14 +3445,13 @@ class SmurfTuneMixin(SmurfBase):
 
     def estimate_lms_freq(self, band, fraction_full_scale=None,
                           reset_rate_khz=4., new_epics_root=None,
-                          channel=None):
+                          channel=None, make_plot=False):
         """
         
         Ret:
         ----
         The estimated lms frequency in Hz
         """
-        print('IN estimate_lms_freq')
         if fraction_full_scale is None:
             fraction_full_scale = \
                 self.config.get('tune_band').get('fraction_full_scale')
@@ -3465,12 +3464,10 @@ class SmurfTuneMixin(SmurfBase):
             reset_rate_khz=reset_rate_khz, lms_freq_hz=0,
             new_epics_root=new_epics_root)
 
-        s = self.flux_mod2(df, sync, make_plot=True, channel=channel)
+        s = self.flux_mod2(df, sync, make_plot=make_plot, channel=channel)
 
         self.set_feedback_enable(band, old_feedback)
         return reset_rate_khz * s * 1000  # convert to Hz
-        print('LEAVING estimate_lms_freq')    
-
 
     def flux_mod2(self, df, sync, min_scale=.002, make_plot=False, 
                   channel=None, threshold=.5):
@@ -3502,7 +3499,6 @@ class SmurfTuneMixin(SmurfBase):
         n (float): The number of phi0 swept out per sync. To get
            lms_freq_hz, multiply by the flux ramp frequency.
         """
-        print('IN flux_mod2')
         sync_flag = self.make_sync_flag(sync)
 
         # The longest time between resets
@@ -3575,7 +3571,6 @@ class SmurfTuneMixin(SmurfBase):
                     ax[1].plot(corr_amp)
                     ax[1].plot(peaks[ch], corr_amp[int(peaks[ch])], 'x' ,color='k')
 
-        print('LEAVING flux_mod2')                    
         return max_len/np.nanmedian(peaks)
 
 
