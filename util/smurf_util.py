@@ -910,6 +910,53 @@ class SmurfUtilMixin(SmurfBase):
         amps = self.get_amplitude_scale_array(band)
         return np.ravel(np.where(amps != 0))
 
+    def toggle_feedback(self, band, **kwargs):
+        '''
+        Toggles feedbackEnable (->0->1) and lmsEnables1-3 (->0->1) for
+        this band.  Only toggles back to 1 if it was 1 when asked to
+        toggle, otherwise leaves it zero.
+
+        Args:
+        -----
+        band (int) : The band whose feedback to toggle.
+        '''
+
+        # current vals?
+        old_feedback_enable=self.get_feedback_enable(band)      
+        old_lms_enable1=self.get_lms_enable1(band)        
+        old_lms_enable2=self.get_lms_enable2(band)          
+        old_lms_enable3=self.get_lms_enable3(band)
+
+        self.log('Before toggling feedback on band {}, feedbackEnable={}, lmsEnable1={}, lmsEnable2={}, and lmsEnable3={}.'.format(band, old_feedback_enable, old_lms_enable1, old_lms_enable2, old_lms_enable3), 
+                 self.LOG_USER)        
+        
+        # -> 0
+        self.log('Setting feedbackEnable=lmsEnable1=lmsEnable2=lmsEnable3=0 (in that order).',
+                 self.LOG_USER)                
+        self.set_feedback_enable(band,0)
+        self.set_lms_enable1(band,0)
+        self.set_lms_enable2(band,0)
+        self.set_lms_enable3(band,0)          
+
+        # -> 1
+        logstr='Set '
+        if old_feedback_enable:
+            self.set_feedback_enable(band,1)
+            logstr+='feedbackEnable='
+        if old_lms_enable1:
+            self.set_lms_enable1(band,1)
+            logstr+='lmsEnable1='
+        if old_lms_enable2:
+            self.set_lms_enable2(band,1)
+            logstr+='lmsEnable2='            
+        if old_lms_enable3:
+            self.set_lms_enable3(band,1)
+            logstr+='lmsEnable3='            
+            
+        logstr+='1 (in that order).'
+        self.log(logstr,
+                 self.LOG_USER)                        
+
     def band_off(self, band, **kwargs):
         '''
         Turns off all tones in a band
