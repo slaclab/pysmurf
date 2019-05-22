@@ -416,6 +416,9 @@ class SmurfUtilMixin(SmurfBase):
                 self.log('Writing PyRogue configuration to file : {}'.format(config_filename), 
                      self.LOG_USER)
                 self.write_config(config_filename)
+                # When deployed first HB to Princeton, caputs just following this
+                # were timing out ; adding wait.
+                time.sleep(5.)
 
             self.log('Writing to file : {}'.format(data_filename), 
                 self.LOG_USER)
