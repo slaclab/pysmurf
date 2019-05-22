@@ -26,8 +26,23 @@ class SmurfConfig:
               update (bool): Whether or not to update the configuration.
         """
         if update:
+            comment_char='#'
             with open(self.filename) as config_file:
-                loaded_config = json.load(config_file)
+                no_comments=[]
+                for idx, line in enumerate(config_file):
+                    if line.lstrip().startswith(comment_char):
+                        # line starts with comment character - remove it
+                        continue
+                    elif comment_char in line:
+                        # there's a comment character on this line.
+                        # ignore it and everything that follows
+                        line=line.split('#')[0]
+                        no_comments.append(line)
+                    else:
+                        # will pass on to json parser
+                        no_comments.append(line)
+                        
+                loaded_config = json.loads('\n'.join(no_comments))
             
             # put in some logic here to make sure parameters in experiment file match 
             # the parameters we're looking for
