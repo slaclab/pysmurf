@@ -2286,6 +2286,9 @@ class SmurfTuneMixin(SmurfBase):
         lms_enable3 (bool) : Whether to use the third harmonic for tracking.
            Default True.
         lms_gain (int) : The tracking gain parameters. Default 7.
+        meas_lms_freq (bool) : Whether or not to try to estimate the
+           carrier rate using the flux_mod2 function.  Default false.
+           lms_freq_hz must be None.
         """
         if not flux_ramp:
             self.log('WARNING: THIS WILL NOT TURN ON FLUX RAMP!')
@@ -2305,13 +2308,12 @@ class SmurfTuneMixin(SmurfBase):
         # Switched to a more stable estimator
         if lms_freq_hz is None:
             if meas_lms_freq:
-                lms_freq_hz = self.estimate_lms_freq(band, 
-                    fraction_full_scale=fraction_full_scale)
+                lms_freq_hz = self.estimate_lms_freq(band,fraction_full_scale=fraction_full_scale,channel=channel)
             else:
                 lms_freq_hz = self.config.get('tune_band').get('lms_freq')[str(band)]
             self.lms_freq_hz[band] = lms_freq_hz
             self.log('Using lms_freq_estimator : {:.0f} Hz'.format(lms_freq_hz))
-
+            
         lms_delay = 6  # nominally match refPhaseDelay
         if not flux_ramp:
             lms_enable1 = 0
@@ -2430,7 +2432,7 @@ class SmurfTuneMixin(SmurfBase):
         make_plot=False, save_plot=True, show_plot=True,
         lms_freq_hz=None, flux_ramp=True, fraction_full_scale=None,
         lms_enable1=True, lms_enable2=True, lms_enable3=True, lms_gain=7,
-        f_min=.015, f_max=.2, df_max=.03):
+        f_min=.015, f_max=.2, df_max=.03, toggle_feedback=True):
         """
         This runs tracking setup and check_lock to prune bad channels.
         
@@ -2442,6 +2444,10 @@ class SmurfTuneMixin(SmurfBase):
         ---------
         reset_rate_khz (float); The flux ramp reset rate.
         channel (int or int array): List of channels to plot.
+        toggle_feedback (bool): Whether or not to reset feedback (both
+                                the global band feedbackEnable and the 
+                                lmsEnables between tracking_setup and 
+                                check_lock.
         """
         self.relock(band)
         
@@ -2455,6 +2461,9 @@ class SmurfTuneMixin(SmurfBase):
                             lms_enable3=lms_enable3, 
                             lms_gain=lms_gain, return_data=False)
 
+        if toggle_feedback:
+            self.toggle_feedback(band)        
+        
         self.check_lock(band, f_min=f_min, f_max=f_max, df_max=df_max,
                         make_plot=make_plot, flux_ramp=flux_ramp, 
                         fraction_full_scale=fraction_full_scale,
@@ -3455,7 +3464,8 @@ class SmurfTuneMixin(SmurfBase):
 
 
     def estimate_lms_freq(self, band, fraction_full_scale=None,
-                          reset_rate_khz=4.):
+                          reset_rate_khz=4.,
+                          channel=None, make_plot=False):
         """
         
         Ret:
@@ -3473,20 +3483,21 @@ class SmurfTuneMixin(SmurfBase):
             flux_ramp=True, fraction_full_scale=fraction_full_scale,
             reset_rate_khz=reset_rate_khz, lms_freq_hz=0)
 
-        s = self.flux_mod2(df, sync)
+        s = self.flux_mod2(band, df, sync, make_plot=make_plot, channel=channel)
 
         self.set_feedback_enable(band, old_feedback)
         return reset_rate_khz * s * 1000  # convert to Hz
 
 
-    def flux_mod2(self, df, sync, min_scale=.002, make_plot=False, 
-                  channel=None, threshold=.01):
+    def flux_mod2(self, band, df, sync, min_scale=.002, make_plot=False, 
+                  channel=None, threshold=.5):
         """
         Attempts to find the number of phi0s in a tracking_setup.
         Takes df and sync from a tracking_setup with feedback off.
 
         Args:
         -----
+        band (int) : which band
         df (float array): The df term from tracking setup with
             feedback off.
         sync (float array): The sync term from tracking setup.
@@ -3524,8 +3535,9 @@ class SmurfTuneMixin(SmurfBase):
 
         peaks = np.zeros(n_chan)*np.nan
 
+        band_chans=list(self.which_on(band))
         for ch in np.arange(n_chan):
-            if np.std(df[:,ch]) > min_scale:
+            if ch in band_chans and np.std(df[:,ch]) > min_scale:
                 # Holds the data for all flux ramps
                 flux_resp = np.zeros((n_sync, max_len)) * np.nan
                 for i in np.arange(n_sync):
@@ -3536,24 +3548,42 @@ class SmurfTuneMixin(SmurfBase):
                 template_mean = np.mean(template)
                 template -= template_mean
 
+                # Normalize template so thresholding can be
+                # independent of the units of this crap
+                if np.std(template)!=0:
+                    template = template/np.std(template)
+
                 # Multiply the matrix with the first element, then array
                 # of first two elements, then array of first three...etc...
                 # The array that maximizes this tells you the frequency
                 corr_amp = np.zeros(max_len//2)
                 for i in np.arange(1, max_len//2):
                     x = np.tile(template[:i], max_len//i+1)
-                    corr_amp[i] = np.sum(x[:max_len]*template)
+                    # Normalize by elements in sum so that the
+                    # correlation comes out something like unity at
+                    # max
+                    corr_amp[i] = np.sum(x[:max_len]*template)/max_len
 
-                    
                 s, e = self.find_flag_blocks(corr_amp > threshold, min_gap=4)
                 if len(s) == 0:
                     peaks[ch] = np.nan
                 elif s[0] == e[0]:
                     peaks[ch] = s[0]
                 else:
-                    peaks[ch] = np.ravel(np.where(corr_amp[s[0]:e[0]] == 
-                                              np.max(corr_amp[s[0]:e[0]])))[0] + s[0]
+                    #peaks[ch] = np.ravel(np.where(corr_amp[s[0]:e[0]] == 
+                    #                          np.max(corr_amp[s[0]:e[0]])))[0] + s[0]
+                    peaks[ch] = np.argmax(corr_amp[s[0]:e[0]]) + s[0]
 
+                    #polyfit
+                    Xf = [-1, 0, 1]
+                    Yf = [corr_amp[int(peaks[ch]-1)],corr_amp[int(peaks[ch])],corr_amp[int(peaks[ch]+1)]]
+                    V = np.polyfit(Xf, Yf, 2)
+                    offset = -V[1]/(2.0 * V[0])
+                    peak = offset + peaks[ch]
+
+                    #kill shawn
+                    peaks[ch]=peak
+                    
                 if make_plot and ch in channel:
                     fig, ax = plt.subplots(2)
                     for i in np.arange(n_sync):
@@ -3563,10 +3593,9 @@ class SmurfTuneMixin(SmurfBase):
                     ax[1].plot(corr_amp)
                     ax[1].plot(peaks[ch], corr_amp[int(peaks[ch])], 'x' ,color='k')
 
-                    
         return max_len/np.nanmedian(peaks)
 
-
+    
     def make_sync_flag(self, sync):
         """
         Takes the sync from tracking setup and makes a flag for when the sync
