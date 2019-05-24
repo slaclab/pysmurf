@@ -1,6 +1,7 @@
 #!/bin/bash
 
 reboot=true
+configure_hb=true
 cpwd=$PWD
 
 tmux_session_name=smurf
@@ -97,6 +98,7 @@ if [ "$reboot" = true ] ; then
     
     # wait for carrier ethernet to come up on carrier 4
     echo "-> Waiting for LB carrier ethernet to come up"
+    cd $cpwd
     ./ping_carrier.sh 10.0.3.104
 fi
 
@@ -116,27 +118,30 @@ fi
 
 # shut down slot 4 pyrogue server - right now can only run one pyrogue server at a time (at least when configuring)
 
-# stop tailing smurf_server_s4 log
-tmux select-window -t smurf_slot4
-tmux select-pane -t 0
-tmux send-keys -t ${tmux_session_name}:4 C-c
+if [ "$configure_hb" = true ] ; then
+    # stop tailing smurf_server_s4 log
+    tmux select-window -t smurf_slot4
+    tmux select-pane -t 0
+    tmux send-keys -t ${tmux_session_name}:4 C-c
+    
+    # stop smurf_server_s4
+    stop_pyrogue 4
+    
+    ################################################################################
+    ### Configure slot5/HB
+    slot_number=5
+    
+    echo "-> Make sure HB carrier ethernet is up"
+    cd $cpwd    
+    ./ping_carrier.sh 10.0.3.105
 
-# stop smurf_server_s4
-stop_pyrogue 4
-
-################################################################################
-### Configure slot5/HB
-
-echo "-> Make sure HB carrier ethernet is up"
-./ping_carrier.sh 10.0.3.105
-
-slot_number=5
-start_slot_tmux ${slot_number}
-pysmurf_docker_s5=`docker ps -n 1 -q`
-
-if [ "$reboot" = true ] ; then
-    config_pysmurf ${slot_number} ${pysmurf_docker_s5}
+    start_slot_tmux ${slot_number}
+    pysmurf_docker_s5=`docker ps -n 1 -q`
+    
+    if [ "$reboot" = true ] ; then
+	config_pysmurf ${slot_number} ${pysmurf_docker_s5}
+    fi
+    
+    tmux attach -t ${tmux_session_name}
 fi
-
-tmux attach -t ${tmux_session_name}
     
