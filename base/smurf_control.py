@@ -324,11 +324,6 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
                 self.set_data_out_mux(int(self.band_to_bay(b)), int(dmx), "UserData", write_log=write_log,
                     **kwargs)
 
-            self.set_att_uc(b, smurf_init_config[band_str]['att_uc'],
-                write_log=write_log)
-            self.set_att_dc(b, smurf_init_config[band_str]['att_dc'],
-                write_log=write_log)
-
             self.set_dsp_enable(b, smurf_init_config['dspEnable'], 
                 write_log=write_log, **kwargs)
             
@@ -340,6 +335,18 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
             if hasattr(self,'eta_scan_averages') and b in self.eta_scan_averages.keys():
                 self.set_eta_scan_averages(b, self.eta_scan_averages[b], write_log=write_log, **kwargs)
 
+        # To work around issue where setting the UC attenuators is for
+        # some reason also setting the UC attenuators for other bands
+        # with the new C03 AMCs, first set all the UC attenuators
+        # (which don't seem to be affected by setting the DC
+        # attenuators, at least for LB bands 2 and 3), then set all
+        # the UC attenuators.
+        for b in bands:
+            self.set_att_uc(b, smurf_init_config[band_str]['att_uc'],
+                write_log=write_log)
+        for b in bands:
+            self.set_att_dc(b, smurf_init_config[band_str]['att_dc'],
+                write_log=write_log)
 
         # Things that have to be done for both AMC bays, regardless of whether or not an AMC
         # is plugged in there.
