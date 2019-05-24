@@ -2,9 +2,21 @@
 
 reboot=true
 configure_hb=true
+using_timing_master=true
 cpwd=$PWD
+pysmurf=/home/cryo/docker/pysmurf/dspv3
 
 tmux_session_name=smurf
+
+matching_dockers () {
+    # the $1 in the single quotes doesn't get replaced with the input
+    # arg ; it's the first column of the grep output
+    if [ -z "$(docker ps | grep $1 | awk '{print $1}')" ] ; then
+	return 0
+    else
+	return 1
+    fi
+}
 
 stop_pyrogue () {
     # stop pyrogue dockers, assumes the pyrogue version you want to use
@@ -28,7 +40,7 @@ start_slot_tmux () {
     
     # start pysmurf in a split window and initialize the carrier
     tmux split-window -v -t ${tmux_session_name}:${slot_number}
-    tmux send-keys -t ${tmux_session_name}:${slot_number} 'cd /home/cryo/docker/pysmurf/dspv3' C-m
+    tmux send-keys -t ${tmux_session_name}:${slot_number} 'cd '${pysmurf} C-m
     tmux send-keys -t ${tmux_session_name}:${slot_number} './run.sh' C-m
     sleep 1
 
@@ -71,16 +83,43 @@ stop_pyrogue 5
 cd $cpwd
 
 # stop all pysmurf dockers
-echo "-> Stopping all running pysmurf dockers"
-docker rm -f $(docker ps | grep pysmurf | awk '{print $1}')
+matching_dockers pysmurf
+if [ "$?" = "1" ]; then
+    echo "-> Stopping all running pysmurf dockers."
+    docker rm -f $(docker ps | grep pysmurf | awk '{print $1}')
+fi
+
+# if using a timing master, check that timing docker is running,
+# or else nothing will work.
+if [ "$using_timing_master" = true ] ; then
+    matching_dockers tpg_ioc
+    if [ "$?" = "1" ]; then    
+	echo "-> tpg_ioc docker is up."	
+    else
+	echo "-> tpg_ioc docker is down, must start."
+	exit 1
+    fi
+fi
 
 ## will need a utils docker.  first remove all others to avoid
 ## proliferation, then start one in tmux
-echo "-> Stopping all running utils dockers"
-docker rm -f $(docker ps | grep smurf-base | awk '{print $1}')
+matching_dockers smurf-base
+if [ "$?" = "1" ]; then
+    echo "-> Stopping all running utils dockers."
+    docker rm -f $(docker ps | grep smurf-base | awk '{print $1}')
+fi
+
 tmux rename-window -t ${tmux_session_name}:0 utils
 tmux send-keys -t ${tmux_session_name}:0 'cd /home/cryo/docker/utils' C-m
 tmux send-keys -t ${tmux_session_name}:0 './run.sh' C-m
+
+# display tpg log in tmux 0 with utils term
+tmux split-window -v -t ${tmux_session_name}:0
+tmux send-keys -t ${tmux_session_name}:0 'docker logs tpg_ioc -f' C-m
+
+# leave the utils pane selected
+tmux select-window -t utils
+tmux select-pane -t 0
 
 if [ "$reboot" = true ] ; then
 
