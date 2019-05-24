@@ -363,8 +363,6 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
 
         flux_ramp_cfg = self.config.get('flux_ramp')
         self.set_select_ramp(flux_ramp_cfg['select_ramp'], write_log=write_log)
-        self.set_ramp_start_mode(flux_ramp_cfg['ramp_start_mode'], 
-                                 write_log=write_log)
 
         self.set_cpld_reset(0, write_log=write_log)
         self.cpld_toggle(write_log=write_log)
@@ -408,6 +406,9 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
                     self.log('Select external reference for bay %i' % (bay))
                     self.sel_ext_ref(bay)
 
+                # make sure RTM knows there's no timing system
+                self.set_ramp_start_mode(0,write_log=write_log)                
+
             # https://confluence.slac.stanford.edu/display/SMuRF/Timing+Carrier#TimingCarrier-Howtoconfiguretodistributeoverbackplanefromslot2
             if timing_reference=='backplane':
                 # Set SMuRF carrier crossbar to use the backplane
@@ -432,6 +433,9 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
                     self.log('Configuring bay %i LMK to lock to the timing system' % (bay))
                     self.set_lmk_reg(bay,0x147,0xA)
 
+                # Configure RTM to trigger off of the timing system
+                self.set_ramp_start_mode(1,write_log=write_log)
+                
         self.log('Done with setup')            
 
     def make_dir(self, directory):
