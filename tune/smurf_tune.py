@@ -3464,12 +3464,12 @@ class SmurfTuneMixin(SmurfBase):
             reset_rate_khz=reset_rate_khz, lms_freq_hz=0,
             new_epics_root=new_epics_root)
 
-        s = self.flux_mod2(df, sync, make_plot=make_plot, channel=channel)
+        s = self.flux_mod2(band, df, sync, make_plot=make_plot, channel=channel)
 
         self.set_feedback_enable(band, old_feedback)
         return reset_rate_khz * s * 1000  # convert to Hz
 
-    def flux_mod2(self, df, sync, min_scale=.002, make_plot=False, 
+    def flux_mod2(self, band, df, sync, min_scale=.002, make_plot=False, 
                   channel=None, threshold=.5):
         """
         Attempts to find the number of phi0s in a tracking_setup.
@@ -3477,6 +3477,7 @@ class SmurfTuneMixin(SmurfBase):
 
         Args:
         -----
+        band (int) : which band
         df (float array): The df term from tracking setup with
             feedback off.
         sync (float array): The sync term from tracking setup.
@@ -3514,8 +3515,9 @@ class SmurfTuneMixin(SmurfBase):
 
         peaks = np.zeros(n_chan)*np.nan
 
+        band_chans=list(self.which_on(band))
         for ch in np.arange(n_chan):
-            if np.std(df[:,ch]) > min_scale:
+            if ch in band_chans and np.std(df[:,ch]) > min_scale:
                 # Holds the data for all flux ramps
                 flux_resp = np.zeros((n_sync, max_len)) * np.nan
                 for i in np.arange(n_sync):
