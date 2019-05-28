@@ -131,7 +131,39 @@ schema_dict["bias_line_resistance"] = And(Use(float),lambda f: 0 < f )
 schema_dict["high_low_current_ratio"] = And(Use(float),lambda f: 1 <= f )
 schema_dict[Optional('high_current_mode_bool', default=0)] = And(int,lambda n: n in (0,1))
 schema_dict["all_bias_groups"] = And([ int ], list, lambda l: all(ll >= 0 and ll < 16 for ll in l))
-#### Done specifying TES-related 
+#### Done specifying TES-related
+
+#### Start specifying flux ramp-related
+schema_dict["flux_ramp"] = {
+    # 0x1 selects fast flux ramp, 0x0 selects slow flux ramp.  The
+    # slow flux ramp only existed on the first rev of RTM boards,
+    # C0, and wasn't ever really used.
+    Optional("select_ramp", default=1) : And(int,lambda n: n in (0,1)),
+    # 20 bits for the C0 RTMs, 32 bits for the C1 RTMs.
+    "num_flux_ramp_counter_bits" : And(int,lambda n: n in (20,32))
+}
+#### Done specifying flux-ramp related
+
+#### Start specifying timing-related
+schema_dict["timing"] = {
+    # "ext_ref" : internal oscillator locked to an external
+    #   front-panel reference, or unlocked if there is no front
+    #   panel reference.  (LmkReg_0x0147 : 0x1A).  Also sets
+    #   flux_ramp_start_mode=0
+    # "backplane" : takes timing from timing master through
+    #   backplane.  Also sets flux_ramp_start_mode=1.
+    "timing_reference" : And(str,lambda s: s in ('ext_ref','backplane'))
+}
+#### Done specifying timing-related
+
+#### Start specifying directories
+import os
+userHasWriteAccess = lambda dirpath : os.access(dirpath,os.W_OK)
+schema_dict[Optional("default_data_dir",default="/data/smurf_data")] = And(str,os.path.isdir,userHasWriteAccess)
+schema_dict[Optional("smurf_cmd_dir",default="/data/smurf_data/smurf_cmd")] = And(str,os.path.isdir,userHasWriteAccess)
+schema_dict[Optional("tune_dir",default="/data/smurf_data/tune")] = And(str,os.path.isdir,userHasWriteAccess)
+schema_dict[Optional("status_dir",default="/data/smurf_data/status")] = And(str,os.path.isdir,userHasWriteAccess)
+#### Done specifying directories
 
 ##### Done building validation schema
 
@@ -142,14 +174,6 @@ print(validated)
 
 sys.exit(1)
 
-#    "flux_ramp" : {
-#        # 0x1 selects fast flux ramp, 0x0 selects slow flux ramp.  The
-#        # slow flux ramp only existed on the first rev of RTM boards,
-#        # C0, and wasn't ever really used.
-#	Optional("select_ramp", default=1) : int,
-#        # 20 bits for the C0 RTMs, 32 bits for the C1 RTMs.
-#	"num_flux_ramp_counter_bits" : And(int,lambda n: n in (20,32))
-#    },
 #
 #    "constant" : {
 #	"pA_per_phi0" : Use(float)
