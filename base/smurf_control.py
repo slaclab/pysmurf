@@ -143,9 +143,7 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
         # Flux ramp hardware detail
         flux_ramp_cfg = self.config.get('flux_ramp')
         keys = flux_ramp_cfg.keys()
-        self.num_flux_ramp_counter_bits=20
-        if 'num_flux_ramp_counter_bits' in keys:
-            self.num_flux_ramp_counter_bits=flux_ramp_cfg['num_flux_ramp_counter_bits']
+        self.num_flux_ramp_counter_bits=flux_ramp_cfg['num_flux_ramp_counter_bits']
 
         # Mapping from chip number to frequency in GHz
         chip_cfg = self.config.get('chip_to_freq')
@@ -154,7 +152,7 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
         for i, k in enumerate(chip_cfg.keys()):
             val = chip_cfg[k]
             self.chip_to_freq[i] = [k, val[0], val[1]]
-
+                
         # Mapping from band to chip number
         band_cfg = self.config.get('band_to_chip')
         keys = band_cfg.keys()
@@ -363,8 +361,6 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
 
         flux_ramp_cfg = self.config.get('flux_ramp')
         self.set_select_ramp(flux_ramp_cfg['select_ramp'], write_log=write_log)
-        self.set_ramp_start_mode(flux_ramp_cfg['ramp_start_mode'], 
-                                 write_log=write_log)
 
         self.set_cpld_reset(0, write_log=write_log)
         self.cpld_toggle(write_log=write_log)
@@ -408,6 +404,9 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
                     self.log('Select external reference for bay %i' % (bay))
                     self.sel_ext_ref(bay)
 
+                # make sure RTM knows there's no timing system
+                self.set_ramp_start_mode(0,write_log=write_log)                
+
             # https://confluence.slac.stanford.edu/display/SMuRF/Timing+Carrier#TimingCarrier-Howtoconfiguretodistributeoverbackplanefromslot2
             if timing_reference=='backplane':
                 # Set SMuRF carrier crossbar to use the backplane
@@ -432,6 +431,9 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
                     self.log('Configuring bay %i LMK to lock to the timing system' % (bay))
                     self.set_lmk_reg(bay,0x147,0xA)
 
+                # Configure RTM to trigger off of the timing system
+                self.set_ramp_start_mode(1,write_log=write_log)
+                
         self.log('Done with setup')            
 
     def make_dir(self, directory):

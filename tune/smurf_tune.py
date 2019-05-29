@@ -14,9 +14,11 @@ class SmurfTuneMixin(SmurfBase):
     This contains all the tuning scripts
     """
 
-    def tune(self, load_tune=True, tune_file=None, last_tune=False, retune=False,
-             f_min=.02, f_max=.3, df_max=.03, fraction_full_scale=None, make_plot=False,
-             save_plot=True, show_plot=False, new_master_assignment=False):
+    def tune(self, load_tune=True, tune_file=None, last_tune=False,
+             retune=False, f_min=.02, f_max=.3, df_max=.03,
+             fraction_full_scale=None, make_plot=False,
+             save_plot=True, show_plot=False,
+             new_master_assignment=False, track_and_check=True):
         """
         This runs a tuning, does tracking setup, and prunes bad
         channels using check lock. When this is done, we should
@@ -39,6 +41,8 @@ class SmurfTuneMixin(SmurfBase):
         make_plot (bool): Whether to make a plot. Default is False.
         save_plot (bool): If making plots, whether to save them. Default is True.
         show_plot (bool): Whether to display the plots to screen. Default is False.
+        track_and_check (bool): Whether or not after tuning to run
+            track and check.  Default is True.
         """
         bands = self.config.get('init').get('bands')
         tune_cfg = self.config.get('tune_band')
@@ -76,13 +80,13 @@ class SmurfTuneMixin(SmurfBase):
                                       new_master_assignment=new_master_assignment)
 
         # Starts tracking and runs check_lock to prune bad resonators
-        for b in bands:
-            self.log('Tracking and checking band {}'.format(b))
-            self.track_and_check(b, fraction_full_scale=fraction_full_scale, 
-                                 f_min=f_min,
-                                 f_max=f_max, df_max=df_max, make_plot=make_plot,
-                                 save_plot=save_plot, show_plot=show_plot)
-        
+        if track_and_check:
+            for b in bands:
+                self.log('Tracking and checking band {}'.format(b))
+                self.track_and_check(b, fraction_full_scale=fraction_full_scale, 
+                                     f_min=f_min,
+                                     f_max=f_max, df_max=df_max, make_plot=make_plot,
+                                     save_plot=save_plot, show_plot=show_plot)
         
 
     def tune_band(self, band, freq=None, resp=None, n_samples=2**19, 
@@ -2397,7 +2401,8 @@ class SmurfTuneMixin(SmurfBase):
         make_plot=False, save_plot=True, show_plot=True,
         lms_freq_hz=None, flux_ramp=True, fraction_full_scale=None,
         lms_enable1=True, lms_enable2=True, lms_enable3=True, lms_gain=7,
-        f_min=.015, f_max=.2, df_max=.03, toggle_feedback=True):
+        f_min=.015, f_max=.2, df_max=.03, toggle_feedback=True,
+        relock=True,tracking_setup=True):
         """
         This runs tracking setup and check_lock to prune bad channels.
         
@@ -2413,18 +2418,24 @@ class SmurfTuneMixin(SmurfBase):
                                 the global band feedbackEnable and the 
                                 lmsEnables between tracking_setup and 
                                 check_lock.
+        relock (bool): Whether or not to relock at the start.  
+                       Default True.
+        tracking_setup (bool): Whether or not to run tracking_setup.  
+                               Default True.
         """
-        self.relock(band)
-        
-        self.tracking_setup(band, channel=channel, 
-                            reset_rate_khz=reset_rate_khz,
-                            make_plot=make_plot, save_plot=save_plot, 
-                            show_plot=show_plot,
-                            lms_freq_hz=lms_freq_hz, flux_ramp=flux_ramp, 
-                            fraction_full_scale=fraction_full_scale,
-                            lms_enable1=lms_enable1, lms_enable2=lms_enable2, 
-                            lms_enable3=lms_enable3, 
-                            lms_gain=lms_gain, return_data=False)
+        if relock:
+            self.relock(band)
+
+        if tracking_setup:
+            self.tracking_setup(band, channel=channel, 
+                                reset_rate_khz=reset_rate_khz,
+                                make_plot=make_plot, save_plot=save_plot, 
+                                show_plot=show_plot,
+                                lms_freq_hz=lms_freq_hz, flux_ramp=flux_ramp, 
+                                fraction_full_scale=fraction_full_scale,
+                                lms_enable1=lms_enable1, lms_enable2=lms_enable2, 
+                                lms_enable3=lms_enable3, 
+                                lms_gain=lms_gain, return_data=False)
 
         if toggle_feedback:
             self.toggle_feedback(band)

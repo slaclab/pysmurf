@@ -2110,6 +2110,27 @@ class SmurfCommandMixin(SmurfBase):
 
         return reset_rate
 
+    _trigger_delay = ":EvrV2TriggerReg[0]:Delay"
+    def set_trigger_delay(self, val, **kwargs):
+        """
+        Adds an offset to flux ramp trigger.  Only really useful if
+        you're using two carriers at once and you're trying to
+        synchronize them.  Mitch thinks it's in units of 122.88MHz
+        ticks.
+        """
+        self._caput(self.epics_root + self.timing_crate_root +
+                    self._trigger_delay, val, **kwargs)
+
+    def get_trigger_delay(self, **kwargs):
+        """
+        The flux ramp trigger offset.  Only really useful if you're
+        using two carriers at once and you're trying to synchronize
+        them.  Mitch thinks it's in units of 122.88MHz ticks.
+        """
+
+        trigger_delay = self._caget(self.epics_root + self.timing_crate_root +
+                                    self._trigger_delay, **kwargs)
+        return trigger_delay
 
     _pulse_width = 'PulseWidth'
     def set_pulse_width(self, val, **kwargs):
