@@ -1,6 +1,7 @@
 import json
 import re
 import logging
+import os
 
 #filename='c:/Users/shawn/Docuexperiment_fp29_srv10_dspv3_cc02-02_hbOnlyBay0.cfg'
 filename='test.cfg'
@@ -63,7 +64,7 @@ schema_dict['init'][Optional('dspEnable', default=1)] = And(int,lambda n: n in (
 # Each band has a configuration block in init.
 for band in bands:
     schema_dict['init']['band_%d'%band] = {
-
+        
         # Swap IQ channels on input
         Optional('iq_swap_in', default=0): And(int,lambda n: n in (0,1)),
         # Swap IQ channels on output
@@ -74,15 +75,45 @@ for band in bands:
         
         # Number of cycles to delay phase reference
 	'refPhaseDelay': And(int,lambda n: 0 <= n < 2**3),
-        # Finer phase reference delay, 307.2MHz clock ticks
+        # Finer phase reference delay, 307.2MHz clock ticks.  This
+        # goes in the opposite direction as refPhaseDelay.
 	'refPhaseDelayFine': And(int,lambda n: 0 <= n < 2**8),
         
 	'att_uc': And(int,lambda n: 0 <= n < 2**5),
 	'att_dc': And(int,lambda n: 0 <= n < 2**5),
 	'amplitude_scale': And(int,lambda n: 0 <= n < 2**4),
-    }
+        
+        # Matches system latency for LMS feedback (9.6 MHz ticks, use
+        # multiples of 52).  For dspv3 to adjust to match
+        # refPhaseDelay*4 (ignore refPhaseDelayFine for this).
+        'lmsDelay': And(int,lambda n: 0 <= n < 2**5),
+        
+	# Adjust trigRstDly such that the ramp resets at the flux ramp
+	# glitch.  2.4 MHz ticks.
+        'trigRstDly': And(int,lambda n: 0 <= n < 2**7),
 
+        # LMS gain, powers of 2
+        'lmsGain': And(int,lambda n: 0 <= n < 2**3),
+        
+        # The user really shouldn't be touching these - better to let
+        # them be set in defaults.yml.
+	#'analysisScale' : 2,
+	#"synthesisScale": 2,
+	#"toneScale" : 2,
+    }
 #### Done specifying init schema
+
+#### Start specifying attenuator schema
+# Here's another one that users probably shouldn't be touching Just
+# doing basic validation here - not checking if they're distinct, for
+# instance.
+schema_dict["attenuator"] = {
+    'att1' : And(int,lambda n: 0 <= n < 4),
+    'att2' : And(int,lambda n: 0 <= n < 4),
+    'att3' : And(int,lambda n: 0 <= n < 4),
+    'att4' : And(int,lambda n: 0 <= n < 4)
+}    
+#### Done specifying attenuator schema
 
 #### Start specifiying amplifier
 schema_dict["amplifier"] = {
@@ -113,8 +144,50 @@ schema_dict["amplifier"] = {
     # Software limit on the maximum gate voltage that can be set for the 4K amplifier.    
     "hemt_gate_max_voltage" :  Use(float)
 }
-
 #### Done specifiying amplifier
+
+#### Start specifying chip-to-frequency schema
+schema_dict[Optional('chip_to_freq',default={})] = {
+    # [chip lower frequency, chip upper frequency] in GHz
+    Optional(str) : And([ Use(float) ], list, lambda l: len(l)==2
+                        and l[0]<l[1] and all(ll >= 4 and ll<= 8 for ll in l) )
+}
+#### Done specifying chip-to-frequency schema
+
+#### Start specifying tune parameter schema
+schema_dict['tune_band'] = {
+    "grad_cut" : And(Use(float),lambda f: 0 < f),
+    "amp_cut" : And(Use(float),lambda f: 0 < f),
+    
+    Optional('n_samples',default=2**18) : And(int,lambda n: 0 < n),
+    # Digitizer sampling rate is 614.4 MHz, so biggest range of
+    # frequencies user could possibly be interested in is between
+    # -614.4MHz/2 and 614.4MHz/2, or -307.2MHz to +307.2MHz.
+    Optional('freq_max', default=250.e6) : And(Use(float),lambda f: -307.2e6 <= f <= 307.2e6),
+    Optional('freq_min', default=-250.e6) : And(Use(float),lambda f: -307.2e6 <= f <= 307.2e6),
+
+    'fraction_full_scale' : And(Use(float),lambda f: 0 < f <=1.),
+    Optional('default_tune',default=None) : And(str,os.path.isfile)
+}
+
+## Add tuning params that must be specified per band.
+per_band_tuning_params= [
+    ( 'lms_freq',And(Use(float),lambda f: 0 < f) ),
+    ( 'feedback_start_frac',And(Use(float),lambda f: 0 <= f <= 1) ),
+    ( 'feedback_end_frac',And(Use(float),lambda f: 0 <= f <= 1) ),
+    ( 'gradient_descent_gain',And(Use(float),lambda f: 0 < f) ),
+    ( 'gradient_descent_averages',And(Use(int),lambda n: 0 < n) ),
+    ( 'eta_scan_averages',And(Use(int),lambda n: 0 < n) ),        
+]
+
+for band in bands:
+    for (p,v) in per_band_tuning_params:
+        if band==bands[0]:
+            schema_dict['tune_band'][p]={}            
+        schema_dict['tune_band'][p][str(band)] = v
+## Done adding tuning params that must be specified per band.        
+
+#### Done specifying tune parameter schema
 
 #### Start specifying bad mask
 schema_dict[Optional('bad_mask', default = {})] = {
@@ -125,11 +198,23 @@ schema_dict[Optional('bad_mask', default = {})] = {
 }
 #### Done specifying bad mask
 
-#### Start specifying TES-related 
+#### Start specifying TES-related
+# TES shunt resistance
 schema_dict["R_sh"] = And(Use(float),lambda f: 0 < f )
+
+# Round-trip resistance on TES bias lines, in low current mode.
+# Includes the resistance on the cryostat cards, and cable resistance.
 schema_dict["bias_line_resistance"] = And(Use(float),lambda f: 0 < f )
+
+# Ratio between the current per DAC unit in high current mode to the
+# current in low current mode.  Constained to be greater than or equal
+# to 1 since otherwise what does high current mode EVEN MEAN.
 schema_dict["high_low_current_ratio"] = And(Use(float),lambda f: 1 <= f )
+
+# If 1, TES biasing will *always* be in high current mode.
 schema_dict[Optional('high_current_mode_bool', default=0)] = And(int,lambda n: n in (0,1))
+
+# All SMuRF bias groups with TESs connected.
 schema_dict["all_bias_groups"] = And([ int ], list, lambda l: all(ll >= 0 and ll < 16 for ll in l))
 #### Done specifying TES-related
 
@@ -157,7 +242,6 @@ schema_dict["timing"] = {
 #### Done specifying timing-related
 
 #### Start specifying directories
-import os
 userHasWriteAccess = lambda dirpath : os.access(dirpath,os.W_OK)
 schema_dict[Optional("default_data_dir",default="/data/smurf_data")] = And(str,os.path.isdir,userHasWriteAccess)
 schema_dict[Optional("smurf_cmd_dir",default="/data/smurf_data/smurf_cmd")] = And(str,os.path.isdir,userHasWriteAccess)
