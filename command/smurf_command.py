@@ -257,27 +257,27 @@ class SmurfCommandMixin(SmurfBase):
                            **kwargs)
 
 
-    _gradient_descent_converge_khz = 'gradientDescentConvergekHz'
-    def set_gradient_descent_converge_khz(self, band, val, **kwargs):
+    _gradient_descent_converge_khz = 'gradientDescentConvergeHz'
+    def set_gradient_descent_converge_hz(self, band, val, **kwargs):
         """
         """
         self._caput(self._cryo_root(band) + self._gradient_descent_converge_khz, val,
                     **kwargs)
 
-    def get_gradient_descent_converge_khz(self, band, **kwargs):
+    def get_gradient_descent_converge_hz(self, band, **kwargs):
         """
         """
         return self._caget(self._cryo_root(band) + self._gradient_descent_converge_khz,
                            **kwargs)
 
-    _gradient_descent_step_khz = 'gradientDescentStepkHz'
-    def set_gradient_descent_step_khz(self, band, val, **kwargs):
+    _gradient_descent_step_khz = 'gradientDescentStepHz'
+    def set_gradient_descent_step_hz(self, band, val, **kwargs):
         """
         """
         self._caput(self._cryo_root(band) + self._gradient_descent_step_khz, val,
                     **kwargs)
 
-    def get_gradient_descent_step_khz(self, band, **kwargs):
+    def get_gradient_descent_step_hz(self, band, **kwargs):
         """
         """
         return self._caget(self._cryo_root(band) + self._gradient_descent_step_khz,
