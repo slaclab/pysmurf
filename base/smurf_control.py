@@ -143,9 +143,7 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
         # Flux ramp hardware detail
         flux_ramp_cfg = self.config.get('flux_ramp')
         keys = flux_ramp_cfg.keys()
-        self.num_flux_ramp_counter_bits=20
-        if 'num_flux_ramp_counter_bits' in keys:
-            self.num_flux_ramp_counter_bits=flux_ramp_cfg['num_flux_ramp_counter_bits']
+        self.num_flux_ramp_counter_bits=flux_ramp_cfg['num_flux_ramp_counter_bits']
 
         # Mapping from chip number to frequency in GHz
         chip_cfg = self.config.get('chip_to_freq')
@@ -154,7 +152,7 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
         for i, k in enumerate(chip_cfg.keys()):
             val = chip_cfg[k]
             self.chip_to_freq[i] = [k, val[0], val[1]]
-
+                
         # Mapping from band to chip number
         band_cfg = self.config.get('band_to_chip')
         keys = band_cfg.keys()
