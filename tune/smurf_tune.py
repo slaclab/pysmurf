@@ -2401,7 +2401,8 @@ class SmurfTuneMixin(SmurfBase):
         make_plot=False, save_plot=True, show_plot=True,
         lms_freq_hz=None, flux_ramp=True, fraction_full_scale=None,
         lms_enable1=True, lms_enable2=True, lms_enable3=True, lms_gain=7,
-        f_min=.015, f_max=.2, df_max=.03, toggle_feedback=True):
+        f_min=.015, f_max=.2, df_max=.03, toggle_feedback=True,
+        relock=True,tracking_setup=True):
         """
         This runs tracking setup and check_lock to prune bad channels.
         
@@ -2417,18 +2418,24 @@ class SmurfTuneMixin(SmurfBase):
                                 the global band feedbackEnable and the 
                                 lmsEnables between tracking_setup and 
                                 check_lock.
+        relock (bool): Whether or not to relock at the start.  
+                       Default True.
+        tracking_setup (bool): Whether or not to run tracking_setup.  
+                               Default True.
         """
-        self.relock(band)
-        
-        self.tracking_setup(band, channel=channel, 
-                            reset_rate_khz=reset_rate_khz,
-                            make_plot=make_plot, save_plot=save_plot, 
-                            show_plot=show_plot,
-                            lms_freq_hz=lms_freq_hz, flux_ramp=flux_ramp, 
-                            fraction_full_scale=fraction_full_scale,
-                            lms_enable1=lms_enable1, lms_enable2=lms_enable2, 
-                            lms_enable3=lms_enable3, 
-                            lms_gain=lms_gain, return_data=False)
+        if relock:
+            self.relock(band)
+
+        if tracking_setup:
+            self.tracking_setup(band, channel=channel, 
+                                reset_rate_khz=reset_rate_khz,
+                                make_plot=make_plot, save_plot=save_plot, 
+                                show_plot=show_plot,
+                                lms_freq_hz=lms_freq_hz, flux_ramp=flux_ramp, 
+                                fraction_full_scale=fraction_full_scale,
+                                lms_enable1=lms_enable1, lms_enable2=lms_enable2, 
+                                lms_enable3=lms_enable3, 
+                                lms_gain=lms_gain, return_data=False)
 
         if toggle_feedback:
             self.toggle_feedback(band)
