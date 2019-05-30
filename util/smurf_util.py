@@ -784,7 +784,10 @@ class SmurfUtilMixin(SmurfBase):
         
         return r0, r1
 
-    def read_adc_data(self, adc_number, data_length, hw_trigger=False):
+    def read_adc_data(self, adc_number, data_length=2**19,
+                      hw_trigger=False, do_plot=False, save_data=True,
+                      timestamp=None, show_plot=True, save_plot=True,
+                      plot_ylimits=[None,None]):
         """
         Reads data directly off the ADC.
 
@@ -797,11 +800,26 @@ class SmurfUtilMixin(SmurfBase):
         ---------
         hw_trigger (bool) : Whether to use the hardware trigger. If
             False, uses an internal trigger.
+        do_plot (bool) : Whether or not to plot.  Default false.
+        save_data (bool) : Whether or not to save the data in a time
+            stamped file.  Default true.
+        timestamp (int) : ctime to timestamp the plot and data with
+            (if saved to file).  Default None, in which case it gets
+            the time stamp right before acquiring data.
+        show_plot (bool) : If do_plot is True, whether or not to show
+            the plot.
+        save_plot (bool) : Whether or not to save plot to file.
+            Default True.
+        plot_ylimits ([float,float]) : y-axis limit (amplitude) to
+            restrict plotting over.
 
         Ret:
         ----
         dat (int array) : The raw ADC data.
         """
+        if timestamp is None:
+            timestamp = self.get_timestamp()
+        
         if adc_number > 3:
             bay = 1
             adc_number = adc_number - 4
@@ -814,13 +832,77 @@ class SmurfUtilMixin(SmurfBase):
             hw_trigger=hw_trigger)
         dat = res[1] + 1.j * res[0]
 
+        if do_plot:
+            import matplotlib.pyplot as plt
+            if show_plot:
+                plt.ion()
+            else:
+                plt.ioff()
+
+            import scipy.signal as signal
+            f, p_adc = signal.welch(dat, fs=614.4E6, nperseg=data_length/2, return_onesided=False,detrend=False)            
+            f_plot = f / 1.0E6
+
+            idx = np.argsort(f)
+            f_plot = f_plot[idx]
+            p_adc = p_adc[idx]            
+
+            fig = plt.figure(figsize=(9,4.5))
+            ax=plt.gca()
+            if plot_ylimits[0] is not None:
+                plt.ylim(plot_ylimits[0],plt.ylim()[1])
+            if plot_ylimits[1] is not None:
+                plt.ylim(plt.ylim()[0],plot_ylimits[1])
+            ax.set_ylabel('ADC{}'.format(adc_number))
+            ax.set_xlabel('Frequency [MHz]')
+            ax.set_title(timestamp)            
+            ax.semilogy(f_plot, p_adc)
+            plt.grid()
+
+            if save_plot:
+                plot_fn = '{}/{}_adc{}.png'.format(self.plot_dir,timestamp,adc_number)
+                plt.savefig(plot_fn)
+                self.log('ADC plot saved to %s' % (plot_fn))    
+            
+        if save_data:
+            outfn=os.path.join(self.output_dir,'{}_adc{}'.format(timestamp,adc_number))
+            self.log('Saving raw adc data to {}'.format(outfn), self.LOG_USER)
+            np.save(outfn, res)        
+        
         return dat
 
-    def read_dac_data(self, dac_number, data_length=2**19, hw_trigger=False,
-                      do_plot=False, save_data=True, timestamp=None, show_plot=True,
+    def read_dac_data(self, dac_number, data_length=2**19,
+                      hw_trigger=False, do_plot=False, save_data=True,
+                      timestamp=None, show_plot=True, save_plot=True,
                       plot_ylimits=[None,None]):
         """
-        Read the data directly off the DAC
+        Read the data directly off the DAC.
+
+        Args:
+        -----
+        dac_number (int): The number associated with the DAC.
+        data_length (int): The number of samples
+
+        Opt Args:
+        ---------
+        hw_trigger (bool) : Whether to use the hardware trigger. If
+            False, uses an internal trigger.
+        do_plot (bool) : Whether or not to plot.  Default false.
+        save_data (bool) : Whether or not to save the data in a time
+            stamped file.  Default true.
+        timestamp (int) : ctime to timestamp the plot and data with
+            (if saved to file).  Default None, in which case it gets
+            the time stamp right before acquiring data.
+        show_plot (bool) : If do_plot is True, whether or not to show
+            the plot.  Default True.
+        save_plot (bool) : Whether or not to save plot to file.
+            Default True.
+        plot_ylimits ([float,float]) : y-axis limit (amplitude) to
+            restrict plotting over.
+
+        Ret:
+        ----
+        dat (int array) : The raw DAC data.
         """
         if timestamp is None:
             timestamp = self.get_timestamp()
@@ -861,6 +943,12 @@ class SmurfUtilMixin(SmurfBase):
             ax.set_xlabel('Frequency [MHz]')
             ax.set_title(timestamp)            
             ax.semilogy(f_plot, p_dac)
+            plt.grid()
+
+            if save_plot:
+                plot_fn = '{}/{}_dac{}.png'.format(self.plot_dir,timestamp,dac_number)
+                plt.savefig(plot_fn)
+                self.log('DAC plot saved to %s' % (plot_fn))            
             
         if save_data:
             outfn=os.path.join(self.output_dir,'{}_dac{}'.format(timestamp,dac_number))
@@ -2543,4 +2631,30 @@ class SmurfUtilMixin(SmurfBase):
         # may need to do this, not sure.  Try without
         # for now.
         #self.set_dsp_enable(band,1) 
+        
+
+    def get_gradient_descent_params(self, band):
+        """
+        Convenience function for getting all the serial
+        gradient descent parameters
+
+        Args:
+        -----
+        band (int): The band to query
+
+        Ret:
+        ----
+        params (dict): A dictionary with all the gradient
+            descent parameters
+        """
+        ret = {}
+        ret['averages'] = self.get_gradient_descent_averages(band)
+        ret['beta'] = self.get_gradient_descent_beta(band)
+        ret['converge_hz'] = self.get_gradient_descent_converge_hz(band)
+        ret['gain'] = self.get_gradient_descent_gain(band)
+        ret['max_iters'] = self.get_gradient_descent_max_iters(band)
+        ret['momentum'] = self.get_gradient_descent_momentum(band)
+        ret['step_hz'] = self.get_gradient_descent_step_hz(band)
+
+        return ret
         
