@@ -17,7 +17,7 @@ class SmurfCommandMixin(SmurfBase):
 
         Args:
         -----
-        cmd : The pyrogue command to be exectued. Input as a string
+        cmd : The pyrogue command to be executed. Input as a string
         val: The value to put into epics
 
         Optional Args:
