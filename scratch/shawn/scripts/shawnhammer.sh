@@ -1,8 +1,12 @@
 #!/bin/bash
 
+ctime=`date +%s`
+
 reboot=true
 configure_hb=true
 using_timing_master=true
+run_half_band_test=true
+write_config=true
 cpwd=$PWD
 pysmurf=/home/cryo/docker/pysmurf/dspv3
 
@@ -41,8 +45,14 @@ start_slot_tmux () {
     tmux send-keys -t ${tmux_session_name}:${slot_number} 'cd /home/cryo/docker/smurf/slot'${slot_number}'/current' C-m
     tmux send-keys -t ${tmux_session_name}:${slot_number} './run.sh; sleep 5; docker logs smurf_server_s'${slot_number}' -f' C-m
 
-    # might be nicer to wait for heartbeat, like
-    # smurf_server_s${slot_number}:AMCc:Time
+
+    echo '-> Waiting for smurf_server_s'${slot_number}' docker to start.'
+    while [[ -z `docker ps  | grep smurf_server_s${slot_number}`  ]]; do
+	sleep 1
+    done
+    echo '-> smurf_server_s'${slot_number}' docker started.'    
+    
+    echo '-> Waiting for smurf_server_s'${slot_number}' GUI to come up.'    
     sleep 2
     grep -q "Starting GUI" <(docker logs smurf_server_s${slot_number} -f)
     
@@ -91,6 +101,21 @@ config_pysmurf () {
 
     echo "-> Disable streaming (unless taking data)"
     tmux send-keys -t ${tmux_session_name}:${slot_number} 'S.set_stream_enable(0)' C-m
+
+    # write config
+    if [ "$write_config" = true ] ; then
+	sleep 2    
+	tmux send-keys -t ${tmux_session_name}:${slot_number} 'S.set_read_all(write_log=True); S.write_config("/home/cryo/shawn/'${ctime}'_slot'${slot_number}'.yml")' C-m
+	sleep 45
+    fi
+
+    if [ "$run_half_band_test" = true ] ; then    
+	sleep 2
+	echo "-> Running half-band fill test"
+	tmux send-keys -t ${tmux_session_name}:${slot_number} 'exec(open("scratch/shawn/half_band_filling_test.py").read())' C-m    
+	grep -q "Done with half-band filling test." <(docker logs $pysmurf_docker -f)
+    fi
+    
     sleep 1
 }
 
