@@ -1470,10 +1470,7 @@ class SmurfUtilMixin(SmurfBase):
         """
 
         if hardcode:
-            if band == 3:
-                bandCenterMHz = 5.25
-            elif band == 2:
-                bandCenterMHz = 5.75
+            bandCenterMHz = 3.75 + 0.5*(band + 1)
             digitizerFrequencyMHz = 614.4
             n_subbands = 128
         else:
