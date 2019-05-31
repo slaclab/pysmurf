@@ -2,8 +2,8 @@
 
 ctime=`date +%s`
 
-reboot=true
-configure_hb=true
+reboot=false
+configure_hb=false
 using_timing_master=true
 run_half_band_test=true
 write_config=true
@@ -112,7 +112,7 @@ config_pysmurf () {
     if [ "$run_half_band_test" = true ] ; then    
 	sleep 2
 	echo "-> Running half-band fill test"
-	tmux send-keys -t ${tmux_session_name}:${slot_number} 'exec(open("scratch/shawn/half_band_filling_test.py").read())' C-m    
+	tmux send-keys -t ${tmux_session_name}:${slot_number} 'sys.argv[1]='${ctime}'; exec(open("scratch/shawn/half_band_filling_test.py").read())' C-m    
 	grep -q "Done with half-band filling test." <(docker logs $pysmurf_docker -f)
     fi
     
