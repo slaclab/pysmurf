@@ -153,14 +153,6 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
             val = chip_cfg[k]
             self.chip_to_freq[i] = [k, val[0], val[1]]
                 
-        # Mapping from band to chip number
-        band_cfg = self.config.get('band_to_chip')
-        keys = band_cfg.keys()
-        self.band_to_chip = np.zeros((len(keys), 5))
-        for i, k in enumerate(keys):
-            val = band_cfg[k]
-            self.band_to_chip[i] = np.append([i], val)
-            
         # channel assignment file
         #self.channel_assignment_files = self.config.get('channel_assignment')
         self.channel_assignment_files = {}
@@ -291,11 +283,17 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
             self.set_ref_phase_delay_fine(b, 
                 smurf_init_config[band_str]['refPhaseDelayFine'], 
                 write_log=write_log, **kwargs)
-            self.set_tone_scale(b, smurf_init_config[band_str]['toneScale'], 
-                write_log=write_log, **kwargs)
-            self.set_analysis_scale(b, 
-                smurf_init_config[band_str]['analysisScale'], 
-                write_log=write_log, **kwargs)
+            ## No longer setting the per-band analyisScale, toneScale,
+            ## and synthesisScale in setup.  These should be set in
+            ## the defaults.yml.
+            #self.set_synthesis_scale(b, 
+            #    smurf_init_config[band_str]['synthesisScale'],
+            #    write_log=write_log, **kwargs)            
+            #self.set_tone_scale(b, smurf_init_config[band_str]['toneScale'], 
+            #    write_log=write_log, **kwargs)
+            #self.set_analysis_scale(b, 
+            #    smurf_init_config[band_str]['analysisScale'], 
+            #    write_log=write_log, **kwargs)
             self.set_feedback_enable(b, 
                 smurf_init_config[band_str]['feedbackEnable'],
                 write_log=write_log, **kwargs)
@@ -309,13 +307,11 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
             self.set_trigger_reset_delay(b, smurf_init_config[band_str]['trigRstDly'], 
                 write_log=write_log, **kwargs)            
 
-            self.set_feedback_limit_khz(b, 225)  # why 225?
+            self.set_feedback_limit_khz(b, smurf_init_config[band_str][''],
+                write_log=write_log, **kwargs)
 
             self.set_feedback_polarity(b, 
                 smurf_init_config[band_str]['feedbackPolarity'], 
-                write_log=write_log, **kwargs)
-            self.set_synthesis_scale(b, 
-                smurf_init_config[band_str]['synthesisScale'],
                 write_log=write_log, **kwargs)
 
             for dmx in np.array(smurf_init_config[band_str]["data_out_mux"]):
@@ -341,10 +337,10 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
         # the UC attenuators.
         for b in bands:
             self.set_att_uc(b, smurf_init_config[band_str]['att_uc'],
-                write_log=write_log)
+                            write_log=write_log)
         for b in bands:
             self.set_att_dc(b, smurf_init_config[band_str]['att_dc'],
-                write_log=write_log)
+                            write_log=write_log)
 
         # Things that have to be done for both AMC bays, regardless of whether or not an AMC
         # is plugged in there.
