@@ -2,13 +2,19 @@
 
 ctime=`date +%s`
 
-reboot=false
-configure_hb=false
+attach_at_end=false
+screenshot_signal_analyzer=false
+reboot=true
+configure_hb=true
 using_timing_master=true
 run_half_band_test=true
-write_config=true
+one_at_a_time=true
+write_config=false
 cpwd=$PWD
 pysmurf=/home/cryo/docker/pysmurf/dspv3
+
+crate_id=3
+slots_in_configure_order=(5)
 
 tmux_session_name=smurf
 
@@ -62,7 +68,7 @@ start_slot_tmux () {
     tmux send-keys -t ${tmux_session_name}:${slot_number} './run.sh' C-m
     sleep 1
 
-    tmux send-keys -t ${tmux_session_name}:${slot_number} 'ipython3 -i scratch/eyy/ipython_start/init_dspv3.py '${slot_number} C-m
+    tmux send-keys -t ${tmux_session_name}:${slot_number} 'ipython3 -i scratch/shawn/scripts/init_nist.py '${slot_number} C-m
 
     ## not the safest way to do this.  If someone else starts a
     ## pysmurf docker, will satisfy this condition.  Not even sure why
@@ -129,9 +135,10 @@ echo "-> Starting a new ${tmux_session_name} tmux session"
 tmux new-session -d -s ${tmux_session_name}
 #tmux new -s ${tmux_session_name} -d
 
-# stop pyrogue servers on both carriers
-stop_pyrogue 4
-stop_pyrogue 5
+# stop pyrogue servers on all carriers
+for slot in ${slots_in_configure_order[@]}; do
+    stop_pyrogue $slot
+done
 cd $cpwd
 
 # stop all pysmurf dockers
@@ -176,64 +183,68 @@ tmux select-pane -t 0
 if [ "$reboot" = true ] ; then
 
     # deactivate carriers
-    echo "-> Deactivating LB and HB carriers"
-    ssh root@shm-smrf-sp01 "clia deactivate board 4; clia deactivate board 5"
+    echo "-> Deactivating carrier(s) ${slots_in_configure_order[@]}"
+    for slot in ${slots_in_configure_order[@]}; do
+	ssh root@shm-smrf-sp01 "clia deactivate board ${slot}"	
+    done    
     
-    echo "-> Waiting 5 sec before re-activating carriers"
+    echo "-> Waiting 5 sec before re-activating carrier(s)"
     sleep 5
     
     # reactivate carriers
-    echo "-> Re-activating LB and HB carriers"
-    ssh root@shm-smrf-sp01 "clia activate board 4"
-    ssh root@shm-smrf-sp01 "clia activate board 5"
-    
-    # wait for carrier ethernet to come up on carrier 4
-    echo "-> Waiting for LB carrier ethernet to come up"
+    echo "-> Re-activating carrier(s) ${slots_in_configure_order[@]}"
+    for slot in ${slots_in_configure_order[@]}; do
+	ssh root@shm-smrf-sp01 "clia activate board ${slot}"	
+    done        
+fi
+
+################################################################################
+### Configure carriers
+
+active_slot=
+for slot in ${slots_in_configure_order[@]}; do
+    # make sure ethernet is up on carrier
+    echo "-> Waiting for ethernet on carrier in slot ${slot} to come up ..."
     cd $cpwd
-    ./ping_carrier.sh 10.0.3.104
-fi
+    ./ping_carrier.sh 10.0.${crate_id}.$((${slots_in_configure_order[0]}+100))
 
-################################################################################
-### Configure slot4/LB
-
-slot_number=4
-start_slot_tmux ${slot_number}
-
-pysmurf_docker_s4=`docker ps -a -n 1 -q`
-
-if [ "$reboot" = true ] ; then
-    config_pysmurf ${slot_number} ${pysmurf_docker_s4}
-fi
-
-### Done configuring slot4/LB 
-################################################################################
-
-# shut down slot 4 pyrogue server - right now can only run one pyrogue server at a time (at least when configuring)
-
-if [ "$configure_hb" = true ] ; then
-    # stop tailing smurf_server_s4 log
-    tmux select-window -t smurf_slot4
-    tmux select-pane -t 0
-    tmux send-keys -t ${tmux_session_name}:4 C-c
-    
-    # stop smurf_server_s4
-    stop_pyrogue 4
-    
-    ################################################################################
-    ### Configure slot5/HB
-    slot_number=5
-    
-    echo "-> Make sure HB carrier ethernet is up"
-    cd $cpwd    
-    ./ping_carrier.sh 10.0.3.105
-
-    start_slot_tmux ${slot_number}
-    pysmurf_docker_s5=`docker ps -a -n 1 -q`
-    
-    if [ "$reboot" = true ] ; then
-	config_pysmurf ${slot_number} ${pysmurf_docker_s5}
+    # may only want one pyrogue server running at a time
+    if [[ ! -z "$active_slot" && "$one_at_a_time" = true ]] ; then
+	tmux select-window -t smurf_slot${active_slot}
+	tmux select-pane -t 0
+	tmux send-keys -t ${tmux_session_name}:${active_slot} C-c
+	
+	# stop smurf_server_s4
+	stop_pyrogue ${active_slot}
     fi
     
+    start_slot_tmux ${slot}
+
+    pysmurf_docker_slot=`docker ps -a -n 1 -q`
+
+    if [ "$reboot" = true ] ; then
+    	config_pysmurf ${slot} ${pysmurf_docker_slot}
+    fi
+    
+    active_slot=${slot}
+done
+
+echo "active_slot=${active_slot}"
+
+### Done configuring carriers
+################################################################################
+
+if [ "$attach_at_end" = true ] ; then
     tmux attach -t ${tmux_session_name}
+fi
+
+# terminal running script that screenshots can't overlap with the
+# remote desktop window, for some stupid reason.
+if [ "$screenshot_signal_analyzer" = true ] ; then
+    wid=`wmctrl -l | grep 171.64.108.28 | awk '{print $1}'`
+    # bring to forefront
+    wmctrl -a 171.64.108.28
+    # screenshot
+    import -window ${wid} /home/cryo/shawn/${ctime}_signal_analyzer.png
 fi
     
