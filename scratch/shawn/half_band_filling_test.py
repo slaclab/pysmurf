@@ -4,15 +4,15 @@ import time
 import numpy as np
 import sys
 
-bands=[0,1,2,3]
+bands=[0,1,2,3,4,5,6,7]
 amplitude=12 
 wait=True 
 wait_time_sec=0.1
 
 # optional argument
 timestamp=None
-if len(sys.argv)>1:
-    timestamp=int(sys.argv[1])
+#if len(sys.argv)>1:
+#    timestamp=int(sys.argv[1])
 
 #for band in bands:
 for band in bands:
