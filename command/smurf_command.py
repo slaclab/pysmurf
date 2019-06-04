@@ -1419,10 +1419,7 @@ class SmurfCommandMixin(SmurfBase):
         Returns the center frequency of the band in MHz
         '''
         if self.offline:
-            if band == 3:
-                bc = 5.75E3
-            elif band == 2:
-                bc = 5.25E3
+            bc = (4250 + band*500)
             return bc
         else:
             return self._caget(self._band_root(band) + self._band_center_mhz,
