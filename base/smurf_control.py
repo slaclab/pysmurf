@@ -307,7 +307,7 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
             self.set_trigger_reset_delay(b, smurf_init_config[band_str]['trigRstDly'], 
                 write_log=write_log, **kwargs)            
 
-            self.set_feedback_limit_khz(b, smurf_init_config[band_str][''],
+            self.set_feedback_limit_khz(b, smurf_init_config[band_str]['feedbackLimitkHz'],
                 write_log=write_log, **kwargs)
 
             self.set_feedback_polarity(b, 
