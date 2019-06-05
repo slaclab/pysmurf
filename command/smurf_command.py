@@ -1048,40 +1048,12 @@ class SmurfCommandMixin(SmurfBase):
             **kwargs)
 
     _tone_frequency_offset_mhz = 'toneFrequencyOffsetMHz'
-    #def get_tone_frequency_offset_mhz(self, band, **kwargs):
-    #    """
-    #    """
-    #    return self._caget(self._band_root(band) + self._tone_frequency_offset_mhz,
-    #        **kwargs)
+    def get_tone_frequency_offset_mhz(self, band, **kwargs):
+        """
+        """
+        return self._caget(self._band_root(band) +
+                           self._tone_frequency_offset_mhz,**kwargs)
 
-    def get_tone_frequency_offset_mhz(self, **kwargs):
-        def bitRevOrder(x):
-            length = x.shape[0]
-            assert( np.log2(length) == np.floor(np.log2(length)) )
-
-            if length == 1:
-                return x
-            else:
-                evenIndex = np.arange(length/2)*2
-                oddIndex  = np.arange(length/2)*2 + 1
-                evens     = bitRevOrder( x[evenIndex.astype(int)] )
-                odds      = bitRevOrder( x[oddIndex.astype(int)] )
-                return np.concatenate([evens, odds])
-
-        fAdc          = 614.4      # digitizer frequency MHz
-        fftLen        = 64         # fft length
-        nFft          = 2          # interleaved polyphase filter bank
-        nTones        = 4          # 4 tones/subband
-        bands         = np.arange(64) * fAdc/fftLen
-        bandsRevOrder = bands[ bitRevOrder( np.arange(64) ) ]
-        bandsTile1    = np.tile(bandsRevOrder, nTones) 
-        bandsTile2    = np.concatenate([bandsTile1, bandsTile1 + fAdc/(fftLen*nFft)])
-        
-        bandsCenter   = bandsTile2
-        index         = np.where( bandsCenter > fAdc/2 )
-        bandsCenter[index]  = bandsCenter[index] - fAdc
-        return bandsCenter
-    
     def	set_tone_frequency_offset_mhz(self, band, val, **kwargs):
         """
         """
@@ -1089,7 +1061,6 @@ class SmurfCommandMixin(SmurfBase):
                     self._tone_frequency_offset_mhz, val,
                     **kwargs)
         
-    
     _center_frequency_array = 'centerFrequencyArray'
     def set_center_frequency_array(self, band, val, **kwargs):
         """
