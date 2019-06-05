@@ -2023,7 +2023,7 @@ class SmurfTuneMixin(SmurfBase):
 
         n_subband = self.get_number_sub_bands(band)
         n_channel = self.get_number_channels(band)
-        channel_order = self.get_channel_order()
+        channel_order = self.get_channel_order(band)
         first_channel = channel_order[::n_channel//n_subband]
 
         self.set_eta_scan_channel(band, first_channel[subband], 
@@ -3204,7 +3204,7 @@ class SmurfTuneMixin(SmurfBase):
         n_subbands = self.get_number_sub_bands(band)
         n_channels = self.get_number_channels(band)
 
-        channel_order = self.get_channel_order(None) # fix this later
+        channel_order = self.get_channel_order(band)
 
         channels_per_subband = int(n_channels / n_subbands)
         first_channel_per_subband = channel_order[0::channels_per_subband]
