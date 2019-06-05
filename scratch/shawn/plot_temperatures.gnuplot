@@ -1,3 +1,8 @@
+#! /usr/bin/gnuplot
+# call like
+# gnuplot -c plot_temperatures.gnuplot DATAFILE
+datafile=ARG1
+datafile_relpath=system(sprintf("basename %s",datafile))
 
 set yrange [0:100]
 set xlabel 'Time'
@@ -9,14 +14,19 @@ set timefmt "%s"
 set format x "%H:%M:%S"
 set xdata time
 
-plot '1556909023_temp.dat' u 1:2 title 'FPGA BTemp', '1556909023_temp.dat' u 1:3 title 'FPGA JTemp', '1556909023_temp.dat' u 1:4 title 'DAC0 temp', '1556909023_temp.dat' u 1:5 title 'DAC1 temp', '1556909023_temp.dat' u 1:6 title 'AxiSysMonUltraScale:Temperature', '1556909023_temp.dat' u 1:10 title 'CC temp'
-set title '1556909023 - 400 tones on in bands 2 & 3, DSPv3 (mitch\_4\_30)'
+plot datafile u 1:2 title 'FPGA BTemp', datafile u 1:3 title 'FPGA JTemp', datafile u 1:4 title 'DAC0 temp', datafile u 1:5 title 'DAC1 temp', datafile u 1:6 title 'AxiSysMonUltraScale:Temperature', datafile u 1:10 title 'CC temp'
+set title datafile_relpath noenhanced
+set key font ",8"
+set key right bottom
+set xtics font ", 12"
+show title
 
 #change size of tick labels
 set tics font ", 10"
 
 set term png
-set output "1556909023_temp.png"
+pngname=system(sprintf("echo %s | sed s/.dat/.png/g",datafile_relpath))
+set output pngname
 replot
 set term x11
 
