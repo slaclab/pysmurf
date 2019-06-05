@@ -4,6 +4,7 @@ ctime=`date +%s`
 
 attach_at_end=false
 screenshot_signal_analyzer=false
+configure_pysmurf=false
 reboot=true
 configure_hb=true
 using_timing_master=true
@@ -14,7 +15,7 @@ cpwd=$PWD
 pysmurf=/home/cryo/docker/pysmurf/dspv3
 
 crate_id=3
-slots_in_configure_order=(5)
+slots_in_configure_order=(4)
 
 tmux_session_name=smurf
 
@@ -222,7 +223,7 @@ for slot in ${slots_in_configure_order[@]}; do
 
     pysmurf_docker_slot=`docker ps -a -n 1 -q`
 
-    if [ "$reboot" = true ] ; then
+    if [[ "$reboot" = true && "$configure_pysmurf" = true ]] ; then
     	config_pysmurf ${slot} ${pysmurf_docker_slot}
     fi
     
