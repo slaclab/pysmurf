@@ -320,7 +320,7 @@ class SmurfUtilMixin(SmurfBase):
             df = []
 
         if recast:
-            nsamp, ndownselect = np.shape(f)
+            nsamp, nprocessed = np.shape(f)
             nsamp_df, _ = np.shape(df)
             if nsamp != nsamp_df:
                 self.log('f and df are different sizes. Choosing the smaller'
@@ -330,9 +330,9 @@ class SmurfUtilMixin(SmurfBase):
             ftmp = np.zeros((nsamp, 512))
             dftmp = np.zeros_like(ftmp)
 
-            downselect_ind = self.get_downselect_channels()
-            ftmp[:, downselect_ind] = f[:nsamp]
-            dftmp[:, downselect_ind] = df[:nsamp]
+            processed_ind = self.get_processed_channels()
+            ftmp[:, processed_ind] = f[:nsamp]
+            dftmp[:, processed_ind] = df[:nsamp]
 
             f = ftmp
             df = dftmp
@@ -1150,7 +1150,7 @@ class SmurfUtilMixin(SmurfBase):
         self.set_amplitude_scale_channel(band, channel, 0, **kwargs)
         self.set_feedback_enable_channel(band, channel, 0, **kwargs)
 
-    def set_feedback_limit_khz(self, band, feedback_limit_khz):
+    def set_feedback_limit_khz(self, band, feedback_limit_khz, **kwargs):
         '''
         '''
         digitizer_freq_mhz = self.get_digitizer_frequency_mhz(band)
@@ -1166,7 +1166,7 @@ class SmurfUtilMixin(SmurfBase):
         desired_feedback_limit_dec = np.floor(desired_feedback_limit_mhz/
             (subband_bandwidth/2**16.))
 
-        self.set_feedback_limit(band, desired_feedback_limit_dec)
+        self.set_feedback_limit(band, desired_feedback_limit_dec, **kwargs)
 
     # if no guidance given, tries to reset both
     def recover_jesd(self,bay,recover_jesd_rx=True,recover_jesd_tx=True):
@@ -1368,7 +1368,7 @@ class SmurfUtilMixin(SmurfBase):
         return sbc[subband] + offset
 
 
-    def get_channel_order(self, channel_orderfile=None):
+    def get_channel_order(self, band, channel_orderfile=None):
         ''' produces order of channels from a user-supplied input file
 
         Args:
@@ -1391,10 +1391,7 @@ class SmurfUtilMixin(SmurfBase):
         #        (((x4)%32)//16)*8 + (x4)%16//8*16 + (x4)%128//64*2 + \
         #        (x4)%64//32*4 + (x4)%256//128
 
-        #channel_order = np.tile(64*np.arange(4),64)+np.repeat(np.arange(64),4)
-        #channel_order = np.append(channel_order, channel_order+256)
-
-        tone_freq_offset = self.get_tone_frequency_offset_mhz()
+        tone_freq_offset = self.get_tone_frequency_offset_mhz(band)
         freqs = np.sort(np.unique(tone_freq_offset))
 
         channel_order = np.zeros(len(tone_freq_offset), dtype=int)
@@ -1403,7 +1400,7 @@ class SmurfUtilMixin(SmurfBase):
         
         return channel_order
 
-    def get_downselect_channels(self, channel_orderfile=None):
+    def get_processed_channels(self, channel_orderfile=None):
         """
         take_debug_data, which is called by many functions including tracking_setup
         processes only 416 of the 512 channels. Therefore every channel is not
@@ -1415,13 +1412,16 @@ class SmurfUtilMixin(SmurfBase):
         
         Ret:
         ----
-        downselect_channels (int array)
+        processed_channels (int array)
         """
-        n_downselect = 416
+        n_processed = 416
         n_chan = 512
-        n_cut = (n_chan - n_downselect)//2
-        
-        return np.sort(self.get_channel_order(
+        n_cut = (n_chan - n_processed)//2
+
+        # This sucks.  Need to handle better.  Assume all bands have
+        # the same channel structure and just use the first.
+        bands = self.config.get('init').get('bands')
+        return np.sort(self.get_channel_order(bands[0],
             channel_orderfile=channel_orderfile)[n_cut:-n_cut])
         
     
@@ -1453,7 +1453,7 @@ class SmurfUtilMixin(SmurfBase):
         if channel < 0:
             raise ValueError('channel number is less than zero!')
 
-        chanOrder = self.get_channel_order(channelorderfile)
+        chanOrder = self.get_channel_order(band,channelorderfile)
         idx = np.where(chanOrder == channel)[0]
 
         subband = idx // n_chanpersubband
@@ -1516,7 +1516,7 @@ class SmurfUtilMixin(SmurfBase):
         if subband < 0:
             raise ValueError("requested subband less than zero")
 
-        chanOrder = self.get_channel_order(channelorderfile)
+        chanOrder = self.get_channel_order(band,channelorderfile)
         subband_chans = chanOrder[subband * n_chanpersubband : subband * \
             n_chanpersubband + n_chanpersubband]
 
