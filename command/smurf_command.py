@@ -2860,10 +2860,10 @@ class SmurfCommandMixin(SmurfBase):
             new_en_value = current_en_value | 0x1
         else:
             # Clear bit 0
-            new_value = current_en_value & 0x2
+            new_en_value = current_en_value & 0x2
 
         # Write back the new value
-        self.C.write_ps_en()
+        self.C.write_ps_en(new_en_value)
 
     def set_cryo_card_50k_ps_en(self, enable):
         """
@@ -2886,14 +2886,65 @@ class SmurfCommandMixin(SmurfBase):
             new_en_value = current_en_value | 0x2
         else:
             # Clear bit 1
-            new_value = current_en_value & 0x1
+            new_en_value = current_en_value & 0x1
 
         # Write back the new value
-        self.C.write_ps_en()
+        self.C.write_ps_en(new_en_value)
+
+    def set_cryo_card_ps_en(self, enable=3):
+        """
+        Write the cryo card power supply enables. Can use this to set both power supplies 
+        at once rather than setting them individually
+
+        Args:
+        -----
+        enables (int): 2-bit number with status of the power supplies enables
+         Bit 0 for HEMT supply
+         Bit 1 for 50K supply
+         Bit == 1 means enabled
+         Bit == 0 means disabled
+
+         therefore:
+         0 = all off
+         1 = 50K on, HEMT off
+         2 = HEMT on, 50K off
+         3 = both on
+
+        Defaults to enable = 3, ie turn on both power supplies
+
+        Returns:
+        -----
+        None
+        """
+        if write_log:
+            self.log('Writing Cryocard PS enable using cryo_card object to {}'.format(enable))
+        self.C.write_ps_en(enable)
+
+    def get_cryo_card_ps_en(self):
+        """
+        Read the cryo card power supply enable signals
+
+        Returns:
+        -----
+        enables (int): 2-bit number with status of the power supplies enables
+         Bit 0 for HEMT supply
+         Bit 1 for 50K supply
+         Bit == 1 means enabled
+         Bit == 0 means disabled
+
+         therefore:
+         0 = all off
+         1 = 50K on, HEMT off
+         2 = HEMT on, 50K off
+         3 = both on
+        """
+        en_value = self.C.read_ps_en()
+        return en_value
+
 
     def get_cryo_card_hemt_ps_en(self):
         """
-        Set the cryo card HEMT power supply enable.
+        Get the cryo card HEMT power supply enable.
 
         Args:
         -----
@@ -3222,6 +3273,67 @@ class SmurfCommandMixin(SmurfBase):
         return self._caget(self.app_core + self._debug_select.format(bay),
                            **kwargs)
 
+    ### Start Ultrascale OT protection
+    _ultrascale_ot_custom_threshold_enable = "OTCustomThresholdEnable"
+    def set_ultrascale_ot_custom_threshold_enable(self, val, **kwargs):
+        """
+        Enable over-temperature (OT) threshold for the Ultrascale+
+        FPGA.  Also requires that OTThresholdDisable = 0 (for some
+        reason).
+        """
+        self._caput(self.ultrascale + self._ultrascale_ot_custom_threshold_enable,
+                    val, **kwargs)
+    
+    def get_ultrascale_ot_custom_threshold_enable(self, **kwargs):
+        """
+        Enable over-temperature (OT) threshold for the Ultrascale+
+        FPGA.  Also requires that OTThresholdDisable = 0 (for some
+        reason).
+        """
+        return self._caget(self.ultrascale + self._ultrascale_ot_custom_threshold_enable,
+                           **kwargs)
+
+    _ultrascale_ot_threshold = "OTThreshold"
+    def set_ultrascale_ot_threshold(self, val, **kwargs):
+        """
+        Over-temperature (OT) threshold in degC for Ultrascale+ FPGA.
+        Only used if OTCustomThresholdEnable = 3 and
+        OTThresholdDisable = 0.
+        """
+        self._caput(self.ultrascale + self._ultrascale_ot_threshold,
+                    val, **kwargs)
+    
+    def get_ultrascale_ot_threshold(self, **kwargs):
+        """
+        Over-temperature (OT) threshold in degC for Ultrascale+ FPGA.
+        Only used if OTCustomThresholdEnable = 3 and
+        OTThresholdDisable = 0.
+        """
+        return self._caget(self.ultrascale + self._ultrascale_ot_threshold,
+                           **kwargs)
+    
+    #lcaPut('test_epics:AMCc:FpgaTopLevel:AmcCarrierCore:AxiSysMonUltraScale:OTThresholdDisable', 0)            % enable OT threshold
+    _ultrascale_ot_threshold_disable = "OTThresholdDisable"
+    def set_ultrascale_ot_threshold_disable(self, val, **kwargs):
+        """
+        Enable over-temperature (OT) threshold for the Ultrascale+
+        FPGA.  Also requires that OTCustomThresholdEnable = 3 (for
+        some reason).
+        """
+        self._caput(self.ultrascale + self._ultrascale_ot_threshold_disable,
+                    val, **kwargs)
+    
+    def get_ultrascale_ot_threshold_disable(self, **kwargs):
+        """
+        Enable over-temperature (OT) threshold for the Ultrascale+
+        FPGA.  Also requires that OTCustomThresholdEnable = 3 (for
+        some reason).
+        """
+        return self._caget(self.ultrascale + self._ultrascale_ot_threshold_disable,
+                           **kwargs)    
+
+    ### End Ultrascale OT protection
+    
     _output_config = "OutputConfig[{}]"
     def set_crossbar_output_config(self, index, val, **kwargs):
         """
@@ -3242,7 +3354,6 @@ class SmurfCommandMixin(SmurfBase):
         return self._caget(self.timing_status +
                            self._timing_link_up, **kwargs)
 
-    ## IN PROGRESS
     # assumes it's handed the decimal equivalent
     _lmk_reg = "LmkReg_0x{:04X}"
     def set_lmk_reg(self, bay, reg, val, **kwargs):
@@ -3259,4 +3370,4 @@ class SmurfCommandMixin(SmurfBase):
         to see only hex as in gui.
         """
         return self._caget(self.lmk.format(bay) +
-                           self._lmk_reg.format(reg), **kwargs)        
+                           self._lmk_reg.format(reg), **kwargs)
