@@ -1734,20 +1734,21 @@ class SmurfTuneMixin(SmurfBase):
         q_min (float): The minimum resonator Q factor
         min_gap (float) : Thee minimum distance between resonators.
         """
+
+        digitizer_freq = self.get_digitizer_frequency_mhz(band)
+        n_subband = self.get_number_sub_bands(band)
+        n_channels = self.get_number_channels(band)
+        
         self.log('Relocking...')
         if res_num is None:
-            res_num = np.arange(512)
+            res_num = np.arange(n_channels)
         else:
             res_num = np.array(res_num)
 
         if drive is None:
             drive = self.freq_resp[band]['drive']
 
-        digitzer_freq = self.get_digitizer_frequency_mhz(band)
-        n_subband = self.get_number_sub_bands(band)
-        n_channels = self.get_number_channels(band)
-
-        subband = digitzer_freq/(n_subband/2.)  # Oversample by 2
+        subband = digitizer_freq/(n_subband/2.)  # Oversample by 2
 
         amplitude_scale = np.zeros(n_channels)
         center_freq = np.zeros(n_channels)
@@ -2079,6 +2080,7 @@ class SmurfTuneMixin(SmurfBase):
         else:
             plt.ioff()
 
+        n_channels = self.get_number_channels(band)            
         old_fb = self.get_feedback_enable_array(band)
 
         # Turn off feedback
@@ -2091,18 +2093,18 @@ class SmurfTuneMixin(SmurfBase):
                                           lms_enable3=False, flux_ramp=flux_ramp)
 
         n_samp, n_chan = np.shape(df)
-
+        
         dd = np.ravel(np.where(np.diff(sync[:,0]) !=0))
-        first_idx = dd[0]//512
-        second_idx = dd[4]//512
+        first_idx = dd[0]//n_channels
+        second_idx = dd[4]//n_channels
         dt = int(second_idx-first_idx)  # In slow samples
-        n_fr = int(len(sync[:,0])/512/dt)
+        n_fr = int(len(sync[:,0])/n_channels/dt)
         reset_idx = np.arange(first_idx, n_fr*dt + first_idx+1, dt)
 
         # Reset to the previous FB state
         self.set_feedback_enable_array(band, old_fb)
 
-        fs = self.get_digitizer_frequency_mhz(band) * 1.0E6 /2/512
+        fs = self.get_digitizer_frequency_mhz(band) * 1.0E6 /2/n_channels
 
         # Only plot channels that are on - group by subband
         chan = self.which_on(band)
@@ -2467,7 +2469,7 @@ class SmurfTuneMixin(SmurfBase):
         for i, r in enumerate(rot_ang):
             self.log('Rotating {:3.1f} deg'.format(r))
             eta_phase = np.zeros_like(eta_phase0)
-            for c in np.arange(512):
+            for c in np.arange(n_channels):
                 eta_phase[c] = tools.limit_phase_deg(eta_phase0[c] + r)
             self.set_eta_phase_array(band, eta_phase)
                          
@@ -2490,11 +2492,13 @@ class SmurfTuneMixin(SmurfBase):
         """
         """
         import matplotlib.pyplot as plt
+        
         keys = dat['data'].keys()
         band = dat['band']
         n_keys = len(keys)
-
-        fs = self.get_digitizer_frequency_mhz(band) * 1.0E6 /2/512
+        
+        n_channels = self.get_number_channels(band)
+        fs = self.get_digitizer_frequency_mhz(band) * 1.0E6 /2/n_channels
         scale = 1.0E3
 
         fig, ax = plt.subplots(1)
@@ -2503,10 +2507,10 @@ class SmurfTuneMixin(SmurfBase):
             sync = dat['data'][k]['sync']
             df = dat['data'][k]['df']
             dd = np.ravel(np.where(np.diff(sync[:,0]) !=0))
-            first_idx = dd[0]//512
-            second_idx = dd[4]//512
+            first_idx = dd[0]//n_channels
+            second_idx = dd[4]//n_channels
             dt = int(second_idx-first_idx)  # In slow samples                                             
-            n_fr = int(len(sync[:,0])/512/dt)
+            n_fr = int(len(sync[:,0])/n_channels/dt)
             reset_idx = np.arange(first_idx, n_fr*dt + first_idx+1, dt)
 
             holder = np.zeros((n_fr-1, dt))
@@ -3429,26 +3433,27 @@ class SmurfTuneMixin(SmurfBase):
            scan. 
         """
         self.flux_ramp_off()
-        
-        ch_idx = np.zeros(512, dtype=int)
+
+        n_channels = self.get_number_channels(band)        
+        ch_idx = np.zeros(n_channels, dtype=int)
         for c in channels:
             ch_idx[c] = 1
         
-        self.set_eta_mag_array(band, np.ones(512, dtype=int))
-        self.set_feedback_enable_array(band, np.zeros(512, dtype=int))
+        self.set_eta_mag_array(band, np.ones(n_channels, dtype=int))
+        self.set_feedback_enable_array(band, np.zeros(n_channels, dtype=int))
         self.set_amplitude_scale_array(band, ch_idx*drive)
 
-        freq_error = np.zeros((len(scan_freq), 512), dtype='complex')
+        freq_error = np.zeros((len(scan_freq), n_channels), dtype='complex')
         real_imag = np.array([1, 1.j])
         eta_phase = np.array([0., 90.])
 
         self.log('Starting parallel scan')
         
         for j in np.arange(2):
-            self.set_eta_phase_array(band, eta_phase[j] * np.ones(512, dtype=int))
+            self.set_eta_phase_array(band, eta_phase[j] * np.ones(n_channels, dtype=int))
             for i in np.arange(len(scan_freq)):
                 self.log('scan {}'.format(i))
-                self.set_center_frequency_array(band, scan_freq[i]*np.ones(512, dtype=int))
+                self.set_center_frequency_array(band, scan_freq[i]*np.ones(n_channels, dtype=int))
                 freq_error[i] = freq_error[i] + real_imag[j] * self.get_frequency_error_array(band)
 
         return scan_freq, freq_error
@@ -3708,7 +3713,7 @@ class SmurfTuneMixin(SmurfBase):
                     plt.show()
 
         fmod_array = []
-        for n in range(0, 512):
+        for n in range(0, num_channels):
             if(result[n] > 0):
                 fmod_array.append(result[n])
         mod_median = np.median(fmod_array)
