@@ -259,7 +259,7 @@ class SmurfUtilMixin(SmurfBase):
         Opt Args:
         ---------
         swapFdF (bool): whether the F and dF (or I/Q) streams are flipped
-        recast (bool): Whether to recast from size 416 to 512. Default
+        recast (bool): Whether to recast from size n_channels_processed to n_channels. Default
             True.
 
         Returns:
@@ -267,7 +267,13 @@ class SmurfUtilMixin(SmurfBase):
         [f, df, sync] if iqStreamEnable = 0
         [I, Q, sync] if iqStreamEnable = 1
         """
-        subband_halfwidth_MHz = 4.8 # can we remove this hardcode
+        n_proc = self.get_number_processed_channels()
+        n_chan = self.get_number_channels()
+
+        n_subbands = self.get_number_sub_bands()
+        digitizerFrequencyMHz = self.get_digitizer_frequency_mhz()
+        subband_half_width_mhz = (digitizerFrequencyMHz / n_subbands)
+
         if swapFdF:
             nF = 1 # weirdly, I'm not sure this information gets used
             nDF = 0
@@ -293,16 +299,16 @@ class SmurfUtilMixin(SmurfBase):
         f = np.double(freqs)
         if len(neg) > 0:
             f[neg] = f[neg] - 2**24
-
-        if np.remainder(len(f), 416)!=0:
+            
+        if np.remainder(len(f), n_proc)!=0:
             if truncate:
-                self.log('Number of points in f not a multiple of 416. Truncating f to the nearest multiple of 416.',
+                self.log('Number of points in f not a multiple of {}. Truncating f to the nearest multiple of {}.'.format(n_proc,n_proc),
                          self.LOG_USER)
-                f=f[:(len(f)-np.remainder(len(f),416))]
+                f=f[:(len(f)-np.remainder(len(f),n_proc))]
             else:
-                self.log('Number of points in f not a multiple of 416. Cannot decode',
+                self.log('Number of points in f not a multiple of {}. Cannot decode'.format(n_proc),
                          self.LOG_ERROR)                
-        f = np.reshape(f, (-1, 416)) * subband_halfwidth_MHz / 2**23             
+        f = np.reshape(f, (-1, n_proc)) * subband_half_width_mhz / 2**23             
             
         # frequency errors
         ch0_idx_df = np.where(ch0_strobe[:,1] == 1)[0]
@@ -315,15 +321,15 @@ class SmurfUtilMixin(SmurfBase):
             if len(neg) > 0:
                 df[neg] = df[neg] - 2**24
 
-            if np.remainder(len(df), 416)!=0:
+            if np.remainder(len(df), n_proc)!=0:
                 if truncate:
-                    self.log('Number of points in df not a multiple of 416. Truncating df to the nearest multiple of 416.',
+                    self.log('Number of points in df not a multiple of {}. Truncating df to the nearest multiple of {}.'.format(n_proc,n_proc),
                              self.LOG_USER)
-                    df=df[:(len(df)-np.remainder(len(df),416))]
+                    df=df[:(len(df)-np.remainder(len(df),n_proc))]
                 else:
-                    self.log('Number of points in df not a multiple of 416. Cannot decode',
+                    self.log('Number of points in df not a multiple of {}. Cannot decode'.format(n_proc),
                              self.LOG_ERROR)                
-            df = np.reshape(df, (-1, 416)) * subband_halfwidth_MHz / 2**23 
+            df = np.reshape(df, (-1, n_proc)) * subband_half_width_mhz / 2**23 
                 
         else:
             df = []
@@ -335,13 +341,12 @@ class SmurfUtilMixin(SmurfBase):
                 self.log('f and df are different sizes. Choosing the smaller'
                          ' value. Not sure why this is happening.')
                 nsamp = np.min([nsamp, nsamp_df])
-            
-            ftmp = np.zeros((nsamp, 512))
+
+            ftmp = np.zeros((nsamp, n_chan))
             dftmp = np.zeros_like(ftmp)
 
-            processed_ind = self.get_processed_channels()
-            ftmp[:, processed_ind] = f[:nsamp]
-            dftmp[:, processed_ind] = df[:nsamp]
+            ftmp[:, n_proc] = f[:nsamp]
+            dftmp[:, n_proc] = df[:nsamp]
 
             f = ftmp
             df = dftmp
@@ -365,7 +370,9 @@ class SmurfUtilMixin(SmurfBase):
         [I, Q, sync] if iq_stream_enable = True
         """
 
-        subband_halfwidth_MHz = 4.8 # take out this hardcode
+        n_subbands = self.get_number_sub_bands()
+        digitizerFrequencyMHz = self.get_digitizer_frequency_mhz()
+        subband_half_width_mhz = (digitizerFrequencyMHz / n_subbands)
 
         if swapFdF:
             nF = 1
@@ -389,7 +396,7 @@ class SmurfUtilMixin(SmurfBase):
         if len(neg) > 0:
             f[neg] = f[neg] - 2**24
 
-        f = np.transpose(f) * subband_halfwidth_MHz / 2**23
+        f = np.transpose(f) * subband_half_width_mhz / 2**23
 
         dfreqs = data[:,nDF]
         neg = np.where(dfreqs >= 2**23)[0]
@@ -397,7 +404,7 @@ class SmurfUtilMixin(SmurfBase):
         if len(neg) > 0:
             df[neg] = df[neg] - 2**24
 
-        df = np.transpose(df) * subband_halfwidth_MHz / 2**23
+        df = np.transpose(df) * subband_half_width_mhz / 2**23
 
         return f, df, flux_ramp_strobe
 
@@ -1379,43 +1386,49 @@ class SmurfUtilMixin(SmurfBase):
         return sbc[subband] + offset
 
 
-    def get_channel_order(self, band, channel_orderfile=None):
+    def get_channel_order(self, band=None, channel_orderfile=None):
         ''' produces order of channels from a user-supplied input file
-
-        Args:
-        -----
 
         Optional Args:
         --------------
-        channelorderfile (str): path to a file that contains one channel per line
+        band (int): Which band.  Default is None.  If none specified,
+           assumes all bands have the same number of channels, and
+           pulls the number of channels from the first band in the
+           list of bands specified in the experiment.cfg.
+        channelorderfile (str): path to a file that contains one
+           channel per line
 
         Returns :
+        --------------
         channel_order (int array) : An array of channel orders
         '''
 
-        # if channel_orderfile is not None:
-        #    with open(channel_orderfile) as f:
-        #        channel_order = f.read().splitlines()
-        #else:
-        #    x4 = (np.arange(512, dtype=int) + 4)%512  # Off by four
-        #    channel_order = 128 + (x4%4)*32 + (x4//4)%2*256 - (x4//256)*128 + \
-        #        (((x4)%32)//16)*8 + (x4)%16//8*16 + (x4)%128//64*2 + \
-        #        (x4)%64//32*4 + (x4)%256//128
-
+        if band is None:
+            # assume all bands have the same channel order, and pull
+            # the channel frequency ordering from the first band in
+            # the list of bands specified in experiment.cfg.
+            bands = self.config.get('init').get('bands')
+            band = bands[0]
+        
         tone_freq_offset = self.get_tone_frequency_offset_mhz(band)
         freqs = np.sort(np.unique(tone_freq_offset))
 
+        n_subbands = self.get_number_sub_bands(band)
+        n_channels = self.get_number_channels(band)
+
+        n_chanpersubband = int(n_channels / n_subbands)
+        
         channel_order = np.zeros(len(tone_freq_offset), dtype=int)
         for i, f in enumerate(freqs):
-            channel_order[4*i:4*(i+1)] = np.ravel(np.where(tone_freq_offset == f))
+            channel_order[n_chanpersubband*i:n_chanpersubband*(i+1)] = np.ravel(np.where(tone_freq_offset == f))
         
         return channel_order
 
     def get_processed_channels(self, channel_orderfile=None):
         """
-        take_debug_data, which is called by many functions including tracking_setup
-        processes only 416 of the 512 channels. Therefore every channel is not
-        returned.
+        take_debug_data, which is called by many functions including
+        tracking_setup only returns data for the processed
+        channels. Therefore every channel is not returned.
 
         Optional Args:
         --------------
@@ -1425,15 +1438,10 @@ class SmurfUtilMixin(SmurfBase):
         ----
         processed_channels (int array)
         """
-        n_processed = 416
-        n_chan = 512
-        n_cut = (n_chan - n_processed)//2
-
-        # This sucks.  Need to handle better.  Assume all bands have
-        # the same channel structure and just use the first.
-        bands = self.config.get('init').get('bands')
-        return np.sort(self.get_channel_order(bands[0],
-            channel_orderfile=channel_orderfile)[n_cut:-n_cut])
+        n_proc = self.get_number_processed_channels()
+        n_chan = self.get_number_channels()
+        n_cut = (n_chan - n_proc)//2
+        return np.sort(self.get_channel_order(channel_orderfile=channel_orderfile)[n_cut:-n_cut])
         
     
     def get_subband_from_channel(self, band, channel, channelorderfile=None):
@@ -1442,7 +1450,7 @@ class SmurfUtilMixin(SmurfBase):
         -----
         root (str): epics root (eg mitch_epics)
         band (int): which band we're working in
-        channel (int): ranges 0..511, cryo channel number
+        channel (int): ranges 0..(n_channels-1), cryo channel number
 
         Opt Args:
         ---------
