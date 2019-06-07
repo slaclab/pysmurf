@@ -249,6 +249,15 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
         """
         self.log('Setting up...', (self.LOG_USER))
 
+        # Make sure thermal protection is enabled for FPGA
+        #self.log('Enabling Ultrascale OT protection...', (self.LOG_USER))
+        # enable custom OT threshold by writing 0x3
+        #self.set_ultrascale_ot_custom_threshold_enable(3,write_log=write_log)
+        # OT threshold in degrees C
+        #self.set_ultrascale_ot_threshold(self.config.get('ultrascale_temperature_limit_degC'),write_log=write_log)
+        # enable OT threshold
+        #self.set_ultrascale_ot_threshold_disable(0,write_log=write_log)
+
         # Which bands are we configuring?
         smurf_init_config = self.config.get('init')
         bands = smurf_init_config['bands']
@@ -353,7 +362,7 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
         self.set_evr_trigger_reg_enable(0, True, write_log=write_log)
         self.set_evr_trigger_channel_reg_dest_sel(0, 0x20000, write_log=write_log)
 
-        self.set_enable_ramp_trigger(1, write_log=True)
+        self.set_enable_ramp_trigger(1, write_log=write_log)
 
         flux_ramp_cfg = self.config.get('flux_ramp')
         self.set_select_ramp(flux_ramp_cfg['select_ramp'], write_log=write_log)
