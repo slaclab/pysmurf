@@ -341,19 +341,19 @@ class SmurfUtilMixin(SmurfBase):
                 self.log('f and df are different sizes. Choosing the smaller'
                          ' value. Not sure why this is happening.')
                 nsamp = np.min([nsamp, nsamp_df])
-
+        
             ftmp = np.zeros((nsamp, n_chan))
             dftmp = np.zeros_like(ftmp)
 
-            ftmp[:, n_proc] = f[:nsamp]
-            dftmp[:, n_proc] = df[:nsamp]
-
+            processed_ind = self.get_processed_channels()
+            ftmp[:, processed_ind] = f[:nsamp]
+            dftmp[:, processed_ind] = df[:nsamp]
+        
             f = ftmp
             df = dftmp
             
         return f, df, flux_ramp_strobe
 
-    
     def decode_single_channel(self, filename, swapFdF=False):
         """
         decode take_debug_data file if in singlechannel mode
