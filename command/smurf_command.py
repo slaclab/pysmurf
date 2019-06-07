@@ -142,19 +142,30 @@ class SmurfCommandMixin(SmurfBase):
 
 
     _number_sub_bands = 'numberSubBands'
-    def get_number_sub_bands(self, band, **kwargs):
+    def get_number_sub_bands(self, band=None, **kwargs):
         '''
         Returns the number of subbands in a band.
         To do - possibly hide this function.
 
-        Args:
-        -----
-        band (int): The band to count
+        Optional Args:
+        --------------
+        band (int): Which band.  Default is None.  If none specified,
+           assumes all bands have the same number of sub bands, and
+           pulls the number of sub bands from the first band in the
+           list of bands specified in the experiment.cfg.
 
         Returns:
         --------
         n_subbands (int): The number of subbands in the band
         '''
+
+        if band is None:
+            # assume all bands have the same number of channels, and
+            # pull the number of channels from the first band in the
+            # list of bands specified in experiment.cfg.
+            bands = self.config.get('init').get('bands')
+            band = bands[0]
+        
         if self.offline:
             return 128
         else:
@@ -163,24 +174,62 @@ class SmurfCommandMixin(SmurfBase):
 
 
     _number_channels = 'numberChannels'
-    def get_number_channels(self, band, **kwargs):
+    def get_number_channels(self, band=None, **kwargs):
         '''
         Returns the number of channels in a band.
 
-        Args:
-        -----
-        band (int): The band to count
+        Optional Args:
+        --------------
+        band (int): Which band.  Default is None.  If none specified,
+           assumes all bands have the same number of channels, and
+           pulls the number of channels from the first band in the
+           list of bands specified in the experiment.cfg.
 
         Returns:
         --------
         n_channels (int): The number of channels in the band
         '''
+
+        if band is None:
+            # assume all bands have the same number of channels, and
+            # pull the number of channels from the first band in the
+            # list of bands specified in experiment.cfg.
+            bands = self.config.get('init').get('bands')
+            band = bands[0]
+            
         if self.offline:
             return 512
         else:
             return self._caget(self._band_root(band) + self._number_channels,
                 **kwargs)
 
+    def get_number_processed_channels(self, band=None, **kwargs):
+        '''
+        Returns the number of processed channels in a band.
+
+        Optional Args:
+        --------------
+        band (int): Which band.  Default is None.  The number of
+           channels processed per band depends on the total number of
+           channels.  If none specified, assumes all bands have the
+           same number of channels, and pulls the number of channels
+           from the first band in the list of bands specified in the
+           experiment.cfg.
+
+        Returns:
+        --------
+        n_processed_channels (int): The number of processed channels
+           in the band.  Right now, there's not any way to determine
+           this from exposed pyrogue variables, so for now, assuming
+           only the center 104 sub-bands are processed ; so 104
+           channels if there's 128 channels (as in X-ray), or 416
+           channels if there's 512 channels total (as in CMB).
+        '''
+
+        n_channels=self.get_number_channels(band)
+
+        n_processed_channels=int(0.8125*n_channels)
+        return n_processed_channels
 
     def set_defaults_pv(self, **kwargs):
         '''
@@ -1403,10 +1452,30 @@ class SmurfCommandMixin(SmurfBase):
         self._caput(self._band_root(band) + self._digitizer_frequency_mhz, val,
             **kwargs)
 
-    def get_digitizer_frequency_mhz(self, band, **kwargs):
+    def get_digitizer_frequency_mhz(self, band=None, **kwargs):
         '''
         Returns the digitizer frequency in MHz.
+
+        Optional Args:
+        --------------
+        band (int): Which band.  Default is None.  If none specified,
+           assumes all bands have the same digitizer frequency, and
+           pulls the digitizer frequency from the first band in the
+           list of bands specified in the experiment.cfg.
+
+        Returns:
+        --------
+        digitizer_frequency_mhz (float): The number of subbands in the
+           band
         '''
+
+        if band is None:
+            # assume all bands have the same number of channels, and
+            # pull the number of channels from the first band in the
+            # list of bands specified in experiment.cfg.
+            bands = self.config.get('init').get('bands')
+            band = bands[0]
+
         if self.offline:
             return 614.4
         else:
