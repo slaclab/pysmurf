@@ -386,7 +386,12 @@ class SmurfConfig:
         # Assumes all constants default values are floats
         for key, value in constants_default_dict.items():    
             schema_dict[cdd_key][Optional(key,default=value)] = Use(float)
-        #### Done specifying constants schema    
+        #### Done specifying constants schema
+
+        #### Start thermal schema
+        # OT protection for ultrascale FPGA, in degrees C.
+        schema_dict[Optional('ultrascale_temperature_limit_degC',default=90)] = And(Use(float),lambda f: 0 <= f <= 95)
+        #### Done specifying thermal schema
 
         #### Start specifying timing-related schema
         schema_dict["timing"] = {
