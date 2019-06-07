@@ -248,7 +248,7 @@ class SmurfUtilMixin(SmurfBase):
         return header, data
 
     
-    def decode_data(self, filename, swapFdF=False, recast=True):
+    def decode_data(self, filename, swapFdF=False, recast=True, truncate=True):
         """
         take a dataset from take_debug_data and spit out results
 
@@ -294,12 +294,16 @@ class SmurfUtilMixin(SmurfBase):
         if len(neg) > 0:
             f[neg] = f[neg] - 2**24
 
-        if np.remainder(len(f), 416)==0:
-            f = np.reshape(f, (-1, 416)) * subband_halfwidth_MHz / 2**23 
-        else:
-            self.log('Number of points not a multiple of 416. Cannot decode',
-                     self.LOG_ERROR)
-
+        if np.remainder(len(f), 416)!=0:
+            if truncate:
+                self.log('Number of points in f not a multiple of 416. Truncating f to the nearest multiple of 416.',
+                         self.LOG_USER)
+                f=f[:(len(f)-np.remainder(len(f),416))]
+            else:
+                self.log('Number of points in f not a multiple of 416. Cannot decode',
+                         self.LOG_ERROR)                
+        f = np.reshape(f, (-1, 416)) * subband_halfwidth_MHz / 2**23             
+            
         # frequency errors
         ch0_idx_df = np.where(ch0_strobe[:,1] == 1)[0]
         if len(ch0_idx_df) > 0:
@@ -311,11 +315,16 @@ class SmurfUtilMixin(SmurfBase):
             if len(neg) > 0:
                 df[neg] = df[neg] - 2**24
 
-            if np.remainder(len(df), 416) == 0:
-                df = np.reshape(df, (-1, 416)) * subband_halfwidth_MHz / 2**23
-            else:
-                self.log('Number of points not a multiple of 416. Cannot decode', 
-                         self.LOG_ERROR)
+            if np.remainder(len(df), 416)!=0:
+                if truncate:
+                    self.log('Number of points in df not a multiple of 416. Truncating df to the nearest multiple of 416.',
+                             self.LOG_USER)
+                    df=df[:(len(df)-np.remainder(len(df),416))]
+                else:
+                    self.log('Number of points in df not a multiple of 416. Cannot decode',
+                             self.LOG_ERROR)                
+            df = np.reshape(df, (-1, 416)) * subband_halfwidth_MHz / 2**23 
+                
         else:
             df = []
 
@@ -464,6 +473,8 @@ class SmurfUtilMixin(SmurfBase):
                 self.log('Writing PyRogue configuration to file : {}'.format(config_filename), 
                      self.LOG_USER)
                 self.write_config(config_filename)
+                # short wait
+                time.sleep(5.)
 
             self.log('Writing to file : {}'.format(data_filename), 
                 self.LOG_USER)
