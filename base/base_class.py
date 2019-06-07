@@ -80,6 +80,10 @@ class SmurfBase(object):
         # Crossbar
         self.crossbar = self.epics_root + \
             ':AMCc:FpgaTopLevel:AmcCarrierCore:AxiSy56040:'
+
+        # FPGA
+        self.ultrascale = self.epics_root + \
+            ':AMCc:FpgaTopLevel:AmcCarrierCore:AxiSysMonUltraScale:'
         
         # Tx -> DAC , Rx <- ADC
         self.axi_version = self.epics_root + \
