@@ -271,8 +271,8 @@ class SmurfUtilMixin(SmurfBase):
         n_chan = self.get_number_channels()
 
         n_subbands = self.get_number_sub_bands()
-        digitizerFrequencyMHz = self.get_digitizer_frequency_mhz()
-        subband_half_width_mhz = (digitizerFrequencyMHz / n_subbands)
+        digitizer_frequency_mhz = self.get_digitizer_frequency_mhz()
+        subband_half_width_mhz = (digitizer_frequency_mhz / n_subbands)
 
         if swapFdF:
             nF = 1 # weirdly, I'm not sure this information gets used
@@ -371,8 +371,8 @@ class SmurfUtilMixin(SmurfBase):
         """
 
         n_subbands = self.get_number_sub_bands()
-        digitizerFrequencyMHz = self.get_digitizer_frequency_mhz()
-        subband_half_width_mhz = (digitizerFrequencyMHz / n_subbands)
+        digitizer_frequency_mhz = self.get_digitizer_frequency_mhz()
+        subband_half_width_mhz = (digitizer_frequency_mhz / n_subbands)
 
         if swapFdF:
             nF = 1
@@ -802,7 +802,7 @@ class SmurfUtilMixin(SmurfBase):
         
         return r0, r1
 
-    def read_adc_data(self, adc_number, data_length=2**19,
+    def read_adc_data(self, band, data_length=2**19,
                       hw_trigger=False, do_plot=False, save_data=True,
                       timestamp=None, show_plot=True, save_plot=True,
                       plot_ylimits=[None,None]):
@@ -811,7 +811,7 @@ class SmurfUtilMixin(SmurfBase):
 
         Args:
         -----
-        adc_number (int): The number associated with the ADC.
+        band (int) : Which band.  Assumes adc number is band%4.
         data_length (int): The number of samples
 
         Opt Args:
@@ -837,14 +837,11 @@ class SmurfUtilMixin(SmurfBase):
         """
         if timestamp is None:
             timestamp = self.get_timestamp()
-        
-        if adc_number > 3:
-            bay = 1
-            adc_number = adc_number - 4
-        else:
-            bay = 0
 
-        self.setup_daq_mux('adc', adc_number, data_length)
+        bay=self.band_to_bay(band)
+        adc_number=band%4
+
+        self.setup_daq_mux('adc', adc_number, data_length,band=band)
 
         res = self.read_stream_data_daq(data_length, bay=bay,
             hw_trigger=hw_trigger)
@@ -858,7 +855,8 @@ class SmurfUtilMixin(SmurfBase):
                 plt.ioff()
 
             import scipy.signal as signal
-            f, p_adc = signal.welch(dat, fs=614.4E6, nperseg=data_length/2, return_onesided=False,detrend=False)            
+            digitizer_frequency_mhz = self.get_digitizer_frequency_mhz()            
+            f, p_adc = signal.welch(dat, fs=digitizer_frequency_mhz, nperseg=data_length/2, return_onesided=False,detrend=False)            
             f_plot = f / 1.0E6
 
             idx = np.argsort(f)
@@ -871,7 +869,7 @@ class SmurfUtilMixin(SmurfBase):
                 plt.ylim(plot_ylimits[0],plt.ylim()[1])
             if plot_ylimits[1] is not None:
                 plt.ylim(plt.ylim()[0],plot_ylimits[1])
-            ax.set_ylabel('ADC{}'.format(adc_number))
+            ax.set_ylabel('ADC{}'.format(band))
             ax.set_xlabel('Frequency [MHz]')
             ax.set_title(timestamp)            
             ax.semilogy(f_plot, p_adc)
@@ -889,7 +887,7 @@ class SmurfUtilMixin(SmurfBase):
         
         return dat
 
-    def read_dac_data(self, dac_number, data_length=2**19,
+    def read_dac_data(self, band, data_length=2**19,
                       hw_trigger=False, do_plot=False, save_data=True,
                       timestamp=None, show_plot=True, save_plot=True,
                       plot_ylimits=[None,None]):
@@ -898,7 +896,7 @@ class SmurfUtilMixin(SmurfBase):
 
         Args:
         -----
-        dac_number (int): The number associated with the DAC.
+        band (int) : Which band.  Assumes adc number is band%4.
         data_length (int): The number of samples
 
         Opt Args:
@@ -925,13 +923,10 @@ class SmurfUtilMixin(SmurfBase):
         if timestamp is None:
             timestamp = self.get_timestamp()
         
-        if dac_number > 3:
-            bay = 1
-            dac_number = dac_number - 4
-        else:
-            bay = 0
-
-        self.setup_daq_mux('dac', dac_number, data_length)
+        bay=self.band_to_bay(band)
+        dac_number=band%4        
+            
+        self.setup_daq_mux('dac', dac_number, data_length, band=band)
 
         res = self.read_stream_data_daq(data_length, bay=bay, hw_trigger=hw_trigger)
         dat = res[1] + 1.j * res[0]
@@ -944,7 +939,8 @@ class SmurfUtilMixin(SmurfBase):
                 plt.ioff()
 
             import scipy.signal as signal
-            f, p_dac = signal.welch(dat, fs=614.4E6, nperseg=data_length/2, return_onesided=False,detrend=False)            
+            digitizer_frequency_mhz = self.get_digitizer_frequency_mhz()                        
+            f, p_dac = signal.welch(dat, fs=digitizer_frequency_mhz, nperseg=data_length/2, return_onesided=False,detrend=False)            
             f_plot = f / 1.0E6
 
             idx = np.argsort(f)
@@ -957,7 +953,7 @@ class SmurfUtilMixin(SmurfBase):
                 plt.ylim(plot_ylimits[0],plt.ylim()[1])
             if plot_ylimits[1] is not None:
                 plt.ylim(plt.ylim()[0],plot_ylimits[1])
-            ax.set_ylabel('DAC{}'.format(dac_number))
+            ax.set_ylabel('DAC{}'.format(band))
             ax.set_xlabel('Frequency [MHz]')
             ax.set_title(timestamp)            
             ax.semilogy(f_plot, p_dac)
@@ -1050,8 +1046,8 @@ class SmurfUtilMixin(SmurfBase):
         """
 
         n_subbands = self.get_number_sub_bands(band)
-        digitizerFrequencyMHz = self.get_digitizer_frequency_mhz(band)
-        subband_width = digitizerFrequencyMHz / (n_subbands / 2)
+        digitizer_frequency_mhz = self.get_digitizer_frequency_mhz(band)
+        subband_width = digitizer_frequency_mhz / (n_subbands / 2)
 
         # some checks to make sure we put in values within the correct ranges
 
@@ -1085,8 +1081,6 @@ class SmurfUtilMixin(SmurfBase):
         self.set_amplitude_scale_channel(band, channel, ampl)
         self.set_eta_phase_degree_channel(band, channel, phase)
         self.set_eta_mag_scaled_channel(band, channel, eta_mag)
-
-        return
 
     def which_on(self, band):
         '''
@@ -1490,14 +1484,14 @@ class SmurfUtilMixin(SmurfBase):
 
         if hardcode:
             bandCenterMHz = 3.75 + 0.5*(band + 1)
-            digitizerFrequencyMHz = 614.4
+            digitizer_frequency_mhz = 614.4
             n_subbands = 128
         else:
-            digitizerFrequencyMHz = self.get_digitizer_frequency_mhz(band)
+            digitizer_frequency_mhz = self.get_digitizer_frequency_mhz(band)
             bandCenterMHz = self.get_band_center_mhz(band)
             n_subbands = self.get_number_sub_bands(band)
 
-        subband_width_MHz = 2 * digitizerFrequencyMHz / n_subbands
+        subband_width_MHz = 2 * digitizer_frequency_mhz / n_subbands
 
         subbands = list(range(n_subbands))
         subband_centers = (np.arange(1, n_subbands + 1) - n_subbands/2) * \
