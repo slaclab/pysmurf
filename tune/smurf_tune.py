@@ -2689,7 +2689,7 @@ class SmurfTuneMixin(SmurfBase):
         KRelay = 3 #where do these values come from
         SelectRamp = self.get_select_ramp(new_epics_root=new_epics_root) # from config file
         RampStartMode = self.get_ramp_start_mode(new_epics_root=new_epics_root) # from config file
-        PulseWidth = 400
+        PulseWidth = 64
         DebounceWidth = 255
         RampSlope = 0
         ModeControl = 0
@@ -2948,7 +2948,7 @@ class SmurfTuneMixin(SmurfBase):
                     bbox_inches='tight')
 
 
-    def full_band_ampl_sweep(self, band, subband, drive, N_read):
+    def full_band_ampl_sweep(self, band, subband, drive, n_read, n_step=121):
         """sweep a full band in amplitude, for finding frequencies
 
         args:
@@ -2971,8 +2971,11 @@ class SmurfTuneMixin(SmurfBase):
 
         subband_width = 2 * digitizer_freq / n_subbands
 
-        scan_freq = np.arange(-3, 3.05, 0.05)  # take out this hardcode
-
+        # scan_freq = np.arange(-3, 3.05, 0.05)  # take out this hardcode
+        step_size = 2/n_step
+        scan_freq = np.ceil(digitizer_freq/n_subbands/2)*np.arange(-1, 1, step_size)
+        print(scan_freq)
+        
         resp = np.zeros((n_subbands, np.shape(scan_freq)[0]), dtype=complex)
         freq = np.zeros((n_subbands, np.shape(scan_freq)[0]))
 
@@ -2981,7 +2984,7 @@ class SmurfTuneMixin(SmurfBase):
         self.log('Working on band {:d}'.format(band))
         for sb in subband:
             self.log('Sweeping subband no: {}'.format(sb))
-            f, r = self.fast_eta_scan(band, sb, scan_freq, N_read, 
+            f, r = self.fast_eta_scan(band, sb, scan_freq, n_read, 
                 drive)
             resp[sb,:] = r
             freq[sb,:] = f
@@ -3607,7 +3610,8 @@ class SmurfTuneMixin(SmurfBase):
         end (int array) The end index of the sync
         """
         s, e = self.find_flag_blocks(sync[:,0], min_gap=1000)
-        return s//416
+        n_proc=self.get_number_processed_channels()
+        return s//n_proc
 
 
     def flux_mod(self, df, sync, threshold=.4, minscale=.02,
