@@ -13,7 +13,8 @@ import glob
 class SmurfUtilMixin(SmurfBase):
 
     def take_debug_data(self, band, channel=None, nsamp=2**19, filename=None, 
-            IQstream=1, single_channel_readout=1, debug=False):
+                        IQstream=1, single_channel_readout=1, debug=False,
+                        write_log=True):
         """
         Takes raw debugging data
 
@@ -39,24 +40,25 @@ class SmurfUtilMixin(SmurfBase):
         # Set proper single channel readout
         if channel is not None:
             if single_channel_readout == 1:
-                self.set_single_channel_readout(band, 1, write_log=True)
-                self.set_single_channel_readout_opt2(band, 0, write_log=True)
+                self.set_single_channel_readout(band, 1, write_log=write_log)
+                self.set_single_channel_readout_opt2(band, 0, write_log=write_log)
             elif single_channel_readout == 2:
-                self.set_single_channel_readout(band, 0, write_log=True)
-                self.set_single_channel_readout_opt2(band, 1, write_log=True)
+                self.set_single_channel_readout(band, 0, write_log=write_log)
+                self.set_single_channel_readout_opt2(band, 1, write_log=write_log)
             else:
                 self.log('single_channel_readout must be 1 or 2', 
                     self.LOG_ERROR)
                 raise ValueError('single_channel_readout must be 1 or 2')
+            self.set_readout_channel_select(band, channel, write_log=write_log)
         else: # exit single channel otherwise
-            self.set_single_channel_readout(band, 0, write_log=True)
-            self.set_single_channel_readout_opt2(band, 0, write_log=True)
+            self.set_single_channel_readout(band, 0, write_log=write_log)
+            self.set_single_channel_readout_opt2(band, 0, write_log=write_log)
 
         # Set IQstream
         if IQstream==1:
-            self.set_iq_stream_enable(band, 1, write_log=True)
+            self.set_iq_stream_enable(band, 1, write_log=write_log)
         else:
-            self.set_iq_stream_enable(band, 0, write_log=True)
+            self.set_iq_stream_enable(band, 0, write_log=write_log)
 
         # set filename
         if filename is not None:
@@ -2065,7 +2067,7 @@ class SmurfUtilMixin(SmurfBase):
         self.set_cryo_card_relays(new_relay, write_log=write_log)
         self.get_cryo_card_relays()
 
-    def set_mode_dc(self):
+    def set_mode_dc(self, write_log=False):
         """
         Sets it DC coupling
         """
@@ -2083,7 +2085,7 @@ class SmurfUtilMixin(SmurfBase):
         self.set_cryo_card_relays(new_relay, write_log=write_log)
         self.get_cryo_card_relays()
 
-    def set_mode_ac(self):
+    def set_mode_ac(self, write_log=False):
         """
         Sets it to AC coupling
         """
