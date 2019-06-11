@@ -4,7 +4,6 @@ import time
 import numpy as np
 import sys
 
-bands=[0,1,2,3,4,5,6,7]
 amplitude=12 
 wait=True 
 wait_time_sec=0.1
@@ -15,12 +14,12 @@ timestamp=None
 #    timestamp=int(sys.argv[1])
 
 #for band in bands:
-for band in bands:
+for band in range(4):
     #S.set_att_uc(band,0)
     #S.set_dsp_enable(band,1) 
     #S.set_tone_scale(band,2) 
     #S.set_analysis_scale(band,3) 
-    #S.set_synthesis_scale(band,2) 
+    S.set_synthesis_scale(band,2) 
     channels=[] 
  
     for sb in np.arange(64,116):
