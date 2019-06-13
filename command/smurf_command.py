@@ -1459,13 +1459,39 @@ class SmurfCommandMixin(SmurfBase):
             return self._caget(self._band_root(band) + self._band_center_mhz,
                 **kwargs)
 
-    _digitizer_frequency_mhz = 'digitizerFrequencyMHz'
-    def set_digitizer_frequency_mhz(self, band, val, **kwargs):
-        '''
-        '''
-        self._caput(self._band_root(band) + self._digitizer_frequency_mhz, val,
-            **kwargs)
 
+    _channel_frequency_mhz = 'channelFrequencyMHz'
+    def get_channel_frequency_mhz(self, band=None, **kwargs):
+        '''
+        Returns the channel frequency in MHz.
+
+        Optional Args:
+        --------------
+        band (int): Which band.  Default is None.  If none specified,
+           assumes all bands have the same channel frequency, and
+           pulls the channel frequency from the first band in the
+           list of bands specified in the experiment.cfg.
+
+        Returns:
+        --------
+        channel_frequency_mhz (float): The number of subbands in the
+           band
+        '''
+
+        if band is None:
+            # assume all bands have the same number of channels, and
+            # pull the number of channels from the first band in the
+            # list of bands specified in experiment.cfg.
+            bands = self.config.get('init').get('bands')
+            band = bands[0]
+
+        if self.offline:
+            return 2.4
+        else:
+            return self._caget(self._band_root(band) +
+                self._channel_frequency_mhz, **kwargs)
+        
+    _digitizer_frequency_mhz = 'digitizerFrequencyMHz'
     def get_digitizer_frequency_mhz(self, band=None, **kwargs):
         '''
         Returns the digitizer frequency in MHz.
