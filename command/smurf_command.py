@@ -885,6 +885,20 @@ class SmurfCommandMixin(SmurfBase):
         return self._caget(self._band_root(band) + self._single_channel_readout2,
             **kwargs)
 
+    _readout_channel_select = 'readoutChannelSelect'
+    def set_readout_channel_select(self, band, channel, **kwargs):
+        '''
+        '''
+        self._caput(self._band_root(band) + self._readout_channel_select,
+                    channel, **kwargs)
+
+    def get_readout_channel_select(self, band, **kwargs):
+        '''
+        '''
+        return self._caget(self._band_root(band) +
+                           self._readout_channel_select, **kwargs)
+
+
     _stream_enable = 'enableStreaming'
     def set_stream_enable(self, val, **kwargs):
         """
