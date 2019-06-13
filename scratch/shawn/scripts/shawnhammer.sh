@@ -4,9 +4,8 @@ ctime=`date +%s`
 
 attach_at_end=true
 screenshot_signal_analyzer=false
-configure_pysmurf=false
+configure_pysmurf=true
 reboot=true
-configure_hb=false
 using_timing_master=false
 run_half_band_test=false
 one_at_a_time=true
@@ -16,6 +15,8 @@ pysmurf=/home/cryo/docker/pysmurf/dev
 
 crate_id=1
 slots_in_configure_order=(5)
+
+pysmurf_init_script=scratch/shawn/scripts/init_nist_xray.py
 
 tmux_session_name=smurf
 
@@ -69,7 +70,7 @@ start_slot_tmux () {
     tmux send-keys -t ${tmux_session_name}:${slot_number} './run.sh' C-m
     sleep 1
 
-    tmux send-keys -t ${tmux_session_name}:${slot_number} 'ipython3 -i scratch/shawn/scripts/init_nist_xray.py '${slot_number} C-m
+    tmux send-keys -t ${tmux_session_name}:${slot_number} 'ipython3 -i '${pysmurf_init_script}' '${slot_number} C-m
 
     ## not the safest way to do this.  If someone else starts a
     ## pysmurf docker, will satisfy this condition.  Not even sure why
@@ -207,7 +208,7 @@ for slot in ${slots_in_configure_order[@]}; do
     # make sure ethernet is up on carrier
     echo "-> Waiting for ethernet on carrier in slot ${slot} to come up ..."
     cd $cpwd
-    ping_carrier.sh 10.0.${crate_id}.$((${slots_in_configure_order[0]}+100))
+    ping_carrier 10.0.${crate_id}.$((${slots_in_configure_order[0]}+100))
 
     # may only want one pyrogue server running at a time
     if [[ ! -z "$active_slot" && "$one_at_a_time" = true ]] ; then
