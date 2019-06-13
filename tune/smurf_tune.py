@@ -2261,7 +2261,7 @@ class SmurfTuneMixin(SmurfBase):
         # Switched to a more stable estimator
         if lms_freq_hz is None:
             if meas_lms_freq:
-                lms_freq_hz = self.estimate_lms_freq(band,fraction_full_scale=fraction_full_scale,channel=channel)
+                lms_freq_hz = self.estimate_lms_freq(band,reset_rate_khz,fraction_full_scale=fraction_full_scale,channel=channel)
             else:
                 lms_freq_hz = self.config.get('tune_band').get('lms_freq')[str(band)]
             self.lms_freq_hz[band] = lms_freq_hz
@@ -3462,11 +3462,38 @@ class SmurfTuneMixin(SmurfBase):
         return scan_freq, freq_error
 
 
-    def estimate_lms_freq(self, band, fraction_full_scale=None,
-                          reset_rate_khz=4., new_epics_root=None,
-                          channel=None, make_plot=False):
+    def estimate_lms_freq(self, band, reset_rate_khz,
+                          fraction_full_scale=None,
+                          new_epics_root=None, channel=None,
+                          make_plot=False):
         """
+        Attempts to estimate the carrier (phi0) rate for all channels
+        on in the requested 500 MHz band (0..7) using the flux_mod2
+        routine.
         
+        Args:
+        -----
+        band (int): Will attempt to estimate the carrier rate on the
+                    channels which are on in this band.
+        reset_rate_khz (float): The flux ramp reset rate (in kHz).
+
+        Opt Args:
+        ---------
+        fraction_full_scale (float): Passed on to the internal
+                                     tracking_setup call - the
+                                     fraction of full scale exercised
+                                     by the flux ramp.  Defaults to
+                                     value in cfg.
+        new_epics_root (str): Passed on to internal tracking_setup
+                              call ; If using a different RTM to flux
+                              ramp, the epics root of the pyrogue
+                              server controlling that RTM..  Defaults
+                              to None.
+        channel (int array): Passed on to the internal flux_mod2 call.
+                             Which channels (if any) to plot.  Default
+                             is None.
+        make_plot (bool): Whether or not to make plots.
+
         Ret:
         ----
         The estimated lms frequency in Hz
