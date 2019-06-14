@@ -1463,7 +1463,8 @@ class SmurfCommandMixin(SmurfBase):
     _channel_frequency_mhz = 'channelFrequencyMHz'
     def get_channel_frequency_mhz(self, band=None, **kwargs):
         '''
-        Returns the channel frequency in MHz.
+        Returns the channel frequency in MHz.  The channel frequency
+        is the rate at which channels are processed.
 
         Optional Args:
         --------------
@@ -1474,8 +1475,8 @@ class SmurfCommandMixin(SmurfBase):
 
         Returns:
         --------
-        channel_frequency_mhz (float): The number of subbands in the
-           band
+        channel_frequency_mhz (float): The rate at which channels in
+           this band are processed.
         '''
 
         if band is None:
@@ -1505,8 +1506,8 @@ class SmurfCommandMixin(SmurfBase):
 
         Returns:
         --------
-        digitizer_frequency_mhz (float): The number of subbands in the
-           band
+        digitizer_frequency_mhz (float): The digitizer frequency for
+           this band in MHz.
         '''
 
         if band is None:
