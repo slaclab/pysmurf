@@ -839,7 +839,8 @@ class SmurfCommandMixin(SmurfBase):
         '''
 
         old_amp = self.get_amplitude_scale_array(band, **kwargs)
-        new_amp = np.zeros((512,),dtype=int)
+        n_channels=self.get_number_channels(band)
+        new_amp = np.zeros((n_channels,),dtype=int)
         new_amp[np.where(old_amp!=0)] = drive
         self.set_amplitude_scale_array(self, new_amp, **kwargs)
 
@@ -1475,7 +1476,6 @@ class SmurfCommandMixin(SmurfBase):
         else:
             return self._caget(self._band_root(band) + self._band_center_mhz,
                 **kwargs)
-
 
     _channel_frequency_mhz = 'channelFrequencyMHz'
     def get_channel_frequency_mhz(self, band=None, **kwargs):
