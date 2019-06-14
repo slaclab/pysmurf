@@ -206,7 +206,7 @@ for slot in ${slots_in_configure_order[@]}; do
     # make sure ethernet is up on carrier
     echo "-> Waiting for ethernet on carrier in slot ${slot} to come up ..."
     cd $cpwd
-    ping_carrier.sh 10.0.${crate_id}.$((${slots_in_configure_order[0]}+100))
+    ping_carrier 10.0.${crate_id}.$((${slots_in_configure_order[0]}+100))
 
     # may only want one pyrogue server running at a time
     if [[ ! -z "$active_slot" && "$one_at_a_time" = true ]] ; then
