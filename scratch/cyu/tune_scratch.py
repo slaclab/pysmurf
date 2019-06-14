@@ -2257,11 +2257,11 @@ class SmurfTuneMixin(SmurfBase):
             fraction_full_scale = self.fraction_full_scale
         else:
             self.fraction_full_scale = fraction_full_scale
-            
+        
         # Switched to a more stable estimator
         if lms_freq_hz is None:
             if meas_lms_freq:
-                lms_freq_hz = self.estimate_lms_freq(band,fraction_full_scale=fraction_full_scale,channel=channel,make_plot=False)
+                lms_freq_hz = self.estimate_lms_freq(band,fraction_full_scale=fraction_full_scale,channel=channel)
             else:
                 lms_freq_hz = self.config.get('tune_band').get('lms_freq')[str(band)]
             self.lms_freq_hz[band] = lms_freq_hz
@@ -2290,15 +2290,12 @@ class SmurfTuneMixin(SmurfBase):
         # set feedback_end based on the flux ramp settings.
 
         # Compute feedback_start/feedback_end from
-        # feedback_start_frac/feedback_end_frac.
-        channel_frequency_mhz = self.get_channel_frequency_mhz(band)
-        digitizer_frequency_mhz = self.get_digitizer_frequency_mhz(band)
-        feedback_start = int(
-            feedback_start_frac*(self.get_ramp_max_cnt()+1)/(
-                digitizer_frequency_mhz/channel_frequency_mhz/2. ) )
-        feedback_end = int(
-            feedback_end_frac*(self.get_ramp_max_cnt()+1)/(
-                digitizer_frequency_mhz/channel_frequency_mhz/2. ) )
+        # feedback_start_frac/feedback_end_frac.  We divide by 128
+        # because the flux ramp RampMaxCnt register is in units of
+        # 307.2 MHz ticks, while feedbackStart and feedbackEnd are in
+        # units of 2.4 MHz ticks (ie, 128 is (307.2 MHz)/(2.4 MHz)).
+        feedback_start = int( feedback_start_frac*(self.get_ramp_max_cnt()+1)/128 )        
+        feedback_end = int( feedback_end_frac*(self.get_ramp_max_cnt()+1)/128 )
 
         # Set feedbackStart and feedbackEnd
         self.set_feedback_start(band, feedback_start, write_log=write_log)
@@ -2692,7 +2689,7 @@ class SmurfTuneMixin(SmurfBase):
         KRelay = 3 #where do these values come from
         SelectRamp = self.get_select_ramp(new_epics_root=new_epics_root) # from config file
         RampStartMode = self.get_ramp_start_mode(new_epics_root=new_epics_root) # from config file
-        PulseWidth = 64
+        PulseWidth = 400
         DebounceWidth = 255
         RampSlope = 0
         ModeControl = 0
@@ -2951,7 +2948,7 @@ class SmurfTuneMixin(SmurfBase):
                     bbox_inches='tight')
 
 
-    def full_band_ampl_sweep(self, band, subband, drive, n_read, n_step=121):
+    def full_band_ampl_sweep(self, band, subband, drive, N_read):
         """sweep a full band in amplitude, for finding frequencies
 
         args:
@@ -2974,11 +2971,8 @@ class SmurfTuneMixin(SmurfBase):
 
         subband_width = 2 * digitizer_freq / n_subbands
 
-        # scan_freq = np.arange(-3, 3.05, 0.05)  # take out this hardcode
-        step_size = 2/n_step
-        scan_freq = np.ceil(digitizer_freq/n_subbands/2)*np.arange(-1, 1, step_size)
-        print(scan_freq)
-        
+        scan_freq = np.arange(-3, 3.05, 0.05)  # take out this hardcode
+
         resp = np.zeros((n_subbands, np.shape(scan_freq)[0]), dtype=complex)
         freq = np.zeros((n_subbands, np.shape(scan_freq)[0]))
 
@@ -2987,7 +2981,7 @@ class SmurfTuneMixin(SmurfBase):
         self.log('Working on band {:d}'.format(band))
         for sb in subband:
             self.log('Sweeping subband no: {}'.format(sb))
-            f, r = self.fast_eta_scan(band, sb, scan_freq, n_read, 
+            f, r = self.fast_eta_scan(band, sb, scan_freq, N_read, 
                 drive)
             resp[sb,:] = r
             freq[sb,:] = f
@@ -3253,10 +3247,9 @@ class SmurfTuneMixin(SmurfBase):
 
         return freq, response
 
-    def setup_notches(self, band, resonance=None, drive=None,
-                      sweep_width=.3, df_sweep=.002,
-                      subband_half_width=614.4/128, min_offset=0.1,
-                      delta_freq=None, new_master_assignment=False):
+    def setup_notches(self, band, resonance=None, drive=None, sweep_width=.3, 
+        df_sweep=.002, subband_half_width=614.4/128, min_offset=0.1,
+                      new_master_assignment=False):
         """
 
         Args:
@@ -3272,20 +3265,13 @@ class SmurfTuneMixin(SmurfBase):
         sweep_width (float) : The range to scan around the input resonance in
             units of MHz. Default .3
         sweep_df (float) : The sweep step size in MHz. Default .005
-        min_offset (float): Minimum distance in MHz between two resonators for assigning channels.
-        delta_freq (float): The frequency offset at which to measure
-            the complex transmission to compute the eta parameters.
-            Passed to eta_estimator.  Units are MHz.  If none supplied
-            as an argument, takes value in config file.
+        min_offset (float): minimum distance in MHz between two resonators for assigning channels
 
         Returns:
         --------
 
         """
 
-        # Turn off all tones in this band first
-        self.band_off(band)
-        
         # Check if any resonances are stored
         if 'resonance' not in self.freq_resp[band]['find_freq'] and resonance is None:
             self.log('No resonances stored in band {}'.format(band) +
@@ -3296,9 +3282,6 @@ class SmurfTuneMixin(SmurfBase):
             drive = self.config.get('init')['band_{}'.format(band)].get('amplitude_scale')
             self.log('No drive given. Using value in config file: {}'.format(drive))
 
-        if delta_freq is None:
-            delta_freq = self.config.get('tune_band').get('delta_freq')[str(band)]
-            
         if resonance is not None:
             input_res = resonance
         else:
@@ -3320,9 +3303,9 @@ class SmurfTuneMixin(SmurfBase):
         n_res = len(input_res)
         for i, f in enumerate(input_res):
             self.log('freq {:5.4f} - {} of {}'.format(f, i+1, n_res))
-            freq, resp, eta = self.eta_estimator(band, f, drive,
+            freq, resp, eta = self.eta_estimator(band, f, drive, 
                                                  f_sweep_half=sweep_width,
-                                                 df_sweep=df_sweep,delta_freq=delta_freq)
+                                                 df_sweep=df_sweep)
             eta_phase_deg = np.angle(eta)*180/np.pi
             eta_mag = np.abs(eta)
             eta_scaled = eta_mag / subband_half_width
@@ -3476,38 +3459,11 @@ class SmurfTuneMixin(SmurfBase):
         return scan_freq, freq_error
 
 
-    def estimate_lms_freq(self, band, reset_rate_khz,
-                          fraction_full_scale=None,
-                          new_epics_root=None, channel=None,
-                          make_plot=False):
+    def estimate_lms_freq(self, band, fraction_full_scale=None,
+                          reset_rate_khz=4., new_epics_root=None,
+                          channel=None, make_plot=False):
         """
-        Attempts to estimate the carrier (phi0) rate for all channels
-        on in the requested 500 MHz band (0..7) using the flux_mod2
-        routine.
         
-        Args:
-        -----
-        band (int): Will attempt to estimate the carrier rate on the
-                    channels which are on in this band.
-        reset_rate_khz (float): The flux ramp reset rate (in kHz).
-
-        Opt Args:
-        ---------
-        fraction_full_scale (float): Passed on to the internal
-                                     tracking_setup call - the
-                                     fraction of full scale exercised
-                                     by the flux ramp.  Defaults to
-                                     value in cfg.
-        new_epics_root (str): Passed on to internal tracking_setup
-                              call ; If using a different RTM to flux
-                              ramp, the epics root of the pyrogue
-                              server controlling that RTM..  Defaults
-                              to None.
-        channel (int array): Passed on to the internal flux_mod2 call.
-                             Which channels (if any) to plot.  Default
-                             is None.
-        make_plot (bool): Whether or not to make plots.
-
         Ret:
         ----
         The estimated lms frequency in Hz
@@ -3651,8 +3607,7 @@ class SmurfTuneMixin(SmurfBase):
         end (int array) The end index of the sync
         """
         s, e = self.find_flag_blocks(sync[:,0], min_gap=1000)
-        n_proc=self.get_number_processed_channels()
-        return s//n_proc
+        return s//416
 
 
     def flux_mod(self, df, sync, threshold=.4, minscale=.02,

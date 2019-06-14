@@ -320,6 +320,7 @@ class SmurfConfig:
         ## Add tuning params that must be specified per band.
         per_band_tuning_params= [
             ( 'lms_freq',And(Use(float),lambda f: 0 < f) ),
+            ( 'delta_freq',And(Use(float),lambda f: 0 < f) ),
             ( 'feedback_start_frac',And(Use(float),lambda f: 0 <= f <= 1) ),
             ( 'feedback_end_frac',And(Use(float),lambda f: 0 <= f <= 1) ),
             ( 'gradient_descent_gain',And(Use(float),lambda f: 0 < f) ),

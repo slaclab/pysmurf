@@ -826,6 +826,24 @@ class SmurfCommandMixin(SmurfBase):
         return self._caget(self._cryo_root(band) + self._amplitude_scale_array,
             **kwargs)
 
+    def set_amplitude_scale_array_currentchans(self, band, drive, **kwargs):
+        '''
+        Set only the currently on channels to a new drive power. Essentially 
+        a more convenient wrapper for set_amplitude_scale_array to only change 
+        the channels that are on.
+
+        Args:
+        -----
+        band (int): the band to change
+        drive (int): tone power to change to
+        '''
+
+        old_amp = self.get_amplitude_scale_array(band, **kwargs)
+        n_channels=self.get_number_channels(band)
+        new_amp = np.zeros((n_channels,),dtype=int)
+        new_amp[np.where(old_amp!=0)] = drive
+        self.set_amplitude_scale_array(self, new_amp, **kwargs)
+
     _feedback_enable_array = 'feedbackEnableArray'
     def set_feedback_enable_array(self, band, val, **kwargs):
         '''
@@ -1459,13 +1477,39 @@ class SmurfCommandMixin(SmurfBase):
             return self._caget(self._band_root(band) + self._band_center_mhz,
                 **kwargs)
 
-    _digitizer_frequency_mhz = 'digitizerFrequencyMHz'
-    def set_digitizer_frequency_mhz(self, band, val, **kwargs):
+    _channel_frequency_mhz = 'channelFrequencyMHz'
+    def get_channel_frequency_mhz(self, band=None, **kwargs):
         '''
-        '''
-        self._caput(self._band_root(band) + self._digitizer_frequency_mhz, val,
-            **kwargs)
+        Returns the channel frequency in MHz.  The channel frequency
+        is the rate at which channels are processed.
 
+        Optional Args:
+        --------------
+        band (int): Which band.  Default is None.  If none specified,
+           assumes all bands have the same channel frequency, and
+           pulls the channel frequency from the first band in the
+           list of bands specified in the experiment.cfg.
+
+        Returns:
+        --------
+        channel_frequency_mhz (float): The rate at which channels in
+           this band are processed.
+        '''
+
+        if band is None:
+            # assume all bands have the same number of channels, and
+            # pull the number of channels from the first band in the
+            # list of bands specified in experiment.cfg.
+            bands = self.config.get('init').get('bands')
+            band = bands[0]
+
+        if self.offline:
+            return 2.4
+        else:
+            return self._caget(self._band_root(band) +
+                self._channel_frequency_mhz, **kwargs)
+        
+    _digitizer_frequency_mhz = 'digitizerFrequencyMHz'
     def get_digitizer_frequency_mhz(self, band=None, **kwargs):
         '''
         Returns the digitizer frequency in MHz.
@@ -1479,8 +1523,8 @@ class SmurfCommandMixin(SmurfBase):
 
         Returns:
         --------
-        digitizer_frequency_mhz (float): The number of subbands in the
-           band
+        digitizer_frequency_mhz (float): The digitizer frequency for
+           this band in MHz.
         '''
 
         if band is None:

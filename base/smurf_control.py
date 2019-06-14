@@ -222,11 +222,14 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
         self.fraction_full_scale = self.config.get('tune_band').get('fraction_full_scale')
         smurf_init_config = self.config.get('init')
         bands = smurf_init_config['bands']
+        # Load in tuning parameters, if present
+        tune_band_cfg=self.config.get('tune_band')
+        tune_band_keys=tune_band_cfg.keys()
         for b in bands:
             # Make band dictionaries
             self.freq_resp[b] = {}
             self.freq_resp[b]['lock_status'] = {}
-            self.lms_freq_hz[b] = 4000
+            self.lms_freq_hz[b] = tune_band_cfg['lms_freq'][str(b)]
 
         # Load in tuning parameters, if present
         tune_band_cfg=self.config.get('tune_band')
