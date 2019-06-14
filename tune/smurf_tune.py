@@ -2257,7 +2257,7 @@ class SmurfTuneMixin(SmurfBase):
             fraction_full_scale = self.fraction_full_scale
         else:
             self.fraction_full_scale = fraction_full_scale
-        
+            
         # Switched to a more stable estimator
         if lms_freq_hz is None:
             if meas_lms_freq:
@@ -3256,7 +3256,7 @@ class SmurfTuneMixin(SmurfBase):
     def setup_notches(self, band, resonance=None, drive=None,
                       sweep_width=.3, df_sweep=.002,
                       subband_half_width=614.4/128, min_offset=0.1,
-                      delta_freq=0.01, new_master_assignment=False):
+                      delta_freq=None, new_master_assignment=False):
         """
 
         Args:
@@ -3275,8 +3275,8 @@ class SmurfTuneMixin(SmurfBase):
         min_offset (float): Minimum distance in MHz between two resonators for assigning channels.
         delta_freq (float): The frequency offset at which to measure
             the complex transmission to compute the eta parameters.
-            Passed to eta_estimator.  Units are MHz.  Default is 0.01
-            (10kHz).
+            Passed to eta_estimator.  Units are MHz.  If none supplied
+            as an argument, takes value in config file.
 
         Returns:
         --------
@@ -3296,6 +3296,9 @@ class SmurfTuneMixin(SmurfBase):
             drive = self.config.get('init')['band_{}'.format(band)].get('amplitude_scale')
             self.log('No drive given. Using value in config file: {}'.format(drive))
 
+        if delta_freq is None:
+            delta_freq = self.config.get('tune_band').get('delta_freq')[str(band)]
+            
         if resonance is not None:
             input_res = resonance
         else:
