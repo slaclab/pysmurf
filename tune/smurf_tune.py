@@ -3268,7 +3268,7 @@ class SmurfTuneMixin(SmurfBase):
         resonance (float array) : A 2 dimensional array with resonance 
             frequencies and the subband they are in. If given, this will take 
             precedent over the one in self.freq_resp.
-        drive (int) : The power to drive the resonators. Default 10.
+        drive (int) : The power to drive the resonators. Default is defined in cfg file.
         sweep_width (float) : The range to scan around the input resonance in
             units of MHz. Default .3
         sweep_df (float) : The sweep step size in MHz. Default .005
