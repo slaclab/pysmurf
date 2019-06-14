@@ -1,12 +1,12 @@
 #! /usr/bin/gnuplot
 # call like
-# gnuplot -c plot_temperatures.gnuplot DATAFILE
+# gnuplot -c plot_voltages.gnuplot DATAFILE
 datafile=ARG1
 datafile_relpath=system(sprintf("basename %s",datafile))
 
-set yrange [0:80]
+set yrange [0:2]
 set xlabel 'Time'
-set ylabel 'Temperature (C)'
+set ylabel 'Voltage (V)'
 set grid
 
 set timefmt "%s"
@@ -14,7 +14,7 @@ set timefmt "%s"
 set format x "%H:%M:%S"
 set xdata time
 
-plot datafile u 1:2 title 'FPGA BTemp', datafile u 1:3 title 'FPGA JTemp', datafile u 1:4 title 'Bay 0 DAC0 temp', datafile u 1:5 title 'Bay 0 DAC1 temp', datafile u 1:6 title 'Bay 1 DAC0 temp', datafile u 1:7 title 'Bay 1 DAC1 temp', datafile u 1:8 title 'AxiSysMonUltraScale:Temperature'
+plot datafile u 1:9 title 'FPGA VccInt', datafile u 1:10 title 'FPGA VccAux', datafile u 1:11 title 'FPGA VccBram', 0.825 title 'Minimum VccInt spec' dt 2 lw 2
 set title datafile_relpath noenhanced
 set key font ",12"
 set key left bottom
