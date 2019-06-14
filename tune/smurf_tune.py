@@ -3947,6 +3947,6 @@ class SmurfTuneMixin(SmurfBase):
         if band_no is not None:
             return band_no
         else:
-            print("Frequency not found. Check band list and that frequency is 
-            given in MHz")
+            print("Frequency not found. Check band list and that frequency is \
+                    given in MHz")
             return
