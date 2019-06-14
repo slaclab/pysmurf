@@ -2261,7 +2261,7 @@ class SmurfTuneMixin(SmurfBase):
         # Switched to a more stable estimator
         if lms_freq_hz is None:
             if meas_lms_freq:
-                lms_freq_hz = self.estimate_lms_freq(band,fraction_full_scale=fraction_full_scale,channel=channel)
+                lms_freq_hz = self.estimate_lms_freq(band,fraction_full_scale=fraction_full_scale,channel=channel,make_plot=True)
             else:
                 lms_freq_hz = self.config.get('tune_band').get('lms_freq')[str(band)]
             self.lms_freq_hz[band] = lms_freq_hz
@@ -2290,12 +2290,15 @@ class SmurfTuneMixin(SmurfBase):
         # set feedback_end based on the flux ramp settings.
 
         # Compute feedback_start/feedback_end from
-        # feedback_start_frac/feedback_end_frac.  We divide by 128
-        # because the flux ramp RampMaxCnt register is in units of
-        # 307.2 MHz ticks, while feedbackStart and feedbackEnd are in
-        # units of 2.4 MHz ticks (ie, 128 is (307.2 MHz)/(2.4 MHz)).
-        feedback_start = int( feedback_start_frac*(self.get_ramp_max_cnt()+1)/128 )        
-        feedback_end = int( feedback_end_frac*(self.get_ramp_max_cnt()+1)/128 )
+        # feedback_start_frac/feedback_end_frac.
+        channel_frequency_mhz = self.get_channel_frequency_mhz(band)
+        digitizer_frequency_mhz = self.get_digitizer_frequency_mhz(band)
+        feedback_start = int(
+            feedback_start_frac*(self.get_ramp_max_cnt()+1)/(
+                digitizer_frequency_mhz/channel_frequency_mhz/2. ) )
+        feedback_end = int(
+            feedback_end_frac*(self.get_ramp_max_cnt()+1)/(
+                digitizer_frequency_mhz/channel_frequency_mhz/2. ) )
 
         # Set feedbackStart and feedbackEnd
         self.set_feedback_start(band, feedback_start, write_log=write_log)
@@ -3250,9 +3253,10 @@ class SmurfTuneMixin(SmurfBase):
 
         return freq, response
 
-    def setup_notches(self, band, resonance=None, drive=None, sweep_width=.3, 
-        df_sweep=.002, subband_half_width=614.4/128, min_offset=0.1,
-                      new_master_assignment=False):
+    def setup_notches(self, band, resonance=None, drive=None,
+                      sweep_width=.3, df_sweep=.002,
+                      subband_half_width=614.4/128, min_offset=0.1,
+                      delta_freq=0.01, new_master_assignment=False):
         """
 
         Args:
@@ -3268,13 +3272,20 @@ class SmurfTuneMixin(SmurfBase):
         sweep_width (float) : The range to scan around the input resonance in
             units of MHz. Default .3
         sweep_df (float) : The sweep step size in MHz. Default .005
-        min_offset (float): minimum distance in MHz between two resonators for assigning channels
+        min_offset (float): Minimum distance in MHz between two resonators for assigning channels.
+        delta_freq (float): The frequency offset at which to measure
+            the complex transmission to compute the eta parameters.
+            Passed to eta_estimator.  Units are MHz.  Default is 0.01
+            (10kHz).
 
         Returns:
         --------
 
         """
 
+        # Turn off all tones in this band first
+        self.band_off(band)
+        
         # Check if any resonances are stored
         if 'resonance' not in self.freq_resp[band]['find_freq'] and resonance is None:
             self.log('No resonances stored in band {}'.format(band) +
@@ -3306,9 +3317,9 @@ class SmurfTuneMixin(SmurfBase):
         n_res = len(input_res)
         for i, f in enumerate(input_res):
             self.log('freq {:5.4f} - {} of {}'.format(f, i+1, n_res))
-            freq, resp, eta = self.eta_estimator(band, f, drive, 
+            freq, resp, eta = self.eta_estimator(band, f, drive,
                                                  f_sweep_half=sweep_width,
-                                                 df_sweep=df_sweep)
+                                                 df_sweep=df_sweep,delta_freq=delta_freq)
             eta_phase_deg = np.angle(eta)*180/np.pi
             eta_mag = np.abs(eta)
             eta_scaled = eta_mag / subband_half_width
