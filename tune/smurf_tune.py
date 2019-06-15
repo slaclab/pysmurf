@@ -2257,11 +2257,11 @@ class SmurfTuneMixin(SmurfBase):
             fraction_full_scale = self.fraction_full_scale
         else:
             self.fraction_full_scale = fraction_full_scale
-            
+        
         # Switched to a more stable estimator
         if lms_freq_hz is None:
             if meas_lms_freq:
-                lms_freq_hz = self.estimate_lms_freq(band,fraction_full_scale=fraction_full_scale,channel=channel,make_plot=False)
+                lms_freq_hz = self.estimate_lms_freq(band,reset_rate_khz,fraction_full_scale=fraction_full_scale,channel=channel)
             else:
                 lms_freq_hz = self.config.get('tune_band').get('lms_freq')[str(band)]
             self.lms_freq_hz[band] = lms_freq_hz
