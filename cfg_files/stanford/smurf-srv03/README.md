@@ -1,5 +1,5 @@
-# Stanford cfg file index
+# Stanford/smurf-srv03 cfg file index
 
-| Header 1 | Header 2 |
-| -------- | -------- |
-|          |          |
+| cfg file                                        | Description                                            |
+| ----------------------------------------------- | ------------------------------------------------------ |
+| experiment_fp29_srv03_dspv3_cc02-03.cfg         | Started 6/20/19 by SWH. LB+HB in a C2 carrier.         |
