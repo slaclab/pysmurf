@@ -234,7 +234,7 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
         # Load in tuning parameters, if present
         tune_band_cfg=self.config.get('tune_band')
         tune_band_keys=tune_band_cfg.keys()
-        for cfg_var in ['gradient_descent_gain', 'gradient_descent_averages', 'eta_scan_averages']:
+        for cfg_var in ['gradient_descent_gain', 'gradient_descent_averages', 'eta_scan_averages','delta_freq']:
             if cfg_var in tune_band_keys:
                 setattr(self, cfg_var, {})
                 for b in  bands:

@@ -11,6 +11,7 @@ run_half_band_test=false
 one_at_a_time=true
 write_config=false
 cpwd=$PWD
+
 pysmurf=/home/cryo/docker/pysmurf/dspv3
 
 crate_id=3

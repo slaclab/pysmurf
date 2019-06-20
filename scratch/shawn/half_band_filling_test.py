@@ -5,6 +5,7 @@ import numpy as np
 import sys
 
 bands=S.config.get('init').get('bands')
+
 amplitude=12 
 wait=True 
 wait_time_sec=0.1
@@ -15,7 +16,7 @@ timestamp=None
 #    timestamp=int(sys.argv[1])
 
 #for band in bands:
-for band in bands:
+for band in range(4):
     #S.set_att_uc(band,0)
     #S.set_dsp_enable(band,1) 
     #S.set_tone_scale(band,2) 
