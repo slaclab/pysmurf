@@ -2257,11 +2257,11 @@ class SmurfTuneMixin(SmurfBase):
             fraction_full_scale = self.fraction_full_scale
         else:
             self.fraction_full_scale = fraction_full_scale
-            
+        
         # Switched to a more stable estimator
         if lms_freq_hz is None:
             if meas_lms_freq:
-                lms_freq_hz = self.estimate_lms_freq(band,fraction_full_scale=fraction_full_scale,channel=channel,make_plot=False)
+                lms_freq_hz = self.estimate_lms_freq(band,reset_rate_khz,fraction_full_scale=fraction_full_scale,channel=channel)
             else:
                 lms_freq_hz = self.config.get('tune_band').get('lms_freq')[str(band)]
             self.lms_freq_hz[band] = lms_freq_hz
@@ -3268,7 +3268,7 @@ class SmurfTuneMixin(SmurfBase):
         resonance (float array) : A 2 dimensional array with resonance 
             frequencies and the subband they are in. If given, this will take 
             precedent over the one in self.freq_resp.
-        drive (int) : The power to drive the resonators. Default 10.
+        drive (int) : The power to drive the resonators. Default is defined in cfg file.
         sweep_width (float) : The range to scan around the input resonance in
             units of MHz. Default .3
         sweep_df (float) : The sweep step size in MHz. Default .005
@@ -3476,11 +3476,38 @@ class SmurfTuneMixin(SmurfBase):
         return scan_freq, freq_error
 
 
-    def estimate_lms_freq(self, band, fraction_full_scale=None,
-                          reset_rate_khz=4., new_epics_root=None,
-                          channel=None, make_plot=False):
+    def estimate_lms_freq(self, band, reset_rate_khz,
+                          fraction_full_scale=None,
+                          new_epics_root=None, channel=None,
+                          make_plot=False):
         """
+        Attempts to estimate the carrier (phi0) rate for all channels
+        on in the requested 500 MHz band (0..7) using the flux_mod2
+        routine.
         
+        Args:
+        -----
+        band (int): Will attempt to estimate the carrier rate on the
+                    channels which are on in this band.
+        reset_rate_khz (float): The flux ramp reset rate (in kHz).
+
+        Opt Args:
+        ---------
+        fraction_full_scale (float): Passed on to the internal
+                                     tracking_setup call - the
+                                     fraction of full scale exercised
+                                     by the flux ramp.  Defaults to
+                                     value in cfg.
+        new_epics_root (str): Passed on to internal tracking_setup
+                              call ; If using a different RTM to flux
+                              ramp, the epics root of the pyrogue
+                              server controlling that RTM..  Defaults
+                              to None.
+        channel (int array): Passed on to the internal flux_mod2 call.
+                             Which channels (if any) to plot.  Default
+                             is None.
+        make_plot (bool): Whether or not to make plots.
+
         Ret:
         ----
         The estimated lms frequency in Hz
@@ -3831,3 +3858,94 @@ class SmurfTuneMixin(SmurfBase):
 
         if return_screen:
             return self.config.config
+
+    def fake_resonance_dict(self, freqs, bands, save_sweeps=False):
+        """
+        Takes a list of resonance frequencies and fakes a resonance dictionary 
+        so that we can run setup_notches on a subset without find_freqs
+
+        Args:
+        freqs (list of floats): given in MHz, list of frequencies to tune. 
+        Need to be within 100kHz to be really effective
+        bands (list): band numbers that we have (This should be in the config 
+        file but I can't find it...)
+        save_sweeps (bool): whether to save each band as an amplitude sweep. 
+        Defaults False.
+
+        Outputs:
+        resonance dictionary like the one that comes out of find_freqs
+        You probably want to assign it to the right place, as in S.freq_resp = 
+        S.fake_resonance_dict(freqs, bands)
+        """
+
+        band_centers = []
+        for band_no in bands: # we can get up to 8 bands I guess
+            center = self.get_band_center_mhz(band_no)
+            band_centers.append([band_no, center])
+
+        band_nos = []
+        for freq in freqs:
+            freq_band = self.freq_to_band(freq, band_center_list)
+            band_nos.append(freq_band)
+
+        # it's easier to work with np arrays
+        freqs = np.asarray(freqs)
+        band_nos = np.asarray(band_nos)
+
+        freq_dict = {}
+        for band in np.unique(band_nos):
+            band_freqs = freqs[np.where(band_nos == band)]
+            subband_freqs = []
+            for f in band_freqs:
+                (subband, foff) = self.freq_to_subband(f, band)
+                subband_freqs.append(subband)
+
+            freq_dict[band]['find_freq'] = {}
+            freq_dict[band]['find_freq']['subband'] = subband_freqs
+            freq_dict[band]['find_freq']['f'] = None
+            freq_dict[band]['find_freq']['resp'] = None
+            timestamp = self.get_timestamp()
+            freq_dict[band]['timestamp'] = timestamp
+            freq_resp[band]['find_freq']['resonance'] = freqs - \
+                    self.get_band_center_mhz(band)
+
+            # do we want to save? default will be false
+            if save_sweep:
+                save_name = '{}_amp_sweep_b{}_{}.txt'
+                np.savetxt(os.path.join(self.output_dir,save_name.format(\
+                        timestamp, str(band), 'resonance')), \
+                        freq_resp[band]['find_freq']['resonance'])
+
+
+        return freq_resp
+
+    def freq_to_band(self, frequency, band_center_list):
+        """
+        Convert the frequency to which band we're in. This is almost certainly 
+        a duplicate but I can't find the original...
+
+        Args:
+        frequency (float): frequency in MHz
+        band_center_list (list): frequency centers of bands we're running with.
+        Formatted as [[band_no, band_center],[band_no, band_center],etc.]
+
+        Returns:
+        band_no of the frequency
+        """
+
+        band_width = 500. # hardcoding this is probably bad
+        band_no = None # initialize this
+
+        for center in centers:
+            center_low = center[1] - band_width/2.
+            center_high = center[1] + band_width/2.
+            if (center_low <= frequency <= center_high):
+                band_no = center[0]
+            else:
+                continue
+
+        if band_no is not None:
+            return band_no
+        else:
+            print("Frequency not found. Check band list and that frequency is given in MHz")
+            return
