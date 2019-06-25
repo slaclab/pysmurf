@@ -15,8 +15,7 @@ timestamp=None
 #if len(sys.argv)>1:
 #    timestamp=int(sys.argv[1])
 
-#for band in bands:
-for band in range(4):
+for band in bands:
     #S.set_att_uc(band,0)
     #S.set_dsp_enable(band,1) 
     #S.set_tone_scale(band,2) 
