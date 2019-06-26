@@ -3258,6 +3258,10 @@ class SmurfTuneMixin(SmurfBase):
                       subband_half_width=614.4/128, min_offset=0.1,
                       delta_freq=None, new_master_assignment=False):
         """
+        Does a fine sweep over the resonances found in find_freq. This
+        information is used for placing tones onto resonators. It is
+        recommended that you follow this up with run_serial_gradient_descent()
+        afterwards. 
 
         Args:
         -----
@@ -3271,16 +3275,16 @@ class SmurfTuneMixin(SmurfBase):
         drive (int) : The power to drive the resonators. Default 10.
         sweep_width (float) : The range to scan around the input resonance in
             units of MHz. Default .3
-        sweep_df (float) : The sweep step size in MHz. Default .005
+        df_sweep (float) : The sweep step size in MHz. Default .005
+        subband_half_width (float): The half width of the subband in units of MHz.
         min_offset (float): Minimum distance in MHz between two resonators for assigning channels.
         delta_freq (float): The frequency offset at which to measure
             the complex transmission to compute the eta parameters.
             Passed to eta_estimator.  Units are MHz.  If none supplied
             as an argument, takes value in config file.
-
-        Returns:
-        --------
-
+        new_master_assignment (bool): Whether to create a new master assignment
+            file. This file defines the mapping between resonator frequency
+            and channel number.
         """
 
         # Turn off all tones in this band first
