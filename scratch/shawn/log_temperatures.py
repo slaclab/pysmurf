@@ -4,6 +4,7 @@ import subprocess
 
 time_btw_meas=5 # sec
 
+slot=5
 of=open('%s_temp.dat'%S.get_timestamp(),'w+')
 hdr='{0[0]:<15}{0[1]:<15}{0[2]:<15}{0[3]:<15}{0[4]:<15}{0[5]:<15}{0[6]:<15}{0[7]:<15}{0[8]:<15}{0[9]:<15}{0[10]:<15}{0[11]:<15}\n'.format(['ctime','BTemp','JTemp','bay0_dac0_temp','bay0_dac1_temp','bay1_dac0_temp','bay1_dac1_temp','fpga_temp','fpgca_vccint','fpgca_vccaux','fpgca_vccbram','cc_temp'])
 of.write(hdr)
@@ -24,7 +25,7 @@ print(hdr.rstrip())
 while True:
 
     #amcc_dump --fpga
-    x=subprocess.check_output(['amcc_dump', '--fpga','shm-smrf-sp01/2'])
+    x=subprocess.check_output(['amcc_dump', '--fpga','shm-smrf-sp01/%d'%(slot)])
     # parse (stupidly)
     x=list(filter(None,[x.strip() for x in list(filter(None,str(x).split('\\n')[5].split('|')))]))
     JTemp=x[5].rstrip('C')

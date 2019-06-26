@@ -2,7 +2,7 @@
 
 ctime=`date +%s`
 
-attach_at_end=true
+attach_at_end=false
 screenshot_signal_analyzer=false
 configure_pysmurf=false
 reboot=true
@@ -11,13 +11,12 @@ run_half_band_test=false
 one_at_a_time=true
 write_config=false
 cpwd=$PWD
-
 pysmurf=/home/cryo/docker/pysmurf/dspv3
+# path can assume you're in the pysmurf directory
+pysmurf_init_script=scratch/shawn/scripts/init_nist_cmb.py
 
 crate_id=3
 slots_in_configure_order=(5)
-
-pysmurf_init_script=scratch/shawn/scripts/init_stanford.py
 
 tmux_session_name=smurf
 

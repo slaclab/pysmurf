@@ -18,7 +18,7 @@ fn_raw_data = os.path.join('./', '%s_fr_sweep_data.npy'%(S.get_timestamp()))
 #amplitudes_and_uc_atts=[(8,30),(9,30),(10,30),(11,30),(12,30),(12,24),(12,18),(12,12),(12,6),(12,0)]
 #amplitudes_and_uc_atts=[(8,30),(10,30),(12,30),(12,18),(12,6),(12,0)]
 #amplitudes_and_uc_atts=[(8,30),(10,30),(12,30),(12,18),(12,6),(12,0)]
-amplitudes_and_uc_atts=[(8,30)]
+amplitudes_and_uc_atts=[(8,10)]
 #amplitudes_and_uc_atts=[(8,30)]
 #amplitudes=[9,10,11,12,13,14]
 # [(None,None)] means don't change the amplitude or uc_att, but still retunes
@@ -38,8 +38,8 @@ Npts=3
 #bias_high=0.432
 bias_low=-0.45
 bias_high=0.45
-Nsteps=500
-#Nsteps=25
+#Nsteps=500
+Nsteps=25
 bias_step=np.abs(bias_high-bias_low)/float(Nsteps)
 channels=None
 #much slower than using loopFilterOutputArray,

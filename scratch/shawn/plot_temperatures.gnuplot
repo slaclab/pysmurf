@@ -4,7 +4,7 @@
 datafile=ARG1
 datafile_relpath=system(sprintf("basename %s",datafile))
 
-set yrange [0:80]
+set yrange [0:100]
 set xlabel 'Time'
 set ylabel 'Temperature (C)'
 set grid

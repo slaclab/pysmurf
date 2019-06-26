@@ -1477,6 +1477,7 @@ class SmurfCommandMixin(SmurfBase):
             return self._caget(self._band_root(band) + self._band_center_mhz,
                 **kwargs)
 
+
     _channel_frequency_mhz = 'channelFrequencyMHz'
     def get_channel_frequency_mhz(self, band=None, **kwargs):
         '''
