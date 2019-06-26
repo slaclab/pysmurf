@@ -925,7 +925,7 @@ class SmurfTuneMixin(SmurfBase):
 
             if band is not None:
                 bandCenterMHz = self.get_band_center_mhz(band)
-                plot_freq = freq*1.0E-6 + bandCenterMHz
+                plot_freq = bandCenterMHz
             else:
                 plot_freq = freq
 
@@ -2841,7 +2841,7 @@ class SmurfTuneMixin(SmurfBase):
 
     def find_freq(self, band, subband=np.arange(13,115), drive_power=None,
         n_read=2, make_plot=False, save_plot=True, window=50, rolling_med=True,
-                  make_subband_plot=False):
+        make_subband_plot=False, show_plot=False):
         '''
         Finds the resonances in a band (and specified subbands)
 
@@ -2903,14 +2903,14 @@ class SmurfTuneMixin(SmurfBase):
         # Call plotting
         if make_plot:
             self.plot_find_freq(self.freq_resp[band]['find_freq']['f'], 
-                self.freq_resp[band]['find_freq']['resp'], save_plot=save_plot, 
-                save_name=save_name.replace('.txt', '.png').format(timestamp,
-                    band))
+                self.freq_resp[band]['find_freq']['resp'], save_plot=save_plot,
+                show_plot=show_plot, 
+                save_name=save_name.replace('.txt', '.png').format(timestamp, band))
 
         return f, resp
 
     def plot_find_freq(self, f=None, resp=None, subband=None, filename=None, 
-        save_plot=True, save_name='amp_sweep.png'):
+        save_plot=True, save_name='amp_sweep.png', show_plot=False):
         '''
         Plots the response of the frequency sweep. Must input f and resp, or
         give a path to a text file containing the data for offline plotting.
@@ -2950,6 +2950,10 @@ class SmurfTuneMixin(SmurfBase):
                 plt.savefig(os.path.join(self.plot_dir, save_name),
                     bbox_inches='tight')
 
+            if show_plot:
+                plt.show()
+            else:
+                plt.close()
 
     def full_band_ampl_sweep(self, band, subband, drive, n_read, n_step=121):
         """sweep a full band in amplitude, for finding frequencies
@@ -3951,6 +3955,6 @@ class SmurfTuneMixin(SmurfBase):
         if band_no is not None:
             return band_no
         else:
-            print("Frequency not found. Check band list and that frequency is 
-            given in MHz")
+            print("Frequency not found. Check band list and that",
+                  " frequency is given in MHz")
             return
