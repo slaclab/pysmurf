@@ -848,7 +848,8 @@ class SmurfTuneMixin(SmurfBase):
 
         Args:
         -----
-        freq (float array): should be a single row of the broader freq array
+        freq (float array): should be a single row of the broader freq
+                            array, in Mhz.
         resp (complex array): complex response for just this subband
 
         Opt Args:
@@ -925,19 +926,19 @@ class SmurfTuneMixin(SmurfBase):
 
             if band is not None:
                 bandCenterMHz = self.get_band_center_mhz(band)
-                plot_freq = bandCenterMHz
+                plot_freq_mhz = freq+bandCenterMHz
             else:
-                plot_freq = freq
+                plot_freq_mhz = freq
 
-            ax[0].plot(plot_freq, amp)
-            ax[0].plot(plot_freq, med_amp)
-            ax[0].plot(plot_freq[peak], amp[peak], 'kx')
-            ax[1].plot(plot_freq, grad)
+            ax[0].plot(plot_freq_mhz, amp)
+            ax[0].plot(plot_freq_mhz, med_amp)
+            ax[0].plot(plot_freq_mhz[peak], amp[peak], 'kx')
+            ax[1].plot(plot_freq_mhz, grad)
 
             ax[1].set_ylim(-2, 20)
             for s, e in zip(starts, ends):
-                ax[0].axvspan(plot_freq[s], plot_freq[e], color='k', alpha=.1)
-                ax[1].axvspan(plot_freq[s], plot_freq[e], color='k', alpha=.1)
+                ax[0].axvspan(plot_freq_mhz[s], plot_freq_mhz[e], color='k', alpha=.1)
+                ax[1].axvspan(plot_freq_mhz[s], plot_freq_mhz[e], color='k', alpha=.1)
             
 
             ax[0].set_ylabel('Amp.')
@@ -969,16 +970,16 @@ class SmurfTuneMixin(SmurfBase):
             import matplotlib.pyplot as plt
             subbands, subband_freq = self.get_subband_centers(band, 
                 hardcode=True)  # remove hardcode mode
-            plot_freq = freq
+            plot_freq_mhz = freq
             plot_width = 5.5  # width of plotting in MHz
             width = (subband_freq[1] - subband_freq[0])
 
             for sb, sbf in zip(subbands, subband_freq):
                 self.log('Making plot for subband {}'.format(sb))
-                idx = np.logical_and(plot_freq > sbf - plot_width/2.,
-                    plot_freq < sbf + plot_width/2.)
+                idx = np.logical_and(plot_freq_mhz > sbf - plot_width/2.,
+                    plot_freq_mhz < sbf + plot_width/2.)
                 if np.sum(idx) > 1:
-                    f = plot_freq[idx]
+                    f = plot_freq_mhz[idx]
                     p = angle[idx]
                     x = np.arange(len(p))
                     fp = np.polyfit(x, p, 1)
@@ -994,16 +995,16 @@ class SmurfTuneMixin(SmurfBase):
                     ax[1].plot(f, a, label='Amp')
                     ax[1].plot(f, ma, label='Median Amp')
                     for s, e in zip(starts, ends):
-                        if (plot_freq[s] in f) or (plot_freq[e] in f):
-                            ax[0].axvspan(plot_freq[s], plot_freq[e], color='k', 
+                        if (plot_freq_mhz[s] in f) or (plot_freq_mhz[e] in f):
+                            ax[0].axvspan(plot_freq_mhz[s], plot_freq_mhz[e], color='k', 
                                           alpha=.1)
-                            ax[1].axvspan(plot_freq[s], plot_freq[e], color='k', 
+                            ax[1].axvspan(plot_freq_mhz[s], plot_freq_mhz[e], color='k', 
                                           alpha=.1)
 
                     for pp in peak:
-                        if plot_freq[pp] > sbf - plot_width/2. and \
-                                plot_freq[pp] < sbf + plot_width/2.:
-                            ax[1].plot(plot_freq[pp], amp[pp], 'xk')
+                        if plot_freq_mhz[pp] > sbf - plot_width/2. and \
+                                plot_freq_mhz[pp] < sbf + plot_width/2.:
+                            ax[1].plot(plot_freq_mhz[pp], amp[pp], 'xk')
 
                     ax[0].legend(loc='upper right')
                     ax[1].legend(loc='upper right')
