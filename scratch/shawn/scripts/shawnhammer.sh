@@ -4,9 +4,9 @@ ctime=`date +%s`
 
 attach_at_end=true
 screenshot_signal_analyzer=false
-configure_pysmurf=false
+configure_pysmurf=true
 reboot=true
-using_timing_master=false
+using_timing_master=true
 run_half_band_test=false
 one_at_a_time=true
 write_config=false
@@ -15,7 +15,7 @@ cpwd=$PWD
 pysmurf=/home/cryo/docker/pysmurf/dspv3
 
 crate_id=3
-slots_in_configure_order=(5)
+slots_in_configure_order=(4)
 
 pysmurf_init_script=scratch/shawn/scripts/init_stanford.py
 
