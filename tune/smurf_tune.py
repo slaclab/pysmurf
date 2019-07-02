@@ -153,19 +153,20 @@ class SmurfTuneMixin(SmurfBase):
 
 
         # Find peaks
-        peaks = self.find_peak(freq, resp, rolling_med=True, band=band, 
-            make_plot=make_plot, show_plot=show_plot, window=5000,
-            save_plot=save_plot, grad_cut=grad_cut, freq_min=freq_min,
-            freq_max=freq_max, amp_cut=amp_cut, 
-            make_subband_plot=make_subband_plot, timestamp=timestamp,
-            subband_plot_with_slow=subband_plot_with_slow, pad=50, min_gap=50)
+        peaks = self.find_peak(freq, resp, rolling_med=True,
+                               band=band, make_plot=make_plot, show_plot=show_plot,
+                               window=5000, save_plot=save_plot, grad_cut=grad_cut,
+                               freq_min=freq_min, freq_max=freq_max, amp_cut=amp_cut,
+                               make_subband_plot=make_subband_plot, timestamp=timestamp,
+                               subband_plot_with_slow=subband_plot_with_slow, pad=50,
+                               min_gap=50)
 
         # Eta scans
         band_center_mhz = self.get_band_center_mhz(band)
         resonances = {}
         for i, p in enumerate(peaks):
             eta, eta_scaled, eta_phase_deg, r2, eta_mag, latency, Q= \
-                self.eta_fit(freq, resp, p, 50E3, make_plot=False, 
+                self.eta_fit(band, freq, resp, p, 50E3, make_plot=False, 
                 plot_chans=plot_chans, save_plot=save_plot, res_num=i, 
                 band=band, timestamp=timestamp, use_slow_eta=use_slow_eta)
 
@@ -278,13 +279,17 @@ class SmurfTuneMixin(SmurfBase):
             self.set_att_uc(band, old_att, write_log=True)
 
             # Find peaks
-            peaks = self.find_peak(freq, resp, rolling_med=rolling_med, window=window,
-                               band=band, make_plot=make_plot, save_plot=save_plot, 
-                               show_plot=show_plot, grad_cut=grad_cut, freq_min=freq_min,
-                               freq_max=freq_max, amp_cut=amp_cut,
-                               make_subband_plot=make_subband_plot, timestamp=timestamp,
-                               subband_plot_with_slow=subband_plot_with_slow, pad=pad, 
-                               min_gap=min_gap)
+            peaks = self.find_peak(freq, resp,
+                                   rolling_med=rolling_med, window=window,
+                                   band=band, make_plot=make_plot,
+                                   save_plot=save_plot,
+                                   show_plot=show_plot, grad_cut=grad_cut,
+                                   freq_min=freq_min, freq_max=freq_max,
+                                   amp_cut=amp_cut,
+                                   make_subband_plot=make_subband_plot,
+                                   timestamp=timestamp,
+                                   subband_plot_with_slow=subband_plot_with_slow,
+                                   pad=pad, min_gap=min_gap)
 
             resonances = {}
             for i, p in enumerate(peaks):
@@ -674,7 +679,7 @@ class SmurfTuneMixin(SmurfBase):
                     idx = np.logical_and(freq > center_freq - width,
                                          freq < center_freq + width)
 
-                    self.plot_eta_fit(freq[idx], resp[idx], 
+                    self.plot_eta_fit(band, freq[idx], resp[idx], 
                                       eta_mag=r['eta_mag'], eta_phase_deg=r['eta_phase'],
                                       band=band, res_num=k,
                                       timestamp=timestamp, save_plot=save_plot,
@@ -1180,10 +1185,9 @@ class SmurfTuneMixin(SmurfBase):
                 bbox_inches='tight')
             plt.close()
 
-    def eta_fit(self, freq, resp, peak_freq, delta_freq, 
-        subband_half_width=614.4/128, make_plot=False, plot_chans=[], 
-        save_plot=True, band=None, timestamp=None, res_num=None,
-        use_slow_eta=False):
+    def eta_fit(self, freq, resp, peak_freq, delta_freq,
+                make_plot=False, plot_chans=[], save_plot=True, band=None,
+                timestamp=None, res_num=None, use_slow_eta=False):
         """
         Cyndia's eta finding code
 
@@ -1196,8 +1200,6 @@ class SmurfTuneMixin(SmurfBase):
 
         Opt Args:
         ---------
-        subband_half_width (float): The width of a subband in MHz. Default
-            is 614.4/128
         make_plot (bool): Whether to make plots. Default is False.
         save_plot (bool): Whether to save plots. Default is True.
         plot_chans (int array): The channels to plot. If an empty array, it
@@ -1217,6 +1219,19 @@ class SmurfTuneMixin(SmurfBase):
         latency (float): THe delay
         Q (float): THe resonator quality factor
         """
+
+        if band is None:
+            # assume all bands have the same number of channels, and
+            # pull the number of channels from the first band in the
+            # list of bands specified in experiment.cfg.
+            bands = self.config.get('init').get('bands')
+            band = bands[0]
+        
+        n_subbands = self.get_number_sub_bands(band)
+        digitizer_frequency_mhz = self.get_digitizer_frequency_mhz(band)
+        subband_half_width = digitizer_frequency_mhz/\
+                             n_subbands
+        
         if timestamp is None:
             timestamp = self.get_timestamp()
 
@@ -2873,6 +2888,11 @@ class SmurfTuneMixin(SmurfBase):
         window (int) : The width of the rolling median window
         '''
 
+        # Turn off all tones in this band first.  May want to make
+        # this only turn off tones in each sub-band before sweeping,
+        # instead?
+        self.band_off(band)
+        
         if drive_power is None:
             drive_power = self.config.get('init')['band_{}'.format(band)].get('amplitude_scale')
             self.log('No drive_power given. Using value in config file: {}'.format(drive_power))
@@ -2989,9 +3009,7 @@ class SmurfTuneMixin(SmurfBase):
 
         subband_width = 2 * digitizer_freq / n_subbands
 
-        # scan_freq = np.arange(-3, 3.05, 0.05)  # take out this hardcode
-        step_size = 2/n_step
-        scan_freq = np.ceil(digitizer_freq/n_subbands/2)*np.arange(-1, 1, step_size)
+        scan_freq = (digitizer_freq/n_subbands/2)*np.linspace(-1,1,n_step)
         print(scan_freq)
         
         resp = np.zeros((n_subbands, np.shape(scan_freq)[0]), dtype=complex)
@@ -3161,10 +3179,12 @@ class SmurfTuneMixin(SmurfBase):
                 bbox_inches='tight')
             plt.close()
 
-    def find_all_peak(self, freq, resp, subband=None, rolling_med=False, 
-        window=500, grad_cut=0.05, amp_cut=0.25, freq_min=-2.5E8, freq_max=2.5E8, 
-        make_plot=False, save_plot=True, band=None, make_subband_plot=False, 
-        subband_plot_with_slow=False, timestamp=None, pad=2, min_gap=2):
+    def find_all_peak(self, freq, resp, subband=None,
+        rolling_med=False, window=500, grad_cut=0.05, amp_cut=0.25,
+        freq_min=-2.5E8, freq_max=2.5E8, make_plot=False,
+        save_plot=True, band=None, make_subband_plot=False,
+        subband_plot_with_slow=False, timestamp=None, pad=2,
+        min_gap=2):
         """
         find the peaks within each subband requested from a fullbandamplsweep
 
@@ -3269,8 +3289,7 @@ class SmurfTuneMixin(SmurfBase):
         return freq, response
 
     def setup_notches(self, band, resonance=None, drive=None,
-                      sweep_width=.3, df_sweep=.002,
-                      subband_half_width=614.4/128, min_offset=0.1,
+                      sweep_width=.3, df_sweep=.002, min_offset=0.1,
                       delta_freq=None, new_master_assignment=False):
         """
         Does a fine sweep over the resonances found in find_freq. This
@@ -3291,7 +3310,6 @@ class SmurfTuneMixin(SmurfBase):
         sweep_width (float) : The range to scan around the input resonance in
             units of MHz. Default .3
         df_sweep (float) : The sweep step size in MHz. Default .005
-        subband_half_width (float): The half width of the subband in units of MHz.
         min_offset (float): Minimum distance in MHz between two resonators for assigning channels.
         delta_freq (float): The frequency offset at which to measure
             the complex transmission to compute the eta parameters.
@@ -3326,6 +3344,9 @@ class SmurfTuneMixin(SmurfBase):
         n_subbands = self.get_number_sub_bands(band)
         n_channels = self.get_number_channels(band)
         n_subchannels = n_channels / n_subbands
+        digitizer_frequency_mhz = self.get_digitizer_frequency_mhz(band)
+        subband_half_width = digitizer_frequency_mhz/\
+                             n_subbands
 
         sweep = np.arange(-sweep_width, sweep_width+df_sweep, df_sweep)
 
