@@ -3529,7 +3529,7 @@ class SmurfTuneMixin(SmurfBase):
         self.set_feedback_enable(band, old_feedback)
         return reset_rate_khz * s * 1000  # convert to Hz
 
-    def flux_mod2(self, band, df, sync, min_scale=.002, make_plot=False, 
+    def flux_mod2(self, band, df, sync, min_scale=.0, make_plot=False, 
                   channel=None, threshold=.5):
         """
         Attempts to find the number of phi0s in a tracking_setup.
