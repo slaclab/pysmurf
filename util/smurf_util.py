@@ -435,7 +435,7 @@ class SmurfUtilMixin(SmurfBase):
         return data_filename
 
 
-    def stream_data_on(self, write_config=True, gcp_mode=True):
+    def stream_data_on(self, write_config=False, gcp_mode=True):
         """
         Turns on streaming data.
 
