@@ -5,23 +5,100 @@ import pysmurf
 import numpy as np
 import time
 import sys
-    
-n_samples=2**19
-make_plot=True
-show_plot=True
-save_plot=True
-save_data=True
-n_scan=5
-timestamp=None
-uc_att=24
-dc_att=0
 
-for band in range(4):
+# how to get AMC s/n and fw
+def get_amcc_dump_bsi(S,ip='shm-smrf-sp01',slot=None):
+
+    if slot is None:
+        # attempt to guess from epics prefix
+        import re
+        p = re.compile('smurf_server_s([0-9])')
+        m = p.match(S.epics_root)
+        assert (m is not None),'Unable to determine slot number from epics_root={}'.format(S.epics_root)
+        slot=int(m.group(1))
+
+    import subprocess
+    result=subprocess.check_output(['amcc_dump_bsi','--all','%s/%d'%(ip,slot)])
+    result_string=result.decode('utf-8')
+
+    # E.g.:
+    # AMC 0 info: Aux: 01 Ser: 9f0000011d036a70 Type: 0a Ver: C03 BOM: 00 Tag: C03-A01-
+    result_dict={}
+    patterns={}
+    patterns['AMC']=re.compile('AMC\s*([0-1])\s*info:\s*Aux:\s*(\d+)\s*Ser:\s*([a-z0-9]+)\s*Type:\s*([a-z0-9]+)\s*Ver:\s*(C[0-9][0-9])\s*BOM:\s*([0-9]+)\s*Tag:\s*([A-Z0-9a-z\-]+)')
+    # E.g.:
+    #"FW bld string: 'MicrowaveMuxBpEthGen2: Vivado v2018.3, pc95590 (x86_64), Built Tue Apr 30 13:35:05 PDT 2019 by mdewart'"
+    patterns['FW']=re.compile('FW bld string:\s*\'(MicrowaveMuxBpEthGen2):\s*(Vivado)\s*(v2018.3),\s*(pc95590)\s*\((x86_64)\),\s*Built\s*(Tue)\s*(Apr)\s*(30)\s*(13):(35):(05)\s*(PDT)\s*(2019)\s*by\s*(mdewart)\'')
+
+    # E.g.:
+    patterns['FWGIThash']=re.compile('GIT hash:\s*([0-9a-z]+)')
+    #'     GIT hash: 0000000000000000000000000000000000000000'
+
+    for s in result_string.split('\n'):
+        s=s.rstrip().lstrip()
+        for key, p in patterns.items():
+            m=p.match(s)
+            if m is not None:
+                if key not in result_dict.keys():
+                    result_dict[key]={}
+
+                if key is 'AMC':
+                    bay=int(m.group(1))
+                    result_dict[key][bay]={}
+                    result_dict[key][bay]['Aux']=m.group(2)
+                    result_dict[key][bay]['Ser']=m.group(3)
+                    result_dict[key][bay]['Type']=m.group(4)
+                    result_dict[key][bay]['Ver']=m.group(5)
+                    result_dict[key][bay]['BOM']=m.group(6)
+                    result_dict[key][bay]['Tag']=m.group(7)
+
+                if key is 'FWGIThash':
+                    result_dict[key]['GIThash']=m.group(1)                    
+
+                if key is 'FW':
+                    result_dict[key]['FWBranch']=m.group(1)
+                    result_dict[key]['BuildSuite']=m.group(2)
+                    result_dict[key]['BuildSuiteVersion']=m.group(3)
+                    result_dict[key]['BuildPC']=m.group(4)
+                    result_dict[key]['BuildArch']=m.group(5)
+                    # skipping day spelled out
+                    result_dict[key]['Month']=m.group(7)
+                    result_dict[key]['Day']=m.group(8)
+                    result_dict[key]['Hour']=m.group(9)
+                    result_dict[key]['Minute']=m.group(10)
+                    result_dict[key]['Second']=m.group(11)
+                    result_dict[key]['TimeZone']=m.group(12)
+                    result_dict[key]['Year']=m.group(13)
+                    result_dict[key]['BuiltBy']=m.group(14)
+
+    return result_dict
+
+def estimate_phase_delay(S,band,n_samples=2**19,make_plot=True,show_plot=True,save_plot=True,save_data=True,n_scan=5,timestamp=None,uc_att=24,dc_att=0,freq_min=-2.5E8,freq_max=2.5E8):
     uc_att0=S.get_att_dc(band)
     dc_att0=S.get_att_uc(band)
     S.set_att_uc(band,uc_att,write_log=True)
     S.set_att_dc(band,dc_att,write_log=True)
 
+    # only loop over dsp subbands in requested frequency range (to
+    # save time)
+    n_subbands = S.get_number_sub_bands(band)
+    digitizer_frequency_mhz = S.get_digitizer_frequency_mhz(band)
+    subband_half_width_mhz = digitizer_frequency_mhz/\
+                         n_subbands
+    band_center_mhz=S.get_band_center_mhz(band)
+    subbands,subband_centers=S.get_subband_centers(band)
+    subband_freq_min=-subband_half_width_mhz/2.
+    subband_freq_max=subband_half_width_mhz/2.
+    dsp_subbands=[]
+    for sb,sbc in zip(subbands,subband_centers):
+        # ignore unprocessed sub-bands
+        if sb not in range(13,115):
+            continue
+        lower_sb_freq=sbc+subband_freq_min
+        upper_sb_freq=sbc+subband_freq_max
+        if lower_sb_freq>=(freq_min/1.e6-subband_half_width_mhz) and upper_sb_freq<=(freq_max/1.e6+subband_half_width_mhz):
+            dsp_subbands.append(sb)
+    
     # For some reason, pyrogue flips out if you try to set refPhaseDelay
     # to zero in 071150b0.  This allows an offset ; the offset just gets
     # subtracted off the delay measurement with DSP after it's made.
@@ -37,10 +114,7 @@ for band in range(4):
             plt.ion()
         else:
             plt.ioff()
-
-    freq_min=-2.5E8
-    freq_max=2.5E8
-
+    
     load_full_band_resp=False
     fbr_path='/data/smurf_data/20190702/1562052474/outputs'
     fbr_ctime=1562052477
@@ -52,73 +126,6 @@ for band in range(4):
     load_find_freq_check=False
     ff_corr_path='/data/smurf_data/20190702/1562052474/outputs'
     ff_corr_ctime=1562053274
-
-    # how to get AMC s/n and fw
-    def get_amcc_dump_bsi(S,ip='shm-smrf-sp01',slot=None):
-
-        if slot is None:
-            # attempt to guess from epics prefix
-            import re
-            p = re.compile('smurf_server_s([0-9])')
-            m = p.match(S.epics_root)
-            assert (m is not None),'Unable to determine slot number from epics_root={}'.format(S.epics_root)
-            slot=int(m.group(1))
-
-        import subprocess
-        result=subprocess.check_output(['amcc_dump_bsi','--all','%s/%d'%(ip,slot)])
-        result_string=result.decode('utf-8')
-
-        # E.g.:
-        # AMC 0 info: Aux: 01 Ser: 9f0000011d036a70 Type: 0a Ver: C03 BOM: 00 Tag: C03-A01-
-        result_dict={}
-        patterns={}
-        patterns['AMC']=re.compile('AMC\s*([0-1])\s*info:\s*Aux:\s*(\d+)\s*Ser:\s*([a-z0-9]+)\s*Type:\s*([a-z0-9]+)\s*Ver:\s*(C[0-9][0-9])\s*BOM:\s*([0-9]+)\s*Tag:\s*([A-Z0-9a-z\-]+)')
-        # E.g.:
-        #"FW bld string: 'MicrowaveMuxBpEthGen2: Vivado v2018.3, pc95590 (x86_64), Built Tue Apr 30 13:35:05 PDT 2019 by mdewart'"
-        patterns['FW']=re.compile('FW bld string:\s*\'(MicrowaveMuxBpEthGen2):\s*(Vivado)\s*(v2018.3),\s*(pc95590)\s*\((x86_64)\),\s*Built\s*(Tue)\s*(Apr)\s*(30)\s*(13):(35):(05)\s*(PDT)\s*(2019)\s*by\s*(mdewart)\'')
-
-        # E.g.:
-        patterns['FWGIThash']=re.compile('GIT hash:\s*([0-9a-z]+)')
-        #'     GIT hash: 0000000000000000000000000000000000000000'
-
-        for s in result_string.split('\n'):
-            s=s.rstrip().lstrip()
-            for key, p in patterns.items():
-                m=p.match(s)
-                if m is not None:
-                    if key not in result_dict.keys():
-                        result_dict[key]={}
-
-                    if key is 'AMC':
-                        bay=int(m.group(1))
-                        result_dict[key][bay]={}
-                        result_dict[key][bay]['Aux']=m.group(2)
-                        result_dict[key][bay]['Ser']=m.group(3)
-                        result_dict[key][bay]['Type']=m.group(4)
-                        result_dict[key][bay]['Ver']=m.group(5)
-                        result_dict[key][bay]['BOM']=m.group(6)
-                        result_dict[key][bay]['Tag']=m.group(7)
-
-                    if key is 'FWGIThash':
-                        result_dict[key]['GIThash']=m.group(1)                    
-
-                    if key is 'FW':
-                        result_dict[key]['FWBranch']=m.group(1)
-                        result_dict[key]['BuildSuite']=m.group(2)
-                        result_dict[key]['BuildSuiteVersion']=m.group(3)
-                        result_dict[key]['BuildPC']=m.group(4)
-                        result_dict[key]['BuildArch']=m.group(5)
-                        # skipping day spelled out
-                        result_dict[key]['Month']=m.group(7)
-                        result_dict[key]['Day']=m.group(8)
-                        result_dict[key]['Hour']=m.group(9)
-                        result_dict[key]['Minute']=m.group(10)
-                        result_dict[key]['Second']=m.group(11)
-                        result_dict[key]['TimeZone']=m.group(12)
-                        result_dict[key]['Year']=m.group(13)
-                        result_dict[key]['BuiltBy']=m.group(14)
-
-        return result_dict
 
     bay=int(band/4)
     amcc_dump_bsi_dict=get_amcc_dump_bsi(S)
@@ -166,14 +173,14 @@ for band in range(4):
                                                   save_data=save_data, \
                                                   n_scan=n_scan)
 
-    idx = np.where( (freq_cable > freq_min) & (freq_cable < freq_max) )
+    idx_cable = np.where( (freq_cable > freq_min) & (freq_cable < freq_max) )
 
-    cable_z = np.polyfit(freq_cable[idx], np.unwrap(np.angle(resp_cable[idx])), 1)
+    cable_z = np.polyfit(freq_cable[idx_cable], np.unwrap(np.angle(resp_cable[idx_cable])), 1)
     cable_p = np.poly1d(cable_z)
     cable_delay_us=np.abs(1.e6*cable_z[0]/2/np.pi)
 
-    freq_cable_subset=freq_cable[idx]
-    resp_cable_subset=resp_cable[idx]
+    freq_cable_subset=freq_cable[idx_cable]
+    resp_cable_subset=resp_cable[idx_cable]
     #### done measuring cable delay
 
     #### start measuring dsp delay (cable+processing)
@@ -195,19 +202,11 @@ for band in range(4):
         resp_dsp=np.loadtxt(ff_resp_file,dtype='complex')
     else:
         S.log('Running find_freq')
-        freq_dsp,resp_dsp=S.find_freq(band)
+        freq_dsp,resp_dsp=S.find_freq(band,subband=dsp_subbands)
         ## not really faster if reduce n_step or n_read...somehow.
         #freq_dsp,resp_dsp=S.full_band_ampl_sweep(band, subband=dsp_subbands, drive=drive, n_read=2, n_step=n_step)
 
     # only preserve data in the subband half width
-    n_subbands = S.get_number_sub_bands(band)
-    digitizer_frequency_mhz = S.get_digitizer_frequency_mhz(band)
-    subband_half_width = digitizer_frequency_mhz/\
-                         n_subbands
-
-    subbands,subband_centers=S.get_subband_centers(band)
-    subband_freq_min=-subband_half_width/2.
-    subband_freq_max=subband_half_width/2.
     freq_dsp_subset=[]
     resp_dsp_subset=[]
     for sb,sbc in zip(subbands,subband_centers):
@@ -219,6 +218,12 @@ for band in range(4):
     freq_dsp_subset=np.array(freq_dsp_subset)
     resp_dsp_subset=np.array(resp_dsp_subset)
 
+    idx_dsp = np.where( (freq_dsp_subset > freq_min) & (freq_dsp_subset < freq_max) )    
+
+    # restrict to requested frequencies only
+    freq_dsp_subset=freq_dsp_subset[idx_dsp]
+    resp_dsp_subset=resp_dsp_subset[idx_dsp]
+    
     # to Hz
     freq_dsp_subset=(freq_dsp_subset)*1.0E6
 
@@ -229,16 +234,12 @@ for band in range(4):
 
     # if refPhaseDelay0 or refPhaseDelayFine0 aren't zero, must add into
     # delay here 
-    dsp_delay_us+=refPhaseDelay0/subband_half_width_mhz
+    dsp_delay_us+=refPhaseDelay0/(subband_half_width_mhz/2.)
     dsp_delay_us-=refPhaseDelayFine0/(digitizer_frequency_mhz/2)
 
     ## compute refPhaseDelay and refPhaseDelayFine
-    digitizer_frequency_mhz=S.get_digitizer_frequency_mhz(band)
-    n_subband = S.get_number_sub_bands(band)
-    subband_half_width_mhz = digitizer_frequency_mhz/\
-                             n_subband/2
-    refPhaseDelay=int(np.ceil(dsp_delay_us*subband_half_width_mhz))
-    refPhaseDelayFine=int(np.round((digitizer_frequency_mhz/2/subband_half_width_mhz)*(refPhaseDelay-dsp_delay_us*subband_half_width_mhz)))
+    refPhaseDelay=int(np.ceil(dsp_delay_us*(subband_half_width_mhz/2.)))
+    refPhaseDelayFine=int(np.round((digitizer_frequency_mhz/2/(subband_half_width_mhz/2.)*(refPhaseDelay-dsp_delay_us*(subband_half_width_mhz/2.)))))
     processing_delay_us=dsp_delay_us-cable_delay_us
 
     print('-------------------------------------------------------')
@@ -268,7 +269,7 @@ for band in range(4):
         resp_dsp_corr=np.loadtxt(ff_corr_resp_file,dtype='complex')
     else:
         S.log('Running find_freq')
-        freq_dsp_corr,resp_dsp_corr=S.find_freq(band)
+        freq_dsp_corr,resp_dsp_corr=S.find_freq(band,dsp_subbands)
 
     freq_dsp_corr_subset=[]
     resp_dsp_corr_subset=[]
@@ -281,6 +282,13 @@ for band in range(4):
     freq_dsp_corr_subset=np.array(freq_dsp_corr_subset)
     resp_dsp_corr_subset=np.array(resp_dsp_corr_subset)
 
+    # restrict to requested frequency subset
+    idx_dsp_corr = np.where( (freq_dsp_corr_subset > freq_min) & (freq_dsp_corr_subset < freq_max) )    
+
+    # restrict to requested frequencies only
+    freq_dsp_corr_subset=freq_dsp_corr_subset[idx_dsp_corr]
+    resp_dsp_corr_subset=resp_dsp_corr_subset[idx_dsp_corr]    
+    
     # to Hz
     freq_dsp_corr_subset=(freq_dsp_corr_subset)*1.0E6
 
