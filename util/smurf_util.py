@@ -5,7 +5,6 @@ import time
 import os
 import struct
 import time
-import epics
 from scipy import signal
 import shutil
 import glob
@@ -124,7 +123,97 @@ class SmurfUtilMixin(SmurfBase):
         import sys
         pid = subprocess.Popen([sys.executable,JesdWatchdog.__file__])
 
-    def get_amcc_dump(self, ip='10.0.1.4',show_result=True):
+    # this function needs work...we're probably planning to transition
+    # to calling the ipmi commands directly, instead of parsing the
+    # output of commands like amc_dump_bsi.
+    def get_amcc_dump_bsi(self,shm_ip='shm-smrf-sp01',slot=None):
+        """
+        Attempts to parse the output of amcc_dump_bsi.  Right now,
+        just gets the FW git hash, details about the FW build and
+        build string, and details on the AMCs.
+
+        Optional Args:
+        --------------
+        slot (int): Which slot to run the amcc_dump_bsi query on.  If
+                      none provided, will parse epics_root for the
+                      slot number, assuming epics_root is
+                      `smurf_server_s#` with # the slot number.
+        shm_ip (str): The ip of the shelf manager.  Default is
+                      'shm-smrf-sp01'.
+
+        Returns:
+        -------
+        result_dict (dict): A dictionary of parsed results from amcc_dump_bsi.
+        """
+
+        if slot is None:
+            # attempt to guess from epics prefix
+            import re
+            p = re.compile('smurf_server_s([0-9])')
+            m = p.match(self.epics_root)
+            assert (m is not None),'Unable to determine slot number from epics_root={}'.format(self.epics_root)
+            slot=int(m.group(1))
+
+        import subprocess
+        result=subprocess.check_output(['amcc_dump_bsi','--all','%s/%d'%(shm_ip,slot)])
+        result_string=result.decode('utf-8')
+
+        print(result_string)
+        
+        # E.g.:
+        # AMC 0 info: Aux: 01 Ser: 9f0000011d036a70 Type: 0a Ver: C03 BOM: 00 Tag: C03-A01-
+        result_dict={}
+        patterns={}
+        patterns['AMC']=re.compile('AMC\s*([0-1])\s*info:\s*Aux:\s*(\d+)\s*Ser:\s*([a-z0-9]+)\s*Type:\s*([a-z0-9]+)\s*Ver:\s*(C[0-9][0-9])\s*BOM:\s*([0-9]+)\s*Tag:\s*([A-Z0-9a-z\-]+)')
+        # E.g.:
+        #"FW bld string: 'MicrowaveMuxBpEthGen2: Vivado v2018.3, pc95590 (x86_64), Built Tue Apr 30 13:35:05 PDT 2019 by mdewart'"
+        patterns['FW']=re.compile('FW bld string:\s*\'(MicrowaveMuxBpEthGen2):\s*(Vivado)\s*(v2018.3),\s*(pc95590)\s*\((x86_64)\),\s*Built\s*(Tue)\s*(Apr)\s*(30)\s*(13):(35):(05)\s*(PDT)\s*(2019)\s*by\s*(mdewart)\'')
+
+        # E.g.:
+        patterns['FWGIThash']=re.compile('GIT hash:\s*([0-9a-z]+)')
+        #'     GIT hash: 0000000000000000000000000000000000000000'
+
+        for s in result_string.split('\n'):
+            s=s.rstrip().lstrip()
+            for key, p in patterns.items():
+                m=p.match(s)
+                if m is not None:
+                    if key not in result_dict.keys():
+                        result_dict[key]={}
+
+                    if key is 'AMC':
+                        bay=int(m.group(1))
+                        result_dict[key][bay]={}
+                        result_dict[key][bay]['Aux']=m.group(2)
+                        result_dict[key][bay]['Ser']=m.group(3)
+                        result_dict[key][bay]['Type']=m.group(4)
+                        result_dict[key][bay]['Ver']=m.group(5)
+                        result_dict[key][bay]['BOM']=m.group(6)
+                        result_dict[key][bay]['Tag']=m.group(7)
+
+                    if key is 'FWGIThash':
+                        result_dict[key]['GIThash']=m.group(1)                    
+
+                    if key is 'FW':
+                        result_dict[key]['FWBranch']=m.group(1)
+                        result_dict[key]['BuildSuite']=m.group(2)
+                        result_dict[key]['BuildSuiteVersion']=m.group(3)
+                        result_dict[key]['BuildPC']=m.group(4)
+                        result_dict[key]['BuildArch']=m.group(5)
+                        # skipping day spelled out
+                        result_dict[key]['Month']=m.group(7)
+                        result_dict[key]['Day']=m.group(8)
+                        result_dict[key]['Hour']=m.group(9)
+                        result_dict[key]['Minute']=m.group(10)
+                        result_dict[key]['Second']=m.group(11)
+                        result_dict[key]['TimeZone']=m.group(12)
+                        result_dict[key]['Year']=m.group(13)
+                        result_dict[key]['BuiltBy']=m.group(14)
+
+        return result_dict
+
+        
+    def get_amcc_dump(self, ip='10.0.1.4',show_result=True):        
         import subprocess
         result=subprocess.check_output(['amcc_dump','--all','10.0.1.4'])
         result_string=result.decode('utf-8')
