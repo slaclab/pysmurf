@@ -7,7 +7,7 @@
 from epics import caget, caput
 import time
 
-class setup():
+class Setup:
 
 	def set_all_waveforms(self, wave_value):
 
@@ -27,7 +27,7 @@ class setup():
 		# I need to run gui dan showed me to get a better idea
 		# Should end the string with 'ATT:'
 		atten_server = "Location of attenuators"
-		for index range(4):
+		for index in range(4):
 			this_atten = atten_server + "UC[" + str(index) + "]"
 			caput(this_atten, atten_value)
 
