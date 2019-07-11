@@ -41,7 +41,7 @@ class Setup:
 		# Should end the string with 'ATT:'
 		atten_server = "Location of attenuators"
 
-		for index range(4):
+		for index in range(4):
 			this_atten = atten_server + "DC[" + str(index) + "]"
 			caput(this_atten, atten_value)
 
