@@ -10,9 +10,9 @@ slot=int(sys.argv[1])
 epics_prefix = 'smurf_server_s%d'%slot
 
 # HB config
-config_file='experiment_nistcmb_srv10_dspv3_cc02-02_hbOnlyBay0.cfg'
+#config_file='experiment_nistcmb_srv10_dspv3_cc02-02_hbOnlyBay0.cfg'
 # LB config
-#config_file='experiment_nistcmb_srv10_dspv3_cc02-02_lbOnlyBay0.cfg'
+config_file='experiment_nistcmb_srv10_dspv3_cc02-02_lbOnlyBay0.cfg'
 
 if slot!=4:
     assert False,"There isn't a SMuRF carrier in slot %d right now!"%slot
