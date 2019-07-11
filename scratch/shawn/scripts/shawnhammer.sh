@@ -6,17 +6,16 @@ attach_at_end=true
 screenshot_signal_analyzer=false
 configure_pysmurf=true
 reboot=true
-using_timing_master=true
+using_timing_master=false
 run_half_band_test=false
 one_at_a_time=true
 write_config=false
 cpwd=$PWD
-pysmurf=/home/cryo/docker/pysmurf/dspv3
+pysmurf=/home/cryo/docker/pysmurf/nist-cmb
 # path can assume you're in the pysmurf directory
 pysmurf_init_script=scratch/shawn/scripts/init_nist_cmb.py
 
-crate_id=3
-# LB (in slot 4), then HB (in slot 3)
+crate_id=1
 slots_in_configure_order=(4)
 
 tmux_session_name=smurf
