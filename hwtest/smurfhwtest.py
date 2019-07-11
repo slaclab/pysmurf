@@ -20,11 +20,11 @@ class SetupHardware:
 		if hw_to_set == "atten":
 
 			# Location of attenuators missing the server name and specific attenuator exp. UC[1]
-			self.location_all = ":AMCc:FpgaTopLevel:AppTop:AppCore:MicrowaveMuxCore[0]:ATT:"
+			self.location = ":AMCc:FpgaTopLevel:AppTop:AppCore:MicrowaveMuxCore[0]:ATT:"
 		elif hw_to_set == "waveform":
 
 			# Location of waveform missing the server name and specific base number exp. Base[0]:waveformselect
-			self.location_all = ":AMCc:FpgaTopLevel:AppTop:AppCore:SysgenCryo:"
+			self.location = ":AMCc:FpgaTopLevel:AppTop:AppCore:SysgenCryo:"
 		else:
 			print("Hardware entered is not currently supported")
 
