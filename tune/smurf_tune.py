@@ -473,7 +473,7 @@ class SmurfTuneMixin(SmurfBase):
             save_plot=save_plot, grad_cut=grad_cut, freq_min=freq_min,
             freq_max=freq_max, amp_cut=amp_cut,
             make_subband_plot=make_subband_plot, timestamp=timestamp,
-            subband_plot_with_slow=subband_plot_with_slow)
+            subband_plot_with_slow=subband_plot_with_slow) #No default value 
 
         # Assign resonances to channels                                                       
         resonances = {}
@@ -568,7 +568,7 @@ class SmurfTuneMixin(SmurfBase):
 
         eta_phase_array = self.get_eta_phase_array(band)
         eta_phase_array[channels]=[tools.limit_phase_deg(eP+180) if eE<0 \
-            else eP for (eP,eE) in zip(eta_phase_array[channels], etaEst)]
+            else eP for (eP,eE) in zip(eta_phase_array[channels], etaEst)] #should be eta_est
         self.set_eta_phase_array(band, eta_phase_array)
         
                         
@@ -662,7 +662,7 @@ class SmurfTuneMixin(SmurfBase):
 
 
     def plot_tune_summary(self, band, eta_scan=False, show_plot=False,
-                          save_plot=True):
+                          save_plot=True): # function duplicated
         """
         Plots summary of tuning. Requires self.freq_resp to be filled.
         In other words, you must run find_freq and setup_notches
@@ -759,7 +759,7 @@ class SmurfTuneMixin(SmurfBase):
                                       band=band, res_num=k,
                                       timestamp=timestamp, save_plot=save_plot,
                                       show_plot=show_plot, peak_freq=center_freq,
-                                      channel=r['channel'])
+                                      channel=r['channel']) #unexpected param channel
             else:
                 for k in keys:
                     self.log('Eta plot {} of {}'.format(k+1, n_keys))
@@ -2621,7 +2621,7 @@ class SmurfTuneMixin(SmurfBase):
 
         ## Compute and set flux ramp DAC to requested value
         LTC1668RawDacData = np.floor((2**self._num_flux_ramp_dac_bits)*
-            (1-np.abs(fractionFullScale))/2);
+            (1-np.abs(fractionFullScale))/2)
         ## 2s complement
         if fractionFullScale<0:
             LTC1668RawDacData = 2**self._num_flux_ramp_dac_bits-LTC1668RawDacData-1
@@ -3017,7 +3017,7 @@ class SmurfTuneMixin(SmurfBase):
                     pk_max = amp
                     pk_freq = freq
 
-                if idx == len(y) or y[idx + 1] < threshhold:
+                if idx == len(y) or y[idx + 1] < threshhold:#threshold
                     peakstruct_max.append(pk_max)
                     peakstruct_nabove.append(pk_nabove)
                     peakstruct_freq.append(pk_freq)

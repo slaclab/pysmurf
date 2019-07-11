@@ -3,6 +3,9 @@ from pysmurf.base import SmurfBase
 import time
 import os,sys
 
+class NotFloatTypeException(Exception):
+    pass
+
 class SmurfIVMixin(SmurfBase):
 
     def slow_iv(self, band, bias_group, wait_time=.25, bias=None, bias_high=19.9, 
@@ -103,14 +106,14 @@ class SmurfIVMixin(SmurfBase):
             show_plot=show_plot, save_plot=save_plot, R_sh=R_sh, 
             high_current_mode=high_current_mode, rn_accept_min=rn_accept_min,
             rn_accept_max=rn_accept_max, gcp_mode=gcp_mode,grid_on=grid_on,
-            phase_excursion_min=phase_excursion_min)
+            phase_excursion_min=phase_excursion_min) #unexpected param high_current_mode,rn_accept_max,rn_accept_min
 
     def slow_iv_all(self, bias_groups=None, wait_time=.1, bias=None, 
                     bias_high=1.5, gcp_mode=True, bias_low=0, bias_step=.005, 
                     show_plot=False, high_current_wait=1., cool_wait=30,
                     make_plot=True, save_plot=True, channels=None, band=None,
                     high_current_mode=True, overbias_voltage=8., 
-                    grid_on=True, phase_excursion_min=3.):
+                    grid_on=True, phase_excursion_min=3.): #in the docstring, bias_high is 19.9, but here is 1.5
         """
         Steps the TES bias down slowly. Starts at bias_high to bias_low with
         step size bias_step. Waits wait_time between changing steps.
@@ -127,6 +130,17 @@ class SmurfIVMixin(SmurfBase):
         bias_low (int): The minimum TES bias in volts. Default 0
         bias_step (int): The step size in volts. Default .1
         """
+        #assertion needed
+        #if bias: 
+        #   temp = bias[0] #check desc. values in bias
+        #   for value in bias:
+        #       if value:
+        #           if type(value) is not float:
+        #               raise NotFloatTypeException('value in bias not Float type')
+        #           assert value <= temp
+        #           temp = value
+        #assert isinstance(wait_time,float) & isinstance((bias_high,bias_low,bias_step),int)
+        #In the docstring, bias_high & bias_low & bias_step are all int, but the default value is float. 
         if bias_groups is None:
             bias_groups = self.all_groups
 
@@ -238,6 +252,13 @@ class SmurfIVMixin(SmurfBase):
         phase_excursion_min (float): minimum change in phase to be analyzed, 
           defined as abs(phase_max - phase_min). Default 1, units radians. 
         """
+        #assertion needed
+        #if bias_high_array: 
+        #   for value in bias_high_array:
+        #       if value:
+        #           if type(value) is not float:
+        #               raise NotFloatTypeException('value in bias_high_array not Float type')
+
 
         original_biases = self.get_tes_bias_bipolar_array()
 
@@ -584,7 +605,7 @@ class SmurfIVMixin(SmurfBase):
             s = i*step_size
             e = (i+1) * step_size
             sb = int(s + np.ceil(step_size * 3. / 5))
-            eb = int(s + np.ceil(step_size * 9. / 10))
+            eb = int(s + np.ceil(step_size * 9. / 10)) # should be e + np.ceil?
 
             resp_bin[i] = np.mean(resp[sb:eb])
 
@@ -906,7 +927,7 @@ class SmurfIVMixin(SmurfBase):
                 plt.rcParams["patch.force_edgecolor"] = True
 
                 if not show_plot:
-                    plot.ioff()
+                    plot.ioff() #should be plt.ioff()
 
                 fig, ax = plt.subplots(1, sharex=True)
                 ax.plot(phase)
@@ -924,7 +945,7 @@ class SmurfIVMixin(SmurfBase):
 
                     plot_name = basename + \
                         'plc_stream_b{}_g{}_ch{:03}.png'.format(b, bg_str, ch)
-                    plt.savefig(of.path.join(plot_dir, plt_name), bbox_inches='tight', 
+                    plt.savefig(of.path.join(plot_dir, plt_name), bbox_inches='tight', #should be plot_name?
                         dpi=300)
 
                 if not show_plot:

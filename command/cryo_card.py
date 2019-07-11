@@ -25,9 +25,9 @@ class CryoCard():
       self.cycle_count_address = 0x6  # used for testing
       self.ps_en_address = 0x7 # PS enable (HEMT: bit 0, 50k: bit 1)
       self.ac_dc_status_address = 0x8 # AC/DC mode status (bit 0: FRN_RLY, bit 1: FRP_RLY)
-      self.adc_scale = 3.3/(1024.0 * 5);
+      self.adc_scale = 3.3/(1024.0 * 5)
       self.temperature_scale = 1/.028; # was 100
-      self.temperature_offset =.25;
+      self.temperature_offset =.25
       self.bias_scale = 1.0
       self.max_retries = 5;  #number of re-tries waiting for response
       self.retry = 0 # counts nubmer of retries
@@ -81,8 +81,8 @@ class CryoCard():
       return((volts - self.temperature_offset) * self.temperature_scale)
 
    def read_cycle_count(self):
-      data = self.do_read(self.count_address)
-      return( cmd_data(data))  # do we have the right addres
+      data = self.do_read(self.count_address) # the attr should be cycle_count_address
+      return(cmd_data(data))  # do we have the right addres
 
    def write_ps_en(self, enables):
       """
