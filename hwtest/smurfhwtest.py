@@ -18,8 +18,11 @@ class SetupHardware:
 	# Saves value to set for the variable chosen
 
 	# From Dan's code
+
 	# This is a list of values that an attenuator can be set to
 	atten_values = [0, 1, 2, 4, 8, 16, 31]
+
+	# This is the name of the server as specified by Dan
 	server_name = "dans_epics"
 
 	def __init__(self, hw_to_set, hw_inst=-1):
@@ -29,7 +32,7 @@ class SetupHardware:
 			self.location = SetupHardware.server_name + ":AMCc:FpgaTopLevel:AppTop:AppCore:MicrowaveMuxCore[0]:ATT:UC"
 
 			# Checks if entered instance is within correct range
-			if hw_inst in range(1,5):
+			if hw_inst in range(1, 5):
 				self.inst = hw_inst
 			elif hw_inst == -1:
 				# This is a place holder
@@ -41,11 +44,11 @@ class SetupHardware:
 
 		elif hw_to_set == "dcatten":
 
-			#Location of dc attneuators missing the server name
+			# Location of dc attneuators missing the server name
 			self.location = SetupHardware.server_name + ":AMCc:FpgaTopLevel:AppTop:AppCore:MicrowaveMuxCore[0]:ATT:DC"
 
 			# Checks if entered instance is within correct range
-			if hw_inst in range(1,5):
+			if hw_inst in range(1, 5):
 				self.inst = hw_inst
 			elif hw_inst == -1:
 				# This is a place holder
@@ -168,41 +171,41 @@ hw_types = ["ucatten", "dcatten", "waveform"]
 print("\n")
 print("Testing all UC attenuators...")
 uc_attens = SetupHardware(hw_types[0])
-uc_attens.set_all_attens(1)
+uc_attens.set_all_attens(atten_value=1)
 
 # Testing DC attenuators
 print("\n")
 print("Testing all DC attenuators...")
 dc_attens = SetupHardware(hw_types[1])
-dc_attens.set_all_attens(0)
+dc_attens.set_all_attens(atten_value=0)
 
 # Testing invalid type attenuator
 print("\n")
 print("Testing incorrect hardware type...")
 invalid_hardware = SetupHardware("iohfwehoh", hw_inst=3)
-invalid_hardware.set_atten(16)
+invalid_hardware.set_atten(atten_value=16)
 
 # Testing atten_values list
 print("\n")
 print("Testing atten_values at instance 2...")
 my_atten = SetupHardware(hw_types[0], hw_inst=2)
 for num in SetupHardware.atten_values:
-	my_atten.set_atten(num)
+	my_atten.set_atten(atten_value=num)
 
 # Testing all waveforms
 print("\n")
 print("Testing set_all_waveforms...")
 all_waveforms = SetupHardware(hw_types[2])
-all_waveforms.set_all_waveforms(1)
+all_waveforms.set_all_waveforms(wave_value=1)
 
 # Testing set_waveform
 print("\n")
 print("Testing set_waveform with instance 3 and value 0...")
 my_waveform = SetupHardware(hw_types[2], hw_inst=3)
-my_waveform.set_waveform(0)
+my_waveform.set_waveform(wave_value=0)
 
 # Testing what happens when instance is forgotten for a single attenuator
 print("\n")
 print("Testing unspecified uc attenuator instance...")
 unknown_atten = SetupHardware(hw_types[0])
-unknown_atten.set_atten(8)
+unknown_atten.set_atten(atten_value=8)
