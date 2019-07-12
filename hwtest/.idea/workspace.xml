@@ -22,8 +22,8 @@
       <file pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/smurfhwtest.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="-658">
-              <caret line="8" lean-forward="true" selection-start-line="8" selection-end-line="8" />
+            <state relative-caret-position="362">
+              <caret line="68" column="27" selection-start-line="68" selection-start-column="26" selection-end-line="68" selection-end-column="27" />
               <folding>
                 <element signature="e#204#234#0" expanded="true" />
               </folding>
@@ -242,8 +242,8 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/smurfhwtest.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="-658">
-          <caret line="8" lean-forward="true" selection-start-line="8" selection-end-line="8" />
+        <state relative-caret-position="362">
+          <caret line="68" column="27" selection-start-line="68" selection-start-column="26" selection-end-line="68" selection-end-column="27" />
           <folding>
             <element signature="e#204#234#0" expanded="true" />
           </folding>
