@@ -28,55 +28,23 @@ class SetupHardware:
 	def __init__(self, hw_to_set, hw_inst=-1):
 		if hw_to_set == "ucatten":
 
-			# Location of uc attenuators missing the server name
+			# Location of uc attenuators
 			self.location = SetupHardware.server_name + ":AMCc:FpgaTopLevel:AppTop:AppCore:MicrowaveMuxCore[0]:ATT:UC"
-
-			# Checks if entered instance is within correct range
-			if hw_inst in range(1, 5):
-				self.inst = hw_inst
-			elif hw_inst == -1:
-				# This is a place holder
-				# If user doesn't input an instance we will assume they want to
-				# update all instances of the hardware at the same time
-				self.inst = hw_inst
-			else:
-				print("ERROR: Unrecognized instance")
 
 		elif hw_to_set == "dcatten":
 
-			# Location of dc attneuators missing the server name
+			# Location of dc attneuators
 			self.location = SetupHardware.server_name + ":AMCc:FpgaTopLevel:AppTop:AppCore:MicrowaveMuxCore[0]:ATT:DC"
-
-			# Checks if entered instance is within correct range
-			if hw_inst in range(1, 5):
-				self.inst = hw_inst
-			elif hw_inst == -1:
-				# This is a place holder
-				# If user doesn't input an instance we will assume they want to
-				# update all instances of the hardware at the same time
-				self.inst = hw_inst
-			else:
-				print("ERROR: Unrecognized instance")
 
 		elif hw_to_set == "waveform":
 
-			# Location of waveform missing the server name and specific base number exp. Base[0]:waveformselect
+			# Location of waveform missing specific base number exp. Base[0]:waveformselect
 			self.location = SetupHardware.server_name + ":AMCc:FpgaTopLevel:AppTop:AppCore:SysgenCryo:"
-
-			# Checks if entered instance is within correct range
-			if hw_inst in range(4):
-				self.inst = hw_inst
-			elif hw_inst == -1:
-				# This is a place holder
-				# If user doesn't input an instance we will assume they want to
-				# update all instances of the hardware at the same time
-				self.inst = hw_inst
-			else:
-				print("ERROR: Unrecognized instance")
 
 		else:
 			self.location = "LOCATION UNKNOWN"
-			self.inst = hw_inst
+
+		self.inst = hw_inst
 
 	def set_atten(self, atten_value):
 
@@ -87,14 +55,19 @@ class SetupHardware:
 		if atten_value in SetupHardware.atten_values:
 			value_to_set = atten_value
 		else:
-			print("Attenuator value has been set to default of 0")
+			print("ERROR: Attenuator value invalid. Value has been set to default of 0")
 			value_to_set = 0
 
+		# Checking if all conditions are satisfied to write value to desired location
 		if self.inst == -1:
 			# -1 is the default for init function
 			# We return an error because the user did not specify which instance
 			# to write this value to
 			print("ERROR: Attenuator instance was not specified")
+
+		elif self.inst not in range(1, 5):
+			# Covers any instance that is not in proper range
+			print("ERROR: Attenuator instance invalid")
 
 		elif "dans_epics" not in self.location:
 			# This is true if hardware entered is not supported
@@ -116,11 +89,16 @@ class SetupHardware:
 
 	def set_waveform(self, wave_value):
 
+		# Checking if all conditions are satisfied to write value to desired location
 		if self.inst == -1:
 			# -1 is the default for init function
 			# We return an error because the user did not specify which instance
 			# to write this value to
 			print("ERROR: Waveform instance was not specified")
+
+		elif self.inst not in range(4):
+			# Covers any inst that is not in proper range
+			print("ERROR: Waveform instance entered is invalid")
 
 		elif "dans_epics" not in self.location:
 			# This is true if hardware entered is not supported
@@ -130,12 +108,12 @@ class SetupHardware:
 
 			# If instance is properly specified, we are able to
 			# write the value to waveform variable
-			wave_location = self.location + "[" + str(self.inst) + "]"
+			wave_location = self.location + "Base[" + str(self.inst) + "]:waveformSelect"
 
 			if wave_value == 0 or wave_value == 1:
 				value_to_set = wave_value
 			else:
-				print("Waveform has been set to default value of 0")
+				print("ERROR: Waveform value invalid. Value has been set to default of 0")
 				value_to_set = 0
 
 			# ~~ FOR SERVER TESTING ~~
@@ -209,3 +187,9 @@ print("\n")
 print("Testing unspecified uc attenuator instance...")
 unknown_atten = SetupHardware(hw_types[0])
 unknown_atten.set_atten(atten_value=8)
+
+# Testing what happens when unexpected value is passed to set_atten
+print("\n")
+print("Testing invalid atten_value passed to set_atten")
+wrong_value_atten = SetupHardware(hw_types[0], hw_inst=0)
+wrong_value_atten.set_atten(atten_value=100)
