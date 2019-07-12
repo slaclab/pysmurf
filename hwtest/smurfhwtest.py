@@ -15,7 +15,6 @@ class SetupHardware:
 
 	# Takes in which hardware to set (attenuator or waveform)
 	# Sets the location of the variable chosen
-	# Saves value to set for the variable chosen
 
 	# From Dan's code
 
