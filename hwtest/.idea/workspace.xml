@@ -25,7 +25,7 @@
         <entry file="file://$PROJECT_DIR$/smurfhwtest.py">
           <provider selected="true" editor-type-id="text-editor">
             <state relative-caret-position="362">
-              <caret line="159" column="34" selection-start-line="159" selection-start-column="34" selection-end-line="159" selection-end-column="34" />
+              <caret line="165" column="27" lean-forward="true" selection-start-line="165" selection-start-column="27" selection-end-line="165" selection-end-column="27" />
             </state>
           </provider>
         </entry>
@@ -185,12 +185,12 @@
       <window_info id="Favorites" order="2" side_tool="true" />
       <window_info anchor="bottom" id="Message" order="0" />
       <window_info anchor="bottom" id="Find" order="1" />
-      <window_info active="true" anchor="bottom" id="Run" order="2" visible="true" weight="0.32939634" />
+      <window_info anchor="bottom" id="Run" order="2" weight="0.32939634" />
       <window_info anchor="bottom" id="Debug" order="3" weight="0.4" />
       <window_info anchor="bottom" id="Cvs" order="4" weight="0.25" />
       <window_info anchor="bottom" id="Inspection" order="5" weight="0.4" />
       <window_info anchor="bottom" id="TODO" order="6" />
-      <window_info anchor="bottom" id="Version Control" order="7" weight="0.32939634" />
+      <window_info active="true" anchor="bottom" id="Version Control" order="7" visible="true" weight="0.32939634" />
       <window_info anchor="bottom" id="Terminal" order="8" />
       <window_info anchor="bottom" id="Event Log" order="9" side_tool="true" />
       <window_info anchor="bottom" id="Python Console" order="10" />
@@ -267,7 +267,7 @@
     <entry file="file://$PROJECT_DIR$/smurfhwtest.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="362">
-          <caret line="159" column="34" selection-start-line="159" selection-start-column="34" selection-end-line="159" selection-end-column="34" />
+          <caret line="165" column="27" lean-forward="true" selection-start-line="165" selection-start-column="27" selection-end-line="165" selection-end-column="27" />
         </state>
       </provider>
     </entry>

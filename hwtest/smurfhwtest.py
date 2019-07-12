@@ -4,10 +4,10 @@
 # Have not had a chance to test any of these functions
 # I still need to run Dan's server to check some things
 
-# !!! Remember to uncomment epics import when merging local and regular hwtest !!!
+# !!! Remember to uncomment imports when merging local and regular hwtest !!!
 
 # from epics import caget, caput
-import time
+# import time
 
 
 class SetupHardware:
@@ -83,7 +83,7 @@ class SetupHardware:
 		atten_location = self.location + "[" + str(self.inst) + "]"
 
 		# ~~ FOR SERVER INTERFACE ~~
-		# caput(self.location, self.hw_value)
+		# caput(atten_location, value_to_set)
 		# time.sleep(0.1)
 
 		# ~~ FOR LOCAL TESTING ~~
@@ -100,7 +100,7 @@ class SetupHardware:
 			value_to_set = 0
 
 		# ~~ FOR SERVER TESTING ~~
-		# caput(self.location, self.hw_value)
+		# caput(wave_location, value_to_set)
 
 		# ~~ FOR LOCAL TESTING ~~
 		print("Variable Location:", wave_location)
@@ -142,9 +142,9 @@ dc_attens.set_all_attens(0)
 
 # Testing invalid type attenuator
 print("\n")
-print("Testing incorrect attenuator type...")
-invalid_attens = SetupHardware("atten", hw_inst=3)
-invalid_attens.set_atten(16)
+print("Testing incorrect hardware type...")
+invalid_hardware = SetupHardware("iohfwehoh", hw_inst=3)
+invalid_hardware.set_atten(16)
 
 # Testing atten_values list
 print("\n")
