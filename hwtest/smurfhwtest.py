@@ -35,7 +35,7 @@ class SetupHardware:
 	# 	# Don't know where to find wave_form_server
 	# 	# I need to run the gui dan showed me to get a better idea
 	# 	# Should end the string with a colon before the word Base
-	# 	wave_form_server = self.location_all
+	# 	wave_form_server = self.location
 	#
 	# 	# Need to set all four Base waveforms
 	# 	for index in range(4):
@@ -48,7 +48,7 @@ class SetupHardware:
 	# 	# I need to run gui dan showed me to get a better idea
 	# 	# Should end the string with 'ATT:'
 	#
-	# 	atten_server = self.location_all
+	# 	atten_server = self.location
 	# 	for index in range(4):
 	# 		this_atten = atten_server + "UC[" + str(index) + "]"
 	# 		caput(this_atten, atten_value)
@@ -61,7 +61,7 @@ class SetupHardware:
 	# 	# I don't know where to find dc_atten_server
 	# 	# I need to run gui dan showed me to get a better idea
 	# 	# Should end the string with 'ATT:'
-	# 	atten_server = self.location_all
+	# 	atten_server = self.location
 	#
 	# 	for index in range(4):
 	# 		this_atten = atten_server + "DC[" + str(index) + "]"
@@ -71,4 +71,4 @@ class SetupHardware:
 	# 		time.sleep(0.1)
 
 all_attens = SetupHardware(0, "atten")
-print("This is the address for all attenuators: ", all_attens.location_all)
+print("This is the address for all attenuators: ", all_attens.location)
