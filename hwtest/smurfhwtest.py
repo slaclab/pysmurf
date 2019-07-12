@@ -20,100 +20,135 @@ class SetupHardware:
 	# This is a list of values that an attenuator can be set to
 	atten_values = [0, 1, 2, 4, 8, 16, 31]
 
-	def __init__(self, hw_to_set, hw_value=0):
-		if hw_to_set == "atten":
+	def __init__(self, hw_to_set, hw_inst=-1):
+		if hw_to_set == "ucatten":
 
-			# Location of attenuators missing the server name and specific attenuator exp. UC[1]
-			self.location = ":AMCc:FpgaTopLevel:AppTop:AppCore:MicrowaveMuxCore[0]:ATT:"
+			# Location of uc attenuators missing the server name
+			self.location = ":AMCc:FpgaTopLevel:AppTop:AppCore:MicrowaveMuxCore[0]:ATT:UC"
+
+			# Checks if entered instance is within correct range
+			if hw_inst in range(1,5):
+				self.inst = hw_inst
+			elif hw_inst == -1:
+				# This is a place holder
+				# If user doesn't input an instance we will assume they want to
+				# update all instances of the hardware at the same time
+				self.inst = hw_inst
+			else:
+				print("ERROR: Unrecognized instance")
+
+		elif hw_to_set == "dcatten":
+
+			#Location of dc attneuators missing the server name
+			self.location = ":AMCc:FpgaTopLevel:AppTop:AppCore:MicrowaveMuxCore[0]:ATT:DC"
+
+			# Checks if entered instance is within correct range
+			if hw_inst in range(1,5):
+				self.inst = hw_inst
+			elif hw_inst == -1:
+				self.inst = 1
+			else:
+				print("ERROR: Unrecognized instance")
+
 		elif hw_to_set == "waveform":
 
 			# Location of waveform missing the server name and specific base number exp. Base[0]:waveformselect
 			self.location = ":AMCc:FpgaTopLevel:AppTop:AppCore:SysgenCryo:"
+
+			# Checks if entered instance is within correct range
+			if hw_inst in range(4):
+				self.inst = hw_inst
+			elif hw_inst == -1:
+				self.inst = 1
+			else:
+				print("ERROR: Unrecognized instance")
+
 		else:
 			print("Hardware entered is not currently supported")
 			self.location = "LOCATION UNKNOWN"
+			self.inst = hw_inst
 
-		self.hw_value = hw_value
-
-	def set_atten(self, atten_type, atten_num, atten_value=-1):
+	def set_atten(self, atten_value):
 
 		# This allows for user to input the attenuator value at init or here.
 		# We are checking to see if user enters a number
-		if atten_value == -1:
-			pass
 
+		# Here we make sure user entered attenuator value is a valid value to set
+		if atten_value in SetupHardware.atten_values:
+			value_to_set = atten_value
 		else:
-			# Here we make sure user entered attenuator value is a valid value to set
-			if atten_value in SetupHardware.atten_values:
-				self.hw_value = atten_value
-			else:
-				print("Attenuator value has been set to default of 0")
-				self.hw_value = 0
+			print("Attenuator value has been set to default of 0")
+			value_to_set = 0
 
-		atten_check = atten_type.upper()
+		atten_location = self.location + "[" + str(self.inst) + "]"
 
-		# Checks if proper attenuator type is entered
-		if atten_check == "UC" or atten_check == "DC":
-			self.atten_location = self.location + atten_check + "[" + str(atten_num) + "]"
+		# ~~ FOR SERVER INTERFACE ~~
+		# caput(self.location, self.hw_value)
+		# time.sleep(0.1)
 
-			# ~~ FOR SERVER INTERFACE ~~
-			# caput(self.location, self.hw_value)
-			# time.sleep(0.1)
+		# ~~ FOR LOCAL TESTING ~~
+		print("Variable location:", atten_location)
+		print("Value to set:", value_to_set)
 
-			# ~~ FOR LOCAL TESTING ~~
-			print("Variable location:", self.atten_location)
-			print("Value to set:", self.hw_value)
+	def set_waveform(self, wave_value):
+		wave_location = self.location + "Base[" + str(self.inst) + "]:waveformselect"
 
+		if wave_value == 0 or wave_value == 1:
+			value_to_set = wave_value
 		else:
-			print("ERROR: Attenuator type not recognized")
-
-	def set_waveform(self, wave_num):
-		self.wave_location = self.location + "Base[" + str(wave_num) + "]:waveformselect"
+			print("Waveform has been set to default value of 0")
+			value_to_set = 0
 
 		# ~~ FOR SERVER TESTING ~~
 		# caput(self.location, self.hw_value)
 
 		# ~~ FOR LOCAL TESTING ~~
-		print("Variable Location:", self.wave_location)
-		print("Value to set:", self.hw_value)
+		print("Variable Location:", wave_location)
+		print("Value to set:", value_to_set)
 
-	def set_all_waveforms(self):
+	def set_all_waveforms(self, wave_value):
 
 		# Need to set all four Base waveforms
 		for index in range(4):
-			self.set_waveform(index)
+			self.inst = index
+			self.set_waveform(wave_value)
 
-	def set_all_attens(self, atten_type):
+	def set_all_attens(self, atten_value):
 
 		# index 1-4 because attenuators are labeled 1-4 not 0-3 like waveforms
 		# Use for loop to iterate through all attenuators
 		for index in range(1, 5):
-			self.set_atten(atten_type, index)
+			self.inst = index
+			self.set_atten(atten_value)
+
 
 # Variables to use for local testing
 # __________________________________
 
+# Ensures that supported hardware type is selected
+hw_types = ["ucatten", "dcatten", "waveform"]
+
 # Testing UC attenuators
 print("\n")
 print("Testing all UC attenuators...")
-uc_attens = SetupHardware("atten")
-uc_attens.set_all_attens("uc")
+uc_attens = SetupHardware(hw_types[0])
+uc_attens.set_all_attens(1)
 
 # Testing DC attenuators
 print("\n")
 print("Testing all DC attenuators...")
-dc_attens = SetupHardware("atten", 1)
-dc_attens.set_all_attens("dc")
+dc_attens = SetupHardware(hw_types[1])
+dc_attens.set_all_attens(0)
 
 # Testing invalid type attenuator
 print("\n")
 print("Testing incorrect attenuator type...")
 invalid_attens = SetupHardware("atten", 3)
-invalid_attens.set_atten("lc", 2)
+invalid_attens.set_atten(16)
 
 # Testing atten_values list
 print("\n")
 print("Testing atten_values...")
-my_atten = SetupHardware("atten")
+my_atten = SetupHardware(hw_types[0], 2)
 for num in SetupHardware.atten_values:
-	my_atten.set_atten("UC", "3", num)
+	my_atten.set_atten(num)
