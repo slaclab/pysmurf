@@ -143,12 +143,24 @@ dc_attens.set_all_attens(0)
 # Testing invalid type attenuator
 print("\n")
 print("Testing incorrect attenuator type...")
-invalid_attens = SetupHardware("atten", 3)
+invalid_attens = SetupHardware("atten", hw_inst=3)
 invalid_attens.set_atten(16)
 
 # Testing atten_values list
 print("\n")
-print("Testing atten_values...")
-my_atten = SetupHardware(hw_types[0], 2)
+print("Testing atten_values at instance 2...")
+my_atten = SetupHardware(hw_types[0], hw_inst=2)
 for num in SetupHardware.atten_values:
 	my_atten.set_atten(num)
+
+# Testing all waveforms
+print("\n")
+print("Testing set_all_waveforms...")
+all_waveforms = SetupHardware(hw_types[2])
+all_waveforms.set_all_waveforms(1)
+
+# Testing set_waveform
+print("\n")
+print("Testing set_waveform with instance 3 and value 0...")
+my_waveform = SetupHardware(hw_types[2], hw_inst=3)
+my_waveform.set_waveform(0)
