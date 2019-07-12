@@ -27,48 +27,44 @@ class SetupHardware:
 			self.location = ":AMCc:FpgaTopLevel:AppTop:AppCore:SysgenCryo:"
 		else:
 			print("Hardware entered is not currently supported")
+			self.location = "LOCATION UNKNOWN"
 
 		self.hw_value = hw_value
 
-	# def set_all_waveforms(self, wave_value):
-	#
-	# 	# Don't know where to find wave_form_server
-	# 	# I need to run the gui dan showed me to get a better idea
-	# 	# Should end the string with a colon before the word Base
-	# 	wave_form_server = self.location
-	#
-	# 	# Need to set all four Base waveforms
-	# 	for index in range(4):
-	# 		this_waveform = wave_form_server + "Base[" + str(index) + "]:waveformselect"
-	# 		caput(this_waveform, wave_value)
+	def set_atten(self, atten_type, atten_num):
+		self.location = self.location + atten_type.upper() + "[" + str(atten_num) + "]"
 
-	# def set_all_uc_atten(self, atten_value):
-	#
-	# 	# I don't know where to find uc_atten_server
-	# 	# I need to run gui dan showed me to get a better idea
-	# 	# Should end the string with 'ATT:'
-	#
-	# 	atten_server = self.location
-	# 	for index in range(4):
-	# 		this_atten = atten_server + "UC[" + str(index) + "]"
-	# 		caput(this_atten, atten_value)
-	#
-	# 		# Need to pause after setting each attenuator
-	# 		time.sleep(0.1)
+		# ~~ FOR SERVER INTERFACE ~~
+		# caput(self.location, self.hw_value)
+		# time.sleep(0.1)
 
-	# def set_all_dc_atten(self, atten_value):
-	#
-	# 	# I don't know where to find dc_atten_server
-	# 	# I need to run gui dan showed me to get a better idea
-	# 	# Should end the string with 'ATT:'
-	# 	atten_server = self.location
-	#
-	# 	for index in range(4):
-	# 		this_atten = atten_server + "DC[" + str(index) + "]"
-	# 		caput(this_atten, atten_value)
-	#
-	# 		# Need to pause after setting each attenuator
-	# 		time.sleep(0.1)
+		# ~~ FOR LOCAL TESTING ~~
+		print("Variable location:", self.location)
+		print("Value to set:", self.hw_value)
+
+	def set_waveform(self, wave_num):
+		self.location = self.location + "Base[" + str(wave_num) + "]:waveformselect"
+
+		# ~~ FOR SERVER TESTING ~~
+		# caput(self.location, self.hw_value)
+
+		# ~~ FOR LOCAL TESTING ~~
+		print("Variable Location:", self.location)
+		print("Value to set:", self.hw_value)
+
+	def set_all_waveforms(self):
+
+		# Need to set all four Base waveforms
+		for index in range(4):
+			self.set_waveform(index)
+
+	def set_all_attens(self, atten_type):
+
+		# index 1-4 because attenuators are labeled 1-4 not 0-3 like waveforms
+		# Use for loop to iterate through all attenuators
+		for index in range(1, 5):
+			self.set_atten(atten_type, index)
+
 
 all_attens = SetupHardware(0, "atten")
-print("This is the address for all attenuators: ", all_attens.location)
+all_attens.set_all_attens("uc")
