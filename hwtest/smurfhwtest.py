@@ -1,8 +1,9 @@
 # This file will be comprised of functions used
 # to perform Dan's tests on smurf hardware
 
-# Have not had a chance to test any of these functions
 # I still need to run Dan's server to check some things
+# Dan said server name might be 'dans_epics'
+# Will use this in server_name for now until I find it doesn't work
 
 # !!! Remember to uncomment imports when merging local and regular hwtest !!!
 
@@ -19,12 +20,13 @@ class SetupHardware:
 	# From Dan's code
 	# This is a list of values that an attenuator can be set to
 	atten_values = [0, 1, 2, 4, 8, 16, 31]
+	server_name = "dans_epics"
 
 	def __init__(self, hw_to_set, hw_inst=-1):
 		if hw_to_set == "ucatten":
 
 			# Location of uc attenuators missing the server name
-			self.location = ":AMCc:FpgaTopLevel:AppTop:AppCore:MicrowaveMuxCore[0]:ATT:UC"
+			self.location = SetupHardware.server_name + ":AMCc:FpgaTopLevel:AppTop:AppCore:MicrowaveMuxCore[0]:ATT:UC"
 
 			# Checks if entered instance is within correct range
 			if hw_inst in range(1,5):
@@ -40,7 +42,7 @@ class SetupHardware:
 		elif hw_to_set == "dcatten":
 
 			#Location of dc attneuators missing the server name
-			self.location = ":AMCc:FpgaTopLevel:AppTop:AppCore:MicrowaveMuxCore[0]:ATT:DC"
+			self.location = SetupHardware.server_name + ":AMCc:FpgaTopLevel:AppTop:AppCore:MicrowaveMuxCore[0]:ATT:DC"
 
 			# Checks if entered instance is within correct range
 			if hw_inst in range(1,5):
@@ -53,7 +55,7 @@ class SetupHardware:
 		elif hw_to_set == "waveform":
 
 			# Location of waveform missing the server name and specific base number exp. Base[0]:waveformselect
-			self.location = ":AMCc:FpgaTopLevel:AppTop:AppCore:SysgenCryo:"
+			self.location = SetupHardware.server_name + ":AMCc:FpgaTopLevel:AppTop:AppCore:SysgenCryo:"
 
 			# Checks if entered instance is within correct range
 			if hw_inst in range(4):
