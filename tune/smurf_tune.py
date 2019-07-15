@@ -401,8 +401,8 @@ class SmurfTuneMixin(SmurfBase):
                 band=band, make_plot=make_plot,
                 save_plot=save_plot, show_plot=show_plot, grad_cut=grad_cut, freq_min=freq_min,
                 freq_max=freq_max, amp_cut=amp_cut,
-                make_subband_plot=make_subband_plot, timestamp=timestamp,
-                subband_plot_with_slow=subband_plot_with_slow, pad=50, min_gap=50)
+                make_subband_plot=make_subband_plot,subband_plot_with_slow=subband_plot_with_slow, timestamp=timestamp,
+                 pad=50, min_gap=50)
 
         # Assign resonances
         resonances = {}
@@ -471,9 +471,8 @@ class SmurfTuneMixin(SmurfBase):
         
         peaks = self.find_peak(freq, resp, band=band, make_plot=make_plot,
             save_plot=save_plot, grad_cut=grad_cut, freq_min=freq_min,
-            freq_max=freq_max, amp_cut=amp_cut,
-            make_subband_plot=make_subband_plot, timestamp=timestamp,
-            subband_plot_with_slow=subband_plot_with_slow) #No default value 
+            freq_max=freq_max, amp_cut=amp_cut,timestamp=timestamp)
+           
 
         # Assign resonances to channels                                                       
         resonances = {}
@@ -1105,8 +1104,7 @@ class SmurfTuneMixin(SmurfBase):
                     ax[1].set_xlabel('Freq [MHz]')
                     ax[1].set_ylabel('Amp')
 
-                    ax[0].set_title('Band {} Subband {}'.format(band,
-                                                                sb, sbf))
+                    ax[0].set_title('Band {} Subband {} Subband_freq {}'.format(band,sb, sbf))
 
                     if subband_plot_with_slow:
                         ff = np.arange(-3, 3.1, .05)
@@ -1376,7 +1374,7 @@ class SmurfTuneMixin(SmurfBase):
 
     def plot_eta_fit(self, freq, resp, eta=None, eta_mag=None, peak_freq=None,
         eta_phase_deg=None, r2=None, save_plot=True, show_plot=False, timestamp=None, 
-        res_num=None, band=None, sk_fit=None, f_slow=None, resp_slow=None):
+        res_num=None, band=None, sk_fit=None, f_slow=None, resp_slow=None,channel = None):
         """
         Plots the eta parameter fits
 
@@ -2610,8 +2608,7 @@ class SmurfTuneMixin(SmurfBase):
                 LTC1668RawDacData0=np.floor(0.5*(2**self._num_flux_ramp_dac_bits))
                 self.log("Before switching to fixed DC flux ramp output, " + 
                          " explicitly setting flux ramp DAC to zero "+
-                         "(LTC1668RawDacData0={})".format(mode_control,LTC1668RawDacData0), 
-                         self.LOG_USER)
+                         "(LTC1668RawDacData0={})".format(mode_control,LTC1668RawDacData0),self.LOG_USER)
                 self.set_flux_ramp_dac(LTC1668RawDacData0)
 
                 self.log("Flux ramp ModeControl is {}".format(mode_control) +
@@ -3017,7 +3014,7 @@ class SmurfTuneMixin(SmurfBase):
                     pk_max = amp
                     pk_freq = freq
 
-                if idx == len(y) or y[idx + 1] < threshhold:#threshold
+                if idx == len(y) or y[idx + 1] < threshold:#threshold
                     peakstruct_max.append(pk_max)
                     peakstruct_nabove.append(pk_nabove)
                     peakstruct_freq.append(pk_freq)
