@@ -54,13 +54,19 @@ class UCAttenuator(Attenuator):
 		self.location += "UC"
 
 
+class DCAttenuator(Attenuator):
+
+	def __init__(self, atten_inst):
+		super().__init__(atten_inst)
+		self.location += "DC"
+
 # Variables to use for local testing
 # __________________________________
 
 # Testing attenuator
 print("\n")
 print("Testing set_attenuator function...")
-my_attenuator = UCAttenuator()
+my_attenuator = UCAttenuator(atten_inst=4)
 my_attenuator.set_value(value_to_set=8)
 
 # Testing set_all
@@ -68,3 +74,9 @@ print("\n")
 print("Testing set_all function...")
 all_attenuators = UCAttenuator()
 all_attenuators.set_all(value_to_set=2)
+
+# Testing DC attenuator
+print("\n")
+print("Testing DC attenuator class...")
+dc_attenuator = DCAttenuator(atten_inst=1)
+dc_attenuator.set_value(value_to_set=16)
