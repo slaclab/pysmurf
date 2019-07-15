@@ -927,7 +927,7 @@ class SmurfIVMixin(SmurfBase):
                 plt.rcParams["patch.force_edgecolor"] = True
 
                 if not show_plot:
-                    plot.ioff() #should be plt.ioff()
+                    plt.ioff() #should be plt.ioff()
 
                 fig, ax = plt.subplots(1, sharex=True)
                 ax.plot(phase)
@@ -945,7 +945,7 @@ class SmurfIVMixin(SmurfBase):
 
                     plot_name = basename + \
                         'plc_stream_b{}_g{}_ch{:03}.png'.format(b, bg_str, ch)
-                    plt.savefig(of.path.join(plot_dir, plt_name), bbox_inches='tight', #should be plot_name?
+                    plt.savefig(os.path.join(plot_dir, plot_name), bbox_inches='tight', #should be plot_name?
                         dpi=300)
 
                 if not show_plot:

@@ -568,7 +568,7 @@ class SmurfTuneMixin(SmurfBase):
 
         eta_phase_array = self.get_eta_phase_array(band)
         eta_phase_array[channels]=[tools.limit_phase_deg(eP+180) if eE<0 \
-            else eP for (eP,eE) in zip(eta_phase_array[channels], etaEst)] #should be eta_est
+            else eP for (eP,eE) in zip(eta_phase_array[channels], eta_est)] #should be eta_est
         self.set_eta_phase_array(band, eta_phase_array)
         
                         

@@ -1876,7 +1876,7 @@ class SmurfCommandMixin(SmurfBase):
         """
         """
         self._caput(self.rtm_cryo_det_root + self._enable_ramp_trigger,
-                    vale, **kwargs)
+                    val, **kwargs)
 
     timing_crate_root = ":AMCc:FpgaTopLevel:AmcCarrierCore:AmcCarrierTiming:EvrV2CoreTriggers"
     _trigger_rate_sel = ":EvrV2ChannelReg[0]:RateSel"
@@ -3013,5 +3013,5 @@ class SmurfCommandMixin(SmurfBase):
         dac (int): Which DAC no. [0 or 1].
         """
         return self._caget(self.DBG.format(bay) + self._dac_reset.format(dac),
-                           val, **kwargs)
+                           **kwargs)
 
