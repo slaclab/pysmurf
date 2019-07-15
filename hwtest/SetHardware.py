@@ -105,6 +105,7 @@ class Waveform:
 			self.inst = num
 			self.set_value(wave_value)
 
+
 # Variables to use for local testing
 # __________________________________
 
