@@ -73,7 +73,10 @@ class Waveform:
 		self.inst = waveform_inst
 
 	def set_value(self, wave_value):
+		# This function will set wave_value to the instance specified in init function
+		# or by the set all function for all waveforms
 
+		# Here we are checking that all requirements are satisfied to set a value
 		if wave_value not in [0, 1]:
 			print("ERROR: Wave value invalid. Value set to default 0")
 			wave_value = 0
@@ -95,6 +98,12 @@ class Waveform:
 		# ~~ FOR LOCAL TESTING ~~
 		print("Variable location:", wave_location)
 		print("Value to set:", wave_value)
+
+	def set_all_waveforms(self, wave_value):
+
+		for num in range(4):
+			self.inst = num
+			self.set_value(wave_value)
 
 # Variables to use for local testing
 # __________________________________
@@ -140,3 +149,9 @@ print("\n")
 print("Testing invalid instance and value for attenuator class...")
 wack_attenuator = UCAttenuator(atten_inst=6)
 wack_attenuator.set_value(value_to_set=40)
+
+# Testing set_all_waveforms
+print("\n")
+print("Testing set_all_waveforms function...")
+all_waveforms = Waveform()
+all_waveforms.set_all_waveforms(wave_value=1)
