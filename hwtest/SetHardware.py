@@ -24,8 +24,12 @@ class Attenuator:
 			print("ERROR: Attenuator value invalid. Value has been set to default of 0")
 			value_to_set = 0
 
-		elif self.inst == -1:
+		if self.inst == -1:
 			print("ERROR: Attenuator instance not specified. Instance set to default 1")
+			self.inst = 1
+
+		if self.inst not in range(1, 5):
+			print("ERROR: Attenuator instance is out of range. Instance set to default 1")
 			self.inst = 1
 
 		atten_location = self.location + "[" + str(self.inst) + "]"
@@ -55,15 +59,47 @@ class UCAttenuator(Attenuator):
 
 
 class DCAttenuator(Attenuator):
+	# This class will inherit from the Attenuator base class
 
-	def __init__(self, atten_inst):
+	def __init__(self, atten_inst=-1):
 		super().__init__(atten_inst)
 		self.location += "DC"
+
+
+class Waveform:
+
+	def __init__(self, waveform_inst=-1):
+		self.location = "dans_epics:AMCc:FpgaTopLevel:AppTop:AppCore:SysgenCryo:Base"
+		self.inst = waveform_inst
+
+	def set_value(self, wave_value):
+
+		if wave_value not in [0, 1]:
+			print("ERROR: Wave value invalid. Value set to default 0")
+			wave_value = 0
+
+		if self.inst == -1:
+			print("ERROR: Waveform instance is not defined. Set to default 0")
+			self.inst = 0
+
+		if self.inst not in range(4):
+			print("ERROR: Waveform instance is out of range. Instance set to default 0")
+			self.inst = 0
+
+		wave_location = self.location + "[" + str(self.inst) + "]:waveformSelect"
+
+		# ~~ FOR SERVER INTERFACE ~~
+		# caput(wave_location, wave_value)
+		# time.sleep(0.1)
+
+		# ~~ FOR LOCAL TESTING ~~
+		print("Variable location:", wave_location)
+		print("Value to set:", wave_value)
 
 # Variables to use for local testing
 # __________________________________
 
-# Testing attenuator
+# Testing UC attenuator
 print("\n")
 print("Testing set_attenuator function...")
 my_attenuator = UCAttenuator(atten_inst=4)
@@ -80,3 +116,27 @@ print("\n")
 print("Testing DC attenuator class...")
 dc_attenuator = DCAttenuator(atten_inst=1)
 dc_attenuator.set_value(value_to_set=16)
+
+# Testing waveform class
+print("\n")
+print("Testing Waveform class...")
+my_waveform = Waveform(waveform_inst=0)
+my_waveform.set_value(wave_value=1)
+
+# Testing invalid waveform value
+print("\n")
+print("Testing invalid waveform value entry")
+invalid_waveform = Waveform(waveform_inst=1)
+invalid_waveform.set_value(wave_value=9)
+
+# Testing invalid waveform instance
+print("\n")
+print("Testing invalid waveform instance...")
+invalid_instance_wave = Waveform(waveform_inst=5)
+invalid_instance_wave.set_value(wave_value=3)
+
+# Testing invalid attenuator value and instance
+print("\n")
+print("Testing invalid instance and value for attenuator class...")
+wack_attenuator = UCAttenuator(atten_inst=6)
+wack_attenuator.set_value(value_to_set=40)
