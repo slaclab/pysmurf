@@ -9,6 +9,9 @@ from collections import Counter
 from ..util import tools
 from pysmurf.command.sync_group import SyncGroup as SyncGroup
 
+class AssertionErrorType(Exception):
+    pass
+
 class SmurfTuneMixin(SmurfBase):
     """
     This contains all the tuning scripts
@@ -40,6 +43,10 @@ class SmurfTuneMixin(SmurfBase):
         save_plot (bool): If making plots, whether to save them. Default is True.
         show_plot (bool): Whether to display the plots to screen. Default is False.
         """
+        assert isinstance(((load_tune)&(tune_file)&(last_tune)&(retune)&(make_plot)&(save_plot)&
+        (show_plot)&(new_master_assignment)),bool),"Wrong input type"
+        assert isinstance((f_min)&(f_max)&(df_max),float),"Wrong input type"
+        
         bands = self.config.get('init').get('bands')
         tune_cfg = self.config.get('tune_band')
         
@@ -131,6 +138,9 @@ class SmurfTuneMixin(SmurfBase):
             R^2, and amplitude.
 
         """
+        assert isinstance((make_plot&show_plot&plot_chans&save_plot&save_data& 
+        make_subband_plot&subband_plot_with_slow&use_slow_eta),bool)
+        
         timestamp = self.get_timestamp()
 
         if make_plot and save_plot:

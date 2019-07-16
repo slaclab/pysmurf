@@ -19,10 +19,9 @@ def make_runfile(output_dir, row_len=60, num_rows=60, data_rate=60,
     """
     Make the runfile
     """
-    #considering put assertions here 
-    #assert isinstance ((row_len,num_rows,data_rate,num_rows_reported),int)
-    #assert isinstance (output_dir,str)
-    #assert row_len&num_rows&data_rate&num_rows_reported > 0
+    assert isinstance ((row_len,num_rows,data_rate,num_rows_reported),int)
+    assert isinstance (output_dir,str)
+    assert row_len&num_rows&data_rate&num_rows_reported > 0
     #S.log('Making pysmurf object')
     S = pysmurf.SmurfControl(cfg_file=os.path.join(os.path.dirname(__file__), 
         '..', 'cfg_files' , cfg_filename), smurf_cmd_mode=True, setup=False)

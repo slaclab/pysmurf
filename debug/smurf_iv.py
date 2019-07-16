@@ -34,6 +34,13 @@ class SmurfIVMixin(SmurfBase):
         bias_step (int): The step size in volts. Default .1
         phase_excursion_min (int): The minimum phase excursion allowable
         """
+        assert isinstance((wait_time&bias_high&bias_low&bias_step&overbias_wait&cool_wait&overbias_voltage),float)
+        assert isinstance((make_plot&save_plot,high_current_mode,gcp_mode,grid_on),bool)
+        if bias:
+            for element in bias:
+                if type(element) is not float:
+                    raise NotFloatTypeException('Wrong type in bias array')
+
         self.log("WARNING: I AM NOW DEPRICATED. USE slow_iv_all")
         # Look for good channels
         if channels is None:
@@ -109,11 +116,11 @@ class SmurfIVMixin(SmurfBase):
             phase_excursion_min=phase_excursion_min) #unexpected param high_current_mode,rn_accept_max,rn_accept_min
 
     def slow_iv_all(self, bias_groups=None, wait_time=.1, bias=None, 
-                    bias_high=1.5, gcp_mode=True, bias_low=0, bias_step=.005, 
+                    bias_high=19.9, gcp_mode=True, bias_low=0, bias_step=.005, 
                     show_plot=False, high_current_wait=1., cool_wait=30,
                     make_plot=True, save_plot=True, channels=None, band=None,
                     high_current_mode=True, overbias_voltage=8., 
-                    grid_on=True, phase_excursion_min=3.): #in the docstring, bias_high is 19.9, but here is 1.5
+                    grid_on=True, phase_excursion_min=3.): #in the docstring, bias_high is 19.9, but here is 1.5,I changed it to 19.9
         """
         Steps the TES bias down slowly. Starts at bias_high to bias_low with
         step size bias_step. Waits wait_time between changing steps.
@@ -130,16 +137,15 @@ class SmurfIVMixin(SmurfBase):
         bias_low (int): The minimum TES bias in volts. Default 0
         bias_step (int): The step size in volts. Default .1
         """
-        #assertion needed
-        #if bias: 
-        #   temp = bias[0] #check desc. values in bias
-        #   for value in bias:
-        #       if value:
-        #           if type(value) is not float:
-        #               raise NotFloatTypeException('value in bias not Float type')
-        #           assert value <= temp
-        #           temp = value
-        #assert isinstance(wait_time,float) & isinstance((bias_high,bias_low,bias_step),int)
+        if bias: 
+          temp = bias[0] #check desc. order in bias
+          for value in bias:
+              if value:
+                  if type(value) is not float:
+                      raise NotFloatTypeException('value in bias not Float type')
+                  assert value <= temp
+                  temp = value
+        assert isinstance(wait_time,float) & isinstance((bias_high,bias_low,bias_step),int)
         #In the docstring, bias_high & bias_low & bias_step are all int, but the default value is float. 
         if bias_groups is None:
             bias_groups = self.all_groups
@@ -252,13 +258,12 @@ class SmurfIVMixin(SmurfBase):
         phase_excursion_min (float): minimum change in phase to be analyzed, 
           defined as abs(phase_max - phase_min). Default 1, units radians. 
         """
-        #assertion needed
-        #if bias_high_array: 
-        #   for value in bias_high_array:
-        #       if value:
-        #           if type(value) is not float:
-        #               raise NotFloatTypeException('value in bias_high_array not Float type')
-
+        if bias_high_array: 
+          for value in bias_high_array:
+              if type(value) is not float:
+                  raise NotFloatTypeException('Wrong element type in bias_high_array')
+        assert isinstance((wait_time&bias_step&overbias_wait&phase_excursion_min),float)
+        assert isinstance((gcp_mode&show_plot&analyze&make_plot&save_plot),bool)
 
         original_biases = self.get_tes_bias_bipolar_array()
 
@@ -337,7 +342,7 @@ class SmurfIVMixin(SmurfBase):
                                   show_plot=False, save_plot=True, R_sh=None, 
                                   phase_excursion_min=3., grid_on=False, 
                                   gcp_mode=True, R_op_target=0.007,
-                                  chs=None, band=None):
+                                  chs=None, band=None,high_current_mode =None,rn_accept_max=None,rn_accept_min=None):
         """
         Function to analyze a load curve from its raw file. Can be used to 
           analyze IV's/generate plots separately from issuing commands.
@@ -360,6 +365,14 @@ class SmurfIVMixin(SmurfBase):
         chs (int array): Which channels to analyze. Defaults to all 
           the channels that are on and exceed phase_excursion_min
         """
+        assert isinstance(fn_iv_raw_data,str)
+        assert isinstance((make_plot&show_plot&save_plot&grid_on&gcp_mode),bool)
+        assert isinstance(R_op_target,float)
+        if chs:
+            for element in chs:
+                if type(element) is not int:
+                    raise TypeError('Wrong element type in chs')
+
         self.log('Analyzing from file: {}'.format(fn_iv_raw_data))
 
         iv_raw_data = np.load(fn_iv_raw_data).item()
