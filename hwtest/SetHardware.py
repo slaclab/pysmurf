@@ -195,8 +195,8 @@ class DaqMux(Buffer):
 			# Corresponds to Channel1
 			daqMuxChannel1 = 3
 
-		buffer = Buffer()
-		buffer.set_buffer(size=datalength)
+		my_buffer = Buffer()
+		my_buffer.set_buffer(size=datalength)
 
 		# ~~ FOR SERVER INTERFACE ~~
 		# caput(self.channelZeroLocation, daqMuxChannel0)
@@ -268,5 +268,5 @@ buffer.set_buffer(size=2**33)
 # Testing DaqMux
 print("\n")
 print("Testing Daq Mux class...")
-daq = DaqMux(0)
+daq = DaqMux(bay=0)
 daq.set_daq(daq_type='adc', instance=1, datalength=2**18)
