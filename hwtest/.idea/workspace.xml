@@ -33,8 +33,8 @@
       <file pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/SetHardware.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="328">
-              <caret line="208" column="17" lean-forward="true" selection-start-line="208" selection-start-column="17" selection-end-line="208" selection-end-column="17" />
+            <state relative-caret-position="2404">
+              <caret line="271" column="57" lean-forward="true" selection-start-line="271" selection-start-column="57" selection-end-line="271" selection-end-column="57" />
             </state>
           </provider>
         </entry>
@@ -47,6 +47,11 @@
         <option value="Python Script" />
       </list>
     </option>
+  </component>
+  <component name="FindInProjectRecents">
+    <findStrings>
+      <find>self.bufferSize</find>
+    </findStrings>
   </component>
   <component name="Git.Settings">
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$/.." />
@@ -324,8 +329,8 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/SetHardware.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="328">
-          <caret line="208" column="17" lean-forward="true" selection-start-line="208" selection-start-column="17" selection-end-line="208" selection-end-column="17" />
+        <state relative-caret-position="2404">
+          <caret line="271" column="57" lean-forward="true" selection-start-line="271" selection-start-column="57" selection-end-line="271" selection-end-column="57" />
         </state>
       </provider>
     </entry>
