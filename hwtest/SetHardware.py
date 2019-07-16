@@ -108,14 +108,13 @@ class Waveform:
 
 class Buffer:
 
-	def __init__(self, size=2**19):
+	def __init__(self):
 
 		# Max buffer is integer value of hex(FFFFFFFF)
 		# This value comes from setBufferSize.m
 		self.maxBuffer = 4294967295
 
 		self.bufferLocation = 'dans_epics:AMCc:FpgaTopLevel:AppTop:DaqMuxV2[0]:DataBufferSize'
-		self.bufferSize = size
 		self.startAddressPV = []
 		self.endAddressPV = []
 
@@ -123,32 +122,33 @@ class Buffer:
 			self.startAddressPV.append('dans_epics:AMCc:FpgaTopLevel:AmcCarrierCore:AmcCarrierBsa:BsaWaveformEngine[0]:WaveformEngineBuffers:StartAddr[' + str(num) + ']')
 			self.endAddressPV.append('dans_epics:AMCc:FpgaTopLevel:AmcCarrierCore:AmcCarrierBsa:BsaWaveformEngine[0]:WaveformEngineBuffers:EndAddr[' + str(num) + ']')
 
-	def setBuffer(self):
+	def set_buffer(self, size=2**19):
 
+		bufferSize = size
 		# Setting DaqMux Data buffer size
 
-		if self.bufferSize > self.maxBuffer:
+		if bufferSize > self.maxBuffer:
 			print("ERROR: Buffer size entered is too large. Buffer set to max")
-			self.bufferSize = self.maxBuffer
+			bufferSize = self.maxBuffer
 
 		# ~~ FOR SERVER INTERFACE ~~
-		# caput(self.bufferLocation, self.bufferSize)
+		# caput(self.bufferLocation, bufferSize)
 
 		# ~~ FOR LOCAL TESTING ~~
 		print("DaqMux Location:", self.bufferLocation)
-		print("DaqMux value:", self.bufferSize)
+		print("DaqMux value:", bufferSize)
 
 		# Setting waveform Engine buffer size
 		for num in range(4):
 
 			# ~~ FOR SERVER INTERFACE ~~
 			# start_address = caget(self.startAddressPV[num])
-			# end_address = start_address + 4 * self.bufferSize
+			# end_address = start_address + 4 * bufferSize
 			# caput(self.endAddressPV[num], end_address)
 
 			# ~~ FOR LOCAL TESTING ~~
 			start_address = num
-			end_address = start_address + 4 * self.bufferSize
+			end_address = start_address + 4 * bufferSize
 			print("The value to be assigned to EndAdress:", end_address)
 
 
@@ -206,5 +206,5 @@ all_waveforms.set_all_waveforms(wave_value=1)
 # Testing Buffer
 print("\n")
 print("Testing set buffer...")
-buffer = Buffer(2**33)
-buffer.setBuffer()
+buffer = Buffer()
+buffer.set_buffer(size=2**33)
