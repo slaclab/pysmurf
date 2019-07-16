@@ -589,6 +589,15 @@ class SmurfIVMixin(SmurfBase):
         idx (int array): 
         R_sh (float): Shunt resistance
         """
+        assert isinstance((make_plot&show_plot&save_plot&high_current_mode&grid_on),bool)
+        assert isinstance(R_op_target,float)
+        if v_bias:
+            for element in v_bias:
+                assert isinstance(element,float),'wrong data type in v_bias'
+        if resp:
+            for element in resp:
+                assert isinstance(element,float),'wrong data type in resp'
+
         if R_sh is None:
             R_sh=self.R_sh
 
@@ -894,6 +903,8 @@ class SmurfIVMixin(SmurfBase):
         channels (int array): which channels to analyze. Defaults to all channels that
           are on and exceed phase_excursion_min 
         """
+        assert isinstance((make_plot&show_plot&save_plot&gcp_mode),bool)
+        assert isinstance(fn_plc_raw_data,str)
 
         self.log('Analyzing plc from file: {}'.format(fn_plc_raw_data))
 
@@ -982,6 +993,9 @@ class SmurfIVMixin(SmurfBase):
             the plot.
         min_gap (float): The minimum allowable gap.
         """
+        assert isinstance((make_plot&show_plot&save_plot),bool)
+        assert isinstance(min_gap,float)
+
         self.log('This is specific for the Keck K2 umux FPU.')
         self.log('Working on band 2 first')
         tes_freq = {}
@@ -1079,6 +1093,12 @@ class SmurfIVMixin(SmurfBase):
         res_freq (float array) : The frequency of the resonators that
            have TESs.
         """
+        assert isinstance((make_plot&show_plot&save_plot&make_debug_plot),bool)
+        assert isinstance(bias_group,int)
+        assert isinstance(delta_peak_cutoff,float)
+        if bias:
+            for element in bias:
+                assert isinstance(element,float),'wrong data type in bias'
         if make_plot:
             import matplotlib.pyplot as plt
 
@@ -1180,6 +1200,12 @@ class SmurfIVMixin(SmurfBase):
           val is outside this range, channel is excluded from histogram and 
           added to outliers. Defaults to min=0pW/K, max=0.5pW/K.
         """
+        assert isinstance((iv_fn_cold&iv_fn_hot),str)
+        assert isinstance((t_hot&t_cold),float)
+        if channels:
+            for element in channels:
+                assert isinstance(element,int),'wrong data type in channels'
+
         ivs_hot = np.load(iv_fn_hot).item()
         ivs_cold = np.load(iv_fn_cold).item()
     
