@@ -35,6 +35,11 @@ class SmurfCommandMixin(SmurfBase):
         disable_poll (bool) : Disables requests of all PVs after issueing command.
             Default False.
         '''
+        if cmd:
+            if type(cmd)is not str:
+                raise TypeError('wrong data type for cmd')
+        assert isinstance((write_log&execute&wait_done&enable_poll&disable_poll),bool)
+
         if enable_poll:
             epics.caput(self.epics_root + self._global_poll_enable, True)
 
@@ -83,6 +88,11 @@ class SmurfCommandMixin(SmurfBase):
         --------
         ret : The requested value
         '''
+        if cmd:
+            if type(cmd) is not str:
+                raise TypeError('wrong data type for cmd')
+        assert isinstance((write_log&execute&enable_poll&disable_poll),bool)
+        
         if enable_poll:
             epics.caput(self.epics_root+ self._global_poll_enable, True)
 

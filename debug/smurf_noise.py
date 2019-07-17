@@ -40,9 +40,37 @@ class SmurfNoiseMixin(SmurfBase):
         save_data (bool): Whether to save the band averaged data as a text file.
             Default is False.
         show_plot (bool): Show the plot on the screen. Default False.
-        datefile (str): if data has already been taken, can point to a file to 
+        datafile (str): if data has already been taken, can point to a file to 
             bypass data taking and just analyze.
         """
+        assert isinstance(band,int)
+        assert isinstance(meas_time,float)
+        if channel:
+            for element in channel:
+                assert isinstance(element,int),'Wrong data type in channel'
+        if nperseg:
+            assert isinstance(nperseg,str)
+        if detrend:
+            assert isinstance(detrend,str)
+        if fs:
+            assert isinstance(fs,float)
+        if low_freq:
+            for element in low_freq:
+                assert isinstance(element,float) 
+        if high_freq:
+            for element in high_freq:
+                assert isinstance(element,float)
+        if datafile:
+            assert isinstance(datafile,str)
+        if make_channel_plot:
+            assert isinstance(make_channel_plot,bool)
+        if make_summary_plot:
+            assert isinstance(make_summary_plot,bool)
+        if save_data:
+            assert isinstance(save_data,bool)
+        if save_plot:
+            assert isinstance(save_plot,bool)    
+
         if channel is None:
             channel = self.which_on(band)
         n_channel = self.get_number_channels(band)
@@ -226,6 +254,13 @@ class SmurfNoiseMixin(SmurfBase):
         --------------
         cutoff (float) : The value to cut at in the same units as noise.
         """
+        assert isinstance(band,int),'Wrong data type for band'
+        if noise:
+            for element in noise:
+                assert isinstance(element,float),'Wrong data type for value in noise'
+        if cutoff:
+            assert isinstance(cutoff.float),'Wrong data type for cutoff'
+
         n_channel = self.get_number_channels(band)
         for ch in np.arange(n_channel):
             if noise[ch] > cutoff:
