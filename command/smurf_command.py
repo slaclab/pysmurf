@@ -931,6 +931,16 @@ class SmurfCommandMixin(SmurfBase):
         return self._caget(self.app_core + self._stream_enable,
             **kwargs)
 
+    _build_dsp_g = 'BUILD_DSP_G'    
+    def get_build_dsp_g(self, **kwargs):
+        """
+        BUILD_DSP_G encodes which bands the fw being used was built for.
+        E.g. 0xFF means Base[0...7], 0xF is Base[0...3], etc.
+
+        """
+        return self._caget(self.app_core + self._build_dsp_g,
+            **kwargs)    
+
     _iq_stream_enable = 'iqStreamEnable'
     def set_iq_stream_enable(self, band, val, **kwargs):
         '''
@@ -3499,3 +3509,16 @@ class SmurfCommandMixin(SmurfBase):
         """
         return self._caget(self.lmk.format(bay) +
                            self._lmk_reg.format(reg), **kwargs)
+
+    _mcetransmit_debug = 'AMCc:mcetransmitDebug'
+    def set_mcetransmit_debug(self, val, **kwargs):
+        """
+        Sets the mcetransmit debug bit. If 1, the debugger will
+        print to the pyrogue screen.
+
+        Args:
+        -----
+        val (int): 0 or 1 for the debug bit
+        """
+        self._caput(self._epics_root + self._mcetransmit_debug,
+                    **kwargs)
