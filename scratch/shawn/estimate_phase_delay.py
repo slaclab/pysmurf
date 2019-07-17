@@ -4,7 +4,6 @@
 import pysmurf
 import numpy as np
 import time
-import sys
 
 # how to get AMC s/n and fw
 def get_amcc_dump_bsi(S,ip='shm-smrf-sp01',slot=None):
