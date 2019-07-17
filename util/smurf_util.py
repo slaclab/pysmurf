@@ -805,7 +805,8 @@ class SmurfUtilMixin(SmurfBase):
 
         return f, df, flux_ramp_strobe
 
-    def take_stream_data(self, meas_time, gcp_mode=True):
+    def take_stream_data(self, meas_time, gcp_mode=True,
+                         num_averages=20):
         """
         Takes streaming data for a given amount of time
 
@@ -817,20 +818,24 @@ class SmurfUtilMixin(SmurfBase):
         ---------
         gcp_mode (bool) : Determines whether to write data using the 
             smurf2mce (gcp) mode. Default is True.
+        num_averages (int) : The number of 4kHz frames to average
+            before writing to disk.
 
         Returns:
         --------
         data_filename (string): The fullpath to where the data is stored
         """
         self.log('Starting to take data.', self.LOG_USER)
-        data_filename = self.stream_data_on(gcp_mode=gcp_mode)
+        data_filename = self.stream_data_on(gcp_mode=gcp_mode,
+                                            num_averages=num_averages)
         time.sleep(meas_time)
         self.stream_data_off(gcp_mode=gcp_mode)
         self.log('Done taking data.', self.LOG_USER)
         return data_filename
 
 
-    def stream_data_on(self, write_config=False, gcp_mode=True):
+    def stream_data_on(self, write_config=False, gcp_mode=True,
+                       num_averages=20):
         """
         Turns on streaming data.
 
@@ -838,6 +843,8 @@ class SmurfUtilMixin(SmurfBase):
         ---------
         gcp_mode (bool) : Determines whether to write data using the 
             smurf2mce (gcp) mode. Default is True.
+        num_averages (int) : The number of 4kHz frames to average
+            before writing to disk.
 
         Returns:
         --------
@@ -857,15 +864,17 @@ class SmurfUtilMixin(SmurfBase):
             # one of the newer C02 cryostat cards.
             flux_ramp_ac_dc_relay_status=self.C.read_ac_dc_relay_status()
             if flux_ramp_ac_dc_relay_status == 0:
-                self.log("FLUX RAMP IS DC COUPLED.  HOPEFULLY THAT'S WHAT YOU WERE EXPECTING.".format(flux_ramp_ac_dc_relay_status), self.LOG_USER)
+                self.log("FLUX RAMP IS DC COUPLED.", self.LOG_USER)
             elif flux_ramp_ac_dc_relay_status == 3:
-                self.log("Flux ramp is AC-coupled.".format(flux_ramp_ac_dc_relay_status), self.LOG_USER)
+                self.log("Flux ramp is AC-coupled.", self.LOG_USER)
             else:
-                self.log("flux_ramp_ac_dc_relay_status = {} - NOT A VALID STATE.".format(flux_ramp_ac_dc_relay_status), self.LOG_ERROR)
+                self.log("flux_ramp_ac_dc_relay_status = " +
+                         "{} - NOT A VALID STATE.".format(flux_ramp_ac_dc_relay_status),
+                         self.LOG_ERROR)
             
             # start streaming before opening file to avoid transient filter step
             self.set_stream_enable(1, write_log=False)
-            time.sleep(1.)
+            time.sleep(.1)
 
             # Make the data file
             timestamp = self.get_timestamp()
@@ -883,7 +892,8 @@ class SmurfUtilMixin(SmurfBase):
             self.log('Writing to file : {}'.format(data_filename), 
                 self.LOG_USER)
             if gcp_mode:
-                ret = self.make_smurf_to_gcp_config(filename=data_filename)
+                ret = self.make_smurf_to_gcp_config(filename=data_filename,
+                                                    num_averages=num_averages)
                 smurf_chans = {}
                 for b in bands:
                     smurf_chans[b] = self.which_on(b)
@@ -1723,21 +1733,26 @@ class SmurfUtilMixin(SmurfBase):
 
         return ret
 
-    def freq_to_subband(self, freq, band):
-        '''Look up subband number of a channel frequency
-
-        To do: This probably should not be hard coded. If these values end
-        up actually being persistent, we should move them into base class.
+    def which_bands(self):
+        # encodes which bands the fw being used was built for.
+        build_dsp_g=self.get_build_dsp_g()
+        bands=[b for b,x in enumerate(bin(build_dsp_g)[2:]) if x=='1']
+        return bands
+    
+    def freq_to_subband(self, band, freq):
+        '''Look up subband number of a channel frequency, and its subband
+        frequency offset.
 
         Args:
         -----
-        freq (float): frequency in MHz
         band (float): The band to place the resonator
+        freq (float): frequency in MHz
 
         Returns:
         --------
         subband_no (int): subband (0..128) of the frequency within the band
         offset (float): offset from subband center
+
         '''
         dig_freq = self.get_digitizer_frequency_mhz(band)
         num_subband = self.get_number_sub_bands(band)
