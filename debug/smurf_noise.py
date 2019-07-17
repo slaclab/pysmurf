@@ -341,6 +341,42 @@ class SmurfNoiseMixin(SmurfBase):
         fs (float): The sample frequency.
         show_plot: Whether to show analysis plots. Defaults to False.
         """
+        assert isinstance(band,int)
+        if bias_group:
+            import numpy as np
+            if type(bias_group) is int:
+                pass
+            elif type(bias_group) is np.ndarray or type(bias_group) is list:
+                for element in bias_group:
+                    assert isinstance(element,int),'Wrong data type in bias_group'
+            else:
+                raise TypeError('Wrong data type for bias_group')
+        if bias:
+            for element in bias:
+                assert isinstance(element,float),'Wrong date type in bias'
+        if bias_high:
+            assert isinstance(bias_high,float)
+        if bias_low:
+            assert isinstance(bias_low,float)
+        if step_size:
+            assert isinstance(step_size,float)
+        if overbias_voltage:
+            assert isinstance(overbias_voltage,float)
+        if meas_time:
+            assert isinstance(meas_time,float)
+        if analyze:
+            assert isinstance(analyze,bool)
+        if channel:
+            assert isinstance(channel,int)
+        if nperseg:
+            assert isinstance(nperseg,int)
+        if detrend:
+            assert isinstance(detrend,str)
+        if fs:
+            assert isinstance(fs,float)
+        if show_plot:
+            assert isinstance(show_plot,bool)
+
         if bias is None:
             if step_size > 0:
                 step_size *= -1
@@ -365,6 +401,8 @@ class SmurfNoiseMixin(SmurfBase):
         -----
         band (int): The band to take noise vs bias data on
         """
+        assert isinstance(band,int)
+
         if amplitudes is None:
             if step_size > 0:
                 step_size *= -1
@@ -382,6 +420,7 @@ class SmurfNoiseMixin(SmurfBase):
                  detrend='constant', fs=None, show_plot=False,
                  gcp_mode=True, psd_ylim=None, make_timestream_plot=False,
                  **kwargs):
+        assert isinstance(band,int)
 
         if fs is None:
             fs = self.fs
@@ -477,6 +516,9 @@ class SmurfNoiseMixin(SmurfBase):
         fn_datafiles (str): full path to txt containing names of data files
         Returns: datafiles (list): strings of data-file names.
         '''
+        if fn_datafiles:
+            assert isinstance(fn_datafiles,str)
+
         datafiles = []
         f_datafiles = open(fn_datafiles,'r')
         for line in f_datafiles:
@@ -494,6 +536,8 @@ class SmurfNoiseMixin(SmurfBase):
         fn_biases (str): full path to txt containing list of bias voltages
         Returns biases (list): floats of commanded bias voltages
         '''
+        if fn_biases:
+            assert isinstance(fn_biases,str)
         biases = []
         f_biases = open(fn_biases,'r')
         for line in f_biases:
@@ -522,6 +566,13 @@ class SmurfNoiseMixin(SmurfBase):
         -------
         iv_band_data (dict): dictionary with IV information for band
         '''
+        if iv_data_filename:
+            assert isinstance(iv_data_filename,str)
+        if band:
+            assert isinstance(band,int)
+        if high_current_mode:
+            assert isinstance(high_current_mode,bool)
+
         self.log('Extracting IV data from {}'.format(iv_data_filename))
         iv_data = np.load(iv_data_filename).item()
         iv_band_data = iv_data[band]
@@ -556,6 +607,11 @@ class SmurfNoiseMixin(SmurfBase):
         -------
         1/si (float): noise-equivalent power in aW/rtHz
         '''
+        if iv_band_data:
+            assert isinstance(iv_band_data,list)
+        if v_bias:
+            assert isinstance(v_bias,float)
+
         v_bias_array,si_array = self.get_si_data(iv_band_data,ch)
         si = np.interp(v_bias,v_bias_array[:-1],si_array)
         return 1./np.absolute(si)
@@ -595,6 +651,42 @@ class SmurfNoiseMixin(SmurfBase):
             for summary plot of noise vs. bias; if None, then plot white-noise 
             level from model fit
         """
+        import numpy as np
+        if type(bias) is list or np.ndarray:
+            for element in bias:
+                assert isinstance(element,float)
+        if type(datafile) is list or np.ndarray:
+            for element in datafile:
+                assert isinstance(element,str)
+        if type(channel) is list or np.ndarray:
+            for element in channel:
+                assert isinstance(element,int)
+        if band:
+            assert isinstance(band,int)
+        if nperseg:
+            assert isinstance(nperseg,int)
+        if detrend:
+            assert isinstance(detrend,str)
+        if fs:
+            assert isinstance(fs,float)
+        if save_plot:
+            assert isinstance(save_plot,bool)
+        if show_plot:
+            assert isinstance(show_plot,bool)
+        if data_timestamp:
+            assert isinstance(data_timestamp,str)
+        if type(bias_group) is list or np.ndarray:
+            for element in bias_group:
+                assert isinstance(element,int)
+        elif type(bias_group) is int:
+            pass
+        elif type(bias_group) is None:
+            pass
+        else:
+            raise TypeError("wrong data type of bias_group")
+        if smooth_len:
+            assert isinstance(smooth_len,int)
+
         import matplotlib.pyplot as plt
         from matplotlib.gridspec import GridSpec
 
@@ -1102,6 +1194,8 @@ class SmurfNoiseMixin(SmurfBase):
         meas_time (float) : The measurement time per resonator in
             seconds. Default is 10.
         """
+        assert isinstance(band,int)
+
         timestamp = self.get_timestamp()
 
         channel = self.which_on(2)
@@ -1136,6 +1230,9 @@ class SmurfNoiseMixin(SmurfBase):
         -----
         ret (dict) : The returned values from noise_all_vs_noise_solo.
         """
+        if ret:
+            assert isinstance(ret,dict)
+
         if fs is None:
             fs = self.fs
 
@@ -1205,6 +1302,19 @@ class SmurfNoiseMixin(SmurfBase):
         ----
         NET (float) : The noise equivalent temperature in units of uKrts
         '''
+        assert isinstance(NEI,float)
+        assert isinstance(V_b,float)
+        assert isinstance(R_tes,float)
+        assert isinstance(opt_eff,float)
+        if f_center:
+            assert isinstance(f_center,float)
+        if bw:
+            assert isinstance(bw,float)
+        if R_sh:
+            assert isinstance(R_sh,float)
+        if high_current_mode:
+            assert isinstance(high_current_mode,bool)
+
         NEI *= 1e-12 # bring NEI to SI units, i.e., A/rt(Hz)
         if high_current_mode:
             V_b *= self.high_low_current_ratio
@@ -1433,6 +1543,16 @@ class SmurfNoiseMixin(SmurfBase):
         s (float array) : The SVD amplitudes
         vh (float array) : The SVD modes
         """
+        import numpy as np
+        if type(d) is list or np.ndarray:
+            for element in d:
+                assert isinstance(element,float)
+        if type(mask) is list or np.ndarray:
+            for element in mask:
+                assert isinstance(element,int)
+        if mean_subtract:
+            assert isinstance(mean_subtract,bool)
+
         dat = d[mask[np.where(mask!=-1)]]
         if mean_subtract:
             dat -= np.atleast_2d(np.mean(dat, axis=1)).T
@@ -1457,6 +1577,18 @@ class SmurfNoiseMixin(SmurfBase):
         save_name (str) : The name of the file
         show_plot (bool) : Whether to show the plot
         """
+        import numpy as np
+        if type(u) is list or np.ndarray:
+            for element in u:
+                assert isinstance(element,float)
+        else:
+            raise TypeError('wrong data type for u')
+        if type(s) is list or np.ndarray:
+            for element in s:
+                assert isinstance(element,float)
+        else:
+            raise TypeError('wrong data type for s')
+
         import matplotlib.pyplot as plt
         import seaborn as sns
 
@@ -1515,6 +1647,13 @@ class SmurfNoiseMixin(SmurfBase):
         save_name (str) : The name of the file
         show_plot (bool) : Whether to show the plot  
         """
+        import numpy as np
+        if type(vh) is list or np.ndarray:
+            for element in vh:
+                assert isinstance(element,float)
+        else:
+            raise TypeError('wrong data type for vh')
+
         import matplotlib.pyplot as plt
         if not show_plot:
             plt.ioff()
@@ -1559,7 +1698,7 @@ class SmurfNoiseMixin(SmurfBase):
         u (float array) : The SVD coefficients
         s (float array) : The SVD amplitudes
         mask (int array) : The channel mask
-        vh (float arrry) : The SVD modes
+        vh (float array) : The SVD modes
 
         Opt Args:
         ---------
@@ -1571,6 +1710,30 @@ class SmurfNoiseMixin(SmurfBase):
         diff (float array) : The difference of the input data matrix and the 
             requested SVD modes.
         """
+        import numpy as np
+        if type(d) is list or np.ndarray:
+            for element in d:
+                assert isinstance(element,float)
+        if type(u) is list or np.ndarray:
+            for element in u:
+                assert isinstance(element,float)
+        if type(s) is list or np.ndarray:
+            for element in s:
+                assert isinstance(element,float)
+        if type(mask) is list or np.ndarray:
+            for element in mask:
+                assert isinstance(element,int)
+        if type(vh) is list or np.ndarray:
+            for element in vh:
+                assert isinstance(element,float)
+        if type(modes) is list or np.ndarray:
+            for element in modes:
+                assert isinstance(element,int)
+        elif type(modes) is int or None:
+            pass
+        else:
+            raise TypeError('wrong date type for modes')
+            
         n_mode = np.size(s)
         n_samp, _ = np.shape(vh)
 

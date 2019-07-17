@@ -262,6 +262,10 @@ class SmurfIVMixin(SmurfBase):
           for value in bias_high_array:
               if type(value) is not float:
                   raise NotFloatTypeException('Wrong element type in bias_high_array')
+        if bias_low_array: 
+          for value in bias_low_array:
+              if type(value) is not float:
+                  raise NotFloatTypeException('Wrong element type in bias_low_array')
         assert isinstance((wait_time&bias_step&overbias_wait&phase_excursion_min),float)
         assert isinstance((gcp_mode&show_plot&analyze&make_plot&save_plot),bool)
 
