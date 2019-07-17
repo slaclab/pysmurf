@@ -153,13 +153,12 @@ class SmurfTuneMixin(SmurfBase):
 
 
         # Find peaks
-        peaks = self.find_peak(freq, resp, rolling_med=True,
-                               band=band, make_plot=make_plot, show_plot=show_plot,
-                               window=5000, save_plot=save_plot, grad_cut=grad_cut,
-                               freq_min=freq_min, freq_max=freq_max, amp_cut=amp_cut,
-                               make_subband_plot=make_subband_plot, timestamp=timestamp,
-                               subband_plot_with_slow=subband_plot_with_slow, pad=50,
-                               min_gap=50)
+        peaks = self.find_peak(freq, resp, rolling_med=True, band=band, 
+            make_plot=make_plot, show_plot=show_plot, window=5000,
+            save_plot=save_plot, grad_cut=grad_cut, freq_min=freq_min,
+            freq_max=freq_max, amp_cut=amp_cut, 
+            make_subband_plot=make_subband_plot, timestamp=timestamp,
+            subband_plot_with_slow=subband_plot_with_slow, pad=50, min_gap=50)
 
         # Eta scans
         band_center_mhz = self.get_band_center_mhz(band)
@@ -279,17 +278,13 @@ class SmurfTuneMixin(SmurfBase):
             self.set_att_uc(band, old_att, write_log=True)
 
             # Find peaks
-            peaks = self.find_peak(freq, resp,
-                                   rolling_med=rolling_med, window=window,
-                                   band=band, make_plot=make_plot,
-                                   save_plot=save_plot,
-                                   show_plot=show_plot, grad_cut=grad_cut,
-                                   freq_min=freq_min, freq_max=freq_max,
-                                   amp_cut=amp_cut,
-                                   make_subband_plot=make_subband_plot,
-                                   timestamp=timestamp,
-                                   subband_plot_with_slow=subband_plot_with_slow,
-                                   pad=pad, min_gap=min_gap)
+            peaks = self.find_peak(freq, resp, rolling_med=rolling_med, window=window,
+                               band=band, make_plot=make_plot, save_plot=save_plot, 
+                               show_plot=show_plot, grad_cut=grad_cut, freq_min=freq_min,
+                               freq_max=freq_max, amp_cut=amp_cut,
+                               make_subband_plot=make_subband_plot, timestamp=timestamp,
+                               subband_plot_with_slow=subband_plot_with_slow, pad=pad, 
+                               min_gap=min_gap)
 
             resonances = {}
             for i, p in enumerate(peaks):
@@ -2347,7 +2342,6 @@ class SmurfTuneMixin(SmurfBase):
             df_std = np.std(df, 0)
 
             #downselect_channels = self.get_downselect_channels()
-            #print(np.where(df_std>0))
             df_channels = np.ravel(np.where(df_std >0))
 
             channels_on = list(set(df_channels) & set(self.which_on(band)))
@@ -3010,7 +3004,6 @@ class SmurfTuneMixin(SmurfBase):
         subband_width = 2 * digitizer_freq / n_subbands
 
         scan_freq = (digitizer_freq/n_subbands/2)*np.linspace(-1,1,n_step)
-        print(scan_freq)
         
         resp = np.zeros((n_subbands, np.shape(scan_freq)[0]), dtype=complex)
         freq = np.zeros((n_subbands, np.shape(scan_freq)[0]))
@@ -3179,12 +3172,10 @@ class SmurfTuneMixin(SmurfBase):
                 bbox_inches='tight')
             plt.close()
 
-    def find_all_peak(self, freq, resp, subband=None,
-        rolling_med=False, window=500, grad_cut=0.05, amp_cut=0.25,
-        freq_min=-2.5E8, freq_max=2.5E8, make_plot=False,
-        save_plot=True, band=None, make_subband_plot=False,
-        subband_plot_with_slow=False, timestamp=None, pad=2,
-        min_gap=2):
+    def find_all_peak(self, freq, resp, subband=None, rolling_med=False, 
+        window=500, grad_cut=0.05, amp_cut=0.25, freq_min=-2.5E8, freq_max=2.5E8, 
+        make_plot=False, save_plot=True, band=None, make_subband_plot=False, 
+        subband_plot_with_slow=False, timestamp=None, pad=2, min_gap=2):
         """
         find the peaks within each subband requested from a fullbandamplsweep
 
