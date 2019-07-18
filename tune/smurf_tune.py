@@ -1983,7 +1983,7 @@ class SmurfTuneMixin(SmurfBase):
     def eta_reestimator(self, band, f0, drive, delta_freq=.01):
         """
         """
-        subband, offset = self.freq_to_subband(f0, band)
+        subband, offset = self.freq_to_subband(band, f0)
         
         #left = f0 - delta_freq
         #right = f0 + delta_freq
@@ -2003,7 +2003,7 @@ class SmurfTuneMixin(SmurfBase):
         """
         Estimates eta parameters using the slow eta_scan
         """
-        subband, offset = self.freq_to_subband(freq, band)
+        subband, offset = self.freq_to_subband(band, freq)
         f_sweep = np.arange(offset-f_sweep_half, offset+f_sweep_half, df_sweep)
         f, resp = self.fast_eta_scan(band, subband, f_sweep, 2, drive)
         # resp = rr + 1.j*ii
@@ -2133,7 +2133,7 @@ class SmurfTuneMixin(SmurfBase):
         subband = np.zeros(len(chan), dtype=int)
         for i, c in enumerate(chan):
             freq[i] = self.channel_to_freq(band, c)
-            (subband[i], _) = self.freq_to_subband(freq[i], band)
+            (subband[i], _) = self.freq_to_subband(band, freq[i])
 
         unique_subband = np.unique(subband)
 
@@ -3929,7 +3929,7 @@ class SmurfTuneMixin(SmurfBase):
             band_freqs = freqs[np.where(band_nos == band)]
             subband_freqs = []
             for f in band_freqs:
-                (subband, foff) = self.freq_to_subband(f, band)
+                (subband, foff) = self.freq_to_subband(band, f)
                 subband_freqs.append(subband)
 
             freq_dict[band]={}
