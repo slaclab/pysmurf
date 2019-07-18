@@ -3080,3 +3080,88 @@ class SmurfUtilMixin(SmurfBase):
 
         return ret
         
+
+    def set_fixed_tone(self,freq_mhz,drive,quiet=False):
+        """
+        Places a fixed tone at the requested frequency.  Asserts
+        without doing anything if the requested resonator frequency
+        falls outside of the usable 500 MHz bands, or if there are no
+        unassigned channels available in the subband the requested
+        frequency falls into (where a channel is deemed "assigned" if
+        it has non-zero amplitude).
+
+        Args:
+        -----
+        freq_mhz (float): The frequency in MHz at which to place a fixed tone.
+        drive (int): The amplitude for the fixed tone (0-15 in recent fw revisions).
+
+        Opt Args:
+        ---------
+        quiet (bool) : Whether to look at one channel
+        """
+
+        # Find which band the requested frequency falls into.
+        bands=self.which_bands()
+        band_centers_mhz=[self.get_band_center_mhz(b) for b in bands]
+
+        band_idx=min(range(len(band_centers_mhz)), key=lambda i: abs(band_centers_mhz[i]-freq_mhz))
+        band=bands[band_idx]
+        band_center_mhz=band_centers_mhz[band_idx]
+
+        # Confirm that the requested frequency falls into a 500 MHz
+        # band that's usable in this fw.  If not, assert.
+        assert (np.abs(freq_mhz-band_center_mhz)<250),'! Requested frequency (=%0.1f MHz) outside of the 500 MHz band with the closest band center (=%0.0f MHz).  Doing nothing!'%(freq_mhz,band_center_mhz)
+	
+	# Find subband this frequency falls in, and its channels.
+        subband,foff=self.freq_to_subband(band,freq_mhz)
+        subband_channels=self.get_channels_in_subband(band,subband)
+	
+	# Which channels in the subband are unallocated?
+        allocated_channels=self.which_on(band)
+        unallocated_channels=[chan for chan in subband_channels if chan not in allocated_channels]
+        # If no unallocated channels available in the subband, assert.
+        assert (len(unallocated_channels)),'! No unallocated channels available in subband (=%d).  Doing nothing!'%(subband)
+	
+        # Take lowest channel number in the list of unallocated
+        # channels for this subband.
+        channel=sorted(unallocated_channels)[0]
+	
+	# Put a fixed tone at the requested frequency
+        self.set_center_frequency_mhz_channel(band,channel,foff)
+        self.set_amplitude_scale_channel(band,channel,drive)
+        self.set_feedback_enable_channel(band,channel,0)
+
+        # Unless asked to be quiet, print where we're putting a fixed
+        # tone.
+        if not quiet:
+            self.log('Setting a fixed tone at {0:.2f} MHz'.format(freq_mhz) + \
+                     ' and amplitude {}'.format(drive), self.LOG_USER)        
+
+    # SHOULD MAKE A GET FIXED TONE CHANNELS FUNCTION - WOULD MAKE IT
+    # EASIER TO CHANGE THINGS FAST USING THE ARRAY GET/SETS
+    def turn_off_fixed_tones(self,band):
+        """
+        Turns off every channel which has nonzero amplitude but
+        feedback set to zero.
+
+        Args:
+        -----
+        freq_mhz (float): The frequency in MHz at which to place a fixed tone.
+        drive (int): The amplitude for the fixed tone (0-15 in recent fw revisions).
+
+        Opt Args:
+        ---------
+        quiet (bool) : Whether to look at one channel
+
+        """        
+        amplitude_scale_array=self.get_amplitude_scale_array(band)
+        feedback_enable_array=self.get_feedback_enable_array(band)
+
+	# want to turn off all channels for which the amplitude is
+	# nonzero, but feedback is not enabled.
+        fixed_tone_channels=np.where((amplitude_scale_array*(1-feedback_enable_array))!=0)
+        new_amplitude_scale_array=amplitude_scale_array.copy()
+        new_amplitude_scale_array[fixed_tone_channels]=0
+
+	# set by array, not by channel
+        self.set_amplitude_scale_array(band,new_amplitude_scale_array)
