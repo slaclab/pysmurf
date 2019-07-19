@@ -30,8 +30,8 @@ start_slot_tmux () {
     
     tmux new-window -t ${tmux_session_name}:${slot_number}
     tmux rename-window -t ${tmux_session_name}:${slot_number} smurf_slot${slot_number}
-    tmux send-keys -t ${tmux_session_name}:${slot_number} 'cd /home/cryo/docker/smurf/slot'${slot_number}'/current' C-m
-    tmux send-keys -t ${tmux_session_name}:${slot_number} './run.sh; sleep 5; docker logs smurf_server_s'${slot_number}' -f' C-m
+    tmux send-keys -t ${tmux_session_name}:${slot_number} 'cd /home/cryo/docker/smurf/current' C-m
+    tmux send-keys -t ${tmux_session_name}:${slot_number} './run.sh -N '${slot_number}'; sleep 5; docker logs smurf_server_s'${slot_number}' -f' C-m
 
 
     echo '-> Waiting for smurf_server_s'${slot_number}' docker to start.'
