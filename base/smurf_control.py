@@ -9,6 +9,7 @@ from pysmurf.tune.smurf_tune import SmurfTuneMixin as SmurfTuneMixin
 from pysmurf.debug.smurf_noise import SmurfNoiseMixin as SmurfNoiseMixin
 from pysmurf.debug.smurf_iv import SmurfIVMixin as SmurfIVMixin
 from pysmurf.base.smurf_config import SmurfConfig as SmurfConfig
+from pysmurf.util.pub import Publisher, DEFAULT_ENV_ROOT
 
 class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin, 
     SmurfNoiseMixin, SmurfIVMixin):
@@ -19,7 +20,7 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
         cfg_file='/home/cryo/pysmurf/cfg_files/experiment_k2umux.cfg', 
         data_dir=None, name=None, make_logfile=True, 
         setup=False, offline=False, smurf_cmd_mode=False, no_dir=False,
-        **kwargs):
+        publish=False, **kwargs):
         '''
         Args:
         -----
@@ -37,11 +38,11 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
             self.initialize(cfg_file=cfg_file, data_dir=data_dir, name=name,
                 make_logfile=make_logfile,
                 setup=setup, smurf_cmd_mode=smurf_cmd_mode, 
-                no_dir=no_dir, **kwargs)
+                no_dir=no_dir, publish=publish, **kwargs)
 
     def initialize(self, cfg_file, data_dir=None, name=None, 
         make_logfile=True, setup=False, smurf_cmd_mode=False, 
-        no_dir=False, **kwargs):
+        no_dir=False, publish=False, **kwargs):
         '''
         Initizializes SMuRF with desired parameters set in experiment.cfg.
         Largely stolen from a Cyndia/Shawns SmurfTune script
@@ -104,6 +105,11 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
                 self.log.set_logfile(self.log_file)
             else:
                 self.log.set_logfile(None)
+
+        self.publish = publish
+        if publish:
+            os.environ[DEFAULT_ENV_ROOT + 'BACKEND'] = 'udp'
+            self.pub = Publisher()
 
         # Useful constants
         constant_cfg = self.config.get('constant')
