@@ -8,6 +8,8 @@ import time
 from scipy import signal
 import shutil
 import glob
+# for hardware logging
+import threading
 
 class SmurfUtilMixin(SmurfBase):
 
@@ -3165,3 +3167,60 @@ class SmurfUtilMixin(SmurfBase):
 
 	# set by array, not by channel
         self.set_amplitude_scale_array(band,new_amplitude_scale_array)
+
+    _hardware_logging_thread=None
+    def start_hardware_logging(self,filename=None):        
+        if filename is None:
+            filename=str(self.get_timestamp())+'_hwlog.dat'
+        #add path
+        filename = os.path.join(self.output_dir, filename)
+        self.log('Starting hardware logging to file : {}'.format(filename),
+                 self.LOG_USER)
+        self._hardware_logging_thread = threading.Thread(target=self._hardware_logger, args=(filename,))
+        self._hardware_logging_thread.daemon = True
+        self._hardware_logging_thread.start()
+
+    def stop_hardware_logging(self):        
+        self._hardware_logging_thread=None
+        
+    def _hardware_logger(self,filename='/tmp/tmp.dat',wait_btw_sec=10):
+        import fcntl
+        counter=0
+        while True:
+            time.sleep(wait_btw_sec)
+            entry=self.get_hardware_log_entry()
+            with open(filename,'a') as logf:
+                # file locking so multiple hardware loggers running in
+                # multiple pysmurf sessions can write to the same
+                # requested file if desired
+                fcntl.flock(logf, fcntl.LOCK_EX)
+                logf.write(entry)
+                fcntl.flock(logf, fcntl.LOCK_UN)
+                if self._hardware_logging_thread is None:
+                    break
+            counter+=1
+
+    def get_hardware_log_entry(self):
+
+        d={}
+        d['epics_root']=lambda:self.epics_root
+        d['ctime']=self.get_timestamp
+        d['fpga_temp']=self.get_fpga_temp
+        d['fpgca_vccint']=self.get_fpga_vccint
+        d['fpgca_vccaux']=self.get_fpga_vccaux
+        d['fpgca_vccbram']=self.get_fpga_vccbram
+
+        columns=[]
+        fmt=''
+        counter=0
+        for key, value in d.items():
+            columns.append(str(value()))
+            fmt+='{0[%d]:<20}'%counter
+            counter+=1
+        fmt+='\n'
+            
+        return fmt.format(columns)
+        
+        
+        
+        
