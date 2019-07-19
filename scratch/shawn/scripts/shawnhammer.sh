@@ -7,20 +7,20 @@ ctime=`date +%s`
 set_crate_fans_to_full=true
 attach_at_end=true
 screenshot_signal_analyzer=false
-configure_pysmurf=true
+configure_pysmurf=false
 reboot=true
 using_timing_master=false
 run_half_band_test=false
-one_at_a_time=true
+one_at_a_time=false
 write_config=false
-start_atca_monitor=true
+start_atca_monitor=false
 cpwd=$PWD
 
 pysmurf=/home/cryo/docker/pysmurf/dspv3
 shelfmanager=shm-smrf-sp01
 
 crate_id=3
-slots_in_configure_order=(4)
+slots_in_configure_order=(2 3 4)
 
 pysmurf_init_script=scratch/shawn/scripts/init_rflab.py
 
@@ -102,24 +102,26 @@ fi
 tmux select-window -t utils
 tmux select-pane -t 0
 
-exit
-
 if [ "$reboot" = true ] ; then
 
     # deactivate carriers
-    echo "-> Deactivating carrier(s) ${slots_in_configure_order[@]}"
+    deactivatecmd=""
+    activatecmd=""    
     for slot in ${slots_in_configure_order[@]}; do
-	ssh root@${shelfmanager} "clia deactivate board ${slot}"	
-    done    
+	deactivatecmd="$deactivatecmd clia deactivate board ${slot};"
+	activatecmd="$activatecmd clia activate board ${slot};"	
+    done
+
+    # deactivate carriers
+    echo "-> Deactivating carrier(s) ${slots_in_configure_order[@]}"    
+    ssh root@${shelfmanager} "$deactivatecmd"
     
     echo "-> Waiting 5 sec before re-activating carrier(s)"
     sleep 5
-    
-    # reactivate carriers
-    echo "-> Re-activating carrier(s) ${slots_in_configure_order[@]}"
-    for slot in ${slots_in_configure_order[@]}; do
-	ssh root@${shelfmanager} "clia activate board ${slot}"	
-    done        
+
+    # activate carriers
+    echo "-> Activating carrier(s) ${slots_in_configure_order[@]}"    
+    ssh root@${shelfmanager} "$activatecmd"    
 fi
 
 ################################################################################
@@ -153,7 +155,9 @@ for slot in ${slots_in_configure_order[@]}; do
     active_slot=${slot}
 done
 
-echo "active_slot=${active_slot}"
+if [ "$one_at_a_time" = false ] ; then
+    echo "active_slot=${active_slot}"
+fi
 
 ### Done configuring carriers
 ################################################################################
