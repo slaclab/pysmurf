@@ -7,7 +7,6 @@ from pysmurf.command.sync_group import SyncGroup as SyncGroup
 
 class SmurfCommandMixin(SmurfBase):
 
-
     _global_poll_enable = ':AMCc:enable'
     def _caput(self, cmd, val, write_log=False, execute=True, wait_before=None,
         wait_after=None, wait_done=True, log_level=0, enable_poll=False,
@@ -939,7 +938,7 @@ class SmurfCommandMixin(SmurfBase):
 
         """
         return self._caget(self.app_core + self._build_dsp_g,
-            **kwargs)    
+            **kwargs)
 
     _iq_stream_enable = 'iqStreamEnable'
     def set_iq_stream_enable(self, band, val, **kwargs):
@@ -2801,6 +2800,31 @@ class SmurfCommandMixin(SmurfBase):
         return self._caget(self.streaming_root + self._streaming_file_open,
             **kwargs)
 
+    # Carrier slot number
+    _slot_number = "SlotNumber"
+    def get_slot_number(self, **kwargs):
+        """
+        Gets the slot number of the crate that the carrier is installed into.
+
+        Returns:
+        --------
+        val (int): The slot number of the crate that the carrier is installed into.
+        """
+        return self._caget(self.amc_carrier_bsi + self._slot_number, **kwargs)
+
+    # Crate id
+    _crate_id = "CrateId"
+    def get_crate_id(self, **kwargs):
+        """
+        Gets the crate id.
+
+        Returns:
+        --------
+        val (int): The crate id.
+        """
+        return self._caget(self.amc_carrier_bsi + self._crate_id, **kwargs)    
+
+    
     # UltraScale+ FPGA
     fpga_root = ":AMCc:FpgaTopLevel:AmcCarrierCore:AxiSysMonUltraScale"
     _fpga_temperature = ":Temperature"
