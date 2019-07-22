@@ -3182,13 +3182,29 @@ class SmurfUtilMixin(SmurfBase):
 
     def stop_hardware_logging(self):        
         self._hardware_logging_thread=None
-        
-    def _hardware_logger(self,filename='/tmp/tmp.dat',wait_btw_sec=10):
+
+    def _hardware_logger(self,filename='/tmp/tmp.dat',wait_btw_sec=5):
         import fcntl
         counter=0
         while True:
             time.sleep(wait_btw_sec)
-            entry=self.get_hardware_log_entry()
+            hdr,entry=self.get_hardware_log_entry()
+            # only write header once, if file doesn't exist yet if
+            # file *does* already exist, check to make sure header
+            # will be the same, otherwise the resulting data won't
+            # make sense if multiple carriers are logging to the same
+            # file.
+            if not os.path.exists(filename):
+                with open(filename,'a') as logf:
+                    logf.write(hdr)
+            else:
+                with open(filename) as logf:
+                    hdr2=logf.readline()
+                    if not hdr.rstrip().split() == hdr2.rstrip().split():
+                        self.log('Attempting to temperature log to an incompatible file.  Giving up without logging any data!', 
+                                 self.LOG_ERROR)
+                        return
+                        
             with open(filename,'a') as logf:
                 # file locking so multiple hardware loggers running in
                 # multiple pysmurf sessions can write to the same
@@ -3209,17 +3225,45 @@ class SmurfUtilMixin(SmurfBase):
         d['fpgca_vccint']=self.get_fpga_vccint
         d['fpgca_vccaux']=self.get_fpga_vccaux
         d['fpgca_vccbram']=self.get_fpga_vccbram
+        d['cc_temp']=self.get_cryo_card_temp      
+        
+        # probably should check for which AMCs are in in a smarter way
+        bays=[]
+        bands=self.which_bands()
+        if 0 in bands:
+            bays.append(0)
+        if 4 in bands:
+            bays.append(1)            
+            
+        for bay in bays:
+            for dac in [0,1]:
+                d['bay%d_dac%d_temp'%(bay,dac)]=lambda:self.get_dac_temp(bay,dac)
 
+        #AT THE MOMENT, WAY TOO SLOW
+        # keep track of how many tones are on in each band
+        #for band in bands:
+        #    d['chans_b%d'%band]=lambda:len(self.which_on(band))
+        
+        # atca monitor
+        d['atca_temp_fpga']=self.get_board_temp_fpga
+        d['atca_temp_rtm']=self.get_board_temp_rtm
+        d['atca_temp_amc0']=self.get_board_temp_amc0
+        d['atca_temp_amc2']=self.get_board_temp_amc2
+        d['atca_jct_temp_fpga']=self.get_junction_temp_fpga
         columns=[]
+        names=[]
         fmt=''
         counter=0
         for key, value in d.items():
             columns.append(str(value()))
+            names.append(key)
             fmt+='{0[%d]:<20}'%counter
             counter+=1
         fmt+='\n'
-            
-        return fmt.format(columns)
+        
+        hdr=fmt.format(names)
+        row=fmt.format(columns)
+        return hdr,row
         
         
         
