@@ -81,6 +81,10 @@ class SmurfBase(object):
         self.crossbar = self.epics_root + \
             ':AMCc:FpgaTopLevel:AmcCarrierCore:AxiSy56040:'
 
+        # CarrierBsi
+        self.amc_carrier_bsi = self.epics_root + \
+            ':AMCc:FpgaTopLevel:AmcCarrierCore:AmcCarrierBsi:'
+        
         # FPGA
         self.ultrascale = self.epics_root + \
             ':AMCc:FpgaTopLevel:AmcCarrierCore:AxiSysMonUltraScale:'
