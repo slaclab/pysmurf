@@ -6,6 +6,18 @@ from pysmurf.base import SmurfBase
 from pysmurf.command.sync_group import SyncGroup as SyncGroup
 
 class SmurfAtcaMonitorMixin(SmurfBase):
+
+    _write_atca_monitor = ":Crate:WriteConfig"
+    def write_atca_monitor(self, val, **kwargs):
+        """
+        Writes the current ATCA monitor values to a yml file.
+
+        Args:
+        ----
+        val (str) : The path (including file name) to write the yml file to.
+        """
+        self._caput(self.shelf_manager + self._write_atca_monitor,
+                    val, **kwargs)
     
     _board_temp_fpga = 'BoardTemp:FPGA'
     def get_board_temp_fpga(self, slot_number=None, atca_epics_root=None, **kwargs):
