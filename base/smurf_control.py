@@ -268,6 +268,12 @@ class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin, Smu
         """
         self.log('Setting up...', (self.LOG_USER))
 
+        # If active, disable hardware logging while doing setup.
+        print(self._hardware_logging_thread)
+        if self._hardware_logging_thread is not None:
+            self.log('Hardware logging is enabled.  Pausing for setup.', (self.LOG_USER))
+            self.pause_hardware_logging()
+
         # Enable thermal overprotection for FPGA if the user wants it
         # to be set through pysmurf.  For unknown reasons, enabling OT
         # protection in the ELMA crate we've been using for testing on
@@ -475,7 +481,12 @@ class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin, Smu
                 # Configure RTM to trigger off of the timing system
                 self.set_ramp_start_mode(1,write_log=write_log)
                 
-        self.log('Done with setup')            
+        self.log('Done with setup')
+
+        # If active, re-enable hardware logging after setup.
+        if self._hardware_logging_thread is not None:
+            self.log('Resuming hardware logging.', (self.LOG_USER))
+            self.resume_hardware_logging()
 
     def make_dir(self, directory):
         """check if a directory exists; if not, make it
