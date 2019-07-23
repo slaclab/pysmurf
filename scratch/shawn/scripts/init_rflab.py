@@ -10,7 +10,7 @@ slot=int(sys.argv[1])
 epics_prefix = 'smurf_server_s%d'%slot
 
 if slot in [2,3,4]:
-    config_file='experiment_fp29_srv03_dspv3_cc02-03_lbOnlyBay0.cfg'
+    config_file='experiment_fp29_srv10_dspv3_cc02-02.cfg'
 else:
     assert False,"There isn't a SMuRF carrier in slot %d right now!"%slot
 
