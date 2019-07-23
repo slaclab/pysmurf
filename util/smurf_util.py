@@ -3168,53 +3168,69 @@ class SmurfUtilMixin(SmurfBase):
 	# set by array, not by channel
         self.set_amplitude_scale_array(band,new_amplitude_scale_array)
 
+    __hardware_logging_pause_event=None        
+    def pause_hardware_logging(self):
+        self.__hardware_logging_pause_event.set()
+
+    def resume_hardware_logging(self):
+        self.__hardware_logging_pause_event.clear()
+
+    __hardware_log_file=None    
+    def get_hardware_log_file(self):
+        return self.__hardware_log_file
+    
     _hardware_logging_thread=None
-    def start_hardware_logging(self,filename=None):        
+    __hardware_logging_stop_event=None
+    def start_hardware_logging(self,filename=None):
+        # Just in case somewhere the enable got set to false, explicitly enable here
         if filename is None:
             filename=str(self.get_timestamp())+'_hwlog.dat'
-        #add path
-        filename = os.path.join(self.output_dir, filename)
-        self.log('Starting hardware logging to file : {}'.format(filename),
+        self.__hardware_log_file = os.path.join(self.output_dir, filename)
+        self.log('Starting hardware logging to file : {}'.format(self.__hardware_log_file),
                  self.LOG_USER)
-        self._hardware_logging_thread = threading.Thread(target=self._hardware_logger, args=(filename,))
+        self.__hardware_logging_stop_event=threading.Event()
+        self.__hardware_logging_pause_event=threading.Event()        
+        self._hardware_logging_thread = threading.Thread(target=self._hardware_logger, args=(self.__hardware_logging_pause_event,self.__hardware_logging_stop_event,))
         self._hardware_logging_thread.daemon = True
         self._hardware_logging_thread.start()
 
-    def stop_hardware_logging(self):        
+    def stop_hardware_logging(self):
+        self.__hardware_logging_stop_event.set()
+        self._hardware_logging_thread.join()
         self._hardware_logging_thread=None
+        self.__hardware_log_file=None
 
-    def _hardware_logger(self,filename='/tmp/tmp.dat',wait_btw_sec=5):
+    def _hardware_logger(self,pause_event,stop_event,wait_btw_sec=5):
+        filename=self.get_hardware_log_file()
         import fcntl
-        counter=0
-        while True:
-            time.sleep(wait_btw_sec)
-            hdr,entry=self.get_hardware_log_entry()
-            # only write header once, if file doesn't exist yet if
-            # file *does* already exist, check to make sure header
-            # will be the same, otherwise the resulting data won't
-            # make sense if multiple carriers are logging to the same
-            # file.
-            if not os.path.exists(filename):
+        #counter=0
+        while not stop_event.wait(wait_btw_sec):
+            if not pause_event.isSet():
+                hdr,entry=self.get_hardware_log_entry()
+                # only write header once, if file doesn't exist yet if
+                # file *does* already exist, check to make sure header
+                # will be the same, otherwise the resulting data won't
+                # make sense if multiple carriers are logging to the same
+                # file.
+                if not os.path.exists(filename):
+                    with open(filename,'a') as logf:
+                        logf.write(hdr)
+                else:
+                    with open(filename) as logf:
+                        hdr2=logf.readline()
+                        if not hdr.rstrip().split() == hdr2.rstrip().split():
+                            self.log('Attempting to temperature log to an incompatible file.  Giving up without logging any data!', 
+                                     self.LOG_ERROR)
+                            return
+
                 with open(filename,'a') as logf:
-                    logf.write(hdr)
-            else:
-                with open(filename) as logf:
-                    hdr2=logf.readline()
-                    if not hdr.rstrip().split() == hdr2.rstrip().split():
-                        self.log('Attempting to temperature log to an incompatible file.  Giving up without logging any data!', 
-                                 self.LOG_ERROR)
-                        return
-                        
-            with open(filename,'a') as logf:
-                # file locking so multiple hardware loggers running in
-                # multiple pysmurf sessions can write to the same
-                # requested file if desired
-                fcntl.flock(logf, fcntl.LOCK_EX)
-                logf.write(entry)
-                fcntl.flock(logf, fcntl.LOCK_UN)
-                if self._hardware_logging_thread is None:
-                    break
-            counter+=1
+                    # file locking so multiple hardware loggers running in
+                    # multiple pysmurf sessions can write to the same
+                    # requested file if desired
+                    fcntl.flock(logf, fcntl.LOCK_EX)
+                    logf.write(entry)
+                    fcntl.flock(logf, fcntl.LOCK_UN)
+                #counter+=1
 
     def get_hardware_log_entry(self):
 
