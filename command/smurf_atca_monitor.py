@@ -7,16 +7,16 @@ from pysmurf.command.sync_group import SyncGroup as SyncGroup
 
 class SmurfAtcaMonitorMixin(SmurfBase):
 
-    _write_atca_monitor = ":Crate:WriteConfig"
-    def write_atca_monitor(self, val, **kwargs):
+    _write_atca_monitor_state = ":Crate:WriteState"
+    def write_atca_monitor_state(self, val, **kwargs):
         """
-        Writes the current ATCA monitor values to a yml file.
+        Writes all current ATCA monitor values to a yml file.
 
         Args:
         ----
         val (str) : The path (including file name) to write the yml file to.
         """
-        self._caput(self.shelf_manager + self._write_atca_monitor,
+        self._caput(self.shelf_manager + self._write_atca_monitor_state,
                     val, **kwargs)
     
     _board_temp_fpga = 'BoardTemp:FPGA'
