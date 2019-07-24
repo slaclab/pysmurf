@@ -5,6 +5,9 @@ source shawnhammerfunctions
 ctime=`date +%s`
 
 set_crate_fans_to_full=true
+# COMTEL is 100, ASIS is 15, ELMA is 15
+max_fan_level=100
+
 attach_at_end=true
 screenshot_signal_analyzer=false
 configure_pysmurf=false
@@ -13,22 +16,25 @@ using_timing_master=false
 run_half_band_test=false
 one_at_a_time=false
 write_config=false
-start_atca_monitor=false
+start_atca_monitor=true
 cpwd=$PWD
 
 pysmurf=/home/cryo/docker/pysmurf/dspv3
 shelfmanager=shm-smrf-sp01
+#shelfmanager=shm-b084-sp07
 
 crate_id=3
 slots_in_configure_order=(2 3 4)
+#slots_in_configure_order=(4)
 
 pysmurf_init_script=scratch/shawn/scripts/init_rflab.py
+#pysmurf_init_script=scratch/shawn/scripts/init_stanford.py
 
 tmux_session_name=smurf
 
 # If true, forces crate fans to full speed
 if [ "$set_crate_fans_to_full" = true ] ; then
-    ssh root@${shelfmanager} "clia minfanlevel 15; clia setfanlevel all 15"
+    ssh root@${shelfmanager} "clia minfanlevel ${max_fan_level}; clia setfanlevel all ${max_fan_level}"
     sleep 2
 fi
 
