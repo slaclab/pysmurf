@@ -8,7 +8,7 @@ pause_btw_stages=True
 bands=range(8)
 
 # Dumb monitoring of FPGA temperatures
-# 1399  while true; do clear; awk '{print $1" "$3}' /data/smurf_data/20190719/1563578383/outputs/1563578385_hwlog.dat | tail -n 3; sleep 1; done
+#while true; do clear; awk '{print $1" "$3}' 1563924543_hwlog.dat | tail -n 3 | sort; sleep 1; done
 
 def tmux_cmd(slot_number,cmd,tmux_session_name='smurf'):
     os.system("""tmux send-keys -t {}:{} '{}' C-m""".format(tmux_session_name,slot_number,cmd))
@@ -86,7 +86,7 @@ print('-> Logging to {}.'.format(hardware_logfile))
 
 slots=[2,3,4]
 
-wait_before_setup_min=0.1
+wait_before_setup_min=2
 wait_after_setup_min=5
 wait_btw_band_fills_min=0.5
 wait_after_band_fills_min=5
