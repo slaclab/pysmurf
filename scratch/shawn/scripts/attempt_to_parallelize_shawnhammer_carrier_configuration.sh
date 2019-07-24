@@ -1,41 +1,36 @@
+#!/bin/bash
+
+source shawnhammerfunctions
+
 crate_id=3
 slots_in_configure_order=(2 3 4)
 
-declare -a slot_status=( $(for slot in ${slots_in_configure_order[@]}; do echo 0; done) )
-active_slot=
-while true; do 
-    for slot_idx in `seq 0 $((${#slots_in_configure_order[@]}-1))`; do
-	slot=${slots_in_configure_order[$slot_idx]}
+## start parallel method
+# setup stages
+# 0 = carriers off.
+# 1 = carrier eth responds to ping.
+setup_complete=false
+completion_status=3
+declare -a slot_status=( $(for slot in ${slots_in_configure_order[@]}; do echo 2; done) )
+while [[ "${setup_complete}" = false ]] ; do 
+	for slot_idx in `seq 0 $((${#slots_in_configure_order[@]}-1))`; do 
+	    slot=${slots_in_configure_order[$slot_idx]}
 
-	if [ "${slot_status[${slot_idx}]}" = "0" ]; then
-	    # make sure ethernet is up on carrier
-	    echo "-> Waiting for ethernet on carrier in slot ${slot} to come up ..."
-	    cd $cpwdcase
-	    ping_carrier 10.0.${crate_id}.$((${slot}+100))
-	    # ping_carrier returns 0 if ping fails, 1 if it succeeds
-	    slot_status[$slot_idx]=$?
-	fi
-        
-	#    # may only want one pyrogue server running at a time
-	#    if [[ ! -z "$active_slot" && "$one_at_a_time" = true ]] ; then
-	#	tmux select-window -t smurf_slot${active_slot}
-	#	tmux select-pane -t 0
-	#	tmux send-keys -t ${tmux_session_name}:${active_slot} C-c
-	#	
-	#	# stop smurf_server_s4
-	#	stop_pyrogue ${active_slot}
-	#    fi
-	#    
-	#    start_slot_tmux ${slot}
-	#
-	#    pysmurf_docker_slot=`docker ps -a -n 1 -q`
-	#
-	#    if [[ "$reboot" = true && "$configure_pysmurf" = true ]] ; then
-	#    	config_pysmurf ${slot} ${pysmurf_docker_slot}
-	#    fi
-	#    
-	#    active_slot=${slot}
-    done
-	
-    echo "slot_status="${slot_status[@]}    
+	    # Wait for gui to come up
+	    if [ "${slot_status[${slot_idx}]}" = "3" ]; then
+	    fi
+
+	    ###########################################
+	    echo "slot_status="${slot_status[@]}
+	    # check if complete
+	    status_summary=(`echo ${slot_status[@]} | tr ' ' '\n' | sort | uniq`)
+	    echo ${#status_summary[@]}
+	    echo ${status_summary[0]}
+	    echo ${completion_status}
+	    # break out of setup loop once all slot statuses reach completion status.
+	    if [[ "${#status_summary[@]}" = "1" && "${status_summary[0]}" = "${completion_status}" ]] ; then
+		setup_complete=true
+	    fi
+	done
 done
+
