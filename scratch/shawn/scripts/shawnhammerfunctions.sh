@@ -23,7 +23,24 @@ wait_for_docker () {
     latest_docker=`docker ps -a -n 1 -q`    
 }
 
-start_slot_tmux () {
+start_slot_tmux_and_pyrogue() {
+    slot_number=$1
+    tmux new-window -t ${tmux_session_name}:${slot_number}
+    tmux rename-window -t ${tmux_session_name}:${slot_number} smurf_slot${slot_number}
+    tmux send-keys -t ${tmux_session_name}:${slot_number} 'cd /home/cryo/docker/smurf/current' C-m
+    tmux send-keys -t ${tmux_session_name}:${slot_number} './run.sh -N '${slot_number}'; sleep 5; docker logs smurf_server_s'${slot_number}' -f' C-m
+}
+
+is_slot_pyrogue_up() {
+    slot_number=$1
+    if [[ -z `docker ps  | grep smurf_server_s${slot_number}`  ]]; then
+	echo '-> smurf_server_s'${slot_number}' docker started.'
+	return 1
+    fi
+    return 0
+}
+
+start_slot_tmux_serial () {
     slot_number=$1
 
     pysmurf_docker0=`docker ps -a | grep pysmurf | grep -v pysmurf_s${slot_number} | head -n 1 | awk '{print $1}'`
@@ -73,7 +90,7 @@ start_slot_tmux () {
 
 # right now, real dumb.  Assumes the active window in tmux is this
 # slot's
-config_pysmurf () {
+config_pysmurf_serial () {
     slot_number=$1
     pysmurf_docker=$2
     
