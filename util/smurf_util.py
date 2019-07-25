@@ -1018,7 +1018,7 @@ class SmurfUtilMixin(SmurfBase):
                                              frames])
             else:
                 print('Loading only channel {}'.format(channel))
-                k = channel + 1025
+                k = channel
                 phase = np.zeros(len(frames))
                 phase = np.asarray([j[keys_dict[f'data{k}']] for j in frames])
 
