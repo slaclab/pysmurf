@@ -401,7 +401,7 @@ class SmurfConfig:
         # RF lab at SLAC where they've been testing with an ASIS
         # crate.  Shawn has yet to have this work for him.  Newer fw
         # versions will have OT protection enabled in the fw.
-        schema_dict[Optional('ultrascale_temperature_limit_degC',default=None)] = And(Use(float),lambda f: 0 <= f <= 95)
+        schema_dict[Optional('ultrascale_temperature_limit_degC',default=None)] = And(Use(float),lambda f: 0 <= f <= 99)
         #### Done specifying thermal schema
 
         #### Start specifying timing-related schema
