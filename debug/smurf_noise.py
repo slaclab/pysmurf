@@ -1334,3 +1334,183 @@ class SmurfNoiseMixin(SmurfBase):
 
             del f
             del Pxx
+
+
+
+    def noise_svd(self, d, mask, mean_subtract=True):
+        """
+        Calculates the SVD modes of the input data.
+        Only uses the data called out by the mask
+
+        Args:
+        -----
+        d (float array) : The raw data
+        mask (int array) : The channel mask
+
+        Opt Args:
+        ---------
+        mean_subtract (bool) : Whether to mean subtract
+            before taking the SVDs.
+
+        Ret:
+        ----
+        u (float array) : The SVD coefficients
+        s (float array) : The SVD amplitudes
+        vh (float array) : The SVD modes
+        """
+        dat = d[mask[np.where(mask!=-1)]]
+        if mean_subtract:
+            dat -= np.atleast_2d(np.mean(dat, axis=1)).T
+
+        u, s, vh = np.linalg.svd(dat, full_matrices=True)
+        return u, s, vh
+
+    def plot_svd_summary(self, u, s, save_plot=False, 
+        save_name=None, show_plot=False):
+        """
+        Requires seaborn to be installed. Plots a heatmap
+        of the coefficients and the log10 of the amplitudes.
+
+        Args:
+        -----
+        u (float array) : SVD coefficients from noise_svd
+        s (float array) : SVD amplitudes from noise_svd
+
+        Opt Args:
+        ---------
+        save_plot (bool) : Whether to save the plot
+        save_name (str) : The name of the file
+        show_plot (bool) : Whether to show the plot
+        """
+        import matplotlib.pyplot as plt
+        import seaborn as sns
+
+        if not show_plot:
+            plt.ioff()
+        else:
+            plt.ion()
+
+        fig, ax = plt.subplots(1, 2, figsize=(10,5))
+
+        # heatmap of coefficients
+        n_det, _ = np.shape(u)
+        n_tick = 10
+        tick = n_det//n_tick
+        sns.heatmap(u, vmin=-1, vmax=1, cmap='RdYlBu_r', 
+            xticklabels=tick, yticklabels=tick, linewidth=0, 
+            ax=ax[0], square=False)
+        ax[0].set_xlabel('Mode Num')
+        ax[0].set_ylabel('Resonator')
+
+        # Overall mode power
+        ax[1].plot(np.log10(s), '.')
+        ax[1].set_ylabel(r'$\log_{10}s$')
+        ax[1].set_xlabel('Mode num')
+
+        plt.tight_layout()
+
+        # Plot saving
+        if save_plot:
+            if save_name is None:
+                raise IOError('To save plot, save_name must be provided')
+            else:
+                plt.savefig(os.path.join(self.plot_dir, save_name), 
+                            bbox_inches='tight')
+
+        if show_plot:
+            plt.show()
+        else:
+            plt.close()
+
+    def plot_svd_modes(self, vh, n_row=4, n_col=5, figsize=(10,7.5), 
+        save_plot=False, save_name=None, show_plot=False, sharey=True):
+        """
+        Plots the first N modes where N is n_row x n_col.
+
+        Args:
+        -----
+        vh (float array) : SVD modes from noise_svd
+        Opt Args:
+        --------
+        n_row (int) : The number of rows in the figure
+        n_col (int) : The number of columns in the figure
+        figsize (ints) : The size of the figure
+        sharey (bool) : whether the subplots share y
+        save_plot (bool) : Whether to save the plot
+        save_name (str) : The name of the file
+        show_plot (bool) : Whether to show the plot  
+        """
+        import matplotlib.pyplot as plt
+        if not show_plot:
+            plt.ioff()
+        else:
+            plt.ion()
+
+
+        fig, ax = plt.subplots(n_row, n_col, figsize=figsize, sharex=True,
+            sharey=sharey)
+
+        n_modes = n_row * n_col
+
+        for i in np.arange(n_modes):
+            y = i // n_col
+            x = i % n_col
+            ax[y,x].plot(vh[i])
+            ax[y,x].text(0.04, 0.91, '{}'.format(i), transform=ax[y,x].transAxes)
+        
+        plt.tight_layout()
+
+        # Plot saving
+        if save_plot:
+            if save_name is None:
+                raise IOError('To save plot, save_name must be provided')
+            else:
+                plt.savefig(os.path.join(self.plot_dir, save_name), 
+                            bbox_inches='tight')
+
+        if show_plot:
+            plt.show()
+        else:
+            plt.close()
+
+
+    def remove_svd(self, d, mask, u, s, vh, modes=3):
+        """
+        Removes the requsted SVD modes
+
+        Args:
+        -----
+        d (float array) : The input data
+        u (float array) : The SVD coefficients
+        s (float array) : The SVD amplitudes
+        mask (int array) : The channel mask
+        vh (float arrry) : The SVD modes
+
+        Opt Args:
+        ---------
+        modes (int or int array) : The modes to remove. If int, removes the first
+            N modes. If array, uses the modes indicated in the array. Default 3.
+
+        Ret:
+        ----
+        diff (float array) : The difference of the input data matrix and the 
+            requested SVD modes.
+        """
+        n_mode = np.size(s)
+        n_samp, _ = np.shape(vh)
+
+        dat = d[mask[np.where(mask!=-1)]]
+
+        if type(modes) is int:
+            modes = np.arange(modes)
+
+        # select the modes to subtract
+        diag = np.zeros((n_mode, n_samp))
+        for i, dd in enumerate(s):
+            if i in modes:
+                diag[i,i] = dd
+
+        # subtraction matrix
+        mat = np.dot(u, np.dot(diag, vh))
+
+        return dat - mat
