@@ -3012,7 +3012,7 @@ class SmurfTuneMixin(SmurfBase):
 
         self.log('Working on band {:d}'.format(band))
         for sb in subband:
-            self.log('Sweeping subband no: {}'.format(sb))
+            self.log('Sweeping band {:d}, subband no: {}'.format(band,sb))
             f, r = self.fast_eta_scan(band, sb, scan_freq, n_read, 
                 drive)
             resp[sb,:] = r
