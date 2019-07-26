@@ -886,6 +886,7 @@ class SmurfUtilMixin(SmurfBase):
                 self.log('Writing PyRogue configuration to file : {}'.format(config_filename), 
                      self.LOG_USER)
                 self.write_config(config_filename)
+
                 # short wait
                 time.sleep(5.)
 
@@ -1551,7 +1552,6 @@ class SmurfUtilMixin(SmurfBase):
         self.log(logstr,
                  self.LOG_USER)                        
 
-    
     def band_off(self, band, **kwargs):
         '''
         Turns off all tones in a band
@@ -1562,7 +1562,7 @@ class SmurfUtilMixin(SmurfBase):
 
     def channel_off(self, band, channel, **kwargs):
         """
-        Turns off tones for a single channel
+        Turns off the tone for a single channel by setting the amplitude to zero and disabling feedback.
         """
         self.log('Turning off band {} channel {}'.format(band, channel), 
             self.LOG_USER)
@@ -1769,7 +1769,7 @@ class SmurfUtilMixin(SmurfBase):
 
         return subband_no, offset
 
-    def channel_to_freq(self, band, channel):
+    def channel_to_freq(self, band, channel, yml=None):
         """
         Gives the frequency of the channel.
 
@@ -1785,9 +1785,10 @@ class SmurfUtilMixin(SmurfBase):
         if band is None or channel is None:
             return None
 
-        subband = self.get_subband_from_channel(band, channel)
-        _, sbc = self.get_subband_centers(band, as_offset=False)
-        offset = self.get_center_frequency_mhz_channel(band, channel)
+        subband = self.get_subband_from_channel(band, channel, yml=yml)
+        _, sbc = self.get_subband_centers(band, as_offset=False, yml=yml)
+        offset = float(self.get_center_frequency_mhz_channel(band, channel, 
+            yml=yml))
 
         return sbc[subband] + offset
 
@@ -1848,9 +1849,9 @@ class SmurfUtilMixin(SmurfBase):
         n_chan = self.get_number_channels()
         n_cut = (n_chan - n_proc)//2
         return np.sort(self.get_channel_order(channel_orderfile=channel_orderfile)[n_cut:-n_cut])
-        
-    
-    def get_subband_from_channel(self, band, channel, channelorderfile=None):
+            
+    def get_subband_from_channel(self, band, channel, channelorderfile=None,
+        yml=None):
         """ returns subband number given a channel number
         Args:
         -----
@@ -1867,8 +1868,8 @@ class SmurfUtilMixin(SmurfBase):
         subband (int) : The subband the channel lives in
         """
 
-        n_subbands = self.get_number_sub_bands(band)
-        n_channels = self.get_number_channels(band)
+        n_subbands = self.get_number_sub_bands(band, yml=yml)
+        n_channels = self.get_number_channels(band, yml=yml)
 
         n_chanpersubband = n_channels / n_subbands
 
@@ -1885,7 +1886,8 @@ class SmurfUtilMixin(SmurfBase):
         
         return int(subband)
 
-    def get_subband_centers(self, band, as_offset=True, hardcode=False):
+    def get_subband_centers(self, band, as_offset=True, hardcode=False, 
+        yml=None):
         """ returns frequency in MHz of subband centers
         Args:
         -----
@@ -1899,9 +1901,10 @@ class SmurfUtilMixin(SmurfBase):
             digitizer_frequency_mhz = 614.4
             n_subbands = 128
         else:
-            digitizer_frequency_mhz = self.get_digitizer_frequency_mhz(band)
-            bandCenterMHz = self.get_band_center_mhz(band)
-            n_subbands = self.get_number_sub_bands(band)
+            digitizerFrequencyMHz = self.get_digitizer_frequency_mhz(band, 
+                yml=yml)
+            bandCenterMHz = self.get_band_center_mhz(band, yml=yml)
+            n_subbands = self.get_number_sub_bands(band, yml=yml)
 
         subband_width_MHz = 2 * digitizer_frequency_mhz / n_subbands
 
@@ -1910,7 +1913,7 @@ class SmurfUtilMixin(SmurfBase):
             subband_width_MHz/2
 
         if not as_offset:
-            subband_centers += self.get_band_center_mhz(band)
+            subband_centers += self.get_band_center_mhz(band, yml=yml)
 
         return subbands, subband_centers
 

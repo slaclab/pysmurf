@@ -4,6 +4,7 @@ import epics
 import time
 from pysmurf.base import SmurfBase
 from pysmurf.command.sync_group import SyncGroup as SyncGroup
+from pysmurf.util import tools
 
 class SmurfCommandMixin(SmurfBase):
 
@@ -79,7 +80,7 @@ class SmurfCommandMixin(SmurfBase):
         
     def _caget(self, cmd, write_log=False, execute=True, count=None,
                log_level=0, enable_poll=False, disable_poll=False,
-               new_epics_root=None):
+               new_epics_root=None, yml=None):
         '''
         Wrapper around pyrogue lcaget. Gets variables from epics
 
@@ -114,7 +115,13 @@ class SmurfCommandMixin(SmurfBase):
         if write_log:
             self.log('caget ' + cmd, log_level)
 
-        if execute and not self.offline:
+        # load the data from yml file if provided
+        if yml is not None:
+            if write_log:
+                self.log('Reading from yml file\n {}'.format(cmd))
+            return tools.yaml_parse(yml, cmd)
+
+        elif execute and not self.offline:
             ret = epics.caget(cmd, count=count)
             if write_log:
                 self.log(ret)

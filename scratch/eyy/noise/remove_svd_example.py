@@ -16,6 +16,7 @@ plotdir = datadir.replace('outputs', 'plots')
 #filename = '1555622545.dat'
 filename = '1555628193.dat'
 fn = filename.split('.')[0]
+
 datafile = os.path.join(datadir, filename)
 
 t,d,m = S.read_stream_data(datafile, n_samp=10000)

@@ -10,10 +10,10 @@ wait_time_sec=0.1
  
 for band in bands:
     S.set_att_uc(band,0)
-    S.set_dsp_enable(band,1) 
-    S.set_tone_scale(band,2) 
-    S.set_analysis_scale(band,3) 
-    S.set_synthesis_scale(band,2) 
+    #S.set_dsp_enable(band,1) 
+    #S.set_tone_scale(band,2) 
+    #S.set_analysis_scale(band,3) 
+    #S.set_synthesis_scale(band,2) 
     channels=[] 
  
     #for sb in np.arange(64,116):
