@@ -1157,7 +1157,7 @@ class SmurfUtilMixin(SmurfBase):
 
     def channel_off(self, band, channel, **kwargs):
         """
-        Turns off tones for a single channel
+        Turns off the tone for a single channel by setting the amplitude to zero and disabling feedback.
         """
         self.log('Turning off band {} channel {}'.format(band, channel), 
             self.LOG_USER)
