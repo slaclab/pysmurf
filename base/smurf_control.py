@@ -149,9 +149,7 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
         # Flux ramp hardware detail
         flux_ramp_cfg = self.config.get('flux_ramp')
         keys = flux_ramp_cfg.keys()
-        self.num_flux_ramp_counter_bits=20
-        if 'num_flux_ramp_counter_bits' in keys:
-            self.num_flux_ramp_counter_bits=flux_ramp_cfg['num_flux_ramp_counter_bits']
+        self.num_flux_ramp_counter_bits=flux_ramp_cfg['num_flux_ramp_counter_bits']
 
         # Mapping from chip number to frequency in GHz
         chip_cfg = self.config.get('chip_to_freq')
@@ -160,23 +158,17 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
         for i, k in enumerate(chip_cfg.keys()):
             val = chip_cfg[k]
             self.chip_to_freq[i] = [k, val[0], val[1]]
-
-        # Mapping from band to chip number
-        band_cfg = self.config.get('band_to_chip')
-        keys = band_cfg.keys()
-        self.band_to_chip = np.zeros((len(keys), 5))
-        for i, k in enumerate(keys):
-            val = band_cfg[k]
-            self.band_to_chip[i] = np.append([i], val)
-            
+                
         # channel assignment file
         #self.channel_assignment_files = self.config.get('channel_assignment')
         self.channel_assignment_files = {}
         if not no_dir:
             for b in self.config.get('init').get('bands'):
-                self.channel_assignment_files['band_{}'.format(b)] = \
-                    np.sort(glob.glob(os.path.join(self.tune_dir, 
-                            '*channel_assignment_b{}.txt'.format(b))))[-1]
+                all_channel_assignment_files=glob.glob(os.path.join(self.tune_dir, 
+                                                                    '*channel_assignment_b{}.txt'.format(b)))
+                if len(all_channel_assignment_files):
+                    self.channel_assignment_files['band_{}'.format(b)] = \
+                            np.sort(all_channel_assignment_files)[-1]
 
         # bias groups available
         self.all_groups = self.config.get('all_bias_groups')
@@ -245,7 +237,10 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
             self.freq_resp[b]['lock_status'] = {}
             self.lms_freq_hz[b] = tune_band_cfg['lms_freq'][str(b)]
 
-        for cfg_var in ['gradient_descent_gain', 'gradient_descent_averages', 'eta_scan_averages']:
+        # Load in tuning parameters, if present
+        tune_band_cfg=self.config.get('tune_band')
+        tune_band_keys=tune_band_cfg.keys()
+        for cfg_var in ['gradient_descent_gain', 'gradient_descent_averages', 'eta_scan_averages','delta_freq']:
             if cfg_var in tune_band_keys:
                 setattr(self, cfg_var, {})
                 for b in  bands:
@@ -262,6 +257,15 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
         Sets the PVs to the default values from the experiment.cfg file
         """
         self.log('Setting up...', (self.LOG_USER))
+
+        # Make sure thermal protection is enabled for FPGA
+        #self.log('Enabling Ultrascale OT protection...', (self.LOG_USER))
+        # enable custom OT threshold by writing 0x3
+        #self.set_ultrascale_ot_custom_threshold_enable(3,write_log=write_log)
+        # OT threshold in degrees C
+        #self.set_ultrascale_ot_threshold(self.config.get('ultrascale_temperature_limit_degC'),write_log=write_log)
+        # enable OT threshold
+        #self.set_ultrascale_ot_threshold_disable(0,write_log=write_log)
 
         # Which bands are we configuring?
         smurf_init_config = self.config.get('init')
@@ -297,11 +301,27 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
             self.set_ref_phase_delay_fine(b, 
                 smurf_init_config[band_str]['refPhaseDelayFine'], 
                 write_log=write_log, **kwargs)
-            self.set_tone_scale(b, smurf_init_config[band_str]['toneScale'], 
-                write_log=write_log, **kwargs)
-            self.set_analysis_scale(b, 
-                smurf_init_config[band_str]['analysisScale'], 
-                write_log=write_log, **kwargs)
+            # in DSPv3, lmsDelay should be 4*refPhaseDelay (says
+            # Mitch).  If none provided in cfg, enforce that
+            # constraint.  If provided in cfg, override with provided
+            # value.
+            if smurf_init_config[band_str]['lmsDelay'] is None:
+                self.set_lms_delay(b, int(4*smurf_init_config[band_str]['refPhaseDelay']), 
+                                   write_log=write_log, **kwargs)                        
+            else:
+                self.set_lms_delay(b, smurf_init_config[band_str]['lmsDelay'], 
+                                   write_log=write_log, **kwargs)            
+            ## No longer setting the per-band analyisScale, toneScale,
+            ## and synthesisScale in setup.  These should be set in
+            ## the defaults.yml.
+            #self.set_synthesis_scale(b, 
+            #    smurf_init_config[band_str]['synthesisScale'],
+            #    write_log=write_log, **kwargs)            
+            #self.set_tone_scale(b, smurf_init_config[band_str]['toneScale'], 
+            #    write_log=write_log, **kwargs)
+            #self.set_analysis_scale(b, 
+            #    smurf_init_config[band_str]['analysisScale'], 
+            #    write_log=write_log, **kwargs)
             self.set_feedback_enable(b, 
                 smurf_init_config[band_str]['feedbackEnable'],
                 write_log=write_log, **kwargs)
@@ -310,28 +330,23 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
                 write_log=write_log, **kwargs)
             self.set_lms_gain(b, smurf_init_config[band_str]['lmsGain'], 
                 write_log=write_log, **kwargs)
+            self.set_trigger_reset_delay(b, smurf_init_config[band_str]['trigRstDly'], 
+                write_log=write_log, **kwargs)            
 
-            self.set_feedback_limit_khz(b, 225)  # why 225?
+            self.set_feedback_limit_khz(b, smurf_init_config[band_str]['feedbackLimitkHz'],
+                write_log=write_log, **kwargs)
 
             self.set_feedback_polarity(b, 
                 smurf_init_config[band_str]['feedbackPolarity'], 
-                write_log=write_log, **kwargs)
-            self.set_synthesis_scale(b, 
-                smurf_init_config[band_str]['synthesisScale'],
                 write_log=write_log, **kwargs)
 
             for dmx in np.array(smurf_init_config[band_str]["data_out_mux"]):
                 self.set_data_out_mux(int(self.band_to_bay(b)), int(dmx), "UserData", write_log=write_log,
                     **kwargs)
 
-            self.set_att_uc(b, smurf_init_config[band_str]['att_uc'],
-                write_log=write_log)
-            self.set_att_dc(b, smurf_init_config[band_str]['att_dc'],
-                write_log=write_log)
-
             self.set_dsp_enable(b, smurf_init_config['dspEnable'], 
                 write_log=write_log, **kwargs)
-
+            
             # Tuning defaults - only set if present in cfg
             if hasattr(self,'gradient_descent_gain') and b in self.gradient_descent_gain.keys():
                 self.set_gradient_descent_gain(b, self.gradient_descent_gain[b], write_log=write_log, **kwargs)
@@ -340,18 +355,34 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
             if hasattr(self,'eta_scan_averages') and b in self.eta_scan_averages.keys():
                 self.set_eta_scan_averages(b, self.eta_scan_averages[b], write_log=write_log, **kwargs)
 
+        # To work around issue where setting the UC attenuators is for
+        # some reason also setting the UC attenuators for other bands
+        # with the new C03 AMCs, first set all the UC attenuators
+        # (which don't seem to be affected by setting the DC
+        # attenuators, at least for LB bands 2 and 3), then set all
+        # the UC attenuators.
+        for b in bands:
+            self.set_att_uc(b, smurf_init_config[band_str]['att_uc'],
+                            write_log=write_log)
+        for b in bands:
+            self.set_att_dc(b, smurf_init_config[band_str]['att_dc'],
+                            write_log=write_log)
+
+        # Things that have to be done for both AMC bays, regardless of whether or not an AMC
+        # is plugged in there.
+        for bay in [0,1]:
+            self.set_trigger_hw_arm(bay, 0, write_log=write_log)
+        
         self.set_trigger_width(0, 10, write_log=write_log)  # mystery bit that makes triggering work
         self.set_trigger_enable(0, 1, write_log=write_log)
         self.set_evr_channel_reg_enable(0, True, write_log=write_log)
         self.set_evr_trigger_reg_enable(0, True, write_log=write_log)
         self.set_evr_trigger_channel_reg_dest_sel(0, 0x20000, write_log=write_log)
 
-        self.set_enable_ramp_trigger(1, write_log=True)
+        self.set_enable_ramp_trigger(1, write_log=write_log)
 
         flux_ramp_cfg = self.config.get('flux_ramp')
         self.set_select_ramp(flux_ramp_cfg['select_ramp'], write_log=write_log)
-        self.set_ramp_start_mode(flux_ramp_cfg['ramp_start_mode'], 
-                                 write_log=write_log)
 
         self.set_cpld_reset(0, write_log=write_log)
         self.cpld_toggle(write_log=write_log)
@@ -369,9 +400,8 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
         self.set_smurf_to_gcp_stream(False, write_log=write_log)
         self.set_smurf_to_gcp_writer(False, write_log=write_log)
 
-        # Turn on stream enable (this should only send data to the PCIE)
-        for b in bands:
-            self.set_stream_enable(b, 1, write_log=write_log)
+        # Turn on stream enable for all bands
+        self.set_stream_enable(1, write_log=write_log)
 
         self.set_smurf_to_gcp_clear(1, write_log=write_log, wait_after=1)
         self.set_smurf_to_gcp_clear(0, write_log=write_log)
@@ -380,10 +410,53 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
         _ = self.get_amplifier_bias()
         self.log("Cryocard temperature = "+ str(self.C.read_temperature())) # also read the temperature of the CC
 
-        self.log('Done with setup')
-        for bay in self.bays:
-            self.log('Select external reference for bay %i' % (bay))
-            self.sel_ext_ref(bay)
+        # if no timing section present, assumes your defaults.yml
+        # has set you up...good luck.
+        if self.config.get('timing') is not None and self.config.get('timing').get('timing_reference') is not  None:
+            timing_reference=self.config.get('timing').get('timing_reference')
+
+            # check if supported
+            timing_options=['ext_ref','backplane']
+            assert (timing_reference in timing_options), 'timing_reference in cfg file (={}) not in timing_options={}'.format(timing_reference,str(timing_options))
+
+            self.log('Configuring the system to take timing from {}'.format(timing_reference))
+            
+            if timing_reference=='ext_ref':
+                for bay in self.bays:
+                    self.log('Select external reference for bay %i' % (bay))
+                    self.sel_ext_ref(bay)
+
+                # make sure RTM knows there's no timing system
+                self.set_ramp_start_mode(0,write_log=write_log)                
+
+            # https://confluence.slac.stanford.edu/display/SMuRF/Timing+Carrier#TimingCarrier-Howtoconfiguretodistributeoverbackplanefromslot2
+            if timing_reference=='backplane':
+                # Set SMuRF carrier crossbar to use the backplane
+                # distributed timing.
+                # OutputConfig[1] = 0x2 configures the SMuRF carrier's
+                # FPGA to take the timing signals from the backplane
+                # (TO_FPGA = FROM_BACKPLANE)
+                self.log('Setting crossbar OutputConfig[1]=0x2 (TO_FPGA=FROM_BACKPLANE)')
+                self.set_crossbar_output_config(1,2)
+
+                self.log('Waiting 1 sec for timing up-link...')
+                time.sleep(1)
+                
+                # Check if link is up - just printing status to
+                # screen, not currently taking any action if it's not.
+                timingRxLinkUp=self.get_timing_link_up()
+                self.log('Timing RxLinkUp = {}'.format(timingRxLinkUp), self.LOG_USER if
+                         timingRxLinkUp else self.LOG_ERROR)
+
+                # Set LMK to use timing system as reference
+                for bay in self.bays:
+                    self.log('Configuring bay %i LMK to lock to the timing system' % (bay))
+                    self.set_lmk_reg(bay,0x147,0xA)
+
+                # Configure RTM to trigger off of the timing system
+                self.set_ramp_start_mode(1,write_log=write_log)
+                
+        self.log('Done with setup')            
 
     def make_dir(self, directory):
         """check if a directory exists; if not, make it

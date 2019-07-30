@@ -107,7 +107,7 @@ class SmurfIVMixin(SmurfBase):
 
     def slow_iv_all(self, bias_groups=None, wait_time=.1, bias=None, 
                     bias_high=1.5, gcp_mode=True, bias_low=0, bias_step=.005, 
-                    show_plot=False, high_current_wait=1., cool_wait=30,
+                    show_plot=False, overbias_wait=2., cool_wait=30,
                     make_plot=True, save_plot=True, channels=None, band=None,
                     high_current_mode=True, overbias_voltage=8., 
                     grid_on=True, phase_excursion_min=3.):
@@ -138,7 +138,6 @@ class SmurfIVMixin(SmurfBase):
         if bias is None:
             bias = np.arange(bias_high, bias_low-bias_step, -bias_step)
 
-        overbias_wait = 2.
         if overbias:
             self.overbias_tes_all(bias_groups=bias_groups, 
                 overbias_wait=overbias_wait, tes_bias=np.max(bias), 

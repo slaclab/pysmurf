@@ -219,8 +219,8 @@ class SmurfNoiseMixin(SmurfBase):
         Args:
         -----
         band (int): The band to search
-        noise (float array): The noise floors. Length 512. Presumably calculated
-            using take_noise_psd
+        noise (float array): The noise floors. Presumably calculated
+            using take_noise_psd.
 
         Optional Args:
         --------------
@@ -531,7 +531,7 @@ class SmurfNoiseMixin(SmurfBase):
         psd_ylim=(10.,1000.), gcp_mode = True, bias_group=None, smooth_len=15,
         show_legend=True, freq_range_summary=None, R_sh=None,
         high_current_mode=True, iv_data_filename=None, NEP_ylim=(10.,1000.),
-        f_center_GHz=150.,bw_GHz=32., xlabel_override=None, unit_override=None):
+        f_center_GHz=150.,bw_GHz=32., xlabel_override=None):
         """
         Analysis script associated with noise_vs_bias.
 
@@ -566,13 +566,9 @@ class SmurfNoiseMixin(SmurfBase):
         if not show_plot:
             plt.ioff()
 
-        if unit_override is None:
-            unit='V'
-        else:
-            unit=unit_override
-
+        n_channel = self.get_number_channels(band)    
         if band is None and channel is None:
-            channel = np.arange(512)
+            channel = np.arange(n_channel)
         elif band is not None and channel is None:
             channel = self.which_on(band)
 
@@ -1198,8 +1194,9 @@ class SmurfNoiseMixin(SmurfBase):
         if not show_plot:
             plt.ioff()
 
+        n_channel = self.get_number_channels(band)                        
         if band is None and channel is None:
-            channel = np.arange(512)
+            channel = np.arange(n_channel)
         elif band is not None and channel is None:
             channel = self.which_on(band)
 

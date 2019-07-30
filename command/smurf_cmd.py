@@ -87,7 +87,7 @@ def start_acq(S, num_rows, num_rows_reported, data_rate,
     S.log('Starting streaming data')
     S.set_smurf_to_gcp_stream(True, write_log=True)
     for b in bands:
-        S.set_stream_enable(b, 1, write_log=True)
+        S.set_stream_enable(1, write_log=True)
 
 def stop_acq(S):
     """
@@ -95,7 +95,7 @@ def stop_acq(S):
     bands = np.array(S.config.get('init').get('bands'))
     S.log('Stopping streaming data')
     #for b in bands:
-    #    S.set_stream_enable(b, 0)
+    #    S.set_stream_enable(0)
     S.set_smurf_to_gcp_stream(False, write_log=True)
 
 def acq_n_frames(S, num_rows, num_rows_reported, data_rate, 

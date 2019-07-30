@@ -12,13 +12,13 @@ class SmurfCommandMixin(SmurfBase):
     _global_poll_enable = ':AMCc:enable'
     def _caput(self, cmd, val, write_log=False, execute=True, wait_before=None,
         wait_after=None, wait_done=True, log_level=0, enable_poll=False,
-        disable_poll=False):
+        disable_poll=False, new_epics_root=None):
         '''
         Wrapper around pyrogue lcaput. Puts variables into epics
 
         Args:
         -----
-        cmd : The pyrogue command to be exectued. Input as a string
+        cmd : The pyrogue command to be executed. Input as a string
         val: The value to put into epics
 
         Optional Args:
@@ -35,7 +35,15 @@ class SmurfCommandMixin(SmurfBase):
         enable_poll (bool) : Allows requests of all PVs. Default False.
         disable_poll (bool) : Disables requests of all PVs after issueing command.
             Default False.
+        new_epics_root (str) : Temporarily replaces current epics root with
+            a new one.
         '''
+        if new_epics_root is not None:
+            self.log('Temporarily using new epics root: {}'.format(new_epics_root))
+            old_epics_root = self.epics_root
+            self.epics_root = new_epics_root
+            cmd = cmd.replace(old_epics_root, self.epics_root)
+            
         if enable_poll:
             epics.caput(self.epics_root + self._global_poll_enable, True)
 
@@ -65,30 +73,47 @@ class SmurfCommandMixin(SmurfBase):
         if disable_poll:
             epics.caput(self.epics_root + self._global_poll_enable, False)
 
+        if new_epics_root is not None:
+            self.epics_root = old_epics_root
+            self.log('Returning back to original epics root'+
+                     ' : {}'.format(self.epics_root))
+        
     def _caget(self, cmd, write_log=False, execute=True, count=None,
-        log_level=0, enable_poll=False, disable_poll=False, yml=None):
+               log_level=0, enable_poll=False, disable_poll=False,
+               new_epics_root=None, yml=None):
         '''
         Wrapper around pyrogue lcaget. Gets variables from epics
 
         Args:
         -----
         cmd : The pyrogue command to be exectued. Input as a string
+
+        Opt Args:
+        ---------
         write_log : Whether to log the data or not. Default False
         execute : Whether to actually execute the command. Defualt True.
         count (int or None) : number of elements to return for array data
         enable_poll (bool) : Allows requests of all PVs. Default False.
         disable_poll (bool) : Disables requests of all PVs after issueing command.
             Default False.
+        new_epics_root (str) : Temporarily replaces current epics root with
+            a new one.
 
         Returns:
         --------
         ret : The requested value
         '''
+        if new_epics_root is not None:
+            self.log('Temporarily using new epics root: {}'.format(new_epics_root))
+            old_epics_root = self.epics_root
+            self.epics_root = new_epics_root
+            cmd = cmd.replace(old_epics_root, self.epics_root)
+            
         if enable_poll:
             epics.caput(self.epics_root+ self._global_poll_enable, True)
 
         if write_log:
-            self.log('caput ' + cmd, log_level)
+            self.log('caget ' + cmd, log_level)
 
         # load the data from yml file if provided
         if yml is not None:
@@ -100,12 +125,18 @@ class SmurfCommandMixin(SmurfBase):
             ret = epics.caget(cmd, count=count)
             if write_log:
                 self.log(ret)
-            return ret
         else:
-            return None
+            ret = None
 
         if disable_poll:
             epics.caput(self.epics_root+ self._global_poll_enable, False)
+
+        if new_epics_root is not None:
+            self.epics_root = old_epics_root
+            self.log('Returning back to original epics root'+
+                     ' : {}'.format(self.epics_root))
+
+        return ret
 
     def get_enable(self, **kwargs):
         """
@@ -118,19 +149,30 @@ class SmurfCommandMixin(SmurfBase):
 
 
     _number_sub_bands = 'numberSubBands'
-    def get_number_sub_bands(self, band, **kwargs):
+    def get_number_sub_bands(self, band=None, **kwargs):
         '''
         Returns the number of subbands in a band.
         To do - possibly hide this function.
 
-        Args:
-        -----
-        band (int): The band to count
+        Optional Args:
+        --------------
+        band (int): Which band.  Default is None.  If none specified,
+           assumes all bands have the same number of sub bands, and
+           pulls the number of sub bands from the first band in the
+           list of bands specified in the experiment.cfg.
 
         Returns:
         --------
         n_subbands (int): The number of subbands in the band
         '''
+
+        if band is None:
+            # assume all bands have the same number of channels, and
+            # pull the number of channels from the first band in the
+            # list of bands specified in experiment.cfg.
+            bands = self.config.get('init').get('bands')
+            band = bands[0]
+        
         if self.offline:
             return 128
         else:
@@ -139,24 +181,62 @@ class SmurfCommandMixin(SmurfBase):
 
 
     _number_channels = 'numberChannels'
-    def get_number_channels(self, band, **kwargs):
+    def get_number_channels(self, band=None, **kwargs):
         '''
         Returns the number of channels in a band.
 
-        Args:
-        -----
-        band (int): The band to count
+        Optional Args:
+        --------------
+        band (int): Which band.  Default is None.  If none specified,
+           assumes all bands have the same number of channels, and
+           pulls the number of channels from the first band in the
+           list of bands specified in the experiment.cfg.
 
         Returns:
         --------
         n_channels (int): The number of channels in the band
         '''
+
+        if band is None:
+            # assume all bands have the same number of channels, and
+            # pull the number of channels from the first band in the
+            # list of bands specified in experiment.cfg.
+            bands = self.config.get('init').get('bands')
+            band = bands[0]
+            
         if self.offline:
             return 512
         else:
             return self._caget(self._band_root(band) + self._number_channels,
                 **kwargs)
 
+    def get_number_processed_channels(self, band=None, **kwargs):
+        '''
+        Returns the number of processed channels in a band.
+
+        Optional Args:
+        --------------
+        band (int): Which band.  Default is None.  The number of
+           channels processed per band depends on the total number of
+           channels.  If none specified, assumes all bands have the
+           same number of channels, and pulls the number of channels
+           from the first band in the list of bands specified in the
+           experiment.cfg.
+
+        Returns:
+        --------
+        n_processed_channels (int): The number of processed channels
+           in the band.  Right now, there's not any way to determine
+           this from exposed pyrogue variables, so for now, assuming
+           only the center 104 sub-bands are processed ; so 104
+           channels if there's 128 channels (as in X-ray), or 416
+           channels if there's 512 channels total (as in CMB).
+        '''
+
+        n_channels=self.get_number_channels(band)
+
+        n_processed_channels=int(0.8125*n_channels)
+        return n_processed_channels
 
     def set_defaults_pv(self, **kwargs):
         '''
@@ -181,10 +261,9 @@ class SmurfCommandMixin(SmurfBase):
     def run_pwr_up_sys_ref(self,bay, **kwargs):
         """
         """
-        triggerPV=self.sysref.format(bay) + 'LMK:PwrUpSysRef'
+        triggerPV=self.lmk.format(bay) + 'PwrUpSysRef'
         self._caput(triggerPV, 1, wait_after=5, **kwargs)
         self.log('{} sent'.format(triggerPV), self.LOG_USER)
-
 
     _eta_scan_in_progress = 'etaScanInProgress'
     def get_eta_scan_in_progress(self, band, **kwargs):
@@ -234,27 +313,27 @@ class SmurfCommandMixin(SmurfBase):
                            **kwargs)
 
 
-    _gradient_descent_converge_khz = 'gradientDescentConvergekHz'
-    def set_gradient_descent_converge_khz(self, band, val, **kwargs):
+    _gradient_descent_converge_khz = 'gradientDescentConvergeHz'
+    def set_gradient_descent_converge_hz(self, band, val, **kwargs):
         """
         """
         self._caput(self._cryo_root(band) + self._gradient_descent_converge_khz, val,
                     **kwargs)
 
-    def get_gradient_descent_converge_khz(self, band, **kwargs):
+    def get_gradient_descent_converge_hz(self, band, **kwargs):
         """
         """
         return self._caget(self._cryo_root(band) + self._gradient_descent_converge_khz,
                            **kwargs)
 
-    _gradient_descent_step_khz = 'gradientDescentStepkHz'
-    def set_gradient_descent_step_khz(self, band, val, **kwargs):
+    _gradient_descent_step_khz = 'gradientDescentStepHz'
+    def set_gradient_descent_step_hz(self, band, val, **kwargs):
         """
         """
         self._caput(self._cryo_root(band) + self._gradient_descent_step_khz, val,
                     **kwargs)
 
-    def get_gradient_descent_step_khz(self, band, **kwargs):
+    def get_gradient_descent_step_hz(self, band, **kwargs):
         """
         """
         return self._caget(self._cryo_root(band) + self._gradient_descent_step_khz,
@@ -423,6 +502,70 @@ class SmurfCommandMixin(SmurfBase):
         """
         self._caput(self.epics_root + self._writeconfig,
                     val, **kwargs)
+
+
+    _tone_file_path = 'CsvFilePath'
+    def get_tone_file_path(self, bay, **kwargs):
+        """
+        Returns the tone file path that's currently being used for this bay.
+
+        Args:
+        ----
+        bay (int) : Which AMC bay (0 or 1).
+        """
+
+        ret=self._caget(self.dac_sig_gen.format(bay) + self._tone_file_path,**kwargs)
+        # convert to human-readable string
+        ret=''.join([str(s, encoding='UTF-8') for s in ret])
+        # strip \x00 - not sure why I have to do this
+        ret=ret.strip('\x00')
+        return ret
+
+    def set_tone_file_path(self, bay, val, **kwargs):
+        """
+        Sets the tone file path for this bay.
+
+        Args:
+        ----
+        bay (int) : Which AMC bay (0 or 1).
+        val (str) : Path (including csv file name) to tone file.
+        """
+        # make sure file exists before setting
+
+        if not os.path.exists(val):
+            self.log('Tone file {} does not exist!  Doing nothing!'.format(val),
+                     self.LOG_ERROR)
+            raise ValueError('Must provide a path to an existing tone file.')
+        
+        self._caput(self.dac_sig_gen.format(bay) + self._tone_file_path,
+                    val, **kwargs)
+
+    _load_tone_file = 'LoadCsvFile'        
+    def load_tone_file(self, bay, val=None, **kwargs):
+        """
+        Loads tone file specified in tone_file_path.
+
+        Args:
+        ----
+        bay (int) : Which AMC bay (0 or 1).
+
+        Optional Args:
+        --------------
+        val (str) : Path (including csv file name) to tone file.  If
+                    none provided, assumes something valid has already
+                    been loaded into DacSigGen[#]:CsvFilePath
+        """
+
+        # Set tone file path if provided.
+        if val is not None:
+            self.set_tone_file_path(bay, val)
+        else:
+            val=self.get_tone_file_path(bay)
+
+
+        self.log('Loading tone file : {}'.format(val),
+                 self.LOG_USER)        
+        self._caput(self.dac_sig_gen.format(bay) + self._load_tone_file, val, **kwargs)        
 
     _tune_file_path = 'tuneFilePath'
     def set_tune_file_path(self, val, **kwargs):
@@ -690,6 +833,24 @@ class SmurfCommandMixin(SmurfBase):
         return self._caget(self._cryo_root(band) + self._amplitude_scale_array,
             **kwargs)
 
+    def set_amplitude_scale_array_currentchans(self, band, drive, **kwargs):
+        '''
+        Set only the currently on channels to a new drive power. Essentially 
+        a more convenient wrapper for set_amplitude_scale_array to only change 
+        the channels that are on.
+
+        Args:
+        -----
+        band (int): the band to change
+        drive (int): tone power to change to
+        '''
+
+        old_amp = self.get_amplitude_scale_array(band, **kwargs)
+        n_channels=self.get_number_channels(band)
+        new_amp = np.zeros((n_channels,),dtype=int)
+        new_amp[np.where(old_amp!=0)] = drive
+        self.set_amplitude_scale_array(self, new_amp, **kwargs)
+
     _feedback_enable_array = 'feedbackEnableArray'
     def set_feedback_enable_array(self, band, val, **kwargs):
         '''
@@ -749,19 +910,43 @@ class SmurfCommandMixin(SmurfBase):
         return self._caget(self._band_root(band) + self._single_channel_readout2,
             **kwargs)
 
-    _stream_enable = 'streamEnable'
-    def set_stream_enable(self, band, val, **kwargs):
-        """
-        Enable/disable streaming data
-        """
-        self._caput(self._band_root(band) + self._stream_enable, val, **kwargs)
+    _readout_channel_select = 'readoutChannelSelect'
+    def set_readout_channel_select(self, band, channel, **kwargs):
+        '''
+        '''
+        self._caput(self._band_root(band) + self._readout_channel_select,
+                    channel, **kwargs)
 
-    def get_stream_enable(self, band, **kwargs):
+    def get_readout_channel_select(self, band, **kwargs):
+        '''
+        '''
+        return self._caget(self._band_root(band) +
+                           self._readout_channel_select, **kwargs)
+
+
+    _stream_enable = 'enableStreaming'
+    def set_stream_enable(self, val, **kwargs):
         """
-        Enable/disable streaming data
+        Enable/disable streaming data, for all bands.
         """
-        return self._caget(self._band_root(band) + self._stream_enable,
+        self._caput(self.app_core + self._stream_enable, val, **kwargs)
+
+    def get_stream_enable(self, **kwargs):
+        """
+        Enable/disable streaming data, for all bands.
+        """
+        return self._caget(self.app_core + self._stream_enable,
             **kwargs)
+
+    _build_dsp_g = 'BUILD_DSP_G'    
+    def get_build_dsp_g(self, **kwargs):
+        """
+        BUILD_DSP_G encodes which bands the fw being used was built for.
+        E.g. 0xFF means Base[0...7], 0xF is Base[0...3], etc.
+
+        """
+        return self._caget(self.app_core + self._build_dsp_g,
+            **kwargs)    
 
     _iq_stream_enable = 'iqStreamEnable'
     def set_iq_stream_enable(self, band, val, **kwargs):
@@ -960,6 +1145,20 @@ class SmurfCommandMixin(SmurfBase):
         return self._caget(self._cryo_root(band) + self._loop_filter_output_array,
             **kwargs)
 
+    _tone_frequency_offset_mhz = 'toneFrequencyOffsetMHz'
+    def get_tone_frequency_offset_mhz(self, band, **kwargs):
+        """
+        """
+        return self._caget(self._band_root(band) +
+                           self._tone_frequency_offset_mhz,**kwargs)
+
+    def	set_tone_frequency_offset_mhz(self, band, val, **kwargs):
+        """
+        """
+        self._caput(self._band_root(band) +
+                    self._tone_frequency_offset_mhz, val,
+                    **kwargs)
+        
     _center_frequency_array = 'centerFrequencyArray'
     def set_center_frequency_array(self, band, val, **kwargs):
         """
@@ -1067,6 +1266,19 @@ class SmurfCommandMixin(SmurfBase):
         """
         return self._caget(self._band_root(band) + self._lms_delay, **kwargs)
 
+    _lms_delay = 'lmsDelay'
+    def set_lms_delay(self, band, val, **kwargs):
+        """
+        Match system latency for LMS feedback (2.4MHz ticks)
+        """
+        self._caput(self._band_root(band) + self._lms_delay, val, **kwargs)
+
+    def get_lms_delay(self, band, **kwargs):
+        """
+        Match system latency for LMS feedback (2.4MHz ticks)
+        """
+        return self._caget(self._band_root(band) + self._lms_delay, **kwargs)    
+
     _lms_gain = 'lmsGain'
     def set_lms_gain(self, band, val, **kwargs):
         '''
@@ -1079,6 +1291,73 @@ class SmurfCommandMixin(SmurfBase):
         LMS gain, powers of 2
         '''
         return self._caget(self._band_root(band) + self._lms_gain, **kwargs)
+
+    _trigger_reset_delay = 'trigRstDly'
+    def set_trigger_reset_delay(self, band, val, **kwargs):
+        '''
+        Trigger reset delay, set such that the ramp resets at the flux ramp glitch.  2.4 MHz ticks.
+
+        Args:
+        -----
+        band (int) : Which band.
+        '''
+        self._caput(self._band_root(band) + self._trigger_reset_delay, val, **kwargs)
+
+    def get_trigger_reset_delay(self, band, **kwargs):
+        '''
+        Trigger reset delay, set such that the ramp resets at the flux ramp glitch.  2.4 MHz ticks.
+
+        Args:
+        -----
+        band (int) : Which band.
+        '''
+        return self._caget(self._band_root(band) + self._trigger_reset_delay, **kwargs)
+
+    _feedback_start = 'feedbackStart'
+    def set_feedback_start(self, band, val, **kwargs):
+        '''
+	The flux ramp DAC value at which to start applying feedback in each flux ramp cycle.
+	In 2.4 MHz ticks.
+
+        Args:
+        -----
+        band (int) : Which band.
+        '''
+        self._caput(self._band_root(band) + self._feedback_start, val, **kwargs)
+
+    def get_feedback_start(self, band, **kwargs):
+        '''
+	The flux ramp DAC value at which to start applying feedback in each flux ramp cycle.
+	In 2.4 MHz ticks.	
+
+        Args:
+        -----
+        band (int) : Which band.
+        '''
+        return self._caget(self._band_root(band) + self._feedback_start, **kwargs)
+
+    _feedback_end = 'feedbackEnd'
+    def set_feedback_end(self, band, val, **kwargs):
+        '''
+	The flux ramp DAC value at which to stop applying feedback in each flux ramp cycle.
+	In 2.4 MHz ticks.
+
+        Args:
+        -----
+        band (int) : Which band.
+        '''
+        self._caput(self._band_root(band) + self._feedback_end, val, **kwargs)
+
+    def get_feedback_end(self, band, **kwargs):
+        '''
+	The flux ramp DAC value at which to stop applying feedback in each flux ramp cycle.
+	In 2.4 MHz ticks.	
+
+        Args:
+        -----
+        band (int) : Which band.
+        '''
+        return self._caget(self._band_root(band) + self._feedback_end, **kwargs)    
 
     _lms_enable1 = 'lmsEnable1'
     def set_lms_enable1(self, band, val, **kwargs):
@@ -1171,19 +1450,6 @@ class SmurfCommandMixin(SmurfBase):
         """
         return self._caget(self._band_root(band) + self._lms_dly_fine, **kwargs)
 
-    _lms_delay2 = 'lmsDelay2'
-    def set_lms_delay2(self, band, val, **kwargs):
-        """
-        delay DDS counter reset (307.2MHz ticks)
-        """
-        self._caput(self._band_root(band) + self._lms_delay2, val, **kwargs)
-
-    def get_lms_delay2(self, band, **kwargs):
-        """
-        delay DDS counter reset (307.2MHz ticks)
-        """
-        return self._caget(self._band_root(band) + self._lms_delay2, **kwargs)
-
     _iq_stream_enable = 'iqStreamEnable'
     def set_iq_stream_enable(self, band, val, **kwargs):
         """
@@ -1222,26 +1488,70 @@ class SmurfCommandMixin(SmurfBase):
         Returns the center frequency of the band in MHz
         '''
         if self.offline:
-            if band == 3:
-                bc = 5.75E3
-            elif band == 2:
-                bc = 5.25E3
+            bc = (4250 + band*500)
             return bc
         else:
             return self._caget(self._band_root(band) + self._band_center_mhz,
                 **kwargs)
 
-    _digitizer_frequency_mhz = 'digitizerFrequencyMHz'
-    def set_digitizer_frequency_mhz(self, band, val, **kwargs):
-        '''
-        '''
-        self._caput(self._band_root(band) + self._digitizer_frequency_mhz, val,
-            **kwargs)
 
-    def get_digitizer_frequency_mhz(self, band, **kwargs):
+    _channel_frequency_mhz = 'channelFrequencyMHz'
+    def get_channel_frequency_mhz(self, band=None, **kwargs):
+        '''
+        Returns the channel frequency in MHz.  The channel frequency
+        is the rate at which channels are processed.
+
+        Optional Args:
+        --------------
+        band (int): Which band.  Default is None.  If none specified,
+           assumes all bands have the same channel frequency, and
+           pulls the channel frequency from the first band in the
+           list of bands specified in the experiment.cfg.
+
+        Returns:
+        --------
+        channel_frequency_mhz (float): The rate at which channels in
+           this band are processed.
+        '''
+
+        if band is None:
+            # assume all bands have the same number of channels, and
+            # pull the number of channels from the first band in the
+            # list of bands specified in experiment.cfg.
+            bands = self.config.get('init').get('bands')
+            band = bands[0]
+
+        if self.offline:
+            return 2.4
+        else:
+            return self._caget(self._band_root(band) +
+                self._channel_frequency_mhz, **kwargs)
+        
+    _digitizer_frequency_mhz = 'digitizerFrequencyMHz'
+    def get_digitizer_frequency_mhz(self, band=None, **kwargs):
         '''
         Returns the digitizer frequency in MHz.
+
+        Optional Args:
+        --------------
+        band (int): Which band.  Default is None.  If none specified,
+           assumes all bands have the same digitizer frequency, and
+           pulls the digitizer frequency from the first band in the
+           list of bands specified in the experiment.cfg.
+
+        Returns:
+        --------
+        digitizer_frequency_mhz (float): The digitizer frequency for
+           this band in MHz.
         '''
+
+        if band is None:
+            # assume all bands have the same number of channels, and
+            # pull the number of channels from the first band in the
+            # list of bands specified in experiment.cfg.
+            bands = self.config.get('init').get('bands')
+            band = bands[0]
+
         if self.offline:
             return 614.4
         else:
@@ -1913,6 +2223,27 @@ class SmurfCommandMixin(SmurfBase):
 
         return reset_rate
 
+    _trigger_delay = ":EvrV2TriggerReg[0]:Delay"
+    def set_trigger_delay(self, val, **kwargs):
+        """
+        Adds an offset to flux ramp trigger.  Only really useful if
+        you're using two carriers at once and you're trying to
+        synchronize them.  Mitch thinks it's in units of 122.88MHz
+        ticks.
+        """
+        self._caput(self.epics_root + self.timing_crate_root +
+                    self._trigger_delay, val, **kwargs)
+
+    def get_trigger_delay(self, **kwargs):
+        """
+        The flux ramp trigger offset.  Only really useful if you're
+        using two carriers at once and you're trying to synchronize
+        them.  Mitch thinks it's in units of 122.88MHz ticks.
+        """
+
+        trigger_delay = self._caget(self.epics_root + self.timing_crate_root +
+                                    self._trigger_delay, **kwargs)
+        return trigger_delay
 
     _pulse_width = 'PulseWidth'
     def set_pulse_width(self, val, **kwargs):
@@ -2674,10 +3005,10 @@ class SmurfCommandMixin(SmurfBase):
             new_en_value = current_en_value | 0x1
         else:
             # Clear bit 0
-            new_value = current_en_value & 0x2
+            new_en_value = current_en_value & 0x2
 
         # Write back the new value
-        self.C.write_ps_en()
+        self.C.write_ps_en(new_en_value)
 
     def set_cryo_card_50k_ps_en(self, enable):
         """
@@ -2700,14 +3031,65 @@ class SmurfCommandMixin(SmurfBase):
             new_en_value = current_en_value | 0x2
         else:
             # Clear bit 1
-            new_value = current_en_value & 0x1
+            new_en_value = current_en_value & 0x1
 
         # Write back the new value
-        self.C.write_ps_en()
+        self.C.write_ps_en(new_en_value)
+
+    def set_cryo_card_ps_en(self, enable=3):
+        """
+        Write the cryo card power supply enables. Can use this to set both power supplies 
+        at once rather than setting them individually
+
+        Args:
+        -----
+        enables (int): 2-bit number with status of the power supplies enables
+         Bit 0 for HEMT supply
+         Bit 1 for 50K supply
+         Bit == 1 means enabled
+         Bit == 0 means disabled
+
+         therefore:
+         0 = all off
+         1 = 50K on, HEMT off
+         2 = HEMT on, 50K off
+         3 = both on
+
+        Defaults to enable = 3, ie turn on both power supplies
+
+        Returns:
+        -----
+        None
+        """
+        if write_log:
+            self.log('Writing Cryocard PS enable using cryo_card object to {}'.format(enable))
+        self.C.write_ps_en(enable)
+
+    def get_cryo_card_ps_en(self):
+        """
+        Read the cryo card power supply enable signals
+
+        Returns:
+        -----
+        enables (int): 2-bit number with status of the power supplies enables
+         Bit 0 for HEMT supply
+         Bit 1 for 50K supply
+         Bit == 1 means enabled
+         Bit == 0 means disabled
+
+         therefore:
+         0 = all off
+         1 = 50K on, HEMT off
+         2 = HEMT on, 50K off
+         3 = both on
+        """
+        en_value = self.C.read_ps_en()
+        return en_value
+
 
     def get_cryo_card_hemt_ps_en(self):
         """
-        Set the cryo card HEMT power supply enable.
+        Get the cryo card HEMT power supply enable.
 
         Args:
         -----
@@ -3022,3 +3404,128 @@ class SmurfCommandMixin(SmurfBase):
         return self._caget(self.DBG.format(bay) + self._dac_reset.format(dac),
                            val, **kwargs)
 
+
+    _debug_select = "DebugSelect[{}]"
+    def set_debug_select(self, bay, val, **kwargs):
+        """
+        """
+        self._caput(self.app_core + self._debug_select.format(bay),
+                    val, **kwargs)
+    
+    def get_debug_select(self, bay, **kwargs):
+        """
+        """
+        return self._caget(self.app_core + self._debug_select.format(bay),
+                           **kwargs)
+
+    ### Start Ultrascale OT protection
+    _ultrascale_ot_custom_threshold_enable = "OTCustomThresholdEnable"
+    def set_ultrascale_ot_custom_threshold_enable(self, val, **kwargs):
+        """
+        Enable over-temperature (OT) threshold for the Ultrascale+
+        FPGA.  Also requires that OTThresholdDisable = 0 (for some
+        reason).
+        """
+        self._caput(self.ultrascale + self._ultrascale_ot_custom_threshold_enable,
+                    val, **kwargs)
+    
+    def get_ultrascale_ot_custom_threshold_enable(self, **kwargs):
+        """
+        Enable over-temperature (OT) threshold for the Ultrascale+
+        FPGA.  Also requires that OTThresholdDisable = 0 (for some
+        reason).
+        """
+        return self._caget(self.ultrascale + self._ultrascale_ot_custom_threshold_enable,
+                           **kwargs)
+
+    _ultrascale_ot_threshold = "OTThreshold"
+    def set_ultrascale_ot_threshold(self, val, **kwargs):
+        """
+        Over-temperature (OT) threshold in degC for Ultrascale+ FPGA.
+        Only used if OTCustomThresholdEnable = 3 and
+        OTThresholdDisable = 0.
+        """
+        self._caput(self.ultrascale + self._ultrascale_ot_threshold,
+                    val, **kwargs)
+    
+    def get_ultrascale_ot_threshold(self, **kwargs):
+        """
+        Over-temperature (OT) threshold in degC for Ultrascale+ FPGA.
+        Only used if OTCustomThresholdEnable = 3 and
+        OTThresholdDisable = 0.
+        """
+        return self._caget(self.ultrascale + self._ultrascale_ot_threshold,
+                           **kwargs)
+    
+    #lcaPut('test_epics:AMCc:FpgaTopLevel:AmcCarrierCore:AxiSysMonUltraScale:OTThresholdDisable', 0)            % enable OT threshold
+    _ultrascale_ot_threshold_disable = "OTThresholdDisable"
+    def set_ultrascale_ot_threshold_disable(self, val, **kwargs):
+        """
+        Enable over-temperature (OT) threshold for the Ultrascale+
+        FPGA.  Also requires that OTCustomThresholdEnable = 3 (for
+        some reason).
+        """
+        self._caput(self.ultrascale + self._ultrascale_ot_threshold_disable,
+                    val, **kwargs)
+    
+    def get_ultrascale_ot_threshold_disable(self, **kwargs):
+        """
+        Enable over-temperature (OT) threshold for the Ultrascale+
+        FPGA.  Also requires that OTCustomThresholdEnable = 3 (for
+        some reason).
+        """
+        return self._caget(self.ultrascale + self._ultrascale_ot_threshold_disable,
+                           **kwargs)    
+
+    ### End Ultrascale OT protection
+    
+    _output_config = "OutputConfig[{}]"
+    def set_crossbar_output_config(self, index, val, **kwargs):
+        """
+        """
+        self._caput(self.crossbar + self._output_config.format(index),
+                    val, **kwargs)
+    
+    def get_crossbar_output_config(self, index, **kwargs):
+        """
+        """
+        return self._caget(self.crossbar + self._output_config.format(index),
+                           **kwargs)    
+
+    _timing_link_up = "RxLinkUp"
+    def get_timing_link_up(self, **kwargs):
+        """
+        """
+        return self._caget(self.timing_status +
+                           self._timing_link_up, **kwargs)
+
+    # assumes it's handed the decimal equivalent
+    _lmk_reg = "LmkReg_0x{:04X}"
+    def set_lmk_reg(self, bay, reg, val, **kwargs):
+        """
+        Can call like this get_lmk_reg(bay=0,reg=0x147,val=0xA)
+        to see only hex as in gui.
+        """
+        self._caput(self.lmk.format(bay) + self._lmk_reg.format(reg),
+                    val, **kwargs)    
+
+    def get_lmk_reg(self, bay, reg, **kwargs):
+        """
+        Can call like this hex(get_lmk_reg(bay=0,reg=0x147))
+        to see only hex as in gui.
+        """
+        return self._caget(self.lmk.format(bay) +
+                           self._lmk_reg.format(reg), **kwargs)
+
+    _mcetransmit_debug = 'AMCc:mcetransmitDebug'
+    def set_mcetransmit_debug(self, val, **kwargs):
+        """
+        Sets the mcetransmit debug bit. If 1, the debugger will
+        print to the pyrogue screen.
+
+        Args:
+        -----
+        val (int): 0 or 1 for the debug bit
+        """
+        self._caput(self._epics_root + self._mcetransmit_debug,
+                    **kwargs)

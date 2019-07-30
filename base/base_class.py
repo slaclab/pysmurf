@@ -44,25 +44,47 @@ class SmurfBase(object):
 
         # Setting paths for easier commands - Is there a better way to do this
         # than just hardcoding paths? This needs to be cleaned up somehow
+
         self.epics_root = epics_root
-        self.app_core = self.epics_root + ':AMCc:FpgaTopLevel:AppTop:AppCore:'
-        self.microwave_mux_core = self.app_core + 'MicrowaveMuxCore[{}]:'
-        self.DBG = self.microwave_mux_core + 'DBG:'
+        
+        self.amcc = self.epics_root + ':AMCc:'
+        self.fpga_top_level = self.amcc + 'FpgaTopLevel:'
+        self.app_top = self.fpga_top_level + 'AppTop:'        
+        self.app_core = self.app_top + 'AppCore:'
+
+        # AppTop
+        self.dac_sig_gen = self.app_top + 'DacSigGen[{}]:'
+        
+        # AppCore
+        self.microwave_mux_core = self.app_core + 'MicrowaveMuxCore[{}]:'        
         self.sysgencryo = self.app_core + 'SysgenCryo:'
+        self.timing_header = self.app_core + 'TimingHeader:'
+
+        # MicrowaveMuxCore[#]
+        self.DBG = self.microwave_mux_core + 'DBG:'
+        self.dac_root = self.microwave_mux_core + 'DAC[{}]:'
+        self.att_root = self.microwave_mux_core + 'ATT:'
+
+        # LMK
+        self.lmk = self.microwave_mux_core + 'LMK:'
+        
+        # SysgenCryo
         self.band_root = self.sysgencryo + 'Base[{}]:'
         self.adc_root = self.sysgencryo + 'CryoAdcMux:'
+
         self.cryo_root = self.band_root + 'CryoChannels:'
         self.channel_root = self.cryo_root + 'CryoChannel[{}]:'
-        self.dac_root = self.epics_root + \
-            ':AMCc:FpgaTopLevel:AppTop:AppCore:MicrowaveMuxCore[{}]:DAC[{}]:'
-        self.att_root = self.epics_root + \
-            ':AMCc:FpgaTopLevel:AppTop:AppCore:MicrowaveMuxCore[{}]:ATT:'
-        self.timing_header = self.epics_root + \
-            ':AMCc:FpgaTopLevel:AppTop:AppCore:TimingHeader:'
-        self.streaming_root = self.epics_root + ':AMCc:streamingInterface:'
-        self.sysref = self.epics_root + \
-            ':AMCc:FpgaTopLevel:AppTop:AppCore:MicrowaveMuxCore[{}]:'
 
+        self.streaming_root = self.amcc + 'streamingInterface:'
+        
+        # Crossbar
+        self.crossbar = self.epics_root + \
+            ':AMCc:FpgaTopLevel:AmcCarrierCore:AxiSy56040:'
+
+        # FPGA
+        self.ultrascale = self.epics_root + \
+            ':AMCc:FpgaTopLevel:AmcCarrierCore:AxiSysMonUltraScale:'
+        
         # Tx -> DAC , Rx <- ADC
         self.axi_version = self.epics_root + \
             ':AMCc:FpgaTopLevel:AmcCarrierCore:AxiVersion:'
@@ -94,6 +116,10 @@ class SmurfBase(object):
             ':AMCc:FpgaTopLevel:AmcCarrierCore:AmcCarrierTiming:' + \
             'EvrV2CoreTriggers:'
 
+        # Timing status
+        self.timing_status = self.epics_root + \
+            ':AMCc:FpgaTopLevel:AmcCarrierCore:AmcCarrierTiming:' + \
+            'TimingFrameRx:'
 
         self.C = CryoCard(self.rtm_spi_cryo_root + 'read', 
             self.rtm_spi_cryo_root + 'write')
