@@ -26,7 +26,7 @@ set tics font ", 12"
 
 #set term png
 set terminal pngcairo enhanced font "Times New Roman,12.0" size 1500,1100
-pngname=system(sprintf("echo %s | sed s/.dat/.png/g",datafile_relpath))
+pngname=system(sprintf("echo %s | sed s/temp.dat/voltages.png/g",datafile_relpath))
 set output pngname
 replot
 set term x11

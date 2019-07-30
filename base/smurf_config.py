@@ -204,7 +204,7 @@ class SmurfConfig:
                 "feedbackLimitkHz" : And(Use(float),lambda f: 0 < f),
 
                 # Number of cycles to delay phase reference
-                'refPhaseDelay': And(int,lambda n: 0 <= n < 2**3),
+                'refPhaseDelay': And(int,lambda n: 0 <= n < 2**4),
                 # Finer phase reference delay, 307.2MHz clock ticks.  This
                 # goes in the opposite direction as refPhaseDelay.
                 'refPhaseDelayFine': And(int,lambda n: 0 <= n < 2**8),
@@ -220,10 +220,12 @@ class SmurfConfig:
                 Optional("data_out_mux",default=default_data_out_mux_dict[band]) \
                   : And([ Use(int) ], list, lambda l: len(l)==2 and l[0]!=l[1] and all(ll>= 0 and ll<= 9 for ll in l) ),
 
-                # Matches system latency for LMS feedback (9.6 MHz ticks, use
-                # multiples of 52).  For dspv3 to adjust to match
-                # refPhaseDelay*4 (ignore refPhaseDelayFine for this).
-                'lmsDelay': And(int,lambda n: 0 <= n < 2**5),
+                # Matches system latency for LMS feedback (9.6 MHz
+                # ticks, use multiples of 52).  For dspv3 to adjust to
+                # match refPhaseDelay*4 (ignore refPhaseDelayFine for
+                # this).  If not provided and lmsDelay=None, sets to
+                # lmsDelay = 4 x refPhaseDelay.
+                Optional('lmsDelay',default=None) : And(int,lambda n: 0 <= n < 2**5),
 
                 # Adjust trigRstDly such that the ramp resets at the flux ramp
                 # glitch.  2.4 MHz ticks.
@@ -320,7 +322,7 @@ class SmurfConfig:
         ## Add tuning params that must be specified per band.
         per_band_tuning_params= [
             ( 'lms_freq',And(Use(float),lambda f: 0 < f) ),
-            ( 'delta_freq',And(Use(float),lambda f: 0 < f) ),
+            ( 'delta_freq',And(Use(float),lambda f: 0 < f) ),            
             ( 'feedback_start_frac',And(Use(float),lambda f: 0 <= f <= 1) ),
             ( 'feedback_end_frac',And(Use(float),lambda f: 0 <= f <= 1) ),
             ( 'gradient_descent_gain',And(Use(float),lambda f: 0 < f) ),

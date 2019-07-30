@@ -1,7 +1,7 @@
 #!/bin/bash
 # [$1 == slot number to switch to]
 
-slots_in_use=(4 5)
+slots_in_use=(4 3)
 echo "slots_in_use = (${slots_in_use[@]})"
 
 if [ $# -eq 0 ]; then

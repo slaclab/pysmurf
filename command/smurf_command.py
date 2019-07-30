@@ -4,6 +4,7 @@ import epics
 import time
 from pysmurf.base import SmurfBase
 from pysmurf.command.sync_group import SyncGroup as SyncGroup
+from pysmurf.util import tools
 
 class SmurfCommandMixin(SmurfBase):
 
@@ -79,7 +80,7 @@ class SmurfCommandMixin(SmurfBase):
         
     def _caget(self, cmd, write_log=False, execute=True, count=None,
                log_level=0, enable_poll=False, disable_poll=False,
-               new_epics_root=None):
+               new_epics_root=None, yml=None):
         '''
         Wrapper around pyrogue lcaget. Gets variables from epics
 
@@ -114,7 +115,13 @@ class SmurfCommandMixin(SmurfBase):
         if write_log:
             self.log('caget ' + cmd, log_level)
 
-        if execute and not self.offline:
+        # load the data from yml file if provided
+        if yml is not None:
+            if write_log:
+                self.log('Reading from yml file\n {}'.format(cmd))
+            return tools.yaml_parse(yml, cmd)
+
+        elif execute and not self.offline:
             ret = epics.caget(cmd, count=count)
             if write_log:
                 self.log(ret)
@@ -931,6 +938,16 @@ class SmurfCommandMixin(SmurfBase):
         return self._caget(self.app_core + self._stream_enable,
             **kwargs)
 
+    _build_dsp_g = 'BUILD_DSP_G'    
+    def get_build_dsp_g(self, **kwargs):
+        """
+        BUILD_DSP_G encodes which bands the fw being used was built for.
+        E.g. 0xFF means Base[0...7], 0xF is Base[0...3], etc.
+
+        """
+        return self._caget(self.app_core + self._build_dsp_g,
+            **kwargs)    
+
     _iq_stream_enable = 'iqStreamEnable'
     def set_iq_stream_enable(self, band, val, **kwargs):
         '''
@@ -1476,6 +1493,7 @@ class SmurfCommandMixin(SmurfBase):
         else:
             return self._caget(self._band_root(band) + self._band_center_mhz,
                 **kwargs)
+
 
     _channel_frequency_mhz = 'channelFrequencyMHz'
     def get_channel_frequency_mhz(self, band=None, **kwargs):
@@ -3498,3 +3516,16 @@ class SmurfCommandMixin(SmurfBase):
         """
         return self._caget(self.lmk.format(bay) +
                            self._lmk_reg.format(reg), **kwargs)
+
+    _mcetransmit_debug = 'AMCc:mcetransmitDebug'
+    def set_mcetransmit_debug(self, val, **kwargs):
+        """
+        Sets the mcetransmit debug bit. If 1, the debugger will
+        print to the pyrogue screen.
+
+        Args:
+        -----
+        val (int): 0 or 1 for the debug bit
+        """
+        self._caput(self._epics_root + self._mcetransmit_debug,
+                    **kwargs)

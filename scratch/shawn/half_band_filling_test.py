@@ -4,7 +4,6 @@ import time
 import numpy as np
 import sys
 
-#bands=[0,1,2,3,4,5,6,7]
 bands=S.config.get('init').get('bands')
 amplitude=12 
 wait=True 
@@ -15,7 +14,6 @@ timestamp=None
 #if len(sys.argv)>1:
 #    timestamp=int(sys.argv[1])
 
-#for band in bands:
 for band in bands:
     #S.set_att_uc(band,0)
     #S.set_dsp_enable(band,1) 

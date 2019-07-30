@@ -237,7 +237,10 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
             self.freq_resp[b]['lock_status'] = {}
             self.lms_freq_hz[b] = tune_band_cfg['lms_freq'][str(b)]
 
-        for cfg_var in ['gradient_descent_gain', 'gradient_descent_averages', 'eta_scan_averages']:
+        # Load in tuning parameters, if present
+        tune_band_cfg=self.config.get('tune_band')
+        tune_band_keys=tune_band_cfg.keys()
+        for cfg_var in ['gradient_descent_gain', 'gradient_descent_averages', 'eta_scan_averages','delta_freq']:
             if cfg_var in tune_band_keys:
                 setattr(self, cfg_var, {})
                 for b in  bands:
@@ -298,6 +301,16 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
             self.set_ref_phase_delay_fine(b, 
                 smurf_init_config[band_str]['refPhaseDelayFine'], 
                 write_log=write_log, **kwargs)
+            # in DSPv3, lmsDelay should be 4*refPhaseDelay (says
+            # Mitch).  If none provided in cfg, enforce that
+            # constraint.  If provided in cfg, override with provided
+            # value.
+            if smurf_init_config[band_str]['lmsDelay'] is None:
+                self.set_lms_delay(b, int(4*smurf_init_config[band_str]['refPhaseDelay']), 
+                                   write_log=write_log, **kwargs)                        
+            else:
+                self.set_lms_delay(b, smurf_init_config[band_str]['lmsDelay'], 
+                                   write_log=write_log, **kwargs)            
             ## No longer setting the per-band analyisScale, toneScale,
             ## and synthesisScale in setup.  These should be set in
             ## the defaults.yml.
@@ -316,8 +329,6 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
                 smurf_init_config[band_str]['feedbackGain'], 
                 write_log=write_log, **kwargs)
             self.set_lms_gain(b, smurf_init_config[band_str]['lmsGain'], 
-                write_log=write_log, **kwargs)
-            self.set_lms_delay(b, smurf_init_config[band_str]['lmsDelay'], 
                 write_log=write_log, **kwargs)
             self.set_trigger_reset_delay(b, smurf_init_config[band_str]['trigRstDly'], 
                 write_log=write_log, **kwargs)            

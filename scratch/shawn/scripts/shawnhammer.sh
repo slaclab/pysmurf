@@ -12,10 +12,9 @@ one_at_a_time=true
 write_config=false
 cpwd=$PWD
 pysmurf=/home/cryo/docker/pysmurf/pton-dspv3
-
 crate_id=1
 slots_in_configure_order=(2)
-
+pysmurf_init_script=scratch/shawn/scripts/init_pton.py
 tmux_session_name=smurf
 
 matching_dockers () {
@@ -68,7 +67,7 @@ start_slot_tmux () {
     tmux send-keys -t ${tmux_session_name}:${slot_number} './run.sh' C-m
     sleep 1
 
-    tmux send-keys -t ${tmux_session_name}:${slot_number} 'ipython3 -i scratch/shawn/scripts/init_pton.py '${slot_number} C-m
+    tmux send-keys -t ${tmux_session_name}:${slot_number} 'ipython3 -i '${pysmurf_init_script}' '${slot_number} C-m
 
     ## not the safest way to do this.  If someone else starts a
     ## pysmurf docker, will satisfy this condition.  Not even sure why

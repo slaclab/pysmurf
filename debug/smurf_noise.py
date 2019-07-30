@@ -531,7 +531,7 @@ class SmurfNoiseMixin(SmurfBase):
         psd_ylim=(10.,1000.), gcp_mode = True, bias_group=None, smooth_len=15,
         show_legend=True, freq_range_summary=None, R_sh=None,
         high_current_mode=True, iv_data_filename=None, NEP_ylim=(10.,1000.),
-        f_center_GHz=150.,bw_GHz=32., xlabel_override=None, unit_override=None):
+        f_center_GHz=150.,bw_GHz=32., xlabel_override=None):
         """
         Analysis script associated with noise_vs_bias.
 
