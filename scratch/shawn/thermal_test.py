@@ -5,15 +5,20 @@ import sys
 import epics
 
 pause_btw_stages=True
+pause_btw_band_fills=True
+pause_btw_eta_scans=True
 bands=range(8)
 
-slots=[3]
+shelfmanager='shm-smrf-sp01'
 
-wait_before_setup_min=2
+#slots=[2,3,4]
+slots=[5]
+
+wait_before_setup_min=5
 wait_after_setup_min=5
-wait_btw_band_fills_min=0.5
+wait_btw_band_fills_min=1
 wait_after_band_fills_min=5
-wait_btw_eta_scans_min=0.5
+wait_btw_eta_scans_min=1
 wait_after_eta_scans_min=10
 
 # Dumb monitoring of FPGA temperatures
@@ -34,12 +39,27 @@ def start_hardware_logging(slot_number,filename=None):
         cmd="""S.start_hardware_logging()"""
     tmux_cmd(slot_number,cmd)
 
+# has to be done on a slot, but doesn't matter which
+def amcc_dump(slot_number,fpath,shelfmanager='shm-smrf-sp01'):
+    cmd="""os.system("amcc_dump --all %s > %s")"""%(shelfmanager,fpath)
+    tmux_cmd(slot_number,cmd)
+
+# has to be done on a slot, but doesn't matter which    
+def amcc_dump_bsi(slot_number,fpath,shelfmanager='shm-smrf-sp01'):
+    cmd="""os.system("amcc_dump_bsi --all %s > %s")"""%(shelfmanager,fpath)
+    tmux_cmd(slot_number,cmd)    
+    
 def stop_hardware_logging(slot_number):
     cmd="""S.stop_hardware_logging()"""
     tmux_cmd(slot_number,cmd)    
-    
-def carrier_setup(slot_number):
-    cmd="""S.setup()"""
+
+def disable_streaming(slot_number):
+    print("-> Disable streaming")
+    cmd="""S.set_stream_enable(0)"""
+    tmux_cmd(slot_number,cmd)
+
+def carrier_setup(slot_number,shelfmanager='shm-smrf-sp01'):
+    cmd="""S.shelf_manager=\"%s\"; S.setup()"""%(shelfmanager)
     tmux_cmd(slot_number,cmd)
 
 def write_carrier_config(slot_number,filename):
@@ -90,6 +110,8 @@ output_dir='/data/smurf_data/rflab_thermal_testing_swh_July2019'
 hardware_logfile=os.path.join(output_dir,'{}_hwlog.dat'.format(int(ctime)))
 atca_yml=os.path.join(output_dir,'{}_atca.yml'.format(int(ctime)))
 server_ymls=os.path.join(output_dir,'{}'.format(int(ctime))+'_s{}.yml')
+amcc_dump_file=os.path.join(output_dir,'{}'.format(int(ctime))+'_amcc_dump.txt')
+amcc_dump_bsi_file=os.path.join(output_dir,'{}'.format(int(ctime))+'_amcc_dump_bsi.txt')
 
 print('-> Logging to {}.'.format(hardware_logfile))
 
@@ -104,12 +126,17 @@ time.sleep(wait_before_setup_sec)
 # setup
 add_tag_to_hardware_log(hardware_logfile,tag='setup')
 for slot in slots:      
-    carrier_setup(slot)
+    carrier_setup(slot,shelfmanager)
 
 print('-> Waiting for setup(s) to complete.')    
 for slot in slots:
     wait_for_text_in_tmux(slot,"Done with setup")
 
+# Disable streaming
+print('-> Disabling streaming')
+for slot in slots:
+    disable_streaming(slot)
+    
 print('-> Waiting {} min after setup.'.format(wait_after_setup_min))
 wait_after_setup_sec=wait_after_setup_min*60
 time.sleep(wait_after_setup_sec)
@@ -123,8 +150,10 @@ for band in bands:
     add_tag_to_hardware_log(hardware_logfile,tag='b{}fill'.format(band))        
     for slot in slots:
         fill_band(slot,band)
-    print('-> Waiting {} min after band {} fill.'.format(wait_btw_band_fills_min,band))            
+    print('-> Waiting {} min after band {} fill.'.format(wait_btw_band_fills_min,band))
     time.sleep(wait_btw_band_fills_sec)
+    if pause_btw_band_fills:
+        input('Press enter to continue ...')    
 
 print('-> Waiting {} min after band fills.'.format(wait_after_band_fills_min))
 wait_after_band_fills_sec=wait_after_band_fills_min*60
@@ -149,6 +178,8 @@ for band in bands:
     print('-> All band {} eta scans completed.'.format(band))
     print('-> Waiting {} min after band {} eta scans.'.format(wait_btw_eta_scans_min,band))            
     time.sleep(wait_btw_eta_scans_sec)
+    if pause_btw_eta_scans:
+        input('Press enter to continue ...')            
 
 print('-> Waiting {} min after eta scans.'.format(wait_after_eta_scans_min))
 wait_after_eta_scans_sec=wait_after_eta_scans_min*60
@@ -162,10 +193,27 @@ if pause_btw_stages:
 print('-> Writing ATCA state to {}.'.format(atca_yml))
 write_atca_monitor_state(slots[0],atca_yml)
 # right now, crashing on BUILD_DSP_G
+#for slot in slots:
+#    write_carrier_config(slot,server_ymls.format(slot))
+
+# only need once
+print('-> Writing output of amcc_dump to {}.'.format(amcc_dump_file))
+amcc_dump(slots[0],amcc_dump_file,shelfmanager)
+print('-> Waiting 1 min.')
+time.sleep(60)
+
+print('-> Writing output of amcc_dump_bsi to {}.'.format(amcc_dump_bsi_file))
+amcc_dump_bsi(slots[0],amcc_dump_bsi_file,shelfmanager)
+print('-> Waiting 1 min.')
+time.sleep(60)
+
 for slot in slots:
-    write_carrier_config(slot,server_ymls.format(slot))
+    cmd='docker logs smurf_server_s%d 2>&1 %s/%d_s%ddockerlog.dat'%(slot,output_dir,ctime,slot)
+    os.system(cmd)
     
 # stop hardware logging
 for slot in slots:
     stop_hardware_logging(slot)
+
+
 
