@@ -392,8 +392,16 @@ class SmurfConfig:
         #### Done specifying constants schema
 
         #### Start thermal schema
-        # OT protection for ultrascale FPGA, in degrees C.
-        schema_dict[Optional('ultrascale_temperature_limit_degC',default=90)] = And(Use(float),lambda f: 0 <= f <= 95)
+        # OT protection for ultrascale FPGA, in degrees C.  If None,
+        # then pysmurf doesn't try to engage OT protection.  For
+        # unknown reasons, enabling OT protection in the ELMA crate
+        # we've been using for testing on campus at Stanford takes
+        # down the carrier after the third command in the enable
+        # sequence (set_ot_threshold_disable(0)), but it works in the
+        # RF lab at SLAC where they've been testing with an ASIS
+        # crate.  Shawn has yet to have this work for him.  Newer fw
+        # versions will have OT protection enabled in the fw.
+        schema_dict[Optional('ultrascale_temperature_limit_degC',default=None)] = And(Use(float),lambda f: 0 <= f <= 99)
         #### Done specifying thermal schema
 
         #### Start specifying timing-related schema

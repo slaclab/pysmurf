@@ -4,6 +4,7 @@ import sys
 import time
 import glob
 from pysmurf.command.smurf_command import SmurfCommandMixin as SmurfCommandMixin
+from pysmurf.command.smurf_atca_monitor import SmurfAtcaMonitorMixin as SmurfAtcaMonitorMixin
 from pysmurf.util.smurf_util import SmurfUtilMixin as SmurfUtilMixin
 from pysmurf.tune.smurf_tune import SmurfTuneMixin as SmurfTuneMixin
 from pysmurf.debug.smurf_noise import SmurfNoiseMixin as SmurfNoiseMixin
@@ -11,38 +12,50 @@ from pysmurf.debug.smurf_iv import SmurfIVMixin as SmurfIVMixin
 from pysmurf.base.smurf_config import SmurfConfig as SmurfConfig
 from pysmurf.util.pub import Publisher, DEFAULT_ENV_ROOT
 
-class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin, 
+
+class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin, SmurfTuneMixin, 
     SmurfNoiseMixin, SmurfIVMixin):
     '''
     Base class for controlling Smurf. Loads all the mixins.
     '''
-    def __init__(self, epics_root=None, 
-        cfg_file='/home/cryo/pysmurf/cfg_files/experiment_k2umux.cfg', 
-        data_dir=None, name=None, make_logfile=True, 
-        setup=False, offline=False, smurf_cmd_mode=False, no_dir=False,
-        publish=False, **kwargs):
+
+    def __init__(self, epics_root=None,
+                 cfg_file='/home/cryo/pysmurf/cfg_files/experiment_k2umux.cfg',
+                 data_dir=None, name=None, make_logfile=True, setup=False,
+                 offline=False, smurf_cmd_mode=False, no_dir=False,
+                 shelf_manager='shm-smrf-sp01', **kwargs):
         '''
         Args:
         -----
         epics_root (string) : The epics root to be used. Default mitch_epics
         cfg_file (string) : Path the config file
         data_dir (string) : Path to the data dir
+
+        Opt Args:
+        -----
+        shelf_manager (str): Shelf manager ip or network name.  Usually
+                            each SMuRF server is connected one-to-one
+                            with a SMuRF crate, in which case we by
+                            default give the shelf manager the network
+                            name 'shm-smrf-sp01'.
         '''
         self.config = SmurfConfig(cfg_file)
+        self.shelf_manager=shelf_manager
         if epics_root is None:
             epics_root = self.config.get('epics_root')
 
         super().__init__(epics_root=epics_root, offline=offline, **kwargs)
 
         if cfg_file is not None or data_dir is not None:
-            self.initialize(cfg_file=cfg_file, data_dir=data_dir, name=name,
-                make_logfile=make_logfile,
-                setup=setup, smurf_cmd_mode=smurf_cmd_mode, 
-                no_dir=no_dir, publish=publish, **kwargs)
+            self.initialize(cfg_file=cfg_file, data_dir=data_dir,
+                name=name, make_logfile=make_logfile, setup=setup,
+                smurf_cmd_mode=smurf_cmd_mode, no_dir=no_dir,
+                publish=publish, **kwargs)
 
-    def initialize(self, cfg_file, data_dir=None, name=None, 
-        make_logfile=True, setup=False, smurf_cmd_mode=False, 
-        no_dir=False, publish=False, **kwargs):
+    def initialize(self, cfg_file, data_dir=None, name=None,
+                   make_logfile=True, setup=False,
+                   smurf_cmd_mode=False, no_dir=False, publish=False,
+                   **kwargs):
         '''
         Initizializes SMuRF with desired parameters set in experiment.cfg.
         Largely stolen from a Cyndia/Shawns SmurfTune script
@@ -105,6 +118,10 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
                 self.log.set_logfile(self.log_file)
             else:
                 self.log.set_logfile(None)
+
+        # Crate/carrier configuration details that won't change.
+        self.crate_id=self.get_crate_id()
+        self.slot_number=self.get_slot_number()
 
         self.publish = publish
         if publish:
@@ -258,14 +275,18 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
         """
         self.log('Setting up...', (self.LOG_USER))
 
-        # Make sure thermal protection is enabled for FPGA
-        #self.log('Enabling Ultrascale OT protection...', (self.LOG_USER))
-        # enable custom OT threshold by writing 0x3
-        #self.set_ultrascale_ot_custom_threshold_enable(3,write_log=write_log)
-        # OT threshold in degrees C
-        #self.set_ultrascale_ot_threshold(self.config.get('ultrascale_temperature_limit_degC'),write_log=write_log)
-        # enable OT threshold
-        #self.set_ultrascale_ot_threshold_disable(0,write_log=write_log)
+        # If active, disable hardware logging while doing setup.
+        print(self._hardware_logging_thread)
+        if self._hardware_logging_thread is not None:
+            self.log('Hardware logging is enabled.  Pausing for setup.', (self.LOG_USER))
+            self.pause_hardware_logging()
+
+        # Thermal OT protection
+        ultrascale_temperature_limit_degC=self.config.get('ultrascale_temperature_limit_degC')
+        if ultrascale_temperature_limit_degC is not None:
+            self.log('Setting ultrascale OT protection limit to {}C'.format(ultrascale_temperature_limit_degC), (self.LOG_USER))
+            # OT threshold in degrees C
+            self.set_ultrascale_ot_threshold(self.config.get('ultrascale_temperature_limit_degC'),write_log=write_log)
 
         # Which bands are we configuring?
         smurf_init_config = self.config.get('init')
@@ -456,7 +477,12 @@ class SmurfControl(SmurfCommandMixin, SmurfUtilMixin, SmurfTuneMixin,
                 # Configure RTM to trigger off of the timing system
                 self.set_ramp_start_mode(1,write_log=write_log)
                 
-        self.log('Done with setup')            
+        self.log('Done with setup')
+
+        # If active, re-enable hardware logging after setup.
+        if self._hardware_logging_thread is not None:
+            self.log('Resuming hardware logging.', (self.LOG_USER))
+            self.resume_hardware_logging()
 
     def make_dir(self, directory):
         """check if a directory exists; if not, make it

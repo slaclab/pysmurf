@@ -34,10 +34,17 @@ class SyncGroup(object):
         self.values = dict()
 
     # blocking wait for all to complete
-    def wait(self):
+    def wait(self,epics_poll=False):
         t0 = time.time()
         while not all([n in self.values for n in self.pvnames]):
-            epics.ca.poll()  # better performance using this over time.sleep()
-            # time.sleep(.001)
+            if epics_poll:
+                # better performance using this over time.sleep() but
+                # it can eat a lot of CPU, so better to use epics.poll
+                # for short waits/acquisitions where latency is a
+                # concern.  For more details see:
+                # https://cars9.uchicago.edu/software/python/pyepics3/advanced.html#time-sleep-or-epics-poll
+                epics.ca.poll()
+            else:
+                time.sleep(.001)
             if time.time() - t0 > self.timeout:
                 raise Exception('Timeout waiting for PVs to update.')

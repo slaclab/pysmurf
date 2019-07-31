@@ -8,7 +8,6 @@ from pysmurf.util import tools
 
 class SmurfCommandMixin(SmurfBase):
 
-
     _global_poll_enable = ':AMCc:enable'
     def _caput(self, cmd, val, write_log=False, execute=True, wait_before=None,
         wait_after=None, wait_done=True, log_level=0, enable_poll=False,
@@ -242,7 +241,7 @@ class SmurfCommandMixin(SmurfBase):
         '''
         Sets the default epics variables
         '''
-        self._caput(self.epics_root + ':AMCc:setDefaults', 1, wait_after=5,
+        self._caput(self.epics_root + ':AMCc:setDefaults', 1, wait_after=20,
             **kwargs)
         self.log('Defaults are set.', self.LOG_INFO)
 
@@ -946,7 +945,7 @@ class SmurfCommandMixin(SmurfBase):
 
         """
         return self._caget(self.app_core + self._build_dsp_g,
-            **kwargs)    
+            **kwargs)
 
     _iq_stream_enable = 'iqStreamEnable'
     def set_iq_stream_enable(self, band, val, **kwargs):
@@ -2808,6 +2807,31 @@ class SmurfCommandMixin(SmurfBase):
         return self._caget(self.streaming_root + self._streaming_file_open,
             **kwargs)
 
+    # Carrier slot number
+    _slot_number = "SlotNumber"
+    def get_slot_number(self, **kwargs):
+        """
+        Gets the slot number of the crate that the carrier is installed into.
+
+        Returns:
+        --------
+        val (int): The slot number of the crate that the carrier is installed into.
+        """
+        return self._caget(self.amc_carrier_bsi + self._slot_number, **kwargs)
+
+    # Crate id
+    _crate_id = "CrateId"
+    def get_crate_id(self, **kwargs):
+        """
+        Gets the crate id.
+
+        Returns:
+        --------
+        val (int): The crate id.
+        """
+        return self._caget(self.amc_carrier_bsi + self._crate_id, **kwargs)    
+
+    
     # UltraScale+ FPGA
     fpga_root = ":AMCc:FpgaTopLevel:AmcCarrierCore:AxiSysMonUltraScale"
     _fpga_temperature = ":Temperature"
@@ -3419,64 +3443,22 @@ class SmurfCommandMixin(SmurfBase):
                            **kwargs)
 
     ### Start Ultrascale OT protection
-    _ultrascale_ot_custom_threshold_enable = "OTCustomThresholdEnable"
-    def set_ultrascale_ot_custom_threshold_enable(self, val, **kwargs):
+    _ultrascale_ot_upper_threshold = "OTUpperThreshold"
+    def set_ultrascale_ot_upper_threshold(self, val, **kwargs):
         """
-        Enable over-temperature (OT) threshold for the Ultrascale+
-        FPGA.  Also requires that OTThresholdDisable = 0 (for some
-        reason).
+        Over-temperature (OT) upper threshold in degC for Ultrascale+
+        FPGA.
         """
-        self._caput(self.ultrascale + self._ultrascale_ot_custom_threshold_enable,
+        self._caput(self.ultrascale + self._ultrascale_ot_upper_threshold,
                     val, **kwargs)
     
-    def get_ultrascale_ot_custom_threshold_enable(self, **kwargs):
+    def get_ultrascale_ot_upper_threshold(self, **kwargs):
         """
-        Enable over-temperature (OT) threshold for the Ultrascale+
-        FPGA.  Also requires that OTThresholdDisable = 0 (for some
-        reason).
+        Over-temperature (OT) upper threshold in degC for Ultrascale+
+        FPGA.  
         """
-        return self._caget(self.ultrascale + self._ultrascale_ot_custom_threshold_enable,
+        return self._caget(self.ultrascale + self._ultrascale_ot_upper_threshold,
                            **kwargs)
-
-    _ultrascale_ot_threshold = "OTThreshold"
-    def set_ultrascale_ot_threshold(self, val, **kwargs):
-        """
-        Over-temperature (OT) threshold in degC for Ultrascale+ FPGA.
-        Only used if OTCustomThresholdEnable = 3 and
-        OTThresholdDisable = 0.
-        """
-        self._caput(self.ultrascale + self._ultrascale_ot_threshold,
-                    val, **kwargs)
-    
-    def get_ultrascale_ot_threshold(self, **kwargs):
-        """
-        Over-temperature (OT) threshold in degC for Ultrascale+ FPGA.
-        Only used if OTCustomThresholdEnable = 3 and
-        OTThresholdDisable = 0.
-        """
-        return self._caget(self.ultrascale + self._ultrascale_ot_threshold,
-                           **kwargs)
-    
-    #lcaPut('test_epics:AMCc:FpgaTopLevel:AmcCarrierCore:AxiSysMonUltraScale:OTThresholdDisable', 0)            % enable OT threshold
-    _ultrascale_ot_threshold_disable = "OTThresholdDisable"
-    def set_ultrascale_ot_threshold_disable(self, val, **kwargs):
-        """
-        Enable over-temperature (OT) threshold for the Ultrascale+
-        FPGA.  Also requires that OTCustomThresholdEnable = 3 (for
-        some reason).
-        """
-        self._caput(self.ultrascale + self._ultrascale_ot_threshold_disable,
-                    val, **kwargs)
-    
-    def get_ultrascale_ot_threshold_disable(self, **kwargs):
-        """
-        Enable over-temperature (OT) threshold for the Ultrascale+
-        FPGA.  Also requires that OTCustomThresholdEnable = 3 (for
-        some reason).
-        """
-        return self._caget(self.ultrascale + self._ultrascale_ot_threshold_disable,
-                           **kwargs)    
-
     ### End Ultrascale OT protection
     
     _output_config = "OutputConfig[{}]"

@@ -8,6 +8,8 @@ import time
 from scipy import signal
 import shutil
 import glob
+# for hardware logging
+import threading
 
 class SmurfUtilMixin(SmurfBase):
 
@@ -3168,3 +3170,120 @@ class SmurfUtilMixin(SmurfBase):
 
 	# set by array, not by channel
         self.set_amplitude_scale_array(band,new_amplitude_scale_array)
+
+    __hardware_logging_pause_event=None        
+    def pause_hardware_logging(self):
+        self.__hardware_logging_pause_event.set()
+
+    def resume_hardware_logging(self):
+        self.__hardware_logging_pause_event.clear()
+
+    __hardware_log_file=None    
+    def get_hardware_log_file(self):
+        return self.__hardware_log_file
+    
+    _hardware_logging_thread=None
+    __hardware_logging_stop_event=None
+    def start_hardware_logging(self,filename=None):
+        # Just in case somewhere the enable got set to false, explicitly enable here
+        if filename is None:
+            filename=str(self.get_timestamp())+'_hwlog.dat'
+        self.__hardware_log_file = os.path.join(self.output_dir, filename)
+        self.log('Starting hardware logging to file : {}'.format(self.__hardware_log_file),
+                 self.LOG_USER)
+        self.__hardware_logging_stop_event=threading.Event()
+        self.__hardware_logging_pause_event=threading.Event()        
+        self._hardware_logging_thread = threading.Thread(target=self._hardware_logger, args=(self.__hardware_logging_pause_event,self.__hardware_logging_stop_event,))
+        self._hardware_logging_thread.daemon = True
+        self._hardware_logging_thread.start()
+
+    def stop_hardware_logging(self):
+        self.__hardware_logging_stop_event.set()
+        self._hardware_logging_thread.join()
+        self._hardware_logging_thread=None
+        self.__hardware_log_file=None
+
+    def _hardware_logger(self,pause_event,stop_event,wait_btw_sec=5):
+        filename=self.get_hardware_log_file()
+        import fcntl
+        #counter=0
+        while not stop_event.wait(wait_btw_sec):
+            if not pause_event.isSet():
+                hdr,entry=self.get_hardware_log_entry()
+                # only write header once, if file doesn't exist yet if
+                # file *does* already exist, check to make sure header
+                # will be the same, otherwise the resulting data won't
+                # make sense if multiple carriers are logging to the same
+                # file.
+                if not os.path.exists(filename):
+                    with open(filename,'a') as logf:
+                        logf.write(hdr)
+                else:
+                    with open(filename) as logf:
+                        hdr2=logf.readline()
+                        if not hdr.rstrip().split() == hdr2.rstrip().split():
+                            self.log('Attempting to temperature log to an incompatible file.  Giving up without logging any data!', 
+                                     self.LOG_ERROR)
+                            return
+
+                with open(filename,'a') as logf:
+                    # file locking so multiple hardware loggers running in
+                    # multiple pysmurf sessions can write to the same
+                    # requested file if desired
+                    fcntl.flock(logf, fcntl.LOCK_EX)
+                    logf.write(entry)
+                    fcntl.flock(logf, fcntl.LOCK_UN)
+                #counter+=1
+
+    def get_hardware_log_entry(self):
+
+        d={}
+        d['epics_root']=lambda:self.epics_root
+        d['ctime']=self.get_timestamp
+        d['fpga_temp']=self.get_fpga_temp
+        d['fpgca_vccint']=self.get_fpga_vccint
+        d['fpgca_vccaux']=self.get_fpga_vccaux
+        d['fpgca_vccbram']=self.get_fpga_vccbram
+        d['cc_temp']=self.get_cryo_card_temp      
+        
+        # probably should check for which AMCs are in in a smarter way
+        bays=[]
+        bands=self.which_bands()
+        if 0 in bands:
+            bays.append(0)
+        if 4 in bands:
+            bays.append(1)            
+            
+        for bay in bays:
+            for dac in [0,1]:
+                d['bay%d_dac%d_temp'%(bay,dac)]=lambda:self.get_dac_temp(bay,dac)
+
+        #AT THE MOMENT, WAY TOO SLOW
+        # keep track of how many tones are on in each band
+        #for band in bands:
+        #    d['chans_b%d'%band]=lambda:len(self.which_on(band))
+        
+        # atca monitor
+        d['atca_temp_fpga']=self.get_board_temp_fpga
+        d['atca_temp_rtm']=self.get_board_temp_rtm
+        d['atca_temp_amc0']=self.get_board_temp_amc0
+        d['atca_temp_amc2']=self.get_board_temp_amc2
+        d['atca_jct_temp_fpga']=self.get_junction_temp_fpga
+        columns=[]
+        names=[]
+        fmt=''
+        counter=0
+        for key, value in d.items():
+            columns.append(str(value()))
+            names.append(key)
+            fmt+='{0[%d]:<20}'%counter
+            counter+=1
+        fmt+='\n'
+        
+        hdr=fmt.format(names)
+        row=fmt.format(columns)
+        return hdr,row
+        
+        
+        
+        
