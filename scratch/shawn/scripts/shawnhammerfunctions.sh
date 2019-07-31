@@ -40,6 +40,24 @@ is_slot_pyrogue_up() {
     return 0
 }
 
+is_slot_gui_up() {
+    slot_number=$1
+    tmux capture-pane -pt ${tmux_session_name}:${slot_number} | grep -q "Starting GUI..."
+    return $?
+}
+
+start_slot_pysmurf() {
+    slot_number=$1
+    
+    # start pysmurf in a split window and initialize the carrier
+    tmux split-window -v -t ${tmux_session_name}:${slot_number}
+    tmux send-keys -t ${tmux_session_name}:${slot_number} 'cd '${pysmurf} C-m
+    tmux send-keys -t ${tmux_session_name}:${slot_number} './run.sh' C-m
+    sleep 1
+
+    tmux send-keys -t ${tmux_session_name}:${slot_number} 'ipython3 -i '${pysmurf_init_script}' '${slot_number} C-m
+}
+
 start_slot_tmux_serial () {
     slot_number=$1
 
@@ -94,7 +112,7 @@ config_pysmurf_serial () {
     slot_number=$1
     pysmurf_docker=$2
     
-    tmux send-keys -t ${tmux_session_name}:${slot_number} 'S = pysmurf.SmurfControl(epics_root=epics_prefix,cfg_file=config_file,setup=True,make_logfile=False)' C-m
+    tmux send-keys -t ${tmux_session_name}:${slot_number} 'S = pysmurf.SmurfControl(epics_root=epics_prefix,cfg_file=config_file,setup=True,make_logfile=False,shelfmanager='${shelfmanager}')' C-m
     
     # wait for setup to complete
     echo "-> Waiting for carrier setup (watching pysmurf docker ${pysmurf_docker})"

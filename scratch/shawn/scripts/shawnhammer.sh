@@ -4,9 +4,16 @@ source shawnhammerfunctions
 
 ctime=`date +%s`
 
+shelfmanager=shm-smrf-sp01
+
 set_crate_fans_to_full=true
-# COMTEL is 100, ASIS is 15, ELMA is 15
-max_fan_level=100
+# COMTEL max fan level is 100, ASIS is 15, ELMA is 15
+## COMTEL in RF lab
+#max_fan_level=100
+## ELMA in RF lab
+#max_fan_level=15
+## ASIS in RF lab
+max_fan_level=15
 
 attach_at_end=true
 screenshot_signal_analyzer=false
@@ -21,13 +28,10 @@ parallel_setup=false
 cpwd=$PWD
 
 pysmurf=/home/cryo/docker/pysmurf/dspv3
-shelfmanager=shm-smrf-sp01
-#shelfmanager=shm-b084-sp07
 
 crate_id=3
-slots_in_configure_order=(3)
 #slots_in_configure_order=(2 3 4)
-#slots_in_configure_order=(4)
+slots_in_configure_order=(5)
 
 pysmurf_init_script=scratch/shawn/scripts/init_rflab.py
 #pysmurf_init_script=scratch/shawn/scripts/init_stanford.py
@@ -141,7 +145,7 @@ if [ "$parallel_setup" = true ] ; then
     # 0 = carriers off.
     # 1 = carrier eth responds to ping.
     setup_complete=false
-    completion_status=3
+    completion_status=5
     declare -a slot_status=( $(for slot in ${slots_in_configure_order[@]}; do echo 0; done) )
     setup_loop_cadence_sec=1
     while [[ "${setup_complete}" = false ]] ; do 
@@ -158,17 +162,32 @@ if [ "$parallel_setup" = true ] ; then
 	    fi
 
 	    if [ "${slot_status[${slot_idx}]}" = "1" ]; then
-		echo "-> Creating tmux session and starting pyrogue on slot ${slot_number}."
+		echo "-> Creating tmux session and starting pyrogue on slot ${slot}."
 		start_slot_tmux_and_pyrogue ${slot}
 		slot_status[$slot_idx]=2
 	    fi
 
 	    if [ "${slot_status[${slot_idx}]}" = "2" ]; then
-		echo "-> Waiting for pyrogue server to start on slot ${slot_number}."
+		echo "-> Waiting for pyrogue server to start on slot ${slot}."
 		if is_slot_pyrogue_up ${slot}; then
 		    slot_status[$slot_idx]=3;
 		fi
 	    fi
+
+	    if [ "${slot_status[${slot_idx}]}" = "3" ]; then
+		echo "-> Waiting for gui to come up on slot ${slot}."
+		if is_slot_gui_up ${slot}; then
+		    slot_status[$slot_idx]=4;
+		fi
+	    fi
+
+	    # GUI is up.  Splits each slot window and instantiate
+	    # pysmurf object
+	    if [ "${slot_status[${slot_idx}]}" = "4" ]; then
+		echo "-> Starting pysmurf on ${slot}."		
+		start_slot_pysmurf ${slot}
+		slot_status[$slot_idx]=5;
+	    fi	    
 
 	    ## STILL NEED PYSMURF INITIALIZATION AND CONFIGURE STAGES
 
