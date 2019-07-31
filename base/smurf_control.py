@@ -274,23 +274,12 @@ class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin, Smu
             self.log('Hardware logging is enabled.  Pausing for setup.', (self.LOG_USER))
             self.pause_hardware_logging()
 
-        # Enable thermal overprotection for FPGA if the user wants it
-        # to be set through pysmurf.  For unknown reasons, enabling OT
-        # protection in the ELMA crate we've been using for testing on
-        # campus at Stanford takes down the carrier after the third
-        # command in the enable sequence
-        # (set_ot_threshold_disable(0)), but it works in the RF lab at
-        # SLAC where they've been testing with an ASIS
+        # Thermal OT protection
         ultrascale_temperature_limit_degC=self.config.get('ultrascale_temperature_limit_degC')
         if ultrascale_temperature_limit_degC is not None:
-            # enable thermal protection for the FPGA
-            self.log('Enabling Ultrascale OT protection (setting limit to {}C)...'.format(ultrascale_temperature_limit_degC), (self.LOG_USER))
-            # enable custom OT threshold by writing 0x3
-            self.set_ultrascale_ot_custom_threshold_enable(3,write_log=write_log)
+            self.log('Setting ultrascale OT protection limit to {}C'.format(ultrascale_temperature_limit_degC), (self.LOG_USER))
             # OT threshold in degrees C
             self.set_ultrascale_ot_threshold(self.config.get('ultrascale_temperature_limit_degC'),write_log=write_log)
-            # enable OT threshold
-            self.set_ultrascale_ot_threshold_disable(0,write_log=write_log)
 
         # Which bands are we configuring?
         smurf_init_config = self.config.get('init')
