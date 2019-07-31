@@ -1,6 +1,6 @@
 installdir=/usr/local/src/smurf-server-scripts/docker_scripts/
 
-for f in shawnhammer.sh ping_carrier.sh switch_carrier.sh
+for f in shawnhammer.sh ping_carrier.sh switch_carrier.sh shawnhammerfunctions.sh
 do
     fstrip=${f%.*}
     rm ${installdir}/$fstrip
