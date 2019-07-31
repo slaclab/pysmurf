@@ -9,7 +9,7 @@ config_file_path='/data/pysmurf_cfg/'
 slot=int(sys.argv[1])
 epics_prefix = 'smurf_server_s%d'%slot
 
-if slot in [2,3,4]:
+if slot in [2,3,4,5,6,7]:
     config_file='experiment_fp29_srv10_dspv3_cc02-02.cfg'
 else:
     assert False,"There isn't a SMuRF carrier in slot %d right now!"%slot
