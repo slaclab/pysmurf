@@ -3,6 +3,7 @@
 import time
 import sys
 import numpy as np
+import random
 
 band=int(sys.argv[1])
 
@@ -11,6 +12,12 @@ freq_std_khz=100
 freq_std_mhz=freq_std_khz/1000.
 one_subband_at_a_time=False
 wait_btw_subbands_sec=0.1
+
+# if you want only N tones per band, set this
+# to N.  Otherwise you'll get the max possible,
+# if None.  Only used if one_subband_at_a_time is False
+restrict_nper_band=None
+#restrict_nper_band=231
 
 print('filling bands %s'%str(band))
 
@@ -49,5 +56,15 @@ for sb in subbands:
         #input('Press return to continue to next subband...')
         
 if not one_subband_at_a_time:
+    if restrict_nper_band is not None:
+        print('-> Restricting nchan to %d.'%restrict_nper_band)
+        import random
+        assigned_channels=np.where(asa!=0)[0]
+        ntotal=len(assigned_channels)
+        n2kill=(ntotal-restrict_nper_band)
+        channels2kill=random.sample(list(assigned_channels),n2kill)
+        cfa[channels2kill]=0
+        asa[channels2kill]=0
+    
     S.set_center_frequency_array(band,cfa)
     S.set_amplitude_scale_array(band,asa)
