@@ -234,7 +234,7 @@ class SmurfCommandMixin(SmurfBase):
         '''
         Sets the default epics variables
         '''
-        self._caput(self.epics_root + ':AMCc:setDefaults', 1, wait_after=5,
+        self._caput(self.epics_root + ':AMCc:setDefaults', 1, wait_after=20,
             **kwargs)
         self.log('Defaults are set.', self.LOG_INFO)
 
@@ -3436,64 +3436,22 @@ class SmurfCommandMixin(SmurfBase):
                            **kwargs)
 
     ### Start Ultrascale OT protection
-    _ultrascale_ot_custom_threshold_enable = "OTCustomThresholdEnable"
-    def set_ultrascale_ot_custom_threshold_enable(self, val, **kwargs):
+    _ultrascale_ot_upper_threshold = "OTUpperThreshold"
+    def set_ultrascale_ot_upper_threshold(self, val, **kwargs):
         """
-        Enable over-temperature (OT) threshold for the Ultrascale+
-        FPGA.  Also requires that OTThresholdDisable = 0 (for some
-        reason).
+        Over-temperature (OT) upper threshold in degC for Ultrascale+
+        FPGA.
         """
-        self._caput(self.ultrascale + self._ultrascale_ot_custom_threshold_enable,
+        self._caput(self.ultrascale + self._ultrascale_ot_upper_threshold,
                     val, **kwargs)
     
-    def get_ultrascale_ot_custom_threshold_enable(self, **kwargs):
+    def get_ultrascale_ot_upper_threshold(self, **kwargs):
         """
-        Enable over-temperature (OT) threshold for the Ultrascale+
-        FPGA.  Also requires that OTThresholdDisable = 0 (for some
-        reason).
+        Over-temperature (OT) upper threshold in degC for Ultrascale+
+        FPGA.  
         """
-        return self._caget(self.ultrascale + self._ultrascale_ot_custom_threshold_enable,
+        return self._caget(self.ultrascale + self._ultrascale_ot_upper_threshold,
                            **kwargs)
-
-    _ultrascale_ot_threshold = "OTThreshold"
-    def set_ultrascale_ot_threshold(self, val, **kwargs):
-        """
-        Over-temperature (OT) threshold in degC for Ultrascale+ FPGA.
-        Only used if OTCustomThresholdEnable = 3 and
-        OTThresholdDisable = 0.
-        """
-        self._caput(self.ultrascale + self._ultrascale_ot_threshold,
-                    val, **kwargs)
-    
-    def get_ultrascale_ot_threshold(self, **kwargs):
-        """
-        Over-temperature (OT) threshold in degC for Ultrascale+ FPGA.
-        Only used if OTCustomThresholdEnable = 3 and
-        OTThresholdDisable = 0.
-        """
-        return self._caget(self.ultrascale + self._ultrascale_ot_threshold,
-                           **kwargs)
-    
-    #lcaPut('test_epics:AMCc:FpgaTopLevel:AmcCarrierCore:AxiSysMonUltraScale:OTThresholdDisable', 0)            % enable OT threshold
-    _ultrascale_ot_threshold_disable = "OTThresholdDisable"
-    def set_ultrascale_ot_threshold_disable(self, val, **kwargs):
-        """
-        Enable over-temperature (OT) threshold for the Ultrascale+
-        FPGA.  Also requires that OTCustomThresholdEnable = 3 (for
-        some reason).
-        """
-        self._caput(self.ultrascale + self._ultrascale_ot_threshold_disable,
-                    val, **kwargs)
-    
-    def get_ultrascale_ot_threshold_disable(self, **kwargs):
-        """
-        Enable over-temperature (OT) threshold for the Ultrascale+
-        FPGA.  Also requires that OTCustomThresholdEnable = 3 (for
-        some reason).
-        """
-        return self._caget(self.ultrascale + self._ultrascale_ot_threshold_disable,
-                           **kwargs)    
-
     ### End Ultrascale OT protection
     
     _output_config = "OutputConfig[{}]"
