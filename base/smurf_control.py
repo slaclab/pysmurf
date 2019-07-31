@@ -10,6 +10,7 @@ from pysmurf.tune.smurf_tune import SmurfTuneMixin as SmurfTuneMixin
 from pysmurf.debug.smurf_noise import SmurfNoiseMixin as SmurfNoiseMixin
 from pysmurf.debug.smurf_iv import SmurfIVMixin as SmurfIVMixin
 from pysmurf.base.smurf_config import SmurfConfig as SmurfConfig
+from pysmurf.util.pub import Publisher, DEFAULT_ENV_ROOT
 
 
 class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin, SmurfTuneMixin, 
@@ -17,6 +18,7 @@ class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin, Smu
     '''
     Base class for controlling Smurf. Loads all the mixins.
     '''
+
     def __init__(self, epics_root=None,
                  cfg_file='/home/cryo/pysmurf/cfg_files/experiment_k2umux.cfg',
                  data_dir=None, name=None, make_logfile=True, setup=False,
@@ -46,14 +48,14 @@ class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin, Smu
 
         if cfg_file is not None or data_dir is not None:
             self.initialize(cfg_file=cfg_file, data_dir=data_dir,
-                            name=name, make_logfile=make_logfile,
-                            setup=setup,
-                            smurf_cmd_mode=smurf_cmd_mode,
-                            no_dir=no_dir, **kwargs)
+                name=name, make_logfile=make_logfile, setup=setup,
+                smurf_cmd_mode=smurf_cmd_mode, no_dir=no_dir,
+                publish=publish, **kwargs)
 
     def initialize(self, cfg_file, data_dir=None, name=None,
-                   make_logfile=True, setup=False, smurf_cmd_mode=False,
-                   no_dir=False, **kwargs):
+                   make_logfile=True, setup=False,
+                   smurf_cmd_mode=False, no_dir=False, publish=False,
+                   **kwargs):
         '''
         Initizializes SMuRF with desired parameters set in experiment.cfg.
         Largely stolen from a Cyndia/Shawns SmurfTune script
@@ -120,7 +122,12 @@ class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin, Smu
         # Crate/carrier configuration details that won't change.
         self.crate_id=self.get_crate_id()
         self.slot_number=self.get_slot_number()
-                
+
+        self.publish = publish
+        if publish:
+            os.environ[DEFAULT_ENV_ROOT + 'BACKEND'] = 'udp'
+            self.pub = Publisher()
+
         # Useful constants
         constant_cfg = self.config.get('constant')
         self.pA_per_phi0 = constant_cfg.get('pA_per_phi0')
