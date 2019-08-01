@@ -27,14 +27,12 @@ start_atca_monitor=true
 parallel_setup=false
 cpwd=$PWD
 
-pysmurf=/home/cryo/docker/pysmurf/dspv3
+pysmurf=/home/cryo/docker/pysmurf/dev
 
 crate_id=3
-#slots_in_configure_order=(2 3 4)
-slots_in_configure_order=(5)
+slots_in_configure_order=(4)
 
-pysmurf_init_script=scratch/shawn/scripts/init_rflab.py
-#pysmurf_init_script=scratch/shawn/scripts/init_stanford.py
+pysmurf_init_script=scratch/shawn/scripts/init_stanford.py
 
 tmux_session_name=smurf
 
