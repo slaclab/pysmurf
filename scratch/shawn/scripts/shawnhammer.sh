@@ -17,7 +17,7 @@ max_fan_level=15
 
 attach_at_end=true
 screenshot_signal_analyzer=false
-configure_pysmurf=false
+configure_pysmurf=true
 reboot=true
 using_timing_master=false
 run_half_band_test=false
