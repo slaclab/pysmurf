@@ -148,6 +148,7 @@ class SmurfNoiseMixin(SmurfBase):
                 plot_name = basename+'_noise_timestream_b{}_ch{:03}.png'.format(band, ch)
                 plt.savefig(os.path.join(self.plot_dir, plot_name), 
                     bbox_inches='tight')
+
                 if show_plot:
                     plt.show()
                 else:
@@ -208,9 +209,14 @@ class SmurfNoiseMixin(SmurfBase):
                 fig.subplots_adjust(top = 0.9)
                 noise_params_hist_fname = basename + \
                     '_b{}_noise_params.png'.format(band)
-                plt.savefig(os.path.join(self.plot_dir,noise_params_hist_fname),
+                plt.savefig(os.path.join(self.plot_dir,
+                    noise_params_hist_fname),
                     bbox_inches='tight')
-                plt.show()
+
+                if show_plot:
+                    plt.show()
+                else:
+                    plt.close()
 
         return datafile
 
