@@ -112,7 +112,7 @@ config_pysmurf_serial () {
     slot_number=$1
     pysmurf_docker=$2
     
-    tmux send-keys -t ${tmux_session_name}:${slot_number} 'S = pysmurf.SmurfControl(epics_root=epics_prefix,cfg_file=config_file,setup=True,make_logfile=False,shelfmanager='${shelfmanager}')' C-m
+    tmux send-keys -t ${tmux_session_name}:${slot_number} 'S = pysmurf.SmurfControl(epics_root=epics_prefix,cfg_file=config_file,setup=True,make_logfile=False,shelfmanager="'${shelfmanager}'")' C-m
     
     # wait for setup to complete
     echo "-> Waiting for carrier setup (watching pysmurf docker ${pysmurf_docker})"
