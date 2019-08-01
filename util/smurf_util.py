@@ -1898,14 +1898,12 @@ class SmurfUtilMixin(SmurfBase):
             (default is no, which returns absolute values)
         """
 
-        if hardcode:
-            bandCenterMHz = 3.75 + 0.5*(band + 1)
-            digitizer_frequency_mhz = 614.4
-            n_subbands = 128
-        else:
-            digitizerFrequencyMHz = self.get_digitizer_frequency_mhz(band, 
+        #hardcode defaults
+        digitizer_frequency_mhz = 614.4
+        n_subbands = 128
+        if not hardcode:
+            digitizer_frequency_mhz = self.get_digitizer_frequency_mhz(band, 
                 yml=yml)
-            bandCenterMHz = self.get_band_center_mhz(band, yml=yml)
             n_subbands = self.get_number_sub_bands(band, yml=yml)
 
         subband_width_MHz = 2 * digitizer_frequency_mhz / n_subbands
