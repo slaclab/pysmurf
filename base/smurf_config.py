@@ -327,7 +327,13 @@ class SmurfConfig:
             ( 'feedback_end_frac',And(Use(float),lambda f: 0 <= f <= 1) ),
             ( 'gradient_descent_gain',And(Use(float),lambda f: 0 < f) ),
             ( 'gradient_descent_averages',And(Use(int),lambda n: 0 < n) ),
-            ( 'eta_scan_averages',And(Use(int),lambda n: 0 < n) ),        
+            ( 'gradient_descent_converge_hz',And(Use(float),lambda n: 0 < n) ),
+            ( 'gradient_descent_momentum',And(Use(int),lambda n: 0 < n) ),
+            ( 'gradient_descent_step_hz',And(Use(float),lambda n: 0 < n) ),
+            ( 'gradient_descent_beta',And(Use(float),lambda n: 0 <= n) ),
+            ( 'eta_scan_averages',And(Use(int),lambda n: 0 < n) ),
+            ( 'eta_scan_del_f', And(Use(int), lambda n: 0 < n) ),
+            ( 'eta_scan_amplitude', And(Use(int), lambda n: 0 < n) ),
         ]
 
         for band in bands:
