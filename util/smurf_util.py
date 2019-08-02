@@ -1182,7 +1182,8 @@ class SmurfUtilMixin(SmurfBase):
         return ret
 
 
-    def read_stream_data_daq(self, data_length, bay=0, hw_trigger=False):
+    def read_stream_data_daq(self, data_length, bay=0,
+                             hw_trigger=False, write_log=False):
         """
         """
         # Ask mitch why this is what it is...
@@ -1198,9 +1199,9 @@ class SmurfUtilMixin(SmurfBase):
 
         # trigger PV
         if not hw_trigger:
-            self.set_trigger_daq(bay, 1, write_log=True)
+            self.set_trigger_daq(bay, 1, write_log=write_log)
         else:
-            self.set_arm_hw_trigger(bay, 1, write_log=True)
+            self.set_arm_hw_trigger(bay, 1, write_log=write_log)
 
         time.sleep(.1)
         sg.wait()
@@ -1381,7 +1382,8 @@ class SmurfUtilMixin(SmurfBase):
 
         return dat
 
-    def setup_daq_mux(self, converter, converter_number, data_length, band=0, debug=False):
+    def setup_daq_mux(self, converter, converter_number, data_length,
+                      band=0, debug=False, write_log=False):
         """
         Sets up for either ADC or DAC data taking.
 
@@ -1412,13 +1414,16 @@ class SmurfUtilMixin(SmurfBase):
         self.set_buffer_size(bay, data_length, debug)
         
         # input mux select
-        self.set_input_mux_sel(bay, 0, daq_mux_channel0, write_log=True)
-        self.set_input_mux_sel(bay, 1, daq_mux_channel1, write_log=True)
+        self.set_input_mux_sel(bay, 0, daq_mux_channel0,
+                               write_log=write_log)
+        self.set_input_mux_sel(bay, 1, daq_mux_channel1,
+                               write_log=write_log)
 
         # which f,df stream to route to MUX, maybe?
-        self.set_debug_select(bay, band, write_log=True)
+        self.set_debug_select(bay, band, write_log=write_log)
 
-    def set_buffer_size(self, bay, size, debug=False):
+    def set_buffer_size(self, bay, size, debug=False,
+                        write_log=False):
         """
         Sets the buffer size for reading and writing DAQs
 
@@ -1429,7 +1434,7 @@ class SmurfUtilMixin(SmurfBase):
         # Change DAQ data buffer size
 
         # Change waveform engine buffer size
-        self.set_data_buffer_size(bay, size, write_log=True)
+        self.set_data_buffer_size(bay, size, write_log=write_log)
         for daq_num in np.arange(4):
             s = self.get_waveform_start_addr(bay, daq_num, convert=True, 
                 write_log=debug)
