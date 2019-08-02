@@ -312,36 +312,38 @@ class SmurfCommandMixin(SmurfBase):
                            **kwargs)
 
 
-    _gradient_descent_converge_khz = 'gradientDescentConvergeHz'
+    _gradient_descent_converge_hz = 'gradientDescentConvergeHz'
     def set_gradient_descent_converge_hz(self, band, val, **kwargs):
         """
         """
-        self._caput(self._cryo_root(band) + self._gradient_descent_converge_khz, val,
+        self._caput(self._cryo_root(band) + self._gradient_descent_converge_hz, val,
                     **kwargs)
 
     def get_gradient_descent_converge_hz(self, band, **kwargs):
         """
         """
-        return self._caget(self._cryo_root(band) + self._gradient_descent_converge_khz,
+        return self._caget(self._cryo_root(band) + self._gradient_descent_converge_hz,
                            **kwargs)
 
-    _gradient_descent_step_khz = 'gradientDescentStepHz'
+    _gradient_descent_step_hz = 'gradientDescentStepHz'
     def set_gradient_descent_step_hz(self, band, val, **kwargs):
         """
+        Sets the step size of the gradient descent in units of Hz
         """
-        self._caput(self._cryo_root(band) + self._gradient_descent_step_khz, val,
+        self._caput(self._cryo_root(band) + self._gradient_descent_step_hz, val,
                     **kwargs)
 
     def get_gradient_descent_step_hz(self, band, **kwargs):
         """
         """
-        return self._caget(self._cryo_root(band) + self._gradient_descent_step_khz,
+        return self._caget(self._cryo_root(band) + self._gradient_descent_step_hz,
                            **kwargs)
 
 
     _gradient_descent_momentum = 'gradientDescentMomentum'
     def set_gradient_descent_momentum(self, band, val, **kwargs):
         """
+        Sets the momentum term of the gradient descent
         """
         self._caput(self._cryo_root(band) + self._gradient_descent_momentum, val,
                     **kwargs)
