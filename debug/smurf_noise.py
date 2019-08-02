@@ -42,6 +42,7 @@ class SmurfNoiseMixin(SmurfBase):
         show_plot (bool): Show the plot on the screen. Default False.
         datefile (str): if data has already been taken, can point to a file to 
             bypass data taking and just analyze.
+        gcp_mode (bool) : Whether the data was taken in gcp mode. Default True.
         """
         if channel is None:
             channel = self.which_on(band)
@@ -54,13 +55,15 @@ class SmurfNoiseMixin(SmurfBase):
 
         basename, _ = os.path.splitext(os.path.basename(datafile))
 
-        # timestamp, I, Q = self.read_stream_data(datafile)
         timestamp, phase, mask = self.read_stream_data_gcp_save(datafile)
         phase *= self.pA_per_phi0/(2.*np.pi) # phase converted to pA
 
         if fs is None:
-            fs = self.fs
-
+            #fs = self.fs
+            num_averages = self.config.get('smurf_to_mce')['num_averages']
+            # flux ramp rate returns in kHz
+            fs = self.get_flux_ramp_freq()*1.0E3/num_averages
+        
         self.log('Plotting channels {}'.format(channel), self.LOG_USER)
 
         if make_summary_plot or make_channel_plot:
@@ -96,12 +99,12 @@ class SmurfNoiseMixin(SmurfBase):
                     f_knees[ch]=f_knee
                     n_list.append(n)
                     good_fit = True    
-                self.log('%i. Band %i, ch. %i:' % (c+1,band,ch) + 
+                self.log('{}. b{}ch{:03}:'.format(c+1,band,ch) + 
                     ' white-noise level = {:.2f}'.format(wl) +
                         ' pA/rtHz, n = {:.2f}'.format(n) + 
                         ', f_knee = {:.2f} Hz'.format(f_knee))
             except Exception as e:
-                self.log('Band %i, ch. %i: bad fit to noise model' % (band,ch))
+                self.log('{} b{}ch{:03}: bad fit to noise model'.format(c+1,band,ch))
                 self.log(e)
 
             for i, (l, h) in enumerate(zip(low_freq, high_freq)):
@@ -143,16 +146,15 @@ class SmurfNoiseMixin(SmurfBase):
                 
                 ax[0].set_title('Band {} Ch {:03} - {:.2f} MHz'.format(band, ch, res_freq))
 
-                plt.tight_layout()
+                fig.tight_layout()
 
                 plot_name = basename+'_noise_timestream_b{}_ch{:03}.png'.format(band, ch)
-                plt.savefig(os.path.join(self.plot_dir, plot_name), 
+                fig.savefig(os.path.join(self.plot_dir, plot_name), 
                     bbox_inches='tight')
 
-                if show_plot:
-                    plt.show()
-                else:
-                    plt.close()
+                # Close the individual channel plots - otherwise too many
+                # plots are brought to screen
+                plt.close(fig)
 
         if save_data:
             for i, (l, h) in enumerate(zip(low_freq, high_freq)):
