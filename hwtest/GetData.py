@@ -64,10 +64,12 @@ class StreamData:
 					# This would occur if camonitor initializes two or more strings with same initial value
 					self.get_new_idata = None
 					print("No new idata")
+					print("Current data:", data)
 				else:
 					# once we get new data this statement should execute
 					self.get_new_idata = 1
 					print("New idata received")
+					print("New data;", data)
 			time.sleep(0.1)
 
 		# !!!!!Uncomment below line for use in EPICs!!!!!!!!
