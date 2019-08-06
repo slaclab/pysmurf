@@ -137,58 +137,60 @@ class SetupHardware:
 			self.inst = index
 			self.set_atten(atten_value)
 
+if __name__ == '__main__':
+	# Variables to use for local testing
+	# __________________________________
 
-# Variables to use for local testing
-# __________________________________
+	# Ensures that supported hardware type is selected
+	hw_types = ["ucatten", "dcatten", "waveform"]
 
-# Ensures that supported hardware type is selected
-hw_types = ["ucatten", "dcatten", "waveform"]
+	# Testing UC attenuators
+	print("\n")
+	print("Testing all UC attenuators...")
+	uc_attens = SetupHardware(hw_types[0])
+	uc_attens.set_all_attens(atten_value=1)
 
-# Testing UC attenuators
-print("\n")
-print("Testing all UC attenuators...")
-uc_attens = SetupHardware(hw_types[0])
-uc_attens.set_all_attens(atten_value=1)
+	# Testing DC attenuators
+	print("\n")
+	print("Testing all DC attenuators...")
+	dc_attens = SetupHardware(hw_types[1])
+	dc_attens.set_all_attens(atten_value=0)
 
-# Testing DC attenuators
-print("\n")
-print("Testing all DC attenuators...")
-dc_attens = SetupHardware(hw_types[1])
-dc_attens.set_all_attens(atten_value=0)
+	# Testing invalid type attenuator
+	print("\n")
+	print("Testing incorrect hardware type...")
+	invalid_hardware = SetupHardware("iohfwehoh", hw_inst=3)
+	invalid_hardware.set_atten(atten_value=16)
 
-# Testing invalid type attenuator
-print("\n")
-print("Testing incorrect hardware type...")
-invalid_hardware = SetupHardware("iohfwehoh", hw_inst=3)
-invalid_hardware.set_atten(atten_value=16)
+	# Testing atten_values list
+	print("\n")
+	print("Testing atten_values at instance 2...")
+	my_atten = SetupHardware(hw_types[0], hw_inst=2)
+	for num in SetupHardware.atten_values:
+		my_atten.set_atten(atten_value=num)
 
-# Testing atten_values list
-print("\n")
-print("Testing atten_values at instance 2...")
-my_atten = SetupHardware(hw_types[0], hw_inst=2)
-for num in SetupHardware.atten_values:
-	my_atten.set_atten(atten_value=num)
+	# Testing all waveforms
+	print("\n")
+	print("Testing set_all_waveforms...")
+	all_waveforms = SetupHardware(hw_types[2])
+	all_waveforms.set_all_waveforms(wave_value=1)
 
-# Testing all waveforms
-print("\n")
-print("Testing set_all_waveforms...")
-all_waveforms = SetupHardware(hw_types[2])
-all_waveforms.set_all_waveforms(wave_value=1)
+	# Testing set_waveform
+	print("\n")
+	print("Testing set_waveform with instance 3 and value 0...")
+	my_waveform = SetupHardware(hw_types[2], hw_inst=3)
+	my_waveform.set_waveform(wave_value=0)
 
-# Testing set_waveform
-print("\n")
-print("Testing set_waveform with instance 3 and value 0...")
-my_waveform = SetupHardware(hw_types[2], hw_inst=3)
-my_waveform.set_waveform(wave_value=0)
+	# Testing what happens when instance is forgotten for a single attenuator
+	print("\n")
+	print("Testing unspecified uc attenuator instance...")
+	unknown_atten = SetupHardware(hw_types[0])
+	unknown_atten.set_atten(atten_value=8)
 
-# Testing what happens when instance is forgotten for a single attenuator
-print("\n")
-print("Testing unspecified uc attenuator instance...")
-unknown_atten = SetupHardware(hw_types[0])
-unknown_atten.set_atten(atten_value=8)
-
-# Testing what happens when unexpected value is passed to set_atten
-print("\n")
-print("Testing invalid atten_value passed to set_atten")
-wrong_value_atten = SetupHardware(hw_types[0], hw_inst=0)
-wrong_value_atten.set_atten(atten_value=100)
+	# Testing what happens when unexpected value is passed to set_atten
+	print("\n")
+	print("Testing invalid atten_value passed to set_atten")
+	wrong_value_atten = SetupHardware(hw_types[0], hw_inst=0)
+	wrong_value_atten.set_atten(atten_value=100)
+else:
+	print('Executed in import')

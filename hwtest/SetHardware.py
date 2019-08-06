@@ -189,11 +189,11 @@ class DaqMux(Buffer):
 			daqMuxChannel0 = ((instance + 1) * 2) + 10
 			daqMuxChannel1 = daqMuxChannel0 + 1
 		else:
-			print("ERROR: Did not recognize daq_type entered. Setting channels to default 0 and 1")
+			print("ERROR: Did not recognize daq_type entered. Setting daq_type to default 'adc'")
 			# Corresponds to Channel0
-			daqMuxChannel0 = 2
+			daqMuxChannel0 = (instance + 1) * 2
 			# Corresponds to Channel1
-			daqMuxChannel1 = 3
+			daqMuxChannel1 = daqMuxChannel0 + 1
 
 		my_buffer = Buffer()
 		my_buffer.set_buffer(size=datalength)
@@ -208,65 +208,69 @@ class DaqMux(Buffer):
 		print("Channel 1 location:", self.channelOneLocation)
 		print("Channel 1 value:", daqMuxChannel1)
 
-# Variables to use for local testing
-# __________________________________
+if __name__ == '__main__':
 
-# Testing UC attenuator
-print("\n")
-print("Testing set_attenuator function...")
-my_attenuator = UCAttenuator(atten_inst=4)
-my_attenuator.set_value(value_to_set=8)
+	# Variables to use for local testing
+	# __________________________________
 
-# Testing set_all
-print("\n")
-print("Testing set_all function...")
-all_attenuators = UCAttenuator()
-all_attenuators.set_all(value_to_set=2)
+	# Testing UC attenuator
+	print("\n")
+	print("Testing set_attenuator function...")
+	my_attenuator = UCAttenuator(atten_inst=4)
+	my_attenuator.set_value(value_to_set=8)
 
-# Testing DC attenuator
-print("\n")
-print("Testing DC attenuator class...")
-dc_attenuator = DCAttenuator(atten_inst=1)
-dc_attenuator.set_value(value_to_set=16)
+	# Testing set_all
+	print("\n")
+	print("Testing set_all function...")
+	all_attenuators = UCAttenuator()
+	all_attenuators.set_all(value_to_set=2)
 
-# Testing waveform class
-print("\n")
-print("Testing Waveform class...")
-my_waveform = Waveform(waveform_inst=0)
-my_waveform.set_value(wave_value=1)
+	# Testing DC attenuator
+	print("\n")
+	print("Testing DC attenuator class...")
+	dc_attenuator = DCAttenuator(atten_inst=1)
+	dc_attenuator.set_value(value_to_set=16)
 
-# Testing invalid waveform value
-print("\n")
-print("Testing invalid waveform value entry")
-invalid_waveform = Waveform(waveform_inst=1)
-invalid_waveform.set_value(wave_value=9)
+	# Testing waveform class
+	print("\n")
+	print("Testing Waveform class...")
+	my_waveform = Waveform(waveform_inst=0)
+	my_waveform.set_value(wave_value=1)
 
-# Testing invalid waveform instance
-print("\n")
-print("Testing invalid waveform instance...")
-invalid_instance_wave = Waveform(waveform_inst=5)
-invalid_instance_wave.set_value(wave_value=3)
+	# Testing invalid waveform value
+	print("\n")
+	print("Testing invalid waveform value entry")
+	invalid_waveform = Waveform(waveform_inst=1)
+	invalid_waveform.set_value(wave_value=9)
 
-# Testing invalid attenuator value and instance
-print("\n")
-print("Testing invalid instance and value for attenuator class...")
-wack_attenuator = UCAttenuator(atten_inst=6)
-wack_attenuator.set_value(value_to_set=40)
+	# Testing invalid waveform instance
+	print("\n")
+	print("Testing invalid waveform instance...")
+	invalid_instance_wave = Waveform(waveform_inst=5)
+	invalid_instance_wave.set_value(wave_value=3)
 
-# Testing set_all_waveforms
-print("\n")
-print("Testing set_all_waveforms function...")
-all_waveforms = Waveform()
-all_waveforms.set_all_waveforms(wave_value=1)
+	# Testing invalid attenuator value and instance
+	print("\n")
+	print("Testing invalid instance and value for attenuator class...")
+	wack_attenuator = UCAttenuator(atten_inst=6)
+	wack_attenuator.set_value(value_to_set=40)
 
-# Testing Buffer
-print("\n")
-print("Testing set buffer...")
-buffer = Buffer()
-buffer.set_buffer(size=2**33)
+	# Testing set_all_waveforms
+	print("\n")
+	print("Testing set_all_waveforms function...")
+	all_waveforms = Waveform()
+	all_waveforms.set_all_waveforms(wave_value=1)
 
-# Testing DaqMux
-print("\n")
-print("Testing Daq Mux class...")
-daq = DaqMux(bay=0)
-daq.set_daq(daq_type='adc', instance=1, datalength=2**18)
+	# Testing Buffer
+	print("\n")
+	print("Testing set buffer...")
+	buffer = Buffer()
+	buffer.set_buffer(size=2**33)
+
+	# Testing DaqMux
+	print("\n")
+	print("Testing Daq Mux class...")
+	daq = DaqMux(bay=0)
+	daq.set_daq(daq_type='adc', instance=1, datalength=2**18)
+else:
+	print('Executed from import of SetHardware')
