@@ -77,21 +77,43 @@ class StreamData:
 					# once we get new data this statement should execute
 					self.get_new_idata = 1
 					print("New idata received")
-					print("New data;", data)
+					print("New I data:", data)
 			time.sleep(0.1)
 
 		# !!!!!Uncomment below line for use in EPICs!!!!!!!!
 		# camonitor_clear(self.i_stream)
 
-
-	def monitor_qdata(self, arg):
+	def monitor_qdata(self):
 		# Extract the value passed to q_data from the monitor
 
-		# ~~For use in Server~~
-		# new_qdata_list = []
-		# camonitor(self.q_stream, writer=lambda arg: new_qdata_list.append(arg))
+		# ~~For use on this machine~~
+		new_qdata_list = ['test:dummyTree:AxiVersion:Scratc 2019-08-06 08:24:26.16236 6',
+		                  'test:dummyTree:AxiVersion:Scratc 2019-08-06 08:24:26.16978 6',
+		                  'test:dummyTree:AxiVersion:Scratc 2019-08-06 08:24:38.65490 14']
 
-		self.get_new_qdata = None
+		previous_data = new_qdata_list[0].split(' ')[-1]
+
+		while self.get_new_qdata is None:
+
+			# ~~For use in Server~~
+			# new_qdata_list = []
+			# camonitor(self.q_stream, writer=lambda arg: new_qdata_list.append(arg))
+
+			for string in new_qdata_list:
+				data = string.split(' ')[-1]
+				if data == previous_data:
+					self.get_new_qdata = None
+					print("No new qdata")
+					print("Current data:", data)
+					print("Previous data:", previous_data)
+				else:
+					self.get_new_qdata = 1
+					print("New qdata received")
+					print("New Q data:", data)
+			time.sleep(0.1)
+
+		# !!!!!Uncomment below line for use in EPICs!!!!!!!!
+		# camonitor_clear(self.i_stream)
 
 	def wait_data(self):
 
