@@ -41,6 +41,11 @@ class StreamData:
 	def monitor_idata(self):
 		# Extract the value passed to i_data from the monitor
 
+		# ~~For use on this machine~~
+		new_idata_list = ['test:dummyTree:AxiVersion:Scratc 2019-08-06 08:24:26.16236 0',
+		                  'test:dummyTree:AxiVersion:Scratc 2019-08-06 08:24:26.16978 0',
+		                  'test:dummyTree:AxiVersion:Scratc 2019-08-06 08:24:38.65490 2']
+
 		# grabs the data from the first monitor string
 		# in my testing, camonitor will write to list upon initialization
 		# sometimes it will write the same value twice upon initialization
@@ -54,11 +59,6 @@ class StreamData:
 			# new_idata_list = []
 			# camonitor(self.i_stream, writer=lambda arg: new_idata_list.append(arg))
 
-			# ~~For use on this machine~~
-			new_idata_list = ['test:dummyTree:AxiVersion:Scratc 2019-08-06 08:24:26.16236 0',
-			                  'test:dummyTree:AxiVersion:Scratc 2019-08-06 08:24:26.16978 0',
-			                  'test:dummyTree:AxiVersion:Scratc 2019-08-06 08:24:38.65490 2']
-			
 			for string in new_idata_list:
 				data = string.split(' ')[-1]
 				if data == previous_data:
@@ -66,6 +66,7 @@ class StreamData:
 					self.get_new_idata = None
 					print("No new idata")
 					print("Current data:", data)
+					print("Previous Data:", previous_data)
 				else:
 					# once we get new data this statement should execute
 					self.get_new_idata = 1
