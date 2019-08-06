@@ -2436,7 +2436,8 @@ class SmurfTuneMixin(SmurfBase):
         lms_freq_hz=None, flux_ramp=True, fraction_full_scale=None,
         lms_enable1=True, lms_enable2=True, lms_enable3=True, lms_gain=7,
         f_min=.015, f_max=.2, df_max=.03, toggle_feedback=True,
-        relock=True,tracking_setup=True):
+        relock=True, tracking_setup=True,
+        feedback_start_frac=None, feedback_end_frac=None):
         """
         This runs tracking setup and check_lock to prune bad channels.
         
@@ -2469,7 +2470,9 @@ class SmurfTuneMixin(SmurfBase):
                                 fraction_full_scale=fraction_full_scale,
                                 lms_enable1=lms_enable1, lms_enable2=lms_enable2, 
                                 lms_enable3=lms_enable3, 
-                                lms_gain=lms_gain, return_data=False)
+                                lms_gain=lms_gain, return_data=False,
+                                feedback_start_frac=feedback_start_frac,
+                                feedback_end_frac=feedback_end_frac)
 
         if toggle_feedback:
             self.toggle_feedback(band)
@@ -2478,7 +2481,9 @@ class SmurfTuneMixin(SmurfBase):
                         make_plot=make_plot, flux_ramp=flux_ramp, 
                         fraction_full_scale=fraction_full_scale,
                         lms_freq_hz=lms_freq_hz,
-                        reset_rate_khz=reset_rate_khz)
+                        reset_rate_khz=reset_rate_khz,
+                        feedback_start_frac=feedback_start_frac,
+                        feedback_end_frac=feedback_end_frac)
     
     def eta_phase_check(self, band, rot_step_size=30, rot_max=360,
                         reset_rate_khz=4., 
@@ -2766,9 +2771,11 @@ class SmurfTuneMixin(SmurfBase):
         return 1-2*(self.get_fast_slow_rst_value(new_epics_root=new_epics_root)/
                     2**self.num_flux_ramp_counter_bits)
 
+    
     def check_lock(self, band, f_min=.015, f_max=.2, df_max=.03,
         make_plot=False, flux_ramp=True, fraction_full_scale=None,
-        lms_freq_hz=None, reset_rate_khz=4., **kwargs):
+        lms_freq_hz=None, reset_rate_khz=4.,
+        feedback_start_frac=None, feedback_end_frac=None, **kwargs):
         """
         Checks the bad resonators
         
@@ -2802,7 +2809,8 @@ class SmurfTuneMixin(SmurfBase):
         # Tracking setup returns information on all channels in a band
         f, df, sync = self.tracking_setup(band, 0, make_plot=False,
             flux_ramp=flux_ramp, fraction_full_scale=fraction_full_scale,
-            lms_freq_hz=lms_freq_hz, reset_rate_khz=reset_rate_khz)
+            lms_freq_hz=lms_freq_hz, reset_rate_khz=reset_rate_khz,
+            feedback_start_frac=feedback_start_frac, feedback_end_frac=feedback_end_frac)
 
         high_cut = np.array([])
         low_cut = np.array([])
@@ -2816,13 +2824,6 @@ class SmurfTuneMixin(SmurfBase):
             f_span = np.max(f_chan) - np.min(f_chan)
             df_rms = np.std(df[:,ch])
 
-            # self.log('Ch {} f_span {} df_rms {}'.format(ch, f_span, df_rms))
-
-            if make_plot:
-                plt.figure()
-                plt.plot(f_chan)
-                plt.title(ch)
-
             if f_span > f_max:
                 self.set_amplitude_scale_channel(band, ch, 0, **kwargs)
                 high_cut = np.append(high_cut, ch)
@@ -2832,8 +2833,6 @@ class SmurfTuneMixin(SmurfBase):
             elif df_rms > df_max:
                 self.set_amplitude_scale_channel(band, ch, 0, **kwargs)
                 df_cut = np.append(df_cut, ch)
-            #else:
-            #    self.log('Ch {:03} acceptable: {:4.3f}'.format(ch, f_span))
 
         chan_after = self.which_on(band)
         
@@ -3866,7 +3865,8 @@ class SmurfTuneMixin(SmurfBase):
         self.add_output('hemt_status', self.get_amplifier_biases())
 
         # get jesd status for good measure
-        self.add_output('jesd_status', self.check_jesd())
+        for bay in self.bays:
+            self.add_output('jesd_status bay ' + str(bay), self.check_jesd(bay))
 
         # get TES bias info
         self.add_output('tes_biases', list(self.get_tes_bias_bipolar_array()))
