@@ -41,15 +41,6 @@ class StreamData:
 	def monitor_idata(self):
 		# Extract the value passed to i_data from the monitor
 
-		# ~~For use in Server~~
-		# new_idata_list = []
-		# camonitor(self.i_stream, writer=lambda arg: new_idata_list.append(arg))
-
-		# ~~For use on this machine~~
-		new_idata_list = ['test:dummyTree:AxiVersion:Scratc 2019-08-06 08:24:26.16236 0',
-		                  'test:dummyTree:AxiVersion:Scratc 2019-08-06 08:24:26.16978 0',
-		                  'test:dummyTree:AxiVersion:Scratc 2019-08-06 08:24:38.65490 2']
-
 		# grabs the data from the first monitor string
 		# in my testing, camonitor will write to list upon initialization
 		# sometimes it will write the same value twice upon initialization
@@ -58,6 +49,16 @@ class StreamData:
 		# Checks if data received is different than the initialized data
 		# While loop will continue checking for new data until self.get_new_idata is no longer None
 		while self.get_new_idata is None:
+
+			# ~~For use in Server~~
+			# new_idata_list = []
+			# camonitor(self.i_stream, writer=lambda arg: new_idata_list.append(arg))
+
+			# ~~For use on this machine~~
+			new_idata_list = ['test:dummyTree:AxiVersion:Scratc 2019-08-06 08:24:26.16236 0',
+			                  'test:dummyTree:AxiVersion:Scratc 2019-08-06 08:24:26.16978 0',
+			                  'test:dummyTree:AxiVersion:Scratc 2019-08-06 08:24:38.65490 2']
+			
 			for string in new_idata_list:
 				data = string.split(' ')[-1]
 				if data == previous_data:
@@ -92,5 +93,9 @@ class StreamData:
 
 		return self.idata, self.qdata
 
-# Testing StreamData class and idata monitor function
-data = StreamData(bay=0)
+
+if __name__ == "__main__":
+	# Testing StreamData class and idata monitor function
+	data = StreamData(bay=0)
+else:
+	print("GetData accessed from import")
