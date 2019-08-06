@@ -43,6 +43,7 @@ class StreamData:
 		# Monitoring the incoming data streams
 		self.monitor_idata()
 		self.monitor_qdata()
+		self.idata, self.qdata = self.wait_data()
 
 	def monitor_idata(self):
 		# Extract the value passed to i_data from the monitor
@@ -134,5 +135,9 @@ class StreamData:
 if __name__ == "__main__":
 	# Testing StreamData class and idata monitor function
 	data = StreamData(bay=0)
+	idata = data.idata
+	qdata = data.qdata
+	print("I Data:", idata, "\n" + "Q Data:", qdata)
+
 else:
 	print("GetData accessed from import")
