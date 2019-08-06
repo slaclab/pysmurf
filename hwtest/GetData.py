@@ -4,6 +4,7 @@ import SetHardware
 # from epics import caget, caput, camonitor, camonitor_clear
 import time
 
+
 class StreamData:
 
 	def __init__(self, bay):
@@ -34,9 +35,14 @@ class StreamData:
 			self.i_stream = 'dans_epics:AMCc:Stream1'
 
 		# Initializing data arrays for the i and q data
+		self.idata = None
+		self.qdata = None
 		self.get_new_idata = None
 		self.get_new_qdata = None
+
+		# Monitoring the incoming data streams
 		self.monitor_idata()
+		self.monitor_qdata()
 
 	def monitor_idata(self):
 		# Extract the value passed to i_data from the monitor
@@ -89,8 +95,16 @@ class StreamData:
 
 	def wait_data(self):
 
-		while self.get_new_idata == None or self.get_new_qdata == None:
+		while self.get_new_idata is None or self.get_new_qdata is None:
 			time.sleep(0.1)
+
+		# ~~For use in Server~~
+		# self.idata = caget(self.i_stream)
+		# self.qdata = caget(self.q_stream)
+
+		# ~~For use in Debugging~~
+		self.idata = 1
+		self.qdata = 1
 
 		return self.idata, self.qdata
 
