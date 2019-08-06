@@ -2777,7 +2777,9 @@ class SmurfTuneMixin(SmurfBase):
         lms_freq_hz=None, reset_rate_khz=4.,
         feedback_start_frac=None, feedback_end_frac=None, **kwargs):
         """
-        Checks the bad resonators
+        Takes a tracking setup and turns off channels that have bad
+        tracking. The limits are set by the variables f_min, f_max,
+        and df_max.
         
         Args:
         -----
@@ -2792,6 +2794,12 @@ class SmurfTuneMixin(SmurfBase):
         flux_ramp (bool) : Whether to flux ramp or not. Default True
         faction_full_scale (float): Number between 0 and 1. The amplitude
            of the flux ramp.
+        lms_freq_hz (float) : The tracking frequency in Hz. Default is None
+        reset_rate_khz (float) : The flux ramp reset rate in kHz. 
+        feedback_start_frac (float) : What fraction of the flux ramp to
+            skip before feedback. Float between 0 and 1.
+        feedback_end_frac (float) : What fraction of the flux ramp to skip
+            at the end of feedback. Float between 0 and 1.
         """
         self.log('Checking lock on band {}'.format(band))
 
@@ -2815,9 +2823,6 @@ class SmurfTuneMixin(SmurfBase):
         high_cut = np.array([])
         low_cut = np.array([])
         df_cut = np.array([])
-
-        if make_plot:
-            import matplotlib.pyplot as plt
 
         for ch in channels:
             f_chan = f[:,ch]
@@ -2845,6 +2850,7 @@ class SmurfTuneMixin(SmurfBase):
         self.log('df cut count: {}'.format(len(df_cut)))
         self.log('Started with {}. Now {}'.format(n_chan, len(chan_after)))
 
+        # Store the data in freq_resp
         timestamp = self.get_timestamp(as_int=True)
         self.freq_resp[band]['lock_status'][timestamp] = {
             'action' : 'check_lock',
