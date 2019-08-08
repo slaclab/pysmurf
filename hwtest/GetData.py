@@ -114,7 +114,7 @@ class StreamData:
 			time.sleep(0.1)
 
 		# !!!!!Uncomment below line for use in EPICs!!!!!!!!
-		# camonitor_clear(self.i_stream)
+		# camonitor_clear(self.q_stream)
 
 	def wait_data(self):
 

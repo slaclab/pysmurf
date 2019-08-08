@@ -193,4 +193,4 @@ if __name__ == '__main__':
 	wrong_value_atten = SetupHardware(hw_types[0], hw_inst=0)
 	wrong_value_atten.set_atten(atten_value=100)
 else:
-	print('Executed in import')
+	print('Executed from import of smurfhwtest')
