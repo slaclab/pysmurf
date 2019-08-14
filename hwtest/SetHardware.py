@@ -223,46 +223,6 @@ class DaqMux(Buffer):
 		print("DAC Channel 1 value:", daqMuxChannel1)
 
 
-	def set_daq(self, daq_type, instance, datalength):
-
-		# When using caput to assign Channels in variable channel0 and channel1,
-		# keep in mind that caput(self.channelZeroLocation, 2) corresponds to
-		# an output of Channel0 on the server.
-		# Similarly, caput(self.channelOneLocation, 3) corresponds to
-		# output of Channel1
-		# When we switch to
-
-		daq_type = daq_type.lower()
-		if daq_type == 'adc':
-			# Ensures that, if instance is zero, Channel0 is selected by putting value of 2 into the PV
-			# Daq Mux channels are always offset by one
-			daqMuxChannel0 = (instance + 1) * 2
-			daqMuxChannel1 = daqMuxChannel0 + 1
-		elif daq_type == 'dac':
-			# Ensures that, if instance is zero, Channel0 is selected by putting value of 12 into the PV
-			# Daq Mux channels are always offset by one
-			daqMuxChannel0 = ((instance + 1) * 2) + 10
-			daqMuxChannel1 = daqMuxChannel0 + 1
-		else:
-			print("ERROR: Did not recognize daq_type entered. Setting daq_type to default 'adc'")
-			# Corresponds to Channel0
-			daqMuxChannel0 = (instance + 1) * 2
-			# Corresponds to Channel1
-			daqMuxChannel1 = daqMuxChannel0 + 1
-
-		my_buffer = Buffer()
-		my_buffer.set_buffer(size=datalength)
-
-		# ~~ FOR SERVER INTERFACE ~~
-		# caput(self.channelZeroLocation, daqMuxChannel0)
-		# caput(self.channelOneLocation, daqMuxChannel1)
-
-		# ~~ FOR LOCAL TESTING ~~
-		print("Channel 0 location:", self.channelZeroLocation)
-		print("Channel 0 value:", daqMuxChannel0)
-		print("Channel 1 location:", self.channelOneLocation)
-		print("Channel 1 value:", daqMuxChannel1)
-
 if __name__ == '__main__':
 
 	# Variables to use for local testing
