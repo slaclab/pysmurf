@@ -1,5 +1,5 @@
-# from epics import caget, caput
-# import time
+from epics import caget, caput
+import time
 
 # I think the server name is 'dans_epics'
 
@@ -35,12 +35,12 @@ class Attenuator:
 		atten_location = self.location + "[" + str(self.inst) + "]"
 
 		# ~~ FOR SERVER INTERFACE ~~
-		# caput(atten_location, value_to_set)
-		# time.sleep(0.1)
+		caput(atten_location, value_to_set)
+		time.sleep(0.1)
 
 		# ~~ FOR LOCAL TESTING ~~
-		print("Variable location:", atten_location)
-		print("Value to set:", value_to_set)
+		# print("Variable location:", atten_location)
+		# print("Value to set:", value_to_set)
 
 	def set_all(self, value_to_set):
 		# Sets all instances of one type of attenuator to same value
@@ -92,12 +92,12 @@ class Waveform:
 		wave_location = self.location + "[" + str(self.inst) + "]:waveformSelect"
 
 		# ~~ FOR SERVER INTERFACE ~~
-		# caput(wave_location, wave_value)
-		# time.sleep(0.1)
+		caput(wave_location, wave_value)
+		time.sleep(0.1)
 
 		# ~~ FOR LOCAL TESTING ~~
-		print("Variable location:", wave_location)
-		print("Value to set:", wave_value)
+		# print("Variable location:", wave_location)
+		# print("Value to set:", wave_value)
 
 	def set_all_waveforms(self, wave_value):
 
@@ -132,24 +132,24 @@ class Buffer:
 			bufferSize = self.maxBuffer
 
 		# ~~ FOR SERVER INTERFACE ~~
-		# caput(self.bufferLocation, bufferSize)
+		caput(self.bufferLocation, bufferSize)
 
 		# ~~ FOR LOCAL TESTING ~~
-		print("DaqMux Location:", self.bufferLocation)
-		print("DaqMux value:", bufferSize)
+		# print("DaqMux Location:", self.bufferLocation)
+		# print("DaqMux value:", bufferSize)
 
 		# Setting waveform Engine buffer size
-		for num in range(4):
+		for index in range(4):
 
 			# ~~ FOR SERVER INTERFACE ~~
-			# start_address = caget(self.startAddressPV[num])
-			# end_address = start_address + 4 * bufferSize
-			# caput(self.endAddressPV[num], end_address)
+			start_address = caget(self.startAddressPV[index])
+			end_address = start_address + 4 * bufferSize
+			caput(self.endAddressPV[index], end_address)
 
 			# ~~ FOR LOCAL TESTING ~~
-			start_address = num
-			end_address = start_address + 4 * bufferSize
-			print("The value to be assigned to EndAdress:", end_address)
+			# start_address = index
+			# end_address = start_address + 4 * bufferSize
+			# print("The value to be assigned to EndAdress:", end_address)
 
 
 class DaqMux(Buffer):
@@ -186,14 +186,14 @@ class DaqMux(Buffer):
 		my_buffer.set_buffer(size=datalength)
 
 		# ~~ FOR SERVER INTERFACE ~~
-		# caput(self.channelZeroLocation, daqMuxChannel0)
-		# caput(self.channelOneLocation, daqMuxChannel1)
+		caput(self.channelZeroLocation, daqMuxChannel0)
+		caput(self.channelOneLocation, daqMuxChannel1)
 
 		# ~~ FOR LOCAL TESTING ~~
-		print("ADC Channel 0 location:", self.channelZeroLocation)
-		print("ADC Channel 0 value:", daqMuxChannel0)
-		print("ADC Channel 1 location:", self.channelOneLocation)
-		print("ADC Channel 1 value:", daqMuxChannel1)
+		# print("ADC Channel 0 location:", self.channelZeroLocation)
+		# print("ADC Channel 0 value:", daqMuxChannel0)
+		# print("ADC Channel 1 location:", self.channelOneLocation)
+		# print("ADC Channel 1 value:", daqMuxChannel1)
 
 
 	def set_dac_daq(self, dacnumber, datalength):
@@ -213,86 +213,17 @@ class DaqMux(Buffer):
 		my_buffer.set_buffer(size=datalength)
 
 		# ~~ FOR SERVER INTERFACE ~~
-		# caput(self.channelZeroLocation, daqMuxChannel0)
-		# caput(self.channelOneLocation, daqMuxChannel1)
+		caput(self.channelZeroLocation, daqMuxChannel0)
+		caput(self.channelOneLocation, daqMuxChannel1)
 
 		# ~~ FOR LOCAL TESTING ~~
-		print("DAC Channel 0 location:", self.channelZeroLocation)
-		print("DAC Channel 0 value:", daqMuxChannel0)
-		print("DAC Channel 1 location:", self.channelOneLocation)
-		print("DAC Channel 1 value:", daqMuxChannel1)
+		# print("DAC Channel 0 location:", self.channelZeroLocation)
+		# print("DAC Channel 0 value:", daqMuxChannel0)
+		# print("DAC Channel 1 location:", self.channelOneLocation)
+		# print("DAC Channel 1 value:", daqMuxChannel1)
 
 
 if __name__ == '__main__':
-
-	# Variables to use for local testing
-	# __________________________________
-
-	# Testing UC attenuator
-	print("\n")
-	print("Testing set_attenuator function...")
-	my_attenuator = UCAttenuator(atten_inst=4)
-	my_attenuator.set_value(value_to_set=8)
-
-	# Testing set_all
-	print("\n")
-	print("Testing set_all function...")
-	all_attenuators = UCAttenuator()
-	all_attenuators.set_all(value_to_set=2)
-
-	# Testing DC attenuator
-	print("\n")
-	print("Testing DC attenuator class...")
-	dc_attenuator = DCAttenuator(atten_inst=1)
-	dc_attenuator.set_value(value_to_set=16)
-
-	# Testing waveform class
-	print("\n")
-	print("Testing Waveform class...")
-	my_waveform = Waveform(waveform_inst=0)
-	my_waveform.set_value(wave_value=1)
-
-	# Testing invalid waveform value
-	print("\n")
-	print("Testing invalid waveform value entry")
-	invalid_waveform = Waveform(waveform_inst=1)
-	invalid_waveform.set_value(wave_value=9)
-
-	# Testing invalid waveform instance
-	print("\n")
-	print("Testing invalid waveform instance...")
-	invalid_instance_wave = Waveform(waveform_inst=5)
-	invalid_instance_wave.set_value(wave_value=3)
-
-	# Testing invalid attenuator value and instance
-	print("\n")
-	print("Testing invalid instance and value for attenuator class...")
-	wack_attenuator = UCAttenuator(atten_inst=6)
-	wack_attenuator.set_value(value_to_set=40)
-
-	# Testing set_all_waveforms
-	print("\n")
-	print("Testing set_all_waveforms function...")
-	all_waveforms = Waveform()
-	all_waveforms.set_all_waveforms(wave_value=1)
-
-	# Testing Buffer
-	print("\n")
-	print("Testing set buffer...")
-	buffer = Buffer()
-	buffer.set_buffer(size=2**33)
-
-	# Testing DaqMux set_adc_daq
-	print("\n")
-	print("Testing Daq Mux class set_adc_daq...")
-	daq = DaqMux(bay=0)
-	daq.set_adc_daq(adcnumber=1, datalength=2**18)
-
-	# Testing DaqMux set_dac_daq
-	print("\n")
-	print("Testing Daq Mux class set_dac_daq...")
-	daq = DaqMux(bay=1)
-	daq.set_dac_daq(dacnumber=1, datalength=2 ** 16)
-
+	print("Executed from main")
 else:
 	print('Executed from import of SetHardware')
