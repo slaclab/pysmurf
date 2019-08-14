@@ -1,5 +1,5 @@
-import SetHardware
-# from epics import caget, caput, camonitor, camonitor_clear
+
+from epics import caget, caput, camonitor, camonitor_clear
 import time
 
 
@@ -46,10 +46,9 @@ class StreamData:
 	def monitor_idata(self):
 		# Extract the value passed to i_data from the monitor
 
-		# ~~For use on this machine~~
-		new_idata_list = ['test:dummyTree:AxiVersion:Scratc 2019-08-06 08:24:26.16236 0',
-		                  'test:dummyTree:AxiVersion:Scratc 2019-08-06 08:24:26.16978 0',
-		                  'test:dummyTree:AxiVersion:Scratc 2019-08-06 08:24:38.65490 2']
+		# ~~For use in Server~~
+		new_idata_list = []
+		camonitor(self.i_stream, writer=lambda arg: new_idata_list.append(arg))
 
 		# grabs the data from the first monitor string
 		# in my testing, camonitor will write to list upon initialization
@@ -61,7 +60,7 @@ class StreamData:
 		while self.get_new_idata is None:
 
 			# ~~For use in Server~~
-			# new_idata_list = []
+			# Not sure if this line below is necessary
 			# camonitor(self.i_stream, writer=lambda arg: new_idata_list.append(arg))
 
 			for string in new_idata_list:
@@ -79,23 +78,21 @@ class StreamData:
 					print("New I data:", data)
 			time.sleep(0.1)
 
-		# !!!!!Uncomment below line for use in EPICs!!!!!!!!
-		# camonitor_clear(self.i_stream)
+		camonitor_clear(self.i_stream)
 
 	def monitor_qdata(self):
 		# Extract the value passed to q_data from the monitor
 
-		# ~~For use on this machine~~
-		new_qdata_list = ['test:dummyTree:AxiVersion:Scratc 2019-08-06 08:24:26.16236 6',
-		                  'test:dummyTree:AxiVersion:Scratc 2019-08-06 08:24:26.16978 6',
-		                  'test:dummyTree:AxiVersion:Scratc 2019-08-06 08:24:38.65490 14']
+		# ~~For use in Server~~
+		new_qdata_list = []
+		camonitor(self.q_stream, writer=lambda arg: new_qdata_list.append(arg))
 
 		previous_data = new_qdata_list[0].split(' ')[-1]
 
 		while self.get_new_qdata is None:
 
 			# ~~For use in Server~~
-			# new_qdata_list = []
+			# Not sure if this line below is necessary
 			# camonitor(self.q_stream, writer=lambda arg: new_qdata_list.append(arg))
 
 			for string in new_qdata_list:
@@ -111,8 +108,7 @@ class StreamData:
 					print("New Q data:", data)
 			time.sleep(0.1)
 
-		# !!!!!Uncomment below line for use in EPICs!!!!!!!!
-		# camonitor_clear(self.q_stream)
+		camonitor_clear(self.q_stream)
 
 	def wait_data(self):
 
@@ -120,12 +116,8 @@ class StreamData:
 			time.sleep(0.1)
 
 		# ~~For use in Server~~
-		# self.idata = caget(self.i_stream)
-		# self.qdata = caget(self.q_stream)
-
-		# ~~For use in Debugging~~
-		self.idata = 1
-		self.qdata = 1
+		self.idata = caget(self.i_stream)
+		self.qdata = caget(self.q_stream)
 
 		return self.idata, self.qdata
 
