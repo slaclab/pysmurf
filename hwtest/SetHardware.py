@@ -168,7 +168,6 @@ class DaqMux(Buffer):
 			self.channelZeroLocation = 'dans_epics:AMCc:FpgaTopLevel:AppTop:DaqMuxV2[0]:InputMuxSel[0]'
 			self.channelOneLocation = 'dans_epics:AMCc:FpgaTopLevel:AppTop:DaqMuxV2[0]:InputMuxSel[1]'
 
-
 	def set_adc_daq(self, adcnumber, datalength):
 		# When using caput to assign Channels in variable channel0 and channel1,
 		# keep in mind that caput(self.channelZeroLocation, 2) corresponds to
@@ -194,7 +193,6 @@ class DaqMux(Buffer):
 		# print("ADC Channel 0 value:", daqMuxChannel0)
 		# print("ADC Channel 1 location:", self.channelOneLocation)
 		# print("ADC Channel 1 value:", daqMuxChannel1)
-
 
 	def set_dac_daq(self, dacnumber, datalength):
 		# When using caput to assign Channels in variable channel0 and channel1,
