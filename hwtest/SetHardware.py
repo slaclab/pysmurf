@@ -190,10 +190,10 @@ class DaqMux(Buffer):
 		# caput(self.channelOneLocation, daqMuxChannel1)
 
 		# ~~ FOR LOCAL TESTING ~~
-		print("Channel 0 location:", self.channelZeroLocation)
-		print("Channel 0 value:", daqMuxChannel0)
-		print("Channel 1 location:", self.channelOneLocation)
-		print("Channel 1 value:", daqMuxChannel1)
+		print("ADC Channel 0 location:", self.channelZeroLocation)
+		print("ADC Channel 0 value:", daqMuxChannel0)
+		print("ADC Channel 1 location:", self.channelOneLocation)
+		print("ADC Channel 1 value:", daqMuxChannel1)
 
 
 	def set_dac_daq(self, dacnumber, datalength):
@@ -217,10 +217,10 @@ class DaqMux(Buffer):
 		# caput(self.channelOneLocation, daqMuxChannel1)
 
 		# ~~ FOR LOCAL TESTING ~~
-		print("Channel 0 location:", self.channelZeroLocation)
-		print("Channel 0 value:", daqMuxChannel0)
-		print("Channel 1 location:", self.channelOneLocation)
-		print("Channel 1 value:", daqMuxChannel1)
+		print("DAC Channel 0 location:", self.channelZeroLocation)
+		print("DAC Channel 0 value:", daqMuxChannel0)
+		print("DAC Channel 1 location:", self.channelOneLocation)
+		print("DAC Channel 1 value:", daqMuxChannel1)
 
 
 	def set_daq(self, daq_type, instance, datalength):
@@ -322,10 +322,17 @@ if __name__ == '__main__':
 	buffer = Buffer()
 	buffer.set_buffer(size=2**33)
 
-	# Testing DaqMux
+	# Testing DaqMux set_adc_daq
 	print("\n")
-	print("Testing Daq Mux class...")
+	print("Testing Daq Mux class set_adc_daq...")
 	daq = DaqMux(bay=0)
 	daq.set_adc_daq(adcnumber=1, datalength=2**18)
+
+	# Testing DaqMux set_dac_daq
+	print("\n")
+	print("Testing Daq Mux class set_dac_daq...")
+	daq = DaqMux(bay=1)
+	daq.set_dac_daq(dacnumber=1, datalength=2 ** 16)
+
 else:
 	print('Executed from import of SetHardware')
