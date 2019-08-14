@@ -168,6 +168,61 @@ class DaqMux(Buffer):
 			self.channelZeroLocation = 'dans_epics:AMCc:FpgaTopLevel:AppTop:DaqMuxV2[0]:InputMuxSel[0]'
 			self.channelOneLocation = 'dans_epics:AMCc:FpgaTopLevel:AppTop:DaqMuxV2[0]:InputMuxSel[1]'
 
+
+	def set_adc_daq(self, adcnumber, datalength):
+		# When using caput to assign Channels in variable channel0 and channel1,
+		# keep in mind that caput(self.channelZeroLocation, 2) corresponds to
+		# an output of Channel0 on the server.
+		# Similarly, caput(self.channelOneLocation, 3) corresponds to
+		# output of Channel1
+
+		# Ensures that, if instance is zero, Channel0 is selected by putting value of 2 into the PV
+		# Daq Mux channels are always offset by one
+
+		daqMuxChannel0 = (adcnumber + 1) * 2
+		daqMuxChannel1 = daqMuxChannel0 + 1
+
+		my_buffer = Buffer()
+		my_buffer.set_buffer(size=datalength)
+
+		# ~~ FOR SERVER INTERFACE ~~
+		# caput(self.channelZeroLocation, daqMuxChannel0)
+		# caput(self.channelOneLocation, daqMuxChannel1)
+
+		# ~~ FOR LOCAL TESTING ~~
+		print("Channel 0 location:", self.channelZeroLocation)
+		print("Channel 0 value:", daqMuxChannel0)
+		print("Channel 1 location:", self.channelOneLocation)
+		print("Channel 1 value:", daqMuxChannel1)
+
+
+	def set_dac_daq(self, dacnumber, datalength):
+		# When using caput to assign Channels in variable channel0 and channel1,
+		# keep in mind that caput(self.channelZeroLocation, 2) corresponds to
+		# an output of Channel0 on the server.
+		# Similarly, caput(self.channelOneLocation, 3) corresponds to
+		# output of Channel1
+
+		# Ensures that, if instance is zero, Channel0 is selected by putting value of 12 into the PV
+		# Daq Mux channels are always offset by one
+
+		daqMuxChannel0 = ((dacnumber + 1) * 2) + 10
+		daqMuxChannel1 = daqMuxChannel0 + 1
+
+		my_buffer = Buffer()
+		my_buffer.set_buffer(size=datalength)
+
+		# ~~ FOR SERVER INTERFACE ~~
+		# caput(self.channelZeroLocation, daqMuxChannel0)
+		# caput(self.channelOneLocation, daqMuxChannel1)
+
+		# ~~ FOR LOCAL TESTING ~~
+		print("Channel 0 location:", self.channelZeroLocation)
+		print("Channel 0 value:", daqMuxChannel0)
+		print("Channel 1 location:", self.channelOneLocation)
+		print("Channel 1 value:", daqMuxChannel1)
+
+
 	def set_daq(self, daq_type, instance, datalength):
 
 		# When using caput to assign Channels in variable channel0 and channel1,
@@ -271,6 +326,6 @@ if __name__ == '__main__':
 	print("\n")
 	print("Testing Daq Mux class...")
 	daq = DaqMux(bay=0)
-	daq.set_daq(daq_type='adc', instance=1, datalength=2**18)
+	daq.set_adc_daq(adcnumber=1, datalength=2**18)
 else:
 	print('Executed from import of SetHardware')
