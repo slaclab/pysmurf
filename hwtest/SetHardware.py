@@ -151,6 +151,13 @@ class Buffer:
 			# end_address = start_address + 4 * bufferSize
 			# print("The value to be assigned to EndAdress:", end_address)
 
+	def show_start_end_adrr(self):
+		for index in range(len(self.startAddressPV)):
+			start_value = caget(self.startAddressPV[index])
+			end_value = caget(self.endAddressPV[index])
+			print("Start address", str(index), "value:", start_value)
+			print("End address", str(index), "value:", end_value)
+
 
 class DaqMux(Buffer):
 
