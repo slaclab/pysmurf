@@ -3,7 +3,6 @@
   <component name="ChangeListManager">
     <list default="true" id="d947b08e-3c67-414c-b223-e28fd85391ef" name="Default Changelist" comment="">
       <change beforePath="$PROJECT_DIR$/GetData.py" beforeDir="false" afterPath="$PROJECT_DIR$/GetData.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/SetHardware.py" beforeDir="false" afterPath="$PROJECT_DIR$/SetHardware.py" afterDir="false" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="SHOW_DIALOG" value="false" />
@@ -28,8 +27,8 @@
       <file pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/SetHardware.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="294">
-              <caret line="242" selection-start-line="242" selection-end-line="242" />
+            <state relative-caret-position="-3336">
+              <caret line="13" column="51" lean-forward="true" selection-start-line="13" selection-start-column="51" selection-end-line="13" selection-end-column="51" />
               <folding>
                 <element signature="e#0#30#0" expanded="true" />
               </folding>
@@ -40,8 +39,8 @@
       <file pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/GetData.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="-80">
-              <caret line="127" column="40" selection-start-line="127" selection-start-column="40" selection-end-line="127" selection-end-column="40" />
+            <state relative-caret-position="-528">
+              <caret line="35" column="100" selection-start-line="35" selection-start-column="100" selection-end-line="35" selection-end-column="100" />
               <folding>
                 <element signature="e#0#4#0" expanded="true" />
               </folding>
@@ -272,8 +271,8 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/SetHardware.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="294">
-          <caret line="242" selection-start-line="242" selection-end-line="242" />
+        <state relative-caret-position="-3336">
+          <caret line="13" column="51" lean-forward="true" selection-start-line="13" selection-start-column="51" selection-end-line="13" selection-end-column="51" />
           <folding>
             <element signature="e#0#30#0" expanded="true" />
           </folding>
@@ -282,8 +281,8 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/GetData.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="-80">
-          <caret line="127" column="40" selection-start-line="127" selection-start-column="40" selection-end-line="127" selection-end-column="40" />
+        <state relative-caret-position="-528">
+          <caret line="35" column="100" selection-start-line="35" selection-start-column="100" selection-end-line="35" selection-end-column="100" />
           <folding>
             <element signature="e#0#4#0" expanded="true" />
           </folding>

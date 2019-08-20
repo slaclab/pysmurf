@@ -33,16 +33,18 @@ class StreamData:
 			self.q_stream = 'dans_epics:AMCc:Stream0'
 			self.i_stream = 'dans_epics:AMCc:Stream1'
 
+	# ~~ Code below is not functioning properly. Considering replacing with get_new_data function ~~
+
 		# Initializing data arrays for the i and q data
-		self.idata = None
-		self.qdata = None
-		self.get_new_idata = None
-		self.get_new_qdata = None
+		# self.idata = None
+		# self.qdata = None
+		# self.get_new_idata = None
+		# self.get_new_qdata = None
 
 		# Monitoring the incoming data streams
-		self.monitor_idata()
-		self.monitor_qdata()
-		self.idata, self.qdata = self.wait_data()
+		# self.monitor_idata()
+		# self.monitor_qdata()
+		# self.idata, self.qdata = self.wait_data()
 
 	def monitor_idata(self):
 		# Extract the value passed to i_data from the monitor
@@ -138,6 +140,8 @@ class StreamData:
 			else:
 				print("New data received!")
 				break
+
+			time.sleep(0.25)
 
 		return new_qdata, new_idata
 
