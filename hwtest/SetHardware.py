@@ -1,5 +1,6 @@
 from epics import caget, caput
 import time
+import numpy as np
 
 # I think the server name is 'dans_epics'
 
@@ -142,9 +143,17 @@ class Buffer:
 		for index in range(4):
 
 			# ~~ FOR SERVER INTERFACE ~~
-			start_address = caget(self.startAddressPV[index])
-			end_address = start_address + 4 * bufferSize
-			caput(self.endAddressPV[index], end_address)
+			start_address_hex = caget(self.startAddressPV[index])
+
+			# Added hex to int to make + 4*bufferSize work properly
+
+			start_address_int = self.hex_to_int(start_address_hex)
+			end_address_int = start_address_int + 4 * bufferSize
+
+			# Converts end address value back to hex for caput
+
+			end_address_hex = self.int_to_hex(end_address_int)
+			caput(self.endAddressPV[index], end_address_hex)
 
 			# ~~ FOR LOCAL TESTING ~~
 			# start_address = index
@@ -158,6 +167,31 @@ class Buffer:
 			print("Start address", str(index), "value:", start_value)
 			print("End address", str(index), "value:", end_value)
 
+	def hex_to_int(self, hex_array):
+		"""
+		Converts a hex character string into a 64 bit integer
+
+		Args:
+		hex_array: an array of characters to be turned into an int
+		return:
+		int_64bit: A 64 bit integer
+		"""
+		int_64bit = np.int(''.join([char(x) for x in hex_array]), 0)
+		return int_64bit
+
+	def int_to_hex(self, int_64bit):
+		"""
+		Converts a 64 bit integer into a hex character array
+
+		:param int_64bit: A 64 bit integer to be converted into hex
+		:return: hex_array: A character array representing the hex format of the int
+		"""
+		hex_array = np.zeros(300, dtype=int)
+		hex_int = hex(int_64bit)
+		for j in np.arange(len(hex_int)):
+			hex_array[j] = ord(hex_int[j])
+
+		return hex_array
 
 class DaqMux(Buffer):
 
@@ -235,10 +269,8 @@ class SetHwTrigger:
 		trigger_val = caget(hwtriggerpv)
 		if trigger_val == 0:
 			caput(hwtriggerpv, 1)
-			trigger_val = 1
 		else:
 			caput(hwtriggerpv, 0)
-			trigger_val = 0
 
 
 if __name__ == '__main__':
