@@ -145,7 +145,7 @@ class ReadStreamData:
 
 if __name__ == "__main__":
 	# Testing StreamData class and idata monitor function
-	data = StreamData(bay=0)
+	data = ReadStreamData(bay=0)
 	idata = data.i_data
 	qdata = data.q_data
 	print("I Data:", i_data, "\nQ Data:", q_data)
