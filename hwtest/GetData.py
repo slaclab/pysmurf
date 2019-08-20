@@ -128,6 +128,8 @@ class StreamData:
 
 		old_qdata = caget(self.q_stream)
 		old_idata = caget(self.i_stream)
+		new_qdata = caget(self.q_stream)
+		new_idata = caget(self.i_stream)
 
 		for number in range(20):
 			new_qdata = caget(self.q_stream)
@@ -145,7 +147,7 @@ class StreamData:
 
 		if show is True:
 			print("Q_Data:", new_qdata, "\n" + "I_Data:", new_idata)
-		
+
 		return new_qdata, new_idata
 
 
