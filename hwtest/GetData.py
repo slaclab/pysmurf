@@ -4,7 +4,7 @@ import numpy as np
 import time
 
 
-class StreamData:
+class ReadStreamData:
 
 	def __init__(self, bay):
 
@@ -33,19 +33,10 @@ class StreamData:
 			self.q_stream = 'dans_epics:AMCc:Stream0'
 			self.i_stream = 'dans_epics:AMCc:Stream1'
 
-	# ~~ Code below is not functioning properly. Considering replacing with get_new_data function ~~
+		# ~~ Returning new q_data and new i_data ~~
+		self.q_data, self.i_data = self.get_new_data()
 
-		# Initializing data arrays for the i and q data
-		# self.idata = None
-		# self.qdata = None
-		# self.get_new_idata = None
-		# self.get_new_qdata = None
-
-		# Monitoring the incoming data streams
-		# self.monitor_idata()
-		# self.monitor_qdata()
-		# self.idata, self.qdata = self.wait_data()
-
+	"""
 	def monitor_idata(self):
 		# Extract the value passed to i_data from the monitor
 
@@ -123,6 +114,7 @@ class StreamData:
 		self.qdata = caget(self.q_stream)
 
 		return self.idata, self.qdata
+	"""
 
 	def get_new_data(self, show=False):
 
@@ -154,9 +146,9 @@ class StreamData:
 if __name__ == "__main__":
 	# Testing StreamData class and idata monitor function
 	data = StreamData(bay=0)
-	idata = data.idata
-	qdata = data.qdata
-	print("I Data:", idata, "\n" + "Q Data:", qdata)
+	idata = data.i_data
+	qdata = data.q_data
+	print("I Data:", i_data, "\nQ Data:", q_data)
 
 else:
 	print("GetData accessed from import")
