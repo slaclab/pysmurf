@@ -176,7 +176,7 @@ class Buffer:
 		return:
 		int_64bit: A 64 bit integer
 		"""
-		int_64bit = np.int(''.join([char(x) for x in hex_array]), 0)
+		int_64bit = np.int(''.join([chr(x) for x in hex_array]), 0)
 		return int_64bit
 
 	def int_to_hex(self, int_64bit):
