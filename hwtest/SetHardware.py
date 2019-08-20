@@ -2,8 +2,6 @@ from epics import caget, caput
 import time
 import numpy as np
 
-# I think the server name is 'dans_epics'
-
 
 class Attenuator:
 
@@ -192,6 +190,7 @@ class Buffer:
 			hex_array[j] = ord(hex_int[j])
 
 		return hex_array
+
 
 class DaqMux(Buffer):
 
