@@ -124,7 +124,7 @@ class StreamData:
 
 		return self.idata, self.qdata
 
-	def get_new_data(self):
+	def get_new_data(self, show=False):
 
 		old_qdata = caget(self.q_stream)
 		old_idata = caget(self.i_stream)
@@ -143,6 +143,9 @@ class StreamData:
 
 			time.sleep(0.25)
 
+		if show is True:
+			print("Q_Data:", new_qdata, "\n" + "I_Data:", new_idata)
+		
 		return new_qdata, new_idata
 
 
