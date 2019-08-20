@@ -1,5 +1,6 @@
-
+from SetHardware import SetHwTrigger
 from epics import caget, caput, camonitor, camonitor_clear
+import numpy as np
 import time
 
 
@@ -120,6 +121,25 @@ class StreamData:
 		self.qdata = caget(self.q_stream)
 
 		return self.idata, self.qdata
+
+	def get_new_data(self):
+
+		old_qdata = caget(self.q_stream)
+		old_idata = caget(self.i_stream)
+
+		for number in range(20):
+			new_qdata = caget(self.q_stream)
+			new_idata = caget(self.i_stream)
+
+			if np.array_equal(old_qdata, new_qdata) or np.array_equal(old_idata, new_idata):
+				print("No new data")
+				print("Running HwTrigger...")
+				SetHwTrigger()
+			else:
+				print("New data received!")
+				break
+
+		return new_qdata, new_idata
 
 
 if __name__ == "__main__":

@@ -151,7 +151,7 @@ class Buffer:
 			# end_address = start_address + 4 * bufferSize
 			# print("The value to be assigned to EndAdress:", end_address)
 
-	def show_start_end_adrr(self):
+	def show_start_end_addr(self):
 		for index in range(len(self.startAddressPV)):
 			start_value = caget(self.startAddressPV[index])
 			end_value = caget(self.endAddressPV[index])
@@ -226,6 +226,19 @@ class DaqMux(Buffer):
 		# print("DAC Channel 0 value:", daqMuxChannel0)
 		# print("DAC Channel 1 location:", self.channelOneLocation)
 		# print("DAC Channel 1 value:", daqMuxChannel1)
+
+
+class SetHwTrigger:
+
+	def __init__(self):
+		hwtriggerpv = "dans_epics:AMCc:FpgaTopLevel:AppTop:DaqMuxV2[0]:ArmHwTrigger"
+		trigger_val = caget(hwtriggerpv)
+		if trigger_val == 0:
+			caput(hwtriggerpv, 1)
+			trigger_val = 1
+		else:
+			caput(hwtriggerpv, 0)
+			trigger_val = 0
 
 
 if __name__ == '__main__':
