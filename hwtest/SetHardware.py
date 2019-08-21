@@ -37,10 +37,6 @@ class Attenuator:
 		caput(atten_location, value_to_set)
 		time.sleep(0.1)
 
-		# ~~ FOR LOCAL TESTING ~~
-		# print("Variable location:", atten_location)
-		# print("Value to set:", value_to_set)
-
 	def set_all(self, value_to_set):
 		# Sets all instances of one type of attenuator to same value
 
@@ -94,10 +90,6 @@ class Waveform:
 		caput(wave_location, wave_value)
 		time.sleep(0.1)
 
-		# ~~ FOR LOCAL TESTING ~~
-		# print("Variable location:", wave_location)
-		# print("Value to set:", wave_value)
-
 	def set_all_waveforms(self, wave_value):
 
 		for num in range(4):
@@ -133,10 +125,6 @@ class Buffer:
 		# ~~ FOR SERVER INTERFACE ~~
 		caput(self.bufferLocation, bufferSize)
 
-		# ~~ FOR LOCAL TESTING ~~
-		# print("DaqMux Location:", self.bufferLocation)
-		# print("DaqMux value:", bufferSize)
-
 		# Setting waveform Engine buffer size
 		for index in range(4):
 
@@ -152,11 +140,6 @@ class Buffer:
 
 			end_address_hex = self.int_to_hex(end_address_int)
 			caput(self.endAddressPV[index], end_address_hex)
-
-			# ~~ FOR LOCAL TESTING ~~
-			# start_address = index
-			# end_address = start_address + 4 * bufferSize
-			# print("The value to be assigned to EndAdress:", end_address)
 
 	def show_start_end_addr(self):
 		for index in range(len(self.startAddressPV)):
@@ -209,14 +192,17 @@ class DaqMux(Buffer):
 			self.channelOneLocation = 'dans_epics:AMCc:FpgaTopLevel:AppTop:DaqMuxV2[0]:InputMuxSel[1]'
 
 	def set_adc_daq(self, adcnumber, datalength):
-		# When using caput to assign Channels in variable channel0 and channel1,
-		# keep in mind that caput(self.channelZeroLocation, 2) corresponds to
-		# an output of Channel0 on the server.
-		# Similarly, caput(self.channelOneLocation, 3) corresponds to
-		# output of Channel1
+		"""
+		When using caput to assign Channels in variable channel0 and channel1,
+		keep in mind that caput(self.channelZeroLocation, 2) corresponds to
+		an output of Channel0 on the server.
 
-		# Ensures that, if instance is zero, Channel0 is selected by putting value of 2 into the PV
-		# Daq Mux channels are always offset by one
+		Similarly, caput(self.channelOneLocation, 3) corresponds to
+		output of Channel1
+
+		Ensures that, if instance is zero, Channel0 is selected by putting value of 2 into the PV
+		Daq Mux channels are always offset by one
+		"""
 
 		daqMuxChannel0 = (adcnumber + 1) * 2
 		daqMuxChannel1 = daqMuxChannel0 + 1
@@ -228,22 +214,20 @@ class DaqMux(Buffer):
 		caput(self.channelZeroLocation, daqMuxChannel0)
 		caput(self.channelOneLocation, daqMuxChannel1)
 
-		# ~~ FOR LOCAL TESTING ~~
-		# print("ADC Channel 0 location:", self.channelZeroLocation)
-		# print("ADC Channel 0 value:", daqMuxChannel0)
-		# print("ADC Channel 1 location:", self.channelOneLocation)
-		# print("ADC Channel 1 value:", daqMuxChannel1)
-
 	def set_dac_daq(self, dacnumber, datalength):
-		# When using caput to assign Channels in variable channel0 and channel1,
-		# keep in mind that caput(self.channelZeroLocation, 2) corresponds to
-		# an output of Channel0 on the server.
-		# Similarly, caput(self.channelOneLocation, 3) corresponds to
-		# output of Channel1
+		"""
+		When using caput to assign Channels in variable channel0 and channel1,
+		keep in mind that caput(self.channelZeroLocation, 2) corresponds to
+		an output of Channel0 on the server.
 
-		# Ensures that, if instance is zero, Channel0 is selected by putting value of 12 into the PV
-		# Daq Mux channels are always offset by one
+		Similarly, caput(self.channelOneLocation, 3) corresponds to
+		output of Channel1
 
+		Ensures that, if instance is zero, Channel0 is selected by putting value of 2 into the PV
+		Daq Mux channels are always offset by one
+		"""
+
+		# DAC is offset by 10 compared to ADC
 		daqMuxChannel0 = ((dacnumber + 1) * 2) + 10
 		daqMuxChannel1 = daqMuxChannel0 + 1
 
@@ -253,12 +237,6 @@ class DaqMux(Buffer):
 		# ~~ FOR SERVER INTERFACE ~~
 		caput(self.channelZeroLocation, daqMuxChannel0)
 		caput(self.channelOneLocation, daqMuxChannel1)
-
-		# ~~ FOR LOCAL TESTING ~~
-		# print("DAC Channel 0 location:", self.channelZeroLocation)
-		# print("DAC Channel 0 value:", daqMuxChannel0)
-		# print("DAC Channel 1 location:", self.channelOneLocation)
-		# print("DAC Channel 1 value:", daqMuxChannel1)
 
 
 class SetHwTrigger:
