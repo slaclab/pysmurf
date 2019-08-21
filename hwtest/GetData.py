@@ -1,5 +1,5 @@
 from SetHardware import SetHwTrigger
-from epics import caget, caput, camonitor, camonitor_clear
+from epics import caget, caput
 import numpy as np
 import time
 

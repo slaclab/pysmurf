@@ -61,10 +61,10 @@ class FullBandResp:
 		caput(noiseselectpv, 1)
 		time.sleep(0.5)
 
-		adc_data = ReadAdcData(inst=band, datalength=2**19)
+		adc_data = ReadAdcData(inst=band, datalength=2**19).adc_data
 		time.sleep(0.5)
 
-		dac_data = ReadDacData(inst=band, datalength=2**19)
+		dac_data = ReadDacData(inst=band, datalength=2**19).dac_data
 		time.sleep(0.5)
 
 		caput(noiseselectpv, 0)
