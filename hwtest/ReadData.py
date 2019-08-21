@@ -1,6 +1,10 @@
 from GetData import ReadStreamData
 from SetHardware import DaqMux
-
+from epics import caget, caput
+import time
+from scipy import signal
+import math
+import matplotlib.pyplot as plt
 
 
 class ReadUnknown:
@@ -47,3 +51,54 @@ class ReadDacData(ReadUnknown):
 		self.dac_data = []
 		for index in range(len(self.q_data)):
 			self.dac_data.append(complex(self.i_data[index], self.q_data[index]))
+
+
+class FullBandResp:
+
+	def __init__(self, band):
+
+		noiseselectpv = "dans_epics:AMCc:FpgaTopLevel:AppTop:AppCore:SysgenCryo:Base[" + str(band) + "]:noiseSelect"
+		caput(noiseselectpv, 1)
+		time.sleep(0.5)
+
+		adc_data = ReadAdcData(inst=band, datalength=2**19)
+		time.sleep(0.5)
+
+		dac_data = ReadDacData(inst=band, datalength=2**19)
+		time.sleep(0.5)
+
+		caput(noiseselectpv, 0)
+		time.sleep(0.5)
+
+		# Calculating responses
+
+		f_x, pxx = signal.welch(x=dac_data, fs=614.4e6, return_onesided=False)
+		f, pyx = signal.csd(x=adc_data, y=dac_data, fs=614.4e6, return_onesided=False)
+
+		self.resp = []
+		for index in range(len(pxx)):
+			self.resp.append(pyx[index]/pxx[index])
+
+		self.freq = f
+
+
+if __name__ == "__main__":
+
+	print("Testing FullBandResp with band value of 0...")
+	time.sleep(1)
+
+	fullBand = FullBandResp(band=0)
+	resp = fullBand.resp
+	freq = fullBand.freq
+
+	dBresp = [20*math.log10(abs(x)) for x in resp]
+	freqMhz = [x/(1e6) for x in freq]
+
+	plt.figure(1)
+	plt.title("Transfer Function")
+	plt.plot(freqMhz, dBresp)
+	plt.xlabel("Frequency (MHz)")
+	plt.ylabel("Magnitude (dB)")
+	plt.show()
+else:
+	print("Executed from import of ReadData")

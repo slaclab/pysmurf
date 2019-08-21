@@ -151,4 +151,4 @@ if __name__ == "__main__":
 	print("I Data:", i_data, "\nQ Data:", q_data)
 
 else:
-	print("GetData accessed from import")
+	print("Executed from import of GetData")
