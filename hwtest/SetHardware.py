@@ -4,7 +4,20 @@ import numpy as np
 
 
 class Attenuator:
+	"""
+	This is the parent class for UCAttenuator and DCAttenuator
+	This class is used for setting the location for uc and dc.
+	It is also used to set the instance for which attenuator is being set
 
+	*Example (Setting all attenuators)*
+		all_attenuators = Attenuator(atten_inst=1)
+		all_attenuators.set_all()
+
+	Args:
+		atten_inst: which attenuator to be set
+	Returns:
+		self.location: unfinished
+	"""
 	# This is a list of values that an attenuator can be set to
 	acceptable_values = [0, 1, 2, 4, 8, 16, 31]
 
@@ -16,7 +29,15 @@ class Attenuator:
 		self.inst = atten_inst
 
 	def set_value(self, value_to_set):
-		# This function will set the atten_value to the self.location
+		"""
+		This function sets the variable value_to_set to the attenuator location stored in self.location.
+		Uses the epics function caput to set the value.
+
+		Args:
+			value_to_set: this is the value that we want to set the attenuator to
+		:return:
+			This function doesn't return anything and instead sets a value on the EPICs server
+		"""
 
 		# Here we make sure user entered attenuator value is a valid value to set
 		if value_to_set not in Attenuator.acceptable_values:
@@ -38,15 +59,39 @@ class Attenuator:
 		time.sleep(0.1)
 
 	def set_all(self, value_to_set):
-		# Sets all instances of one type of attenuator to same value
+		"""
+		This function should be used to set the value of all attenuators (UC and DC).
+		It uses the set_value function above to perform the bulk of this function.
+		An example for how it should be used can be found in the Attenuator base class documentation.
 
-		for num in range(1, 5):
-			self.inst = num
-			self.set_value(value_to_set)
+		Args:
+			value_to_set: this is the value we wish to set all attenuators to
+		:return:
+			This function doesn't return anything, but rather sets a value on the EPICs server
+		"""
+
+		atten_types = ["UC", "DC"]
+
+		for type in atten_types:
+			self.location += type
+			for num in range(1, 5):
+				self.inst = num
+				self.set_value(value_to_set)
 
 
 class UCAttenuator(Attenuator):
-	# This class will inherit from the Attenuator base class
+	"""
+	This class inherits from Attenuator parent class
+	The main reason for the existence of this class is to easily append UC to the attenuator location
+
+	*Example (Setting one uc attenuator value to 4)*
+		my_ucatten = UCAttenuator(atten_inst=1)
+		my_ucatten.set_value(value_to_set=4)
+
+	Inherits:
+		self.location:  sets most of the location for where to put values for chosen attenuator
+		self.inst:      set from the input argument atten_inst. Used in set_value function in Attenuator class
+	"""
 
 	def __init__(self, atten_inst=-1):
 		super().__init__(atten_inst)
@@ -54,7 +99,14 @@ class UCAttenuator(Attenuator):
 
 
 class DCAttenuator(Attenuator):
-	# This class will inherit from the Attenuator base class
+	"""
+	This class inherits from Attenuator parent class
+	The main reason for the existence of this class is to easily append DC to the attenuator location
+
+	Inherits:
+		self.location:  sets most of the location for where to put values for chosen attenuator
+		self.inst:      set from the input argument atten_inst. Used in set_value function in Attenuator class
+	"""
 
 	def __init__(self, atten_inst=-1):
 		super().__init__(atten_inst)
@@ -62,14 +114,33 @@ class DCAttenuator(Attenuator):
 
 
 class Waveform:
+	"""
+	This class is used to set the values for Waveforms on the EPICs server.
+	This class takes one input, waveform_inst, to specify the location of the waveform.
 
+	*Example (Set all waveforms to 0)*
+		all_waveforms = Waveform()
+		all_waveforms.set_all_waveforms(wave_value=0)
+
+	*Example (Set one waveform (inst=2) to value of 1)*
+		my_wave = Waveform(waveform_inst=2)
+		my_wave.set_value(wave_value=1)
+	"""
 	def __init__(self, waveform_inst=-1):
 		self.location = "dans_epics:AMCc:FpgaTopLevel:AppTop:AppCore:SysgenCryo:Base"
 		self.inst = waveform_inst
 
 	def set_value(self, wave_value):
-		# This function will set wave_value to the instance specified in init function
-		# or by the set all function for all waveforms
+		"""
+		This function sets the value of one waveform instance to the value specified in wave_value.
+		This value is set to the location defined by self.location using caput on EPICs server
+		An example for how to use this function can be found in Waveform class documentation
+
+		Args:
+			wave_value: the value to set to the location in self.location
+		:return:
+			This function doesn't return anything, but rather it sets a value to the EPICs server using caput
+		"""
 
 		# Here we are checking that all requirements are satisfied to set a value
 		if wave_value not in [0, 1]:
@@ -91,14 +162,36 @@ class Waveform:
 		time.sleep(0.1)
 
 	def set_all_waveforms(self, wave_value):
+		"""
+		This function sets all the waveforms to the same value specified by wave_value.
+		The majority of the work done by this function is performed by the set_value function above.
+		An example for how to use this function is locate in the Waveform class documentation.
 
+		Args:
+			wave_value: value to be set to all waveforms
+		:return:
+			This function doesn't return anything, but rather sets a value to the EPICs server using caput
+		"""
 		for num in range(4):
 			self.inst = num
 			self.set_value(wave_value)
 
 
 class Buffer:
+	"""
+	This class is used to set the buffer size for reading data.
+	It also acts as the parent class to the DaqMux class.
+	The buffer can still be set by calling this class, but it is recommended to use DaqMux class.
 
+	*Example (Setting buffer size to 2**19)*
+		my_buffer = Buffer()
+		my_buffer.set_buffer(size=2**19)
+
+	Args:
+		Buffer class doesn't take any arguments itself, but the function set_buffer does
+	Returns:
+		This init function sets locations for setting the buffer
+	"""
 	def __init__(self):
 
 		# Max buffer is integer value of hex(FFFFFFFF)
@@ -114,7 +207,19 @@ class Buffer:
 			self.endAddressPV.append('dans_epics:AMCc:FpgaTopLevel:AmcCarrierCore:AmcCarrierBsa:BsaWaveformEngine[0]:WaveformEngineBuffers:EndAddr[' + str(num) + ']')
 
 	def set_buffer(self, size=2**19):
+		"""
+		This function sets the buffer to the size indicated by the variable "size".
+		It does this by setting the DataBufferSize variable as well as all four start and end addresses.
+		Start and End addresses use 64 bit numbers, so we have to use hex to int conversion functions
+		for setting these addresses
 
+		An example for this function is shown in Buffer class documentation
+
+		Args:
+			size: this variable is used to set the size of the buffer
+		:return:
+			This function doesn't return anything, but rather sets values in EPICs server using caput
+		"""
 		bufferSize = size
 		# Setting DaqMux Data buffer size
 
@@ -142,6 +247,19 @@ class Buffer:
 			caput(self.endAddressPV[index], end_address_hex)
 
 	def show_start_end_addr(self):
+		"""
+		This function is used for testing purposes.
+		It displays the hex values in the start and end addresses.
+		I wrote this function before I knew that start and end addresses were in 64 bit hex form.
+
+		*Example (Show the values in all start and end addresses)*
+			my_buffer = Buffer()
+			my_buffer.show_start_end_addr()
+
+		:return:
+			This function doesn't return anything. It access data on the EPICs server and prints
+			it out in stdout
+		"""
 		for index in range(len(self.startAddressPV)):
 			start_value = caget(self.startAddressPV[index])
 			end_value = caget(self.endAddressPV[index])
@@ -164,8 +282,10 @@ class Buffer:
 		"""
 		Converts a 64 bit integer into a hex character array
 
-		:param int_64bit: A 64 bit integer to be converted into hex
-		:return: hex_array: A character array representing the hex format of the int
+		Args:
+			int_64bit: A 64 bit integer to be converted into hex
+		:return:
+			hex_array: A character array representing the hex format of the int
 		"""
 		hex_array = np.zeros(300, dtype=int)
 		hex_int = hex(int_64bit)
@@ -176,7 +296,18 @@ class Buffer:
 
 
 class DaqMux(Buffer):
+	"""
+	This class inherits from the Buffer class and is used to set the buffer as well as daqMux.
 
+	*Example (Set Adc daqMux (inst=0 and datalength=2**17) and the bay=0)*
+		adc_daq = DaqMux(bay=0)
+		adc_daq.set_adc_daq(adcnumber=0, datalength=2**17)
+
+	Args:
+		bay: this is the bay that the card is in
+	Returns:
+		This init function only sets locations for future value setting
+	"""
 	def __init__(self, bay):
 		super().__init__()
 
@@ -240,7 +371,20 @@ class DaqMux(Buffer):
 
 
 class SetHwTrigger:
+	"""
+	This class is used more like a function to set the hardware trigger.
+	All it does is check the current value of the hardware trigger and switch it.
+	Hardware trigger toggles back and forth from 0 to 1 when this class is called.
 
+	*Example (change the hardware trigger value)*
+		SetHwTrigger()
+		# yes it is really that simple
+
+	Args:
+		None
+	Returns:
+		This class doesn't return anything, but rather sets the hardware trigger value on EPICs server using caput
+	"""
 	def __init__(self):
 		hwtriggerpv = "dans_epics:AMCc:FpgaTopLevel:AppTop:DaqMuxV2[0]:ArmHwTrigger"
 		trigger_val = caget(hwtriggerpv)
@@ -248,6 +392,8 @@ class SetHwTrigger:
 			caput(hwtriggerpv, 1)
 		else:
 			caput(hwtriggerpv, 0)
+
+		time.sleep(0.25)
 
 
 if __name__ == '__main__':
