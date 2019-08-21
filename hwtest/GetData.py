@@ -46,17 +46,14 @@ class ReadStreamData:
 		# ~~ Returning new q_data and new i_data ~~
 		self.q_data, self.i_data = self.get_new_data()
 
-	def get_new_data(self, show=False):
+	def get_new_data(self):
 		"""
 		This function uses the hardware trigger to make sure that new i and q data is available to be read.
 		It does this by setting the hardware trigger and checking the new data received against the old data.
 		If new i and q data is received, the function stops and returns the new data.
 
-		Variable show is used to print out the new_qdata and new_idata, but is only used for testing purposes.
-		Consider removing this argument in the future.
-
 		:param
-			show: when False nothing is displayed. If True, I_Data and Q_Data are printed out in stdout
+			None
 		:return:
 			new_qdata: this is the new q data read by the desired stream
 			new_idata: this is the new i data read by the desired stream
@@ -80,18 +77,16 @@ class ReadStreamData:
 
 			time.sleep(0.25)
 
-		if show is True:
-			print("Q_Data:", new_qdata, "\n" + "I_Data:", new_idata)
-
 		return new_qdata, new_idata
 
 
 if __name__ == "__main__":
 	# Testing StreamData class and idata monitor function
+	print("Testing ReadStreamData...")
 	data = ReadStreamData(bay=0)
 	idata = data.i_data
 	qdata = data.q_data
-	print("I Data:", i_data, "\nQ Data:", q_data)
+	print("I Data:", idata, "\nQ Data:", qdata)
 
 else:
 	print("Executed from import of GetData")
