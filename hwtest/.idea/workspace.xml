@@ -2,7 +2,7 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="d947b08e-3c67-414c-b223-e28fd85391ef" name="Default Changelist" comment="">
-      <change beforePath="$PROJECT_DIR$/GetData.py" beforeDir="false" afterPath="$PROJECT_DIR$/GetData.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/SetHardware.py" beforeDir="false" afterPath="$PROJECT_DIR$/SetHardware.py" afterDir="false" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="SHOW_DIALOG" value="false" />
@@ -24,11 +24,11 @@
           </provider>
         </entry>
       </file>
-      <file pinned="false" current-in-tab="false">
+      <file pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/SetHardware.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="73">
-              <caret line="385" column="114" selection-start-line="385" selection-start-column="114" selection-end-line="385" selection-end-column="114" />
+            <state relative-caret-position="362">
+              <caret line="402" lean-forward="true" selection-start-line="402" selection-end-line="402" />
               <folding>
                 <element signature="e#0#30#0" expanded="true" />
               </folding>
@@ -36,11 +36,11 @@
           </provider>
         </entry>
       </file>
-      <file pinned="false" current-in-tab="true">
+      <file pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/GetData.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="-318">
-              <caret line="52" column="85" selection-start-line="52" selection-start-column="85" selection-end-line="52" selection-end-column="85" />
+            <state relative-caret-position="362">
+              <caret line="92" lean-forward="true" selection-start-line="92" selection-end-line="92" />
               <folding>
                 <element signature="e#0#4#0" expanded="true" />
               </folding>
@@ -72,6 +72,7 @@
   <component name="FindInProjectRecents">
     <findStrings>
       <find>char</find>
+      <find>show</find>
     </findStrings>
   </component>
   <component name="Git.Settings">
@@ -83,8 +84,8 @@
         <option value="$PROJECT_DIR$/git_test.py" />
         <option value="$PROJECT_DIR$/smurfhwtest.py" />
         <option value="$PROJECT_DIR$/ReadData.py" />
-        <option value="$PROJECT_DIR$/SetHardware.py" />
         <option value="$PROJECT_DIR$/GetData.py" />
+        <option value="$PROJECT_DIR$/SetHardware.py" />
       </list>
     </option>
   </component>
@@ -287,16 +288,6 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/SetHardware.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="73">
-          <caret line="385" column="114" selection-start-line="385" selection-start-column="114" selection-end-line="385" selection-end-column="114" />
-          <folding>
-            <element signature="e#0#30#0" expanded="true" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/ReadData.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="-9">
@@ -309,10 +300,20 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/GetData.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="-318">
-          <caret line="52" column="85" selection-start-line="52" selection-start-column="85" selection-end-line="52" selection-end-column="85" />
+        <state relative-caret-position="362">
+          <caret line="92" lean-forward="true" selection-start-line="92" selection-end-line="92" />
           <folding>
             <element signature="e#0#4#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/SetHardware.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="362">
+          <caret line="402" lean-forward="true" selection-start-line="402" selection-end-line="402" />
+          <folding>
+            <element signature="e#0#30#0" expanded="true" />
           </folding>
         </state>
       </provider>

@@ -72,8 +72,8 @@ class Attenuator:
 
 		atten_types = ["UC", "DC"]
 
-		for type in atten_types:
-			self.location += type
+		for converter in atten_types:
+			self.location += converter
 			for num in range(1, 5):
 				self.inst = num
 				self.set_value(value_to_set)
