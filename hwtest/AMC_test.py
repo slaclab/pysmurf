@@ -18,7 +18,7 @@ today, current_time = datetime_object.split(' ')
 time_seconds, time_milliseconds = current_time.split('.')
 hour, minute, second = time_seconds.split(':')
 better_time_seconds = hour + '.' + minute + '.' + second
-current_timestamp = today + ' ' + better_time_seconds
+current_timestamp = today + '_' + better_time_seconds
 
 # Setting all waveforms to zero
 all_waves = SetHardware.Waveform()
@@ -88,7 +88,9 @@ for band in range(1, 5):
 # Saving figures on separate pdf pages
 # path is the path to the images folder where I'm storing the pdf
 path = "/afs/slac.stanford.edu/u/gu/shadduck/cryo_det/images/"
-filename = 'Up_Converter_Response ' + current_timestamp + '.pdf'
+filename = 'Up_Converter_Response_' + current_timestamp + '.pdf'
 with PdfPages(path + filename) as pp:
 	for fig in atten_figs:
 		pp.savefig(fig)
+		
+print("File Location:", path + filename)
