@@ -78,6 +78,9 @@ class Attenuator:
 				self.inst = num
 				self.set_value(value_to_set)
 
+			# This ensures that we remove 'UC' before we append 'DC'
+			self.location = self.location - converter
+
 
 class UCAttenuator(Attenuator):
 	"""
