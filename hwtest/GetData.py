@@ -75,7 +75,7 @@ class ReadStreamData:
 				# print("New data received!")
 				break
 
-			time.sleep(0.25)
+			time.sleep(0.1)
 
 		return new_qdata, new_idata
 
