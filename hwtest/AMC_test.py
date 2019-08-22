@@ -60,8 +60,15 @@ for band in range(1, 5):
 	plt.ylabel("Response (dB)")
 	legend_list = []
 
+	# There is a lot of pause time to allow for attenuators to adjust
+	# Adding print statements so I can see where I am in the program
+	print("Testing attenuator band:", band - 1)
+
 	for atten_value in attenuation_values:
 
+		# Checking which attenuator value I am currently getting data for
+		print("Testing attenuator value:", atten_value)
+		
 		# Sets the attenuator at the desired band and attenuator value
 		uc_atten = SetHardware.UCAttenuator(atten_inst=band)
 		uc_atten.set_value(value_to_set=atten_value)
@@ -92,5 +99,5 @@ filename = 'Up_Converter_Response_' + current_timestamp + '.pdf'
 with PdfPages(path + filename) as pp:
 	for fig in atten_figs:
 		pp.savefig(fig)
-		
+
 print("File Location:", path + filename)

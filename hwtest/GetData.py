@@ -68,11 +68,11 @@ class ReadStreamData:
 			new_idata = caget(self.i_stream)
 
 			if np.array_equal(old_qdata, new_qdata) or np.array_equal(old_idata, new_idata):
-				print("No new data")
-				print("Running HwTrigger...")
+				# print("No new data")
+				# print("Running HwTrigger...")
 				SetHwTrigger()
 			else:
-				print("New data received!")
+				# print("New data received!")
 				break
 
 			time.sleep(0.25)
