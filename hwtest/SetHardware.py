@@ -78,8 +78,8 @@ class Attenuator:
 				self.inst = num
 				self.set_value(value_to_set)
 
-			# This ensures that we remove 'UC' before we append 'DC'
-			self.location = self.location - converter
+			# This ensures that we reset location before we append 'DC'
+			self.location = "dans_epics:AMCc:FpgaTopLevel:AppTop:AppCore:MicrowaveMuxCore[0]:ATT:"
 
 
 class UCAttenuator(Attenuator):
