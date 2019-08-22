@@ -55,7 +55,7 @@ for band in range(1, 5):
 	# We use band-1 for the title because that's how they are labeled above
 	# We use band for figure number because we always start with figure 1
 	atten_figs.append(plt.figure(band))
-	plt.title("Band", str(band-1), "Up-Converter Response vs Atten")
+	plt.title("Band " + str(band-1) + " Up-Converter Response vs Atten")
 	plt.xlabel("frequency (MHz)")
 	plt.ylabel("Response (dB)")
 	legend_list = []
