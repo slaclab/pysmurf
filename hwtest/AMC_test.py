@@ -58,6 +58,7 @@ for band in range(1, 5):
 	plt.title("Band " + str(band-1) + " Up-Converter Response vs Atten")
 	plt.xlabel("frequency (MHz)")
 	plt.ylabel("Response (dB)")
+	plt.axis([-250, 250, -90, 10])
 	legend_list = []
 
 	# Sets the attenuator at the desired band
