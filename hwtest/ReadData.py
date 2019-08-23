@@ -80,7 +80,9 @@ class ReadDacData(ReadUnknown):
 			self.dac_data.append(complex(self.i_data[index], self.q_data[index]))
 
 		if show is True:
-			print("Q_Data:", self.q_data[0:10], "\nI_Data:", self.i_data[0:10], "\nDAC_Data:", self.dac_data)
+			time.sleep(0.5)
+			print("Q_Data:", self.q_data[0:10], "\nI_Data:", self.i_data[0:10], "\nDAC_Data:", self.dac_data[0:10])
+			time.sleep(0.5)
 
 
 class FullBandResp:
