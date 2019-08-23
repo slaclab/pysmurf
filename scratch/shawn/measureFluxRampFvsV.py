@@ -15,14 +15,9 @@ import os
 fn_raw_data = os.path.join('./', '%s_fr_sweep_data.npy'%(S.get_timestamp()))
 
 #######
-#amplitudes_and_uc_atts=[(8,30),(9,30),(10,30),(11,30),(12,30),(12,24),(12,18),(12,12),(12,6),(12,0)]
-#amplitudes_and_uc_atts=[(8,30),(10,30),(12,30),(12,18),(12,6),(12,0)]
-#amplitudes_and_uc_atts=[(8,30),(10,30),(12,30),(12,18),(12,6),(12,0)]
-amplitudes_and_uc_atts=[(8,10)]
-#amplitudes_and_uc_atts=[(8,30)]
-#amplitudes=[9,10,11,12,13,14]
 # [(None,None)] means don't change the amplitude or uc_att, but still retunes
-#amplitudes=[9]
+#amplitudes_and_uc_atts=[(8,30),(9,30),(10,30),(11,30),(12,30),(12,24),(12,18),(12,12),(12,6),(12,0)]
+amplitudes_and_uc_atts=[(None,None)]
 
 # needs to be nonzero, or won't track flux ramp well,
 # particularly when stepping flux ramp by large amounts
@@ -36,10 +31,10 @@ wait_time=0.125
 Npts=3
 #bias_low=-0.432
 #bias_high=0.432
-bias_low=-0.45
-bias_high=0.45
-#Nsteps=500
-Nsteps=25
+bias_low=-0.60
+bias_high=0.60
+Nsteps=500
+#Nsteps=25
 bias_step=np.abs(bias_high-bias_low)/float(Nsteps)
 channels=None
 #much slower than using loopFilterOutputArray,

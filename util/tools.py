@@ -53,8 +53,8 @@ def limit_phase_deg(phase,minphase=-180):
 
 def P_singleMode(f_center,bw,T):
     '''
-    Optical power in a single mode in a bandwidth bw centered on frequency f_center from an optical load of temperature T. 
-    SI units.                                
+    Optical power in a single mode in a bandwidth bw centered on frequency 
+    f_center from an optical load of temperature T.  SI units. 
     '''
     h=6.63e-34
     kB=1.38e-23
@@ -68,9 +68,38 @@ def P_singleMode(f_center,bw,T):
 
 def dPdT_singleMode(f_center,bw,T):
     '''                                 
-    Change in optical power per change in temperature (dP/dT) in a single mode in a bandwidth bw centered on frequency f_center from an optical load of temperature T.                                                                   
-    SI units.                                
+    Change in optical power per change in temperature (dP/dT) in a single mode 
+    in a bandwidth bw centered on frequency f_center from an optical load of 
+    temperature T. SI units.                                
     '''
     dT = T/1e6
     dP = P_singleMode(f_center,bw,T+dT) - P_singleMode(f_center,bw,T)
     return dP/dT
+
+def load_yaml(filename):
+    """
+    """
+    import yaml
+
+    with open(filename, 'r') as stream:
+        dat = yaml.safe_load(stream)
+
+    return dat
+
+def yaml_parse(yml, cmd):
+    """
+    """
+    cmd = cmd.split(':')[1:]  # First is epics root. Throw out
+
+    def get_val(yml, c):
+        if np.size(c) == 1 and c[0] in yml.keys():
+            return yml[c[0]]
+        elif np.size(c) > 1 and c[0] in yml.keys():
+            return get_val(yml[c[0]], c[1:])
+        else:
+            return np.nan
+
+    return get_val(yml, cmd)
+
+
+

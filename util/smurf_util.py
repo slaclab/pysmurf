@@ -5,10 +5,11 @@ import time
 import os
 import struct
 import time
-import epics
 from scipy import signal
 import shutil
 import glob
+# for hardware logging
+import threading
 
 class SmurfUtilMixin(SmurfBase):
 
@@ -124,7 +125,97 @@ class SmurfUtilMixin(SmurfBase):
         import sys
         pid = subprocess.Popen([sys.executable,JesdWatchdog.__file__])
 
-    def get_amcc_dump(self, ip='10.0.1.4',show_result=True):
+    # this function needs work...we're probably planning to transition
+    # to calling the ipmi commands directly, instead of parsing the
+    # output of commands like amc_dump_bsi.
+    def get_amcc_dump_bsi(self,shm_ip='shm-smrf-sp01',slot=None):
+        """
+        Attempts to parse the output of amcc_dump_bsi.  Right now,
+        just gets the FW git hash, details about the FW build and
+        build string, and details on the AMCs.
+
+        Optional Args:
+        --------------
+        slot (int): Which slot to run the amcc_dump_bsi query on.  If
+                      none provided, will parse epics_root for the
+                      slot number, assuming epics_root is
+                      `smurf_server_s#` with # the slot number.
+        shm_ip (str): The ip of the shelf manager.  Default is
+                      'shm-smrf-sp01'.
+
+        Returns:
+        -------
+        result_dict (dict): A dictionary of parsed results from amcc_dump_bsi.
+        """
+
+        if slot is None:
+            # attempt to guess from epics prefix
+            import re
+            p = re.compile('smurf_server_s([0-9])')
+            m = p.match(self.epics_root)
+            assert (m is not None),'Unable to determine slot number from epics_root={}'.format(self.epics_root)
+            slot=int(m.group(1))
+
+        import subprocess
+        result=subprocess.check_output(['amcc_dump_bsi','--all','%s/%d'%(shm_ip,slot)])
+        result_string=result.decode('utf-8')
+
+        print(result_string)
+        
+        # E.g.:
+        # AMC 0 info: Aux: 01 Ser: 9f0000011d036a70 Type: 0a Ver: C03 BOM: 00 Tag: C03-A01-
+        result_dict={}
+        patterns={}
+        patterns['AMC']=re.compile('AMC\s*([0-1])\s*info:\s*Aux:\s*(\d+)\s*Ser:\s*([a-z0-9]+)\s*Type:\s*([a-z0-9]+)\s*Ver:\s*(C[0-9][0-9])\s*BOM:\s*([0-9]+)\s*Tag:\s*([A-Z0-9a-z\-]+)')
+        # E.g.:
+        #"FW bld string: 'MicrowaveMuxBpEthGen2: Vivado v2018.3, pc95590 (x86_64), Built Tue Apr 30 13:35:05 PDT 2019 by mdewart'"
+        patterns['FW']=re.compile('FW bld string:\s*\'(MicrowaveMuxBpEthGen2):\s*(Vivado)\s*(v2018.3),\s*(pc95590)\s*\((x86_64)\),\s*Built\s*(Tue)\s*(Apr)\s*(30)\s*(13):(35):(05)\s*(PDT)\s*(2019)\s*by\s*(mdewart)\'')
+
+        # E.g.:
+        patterns['FWGIThash']=re.compile('GIT hash:\s*([0-9a-z]+)')
+        #'     GIT hash: 0000000000000000000000000000000000000000'
+
+        for s in result_string.split('\n'):
+            s=s.rstrip().lstrip()
+            for key, p in patterns.items():
+                m=p.match(s)
+                if m is not None:
+                    if key not in result_dict.keys():
+                        result_dict[key]={}
+
+                    if key is 'AMC':
+                        bay=int(m.group(1))
+                        result_dict[key][bay]={}
+                        result_dict[key][bay]['Aux']=m.group(2)
+                        result_dict[key][bay]['Ser']=m.group(3)
+                        result_dict[key][bay]['Type']=m.group(4)
+                        result_dict[key][bay]['Ver']=m.group(5)
+                        result_dict[key][bay]['BOM']=m.group(6)
+                        result_dict[key][bay]['Tag']=m.group(7)
+
+                    if key is 'FWGIThash':
+                        result_dict[key]['GIThash']=m.group(1)                    
+
+                    if key is 'FW':
+                        result_dict[key]['FWBranch']=m.group(1)
+                        result_dict[key]['BuildSuite']=m.group(2)
+                        result_dict[key]['BuildSuiteVersion']=m.group(3)
+                        result_dict[key]['BuildPC']=m.group(4)
+                        result_dict[key]['BuildArch']=m.group(5)
+                        # skipping day spelled out
+                        result_dict[key]['Month']=m.group(7)
+                        result_dict[key]['Day']=m.group(8)
+                        result_dict[key]['Hour']=m.group(9)
+                        result_dict[key]['Minute']=m.group(10)
+                        result_dict[key]['Second']=m.group(11)
+                        result_dict[key]['TimeZone']=m.group(12)
+                        result_dict[key]['Year']=m.group(13)
+                        result_dict[key]['BuiltBy']=m.group(14)
+
+        return result_dict
+
+        
+    def get_amcc_dump(self, ip='10.0.1.4',show_result=True):        
         import subprocess
         result=subprocess.check_output(['amcc_dump','--all','10.0.1.4'])
         result_string=result.decode('utf-8')
@@ -202,6 +293,312 @@ class SmurfUtilMixin(SmurfBase):
 
         return amcc_dump_dict
 
+
+    # Shawn needs to make this better and add documentation.
+    def estimate_phase_delay(self,band,n_samples=2**19,make_plot=True,show_plot=True,
+                             save_plot=True,save_data=True,n_scan=5,timestamp=None,
+                             uc_att=24,dc_att=0,freq_min=-2.5E8,freq_max=2.5E8):
+
+        # For some reason, pyrogue flips out if you try to set refPhaseDelay
+        # to zero in 071150b0.  This allows an offset ; the offset just gets
+        # subtracted off the delay measurement with DSP after it's made.
+        refPhaseDelay0=1
+        refPhaseDelayFine0=0
+        
+        uc_att0=self.get_att_dc(band)
+        dc_att0=self.get_att_uc(band)
+        self.set_att_uc(band,uc_att,write_log=True)
+        self.set_att_dc(band,dc_att,write_log=True)
+
+        # only loop over dsp subbands in requested frequency range (to
+        # save time)
+        n_subbands = self.get_number_sub_bands(band)
+        digitizer_frequency_mhz = self.get_digitizer_frequency_mhz(band)
+        subband_half_width_mhz = digitizer_frequency_mhz/\
+                             n_subbands
+        band_center_mhz=self.get_band_center_mhz(band)
+        subbands,subband_centers=self.get_subband_centers(band)
+        subband_freq_min=-subband_half_width_mhz/2.
+        subband_freq_max=subband_half_width_mhz/2.
+        dsp_subbands=[]
+        for sb,sbc in zip(subbands,subband_centers):
+            # ignore unprocessed sub-bands
+            if sb not in subbands:
+                continue
+            lower_sb_freq=sbc+subband_freq_min
+            upper_sb_freq=sbc+subband_freq_max
+            if lower_sb_freq>=(freq_min/1.e6-subband_half_width_mhz) and upper_sb_freq<=(freq_max/1.e6+subband_half_width_mhz):
+                dsp_subbands.append(sb)
+
+        if timestamp is None:
+            timestamp=self.get_timestamp()
+
+        if make_plot:
+            import matplotlib.pyplot as plt
+            if show_plot:
+                plt.ion()
+            else:
+                plt.ioff()
+
+        load_full_band_resp=False
+        fbr_path='/data/smurf_data/20190702/1562052474/outputs'
+        fbr_ctime=1562052477
+
+        load_find_freq=False
+        ff_path='/data/smurf_data/20190702/1562052474/outputs'
+        ff_ctime=1562052881
+
+        load_find_freq_check=False
+        ff_corr_path='/data/smurf_data/20190702/1562052474/outputs'
+        ff_corr_ctime=1562053274
+
+        bay=int(band/4)
+        amcc_dump_bsi_dict=self.get_amcc_dump_bsi()
+        amc_dict=amcc_dump_bsi_dict['AMC'][bay]
+        amc_sn=amc_dict['Tag']+amc_dict['Ver']
+
+        fw_abbrev_sha=amcc_dump_bsi_dict['FWGIThash']['GIThash'][:7]
+        #fw_dict=amcc_dump_bsi_dict['FW']
+        #fw_build_date="Built {} {} {}:{}:{} {} {} by {}".format(fw_dict['Month'],
+        #                                                        fw_dict['Day'],
+        #                                                        fw_dict['Hour'],
+        #                                                        fw_dict['Minute'],
+        #                                                        fw_dict['Second'],
+        #                                                        fw_dict['TimeZone'],
+        #                                                        fw_dict['Year'],
+        #                                                        fw_dict['BuiltBy'])
+
+        # some special cases
+        #if fw_build_date=='Built Apr 30 13:35:05 PDT 2019 by mdewart':
+        #    fw_abbrev_sha='0eea5630'
+
+        print('amc_sn={}'.format(amc_sn))
+        print('fw_abbrev_sha={}'.format(fw_abbrev_sha))
+        #print('fw_build_date={}'.format(fw_build_date))
+
+        self.band_off(band)
+        self.flux_ramp_off()
+
+        freq_cable=None
+        resp_cable=None
+        if load_full_band_resp:
+            self.log('Loading full band resp data')
+            fbr_freq_file=os.path.join(fbr_path,'%d_freq_full_band_resp.txt'%fbr_ctime)
+            fbr_real_resp_file=os.path.join(fbr_path,'%d_real_full_band_resp.txt'%fbr_ctime)
+            fbr_complex_resp_file=os.path.join(fbr_path,'%d_imag_full_band_resp.txt'%fbr_ctime)
+
+            freq_cable = np.loadtxt(fbr_freq_file)
+            real_resp_cable = np.loadtxt(fbr_real_resp_file)
+            complex_resp_cable = np.loadtxt(fbr_complex_resp_file)
+            resp_cable = real_resp_cable + 1j*complex_resp_cable
+        else:
+            self.log('Running full band resp')
+            freq_cable, resp_cable = self.full_band_resp(band, n_samples=n_samples, \
+                                                      make_plot=make_plot, \
+                                                      save_data=save_data, \
+                                                      n_scan=n_scan)
+
+        idx_cable = np.where( (freq_cable > freq_min) & (freq_cable < freq_max) )
+
+        cable_z = np.polyfit(freq_cable[idx_cable], np.unwrap(np.angle(resp_cable[idx_cable])), 1)
+        cable_p = np.poly1d(cable_z)
+        cable_delay_us=np.abs(1.e6*cable_z[0]/2/np.pi)
+
+        freq_cable_subset=freq_cable[idx_cable]
+        resp_cable_subset=resp_cable[idx_cable]
+        #### done measuring cable delay
+
+        #### start measuring dsp delay (cable+processing)
+        # Zero refPhaseDelay and refPhaseDelayFine to get uncorrected phase
+        # delay.
+        # max is 7
+        self.set_ref_phase_delay(band,refPhaseDelay0)
+        # max is 255
+        self.set_ref_phase_delay_fine(band,refPhaseDelayFine0)
+
+        freq_dsp=None
+        resp_dsp=None
+        if load_find_freq:
+            self.log('Loading DSP frequency sweep data')
+            ff_freq_file=os.path.join(ff_path,'%d_amp_sweep_freq.txt'%ff_ctime)
+            ff_resp_file=os.path.join(ff_path,'%d_amp_sweep_resp.txt'%ff_ctime)
+
+            freq_dsp=np.loadtxt(ff_freq_file)
+            resp_dsp=np.loadtxt(ff_resp_file,dtype='complex')
+        else:
+            self.log('Running find_freq')
+            freq_dsp,resp_dsp=self.find_freq(band,subband=dsp_subbands)
+            ## not really faster if reduce n_step or n_read...somehow.
+            #freq_dsp,resp_dsp=self.full_band_ampl_sweep(band, subband=dsp_subbands, drive=drive, n_read=2, n_step=n_step)
+
+        # only preserve data in the subband half width
+        freq_dsp_subset=[]
+        resp_dsp_subset=[]
+        for sb,sbc in zip(subbands,subband_centers):
+            freq_subband=freq_dsp[sb]-sbc
+            idx = np.where( ( freq_subband > subband_freq_min ) & (freq_subband < subband_freq_max) )
+            freq_dsp_subset.extend(freq_dsp[sb][idx])
+            resp_dsp_subset.extend(resp_dsp[sb][idx])
+
+        freq_dsp_subset=np.array(freq_dsp_subset)
+        resp_dsp_subset=np.array(resp_dsp_subset)
+
+        idx_dsp = np.where( (freq_dsp_subset > freq_min) & (freq_dsp_subset < freq_max) )    
+
+        # restrict to requested frequencies only
+        freq_dsp_subset=freq_dsp_subset[idx_dsp]
+        resp_dsp_subset=resp_dsp_subset[idx_dsp]
+
+        # to Hz
+        freq_dsp_subset=(freq_dsp_subset)*1.0E6
+
+        # fit
+        dsp_z = np.polyfit(freq_dsp_subset, np.unwrap(np.angle(resp_dsp_subset)), 1)
+        dsp_p = np.poly1d(dsp_z)
+        dsp_delay_us=np.abs(1.e6*dsp_z[0]/2/np.pi)
+
+        # if refPhaseDelay0 or refPhaseDelayFine0 aren't zero, must add into
+        # delay here 
+        dsp_delay_us+=refPhaseDelay0/(subband_half_width_mhz/2.)
+        dsp_delay_us-=refPhaseDelayFine0/(digitizer_frequency_mhz/2)
+
+        ## compute refPhaseDelay and refPhaseDelayFine
+        refPhaseDelay=int(np.ceil(dsp_delay_us*(subband_half_width_mhz/2.)))
+        refPhaseDelayFine=int(np.round((digitizer_frequency_mhz/2/(subband_half_width_mhz/2.)*(refPhaseDelay-dsp_delay_us*(subband_half_width_mhz/2.)))))
+        processing_delay_us=dsp_delay_us-cable_delay_us
+
+        print('-------------------------------------------------------')
+        print('Estimated refPhaseDelay={}'.format(refPhaseDelay))
+        print('Estimated refPhaseDelayFine={}'.format(refPhaseDelayFine))
+        print('Estimated processing_delay_us={}'.format(processing_delay_us))
+        print('-------------------------------------------------------')
+
+        #### done measuring dsp delay (cable+processing)
+
+        #### start measuring total (DSP) delay with estimated correction applied
+        # Zero refPhaseDelay and refPhaseDelayFine to get uncorrected phase
+        # delay.
+        # max is 7
+        self.set_ref_phase_delay(band,refPhaseDelay)
+        # max is 255
+        self.set_ref_phase_delay_fine(band,refPhaseDelayFine)
+
+        freq_dsp_corr=None
+        resp_dsp_corr=None
+        if load_find_freq_check:
+            self.log('Loading delay-corrected DSP frequency sweep data')
+            ff_corr_freq_file=os.path.join(ff_corr_path,'%d_amp_sweep_freq.txt'%ff_corr_ctime)
+            ff_corr_resp_file=os.path.join(ff_corr_path,'%d_amp_sweep_resp.txt'%ff_corr_ctime)
+
+            freq_dsp_corr=np.loadtxt(ff_corr_freq_file)
+            resp_dsp_corr=np.loadtxt(ff_corr_resp_file,dtype='complex')
+        else:
+            self.log('Running find_freq')
+            freq_dsp_corr,resp_dsp_corr=self.find_freq(band,dsp_subbands)
+
+        freq_dsp_corr_subset=[]
+        resp_dsp_corr_subset=[]
+        for sb,sbc in zip(subbands,subband_centers):
+            freq_subband=freq_dsp_corr[sb]-sbc
+            idx = np.where( ( freq_subband > subband_freq_min ) & (freq_subband < subband_freq_max) )
+            freq_dsp_corr_subset.extend(freq_dsp_corr[sb][idx])
+            resp_dsp_corr_subset.extend(resp_dsp_corr[sb][idx])
+
+        freq_dsp_corr_subset=np.array(freq_dsp_corr_subset)
+        resp_dsp_corr_subset=np.array(resp_dsp_corr_subset)
+
+        # restrict to requested frequency subset
+        idx_dsp_corr = np.where( (freq_dsp_corr_subset > freq_min) & (freq_dsp_corr_subset < freq_max) )    
+
+        # restrict to requested frequencies only
+        freq_dsp_corr_subset=freq_dsp_corr_subset[idx_dsp_corr]
+        resp_dsp_corr_subset=resp_dsp_corr_subset[idx_dsp_corr]    
+
+        # to Hz
+        freq_dsp_corr_subset=(freq_dsp_corr_subset)*1.0E6
+
+        # fit
+        dsp_corr_z = np.polyfit(freq_dsp_corr_subset, np.unwrap(np.angle(resp_dsp_corr_subset)), 1)
+        dsp_corr_p = np.poly1d(dsp_corr_z)
+        dsp_corr_delay_us=np.abs(1.e6*dsp_corr_z[0]/2/np.pi)
+        #### done measuring total (DSP) delay with estimated correction applied
+
+        # plot unwraped phase in top panel, subtracted in bottom
+
+        fig, ax = plt.subplots(3, figsize=(6,7.5), sharex=True)
+
+        f_cable_plot = (freq_cable_subset) / 1.0E6
+        cable_phase = np.unwrap(np.angle(resp_cable_subset))
+
+        f_dsp_plot = (freq_dsp_subset) / 1.0E6
+        dsp_phase = np.unwrap(np.angle(resp_dsp_subset))
+
+        f_dsp_corr_plot = (freq_dsp_corr_subset) / 1.0E6
+        dsp_corr_phase = np.unwrap(np.angle(resp_dsp_corr_subset))
+
+        ax[0].set_title('AMC {}, Bay {}, Band {} Cable Delay'.format(amc_sn,bay,band))
+        ax[0].plot(f_cable_plot,cable_phase,label='Cable (full_band_resp)',c='g',lw=3)
+        ax[0].plot(f_cable_plot,cable_p(f_cable_plot*1.0E6),'m--',label='Cable delay fit',lw=3)
+
+        ax[1].set_title('AMC {}, Bay {}, Band {} DSP Delay'.format(amc_sn,bay,band))
+        ax[1].plot(f_dsp_plot,dsp_phase,label='DSP (find_freq)',c='c',lw=3)
+        ax[1].plot(f_dsp_plot,dsp_p(f_dsp_plot*1.0E6),c='orange',ls='--',label='DSP delay fit',lw=3)
+
+        ax[0].set_ylabel("Phase [rad]")
+        ax[0].set_xlabel('Frequency offset from band center [MHz]')
+
+        ax[1].set_ylabel("Phase [rad]")
+        ax[1].set_xlabel('Frequency offset from band center [MHz]')
+
+        ax[0].legend(loc='lower left',fontsize=8)
+        ax[1].legend(loc='lower left',fontsize=8)
+
+        bbox = dict(boxstyle="round", ec='w', fc='w', alpha=.65)        
+        ax[0].text(.97, .90, 'cable delay={:.5f} us'.format(cable_delay_us),
+                   transform=ax[0].transAxes, fontsize=10,
+                   bbox=bbox,horizontalalignment='right')
+
+        ax[1].text(.97, .90, 'dsp delay={:.5f} us'.format(dsp_delay_us),
+                   transform=ax[1].transAxes, fontsize=10,
+                   bbox=bbox,horizontalalignment='right')
+
+        cable_residuals=cable_phase-(cable_p(f_cable_plot*1.0E6))
+        ax[2].plot(f_cable_plot,cable_residuals-np.median(cable_residuals),label='Cable (full_band_resp)',c='g')
+        dsp_residuals=dsp_phase-(dsp_p(f_dsp_plot*1.0E6))
+        ax[2].plot(f_dsp_plot,dsp_residuals-np.median(dsp_residuals),label='DSP (find_freq)',c='c')
+        ax[2].plot(f_dsp_corr_plot,dsp_corr_phase-np.median(dsp_corr_phase),label='DSP corrected (find_freq)',c='m')
+        ax[2].set_title('AMC {}, Bay {}, Band {} Residuals'.format(amc_sn,bay,band))
+        ax[2].set_ylabel("Residual [rad]")
+        ax[2].set_xlabel('Frequency offset from band center [MHz]')
+        ax[2].set_ylim([-5,5])
+
+        ax[2].text(.97, .92, 'refPhaseDelay={}'.format(refPhaseDelay),
+                   transform=ax[2].transAxes, fontsize=8,
+                   bbox=bbox,horizontalalignment='right')
+        ax[2].text(.97, .84, 'refPhaseDelayFine={}'.format(refPhaseDelayFine),
+                   transform=ax[2].transAxes, fontsize=8,
+                   bbox=bbox,horizontalalignment='right')
+        ax[2].text(.97, .76, 'processing delay={:.5f} us (fw={})'.format(processing_delay_us,fw_abbrev_sha),
+                   transform=ax[2].transAxes, fontsize=8,
+                   bbox=bbox,horizontalalignment='right')
+        ax[2].text(.97, .68, 'delay post-correction={:.3f} ns'.format(dsp_corr_delay_us*1000.),
+                   transform=ax[2].transAxes, fontsize=8,
+                   bbox=bbox,horizontalalignment='right')
+
+        ax[2].legend(loc='upper left',fontsize=8)
+
+        plt.tight_layout()
+
+        if save_plot:
+            save_name = '{}_b{}_delay.png'.format(timestamp,band)
+            plt.savefig(os.path.join(self.plot_dir, save_name),
+                        bbox_inches='tight')
+            if not show_plot:
+                plt.close()
+
+        self.set_att_uc(band,uc_att0,write_log=True)
+        self.set_att_dc(band,dc_att0,write_log=True)        
+    
     def process_data(self, filename, dtype=np.uint32):
         """
         reads a file taken with take_debug_data and processes it into
@@ -410,7 +807,8 @@ class SmurfUtilMixin(SmurfBase):
 
         return f, df, flux_ramp_strobe
 
-    def take_stream_data(self, meas_time, gcp_mode=True):
+    def take_stream_data(self, meas_time, gcp_mode=True,
+                         num_averages=20):
         """
         Takes streaming data for a given amount of time
 
@@ -422,20 +820,24 @@ class SmurfUtilMixin(SmurfBase):
         ---------
         gcp_mode (bool) : Determines whether to write data using the 
             smurf2mce (gcp) mode. Default is True.
+        num_averages (int) : The number of 4kHz frames to average
+            before writing to disk.
 
         Returns:
         --------
         data_filename (string): The fullpath to where the data is stored
         """
         self.log('Starting to take data.', self.LOG_USER)
-        data_filename = self.stream_data_on(gcp_mode=gcp_mode)
+        data_filename = self.stream_data_on(gcp_mode=gcp_mode,
+                                            num_averages=num_averages)
         time.sleep(meas_time)
         self.stream_data_off(gcp_mode=gcp_mode)
         self.log('Done taking data.', self.LOG_USER)
         return data_filename
 
 
-    def stream_data_on(self, write_config=False, gcp_mode=True):
+    def stream_data_on(self, write_config=False, gcp_mode=True,
+                       num_averages=20):
         """
         Turns on streaming data.
 
@@ -443,6 +845,8 @@ class SmurfUtilMixin(SmurfBase):
         ---------
         gcp_mode (bool) : Determines whether to write data using the 
             smurf2mce (gcp) mode. Default is True.
+        num_averages (int) : The number of 4kHz frames to average
+            before writing to disk.
 
         Returns:
         --------
@@ -462,15 +866,17 @@ class SmurfUtilMixin(SmurfBase):
             # one of the newer C02 cryostat cards.
             flux_ramp_ac_dc_relay_status=self.C.read_ac_dc_relay_status()
             if flux_ramp_ac_dc_relay_status == 0:
-                self.log("FLUX RAMP IS DC COUPLED.  HOPEFULLY THAT'S WHAT YOU WERE EXPECTING.".format(flux_ramp_ac_dc_relay_status), self.LOG_USER)
+                self.log("FLUX RAMP IS DC COUPLED.", self.LOG_USER)
             elif flux_ramp_ac_dc_relay_status == 3:
-                self.log("Flux ramp is AC-coupled.".format(flux_ramp_ac_dc_relay_status), self.LOG_USER)
+                self.log("Flux ramp is AC-coupled.", self.LOG_USER)
             else:
-                self.log("flux_ramp_ac_dc_relay_status = {} - NOT A VALID STATE.".format(flux_ramp_ac_dc_relay_status), self.LOG_ERROR)
+                self.log("flux_ramp_ac_dc_relay_status = " +
+                         "{} - NOT A VALID STATE.".format(flux_ramp_ac_dc_relay_status),
+                         self.LOG_ERROR)
             
             # start streaming before opening file to avoid transient filter step
             self.set_stream_enable(1, write_log=False)
-            time.sleep(1.)
+            time.sleep(.1)
 
             # Make the data file
             timestamp = self.get_timestamp()
@@ -482,13 +888,15 @@ class SmurfUtilMixin(SmurfBase):
                 self.log('Writing PyRogue configuration to file : {}'.format(config_filename), 
                      self.LOG_USER)
                 self.write_config(config_filename)
+
                 # short wait
                 time.sleep(5.)
 
             self.log('Writing to file : {}'.format(data_filename), 
                 self.LOG_USER)
             if gcp_mode:
-                ret = self.make_smurf_to_gcp_config(filename=data_filename)
+                ret = self.make_smurf_to_gcp_config(filename=data_filename,
+                                                    num_averages=num_averages)
                 smurf_chans = {}
                 for b in bands:
                     smurf_chans[b] = self.which_on(b)
@@ -613,7 +1021,7 @@ class SmurfUtilMixin(SmurfBase):
                                              frames])
             else:
                 print('Loading only channel {}'.format(channel))
-                k = channel + 1025
+                k = channel
                 phase = np.zeros(len(frames))
                 phase = np.asarray([j[keys_dict[f'data{k}']] for j in frames])
 
@@ -774,7 +1182,8 @@ class SmurfUtilMixin(SmurfBase):
         return ret
 
 
-    def read_stream_data_daq(self, data_length, bay=0, hw_trigger=False):
+    def read_stream_data_daq(self, data_length, bay=0,
+                             hw_trigger=False, write_log=False):
         """
         """
         # Ask mitch why this is what it is...
@@ -790,9 +1199,9 @@ class SmurfUtilMixin(SmurfBase):
 
         # trigger PV
         if not hw_trigger:
-            self.set_trigger_daq(bay, 1, write_log=True)
+            self.set_trigger_daq(bay, 1, write_log=write_log)
         else:
-            self.set_arm_hw_trigger(bay, 1, write_log=True)
+            self.set_arm_hw_trigger(bay, 1, write_log=write_log)
 
         time.sleep(.1)
         sg.wait()
@@ -973,7 +1382,8 @@ class SmurfUtilMixin(SmurfBase):
 
         return dat
 
-    def setup_daq_mux(self, converter, converter_number, data_length, band=0, debug=False):
+    def setup_daq_mux(self, converter, converter_number, data_length,
+                      band=0, debug=False, write_log=False):
         """
         Sets up for either ADC or DAC data taking.
 
@@ -1004,13 +1414,16 @@ class SmurfUtilMixin(SmurfBase):
         self.set_buffer_size(bay, data_length, debug)
         
         # input mux select
-        self.set_input_mux_sel(bay, 0, daq_mux_channel0, write_log=True)
-        self.set_input_mux_sel(bay, 1, daq_mux_channel1, write_log=True)
+        self.set_input_mux_sel(bay, 0, daq_mux_channel0,
+                               write_log=write_log)
+        self.set_input_mux_sel(bay, 1, daq_mux_channel1,
+                               write_log=write_log)
 
         # which f,df stream to route to MUX, maybe?
-        self.set_debug_select(bay, band, write_log=True)
+        self.set_debug_select(bay, band, write_log=write_log)
 
-    def set_buffer_size(self, bay, size, debug=False):
+    def set_buffer_size(self, bay, size, debug=False,
+                        write_log=False):
         """
         Sets the buffer size for reading and writing DAQs
 
@@ -1021,7 +1434,7 @@ class SmurfUtilMixin(SmurfBase):
         # Change DAQ data buffer size
 
         # Change waveform engine buffer size
-        self.set_data_buffer_size(bay, size, write_log=True)
+        self.set_data_buffer_size(bay, size, write_log=write_log)
         for daq_num in np.arange(4):
             s = self.get_waveform_start_addr(bay, daq_num, convert=True, 
                 write_log=debug)
@@ -1146,7 +1559,6 @@ class SmurfUtilMixin(SmurfBase):
         self.log(logstr,
                  self.LOG_USER)                        
 
-    
     def band_off(self, band, **kwargs):
         '''
         Turns off all tones in a band
@@ -1157,7 +1569,7 @@ class SmurfUtilMixin(SmurfBase):
 
     def channel_off(self, band, channel, **kwargs):
         """
-        Turns off tones for a single channel
+        Turns off the tone for a single channel by setting the amplitude to zero and disabling feedback.
         """
         self.log('Turning off band {} channel {}'.format(band, channel), 
             self.LOG_USER)
@@ -1328,21 +1740,26 @@ class SmurfUtilMixin(SmurfBase):
 
         return ret
 
-    def freq_to_subband(self, freq, band):
-        '''Look up subband number of a channel frequency
-
-        To do: This probably should not be hard coded. If these values end
-        up actually being persistent, we should move them into base class.
+    def which_bands(self):
+        # encodes which bands the fw being used was built for.
+        build_dsp_g=self.get_build_dsp_g()
+        bands=[b for b,x in enumerate(bin(build_dsp_g)[2:]) if x=='1']
+        return bands
+    
+    def freq_to_subband(self, band, freq):
+        '''Look up subband number of a channel frequency, and its subband
+        frequency offset.
 
         Args:
         -----
-        freq (float): frequency in MHz
         band (float): The band to place the resonator
+        freq (float): frequency in MHz
 
         Returns:
         --------
         subband_no (int): subband (0..128) of the frequency within the band
         offset (float): offset from subband center
+
         '''
         dig_freq = self.get_digitizer_frequency_mhz(band)
         num_subband = self.get_number_sub_bands(band)
@@ -1359,7 +1776,7 @@ class SmurfUtilMixin(SmurfBase):
 
         return subband_no, offset
 
-    def channel_to_freq(self, band, channel):
+    def channel_to_freq(self, band, channel, yml=None):
         """
         Gives the frequency of the channel.
 
@@ -1375,9 +1792,10 @@ class SmurfUtilMixin(SmurfBase):
         if band is None or channel is None:
             return None
 
-        subband = self.get_subband_from_channel(band, channel)
-        _, sbc = self.get_subband_centers(band, as_offset=False)
-        offset = self.get_center_frequency_mhz_channel(band, channel)
+        subband = self.get_subband_from_channel(band, channel, yml=yml)
+        _, sbc = self.get_subband_centers(band, as_offset=False, yml=yml)
+        offset = float(self.get_center_frequency_mhz_channel(band, channel, 
+            yml=yml))
 
         return sbc[subband] + offset
 
@@ -1438,9 +1856,9 @@ class SmurfUtilMixin(SmurfBase):
         n_chan = self.get_number_channels()
         n_cut = (n_chan - n_proc)//2
         return np.sort(self.get_channel_order(channel_orderfile=channel_orderfile)[n_cut:-n_cut])
-        
-    
-    def get_subband_from_channel(self, band, channel, channelorderfile=None):
+            
+    def get_subband_from_channel(self, band, channel, channelorderfile=None,
+        yml=None):
         """ returns subband number given a channel number
         Args:
         -----
@@ -1457,8 +1875,8 @@ class SmurfUtilMixin(SmurfBase):
         subband (int) : The subband the channel lives in
         """
 
-        n_subbands = self.get_number_sub_bands(band)
-        n_channels = self.get_number_channels(band)
+        n_subbands = self.get_number_sub_bands(band, yml=yml)
+        n_channels = self.get_number_channels(band, yml=yml)
 
         n_chanpersubband = n_channels / n_subbands
 
@@ -1475,7 +1893,8 @@ class SmurfUtilMixin(SmurfBase):
         
         return int(subband)
 
-    def get_subband_centers(self, band, as_offset=True, hardcode=False):
+    def get_subband_centers(self, band, as_offset=True, hardcode=False, 
+        yml=None):
         """ returns frequency in MHz of subband centers
         Args:
         -----
@@ -1484,14 +1903,13 @@ class SmurfUtilMixin(SmurfBase):
             (default is no, which returns absolute values)
         """
 
-        if hardcode:
-            bandCenterMHz = 3.75 + 0.5*(band + 1)
-            digitizer_frequency_mhz = 614.4
-            n_subbands = 128
-        else:
-            digitizer_frequency_mhz = self.get_digitizer_frequency_mhz(band)
-            bandCenterMHz = self.get_band_center_mhz(band)
-            n_subbands = self.get_number_sub_bands(band)
+        #hardcode defaults
+        digitizer_frequency_mhz = 614.4
+        n_subbands = 128
+        if not hardcode:
+            digitizer_frequency_mhz = self.get_digitizer_frequency_mhz(band, 
+                yml=yml)
+            n_subbands = self.get_number_sub_bands(band, yml=yml)
 
         subband_width_MHz = 2 * digitizer_frequency_mhz / n_subbands
 
@@ -1500,7 +1918,7 @@ class SmurfUtilMixin(SmurfBase):
             subband_width_MHz/2
 
         if not as_offset:
-            subband_centers += self.get_band_center_mhz(band)
+            subband_centers += self.get_band_center_mhz(band, yml=yml)
 
         return subbands, subband_centers
 
@@ -2669,4 +3087,206 @@ class SmurfUtilMixin(SmurfBase):
         ret['step_hz'] = self.get_gradient_descent_step_hz(band)
 
         return ret
+        
+
+    def set_fixed_tone(self,freq_mhz,drive,quiet=False):
+        """
+        Places a fixed tone at the requested frequency.  Asserts
+        without doing anything if the requested resonator frequency
+        falls outside of the usable 500 MHz bands, or if there are no
+        unassigned channels available in the subband the requested
+        frequency falls into (where a channel is deemed "assigned" if
+        it has non-zero amplitude).
+
+        Args:
+        -----
+        freq_mhz (float): The frequency in MHz at which to place a fixed tone.
+        drive (int): The amplitude for the fixed tone (0-15 in recent fw revisions).
+
+        Opt Args:
+        ---------
+        quiet (bool) : Whether to look at one channel
+        """
+
+        # Find which band the requested frequency falls into.
+        bands=self.which_bands()
+        band_centers_mhz=[self.get_band_center_mhz(b) for b in bands]
+
+        band_idx=min(range(len(band_centers_mhz)), key=lambda i: abs(band_centers_mhz[i]-freq_mhz))
+        band=bands[band_idx]
+        band_center_mhz=band_centers_mhz[band_idx]
+
+        # Confirm that the requested frequency falls into a 500 MHz
+        # band that's usable in this fw.  If not, assert.
+        assert (np.abs(freq_mhz-band_center_mhz)<250),'! Requested frequency (=%0.1f MHz) outside of the 500 MHz band with the closest band center (=%0.0f MHz).  Doing nothing!'%(freq_mhz,band_center_mhz)
+	
+	# Find subband this frequency falls in, and its channels.
+        subband,foff=self.freq_to_subband(band,freq_mhz)
+        subband_channels=self.get_channels_in_subband(band,subband)
+	
+	# Which channels in the subband are unallocated?
+        allocated_channels=self.which_on(band)
+        unallocated_channels=[chan for chan in subband_channels if chan not in allocated_channels]
+        # If no unallocated channels available in the subband, assert.
+        assert (len(unallocated_channels)),'! No unallocated channels available in subband (=%d).  Doing nothing!'%(subband)
+	
+        # Take lowest channel number in the list of unallocated
+        # channels for this subband.
+        channel=sorted(unallocated_channels)[0]
+	
+	# Put a fixed tone at the requested frequency
+        self.set_center_frequency_mhz_channel(band,channel,foff)
+        self.set_amplitude_scale_channel(band,channel,drive)
+        self.set_feedback_enable_channel(band,channel,0)
+
+        # Unless asked to be quiet, print where we're putting a fixed
+        # tone.
+        if not quiet:
+            self.log('Setting a fixed tone at {0:.2f} MHz'.format(freq_mhz) + \
+                     ' and amplitude {}'.format(drive), self.LOG_USER)        
+
+    # SHOULD MAKE A GET FIXED TONE CHANNELS FUNCTION - WOULD MAKE IT
+    # EASIER TO CHANGE THINGS FAST USING THE ARRAY GET/SETS
+    def turn_off_fixed_tones(self,band):
+        """
+        Turns off every channel which has nonzero amplitude but
+        feedback set to zero.
+
+        Args:
+        -----
+        freq_mhz (float): The frequency in MHz at which to place a fixed tone.
+        drive (int): The amplitude for the fixed tone (0-15 in recent fw revisions).
+
+        Opt Args:
+        ---------
+        quiet (bool) : Whether to look at one channel
+
+        """        
+        amplitude_scale_array=self.get_amplitude_scale_array(band)
+        feedback_enable_array=self.get_feedback_enable_array(band)
+
+	# want to turn off all channels for which the amplitude is
+	# nonzero, but feedback is not enabled.
+        fixed_tone_channels=np.where((amplitude_scale_array*(1-feedback_enable_array))!=0)
+        new_amplitude_scale_array=amplitude_scale_array.copy()
+        new_amplitude_scale_array[fixed_tone_channels]=0
+
+	# set by array, not by channel
+        self.set_amplitude_scale_array(band,new_amplitude_scale_array)
+
+    __hardware_logging_pause_event=None        
+    def pause_hardware_logging(self):
+        self.__hardware_logging_pause_event.set()
+
+    def resume_hardware_logging(self):
+        self.__hardware_logging_pause_event.clear()
+
+    __hardware_log_file=None    
+    def get_hardware_log_file(self):
+        return self.__hardware_log_file
+    
+    _hardware_logging_thread=None
+    __hardware_logging_stop_event=None
+    def start_hardware_logging(self,filename=None):
+        # Just in case somewhere the enable got set to false, explicitly enable here
+        if filename is None:
+            filename=str(self.get_timestamp())+'_hwlog.dat'
+        self.__hardware_log_file = os.path.join(self.output_dir, filename)
+        self.log('Starting hardware logging to file : {}'.format(self.__hardware_log_file),
+                 self.LOG_USER)
+        self.__hardware_logging_stop_event=threading.Event()
+        self.__hardware_logging_pause_event=threading.Event()        
+        self._hardware_logging_thread = threading.Thread(target=self._hardware_logger, args=(self.__hardware_logging_pause_event,self.__hardware_logging_stop_event,))
+        self._hardware_logging_thread.daemon = True
+        self._hardware_logging_thread.start()
+
+    def stop_hardware_logging(self):
+        self.__hardware_logging_stop_event.set()
+        self._hardware_logging_thread.join()
+        self._hardware_logging_thread=None
+        self.__hardware_log_file=None
+
+    def _hardware_logger(self,pause_event,stop_event,wait_btw_sec=5):
+        filename=self.get_hardware_log_file()
+        import fcntl
+        #counter=0
+        while not stop_event.wait(wait_btw_sec):
+            if not pause_event.isSet():
+                hdr,entry=self.get_hardware_log_entry()
+                # only write header once, if file doesn't exist yet if
+                # file *does* already exist, check to make sure header
+                # will be the same, otherwise the resulting data won't
+                # make sense if multiple carriers are logging to the same
+                # file.
+                if not os.path.exists(filename):
+                    with open(filename,'a') as logf:
+                        logf.write(hdr)
+                else:
+                    with open(filename) as logf:
+                        hdr2=logf.readline()
+                        if not hdr.rstrip().split() == hdr2.rstrip().split():
+                            self.log('Attempting to temperature log to an incompatible file.  Giving up without logging any data!', 
+                                     self.LOG_ERROR)
+                            return
+
+                with open(filename,'a') as logf:
+                    # file locking so multiple hardware loggers running in
+                    # multiple pysmurf sessions can write to the same
+                    # requested file if desired
+                    fcntl.flock(logf, fcntl.LOCK_EX)
+                    logf.write(entry)
+                    fcntl.flock(logf, fcntl.LOCK_UN)
+                #counter+=1
+
+    def get_hardware_log_entry(self):
+
+        d={}
+        d['epics_root']=lambda:self.epics_root
+        d['ctime']=self.get_timestamp
+        d['fpga_temp']=self.get_fpga_temp
+        d['fpgca_vccint']=self.get_fpga_vccint
+        d['fpgca_vccaux']=self.get_fpga_vccaux
+        d['fpgca_vccbram']=self.get_fpga_vccbram
+        d['cc_temp']=self.get_cryo_card_temp      
+        
+        # probably should check for which AMCs are in in a smarter way
+        bays=[]
+        bands=self.which_bands()
+        if 0 in bands:
+            bays.append(0)
+        if 4 in bands:
+            bays.append(1)            
+            
+        for bay in bays:
+            for dac in [0,1]:
+                d['bay%d_dac%d_temp'%(bay,dac)]=lambda:self.get_dac_temp(bay,dac)
+
+        #AT THE MOMENT, WAY TOO SLOW
+        # keep track of how many tones are on in each band
+        #for band in bands:
+        #    d['chans_b%d'%band]=lambda:len(self.which_on(band))
+        
+        # atca monitor
+        d['atca_temp_fpga']=self.get_board_temp_fpga
+        d['atca_temp_rtm']=self.get_board_temp_rtm
+        d['atca_temp_amc0']=self.get_board_temp_amc0
+        d['atca_temp_amc2']=self.get_board_temp_amc2
+        d['atca_jct_temp_fpga']=self.get_junction_temp_fpga
+        columns=[]
+        names=[]
+        fmt=''
+        counter=0
+        for key, value in d.items():
+            columns.append(str(value()))
+            names.append(key)
+            fmt+='{0[%d]:<20}'%counter
+            counter+=1
+        fmt+='\n'
+        
+        hdr=fmt.format(names)
+        row=fmt.format(columns)
+        return hdr,row
+        
+        
+        
         

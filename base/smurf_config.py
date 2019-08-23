@@ -204,7 +204,7 @@ class SmurfConfig:
                 "feedbackLimitkHz" : And(Use(float),lambda f: 0 < f),
 
                 # Number of cycles to delay phase reference
-                'refPhaseDelay': And(int,lambda n: 0 <= n < 2**3),
+                'refPhaseDelay': And(int,lambda n: 0 <= n < 2**4),
                 # Finer phase reference delay, 307.2MHz clock ticks.  This
                 # goes in the opposite direction as refPhaseDelay.
                 'refPhaseDelayFine': And(int,lambda n: 0 <= n < 2**8),
@@ -220,10 +220,12 @@ class SmurfConfig:
                 Optional("data_out_mux",default=default_data_out_mux_dict[band]) \
                   : And([ Use(int) ], list, lambda l: len(l)==2 and l[0]!=l[1] and all(ll>= 0 and ll<= 9 for ll in l) ),
 
-                # Matches system latency for LMS feedback (9.6 MHz ticks, use
-                # multiples of 52).  For dspv3 to adjust to match
-                # refPhaseDelay*4 (ignore refPhaseDelayFine for this).
-                'lmsDelay': And(int,lambda n: 0 <= n < 2**5),
+                # Matches system latency for LMS feedback (9.6 MHz
+                # ticks, use multiples of 52).  For dspv3 to adjust to
+                # match refPhaseDelay*4 (ignore refPhaseDelayFine for
+                # this).  If not provided and lmsDelay=None, sets to
+                # lmsDelay = 4 x refPhaseDelay.
+                Optional('lmsDelay',default=None) : And(int,lambda n: 0 <= n < 2**5),
 
                 # Adjust trigRstDly such that the ramp resets at the flux ramp
                 # glitch.  2.4 MHz ticks.
@@ -320,12 +322,18 @@ class SmurfConfig:
         ## Add tuning params that must be specified per band.
         per_band_tuning_params= [
             ( 'lms_freq',And(Use(float),lambda f: 0 < f) ),
-            ( 'delta_freq',And(Use(float),lambda f: 0 < f) ),
+            ( 'delta_freq',And(Use(float),lambda f: 0 < f) ),            
             ( 'feedback_start_frac',And(Use(float),lambda f: 0 <= f <= 1) ),
             ( 'feedback_end_frac',And(Use(float),lambda f: 0 <= f <= 1) ),
             ( 'gradient_descent_gain',And(Use(float),lambda f: 0 < f) ),
             ( 'gradient_descent_averages',And(Use(int),lambda n: 0 < n) ),
-            ( 'eta_scan_averages',And(Use(int),lambda n: 0 < n) ),        
+            ( 'gradient_descent_converge_hz',And(Use(float),lambda f: 0 < f) ),
+            ( 'gradient_descent_momentum',And(Use(int),lambda n: 0 <= n) ),
+            ( 'gradient_descent_step_hz',And(Use(float),lambda f: 0 < f) ),
+            ( 'gradient_descent_beta',And(Use(float),lambda f: 0 <= f <= 1) ),
+            ( 'eta_scan_averages',And(Use(int),lambda n: 0 < n) ),
+            ( 'eta_scan_del_f', And(Use(int), lambda n: 0 < n) ),
+            ( 'eta_scan_amplitude', And(Use(int), lambda n: 0 < n) ),
         ]
 
         for band in bands:
@@ -390,8 +398,16 @@ class SmurfConfig:
         #### Done specifying constants schema
 
         #### Start thermal schema
-        # OT protection for ultrascale FPGA, in degrees C.
-        schema_dict[Optional('ultrascale_temperature_limit_degC',default=90)] = And(Use(float),lambda f: 0 <= f <= 95)
+        # OT protection for ultrascale FPGA, in degrees C.  If None,
+        # then pysmurf doesn't try to engage OT protection.  For
+        # unknown reasons, enabling OT protection in the ELMA crate
+        # we've been using for testing on campus at Stanford takes
+        # down the carrier after the third command in the enable
+        # sequence (set_ot_threshold_disable(0)), but it works in the
+        # RF lab at SLAC where they've been testing with an ASIS
+        # crate.  Shawn has yet to have this work for him.  Newer fw
+        # versions will have OT protection enabled in the fw.
+        schema_dict[Optional('ultrascale_temperature_limit_degC',default=None)] = And(Use(float),lambda f: 0 <= f <= 99)
         #### Done specifying thermal schema
 
         #### Start specifying timing-related schema

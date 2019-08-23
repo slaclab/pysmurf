@@ -4,9 +4,9 @@ import epics
 import time
 from pysmurf.base import SmurfBase
 from pysmurf.command.sync_group import SyncGroup as SyncGroup
+from pysmurf.util import tools
 
 class SmurfCommandMixin(SmurfBase):
-
 
     _global_poll_enable = ':AMCc:enable'
     def _caput(self, cmd, val, write_log=False, execute=True, wait_before=None,
@@ -79,7 +79,7 @@ class SmurfCommandMixin(SmurfBase):
         
     def _caget(self, cmd, write_log=False, execute=True, count=None,
                log_level=0, enable_poll=False, disable_poll=False,
-               new_epics_root=None):
+               new_epics_root=None, yml=None):
         '''
         Wrapper around pyrogue lcaget. Gets variables from epics
 
@@ -114,7 +114,13 @@ class SmurfCommandMixin(SmurfBase):
         if write_log:
             self.log('caget ' + cmd, log_level)
 
-        if execute and not self.offline:
+        # load the data from yml file if provided
+        if yml is not None:
+            if write_log:
+                self.log('Reading from yml file\n {}'.format(cmd))
+            return tools.yaml_parse(yml, cmd)
+
+        elif execute and not self.offline:
             ret = epics.caget(cmd, count=count)
             if write_log:
                 self.log(ret)
@@ -235,7 +241,7 @@ class SmurfCommandMixin(SmurfBase):
         '''
         Sets the default epics variables
         '''
-        self._caput(self.epics_root + ':AMCc:setDefaults', 1, wait_after=5,
+        self._caput(self.epics_root + ':AMCc:setDefaults', 1, wait_after=20,
             **kwargs)
         self.log('Defaults are set.', self.LOG_INFO)
 
@@ -306,36 +312,38 @@ class SmurfCommandMixin(SmurfBase):
                            **kwargs)
 
 
-    _gradient_descent_converge_khz = 'gradientDescentConvergeHz'
+    _gradient_descent_converge_hz = 'gradientDescentConvergeHz'
     def set_gradient_descent_converge_hz(self, band, val, **kwargs):
         """
         """
-        self._caput(self._cryo_root(band) + self._gradient_descent_converge_khz, val,
+        self._caput(self._cryo_root(band) + self._gradient_descent_converge_hz, val,
                     **kwargs)
 
     def get_gradient_descent_converge_hz(self, band, **kwargs):
         """
         """
-        return self._caget(self._cryo_root(band) + self._gradient_descent_converge_khz,
+        return self._caget(self._cryo_root(band) + self._gradient_descent_converge_hz,
                            **kwargs)
 
-    _gradient_descent_step_khz = 'gradientDescentStepHz'
+    _gradient_descent_step_hz = 'gradientDescentStepHz'
     def set_gradient_descent_step_hz(self, band, val, **kwargs):
         """
+        Sets the step size of the gradient descent in units of Hz
         """
-        self._caput(self._cryo_root(band) + self._gradient_descent_step_khz, val,
+        self._caput(self._cryo_root(band) + self._gradient_descent_step_hz, val,
                     **kwargs)
 
     def get_gradient_descent_step_hz(self, band, **kwargs):
         """
         """
-        return self._caget(self._cryo_root(band) + self._gradient_descent_step_khz,
+        return self._caget(self._cryo_root(band) + self._gradient_descent_step_hz,
                            **kwargs)
 
 
     _gradient_descent_momentum = 'gradientDescentMomentum'
     def set_gradient_descent_momentum(self, band, val, **kwargs):
         """
+        Sets the momentum term of the gradient descent
         """
         self._caput(self._cryo_root(band) + self._gradient_descent_momentum, val,
                     **kwargs)
@@ -931,6 +939,16 @@ class SmurfCommandMixin(SmurfBase):
         return self._caget(self.app_core + self._stream_enable,
             **kwargs)
 
+    _build_dsp_g = 'BUILD_DSP_G'    
+    def get_build_dsp_g(self, **kwargs):
+        """
+        BUILD_DSP_G encodes which bands the fw being used was built for.
+        E.g. 0xFF means Base[0...7], 0xF is Base[0...3], etc.
+
+        """
+        return self._caget(self.app_core + self._build_dsp_g,
+            **kwargs)
+
     _iq_stream_enable = 'iqStreamEnable'
     def set_iq_stream_enable(self, band, val, **kwargs):
         '''
@@ -1476,6 +1494,7 @@ class SmurfCommandMixin(SmurfBase):
         else:
             return self._caget(self._band_root(band) + self._band_center_mhz,
                 **kwargs)
+
 
     _channel_frequency_mhz = 'channelFrequencyMHz'
     def get_channel_frequency_mhz(self, band=None, **kwargs):
@@ -2790,6 +2809,31 @@ class SmurfCommandMixin(SmurfBase):
         return self._caget(self.streaming_root + self._streaming_file_open,
             **kwargs)
 
+    # Carrier slot number
+    _slot_number = "SlotNumber"
+    def get_slot_number(self, **kwargs):
+        """
+        Gets the slot number of the crate that the carrier is installed into.
+
+        Returns:
+        --------
+        val (int): The slot number of the crate that the carrier is installed into.
+        """
+        return self._caget(self.amc_carrier_bsi + self._slot_number, **kwargs)
+
+    # Crate id
+    _crate_id = "CrateId"
+    def get_crate_id(self, **kwargs):
+        """
+        Gets the crate id.
+
+        Returns:
+        --------
+        val (int): The crate id.
+        """
+        return self._caget(self.amc_carrier_bsi + self._crate_id, **kwargs)    
+
+    
     # UltraScale+ FPGA
     fpga_root = ":AMCc:FpgaTopLevel:AmcCarrierCore:AxiSysMonUltraScale"
     _fpga_temperature = ":Temperature"
@@ -3401,64 +3445,22 @@ class SmurfCommandMixin(SmurfBase):
                            **kwargs)
 
     ### Start Ultrascale OT protection
-    _ultrascale_ot_custom_threshold_enable = "OTCustomThresholdEnable"
-    def set_ultrascale_ot_custom_threshold_enable(self, val, **kwargs):
+    _ultrascale_ot_upper_threshold = "OTUpperThreshold"
+    def set_ultrascale_ot_upper_threshold(self, val, **kwargs):
         """
-        Enable over-temperature (OT) threshold for the Ultrascale+
-        FPGA.  Also requires that OTThresholdDisable = 0 (for some
-        reason).
+        Over-temperature (OT) upper threshold in degC for Ultrascale+
+        FPGA.
         """
-        self._caput(self.ultrascale + self._ultrascale_ot_custom_threshold_enable,
+        self._caput(self.ultrascale + self._ultrascale_ot_upper_threshold,
                     val, **kwargs)
     
-    def get_ultrascale_ot_custom_threshold_enable(self, **kwargs):
+    def get_ultrascale_ot_upper_threshold(self, **kwargs):
         """
-        Enable over-temperature (OT) threshold for the Ultrascale+
-        FPGA.  Also requires that OTThresholdDisable = 0 (for some
-        reason).
+        Over-temperature (OT) upper threshold in degC for Ultrascale+
+        FPGA.  
         """
-        return self._caget(self.ultrascale + self._ultrascale_ot_custom_threshold_enable,
+        return self._caget(self.ultrascale + self._ultrascale_ot_upper_threshold,
                            **kwargs)
-
-    _ultrascale_ot_threshold = "OTThreshold"
-    def set_ultrascale_ot_threshold(self, val, **kwargs):
-        """
-        Over-temperature (OT) threshold in degC for Ultrascale+ FPGA.
-        Only used if OTCustomThresholdEnable = 3 and
-        OTThresholdDisable = 0.
-        """
-        self._caput(self.ultrascale + self._ultrascale_ot_threshold,
-                    val, **kwargs)
-    
-    def get_ultrascale_ot_threshold(self, **kwargs):
-        """
-        Over-temperature (OT) threshold in degC for Ultrascale+ FPGA.
-        Only used if OTCustomThresholdEnable = 3 and
-        OTThresholdDisable = 0.
-        """
-        return self._caget(self.ultrascale + self._ultrascale_ot_threshold,
-                           **kwargs)
-    
-    #lcaPut('test_epics:AMCc:FpgaTopLevel:AmcCarrierCore:AxiSysMonUltraScale:OTThresholdDisable', 0)            % enable OT threshold
-    _ultrascale_ot_threshold_disable = "OTThresholdDisable"
-    def set_ultrascale_ot_threshold_disable(self, val, **kwargs):
-        """
-        Enable over-temperature (OT) threshold for the Ultrascale+
-        FPGA.  Also requires that OTCustomThresholdEnable = 3 (for
-        some reason).
-        """
-        self._caput(self.ultrascale + self._ultrascale_ot_threshold_disable,
-                    val, **kwargs)
-    
-    def get_ultrascale_ot_threshold_disable(self, **kwargs):
-        """
-        Enable over-temperature (OT) threshold for the Ultrascale+
-        FPGA.  Also requires that OTCustomThresholdEnable = 3 (for
-        some reason).
-        """
-        return self._caget(self.ultrascale + self._ultrascale_ot_threshold_disable,
-                           **kwargs)    
-
     ### End Ultrascale OT protection
     
     _output_config = "OutputConfig[{}]"
@@ -3498,3 +3500,16 @@ class SmurfCommandMixin(SmurfBase):
         """
         return self._caget(self.lmk.format(bay) +
                            self._lmk_reg.format(reg), **kwargs)
+
+    _mcetransmit_debug = 'AMCc:mcetransmitDebug'
+    def set_mcetransmit_debug(self, val, **kwargs):
+        """
+        Sets the mcetransmit debug bit. If 1, the debugger will
+        print to the pyrogue screen.
+
+        Args:
+        -----
+        val (int): 0 or 1 for the debug bit
+        """
+        self._caput(self._epics_root + self._mcetransmit_debug,
+                    **kwargs)
