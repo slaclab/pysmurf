@@ -10,20 +10,9 @@ import datetime
 This file is designed to follow AMC_test.m written by Dan Van Winkle.
 The goal here is to receive the same output as AMC_test, but using Python all written by myself.
 
-For attenuator setting use the atten_vals
-
-Band0 is 4-4.5 GHz uses atten_val 1
-Band1 is 4.5-5 GHz uses atten_val 2
-Band2 is 5-5.5 GHz uses atten_val 3
-Band3 is 5.5-6 GHz uses atten_val 4
-
-For using FullBandResp use band_vals
-
-Band0 is 4-4.5 GHz uses band_val 0
-Band1 is 4.5-5 GHz uses band_val 1
-Band2 is 5-5.5 GHz uses band_val 2
-Band3 is 5.5-6 GHz uses band_val 3
 """
+
+
 def get_time():
 	# Creating 'current_timestamp' for use of current time
 	datetime_object = str(datetime.datetime.now())
@@ -34,19 +23,41 @@ def get_time():
 	current_timestamp = today + '_' + better_time_seconds
 	return current_timestamp
 
-def save_pdf(time, figures)
+
+def save_pdf(time_string, figures):
 	# Saving figures on separate pdf pages
 	# path is the path to the images folder where I'm storing the pdf
 	path = "/afs/slac.stanford.edu/u/gu/shadduck/cryo_det/images/"
-	filename = 'Up_Converter_Response_' + time + '.pdf'
+	filename = 'Up_Converter_Response_' + time_string + '.pdf'
 	with PdfPages(path + filename) as pp:
 		for fig in figures:
 			pp.savefig(fig)
 
 	print("File Location:", path + filename)
 
-def up_converter_vs_attenuator(attenuation_values):
 
+def up_converter_vs_attenuator(attenuation_values):
+	"""
+	This function should return 4 figures with 7 lines each that represent different attenuation values
+	Each new figure represents another attenuator band being tested
+
+	For attenuator setting use the atten_vals
+
+	Band0 is 4-4.5 GHz uses atten_val 1
+	Band1 is 4.5-5 GHz uses atten_val 2
+	Band2 is 5-5.5 GHz uses atten_val 3
+	Band3 is 5.5-6 GHz uses atten_val 4
+
+	For using FullBandResp use band_vals
+
+	Band0 is 4-4.5 GHz uses band_val 0
+	Band1 is 4.5-5 GHz uses band_val 1
+	Band2 is 5-5.5 GHz uses band_val 2
+	Band3 is 5.5-6 GHz uses band_val 3
+
+	:param attenuation_values: a list of acceptable values that the attenuators can be set to
+	:return: atten_figs: a list that contains all the figures from performing up converter testing
+	"""
 	atten_figs = []
 	for band in range(1, 5):
 
@@ -120,7 +131,7 @@ if __name__ == "__main__":
 	current_time = get_time()
 
 	# Saving figures to pdf
-	save_pdf(time=current_time, figures=my_figures)
+	save_pdf(time_string=current_time, figures=my_figures)
 
 else:
 	print("Executed from import of AMC_test")
