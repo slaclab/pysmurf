@@ -128,18 +128,14 @@ if __name__ == "__main__":
 	# All values to set attenuators to
 	atten_values = SetHardware.Attenuator.acceptable_values
 
-	# Initializing a list of all my figures
-	my_figures = []
-
 	# Appending figures from up converter test to total figures list
 	up_converter_figs = converter_vs_attenuator(atten_type="UC", attenuation_values=atten_values)
-	my_figures.append(up_converter_figs)
 
 	# Getting timestamp for pdf filename
 	current_time = get_time()
 
 	# Saving figures to pdf
-	save_pdf(time_string=current_time, figures=my_figures)
+	save_pdf(time_string=current_time, figures=up_converter_figs)
 
 else:
 	print("Executed from import of AMC_test")
