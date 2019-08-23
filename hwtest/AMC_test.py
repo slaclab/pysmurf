@@ -36,7 +36,7 @@ def save_pdf(time_string, figures):
 	print("File Location:", path + filename)
 
 
-def converter_vs_attenuator(atten_type="UC", attenuation_values):
+def converter_vs_attenuator(atten_type, attenuation_values):
 	"""
 	This function should return 4 figures with 7 lines each that represent different attenuation values
 	Each new figure represents another attenuator band being tested
