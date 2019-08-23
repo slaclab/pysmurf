@@ -2261,7 +2261,7 @@ class SmurfTuneMixin(SmurfBase):
         # Switched to a more stable estimator
         if lms_freq_hz is None:
             if meas_lms_freq:
-                lms_freq_hz = self.estimate_lms_freq(band,fraction_full_scale=fraction_full_scale,channel=channel,make_plot=False)
+                lms_freq_hz = self.estimate_lms_freq(band,reset_rate_khz,fraction_full_scale=fraction_full_scale,channel=channel,make_plot=False)
             else:
                 lms_freq_hz = self.config.get('tune_band').get('lms_freq')[str(band)]
             self.lms_freq_hz[band] = lms_freq_hz
@@ -3529,7 +3529,7 @@ class SmurfTuneMixin(SmurfBase):
         self.set_feedback_enable(band, old_feedback)
         return reset_rate_khz * s * 1000  # convert to Hz
 
-    def flux_mod2(self, band, df, sync, min_scale=.002, make_plot=False, 
+    def flux_mod2(self, band, df, sync, min_scale=.00, make_plot=False, 
                   channel=None, threshold=.5):
         """
         Attempts to find the number of phi0s in a tracking_setup.
