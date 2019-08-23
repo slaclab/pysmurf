@@ -116,6 +116,14 @@ class FullBandResp:
 
 		self.resp = []
 		for index in range(len(pxx)):
+
+			# Testing a theory of mine that pxx is equal to zero
+			if pxx[index] == 0:
+				time.sleep(0.5)
+				print("Pxx at index", index, "is equal to zero")
+				print("Length of pxx is:", len(pxx))
+				time.sleep(0.5)
+
 			self.resp.append(pyx[index]/pxx[index])
 
 		self.freq = f
