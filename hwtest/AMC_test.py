@@ -36,10 +36,13 @@ def save_pdf(time_string, figures):
 	print("File Location:", path + filename)
 
 
-def up_converter_vs_attenuator(attenuation_values):
+def converter_vs_attenuator(atten_type="UC", attenuation_values):
 	"""
 	This function should return 4 figures with 7 lines each that represent different attenuation values
 	Each new figure represents another attenuator band being tested
+
+	The variable atten_type is used to denote if we wish to run Up converter or down converter
+	Default for atten_type is 'UC'
 
 	For attenuator setting use the atten_vals
 
@@ -71,8 +74,13 @@ def up_converter_vs_attenuator(attenuation_values):
 		plt.axis([-250, 250, -90, 10])
 		legend_list = []
 
-		# Sets the attenuator at the desired band
-		uc_atten = SetHardware.UCAttenuator(atten_inst=band)
+		# Sets the attenuator type at the desired band
+		if atten_type == "UC":
+			atten = SetHardware.UCAttenuator(atten_inst=band)
+		elif atten_type == "DC":
+			atten = SetHardware.DCAttenuator(atten_inst=band)
+		else:
+			atten = SetHardware.UCAttenuator(atten_inst=band)
 
 		# There is a lot of pause time to allow for attenuators to adjust
 		# Adding print statements so I can see where I am in the program
@@ -83,7 +91,7 @@ def up_converter_vs_attenuator(attenuation_values):
 			print("Testing attenuator value:", atten_value)
 
 			# Setting desired attenuator value
-			uc_atten.set_value(value_to_set=atten_value)
+			atten.set_value(value_to_set=atten_value)
 			# Attenuators need delay after setting
 			time.sleep(0.1)
 
@@ -102,7 +110,7 @@ def up_converter_vs_attenuator(attenuation_values):
 			legend_list.append("Attenuator value = " + str(atten_value))
 
 		plt.legend(legend_list, loc="lower center")
-		uc_atten.set_value(value_to_set=0)
+		atten.set_value(value_to_set=0)
 
 	return atten_figs
 
@@ -124,7 +132,7 @@ if __name__ == "__main__":
 	my_figures = []
 
 	# Appending figures from up converter test to total figures list
-	up_converter_figs = up_converter_vs_attenuator(attenuation_values=atten_values)
+	up_converter_figs = converter_vs_attenuator(atten_type="UC", attenuation_values=atten_values)
 	my_figures.append(up_converter_figs)
 
 	# Getting timestamp for pdf filename
