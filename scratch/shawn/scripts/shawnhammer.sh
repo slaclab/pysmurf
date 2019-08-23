@@ -35,8 +35,6 @@ crate_id=1
 
 slots_in_configure_order=(4)
 
-pysmurf_init_script=scratch/shawn/scripts/init_stanford.py
-
 tmux_session_name=smurf
 
 # If true, forces crate fans to full speed
