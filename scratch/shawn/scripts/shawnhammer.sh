@@ -19,7 +19,7 @@ attach_at_end=true
 screenshot_signal_analyzer=false
 configure_pysmurf=true
 reboot=true
-using_timing_master=true
+using_timing_master=false
 run_half_band_test=false
 write_config=false
 start_atca_monitor=true
@@ -29,10 +29,10 @@ cpwd=$PWD
 
 pysmurf=/home/cryo/docker/pysmurf/dev
 
-crate_id=3
-slots_in_configure_order=(4)
+crate_id=1
+slots_in_configure_order=(2)
 
-pysmurf_init_script=scratch/shawn/scripts/init_stanford.py
+pysmurf_init_script=scratch/shawn/scripts/init_ucsd.py
 
 tmux_session_name=smurf
 
