@@ -40,7 +40,7 @@ class ReadAdcData(ReadUnknown):
 		datalength: describes the size of the buffer we are setting. Because we set datalength in 32 bit
 					words and we read stream data in 16 bit, we will see len(q_data) is twice datalength variable
 	"""
-	def __init__(self, inst, datalength):
+	def __init__(self, inst, datalength, show):
 		super().__init__(inst)
 		self.my_daq.set_adc_daq(adcnumber=self.inst, datalength=datalength)
 		data = ReadStreamData(bay=self.bay)
@@ -52,6 +52,12 @@ class ReadAdcData(ReadUnknown):
 		self.adc_data = []
 		for index in range(len(self.q_data)):
 			self.adc_data.append(complex(self.i_data[index], self.q_data[index]))
+
+		# For displaying the values in ADC_Data
+		if show is True:
+			time.sleep(0.5)
+			print("Q_Data:", self.q_data[0:10], "\nI_Data:", self.i_data[0:10], "\nADC_Data:", self.adc_data[0:10])
+			time.sleep(0.5)
 
 
 class ReadDacData(ReadUnknown):
@@ -79,6 +85,7 @@ class ReadDacData(ReadUnknown):
 		for index in range(len(self.q_data)):
 			self.dac_data.append(complex(self.i_data[index], self.q_data[index]))
 
+		# For displaying the values in DAC_Data
 		if show is True:
 			time.sleep(0.5)
 			print("Q_Data:", self.q_data[0:10], "\nI_Data:", self.i_data[0:10], "\nDAC_Data:", self.dac_data[0:10])
@@ -105,7 +112,7 @@ class FullBandResp:
 		caput(noiseselectpv, 1)
 		time.sleep(0.5)
 
-		adc_data = ReadAdcData(inst=band, datalength=2**19).adc_data
+		adc_data = ReadAdcData(inst=band, datalength=2**19, show=True).adc_data
 		time.sleep(0.5)
 
 		dac_data = ReadDacData(inst=band, datalength=2**19, show=True).dac_data

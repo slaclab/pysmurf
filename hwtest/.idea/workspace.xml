@@ -2,7 +2,9 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="d947b08e-3c67-414c-b223-e28fd85391ef" name="Default Changelist" comment="">
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/ReadData.py" beforeDir="false" afterPath="$PROJECT_DIR$/ReadData.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/SetHardware.py" beforeDir="false" afterPath="$PROJECT_DIR$/SetHardware.py" afterDir="false" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="SHOW_DIALOG" value="false" />
@@ -15,8 +17,8 @@
       <file pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/SetHardware.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="-895">
-              <caret line="81" column="98" lean-forward="true" selection-start-line="81" selection-start-column="98" selection-end-line="81" selection-end-column="98" />
+            <state relative-caret-position="2124">
+              <caret line="399" lean-forward="true" selection-start-line="399" selection-end-line="399" />
               <folding>
                 <element signature="e#0#30#0" expanded="true" />
               </folding>
@@ -27,11 +29,8 @@
       <file pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/GetData.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="449">
+            <state relative-caret-position="1258">
               <caret line="77" column="26" selection-start-line="77" selection-start-column="26" selection-end-line="77" selection-end-column="26" />
-              <folding>
-                <element signature="e#0#4#0" expanded="true" />
-              </folding>
             </state>
           </provider>
         </entry>
@@ -39,8 +38,8 @@
       <file pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/ReadData.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="1391">
-              <caret line="108" column="79" lean-forward="true" selection-start-line="108" selection-start-column="79" selection-end-line="108" selection-end-column="79" />
+            <state relative-caret-position="1564">
+              <caret line="92" selection-start-line="92" selection-end-line="93" />
               <folding>
                 <element signature="e#0#34#0" expanded="true" />
               </folding>
@@ -51,8 +50,8 @@
       <file pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/AMC_test.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="1310">
-              <caret line="137" column="65" lean-forward="true" selection-start-line="137" selection-start-column="65" selection-end-line="137" selection-end-column="65" />
+            <state relative-caret-position="2103">
+              <caret line="137" column="65" selection-start-line="137" selection-start-column="65" selection-end-line="137" selection-end-column="65" />
               <folding>
                 <element signature="e#0#33#0" expanded="true" />
               </folding>
@@ -83,9 +82,9 @@
       <list>
         <option value="$PROJECT_DIR$/git_test.py" />
         <option value="$PROJECT_DIR$/smurfhwtest.py" />
-        <option value="$PROJECT_DIR$/SetHardware.py" />
         <option value="$PROJECT_DIR$/GetData.py" />
         <option value="$PROJECT_DIR$/AMC_test.py" />
+        <option value="$PROJECT_DIR$/SetHardware.py" />
         <option value="$PROJECT_DIR$/ReadData.py" />
       </list>
     </option>
@@ -211,7 +210,7 @@
       <window_info id="Favorites" order="2" side_tool="true" />
       <window_info anchor="bottom" id="Message" order="0" />
       <window_info anchor="bottom" id="Find" order="1" />
-      <window_info active="true" anchor="bottom" id="Run" order="2" visible="true" weight="0.32939634" />
+      <window_info anchor="bottom" id="Run" order="2" weight="0.32939634" />
       <window_info anchor="bottom" id="Debug" order="3" weight="0.4" />
       <window_info anchor="bottom" id="Cvs" order="4" weight="0.25" />
       <window_info anchor="bottom" id="Inspection" order="5" weight="0.4" />
@@ -291,38 +290,35 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/GetData.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="449">
+        <state relative-caret-position="1258">
           <caret line="77" column="26" selection-start-line="77" selection-start-column="26" selection-end-line="77" selection-end-column="26" />
-          <folding>
-            <element signature="e#0#4#0" expanded="true" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/SetHardware.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="-895">
-          <caret line="81" column="98" lean-forward="true" selection-start-line="81" selection-start-column="98" selection-end-line="81" selection-end-column="98" />
-          <folding>
-            <element signature="e#0#30#0" expanded="true" />
-          </folding>
         </state>
       </provider>
     </entry>
     <entry file="file://$PROJECT_DIR$/AMC_test.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="1310">
-          <caret line="137" column="65" lean-forward="true" selection-start-line="137" selection-start-column="65" selection-end-line="137" selection-end-column="65" />
+        <state relative-caret-position="2103">
+          <caret line="137" column="65" selection-start-line="137" selection-start-column="65" selection-end-line="137" selection-end-column="65" />
           <folding>
             <element signature="e#0#33#0" expanded="true" />
           </folding>
         </state>
       </provider>
     </entry>
+    <entry file="file://$PROJECT_DIR$/SetHardware.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="2124">
+          <caret line="399" lean-forward="true" selection-start-line="399" selection-end-line="399" />
+          <folding>
+            <element signature="e#0#30#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
     <entry file="file://$PROJECT_DIR$/ReadData.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="1391">
-          <caret line="108" column="79" lean-forward="true" selection-start-line="108" selection-start-column="79" selection-end-line="108" selection-end-column="79" />
+        <state relative-caret-position="1564">
+          <caret line="92" selection-start-line="92" selection-end-line="93" />
           <folding>
             <element signature="e#0#34#0" expanded="true" />
           </folding>

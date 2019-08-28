@@ -396,7 +396,7 @@ class SetHwTrigger:
 		else:
 			caput(hwtriggerpv, 0)
 
-		time.sleep(0.25)
+		time.sleep(0.1)
 
 
 if __name__ == '__main__':
