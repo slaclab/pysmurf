@@ -395,6 +395,8 @@ class SetHwTrigger:
 			caput(hwtriggerpv, 1)
 		else:
 			caput(hwtriggerpv, 0)
+			time.sleep(0.1)
+			caput(hwtriggerpv, 1)
 
 		time.sleep(0.1)
 
