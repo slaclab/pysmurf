@@ -3,14 +3,30 @@ import SetHardware
 from matplotlib.backends.backend_pdf import PdfPages
 import matplotlib.pyplot as plt
 import time
-import math
+import numpy
 import datetime
+import os
+
 
 """
 This file is designed to follow AMC_test.m written by Dan Van Winkle.
 The goal here is to receive the same output as AMC_test, but using Python all written by myself.
 
 """
+
+
+def set_env(server_port, address_list):
+	"""
+	This function should set up the EPICs environment so that the user doesn't need to input export commands
+
+	Args:
+	server_port: This variable should tell this function which server port to set EPICs to
+	address_list: This variable should tell EPICs which address we are using to talk to the server
+
+	:return: This function does not return anything, but rather sets up the EPICs environment
+	"""
+	os.environ["EPICS_CA_SERVER_PORT"] = server_port
+	os.environ["EPICS_CA_ADDR_LIST"] = address_list
 
 
 def get_time():
@@ -103,7 +119,7 @@ def converter_vs_attenuator(atten_type, attenuation_values):
 
 			# Plotting the data we just collected
 			freqMHz = [x / (1e6) for x in freqs]
-			dBresp = [20 * math.log10(abs(x)) for x in resp]
+			dBresp = 20*numpy.log10(numpy.absolute(resp))
 			plt.plot(freqMHz, dBresp)
 
 			# Setting a legend for each line in list titled legend
@@ -116,6 +132,11 @@ def converter_vs_attenuator(atten_type, attenuation_values):
 
 
 if __name__ == "__main__":
+
+	# Setting EPICs environment
+	server = 5066
+	address = "134.79.219.255 172.26.97.63"
+	set_env(server_port=server, address_list=address)
 
 	# Setting all waveforms to zero
 	all_waves = SetHardware.Waveform()
