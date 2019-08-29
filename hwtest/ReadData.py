@@ -112,53 +112,108 @@ class FullBandResp:
 		caput(noiseselectpv, 1)
 		time.sleep(0.5)
 
-		adc_data = ReadAdcData(inst=band, datalength=2**19, show=True).adc_data
+		adc_data = ReadAdcData(inst=band, datalength=2**19, show=False).adc_data
 		time.sleep(0.5)
 
-		dac_data = ReadDacData(inst=band, datalength=2**19, show=True).dac_data
+		dac_data = ReadDacData(inst=band, datalength=2**19, show=False).dac_data
 		time.sleep(0.5)
 
 		caput(noiseselectpv, 0)
 		time.sleep(0.5)
 
 		# Calculating responses
-
+		f_y, pyy = signal.welch(x=adc_data, fs=614.4e6, return_onesided=False)
 		f_x, pxx = signal.welch(x=dac_data, fs=614.4e6, return_onesided=False)
 		f, pyx = signal.csd(x=adc_data, y=dac_data, fs=614.4e6, return_onesided=False)
+
+		# Sorting ADC power spectral density data by frequency from lowest to highest
+		fy_shifted, pyy_shifted = FullBandResp.freq_sort(f_y, pyy)
+		self.adc_freq = fy_shifted
+		self.adc_amp = pyy_shifted
+
+		# Sorting DAC power spectral density data by frequency from lowest to highest
+		fx_sorted, pxx_sorted = FullBandResp.freq_sort(f_x, pxx)
+		self.dac_freq = fx_sorted
+		self.dac_amp = pxx_sorted
+
+		# Sorting cross power spectral density data by frequency from lowest to highest
+		f_sorted, pyx_sorted = FullBandResp.freq_sort(f, pyx)
+		self.cpsd_freq = f_sorted
+		self.cpsd_amp = pyx_sorted
 
 		self.resp = []
 		for index in range(len(pxx)):
 
-			# Testing a theory of mine that pxx is equal to zero
-			if pxx[index] == 0:
-				time.sleep(0.5)
-				print("Pxx at index", index, "is equal to zero")
-				print("Length of pxx is:", len(pxx))
-				time.sleep(0.5)
-				break
+			self.resp.append(pyx_sorted[index]/pxx_sorted[index])
 
-			self.resp.append(pyx[index]/pxx[index])
+		self.freq = f_sorted
 
-		self.freq = f
+	@staticmethod
+	def freq_sort(freq_list, amp_list):
+		combined_list = []
+		for index in range(len(freq_list)):
+			# This creates a list of [freq, amp] lists
+			# We want freq first so we can sort by frequency
+			combined_list.append([freq_list[index], amp_list[index]])
+
+		# This puts our combined list in frequency order from lowest to highest
+		combined_list.sort()
+
+		sorted_freqs = []
+		sorted_amp = []
+		for [frequency, amplitude] in combined_list:
+
+			# This should give us two lists with the sorted frequencies and their corresponding amplitudes
+			sorted_freqs.append(frequency)
+			sorted_amp.append(amplitude)
+
+		return sorted_freqs, sorted_amp
 
 
 if __name__ == "__main__":
+
+	def plot_psd(figure_count, title, frequency, response):
+		frequency_MHz = [x/1e6 for x in frequency]
+		response_dB = [20*math.log10(abs(x)) for x in response]
+		plt.figure(figure_count)
+		plt.title(title)
+		plt.plot(frequency_MHz, response_dB)
+		plt.xlabel("Frequency (MHz)")
+		plt.ylabel("Magnitude (dB)")
+		plt.show()
 
 	print("Testing FullBandResp with band value of 0...")
 	time.sleep(1)
 
 	fullBand = FullBandResp(band=0)
-	resp = fullBand.resp
-	freq = fullBand.freq
+	fig_count = 1
 
-	dBresp = [20*math.log10(abs(x)) for x in resp]
-	freqMhz = [x/(1e6) for x in freq]
+	# Plotting ADC data
+	adc_title = "Adc Power Spectral Density"
+	adc_freq = fullBand.adc_freq
+	adc_amp = fullBand.adc_amp
+	plot_psd(fig_count, adc_title, adc_freq, adc_amp)
+	fig_count += 1
 
-	plt.figure(1)
-	plt.title("Transfer Function")
-	plt.plot(freqMhz, dBresp)
-	plt.xlabel("Frequency (MHz)")
-	plt.ylabel("Magnitude (dB)")
-	plt.show()
+	# Plotting DAC data
+	dac_title = "Dac Power Spectral Density"
+	dac_freq = fullBand.dac_freq
+	dac_amp = fullBand.dac_amp
+	plot_psd(fig_count, dac_title, dac_freq, dac_amp)
+	fig_count += 1
+
+	# Plotting CPSD data
+	cpsd_title = "Cross Power Spectral Density"
+	cpsd_freq = fullBand.cpsd_freq
+	cpsd_amp = fullBand.cpsd_amp
+	plot_psd(fig_count, cpsd_title, cpsd_freq, cpsd_amp)
+	fig_count += 1
+
+	# Plotting Transfer function
+	tf_title = "Transfer Function"
+	tf_freq = fullBand.freq
+	tf_amp = fullBand.resp
+	plot_psd(fig_count, tf_title, tf_freq, tf_amp)
+
 else:
 	print("Executed from import of ReadData")
