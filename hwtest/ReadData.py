@@ -173,11 +173,11 @@ class FullBandResp:
 if __name__ == "__main__":
 
 	def plot_psd(figure_count, title, frequency, response):
-		frequency_MHz = [x/1e6 for x in frequency]
-		response_dB = [20*math.log10(abs(x)) for x in response]
+		frequency_mhz = [x/1e6 for x in frequency]
+		response_db = [20*math.log10(abs(x)) for x in response]
 		plt.figure(figure_count)
 		plt.title(title)
-		plt.plot(frequency_MHz, response_dB)
+		plt.plot(frequency_mhz, response_db)
 		plt.xlabel("Frequency (MHz)")
 		plt.ylabel("Magnitude (dB)")
 		plt.show()
