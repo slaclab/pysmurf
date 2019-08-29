@@ -153,9 +153,9 @@ class FullBandResp:
 		time.sleep(0.5)
 
 		# Calculating responses
-		f_y, pyy = signal.welch(x=adc_data, fs=614.4e6, return_onesided=False)
-		f_x, pxx = signal.welch(x=dac_data, fs=614.4e6, return_onesided=False)
-		f, pyx = signal.csd(x=adc_data, y=dac_data, fs=614.4e6, return_onesided=False)
+		f_y, pyy = signal.welch(x=adc_data, nperseg=len(adc_data)//8, detrend=False, fs=614.4e6, return_onesided=False)
+		f_x, pxx = signal.welch(x=dac_data, nperseg=len(adc_data)//8, detrend=False, fs=614.4e6, return_onesided=False)
+		f, pyx = signal.csd(x=adc_data, y=dac_data, nperseg=len(adc_data)//8, detrend=False, fs=614.4e6, return_onesided=False)
 
 		# Sorting ADC power spectral density data by frequency from lowest to highest
 		fy_shifted, pyy_shifted = FullBandResp.freq_sort(f_y, pyy)
