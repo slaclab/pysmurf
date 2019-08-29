@@ -82,6 +82,10 @@ def converter_vs_attenuator(atten_type, attenuation_values):
 		else:
 			atten = SetHardware.UCAttenuator(atten_inst=band)
 
+		# Setting noiseSelect to correct band
+		noisepv = "dans_epics:AMCc:FpgaTopLevel:AppTop:AppCore:SysgenCryo:Base[" + str(band-1) + "]:noiseSelect"
+		caput(noisepv, 1)
+
 		# There is a lot of pause time to allow for attenuators to adjust
 		# Adding print statements so I can see where I am in the program
 		print("Testing attenuator band:", band - 1)
@@ -108,6 +112,9 @@ def converter_vs_attenuator(atten_type, attenuation_values):
 
 			# Setting a legend for each line in list titled legend
 			legend_list.append("Attenuator value = " + str(atten_value))
+
+		# Removing noiseSelect from current band
+		caput(noisepv, 0)
 
 		plt.legend(legend_list, loc="lower center")
 		atten.set_value(value_to_set=0)
