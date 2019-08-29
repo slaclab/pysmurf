@@ -68,7 +68,7 @@ def converter_vs_attenuator(atten_type, attenuation_values):
 		# We use band-1 for the title because that's how they are labeled above
 		# We use band for figure number because we always start with figure 1
 		atten_figs.append(plt.figure(band))
-		plt.title("Band " + str(band - 1) + " Up-Converter Response vs Atten")
+		plt.title("Band " + str(band - 1) + " " + atten_type + "-Converter Response vs Atten")
 		plt.xlabel("frequency (MHz)")
 		plt.ylabel("Response (dB)")
 		plt.axis([-250, 250, -90, 10])
@@ -125,17 +125,21 @@ if __name__ == "__main__":
 	all_attens = SetHardware.Attenuator()
 	all_attens.set_all(value_to_set=0)
 
+	# Initializing a total figures list
+	total_figs = []
+
 	# All values to set attenuators to
 	atten_values = SetHardware.Attenuator.acceptable_values
 
 	# Appending figures from up converter test to total figures list
 	up_converter_figs = converter_vs_attenuator(atten_type="UC", attenuation_values=atten_values)
+	total_figs += up_converter_figs
 
 	# Getting timestamp for pdf filename
 	current_time = get_time()
 
 	# Saving figures to pdf
-	save_pdf(time_string=current_time, figures=up_converter_figs)
+	save_pdf(time_string=current_time, figures=total_figs)
 
 else:
 	print("Executed from import of AMC_test")
