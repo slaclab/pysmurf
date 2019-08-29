@@ -53,11 +53,21 @@ class ReadAdcData(ReadUnknown):
 		for index in range(len(self.q_data)):
 			self.adc_data.append(complex(self.i_data[index], self.q_data[index]))
 
-		# For displaying the values in ADC_Data
+		# For displaying graphs of I and Q data
 		if show is True:
-			time.sleep(0.5)
-			print("Q_Data:", self.q_data[0:10], "\nI_Data:", self.i_data[0:10], "\nADC_Data:", self.adc_data[0:10])
-			time.sleep(0.5)
+			# Plotting Q_Data vs time
+			plt.title("ADC Q_Data vs Time")
+			plt.plot(self.q_data)
+			plt.xlabel("Time")
+			plt.ylabel("Q_Data")
+			plt.show()
+
+			# Plotting I_Data vs time
+			plt.title("ADC I_Data vs Time")
+			plt.plot(self.i_data)
+			plt.xlabel("Time")
+			plt.ylabel("I_Data")
+			plt.show()
 
 
 class ReadDacData(ReadUnknown):
@@ -85,11 +95,21 @@ class ReadDacData(ReadUnknown):
 		for index in range(len(self.q_data)):
 			self.dac_data.append(complex(self.i_data[index], self.q_data[index]))
 
-		# For displaying the values in DAC_Data
+		# For displaying graphs of I and Q data
 		if show is True:
-			time.sleep(0.5)
-			print("Q_Data:", self.q_data[0:10], "\nI_Data:", self.i_data[0:10], "\nDAC_Data:", self.dac_data[0:10])
-			time.sleep(0.5)
+			# Plotting Q_Data vs time
+			plt.title("DAC Q_Data vs Time")
+			plt.plot(self.q_data)
+			plt.xlabel("Time")
+			plt.ylabel("Q_Data")
+			plt.show()
+
+			# Plotting I_Data vs time
+			plt.title("DAC I_Data vs Time")
+			plt.plot(self.i_data)
+			plt.xlabel("Time")
+			plt.ylabel("I_Data")
+			plt.show()
 
 
 class FullBandResp:
@@ -114,10 +134,10 @@ class FullBandResp:
 		caput(noiseselectpv, 1)
 		time.sleep(0.5)
 
-		adc_data = ReadAdcData(inst=band, datalength=2**19, show=False).adc_data
+		adc_data = ReadAdcData(inst=band, datalength=2**19, show=True).adc_data
 		time.sleep(0.5)
 
-		dac_data = ReadDacData(inst=band, datalength=2**19, show=False).dac_data
+		dac_data = ReadDacData(inst=band, datalength=2**19, show=True).dac_data
 		time.sleep(0.5)
 
 		caput(noiseselectpv, 0)
