@@ -103,7 +103,9 @@ class FullBandResp:
 
 	Returns:
 		self.freq:  this is the frequency list we computed from running the cross power spectral density (signal.csd)
+					this list is sorted from lowest frequency to highest
 		self.resp:  this is response of csd(adc, dac) / welch(dac)
+					this list is sorted similarly to self.freq so that the correct resp corresponds to correct frequency
 					I followed similar use of fullBandResp.m to compute self.resp in this way
 	"""
 	def __init__(self, band):
