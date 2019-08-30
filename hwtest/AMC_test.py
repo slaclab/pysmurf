@@ -25,7 +25,7 @@ def set_env(server_port, address_list):
 
 	:return: This function does not return anything, but rather sets up the EPICs environment
 	"""
-	os.environ["EPICS_CA_SERVER_PORT"] = server_port
+	os.environ["EPICS_CA_SERVER_PORT"] = str(server_port)
 	os.environ["EPICS_CA_ADDR_LIST"] = address_list
 
 
