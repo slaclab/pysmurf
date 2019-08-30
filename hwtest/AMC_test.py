@@ -52,7 +52,7 @@ def save_pdf(time_string, figures, name):
 	print("File Location:", path + filename)
 
 
-def converter_vs_attenuator(atten_type, attenuation_values):
+def converter_vs_attenuator(atten_type):
 	"""
 	This function should return 4 figures with 7 lines each that represent different attenuation values
 	Each new figure represents another attenuator band being tested
@@ -74,9 +74,12 @@ def converter_vs_attenuator(atten_type, attenuation_values):
 	Band2 is 5-5.5 GHz uses band_val 2
 	Band3 is 5.5-6 GHz uses band_val 3
 
-	:param attenuation_values: a list of acceptable values that the attenuators can be set to
-	:return: atten_figs: a list that contains all the figures from performing up converter testing
+	:param atten_type: Either UC or DC to specify which type of attenuator we are testing
+	:return: atten_fig: a figure that contains a subplot of 4 attenuator tests
 	"""
+	# Initializing attenuation values
+	attenuation_values = SetHardware.Attenuator.acceptable_values
+
 	atten_fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2)
 	sublot_list = [ax1, ax2, ax3, ax4]
 	atten_fig.suptitle(atten_type + "-Converter Response vs Atten")
@@ -150,15 +153,12 @@ if __name__ == "__main__":
 	# Initializing a total figures list
 	total_figs = []
 
-	# All values to set attenuators to
-	atten_values = SetHardware.Attenuator.acceptable_values
-
 	# Appending figures from up converter test to total figures list
-	up_converter_subplot = converter_vs_attenuator(atten_type="UC", attenuation_values=atten_values)
+	up_converter_subplot = converter_vs_attenuator(atten_type="UC")
 	total_figs.append(up_converter_subplot)
 
 	# Appending figures from down converter test to total figures list
-	down_converter_subplot = converter_vs_attenuator(atten_type="DC", attenuation_values=atten_values)
+	down_converter_subplot = converter_vs_attenuator(atten_type="DC")
 	total_figs.append(down_converter_subplot)
 
 	# Getting timestamp for pdf filename

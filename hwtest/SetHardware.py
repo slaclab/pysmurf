@@ -25,8 +25,12 @@ class Attenuator:
 
 		# Sets general location for all attenuators
 		# Will need to specify UC or DC in specific attenuator Classes
-		self.location = "dans_epics:AMCc:FpgaTopLevel:AppTop:AppCore:MicrowaveMuxCore[0]:ATT:"
-		self.inst = atten_inst
+		if atten_inst > 4:
+			self.location = "dans_epics:AMCc:FpgaTopLevel:AppTop:AppCore:MicrowaveMuxCore[1]:ATT:"
+			self.inst = atten_inst - 4
+		else:
+			self.location = "dans_epics:AMCc:FpgaTopLevel:AppTop:AppCore:MicrowaveMuxCore[0]:ATT:"
+			self.inst = atten_inst
 
 	def set_value(self, value_to_set):
 		"""
@@ -56,13 +60,14 @@ class Attenuator:
 
 		# ~~ FOR SERVER INTERFACE ~~
 		caput(atten_location, value_to_set)
-		time.sleep(0.2)
+		time.sleep(0.1)
 
 	def set_all(self, value_to_set):
 		"""
 		This function should be used to set the value of all attenuators (UC and DC).
 		It uses the set_value function above to perform the bulk of this function.
 		An example for how it should be used can be found in the Attenuator base class documentation.
+		This function should be able to set the value of all attenuators on both hw cards
 
 		Args:
 			value_to_set: this is the value we wish to set all attenuators to
@@ -71,15 +76,18 @@ class Attenuator:
 		"""
 
 		atten_types = ["UC", "DC"]
+		hw_cards = [0, 1]
 
-		for converter in atten_types:
-			self.location += converter
-			for num in range(1, 5):
-				self.inst = num
-				self.set_value(value_to_set)
+		for card_num in hw_cards:
+			self.location = "dans_epics:AMCc:FpgaTopLevel:AppTop:AppCore:MicrowaveMuxCore[" + str(card_num) + "]:ATT:"
+			for converter in atten_types:
+				self.location += converter
+				for num in range(1, 5):
+					self.inst = num
+					self.set_value(value_to_set)
 
-			# This ensures that we reset location before we append 'DC'
-			self.location = "dans_epics:AMCc:FpgaTopLevel:AppTop:AppCore:MicrowaveMuxCore[0]:ATT:"
+				# This ensures that we reset location before we append 'DC'
+				self.location = self.location[:-2]
 
 
 class UCAttenuator(Attenuator):
