@@ -40,11 +40,11 @@ def get_time():
 	return current_timestamp
 
 
-def save_pdf(time_string, figures):
+def save_pdf(time_string, figures, name):
 	# Saving figures on separate pdf pages
 	# path is the path to the images folder where I'm storing the pdf
 	path = "/afs/slac.stanford.edu/u/gu/shadduck/cryo_det/images/"
-	filename = 'Up_Converter_Response_' + time_string + '.pdf'
+	filename = name + time_string + '.pdf'
 	with PdfPages(path + filename) as pp:
 		for fig in figures:
 			pp.savefig(fig)
@@ -77,18 +77,18 @@ def converter_vs_attenuator(atten_type, attenuation_values):
 	:param attenuation_values: a list of acceptable values that the attenuators can be set to
 	:return: atten_figs: a list that contains all the figures from performing up converter testing
 	"""
-	atten_figs = []
+	atten_fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2)
+	sublot_list = [ax1, ax2, ax3, ax4]
+	atten_fig.suptitle(atten_type + "-Converter Response vs Atten")
+
 	for band in range(1, 5):
 
+		sub_fig = sublot_list[band-1]
 		# Setting up our figure. Should be 4 figures with 8 plots on each
 		# We use band-1 for the title because that's how they are labeled above
 		# We use band for figure number because we always start with figure 1
-		atten_figs.append(plt.figure(band))
-		plt.title("Band " + str(band - 1) + " " + atten_type + "-Converter Response vs Atten")
-		plt.xlabel("frequency (MHz)")
-		plt.ylabel("Response (dB)")
-		plt.axis([-250, 250, -40, 20])
-		legend_list = []
+		sub_fig.set_title("Band " + str(band - 1))
+		sub_fig.axis([-250, 250, -40, 20])
 
 		# Sets the attenuator type at the desired band
 		if atten_type == "UC":
@@ -100,7 +100,7 @@ def converter_vs_attenuator(atten_type, attenuation_values):
 
 		for atten_value in attenuation_values:
 			# Checking which attenuator value I am currently getting data for
-			print("Testing band", str(band-1), "attenuator value:", atten_value)
+			print("Testing", atten_type + " attenuator", str(band), "value:", atten_value)
 
 			# Setting desired attenuator value
 			atten.set_value(value_to_set=atten_value)
@@ -116,15 +116,20 @@ def converter_vs_attenuator(atten_type, attenuation_values):
 			# Plotting the data we just collected
 			freqMHz = [x / (1e6) for x in freqs]
 			dBresp = 20*numpy.log10(numpy.absolute(resp))
-			plt.plot(freqMHz, dBresp)
+			sub_fig.plot(freqMHz, dBresp)
 
-			# Setting a legend for each line in list titled legend
-			legend_list.append("Attenuator value = " + str(atten_value))
-
-		plt.legend(legend_list, loc="lower center")
+		# Resets current attenuator value to zero before setting next attenuator
 		atten.set_value(value_to_set=0)
 
-	return atten_figs
+	# Setting Axis Labels for the subplot
+	for ax in sublot_list:
+		ax.set(xlabel="frequency (MHz)", ylabel="Response (dB)")
+
+	# Setting labels to outside so each subplot doesn't have extra labels
+	for ax in atten_fig.get_axes():
+		ax.label_outer()
+
+	return atten_fig
 
 
 if __name__ == "__main__":
@@ -149,14 +154,19 @@ if __name__ == "__main__":
 	atten_values = SetHardware.Attenuator.acceptable_values
 
 	# Appending figures from up converter test to total figures list
-	up_converter_figs = converter_vs_attenuator(atten_type="UC", attenuation_values=atten_values)
-	total_figs += up_converter_figs
+	up_converter_subplot = converter_vs_attenuator(atten_type="UC", attenuation_values=atten_values)
+	total_figs.append(up_converter_subplot)
+
+	# Appending figures from down converter test to total figures list
+	down_converter_subplot = converter_vs_attenuator(atten_type="DC", attenuation_values=atten_values)
+	total_figs.append(down_converter_subplot)
 
 	# Getting timestamp for pdf filename
 	current_time = get_time()
 
 	# Saving figures to pdf
-	save_pdf(time_string=current_time, figures=total_figs)
+	filename = "Both_Converters_Response"
+	save_pdf(name=filename, time_string=current_time, figures=total_figs)
 
 else:
 	print("Executed from import of AMC_test")
