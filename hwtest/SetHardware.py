@@ -56,7 +56,7 @@ class Attenuator:
 
 		# ~~ FOR SERVER INTERFACE ~~
 		caput(atten_location, value_to_set)
-		time.sleep(0.1)
+		time.sleep(0.2)
 
 	def set_all(self, value_to_set):
 		"""

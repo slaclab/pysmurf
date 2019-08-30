@@ -131,14 +131,6 @@ class FullBandResp:
 	"""
 	def __init__(self, band):
 
-		# Setting all waveforms to zero
-		all_waves = SetHardware.Waveform()
-		all_waves.set_all_waveforms(wave_value=0)
-
-		# Setting all attenuators to zero dB
-		all_attens = SetHardware.Attenuator()
-		all_attens.set_all(value_to_set=0)
-
 		noiseselectpv = "dans_epics:AMCc:FpgaTopLevel:AppTop:AppCore:SysgenCryo:Base[" + str(band) + "]:noiseSelect"
 		caput(noiseselectpv, 1)
 		time.sleep(0.5)
