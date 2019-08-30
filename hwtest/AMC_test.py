@@ -87,7 +87,7 @@ def converter_vs_attenuator(atten_type, attenuation_values):
 		plt.title("Band " + str(band - 1) + " " + atten_type + "-Converter Response vs Atten")
 		plt.xlabel("frequency (MHz)")
 		plt.ylabel("Response (dB)")
-		plt.axis([-250, 250, -90, 10])
+		plt.axis([-250, 250, -40, 20])
 		legend_list = []
 
 		# Sets the attenuator type at the desired band
@@ -98,13 +98,9 @@ def converter_vs_attenuator(atten_type, attenuation_values):
 		else:
 			atten = SetHardware.UCAttenuator(atten_inst=band)
 
-		# There is a lot of pause time to allow for attenuators to adjust
-		# Adding print statements so I can see where I am in the program
-		print("Testing attenuator band:", band - 1)
-
 		for atten_value in attenuation_values:
 			# Checking which attenuator value I am currently getting data for
-			print("Testing attenuator value:", atten_value)
+			print("Testing band", str(band-1), "attenuator value:", atten_value)
 
 			# Setting desired attenuator value
 			atten.set_value(value_to_set=atten_value)
