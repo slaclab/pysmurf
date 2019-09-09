@@ -131,8 +131,8 @@ class FullBandResp:
 	"""
 	def __init__(self, band):
 
-		noiseselectpv = "dans_epics:AMCc:FpgaTopLevel:AppTop:AppCore:SysgenCryo:Base[" + str(band) + "]:noiseSelect"
-		caput(noiseselectpv, 1)
+		self.noiseselectpv = "dans_epics:AMCc:FpgaTopLevel:AppTop:AppCore:SysgenCryo:Base[" + str(band) + "]:noiseSelect"
+		caput(self.noiseselectpv, 1)
 		time.sleep(0.5)
 
 		adc_data = ReadAdcData(inst=band, datalength=2**19, show=False).adc_data
@@ -141,7 +141,7 @@ class FullBandResp:
 		dac_data = ReadDacData(inst=band, datalength=2**19, show=False).dac_data
 		time.sleep(0.5)
 
-		caput(noiseselectpv, 0)
+		caput(self.noiseselectpv, 0)
 		time.sleep(0.5)
 
 		# Calculating responses
@@ -205,10 +205,10 @@ if __name__ == "__main__":
 		plt.ylabel("Magnitude (dB)")
 		plt.show()
 
-	print("Testing FullBandResp with band value of 0...")
+	print("Testing FullBandResp with band value of 7...")
 	time.sleep(1)
 
-	fullBand = FullBandResp(band=0)
+	fullBand = FullBandResp(band=7)
 	fig_count = 1
 
 	# Plotting ADC data

@@ -52,7 +52,7 @@ def save_pdf(time_string, figures, name):
 	print("File Location:", path + filename)
 
 
-def converter_vs_attenuator(atten_type):
+def converter_vs_attenuator(atten_type, hwcard_type):
 	"""
 	This function should return 4 figures with 7 lines each that represent different attenuation values
 	Each new figure represents another attenuator band being tested
@@ -77,20 +77,35 @@ def converter_vs_attenuator(atten_type):
 	:param atten_type: Either UC or DC to specify which type of attenuator we are testing
 	:return: atten_fig: a figure that contains a subplot of 4 attenuator tests
 	"""
+	if hwcard_type == "Low_Band":
+		band_range = range(1,5)
+	elif hwcard_type == "High_Band":
+		band_range = range(5,9)
+	else:
+		band_range = range(1,5)
+		hwcard_type = "Low_Band"
+
 	# Initializing attenuation values
 	attenuation_values = SetHardware.Attenuator.acceptable_values
 
 	atten_fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2)
 	sublot_list = [ax1, ax2, ax3, ax4]
-	atten_fig.suptitle(atten_type + "-Converter Response vs Atten")
+	atten_fig.suptitle(hwcard_type + " " + atten_type + "-Converter Response vs Atten")
 
-	for band in range(1, 5):
+	for band in band_range:
 
-		sub_fig = sublot_list[band-1]
+		# Adjusting for introduction of High Band
+		if hwcard_type == "Low_Band":
+			fig_band = band
+		else:
+			fig_band = band - 4
+
+		sub_fig = sublot_list[fig_band - 1]
+
 		# Setting up our figure. Should be 4 figures with 8 plots on each
 		# We use band-1 for the title because that's how they are labeled above
 		# We use band for figure number because we always start with figure 1
-		sub_fig.set_title("Band " + str(band - 1))
+		sub_fig.set_title("Band " + str(fig_band - 1))
 		sub_fig.axis([-250, 250, -40, 20])
 
 		# Sets the attenuator type at the desired band
@@ -153,19 +168,27 @@ if __name__ == "__main__":
 	# Initializing a total figures list
 	total_figs = []
 
-	# Appending figures from up converter test to total figures list
-	up_converter_subplot = converter_vs_attenuator(atten_type="UC")
-	total_figs.append(up_converter_subplot)
+	# Appending figures from Low Band up converter test to total figures list
+	low_up_converter_subplot = converter_vs_attenuator(atten_type="UC", hwcard_type="Low_Band")
+	total_figs.append(low_up_converter_subplot)
 
-	# Appending figures from down converter test to total figures list
-	down_converter_subplot = converter_vs_attenuator(atten_type="DC")
-	total_figs.append(down_converter_subplot)
+	# Appending figures from Low Band down converter test to total figures list
+	low_down_converter_subplot = converter_vs_attenuator(atten_type="DC", hwcard_type="Low_Band")
+	total_figs.append(low_down_converter_subplot)
+
+	# Appending figures from High Band up converter test to total figures list
+	high_up_converter_subplot = converter_vs_attenuator(atten_type="UC", hwcard_type="High_Band")
+	total_figs.append(high_up_converter_subplot)
+
+	# Appending figures from High Band down converter test to total figures list
+	high_down_converter_subplot = converter_vs_attenuator(atten_type="DC", hwcard_type="High_Band")
+	total_figs.append(high_down_converter_subplot)
 
 	# Getting timestamp for pdf filename
 	current_time = get_time()
 
 	# Saving figures to pdf
-	filename = "Both_Converters_Response"
+	filename = "Both_Cards_Converter_Response"
 	save_pdf(name=filename, time_string=current_time, figures=total_figs)
 
 else:

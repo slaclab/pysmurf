@@ -203,19 +203,32 @@ class Buffer:
 	Returns:
 		This init function sets locations for setting the buffer
 	"""
-	def __init__(self):
+	def __init__(self, bay):
 
 		# Max buffer is integer value of hex(FFFFFFFF)
 		# This value comes from setBufferSize.m
 		self.maxBuffer = 4294967295
-
-		self.bufferLocation = 'dans_epics:AMCc:FpgaTopLevel:AppTop:DaqMuxV2[0]:DataBufferSize'
 		self.startAddressPV = []
 		self.endAddressPV = []
 
-		for num in range(4):
-			self.startAddressPV.append('dans_epics:AMCc:FpgaTopLevel:AmcCarrierCore:AmcCarrierBsa:BsaWaveformEngine[0]:WaveformEngineBuffers:StartAddr[' + str(num) + ']')
-			self.endAddressPV.append('dans_epics:AMCc:FpgaTopLevel:AmcCarrierCore:AmcCarrierBsa:BsaWaveformEngine[0]:WaveformEngineBuffers:EndAddr[' + str(num) + ']')
+		if bay == 0:
+
+			self.bufferLocation = 'dans_epics:AMCc:FpgaTopLevel:AppTop:DaqMuxV2[0]:DataBufferSize'
+
+			for num in range(4):
+				self.startAddressPV.append('dans_epics:AMCc:FpgaTopLevel:AmcCarrierCore:AmcCarrierBsa:BsaWaveformEngine[0]:WaveformEngineBuffers:StartAddr[' + str(num) + ']')
+				self.endAddressPV.append('dans_epics:AMCc:FpgaTopLevel:AmcCarrierCore:AmcCarrierBsa:BsaWaveformEngine[0]:WaveformEngineBuffers:EndAddr[' + str(num) + ']')
+
+		elif bay == 1:
+
+			self.bufferLocation = 'dans_epics:AMCc:FpgaTopLevel:AppTop:DaqMuxV2[1]:DataBufferSize'
+
+			for num in range(4):
+				self.startAddressPV.append('dans_epics:AMCc:FpgaTopLevel:AmcCarrierCore:AmcCarrierBsa:BsaWaveformEngine[1]:WaveformEngineBuffers:StartAddr[' + str(num) + ']')
+				self.endAddressPV.append('dans_epics:AMCc:FpgaTopLevel:AmcCarrierCore:AmcCarrierBsa:BsaWaveformEngine[1]:WaveformEngineBuffers:EndAddr[' + str(num) + ']')
+
+		else:
+			print("Error in Buffer: Bay not equal to 1 or 0")
 
 	def set_buffer(self, size=2**19):
 		"""
@@ -320,7 +333,9 @@ class DaqMux(Buffer):
 		This init function only sets locations for future value setting
 	"""
 	def __init__(self, bay):
-		super().__init__()
+		super().__init__(bay)
+
+		self.bay = bay
 
 		if bay == 1:
 			self.channelZeroLocation = 'dans_epics:AMCc:FpgaTopLevel:AppTop:DaqMuxV2[1]:InputMuxSel[0]'
@@ -349,7 +364,7 @@ class DaqMux(Buffer):
 		daqMuxChannel0 = (adcnumber + 1) * 2
 		daqMuxChannel1 = daqMuxChannel0 + 1
 
-		my_buffer = Buffer()
+		my_buffer = Buffer(bay=self.bay)
 		my_buffer.set_buffer(size=datalength)
 
 		# ~~ FOR SERVER INTERFACE ~~
@@ -373,7 +388,7 @@ class DaqMux(Buffer):
 		daqMuxChannel0 = ((dacnumber + 1) * 2) + 10
 		daqMuxChannel1 = daqMuxChannel0 + 1
 
-		my_buffer = Buffer()
+		my_buffer = Buffer(bay=self.bay)
 		my_buffer.set_buffer(size=datalength)
 
 		# ~~ FOR SERVER INTERFACE ~~
