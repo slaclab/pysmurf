@@ -9,12 +9,13 @@
     <td colspan="2"><b>Frankenpolar run 29 pysmurf configuration files</b></td>
   </tr>
   <tr>
-    <td>[experiment_fp29_cc02-02_lbOnlyBay0.cfg](experiment_fp29_cc02-02_lbOnlyBay0.cfg)</td>
+    <td><a href="experiment_fp29_cc02-02_lbOnlyBay0.cfg">experiment_fp29_cc02-02_lbOnlyBay0.cfg</a></td>
     <td>For use with cryostat card C02-02.  Configures only 4x
     500MHz bands.  To be used with single bay fw versions.  Assumes
     only 1x LB AMC is installed in bay 0.  Configures for for
     backplane timing (timing master must be installed in slot 2 of the
-    same crate).</td>
+    same crate).
+    </td>
   </tr>  
 </table>
 
