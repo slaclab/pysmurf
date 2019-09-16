@@ -5,28 +5,29 @@ import sys
 import epics
 
 pause_btw_stages=True
-pause_btw_band_fills=True
-pause_btw_eta_scans=True
+pause_btw_band_fills=False
+pause_btw_eta_scans=False
+skip_setup=False
 bands=range(8)
 
 shelfmanager='shm-smrf-sp01'
 
 #slots=[2,3,4]
-slots=[5]
+slots=[6]
 
-wait_before_setup_min=5
-wait_after_setup_min=5
-wait_btw_band_fills_min=1
-wait_after_band_fills_min=5
-wait_btw_eta_scans_min=1
-wait_after_eta_scans_min=10
+wait_before_setup_min=1
+wait_after_setup_min=0.5
+wait_btw_band_fills_min=0.5
+wait_after_band_fills_min=1
+wait_btw_eta_scans_min=0.5
+wait_after_eta_scans_min=1
 
 # Dumb monitoring of FPGA temperatures
 #while true; do clear; awk '{print $1" "$3}' 1563924543_hwlog.dat | tail -n 3 | sort; sleep 1; done
 
 def tmux_cmd(slot_number,cmd,tmux_session_name='smurf'):
     os.system("""tmux send-keys -t {}:{} '{}' C-m""".format(tmux_session_name,slot_number,cmd))
-
+    
 def get_eta_scan_in_progress(slot_number,band,tmux_session_name='smurf'):
     etaScanInProgress=int(epics.caget('smurf_server_s{}:AMCc:FpgaTopLevel:AppTop:AppCore:SysgenCryo:Base[{}]:CryoChannels:etaScanInProgress'.format(slot_number,band)))
     return etaScanInProgress
@@ -119,30 +120,31 @@ print('-> Logging to {}.'.format(hardware_logfile))
 for slot in slots:
     start_hardware_logging(slot,hardware_logfile)
 
-print('-> Waiting {} min before setup.'.format(wait_before_setup_min))
-wait_before_setup_sec=wait_before_setup_min*60
-time.sleep(wait_before_setup_sec)
+if not skip_setup:
+    print('-> Waiting {} min before setup.'.format(wait_before_setup_min))
+    wait_before_setup_sec=wait_before_setup_min*60
+    time.sleep(wait_before_setup_sec)
     
-# setup
-add_tag_to_hardware_log(hardware_logfile,tag='setup')
-for slot in slots:      
-    carrier_setup(slot,shelfmanager)
+    # setup
+    add_tag_to_hardware_log(hardware_logfile,tag='setup')
+    for slot in slots:      
+        carrier_setup(slot,shelfmanager)
 
-print('-> Waiting for setup(s) to complete.')    
-for slot in slots:
-    wait_for_text_in_tmux(slot,"Done with setup")
-
-# Disable streaming
-print('-> Disabling streaming')
-for slot in slots:
-    disable_streaming(slot)
+    print('-> Waiting for setup(s) to complete.')    
+    for slot in slots:
+        wait_for_text_in_tmux(slot,"Done with setup")
+        
+    # Disable streaming
+    print('-> Disabling streaming')
+    for slot in slots:
+        disable_streaming(slot)
     
-print('-> Waiting {} min after setup.'.format(wait_after_setup_min))
-wait_after_setup_sec=wait_after_setup_min*60
-time.sleep(wait_after_setup_sec)
+    print('-> Waiting {} min after setup.'.format(wait_after_setup_min))
+    wait_after_setup_sec=wait_after_setup_min*60
+    time.sleep(wait_after_setup_sec)
 
-if pause_btw_stages:
-    input('Press enter to continue ...')
+    if pause_btw_stages:
+        input('Press enter to continue ...')
 
 # fill bands, one at a time
 wait_btw_band_fills_sec=wait_btw_band_fills_min*60
@@ -214,6 +216,5 @@ for slot in slots:
 # stop hardware logging
 for slot in slots:
     stop_hardware_logging(slot)
-
 
 
