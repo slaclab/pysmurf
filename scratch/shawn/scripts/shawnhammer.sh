@@ -31,7 +31,7 @@ pysmurf=/home/cryo/docker/pysmurf/dspv3
 
 crate_id=3
 #slots_in_configure_order=(2 3 4)
-slots_in_configure_order=(6)
+slots_in_configure_order=(3)
 
 pysmurf_init_script=scratch/shawn/scripts/init_rflab.py
 #pysmurf_init_script=scratch/shawn/scripts/init_stanford.py
