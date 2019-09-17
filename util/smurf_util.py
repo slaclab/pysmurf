@@ -95,7 +95,7 @@ class SmurfUtilMixin(SmurfBase):
         done=False
         while not done:
             done=True
-            for k in range(4):
+            for k in range(2):
                 wr_addr = self.get_waveform_wr_addr(bay, engine=0)
                 empty = self.get_waveform_empty(bay, engine=k)
                 if not empty:
@@ -353,11 +353,11 @@ class SmurfUtilMixin(SmurfBase):
         ff_corr_ctime=1562053274
 
         bay=int(band/4)
-        amcc_dump_bsi_dict=self.get_amcc_dump_bsi()
-        amc_dict=amcc_dump_bsi_dict['AMC'][bay]
-        amc_sn=amc_dict['Tag']+amc_dict['Ver']
+        #amcc_dump_bsi_dict=self.get_amcc_dump_bsi()
+        #amc_dict=amcc_dump_bsi_dict['AMC'][bay]
+        #amc_sn=amc_dict['Tag']+amc_dict['Ver']
 
-        fw_abbrev_sha=amcc_dump_bsi_dict['FWGIThash']['GIThash'][:7]
+        fw_abbrev_sha=self.get_fpga_git_hash_short()
         #fw_dict=amcc_dump_bsi_dict['FW']
         #fw_build_date="Built {} {} {}:{}:{} {} {} by {}".format(fw_dict['Month'],
         #                                                        fw_dict['Day'],
@@ -368,12 +368,8 @@ class SmurfUtilMixin(SmurfBase):
         #                                                        fw_dict['Year'],
         #                                                        fw_dict['BuiltBy'])
 
-        # some special cases
-        #if fw_build_date=='Built Apr 30 13:35:05 PDT 2019 by mdewart':
-        #    fw_abbrev_sha='0eea5630'
-
-        print('amc_sn={}'.format(amc_sn))
-        print('fw_abbrev_sha={}'.format(fw_abbrev_sha))
+        #print('amc_sn={}'.format(amc_sn))
+        #print('fw_abbrev_sha={}'.format(fw_abbrev_sha))
         #print('fw_build_date={}'.format(fw_build_date))
 
         self.band_off(band)
@@ -536,11 +532,13 @@ class SmurfUtilMixin(SmurfBase):
         f_dsp_corr_plot = (freq_dsp_corr_subset) / 1.0E6
         dsp_corr_phase = np.unwrap(np.angle(resp_dsp_corr_subset))
 
-        ax[0].set_title('AMC {}, Bay {}, Band {} Cable Delay'.format(amc_sn,bay,band))
+        #ax[0].set_title('AMC {}, Bay {}, Band {} Cable Delay'.format(amc_sn,bay,band))
+        ax[0].set_title('AMC in Bay {}, Band {} Cable Delay'.format(bay,band))        
         ax[0].plot(f_cable_plot,cable_phase,label='Cable (full_band_resp)',c='g',lw=3)
         ax[0].plot(f_cable_plot,cable_p(f_cable_plot*1.0E6),'m--',label='Cable delay fit',lw=3)
 
-        ax[1].set_title('AMC {}, Bay {}, Band {} DSP Delay'.format(amc_sn,bay,band))
+        #ax[1].set_title('AMC {}, Bay {}, Band {} DSP Delay'.format(amc_sn,bay,band))
+        ax[1].set_title('AMC in Bay {}, Band {} DSP Delay'.format(bay,band))
         ax[1].plot(f_dsp_plot,dsp_phase,label='DSP (find_freq)',c='c',lw=3)
         ax[1].plot(f_dsp_plot,dsp_p(f_dsp_plot*1.0E6),c='orange',ls='--',label='DSP delay fit',lw=3)
 
@@ -567,7 +565,7 @@ class SmurfUtilMixin(SmurfBase):
         dsp_residuals=dsp_phase-(dsp_p(f_dsp_plot*1.0E6))
         ax[2].plot(f_dsp_plot,dsp_residuals-np.median(dsp_residuals),label='DSP (find_freq)',c='c')
         ax[2].plot(f_dsp_corr_plot,dsp_corr_phase-np.median(dsp_corr_phase),label='DSP corrected (find_freq)',c='m')
-        ax[2].set_title('AMC {}, Bay {}, Band {} Residuals'.format(amc_sn,bay,band))
+        ax[2].set_title('AMC in Bay {}, Band {} Residuals'.format(bay,band))
         ax[2].set_ylabel("Residual [rad]")
         ax[2].set_xlabel('Frequency offset from band center [MHz]')
         ax[2].set_ylim([-5,5])
@@ -580,7 +578,7 @@ class SmurfUtilMixin(SmurfBase):
                    bbox=bbox,horizontalalignment='right')
         ax[2].text(.97, .76, 'processing delay={:.5f} us (fw={})'.format(processing_delay_us,fw_abbrev_sha),
                    transform=ax[2].transAxes, fontsize=8,
-                   bbox=bbox,horizontalalignment='right')
+                   bbox=bbox,horizontalalignment='right')        
         ax[2].text(.97, .68, 'delay post-correction={:.3f} ns'.format(dsp_corr_delay_us*1000.),
                    transform=ax[2].transAxes, fontsize=8,
                    bbox=bbox,horizontalalignment='right')
@@ -1416,7 +1414,7 @@ class SmurfUtilMixin(SmurfBase):
         self.set_input_mux_sel(bay, 1, daq_mux_channel1, write_log=True)
 
         # which f,df stream to route to MUX, maybe?
-        self.set_debug_select(bay, band, write_log=True)
+        self.set_debug_select(bay, band%4, write_log=True)
 
     def set_buffer_size(self, bay, size, debug=False):
         """
@@ -1430,7 +1428,7 @@ class SmurfUtilMixin(SmurfBase):
 
         # Change waveform engine buffer size
         self.set_data_buffer_size(bay, size, write_log=True)
-        for daq_num in np.arange(4):
+        for daq_num in np.arange(2):
             s = self.get_waveform_start_addr(bay, daq_num, convert=True, 
                 write_log=debug)
             e = s + 4*size
@@ -1903,7 +1901,7 @@ class SmurfUtilMixin(SmurfBase):
             digitizer_frequency_mhz = 614.4
             n_subbands = 128
         else:
-            digitizerFrequencyMHz = self.get_digitizer_frequency_mhz(band, 
+            digitizer_frequency_mhz = self.get_digitizer_frequency_mhz(band, 
                 yml=yml)
             bandCenterMHz = self.get_band_center_mhz(band, yml=yml)
             n_subbands = self.get_number_sub_bands(band, yml=yml)
