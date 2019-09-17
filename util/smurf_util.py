@@ -3267,6 +3267,12 @@ class SmurfUtilMixin(SmurfBase):
         d['atca_temp_amc0']=self.get_board_temp_amc0
         d['atca_temp_amc2']=self.get_board_temp_amc2
         d['atca_jct_temp_fpga']=self.get_junction_temp_fpga
+
+        # regulator
+        d['regulator_iout']=self.get_regulator_iout
+        d['regulator_temp1']=self.get_regulator_temp1
+        d['regulator_temp2']=self.get_regulator_temp2       
+        
         columns=[]
         names=[]
         fmt=''
