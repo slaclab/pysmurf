@@ -13,7 +13,7 @@ bands=range(8)
 shelfmanager='shm-smrf-sp01'
 
 #slots=[2,3,4]
-slots=[6]
+slots=[3]
 
 wait_before_setup_min=1
 wait_after_setup_min=0.5

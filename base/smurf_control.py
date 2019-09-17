@@ -21,8 +21,9 @@ class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin, Smu
 
     def __init__(self, epics_root=None,
                  cfg_file='/home/cryo/pysmurf/cfg_files/experiment_k2umux.cfg',
-                 data_dir=None, name=None, make_logfile=True, setup=False,
-                 offline=False, smurf_cmd_mode=False, no_dir=False,
+                 data_dir=None, name=None, make_logfile=True,
+                 setup=False, offline=False, smurf_cmd_mode=False,
+                 no_dir=False, publish=False,
                  shelf_manager='shm-smrf-sp01', **kwargs):
         '''
         Args:

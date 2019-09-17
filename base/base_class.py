@@ -76,38 +76,43 @@ class SmurfBase(object):
         self.channel_root = self.cryo_root + 'CryoChannel[{}]:'
 
         self.streaming_root = self.amcc + 'streamingInterface:'
+
+        # FpgaTopLevel
+        self.fpgatl = self.amcc + 'FpgaTopLevel:'
+
+        # AppTop
+        self.apptop = self.fpgatl + 'AppTop:'
+
+        # AppCore
+        self.appcore = self.apptop + 'AppCore:'        
+        
+        # AmcCarrierCore
+        self.amccc = self.fpgatl + 'AmcCarrierCore:'
         
         # Crossbar
-        self.crossbar = self.epics_root + \
-            ':AMCc:FpgaTopLevel:AmcCarrierCore:AxiSy56040:'
+        self.crossbar = self.amccc + 'AxiSy56040:'
+
+        # Regulator
+        self.regulator = self.amccc + 'IntelEnpirion:'
 
         # CarrierBsi
-        self.amc_carrier_bsi = self.epics_root + \
-            ':AMCc:FpgaTopLevel:AmcCarrierCore:AmcCarrierBsi:'
+        self.amc_carrier_bsi = self.amccc + 'AmcCarrierBsi:'
         
         # FPGA
-        self.ultrascale = self.epics_root + \
-            ':AMCc:FpgaTopLevel:AmcCarrierCore:AxiSysMonUltraScale:'
-        
+        self.ultrascale = self.amccc + 'AxiSysMonUltraScale:'
+    
         # Tx -> DAC , Rx <- ADC
-        self.axi_version = self.epics_root + \
-            ':AMCc:FpgaTopLevel:AmcCarrierCore:AxiVersion:'
-        self.waveform_engine_buffers_root = self.epics_root + \
-            ':AMCc:FpgaTopLevel:'+ \
-            'AmcCarrierCore:AmcCarrierBsa:BsaWaveformEngine[{}]:' + \
+        self.axi_version = self.amccc + 'AxiVersion:'
+        self.waveform_engine_buffers_root = self.amccc + \
+            'AmcCarrierBsa:BsaWaveformEngine[{}]:' + \
             'WaveformEngineBuffers:'
-        self.stream_data_writer_root = self.epics_root + \
-            ':AMCc:streamDataWriter:'
-        self.jesd_tx_root = self.epics_root + \
-            ':AMCc:FpgaTopLevel:AppTop:AppTopJesd[{}]:JesdTx:'
-        self.jesd_rx_root = self.epics_root + \
-            ':AMCc:FpgaTopLevel:AppTop:AppTopJesd[{}]:JesdRx:'
-        self.daq_mux_root = self.epics_root + \
-            ':AMCc:FpgaTopLevel:AppTop:DaqMuxV2[{}]:'
+        self.stream_data_writer_root = self.amcc + 'streamDataWriter:'
+        self.jesd_tx_root = self.apptop + 'AppTopJesd[{}]:JesdTx:'
+        self.jesd_rx_root = self.apptop + 'AppTopJesd[{}]:JesdRx:'
+        self.daq_mux_root = self.apptop + 'DaqMuxV2[{}]:'
 
         # RTM paths
-        self.rtm_cryo_det_root = self.epics_root + \
-            ':AMCc:FpgaTopLevel:AppTop:AppCore:RtmCryoDet:'
+        self.rtm_cryo_det_root = self.appcore + 'RtmCryoDet:'
         self.rtm_spi_root = self.rtm_cryo_det_root + \
             'RtmSpiSr:'
         self.rtm_spi_max_root = self.rtm_cryo_det_root + \
@@ -116,14 +121,9 @@ class SmurfBase(object):
             'SpiCryo:'
 
         # Timing paths
-        self.trigger_root = self.epics_root + \
-            ':AMCc:FpgaTopLevel:AmcCarrierCore:AmcCarrierTiming:' + \
-            'EvrV2CoreTriggers:'
-
-        # Timing status
-        self.timing_status = self.epics_root + \
-            ':AMCc:FpgaTopLevel:AmcCarrierCore:AmcCarrierTiming:' + \
-            'TimingFrameRx:'
+        self.amctiming = self.amccc + 'AmcCarrierTiming:'
+        self.trigger_root =  self.amctiming + 'EvrV2CoreTriggers:'
+        self.timing_status = self.amctiming + 'TimingFrameRx:'
 
         self.C = CryoCard(self.rtm_spi_cryo_root + 'read', 
             self.rtm_spi_cryo_root + 'write')
