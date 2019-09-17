@@ -258,10 +258,14 @@ class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin, Smu
         # Load in tuning parameters, if present
         tune_band_cfg=self.config.get('tune_band')
         tune_band_keys=tune_band_cfg.keys()
-        for cfg_var in ['gradient_descent_gain', 'gradient_descent_averages', 'eta_scan_averages','delta_freq']:
+        for cfg_var in ['gradient_descent_gain', 'gradient_descent_averages',
+                        'gradient_descent_converge_hz', 'gradient_descent_step_hz',
+                        'gradient_descent_momentum', 'gradient_descent_beta',
+                        'eta_scan_del_f',
+                        'eta_scan_amplitude', 'eta_scan_averages','delta_freq']:
             if cfg_var in tune_band_keys:
                 setattr(self, cfg_var, {})
-                for b in  bands:
+                for b in bands:
                     getattr(self,cfg_var)[b]=tune_band_cfg[cfg_var][str(b)]
 
         if setup:
@@ -374,8 +378,20 @@ class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin, Smu
                 self.set_gradient_descent_gain(b, self.gradient_descent_gain[b], write_log=write_log, **kwargs)
             if hasattr(self,'gradient_descent_averages') and b in self.gradient_descent_averages.keys():
                 self.set_gradient_descent_averages(b, self.gradient_descent_averages[b], write_log=write_log, **kwargs)
+            if hasattr(self,'gradient_descent_converge_hz') and b in self.gradient_descent_converge_hz.keys():
+                self.set_gradient_descent_converge_hz(b, self.gradient_descent_converge_hz[b], write_log=write_log, **kwargs)
+            if hasattr(self,'gradient_descent_step_hz') and b in self.gradient_descent_step_hz.keys():
+                self.set_gradient_descent_step_hz(b, self.gradient_descent_step_hz[b], write_log=write_log, **kwargs)
+            if hasattr(self,'gradient_descent_momentum') and b in self.gradient_descent_momentum.keys():
+                self.set_gradient_descent_momentum(b, self.gradient_descent_momentum[b], write_log=write_log, **kwargs)
+            if hasattr(self,'gradient_descent_beta') and b in self.gradient_descent_beta.keys():
+                self.set_gradient_descent_beta(b, self.gradient_descent_beta[b], write_log=write_log, **kwargs)
             if hasattr(self,'eta_scan_averages') and b in self.eta_scan_averages.keys():
                 self.set_eta_scan_averages(b, self.eta_scan_averages[b], write_log=write_log, **kwargs)
+            if hasattr(self,'eta_scan_amplitude') and b in self.eta_scan_amplitude.keys():
+                self.set_eta_scan_amplitude(b, self.eta_scan_amplitude[b], write_log=write_log, **kwargs)
+            if hasattr(self,'eta_scan_del_f') and b in self.eta_scan_del_f.keys():
+                self.set_eta_scan_del_f(b, self.eta_scan_del_f[b], write_log=write_log, **kwargs)
 
         # To work around issue where setting the UC attenuators is for
         # some reason also setting the UC attenuators for other bands

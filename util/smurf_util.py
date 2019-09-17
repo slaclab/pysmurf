@@ -1180,7 +1180,8 @@ class SmurfUtilMixin(SmurfBase):
         return ret
 
 
-    def read_stream_data_daq(self, data_length, bay=0, hw_trigger=False):
+    def read_stream_data_daq(self, data_length, bay=0,
+                             hw_trigger=False, write_log=False):
         """
         """
         # Ask mitch why this is what it is...
@@ -1196,9 +1197,9 @@ class SmurfUtilMixin(SmurfBase):
 
         # trigger PV
         if not hw_trigger:
-            self.set_trigger_daq(bay, 1, write_log=True)
+            self.set_trigger_daq(bay, 1, write_log=write_log)
         else:
-            self.set_arm_hw_trigger(bay, 1, write_log=True)
+            self.set_arm_hw_trigger(bay, 1, write_log=write_log)
 
         time.sleep(.1)
         sg.wait()
@@ -1379,7 +1380,8 @@ class SmurfUtilMixin(SmurfBase):
 
         return dat
 
-    def setup_daq_mux(self, converter, converter_number, data_length, band=0, debug=False):
+    def setup_daq_mux(self, converter, converter_number, data_length,
+                      band=0, debug=False, write_log=False):
         """
         Sets up for either ADC or DAC data taking.
 
@@ -1410,13 +1412,16 @@ class SmurfUtilMixin(SmurfBase):
         self.set_buffer_size(bay, data_length, debug)
         
         # input mux select
-        self.set_input_mux_sel(bay, 0, daq_mux_channel0, write_log=True)
-        self.set_input_mux_sel(bay, 1, daq_mux_channel1, write_log=True)
+        self.set_input_mux_sel(bay, 0, daq_mux_channel0,
+                               write_log=write_log)
+        self.set_input_mux_sel(bay, 1, daq_mux_channel1,
+                               write_log=write_log)
 
         # which f,df stream to route to MUX, maybe?
         self.set_debug_select(bay, band%4, write_log=True)
 
-    def set_buffer_size(self, bay, size, debug=False):
+    def set_buffer_size(self, bay, size, debug=False,
+                        write_log=False):
         """
         Sets the buffer size for reading and writing DAQs
 
@@ -1903,7 +1908,6 @@ class SmurfUtilMixin(SmurfBase):
         else:
             digitizer_frequency_mhz = self.get_digitizer_frequency_mhz(band, 
                 yml=yml)
-            bandCenterMHz = self.get_band_center_mhz(band, yml=yml)
             n_subbands = self.get_number_sub_bands(band, yml=yml)
 
         subband_width_MHz = 2 * digitizer_frequency_mhz / n_subbands
