@@ -23,8 +23,8 @@ class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin, Smu
                  cfg_file='/home/cryo/pysmurf/cfg_files/experiment_k2umux.cfg',
                  data_dir=None, name=None, make_logfile=True,
                  setup=False, offline=False, smurf_cmd_mode=False,
-                 no_dir=False, shelf_manager='shm-smrf-sp01',
-                 publish=False, **kwargs):
+                 no_dir=False, publish=False,
+                 shelf_manager='shm-smrf-sp01', **kwargs):
         '''
         Args:
         -----
@@ -281,7 +281,6 @@ class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin, Smu
         self.log('Setting up...', (self.LOG_USER))
 
         # If active, disable hardware logging while doing setup.
-        print(self._hardware_logging_thread)
         if self._hardware_logging_thread is not None:
             self.log('Hardware logging is enabled.  Pausing for setup.', (self.LOG_USER))
             self.pause_hardware_logging()
