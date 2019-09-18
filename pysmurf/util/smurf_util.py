@@ -1285,12 +1285,12 @@ class SmurfUtilMixin(SmurfBase):
             plt.grid()
 
             if save_plot:
-                plot_fn = '{}/{}_adc{}.png'.format(self.plot_dir,timestamp,adc_number)
+                plot_fn = '{}/{}_adc{}.png'.format(self.plot_dir,timestamp,band)
                 plt.savefig(plot_fn)
                 self.log('ADC plot saved to %s' % (plot_fn))    
             
         if save_data:
-            outfn=os.path.join(self.output_dir,'{}_adc{}'.format(timestamp,adc_number))
+            outfn=os.path.join(self.output_dir,'{}_adc{}'.format(timestamp,band))
             self.log('Saving raw adc data to {}'.format(outfn), self.LOG_USER)
             np.save(outfn, res)        
         
@@ -1305,7 +1305,7 @@ class SmurfUtilMixin(SmurfBase):
 
         Args:
         -----
-        band (int) : Which band.  Assumes adc number is band%4.
+        band (int) : Which band.  Assumes dac number is band%4.
         data_length (int): The number of samples
 
         Opt Args:
@@ -1369,12 +1369,12 @@ class SmurfUtilMixin(SmurfBase):
             plt.grid()
 
             if save_plot:
-                plot_fn = '{}/{}_dac{}.png'.format(self.plot_dir,timestamp,dac_number)
+                plot_fn = '{}/{}_dac{}.png'.format(self.plot_dir,timestamp,band)
                 plt.savefig(plot_fn)
                 self.log('DAC plot saved to %s' % (plot_fn))            
             
         if save_data:
-            outfn=os.path.join(self.output_dir,'{}_dac{}'.format(timestamp,dac_number))
+            outfn=os.path.join(self.output_dir,'{}_dac{}'.format(timestamp,band))
             self.log('Saving raw dac data to {}'.format(outfn), self.LOG_USER)
             np.save(outfn, res)
 
