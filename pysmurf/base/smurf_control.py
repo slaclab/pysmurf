@@ -281,7 +281,6 @@ class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin, Smu
         self.log('Setting up...', (self.LOG_USER))
 
         # If active, disable hardware logging while doing setup.
-        print(self._hardware_logging_thread)
         if self._hardware_logging_thread is not None:
             self.log('Hardware logging is enabled.  Pausing for setup.', (self.LOG_USER))
             self.pause_hardware_logging()
