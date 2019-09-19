@@ -132,6 +132,13 @@ config_pysmurf_serial () {
 	sleep 45
     fi
 
+    if [ "$run_full_band_response" = true ] ; then    
+	sleep 2
+	echo "-> Running full band response across all configured bands."
+	tmux send-keys -t ${tmux_session_name}:${slot_number} 'exec(open("scratch/shawn/full_band_response.py").read())' C-m    
+	grep -q "Done running full_band_response.py." <(docker logs $pysmurf_docker -f)
+    fi
+    
     if [ "$run_half_band_test" = true ] ; then    
 	sleep 2
 	echo "-> Running half-band fill test"

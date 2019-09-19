@@ -21,6 +21,7 @@ configure_pysmurf=true
 reboot=true
 using_timing_master=false
 run_half_band_test=false
+run_full_band_response=false
 write_config=false
 start_atca_monitor=true
 # still not completely parallel.  Also doesn't work.
