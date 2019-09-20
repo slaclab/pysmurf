@@ -2,6 +2,8 @@ import numpy as np
 from .logger import SmurfLogger
 from pysmurf.command.cryo_card import CryoCard
 
+from pysmurf.util.pub import Publisher
+
 class SmurfBase(object):
     '''
     Base class for common things
@@ -27,7 +29,19 @@ class SmurfBase(object):
     Overall progress on a task
     """
 
-    def __init__(self, log=None, epics_root=None, offline=False, **kwargs):
+    def __init__(self, log=None, epics_root=None, offline=False,
+                 pub_root=None, script_id=None, **kwargs):
+        """
+        Opt Arguments
+        --------------
+        pub_root (str):
+            Root of environment vars to set publisher options. If None, the
+            default root will be "SMURFPUB_".
+
+        script_id (str):
+            Script id included with publisher messages. For example, the
+            script or operation name.
+        """
         # Set up logging
         self.log = log
         if self.log is None:
@@ -36,6 +50,10 @@ class SmurfBase(object):
             verb = kwargs.pop('verbose', None)
             if verb is not None:
                 self.set_verbose(verb)
+
+        # If <pub_root>BACKEND environment variable is not set to 'udp', all
+        # publish calls will be no-ops.
+        self.pub = Publisher(env_root=pub_root, script_id=script_id)
 
         self.offline = offline
         if self.offline == True:

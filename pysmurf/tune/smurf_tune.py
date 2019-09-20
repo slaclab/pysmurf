@@ -182,8 +182,10 @@ class SmurfTuneMixin(SmurfBase):
 
         if save_data:
             self.log('Saving resonances to {}'.format(self.output_dir))
-            np.save(os.path.join(self.output_dir, 
-                '{}_b{}_resonances'.format(timestamp, band)), resonances)
+            path = os.path.join(self.output_dir,
+                                '{}_b{}_resonances'.format(timestamp, band))
+            np.save(path, resonances)
+            self.pub.register_file(path, 'resonances', format='npyt')
 
         # Assign resonances to channels
         self.log('Assigning channels')
@@ -656,8 +658,9 @@ class SmurfTuneMixin(SmurfBase):
 
         if save_plot:
             save_name = '{}_tune_summary.png'.format(timestamp)
-            plt.savefig(os.path.join(self.plot_dir, save_name),
-                        bbox_inches='tight')
+            path = os.path.join(self.plot_dir, save_name)
+            plt.savefig(path, bbox_inches='tight')
+            self.pub.register_file(path, 'tune', plot=True)
             if not show_plot:
                 plt.close()
 
@@ -761,10 +764,14 @@ class SmurfTuneMixin(SmurfBase):
 
             if save_raw_data:
                 self.log('Saving raw data...', self.LOG_USER)
-                np.save(os.path.join(self.output_dir, 
-                    '{}_adc'.format(timestamp)), adc)
-                np.save(os.path.join(self.output_dir,
-                    '{}_dac'.format(timestamp)), dac)
+
+                path = os.path.join(self.output_dir, '{}_adc'.format(timestamp))
+                np.save(path, adc)
+                self.pub.register_file(path, 'adc', format='npy')
+
+                path = os.path.join(self.output_dir,'{}_dac'.format(timestamp))
+                np.save(path, dac)
+                self.pub.register_file(path, 'dac', format='npy')
 
             # To do : Implement cross correlation to get shift
             
@@ -809,9 +816,10 @@ class SmurfTuneMixin(SmurfBase):
             # plt.tight_layout()
 
             if save_plot:
-                plt.savefig(os.path.join(self.plot_dir, 
-                    '{}_b{}_full_band_resp_raw.png'.format(timestamp, band)),
-                    bbox_inches='tight')
+                path = os.path.join(self.plot_dir,
+                    '{}_b{}_full_band_resp_raw.png'.format(timestamp, band))
+                plt.savefig(path, bbox_inches='tight')
+                self.pub.register_file(path, 'response', plot=True)
                 plt.close()
 
             fig, ax = plt.subplots(1)
@@ -821,9 +829,11 @@ class SmurfTuneMixin(SmurfBase):
             ax.set_ylabel('Response')
             ax.set_title(timestamp)
             if save_plot:
-                plt.savefig(os.path.join(self.plot_dir, 
-                    '{}_b{}_full_band_resp.png'.format(timestamp, band)),
-                    bbox_inches='tight')
+                path = os.path.join(self.plot_dir,
+                             '{}_b{}_full_band_resp.png'.format(timestamp,
+                                                                band))
+                plt.savefig(path, bbox_inches='tight')
+                self.pub.register_file(path, 'response', plot=True)
             if show_plot:
                 plt.show()
             else:
@@ -831,12 +841,18 @@ class SmurfTuneMixin(SmurfBase):
 
         if save_data:
             save_name = timestamp + '_{}_full_band_resp.txt'
-            np.savetxt(os.path.join(self.output_dir, save_name.format('freq')), 
-                f)
-            np.savetxt(os.path.join(self.output_dir, save_name.format('real')), 
-                np.real(resp))
-            np.savetxt(os.path.join(self.output_dir, save_name.format('imag')), 
-                np.imag(resp))
+
+            path = os.path.join(self.output_dir, save_name.format('freq'))
+            np.savetxt(path, f)
+            self.pub.register(path, 'full_band_resp', format='txt')
+
+            path = os.path.join(self.output_dir, save_name.format('real'))
+            np.savetxt(path, np.real(resp))
+            self.pub.register(path, 'full_band_resp', format='txt')
+
+            path = os.path.join(self.output_dir, save_name.format('imag'))
+            np.savetxt(path, np.imag(resp))
+            self.pub.register(path, 'full_band_resp', format='txt')
             
         return f, resp
 
@@ -959,8 +975,9 @@ class SmurfTuneMixin(SmurfBase):
                 if subband is not None:
                     save_name = save_name + '_sb{}'.format(int(subband))
                 save_name = save_name + '_find_freq.png'
-                plt.savefig(os.path.join(self.plot_dir, save_name),
-                            bbox_inches='tight', dpi=300)
+                path = os.path.join(self.plot_dir, save_name)
+                plt.savefig(path, bbox_inches='tight', dpi=300)
+                self.pub.register_file(path, 'find_freq', plot=True)
             if show_plot:
                 plt.show()
             else:
@@ -1039,8 +1056,9 @@ class SmurfTuneMixin(SmurfBase):
 
                     if save_plot:
                         save_name = '{}_find_freq_b{}_sb{:03}.png'.format(timestamp, band, sb)
-                        plt.savefig(os.path.join(self.plot_dir, save_name),
-                                    bbox_inches='tight')
+                        os.path.join(self.plot_dir, save_name)
+                        plt.savefig(path, bbox_inches='tight')
+                        self.pub.register_file(path, 'find_freq', plot=True)
                         plt.close()
                 else:
                     self.log('No data for subband {}'.format(sb))
@@ -1177,8 +1195,11 @@ class SmurfTuneMixin(SmurfBase):
                 save_name = 'find_peak.png'
             else:
                 self.log('Plotting saved to {}'.format(save_name))
-            plt.savefig(os.path.join(self.plot_dir, save_name),
-                bbox_inches='tight')
+
+            path = os.path.join(self.plot_dir, save_name)
+            plt.savefig(path, bbox_inches='tight')
+            self.pub.register_file(path, 'find_freq', plot=True)
+
             plt.close()
 
     def eta_fit(self, freq, resp, peak_freq, delta_freq,
@@ -1456,8 +1477,10 @@ class SmurfTuneMixin(SmurfBase):
                     res_num)
             else:
                 save_name = '{}_eta.png'.format(timestamp)
-            plt.savefig(os.path.join(self.plot_dir, save_name), 
-                bbox_inches='tight')
+
+            path = os.path.join(self.plot_dir, save_name)
+            plt.savefig(path, bbox_inches='tight')
+            self.pub.register_file(path, 'eta', plot=True)
 
         if not show_plot:
             plt.close()
@@ -2182,8 +2205,10 @@ class SmurfTuneMixin(SmurfBase):
                     save_name = save_name + '_no_FR'
                 save_name = save_name+ \
                     '_b{}_sb{:03}_flux_ramp_check.png'.format(band, sb)
-                plt.savefig(os.path.join(self.plot_dir, save_name),
-                            bbox_inches='tight')
+                path = os.path.join(self.plot_dir, save_name)
+                plt.savefig(path, bbox_inches='tight')
+                self.pub.register_file(path, 'flux_ramp', plot=True)
+
                 if not show_plot:
                     plt.close()
 
@@ -2373,8 +2398,11 @@ class SmurfTuneMixin(SmurfBase):
             fig.tight_layout(rect=[0, 0.03, 1, 0.95])
             
             if save_plot:
-                plt.savefig(os.path.join(self.plot_dir, timestamp + 
-                            '_FR_amp_v_err.png'),bbox_inches='tight')
+                path = os.path.join(self.plot_dir,
+                                    timestamp + '_FR_amp_v_err.png')
+                plt.savefig(path,bbox_inches='tight')
+                self.pub.register_file(path, 'amp_vs_err', plot=True)
+
             if not show_plot:
                 plt.close()
 
@@ -2420,9 +2448,12 @@ class SmurfTuneMixin(SmurfBase):
                     plt.tight_layout()
 
                     if save_plot:
-                        plt.savefig(os.path.join(self.plot_dir, timestamp + 
-                                                 '_FRtracking_band{}_ch{:03}.png'.format(band,ch)),
-                                    bbox_inches='tight')
+                        path = os.path.join(self.plot_dir,
+                                            timestamp + '_FRtracking_band{}_ch{:03}.png'
+                                            .format(band,ch))
+                        plt.savefig(path, bbox_inches='tight')
+                        self.pub.register_file(path, 'tracking', plot=True)
+
                     if not show_plot:
                         plt.close()
 
@@ -2913,10 +2944,14 @@ class SmurfTuneMixin(SmurfBase):
 
         # Save data
         save_name = '{}_amp_sweep_{}.txt'
-        np.savetxt(os.path.join(self.output_dir, 
-            save_name.format(timestamp, 'freq')), f)
-        np.savetxt(os.path.join(self.output_dir, 
-            save_name.format(timestamp, 'resp')), resp)
+
+        path = os.path.join(self.output_dir, save_name.format(timestamp, 'freq'))
+        np.savetxt(path, f)
+        self.pub.register_file(path, 'sweep_response', format='txt')
+        
+        path = os.path.join(self.output_dir, save_name.format(timestamp, 'resp'))
+        np.savetxt(path, resp)
+        self.pub.register_file(path, 'sweep_response', format='txt')
 
         # Place in dictionary - dictionary declared in smurf_control
         self.freq_resp[band]['find_freq'] = {}
@@ -2936,9 +2971,10 @@ class SmurfTuneMixin(SmurfBase):
         self.freq_resp[band]['find_freq']['resonance'] = res_freq
 
         # Save resonances
-        np.savetxt(os.path.join(self.output_dir,
-            save_name.format(timestamp, 'resonance')), 
-            self.freq_resp[band]['find_freq']['resonance'])
+        path = os.path.join(self.output_dir,
+                            save_name.format(timestamp, 'resonance'))
+        np.savetxt(path, self.freq_resp[band]['find_freq']['resonance'])
+        self.pub.register_file(path, 'resonances', format='txt')
 
         # Call plotting
         if make_plot:
@@ -2987,8 +3023,9 @@ class SmurfTuneMixin(SmurfBase):
             plt.ylabel("Normalized Amplitude")
 
             if save_plot:
-                plt.savefig(os.path.join(self.plot_dir, save_name),
-                    bbox_inches='tight')
+                path = os.path.join(self.plot_dir, save_name)
+                plt.savefig(path, bbox_inches='tight')
+                self.pub.register_file(path, 'response', plot=True)
 
             if show_plot:
                 plt.show()
@@ -3183,8 +3220,10 @@ class SmurfTuneMixin(SmurfBase):
                 save_name = 'find_peak.png'
             else:
                 self.log('Plotting saved to {}'.format(save_name))
-            plt.savefig(os.path.join(self.plot_dir, save_name),
-                bbox_inches='tight')
+
+            path = os.path.join(self.plot_dir, save_name)
+            plt.savefig(path, bbox_inches='tight')
+            self.pub.register_file(path, 'find_peak', plot=True)
             plt.close()
 
     def find_all_peak(self, freq, resp, subband=None, rolling_med=False, 
@@ -3418,6 +3457,8 @@ class SmurfTuneMixin(SmurfBase):
         savedir = os.path.join(self.tune_dir, timestamp+"_tune")
         self.log('Saving to : {}.npy'.format(savedir))
         np.save(savedir, self.freq_resp)
+        self.pub.register_file(savedir, 'tune', format='npy')
+
         self.tune_file = savedir+'.npy'
 
         return savedir + ".npy"
@@ -3961,9 +4002,11 @@ class SmurfTuneMixin(SmurfBase):
             # do we want to save? default will be false
             if save_sweeps:
                 save_name = '{}_amp_sweep_b{}_{}.txt'
-                np.savetxt(os.path.join(self.output_dir,save_name.format(\
-                        timestamp, str(band), 'resonance')), \
-                        freq_dict[band]['find_freq']['resonance'])
+
+                path = os.path.join(self.output_dir,
+                                    save_name.format(timestamp, str(band),'resonance'))
+                np.savetxt(path, freq_dict[band]['find_freq']['resonance'])
+                self.pub.register_file(path, 'resonances', format='txt')
 
 
         return freq_dict
