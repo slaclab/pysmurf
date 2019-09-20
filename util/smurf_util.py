@@ -3286,7 +3286,55 @@ class SmurfUtilMixin(SmurfBase):
         hdr=fmt.format(names)
         row=fmt.format(columns)
         return hdr,row
-        
-        
-        
-        
+
+    def play_tes_bipolar_waveform(self, bias_group, waveform, do_enable=True, **kwargs):
+        """
+        bias_group (int): The bias group
+        """
+        bias_order = self.bias_group_to_pair[:,0]
+        dac_positives = self.bias_group_to_pair[:,1]
+        dac_negatives = self.bias_group_to_pair[:,2]
+
+        dac_idx = np.ravel(np.where(bias_order == bias_group))
+
+        dac_positive = dac_positives[dac_idx][0]
+        dac_negative = dac_negatives[dac_idx][0]
+
+        # https://confluence.slac.stanford.edu/display/SMuRF/SMuRF+firmware#SMuRFfirmware-RTMDACarbitrarywaveforms
+        # Target the two bipolar DACs assigned to this bias group:
+        self.set_dac_axil_addr(0,dac_positive)
+        self.set_dac_axil_addr(1,dac_negative)
+
+        # Enable waveform generation (3=on both DACs)
+        self.set_rtm_arb_waveform_enable(3)
+
+        # Must enable the DACs (if not enabled already)
+        if do_enable:
+            self.set_tes_bias_enable(dac_positive, 2, **kwargs)
+            self.set_tes_bias_enable(dac_negative, 2, **kwargs)
+
+        # Load waveform into each DAC's LUT table.  Opposite sign so
+        # they combine coherently
+        self.set_rtm_arb_waveform_lut_table(0,waveform)
+        self.set_rtm_arb_waveform_lut_table(1,-waveform)
+
+        # Continous mode to play the waveform continuously
+        self.set_rtm_arb_waveform_continuous(1)
+
+    # Readback on which DACs are selected is broken right now,
+    # so has to be specified.
+    def stop_tes_bipolar_waveform(self, bias_group, zero=0, **kwargs):
+        """
+        bias_group (int): The bias group
+        """
+        # https://confluence.slac.stanford.edu/display/SMuRF/SMuRF+firmware#SMuRFfirmware-RTMDACarbitrarywaveforms
+        # Target the two bipolar DACs assigned to this bias group:
+        self.set_dac_axil_addr(0,0) # Disabled
+        self.set_dac_axil_addr(1,0) # Disabled
+
+        # Enable waveform generation (3=on both DACs)
+        self.set_rtm_arb_waveform_enable(0)
+
+        # Zero TES biases on this bias group
+        self.set_tes_bias_bipolar(bias_group, 0)
+

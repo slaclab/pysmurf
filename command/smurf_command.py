@@ -2114,6 +2114,250 @@ class SmurfCommandMixin(SmurfBase):
         return self._caget(self.daq_mux_root.format(bay) + self._trigger_hw_arm, **kwargs)
 
     # rtm commands
+
+    #########################################################    
+    ## start rtm arbitrary waveform
+
+    _rtm_arb_waveform_lut_table = 'Lut[{}]:MemArray'
+    def get_rtm_arb_waveform_lut_table(self, reg, **kwargs):
+        '''
+        Gets the table currently loaded into the LUT table indexed by
+        reg.
+        '''
+        assert (reg in range(2)), 'reg must be in [0,1]'        
+        return self._caget(self.rtm_lut_ctrl_root + \
+                           self._rtm_arb_waveform_lut_table.format(reg), \
+                           **kwargs)
+
+    def set_rtm_arb_waveform_lut_table(self, reg, arr, pad=0, **kwargs):
+        '''
+        Loads provided array into the LUT table indexed by reg.  If
+        array is empty, loads zeros into table.  If array exceeds
+        maximum length of 2048 entries, array is truncated.  If array
+        is less than 2048 entries, the table is padded on the end with
+        the value in the pad argument.
+
+        Args:
+        -----
+        arr (int array): Array of values to load into LUT table.  Each
+                         entry must be an integer and in [0,2^20).  
+
+        Opt Args:
+        -----
+        pad (int): Value to pad end of array with if provided array's
+                   length is less than 2048.  Default is 0.
+        '''
+        # cast as numpy array
+        lut_array_length=2048
+        lut_arr=np.pad(arr[:lut_array_length], \
+                       (0,lut_array_length-len(arr[:lut_array_length])), \
+                       'constant', constant_values=pad)
+        # round entries and type as integer
+        lut_arr=np.around(lut_arr).astype(int)
+
+        # clip ; DAC full scale is +/- 2**19
+        dac_nbits_fullscale=20
+        # warn user if some points get clipped
+        num_clip_above=len(np.where(lut_arr>(2**(dac_nbits_fullscale-1)-1))[0])
+        if num_clip_above>0:
+            self.log('{} points in LUT table exceed (2**{})-1.  Will be clipped to (2**{})-1.'.format(num_clip_above,(dac_nbits_fullscale-1),(dac_nbits_fullscale-1)))        
+        num_clip_below=len(np.where(lut_arr<(-2**(dac_nbits_fullscale-1)))[0])
+        if num_clip_below>0:
+            self.log('{} points in LUT table are less than -2**{}.  Will be clipped to -2**{}.'.format(num_clip_below,(dac_nbits_fullscale-1),(dac_nbits_fullscale-1)))               
+        # clip the array 
+        lut_arr=np.clip(lut_arr,a_min=-2**(dac_nbits_fullscale-1),a_max=2**(dac_nbits_fullscale-1)-1)
+        self._caput(self.rtm_lut_ctrl_root + \
+                    self._rtm_arb_waveform_lut_table.format(reg), \
+                    lut_arr, \
+                    **kwargs)    
+    
+    _rtm_arb_waveform_busy = 'Busy'
+    def get_rtm_arb_waveform_busy(self, **kwargs):
+        '''
+        =1 if waveform if Continuous=1 and the RTM arbitrary waveform
+        is being continously generated.  Can be toggled low again by
+        setting Continuous=0.
+        '''
+        return self._caget(self.rtm_lut_ctrl +
+                           self._rtm_arb_waveform_busy, \
+                           **kwargs)
+
+    _rtm_arb_waveform_trig_cnt = 'TrigCnt'
+    def get_rtm_arb_waveform_trig_cnt(self, **kwargs):
+        '''
+        Counts the number of RTM arbitrary waveform software triggers
+        since boot up or the last CntRst.
+        '''
+        return self._caget(self.rtm_lut_ctrl +
+                           self._rtm_arb_waveform_trig_cnt, \
+                           **kwargs)    
+    
+    _rtm_arb_waveform_continuous = 'Continuous'
+    def get_rtm_arb_waveform_continuous(self, **kwargs):
+        '''
+        If =1, RTM arbitrary waveform generation is continuous and
+        repeats, otherwise if =0, waveform in LUT tables is only
+        broadcast once on software trigger.
+        '''
+        return self._caget(self.rtm_lut_ctrl + \
+                           self._rtm_arb_waveform_continuous, \
+                           **kwargs)
+    
+    def set_rtm_arb_waveform_continuous(self, val, **kwargs):
+        '''
+        If =1, RTM arbitrary waveform generation is continuous and
+        repeats, otherwise if =0, waveform in LUT tables is only
+        broadcast once on software trigger.
+
+        Args:
+        -----
+        val (int): Whether or not arbitrary waveform generation is
+                   continuous on software trigger.  Must be in [0,1].
+        '''
+        assert (val in range(2)), 'val must be in [0,1]'                
+        self._caput(self.rtm_lut_ctrl + \
+                    self._rtm_arb_waveform_continuous, \
+                    val, \
+                    **kwargs)                    
+    
+    _rtm_arb_waveform_software_trigger = 'SwTrig'
+    def trigger_rtm_arb_waveform(self, continuous=False, **kwargs):
+        '''
+        Software trigger for arbitrary waveform generation on the slow
+        RTM DACs.  This will cause the RTM to play the LUT tables only
+        once.
+
+        Args:
+        -----
+        continuous (bool): Whether or not to continously broadcast the
+                           arbitrary waveform on software trigger.
+                           Default False.
+        '''        
+        if continuous is True:
+            self.set_rtm_arb_waveform_continuous(1)
+        else:
+            self.set_rtm_arb_waveform_continuous(0)
+            
+        triggerPV=self.rtm_lut_ctrl + \
+                  self._rtm_arb_waveform_software_trigger
+        self._caput(triggerPV, \
+                    1, \
+                    **kwargs)
+        self.log('{} sent'.format(triggerPV), self.LOG_USER)
+    
+    _dac_axil_addr = 'DacAxilAddr[{}]'
+    def get_dac_axil_addr(self, reg, **kwargs):
+        '''
+        Gets the DacAxilAddr[#] registers.
+        '''
+        assert (reg in range(2)), 'reg must be in [0,1]'        
+        return self._caget(self.rtm_lut_ctrl + \
+                           self._dac_axil_addr.format(reg), \
+                           **kwargs)
+    
+    def set_dac_axil_addr(self, reg, val, **kwargs):
+        '''
+        Sets the DacAxilAddr[#] registers.
+        '''
+        assert (reg in range(2)), 'reg must be in [0,1]'                
+        self._caput(self.rtm_lut_ctrl + \
+                    self._dac_axil_addr.format(reg), val, **kwargs)
+
+    _rtm_arb_waveform_timer_size = 'TimerSize'
+    def get_rtm_arb_waveform_timer_size(self, **kwargs):
+        '''
+        Arbitrary waveforms are written to the slow RTM DACs with time
+        between samples TimerSize*6.4ns.
+        '''
+        return self._caget(self.rtm_lut_ctrl +
+                           self._rtm_arb_waveform_timer_size, \
+                           **kwargs)
+
+    def set_rtm_arb_waveform_timer_size(self, val, **kwargs):
+        '''
+        Arbitrary waveforms are written to the slow RTM DACs with time
+        between samples TimerSize*6.4ns.
+
+        Args:
+        -----
+        val (int): The value to set TimerSize to.  Must be an integer
+                   in [0,2**24).
+        '''
+        assert (val in range(2**24)), 'reg must be in [0,16777216)'
+        self._caput(self.rtm_lut_ctrl +
+                    self._rtm_arb_waveform_timer_size, \
+                    val, \
+                    **kwargs)
+
+    _rtm_arb_waveform_max_addr = 'MaxAddr'
+    def get_rtm_arb_waveform_max_addr(self, **kwargs):
+        '''
+        Slow RTM DACs will play the sequence [0...MaxAddr] of points
+        out of the loaded LUT tables before stopping or repeating on
+        software trigger (if in continuous mode).  MaxAddr is an
+        11-bit number (must be in [0,2048), because that's the maximum
+        length of the LUT tables that store the waveforms.
+        '''
+        return self._caget(self.rtm_lut_ctrl +
+                           self._rtm_arb_waveform_max_addr, \
+                           **kwargs)
+
+    def set_rtm_arb_waveform_max_addr(self, val, **kwargs):
+        '''
+        Slow RTM DACs will play the sequence [0...MaxAddr] of points
+        out of the loaded LUT tables before stopping or repeating on
+        software trigger (if in continuous mode).  MaxAddr is an
+        11-bit number (must be in [0,2048), because that's the maximum
+        length of the LUT tables that store the waveforms.
+
+        Args:
+        -----
+        val (int): The value to set MaxAddr to.  Must be an integer
+                   in [0,2048).
+        '''
+        assert (val in range(2**11)), 'reg must be in [0,2048)'
+        self._caput(self.rtm_lut_ctrl +
+                    self._rtm_arb_waveform_max_addr, \
+                    val, \
+                    **kwargs)    
+
+    _rtm_arb_waveform_enable = 'EnableCh'
+    def get_rtm_arb_waveform_enable(self, **kwargs):
+        '''
+        Enable for generation of arbitrary waveforms on the RTM slow
+        DACs.
+        
+        EnableCh = 0x0 is disable
+        0x1 is Addr[0]
+        0x2 is Addr[1]
+        0x3 is Addr[0] and Addr[1]
+        '''
+        return self._caget(self.rtm_lut_ctrl + \
+                           self._rtm_arb_waveform_enable, \
+                           **kwargs)
+    
+    def set_rtm_arb_waveform_enable(self, val, **kwargs):
+        '''
+        Sets the enable for generation of arbitrary waveforms on the
+        RTM slow DACs.
+
+        Args:
+        -----
+        val (int): The value to set enable to.  
+           EnableCh = 0x0 is disable
+           0x1 is Addr[0]
+           0x2 is Addr[1]
+           0x3 is Addr[0] and Addr[1]
+        '''
+        assert (val in range(4)), 'reg must be in [0,1,2,3]'
+        self._caput(self.rtm_lut_ctrl + \
+                    self._rtm_arb_waveform_enable, \
+                    val, \
+                    **kwargs)
+
+    ## end rtm arbitrary waveform
+    #########################################################
+    
     _reset_rtm = 'resetRtm'
     def reset_rtm(self, **kwargs):
         '''
