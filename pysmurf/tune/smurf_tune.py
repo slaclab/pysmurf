@@ -658,8 +658,9 @@ class SmurfTuneMixin(SmurfBase):
 
         if save_plot:
             save_name = '{}_tune_summary.png'.format(timestamp)
-            plt.savefig(os.path.join(self.plot_dir, save_name),
-                        bbox_inches='tight')
+            path = os.path.join(self.plot_dir, save_name)
+            plt.savefig(path, bbox_inches='tight')
+            self.pub.register_file(path, 'tune', plot=True)
             if not show_plot:
                 plt.close()
 
@@ -815,9 +816,10 @@ class SmurfTuneMixin(SmurfBase):
             # plt.tight_layout()
 
             if save_plot:
-                plt.savefig(os.path.join(self.plot_dir, 
-                    '{}_b{}_full_band_resp_raw.png'.format(timestamp, band)),
-                    bbox_inches='tight')
+                path = os.path.join(self.plot_dir,
+                    '{}_b{}_full_band_resp_raw.png'.format(timestamp, band))
+                plt.savefig(path, bbox_inches='tight')
+                self.pub.register_file(path, 'response', plot=True)
                 plt.close()
 
             fig, ax = plt.subplots(1)
@@ -827,9 +829,11 @@ class SmurfTuneMixin(SmurfBase):
             ax.set_ylabel('Response')
             ax.set_title(timestamp)
             if save_plot:
-                plt.savefig(os.path.join(self.plot_dir, 
-                    '{}_b{}_full_band_resp.png'.format(timestamp, band)),
-                    bbox_inches='tight')
+                path = os.path.join(self.plot_dir,
+                             '{}_b{}_full_band_resp.png'.format(timestamp,
+                                                                band))
+                plt.savefig(path, bbox_inches='tight')
+                self.pub.register_file(path, 'response', plot=True)
             if show_plot:
                 plt.show()
             else:
@@ -971,8 +975,9 @@ class SmurfTuneMixin(SmurfBase):
                 if subband is not None:
                     save_name = save_name + '_sb{}'.format(int(subband))
                 save_name = save_name + '_find_freq.png'
-                plt.savefig(os.path.join(self.plot_dir, save_name),
-                            bbox_inches='tight', dpi=300)
+                path = os.path.join(self.plot_dir, save_name)
+                plt.savefig(path, bbox_inches='tight', dpi=300)
+                self.pub.register_file(path, 'find_freq', plot=True)
             if show_plot:
                 plt.show()
             else:
@@ -1051,8 +1056,9 @@ class SmurfTuneMixin(SmurfBase):
 
                     if save_plot:
                         save_name = '{}_find_freq_b{}_sb{:03}.png'.format(timestamp, band, sb)
-                        plt.savefig(os.path.join(self.plot_dir, save_name),
-                                    bbox_inches='tight')
+                        os.path.join(self.plot_dir, save_name)
+                        plt.savefig(path, bbox_inches='tight')
+                        self.pub.register_file(path, 'find_freq', plot=True)
                         plt.close()
                 else:
                     self.log('No data for subband {}'.format(sb))
@@ -1189,8 +1195,11 @@ class SmurfTuneMixin(SmurfBase):
                 save_name = 'find_peak.png'
             else:
                 self.log('Plotting saved to {}'.format(save_name))
-            plt.savefig(os.path.join(self.plot_dir, save_name),
-                bbox_inches='tight')
+
+            path = os.path.join(self.plot_dir, save_name)
+            plt.savefig(path, bbox_inches='tight')
+            self.pub.register_file(path, 'find_freq', plot=True)
+
             plt.close()
 
     def eta_fit(self, freq, resp, peak_freq, delta_freq,
@@ -1468,8 +1477,10 @@ class SmurfTuneMixin(SmurfBase):
                     res_num)
             else:
                 save_name = '{}_eta.png'.format(timestamp)
-            plt.savefig(os.path.join(self.plot_dir, save_name), 
-                bbox_inches='tight')
+
+            path = os.path.join(self.plot_dir, save_name)
+            plt.savefig(path, bbox_inches='tight')
+            self.pub.register_file(path, 'eta', plot=True)
 
         if not show_plot:
             plt.close()
@@ -2194,8 +2205,10 @@ class SmurfTuneMixin(SmurfBase):
                     save_name = save_name + '_no_FR'
                 save_name = save_name+ \
                     '_b{}_sb{:03}_flux_ramp_check.png'.format(band, sb)
-                plt.savefig(os.path.join(self.plot_dir, save_name),
-                            bbox_inches='tight')
+                path = os.path.join(self.plot_dir, save_name)
+                plt.savefig(path, bbox_inches='tight')
+                self.pub.register_file(path, 'flux_ramp', plot=True)
+
                 if not show_plot:
                     plt.close()
 
@@ -2385,8 +2398,11 @@ class SmurfTuneMixin(SmurfBase):
             fig.tight_layout(rect=[0, 0.03, 1, 0.95])
             
             if save_plot:
-                plt.savefig(os.path.join(self.plot_dir, timestamp + 
-                            '_FR_amp_v_err.png'),bbox_inches='tight')
+                path = os.path.join(self.plot_dir,
+                                    timestamp + '_FR_amp_v_err.png')
+                plt.savefig(path,bbox_inches='tight')
+                self.pub.register_file(path, 'amp_vs_err', plot=True)
+
             if not show_plot:
                 plt.close()
 
@@ -2432,9 +2448,12 @@ class SmurfTuneMixin(SmurfBase):
                     plt.tight_layout()
 
                     if save_plot:
-                        plt.savefig(os.path.join(self.plot_dir, timestamp + 
-                                                 '_FRtracking_band{}_ch{:03}.png'.format(band,ch)),
-                                    bbox_inches='tight')
+                        path = os.path.join(self.plot_dir,
+                                            timestamp + '_FRtracking_band{}_ch{:03}.png'
+                                            .format(band,ch))
+                        plt.savefig(path, bbox_inches='tight')
+                        self.pub.register_file(path, 'tracking', plot=True)
+
                     if not show_plot:
                         plt.close()
 
@@ -3004,8 +3023,9 @@ class SmurfTuneMixin(SmurfBase):
             plt.ylabel("Normalized Amplitude")
 
             if save_plot:
-                plt.savefig(os.path.join(self.plot_dir, save_name),
-                    bbox_inches='tight')
+                path = os.path.join(self.plot_dir, save_name)
+                plt.savefig(path, bbox_inches='tight')
+                self.pub.register_file(path, 'response', plot=True)
 
             if show_plot:
                 plt.show()
@@ -3200,8 +3220,10 @@ class SmurfTuneMixin(SmurfBase):
                 save_name = 'find_peak.png'
             else:
                 self.log('Plotting saved to {}'.format(save_name))
-            plt.savefig(os.path.join(self.plot_dir, save_name),
-                bbox_inches='tight')
+
+            path = os.path.join(self.plot_dir, save_name)
+            plt.savefig(path, bbox_inches='tight')
+            self.pub.register_file(path, 'find_peak', plot=True)
             plt.close()
 
     def find_all_peak(self, freq, resp, subband=None, rolling_med=False, 

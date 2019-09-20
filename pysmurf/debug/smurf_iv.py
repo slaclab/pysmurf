@@ -435,8 +435,9 @@ class SmurfIVMixin(SmurfBase):
                 plot_name = basename + \
                     '_IV_stream_b{}_g{}_ch{:03}.png'.format(b, bg_str, ch)
                 if save_plot:
-                    plt.savefig(os.path.join(plot_dir, plot_name), 
-                        bbox_inches='tight', dpi=300)
+                    plot_fn = os.path.join(plot_dir, plot_name)
+                    plt.savefig(plot_fn, bbox_inches='tight', dpi=300)
+                    self.pub.register_file(plot_fn, 'iv_stream', plot=True)
                 if not show_plot:
                     plt.close()
 
@@ -550,6 +551,8 @@ class SmurfIVMixin(SmurfBase):
             iv_hist_filename = os.path.join(plot_dir,\
                                                 '%s_IV_hist.png' % (basename))
             plt.savefig(iv_hist_filename,bbox_inches='tight')
+            self.pub.register_file(iv_hist_filename, 'iv_hist', plot=True)
+
             self.log('Saved IV histogram to {}'.format(iv_hist_filename))
             if not show_plot:
                 plt.close()
@@ -834,6 +837,8 @@ class SmurfIVMixin(SmurfBase):
                 plot_filename = os.path.join(plot_dir, plot_name)
                 self.log('Saving IV plot to {}'.format(plot_filename))
                 plt.savefig(plot_filename,bbox_inches='tight')
+                self.pub.register_file(plot_filename, 'iv', plot=True)
+
             if show_plot:
                 plt.show()
             else:
@@ -943,8 +948,9 @@ class SmurfIVMixin(SmurfBase):
 
                     plot_name = basename + \
                         'plc_stream_b{}_g{}_ch{:03}.png'.format(b, bg_str, ch)
-                    plt.savefig(of.path.join(plot_dir, plt_name), bbox_inches='tight', 
-                        dpi=300)
+                    path = os.path.join(plot_dir, plot_name)
+                    plt.savefig(path, bbox_inches='tight', dpi=300)
+                    self.pub.register_file(path, 'plc_stream', plot=True)
 
                 if not show_plot:
                     plt.close()
@@ -1134,9 +1140,10 @@ class SmurfIVMixin(SmurfBase):
 
             if save_plot:
                 timestamp = self.get_timestamp()
-                plt.savefig(os.path.join(self.plot_dir, 
-                                         '{}_find_tes.png'.format(timestamp)),
-                            bbox_inches='tight')
+                path = os.path.join(self.plot_dir,
+                                    '{}_find_tes.png'.format(timestamp))
+                plt.savefig(path, bbox_inches='tight')
+                self.pub.register_file(path, 'find_tes', plot=True)
             if show_plot:
                 plt.show()
             else:
@@ -1236,6 +1243,7 @@ class SmurfIVMixin(SmurfBase):
             plot_filename = os.path.join(plot_dir, plot_name)
             self.log('Saving optical-efficiency plot to {}'.format(plot_filename))
             plt.savefig(plot_filename,bbox_inches='tight', dpi=300)
+            self.pub.register_file(plot_filename, 'opt_efficiency', plot=True)
             plt.close()
 
         plt.figure()
@@ -1248,6 +1256,7 @@ class SmurfIVMixin(SmurfBase):
         hist_filename = os.path.join(plot_dir,plot_name)
         self.log('Saving optical-efficiency histogram to {}'.format(hist_filename))
         plt.savefig(hist_filename,bbox_inches='tight',dpi=300)
+        self.pub.register_file(hist_filename, 'opt_efficiency', plot=True)
         plt.close()
 
 

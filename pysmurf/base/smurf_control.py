@@ -37,14 +37,6 @@ class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin, Smu
             Shelf manager ip or network name.  Usually each SMuRF server is
             connected one-to-one with a SMuRF crate, in which case we by
             default give the shelf manager the network name 'shm-smrf-sp01'.
-
-        pub_root (str):
-            Root of environment vars to set publisher options. If None, the
-            default root will be "SMURFPUB_".
-
-        script_id (str):
-            Script id included with publisher messages. For example, the
-            script or operation name.
         '''
         self.config = SmurfConfig(cfg_file)
         self.shelf_manager=shelf_manager

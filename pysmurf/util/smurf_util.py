@@ -589,8 +589,11 @@ class SmurfUtilMixin(SmurfBase):
 
         if save_plot:
             save_name = '{}_b{}_delay.png'.format(timestamp,band)
-            plt.savefig(os.path.join(self.plot_dir, save_name),
-                        bbox_inches='tight')
+
+            path = os.path.join(self.plot_dir, save_name)
+            plt.savefig(path,bbox_inches='tight')
+            self.pub.register_file(path, 'delay', plot=True)
+
             if not show_plot:
                 plt.close()
 
@@ -1287,6 +1290,7 @@ class SmurfUtilMixin(SmurfBase):
             if save_plot:
                 plot_fn = '{}/{}_adc{}.png'.format(self.plot_dir,timestamp,band)
                 plt.savefig(plot_fn)
+                self.pub.register_file(plot_fn, 'adc', plot=True)
                 self.log('ADC plot saved to %s' % (plot_fn))
 
         if save_data:
@@ -1373,6 +1377,7 @@ class SmurfUtilMixin(SmurfBase):
             if save_plot:
                 plot_fn = '{}/{}_dac{}.png'.format(self.plot_dir,timestamp,band)
                 plt.savefig(plot_fn)
+                self.pub.register_file(plot_fn, 'dac', plot=True)
                 self.log('DAC plot saved to %s' % (plot_fn))
 
         if save_data:
@@ -2925,6 +2930,8 @@ class SmurfUtilMixin(SmurfBase):
                 plot_fn = '%s/%s_biasBump_b%d_ch%03d' % (self.plot_dir,\
                                                          timestamp,b,c)
                 plt.savefig(plot_fn)
+                self.pub.register_file(plot_fn, 'bias_bump', plot=True)
+
                 self.log('Response plot saved to %s' % (plot_fn))
 
         resistance = np.abs(self.R_sh * (1-1/sib))
