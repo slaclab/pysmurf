@@ -1839,7 +1839,12 @@ class SmurfUtilMixin(SmurfBase):
         do_enable (bool) : Sets the enable bit. Default is True.
         """
 
-        bias_order = self.bias_group_to_pair[:,0]
+        # Make sure the requested bias group is in the list of defined
+        # bias groups.
+        bias_groups = self.bias_group_to_pair[:,0]        
+        assert (bias_group in bias_groups),f'Bias group {bias_group} is not defined (available bias groups are {bias_groups}.  Doing nothing!'
+        
+        bias_order = bias_groups
         dac_positives = self.bias_group_to_pair[:,1]
         dac_negatives = self.bias_group_to_pair[:,2]
 
@@ -1869,7 +1874,7 @@ class SmurfUtilMixin(SmurfBase):
 
         Args:
         -----
-        volt_array (float array): the TES bias to command in voltage. Should be (8,)
+        volt_array (float array): the TES bias to command in voltage. Should be (n_bias_groups,)
 
         Opt args:
         -----
@@ -1880,7 +1885,7 @@ class SmurfUtilMixin(SmurfBase):
         dac_positives = self.bias_group_to_pair[:,1]
         dac_negatives = self.bias_group_to_pair[:,2]
 
-        n_bias_groups = 8
+        n_bias_groups = self._n_bias_groups
 
         # initialize arrays of 0's
         do_enable_array = np.zeros((32,), dtype=int)
@@ -1995,7 +2000,7 @@ class SmurfUtilMixin(SmurfBase):
        dac_positives = self.bias_group_to_pair[:,1]
        dac_negatives = self.bias_group_to_pair[:,2]
 
-       n_bias_groups = 8 # fix this later!
+       n_bias_groups = self._n_bias_groups
 
        bias_vals_pos = np.zeros((n_bias_groups,))
        bias_vals_neg = np.zeros((n_bias_groups,))
@@ -2125,8 +2130,7 @@ class SmurfUtilMixin(SmurfBase):
         cur (float): Drain current in mA
         """
 
-        # These values are hard coded and empirically found by Shawn
-        # hemt_offset=0.100693  #Volts
+        # on cryostat card
         hemt_Vd_series_resistor=200  #Ohm
         hemt_Id_mA=2.*1000.*(self.get_cryo_card_hemt_bias())/hemt_Vd_series_resistor - self._hemt_Id_offset
 
@@ -2138,11 +2142,13 @@ class SmurfUtilMixin(SmurfBase):
         --------
         cur (float): The drain current in mA
         """
-        asu_amp_Vd_series_resistor=10 #Ohm
-        asu_amp_Id_mA=2.*1000.*(self.get_cryo_card_50k_bias()/
-            asu_amp_Vd_series_resistor)
 
-        return asu_amp_Id_mA
+        # on cryostat card
+        fiftyK_amp_Vd_series_resistor=10 #Ohm
+        fiftyK_amp_Id_mA=2.*1000.*(self.get_cryo_card_50k_bias()/
+            fiftyK_amp_Vd_series_resistor)
+
+        return fiftyK_amp_Id_mA
 
     def overbias_tes(self, bias_group, overbias_voltage=19.9, overbias_wait=5.,
         tes_bias=19.9, cool_wait=20., high_current_mode=True, flip_polarity=False):
@@ -2208,7 +2214,6 @@ class SmurfUtilMixin(SmurfBase):
         if bias_groups is None:
             bias_groups = self.all_groups
 
-        #voltage_overbias_array = np.zeros((8,)) # currently hardcoded for 8 bias groups
         voltage_overbias_array = self.get_tes_bias_bipolar_array()
         voltage_overbias_array[bias_groups] = overbias_voltage
         self.set_tes_bias_bipolar_array(voltage_overbias_array)
@@ -2222,7 +2227,6 @@ class SmurfUtilMixin(SmurfBase):
             self.log('setting to low current')
             self.set_tes_bias_low_current(bias_groups)
 
-        # voltage_bias_array = np.zeros((8,)) # currently hardcoded for 8 bias groups
         voltage_bias_array = self.get_tes_bias_bipolar_array()
         voltage_bias_array[bias_groups] = tes_bias
         self.set_tes_bias_bipolar_array(voltage_bias_array)
@@ -2249,13 +2253,10 @@ class SmurfUtilMixin(SmurfBase):
         new_relay = np.copy(old_relay)
         self.log('Old relay {}'.format(bin(old_relay)))
 
-        # bias_group = 0 # just pick the first one arbitrarily
-        #self.log('Flipping bias group 0 relay only; Joe code will secretly' +
-        #    'flip all of them')
-
+        n_bias_groups = self._n_bias_groups
         bias_group = np.ravel(np.array(bias_group))
         for bg in bias_group:
-            if bg < 16:
+            if bg < n_bias_groups:
                 r = np.ravel(self.pic_to_bias_group[np.where(
                             self.pic_to_bias_group[:,1]==bg)])[0]
             else:
@@ -2285,10 +2286,11 @@ class SmurfUtilMixin(SmurfBase):
         #self.log('Flipping bias group 0 relay only; PIC code will flip all ' +
         #    'of them')
 
+        n_bias_groups = self._n_bias_groups        
         bias_group = np.ravel(np.array(bias_group))
         self.log('Old relay {}'.format(bin(old_relay)))
         for bg in bias_group:
-            if bg < 16:
+            if bg < n_bias_groups:
                 r = np.ravel(self.pic_to_bias_group[np.where(
                             self.pic_to_bias_group[:,1]==bg)])[0]
             else:
@@ -2351,16 +2353,6 @@ class SmurfUtilMixin(SmurfBase):
         band=band%4
         return self.att_to_band['att'][np.ravel(
             np.where(self.att_to_band['band']==band))[0]]
-
-
-#    def make_gcp_mask_file(self, bands=[2,3], channels_per_band=512):
-#        """
-#        """
-#        chs = np.array([])
-#        for b in bands:
-#            chs = np.append(chs, self.which_on(b)+b*channels_per_band)
-
-#        return chs
 
     def flux_ramp_rate_to_PV(self, val):
         """
@@ -2770,7 +2762,8 @@ class SmurfUtilMixin(SmurfBase):
         self.flux_ramp_off()
 
         self.log('Turning off all TES biases')
-        for bg in np.arange(8):
+        n_bias_groups = self._n_bias_groups
+        for bg in np.arange(n_bias_groups):
             self.set_tes_bias_bipolar(bg, 0)
 
 
