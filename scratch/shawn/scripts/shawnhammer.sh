@@ -1,40 +1,16 @@
 #!/bin/bash
 
+startup_cfg=/data/smurf_startup_cfg/smurf_startup.cfg
+if [ ! -f "$startup_cfg" ]; then
+    echo "$startup_cfg doesn't exist, unable to shawnhammer."
+    exit 1
+fi
+
+# didn't exit, so there must be a startup cfg file.  Load it.
+source ${startup_cfg}
 source shawnhammerfunctions
 
 ctime=`date +%s`
-
-shelfmanager=shm-smrf-sp01
-
-set_crate_fans_to_full=true
-# COMTEL max fan level is 100, ASIS is 15, ELMA is 15
-## COMTEL in RF lab
-max_fan_level=100
-## ELMA in RF lab
-#max_fan_level=15
-## ASIS in RF lab
-#max_fan_level=15
-
-attach_at_end=true
-screenshot_signal_analyzer=false
-configure_pysmurf=true
-reboot=true
-using_timing_master=true
-run_half_band_test=false
-write_config=false
-start_atca_monitor=true
-# still not completely parallel.  Also doesn't work.
-parallel_setup=false
-cpwd=$PWD
-
-pysmurf=/home/cryo/docker/pysmurf/dev
-
-crate_id=3
-slots_in_configure_order=(4)
-
-pysmurf_init_script=scratch/shawn/scripts/init_stanford.py
-
-tmux_session_name=smurf
 
 # If true, forces crate fans to full speed
 if [ "$set_crate_fans_to_full" = true ] ; then
