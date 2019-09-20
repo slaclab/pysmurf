@@ -23,8 +23,7 @@ class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin, Smu
                  cfg_file='/home/cryo/pysmurf/cfg_files/experiment_k2umux.cfg',
                  data_dir=None, name=None, make_logfile=True,
                  setup=False, offline=False, smurf_cmd_mode=False,
-                 no_dir=False, shelf_manager='shm-smrf-sp01',
-                 pub_root=None, script_id=None, **kwargs):
+                 no_dir=False, shelf_manager='shm-smrf-sp01', **kwargs):
         '''
         Args:
         -----
@@ -53,10 +52,6 @@ class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin, Smu
             epics_root = self.config.get('epics_root')
 
         super().__init__(epics_root=epics_root, offline=offline, **kwargs)
-
-        # If <pub_root>BACKEND environment variable is not set to 'udp', all
-        # publish calls will be no-ops.
-        self.pub = Publisher(env_root=pub_root, script_id=script_id)
 
         if cfg_file is not None or data_dir is not None:
             self.initialize(cfg_file=cfg_file, data_dir=data_dir,

@@ -182,8 +182,10 @@ class SmurfTuneMixin(SmurfBase):
 
         if save_data:
             self.log('Saving resonances to {}'.format(self.output_dir))
-            np.save(os.path.join(self.output_dir, 
-                '{}_b{}_resonances'.format(timestamp, band)), resonances)
+            path = os.path.join(self.output_dir,
+                                '{}_b{}_resonances'.format(timestamp, band))
+            np.save(path, resonances)
+            self.pub.register_file(path, 'resonances', format='npyt')
 
         # Assign resonances to channels
         self.log('Assigning channels')
@@ -761,10 +763,14 @@ class SmurfTuneMixin(SmurfBase):
 
             if save_raw_data:
                 self.log('Saving raw data...', self.LOG_USER)
-                np.save(os.path.join(self.output_dir, 
-                    '{}_adc'.format(timestamp)), adc)
-                np.save(os.path.join(self.output_dir,
-                    '{}_dac'.format(timestamp)), dac)
+
+                path = os.path.join(self.output_dir, '{}_adc'.format(timestamp))
+                np.save(path, adc)
+                self.pub.register_file(path, 'adc', format='npy')
+
+                path = os.path.join(self.output_dir,'{}_dac'.format(timestamp))
+                np.save(path, dac)
+                self.pub.register_file(path, 'dac', format='npy')
 
             # To do : Implement cross correlation to get shift
             
@@ -831,12 +837,18 @@ class SmurfTuneMixin(SmurfBase):
 
         if save_data:
             save_name = timestamp + '_{}_full_band_resp.txt'
-            np.savetxt(os.path.join(self.output_dir, save_name.format('freq')), 
-                f)
-            np.savetxt(os.path.join(self.output_dir, save_name.format('real')), 
-                np.real(resp))
-            np.savetxt(os.path.join(self.output_dir, save_name.format('imag')), 
-                np.imag(resp))
+
+            path = os.path.join(self.output_dir, save_name.format('freq'))
+            np.savetxt(path, f)
+            self.pub.register(path, 'full_band_resp', format='txt')
+
+            path = os.path.join(self.output_dir, save_name.format('real'))
+            np.savetxt(path, np.real(resp))
+            self.pub.register(path, 'full_band_resp', format='txt')
+
+            path = os.path.join(self.output_dir, save_name.format('imag'))
+            np.savetxt(path, np.imag(resp))
+            self.pub.register(path, 'full_band_resp', format='txt')
             
         return f, resp
 
@@ -2913,10 +2925,14 @@ class SmurfTuneMixin(SmurfBase):
 
         # Save data
         save_name = '{}_amp_sweep_{}.txt'
-        np.savetxt(os.path.join(self.output_dir, 
-            save_name.format(timestamp, 'freq')), f)
-        np.savetxt(os.path.join(self.output_dir, 
-            save_name.format(timestamp, 'resp')), resp)
+
+        path = os.path.join(self.output_dir, save_name.format(timestamp, 'freq'))
+        np.savetxt(path, f)
+        self.pub.register_file(path, 'sweep_response', format='txt')
+        
+        path = os.path.join(self.output_dir, save_name.format(timestamp, 'resp'))
+        np.savetxt(path, resp)
+        self.pub.register_file(path, 'sweep_response', format='txt')
 
         # Place in dictionary - dictionary declared in smurf_control
         self.freq_resp[band]['find_freq'] = {}
@@ -2936,9 +2952,10 @@ class SmurfTuneMixin(SmurfBase):
         self.freq_resp[band]['find_freq']['resonance'] = res_freq
 
         # Save resonances
-        np.savetxt(os.path.join(self.output_dir,
-            save_name.format(timestamp, 'resonance')), 
-            self.freq_resp[band]['find_freq']['resonance'])
+        path = os.path.join(self.output_dir,
+                            save_name.format(timestamp, 'resonance'))
+        np.savetxt(path, self.freq_resp[band]['find_freq']['resonance'])
+        self.pub.register_file(path, 'resonances', format='txt')
 
         # Call plotting
         if make_plot:
@@ -3418,6 +3435,8 @@ class SmurfTuneMixin(SmurfBase):
         savedir = os.path.join(self.tune_dir, timestamp+"_tune")
         self.log('Saving to : {}.npy'.format(savedir))
         np.save(savedir, self.freq_resp)
+        self.pub.register_file(savedir, 'tune', format='npy')
+
         self.tune_file = savedir+'.npy'
 
         return savedir + ".npy"
@@ -3961,9 +3980,11 @@ class SmurfTuneMixin(SmurfBase):
             # do we want to save? default will be false
             if save_sweeps:
                 save_name = '{}_amp_sweep_b{}_{}.txt'
-                np.savetxt(os.path.join(self.output_dir,save_name.format(\
-                        timestamp, str(band), 'resonance')), \
-                        freq_dict[band]['find_freq']['resonance'])
+
+                path = os.path.join(self.output_dir,
+                                    save_name.format(timestamp, str(band),'resonance'))
+                np.savetxt(path, freq_dict[band]['find_freq']['resonance'])
+                self.pub.register_file(path, 'resonances', format='txt')
 
 
         return freq_dict
