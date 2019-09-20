@@ -10,7 +10,7 @@ from pysmurf.tune.smurf_tune import SmurfTuneMixin as SmurfTuneMixin
 from pysmurf.debug.smurf_noise import SmurfNoiseMixin as SmurfNoiseMixin
 from pysmurf.debug.smurf_iv import SmurfIVMixin as SmurfIVMixin
 from pysmurf.base.smurf_config import SmurfConfig as SmurfConfig
-from pysmurf.util.pub import Publisher, DEFAULT_ENV_ROOT
+from pysmurf.util.pub import Publisher
 
 
 class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin, SmurfTuneMixin, 
@@ -23,8 +23,7 @@ class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin, Smu
                  cfg_file='/home/cryo/pysmurf/cfg_files/experiment_k2umux.cfg',
                  data_dir=None, name=None, make_logfile=True,
                  setup=False, offline=False, smurf_cmd_mode=False,
-                 no_dir=False, shelf_manager='shm-smrf-sp01',
-                 publish=False, **kwargs):
+                 no_dir=False, shelf_manager='shm-smrf-sp01', **kwargs):
         '''
         Args:
         -----
@@ -33,12 +32,11 @@ class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin, Smu
         data_dir (string) : Path to the data dir
 
         Opt Args:
-        -----
-        shelf_manager (str): Shelf manager ip or network name.  Usually
-                            each SMuRF server is connected one-to-one
-                            with a SMuRF crate, in which case we by
-                            default give the shelf manager the network
-                            name 'shm-smrf-sp01'.
+        ----------
+        shelf_manager (str):
+            Shelf manager ip or network name.  Usually each SMuRF server is
+            connected one-to-one with a SMuRF crate, in which case we by
+            default give the shelf manager the network name 'shm-smrf-sp01'.
         '''
         self.config = SmurfConfig(cfg_file)
         self.shelf_manager=shelf_manager
@@ -50,8 +48,7 @@ class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin, Smu
         if cfg_file is not None or data_dir is not None:
             self.initialize(cfg_file=cfg_file, data_dir=data_dir,
                 name=name, make_logfile=make_logfile, setup=setup,
-                smurf_cmd_mode=smurf_cmd_mode, no_dir=no_dir,
-                publish=publish, **kwargs)
+                smurf_cmd_mode=smurf_cmd_mode, no_dir=no_dir, **kwargs)
 
     def initialize(self, cfg_file, data_dir=None, name=None,
                    make_logfile=True, setup=False,
@@ -123,11 +120,6 @@ class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin, Smu
         # Crate/carrier configuration details that won't change.
         self.crate_id=self.get_crate_id()
         self.slot_number=self.get_slot_number()
-
-        self.publish = publish
-        if publish:
-            os.environ[DEFAULT_ENV_ROOT + 'BACKEND'] = 'udp'
-            self.pub = Publisher()
 
         # Useful constants
         constant_cfg = self.config.get('constant')
@@ -281,7 +273,6 @@ class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin, Smu
         self.log('Setting up...', (self.LOG_USER))
 
         # If active, disable hardware logging while doing setup.
-        print(self._hardware_logging_thread)
         if self._hardware_logging_thread is not None:
             self.log('Hardware logging is enabled.  Pausing for setup.', (self.LOG_USER))
             self.pause_hardware_logging()

@@ -2,6 +2,8 @@ import numpy as np
 from .logger import SmurfLogger
 from pysmurf.command.cryo_card import CryoCard
 
+from pysmurf.util.pub import Publisher
+
 class SmurfBase(object):
     '''
     Base class for common things
@@ -27,7 +29,19 @@ class SmurfBase(object):
     Overall progress on a task
     """
 
-    def __init__(self, log=None, epics_root=None, offline=False, **kwargs):
+    def __init__(self, log=None, epics_root=None, offline=False,
+                 pub_root=None, script_id=None, **kwargs):
+        """
+        Opt Arguments
+        --------------
+        pub_root (str):
+            Root of environment vars to set publisher options. If None, the
+            default root will be "SMURFPUB_".
+
+        script_id (str):
+            Script id included with publisher messages. For example, the
+            script or operation name.
+        """
         # Set up logging
         self.log = log
         if self.log is None:
@@ -36,6 +50,10 @@ class SmurfBase(object):
             verb = kwargs.pop('verbose', None)
             if verb is not None:
                 self.set_verbose(verb)
+
+        # If <pub_root>BACKEND environment variable is not set to 'udp', all
+        # publish calls will be no-ops.
+        self.pub = Publisher(env_root=pub_root, script_id=script_id)
 
         self.offline = offline
         if self.offline == True:
@@ -76,38 +94,43 @@ class SmurfBase(object):
         self.channel_root = self.cryo_root + 'CryoChannel[{}]:'
 
         self.streaming_root = self.amcc + 'streamingInterface:'
+
+        # FpgaTopLevel
+        self.fpgatl = self.amcc + 'FpgaTopLevel:'
+
+        # AppTop
+        self.apptop = self.fpgatl + 'AppTop:'
+
+        # AppCore
+        self.appcore = self.apptop + 'AppCore:'        
+        
+        # AmcCarrierCore
+        self.amccc = self.fpgatl + 'AmcCarrierCore:'
         
         # Crossbar
-        self.crossbar = self.epics_root + \
-            ':AMCc:FpgaTopLevel:AmcCarrierCore:AxiSy56040:'
+        self.crossbar = self.amccc + 'AxiSy56040:'
+
+        # Regulator
+        self.regulator = self.amccc + 'IntelEnpirion:'
 
         # CarrierBsi
-        self.amc_carrier_bsi = self.epics_root + \
-            ':AMCc:FpgaTopLevel:AmcCarrierCore:AmcCarrierBsi:'
+        self.amc_carrier_bsi = self.amccc + 'AmcCarrierBsi:'
         
         # FPGA
-        self.ultrascale = self.epics_root + \
-            ':AMCc:FpgaTopLevel:AmcCarrierCore:AxiSysMonUltraScale:'
-        
+        self.ultrascale = self.amccc + 'AxiSysMonUltraScale:'
+    
         # Tx -> DAC , Rx <- ADC
-        self.axi_version = self.epics_root + \
-            ':AMCc:FpgaTopLevel:AmcCarrierCore:AxiVersion:'
-        self.waveform_engine_buffers_root = self.epics_root + \
-            ':AMCc:FpgaTopLevel:'+ \
-            'AmcCarrierCore:AmcCarrierBsa:BsaWaveformEngine[{}]:' + \
+        self.axi_version = self.amccc + 'AxiVersion:'
+        self.waveform_engine_buffers_root = self.amccc + \
+            'AmcCarrierBsa:BsaWaveformEngine[{}]:' + \
             'WaveformEngineBuffers:'
-        self.stream_data_writer_root = self.epics_root + \
-            ':AMCc:streamDataWriter:'
-        self.jesd_tx_root = self.epics_root + \
-            ':AMCc:FpgaTopLevel:AppTop:AppTopJesd[{}]:JesdTx:'
-        self.jesd_rx_root = self.epics_root + \
-            ':AMCc:FpgaTopLevel:AppTop:AppTopJesd[{}]:JesdRx:'
-        self.daq_mux_root = self.epics_root + \
-            ':AMCc:FpgaTopLevel:AppTop:DaqMuxV2[{}]:'
+        self.stream_data_writer_root = self.amcc + 'streamDataWriter:'
+        self.jesd_tx_root = self.apptop + 'AppTopJesd[{}]:JesdTx:'
+        self.jesd_rx_root = self.apptop + 'AppTopJesd[{}]:JesdRx:'
+        self.daq_mux_root = self.apptop + 'DaqMuxV2[{}]:'
 
         # RTM paths
-        self.rtm_cryo_det_root = self.epics_root + \
-            ':AMCc:FpgaTopLevel:AppTop:AppCore:RtmCryoDet:'
+        self.rtm_cryo_det_root = self.appcore + 'RtmCryoDet:'
         self.rtm_spi_root = self.rtm_cryo_det_root + \
             'RtmSpiSr:'
         self.rtm_spi_max_root = self.rtm_cryo_det_root + \
@@ -120,14 +143,9 @@ class SmurfBase(object):
             'Ctrl:'        
 
         # Timing paths
-        self.trigger_root = self.epics_root + \
-            ':AMCc:FpgaTopLevel:AmcCarrierCore:AmcCarrierTiming:' + \
-            'EvrV2CoreTriggers:'
-
-        # Timing status
-        self.timing_status = self.epics_root + \
-            ':AMCc:FpgaTopLevel:AmcCarrierCore:AmcCarrierTiming:' + \
-            'TimingFrameRx:'
+        self.amctiming = self.amccc + 'AmcCarrierTiming:'
+        self.trigger_root =  self.amctiming + 'EvrV2CoreTriggers:'
+        self.timing_status = self.amctiming + 'TimingFrameRx:'
 
         self.C = CryoCard(self.rtm_spi_cryo_root + 'read', 
             self.rtm_spi_cryo_root + 'write')

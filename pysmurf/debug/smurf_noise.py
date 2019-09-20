@@ -159,8 +159,10 @@ class SmurfNoiseMixin(SmurfBase):
         if save_data:
             for i, (l, h) in enumerate(zip(low_freq, high_freq)):
                 save_name = basename+'_{:3.2f}_{:3.2f}.txt'.format(l, h)
-                np.savetxt(os.path.join(self.plot_dir, save_name), 
-                           np.c_[res_freqs,noise_floors[i],f_knees])
+                outfn = os.path.join(self.plot_dir, save_name)
+
+                np.savetxt(outfn, np.c_[res_freqs,noise_floors[i],f_knees])
+                self.pub.register_file(outfn, 'noise_timestream', format='txt')
 
         if make_summary_plot:
             bins = np.arange(0,351,20)
@@ -265,8 +267,12 @@ class SmurfNoiseMixin(SmurfBase):
                                 '_noise_vs_tone_datafile.txt')
         tone_save = os.path.join(self.output_dir, timestamp +
                                 '_noise_vs_tone_tone.txt')
+
         np.savetxt(datafile_save,datafiles, fmt='%s')
+        self.pub.register_file(datafile_save, 'noise_vs_tone_data', format='txt')
+
         np.savetxt(tone_save, tones, fmt='%i')
+        self.pub.register_file(tone_save, 'noise_vs_tone_tone', format='txt')
 
         #self.set_amplitude_scale_array(band, x, wait_after=1)
 
@@ -383,7 +389,13 @@ class SmurfNoiseMixin(SmurfBase):
 
         timestamp = self.get_timestamp()
         fn_var_values = os.path.join(psd_dir, '{}_{}.txt'.format(timestamp,var))
+
+
         np.savetxt(fn_var_values,var_range)
+        # Is this an accurate tag?
+        self.pub.register_file(fn_var_values, 'noise_vs_{}'.format(var),
+                               format='txt')
+
         datafiles = np.array([], dtype=str)
         xlabel_override=None
         unit_override=None
@@ -423,7 +435,9 @@ class SmurfNoiseMixin(SmurfBase):
         self.log('Done with noise vs %s'%(var))
 
         fn_datafiles = os.path.join(psd_dir, '{}_datafiles.txt'.format(timestamp))
+
         np.savetxt(fn_datafiles,datafiles, fmt='%s')
+        self.pub.register_file(fn_datafiles, 'datafiles', format='txt')
 
         self.log('Saving variables values to {}.'.format(fn_var_values))
         self.log('Saving data filenames to {}.'.format(fn_datafiles))
@@ -628,8 +642,12 @@ class SmurfNoiseMixin(SmurfBase):
                 f, Pxx = signal.welch(phase_ch, nperseg=nperseg, 
                     fs=fs, detrend=detrend)
                 Pxx = np.sqrt(Pxx)  # pA
-                np.savetxt(os.path.join(psd_dir, basename + 
-                    '_psd_ch{:03}.txt'.format(ch)), np.array([f, Pxx]))
+
+                path = os.path.join(psd_dir,
+                                    basename + '_psd_ch{:03}.txt'.format(ch))
+                np.savetxt(path, np.array([f, Pxx]))
+                self.pub.register_file(path, 'psd', format='txt')
+
             # Explicitly remove objects from memory
             del timestamp
             del phase
@@ -1092,7 +1110,9 @@ class SmurfNoiseMixin(SmurfBase):
             filename = self.take_stream_data(meas_time)
             ret[ch] = filename
 
-        np.save(os.path.join(self.output_dir, timestamp + 'all_vs_solo'), ret)
+        path = os.path.join(self.output_dir, timestamp + 'all_vs_solo')
+        np.save(path, ret)
+        self.pub.register_file(path, 'noise', format='npy')
 
         return ret
 
@@ -1236,8 +1256,11 @@ class SmurfNoiseMixin(SmurfBase):
                 f, Pxx = signal.welch(phase[ch_idx], nperseg=nperseg, 
                     fs=fs, detrend=detrend)
                 Pxx = np.ravel(np.sqrt(Pxx))  # pA
-                np.savetxt(os.path.join(psd_dir, basename + 
-                    '_psd_ch{:03}.txt'.format(ch)), np.vstack((f, Pxx)))
+
+                path = os.path.join(psd_dir,
+                                    basename + '_psd_ch{:03}.txt'.format(ch))
+                np.savetxt(path, np.vstack((f, Pxx)))
+                self.pub.register_file(path, 'psd', format='txt')
 
                 if make_timestream_plot:
                     fig,ax = plt.subplots(1)

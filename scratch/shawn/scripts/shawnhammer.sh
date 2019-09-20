@@ -9,11 +9,11 @@ shelfmanager=shm-smrf-sp01
 set_crate_fans_to_full=true
 # COMTEL max fan level is 100, ASIS is 15, ELMA is 15
 ## COMTEL in RF lab
-#max_fan_level=100
+max_fan_level=100
 ## ELMA in RF lab
 #max_fan_level=15
 ## ASIS in RF lab
-max_fan_level=15
+#max_fan_level=15
 
 attach_at_end=true
 screenshot_signal_analyzer=false

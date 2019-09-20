@@ -8,6 +8,7 @@ import socket
 import json
 import os, sys
 import time
+import pysmurf
 
 DEFAULT_ENV_ROOT = 'SMURFPUB_'
 DEFAULT_UDP_PORT = 8200
@@ -127,13 +128,40 @@ class Publisher:
         return self.publish({'message': message}, 'log')
 
     def log_start(self):
+        """Publishes start message"""
         return self.publish({}, 'start')
 
     def log_stop(self):
+        """Publishes stop message"""
         return self.publish({}, 'stop')
 
-    def register_data(self, filename):
-        return self.publish({'filename': filename}, 'datafile')
+    def register_file(self, path, type, format='', timestamp=None, plot=False):
+        """
+        Publishes file info so it can be picked up by the pysmurf-archiver.
 
-    def register_plot(self, filename):
-        return self.publish({'filename': filename}, 'plotfile')
+        Args:
+        -----
+        path (str):
+            full path to file.
+        type (str):
+            Type of data file, e.g. "tuning" or "config_snapshot"
+        format (str):
+            File extension. E.g. "npy" or "txt"
+        timestamp (float):
+            Unix timestamp when file was created.
+        plot (bool):
+            True if file is a plot
+        """
+        if timestamp is None:
+            timestamp = time.time()
+
+        file_data = {
+            'path': path,
+            'type': type,
+            'format': format,
+            'timestamp': timestamp,
+            'plot': plot,
+            'pysmurf_version': pysmurf.__version__
+        }
+
+        return self.publish(file_data, 'data_file')

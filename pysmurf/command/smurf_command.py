@@ -3119,6 +3119,34 @@ class SmurfCommandMixin(SmurfBase):
         """
         return self._caget(self.epics_root + self.fpga_root + self._fpga_vccbram, **kwargs)
 
+    # Regulator
+    _regulator_iout = "READ_IOUT"
+    def get_regulator_iout(self, **kwargs):
+        """
+        Returns:
+        --------
+        value (float): Regulator current in amperes.
+        """
+        return self._caget(self.regulator + self._regulator_iout, **kwargs)
+
+    _regulator_temp1 = "READ_TEMPERATURE_1"
+    def get_regulator_temp1(self, **kwargs):
+        """
+        Returns:
+        --------
+        value (float): Regulator PT temperature in C.
+        """
+        return self._caget(self.regulator + self._regulator_temp1, **kwargs)
+
+    _regulator_temp2 = "READ_TEMPERATURE_2"
+    def get_regulator_temp2(self, **kwargs):
+        """
+        Returns:
+        --------
+        value (float): A regulator CTRL temperature in C.
+        """
+        return self._caget(self.regulator + self._regulator_temp2, **kwargs)
+
     # Cryo card comands
     def get_cryo_card_temp(self, enable_poll=False, disable_poll=False):
         """

@@ -75,7 +75,9 @@ class SmurfIVMixin(SmurfBase):
         #self.set_lms_gain(3, lms_gain3)
 
         basename, _ = os.path.splitext(os.path.basename(datafile))
-        np.save(os.path.join(self.output_dir, basename + '_iv_bias_all'), bias)
+        path = os.path.join(self.output_dir, basename + '_iv_bias_all')
+        np.save(path, bias)
+        self.pub.register_file(path, 'iv_bias', format='npy')
 
         iv_raw_data = {}
         iv_raw_data['bias'] = bias
@@ -88,7 +90,10 @@ class SmurfIVMixin(SmurfBase):
         fn_iv_raw_data = os.path.join(self.output_dir, basename + 
             '_iv_raw_data.npy')
         self.log('Writing IV metadata to {}.'.format(fn_iv_raw_data))
-        np.save(os.path.join(self.output_dir, fn_iv_raw_data), iv_raw_data)
+
+        path = os.path.join(self.output_dir, fn_iv_raw_data)
+        np.save(path, iv_raw_data)
+        self.pub.register_file(path, 'iv_raw', format='npy')
 
         R_sh=self.R_sh
         self.analyze_slow_iv_from_file(fn_iv_raw_data, make_plot=make_plot,
@@ -188,7 +193,10 @@ class SmurfIVMixin(SmurfBase):
 
         # save and analyze
         basename, _ = os.path.splitext(os.path.basename(datafile))
-        np.save(os.path.join(self.output_dir, basename + '_plc_bias_all'), bias_sweep_array)
+
+        path = os.path.join(self.output_dir, basename + '_plc_bias_all')
+        np.save(path, bias_sweep_array)
+        self.pub.register_file(path, 'plc_bias', format='npy')
 
         plc_raw_data = {}
         plc_raw_data['bias'] = bias_sweep_array
@@ -199,7 +207,10 @@ class SmurfIVMixin(SmurfBase):
         plc_raw_data['plot_dir'] = self.plot_dir
         fn_plc_raw_data = os.path.join(self.output_dir, basename +
             '_plc_raw_data.npy')
-        np.save(os.path.join(self.output_dir, fn_plc_raw_data), plc_raw_data)
+
+        path = os.path.join(self.output_dir, fn_plc_raw_data)
+        np.save(path, plc_raw_data)
+        self.pub.register_file(path, 'plc_raw', format='npy')
 
         if analyze:
             self.analyze_plc_from_file(fn_plc_raw_data, make_plot=make_plot,
@@ -314,8 +325,9 @@ class SmurfIVMixin(SmurfBase):
                 plot_name = basename + \
                     '_IV_stream_b{}_g{}_ch{:03}.png'.format(b, bg_str, ch)
                 if save_plot:
-                    plt.savefig(os.path.join(plot_dir, plot_name), 
-                        bbox_inches='tight', dpi=300)
+                    plot_fn = os.path.join(plot_dir, plot_name)
+                    plt.savefig(plot_fn, bbox_inches='tight', dpi=300)
+                    self.pub.register_file(plot_fn, 'iv_stream', plot=True)
                 if not show_plot:
                     plt.close()
 
@@ -351,7 +363,10 @@ class SmurfIVMixin(SmurfBase):
 
         fn_iv_analyzed = basename + '_iv'
         self.log('Writing analyzed IV data to {}.'.format(fn_iv_analyzed))
-        np.save(os.path.join(output_dir, fn_iv_analyzed), ivs)
+
+        path = os.path.join(output_dir, fn_iv_analyzed)
+        np.save(path, ivs)
+        self.pub.register_file(path, 'iv', format='npy')
 
         v_bias_target_median = np.median(v_bias_target_list)
         rn_median = np.median(rn_list)
@@ -426,6 +441,8 @@ class SmurfIVMixin(SmurfBase):
             iv_hist_filename = os.path.join(plot_dir,\
                                                 '%s_IV_hist.png' % (basename))
             plt.savefig(iv_hist_filename,bbox_inches='tight')
+            self.pub.register_file(iv_hist_filename, 'iv_hist', plot=True)
+
             self.log('Saved IV histogram to {}'.format(iv_hist_filename))
             if not show_plot:
                 plt.close()
@@ -710,6 +727,8 @@ class SmurfIVMixin(SmurfBase):
                 plot_filename = os.path.join(plot_dir, plot_name)
                 self.log('Saving IV plot to {}'.format(plot_filename))
                 plt.savefig(plot_filename,bbox_inches='tight')
+                self.pub.register_file(plot_filename, 'iv', plot=True)
+
             if show_plot:
                 plt.show()
             else:
@@ -819,8 +838,9 @@ class SmurfIVMixin(SmurfBase):
 
                     plot_name = basename + \
                         'plc_stream_b{}_g{}_ch{:03}.png'.format(b, bg_str, ch)
-                    plt.savefig(of.path.join(plot_dir, plt_name), bbox_inches='tight', 
-                        dpi=300)
+                    path = os.path.join(plot_dir, plot_name)
+                    plt.savefig(path, bbox_inches='tight', dpi=300)
+                    self.pub.register_file(path, 'plc_stream', plot=True)
 
                 if not show_plot:
                     plt.close()
@@ -1010,9 +1030,10 @@ class SmurfIVMixin(SmurfBase):
 
             if save_plot:
                 timestamp = self.get_timestamp()
-                plt.savefig(os.path.join(self.plot_dir, 
-                                         '{}_find_tes.png'.format(timestamp)),
-                            bbox_inches='tight')
+                path = os.path.join(self.plot_dir,
+                                    '{}_find_tes.png'.format(timestamp))
+                plt.savefig(path, bbox_inches='tight')
+                self.pub.register_file(path, 'find_tes', plot=True)
             if show_plot:
                 plt.show()
             else:
@@ -1112,6 +1133,7 @@ class SmurfIVMixin(SmurfBase):
             plot_filename = os.path.join(plot_dir, plot_name)
             self.log('Saving optical-efficiency plot to {}'.format(plot_filename))
             plt.savefig(plot_filename,bbox_inches='tight', dpi=300)
+            self.pub.register_file(plot_filename, 'opt_efficiency', plot=True)
             plt.close()
 
         plt.figure()
@@ -1124,6 +1146,7 @@ class SmurfIVMixin(SmurfBase):
         hist_filename = os.path.join(plot_dir,plot_name)
         self.log('Saving optical-efficiency histogram to {}'.format(hist_filename))
         plt.savefig(hist_filename,bbox_inches='tight',dpi=300)
+        self.pub.register_file(hist_filename, 'opt_efficiency', plot=True)
         plt.close()
 
 
