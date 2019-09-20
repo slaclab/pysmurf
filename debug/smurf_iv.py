@@ -5,106 +5,6 @@ import os,sys
 
 class SmurfIVMixin(SmurfBase):
 
-    def slow_iv(self, band, bias_group, wait_time=.25, bias=None, bias_high=19.9, 
-        bias_low=0, bias_step=.1, show_plot=False, overbias_wait=5., cool_wait=30.,
-        make_plot=True, save_plot=True, channels=None, high_current_mode=False,
-        rn_accept_min=1e-3, rn_accept_max=1., overbias_voltage=19.9,
-        gcp_mode=True, grid_on=True, phase_excursion_min=3.):
-        """
-        >>>NOTE: DEPRECATED. USE SLOW_IV_ALL WITH A SINGLE-ELEMENT ARRAY INSTEAD.<<<
-
-        Steps the TES bias down slowly. Starts at bias_high to bias_low with
-        step size bias_step. Waits wait_time between changing steps.
-
-        Args:
-        -----
-        band (int) : The frequency band to take the data in
-        bias_group (int) : The bias group to take data on.
-
-        Opt Args:
-        ---------
-        wait_time (float): The amount of time between changing TES biases in 
-            seconds. Default .1 sec.
-        bias (float array): A float array of bias values. Must go high to low.
-        bias_high (int): The maximum TES bias in volts. Default 19.9
-        bias_low (int): The minimum TES bias in volts. Default 0
-        bias_step (int): The step size in volts. Default .1
-        phase_excursion_min (int): The minimum phase excursion allowable
-        """
-        self.log("WARNING: I AM NOW DEPRICATED. USE slow_iv_all")
-        # Look for good channels
-        if channels is None:
-            channels = self.which_on(band)
-
-        if overbias_voltage != 0.:
-            overbias = True
-        else:
-            overbias = False
-
-        if bias is None:
-            bias = np.arange(bias_high, bias_low-bias_step, -bias_step)
-            
-        if overbias:
-            self.overbias_tes(bias_group, overbias_wait=overbias_wait, 
-                tes_bias=np.max(bias), cool_wait=cool_wait,
-                high_current_mode=high_current_mode,
-                overbias_voltage=overbias_voltage)
-
-        self.log('Turning lmsGain to 0.', self.LOG_USER)
-        lms_gain = self.get_lms_gain(band)
-        self.set_lms_gain(band, 0)
-
-        self.log('Starting to take IV.', self.LOG_USER)
-        self.log('Starting TES bias ramp.', self.LOG_USER)
-
-        self.set_tes_bias_bipolar(bias_group, bias[0])
-        time.sleep(1)
-
-        datafile = self.stream_data_on(gcp_mode=gcp_mode)
-        self.log('writing to {}'.format(datafile))
-
-        for b in bias:
-            self.log('Bias at {:4.3f}'.format(b))
-            #sys.stdout.write('\rBias at {:4.3f} V\033[K'.format(b))
-            #sys.stdout.flush()
-            self.set_tes_bias_bipolar(bias_group, b)  
-            time.sleep(wait_time)
-        #sys.stdout.write('\n')
-
-        self.stream_data_off(gcp_mode=gcp_mode)
-
-        self.log('Done with TES bias ramp', self.LOG_USER)
-
-        self.log('Returning lmsGain to ' + str(lms_gain), self.LOG_USER)
-        self.set_lms_gain(band, lms_gain)
-
-        #self.set_cryo_card_relays(2**16)
-
-
-
-        basename, _ = os.path.splitext(os.path.basename(datafile))
-        np.save(os.path.join(self.output_dir, basename + '_iv_bias'), bias)
-
-        iv_raw_data = {}
-        iv_raw_data['bias'] = bias
-        iv_raw_data['band'] = band
-        iv_raw_data['bias group'] = bias_group
-        iv_raw_data['channels'] = channels
-        iv_raw_data['datafile'] = datafile
-        iv_raw_data['basename'] = basename
-        iv_raw_data['output_dir'] = self.output_dir
-        iv_raw_data['plot_dir'] = self.plot_dir
-        fn_iv_raw_data = os.path.join(self.output_dir, basename + 
-            '_iv_raw_data.npy')
-        np.save(os.path.join(self.output_dir, fn_iv_raw_data), iv_raw_data)
-
-        R_sh=self.R_sh
-        self.analyze_slow_iv_from_file(fn_iv_raw_data, make_plot=make_plot,
-            show_plot=show_plot, save_plot=save_plot, R_sh=R_sh, 
-            high_current_mode=high_current_mode, rn_accept_min=rn_accept_min,
-            rn_accept_max=rn_accept_max, gcp_mode=gcp_mode,grid_on=grid_on,
-            phase_excursion_min=phase_excursion_min)
-
     def slow_iv_all(self, bias_groups=None, wait_time=.1, bias=None, 
                     bias_high=1.5, gcp_mode=True, bias_low=0, bias_step=.005, 
                     show_plot=False, overbias_wait=2., cool_wait=30,
@@ -144,15 +44,11 @@ class SmurfIVMixin(SmurfBase):
                 cool_wait=cool_wait, high_current_mode=high_current_mode,
                 overbias_voltage=overbias_voltage)
 
-        self.log('Turning lmsGain to 0.', self.LOG_USER)
-        lms_gain2 = self.get_lms_gain(2) # just do this on both bands
-        lms_gain3 = self.get_lms_gain(3) # should fix the hardcoding though -CY
-        self.set_lms_gain(2, 0)
-        self.set_lms_gain(3, 0)
-
-        self.log('Starting to take IV.', self.LOG_USER)
-        self.log('Starting TES bias ramp.', self.LOG_USER)
-
+        #self.log('Turning lmsGain to 0.', self.LOG_USER)
+        #lms_gain2 = self.get_lms_gain(2) # just do this on both bands
+        #lms_gain3 = self.get_lms_gain(3) # should fix the hardcoding though -CY
+        #self.set_lms_gain(2, 0)
+        #self.set_lms_gain(3, 0)
 
         self.log('Starting to take IV.', self.LOG_USER)
         self.log('Starting TES bias ramp.', self.LOG_USER)
@@ -174,9 +70,9 @@ class SmurfIVMixin(SmurfBase):
         self.stream_data_off(gcp_mode=gcp_mode)
         self.log('Done with TES bias ramp', self.LOG_USER)
 
-        self.log('Returning lmsGain to original values', self.LOG_USER)
-        self.set_lms_gain(2, lms_gain2)
-        self.set_lms_gain(3, lms_gain3)
+        #self.log('Returning lmsGain to original values', self.LOG_USER)
+        #self.set_lms_gain(2, lms_gain2)
+        #self.set_lms_gain(3, lms_gain3)
 
         basename, _ = os.path.splitext(os.path.basename(datafile))
         np.save(os.path.join(self.output_dir, basename + '_iv_bias_all'), bias)

@@ -114,6 +114,10 @@ class SmurfBase(object):
             'RtmSpiMax:'
         self.rtm_spi_cryo_root = self.rtm_cryo_det_root + \
             'SpiCryo:'
+        self.rtm_lut_ctrl_root = self.rtm_cryo_det_root + \
+            'LutCtrl:'
+        self.rtm_lut_ctrl = self.rtm_lut_ctrl_root + \
+            'Ctrl:'        
 
         # Timing paths
         self.trigger_root = self.epics_root + \
