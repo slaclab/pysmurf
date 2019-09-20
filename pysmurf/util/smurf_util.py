@@ -125,175 +125,6 @@ class SmurfUtilMixin(SmurfBase):
         import sys
         pid = subprocess.Popen([sys.executable,JesdWatchdog.__file__])
 
-    # this function needs work...we're probably planning to transition
-    # to calling the ipmi commands directly, instead of parsing the
-    # output of commands like amc_dump_bsi.
-    def get_amcc_dump_bsi(self,shm_ip='shm-smrf-sp01',slot=None):
-        """
-        Attempts to parse the output of amcc_dump_bsi.  Right now,
-        just gets the FW git hash, details about the FW build and
-        build string, and details on the AMCs.
-
-        Optional Args:
-        --------------
-        slot (int): Which slot to run the amcc_dump_bsi query on.  If
-                      none provided, will parse epics_root for the
-                      slot number, assuming epics_root is
-                      `smurf_server_s#` with # the slot number.
-        shm_ip (str): The ip of the shelf manager.  Default is
-                      'shm-smrf-sp01'.
-
-        Returns:
-        -------
-        result_dict (dict): A dictionary of parsed results from amcc_dump_bsi.
-        """
-
-        if slot is None:
-            # attempt to guess from epics prefix
-            import re
-            p = re.compile('smurf_server_s([0-9])')
-            m = p.match(self.epics_root)
-            assert (m is not None),'Unable to determine slot number from epics_root={}'.format(self.epics_root)
-            slot=int(m.group(1))
-
-        import subprocess
-        result=subprocess.check_output(['amcc_dump_bsi','--all','%s/%d'%(shm_ip,slot)])
-        result_string=result.decode('utf-8')
-
-        print(result_string)
-
-        # E.g.:
-        # AMC 0 info: Aux: 01 Ser: 9f0000011d036a70 Type: 0a Ver: C03 BOM: 00 Tag: C03-A01-
-        result_dict={}
-        patterns={}
-        patterns['AMC']=re.compile('AMC\s*([0-1])\s*info:\s*Aux:\s*(\d+)\s*Ser:\s*([a-z0-9]+)\s*Type:\s*([a-z0-9]+)\s*Ver:\s*(C[0-9][0-9])\s*BOM:\s*([0-9]+)\s*Tag:\s*([A-Z0-9a-z\-]+)')
-        # E.g.:
-        #"FW bld string: 'MicrowaveMuxBpEthGen2: Vivado v2018.3, pc95590 (x86_64), Built Tue Apr 30 13:35:05 PDT 2019 by mdewart'"
-        patterns['FW']=re.compile('FW bld string:\s*\'(MicrowaveMuxBpEthGen2):\s*(Vivado)\s*(v2018.3),\s*(pc95590)\s*\((x86_64)\),\s*Built\s*(Tue)\s*(Apr)\s*(30)\s*(13):(35):(05)\s*(PDT)\s*(2019)\s*by\s*(mdewart)\'')
-
-        # E.g.:
-        patterns['FWGIThash']=re.compile('GIT hash:\s*([0-9a-z]+)')
-        #'     GIT hash: 0000000000000000000000000000000000000000'
-
-        for s in result_string.split('\n'):
-            s=s.rstrip().lstrip()
-            for key, p in patterns.items():
-                m=p.match(s)
-                if m is not None:
-                    if key not in result_dict.keys():
-                        result_dict[key]={}
-
-                    if key is 'AMC':
-                        bay=int(m.group(1))
-                        result_dict[key][bay]={}
-                        result_dict[key][bay]['Aux']=m.group(2)
-                        result_dict[key][bay]['Ser']=m.group(3)
-                        result_dict[key][bay]['Type']=m.group(4)
-                        result_dict[key][bay]['Ver']=m.group(5)
-                        result_dict[key][bay]['BOM']=m.group(6)
-                        result_dict[key][bay]['Tag']=m.group(7)
-
-                    if key is 'FWGIThash':
-                        result_dict[key]['GIThash']=m.group(1)
-
-                    if key is 'FW':
-                        result_dict[key]['FWBranch']=m.group(1)
-                        result_dict[key]['BuildSuite']=m.group(2)
-                        result_dict[key]['BuildSuiteVersion']=m.group(3)
-                        result_dict[key]['BuildPC']=m.group(4)
-                        result_dict[key]['BuildArch']=m.group(5)
-                        # skipping day spelled out
-                        result_dict[key]['Month']=m.group(7)
-                        result_dict[key]['Day']=m.group(8)
-                        result_dict[key]['Hour']=m.group(9)
-                        result_dict[key]['Minute']=m.group(10)
-                        result_dict[key]['Second']=m.group(11)
-                        result_dict[key]['TimeZone']=m.group(12)
-                        result_dict[key]['Year']=m.group(13)
-                        result_dict[key]['BuiltBy']=m.group(14)
-
-        return result_dict
-
-
-    def get_amcc_dump(self, ip='10.0.1.4',show_result=True):
-        import subprocess
-        result=subprocess.check_output(['amcc_dump','--all','10.0.1.4'])
-        result_string=result.decode('utf-8')
-
-        tablebreak='================================================================================'
-        ipslotbreak='--------------------------------------------------------------------------------'
-
-        ## break into tables
-        split_result_string=result_string.split(tablebreak)
-        # drop white space
-        split_result_string = list(filter(None,[s for s in split_result_string if not s.isspace()]))
-
-        amcc_dump_dict = {}
-        # loop over tables in returned data
-        for ii in range(0,len(split_result_string),2):
-            header = split_result_string[ii]
-            table = split_result_string[ii+1]
-
-            split_header=header.split('|')
-            split_header = list(filter(None,[s.lstrip().rstrip() for s in split_header if not s.isspace()]))
-            sh0=split_header[0]
-
-            ipslotbreakcnt=[]
-            ipslotbreakcntr=0
-            split_table=table.split('\n')
-            for s in split_table:
-                if ipslotbreak in s:
-                    ipslotbreakcntr+=1
-                ipslotbreakcnt.append(ipslotbreakcntr)
-
-            # loop over ip/slot combinations in returned data
-            for jj in range(0,max(ipslotbreakcnt),2):
-                this_ipslot_idxs=[ll for ll, xx in enumerate(ipslotbreakcnt) if xx in [jj,jj+1]]
-                split_table_subset=np.array(split_table)[this_ipslot_idxs[1:]]
-                split_table_subset=list(filter(None,[s.lstrip().rstrip() for s in split_table_subset if not s.isspace()]))
-                ipslot=split_table_subset[0]
-                table2=split_table_subset[2:]
-
-                if 'RTM' in sh0 or 'Bay Raw GPIO' in sh0:
-                    continue
-
-                split_ipslot=ipslot.split('|')
-                split_ipslot = list(filter(None,[s.lstrip().rstrip() for s in split_ipslot if not s.isspace()]))
-                ip=split_ipslot[0].split('/')[0]
-                slot=split_ipslot[0].split('/')[1]
-
-                if ip not in amcc_dump_dict.keys():
-                    amcc_dump_dict[ip]={}
-                if int(slot) not in amcc_dump_dict[ip].keys():
-                    amcc_dump_dict[ip][int(slot)]={}
-
-                if sh0 not in amcc_dump_dict[ip][int(slot)].keys():
-                    amcc_dump_dict[ip][int(slot)][sh0]={}
-
-                #if sh0 is 'BAY':
-                if sh0=="BAY":
-                    split_table2=table2
-                    split_table2=list(filter(None,[s.lstrip().rstrip() for s in split_table2]))
-                    for split_table3 in split_table2:
-                        split_table3=split_table3.split('|')
-                        split_table3 = list(filter(None,[s for s in split_table3]))
-                        st3k=split_table3[0].lstrip().rstrip()
-                        if st3k not in amcc_dump_dict[ip][int(slot)][sh0].keys():
-                            amcc_dump_dict[ip][int(slot)][sh0][st3k]={}
-                        #add data
-                        for kk in range(1,len(split_header)-1):
-                            shkk=split_header[kk]
-                            st3kk=split_table3[kk].lstrip().rstrip()
-                            if shkk not in amcc_dump_dict[ip][int(slot)][sh0][st3k].keys():
-                                amcc_dump_dict[ip][int(slot)][sh0][st3k][shkk]=st3kk
-
-        if show_result:
-            import json
-            print(json.dumps(amcc_dump_dict, indent = 4))
-
-        return amcc_dump_dict
-
-
     # Shawn needs to make this better and add documentation.
     def estimate_phase_delay(self,band,n_samples=2**19,make_plot=True,show_plot=True,
                              save_plot=True,save_data=True,n_scan=5,timestamp=None,
@@ -353,24 +184,8 @@ class SmurfUtilMixin(SmurfBase):
         ff_corr_ctime=1562053274
 
         bay=int(band/4)
-        #amcc_dump_bsi_dict=self.get_amcc_dump_bsi()
-        #amc_dict=amcc_dump_bsi_dict['AMC'][bay]
-        #amc_sn=amc_dict['Tag']+amc_dict['Ver']
 
         fw_abbrev_sha=self.get_fpga_git_hash_short()
-        #fw_dict=amcc_dump_bsi_dict['FW']
-        #fw_build_date="Built {} {} {}:{}:{} {} {} by {}".format(fw_dict['Month'],
-        #                                                        fw_dict['Day'],
-        #                                                        fw_dict['Hour'],
-        #                                                        fw_dict['Minute'],
-        #                                                        fw_dict['Second'],
-        #                                                        fw_dict['TimeZone'],
-        #                                                        fw_dict['Year'],
-        #                                                        fw_dict['BuiltBy'])
-
-        #print('amc_sn={}'.format(amc_sn))
-        #print('fw_abbrev_sha={}'.format(fw_abbrev_sha))
-        #print('fw_build_date={}'.format(fw_build_date))
 
         self.band_off(band)
         self.flux_ramp_off()
@@ -532,12 +347,10 @@ class SmurfUtilMixin(SmurfBase):
         f_dsp_corr_plot = (freq_dsp_corr_subset) / 1.0E6
         dsp_corr_phase = np.unwrap(np.angle(resp_dsp_corr_subset))
 
-        #ax[0].set_title('AMC {}, Bay {}, Band {} Cable Delay'.format(amc_sn,bay,band))
         ax[0].set_title('AMC in Bay {}, Band {} Cable Delay'.format(bay,band))
         ax[0].plot(f_cable_plot,cable_phase,label='Cable (full_band_resp)',c='g',lw=3)
         ax[0].plot(f_cable_plot,cable_p(f_cable_plot*1.0E6),'m--',label='Cable delay fit',lw=3)
 
-        #ax[1].set_title('AMC {}, Bay {}, Band {} DSP Delay'.format(amc_sn,bay,band))
         ax[1].set_title('AMC in Bay {}, Band {} DSP Delay'.format(bay,band))
         ax[1].plot(f_dsp_plot,dsp_phase,label='DSP (find_freq)',c='c',lw=3)
         ax[1].plot(f_dsp_plot,dsp_p(f_dsp_plot*1.0E6),c='orange',ls='--',label='DSP delay fit',lw=3)
@@ -2025,13 +1838,6 @@ class SmurfUtilMixin(SmurfBase):
         --------
         do_enable (bool) : Sets the enable bit. Default is True.
         """
-
-        # bias_order = np.array([9, 11, 13, 15, 16, 14, 12, 10, 7, 5, 3, 1, 8, 6,
-        #     4, 2]) - 1  # -1 because bias_groups are 0 indexed. Chips are 1
-        # dac_positives = np.array([2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24,
-        #     26, 28, 30, 32])
-        # dac_negatives = np.array([1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23,
-        #     25, 27, 29, 31])
 
         bias_order = self.bias_group_to_pair[:,0]
         dac_positives = self.bias_group_to_pair[:,1]
