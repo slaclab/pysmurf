@@ -492,10 +492,22 @@ class SmurfCommandMixin(SmurfBase):
         self.log('{} sent'.format(triggerPV), self.LOG_USER)
 
 
+    _writestate = ":AMCc:WriteState"
+    def write_state(self, val, **kwargs):
+        """
+        Dumps all PyRogue settings to a yml file.
+
+        Args:
+        ----
+        val (str) : The path (including file name) to write the yml file to.
+        """
+        self._caput(self.epics_root + self._writestate,
+                    val, **kwargs)        
+
     _writeconfig = ":AMCc:WriteConfig"
     def write_config(self, val, **kwargs):
         """
-        Writes the current PyRogue settings to a yml file.
+        Writes the current (un-masked) PyRogue settings to a yml file.
 
         Args:
         ----
