@@ -3163,7 +3163,6 @@ class SmurfUtilMixin(SmurfBase):
         # Keep all other bit settings the same.
         uc0=self.get_user_config0()
         
-        # Getting 
         # Set bit 0 of userConfig[0] high.
         self.set_user_config0(uc0 | (1 << 0))
         # Set bit 0 of userConfig[0] low.
