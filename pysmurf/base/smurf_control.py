@@ -80,7 +80,8 @@ class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin, Smu
 
             # Set logfile
             datestr = time.strftime('%y%m%d_', time.gmtime())
-            self.log_file = os.path.join(self.output_dir, 'logs', datestr + 'smurf_cmd.log')
+            self.log_file = os.path.join(self.output_dir, 'logs', datestr + 
+                'smurf_cmd.log')
             self.log.set_logfile(self.log_file)
         else:
             # define data dir
@@ -175,7 +176,7 @@ class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin, Smu
         if not no_dir:
             for b in self.config.get('init').get('bands'):
                 all_channel_assignment_files=glob.glob(os.path.join(self.tune_dir, 
-                                                                    '*channel_assignment_b{}.txt'.format(b)))
+                    '*channel_assignment_b{}.txt'.format(b)))
                 if len(all_channel_assignment_files):
                     self.channel_assignment_files['band_{}'.format(b)] = \
                             np.sort(all_channel_assignment_files)[-1]
@@ -253,8 +254,8 @@ class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin, Smu
         for cfg_var in ['gradient_descent_gain', 'gradient_descent_averages',
                         'gradient_descent_converge_hz', 'gradient_descent_step_hz',
                         'gradient_descent_momentum', 'gradient_descent_beta',
-                        'eta_scan_del_f',
-                        'eta_scan_amplitude', 'eta_scan_averages','delta_freq']:
+                        'eta_scan_del_f', 'eta_scan_amplitude', 
+                        'eta_scan_averages','delta_freq']:
             if cfg_var in tune_band_keys:
                 setattr(self, cfg_var, {})
                 for b in bands:
@@ -274,15 +275,19 @@ class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin, Smu
 
         # If active, disable hardware logging while doing setup.
         if self._hardware_logging_thread is not None:
-            self.log('Hardware logging is enabled.  Pausing for setup.', (self.LOG_USER))
+            self.log('Hardware logging is enabled.  Pausing for setup.', 
+                (self.LOG_USER))
             self.pause_hardware_logging()
 
         # Thermal OT protection
-        ultrascale_temperature_limit_degC=self.config.get('ultrascale_temperature_limit_degC')
+        ultrascale_temperature_limit_degC = self.config.get('ultrascale_temperature_limit_degC')
         if ultrascale_temperature_limit_degC is not None:
-            self.log('Setting ultrascale OT protection limit to {}C'.format(ultrascale_temperature_limit_degC), (self.LOG_USER))
+            self.log('Setting ultrascale OT protection limit to {}C'.format(ultrascale_temperature_limit_degC), 
+                (self.LOG_USER))
             # OT threshold in degrees C
-            self.set_ultrascale_ot_threshold(self.config.get('ultrascale_temperature_limit_degC'),write_log=write_log)
+            self.set_ultrascale_ot_threshold(
+                self.config.get('ultrascale_temperature_limit_degC'),
+                write_log=write_log)
 
         # Which bands are we configuring?
         smurf_init_config = self.config.get('init')
@@ -452,7 +457,7 @@ class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin, Smu
             
             if timing_reference=='ext_ref':
                 for bay in self.bays:
-                    self.log('Select external reference for bay %i' % (bay))
+                    self.log(f'Select external reference for bay {bay}')
                     self.sel_ext_ref(bay)
 
                 # make sure RTM knows there's no timing system
@@ -474,16 +479,16 @@ class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin, Smu
                 # Check if link is up - just printing status to
                 # screen, not currently taking any action if it's not.
                 timingRxLinkUp=self.get_timing_link_up()
-                self.log('Timing RxLinkUp = {}'.format(timingRxLinkUp), self.LOG_USER if
+                self.log(f'Timing RxLinkUp = {timingRxLinkUp}', self.LOG_USER if
                          timingRxLinkUp else self.LOG_ERROR)
 
                 # Set LMK to use timing system as reference
                 for bay in self.bays:
-                    self.log('Configuring bay %i LMK to lock to the timing system' % (bay))
-                    self.set_lmk_reg(bay,0x147,0xA)
+                    self.log(f'Configuring bay {bay} LMK to lock to the timing system')
+                    self.set_lmk_reg(bay, 0x147, 0xA)
 
                 # Configure RTM to trigger off of the timing system
-                self.set_ramp_start_mode(1,write_log=write_log)
+                self.set_ramp_start_mode(1, write_log=write_log)
                 
         self.log('Done with setup')
 
