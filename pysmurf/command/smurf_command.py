@@ -367,7 +367,6 @@ class SmurfCommandMixin(SmurfBase):
         return self._caget(self._cryo_root(band) + self._gradient_descent_beta,
                            **kwargs)
 
-
     def run_parallel_eta_scan(self, band, sync_group=True, **kwargs):
         """
         runParallelScan
@@ -3476,6 +3475,35 @@ class SmurfCommandMixin(SmurfBase):
         self._caput(self.timing_header +
                     self._smurf_to_gcp_stream, val, **kwargs)
 
+    def clear_unwrapping_and_averages(self, epics_poll=True, **kwargs):
+        """
+        Resets unwrapping and averaging for all channels, in all bands.
+        """
+
+        # Set bit 0 of userConfig[0] high.  Use SyncGroup to detect
+        # when register changes so we're sure.
+        user_config0_pv=self.timing_header + self._smurf_to_gcp_stream
+        # Toggle using SyncGroup so we can confirm state as we toggle.
+        sg=SyncGroup([user_config0_pv])
+
+        # what is it now?
+        sg.wait(epics_poll=epics_poll) # wait for value
+        uc0=sg.get_values()[user_config0_pv]
+
+        # set bit high, keeping all other bits the same
+        self.set_user_config0(uc0 | (1 << 0))
+        sg.wait(epics_poll=epics_poll) # wait for change
+        uc0=sg.get_values()[user_config0_pv]
+        assert ( ( uc0 >> 0) & 1 ),'Failed to set averaging/clear bit high (userConfig0=%d).'%uc0
+
+        # toggle bit back to low, keeping all other bits the same
+        self.set_user_config0(uc0 & ~(1 << 0))
+        sg.wait(epics_poll=epics_poll) # wait for change
+        uc0=sg.get_values()[user_config0_pv]
+        assert ( ~( uc0 >> 0) & 1 ),'Failed to set averaging/clear bit low after setting it high (userConfig0=%d).'%(uc0)
+
+        self.log('Successfully toggled averaging/clearing bit (userConfig[0]=%d).'%uc0,
+                 self.LOG_USER)
 
     def set_smurf_to_gcp_stream(self, val, **kwargs):
         """
