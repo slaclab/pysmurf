@@ -3154,3 +3154,17 @@ class SmurfUtilMixin(SmurfBase):
 
         # Zero TES biases on this bias group
         self.set_tes_bias_bipolar(bias_group, 0)
+
+    def clear_unwrapping_and_averages(self, **kwargs):
+        """
+        Resets unwrapping and averaging for all channels, in all bands.
+        """
+
+        # Keep all other bit settings the same.
+        uc0=self.get_user_config0()
+        
+        # Getting 
+        # Set bit 0 of userConfig[0] high.
+        self.set_user_config0(uc0 | (1 << 0))
+        # Set bit 0 of userConfig[0] low.
+        self.set_user_config0(uc0 & ~(1 << 0))
