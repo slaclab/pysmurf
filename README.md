@@ -1,4 +1,7 @@
 # pysmurf
+
+[![Documentation Status](https://readthedocs.org/projects/pysmurf/badge/?version=latest)](https://pysmurf.readthedocs.io/en/latest/?badge=latest)
+
 The python control software for SMuRF. Includes scripts to do low level
 commands as well as higher level analysis.
 
