@@ -1,4 +1,7 @@
 # pysmurf
+
+[![Documentation Status](https://readthedocs.org/projects/pysmurf/badge/?version=latest)](https://pysmurf.readthedocs.io/en/latest/?badge=latest)
+
 The python control software for SMuRF. Includes scripts to do low level
 commands as well as higher level analysis.
 
@@ -8,6 +11,7 @@ To install pysmurf clone this repository and install using pip:
 ```
 git clone https://github.com/slaclab/pysmurf.git
 cd pysmurf/
+pip3 install -r requirements.txt
 pip3 install .
 ```
 
