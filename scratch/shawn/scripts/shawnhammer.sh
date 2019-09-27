@@ -9,15 +9,15 @@ shelfmanager=shm-smrf-sp01
 set_crate_fans_to_full=true
 # COMTEL max fan level is 100, ASIS is 15, ELMA is 15
 ## COMTEL in RF lab
-max_fan_level=100
+#max_fan_level=100
 ## ELMA in RF lab
-#max_fan_level=15
+max_fan_level=100
 ## ASIS in RF lab
 #max_fan_level=15
 
 attach_at_end=true
 screenshot_signal_analyzer=false
-configure_pysmurf=true
+configure_pysmurf=false
 reboot=true
 using_timing_master=false
 run_half_band_test=false
@@ -31,7 +31,7 @@ cpwd=$PWD
 pysmurf=/home/cryo/docker/pysmurf/dspv3
 
 crate_id=3
-slots_in_configure_order=(3)
+slots_in_configure_order=(7)
 
 pysmurf_init_script=scratch/shawn/scripts/init_rflab.py
 
