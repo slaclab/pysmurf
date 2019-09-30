@@ -11,10 +11,9 @@ matching_dockers () {
 }
 
 stop_pyrogue () {
-    # stop pyrogue dockers, assumes the pyrogue version you want to use
-    # has been soft linked to slotN/current
-    echo "-> Stopping slot $1 pyrogue docker";
-    cd /home/cryo/docker/smurf/current;
+    # stop pyrogue dockers
+    echo "-> Stopping slot $1 pyrogue docker $2";
+    cd $2;
     ./stop.sh -N $1;
 }
 
@@ -25,9 +24,10 @@ wait_for_docker () {
 
 start_slot_tmux_and_pyrogue() {
     slot_number=$1
+    pyrogue=$2
     tmux new-window -t ${tmux_session_name}:${slot_number}
     tmux rename-window -t ${tmux_session_name}:${slot_number} smurf_slot${slot_number}
-    tmux send-keys -t ${tmux_session_name}:${slot_number} 'cd /home/cryo/docker/smurf/current' C-m
+    tmux send-keys -t ${tmux_session_name}:${slot_number} 'cd '${pyrogue} C-m
     tmux send-keys -t ${tmux_session_name}:${slot_number} './run.sh -N '${slot_number}'; sleep 5; docker logs smurf_server_s'${slot_number}' -f' C-m
 }
 
@@ -60,12 +60,13 @@ start_slot_pysmurf() {
 
 start_slot_tmux_serial () {
     slot_number=$1
+    pyrogue=$2
 
     pysmurf_docker0=`docker ps -a | grep pysmurf | grep -v pysmurf_s${slot_number} | head -n 1 | awk '{print $1}'`
     
     tmux new-window -t ${tmux_session_name}:${slot_number}
     tmux rename-window -t ${tmux_session_name}:${slot_number} smurf_slot${slot_number}
-    tmux send-keys -t ${tmux_session_name}:${slot_number} 'cd /home/cryo/docker/smurf/current' C-m
+    tmux send-keys -t ${tmux_session_name}:${slot_number} 'cd '$2 C-m
     tmux send-keys -t ${tmux_session_name}:${slot_number} './run.sh -N '${slot_number}'; sleep 5; docker logs smurf_server_s'${slot_number}' -f' C-m
 
 
@@ -122,8 +123,11 @@ config_pysmurf_serial () {
     grep -q "Done with setup" <(docker logs $pysmurf_docker -f)
     echo "-> Carrier is configured"
 
-    echo "-> Disable streaming (unless taking data)"
-    tmux send-keys -t ${tmux_session_name}:${slot_number} 'S.set_stream_enable(0)' C-m
+    if [ "$disable_streaming" = true ] ; then    
+	echo "-> Disable streaming (unless taking data)"
+	tmux send-keys -t ${tmux_session_name}:${slot_number} 'S.set_stream_enable(0)' C-m
+	sleep 2
+    fi
 
     # write config
     if [ "$write_config" = true ] ; then

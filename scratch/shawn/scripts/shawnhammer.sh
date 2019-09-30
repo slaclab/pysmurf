@@ -1,41 +1,23 @@
 #!/bin/bash
 
+startup_cfg=/data/smurf_startup_cfg/smurf_startup.cfg
+if [ ! -f "$startup_cfg" ]; then
+    echo "$startup_cfg doesn't exist, unable to shawnhammer."
+    exit 1
+fi
+
+# didn't exit, so there must be a startup cfg file.  Load it.
+source ${startup_cfg}
+
+## extract slot and configuration arrays
+# first column is the slot numbers, in slot configure order.
+slots=( $(awk '{print $1}' <<< "$slot_cfgs") )
+# second column is the pyrogue directories, in slot configure order
+pyrogues=( $(awk '{print $2}' <<< "$slot_cfgs") )
+
 source shawnhammerfunctions
 
 ctime=`date +%s`
-
-shelfmanager=shm-smrf-sp01
-
-set_crate_fans_to_full=true
-# COMTEL max fan level is 100, ASIS is 15, ELMA is 15
-## COMTEL in RF lab
-#max_fan_level=100
-## ELMA in RF lab
-max_fan_level=100
-## ASIS in RF lab
-#max_fan_level=15
-
-attach_at_end=true
-screenshot_signal_analyzer=false
-configure_pysmurf=false
-reboot=true
-using_timing_master=false
-run_half_band_test=false
-run_full_band_response=false
-write_config=false
-start_atca_monitor=true
-# still not completely parallel.  Also doesn't work.
-parallel_setup=false
-cpwd=$PWD
-
-pysmurf=/home/cryo/docker/pysmurf/dspv3
-
-crate_id=3
-slots_in_configure_order=(7)
-
-pysmurf_init_script=scratch/shawn/scripts/init_rflab.py
-
-tmux_session_name=smurf
 
 # If true, forces crate fans to full speed
 if [ "$set_crate_fans_to_full" = true ] ; then
@@ -54,8 +36,10 @@ tmux new-session -d -s ${tmux_session_name}
 #tmux new -s ${tmux_session_name} -d
 
 # stop pyrogue servers on all carriers
-for slot in ${slots_in_configure_order[@]}; do
-    stop_pyrogue $slot
+for ((i=0; i<${#slots[@]}; ++i)); do
+    slot=${slots[i]}
+    pyrogue=${pyrogues[i]} 
+    stop_pyrogue $slot $pyrogue
 done
 cd $cpwd
 
@@ -118,20 +102,20 @@ if [ "$reboot" = true ] ; then
     # deactivate carriers
     deactivatecmd=""
     activatecmd=""    
-    for slot in ${slots_in_configure_order[@]}; do
+    for slot in ${slots[@]}; do
 	deactivatecmd="$deactivatecmd clia deactivate board ${slot};"
 	activatecmd="$activatecmd clia activate board ${slot};"	
     done
 
     # deactivate carriers
-    echo "-> Deactivating carrier(s) ${slots_in_configure_order[@]}"    
+    echo "-> Deactivating carrier(s) ${slots[@]}"    
     ssh root@${shelfmanager} "$deactivatecmd"
     
     echo "-> Waiting 5 sec before re-activating carrier(s)"
     sleep 5
 
     # activate carriers
-    echo "-> Activating carrier(s) ${slots_in_configure_order[@]}"    
+    echo "-> Activating carrier(s) ${slots[@]}"    
     ssh root@${shelfmanager} "$activatecmd"    
 fi
 
@@ -203,13 +187,16 @@ if [ "$parallel_setup" = true ] ; then
     done
 else
     ##  older serial method
-    for slot in ${slots_in_configure_order[@]}; do
+    for ((i=0; i<${#slots[@]}; ++i)); do
+	slot=${slots[i]}
+	pyrogue=${pyrogues[i]} 
+
 	# make sure ethernet is up on carrier
 	echo "-> Waiting for ethernet on carrier in slot ${slot} to come up ..."
 	cd $cpwd
-	ping_carrier 10.0.${crate_id}.$((${slots_in_configure_order[0]}+100))
+	ping_carrier 10.0.${crate_id}.$((${slot}+100))
 	
-	start_slot_tmux_serial ${slot}
+	start_slot_tmux_serial ${slot} ${pyrogue}
 	
 	pysmurf_docker_slot=`docker ps -a -n 1 -q`
 	
