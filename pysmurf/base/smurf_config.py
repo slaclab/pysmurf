@@ -1,11 +1,22 @@
+#!/usr/bin/env python
+#-----------------------------------------------------------------------------
+# Title      : pysmurf base module - SmurfConfig class
+#-----------------------------------------------------------------------------
+# File       : pysmurf/base/smurf_config.py
+# Created    : 2018-08-30
+#-----------------------------------------------------------------------------
+# This file is part of the pysmurf software package. It is subject to 
+# the license terms in the LICENSE.txt file found in the top-level directory 
+# of this distribution and at: 
+#    https://confluence.slac.stanford.edu/display/ppareg/LICENSE.html. 
+# No part of the pysmurf software package, including this file, may be 
+# copied, modified, propagated, or distributed except according to the terms 
+# contained in the LICENSE.txt file.
+#-----------------------------------------------------------------------------
 import json
 import io
 import re
 import os
-'''
-Stolen from Cyndia/Shawns get_config.py
-read or dump a config file
-'''
 
 class SmurfConfig:
     """Initialize, read, or dump a SMuRF config file.
