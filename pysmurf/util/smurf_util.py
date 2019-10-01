@@ -8,6 +8,7 @@ import time
 from scipy import signal
 import shutil
 import glob
+import matplotlib.pyplot as plt
 # for hardware logging
 import threading
 
@@ -341,7 +342,6 @@ class SmurfUtilMixin(SmurfBase):
             timestamp=self.get_timestamp()
 
         if make_plot:
-            import matplotlib.pyplot as plt
             if show_plot:
                 plt.ion()
             else:
@@ -1278,7 +1278,6 @@ class SmurfUtilMixin(SmurfBase):
         dat = res[1] + 1.j * res[0]
 
         if do_plot:
-            import matplotlib.pyplot as plt
             if show_plot:
                 plt.ion()
             else:
@@ -1365,7 +1364,6 @@ class SmurfUtilMixin(SmurfBase):
         dat = res[1] + 1.j * res[0]
 
         if do_plot:
-            import matplotlib.pyplot as plt
             if show_plot:
                 plt.ion()
             else:
@@ -2977,8 +2975,6 @@ class SmurfUtilMixin(SmurfBase):
                                 np.nan*np.zeros(skip_samp_end)),n_tile)
 
         timestamp = filename.split('/')[-1].split('.')[0]
-        if make_plot:
-            import matplotlib.pyplot as plt
 
         for i, (b, c) in enumerate(zip(bands, channels)):
             mm = m[b, c]
