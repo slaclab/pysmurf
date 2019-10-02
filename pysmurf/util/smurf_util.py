@@ -1831,12 +1831,23 @@ class SmurfUtilMixin(SmurfBase):
     def set_tes_bias_bipolar(self, bias_group, volt, do_enable=True, flip_polarity=False,
                              **kwargs):
         """
+        Set an individual TES bias group to the specified voltage, in
+        volts.  Asserts if the requested bias group is not defined in
+        the pysmurf configuration file.  The positive DAC in the bias
+        group is set to +volt/2, while the negative DAC in the bias
+        group is set to -volt/2.
+
+        Args:
+        -----
         bias_group (int): The bias group
-        volt (float): The TES bias to command in voltage.
+        volt (float): The TES bias to command in volts.
 
         Opt args:
         --------
-        do_enable (bool) : Sets the enable bit. Default is True.
+        do_enable (bool) : Sets the enable bit. Only must be done
+                           once.  Default is True.
+        flip_polarity (bool) : Sets the voltage to volt*-1.  Default
+                               is False.
         """
 
         # Make sure the requested bias group is in the list of defined
@@ -1860,7 +1871,6 @@ class SmurfUtilMixin(SmurfBase):
             volts_pos *= -1
             volts_neg *= -1
 
-
         if do_enable:
             self.set_tes_bias_enable(dac_positive, 2, **kwargs)
             self.set_tes_bias_enable(dac_negative, 2, **kwargs)
@@ -1870,7 +1880,7 @@ class SmurfUtilMixin(SmurfBase):
 
     def set_tes_bias_bipolar_array(self, volt_array, do_enable=True, **kwargs):
         """
-        Set TES bipolar values for all DACs at once
+        Set TES bipolar values for all DACs at once.
 
         Args:
         -----
@@ -2174,7 +2184,7 @@ class SmurfUtilMixin(SmurfBase):
         self.set_tes_bias_bipolar(bias_group, overbias_voltage,
                                   flip_polarity=flip_polarity)
         time.sleep(.1)
-
+        
         self.set_tes_bias_high_current(bias_group)
         self.log('Driving high current through TES. ' + \
             'Waiting {}'.format(overbias_wait), self.LOG_USER)
