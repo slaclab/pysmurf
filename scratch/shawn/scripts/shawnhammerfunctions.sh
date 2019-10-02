@@ -34,7 +34,7 @@ start_slot_tmux_and_pyrogue() {
 is_slot_pyrogue_up() {
     slot_number=$1
     if [[ -z `docker ps  | grep smurf_server_s${slot_number}`  ]]; then
-	echo '-> smurf_server_s'${slot_number}' docker started.'
+	#echo '-> smurf_server_s'${slot_number}' docker started.'
 	return 1
     fi
     return 0
@@ -105,6 +105,18 @@ start_slot_tmux_serial () {
     # after running this, can run
     # pysmurf_docker=`docker ps -n 1 -q`
     # to hex of most recently created docker.
+}
+
+
+run_pysmurf_setup () {
+    slot_number=$1
+    tmux send-keys -t ${tmux_session_name}:${slot_number} 'S = pysmurf.SmurfControl(epics_root=epics_prefix,cfg_file=config_file,setup=True,make_logfile=False,shelf_manager="'${shelfmanager}'")' C-m
+}
+
+is_slot_pysmurf_setup_complete() {
+    slot_number=$1
+    tmux capture-pane -pt ${tmux_session_name}:${slot_number} | grep -q "Done with setup"
+    return $?
 }
 
 # right now, real dumb.  Assumes the active window in tmux is this

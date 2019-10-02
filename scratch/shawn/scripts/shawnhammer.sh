@@ -128,12 +128,13 @@ if [ "$parallel_setup" = true ] ; then
     # 0 = carriers off.
     # 1 = carrier eth responds to ping.
     setup_complete=false
-    completion_status=5
-    declare -a slot_status=( $(for slot in ${slots_in_configure_order[@]}; do echo 0; done) )
+    completion_status=7
+    declare -a slot_status=( $(for slot in ${slots[@]}; do echo 0; done) )
     setup_loop_cadence_sec=1
-    while [[ "${setup_complete}" = false ]] ; do 
-	for slot_idx in `seq 0 $((${#slots_in_configure_order[@]}-1))`; do 
-	    slot=${slots_in_configure_order[$slot_idx]}
+    while [[ "${setup_complete}" = false ]] ; do
+	for ((slot_idx=0; slot_idx<${#slots[@]}; ++slot_idx)); do
+	    slot=${slots[slot_idx]}
+	    pyrogue=${pyrogues[slot_idx]} 	
 
 	    if [ "${slot_status[${slot_idx}]}" = "0" ]; then
 		# make sure ethernet is up on carrier
@@ -146,36 +147,47 @@ if [ "$parallel_setup" = true ] ; then
 
 	    if [ "${slot_status[${slot_idx}]}" = "1" ]; then
 		echo "-> Creating tmux session and starting pyrogue on slot ${slot}."
-		start_slot_tmux_and_pyrogue ${slot}
+		start_slot_tmux_and_pyrogue ${slot} ${pyrogue}
 		slot_status[$slot_idx]=2
 	    fi
 
 	    if [ "${slot_status[${slot_idx}]}" = "2" ]; then
-		echo "-> Waiting for pyrogue server to start on slot ${slot}."
+	    	echo "-> Waiting for pyrogue server to start on slot ${slot}."
 		if is_slot_pyrogue_up ${slot}; then
 		    slot_status[$slot_idx]=3;
 		fi
 	    fi
-
+	    
 	    if [ "${slot_status[${slot_idx}]}" = "3" ]; then
-		echo "-> Waiting for gui to come up on slot ${slot}."
-		if is_slot_gui_up ${slot}; then
-		    slot_status[$slot_idx]=4;
-		fi
+	    	echo "-> Waiting for gui to come up on slot ${slot}."
+	    	if is_slot_gui_up ${slot}; then
+	    	    slot_status[$slot_idx]=4;
+	    	fi
 	    fi
-
+	    
 	    # GUI is up.  Splits each slot window and instantiate
 	    # pysmurf object
 	    if [ "${slot_status[${slot_idx}]}" = "4" ]; then
-		echo "-> Starting pysmurf on ${slot}."		
-		start_slot_pysmurf ${slot}
-		slot_status[$slot_idx]=5;
-	    fi	    
+	    	echo "-> Starting pysmurf on ${slot}."		
+	    	start_slot_pysmurf ${slot}
+	    	slot_status[$slot_idx]=5;
+	    fi
 
-	    ## STILL NEED PYSMURF INITIALIZATION AND CONFIGURE STAGES
+	    # Run pysmurf setup
+	    if [ "${slot_status[${slot_idx}]}" = "5" ]; then
+		echo "-> Running pysmurf setup on slot ${slot}."
+		run_pysmurf_setup ${slot}
+		slot_status[$slot_idx]=6
+	    fi
 
-	    # Check status
-	    echo "slot_status="${slot_status[@]}
+	    # Check for pysmurf setup completion
+	    if [ "${slot_status[${slot_idx}]}" = "6" ]; then
+		echo "-> Waiting for carrier setup on slot ${slot} (watching pysmurf docker ${pysmurf_docker})"		
+	    	if is_slot_pysmurf_setup_complete ${slot}; then
+	    	    slot_status[$slot_idx]=7;
+	    	fi		
+	    fi	    	    
+
 	    # check if complete
 	    status_summary=(`echo ${slot_status[@]} | tr ' ' '\n' | sort | uniq`)
 	    # break out of setup loop once all slot statuses reach completion status.
@@ -183,6 +195,11 @@ if [ "$parallel_setup" = true ] ; then
 		setup_complete=true
 	    fi
 	done
+
+	# Print status
+	echo "slot_status="${slot_status[@]}
+
+	# Wait requested cadence between setup steps.
 	sleep ${setup_loop_cadence_sec}
     done
 else
