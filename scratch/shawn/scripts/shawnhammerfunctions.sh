@@ -52,7 +52,7 @@ start_slot_pysmurf() {
     # start pysmurf in a split window and initialize the carrier
     tmux split-window -v -t ${tmux_session_name}:${slot_number}
     tmux send-keys -t ${tmux_session_name}:${slot_number} 'cd '${pysmurf} C-m
-    tmux send-keys -t ${tmux_session_name}:${slot_number} './run.sh' C-m
+    tmux send-keys -t ${tmux_session_name}:${slot_number} './run.sh shawnhammer_pysmurf_s'${slot_number} C-m
     sleep 1
 
     tmux send-keys -t ${tmux_session_name}:${slot_number} 'ipython3 -i '${pysmurf_init_script}' '${slot_number} C-m
@@ -83,7 +83,7 @@ start_slot_tmux_serial () {
     # start pysmurf in a split window and initialize the carrier
     tmux split-window -v -t ${tmux_session_name}:${slot_number}
     tmux send-keys -t ${tmux_session_name}:${slot_number} 'cd '${pysmurf} C-m
-    tmux send-keys -t ${tmux_session_name}:${slot_number} './run.sh' C-m
+    tmux send-keys -t ${tmux_session_name}:${slot_number} './run.sh shawnhammer_pysmurf_s'${slot_number} C-m
     sleep 1
 
     tmux send-keys -t ${tmux_session_name}:${slot_number} 'ipython3 -i '${pysmurf_init_script}' '${slot_number} C-m

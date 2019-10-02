@@ -46,8 +46,10 @@ cd $cpwd
 # stop all pysmurf dockers
 matching_dockers pysmurf
 if [ "$?" = "1" ]; then
-    echo "-> Stopping all running pysmurf dockers."
-    docker rm -f $(docker ps | grep pysmurf | awk '{print $1}')
+    echo "-> Stopping all running stable pysmurf dockers."
+    # this stops all pysmurf dockers
+    #docker rm -f $(docker ps | grep pysmurf | awk '{print $1}')
+    docker rm -f $(docker ps -q -f name=pysmurf | awk '{print $1}')
 fi
 
 # if using a timing master, check that timing docker is running,
