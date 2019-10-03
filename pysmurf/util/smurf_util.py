@@ -1908,8 +1908,8 @@ class SmurfUtilMixin(SmurfBase):
         # bias groups.  Need to make sure we carry along the setting
         # and enable of any DACs that are being used for something
         # else.
-        enable_array = self.get_rtm_slow_dac_enable_array()
-        tes_bias_volt_array = self.get_rtm_slow_dac_volt_array()
+        dac_enable_array = self.get_rtm_slow_dac_enable_array()
+        dac_volt_array = self.get_rtm_slow_dac_volt_array()
         
         if len(bias_group_volt_array) != n_bias_groups:
             self.log("Received the wrong number of biases. Expected an array of " +
@@ -1929,25 +1929,25 @@ class SmurfUtilMixin(SmurfBase):
                 volts_neg = - bias_group_volt_array[bg] / 2
 
                 if do_enable:
-                    enable_array[dac_positive] = 2
-                    enable_array[dac_negative] = 2
+                    dac_enable_array[dac_positive] = 2
+                    dac_enable_array[dac_negative] = 2
 
-                tes_bias_volt_array[dac_positive] = volts_pos
-                tes_bias_volt_array[dac_negative] = volts_neg
+                dac_volt_array[dac_positive] = volts_pos
+                dac_volt_array[dac_negative] = volts_neg
 
             if do_enable:
-                self.set_rtm_slow_dac_enable_array(enable_array, **kwargs)
+                self.set_rtm_slow_dac_enable_array(dac_enable_array, **kwargs)
 
-            self.set_rtm_slow_dac_volt_array(tes_bias_volt_array, **kwargs)
+            self.set_rtm_slow_dac_volt_array(dac_volt_array, **kwargs)
 
 
     def set_tes_bias_off(self, **kwargs):
-        """
-        Turns off all TES biases
-        """
-
-        bias_array = np.zeros((32,), dtype=int)
-        self.set_rtm_slow_data_array(bias_array, **kwargs)
+        '''
+        Turns off all of the DACs assigned to a TES bias group in the
+        pysmurf configuration file.
+        '''
+        bias_groups=self.bias_group_to_pair[:,0]
+        self.set_tes_bias_bipolar_array(np.zeros(self._n_bias_groups), **kwargs)
 
     def get_tes_bias_bipolar(self, bias_group, return_raw=False, **kwargs):
         """
@@ -2168,7 +2168,8 @@ class SmurfUtilMixin(SmurfBase):
 
         Args:
         -----
-        bias_group (int): The bias group to overbias
+        bias_group (int): The bias group to overbias.  Asserts if not
+                          a valid bias group.
 
         Opt Args:
         ---------
@@ -2181,6 +2182,9 @@ class SmurfUtilMixin(SmurfBase):
         cool_wait (float): The time to wait after setting the TES bias for
             transients to die off.
         """
+        bias_groups = self.bias_group_to_pair[:,0]        
+        assert (bias_group in bias_groups),f'Bias group {bias_group} is not defined (available bias groups are {bias_groups}).  Doing nothing!'
+        
         # drive high current through the TES to attempt to drive normal
         self.set_tes_bias_bipolar(bias_group, overbias_voltage,
                                   flip_polarity=flip_polarity)
@@ -2202,28 +2206,34 @@ class SmurfUtilMixin(SmurfBase):
         overbias_wait=1.0, tes_bias=19.9, cool_wait=20.,
         high_current_mode=True):
         """
-        Warning: This is horribly hardcoded. Needs a fix soon.
-        CY edit 20181119 to make it even worse lol
-        EY edit 20181112 made it slightly better...
-
-        Args:
-        -----
+        Overbiases all requested bias groups (specified by the
+        bias_groups array) at overbias_voltage in high current mode
+        for overbias_wait seconds.  If high_current_mode=False,
+        returns to low current mode, after which it biases the TESs at
+        tes_bias.  Then waits cool_wait seconds before returning
+        control.
 
         Opt Args:
         ---------
-        bias_groups (array): which bias groups to overbias. defaults to all_groups
-        overbias_voltage (float): The value of the TES bias in the high current
-            mode. Default 19.9.
-        overbias_wait (float): The time to stay in high current mode in seconds.
-            Default is .5
-        tes_bias (float): The value of the TES bias when put back in low current
-            mode. Default is 19.9.
-        cool_wait (float): The time to wait after setting the TES bias for
-            transients to die off.
-        """
+        bias_groups (array): which bias groups to overbias. defaults
+                             to all_groups.  Asserts if any of the
+                             bias groups listed is not a defined bias
+                             group.
+        overbias_voltage (float): The value of the TES bias in the
+                                  high current mode. Default 19.9.
+        overbias_wait (float): The time to stay in high current mode
+                               in seconds.  Default is .5
+        tes_bias (float): The value of the TES bias when put back in
+                          low current mode. Default is 19.9.
+        cool_wait (float): The time to wait after setting the TES bias
+                           for transients to die off.
+        """        
         # drive high current through the TES to attempt to drive normal
         if bias_groups is None:
             bias_groups = self.all_groups
+
+        valid_bias_groups = self.bias_group_to_pair[:,0]        
+        assert (all(bg in valid_bias_groups for bg in bias_groups)),f'Some of the bias groups requested are not valid (available bias groups are {valid_bias_groups}).  Doing nothing!'
 
         voltage_overbias_array = self.get_tes_bias_bipolar_array()
         voltage_overbias_array[bias_groups] = overbias_voltage
