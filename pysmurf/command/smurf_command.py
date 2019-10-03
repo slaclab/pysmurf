@@ -2159,15 +2159,14 @@ class SmurfCommandMixin(SmurfBase):
                    length is less than 2048.  Default is 0.
         '''
         # cast as numpy array
-        lut_array_length=2048
-        lut_arr=np.pad(arr[:lut_array_length], \
-                       (0,lut_array_length-len(arr[:lut_array_length])), \
+        lut_arr=np.pad(arr[:self._lut_table_array_length], \
+                       (0,self._lut_table_array_length-len(arr[:self._lut_table_array_length])), \
                        'constant', constant_values=pad)
         # round entries and type as integer
         lut_arr=np.around(lut_arr).astype(int)
 
-        # clip ; DAC full scale is +/- 2**19
-        dac_nbits_fullscale=20
+        # clip exceed max number of DAC output bits
+        dac_nbits_fullscale=self._rtm_slow_dac_nbits
         # warn user if some points get clipped
         num_clip_above=len(np.where(lut_arr>(2**(dac_nbits_fullscale-1)-1))[0])
         if num_clip_above>0:
@@ -2732,20 +2731,21 @@ class SmurfCommandMixin(SmurfBase):
         dac (int) : Which DAC to command.  1-indexed.  If a DAC index
                     outside of the valid range is provided (must be
                     within [1,32]), will assert.
-        val (int) : the DAC voltage to set in DAC units.  Must be in
+        val (int) : The DAC voltage to set in DAC units.  Must be in
                     [-2^19,2^19).  If requested value is less
                     (greater) than -2^19 (2^19-1), sets DAC to -2^19
                     (2^19-1).
         '''
         assert (dac in range(1,33)),'dac must be an integer and in [1,32]'
-        
-        if val > 2**19-1:
-            val = 2**19-1
-            self.log('Bias too high. Must be <= than 2^19-1. Setting to ' +
+
+        nbits=self._rtm_slow_dac_nbits
+        if val > 2**(nbits-1)-1:
+            val = 2**(nbits-1)-1
+            self.log('Bias too high. Must be <= than 2^{}-1. Setting to '.format(nbits-1) +
                 'max value', self.LOG_ERROR)
-        elif val < -2**19:
-            val = -2**19
-            self.log('Bias too low. Must be >= than -2^19. Setting to ' +
+        elif val < -2**(nbits-1):
+            val = -2**(nbits-1)
+            self.log('Bias too low. Must be >= than -2^{}. Setting to '.format(nbits-1) +
                 'min value', self.LOG_ERROR)
         self._caput(self.rtm_spi_max_root +
                     self._rtm_slow_dac_data.format(dac), val, **kwargs)
@@ -2772,51 +2772,80 @@ class SmurfCommandMixin(SmurfBase):
                            self._rtm_slow_dac_data.format(dac),
                            **kwargs)
 
-    _tes_bias_array = 'TesBiasDacDataRegChArray'
-    def set_tes_bias_array(self, val, **kwargs):
+    _rtm_slow_dac_data_array = 'TesBiasDacDataRegChArray'
+    def set_rtm_slow_dac_data_array(self, val, **kwargs):
         """
-        Set the TES bias DACs. Must give all 32 values.
+        Sets the data registers for all 32 DACs, which sets their
+        output voltages.  Must provide all 32 values.
 
         Args:
         -----
-        val (int array): TES biases to set for each DAC. Expects np array of size
-          (32,) in DAC units.
+        val (int array): The DAC voltages to set in DAC units.  Each
+                         element of the array must Must be in
+                         [-2^19,2^19).  If a requested value is less
+                         (greater) than -2^19 (2^19-1), sets that DAC
+                         to -2^19 (2^19-1).  (32,) in DAC units.  If
+                         provided array is not 32 elements long,
+                         asserts.
         """
+        assert (len(val)==32),'len(val) must be 32, the number of DACs in hardware.'
 
-        val[np.ravel(np.where(val > 2**19-1))] = 2**19-1
-        if len(np.ravel(np.where(val > 2**19-1))) > 0:
-            self.log('Bias too high for some values. Must be <= 2^19 -1. Setting to ' +
-            'max value', self.LOG_ERROR)
+        nbits=self._rtm_slow_dac_nbits
+        val=np.array(val)
+        if len(np.ravel(np.where(val > 2**(nbits-1)-1))) > 0:
+            self.log('Bias too high for some values. Must be <= 2^{}-1. Setting to '.format(nbits-1) +
+            'max value', self.LOG_ERROR)        
+        val[np.ravel(np.where(val > 2**(nbits-1)-1))] = 2**(nbits-1)-1
+        
+        if len(np.ravel(np.where(val < - 2**(nbits-1)))) > 0:
+            self.log('Bias too low for some values. Must be >= -2^{}. Setting to '.format(nbits-1) +
+                     'min value', self.LOG_ERROR)
+        val[np.ravel(np.where(val < - 2**(nbits-1)))] = -2**(nbits-1)
 
-        val[np.ravel(np.where(val < - 2**19))] = -2**19
-        if len(np.ravel(np.where(val < - 2**19))) > 0:
-            self.log('Bias too low for some values. Must be >= -2^19. Setting to ' +
-            'min value', self.LOG_ERROR)
-        self._caput(self.rtm_spi_max_root + self._tes_bias_array, val, **kwargs)
+        self._caput(self.rtm_spi_max_root + self._rtm_slow_dac_data_array, val, **kwargs)
 
-    def get_tes_bias_array(self, **kwargs):
+    def get_rtm_slow_dac_data_array(self, **kwargs):
         """
-        Get the TES bias for all 32 DACs. Returns in DAC units.
+        Gets the value in the data register, in DAC units, for all 32
+        DACs.  The value in these registers set the output voltages of
+        the DACs.
 
         Returns:
         -----
-        bias_array (int array): Size (32,) array of DAC values, in DAC units
+        bias_array (int array): Size (32,) array of DAC values, in DAC
+                                units.  The value of these registers
+                                set the output voltages of the DACs.
         """
-
-        return self._caget(self.rtm_spi_max_root + self._tes_bias_array,
+        return self._caget(self.rtm_spi_max_root + self._rtm_slow_dac_data_array,
             **kwargs)
 
-    _bit_to_volt = 10./2**19
-    def set_tes_bias_volt(self, dac_num, val, **kwargs):
-        """
-        """
-        self.set_rtm_slow_dac_data(dac_num, val/self._bit_to_volt, **kwargs)
+    def set_rtm_slow_dac_volt(self, dac, val, **kwargs):
+        '''
+        Sets the output voltage for the requested DAC.
+        
+        Args:
+        -----
+        dac (int) : Which DAC to command.  1-indexed.  If a DAC index
+                    outside of the valid range is provided (must be
+                    within [1,32]), will assert.
+        val (int) : The DAC voltage to set in volts.
+        '''
+        assert (dac in range(1,33)),'dac must be an integer and in [1,32]'        
+        self.set_rtm_slow_dac_data(dac, val/self._rtm_slow_dac_bit_to_volt, **kwargs)
 
 
-    def get_tes_bias_volt(self, dac_num, **kwargs):
-        """
-        """
-        return self._bit_to_volt * self.get_rtm_slow_dac_data(dac_num, **kwargs)
+    def get_rtm_slow_dac_volt(self, dac, **kwargs):
+        '''
+        Gets the current output voltage for the requested DAC.
+        
+        Args:
+        -----
+        dac (int) : Which DAC to query.  1-indexed.  If a DAC index
+                    outside of the valid range is provided (must be
+                    within [1,32]), will assert.
+        '''
+        assert (dac in range(1,33)),'dac must be an integer and in [1,32]'                
+        return self._rtm_slow_dac_bit_to_volt * self.get_rtm_slow_dac_data(dac, **kwargs)
 
     def set_tes_bias_array_volt(self, val, **kwargs):
         """
@@ -2828,9 +2857,9 @@ class SmurfCommandMixin(SmurfBase):
         val (float array): TES biases to set for each DAC. Expects np array
           of size (32,) in volts.
         """
-        int_val = np.array(val / self._bit_to_volt, dtype=int)
+        int_val = np.array(val / self._rtm_slow_dac_bit_to_volt, dtype=int)
 
-        self.set_tes_bias_array(int_val, **kwargs)
+        self.set_rtm_slow_dac_data_array(int_val, **kwargs)
 
     def get_tes_bias_array_volt(self, **kwargs):
         """
@@ -2840,7 +2869,7 @@ class SmurfCommandMixin(SmurfBase):
         -----
         bias_array (float array): Size (32,) array of DAC values in volts
         """
-        return self._bit_to_volt * self.get_tes_bias_array(**kwargs)
+        return self._rtm_slow_dac_bit_to_volt * self.get_rtm_slow_dac_data_array(**kwargs)
 
     def flux_ramp_on(self, **kwargs):
         '''

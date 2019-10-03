@@ -1875,8 +1875,8 @@ class SmurfUtilMixin(SmurfBase):
             self.set_rtm_slow_dac_enable(dac_positive, 2, **kwargs)
             self.set_rtm_slow_dac_enable(dac_negative, 2, **kwargs)
 
-        self.set_tes_bias_volt(dac_positive, volts_pos, **kwargs)
-        self.set_tes_bias_volt(dac_negative, volts_neg, **kwargs)
+        self.set_rtm_slow_dac_volt(dac_positive, volts_pos, **kwargs)
+        self.set_rtm_slow_dac_volt(dac_negative, volts_neg, **kwargs)
 
     def set_tes_bias_bipolar_array(self, bias_group_volt_array, do_enable=True, **kwargs):
         """
@@ -1947,7 +1947,7 @@ class SmurfUtilMixin(SmurfBase):
         """
 
         bias_array = np.zeros((32,), dtype=int)
-        self.set_tes_bias_array(bias_array, **kwargs)
+        self.set_rtm_slow_data_array(bias_array, **kwargs)
 
     def tes_bias_dac_ramp(self, dac, volt_min=-9.9, volt_max=9.9, step_size=.01, wait_time=.05):
         """
@@ -1983,8 +1983,8 @@ class SmurfUtilMixin(SmurfBase):
         dac_positive = dac_positives[dac_idx][0]
         dac_negative = dac_negatives[dac_idx][0]
 
-        volts_pos = self.get_tes_bias_volt(dac_positive, **kwargs)
-        volts_neg = self.get_tes_bias_volt(dac_negative, **kwargs)
+        volts_pos = self.get_rtm_slow_dac_volt(dac_positive, **kwargs)
+        volts_neg = self.get_rtm_slow_dac_volt(dac_negative, **kwargs)
 
         if return_raw:
             return volts_pos, volts_neg
