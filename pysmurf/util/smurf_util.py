@@ -747,7 +747,7 @@ class SmurfUtilMixin(SmurfBase):
     def read_stream_data(self, datafile, channel=None,
                          unwrap=True, gcp_mode=True, n_samp=None):
         """
-        Loads data taken with the fucntion stream_data_on
+        Loads data taken with the function stream_data_on
 
         Args:
         -----
