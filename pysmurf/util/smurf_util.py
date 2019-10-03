@@ -1872,8 +1872,8 @@ class SmurfUtilMixin(SmurfBase):
             volts_neg *= -1
 
         if do_enable:
-            self.set_tes_bias_enable(dac_positive, 2, **kwargs)
-            self.set_tes_bias_enable(dac_negative, 2, **kwargs)
+            self.set_rtm_slow_dac_enable(dac_positive, 2, **kwargs)
+            self.set_rtm_slow_dac_enable(dac_negative, 2, **kwargs)
 
         self.set_tes_bias_volt(dac_positive, volts_pos, **kwargs)
         self.set_tes_bias_volt(dac_negative, volts_neg, **kwargs)
@@ -1908,9 +1908,9 @@ class SmurfUtilMixin(SmurfBase):
         # bias groups.  Need to make sure we carry along the setting
         # and enable of any DACs that are being used for something
         # else.
-        enable_array = self.get_tes_bias_enable_array()
+        enable_array = self.get_rtm_slow_dac_enable_array()
         tes_bias_volt_array = self.get_tes_bias_array_volt()
-
+        
         if len(bias_group_volt_array) != n_bias_groups:
             self.log("Received the wrong number of biases. Expected an array of " +
                 "n_bias_groups={} voltages".format(n_bias_groups), self.LOG_ERROR)
@@ -1936,7 +1936,7 @@ class SmurfUtilMixin(SmurfBase):
                 tes_bias_volt_array[dac_negative] = volts_neg
 
             if do_enable:
-                self.set_tes_bias_enable_array(enable_array, **kwargs)
+                self.set_rtm_slow_dac_enable_array(enable_array, **kwargs)
 
             self.set_tes_bias_array_volt(tes_bias_volt_array, **kwargs)
 
@@ -3134,8 +3134,8 @@ class SmurfUtilMixin(SmurfBase):
 
         # Must enable the DACs (if not enabled already)
         if do_enable:
-            self.set_tes_bias_enable(dac_positive, 2, **kwargs)
-            self.set_tes_bias_enable(dac_negative, 2, **kwargs)
+            self.set_rtm_slow_dac_enable(dac_positive, 2, **kwargs)
+            self.set_rtm_slow_dac_enable(dac_negative, 2, **kwargs)
 
         # Load waveform into each DAC's LUT table.  Opposite sign so
         # they combine coherently

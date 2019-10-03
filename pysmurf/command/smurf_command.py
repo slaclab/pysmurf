@@ -2608,57 +2608,105 @@ class SmurfCommandMixin(SmurfBase):
         '''
         return self._caget(self.rtm_spi_root + self._cfg_reg_ena_bit, **kwargs)
 
-    _tes_bias_enable = 'TesBiasDacCtrlRegCh[{}]'
-    def set_tes_bias_enable(self, daq, val, **kwargs):
-        """
-        """
-        self._caput(self.rtm_spi_max_root + self._tes_bias_enable.format(daq),
-            val, **kwargs)
-
-
-    def get_tes_bias_enable(self, daq, **kwargs):
-        """
-        """
-        return self._caget(self.rtm_spi_max_root + self._tes_bias.format(daq),
-            **kwargs)
-
-    _tes_bias_enable_array = 'TesBiasDacCtrlRegChArray'
-    def set_tes_bias_enable_array(self, val, **kwargs):
-        """
-        Set the TES bias DAC enable bits all at once
+    # Right now in pyrogue, this is named as if it's always a TesBias,
+    # but pysmurf doesn't only use them as TES biases - e.g. in
+    # systems using a 50K follow-on amplifier, one of these DACs is
+    # used to drive the amplifier gate.
+    _rtm_slow_dac_enable = 'TesBiasDacCtrlRegCh[{}]'
+    def set_rtm_slow_dac_enable(self, dac, val, **kwargs):
+        '''
+        Set DacCtrlReg for this DAC, which configures the AD5790
+        analog output for the requested DAC number.  Set to 0x2 to
+        enable for normal operation, which only needs to be done once
+        for each DAC in a boot session.
 
         Args:
-          val (int array): length 32, addresses the DACs in DAC ordering
+        -----
+        dac (int) : Which DAC to command.  1-indexed.  If a DAC index
+                    outside of the valid range is provided (must be
+                    within [1,32]), will assert.
+        val (int) : Value to set the DAC enable to.  
+        '''
+        assert (dac in range(1,33)),'dac must be an integer and in [1,32]'
+        
+        self._caput(self.rtm_spi_max_root +
+                    self._rtm_slow_dac_enable.format(dac), val, **kwargs)
+
+
+    def get_rtm_slow_dac_enable(self, dac, **kwargs):
         """
+        Returns the DacCtrlReg for this DAC, which specifies the
+        AD5790 analog output configuration for the requested DAC
+        number.  Should be set to 0x2 in normal operation.
 
-        self._caput(self.rtm_spi_max_root + self._tes_bias_enable_array, val,
-            **kwargs)
+        Args:
+        -----
+        dac (int) : Which DAC to query.  1-indexed.  If a DAC index
+                    outside of the valid range is provided (must be
+                    within [1,32]), will assert.
 
-    def get_tes_bias_enable_array(self, **kwargs):
+        Returns:
+        --------
+        val (int) : The DacCtrlReg setting for the requested DAC.
         """
-        Get the TES bias DAC enable bits all at once
+        assert (dac in range(1,33)),'dac must be an integer and in [1,32]'
+        
+        return self._caget(self.rtm_spi_max_root +
+                           self._rtm_slow_dac_enable.format(dac), **kwargs)
 
-        Returns a numpy array of size (32,) for each of the DACs
+    _rtm_slow_dac_enable_array = 'TesBiasDacCtrlRegChArray'
+    def set_rtm_slow_dac_enable_array(self, val, **kwargs):
+        '''
+        Sets DacCtrlReg for all of the DACs at once.  DacCtrlReg
+        configures the AD5790 analog outputs.  Setting to 0x2 enables
+        normal operation, and only needs to be done once for each DAC
+        in a boot session.  Writing the values as an array should be
+        much faster than writing them to each DAC individually using
+        the set_rtm_slow_dac_enable function (single versus multiple
+        transactions).
+
+        Args:
+        -----
+        val (int array): length 32, addresses the DACs in DAC
+                         ordering.  If provided array is not length
+                         32, asserts.
+        '''
+        assert (len(val)==32),'len(val) must be 32, the number of DACs in hardware.'        
+        self._caput(self.rtm_spi_max_root +
+                    self._rtm_slow_dac_enable_array, val, **kwargs)
+
+    def get_rtm_slow_dac_enable_array(self, **kwargs):
         """
+        Returns the current DacCtrlReg setting for all of the DACs at
+        once (a 32 element integer array).  DacCtrlReg configures the
+        AD5790 analog outputs.  If set to 0x2, then the DAC is
+        configured for normal operation, which only needs to be done
+        once for each DAC in a boot session.  Reading the values as an
+        array should be much faster than reading them for each DAC
+        individually using the get_rtm_slow_dac_enable function
+        (single versus multiple transactions).
 
-        return self._caget(self.rtm_spi_max_root + self._tes_bias_enable_array,
-            **kwargs)
+        Returns:
+        --------
+        val (int array) : An array containing the DacCtrlReg settings
+                          for all of the slow RTM DACs.
+        """
+        return self._caget(self.rtm_spi_max_root +
+                           self._rtm_slow_dac_enable_array, **kwargs)
 
-    #_bit_to_V_50k = 2.035/float(2**19)
-    #_dac_num_50k = 2
     def set_50k_amp_gate_voltage(self, voltage, override=False, **kwargs):
         """
         """
         if (voltage > 0 or voltage < -1.) and not override:
             self.log('Voltage must be between -1 and 0. Doing nothing.')
         else:
-            self.set_tes_bias(self._dac_num_50k, voltage/self._bit_to_V_50k,
+            self.set_rtm_slow_dac_data(self._dac_num_50k, voltage/self._bit_to_V_50k,
                 **kwargs)
 
     def get_50k_amp_gate_voltage(self, **kwargs):
         """
         """
-        return self._bit_to_V_50k * self.get_tes_bias(self._dac_num_50k, **kwargs)
+        return self._bit_to_V_50k * self.get_rtm_slow_dac_data(self._dac_num_50k, **kwargs)
 
     def set_50k_amp_enable(self, disable=False, **kwargs):
         """
@@ -2669,20 +2717,28 @@ class SmurfCommandMixin(SmurfBase):
         disable (bool) : Disable the 50K amplifier. Default False.
         """
         if disable:
-            self.set_tes_bias_enable(self._dac_num_50k, 0, **kwargs)
+            self.set_rtm_slow_dac_enable(self._dac_num_50k, 0, **kwargs)
         else:
-            self.set_tes_bias_enable(self._dac_num_50k, 2, **kwargs)
+            self.set_rtm_slow_dac_enable(self._dac_num_50k, 2, **kwargs)
 
-    _tes_bias = 'TesBiasDacDataRegCh[{}]'
-    def set_tes_bias(self, daq, val, **kwargs):
-        """
-        Sets the TES bias current
-
+    _rtm_slow_dac_data = 'TesBiasDacDataRegCh[{}]'
+    def set_rtm_slow_dac_data(self, dac, val, **kwargs):
+        '''
+        Sets the data register for the requested DAC, which sets the
+        output voltage of the DAC.
+        
         Args:
         -----
-        val (int) : the TES bias current in DAC units
-        """
-
+        dac (int) : Which DAC to command.  1-indexed.  If a DAC index
+                    outside of the valid range is provided (must be
+                    within [1,32]), will assert.
+        val (int) : the DAC voltage to set in DAC units.  Must be in
+                    [-2^19,2^19).  If requested value is less
+                    (greater) than -2^19 (2^19-1), sets DAC to -2^19
+                    (2^19-1).
+        '''
+        assert (dac in range(1,33)),'dac must be an integer and in [1,32]'
+        
         if val > 2**19-1:
             val = 2**19-1
             self.log('Bias too high. Must be <= than 2^19-1. Setting to ' +
@@ -2691,20 +2747,30 @@ class SmurfCommandMixin(SmurfBase):
             val = -2**19
             self.log('Bias too low. Must be >= than -2^19. Setting to ' +
                 'min value', self.LOG_ERROR)
-        self._caput(self.rtm_spi_max_root + self._tes_bias.format(daq), val,
-            **kwargs)
+        self._caput(self.rtm_spi_max_root +
+                    self._rtm_slow_dac_data.format(dac), val, **kwargs)
 
-
-    def get_tes_bias(self, daq, **kwargs):
-        """
-        Gets the TES bias current
+    def get_rtm_slow_dac_data(self, dac, **kwargs):
+        '''
+        Gets the value in the data register for the requested DAC,
+        which sets the output voltage of the DAC.
+        
+        Args:
+        -----
+        dac (int) : Which DAC to command.  1-indexed.  If a DAC index
+                    outside of the valid range is provided (must be
+                    within [1,32]), will assert.
 
         Returns:
         --------
-        bias (int) : The TES bias current
-        """
-        return self._caget(self.rtm_spi_max_root + self._tes_bias.format(daq),
-            **kwargs)
+        val (int) : The data register setting for the requested DAC,
+                    in DAC units.  The data register sets the output
+                    voltage of the DAC.
+        '''
+        assert (dac in range(1,33)),'dac must be an integer and in [1,32]'        
+        return self._caget(self.rtm_spi_max_root +
+                           self._rtm_slow_dac_data.format(dac),
+                           **kwargs)
 
     _tes_bias_array = 'TesBiasDacDataRegChArray'
     def set_tes_bias_array(self, val, **kwargs):
@@ -2744,13 +2810,13 @@ class SmurfCommandMixin(SmurfBase):
     def set_tes_bias_volt(self, dac_num, val, **kwargs):
         """
         """
-        self.set_tes_bias(dac_num, val/self._bit_to_volt, **kwargs)
+        self.set_rtm_slow_dac_data(dac_num, val/self._bit_to_volt, **kwargs)
 
 
     def get_tes_bias_volt(self, dac_num, **kwargs):
         """
         """
-        return self._bit_to_volt * self.get_tes_bias(dac_num, **kwargs)
+        return self._bit_to_volt * self.get_rtm_slow_dac_data(dac_num, **kwargs)
 
     def set_tes_bias_array_volt(self, val, **kwargs):
         """
