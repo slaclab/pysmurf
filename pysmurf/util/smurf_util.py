@@ -1878,71 +1878,67 @@ class SmurfUtilMixin(SmurfBase):
         self.set_tes_bias_volt(dac_positive, volts_pos, **kwargs)
         self.set_tes_bias_volt(dac_negative, volts_neg, **kwargs)
 
-    def set_tes_bias_bipolar_array(self, volt_array, do_enable=True, **kwargs):
+    def set_tes_bias_bipolar_array(self, bias_group_volt_array, do_enable=True, **kwargs):
         """
-        Set TES bipolar values for all DACs at once.
+        Set TES bipolar values for all DACs at once.  Set using a
+        pyrogue array write, so should be much more efficient than
+        setting each TES bias one at a time (a single register
+        transaction vs. many).  Only DACs assigned to TES bias groups
+        are touched by this function.  The enable status and output
+        voltage of all DACs not assigned to a TES bias group are
+        maintained.
 
         Args:
         -----
-        volt_array (float array): the TES bias to command in voltage. Should be (n_bias_groups,)
+        bias_group_volt_array (float array): the TES bias to command
+                                             in voltage for each
+                                             bipolar TES bias
+                                             group. Should be
+                                             (n_bias_groups,)
 
         Opt args:
         -----
-        do_enable (bool): Set the enable bit. Defaults to True
+        do_enable (bool): Set the enable bit for both DACs for every
+                          TES bias group. Defaults to True.
         """
-
-        bias_order = self.bias_group_to_pair[:,0]
-        dac_positives = self.bias_group_to_pair[:,1]
-        dac_negatives = self.bias_group_to_pair[:,2]
 
         n_bias_groups = self._n_bias_groups
 
-        # initialize arrays of 0's
-        do_enable_array = np.zeros((32,), dtype=int)
-        bias_volt_array = np.zeros((32,))
+        # in this function we're only touching the DACs defined in TES
+        # bias groups.  Need to make sure we carry along the setting
+        # and enable of any DACs that are being used for something
+        # else.
+        enable_array = self.get_tes_bias_enable_array()
+        tes_bias_volt_array = self.get_tes_bias_array_volt()
 
-        if len(volt_array) != n_bias_groups:
-            self.log("Received the wrong number of biases. Expected " +
-                "n_bias_groups={}".format(n_bias_groups), self.LOG_ERROR)
+        if len(bias_group_volt_array) != n_bias_groups:
+            self.log("Received the wrong number of biases. Expected an array of " +
+                "n_bias_groups={} voltages".format(n_bias_groups), self.LOG_ERROR)
         else:
-            # user may be using a DAC not in the 16x this is coded
-            # for for another purpose.  Protect their enable state.
-            # It turns out if you set the Ctrl (enable) register
-            # to zero for one of these DACs, it rails negative,
-            # which sucks if, for instance, you're using it to
-            # bias the gate of a cold RF amplifier.  FOR INSTANCE.
-            dacs_in_use=[]
-            for idx in np.arange(n_bias_groups):
-                dac_idx = np.ravel(np.where(bias_order == idx))
+            for bg in np.arange(n_bias_groups):
+                bias_order = self.bias_group_to_pair[:,0]
+                dac_positives = self.bias_group_to_pair[:,1]
+                dac_negatives = self.bias_group_to_pair[:,2]
+                
+                bias_group_idx = np.ravel(np.where(bias_order == bg))
+                
+                dac_positive = dac_positives[bias_group_idx][0] - 1 # freakin Mitch
+                dac_negative = dac_negatives[bias_group_idx][0] - 1 # 1 vs 0 indexing
 
-                dac_positive = dac_positives[dac_idx][0] - 1 # freakin Mitch
-                dacs_in_use.append(dac_positive)
-                dac_negative = dac_negatives[dac_idx][0] - 1 # 1 vs 0 indexing
-                dacs_in_use.append(dac_negative)
-
-                volts_pos = volt_array[idx] / 2
-                volts_neg = - volt_array[idx] / 2
+                volts_pos = bias_group_volt_array[bg] / 2
+                volts_neg = - bias_group_volt_array[bg] / 2
 
                 if do_enable:
-                    do_enable_array[dac_positive] = 2
-                    do_enable_array[dac_negative] = 2
+                    enable_array[dac_positive] = 2
+                    enable_array[dac_negative] = 2
 
-                bias_volt_array[dac_positive] = volts_pos
-                bias_volt_array[dac_negative] = volts_neg
-
-            # before mucking with enables, make sure to carry the current
-            # values of any DACs that shouldn't be accessed by this call.
-            current_enable_array=self.get_tes_bias_enable_array()
-            current_tes_bias_array_volt=self.get_tes_bias_array_volt()
-            for idx in np.where(current_enable_array!=do_enable_array)[0]:
-                if idx not in dacs_in_use:
-                    do_enable_array[idx]=current_enable_array[idx]
-                    bias_volt_array[idx]=current_tes_bias_array_volt[idx]
+                tes_bias_volt_array[dac_positive] = volts_pos
+                tes_bias_volt_array[dac_negative] = volts_neg
 
             if do_enable:
-                self.set_tes_bias_enable_array(do_enable_array, **kwargs)
+                self.set_tes_bias_enable_array(enable_array, **kwargs)
 
-            self.set_tes_bias_array_volt(bias_volt_array, **kwargs)
+            self.set_tes_bias_array_volt(tes_bias_volt_array, **kwargs)
 
 
     def set_tes_bias_off(self, **kwargs):
@@ -1966,7 +1962,8 @@ class SmurfUtilMixin(SmurfBase):
 
     def get_tes_bias_bipolar(self, bias_group, return_raw=False, **kwargs):
         """
-        Returns the bias voltage in units of Volts
+        Returns the bias voltage in units of Volts for the requested
+        TES bias group.
 
         Args:
         -----
