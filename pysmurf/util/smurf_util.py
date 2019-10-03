@@ -1909,7 +1909,7 @@ class SmurfUtilMixin(SmurfBase):
         # and enable of any DACs that are being used for something
         # else.
         enable_array = self.get_rtm_slow_dac_enable_array()
-        tes_bias_volt_array = self.get_tes_bias_array_volt()
+        tes_bias_volt_array = self.get_rtm_slow_dac_volt_array()
         
         if len(bias_group_volt_array) != n_bias_groups:
             self.log("Received the wrong number of biases. Expected an array of " +
@@ -1938,7 +1938,7 @@ class SmurfUtilMixin(SmurfBase):
             if do_enable:
                 self.set_rtm_slow_dac_enable_array(enable_array, **kwargs)
 
-            self.set_tes_bias_array_volt(tes_bias_volt_array, **kwargs)
+            self.set_rtm_slow_dac_volt_array(tes_bias_volt_array, **kwargs)
 
 
     def set_tes_bias_off(self, **kwargs):
@@ -2012,7 +2012,7 @@ class SmurfUtilMixin(SmurfBase):
        bias_vals_pos = np.zeros((n_bias_groups,))
        bias_vals_neg = np.zeros((n_bias_groups,))
 
-       volts_array = self.get_tes_bias_array_volt(**kwargs)
+       volts_array = self.get_rtm_slow_dac_volt_array(**kwargs)
 
        for idx in np.arange(n_bias_groups):
            dac_idx = np.ravel(np.where(bias_order == idx))

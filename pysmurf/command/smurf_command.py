@@ -2693,33 +2693,6 @@ class SmurfCommandMixin(SmurfBase):
         return self._caget(self.rtm_spi_max_root +
                            self._rtm_slow_dac_enable_array, **kwargs)
 
-    def set_50k_amp_gate_voltage(self, voltage, override=False, **kwargs):
-        """
-        """
-        if (voltage > 0 or voltage < -1.) and not override:
-            self.log('Voltage must be between -1 and 0. Doing nothing.')
-        else:
-            self.set_rtm_slow_dac_data(self._dac_num_50k, voltage/self._bit_to_V_50k,
-                **kwargs)
-
-    def get_50k_amp_gate_voltage(self, **kwargs):
-        """
-        """
-        return self._bit_to_V_50k * self.get_rtm_slow_dac_data(self._dac_num_50k, **kwargs)
-
-    def set_50k_amp_enable(self, disable=False, **kwargs):
-        """
-        Sets the 50K amp bit to 2 for enable and 0 for disable.
-
-        Opt Args:
-        ---------
-        disable (bool) : Disable the 50K amplifier. Default False.
-        """
-        if disable:
-            self.set_rtm_slow_dac_enable(self._dac_num_50k, 0, **kwargs)
-        else:
-            self.set_rtm_slow_dac_enable(self._dac_num_50k, 2, **kwargs)
-
     _rtm_slow_dac_data = 'TesBiasDacDataRegCh[{}]'
     def set_rtm_slow_dac_data(self, dac, val, **kwargs):
         '''
@@ -2812,9 +2785,9 @@ class SmurfCommandMixin(SmurfBase):
 
         Returns:
         -----
-        bias_array (int array): Size (32,) array of DAC values, in DAC
-                                units.  The value of these registers
-                                set the output voltages of the DACs.
+        array (int array): Size (32,) array of DAC values, in DAC
+                           units.  The value of these registers set
+                           the output voltages of the DACs.
         """
         return self._caget(self.rtm_spi_max_root + self._rtm_slow_dac_data_array,
             **kwargs)
@@ -2843,33 +2816,72 @@ class SmurfCommandMixin(SmurfBase):
         dac (int) : Which DAC to query.  1-indexed.  If a DAC index
                     outside of the valid range is provided (must be
                     within [1,32]), will assert.
+
+        Returns:
+        --------
+        val (float) : The DAC voltage in volts.
         '''
         assert (dac in range(1,33)),'dac must be an integer and in [1,32]'                
         return self._rtm_slow_dac_bit_to_volt * self.get_rtm_slow_dac_data(dac, **kwargs)
 
-    def set_tes_bias_array_volt(self, val, **kwargs):
+    def set_rtm_slow_dac_volt_array(self, val, **kwargs):
         """
-        Set TES bias DACs. Must give 32 values. Converted to volts based on
-          DAC full scale.
+        Sets the output voltage for all 32 DACs at once.  Writing the
+        values as an array should be much faster than writing them to
+        each DAC individually using the set_rtm_slow_dac_volt
+        function (single versus multiple transactions).
 
         Args:
         -----
-        val (float array): TES biases to set for each DAC. Expects np array
-          of size (32,) in volts.
+        val (float array): TES biases to set for each DAC in
+                           Volts. Expects an array of size (32,).  If
+                           provided array is not 32 elements, asserts.
         """
-        int_val = np.array(val / self._rtm_slow_dac_bit_to_volt, dtype=int)
-
+        assert (len(val)==32),'len(val) must be 32, the number of DACs in hardware.'        
+        int_val = np.array(np.array(val) / self._rtm_slow_dac_bit_to_volt, dtype=int)
         self.set_rtm_slow_dac_data_array(int_val, **kwargs)
 
-    def get_tes_bias_array_volt(self, **kwargs):
+    def get_rtm_slow_dac_volt_array(self, **kwargs):
         """
-        Get TES bias DAC settings in volt units.
+        Returns the output voltage for all 32 DACs at once, in volts.
+        Reading the values as an array should be much faster than
+        reading them for each DAC individually using the
+        get_rtm_slow_dac_volt function (single versus multiple
+        transactions).
 
         Returns:
         -----
-        bias_array (float array): Size (32,) array of DAC values in volts
+        volt_array (float array): Size (32,) array of DAC values in
+                                  volts.
         """
         return self._rtm_slow_dac_bit_to_volt * self.get_rtm_slow_dac_data_array(**kwargs)
+    
+    def set_50k_amp_gate_voltage(self, voltage, override=False, **kwargs):
+        """
+        """
+        if (voltage > 0 or voltage < -1.) and not override:
+            self.log('Voltage must be between -1 and 0. Doing nothing.')
+        else:
+            self.set_rtm_slow_dac_data(self._dac_num_50k, voltage/self._bit_to_V_50k,
+                **kwargs)
+
+    def get_50k_amp_gate_voltage(self, **kwargs):
+        """
+        """
+        return self._bit_to_V_50k * self.get_rtm_slow_dac_data(self._dac_num_50k, **kwargs)
+
+    def set_50k_amp_enable(self, disable=False, **kwargs):
+        """
+        Sets the 50K amp bit to 2 for enable and 0 for disable.
+
+        Opt Args:
+        ---------
+        disable (bool) : Disable the 50K amplifier. Default False.
+        """
+        if disable:
+            self.set_rtm_slow_dac_enable(self._dac_num_50k, 0, **kwargs)
+        else:
+            self.set_rtm_slow_dac_enable(self._dac_num_50k, 2, **kwargs)
 
     def flux_ramp_on(self, **kwargs):
         '''
