@@ -1853,7 +1853,7 @@ class SmurfUtilMixin(SmurfBase):
         # Make sure the requested bias group is in the list of defined
         # bias groups.
         bias_groups = self.bias_group_to_pair[:,0]        
-        assert (bias_group in bias_groups),f'Bias group {bias_group} is not defined (available bias groups are {bias_groups}.  Doing nothing!'
+        assert (bias_group in bias_groups),f'Bias group {bias_group} is not defined (available bias groups are {bias_groups}).  Doing nothing!'
         
         bias_order = bias_groups
         dac_positives = self.bias_group_to_pair[:,1]
@@ -1949,17 +1949,6 @@ class SmurfUtilMixin(SmurfBase):
         bias_array = np.zeros((32,), dtype=int)
         self.set_rtm_slow_data_array(bias_array, **kwargs)
 
-    def tes_bias_dac_ramp(self, dac, volt_min=-9.9, volt_max=9.9, step_size=.01, wait_time=.05):
-        """
-        """
-        bias = volt_min
-        while True:
-            self.set_tes_bias_volt(dac, bias, wait_after=wait_time)
-            bias += step_size
-            if bias > volt_max:
-                bias = volt_min
-
-
     def get_tes_bias_bipolar(self, bias_group, return_raw=False, **kwargs):
         """
         Returns the bias voltage in units of Volts for the requested
@@ -1967,24 +1956,39 @@ class SmurfUtilMixin(SmurfBase):
 
         Args:
         -----
-        bias_group (int) : The number of the bias group
+        bias_group (int) : The number of the bias group.  Asserts if
+                           bias_group requested is not defined in the
+                           pysmurf configuration file.
 
         Opt Args:
         ---------
-        return_raw (bool) : Default is False. If True, returns pos and neg
-           terminal values.
+        return_raw (bool) : Default is False. If True, returns pos and
+                            neg terminal values. 
+
+        Returns:
+        --------
+        val (float) : The bipolar output TES bias voltage for the
+                      requested bias group.  If return_raw=True, then
+                      returns a two element float array containing the
+                      output voltages of the two DACs assigned to the
+                      requested TES bias group.
         """
-        bias_order = self.bias_group_to_pair[:,0]
+        # Make sure the requested bias group is in the list of defined
+        # bias groups.
+        bias_groups = self.bias_group_to_pair[:,0]        
+        assert (bias_group in bias_groups),f'Bias group {bias_group} is not defined (available bias groups are {bias_groups}).  Doing nothing!'
+        
+        bias_order = bias_groups
         dac_positives = self.bias_group_to_pair[:,1]
         dac_negatives = self.bias_group_to_pair[:,2]
 
         dac_idx = np.ravel(np.where(bias_order == bias_group))
+        dac_positive = dac_positives[dac_idx][0]-1
+        dac_negative = dac_negatives[dac_idx][0]-1
 
-        dac_positive = dac_positives[dac_idx][0]
-        dac_negative = dac_negatives[dac_idx][0]
-
-        volts_pos = self.get_rtm_slow_dac_volt(dac_positive, **kwargs)
-        volts_neg = self.get_rtm_slow_dac_volt(dac_negative, **kwargs)
+        volt_array = self.get_rtm_slow_dac_volt_array(**kwargs)
+        volts_pos = volt_array[dac_positive]
+        volts_neg = volt_array[dac_negative]
 
         if return_raw:
             return volts_pos, volts_neg
