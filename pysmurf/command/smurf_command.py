@@ -3108,7 +3108,8 @@ class SmurfCommandMixin(SmurfBase):
 
 
     _stream_datafile = 'dataFile'
-    def set_streaming_datafile(self, datafile, as_string=True, **kwargs):
+    def set_streaming_datafile(self, datafile, as_string=True,
+                               write_log=False, **kwargs):
         """
         Sets the datafile to write streaming data
 
@@ -3120,14 +3121,16 @@ class SmurfCommandMixin(SmurfBase):
         ---------
         as_string (bool): The input data is a string. If False, the input
             data must be a length 300 character int. Default True.
+        write_log (bool) : Whether to log the data or not. Default
+            False.
         """
         if as_string:
             datafile = [ord(x) for x in datafile]
             # must be exactly 300 elements long. Pad with trailing zeros
             datafile = np.append(datafile, np.zeros(300-len(datafile),
                 dtype=int))
-        self._caput(self.streaming_root + self._stream_datafile, datafile,
-            **kwargs)
+        self._caput(self.streaming_root + self._stream_datafile,
+                    datafile, write_log=write_log, **kwargs)
 
     def get_streaming_datafile(self, as_string=True, **kwargs):
         """
@@ -3149,16 +3152,21 @@ class SmurfCommandMixin(SmurfBase):
         return datafile
 
     _streaming_file_open = 'open'
-    def set_streaming_file_open(self, val, **kwargs):
+    def set_streaming_file_open(self, val, write_log=False, **kwargs):
         """
         Sets the streaming file open. 1 for streaming on. 0 for streaming off.
 
         Args:
         -----
         val (int): The streaming status
+
+        Opt Args:
+        ---------
+        write_log (bool) : Whether to log the data or not. Default
+            False. 
         """
-        self._caput(self.streaming_root + self._streaming_file_open, val,
-            **kwargs)
+        self._caput(self.streaming_root + self._streaming_file_open,
+                    val, write_log=write_log, **kwargs)
 
     def get_streaming_file_open(self, **kwargs):
         """
@@ -3566,11 +3574,12 @@ class SmurfCommandMixin(SmurfBase):
             return("ERROR")
 
     _smurf_to_gcp_stream = 'userConfig[0]'  # bit for streaming
-    def get_user_config0(self, as_binary=False, **kwargs):
+    def get_user_config0(self, as_binary=False, write_log=False, **kwargs):
         """
         """
-        val =  self._caget(self.timing_header +
-                           self._smurf_to_gcp_stream, **kwargs)
+        val = self._caget(self.timing_header +
+                          self._smurf_to_gcp_stream,
+                          write_log=write_log, **kwargs)
         if as_binary:
             val = bin(val)
 
@@ -3630,23 +3639,28 @@ class SmurfCommandMixin(SmurfBase):
         self._caput(self.timing_header +
                     self._smurf_to_gcp_stream, new_val, **kwargs)
 
-    def set_smurf_to_gcp_writer(self, val, **kwargs):
+    def set_smurf_to_gcp_writer(self, val, write_log=False, **kwargs):
         """
         Turns on or off data writer from smurf to GCP.
         This only accepts bools. Annoyingly the bit is
         0 for streaming and 1 for off. This function takes
         care of that, so True for streaming and False
         for off.
+
+        Opt Args:
+        ---------
+        write_log (bool) : Whether to log the data or not. Default
+                           False.
         """
-        old_val = self.get_user_config0()
+        old_val = self.get_user_config0(write_log=write_log)
         if val == False:
             new_val = old_val | (2 << 1)
         elif val == True:
             new_val = old_val
             if old_val & 2 << 1 != 0:
                 new_val = old_val & ~(2 << 1)
-        self._caput(self.timing_header +
-                    self._smurf_to_gcp_stream, new_val, **kwargs)
+        self._caput(self.timing_header + self._smurf_to_gcp_stream,
+                    new_val, write_log=write_log, **kwargs)
 
     def get_smurf_to_gcp_stream(self, **kwargs):
         """
@@ -3689,15 +3703,20 @@ class SmurfCommandMixin(SmurfBase):
         self._caput(self.timing_header +
                     self._smurf_to_gcp_stream, new_val, **kwargs)
 
-    def set_smurf_to_gcp_cfg_read(self, val, **kwargs):
+    def set_smurf_to_gcp_cfg_read(self, val, write_log=False, **kwargs):
         """
         If set to True, constantly reads smurf2mce.cfg at the MCE
         rate (~200 Hz). This is for updating IP address. Constantly
         reading the cfg file causes occasional dropped frames. So
         it should be set to False after the cfg is read.
+
+        Opt Args:
+        ---------
+        write_log (bool) : Whether to log the data or not. Default
+            False.
         """
         read_bit = 3
-        old_val = self.get_user_config0()
+        old_val = self.get_user_config0(write_log=write_log)
         if val:
             new_val = old_val | (1 << read_bit)
         elif ~val:
@@ -3705,8 +3724,8 @@ class SmurfCommandMixin(SmurfBase):
             if old_val & 1 << read_bit != 0:
                 new_val = old_val & ~(1 << read_bit)
 
-        self._caput(self.timing_header +
-                    self._smurf_to_gcp_stream, new_val, **kwargs)
+        self._caput(self.timing_header + self._smurf_to_gcp_stream,
+                    new_val, write_log=write_log, **kwargs)
 
 
     _num_rows = 'userConfig[2]'  # bit for num_rows

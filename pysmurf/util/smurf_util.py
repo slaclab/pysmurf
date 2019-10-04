@@ -89,7 +89,6 @@ class SmurfUtilMixin(SmurfBase):
         self.set_trigger_daq(bay, 1, write_log=True) # this seems to = TriggerDM
 
         end_addr = self.get_waveform_end_addr(bay, engine=0) # why engine=0 here?
-
         time.sleep(1) # maybe unnecessary
 
         done=False
@@ -651,7 +650,7 @@ class SmurfUtilMixin(SmurfBase):
 
 
     def stream_data_on(self, write_config=False, gcp_mode=True,
-                       num_averages=20):
+                       num_averages=20,write_log=False):
         """
         Turns on streaming data.
 
@@ -661,6 +660,8 @@ class SmurfUtilMixin(SmurfBase):
             smurf2mce (gcp) mode. Default is True.
         num_averages (int) : The number of 4kHz frames to average
             before writing to disk.
+        write_log (bool) : Whether to log the data or not. Default
+            False.
 
         Returns:
         --------
@@ -689,7 +690,7 @@ class SmurfUtilMixin(SmurfBase):
                          self.LOG_ERROR)
 
             # start streaming before opening file to avoid transient filter step
-            self.set_stream_enable(1, write_log=False)
+            self.set_stream_enable(1, write_log=write_log)
             time.sleep(.1)
 
             # Make the data file
@@ -714,17 +715,19 @@ class SmurfUtilMixin(SmurfBase):
                 smurf_chans = {}
                 for b in bands:
                     smurf_chans[b] = self.which_on(b)
-                self.make_gcp_mask(smurf_chans=smurf_chans)
+                self.make_gcp_mask(smurf_chans=smurf_chans,write_log=write_log)
                 shutil.copy(self.smurf_to_mce_mask_file,
                             os.path.join(self.output_dir, timestamp+'_mask.txt'))
-                self.read_smurf_to_gcp_config()
+                self.read_smurf_to_gcp_config(write_log=write_log)
             else:
-                self.set_streaming_datafile(data_filename)
+                self.set_streaming_datafile(data_filename,
+                                            write_log=write_log)
 
             if gcp_mode:
-                self.set_smurf_to_gcp_writer(True, write_log=True)
+                self.set_smurf_to_gcp_writer(True,
+                                             write_log=write_log)
             else:
-                self.set_streaming_file_open(1)  # Open the file
+                self.set_streaming_file_open(1, write_log=write_log)  # Open the file
 
             return data_filename
 
@@ -2419,17 +2422,24 @@ class SmurfUtilMixin(SmurfBase):
         return
 
 
-    def read_smurf_to_gcp_config(self):
+    def read_smurf_to_gcp_config(self,write_log=False):        
         """
         Toggles the smurf_to_gcp read bit.
+
+        Opt args:
+        ---------
+        write_log (bool) : Whether to log the data or not. Default
+            False.
         """
         self.log('Reading SMuRF to GCP config file')
-        self.set_smurf_to_gcp_cfg_read(True, wait_after=.1)
-        self.set_smurf_to_gcp_cfg_read(False)
+        self.set_smurf_to_gcp_cfg_read(True,
+                                       wait_after=.1,write_log=write_log)
+        self.set_smurf_to_gcp_cfg_read(False,write_log=write_log)
 
 
-    def make_smurf_to_gcp_config(self, num_averages=None, filename=None,
-        file_name_extend=None, data_frames=None, filter_gain=None):
+    def make_smurf_to_gcp_config(self, num_averages=None,
+                                 filename=None, file_name_extend=None,
+                                 data_frames=None, filter_gain=None):
         """
         Makes the config file that the Joe-writer uses to set the IP
         address, port number, data file name, etc.
@@ -2511,8 +2521,9 @@ class SmurfUtilMixin(SmurfBase):
 
         return ret
 
-    def make_gcp_mask(self, band=None, smurf_chans=None, gcp_chans=None,
-                      read_gcp_mask=True, mask_channel_offset=0):
+    def make_gcp_mask(self, band=None, smurf_chans=None,
+                      gcp_chans=None, read_gcp_mask=True,
+                      mask_channel_offset=0, write_log=False):
         """
         Makes the gcp mask. Only the channels in this mask will be stored
         by GCP.
@@ -2533,6 +2544,8 @@ class SmurfUtilMixin(SmurfBase):
             If not read in, it will take no effect. Default is True.
         mask_channel_offset (int) : Offset to add to channel numbers in GCP
             mask file.  Default is 0.
+        write_log (bool) : Whether to log the data or not. Default
+            False.
         """
         if self.config.get('smurf_to_mce').get('mask_channel_offset') is not None:
             mask_channel_offset=int(self.config.get('smurf_to_mce').get('mask_channel_offset'))
@@ -2574,7 +2587,7 @@ class SmurfUtilMixin(SmurfBase):
             self.pub.register_file(self.smurf_to_mce_mask_file, 'mask', format='txt')
 
         if read_gcp_mask:
-            self.read_smurf_to_gcp_config()
+            self.read_smurf_to_gcp_config(write_log=write_log)
         else:
             self.log('Warning: new mask has not been read in yet.')
 
