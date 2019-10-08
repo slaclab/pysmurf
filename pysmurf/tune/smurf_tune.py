@@ -2488,8 +2488,8 @@ class SmurfTuneMixin(SmurfBase):
                 time.sleep(self._cryo_card_relay_wait)
 
 
-    def set_fixed_flux_ramp_bias(self,fractionFullScale,debug=True, d
-        o_config=True):
+    def set_fixed_flux_ramp_bias(self,fractionFullScale,debug=True, 
+        do_config=True):
         """
         ???
 
