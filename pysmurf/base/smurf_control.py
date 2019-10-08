@@ -23,7 +23,8 @@ class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin, Smu
                  cfg_file='/home/cryo/pysmurf/cfg_files/experiment_k2umux.cfg',
                  data_dir=None, name=None, make_logfile=True,
                  setup=False, offline=False, smurf_cmd_mode=False,
-                 no_dir=False, shelf_manager='shm-smrf-sp01', **kwargs):
+                 no_dir=False, shelf_manager='shm-smrf-sp01', 
+                 validate_config=True, **kwargs):
         '''
         Args:
         -----
@@ -38,7 +39,7 @@ class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin, Smu
             connected one-to-one with a SMuRF crate, in which case we by
             default give the shelf manager the network name 'shm-smrf-sp01'.
         '''
-        self.config = SmurfConfig(cfg_file)
+        self.config = SmurfConfig(cfg_file, validate_config=validate_config)
         self.shelf_manager=shelf_manager
         if epics_root is None:
             epics_root = self.config.get('epics_root')
