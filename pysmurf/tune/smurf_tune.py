@@ -374,7 +374,7 @@ class SmurfTuneMixin(SmurfBase):
 
         
     def plot_tune_summary(self, band, eta_scan=False, show_plot=False,
-        save_plot=True):
+        save_plot=True, eta_width=.3):
         """
         Plots summary of tuning. Requires self.freq_resp to be filled.
         In other words, you must run find_freq and setup_notches
@@ -393,6 +393,7 @@ class SmurfTuneMixin(SmurfBase):
            Warning this is slow. Default is False.
         show_plot (bool) : Whether to display the plot. Default is False.
         save_plot (bool) : Whether to save the plot. Default is True.
+        eta_width (float) : The width to plot in MHz.
         """
         if show_plot:
             plt.ion()
@@ -466,10 +467,10 @@ class SmurfTuneMixin(SmurfBase):
                 resp = self.freq_resp[band]['full_band_resp']['resp']
                 for k in keys:
                     r = self.freq_resp[band]['resonances'][k]
-                    width = .300 # in MHz. So this = 300 kHz
+                    eta_width = .300 # in MHz. So this = 300 kHz
                     center_freq = r['freq']
-                    idx = np.logical_and(freq > center_freq - width,
-                        freq < center_freq + width)
+                    idx = np.logical_and(freq > center_freq - eta_width,
+                        freq < center_freq + eta_width)
 
                     # Actually plot the data
                     self.plot_eta_fit(band, freq[idx], resp[idx], 
@@ -654,7 +655,8 @@ class SmurfTuneMixin(SmurfBase):
         grad_cut=.5, amp_cut=.25, freq_min=-2.5E8, freq_max=2.5E8, 
         make_plot=False, save_plot=True, show_plot=False, band=None, 
         subband=None, make_subband_plot=False,  subband_plot_with_slow=False, 
-        timestamp=None, pad=50, min_gap=100, plot_title=None):
+        timestamp=None, pad=50, min_gap=100, plot_title=None, 
+        grad_kernel_width=8):
         """find the peaks within a given subband
 
         Args:
@@ -686,7 +688,8 @@ class SmurfTuneMixin(SmurfBase):
         pad (int): number of samples to pad on either side of a resonance search 
             window
         min_gap (int): minimum number of samples between resonances
-
+        grad_kernel_width (int) : The number of samples to take after a point
+            to calculate the gradient of phase. Default is 8.
 
         Returns:
         -------_
@@ -701,7 +704,8 @@ class SmurfTuneMixin(SmurfBase):
         x = np.arange(len(angle))
         p1 = np.poly1d(np.polyfit(x, angle, 1))
         angle -= p1(x)
-        grad = np.convolve(angle, np.repeat([1,-1], 8), mode='same')
+        grad = np.convolve(angle, np.repeat([1,-1], grad_kernel_width), 
+            mode='same')
 
         amp = np.abs(resp)
 
@@ -2378,9 +2382,7 @@ class SmurfTuneMixin(SmurfBase):
     
 
     def eta_phase_check(self, band, rot_step_size=30, rot_max=360,
-                        reset_rate_khz=4., 
-                        fraction_full_scale=None,
-                        flux_ramp=True):
+        reset_rate_khz=4., fraction_full_scale=None, flux_ramp=True):
         """
         """
         ret = {}
