@@ -6,7 +6,6 @@ import matplotlib.pyplot as plt
 from matplotlib.gridspec import GridSpec
 import matplotlib.colors as Colors
 
-
 class SmurfIVMixin(SmurfBase):
 
     def slow_iv_all(self, bias_groups=None, wait_time=.1, bias=None, 
@@ -45,6 +44,9 @@ class SmurfIVMixin(SmurfBase):
         phase_excursion_min (float) : The minimum phase excursion required for
             making plots.
         """
+
+        n_bias_groups = self._n_bias_groups
+        
         if bias_groups is None:
             bias_groups = self.all_groups
 
@@ -64,16 +66,16 @@ class SmurfIVMixin(SmurfBase):
                 cool_wait=cool_wait, high_current_mode=high_current_mode,
                 overbias_voltage=overbias_voltage)
 
-        self.log('Turning lmsGain to 0.', self.LOG_USER)
-        lms_gain2 = self.get_lms_gain(2) # just do this on both bands
-        lms_gain3 = self.get_lms_gain(3) # should fix the hardcoding though -CY
-        self.set_lms_gain(2, 0)
-        self.set_lms_gain(3, 0)
+        #self.log('Turning lmsGain to 0.', self.LOG_USER)
+        #lms_gain2 = self.get_lms_gain(2) # just do this on both bands
+        #lms_gain3 = self.get_lms_gain(3) # should fix the hardcoding though -CY
+        #self.set_lms_gain(2, 0)
+        #self.set_lms_gain(3, 0)
 
         self.log('Starting to take IV.', self.LOG_USER)
         self.log('Starting TES bias ramp.', self.LOG_USER)
 
-        bias_group_bool = np.zeros((8,)) # hard coded to have 8 bias groups
+        bias_group_bool = np.zeros((n_bias_groups,)) # hard coded to have 8 bias groups
         bias_group_bool[bias_groups] = 1 # only set things on the bias groups that are on
 
         self.set_tes_bias_bipolar_array(bias[0] * bias_group_bool)
@@ -91,9 +93,9 @@ class SmurfIVMixin(SmurfBase):
         self.stream_data_off(gcp_mode=gcp_mode)
         self.log('Done with TES bias ramp', self.LOG_USER)
 
-        self.log('Returning lmsGain to original values', self.LOG_USER)
-        self.set_lms_gain(2, lms_gain2)
-        self.set_lms_gain(3, lms_gain3)
+        #self.log('Returning lmsGain to original values', self.LOG_USER)
+        #self.set_lms_gain(2, lms_gain2)
+        #self.set_lms_gain(3, lms_gain3)
 
         basename, _ = os.path.splitext(os.path.basename(datafile))
         path = os.path.join(self.output_dir, basename + '_iv_bias_all')
@@ -138,12 +140,12 @@ class SmurfIVMixin(SmurfBase):
 
         Args:
         -----
-        bias_high_array (float array): (8,) array of voltage biases, in
+        bias_high_array (float array): (n_bias_groups,) array of voltage biases, in
           bias group order
 
         Opt Args:
         -----
-        bias_low_array (float array): (8,) array of voltage biases, in 
+        bias_low_array (float array): (n_bias_groups,) array of voltage biases, in 
           bias group order. Defaults to whatever is currently set
         wait_time (float): Time to wait at each commanded bias value. 
             Default 0.1
@@ -875,204 +877,6 @@ class SmurfIVMixin(SmurfBase):
 
                 if not show_plot:
                     plt.close()
-
-
-    def find_bias_groups(self, make_plot=False, show_plot=False, save_plot=True,
-        min_gap=.5):
-        """
-        Loops through all the bias groups and ramps the TES bias.
-        It takes full_band resp at each TES bias and looks for
-        frequency swings. Using this data, it attempts to assign
-        channels to bias groups. 
-
-        Opt Args:
-        --------
-        make_plot (bool): Whether to make plots.
-        show_plot (bool): If make_plot is True, whether to show
-            the plot.
-        save_plot (bool): If make_plot is True, whether to save
-            the plot.
-        min_gap (float): The minimum allowable gap.
-        """
-        self.log('This is specific for the Keck K2 umux FPU.')
-        self.log('Working on band 2 first')
-        tes_freq = {}
-        for bg in np.arange(4):
-            # The frequency of TESs in MHz
-            tes_freq[bg] = self.find_tes(2, bg, make_plot=make_plot) + \
-                self.get_band_center_mhz(2)
-            
-        good_tes = {}
-
-        # Anything we see in BG 0 is noise.
-        bad_res = tes_freq[0]
-
-        for bg in np.arange(1,4):
-            good_tes[bg] = np.array([])
-            
-            # Find resonators too close to known bad resonators
-            for r in tes_freq[bg]:
-                if np.min(np.abs(bad_res - r)) > min_gap:
-                    good_tes[bg] = np.append(good_tes[bg], r)
-                    
-        ca_freq, ca_sb, ca_ch, ca_bg = self.get_master_assignment(2)
-
-        for bg in np.arange(1,4):
-            for tes in good_tes[bg]:
-                nearest = np.min(np.abs(ca_freq - tes))
-                print(nearest)
-                if nearest < min_gap:
-                    idx = np.where(np.abs(ca_freq-tes) == nearest)
-                    ca_bg[idx] = bg
-            
-        self.write_master_assignment(2, ca_freq, ca_sb, ca_ch,
-                                     groups=ca_bg)
-
-        self.log('Working on band 3')
-        for bg in np.arange(4,8):
-            # The frequency of TESs in MHz
-            tes_freq[bg] = self.find_tes(3, bg, make_plot=make_plot) + \
-                self.get_band_center_mhz(3)
-
-        # Anything we see in BG 6 is noise.
-        bad_res = tes_freq[6]
-
-        for bg in np.array([4,5,7]):
-            good_tes[bg] = np.array([])
-            
-            # Find resonators too close to known bad resonators
-            for r in tes_freq[bg]:
-                if np.min(np.abs(bad_res - r)) > min_gap:
-                    good_tes[bg] = np.append(good_tes[bg], r)
-                    
-        ca_freq, ca_sb, ca_ch, ca_bg = self.get_master_assignment(3)
-
-        for bg in np.array([4,5,7]):
-            for tes in good_tes[bg]:
-                nearest = np.min(np.abs(ca_freq - tes))
-                if nearest < min_gap:
-                    idx = np.where(np.abs(ca_freq-tes) == nearest)
-                    ca_bg[idx] = bg
-            
-        self.write_master_assignment(3, ca_freq, ca_sb, ca_ch,
-                                     groups=ca_bg)
-
-        #for k in good_tes.keys():
-        #    self.log('{} TESs in BG {}'.format(len(good_tes[k], k)))
-
-        return good_tes
-
-
-    def find_tes(self, band, bias_group, bias=np.arange(0,2.5,.4),
-        make_plot=False, show_plot=False, save_plot=True, make_debug_plot=False,
-        delta_peak_cutoff=.2):
-        """
-        This changes the bias on the bias groups and attempts to find
-        resonators. 
-
-        Args:
-        -----
-        band (int) : The band to search.
-        bias_group (int): The bias group to search
-        
-        Opt Args:
-        ---------
-        bias (float array) : The TES biases in volts to set to look
-            for TESs.
-        make_plot (bool) : Whether to make a summary plot. Default True.
-        show_plot (bool) : WHether to show the plot. Default is False.
-        make_debug_plot (bool) : Whether to make debugging plots. 
-            Default is False.
-        delta_peak_cutoff (float) : The minimum a TES must move in MHz.
-            Default is 0.2. 
-
-        Ret:
-        ----
-        res_freq (float array) : The frequency of the resonators that
-           have TESs.
-        """
-        self.flux_ramp_off()
-
-        f, d = self.full_band_resp(band)
-        f *= 1.0E-6  # convert freq to MHz
-
-        ds = np.zeros((len(bias), len(d)), dtype=complex)
-
-        # Find resonators at different TES biases
-        for i, b in enumerate(bias):
-            self.set_tes_bias_bipolar(bias_group, b, wait_after=.1)
-            _, ds[i] = self.full_band_resp(band)
-
-        # Find resonator peaks
-        peaks = self.find_peak(f, ds[0], rolling_med=True, window=2500, pad=50,
-                               min_gap=50)
-
-        # Difference from zero bias
-        delta_ds = ds[1:] - ds[0]
-        
-        # The delta_ds at resonances
-        delta_ds_peaks = np.zeros((len(peaks), len(bias)-1))
-        for i, p in enumerate(peaks):
-            idx = np.where(f == p)[0][0]
-            delta_ds_peaks[i] = np.abs(delta_ds[:,idx])
-            if make_debug_plot:
-                n_lines = 8
-                if i % n_lines == 0:
-                    plt.figure()
-                plt.plot(bias[1:], delta_ds_peaks[i], 
-                         label='{:6.5f}'.format(f[idx]*1.0E-6))
-                if i % n_lines == n_lines-1:
-                    plt.legend()
-                    plt.xlabel('Bias [V]')
-                    plt.ylabel('Res Amp')
-
-        peak_span = np.max(delta_ds_peaks, axis=1) - \
-            np.min(delta_ds_peaks, axis=1)
-
-
-        if make_plot:
-            if show_plot:
-                plt.ion()
-            else:
-                plt.ioff()
-
-            # Initialize plot
-            fig, ax = plt.subplots(2, sharex=True)
-            cm = plt.get_cmap('viridis')
-
-            for i, b in enumerate(bias):
-                color = cm(i/len(bias))
-                ax[0].plot(f, np.abs(ds[i]), color=color, 
-                         label='{:3.2f}'.format(b))
-            ax[0].legend()
-            
-            ax[1].plot(peaks, peak_span, '.')
-
-            ax[1].axhline(delta_peak_cutoff, color='k', linestyle=':')
-            fig.suptitle('band {} BG {}'.format(band, bias_group))
-            ax[1].set_xlabel('Freq [MHz]')
-
-            ax[0].axvspan(-250, -125, color='k', alpha=.1)
-            ax[1].axvspan(-250, -125, color='k', alpha=.1)
-            ax[0].axvspan(0, 125, color='k', alpha=.1)
-            ax[1].axvspan(0, 125, color='k', alpha=.1)
-
-            if save_plot:
-                # Save the plot
-                timestamp = self.get_timestamp()
-                path = os.path.join(self.plot_dir,
-                                    '{}_find_tes.png'.format(timestamp))
-                plt.savefig(path, bbox_inches='tight')
-                self.pub.register_file(path, 'find_tes', plot=True)
-
-            if show_plot:
-                plt.show()
-            else:
-                plt.close()
-
-        idx = np.ravel(np.where(peak_span > delta_peak_cutoff))
-        return peaks[idx]
-
 
     def estimate_opt_eff(self, iv_fn_hot, iv_fn_cold,t_hot=293.,t_cold=77.,
         channels = None, dPdT_lim=(0.,0.5)):

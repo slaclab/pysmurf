@@ -185,8 +185,10 @@ class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin, Smu
         # bias groups available
         self.all_groups = self.config.get('all_bias_groups')
 
-        # bias group to pair
+        # bias group to pair        
         bias_group_cfg = self.config.get('bias_group_to_pair')
+        # how many bias groups are there?
+        self._n_bias_groups=len(bias_group_cfg)
         keys = bias_group_cfg.keys()
         self.bias_group_to_pair = np.zeros((len(keys), 3), dtype=int)
         for i, k in enumerate(keys):

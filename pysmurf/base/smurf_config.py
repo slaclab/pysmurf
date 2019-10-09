@@ -2,6 +2,7 @@ import json
 import io
 import re
 import os
+import numpy as np
 '''
 Stolen from Cyndia/Shawns get_config.py
 read or dump a config file
@@ -514,6 +515,27 @@ class SmurfConfig:
         schema = Schema(schema_dict)
         validated_config = schema.validate(loaded_config)
 
+        ###################################################
+        # Higher level/composite validation, if schema validation
+        # succeeds
+
+        # Check that no DAC has been assigned to multiple TES bias groups
+        bias_group_to_pair=validated_config['bias_group_to_pair']        
+        tes_bias_group_dacs=np.ndarray.flatten(np.array([bg2p[1] for bg2p in bias_group_to_pair.items()]))
+        assert ( len(np.unique(tes_bias_group_dacs)) == len(tes_bias_group_dacs) ), 'Configuration failed - DACs may not be assigned to multiple TES bias groups.'
+        
+        # Check that the DAC specified as the 50K gate driver
+        # isn't also defined as one of the DACs in a TES bias group
+        # pair.
+        dac_num_50k=validated_config['amplifier']['dac_num_50k']
+        # Taking the first element works because we already required
+        # that no DAC show up in more than one TES bias group
+        # definition.
+        assert (dac_num_50k not in tes_bias_group_dacs),'Configuration failed - DAC requested for driving 50K amplifier gate, %d, is also assigned to TES bias group %d.'%(int(dac_num_50k),int([bg2p[0] for bg2p in bias_group_to_pair.items() if dac_num_50k in bg2p[1]][0]))
+        
+        ##### Done with higher level/composite validation.
+        ###################################################
+        
         # Splice in the sorted init:bands key before returning
         validated_config['init']['bands']=bands
         
