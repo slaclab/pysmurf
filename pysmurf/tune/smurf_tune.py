@@ -2031,7 +2031,7 @@ class SmurfTuneMixin(SmurfBase):
         write_log=False, make_plot=False, save_plot=True, show_plot=True, 
         nsamp=2**19, lms_freq_hz=None, meas_lms_freq=False, flux_ramp=True, 
         fraction_full_scale=None, lms_enable1=True, lms_enable2=True, 
-        lms_enable3=True, lms_gain=7, return_data=True, new_epics_root=None,
+        lms_enable3=True, lms_gain=None, return_data=True, new_epics_root=None,
         feedback_start_frac=None, feedback_end_frac=None):
         """
         The function to start tracking. Starts the flux ramp and if requested
@@ -2294,7 +2294,7 @@ class SmurfTuneMixin(SmurfBase):
     def track_and_check(self, band, channel=None, reset_rate_khz=4., 
         make_plot=False, save_plot=True, show_plot=True,
         lms_freq_hz=None, flux_ramp=True, fraction_full_scale=None,
-        lms_enable1=True, lms_enable2=True, lms_enable3=True, lms_gain=7,
+        lms_enable1=True, lms_enable2=True, lms_enable3=True, lms_gain=None,
         f_min=.015, f_max=.2, df_max=.03, toggle_feedback=True,
         relock=True, tracking_setup=True,
         feedback_start_frac=None, feedback_end_frac=None):
@@ -3587,7 +3587,7 @@ class SmurfTuneMixin(SmurfBase):
     def find_bad_pairs(self, band, reset_rate_khz=4., write_log=False,
         make_plot=False, save_plot=True, show_plot=True,
         lms_freq_hz=None, flux_ramp=True, fraction_full_scale=.4950,
-        lms_enable1=True, lms_enable2=True, lms_enable3=True, lms_gain=7):
+        lms_enable1=True, lms_enable2=True, lms_enable3=True, lms_gain=None):
         """
         """
         # Extract the resonators
