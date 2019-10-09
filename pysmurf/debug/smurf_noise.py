@@ -554,7 +554,7 @@ class SmurfNoiseMixin(SmurfBase):
         show_legend=True, freq_range_summary=None, R_sh=None,
         high_current_mode=True, iv_data_filename=None, NEP_ylim=(10.,1000.),
         f_center_GHz=150.,bw_GHz=32., xlabel_override=None,
-        unit_override=None):
+        unit_override=None, plot_fit=True):
         """
         Analysis script associated with noise_vs_bias.
 
@@ -777,12 +777,16 @@ class SmurfNoiseMixin(SmurfBase):
                     self.log('power noise = {:.2f} aW/rtHz'.format(NEP_est))
                     NEP_est_list.append(NEP_est)
 
-                ax_NEI.plot(f_fit, Pxx_fit, color=color, linestyle='--')
-                ax_NEI.plot(f, wl + np.zeros(len(f)), color=color,
-                        linestyle=':')
-                ax_NEI.plot(f_knee,2.*wl,marker = 'o',linestyle = 'none',
-                        color=color)
-                
+                if plot_fit:
+                    ax_NEI.plot(f_fit, Pxx_fit, color=color, linestyle='--')
+                    ax_NEI.plot(f, wl + np.zeros(len(f)), color=color,
+                                linestyle=':')
+                    ax_NEI.plot(f_knee,2.*wl,marker = 'o',linestyle = 'none',
+                                color=color)
+                else:
+                    ax_NEI.plot(f, noise_est + np.zeros(len(f)), color=color,
+                                linestyle=':')
+                    
                 ax_NEIwl.plot(b,noise_est,color=color,marker='s',linestyle='none')
                 if est_NEP:
                     ax_NEPwl.plot(b,NEP_est,color=color,marker='s',linestyle='none')
