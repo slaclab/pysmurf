@@ -844,15 +844,15 @@ class SmurfTuneMixin(SmurfBase):
 
             path = os.path.join(self.output_dir, save_name.format('freq'))
             np.savetxt(path, f)
-            self.pub.register(path, 'full_band_resp', format='txt')
+            self.pub.register_file(path, 'full_band_resp', format='txt')
 
             path = os.path.join(self.output_dir, save_name.format('real'))
             np.savetxt(path, np.real(resp))
-            self.pub.register(path, 'full_band_resp', format='txt')
+            self.pub.register_file(path, 'full_band_resp', format='txt')
 
             path = os.path.join(self.output_dir, save_name.format('imag'))
             np.savetxt(path, np.imag(resp))
-            self.pub.register(path, 'full_band_resp', format='txt')
+            self.pub.register_file(path, 'full_band_resp', format='txt')
             
         return f, resp
 
