@@ -240,6 +240,8 @@ class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin, Smu
         self.freq_resp = {}
         self.lms_freq_hz = {}
         self.fraction_full_scale = self.config.get('tune_band').get('fraction_full_scale')
+        self.reset_rate_khz = self.config.get('tune_band').get('reset_rate_khz')
+        
         smurf_init_config = self.config.get('init')
         bands = smurf_init_config['bands']
         # Load in tuning parameters, if present

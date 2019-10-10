@@ -320,6 +320,7 @@ class SmurfConfig:
             Optional('freq_min', default=-250.e6) : And(Use(float),lambda f: -307.2e6 <= f <= 307.2e6),
 
             'fraction_full_scale' : And(Use(float),lambda f: 0 < f <=1.),
+            'reset_rate_khz' : And(Use(float), lambda f: 1 <= f <= 15),
             Optional('default_tune',default=None) : And(str,os.path.isfile)
         }
 

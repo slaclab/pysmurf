@@ -1462,6 +1462,7 @@ class SmurfTuneMixin(SmurfBase):
                 channels[mask[:len(chans)]] = chans
 
             # Prune channels that are too close
+            print(close_idx)
             channels[~close_idx] = -1        
 
             # write the channel assignments to file
@@ -1910,7 +1911,7 @@ class SmurfTuneMixin(SmurfBase):
 
         return rr, ii
 
-    def flux_ramp_check(self, band, reset_rate_khz=4, 
+    def flux_ramp_check(self, band, reset_rate_khz=None, 
                         fraction_full_scale=None, flux_ramp=True,
                         save_plot=True, show_plot=False):
         """
@@ -1936,6 +1937,10 @@ class SmurfTuneMixin(SmurfBase):
         else:
             plt.ioff()
 
+        if reset_rate_khz is None:
+            reset_rate_khz = self.reset_rate_khz
+            self.log('reset_rate_khz is None. ',
+                     f'Using default: {reset_rate_khz}')
         n_channels = self.get_number_channels(band)            
         old_fb = self.get_feedback_enable_array(band)
 
@@ -2031,7 +2036,7 @@ class SmurfTuneMixin(SmurfBase):
 
         return d, df, sync
 
-    def tracking_setup(self, band, channel=None, reset_rate_khz=4., 
+    def tracking_setup(self, band, channel=None, reset_rate_khz=None, 
         write_log=False, make_plot=False, save_plot=True, show_plot=True, 
         nsamp=2**19, lms_freq_hz=None, meas_lms_freq=False, flux_ramp=True, 
         fraction_full_scale=None, lms_enable1=True, lms_enable2=True, 
@@ -2078,7 +2083,10 @@ class SmurfTuneMixin(SmurfBase):
            carrier rate using the flux_mod2 function.  Default false.
            lms_freq_hz must be None.
         """
+        if reset_rate_khz is None:
+            reset_rate_khz = self.reset_rate_khz
 
+        
         ##
         ## Load unprovided optional args from cfg
         if feedback_start_frac is None:
@@ -2295,7 +2303,7 @@ class SmurfTuneMixin(SmurfBase):
         if return_data:
             return f, df, sync
 
-    def track_and_check(self, band, channel=None, reset_rate_khz=4., 
+    def track_and_check(self, band, channel=None, reset_rate_khz=None, 
         make_plot=False, save_plot=True, show_plot=True,
         lms_freq_hz=None, flux_ramp=True, fraction_full_scale=None,
         lms_enable1=True, lms_enable2=True, lms_enable3=True, lms_gain=None,
@@ -2351,6 +2359,9 @@ class SmurfTuneMixin(SmurfBase):
         f_max (float) : The minimium frequency swing
         df_max (float) : The maximum value of the stddev of df
         """
+        if reset_rate_khz is None:
+            reset_rate_khz = self.reset_rate_khz
+        
         if relock:
             self.relock(band)
 
@@ -2382,9 +2393,12 @@ class SmurfTuneMixin(SmurfBase):
     
 
     def eta_phase_check(self, band, rot_step_size=30, rot_max=360,
-        reset_rate_khz=4., fraction_full_scale=None, flux_ramp=True):
+        reset_rate_khz=None, fraction_full_scale=None, flux_ramp=True):
         """
         """
+        if reset_rate_khz is None:
+            reset_rate_khz = self.reset_rate_khz
+            
         ret = {}
 
         eta_phase0 = self.get_eta_phase_array(band)
@@ -2691,7 +2705,7 @@ class SmurfTuneMixin(SmurfBase):
     
     def check_lock(self, band, f_min=.015, f_max=.2, df_max=.03,
         make_plot=False, flux_ramp=True, fraction_full_scale=None,
-        lms_freq_hz=None, reset_rate_khz=4., feedback_start_frac=None, 
+        lms_freq_hz=None, reset_rate_khz=None, feedback_start_frac=None, 
         feedback_end_frac=None, **kwargs):
         """
         Takes a tracking setup and turns off channels that have bad
@@ -2720,6 +2734,9 @@ class SmurfTuneMixin(SmurfBase):
         """
         self.log('Checking lock on band {}'.format(band))
 
+        if reset_rate_khz is None:
+            reset_rate_khz = self.reset_rate_khz
+        
         if fraction_full_scale is None:
             fraction_full_scale = self.fraction_full_scale
 
@@ -3586,12 +3603,15 @@ class SmurfTuneMixin(SmurfBase):
         return mod_median
 
 
-    def find_bad_pairs(self, band, reset_rate_khz=4., write_log=False,
+    def find_bad_pairs(self, band, reset_rate_khz=None, write_log=False,
         make_plot=False, save_plot=True, show_plot=True,
         lms_freq_hz=None, flux_ramp=True, fraction_full_scale=.4950,
         lms_enable1=True, lms_enable2=True, lms_enable3=True, lms_gain=None):
         """
         """
+        if reset_rate_khz is None:
+            reset_rate_khz = self.reset_rate_khz
+        
         # Extract the resonators
         resonators = self.freq_resp[band]['resonances']
         keys = resonators.keys()
