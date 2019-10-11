@@ -5,6 +5,9 @@ from pysmurf.base import SmurfBase
 import os
 import time
 from pysmurf.util import tools
+import matplotlib.pyplot as plt
+from matplotlib.gridspec import GridSpec
+import seaborn as sns
 
 class SmurfNoiseMixin(SmurfBase):
 
@@ -49,17 +52,18 @@ class SmurfNoiseMixin(SmurfBase):
         n_channel = self.get_number_channels(band)
 
         if datafile == None:
+            # Take the data
             datafile = self.take_stream_data(meas_time, gcp_mode=gcp_mode)
         else:
-            self.log('Reading data from %s' % (datafile))
+            self.log(f'Reading data from {datafile}')
 
         basename, _ = os.path.splitext(os.path.basename(datafile))
 
+        # Read back the data
         timestamp, phase, mask = self.read_stream_data_gcp_save(datafile)
         phase *= self.pA_per_phi0/(2.*np.pi) # phase converted to pA
 
         if fs is None:
-            #fs = self.fs
             num_averages = self.config.get('smurf_to_mce')['num_averages']
             # flux ramp rate returns in kHz
             fs = self.get_flux_ramp_freq()*1.0E3/num_averages
@@ -67,10 +71,9 @@ class SmurfNoiseMixin(SmurfBase):
         self.log('Plotting channels {}'.format(channel), self.LOG_USER)
 
         if make_summary_plot or make_channel_plot:
-            import matplotlib.pyplot as plt
             plt.rcParams["patch.force_edgecolor"] = True
 
-        noise_floors = np.full((len(low_freq), n_channel),np.nan)
+        noise_floors = np.full((len(low_freq), n_channel), np.nan)
         f_knees = np.full(n_channel,np.nan)
         res_freqs = np.full(n_channel,np.nan)
 
@@ -85,14 +88,16 @@ class SmurfNoiseMixin(SmurfBase):
             if ch < 0:
                 continue
             ch_idx = mask[band, ch]
+            # Calculate PSD
             f, Pxx = signal.welch(phase[ch_idx], nperseg=nperseg, 
                 fs=fs, detrend=detrend)
             Pxx = np.sqrt(Pxx)
 
             good_fit = False
             try:
-                popt,pcov,f_fit,Pxx_fit = self.analyze_psd(f,Pxx)
-                wl,n,f_knee = popt
+                # Fit the PSD
+                popt, pcov, f_fit, Pxx_fit = self.analyze_psd(f, Pxx)
+                wl, n, f_knee = popt
                 if f_knee != 0.:
                     wl_list.append(wl)
                     f_knee_list.append(f_knee)
@@ -104,9 +109,11 @@ class SmurfNoiseMixin(SmurfBase):
                         ' pA/rtHz, n = {:.2f}'.format(n) + 
                         ', f_knee = {:.2f} Hz'.format(f_knee))
             except Exception as e:
-                self.log('{} b{}ch{:03}: bad fit to noise model'.format(c+1,band,ch))
+                self.log('{} b{}ch{:03}: bad fit to noise model'.format(c+1,
+                    band, ch))
                 self.log(e)
 
+            # Calculate noise in various frequency bins
             for i, (l, h) in enumerate(zip(low_freq, high_freq)):
                 idx = np.logical_and(f>l, f<h)
                 noise_floors[i, ch] = np.mean(Pxx[idx])
@@ -117,20 +124,27 @@ class SmurfNoiseMixin(SmurfBase):
                 sampleNums = np.arange(len(phase[ch_idx]))
                 t_array = sampleNums/fs
 
+                # Plot the data
                 ax[0].plot(t_array,phase[ch_idx] - np.mean(phase[ch_idx]))
                 ax[0].set_xlabel('Time [s]')
                 ax[0].set_ylabel('Phase [pA]')
+
                 if grid_on:
                     ax[0].grid()
 
                 ax[1].plot(f, Pxx)
+                
+                # Plot the fit
                 if good_fit:
-                    ax[1].plot(f_fit,Pxx_fit,linestyle = '--',label=r'$n=%.2f$' % (n))
-                    ax[1].plot(f_knee,2.*wl,linestyle = 'none',marker = 'o',
-                        label=r'$f_\mathrm{knee} = %.2f\,\mathrm{Hz}$' % (f_knee))
-                    ax[1].plot(f_fit,wl + np.zeros(len(f_fit)),linestyle = ':',
-                        label=r'$\mathrm{wl} = %.0f\,\mathrm{pA}/\sqrt{\mathrm{Hz}}$' % (wl))
+                    ax[1].plot(f_fit, Pxx_fit, linestyle='--', label=f'$n={n}')
+                    ax[1].plot(f_knee, 2.*wl, linestyle='none', marker='o',
+                        label=r'$f_\mathrm{knee} = ' + f'{f_knee:.2f},' + 
+                        r'\mathrm{Hz}$')
+                    ax[1].plot(f_fit,wl + np.zeros(len(f_fit)), linestyle=':',
+                        label=r'$\mathrm{wl} = $'+ f'{wl:.2f},' + 
+                        r'$\mathrm{pA}/\sqrt{\mathrm{Hz}}$')
                     ax[1].legend(loc='best')
+                
                 ax[1].set_xlabel('Frequency [Hz]')
                 ax[1].set_xlim(f[1],f[-1])
                 ax[1].set_ylabel('Amp [pA/rtHz]')
@@ -148,7 +162,7 @@ class SmurfNoiseMixin(SmurfBase):
 
                 fig.tight_layout()
 
-                plot_name = basename+'_noise_timestream_b{}_ch{:03}.png'.format(band, ch)
+                plot_name = basename + '_noise_timestream_b{}_ch{:03}.png'.format(band, ch)
                 fig.savefig(os.path.join(self.plot_dir, plot_name), 
                     bbox_inches='tight')
 
@@ -162,6 +176,7 @@ class SmurfNoiseMixin(SmurfBase):
                 outfn = os.path.join(self.plot_dir, save_name)
 
                 np.savetxt(outfn, np.c_[res_freqs,noise_floors[i],f_knees])
+                # Publish the data
                 self.pub.register_file(outfn, 'noise_timestream', format='txt')
 
         if make_summary_plot:
@@ -199,16 +214,16 @@ class SmurfNoiseMixin(SmurfBase):
 
                 ax[0].set_xlabel('White-noise level (pA/rtHz)')
                 ax[0].set_xscale('log')
-                ax[0].set_title('median = %.3e pA/rtHz' % (wl_median))
+                ax[0].set_title(f'median = {wl_median:.3e} pA/rtHz')
                 ax[1].hist(n_list)
                 ax[1].set_xlabel('Noise index')
-                ax[1].set_title('median = %.3e' % (n_median))
+                ax[1].set_title(f'median = {n_median:.3e}')
                 ax[2].hist(f_knee_list,
                     bins=np.logspace(np.floor(np.log10(np.min(f_knee_list))),
                         np.ceil(np.log10(np.max(f_knee_list))), 10))
                 ax[2].set_xlabel('Knee frequency')
                 ax[2].set_xscale('log')
-                ax[2].set_title('median = %.3e Hz' % (f_knee_median))
+                ax[2].set_title(f'median = {f_knee_median:.3e Hz}')
                 plt.tight_layout()
                 fig.subplots_adjust(top = 0.9)
                 noise_params_hist_fname = basename + \
@@ -432,9 +447,10 @@ class SmurfNoiseMixin(SmurfBase):
             datafiles = np.append(datafiles, datafile)
             self.log('datafile {}'.format(datafile))
             
-        self.log('Done with noise vs %s'%(var))
+        self.log(f'Done with noise vs {var}')
 
-        fn_datafiles = os.path.join(psd_dir, '{}_datafiles.txt'.format(timestamp))
+        fn_datafiles = os.path.join(psd_dir, 
+            '{}_datafiles.txt'.format(timestamp))
 
         np.savetxt(fn_datafiles,datafiles, fmt='%s')
         self.pub.register_file(fn_datafiles, 'datafiles', format='txt')
@@ -583,9 +599,6 @@ class SmurfNoiseMixin(SmurfBase):
             for summary plot of noise vs. bias; if None, then plot white-noise 
             level from model fit
         """
-        import matplotlib.pyplot as plt
-        from matplotlib.gridspec import GridSpec
-
         if not show_plot:
             plt.ioff()
 
@@ -610,11 +623,11 @@ class SmurfNoiseMixin(SmurfBase):
             R_sh = self.R_sh
 
         if isinstance(bias,str):
-            self.log('Biases being read from %s' % (bias))
+            self.log(f'Biases being read from {bias}')
             bias = self.get_biases_from_file(bias)
         
         if isinstance(datafile,str):
-            self.log('Noise data files being read from %s' % (datafile))
+            self.log(f'Noise data files being read from {datafile}')
             datafile = self.get_datafiles_from_file(datafile)
 
         # If an analyzed IV datafile is given, estimate NEP
@@ -719,10 +732,10 @@ class SmurfNoiseMixin(SmurfBase):
                 # smooth Pxx for plotting
                 if smooth_len >= 3:
                     window_len = smooth_len
-                    self.log('Smoothing PSDs for plotting with window of length %i' % (window_len))
-                    s = np.r_[Pxx[window_len-1:0:-1],Pxx,Pxx[-2:-window_len-1:-1]]
+                    self.log(f'Smoothing PSDs for plotting with window of length {window_len}')
+                    s = np.r_[Pxx[window_len-1:0:-1], Pxx, Pxx[-2:-window_len-1:-1]]
                     w = np.hanning(window_len)
-                    Pxx_smooth_ext = np.convolve(w/w.sum(),s,mode='valid')
+                    Pxx_smooth_ext = np.convolve(w/w.sum(), s, mode='valid')
                     ndx_add = window_len % 2
                     Pxx_smooth = Pxx_smooth_ext[(window_len//2)-1+ndx_add:-(window_len//2)]
                 else:
@@ -780,12 +793,14 @@ class SmurfNoiseMixin(SmurfBase):
                 ax_NEI.plot(f_fit, Pxx_fit, color=color, linestyle='--')
                 ax_NEI.plot(f, wl + np.zeros(len(f)), color=color,
                         linestyle=':')
-                ax_NEI.plot(f_knee,2.*wl,marker = 'o',linestyle = 'none',
+                ax_NEI.plot(f_knee, 2.*wl, marker='o', linestyle='none',
                         color=color)
                 
-                ax_NEIwl.plot(b,noise_est,color=color,marker='s',linestyle='none')
+                ax_NEIwl.plot(b,noise_est,color=color,marker='s',
+                    linestyle='none')
                 if est_NEP:
-                    ax_NEPwl.plot(b,NEP_est,color=color,marker='s',linestyle='none')
+                    ax_NEPwl.plot(b,NEP_est,color=color,marker='s',
+                        linestyle='none')
                     iv_bias,si = self.get_si_data(iv_band_data,ch)
                     iv_bias = iv_bias[:-1]
                     if i == 0:
@@ -803,14 +818,14 @@ class SmurfNoiseMixin(SmurfBase):
                         R_frac_max = R[nb_idx]/R_n
                         for ax in [ax_NEIwl,ax_NEPwl,ax_SI]:
                             if ax == ax_SI:
-                                label_Rfrac = r'{:.2f}-{:.2f}'.format(R_frac_min,R_frac_max) + \
+                                label_Rfrac = f'{R_frac_min:.2f}-{R_frac_max:.2f}' + \
                                     r'$R_\mathrm{N}$'
                             else:
                                 label_Rfrac = None
                             ax.axvspan(iv_bias[sc_idx],iv_bias[nb_idx],
                                        alpha=.15,label=label_Rfrac)
-                    ax_SI.plot(b,np.interp(b,iv_bias,si),color=color,
-                               marker='s',linestyle='none')
+                    ax_SI.plot(b, np.interp(b, iv_bias, si), color=color,
+                               marker='s', linestyle='none')
 
             ax_NEI.set_xlabel(r'Freq [Hz]')
             ax_NEI.set_ylabel(r'NEI [$\mathrm{pA}/\sqrt{\mathrm{Hz}}$]')
@@ -839,11 +854,11 @@ class SmurfNoiseMixin(SmurfBase):
                 ax_NEIwl.set_xlabel(xlabel_bias)
 
             if freq_range_summary is not None:
-                ylabel_summary = r'mean noise %.2f-%.2f Hz' % (freq_min,freq_max)
+                ylabel_summary = f'mean noise {freq_min:.2f}-{freq_max:.2f} Hz'
             else:
-                ylabel_summary = r'white-noise level'
-            ax_NEIwl.set_ylabel(r'NEI %s [$\mathrm{pA}/\sqrt{\mathrm{Hz}}$]' % \
-                               (ylabel_summary))
+                ylabel_summary = 'white-noise level'
+            ax_NEIwl.set_ylabel(f'NEI {ylabel_summary} ' + 
+                r'[$\mathrm{pA}/\sqrt{\mathrm{Hz}}$]')
             
             bottom = max(0.95*min(noise_est_list),0.)
             top_desired = 1.05*max(noise_est_list)
@@ -855,10 +870,10 @@ class SmurfNoiseMixin(SmurfBase):
             ax_NEIwl.grid()
 
             if est_NEP:
-                ax_NEPwl.set_ylabel(r'NEP %s [$\mathrm{aW}/\sqrt{\mathrm{Hz}}$]' % \
-                                   (ylabel_summary))
-                ax_SI.set_ylabel(r'Estimated responsivity with $\beta' + 
-                    r' = 0$ [$\mu\mathrm{V}^{-1}$]')
+                ax_NEPwl.set_ylabel(f'NEP {ylabel_summary} ' + 
+                    r'[$\mathrm{aW}/\sqrt{\mathrm{Hz}}$]')
+                ax_SI.set_ylabel(r'Estimated responsivity with $\beta = 0$'+
+                    r'[$\mu\mathrm{V}^{-1}$]')
                 
                 bottom_NEP = 0.95*min(NEP_est_list)
                 top_NEP_desired = 1.05*max(NEP_est_list)
@@ -876,10 +891,15 @@ class SmurfNoiseMixin(SmurfBase):
                 ax_SI.grid()
 
                 ax_NET = ax_NEPwl.twinx()
+
+                # NEP to NET conversion model
                 def NEPtoNET(NEP):
                     return (1e-18/1e-6)*(1./np.sqrt(2.))*NEP/tools.dPdT_singleMode(f_center_GHz*1e9,bw_GHz*1e9,2.7)
+
                 bottom_NET = NEPtoNET(bottom_NEP)
                 top_NET = NEPtoNET(top_NEP)
+
+                # labels and limits
                 ax_NET.set_ylim(bottom=bottom_NET,top=top_NET)
                 ax_NET.set_yscale('log')
                 ax_NET.set_ylabel(r'NET with opt. eff. = $100\%$ [$\mu\mathrm{K} \sqrt{\mathrm{s}}$]')
@@ -896,13 +916,11 @@ class SmurfNoiseMixin(SmurfBase):
                 fig_title_string = str(bias_group) + ','
                 file_name_string = str(bias_group) + '_'
 
-                
+            # Title and layout
             fig.suptitle(basename + 
                 ' Band {}, Group {}'.format(band,fig_title_string) + 
                 ' Channel {:03} - {:.2f} MHz'.format(ch, res_freq))
-            #fig.subplots_adjust(top=0.1)
             plt.tight_layout()
-            #plt.tight_layout(rect=[0.,0.03,1.,0.97])
 
             if show_plot:
                 plt.show()
@@ -915,7 +933,7 @@ class SmurfNoiseMixin(SmurfBase):
                 else:
                     plot_name = '{}_'.format(self.get_timestamp()) + plot_name
                 plot_fn = os.path.join(self.plot_dir, plot_name)
-                self.log('Saving plot to %s' % (plot_fn))
+                self.log(f'Saving plot to {plot_fn}')
                 plt.savefig(plot_fn,
                     bbox_inches='tight')
                 plt.close()
@@ -956,31 +974,43 @@ class SmurfNoiseMixin(SmurfBase):
             bin_min = np.floor(np.log10(np.min(noise_est_data_bias)))
             bin_max = np.ceil(np.log10(np.max(noise_est_data_bias)))
 
+        # Make figure
         plt.figure()
+
+        # Make bins
         bins_hist = np.logspace(bin_min,bin_max,20)
         hist_mat = np.zeros((len(bins_hist)-1,len(bias)))
         noise_est_median_list = []
+
         for i in range(len(bias)):
             hist_mat[:,i],_ = np.histogram(noise_est_data_bias[i],bins=bins_hist)
             noise_est_median_list.append(np.median(noise_est_data_bias[i]))
         X_hist,Y_hist = np.meshgrid(np.arange(len(bias),-1,-1),bins_hist)
+        
         plt.pcolor(X_hist,Y_hist,hist_mat)
         cbar = plt.colorbar()
+        
+        # Labels
         cbar.set_label('Number of channels')
         plt.yscale('log')
-        plt.ylabel(r'NEI %s [$\mathrm{pA}/\sqrt{\mathrm{Hz}}$]' % (ylabel_summary))
+        plt.ylabel(f'NEI {ylabel_summary}' + 
+            r' [$\mathrm{pA}/\sqrt{\mathrm{Hz}}$]')
         plt.ylim(10**bin_min,10**bin_max)
         plt.title(basename + 
-            ': Band {}, Group {}, {} channels'.format(band,fig_title_string.strip(','),n_analyzed))
+            ': Band {}, Group {}, {} channels'.format(band,
+                fig_title_string.strip(','),n_analyzed))
         xtick_labels = []
         for b in bias:
             xtick_labels.append('{}'.format(b))
         xtick_locs = np.arange(len(bias)-1,-1,-1) + 0.5
-        plt.xticks(xtick_locs,xtick_labels)
+        plt.xticks(xtick_locs, xtick_labels)
         plt.xlabel('Commanded bias voltage [V]')
-        plt.plot(xtick_locs,noise_est_median_list,linestyle='--',marker='o',
-                 color='r',label='Median NEI')
+
+        # Plot the data
+        plt.plot(xtick_locs, noise_est_median_list, linestyle='--', marker='o',
+                 color='r', label='Median NEI')
         plt.legend(loc='lower center')
+        
         if show_plot:
             plt.show()
         if save_plot:
@@ -990,8 +1020,8 @@ class SmurfNoiseMixin(SmurfBase):
             else:
                 plot_name = '{}_'.format(self.get_timestamp()) + plot_name
             plot_fn = os.path.join(self.plot_dir, plot_name)
-            self.log('\nSaving NEI histogram to %s' % (plot_fn))
-            plt.savefig(plot_fn,bbox_inches='tight')
+            self.log(f'\nSaving NEI histogram to {plot_fn}')
+            plt.savefig(plot_fn, bbox_inches='tight')
             plt.close()
             
         if est_NEP:
@@ -1016,14 +1046,16 @@ class SmurfNoiseMixin(SmurfBase):
             cbar_NEP = plt.colorbar()
             cbar_NEP.set_label('Number of channels')
             plt.yscale('log')
-            plt.ylabel(r'NEP %s [$\mathrm{aW}/\sqrt{\mathrm{Hz}}$]' % (ylabel_summary))
+            plt.ylabel(f'NEP {ylabel_summary}' + 
+                r' [$\mathrm{aW}/\sqrt{\mathrm{Hz}}$]')
             plt.ylim(10**bin_NEP_min,10**bin_NEP_max)
             plt.title(basename + 
-                ': Band {}, Group {}, {} channels'.format(band,fig_title_string.strip(','),n_analyzed))
+                ': Band {}, Group {}, {} channels'.format(band,
+                    fig_title_string.strip(','), n_analyzed))
             plt.xticks(xtick_locs,xtick_labels)
             plt.xlabel('Commanded bias voltage [V]')
-            plt.plot(xtick_locs,NEP_est_median_list,linestyle='--',marker='o',
-                 color='r',label='Median NEP')
+            plt.plot(xtick_locs,NEP_est_median_list, linestyle='--', marker='o',
+                 color='r', label='Median NEP')
             plt.legend(loc='lower center')
             if show_plot:
                 plt.show()
@@ -1034,20 +1066,39 @@ class SmurfNoiseMixin(SmurfBase):
                 else:
                     plot_name = '{}_'.format(self.get_timestamp()) + plot_name
                 plot_fn = os.path.join(self.plot_dir, plot_name)
-                self.log('\nSaving NEP histogram to %s' % (plot_fn))
-                plt.savefig(plot_fn,bbox_inches='tight')
+                self.log(f'\nSaving NEP histogram to {plot_fn}')
+                plt.savefig(plot_fn, bbox_inches='tight')
                 plt.close()
 
 
     def analyze_psd(self, f, Pxx, p0=[100.,0.5,0.01]):
         '''
         Return model fit for a PSD.
-        p0 (float array): initial guesses for model fitting: [white-noise level in pA/rtHz, exponent of 1/f^n component, knee frequency in Hz]
+        p0 (float array): initial guesses for model fitting: [white-noise level 
+        in pA/rtHz, exponent of 1/f^n component, knee frequency in Hz]
+
+        Args:
+        -----
+        f (float array) : The frequency information
+        Pxx (float array) : The power spectral data
+
+        Opt Args:
+        ---------
+        p0 (float array) : Initial guess for fitting PSDs
+
+        Ret:
+        ----
+        popt (float array) : The fit parameters - [white_noise_level, n, f_knee]
+        pcov (float array) : Covariance matrix
+        f_fit (float array) : The frequency bins of the fit
+        Pxx_fit (flot array) : The amplitude
         '''
         # incorporate timestream filtering
         f3dB = self.config.get('smurf_to_mce').get('filter_freq')
         filter_order = self.config.get('smurf_to_mce').get('filter_order')
-        b,a = signal.butter(filter_order,f3dB,analog=True,btype='low') # Butterworth filter in gcp streaming
+
+        # Butterworth filter in gcp streaming
+        b,a = signal.butter(filter_order,f3dB,analog=True,btype='low') 
 
         def noise_model(freq, wl, n, f_knee):
             '''
@@ -1072,14 +1123,17 @@ class SmurfNoiseMixin(SmurfBase):
                                             p0=p0,bounds=bounds)
         except Exception as e:
             wl = np.mean(Pxx[1:])
-            print('Unable to fit noise model. Reporting mean noise: %.2f pA/rtHz' % (wl))
-            popt = [wl,1.,0.]
+            print('Unable to fit noise model. ' + 
+                f'Reporting mean noise: {wl:.2f} pA/rtHz')
+
+            popt = [wl, 1., 0.]
             pcov = None
+
         df = f[1] - f[0]
         f_fit = np.arange(f[1],f[-1] + df,df/10.)
         Pxx_fit = noise_model(f_fit,*popt)
 
-        return popt,pcov,f_fit,Pxx_fit
+        return popt, pcov, f_fit, Pxx_fit
 
     def noise_all_vs_noise_solo(self, band, meas_time=10):
         """
@@ -1133,8 +1187,6 @@ class SmurfNoiseMixin(SmurfBase):
         """
         if fs is None:
             fs = self.fs
-
-        import matplotlib.pyplot as plt
 
         keys = ret.keys()
         all_dir = ret.pop('all')
@@ -1214,6 +1266,7 @@ class SmurfNoiseMixin(SmurfBase):
 
         return NET_SI/1e-6 # NET in uK rt(s)
 
+
     def analyze_noise_vs_tone(self, tone, datafile, channel=None, band=None,
         nperseg=2**13, detrend='constant', fs=None, save_plot=True, 
         show_plot=False, make_timestream_plot=False, data_timestamp=None,
@@ -1222,8 +1275,6 @@ class SmurfNoiseMixin(SmurfBase):
         """
         Analysis script associated with noise_vs_tone.
         """
-        import matplotlib.pyplot as plt
-        from matplotlib.gridspec import GridSpec
 
         if not show_plot:
             plt.ioff()
@@ -1238,11 +1289,11 @@ class SmurfNoiseMixin(SmurfBase):
             fs = self.fs
 
         if isinstance(tone,str):
-            self.log('Tone powers being read from %s' % (tone))
+            self.log(f'Tone powers being read from {tone}')
             tone = self.get_biases_from_file(tone,dtype=int)
         
         if isinstance(datafile,str):
-            self.log('Noise data files being read from %s' % (datafile))
+            self.log(f'Noise data files being read from {datafile}')
             datafile = self.get_datafiles_from_file(datafile)
 
         mask = np.loadtxt(self.smurf_to_mce_mask_file)
@@ -1311,7 +1362,7 @@ class SmurfNoiseMixin(SmurfBase):
                 # smooth Pxx for plotting
                 if smooth_len >= 3:
                     window_len = smooth_len
-                    self.log('Smoothing PSDs for plotting with window of length %i' % (window_len))
+                    self.log(f'Smoothing PSDs for plotting with window of length {window_len}')
                     s = np.r_[Pxx[window_len-1:0:-1],Pxx,Pxx[-2:-window_len-1:-1]]
                     w = np.hanning(window_len)
                     Pxx_smooth_ext = np.convolve(w/w.sum(),s,mode='valid')
@@ -1362,10 +1413,11 @@ class SmurfNoiseMixin(SmurfBase):
 
             ax1.set_xlabel(r'Tone-power setting')
             if freq_range_summary is not None:
-                ylabel_summary = r'Mean noise %.2f-%.2f Hz' % (freq_min,freq_max)
+                ylabel_summary = f'Mean noise {freq_min:.2f}-{freq_max:.2f Hz}'
             else:
                 ylabel_summary = r'White-noise level'
-            ax1.set_ylabel(r'%s [$\mathrm{pA}/\sqrt{\mathrm{Hz}}$]' % (ylabel_summary))
+            ax1.set_ylabel(f'{ylabel_summary} ' + 
+                r'[$\mathrm{pA}/\sqrt{\mathrm{Hz}}$]')
             
             bottom = max(0.95*min(noise_est_list),0.)
             top_desired = 1.05*max(noise_est_list)
@@ -1401,7 +1453,7 @@ class SmurfNoiseMixin(SmurfBase):
                 else:
                     plot_name = '{}_'.format(self.get_timestamp()) + plot_name
                 plot_fn = os.path.join(self.plot_dir, plot_name)
-                self.log('Saving plot to %s' % (plot_fn))
+                self.log(f'Saving plot to {plot_fn}')
                 plt.savefig(plot_fn,
                     bbox_inches='tight')
                 plt.close()
@@ -1456,9 +1508,6 @@ class SmurfNoiseMixin(SmurfBase):
         save_name (str) : The name of the file
         show_plot (bool) : Whether to show the plot
         """
-        import matplotlib.pyplot as plt
-        import seaborn as sns
-
         if not show_plot:
             plt.ioff()
         else:
@@ -1514,7 +1563,6 @@ class SmurfNoiseMixin(SmurfBase):
         save_name (str) : The name of the file
         show_plot (bool) : Whether to show the plot  
         """
-        import matplotlib.pyplot as plt
         if not show_plot:
             plt.ioff()
         else:
