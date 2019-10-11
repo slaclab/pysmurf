@@ -2071,7 +2071,8 @@ class SmurfTuneMixin(SmurfBase):
            Default True.
         lms_enable3 (bool) : Whether to use the third harmonic for tracking.
            Default True.
-        lms_gain (int) : The tracking gain parameters. Default 7.
+        lms_gain (int) : The tracking gain parameters. Default is the value
+           in the config table.
         feedback_start_frac (float) : The fraction of the full flux
            ramp at which to stop applying feedback in each flux ramp
            cycle.  Must be in [0,1).  Defaults to whatever's in the cfg
@@ -2085,7 +2086,8 @@ class SmurfTuneMixin(SmurfBase):
         """
         if reset_rate_khz is None:
             reset_rate_khz = self.reset_rate_khz
-
+        if lms_gain is None:
+            lms_gain = self.lms_gain[band]
         
         ##
         ## Load unprovided optional args from cfg
@@ -2344,7 +2346,8 @@ class SmurfTuneMixin(SmurfBase):
            Default True.
         lms_enable3 (bool) : Whether to use the third harmonic for tracking.
            Default True.
-        lms_gain (int) : The tracking gain parameters. Default 7.
+        lms_gain (int) : The tracking gain parameters. Default is the value
+           in the config file
         feedback_start_frac (float) : The fraction of the full flux
            ramp at which to stop applying feedback in each flux ramp
            cycle.  Must be in [0,1).  Defaults to whatever's in the cfg
@@ -2361,7 +2364,9 @@ class SmurfTuneMixin(SmurfBase):
         """
         if reset_rate_khz is None:
             reset_rate_khz = self.reset_rate_khz
-        
+        if lms_gain is None:
+            lms_gain = self.lms_gain[band]
+            
         if relock:
             self.relock(band)
 
@@ -3611,7 +3616,9 @@ class SmurfTuneMixin(SmurfBase):
         """
         if reset_rate_khz is None:
             reset_rate_khz = self.reset_rate_khz
-        
+        if lms_gain is None:
+            lms_gain = self.lms_gain[band]
+            
         # Extract the resonators
         resonators = self.freq_resp[band]['resonances']
         keys = resonators.keys()

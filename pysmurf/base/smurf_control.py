@@ -247,12 +247,15 @@ class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin, Smu
         # Load in tuning parameters, if present
         tune_band_cfg=self.config.get('tune_band')
         tune_band_keys=tune_band_cfg.keys()
+        self.lms_gain = {}
         for b in bands:
             # Make band dictionaries
             self.freq_resp[b] = {}
             self.freq_resp[b]['lock_status'] = {}
             self.lms_freq_hz[b] = tune_band_cfg['lms_freq'][str(b)]
-
+            band_str = f'band_{b}'
+            self.lms_gain[b] = smurf_init_config[band_str]['lmsGain']
+            
         # Load in tuning parameters, if present
         tune_band_cfg=self.config.get('tune_band')
         tune_band_keys=tune_band_cfg.keys()
