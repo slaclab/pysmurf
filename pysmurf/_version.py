@@ -1,4 +1,4 @@
-
+#!/usr/bin/env python
 # This file helps to compute a version number in source trees obtained from
 # git-archive tarball (such as those provided by githubs download-from-tag
 # feature). Distribution tarballs (built by setup.py sdist) and build
@@ -15,7 +15,6 @@ import os
 import re
 import subprocess
 import sys
-
 
 def get_keywords():
     """Get the keywords needed to look up the version information."""

@@ -1,4 +1,16 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
+#-----------------------------------------------------------------------------
+# File       : pysmurf/command/smurf_cmd.py
+# Created    : 2018-10-05
+#-----------------------------------------------------------------------------
+# This file is part of the pysmurf software package. It is subject to 
+# the license terms in the LICENSE.txt file found in the top-level directory 
+# of this distribution and at: 
+#    https://confluence.slac.stanford.edu/display/ppareg/LICENSE.html. 
+# No part of the pysmurf software package, including this file, may be 
+# copied, modified, propagated, or distributed except according to the terms 
+# contained in the LICENSE.txt file.
+#-----------------------------------------------------------------------------
 import argparse
 import numpy as np
 import sys
