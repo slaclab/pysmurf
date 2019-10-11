@@ -42,7 +42,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = u'pysmurf'
-copyright = u'2019, Edward Young'
+copyright = u'2019, The Board of Trustees of the Leland Stanford Junior University, through SLAC National Accelerator Laboratory (subject to receipt of any required approvals from the U.S. Dept. of Energy).'
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
