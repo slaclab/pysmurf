@@ -2271,7 +2271,7 @@ class SmurfTuneMixin(SmurfBase):
                     ax[1].set_xlabel('Samp Num')
                     ax[1].text(.025, .9, 
                         f'RMS error = {df_std[ch]*1e3:.2f} kHz\n' +
-                        f'FR frac. full scale = {raction_full_scale:.2f}',
+                        f'FR frac. full scale = {fraction_full_scale:.2f}',
                         fontsize=10, transform=ax[1].transAxes, bbox=bbox, 
                         ha='left', va='top')
 
