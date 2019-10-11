@@ -34,10 +34,14 @@ class SmurfBase(object):
         """
         Opt Arguments
         --------------
+        log (log file) : The log file to write to. If None, creates a new log
+            file.
+        epics_root (str) : The name of the epics root. For example "test_epics".
+        offline (bool) : Whether to run in offline mode (no rogue) or not. This
+            will break many things. Default is False.
         pub_root (str):
             Root of environment vars to set publisher options. If None, the
             default root will be "SMURFPUB_".
-
         script_id (str):
             Script id included with publisher messages. For example, the
             script or operation name.
