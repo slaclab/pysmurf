@@ -246,4 +246,4 @@ fi
 
 echo "Starting server..."
 cd /data/smurf-processor_config/
-/usr/local/src/pysmurf/server_scripts/cmb_pcie.py  ${args}
+/usr/local/src/pysmurf/server_scripts/pyrogue_server.py  ${args}
