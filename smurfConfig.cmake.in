@@ -1,0 +1,8 @@
+# Rogue cmake configuration file. Used when compiling against the rogue library.
+
+# Include paths
+set(SMURF_INCLUDE_DIRS @CONF_INCLUDE_DIRS@)
+
+# Set libraries
+set(SMURF_LIBRARIES @CONF_LIBRARIES@)
+
