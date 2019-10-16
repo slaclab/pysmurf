@@ -33,61 +33,13 @@ import pyrogue.utilities.fileio
 import rogue.interfaces.stream
 
 import pysmurf.core.devices
-
-
-parser = argparse.ArgumentParser('Pyrogue Client')
-
-parser.add_argument('--server',
-                    type=str, 
-                    help="Server address: 'host:port' or list of addresses: 'host1:port1,host2:port2'",
-                    default='localhost:9099')
-
-parser.add_argument('--ui',
-                    type=str, 
-                    help='UI File for gui (cmd=gui)',
-                    default=None)
-
-parser.add_argument('--details',
-                    help='Show log details with stacktrace (cmd=syslog)',
-                    action='store_true')
-
-parser.add_argument('cmd',    
-                    type=str, 
-                    choices=['gui','syslog','monitor','get','value','set','exec'], 
-                    help='Client command to issue')
-
-parser.add_argument('path',
-                    type=str,
-                    nargs='?',
-                    help='Path to access')
-
-parser.add_argument('value',
-                    type=str, 
-                    nargs='?',
-                    help='Value to set')
-
-args = parser.parse_args()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+import pysmurf.core.roots
 
 # Print the usage message
 def usage(name):
     print("Usage: {}".format(name))
     print("        [-a|--addr IP_address] [-s|--server] [-e|--epics prefix]")
-    print("        [-n|--nopoll] [-c|--commType comm_type] [-l|--pcie-rssi-lane index]")
+    print("        [-n|--nopoll] [-l|--pcie-rssi-lane index]")
     print("        [-f|--stream-type data_type] [-b|--stream-size byte_size]")
     print("        [-d|--defaults config_file] [-u|--dump-pvs file_name] [--disable-gc]")
     print("        [--disable-bay0] [--disable-bay1] [-w|--windows-title title]")
@@ -102,8 +54,6 @@ def usage(name):
     print("    -s|--server                 : Server mode, without staring",\
         "a GUI (Must be used with -p and/or -e)")
     print("    -n|--nopoll                 : Disable all polling")
-    print("    -c|--commType comm_type     : Communication type with the FPGA",\
-        "(defaults to \"eth-rssi-non-interleaved\"")
     print("    -l|--pcie-rssi-lane index   : PCIe RSSI lane (only needed with"\
         "PCIe). Supported values are 0 to 5")
     print("    -b|--stream-size data_size  : Expose the stream data as EPICS",\
@@ -137,11 +87,6 @@ def usage(name):
     print("")
 
 
-
-
-
-
-
 # Main body
 if __name__ == "__main__":
     ip_addr = ""
@@ -152,24 +97,34 @@ if __name__ == "__main__":
     stream_pv_size = 0
     stream_pv_type = "UInt16"
     stream_pv_valid_types = ["UInt16", "Int16", "UInt32", "Int32"]
-    comm_type = "eth-rssi-non-interleaved";
-    comm_type_valid_types = ["eth-rssi-non-interleaved", "eth-rssi-interleaved", "pcie-rssi-interleaved"]
-    pcie_rssi_link=None
+    pcie_rssi_lane=None
     pv_dump_file= ""
-    pcie_dev="/dev/datadev_0"
+    pcie_dev_rssi="/dev/datadev_0"
+    pcie_dev_data="/dev/datadev_1"
     disable_bay0=False
     disable_bay1=False
     disable_gc=False
     windows_title=""
 
+    # Only Rogue version >= 2.6.0 are supported. Before this version the EPICS
+    # interface was based on PCAS which is not longer supported.
+    try:
+        ver = pyrogue.__version__
+        if (version.parse(ver) <= version.parse('2.6.0')):
+            raise ImportError('Rogue version <= 2.6.0 is unsupported')
+    except AttributeError:
+        print("Error when trying to get the version of Rogue")
+        pritn("Only version of Rogue > 2.6.0 are supported")
+        raise
 
     # Read Arguments
     try:
         opts, _ = getopt.getopt(sys.argv[1:],
-            "ha:se:d:nb:f:c:l:u:w:",
+            "ha:se:d:nb:f:l:u:w:",
             ["help", "addr=", "server", "epics=", "defaults=", "nopoll",
-            "stream-size=", "stream-type=", "commType=", "pcie-rssi-link=", "dump-pvs=",
-            "disable-bay0", "disable-bay1", "disable-gc", "windows-title=", "pcie-dev="])
+            "stream-size=", "stream-type=", "pcie-rssi-link=", "dump-pvs=",
+            "disable-bay0", "disable-bay1", "disable-gc", "windows-title=", "pcie-dev-rssi=",
+            "pcie-dev-data="])
     except getopt.GetoptError:
         usage(sys.argv[0])
         sys.exit()
@@ -198,16 +153,8 @@ if __name__ == "__main__":
                 print("Invalid data type. Using {} instead".format(stream_pv_type))
         elif opt in ("-d", "--defaults"):   # Default configuration file
             config_file = arg
-        elif opt in ("-c", "--commType"):   # Communication type
-            if arg in comm_type_valid_types:
-                comm_type = arg
-            else:
-                print("Invalid communication type. Valid choises are:")
-                for c in comm_type_valid_types:
-                    print("  - \"{}\"".format(c))
-                exit_message("ERROR: Invalid communication type")
         elif opt in ("-l", "--pcie-rssi-link"):       # PCIe RSSI Link
-            pcie_rssi_link = int(arg)
+            pcie_rssi_lane = int(arg)
         elif opt in ("-u", "--dump-pvs"):   # Dump PV file
             pv_dump_file = arg
         elif opt in ("--disable-bay0"):
@@ -218,10 +165,16 @@ if __name__ == "__main__":
             disable_gc = True
         elif opt in ("-w", "--windows-title"):
             windows_title = arg
-        elif opt in ("--pcie-dev"):
-            pcie_dev = arg
+        elif opt in ("--pcie-dev-rssi"):
+            pcie_dev_rssi = arg
+        elif opt in ("--pcie-dev-data"):
+            pcie_dev_data = arg
 
-
+    # Disable garbage collection if requested
+    if disable_gc:
+        import gc
+        gc.disable()
+        print("GARBAGE COLLECTION DISABLED")
 
     # Verify if IP address is valid
     if ip_addr:
@@ -230,68 +183,52 @@ if __name__ == "__main__":
         except socket.error:
             exit_message("ERROR: Invalid IP Address.")
 
-
-
-
-    # Check connection with the board if using eth communication
-    if "eth-" in comm_type:
-        if not ip_addr:
-            exit_message("ERROR: Must specify an IP address for ethernet base communication devices.")
-
-        print("")
-        print("Trying to ping the FPGA...")
-        try:
-           dev_null = open(os.devnull, 'w')
-           subprocess.check_call(["ping", "-c2", ip_addr], stdout=dev_null, stderr=dev_null)
-           print("    FPGA is online")
-           print("")
-        except subprocess.CalledProcessError:
-           exit_message("    ERROR: FPGA can't be reached!")
-
-
-
     if server_mode and not (epics_prefix):
         exit_message("    ERROR: Can not start in server mode without the EPICS server enabled")
-
-
-
-    # Try to import the FpgaTopLevel definition
-    try:
-        from FpgaTopLevel import FpgaTopLevel
-    except ImportError as ie:
-        print("Error importing FpgaTopLevel: {}".format(ie))
-        exit()
-
-
 
     # If EPICS server is enable, import the epics module
     if epics_prefix:
         import pyrogue.protocols.epics
 
-
-
     # Import the QT and gui modules if not in server mode
     if not server_mode:
         import pyrogue.gui
 
-
-
-
-
     # The PCIeCard object will take care of setting up the PCIe card (if present)
-    with pysmurf.core.devices.PcieCard(link=pcie_rssi_link, comm_type=comm_type, ip_addr=ip_addr, dev=pcie_dev):
+    with pysmurf.core.devices.PcieCard( lane      = pcie_rssi_lane,
+                                        comm_type = "pcie-rssi-interleaved",
+                                        ip_addr   = ip_addr,
+                                        dev_rssi  = pcie_dev_rssi,
+                                        dev_data  = pcie_dev_data):
 
-        with CmbPcie( pcieDev       = '/dev/datadev_0',
-                      pcieDataDev   = '/dev/datadev_1',
-                      pcieRssiLink  = 0,
-                      configFile    = "",
-                      epicsPrefix   = "",
-                      disableBay0   = False,
-                      disableBay1   = False,
-                      streamPvSize  = 0,
-                      streamPvType  = 0,
-                      pvDumpFile    = None,
-                      pollEn        = 
+        with pysmurf.core.roots.CmbPcie( ip_addr        = ip_addr,
+                      config_file    = config_file,
+                      epics_prefix   = epics_prefix,
+                      polling_en     = polling_en,
+                      pcie_rssi_lane = pcie_rssi_lane,
+                      stream_pv_size = stream_pv_size,
+                      stream_pv_type = stream_pv_type,
+                      pv_dump_file   = pv_dump_file,
+                      disable_bay0   = disable_bay0,
+                      disable_bay1   = disable_bay1,
+                      disable_gc     = disable_gc,
+                      pcie_dev_rssi  = pcie_dev_rssi,
+                      pcie_dev_data  = pcie_dev_data):
 
-            # while 1 or gui
-            pass
+            if not server_mode:
+                app_top = pyrogue.gui.application(sys.argv)
+                app_top.setApplicationName(windows_title)
+                gui_top = pyrogue.gui.GuiTop(group='GuiTop')
+                gui_top.addTree(CmbPcie)
+                print("Starting GUI...\n")
+            else:
+                # Stop the server when Crtl+C is pressed
+                print("")
+                print("Running in server mode now. Press Ctrl+C to stop...")
+                try:
+                    # Wait for Ctrl+C
+                    while True:
+                        time.sleep(1)
+                except KeyboardInterrupt:
+                    pass
+
