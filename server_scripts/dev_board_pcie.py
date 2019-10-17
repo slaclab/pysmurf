@@ -53,11 +53,11 @@ def usage(name):
     print("    -n|--nopoll                 : Disable all polling")
     print("    -l|--pcie-rssi-lane index   : PCIe RSSI lane (only needed with"\
         "PCIe). Supported values are 0 to 5")
-    print("    -b|--stream-size data_size  : Expose the stream data as EPICS",\
-        "PVs. Only the first \"data_size\" points will be exposed.",\
+    print("    -b|--stream-size data_size  : Expose the stream data as EPICS PVs.",\
+        "Only the first \"data_size\" points will be exposed. Default is 2^19.",\
         "(Must be used with -e)")
     print("    -f|--stream-type data_type  : Stream data type (UInt16, Int16,",\
-        "UInt32 or Int32). Default is UInt16. (Must be used with -e and -b)")
+        "UInt32 or Int32). Default is Int16. (Must be used with -e and -b)")
     print("    -u|--dump-pvs file_name     : Dump the PV list to \"file_name\".",\
         "(Must be used with -e)")
     print("    --disable-bay0              : Disable the instantiation of the"\
@@ -91,8 +91,8 @@ if __name__ == "__main__":
     config_file = ""
     server_mode = False
     polling_en = True
-    stream_pv_size = 0
-    stream_pv_type = "UInt16"
+    stream_pv_size = 2**19
+    stream_pv_type = "Int16"
     stream_pv_valid_types = ["UInt16", "Int16", "UInt32", "Int32"]
     pcie_rssi_lane=None
     pv_dump_file= ""
