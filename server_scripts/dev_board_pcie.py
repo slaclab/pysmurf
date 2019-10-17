@@ -22,9 +22,6 @@ import sys
 import getopt
 import socket
 import os
-import subprocess
-import time
-import struct
 from packaging import version
 import re
 
