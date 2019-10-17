@@ -163,7 +163,7 @@ if [ -z ${comm_type+x} ]; then
     comm_type='eth'
 else
     # Check if the communication type is invalid
-    if [ ${comm_type} != 'eth' ] && [ ${comm_type} != 'pcie']; then
+    if [ ${comm_type} != 'eth' ] && [ ${comm_type} != 'pcie' ]; then
         echo "Invalid communication type!"
         usage
     fi
