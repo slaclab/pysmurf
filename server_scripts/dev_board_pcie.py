@@ -212,20 +212,16 @@ if __name__ == "__main__":
                        pcie_dev_data  = pcie_dev_data) as root:
 
         if not server_mode:
+            # Start the GUI
             import pyrogue.gui
-            app_top = pyrogue.gui.application(sys.argv)
-            app_top.setApplicationName(windows_title)
-            gui_top = pyrogue.gui.GuiTop(group='GuiTop')
-            gui_top.addTree(root)
             print("Starting GUI...\n")
+            app_top = pyrogue.gui.application(sys.argv)
+            gui_top = pyrogue.gui.GuiTop(incGroups=None,excGroups=None)
+            gui_top.setWindowTitle(windows_title)
+            gui_top.addTree(root)
+            gui_top.resize(800,1000)
+            app_top.exec_()
         else:
             # Stop the server when Crtl+C is pressed
-            print("")
-            print("Running in server mode now. Press Ctrl+C to stop...")
-            try:
-                # Wait for Ctrl+C
-                while True:
-                    time.sleep(1)
-            except KeyboardInterrupt:
-                pass
+            pyrogue.waitCntrlC()
 
