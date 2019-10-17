@@ -99,6 +99,8 @@ class DevBoardEth(AppTop.RootBase):
             description="Process the SMuRF Streaming Data Stream",
             master=self._streaming_stream)
 
+        self.add(self._smurf_processor)
+
         # Add data streams (0-3) to file channels (0-3)
         for i in range(4):
             ## DDR streams
