@@ -263,5 +263,5 @@ if [ ${comm_type} == 'eth' ]; then
     /usr/local/src/pysmurf/server_scripts/dev_board_eth.py  ${args}
 else
     echo "Staring the server using PCIe communication..."
-    /usr/local/src/pysmurf/server_scripts/dev_board_eth.py ${args}
+    /usr/local/src/pysmurf/server_scripts/dev_board_pcie.py ${args}
 fi
