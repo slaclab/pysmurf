@@ -188,12 +188,12 @@ if __name__ == "__main__":
 
     # The PCIeCard object will take care of setting up the PCIe card (if present)
     with pysmurf.core.devices.PcieCard( lane      = pcie_rssi_lane,
-                                        comm_type = "pcie-rssi-interleaved",
+                                        comm_type = "eth-rssi-interleaved",
                                         ip_addr   = ip_addr,
                                         dev_rssi  = pcie_dev_rssi,
                                         dev_data  = pcie_dev_data):
 
-        with DevBoardEth( ip_addr        = ip_addr,
+        with DevBoardEth(  ip_addr        = ip_addr,
                            config_file    = config_file,
                            epics_prefix   = epics_prefix,
                            polling_en     = polling_en,
