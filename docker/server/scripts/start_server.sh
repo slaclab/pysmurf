@@ -29,6 +29,7 @@ usage()
     echo "    -S|--shelfmanager <shelfmanager_name> : ATCA shelfmanager node name or IP address. Must be used with -N."
     echo "    -N|--slot         <slot_number>       : ATCA crate slot number. Must be used with -S."
     echo "    -a|--addr         <FPGA_IP>           : FPGA IP address. If defined, -S and -N are ignored."
+    echo "    -c|--comm-type    <comm_type>         : Communication type ('eth' or 'pcie'). Default is 'eth'."
     echo "    -D|--no-check-fw                      : Disabled FPGA version checking."
     echo "    -g|--gui                              : Start the server with a GUI."
     echo "    -h|--help                             : Show this message."
@@ -133,6 +134,10 @@ case ${key} in
     fpga_ip="$2"
     shift
     ;;
+    -c|--comm-type)
+    comm_type="$2"
+    shift
+    ;;
     -g|--gui)
     use_gui=1
     ;;
@@ -151,6 +156,18 @@ done
 echo
 
 # Verify mandatory parameters
+
+# Check communication type
+if [ -z ${comm_type+x} ]; then
+    # If no type was selected, use 'eth' as default type
+    comm_type='eth'
+else
+    # Check if the communication type is invalid
+    if [ ${comm_type} != 'eth' ] && [ ${comm_type} != 'pcie']; then
+        echo "Invalid communication type!"
+        usage
+    fi
+fi
 
 # Check IP address or shelfmanager/slot number
 if [ -z ${fpga_ip+x} ]; then
@@ -244,6 +261,11 @@ else
     echo "Server GUI enabled."
 fi
 
-echo "Starting server..."
-cd /data/smurf-processor_config/
-/usr/local/src/pysmurf/server_scripts/pyrogue_server.py  ${args}
+# Call the appropriate server startup script depending on the communication type
+if [ ${comm_type} == 'eth' ]; then
+    echo "Staring the server using Ethernet communication..."
+    /usr/local/src/pysmurf/server_scripts/dev_board_eth.py  ${args}
+else
+    echo "Staring the server using PCIe communication..."
+    /usr/local/src/pysmurf/server_scripts/dev_board_eth.py ${args}
+fi
