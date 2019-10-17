@@ -42,7 +42,7 @@ class DevBoardEth(AppTop.RootBase):
                  pcie_dev_data  = "/dev/datadev_1",
                  **kwargs):
 
-        pyrogue.Root.__init__(self, initRead=True, pollEn=polling_en, **kwargs)
+        pyrogue.Root.__init__(self, name="DevBoard", initRead=True, pollEn=polling_en, **kwargs)
 
         self._pv_dump_file = pv_dump_file
 
@@ -51,7 +51,7 @@ class DevBoardEth(AppTop.RootBase):
             pcie_rssi_lane = 0
 
         # Create Interleaved RSSI interface
-        self._stream = pyrogue.protocols.UdpRssiPack( name='rudp', host=ip_addr, port=8198, packVer = 2, jumbo = True)
+        self._stream = pyrogue.protocols.UdpRssiPack(name='rudp', host=ip_addr, port=8198, packVer = 2, jumbo = True)
 
         # Connect the SRPv3 to tDest = 0x0
         self._srp = rogue.protocols.srp.SrpV3()
