@@ -83,16 +83,16 @@ class DevBoardEth(AppTop.RootBase):
         # DDR streams. The FpgaTopLevel class will defined a 'stream' interface exposing them.
         # We are only using the first 2 channel of each AMC daughter card, i.e. channels 0, 1, 4, 5.
         for i in [0, 1, 4, 5]:
-            self.ddr_streams.append(fpga.stream.application(0x80 + i))
+            self._ddr_streams.append(fpga.stream.application(0x80 + i))
 
         # Streaming interface stream. It comes over UDP, port 8195, without RSSI,
         # so we an UdpReceiver.
-        self.streaming_stream = pysmurf.core.devices.UdpReceiver(ip_addr=ip_addr, port=8195)
+        self._streaming_stream = pysmurf.core.devices.UdpReceiver(ip_addr=ip_addr, port=8195)
 
         # When Ethernet communication is used, We use a FIFO between the stream data and the receiver:
         # Stream -> FIFO -> smurf_processor receiver
-        self.smurf_processor_fifo = rogue.interfaces.stream.Fifo(100000,0,True)
-        pyrogue.streamConnect(self.streaming_stream, self.smurf_processor_fifo)
+        self._smurf_processor_fifo = rogue.interfaces.stream.Fifo(100000,0,True)
+        pyrogue.streamConnect(self._streaming_stream, self._smurf_processor_fifo)
 
         self._smurf_processor = pysmurf.core.devices.SmurfProcessor(
             name="SmurfProcessor",
