@@ -89,17 +89,17 @@ class DevBoardEth(AppTop.RootBase):
         # so we an UdpReceiver.
         self._streaming_stream = pysmurf.core.devices.UdpReceiver(ip_addr=ip_addr, port=8195)
 
+        # Add the SMuRF processor device
+        self._smurf_processor = pysmurf.core.devices.SmurfProcessor(
+            name="SmurfProcessor",
+            description="Process the SMuRF Streaming Data Stream")
+        self.add(self._smurf_processor)
+
         # When Ethernet communication is used, We use a FIFO between the stream data and the receiver:
         # Stream -> FIFO -> smurf_processor receiver
         self._smurf_processor_fifo = rogue.interfaces.stream.Fifo(100000,0,True)
         pyrogue.streamConnect(self._streaming_stream, self._smurf_processor_fifo)
-
-        self._smurf_processor = pysmurf.core.devices.SmurfProcessor(
-            name="SmurfProcessor",
-            description="Process the SMuRF Streaming Data Stream",
-            master=self._streaming_stream)
-
-        self.add(self._smurf_processor)
+        pyrogue.streamConnect(self._smurf_processor_fifo, self._smurf_processor)
 
         # Add data streams (0-3) to file channels (0-3)
         for i in range(4):

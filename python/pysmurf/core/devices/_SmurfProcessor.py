@@ -176,15 +176,13 @@ class SmurfProcessor(pyrogue.Device):
     """
     SMuRF Processor device.
 
-    This device accept a raw SMuRF Streaming data stream from
-    the FW application, and process it by doing channel mapping,
-    data unwrapping, filtering and downsampling in a monolithic
-    C++ module.
+    This is a slave device that accepts a raw SMuRF Streaming data
+    stream from the FW application, and process it by doing channel
+    mapping, data unwrapping, filtering and downsampling in a
+    monolithic C++ module.
     """
-    def __init__(self, name, description, master, **kwargs):
+    def __init__(self, name, description, **kwargs):
         pyrogue.Device.__init__(self, name=name, description=description, **kwargs)
-
-        self.master = master
 
         self.smurf_frame_stats = pysmurf.core.counters.FrameStatistics(name="FrameRxStats")
         self.add(self.smurf_frame_stats)
@@ -212,7 +210,6 @@ class SmurfProcessor(pyrogue.Device):
         self.file_writer = pyrogue.utilities.fileio.StreamWriter(name='FileWriter')
         self.add(self.file_writer)
 
-        pyrogue.streamConnect(self.master,             self.smurf_frame_stats)
         pyrogue.streamConnect(self.smurf_frame_stats,  self.smurf_processor)
         pyrogue.streamConnect(self.smurf_processor,    self.smurf_header2smurf)
         pyrogue.streamConnect(self.smurf_header2smurf, self.file_writer.getChannel(0))

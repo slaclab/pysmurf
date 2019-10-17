@@ -88,14 +88,15 @@ class DevBoardPcie(AppTop.RootBase):
         self._streaming_stream = \
             rogue.hardware.axi.AxiStreamDma(pcie_dev_data,(pcie_rssi_lane*0x100 + 0xC1), True)
 
-        # When PCIe communication is used, we connect the stream data directly to the receiver:
-        # Stream -> smurf2mce receiver
+        # Add the SMuRF processor device
         self._smurf_processor = pysmurf.core.devices.SmurfProcessor(
             name="SmurfProcessor",
-            description="Process the SMuRF Streaming Data Stream",
-            master=self._streaming_stream)
-
+            description="Process the SMuRF Streaming Data Stream")
         self.add(self._smurf_processor)
+
+        # When PCIe communication is used, we connect the stream data directly to the receiver:
+        # Stream -> smurf2mce receiver
+        pyrogue.streamConnect(self._streaming_stream, self._smurf_processor)
 
         # Add data streams (0-3) to file channels (0-3)
         for i in range(4):
