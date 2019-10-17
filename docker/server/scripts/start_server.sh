@@ -204,24 +204,20 @@ fi
 args="${args} -a ${fpga_ip}"
 
 # Extract the pyrogue tarball and update PYTHONPATH
-echo "Looking for pyrogue tarball..."
-pyrogue_file=$(find ${fw_top_dir} -maxdepth 1 -name *pyrogue.tar.gz)
+echo "Looking for pyrogue zip file..."
+pyrogue_file=$(find ${fw_top_dir} -maxdepth 1 -name *zip)
 if [ ! -f "$pyrogue_file" ]; then
-    pyrogue_file=$(find ${fw_top_dir} -maxdepth 1 -name *python.tar.gz)
-    if [ ! -f "$pyrogue_file" ]; then
-        echo "Pyrogue tarball file not found!"
-        exit 1
-    fi
+    echo "Pyrogue zip file not found!"
+    exit 1
 fi
-echo "Pyrogue file found: ${pyrogue_file}"
+echo "Pyrogue zip file found: ${pyrogue_file}"
 
-echo "Extracting the pyrogue tarball into ${fw_top_dir}/pyrogue..."
+echo "Extracting the pyrogue zip file into ${fw_top_dir}/pyrogue..."
 rm -rf ${fw_top_dir}/pyrogue
 mkdir ${fw_top_dir}/pyrogue
-tar -zxf ${pyrogue_file} -C ${fw_top_dir}/pyrogue
-proj=$(ls ${fw_top_dir}/pyrogue)
-export PYTHONPATH=${fw_top_dir}/pyrogue/${proj}/python:${PYTHONPATH}
-echo "Done. Pyrogue extracted to ${fw_top_dir}/pyrogue/${proj}."
+unzip ${pyrogue_file} -d ${fw_top_dir}/pyrogue
+export PYTHONPATH=${fw_top_dir}/pyrogue/python:${PYTHONPATH}
+echo "Done. Pyrogue extracted to ${fw_top_dir}/pyrogue."
 
 # Firmware version checking
 if [ -z ${no_check_fw+x} ]; then
