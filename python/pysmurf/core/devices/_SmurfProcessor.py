@@ -206,8 +206,8 @@ class SmurfProcessor(pyrogue.Device):
         self.smurf_downsampler = Downsampler(name="Downsampler", device=self.smurf_processor)
         self.add(self.smurf_downsampler)
 
+        # This device doesn't have any user configurations, so we don't add it to the tree
         self.smurf_header2smurf = pysmurf.core.conventers.Header2Smurf(name="Header2Smurf")
-        self.add(self.smurf_header2smurf)
 
         self.file_writer = pyrogue.utilities.fileio.StreamWriter(name='FileWriter')
         self.add(self.file_writer)
