@@ -55,7 +55,7 @@ class DevBoardEth(AppTop.RootBase):
 
         # Connect the SRPv3 to tDest = 0x0
         self.srp = rogue.protocols.srp.SrpV3()
-        pr.streamConnectBiDir( self.srp, rudp.application(dest=0x0) )
+        pyrogue.streamConnectBiDir( self.srp, rudp.application(dest=0x0) )
 
         # Instantiate Fpga top level
         self._fpga = FpgaTopLevel( memBase      = self.srp,
