@@ -51,14 +51,14 @@ class DevBoardEth(AppTop.RootBase):
             pcie_rssi_lane = 0
 
         # Create Interleaved RSSI interface
-        rudp = self.stream = pyrogue.protocols.UdpRssiPack( name='rudp', host=ip_addr, port=8198, packVer = 2, jumbo = True)
+        self._stream = pyrogue.protocols.UdpRssiPack( name='rudp', host=ip_addr, port=8198, packVer = 2, jumbo = True)
 
         # Connect the SRPv3 to tDest = 0x0
-        self.srp = rogue.protocols.srp.SrpV3()
-        pyrogue.streamConnectBiDir( self.srp, rudp.application(dest=0x0) )
+        self._srp = rogue.protocols.srp.SrpV3()
+        pyrogue.streamConnectBiDir( self._srp, self._stream.application(dest=0x0) )
 
         # Instantiate Fpga top level
-        self._fpga = FpgaTopLevel( memBase      = self.srp,
+        self._fpga = FpgaTopLevel( memBase      = self._srp,
                                    ipAddr       = ip_addr,
                                    commType     = "eth-rssi-interleaved",
                                    pcieRssiLink = pcie_rssi_lane,
@@ -83,7 +83,7 @@ class DevBoardEth(AppTop.RootBase):
         # DDR streams. The FpgaTopLevel class will defined a 'stream' interface exposing them.
         # We are only using the first 2 channel of each AMC daughter card, i.e. channels 0, 1, 4, 5.
         for i in [0, 1, 4, 5]:
-            self._ddr_streams.append(_fpga.stream.application(0x80 + i))
+            self._ddr_streams.append(self._stream.application(0x80 + i))
 
         # Streaming interface stream. It comes over UDP, port 8195, without RSSI,
         # so we an UdpReceiver.
