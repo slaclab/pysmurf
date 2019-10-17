@@ -44,9 +44,9 @@ class PcieDev():
         self._root = pyrogue.Root(name=name,description=description)
         self._memMap = rogue.hardware.axi.AxiMemMap(dev)
         self._root.add(fpga.Core(memBase=self._memMap))
+        self._root.start(pollEn='False',initRead='True')
 
     def __enter__(self):
-        self._root.start(pollEn='False',initRead='True')
         return self
 
     def __exit__(self, exc_type, exc_value, traceback):
