@@ -22,6 +22,7 @@ import sys
 import getopt
 import socket
 import os
+import subprocess
 from packaging import version
 import re
 
@@ -174,11 +175,23 @@ if __name__ == "__main__":
         print("GARBAGE COLLECTION DISABLED")
 
     # Verify if IP address is valid
-    if ip_addr:
-        try:
-            socket.inet_pton(socket.AF_INET, ip_addr)
-        except socket.error:
-            exit_message("ERROR: Invalid IP Address.")
+    if not ip_addr:
+        exit_message("ERROR: Must specify an IP address for ethernet base communication devices.")
+
+    try:
+        socket.inet_pton(socket.AF_INET, ip_addr)
+    except socket.error:
+        exit_message("ERROR: Invalid IP Address.")
+
+    print("")
+    print("Trying to ping the FPGA...")
+    try:
+       dev_null = open(os.devnull, 'w')
+       subprocess.check_call(["ping", "-c2", ip_addr], stdout=dev_null, stderr=dev_null)
+       print("    FPGA is online")
+       print("")
+    except subprocess.CalledProcessError:
+       exit_message("    ERROR: FPGA can't be reached!")
 
     if server_mode and not (epics_prefix):
         exit_message("    ERROR: Can not start in server mode without the EPICS server enabled")
