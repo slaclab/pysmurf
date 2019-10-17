@@ -213,13 +213,13 @@ if __name__ == "__main__":
                        disable_bay1   = disable_bay1,
                        disable_gc     = disable_gc,
                        pcie_dev_rssi  = pcie_dev_rssi,
-                       pcie_dev_data  = pcie_dev_data):
+                       pcie_dev_data  = pcie_dev_data) as root:
 
         if not server_mode:
             app_top = pyrogue.gui.application(sys.argv)
             app_top.setApplicationName(windows_title)
             gui_top = pyrogue.gui.GuiTop(group='GuiTop')
-            gui_top.addTree(CmbPcie)
+            gui_top.addTree(root)
             print("Starting GUI...\n")
         else:
             # Stop the server when Crtl+C is pressed
