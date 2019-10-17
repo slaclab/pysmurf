@@ -83,7 +83,7 @@ class DevBoardEth(AppTop.RootBase):
         # DDR streams. The FpgaTopLevel class will defined a 'stream' interface exposing them.
         # We are only using the first 2 channel of each AMC daughter card, i.e. channels 0, 1, 4, 5.
         for i in [0, 1, 4, 5]:
-            self._ddr_streams.append(fpga.stream.application(0x80 + i))
+            self._ddr_streams.append(_fpga.stream.application(0x80 + i))
 
         # Streaming interface stream. It comes over UDP, port 8195, without RSSI,
         # so we an UdpReceiver.
