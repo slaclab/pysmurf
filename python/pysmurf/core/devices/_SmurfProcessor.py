@@ -217,10 +217,9 @@ class SmurfProcessor(pyrogue.Device):
         pyrogue.streamConnect(self.smurf_processor,    self.smurf_header2smurf)
         pyrogue.streamConnect(self.smurf_header2smurf, self.file_writer.getChannel(0))
 
-    # Method called by streamConnect, streamTap and streamConnectBiDir to access master
-    def _getStreamMaster(self):
+    def _getStreamSlave(self):
         """
-        Method called by streamConnect, streamTap and streamConnectBiDir to access master.
+        Method called by streamConnect, streamTap and streamConnectBiDir to access slave.
         We will pass a reference to the smurf device of the first element in the chain,
         which is the 'FrameStatistics'.
         """
