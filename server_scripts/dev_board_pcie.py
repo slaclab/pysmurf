@@ -33,7 +33,7 @@ import pyrogue.utilities.fileio
 import rogue.interfaces.stream
 
 import pysmurf.core.devices
-import pysmurf.core.roots
+from pysmurf.core.roots.DevBoardPcie import DevBoardPcie as DevBoardPcie
 
 # Print the usage message
 def usage(name):
@@ -201,20 +201,19 @@ if __name__ == "__main__":
     #                                     dev_rssi  = pcie_dev_rssi,
     #                                     dev_data  = pcie_dev_data):
 
-    with pysmurf.core.roots.DevBoardPcie(
-        ip_addr        = ip_addr,
-        config_file    = config_file,
-        epics_prefix   = epics_prefix,
-        polling_en     = polling_en,
-        pcie_rssi_lane = pcie_rssi_lane,
-        stream_pv_size = stream_pv_size,
-        stream_pv_type = stream_pv_type,
-        pv_dump_file   = pv_dump_file,
-        disable_bay0   = disable_bay0,
-        disable_bay1   = disable_bay1,
-        disable_gc     = disable_gc,
-        pcie_dev_rssi  = pcie_dev_rssi,
-        pcie_dev_data  = pcie_dev_data):
+    with DevBoardPcie( ip_addr        = ip_addr,
+                       config_file    = config_file,
+                       epics_prefix   = epics_prefix,
+                       polling_en     = polling_en,
+                       pcie_rssi_lane = pcie_rssi_lane,
+                       stream_pv_size = stream_pv_size,
+                       stream_pv_type = stream_pv_type,
+                       pv_dump_file   = pv_dump_file,
+                       disable_bay0   = disable_bay0,
+                       disable_bay1   = disable_bay1,
+                       disable_gc     = disable_gc,
+                       pcie_dev_rssi  = pcie_dev_rssi,
+                       pcie_dev_data  = pcie_dev_data):
 
         if not server_mode:
             app_top = pyrogue.gui.application(sys.argv)

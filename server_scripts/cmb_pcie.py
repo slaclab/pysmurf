@@ -33,7 +33,7 @@ import pyrogue.utilities.fileio
 import rogue.interfaces.stream
 
 import pysmurf.core.devices
-import pysmurf.core.roots
+from pysmurf.core.roots.CmbPcie import CmbPcie as CmbPcie
 
 # Print the usage message
 def usage(name):
@@ -201,7 +201,7 @@ if __name__ == "__main__":
                                         dev_rssi  = pcie_dev_rssi,
                                         dev_data  = pcie_dev_data):
 
-        with pysmurf.core.roots.CmbPcie( ip_addr        = ip_addr,
+        with CmbPcie( ip_addr        = ip_addr,
                       config_file    = config_file,
                       epics_prefix   = epics_prefix,
                       polling_en     = polling_en,
