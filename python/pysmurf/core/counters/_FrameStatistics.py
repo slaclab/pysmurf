@@ -79,6 +79,12 @@ class FrameStatistics(pyrogue.Device):
             description='Clear all counters',
             function=self._FrameStatistics.clearCnt))
 
+    def getSmurfDevice(self):
+        """
+        Returns a reference to the underlying smurf device.
+        """
+        return self._FrameStatistics
+
     # Method called by streamConnect, streamTap and streamConnectBiDir to access slave
     def _getStreamSlave(self):
         return self._FrameStatistics

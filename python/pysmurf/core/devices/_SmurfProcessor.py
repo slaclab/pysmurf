@@ -219,4 +219,9 @@ class SmurfProcessor(pyrogue.Device):
 
     # Method called by streamConnect, streamTap and streamConnectBiDir to access master
     def _getStreamMaster(self):
-        return self._FrameStatistics
+        """
+        Method called by streamConnect, streamTap and streamConnectBiDir to access master.
+        We will pass a reference to the smurf device of the first element in the chain,
+        which is the 'FrameStatistics'.
+        """
+        return self.smurf_frame_stats.getSmurfDevice()
