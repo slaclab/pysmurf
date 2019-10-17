@@ -239,7 +239,7 @@ class DevBoardPcie(AppTop.RootBase):
         print("Stopping servers...")
         if self._epics:
             self._epics.stop()
-        pyrogue.Root.stop()
+        pyrogue.Root.stop(self)
 
     # Function for setting a default configuration.
     def _set_defaults_cmd(self):
