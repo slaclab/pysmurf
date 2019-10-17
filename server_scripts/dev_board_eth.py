@@ -187,36 +187,36 @@ if __name__ == "__main__":
         exit_message("    ERROR: Can not start in server mode without the EPICS server enabled")
 
     # The PCIeCard object will take care of setting up the PCIe card (if present)
-    # with pysmurf.core.devices.PcieCard( lane      = pcie_rssi_lane,
-    #                                     comm_type = "pcie-rssi-interleaved",
-    #                                     ip_addr   = ip_addr,
-    #                                     dev_rssi  = pcie_dev_rssi,
-    #                                     dev_data  = pcie_dev_data):
+    with pysmurf.core.devices.PcieCard( lane      = pcie_rssi_lane,
+                                        comm_type = "pcie-rssi-interleaved",
+                                        ip_addr   = ip_addr,
+                                        dev_rssi  = pcie_dev_rssi,
+                                        dev_data  = pcie_dev_data):
 
-    with DevBoardEth( ip_addr        = ip_addr,
-                       config_file    = config_file,
-                       epics_prefix   = epics_prefix,
-                       polling_en     = polling_en,
-                       pcie_rssi_lane = pcie_rssi_lane,
-                       stream_pv_size = stream_pv_size,
-                       stream_pv_type = stream_pv_type,
-                       pv_dump_file   = pv_dump_file,
-                       disable_bay0   = disable_bay0,
-                       disable_bay1   = disable_bay1,
-                       disable_gc     = disable_gc,
-                       pcie_dev_rssi  = pcie_dev_rssi,
-                       pcie_dev_data  = pcie_dev_data) as root:
+        with DevBoardEth( ip_addr        = ip_addr,
+                           config_file    = config_file,
+                           epics_prefix   = epics_prefix,
+                           polling_en     = polling_en,
+                           pcie_rssi_lane = pcie_rssi_lane,
+                           stream_pv_size = stream_pv_size,
+                           stream_pv_type = stream_pv_type,
+                           pv_dump_file   = pv_dump_file,
+                           disable_bay0   = disable_bay0,
+                           disable_bay1   = disable_bay1,
+                           disable_gc     = disable_gc,
+                           pcie_dev_rssi  = pcie_dev_rssi,
+                           pcie_dev_data  = pcie_dev_data) as root:
 
-        if not server_mode:
-            # Start the GUI
-            import pyrogue.gui
-            print("Starting GUI...\n")
-            app_top = pyrogue.gui.application(sys.argv)
-            gui_top = pyrogue.gui.GuiTop(incGroups=None,excGroups=None)
-            gui_top.setWindowTitle(windows_title)
-            gui_top.addTree(root)
-            gui_top.resize(800,1000)
-            app_top.exec_()
-        else:
-            # Stop the server when Crtl+C is pressed
-            pyrogue.waitCntrlC()
+            if not server_mode:
+                # Start the GUI
+                import pyrogue.gui
+                print("Starting GUI...\n")
+                app_top = pyrogue.gui.application(sys.argv)
+                gui_top = pyrogue.gui.GuiTop(incGroups=None,excGroups=None)
+                gui_top.setWindowTitle(windows_title)
+                gui_top.addTree(root)
+                gui_top.resize(800,1000)
+                app_top.exec_()
+            else:
+                # Stop the server when Crtl+C is pressed
+                pyrogue.waitCntrlC()
