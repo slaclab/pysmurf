@@ -186,10 +186,6 @@ if __name__ == "__main__":
     if server_mode and not (epics_prefix):
         exit_message("    ERROR: Can not start in server mode without the EPICS server enabled")
 
-    # If EPICS server is enable, import the epics module
-    if epics_prefix:
-        import pyrogue.protocols.epics
-
     # The PCIeCard object will take care of setting up the PCIe card (if present)
     # with pysmurf.core.devices.PcieCard( lane      = pcie_rssi_lane,
     #                                     comm_type = "pcie-rssi-interleaved",
