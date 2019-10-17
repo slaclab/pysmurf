@@ -190,10 +190,6 @@ if __name__ == "__main__":
     if epics_prefix:
         import pyrogue.protocols.epics
 
-    # Import the QT and gui modules if not in server mode
-    if not server_mode:
-        import pyrogue.gui
-
     # The PCIeCard object will take care of setting up the PCIe card (if present)
     # with pysmurf.core.devices.PcieCard( lane      = pcie_rssi_lane,
     #                                     comm_type = "pcie-rssi-interleaved",
@@ -216,6 +212,7 @@ if __name__ == "__main__":
                        pcie_dev_data  = pcie_dev_data) as root:
 
         if not server_mode:
+            import pyrogue.gui
             app_top = pyrogue.gui.application(sys.argv)
             app_top.setApplicationName(windows_title)
             gui_top = pyrogue.gui.GuiTop(group='GuiTop')
