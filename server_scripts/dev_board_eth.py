@@ -33,7 +33,7 @@ import pyrogue.utilities.fileio
 import rogue.interfaces.stream
 
 import pysmurf.core.devices
-from pysmurf.core.roots.DevBoardPcie import DevBoardPcie as DevBoardPcie
+from pysmurf.core.roots.DevBoardEth import DevBoardEth as DevBoardEth
 
 # Print the usage message
 def usage(name):
@@ -197,7 +197,7 @@ if __name__ == "__main__":
     #                                     dev_rssi  = pcie_dev_rssi,
     #                                     dev_data  = pcie_dev_data):
 
-    with DevBoardPcie( ip_addr        = ip_addr,
+    with DevBoardEth( ip_addr        = ip_addr,
                        config_file    = config_file,
                        epics_prefix   = epics_prefix,
                        polling_en     = polling_en,

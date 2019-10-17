@@ -25,7 +25,7 @@ import rogue.protocols.srp
 from  DevBoard.Kcu105Eth import FpgaTopLevel as FpgaTopLevel
 import AmcCarrierCore.AppTop as AppTop
 
-class DevBoardPcie(AppTop.RootBase):
+class DevBoardEth(AppTop.RootBase):
     def __init__(self, *,
                  ip_addr        = "",
                  config_file    = "",
