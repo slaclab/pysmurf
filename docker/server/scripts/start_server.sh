@@ -219,13 +219,7 @@ if [ ! -f "$pyrogue_file" ]; then
     exit 1
 fi
 echo "Pyrogue zip file found: ${pyrogue_file}"
-
-echo "Extracting the pyrogue zip file into ${fw_top_dir}/pyrogue..."
-rm -rf ${fw_top_dir}/pyrogue
-mkdir ${fw_top_dir}/pyrogue
-unzip -q ${pyrogue_file} -d ${fw_top_dir}/pyrogue/
-export PYTHONPATH=${fw_top_dir}/pyrogue/python:${PYTHONPATH}
-echo "Done. Pyrogue extracted to ${fw_top_dir}/pyrogue."
+args="${args} -z ${pyrogue_file}"
 
 # Firmware version checking
 if [ -z ${no_check_fw+x} ]; then
