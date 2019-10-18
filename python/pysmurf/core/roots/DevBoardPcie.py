@@ -22,7 +22,7 @@ import pysmurf
 import rogue.hardware.axi
 import rogue.protocols.srp
 
-from  DevBoard.Kcu105Eth import FpgaTopLevel as FpgaTopLevel
+from  CryoDevBoard.Kcu105Eth import FpgaTopLevel as FpgaTopLevel
 import AmcCarrierCore.AppTop as AppTop
 
 class DevBoardPcie(AppTop.RootBase):
