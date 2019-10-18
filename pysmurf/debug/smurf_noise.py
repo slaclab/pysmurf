@@ -238,7 +238,7 @@ class SmurfNoiseMixin(SmurfBase):
                         np.ceil(np.log10(np.max(f_knee_list))), 10))
                 ax[2].set_xlabel('Knee frequency')
                 ax[2].set_xscale('log')
-                ax[2].set_title(f'median = {f_knee_median:.3e Hz}')
+                ax[2].set_title(f'median = {f_knee_median:.3e} Hz')
                 plt.tight_layout()
                 fig.subplots_adjust(top = 0.9)
                 noise_params_hist_fname = basename + \
