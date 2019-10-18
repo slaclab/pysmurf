@@ -30,7 +30,6 @@ import pyrogue.utilities.fileio
 import rogue.interfaces.stream
 
 import pysmurf.core.devices
-from pysmurf.core.roots.DevBoardPcie import DevBoardPcie as DevBoardPcie
 
 # Print the usage message
 def usage(name):
@@ -173,6 +172,9 @@ if __name__ == "__main__":
     # If a zip file was specified and exist add it to the python path
     if zip_file and os.path.exists(zip_file):
         pyrogue.addLibraryPath(zip_file)
+
+    # Import the root device after the python path is updated
+    from pysmurf.core.roots.DevBoardPcie import DevBoardPcie as DevBoardPcie
 
     # Disable garbage collection if requested
     if disable_gc:
