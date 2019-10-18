@@ -36,7 +36,7 @@ from pysmurf.core.roots.DevBoardEth import DevBoardEth as DevBoardEth
 # Print the usage message
 def usage(name):
     print("Usage: {}".format(name))
-    print("        [-a|--addr IP_address] [-s|--server] [-e|--epics prefix]")
+    print("        [-a|--addr IP_address] [-g|--gui] [-e|--epics prefix]")
     print("        [-n|--nopoll] [-l|--pcie-rssi-lane index]")
     print("        [-f|--stream-type data_type] [-b|--stream-size byte_size]")
     print("        [-d|--defaults config_file] [-u|--dump-pvs file_name] [--disable-gc]")
@@ -49,8 +49,7 @@ def usage(name):
     print("    -d|--defaults config_file   : Default configuration file")
     print("    -e|--epics prefix           : Start an EPICS server with",\
         "PV name prefix \"prefix\"")
-    print("    -s|--server                 : Server mode, without staring",\
-        "a GUI (Must be used with -p and/or -e)")
+    print("    -g|--gui                    : Start the server with a GUI.")
     print("    -n|--nopoll                 : Disable all polling")
     print("    -l|--pcie-rssi-lane index   : PCIe RSSI lane (only needed with"\
         "PCIe). Supported values are 0 to 5")
@@ -90,7 +89,7 @@ if __name__ == "__main__":
     ip_addr = ""
     epics_prefix = ""
     config_file = ""
-    server_mode = False
+    use_gui = False
     polling_en = True
     stream_pv_size = 2**19
     stream_pv_type = "Int16"
@@ -118,8 +117,8 @@ if __name__ == "__main__":
     # Read Arguments
     try:
         opts, _ = getopt.getopt(sys.argv[1:],
-            "ha:se:d:nb:f:l:u:w:",
-            ["help", "addr=", "server", "epics=", "defaults=", "nopoll",
+            "ha:ge:d:nb:f:l:u:w:",
+            ["help", "addr=", "gui", "epics=", "defaults=", "nopoll",
             "stream-size=", "stream-type=", "pcie-rssi-link=", "dump-pvs=",
             "disable-bay0", "disable-bay1", "disable-gc", "windows-title=", "pcie-dev-rssi=",
             "pcie-dev-data="])
@@ -133,8 +132,8 @@ if __name__ == "__main__":
             sys.exit()
         elif opt in ("-a", "--addr"):        # IP Address
             ip_addr = arg
-        elif opt in ("-s", "--server"):      # Server mode
-            server_mode = True
+        elif opt in ("-g", "--gui"):         # Use a GUI
+            use_gui = True
         elif opt in ("-e", "--epics"):       # EPICS prefix
             epics_prefix = arg
         elif opt in ("-n", "--nopoll"):      # Disable all polling
@@ -193,9 +192,6 @@ if __name__ == "__main__":
     except subprocess.CalledProcessError:
        exit_message("    ERROR: FPGA can't be reached!")
 
-    if server_mode and not (epics_prefix):
-        exit_message("    ERROR: Can not start in server mode without the EPICS server enabled")
-
     # The PCIeCard object will take care of setting up the PCIe card (if present)
     with pysmurf.core.devices.PcieCard( lane      = pcie_rssi_lane,
                                         comm_type = "eth-rssi-interleaved",
@@ -217,7 +213,7 @@ if __name__ == "__main__":
                            pcie_dev_rssi  = pcie_dev_rssi,
                            pcie_dev_data  = pcie_dev_data) as root:
 
-            if not server_mode:
+            if use_gui:
                 # Start the GUI
                 import pyrogue.gui
                 print("Starting GUI...\n")
@@ -229,4 +225,5 @@ if __name__ == "__main__":
                 app_top.exec_()
             else:
                 # Stop the server when Crtl+C is pressed
+                print("Running without GUI...")
                 pyrogue.waitCntrlC()

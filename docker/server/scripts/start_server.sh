@@ -31,7 +31,6 @@ usage()
     echo "    -a|--addr         <FPGA_IP>           : FPGA IP address. If defined, -S and -N are ignored."
     echo "    -c|--comm-type    <comm_type>         : Communication type ('eth' or 'pcie'). Default is 'eth'."
     echo "    -D|--no-check-fw                      : Disabled FPGA version checking."
-    echo "    -g|--gui                              : Start the server with a GUI."
     echo "    -h|--help                             : Show this message."
     echo "    <pyrogue_server_args> are passed to the SMuRF pyrogue server. "
     echo ""
@@ -138,9 +137,6 @@ case ${key} in
     comm_type="$2"
     shift
     ;;
-    -g|--gui)
-    use_gui=1
-    ;;
     -s|--server)
     ;;
     -h|--help)
@@ -202,13 +198,6 @@ fi
 
 # Add the IP address to the SMuRF arguments
 args="${args} -a ${fpga_ip}"
-
-# Check if the server GUI was requested
-if [ -z ${use_gui+x} ]; then
-    args="${args} -s"
-else
-    echo "Server GUI enabled."
-fi
 
 # If the slot number is defined, add the RSSI link number argument
 # which is needed if the PCIe card is used for communication
