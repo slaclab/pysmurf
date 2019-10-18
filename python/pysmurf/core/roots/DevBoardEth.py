@@ -170,6 +170,7 @@ class DevBoardEth(AppTop.RootBase):
         # Add epics interface
         self._epics = None
         if epics_prefix:
+            print("Starting EPICS server using prefix \"{}\"".format(epics_prefix))
             from pyrogue.protocols import epics
             self._epics = pyrogue.protocols.epics.EpicsCaServer(base=epics_prefix, root=self)
 
