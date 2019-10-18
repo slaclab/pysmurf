@@ -36,7 +36,7 @@ from pysmurf.core.roots.DevBoardEth import DevBoardEth as DevBoardEth
 # Print the usage message
 def usage(name):
     print("Usage: {}".format(name))
-    print("        [-a|--addr IP_address] [-g|--gui] [-e|--epics prefix]")
+    print("        [-z|--zip file] [-a|--addr IP_address] [-g|--gui]")
     print("        [-n|--nopoll] [-l|--pcie-rssi-lane index]")
     print("        [-f|--stream-type data_type] [-b|--stream-size byte_size]")
     print("        [-d|--defaults config_file] [-u|--dump-pvs file_name] [--disable-gc]")
@@ -44,6 +44,8 @@ def usage(name):
     print("        [--pcie-dev-rssi pice_device] [--pcie-dev-data pice_device] [-h|--help]")
     print("")
     print("    -h|--help                   : Show this message")
+    print("    -z|--zip file               : Pyrogue zip file to be included in"\
+        "the python path.")
     print("    -a|--addr IP_address        : FPGA IP address. Required when"\
         "the communication type is based on Ethernet.")
     print("    -d|--defaults config_file   : Default configuration file")
@@ -83,9 +85,9 @@ def usage(name):
         " Start a local rogue server, without GUI, with an EPICS servers")
     print("")
 
-
 # Main body
 if __name__ == "__main__":
+    zip_file = ""
     ip_addr = ""
     epics_prefix = ""
     config_file = ""
@@ -117,8 +119,8 @@ if __name__ == "__main__":
     # Read Arguments
     try:
         opts, _ = getopt.getopt(sys.argv[1:],
-            "ha:ge:d:nb:f:l:u:w:",
-            ["help", "addr=", "gui", "epics=", "defaults=", "nopoll",
+            "hz:a:ge:d:nb:f:l:u:w:",
+            ["help", "zip=", "addr=", "gui", "epics=", "defaults=", "nopoll",
             "stream-size=", "stream-type=", "pcie-rssi-link=", "dump-pvs=",
             "disable-bay0", "disable-bay1", "disable-gc", "windows-title=", "pcie-dev-rssi=",
             "pcie-dev-data="])
@@ -130,6 +132,8 @@ if __name__ == "__main__":
         if opt in ("-h", "--help"):
             usage(sys.argv[0])
             sys.exit()
+        elif opt in ("-z", "--zip"):
+            zip_file = arg
         elif opt in ("-a", "--addr"):        # IP Address
             ip_addr = arg
         elif opt in ("-g", "--gui"):         # Use a GUI
@@ -166,6 +170,10 @@ if __name__ == "__main__":
             pcie_dev_rssi = arg
         elif opt in ("--pcie-dev-data"):
             pcie_dev_data = arg
+
+    # If a zip file was specified and exist add it to the python path
+    if zip_file and os.path.exists(zip_file):
+        pyrogue.addLibraryPath(zip_file)
 
     # Disable garbage collection if requested
     if disable_gc:
