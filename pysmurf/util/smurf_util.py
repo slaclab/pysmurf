@@ -2590,7 +2590,66 @@ class SmurfUtilMixin(SmurfBase):
 
         return ret
 
+    
+    def get_smurf_to_mce_file(self):
+        """
+        Reads in the most recent smurf_to_mce file and returns
+        everything in it as a dict.
 
+        Ret:
+        ----
+        smurf_to_mce_dict (dict) : A dict with all the information
+            in smurf_to_mce
+        """
+        # Load data
+        cfg = np.loadtxt(self.smurf_to_mce_file, dtype='str')
+        n_params, _ = np.shape(cfg)
+        ret = {}
+
+        # Cast into dict
+        for i in np.arange(n_params):
+            ret[cfg[i,0]] = cfg[i,1]
+
+        return ret
+
+    def get_filter_params(self):
+        """
+        Get the downsample filter parameters: filter order,
+        filter gain, num averages, and the actual filter
+        parameters. This reads the most recent smurf_to_mce_file
+        to get the parameters.
+
+        Ret:
+        ----
+        filter_params (dict) : A dictionary with the filter
+            parameters. 
+        """
+        # Load cfg file
+        cfg = self.get_smurf_to_mce_file()
+        
+        # Get filter order
+        filter_order = int(cfg['filter_order'])
+        filter_gain = float(cfg['filter_gain'])
+        num_averages = int(cfg['num_averages'])
+        
+        # Get filter parameters
+        a = np.zeros(filter_order, dtype=float)
+        b = np.zeros(filter_order, dtype=float)
+        for i in range(filter_order):
+            a[i] = cfg[f'filter_a{i}']
+            b[i] = cfg[f'filter_b{i}']
+
+        ret = {
+            'filter_order' : filter_order,
+            'filter_gain': filter_gain,
+            'num_averages' : num_averages,
+            'filter_a' : a,
+            'filter_b' : b
+        }
+
+        return ret
+        
+            
     def make_gcp_mask(self, band=None, smurf_chans=None, gcp_chans=None,
                       read_gcp_mask=True, mask_channel_offset=0):
         """
