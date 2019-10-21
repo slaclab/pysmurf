@@ -131,7 +131,7 @@ class CmbEth(AppTop.RootBase):
            for var in self._TestBiasVars:
                var.addListener(self._send_test_bias)
            # Prepare a buffer to holds the TesBias register values
-           self.TesBiasValue = [0] * 32
+           self._TesBiasValue = [0] * 32
         else:
            print(f'Error: {len(self._TestBiasVars)} TesBias register were found instead of 32. Aborting')
 
@@ -274,13 +274,13 @@ class CmbEth(AppTop.RootBase):
             if reg_index < 32:
 
                 # Update reg value in the buffer
-                self.TesBiasValue[reg_index] = value
+                self._TesBiasValue[reg_index] = value
 
                 # The index  send to Smurf2MCE
                 tes_bias_index = reg_index // 2
 
                 # Calculate the difference between DAC bias values
-                tes_bias_val = self.TesBiasValue[2*tes_bias_index+1] - self.TesBiasValue[2*tes_bias_index]
+                tes_bias_val = self._TesBiasValue[2*tes_bias_index+1] - self._TesBiasValue[2*tes_bias_index]
 
                 # Send the difference value to smurf2mce
                 self._smurf_processor.setTesBias(index=tes_bias_index, val=tes_bias_val)
