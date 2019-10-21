@@ -17,6 +17,8 @@
 # contained in the LICENSE.txt file.
 #-----------------------------------------------------------------------------
 
+import re
+
 import pyrogue
 import pysmurf
 import rogue.hardware.axi
