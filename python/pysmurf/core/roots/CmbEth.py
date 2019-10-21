@@ -281,5 +281,5 @@ class CmbEth(AppTop.RootBase):
                 tes_bias_val = self.TesBiasValue[2*tes_bias_index+1] - self.TesBiasValue[2*tes_bias_index]
 
                 # Send the difference value to smurf2mce
-                self._smurf_processor.setTesBias(tes_bias_index, tes_bias_val)
+                self._smurf_processor.setTesBias(index=tes_bias_index, val=tes_bias_val)
 

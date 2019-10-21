@@ -214,6 +214,9 @@ class SmurfProcessor(pyrogue.Device):
         pyrogue.streamConnect(self.smurf_processor,    self.smurf_header2smurf)
         pyrogue.streamConnect(self.smurf_header2smurf, self.file_writer.getChannel(0))
 
+    def setTesBias(self, index, val):
+        pass
+
     def _getStreamSlave(self):
         """
         Method called by streamConnect, streamTap and streamConnectBiDir to access slave.
