@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
 #-----------------------------------------------------------------------------
-# Title      : PyRogue Server
+# Title      : PyRogue Server startup script
 #-----------------------------------------------------------------------------
-# File       : python/pyrogue_server.py
+# File       : cmb_eth.py
 # Created    : 2017-06-20
 #-----------------------------------------------------------------------------
 # Description:
-# Python script to start a PyRogue Control Server
+# Python script to start a PyRogue server using ETH communication
 #-----------------------------------------------------------------------------
-# This file is part of the pyrogue-control-server software platform. It is subject to
+# This file is part of the pysmurf software platform. It is subject to
 # the license terms in the LICENSE.txt file found in the top-level directory
 # of this distribution and at:
 #    https://confluence.slac.stanford.edu/display/ppareg/LICENSE.html.
