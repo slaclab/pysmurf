@@ -22,8 +22,8 @@ import pysmurf
 import rogue.hardware.axi
 import rogue.protocols.srp
 
-from CryoDet._MicrowaveMuxBpEthGen2 import FpgaTopLevel
-import AmcCarrierCore.AppTop            as AppTop
+from   CryoDet._MicrowaveMuxBpEthGen2 import FpgaTopLevel
+import AmcCarrierCore.AppTop              as AppTop
 
 class CmbEth(AppTop.RootBase):
     def __init__(self, *,

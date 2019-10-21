@@ -22,8 +22,8 @@ import pysmurf
 import rogue.hardware.axi
 import rogue.protocols.srp
 
-import CryoDet.MicroMuxBpEthGen2.FpgaTopLevel as FpgaTopLevel
-import AmcCarrierCore.AppTop as AppTop
+from   CryoDet._MicrowaveMuxBpEthGen2 import FpgaTopLevel
+import AmcCarrierCore.AppTop              as AppTop
 
 class CmbPcie(AppTop.RootBase):
     def __init__(self, *,
@@ -57,9 +57,6 @@ class CmbPcie(AppTop.RootBase):
 
         # Instantiate Fpga top level
         self._fpga = FpgaTopLevel( memBase      = self.srp,
-                                   ipAddr       = ip_addr,
-                                   commType     = "pcie-rssi-interleaved",
-                                   pcieRssiLink = pcie_rssi_lane,
                                    disableBay0  = disable_bay0,
                                    disableBay1  = disable_bay1)
 
