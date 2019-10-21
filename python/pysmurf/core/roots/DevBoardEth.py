@@ -111,31 +111,6 @@ class DevBoardEth(AppTop.RootBase):
         # so we need to tapping it to the data writer.
         pyrogue.streamTap(self._streaming_stream, self._stm_interface_writer.getChannel(0))
 
-        # Look for the TesBias registers
-        # TesBias register are located on
-        # FpgaTopLevel.AppTop.AppCore.RtmCryoDet.RtmSpiMax
-        # And their name is TesBiasDacDataRegCh[n], where x = [0:31]
-        #self.TestBiasVars = []
-        #self.TestBiasRegEx = re.compile('.*TesBiasDacDataRegCh\[(\d+)\]$')
-        #for var in self.FpgaTopLevel.AppTop.AppCore.RtmCryoDet.RtmSpiMax.variableList:
-        #    m = self.TestBiasRegEx.match(var.name)
-        #    if m:
-        #        reg_index = int(m[1]) - 1
-        #        if reg_index < 32:
-        #            print(f'Found TesBias register: {var.name}, with index {reg_index}')
-        #            self.TestBiasVars.append(var)
-
-        ## Check that we have all 32 TesBias registers
-        #if len(self.TestBiasVars) == 32:
-        #    print(f'Found 32 TesBias registers. Assigning listener functions')
-        #    # Add listener to the TesBias registers
-        #    for var in self.TestBiasVars:
-        #        var.addListener(self._send_test_bias)
-        #    # Prepare a buffer to holds the TesBias register values
-        #    self.TesBiasValue = [0] * 32
-        #else:
-        #    print(f'Error: {len(self.TestBiasVars)} TesBias register were found instead of 32. Aborting')
-
         # Run control for streaming interfaces
         self.add(pyrogue.RunControl(
             name='streamRunControl',
@@ -264,25 +239,3 @@ class DevBoardEth(AppTop.RootBase):
         print("Running garbage collection...")
         gc.collect()
         print( gc.get_stats() )
-
-
-    # Send TesBias to Smurf2MCE
-    def _send_test_bias(self, path, value, disp):
-        # Look for the register index
-        m = self.TestBiasRegEx.match(path)
-        if m:
-            reg_index = int(m[1]) - 1
-            if reg_index < 32:
-
-                # Update reg value in the buffer
-                self.TesBiasValue[reg_index] = value
-
-                # The index  send to Smurf2MCE
-                tes_bias_index = reg_index // 2
-
-                # Calculate the difference between DAC bias values
-                tes_bias_val = self.TesBiasValue[2*tes_bias_index+1] - self.TesBiasValue[2*tes_bias_index]
-
-                # Send the difference value to smurf2mce
-                #self.smurf_processor.setTesBias(tes_bias_index, tes_bias_val)
-                self.smurf_processor.setTesBias(tes_bias_index, tes_bias_val)
