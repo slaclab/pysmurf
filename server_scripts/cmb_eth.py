@@ -175,7 +175,7 @@ if __name__ == "__main__":
         pyrogue.addLibraryPath(zip_file+"/python")
 
     # Import the root device after the python path is updated
-    from pysmurf.core.roots.CmbEth import CmbEth as CmbEth
+    from pysmurf.core.roots.CmbEth import CmbEth
 
     # Disable garbage collection if requested
     if disable_gc:
