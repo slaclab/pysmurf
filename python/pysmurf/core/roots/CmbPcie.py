@@ -263,7 +263,7 @@ class CmbPcie(AppTop.RootBase):
 
 
     # Send TesBias to Smurf2MCE
-    def _send_test_bias(self, path, value, disp):
+    def _send_test_bias(self, path, value):
         # Look for the register index
         m = self._TestBiasRegEx.match(path)
         if m:
