@@ -22,8 +22,8 @@ import pysmurf
 import rogue.hardware.axi
 import rogue.protocols.srp
 
-import CryoDet.MicrowaveMuxBpEthGen2.FpgaTopLevel as FpgaTopLevel
-import AmcCarrierCore.AppTop as AppTop
+from CryoDet._MicrowaveMuxBpEthGen2 import FpgaTopLevel
+import AmcCarrierCore.AppTop            as AppTop
 
 class CmbEth(AppTop.RootBase):
     def __init__(self, *,
@@ -42,7 +42,7 @@ class CmbEth(AppTop.RootBase):
                  pcie_dev_data  = "/dev/datadev_1",
                  **kwargs):
 
-        pyrogue.Root.__init__(self, name="DevBoard", initRead=True, pollEn=polling_en, **kwargs)
+        pyrogue.Root.__init__(self, name="AMCc", initRead=True, pollEn=polling_en, **kwargs)
 
         self._pv_dump_file = pv_dump_file
 
@@ -59,9 +59,6 @@ class CmbEth(AppTop.RootBase):
 
         # Instantiate Fpga top level
         self._fpga = FpgaTopLevel( memBase      = self._srp,
-                                   ipAddr       = ip_addr,
-                                   commType     = "eth-rssi-interleaved",
-                                   pcieRssiLink = pcie_rssi_lane,
                                    disableBay0  = disable_bay0,
                                    disableBay1  = disable_bay1)
 
