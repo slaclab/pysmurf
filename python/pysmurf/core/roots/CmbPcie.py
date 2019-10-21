@@ -109,26 +109,26 @@ class CmbPcie(AppTop.RootBase):
         # TesBias register are located on
         # FpgaTopLevel.AppTop.AppCore.RtmCryoDet.RtmSpiMax
         # And their name is TesBiasDacDataRegCh[n], where x = [0:31]
-        self.TestBiasVars = []
-        self.TestBiasRegEx = re.compile('.*TesBiasDacDataRegCh\[(\d+)\]$')
+        self._TestBiasVars = []
+        self._TestBiasRegEx = re.compile('.*TesBiasDacDataRegCh\[(\d+)\]$')
         for var in self.FpgaTopLevel.AppTop.AppCore.RtmCryoDet.RtmSpiMax.variableList:
-           m = self.TestBiasRegEx.match(var.name)
+           m = self._TestBiasRegEx.match(var.name)
            if m:
                reg_index = int(m[1]) - 1
                if reg_index < 32:
                    print(f'Found TesBias register: {var.name}, with index {reg_index}')
-                   self.TestBiasVars.append(var)
+                   self._TestBiasVars.append(var)
 
         ## Check that we have all 32 TesBias registers
-        if len(self.TestBiasVars) == 32:
+        if len(self._TestBiasVars) == 32:
            print(f'Found 32 TesBias registers. Assigning listener functions')
            # Add listener to the TesBias registers
-           for var in self.TestBiasVars:
+           for var in self._TestBiasVars:
                var.addListener(self._send_test_bias)
            # Prepare a buffer to holds the TesBias register values
            self.TesBiasValue = [0] * 32
         else:
-           print(f'Error: {len(self.TestBiasVars)} TesBias register were found instead of 32. Aborting')
+           print(f'Error: {len(self._TestBiasVars)} TesBias register were found instead of 32. Aborting')
 
         # Run control for streaming interfaces
         self.add(pyrogue.RunControl(
@@ -263,7 +263,7 @@ class CmbPcie(AppTop.RootBase):
     # Send TesBias to Smurf2MCE
     def _send_test_bias(self, path, value, disp):
         # Look for the register index
-        m = self.TestBiasRegEx.match(path)
+        m = self._TestBiasRegEx.match(path)
         if m:
             reg_index = int(m[1]) - 1
             if reg_index < 32:
@@ -278,5 +278,4 @@ class CmbPcie(AppTop.RootBase):
                 tes_bias_val = self.TesBiasValue[2*tes_bias_index+1] - self.TesBiasValue[2*tes_bias_index]
 
                 # Send the difference value to smurf2mce
-                #self.smurf_processor.setTesBias(tes_bias_index, tes_bias_val)
-                self.smurf_processor.setTesBias(tes_bias_index, tes_bias_val)
+                self._smurf_processor.setTesBias(tes_bias_index, tes_bias_val)
