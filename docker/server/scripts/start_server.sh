@@ -255,8 +255,8 @@ fi
 # Call the appropriate server startup script depending on the communication type
 if [ ${comm_type} == 'eth' ]; then
     echo "Staring the server using Ethernet communication..."
-    /usr/local/src/pysmurf/server_scripts/dev_board_eth.py  ${args}
+    /usr/local/src/pysmurf/server_scripts/cmb_eth.py  ${args}
 else
     echo "Staring the server using PCIe communication..."
-    /usr/local/src/pysmurf/server_scripts/dev_board_pcie.py ${args}
+    /usr/local/src/pysmurf/server_scripts/cmb_pcie.py ${args}
 fi
