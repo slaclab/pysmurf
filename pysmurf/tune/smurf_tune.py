@@ -1398,8 +1398,8 @@ class SmurfTuneMixin(SmurfBase):
         Opt Args:
         ---------
         band (int): The band to assign channels
-        band_center (float array): The frequency center of the band. Must supply
-            band or subband center.
+        band_center (float array): The frequency center of the band. 
+            Must supply band or subband center.
         channel_per_subband (int): The number of channels to assign per
             subband. Default is 4.
         min_offset (float): The minimum offset between two resonators in MHz.
@@ -1477,8 +1477,7 @@ class SmurfTuneMixin(SmurfBase):
                 channels[mask[:len(chans)]] = chans
 
             # Prune channels that are too close
-            print(close_idx)
-            channels[~close_idx] = -1        
+            channels[~close_idx] = -1
 
             # write the channel assignments to file
             self.write_master_assignment(band, freq, subbands, channels)

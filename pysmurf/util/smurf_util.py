@@ -943,10 +943,12 @@ class SmurfUtilMixin(SmurfBase):
         # Make holder arrays for phase and timestamp
         phase = np.zeros((n_chan,0))
         timestamp2 = np.array([])
+        rtm_dac = np.zeros((6,0))
         counter = 0
         n = 20000  # Number of elements to load at a time
         tmp_phase = np.zeros((n_chan, n))
         tmp_timestamp2 = np.zeros(n)
+        tmp_rtm_dac = np.zeros((6, n))
         with open(datafile, mode='rb') as file:
             while True:
                 chunk = file.read(2240)  # Frame size is 2240
@@ -954,18 +956,25 @@ class SmurfUtilMixin(SmurfBase):
                     # If frame is incomplete - meaning end of file
                     phase = np.hstack((phase, tmp_phase[:,:counter%n]))
                     timestamp2 = np.append(timestamp2, tmp_timestamp2[:counter%n])
+                    rtm_dac = np.hstack((rtm_dac, tmp_rtm_dac[:,:counter%n]))
+                    print(f'HERE {np.shape(rtm_dac)}')
                     break
                 elif eval_n_samp:
                     if counter >= n_samp:
                         phase = np.hstack((phase, tmp_phase[:,:counter%n]))
                         timestamp2 = np.append(timestamp2,
                                                tmp_timestamp2[:counter%n])
+                        rtm_dac = np.hstack((rtm_dac, tmp_rtm_dac[:,:counter%n]))
                         break
                 frame = struct.Struct('3BxI6Q8I5Q528i').unpack(chunk)
 
                 # Extract detector data
                 for i, c in enumerate(channel_mask):
                     tmp_phase[i,counter%n] = frame[c]
+
+                # extract RTM dac data
+                for i in np.arange(6):
+                    tmp_rtm_dac[i,counter%n] = frame[keys_dict[f'rtm_dac_config{i}']]
 
                 # Timestamp data
                 tmp_timestamp2[counter%n] = frame[keys_dict['rtm_dac_config5']]
@@ -975,13 +984,18 @@ class SmurfUtilMixin(SmurfBase):
                     self.log('{} elements loaded'.format(counter+1))
                     phase = np.hstack((phase, tmp_phase))
                     timestamp2 = np.append(timestamp2, tmp_timestamp2)
+                    rtm_dac = np.hstack((rtm_dac, tmp_rtm_dac))
                     tmp_phase = np.zeros((n_chan, n))
                     tmp_timestamp2 = np.zeros(n)
+                    tmp_rtm_dac = np.zeros((6,n))
                 counter = counter + 1
 
         phase = np.squeeze(phase)
         phase = phase.astype(float) / 2**15 * np.pi # where is decimal?  Is it in rad?
+        print(np.shape(rtm_dac))
+        # rtm_dac = np.squeeze(rtm_dac)
 
+        
         rootpath = os.path.dirname(datafile)
         filename = os.path.basename(datafile)
         timestamp = filename.split('.')[0]
@@ -989,8 +1003,8 @@ class SmurfUtilMixin(SmurfBase):
         mask = self.make_mask_lookup(os.path.join(rootpath,
                                                   '{}_mask.txt'.format(timestamp)))
 
-        return timestamp2, phase, mask
-
+        # return timestamp2, phase, mask
+        return rtm_dac, phase, mask
 
     def make_mask_lookup(self, mask_file, mask_channel_offset=0):
         """
@@ -2798,6 +2812,9 @@ class SmurfUtilMixin(SmurfBase):
 
         timestamp = filename.split('/')[-1].split('.')[0]
 
+        if plot_channels is None:
+            plot_channels = []
+        
         for i, (b, c) in enumerate(zip(bands, channels)):
             mm = m[b, c]
             # Convolve to find the start of the bias step

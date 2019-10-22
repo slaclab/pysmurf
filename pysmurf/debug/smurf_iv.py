@@ -141,6 +141,130 @@ class SmurfIVMixin(SmurfBase):
             gcp_mode=gcp_mode, grid_on=grid_on, 
             phase_excursion_min=phase_excursion_min, chs=channels, band=band)
 
+    def iv(self, bias_group, bias=None, wait_time=.005, 
+        bias_high=1.5, gcp_mode=True, bias_low=0, 
+        show_plot=False, overbias_wait=2., cool_wait=30, make_plot=True, 
+        save_plot=True, channels=None, band=None, high_current_mode=True, 
+        overbias_voltage=8., grid_on=True, phase_excursion_min=3.):
+        """
+        Steps the TES bias down slowly. Starts at bias_high to bias_low with
+        step size bias_step. Waits wait_time between changing steps.
+
+        If this analyzes the data, the outputs are stored to output_dir.
+
+        Opt Args:
+        ---------
+        bias_groups (np array): which bias groups to take the IV on. defaults
+            to the groups in the config file
+        wait_time (float): The amount of time between steps to wait. There are
+            always 2048 steps, so the IV curve will take wait_time * 2048 seconds
+            to run.
+        bias (float array): A float array of bias values. Must go high to low.
+        bias_high (int): The maximum TES bias in volts. Default 19.9
+        bias_low (int): The minimum TES bias in volts. Default 0
+        bias_step (int): The step size in volts. Default .1
+        overbias_wait (float) : The time to stay in the overbiased state in 
+            seconds. The default is 2 sec.
+        cool_wait (float) : The time to stay in the low current state after 
+            overbiasing before taking the IV.
+        make_plot (bool) : Whether to make plots. Default True
+        save_plot (bool) : Whether to save the plot. Default True.
+        channels (int array) : A list of channels to make plots
+        band (int array) : The bands to analyze
+        high_current_mode (bool) : The current mode to take the IV in.
+        overbias_voltage (float) : The voltage to set the TES bias in the 
+            overbias stage.
+        grid_on (bool) : Grids on plotting. This is Aris fault.
+        phase_excursion_min (float) : The minimum phase excursion required for
+            making plots.
+        """
+
+        if overbias_voltage != 0.:
+            overbias = True
+        else:
+            overbias = False
+
+        # Overbias the TESs to drive them normal
+        if overbias:
+            self.overbias_tes(bias_group, 
+                overbias_wait=overbias_wait, tes_bias=bias_high, 
+                cool_wait=cool_wait, high_current_mode=high_current_mode,
+                overbias_voltage=overbias_voltage)
+
+        self.log('Starting to take IV.', self.LOG_USER)
+        self.log('Starting TES bias ramp.', self.LOG_USER)
+
+        n_waveform_bits = 2**11
+        step_size = (bias_high - bias_low)/n_waveform_bits
+        waveform = np.arange(n_waveform_bits)[::-1]/n_waveform_bits*step_size\
+                   + bias_low  # waveform in units of Volts
+        waveform /= self._rtm_slow_dac_bit_to_volt  # Convert to bits
+        waveform = np.floor(waveform/2).astype(int)  # divide by 2 for pos/neg split
+        
+        # Make sure the requested bias group is in the list of defined
+        # bias groups.
+        bias_groups = self.bias_group_to_pair[:,0]        
+        assert (bias_group in bias_groups), f'Bias group {bias_group}' + \
+            f' is not defined (available bias groups are {bias_groups}).' + \
+            '  Doing nothing!'
+        
+        bias_order = bias_groups
+        dac_positives = self.bias_group_to_pair[:,1]
+        dac_negatives = self.bias_group_to_pair[:,2]
+
+        dac_idx = np.ravel(np.where(bias_order == bias_group))
+
+        dac_positive = dac_positives[dac_idx][0]
+        dac_negative = dac_negatives[dac_idx][0]
+
+        # set the waveform
+        self.set_dac_axil_addr(0, dac_negative)
+        self.set_dac_axil_addr(1, dac_positive)
+
+        # set the wait time
+        timer_tick = 6.4E-9  # time between samples is TimerSize*6.4 ns
+        self.set_rtm_arb_waveform_timer_size(int(wait_time/timer_tick))
+        
+        # Stream the data
+        datafile = self.stream_data_on(gcp_mode=gcp_mode)
+        self.log('writing to {}'.format(datafile))
+
+        # Trigger waveform and wait the full time + 1 second
+        self.trigger_rtm_arb_waveform(wait_after=wait_time*2**11 + 1)
+        
+        self.stream_data_off(gcp_mode=gcp_mode)
+        self.log('Done with TES bias ramp', self.LOG_USER)
+
+
+        basename, _ = os.path.splitext(os.path.basename(datafile))
+        path = os.path.join(self.output_dir, basename + '_iv_bias_all')
+        np.save(path, bias)
+
+        # publisher announcement
+        self.pub.register_file(path, 'iv_bias', format='npy')
+
+        iv_raw_data = {}
+        iv_raw_data['bias'] = bias
+        iv_raw_data['high_current_mode'] = high_current_mode
+        iv_raw_data['bias group'] = bias_groups
+        iv_raw_data['datafile'] = datafile
+        iv_raw_data['basename'] = basename
+        iv_raw_data['output_dir'] = self.output_dir
+        iv_raw_data['plot_dir'] = self.plot_dir
+        fn_iv_raw_data = os.path.join(self.output_dir, basename + 
+            '_iv_raw_data.npy')
+        self.log('Writing IV metadata to {}.'.format(fn_iv_raw_data))
+
+        path = os.path.join(self.output_dir, fn_iv_raw_data)
+        np.save(path, iv_raw_data)
+        self.pub.register_file(path, 'iv_raw', format='npy')
+
+        R_sh=self.R_sh
+        self.analyze_slow_iv_from_file(fn_iv_raw_data, make_plot=make_plot,
+            show_plot=show_plot, save_plot=save_plot, R_sh=R_sh,
+            gcp_mode=gcp_mode, grid_on=grid_on, 
+            phase_excursion_min=phase_excursion_min, chs=channels, band=band)
+
 
     def partial_load_curve_all(self, bias_high_array, bias_low_array=None, 
         wait_time=0.1, bias_step=0.1, gcp_mode=True, show_plot=False, 
