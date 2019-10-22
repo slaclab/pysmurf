@@ -46,7 +46,8 @@ def usage(name):
         "the python path.")
     print("    -a|--addr IP_address        : FPGA IP address. Required when"\
         "the communication type is based on Ethernet.")
-    print("    -d|--defaults config_file   : Default configuration file")
+    print("    -d|--defaults config_file   : Default configuration file. If the path is"\
+        "relative, it refers to the zip file (i.e: file.zip/config/config_file.yml).")
     print("    -e|--epics prefix           : Start an EPICS server with",\
         "PV name prefix \"prefix\"")
     print("    -g|--gui                    : Start the server with a GUI.")
@@ -172,6 +173,11 @@ if __name__ == "__main__":
     # If a zip file was specified and exist add it to the python path
     if zip_file and os.path.exists(zip_file):
         pyrogue.addLibraryPath(zip_file+"/python")
+
+        # If the default configuration file was given using a relative path,
+        # it is refereed to the zip file, so build the full path.
+        if config_file and config_file[0] != '/':
+                config_file = zip_file + "/config/" + config_file
 
     # Import the root device after the python path is updated
     from pysmurf.core.roots.CmbPcie import CmbPcie
