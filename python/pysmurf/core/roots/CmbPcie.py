@@ -271,7 +271,7 @@ class CmbPcie(AppTop.RootBase):
             if reg_index < 32:
 
                 # Update reg value in the buffer
-                self._TesBiasValue[reg_index] = value
+                self._TesBiasValue[reg_index] = value.value
 
                 # The index  send to Smurf2MCE
                 tes_bias_index = reg_index // 2
