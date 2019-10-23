@@ -4008,3 +4008,39 @@ class SmurfCommandMixin(SmurfBase):
         """
         self._caput(self._epics_root + self._downsampler_factor,
                 factor, **kwargs)
+
+    _data_file_name = 'SmurfProcessor:FileWriter:DataFile'
+    def set_data_file_name(self, name, *kwargs):
+        """
+        Set the data file name.
+
+        Args:
+        -----
+        name (str): The file name.
+        """
+        self._caput(self._epics_root + self._data_file_name,
+                factor, **kwargs)
+
+    _data_file_open = 'SmurfProcessor:FileWriter:Open'
+    def open_data_file(self, *kwargs):
+        """
+        Open the data file.
+
+        Args:
+        -----
+        None.
+        """
+        self._caput(self._epics_root + self._data_file_open,
+                1, **kwargs)
+
+    _data_file_close = 'SmurfProcessor:FileWriter:Close'
+    def close_data_file(self, *kwargs):
+        """
+        Close the data file.
+
+        Args:
+        -----
+        None.
+        """
+        self._caput(self._epics_root + self._data_file_close,
+                1, **kwargs)
