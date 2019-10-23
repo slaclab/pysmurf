@@ -44,7 +44,7 @@ class CmbPcie(AppTop.RootBase):
                  pcie_dev_data  = "/dev/datadev_1",
                  **kwargs):
 
-        pyrogue.Root.__init__(self, initRead=True, pollEn=polling_en, **kwargs)
+        pyrogue.Root.__init__(self, name="AMCc", initRead=True, pollEn=polling_en, **kwargs)
 
         self._pv_dump_file = pv_dump_file
 
