@@ -120,7 +120,7 @@ class PcieDev():
         self._root.Core.UdpGrp.RssiClient[lane].OpenConn.set(0)
         self._root.Core.UdpGrp.RssiClient[lane].CloseConn.set(1)
         self._root.Core.UdpGrp.UdpEngine[lane].ClientRemotePort[0].set(0)
-        self._root.Core.UdpGrp.UdpEngine[lane].ClientRemotePort[1].set(8192)
+        self._root.Core.UdpGrp.UdpEngine[lane].ClientRemotePort[1].set(0)
 
         # Print register status after setting them
         self.__print_lane_registers(lane)
