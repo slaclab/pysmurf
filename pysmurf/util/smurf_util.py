@@ -2622,8 +2622,9 @@ class SmurfUtilMixin(SmurfBase):
         to get the parameters. This is defined in
         self.smurf_to_mce_file.
 
-        If filter order is -1, uses rectangular integrator. This
-        will set filter_a, filter_b to None.
+        If filter order is -1, the downsampler is using a
+        rectangula integrator. This will set filter_a, filter_b 
+        to None.
         
         Ret:
         ----
@@ -2633,7 +2634,7 @@ class SmurfUtilMixin(SmurfBase):
         # Load cfg file
         cfg = self.get_smurf_to_mce_file()
         
-        # Get filter order
+        # Get filter order, gain, and averages
         filter_order = int(cfg['filter_order'])
         filter_gain = float(cfg['filter_gain'])
         num_averages = int(cfg['num_averages'])
@@ -2642,13 +2643,14 @@ class SmurfUtilMixin(SmurfBase):
             a = None
             b = None
         else:
-            # Get filter parameters
+            # Get filter parameters - (filter_order+1) elements
             a = np.zeros(filter_order+1, dtype=float)
             b = np.zeros(filter_order+1, dtype=float)
             for i in range(filter_order+1):
                 a[i] = cfg[f'filter_a{i}']
                 b[i] = cfg[f'filter_b{i}']
 
+        # Cast into dictionary
         ret = {
             'filter_order' : filter_order,
             'filter_gain': filter_gain,
