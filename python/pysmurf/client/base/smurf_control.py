@@ -3,14 +3,14 @@ import os
 import sys
 import time
 import glob
-from pysmurf.command.smurf_command import SmurfCommandMixin as SmurfCommandMixin
-from pysmurf.command.smurf_atca_monitor import SmurfAtcaMonitorMixin as SmurfAtcaMonitorMixin
-from pysmurf.util.smurf_util import SmurfUtilMixin as SmurfUtilMixin
-from pysmurf.tune.smurf_tune import SmurfTuneMixin as SmurfTuneMixin
-from pysmurf.debug.smurf_noise import SmurfNoiseMixin as SmurfNoiseMixin
-from pysmurf.debug.smurf_iv import SmurfIVMixin as SmurfIVMixin
-from pysmurf.base.smurf_config import SmurfConfig as SmurfConfig
-from pysmurf.util.pub import Publisher
+from pysmurf.client.command.smurf_command import SmurfCommandMixin as SmurfCommandMixin
+from pysmurf.client.command.smurf_atca_monitor import SmurfAtcaMonitorMixin as SmurfAtcaMonitorMixin
+from pysmurf.client.util.smurf_util import SmurfUtilMixin as SmurfUtilMixin
+from pysmurf.client.tune.smurf_tune import SmurfTuneMixin as SmurfTuneMixin
+from pysmurf.client.debug.smurf_noise import SmurfNoiseMixin as SmurfNoiseMixin
+from pysmurf.client.debug.smurf_iv import SmurfIVMixin as SmurfIVMixin
+from pysmurf.client.base.smurf_config import SmurfConfig as SmurfConfig
+from pysmurf.client.util.pub import Publisher
 
 
 class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin, SmurfTuneMixin, 

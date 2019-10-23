@@ -161,7 +161,7 @@ class Publisher:
             'format': format,
             'timestamp': timestamp,
             'plot': plot,
-            'pysmurf_version': pysmurf.__version__
+            'pysmurf_version': pysmurf.client.__version__
         }
 
         return self.publish(file_data, 'data_file')

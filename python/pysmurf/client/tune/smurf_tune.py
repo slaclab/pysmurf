@@ -2,12 +2,12 @@ import numpy as np
 import os
 import glob
 import time
-from pysmurf.base import SmurfBase
+from pysmurf.client.base import SmurfBase
 from scipy import optimize
 import scipy.signal as signal
 from collections import Counter
 from ..util import tools
-from pysmurf.command.sync_group import SyncGroup as SyncGroup
+from pysmurf.client.command.sync_group import SyncGroup as SyncGroup
 
 class SmurfTuneMixin(SmurfBase):
     """

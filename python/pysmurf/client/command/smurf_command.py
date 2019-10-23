@@ -2,9 +2,9 @@ import numpy as np
 import os
 import epics
 import time
-from pysmurf.base import SmurfBase
-from pysmurf.command.sync_group import SyncGroup as SyncGroup
-from pysmurf.util import tools
+from pysmurf.client.base import SmurfBase
+from pysmurf.client.command.sync_group import SyncGroup as SyncGroup
+from pysmurf.client.util import tools
 
 class SmurfCommandMixin(SmurfBase):
 

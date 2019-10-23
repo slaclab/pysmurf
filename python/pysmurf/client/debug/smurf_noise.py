@@ -1,10 +1,10 @@
 import numpy as np
 from scipy import signal
 from scipy import optimize
-from pysmurf.base import SmurfBase
+from pysmurf.client.base import SmurfBase
 import os
 import time
-from pysmurf.util import tools
+from pysmurf.client.util import tools
 
 class SmurfNoiseMixin(SmurfBase):
 

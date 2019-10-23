@@ -1,5 +1,5 @@
 import numpy as np
-from pysmurf.base import SmurfBase
+from pysmurf.client.base import SmurfBase
 import time
 import os,sys
 

@@ -1,8 +1,8 @@
 import numpy as np
 from .logger import SmurfLogger
-from pysmurf.command.cryo_card import CryoCard
+from pysmurf.client.command.cryo_card import CryoCard
 
-from pysmurf.util.pub import Publisher
+from pysmurf.client.util.pub import Publisher
 
 class SmurfBase(object):
     '''

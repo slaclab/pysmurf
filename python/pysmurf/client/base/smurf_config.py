@@ -143,7 +143,7 @@ class SmurfConfig:
 
     def validate_config(self,loaded_config):
         # Useful schema objects
-        from pysmurf.base.schema import Schema, And, Use, Optional, Regex
+        from pysmurf.client.base.schema import Schema, And, Use, Optional, Regex
 
         # Start with an extremely limited validation to figure out
         # things that we need to validate the entire configuration

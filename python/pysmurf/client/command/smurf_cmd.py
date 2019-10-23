@@ -20,7 +20,7 @@ def make_runfile(output_dir, row_len=60, num_rows=60, data_rate=60,
     Make the runfile
     """
     #S.log('Making pysmurf object')
-    S = pysmurf.SmurfControl(cfg_file=os.path.join(os.path.dirname(__file__), 
+    S = pysmurf.client.SmurfControl(cfg_file=os.path.join(os.path.dirname(__file__), 
         '..', 'cfg_files' , cfg_filename), smurf_cmd_mode=True, setup=False)
 
     S.log('Making Runfile')
@@ -239,7 +239,7 @@ if __name__ == "__main__":
     if n_cmds > 1:
         sys.exit(0)
 
-    S = pysmurf.SmurfControl(cfg_file=os.path.join(os.path.dirname(__file__), 
+    S = pysmurf.client.SmurfControl(cfg_file=os.path.join(os.path.dirname(__file__), 
         '..', 'cfg_files' , cfg_filename), smurf_cmd_mode=True, setup=False, 
         offline=offline)
 

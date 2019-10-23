@@ -1,6 +1,6 @@
 import numpy as np
-from pysmurf.base import SmurfBase
-from pysmurf.command.sync_group import SyncGroup as SyncGroup
+from pysmurf.client.base import SmurfBase
+from pysmurf.client.command.sync_group import SyncGroup as SyncGroup
 import time
 import os
 import struct
@@ -120,7 +120,7 @@ class SmurfUtilMixin(SmurfBase):
     # the JesdWatchdog will check if an instance of the JesdWatchdog is already
     # running and kill itself if there is
     def start_jesd_watchdog(self):
-        import pysmurf.watchdog.JesdWatchdog as JesdWatchdog
+        import pysmurf.client.watchdog.JesdWatchdog as JesdWatchdog
         import subprocess
         import sys
         pid = subprocess.Popen([sys.executable,JesdWatchdog.__file__])
