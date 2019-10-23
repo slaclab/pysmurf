@@ -14,7 +14,7 @@ RUN pip3 install scipy pandas pyyaml seaborn jupyter
 
 WORKDIR /usr/local/src
 RUN git clone https://github.com/slaclab/pysmurf.git -b rogue-apps
-ENV PYTHONPATH /usr/local/src:${PYTHONPATH}
+ENV PYTHONPATH /usr/local/src/pysmurf/python:${PYTHONPATH}
 ENV PYSMURF_TOP /usr/local/src/pysmurf
 
 RUN mkdir -p /usr/local/src/pysmurf_utilities
