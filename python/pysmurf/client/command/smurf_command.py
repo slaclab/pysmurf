@@ -3920,7 +3920,7 @@ class SmurfCommandMixin(SmurfBase):
         return self._caget(self.lmk.format(bay) +
                            self._lmk_reg.format(reg), **kwargs)
 
-    _mcetransmit_debug = 'AMCc:mcetransmitDebug'
+    _mcetransmit_debug = ':AMCc:mcetransmitDebug'
     def set_mcetransmit_debug(self, val, **kwargs):
         """
         Sets the mcetransmit debug bit. If 1, the debugger will
@@ -3930,10 +3930,10 @@ class SmurfCommandMixin(SmurfBase):
         -----
         val (int): 0 or 1 for the debug bit
         """
-        self._caput(self._epics_root + self._mcetransmit_debug,
+        self._caput(self.epics_root + self._mcetransmit_debug, val,
                     **kwargs)
 
-    _channel_mask = 'StreamProcessor:ChannelMapper:Mask'
+    _channel_mask = ':AMCc:SmurfProcessor:ChannelMapper:Mask'
     def set_channel_mask(self, mask, **kwargs):
         """
         Set the smurf processor channel mask.
@@ -3942,10 +3942,23 @@ class SmurfCommandMixin(SmurfBase):
         -----
         mask (list): the channel mask.
         """
-        self._caput(self._epics_root + self._channel_mask,
+        self._caput(self.epics_root + self._channel_mask,
                 mask, **kwargs)
 
-    _filter_a = 'StreamProcessor:Filter:A'
+    def get_channel_mask(self, **kwargs):
+        """
+        Gets the smuf processo channel mask.
+
+        Ret:
+        ----
+        mask (list) ; the channel mask
+        """
+        return self._caget(self.epics_root +
+                           self._channel_mask,
+                           **kwargs)
+
+        
+    _filter_a = ':AMCc:SmurfProcessor:Filter:A'
     def set_filter_a(self, coef, **kwargs):
         """
         Set the smurf processor filter A coefficients.
@@ -3954,11 +3967,11 @@ class SmurfCommandMixin(SmurfBase):
         -----
         coef (list): the filter A coefficients.
         """
-        self._caput(self._epics_root + self._filter_a,
+        self._caput(self.epics_root + self._filter_a,
                 coef, **kwargs)
 
 
-    _filter_b = 'StreamProcessor:Filter:B'
+    _filter_b = ':AMCc:SmurfProcessor:Filter:B'
     def set_filter_b(self, coef, **kwargs):
         """
         Set the smurf processor filter B coefficients.
@@ -3967,11 +3980,11 @@ class SmurfCommandMixin(SmurfBase):
         -----
         coef (list): the filter B coefficients.
         """
-        self._caput(self._epics_root + self._filter_b,
+        self._caput(self.epics_root + self._filter_b,
                 coef, **kwargs)
 
 
-    _filter_order = 'StreamProcessor:Filter:Order'
+    _filter_order = ':AMCc:SmurfProcessor:Filter:Order'
     def set_filter_order(self, order, **kwargs):
         """
         Set the smurf processor filter order.
@@ -3980,11 +3993,11 @@ class SmurfCommandMixin(SmurfBase):
         -----
         order (int): the filter order.
         """
-        self._caput(self._epics_root + self._filter_order,
+        self._caput(self.epics_root + self._filter_order,
                 order, **kwargs)
 
 
-    _filter_gain = 'StreamProcessor:Filter:Gain'
+    _filter_gain = ':AMCc:SmurfProcessor:Filter:Gain'
     def set_filter_gain(self, gain, **kwargs):
         """
         Set the smurf processor filter gain.
@@ -3993,11 +4006,11 @@ class SmurfCommandMixin(SmurfBase):
         -----
         gain (float): the filter gain.
         """
-        self._caput(self._epics_root + self._filter_gain,
+        self._caput(self.epics_root + self._filter_gain,
                 gain, **kwargs)
 
 
-    _downsampler_factor = 'StreamProcessor:Downsampler:Factor'
+    _downsampler_factor = ':AMCc:SmurfProcessor:Downsampler:Factor'
     def set_downsampler_factor(self, factor, **kwargs):
         """
         Set the smurf processor down-sampling factor.
@@ -4006,11 +4019,11 @@ class SmurfCommandMixin(SmurfBase):
         -----
         factor (int): the down-sampling factor.
         """
-        self._caput(self._epics_root + self._downsampler_factor,
+        self._caput(self.epics_root + self._downsampler_factor,
                 factor, **kwargs)
 
-    _data_file_name = 'SmurfProcessor:FileWriter:DataFile'
-    def set_data_file_name(self, name, *kwargs):
+    _data_file_name = ':AMCc:SmurfProcessor:FileWriter:DataFile'
+    def set_data_file_name(self, name, **kwargs):
         """
         Set the data file name.
 
@@ -4018,11 +4031,11 @@ class SmurfCommandMixin(SmurfBase):
         -----
         name (str): The file name.
         """
-        self._caput(self._epics_root + self._data_file_name,
-                factor, **kwargs)
+        self._caput(self.epics_root + self._data_file_name,
+                name, **kwargs)
 
-    _data_file_open = 'SmurfProcessor:FileWriter:Open'
-    def open_data_file(self, *kwargs):
+    _data_file_open = ':AMCc:SmurfProcessor:FileWriter:Open'
+    def open_data_file(self, **kwargs):
         """
         Open the data file.
 
@@ -4030,11 +4043,11 @@ class SmurfCommandMixin(SmurfBase):
         -----
         None.
         """
-        self._caput(self._epics_root + self._data_file_open,
+        self._caput(self.epics_root + self._data_file_open,
                 1, **kwargs)
 
-    _data_file_close = 'SmurfProcessor:FileWriter:Close'
-    def close_data_file(self, *kwargs):
+    _data_file_close = ':AMCc:SmurfProcessor:FileWriter:Close'
+    def close_data_file(self, **kwargs):
         """
         Close the data file.
 
@@ -4042,5 +4055,5 @@ class SmurfCommandMixin(SmurfBase):
         -----
         None.
         """
-        self._caput(self._epics_root + self._data_file_close,
+        self._caput(self.epics_root + self._data_file_close,
                 1, **kwargs)

@@ -650,17 +650,19 @@ class SmurfUtilMixin(SmurfBase):
         return data_filename
 
 
-    def stream_data_on(self, write_config=False, gcp_mode=True,
-                       num_averages=20):
+    def stream_data_on(self, write_config=False, downsample_factor=None,
+                       data_filename=None):
         """
         Turns on streaming data.
 
+        TO DO: add downsample factor to config table!
+
         Opt Args:
         ---------
-        gcp_mode (bool) : Determines whether to write data using the
-            smurf2mce (gcp) mode. Default is True.
-        num_averages (int) : The number of 4kHz frames to average
-            before writing to disk.
+        data_filename (str) : The full path to store the data. If None, it
+            uses the timestamp.
+        downsample_filter (int) : The number of fast samples to skip between
+            sending.
 
         Returns:
         --------
@@ -668,6 +670,11 @@ class SmurfUtilMixin(SmurfBase):
         """
         bands = self.config.get('init').get('bands')
 
+        if downsample_factor is None:
+            downsample_factor = 20
+            
+        self.set_downsampler_factor(downsample_factor)
+        
         # Check if flux ramp is non-zero
         ramp_max_cnt = self.get_ramp_max_cnt()
         if ramp_max_cnt == 0:
@@ -694,8 +701,12 @@ class SmurfUtilMixin(SmurfBase):
 
             # Make the data file
             timestamp = self.get_timestamp()
-            data_filename = os.path.join(self.output_dir, timestamp+'.dat')
+            if data_filename is None:
+                data_filename = os.path.join(self.output_dir,
+                                             timestamp+'.dat')
 
+            self.set_data_file_name(data_filename)
+            
             # Optionally write PyRogue configuration
             if write_config:
                 config_filename=os.path.join(self.output_dir, timestamp+'.yml')
@@ -705,43 +716,28 @@ class SmurfUtilMixin(SmurfBase):
 
                 # short wait
                 time.sleep(5.)
-
-            self.log('Writing to file : {}'.format(data_filename),
+                self.log('Writing to file : {}'.format(data_filename),
                 self.LOG_USER)
-            if gcp_mode:
-                ret = self.make_smurf_to_gcp_config(filename=data_filename,
-                                                    num_averages=num_averages)
-                smurf_chans = {}
-                for b in bands:
-                    smurf_chans[b] = self.which_on(b)
-                self.make_gcp_mask(smurf_chans=smurf_chans)
-                shutil.copy(self.smurf_to_mce_mask_file,
-                            os.path.join(self.output_dir, timestamp+'_mask.txt'))
-                self.read_smurf_to_gcp_config()
-            else:
-                self.set_streaming_datafile(data_filename)
 
-            if gcp_mode:
-                self.set_smurf_to_gcp_writer(True, write_log=True)
-            else:
-                self.set_streaming_file_open(1)  # Open the file
+            smurf_chans = {}
+            for b in bands:
+                smurf_chans[b] = self.which_on(b)
+            output_mask = self.make_channel_mask(bands, smurf_chans)
+            self.set_channel_mask(output_mask)
+            np.savetxt(os.path.join(data_filename.replace('.dat',
+                                                          '_mask.txt')),
+                       output_mask, fmt='%i')
+            
+            self.open_data_file()
 
             return data_filename
 
 
-    def stream_data_off(self, gcp_mode=True):
+    def stream_data_off(self):
         """
-        Turns off streaming data on specified band
-
-        Args:
-        -----
-        bands (int array) : The band to turn off stream data
+        Turns off streaming data.
         """
-        bands = self.config.get('init').get('bands')
-        if gcp_mode:
-            self.set_smurf_to_gcp_writer(False, write_log=True)
-        else:
-            self.set_streaming_file_open(0)  # Close the file
+        self.close_data_file()
 
 
     def read_stream_data(self, datafile, channel=None,
@@ -921,7 +917,7 @@ class SmurfUtilMixin(SmurfBase):
         tmp_timestamp2 = np.zeros(n)
         with open(datafile, mode='rb') as file:
             while True:
-                chunk = file.read(2240)  # Frame size is 2240
+                chunk = file.read(2240+8)  # Frame size is 2240 + 8 bytes of the Rogue file writer
                 if not chunk:
                     # If frame is incomplete - meaning end of file
                     phase = np.hstack((phase, tmp_phase[:,:counter%n]))
@@ -933,7 +929,7 @@ class SmurfUtilMixin(SmurfBase):
                         timestamp2 = np.append(timestamp2,
                                                tmp_timestamp2[:counter%n])
                         break
-                frame = struct.Struct('3BxI6Q8I5Q528i').unpack(chunk)
+                frame = struct.Struct('8x3BxI6Q8I5Q528i').unpack(chunk)
 
                 # Extract detector data
                 for i, c in enumerate(channel_mask):
@@ -958,9 +954,10 @@ class SmurfUtilMixin(SmurfBase):
         filename = os.path.basename(datafile)
         timestamp = filename.split('.')[0]
 
-        mask = self.make_mask_lookup(os.path.join(rootpath,
-                                                  '{}_mask.txt'.format(timestamp)))
-
+        #mask = self.make_mask_lookup(os.path.join(rootpath,
+        #                                          '{}_mask.txt'.format(timestamp)))
+        mask = self.make_mask_lookup(datafile.replace('.dat', '_mask.txt'))
+        
         return timestamp2, phase, mask
 
 
@@ -2407,6 +2404,7 @@ class SmurfUtilMixin(SmurfBase):
         rates_kHz = [15, 12, 10, 8, 6, 5, 4, 3, 2, 1]
         return rates_kHz[val]
 
+    
     def why(self):
         """
         Why not?
@@ -2511,6 +2509,41 @@ class SmurfUtilMixin(SmurfBase):
 
         return ret
 
+    def make_channel_mask(self, band=None, smurf_chans=None):
+        """
+        Makes the channel mask. Only the channels in the mask will be streamed
+        or written to disk. 
+                                     
+        If no optional arguments are given, mask will contain all channels
+        that are on. If both band and smurf_chans are supplied, a mask
+        in the input order is created.                                        
+
+        Opt Args:                                                                     ---------                                                                         band (int array) : An array of band numbers. Must be the same
+            length as smurf_chans                                                         smurf_chans (int_array) : An array of SMuRF channel numbers.
+            Must be the same length as band
+        """
+        output_chans = np.array([], dtype=int)
+        if smurf_chans is None and band is not None:
+            band = np.ravel(np.array(band))
+            n_chan = self.get_number_channels(band)
+            output_chans = np.arange(n_chan) + n_chan*band
+        elif smurf_chans is not None:
+            keys = smurf_chans.keys()
+            for k in keys:
+                self.log('Band {}'.format(k))
+                n_chan = self.get_number_channels(k)
+                for ch in smurf_chans[k]:
+                    #if (ch+channel_offset)<0:
+                    #    channel_offset+=n_chan
+                    #if (ch+channel_offset+1)>n_chan:
+                    #    channel_offset-=n_chan
+
+                    output_chans = np.append(output_chans,
+                                          ch + n_chan*k)
+                    
+        return output_chans
+
+    
     def make_gcp_mask(self, band=None, smurf_chans=None, gcp_chans=None,
                       read_gcp_mask=True, mask_channel_offset=0):
         """
@@ -2825,7 +2858,8 @@ class SmurfUtilMixin(SmurfBase):
         """
         if mask_file is None:
             mask_file = self.smurf_to_mce_mask_file
-
+            
+            
         mask = self.make_mask_lookup(mask_file)
 
         if mask[band, channel] == -1:
