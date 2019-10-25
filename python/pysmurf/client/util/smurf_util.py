@@ -621,10 +621,11 @@ class SmurfUtilMixin(SmurfBase):
 
         return f, df, flux_ramp_strobe
 
-    def take_stream_data(self, meas_time, gcp_mode=True,
-                         num_averages=20):
+    def take_stream_data(self, meas_time, downsample_factor=20):
         """
         Takes streaming data for a given amount of time
+
+        To do: move downsample_factor to config table
 
         Args:
         -----
@@ -632,20 +633,17 @@ class SmurfUtilMixin(SmurfBase):
 
         Opt Args:
         ---------
-        gcp_mode (bool) : Determines whether to write data using the
-            smurf2mce (gcp) mode. Default is True.
-        num_averages (int) : The number of 4kHz frames to average
-            before writing to disk.
+        downsample_factor (int) : The number of fast sample (the flux ramp
+            reset rate - typically 4kHz) to skip between reporting.
 
         Returns:
         --------
         data_filename (string): The fullpath to where the data is stored
         """
         self.log('Starting to take data.', self.LOG_USER)
-        data_filename = self.stream_data_on(gcp_mode=gcp_mode,
-                                            num_averages=num_averages)
+        data_filename = self.stream_data_on(downsample_factor=downsample_factor)
         time.sleep(meas_time)
-        self.stream_data_off(gcp_mode=gcp_mode)
+        self.stream_data_off()
         self.log('Done taking data.', self.LOG_USER)
         return data_filename
 
@@ -724,9 +722,11 @@ class SmurfUtilMixin(SmurfBase):
                 smurf_chans[b] = self.which_on(b)
             output_mask = self.make_channel_mask(bands, smurf_chans)
             self.set_channel_mask(output_mask)
-            np.savetxt(os.path.join(data_filename.replace('.dat',
-                                                          '_mask.txt')),
-                       output_mask, fmt='%i')
+
+            # Save mask file as text file. Eventually this will be in the 
+            # raw data output
+            np.savetxt(os.path.join(data_filename.replace('.dat', '_mask.txt')),
+                output_mask, fmt='%i')
             
             self.open_data_file()
 
@@ -740,10 +740,11 @@ class SmurfUtilMixin(SmurfBase):
         self.close_data_file()
 
 
-    def read_stream_data(self, datafile, channel=None,
-                         unwrap=True, gcp_mode=True, n_samp=None):
+    def read_stream_data(self, datafile, channel=None):
         """
-        Loads data taken with the fucntion stream_data_on
+        Loads data taken with the fucntion stream_data_on.
+
+        To do : return header rather than just timestamp2
 
         Args:
         -----
@@ -751,115 +752,7 @@ class SmurfUtilMixin(SmurfBase):
 
         Opt Args:
         ---------
-        channel (int or int array): The channels to load. If None,
-           loads all channels
-        unwrap (bool): Whether to unwrap the data
-        """
-        if gcp_mode:
-            self.log('Treating data as GCP file')
-            timestamp, phase, mask = self.read_stream_data_gcp_save(datafile,
-                channel=channel, unwrap=unwrap, n_samp=n_samp)
-            return timestamp, phase, mask
-
-
-        file_writer_header_size = 2  # 32-bit words
-
-        with open(datafile, mode='rb') as file:
-            file_content = file.read()
-
-        version = file_content[8]
-        self.log('Version: %s' % (version))
-
-        self.log('Data version {}'.format(version), self.LOG_INFO)
-
-        if version == 0:
-            smurf_header_size = 4  # 32-bit words
-            header_size = file_writer_header_size + smurf_header_size
-            smurf_data_size = 1024;  # 32-bit words
-            nominal_frame_size = header_size + smurf_data_size;
-
-
-            # Convert binary file to int array. The < indicates little-endian
-            raw_dat = np.asarray(struct.unpack("<" + "i" *
-                ((len(file_content)) // 4), file_content))
-
-            # To do : add bad frame check
-            frame_start = np.ravel(np.where(1 + raw_dat/4==nominal_frame_size))
-            n_frame = len(frame_start)
-
-            I = np.zeros((512, n_frame))
-            Q = np.zeros((512, n_frame))
-            timestamp = np.zeros(n_frame)
-
-            for i in np.arange(n_frame):
-                timestamp[i] = raw_dat[frame_start[i]+2]
-                start = frame_start[i] + header_size
-                end = start + 512*2
-                I[:,i] = raw_dat[start:end:2]
-                Q[:,i] = raw_dat[start+1:end+1:2]
-
-            phase = np.arctan2(Q, I)
-
-        elif version == 1:
-            # this works if we've already remove dropped frames.
-            # Use timestamp/frame counter to look for drops
-            keys = ['h0', 'h1', 'version', 'crate_id', 'slot_number',
-                'number_of_channels', 'rtm_dac_config0', 'rtm_dac_config1',
-                'rtm_dac_config2', 'rtm_dac_config3', 'rtm_dac_config4',
-                'rtm_dac_config5', 'flux_ramp_increment', 'flux_ramp_start',
-                'base_rate_since_1_Hz', 'base_rate_since_TM', 'timestamp_ns',
-                'timestamp_s', 'fixed_rate_marker', 'sequence_counter',
-                'tes_relay','mce_word'
-            ]
-
-            data_keys = [f'data{i}' for i in range(4096)]
-
-            keys.extend(data_keys)
-
-            keys_dict = dict(zip(keys, range(len(keys))))
-
-            frames = [i for i in
-                struct.Struct('2I2BHI6Q6IH2xI2Q24x4096h').iter_unpack(file_content)]
-
-
-
-            if channel is None:
-                phase = np.zeros((512, len(frames)))
-                for i in range(512):
-                    k = i + 1024
-                    phase[i,:] = np.asarray([j[keys_dict[f'data{k}']] for j in
-                                             frames])
-            else:
-                print('Loading only channel {}'.format(channel))
-                k = channel
-                phase = np.zeros(len(frames))
-                phase = np.asarray([j[keys_dict[f'data{k}']] for j in frames])
-
-            phase = phase.astype(float) / 2**15 * np.pi # scale to rad
-            timestamp = [i[keys_dict['sequence_counter']] for i in frames]
-
-        else:
-            raise Exception(f'Frame version {version} not supported')
-
-        if unwrap:
-            phase = np.unwrap(phase, axis=-1)
-
-        return timestamp, phase
-
-    def read_stream_data_gcp_save(self, datafile, channel=None,
-        unwrap=True, downsample=1, n_samp=None):
-        """
-        Reads the special data that is designed to be a copy of the GCP data.
-
-        Args:
-        -----
-        datafile (str): The full path to the data made by stream_data_on
-
-        Opt Args:
-        ---------
         channel (int or int array): Channels to load.
-        unwrap (bool) : Whether to unwrap units of 2pi. Default is True.
-        downsample (int): The amount to downsample.
 
         Ret:
         ----
@@ -870,9 +763,9 @@ class SmurfUtilMixin(SmurfBase):
         try:
             datafile = glob.glob(datafile+'*')[-1]
         except:
-            print('datafile=%s'%datafile)
+            print(f'datafile={datafile}')
 
-        self.log('Reading {}'.format(datafile))
+        self.log(f'Reading {datafile}')
 
         if channel is not None:
             self.log('Only reading channel {}'.format(channel))
@@ -954,8 +847,7 @@ class SmurfUtilMixin(SmurfBase):
         filename = os.path.basename(datafile)
         timestamp = filename.split('.')[0]
 
-        #mask = self.make_mask_lookup(os.path.join(rootpath,
-        #                                          '{}_mask.txt'.format(timestamp)))
+        # make a mask from mask file
         mask = self.make_mask_lookup(datafile.replace('.dat', '_mask.txt'))
         
         return timestamp2, phase, mask
@@ -1346,12 +1238,15 @@ class SmurfUtilMixin(SmurfBase):
         old_lms_enable2=self.get_lms_enable2(band)
         old_lms_enable3=self.get_lms_enable3(band)
 
-        self.log('Before toggling feedback on band {}, feedbackEnable={}, lmsEnable1={}, lmsEnable2={}, and lmsEnable3={}.'.format(band, old_feedback_enable, old_lms_enable1, old_lms_enable2, old_lms_enable3),
-                 self.LOG_USER)
+        self.log(f'Before toggling feedback on band {band}, ' + 
+            f'feedbackEnable={old_feedback_enable}, ' + 
+            f'lmsEnable1={old_lms_enable1}, lmsEnable2={old_lms_enable2}, ' + 
+            f'and lmsEnable3={old_lms_enable3}.', self.LOG_USER)
 
         # -> 0
-        self.log('Setting feedbackEnable=lmsEnable1=lmsEnable2=lmsEnable3=0 (in that order).',
-                 self.LOG_USER)
+        self.log('Setting feedbackEnable=lmsEnable1=lmsEnable2=lmsEnable3=0'+
+            ' (in that order).', self.LOG_USER)
+
         self.set_feedback_enable(band,0)
         self.set_lms_enable1(band,0)
         self.set_lms_enable2(band,0)
@@ -1384,9 +1279,11 @@ class SmurfUtilMixin(SmurfBase):
         self.set_feedback_enable_array(band, np.zeros(512, dtype=int), **kwargs)
         self.set_cfg_reg_ena_bit(0, wait_after=.11, **kwargs)
 
+
     def channel_off(self, band, channel, **kwargs):
         """
-        Turns off the tone for a single channel by setting the amplitude to zero and disabling feedback.
+        Turns off the tone for a single channel by setting the amplitude to 
+        zero and disabling feedback.
         """
         self.log('Turning off band {} channel {}'.format(band, channel),
             self.LOG_USER)
@@ -1459,15 +1356,20 @@ class SmurfUtilMixin(SmurfBase):
             if not (jesd_rx_ok0 and jesd_tx_ok0):
                 which_jesd_down0='Jesd Rx and Tx are both down'
                 if (jesd_rx_ok0 or jesd_tx_ok0):
-                    which_jesd_down0 = ('Jesd Rx is down' if jesd_tx_ok0 else 'Jesd Tx is down')
+                    which_jesd_down0 = ('Jesd Rx is down' if 
+                        jesd_tx_ok0 else 'Jesd Tx is down')
 
-                self.log('%s ... will attempt to recover.'%which_jesd_down0, self.LOG_ERROR)
+                self.log('%s ... will attempt to recover.'%which_jesd_down0, 
+                    self.LOG_ERROR)
 
                 # attempt to recover ; if it fails it will assert
-                self.recover_jesd(recover_jesd_rx=(not jesd_rx_ok0),recover_jesd_tx=(not jesd_tx_ok0))
+                self.recover_jesd(recover_jesd_rx=(not jesd_rx_ok0),
+                    recover_jesd_tx=(not jesd_tx_ok0))
 
                 # rely on recover to assert if it failed
-                self.log('Successfully recovered Jesd but may need to redo some setup ... rerun command at your own risk.', self.LOG_USER)
+                self.log('Successfully recovered Jesd but may need to redo '+
+                    'some setup ... rerun command at your own risk.', 
+                    self.LOG_USER)
 
             # don't continue running the desired command by default.
             # just because Jesds are back doesn't mean we're in a sane
@@ -2417,98 +2319,6 @@ class SmurfUtilMixin(SmurfBase):
         return
 
 
-    def read_smurf_to_gcp_config(self):
-        """
-        Toggles the smurf_to_gcp read bit.
-        """
-        self.log('Reading SMuRF to GCP config file')
-        self.set_smurf_to_gcp_cfg_read(True, wait_after=.1)
-        self.set_smurf_to_gcp_cfg_read(False)
-
-
-    def make_smurf_to_gcp_config(self, num_averages=None, filename=None,
-        file_name_extend=None, data_frames=None, filter_gain=None):
-        """
-        Makes the config file that the Joe-writer uses to set the IP
-        address, port number, data file name, etc.
-
-        The IP and port are set in the config file. They cannot be updated
-        in runtime.
-
-        Opt args:
-        ---------
-        num_averages (int): If 0, SMuRF output fromes to MCE are triggered
-           by the sync box. A new frame is generated for each sync word.
-           If > 0, then an output frame is generated for every num_averages
-           number of smurf frames.
-        filename (str): The filename to save the data to. If not provided,
-           automatically uses the current timestamp.
-        file_name_extend (bool): If True, appends the data file name with
-           the current timestamp. This is a relic of Joes original code.
-           Default is False and should probably always be False.
-        data_frames (int): The number of frames to store. Works up to
-           2000000, which is about a 5GB file. Default is 2000000
-        gain (float): The number to multiply the data by. Default is 255.5
-            which makes it match GCP units.
-        """
-
-        filter_freq = self.config.get('smurf_to_mce').get('filter_freq')
-        filter_order = self.config.get('smurf_to_mce').get('filter_order')
-        if filter_gain is None:
-            filter_gain = self.config.get('smurf_to_mce').get('filter_gain')
-
-        if num_averages is None:
-            num_averages = self.config.get('smurf_to_mce').get('num_averages')
-        if data_frames is None:
-            data_frames = self.config.get('smurf_to_mce').get('data_frames')
-        if file_name_extend is None:
-            file_name_extend = self.config.get('smurf_to_mce').get('file_name_extend')
-
-        if filename is None:
-            filename = self.get_timestamp() + '.dat'
-        data_file_name = os.path.join(self.data_dir, filename)
-
-        flux_ramp_freq = self.get_flux_ramp_freq() * 1E3  # in Hz
-        if flux_ramp_freq < 1000:
-            flux_ramp_freq = 4000
-            self.log('Flux ramp frequency is below 1kHz.'\
-                      ' Setting a filter using 4kHz')
-
-        b, a = signal.butter(filter_order, 2*filter_freq / flux_ramp_freq)
-
-        with open(self.smurf_to_mce_file, "w") as f:
-            f.write("num_averages " + str(num_averages) + '\n');
-            f.write("receiver_ip " + self.smurf_to_mce_ip + '\n');
-            f.write("port_number " + str(self.smurf_to_mce_port) + '\n')
-            f.write("data_file_name " + data_file_name + '\n');
-            f.write("file_name_extend " + str(int(file_name_extend)) + '\n')
-            f.write("data_frames " + str(data_frames) + '\n')
-            f.write("filter_order " + str(filter_order) +"\n");
-            f.write("filter_gain " + str(filter_gain) +"\n");
-            for n in range(0,filter_order+1):
-                f.write("filter_a"+str(n)+" "+str(a[n]) + "\n")
-            for n in range(0,filter_order+1):
-                f.write("filter_b"+str(n)+" "+str(b[n]) + "\n")
-
-        f.close()
-
-        ret = {
-            "config_file": self.smurf_to_mce_file,
-            "num_averages": num_averages,
-            "receiver_ip": self.smurf_to_mce_ip,
-            "port_number": self.smurf_to_mce_port,
-            "data_file_name": data_file_name,
-            "file_name_extend": file_name_extend,
-            "data_frames": data_frames,
-            "flux_ramp_freq": flux_ramp_freq,
-            "filter_order": filter_order,
-            "filter_gain": filter_gain,
-            "filter_a": a,
-            "filter_b": b
-        }
-
-        return ret
-
     def make_channel_mask(self, band=None, smurf_chans=None):
         """
         Makes the channel mask. Only the channels in the mask will be streamed
@@ -2518,8 +2328,9 @@ class SmurfUtilMixin(SmurfBase):
         that are on. If both band and smurf_chans are supplied, a mask
         in the input order is created.                                        
 
-        Opt Args:                                                                     ---------                                                                         band (int array) : An array of band numbers. Must be the same
-            length as smurf_chans                                                         smurf_chans (int_array) : An array of SMuRF channel numbers.
+        band (int array) : An array of band numbers. Must be the same
+            length as smurf_chans 
+        smurf_chans (int_array) : An array of SMuRF channel numbers.
             Must be the same length as band
         """
         output_chans = np.array([], dtype=int)
@@ -3059,10 +2870,12 @@ class SmurfUtilMixin(SmurfBase):
             filename=str(self.get_timestamp())+'_hwlog.dat'
         self.__hardware_log_file = os.path.join(self.output_dir, filename)
         self.log('Starting hardware logging to file : {}'.format(self.__hardware_log_file),
-                 self.LOG_USER)
+            self.LOG_USER)
         self.__hardware_logging_stop_event=threading.Event()
         self.__hardware_logging_pause_event=threading.Event()
-        self._hardware_logging_thread = threading.Thread(target=self._hardware_logger, args=(self.__hardware_logging_pause_event,self.__hardware_logging_stop_event,))
+        self._hardware_logging_thread = threading.Thread(target=self._hardware_logger, 
+            args=(self.__hardware_logging_pause_event,
+                self.__hardware_logging_stop_event,))
         self._hardware_logging_thread.daemon = True
         self._hardware_logging_thread.start()
 
@@ -3091,8 +2904,9 @@ class SmurfUtilMixin(SmurfBase):
                     with open(filename) as logf:
                         hdr2=logf.readline()
                         if not hdr.rstrip().split() == hdr2.rstrip().split():
-                            self.log('Attempting to temperature log to an incompatible file.  Giving up without logging any data!',
-                                     self.LOG_ERROR)
+                            self.log('Attempting to temperature log to an ' + 
+                                'incompatible file.  Giving up without ' + 
+                                'logging any data!', self.LOG_ERROR)
                             return
 
                 with open(filename,'a') as logf:
@@ -3159,7 +2973,8 @@ class SmurfUtilMixin(SmurfBase):
         row=fmt.format(columns)
         return hdr,row
 
-    def play_tes_bipolar_waveform(self, bias_group, waveform, do_enable=True, **kwargs):
+    def play_tes_bipolar_waveform(self, bias_group, waveform, do_enable=True, 
+        **kwargs):
         """
         bias_group (int): The bias group
         """
