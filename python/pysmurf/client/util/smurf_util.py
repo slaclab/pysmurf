@@ -158,7 +158,8 @@ class SmurfUtilMixin(SmurfBase):
                 continue
             lower_sb_freq=sbc+subband_freq_min
             upper_sb_freq=sbc+subband_freq_max
-            if lower_sb_freq>=(freq_min/1.e6-subband_half_width_mhz) and upper_sb_freq<=(freq_max/1.e6+subband_half_width_mhz):
+            if lower_sb_freq>=(freq_min/1.e6-subband_half_width_mhz) and \
+                upper_sb_freq<=(freq_max/1.e6+subband_half_width_mhz):
                 dsp_subbands.append(sb)
 
         if timestamp is None:
@@ -240,21 +241,24 @@ class SmurfUtilMixin(SmurfBase):
             self.log('Running find_freq')
             freq_dsp,resp_dsp=self.find_freq(band,subband=dsp_subbands)
             ## not really faster if reduce n_step or n_read...somehow.
-            #freq_dsp,resp_dsp=self.full_band_ampl_sweep(band, subband=dsp_subbands, drive=drive, n_read=2, n_step=n_step)
+            #freq_dsp,resp_dsp=self.full_band_ampl_sweep(band, 
+            # subband=dsp_subbands, drive=drive, n_read=2, n_step=n_step)
 
         # only preserve data in the subband half width
         freq_dsp_subset=[]
         resp_dsp_subset=[]
         for sb,sbc in zip(subbands,subband_centers):
             freq_subband=freq_dsp[sb]-sbc
-            idx = np.where( ( freq_subband > subband_freq_min ) & (freq_subband < subband_freq_max) )
+            idx = np.where( ( freq_subband > subband_freq_min ) & 
+                (freq_subband < subband_freq_max) )
             freq_dsp_subset.extend(freq_dsp[sb][idx])
             resp_dsp_subset.extend(resp_dsp[sb][idx])
 
         freq_dsp_subset=np.array(freq_dsp_subset)
         resp_dsp_subset=np.array(resp_dsp_subset)
 
-        idx_dsp = np.where( (freq_dsp_subset > freq_min) & (freq_dsp_subset < freq_max) )
+        idx_dsp = np.where( (freq_dsp_subset > freq_min) & 
+            (freq_dsp_subset < freq_max) )
 
         # restrict to requested frequencies only
         freq_dsp_subset=freq_dsp_subset[idx_dsp]
@@ -275,7 +279,9 @@ class SmurfUtilMixin(SmurfBase):
 
         ## compute refPhaseDelay and refPhaseDelayFine
         refPhaseDelay=int(np.ceil(dsp_delay_us*(subband_half_width_mhz/2.)))
-        refPhaseDelayFine=int(np.round((digitizer_frequency_mhz/2/(subband_half_width_mhz/2.)*(refPhaseDelay-dsp_delay_us*(subband_half_width_mhz/2.)))))
+        refPhaseDelayFine=int(np.round((digitizer_frequency_mhz/2/
+            (subband_half_width_mhz/2.)*
+            (refPhaseDelay-dsp_delay_us*(subband_half_width_mhz/2.)))))
         processing_delay_us=dsp_delay_us-cable_delay_us
 
         print('-------------------------------------------------------')
@@ -472,8 +478,8 @@ class SmurfUtilMixin(SmurfBase):
         Opt Args:
         ---------
         swapFdF (bool): whether the F and dF (or I/Q) streams are flipped
-        recast (bool): Whether to recast from size n_channels_processed to n_channels. Default
-            True.
+        recast (bool): Whether to recast from size n_channels_processed to 
+        n_channels. Default True.
 
         Returns:
         -----
@@ -515,12 +521,13 @@ class SmurfUtilMixin(SmurfBase):
 
         if np.remainder(len(f), n_proc)!=0:
             if truncate:
-                self.log('Number of points in f not a multiple of {}. Truncating f to the nearest multiple of {}.'.format(n_proc,n_proc),
-                         self.LOG_USER)
+                self.log(f'Number of points in f not a multiple of {n_proc}. ' +
+                    f'Truncating f to the nearest multiple of {n_proc}.',
+                    self.LOG_USER)
                 f=f[:(len(f)-np.remainder(len(f),n_proc))]
             else:
-                self.log('Number of points in f not a multiple of {}. Cannot decode'.format(n_proc),
-                         self.LOG_ERROR)
+                self.log(f'Number of points in f not a multiple of {n_proc}. ' + 
+                    'Cannot decode', self.LOG_ERROR)
         f = np.reshape(f, (-1, n_proc)) * subband_half_width_mhz / 2**23
 
         # frequency errors
@@ -536,12 +543,13 @@ class SmurfUtilMixin(SmurfBase):
 
             if np.remainder(len(df), n_proc)!=0:
                 if truncate:
-                    self.log('Number of points in df not a multiple of {}. Truncating df to the nearest multiple of {}.'.format(n_proc,n_proc),
-                             self.LOG_USER)
+                    self.log('Number of points in df not a multiple of '+
+                        f'{n_proc}. Truncating df to the nearest multiple ' + 
+                        f' of {n_proc}.', self.LOG_USER)
                     df=df[:(len(df)-np.remainder(len(df),n_proc))]
                 else:
-                    self.log('Number of points in df not a multiple of {}. Cannot decode'.format(n_proc),
-                             self.LOG_ERROR)
+                    self.log(f'Number of points in df not a multiple of {n_proc}.'+
+                        ' Cannot decode', self.LOG_ERROR)
             df = np.reshape(df, (-1, n_proc)) * subband_half_width_mhz / 2**23
 
         else:
@@ -885,8 +893,8 @@ class SmurfUtilMixin(SmurfBase):
         return ret
 
 
-    def read_stream_data_daq(self, data_length, bay=0,
-                             hw_trigger=False, write_log=False):
+    def read_stream_data_daq(self, data_length, bay=0, hw_trigger=False, 
+        write_log=False):
         """
         """
         # Ask mitch why this is what it is...
@@ -970,7 +978,8 @@ class SmurfUtilMixin(SmurfBase):
 
             import scipy.signal as signal
             digitizer_frequency_mhz = self.get_digitizer_frequency_mhz()
-            f, p_adc = signal.welch(dat, fs=digitizer_frequency_mhz, nperseg=data_length/2, return_onesided=False,detrend=False)
+            f, p_adc = signal.welch(dat, fs=digitizer_frequency_mhz, 
+                nperseg=data_length/2, return_onesided=False, detrend=False)
             f_plot = f / 1.0E6
 
             idx = np.argsort(f)
@@ -1057,7 +1066,8 @@ class SmurfUtilMixin(SmurfBase):
 
             import scipy.signal as signal
             digitizer_frequency_mhz = self.get_digitizer_frequency_mhz()
-            f, p_dac = signal.welch(dat, fs=digitizer_frequency_mhz, nperseg=data_length/2, return_onesided=False,detrend=False)
+            f, p_dac = signal.welch(dat, fs=digitizer_frequency_mhz, 
+                nperseg=data_length/2, return_onesided=False,detrend=False)
             f_plot = f / 1.0E6
 
             idx = np.argsort(f)
@@ -1485,7 +1495,8 @@ class SmurfUtilMixin(SmurfBase):
         band_center = self.get_band_center_mhz(band)
         subband_width = 2*dig_freq/num_subband
 
-        subbands, subband_centers = self.get_subband_centers(band, as_offset=False)
+        subbands, subband_centers = self.get_subband_centers(band, 
+            as_offset=False)
 
         df = np.abs(freq - subband_centers)
         idx = np.ravel(np.where(df == np.min(df)))[0]
@@ -1553,7 +1564,8 @@ class SmurfUtilMixin(SmurfBase):
 
         channel_order = np.zeros(len(tone_freq_offset), dtype=int)
         for i, f in enumerate(freqs):
-            channel_order[n_chanpersubband*i:n_chanpersubband*(i+1)] = np.ravel(np.where(tone_freq_offset == f))
+            channel_order[n_chanpersubband*i:n_chanpersubband*(i+1)] = \
+                np.ravel(np.where(tone_freq_offset == f))
 
         return channel_order
 
@@ -1574,7 +1586,8 @@ class SmurfUtilMixin(SmurfBase):
         n_proc = self.get_number_processed_channels()
         n_chan = self.get_number_channels()
         n_cut = (n_chan - n_proc)//2
-        return np.sort(self.get_channel_order(channel_orderfile=channel_orderfile)[n_cut:-n_cut])
+        return np.sort(self.get_channel_order(
+            channel_orderfile=channel_orderfile)[n_cut:-n_cut])
 
     def get_subband_from_channel(self, band, channel, channelorderfile=None,
         yml=None):
@@ -1727,8 +1740,8 @@ class SmurfUtilMixin(SmurfBase):
         return s
 
 
-    def set_tes_bias_bipolar(self, bias_group, volt, do_enable=True, flip_polarity=False,
-                             **kwargs):
+    def set_tes_bias_bipolar(self, bias_group, volt, do_enable=True, 
+        flip_polarity=False, **kwargs):
         """
         Set an individual TES bias group to the specified voltage, in
         volts.  Asserts if the requested bias group is not defined in
@@ -1752,7 +1765,9 @@ class SmurfUtilMixin(SmurfBase):
         # Make sure the requested bias group is in the list of defined
         # bias groups.
         bias_groups = self.bias_group_to_pair[:,0]        
-        assert (bias_group in bias_groups),f'Bias group {bias_group} is not defined (available bias groups are {bias_groups}).  Doing nothing!'
+        assert (bias_group in bias_groups),\
+            f'Bias group {bias_group} is not defined (available bias '+\
+            f' groups are {bias_groups}).  Doing nothing!'
         
         bias_order = bias_groups
         dac_positives = self.bias_group_to_pair[:,1]
@@ -1875,7 +1890,8 @@ class SmurfUtilMixin(SmurfBase):
         # Make sure the requested bias group is in the list of defined
         # bias groups.
         bias_groups = self.bias_group_to_pair[:,0]        
-        assert (bias_group in bias_groups),f'Bias group {bias_group} is not defined (available bias groups are {bias_groups}).  Doing nothing!'
+        assert (bias_group in bias_groups),\
+            f'Bias group {bias_group} is not defined (available bias groups are {bias_groups}).  Doing nothing!'
         
         bias_order = bias_groups
         dac_positives = self.bias_group_to_pair[:,1]
@@ -1971,8 +1987,8 @@ class SmurfUtilMixin(SmurfBase):
 
         # otherwise do nothing and warn the user
         else:
-            self.log('No value specified for 50K LNA Vg and didn\'t find a default in cfg (amplifier[\'hemt_Vg\']).',
-                     self.LOG_ERROR)
+            self.log('No value specified for 50K LNA Vg and didn\'t find a '+
+                'default in cfg (amplifier[\'hemt_Vg\']).', self.LOG_ERROR)
         ### done with 4K HEMT
         ########################################################################
 
@@ -1989,20 +2005,23 @@ class SmurfUtilMixin(SmurfBase):
         # set it and tell the user
         if not bias_50k is None:
             if bias_50k_from_cfg:
-                self.log('Setting 50K LNA Vg from config file to Vg={0:.{1}f}'.format(bias_50k, 4),
+                self.log('Setting 50K LNA Vg from config file ' +
+                    'to Vg={0:.{1}f}'.format(bias_50k, 4),
                          self.LOG_USER)
             else:
-                self.log('Setting 50K LNA Vg to requested Vg={0:.{1}f}'.format(bias_50k, 4),
+                self.log('Setting 50K LNA Vg to requested '+
+                    'Vg={0:.{1}f}'.format(bias_50k, 4),
                          self.LOG_USER)
 
             self.set_50k_amp_gate_voltage(bias_50k, **kwargs)
 
         # otherwise do nothing and warn the user
         else:
-            self.log('No value specified for 50K LNA Vg and didn\'t find a default in cfg (amplifier[\'LNA_Vg\']).',
+            self.log('No value specified for 50K LNA Vg and didn\'t find a '+
+                'default in cfg (amplifier[\'LNA_Vg\']).',
                      self.LOG_ERROR)
         ### done with 50K LNA
-        ############################################################################
+        ########################################################################
 
         # add some latency in case PIC needs it
         time.sleep(1)
@@ -2082,7 +2101,8 @@ class SmurfUtilMixin(SmurfBase):
             transients to die off.
         """
         bias_groups = self.bias_group_to_pair[:,0]        
-        assert (bias_group in bias_groups),f'Bias group {bias_group} is not defined (available bias groups are {bias_groups}).  Doing nothing!'
+        assert (bias_group in bias_groups),\
+        f'Bias group {bias_group} is not defined (available bias groups are {bias_groups}).  Doing nothing!'
         
         # drive high current through the TES to attempt to drive normal
         self.set_tes_bias_bipolar(bias_group, overbias_voltage,
@@ -2132,7 +2152,9 @@ class SmurfUtilMixin(SmurfBase):
             bias_groups = self.all_groups
 
         valid_bias_groups = self.bias_group_to_pair[:,0]        
-        assert (all(bg in valid_bias_groups for bg in bias_groups)),f'Some of the bias groups requested are not valid (available bias groups are {valid_bias_groups}).  Doing nothing!'
+        assert (all(bg in valid_bias_groups for bg in bias_groups)),\
+            'Some of the bias groups requested are not valid '+\
+            f'(available bias groups are {valid_bias_groups}).  Doing nothing!'
 
         voltage_overbias_array = self.get_tes_bias_bipolar_array()
         voltage_overbias_array[bias_groups] = overbias_voltage
@@ -2795,7 +2817,10 @@ class SmurfUtilMixin(SmurfBase):
 
         # Confirm that the requested frequency falls into a 500 MHz
         # band that's usable in this fw.  If not, assert.
-        assert (np.abs(freq_mhz-band_center_mhz)<250),'! Requested frequency (=%0.1f MHz) outside of the 500 MHz band with the closest band center (=%0.0f MHz).  Doing nothing!'%(freq_mhz,band_center_mhz)
+        assert (np.abs(freq_mhz-band_center_mhz)<250),\
+            f'! Requested frequency (={freq_mhz:0.1f} MHz) outside of the ' + \
+            '500 MHz band with the closest band center ' + \
+            f'(={band_center_mhz:0.0f} MHz). Doing nothing!'
 
 	# Find subband this frequency falls in, and its channels.
         subband,foff=self.freq_to_subband(band,freq_mhz)
@@ -2805,7 +2830,9 @@ class SmurfUtilMixin(SmurfBase):
         allocated_channels=self.which_on(band)
         unallocated_channels=[chan for chan in subband_channels if chan not in allocated_channels]
         # If no unallocated channels available in the subband, assert.
-        assert (len(unallocated_channels)),'! No unallocated channels available in subband (=%d).  Doing nothing!'%(subband)
+        assert (len(unallocated_channels)),\
+            f'! No unallocated channels available in subband (={subband:d}).'+\
+                ' Doing nothing!'
 
         # Take lowest channel number in the list of unallocated
         # channels for this subband.
