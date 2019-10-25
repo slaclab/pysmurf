@@ -3809,14 +3809,17 @@ class SmurfCommandMixin(SmurfBase):
     def set_evr_channel_reg_enable(self, chan, val, **kwargs):
         """
         """
-        self.log('set_evr_channel_reg_enable sets 2 bits. enable and Enable.')
+        # Setting enable is crashing in Rogue 4.  Not even clear we need to set enable=True.
+        #self.log('set_evr_channel_reg_enable sets 2 bits. enable and Enable.')
         self._caput(self.trigger_root +
-            self._trigger_channel_reg_enable.replace('enable', 'Enable').format(chan), 
-            int(val), **kwargs)
-        self._caput(self.trigger_root +
-                    self._trigger_channel_reg_enable.format(chan), val,
+                    self._trigger_channel_reg_enable.replace('enable', 'Enable').format(chan), int(val),
                     **kwargs)
+        # Setting enable is crashing in Rogue 4.  Not even clear we need to set enable=True.        
+        #self._caput(self.trigger_root +
+        #            self._trigger_channel_reg_enable.format(chan), val,
+        #            **kwargs)
 
+    # Crashing in rogue 4, and not clear it's ever needed.
     _trigger_reg_enable = 'EvrV2TriggerReg[{}]:enable'
     def set_evr_trigger_reg_enable(self, chan, val, **kwargs):
         """
