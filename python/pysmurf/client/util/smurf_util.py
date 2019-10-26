@@ -748,7 +748,7 @@ class SmurfUtilMixin(SmurfBase):
         self.close_data_file()
 
 
-    def read_stream_data(self, datafile, channel=None):
+    def read_stream_data(self, datafile, channel=None, n_samp=None):
         """
         Loads data taken with the fucntion stream_data_on.
 
@@ -761,6 +761,7 @@ class SmurfUtilMixin(SmurfBase):
         Opt Args:
         ---------
         channel (int or int array): Channels to load.
+        n_samp (int) : The number of samples to read.
 
         Ret:
         ----

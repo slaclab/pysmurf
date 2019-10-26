@@ -3975,7 +3975,8 @@ class SmurfCommandMixin(SmurfBase):
         ----
         mask (list) ; the channel mask
         """
-        return self._caget(self.smurf_processor, **kwargs)
+        return self._caget(self.smurf_processor + self._channel_mask,
+            **kwargs)
 
         
     _filter_a = 'Filter:A'
