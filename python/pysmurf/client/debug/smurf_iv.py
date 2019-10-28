@@ -6,7 +6,7 @@ import os,sys
 class SmurfIVMixin(SmurfBase):
 
     def slow_iv_all(self, bias_groups=None, wait_time=.1, bias=None, 
-                    bias_high=1.5, gcp_mode=True, bias_low=0, bias_step=.005, 
+                    bias_high=1.5, bias_low=0, bias_step=.005, 
                     show_plot=False, overbias_wait=2., cool_wait=30,
                     make_plot=True, save_plot=True, channels=None, band=None,
                     high_current_mode=True, overbias_voltage=8., 
@@ -62,7 +62,7 @@ class SmurfIVMixin(SmurfBase):
         self.set_tes_bias_bipolar_array(bias[0] * bias_group_bool)
         time.sleep(wait_time) # loops are in pyrogue now, which are faster?
 
-        datafile = self.stream_data_on(gcp_mode=gcp_mode)
+        datafile = self.stream_data_on()
         self.log('writing to {}'.format(datafile))
 
         for b in bias:
@@ -70,7 +70,7 @@ class SmurfIVMixin(SmurfBase):
             self.set_tes_bias_bipolar_array(b * bias_group_bool)
             time.sleep(wait_time) # loops are now in pyrogue, so no division
 
-        self.stream_data_off(gcp_mode=gcp_mode)
+        self.stream_data_off()
         self.log('Done with TES bias ramp', self.LOG_USER)
 
         #self.log('Returning lmsGain to original values', self.LOG_USER)
@@ -101,11 +101,11 @@ class SmurfIVMixin(SmurfBase):
         R_sh=self.R_sh
         self.analyze_slow_iv_from_file(fn_iv_raw_data, make_plot=make_plot,
             show_plot=show_plot, save_plot=save_plot, R_sh=R_sh,
-            gcp_mode=gcp_mode, grid_on=grid_on,
+            grid_on=grid_on,
             phase_excursion_min=phase_excursion_min,chs=channels,band=band)
 
     def partial_load_curve_all(self, bias_high_array, bias_low_array=None, 
-        wait_time=0.1, bias_step=0.1, gcp_mode=True, show_plot=False, analyze=True,  
+        wait_time=0.1, bias_step=0.1, show_plot=False, analyze=True,  
         make_plot=True, save_plot=True, channels=None, overbias_voltage=None,
         overbias_wait=1.0, phase_excursion_min=1.):
         """
@@ -127,7 +127,6 @@ class SmurfIVMixin(SmurfBase):
         wait_time (float): Time to wait at each commanded bias value. Default 0.1
         bias_step (float): Interval size to step the commanded voltage bias.
           Default 0.1
-        gcp_mode (bool): whether to stream data in GCP mode. Default True.
         show_plot (bool): whether to show plots. Default False.
         make_plot (bool): whether to generate plots. Default True. 
         analyze (bool): whether to analyze the data. Default True.
@@ -178,7 +177,7 @@ class SmurfIVMixin(SmurfBase):
         self.log('Starting to take partial load curve.', self.LOG_USER)
         self.log('Starting TES bias ramp.', self.LOG_USER)
 
-        datafile = self.stream_data_on(gcp_mode=gcp_mode)
+        datafile = self.stream_data_on()
         self.log('writing to {}'.format(datafile))
 
         # actually set the arrays
@@ -189,7 +188,7 @@ class SmurfIVMixin(SmurfBase):
         # explicitly set back to the original biases
         self.set_tes_bias_bipolar_array(original_biases)
 
-        self.stream_data_off(gcp_mode=gcp_mode)
+        self.stream_data_off()
         self.log('Done with TES bias ramp', self.LOG_USER)
 
         # should I be messing with lmsGain?
@@ -218,13 +217,13 @@ class SmurfIVMixin(SmurfBase):
         if analyze:
             self.analyze_plc_from_file(fn_plc_raw_data, make_plot=make_plot,
                 show_plot=show_plot, save_plot=save_plot, R_sh=self.R_sh,
-                high_current_mode=self.high_current_mode_bool, gcp_mode=gcp_mode,
+                high_current_mode=self.high_current_mode_bool,
                 phase_excursion_min=phase_excursion_min, channels=channels)
 
     def analyze_slow_iv_from_file(self, fn_iv_raw_data, make_plot=True,
                                   show_plot=False, save_plot=True, R_sh=None, 
                                   phase_excursion_min=3., grid_on=False, 
-                                  gcp_mode=True, R_op_target=0.007,
+                                  R_op_target=0.007,
                                   chs=None, band=None):
         """
         Function to analyze a load curve from its raw file. Can be used to 
@@ -239,8 +238,7 @@ class SmurfIVMixin(SmurfBase):
         save_plot (bool): Defaults True.
         phase_excursion_min (float): abs(max - min) of phase in radians. Analysis 
           ignores any channels without this phase excursion. Default 3.
-        grid_on (bool): Whether to draw the grid on the PR plot. Defaults False.
-        gcp_mode (bool): Whether data was streamed to file in GCP mode. 
+        grid_on (bool): Whether to draw the grid on the PR plot. Defaults False
           Defaults true.
         R_op_target (float): Target operating resistance. Function will 
           generate a histogram indicating bias voltage needed to achieve 
@@ -269,10 +267,7 @@ class SmurfIVMixin(SmurfBase):
         for b in np.unique(bands):
             ivs[b] = {}
 
-        if gcp_mode:
-            timestamp, phase_all, mask = self.read_stream_data_gcp_save(datafile)
-        else:
-            timestamp, phase_all = self.read_stream_data(datafile)
+        timestamp, phase_all, mask = self.read_stream_data(datafile)
         
         rn_list = []
         phase_excursion_list = []
@@ -754,7 +749,7 @@ class SmurfIVMixin(SmurfBase):
 
     def analyze_plc_from_file(self, fn_plc_raw_data, make_plot=True, show_plot=False, 
         save_plot=True, R_sh=None, high_current_mode=None, phase_excursion_min=1., 
-        gcp_mode=True, channels=None):
+        channels=None):
         """
         Function to analyze a partial load curve from its raw file. Basically the same 
         as the slow_iv analysis but without fitting the superconducting branch.
@@ -773,7 +768,6 @@ class SmurfIVMixin(SmurfBase):
           voltages were in high current mode. Defaults to the value in the config file.
         phase_excursion_min (float): abs(max-min) of phase in radian. Analysis will 
           ignore any channels that do not meet this criterion. Default 1.
-        gcp_mode (bool): whether data was streamed to file in GCP mode. Default True.
         channels (int array): which channels to analyze. Defaults to all channels that
           are on and exceed phase_excursion_min 
         """
@@ -788,12 +782,8 @@ class SmurfIVMixin(SmurfBase):
         output_dir = plc_raw_data['output_dir']
         plot_dir = plc_raw_data['plot_dir']
 
-        if gcp_mode:
-            timestamp, phase_all, mask = self.read_stream_data_gcp_save(datafile)
-        else:
-            timestamp, phase_all = self.read_stream_data(datafile)
-            mask = self.make_mask_lookup(datafile.replace('.dat', '_mask.txt'))
-            # ask Ed about this later
+        timestamp, phase_all, mask = self.read_stream_data(datafile)
+
 
         band, chans = np.where(mask != -1) #are these masks secretly the same?
 

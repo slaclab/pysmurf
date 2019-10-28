@@ -420,10 +420,11 @@ class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin, Smu
         self.set_cpld_reset(0, write_log=write_log)
         self.cpld_toggle(write_log=write_log)
 
+        # Depracated for rogue 4.
         # Setup SMuRF to MCE converter
-        self.make_smurf_to_gcp_config()
-        time.sleep(.1)
-        self.read_smurf_to_gcp_config()  # Only for IP address
+        # self.make_smurf_to_gcp_config()
+        # time.sleep(.1)
+        # self.read_smurf_to_gcp_config()  # Only for IP address
 
         # Make sure flux ramp starts off
         self.flux_ramp_off(write_log=write_log)
