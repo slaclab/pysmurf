@@ -17,6 +17,7 @@
 # contained in the LICENSE.txt file.
 #-----------------------------------------------------------------------------
 
+import rogue
 import pyrogue
 import smurf
 import pysmurf.core.counters
@@ -210,12 +211,26 @@ class SmurfProcessor(pyrogue.Device):
         self.file_writer = pyrogue.utilities.fileio.StreamWriter(name='FileWriter')
         self.add(self.file_writer)
 
+        # Add a Fifo. It will hold up to 100 copies of processed frames, to be processed by
+        # downstream slaves. The frames will be tapped before the file writer.
+        self.fifo = rogue.interfaces.stream.Fifo(100,0,False)
+
+        # Connect devices
         pyrogue.streamConnect(self.smurf_frame_stats,  self.smurf_processor)
         pyrogue.streamConnect(self.smurf_processor,    self.smurf_header2smurf)
         pyrogue.streamConnect(self.smurf_header2smurf, self.file_writer.getChannel(0))
+        pyrogue.streamTap(    self.smurf_header2smurf, self.fifo)
 
     def setTesBias(self, index, val):
         pass
+    def _getStreamMaster(self):
+        """
+        Method called by streamConnect, streamTap and streamConnectBiDir to access master.
+        We will pass a reference to the smurf device of the last element in the chain,
+        which is the FIFO.
+        """
+        return self.fifo
+
 
     def _getStreamSlave(self):
         """
