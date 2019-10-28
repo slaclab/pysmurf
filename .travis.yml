@@ -1,0 +1,99 @@
+language: minimal
+
+services:
+  - docker
+
+env:
+  global:
+    - DOCKER_ORG_NAME=tidair
+    - DOCKER_SERVER_REPO=pysmurf-server-base
+    - DOCKER_CLIENT_REPO=pysmurf-client
+
+stages:
+  - test
+  - name: deploy_server_docker
+    if: tag IS present
+  - name: deploy_client_docker
+    if: tag IS present
+
+jobs:
+  include:
+    # Test stage
+    - stage: test
+      name: "Unit Tests"
+      before_install:
+        # Pull the docker image
+        - docker pull tidair/smurf-rogue:R2.1.1
+        # Start the container in the background
+        - |
+          docker run -dti --rm --name smurf_rogue \
+          -v ${TRAVIS_BUILD_DIR}:/root/pysmurf tidair/smurf-rogue:R2.1.1 \
+          /bin/bash
+
+      install:
+        # Try to build the C++ code
+        - |
+          docker exec -w /root/pysmurf smurf_rogue \
+          /bin/bash -c "mkdir build; cd build; \
+          cmake -DCMAKE_BUILD_TYPE=Release .. && make -j4"
+
+      script:
+
+        # Try to import the smurf module
+        - |
+          docker exec smurf_rogue \
+          /bin/bash -c "PYTHONPATH=/root/pysmurf/lib:/root/pysmurf/python:${PYTHPNPATH} \
+          python3 -c 'import rogue; import smurf;'"
+
+        # Try to import the pysmurf's SmurfProcessor module
+        - |
+          docker exec smurf_rogue \
+          /bin/bash -c "PYTHONPATH=/root/pysmurf/lib:/root/pysmurf/python:${PYTHPNPATH} \
+          python3 -c 'import pysmurf.core.devices; \
+          s = pysmurf.core.devices.SmurfProcessor(name=\"\", description=\"\")'"
+
+        # Try to import the pysmurf.client module
+        - |
+          docker exec smurf_rogue \
+          /bin/bash -c "PYTHONPATH=/root/pysmurf/lib:/root/pysmurf/python:${PYTHPNPATH} \
+          python3 -c 'import pysmurf.client'"
+
+    # Deployment stage for the server docker
+    - stage: deploy_server_docker
+      name: "Deploy Server Docker Image"
+      before_script:
+        # Use the git tag to tag tag docker image
+        - export DOCKER_TAG=`git describe --tags --always`
+        # Login to docker
+        - echo "${DOCKER_PASSWORD}" | docker login -u "${DOCKER_ORG_NAME}" --password-stdin;
+
+      script:
+        # Build the docker image
+        - cd docker/server/
+        - docker build -t ${DOCKER_ORG_NAME}/${DOCKER_SERVER_REPO} .
+
+      after_success:
+        # Upload docker image (as tagged and latest version)
+        - docker push ${DOCKER_ORG_NAME}/${DOCKER_SERVER_REPO};
+        - docker tag ${DOCKER_ORG_NAME}/${DOCKER_SERVER_REPO} ${DOCKER_ORG_NAME}/${DOCKER_SERVER_REPO}:${DOCKER_TAG};
+        - docker push ${DOCKER_ORG_NAME}/${DOCKER_SERVER_REPO}:${DOCKER_TAG};
+
+    # Deployment stage for the client docker
+    - stage: deploy_client_docker
+      name: "Deploy Client Docker Image"
+      before_script:
+        # Use the git tag to tag tag docker image
+        - export DOCKER_TAG=`git describe --tags --always`
+        # Login to docker
+        - echo "${DOCKER_PASSWORD}" | docker login -u "${DOCKER_ORG_NAME}" --password-stdin;
+
+      script:
+        # Build the docker image
+        - cd docker/client/
+        - docker build -t ${DOCKER_ORG_NAME}/${DOCKER_CLIENT_REPO} .
+
+      after_success:
+        # Upload docker image (as tagged and latest version)
+        - docker push ${DOCKER_ORG_NAME}/${DOCKER_CLIENT_REPO};
+        - docker tag ${DOCKER_ORG_NAME}/${DOCKER_CLIENT_REPO} ${DOCKER_ORG_NAME}/${DOCKER_CLIENT_REPO}:${DOCKER_TAG};
+        - docker push ${DOCKER_ORG_NAME}/${DOCKER_CLIENT_REPO}:${DOCKER_TAG};
