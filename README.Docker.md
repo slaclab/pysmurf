@@ -128,7 +128,7 @@ Usage: cmb_eth.py
 
 #### Startup script using PCIe communication
 
-The startup script when using PCIe communication, [cmb_eth.py](server_scripts/cmb_eth.py), receives the following arguments:
+The startup script when using PCIe communication, [cmb_pcie.py](server_scripts/cmb_pcie.py), receives the following arguments:
 
 ```
 Usage: cmb_pcie.py
@@ -169,11 +169,11 @@ usage: styart_client.sh [-e|--epics <epics_prefix>] [-c|--config-file <config_fi
     -h|--help                      : Show this message.
 ```
 
-The script will then start an `ipython3` session loading the [pysmurf_startup.py](docker/client/pysmurf_startup.py) script. This script will capture the `epics_prefix` and `config_file` definition passed to the startup script, if any.
+The script will then start an `ipython3` session loading the [pysmurf_startup.py](docker/client/scripts/pysmurf_startup.py) script. This script will capture the `epics_prefix` and `config_file` definition passed to the startup script, if any.
 
 The client needs a location to write data. That locations inside the container is `/data/smurf_data`. So, you need to have those directories in the host CPU and mount then inside the container.
 
-On the other hand, pysmurf run in a ipyhton3 session as the **cryo** user. If you want to keep the ipython history you need to mount a local directory as `/home/cryo/` inside the container.
+On the other hand, the client application runs in a `ipyhton3` session as the `cryo` user. If you want to keep the `ipython3` history you need to mount a local directory as `/home/cryo/` inside the container.
 
 With all that in mind, the command to run the container looks something like this:
 
