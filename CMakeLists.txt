@@ -13,6 +13,12 @@
 # contained in the LICENSE.txt file.
 # ----------------------------------------------------------------------------
 
+# Add support for building in conda environment
+if (DEFINED ENV{CONDA_PREFIX})
+   set(CMAKE_PREFIX_PATH "$ENV{CONDA_PREFIX}")
+   link_directories($ENV{CONDA_PREFIX}/lib)
+endif()
+
 # Check cmake version
 cmake_minimum_required(VERSION 2.8)
 include(InstallRequiredSystemLibraries)
@@ -24,34 +30,23 @@ project (smurf)
 enable_language(CXX)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++0x")
 
-# Boost Configuration
-set(Boost_USE_MULTITHREADED ON)
-
-# Boost may need help on SLAC machines
-set(BOOST_ROOT:PATHNAME $ENV{BOOST_PATH})
-
-# First try standard suffix for boost
-find_package(Boost 1.58 COMPONENTS system thread python3)
-
-# Next try Debian/Ubuntu suffix for boost
-if (NOT Boost_FOUND)
-   find_package(Boost 1.58 REQUIRED COMPONENTS system thread python-py35)
+#####################################
+# Find Rogue & Support Libraries
+#####################################
+if (DEFINED ENV{ROGUE_DIR})
+   set(Rogue_DIR $ENV{ROGUE_DIR}/lib)
+else()
+   set(Rogue_DIR ${CMAKE_PREFIX_PATH}/lib)
 endif()
+find_package(Rogue)
 
-# Find python3
-find_package(PythonInterp 3 REQUIRED)
-find_package(PythonLibs 3 REQUIRED)
-
-# Find Rogue
-set(Rogue_DIR $ENV{ROGUE_DIR}/lib)
-find_package(Rogue REQUIRED)
-
-include_directories(/usr/local/include/)
-
+#####################################
+# Setup build
+#####################################
+# Include files
 include_directories(${ROGUE_INCLUDE_DIRS})
-include_directories(${Boost_INCLUDE_DIRS})
-include_directories(${PYTHON_INCLUDE_DIRS})
 include_directories(${PROJECT_SOURCE_DIR}/include/)
+include_directories(/usr/local/include/)
 
 # Create rogue python library
 AUX_SOURCE_DIRECTORY(src SRC_FILES)
