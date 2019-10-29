@@ -19,6 +19,7 @@
 
 import pyrogue
 import pysmurf
+import os
 
 class SmurfApplication(pyrogue.Device):
     """
