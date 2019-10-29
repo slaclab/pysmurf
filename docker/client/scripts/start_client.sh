@@ -14,9 +14,9 @@ script_name=$(basename $0)
 # Usage message
 usage()
 {
-    echo "Start pysmurf"
+    echo "Start the SMuRF client, pointing to an specific server."
     echo ""
-    echo "usage: ${script_name} [-e|--epics <epics_prefix>] [-h|--help]"
+    echo "usage: ${script_name} [-e|--epics <epics_prefix>] [-c|--config-file <config_file>] [-h|--help]"
     echo "    -e|--epics <epics_prefix>      : Sets the EPICS PV name prefix (defaults to 'smurf_server')."
     echo "    -c|--config-file <config_file> : Path to the configuration path"
     echo "    -h|--help                      : Show this message."

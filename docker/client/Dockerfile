@@ -38,4 +38,4 @@ COPY jupyter /.jupyter
 RUN chown cryo:smurf -R /.jupyter
 ENV JUPYTER_CONFIG_DIR /.jupyter
 
-ENTRYPOINT ["pysmurf_startup.sh"]
+ENTRYPOINT ["start_client.sh"]
