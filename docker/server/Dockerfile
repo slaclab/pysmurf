@@ -24,3 +24,5 @@ ENV SMURF_DIR /usr/local/src/pysmurf
 RUN mkdir -p /usr/local/src/pysmurf_utilities
 ADD scripts/* /usr/local/src/pysmurf_utilities
 ENV PATH /usr/local/src/pysmurf_utilities:${PATH}
+
+ENTRYPOINT ["start_server.sh"]
