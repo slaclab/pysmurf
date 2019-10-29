@@ -19,9 +19,11 @@
 
 import rogue
 import pyrogue
+import pyrogue.utilities.fileio
+
 import smurf
-import pysmurf.core.counters
 import smurf.core.processors
+import pysmurf.core.counters
 import pysmurf.core.conventers
 
 class SmurfChannelMapper(pyrogue.Device):
