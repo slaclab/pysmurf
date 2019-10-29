@@ -2151,8 +2151,12 @@ class SmurfUtilMixin(SmurfBase):
         # drive high current through the TES to attempt to drive normal
         if bias_groups is None:
             bias_groups = self.all_groups
+        else:
+            # assert requires array
+            bias_groups = np.atleast_1d(bias_groups)
 
-        valid_bias_groups = self.bias_group_to_pair[:,0]        
+        valid_bias_groups = self.bias_group_to_pair[:,0]
+
         assert (all(bg in valid_bias_groups for bg in bias_groups)),\
             'Some of the bias groups requested are not valid '+\
             f'(available bias groups are {valid_bias_groups}).  Doing nothing!'

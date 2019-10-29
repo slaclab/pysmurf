@@ -248,7 +248,7 @@ class SmurfIVMixin(SmurfBase):
         """
         self.log('Analyzing from file: {}'.format(fn_iv_raw_data))
 
-        iv_raw_data = np.load(fn_iv_raw_data).item()
+        iv_raw_data = np.load(fn_iv_raw_data, allow_pickle=True).item()
         bias = iv_raw_data['bias']
         high_current_mode = iv_raw_data['high_current_mode']
         bias_group = iv_raw_data['bias group']
