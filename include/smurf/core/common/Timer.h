@@ -21,6 +21,7 @@
  *-----------------------------------------------------------------------------
 **/
 
+#include <iostream>
 #include "smurf/core/common/Helpers.h"
 
 // Class use to measure the time a scope is active
