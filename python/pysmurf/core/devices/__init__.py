@@ -20,3 +20,4 @@
 from pysmurf.core.devices._SmurfProcessor import SmurfProcessor
 from pysmurf.core.devices._PcieCard import *
 from pysmurf.core.devices._UdpReceiver import UdpReceiver
+from pysmurf.core.devices._SmurfApplication import SmurfApplication

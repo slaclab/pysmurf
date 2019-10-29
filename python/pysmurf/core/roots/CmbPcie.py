@@ -46,6 +46,9 @@ class CmbPcie(AppTop.RootBase):
 
         pyrogue.Root.__init__(self, name="AMCc", initRead=True, pollEn=polling_en, **kwargs)
 
+        # Add PySmurf Application Block
+        self.add(pysmurf.core.devices.SmurfApplication())
+
         self._pv_dump_file = pv_dump_file
 
         # Workaround to FpgaTopLelevel not supporting rssi = None
