@@ -8,6 +8,7 @@ env:
     - DOCKER_ORG_NAME=tidair
     - DOCKER_SERVER_REPO=pysmurf-server-base
     - DOCKER_CLIENT_REPO=pysmurf-client
+    - SMURF_ROGUE_VERSION=R2.2.0
 
 stages:
   - test
@@ -23,11 +24,11 @@ jobs:
       name: "Unit Tests"
       before_install:
         # Pull the docker image
-        - docker pull tidair/smurf-rogue:R2.1.1
+        - docker pull tidair/smurf-rogue:${SMURF_ROGUE_VERSION}
         # Start the container in the background
         - |
           docker run -dti --rm --name smurf_rogue \
-          -v ${TRAVIS_BUILD_DIR}:/root/pysmurf tidair/smurf-rogue:R2.1.1 \
+          -v ${TRAVIS_BUILD_DIR}:/root/pysmurf tidair/smurf-rogue:${SMURF_ROGUE_VERSION} \
           /bin/bash
 
       install:
