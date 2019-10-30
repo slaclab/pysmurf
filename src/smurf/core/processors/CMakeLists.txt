@@ -14,5 +14,5 @@
 # ----------------------------------------------------------------------------
 
 target_sources(smurf PRIVATE "${CMAKE_CURRENT_LIST_DIR}/SmurfProcessor.cpp")
-target_sources(smurf PRIVATE "${CMAKE_CURRENT_LIST_DIR}/Emulator.cpp")
 target_sources(smurf PRIVATE "${CMAKE_CURRENT_LIST_DIR}/module.cpp")
+
