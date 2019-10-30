@@ -32,19 +32,28 @@ class SmurfPacketRO;
 
 typedef std::shared_ptr<SmurfPacketRO> SmurfPacketROPtr;
 
-typedef int32_t data_t;        // Data type stored in the packet
-
 // SMuRF packet class. This class give a read-only access
 class SmurfPacketRO
 {
 public:
+    // Data types
+    typedef int32_t                                            data_t;    // Data type stored in the packet
+    typedef SmurfHeaderROPtr< std::vector<uint8_t>::iterator > HeaderPtr; // SmurfHeader pointer
+
+    // Constructor
     SmurfPacketRO(ris::FramePtr frame);
+
+    // Destructor
     virtual ~SmurfPacketRO() {};
 
+    // Factory method
     static SmurfPacketROPtr create(ris::FramePtr frame);
 
-    SmurfHeaderROPtr< std::vector<uint8_t>::iterator > getHeader() const; // Get a pointer to the header object
-    const data_t getData(std::size_t index) const;                        // Get a data value
+    // Get a pointer to a header object
+    HeaderPtr getHeader() const;
+
+    // Get a data value
+    const data_t getData(std::size_t index) const;
 
 private:
     // Prevent construction using the default or copy constructor.
@@ -53,14 +62,11 @@ private:
     SmurfPacketRO(const SmurfPacketRO&);
     SmurfPacketRO& operator=(const SmurfPacketRO&);
 
-    // Data types
-    //typedef int32_t data_t;        // Data type stored in the packet
-
-    // Varariables
-    std::size_t                                        dataSize;  // Number of data values in the packet
-    std::vector<uint8_t>                               header;    // Bufer for the header
-    std::vector<data_t>                                data;      // Buffer for the data
-    SmurfHeaderROPtr< std::vector<uint8_t>::iterator > headerPtr; // SmurfHeader object (smart pointer)
+    // Variables
+    std::size_t          dataSize;  // Number of data values in the packet
+    std::vector<uint8_t> header;    // Buffer for the header
+    std::vector<data_t>  data;      // Buffer for the data
+    HeaderPtr            headerPtr; // SmurfHeader object (smart pointer)
 };
 
 #endif

@@ -51,12 +51,12 @@ SmurfPacketROPtr SmurfPacketRO::create(ris::FramePtr frame)
     return std::make_shared<SmurfPacketRO>(frame);
 }
 
-SmurfHeaderROPtr< std::vector<uint8_t>::iterator > SmurfPacketRO::getHeader() const
+SmurfPacketRO::HeaderPtr SmurfPacketRO::getHeader() const
 {
     return headerPtr;
 }
 
-const data_t SmurfPacketRO::getData(std::size_t index) const
+const SmurfPacketRO::data_t SmurfPacketRO::getData(std::size_t index) const
 {
     return data.at(index);
 }
