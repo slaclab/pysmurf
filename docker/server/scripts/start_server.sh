@@ -37,12 +37,12 @@ usage()
     echo "If -a if not defined, then -S and -N must both be defined, and the FPGA IP address will be automatically calculated from the crate ID and slot number."
     echo "If -a if defined, -S and -N are ignored."
     echo
-    echo "The script will bu default check if the firmware githash read from the FPGA via IPMI is the same of the found in the MCS file name."
+    echo "The script will by default check if the firmware githash read from the FPGA via IPMI is the same of the found in the MCS file name."
     echo "This checking can be disabled with -D. The checking will also be disabled if -a is used instead of -S and -N."
     echo
-    echo "By default, the SMuRF server is tarted without a GUI (server mode). Use -g to start the server with a GUI. -s|--server option is ignored as that is the default."
+    echo "By default, the SMuRF server is tarted without a GUI. Use -g to start the server with a GUI."
     echo
-    echo "All other arguments are passed verbatim to the SMuRF server."
+    echo "All other arguments are passed verbatim to the next startup script."
     echo ""
     exit 1
 }

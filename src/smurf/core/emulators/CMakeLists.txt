@@ -1,5 +1,5 @@
 # ----------------------------------------------------------------------------
-# Title      : SMuRF CMAKE Control
+# Title      : SMURF CMAKE Control
 # ----------------------------------------------------------------------------
 # File       : CMakeLists.txt
 # Created    : 2019-09-24
@@ -13,7 +13,5 @@
 # contained in the LICENSE.txt file.
 # ----------------------------------------------------------------------------
 
-target_sources(smurf PRIVATE "${CMAKE_CURRENT_LIST_DIR}/SmurfHeader.cpp")
-target_sources(smurf PRIVATE "${CMAKE_CURRENT_LIST_DIR}/SmurfPacket.cpp")
-target_sources(smurf PRIVATE "${CMAKE_CURRENT_LIST_DIR}/TesBiasArray.cpp")
+target_sources(smurf PRIVATE "${CMAKE_CURRENT_LIST_DIR}/StreamDataEmulator.cpp")
 target_sources(smurf PRIVATE "${CMAKE_CURRENT_LIST_DIR}/module.cpp")

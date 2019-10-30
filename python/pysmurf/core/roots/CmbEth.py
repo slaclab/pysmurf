@@ -42,6 +42,7 @@ class CmbEth(AppTop.RootBase):
                  disable_gc     = False,
                  pcie_dev_rssi  = "/dev/datadev_0",
                  pcie_dev_data  = "/dev/datadev_1",
+                 txDevice       = None,
                  **kwargs):
 
         pyrogue.Root.__init__(self, name="AMCc", initRead=True, pollEn=polling_en, **kwargs)
@@ -94,7 +95,8 @@ class CmbEth(AppTop.RootBase):
         # Add the SMuRF processor device
         self._smurf_processor = pysmurf.core.devices.SmurfProcessor(
             name="SmurfProcessor",
-            description="Process the SMuRF Streaming Data Stream")
+            description="Process the SMuRF Streaming Data Stream",
+            txDevice=txDevice)
         self.add(self._smurf_processor)
 
         # When Ethernet communication is used, We use a FIFO between the stream data and the receiver:

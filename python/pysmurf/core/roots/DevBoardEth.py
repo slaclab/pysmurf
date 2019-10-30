@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 #-----------------------------------------------------------------------------
-# Title      : Root Class For PCIE Express
+# Title      : Root Class For Dev Board using Ethernet Communication
 #-----------------------------------------------------------------------------
 # File       : CmbPcie.py
 # Created    : 2019-10-11
 #-----------------------------------------------------------------------------
 # Description:
-# Root class for PCI Express Ethernet
+# Root Class For Dev Board using Ethernet Communication
 #-----------------------------------------------------------------------------
 # This file is part of the AmcCarrier Core. It is subject to
 # the license terms in the LICENSE.txt file found in the top-level directory
@@ -17,17 +17,16 @@
 # contained in the LICENSE.txt file.
 #-----------------------------------------------------------------------------
 
-import re
-
-import pyrogue
-import pysmurf
 import rogue.hardware.axi
 import rogue.protocols.srp
+import pyrogue
 
-from   CryoDet._MicrowaveMuxBpEthGen2 import FpgaTopLevel
-import AmcCarrierCore.AppTop              as AppTop
+import pysmurf
 
-class CmbPcie(AppTop.RootBase):
+from  CryoDevBoard.Kcu105Eth import FpgaTopLevel as FpgaTopLevel
+import AmcCarrierCore.AppTop as AppTop
+
+class DevBoardEth(AppTop.RootBase):
     def __init__(self, *,
                  ip_addr        = "",
                  config_file    = "",
@@ -45,10 +44,7 @@ class CmbPcie(AppTop.RootBase):
                  txDevice       = None,
                  **kwargs):
 
-        pyrogue.Root.__init__(self, name="AMCc", initRead=True, pollEn=polling_en, **kwargs)
-
-        # Add PySmurf Application Block
-        self.add(pysmurf.core.devices.SmurfApplication())
+        pyrogue.Root.__init__(self, name="DevBoard", initRead=True, pollEn=polling_en, **kwargs)
 
         self._pv_dump_file = pv_dump_file
 
@@ -56,13 +52,18 @@ class CmbPcie(AppTop.RootBase):
         if pcie_rssi_lane == None:
             pcie_rssi_lane = 0
 
-        # TDEST 0 routed to streamr0 (SRPv3)
-        self.dma = rogue.hardware.axi.AxiStreamDma(pcie_dev_rssi,(pcie_rssi_lane*0x100 + 0),True)
-        self.srp = rogue.protocols.srp.SrpV3()
-        pyrogue.streamConnectBiDir( self.srp, self.dma )
+        # Create Interleaved RSSI interface
+        self._stream = pyrogue.protocols.UdpRssiPack(name='rudp', host=ip_addr, port=8198, packVer = 2, jumbo = True)
+
+        # Connect the SRPv3 to tDest = 0x0
+        self._srp = rogue.protocols.srp.SrpV3()
+        pyrogue.streamConnectBiDir( self._srp, self._stream.application(dest=0x0) )
 
         # Instantiate Fpga top level
-        self._fpga = FpgaTopLevel( memBase      = self.srp,
+        self._fpga = FpgaTopLevel( memBase      = self._srp,
+                                   ipAddr       = ip_addr,
+                                   commType     = "eth-rssi-interleaved",
+                                   pcieRssiLink = pcie_rssi_lane,
                                    disableBay0  = disable_bay0,
                                    disableBay1  = disable_bay1)
 
@@ -81,26 +82,27 @@ class CmbPcie(AppTop.RootBase):
         # Create stream interfaces
         self._ddr_streams = []
 
-        # DDR streams. We are only using the first 2 channel of each AMC daughter card, i.e.
-        # channels 0, 1, 4, 5.
+        # DDR streams. The FpgaTopLevel class will defined a 'stream' interface exposing them.
+        # We are only using the first 2 channel of each AMC daughter card, i.e. channels 0, 1, 4, 5.
         for i in [0, 1, 4, 5]:
-            self._ddr_streams.append(
-                rogue.hardware.axi.AxiStreamDma(pcie_dev_rssi,(pcie_rssi_lane*0x100 + 0x80 + i), True))
+            self._ddr_streams.append(self._stream.application(0x80 + i))
 
-        # Streaming interface stream
-        self._streaming_stream = \
-            rogue.hardware.axi.AxiStreamDma(pcie_dev_data,(pcie_rssi_lane*0x100 + 0xC1), True)
+        # Streaming interface stream. It comes over UDP, port 8195, without RSSI,
+        # so we an UdpReceiver.
+        self._streaming_stream = pysmurf.core.devices.UdpReceiver(ip_addr=ip_addr, port=8195)
 
         # Add the SMuRF processor device
         self._smurf_processor = pysmurf.core.devices.SmurfProcessor(
             name="SmurfProcessor",
             description="Process the SMuRF Streaming Data Stream",
-            txDevice=txDevice)
+            txDevice = txDevice)
         self.add(self._smurf_processor)
 
-        # When PCIe communication is used, we connect the stream data directly to the receiver:
-        # Stream -> smurf2mce receiver
-        pyrogue.streamConnect(self._streaming_stream, self._smurf_processor)
+        # When Ethernet communication is used, We use a FIFO between the stream data and the receiver:
+        # Stream -> FIFO -> smurf_processor receiver
+        self._smurf_processor_fifo = rogue.interfaces.stream.Fifo(100000,0,True)
+        pyrogue.streamConnect(self._streaming_stream, self._smurf_processor_fifo)
+        pyrogue.streamConnect(self._smurf_processor_fifo, self._smurf_processor)
 
         # Add data streams (0-3) to file channels (0-3)
         for i in range(4):
@@ -111,31 +113,6 @@ class CmbPcie(AppTop.RootBase):
         # We have already connected TDEST 0xC1 to the smurf_processor receiver,
         # so we need to tapping it to the data writer.
         pyrogue.streamTap(self._streaming_stream, self._stm_interface_writer.getChannel(0))
-
-        # Look for the TesBias registers
-        # TesBias register are located on
-        # FpgaTopLevel.AppTop.AppCore.RtmCryoDet.RtmSpiMax
-        # And their name is TesBiasDacDataRegCh[n], where x = [0:31]
-        self._TestBiasVars = []
-        self._TestBiasRegEx = re.compile('.*TesBiasDacDataRegCh\[(\d+)\]$')
-        for var in self.FpgaTopLevel.AppTop.AppCore.RtmCryoDet.RtmSpiMax.variableList:
-           m = self._TestBiasRegEx.match(var.name)
-           if m:
-               reg_index = int(m[1]) - 1
-               if reg_index < 32:
-                   print(f'Found TesBias register: {var.name}, with index {reg_index}')
-                   self._TestBiasVars.append(var)
-
-        ## Check that we have all 32 TesBias registers
-        if len(self._TestBiasVars) == 32:
-           print(f'Found 32 TesBias registers. Assigning listener functions')
-           # Add listener to the TesBias registers
-           for var in self._TestBiasVars:
-               var.addListener(self._send_test_bias)
-           # Prepare a buffer to holds the TesBias register values
-           self._TesBiasValue = [0] * 32
-        else:
-           print(f'Error: {len(self._TestBiasVars)} TesBias register were found instead of 32. Aborting')
 
         # Run control for streaming interfaces
         self.add(pyrogue.RunControl(
@@ -265,24 +242,3 @@ class CmbPcie(AppTop.RootBase):
         print("Running garbage collection...")
         gc.collect()
         print( gc.get_stats() )
-
-
-    # Send TesBias to Smurf2MCE
-    def _send_test_bias(self, path, value):
-        # Look for the register index
-        m = self._TestBiasRegEx.match(path)
-        if m:
-            reg_index = int(m[1]) - 1
-            if reg_index < 32:
-
-                # Update reg value in the buffer
-                self._TesBiasValue[reg_index] = value.value
-
-                # The index  send to Smurf2MCE
-                tes_bias_index = reg_index // 2
-
-                # Calculate the difference between DAC bias values
-                tes_bias_val = self._TesBiasValue[2*tes_bias_index+1] - self._TesBiasValue[2*tes_bias_index]
-
-                # Send the difference value to smurf2mce
-                self._smurf_processor.setTesBias(index=tes_bias_index, val=tes_bias_val)

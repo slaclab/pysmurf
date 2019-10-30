@@ -1,4 +1,4 @@
-FROM tidair/smurf-rogue:R2.1.1
+FROM tidair/smurf-rogue:R2.2.0
 
 # Install the SMURF PCIe card repository
 WORKDIR /usr/local/src
@@ -24,3 +24,5 @@ ENV SMURF_DIR /usr/local/src/pysmurf
 RUN mkdir -p /usr/local/src/pysmurf_utilities
 ADD scripts/* /usr/local/src/pysmurf_utilities
 ENV PATH /usr/local/src/pysmurf_utilities:${PATH}
+
+ENTRYPOINT ["start_server.sh"]

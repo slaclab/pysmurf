@@ -12,7 +12,7 @@ class SmurfNoiseMixin(SmurfBase):
         detrend='constant', fs=None, low_freq=np.array([.1, 1.]), 
         high_freq=np.array([1., 10.]), make_channel_plot=True,
         make_summary_plot=True, save_data=False, show_plot=False,
-        grid_on=False, gcp_mode=True, datafile=None):
+        grid_on=False, datafile=None):
         """
         Takes a timestream of noise and calculates its PSD.
 
@@ -42,20 +42,19 @@ class SmurfNoiseMixin(SmurfBase):
         show_plot (bool): Show the plot on the screen. Default False.
         datefile (str): if data has already been taken, can point to a file to 
             bypass data taking and just analyze.
-        gcp_mode (bool) : Whether the data was taken in gcp mode. Default True.
         """
         if channel is None:
             channel = self.which_on(band)
         n_channel = self.get_number_channels(band)
 
         if datafile == None:
-            datafile = self.take_stream_data(meas_time, gcp_mode=gcp_mode)
+            datafile = self.take_stream_data(meas_time)
         else:
             self.log('Reading data from %s' % (datafile))
 
         basename, _ = os.path.splitext(os.path.basename(datafile))
 
-        timestamp, phase, mask = self.read_stream_data_gcp_save(datafile)
+        timestamp, phase, mask = self.read_stream_data(datafile)
         phase *= self.pA_per_phi0/(2.*np.pi) # phase converted to pA
 
         if fs is None:
@@ -288,7 +287,7 @@ class SmurfNoiseMixin(SmurfBase):
                       step_size=0.25, bias=None, high_current_mode=True, 
                       overbias_voltage=9., meas_time=30., analyze=False, 
                       channel=None, nperseg=2**13, detrend='constant', 
-                      fs=None, show_plot=False, cool_wait=30., gcp_mode=True,
+                      fs=None, show_plot=False, cool_wait=30.,
                       psd_ylim=(10.,1000.),make_timestream_plot=False):
         """
         This ramps the TES voltage from bias_high to bias_low and takes noise
@@ -328,7 +327,7 @@ class SmurfNoiseMixin(SmurfBase):
         self.noise_vs(band=band, bias_group=bias_group, var='bias', 
                       var_range=bias, meas_time=meas_time, analyze=analyze, 
                       channel=channel, nperseg=nperseg, detrend=detrend, 
-                      fs=fs, show_plot=show_plot, gcp_mode=gcp_mode, 
+                      fs=fs, show_plot=show_plot,  
                       psd_ylim=psd_ylim, overbias_voltage=overbias_voltage,
                       cool_wait=cool_wait,high_current_mode=high_current_mode,
                       make_timestream_plot=make_timestream_plot)
@@ -337,7 +336,7 @@ class SmurfNoiseMixin(SmurfBase):
                            amplitudes=None,
                            meas_time=30., analyze=False, channel=None, nperseg=2**13,
                            detrend='constant', fs=None, show_plot = False,
-                           gcp_mode = True, make_timestream_plot=False, 
+                           make_timestream_plot=False, 
                            psd_ylim = None):
         """
         Args:
@@ -353,13 +352,13 @@ class SmurfNoiseMixin(SmurfBase):
         self.noise_vs(band=band,var='amplitude',var_range=amplitudes,
                  meas_time=meas_time, analyze=analyze, channel=channel, 
                  nperseg=nperseg, detrend=detrend, fs=fs, show_plot=show_plot, 
-                 make_timestream_plot=make_timestream_plot, gcp_mode=gcp_mode, 
+                 make_timestream_plot=make_timestream_plot,  
                  psd_ylim=psd_ylim)
 
     def noise_vs(self, band, var, var_range, 
                  meas_time=30, analyze=False, channel=None, nperseg=2**13,
                  detrend='constant', fs=None, show_plot=False,
-                 gcp_mode=True, psd_ylim=None, make_timestream_plot=False,
+                 psd_ylim=None, make_timestream_plot=False,
                  **kwargs):
 
         if fs is None:
@@ -428,7 +427,7 @@ class SmurfNoiseMixin(SmurfBase):
                     show_plot=False)
 
             self.log('Taking data')
-            datafile = self.take_stream_data(meas_time,gcp_mode=gcp_mode)
+            datafile = self.take_stream_data(meas_time)
             datafiles = np.append(datafiles, datafile)
             self.log('datafile {}'.format(datafile))
             
@@ -448,8 +447,7 @@ class SmurfNoiseMixin(SmurfBase):
                                        bias_group = kwargs['bias_group'], 
                                        nperseg=nperseg, detrend=detrend, fs=fs, 
                                        save_plot=True, show_plot=show_plot, 
-                                       data_timestamp=timestamp, 
-                                       gcp_mode=gcp_mode,psd_ylim=psd_ylim,
+                                       data_timestamp=timestamp ,psd_ylim=psd_ylim,
                                        make_timestream_plot=make_timestream_plot,
                                        xlabel_override=xlabel_override, 
                                        unit_override=unit_override)
@@ -550,7 +548,7 @@ class SmurfNoiseMixin(SmurfBase):
     def analyze_noise_vs_bias(self, bias, datafile, channel=None, band=None,
         nperseg=2**13, detrend='constant', fs=None, save_plot=True, 
         show_plot=False, make_timestream_plot=False, data_timestamp=None,
-        psd_ylim=(10.,1000.), gcp_mode = True, bias_group=None, smooth_len=15,
+        psd_ylim=(10.,1000.), bias_group=None, smooth_len=15,
         show_legend=True, freq_range_summary=None, R_sh=None,
         high_current_mode=True, iv_data_filename=None, NEP_ylim=(10.,1000.),
         f_center_GHz=150.,bw_GHz=32., xlabel_override=None,
@@ -633,7 +631,7 @@ class SmurfNoiseMixin(SmurfBase):
         # Analyze data and save
         for i, (b, d) in enumerate(zip(bias, datafile)):
             timestream_dict[b] = {}
-            timestamp, phase, mask = self.read_stream_data_gcp_save(d)
+            timestamp, phase, mask = self.read_stream_data(d)
             phase *= self.pA_per_phi0/(2.*np.pi) # phase converted to pA
 
             basename, _ = os.path.splitext(os.path.basename(d))
@@ -1217,7 +1215,7 @@ class SmurfNoiseMixin(SmurfBase):
     def analyze_noise_vs_tone(self, tone, datafile, channel=None, band=None,
         nperseg=2**13, detrend='constant', fs=None, save_plot=True, 
         show_plot=False, make_timestream_plot=False, data_timestamp=None,
-        psd_ylim=(10.,1000.), gcp_mode = True, bias_group=None, smooth_len=11,
+        psd_ylim=(10.,1000.), bias_group=None, smooth_len=11,
         show_legend=True, freq_range_summary=None):
         """
         Analysis script associated with noise_vs_tone.
@@ -1249,7 +1247,7 @@ class SmurfNoiseMixin(SmurfBase):
 
         # Analyze data and save
         for i, (b, d) in enumerate(zip(tone, datafile)):
-            timestamp, phase, mask = self.read_stream_data_gcp_save(d)
+            timestamp, phase, mask = self.read_stream_data(d)
             phase *= self.pA_per_phi0/(2.*np.pi) # phase converted to pA
 
             basename, _ = os.path.splitext(os.path.basename(d))

@@ -17,10 +17,13 @@
 # contained in the LICENSE.txt file.
 #-----------------------------------------------------------------------------
 
+import rogue
 import pyrogue
+import pyrogue.utilities.fileio
+
 import smurf
-import pysmurf.core.counters
 import smurf.core.processors
+import pysmurf.core.counters
 import pysmurf.core.conventers
 
 class SmurfChannelMapper(pyrogue.Device):
@@ -180,8 +183,14 @@ class SmurfProcessor(pyrogue.Device):
     stream from the FW application, and process it by doing channel
     mapping, data unwrapping, filtering and downsampling in a
     monolithic C++ module.
+
+    Args
+    ----
+    name        (str)            : Name of the device
+    description (str)            : Description of the device
+    txDevice    (pyrogue.Device) : A packet transmitter device
     """
-    def __init__(self, name, description, **kwargs):
+    def __init__(self, name, description, txDevice=None, **kwargs):
         pyrogue.Device.__init__(self, name=name, description=description, **kwargs)
 
         self.smurf_frame_stats = pysmurf.core.counters.FrameStatistics(name="FrameRxStats")
@@ -210,9 +219,22 @@ class SmurfProcessor(pyrogue.Device):
         self.file_writer = pyrogue.utilities.fileio.StreamWriter(name='FileWriter')
         self.add(self.file_writer)
 
+        # Add a Fifo. It will hold up to 100 copies of processed frames, to be processed by
+        # downstream slaves. The frames will be tapped before the file writer.
+        self.fifo = rogue.interfaces.stream.Fifo(100,0,False)
+
+        # Connect devices
         pyrogue.streamConnect(self.smurf_frame_stats,  self.smurf_processor)
         pyrogue.streamConnect(self.smurf_processor,    self.smurf_header2smurf)
         pyrogue.streamConnect(self.smurf_header2smurf, self.file_writer.getChannel(0))
+        pyrogue.streamTap(    self.smurf_header2smurf, self.fifo)
+
+        # If a TX device was defined, add it to the tree
+        # and connect it to the chain, after the fifo
+        if txDevice:
+            self.transmitter = txDevice
+            self.add(self.transmitter)
+            pyrogue.streamConnect(self.fifo, self.transmitter)
 
     def setTesBias(self, index, val):
         pass
