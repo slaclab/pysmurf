@@ -8,7 +8,6 @@ env:
     - DOCKER_ORG_NAME=tidair
     - DOCKER_SERVER_REPO=pysmurf-server-base
     - DOCKER_CLIENT_REPO=pysmurf-client
-    - SMURF_ROGUE_VERSION=R2.2.0
 
 stages:
   - test
