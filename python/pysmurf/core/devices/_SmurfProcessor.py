@@ -183,8 +183,14 @@ class SmurfProcessor(pyrogue.Device):
     stream from the FW application, and process it by doing channel
     mapping, data unwrapping, filtering and downsampling in a
     monolithic C++ module.
+
+    Args
+    ----
+    name        (str)            : Name of the device
+    description (str)            : Description of the device
+    txDevice    (pyrogue.Device) : A packet transmitter device
     """
-    def __init__(self, name, description, **kwargs):
+    def __init__(self, name, description, txDevice=None, **kwargs):
         pyrogue.Device.__init__(self, name=name, description=description, **kwargs)
 
         self.smurf_frame_stats = pysmurf.core.counters.FrameStatistics(name="FrameRxStats")
@@ -223,16 +229,15 @@ class SmurfProcessor(pyrogue.Device):
         pyrogue.streamConnect(self.smurf_header2smurf, self.file_writer.getChannel(0))
         pyrogue.streamTap(    self.smurf_header2smurf, self.fifo)
 
+        # If a TX device was defined, add it to the tree
+        # and connect it to the chain, after the fifo
+        if txDevice:
+            self.transmitter = txDevice
+            self.add(self.transmitter)
+            pyrogue.streamConnect(self.fifo, self.transmitter)
+
     def setTesBias(self, index, val):
         pass
-    def _getStreamMaster(self):
-        """
-        Method called by streamConnect, streamTap and streamConnectBiDir to access master.
-        We will pass a reference to the smurf device of the last element in the chain,
-        which is the FIFO.
-        """
-        return self.fifo
-
 
     def _getStreamSlave(self):
         """
