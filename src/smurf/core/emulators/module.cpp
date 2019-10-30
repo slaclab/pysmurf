@@ -19,7 +19,7 @@
 **/
 
 #include <boost/python.hpp>
-#include "smurf/core/processors/module.h"
+#include "smurf/core/emulators/module.h"
 #include "smurf/core/emulators/StreamDataEmulator.h"
 
 namespace bp  = boost::python;
@@ -36,5 +36,5 @@ void sce::setup_module()
     // set the current scope to the new sub-module
     bp::scope io_scope = module;
 
-    sce::SmurfProcessor::setup_python();
+    sce::StreamDataEmulator::setup_python();
 }
