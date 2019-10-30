@@ -1,5 +1,5 @@
 # ----------------------------------------------------------------------------
-# Title      : SMURF CMAKE Control
+# Title      : SMuRF CMAKE Control
 # ----------------------------------------------------------------------------
 # File       : CMakeLists.txt
 # Created    : 2019-09-24
@@ -13,9 +13,5 @@
 # contained in the LICENSE.txt file.
 # ----------------------------------------------------------------------------
 
-add_subdirectory(common)
-add_subdirectory(counters)
-add_subdirectory(conventers)
-add_subdirectory(processors)
-
+target_sources(smurf PRIVATE "${CMAKE_CURRENT_LIST_DIR}/BaseTransmitter.cpp")
 target_sources(smurf PRIVATE "${CMAKE_CURRENT_LIST_DIR}/module.cpp")
