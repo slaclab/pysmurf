@@ -1,3 +1,18 @@
+#!/usr/bin/env python
+#-----------------------------------------------------------------------------
+# Title      : pysmurf base module - SmurfBase class
+#-----------------------------------------------------------------------------
+# File       : pysmurf/base/base_class.py
+# Created    : 2018-08-30
+#-----------------------------------------------------------------------------
+# This file is part of the pysmurf software package. It is subject to 
+# the license terms in the LICENSE.txt file found in the top-level directory 
+# of this distribution and at: 
+#    https://confluence.slac.stanford.edu/display/ppareg/LICENSE.html. 
+# No part of the pysmurf software package, including this file, may be 
+# copied, modified, propagated, or distributed except according to the terms 
+# contained in the LICENSE.txt file.
+#-----------------------------------------------------------------------------
 import numpy as np
 from .logger import SmurfLogger
 from pysmurf.client.command.cryo_card import CryoCard
@@ -34,10 +49,14 @@ class SmurfBase(object):
         """
         Opt Arguments
         --------------
+        log (log file) : The log file to write to. If None, creates a new log
+            file.
+        epics_root (str) : The name of the epics root. For example "test_epics".
+        offline (bool) : Whether to run in offline mode (no rogue) or not. This
+            will break many things. Default is False.
         pub_root (str):
             Root of environment vars to set publisher options. If None, the
             default root will be "SMURFPUB_".
-
         script_id (str):
             Script id included with publisher messages. For example, the
             script or operation name.

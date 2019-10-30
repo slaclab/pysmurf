@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 # Copyright 2019 Matthew Hasselfield.
 # Redistribution and use of this code are permitted under the terms
 # of the LICENSE in this repository.

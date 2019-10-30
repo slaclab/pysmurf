@@ -1,7 +1,25 @@
+#!/usr/bin/env python
+#-----------------------------------------------------------------------------
+# Title      : pysmurf debug module - SmurfIVMixin class
+#-----------------------------------------------------------------------------
+# File       : pysmurf/debug/smurf_iv.py
+# Created    : 2018-09-17
+#-----------------------------------------------------------------------------
+# This file is part of the pysmurf software package. It is subject to 
+# the license terms in the LICENSE.txt file found in the top-level directory 
+# of this distribution and at: 
+#    https://confluence.slac.stanford.edu/display/ppareg/LICENSE.html. 
+# No part of the pysmurf software package, including this file, may be 
+# copied, modified, propagated, or distributed except according to the terms 
+# contained in the LICENSE.txt file.
+#-----------------------------------------------------------------------------
 import numpy as np
 from pysmurf.client.base import SmurfBase
 import time
 import os,sys
+import matplotlib.pyplot as plt
+from matplotlib.gridspec import GridSpec
+import matplotlib.colors as Colors
 
 class SmurfIVMixin(SmurfBase):
 
@@ -15,6 +33,7 @@ class SmurfIVMixin(SmurfBase):
         Steps the TES bias down slowly. Starts at bias_high to bias_low with
         step size bias_step. Waits wait_time between changing steps.
 
+        If this analyzes the data, the outputs are stored to output_dir.
 
         Opt Args:
         ---------
@@ -26,6 +45,20 @@ class SmurfIVMixin(SmurfBase):
         bias_high (int): The maximum TES bias in volts. Default 19.9
         bias_low (int): The minimum TES bias in volts. Default 0
         bias_step (int): The step size in volts. Default .1
+        overbias_wait (float) : The time to stay in the overbiased state in 
+            seconds. The default is 2 sec.
+        cool_wait (float) : The time to stay in the low current state after 
+            overbiasing before taking the IV.
+        make_plot (bool) : Whether to make plots. Default True
+        save_plot (bool) : Whether to save the plot. Default True.
+        channels (int array) : A list of channels to make plots
+        band (int array) : The bands to analyze
+        high_current_mode (bool) : The current mode to take the IV in.
+        overbias_voltage (float) : The voltage to set the TES bias in the 
+            overbias stage.
+        grid_on (bool) : Grids on plotting. This is Aris fault.
+        phase_excursion_min (float) : The minimum phase excursion required for
+            making plots.
         """
 
         n_bias_groups = self._n_bias_groups
@@ -39,8 +72,10 @@ class SmurfIVMixin(SmurfBase):
             overbias = False
 
         if bias is None:
+            # Set actual bias levels
             bias = np.arange(bias_high, bias_low-bias_step, -bias_step)
 
+        # Overbias the TESs to drive them normal
         if overbias:
             self.overbias_tes_all(bias_groups=bias_groups, 
                 overbias_wait=overbias_wait, tes_bias=np.max(bias), 
@@ -80,6 +115,8 @@ class SmurfIVMixin(SmurfBase):
         basename, _ = os.path.splitext(os.path.basename(datafile))
         path = os.path.join(self.output_dir, basename + '_iv_bias_all')
         np.save(path, bias)
+
+        # publisher announcement
         self.pub.register_file(path, 'iv_bias', format='npy')
 
         iv_raw_data = {}
@@ -124,7 +161,8 @@ class SmurfIVMixin(SmurfBase):
         -----
         bias_low_array (float array): (n_bias_groups,) array of voltage biases, in 
           bias group order. Defaults to whatever is currently set
-        wait_time (float): Time to wait at each commanded bias value. Default 0.1
+        wait_time (float): Time to wait at each commanded bias value. 
+            Default 0.1
         bias_step (float): Interval size to step the commanded voltage bias.
           Default 0.1
         show_plot (bool): whether to show plots. Default False.
@@ -220,6 +258,7 @@ class SmurfIVMixin(SmurfBase):
                 high_current_mode=self.high_current_mode_bool,
                 phase_excursion_min=phase_excursion_min, channels=channels)
 
+
     def analyze_slow_iv_from_file(self, fn_iv_raw_data, make_plot=True,
                                   show_plot=False, save_plot=True, R_sh=None, 
                                   phase_excursion_min=3., grid_on=False, 
@@ -230,9 +269,11 @@ class SmurfIVMixin(SmurfBase):
           analyze IV's/generate plots separately from issuing commands.
 
         Args:
+        -----
         fn_iv_raw_data (str): *_iv_raw_data.npy file to analyze
 
         Opt Args:
+        ---------
         make_plot (bool): Defaults True. Usually this is the slowest part.
         show_plot (bool): Defaults False.
         save_plot (bool): Defaults True.
@@ -277,10 +318,10 @@ class SmurfIVMixin(SmurfBase):
         v_tes_target_list = []
         for c, (b, ch) in enumerate(zip(bands,chans)):
             if (chs is not None) and (ch not in chs):
-                self.log('Not in desired channel list: skipping band {} ch. {}'.format(b,ch))
+                self.log(f'Not in desired channel list: skipping band {b} ch {ch}')
                 continue
             elif (band is not None) and (b != band):
-                self.log('Not in desired band: skipping band {} ch. {}'.format(b,ch))
+                self.log(f'Not in desired band: skipping band {b} ch. {ch}')
                 continue
 
             self.log('Analyzing band {} channel {}'.format(b,ch))
@@ -297,7 +338,6 @@ class SmurfIVMixin(SmurfBase):
             phase_excursion_list.append(phase_excursion)
 
             if make_plot:
-                import matplotlib.pyplot as plt
                 plt.rcParams["patch.force_edgecolor"] = True
                 
                 if not show_plot:
@@ -376,9 +416,6 @@ class SmurfIVMixin(SmurfBase):
         if len(phase_excursion_list) == 0:
             self.log('phase excursion list length 0')
         elif make_plot:
-            import matplotlib.pyplot as plt
-            from matplotlib.gridspec import GridSpec
-            import matplotlib.colors as Colors
             colors = []
             tableau = Colors.TABLEAU_COLORS
             for c in tableau:
@@ -422,22 +459,25 @@ class SmurfIVMixin(SmurfBase):
             ax_si.hist(si_target_list,bins=20)
             ax_si.axvline(si_target_median,linestyle='--',color=color_median,\
                               label='Median = {:.2f}'.format(si_target_median)\
-                              + ' $\mu\mathrm{V}^{-1}$')
+                              + r' $\mu\mathrm{V}^{-1}$')
             ax_si.axvline(si_goal,linestyle='--',color=color_goal,\
                               label=r'$-\mathrm{med}(V_\mathrm{TES})^{-1} = $'+\
                               '{:.2f}'.format(si_goal) + \
-                              ' $\mu\mathrm{V}^{-1}$')
-            ax_si.set_xlabel('Responsivity [$\mu\mathrm{V}^{-1}$] at $R = $'+\
+                              r' $\mu\mathrm{V}^{-1}$')
+            ax_si.set_xlabel(r'Responsivity [$\mu\mathrm{V}^{-1}$] at $R = $'+\
                                  '{:.0f}'.format(R_op_target/1e-3) + \
-                                 ' $\mathrm{m}\Omega$')
+                                 r' $\mathrm{m}\Omega$')
             plt.legend(loc='best')
 
             plt.tight_layout()
             fig.subplots_adjust(top=0.925)
+
+            # Title
             plt.suptitle('{}, band {}, group{}'.format(basename,\
                                              np.unique(band),bias_group))
-            iv_hist_filename = os.path.join(plot_dir,\
-                                                '%s_IV_hist.png' % (basename))
+            iv_hist_filename = os.path.join(plot_dir, f'{basename}_IV_hist.png')
+
+            # Save the figure
             plt.savefig(iv_hist_filename,bbox_inches='tight')
             self.pub.register_file(iv_hist_filename, 'iv_hist', plot=True)
 
@@ -479,12 +519,12 @@ class SmurfIVMixin(SmurfBase):
 
         r_inline = self.bias_line_resistance
         if high_current_mode:
-            # high-current mode generates higher current by decreases the in-line resistance
+            # high-current mode generates higher current by decreases the 
+            # in-line resistance
             r_inline /= self.high_low_current_ratio
         i_bias = 1.0E6 * v_bias / r_inline 
 
         if make_plot:
-            import matplotlib.pyplot as plt
             if show_plot:
                 plt.ion()
             else:
@@ -530,7 +570,14 @@ class SmurfIVMixin(SmurfBase):
         resp_bin -= norm_fit[1]  # now in real current units
 
         sc_fit = np.polyfit(i_bias[:sc_idx], resp_bin[:sc_idx], 1)
-        resp_bin[:sc_idx] -= sc_fit[1] # subtract off unphysical y-offset in superconducting branch; this is probably due to an undetected phase wrap at the kink between the superconducting branch and the transition, so it is *probably* legitimate to remove it by hand. We don't use the offset of the superconducting branch for anything meaningful anyway. This will just make our plots look nicer.
+
+        # subtract off unphysical y-offset in superconducting branch; this is 
+        # probably due to an undetected phase wrap at the kink between the 
+        # superconducting branch and the transition, so it is *probably* 
+        # legitimate to remove it by hand. We don't use the offset of the 
+        # superconducting branch for anything meaningful anyway. This will just 
+        # make our plots look nicer.
+        resp_bin[:sc_idx] -= sc_fit[1] 
         sc_fit[1] = 0 # now change s.c. fit offset to 0 for plotting
 
         R = R_sh * (i_bias/(resp_bin) - 1)
@@ -558,10 +605,14 @@ class SmurfIVMixin(SmurfBase):
         i_tes = resp_bin        
         smooth_dist = 5
         w_len = 2*smooth_dist + 1
+
+        # Running average
         w = (1./float(w_len))*np.ones(w_len) # window
-        i_tes_smooth = np.convolve(i_tes,w,mode='same')
-        v_tes_smooth = np.convolve(v_tes,w,mode='same')
+        i_tes_smooth = np.convolve(i_tes, w, mode='same')
+        v_tes_smooth = np.convolve(v_tes, w, mode='same')
         r_tes_smooth = v_tes_smooth/i_tes_smooth
+
+        # Take derivatives
         di_tes = np.diff(i_tes_smooth)
         dv_tes = np.diff(v_tes_smooth)
         R_L_smooth = np.ones(len(r_tes_smooth))*R_L
@@ -572,22 +623,16 @@ class SmurfIVMixin(SmurfBase):
         rL = R_L_smooth[:-1]
         si_etf = -1./(i0*r0)
         beta = 0.
+
+        # Responsivity estimate
         si = -(1./i0)*( dv_tes/di_tes - (r0+rL+beta*r0) ) / \
             ( (2.*r0-rL+beta*r0)*dv_tes/di_tes - 3.*rL*r0 - rL**2 )
-        '''
-        plt.figure()
-        plt.plot(i_bias[:-1],rL)
-        plt.plot(i_bias[:-1],R_L*np.ones(len(rL)))
-        plt.plot(i_bias[:-1],r0)
-        plt.show()
-        '''
+
         if i_R_op == len(si):
             i_R_op -= 1
         si_target = si[i_R_op]
 
         if make_plot:
-            from matplotlib.gridspec import GridSpec
-            import matplotlib.colors as Colors
             colors = []
             tableau = Colors.TABLEAU_COLORS
             for c in tableau:
@@ -617,7 +662,7 @@ class SmurfIVMixin(SmurfBase):
             if band is not None and channel is not None:
                 title += ', {:.2f} MHz'.format(self.channel_to_freq(band, channel))
             title += r', $R_\mathrm{sh}$ = ' + '${:.2f}$ '.format(R_sh*1.0E3) + \
-                '$\mathrm{m}\Omega$'
+                r'$\mathrm{m}\Omega$'
             plot_name = basename + '_' + plot_name
             title = basename + ' ' + title
             plot_name += '.png'
@@ -640,14 +685,14 @@ class SmurfIVMixin(SmurfBase):
                            r' $\mathrm{m}\Omega$')  
             ax_ii.plot(i_bias[:sc_idx], 
                 sc_fit[0] * i_bias[:sc_idx] + sc_fit[1], linestyle='--', 
-                color=color_sc,label=r'$R_L$' + \
-                           ' = ${:.0f}$'.format(R_L/1e-6) + \
-                           r' $\mu\mathrm{\Omega}$')
+                color=color_sc, label=r'$R_L$' + \
+                    ' = ${:.0f}$'.format(R_L/1e-6) + \
+                    r' $\mu\mathrm{\Omega}$')
 
             label_target = r'$R = {:.0f}$ '.format(R_op_target/1e-3)+\
-                        r'$\mathrm{m}\Omega$'
+                r'$\mathrm{m}\Omega$'
             label_rfrac = '{:.2f}-{:.2f}'.format(R_frac_min,\
-                                             R_frac_max) + r'$R_N$'
+                R_frac_max) + r'$R_N$'
 
             for i in range(len(ax_i)):
                 if ax_i[i] == ax_ri:
@@ -656,22 +701,22 @@ class SmurfIVMixin(SmurfBase):
                 else:
                     label_vline = None
                     label_vspan = None
-                ax_i[i].axvline(i_op_target,color='g',linestyle='--',
-                                label=label_vline)
+                ax_i[i].axvline(i_op_target, color='g', linestyle='--',
+                    label=label_vline)
                 ax_i[i].axvspan(i_bias[sc_idx], i_bias[nb_idx], 
-                                color=color_etf, alpha=.15,label=label_vspan)
+                    color=color_etf, alpha=.15,label=label_vspan)
                 if grid_on:
                     ax_i[i].grid()
-                ax_i[i].set_xlim(min(i_bias),max(i_bias))
+                ax_i[i].set_xlim(min(i_bias), max(i_bias))
                 if i != len(ax_i)-1:
                     ax_i[i].set_xticklabels([])
-            ax_si.axhline(0.,color=color_norm,linestyle='--')
+            ax_si.axhline(0., color=color_norm, linestyle='--')
 
             ax_ii.legend(loc='best')
             ax_ri.legend(loc='best')
             ax_ri.plot(i_bias, R/R_n, color=color_meas)
             ax_pr.plot(p_tes,R/R_n, color=color_meas)
-            for ax in [ax_ri,ax_pr]:
+            for ax in [ax_ri, ax_pr]:
                 ax.axhline(1, color=color_norm, linestyle='--')
             ax_ri.set_ylabel(r'$R/R_N$')
             ax_i[-1].set_xlabel(r'$I_{b}$ [$\mu\mathrm{A}$]')
@@ -699,7 +744,7 @@ class SmurfIVMixin(SmurfBase):
 
             ax_si.plot(i_bias[:-1],si,color=color_meas)
             ax_si.plot(i_bias[:-1],si_etf,linestyle = '--',
-                       label=r'$-1/V_\mathrm{TES}$',color=color_etf)
+                label=r'$-1/V_\mathrm{TES}$',color=color_etf)
             ax_si.set_ylabel(r'$S_I$ [$\mu\mathrm{V}^{-1}$]')
             ax_si.set_ylim(-2./v_tes_target,2./v_tes_target)
             ax_si.legend(loc='upper right')
@@ -707,12 +752,12 @@ class SmurfIVMixin(SmurfBase):
             ax_pr.set_xlabel(r'$P_\mathrm{TES}$ [pW]')
             ax_pr.set_xscale('log')
             ax_pr.axhspan(R_trans_min/R_n,R_trans_max/R_n,color=color_etf, 
-                              alpha=.15)
-            label_pr = r'%.1f pW' % (p_trans_median)
+                alpha=.15)
+            label_pr = f'{p_trans_median:.1f} pW'
             ax_pr.axvline(p_trans_median, linestyle='--', label=label_pr,
-                              color=color_etf)
+                color=color_etf)
             ax_pr.plot(p_tes[i_R_op],R[i_R_op]/R_n,'o',color=color_target,
-                       label=label_target)
+                label=label_target)
             ax_pr.legend(loc='best')
             if grid_on:
                 ax_pr.grid()
@@ -751,8 +796,9 @@ class SmurfIVMixin(SmurfBase):
         save_plot=True, R_sh=None, high_current_mode=None, phase_excursion_min=1., 
         channels=None):
         """
-        Function to analyze a partial load curve from its raw file. Basically the same 
-        as the slow_iv analysis but without fitting the superconducting branch.
+        Function to analyze a partial load curve from its raw file. Basically 
+        the same as the slow_iv analysis but without fitting the superconducting
+        branch.
 
         Args:
         -----
@@ -809,7 +855,6 @@ class SmurfIVMixin(SmurfBase):
             # would work once we had a permanent lookup table of ch to bias group...
 
             if make_plot: # make the timestream plot
-                import matplotlib.pyplot as plt
                 plt.rcParams["patch.force_edgecolor"] = True
 
                 if not show_plot:
@@ -876,7 +921,6 @@ class SmurfIVMixin(SmurfBase):
         assert ivs_raw_cold['bias group'], \
             'Files must contain IVs from the same bias group'
     
-        import matplotlib.pyplot as plt
         plot_dir = self.plot_dir
 
         dT = t_hot - t_cold
@@ -899,10 +943,10 @@ class SmurfIVMixin(SmurfBase):
             Ptrans_hot = ivs_hot[ch]['Ptrans']
             Ptrans_cold = ivs_cold[ch]['Ptrans']
             if Ptrans_hot is None or Ptrans_cold is None:
-                print('Missing in-transition electrical powers for Ch. %i' % (ch))
+                print(f'Missing in-transition electrical powers for Ch. {ch}')
                 continue
             dPdT = (Ptrans_cold - Ptrans_hot)/dT
-            self.log('Group {}, Ch {:03}: dP/dT = {:.3f} pW/K'.format(group, ch, dPdT))
+            self.log(f'Group {group}, Ch {ch:03}: dP/dT = {dPdT:.3f} pW/K')
             if dPdT_lim is not None:
                 if dPdT >= dPdT_lim[0] and dPdT <= dPdT_lim[1]:
                     dPdT_list.append(dPdT)
@@ -911,23 +955,31 @@ class SmurfIVMixin(SmurfBase):
             else:
                 dPdT_list.append(dPdT)
 
-            fig_pr,ax_pr = plt.subplots(1,sharex=True)
+            # Make figure
+            fig_pr,ax_pr = plt.subplots(1, sharex=True)
+
+            # Labels
             ax_pr.set_xlabel(r'$R_\mathrm{TES}$ [$\Omega$]')
             ax_pr.set_ylabel(r'$P_\mathrm{TES}$ [pW]')
-            label_hot = '%s: %.0f K' % (basename_hot,t_hot)
-            label_cold = '%s: %.0f K' % (basename_cold,t_cold)
-            ax_pr.axhline(y=Ptrans_hot,linestyle = '--',color = 'b')
-            ax_pr.axhline(y=Ptrans_cold,linestyle = '--',color = 'r')
+            label_hot = f'{basename_hot}: {t_hot:.0f} K'
+            label_cold = f'{basename_cold}: {t_cold:.0f} K'
+            ax_pr.axhline(y=Ptrans_hot, linestyle='--', color='b')
+            ax_pr.axhline(y=Ptrans_cold, linestyle='--', color='r')
+
+            # Plot data
             ax_pr.plot(R_hot,P_hot,label=label_hot,color='b')
             ax_pr.plot(R_cold,P_cold,label=label_cold,color='r')
             ax_pr.legend(loc='best')
-            fig_pr.suptitle('Group {}, Ch {:03}: dP/dT = {:.3f} pW/K'.format(group, ch, dPdT))
+            fig_pr.suptitle(f'Group {group}, Ch {ch:03}: dP/dT = {dPdT:.3f} pW/K')
             ax_pr.grid()
             
-            plot_name = basename_hot + '_' + basename_cold + '_optEff_g{}_ch{:03}.png'.format(group, ch)
+            # Plot name
+            plot_name = basename_hot + '_' + basename_cold + f'_optEff_g{group}_ch{ch:03}.png'
             plot_filename = os.path.join(plot_dir, plot_name)
             self.log('Saving optical-efficiency plot to {}'.format(plot_filename))
-            plt.savefig(plot_filename,bbox_inches='tight', dpi=300)
+            plt.savefig(plot_filename, bbox_inches='tight', dpi=300)
+
+            # Publish
             self.pub.register_file(plot_filename, 'opt_efficiency', plot=True)
             plt.close()
 
@@ -936,11 +988,12 @@ class SmurfIVMixin(SmurfBase):
         plt.xlabel('dP/dT [pW/K]')
         plt.grid()
         dPdT_median = np.median(dPdT_list)
-        plt.title('Group {}, median = {:.3f} pW/K ({} outliers not plotted)'.format(group,dPdT_median,n_outliers))
+        plt.title(f'Group {group}, median = {dPdT_median:.3f} pW/K '+
+            f'({n_outliers} outliers not plotted)')
         plot_name = basename_hot + '_' + basename_cold + '_dPdT_hist_g{}.png'.format(group)
         hist_filename = os.path.join(plot_dir,plot_name)
         self.log('Saving optical-efficiency histogram to {}'.format(hist_filename))
-        plt.savefig(hist_filename,bbox_inches='tight',dpi=300)
+        plt.savefig(hist_filename, bbox_inches='tight', dpi=300)
         self.pub.register_file(hist_filename, 'opt_efficiency', plot=True)
         plt.close()
 

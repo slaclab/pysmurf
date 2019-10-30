@@ -1,12 +1,23 @@
+#!/usr/bin/env python
+#-----------------------------------------------------------------------------
+# Title      : pysmurf base module - SmurfConfig class
+#-----------------------------------------------------------------------------
+# File       : pysmurf/base/smurf_config.py
+# Created    : 2018-08-30
+#-----------------------------------------------------------------------------
+# This file is part of the pysmurf software package. It is subject to 
+# the license terms in the LICENSE.txt file found in the top-level directory 
+# of this distribution and at: 
+#    https://confluence.slac.stanford.edu/display/ppareg/LICENSE.html. 
+# No part of the pysmurf software package, including this file, may be 
+# copied, modified, propagated, or distributed except according to the terms 
+# contained in the LICENSE.txt file.
+#-----------------------------------------------------------------------------
 import json
 import io
 import re
 import os
 import numpy as np
-'''
-Stolen from Cyndia/Shawns get_config.py
-read or dump a config file
-'''
 
 class SmurfConfig:
     """Initialize, read, or dump a SMuRF config file.
@@ -14,11 +25,11 @@ class SmurfConfig:
 
     """
 
-    def __init__(self, filename=None):
+    def __init__(self, filename=None, validate_config=True):
         self.filename = filename
         # self.config = [] # do I need to initialize this? I don't think so
         if self.filename is not None:
-            self.read(update=True)
+            self.read(update=True, validate_config=validate_config)
 
     def read_json(self, filename, comment_char='#'):
         """Reads a json config file
@@ -43,7 +54,7 @@ class SmurfConfig:
         loaded_config = json.loads('\n'.join(no_comments))
         return loaded_config
     
-    def read(self, update=False):
+    def read(self, update=False, validate_config=True):
         """Reads config file and updates the configuration.
 
            Args:
@@ -52,12 +63,15 @@ class SmurfConfig:
         loaded_config=self.read_json(self.filename)
 
         # validate
-        validated_config=self.validate_config(loaded_config)
+        if validate_config:
+            validated_config = self.validate_config(loaded_config)
         
-        if update:
-            # put in some logic here to make sure parameters in experiment file match 
-            # the parameters we're looking for
-            self.config = validated_config
+            if update:
+                # put in some logic here to make sure parameters in experiment file match 
+                # the parameters we're looking for
+                self.config = validated_config
+        else:
+            self.config = loaded_config
 
     def update(self, key, val):
         """Updates a single key in the config
@@ -317,6 +331,7 @@ class SmurfConfig:
             Optional('freq_min', default=-250.e6) : And(Use(float),lambda f: -307.2e6 <= f <= 307.2e6),
 
             'fraction_full_scale' : And(Use(float),lambda f: 0 < f <=1.),
+            'reset_rate_khz' : And(Use(float), lambda f: 0 <= f <= 100),
             Optional('default_tune',default=None) : And(str,os.path.isfile)
         }
 

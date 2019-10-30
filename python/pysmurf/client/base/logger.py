@@ -1,8 +1,13 @@
-"""
-Logger classes - This is stoled from spider_tools. 
-Originally written by M. Hasselfield and ported by S. Rahlin
-"""
-
+#!/usr/bin/env python
+#-----------------------------------------------------------------------------
+# Title      : pysmurf base module - Logger class
+#-----------------------------------------------------------------------------
+# File       : pysmurf/base/logger.py
+# Created    : 2018-08-29
+#-----------------------------------------------------------------------------
+# This is adapted from spider_tools.  Originally written by
+# M. Hasselfield and ported by S. Rahlin
+#-----------------------------------------------------------------------------
 import sys
 import datetime as dt
 
