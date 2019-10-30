@@ -1,0 +1,244 @@
+#!/usr/bin/env python3
+#-----------------------------------------------------------------------------
+# Title      : Root Class For Dev Board using Ethernet Communication
+#-----------------------------------------------------------------------------
+# File       : CmbPcie.py
+# Created    : 2019-10-11
+#-----------------------------------------------------------------------------
+# Description:
+# Root Class For Dev Board using Ethernet Communication
+#-----------------------------------------------------------------------------
+# This file is part of the AmcCarrier Core. It is subject to
+# the license terms in the LICENSE.txt file found in the top-level directory
+# of this distribution and at:
+#    https://confluence.slac.stanford.edu/display/ppareg/LICENSE.html.
+# No part of the AmcCarrierCore, including this file, may be
+# copied, modified, propagated, or distributed except according to the terms
+# contained in the LICENSE.txt file.
+#-----------------------------------------------------------------------------
+
+import rogue.hardware.axi
+import rogue.protocols.srp
+import pyrogue
+
+import pysmurf
+
+from  CryoDevBoard.Kcu105Eth import FpgaTopLevel as FpgaTopLevel
+import AmcCarrierCore.AppTop as AppTop
+
+class DevBoardEth(AppTop.RootBase):
+    def __init__(self, *,
+                 ip_addr        = "",
+                 config_file    = "",
+                 epics_prefix   = "",
+                 polling_en     = True,
+                 pcie_rssi_lane = None,
+                 stream_pv_size = 0,
+                 stream_pv_type = "UInt16",
+                 pv_dump_file   = "",
+                 disable_bay0   = False,
+                 disable_bay1   = False,
+                 disable_gc     = False,
+                 pcie_dev_rssi  = "/dev/datadev_0",
+                 pcie_dev_data  = "/dev/datadev_1",
+                 txDevice       = None,
+                 **kwargs):
+
+        pyrogue.Root.__init__(self, name="DevBoard", initRead=True, pollEn=polling_en, **kwargs)
+
+        self._pv_dump_file = pv_dump_file
+
+        # Workaround to FpgaTopLelevel not supporting rssi = None
+        if pcie_rssi_lane == None:
+            pcie_rssi_lane = 0
+
+        # Create Interleaved RSSI interface
+        self._stream = pyrogue.protocols.UdpRssiPack(name='rudp', host=ip_addr, port=8198, packVer = 2, jumbo = True)
+
+        # Connect the SRPv3 to tDest = 0x0
+        self._srp = rogue.protocols.srp.SrpV3()
+        pyrogue.streamConnectBiDir( self._srp, self._stream.application(dest=0x0) )
+
+        # Instantiate Fpga top level
+        self._fpga = FpgaTopLevel( memBase      = self._srp,
+                                   ipAddr       = ip_addr,
+                                   commType     = "eth-rssi-interleaved",
+                                   pcieRssiLink = pcie_rssi_lane,
+                                   disableBay0  = disable_bay0,
+                                   disableBay1  = disable_bay1)
+
+        # Add devices
+        self.add(self._fpga)
+
+        # File writer for streaming interfaces
+        # DDR interface (TDEST 0x80 - 0x87)
+        self._stm_data_writer = pyrogue.utilities.fileio.StreamWriter(name='streamDataWriter')
+        self.add(self._stm_data_writer)
+
+        # Streaming interface (TDEST 0xC0 - 0xC7)
+        self._stm_interface_writer = pyrogue.utilities.fileio.StreamWriter(name='streamingInterface')
+        self.add(self._stm_interface_writer)
+
+        # Create stream interfaces
+        self._ddr_streams = []
+
+        # DDR streams. The FpgaTopLevel class will defined a 'stream' interface exposing them.
+        # We are only using the first 2 channel of each AMC daughter card, i.e. channels 0, 1, 4, 5.
+        for i in [0, 1, 4, 5]:
+            self._ddr_streams.append(self._stream.application(0x80 + i))
+
+        # Streaming interface stream. It comes over UDP, port 8195, without RSSI,
+        # so we an UdpReceiver.
+        self._streaming_stream = pysmurf.core.devices.UdpReceiver(ip_addr=ip_addr, port=8195)
+
+        # Add the SMuRF processor device
+        self._smurf_processor = pysmurf.core.devices.SmurfProcessor(
+            name="SmurfProcessor",
+            description="Process the SMuRF Streaming Data Stream",
+            txDevice = txDevice)
+        self.add(self._smurf_processor)
+
+        # When Ethernet communication is used, We use a FIFO between the stream data and the receiver:
+        # Stream -> FIFO -> smurf_processor receiver
+        self._smurf_processor_fifo = rogue.interfaces.stream.Fifo(100000,0,True)
+        pyrogue.streamConnect(self._streaming_stream, self._smurf_processor_fifo)
+        pyrogue.streamConnect(self._smurf_processor_fifo, self._smurf_processor)
+
+        # Add data streams (0-3) to file channels (0-3)
+        for i in range(4):
+            ## DDR streams
+            pyrogue.streamConnect(self._ddr_streams[i], self._stm_data_writer.getChannel(i))
+
+        ## Streaming interface streams
+        # We have already connected TDEST 0xC1 to the smurf_processor receiver,
+        # so we need to tapping it to the data writer.
+        pyrogue.streamTap(self._streaming_stream, self._stm_interface_writer.getChannel(0))
+
+        # Run control for streaming interfaces
+        self.add(pyrogue.RunControl(
+            name='streamRunControl',
+            description='Run controller',
+            cmd=self._fpga.SwDaqMuxTrig,
+            rates={
+                1:  '1 Hz',
+                10: '10 Hz',
+                30: '30 Hz'}))
+
+        # lcaPut limits the maximun lenght of a string to 40 chars, as defined
+        # in the EPICS R3.14 CA reference manual. This won't allowed to use the
+        # command 'ReadConfig' with a long file path, which is usually the case.
+        # This function is a workaround to that problem. Fomr matlab one can
+        # just call this function without arguments an the function ReadConfig
+        # will be called with a predefined file passed during startup
+        # However, it can be usefull also win the GUI, so it is always added.
+        self._config_file = config_file
+        self.add(pyrogue.LocalCommand(
+            name='setDefaults',
+            description='Set default configuration',
+            function=self._set_defaults_cmd))
+
+        # If Garbage collection was disable, add this local variable to allow users
+        # to manually run the garbage collection.
+        if disable_gc:
+            self.add(pyrogue.LocalCommand(
+                name='runGarbageCollection',
+                description='runGarbageCollection',
+                function=self._run_garbage_collection))
+
+        # Add epics interface
+        self._epics = None
+        if epics_prefix:
+            print("Starting EPICS server using prefix \"{}\"".format(epics_prefix))
+            from pyrogue.protocols import epics
+            self._epics = pyrogue.protocols.epics.EpicsCaServer(base=epics_prefix, root=self)
+
+            # PVs for stream data
+            if stream_pv_size:
+
+                print("Enabling stream data on PVs (buffer size = {} points, data type = {})"\
+                    .format(stream_pv_size,stream_pv_type))
+
+                self._stream_fifos  = []
+                self._stream_slaves = []
+                for i in range(4):
+                    self._stream_slaves.append(self._epics.createSlave(name="AMCc:Stream{}".format(i),
+                                                                       maxSize=stream_pv_size,
+                                                                       type=stream_pv_type))
+
+                    # Calculate number of bytes needed on the fifo
+                    if '16' in stream_pv_type:
+                        fifo_size = stream_pv_size * 2
+                    else:
+                        fifo_size = stream_pv_size * 4
+
+                    self._stream_fifos.append(rogue.interfaces.stream.Fifo(1000, fifo_size, True)) # changes
+                    self._stream_fifos[i]._setSlave(self._stream_slaves[i])
+                    pyrogue.streamTap(self._ddr_streams[i], self._stream_fifos[i])
+
+
+    def start(self):
+        pyrogue.Root.start(self)
+
+        # Show image build information
+        try:
+            print("")
+            print("FPGA image build information:")
+            print("===================================")
+            print("BuildStamp              : {}"\
+                .format(self.FpgaTopLevel.AmcCarrierCore.AxiVersion.BuildStamp.get()))
+            print("FPGA Version            : 0x{:x}"\
+                .format(self.FpgaTopLevel.AmcCarrierCore.AxiVersion.FpgaVersion.get()))
+            print("Git hash                : 0x{:x}"\
+                .format(self.FpgaTopLevel.AmcCarrierCore.AxiVersion.GitHash.get()))
+        except AttributeError as attr_error:
+            print("Attibute error: {}".format(attr_error))
+        print("")
+
+        if self._epics:
+            self._epics.start()
+
+            # Dump the PV list to the specified file
+            # This should be made part of the Rogue dump!
+            if self._pv_dump_file:
+                try:
+                    # Try to open the output file
+                    f = open(self._pv_dump_file, "w")
+                except IOError:
+                    print("Could not open the PV dump file \"{}\"".format(self._pv_dump_file))
+                else:
+                    with f:
+                        print("Dumping PV list to \"{}\"...".format(self._pv_dump_file))
+                        try:
+                            try:
+                                # Redirect the stdout to the output file momentarily
+                                original_stdout, sys.stdout = sys.stdout, f
+                                self._epics.dump()
+                            finally:
+                                sys.stdout = original_stdout
+
+                            print("Done!")
+                        except:
+                            # Capture error from epics.dump() if any
+                            print("Errors were found during epics.dump()")
+
+    def stop(self):
+        print("Stopping servers...")
+        if self._epics:
+            self._epics.stop()
+        pyrogue.Root.stop(self)
+
+    # Function for setting a default configuration.
+    def _set_defaults_cmd(self):
+        # Check if a default configuration file has been defined
+        if not self._config_file:
+            print('No default configuration file was specified...')
+            return
+
+        print('Setting defaults from file {}'.format(self._config_file))
+        self.LoadConfig(self._config_file)
+
+
+    def _run_garbage_collection(self):
+        print("Running garbage collection...")
+        gc.collect()
+        print( gc.get_stats() )
