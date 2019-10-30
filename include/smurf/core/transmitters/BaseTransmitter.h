@@ -57,6 +57,12 @@ namespace smurf
                 void       setDisable(bool d);
                 const bool getDisable() const;
 
+                // Clear all counter.
+                void clearCnt();
+
+                // Get the dropped packet counter
+                const std::size_t getPktDropCnt() const;
+
                 // Accept new frames
                 void acceptFrame(ris::FramePtr frame);
 
@@ -69,6 +75,7 @@ namespace smurf
 
             private:
                 bool                          disable;              // Disable flag
+                std::size_t                   pktDropCnt;           // Dropped packet counter
                 std::vector<SmurfPacketROPtr> pktBuffer;            // Dual buffer of Smurf packets. Can hold 2 packets.
                 std::size_t                   writeIndex;           // Buffer position to be written
                 std::size_t                   readIndex;            // Buffer position to be read

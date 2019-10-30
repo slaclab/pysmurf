@@ -29,6 +29,7 @@ sct::BaseTransmitter::BaseTransmitter()
 :
     ris::Slave(),
     disable(false),
+    pktDropCnt(0),
     pktBuffer(2),
     writeIndex(0),
     readIndex(0),
@@ -53,8 +54,10 @@ void sct::BaseTransmitter::setup_python()
                 bp::bases<ris::Slave>,
                 boost::noncopyable >
                 ("BaseTransmitter",bp::init<>())
-        .def("setDisable", &BaseTransmitter::setDisable)
-        .def("getDisable", &BaseTransmitter::getDisable)
+        .def("setDisable",    &BaseTransmitter::setDisable)
+        .def("getDisable",    &BaseTransmitter::getDisable)
+        .def("clearCnt",      &BaseTransmitter::clearCnt)
+        .def("getPktDropCnt", &BaseTransmitter::getPktDropCnt)
     ;
     bp::implicitly_convertible< sct::BaseTransmitterPtr, ris::SlavePtr >();
 }
@@ -67,6 +70,16 @@ void sct::BaseTransmitter::setDisable(bool d)
 const bool sct::BaseTransmitter::getDisable() const
 {
     return disable;
+}
+
+void sct::BaseTransmitter::clearCnt()
+{
+    pktDropCnt = 0;
+}
+
+const std::size_t sct::BaseTransmitter::getPktDropCnt() const
+{
+    return pktDropCnt;
 }
 
 void sct::BaseTransmitter::acceptFrame(ris::FramePtr frame)
@@ -99,6 +112,11 @@ void sct::BaseTransmitter::acceptFrame(ris::FramePtr frame)
         std::unique_lock<std::mutex> lock{txMutex};
         txCV.notify_all();
     }
+    else
+    {
+        // Increase the dropped packet counter
+        ++pktDropCnt;
+    }
 }
 
 void sct::BaseTransmitter::pktTansmitter()
@@ -120,7 +138,7 @@ void sct::BaseTransmitter::pktTansmitter()
             // Call the transmit method here
             transmit( pktBuffer.at(readIndex) );
 
-            // Update the read position idnex
+            // Update the read position index
             readIndex ^= 1;
 
             // Decrement the number of packets in the buffer
