@@ -25,16 +25,17 @@
 #include "smurf/core/conventers/module.h"
 #include "smurf/core/processors/module.h"
 #include "smurf/core/transmitters/module.h"
-
+#include "smurf/core/emulators/module.h"
 
 namespace bp  = boost::python;
 namespace sc = smurf::core;
 
 void sc::setup_module()
 {
-	sc::common::setup_module();
-   	sc::counters::setup_module();
+    sc::common::setup_module();
+    sc::counters::setup_module();
     sc::conventers::setup_module();
     sc::processors::setup_module();
     sc::transmitters::setup_module();
+    sc::emulators::setup_module();
 }
