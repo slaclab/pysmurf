@@ -42,6 +42,7 @@ class CmbPcie(AppTop.RootBase):
                  disable_gc     = False,
                  pcie_dev_rssi  = "/dev/datadev_0",
                  pcie_dev_data  = "/dev/datadev_1",
+                 txDevice       = None,
                  **kwargs):
 
         pyrogue.Root.__init__(self, name="AMCc", initRead=True, pollEn=polling_en, **kwargs)
@@ -90,7 +91,8 @@ class CmbPcie(AppTop.RootBase):
         # Add the SMuRF processor device
         self._smurf_processor = pysmurf.core.devices.SmurfProcessor(
             name="SmurfProcessor",
-            description="Process the SMuRF Streaming Data Stream")
+            description="Process the SMuRF Streaming Data Stream",
+            txDevice=txDevice)
         self.add(self._smurf_processor)
 
         # When PCIe communication is used, we connect the stream data directly to the receiver:
