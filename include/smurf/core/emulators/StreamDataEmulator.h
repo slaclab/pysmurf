@@ -1,15 +1,15 @@
-#ifndef _SMURF_CORE_PROCESSORS_EMULATOR_H_
-#define _SMURF_CORE_PROCESSORS_EMULATOR_H_
+#ifndef _SMURF_CORE_EMULATORS_STREAMDATAEMULATOR_H_
+#define _SMURF_CORE_EMULATORS_STREAMDATAEMULATOR_H_
 
 /**
  *-----------------------------------------------------------------------------
  * Title         : SMuRF Data Emulator
  * ----------------------------------------------------------------------------
- * File          : Emulator.h
+ * File          : StreamDataEmulator.h
  * Created       : 2019-10-28
  *-----------------------------------------------------------------------------
  * Description :
- *    SMuRF Data Emulator Class
+ *    SMuRF Data StreamDataEmulator Class
  *-----------------------------------------------------------------------------
  * This file is part of the smurf software platform. It is subject to
  * the license terms in the LICENSE.txt file found in the top-level directory
@@ -39,18 +39,18 @@ namespace smurf
 {
     namespace core
     {
-        namespace processors
+        namespace emulators
         {
-            class Emulator;
-            typedef std::shared_ptr<Emulator> EmulatorPtr;
+            class StreamDataEmulator;
+            typedef std::shared_ptr<StreamDataEmulator> StreamDataEmulatorPtr;
 
-            class Emulator : public ris::Slave, public ris::Master
+            class StreamDataEmulator : public ris::Slave, public ris::Master
             {
             public:
-                Emulator();
-                ~Emulator();
+                StreamDataEmulator();
+                ~StreamDataEmulator();
 
-                static EmulatorPtr create();
+                static StreamDataEmulatorPtr create();
 
                 static void setup_python();
 

@@ -1,6 +1,6 @@
 /**
  *-----------------------------------------------------------------------------
- * Title         : SMuRF Data Processor
+ * Title         : SMuRF Data Emulator
  * ----------------------------------------------------------------------------
  * File          : SmurfProcessor.cpp
  * Created       : 2019-09-27
@@ -21,14 +21,14 @@
 #include <boost/python.hpp>
 #include <rogue/interfaces/stream/Frame.h>
 #include <rogue/interfaces/stream/FrameIterator.h>
-#include "smurf/core/processors/Emulator.h"
+#include "smurf/core/emulators/StreamDataEmulator.h"
 #include "smurf/core/common/SmurfHeader.h"
 #include <cmath>
 
-namespace scp = smurf::core::processors;
+namespace sce = smurf::core::emulators;
 namespace ris = rogue::interfaces::stream;
 
-scp::Emulator::Emulator() {
+sce::StreamDataEmulator::StreamDataEmulator() {
    sinAmplitude_ = 0;
    sinBaseline_  = 0;
    sinPeriod_    = 0;
@@ -39,82 +39,82 @@ scp::Emulator::Emulator() {
    eLog_ = rogue::Logging::create("pysmurf.emulator");
 }
 
-scp::Emulator::~Emulator() { }
+sce::StreamDataEmulator::~StreamDataEmulator() { }
 
-scp::EmulatorPtr scp::Emulator::create() {
-    return std::make_shared<Emulator>();
+sce::StreamDataEmulatorPtr sce::StreamDataEmulator::create() {
+    return std::make_shared<StreamDataEmulator>();
 }
 
-void scp::Emulator::setup_python() {
-   bp::class_< scp::Emulator,
-               scp::EmulatorPtr,
+void sce::StreamDataEmulator::setup_python() {
+   bp::class_< sce::StreamDataEmulator,
+               sce::StreamDataEmulatorPtr,
                bp::bases<ris::Slave,ris::Master>,
                boost::noncopyable >
-               ("Emulator",bp::init<>())
+               ("StreamDataEmulator",bp::init<>())
 
         // Sin Generate Parameters
-        .def("setSinAmplitude",   &Emulator::setSinAmplitude)
-        .def("getSinAmplitude",   &Emulator::getSinAmplitude)
-        .def("setSinBaseline",    &Emulator::setSinBaseline)
-        .def("getSinBaseline",    &Emulator::getSinBaseline)
-        .def("setSinPeriod",      &Emulator::setSinPeriod)
-        .def("getSinPeriod",      &Emulator::getSinPeriod)
-        .def("setSinChannel",     &Emulator::setSinChannel)
-        .def("getSinChannel",     &Emulator::getSinChannel)
-        .def("setSinEnable",      &Emulator::setSinEnable)
-        .def("getSinEnable",      &Emulator::getSinEnable)
+        .def("setSinAmplitude",   &StreamDataEmulator::setSinAmplitude)
+        .def("getSinAmplitude",   &StreamDataEmulator::getSinAmplitude)
+        .def("setSinBaseline",    &StreamDataEmulator::setSinBaseline)
+        .def("getSinBaseline",    &StreamDataEmulator::getSinBaseline)
+        .def("setSinPeriod",      &StreamDataEmulator::setSinPeriod)
+        .def("getSinPeriod",      &StreamDataEmulator::getSinPeriod)
+        .def("setSinChannel",     &StreamDataEmulator::setSinChannel)
+        .def("getSinChannel",     &StreamDataEmulator::getSinChannel)
+        .def("setSinEnable",      &StreamDataEmulator::setSinEnable)
+        .def("getSinEnable",      &StreamDataEmulator::getSinEnable)
     ;
-    bp::implicitly_convertible< scp::EmulatorPtr, ris::SlavePtr  >();
-    bp::implicitly_convertible< scp::EmulatorPtr, ris::MasterPtr >();
+    bp::implicitly_convertible< sce::StreamDataEmulatorPtr, ris::SlavePtr  >();
+    bp::implicitly_convertible< sce::StreamDataEmulatorPtr, ris::MasterPtr >();
 }
 
 // Sin parameters
-void scp::Emulator::setSinAmplitude(uint16_t value) {
+void sce::StreamDataEmulator::setSinAmplitude(uint16_t value) {
    std::lock_guard<std::mutex> lock(mtx_);
    sinAmplitude_ = value;
 }
 
-uint16_t scp::Emulator::getSinAmplitude() {
+uint16_t sce::StreamDataEmulator::getSinAmplitude() {
    return sinAmplitude_;
 }
 
-void scp::Emulator::setSinBaseline(uint16_t value) {
+void sce::StreamDataEmulator::setSinBaseline(uint16_t value) {
    std::lock_guard<std::mutex> lock(mtx_);
    sinBaseline_ = value;
 }
 
-uint16_t scp::Emulator::getSinBaseline() {
+uint16_t sce::StreamDataEmulator::getSinBaseline() {
    return sinBaseline_;
 }
 
-void scp::Emulator::setSinPeriod(uint16_t value) {
+void sce::StreamDataEmulator::setSinPeriod(uint16_t value) {
    std::lock_guard<std::mutex> lock(mtx_);
    sinPeriod_ = value;
 }
 
-uint16_t scp::Emulator::getSinPeriod() {
+uint16_t sce::StreamDataEmulator::getSinPeriod() {
    return sinPeriod_;
 }
 
-void scp::Emulator::setSinChannel(uint16_t value) {
+void sce::StreamDataEmulator::setSinChannel(uint16_t value) {
    std::lock_guard<std::mutex> lock(mtx_);
    sinChannel_ = value;
 }
 
-uint16_t scp::Emulator::getSinChannel() {
+uint16_t sce::StreamDataEmulator::getSinChannel() {
    return sinChannel_;
 }
 
-void scp::Emulator::setSinEnable(bool value) {
+void sce::StreamDataEmulator::setSinEnable(bool value) {
    std::lock_guard<std::mutex> lock(mtx_);
    sinEnable_ = value;
 }
 
-bool scp::Emulator::getSinEnable() {
+bool sce::StreamDataEmulator::getSinEnable() {
    return sinEnable_;
 }
 
-void scp::Emulator::acceptFrame(ris::FramePtr frame) {
+void sce::StreamDataEmulator::acceptFrame(ris::FramePtr frame) {
 
    {
       rogue::GilRelease noGil;
@@ -137,7 +137,7 @@ void scp::Emulator::acceptFrame(ris::FramePtr frame) {
 }
 
 // Generic sine wave generator
-void scp::Emulator::genSinWave(ris::FramePtr &frame) {
+void sce::StreamDataEmulator::genSinWave(ris::FramePtr &frame) {
 
    SmurfHeaderROPtr<ris::FrameIterator> header = SmurfHeaderRO<ris::FrameIterator>::create(frame);
 

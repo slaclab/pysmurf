@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 #-----------------------------------------------------------------------------
-# Title      : PySMuRF Emulator
+# Title      : PySMuRF StreamDataEmulator
 #-----------------------------------------------------------------------------
-# File       : _Emulator.py
+# File       : _StreamDataEmulator.py
 # Created    : 2019-10-29
 #-----------------------------------------------------------------------------
 # Description:
@@ -19,16 +19,16 @@
 
 import pyrogue
 import smurf
-import smurf.core.processors
+import smurf.core.emulators
 
-class Emulator(pyrogue.Device):
+class StreamDataEmulator(pyrogue.Device):
     """
-    Emulator Block
+    StreamDataEmulator Block
     """
-    def __init__(self, name="Emulator", description="SMURF Data Emulator", **kwargs):
+    def __init__(self, name="StreamDataEmulator", description="SMURF Data Emulator", **kwargs):
         pyrogue.Device.__init__(self, name=name, description=description, **kwargs)
 
-        self._emulator = smurf.core.processor.Emulator()
+        self._emulator = smurf.core.emulators.StreamDataEmulator()
 
         self.add(pyrogue.LocalVariable(
             name='SinEnable',
@@ -73,12 +73,13 @@ class Emulator(pyrogue.Device):
     def _getStreamSlave(self):
         """
         Method called by streamConnect, streamTap and streamConnectBiDir to access slave.
-        We will pass a reference to the smurf device of the first element in the chain,
-        which is the 'FrameStatistics'.
         """
         return self._emulator
 
     def _getStreamMaster(self):
+        """
+        Method called by streamConnect, streamTap and streamConnectBiDir to access master.
+        """
         return self._emulator
 
 
