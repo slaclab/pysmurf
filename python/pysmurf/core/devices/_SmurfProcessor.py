@@ -25,6 +25,7 @@ import smurf
 import smurf.core.processors
 import pysmurf.core.counters
 import pysmurf.core.conventers
+import pysmurf.core.emulators
 
 class SmurfChannelMapper(pyrogue.Device):
     """
@@ -193,8 +194,13 @@ class SmurfProcessor(pyrogue.Device):
     def __init__(self, name, description, txDevice=None, **kwargs):
         pyrogue.Device.__init__(self, name=name, description=description, **kwargs)
 
+        # Add a frame statistics module
         self.smurf_frame_stats = pysmurf.core.counters.FrameStatistics(name="FrameRxStats")
         self.add(self.smurf_frame_stats)
+
+        # Add a data emulator module
+        self.data_emulator = pysmurf.core.emulators.StreamDataEmulator(name="DataSmulator")
+        self.add(self.data_emulator)
 
         # Add the SmurfProcessor C++ device. This module implements: channel mapping,
         # data unwrapping, filter, and downsampling. Python wrapper for these functions
@@ -224,7 +230,8 @@ class SmurfProcessor(pyrogue.Device):
         self.fifo = rogue.interfaces.stream.Fifo(100,0,False)
 
         # Connect devices
-        pyrogue.streamConnect(self.smurf_frame_stats,  self.smurf_processor)
+        pyrogue.streamConnect(self.smurf_frame_stats,  self.data_emulator)
+        pyrogue.streamConnect(self.data_emulator,      self.smurf_processor)
         pyrogue.streamConnect(self.smurf_processor,    self.smurf_header2smurf)
         pyrogue.streamConnect(self.smurf_header2smurf, self.file_writer.getChannel(0))
         pyrogue.streamTap(    self.smurf_header2smurf, self.fifo)
