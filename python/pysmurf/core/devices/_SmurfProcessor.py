@@ -189,9 +189,11 @@ class SmurfProcessor(pyrogue.Device):
     ----
     name        (str)            : Name of the device
     description (str)            : Description of the device
+    root        (pyrogue.Root)   : The pyrogue root. The configuration status of
+                                   this root will go to the data file as metadata.
     txDevice    (pyrogue.Device) : A packet transmitter device
     """
-    def __init__(self, name, description, txDevice=None, **kwargs):
+    def __init__(self, name, description, root=None, txDevice=None, **kwargs):
         pyrogue.Device.__init__(self, name=name, description=description, **kwargs)
 
         # Add a frame statistics module
@@ -222,6 +224,9 @@ class SmurfProcessor(pyrogue.Device):
         # This device doesn't have any user configurations, so we don't add it to the tree
         self.smurf_header2smurf = pysmurf.core.conventers.Header2Smurf(name="Header2Smurf")
 
+        # Use a standard Rogue file writer.
+        # - Channel 0 will be use for the smurf data
+        # - Channel 1 will be use for the configuration data (aka metadata)
         self.file_writer = pyrogue.utilities.fileio.StreamWriter(name='FileWriter')
         self.add(self.file_writer)
 
@@ -235,6 +240,10 @@ class SmurfProcessor(pyrogue.Device):
         pyrogue.streamConnect(self.smurf_processor,    self.smurf_header2smurf)
         pyrogue.streamConnect(self.smurf_header2smurf, self.file_writer.getChannel(0))
         pyrogue.streamTap(    self.smurf_header2smurf, self.fifo)
+
+        # If a root was defined, connect it to the file writer, on channel 1
+        if root:
+            pyrogue.streamConnect(root, self.file_writer.getChannel(1))
 
         # If a TX device was defined, add it to the tree
         # and connect it to the chain, after the fifo
