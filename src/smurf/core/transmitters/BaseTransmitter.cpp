@@ -136,6 +136,8 @@ void sct::BaseTransmitter::acceptMetaFrame(ris::FramePtr frame)
 {
     rogue::GilRelease noGil;
     ris::FrameLockPtr fLock = frame->lock();
+
+    if ( frame->bufferCount() != 1 ) return;
     
     std::string cfg(reinterpret_cast<char const*>(frame->beginRead().ptr()), frame->getPayload());
     fLock->unlock();
