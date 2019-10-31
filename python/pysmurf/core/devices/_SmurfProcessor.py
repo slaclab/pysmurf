@@ -201,7 +201,7 @@ class SmurfProcessor(pyrogue.Device):
         self.add(self.smurf_frame_stats)
 
         # Add a data emulator module
-        self.data_emulator = pysmurf.core.emulators.StreamDataEmulator(name="DataSmulator")
+        self.data_emulator = pysmurf.core.emulators.StreamDataEmulator(name="DataEmulator")
         self.add(self.data_emulator)
 
         # Add the SmurfProcessor C++ device. This module implements: channel mapping,
