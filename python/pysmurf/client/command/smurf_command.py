@@ -4107,7 +4107,7 @@ class SmurfCommandMixin(SmurfBase):
         -----
         factor (int): the down-sampling factor.
         """
-        return self._caput(self.smurf_processor + self._downsampler_factor, 
+        return self._caget(self.smurf_processor + self._downsampler_factor, 
             **kwargs)
 
 
@@ -4131,7 +4131,7 @@ class SmurfCommandMixin(SmurfBase):
         -----
         name (str): The file name.
         """
-        return self._caput(self.smurf_processor + self._data_file_name, 
+        return self._caget(self.smurf_processor + self._data_file_name, 
             **kwargs)
 
 

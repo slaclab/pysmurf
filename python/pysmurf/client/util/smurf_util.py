@@ -2437,6 +2437,44 @@ class SmurfUtilMixin(SmurfBase):
                     
         return output_chans
 
+    def get_filter_params(self):
+        """
+        Get the downsample filter parameters: filter order,
+        filter gain, num averages, and the actual filter
+        parameters.
+
+        If filter order is -1, the downsampler is using a
+        rectangula integrator. This will set filter_a, filter_b 
+        to None.
+        
+        Ret:
+        ----
+        filter_params (dict) : A dictionary with the filter
+            parameters. 
+        """
+        # Get filter order, gain, and averages
+        filter_order = self.get_filter_order()
+        filter_gain = self.get_filter_gain()
+        num_averages = self.get_downsampler_factor()
+
+        if filter_order < 0:
+            a = None
+            b = None
+        else:
+            # Get filter parameters - (filter_order+1) elements
+            a = self.get_filter_a()[:filter_order+1]
+            b = self.get_filter_b()[:filter_order+1]
+            
+        # Cast into dictionary
+        ret = {
+            'filter_order' : filter_order,
+            'filter_gain': filter_gain,
+            'num_averages' : num_averages,
+            'filter_a' : a,
+            'filter_b' : b
+        }
+
+        return ret
     
     def make_gcp_mask(self, band=None, smurf_chans=None, gcp_chans=None,
                       read_gcp_mask=True, mask_channel_offset=0):
