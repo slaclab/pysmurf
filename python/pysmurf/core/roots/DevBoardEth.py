@@ -98,6 +98,7 @@ class DevBoardEth(AppTop.RootBase):
         self._smurf_processor = pysmurf.core.devices.SmurfProcessor(
             name="SmurfProcessor",
             description="Process the SMuRF Streaming Data Stream",
+            root=self,
             txDevice = txDevice)
         self.add(self._smurf_processor)
 
