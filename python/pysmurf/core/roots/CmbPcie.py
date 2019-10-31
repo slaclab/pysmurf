@@ -27,6 +27,8 @@ import rogue.protocols.srp
 from   CryoDet._MicrowaveMuxBpEthGen2 import FpgaTopLevel
 import AmcCarrierCore.AppTop              as AppTop
 
+import pysmurf.core.utilities
+
 class CmbPcie(AppTop.RootBase):
     def __init__(self, *,
                  ip_addr        = "",
@@ -45,7 +47,7 @@ class CmbPcie(AppTop.RootBase):
                  txDevice       = None,
                  **kwargs):
 
-        pyrogue.Root.__init__(self, name="AMCc", initRead=True, pollEn=polling_en, **kwargs)
+        pyrogue.Root.__init__(self, name="AMCc", initRead=True, pollEn=polling_en, streamIncGroups='stream', **kwargs)
 
         # Add PySmurf Application Block
         self.add(pysmurf.core.devices.SmurfApplication())
@@ -202,6 +204,9 @@ class CmbPcie(AppTop.RootBase):
 
     def start(self):
         pyrogue.Root.start(self)
+
+        # Setup groups        
+        pysmurf.core.utilities.setupGroups(self)
 
         # Show image build information
         try:
