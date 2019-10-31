@@ -797,15 +797,31 @@ class SmurfUtilMixin(SmurfBase):
             self.log('Only reading channel {}'.format(channel))
 
 
-        keys = ['protocol_version','crate_id','slot_number','number_of_channels',
-                'rtm_dac_config0', 'rtm_dac_config1', 'rtm_dac_config2',
-                'rtm_dac_config3', 'rtm_dac_config4', 'rtm_dac_config5',
-                'flux_ramp_increment','flux_ramp_start', 'rate_since_1Hz',
-                'rate_since_TM', 'nanoseconds', 'seconds', 'fixed_rate_marker',
-                'sequence_counter', 'tes_relay_config', 'mce_word',
-                'user_word0', 'user_word1', 'user_word2'
+        # Smurf header structure
+        keys = [
+            'protocol_version',
+            'crate_id',
+            'slot_number',
+            'timing_cond',
+            'number_of_channels',
+            #'tes_bias', < TO DO, include the TES bias values
+            'timestamp',
+            'flux_ramp_increment',
+            'flux_ramp_offset',
+            'counter_0',
+            'counter_1',
+            'counter_2',
+            'reset_bits',
+            'frame_counter',
+            'tes_relays_config',
+            'external_time',
+            'control_field',
+            'test_params',
+            'num_rows',
+            'num_rows_reported',
+            'row_length',
+            'data_rate',
         ]
-
         data_keys = [f'data{i}' for i in range(528)]
 
         keys.extend(data_keys)
@@ -893,14 +909,21 @@ class SmurfUtilMixin(SmurfBase):
                             break
 
                     chunk = file.read(2240)  # Frame size is 2240
-                    frame = struct.Struct('3BxI6Q8I5Q528i').unpack(chunk)
+
+                    # This is the structure of the header (see README.SmurfPacket.md for a details)
+                    # Note: This assumes that the header version is 1 (currently the only version available),
+                    # which has a length of 128 bytes. In the future, we should check first the version,
+                    # and then unpack the data base on the version number.
+                    # TO DO: Extract the TES BIAS values
+                    #                         ->| |<-
+                    frame = struct.Struct('BBBBI40xQIIIIQIII4x5B3xBB6xHH4xHH4x528i').unpack(chunk)
 
                     # Extract detector data
                     for i, c in enumerate(channel_mask):
                         tmp_phase[i,counter%n] = frame[c]
 
                     # Timestamp data
-                    tmp_timestamp2[counter%n] = frame[keys_dict['rtm_dac_config5']]
+                    tmp_timestamp2[counter%n] = frame[keys_dict['timestamp']]
 
                     # Store the data in a useful array and reset tmp arrays
                     if counter % n == n - 1 :
