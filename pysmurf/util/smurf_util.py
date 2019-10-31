@@ -2594,7 +2594,8 @@ class SmurfUtilMixin(SmurfBase):
     def get_smurf_to_mce_file(self):
         """
         Reads in the most recent smurf_to_mce file and returns
-        everything in it as a dict.
+        everything in it as a dict. The file location is defined
+        in self.smurf_to_mce_file. 
 
         Ret:
         ----
@@ -2612,13 +2613,19 @@ class SmurfUtilMixin(SmurfBase):
 
         return ret
 
+    
     def get_filter_params(self):
         """
         Get the downsample filter parameters: filter order,
         filter gain, num averages, and the actual filter
         parameters. This reads the most recent smurf_to_mce_file
-        to get the parameters.
+        to get the parameters. This is defined in
+        self.smurf_to_mce_file.
 
+        If filter order is -1, the downsampler is using a
+        rectangula integrator. This will set filter_a, filter_b 
+        to None.
+        
         Ret:
         ----
         filter_params (dict) : A dictionary with the filter
@@ -2627,18 +2634,23 @@ class SmurfUtilMixin(SmurfBase):
         # Load cfg file
         cfg = self.get_smurf_to_mce_file()
         
-        # Get filter order
+        # Get filter order, gain, and averages
         filter_order = int(cfg['filter_order'])
         filter_gain = float(cfg['filter_gain'])
         num_averages = int(cfg['num_averages'])
-        
-        # Get filter parameters
-        a = np.zeros(filter_order, dtype=float)
-        b = np.zeros(filter_order, dtype=float)
-        for i in range(filter_order):
-            a[i] = cfg[f'filter_a{i}']
-            b[i] = cfg[f'filter_b{i}']
 
+        if filter_order < 0:
+            a = None
+            b = None
+        else:
+            # Get filter parameters - (filter_order+1) elements
+            a = np.zeros(filter_order+1, dtype=float)
+            b = np.zeros(filter_order+1, dtype=float)
+            for i in range(filter_order+1):
+                a[i] = cfg[f'filter_a{i}']
+                b[i] = cfg[f'filter_b{i}']
+
+        # Cast into dictionary
         ret = {
             'filter_order' : filter_order,
             'filter_gain': filter_gain,
