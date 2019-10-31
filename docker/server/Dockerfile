@@ -9,7 +9,8 @@ RUN git submodule sync && git submodule update --init --recursive
 ENV PYTHONPATH /usr/local/src/smurf-pcie/software/python:${PYTHONPATH}
 ENV PYTHONPATH /usr/local/src/smurf-pcie/firmware/submodules/axi-pcie-core/python:${PYTHONPATH}
 
-# Install smurf-processor
+# Install pysmurf
+ARG branch
 WORKDIR /usr/local/src
 RUN git clone https://github.com/slaclab/pysmurf.git -b ${branch}
 WORKDIR pysmurf
