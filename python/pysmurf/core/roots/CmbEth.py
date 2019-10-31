@@ -23,6 +23,7 @@ import pyrogue
 import pysmurf
 import rogue.hardware.axi
 import rogue.protocols.srp
+import pysmurf.core.utilities
 
 from   CryoDet._MicrowaveMuxBpEthGen2 import FpgaTopLevel
 import AmcCarrierCore.AppTop              as AppTop
@@ -202,7 +203,6 @@ class CmbEth(AppTop.RootBase):
                     self._stream_fifos[i]._setSlave(self._stream_slaves[i])
                     pyrogue.streamTap(self._ddr_streams[i], self._stream_fifos[i])
 
-
     def start(self):
         pyrogue.Root.start(self)
 
@@ -247,6 +247,9 @@ class CmbEth(AppTop.RootBase):
                         except:
                             # Capture error from epics.dump() if any
                             print("Errors were found during epics.dump()")
+
+        # Add publisher, pub_root & script_id need to be updated
+        self.pub = pysmurf.core.utilities.SmurfPublisher(root=self,pub_root=None,script_id=None)
 
     def stop(self):
         print("Stopping servers...")
