@@ -12,8 +12,10 @@ RUN apt-get update && \
 
 RUN pip3 install scipy pandas pyyaml seaborn jupyter
 
+# Install pysmurf
+ARG branch
 WORKDIR /usr/local/src
-RUN git clone https://github.com/slaclab/pysmurf.git -b rogue-apps
+RUN git clone https://github.com/slaclab/pysmurf.git -b ${branch}
 ENV PYTHONPATH /usr/local/src/pysmurf/python:${PYTHONPATH}
 ENV PYSMURF_TOP /usr/local/src/pysmurf
 

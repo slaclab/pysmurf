@@ -24,12 +24,12 @@ jobs:
       before_install:
         # Build the server docker
         - cd docker/server/
-        - docker build -t server_docker .
+        - docker build --build-arg branch=$TRAVIS_BRANCH -t server_docker .
         - cd -
 
         # Build the client docker
         - cd docker/client/
-        - docker build -t client_docker .
+        - docker build --build-arg branch=$TRAVIS_BRANCH -t client_docker .
         - cd -
 
         # Start the server container in the background
@@ -89,7 +89,7 @@ jobs:
       script:
         # Build the docker image
         - cd docker/server/
-        - docker build -t ${DOCKER_ORG_NAME}/${DOCKER_SERVER_REPO} .
+        - docker build --build-arg branch=$TRAVIS_BRANCH -t ${DOCKER_ORG_NAME}/${DOCKER_SERVER_REPO} .
 
       after_success:
         # Upload docker image (as tagged and latest version)
@@ -109,7 +109,7 @@ jobs:
       script:
         # Build the docker image
         - cd docker/client/
-        - docker build -t ${DOCKER_ORG_NAME}/${DOCKER_CLIENT_REPO} .
+        - docker build --build-arg branch=$TRAVIS_BRANCH -t ${DOCKER_ORG_NAME}/${DOCKER_CLIENT_REPO} .
 
       after_success:
         # Upload docker image (as tagged and latest version)
