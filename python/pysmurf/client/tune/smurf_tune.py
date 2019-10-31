@@ -588,9 +588,12 @@ class SmurfTuneMixin(SmurfBase):
             if swap:
                 adc = adc[::-1]
 
-            f, p_dac = signal.welch(dac, fs=614.4E6, nperseg=n_samples/2)
-            f, p_adc = signal.welch(adc, fs=614.4E6, nperseg=n_samples/2)
-            f, p_cross = signal.csd(dac, adc, fs=614.4E6, nperseg=n_samples/2)
+            f, p_dac = signal.welch(dac, fs=614.4E6, nperseg=n_samples/2,
+                                    return_onesided=True)
+            f, p_adc = signal.welch(adc, fs=614.4E6, nperseg=n_samples/2,
+                                    return_onesided=True)
+            f, p_cross = signal.csd(dac, adc, fs=614.4E6, nperseg=n_samples/2,
+                                    return_onesided=True)
 
             idx = np.argsort(f)
             f = f[idx]
