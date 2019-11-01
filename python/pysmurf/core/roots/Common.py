@@ -46,9 +46,13 @@ class Common(pyrogue.Root):
         # The following interfaces are expected to be defined at this point by a sub-class
         # self._streaming_stream # Data stream interface
         # self._ddr_streams # 4 DDR Interface Streams
+        # self._fpga = Top level FPGA
 
         # Add PySmurf Application Block
         self.add(pysmurf.core.devices.SmurfApplication())
+
+        # Add FPGA
+        self.add(self._fpga)
 
         # File writer for streaming interfaces
         # DDR interface (TDEST 0x80 - 0x87)

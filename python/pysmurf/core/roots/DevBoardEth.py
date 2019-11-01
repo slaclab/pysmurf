@@ -22,7 +22,8 @@ import rogue.protocols.srp
 import pyrogue
 
 import pysmurf
-import Common
+
+from pysmurf.core.roots.Common import Common
 
 from  CryoDevBoard.Kcu105Eth import FpgaTopLevel as FpgaTopLevel
 
@@ -46,12 +47,12 @@ class DevBoardEth(Common.Common):
         pyrogue.streamConnectBiDir( self._srp, self._stream.application(dest=0x0) )
 
         # Instantiate Fpga top level
-        self.add(FpgaTopLevel( memBase      = self._srp,
-                               ipAddr       = ip_addr,
-                               commType     = "eth-rssi-interleaved",
-                               pcieRssiLink = 0, # Not needed
-                               disableBay0  = disable_bay0,
-                               disableBay1  = disable_bay1))
+        self._fpga = FpgaTopLevel( memBase      = self._srp,
+                                   ipAddr       = ip_addr,
+                                   commType     = "eth-rssi-interleaved",
+                                   pcieRssiLink = 0, # Not needed
+                                   disableBay0  = disable_bay0,
+                                   disableBay1  = disable_bay1)
 
         # Create stream interfaces
         self._ddr_streams = []
@@ -66,10 +67,10 @@ class DevBoardEth(Common.Common):
         self._streaming_stream = pysmurf.core.devices.UdpReceiver(ip_addr=ip_addr, port=8195)
 
         # Setup base class
-        Common.Common.__init__(self, config_file    = config_file,
-                                     epics_prefix   = epics_prefix,
-                                     polling_en     = polling_en,
-                                     pv_dump_file   = pv_dump_file,
-                                     txDevice       = txDevice,
-                                     **kwargs)
+        Common.__init__(self, config_file    = config_file,
+                              epics_prefix   = epics_prefix,
+                              polling_en     = polling_en,
+                              pv_dump_file   = pv_dump_file,
+                              txDevice       = txDevice,
+                              **kwargs)
 

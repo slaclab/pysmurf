@@ -21,11 +21,12 @@ import pyrogue
 import pysmurf
 import rogue.hardware.axi
 import rogue.protocols.srp
-import Common
+
+from pysmurf.core.roots.Common import Common
 
 from CryoDet._MicrowaveMuxBpEthGen2 import FpgaTopLevel
 
-class CmbPcie(Common.Common):
+class CmbPcie(Common):
     def __init__(self, *,
                  pcie_rssi_lane = 0,
                  pcie_dev_rssi  = "/dev/datadev_0",
@@ -47,9 +48,9 @@ class CmbPcie(Common.Common):
         pyrogue.streamConnectBiDir(self._srp, self._srpStream)
 
         # Instantiate Fpga top level
-        self.add(FpgaTopLevel( memBase      = self._srp,
-                               disableBay0  = disable_bay0,
-                               disableBay1  = disable_bay1))
+        self._fpga = FpgaTopLevel( memBase      = self._srp,
+                                   disableBay0  = disable_bay0,
+                                   disableBay1  = disable_bay1)
 
         # Create stream interfaces
         self._ddr_streams = []
@@ -65,10 +66,10 @@ class CmbPcie(Common.Common):
             rogue.hardware.axi.AxiStreamDma(pcie_dev_data,(pcie_rssi_lane*0x100 + 0xC1), True)
 
         # Setup base class
-        Common.Common.__init__(self, config_file    = config_file,
-                                     epics_prefix   = epics_prefix,
-                                     polling_en     = polling_en,
-                                     pv_dump_file   = pv_dump_file,
-                                     txDevice       = txDevice,
-                                     **kwargs)
+        Common.__init__(self, config_file    = config_file,
+                              epics_prefix   = epics_prefix,
+                              polling_en     = polling_en,
+                              pv_dump_file   = pv_dump_file,
+                              txDevice       = txDevice,
+                              **kwargs)
 

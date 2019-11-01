@@ -20,11 +20,12 @@
 import pyrogue
 import pysmurf
 import rogue.protocols.srp
-import Common
+
+from pysmurf.core.roots.Common import Common
 
 from CryoDet._MicrowaveMuxBpEthGen2 import FpgaTopLevel
 
-class CmbEth(Common.Common):
+class CmbEth(Common):
     def __init__(self, *,
                  ip_addr        = "",
                  config_file    = None,
@@ -45,9 +46,9 @@ class CmbEth(Common.Common):
         pyrogue.streamConnectBiDir(self._srp, self._stream.application(dest=0x0))
 
         # Instantiate Fpga top level
-        self.add(FpgaTopLevel( memBase      = self._srp,
-                               disableBay0  = disable_bay0,
-                               disableBay1  = disable_bay1))
+        self._fpga = FpgaTopLevel( memBase      = self._srp,
+                                   disableBay0  = disable_bay0,
+                                   disableBay1  = disable_bay1)
 
         # Create ddr stream interfaces for base class
         self._ddr_streams = []
@@ -70,10 +71,10 @@ class CmbEth(Common.Common):
         self._streaming_stream = self._smurf_processor_fifo
 
         # Setup base class
-        Common.Common.__init__(self, config_file    = config_file,
-                                     epics_prefix   = epics_prefix,
-                                     polling_en     = polling_en,
-                                     pv_dump_file   = pv_dump_file,
-                                     txDevice       = txDevice,
-                                     **kwargs)
+        Common.__init__(self, config_file    = config_file,
+                              epics_prefix   = epics_prefix,
+                              polling_en     = polling_en,
+                              pv_dump_file   = pv_dump_file,
+                              txDevice       = txDevice,
+                              **kwargs)
 
