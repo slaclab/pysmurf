@@ -82,6 +82,7 @@ namespace smurf
                 void                setGain(double g);              // Set the filter gain
                 const double        getGain() const;                // Get the filter gain
                 void                resetFilter();                  // Reset the filter
+                void                resetFilterWithMutex();         // Reset the filter, but holding the mutex.
 
                 //** DOWNSAMLER METHODS **//
                 void                setDownsamplerDisable(bool d);  // Disable the processing block. The data

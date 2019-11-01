@@ -82,6 +82,12 @@ class Unwrapper(pyrogue.Device):
             localSet=lambda value: self.device.setUnwrapperDisable(value),
             localGet=self.device.getUnwrapperDisable))
 
+        # Command to reset the unwrapper
+        self.add(pyrogue.LocalCommand(
+            name='reset',
+            description='Reset the unwrapper',
+            function=self.device.resetUnwrapper))
+
 class Downsampler(pyrogue.Device):
     """
     SMuRF Data Downsampler Python Wrapper.
@@ -174,6 +180,12 @@ class GeneralAnalogFilter(pyrogue.Device):
                      1.7218423734035440e-25 ] + [0] * 11,
             localSet=lambda value: self.device.setB(value),
             localGet=self.device.getB))
+
+        # Command to reset the filter
+        self.add(pyrogue.LocalCommand(
+            name='reset',
+            description='Reset the unwrapper',
+            function=self.device.resetFilter))
 
 
 class SmurfProcessor(pyrogue.Device):
