@@ -70,13 +70,15 @@ void scp::SmurfProcessor::setup_python()
                 boost::noncopyable >
                 ("SmurfProcessor",bp::init<>())
         // Channel mapping variables
-        .def("setUnwrapperDisable",     &SmurfProcessor::setUnwrapperDisable)
-        .def("getUnwrapperDisable",     &SmurfProcessor::getUnwrapperDisable)
         .def("getNumCh",                &SmurfProcessor::getNumCh)
         .def("setPayloadSize",          &SmurfProcessor::setPayloadSize)
         .def("getPayloadSize",          &SmurfProcessor::getPayloadSize)
         .def("setMask",                 &SmurfProcessor::setMask)
         .def("getMask",                 &SmurfProcessor::getMask)
+        // Unwrapper variables
+        .def("setUnwrapperDisable",     &SmurfProcessor::setUnwrapperDisable)
+        .def("getUnwrapperDisable",     &SmurfProcessor::getUnwrapperDisable)
+        .def("resetUnwrapper",          &SmurfProcessor::resetUnwrapper)
         // Filter variables
         .def("setFilterDisable",        &SmurfProcessor::setFilterDisable)
         .def("getFilterDisable",        &SmurfProcessor::getFilterDisable)
@@ -88,6 +90,7 @@ void scp::SmurfProcessor::setup_python()
         .def("getB",                    &SmurfProcessor::getB)
         .def("setGain",                 &SmurfProcessor::setGain)
         .def("getGain",                 &SmurfProcessor::getGain)
+        .def("resetFilter",             &SmurfProcessor::resetFilterWithMutex)
         // Downsampler variables
         .def("setDownsamplerDisable",   &SmurfProcessor::setDownsamplerDisable)
         .def("getDownsamplerDisable",   &SmurfProcessor::getDownsamplerDisable)
@@ -421,6 +424,17 @@ void scp::SmurfProcessor::resetFilter()
 
     // Reset the index of the older point in the buffer
     currentBlockIndex = 0;
+}
+
+// Reset the filter but holding the mutex. This is need when reseting the
+// filter from python
+void scp::SmurfProcessor::resetFilterWithMutex()
+{
+    // Take the mutex before changing the filter parameters
+    // This make sure that the new order value is not used before
+    // the a and b array are resized.
+    std::lock_guard<std::mutex> lockFilter(mutFilter);
+    resetFilter();
 }
 
 void scp::SmurfProcessor::setDownsamplerDisable(bool d)
