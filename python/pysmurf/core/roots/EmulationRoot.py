@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 #-----------------------------------------------------------------------------
-# Title      : Root Class For Dev Board using Ethernet Communication
+# Title      : Emulation Root
 #-----------------------------------------------------------------------------
-# File       : CmbPcie.py
+# File       : EmulationRoot.py
 # Created    : 2019-10-11
 #-----------------------------------------------------------------------------
 # Description:
-# Root Class For Dev Board using Ethernet Communication
+# Emulation Root Class
 #-----------------------------------------------------------------------------
 # This file is part of the AmcCarrier Core. It is subject to
 # the license terms in the LICENSE.txt file found in the top-level directory
@@ -17,18 +17,15 @@
 # contained in the LICENSE.txt file.
 #-----------------------------------------------------------------------------
 
-import rogue.hardware.axi
-import rogue.protocols.srp
 import pyrogue
-
 import pysmurf
+import rogue.protocols.srp
 import Common
 
-from  CryoDevBoard.Kcu105Eth import FpgaTopLevel as FpgaTopLevel
+from CryoDet._MicrowaveMuxBpEthGen2 import FpgaTopLevel
 
-class DevBoardEth(Common.Common):
+class EmulationRoot(Common.Common):
     def __init__(self, *,
-                 ip_addr        = "",
                  config_file    = None,
                  epics_prefix   = "EpicsPrefix",
                  polling_en     = True,
@@ -38,32 +35,19 @@ class DevBoardEth(Common.Common):
                  txDevice       = None,
                  **kwargs):
 
-        # Create Interleaved RSSI interface
-        self._stream = pyrogue.protocols.UdpRssiPack(name='rudp', host=ip_addr, port=8198, packVer = 2, jumbo = True)
-
-        # Connect the SRPv3 to tDest = 0x0
-        self._srp = rogue.protocols.srp.SrpV3()
-        pyrogue.streamConnectBiDir( self._srp, self._stream.application(dest=0x0) )
+        # Create the SRP Engine
+        self._srp = pyrogue.interfaces.simulation.MemEmulate()
 
         # Instantiate Fpga top level
         self.add(FpgaTopLevel( memBase      = self._srp,
-                               ipAddr       = ip_addr,
-                               commType     = "eth-rssi-interleaved",
-                               pcieRssiLink = 0, # Not needed
                                disableBay0  = disable_bay0,
                                disableBay1  = disable_bay1))
 
-        # Create stream interfaces
-        self._ddr_streams = []
+        # Create ddr stream interfaces for base class
+        self._ddr_streams = [rogue.interfaces.stream.Master()] * 4
 
-        # DDR streams. The FpgaTopLevel class will defined a 'stream' interface exposing them.
-        # We are only using the first 2 channel of each AMC daughter card, i.e. channels 0, 1, 4, 5.
-        for i in [0, 1, 4, 5]:
-            self._ddr_streams.append(self._stream.application(0x80 + i))
-
-        # Streaming interface stream. It comes over UDP, port 8195, without RSSI,
-        # so we an UdpReceiver.
-        self._streaming_stream = pysmurf.core.devices.UdpReceiver(ip_addr=ip_addr, port=8195)
+        # Set streaming variable for base class
+        self._streaming_stream = rogue.itnterfaces.stream.Master()
 
         # Setup base class
         Common.Common.__init__(self, config_file    = config_file,
