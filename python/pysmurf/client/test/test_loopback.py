@@ -60,3 +60,45 @@ def test_uc_dc_atts(smurf_control):
             "DC att not within acceptable limits."
 
     
+def test_data_write_and_read(smurf_control):
+    band = 1
+    
+    # Define the payload size (this is the default val too)
+    payload_size = 512
+    smurf_control.set_payload_size(payload_size)
+
+    # Turn on some channels
+    x = (np.random.randn(512)>0)*10
+    smurf_control.set_amplitude_scale_array(band, x)
+    input_n_chan = np.sum(x>0)
+    
+    # Take 5 seconds of data
+    filename = smurf_control.take_stream_data(5)
+
+    # The mask file is set by the data streamer, so num_channels
+    # is not set until then. So this check needs to happen
+    # afterwards.
+    assert (len(smurf_control.which_on(band)) ==
+            smurf_control.get_smurf_processor_num_channels()),\
+            f"The number of channels on band {band} is not the same as " + \
+            "the number of channels the smurf_processor thinks are on." + \
+            "You may have other channels on in another band."
+    
+    t, d, m = smurf_control.read_stream_data(d)
+    n_chan, n_samp = np.shape(d)
+
+    assert n_samp > 0, \
+        "The data written to disk has no samples. Something is wrong. " + \
+        "Check that the flux ramp is on and you are triggering in the " + \
+        "correct mode. See documentation for set_ramp_start_mode."
+    
+    assert n_chan == 512, \
+        "read_stream_data should return data with 512 channels " + \
+        "by default. "
+
+    t, d, m = smurf_control.read_stream_data(filename, array_size=0)
+    n_chan, _ = np.shape(d)
+
+    assert n_chan == input_n_chan,\
+        "read_stream_data it supposed to return an array of size n_chan " +\
+        "when optional arg array_size=0."
