@@ -58,11 +58,12 @@ namespace smurf
                 static void setup_python();
 
                 //** CHANNEL MAPPING METHODS **//
-                const std::size_t   getNumCh() const;               // Get the number of mapper channels
+                const std::size_t   getNumCh() const;               // Get the number of mapped channels
                 const std::size_t   getPayloadSize() const;         // Get the payload size
                 void                setPayloadSize(std::size_t s);  // Set the payload size
                 void                setMask(bp::list m);            // Set the Channel mask vector
                 const bp::list      getMask() const;                // Get the Channel mask vector
+                void                updateNumCh();                  // Update the number of channels
 
                 //** UNWRAPPER METHODS **//
                 void                setUnwrapperDisable(bool d);
@@ -121,6 +122,7 @@ namespace smurf
                 std::vector<unwrap_t>    currentData;           // Current data buffer
                 std::vector<unwrap_t>    previousData;          // Previous data buffer
                 std::vector<unwrap_t>    wrapCounter;           // Wrap counters
+                std::mutex               mutUnwrapper;          // Mutex
                 // Filter variables
                 bool                     disableFilter;         // Disable flag for the filter
                 std::size_t              order;                 // Filter order
