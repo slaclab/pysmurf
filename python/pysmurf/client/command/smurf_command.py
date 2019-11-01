@@ -4149,3 +4149,16 @@ class SmurfCommandMixin(SmurfBase):
         Close the data file.
         """
         self._caput(self.smurf_processor + self._data_file_close, 1, **kwargs)
+
+
+    _num_channels = "NumChannels"
+    def get_smurf_processor_num_channels(self, **kwargs):
+        """
+        This is the number of channels that smurf_processor (the thing that
+        does the downsampling, filtering, etc and then swrites to disk/streams
+        data to the DAQ) thinks are on.
+
+        This value is read only.
+        """
+        return self._caget(self.channel_mapper + self._num_channels, **kwargs)
+        
