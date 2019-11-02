@@ -765,7 +765,7 @@ class SmurfUtilMixin(SmurfBase):
         self.close_data_file()
 
 
-    def read_stream_data(self, datafile, channel=None, n_samp=None):
+    def read_stream_data(self, datafile, channel=None, n_samp=None, array_size=512):
         """
         Loads data taken with the fucntion stream_data_on.
 
@@ -779,6 +779,8 @@ class SmurfUtilMixin(SmurfBase):
         ---------
         channel (int or int array): Channels to load.
         n_samp (int) : The number of samples to read.
+        array_size (int) : The size of the output arrays. If 0, then the size
+                           will be the number of channels in the data file.
 
         Ret:
         ----
@@ -822,34 +824,17 @@ class SmurfUtilMixin(SmurfBase):
             'row_length',
             'data_rate',
         ]
-        data_keys = [f'data{i}' for i in range(528)]
-
-        keys.extend(data_keys)
         keys_dict = dict(zip(keys, range(len(keys))))
-
-        # Read in all channels by default
-        if channel is None:
-            channel = np.arange(512)
-
-        channel = np.ravel(np.asarray(channel))
-        n_chan = len(channel)
-
-        # Indices for input channels
-        channel_mask = np.zeros(n_chan, dtype=int)
-        for i, c in enumerate(channel):
-            channel_mask[i] = keys_dict['data{}'.format(c)]
 
         eval_n_samp = False
         if n_samp is not None:
             eval_n_samp = True
 
-        # Make holder arrays for phase and timestamp
-        phase = np.zeros((n_chan,0))
-        timestamp2 = np.array([])
-        counter = 0
-        n = 20000  # Number of elements to load at a time
-        tmp_phase = np.zeros((n_chan, n))
-        tmp_timestamp2 = np.zeros(n)
+        # Flag to indicate we are about the read the fist frame from the disk
+        # The number of channel will be extracted from the first frame and the
+        # data structures will be build based on that
+        first_read = True
+
         with open(datafile, mode='rb') as file:
             while True:
 
@@ -901,14 +886,15 @@ class SmurfUtilMixin(SmurfBase):
                 else:
                     # This is a data block. Processes it
 
-                    if eval_n_samp:
-                        if counter >= n_samp:
-                            phase = np.hstack((phase, tmp_phase[:,:counter%n]))
-                            timestamp2 = np.append(timestamp2,
-                                                   tmp_timestamp2[:counter%n])
-                            break
+                    # This is the size we need to still read from this data block
+                    # We already read 4 bytes from the header.
+                    size = rogue_header['length'] - 4
 
-                    chunk = file.read(2240)  # Frame size is 2240
+                    # Now read the SMuRF header which is 128-byte long
+                    chunk = file.read(128)  # Frame size is 2240
+
+                    # Update the size of data we still need to read
+                    size = size - 128
 
                     # This is the structure of the header (see README.SmurfPacket.md for a details)
                     # Note: This assumes that the header version is 1 (currently the only version available),
@@ -916,14 +902,65 @@ class SmurfUtilMixin(SmurfBase):
                     # and then unpack the data base on the version number.
                     # TO DO: Extract the TES BIAS values
                     #                         ->| |<-
-                    frame = struct.Struct('BBBBI40xQIIIIQIII4x5B3xBB6xHH4xHH4x528i').unpack(chunk)
+                    smurf_header_data = struct.Struct('BBBBI40xQIIIIQIII4x5B3xBB6xHH4xHH4x').unpack(chunk)
+
+                    # Build the smurf header as a dictionary
+                    smurf_header = dict()
+                    for k,v in keys_dict.items():
+                        smurf_header[k] = smurf_header_data[v]
+
+                    # Build the data structures based on the number of channel on the first data frame
+                    if first_read:
+
+                        # Update flag, so that we don't do this code again
+                        first_read = False
+
+                        # Read in all used channels by default
+                        if channel is None:
+                            channel = np.arange(smurf_header['number_of_channels'])
+
+                        channel = np.ravel(np.asarray(channel))
+                        n_chan = len(channel)
+
+                        # Indexes for input channels
+                        channel_mask = np.zeros(n_chan, dtype=int)
+                        for i, c in enumerate(channel):
+                            channel_mask[i] = c
+
+                        # Make holder arrays for phase and timestamp
+                        phase = np.zeros((n_chan,0))
+                        timestamp2 = np.array([])
+                        counter = 0
+                        n = 20000  # Number of elements to load at a time
+                        tmp_phase = np.zeros((n_chan, n))
+                        tmp_timestamp2 = np.zeros(n)
+
+                    if eval_n_samp:
+                        if counter >= n_samp:
+                            phase = np.hstack((phase, tmp_phase[:,:counter%n]))
+                            timestamp2 = np.append(timestamp2,
+                                                   tmp_timestamp2[:counter%n])
+                            break
+
+                    # Read the remaining of data
+                    chunk = file.read(size)
+
+                    # Calculate the number of pad bytes in the data block
+                    # If the packet on;y contains enabled data channels, then,
+                    # this number should be zero.
+                    pad_size = size - smurf_header['number_of_channels']*4
+
+                    # unpack the number of channel in this data block
+                    smurf_data = struct.Struct(f"{smurf_header['number_of_channels']}i{pad_size}x").unpack(chunk)
 
                     # Extract detector data
                     for i, c in enumerate(channel_mask):
-                        tmp_phase[i,counter%n] = frame[c]
+                        # Verify that we accessing indexes in range
+                        if c < smurf_header['number_of_channels']:
+                            tmp_phase[i,counter%n] = smurf_data[c]
 
                     # Timestamp data
-                    tmp_timestamp2[counter%n] = frame[keys_dict['timestamp']]
+                    tmp_timestamp2[counter%n] = smurf_header['timestamp']
 
                     # Store the data in a useful array and reset tmp arrays
                     if counter % n == n - 1 :
@@ -943,6 +980,10 @@ class SmurfUtilMixin(SmurfBase):
 
         # make a mask from mask file
         mask = self.make_mask_lookup(datafile.replace('.dat', '_mask.txt'))
+
+        # If an array_size was defined, resize the phase array
+        if array_size:
+            phase.resize(array_size, phase.shape[1])
 
         return timestamp2, phase, mask
 
@@ -2512,13 +2553,13 @@ class SmurfUtilMixin(SmurfBase):
         parameters.
 
         If filter order is -1, the downsampler is using a
-        rectangula integrator. This will set filter_a, filter_b 
+        rectangula integrator. This will set filter_a, filter_b
         to None.
-        
+
         Ret:
         ----
         filter_params (dict) : A dictionary with the filter
-            parameters. 
+            parameters.
         """
         # Get filter order, gain, and averages
         filter_order = self.get_filter_order()
@@ -2532,7 +2573,7 @@ class SmurfUtilMixin(SmurfBase):
             # Get filter parameters - (filter_order+1) elements
             a = self.get_filter_a()[:filter_order+1]
             b = self.get_filter_b()[:filter_order+1]
-            
+
         # Cast into dictionary
         ret = {
             'filter_order' : filter_order,
@@ -2543,7 +2584,7 @@ class SmurfUtilMixin(SmurfBase):
         }
 
         return ret
-    
+
 
     def make_gcp_mask(self, band=None, smurf_chans=None, gcp_chans=None,
                       read_gcp_mask=True, mask_channel_offset=0):
