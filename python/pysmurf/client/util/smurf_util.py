@@ -885,7 +885,7 @@ class SmurfUtilMixin(SmurfBase):
                 # Check if this is a block of data or metadata
                 # Data comes on channel 0, and metadata on channel 1
 
-                if rogue_header['channel'] is 1:
+                if rogue_header['channel'] == 1:
 
                     # This is our meta data.
                     # We need to process it here.
@@ -893,7 +893,7 @@ class SmurfUtilMixin(SmurfBase):
                     # Skip for now
                     chunk = file.read(rogue_header['length']-4)
 
-                elif rogue_header['channel'] is not 0:
+                elif rogue_header['channel'] == 0:
                     # Skip data on unknown channels, but print
                     # a warning message
                     self.log(f"WARNING. Data present on an unknown channel: {rogue_header['channel']}")
