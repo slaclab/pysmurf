@@ -17,7 +17,7 @@ fw_top_dir="/tmp/fw"
 ########################
 
 # Trap TERM signals and exit
-trap "echo 'An ERROR was found. Aborting...'; exit 1" TERM
+trap "echo 'An ERROR was found. Check shelf manager & card state! Aborting...'; exit 1" TERM
 
 # Usage message
 usage()
@@ -260,3 +260,4 @@ else
     echo "Staring the server using PCIe communication..."
     /usr/local/src/pysmurf/server_scripts/cmb_pcie.py ${args}
 fi
+
