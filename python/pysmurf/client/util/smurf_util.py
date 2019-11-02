@@ -893,7 +893,7 @@ class SmurfUtilMixin(SmurfBase):
                     # Skip for now
                     chunk = file.read(rogue_header['length']-4)
 
-                elif rogue_header['channel'] == 0:
+                elif rogue_header['channel'] != 0:
                     # Skip data on unknown channels, but print
                     # a warning message
                     self.log(f"WARNING. Data present on an unknown channel: {rogue_header['channel']}")
