@@ -4161,4 +4161,34 @@ class SmurfCommandMixin(SmurfBase):
         This value is read only.
         """
         return self._caget(self.channel_mapper + self._num_channels, **kwargs)
-        
+
+    
+    _payload_size = "PayloadSize"
+    def get_payload_size(self, **kwargs):
+        """
+        The payload size defines the number of available channels
+        to write to disk/stream. Payload size must be larger than
+        the number of channels going into the channel mapper
+
+        Ret:
+        ----
+        payload_size (int) : The number of channels written to disk.
+            This is independent of the number of active channels.
+        """
+        return self._caget(self.channel_mapper + self._payload_size,
+                           **kwargs)
+
+    
+    def set_payload_size(self, payload_size, **kwargs):
+        """
+        The payload size defines the number of available channels
+        to write to disk/stream. Payload size must be larger than
+        the number of channels going into the channel mapper
+
+        Args:
+        -----
+        payload_size (int) : The number of channels written to disk.
+            This is independent of the number of active channels.
+        """
+        self._caput(self.channel_mapper + self._payload_size,
+                    payload_size, **kwargs)
