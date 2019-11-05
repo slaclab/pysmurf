@@ -2093,32 +2093,61 @@ class SmurfCommandMixin(SmurfBase):
         return self._caget(self.waveform_engine_buffers_root.format(bay) +
             self._empty.format(engine), **kwargs)
 
-    _data_file = 'dataFile'
-    def set_streamdatawriter_datafile(self, val, **kwargs):
+    _data_file = 'DataFile'
+    def set_streamdatawriter_datafile(self, datafile_path, **kwargs):
         """
+        Sets the output path for the StreamDataWriter. This is what is
+        used for take_debug_data.
+
+        Args:
+        -----
+        datafile_path (str) : The full path for the output.
         """
         self._caput(self.stream_data_writer_root + self._data_file,
-            val, **kwargs)
+            datafile_path, **kwargs)
 
     def get_streamdatawriter_datafile(self, **kwargs):
         """
+        Gets the output path for the StreamDataWriter. This is what is
+        used for take_debug_data.
+
+        Ret:
+        ----
+        datafile_path (str) : The full path for the output.
         """
         return self._caget(self.stream_data_writer_root +
             self._data_file, **kwargs)
 
-    _datawriter_open = 'open'
+    
+    _datawriter_open = 'Open'
     def set_streamdatawriter_open(self, val, **kwargs):
         """
         """
         self._caput(self.stream_data_writer_root +
             self._datawriter_open, val, **kwargs)
 
+        
     def get_streamdatawriter_open(self, **kwargs):
         """
         """
         return self._caget(self.stream_data_writer_root +
             self._datawriter_open, **kwargs)
 
+    
+    _datawriter_close = 'Close'
+    def set_streamdatawriter_close(self, val, **kwargs):
+        """
+        """
+        self._caput(self.stream_data_writer_root +
+            self._datawriter_close, val, **kwargs)
+
+        
+    def get_streamdatawriter_close(self, **kwargs):
+        """
+        """
+        return self._caget(self.stream_data_writer_root +
+            self._datawriter_close, **kwargs)
+    
 
     _trigger_daq = 'TriggerDaq'
     def set_trigger_daq(self, bay, val, **kwargs):
@@ -4110,7 +4139,30 @@ class SmurfCommandMixin(SmurfBase):
         return self._caget(self.smurf_processor + self._downsampler_factor, 
             **kwargs)
 
+    _filter_disable = "Filter:Disable"
+    def set_filter_disable(self, disable_status, **kwargs):
+        """
+        If Disable is set to True, then the downsampling filter is off.
 
+        Args:
+        -----
+        disable_status (bool) : The status of the Disable bit.
+        """
+        self._caput(self.smurf_processor + self._filter_disable,
+                    disable_status, **kwargs)
+
+    def get_filter_disable(self, **kwargs):
+        """
+        If Disable is set to True, then the downsampling filter is off.
+
+        Ret:
+        ----
+        disable_status (bool) : The status of the Disable bit.
+        """
+        return self._caget(self.smurf_processor + self._filter_disable,
+                           **kwargs)
+
+    
     _data_file_name = 'FileWriter:DataFile'
     def set_data_file_name(self, name, **kwargs):
         """
