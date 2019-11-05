@@ -46,7 +46,7 @@ namespace smurf
             {
             public:
                 BaseTransmitter();
-                ~BaseTransmitter() {};
+                virtual ~BaseTransmitter() {};
 
                 static BaseTransmitterPtr create();
 
