@@ -17,17 +17,15 @@
 # contained in the LICENSE.txt file.
 #-----------------------------------------------------------------------------
 
-import rogue.hardware.axi
-import rogue.protocols.srp
 import pyrogue
-
 import pysmurf
+import rogue.protocols.srp
 
 from pysmurf.core.roots.Common import Common
 
 from  CryoDevBoard.Kcu105Eth import FpgaTopLevel as FpgaTopLevel
 
-class DevBoardEth(Common.Common):
+class DevBoardEth(Common):
     def __init__(self, *,
                  ip_addr        = "",
                  config_file    = None,
