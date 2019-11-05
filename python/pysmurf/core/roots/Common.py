@@ -35,7 +35,7 @@ class Common(pyrogue.Root):
                  txDevice       = None,
                  fpgaTopLevel   = None,
                  stream_pv_size = 2**19,    # Not sub-classed
-                 stream_pv_type = 'Int16',  # Not sub-classed 
+                 stream_pv_type = 'Int16',  # Not sub-classed
                  **kwargs):
 
         pyrogue.Root.__init__(self, name="AMCc", initRead=True, pollEn=polling_en, **kwargs)
@@ -135,7 +135,7 @@ class Common(pyrogue.Root):
             self._pv_dump_file = pv_dump_file
 
             # PVs for stream data
-            # This should be replaced with DataReceiver objects 
+            # This should be replaced with DataReceiver objects
             if stream_pv_size:
                 print("Enabling stream data on PVs (buffer size = {} points, data type = {})"\
                     .format(stream_pv_size,stream_pv_type))
