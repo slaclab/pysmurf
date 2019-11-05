@@ -156,6 +156,25 @@ class Common(pyrogue.Root):
                     pyrogue.streamTap(self._ddr_streams[i], self._stream_fifos[i])
 
 
+        # Update SaveState to not read before saving
+        self.SaveState.replaceFunction(lambda arg: self.saveYaml(name=arg,
+                                                                 readFirst=False,
+                                                                 modes=['RW','RO','WO'],
+                                                                 incGroups=None,
+                                                                 excGroups='NoState',
+                                                                 autoPrefix='state',
+                                                                 autoCompress=True))
+ 
+        # Update SaveConfig to not read before saving
+        self.SaveConfig.replaceFunction(lambda arg: self.saveYaml(name=arg,
+                                                                  readFirst=False,
+                                                                  modes=['RW','WO'],
+                                                                  incGroups=None,
+                                                                  excGroups='NoConfig',
+                                                                  autoPrefix='config',
+                                                                  autoCompress=False))
+ 
+
     def start(self):
         pyrogue.Root.start(self)
 
