@@ -85,21 +85,24 @@ class Common(pyrogue.Root):
         pyrogue.streamTap(self._streaming_stream, self._stm_interface_writer.getChannel(0))
 
         # TES Bias Update Function
+        # smurf_processor bias index 0 = TesBiasDacDataRegCh[2] - TesBiasDacDataRegCh[1]
+        # smurf_processor bias index l = TesBiasDacDataRegCh[4] - TesBiasDacDataRegCh[3]
         def _update_tes_bias(idx):
-            v1 = self.FpgaTopLevel.AppTop.AppCore.RtmCryoDet.RtmSpiMax.node(f'TesBiasDacDataRegCh[{2*idx+1}]').value()
-            v2 = self.FpgaTopLevel.AppTop.AppCore.RtmCryoDet.RtmSpiMax.node(f'TesBiasDacDataRegCh[{2*idx}]').value()
+            v1 = self.FpgaTopLevel.AppTop.AppCore.RtmCryoDet.RtmSpiMax.node(f'TesBiasDacDataRegCh[{(2*idx)+2}]').value()
+            v2 = self.FpgaTopLevel.AppTop.AppCore.RtmCryoDet.RtmSpiMax.node(f'TesBiasDacDataRegCh[{(2*idx)+1}]').value()
             val = v1 - v2
 
             # Pass to data processor
             self._smurf_processor.setTesBias(index=idx, val=val)
 
         # Register TesBias values configuration to update stream processor
-        for i in range(32):
-            idx = i // 2
+        # Bias values are ranged 1 - 32, matching tes bias indexes 0 - 16
+        for i in range(1,33):
+            idx = (i-1) // 2
             try:
-                v = self.FpgaTopLevel.AppTop.AppCore.RtmCryoDet.RtmSpiMax.node(f'.*TesBiasDacDataRegCh[{i}]')
-                v.addVarListener(lambda idx=idx: _update_test_bias(idx))
-            except:
+                v = self.FpgaTopLevel.AppTop.AppCore.RtmCryoDet.RtmSpiMax.node(f'TesBiasDacDataRegCh[{i}]')
+                v.addListener(lambda path, value, lidx=idx: _update_tes_bias(lidx))
+            except Exception as e:
                 print(f"TesBiasDacDataRegCh[{i}] not found... Skipping!")
 
         # Run control for streaming interfaces
