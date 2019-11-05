@@ -26,8 +26,6 @@ import rogue.protocols.srp
 
 from CryoDet._MicrowaveMuxBpEthGen2 import FpgaTopLevel
 
-from pyrogue.protocols import epics
-
 class Common(pyrogue.Root):
     def __init__(self, *,
                  config_file    = None,
@@ -37,7 +35,7 @@ class Common(pyrogue.Root):
                  txDevice       = None,
                  fpgaTopLevel   = None,
                  stream_pv_size = 2**19,    # Not sub-classed
-                 stream_pv_type = 'Int16',  # Not sub-classed 
+                 stream_pv_type = 'Int16',  # Not sub-classed
                  **kwargs):
 
         pyrogue.Root.__init__(self, name="AMCc", initRead=True, pollEn=polling_en, **kwargs)
@@ -129,31 +127,35 @@ class Common(pyrogue.Root):
             function=self._set_defaults_cmd))
 
         # Add epics interface
-        print("Starting EPICS server using prefix \"{}\"".format(epics_prefix))
-        self._epics = pyrogue.protocols.epics.EpicsCaServer(base=epics_prefix, root=self)
-        self._pv_dump_file = pv_dump_file
+        self._epics = None
+        if epics_prefix:
+            print("Starting EPICS server using prefix \"{}\"".format(epics_prefix))
+            from pyrogue.protocols import epics
+            self._epics = pyrogue.protocols.epics.EpicsCaServer(base=epics_prefix, root=self)
+            self._pv_dump_file = pv_dump_file
 
-        # PVs for stream data
-        # This should be replaced with DataReceiver objects 
-        print("Enabling stream data on PVs (buffer size = {} points, data type = {})"\
-            .format(stream_pv_size,stream_pv_type))
+            # PVs for stream data
+            # This should be replaced with DataReceiver objects
+            if stream_pv_size:
+                print("Enabling stream data on PVs (buffer size = {} points, data type = {})"\
+                    .format(stream_pv_size,stream_pv_type))
 
-        self._stream_fifos  = []
-        self._stream_slaves = []
-        for i in range(4):
-            self._stream_slaves.append(self._epics.createSlave(name="AMCc:Stream{}".format(i),
-                                                               maxSize=stream_pv_size,
-                                                               type=stream_pv_type))
+                self._stream_fifos  = []
+                self._stream_slaves = []
+                for i in range(4):
+                    self._stream_slaves.append(self._epics.createSlave(name="AMCc:Stream{}".format(i),
+                                                                       maxSize=stream_pv_size,
+                                                                       type=stream_pv_type))
 
-            # Calculate number of bytes needed on the fifo
-            if '16' in stream_pv_type:
-                fifo_size = stream_pv_size * 2
-            else:
-                fifo_size = stream_pv_size * 4
+                    # Calculate number of bytes needed on the fifo
+                    if '16' in stream_pv_type:
+                        fifo_size = stream_pv_size * 2
+                    else:
+                        fifo_size = stream_pv_size * 4
 
-            self._stream_fifos.append(rogue.interfaces.stream.Fifo(1000, fifo_size, True)) # changes
-            self._stream_fifos[i]._setSlave(self._stream_slaves[i])
-            pyrogue.streamTap(self._ddr_streams[i], self._stream_fifos[i])
+                    self._stream_fifos.append(rogue.interfaces.stream.Fifo(1000, fifo_size, True)) # changes
+                    self._stream_fifos[i]._setSlave(self._stream_slaves[i])
+                    pyrogue.streamTap(self._ddr_streams[i], self._stream_fifos[i])
 
 
     def start(self):
@@ -175,12 +177,17 @@ class Common(pyrogue.Root):
         print("")
 
         # Start epics
-        self._epics.start()
-        self._epics.dump(self._pv_dump_file)
+        if self._epics:
+            self._epics.start()
+
+            # Dump the PV list to the expecified file
+            if self._pv_dump_file:
+                self._epics.dump(self._pv_dump_file)
 
     def stop(self):
         print("Stopping servers...")
-        self._epics.stop()
+        if self._epics:
+            self._epics.stop()
         pyrogue.Root.stop(self)
 
     # Function for setting a default configuration.
