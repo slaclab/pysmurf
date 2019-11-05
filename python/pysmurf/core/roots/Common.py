@@ -129,33 +129,33 @@ class Common(pyrogue.Root):
         # Add epics interface
         self._epics = None
         if epics_prefix:
-        print("Starting EPICS server using prefix \"{}\"".format(epics_prefix))
+            print("Starting EPICS server using prefix \"{}\"".format(epics_prefix))
             from pyrogue.protocols import epics
-        self._epics = pyrogue.protocols.epics.EpicsCaServer(base=epics_prefix, root=self)
-        self._pv_dump_file = pv_dump_file
+            self._epics = pyrogue.protocols.epics.EpicsCaServer(base=epics_prefix, root=self)
+            self._pv_dump_file = pv_dump_file
 
-        # PVs for stream data
-        # This should be replaced with DataReceiver objects 
+            # PVs for stream data
+            # This should be replaced with DataReceiver objects 
             if stream_pv_size:
-        print("Enabling stream data on PVs (buffer size = {} points, data type = {})"\
-            .format(stream_pv_size,stream_pv_type))
+                print("Enabling stream data on PVs (buffer size = {} points, data type = {})"\
+                .format(stream_pv_size,stream_pv_type))
 
-        self._stream_fifos  = []
-        self._stream_slaves = []
-        for i in range(4):
-            self._stream_slaves.append(self._epics.createSlave(name="AMCc:Stream{}".format(i),
-                                                               maxSize=stream_pv_size,
-                                                               type=stream_pv_type))
+                self._stream_fifos  = []
+                self._stream_slaves = []
+                for i in range(4):
+                    self._stream_slaves.append(self._epics.createSlave(name="AMCc:Stream{}".format(i),
+                                                                       maxSize=stream_pv_size,
+                                                                       type=stream_pv_type))
 
-            # Calculate number of bytes needed on the fifo
-            if '16' in stream_pv_type:
-                fifo_size = stream_pv_size * 2
-            else:
-                fifo_size = stream_pv_size * 4
+                # Calculate number of bytes needed on the fifo
+                if '16' in stream_pv_type:
+                    fifo_size = stream_pv_size * 2
+                else:
+                    fifo_size = stream_pv_size * 4
 
-            self._stream_fifos.append(rogue.interfaces.stream.Fifo(1000, fifo_size, True)) # changes
-            self._stream_fifos[i]._setSlave(self._stream_slaves[i])
-            pyrogue.streamTap(self._ddr_streams[i], self._stream_fifos[i])
+                self._stream_fifos.append(rogue.interfaces.stream.Fifo(1000, fifo_size, True)) # changes
+                self._stream_fifos[i]._setSlave(self._stream_slaves[i])
+                pyrogue.streamTap(self._ddr_streams[i], self._stream_fifos[i])
 
 
     def start(self):
