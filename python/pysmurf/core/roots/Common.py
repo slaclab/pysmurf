@@ -24,8 +24,6 @@ import pysmurf
 import rogue.hardware.axi
 import rogue.protocols.srp
 
-from CryoDet._MicrowaveMuxBpEthGen2 import FpgaTopLevel
-
 class Common(pyrogue.Root):
     def __init__(self, *,
                  config_file    = None,
