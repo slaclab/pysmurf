@@ -138,7 +138,7 @@ class Common(pyrogue.Root):
             # This should be replaced with DataReceiver objects 
             if stream_pv_size:
                 print("Enabling stream data on PVs (buffer size = {} points, data type = {})"\
-                .format(stream_pv_size,stream_pv_type))
+                    .format(stream_pv_size,stream_pv_type))
 
                 self._stream_fifos  = []
                 self._stream_slaves = []
@@ -147,15 +147,15 @@ class Common(pyrogue.Root):
                                                                        maxSize=stream_pv_size,
                                                                        type=stream_pv_type))
 
-                # Calculate number of bytes needed on the fifo
-                if '16' in stream_pv_type:
-                    fifo_size = stream_pv_size * 2
-                else:
-                    fifo_size = stream_pv_size * 4
+                    # Calculate number of bytes needed on the fifo
+                    if '16' in stream_pv_type:
+                        fifo_size = stream_pv_size * 2
+                    else:
+                        fifo_size = stream_pv_size * 4
 
-                self._stream_fifos.append(rogue.interfaces.stream.Fifo(1000, fifo_size, True)) # changes
-                self._stream_fifos[i]._setSlave(self._stream_slaves[i])
-                pyrogue.streamTap(self._ddr_streams[i], self._stream_fifos[i])
+                    self._stream_fifos.append(rogue.interfaces.stream.Fifo(1000, fifo_size, True)) # changes
+                    self._stream_fifos[i]._setSlave(self._stream_slaves[i])
+                    pyrogue.streamTap(self._ddr_streams[i], self._stream_fifos[i])
 
 
     def start(self):
