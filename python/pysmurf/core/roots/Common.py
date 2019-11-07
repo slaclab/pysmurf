@@ -24,9 +24,7 @@ import pysmurf
 import rogue.hardware.axi
 import rogue.protocols.srp
 
-from CryoDet._MicrowaveMuxBpEthGen2 import FpgaTopLevel
-
-from pyrogue.protocols import epics
+import pysmurf.core.utilities
 
 class Common(pyrogue.Root):
     def __init__(self, *,
@@ -37,7 +35,7 @@ class Common(pyrogue.Root):
                  txDevice       = None,
                  fpgaTopLevel   = None,
                  stream_pv_size = 2**19,    # Not sub-classed
-                 stream_pv_type = 'Int16',  # Not sub-classed 
+                 stream_pv_type = 'Int16',  # Not sub-classed
                  **kwargs):
 
         pyrogue.Root.__init__(self, name="AMCc", initRead=True, pollEn=polling_en, streamIncGroups='stream', **kwargs)
@@ -85,21 +83,24 @@ class Common(pyrogue.Root):
         pyrogue.streamTap(self._streaming_stream, self._stm_interface_writer.getChannel(0))
 
         # TES Bias Update Function
+        # smurf_processor bias index 0 = TesBiasDacDataRegCh[2] - TesBiasDacDataRegCh[1]
+        # smurf_processor bias index l = TesBiasDacDataRegCh[4] - TesBiasDacDataRegCh[3]
         def _update_tes_bias(idx):
-            v1 = self.FpgaTopLevel.AppTop.AppCore.RtmCryoDet.RtmSpiMax.node(f'TesBiasDacDataRegCh[{2*idx+1}]').value()
-            v2 = self.FpgaTopLevel.AppTop.AppCore.RtmCryoDet.RtmSpiMax.node(f'TesBiasDacDataRegCh[{2*idx}]').value()
+            v1 = self.FpgaTopLevel.AppTop.AppCore.RtmCryoDet.RtmSpiMax.node(f'TesBiasDacDataRegCh[{(2*idx)+2}]').value()
+            v2 = self.FpgaTopLevel.AppTop.AppCore.RtmCryoDet.RtmSpiMax.node(f'TesBiasDacDataRegCh[{(2*idx)+1}]').value()
             val = v1 - v2
 
             # Pass to data processor
             self._smurf_processor.setTesBias(index=idx, val=val)
 
         # Register TesBias values configuration to update stream processor
-        for i in range(32):
-            idx = i // 2
+        # Bias values are ranged 1 - 32, matching tes bias indexes 0 - 16
+        for i in range(1,33):
+            idx = (i-1) // 2
             try:
-                v = self.FpgaTopLevel.AppTop.AppCore.RtmCryoDet.RtmSpiMax.node(f'.*TesBiasDacDataRegCh[{i}]')
-                v.addVarListener(lambda idx=idx: _update_test_bias(idx))
-            except:
+                v = self.FpgaTopLevel.AppTop.AppCore.RtmCryoDet.RtmSpiMax.node(f'TesBiasDacDataRegCh[{i}]')
+                v.addListener(lambda path, value, lidx=idx: _update_tes_bias(lidx))
+            except Exception as e:
                 print(f"TesBiasDacDataRegCh[{i}] not found... Skipping!")
 
         # Run control for streaming interfaces
@@ -126,32 +127,55 @@ class Common(pyrogue.Root):
             function=self._set_defaults_cmd))
 
         # Add epics interface
-        print("Starting EPICS server using prefix \"{}\"".format(epics_prefix))
-        self._epics = pyrogue.protocols.epics.EpicsCaServer(base=epics_prefix, root=self)
-        self._pv_dump_file = pv_dump_file
+        self._epics = None
+        if epics_prefix:
+            print("Starting EPICS server using prefix \"{}\"".format(epics_prefix))
+            from pyrogue.protocols import epics
+            self._epics = pyrogue.protocols.epics.EpicsCaServer(base=epics_prefix, root=self)
+            self._pv_dump_file = pv_dump_file
 
-        # PVs for stream data
-        # This should be replaced with DataReceiver objects 
-        print("Enabling stream data on PVs (buffer size = {} points, data type = {})"\
-            .format(stream_pv_size,stream_pv_type))
+            # PVs for stream data
+            # This should be replaced with DataReceiver objects
+            if stream_pv_size:
+                print("Enabling stream data on PVs (buffer size = {} points, data type = {})"\
+                    .format(stream_pv_size,stream_pv_type))
 
-        self._stream_fifos  = []
-        self._stream_slaves = []
-        for i in range(4):
-            self._stream_slaves.append(self._epics.createSlave(name="AMCc:Stream{}".format(i),
-                                                               maxSize=stream_pv_size,
-                                                               type=stream_pv_type))
+                self._stream_fifos  = []
+                self._stream_slaves = []
+                for i in range(4):
+                    self._stream_slaves.append(self._epics.createSlave(name="AMCc:Stream{}".format(i),
+                                                                       maxSize=stream_pv_size,
+                                                                       type=stream_pv_type))
 
-            # Calculate number of bytes needed on the fifo
-            if '16' in stream_pv_type:
-                fifo_size = stream_pv_size * 2
-            else:
-                fifo_size = stream_pv_size * 4
+                    # Calculate number of bytes needed on the fifo
+                    if '16' in stream_pv_type:
+                        fifo_size = stream_pv_size * 2
+                    else:
+                        fifo_size = stream_pv_size * 4
 
-            self._stream_fifos.append(rogue.interfaces.stream.Fifo(1000, fifo_size, True)) # changes
-            self._stream_fifos[i]._setSlave(self._stream_slaves[i])
-            pyrogue.streamTap(self._ddr_streams[i], self._stream_fifos[i])
+                    self._stream_fifos.append(rogue.interfaces.stream.Fifo(1000, fifo_size, True)) # changes
+                    self._stream_fifos[i]._setSlave(self._stream_slaves[i])
+                    pyrogue.streamTap(self._ddr_streams[i], self._stream_fifos[i])
 
+
+        # Update SaveState to not read before saving
+        self.SaveState.replaceFunction(lambda arg: self.saveYaml(name=arg,
+                                                                 readFirst=False,
+                                                                 modes=['RW','RO','WO'],
+                                                                 incGroups=None,
+                                                                 excGroups='NoState',
+                                                                 autoPrefix='state',
+                                                                 autoCompress=True))
+ 
+        # Update SaveConfig to not read before saving
+        self.SaveConfig.replaceFunction(lambda arg: self.saveYaml(name=arg,
+                                                                  readFirst=False,
+                                                                  modes=['RW','WO'],
+                                                                  incGroups=None,
+                                                                  excGroups='NoConfig',
+                                                                  autoPrefix='config',
+                                                                  autoCompress=False))
+ 
 
     def start(self):
         pyrogue.Root.start(self)
@@ -175,12 +199,21 @@ class Common(pyrogue.Root):
         print("")
 
         # Start epics
-        self._epics.start()
-        self._epics.dump(self._pv_dump_file)
+        if self._epics:
+            self._epics.start()
+
+            # Dump the PV list to the expecified file
+            if self._pv_dump_file:
+                self._epics.dump(self._pv_dump_file)
+
+        # Add publisher, pub_root & script_id need to be updated
+        self._pub = pysmurf.core.utilities.SmurfPublisher(root=self,pub_root=None,script_id=None)
+
 
     def stop(self):
         print("Stopping servers...")
-        self._epics.stop()
+        if self._epics:
+            self._epics.stop()
         pyrogue.Root.stop(self)
 
     # Function for setting a default configuration.

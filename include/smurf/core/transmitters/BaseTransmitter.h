@@ -42,11 +42,12 @@ namespace smurf
             class BaseTransmitter;
             typedef std::shared_ptr<BaseTransmitter> BaseTransmitterPtr;
 
-            class BaseTransmitter : public ris::Slave
-            {
+            class BaseTransmitterChannel;
+
+            class BaseTransmitter: public std::enable_shared_from_this<smurf::core::transmitters::BaseTransmitter> {
             public:
                 BaseTransmitter();
-                ~BaseTransmitter() {};
+                virtual ~BaseTransmitter() {};
 
                 static BaseTransmitterPtr create();
 
@@ -57,14 +58,23 @@ namespace smurf
                 void       setDisable(bool d);
                 const bool getDisable() const;
 
+                // Get data channel
+                std::shared_ptr<smurf::core::transmitters::BaseTransmitterChannel> getDataChannel();
+                
+                // Get meta data channel
+                std::shared_ptr<smurf::core::transmitters::BaseTransmitterChannel> getMetaChannel();
+
                 // Clear all counter.
                 void clearCnt();
 
                 // Get the dropped packet counter
                 const std::size_t getPktDropCnt() const;
 
-                // Accept new frames
-                void acceptFrame(ris::FramePtr frame);
+                // Accept new data frames
+                void acceptDataFrame(ris::FramePtr frame);
+
+                // Accept new meta frames
+                void acceptMetaFrame(ris::FramePtr frame);
 
                 // This method is intended to be used to take SMuRF packet and send them to other
                 // system.
@@ -72,6 +82,11 @@ namespace smurf
                 // (which is a smart pointer to a read-only interface to a Smurf packer object) is passed.
                 // It must be overwritten by the user application
                 virtual void transmit(SmurfPacketROPtr sp) {};
+
+                // This method is intended to be used to take SMuRF meta data and send them to other
+                // system.
+                // It must be overwritten by the user application
+                virtual void metaTransmit(std::string) {};
 
             private:
                 bool                          disable;              // Disable flag
@@ -85,6 +100,10 @@ namespace smurf
                 std::thread                   pktTransmitterThread; // Thread where the SMuRF packet transmission will run
                 std::condition_variable       txCV;                 // Variable to notify the thread new data is ready
                 std::mutex                    txMutex;              // Mutex used for accessing the conditional variable
+
+                // Inteface channels
+                std::shared_ptr<smurf::core::transmitters::BaseTransmitterChannel> dataChannel;
+                std::shared_ptr<smurf::core::transmitters::BaseTransmitterChannel> metaChannel;
 
                 // Transmit method. Will run in the pktTransmitterThread thread.
                 // Here is where the method 'transmit' is called.

@@ -21,6 +21,7 @@
 #include <boost/python.hpp>
 #include "smurf/core/transmitters/module.h"
 #include "smurf/core/transmitters/BaseTransmitter.h"
+#include "smurf/core/transmitters/BaseTransmitterChannel.h"
 
 namespace bp  = boost::python;
 namespace sct = smurf::core::transmitters;
@@ -37,5 +38,6 @@ void sct::setup_module()
     bp::scope io_scope = module;
 
     sct::BaseTransmitter::setup_python();
+    sct::BaseTransmitterChannel::setup_python();
 }
 

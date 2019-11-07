@@ -52,7 +52,9 @@ class BaseTransmitter(pyrogue.Device):
             description='Clear all counters',
             function=self._transmitter.clearCnt))
 
-    # Method called by streamConnect, streamTap and streamConnectBiDir to access slave
-    def _getStreamSlave(self):
-        return self._transmitter
+    def getDataChannel(self):
+        return self._transmitter.getDataChannel()
+
+    def getMetaChannel(self):
+        return self._transmitter.getMetaChannel()
 

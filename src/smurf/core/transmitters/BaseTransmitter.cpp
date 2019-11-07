@@ -21,13 +21,13 @@
 #include <boost/python.hpp>
 #include "smurf/core/common/Timer.h"
 #include "smurf/core/transmitters/BaseTransmitter.h"
+#include "smurf/core/transmitters/BaseTransmitterChannel.h"
 
 namespace bp  = boost::python;
 namespace sct = smurf::core::transmitters;
 
 sct::BaseTransmitter::BaseTransmitter()
 :
-    ris::Slave(),
     disable(false),
     pktDropCnt(0),
     pktBuffer(2),
@@ -40,6 +40,9 @@ sct::BaseTransmitter::BaseTransmitter()
 {
     if( pthread_setname_np( pktTransmitterThread.native_handle(), "SmurfPacketTx" ) )
         perror( "pthread_setname_np failed for the SmurfPacketTx thread" );
+
+    dataChannel = sct::BaseTransmitterChannel::create(shared_from_this(),0);
+    metaChannel = sct::BaseTransmitterChannel::create(shared_from_this(),1);
 }
 
 sct::BaseTransmitterPtr sct::BaseTransmitter::create()
@@ -51,15 +54,25 @@ void sct::BaseTransmitter::setup_python()
 {
     bp::class_< sct::BaseTransmitter,
                 sct::BaseTransmitterPtr,
-                bp::bases<ris::Slave>,
                 boost::noncopyable >
                 ("BaseTransmitter",bp::init<>())
-        .def("setDisable",    &BaseTransmitter::setDisable)
-        .def("getDisable",    &BaseTransmitter::getDisable)
-        .def("clearCnt",      &BaseTransmitter::clearCnt)
-        .def("getPktDropCnt", &BaseTransmitter::getPktDropCnt)
+        .def("setDisable",     &BaseTransmitter::setDisable)
+        .def("getDisable",     &BaseTransmitter::getDisable)
+        .def("clearCnt",       &BaseTransmitter::clearCnt)
+        .def("getPktDropCnt",  &BaseTransmitter::getPktDropCnt)
+        .def("getDataChannel", &BaseTransmitter::getDataChannel)
+        .def("getMetaChannel", &BaseTransmitter::getMetaChannel)
     ;
-    bp::implicitly_convertible< sct::BaseTransmitterPtr, ris::SlavePtr >();
+}
+
+// Get data channel
+sct::BaseTransmitterChannelPtr sct::BaseTransmitter::getDataChannel() {
+   return dataChannel;
+}
+
+// Get meta data channel
+sct::BaseTransmitterChannelPtr sct::BaseTransmitter::getMetaChannel() {
+   return dataChannel;
 }
 
 void sct::BaseTransmitter::setDisable(bool d)
@@ -82,7 +95,7 @@ const std::size_t sct::BaseTransmitter::getPktDropCnt() const
     return pktDropCnt;
 }
 
-void sct::BaseTransmitter::acceptFrame(ris::FramePtr frame)
+void sct::BaseTransmitter::acceptDataFrame(ris::FramePtr frame)
 {
     rogue::GilRelease noGil;
 
@@ -117,6 +130,19 @@ void sct::BaseTransmitter::acceptFrame(ris::FramePtr frame)
         // Increase the dropped packet counter
         ++pktDropCnt;
     }
+}
+
+void sct::BaseTransmitter::acceptMetaFrame(ris::FramePtr frame)
+{
+    rogue::GilRelease noGil;
+    ris::FrameLockPtr fLock = frame->lock();
+
+    if ( frame->bufferCount() != 1 ) return;
+    
+    std::string cfg(reinterpret_cast<char const*>(frame->beginRead().ptr()), frame->getPayload());
+    fLock->unlock();
+
+    metaTransmit(cfg);
 }
 
 void sct::BaseTransmitter::pktTansmitter()

@@ -28,9 +28,9 @@ from  CryoDevBoard.Kcu105Eth import FpgaTopLevel as FpgaTopLevel
 
 class DevBoardPcie(Common):
     def __init__(self, *,
+                 pcie_rssi_lane = 0,
                  pcie_dev_rssi  = "/dev/datadev_0",
                  pcie_dev_data  = "/dev/datadev_1",
-                 pcie_rssi_lane = 0,
                  config_file    = None,
                  epics_prefix   = "EpicsPrefix",
                  polling_en     = True,
