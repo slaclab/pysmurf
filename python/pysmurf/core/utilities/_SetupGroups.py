@@ -1,12 +1,12 @@
 #!/usr/bin/env python
 #-----------------------------------------------------------------------------
-# Title      : PySMuRF Python Package Directory File
+# Title      : PySMuRF Group Setup Utility
 #-----------------------------------------------------------------------------
-# File       : __init__.py
-# Created    : 2019-09-30
+# File       : _SmurfPublisher.py
+# Created    : 2019-10-31
 #-----------------------------------------------------------------------------
 # Description:
-#    Mark this directory as python package directory.
+#    Setup groups for variables & devices
 #-----------------------------------------------------------------------------
 # This file is part of the smurf software platform. It is subject to
 # the license terms in the LICENSE.txt file found in the top-level directory
@@ -17,5 +17,22 @@
 # contained in the LICENSE.txt file.
 #-----------------------------------------------------------------------------
 
-from pysmurf.core.utilities._SetupGroups import setupGroups
-from pysmurf.core.utilities._SmurfPublisher import SmurfPublisher
+import pyrogue
+import pysmurf
+import os
+
+VariableGroups = {'root.LocalTime':                            ['publish','stream'],
+                  'root.SmurfApplication.SomePySmurfVariable': ['publish','stream']}
+
+
+def setupGroups(root):
+    for k,v in VariableGroups.items():
+
+        # Get node
+        n = root.getNode(k)
+
+        # Add to groups
+        for g in v:
+            n.addToGroup(g)
+
+

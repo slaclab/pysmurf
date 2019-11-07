@@ -38,7 +38,7 @@ class Common(pyrogue.Root):
                  stream_pv_type = 'Int16',  # Not sub-classed
                  **kwargs):
 
-        pyrogue.Root.__init__(self, name="AMCc", initRead=True, pollEn=polling_en, **kwargs)
+        pyrogue.Root.__init__(self, name="AMCc", initRead=True, pollEn=polling_en, streamIncGroups='stream', **kwargs)
 
         #########################################################################################
         # The following interfaces are expected to be defined at this point by a sub-class
@@ -179,6 +179,9 @@ class Common(pyrogue.Root):
 
     def start(self):
         pyrogue.Root.start(self)
+
+        # Setup groups        
+        pysmurf.core.utilities.setupGroups(self)
 
         # Show image build information
         try:
