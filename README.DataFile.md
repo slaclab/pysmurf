@@ -9,7 +9,7 @@ Configuration data (a.k.a. metadata) from the pyrogue tree is also written to th
 The DataWriter device, can be controlled with the following variables (or its respective EPICS PV):
 
 Pyrogue variable                               | Mode | Description
------------------------------------------------|-------------
+-----------------------------------------------|------|------
 AMCc:StreamProcessor:FileWriter:DataFile       | RW   | Full path of the data file
 AMCc:StreamProcessor:FileWriter:Open           | WO   | Open data file
 AMCc:StreamProcessor:FileWriter:Close          | WO   | Close data file
