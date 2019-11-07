@@ -22,7 +22,7 @@ import time
 from pysmurf.util import tools
 import matplotlib.pyplot as plt
 from matplotlib.gridspec import GridSpec
-import seaborn as sns
+#import seaborn as sns
 
 class SmurfNoiseMixin(SmurfBase):
 
@@ -1506,59 +1506,59 @@ class SmurfNoiseMixin(SmurfBase):
         u, s, vh = np.linalg.svd(dat, full_matrices=True)
         return u, s, vh
 
-    def plot_svd_summary(self, u, s, save_plot=False, 
-        save_name=None, show_plot=False):
-        """
-        Requires seaborn to be installed. Plots a heatmap
-        of the coefficients and the log10 of the amplitudes.
-
-        Args:
-        -----
-        u (float array) : SVD coefficients from noise_svd
-        s (float array) : SVD amplitudes from noise_svd
-
-        Opt Args:
-        ---------
-        save_plot (bool) : Whether to save the plot
-        save_name (str) : The name of the file
-        show_plot (bool) : Whether to show the plot
-        """
-        if not show_plot:
-            plt.ioff()
-        else:
-            plt.ion()
-
-        fig, ax = plt.subplots(1, 2, figsize=(10,5))
-
-        # heatmap of coefficients
-        n_det, _ = np.shape(u)
-        n_tick = 10
-        tick = n_det//n_tick
-        sns.heatmap(u, vmin=-1, vmax=1, cmap='RdYlBu_r', 
-            xticklabels=tick, yticklabels=tick, linewidth=0, 
-            ax=ax[0], square=False)
-        ax[0].set_xlabel('Mode Num')
-        ax[0].set_ylabel('Resonator')
-
-        # Overall mode power
-        ax[1].plot(np.log10(s), '.')
-        ax[1].set_ylabel(r'$\log_{10}s$')
-        ax[1].set_xlabel('Mode num')
-
-        plt.tight_layout()
-
-        # Plot saving
-        if save_plot:
-            if save_name is None:
-                raise IOError('To save plot, save_name must be provided')
-            else:
-                plt.savefig(os.path.join(self.plot_dir, save_name), 
-                            bbox_inches='tight')
-
-        if show_plot:
-            plt.show()
-        else:
-            plt.close()
+    #def plot_svd_summary(self, u, s, save_plot=False, 
+    #    save_name=None, show_plot=False):
+    #    """
+    #    Requires seaborn to be installed. Plots a heatmap
+    #    of the coefficients and the log10 of the amplitudes.
+    #
+    #    Args:
+    #    -----
+    #    u (float array) : SVD coefficients from noise_svd
+    #    s (float array) : SVD amplitudes from noise_svd
+    #
+    #    Opt Args:
+    #    ---------
+    #    save_plot (bool) : Whether to save the plot
+    #    save_name (str) : The name of the file
+    #    show_plot (bool) : Whether to show the plot
+    #    """
+    #    if not show_plot:
+    #        plt.ioff()
+    #    else:
+    #        plt.ion()
+    #
+    #    fig, ax = plt.subplots(1, 2, figsize=(10,5))
+    #
+    #    # heatmap of coefficients
+    #    n_det, _ = np.shape(u)
+    #    n_tick = 10
+    #    tick = n_det//n_tick
+    #    sns.heatmap(u, vmin=-1, vmax=1, cmap='RdYlBu_r', 
+    #        xticklabels=tick, yticklabels=tick, linewidth=0, 
+    #        ax=ax[0], square=False)
+    #    ax[0].set_xlabel('Mode Num')
+    #    ax[0].set_ylabel('Resonator')
+    #
+    #    # Overall mode power
+    #    ax[1].plot(np.log10(s), '.')
+    #    ax[1].set_ylabel(r'$\log_{10}s$')
+    #    ax[1].set_xlabel('Mode num')
+    #
+    #    plt.tight_layout()
+    #
+    #    # Plot saving
+    #    if save_plot:
+    #        if save_name is None:
+    #            raise IOError('To save plot, save_name must be provided')
+    #        else:
+    #            plt.savefig(os.path.join(self.plot_dir, save_name), 
+    #                        bbox_inches='tight')
+    #
+    #    if show_plot:
+    #        plt.show()
+    #    else:
+    #        plt.close()
 
     def plot_svd_modes(self, vh, n_row=4, n_col=5, figsize=(10,7.5), 
         save_plot=False, save_name=None, show_plot=False, sharey=True):
