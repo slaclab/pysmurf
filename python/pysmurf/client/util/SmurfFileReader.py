@@ -80,6 +80,7 @@ class SmurfStreamReader(object):
         self._metaEnable = metaEnable
         self._chanCount  = chanCount
         self._currFile   = None
+        self._currFName  = ''
         self._fileSize   = 0
         self._header     = None
         self._data       = None
@@ -128,7 +129,7 @@ class SmurfStreamReader(object):
                 payload = rogueHeader.size - 4
             
                 # Set next frame position
-                recEnd = f.tell() + payload
+                recEnd = self._currFile.tell() + payload
 
                 # Sanity check
                 if recEnd > self._fileSize:
