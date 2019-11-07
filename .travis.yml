@@ -57,13 +57,13 @@ jobs:
         # Try to import the smurf module in the server container
         - |
           docker exec server \
-          /bin/bash -c "PYTHONPATH=/root/pysmurf/lib:/root/pysmurf/python:${PYTHPNPATH} \
+          /bin/bash -c "PYTHONPATH=/root/pysmurf/lib:/root/pysmurf/python:${PYTHONPATH} \
           python3 -c 'import rogue; import smurf;'"
 
         # Try to import the pysmurf's SmurfProcessor module in the server container
         - |
           docker exec server \
-          /bin/bash -c "PYTHONPATH=/root/pysmurf/lib:/root/pysmurf/python:${PYTHPNPATH} \
+          /bin/bash -c "PYTHONPATH=/root/pysmurf/lib:/root/pysmurf/python:${PYTHONPATH} \
           python3 -c 'import pysmurf.core.devices; \
           s = pysmurf.core.devices.SmurfProcessor(name=\"\", description=\"\")'"
 
@@ -74,7 +74,7 @@ jobs:
         # Try to import the pysmurf.client module in the client container
         # - |
         #   docker exec client \
-        #   /bin/bash -c "PYTHONPATH=/root/pysmurf/lib:/root/pysmurf/python:${PYTHPNPATH} \
+        #   /bin/bash -c "PYTHONPATH=/root/pysmurf/lib:/root/pysmurf/python:${PYTHONPATH} \
         #   python3 -c 'import pysmurf.client'"
 
     # Deployment stage for the server docker
