@@ -73,7 +73,7 @@ RogueHeader = namedtuple( 'RogueHeader',
 
 
 
-class SmurfFileReader(object):
+class SmurfStreamReader(object):
 
     def __init__(self, files, *, isRogue=True, metaEnable=False, chanCount=None):
         self._isRogue    = isRogue
