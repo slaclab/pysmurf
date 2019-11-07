@@ -24,6 +24,8 @@ import pysmurf
 import rogue.hardware.axi
 import rogue.protocols.srp
 
+import pysmurf.core.utilities
+
 class Common(pyrogue.Root):
     def __init__(self, *,
                  config_file    = None,
@@ -200,6 +202,10 @@ class Common(pyrogue.Root):
             # Dump the PV list to the expecified file
             if self._pv_dump_file:
                 self._epics.dump(self._pv_dump_file)
+
+        # Add publisher, pub_root & script_id need to be updated
+        self._pub = pysmurf.core.utilities.SmurfPublisher(root=self,pub_root=None,script_id=None)
+
 
     def stop(self):
         print("Stopping servers...")
