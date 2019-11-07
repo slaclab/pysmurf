@@ -101,7 +101,8 @@ class SmurfUtilMixin(SmurfBase):
 
         self.set_streamdatawriter_datafile(write_data) # write this
 
-        self.set_streamdatawriter_open('True') # str and not bool
+        #self.set_streamdatawriter_open('True') # str and not bool
+        self.set_streamdatawriter_open(True)
 
         bay=self.band_to_bay(band)
         self.set_trigger_daq(bay, 1, write_log=True) # this seems to = TriggerDM
@@ -124,7 +125,8 @@ class SmurfUtilMixin(SmurfBase):
         self.log('Finished acquisition', self.LOG_USER)
 
         self.log('Closing file...', self.LOG_USER)
-        self.set_streamdatawriter_open('False')
+        #self.set_streamdatawriter_open('false')
+        self.set_streamdatawriter_close(True)
 
         self.log('Done taking data', self.LOG_USER)
 

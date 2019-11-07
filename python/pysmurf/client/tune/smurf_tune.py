@@ -488,7 +488,7 @@ class SmurfTuneMixin(SmurfBase):
                         freq < center_freq + eta_width)
 
                     # Actually plot the data
-                    self.plot_eta_fit(band, freq[idx], resp[idx], 
+                    self.plot_eta_fit(freq[idx], resp[idx], 
                         eta_mag=r['eta_mag'], eta_phase_deg=r['eta_phase'],
                         band=band, res_num=k, timestamp=timestamp, 
                         save_plot=save_plot, show_plot=show_plot, 
@@ -1176,7 +1176,6 @@ class SmurfTuneMixin(SmurfBase):
             plt.ion()
         else:
             plt.ioff()
-        
 
         I = np.real(resp)
         Q = np.imag(resp)
@@ -1480,7 +1479,6 @@ class SmurfTuneMixin(SmurfBase):
                 channels[mask[:len(chans)]] = chans
 
             # Prune channels that are too close
-            print(close_idx)
             channels[~close_idx] = -1        
 
             # write the channel assignments to file
@@ -3262,7 +3260,7 @@ class SmurfTuneMixin(SmurfBase):
         elif filename is not None and last_tune:
             self.log('filename explicitly given. Overriding last_tune bool in load_tune.')
 
-        fs = np.load(filename).item()
+        fs = np.load(filename, allow_pickle=True).item()
         self.log('Done loading tuning')
 
         if override:

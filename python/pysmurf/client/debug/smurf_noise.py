@@ -30,7 +30,7 @@ class SmurfNoiseMixin(SmurfBase):
         detrend='constant', fs=None, low_freq=np.array([.1, 1.]), 
         high_freq=np.array([1., 10.]), make_channel_plot=True,
         make_summary_plot=True, save_data=False, show_plot=False,
-        grid_on=False, datafile=None):
+        grid_on=False, datafile=None, downsample_factor=20):
         """
         Takes a timestream of noise and calculates its PSD.
 
@@ -60,13 +60,16 @@ class SmurfNoiseMixin(SmurfBase):
         show_plot (bool): Show the plot on the screen. Default False.
         datefile (str): if data has already been taken, can point to a file to 
             bypass data taking and just analyze.
+        downsample_factor (int): The datarate is the flux ramp rate divided by
+            the downsample_factor.
         """
         if channel is None:
             channel = self.which_on(band)
         n_channel = self.get_number_channels(band)
 
         if datafile == None:
-            datafile = self.take_stream_data(meas_time)
+            datafile = self.take_stream_data(meas_time,
+                                             downsample_factor=downsample_factor)
         else:
             self.log(f'Reading data from {datafile}')
 
@@ -76,9 +79,9 @@ class SmurfNoiseMixin(SmurfBase):
         phase *= self.pA_per_phi0/(2.*np.pi) # phase converted to pA
 
         if fs is None:
-            num_averages = self.config.get('smurf_to_mce')['num_averages']
+            #num_averages = self.config.get('smurf_to_mce')['num_averages']
             # flux ramp rate returns in kHz
-            fs = self.get_flux_ramp_freq()*1.0E3/num_averages
+            fs = self.get_flux_ramp_freq()*1.0E3/downsample_factor
         
         self.log('Plotting channels {}'.format(channel), self.LOG_USER)
 
