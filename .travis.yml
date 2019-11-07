@@ -21,7 +21,7 @@ jobs:
     # Test stage
     - stage: test
       name: "Unit Tests"
-      before_install:
+      install:
         # Build the server docker
         - cd docker/server/
         - docker build --build-arg branch=$TRAVIS_BRANCH -t server_docker .
@@ -32,39 +32,29 @@ jobs:
         - docker build --build-arg branch=$TRAVIS_BRANCH -t client_docker .
         - cd -
 
+      before_script:
         # Start the server container in the background
         - |
           docker run -dti --rm --name server \
           --entrypoint bash \
-          -v ${TRAVIS_BUILD_DIR}:/root/pysmurf \
           server_docker
 
         # Start the client container in the background
         - |
           docker run -dti --rm --name client \
           --entrypoint bash \
-          -v ${TRAVIS_BUILD_DIR}:/root/pysmurf \
           client_docker
-
-      install:
-        # Try to build the C++ code in the sever container
-        - |
-          docker exec -w /root/pysmurf server \
-          /bin/bash -c "mkdir build; cd build; \
-          cmake -DCMAKE_BUILD_TYPE=Release .. && make -j4"
 
       script:
         # Try to import the smurf module in the server container
         - |
           docker exec server \
-          /bin/bash -c "PYTHONPATH=/root/pysmurf/lib:/root/pysmurf/python:${PYTHPNPATH} \
-          python3 -c 'import rogue; import smurf;'"
+          /bin/bash -c "python3 -c 'import rogue; import smurf;'"
 
         # Try to import the pysmurf's SmurfProcessor module in the server container
         - |
           docker exec server \
-          /bin/bash -c "PYTHONPATH=/root/pysmurf/lib:/root/pysmurf/python:${PYTHPNPATH} \
-          python3 -c 'import pysmurf.core.devices; \
+          /bin/bash -c "python3 -c 'import pysmurf.core.devices; \
           s = pysmurf.core.devices.SmurfProcessor(name=\"\", description=\"\")'"
 
         ## TO DO ##
@@ -74,7 +64,7 @@ jobs:
         # Try to import the pysmurf.client module in the client container
         # - |
         #   docker exec client \
-        #   /bin/bash -c "PYTHONPATH=/root/pysmurf/lib:/root/pysmurf/python:${PYTHPNPATH} \
+        #   /bin/bash -c "PYTHONPATH=/root/pysmurf/lib:/root/pysmurf/python:${PYTHONPATH} \
         #   python3 -c 'import pysmurf.client'"
 
     # Deployment stage for the server docker
