@@ -473,7 +473,7 @@ class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin, Smu
             timing_reference=self.config.get('timing').get('timing_reference')
 
             # check if supported
-            timing_options=['ext_ref','backplane']
+            timing_options=['ext_ref','backplane','rtm_fiber']
             assert (timing_reference in timing_options), 'timing_reference in cfg file (={}) not in timing_options={}'.format(timing_reference,str(timing_options))
 
             self.log('Configuring the system to take timing from {}'.format(timing_reference))
@@ -485,6 +485,20 @@ class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin, Smu
 
                 # make sure RTM knows there's no timing system
                 self.set_ramp_start_mode(0,write_log=write_log)                
+
+            # Lock to timing system using fiber connection from timing
+            # carrier RTM to SMuRF RTM.
+            if timing_reference=='rtm_fiber':
+                # Set LMK to use timing system as reference
+                for bay in self.bays:
+                    self.log(f'Configuring bay {bay} LMK to lock to the timing system')
+                    self.set_lmk_reg(bay, 0x147, 0xA)
+                
+                # Configure the crossbar
+                self.set_crossbar_output_config(1,0)
+
+                # Configure RTM to trigger off of the timing system
+                self.set_ramp_start_mode(1, write_log=write_log)
 
             # https://confluence.slac.stanford.edu/display/SMuRF/Timing+Carrier#TimingCarrier-Howtoconfiguretodistributeoverbackplanefromslot2
             if timing_reference=='backplane':
