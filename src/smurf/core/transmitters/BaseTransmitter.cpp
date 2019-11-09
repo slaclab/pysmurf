@@ -18,6 +18,7 @@
  *-----------------------------------------------------------------------------
 **/
 
+#include <iostream>
 #include <boost/python.hpp>
 #include "smurf/core/transmitters/BaseTransmitter.h"
 
