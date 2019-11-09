@@ -44,7 +44,8 @@ namespace smurf
 
             class BaseTransmitterChannel;
 
-            class BaseTransmitter: public std::enable_shared_from_this<smurf::core::transmitters::BaseTransmitter> {
+            class BaseTransmitter: public std::enable_shared_from_this<smurf::core::transmitters::BaseTransmitter>
+            {
             public:
                 BaseTransmitter();
                 virtual ~BaseTransmitter() {};
@@ -60,7 +61,7 @@ namespace smurf
 
                 // Get data channel
                 std::shared_ptr<smurf::core::transmitters::BaseTransmitterChannel> getDataChannel();
-                
+
                 // Get meta data channel
                 std::shared_ptr<smurf::core::transmitters::BaseTransmitterChannel> getMetaChannel();
 
@@ -101,7 +102,7 @@ namespace smurf
                 std::condition_variable       txCV;                 // Variable to notify the thread new data is ready
                 std::mutex                    txMutex;              // Mutex used for accessing the conditional variable
 
-                // Inteface channels
+                // Interface channels
                 std::shared_ptr<smurf::core::transmitters::BaseTransmitterChannel> dataChannel;
                 std::shared_ptr<smurf::core::transmitters::BaseTransmitterChannel> metaChannel;
 

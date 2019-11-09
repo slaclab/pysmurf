@@ -110,12 +110,12 @@ void sct::BaseTransmitter::acceptDataFrame(ris::FramePtr frame)
     if (disable)
         return;
 
-    // When a new packet is recived, add it to the dual buffer. This will
+    // When a new packet is received, add it to the dual buffer. This will
     // allow to prepare a new packet while the previous one is still being
     // transmitted. The packet will be transmitted in a different thread.
 
     // Check if the buffer is not full.
-    // If the buffer is full, the packet will be droped
+    // If the buffer is full, the packet will be dropped
     if (pktCount < 2)
     {
         // Add a new packet into the buffer
