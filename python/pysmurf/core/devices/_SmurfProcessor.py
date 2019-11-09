@@ -262,7 +262,8 @@ class SmurfProcessor(pyrogue.Device):
         if txDevice:
             self.transmitter = txDevice
             self.add(self.transmitter)
-            pyrogue.streamConnect(self.fifo, self.transmitter)
+            # Connect the data channel to the FIFO.
+            pyrogue.streamConnect(self.fifo, self.transmitter.getDataChannel())
 
     def setTesBias(self, index, val):
         pass
