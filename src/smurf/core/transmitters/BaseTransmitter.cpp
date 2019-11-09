@@ -18,10 +18,9 @@
  *-----------------------------------------------------------------------------
 **/
 
+#include <iostream>
 #include <boost/python.hpp>
-#include "smurf/core/common/Timer.h"
 #include "smurf/core/transmitters/BaseTransmitter.h"
-#include "smurf/core/transmitters/BaseTransmitterChannel.h"
 
 namespace bp  = boost::python;
 namespace sct = smurf::core::transmitters;
@@ -40,9 +39,6 @@ sct::BaseTransmitter::BaseTransmitter()
 {
     if( pthread_setname_np( pktTransmitterThread.native_handle(), "SmurfPacketTx" ) )
         perror( "pthread_setname_np failed for the SmurfPacketTx thread" );
-
-    dataChannel = sct::BaseTransmitterChannel::create(shared_from_this(),0);
-    metaChannel = sct::BaseTransmitterChannel::create(shared_from_this(),1);
 }
 
 sct::BaseTransmitterPtr sct::BaseTransmitter::create()
@@ -66,13 +62,23 @@ void sct::BaseTransmitter::setup_python()
 }
 
 // Get data channel
-sct::BaseTransmitterChannelPtr sct::BaseTransmitter::getDataChannel() {
-   return dataChannel;
+sct::BaseTransmitterChannelPtr sct::BaseTransmitter::getDataChannel()
+{
+    // Create the dataChanenl object the first time this is called
+    if (!dataChannel)
+        dataChannel = sct::BaseTransmitterChannel::create(shared_from_this(),0);
+
+    return dataChannel;
 }
 
 // Get meta data channel
-sct::BaseTransmitterChannelPtr sct::BaseTransmitter::getMetaChannel() {
-   return dataChannel;
+sct::BaseTransmitterChannelPtr sct::BaseTransmitter::getMetaChannel()
+{
+    // Create the metaChanenl object the first time this is called
+    if (!metaChannel)
+        metaChannel = sct::BaseTransmitterChannel::create(shared_from_this(),1);
+
+    return metaChannel;
 }
 
 void sct::BaseTransmitter::setDisable(bool d)
@@ -103,12 +109,12 @@ void sct::BaseTransmitter::acceptDataFrame(ris::FramePtr frame)
     if (disable)
         return;
 
-    // When a new packet is recived, add it to the dual buffer. This will
+    // When a new packet is received, add it to the dual buffer. This will
     // allow to prepare a new packet while the previous one is still being
     // transmitted. The packet will be transmitted in a different thread.
 
     // Check if the buffer is not full.
-    // If the buffer is full, the packet will be droped
+    // If the buffer is full, the packet will be dropped
     if (pktCount < 2)
     {
         // Add a new packet into the buffer
@@ -138,7 +144,7 @@ void sct::BaseTransmitter::acceptMetaFrame(ris::FramePtr frame)
     ris::FrameLockPtr fLock = frame->lock();
 
     if ( frame->bufferCount() != 1 ) return;
-    
+
     std::string cfg(reinterpret_cast<char const*>(frame->beginRead().ptr()), frame->getPayload());
     fLock->unlock();
 

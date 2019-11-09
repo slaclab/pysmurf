@@ -262,7 +262,12 @@ class SmurfProcessor(pyrogue.Device):
         if txDevice:
             self.transmitter = txDevice
             self.add(self.transmitter)
-            pyrogue.streamConnect(self.fifo, self.transmitter)
+            # Connect the data channel to the FIFO.
+            pyrogue.streamConnect(self.fifo, self.transmitter.getDataChannel())
+            # If a root was defined, connect  it to the meta channel.
+            # Use streamTap as it was already connected to the file writer.
+            if root:
+                pyrogue.streamTap(root, self.transmitter.getMetaChannel())
 
     def setTesBias(self, index, val):
         pass

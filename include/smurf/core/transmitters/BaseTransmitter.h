@@ -29,6 +29,7 @@
 #include <rogue/GilRelease.h>
 #include "smurf/core/common/SmurfHeader.h"
 #include "smurf/core/common/SmurfPacket.h"
+#include "smurf/core/transmitters/BaseTransmitterChannel.h"
 
 namespace bp  = boost::python;
 namespace ris = rogue::interfaces::stream;
@@ -42,9 +43,8 @@ namespace smurf
             class BaseTransmitter;
             typedef std::shared_ptr<BaseTransmitter> BaseTransmitterPtr;
 
-            class BaseTransmitterChannel;
-
-            class BaseTransmitter: public std::enable_shared_from_this<smurf::core::transmitters::BaseTransmitter> {
+            class BaseTransmitter: public std::enable_shared_from_this<smurf::core::transmitters::BaseTransmitter>
+            {
             public:
                 BaseTransmitter();
                 virtual ~BaseTransmitter() {};
@@ -59,10 +59,10 @@ namespace smurf
                 const bool getDisable() const;
 
                 // Get data channel
-                std::shared_ptr<smurf::core::transmitters::BaseTransmitterChannel> getDataChannel();
-                
+                BaseTransmitterChannelPtr getDataChannel();
+
                 // Get meta data channel
-                std::shared_ptr<smurf::core::transmitters::BaseTransmitterChannel> getMetaChannel();
+                BaseTransmitterChannelPtr getMetaChannel();
 
                 // Clear all counter.
                 void clearCnt();
@@ -101,9 +101,9 @@ namespace smurf
                 std::condition_variable       txCV;                 // Variable to notify the thread new data is ready
                 std::mutex                    txMutex;              // Mutex used for accessing the conditional variable
 
-                // Inteface channels
-                std::shared_ptr<smurf::core::transmitters::BaseTransmitterChannel> dataChannel;
-                std::shared_ptr<smurf::core::transmitters::BaseTransmitterChannel> metaChannel;
+                // Interface channels
+                BaseTransmitterChannelPtr dataChannel;
+                BaseTransmitterChannelPtr metaChannel;
 
                 // Transmit method. Will run in the pktTransmitterThread thread.
                 // Here is where the method 'transmit' is called.

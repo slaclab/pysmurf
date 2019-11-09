@@ -25,7 +25,7 @@
 namespace bp  = boost::python;
 namespace sct = smurf::core::transmitters;
 
-sct::BaseTransmitterChannel::BaseTransmitterChannel(sct::BaseTransmitterPtr bt, uint32_t channel) 
+sct::BaseTransmitterChannel::BaseTransmitterChannel(sct::BaseTransmitterPtr bt, uint32_t channel)
 {
     channel_ = channel;
     bt_ = bt;
