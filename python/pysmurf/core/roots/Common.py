@@ -166,7 +166,7 @@ class Common(pyrogue.Root):
                                                                  excGroups='NoState',
                                                                  autoPrefix='state',
                                                                  autoCompress=True))
- 
+
         # Update SaveConfig to not read before saving
         self.SaveConfig.replaceFunction(lambda arg: self.saveYaml(name=arg,
                                                                   readFirst=False,
@@ -175,12 +175,12 @@ class Common(pyrogue.Root):
                                                                   excGroups='NoConfig',
                                                                   autoPrefix='config',
                                                                   autoCompress=False))
- 
+
 
     def start(self):
         pyrogue.Root.start(self)
 
-        # Setup groups        
+        # Setup groups
         pysmurf.core.utilities.setupGroups(self)
 
         # Show image build information
@@ -207,7 +207,7 @@ class Common(pyrogue.Root):
                 self._epics.dump(self._pv_dump_file)
 
         # Add publisher, pub_root & script_id need to be updated
-        self._pub = pysmurf.core.utilities.SmurfPublisher(root=self,pub_root=None,script_id=None)
+        #self._pub = pysmurf.core.utilities.SmurfPublisher(root=self,pub_root=None,script_id=None)
 
 
     def stop(self):
