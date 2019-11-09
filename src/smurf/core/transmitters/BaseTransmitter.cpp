@@ -19,7 +19,6 @@
 **/
 
 #include <boost/python.hpp>
-#include "smurf/core/common/Timer.h"
 #include "smurf/core/transmitters/BaseTransmitter.h"
 
 namespace bp  = boost::python;
