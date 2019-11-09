@@ -40,9 +40,6 @@ sct::BaseTransmitter::BaseTransmitter()
 {
     if( pthread_setname_np( pktTransmitterThread.native_handle(), "SmurfPacketTx" ) )
         perror( "pthread_setname_np failed for the SmurfPacketTx thread" );
-
-    dataChannel = sct::BaseTransmitterChannel::create(shared_from_this(),0);
-    metaChannel = sct::BaseTransmitterChannel::create(shared_from_this(),1);
 }
 
 sct::BaseTransmitterPtr sct::BaseTransmitter::create()
@@ -66,13 +63,23 @@ void sct::BaseTransmitter::setup_python()
 }
 
 // Get data channel
-sct::BaseTransmitterChannelPtr sct::BaseTransmitter::getDataChannel() {
-   return dataChannel;
+sct::BaseTransmitterChannelPtr sct::BaseTransmitter::getDataChannel()
+{
+    // Create the dataChanenl object the first time this is called
+    if (!dataChannel)
+        dataChannel = sct::BaseTransmitterChannel::create(shared_from_this(),0);
+
+    return dataChannel;
 }
 
 // Get meta data channel
-sct::BaseTransmitterChannelPtr sct::BaseTransmitter::getMetaChannel() {
-   return metaChannel;
+sct::BaseTransmitterChannelPtr sct::BaseTransmitter::getMetaChannel()
+{
+    // Create the metaChanenl object the first time this is called
+    if (!metaChannel)
+        metaChannel = sct::BaseTransmitterChannel::create(shared_from_this(),1);
+
+    return metaChannel;
 }
 
 void sct::BaseTransmitter::setDisable(bool d)
