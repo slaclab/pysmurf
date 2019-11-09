@@ -72,7 +72,7 @@ sct::BaseTransmitterChannelPtr sct::BaseTransmitter::getDataChannel() {
 
 // Get meta data channel
 sct::BaseTransmitterChannelPtr sct::BaseTransmitter::getMetaChannel() {
-   return dataChannel;
+   return metaChannel;
 }
 
 void sct::BaseTransmitter::setDisable(bool d)
