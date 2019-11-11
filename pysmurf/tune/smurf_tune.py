@@ -2861,7 +2861,7 @@ class SmurfTuneMixin(SmurfBase):
         if drive_power is None:
             drive_power = self.config.get('init')['band_{}'.format(band)].get('amplitude_scale')
             self.log(f'No drive_power given. Using value in config ' +
-                'file: {drive_power}')
+                f'file: {drive_power}')
 
         self.log('Sweeping across frequencies')
         f, resp = self.full_band_ampl_sweep(band, subband, drive_power, n_read)
