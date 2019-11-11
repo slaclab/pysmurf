@@ -18,12 +18,8 @@
 #-----------------------------------------------------------------------------
 
 import sys
-import os
-import re
 
 import pyrogue
-import pyrogue.utilities.fileio
-import rogue.interfaces.stream
 
 import pysmurf.core.devices
 
