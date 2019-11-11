@@ -36,7 +36,7 @@ class SmurfPublisher(object):
     pub_id = 'undeclared'
     env_root = DEFAULT_ENV_ROOT
 
-    def __init__(self, root, script_id=None, options={}, env_root=None):
+    def __init__(self, root, script_id='PySmurf_Server', options={}, env_root=None):
         """The Publisher should normally be instantiated with just the
         script_id, e.g.:
 
