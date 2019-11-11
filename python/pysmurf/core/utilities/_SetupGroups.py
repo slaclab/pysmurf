@@ -21,8 +21,11 @@ import pyrogue
 import pysmurf
 import os
 
-VariableGroups = {'root.LocalTime':                            ['publish','stream'],
-                  'root.SmurfApplication.SomePySmurfVariable': ['publish','stream']}
+VariableGroups = {
+	'root.LocalTime'                            : ['publish','stream'],
+    'root.SmurfApplication.SomePySmurfVariable' : ['publish','stream'],
+    'root.SmurfProcessor'                       : ['publish','stream']
+    }
 
 
 def setupGroups(root):
