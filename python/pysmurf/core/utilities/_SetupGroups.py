@@ -22,7 +22,7 @@ import pysmurf
 import os
 
 VariableGroups = {
-	'root.LocalTime'        : ['publish','stream'],
+    'root.LocalTime'        : ['publish','stream'],
     'root.SmurfApplication' : ['publish','stream'],
     'root.SmurfProcessor'   : ['publish','stream']
     }
