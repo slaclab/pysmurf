@@ -81,14 +81,16 @@ namespace smurf
                 void acceptMetaFrame(ris::FramePtr frame);
 
                 // This method is intended to be used to take SMuRF packet and send them to other
-                // system.
+                // systems.
                 // This method is called whenever a new SMuRF packet is ready, and a SmurfPacketROPtr object
                 // (which is a smart pointer to a read-only interface to a Smurf packer object) is passed.
                 // It must be overwritten by the user application
-                virtual void transmit(SmurfPacketROPtr sp) {};
+                virtual void dataTransmit(SmurfPacketROPtr sp) {};
 
                 // This method is intended to be used to take SMuRF meta data and send them to other
                 // system.
+                // This method is called whenever new a new metadata frame is ready, which is passed as a
+                // std::string object.
                 // It must be overwritten by the user application
                 virtual void metaTransmit(std::string cfg) {};
 

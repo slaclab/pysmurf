@@ -28,8 +28,14 @@ namespace sct = smurf::core::transmitters;
 sct::BaseTransmitter::BaseTransmitter()
 :
     disable(false),
-    dataBuffer(sct::DualDataBuffer<SmurfPacketROPtr>::create(std::bind(&BaseTransmitter::transmit, this, std::placeholders::_1), "SmurfDataTX")),
-    metaBuffer(sct::DualDataBuffer<std::string>::create(std::bind(&BaseTransmitter::metaTransmit, this, std::placeholders::_1), "SmurfMetaTX"))
+    dataBuffer(sct::DualDataBuffer<SmurfPacketROPtr>::create(
+        std::bind(&BaseTransmitter::dataTransmit, this, std::placeholders::_1),
+        "SmurfDataTX")
+    ),
+    metaBuffer(sct::DualDataBuffer<std::string>::create(
+        std::bind(&BaseTransmitter::metaTransmit, this, std::placeholders::_1),
+        "SmurfMetaTX")
+    )
 {
 }
 
