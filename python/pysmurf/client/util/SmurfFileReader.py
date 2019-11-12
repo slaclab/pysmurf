@@ -87,7 +87,7 @@ class SmurfHeader(SmurfHeaderTuple):
 
         val = 0
         for idx,byte in enumerate(range(baseByte,baseByte+3)):
-            val += eval(f'self.test_byte_{byte}') << idx*8
+            val += eval(f'self.tes_byte_{byte}') << idx*8
 
         return (val >> baseBit) & 0xFFFFF;
 
