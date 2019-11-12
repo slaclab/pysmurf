@@ -22,7 +22,7 @@ from collections import namedtuple
 SmurfHeaderSize  = 128
 RogueHeaderSize  = 8
 SmurfChannelSize = 4
-SmurfHeaderPack  = 'BBBBI40xQIIIIQIII4xQBB6xHH4xHH4x'
+SmurfHeaderPack  = '4B 1I 40B 1Q 4I 1Q 3I 4x 1Q 2B 6x 2H 4x 2H 4x'
 RogueHeaderPack  = 'IHBB'
 
 # Code derived from existing code copied from Edward Young, Jesus Vasquez
@@ -34,14 +34,17 @@ RogueHeaderPack  = 'IHBB'
 # TO DO: Extract the TES BIAS values
 
 # Default header as a named tuple
-SmurfHeader = namedtuple( 'SmurfHeader',
-                         [ 'protocol_version'    ,  # 1 Byte, B
-                           'crate_id'            ,  # 1 Byte, B
-                           'slot_number'         ,  # 1 Byte, B
-                           'timing_cond'         ,  # 1 Byte, B
-                           'number_of_channels'  ,  # 4 Bytes, uint32, I
-                            #'tes_bias', < TO DO, include the TES bias values, 40 bytes, 40x
-                           'timestamp'           ,  # 8 Bytes, uint64, Q
+SmurfHeaderTuple = namedtuple( 'SmurfHeader',
+                         [ 'protocol_version'    ,                # 1 Byte, B
+                           'crate_id'            ,                # 1 Byte, B
+                           'slot_number'         ,                # 1 Byte, B
+                           'timing_cond'         ,                # 1 Byte, B
+                           'number_of_channels']                  # 4 Bytes, uint32, I
+      
+                        # 40 bytes of TES data, 40B
+                        + [f'tes_byte_{i}' for i in range (40)]
+
+                        + ['timestamp'           ,  # 8 Bytes, uint64, Q
                            'flux_ramp_increment' ,  # 4 Bytes, int32,  I
                            'flux_ramp_offset'    ,  # 4 bytes, int32,  I
                            'counter_0'           ,  # 4 bytes, uint32, I
@@ -51,7 +54,7 @@ SmurfHeader = namedtuple( 'SmurfHeader',
                            'frame_counter'       ,  # 4 bytes, uint32, I
                            'tes_relays_config'   ,  # 4 bytes, bit mask (uint32), I
                                                     # 4 bytes, unused, 4x
-                           'external_time'       ,  # 5 bytes, uint64, Q (3 extra bytes)
+                           'external_time_raw'   ,  # 5 bytes, uint64, Q (3 extra bytes)
                            'control_field'       ,  # 1 byte, B
                            'test_params'         ,  # 1 byte, B
                                                     # 6 bytes, unused, 6x
@@ -71,6 +74,22 @@ RogueHeader = namedtuple( 'RogueHeader',
                            'channel'                # 1 bytes, uint8,  B
                          ] )
 
+
+class SmurfHeader(SmurfHeaderTuple):
+
+    @property
+    def external_time(self):
+        return self.external_time_raw & 0xFFFFFFFFFF;  # Only lower 5 bytes
+
+    def tesValue(self, index):
+        baseByte = int((index * 20) / 8)
+        baseBit  = int((index * 20) % 8)
+
+        val = 0
+        for idx,byte in enumerate(range(baseByte,baseByte+3)):
+            val += eval(f'self.test_byte_{byte}') << idx*8
+
+        return (val >> baseBit) & 0xFFFFF;
 
 
 class SmurfStreamReader(object):
