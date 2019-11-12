@@ -59,7 +59,7 @@ public:
     const uint8_t  getTimingConfiguration()       const;                  // Get timing configuration
     const uint32_t getNumberChannels()            const;                  // Get number of channel in this packet
     const int32_t  getTESBias(std::size_t index)  const;                  // Get TES DAC values 16X 20 bit
-    void           copyTESBiasArrayTo(std::vector<uin8_t>& buffer) const; // Copy the TES DAC full array to a buffer
+    void           copyTESBiasArrayTo(std::vector<uint8_t>& buffer) const; // Copy the TES DAC full array to a buffer
     const uint64_t getUnixTime()                  const;                  // Get 64 bit unix time nanoseconds
     const uint32_t getFluxRampIncrement()         const;                  // Get signed 32 bit integer for increment
     const uint32_t getFluxRampOffset()            const;                  // Get signed 32 it integer for offset
