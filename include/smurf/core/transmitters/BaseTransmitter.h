@@ -29,6 +29,7 @@
 #include <rogue/GilRelease.h>
 #include "smurf/core/common/SmurfHeader.h"
 #include "smurf/core/common/SmurfPacket.h"
+#include "smurf/core/transmitters/DualDataBuffer.h"
 #include "smurf/core/transmitters/BaseTransmitterChannel.h"
 
 namespace bp  = boost::python;
@@ -67,8 +68,11 @@ namespace smurf
                 // Clear all counter.
                 void clearCnt();
 
-                // Get the dropped packet counter
-                const std::size_t getPktDropCnt() const;
+                // Get the data dropped counter
+                const std::size_t getDataDropCnt() const;
+
+                // Get the metadata dropped counter
+                const std::size_t getMetaDropCnt() const;
 
                 // Accept new data frames
                 void acceptDataFrame(ris::FramePtr frame);
@@ -89,26 +93,11 @@ namespace smurf
                 virtual void metaTransmit(std::string) {};
 
             private:
-                bool                          disable;              // Disable flag
-                std::size_t                   pktDropCnt;           // Dropped packet counter
-                std::vector<SmurfPacketROPtr> pktBuffer;            // Dual buffer of Smurf packets. Can hold 2 packets.
-                std::size_t                   writeIndex;           // Buffer position to be written
-                std::size_t                   readIndex;            // Buffer position to be read
-                std::size_t                   pktCount;             // Number of packets in the buffer
-                bool                          txDataReady;          // Flag to indicate new data is ready t be sent
-                std::atomic<bool>             runTxThread;          // Flag used to stop the thread
-                std::thread                   pktTransmitterThread; // Thread where the SMuRF packet transmission will run
-                std::condition_variable       txCV;                 // Variable to notify the thread new data is ready
-                std::mutex                    txMutex;              // Mutex used for accessing the conditional variable
-
-                // Interface channels
-                BaseTransmitterChannelPtr dataChannel;
-                BaseTransmitterChannelPtr metaChannel;
-
-                // Transmit method. Will run in the pktTransmitterThread thread.
-                // Here is where the method 'transmit' is called.
-                void pktTansmitter();
-
+                bool                            disable;    // Disable flag
+                DataBufferPtr<SmurfPacketROPtr> dataBuffer; // Data buffer
+                DataBufferPtr<std::string>      metaBuffer; // Metadata buffer
+                BaseTransmitterChannelPtr dataChannel;  // Data channel interface
+                BaseTransmitterChannelPtr metaChannel;  // Metadata channel interface
             };
         }
     }
