@@ -81,7 +81,7 @@ class SmurfHeader(SmurfHeaderTuple):
     def external_time(self):
         return self.external_time_raw & 0xFFFFFFFFFF;  # Only lower 5 bytes
 
-    def tesValue(self, index):
+    def tesBias(self, index):
         baseByte = int((index * 20) / 8)
         baseBit  = int((index * 20) % 8)
 
