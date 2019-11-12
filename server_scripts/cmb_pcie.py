@@ -23,7 +23,7 @@ import pyrogue
 
 import pysmurf.core.devices
 
-import common
+import pysmurf.core.server_scripts.Common as common
 
 # Main body
 if __name__ == "__main__":
