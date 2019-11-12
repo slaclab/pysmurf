@@ -482,7 +482,6 @@ class SmurfTuneMixin(SmurfBase):
                 resp = self.freq_resp[band]['full_band_resp']['resp']
                 for k in keys:
                     r = self.freq_resp[band]['resonances'][k]
-                    eta_width = .300 # in MHz. So this = 300 kHz
                     center_freq = r['freq']
                     idx = np.logical_and(freq > center_freq - eta_width,
                         freq < center_freq + eta_width)
