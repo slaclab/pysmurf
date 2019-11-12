@@ -90,11 +90,11 @@ const int32_t SmurfHeaderRO<T>::getTESBias(std::size_t index) const
 }
 
 template<typename T>
-void SmurfHeaderRO<T>::copyTESBiasArrayTo(T it) const
+void SmurfHeaderRO<T>::copyTESBiasArrayTo(std::vector<uint8_t>& buffer) const
 {
-    std::copy(it + headerTESDACOffset,
-        it + headerTESDACOffset + TesBiasArray<T>::TesBiasBufferSize,
-        headerIt);
+    std::copy(headerIt + headerTESDACOffset,
+        headerIt + headerTESDACOffset + TesBiasArray<T>::TesBiasBufferSize,
+        buffer.begin());
 }
 
 template<typename T>
@@ -362,11 +362,9 @@ void SmurfHeader<T>::setTESBias(std::size_t index, int32_t value) const
 }
 
 template<typename T>
-void SmurfHeader<T>::copyTESBiasArrayFrom(T it) const
+void SmurfHeader<T>::copyTESBiasArrayFrom(const std::vector<uint8_t>& buffer) const
 {
-    std::copy(headerIt + this->headerTESDACOffset,
-        headerIt + this->headerTESDACOffset + TesBiasArray<T>::TesBiasBufferSize,
-        it);
+    std::copy(buffer.begin(), buffer.end(), headerIt + this->headerTESDACOffset);
 }
 
 template<typename T>

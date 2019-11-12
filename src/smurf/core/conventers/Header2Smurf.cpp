@@ -28,17 +28,9 @@ scc::Header2Smurf::Header2Smurf()
     ris::Slave(),
     ris::Master(),
     disable(false),
-    tesBias(reqFrame(TesBiasArray<ris::FrameIterator>::TesBiasBufferSize, true)),
-    tba(TesBiasArray<ris::FrameIterator>::create(tesBias->beginWrite()))
+    tesBias(TesBiasArray<std::vector<uint8_t>::iterator>::TesBiasBufferSize, 0),
+    tba(TesBiasArray<std::vector<uint8_t>::iterator>::create(tesBias.begin()))
 {
-    // Update the payload of the TES bias frame buffer
-    tesBias->setPayload(TesBiasArray<ris::FrameIterator>::TesBiasBufferSize);
-
-    // Update the iterator, just in case the method setPayload invalidated it
-    tba->setDataIt(tesBias->beginWrite());
-
-    // Clear the buffer
-    std::fill(tesBias->beginWrite(), tesBias->endWrite(), 0);
 }
 
 scc::Header2SmurfPtr scc::Header2Smurf::create()
@@ -97,7 +89,7 @@ void scc::Header2Smurf::acceptFrame(ris::FramePtr frame)
             // Hold the mutex while the data tesBias array is being written to.
             std::lock_guard<std::mutex> lock(*tba->getMutex());
 
-            smurfHeaderOut->copyTESBiasArrayFrom(tesBias->beginRead());
+            smurfHeaderOut->copyTESBiasArrayFrom(tesBias);
         }
 
         // Set the UNIX time

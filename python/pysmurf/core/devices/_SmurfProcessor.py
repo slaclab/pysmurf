@@ -270,7 +270,7 @@ class SmurfProcessor(pyrogue.Device):
                 pyrogue.streamTap(root, self.transmitter.getMetaChannel())
 
     def setTesBias(self, index, val):
-        pass
+        self.smurf_header2smurf.setTesBias(index, val)
 
     def _getStreamSlave(self):
         """

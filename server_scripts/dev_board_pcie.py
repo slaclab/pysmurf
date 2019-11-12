@@ -56,6 +56,11 @@ if __name__ == "__main__":
                            pcie_dev_data  = args['pcie_dev_data'],
                            txDevice       = pysmurf.core.transmitters.BaseTransmitter(name='Transmitter')) as root:
 
+            # The dev board doesn't support TES bias values, so let's set dummy
+            # values ([-8:7]), for testing purposes.
+            for i in range(16):
+                root._smurf_processor.setTesBias(index=i, val=(i-8))
+
             if args['use_gui']:
                 # Start the GUI
                 import pyrogue.gui
