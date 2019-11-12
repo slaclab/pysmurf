@@ -207,7 +207,7 @@ class Common(pyrogue.Root):
                 self._epics.dump(self._pv_dump_file)
 
         # Add publisher, pub_root & script_id need to be updated
-        #self._pub = pysmurf.core.utilities.SmurfPublisher(root=self,pub_root=None,script_id=None)
+        self._pub = pysmurf.core.utilities.SmurfPublisher(root=self)
 
 
     def stop(self):
