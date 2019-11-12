@@ -94,7 +94,14 @@ const int32_t TesBiasArray<T>::getWord(const WordIndex& index) const
     for (std::size_t j{0}; j < 3; ++j)
         v.b[j] = *(dataIt + i + j);
 
-    return ( ( static_cast<int32_t>(v.w) >> shift) & 0xfffff );
+    // Get the 20-bit word into a 32-bit variable
+    int32_t temp { static_cast<int32_t>( ( v.w >> shift ) & 0xfffff ) };
+
+    // Extent the sign from 20-bit to 32-bit
+    if (temp & 0x80000)
+        temp |= 0xFFF00000;
+
+    return temp;
 }
 
 template <typename T>
