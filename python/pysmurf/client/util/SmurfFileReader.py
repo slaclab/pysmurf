@@ -35,36 +35,36 @@ RogueHeaderPack  = 'IHBB'
 
 # Default header as a named tuple
 SmurfHeaderTuple = namedtuple( 'SmurfHeader',
-                         [ 'protocol_version'    ,                # 1 Byte, B
-                           'crate_id'            ,                # 1 Byte, B
-                           'slot_number'         ,                # 1 Byte, B
-                           'timing_cond'         ,                # 1 Byte, B
-                           'number_of_channels']                  # 4 Bytes, uint32, I
+                              [ 'protocol_version'    ,                # 1 Byte, B
+                                'crate_id'            ,                # 1 Byte, B
+                                'slot_number'         ,                # 1 Byte, B
+                                'timing_cond'         ,                # 1 Byte, B
+                                'number_of_channels']                  # 4 Bytes, uint32, I
       
-                        # 40 bytes of TES data, 40B
-                        + [f'tes_byte_{i}' for i in range (40)]
+                             # 40 bytes of TES data, 40B
+                             + [f'tes_byte_{i}' for i in range (40)]
 
-                        + ['timestamp'           ,  # 8 Bytes, uint64, Q
-                           'flux_ramp_increment' ,  # 4 Bytes, int32,  I
-                           'flux_ramp_offset'    ,  # 4 bytes, int32,  I
-                           'counter_0'           ,  # 4 bytes, uint32, I
-                           'counter_1'           ,  # 4 bytes, uint32, I
-                           'counter_2'           ,  # 8 bytes, uint64, Q
-                           'reset_bits'          ,  # 4 bytes, uint32, I
-                           'frame_counter'       ,  # 4 bytes, uint32, I
-                           'tes_relays_config'   ,  # 4 bytes, bit mask (uint32), I
-                                                    # 4 bytes, unused, 4x
-                           'external_time_raw'   ,  # 5 bytes, uint64, Q (3 extra bytes)
-                           'control_field'       ,  # 1 byte, B
-                           'test_params'         ,  # 1 byte, B
-                                                    # 6 bytes, unused, 6x
-                           'num_rows'            ,  # 2 bytes, uint16, H
-                           'num_rows_reported'   ,  # 2 bytes, uint16, H
-                                                    # 4 bytes, unused, 4x
-                           'row_length'          ,  # 2 bytes, uint16, H
-                           'data_rate'              # 2 bytes, uint16, H
-                                                    # 4 bytes, unused, 4x
-                         ] )
+                             + ['timestamp'           ,  # 8 Bytes, uint64, Q
+                                'flux_ramp_increment' ,  # 4 Bytes, int32,  I
+                                'flux_ramp_offset'    ,  # 4 bytes, int32,  I
+                                'counter_0'           ,  # 4 bytes, uint32, I
+                                'counter_1'           ,  # 4 bytes, uint32, I
+                                'counter_2'           ,  # 8 bytes, uint64, Q
+                                'reset_bits'          ,  # 4 bytes, uint32, I
+                                'frame_counter'       ,  # 4 bytes, uint32, I
+                                'tes_relays_config'   ,  # 4 bytes, bit mask (uint32), I
+                                                         # 4 bytes, unused, 4x
+                                'external_time_raw'   ,  # 5 bytes, uint64, Q (3 extra bytes)
+                                'control_field'       ,  # 1 byte, B
+                                'test_params'         ,  # 1 byte, B
+                                                         # 6 bytes, unused, 6x
+                                'num_rows'            ,  # 2 bytes, uint16, H
+                                'num_rows_reported'   ,  # 2 bytes, uint16, H
+                                                         # 4 bytes, unused, 4x
+                                'row_length'          ,  # 2 bytes, uint16, H
+                                'data_rate'              # 2 bytes, uint16, H
+                                                         # 4 bytes, unused, 4x
+                              ] )
 
 # Default header as a named tuple
 RogueHeader = namedtuple( 'RogueHeader',
