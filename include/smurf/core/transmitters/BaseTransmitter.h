@@ -90,7 +90,7 @@ namespace smurf
                 // This method is intended to be used to take SMuRF meta data and send them to other
                 // system.
                 // It must be overwritten by the user application
-                virtual void metaTransmit(std::string) {};
+                virtual void metaTransmit(std::string cfg) {};
 
             private:
                 bool                                disable;     // Disable flag
