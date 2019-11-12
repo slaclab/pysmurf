@@ -26,9 +26,11 @@ namespace bp  = boost::python;
 namespace sct = smurf::core::transmitters;
 
 sct::BaseTransmitterChannel::BaseTransmitterChannel(sct::BaseTransmitterPtr bt, uint32_t channel)
+:
+    ris::Slave(),
+    channel_(channel),
+    bt_(bt)
 {
-    channel_ = channel;
-    bt_ = bt;
 }
 
 sct::BaseTransmitterChannelPtr sct::BaseTransmitterChannel::create(sct::BaseTransmitterPtr bt, uint32_t channel)
@@ -43,12 +45,14 @@ void sct::BaseTransmitterChannel::setup_python()
                 bp::bases<ris::Slave>,
                 boost::noncopyable >
                 ("BaseTransmitterChannel",bp::no_init);
-   bp::implicitly_convertible<sct::BaseTransmitterChannelPtr, ris::SlavePtr>();
+    bp::implicitly_convertible<sct::BaseTransmitterChannelPtr, ris::SlavePtr>();
 }
 
 void sct::BaseTransmitterChannel::acceptFrame(ris::FramePtr frame)
 {
-   if ( channel_ == 0 ) bt_->acceptDataFrame(frame);
-   else if ( channel_ == 1 ) bt_->acceptMetaFrame(frame);
+    if ( channel_ == 0 )
+        bt_->acceptDataFrame(frame);
+    else if ( channel_ == 1 )
+        bt_->acceptMetaFrame(frame);
 }
 

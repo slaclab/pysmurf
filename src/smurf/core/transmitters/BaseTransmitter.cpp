@@ -28,17 +28,15 @@ namespace sct = smurf::core::transmitters;
 sct::BaseTransmitter::BaseTransmitter()
 :
     disable(false),
-    pktDropCnt(0),
-    pktBuffer(2),
-    writeIndex(0),
-    readIndex(0),
-    pktCount(0),
-    txDataReady(false),
-    runTxThread(true),
-    pktTransmitterThread(std::thread( &BaseTransmitter::pktTansmitter, this ))
+    dataBuffer(sct::DualDataBuffer<SmurfPacketROPtr>::create(
+        std::bind(&BaseTransmitter::dataTransmit, this, std::placeholders::_1),
+        "SmurfDataTX")
+    ),
+    metaBuffer(sct::DualDataBuffer<std::string>::create(
+        std::bind(&BaseTransmitter::metaTransmit, this, std::placeholders::_1),
+        "SmurfMetaTX")
+    )
 {
-    if( pthread_setname_np( pktTransmitterThread.native_handle(), "SmurfPacketTx" ) )
-        perror( "pthread_setname_np failed for the SmurfPacketTx thread" );
 }
 
 sct::BaseTransmitterPtr sct::BaseTransmitter::create()
@@ -55,7 +53,8 @@ void sct::BaseTransmitter::setup_python()
         .def("setDisable",     &BaseTransmitter::setDisable)
         .def("getDisable",     &BaseTransmitter::getDisable)
         .def("clearCnt",       &BaseTransmitter::clearCnt)
-        .def("getPktDropCnt",  &BaseTransmitter::getPktDropCnt)
+        .def("getDataDropCnt", &BaseTransmitter::getDataDropCnt)
+        .def("getMetaDropCnt", &BaseTransmitter::getMetaDropCnt)
         .def("getDataChannel", &BaseTransmitter::getDataChannel)
         .def("getMetaChannel", &BaseTransmitter::getMetaChannel)
     ;
@@ -93,12 +92,18 @@ const bool sct::BaseTransmitter::getDisable() const
 
 void sct::BaseTransmitter::clearCnt()
 {
-    pktDropCnt = 0;
+    dataBuffer->clearCnt();
+    metaBuffer->clearCnt();
 }
 
-const std::size_t sct::BaseTransmitter::getPktDropCnt() const
+const std::size_t sct::BaseTransmitter::getMetaDropCnt() const
 {
-    return pktDropCnt;
+    return metaBuffer->getDropCnt();
+}
+
+const std::size_t sct::BaseTransmitter::getDataDropCnt() const
+{
+    return dataBuffer->getDropCnt();
 }
 
 void sct::BaseTransmitter::acceptDataFrame(ris::FramePtr frame)
@@ -109,82 +114,32 @@ void sct::BaseTransmitter::acceptDataFrame(ris::FramePtr frame)
     if (disable)
         return;
 
-    // When a new packet is received, add it to the dual buffer. This will
-    // allow to prepare a new packet while the previous one is still being
-    // transmitted. The packet will be transmitted in a different thread.
+    ris::FrameLockPtr fLock = frame->lock();
 
-    // Check if the buffer is not full.
-    // If the buffer is full, the packet will be dropped
-    if (pktCount < 2)
-    {
-        // Add a new packet into the buffer
-        pktBuffer.at(writeIndex) = SmurfPacketRO::create(frame);
+    if ( frame->bufferCount() != 1 )
+        return;
 
-        // Update the write position index
-        writeIndex ^= 1;
-
-        // Increment the number of packet in the buffer
-        ++pktCount;
-
-        // Notify the TX tread that new data is ready to be send
-        txDataReady = true;
-        std::unique_lock<std::mutex> lock{txMutex};
-        txCV.notify_all();
-    }
-    else
-    {
-        // Increase the dropped packet counter
-        ++pktDropCnt;
-    }
+    // Insert the new SmurfPacket into the buffer to be sent
+    dataBuffer->insertData(SmurfPacketRO::create(frame));
+    fLock->unlock();
 }
 
 void sct::BaseTransmitter::acceptMetaFrame(ris::FramePtr frame)
 {
     rogue::GilRelease noGil;
+
+    // If the processing block is disabled, do not process the frame
+    if (disable)
+        return;
+
     ris::FrameLockPtr fLock = frame->lock();
 
-    if ( frame->bufferCount() != 1 ) return;
+    if ( frame->bufferCount() != 1 )
+        return;
 
     std::string cfg(reinterpret_cast<char const*>(frame->beginRead().ptr()), frame->getPayload());
     fLock->unlock();
 
-    metaTransmit(cfg);
-}
-
-void sct::BaseTransmitter::pktTansmitter()
-{
-    std::cout << "SmurfPacket Transmitter thread started..." << std::endl;
-
-    // Infinite loop
-    for(;;)
-    {
-        // Check if new data is ready
-        if ( !txDataReady )
-        {
-            // Wait until data is ready, with a 10s timeout
-            std::unique_lock<std::mutex> lock(txMutex);
-            txCV.wait_for( lock, std::chrono::seconds(10) );
-        }
-        else
-        {
-            // Call the transmit method here
-            transmit( pktBuffer.at(readIndex) );
-
-            // Update the read position index
-            readIndex ^= 1;
-
-            // Decrement the number of packets in the buffer
-            --pktCount;
-
-            // Cleat the flag
-            txDataReady = false;
-        }
-
-        // Check if we should stop the loop
-        if (!runTxThread)
-        {
-            std::cout << "SmurfPacket Transmitter thread interrupted." << std::endl;
-            return;
-        }
-    }
+    // Insert the new metada packet into the buffer to be send
+    metaBuffer->insertData(cfg);
 }

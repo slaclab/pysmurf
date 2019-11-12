@@ -37,14 +37,23 @@ class BaseTransmitter(pyrogue.Device):
             localSet=lambda value: self._transmitter.setDisable(value),
             localGet=self._transmitter.getDisable))
 
-        # Add the dropped packet counter variable
+        # Add the data dropped counter variable
         self.add(pyrogue.LocalVariable(
-            name='PktDropCnt',
-            description='Number of dropped packets',
+            name='dataDropCnt',
+            description='Number of data frame dropped',
             mode='RO',
             value=0,
             pollInterval=1,
-            localGet=self._transmitter.getPktDropCnt))
+            localGet=self._transmitter.getDataDropCnt))
+
+        # Add the metaData dropped counter variable
+        self.add(pyrogue.LocalVariable(
+            name='metaDropCnt',
+            description='Number of metadata frame dropped',
+            mode='RO',
+            value=0,
+            pollInterval=1,
+            localGet=self._transmitter.getMetaDropCnt))
 
         # Command to clear all the counters
         self.add(pyrogue.LocalCommand(
