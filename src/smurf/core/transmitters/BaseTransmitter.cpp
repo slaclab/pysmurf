@@ -28,8 +28,8 @@ namespace sct = smurf::core::transmitters;
 sct::BaseTransmitter::BaseTransmitter()
 :
     disable(false),
-    dataBuffer(sct::DataBuffer<SmurfPacketROPtr>::create(std::bind(&BaseTransmitter::transmit, this, std::placeholders::_1), "SmurfDataTX")),
-    metaBuffer(sct::DataBuffer<std::string>::create(std::bind(&BaseTransmitter::metaTransmit, this, std::placeholders::_1), "SmurfMetaTX"))
+    dataBuffer(sct::DualDataBuffer<SmurfPacketROPtr>::create(std::bind(&BaseTransmitter::transmit, this, std::placeholders::_1), "SmurfDataTX")),
+    metaBuffer(sct::DualDataBuffer<std::string>::create(std::bind(&BaseTransmitter::metaTransmit, this, std::placeholders::_1), "SmurfMetaTX"))
 {
 }
 
@@ -47,8 +47,8 @@ void sct::BaseTransmitter::setup_python()
         .def("setDisable",     &BaseTransmitter::setDisable)
         .def("getDisable",     &BaseTransmitter::getDisable)
         .def("getDataDropCnt", &BaseTransmitter::getDataDropCnt)
+        .def("getMetaDropCnt", &BaseTransmitter::getMetaDropCnt)
         .def("getDataChannel", &BaseTransmitter::getDataChannel)
-        .def("getPktDropCnt",  &BaseTransmitter::getPktDropCnt)
         .def("getDataChannel", &BaseTransmitter::getDataChannel)
         .def("getMetaChannel", &BaseTransmitter::getMetaChannel)
     ;

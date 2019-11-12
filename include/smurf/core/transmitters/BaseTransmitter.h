@@ -93,11 +93,11 @@ namespace smurf
                 virtual void metaTransmit(std::string) {};
 
             private:
-                bool                            disable;    // Disable flag
-                DataBufferPtr<SmurfPacketROPtr> dataBuffer; // Data buffer
-                DataBufferPtr<std::string>      metaBuffer; // Metadata buffer
-                BaseTransmitterChannelPtr dataChannel;  // Data channel interface
-                BaseTransmitterChannelPtr metaChannel;  // Metadata channel interface
+                bool                                disable;     // Disable flag
+                DualDataBufferPtr<SmurfPacketROPtr> dataBuffer;  // Data buffer
+                DualDataBufferPtr<std::string>      metaBuffer;  // Metadata buffer
+                BaseTransmitterChannelPtr           dataChannel; // Data channel interface
+                BaseTransmitterChannelPtr           metaChannel; // Metadata channel interface
             };
         }
     }
