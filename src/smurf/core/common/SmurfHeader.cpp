@@ -436,25 +436,25 @@ void SmurfHeader<T>::setControlField(uint8_t value) const
 template<typename T>
 void SmurfHeader<T>::setClearAverageBit(bool value) const
 {
-    setWordBit(this->headerControlFieldOffset, value, this->clearAvergaveBitOffset);
+    setWordBit(this->headerControlFieldOffset, this->clearAvergaveBitOffset, value);
 }
 
 template<typename T>
 void SmurfHeader<T>::setDisableStreamBit(bool value) const
 {
-    setWordBit(this->headerControlFieldOffset, value, this->disableStreamBitOffset);
+    setWordBit(this->headerControlFieldOffset, this->disableStreamBitOffset, value);
 }
 
 template<typename T>
 void SmurfHeader<T>::setDisableFileWriteBit(bool value) const
 {
-    setWordBit(this->headerControlFieldOffset, value, this->disableFileWriteBitOffset);
+    setWordBit(this->headerControlFieldOffset, this->disableFileWriteBitOffset, value);
 }
 
 template<typename T>
 void SmurfHeader<T>::setReadConfigEachCycleBit(bool value) const
 {
-    setWordBit(this->headerControlFieldOffset, value, this->readConfigEachCycleBitOffset);
+    setWordBit(this->headerControlFieldOffset, this->readConfigEachCycleBitOffset, value);
 }
 
 template<typename T>
