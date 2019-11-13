@@ -17,37 +17,41 @@
 # contained in the LICENSE.txt file.
 #-----------------------------------------------------------------------------
 
-import sys
-
 import pyrogue
 
+# Setup python path for testing
+pyrogue.addLibraryPath("../python")
+pyrogue.addLibraryPath("../lib")
+pyrogue.addLibraryPath("../../cryo-det/firmware/python")
+pyrogue.addLibraryPath("../../cryo-det/firmware/submodules/amc-carrier-core/python")
+pyrogue.addLibraryPath("../../cryo-det/firmware/submodules/axi-pcie-core/python")
+pyrogue.addLibraryPath("../../cryo-det/firmware/submodules/lcls-timing-core/python")
+pyrogue.addLibraryPath("../../cryo-det/firmware/submodules/surf/python")
+
+import argparse
+import sys
+import getopt
+import socket
+import os
+import subprocess
+from packaging import version
+import re
+
+import pyrogue.utilities.fileio
+import rogue.interfaces.stream
 import pysmurf.core.devices
 
-import pysmurf.core.server_scripts.Common as common
+from pysmurf.core.roots.EmulationRoot import EmulationRoot
 
 # Main body
 if __name__ == "__main__":
 
-    # Read Arguments
-    args = common.get_args()
-
-    # Import the root device after the python path is updated
-    from pysmurf.core.roots.EmulationRoot import EmulationRoot
-
-    with EmulationRoot ( config_file    = args['config_file'],
-                         epics_prefix   = args['epics_prefix'],
-                         polling_en     = args['polling_en'],
-                         pv_dump_file   = args['pv_dump_file'],
-                         disable_bay0   = args['disable_bay0'],
-                         disable_bay1   = args['disable_bay1']) as root:
-
-        with CmbEth( ip_addr        = args['ip_addr'],
-                     config_file    = args['config_file'],
-                     epics_prefix   = args['epics_prefix'],
-                     polling_en     = args['polling_en'],
-                     pv_dump_file   = args['pv_dump_file'],
-                     disable_bay0   = args['disable_bay0'],
-                     disable_bay1   = args['disable_bay1']) as root:
+    with EmulationRoot ( config_file    = "",
+                         epics_prefix   = "Test",
+                         polling_en     = True,
+                         pv_dump_file   = "epics_dump.txt",
+                         disable_bay0   = False,
+                         disable_bay1   = False) as root:
 
         # Start the GUI
         import pyrogue.gui
