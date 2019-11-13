@@ -160,7 +160,7 @@ void sce::StreamDataEmulator::genSinWave(ris::FramePtr &frame) {
    fPtr += header->SmurfHeaderSize;
 
    // Create uint16 accessor to the data
-   ris::FrameAccessor<uint16_t> dPtr(fPtr,4096);
+   ris::FrameAccessor<uint16_t> dPtr(fPtr,header->getNumberRows());
 
    dPtr[sinChannel_] = int((float)sinBaseline_ + 
                        (float)sinAmplitude_ * sin((float)sinCount_/(float)sinPeriod_));
