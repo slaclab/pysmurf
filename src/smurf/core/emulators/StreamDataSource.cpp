@@ -165,7 +165,7 @@ void sce::StreamDataSource::runThread() {
             header->setDisableStreamBit(0);            // Set control field's disable stream to MCE bit (bit 1)
             header->setDisableFileWriteBit(0);         // Set control field's disable file write (bit 2)
             header->setReadConfigEachCycleBit(0);      // Set control field's set to read configuration file each cycle bit (bit 3)
-            //header->setTestMode(0);                    // Set control field's test mode (bits 4-7)
+            header->setTestMode(0);                    // Set control field's test mode (bits 4-7)
             header->setTestParameters(0);              // Set test parameters
             header->setNumberRows(0);                  // Set MCE header value (max 255) (defaluts to 33 if 0)
             header->setNumberRowsReported(0);          // Set MCE header value (defaults to numb rows if 0)
