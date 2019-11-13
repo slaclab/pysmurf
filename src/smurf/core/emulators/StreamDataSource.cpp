@@ -148,7 +148,7 @@ void sce::StreamDataSource::runThread() {
             header->setCrateID(crateId_);              // Set ATCA crate ID
             header->setSlotNumber(slotNumber_);        // Set ATCA slot number
             header->setTimingConfiguration(0);         // Set timing configuration
-            header->setNumberChannels(512);            // Set number of channel in this packet
+            header->setNumberChannels(4096);           // Set number of channel in this packet
             header->setUnixTime(unixTime);             // Set 64 bit unix time nanoseconds
             header->setFluxRampIncrement(0);           // Set signed 32 bit integer for increment
             header->setFluxRampOffset(0);              // Set signed 32 it integer for offset
