@@ -55,7 +55,7 @@ class StreamDataSource(pyrogue.Device):
             localSet = lambda value: self._source.setCrateId(value)))
 
         self.add(pyrogue.LocalVariable(
-            name='SetSlotNum',
+            name='SlotNum',
             description='Frame generation slot #',
             mode='RW',
             value=0,
