@@ -161,11 +161,6 @@ void sce::StreamDataSource::runThread() {
             header->setTESRelaySetting(0);             // Set TES and flux ramp relays, 17bits in use now
             header->setExternalTimeClock(0);           // Set Syncword from mce for mce based systems (40 bit including header)
             header->setControlField(0);                // Set control field word
-            header->setClearAverageBit(0);             // Set control field's clear average and unwrap bit (bit 0)
-            header->setDisableStreamBit(0);            // Set control field's disable stream to MCE bit (bit 1)
-            header->setDisableFileWriteBit(0);         // Set control field's disable file write (bit 2)
-            header->setReadConfigEachCycleBit(0);      // Set control field's set to read configuration file each cycle bit (bit 3)
-            header->setTestMode(0);                    // Set control field's test mode (bits 4-7)
             header->setTestParameters(0);              // Set test parameters
             header->setNumberRows(0);                  // Set MCE header value (max 255) (defaluts to 33 if 0)
             header->setNumberRowsReported(0);          // Set MCE header value (defaults to numb rows if 0)
