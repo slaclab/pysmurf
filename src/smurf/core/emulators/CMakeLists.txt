@@ -14,4 +14,5 @@
 # ----------------------------------------------------------------------------
 
 target_sources(smurf PRIVATE "${CMAKE_CURRENT_LIST_DIR}/StreamDataEmulator.cpp")
+target_sources(smurf PRIVATE "${CMAKE_CURRENT_LIST_DIR}/StreamDataSource.cpp")
 target_sources(smurf PRIVATE "${CMAKE_CURRENT_LIST_DIR}/module.cpp")

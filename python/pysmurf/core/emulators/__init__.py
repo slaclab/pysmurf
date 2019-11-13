@@ -18,3 +18,4 @@
 #-----------------------------------------------------------------------------
 
 from pysmurf.core.emulators._StreamDataEmulator import StreamDataEmulator
+from pysmurf.core.emulators._StreamDataSource   import StreamDataSource

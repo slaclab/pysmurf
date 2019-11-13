@@ -48,7 +48,7 @@ class EmulationRoot(Common):
         self._ddr_streams = [rogue.interfaces.stream.Master()] * 4
 
         # Set streaming variable for base class
-        self._streaming_stream = rogue.interfaces.stream.Master()
+        self._streaming_stream = pysmurf.core.emulators.StreamDataSource()
 
         # Setup base class
         Common.__init__(self, config_file    = config_file,
@@ -57,4 +57,6 @@ class EmulationRoot(Common):
                               pv_dump_file   = pv_dump_file,
                               txDevice       = txDevice,
                               **kwargs)
+
+        self.add(self._streaming_stream)
 
