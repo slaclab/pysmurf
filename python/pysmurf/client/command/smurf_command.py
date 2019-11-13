@@ -505,21 +505,26 @@ class SmurfCommandMixin(SmurfBase):
         self._caput(triggerPV, 1, wait_after=5, **kwargs)
         self.log('{} sent'.format(triggerPV), self.LOG_USER)
 
-
-    _writestate = ":AMCc:WriteState"
-    def write_state(self, val, **kwargs):
+    # name changed in Rogue 4 from WriteState to SaveState.  Keeping
+    # the write_state function for backwards compatibilty.
+    _savestate = ":AMCc:SaveState"
+    def save_state(self, val, **kwargs):
         """
-        Dumps all PyRogue settings to a yml file.
+        Dumps all PyRogue state variables to a yml file.
 
         Args:
         ----
         val (str) : The path (including file name) to write the yml file to.
         """
-        self._caput(self.epics_root + self._writestate,
+        self._caput(self.epics_root + self._savestate,
                     val, **kwargs)
+    # alias older rogue 3 write_state function to save_state
+    write_state = save_state            
 
-    _writeconfig = ":AMCc:WriteConfig"
-    def write_config(self, val, **kwargs):
+    # name changed in Rogue 4 from WriteConfig to SaveConfig.  Keeping
+    # the write_config function for backwards compatibilty.    
+    _saveconfig = ":AMCc:SaveConfig"
+    def save_config(self, val, **kwargs):
         """
         Writes the current (un-masked) PyRogue settings to a yml file.
 
@@ -527,9 +532,10 @@ class SmurfCommandMixin(SmurfBase):
         ----
         val (str) : The path (including file name) to write the yml file to.
         """
-        self._caput(self.epics_root + self._writeconfig,
+        self._caput(self.epics_root + self._saveconfig,
                     val, **kwargs)
-
+    # alias older rogue 3 write_config function to save_config
+    write_config = save_config        
 
     _tone_file_path = 'CsvFilePath'
     def get_tone_file_path(self, bay, **kwargs):
