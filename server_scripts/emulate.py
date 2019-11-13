@@ -50,7 +50,7 @@ if __name__ == "__main__":
                          epics_prefix   = "Test",
                          polling_en     = True,
                          pv_dump_file   = "epics_dump.txt",
-                         disable_bay0   = True,
+                         disable_bay0   = False,
                          disable_bay1   = True) as root:
 
         # Start the GUI
