@@ -44,7 +44,7 @@ sce::StreamDataSource::StreamDataSource() {
    thread_ = new std::thread(&sce::StreamDataSource::runThread, this);
 }
 
-sce::StreamDataSource::~StreamDataSource() { 
+sce::StreamDataSource::~StreamDataSource() {
    threadEn_ = false;
    rogue::GilRelease noGil;
    thread_->join();
@@ -139,6 +139,7 @@ void sce::StreamDataSource::runThread() {
             size = SmurfHeader<ris::FrameIterator>::SmurfHeaderSize + 2*4096;
 
             frame = this->reqFrame(size, true);
+            frame->setPayload(size);
 
             // Header record
             SmurfHeaderPtr<ris::FrameIterator> header = SmurfHeader<ris::FrameIterator>::create(frame);
@@ -164,14 +165,14 @@ void sce::StreamDataSource::runThread() {
             header->setDisableStreamBit(0);            // Set control field's disable stream to MCE bit (bit 1)
             header->setDisableFileWriteBit(0);         // Set control field's disable file write (bit 2)
             header->setReadConfigEachCycleBit(0);      // Set control field's set to read configuration file each cycle bit (bit 3)
-            //header->setTestMode(0);                    // Set control field's test mode (bits 4-7)
+            header->setTestMode(0);                    // Set control field's test mode (bits 4-7)
             header->setTestParameters(0);              // Set test parameters
             header->setNumberRows(0);                  // Set MCE header value (max 255) (defaluts to 33 if 0)
             header->setNumberRowsReported(0);          // Set MCE header value (defaults to numb rows if 0)
             header->setRowLength(0);                   // Set MCE header value
             header->setDataRate(0);                    // Set MCE header value
 
-            for (i=0; i < 16; i++) 
+            for (i=0; i < 16; i++)
                header->setTESBias(i, 0);               // Set TES DAC values 16X 20 bit
 
             // Get frame iterator
@@ -186,7 +187,6 @@ void sce::StreamDataSource::runThread() {
             // Set data to zero
             memset(dPtr.begin(),0,4096*2);
 
-            frame->setPayload(size);
             this->sendFrame(frame);
             frame.reset();
 
