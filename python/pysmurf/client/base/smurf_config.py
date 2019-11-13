@@ -294,6 +294,7 @@ class SmurfConfig:
             # that regulator.  This is the offset to subtract off the measured
             # value, in mA.
             "hemt_Id_offset" : Use(float),
+            "50k_Id_offset" : Use(float),            
             # 50K amplifier gate voltage, in volts.    
             "LNA_Vg" : Use(float),
             # Which RTM DAC is wired to the gate of the 50K amplifier.

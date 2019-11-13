@@ -167,6 +167,8 @@ class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin, Smu
             self._bit_to_V_hemt=amp_cfg['bit_to_V_hemt']
         if 'hemt_Id_offset' in keys:
             self._hemt_Id_offset=amp_cfg['hemt_Id_offset']
+        if '50k_Id_offset' in keys:
+            self._50k_Id_offset=amp_cfg['50k_Id_offset']            
         if 'hemt_gate_min_voltage' in keys:
             self._hemt_gate_min_voltage=amp_cfg['hemt_gate_min_voltage']
         if 'hemt_gate_max_voltage' in keys:
