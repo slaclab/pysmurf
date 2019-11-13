@@ -67,9 +67,9 @@ namespace smurf
                 void acceptFrame(ris::FramePtr frame);
 
             private:
-                bool            disable; // Disable flag
-                ris::FramePtr   tesBias;
-                TesBiasArrayPtr<ris::FrameIterator> tba;
+                bool                                            disable; // Disable flag
+                std::vector<uint8_t>                            tesBias; // Buffer to hold the TES values
+                TesBiasArrayPtr<std::vector<uint8_t>::iterator> tba;     // TesBias interface object
             };
         }
     }

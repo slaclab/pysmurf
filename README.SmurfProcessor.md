@@ -89,6 +89,13 @@ y(n) = gain / a(0) * [ b(0) * x(n) + b(1) * x(n -1) + ... + b(order) * x(n - ord
 
 This module can be disabled; the incoming frame will just pass through to the next block.
 
+The default coefficients were generated using this python code:
+
+```
+import scipy.signal as signal
+b, a = signal.butter(4, 2*63 / 4000.)
+```
+
 ### Downsampler
 
 Perform a downsampling of the data in the incoming frame, by letting pass only 1 data point each `Factor` number of point.

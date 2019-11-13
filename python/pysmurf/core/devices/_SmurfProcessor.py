@@ -157,11 +157,11 @@ class GeneralAnalogFilter(pyrogue.Device):
             name='A',
             description='Filter a coefficients',
             mode='RW',
-            value= [ 1.0,
-                     -3.9999966334205683,
-                      5.9999899002673720,
-                     -3.9999899002730395,
-                      0.9999966334262355 ] + [0] * 11,
+            value= [  1.0,
+                     -3.74145562,
+                      5.25726624,
+                     -3.28776591,
+                      0.77203984 ] + [0] * 11,
             localSet=lambda value: self.device.setA(value),
             localGet=self.device.getA))
 
@@ -173,11 +173,11 @@ class GeneralAnalogFilter(pyrogue.Device):
             name='B',
             description='Filter b coefficients',
             mode='RW',
-            value= [ 1.7218423734035440e-25,
-                     6.8873694936141760e-25,
-                     1.0331054240421264e-24,
-                     6.8873694936141760e-25,
-                     1.7218423734035440e-25 ] + [0] * 11,
+            value= [ 5.28396689e-06,
+                     2.11358676e-05,
+                     3.17038014e-05,
+                     2.11358676e-05,
+                     5.28396689e-06 ] + [0] * 11,
             localSet=lambda value: self.device.setB(value),
             localGet=self.device.getB))
 
@@ -270,7 +270,7 @@ class SmurfProcessor(pyrogue.Device):
                 pyrogue.streamTap(root, self.transmitter.getMetaChannel())
 
     def setTesBias(self, index, val):
-        pass
+        self.smurf_header2smurf.setTesBias(index, val)
 
     def _getStreamSlave(self):
         """
