@@ -74,15 +74,21 @@ void sce::StreamDataSource::setup_python() {
     bp::implicitly_convertible< sce::StreamDataSourcePtr, ris::MasterPtr >();
 }
 
-void sce::StreamDataSource::setSourcePeriod(uint16_t value) {
+void sce::StreamDataSource::setSourcePeriod(uint32_t value) {
    sourcePeriod_ = value;
 }
 
-uint16_t sce::StreamDataSource::getSourcePeriod() {
+uint32_t sce::StreamDataSource::getSourcePeriod() {
    return sourcePeriod_;
 }
 
 void sce::StreamDataSource::setSourceEnable(bool enable) {
+
+   if ( enable && ! sourceEnable_ ) {
+      frameCounter_ = 0;
+      gettimeofday(&lastTime_,NULL);
+   }
+
    sourceEnable_ = enable;
 }
 
@@ -108,7 +114,6 @@ uint8_t sce::StreamDataSource::getSlotNum() {
 
 void sce::StreamDataSource::runThread() {
    ris::FramePtr frame;
-   struct timeval lastTime;
    struct timeval endTime;
    struct timeval periodTime;
    struct timeval currTime;
@@ -125,13 +130,13 @@ void sce::StreamDataSource::runThread() {
          periodTime.tv_sec  = sourcePeriod_ / 1000000;
          periodTime.tv_usec = sourcePeriod_ % 1000000;
          gettimeofday(&currTime,NULL);
-         timeradd(&lastTime,&periodTime,&endTime);
+         timeradd(&lastTime_,&periodTime,&endTime);
 
          unixTime  = currTime.tv_sec * 1e9;
          unixTime += currTime.tv_usec * 1e3;
 
          if ( timercmp(&currTime,&endTime,>=)) {
-            size = SmurfHeader<ris::FrameIterator>::SmurfHeaderSize + 4*4096;
+            size = SmurfHeader<ris::FrameIterator>::SmurfHeaderSize + 2*4096;
 
             frame = this->reqFrame(size, true);
 
@@ -159,7 +164,7 @@ void sce::StreamDataSource::runThread() {
             header->setDisableStreamBit(0);            // Set control field's disable stream to MCE bit (bit 1)
             header->setDisableFileWriteBit(0);         // Set control field's disable file write (bit 2)
             header->setReadConfigEachCycleBit(0);      // Set control field's set to read configuration file each cycle bit (bit 3)
-            header->setTestMode(0);                    // Set control field's test mode (bits 4-7)
+            //header->setTestMode(0);                    // Set control field's test mode (bits 4-7)
             header->setTestParameters(0);              // Set test parameters
             header->setNumberRows(0);                  // Set MCE header value (max 255) (defaluts to 33 if 0)
             header->setNumberRowsReported(0);          // Set MCE header value (defaults to numb rows if 0)
@@ -184,6 +189,9 @@ void sce::StreamDataSource::runThread() {
             frame->setPayload(size);
             this->sendFrame(frame);
             frame.reset();
+
+            ++frameCounter_;
+            lastTime_ = currTime;
          }
          else usleep(10);
       }

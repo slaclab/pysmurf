@@ -214,6 +214,8 @@ class Common(pyrogue.Root):
         print("Stopping servers...")
         if self._epics:
             self._epics.stop()
+
+        print("Stopping root...")
         pyrogue.Root.stop(self)
 
     # Function for setting a default configuration.

@@ -21,6 +21,7 @@
 #include <boost/python.hpp>
 #include "smurf/core/emulators/module.h"
 #include "smurf/core/emulators/StreamDataEmulator.h"
+#include "smurf/core/emulators/StreamDataSource.h"
 
 namespace bp  = boost::python;
 namespace sce = smurf::core::emulators;
@@ -37,4 +38,5 @@ void sce::setup_module()
     bp::scope io_scope = module;
 
     sce::StreamDataEmulator::setup_python();
+    sce::StreamDataSource::setup_python();
 }

@@ -56,8 +56,8 @@ namespace smurf
                 static void setup_python();
 
                 // Frame rate period in us
-                void     setSourcePeriod(uint16_t value);
-                uint16_t getSourcePeriod();
+                void     setSourcePeriod(uint32_t value);
+                uint32_t getSourcePeriod();
 
                 void     setSourceEnable(bool enable);
                 bool     getSourceEnable();
@@ -72,11 +72,12 @@ namespace smurf
 
                std::shared_ptr<rogue::Logging> eLog_;
 
-               uint16_t sourcePeriod_;
+               uint32_t sourcePeriod_;
                bool     sourceEnable_;
                uint8_t  crateId_;
                uint8_t  slotNumber_;
                uint32_t frameCounter_;
+               struct timeval lastTime_;
 
                std::thread* thread_;
                bool threadEn_;
