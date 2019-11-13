@@ -22,7 +22,7 @@ import sys
 import pyrogue
 
 import pysmurf.core.devices
-
+import pysmurf.core.transmitters
 import pysmurf.core.server_scripts.Common as common
 
 # Main body
@@ -39,7 +39,8 @@ if __name__ == "__main__":
                          polling_en     = args['polling_en'],
                          pv_dump_file   = args['pv_dump_file'],
                          disable_bay0   = args['disable_bay0'],
-                         disable_bay1   = args['disable_bay1']) as root:
+                         disable_bay1   = args['disable_bay1'],
+                         txDevice       = pysmurf.core.transmitters.BaseTransmitter(name='Transmitter')) as root:
 
         # Add dummy TES bias values ([-8:7]), for testing purposes.
         for i in range(16):
