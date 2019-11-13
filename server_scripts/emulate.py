@@ -51,7 +51,7 @@ if __name__ == "__main__":
                          polling_en     = True,
                          pv_dump_file   = "epics_dump.txt",
                          disable_bay0   = False,
-                         disable_bay1   = True) as root:
+                         disable_bay1   = False) as root:
 
         # Start the GUI
         import pyrogue.gui
