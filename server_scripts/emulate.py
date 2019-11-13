@@ -41,6 +41,10 @@ if __name__ == "__main__":
                          disable_bay0   = args['disable_bay0'],
                          disable_bay1   = args['disable_bay1']) as root:
 
+        # Add dummy TES bias values ([-8:7]), for testing purposes.
+        for i in range(16):
+            root._smurf_processor.setTesBias(index=i, val=(i-8))
+
         # Start the GUI
         import pyrogue.gui
         print("Starting GUI...\n")
