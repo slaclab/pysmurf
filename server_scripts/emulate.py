@@ -49,8 +49,8 @@ if __name__ == "__main__":
                      disable_bay0   = args['disable_bay0'],
                      disable_bay1   = args['disable_bay1']) as root:
 
-        # Start the GUI
-        import pyrogue.gui
-        print("Starting GUI...\n")
-        pyrogue.gui.runGui(root=root)
+            # Start the GUI
+            import pyrogue.gui
+            print("Starting GUI...\n")
+            pyrogue.gui.runGui(root=root)
 
