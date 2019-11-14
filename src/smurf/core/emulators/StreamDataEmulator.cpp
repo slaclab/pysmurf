@@ -21,6 +21,7 @@
 #include <boost/python.hpp>
 #include <rogue/interfaces/stream/Frame.h>
 #include <rogue/interfaces/stream/FrameIterator.h>
+#include <rogue/interfaces/stream/FrameAccessor.h>
 #include "smurf/core/emulators/StreamDataEmulator.h"
 #include "smurf/core/common/SmurfHeader.h"
 #include <cmath>
@@ -158,8 +159,8 @@ void sce::StreamDataEmulator::genSinWave(ris::FramePtr &frame) {
    // Jump over the header
    fPtr += header->SmurfHeaderSize;
 
-   // Create uint16 pointer to the data
-   uint16_t * dPtr = (uint16_t *)fPtr.ptr();
+   // Create uint16 accessor to the data
+   ris::FrameAccessor<uint16_t> dPtr(fPtr,header->getNumberRows());
 
    dPtr[sinChannel_] = int((float)sinBaseline_ + 
                        (float)sinAmplitude_ * sin((float)sinCount_/(float)sinPeriod_));
