@@ -4002,9 +4002,54 @@ class SmurfCommandMixin(SmurfBase):
         val (int): 0 or 1 for the debug bit
         """
         self._caput(self.epics_root + self._mcetransmit_debug, val,
-                    **kwargs)
+                    **channel)
 
-    _channel_mask = 'ChannelMapper:Mask'
+    _frame_count = 'FrameCnt'
+    def get_frame_count(self, **kwargs):
+        """
+        Gets the frame count going into the SmurfProcessor. This
+        must be incrementing if you are attempting to stream
+        data.
+
+        Ret:
+        ----
+        frame_count (int) : The frame count number
+        """
+        return self._caget(self.frame_rx_stats + self._frame_count,
+                    **kwargs)
+    
+    _frame_size = 'FrameSize'
+    def get_frame_size(self, **kwargs):
+        """
+        Gets the size of the frame going into the smurf processor.
+
+        Ret:
+        ----
+        frame_size (int) : The size of the data frame into the
+            smurf processor.
+        """
+        return self._caget(self.frame_rx_stats + self._frame_size,
+                           **kwargs)
+        
+    _frame_loss_count = 'FrameLossCnt'
+    def get_frame_loss_cnt(self, **kwargs):
+        """
+        The number of frames that did not make it to the smurf
+        processor
+        """
+        return self._caget(self.frame_rx_stats+ self._frame_loss_count,
+                           **kwargs)
+        
+    _frame_out_order_count = 'FrameOutOrderCnt'
+    def get_frame_out_order_count(self, **kwargs):
+        """
+        """
+        return self._caget(self.frame_rx_stats + self._frame_out_order_count,
+                           **kwargs)
+                           
+    
+        
+    _kwargs_mask = 'ChannelMapper:Mask'
     def set_channel_mask(self, mask, **kwargs):
         """
         Set the smurf processor channel mask.
