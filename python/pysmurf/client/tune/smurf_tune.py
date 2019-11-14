@@ -556,8 +556,7 @@ class SmurfTuneMixin(SmurfBase):
 
             self.set_noise_select(band, 0, wait_done=True, write_log=write_log)
 
-
-
+            # Account for the up and down converter attenuators
             if correct_att:
                 att_uc = self.get_att_uc(band)
                 att_dc = self.get_att_dc(band)
@@ -565,21 +564,21 @@ class SmurfTuneMixin(SmurfBase):
                 self.log('DC (ADC) att: {}'.format(att_dc))
                 if att_uc > 0:
                     scale = (10**(-att_uc/2/20))
-                    self.log('UC attenuator > 0. Scaling by {:4.3f}'.format(scale))
+                    self.log(f'UC attenuator > 0. Scaling by {scale:4.3f}')
                     dac *= scale
                 if att_dc > 0:
                     scale = (10**(att_dc/2/20))
-                    self.log('UC attenuator > 0. Scaling by {:4.3f}'.format(scale))
+                    self.log(f'DC attenuator > 0. Scaling by {scale:4.3f}')
                     adc *= scale
 
             if save_raw_data:
                 self.log('Saving raw data...', self.LOG_USER)
 
-                path = os.path.join(self.output_dir, '{}_adc'.format(timestamp))
+                path = os.path.join(self.output_dir, f'{timestamp}_adc')
                 np.save(path, adc)
                 self.pub.register_file(path, 'adc', format='npy')
 
-                path = os.path.join(self.output_dir,'{}_dac'.format(timestamp))
+                path = os.path.join(self.output_dir,f'{timestamp}_dac')
                 np.save(path, dac)
                 self.pub.register_file(path, 'dac', format='npy')
 
