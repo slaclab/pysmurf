@@ -115,7 +115,7 @@ getFpgaIp()
 # All those found, will be added to PYTHONPATH
 updatePythonPath()
 {
-    echo "Looking for a local checked out repository under '${fw_top_dir}'..."
+    printf "Looking for local python directories... "
 
     # Look for the python directories that match the patterns
     local python_dirs=( $(find ${fw_top_dir} -type d \
@@ -130,12 +130,12 @@ updatePythonPath()
         # If directories were found,add them all to PYTHONPATH
         echo "The following python directories were found:"
         for d in ${python_dirs[@]}; do
-            echo ${d}
+            echo "  ${d}"
             python_path=${d}:${python_path}
         done
 
         export PYTHONPATH=${python_path}${PYTHONPATH}
-        echo "PYTHONPATH updated!"
+        echo "  PYTHONPATH updated!"
     fi
 }
 
@@ -211,19 +211,21 @@ if [ -z ${fpga_ip+x} ]; then
     fi
 
     echo "IP address was not defined. It will be calculated automatically from the crate ID and slot number..."
+    echo
 
     ipmb=$(expr 0128 + 2 \* $slot)
 
-    echo "Reading Crate ID via IPMI..."
+    printf "Reading Crate ID via IPMI...            "
     crate_id=$(getCrateId)
     echo "Create ID: ${crate_id}"
 
-    echo "Calculating FPGA IP address..."
+    printf "Calculating FPGA IP address...          "
     fpga_ip=$(getFpgaIp)
     echo "FPGA IP: ${fpga_ip}"
 
 else
     echo "IP address was defined. Ignoring shelfmanager and slot number. FW version checking disabled."
+    echo
     no_check_fw=1
 fi
 
@@ -243,7 +245,7 @@ if [ ${slot+x} ]; then
 fi
 
 # Look for a pyrogue zip file
-echo "Looking for pyrogue zip file..."
+printf "Looking for pyrogue zip file...         "
 pyrogue_file=$(find ${fw_top_dir} -maxdepth 1 -name *zip)
 if [ ! -f "$pyrogue_file" ]; then
     echo "Pyrogue zip file not found!"
