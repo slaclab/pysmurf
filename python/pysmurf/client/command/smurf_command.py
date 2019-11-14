@@ -2121,9 +2121,11 @@ class SmurfCommandMixin(SmurfBase):
         ----
         datafile_path (str) : The full path for the output.
         """
-        return self._caget(self.stream_data_writer_root +
-            self._data_file, **kwargs)
 
+        ret=self._caget(self.stream_data_writer_root +
+                        self._data_file, **kwargs)
+        ret=''.join([str(s, encoding='UTF-8') for s in ret])
+        return ret
     
     _datawriter_open = 'Open'
     def set_streamdatawriter_open(self, val, **kwargs):

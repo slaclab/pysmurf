@@ -648,7 +648,7 @@ class SmurfUtilMixin(SmurfBase):
 
         return f, df, flux_ramp_strobe
 
-    def take_stream_data(self, meas_time, downsample_factor=20):
+    def take_stream_data(self, meas_time, downsample_factor=None):
         """
         Takes streaming data for a given amount of time
 
@@ -675,12 +675,10 @@ class SmurfUtilMixin(SmurfBase):
         return data_filename
 
 
-    def stream_data_on(self, write_config=False, downsample_factor=None,
-                       data_filename=None):
+    def stream_data_on(self, write_config=False, data_filename=None,
+                       downsample_factor=None):
         """
         Turns on streaming data.
-
-        TO DO: add downsample factor to config table!
 
         Opt Args:
         ---------
@@ -695,11 +693,14 @@ class SmurfUtilMixin(SmurfBase):
         """
         bands = self.config.get('init').get('bands')
 
-        if downsample_factor is None:
-            downsample_factor = 20
-
-        self.set_downsampler_factor(downsample_factor)
-
+        if downsample_factor is not None:
+            self.set_downsample_factor(downsample_factor)
+        else:
+            downsample_factor = self.get_downsample_factor()
+            self.log('Input downsample factor is None. Using',
+                     'value already in pyrogue:',
+                     f' {downsample_factor}')
+            
         # Check if flux ramp is non-zero
         ramp_max_cnt = self.get_ramp_max_cnt()
         if ramp_max_cnt == 0:
@@ -717,12 +718,13 @@ class SmurfUtilMixin(SmurfBase):
                 self.log("Flux ramp is AC-coupled.", self.LOG_USER)
             else:
                 self.log("flux_ramp_ac_dc_relay_status = " +
-                         "{} - NOT A VALID STATE.".format(flux_ramp_ac_dc_relay_status),
-                         self.LOG_ERROR)
+                         f"{flux_ramp_ac_dc_relay_status} " +
+                         "- NOT A VALID STATE.", self.LOG_ERROR)
 
-            # start streaming before opening file to avoid transient filter step
-            self.set_stream_enable(1, write_log=False)
-            time.sleep(.1)
+            # start streaming before opening file
+            # to avoid transient filter step
+            self.set_stream_enable(1, write_log=False,
+                                   wait_after=.05)
 
             # Make the data file
             timestamp = self.get_timestamp()
@@ -735,14 +737,15 @@ class SmurfUtilMixin(SmurfBase):
             # Optionally write PyRogue configuration
             if write_config:
                 config_filename=os.path.join(self.output_dir, timestamp+'.yml')
-                self.log('Writing PyRogue configuration to file : {}'.format(config_filename),
+                self.log('Writing PyRogue configuration to file : '+
+                         f'{config_filename}',
                      self.LOG_USER)
                 self.write_config(config_filename)
 
                 # short wait
                 time.sleep(5.)
-                self.log('Writing to file : {}'.format(data_filename),
-                self.LOG_USER)
+                self.log(f'Writing to file : {data_filename}',
+                         self.LOG_USER)
 
             smurf_chans = {}
             for b in bands:
@@ -767,7 +770,8 @@ class SmurfUtilMixin(SmurfBase):
         self.close_data_file()
 
 
-    def read_stream_data(self, datafile, channel=None, n_samp=None, array_size=512):
+    def read_stream_data(self, datafile, channel=None,
+                         n_samp=None, array_size=512):
         """
         Loads data taken with the fucntion stream_data_on.
 
@@ -2515,36 +2519,39 @@ class SmurfUtilMixin(SmurfBase):
 
     def make_channel_mask(self, band=None, smurf_chans=None):
         """
-        Makes the channel mask. Only the channels in the mask will be streamed
-        or written to disk.
+        Makes the channel mask. Only the channels in the 
+        mask will be streamed or written to disk.
 
         If no optional arguments are given, mask will contain all channels
         that are on. If both band and smurf_chans are supplied, a mask
         in the input order is created.
 
+        Opt Args:
+        ---------
         band (int array) : An array of band numbers. Must be the same
             length as smurf_chans
         smurf_chans (int_array) : An array of SMuRF channel numbers.
             Must be the same length as band
+
+        Ret:
+        ----
+        output_chans (int array) : The output channels.
         """
         output_chans = np.array([], dtype=int)
+
+        # If no input, build one by querying pyrogue
         if smurf_chans is None and band is not None:
             band = np.ravel(np.array(band))
             n_chan = self.get_number_channels(band)
             output_chans = np.arange(n_chan) + n_chan*band
+        # Take user inputs and make the channel map
         elif smurf_chans is not None:
-            keys = smurf_chans.keys()
+            keys = smurf_chans.keys()  # the band numbers
             for k in keys:
-                self.log('Band {}'.format(k))
                 n_chan = self.get_number_channels(k)
                 for ch in smurf_chans[k]:
-                    #if (ch+channel_offset)<0:
-                    #    channel_offset+=n_chan
-                    #if (ch+channel_offset+1)>n_chan:
-                    #    channel_offset-=n_chan
-
                     output_chans = np.append(output_chans,
-                                          ch + n_chan*k)
+                                             ch + n_chan*k)
 
         return output_chans
 
