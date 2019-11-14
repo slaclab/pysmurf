@@ -41,7 +41,7 @@ usage()
     echo "This checking can be disabled with -D. The checking will also be disabled if -a is used instead of -S and -N."
     echo
     echo "The script will look for a zip file under '${fw_top_dir}'. If found, it will be passed with the argument -z to the next startup script."
-    echo "If not zip file is found, the script will then look for a local checked out repository in the same location. If found, the python directories"
+    echo "If not zip file is found, the script will then look for a local checked out repository in the same location; If found, the python directories"
     echo "under it will be added to PYTHONPATH."
     echo
     echo "All other arguments are passed verbatim to the next startup script."
