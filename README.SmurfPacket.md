@@ -33,6 +33,8 @@ The header is 128-byte long and contains the following information:
 |      15        |     120           |         2         | Row length                                    | MCE header value
 |                |     122           |         2         | Data rate                                     | MCE header value
 
+#### Control Field (byte offset 104)
+
 The bits in the control filed (byte offset 104) are:
 
 |  bit  | Description
