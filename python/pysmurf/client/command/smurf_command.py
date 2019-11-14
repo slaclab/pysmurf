@@ -4048,8 +4048,7 @@ class SmurfCommandMixin(SmurfBase):
                            **kwargs)
                            
     
-        
-    _kwargs_mask = 'ChannelMapper:Mask'
+    _channel_mask = 'ChannelMapper:Mask'
     def set_channel_mask(self, mask, **kwargs):
         """
         Set the smurf processor channel mask.
