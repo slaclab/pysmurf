@@ -108,6 +108,37 @@ getFpgaIp()
     echo ${fpga_ip}
 }
 
+# Look for python directories in a local checkout of a repository.
+# Python directories should match these patterns:
+# - /tmp/fw/*/firmware/python/
+# - /tmp/fw/*/firmware/submodules/*/python/
+# All those found, will be added to PYTHONPATH
+updatePythonPath()
+{
+    echo "Looking for a local checked out repository under '${fw_top_dir}'..."
+
+    # Look for the python directories that match the patterns
+    local python_dirs=( $(find ${fw_top_dir} -type d \
+                          -regex "^${fw_top_dir}/[^/]+/firmware/python" -o \
+                          -regex "^${fw_top_dir}/[^/]+/firmware/submodules/[^/]+/python") )
+
+    # Check if any directory was found
+    if [ ${#python_dirs[@]} -eq 0 ]; then
+        # if nothing was found, just return without doing anything
+        echo "Not python directories found"
+    else
+        # If directories were found,add them all to PYTHONPATH
+        echo "The following python directories were found:"
+        for d in ${python_dirs[@]}; do
+            echo ${d}
+            python_path=${d}:${python_path}
+        done
+
+        export PYTHONPATH=${python_path}${PYTHONPATH}
+        echo "PYTHONPATH updated!"
+    fi
+}
+
 #############
 # Main body #
 #############
@@ -211,15 +242,19 @@ if [ ${slot+x} ]; then
     fi
 fi
 
-# Extract the pyrogue tarball and update PYTHONPATH
+# Look for a pyrogue zip file
 echo "Looking for pyrogue zip file..."
 pyrogue_file=$(find ${fw_top_dir} -maxdepth 1 -name *zip)
 if [ ! -f "$pyrogue_file" ]; then
     echo "Pyrogue zip file not found!"
-    exit 1
+
+    # if not found, then look for a local checkout repository.
+    updatePythonPath
+else
+    # If found, add it to the SMuRF arguments
+    echo "Pyrogue zip file found: ${pyrogue_file}"
+    args="${args} -z ${pyrogue_file}"
 fi
-echo "Pyrogue zip file found: ${pyrogue_file}"
-args="${args} -z ${pyrogue_file}"
 
 # Firmware version checking
 if [ -z ${no_check_fw+x} ]; then
