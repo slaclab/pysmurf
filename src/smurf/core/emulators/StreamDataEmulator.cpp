@@ -142,14 +142,16 @@ void sce::StreamDataEmulator::genSinWave(ris::FramePtr &frame) {
 
    SmurfHeaderROPtr<ris::FrameIterator> header = SmurfHeaderRO<ris::FrameIterator>::create(frame);
 
-   if ( sinChannel_ >= header->getNumberRows() ) {
+   uint32_t numChannels { header->getNumberChannels() };
+
+   if ( sinChannel_ >= numChannels ) {
       eLog_->error("Configured sinChannel exceeds number of rows defined in the header.");
       return;
    }
 
-   if ( header->SmurfHeaderSize + (header->getNumberRows() * 2) != frame->getPayload() ) {
+   if ( header->SmurfHeaderSize + (numChannels * 2) != frame->getPayload() ) {
       eLog_->error("Received frame does not match expected size. Size=%i, header=%i, payload=%i",
-                  frame->getPayload(), header->SmurfHeaderSize, header->getNumberRows()*2);
+                  frame->getPayload(), header->SmurfHeaderSize, numChannels*2);
       return;
    }
 
@@ -160,9 +162,9 @@ void sce::StreamDataEmulator::genSinWave(ris::FramePtr &frame) {
    fPtr += header->SmurfHeaderSize;
 
    // Create uint16 accessor to the data
-   ris::FrameAccessor<uint16_t> dPtr(fPtr,header->getNumberRows());
+   ris::FrameAccessor<uint16_t> dPtr(fPtr, numChannels);
 
-   dPtr[sinChannel_] = int((float)sinBaseline_ + 
+   dPtr[sinChannel_] = int((float)sinBaseline_ +
                        (float)sinAmplitude_ * sin((float)sinCount_/(float)sinPeriod_));
 
    if ( ++sinCount_ == sinPeriod_ ) sinCount_ = 0;
