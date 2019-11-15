@@ -30,7 +30,9 @@ class SmurfNoiseMixin(SmurfBase):
         detrend='constant', fs=None, low_freq=np.array([.1, 1.]), 
         high_freq=np.array([1., 10.]), make_channel_plot=True,
         make_summary_plot=True, save_data=False, show_plot=False,
-        grid_on=False, datafile=None, downsample_factor=20):
+        grid_on=False, datafile=None, downsample_factor=None,
+        write_log=True):
+
         """
         Takes a timestream of noise and calculates its PSD.
 
@@ -79,7 +81,8 @@ class SmurfNoiseMixin(SmurfBase):
         phase *= self.pA_per_phi0/(2.*np.pi) # phase converted to pA
 
         if fs is None:
-            #num_averages = self.config.get('smurf_to_mce')['num_averages']
+            if downsample_factor is None:
+                downsample_factor = self.get_downsample_factor()
             # flux ramp rate returns in kHz
             fs = self.get_flux_ramp_freq()*1.0E3/downsample_factor
         
@@ -118,15 +121,17 @@ class SmurfNoiseMixin(SmurfBase):
                     f_knee_list.append(f_knee)
                     f_knees[ch]=f_knee
                     n_list.append(n)
-                    good_fit = True    
-                self.log('{}. b{}ch{:03}:'.format(c+1,band,ch) + 
-                    ' white-noise level = {:.2f}'.format(wl) +
-                        ' pA/rtHz, n = {:.2f}'.format(n) + 
-                        ', f_knee = {:.2f} Hz'.format(f_knee))
+                    good_fit = True
+                if write_log:
+                    self.log('{}. b{}ch{:03}:'.format(c+1,band,ch) + 
+                         ' white-noise level = {:.2f}'.format(wl) +
+                         ' pA/rtHz, n = {:.2f}'.format(n) + 
+                         ', f_knee = {:.2f} Hz'.format(f_knee))
             except Exception as e:
-                self.log('{} b{}ch{:03}: bad fit to noise model'.format(c+1,
-                    band, ch))
-                self.log(e)
+                if write_log:
+                    self.log(f'{c+1} b{band}ch{ch:03}: '+
+                             'bad fit to noise model')
+                    self.log(e)
 
             # Calculate noise in various frequency bins
             for i, (l, h) in enumerate(zip(low_freq, high_freq)):
@@ -151,12 +156,12 @@ class SmurfNoiseMixin(SmurfBase):
                 
                 # Plot the fit
                 if good_fit:
-                    ax[1].plot(f_fit, Pxx_fit, linestyle='--', label=f'$n={n}')
+                    ax[1].plot(f_fit, Pxx_fit, linestyle='--', label=f'n={n:3.2f}')
                     ax[1].plot(f_knee, 2.*wl, linestyle='none', marker='o',
-                        label=r'$f_\mathrm{knee} = ' + f'{f_knee:.2f},' + 
+                        label=r'$f_\mathrm{knee} = ' + f'{f_knee:0.2f},' + 
                         r'\mathrm{Hz}$')
                     ax[1].plot(f_fit,wl + np.zeros(len(f_fit)), linestyle=':',
-                        label=r'$\mathrm{wl} = $'+ f'{wl:.2f},' + 
+                        label=r'$\mathrm{wl} = $'+ f'{wl:0.2f},' + 
                         r'$\mathrm{pA}/\sqrt{\mathrm{Hz}}$')
                     ax[1].legend(loc='best')
                 

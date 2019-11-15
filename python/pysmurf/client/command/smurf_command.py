@@ -152,6 +152,18 @@ class SmurfCommandMixin(SmurfBase):
 
         return ret
 
+
+    _rogue_version = 'RogueVersion'
+    def get_rogue_version(self, as_str=True, **kwargs):
+        """
+        Returns the rogue version
+        """
+        ret = self._caget(self.amcc + self._rogue_version,
+                          **kwargs)
+        if as_str:
+            ret = tools.utf8_to_str(ret)
+        return ret
+        
     def get_enable(self, **kwargs):
         """
         Returns the status of the global poll bit epics_root:AMCc:enable.
@@ -2112,19 +2124,24 @@ class SmurfCommandMixin(SmurfBase):
         self._caput(self.stream_data_writer_root + self._data_file,
             datafile_path, **kwargs)
 
-    def get_streamdatawriter_datafile(self, **kwargs):
+    def get_streamdatawriter_datafile(self, as_str=True, **kwargs):
         """
         Gets the output path for the StreamDataWriter. This is what is
         used for take_debug_data.
+
+        Opt Args:
+        ---------
+        as_str (bool) : Whether to return the data as a string. Default
+            is True.
 
         Ret:
         ----
         datafile_path (str) : The full path for the output.
         """
-
         ret=self._caget(self.stream_data_writer_root +
                         self._data_file, **kwargs)
-        ret=''.join([str(s, encoding='UTF-8') for s in ret])
+        if as_str:
+            ret=tools.utf8_to_str(d)
         return ret
     
     _datawriter_open = 'Open'
@@ -4168,7 +4185,7 @@ class SmurfCommandMixin(SmurfBase):
 
 
     _downsampler_factor = 'Downsampler:Factor'
-    def set_downsampler_factor(self, factor, **kwargs):
+    def set_downsample_factor(self, factor, **kwargs):
         """
         Set the smurf processor down-sampling factor.
 
@@ -4180,7 +4197,7 @@ class SmurfCommandMixin(SmurfBase):
             **kwargs)
 
 
-    def get_downsampler_factor(self, **kwargs):
+    def get_downsample_factor(self, **kwargs):
         """
         Get the smurf processor down-sampling factor.
 

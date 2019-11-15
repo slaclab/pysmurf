@@ -697,8 +697,8 @@ class SmurfUtilMixin(SmurfBase):
             self.set_downsample_factor(downsample_factor)
         else:
             downsample_factor = self.get_downsample_factor()
-            self.log('Input downsample factor is None. Using',
-                     'value already in pyrogue:',
+            self.log('Input downsample factor is None. Using'+
+                     'value already in pyrogue:'+
                      f' {downsample_factor}')
             
         # Check if flux ramp is non-zero
@@ -724,7 +724,7 @@ class SmurfUtilMixin(SmurfBase):
             # start streaming before opening file
             # to avoid transient filter step
             self.set_stream_enable(1, write_log=False,
-                                   wait_after=.05)
+                                   wait_after=.15)
 
             # Make the data file
             timestamp = self.get_timestamp()
@@ -2555,6 +2555,29 @@ class SmurfUtilMixin(SmurfBase):
 
         return output_chans
 
+    def set_downsample_filter(self, filter_order, cutoff_freq):
+        """
+        Sets the downsample filter. This is anti-alias filter
+        that filters data at the flux_ramp reset rate, which is
+        before the downsampler.
+
+        Args:
+        -----
+        filter_order (int) : The number of poles in the filter.
+        cutoff_freq (float) : The filter cutoff frequency
+        """
+        # Get flux ramp frequency
+        flux_ramp_freq = self.get_flux_ramp_freq()
+
+        # Get filter parameters
+        b, a = signal.butter(filter_order,
+                             2*cutoff_freq/flux_ramp_freq)
+
+        # Set filter parameters
+        self.set_filter_a(a)
+        self.set_filter_b(b)
+
+        
     def get_filter_params(self):
         """
         Get the downsample filter parameters: filter order,
@@ -2573,7 +2596,7 @@ class SmurfUtilMixin(SmurfBase):
         # Get filter order, gain, and averages
         filter_order = self.get_filter_order()
         filter_gain = self.get_filter_gain()
-        num_averages = self.get_downsampler_factor()
+        num_averages = self.get_downsample_factor()
 
         if filter_order < 0:
             a = None
