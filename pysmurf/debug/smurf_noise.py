@@ -119,10 +119,10 @@ class SmurfNoiseMixin(SmurfBase):
                     f_knees[ch]=f_knee
                     n_list.append(n)
                     good_fit = True    
-                self.log('{}. b{}ch{:03}:'.format(c+1,band,ch) + 
-                    ' white-noise level = {:.2f}'.format(wl) +
-                        ' pA/rtHz, n = {:.2f}'.format(n) + 
-                        ', f_knee = {:.2f} Hz'.format(f_knee))
+                #self.log('{}. b{}ch{:03}:'.format(c+1,band,ch) + 
+                   # ' white-noise level = {:.2f}'.format(wl) +
+                     #   ' pA/rtHz, n = {:.2f}'.format(n) + 
+                       # ', f_knee = {:.2f} Hz'.format(f_knee))
             except Exception as e:
                 self.log('{} b{}ch{:03}: bad fit to noise model'.format(c+1,
                     band, ch))
@@ -1138,8 +1138,8 @@ class SmurfNoiseMixin(SmurfBase):
                                             p0=p0,bounds=bounds)
         except Exception as e:
             wl = np.mean(Pxx[1:])
-            print('Unable to fit noise model. ' + 
-                f'Reporting mean noise: {wl:.2f} pA/rtHz')
+            #print('Unable to fit noise model. ' + 
+             #  f'Reporting mean noise: {wl:.2f} pA/rtHz')
 
             popt = [wl, 1., 0.]
             pcov = None
