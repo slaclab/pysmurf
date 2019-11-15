@@ -389,7 +389,7 @@ class SmurfTuneMixin(SmurfBase):
 
         
     def plot_tune_summary(self, band, eta_scan=False, show_plot=False,
-                          save_plot=True, eta_width=.3, channel=None,
+                          save_plot=True, eta_width=.3, channels=None,
                           plot_summary=True):
         """
         Plots summary of tuning. Requires self.freq_resp to be filled.
@@ -410,7 +410,7 @@ class SmurfTuneMixin(SmurfBase):
         show_plot (bool) : Whether to display the plot. Default is False.
         save_plot (bool) : Whether to save the plot. Default is True.
         eta_width (float) : The width to plot in MHz.
-        channel (int list) : Which channels to plot.  Default is None,
+        channels (int list) : Which channels to plot.  Default is None,
                              which plots all available channels.
         plot_summary (bool) : Plot summary.
         """
@@ -486,27 +486,43 @@ class SmurfTuneMixin(SmurfBase):
                 freq = self.freq_resp[band]['full_band_resp']['freq']
                 resp = self.freq_resp[band]['full_band_resp']['resp']
                 for k in keys:
-                    r = self.freq_resp[band]['resonances'][k]
+                    r = self.freq_resp[band]['resonances'][k]                    
+                    channel=r['channel']
+                    # If user provides a channel restriction list, only
+                    # plot channels in that list.
+                    if channel is not None and channel not in channels:
+                        continue                    
                     center_freq = r['freq']
                     idx = np.logical_and(freq > center_freq - eta_width,
                         freq < center_freq + eta_width)
 
-                    # Actually plot the data
+                    # Actually plot the data                    
                     self.plot_eta_fit(band, freq[idx], resp[idx], 
                         eta_mag=r['eta_mag'], eta_phase_deg=r['eta_phase'],
                         band=band, res_num=k, timestamp=timestamp, 
                         save_plot=save_plot, show_plot=show_plot, 
-                        peak_freq=center_freq, channel=r['channel'])
+                        peak_freq=center_freq, channel=channel)
             # This is for data from find_freq/setup_notches
             else:
                 for k in keys:
-                    self.log('Eta plot {} of {}'.format(k+1, n_keys))
-                    r = self.freq_resp[band]['resonances'][k]
+                    r = self.freq_resp[band]['resonances'][k]                    
+                    channel=r['channel']
+                    # If user provides a channel restriction list, only
+                    # plot channels in that list.
+                    if channels is not None:
+                        if channel not in channels:
+                            continue
+                        else:
+                            self.log('Eta plot for channel {}'.format(channel))
+                    else:
+                        self.log('Eta plot {} of {}'.format(k+1, n_keys))
+                        
                     self.plot_eta_fit(r['freq_eta_scan'], r['resp_eta_scan'],
                         eta=r['eta'], eta_mag=r['eta_mag'], 
                         eta_phase_deg=r['eta_phase'], band=band, res_num=k,
                         timestamp=timestamp, save_plot=save_plot,
-                        show_plot=show_plot, peak_freq=r['freq'])
+                        show_plot=show_plot, peak_freq=r['freq'],
+                        channel=channel)
 
 
     def full_band_resp(self, band, n_scan=1, n_samples=2**19, make_plot=False, 
@@ -1177,7 +1193,6 @@ class SmurfTuneMixin(SmurfBase):
             plt.ion()
         else:
             plt.ioff()
-        
 
         I = np.real(resp)
         Q = np.imag(resp)
