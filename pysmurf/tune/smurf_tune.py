@@ -389,7 +389,8 @@ class SmurfTuneMixin(SmurfBase):
 
         
     def plot_tune_summary(self, band, eta_scan=False, show_plot=False,
-        save_plot=True, eta_width=.3):
+                          save_plot=True, eta_width=.3, channel=None,
+                          plot_summary=True):
         """
         Plots summary of tuning. Requires self.freq_resp to be filled.
         In other words, you must run find_freq and setup_notches
@@ -409,6 +410,9 @@ class SmurfTuneMixin(SmurfBase):
         show_plot (bool) : Whether to display the plot. Default is False.
         save_plot (bool) : Whether to save the plot. Default is True.
         eta_width (float) : The width to plot in MHz.
+        channel (int list) : Which channels to plot.  Default is None,
+                             which plots all available channels.
+        plot_summary (bool) : Plot summary.
         """
         if show_plot:
             plt.ion()
@@ -417,60 +421,61 @@ class SmurfTuneMixin(SmurfBase):
 
         timestamp = self.get_timestamp()            
 
-        fig, ax = plt.subplots(2,2, figsize=(10,6))
+        if plot_summary:
+            fig, ax = plt.subplots(2,2, figsize=(10,6))
 
-        # Subband
-        sb = self.get_eta_scan_result_subband(band)
-        ch = self.get_eta_scan_result_channel(band)
-        idx = np.where(ch!=-1)  # ignore unassigned channels
-        sb = sb[idx]
-        c = Counter(sb)
-        y = np.array([c[i] for i in np.arange(128)])
-        ax[0,0].plot(np.arange(128), y, '.', color='k')
-        for i in np.arange(0, 128, 16):
-            ax[0,0].axvspan(i-.5, i+7.5, color='k', alpha=.2)
-        ax[0,0].set_ylim((-.2, np.max(y)+1.2))
-        ax[0,0].set_yticks(np.arange(0,np.max(y)+.1))
-        ax[0,0].set_xlim((0, 128))
-        ax[0,0].set_xlabel('Subband')
-        ax[0,0].set_ylabel('# Res')
-        ax[0,0].text(.02, .92, 'Total: {}'.format(len(sb)),
-                      fontsize=10, transform=ax[0,0].transAxes)
+            # Subband
+            sb = self.get_eta_scan_result_subband(band)
+            ch = self.get_eta_scan_result_channel(band)
+            idx = np.where(ch!=-1)  # ignore unassigned channels
+            sb = sb[idx]
+            c = Counter(sb)
+            y = np.array([c[i] for i in np.arange(128)])
+            ax[0,0].plot(np.arange(128), y, '.', color='k')
+            for i in np.arange(0, 128, 16):
+                ax[0,0].axvspan(i-.5, i+7.5, color='k', alpha=.2)
+            ax[0,0].set_ylim((-.2, np.max(y)+1.2))
+            ax[0,0].set_yticks(np.arange(0,np.max(y)+.1))
+            ax[0,0].set_xlim((0, 128))
+            ax[0,0].set_xlabel('Subband')
+            ax[0,0].set_ylabel('# Res')
+            ax[0,0].text(.02, .92, 'Total: {}'.format(len(sb)),
+                          fontsize=10, transform=ax[0,0].transAxes)
 
-        # Eta stuff
-        eta = self.get_eta_scan_result_eta(band)
-        eta = eta[idx]
-        f = self.get_eta_scan_result_freq(band)
-        f = f[idx]
+            # Eta stuff
+            eta = self.get_eta_scan_result_eta(band)
+            eta = eta[idx]
+            f = self.get_eta_scan_result_freq(band)
+            f = f[idx]
 
-        ax[0,1].plot(f, np.real(eta), '.', label='Real')
-        ax[0,1].plot(f, np.imag(eta), '.', label='Imag')
-        ax[0,1].plot(f, np.abs(eta), '.', label='Abs', color='k')
-        ax[0,1].legend(loc='lower right')
-        bc = self.get_band_center_mhz(band)
-        ax[0,1].set_xlim((bc-250, bc+250))
-        ax[0,1].set_xlabel('Freq [MHz]')
-        ax[0,1].set_ylabel('Eta')
+            ax[0,1].plot(f, np.real(eta), '.', label='Real')
+            ax[0,1].plot(f, np.imag(eta), '.', label='Imag')
+            ax[0,1].plot(f, np.abs(eta), '.', label='Abs', color='k')
+            ax[0,1].legend(loc='lower right')
+            bc = self.get_band_center_mhz(band)
+            ax[0,1].set_xlim((bc-250, bc+250))
+            ax[0,1].set_xlabel('Freq [MHz]')
+            ax[0,1].set_ylabel('Eta')
 
-        phase = np.rad2deg(np.angle(eta))
-        ax[1,1].plot(f, phase, color='k')
-        ax[1,1].set_xlim((bc-250, bc+250))
-        ax[1,1].set_ylim((-180,180))
-        ax[1,1].set_yticks(np.arange(-180, 180.1, 90))
-        ax[1,1].set_xlabel('Freq [MHz]')
-        ax[1,1].set_ylabel('Eta phase')
+            phase = np.rad2deg(np.angle(eta))
+            ax[1,1].plot(f, phase, color='k')
+            ax[1,1].set_xlim((bc-250, bc+250))
+            ax[1,1].set_ylim((-180,180))
+            ax[1,1].set_yticks(np.arange(-180, 180.1, 90))
+            ax[1,1].set_xlabel('Freq [MHz]')
+            ax[1,1].set_ylabel('Eta phase')
 
-        fig.suptitle('Band {} {}'.format(band, timestamp))
-        plt.subplots_adjust(left=.08, right=.95, top=.92, bottom=.08, 
-                            wspace=.21, hspace=.21)
+            fig.suptitle('Band {} {}'.format(band, timestamp))
+            plt.subplots_adjust(left=.08, right=.95, top=.92, bottom=.08, 
+                                wspace=.21, hspace=.21)
 
-        if save_plot:
-            save_name = '{}_tune_summary.png'.format(timestamp)
-            path = os.path.join(self.plot_dir, save_name)
-            plt.savefig(path, bbox_inches='tight')
-            self.pub.register_file(path, 'tune', plot=True)
-            if not show_plot:
-                plt.close()
+            if save_plot:
+                save_name = '{}_tune_summary.png'.format(timestamp)
+                path = os.path.join(self.plot_dir, save_name)
+                plt.savefig(path, bbox_inches='tight')
+                self.pub.register_file(path, 'tune', plot=True)
+                if not show_plot:
+                    plt.close()
 
         # Plot individual eta scan
         if eta_scan:
