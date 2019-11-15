@@ -2892,7 +2892,7 @@ class SmurfTuneMixin(SmurfBase):
         res_freq = self.find_all_peak(self.freq_resp[band]['find_freq']['f'],
             self.freq_resp[band]['find_freq']['resp'], subband, 
             make_plot=make_plot, band=band, rolling_med=rolling_med, 
-            window=window, make_subband_plot=make_subband_plot)
+            window=window, make_subband_plot=make_subband_plot, amp_cut=0.1)
         self.freq_resp[band]['find_freq']['resonance'] = res_freq
 
         # Save resonances
