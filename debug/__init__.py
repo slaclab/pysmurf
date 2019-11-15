@@ -1,3 +1,0 @@
-'''
-init for debug dir
-'''
