@@ -114,7 +114,11 @@ class SmurfUtilMixin(SmurfBase):
         while not done:
             done=True
             for k in range(2):
-                wr_addr = self.get_waveform_wr_addr(bay, engine=0)
+                # see pysmurf issue 161.  This call is no longer used,
+                # and causes take_debug_data to crash if
+                # get_waveform_wr_addr is called before the
+                # acquisition completes.
+                #wr_addr = self.get_waveform_wr_addr(bay, engine=0)
                 empty = self.get_waveform_empty(bay, engine=k)
                 if not empty:
                     done=False
