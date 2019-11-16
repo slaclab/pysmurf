@@ -184,6 +184,7 @@ if __name__ == "__main__":
     rmse = np.sqrt(np.square(np.subtract(y,y_smurf)).mean())
     print(f'RMSE = {rmse}')
 
+    # Verify that the 2 results are identical
     if rmse != 0:
         raise AssertionError(f'RMSE value {rmse} is not zero')
 
