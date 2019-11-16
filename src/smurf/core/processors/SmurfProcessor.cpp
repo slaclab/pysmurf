@@ -509,7 +509,8 @@ void scp::SmurfProcessor::acceptFrame(ris::FramePtr frame)
                 break;
 
             // Get the mapped value from the framweBuffer and cast it
-            currentData.at(i) = static_cast<unwrap_t>(*(inIt + m * sizeof(fw_t)));
+            // Reinterpret the bytes from the frameBuffer to 'fw_t' values. And the cast that value to 'unwrap_t' values
+            currentData.at(i) = static_cast<unwrap_t>(*(reinterpret_cast<fw_t*>(&(*( inIt + m * sizeof(fw_t) )))));
 
             // Unwrap the value is the unwrapper is not disabled.
             // If it is disabled, don't do anything to the data
