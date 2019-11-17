@@ -3652,22 +3652,22 @@ class SmurfCommandMixin(SmurfBase):
             # Anything else is an error
             return("ERROR")
 
-    _smurf_to_gcp_stream = 'userConfig[0]'  # bit for streaming
-    def get_user_config0(self, as_binary=False, **kwargs):
-        """
-        """
-        val =  self._caget(self.timing_header +
-                           self._smurf_to_gcp_stream, **kwargs)
-        if as_binary:
-            val = bin(val)
+    #_smurf_to_gcp_stream = 'userConfig[0]'  # bit for streaming
+    #def get_user_config0(self, as_binary=False, **kwargs):
+    #    """
+    #    """
+    #    val =  self._caget(self.timing_header +
+    #                       self._smurf_to_gcp_stream, **kwargs)
+    #    if as_binary:
+    #        val = bin(val)
 
-        return val
+    #    return val
 
-    def set_user_config0(self, val, as_binary=False, **kwargs):
-        """
-        """
-        self._caput(self.timing_header +
-                    self._smurf_to_gcp_stream, val, **kwargs)
+    #def set_user_config0(self, val, as_binary=False, **kwargs):
+    #    """
+    #    """
+    #    self._caput(self.timing_header +
+    #                self._smurf_to_gcp_stream, val, **kwargs)
 
     def clear_unwrapping_and_averages(self, epics_poll=True, **kwargs):
         """
@@ -3699,161 +3699,161 @@ class SmurfCommandMixin(SmurfBase):
         self.log('Successfully toggled averaging/clearing bit (userConfig[0]=%d).'%uc0,
                  self.LOG_USER)
 
-    def set_smurf_to_gcp_stream(self, val, **kwargs):
-        """
-        Turns on or off streaming from smurf to GCP.
-        This only accepts bools. Annoyingly the bit is
-        0 for streaming and 1 for off. This function takes
-        care of that, so True for streaming and False
-        for off.
-        """
-        old_val = self.get_user_config0()
-        if val == False:
-            new_val = old_val | (1 << 1)
-        elif val == True:
-            new_val = old_val
-            if old_val & 1 << 1 != 0:
-                new_val = old_val & ~(1 << 1)
-        self._caput(self.timing_header +
-                    self._smurf_to_gcp_stream, new_val, **kwargs)
+    #def set_smurf_to_gcp_stream(self, val, **kwargs):
+    #    """
+    #    Turns on or off streaming from smurf to GCP.
+    #    This only accepts bools. Annoyingly the bit is
+    #    0 for streaming and 1 for off. This function takes
+    #    care of that, so True for streaming and False
+    #    for off.
+    #    """
+    #    old_val = self.get_user_config0()
+    #    if val == False:
+    #        new_val = old_val | (1 << 1)
+    #    elif val == True:
+    #        new_val = old_val
+    #        if old_val & 1 << 1 != 0:
+    #            new_val = old_val & ~(1 << 1)
+    #    self._caput(self.timing_header +
+    #               self._smurf_to_gcp_stream, new_val, **kwargs)
 
-    def set_smurf_to_gcp_writer(self, val, **kwargs):
-        """
-        Turns on or off data writer from smurf to GCP.
-        This only accepts bools. Annoyingly the bit is
-        0 for streaming and 1 for off. This function takes
-        care of that, so True for streaming and False
-        for off.
-        """
-        old_val = self.get_user_config0()
-        if val == False:
-            new_val = old_val | (2 << 1)
-        elif val == True:
-            new_val = old_val
-            if old_val & 2 << 1 != 0:
-                new_val = old_val & ~(2 << 1)
-        self._caput(self.timing_header +
-                    self._smurf_to_gcp_stream, new_val, **kwargs)
+    #def set_smurf_to_gcp_writer(self, val, **kwargs):
+    #    """
+    #    Turns on or off data writer from smurf to GCP.
+    #    This only accepts bools. Annoyingly the bit is
+    #    0 for streaming and 1 for off. This function takes
+    #    care of that, so True for streaming and False
+    #    for off.
+    #    """
+    #    old_val = self.get_user_config0()
+    #    if val == False:
+    #        new_val = old_val | (2 << 1)
+    #    elif val == True:
+    #        new_val = old_val
+    #        if old_val & 2 << 1 != 0:
+    #            new_val = old_val & ~(2 << 1)
+    #    self._caput(self.timing_header +
+    #                self._smurf_to_gcp_stream, new_val, **kwargs)
 
-    def get_smurf_to_gcp_stream(self, **kwargs):
-        """
-        """
-        return self._caget(self.timing_header +
-                    self._smurf_to_gcp_stream, **kwargs)
+    #def get_smurf_to_gcp_stream(self, **kwargs):
+    #    """
+    #    """
+    #    return self._caget(self.timing_header +
+    #                self._smurf_to_gcp_stream, **kwargs)
 
-    def set_smurf_to_gcp_writer(self, val, **kwargs):
-        """
-        Turns on or off data writer from smurf to GCP.
-        This only accepts bools. Annoyingly the bit is
-        0 for streaming and 1 for off. This function takes
-        care of that, so True for streaming and False
-        for off.
-        """
-        old_val = self.get_user_config0()
-        if val == False:
-            new_val = old_val | (2 << 1)
-        elif val == True:
-            new_val = old_val
-            if old_val & 2 << 1 != 0:
-                new_val = old_val & ~(2 << 1)
-        self._caput(self.timing_header +
-                    self._smurf_to_gcp_stream, new_val, **kwargs)
+    #def set_smurf_to_gcp_writer(self, val, **kwargs):
+    #    """
+    #    Turns on or off data writer from smurf to GCP.
+    #    This only accepts bools. Annoyingly the bit is
+    #    0 for streaming and 1 for off. This function takes
+    #    care of that, so True for streaming and False
+    #    for off.
+    #    """
+    #    old_val = self.get_user_config0()
+    #    if val == False:
+    #        new_val = old_val | (2 << 1)
+    #    elif val == True:
+    #        new_val = old_val
+    #        if old_val & 2 << 1 != 0:
+    #            new_val = old_val & ~(2 << 1)
+    #    self._caput(self.timing_header +
+    #                self._smurf_to_gcp_stream, new_val, **kwargs)
 
-    def set_smurf_to_gcp_clear(self, val, **kwargs):
-        """
-        Clears the wrap counter and average if set to 1.
-        Holds it clear until set back to 0.
-        """
-        clear_bit = 0
-        old_val = self.get_user_config0()
-        if val:
-            new_val = old_val | (1 << clear_bit)
-        elif ~val:
-            new_val = old_val
-            if old_val & 1 << clear_bit != 0:
-                new_val = old_val & ~(1 << clear_bit)
+    #def set_smurf_to_gcp_clear(self, val, **kwargs):
+    #    """
+    #    Clears the wrap counter and average if set to 1.
+    #    Holds it clear until set back to 0.
+    #    """
+    #    clear_bit = 0
+    #    old_val = self.get_user_config0()
+    #    if val:
+    #        new_val = old_val | (1 << clear_bit)
+    #    elif ~val:
+    #        new_val = old_val
+    #        if old_val & 1 << clear_bit != 0:
+    #            new_val = old_val & ~(1 << clear_bit)
 
-        self._caput(self.timing_header +
-                    self._smurf_to_gcp_stream, new_val, **kwargs)
+    #    self._caput(self.timing_header +
+    #                self._smurf_to_gcp_stream, new_val, **kwargs)
 
-    def set_smurf_to_gcp_cfg_read(self, val, **kwargs):
-        """
-        If set to True, constantly reads smurf2mce.cfg at the MCE
-        rate (~200 Hz). This is for updating IP address. Constantly
-        reading the cfg file causes occasional dropped frames. So
-        it should be set to False after the cfg is read.
-        """
-        read_bit = 3
-        old_val = self.get_user_config0()
-        if val:
-            new_val = old_val | (1 << read_bit)
-        elif ~val:
-            new_val = old_val
-            if old_val & 1 << read_bit != 0:
-                new_val = old_val & ~(1 << read_bit)
+    #def set_smurf_to_gcp_cfg_read(self, val, **kwargs):
+    #    """
+    #    If set to True, constantly reads smurf2mce.cfg at the MCE
+    #    rate (~200 Hz). This is for updating IP address. Constantly
+    #    reading the cfg file causes occasional dropped frames. So
+    #    it should be set to False after the cfg is read.
+    #    """
+    #    read_bit = 3
+    #    old_val = self.get_user_config0()
+    #    if val:
+    #        new_val = old_val | (1 << read_bit)
+    #    elif ~val:
+    #        new_val = old_val
+    #        if old_val & 1 << read_bit != 0:
+    #            new_val = old_val & ~(1 << read_bit)
 
-        self._caput(self.timing_header +
-                    self._smurf_to_gcp_stream, new_val, **kwargs)
+    #    self._caput(self.timing_header +
+    #                self._smurf_to_gcp_stream, new_val, **kwargs)
 
 
-    _num_rows = 'userConfig[2]'  # bit for num_rows
-    def set_num_rows(self, val, **kwargs):
-        """
-        Sets num_rows in the SMuRF header. This is written in userConfig[2].
+    #_num_rows = 'userConfig[2]'  # bit for num_rows
+    #def set_num_rows(self, val, **kwargs):
+    #    """
+    #    Sets num_rows in the SMuRF header. This is written in userConfig[2].
 
-        Args:
-        -----
-        val (int): The value of num_rows
-        """
-        old = self._caget(self.timing_header +
-                    self._num_rows)
-        new = (old & 0xFFFF0000) + ((val & 0xFFFF))
-        self._caput(self.timing_header +
-                    self._num_rows, new, **kwargs)
+    #    Args:
+    #    -----
+    #    val (int): The value of num_rows
+    #    """
+    #    old = self._caget(self.timing_header +
+    #                self._num_rows)
+    #    new = (old & 0xFFFF0000) + ((val & 0xFFFF))
+    #    self._caput(self.timing_header +
+    #                self._num_rows, new, **kwargs)
 
-    def set_num_rows_reported(self, val, **kwargs):
-        """
-        Sets num_rows_reported in the SMuRF header. This is written
-        in userConfig[2].
+    #def set_num_rows_reported(self, val, **kwargs):
+    #    """
+    #    Sets num_rows_reported in the SMuRF header. This is written
+    #    in userConfig[2].
 
-        Args:
-        -----
-        val (int): The value of num_rows_reported
-        """
-        old = self._caget(self.timing_header +
-                    self._num_rows)
-        new = (old & 0x0000FFFF) + ((val & 0xFFFF) << 16)
-        self._caput(self.timing_header +
-                    self._num_rows, new, **kwargs)
+    #    Args:
+    #    -----
+    #    val (int): The value of num_rows_reported
+    #    """
+    #    old = self._caget(self.timing_header +
+    #                self._num_rows)
+    #    new = (old & 0x0000FFFF) + ((val & 0xFFFF) << 16)
+    #    self._caput(self.timing_header +
+    #                self._num_rows, new, **kwargs)
 
-    _row_len = 'userConfig[4]'
-    def set_row_len(self, val, **kwargs):
-        """
-        Sets row_len in the SMuRF header. This is written in userConfig[4]
+    #_row_len = 'userConfig[4]'
+    #def set_row_len(self, val, **kwargs):
+    #    """
+    #    Sets row_len in the SMuRF header. This is written in userConfig[4]
 
-        Args:
-        -----
-        val (int): The value of row_len
-        """
-        old = self._caget(self.timing_header +
-                    self._row_len)
-        new = (old & 0xFFFF0000) + ((val & 0xFFFF))
-        self._caput(self.timing_header +
-                    self._row_len, new, **kwargs)
+    #    Args:
+    #    -----
+    #    val (int): The value of row_len
+    #    """
+    #    old = self._caget(self.timing_header +
+    #                self._row_len)
+    #    new = (old & 0xFFFF0000) + ((val & 0xFFFF))
+    #    self._caput(self.timing_header +
+    #                self._row_len, new, **kwargs)
 
-    def set_data_rate(self, val, **kwargs):
-        """
-        Sets data_rates in the SMuRF header. This is written in userConfig[4].
+    #def set_data_rate(self, val, **kwargs):
+    #    """
+    #    Sets data_rates in the SMuRF header. This is written in userConfig[4].
 
-        Args:
-        -----
-        val (int): The value of data_rate
-        """
-        old = self._caget(self.timing_header +
-                    self._row_len)
-        new = (old & 0x0000FFFF) + ((val & 0xFFFF)<<16)
-        self._caput(self.timing_header +
-                    self._row_len, new, **kwargs)
+    #    Args:
+    #    -----
+    #    val (int): The value of data_rate
+    #    """
+    #    old = self._caget(self.timing_header +
+    #                self._row_len)
+    #    new = (old & 0x0000FFFF) + ((val & 0xFFFF)<<16)
+    #    self._caput(self.timing_header +
+    #                self._row_len, new, **kwargs)
 
 
     # Triggering commands
