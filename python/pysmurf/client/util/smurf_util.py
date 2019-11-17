@@ -697,7 +697,7 @@ class SmurfUtilMixin(SmurfBase):
             self.set_downsample_factor(downsample_factor)
         else:
             downsample_factor = self.get_downsample_factor()
-            self.log('Input downsample factor is None. Using'+
+            self.log('Input downsample factor is None. Using '+
                      'value already in pyrogue:'+
                      f' {downsample_factor}')
             
@@ -2567,7 +2567,7 @@ class SmurfUtilMixin(SmurfBase):
         cutoff_freq (float) : The filter cutoff frequency
         """
         # Get flux ramp frequency
-        flux_ramp_freq = self.get_flux_ramp_freq()
+        flux_ramp_freq = self.get_flux_ramp_freq()*1.0E3
 
         # Get filter parameters
         b, a = signal.butter(filter_order,

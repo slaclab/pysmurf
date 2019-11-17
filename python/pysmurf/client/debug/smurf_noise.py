@@ -1113,11 +1113,8 @@ class SmurfNoiseMixin(SmurfBase):
         Pxx_fit (flot array) : The amplitude
         '''
         # incorporate timestream filtering
-        f3dB = self.config.get('smurf_to_mce').get('filter_freq')
-        filter_order = self.config.get('smurf_to_mce').get('filter_order')
-
-        # Butterworth filter in gcp streaming
-        b,a = signal.butter(filter_order,f3dB,analog=True,btype='low') 
+        b = self.get_filter_b()
+        a = self.get_filter_a()
 
         def noise_model(freq, wl, n, f_knee):
             '''
@@ -1128,7 +1125,7 @@ class SmurfNoiseMixin(SmurfBase):
             '''
             A = wl*(f_knee**n)
 
-            w,h = signal.freqs(b,a,worN=freq)
+            w, h = signal.freqs(b, a, worN=freq)
             tf = np.absolute(h)**2 # filter transfer function
 
             return (A/(freq**n) + wl)*tf
