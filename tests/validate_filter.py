@@ -143,7 +143,7 @@ if __name__ == "__main__":
         print('  Setting filter parameters... ', end='')
         root.SmurfProcessor.Filter.A.set(a.tolist())
         root.SmurfProcessor.Filter.B.set(b.tolist())
-        root.SmurfProcessor.Filter.Order.set(4)
+        root.SmurfProcessor.Filter.Order.set(filter_order)
         print('Done')
 
         # Print current filter settings
