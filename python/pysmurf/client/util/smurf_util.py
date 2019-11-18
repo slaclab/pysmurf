@@ -2555,7 +2555,8 @@ class SmurfUtilMixin(SmurfBase):
 
         return output_chans
 
-    def set_downsample_filter(self, filter_order, cutoff_freq):
+    def set_downsample_filter(self, filter_order, cutoff_freq,
+                              write_log=False):
         """
         Sets the downsample filter. This is anti-alias filter
         that filters data at the flux_ramp reset rate, which is
@@ -2574,9 +2575,13 @@ class SmurfUtilMixin(SmurfBase):
                              2*cutoff_freq/flux_ramp_freq)
 
         # Set filter parameters
-        self.set_filter_a(a)
-        self.set_filter_b(b)
+        self.set_filter_order(filter_order,
+                              write_log=write_log)
+        self.set_filter_a(a, write_log=write_log)
+        self.set_filter_b(b, write_log=write_log, wait_done=True)
 
+        self.set_filter_reset(wait_after=.1,
+                              write_log=write_log)
         
     def get_filter_params(self):
         """

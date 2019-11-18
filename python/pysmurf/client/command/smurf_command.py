@@ -4091,6 +4091,13 @@ class SmurfCommandMixin(SmurfBase):
         return self._caget(self.smurf_processor + self._channel_mask,
             **kwargs)
 
+    _filter_reset = 'Filter:reset'
+    def set_filter_reset(self, **kwargs):
+        """
+        Resets the downsample filter
+        """
+        self._caput(self.smurf_processor + self._filter_reset,
+                    True, **kwargs)
         
     _filter_a = 'Filter:A'
     def set_filter_a(self, coef, **kwargs):
