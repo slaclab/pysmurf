@@ -648,7 +648,8 @@ class SmurfUtilMixin(SmurfBase):
 
         return f, df, flux_ramp_strobe
 
-    def take_stream_data(self, meas_time, downsample_factor=None):
+    def take_stream_data(self, meas_time, downsample_factor=None,
+                         write_log=True):
         """
         Takes streaming data for a given amount of time
 
@@ -667,16 +668,19 @@ class SmurfUtilMixin(SmurfBase):
         --------
         data_filename (string): The fullpath to where the data is stored
         """
-        self.log('Starting to take data.', self.LOG_USER)
-        data_filename = self.stream_data_on(downsample_factor=downsample_factor)
+        if write_log:
+            self.log('Starting to take data.', self.LOG_USER)
+        data_filename = self.stream_data_on(downsample_factor=downsample_factor,
+                                            write_log=write_log)
         time.sleep(meas_time)
-        self.stream_data_off()
-        self.log('Done taking data.', self.LOG_USER)
+        self.stream_data_off(write_log=write_log)
+        if write_log:
+            self.log('Done taking data.', self.LOG_USER)
         return data_filename
 
 
     def stream_data_on(self, write_config=False, data_filename=None,
-                       downsample_factor=None):
+                       downsample_factor=None, write_log=True):
         """
         Turns on streaming data.
 
@@ -697,7 +701,8 @@ class SmurfUtilMixin(SmurfBase):
             self.set_downsample_factor(downsample_factor)
         else:
             downsample_factor = self.get_downsample_factor()
-            self.log('Input downsample factor is None. Using '+
+            if write_log:
+                self.log('Input downsample factor is None. Using '+
                      'value already in pyrogue:'+
                      f' {downsample_factor}')
             
@@ -713,9 +718,11 @@ class SmurfUtilMixin(SmurfBase):
             # one of the newer C02 cryostat cards.
             flux_ramp_ac_dc_relay_status=self.C.read_ac_dc_relay_status()
             if flux_ramp_ac_dc_relay_status == 0:
-                self.log("FLUX RAMP IS DC COUPLED.", self.LOG_USER)
-            elif flux_ramp_ac_dc_relay_status == 3:
-                self.log("Flux ramp is AC-coupled.", self.LOG_USER)
+                if write_log:
+                    self.log("FLUX RAMP IS DC COUPLED.", self.LOG_USER)
+            elif flux_ramp_ac_dc_relay_status == 3 and write_log:
+                if write_log:
+                    self.log("Flux ramp is AC-coupled.", self.LOG_USER)
             else:
                 self.log("flux_ramp_ac_dc_relay_status = " +
                          f"{flux_ramp_ac_dc_relay_status} " +
@@ -737,14 +744,15 @@ class SmurfUtilMixin(SmurfBase):
             # Optionally write PyRogue configuration
             if write_config:
                 config_filename=os.path.join(self.output_dir, timestamp+'.yml')
-                self.log('Writing PyRogue configuration to file : '+
-                         f'{config_filename}',
-                     self.LOG_USER)
+                if write_log:
+                    self.log('Writing PyRogue configuration to file : '+
+                         f'{config_filename}', self.LOG_USER)
                 self.write_config(config_filename)
 
                 # short wait
                 time.sleep(5.)
-                self.log(f'Writing to file : {data_filename}',
+                if write_log:
+                    self.log(f'Writing to file : {data_filename}',
                          self.LOG_USER)
 
             smurf_chans = {}
@@ -758,16 +766,16 @@ class SmurfUtilMixin(SmurfBase):
             np.savetxt(os.path.join(data_filename.replace('.dat', '_mask.txt')),
                 output_mask, fmt='%i')
 
-            self.open_data_file()
+            self.open_data_file(write_log=write_log)
 
             return data_filename
 
 
-    def stream_data_off(self):
+    def stream_data_off(self, write_log=True):
         """
         Turns off streaming data.
         """
-        self.close_data_file()
+        self.close_data_file(write_log=write_log)
 
 
     def read_stream_data(self, datafile, channel=None,
@@ -2578,7 +2586,8 @@ class SmurfUtilMixin(SmurfBase):
         self.set_filter_order(filter_order,
                               write_log=write_log)
         self.set_filter_a(a, write_log=write_log)
-        self.set_filter_b(b, write_log=write_log, wait_done=True)
+        self.set_filter_b(b, write_log=write_log,
+                          wait_done=True)
 
         self.set_filter_reset(wait_after=.1,
                               write_log=write_log)
