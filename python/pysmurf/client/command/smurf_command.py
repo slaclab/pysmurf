@@ -3652,22 +3652,22 @@ class SmurfCommandMixin(SmurfBase):
             # Anything else is an error
             return("ERROR")
 
-    #_smurf_to_gcp_stream = 'userConfig[0]'  # bit for streaming
-    #def get_user_config0(self, as_binary=False, **kwargs):
-    #    """
-    #    """
-    #    val =  self._caget(self.timing_header +
-    #                       self._smurf_to_gcp_stream, **kwargs)
-    #    if as_binary:
-    #        val = bin(val)
+    _smurf_to_gcp_stream = 'userConfig[0]'  # bit for streaming
+    def get_user_config0(self, as_binary=False, **kwargs):
+        """
+        """
+        val =  self._caget(self.timing_header +
+                           self._smurf_to_gcp_stream, **kwargs)
+        if as_binary:
+            val = bin(val)
 
-    #    return val
+        return val
 
-    #def set_user_config0(self, val, as_binary=False, **kwargs):
-    #    """
-    #    """
-    #    self._caput(self.timing_header +
-    #                self._smurf_to_gcp_stream, val, **kwargs)
+    def set_user_config0(self, val, as_binary=False, **kwargs):
+        """
+        """
+        self._caput(self.timing_header +
+                   self._smurf_to_gcp_stream, val, **kwargs)
 
     def clear_unwrapping_and_averages(self, epics_poll=True, **kwargs):
         """
@@ -3699,41 +3699,41 @@ class SmurfCommandMixin(SmurfBase):
         self.log('Successfully toggled averaging/clearing bit (userConfig[0]=%d).'%uc0,
                  self.LOG_USER)
 
-    #def set_smurf_to_gcp_stream(self, val, **kwargs):
-    #    """
-    #    Turns on or off streaming from smurf to GCP.
-    #    This only accepts bools. Annoyingly the bit is
-    #    0 for streaming and 1 for off. This function takes
-    #    care of that, so True for streaming and False
-    #    for off.
-    #    """
-    #    old_val = self.get_user_config0()
-    #    if val == False:
-    #        new_val = old_val | (1 << 1)
-    #    elif val == True:
-    #        new_val = old_val
-    #        if old_val & 1 << 1 != 0:
-    #            new_val = old_val & ~(1 << 1)
-    #    self._caput(self.timing_header +
-    #               self._smurf_to_gcp_stream, new_val, **kwargs)
+    def set_smurf_to_gcp_stream(self, val, **kwargs):
+        """
+        Turns on or off streaming from smurf to GCP.
+        This only accepts bools. Annoyingly the bit is
+        0 for streaming and 1 for off. This function takes
+        care of that, so True for streaming and False
+        for off.
+        """
+        old_val = self.get_user_config0()
+        if val == False:
+            new_val = old_val | (1 << 1)
+        elif val == True:
+            new_val = old_val
+            if old_val & 1 << 1 != 0:
+                new_val = old_val & ~(1 << 1)
+        self._caput(self.timing_header +
+                   self._smurf_to_gcp_stream, new_val, **kwargs)
 
-    #def set_smurf_to_gcp_writer(self, val, **kwargs):
-    #    """
-    #    Turns on or off data writer from smurf to GCP.
-    #    This only accepts bools. Annoyingly the bit is
-    #    0 for streaming and 1 for off. This function takes
-    #    care of that, so True for streaming and False
-    #    for off.
-    #    """
-    #    old_val = self.get_user_config0()
-    #    if val == False:
-    #        new_val = old_val | (2 << 1)
-    #    elif val == True:
-    #        new_val = old_val
-    #        if old_val & 2 << 1 != 0:
-    #            new_val = old_val & ~(2 << 1)
-    #    self._caput(self.timing_header +
-    #                self._smurf_to_gcp_stream, new_val, **kwargs)
+    def set_smurf_to_gcp_writer(self, val, **kwargs):
+        """
+        Turns on or off data writer from smurf to GCP.
+        This only accepts bools. Annoyingly the bit is
+        0 for streaming and 1 for off. This function takes
+        care of that, so True for streaming and False
+        for off.
+        """
+        old_val = self.get_user_config0()
+        if val == False:
+            new_val = old_val | (2 << 1)
+        elif val == True:
+            new_val = old_val
+            if old_val & 2 << 1 != 0:
+                new_val = old_val & ~(2 << 1)
+        self._caput(self.timing_header +
+                    self._smurf_to_gcp_stream, new_val, **kwargs)
 
     #def get_smurf_to_gcp_stream(self, **kwargs):
     #    """

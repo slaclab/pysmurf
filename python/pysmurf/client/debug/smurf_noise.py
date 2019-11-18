@@ -77,14 +77,26 @@ class SmurfNoiseMixin(SmurfBase):
 
         basename, _ = os.path.splitext(os.path.basename(datafile))
 
+        # Get downsample filter params
+        filter_b = self.get_filter_b()
+        filter_a = self.get_filter_a()
+
         timestamp, phase, mask = self.read_stream_data(datafile)
         phase *= self.pA_per_phi0/(2.*np.pi) # phase converted to pA
 
+        flux_ramp_freq = self.get_flux_ramp_freq() * 1.0E3
+        
         if fs is None:
             if downsample_factor is None:
                 downsample_factor = self.get_downsample_factor()
             # flux ramp rate returns in kHz
-            fs = self.get_flux_ramp_freq()*1.0E3/downsample_factor
+            fs = flux_ramp_freq/downsample_factor
+
+        # Generate downsample transfer function - downsampling is at
+        # flux ramp freq
+        downsample_freq, downsample_transfer = signal.freqz(filter_b,
+            filter_a, worN=np.arange(.01, fs/2, .01), fs=flux_ramp_freq)
+        downsample_transfer = np.abs(downsample_transfer)**2
         
         self.log('Plotting channels {}'.format(channel), self.LOG_USER)
 
@@ -114,7 +126,8 @@ class SmurfNoiseMixin(SmurfBase):
             good_fit = False
             try:
                 # Fit the PSD
-                popt, pcov, f_fit, Pxx_fit = self.analyze_psd(f, Pxx)
+                popt, pcov, f_fit, Pxx_fit = self.analyze_psd(f, Pxx,
+                    fs=fs, flux_ramp_freq=flux_ramp_freq)
                 wl, n, f_knee = popt
                 if f_knee != 0.:
                     wl_list.append(wl)
@@ -152,37 +165,45 @@ class SmurfNoiseMixin(SmurfBase):
                 if grid_on:
                     ax[0].grid()
 
-                ax[1].plot(f, Pxx)
+                ax[1].loglog(f, Pxx)
+                ylim = ax[1].get_ylim()
                 
                 # Plot the fit
                 if good_fit:
                     ax[1].plot(f_fit, Pxx_fit, linestyle='--', label=f'n={n:3.2f}')
+
+                    # plot f_knee
                     ax[1].plot(f_knee, 2.*wl, linestyle='none', marker='o',
                         label=r'$f_\mathrm{knee} = ' + f'{f_knee:0.2f},' + 
                         r'\mathrm{Hz}$')
                     ax[1].plot(f_fit,wl + np.zeros(len(f_fit)), linestyle=':',
                         label=r'$\mathrm{wl} = $'+ f'{wl:0.2f},' + 
                         r'$\mathrm{pA}/\sqrt{\mathrm{Hz}}$')
+                    ax[1].plot(downsample_freq, wl*downsample_transfer,
+                               color='k', linestyle='dashdot',
+                               alpha=.5, label='Lowpass')
                     ax[1].legend(loc='best')
+                    ax[1].set_ylim(ylim)
                 
                 ax[1].set_xlabel('Frequency [Hz]')
                 ax[1].set_xlim(f[1],f[-1])
                 ax[1].set_ylabel('Amp [pA/rtHz]')
-                ax[1].set_yscale('log')
-                ax[1].set_xscale('log')
+
                 if grid_on:
                     ax[1].grid()
 
-                self.log(noise_floors[-1, ch])
+                if write_log:
+                    self.log(noise_floors[-1, ch])
                 
                 res_freq = self.channel_to_freq(band, ch)
                 res_freqs[ch]=res_freq
                 
-                ax[0].set_title('Band {} Ch {:03} - {:.2f} MHz'.format(band, ch, res_freq))
+                ax[0].set_title(f'Band {band} Ch {ch:03} - {res_freq:.2f} MHz')
 
                 fig.tight_layout()
 
-                plot_name = basename + '_noise_timestream_b{}_ch{:03}.png'.format(band, ch)
+                plot_name = basename + \
+                            f'_noise_timestream_b{band}_ch{ch:03}.png'
                 fig.savefig(os.path.join(self.plot_dir, plot_name), 
                     bbox_inches='tight')
 
@@ -192,7 +213,7 @@ class SmurfNoiseMixin(SmurfBase):
 
         if save_data:
             for i, (l, h) in enumerate(zip(low_freq, high_freq)):
-                save_name = basename+'_{:3.2f}_{:3.2f}.txt'.format(l, h)
+                save_name = basename+f'_{l:3.2f}_{h:3.2f}.txt'
                 outfn = os.path.join(self.plot_dir, save_name)
 
                 np.savetxt(outfn, np.c_[res_freqs,noise_floors[i],f_knees])
@@ -784,8 +805,8 @@ class SmurfNoiseMixin(SmurfBase):
                     ax_i.set_ylabel('Phase [pA]')
 
                 # fit to noise model; catch error if fit is bad
-                popt,pcov,f_fit,Pxx_fit = self.analyze_psd(f,Pxx)
-                wl,n,f_knee = popt
+                popt, pcov, f_fit, Pxx_fit = self.analyze_psd(f,Pxx)
+                wl, n, f_knee = popt
                 self.log('ch. {}, bias = {:.2f}'.format(ch,b) +
                          ', white-noise level = {:.2f}'.format(wl) +
                          ' pA/rtHz, n = {:.2f}'.format(n) + 
@@ -1090,7 +1111,8 @@ class SmurfNoiseMixin(SmurfBase):
                 plt.close()
 
 
-    def analyze_psd(self, f, Pxx, p0=[100.,0.5,0.01]):
+    def analyze_psd(self, f, Pxx, fs=None, flux_ramp_freq=None,
+                    p0=[100.,0.5,0.01]):
         '''
         Return model fit for a PSD.
         p0 (float array): initial guesses for model fitting: [white-noise level 
@@ -1103,6 +1125,9 @@ class SmurfNoiseMixin(SmurfBase):
 
         Opt Args:
         ---------
+        fs (float) : Sampling frequency. If None, loads in the current
+            sampling frequency.
+        flux_ramp_freq (float) : The flux ramp frequency in Hz
         p0 (float array) : Initial guess for fitting PSDs
 
         Ret:
@@ -1116,6 +1141,12 @@ class SmurfNoiseMixin(SmurfBase):
         b = self.get_filter_b()
         a = self.get_filter_a()
 
+        if flux_ramp_freq is None:
+            flux_ramp_freq = self.get_flux_ramp_freq()*1.0E3
+        
+        if fs is None:
+            fs = flux_ramp_freq/self.get_downsample_factor()
+        
         def noise_model(freq, wl, n, f_knee):
             '''
             Crude model for noise modeling.
@@ -1125,7 +1156,8 @@ class SmurfNoiseMixin(SmurfBase):
             '''
             A = wl*(f_knee**n)
 
-            w, h = signal.freqs(b, a, worN=freq)
+            # The downsample filter is at the flux ramp frequency
+            w, h = signal.freqz(b, a, worN=freq, fs=flux_ramp_freq)
             tf = np.absolute(h)**2 # filter transfer function
 
             return (A/(freq**n) + wl)*tf
@@ -1139,7 +1171,7 @@ class SmurfNoiseMixin(SmurfBase):
                                             p0=p0,bounds=bounds)
         except Exception as e:
             wl = np.mean(Pxx[1:])
-            print('Unable to fit noise model. ' + 
+            self.log('Unable to fit noise model. ' + 
                 f'Reporting mean noise: {wl:.2f} pA/rtHz')
 
             popt = [wl, 1., 0.]
