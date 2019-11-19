@@ -152,6 +152,18 @@ class SmurfCommandMixin(SmurfBase):
 
         return ret
 
+
+    _rogue_version = 'RogueVersion'
+    def get_rogue_version(self, as_str=True, **kwargs):
+        """
+        Returns the rogue version
+        """
+        ret = self._caget(self.amcc + self._rogue_version,
+                          **kwargs)
+        if as_str:
+            ret = tools.utf8_to_str(ret)
+        return ret
+        
     def get_enable(self, **kwargs):
         """
         Returns the status of the global poll bit epics_root:AMCc:enable.
@@ -505,21 +517,26 @@ class SmurfCommandMixin(SmurfBase):
         self._caput(triggerPV, 1, wait_after=5, **kwargs)
         self.log('{} sent'.format(triggerPV), self.LOG_USER)
 
-
-    _writestate = ":AMCc:WriteState"
-    def write_state(self, val, **kwargs):
+    # name changed in Rogue 4 from WriteState to SaveState.  Keeping
+    # the write_state function for backwards compatibilty.
+    _savestate = ":AMCc:SaveState"
+    def save_state(self, val, **kwargs):
         """
-        Dumps all PyRogue settings to a yml file.
+        Dumps all PyRogue state variables to a yml file.
 
         Args:
         ----
         val (str) : The path (including file name) to write the yml file to.
         """
-        self._caput(self.epics_root + self._writestate,
+        self._caput(self.epics_root + self._savestate,
                     val, **kwargs)
+    # alias older rogue 3 write_state function to save_state
+    write_state = save_state            
 
-    _writeconfig = ":AMCc:WriteConfig"
-    def write_config(self, val, **kwargs):
+    # name changed in Rogue 4 from WriteConfig to SaveConfig.  Keeping
+    # the write_config function for backwards compatibilty.    
+    _saveconfig = ":AMCc:SaveConfig"
+    def save_config(self, val, **kwargs):
         """
         Writes the current (un-masked) PyRogue settings to a yml file.
 
@@ -527,9 +544,10 @@ class SmurfCommandMixin(SmurfBase):
         ----
         val (str) : The path (including file name) to write the yml file to.
         """
-        self._caput(self.epics_root + self._writeconfig,
+        self._caput(self.epics_root + self._saveconfig,
                     val, **kwargs)
-
+    # alias older rogue 3 write_config function to save_config
+    write_config = save_config        
 
     _tone_file_path = 'CsvFilePath'
     def get_tone_file_path(self, bay, **kwargs):
@@ -2093,32 +2111,68 @@ class SmurfCommandMixin(SmurfBase):
         return self._caget(self.waveform_engine_buffers_root.format(bay) +
             self._empty.format(engine), **kwargs)
 
-    _data_file = 'dataFile'
-    def set_streamdatawriter_datafile(self, val, **kwargs):
+    _data_file = 'DataFile'
+    def set_streamdatawriter_datafile(self, datafile_path, **kwargs):
         """
+        Sets the output path for the StreamDataWriter. This is what is
+        used for take_debug_data.
+
+        Args:
+        -----
+        datafile_path (str) : The full path for the output.
         """
         self._caput(self.stream_data_writer_root + self._data_file,
-            val, **kwargs)
+            datafile_path, **kwargs)
 
-    def get_streamdatawriter_datafile(self, **kwargs):
+    def get_streamdatawriter_datafile(self, as_str=True, **kwargs):
         """
-        """
-        return self._caget(self.stream_data_writer_root +
-            self._data_file, **kwargs)
+        Gets the output path for the StreamDataWriter. This is what is
+        used for take_debug_data.
 
-    _datawriter_open = 'open'
+        Opt Args:
+        ---------
+        as_str (bool) : Whether to return the data as a string. Default
+            is True.
+
+        Ret:
+        ----
+        datafile_path (str) : The full path for the output.
+        """
+        ret=self._caget(self.stream_data_writer_root +
+                        self._data_file, **kwargs)
+        if as_str:
+            ret=tools.utf8_to_str(d)
+        return ret
+    
+    _datawriter_open = 'Open'
     def set_streamdatawriter_open(self, val, **kwargs):
         """
         """
         self._caput(self.stream_data_writer_root +
             self._datawriter_open, val, **kwargs)
 
+        
     def get_streamdatawriter_open(self, **kwargs):
         """
         """
         return self._caget(self.stream_data_writer_root +
             self._datawriter_open, **kwargs)
 
+    
+    _datawriter_close = 'Close'
+    def set_streamdatawriter_close(self, val, **kwargs):
+        """
+        """
+        self._caput(self.stream_data_writer_root +
+            self._datawriter_close, val, **kwargs)
+
+        
+    def get_streamdatawriter_close(self, **kwargs):
+        """
+        """
+        return self._caget(self.stream_data_writer_root +
+            self._datawriter_close, **kwargs)
+    
 
     _trigger_daq = 'TriggerDaq'
     def set_trigger_daq(self, bay, val, **kwargs):
@@ -3613,7 +3667,7 @@ class SmurfCommandMixin(SmurfBase):
         """
         """
         self._caput(self.timing_header +
-                    self._smurf_to_gcp_stream, val, **kwargs)
+                   self._smurf_to_gcp_stream, val, **kwargs)
 
     def clear_unwrapping_and_averages(self, epics_poll=True, **kwargs):
         """
@@ -3661,7 +3715,7 @@ class SmurfCommandMixin(SmurfBase):
             if old_val & 1 << 1 != 0:
                 new_val = old_val & ~(1 << 1)
         self._caput(self.timing_header +
-                    self._smurf_to_gcp_stream, new_val, **kwargs)
+                   self._smurf_to_gcp_stream, new_val, **kwargs)
 
     def set_smurf_to_gcp_writer(self, val, **kwargs):
         """
@@ -3681,125 +3735,125 @@ class SmurfCommandMixin(SmurfBase):
         self._caput(self.timing_header +
                     self._smurf_to_gcp_stream, new_val, **kwargs)
 
-    def get_smurf_to_gcp_stream(self, **kwargs):
-        """
-        """
-        return self._caget(self.timing_header +
-                    self._smurf_to_gcp_stream, **kwargs)
+    #def get_smurf_to_gcp_stream(self, **kwargs):
+    #    """
+    #    """
+    #    return self._caget(self.timing_header +
+    #                self._smurf_to_gcp_stream, **kwargs)
 
-    def set_smurf_to_gcp_writer(self, val, **kwargs):
-        """
-        Turns on or off data writer from smurf to GCP.
-        This only accepts bools. Annoyingly the bit is
-        0 for streaming and 1 for off. This function takes
-        care of that, so True for streaming and False
-        for off.
-        """
-        old_val = self.get_user_config0()
-        if val == False:
-            new_val = old_val | (2 << 1)
-        elif val == True:
-            new_val = old_val
-            if old_val & 2 << 1 != 0:
-                new_val = old_val & ~(2 << 1)
-        self._caput(self.timing_header +
-                    self._smurf_to_gcp_stream, new_val, **kwargs)
+    #def set_smurf_to_gcp_writer(self, val, **kwargs):
+    #    """
+    #    Turns on or off data writer from smurf to GCP.
+    #    This only accepts bools. Annoyingly the bit is
+    #    0 for streaming and 1 for off. This function takes
+    #    care of that, so True for streaming and False
+    #    for off.
+    #    """
+    #    old_val = self.get_user_config0()
+    #    if val == False:
+    #        new_val = old_val | (2 << 1)
+    #    elif val == True:
+    #        new_val = old_val
+    #        if old_val & 2 << 1 != 0:
+    #            new_val = old_val & ~(2 << 1)
+    #    self._caput(self.timing_header +
+    #                self._smurf_to_gcp_stream, new_val, **kwargs)
 
-    def set_smurf_to_gcp_clear(self, val, **kwargs):
-        """
-        Clears the wrap counter and average if set to 1.
-        Holds it clear until set back to 0.
-        """
-        clear_bit = 0
-        old_val = self.get_user_config0()
-        if val:
-            new_val = old_val | (1 << clear_bit)
-        elif ~val:
-            new_val = old_val
-            if old_val & 1 << clear_bit != 0:
-                new_val = old_val & ~(1 << clear_bit)
+    #def set_smurf_to_gcp_clear(self, val, **kwargs):
+    #    """
+    #    Clears the wrap counter and average if set to 1.
+    #    Holds it clear until set back to 0.
+    #    """
+    #    clear_bit = 0
+    #    old_val = self.get_user_config0()
+    #    if val:
+    #        new_val = old_val | (1 << clear_bit)
+    #    elif ~val:
+    #        new_val = old_val
+    #        if old_val & 1 << clear_bit != 0:
+    #            new_val = old_val & ~(1 << clear_bit)
 
-        self._caput(self.timing_header +
-                    self._smurf_to_gcp_stream, new_val, **kwargs)
+    #    self._caput(self.timing_header +
+    #                self._smurf_to_gcp_stream, new_val, **kwargs)
 
-    def set_smurf_to_gcp_cfg_read(self, val, **kwargs):
-        """
-        If set to True, constantly reads smurf2mce.cfg at the MCE
-        rate (~200 Hz). This is for updating IP address. Constantly
-        reading the cfg file causes occasional dropped frames. So
-        it should be set to False after the cfg is read.
-        """
-        read_bit = 3
-        old_val = self.get_user_config0()
-        if val:
-            new_val = old_val | (1 << read_bit)
-        elif ~val:
-            new_val = old_val
-            if old_val & 1 << read_bit != 0:
-                new_val = old_val & ~(1 << read_bit)
+    #def set_smurf_to_gcp_cfg_read(self, val, **kwargs):
+    #    """
+    #    If set to True, constantly reads smurf2mce.cfg at the MCE
+    #    rate (~200 Hz). This is for updating IP address. Constantly
+    #    reading the cfg file causes occasional dropped frames. So
+    #    it should be set to False after the cfg is read.
+    #    """
+    #    read_bit = 3
+    #    old_val = self.get_user_config0()
+    #    if val:
+    #        new_val = old_val | (1 << read_bit)
+    #    elif ~val:
+    #        new_val = old_val
+    #        if old_val & 1 << read_bit != 0:
+    #            new_val = old_val & ~(1 << read_bit)
 
-        self._caput(self.timing_header +
-                    self._smurf_to_gcp_stream, new_val, **kwargs)
+    #    self._caput(self.timing_header +
+    #                self._smurf_to_gcp_stream, new_val, **kwargs)
 
 
-    _num_rows = 'userConfig[2]'  # bit for num_rows
-    def set_num_rows(self, val, **kwargs):
-        """
-        Sets num_rows in the SMuRF header. This is written in userConfig[2].
+    #_num_rows = 'userConfig[2]'  # bit for num_rows
+    #def set_num_rows(self, val, **kwargs):
+    #    """
+    #    Sets num_rows in the SMuRF header. This is written in userConfig[2].
 
-        Args:
-        -----
-        val (int): The value of num_rows
-        """
-        old = self._caget(self.timing_header +
-                    self._num_rows)
-        new = (old & 0xFFFF0000) + ((val & 0xFFFF))
-        self._caput(self.timing_header +
-                    self._num_rows, new, **kwargs)
+    #    Args:
+    #    -----
+    #    val (int): The value of num_rows
+    #    """
+    #    old = self._caget(self.timing_header +
+    #                self._num_rows)
+    #    new = (old & 0xFFFF0000) + ((val & 0xFFFF))
+    #    self._caput(self.timing_header +
+    #                self._num_rows, new, **kwargs)
 
-    def set_num_rows_reported(self, val, **kwargs):
-        """
-        Sets num_rows_reported in the SMuRF header. This is written
-        in userConfig[2].
+    #def set_num_rows_reported(self, val, **kwargs):
+    #    """
+    #    Sets num_rows_reported in the SMuRF header. This is written
+    #    in userConfig[2].
 
-        Args:
-        -----
-        val (int): The value of num_rows_reported
-        """
-        old = self._caget(self.timing_header +
-                    self._num_rows)
-        new = (old & 0x0000FFFF) + ((val & 0xFFFF) << 16)
-        self._caput(self.timing_header +
-                    self._num_rows, new, **kwargs)
+    #    Args:
+    #    -----
+    #    val (int): The value of num_rows_reported
+    #    """
+    #    old = self._caget(self.timing_header +
+    #                self._num_rows)
+    #    new = (old & 0x0000FFFF) + ((val & 0xFFFF) << 16)
+    #    self._caput(self.timing_header +
+    #                self._num_rows, new, **kwargs)
 
-    _row_len = 'userConfig[4]'
-    def set_row_len(self, val, **kwargs):
-        """
-        Sets row_len in the SMuRF header. This is written in userConfig[4]
+    #_row_len = 'userConfig[4]'
+    #def set_row_len(self, val, **kwargs):
+    #    """
+    #    Sets row_len in the SMuRF header. This is written in userConfig[4]
 
-        Args:
-        -----
-        val (int): The value of row_len
-        """
-        old = self._caget(self.timing_header +
-                    self._row_len)
-        new = (old & 0xFFFF0000) + ((val & 0xFFFF))
-        self._caput(self.timing_header +
-                    self._row_len, new, **kwargs)
+    #    Args:
+    #    -----
+    #    val (int): The value of row_len
+    #    """
+    #    old = self._caget(self.timing_header +
+    #                self._row_len)
+    #    new = (old & 0xFFFF0000) + ((val & 0xFFFF))
+    #    self._caput(self.timing_header +
+    #                self._row_len, new, **kwargs)
 
-    def set_data_rate(self, val, **kwargs):
-        """
-        Sets data_rates in the SMuRF header. This is written in userConfig[4].
+    #def set_data_rate(self, val, **kwargs):
+    #    """
+    #    Sets data_rates in the SMuRF header. This is written in userConfig[4].
 
-        Args:
-        -----
-        val (int): The value of data_rate
-        """
-        old = self._caget(self.timing_header +
-                    self._row_len)
-        new = (old & 0x0000FFFF) + ((val & 0xFFFF)<<16)
-        self._caput(self.timing_header +
-                    self._row_len, new, **kwargs)
+    #    Args:
+    #    -----
+    #    val (int): The value of data_rate
+    #    """
+    #    old = self._caget(self.timing_header +
+    #                self._row_len)
+    #    new = (old & 0x0000FFFF) + ((val & 0xFFFF)<<16)
+    #    self._caput(self.timing_header +
+    #                self._row_len, new, **kwargs)
 
 
     # Triggering commands
@@ -3967,8 +4021,52 @@ class SmurfCommandMixin(SmurfBase):
         val (int): 0 or 1 for the debug bit
         """
         self._caput(self.epics_root + self._mcetransmit_debug, val,
-                    **kwargs)
+                    **channel)
 
+    _frame_count = 'FrameCnt'
+    def get_frame_count(self, **kwargs):
+        """
+        Gets the frame count going into the SmurfProcessor. This
+        must be incrementing if you are attempting to stream
+        data.
+
+        Ret:
+        ----
+        frame_count (int) : The frame count number
+        """
+        return self._caget(self.frame_rx_stats + self._frame_count,
+                    **kwargs)
+    
+    _frame_size = 'FrameSize'
+    def get_frame_size(self, **kwargs):
+        """
+        Gets the size of the frame going into the smurf processor.
+
+        Ret:
+        ----
+        frame_size (int) : The size of the data frame into the
+            smurf processor.
+        """
+        return self._caget(self.frame_rx_stats + self._frame_size,
+                           **kwargs)
+        
+    _frame_loss_count = 'FrameLossCnt'
+    def get_frame_loss_cnt(self, **kwargs):
+        """
+        The number of frames that did not make it to the smurf
+        processor
+        """
+        return self._caget(self.frame_rx_stats+ self._frame_loss_count,
+                           **kwargs)
+        
+    _frame_out_order_count = 'FrameOutOrderCnt'
+    def get_frame_out_order_count(self, **kwargs):
+        """
+        """
+        return self._caget(self.frame_rx_stats + self._frame_out_order_count,
+                           **kwargs)
+                           
+    
     _channel_mask = 'ChannelMapper:Mask'
     def set_channel_mask(self, mask, **kwargs):
         """
@@ -3993,6 +4091,13 @@ class SmurfCommandMixin(SmurfBase):
         return self._caget(self.smurf_processor + self._channel_mask,
             **kwargs)
 
+    _filter_reset = 'Filter:reset'
+    def set_filter_reset(self, **kwargs):
+        """
+        Resets the downsample filter
+        """
+        self._caput(self.smurf_processor + self._filter_reset,
+                    True, **kwargs)
         
     _filter_a = 'Filter:A'
     def set_filter_a(self, coef, **kwargs):
@@ -4087,7 +4192,7 @@ class SmurfCommandMixin(SmurfBase):
 
 
     _downsampler_factor = 'Downsampler:Factor'
-    def set_downsampler_factor(self, factor, **kwargs):
+    def set_downsample_factor(self, factor, **kwargs):
         """
         Set the smurf processor down-sampling factor.
 
@@ -4099,7 +4204,7 @@ class SmurfCommandMixin(SmurfBase):
             **kwargs)
 
 
-    def get_downsampler_factor(self, **kwargs):
+    def get_downsample_factor(self, **kwargs):
         """
         Get the smurf processor down-sampling factor.
 
@@ -4110,7 +4215,30 @@ class SmurfCommandMixin(SmurfBase):
         return self._caget(self.smurf_processor + self._downsampler_factor, 
             **kwargs)
 
+    _filter_disable = "Filter:Disable"
+    def set_filter_disable(self, disable_status, **kwargs):
+        """
+        If Disable is set to True, then the downsampling filter is off.
 
+        Args:
+        -----
+        disable_status (bool) : The status of the Disable bit.
+        """
+        self._caput(self.smurf_processor + self._filter_disable,
+                    disable_status, **kwargs)
+
+    def get_filter_disable(self, **kwargs):
+        """
+        If Disable is set to True, then the downsampling filter is off.
+
+        Ret:
+        ----
+        disable_status (bool) : The status of the Disable bit.
+        """
+        return self._caget(self.smurf_processor + self._filter_disable,
+                           **kwargs)
+
+    
     _data_file_name = 'FileWriter:DataFile'
     def set_data_file_name(self, name, **kwargs):
         """
@@ -4151,6 +4279,18 @@ class SmurfCommandMixin(SmurfBase):
         self._caput(self.smurf_processor + self._data_file_close, 1, **kwargs)
 
 
+    _num_channels = "NumChannels"
+    def get_smurf_processor_num_channels(self, **kwargs):
+        """
+        This is the number of channels that smurf_processor (the thing that
+        does the downsampling, filtering, etc and then swrites to disk/streams
+        data to the DAQ) thinks are on.
+
+        This value is read only.
+        """
+        return self._caget(self.channel_mapper + self._num_channels, **kwargs)
+
+    
     _payload_size = "PayloadSize"
     def get_payload_size(self, **kwargs):
         """
@@ -4165,6 +4305,7 @@ class SmurfCommandMixin(SmurfBase):
         """
         return self._caget(self.channel_mapper + self._payload_size,
                            **kwargs)
+
 
     def set_payload_size(self, payload_size, **kwargs):
         """

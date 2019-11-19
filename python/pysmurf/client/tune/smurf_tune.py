@@ -488,7 +488,7 @@ class SmurfTuneMixin(SmurfBase):
                         freq < center_freq + eta_width)
 
                     # Actually plot the data
-                    self.plot_eta_fit(band, freq[idx], resp[idx], 
+                    self.plot_eta_fit(freq[idx], resp[idx], 
                         eta_mag=r['eta_mag'], eta_phase_deg=r['eta_phase'],
                         band=band, res_num=k, timestamp=timestamp, 
                         save_plot=save_plot, show_plot=show_plot, 
@@ -556,8 +556,7 @@ class SmurfTuneMixin(SmurfBase):
 
             self.set_noise_select(band, 0, wait_done=True, write_log=write_log)
 
-
-
+            # Account for the up and down converter attenuators
             if correct_att:
                 att_uc = self.get_att_uc(band)
                 att_dc = self.get_att_dc(band)
@@ -565,21 +564,21 @@ class SmurfTuneMixin(SmurfBase):
                 self.log('DC (ADC) att: {}'.format(att_dc))
                 if att_uc > 0:
                     scale = (10**(-att_uc/2/20))
-                    self.log('UC attenuator > 0. Scaling by {:4.3f}'.format(scale))
+                    self.log(f'UC attenuator > 0. Scaling by {scale:4.3f}')
                     dac *= scale
                 if att_dc > 0:
                     scale = (10**(att_dc/2/20))
-                    self.log('UC attenuator > 0. Scaling by {:4.3f}'.format(scale))
+                    self.log(f'DC attenuator > 0. Scaling by {scale:4.3f}')
                     adc *= scale
 
             if save_raw_data:
                 self.log('Saving raw data...', self.LOG_USER)
 
-                path = os.path.join(self.output_dir, '{}_adc'.format(timestamp))
+                path = os.path.join(self.output_dir, f'{timestamp}_adc')
                 np.save(path, adc)
                 self.pub.register_file(path, 'adc', format='npy')
 
-                path = os.path.join(self.output_dir,'{}_dac'.format(timestamp))
+                path = os.path.join(self.output_dir,f'{timestamp}_dac')
                 np.save(path, dac)
                 self.pub.register_file(path, 'dac', format='npy')
 
@@ -588,9 +587,12 @@ class SmurfTuneMixin(SmurfBase):
             if swap:
                 adc = adc[::-1]
 
-            f, p_dac = signal.welch(dac, fs=614.4E6, nperseg=n_samples/2)
-            f, p_adc = signal.welch(adc, fs=614.4E6, nperseg=n_samples/2)
-            f, p_cross = signal.csd(dac, adc, fs=614.4E6, nperseg=n_samples/2)
+            f, p_dac = signal.welch(dac, fs=614.4E6, nperseg=n_samples/2,
+                                    return_onesided=True)
+            f, p_adc = signal.welch(adc, fs=614.4E6, nperseg=n_samples/2,
+                                    return_onesided=True)
+            f, p_cross = signal.csd(dac, adc, fs=614.4E6, nperseg=n_samples/2,
+                                    return_onesided=True)
 
             idx = np.argsort(f)
             f = f[idx]
@@ -1173,7 +1175,6 @@ class SmurfTuneMixin(SmurfBase):
             plt.ion()
         else:
             plt.ioff()
-        
 
         I = np.real(resp)
         Q = np.imag(resp)
@@ -1477,7 +1478,6 @@ class SmurfTuneMixin(SmurfBase):
                 channels[mask[:len(chans)]] = chans
 
             # Prune channels that are too close
-            print(close_idx)
             channels[~close_idx] = -1        
 
             # write the channel assignments to file
@@ -2861,7 +2861,7 @@ class SmurfTuneMixin(SmurfBase):
         if drive_power is None:
             drive_power = self.config.get('init')['band_{}'.format(band)].get('amplitude_scale')
             self.log(f'No drive_power given. Using value in config ' +
-                'file: {drive_power}')
+                f'file: {drive_power}')
 
         self.log('Sweeping across frequencies')
         f, resp = self.full_band_ampl_sweep(band, subband, drive_power, n_read)
@@ -3259,7 +3259,7 @@ class SmurfTuneMixin(SmurfBase):
         elif filename is not None and last_tune:
             self.log('filename explicitly given. Overriding last_tune bool in load_tune.')
 
-        fs = np.load(filename).item()
+        fs = np.load(filename, allow_pickle=True).item()
         self.log('Done loading tuning')
 
         if override:

@@ -26,17 +26,22 @@ import seaborn as sns
 
 class SmurfNoiseMixin(SmurfBase):
 
-    def take_noise_psd(self, band, meas_time, channel=None, nperseg=2**12, 
+    def take_noise_psd(self, meas_time,
+        channel=None, nperseg=2**12, 
         detrend='constant', fs=None, low_freq=np.array([.1, 1.]), 
         high_freq=np.array([1., 10.]), make_channel_plot=True,
         make_summary_plot=True, save_data=False, show_plot=False,
-        grid_on=False, datafile=None):
+        grid_on=False, datafile=None, downsample_factor=None,
+        write_log=True):
+
         """
-        Takes a timestream of noise and calculates its PSD.
+        Takes a timestream of noise and calculates its PSD. It also
+        attempts to fit a white noise and 1/f component to the data.
+        It takes into account the sampling frequency and the downsampling
+        filter and downsampler. 
 
         Args:
         -----
-        band (int): The band to take noise data on
         meas_time (float): The amount of time to observe in seconds.
 
         Opt Args:
@@ -60,28 +65,48 @@ class SmurfNoiseMixin(SmurfBase):
         show_plot (bool): Show the plot on the screen. Default False.
         datefile (str): if data has already been taken, can point to a file to 
             bypass data taking and just analyze.
+        downsample_factor (int): The datarate is the flux ramp rate divided by
+            the downsample_factor.
+        write_log (bool) : Whether to write to the log file (or the screen
+            if the logfile is not defined). Default is True.
         """
-        if channel is None:
-            channel = self.which_on(band)
-        n_channel = self.get_number_channels(band)
-
         if datafile == None:
-            datafile = self.take_stream_data(meas_time)
+            datafile = self.take_stream_data(meas_time,
+                                             downsample_factor=downsample_factor,
+                                             write_log=write_log)
         else:
             self.log(f'Reading data from {datafile}')
 
         basename, _ = os.path.splitext(os.path.basename(datafile))
 
+        # Get downsample filter params
+        filter_b = self.get_filter_b()
+        filter_a = self.get_filter_a()
+
         timestamp, phase, mask = self.read_stream_data(datafile)
+        bands, channels = np.where(mask!=-1)
+        
         phase *= self.pA_per_phi0/(2.*np.pi) # phase converted to pA
 
-        if fs is None:
-            num_averages = self.config.get('smurf_to_mce')['num_averages']
-            # flux ramp rate returns in kHz
-            fs = self.get_flux_ramp_freq()*1.0E3/num_averages
+        flux_ramp_freq = self.get_flux_ramp_freq() * 1.0E3
         
-        self.log('Plotting channels {}'.format(channel), self.LOG_USER)
+        if fs is None:
+            if downsample_factor is None:
+                downsample_factor = self.get_downsample_factor()
+            # flux ramp rate returns in kHz
+            fs = flux_ramp_freq/downsample_factor
 
+        # Generate downsample transfer function - downsampling is at
+        # flux ramp freq
+        downsample_freq, downsample_transfer = signal.freqz(filter_b,
+            filter_a, worN=np.arange(.01, fs/2, .01), fs=flux_ramp_freq)
+        downsample_transfer = np.abs(downsample_transfer)**2
+
+        if write_log:
+            self.log(f'Plotting {bands}, {channels}', self.LOG_USER)
+        
+        n_channel = len(channels)
+        
         if make_summary_plot or make_channel_plot:
             plt.rcParams["patch.force_edgecolor"] = True
 
@@ -96,10 +121,11 @@ class SmurfNoiseMixin(SmurfBase):
         plt.ion()
         if not show_plot:
             plt.ioff()
-        for c, ch in enumerate(channel):
+        for c, (b, ch) in enumerate(zip(bands, channels)):
             if ch < 0:
                 continue
-            ch_idx = mask[band, ch]
+            ch_idx = mask[b, ch]
+            
             # Calculate PSD
             f, Pxx = signal.welch(phase[ch_idx], nperseg=nperseg, 
                 fs=fs, detrend=detrend)
@@ -108,27 +134,30 @@ class SmurfNoiseMixin(SmurfBase):
             good_fit = False
             try:
                 # Fit the PSD
-                popt, pcov, f_fit, Pxx_fit = self.analyze_psd(f, Pxx)
+                popt, pcov, f_fit, Pxx_fit = self.analyze_psd(f, Pxx,
+                    fs=fs, flux_ramp_freq=flux_ramp_freq)
                 wl, n, f_knee = popt
                 if f_knee != 0.:
                     wl_list.append(wl)
                     f_knee_list.append(f_knee)
-                    f_knees[ch]=f_knee
+                    f_knees[c]=f_knee
                     n_list.append(n)
-                    good_fit = True    
-                self.log('{}. b{}ch{:03}:'.format(c+1,band,ch) + 
-                    ' white-noise level = {:.2f}'.format(wl) +
-                        ' pA/rtHz, n = {:.2f}'.format(n) + 
-                        ', f_knee = {:.2f} Hz'.format(f_knee))
+                    good_fit = True
+                if write_log:
+                    self.log(f'{c+1}. b{b}ch{ch:03}:' + 
+                         ' white-noise level = {:.2f}'.format(wl) +
+                         ' pA/rtHz, n = {:.2f}'.format(n) + 
+                         ', f_knee = {:.2f} Hz'.format(f_knee))
             except Exception as e:
-                self.log('{} b{}ch{:03}: bad fit to noise model'.format(c+1,
-                    band, ch))
-                self.log(e)
+                if write_log:
+                    self.log(f'{c+1} b{b}ch{ch:03}: '+
+                             'bad fit to noise model')
+                    self.log(e)
 
             # Calculate noise in various frequency bins
             for i, (l, h) in enumerate(zip(low_freq, high_freq)):
                 idx = np.logical_and(f>l, f<h)
-                noise_floors[i, ch] = np.mean(Pxx[idx])
+                noise_floors[i, c] = np.mean(Pxx[idx])
 
             if make_channel_plot:
                 fig, ax = plt.subplots(2, figsize=(8,6))
@@ -144,37 +173,45 @@ class SmurfNoiseMixin(SmurfBase):
                 if grid_on:
                     ax[0].grid()
 
-                ax[1].plot(f, Pxx)
+                ax[1].loglog(f, Pxx)
+                ylim = ax[1].get_ylim()
                 
                 # Plot the fit
                 if good_fit:
-                    ax[1].plot(f_fit, Pxx_fit, linestyle='--', label=f'$n={n}')
+                    ax[1].plot(f_fit, Pxx_fit, linestyle='--', label=f'n={n:3.2f}')
+
+                    # plot f_knee
                     ax[1].plot(f_knee, 2.*wl, linestyle='none', marker='o',
-                        label=r'$f_\mathrm{knee} = ' + f'{f_knee:.2f},' + 
+                        label=r'$f_\mathrm{knee} = ' + f'{f_knee:0.2f},' + 
                         r'\mathrm{Hz}$')
                     ax[1].plot(f_fit,wl + np.zeros(len(f_fit)), linestyle=':',
-                        label=r'$\mathrm{wl} = $'+ f'{wl:.2f},' + 
+                        label=r'$\mathrm{wl} = $'+ f'{wl:0.2f},' + 
                         r'$\mathrm{pA}/\sqrt{\mathrm{Hz}}$')
+                    ax[1].plot(downsample_freq, wl*downsample_transfer,
+                               color='k', linestyle='dashdot',
+                               alpha=.5, label='Lowpass')
                     ax[1].legend(loc='best')
+                    ax[1].set_ylim(ylim)
                 
                 ax[1].set_xlabel('Frequency [Hz]')
                 ax[1].set_xlim(f[1],f[-1])
                 ax[1].set_ylabel('Amp [pA/rtHz]')
-                ax[1].set_yscale('log')
-                ax[1].set_xscale('log')
+
                 if grid_on:
                     ax[1].grid()
 
-                self.log(noise_floors[-1, ch])
+                if write_log:
+                    self.log(noise_floors[-1, c])
                 
-                res_freq = self.channel_to_freq(band, ch)
-                res_freqs[ch]=res_freq
+                res_freq = self.channel_to_freq(b, ch)
+                res_freqs[c]=res_freq
                 
-                ax[0].set_title('Band {} Ch {:03} - {:.2f} MHz'.format(band, ch, res_freq))
+                ax[0].set_title(f'Band {b} Ch {ch:03} - {res_freq:.2f} MHz')
 
                 fig.tight_layout()
 
-                plot_name = basename + '_noise_timestream_b{}_ch{:03}.png'.format(band, ch)
+                plot_name = basename + \
+                            f'_noise_timestream_b{b}_ch{ch:03}.png'
                 fig.savefig(os.path.join(self.plot_dir, plot_name), 
                     bbox_inches='tight')
 
@@ -184,7 +221,7 @@ class SmurfNoiseMixin(SmurfBase):
 
         if save_data:
             for i, (l, h) in enumerate(zip(low_freq, high_freq)):
-                save_name = basename+'_{:3.2f}_{:3.2f}.txt'.format(l, h)
+                save_name = basename+f'_{l:3.2f}_{h:3.2f}.txt'
                 outfn = os.path.join(self.plot_dir, save_name)
 
                 np.savetxt(outfn, np.c_[res_freqs,noise_floors[i],f_knees])
@@ -202,7 +239,7 @@ class SmurfNoiseMixin(SmurfBase):
                 ax.set_xlabel(r'Mean noise [$\mathrm{pA}/\sqrt{\mathrm{Hz}}$]')
 
                 plot_name = basename + \
-                    '_b{}_{}_{}_noise_hist.png'.format(band, l, h)
+                    '{}_{}_noise_hist.png'.format(l, h)
                 plt.savefig(os.path.join(self.plot_dir, plot_name), 
                     bbox_inches='tight')
                 if show_plot:
@@ -216,10 +253,10 @@ class SmurfNoiseMixin(SmurfBase):
                 f_knee_median = np.median(f_knee_list)
 
                 n_fit = len(wl_list)
-                n_attempt = len(channel)
+                n_attempt = len(channels)
 
                 fig,ax = plt.subplots(1,3,figsize=(10,6))
-                fig.suptitle('{}: band {} noise parameters'.format(basename, band) + 
+                fig.suptitle('{}: band {} noise parameters'.format(basename, b) + 
                     ' ({} fit of {} attempted)'.format(n_fit, n_attempt))
                 ax[0].hist(wl_list,bins=np.logspace(np.floor(np.log10(np.min(wl_list))),
                         np.ceil(np.log10(np.max(wl_list))), 10))
@@ -239,7 +276,7 @@ class SmurfNoiseMixin(SmurfBase):
                 plt.tight_layout()
                 fig.subplots_adjust(top = 0.9)
                 noise_params_hist_fname = basename + \
-                    '_b{}_noise_params.png'.format(band)
+                    '_b{}_noise_params.png'.format(b)
                 plt.savefig(os.path.join(self.plot_dir,
                     noise_params_hist_fname),
                     bbox_inches='tight')
@@ -776,8 +813,8 @@ class SmurfNoiseMixin(SmurfBase):
                     ax_i.set_ylabel('Phase [pA]')
 
                 # fit to noise model; catch error if fit is bad
-                popt,pcov,f_fit,Pxx_fit = self.analyze_psd(f,Pxx)
-                wl,n,f_knee = popt
+                popt, pcov, f_fit, Pxx_fit = self.analyze_psd(f,Pxx)
+                wl, n, f_knee = popt
                 self.log('ch. {}, bias = {:.2f}'.format(ch,b) +
                          ', white-noise level = {:.2f}'.format(wl) +
                          ' pA/rtHz, n = {:.2f}'.format(n) + 
@@ -1082,7 +1119,8 @@ class SmurfNoiseMixin(SmurfBase):
                 plt.close()
 
 
-    def analyze_psd(self, f, Pxx, p0=[100.,0.5,0.01]):
+    def analyze_psd(self, f, Pxx, fs=None, flux_ramp_freq=None,
+                    p0=[100.,0.5,0.01]):
         '''
         Return model fit for a PSD.
         p0 (float array): initial guesses for model fitting: [white-noise level 
@@ -1095,6 +1133,9 @@ class SmurfNoiseMixin(SmurfBase):
 
         Opt Args:
         ---------
+        fs (float) : Sampling frequency. If None, loads in the current
+            sampling frequency.
+        flux_ramp_freq (float) : The flux ramp frequency in Hz
         p0 (float array) : Initial guess for fitting PSDs
 
         Ret:
@@ -1105,12 +1146,15 @@ class SmurfNoiseMixin(SmurfBase):
         Pxx_fit (flot array) : The amplitude
         '''
         # incorporate timestream filtering
-        f3dB = self.config.get('smurf_to_mce').get('filter_freq')
-        filter_order = self.config.get('smurf_to_mce').get('filter_order')
+        b = self.get_filter_b()
+        a = self.get_filter_a()
 
-        # Butterworth filter in gcp streaming
-        b,a = signal.butter(filter_order,f3dB,analog=True,btype='low') 
-
+        if flux_ramp_freq is None:
+            flux_ramp_freq = self.get_flux_ramp_freq()*1.0E3
+        
+        if fs is None:
+            fs = flux_ramp_freq/self.get_downsample_factor()
+        
         def noise_model(freq, wl, n, f_knee):
             '''
             Crude model for noise modeling.
@@ -1120,7 +1164,8 @@ class SmurfNoiseMixin(SmurfBase):
             '''
             A = wl*(f_knee**n)
 
-            w,h = signal.freqs(b,a,worN=freq)
+            # The downsample filter is at the flux ramp frequency
+            w, h = signal.freqz(b, a, worN=freq, fs=flux_ramp_freq)
             tf = np.absolute(h)**2 # filter transfer function
 
             return (A/(freq**n) + wl)*tf
@@ -1134,7 +1179,7 @@ class SmurfNoiseMixin(SmurfBase):
                                             p0=p0,bounds=bounds)
         except Exception as e:
             wl = np.mean(Pxx[1:])
-            print('Unable to fit noise model. ' + 
+            self.log('Unable to fit noise model. ' + 
                 f'Reporting mean noise: {wl:.2f} pA/rtHz')
 
             popt = [wl, 1., 0.]

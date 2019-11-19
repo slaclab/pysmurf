@@ -101,7 +101,8 @@ class SmurfUtilMixin(SmurfBase):
 
         self.set_streamdatawriter_datafile(write_data) # write this
 
-        self.set_streamdatawriter_open('True') # str and not bool
+        #self.set_streamdatawriter_open('True') # str and not bool
+        self.set_streamdatawriter_open(True)
 
         bay=self.band_to_bay(band)
         self.set_trigger_daq(bay, 1, write_log=True) # this seems to = TriggerDM
@@ -124,7 +125,8 @@ class SmurfUtilMixin(SmurfBase):
         self.log('Finished acquisition', self.LOG_USER)
 
         self.log('Closing file...', self.LOG_USER)
-        self.set_streamdatawriter_open('False')
+        #self.set_streamdatawriter_open('false')
+        self.set_streamdatawriter_close(True)
 
         self.log('Done taking data', self.LOG_USER)
 
@@ -646,7 +648,8 @@ class SmurfUtilMixin(SmurfBase):
 
         return f, df, flux_ramp_strobe
 
-    def take_stream_data(self, meas_time, downsample_factor=20):
+    def take_stream_data(self, meas_time, downsample_factor=None,
+                         write_log=True):
         """
         Takes streaming data for a given amount of time
 
@@ -665,20 +668,21 @@ class SmurfUtilMixin(SmurfBase):
         --------
         data_filename (string): The fullpath to where the data is stored
         """
-        self.log('Starting to take data.', self.LOG_USER)
-        data_filename = self.stream_data_on(downsample_factor=downsample_factor)
+        if write_log:
+            self.log('Starting to take data.', self.LOG_USER)
+        data_filename = self.stream_data_on(downsample_factor=downsample_factor,
+                                            write_log=write_log)
         time.sleep(meas_time)
-        self.stream_data_off()
-        self.log('Done taking data.', self.LOG_USER)
+        self.stream_data_off(write_log=write_log)
+        if write_log:
+            self.log('Done taking data.', self.LOG_USER)
         return data_filename
 
 
-    def stream_data_on(self, write_config=False, downsample_factor=None,
-                       data_filename=None):
+    def stream_data_on(self, write_config=False, data_filename=None,
+                       downsample_factor=None, write_log=True):
         """
         Turns on streaming data.
-
-        TO DO: add downsample factor to config table!
 
         Opt Args:
         ---------
@@ -693,11 +697,15 @@ class SmurfUtilMixin(SmurfBase):
         """
         bands = self.config.get('init').get('bands')
 
-        if downsample_factor is None:
-            downsample_factor = 20
-
-        self.set_downsampler_factor(downsample_factor)
-
+        if downsample_factor is not None:
+            self.set_downsample_factor(downsample_factor)
+        else:
+            downsample_factor = self.get_downsample_factor()
+            if write_log:
+                self.log('Input downsample factor is None. Using '+
+                     'value already in pyrogue:'+
+                     f' {downsample_factor}')
+            
         # Check if flux ramp is non-zero
         ramp_max_cnt = self.get_ramp_max_cnt()
         if ramp_max_cnt == 0:
@@ -710,17 +718,20 @@ class SmurfUtilMixin(SmurfBase):
             # one of the newer C02 cryostat cards.
             flux_ramp_ac_dc_relay_status=self.C.read_ac_dc_relay_status()
             if flux_ramp_ac_dc_relay_status == 0:
-                self.log("FLUX RAMP IS DC COUPLED.", self.LOG_USER)
-            elif flux_ramp_ac_dc_relay_status == 3:
-                self.log("Flux ramp is AC-coupled.", self.LOG_USER)
+                if write_log:
+                    self.log("FLUX RAMP IS DC COUPLED.", self.LOG_USER)
+            elif flux_ramp_ac_dc_relay_status == 3 and write_log:
+                if write_log:
+                    self.log("Flux ramp is AC-coupled.", self.LOG_USER)
             else:
                 self.log("flux_ramp_ac_dc_relay_status = " +
-                         "{} - NOT A VALID STATE.".format(flux_ramp_ac_dc_relay_status),
-                         self.LOG_ERROR)
+                         f"{flux_ramp_ac_dc_relay_status} " +
+                         "- NOT A VALID STATE.", self.LOG_ERROR)
 
-            # start streaming before opening file to avoid transient filter step
-            self.set_stream_enable(1, write_log=False)
-            time.sleep(.1)
+            # start streaming before opening file
+            # to avoid transient filter step
+            self.set_stream_enable(1, write_log=False,
+                                   wait_after=.15)
 
             # Make the data file
             timestamp = self.get_timestamp()
@@ -733,14 +744,16 @@ class SmurfUtilMixin(SmurfBase):
             # Optionally write PyRogue configuration
             if write_config:
                 config_filename=os.path.join(self.output_dir, timestamp+'.yml')
-                self.log('Writing PyRogue configuration to file : {}'.format(config_filename),
-                     self.LOG_USER)
+                if write_log:
+                    self.log('Writing PyRogue configuration to file : '+
+                         f'{config_filename}', self.LOG_USER)
                 self.write_config(config_filename)
 
                 # short wait
                 time.sleep(5.)
-                self.log('Writing to file : {}'.format(data_filename),
-                self.LOG_USER)
+                if write_log:
+                    self.log(f'Writing to file : {data_filename}',
+                         self.LOG_USER)
 
             smurf_chans = {}
             for b in bands:
@@ -753,19 +766,20 @@ class SmurfUtilMixin(SmurfBase):
             np.savetxt(os.path.join(data_filename.replace('.dat', '_mask.txt')),
                 output_mask, fmt='%i')
 
-            self.open_data_file()
+            self.open_data_file(write_log=write_log)
 
             return data_filename
 
 
-    def stream_data_off(self):
+    def stream_data_off(self, write_log=True):
         """
         Turns off streaming data.
         """
-        self.close_data_file()
+        self.close_data_file(write_log=write_log)
 
-
-    def read_stream_data(self, datafile, channel=None, n_samp=None, array_size=512):
+        
+    def read_stream_data(self, datafile, channel=None,
+                         n_samp=None, array_size=512):
         """
         Loads data taken with the fucntion stream_data_on.
 
@@ -2237,7 +2251,7 @@ class SmurfUtilMixin(SmurfBase):
         # on cryostat card
         fiftyK_amp_Vd_series_resistor=10 #Ohm
         fiftyK_amp_Id_mA=2.*1000.*(self.get_cryo_card_50k_bias()/
-            fiftyK_amp_Vd_series_resistor)
+                                   fiftyK_amp_Vd_series_resistor) - self._50k_Id_offset
 
         return fiftyK_amp_Id_mA
 
@@ -2513,39 +2527,71 @@ class SmurfUtilMixin(SmurfBase):
 
     def make_channel_mask(self, band=None, smurf_chans=None):
         """
-        Makes the channel mask. Only the channels in the mask will be streamed
-        or written to disk.
+        Makes the channel mask. Only the channels in the 
+        mask will be streamed or written to disk.
 
         If no optional arguments are given, mask will contain all channels
         that are on. If both band and smurf_chans are supplied, a mask
         in the input order is created.
 
+        Opt Args:
+        ---------
         band (int array) : An array of band numbers. Must be the same
             length as smurf_chans
         smurf_chans (int_array) : An array of SMuRF channel numbers.
             Must be the same length as band
+
+        Ret:
+        ----
+        output_chans (int array) : The output channels.
         """
         output_chans = np.array([], dtype=int)
+
+        # If no input, build one by querying pyrogue
         if smurf_chans is None and band is not None:
             band = np.ravel(np.array(band))
             n_chan = self.get_number_channels(band)
             output_chans = np.arange(n_chan) + n_chan*band
+        # Take user inputs and make the channel map
         elif smurf_chans is not None:
-            keys = smurf_chans.keys()
+            keys = smurf_chans.keys()  # the band numbers
             for k in keys:
-                self.log('Band {}'.format(k))
                 n_chan = self.get_number_channels(k)
                 for ch in smurf_chans[k]:
-                    #if (ch+channel_offset)<0:
-                    #    channel_offset+=n_chan
-                    #if (ch+channel_offset+1)>n_chan:
-                    #    channel_offset-=n_chan
-
                     output_chans = np.append(output_chans,
-                                          ch + n_chan*k)
+                                             ch + n_chan*k)
 
         return output_chans
 
+    def set_downsample_filter(self, filter_order, cutoff_freq,
+                              write_log=False):
+        """
+        Sets the downsample filter. This is anti-alias filter
+        that filters data at the flux_ramp reset rate, which is
+        before the downsampler.
+
+        Args:
+        -----
+        filter_order (int) : The number of poles in the filter.
+        cutoff_freq (float) : The filter cutoff frequency
+        """
+        # Get flux ramp frequency
+        flux_ramp_freq = self.get_flux_ramp_freq()*1.0E3
+
+        # Get filter parameters
+        b, a = signal.butter(filter_order,
+                             2*cutoff_freq/flux_ramp_freq)
+
+        # Set filter parameters
+        self.set_filter_order(filter_order,
+                              write_log=write_log)
+        self.set_filter_a(a, write_log=write_log)
+        self.set_filter_b(b, write_log=write_log,
+                          wait_done=True)
+
+        self.set_filter_reset(wait_after=.1,
+                              write_log=write_log)
+        
     def get_filter_params(self):
         """
         Get the downsample filter parameters: filter order,
@@ -2564,7 +2610,7 @@ class SmurfUtilMixin(SmurfBase):
         # Get filter order, gain, and averages
         filter_order = self.get_filter_order()
         filter_gain = self.get_filter_gain()
-        num_averages = self.get_downsampler_factor()
+        num_averages = self.get_downsample_factor()
 
         if filter_order < 0:
             a = None
