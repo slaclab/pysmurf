@@ -720,7 +720,7 @@ class SmurfUtilMixin(SmurfBase):
             if flux_ramp_ac_dc_relay_status == 0:
                 if write_log:
                     self.log("FLUX RAMP IS DC COUPLED.", self.LOG_USER)
-            elif flux_ramp_ac_dc_relay_status == 3 and write_log:
+            elif flux_ramp_ac_dc_relay_status == 3:
                 if write_log:
                     self.log("Flux ramp is AC-coupled.", self.LOG_USER)
             else:
