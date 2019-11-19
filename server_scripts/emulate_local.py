@@ -53,6 +53,8 @@ if __name__ == "__main__":
                          disable_bay0   = False,
                          disable_bay1   = False) as root:
 
+        root.saveVariableList("varlist.txt")
+
         # Start the GUI
         import pyrogue.gui
         print("Starting GUI...\n")

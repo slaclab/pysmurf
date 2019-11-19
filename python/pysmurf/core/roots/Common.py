@@ -154,7 +154,7 @@ class Common(pyrogue.Root):
                         fifo_size = stream_pv_size * 4
 
                     self._stream_fifos.append(rogue.interfaces.stream.Fifo(1000, fifo_size, True)) # changes
-                    self._stream_fifos[i]._setSlave(self._stream_slaves[i])
+                    pyrogue.streamConnect(self._stream_fifos[i],self._stream_slaves[i])
                     pyrogue.streamTap(self._ddr_streams[i], self._stream_fifos[i])
 
 
