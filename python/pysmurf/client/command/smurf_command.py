@@ -4306,7 +4306,7 @@ class SmurfCommandMixin(SmurfBase):
         return self._caget(self.channel_mapper + self._payload_size,
                            **kwargs)
 
-    
+
     def set_payload_size(self, payload_size, **kwargs):
         """
         The payload size defines the number of available channels

@@ -777,7 +777,7 @@ class SmurfUtilMixin(SmurfBase):
         """
         self.close_data_file(write_log=write_log)
 
-
+        
     def read_stream_data(self, datafile, channel=None,
                          n_samp=None, array_size=512):
         """
@@ -2599,13 +2599,13 @@ class SmurfUtilMixin(SmurfBase):
         parameters.
 
         If filter order is -1, the downsampler is using a
-        rectangula integrator. This will set filter_a, filter_b 
+        rectangula integrator. This will set filter_a, filter_b
         to None.
-        
+
         Ret:
         ----
         filter_params (dict) : A dictionary with the filter
-            parameters. 
+            parameters.
         """
         # Get filter order, gain, and averages
         filter_order = self.get_filter_order()
@@ -2619,7 +2619,7 @@ class SmurfUtilMixin(SmurfBase):
             # Get filter parameters - (filter_order+1) elements
             a = self.get_filter_a()[:filter_order+1]
             b = self.get_filter_b()[:filter_order+1]
-            
+
         # Cast into dictionary
         ret = {
             'filter_order' : filter_order,
@@ -2630,7 +2630,7 @@ class SmurfUtilMixin(SmurfBase):
         }
 
         return ret
-    
+
 
     def make_gcp_mask(self, band=None, smurf_chans=None, gcp_chans=None,
                       read_gcp_mask=True, mask_channel_offset=0):

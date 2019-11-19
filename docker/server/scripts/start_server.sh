@@ -17,7 +17,7 @@ fw_top_dir="/tmp/fw"
 ########################
 
 # Trap TERM signals and exit
-trap "echo 'An ERROR was found. Aborting...'; exit 1" TERM
+trap "echo 'An ERROR was found. Check shelf manager & card state! Aborting...'; exit 1" TERM
 
 # Usage message
 usage()
@@ -40,7 +40,9 @@ usage()
     echo "The script will by default check if the firmware githash read from the FPGA via IPMI is the same of the found in the MCS file name."
     echo "This checking can be disabled with -D. The checking will also be disabled if -a is used instead of -S and -N."
     echo
-    echo "By default, the SMuRF server is tarted without a GUI. Use -g to start the server with a GUI."
+    echo "The script will look for a zip file under '${fw_top_dir}'. If found, it will be passed with the argument -z to the next startup script."
+    echo "If not zip file is found, the script will then look for a local checked out repository in the same location; If found, the python directories"
+    echo "under it will be added to PYTHONPATH."
     echo
     echo "All other arguments are passed verbatim to the next startup script."
     echo ""
@@ -106,6 +108,37 @@ getFpgaIp()
     local fpga_ip="${subnet}.$(expr 100 + $slot)"
 
     echo ${fpga_ip}
+}
+
+# Look for python directories in a local checkout of a repository.
+# Python directories should match these patterns:
+# - /tmp/fw/*/firmware/python/
+# - /tmp/fw/*/firmware/submodules/*/python/
+# All those found, will be added to PYTHONPATH
+updatePythonPath()
+{
+    printf "Looking for local python directories... "
+
+    # Look for the python directories that match the patterns
+    local python_dirs=( $(find ${fw_top_dir} -type d \
+                          -regex "^${fw_top_dir}/[^/]+/firmware/python" -o \
+                          -regex "^${fw_top_dir}/[^/]+/firmware/submodules/[^/]+/python") )
+
+    # Check if any directory was found
+    if [ ${#python_dirs[@]} -eq 0 ]; then
+        # if nothing was found, just return without doing anything
+        echo "Not python directories found"
+    else
+        # If directories were found,add them all to PYTHONPATH
+        echo "The following python directories were found:"
+        for d in ${python_dirs[@]}; do
+            echo "  ${d}"
+            python_path=${d}:${python_path}
+        done
+
+        export PYTHONPATH=${python_path}${PYTHONPATH}
+        echo "  PYTHONPATH updated!"
+    fi
 }
 
 #############
@@ -180,19 +213,21 @@ if [ -z ${fpga_ip+x} ]; then
     fi
 
     echo "IP address was not defined. It will be calculated automatically from the crate ID and slot number..."
+    echo
 
     ipmb=$(expr 0128 + 2 \* $slot)
 
-    echo "Reading Crate ID via IPMI..."
+    printf "Reading Crate ID via IPMI...            "
     crate_id=$(getCrateId)
     echo "Create ID: ${crate_id}"
 
-    echo "Calculating FPGA IP address..."
+    printf "Calculating FPGA IP address...          "
     fpga_ip=$(getFpgaIp)
     echo "FPGA IP: ${fpga_ip}"
 
 else
     echo "IP address was defined. Ignoring shelfmanager and slot number. FW version checking disabled."
+    echo
     no_check_fw=1
 fi
 
@@ -211,15 +246,19 @@ if [ ${slot+x} ]; then
     fi
 fi
 
-# Extract the pyrogue tarball and update PYTHONPATH
-echo "Looking for pyrogue zip file..."
+# Look for a pyrogue zip file
+printf "Looking for pyrogue zip file...         "
 pyrogue_file=$(find ${fw_top_dir} -maxdepth 1 -name *zip)
 if [ ! -f "$pyrogue_file" ]; then
     echo "Pyrogue zip file not found!"
-    exit 1
+
+    # if not found, then look for a local checkout repository.
+    updatePythonPath
+else
+    # If found, add it to the SMuRF arguments
+    echo "Pyrogue zip file found: ${pyrogue_file}"
+    args="${args} -z ${pyrogue_file}"
 fi
-echo "Pyrogue zip file found: ${pyrogue_file}"
-args="${args} -z ${pyrogue_file}"
 
 # Firmware version checking
 if [ -z ${no_check_fw+x} ]; then
@@ -260,3 +299,4 @@ else
     echo "Staring the server using PCIe communication..."
     /usr/local/src/pysmurf/server_scripts/cmb_pcie.py ${args}
 fi
+

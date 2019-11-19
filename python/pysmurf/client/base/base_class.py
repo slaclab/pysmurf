@@ -88,6 +88,7 @@ class SmurfBase(object):
         self.smurf_processor = self.amcc + 'SmurfProcessor:'
         self.channel_mapper = self.smurf_processor + 'ChannelMapper:'
         self.frame_rx_stats = self.smurf_processor + 'FrameRxStats:'
+
         self.fpga_top_level = self.amcc + 'FpgaTopLevel:'
         self.app_top = self.fpga_top_level + 'AppTop:'        
         self.app_core = self.app_top + 'AppCore:'

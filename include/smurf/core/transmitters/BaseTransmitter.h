@@ -29,6 +29,8 @@
 #include <rogue/GilRelease.h>
 #include "smurf/core/common/SmurfHeader.h"
 #include "smurf/core/common/SmurfPacket.h"
+#include "smurf/core/transmitters/DualDataBuffer.h"
+#include "smurf/core/transmitters/BaseTransmitterChannel.h"
 
 namespace bp  = boost::python;
 namespace ris = rogue::interfaces::stream;
@@ -42,11 +44,11 @@ namespace smurf
             class BaseTransmitter;
             typedef std::shared_ptr<BaseTransmitter> BaseTransmitterPtr;
 
-            class BaseTransmitter : public ris::Slave
+            class BaseTransmitter: public std::enable_shared_from_this<smurf::core::transmitters::BaseTransmitter>
             {
             public:
                 BaseTransmitter();
-                ~BaseTransmitter() {};
+                virtual ~BaseTransmitter() {};
 
                 static BaseTransmitterPtr create();
 
@@ -57,39 +59,47 @@ namespace smurf
                 void       setDisable(bool d);
                 const bool getDisable() const;
 
+                // Get data channel
+                BaseTransmitterChannelPtr getDataChannel();
+
+                // Get meta data channel
+                BaseTransmitterChannelPtr getMetaChannel();
+
                 // Clear all counter.
                 void clearCnt();
 
-                // Get the dropped packet counter
-                const std::size_t getPktDropCnt() const;
+                // Get the data dropped counter
+                const std::size_t getDataDropCnt() const;
 
-                // Accept new frames
-                void acceptFrame(ris::FramePtr frame);
+                // Get the metadata dropped counter
+                const std::size_t getMetaDropCnt() const;
+
+                // Accept new data frames
+                void acceptDataFrame(ris::FramePtr frame);
+
+                // Accept new meta frames
+                void acceptMetaFrame(ris::FramePtr frame);
 
                 // This method is intended to be used to take SMuRF packet and send them to other
-                // system.
+                // systems.
                 // This method is called whenever a new SMuRF packet is ready, and a SmurfPacketROPtr object
                 // (which is a smart pointer to a read-only interface to a Smurf packer object) is passed.
                 // It must be overwritten by the user application
-                virtual void transmit(SmurfPacketROPtr sp) {};
+                virtual void dataTransmit(SmurfPacketROPtr sp) {};
+
+                // This method is intended to be used to take SMuRF meta data and send them to other
+                // system.
+                // This method is called whenever new a new metadata frame is ready, which is passed as a
+                // std::string object.
+                // It must be overwritten by the user application
+                virtual void metaTransmit(std::string cfg) {};
 
             private:
-                bool                          disable;              // Disable flag
-                std::size_t                   pktDropCnt;           // Dropped packet counter
-                std::vector<SmurfPacketROPtr> pktBuffer;            // Dual buffer of Smurf packets. Can hold 2 packets.
-                std::size_t                   writeIndex;           // Buffer position to be written
-                std::size_t                   readIndex;            // Buffer position to be read
-                std::size_t                   pktCount;             // Number of packets in the buffer
-                bool                          txDataReady;          // Flag to indicate new data is ready t be sent
-                std::atomic<bool>             runTxThread;          // Flag used to stop the thread
-                std::thread                   pktTransmitterThread; // Thread where the SMuRF packet transmission will run
-                std::condition_variable       txCV;                 // Variable to notify the thread new data is ready
-                std::mutex                    txMutex;              // Mutex used for accessing the conditional variable
-
-                // Transmit method. Will run in the pktTransmitterThread thread.
-                // Here is where the method 'transmit' is called.
-                void pktTansmitter();
-
+                bool                                disable;     // Disable flag
+                DualDataBufferPtr<SmurfPacketROPtr> dataBuffer;  // Data buffer
+                DualDataBufferPtr<std::string>      metaBuffer;  // Metadata buffer
+                BaseTransmitterChannelPtr           dataChannel; // Data channel interface
+                BaseTransmitterChannelPtr           metaChannel; // Metadata channel interface
             };
         }
     }

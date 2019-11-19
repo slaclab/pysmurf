@@ -14,4 +14,6 @@
 # ----------------------------------------------------------------------------
 
 target_sources(smurf PRIVATE "${CMAKE_CURRENT_LIST_DIR}/BaseTransmitter.cpp")
+target_sources(smurf PRIVATE "${CMAKE_CURRENT_LIST_DIR}/BaseTransmitterChannel.cpp")
+target_sources(smurf PRIVATE "${CMAKE_CURRENT_LIST_DIR}/DualDataBuffer.cpp")
 target_sources(smurf PRIVATE "${CMAKE_CURRENT_LIST_DIR}/module.cpp")

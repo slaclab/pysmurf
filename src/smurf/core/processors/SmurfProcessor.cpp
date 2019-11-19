@@ -70,13 +70,15 @@ void scp::SmurfProcessor::setup_python()
                 boost::noncopyable >
                 ("SmurfProcessor",bp::init<>())
         // Channel mapping variables
-        .def("setUnwrapperDisable",     &SmurfProcessor::setUnwrapperDisable)
-        .def("getUnwrapperDisable",     &SmurfProcessor::getUnwrapperDisable)
         .def("getNumCh",                &SmurfProcessor::getNumCh)
         .def("setPayloadSize",          &SmurfProcessor::setPayloadSize)
         .def("getPayloadSize",          &SmurfProcessor::getPayloadSize)
         .def("setMask",                 &SmurfProcessor::setMask)
         .def("getMask",                 &SmurfProcessor::getMask)
+        // Unwrapper variables
+        .def("setUnwrapperDisable",     &SmurfProcessor::setUnwrapperDisable)
+        .def("getUnwrapperDisable",     &SmurfProcessor::getUnwrapperDisable)
+        .def("resetUnwrapper",          &SmurfProcessor::resetUnwrapper)
         // Filter variables
         .def("setFilterDisable",        &SmurfProcessor::setFilterDisable)
         .def("getFilterDisable",        &SmurfProcessor::getFilterDisable)
@@ -88,6 +90,7 @@ void scp::SmurfProcessor::setup_python()
         .def("getB",                    &SmurfProcessor::getB)
         .def("setGain",                 &SmurfProcessor::setGain)
         .def("getGain",                 &SmurfProcessor::getGain)
+        .def("resetFilter",             &SmurfProcessor::resetFilterWithMutex)
         // Downsampler variables
         .def("setDownsamplerDisable",   &SmurfProcessor::setDownsamplerDisable)
         .def("getDownsamplerDisable",   &SmurfProcessor::getDownsamplerDisable)
@@ -110,7 +113,14 @@ const std::size_t scp::SmurfProcessor::getPayloadSize() const
 
 void scp::SmurfProcessor::setPayloadSize(std::size_t s)
 {
+
+    // Take the mutex before changing the mask vector
+    std::lock_guard<std::mutex> lockMap(mutChMapper);
+
     payloadSize = s;
+
+    // Update the number of mapped channels
+    updateNumCh();
 }
 
 void scp::SmurfProcessor::setMask(bp::list m)
@@ -129,10 +139,6 @@ void scp::SmurfProcessor::setMask(bp::list m)
         // Do not update the mask vector.
         return;
     }
-
-    // If the payload size if defined, only process up to that number of channels
-    if (payloadSize && payloadSize < listSize)
-        listSize = payloadSize;
 
     // We will use a temporal vector to hold the new data.
     // New data will be check as it is pushed to this vector. If there
@@ -168,17 +174,7 @@ void scp::SmurfProcessor::setMask(bp::list m)
     mask.swap(temp);
 
     // Update the number of mapped channels
-    numCh = listSize;
-
-    // Reset the Unwrapper when the number of channels change
-    resetUnwrapper();
-
-    // Reset the filter
-    // Take the mutex before changing the filter parameters
-    // This make sure that the new order value is not used before
-    // the a and b array are resized.
-    std::lock_guard<std::mutex> lockFilter(mutFilter);
-    resetFilter();
+    updateNumCh();
 }
 
 const bp::list scp::SmurfProcessor::getMask() const
@@ -191,9 +187,40 @@ const bp::list scp::SmurfProcessor::getMask() const
     return temp;
 }
 
+void scp::SmurfProcessor::updateNumCh()
+{
+    // Start with the size of the mask vector as the new size
+    std::size_t newNumCh = mask.size();
+
+    // If the payload is defined and it is lower that the
+    // size of the mask vector, that will be out new size
+    if (payloadSize && payloadSize < newNumCh)
+       newNumCh = payloadSize;
+
+    // If the new size if different from the current size, update it
+    if (numCh != newNumCh)
+    {
+        numCh = newNumCh;
+
+        // Reset the Unwrapper
+        resetUnwrapper();
+
+        // Reset the filter
+        // Take the mutex before changing the filter parameters
+        // This make sure that the new order value is not used before
+        // the a and b array are resized.
+        std::lock_guard<std::mutex> lockFilter(mutFilter);
+        resetFilter();
+    }
+}
+
 void scp::SmurfProcessor::setUnwrapperDisable(bool d)
 {
     disableUnwrapper = d;
+
+    // Reset the unwrapper when it is re-enable.
+    if (!disableUnwrapper)
+        resetUnwrapper();
 }
 
 const bool scp::SmurfProcessor::getUnwrapperDisable() const
@@ -203,6 +230,11 @@ const bool scp::SmurfProcessor::getUnwrapperDisable() const
 
 void scp::SmurfProcessor::resetUnwrapper()
 {
+    // Take the mutex before reseting the unwrapper as the
+    // This makes sure that the new vectors are not used while
+    // they are potentially being resized.
+    std::lock_guard<std::mutex> lockUnwrapper(mutUnwrapper);
+
     std::vector<unwrap_t>(numCh).swap(currentData);
     std::vector<unwrap_t>(numCh).swap(previousData);
     std::vector<unwrap_t>(numCh).swap(wrapCounter);
@@ -394,6 +426,17 @@ void scp::SmurfProcessor::resetFilter()
     currentBlockIndex = 0;
 }
 
+// Reset the filter but holding the mutex. This is need when reseting the
+// filter from python
+void scp::SmurfProcessor::resetFilterWithMutex()
+{
+    // Take the mutex before changing the filter parameters
+    // This make sure that the new order value is not used before
+    // the a and b array are resized.
+    std::lock_guard<std::mutex> lockFilter(mutFilter);
+    resetFilter();
+}
+
 void scp::SmurfProcessor::setDownsamplerDisable(bool d)
 {
     disableDownsampler = d;
@@ -461,13 +504,21 @@ void scp::SmurfProcessor::acceptFrame(ris::FramePtr frame)
         // Map and unwrap data in a single loop
         for(auto const& m : mask)
         {
+            // Only process the first 'numCh' elements in the mask vector
+            if (i >= numCh)
+                break;
+
             // Get the mapped value from the framweBuffer and cast it
-            currentData.at(i) = static_cast<unwrap_t>(*(inIt + m * sizeof(fw_t)));
+            // Reinterpret the bytes from the frameBuffer to 'fw_t' values. And the cast that value to 'unwrap_t' values
+            currentData.at(i) = static_cast<unwrap_t>(*(reinterpret_cast<fw_t*>(&(*( inIt + m * sizeof(fw_t) )))));
 
             // Unwrap the value is the unwrapper is not disabled.
             // If it is disabled, don't do anything to the data
             if (!disableUnwrapper)
             {
+                // Acquire the lock while the unwrapper vectors are used
+                std::lock_guard<std::mutex> lock(mutUnwrapper);
+
                 // Check if the value wrapped
                 if ((currentData.at(i) > upperUnwrap) && (previousData.at(i) < lowerUnwrap))
                 {

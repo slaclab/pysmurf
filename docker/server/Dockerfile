@@ -1,4 +1,4 @@
-FROM tidair/smurf-rogue:R2.2.0
+FROM tidair/smurf-rogue:R2.3.1
 
 # Install the SMURF PCIe card repository
 WORKDIR /usr/local/src
@@ -16,7 +16,7 @@ RUN git clone https://github.com/slaclab/pysmurf.git -b ${branch}
 WORKDIR pysmurf
 RUN mkdir build
 WORKDIR build
-RUN cmake -DCMAKE_BUILD_TYPE=Release .. && make
+RUN cmake -DCMAKE_BUILD_TYPE=Release .. && make -j4
 ENV PYTHONPATH /usr/local/src/pysmurf/lib:${PYTHONPATH}
 ENV PYTHONPATH /usr/local/src/pysmurf/python:${PYTHONPATH}
 ENV SMURF_DIR /usr/local/src/pysmurf

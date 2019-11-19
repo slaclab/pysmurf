@@ -37,10 +37,8 @@ class SmurfApplication(pyrogue.Device):
         self.add(pyrogue.LocalVariable(
             name='SmurfDirectory',
             description='Path to SMURF Python Files',
-            mode='RO',
-            value=''))
-            # TO DO: pysmurf doesn't have a '__file__' attribute
-            #value=os.path.dirname(pysmurf.__file__)))
+            value=os.path.dirname(pysmurf.__file__),
+            mode='RO'))
 
         self.add(pyrogue.LocalVariable(
             name='SomePySmurfVariable',
