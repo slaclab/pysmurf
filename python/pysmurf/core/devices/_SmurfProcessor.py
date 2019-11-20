@@ -61,7 +61,7 @@ class SmurfChannelMapper(pyrogue.Device):
             name='Mask',
             description='Set the mapping mask',
             mode='RW',
-            value=[0]*528,
+            value=[0]*4096,
             localSet=lambda value: self.device.setMask(value),
             localGet=self.device.getMask))
 
