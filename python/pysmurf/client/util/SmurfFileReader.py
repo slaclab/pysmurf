@@ -16,7 +16,9 @@
 import struct
 import numpy
 import os
+import yaml
 from collections import namedtuple
+from collections import OrderedDict as odict
 
 # Frame Format Constants
 SmurfHeaderSize  = 128
@@ -146,7 +148,7 @@ class SmurfStreamReader(object):
                 # Read in Rogue header data
                 rogueHeader  = RogueHeader._make(struct.Struct(RogueHeaderPack).unpack(self._currFile.read(RogueHeaderSize)))
                 roguePayload = rogueHeader.size - 4
-            
+
                 # Set next frame position
                 recEnd = self._currFile.tell() + roguePayload
 
@@ -161,9 +163,9 @@ class SmurfStreamReader(object):
                 # Process meta data
                 elif self._metaEnable and rogueHeader.channel == 1:
                     try:
-                        yamlUpdate(self._config, self._currFile.read(payload).decode('utf-8'))
-                    except:
-                        print(f"Waring: Error processing meta data in {self._currFName}")
+                        yamlUpdate(self._config, self._currFile.read(roguePayload).decode('utf-8'))
+                    except Exception as e:
+                        print(f"Waring: Error processing meta data in {self._currFName}: {e}")
 
                 # Skip over meta data
                 else: self._currFile.seek(recEnd)
@@ -274,6 +276,15 @@ class SmurfStreamReader(object):
         pass
 
 
+def keyValueUpdate(old, key, value):
+    d = old
+    parts = key.split('.')
+    for part in parts[:-1]:
+        if part not in d:
+            d[part] = {}
+        d = d.get(part)
+    d[parts[-1]] = value
+
 def dictUpdate(old, new):
     for k,v in new.items():
         if '.' in k:
@@ -286,4 +297,17 @@ def dictUpdate(old, new):
 def yamlUpdate(old, new):
     dictUpdate(old, yamlToData(new))
 
+def yamlToData(stream):
+    """Load yaml to data structure"""
+
+    class PyrogueLoader(yaml.Loader):
+        pass
+
+    def construct_mapping(loader, node):
+        loader.flatten_mapping(node)
+        return odict(loader.construct_pairs(node))
+
+    PyrogueLoader.add_constructor(yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG,construct_mapping)
+
+    return yaml.load(stream, Loader=PyrogueLoader)
 

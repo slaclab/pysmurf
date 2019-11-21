@@ -26,7 +26,7 @@ import glob
 import matplotlib.pyplot as plt
 # for hardware logging
 import threading
-import SmurfFileReader
+import pysmurf.client.util.SmurfFileReader
 
 
 class SmurfUtilMixin(SmurfBase):
