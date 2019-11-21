@@ -26,7 +26,7 @@ import glob
 import matplotlib.pyplot as plt
 # for hardware logging
 import threading
-import pysmurf.client.util.SmurfFileReader
+from pysmurf.client.util.SmurfFileReader import SmurfStreamReader
 
 
 class SmurfUtilMixin(SmurfBase):
@@ -826,7 +826,7 @@ class SmurfUtilMixin(SmurfBase):
         first_read = True
 
         #with open(datafile, mode='rb') as file:
-        with SmurfFileReader.SmurfStreamReader(datafile,
+        with SmurfStreamReader(datafile,
             isRogue=True, metaEnable=True) as file:
 
             for header, data in file.records():
