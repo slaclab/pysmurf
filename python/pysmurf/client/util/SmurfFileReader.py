@@ -140,7 +140,7 @@ class SmurfStreamReader(object):
 
                 # Not enough data left in the file
                 if (self._fileSize - self._currFile.tell()) < RogueHeaderSize:
-                    printf(f"Waring: File under run reading {self._currFName}")
+                    print(f"Waring: File under run reading {self._currFName}")
                     return False
 
                 # Read in Rogue header data
@@ -152,7 +152,7 @@ class SmurfStreamReader(object):
 
                 # Sanity check
                 if recEnd > self._fileSize:
-                    printf(f"Waring: File under run reading {self._currFName}")
+                    print(f"Waring: File under run reading {self._currFName}")
                     return False
 
                 # If this is a data channel, break
