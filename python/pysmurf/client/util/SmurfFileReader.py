@@ -140,26 +140,26 @@ class SmurfStreamReader(object):
 
                 # Not enough data left in the file
                 if (self._fileSize - self._currFile.tell()) < RogueHeaderSize:
-                    printf(f"Waring: File under run reading {self._currFName}")
+                    print(f"Waring: File under run reading {self._currFName}")
                     return False
 
                 # Read in Rogue header data
-                rogueHeader = RogueHeader._make(struct.Struct(RogueHeaderPack).unpack(self._currFile.read(RogueHeaderSize)))
-                payload = rogueHeader.size - 4
+                rogueHeader  = RogueHeader._make(struct.Struct(RogueHeaderPack).unpack(self._currFile.read(RogueHeaderSize)))
+                roguePayload = rogueHeader.size - 4
             
                 # Set next frame position
-                recEnd = self._currFile.tell() + payload
+                recEnd = self._currFile.tell() + roguePayload
 
                 # Sanity check
                 if recEnd > self._fileSize:
-                    printf(f"Waring: File under run reading {self._currFName}")
+                    print(f"Waring: File under run reading {self._currFName}")
                     return False
 
                 # If this is a data channel, break
                 if rogueHeader.channel == 0: break
 
                 # Process meta data
-                elif self._metaData and rogueHeader.channel == 1:
+                elif self._metaEnable and rogueHeader.channel == 1:
                     try:
                         yamlUpdate(self._config, self._currFile.read(payload).decode('utf-8'))
                     except:
@@ -169,11 +169,11 @@ class SmurfStreamReader(object):
                 else: self._currFile.seek(recEnd)
 
             # Check if there is enough room for the Smurf header
-            if SmurfHeaderSize > payload:
+            if SmurfHeaderSize > roguePayload:
                 print(f"Waring: SMURF header overruns remaining record size in {self._currFName}")
                 return False
 
-        # Non Rogue file
+        # Non Rogue file, verify there is enough room in the file for the smurf header
         elif SmurfHeaderSize + self._currFile.tell() > self._fileSize:
             print(f"Warning: SMURF header overruns remaining file size in {self._currFName}")
             return None
@@ -181,30 +181,45 @@ class SmurfStreamReader(object):
         # Unpack header into named tuple
         self._header = SmurfHeader._make(struct.Struct(SmurfHeaderPack).unpack(self._currFile.read(SmurfHeaderSize)))
 
-        # Use the forced channel count if it is provided, otherwise use the header count
-        if self._chanCount is not None:
-            chanCount = self._chanCount
-        else:
-            chanCount = self._header.number_of_channels
+        # Number of data channels is taken from the header
+        chanCount = self._header.number_of_channels
+        dataSize  = chanCount * SmurfChannelSize
 
-        # Compute payload size of frame based upon channel count
-        expSize = chanCount * SmurfChannelSize
-
-        # Processing rogue frame, verify container 
+        # Rogue raw data size is computed from rogue headers
         if self._isRogue:
-            if expSize + self._currFile.tell() != recEnd:
-                print(f"Warning: SMURF data does not align to frame record in {self._currFName}")
+            rawDataSize = recEnd - self._currFile.tell()
+
+        # Legacy File
+        else:
+
+            # Use defined size if exists.
+            if chanCount is not None:
+                rawDataSize = chanCount * SmurfChannelSize
+
+            # Otherwise use header value
+            else:
+                rawDataSize = self._header.number_of_channels * SmurfChannelSize
+
+            # Compute legacy record end
+            recEnd = self._currFile.tell() + rawDataSize
+
+            # File overrun
+            if recEnd > self._fileSize:
+                print(f"SMURF data overruns remaining file size in {self._currFName}")
                 return False
 
-        # Non rogue frame
-        elif expSize + self._currFile.tell() > self._fileSize:
-            print(f"SMURF data overruns remaining file size in {self._currFName}")
+        # Verify sizing
+        if dataSize > rawDataSize:
+            print(f"Warning: SMURF read data size overruns raw data size in {self._currFName}")
             return False
 
         # Read record data
         self._data = numpy.fromfile(self._currFile, dtype=numpy.int32, count=chanCount)
         self._currCount += 1
         self._totCount += 1
+
+        # Jump forward if neccessary
+        if ( self._currFile.tell() != recEnd ): self._currFile.seek(recEnd)
 
         return True
 

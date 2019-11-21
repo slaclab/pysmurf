@@ -26,6 +26,8 @@ import glob
 import matplotlib.pyplot as plt
 # for hardware logging
 import threading
+import SmurfFileReader
+
 
 class SmurfUtilMixin(SmurfBase):
 
@@ -779,7 +781,7 @@ class SmurfUtilMixin(SmurfBase):
 
         
     def read_stream_data(self, datafile, channel=None,
-                         n_samp=None, array_size=512):
+                         n_samp=None, array_size=None):
         """
         Loads data taken with the fucntion stream_data_on.
 
@@ -813,32 +815,6 @@ class SmurfUtilMixin(SmurfBase):
             self.log('Only reading channel {}'.format(channel))
 
 
-        # Smurf header structure
-        keys = [
-            'protocol_version',
-            'crate_id',
-            'slot_number',
-            'timing_cond',
-            'number_of_channels',
-            #'tes_bias', < TO DO, include the TES bias values
-            'timestamp',
-            'flux_ramp_increment',
-            'flux_ramp_offset',
-            'counter_0',
-            'counter_1',
-            'counter_2',
-            'reset_bits',
-            'frame_counter',
-            'tes_relays_config',
-            'external_time',
-            'control_field',
-            'test_params',
-            'num_rows',
-            'num_rows_reported',
-            'row_length',
-            'data_rate',
-        ]
-        keys_dict = dict(zip(keys, range(len(keys))))
 
         eval_n_samp = False
         if n_samp is not None:
@@ -849,143 +825,46 @@ class SmurfUtilMixin(SmurfBase):
         # data structures will be build based on that
         first_read = True
 
-        with open(datafile, mode='rb') as file:
-            while True:
+        #with open(datafile, mode='rb') as file:
+        with SmurfFileReader.SmurfStreamReader(datafile,
+            isRogue=True, metaEnable=True) as file:
 
-                # Read the Rogue header which is 8-byte long:
-                # - 4 bytes : Length of the following data block in bytes,
-                #             It includes the next 4 bytes in the header.
-                # - 1 byte  : Channel ID.
-                # - 1 byte  : Frame error.
-                # - 2 bytes : Frame flags.
-                rogue_header = dict()
-
-                # Read the first 4-byte word, which is the length
-                chunk = file.read(4)
-
-                # Check if we reach the end of the file
-                if not chunk:
-                    # If frame is incomplete - meaning end of file
-                    phase = np.hstack((phase, tmp_phase[:,:counter%n]))
-                    timestamp2 = np.append(timestamp2, tmp_timestamp2[:counter%n])
-                    break
-
-                # Convert the 4-byte word to length
-                rogue_header['length'] = struct.Struct('I').unpack(chunk)[0]
-
-                # Read the sencond 4-byte word and extract the channel, error, and flags
-                chunk = file.read(4)
-                word = struct.Struct('I').unpack(chunk)[0]
-                rogue_header['channel'] = (word >> 24) & 0xff
-                rogue_header['error'] = (word >> 16) & 0xff
-                rogue_header['flags'] = (word ) & 0xffff
+            for header, data in file.records():
 
 
-                # Check if this is a block of data or metadata
-                # Data comes on channel 0, and metadata on channel 1
+                if first_read:
 
-                if rogue_header['channel'] == 1:
+                    # Update flag, so that we don't do this code again
+                    first_read = False
 
-                    # This is our meta data.
-                    # We need to process it here.
+                    # Read in all used channels by default
+                    if channel is None:
+                        channel = np.arange(header.number_of_channels)
 
-                    # Skip for now
-                    chunk = file.read(rogue_header['length']-4)
+                    channel = np.ravel(np.asarray(channel))
+                    n_chan = len(channel)
 
-                elif rogue_header['channel'] != 0:
-                    # Skip data on unknown channels, but print
-                    # a warning message
-                    self.log(f"WARNING. Data present on an unknown channel: {rogue_header['channel']}")
-                    chunk = file.read(rogue_header['length']-4)
+                    # Indexes for input channels
+                    channel_mask = np.zeros(n_chan, dtype=int)
+                    for i, c in enumerate(channel):
+                        channel_mask[i] = c
+
+                    # Make holder arrays for phase and timestamp
+                    phase = np.zeros((1,n_chan))
+                    #phase = np.atleast_2d(data)
+                    phase[0] = data
+                    t = np.array(header.timestamp)
+                    counter = 1
                 else:
-                    # This is a data block. Processes it
+                    phase = np.vstack((phase, data))
+                    t = np.append(t, header.timestamp)                    
 
-                    # This is the size we need to still read from this data block
-                    # We already read 4 bytes from the header.
-                    size = rogue_header['length'] - 4
-
-                    # Now read the SMuRF header which is 128-byte long
-                    chunk = file.read(128)  # Frame size is 2240
-
-                    # Update the size of data we still need to read
-                    size = size - 128
-
-                    # This is the structure of the header (see README.SmurfPacket.md for a details)
-                    # Note: This assumes that the header version is 1 (currently the only version available),
-                    # which has a length of 128 bytes. In the future, we should check first the version,
-                    # and then unpack the data base on the version number.
-                    # TO DO: Extract the TES BIAS values
-                    #                         ->| |<-
-                    smurf_header_data = struct.Struct('BBBBI40xQIIIIQIII4x5B3xBB6xHH4xHH4x').unpack(chunk)
-
-                    # Build the smurf header as a dictionary
-                    smurf_header = dict()
-                    for k,v in keys_dict.items():
-                        smurf_header[k] = smurf_header_data[v]
-
-                    # Build the data structures based on the number of channel on the first data frame
-                    if first_read:
-
-                        # Update flag, so that we don't do this code again
-                        first_read = False
-
-                        # Read in all used channels by default
-                        if channel is None:
-                            channel = np.arange(smurf_header['number_of_channels'])
-
-                        channel = np.ravel(np.asarray(channel))
-                        n_chan = len(channel)
-
-                        # Indexes for input channels
-                        channel_mask = np.zeros(n_chan, dtype=int)
-                        for i, c in enumerate(channel):
-                            channel_mask[i] = c
-
-                        # Make holder arrays for phase and timestamp
-                        phase = np.zeros((n_chan,0))
-                        timestamp2 = np.array([])
-                        counter = 0
-                        n = 20000  # Number of elements to load at a time
-                        tmp_phase = np.zeros((n_chan, n))
-                        tmp_timestamp2 = np.zeros(n)
-
-                    if eval_n_samp:
-                        if counter >= n_samp:
-                            phase = np.hstack((phase, tmp_phase[:,:counter%n]))
-                            timestamp2 = np.append(timestamp2,
-                                                   tmp_timestamp2[:counter%n])
-                            break
-
-                    # Read the remaining of data
-                    chunk = file.read(size)
-
-                    # Calculate the number of pad bytes in the data block
-                    # If the packet on;y contains enabled data channels, then,
-                    # this number should be zero.
-                    pad_size = size - smurf_header['number_of_channels']*4
-
-                    # unpack the number of channel in this data block
-                    smurf_data = struct.Struct(f"{smurf_header['number_of_channels']}i{pad_size}x").unpack(chunk)
-
-                    # Extract detector data
-                    for i, c in enumerate(channel_mask):
-                        # Verify that we accessing indexes in range
-                        if c < smurf_header['number_of_channels']:
-                            tmp_phase[i,counter%n] = smurf_data[c]
-
-                    # Timestamp data
-                    tmp_timestamp2[counter%n] = smurf_header['timestamp']
-
-                    # Store the data in a useful array and reset tmp arrays
-                    if counter % n == n - 1 :
+                    if counter % 2000 == 2000 - 1 :
                         self.log('{} elements loaded'.format(counter+1))
-                        phase = np.hstack((phase, tmp_phase))
-                        timestamp2 = np.append(timestamp2, tmp_timestamp2)
-                        tmp_phase = np.zeros((n_chan, n))
-                        tmp_timestamp2 = np.zeros(n)
+                        
                     counter = counter + 1
 
-        phase = np.squeeze(phase)
+        phase = np.squeeze(phase.T)
         phase = phase.astype(float) / 2**15 * np.pi # where is decimal?  Is it in rad?
 
         rootpath = os.path.dirname(datafile)
@@ -996,10 +875,10 @@ class SmurfUtilMixin(SmurfBase):
         mask = self.make_mask_lookup(datafile.replace('.dat', '_mask.txt'))
 
         # If an array_size was defined, resize the phase array
-        if array_size:
+        if array_size is not None:
             phase.resize(array_size, phase.shape[1])
 
-        return timestamp2, phase, mask
+        return t, phase, mask
 
 
     def make_mask_lookup(self, mask_file, mask_channel_offset=0):
