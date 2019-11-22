@@ -156,6 +156,7 @@ class SmurfStreamReader(object):
                 rogueHeader  = RogueHeader._make(struct.Struct(RogueHeaderPack).unpack(self._currFile.read(RogueHeaderSize)))
                 roguePayload = rogueHeader.size - 4
 
+                
                 # Set next frame position
                 recEnd = self._currFile.tell() + roguePayload
 

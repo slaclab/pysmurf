@@ -1,10 +1,10 @@
 # Data file
 
-The SMuRF processor device includes a Rogue's DataWriter device which allows to write the streamed data to disk after processing (that is, after channel mapping, unwrapping, filtering and downsamplig).
+The SMuRF processor device includes a Rogue's DataWriter device which allows to write the streamed data to disk after processing (that is, after channel mapping, unwrapping, filtering and downsampling).
 
 Configuration data (a.k.a. metadata) from the pyrogue tree is also written to the same data file, interleaved with the processed data.
 
-## How to configure the SmtremWriter device
+## How to configure the StreamWriter device
 
 The DataWriter device, can be controlled with the following variables (or its respective EPICS PV):
 

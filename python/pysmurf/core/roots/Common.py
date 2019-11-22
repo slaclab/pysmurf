@@ -88,7 +88,7 @@ class Common(pyrogue.Root):
         def _update_tes_bias(idx):
             v1 = self.FpgaTopLevel.AppTop.AppCore.RtmCryoDet.RtmSpiMax.node(f'TesBiasDacDataRegCh[{(2*idx)+2}]').value()
             v2 = self.FpgaTopLevel.AppTop.AppCore.RtmCryoDet.RtmSpiMax.node(f'TesBiasDacDataRegCh[{(2*idx)+1}]').value()
-            val = v1 - v2
+            val = (v1 - v2) // 2
 
             # Pass to data processor
             self._smurf_processor.setTesBias(index=idx, val=val)
@@ -154,7 +154,7 @@ class Common(pyrogue.Root):
                         fifo_size = stream_pv_size * 4
 
                     self._stream_fifos.append(rogue.interfaces.stream.Fifo(1000, fifo_size, True)) # changes
-                    self._stream_fifos[i]._setSlave(self._stream_slaves[i])
+                    pyrogue.streamConnect(self._stream_fifos[i],self._stream_slaves[i])
                     pyrogue.streamTap(self._ddr_streams[i], self._stream_fifos[i])
 
 
