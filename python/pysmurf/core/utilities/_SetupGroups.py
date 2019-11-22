@@ -21,11 +21,19 @@ import pyrogue
 import pysmurf
 import os
 
+# Below is a dictionary with the key being the path to a Rogue Device or Variable
+# The 'groups' entry provides a list of groups to add the Device/Variable to. If the
+# path points to a device, the group will be added recursively to all devices and
+# variables deeper in the path.
+# The 'pollInterval' entry provides an optional value which will be used to update
+# the polling interface if the path points to a variable. The poll interval value
+# is in seconds. Use None to leave interval unchanged, 0 to disable polling.
+
 VariableGroups = {
-    'root.RogueVersion'     : ['publish','stream'],
-    'root.RogueDirectory'   : ['publish','stream'],
-    'root.SmurfApplication' : ['publish','stream'],
-    'root.SmurfProcessor'   : ['publish','stream']
+    'root.RogueVersion'     : {'groups' : ['publish','stream'], 'pollInterval': None},
+    'root.RogueDirectory'   : {'groups' : ['publish','stream'], 'pollInterval': None},
+    'root.SmurfApplication' : {'groups' : ['publish','stream'], 'pollInterval': None},
+    'root.SmurfProcessor'   : {'groups' : ['publish','stream'], 'pollInterval': None},
     }
 
 
@@ -35,8 +43,17 @@ def setupGroups(root):
         # Get node
         n = root.getNode(k)
 
-        # Add to groups
-        for g in v:
-            n.addToGroup(g)
+        # Did we find the node?
+        if n is not None:
 
+            # Add to each group
+            for grp in v['groups']:
+                n.addToGroup(grp)
+
+            # Update poll interval if provided.
+            if v['pollInterval'] is not None and n.isinstance(pyrogue.BaseVariable):
+                n.pollInterval = v['pollInterval']
+
+        else:
+            print(f"setupGroups: Warning: {k} not found!")
 
