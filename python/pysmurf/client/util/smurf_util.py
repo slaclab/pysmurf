@@ -651,7 +651,7 @@ class SmurfUtilMixin(SmurfBase):
         return f, df, flux_ramp_strobe
 
     def take_stream_data(self, meas_time, downsample_factor=None,
-                         write_log=True):
+                         write_log=True, update_payload_size=True):
         """
         Takes streaming data for a given amount of time
 
@@ -673,6 +673,7 @@ class SmurfUtilMixin(SmurfBase):
         if write_log:
             self.log('Starting to take data.', self.LOG_USER)
         data_filename = self.stream_data_on(downsample_factor=downsample_factor,
+                                            update_payload_size=update_payload_size,
                                             write_log=write_log)
         time.sleep(meas_time)
         self.stream_data_off(write_log=write_log)
@@ -682,7 +683,8 @@ class SmurfUtilMixin(SmurfBase):
 
 
     def stream_data_on(self, write_config=False, data_filename=None,
-                       downsample_factor=None, write_log=True):
+                       downsample_factor=None, write_log=True,
+                       update_payload_size=True):
         """
         Turns on streaming data.
 
@@ -707,7 +709,20 @@ class SmurfUtilMixin(SmurfBase):
                 self.log('Input downsample factor is None. Using '+
                      'value already in pyrogue:'+
                      f' {downsample_factor}')
-            
+
+        # Check payload size
+        n_chan_in_mask = len(self.get_channel_mask())
+        payload_size = self.get_payload_size()
+        if n_chan_in_mask > payload_size:
+            if update_payload_size:
+                self.log('Updating payload size')
+                self.set_payload_size(n_chan_in_mask,
+                                      write_log=write_log)
+            else:
+                self.log('Warning : The payload size is smaller than ' +
+                         'the number of channels that are on. Only ' +
+                         f'writing the first {payload_size} channels. ')
+                
         # Check if flux ramp is non-zero
         ramp_max_cnt = self.get_ramp_max_cnt()
         if ramp_max_cnt == 0:
@@ -781,7 +796,9 @@ class SmurfUtilMixin(SmurfBase):
 
         
     def read_stream_data(self, datafile, channel=None,
-                         n_samp=None, array_size=None):
+                         n_samp=None, array_size=None,
+                         return_header=False,
+                         write_log=True):
         """
         Loads data taken with the fucntion stream_data_on.
 
@@ -809,13 +826,12 @@ class SmurfUtilMixin(SmurfBase):
         except:
             print(f'datafile={datafile}')
 
-        self.log(f'Reading {datafile}')
+        if write_log:
+            self.log(f'Reading {datafile}')
 
         if channel is not None:
             self.log('Only reading channel {}'.format(channel))
-
-
-
+            
         eval_n_samp = False
         if n_samp is not None:
             eval_n_samp = True
@@ -825,15 +841,14 @@ class SmurfUtilMixin(SmurfBase):
         # data structures will be build based on that
         first_read = True
 
-        #with open(datafile, mode='rb') as file:
+        # Maximum number of elements to read before appending
+        n_max = 1024
+        
         with SmurfStreamReader(datafile,
             isRogue=True, metaEnable=True) as file:
 
             for header, data in file.records():
-
-
                 if first_read:
-
                     # Update flag, so that we don't do this code again
                     first_read = False
 
@@ -850,22 +865,45 @@ class SmurfUtilMixin(SmurfBase):
                         channel_mask[i] = c
 
                     # Make holder arrays for phase and timestamp
-                    phase = np.zeros((1,n_chan))
-                    #phase = np.atleast_2d(data)
-                    phase[0] = data
-                    t = np.array(header.timestamp)
+                    tmp_phase = np.atleast_2d(data)
+                    tmp_t = np.array(header.timestamp)
+                    phase = np.zeros((0, len(channel)))
+                    t = np.array([])
+                    
+                    # Get header values if requested
+                    if return_header:
+                        header_dict = {}
+                        for i, h in enumerate(header._fields):
+                            header_dict[h] = np.array(header[i])
+
+                    # Already loaded 1 element
                     counter = 1
                 else:
-                    phase = np.vstack((phase, data))
-                    t = np.append(t, header.timestamp)                    
+                    tmp_phase = np.vstack((tmp_phase, data))
+                    tmp_t = np.append(tmp_t, header.timestamp)
 
-                    if counter % 2000 == 2000 - 1 :
-                        self.log('{} elements loaded'.format(counter+1))
-                        
+                    if return_header:
+                        for i, h in enumerate(header._fields):
+                            header_dict[h] = np.append(header_dict[h],
+                                                       header[i])
+                    
+                    if counter % n_max == n_max - 1 :
+                        if write_log:
+                            self.log(f'{counter+1} elements loaded')
+                        phase = np.vstack((phase, tmp_phase))
+                        t = np.append(t, tmp_t)
+                        tmp_phase = np.zeros((0, len(channel)))
+                        tmp_t = np.array([])
                     counter = counter + 1
 
+        # Get the last temp block
+        phase = np.vstack((phase, tmp_phase))
+        t = np.append(t, tmp_t)
+
+        # rotate and transform to phase
         phase = np.squeeze(phase.T)
-        phase = phase.astype(float) / 2**15 * np.pi # where is decimal?  Is it in rad?
+        phase = phase.astype(float) / 2**15 * np.pi 
+
 
         rootpath = os.path.dirname(datafile)
         filename = os.path.basename(datafile)
@@ -878,8 +916,42 @@ class SmurfUtilMixin(SmurfBase):
         if array_size is not None:
             phase.resize(array_size, phase.shape[1])
 
-        return t, phase, mask
+        if return_header:
+            return t, phase, mask, header_dict
+        
+        else:
+            return t, phase, mask
 
+
+    def header_to_tes_bias(self, header, n_tes_bias=15):
+        """
+        Takes the SmurfHeader returned from read_stream_data
+        and turns it to a TES bias.
+
+        Args:
+        -----
+        header (dict) : The header dictionary from read_stream_data.
+            This includes all the tes_byte data.
+
+        Ret:
+        ----
+        bias (int array) : The tes bias data.
+        """
+        n_els = len(header['tes_byte_0'])
+        bias = np.zeros((n_tes_bias, n_els))
+        for bias_group in np.arange(n_tes_bias):
+            base_byte = int((bias_group*20) / 8)
+            base_bit = int((bias_group*20) % 8)
+            for i in np.arange(n_els):
+                val = 0
+                for idx, byte in enumerate(range(base_byte, base_byte+3)):
+                    val += header[f'tes_byte_{byte}'][i] << idx*8
+
+                print(val)
+                print(bias_group, i)
+                bias[bias_group, i] = (val >> base_bit) & 0xFFFFF
+                
+        return bias
 
     def make_mask_lookup(self, mask_file, mask_channel_offset=0):
         """
