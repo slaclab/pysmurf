@@ -91,7 +91,14 @@ class SmurfHeader(SmurfHeaderTuple):
         for idx,byte in enumerate(range(baseByte,baseByte+3)):
             val += eval(f'self.tes_byte_{byte}') << idx*8
 
-        return (val >> baseBit) & 0xFFFFF;
+        tmp = (val >> baseBit) & 0xFFFFF;
+
+        if tmp & 0x80000: tmp |= 0xF00000;
+
+        ba = tmp.to_bytes(3,byteorder='little',signed=False)
+        ret = int.from_bytes(ba,byteorder='little',signed=True)
+
+        return ret
 
 
 class SmurfStreamReader(object):
@@ -248,6 +255,14 @@ class SmurfStreamReader(object):
             print(f"Processed {self._currCount} data records from {self._currFName}")
 
         print(f"Processed a total of {self._totCount} data records")
+
+    @property
+    def currCount(self):
+        return self._currCount
+
+    @property
+    def totCount(self):
+        return self._totCount
 
     @property
     def configDict(self):
