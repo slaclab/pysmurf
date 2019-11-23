@@ -43,6 +43,14 @@ import pysmurf.core.devices
 
 from pysmurf.core.roots.EmulationRoot import EmulationRoot
 
+import logging
+
+#rogue.Logging.setFilter('pyrogue.epicsV3.Value',rogue.Logging.Debug)
+#rogue.Logging.setLevel(rogue.Logging.Debug)
+
+#logger = logging.getLogger('pyrogue')
+#logger.setLevel(logging.DEBUG)
+
 # Main body
 if __name__ == "__main__":
 
