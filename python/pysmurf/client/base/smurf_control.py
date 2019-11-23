@@ -357,18 +357,8 @@ class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin, Smu
                                    write_log=write_log, **kwargs)                        
             else:
                 self.set_lms_delay(b, smurf_init_config[band_str]['lmsDelay'], 
-                                   write_log=write_log, **kwargs)            
-            ## No longer setting the per-band analyisScale, toneScale,
-            ## and synthesisScale in setup.  These should be set in
-            ## the defaults.yml.
-            #self.set_synthesis_scale(b, 
-            #    smurf_init_config[band_str]['synthesisScale'],
-            #    write_log=write_log, **kwargs)            
-            #self.set_tone_scale(b, smurf_init_config[band_str]['toneScale'], 
-            #    write_log=write_log, **kwargs)
-            #self.set_analysis_scale(b, 
-            #    smurf_init_config[band_str]['analysisScale'], 
-            #    write_log=write_log, **kwargs)
+                                   write_log=write_log, **kwargs)
+                
             self.set_feedback_enable(b, 
                 smurf_init_config[band_str]['feedbackEnable'],
                 write_log=write_log, **kwargs)
@@ -448,19 +438,10 @@ class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin, Smu
         self.set_cpld_reset(0, write_log=write_log)
         self.cpld_toggle(write_log=write_log)
 
-        # Depracated for rogue 4.
-        # Setup SMuRF to MCE converter
-        # self.make_smurf_to_gcp_config()
-        # time.sleep(.1)
-        # self.read_smurf_to_gcp_config()  # Only for IP address
-
         # Make sure flux ramp starts off
         self.flux_ramp_off(write_log=write_log)
         self.flux_ramp_setup(4, .5, write_log=write_log) 
 
-        # Turn off GCP streaming
-        self.set_smurf_to_gcp_stream(False, write_log=write_log)
-        self.set_smurf_to_gcp_writer(False, write_log=write_log)
 
         # Turn on stream enable for all bands
         self.set_stream_enable(1, write_log=write_log)
@@ -526,17 +507,28 @@ class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin, Smu
             self.resume_hardware_logging()
 
     def make_dir(self, directory):
-        """check if a directory exists; if not, make it
+        """
+        check if a directory exists; if not, make it
 
-           Args:
-            directory (str): path of directory to create
+        Args:
+        -----
+        directory (str): path of directory to create
         """
         if not os.path.exists(directory):
             os.makedirs(directory)
 
+            
     def get_timestamp(self, as_int=False):
         """
+        Gets the unixtime timestamp.
+
+        Opt Args:
+        ---------
+        as_int (bool) : Whether to returnt the timestamp as an
+            integer. 
+
         Returns:
+        --------
         timestampe (str): Timestamp as a string
         """
         t = '{:10}'.format(int(time.time()))
@@ -546,6 +538,7 @@ class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin, Smu
         else:
             return t
 
+        
     def add_output(self, key, val):
         """
         Add a key to the output config.
