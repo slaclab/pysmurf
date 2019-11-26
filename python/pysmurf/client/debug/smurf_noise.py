@@ -100,7 +100,7 @@ class SmurfNoiseMixin(SmurfBase):
         # flux ramp freq
         downsample_freq, downsample_transfer = signal.freqz(filter_b,
             filter_a, worN=np.arange(.01, fs/2, .01), fs=flux_ramp_freq)
-        downsample_transfer = np.abs(downsample_transfer)**2
+        downsample_transfer = np.abs(downsample_transfer)
 
         if write_log:
             self.log(f'Plotting {bands}, {channels}', self.LOG_USER)
@@ -1166,7 +1166,7 @@ class SmurfNoiseMixin(SmurfBase):
 
             # The downsample filter is at the flux ramp frequency
             w, h = signal.freqz(b, a, worN=freq, fs=flux_ramp_freq)
-            tf = np.absolute(h)**2 # filter transfer function
+            tf = np.absolute(h) # filter transfer function
 
             return (A/(freq**n) + wl)*tf
 
