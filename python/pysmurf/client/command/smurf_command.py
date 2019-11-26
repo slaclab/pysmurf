@@ -4168,3 +4168,31 @@ class SmurfCommandMixin(SmurfBase):
         """
         self._caput(self.channel_mapper + self._payload_size,
                     payload_size, **kwargs)
+
+    _smurf_processor_max_size = "FileWriter:MaxFileSize"
+    def set_smurf_processor_max_size(self, max_size, **kwargs):
+        """
+        Sets the maximum file size written to disk by the 
+        file writer. If the data file exceeds the max_size,
+        the data is split into multiple files.
+
+        Args:
+        -----
+        max_size (int) : the maximum file size in bytes.
+        """
+        self._caput(self.smurf_processor + self._smurf_processor_max_size,
+                    max_size, **kwargs)
+
+    def get_smurf_processor_max_size(self, **kwargs):
+        """
+        Gets the maximum file size written to disk by the 
+        file writer. If the data file exceeds the max_size,
+        the data is split into multiple files.
+
+        Ret:
+        ----
+        max_size (int) : the maximum file size in bytes.
+        """
+        return self._caget(self.smurf_processor +
+                           self._smurf_processor_max_size,
+                           **kwargs)

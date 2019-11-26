@@ -86,7 +86,9 @@ class SmurfBase(object):
         
         self.amcc = self.epics_root + ':AMCc:'
         self.smurf_processor = self.amcc + 'SmurfProcessor:'
+        self.stream_processor = self.amcc + 'StreamProcessor:'
         self.channel_mapper = self.smurf_processor + 'ChannelMapper:'
+        self.file_writer = self.smurf_processor + 'streamDataWriter:'
         self.frame_rx_stats = self.smurf_processor + 'FrameRxStats:'
 
         self.fpga_top_level = self.amcc + 'FpgaTopLevel:'
