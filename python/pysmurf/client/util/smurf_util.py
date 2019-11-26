@@ -651,7 +651,9 @@ class SmurfUtilMixin(SmurfBase):
         return f, df, flux_ramp_strobe
 
     def take_stream_data(self, meas_time, downsample_factor=None,
-                         write_log=True, update_payload_size=True):
+                         write_log=True, update_payload_size=True,
+                         reset_unwrapper=True, reset_filter=True,
+                         return_data=False):
         """
         Takes streaming data for a given amount of time
 
@@ -674,17 +676,25 @@ class SmurfUtilMixin(SmurfBase):
             self.log('Starting to take data.', self.LOG_USER)
         data_filename = self.stream_data_on(downsample_factor=downsample_factor,
                                             update_payload_size=update_payload_size,
-                                            write_log=write_log)
+                                            write_log=write_log,
+                                            reset_unwrapper=reset_unwrapper,
+                                            reset_filter=reset_filter)
         time.sleep(meas_time)
         self.stream_data_off(write_log=write_log)
         if write_log:
             self.log('Done taking data.', self.LOG_USER)
-        return data_filename
+
+        if return_data:
+            t, d, m = self.read_stream_data(data_filename)
+            return t, d, m
+        else:
+            return data_filename
 
 
     def stream_data_on(self, write_config=False, data_filename=None,
                        downsample_factor=None, write_log=True,
-                       update_payload_size=True):
+                       update_payload_size=True, reset_filter=True,
+                       reset_unwrapper=True):
         """
         Turns on streaming data.
 
@@ -750,6 +760,14 @@ class SmurfUtilMixin(SmurfBase):
             self.set_stream_enable(1, write_log=False,
                                    wait_after=.15)
 
+            if reset_unwrapper:
+                self.set_unwrapper_reset(write_log=write_log)
+            if reset_filter:
+                self.set_filter_reset(write_log=write_log)
+            if reset_unwrapper or reset_filter:
+                time.sleep(.1)
+                
+            
             # Make the data file
             timestamp = self.get_timestamp()
             if data_filename is None:

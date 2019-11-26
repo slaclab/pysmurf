@@ -2301,8 +2301,8 @@ class SmurfTuneMixin(SmurfBase):
                             n_samp = sync_idx[i+1]-sync_idx[i]
                             start = s + feedback_start_frac*n_samp
                             end = s + feedback_end_frac*n_samp
-                            ax[0].axvspan(start, end, color='k', alpha=.15)
-                            ax[1].axvspan(start, end, color='k', alpha=.15)
+                            ax[0].axvspan(start, end, color='k', alpha=.25)
+                            ax[1].axvspan(start, end, color='k', alpha=.25)
                         
                     plt.tight_layout()
 
