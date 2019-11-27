@@ -922,7 +922,6 @@ class SmurfUtilMixin(SmurfBase):
         phase = np.squeeze(phase.T)
         phase = phase.astype(float) / 2**15 * np.pi 
 
-
         rootpath = os.path.dirname(datafile)
         filename = os.path.basename(datafile)
         timestamp = filename.split('.')[0]
@@ -941,36 +940,65 @@ class SmurfUtilMixin(SmurfBase):
             return t, phase, mask
 
 
-    def header_to_tes_bias(self, header, n_tes_bias=15):
+    def header_to_tes_bias(self, header, as_volt=True,
+        n_tes_bias=15):
         """
         Takes the SmurfHeader returned from read_stream_data
-        and turns it to a TES bias.
+        and turns it to a TES bias. The header is a 20 field,
+        and each DAC is 18 bits signed. So the output of the
+        data in the header is (dac_b - dac_a)/2. This function
+        also takes care of the factor of 2 in the denominator.
 
         Args:
         -----
         header (dict) : The header dictionary from read_stream_data.
             This includes all the tes_byte data.
 
+        Opt Args:
+        ---------
+        as_volt (bool): Whether to return the data as voltage. If
+            False, returns as DAC units. Default True.
+
         Ret:
         ----
-        bias (int array) : The tes bias data.
+        bias (int array) : The tes bias data. (dac_b - dac_a) in
+            voltage or DAC units depending on the as_volt opt arg.
         """
+        # Numbr of total elements
         n_els = len(header['tes_byte_0'])
+
+        # Pre-allocate array
         bias = np.zeros((n_tes_bias, n_els))
+
+        # Iterate over bias groups
         for bias_group in np.arange(n_tes_bias):
             base_byte = int((bias_group*20) / 8)
             base_bit = int((bias_group*20) % 8)
             for i in np.arange(n_els):
                 val = 0
                 for idx, byte in enumerate(range(base_byte, base_byte+3)):
-                    val += header[f'tes_byte_{byte}'][i] << idx*8
+                    # Cast as type int instead of numpy.int64
+                    val += int(header[f'tes_byte_{byte}'][i]) << idx*8
 
-                print(val)
-                print(bias_group, i)
-                bias[bias_group, i] = (val >> base_bit) & 0xFFFFF
+                tmp = (val >> base_bit) & 0xFFFFF
+                if tmp & 0x80000:
+                    tmp |= 0xF00000
+
+                # Cast data into int
+                ba = tmp.to_bytes(3, byteorder='little', signed=False)
+                bias[bias_group,i] = int.from_bytes(ba, byteorder='little',
+                                                    signed=True)
+
+        # Take care of factor of 2 thrown away in writing to the header
+        bias *= 2
+                
+        # Cast as voltage.
+        if as_volt:
+            bias *= self._rtm_slow_dac_bit_to_volt
                 
         return bias
 
+    
     def make_mask_lookup(self, mask_file, mask_channel_offset=0):
         """
         Makes an n_band x n_channel array where the elements correspond
