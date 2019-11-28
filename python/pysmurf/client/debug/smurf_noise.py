@@ -32,7 +32,8 @@ class SmurfNoiseMixin(SmurfBase):
         high_freq=np.array([1., 10.]), make_channel_plot=True,
         make_summary_plot=True, save_data=False, show_plot=False,
         grid_on=False, datafile=None, downsample_factor=None,
-        write_log=True, reset_filter=True, reset_unwrapper=True):
+        write_log=True, reset_filter=True, reset_unwrapper=True,
+        return_noise_params=False):
         """
         Takes a timestream of noise and calculates its PSD. It also
         attempts to fit a white noise and 1/f component to the data.
@@ -68,6 +69,15 @@ class SmurfNoiseMixin(SmurfBase):
             the downsample_factor.
         write_log (bool) : Whether to write to the log file (or the screen
             if the logfile is not defined). Default is True.
+        reset_unwrapper (bool) : Whether to reset the unwrapper before                     
+            taking data.                                                                   
+        reset_filter (bool) : Whether to reset the filter before                           
+            taking data.
+
+        Ret:
+        ----
+        datafile (str) : The full path to the raw data.
+
         """
         if datafile == None:
             datafile = self.take_stream_data(meas_time,
@@ -287,7 +297,11 @@ class SmurfNoiseMixin(SmurfBase):
                 else:
                     plt.close()
 
-        return datafile
+        if return_noise_params:
+            return datafile, (res_freqs,noise_floors,f_knees)
+
+        else:
+            return datafile
 
     def turn_off_noisy_channels(self, band, noise, cutoff=150):
         """

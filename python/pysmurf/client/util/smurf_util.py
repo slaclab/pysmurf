@@ -651,9 +651,9 @@ class SmurfUtilMixin(SmurfBase):
         return f, df, flux_ramp_strobe
 
     def take_stream_data(self, meas_time, downsample_factor=None,
-                         write_log=True, update_payload_size=True,
-                         reset_unwrapper=True, reset_filter=True,
-                         return_data=False):
+        write_log=True, update_payload_size=True,
+        reset_unwrapper=True, reset_filter=True,
+        return_data=False):
         """
         Takes streaming data for a given amount of time
 
@@ -666,7 +666,21 @@ class SmurfUtilMixin(SmurfBase):
         Opt Args:
         ---------
         downsample_factor (int) : The number of fast sample (the flux ramp
-            reset rate - typically 4kHz) to skip between reporting.
+            reset rate - typically 4kHz) to skip between reporting. If None,
+            does not update.
+        write_log (bool) : Whether to write to the log file. Default True.
+        update_payload_size (bool) : Whether to update the payload size
+            (the number of channels written to disk). If the number of channels
+            on is greater than the payload size, then only the first N channels
+            are written. This bool will update the payload size to be the same
+            as the number of channels on across all bands)
+        reset_unwrapper (bool) : Whether to reset the unwrapper before
+            taking data.
+        reset_filter (bool) : Whether to reset the filter before
+            taking data.
+        return_data (bool) : Whether to return the data. If False, returns
+            the full path to the data. Default False.
+
 
         Returns:
         --------
@@ -675,12 +689,15 @@ class SmurfUtilMixin(SmurfBase):
         if write_log:
             self.log('Starting to take data.', self.LOG_USER)
         data_filename = self.stream_data_on(downsample_factor=downsample_factor,
-                                            update_payload_size=update_payload_size,
-                                            write_log=write_log,
-                                            reset_unwrapper=reset_unwrapper,
-                                            reset_filter=reset_filter)
+            update_payload_size=update_payload_size, write_log=write_log,
+            reset_unwrapper=reset_unwrapper, reset_filter=reset_filter)
+
+        # Sleep for the full measurement time
         time.sleep(meas_time)
+
+        # Stop acq
         self.stream_data_off(write_log=write_log)
+        
         if write_log:
             self.log('Done taking data.', self.LOG_USER)
 
@@ -702,8 +719,18 @@ class SmurfUtilMixin(SmurfBase):
         ---------
         data_filename (str) : The full path to store the data. If None, it
             uses the timestamp.
-        downsample_filter (int) : The number of fast samples to skip between
+        write_log (bool) : Whether to write to the log file. Default True.
+        update_payload_size (bool) : Whether to update the payload size
+            (the number of channels written to disk). If the number of channels
+            on is greater than the payload size, then only the first N channels
+            are written. This bool will update the payload size to be the same
+            as the number of channels on across all bands)
+        downsample_factor (int) : The number of fast samples to skip between
             sending.
+        reset_unwrapper (bool) : Whether to reset the unwrapper before
+            taking data.
+        reset_filter (bool) : Whether to reset the filter before
+            taking data.
 
         Returns:
         --------
@@ -814,13 +841,13 @@ class SmurfUtilMixin(SmurfBase):
 
         
     def read_stream_data(self, datafile, channel=None,
-                         n_samp=None, array_size=None,
-                         return_header=False,
-                         write_log=True):
+        n_samp=None, array_size=None, return_header=False,
+        write_log=True, n_max=2048):
         """
-        Loads data taken with the fucntion stream_data_on.
-
-        To do : return header rather than just timestamp2
+        Loads data taken with the function stream_data_on.
+        Gives back the resonator data in units of phase. Also
+        can optionally return the header (which has things
+        like the TES bias).
 
         Args:
         -----
@@ -830,14 +857,21 @@ class SmurfUtilMixin(SmurfBase):
         ---------
         channel (int or int array): Channels to load.
         n_samp (int) : The number of samples to read.
-        array_size (int) : The size of the output arrays. If 0, then the size
-                           will be the number of channels in the data file.
+        array_size (int) : The size of the output arrays. If 0, then 
+            the size will be the number of channels in the data file.
+        return_header (bool) : Whether to also read in the header
+            and return the header data.
+        write_log (bool) : Whether to write outputs to the log
+            file. Default True.
+        n_max (int) : The number of elements to read in before appending
+            the datafile. This is just for speed.
 
         Ret:
         ----
         t (float array): The timestamp data
         d (float array): The resonator data in units of phi0
         m (int array): The maskfile that maps smurf num to gcp num
+        h (dict) : A dictionary with the header information.
         """
         try:
             datafile = glob.glob(datafile+'*')[-1]
@@ -860,7 +894,7 @@ class SmurfUtilMixin(SmurfBase):
         first_read = True
 
         # Maximum number of elements to read before appending
-        n_max = 1024
+        
         
         with SmurfStreamReader(datafile,
             isRogue=True, metaEnable=True) as file:
