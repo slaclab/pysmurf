@@ -6,10 +6,18 @@
 Welcome to pysmurf's documentation!
 ===================================
 
-Contents:
+Insert description of pysmurf here.
 
+API
+---
 .. toctree::
    :maxdepth: 2
+
+   base
+   command
+   debug
+   tune
+   util
 
 Indices and tables
 ==================
