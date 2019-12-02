@@ -1635,6 +1635,8 @@ class SmurfTuneMixin(SmurfBase):
                 channels[mask[:len(chans)]] = chans
 
             # Prune channels that are too close
+            print(f'channels={channels}')
+            print(f'close_idx={close_idx}')
             channels[~close_idx] = -1        
 
             # write the channel assignments to file
