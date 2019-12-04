@@ -28,7 +28,7 @@ scp::SmurfProcessor::SmurfProcessor()
     ris::Slave(),
     ris::Master(),
     frameBuffer(SmurfHeader<std::vector<uint8_t>::iterator>::SmurfHeaderSize + maxNumCh * sizeof(fw_t),0),
-    numCh(528),
+    numCh(maxNumCh),
     payloadSize(numCh),
     mask(numCh,0),
     disableUnwrapper(false),
