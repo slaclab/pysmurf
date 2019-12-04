@@ -79,6 +79,7 @@ if __name__ == "__main__":
     input_data_file = f'{args.out_dir}/x.dat'
     wrapped_data_file = f'{args.out_dir}/w.dat'
     smurf_unwrapped_file = f'{args.out_dir}/y.dat'
+    smurf_wrapped_file = f'{args.out_dir}/y_w.dat'
 
     # Generate a sawtooth signal, as int32
     print(f'Generation sawtooth signal, {input_size} points... ', end='')
@@ -103,6 +104,7 @@ if __name__ == "__main__":
 
     # Send the input data through the SmurfProcessor, disabling the filter and downsampler,
     # leaving the unwrapper enabled.
+    print('First test: Unwrapper enabled')
     print('Starting the SmurfProcessor, and unwrap the same data with it... ', end='')
     with LocalRoot() as root:
         # Disable the filter
@@ -155,4 +157,61 @@ if __name__ == "__main__":
     if rmse != 0:
         raise AssertionError(f'RMSE value {rmse} is not zero')
 
-    print('SmurfProcessor unwrapper test passed!')
+    # Now let's make sure that with the unwrapped disabled, we get the same dwrapped data
+    # at its output.
+    print('Second test: Unwrapper disabled')
+    print('Starting the SmurfProcessor, and send the data through it... ', end='')
+    with LocalRoot() as root:
+        # Disable the unwrapper
+        print('  Disabling data unwrapper... ', end='')
+        root.SmurfProcessor.Unwrapper.Disable.set(True)
+        print('Done')
+
+        # Disable the filter
+        print('  Disabling data filter... ', end='')
+        root.SmurfProcessor.Filter.Disable.set(True)
+        print('Done')
+
+        # Disable the downsampler
+        print('  Disabling data downsampling... ', end='')
+        root.SmurfProcessor.Downsampler.Disable.set(True)
+        print('Done')
+
+        # Set the input data file
+        print(f'  Setting input data file to "{wrapped_data_file}"... ', end='')
+        root.DataFromFile.FileName.set(wrapped_data_file)
+        print('Done.')
+
+        # Set the output data file
+        print(f'  Setting output data file to "{smurf_wrapped_file}"... ', end='')
+        root.SmurfProcessor.DataToFile.FileName.set(smurf_wrapped_file)
+        print('Done.')
+
+        # Start sending the data trough the processor
+        print('  Sending data through the SmurfProcessor... ', end='')
+        root.DataFromFile.SendData.call()
+        print('Done.')
+
+        print(f'    Number of frame sent = {root.DataFromFile.FrameCnt.get()}')
+
+        # Write the results
+        print('  Writing results... ', end='')
+        root.SmurfProcessor.DataToFile.WriteData.call()
+        print('Done.')
+
+    # Load the results obtained using the smurf processor
+    print('Reading results... ', end='')
+    y_w_smurf = np.loadtxt(smurf_wrapped_file, dtype='int32')
+    print('Done.')
+
+    # Calculate the RMSE between the input and the output data
+
+    rmse = np.sqrt(np.square(np.subtract(w,y_w_smurf).astype('int64')).mean())
+    print(f'RMSE = {rmse}')
+
+    # Verify that the 2 results are identical
+    if rmse != 0:
+        raise AssertionError(f'RMSE value {rmse} is not zero')
+
+
+    print('SmurfProcessor unwrapper tests passed!')
