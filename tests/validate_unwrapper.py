@@ -104,8 +104,8 @@ if __name__ == "__main__":
 
     # Send the input data through the SmurfProcessor, disabling the filter and downsampler,
     # leaving the unwrapper enabled.
-    print('First test: Unwrapper enabled')
-    print('Starting the SmurfProcessor, and unwrap the same data with it... ', end='')
+    print('\nFirst test: Unwrapper enabled\n')
+    print('Starting the SmurfProcessor, and unwrap the same data with it... ')
     with LocalRoot() as root:
         # Disable the filter
         print('  Disabling data filter... ', end='')
@@ -159,8 +159,8 @@ if __name__ == "__main__":
 
     # Now let's make sure that with the unwrapped disabled, we get the same dwrapped data
     # at its output.
-    print('Second test: Unwrapper disabled')
-    print('Starting the SmurfProcessor, and send the data through it... ', end='')
+    print('\nSecond test: Unwrapper disabled\n')
+    print('Starting the SmurfProcessor, and send the data through it... ')
     with LocalRoot() as root:
         # Disable the unwrapper
         print('  Disabling data unwrapper... ', end='')
