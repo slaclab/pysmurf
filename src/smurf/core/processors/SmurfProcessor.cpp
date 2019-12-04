@@ -35,6 +35,7 @@ scp::SmurfProcessor::SmurfProcessor()
     currentData(numCh, 0),
     previousData(numCh, 0),
     wrapCounter(numCh, 0),
+    inputData(numCh, 0),
     disableFilter(false),
     order(4),
     gain(1),
@@ -235,8 +236,6 @@ void scp::SmurfProcessor::resetUnwrapper()
     // they are potentially being resized.
     std::lock_guard<std::mutex> lockUnwrapper(mutUnwrapper);
 
-    std::vector<unwrap_t>(numCh).swap(currentData);
-    std::vector<unwrap_t>(numCh).swap(previousData);
     std::vector<unwrap_t>(numCh).swap(wrapCounter);
 }
 
@@ -510,7 +509,8 @@ void scp::SmurfProcessor::acceptFrame(ris::FramePtr frame)
 
             // Get the mapped value from the framweBuffer and cast it
             // Reinterpret the bytes from the frameBuffer to 'fw_t' values. And the cast that value to 'unwrap_t' values
-            currentData.at(i) = static_cast<unwrap_t>(*(reinterpret_cast<fw_t*>(&(*( inIt + m * sizeof(fw_t) )))));
+            currentData.at(i) = *(reinterpret_cast<fw_t*>(&(*( inIt + m * sizeof(fw_t) ))));
+            inputData.at(i) = static_cast<unwrap_t>(currentData.at(i));
 
             // Unwrap the value is the unwrapper is not disabled.
             // If it is disabled, don't do anything to the data
@@ -532,7 +532,7 @@ void scp::SmurfProcessor::acceptFrame(ris::FramePtr frame)
                 }
 
                 // Add the wrap counter to the value
-                currentData.at(i) += wrapCounter.at(i);
+                inputData.at(i) += wrapCounter.at(i);
             }
 
             // increase output channel index
@@ -563,7 +563,7 @@ void scp::SmurfProcessor::acceptFrame(ris::FramePtr frame)
             auto yIt(y.begin());
             auto aIt(a.begin());
             auto bIt(b.begin());
-            auto dataIt(currentData.begin());
+            auto dataIt(inputData.begin());
 
             // Iterate over the channel samples
             for (std::size_t ch{0}; ch < numCh; ++ch)
@@ -622,12 +622,12 @@ void scp::SmurfProcessor::acceptFrame(ris::FramePtr frame)
             // Hold the mutex while we copy the data
             std::lock_guard<std::mutex> lock(outDataMutex);
 
-            // Check if the filter was disabled. If it was disabled, use the 'currentData' vector as source.
+            // Check if the filter was disabled. If it was disabled, use the 'inputData' vector as source.
             // Otherwise, use the 'y' vector, applying the gain and casting.
             if (disableFilter)
             {
                 // Just cast the data type
-                std::transform( currentData.begin(), currentData.end(), outData.begin(),
+                std::transform( inputData.begin(), inputData.end(), outData.begin(),
                     [this](const unwrap_t& v) -> filter_t { return static_cast<filter_t>(v); });
             }
             else
