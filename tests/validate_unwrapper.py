@@ -157,6 +157,8 @@ if __name__ == "__main__":
     if rmse != 0:
         raise AssertionError(f'RMSE value {rmse} is not zero')
 
+    print('Test passed!')
+
     # Now let's make sure that with the unwrapped disabled, we get the same dwrapped data
     # at its output.
     print('\nSecond test: Unwrapper disabled\n')
@@ -213,5 +215,6 @@ if __name__ == "__main__":
     if rmse != 0:
         raise AssertionError(f'RMSE value {rmse} is not zero')
 
+    print('Test passed!')
 
-    print('SmurfProcessor unwrapper tests passed!')
+    print('\nSmurfProcessor unwrapper tests passed!')
