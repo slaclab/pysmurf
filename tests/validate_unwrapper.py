@@ -217,4 +217,4 @@ if __name__ == "__main__":
 
     print('Test passed!')
 
-    print('\nSmurfProcessor unwrapper tests passed!')
+    print('\nAll SmurfProcessor unwrapper tests passed!')
