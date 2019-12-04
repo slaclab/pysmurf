@@ -120,9 +120,10 @@ namespace smurf
                 std::mutex               mutChMapper;           // Mutex
                 // Unwrap variables
                 bool                     disableUnwrapper;      // Disable flag for the Unwrapper
-                std::vector<unwrap_t>    currentData;           // Current data buffer
-                std::vector<unwrap_t>    previousData;          // Previous data buffer
+                std::vector<fw_t>        currentData;           // Current data buffer
+                std::vector<fw_t>        previousData;          // Previous data buffer
                 std::vector<unwrap_t>    wrapCounter;           // Wrap counters
+                std::vector<unwrap_t>    inputData;             // Result
                 std::mutex               mutUnwrapper;          // Mutex
                 // Filter variables
                 bool                     disableFilter;         // Disable flag for the filter
