@@ -60,10 +60,10 @@ class StreamDataEmulator(pyrogue.Device):
         # Add "Amplitude" variable
         self.add(pyrogue.LocalVariable(
             name='Amplitude',
-            description='Signal amplitude (it is an uint16)',
+            description='Signal peak amplitude (it is an uint15)',
             mode='RW',
-            typeStr='UInt16',
-            value=65535,
+            typeStr='UInt15',
+            value=2**15-1,
             localSet=lambda value: self._emulator.setAmplitude(value),
             localGet=self._emulator.getAmplitude))
 

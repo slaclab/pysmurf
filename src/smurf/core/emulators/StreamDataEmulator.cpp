@@ -31,7 +31,7 @@ sce::StreamDataEmulator::StreamDataEmulator()
     eLog_(rogue::Logging::create("pysmurf.emulator")),
     disable_(true),
     type_(SignalType::Zeros),
-    amplitude_(65535),
+    amplitude_(32767),
     offset_(0),
     period_(1)
 {
@@ -90,8 +90,8 @@ const int sce::StreamDataEmulator::getType() const
 
 void sce::StreamDataEmulator::setAmplitude(uint16_t value)
 {
-    // The amplitude value can not be zero
-    if (value)
+    // The amplitude value can not be zero, nor higher that 2^15-1
+    if ((value) && (value < 32768 ) )
         amplitude_  = value;
 }
 
