@@ -30,14 +30,14 @@ namespace sce = smurf::core::emulators;
 namespace ris = rogue::interfaces::stream;
 
 sce::StreamDataEmulator::StreamDataEmulator() {
-   sinAmplitude_ = 0;
-   sinBaseline_  = 0;
-   sinPeriod_    = 0;
-   sinChannel_   = 0;
-   sinEnable_    = false;
-   sinCount_     = 0;
+    sinAmplitude_ = 0;
+    sinBaseline_  = 0;
+    sinPeriod_    = 0;
+    sinChannel_   = 0;
+    sinEnable_    = false;
+    sinCount_     = 0;
 
-   eLog_ = rogue::Logging::create("pysmurf.emulator");
+    eLog_ = rogue::Logging::create("pysmurf.emulator");
 }
 
 sce::StreamDataEmulator::~StreamDataEmulator() { }
@@ -47,11 +47,11 @@ sce::StreamDataEmulatorPtr sce::StreamDataEmulator::create() {
 }
 
 void sce::StreamDataEmulator::setup_python() {
-   bp::class_< sce::StreamDataEmulator,
-               sce::StreamDataEmulatorPtr,
-               bp::bases<ris::Slave,ris::Master>,
-               boost::noncopyable >
-               ("StreamDataEmulator",bp::init<>())
+    bp::class_< sce::StreamDataEmulator,
+                sce::StreamDataEmulatorPtr,
+                bp::bases<ris::Slave,ris::Master>,
+                boost::noncopyable >
+                ("StreamDataEmulator",bp::init<>())
 
         // Sin Generate Parameters
         .def("setSinAmplitude",   &StreamDataEmulator::setSinAmplitude)
@@ -71,102 +71,106 @@ void sce::StreamDataEmulator::setup_python() {
 
 // Sin parameters
 void sce::StreamDataEmulator::setSinAmplitude(uint16_t value) {
-   std::lock_guard<std::mutex> lock(mtx_);
-   sinAmplitude_ = value;
+    std::lock_guard<std::mutex> lock(mtx_);
+    sinAmplitude_ = value;
 }
 
 uint16_t sce::StreamDataEmulator::getSinAmplitude() {
-   return sinAmplitude_;
+    return sinAmplitude_;
 }
 
 void sce::StreamDataEmulator::setSinBaseline(uint16_t value) {
-   std::lock_guard<std::mutex> lock(mtx_);
-   sinBaseline_ = value;
+    std::lock_guard<std::mutex> lock(mtx_);
+    sinBaseline_ = value;
 }
 
 uint16_t sce::StreamDataEmulator::getSinBaseline() {
-   return sinBaseline_;
+    return sinBaseline_;
 }
 
 void sce::StreamDataEmulator::setSinPeriod(uint16_t value) {
-   std::lock_guard<std::mutex> lock(mtx_);
-   sinPeriod_ = value;
+    std::lock_guard<std::mutex> lock(mtx_);
+    sinPeriod_ = value;
 }
 
 uint16_t sce::StreamDataEmulator::getSinPeriod() {
-   return sinPeriod_;
+    return sinPeriod_;
 }
 
 void sce::StreamDataEmulator::setSinChannel(uint16_t value) {
-   std::lock_guard<std::mutex> lock(mtx_);
-   sinChannel_ = value;
+    std::lock_guard<std::mutex> lock(mtx_);
+    sinChannel_ = value;
 }
 
 uint16_t sce::StreamDataEmulator::getSinChannel() {
-   return sinChannel_;
+    return sinChannel_;
 }
 
 void sce::StreamDataEmulator::setSinEnable(bool value) {
-   std::lock_guard<std::mutex> lock(mtx_);
-   sinEnable_ = value;
+    std::lock_guard<std::mutex> lock(mtx_);
+    sinEnable_ = value;
 }
 
 bool sce::StreamDataEmulator::getSinEnable() {
-   return sinEnable_;
+    return sinEnable_;
 }
 
 void sce::StreamDataEmulator::acceptFrame(ris::FramePtr frame) {
 
-   {
-      rogue::GilRelease noGil;
-      ris::FrameLockPtr fLock = frame->lock();
-      std::lock_guard<std::mutex> lock(mtx_);
+    {
+        rogue::GilRelease noGil;
+        ris::FrameLockPtr fLock = frame->lock();
+        std::lock_guard<std::mutex> lock(mtx_);
 
 
-      // Make sure the frame is a single buffer, copy if neccessary
-      if ( ! this->ensureSingleBuffer(frame,true) ) {
-         eLog_->error("Failed to copy frame to single buffer. Check downstream slave types, maybe add a FIFO?");
-         return;
-      }
+        // Make sure the frame is a single buffer, copy if neccessary
+        if ( ! this->ensureSingleBuffer(frame,true) )
+        {
+            eLog_->error("Failed to copy frame to single buffer. Check downstream slave types, maybe add a FIFO?");
+            return;
+        }
 
-      // Sine wave enabled
-      if ( sinEnable_ ) genSinWave(frame);
-   }
+        // Sine wave enabled
+        if ( sinEnable_ ) genSinWave(frame);
+    }
 
-   // Send frame outside of lock
-   this->sendFrame(frame);
+    // Send frame outside of lock
+    this->sendFrame(frame);
 }
 
 // Generic sine wave generator
 void sce::StreamDataEmulator::genSinWave(ris::FramePtr &frame) {
 
-   SmurfHeaderROPtr<ris::FrameIterator> header = SmurfHeaderRO<ris::FrameIterator>::create(frame);
+    SmurfHeaderROPtr<ris::FrameIterator> header = SmurfHeaderRO<ris::FrameIterator>::create(frame);
 
-   uint32_t numChannels { header->getNumberChannels() };
+    uint32_t numChannels { header->getNumberChannels() };
 
-   if ( sinChannel_ >= numChannels ) {
-      eLog_->error("Configured sinChannel exceeds number of rows defined in the header.");
-      return;
-   }
+    if ( sinChannel_ >= numChannels )
+    {
+        eLog_->error("Configured sinChannel exceeds number of rows defined in the header.");
+        return;
+    }
 
-   if ( header->SmurfHeaderSize + (numChannels * 2) != frame->getPayload() ) {
-      eLog_->error("Received frame does not match expected size. Size=%i, header=%i, payload=%i",
-                  frame->getPayload(), header->SmurfHeaderSize, numChannels*2);
-      return;
-   }
+    if ( header->SmurfHeaderSize + (numChannels * 2) != frame->getPayload() )
+    {
+        eLog_->error("Received frame does not match expected size. Size=%i, header=%i, payload=%i",
+                frame->getPayload(), header->SmurfHeaderSize, numChannels*2);
+        return;
+    }
 
-   // Get frame iterator
-   ris::FrameIterator fPtr = frame->beginRead();
+    // Get frame iterator
+    ris::FrameIterator fPtr = frame->beginRead();
 
-   // Jump over the header
-   fPtr += header->SmurfHeaderSize;
+    // Jump over the header
+    fPtr += header->SmurfHeaderSize;
 
-   // Create uint16 accessor to the data
-   ris::FrameAccessor<uint16_t> dPtr(fPtr, numChannels);
+    // Create uint16 accessor to the data
+    ris::FrameAccessor<uint16_t> dPtr(fPtr, numChannels);
 
-   dPtr[sinChannel_] = int((float)sinBaseline_ +
+    dPtr[sinChannel_] = int((float)sinBaseline_ +
                        (float)sinAmplitude_ * sin((float)sinCount_/(float)sinPeriod_));
 
-   if ( ++sinCount_ == sinPeriod_ ) sinCount_ = 0;
+    if ( ++sinCount_ == sinPeriod_ )
+        sinCount_ = 0;
 }
 
