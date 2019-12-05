@@ -42,7 +42,7 @@ sce::StreamDataEmulator::StreamDataEmulator()
     type_(0),
     amplitude_(65535),
     offset_(0),
-    period_(1),
+    period_(1)
 {
 }
 
