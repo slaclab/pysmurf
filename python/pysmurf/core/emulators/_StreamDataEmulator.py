@@ -92,7 +92,7 @@ class StreamDataEmulator(pyrogue.Device):
                 3 : 'Square',
                 4 : 'Sawtooth',
                 5 : 'Triangle',
-                5 : 'Sine',
+                6 : 'Sine',
             },
             localSet=lambda value: self._emulator.setType(value),
             localGet=self._emulator.getType))
@@ -100,8 +100,9 @@ class StreamDataEmulator(pyrogue.Device):
         # Add "Amplitude" variable
         self.add(pyrogue.LocalVariable(
             name='Amplitude',
-            description='Signal amplitude (it is an uint16_t)',
+            description='Signal amplitude (it is an uint16)',
             mode='RW',
+            typeStr='UInt16',
             value=65535,
             localSet=lambda value: self._emulator.setAmplitude(value),
             localGet=self._emulator.getAmplitude))
@@ -109,8 +110,9 @@ class StreamDataEmulator(pyrogue.Device):
         # Add "Offset" variable
         self.add(pyrogue.LocalVariable(
             name='Offset',
-            description='Signal offset (it is an uint16_t)',
+            description='Signal offset (it is an uint16)',
             mode='RW',
+            typeStr='UInt16',
             value=0,
             localSet=lambda value: self._emulator.setOffset(value),
             localGet=self._emulator.getOffset))
@@ -118,8 +120,9 @@ class StreamDataEmulator(pyrogue.Device):
         # Add "Period" variable
         self.add(pyrogue.LocalVariable(
             name='Period',
-            description='Signal period, in multiples of flux ramp periods. Can not be set to zero (it is an uint32_t)',
+            description='Signal period, in multiples of flux ramp periods. Can not be set to zero (it is an uint32)',
             mode='RW',
+            typeStr='UInt32',
             value=1,
             localSet=lambda value: self._emulator.setPeriod(value),
             localGet=self._emulator.getPeriod))
