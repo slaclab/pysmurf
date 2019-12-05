@@ -75,20 +75,20 @@ namespace smurf
 
             private:
 
-               // Generic sine wave generator
-               void genSinWave(ris::FramePtr &frame);
+                // Generic sine wave generator
+                void genSinWave(ris::FramePtr &frame);
 
-               std::shared_ptr<rogue::Logging> eLog_;
+                std::shared_ptr<rogue::Logging> eLog_;
 
-               std::mutex  mtx_;
+                std::mutex  mtx_;
 
-               // Sine wave parameters
-               uint16_t sinAmplitude_;
-               uint16_t sinBaseline_;
-               uint16_t sinPeriod_;
-               uint16_t sinChannel_;
-               bool     sinEnable_;
-               uint16_t sinCount_;
+                // Sine wave parameters
+                uint16_t sinAmplitude_;
+                uint16_t sinBaseline_;
+                uint16_t sinPeriod_;
+                uint16_t sinChannel_;
+                bool     sinEnable_;
+                uint16_t sinCount_;
 
             };
         }
