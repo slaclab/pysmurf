@@ -48,7 +48,7 @@ namespace smurf
             {
             public:
                 StreamDataEmulator();
-                ~StreamDataEmulator();
+                ~StreamDataEmulator() {};
 
                 static StreamDataEmulatorPtr create();
 
@@ -56,22 +56,6 @@ namespace smurf
 
                 // Accept new frames
                 void acceptFrame(ris::FramePtr frame);
-
-                // Sin parameters
-                void     setSinAmplitude(uint16_t value);
-                uint16_t getSinAmplitude();
-
-                void     setSinBaseline(uint16_t value);
-                uint16_t getSinBaseline();
-
-                void     setSinPeriod(uint16_t value);
-                uint16_t getSinPeriod();
-
-                void     setSinChannel(uint16_t value);
-                uint16_t getSinChannel();
-
-                void     setSinEnable(bool value);
-                bool     getSinEnable();
 
                 // Disable the processing block. The data
                 // will just pass through to the next slave
@@ -95,8 +79,8 @@ namespace smurf
                 const uint32_t getPeriod() const;
 
             private:
-                // Data type from firmware
-                typedef int16_t fw_t;
+                // Data types
+                typedef int16_t fw_t;   // Data type from firmware
 
                 // Types of signal
                 enum class SignalType { Zeros, ChannelNumber, Random, Square, Sawtooth, Triangle, Sine, Size };
@@ -110,21 +94,13 @@ namespace smurf
                 void genTriangleWave(ris::FrameAccessor<fw_t> &dPtr)      const;
                 void genSinWave(ris::FrameAccessor<fw_t> &dPtr)           const;
 
-                // Generic sine wave generator
-                void genSinWave(ris::FramePtr &frame);
-
+                // Logger
                 std::shared_ptr<rogue::Logging> eLog_;
 
+                // Mutex
                 std::mutex  mtx_;
 
-                // Sine wave parameters
-                uint16_t sinAmplitude_;
-                uint16_t sinBaseline_;
-                uint16_t sinPeriod_;
-                uint16_t sinChannel_;
-                bool     sinEnable_;
-                uint16_t sinCount_;
-
+                // Variables
                 bool        disable_;   // Disable flag
                 SignalType  type_;      // signal type
                 uint16_t    amplitude_; // Signal amplitude
