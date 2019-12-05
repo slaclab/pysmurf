@@ -22,6 +22,7 @@
 #include "smurf/core/emulators/StreamDataEmulator.h"
 #include "smurf/core/common/SmurfHeader.h"
 #include <cmath>
+#include <random>
 
 namespace sce = smurf::core::emulators;
 namespace ris = rogue::interfaces::stream;
