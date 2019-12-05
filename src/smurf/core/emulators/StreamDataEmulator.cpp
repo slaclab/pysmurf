@@ -29,15 +29,16 @@
 namespace sce = smurf::core::emulators;
 namespace ris = rogue::interfaces::stream;
 
-sce::StreamDataEmulator::StreamDataEmulator() {
-    sinAmplitude_ = 0;
-    sinBaseline_  = 0;
-    sinPeriod_    = 0;
-    sinChannel_   = 0;
-    sinEnable_    = false;
-    sinCount_     = 0;
-
-    eLog_ = rogue::Logging::create("pysmurf.emulator");
+sce::StreamDataEmulator::StreamDataEmulator()
+:
+    eLog_(rogue::Logging::create("pysmurf.emulator")),
+    sinAmplitude_(0),
+    sinBaseline_(0),
+    sinPeriod_(0),
+    sinChannel_(0),
+    sinEnable_(false),
+    sinCount_(0)
+{
 }
 
 sce::StreamDataEmulator::~StreamDataEmulator() { }
