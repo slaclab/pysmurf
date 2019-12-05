@@ -73,6 +73,27 @@ namespace smurf
                 void     setSinEnable(bool value);
                 bool     getSinEnable();
 
+                // Disable the processing block. The data
+                // will just pass through to the next slave
+                void       setDisable(bool d);
+                const bool getDisable() const;
+
+                // Set/Get operation mode
+                void              setType(std::size_t value);
+                const std::size_t getType() const;
+
+                // Set/Get signal amplitude
+                void           setAmplitude(uint16_t value);
+                const uint16_t getAmplitude() const;
+
+                // Set/Get signal offset
+                void           setOffset(uint16_t value);
+                const uint16_t getOffset() const;
+
+                // Set/Get  signal period
+                void           setPeriod(uint32_t value);
+                const uint32_t getPeriod() const;
+
             private:
 
                 // Generic sine wave generator
@@ -89,6 +110,15 @@ namespace smurf
                 uint16_t sinChannel_;
                 bool     sinEnable_;
                 uint16_t sinCount_;
+
+                bool        disable_;   // Disable flag
+                std::size_t type_;      // signal type
+                uint16_t    amplitude_; // Signal amplitude
+                uint16_t    offset_;    // Signal offset
+                uint32_t    period_;    // Signal period
+
+
+
 
             };
         }

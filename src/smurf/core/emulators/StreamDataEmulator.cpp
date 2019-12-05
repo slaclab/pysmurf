@@ -37,17 +37,24 @@ sce::StreamDataEmulator::StreamDataEmulator()
     sinPeriod_(0),
     sinChannel_(0),
     sinEnable_(false),
-    sinCount_(0)
+    sinCount_(0),
+    disabled_(true),
+    type_(0),
+    amplitude_(65535),
+    offset_(0),
+    period_(1),
 {
 }
 
 sce::StreamDataEmulator::~StreamDataEmulator() { }
 
-sce::StreamDataEmulatorPtr sce::StreamDataEmulator::create() {
+sce::StreamDataEmulatorPtr sce::StreamDataEmulator::create()
+{
     return std::make_shared<StreamDataEmulator>();
 }
 
-void sce::StreamDataEmulator::setup_python() {
+void sce::StreamDataEmulator::setup_python()
+{
     bp::class_< sce::StreamDataEmulator,
                 sce::StreamDataEmulatorPtr,
                 bp::bases<ris::Slave,ris::Master>,
@@ -65,9 +72,75 @@ void sce::StreamDataEmulator::setup_python() {
         .def("getSinChannel",     &StreamDataEmulator::getSinChannel)
         .def("setSinEnable",      &StreamDataEmulator::setSinEnable)
         .def("getSinEnable",      &StreamDataEmulator::getSinEnable)
+
+        .def("setDisable",        &StreamDataEmulator::setDisable)
+        .def("getDisable",        &StreamDataEmulator::getDisable)
+        .def("setTpe",            &StreamDataEmulator::setTpe)
+        .def("getTpe",            &StreamDataEmulator::getTpe)
+        .def("setAmplitude",      &StreamDataEmulator::setAmplitude)
+        .def("getAmplitude",      &StreamDataEmulator::getAmplitude)
+        .def("setOffset",         &StreamDataEmulator::setOffset)
+        .def("getOffset",         &StreamDataEmulator::getOffset)
+        .def("setPeriod",         &StreamDataEmulator::setPeriod)
+        .def("getPeriod",         &StreamDataEmulator::getPeriod)
+
     ;
     bp::implicitly_convertible< sce::StreamDataEmulatorPtr, ris::SlavePtr  >();
     bp::implicitly_convertible< sce::StreamDataEmulatorPtr, ris::MasterPtr >();
+}
+
+void sce::StreamDataEmulator::setDisable(bool d)
+{
+    disabled_ = d;
+}
+
+const bool sce::StreamDataEmulator::getDisable() const
+{
+    return disabled_;
+}
+
+void sce::StreamDataEmulator::setType(std::size_t value)
+{
+    type_ = value;
+}
+
+const std::size_t sce::StreamDataEmulator::getType() const
+{
+    return type_;
+}
+
+void sce::StreamDataEmulator::setAmplitude(uint16_t value)
+{
+    // The amplitude value can not be zero
+    if (value)
+        amplitude_  = value;
+}
+
+const uint16_t sce::StreamDataEmulator::getAmplitude() const
+{
+    return amplitude_;
+}
+
+void sce::StreamDataEmulator::setOffset(uint16_t value)
+{
+    offset_ = value;
+}
+
+const uint16_t sce::StreamDataEmulator::getOffset() const
+{
+    return offset_;
+}
+
+void sce::StreamDataEmulator::setPeriod(uint32_t value)
+{
+    // The period value can not be zero
+    if (value)
+        period_ = value;
+}
+
+const uint32_t sce::StreamDataEmulator::getPeriod() const
+{
+    return period_;
 }
 
 // Sin parameters
