@@ -102,7 +102,7 @@ const bool sce::StreamDataEmulator::getDisable() const
 void sce::StreamDataEmulator::setType(int value)
 {
     // Verify that the type is in range
-    if (value < < static_cast<int>(SignalType::Size))
+    if (value < static_cast<int>(SignalType::Size))
         type_ = static_cast<SignalType>(value);
 }
 
