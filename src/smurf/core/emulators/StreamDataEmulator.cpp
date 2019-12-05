@@ -19,9 +19,6 @@
 **/
 
 #include <boost/python.hpp>
-#include <rogue/interfaces/stream/Frame.h>
-#include <rogue/interfaces/stream/FrameIterator.h>
-#include <rogue/interfaces/stream/FrameAccessor.h>
 #include "smurf/core/emulators/StreamDataEmulator.h"
 #include "smurf/core/common/SmurfHeader.h"
 #include <cmath>
