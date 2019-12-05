@@ -30,46 +30,6 @@ class StreamDataEmulator(pyrogue.Device):
 
         self._emulator = smurf.core.emulators.StreamDataEmulator()
 
-        self.add(pyrogue.LocalVariable(
-            name='SinEnable',
-            description='SIN Enable',
-            mode='RW',
-            value=False,
-            localGet = lambda: self._emulator.getSinEnable(),
-            localSet = lambda value: self._emulator.setSinEnable(value)))
-
-        self.add(pyrogue.LocalVariable(
-            name='SinChannel',
-            description='SIN Channel',
-            mode='RW',
-            value=0,
-            localGet = lambda: self._emulator.getSinChannel(),
-            localSet = lambda value: self._emulator.setSinChannel(value)))
-
-        self.add(pyrogue.LocalVariable(
-            name='SinAmplitude',
-            description='SIN Amplitude (16-bit ADC Value)',
-            mode='RW',
-            value=0,
-            localGet = lambda: self._emulator.getSinAmplitude(),
-            localSet = lambda value: self._emulator.setSinAmplitude(value)))
-
-        self.add(pyrogue.LocalVariable(
-            name='SinBaseline',
-            description='SIN Baseline (16-bit ADC Value)',
-            mode='RW',
-            value=0,
-            localGet = lambda: self._emulator.getSinBaseline(),
-            localSet = lambda value: self._emulator.setSinBaseline(value)))
-
-        self.add(pyrogue.LocalVariable(
-            name='SinPeriod',
-            description='SIN Period (16-bit Sample Count)',
-            mode='RW',
-            value=0,
-            localGet = lambda: self._emulator.getSinPeriod(),
-            localSet = lambda value: self._emulator.setSinPeriod(value)))
-
         # Add "Disable" variable
         self.add(pyrogue.LocalVariable(
             name='Disable',
