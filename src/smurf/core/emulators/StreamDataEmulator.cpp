@@ -32,12 +32,6 @@ namespace ris = rogue::interfaces::stream;
 sce::StreamDataEmulator::StreamDataEmulator()
 :
     eLog_(rogue::Logging::create("pysmurf.emulator")),
-    sinAmplitude_(0),
-    sinBaseline_(0),
-    sinPeriod_(0),
-    sinChannel_(0),
-    sinEnable_(false),
-    sinCount_(0),
     disable_(true),
     type_(SignalType::Zeros),
     amplitude_(65535),
@@ -131,13 +125,13 @@ const uint32_t sce::StreamDataEmulator::getPeriod() const
     return period_;
 }
 
-void sce::StreamDataEmulator::acceptFrame(ris::FramePtr frame) {
-
+void sce::StreamDataEmulator::acceptFrame(ris::FramePtr frame)
+{
     {
         rogue::GilRelease noGil;
 
         // Only process the frame is the block is enable.
-        if (!disable)
+        if (!disable_)
         {
             ris::FrameLockPtr fLock = frame->lock();
             std::lock_guard<std::mutex> lock(mtx_);
@@ -195,43 +189,44 @@ void sce::StreamDataEmulator::acceptFrame(ris::FramePtr frame) {
                     genSinWave(dPtr);
                     break;
             }
+        }
     }
 
     // Send frame outside of lock
     this->sendFrame(frame);
 }
 
-void genZeroWave(ris::FrameAccessor<fw_t> &dPtr) const
+void sce::StreamDataEmulator::genZeroWave(ris::FrameAccessor<fw_t> &dPtr) const
 {
 
 }
 
-void genChannelNumberWave(ris::FrameAccessor<fw_t> &dPtr) const
+void sce::StreamDataEmulator::genChannelNumberWave(ris::FrameAccessor<fw_t> &dPtr) const
 {
 
 }
 
-void genRandomWave(ris::FrameAccessor<fw_t> &dPtr) const
+void sce::StreamDataEmulator::genRandomWave(ris::FrameAccessor<fw_t> &dPtr) const
 {
 
 }
 
-void genSquareWave(ris::FrameAccessor<fw_t> &dPtr) const
+void sce::StreamDataEmulator::genSquareWave(ris::FrameAccessor<fw_t> &dPtr) const
 {
 
 }
 
-void getSawtoothWave(ris::FrameAccessor<fw_t> &dPtr) const
+void sce::StreamDataEmulator::getSawtoothWave(ris::FrameAccessor<fw_t> &dPtr) const
 {
 
 }
 
-void genTriangleWave(ris::FrameAccessor<fw_t> &dPtr) const
+void sce::StreamDataEmulator::genTriangleWave(ris::FrameAccessor<fw_t> &dPtr) const
 {
 
 }
 
-void genSinWave(ris::FrameAccessor<fw_t> &dPtr) const
+void sce::StreamDataEmulator::genSinWave(ris::FrameAccessor<fw_t> &dPtr) const
 {
 
 }
