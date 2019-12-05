@@ -39,7 +39,7 @@ sce::StreamDataEmulator::StreamDataEmulator()
     sinEnable_(false),
     sinCount_(0),
     disable_(true),
-    type_(0),
+    type_(SignalType::Zeros),
     amplitude_(65535),
     offset_(0),
     period_(1)
@@ -99,14 +99,16 @@ const bool sce::StreamDataEmulator::getDisable() const
     return disable_;
 }
 
-void sce::StreamDataEmulator::setType(std::size_t value)
+void sce::StreamDataEmulator::setType(int value)
 {
-    type_ = value;
+    // Verify that the type is in range
+    if (value < < static_cast<int>(SignalType::Size))
+        type_ = static_cast<SignalType>(value);
 }
 
-const std::size_t sce::StreamDataEmulator::getType() const
+const int sce::StreamDataEmulator::getType() const
 {
-    return type_;
+    return static_cast<int>(type_);
 }
 
 void sce::StreamDataEmulator::setAmplitude(uint16_t value)

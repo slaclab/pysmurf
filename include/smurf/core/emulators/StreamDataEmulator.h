@@ -79,8 +79,8 @@ namespace smurf
                 const bool getDisable() const;
 
                 // Set/Get operation mode
-                void              setType(std::size_t value);
-                const std::size_t getType() const;
+                void      setType(int value);
+                const int getType() const;
 
                 // Set/Get signal amplitude
                 void           setAmplitude(uint16_t value);
@@ -95,6 +95,9 @@ namespace smurf
                 const uint32_t getPeriod() const;
 
             private:
+
+                // Types of signal
+                enum class SignalType { Zeros, ChannelNumber, Random, Square, Sawtooth, Triangle, Sine, Size };
 
                 // Generic sine wave generator
                 void genSinWave(ris::FramePtr &frame);
@@ -112,7 +115,7 @@ namespace smurf
                 uint16_t sinCount_;
 
                 bool        disable_;   // Disable flag
-                std::size_t type_;      // signal type
+                SignalType  type_;      // signal type
                 uint16_t    amplitude_; // Signal amplitude
                 uint16_t    offset_;    // Signal offset
                 uint32_t    period_;    // Signal period
