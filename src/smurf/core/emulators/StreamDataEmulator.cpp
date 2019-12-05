@@ -38,7 +38,7 @@ sce::StreamDataEmulator::StreamDataEmulator()
     sinChannel_(0),
     sinEnable_(false),
     sinCount_(0),
-    disabled_(true),
+    disable_(true),
     type_(0),
     amplitude_(65535),
     offset_(0),
@@ -75,8 +75,8 @@ void sce::StreamDataEmulator::setup_python()
 
         .def("setDisable",        &StreamDataEmulator::setDisable)
         .def("getDisable",        &StreamDataEmulator::getDisable)
-        .def("setTpe",            &StreamDataEmulator::setTpe)
-        .def("getTpe",            &StreamDataEmulator::getTpe)
+        .def("setType",           &StreamDataEmulator::setType)
+        .def("getType",           &StreamDataEmulator::getType)
         .def("setAmplitude",      &StreamDataEmulator::setAmplitude)
         .def("getAmplitude",      &StreamDataEmulator::getAmplitude)
         .def("setOffset",         &StreamDataEmulator::setOffset)
@@ -91,12 +91,12 @@ void sce::StreamDataEmulator::setup_python()
 
 void sce::StreamDataEmulator::setDisable(bool d)
 {
-    disabled_ = d;
+    disable_ = d;
 }
 
 const bool sce::StreamDataEmulator::getDisable() const
 {
-    return disabled_;
+    return disable_;
 }
 
 void sce::StreamDataEmulator::setType(std::size_t value)
