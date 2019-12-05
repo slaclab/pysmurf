@@ -195,23 +195,105 @@ void sce::StreamDataEmulator::acceptFrame(ris::FramePtr frame) {
 
     {
         rogue::GilRelease noGil;
-        ris::FrameLockPtr fLock = frame->lock();
-        std::lock_guard<std::mutex> lock(mtx_);
 
-
-        // Make sure the frame is a single buffer, copy if neccessary
-        if ( ! this->ensureSingleBuffer(frame,true) )
+        // Only process the frame is the block is enable.
+        if (!disable)
         {
-            eLog_->error("Failed to copy frame to single buffer. Check downstream slave types, maybe add a FIFO?");
-            return;
-        }
+            ris::FrameLockPtr fLock = frame->lock();
+            std::lock_guard<std::mutex> lock(mtx_);
 
-        // Sine wave enabled
-        if ( sinEnable_ ) genSinWave(frame);
+            // Make sure the frame is a single buffer, copy if necessary
+            if ( ! this->ensureSingleBuffer(frame,true) )
+            {
+                eLog_->error("Failed to copy frame to single buffer. Check downstream slave types, maybe add a FIFO?");
+                return;
+            }
+
+            // Read the number of channel from the header header
+            SmurfHeaderROPtr<ris::FrameIterator> header = SmurfHeaderRO<ris::FrameIterator>::create(frame);
+            uint32_t numChannels { header->getNumberChannels() };
+
+            // Check frame integrity.
+            if ( header->SmurfHeaderSize + (numChannels * sizeof(fw_t)) != frame->getPayload() )
+            {
+                eLog_->error("Received frame does not match expected size. Size=%i, header=%i, payload=%i",
+                        frame->getPayload(), header->SmurfHeaderSize, numChannels*2);
+                return;
+            }
+
+            // Get frame iterator
+            ris::FrameIterator fPtr = frame->beginRead();
+
+            // Jump over the header
+            fPtr += header->SmurfHeaderSize;
+
+            // Create fw_t accessor to the data
+            ris::FrameAccessor<fw_t> dPtr(fPtr, numChannels);
+
+            // Generate the type of signal selected
+            switch(type_)
+            {
+                case SignalType::Zeros:
+                    genZeroWave(dPtr);
+                    break;
+                case SignalType::ChannelNumber:
+                    genChannelNumberWave(dPtr);
+                    break;
+                case SignalType::Random:
+                    genRandomWave(dPtr);
+                    break;
+                case SignalType::Square:
+                    genSquareWave(dPtr);
+                    break;
+                case SignalType::Sawtooth:
+                    getSawtoothWave(dPtr);
+                    break;
+                case SignalType::Triangle:
+                    genTriangleWave(dPtr);
+                    break;
+                case SignalType::Sine:
+                    genSinWave(dPtr);
+                    break;
+            }
     }
 
     // Send frame outside of lock
     this->sendFrame(frame);
+}
+
+void genZeroWave(ris::FrameAccessor<fw_t> &dPtr) const
+{
+
+}
+
+void genChannelNumberWave(ris::FrameAccessor<fw_t> &dPtr) const
+{
+
+}
+
+void genRandomWave(ris::FrameAccessor<fw_t> &dPtr) const
+{
+
+}
+
+void genSquareWave(ris::FrameAccessor<fw_t> &dPtr) const
+{
+
+}
+
+void getSawtoothWave(ris::FrameAccessor<fw_t> &dPtr) const
+{
+
+}
+
+void genTriangleWave(ris::FrameAccessor<fw_t> &dPtr) const
+{
+
+}
+
+void genSinWave(ris::FrameAccessor<fw_t> &dPtr) const
+{
+
 }
 
 // Generic sine wave generator
@@ -248,5 +330,5 @@ void sce::StreamDataEmulator::genSinWave(ris::FramePtr &frame) {
 
     if ( ++sinCount_ == sinPeriod_ )
         sinCount_ = 0;
-}
+// }
 

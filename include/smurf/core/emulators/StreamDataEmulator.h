@@ -95,9 +95,20 @@ namespace smurf
                 const uint32_t getPeriod() const;
 
             private:
+                // Data type from firmware
+                typedef int16_t fw_t;
 
                 // Types of signal
                 enum class SignalType { Zeros, ChannelNumber, Random, Square, Sawtooth, Triangle, Sine, Size };
+
+                // Signal generator methods
+                void genZeroWave(ris::FrameAccessor<fw_t> &dPtr)          const;
+                void genChannelNumberWave(ris::FrameAccessor<fw_t> &dPtr) const;
+                void genRandomWave(ris::FrameAccessor<fw_t> &dPtr)        const;
+                void genSquareWave(ris::FrameAccessor<fw_t> &dPtr)        const;
+                void getSawtoothWave(ris::FrameAccessor<fw_t> &dPtr)      const;
+                void genTriangleWave(ris::FrameAccessor<fw_t> &dPtr)      const;
+                void genSinWave(ris::FrameAccessor<fw_t> &dPtr)           const;
 
                 // Generic sine wave generator
                 void genSinWave(ris::FramePtr &frame);
