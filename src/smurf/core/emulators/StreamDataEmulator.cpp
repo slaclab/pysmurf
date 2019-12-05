@@ -100,12 +100,12 @@ const uint16_t sce::StreamDataEmulator::getAmplitude() const
     return amplitude_;
 }
 
-void sce::StreamDataEmulator::setOffset(uint16_t value)
+void sce::StreamDataEmulator::setOffset(int16_t value)
 {
     offset_ = value;
 }
 
-const uint16_t sce::StreamDataEmulator::getOffset() const
+const int16_t sce::StreamDataEmulator::getOffset() const
 {
     return offset_;
 }

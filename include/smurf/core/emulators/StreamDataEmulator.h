@@ -72,8 +72,8 @@ namespace smurf
                 const uint16_t getAmplitude() const;
 
                 // Set/Get signal offset
-                void           setOffset(uint16_t value);
-                const uint16_t getOffset() const;
+                void          setOffset(int16_t value);
+                const int16_t getOffset() const;
 
                 // Set/Get  signal period
                 void           setPeriod(uint32_t value);
@@ -105,12 +105,8 @@ namespace smurf
                 bool        disable_;   // Disable flag
                 SignalType  type_;      // signal type
                 uint16_t    amplitude_; // Signal amplitude
-                uint16_t    offset_;    // Signal offset
+                int16_t     offset_;    // Signal offset
                 uint32_t    period_;    // Signal period
-
-
-
-
             };
         }
     }

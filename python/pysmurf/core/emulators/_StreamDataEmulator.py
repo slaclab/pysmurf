@@ -70,9 +70,9 @@ class StreamDataEmulator(pyrogue.Device):
         # Add "Offset" variable
         self.add(pyrogue.LocalVariable(
             name='Offset',
-            description='Signal offset (it is an uint16)',
+            description='Signal offset (it is an int16)',
             mode='RW',
-            typeStr='UInt16',
+            typeStr='Int16',
             value=0,
             localSet=lambda value: self._emulator.setOffset(value),
             localGet=self._emulator.getOffset))
