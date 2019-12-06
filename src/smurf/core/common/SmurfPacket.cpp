@@ -43,7 +43,7 @@ SmurfPacketRO::SmurfPacketRO(ris::FramePtr frame)
 
     // Copy the data
     for (std::size_t i{0}; i < dataSize; ++i)
-        data.push_back( static_cast<int32_t>( *(it + i * sizeof(int32_t)) ) );
+        data.push_back( *(reinterpret_cast<int32_t*>( &(*(it + i * sizeof(int32_t)) ) ) ) );
 }
 
 SmurfPacketROPtr SmurfPacketRO::create(ris::FramePtr frame)
