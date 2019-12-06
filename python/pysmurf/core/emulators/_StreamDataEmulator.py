@@ -30,45 +30,62 @@ class StreamDataEmulator(pyrogue.Device):
 
         self._emulator = smurf.core.emulators.StreamDataEmulator()
 
+        # Add "Disable" variable
         self.add(pyrogue.LocalVariable(
-            name='SinEnable',
-            description='SIN Enable',
+            name='Disable',
+            description='Disable the processing block. Data will just pass thorough to the next slave.',
             mode='RW',
-            value=False,
-            localGet = lambda: self._emulator.getSinEnable(),
-            localSet = lambda value: self._emulator.setSinEnable(value)))
+            value=True,
+            localSet=lambda value: self._emulator.setDisable(value),
+            localGet=self._emulator.getDisable))
 
+        # Add "Mode" variable
         self.add(pyrogue.LocalVariable(
-            name='SinChannel',
-            description='SIN Channel',
+            name='Type',
+            description='Set type of signal',
             mode='RW',
             value=0,
-            localGet = lambda: self._emulator.getSinChannel(),
-            localSet = lambda value: self._emulator.setSinChannel(value)))
+            disp={
+                0 : 'Zeros',
+                1 : 'ChannelNumber',
+                2 : 'Random',
+                3 : 'Square',
+                4 : 'Sawtooth',
+                5 : 'Triangle',
+                6 : 'Sine',
+            },
+            localSet=lambda value: self._emulator.setType(value),
+            localGet=self._emulator.getType))
 
+        # Add "Amplitude" variable
         self.add(pyrogue.LocalVariable(
-            name='SinAmplitude',
-            description='SIN Amplitude (16-bit ADC Value)',
+            name='Amplitude',
+            description='Signal peak amplitude (it is an uint15)',
             mode='RW',
-            value=0,
-            localGet = lambda: self._emulator.getSinAmplitude(),
-            localSet = lambda value: self._emulator.setSinAmplitude(value)))
+            typeStr='UInt15',
+            value=2**15-1,
+            localSet=lambda value: self._emulator.setAmplitude(value),
+            localGet=self._emulator.getAmplitude))
 
+        # Add "Offset" variable
         self.add(pyrogue.LocalVariable(
-            name='SinBaseline',
-            description='SIN Baseline (16-bit ADC Value)',
+            name='Offset',
+            description='Signal offset (it is an int16)',
             mode='RW',
+            typeStr='Int16',
             value=0,
-            localGet = lambda: self._emulator.getSinBaseline(),
-            localSet = lambda value: self._emulator.setSinBaseline(value)))
+            localSet=lambda value: self._emulator.setOffset(value),
+            localGet=self._emulator.getOffset))
 
+        # Add "Period" variable
         self.add(pyrogue.LocalVariable(
-            name='SinPeriod',
-            description='SIN Period (16-bit Sample Count)',
+            name='Period',
+            description='Signal period, in multiples of flux ramp periods. Can not be set to zero (it is an uint32)',
             mode='RW',
-            value=0,
-            localGet = lambda: self._emulator.getSinPeriod(),
-            localSet = lambda value: self._emulator.setSinPeriod(value)))
+            typeStr='UInt32',
+            value=1,
+            localSet=lambda value: self._emulator.setPeriod(value),
+            localGet=self._emulator.getPeriod))
 
     def _getStreamSlave(self):
         """

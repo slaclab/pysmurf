@@ -2,11 +2,11 @@
  *-----------------------------------------------------------------------------
  * Title         : SMuRF Data Emulator
  * ----------------------------------------------------------------------------
- * File          : SmurfProcessor.cpp
+ * File          : StreamDataEmulator.cpp
  * Created       : 2019-09-27
  *-----------------------------------------------------------------------------
  * Description :
- *    SMuRF Data Processor Class.
+ *    SMuRF Data StreamDataEmulator Class
  *-----------------------------------------------------------------------------
  * This file is part of the smurf software platform. It is subject to
  * the license terms in the LICENSE.txt file found in the top-level directory
@@ -19,9 +19,6 @@
 **/
 
 #include <boost/python.hpp>
-#include <rogue/interfaces/stream/Frame.h>
-#include <rogue/interfaces/stream/FrameIterator.h>
-#include <rogue/interfaces/stream/FrameAccessor.h>
 #include "smurf/core/emulators/StreamDataEmulator.h"
 #include "smurf/core/common/SmurfHeader.h"
 #include <cmath>
@@ -29,144 +26,314 @@
 namespace sce = smurf::core::emulators;
 namespace ris = rogue::interfaces::stream;
 
-sce::StreamDataEmulator::StreamDataEmulator() {
-   sinAmplitude_ = 0;
-   sinBaseline_  = 0;
-   sinPeriod_    = 0;
-   sinChannel_   = 0;
-   sinEnable_    = false;
-   sinCount_     = 0;
-
-   eLog_ = rogue::Logging::create("pysmurf.emulator");
+sce::StreamDataEmulator::StreamDataEmulator()
+:
+    eLog_(rogue::Logging::create("pysmurf.emulator")),
+    disable_(true),
+    type_(SignalType::Zeros),
+    amplitude_(maxAmplitude),
+    offset_(0),
+    period_(1),
+    periodCounter_(0),
+    gen(rd()),
+    dis(-amplitude_ + offset_, amplitude_ + offset_)
+{
 }
 
-sce::StreamDataEmulator::~StreamDataEmulator() { }
-
-sce::StreamDataEmulatorPtr sce::StreamDataEmulator::create() {
+sce::StreamDataEmulatorPtr sce::StreamDataEmulator::create()
+{
     return std::make_shared<StreamDataEmulator>();
 }
 
-void sce::StreamDataEmulator::setup_python() {
-   bp::class_< sce::StreamDataEmulator,
-               sce::StreamDataEmulatorPtr,
-               bp::bases<ris::Slave,ris::Master>,
-               boost::noncopyable >
-               ("StreamDataEmulator",bp::init<>())
+// Setup Class in python
+void sce::StreamDataEmulator::setup_python()
+{
+    bp::class_< sce::StreamDataEmulator,
+                sce::StreamDataEmulatorPtr,
+                bp::bases<ris::Slave,ris::Master>,
+                boost::noncopyable >
+                ("StreamDataEmulator",bp::init<>())
+        .def("setDisable",        &StreamDataEmulator::setDisable)
+        .def("getDisable",        &StreamDataEmulator::getDisable)
+        .def("setType",           &StreamDataEmulator::setType)
+        .def("getType",           &StreamDataEmulator::getType)
+        .def("setAmplitude",      &StreamDataEmulator::setAmplitude)
+        .def("getAmplitude",      &StreamDataEmulator::getAmplitude)
+        .def("setOffset",         &StreamDataEmulator::setOffset)
+        .def("getOffset",         &StreamDataEmulator::getOffset)
+        .def("setPeriod",         &StreamDataEmulator::setPeriod)
+        .def("getPeriod",         &StreamDataEmulator::getPeriod)
 
-        // Sin Generate Parameters
-        .def("setSinAmplitude",   &StreamDataEmulator::setSinAmplitude)
-        .def("getSinAmplitude",   &StreamDataEmulator::getSinAmplitude)
-        .def("setSinBaseline",    &StreamDataEmulator::setSinBaseline)
-        .def("getSinBaseline",    &StreamDataEmulator::getSinBaseline)
-        .def("setSinPeriod",      &StreamDataEmulator::setSinPeriod)
-        .def("getSinPeriod",      &StreamDataEmulator::getSinPeriod)
-        .def("setSinChannel",     &StreamDataEmulator::setSinChannel)
-        .def("getSinChannel",     &StreamDataEmulator::getSinChannel)
-        .def("setSinEnable",      &StreamDataEmulator::setSinEnable)
-        .def("getSinEnable",      &StreamDataEmulator::getSinEnable)
     ;
     bp::implicitly_convertible< sce::StreamDataEmulatorPtr, ris::SlavePtr  >();
     bp::implicitly_convertible< sce::StreamDataEmulatorPtr, ris::MasterPtr >();
 }
 
-// Sin parameters
-void sce::StreamDataEmulator::setSinAmplitude(uint16_t value) {
-   std::lock_guard<std::mutex> lock(mtx_);
-   sinAmplitude_ = value;
+void sce::StreamDataEmulator::setDisable(bool d)
+{
+    disable_ = d;
 }
 
-uint16_t sce::StreamDataEmulator::getSinAmplitude() {
-   return sinAmplitude_;
+const bool sce::StreamDataEmulator::getDisable() const
+{
+    return disable_;
 }
 
-void sce::StreamDataEmulator::setSinBaseline(uint16_t value) {
-   std::lock_guard<std::mutex> lock(mtx_);
-   sinBaseline_ = value;
+void sce::StreamDataEmulator::setType(int value)
+{
+    // Verify that the type is in range
+    if (value < static_cast<int>(SignalType::Size))
+    {
+        // Take th mutex before changing the parameters
+        std::lock_guard<std::mutex> lock(mtx_);
+
+        type_ = static_cast<SignalType>(value);
+
+        // Rest the frame period counter
+        periodCounter_ = 0;
+    }
 }
 
-uint16_t sce::StreamDataEmulator::getSinBaseline() {
-   return sinBaseline_;
+const int sce::StreamDataEmulator::getType() const
+{
+    return static_cast<int>(type_);
 }
 
-void sce::StreamDataEmulator::setSinPeriod(uint16_t value) {
-   std::lock_guard<std::mutex> lock(mtx_);
-   sinPeriod_ = value;
+void sce::StreamDataEmulator::setAmplitude(fw_t value)
+{
+    // The amplitude value can not be zero, nor higher that maxAmplitude
+    if ((value) && (value <= maxAmplitude ) )
+    {
+        // Take th mutex before changing the parameters
+        std::lock_guard<std::mutex> lock(mtx_);
+
+        amplitude_  = value;
+
+        // Update the range of the uniform_real_distribution when
+        // the amplitude changes.
+        dis = std::uniform_real_distribution<double>(-amplitude_ + offset_, amplitude_ + offset_);
+
+        // Rest the frame period counter
+        periodCounter_ = 0;
+    }
 }
 
-uint16_t sce::StreamDataEmulator::getSinPeriod() {
-   return sinPeriod_;
+const sce::StreamDataEmulator::fw_t sce::StreamDataEmulator::getAmplitude() const
+{
+    return amplitude_;
 }
 
-void sce::StreamDataEmulator::setSinChannel(uint16_t value) {
-   std::lock_guard<std::mutex> lock(mtx_);
-   sinChannel_ = value;
+void sce::StreamDataEmulator::setOffset(fw_t value)
+{
+    // Take th mutex before changing the parameters
+    std::lock_guard<std::mutex> lock(mtx_);
+
+    offset_ = value;
+
+    // Update the range of the uniform_real_distribution when
+    // the offset changes.
+    dis = std::uniform_real_distribution<double>(-amplitude_ + offset_, amplitude_ + offset_);
+
+    // Rest the frame period counter
+    periodCounter_ = 0;
 }
 
-uint16_t sce::StreamDataEmulator::getSinChannel() {
-   return sinChannel_;
+const sce::StreamDataEmulator::fw_t sce::StreamDataEmulator::getOffset() const
+{
+    return offset_;
 }
 
-void sce::StreamDataEmulator::setSinEnable(bool value) {
-   std::lock_guard<std::mutex> lock(mtx_);
-   sinEnable_ = value;
+void sce::StreamDataEmulator::setPeriod(std::size_t value)
+{
+    // The period value can not be zero
+    if (value)
+    {
+        // Take th mutex before changing the parameters
+        std::lock_guard<std::mutex> lock(mtx_);
+
+        period_ = value;
+
+        // Rest the frame period counter
+        periodCounter_ = 0;
+    }
 }
 
-bool sce::StreamDataEmulator::getSinEnable() {
-   return sinEnable_;
+const std::size_t sce::StreamDataEmulator::getPeriod() const
+{
+    return period_;
 }
 
-void sce::StreamDataEmulator::acceptFrame(ris::FramePtr frame) {
+void sce::StreamDataEmulator::acceptFrame(ris::FramePtr frame)
+{
+    {
+        rogue::GilRelease noGil;
 
-   {
-      rogue::GilRelease noGil;
-      ris::FrameLockPtr fLock = frame->lock();
-      std::lock_guard<std::mutex> lock(mtx_);
+        // Only process the frame is the block is enable.
+        if (!disable_)
+        {
+            ris::FrameLockPtr fLock = frame->lock();
 
+            // Make sure the frame is a single buffer, copy if necessary
+            if ( ! this->ensureSingleBuffer(frame,true) )
+            {
+                eLog_->error("Failed to copy frame to single buffer. Check downstream slave types, maybe add a FIFO?");
+                return;
+            }
 
-      // Make sure the frame is a single buffer, copy if neccessary
-      if ( ! this->ensureSingleBuffer(frame,true) ) {
-         eLog_->error("Failed to copy frame to single buffer. Check downstream slave types, maybe add a FIFO?");
-         return;
-      }
+            // Read the number of channel from the header header
+            SmurfHeaderROPtr<ris::FrameIterator> header = SmurfHeaderRO<ris::FrameIterator>::create(frame);
+            uint32_t numChannels { header->getNumberChannels() };
 
-      // Sine wave enabled
-      if ( sinEnable_ ) genSinWave(frame);
-   }
+            // Check frame integrity.
+            if ( header->SmurfHeaderSize + (numChannels * sizeof(fw_t)) != frame->getPayload() )
+            {
+                eLog_->error("Received frame does not match expected size. Size=%i, header=%i, payload=%i",
+                        frame->getPayload(), header->SmurfHeaderSize, numChannels*2);
+                return;
+            }
 
-   // Send frame outside of lock
-   this->sendFrame(frame);
+            // Get frame iterator
+            ris::FrameIterator fPtr = frame->beginRead();
+
+            // Jump over the header
+            fPtr += header->SmurfHeaderSize;
+
+            // Create fw_t accessor to the data
+            ris::FrameAccessor<fw_t> dPtr(fPtr, numChannels);
+
+            // Generate the type of signal selected
+            switch(type_)
+            {
+                case SignalType::Zeros:
+                    genZeroWave(dPtr);
+                    break;
+                case SignalType::ChannelNumber:
+                    genChannelNumberWave(dPtr);
+                    break;
+                case SignalType::Random:
+                    genRandomWave(dPtr);
+                    break;
+                case SignalType::Square:
+                    genSquareWave(dPtr);
+                    break;
+                case SignalType::Sawtooth:
+                    getSawtoothWave(dPtr);
+                    break;
+                case SignalType::Triangle:
+                    genTriangleWave(dPtr);
+                    break;
+                case SignalType::Sine:
+                    genSinWave(dPtr);
+                    break;
+            }
+        }
+    }
+
+    // Send frame outside of lock
+    this->sendFrame(frame);
 }
 
-// Generic sine wave generator
-void sce::StreamDataEmulator::genSinWave(ris::FramePtr &frame) {
+void sce::StreamDataEmulator::genZeroWave(ris::FrameAccessor<fw_t> &dPtr) const
+{
+    // Set all channels to zero
+    std::fill(dPtr.begin(), dPtr.end(), 0);
+}
 
-   SmurfHeaderROPtr<ris::FrameIterator> header = SmurfHeaderRO<ris::FrameIterator>::create(frame);
+void sce::StreamDataEmulator::genChannelNumberWave(ris::FrameAccessor<fw_t> &dPtr) const
+{
+    // Set each channel to its channel number
+    for (std::size_t i{0}; i < dPtr.size(); ++i)
+        dPtr.at(i) = i;
+}
 
-   uint32_t numChannels { header->getNumberChannels() };
+void sce::StreamDataEmulator::genRandomWave(ris::FrameAccessor<fw_t> &dPtr)
+{
+    // Generated uniform distributed numbers for each channel
+    // applying the selected amplitude and offset.
+    for (std::size_t i{0}; i < dPtr.size(); ++i )
+        // Use dis to transform the random unsigned int generated by gen into a
+        // double in [-amplitude_ + offset, amplitude_ + offset).
+        // Each call to dis(gen) generates a new random double.
+        dPtr.at(i) = static_cast<fw_t>(dis(gen));
+}
 
-   if ( sinChannel_ >= numChannels ) {
-      eLog_->error("Configured sinChannel exceeds number of rows defined in the header.");
-      return;
-   }
+void sce::StreamDataEmulator::genSquareWave(ris::FrameAccessor<fw_t> &dPtr)
+{
+    fw_t s;
 
-   if ( header->SmurfHeaderSize + (numChannels * 2) != frame->getPayload() ) {
-      eLog_->error("Received frame does not match expected size. Size=%i, header=%i, payload=%i",
-                  frame->getPayload(), header->SmurfHeaderSize, numChannels*2);
-      return;
-   }
+    {
+        // Take th mutex before using the parameters
+        std::lock_guard<std::mutex> lock(mtx_);
 
-   // Get frame iterator
-   ris::FrameIterator fPtr = frame->beginRead();
+        // Generate a square signal between [-'amplitude_', 'amplitude_'], with an
+        // offset of 'offset_' and with period (2 * 'period_').
+        // Note: The frame rate is 2*(flux ramp rate). That's why we are generating
+        // a signal with a period (2 * 'period_').
+        if ( ( periodCounter_++ % ( 2 * period_ ) ) < period_ )
+            s = -amplitude_ + offset_;
+        else
+            s = amplitude_ + offset_;
+    }
 
-   // Jump over the header
-   fPtr += header->SmurfHeaderSize;
+    // Set all channels to the same signal
+    std::fill(dPtr.begin(), dPtr.end(), s);
+}
 
-   // Create uint16 accessor to the data
-   ris::FrameAccessor<uint16_t> dPtr(fPtr, numChannels);
+void sce::StreamDataEmulator::getSawtoothWave(ris::FrameAccessor<fw_t> &dPtr)
+{
+    fw_t s;
 
-   dPtr[sinChannel_] = int((float)sinBaseline_ +
-                       (float)sinAmplitude_ * sin((float)sinCount_/(float)sinPeriod_));
+    {
+        // Take th mutex before using the parameters
+        std::lock_guard<std::mutex> lock(mtx_);
 
-   if ( ++sinCount_ == sinPeriod_ ) sinCount_ = 0;
+        // Generate a sawtooth signal between [offset, 'amplitude_'], with a
+        // period (2 * 'period_').
+        // Note: The frame rate is 2*(flux ramp rate). That's why we are generating
+        // a signal with a period (2 * 'period_').
+        s = offset_ + (periodCounter_++ % (2*period_)) * amplitude_ / ( 2 * period_ - 1);
+    }
+
+    // Set all channels to the same signal
+    std::fill(dPtr.begin(), dPtr.end(), s);
+}
+
+void sce::StreamDataEmulator::genTriangleWave(ris::FrameAccessor<fw_t> &dPtr)
+{
+    fw_t s;
+
+    {
+        // Take th mutex before using the parameters
+        std::lock_guard<std::mutex> lock(mtx_);
+
+        // Generate a triangle signal between [-'amplitude_', 'amplitude_'], with an
+        // offset of 'offset_' and with period (2 * 'period_').
+        // Note: The frame rate is 2*(flux ramp rate). That's why we are generating
+        // a signal with a period (2 * 'period_').
+        s = ( std::abs<fw_t>((periodCounter_++ % (2*period_)) - period_) )
+            * 2 * amplitude_ / period_ - amplitude_ + offset_;
+    }
+
+    // Set all channels to the same signal
+    std::fill(dPtr.begin(), dPtr.end(), s);
+}
+
+void sce::StreamDataEmulator::genSinWave(ris::FrameAccessor<fw_t> &dPtr)
+{
+    fw_t s;
+
+    {
+        // Take th mutex before using the parameters
+        std::lock_guard<std::mutex> lock(mtx_);
+
+        // Generate a sine signal between [-'amplitude_', 'amplitude_'], with an
+        // offset of 'offset_' and with period (2 * 'period_').
+        // Note: The frame rate is 2*(flux ramp rate). That's why we are generating
+        // a signal with a period (2 * 'period_').
+        s = amplitude_ * std::sin( 2 * M_PI * periodCounter_++ / ( 2 * period_ ) ) + offset_;
+    }
+
+    // Set all channels to the same signal
+    std::fill(dPtr.begin(), dPtr.end(), s);
 }
 

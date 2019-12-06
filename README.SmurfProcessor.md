@@ -62,6 +62,8 @@ Allows to replace the raw data in the incoming frame with emulated data.
 
 This module can be disabled; the incoming frame will just pass through to the next block.
 
+For more details see [here](README.DataEmulator.md).
+
 ### ChannelMapper
 
 Maps data channels from the incoming frame to channels in the out frame, using the `Mask` variable.
