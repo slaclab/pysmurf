@@ -32,6 +32,7 @@
 #include <rogue/Logging.h>
 #include "smurf/core/common/SmurfHeader.h"
 #include "smurf/core/common/Helpers.h"
+#include <random>
 
 namespace bp  = boost::python;
 namespace ris = rogue::interfaces::stream;
