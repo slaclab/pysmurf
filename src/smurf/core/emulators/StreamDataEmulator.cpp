@@ -172,7 +172,6 @@ void sce::StreamDataEmulator::acceptFrame(ris::FramePtr frame)
         if (!disable_)
         {
             ris::FrameLockPtr fLock = frame->lock();
-            std::lock_guard<std::mutex> lock(mtx_);
 
             // Make sure the frame is a single buffer, copy if necessary
             if ( ! this->ensureSingleBuffer(frame,true) )
