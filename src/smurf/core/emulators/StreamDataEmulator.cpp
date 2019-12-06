@@ -251,6 +251,9 @@ void sce::StreamDataEmulator::getSawtoothWave(ris::FrameAccessor<fw_t> &dPtr)
 
     // Generate a linear signal
     genSignal_ += amplitude_ / ( 2 * period_ );
+
+    // Set all channels to the same signal
+    std::fill(dPtr.begin(), dPtr.end(), genSignal_);
 }
 
 void sce::StreamDataEmulator::genTriangleWave(ris::FrameAccessor<fw_t> &dPtr) const
