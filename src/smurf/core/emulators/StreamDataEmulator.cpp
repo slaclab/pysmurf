@@ -256,7 +256,7 @@ void sce::StreamDataEmulator::getSawtoothWave(ris::FrameAccessor<fw_t> &dPtr)
     std::fill(dPtr.begin(), dPtr.end(), genSignal_);
 }
 
-void sce::StreamDataEmulator::genTriangleWave(ris::FrameAccessor<fw_t> &dPtr) const
+void sce::StreamDataEmulator::genTriangleWave(ris::FrameAccessor<fw_t> &dPtr)
 {
     if ( periodCounter_ < period_ / 2 ) || ( periodCounter_ > 3 * period_ / 2)
     {
