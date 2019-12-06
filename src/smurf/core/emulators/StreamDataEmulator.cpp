@@ -258,24 +258,13 @@ void sce::StreamDataEmulator::getSawtoothWave(ris::FrameAccessor<fw_t> &dPtr)
 
 void sce::StreamDataEmulator::genTriangleWave(ris::FrameAccessor<fw_t> &dPtr)
 {
-    // Reset the signal when the period counter reach twice the selected period
-    if (++periodCounter_ >= 2*period_)
-    {
-        periodCounter_ = 0;
-        genSignal_ = offset_;
-    }
-
-    if ( ( periodCounter_ < period_ / 2 ) || ( periodCounter_ >= 3 * period_ / 2 ) )
-    {
-        genSignal_ += amplitude_ / ( period_ / 2 - 1);
-    }
-    else if ( ( periodCounter_ > period_ / 2 ) && ( periodCounter_ < 3 * period_ / 2 ) )
-    {
-        genSignal_ -= amplitude_ / ( period_ / 2 - 1);
-    }
-
-    // Set all channels to the same signal
-    std::fill(dPtr.begin(), dPtr.end(), genSignal_);
+    // Generate a triangle signal between [-amplitude_, amplitude_] and
+    // with period (2 * period_).
+    // Note: The frame rate is 2*(flux ramp rate). That's why we are generating
+    // a signal with a period (2 * period_).
+    genSignal_ =
+        ( std::abs<fw_t>((periodCounter_++ % (2*period_)) - period_) )
+        * 2 * amplitude_ / period_ - amplitude_ + offset_;
 }
 
 void sce::StreamDataEmulator::genSinWave(ris::FrameAccessor<fw_t> &dPtr) const
