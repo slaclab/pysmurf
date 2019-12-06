@@ -258,7 +258,19 @@ void sce::StreamDataEmulator::getSawtoothWave(ris::FrameAccessor<fw_t> &dPtr)
 
 void sce::StreamDataEmulator::genTriangleWave(ris::FrameAccessor<fw_t> &dPtr) const
 {
+    if ( periodCounter_ < period_ / 2 ) || ( periodCounter_ > 3 * period_ / 2)
+    {
+        genSignal_ += amplitude_ / ( period_ / 2 - 1);
+    }
+    else
+    {
+        genSignal_ -= amplitude_ / ( period_ / 2 - 1);
+    }
 
+
+    // Reset the period counter when it reach twice the selected period
+    if (++periodCounter_ >= 2*period_)
+        periodCounter_ = 0;
 }
 
 void sce::StreamDataEmulator::genSinWave(ris::FrameAccessor<fw_t> &dPtr) const
