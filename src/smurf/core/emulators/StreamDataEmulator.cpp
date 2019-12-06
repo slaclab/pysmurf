@@ -31,7 +31,7 @@ sce::StreamDataEmulator::StreamDataEmulator()
     eLog_(rogue::Logging::create("pysmurf.emulator")),
     disable_(true),
     type_(SignalType::Zeros),
-    amplitude_(32767),
+    amplitude_(maxAmplitude),
     offset_(0),
     period_(1),
     periodCounter_(0),
@@ -99,10 +99,10 @@ const int sce::StreamDataEmulator::getType() const
     return static_cast<int>(type_);
 }
 
-void sce::StreamDataEmulator::setAmplitude(uint16_t value)
+void sce::StreamDataEmulator::setAmplitude(fw_t value)
 {
-    // The amplitude value can not be zero, nor higher that 2^15-1
-    if ((value) && (value < 32768 ) )
+    // The amplitude value can not be zero, nor higher that maxAmplitude
+    if ((value) && (value <= maxAmplitude ) )
     {
         // Take th mutex before changing the parameters
         std::lock_guard<std::mutex> lock(mtx_);
@@ -118,12 +118,12 @@ void sce::StreamDataEmulator::setAmplitude(uint16_t value)
     }
 }
 
-const uint16_t sce::StreamDataEmulator::getAmplitude() const
+const sce::StreamDataEmulator::fw_t sce::StreamDataEmulator::getAmplitude() const
 {
     return amplitude_;
 }
 
-void sce::StreamDataEmulator::setOffset(int16_t value)
+void sce::StreamDataEmulator::setOffset(fw_t value)
 {
     // Take th mutex before changing the parameters
     std::lock_guard<std::mutex> lock(mtx_);
@@ -138,7 +138,7 @@ void sce::StreamDataEmulator::setOffset(int16_t value)
     periodCounter_ = 0;
 }
 
-const int16_t sce::StreamDataEmulator::getOffset() const
+const sce::StreamDataEmulator::fw_t sce::StreamDataEmulator::getOffset() const
 {
     return offset_;
 }
