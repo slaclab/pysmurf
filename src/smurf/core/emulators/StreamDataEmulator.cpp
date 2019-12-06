@@ -262,7 +262,7 @@ void sce::StreamDataEmulator::genTriangleWave(ris::FrameAccessor<fw_t> &dPtr)
     {
         genSignal_ += amplitude_ / ( period_ / 2 - 1);
     }
-    else
+    else if ( ( periodCounter_ > period_ / 2 ) && ( periodCounter_ < 3 * period_ / 2 ) )
     {
         genSignal_ -= amplitude_ / ( period_ / 2 - 1);
     }
