@@ -2,11 +2,11 @@
  *-----------------------------------------------------------------------------
  * Title         : SMuRF Data Emulator
  * ----------------------------------------------------------------------------
- * File          : SmurfProcessor.cpp
+ * File          : StreamDataEmulator.cpp
  * Created       : 2019-09-27
  *-----------------------------------------------------------------------------
  * Description :
- *    SMuRF Data Processor Class.
+ *    SMuRF Data StreamDataEmulator Class
  *-----------------------------------------------------------------------------
  * This file is part of the smurf software platform. It is subject to
  * the license terms in the LICENSE.txt file found in the top-level directory
