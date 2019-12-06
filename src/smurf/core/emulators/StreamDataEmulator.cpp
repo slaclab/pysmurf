@@ -248,9 +248,6 @@ void sce::StreamDataEmulator::genChannelNumberWave(ris::FrameAccessor<fw_t> &dPt
 
 void sce::StreamDataEmulator::genRandomWave(ris::FrameAccessor<fw_t> &dPtr)
 {
-    // Take th mutex before using the parameters
-    std::lock_guard<std::mutex> lock(mtx_);
-
     // Generated uniform distributed numbers for each channel
     // applying the selected amplitude and offset.
     for (std::size_t i{0}; i < dPtr.size(); ++i )
@@ -262,18 +259,21 @@ void sce::StreamDataEmulator::genRandomWave(ris::FrameAccessor<fw_t> &dPtr)
 
 void sce::StreamDataEmulator::genSquareWave(ris::FrameAccessor<fw_t> &dPtr)
 {
-    // Take th mutex before using the parameters
-    std::lock_guard<std::mutex> lock(mtx_);
-
-    // Generate a square signal between [-'amplitude_', 'amplitude_'], with an
-    // offset of 'offset_' and with period (2 * 'period_').
-    // Note: The frame rate is 2*(flux ramp rate). That's why we are generating
-    // a signal with a period (2 * 'period_').
     fw_t s;
-    if ( ( periodCounter_++ % ( 2 * period_ ) ) < period_ )
-        s = -amplitude_ + offset_;
-    else
-        s = amplitude_ + offset_;
+
+    {
+        // Take th mutex before using the parameters
+        std::lock_guard<std::mutex> lock(mtx_);
+
+        // Generate a square signal between [-'amplitude_', 'amplitude_'], with an
+        // offset of 'offset_' and with period (2 * 'period_').
+        // Note: The frame rate is 2*(flux ramp rate). That's why we are generating
+        // a signal with a period (2 * 'period_').
+        if ( ( periodCounter_++ % ( 2 * period_ ) ) < period_ )
+            s = -amplitude_ + offset_;
+        else
+            s = amplitude_ + offset_;
+    }
 
     // Set all channels to the same signal
     std::fill(dPtr.begin(), dPtr.end(), s);
@@ -281,14 +281,18 @@ void sce::StreamDataEmulator::genSquareWave(ris::FrameAccessor<fw_t> &dPtr)
 
 void sce::StreamDataEmulator::getSawtoothWave(ris::FrameAccessor<fw_t> &dPtr)
 {
-    // Take th mutex before using the parameters
-    std::lock_guard<std::mutex> lock(mtx_);
+    fw_t s;
 
-    // Generate a sawtooth signal between [offset, 'amplitude_'], with a
-    // period (2 * 'period_').
-    // Note: The frame rate is 2*(flux ramp rate). That's why we are generating
-    // a signal with a period (2 * 'period_').
-    fw_t s = offset_ + (periodCounter_++ % (2*period_)) * amplitude_ / ( 2 * period_ - 1);
+    {
+        // Take th mutex before using the parameters
+        std::lock_guard<std::mutex> lock(mtx_);
+
+        // Generate a sawtooth signal between [offset, 'amplitude_'], with a
+        // period (2 * 'period_').
+        // Note: The frame rate is 2*(flux ramp rate). That's why we are generating
+        // a signal with a period (2 * 'period_').
+        s = offset_ + (periodCounter_++ % (2*period_)) * amplitude_ / ( 2 * period_ - 1);
+    }
 
     // Set all channels to the same signal
     std::fill(dPtr.begin(), dPtr.end(), s);
@@ -296,16 +300,19 @@ void sce::StreamDataEmulator::getSawtoothWave(ris::FrameAccessor<fw_t> &dPtr)
 
 void sce::StreamDataEmulator::genTriangleWave(ris::FrameAccessor<fw_t> &dPtr)
 {
-    // Take th mutex before using the parameters
-    std::lock_guard<std::mutex> lock(mtx_);
+    fw_t s;
 
-    // Generate a triangle signal between [-'amplitude_', 'amplitude_'], with an
-    // offset of 'offset_' and with period (2 * 'period_').
-    // Note: The frame rate is 2*(flux ramp rate). That's why we are generating
-    // a signal with a period (2 * 'period_').
-    fw_t s =
-        ( std::abs<fw_t>((periodCounter_++ % (2*period_)) - period_) )
-        * 2 * amplitude_ / period_ - amplitude_ + offset_;
+    {
+        // Take th mutex before using the parameters
+        std::lock_guard<std::mutex> lock(mtx_);
+
+        // Generate a triangle signal between [-'amplitude_', 'amplitude_'], with an
+        // offset of 'offset_' and with period (2 * 'period_').
+        // Note: The frame rate is 2*(flux ramp rate). That's why we are generating
+        // a signal with a period (2 * 'period_').
+        s = ( std::abs<fw_t>((periodCounter_++ % (2*period_)) - period_) )
+            * 2 * amplitude_ / period_ - amplitude_ + offset_;
+    }
 
     // Set all channels to the same signal
     std::fill(dPtr.begin(), dPtr.end(), s);
@@ -313,14 +320,18 @@ void sce::StreamDataEmulator::genTriangleWave(ris::FrameAccessor<fw_t> &dPtr)
 
 void sce::StreamDataEmulator::genSinWave(ris::FrameAccessor<fw_t> &dPtr)
 {
-    // Take th mutex before using the parameters
-    std::lock_guard<std::mutex> lock(mtx_);
+    fw_t s;
 
-    // Generate a sine signal between [-'amplitude_', 'amplitude_'], with an
-    // offset of 'offset_' and with period (2 * 'period_').
-    // Note: The frame rate is 2*(flux ramp rate). That's why we are generating
-    // a signal with a period (2 * 'period_').
-    fw_t s = amplitude_ * std::sin( 2 * M_PI * periodCounter_++ / ( 2 * period_ ) ) + offset_;
+    {
+        // Take th mutex before using the parameters
+        std::lock_guard<std::mutex> lock(mtx_);
+
+        // Generate a sine signal between [-'amplitude_', 'amplitude_'], with an
+        // offset of 'offset_' and with period (2 * 'period_').
+        // Note: The frame rate is 2*(flux ramp rate). That's why we are generating
+        // a signal with a period (2 * 'period_').
+        s = amplitude_ * std::sin( 2 * M_PI * periodCounter_++ / ( 2 * period_ ) ) + offset_;
+    }
 
     // Set all channels to the same signal
     std::fill(dPtr.begin(), dPtr.end(), s);
