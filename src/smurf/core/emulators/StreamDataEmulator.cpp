@@ -249,7 +249,7 @@ void sce::StreamDataEmulator::getSawtoothWave(ris::FrameAccessor<fw_t> &dPtr)
     if (++periodCounter_ >= 2*period_)
     {
         periodCounter_ = 0;
-        genSignal_ = 0;
+        genSignal_ = offset_;
     }
 
     // Set all channels to the same signal
