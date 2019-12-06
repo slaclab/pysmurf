@@ -101,7 +101,7 @@ void sce::StreamDataEmulator::setAmplitude(uint16_t value)
 
         // Update the range of the uniform_real_distribution when
         // the amplitude changes.
-        dis = -amplitude_ + offset_, amplitude_ + offset_;
+        dis = std::uniform_real_distribution<double>(-amplitude_ + offset_, amplitude_ + offset_);
     }
 }
 
@@ -116,7 +116,7 @@ void sce::StreamDataEmulator::setOffset(int16_t value)
 
     // Update the range of the uniform_real_distribution when
     // the offset changes.
-    dis = -amplitude_ + offset_, amplitude_ + offset_;
+    dis = std::uniform_real_distribution<double>(-amplitude_ + offset_, amplitude_ + offset_);
 }
 
 const int16_t sce::StreamDataEmulator::getOffset() const
