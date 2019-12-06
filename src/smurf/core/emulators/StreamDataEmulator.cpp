@@ -236,12 +236,21 @@ void sce::StreamDataEmulator::genSquareWave(ris::FrameAccessor<fw_t> &dPtr)
             genSignal_ = amplitude_ + offset_;
     }
 
+    // Set all channels to the same signal
     std::fill(dPtr.begin(), dPtr.end(), genSignal_);
 }
 
 void sce::StreamDataEmulator::getSawtoothWave(ris::FrameAccessor<fw_t> &dPtr) const
 {
+    // Reset the signal when the period counter reach twice the selected period
+    if (++periodCounter_ >= 2*period_)
+    {
+        periodCounter_ = 0;
+        genSignal_ = 0;
+    }
 
+    // Generate a linear signal
+    genSignal_ += amplitude_ / (2*period_);
 }
 
 void sce::StreamDataEmulator::genTriangleWave(ris::FrameAccessor<fw_t> &dPtr) const
