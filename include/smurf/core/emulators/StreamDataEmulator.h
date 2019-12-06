@@ -91,7 +91,7 @@ namespace smurf
                 void genChannelNumberWave(ris::FrameAccessor<fw_t> &dPtr) const;
                 void genRandomWave(ris::FrameAccessor<fw_t> &dPtr)        const;
                 void genSquareWave(ris::FrameAccessor<fw_t> &dPtr);
-                void getSawtoothWave(ris::FrameAccessor<fw_t> &dPtr)      const;
+                void getSawtoothWave(ris::FrameAccessor<fw_t> &dPtr);
                 void genTriangleWave(ris::FrameAccessor<fw_t> &dPtr)      const;
                 void genSinWave(ris::FrameAccessor<fw_t> &dPtr)           const;
 

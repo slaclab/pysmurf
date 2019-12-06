@@ -240,7 +240,7 @@ void sce::StreamDataEmulator::genSquareWave(ris::FrameAccessor<fw_t> &dPtr)
     std::fill(dPtr.begin(), dPtr.end(), genSignal_);
 }
 
-void sce::StreamDataEmulator::getSawtoothWave(ris::FrameAccessor<fw_t> &dPtr) const
+void sce::StreamDataEmulator::getSawtoothWave(ris::FrameAccessor<fw_t> &dPtr)
 {
     // Reset the signal when the period counter reach twice the selected period
     if (++periodCounter_ >= 2*period_)
@@ -250,7 +250,7 @@ void sce::StreamDataEmulator::getSawtoothWave(ris::FrameAccessor<fw_t> &dPtr) co
     }
 
     // Generate a linear signal
-    genSignal_ += amplitude_ / (2*period_);
+    genSignal_ += amplitude_ / ( 2 * period_ );
 }
 
 void sce::StreamDataEmulator::genTriangleWave(ris::FrameAccessor<fw_t> &dPtr) const
