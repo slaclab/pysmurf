@@ -268,9 +268,15 @@ void sce::StreamDataEmulator::genTriangleWave(ris::FrameAccessor<fw_t> &dPtr)
     }
 
 
-    // Reset the period counter when it reach twice the selected period
+    // Reset the signal when the period counter reach twice the selected period
     if (++periodCounter_ >= 2*period_)
+    {
         periodCounter_ = 0;
+        genSignal_ = offset_;
+    }
+
+    // Set all channels to the same signal
+    std::fill(dPtr.begin(), dPtr.end(), genSignal_);
 }
 
 void sce::StreamDataEmulator::genSinWave(ris::FrameAccessor<fw_t> &dPtr) const
