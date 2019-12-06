@@ -48,6 +48,10 @@ namespace smurf
 
             class StreamDataEmulator : public ris::Slave, public ris::Master
             {
+            private:
+                // Data types
+                typedef int16_t fw_t;   // Data type from firmware
+
             public:
                 StreamDataEmulator();
                 ~StreamDataEmulator() {};
@@ -69,23 +73,23 @@ namespace smurf
                 const int getType() const;
 
                 // Set/Get signal amplitude
-                void           setAmplitude(uint16_t value);
-                const uint16_t getAmplitude() const;
+                void       setAmplitude(fw_t value);
+                const fw_t getAmplitude() const;
 
                 // Set/Get signal offset
-                void          setOffset(int16_t value);
-                const int16_t getOffset() const;
+                void       setOffset(fw_t value);
+                const fw_t getOffset() const;
 
                 // Set/Get  signal period
                 void              setPeriod(std::size_t value);
                 const std::size_t getPeriod() const;
 
             private:
-                // Data types
-                typedef int16_t fw_t;   // Data type from firmware
-
                 // Types of signal
                 enum class SignalType { Zeros, ChannelNumber, Random, Square, Sawtooth, Triangle, Sine, Size };
+
+                // Maximum amplitud value (2^(#bit of fw_t - 1) - 1)
++               const fw_t maxAmplitude = (1 << (8*sizeof(fw_t) - 1)) - 1;
 
                 // Signal generator methods
                 void genZeroWave(ris::FrameAccessor<fw_t> &dPtr)          const;
@@ -105,8 +109,8 @@ namespace smurf
                 // Variables
                 bool        disable_;       // Disable flag
                 SignalType  type_;          // signal type
-                uint16_t    amplitude_;     // Signal amplitude
-                int16_t     offset_;        // Signal offset
+                fw_t        amplitude_;     // Signal amplitude
+                fw_t        offset_;        // Signal offset
                 std::size_t period_;        // Signal period
                 std::size_t periodCounter_; // frame period counter
 
