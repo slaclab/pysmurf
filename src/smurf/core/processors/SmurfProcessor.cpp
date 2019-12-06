@@ -236,6 +236,7 @@ void scp::SmurfProcessor::resetUnwrapper()
     // they are potentially being resized.
     std::lock_guard<std::mutex> lockUnwrapper(mutUnwrapper);
 
+    std::vector<unwrap_t>(numCh).swap(inputData);
     std::vector<unwrap_t>(numCh).swap(wrapCounter);
 }
 
