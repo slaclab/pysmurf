@@ -260,6 +260,9 @@ void sce::StreamDataEmulator::genTriangleWave(ris::FrameAccessor<fw_t> &dPtr)
     genSignal_ =
         ( std::abs<fw_t>((periodCounter_++ % (2*period_)) - period_) )
         * 2 * amplitude_ / period_ - amplitude_ + offset_;
+
+    // Set all channels to the same signal
+    std::fill(dPtr.begin(), dPtr.end(), genSignal_);
 }
 
 void sce::StreamDataEmulator::genSinWave(ris::FrameAccessor<fw_t> &dPtr)
