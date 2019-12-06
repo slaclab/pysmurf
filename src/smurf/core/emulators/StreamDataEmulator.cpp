@@ -226,7 +226,7 @@ void sce::StreamDataEmulator::genRandomWave(ris::FrameAccessor<fw_t> &dPtr) cons
 
 void sce::StreamDataEmulator::genSquareWave(ris::FrameAccessor<fw_t> &dPtr)
 {
-    // Generate a square signal between [-'amplitude_', 'amplitude_'], with and
+    // Generate a square signal between [-'amplitude_', 'amplitude_'], with an
     // offset of 'offset_' and with period (2 * 'period_').
     // Note: The frame rate is 2*(flux ramp rate). That's why we are generating
     // a signal with a period (2 * 'period_').
@@ -241,15 +241,11 @@ void sce::StreamDataEmulator::genSquareWave(ris::FrameAccessor<fw_t> &dPtr)
 
 void sce::StreamDataEmulator::getSawtoothWave(ris::FrameAccessor<fw_t> &dPtr)
 {
-    // Generate a linear signal
-    genSignal_ += amplitude_ / ( 2 * period_ - 1);
-
-    // Reset the signal when the period counter reach twice the selected period
-    if (++periodCounter_ >= 2*period_)
-    {
-        periodCounter_ = 0;
-        genSignal_ = offset_;
-    }
+    // Generate a sawtooth signal between [offset, 'amplitude_'], with a
+    // period (2 * 'period_').
+    // Note: The frame rate is 2*(flux ramp rate). That's why we are generating
+    // a signal with a period (2 * 'period_').
+    genSignal_ = offset_ + (periodCounter_++ % (2*period_)) * amplitude_ / ( 2 * period_ - 1);
 
     // Set all channels to the same signal
     std::fill(dPtr.begin(), dPtr.end(), genSignal_);
@@ -257,7 +253,7 @@ void sce::StreamDataEmulator::getSawtoothWave(ris::FrameAccessor<fw_t> &dPtr)
 
 void sce::StreamDataEmulator::genTriangleWave(ris::FrameAccessor<fw_t> &dPtr)
 {
-    // Generate a triangle signal between [-'amplitude_', 'amplitude_'], with and
+    // Generate a triangle signal between [-'amplitude_', 'amplitude_'], with an
     // offset of 'offset_' and with period (2 * 'period_').
     // Note: The frame rate is 2*(flux ramp rate). That's why we are generating
     // a signal with a period (2 * 'period_').
