@@ -34,7 +34,9 @@ sce::StreamDataEmulator::StreamDataEmulator()
     type_(SignalType::Zeros),
     amplitude_(32767),
     offset_(0),
-    period_(1)
+    period_(1),
+    periodCounter_(0),
+    genSignal_(0)
 {
 }
 
@@ -111,14 +113,14 @@ const int16_t sce::StreamDataEmulator::getOffset() const
     return offset_;
 }
 
-void sce::StreamDataEmulator::setPeriod(uint32_t value)
+void sce::StreamDataEmulator::setPeriod(std::size_t value)
 {
     // The period value can not be zero
     if (value)
         period_ = value;
 }
 
-const uint32_t sce::StreamDataEmulator::getPeriod() const
+const std::size_t sce::StreamDataEmulator::getPeriod() const
 {
     return period_;
 }
@@ -224,7 +226,17 @@ void sce::StreamDataEmulator::genRandomWave(ris::FrameAccessor<fw_t> &dPtr) cons
 
 void sce::StreamDataEmulator::genSquareWave(ris::FrameAccessor<fw_t> &dPtr) const
 {
+    // Change to signal cycle when the period counter reach the selected period
+    if (++periodCounter_ >= period_)
+    {
+        periodCounter_ = 0;
+        if (genSignal_ > offset)
+            genSignal_ = -amplitude_ + offset;
+        else
+            genSignal_ = amplitude_ + offset;
+    }
 
+    std::fill(dPtr.begin(), dPtr.end(), genSignal_);
 }
 
 void sce::StreamDataEmulator::getSawtoothWave(ris::FrameAccessor<fw_t> &dPtr) const

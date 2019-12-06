@@ -76,8 +76,8 @@ namespace smurf
                 const int16_t getOffset() const;
 
                 // Set/Get  signal period
-                void           setPeriod(uint32_t value);
-                const uint32_t getPeriod() const;
+                void              setPeriod(std::size_t value);
+                const std::size_t getPeriod() const;
 
             private:
                 // Data types
@@ -106,7 +106,10 @@ namespace smurf
                 SignalType  type_;      // signal type
                 uint16_t    amplitude_; // Signal amplitude
                 int16_t     offset_;    // Signal offset
-                uint32_t    period_;    // Signal period
+                std::size_t period_;    // Signal period
+
+                std::size_t periodCounter_;
+                int16_t     genSignal_;
             };
         }
     }
