@@ -35,7 +35,6 @@ sce::StreamDataEmulator::StreamDataEmulator()
     offset_(0),
     period_(1),
     periodCounter_(0),
-    genSignal_(0),
     gen(rd()),
     dis(-amplitude_ + offset_, amplitude_ + offset_)
 {
@@ -271,13 +270,14 @@ void sce::StreamDataEmulator::genSquareWave(ris::FrameAccessor<fw_t> &dPtr)
     // offset of 'offset_' and with period (2 * 'period_').
     // Note: The frame rate is 2*(flux ramp rate). That's why we are generating
     // a signal with a period (2 * 'period_').
+    fw_t s;
     if ( ( periodCounter_++ % ( 2 * period_ ) ) < period_ )
-        genSignal_ = -amplitude_ + offset_;
+        s = -amplitude_ + offset_;
     else
-        genSignal_ = amplitude_ + offset_;
+        s = amplitude_ + offset_;
 
     // Set all channels to the same signal
-    std::fill(dPtr.begin(), dPtr.end(), genSignal_);
+    std::fill(dPtr.begin(), dPtr.end(), s);
 }
 
 void sce::StreamDataEmulator::getSawtoothWave(ris::FrameAccessor<fw_t> &dPtr)
@@ -289,10 +289,10 @@ void sce::StreamDataEmulator::getSawtoothWave(ris::FrameAccessor<fw_t> &dPtr)
     // period (2 * 'period_').
     // Note: The frame rate is 2*(flux ramp rate). That's why we are generating
     // a signal with a period (2 * 'period_').
-    genSignal_ = offset_ + (periodCounter_++ % (2*period_)) * amplitude_ / ( 2 * period_ - 1);
+    fw_t s = offset_ + (periodCounter_++ % (2*period_)) * amplitude_ / ( 2 * period_ - 1);
 
     // Set all channels to the same signal
-    std::fill(dPtr.begin(), dPtr.end(), genSignal_);
+    std::fill(dPtr.begin(), dPtr.end(), s);
 }
 
 void sce::StreamDataEmulator::genTriangleWave(ris::FrameAccessor<fw_t> &dPtr)
@@ -304,12 +304,12 @@ void sce::StreamDataEmulator::genTriangleWave(ris::FrameAccessor<fw_t> &dPtr)
     // offset of 'offset_' and with period (2 * 'period_').
     // Note: The frame rate is 2*(flux ramp rate). That's why we are generating
     // a signal with a period (2 * 'period_').
-    genSignal_ =
+    fw_t s =
         ( std::abs<fw_t>((periodCounter_++ % (2*period_)) - period_) )
         * 2 * amplitude_ / period_ - amplitude_ + offset_;
 
     // Set all channels to the same signal
-    std::fill(dPtr.begin(), dPtr.end(), genSignal_);
+    std::fill(dPtr.begin(), dPtr.end(), s);
 }
 
 void sce::StreamDataEmulator::genSinWave(ris::FrameAccessor<fw_t> &dPtr)
@@ -321,9 +321,9 @@ void sce::StreamDataEmulator::genSinWave(ris::FrameAccessor<fw_t> &dPtr)
     // offset of 'offset_' and with period (2 * 'period_').
     // Note: The frame rate is 2*(flux ramp rate). That's why we are generating
     // a signal with a period (2 * 'period_').
-    genSignal_ = amplitude_ * std::sin( 2 * M_PI * periodCounter_++ / ( 2 * period_ ) ) + offset_;
+    fw_t s = amplitude_ * std::sin( 2 * M_PI * periodCounter_++ / ( 2 * period_ ) ) + offset_;
 
     // Set all channels to the same signal
-    std::fill(dPtr.begin(), dPtr.end(), genSignal_);
+    std::fill(dPtr.begin(), dPtr.end(), s);
 }
 
