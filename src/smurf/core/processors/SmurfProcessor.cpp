@@ -29,7 +29,7 @@ scp::SmurfProcessor::SmurfProcessor()
     ris::Master(),
     frameBuffer(SmurfHeader<std::vector<uint8_t>::iterator>::SmurfHeaderSize + maxNumCh * sizeof(fw_t),0),
     numCh(maxNumCh),
-    payloadSize(numCh),
+    payloadSize(0),
     mask(numCh,0),
     disableUnwrapper(false),
     currentData(numCh, 0),
@@ -193,11 +193,6 @@ void scp::SmurfProcessor::updateNumCh()
     // Start with the size of the mask vector as the new size
     std::size_t newNumCh = mask.size();
 
-    // If the payload is defined and it is lower that the
-    // size of the mask vector, that will be out new size
-    if (payloadSize && payloadSize < newNumCh)
-       newNumCh = payloadSize;
-
     // If the new size if different from the current size, update it
     if (numCh != newNumCh)
     {
@@ -236,6 +231,7 @@ void scp::SmurfProcessor::resetUnwrapper()
     // they are potentially being resized.
     std::lock_guard<std::mutex> lockUnwrapper(mutUnwrapper);
 
+    std::vector<unwrap_t>(numCh).swap(inputData);
     std::vector<unwrap_t>(numCh).swap(wrapCounter);
 }
 
@@ -667,8 +663,9 @@ void scp::SmurfProcessor::pktTansmitter()
             // Request a new frame, to hold the same payload as the input frame
             std::size_t outFrameSize = SmurfHeader<std::vector<uint8_t>::iterator>::SmurfHeaderSize;
 
-            if (payloadSize)
-                // If the payload size was defined, used that number as the number of channel in the output frame.
+            if (payloadSize > numCh)
+                // If the payload size is greater that the number of channels, then reserved
+                // that number of channels in the output frame.
                 outFrameSize += payloadSize * sizeof(filter_t);
             else
                 // Otherwise, the size of the frame will only hold the number of channels
