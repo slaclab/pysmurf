@@ -89,7 +89,7 @@ namespace smurf
                 enum class SignalType { Zeros, ChannelNumber, Random, Square, Sawtooth, Triangle, Sine, Size };
 
                 // Maximum amplitud value (2^(#bit of fw_t - 1) - 1)
-+               const fw_t maxAmplitude = (1 << (8*sizeof(fw_t) - 1)) - 1;
+                const fw_t maxAmplitude = (1 << (8*sizeof(fw_t) - 1)) - 1;
 
                 // Signal generator methods
                 void genZeroWave(ris::FrameAccessor<fw_t> &dPtr)          const;
