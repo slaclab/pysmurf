@@ -224,16 +224,16 @@ void sce::StreamDataEmulator::genRandomWave(ris::FrameAccessor<fw_t> &dPtr) cons
         dPtr.at(i) = static_cast<fw_t>(dis(gen));
 }
 
-void sce::StreamDataEmulator::genSquareWave(ris::FrameAccessor<fw_t> &dPtr) const
+void sce::StreamDataEmulator::genSquareWave(ris::FrameAccessor<fw_t> &dPtr)
 {
     // Change to signal cycle when the period counter reach the selected period
     if (++periodCounter_ >= period_)
     {
         periodCounter_ = 0;
-        if (genSignal_ > offset)
-            genSignal_ = -amplitude_ + offset;
+        if (genSignal_ > offset_)
+            genSignal_ = -amplitude_ + offset_;
         else
-            genSignal_ = amplitude_ + offset;
+            genSignal_ = amplitude_ + offset_;
     }
 
     std::fill(dPtr.begin(), dPtr.end(), genSignal_);
