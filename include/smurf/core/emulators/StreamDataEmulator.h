@@ -93,7 +93,7 @@ namespace smurf
                 void genSquareWave(ris::FrameAccessor<fw_t> &dPtr);
                 void getSawtoothWave(ris::FrameAccessor<fw_t> &dPtr);
                 void genTriangleWave(ris::FrameAccessor<fw_t> &dPtr);
-                void genSinWave(ris::FrameAccessor<fw_t> &dPtr)           const;
+                void genSinWave(ris::FrameAccessor<fw_t> &dPtr);
 
                 // Logger
                 std::shared_ptr<rogue::Logging> eLog_;

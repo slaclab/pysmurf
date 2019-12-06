@@ -262,8 +262,15 @@ void sce::StreamDataEmulator::genTriangleWave(ris::FrameAccessor<fw_t> &dPtr)
         * 2 * amplitude_ / period_ - amplitude_ + offset_;
 }
 
-void sce::StreamDataEmulator::genSinWave(ris::FrameAccessor<fw_t> &dPtr) const
+void sce::StreamDataEmulator::genSinWave(ris::FrameAccessor<fw_t> &dPtr)
 {
+    // Generate a sine signal between [-'amplitude_', 'amplitude_'], with an
+    // offset of 'offset_' and with period (2 * 'period_').
+    // Note: The frame rate is 2*(flux ramp rate). That's why we are generating
+    // a signal with a period (2 * 'period_').
+    genSignal_ = amplitude_ * std::sin( 2 * M_PI * periodCounter_++ / ( 2 * period_ ) ) + offset_;
 
+    // Set all channels to the same signal
+    std::fill(dPtr.begin(), dPtr.end(), genSignal_);
 }
 
