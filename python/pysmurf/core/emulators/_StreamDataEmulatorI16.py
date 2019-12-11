@@ -2,11 +2,11 @@
 #-----------------------------------------------------------------------------
 # Title      : PySMuRF StreamDataEmulator
 #-----------------------------------------------------------------------------
-# File       : _StreamDataEmulator.py
+# File       : _StreamDataEmulatorI16.py
 # Created    : 2019-10-29
 #-----------------------------------------------------------------------------
 # Description:
-#    SMuRF Data Emulator
+#    SMuRF Data Emulator, with output data type Int16
 #-----------------------------------------------------------------------------
 # This file is part of the smurf software platform. It is subject to
 # the license terms in the LICENSE.txt file found in the top-level directory
@@ -21,11 +21,11 @@ import pyrogue
 import smurf
 import smurf.core.emulators
 
-class StreamDataEmulator(pyrogue.Device):
+class StreamDataEmulatorI16(pyrogue.Device):
     """
-    StreamDataEmulator Block
+    StreamDataEmulatorI16 Block
     """
-    def __init__(self, name="StreamDataEmulatorI16", description="SMURF Data Emulator, producing Int16", **kwargs):
+    def __init__(self, name="StreamDataEmulatorI16", description="SMURF Data Emulator, with output data type Int16", **kwargs):
         pyrogue.Device.__init__(self, name=name, description=description, **kwargs)
 
         self._emulator = smurf.core.emulators.StreamDataEmulatorI16()
