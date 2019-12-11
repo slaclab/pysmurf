@@ -44,7 +44,6 @@ class StreamDataEmulator(pyrogue.Device):
             name='Type',
             description='Set type of signal',
             mode='RW',
-            value=0,
             disp={
                 0 : 'Zeros',
                 1 : 'ChannelNumber',
@@ -84,7 +83,6 @@ class StreamDataEmulator(pyrogue.Device):
             description='Signal period, in multiples of flux ramp periods. Can not be set to zero (it is an uint32)',
             mode='RW',
             typeStr='UInt32',
-            value=1,
             localSet=lambda value: self._emulator.setPeriod(value),
             localGet=self._emulator.getPeriod))
 
