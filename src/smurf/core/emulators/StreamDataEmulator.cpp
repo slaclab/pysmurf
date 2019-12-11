@@ -43,7 +43,7 @@ sce::StreamDataEmulator<T>::StreamDataEmulator()
 }
 
 template <typename T>
-sce::StreamDataEmulatorPtr sce::StreamDataEmulator<T>::create()
+sce::StreamDataEmulatorPtr<T> sce::StreamDataEmulator<T>::create()
 {
     return std::make_shared< StreamDataEmulator<T> >();
 }
@@ -128,7 +128,7 @@ void sce::StreamDataEmulator<T>::setAmplitude(uT_t value)
 }
 
 template <typename T>
-const sce::StreamDataEmulator<T>::uT_t sce::StreamDataEmulator<T>::getAmplitude() const
+const typename sce::StreamDataEmulator<T>::uT_t sce::StreamDataEmulator<T>::getAmplitude() const
 {
     return amplitude_;
 }
