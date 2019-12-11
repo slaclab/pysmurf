@@ -36,7 +36,8 @@ sce::StreamDataEmulator::StreamDataEmulator()
     period_(1),
     periodCounter_(0),
     gen(rd()),
-    dis(-amplitude_ + offset_, amplitude_ + offset_)
+    dis(-amplitude_ + offset_, amplitude_ + offset_),
+    dropFrame_(false)
 {
 }
 
@@ -225,8 +226,20 @@ void sce::StreamDataEmulator::acceptFrame(ris::FramePtr frame)
                 case SignalType::Sine:
                     genSinWave(dPtr);
                     break;
+                case SignalType::DropFrame:
+                    genFrameDrop();
+                    break;
             }
         }
+    }
+
+
+    // If the drop frame flag is set, clear it and
+    // don't send the frame.
+    if (dropFrame_)
+    {
+        dropFrame_ = false;
+        return;
     }
 
     // Send frame outside of lock
@@ -337,3 +350,15 @@ void sce::StreamDataEmulator::genSinWave(ris::FrameAccessor<fw_t> &dPtr)
     std::fill(dPtr.begin(), dPtr.end(), s);
 }
 
+void sce::StreamDataEmulator::genFrameDrop()
+{
+    {
+        // Take th mutex before using the parameters
+        std::lock_guard<std::mutex> lock(mtx_);
+
+        // Set the flag to drop a frame when the specified number
+        // of frames have been received.
+        if !( periodCounter_++ % period_ )
+            dropFrame_ = true
+    }
+}

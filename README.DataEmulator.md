@@ -50,3 +50,7 @@ All channels in the incoming frame are set to the same triangle signal.
 A sine signal is generated with defined peak amplitude and period. The period is expressed as multiples of the flux ramp period.
 
 All channels in the incoming frame are set to the same sine signal.
+
+## Drop Frame
+
+When this mode is select, one frame will be dropped on each defined period.

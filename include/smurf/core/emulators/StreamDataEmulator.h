@@ -86,7 +86,7 @@ namespace smurf
 
             private:
                 // Types of signal
-                enum class SignalType { Zeros, ChannelNumber, Random, Square, Sawtooth, Triangle, Sine, Size };
+                enum class SignalType { Zeros, ChannelNumber, Random, Square, Sawtooth, Triangle, Sine, DropFrame, Size };
 
                 // Maximum amplitud value (2^(#bit of fw_t - 1) - 1)
                 const fw_t maxAmplitude = (1 << (8*sizeof(fw_t) - 1)) - 1;
@@ -99,6 +99,7 @@ namespace smurf
                 void getSawtoothWave(ris::FrameAccessor<fw_t> &dPtr);
                 void genTriangleWave(ris::FrameAccessor<fw_t> &dPtr);
                 void genSinWave(ris::FrameAccessor<fw_t> &dPtr);
+                void genFrameDrop();
 
                 // Logger
                 std::shared_ptr<rogue::Logging> eLog_;
@@ -112,7 +113,8 @@ namespace smurf
                 fw_t        amplitude_;     // Signal amplitude
                 fw_t        offset_;        // Signal offset
                 std::size_t period_;        // Signal period
-                std::size_t periodCounter_; // frame period counter
+                std::size_t periodCounter_; // Frame period counter
+                bool        dropFrame_;     // Flag to indicate if the frame should be dropped
 
                 // Variables use to generate random numbers
                 std::random_device                     rd;  // Will be used to obtain a seed for the random number engine
