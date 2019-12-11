@@ -35,6 +35,7 @@ sce::StreamDataEmulator<T>::StreamDataEmulator()
     amplitude_(maxAmplitude),
     offset_(0),
     period_(2),
+    halfPeriod_(1),
     periodCounter_(0),
     gen(rd()),
     dis(-amplitude_ + offset_, amplitude_ + offset_),
@@ -158,13 +159,17 @@ const T sce::StreamDataEmulator<T>::getOffset() const
 template <typename T>
 void sce::StreamDataEmulator<T>::setPeriod(std::size_t value)
 {
-    // The period value can not be zero
-    if (value)
+    // The period value must at least 2
+    if (value >= 2)
     {
         // Take th mutex before changing the parameters
         std::lock_guard<std::mutex> lock(mtx_);
 
+        // Update the period value
         period_ = value;
+
+        // Get the half period value, for convenience
+        halfPeriod_ = period_ / 2;
 
         // Rest the frame period counter
         periodCounter_ = 0;
@@ -298,7 +303,7 @@ void sce::StreamDataEmulator<T>::genSquareWave(ris::FrameAccessor<T> &dPtr)
 
         // Generate a square signal between [-'amplitude_', 'amplitude_'], with an
         // offset of 'offset_' and with period 'period_'.
-        if ( periodCounter_ < ( period_ / 2 ) )
+        if ( periodCounter_ < halfPeriod_ )
             s = -amplitude_ + offset_;
         else
             s = amplitude_ + offset_;
@@ -345,8 +350,8 @@ void sce::StreamDataEmulator<T>::genTriangleWave(ris::FrameAccessor<T> &dPtr)
 
         // Generate a triangle signal between [-'amplitude_', 'amplitude_'], with an
         // offset of 'offset_' and with period 'period_'.
-        s = ( std::abs<T>( periodCounter_ - ( period_ / 2 ) ) )
-            * 2 * amplitude_ / ( period_ / 2 ) - amplitude_ + offset_;
+        s = ( std::abs<T>( periodCounter_ - halfPeriod_ ) )
+            * 2 * amplitude_ / halfPeriod_ - amplitude_ + offset_;
 
         // Reset the period counter when it reaches the define period
         if ( ( ++periodCounter_ >= period_ ) )
