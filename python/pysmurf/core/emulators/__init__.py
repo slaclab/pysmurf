@@ -17,6 +17,7 @@
 # contained in the LICENSE.txt file.
 #-----------------------------------------------------------------------------
 
-from pysmurf.core.emulators._StreamDataEmulator import StreamDataEmulator
-from pysmurf.core.emulators._StreamDataSource   import StreamDataSource
-from pysmurf.core.emulators._DataFromFile       import DataFromFile
+from pysmurf.core.emulators._StreamDataEmulatorI16 import StreamDataEmulatorI16
+from pysmurf.core.emulators._StreamDataEmulatorI32 import StreamDataEmulatorI32
+from pysmurf.core.emulators._StreamDataSource      import StreamDataSource
+from pysmurf.core.emulators._DataFromFile          import DataFromFile

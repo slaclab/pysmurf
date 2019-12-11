@@ -10,49 +10,57 @@ The processing pipeline is describe in the following diagram:
 
 
 ```
- +---------------+
- | DataEmulator  |
- +-------+-------+
+ +-----------------+
+ | PreDataEmulator |
+ +--------+--------+
+          |
+  +-------+-------+
+  | FrameRxStats  |
+  +-------+-------+
+          |
+ +--------+--------+
+ | ChannelMapper   |
+ +--------+--------+
+          |
+   +------+------+
+   |  Unwrapper  |
+   +-----+-------+
          |
- +-------+-------+
- | FrameRxStats  |
- +-------+-------+
-         |
-+--------+--------+
-| ChannelMapper   |
-+--------+--------+
+    +----+----+
+    |  Filter |
+    +----+----+
          |
   +------+------+
-  |  Unwrapper  |
-  +-----+-------+
-        |
-   +----+----+
-   |  Filter |
-   +----+----+
-        |
- +------+------+
- | Downsampler |
- +------+------+
-        |
-+-------+-------+
-| Header2Smurf  |
-+-------+-------+
-        |
-        |
-        |
-        +-------------------+
-        |                   |
-  +-----+------+      +-----+-------+
-  | FileWriter |      | Transmitter |
-  +------------+      | (optional)  |
-                      +-------------+
+  | Downsampler |
+  +------+------+
+         |
+ +-------+-------+
+ | Header2Smurf  |
+ +-------+-------+
+         |
++--------+---------+
+| PostDataEmulator |
++--------+---------+
+         |
+         +-------------------+
+         |                   |
+   +-----+------+      +-----+-------+
+   | FileWriter |      | Transmitter |
+   +------------+      | (optional)  |
+                       +-------------+
 ```
 
 Each module in the diagram perform the following operations:
 
-### DataEmulator
+### DataEmulators
 
 Allows to replace the raw data in the incoming frame with emulated data.
+
+There are two data emulator block ins the processing chain:
+- **PreDataEmulator**: it is placed at the beginning of the chain, and it is used to replace the raw data coming from the firmware application before it goes into the processor blocks. It generates data of type `Int16`, to match the data type the firmware application generates.
+- **PostDataEmulator**: it is placed at the end of the chain, and it is used to replace the processed data at the output of the processor, before it goes to the FileWriter and the Transmitter. It generates data of type `Int32`, to match the data type the processor generates.
+
+Both emulator blocks provide the same functionality; the only difference is the type of data they produced
 
 This module can be disabled; the incoming frame will just pass through to the next block.
 

@@ -2,11 +2,11 @@
 #-----------------------------------------------------------------------------
 # Title      : PySMuRF StreamDataEmulator
 #-----------------------------------------------------------------------------
-# File       : _StreamDataEmulator.py
+# File       : _StreamDataEmulatorI16.py
 # Created    : 2019-10-29
 #-----------------------------------------------------------------------------
 # Description:
-#    SMuRF Data Emulator
+#    SMuRF Data Emulator, with output data type Int16
 #-----------------------------------------------------------------------------
 # This file is part of the smurf software platform. It is subject to
 # the license terms in the LICENSE.txt file found in the top-level directory
@@ -21,14 +21,14 @@ import pyrogue
 import smurf
 import smurf.core.emulators
 
-class StreamDataEmulator(pyrogue.Device):
+class StreamDataEmulatorI16(pyrogue.Device):
     """
-    StreamDataEmulator Block
+    StreamDataEmulatorI16 Block
     """
-    def __init__(self, name="StreamDataEmulator", description="SMURF Data Emulator", **kwargs):
+    def __init__(self, name="StreamDataEmulatorI16", description="SMURF Data Emulator, with output data type Int16", **kwargs):
         pyrogue.Device.__init__(self, name=name, description=description, **kwargs)
 
-        self._emulator = smurf.core.emulators.StreamDataEmulator()
+        self._emulator = smurf.core.emulators.StreamDataEmulatorI16()
 
         # Add "Disable" variable
         self.add(pyrogue.LocalVariable(
@@ -42,7 +42,7 @@ class StreamDataEmulator(pyrogue.Device):
         # Add "Mode" variable
         self.add(pyrogue.LocalVariable(
             name='Type',
-            description='Set type of signal',
+            description='Set type of signal.',
             mode='RW',
             disp={
                 0 : 'Zeros',
@@ -60,7 +60,7 @@ class StreamDataEmulator(pyrogue.Device):
         # Add "Amplitude" variable
         self.add(pyrogue.LocalVariable(
             name='Amplitude',
-            description='Signal peak amplitude (it is an uint16)',
+            description='Signal peak amplitude.',
             mode='RW',
             typeStr='UInt16',
             pollInterval=1,
@@ -70,7 +70,7 @@ class StreamDataEmulator(pyrogue.Device):
         # Add "Offset" variable
         self.add(pyrogue.LocalVariable(
             name='Offset',
-            description='Signal offset (it is an int16)',
+            description='Signal offset.',
             mode='RW',
             typeStr='Int16',
             pollInterval=1,
@@ -80,9 +80,9 @@ class StreamDataEmulator(pyrogue.Device):
         # Add "Period" variable
         self.add(pyrogue.LocalVariable(
             name='Period',
-            description='Signal period, in multiples of flux ramp periods. Can not be set to zero (it is an uint32)',
+            description='Signal period, in multiples of flux ramp periods. Can not be set to zero.',
             mode='RW',
-            typeStr='UInt32',
+            typeStr='UInt64',
             localSet=lambda value: self._emulator.setPeriod(value),
             localGet=self._emulator.getPeriod))
 

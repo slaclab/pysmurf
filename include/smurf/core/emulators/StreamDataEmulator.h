@@ -45,25 +45,27 @@ namespace smurf
     {
         namespace emulators
         {
+            template<typename T>
             class StreamDataEmulator;
-            typedef std::shared_ptr<StreamDataEmulator> StreamDataEmulatorPtr;
 
+            template<typename T>
+            using StreamDataEmulatorPtr = std::shared_ptr< StreamDataEmulator<T> >;
+
+            template<typename T>
             class StreamDataEmulator : public ris::Slave, public ris::Master
             {
             private:
                 // Data types
-                // - Data type from firmware
-                typedef int16_t fw_t;
-                // - Data type from firmware, in its unsigned version
-                typedef typename std::make_unsigned<fw_t>::type u_fw_t;
+                // - Data type from firmware (T), in its unsigned version
+                typedef typename std::make_unsigned<T>::type uT_t;
 
             public:
                 StreamDataEmulator();
                 ~StreamDataEmulator() {};
 
-                static StreamDataEmulatorPtr create();
+                static StreamDataEmulatorPtr<T> create();
 
-                static void setup_python();
+                static void setup_python(const std::string& name);
 
                 // Accept new frames
                 void acceptFrame(ris::FramePtr frame);
@@ -78,12 +80,12 @@ namespace smurf
                 const int getType() const;
 
                 // Set/Get signal amplitude
-                void         setAmplitude(u_fw_t value);
-                const u_fw_t getAmplitude() const;
+                void       setAmplitude(uT_t value);
+                const uT_t getAmplitude() const;
 
                 // Set/Get signal offset
-                void       setOffset(fw_t value);
-                const fw_t getOffset() const;
+                void    setOffset(T value);
+                const T getOffset() const;
 
                 // Set/Get  signal period
                 void              setPeriod(std::size_t value);
@@ -94,16 +96,16 @@ namespace smurf
                 enum class SignalType { Zeros, ChannelNumber, Random, Square, Sawtooth, Triangle, Sine, DropFrame, Size };
 
                 // Maximum amplitude value
-                const u_fw_t maxAmplitude = std::numeric_limits<u_fw_t>::max();
+                const uT_t maxAmplitude = std::numeric_limits<uT_t>::max();
 
                 // Signal generator methods
-                void genZeroWave(ris::FrameAccessor<fw_t> &dPtr)          const;
-                void genChannelNumberWave(ris::FrameAccessor<fw_t> &dPtr) const;
-                void genRandomWave(ris::FrameAccessor<fw_t> &dPtr);
-                void genSquareWave(ris::FrameAccessor<fw_t> &dPtr);
-                void getSawtoothWave(ris::FrameAccessor<fw_t> &dPtr);
-                void genTriangleWave(ris::FrameAccessor<fw_t> &dPtr);
-                void genSinWave(ris::FrameAccessor<fw_t> &dPtr);
+                void genZeroWave(ris::FrameAccessor<T> &dPtr)          const;
+                void genChannelNumberWave(ris::FrameAccessor<T> &dPtr) const;
+                void genRandomWave(ris::FrameAccessor<T> &dPtr);
+                void genSquareWave(ris::FrameAccessor<T> &dPtr);
+                void getSawtoothWave(ris::FrameAccessor<T> &dPtr);
+                void genTriangleWave(ris::FrameAccessor<T> &dPtr);
+                void genSinWave(ris::FrameAccessor<T> &dPtr);
                 void genFrameDrop();
 
                 // Logger
@@ -115,9 +117,10 @@ namespace smurf
                 // Variables
                 bool        disable_;       // Disable flag
                 SignalType  type_;          // signal type
-                u_fw_t      amplitude_;     // Signal amplitude
-                fw_t        offset_;        // Signal offset
+                uT_t        amplitude_;     // Signal amplitude
+                T           offset_;        // Signal offset
                 std::size_t period_;        // Signal period
+                std::size_t halfPeriod_;    // Signal half period
                 std::size_t periodCounter_; // Frame period counter
                 bool        dropFrame_;     // Flag to indicate if the frame should be dropped
 
