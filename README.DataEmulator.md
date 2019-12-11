@@ -33,7 +33,7 @@ Each channel is set to an uniformly distributed random number on the interval [`
 
 ### Square
 
-A square signal is generated withing the values `-amplitude + offset` and `amplitude + offset`, and defined period.
+A square signal, with a 50% duty cycle, is generated withing the values `-amplitude + offset` and `amplitude + offset`, and defined period.
 
 All channels in the incoming frame are set to the same square signal.
 
