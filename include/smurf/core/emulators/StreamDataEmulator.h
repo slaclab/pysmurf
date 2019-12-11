@@ -22,6 +22,7 @@
 **/
 
 #include <type_traits>
+#include <limits>
 #include <rogue/interfaces/stream/Frame.h>
 #include <rogue/interfaces/stream/FrameLock.h>
 #include <rogue/interfaces/stream/FrameIterator.h>
@@ -92,8 +93,8 @@ namespace smurf
                 // Types of signal
                 enum class SignalType { Zeros, ChannelNumber, Random, Square, Sawtooth, Triangle, Sine, DropFrame, Size };
 
-                // Maximum amplitude value (2^(#bit of fw_t ) - 1)
-                const u_fw_t maxAmplitude = (1 << (8*sizeof(fw_t))) - 1;
+                // Maximum amplitude value
+                const u_fw_t maxAmplitude = std::numeric_limits<u_fw_t>::max();
 
                 // Signal generator methods
                 void genZeroWave(ris::FrameAccessor<fw_t> &dPtr)          const;
