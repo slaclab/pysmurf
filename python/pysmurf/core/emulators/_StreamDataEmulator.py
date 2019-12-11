@@ -61,8 +61,10 @@ class StreamDataEmulator(pyrogue.Device):
         # Add "Amplitude" variable
         self.add(pyrogue.LocalVariable(
             name='Amplitude',
-            description='Signal peak amplitude (it is an uint15)',
+            description='Signal peak amplitude (it is an uint16)',
             mode='RW',
+            typeStr='UInt16',
+            pollInterval=1,
             localSet=lambda value: self._emulator.setAmplitude(value),
             localGet=self._emulator.getAmplitude))
 
@@ -72,7 +74,7 @@ class StreamDataEmulator(pyrogue.Device):
             description='Signal offset (it is an int16)',
             mode='RW',
             typeStr='Int16',
-            value=0,
+            pollInterval=1,
             localSet=lambda value: self._emulator.setOffset(value),
             localGet=self._emulator.getOffset))
 
