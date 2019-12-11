@@ -2,10 +2,14 @@
 
 The data emulator processing block present in the [SmurfProcessor](README.SmurfProcessor.md) allows to replace the raw data in the incoming frame with emulated data.
 
+There are different version of the data emulator, depending on the output data type:
+- To emulate the data coming from the firmware application, which generates `Int16` data, the emulator `StreamDataEmulatorI16` is used,
+- To emulate the processed data after the SmurfProcessor blocks, which generates `Int32` data, the emulator `StreamDataEmulatorI32` is used,
+
 The user can choose different types of emulated signals to be generated, as well as the following parameters:
-- Signal offset, with valid range [−32768, +32767].
-- Signal amplitude, with valid range [0, +65535].
-- Signal period, expressed as multiples of the flux ramp period.
+- **Signal offset**: it is of the same type as the output data, that is `Int16` or `Int32`.
+- **Signal amplitude**: it is of the same type as the output data, but on unsigned version, that is `UInt16` or `UInt32`.
+- **Signal period**: it is expressed as the number of incoming frames. It must be greater that `2`. For the the emulator that is placed at the output of the firmware application, this period will be expressed in term of the period of the received frames, which in turn is related to the flux ramp period. On the other hand, for the emulator that is placed at the output of the SmurfProcessor, this period will be expressed in terms of the downsampler periods.
 
 The meaning of each of these parameters for each type of signal is described in the following section.
 
@@ -29,28 +33,28 @@ Each channel is set to an uniformly distributed random number on the interval [`
 
 ### Square
 
-A square signal is generated withing the values `-amplitude + offset` and `amplitude + offset`, and defined period. The period is expressed as multiples of the flux ramp period.
+A square signal is generated withing the values `-amplitude + offset` and `amplitude + offset`, and defined period.
 
 All channels in the incoming frame are set to the same square signal.
 
 ### Sawtooth
 
-A sawtooth signal is generated withing the values `offset` and `amplitude + offset`, and defined period. The period is expressed as multiples of the flux ramp period.
+A sawtooth signal is generated withing the values `offset` and `amplitude + offset`, and defined period.
 
 All channels in the incoming frame are set to the same sawtooth signal.
 
 ### Triangle
 
-A triangle signal is generated withing the values `-amplitude + offset` and `amplitude + offset`, and defined period. The period is expressed as multiples of the flux ramp period.
+A triangle signal is generated withing the values `-amplitude + offset` and `amplitude + offset`, and defined period.
 
 All channels in the incoming frame are set to the same triangle signal.
 
 ### Sine
 
-A sine signal is generated with defined peak amplitude and period. The period is expressed as multiples of the flux ramp period.
+A sine signal is generated with defined peak amplitude and period.
 
 All channels in the incoming frame are set to the same sine signal.
 
 ### Drop Frame
 
-When this mode is select, one frame will be dropped on each defined period. The period is expressed as multiples of the flux ramp period.
+When this mode is select, one frame will be dropped on each defined period.

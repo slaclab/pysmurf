@@ -120,6 +120,7 @@ namespace smurf
                 uT_t        amplitude_;     // Signal amplitude
                 T           offset_;        // Signal offset
                 std::size_t period_;        // Signal period
+                std::size_t halfPeriod_;    // Signal half period
                 std::size_t periodCounter_; // Frame period counter
                 bool        dropFrame_;     // Flag to indicate if the frame should be dropped
 
