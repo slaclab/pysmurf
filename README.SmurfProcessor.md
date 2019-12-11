@@ -11,11 +11,11 @@ The processing pipeline is describe in the following diagram:
 
 ```
  +---------------+
- | FrameRxStats  |
+ | DataEmulator  |
  +-------+-------+
          |
  +-------+-------+
- | DataEmulator  |
+ | FrameRxStats  |
  +-------+-------+
          |
 +--------+--------+
@@ -50,12 +50,6 @@ The processing pipeline is describe in the following diagram:
 
 Each module in the diagram perform the following operations:
 
-### FrameRxStats
-
-Get statistics about the received frames from the firmware application, including number of frame received, number of lost frames, and number of received frames out of order.
-
-This module can be disabled; the incoming frame will just pass through to the next block.
-
 ### DataEmulator
 
 Allows to replace the raw data in the incoming frame with emulated data.
@@ -63,6 +57,12 @@ Allows to replace the raw data in the incoming frame with emulated data.
 This module can be disabled; the incoming frame will just pass through to the next block.
 
 For more details see [here](README.DataEmulator.md).
+
+### FrameRxStats
+
+Get statistics about the received frames from the firmware application, including number of frame received, number of lost frames, and number of received frames out of order.
+
+This module can be disabled; the incoming frame will just pass through to the next block.
 
 ### ChannelMapper
 

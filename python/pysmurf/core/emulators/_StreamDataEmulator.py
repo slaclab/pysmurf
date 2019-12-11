@@ -88,6 +88,12 @@ class StreamDataEmulator(pyrogue.Device):
             localSet=lambda value: self._emulator.setPeriod(value),
             localGet=self._emulator.getPeriod))
 
+    def getSmurfDevice(self):
+        """
+        Returns a reference to the underlying smurf device.
+        """
+        return self._emulator
+
     def _getStreamSlave(self):
         """
         Method called by streamConnect, streamTap and streamConnectBiDir to access slave.
