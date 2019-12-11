@@ -358,7 +358,7 @@ void sce::StreamDataEmulator::genFrameDrop()
 
         // Set the flag to drop a frame when the specified number
         // of frames have been received.
-        if ( !( periodCounter_++ % period_ ) )
+        if ( !( periodCounter_++ % ( 2 * period_ ) ) )
             dropFrame_ = true;
     }
 }
