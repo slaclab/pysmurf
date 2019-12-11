@@ -44,7 +44,6 @@ class StreamDataEmulator(pyrogue.Device):
             name='Type',
             description='Set type of signal',
             mode='RW',
-            value=0,
             disp={
                 0 : 'Zeros',
                 1 : 'ChannelNumber',
@@ -53,6 +52,7 @@ class StreamDataEmulator(pyrogue.Device):
                 4 : 'Sawtooth',
                 5 : 'Triangle',
                 6 : 'Sine',
+                7 : 'DropFrame',
             },
             localSet=lambda value: self._emulator.setType(value),
             localGet=self._emulator.getType))
@@ -60,10 +60,10 @@ class StreamDataEmulator(pyrogue.Device):
         # Add "Amplitude" variable
         self.add(pyrogue.LocalVariable(
             name='Amplitude',
-            description='Signal peak amplitude (it is an uint15)',
+            description='Signal peak amplitude (it is an uint16)',
             mode='RW',
-            typeStr='UInt15',
-            value=2**15-1,
+            typeStr='UInt16',
+            pollInterval=1,
             localSet=lambda value: self._emulator.setAmplitude(value),
             localGet=self._emulator.getAmplitude))
 
@@ -73,7 +73,7 @@ class StreamDataEmulator(pyrogue.Device):
             description='Signal offset (it is an int16)',
             mode='RW',
             typeStr='Int16',
-            value=0,
+            pollInterval=1,
             localSet=lambda value: self._emulator.setOffset(value),
             localGet=self._emulator.getOffset))
 
@@ -83,9 +83,14 @@ class StreamDataEmulator(pyrogue.Device):
             description='Signal period, in multiples of flux ramp periods. Can not be set to zero (it is an uint32)',
             mode='RW',
             typeStr='UInt32',
-            value=1,
             localSet=lambda value: self._emulator.setPeriod(value),
             localGet=self._emulator.getPeriod))
+
+    def getSmurfDevice(self):
+        """
+        Returns a reference to the underlying smurf device.
+        """
+        return self._emulator
 
     def _getStreamSlave(self):
         """

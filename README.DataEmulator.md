@@ -3,8 +3,8 @@
 The data emulator processing block present in the [SmurfProcessor](README.SmurfProcessor.md) allows to replace the raw data in the incoming frame with emulated data.
 
 The user can choose different types of emulated signals to be generated, as well as the following parameters:
-- Signal offset,
-- Signal amplitude,
+- Signal offset, with valid range [−32768, +32767].
+- Signal amplitude, with valid range [0, +65535].
 - Signal period, expressed as multiples of the flux ramp period.
 
 The meaning of each of these parameters for each type of signal is described in the following section.
@@ -50,3 +50,7 @@ All channels in the incoming frame are set to the same triangle signal.
 A sine signal is generated with defined peak amplitude and period. The period is expressed as multiples of the flux ramp period.
 
 All channels in the incoming frame are set to the same sine signal.
+
+### Drop Frame
+
+When this mode is select, one frame will be dropped on each defined period. The period is expressed as multiples of the flux ramp period.

@@ -21,6 +21,8 @@
  *-----------------------------------------------------------------------------
 **/
 
+#include <type_traits>
+#include <limits>
 #include <rogue/interfaces/stream/Frame.h>
 #include <rogue/interfaces/stream/FrameLock.h>
 #include <rogue/interfaces/stream/FrameIterator.h>
@@ -50,7 +52,10 @@ namespace smurf
             {
             private:
                 // Data types
-                typedef int16_t fw_t;   // Data type from firmware
+                // - Data type from firmware
+                typedef int16_t fw_t;
+                // - Data type from firmware, in its unsigned version
+                typedef typename std::make_unsigned<fw_t>::type u_fw_t;
 
             public:
                 StreamDataEmulator();
@@ -73,8 +78,8 @@ namespace smurf
                 const int getType() const;
 
                 // Set/Get signal amplitude
-                void       setAmplitude(fw_t value);
-                const fw_t getAmplitude() const;
+                void         setAmplitude(u_fw_t value);
+                const u_fw_t getAmplitude() const;
 
                 // Set/Get signal offset
                 void       setOffset(fw_t value);
@@ -86,10 +91,10 @@ namespace smurf
 
             private:
                 // Types of signal
-                enum class SignalType { Zeros, ChannelNumber, Random, Square, Sawtooth, Triangle, Sine, Size };
+                enum class SignalType { Zeros, ChannelNumber, Random, Square, Sawtooth, Triangle, Sine, DropFrame, Size };
 
-                // Maximum amplitud value (2^(#bit of fw_t - 1) - 1)
-                const fw_t maxAmplitude = (1 << (8*sizeof(fw_t) - 1)) - 1;
+                // Maximum amplitude value
+                const u_fw_t maxAmplitude = std::numeric_limits<u_fw_t>::max();
 
                 // Signal generator methods
                 void genZeroWave(ris::FrameAccessor<fw_t> &dPtr)          const;
@@ -99,6 +104,7 @@ namespace smurf
                 void getSawtoothWave(ris::FrameAccessor<fw_t> &dPtr);
                 void genTriangleWave(ris::FrameAccessor<fw_t> &dPtr);
                 void genSinWave(ris::FrameAccessor<fw_t> &dPtr);
+                void genFrameDrop();
 
                 // Logger
                 std::shared_ptr<rogue::Logging> eLog_;
@@ -109,10 +115,11 @@ namespace smurf
                 // Variables
                 bool        disable_;       // Disable flag
                 SignalType  type_;          // signal type
-                fw_t        amplitude_;     // Signal amplitude
+                u_fw_t      amplitude_;     // Signal amplitude
                 fw_t        offset_;        // Signal offset
                 std::size_t period_;        // Signal period
-                std::size_t periodCounter_; // frame period counter
+                std::size_t periodCounter_; // Frame period counter
+                bool        dropFrame_;     // Flag to indicate if the frame should be dropped
 
                 // Variables use to generate random numbers
                 std::random_device                     rd;  // Will be used to obtain a seed for the random number engine
