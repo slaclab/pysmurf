@@ -26,7 +26,8 @@
 namespace sce = smurf::core::emulators;
 namespace ris = rogue::interfaces::stream;
 
-sce::StreamDataEmulator::StreamDataEmulator()
+template <typename T>
+sce::StreamDataEmulator<T>::StreamDataEmulator()
 :
     eLog_(rogue::Logging::create("pysmurf.emulator")),
     disable_(true),
@@ -41,46 +42,51 @@ sce::StreamDataEmulator::StreamDataEmulator()
 {
 }
 
-sce::StreamDataEmulatorPtr sce::StreamDataEmulator::create()
+template <typename T>
+sce::StreamDataEmulatorPtr sce::StreamDataEmulator<T>::create()
 {
-    return std::make_shared<StreamDataEmulator>();
+    return std::make_shared< StreamDataEmulator<T> >();
 }
 
 // Setup Class in python
-void sce::StreamDataEmulator::setup_python()
+template <typename T>
+void sce::StreamDataEmulator<T>::setup_python(const std::string& name)
 {
-    bp::class_< sce::StreamDataEmulator,
-                sce::StreamDataEmulatorPtr,
+    bp::class_< sce::StreamDataEmulator<T>,
+                sce::StreamDataEmulatorPtr<T>,
                 bp::bases<ris::Slave,ris::Master>,
                 boost::noncopyable >
-                ("StreamDataEmulator",bp::init<>())
-        .def("setDisable",        &StreamDataEmulator::setDisable)
-        .def("getDisable",        &StreamDataEmulator::getDisable)
-        .def("setType",           &StreamDataEmulator::setType)
-        .def("getType",           &StreamDataEmulator::getType)
-        .def("setAmplitude",      &StreamDataEmulator::setAmplitude)
-        .def("getAmplitude",      &StreamDataEmulator::getAmplitude)
-        .def("setOffset",         &StreamDataEmulator::setOffset)
-        .def("getOffset",         &StreamDataEmulator::getOffset)
-        .def("setPeriod",         &StreamDataEmulator::setPeriod)
-        .def("getPeriod",         &StreamDataEmulator::getPeriod)
+                (name.c_str(), bp::init<>())
+        .def("setDisable",        &StreamDataEmulator<T>::setDisable)
+        .def("getDisable",        &StreamDataEmulator<T>::getDisable)
+        .def("setType",           &StreamDataEmulator<T>::setType)
+        .def("getType",           &StreamDataEmulator<T>::getType)
+        .def("setAmplitude",      &StreamDataEmulator<T>::setAmplitude)
+        .def("getAmplitude",      &StreamDataEmulator<T>::getAmplitude)
+        .def("setOffset",         &StreamDataEmulator<T>::setOffset)
+        .def("getOffset",         &StreamDataEmulator<T>::getOffset)
+        .def("setPeriod",         &StreamDataEmulator<T>::setPeriod)
+        .def("getPeriod",         &StreamDataEmulator<T>::getPeriod)
 
     ;
-    bp::implicitly_convertible< sce::StreamDataEmulatorPtr, ris::SlavePtr  >();
-    bp::implicitly_convertible< sce::StreamDataEmulatorPtr, ris::MasterPtr >();
+    bp::implicitly_convertible< sce::StreamDataEmulatorPtr<T>, ris::SlavePtr  >();
+    bp::implicitly_convertible< sce::StreamDataEmulatorPtr<T>, ris::MasterPtr >();
 }
 
-void sce::StreamDataEmulator::setDisable(bool d)
+template <typename T>
+void sce::StreamDataEmulator<T>::setDisable(bool d)
 {
     disable_ = d;
 }
 
-const bool sce::StreamDataEmulator::getDisable() const
+template <typename T>
+const bool sce::StreamDataEmulator<T>::getDisable() const
 {
     return disable_;
 }
 
-void sce::StreamDataEmulator::setType(int value)
+template <typename T>
+void sce::StreamDataEmulator<T>::setType(int value)
 {
     // Verify that the type is in range
     if (value < static_cast<int>(SignalType::Size))
@@ -95,12 +101,14 @@ void sce::StreamDataEmulator::setType(int value)
     }
 }
 
-const int sce::StreamDataEmulator::getType() const
+template <typename T>
+const int sce::StreamDataEmulator<T>::getType() const
 {
     return static_cast<int>(type_);
 }
 
-void sce::StreamDataEmulator::setAmplitude(u_fw_t value)
+template <typename T>
+void sce::StreamDataEmulator<T>::setAmplitude(uT_t value)
 {
     // The amplitude value can not be zero, nor higher that maxAmplitude
     if ((value) && (value <= maxAmplitude ) )
@@ -119,12 +127,14 @@ void sce::StreamDataEmulator::setAmplitude(u_fw_t value)
     }
 }
 
-const sce::StreamDataEmulator::u_fw_t sce::StreamDataEmulator::getAmplitude() const
+template <typename T>
+const sce::StreamDataEmulator<T>::uT_t sce::StreamDataEmulator<T>::getAmplitude() const
 {
     return amplitude_;
 }
 
-void sce::StreamDataEmulator::setOffset(fw_t value)
+template <typename T>
+void sce::StreamDataEmulator<T>::setOffset(T value)
 {
     // Take th mutex before changing the parameters
     std::lock_guard<std::mutex> lock(mtx_);
@@ -139,12 +149,14 @@ void sce::StreamDataEmulator::setOffset(fw_t value)
     periodCounter_ = 0;
 }
 
-const sce::StreamDataEmulator::fw_t sce::StreamDataEmulator::getOffset() const
+template <typename T>
+const T sce::StreamDataEmulator<T>::getOffset() const
 {
     return offset_;
 }
 
-void sce::StreamDataEmulator::setPeriod(std::size_t value)
+template <typename T>
+void sce::StreamDataEmulator<T>::setPeriod(std::size_t value)
 {
     // The period value can not be zero
     if (value)
@@ -159,12 +171,14 @@ void sce::StreamDataEmulator::setPeriod(std::size_t value)
     }
 }
 
-const std::size_t sce::StreamDataEmulator::getPeriod() const
+template <typename T>
+const std::size_t sce::StreamDataEmulator<T>::getPeriod() const
 {
     return period_;
 }
 
-void sce::StreamDataEmulator::acceptFrame(ris::FramePtr frame)
+template <typename T>
+void sce::StreamDataEmulator<T>::acceptFrame(ris::FramePtr frame)
 {
     {
         rogue::GilRelease noGil;
@@ -186,7 +200,7 @@ void sce::StreamDataEmulator::acceptFrame(ris::FramePtr frame)
             uint32_t numChannels { header->getNumberChannels() };
 
             // Check frame integrity.
-            if ( header->SmurfHeaderSize + (numChannels * sizeof(fw_t)) != frame->getPayload() )
+            if ( header->SmurfHeaderSize + (numChannels * sizeof(T)) != frame->getPayload() )
             {
                 eLog_->error("Received frame does not match expected size. Size=%i, header=%i, payload=%i",
                         frame->getPayload(), header->SmurfHeaderSize, numChannels*2);
@@ -199,8 +213,8 @@ void sce::StreamDataEmulator::acceptFrame(ris::FramePtr frame)
             // Jump over the header
             fPtr += header->SmurfHeaderSize;
 
-            // Create fw_t accessor to the data
-            ris::FrameAccessor<fw_t> dPtr(fPtr, numChannels);
+            // Create T accessor to the data
+            ris::FrameAccessor<T> dPtr(fPtr, numChannels);
 
             // Generate the type of signal selected
             switch(type_)
@@ -246,20 +260,23 @@ void sce::StreamDataEmulator::acceptFrame(ris::FramePtr frame)
     this->sendFrame(frame);
 }
 
-void sce::StreamDataEmulator::genZeroWave(ris::FrameAccessor<fw_t> &dPtr) const
+template <typename T>
+void sce::StreamDataEmulator<T>::genZeroWave(ris::FrameAccessor<T> &dPtr) const
 {
     // Set all channels to zero
     std::fill(dPtr.begin(), dPtr.end(), 0);
 }
 
-void sce::StreamDataEmulator::genChannelNumberWave(ris::FrameAccessor<fw_t> &dPtr) const
+template <typename T>
+void sce::StreamDataEmulator<T>::genChannelNumberWave(ris::FrameAccessor<T> &dPtr) const
 {
     // Set each channel to its channel number
     for (std::size_t i{0}; i < dPtr.size(); ++i)
         dPtr.at(i) = i;
 }
 
-void sce::StreamDataEmulator::genRandomWave(ris::FrameAccessor<fw_t> &dPtr)
+template <typename T>
+void sce::StreamDataEmulator<T>::genRandomWave(ris::FrameAccessor<T> &dPtr)
 {
     // Generated uniform distributed numbers for each channel
     // applying the selected amplitude and offset.
@@ -267,12 +284,13 @@ void sce::StreamDataEmulator::genRandomWave(ris::FrameAccessor<fw_t> &dPtr)
         // Use dis to transform the random unsigned int generated by gen into a
         // double in [-amplitude_ + offset, amplitude_ + offset).
         // Each call to dis(gen) generates a new random double.
-        dPtr.at(i) = static_cast<fw_t>(dis(gen));
+        dPtr.at(i) = static_cast<T>(dis(gen));
 }
 
-void sce::StreamDataEmulator::genSquareWave(ris::FrameAccessor<fw_t> &dPtr)
+template <typename T>
+void sce::StreamDataEmulator<T>::genSquareWave(ris::FrameAccessor<T> &dPtr)
 {
-    fw_t s;
+    T s;
 
     {
         // Take th mutex before using the parameters
@@ -296,9 +314,10 @@ void sce::StreamDataEmulator::genSquareWave(ris::FrameAccessor<fw_t> &dPtr)
     std::fill(dPtr.begin(), dPtr.end(), s);
 }
 
-void sce::StreamDataEmulator::getSawtoothWave(ris::FrameAccessor<fw_t> &dPtr)
+template <typename T>
+void sce::StreamDataEmulator<T>::getSawtoothWave(ris::FrameAccessor<T> &dPtr)
 {
-    fw_t s;
+    T s;
 
     {
         // Take th mutex before using the parameters
@@ -319,9 +338,10 @@ void sce::StreamDataEmulator::getSawtoothWave(ris::FrameAccessor<fw_t> &dPtr)
     std::fill(dPtr.begin(), dPtr.end(), s);
 }
 
-void sce::StreamDataEmulator::genTriangleWave(ris::FrameAccessor<fw_t> &dPtr)
+template <typename T>
+void sce::StreamDataEmulator<T>::genTriangleWave(ris::FrameAccessor<T> &dPtr)
 {
-    fw_t s;
+    T s;
 
     {
         // Take th mutex before using the parameters
@@ -331,7 +351,7 @@ void sce::StreamDataEmulator::genTriangleWave(ris::FrameAccessor<fw_t> &dPtr)
         // offset of 'offset_' and with period (2 * 'period_').
         // Note: The frame rate is 2*(flux ramp rate). That's why we are generating
         // a signal with a period (2 * 'period_').
-        s = ( std::abs<fw_t>((periodCounter_) - period_) )
+        s = ( std::abs<T>((periodCounter_) - period_) )
             * 2 * amplitude_ / period_ - amplitude_ + offset_;
 
         // Reset the period counter when it reaches the define period
@@ -343,9 +363,10 @@ void sce::StreamDataEmulator::genTriangleWave(ris::FrameAccessor<fw_t> &dPtr)
     std::fill(dPtr.begin(), dPtr.end(), s);
 }
 
-void sce::StreamDataEmulator::genSinWave(ris::FrameAccessor<fw_t> &dPtr)
+template <typename T>
+void sce::StreamDataEmulator<T>::genSinWave(ris::FrameAccessor<T> &dPtr)
 {
-    fw_t s;
+    T s;
 
     {
         // Take th mutex before using the parameters
@@ -362,7 +383,8 @@ void sce::StreamDataEmulator::genSinWave(ris::FrameAccessor<fw_t> &dPtr)
     std::fill(dPtr.begin(), dPtr.end(), s);
 }
 
-void sce::StreamDataEmulator::genFrameDrop()
+template <typename T>
+void sce::StreamDataEmulator<T>::genFrameDrop()
 {
     {
         // Take th mutex before using the parameters
@@ -377,3 +399,6 @@ void sce::StreamDataEmulator::genFrameDrop()
         }
     }
 }
+
+template class sce::StreamDataEmulator<int16_t>;
+template class sce::StreamDataEmulator<int32_t>;

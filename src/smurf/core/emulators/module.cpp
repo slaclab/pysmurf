@@ -37,6 +37,7 @@ void sce::setup_module()
     // set the current scope to the new sub-module
     bp::scope io_scope = module;
 
-    sce::StreamDataEmulator::setup_python();
+    sce::StreamDataEmulator<int16_t>::setup_python("StreamDataEmulatorI16");
+    sce::StreamDataEmulator<int32_t>::setup_python("StreamDataEmulatorI32");
     sce::StreamDataSource::setup_python();
 }

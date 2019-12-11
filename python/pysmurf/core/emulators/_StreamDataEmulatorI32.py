@@ -25,10 +25,10 @@ class StreamDataEmulator(pyrogue.Device):
     """
     StreamDataEmulator Block
     """
-    def __init__(self, name="StreamDataEmulator", description="SMURF Data Emulator", **kwargs):
+    def __init__(self, name="StreamDataEmulatorI32", description="SMURF Data Emulator, producing Int32", **kwargs):
         pyrogue.Device.__init__(self, name=name, description=description, **kwargs)
 
-        self._emulator = smurf.core.emulators.StreamDataEmulator()
+        self._emulator = smurf.core.emulators.StreamDataEmulatorI32()
 
         # Add "Disable" variable
         self.add(pyrogue.LocalVariable(
@@ -60,9 +60,9 @@ class StreamDataEmulator(pyrogue.Device):
         # Add "Amplitude" variable
         self.add(pyrogue.LocalVariable(
             name='Amplitude',
-            description='Signal peak amplitude (it is an uint16)',
+            description='Signal peak amplitude.',
             mode='RW',
-            typeStr='UInt16',
+            typeStr='UInt32',
             pollInterval=1,
             localSet=lambda value: self._emulator.setAmplitude(value),
             localGet=self._emulator.getAmplitude))
@@ -70,9 +70,9 @@ class StreamDataEmulator(pyrogue.Device):
         # Add "Offset" variable
         self.add(pyrogue.LocalVariable(
             name='Offset',
-            description='Signal offset (it is an int16)',
+            description='Signal offset.',
             mode='RW',
-            typeStr='Int16',
+            typeStr='Int32',
             pollInterval=1,
             localSet=lambda value: self._emulator.setOffset(value),
             localGet=self._emulator.getOffset))
@@ -80,9 +80,9 @@ class StreamDataEmulator(pyrogue.Device):
         # Add "Period" variable
         self.add(pyrogue.LocalVariable(
             name='Period',
-            description='Signal period, in multiples of flux ramp periods. Can not be set to zero (it is an uint32)',
+            description='Signal period, in multiples of flux ramp periods. Can not be set to zero.',
             mode='RW',
-            typeStr='UInt32',
+            typeStr='UInt64',
             localSet=lambda value: self._emulator.setPeriod(value),
             localGet=self._emulator.getPeriod))
 
