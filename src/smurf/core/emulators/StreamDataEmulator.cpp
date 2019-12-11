@@ -100,7 +100,7 @@ const int sce::StreamDataEmulator::getType() const
     return static_cast<int>(type_);
 }
 
-void sce::StreamDataEmulator::setAmplitude(fw_t value)
+void sce::StreamDataEmulator::setAmplitude(u_fw_t value)
 {
     // The amplitude value can not be zero, nor higher that maxAmplitude
     if ((value) && (value <= maxAmplitude ) )
@@ -119,7 +119,7 @@ void sce::StreamDataEmulator::setAmplitude(fw_t value)
     }
 }
 
-const sce::StreamDataEmulator::fw_t sce::StreamDataEmulator::getAmplitude() const
+const sce::StreamDataEmulator::u_fw_t sce::StreamDataEmulator::getAmplitude() const
 {
     return amplitude_;
 }
