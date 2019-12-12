@@ -1120,12 +1120,12 @@ class SmurfUtilMixin(SmurfBase):
             p_adc = p_adc[idx]
 
             fig = plt.figure(figsize=(9,9))
-	    ax1 = plt.subplot(2,1,1)
-	    ax1.plot(np.real(dat))
-	    ax1.plot(np.imag(dat))
-	    ax1.set_xlabel('Sample number')
-	    ax1.set_ylabel('Raw counts')
-	    ax1.set_title(timestamp)
+            ax1 = plt.subplot(2,1,1)
+            ax1.plot(np.real(dat))
+            ax1.plot(np.imag(dat))
+            ax1.set_xlabel('Sample number')
+            ax1.set_ylabel('Raw counts')
+            ax1.set_title(timestamp)
             ax2=plt.subplot(2,1,2)
             if plot_ylimits[0] is not None:
                 plt.ylim(plot_ylimits[0],plt.ylim()[1])
@@ -1212,12 +1212,12 @@ class SmurfUtilMixin(SmurfBase):
             p_dac = p_dac[idx]
 
             fig = plt.figure(figsize=(9,9))
-	    ax1 = plt.subplot(2,1,1)
-	    ax1.plot(np.real(dat))
-	    ax1.plot(np.imag(dat))
-	    ax1.set_xlabel('Sample number')
-	    ax1.set_ylabel('Raw counts')
-	    ax1.set_title(timestamp)
+            ax1 = plt.subplot(2,1,1)
+            ax1.plot(np.real(dat))
+            ax1.plot(np.imag(dat))
+            ax1.set_xlabel('Sample number')
+            ax1.set_ylabel('Raw counts')
+            ax1.set_title(timestamp)
             ax2 = plt.subplot(2,1,2)
             if plot_ylimits[0] is not None:
                 plt.ylim(plot_ylimits[0],plt.ylim()[1])
