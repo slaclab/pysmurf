@@ -1,9 +1,11 @@
+# Don't run inside pysmurf docker - run outside all dockers.
 import time
 import os
 import fcntl
 import sys
 import epics
 
+log_temperatures=False
 pause_btw_stages=True
 pause_btw_band_fills=False
 pause_btw_eta_scans=False
@@ -13,9 +15,9 @@ bands=range(8)
 shelfmanager='shm-smrf-sp01'
 
 #slots=[2,3,4]
-slots=[7]
+slots=[4]
 reset_rate_khz=10
-measure_full_band_response_after_setup=True
+measure_full_band_response_after_setup=False
 
 wait_before_setup_min=1
 wait_after_setup_min=1
@@ -134,11 +136,11 @@ server_ymls=os.path.join(output_dir,'{}'.format(int(ctime))+'_s{}.yml')
 amcc_dump_file=os.path.join(output_dir,'{}'.format(int(ctime))+'_amcc_dump.txt')
 amcc_dump_bsi_file=os.path.join(output_dir,'{}'.format(int(ctime))+'_amcc_dump_bsi.txt')
 
-print('-> Logging to {}.'.format(hardware_logfile))
-
 # start hardware logging
-for slot in slots:
-    start_hardware_logging(slot,hardware_logfile)
+if log_temperatures:
+    print('-> Logging to {}.'.format(hardware_logfile))    
+    for slot in slots:
+        start_hardware_logging(slot,hardware_logfile)
 
 if not skip_setup:
     print('-> Waiting {} min before setup.'.format(wait_before_setup_min))
@@ -171,10 +173,11 @@ else:
     time.sleep(wait_before_setup_sec)        
 
 if measure_full_band_response_after_setup:
-    print('-> Checking full band response to confirm RF is properly configured.')    
-    measure_full_band_response(slot)
-    wait_for_text_in_tmux(slot,"Done running full_band_response.py.")
-    input('-> Visually check the measured full band response before continuing ...')
+    for slot in slots:
+        print(f'-> Checking full band response to confirm RF is properly configured on slot {slot}.')    
+        measure_full_band_response(slot)
+        wait_for_text_in_tmux(slot,"Done running full_band_response.py.")
+        input(f'-> Visually check the measured full band response on slot {slot} before continuing ...')
     
 # fill bands, one at a time
 wait_btw_band_fills_sec=wait_btw_band_fills_min*60
@@ -241,8 +244,9 @@ for band in bands:
     add_tag_to_hardware_log(hardware_logfile,tag='b{}tracking_setup'.format(band))        
     for slot in slots:
         print('-> Running tracking setup on slot {}, band {}...'.format(slot,band))        
-        tracking_setup_band(slot,band)
+        tracking_setup_band(slot,band,reset_rate_khz)
         print('-> Waiting {} min after band {} tracking setup.'.format(wait_btw_eta_scans_min,band))
+        time.sleep(wait_btw_tracking_setups_sec)
 
 print('-> Tracking setup run on all bands on slot {}.'.format(slot))
         
@@ -262,23 +266,26 @@ write_atca_monitor_state(slots[0],atca_yml)
 #for slot in slots:
 #    write_carrier_config(slot,server_ymls.format(slot))
 
+# NOT WORKING, NOT SURE WHY
 # only need once
-print('-> Writing output of amcc_dump to {}.'.format(amcc_dump_file))
-amcc_dump(slots[0],amcc_dump_file,shelfmanager)
-print('-> Waiting 1 min.')
-time.sleep(60)
+#print('-> Writing output of amcc_dump to {}.'.format(amcc_dump_file))
+#amcc_dump(slots[0],amcc_dump_file,shelfmanager)
+#print('-> Waiting 1 min.')
+#time.sleep(60)
 
-print('-> Writing output of amcc_dump_bsi to {}.'.format(amcc_dump_bsi_file))
-amcc_dump_bsi(slots[0],amcc_dump_bsi_file,shelfmanager)
-print('-> Waiting 1 min.')
-time.sleep(60)
+# NOT WORKING, NOT SURE WHY
+#print('-> Writing output of amcc_dump_bsi to {}.'.format(amcc_dump_bsi_file))
+#amcc_dump_bsi(slots[0],amcc_dump_bsi_file,shelfmanager)
+#print('-> Waiting 1 min.')
+#time.sleep(60)
 
 for slot in slots:
     cmd='docker logs smurf_server_s%d 2>&1 %s/%d_s%ddockerlog.dat'%(slot,output_dir,ctime,slot)
     os.system(cmd)
     
 # stop hardware logging
-for slot in slots:
-    stop_hardware_logging(slot)
+if log_temperatures:
+    for slot in slots:
+        stop_hardware_logging(slot)
 
 
