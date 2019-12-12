@@ -1113,7 +1113,7 @@ class SmurfUtilMixin(SmurfBase):
             import scipy.signal as signal
             digitizer_frequency_mhz = self.get_digitizer_frequency_mhz()
             f, p_adc = signal.welch(dat, fs=digitizer_frequency_mhz, nperseg=data_length/2, return_onesided=False,detrend=False)
-            f_plot = f / 1.0E6
+            f_plot = f
 
             idx = np.argsort(f)
             f_plot = f_plot[idx]
@@ -1200,7 +1200,7 @@ class SmurfUtilMixin(SmurfBase):
             digitizer_frequency_mhz = self.get_digitizer_frequency_mhz()
             f, p_dac = signal.welch(dat, fs=digitizer_frequency_mhz, 
                 nperseg=data_length/2, return_onesided=False, detrend=False)
-            f_plot = f / 1.0E6
+            f_plot = f
 
             idx = np.argsort(f)
             f_plot = f_plot[idx]
