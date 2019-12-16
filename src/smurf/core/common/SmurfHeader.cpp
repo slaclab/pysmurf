@@ -30,6 +30,9 @@ SmurfHeaderRO<ris::FrameIterator>::SmurfHeaderRO(ris::FramePtr frame)
     headerIt(frame->beginRead()),
     tba(TesBiasArray<ris::FrameIterator>::create(headerIt + this->headerTESDACOffset))
 {
+    // Check if frame is at least the size of the header
+    if ( SmurfHeaderSize > frame->getPayload() )
+        throw std::runtime_error("Trying to construct a SmurfHeader object on a frame with size lower that the header size.");
 }
 
 template<>
@@ -38,6 +41,8 @@ SmurfHeaderRO<std::vector<uint8_t>::iterator>::SmurfHeaderRO(std::vector<uint8_t
     headerIt(buffer.begin()),
     tba(TesBiasArray<std::vector<uint8_t>::iterator>::create(headerIt + this->headerTESDACOffset))
 {
+    if ( SmurfHeaderSize > buffer->size() )
+        throw std::runtime_error("Trying to construct a SmurfHeader object on a frame with size lower that the header size.");
 }
 
 template<>
