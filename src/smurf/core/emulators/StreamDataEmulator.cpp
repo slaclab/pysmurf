@@ -191,6 +191,7 @@ void sce::StreamDataEmulator<T>::acceptFrame(ris::FramePtr frame)
         // Only process the frame is the block is enable.
         if (!disable_)
         {
+            // Acquire lock on frame
             ris::FrameLockPtr fLock = frame->lock();
 
             // Make sure the frame is a single buffer, copy if necessary
@@ -200,15 +201,28 @@ void sce::StreamDataEmulator<T>::acceptFrame(ris::FramePtr frame)
                 return;
             }
 
+            // Get the frame size
+            std::size_t frameSize = frame->getPayload();
+
+            // Check for frames with errors, flags, of size less than at least the header size
+            if (  frame->getError() ||
+                ( frame->getFlags() & 0x100 ) ||
+                ( frameSize < SmurfHeaderRO<ris::FrameIterator>::SmurfHeaderSize ) )
+            {
+                eLog_->error("Received frame with size lower than the header size. Frame size=%zu, Header size=%zu",
+                    frameSize, frameSize < SmurfHeaderRO<ris::FrameIterator>::SmurfHeaderSize);
+                return;
+            }
+
             // Read the number of channel from the header header
             SmurfHeaderROPtr<ris::FrameIterator> header = SmurfHeaderRO<ris::FrameIterator>::create(frame);
             uint32_t numChannels { header->getNumberChannels() };
 
             // Check frame integrity.
-            if ( header->SmurfHeaderSize + (numChannels * sizeof(T)) != frame->getPayload() )
+            if ( header->SmurfHeaderSize + (numChannels * sizeof(T)) != frameSize )
             {
-                eLog_->error("Received frame does not match expected size. Size=%i, header=%i, payload=%i",
-                        frame->getPayload(), header->SmurfHeaderSize, numChannels*2);
+                eLog_->error("Received frame does not match expected size. Size=%zu, header=%zu, payload=%i",
+                        frameSize, header->SmurfHeaderSize, numChannels*2);
                 return;
             }
 
