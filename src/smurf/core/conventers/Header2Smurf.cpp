@@ -78,6 +78,14 @@ void scc::Header2Smurf::acceptFrame(ris::FramePtr frame)
     // If the processing block is disabled, do not process the frame
     if (!disable)
     {
+        // Check for frames with errors, flags, of size less than at least the header size
+        if (  frame->getError() ||
+            ( frame->getFlags() & 0x100 ) ||
+            ( frame->getPayload() < SmurfHeaderRO<ris::FrameIterator>::SmurfHeaderSize ) )
+        {
+            return;
+        }
+
         // Create a SmurfHeader object on the frame
         SmurfHeaderPtr<ris::FrameIterator> smurfHeaderOut(SmurfHeader<ris::FrameIterator>::create(frame));
 
