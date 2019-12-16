@@ -91,6 +91,9 @@ namespace smurf
                 std::size_t badFrameCnt;       // Number of frames with errors
                 std::size_t frameNumber;       // Current frame number
                 std::size_t prevFrameNumber;   // Last frame number
+
+                // Logger
+                std::shared_ptr<rogue::Logging> eLog_;
             };
         }
     }

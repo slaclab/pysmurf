@@ -35,7 +35,8 @@ scc::FrameStatistics::FrameStatistics()
     frameOutOrderCnt(0),
     badFrameCnt(0),
     frameNumber(0),
-    prevFrameNumber(0)
+    prevFrameNumber(0),
+    eLog_(rogue::Logging::create("pysmurf.FrameStatistics"))
 {
 }
 
@@ -118,19 +119,28 @@ void scc::FrameStatistics::acceptFrame(ris::FramePtr frame)
         // Acquire lock on frame.
         ris::FrameLockPtr lock{frame->lock()};
 
+        // Check for errors in the frame:
+
+        // - Check for frames with errors or flags
+        if (  frame->getError() || ( frame->getFlags() & 0x100 ) )
+        {
+            ++badFrameCnt;
+            eLog_->error("Received frame with errors and/or flags");
+            return;
+        }
+
         // Get the frame size
         frameSize = frame->getPayload();
 
-        // Check for errors in the frame:
-
-        // - Check for frames with errors, flags, of size less than at least the header size
-        if (  frame->getError() ||
-            ( frame->getFlags() & 0x100 ) ||
-            ( frameSize < SmurfHeaderRO<ris::FrameIterator>::SmurfHeaderSize ) )
+        // - Check for frames with size less than at least the header size
+        if ( frameSize < SmurfHeaderRO<ris::FrameIterator>::SmurfHeaderSize )
         {
             ++badFrameCnt;
+            eLog_->error("Received frame with size lower than the header size. Frame size=%zu, Header size=%zu",
+                frameSize, SmurfHeaderRO<ris::FrameIterator>::SmurfHeaderSize);
             return;
         }
+
 
         // - The frame has at least the header, so we can construct a (smart) pointer to
         //   the SMuRF header in the input frame (Read-only)

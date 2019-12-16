@@ -52,7 +52,8 @@ scp::SmurfProcessor::SmurfProcessor()
     dataCopy(numCh * sizeof(filter_t), 0),
     runTxThread(true),
     txDataReady(false),
-    pktTransmitterThread(std::thread( &SmurfProcessor::pktTansmitter, this ))
+    pktTransmitterThread(std::thread( &SmurfProcessor::pktTansmitter, this )),
+    eLog_(rogue::Logging::create("pysmurf.SmurfProcessor"))
 {
     if( pthread_setname_np( pktTransmitterThread.native_handle(), "pktTransmitter" ) )
         perror( "pthread_setname_np failed for pktTransmitterThread thread" );
@@ -480,7 +481,8 @@ void scp::SmurfProcessor::acceptFrame(ris::FramePtr frame)
         // Check for frames with errors or flags
         if ( frame->getError() || ( frame->getFlags() & 0x100 ) )
         {
-            return
+            eLog_->error("Received frame with errors and/or flags");
+            return;
         }
 
         // Get the frame size
@@ -489,6 +491,8 @@ void scp::SmurfProcessor::acceptFrame(ris::FramePtr frame)
         // Check if the frame size is lower than the header size
         if ( frameSize < SmurfHeader<std::vector<uint8_t>::iterator>::SmurfHeaderSize )
         {
+            eLog_->error("Received frame with size lower than the header size. Frame size=%zu, Header size=%zu",
+                frameSize, SmurfHeader<std::vector<uint8_t>::iterator>::SmurfHeaderSize);
             return;
         }
 

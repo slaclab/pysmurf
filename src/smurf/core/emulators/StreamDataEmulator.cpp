@@ -214,7 +214,7 @@ void sce::StreamDataEmulator<T>::acceptFrame(ris::FramePtr frame)
             if ( frameSize < SmurfHeaderRO<ris::FrameIterator>::SmurfHeaderSize )
             {
                 eLog_->error("Received frame with size lower than the header size. Frame size=%zu, Header size=%zu",
-                    frameSize, frameSize < SmurfHeaderRO<ris::FrameIterator>::SmurfHeaderSize);
+                    frameSize, SmurfHeaderRO<ris::FrameIterator>::SmurfHeaderSize);
                 return;
             }
 

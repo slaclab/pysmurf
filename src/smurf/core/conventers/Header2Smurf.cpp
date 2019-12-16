@@ -29,7 +29,8 @@ scc::Header2Smurf::Header2Smurf()
     ris::Master(),
     disable(false),
     tesBias(TesBiasArray<std::vector<uint8_t>::iterator>::TesBiasBufferSize, 0),
-    tba(TesBiasArray<std::vector<uint8_t>::iterator>::create(tesBias.begin()))
+    tba(TesBiasArray<std::vector<uint8_t>::iterator>::create(tesBias.begin())),
+    eLog_(rogue::Logging::create("pysmurf.Header2Smurf"))
 {
 }
 
@@ -78,11 +79,21 @@ void scc::Header2Smurf::acceptFrame(ris::FramePtr frame)
     // If the processing block is disabled, do not process the frame
     if (!disable)
     {
-        // Check for frames with errors, flags, of size less than at least the header size
-        if (  frame->getError() ||
-            ( frame->getFlags() & 0x100 ) ||
-            ( frame->getPayload() < SmurfHeaderRO<ris::FrameIterator>::SmurfHeaderSize ) )
+        // Check for frames with errors or flags
+        if (  frame->getError() || ( frame->getFlags() & 0x100 ) )
         {
+            eLog_->error("Received frame with errors and/or flags");
+            return;
+        }
+
+        // Get the frame size
+        std::szie_t frameSize { frame->getPayload() };
+
+        // Check for frames with size less than at least the header size
+        if ( frameSize < SmurfHeaderRO<ris::FrameIterator>::SmurfHeaderSize )
+        {
+            eLog_->error("Received frame with size lower than the header size. Frame size=%zu, Header size=%zu",
+                frameSize, SmurfHeaderRO<ris::FrameIterator>::SmurfHeaderSize);
             return;
         }
 

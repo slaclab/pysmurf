@@ -153,6 +153,9 @@ namespace smurf
                 //** METHOD **//
                 void                    pktTansmitter();        // Send frame to the next slave
 
+                // Logger
+                std::shared_ptr<rogue::Logging> eLog_;
+
 
             };
         }
