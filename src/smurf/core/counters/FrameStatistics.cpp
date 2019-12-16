@@ -135,7 +135,7 @@ void scc::FrameStatistics::acceptFrame(ris::FramePtr frame)
         SmurfHeaderROPtr<ris::FrameIterator> smurfHeaderIn(SmurfHeaderRO<ris::FrameIterator>::create(frame));
 
         // - Check if the frame size is correct
-        if ( ( SmurfHeaderRO<ris::FrameIterator>::SmurfHeaderSize + ( smurfHeaderIn->getNumberChannels() * sizeof(fw_t) ) ) != frame->getPayload() )
+        if ( ( SmurfHeaderRO<ris::FrameIterator>::SmurfHeaderSize + ( smurfHeaderIn->getNumberChannels() * sizeof(fw_t) ) ) != frameSize )
         {
             ++badFrameCnt;
             return;
