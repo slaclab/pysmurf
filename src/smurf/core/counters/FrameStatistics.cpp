@@ -124,7 +124,9 @@ void scc::FrameStatistics::acceptFrame(ris::FramePtr frame)
         // Check for errors in the frame:
 
         // - Check for frames with errors, flags, of size less than at least the header size
-        if ( frame->getError() || ( frame->getFlags() & 0x100 ) || ( frameSize < SmurfHeaderRO<ris::FrameIterator>::SmurfHeaderSize ) )
+        if (  frame->getError() ||
+            ( frame->getFlags() & 0x100 ) ||
+            ( frameSize < SmurfHeaderRO<ris::FrameIterator>::SmurfHeaderSize ) )
         {
             ++badFrameCnt;
             return;
