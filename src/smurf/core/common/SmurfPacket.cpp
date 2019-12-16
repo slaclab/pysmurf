@@ -44,7 +44,7 @@ SmurfPacketRO::SmurfPacketRO(ris::FramePtr frame)
     dataSize = headerPtr->getNumberChannels();
 
     // Check if the frame size is correct
-    if ( SmurfHeaderRO<std::vector<uint8_t>::iterator>::SmurfHeaderSize + ( dataSize * sizeof(int32_t) ) != frameSize )
+    if ( SmurfHeaderRO<std::vector<uint8_t>::iterator>::SmurfHeaderSize + ( dataSize * sizeof(data_t) ) != frameSize )
         throw std::runtime_error("Trying to construct a SmurfPacket object on a frame with bad size.");
 
     // Allocate space in the data vector to hold the data
@@ -55,7 +55,7 @@ SmurfPacketRO::SmurfPacketRO(ris::FramePtr frame)
 
     // Copy the data
     for (std::size_t i{0}; i < dataSize; ++i)
-        data.push_back( *(reinterpret_cast<int32_t*>( &(*(it + i * sizeof(int32_t)) ) ) ) );
+        data.push_back( *(reinterpret_cast<data_t*>( &(*(it + i * sizeof(data_t)) ) ) ) );
 }
 
 SmurfPacketROPtr SmurfPacketRO::create(ris::FramePtr frame)
