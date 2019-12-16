@@ -95,7 +95,7 @@ const std::size_t scc::FrameStatistics::getFrameOutOrderCnt() const
     return frameOutOrderCnt;
 }
 
-const std::size_t getBadFrameCnt() const
+const std::size_t scc::FrameStatistics::getBadFrameCnt() const
 {
     return badFrameCnt;
 }
