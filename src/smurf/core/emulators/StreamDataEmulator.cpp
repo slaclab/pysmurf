@@ -29,7 +29,7 @@ namespace ris = rogue::interfaces::stream;
 template <typename T>
 sce::StreamDataEmulator<T>::StreamDataEmulator()
 :
-    eLog_(rogue::Logging::create("pysmurf.emulator")),
+    eLog_(rogue::Logging::create("pysmurf.StreamDataEmulator")),
     disable_(true),
     type_(SignalType::Zeros),
     amplitude_(maxAmplitude),
@@ -202,20 +202,26 @@ void sce::StreamDataEmulator<T>::acceptFrame(ris::FramePtr frame)
             }
 
             // Get the frame size
-            std::size_t frameSize = frame->getPayload();
+            std::size_t frameSize { frame->getPayload() };
 
-            // Check for frames with errors, flags, of size less than at least the header size
-            if (  frame->getError() ||
-                ( frame->getFlags() & 0x100 ) ||
-                ( frameSize < SmurfHeaderRO<ris::FrameIterator>::SmurfHeaderSize ) )
+            // Check for frames with errors or flags
+            if ( frame->getError() || ( frame->getFlags() & 0x100 ) )
+            {
+                eLog_->error("Received frame with errors and/or flags");
+            }
+
+            // Check for frames with size less than at least the header size
+            if ( frameSize < SmurfHeaderRO<ris::FrameIterator>::SmurfHeaderSize )
             {
                 eLog_->error("Received frame with size lower than the header size. Frame size=%zu, Header size=%zu",
                     frameSize, frameSize < SmurfHeaderRO<ris::FrameIterator>::SmurfHeaderSize);
                 return;
             }
 
-            // Read the number of channel from the header header
+            // The frame has at least the header, so we can construct a (smart) pointer to it
             SmurfHeaderROPtr<ris::FrameIterator> header = SmurfHeaderRO<ris::FrameIterator>::create(frame);
+
+            // Read the number of channel from the header
             uint32_t numChannels { header->getNumberChannels() };
 
             // Check frame integrity.
