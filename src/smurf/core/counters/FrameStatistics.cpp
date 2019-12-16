@@ -134,7 +134,7 @@ void scc::FrameStatistics::acceptFrame(ris::FramePtr frame)
         //   the SMuRF header in the input frame (Read-only)
         SmurfHeaderROPtr<ris::FrameIterator> smurfHeaderIn(SmurfHeaderRO<ris::FrameIterator>::create(frame));
 
-        // - Check if the frame size is correct
+        // - Now we can get the number of channels from the header and check if the total frame size is correct
         if ( ( SmurfHeaderRO<ris::FrameIterator>::SmurfHeaderSize + ( smurfHeaderIn->getNumberChannels() * sizeof(fw_t) ) ) != frameSize )
         {
             ++badFrameCnt;
