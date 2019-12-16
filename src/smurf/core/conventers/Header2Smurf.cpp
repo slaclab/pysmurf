@@ -87,7 +87,7 @@ void scc::Header2Smurf::acceptFrame(ris::FramePtr frame)
         }
 
         // Get the frame size
-        std::szie_t frameSize { frame->getPayload() };
+        std::size_t frameSize { frame->getPayload() };
 
         // Check for frames with size less than at least the header size
         if ( frameSize < SmurfHeaderRO<ris::FrameIterator>::SmurfHeaderSize )

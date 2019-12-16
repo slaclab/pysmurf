@@ -471,7 +471,7 @@ void scp::SmurfProcessor::resetDownsampler()
 
 void scp::SmurfProcessor::acceptFrame(ris::FramePtr frame)
 {
-    size::size_t frameSize;
+    std::size_t frameSize;
 
     // Copy the frame into a STL container
     {
