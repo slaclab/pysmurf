@@ -114,14 +114,7 @@ const std::size_t scp::SmurfProcessor::getPayloadSize() const
 
 void scp::SmurfProcessor::setPayloadSize(std::size_t s)
 {
-
-    // Take the mutex before changing the mask vector
-    std::lock_guard<std::mutex> lockMap(mutChMapper);
-
     payloadSize = s;
-
-    // Update the number of mapped channels
-    updateNumCh();
 }
 
 void scp::SmurfProcessor::setMask(bp::list m)
