@@ -505,11 +505,12 @@ void scp::SmurfProcessor::acceptFrame(ris::FramePtr frame)
         return;
     }
 
+    // Acquire the channel mapper lock. We acquired here, so that is hold during the hold frame processing chain,
+    // to avoid the 'numCh' parameter to be changed during that time.
+    std::lock_guard<std::mutex> lockParam(mutChMapper);
+
     // Map and unwrap data at the same time
     {
-        // Acquire the lock while the channel map parameters are used.
-        std::lock_guard<std::mutex> lockParam(mutChMapper);
-
         // Move the current data to the previous data
         previousData.swap(currentData);
 
