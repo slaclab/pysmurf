@@ -76,10 +76,10 @@ This module can be disabled; the incoming frame will just pass through to the ne
 
 Maps data channels from the incoming frame to channels in the out frame, using the `Mask` variable.
 
-The `PayloadSize` variable allows set the output frame size:
+The `PayloadSize` variable allows to modify the output frame size:
 - If it is set to zero, the the output frame will contain only the number of channels defined in the `Mask` list,
 - If it is set to a number greater than the number of channels defined in the `Mask` list, then the output frame will be padded with random data,
-- If it is set to a number lower that the number of channels defined in the `Mask` lits, then the output frame will only contain the first `PayloadSize` channel of the `Mask` list.
+- If it is set to a number lower that the number of channels defined in the `Mask` lits, then it will be ignored.
 
 
 ### Unwrapper

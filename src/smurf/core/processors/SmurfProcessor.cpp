@@ -709,6 +709,7 @@ void scp::SmurfProcessor::pktTansmitter()
                 for(auto it = outData.begin(); it != outData.end(); ++it)
                     helpers::setWord<filter_t>(outFrameIt, i++, *it);
             }
+
             // Send the frame to the next slave.
             sendFrame(outFrame);
 
