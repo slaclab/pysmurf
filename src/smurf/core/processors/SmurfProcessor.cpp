@@ -260,7 +260,7 @@ void scp::SmurfProcessor::setOrder(std::size_t o)
 
         order = o;
 
-        // When the order it change, reset the filter
+        // When the order change, reset the filter
         resetFilter();
     }
 }
@@ -281,42 +281,32 @@ void scp::SmurfProcessor::setA(bp::list l)
 
     std::size_t listSize = len(l);
 
-    // Verify that the input list is not empty.
-    // If empty, set the coefficients vector to a = [1.0].
     if (listSize == 0)
     {
-        // This should go to a logger instead
-        std::cerr << "ERROR: Trying to set an empty set of a coefficients. Defaulting to 'a = [1.0]'"<< std::endl;
+        // Verify that the input list is not empty.
+        // If empty, set the coefficients vector to a = [1.0].
+        eLog_->error("Trying to set an empty set of a coefficients. Defaulting to 'a = [1.0]'");
         temp.push_back(1.0);
-        a.swap(temp);
-
-        return;
     }
-
-    // Verify that the first coefficient is not zero.
-    // if it is, set the coefficients vector to a = [1.0].
-    if (l[0] == 0)
+    else if (l[0] == 0)
     {
-        // This should go to a logger instead
-        std::cerr << "ERROR: The first a coefficient can not be zero. Defaulting to 'a = [1.0]'"<< std::endl;
+        // Verify that the first coefficient is not zero.
+        // if it is, set the coefficients vector to a = [1.0].
+        eLog_->error("The first a coefficient can not be zero. Defaulting to 'a = [1.0]'");
         temp.push_back(1.0);
-        a.swap(temp);
-        return;
     }
-
-    // Extract the coefficients coming from python into a temporal vector
-    for (std::size_t i{0}; i < listSize; ++i)
+    else
     {
-        temp.push_back(bp::extract<double>(l[i]));
+        // Extract the coefficients coming from python into a temporal vector
+        for (std::size_t i{0}; i < listSize; ++i)
+            temp.push_back(bp::extract<double>(l[i]));
     }
 
     // Update the a vector with the new values
     a.swap(temp);
 
-    // Check that the a coefficient vector size is at least 'order + 1'.
-    // If not, add expand it with zeros.
-    if ( a.size() < (order + 1) )
-        a.resize(order +  1, 0);
+    // When the coefficients change, reset the filter
+    resetFilter();
 }
 
 const bp::list scp::SmurfProcessor::getA() const
@@ -340,31 +330,25 @@ void scp::SmurfProcessor::setB(bp::list l)
 
     std::size_t listSize = len(l);
 
-    // Verify that the input list is not empty.
-    // If empty, set the coefficients vector to a = [0.0].
     if (listSize == 0)
     {
-        // This should go to a logger instead
-        std::cerr << "ERROR: Trying to set an empty set of a coefficients. Defaulting to 'b = [0.0]'"<< std::endl;
+        // Verify that the input list is not empty.
+        // If empty, set the coefficients vector to a = [0.0].
+        eLog_->error("ERROR: Trying to set an empty set of a coefficients. Defaulting to 'b = [0.0]'");
         temp.push_back(0.0);
-        b.swap(temp);
-
-        return;
     }
-
-    // Extract the coefficients coming from python into a temporal vector
-    for (std::size_t i{0}; i < len(l); ++i)
+    else
     {
-        temp.push_back(bp::extract<double>(l[i]));
+        // Extract the coefficients coming from python into a temporal vector
+        for (std::size_t i{0}; i < len(l); ++i)
+            temp.push_back(bp::extract<double>(l[i]));
     }
 
     // Update the a vector with the new values
     b.swap(temp);
 
-    // Check that the b coefficient vector size is at least 'order + 1'.
-    // If not, add expand it with zeros.
-    if ( b.size() < (order + 1) )
-        b.resize(order +  1, 0);
+    // When the coefficients change, reset the filter
+    resetFilter();
 }
 
 const bp::list scp::SmurfProcessor::getB() const
