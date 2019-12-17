@@ -164,7 +164,7 @@ void scc::FrameStatistics::acceptFrame(ris::FramePtr frame)
         {
             // Log error
             eLog_->error("Received frame does not match expected size. Received frame size=%zu. Minimum expected size: header=%zu + payload=%i",
-                        frameSize, header->SmurfHeaderSize, numChannels * sizeof(fw_t));
+                        frameSize, smurfHeaderIn->SmurfHeaderSize, numChannels * sizeof(fw_t));
 
             // Increase bad frame counter
             ++badFrameCnt;
