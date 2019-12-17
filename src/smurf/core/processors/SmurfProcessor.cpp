@@ -679,17 +679,22 @@ void scp::SmurfProcessor::pktTansmitter()
         }
         else
         {
-            // Request a new frame, to hold the same payload as the input frame
-            std::size_t outFrameSize = SmurfHeader<std::vector<uint8_t>::iterator>::SmurfHeaderSize;
+            // Output frame size. Start with the size of the header
+            std::size_t outFrameSize = SmurfHeaderRO<std::vector<uint8_t>::iterator>::SmurfHeaderSize;
 
-            if (payloadSize > numCh)
+            // Extract the number of channels from the passed header
+            SmurfHeaderROPtr<std::vector<uint8_t>::iterator> header { SmurfHeaderRO<std::vector<uint8_t>::iterator>::create(headerCopy) };
+            std::size_t numChannels { header->getNumberChannels() };
+
+            if (payloadSize > numChannels)
                 // If the payload size is greater that the number of channels, then reserved
                 // that number of channels in the output frame.
                 outFrameSize += payloadSize * sizeof(filter_t);
             else
                 // Otherwise, the size of the frame will only hold the number of channels
-                outFrameSize += numCh * sizeof(filter_t);
+                outFrameSize += numChannels * sizeof(filter_t);
 
+            // Request a new frame
             ris::FramePtr outFrame = reqFrame(outFrameSize, true);
             outFrame->setPayload(outFrameSize);
             ris::FrameIterator outFrameIt = outFrame->beginWrite();
