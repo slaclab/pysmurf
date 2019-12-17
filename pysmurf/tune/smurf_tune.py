@@ -389,7 +389,7 @@ class SmurfTuneMixin(SmurfBase):
 
         
     def plot_tune_summary(self, band, eta_scan=False, show_plot=False,
-                          save_plot=True, eta_width=.3, channels=None,
+                          save_plot=True, eta_width=.3, channel=None,
                           plot_summary=True):
         """
         Plots summary of tuning. Requires self.freq_resp to be filled.
@@ -410,7 +410,7 @@ class SmurfTuneMixin(SmurfBase):
         show_plot (bool) : Whether to display the plot. Default is False.
         save_plot (bool) : Whether to save the plot. Default is True.
         eta_width (float) : The width to plot in MHz.
-        channels (int list) : Which channels to plot.  Default is None,
+        channel (int list) : Which channels to plot.  Default is None,
                              which plots all available channels.
         plot_summary (bool) : Plot summary.
         """
@@ -749,7 +749,8 @@ class SmurfTuneMixin(SmurfBase):
         # Calculate the rolling median. This uses pandas.
         if rolling_med:
             import pandas as pd
-            med_amp = pd.Series(amp).rolling(window=window, center=True).median()
+            med_amp = pd.Series(amp).rolling(window=window, center=True,
+                                             min_periods=1).median()
         else:
             med_amp = np.median(amp) * np.ones(len(amp))
 
