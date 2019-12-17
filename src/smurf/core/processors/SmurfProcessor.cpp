@@ -491,7 +491,7 @@ void scp::SmurfProcessor::acceptFrame(ris::FramePtr frame)
         // Check if the frame size is lower than the header size
         if ( frameSize < SmurfHeader<std::vector<uint8_t>::iterator>::SmurfHeaderSize )
         {
-            eLog_->error("Received frame with size lower than the header size. Frame size=%zu, Header size=%zu",
+            eLog_->error("Received frame with size lower than the header size. Received frame size=%zu, expected header size=%zu",
                 frameSize, SmurfHeader<std::vector<uint8_t>::iterator>::SmurfHeaderSize);
             return;
         }
@@ -515,9 +515,13 @@ void scp::SmurfProcessor::acceptFrame(ris::FramePtr frame)
         return;
     }
 
-    // - Check if the frame size is correct
-    if ( header->SmurfHeaderSize + (numChannels * sizeof(fw_t)) != frameSize )
+    // - Check if the frame size is correct. The frame should have at least enough room to
+    //   hold the number of channels defined in its header. Padded frames are allowed.
+    if ( header->SmurfHeaderSize + (numChannels * sizeof(fw_t)) > frameSize )
     {
+        eLog_->error("Received frame does not match expected size. Received frame size=%zu. Minimum expected sizes: header=%zu, payload=%i",
+            frameSize, header->SmurfHeaderSize, numChannels * sizeof(fw_t));
+
         return;
     }
 

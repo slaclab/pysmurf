@@ -124,8 +124,12 @@ void scc::FrameStatistics::acceptFrame(ris::FramePtr frame)
         // - Check for frames with errors or flags
         if (  frame->getError() || ( frame->getFlags() & 0x100 ) )
         {
-            ++badFrameCnt;
+            // Log error
             eLog_->error("Received frame with errors and/or flags");
+
+            // Increase bad frame counter
+            ++badFrameCnt;
+
             return;
         }
 
@@ -135,9 +139,13 @@ void scc::FrameStatistics::acceptFrame(ris::FramePtr frame)
         // - Check for frames with size less than at least the header size
         if ( frameSize < SmurfHeaderRO<ris::FrameIterator>::SmurfHeaderSize )
         {
-            ++badFrameCnt;
-            eLog_->error("Received frame with size lower than the header size. Frame size=%zu, Header size=%zu",
+            // Log error
+            eLog_->error("Received frame with size lower than the header size. Receive frame size=%zu, expected header size=%zu",
                 frameSize, SmurfHeaderRO<ris::FrameIterator>::SmurfHeaderSize);
+
+            // Increase bad frame counter
+            ++badFrameCnt;
+
             return;
         }
 
@@ -146,10 +154,21 @@ void scc::FrameStatistics::acceptFrame(ris::FramePtr frame)
         //   the SMuRF header in the input frame (Read-only)
         SmurfHeaderROPtr<ris::FrameIterator> smurfHeaderIn(SmurfHeaderRO<ris::FrameIterator>::create(frame));
 
-        // - Now we can get the number of channels from the header and check if the total frame size is correct
-        if ( ( SmurfHeaderRO<ris::FrameIterator>::SmurfHeaderSize + ( smurfHeaderIn->getNumberChannels() * sizeof(fw_t) ) ) != frameSize )
+        // - Read the number of channel from the header
+        uint32_t numChannels { header->getNumberChannels() };
+
+        // - Now we can get the number of channels from the header and check if the total frame size is correct.
+        //   The frame should have at least enough room to hold the number of channels defined in its header.
+        //   Padded frames are allowed.
+        if ( ( SmurfHeaderRO<ris::FrameIterator>::SmurfHeaderSize + ( numChannels * sizeof(fw_t) ) ) > frameSize )
         {
+            // Log error
+            eLog_->error("Received frame does not match expected size. Received frame size=%zu. Minimum expected size: header=%zu + payload=%i",
+                        frameSize, header->SmurfHeaderSize, numChannels * sizeof(fw_t));
+
+            // Increase bad frame counter
             ++badFrameCnt;
+
             return;
         }
 
