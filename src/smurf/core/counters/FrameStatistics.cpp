@@ -155,7 +155,7 @@ void scc::FrameStatistics::acceptFrame(ris::FramePtr frame)
         SmurfHeaderROPtr<ris::FrameIterator> smurfHeaderIn(SmurfHeaderRO<ris::FrameIterator>::create(frame));
 
         // - Read the number of channel from the header
-        uint32_t numChannels { header->getNumberChannels() };
+        uint32_t numChannels { smurfHeaderIn->getNumberChannels() };
 
         // - Now we can get the number of channels from the header and check if the total frame size is correct.
         //   The frame should have at least enough room to hold the number of channels defined in its header.
