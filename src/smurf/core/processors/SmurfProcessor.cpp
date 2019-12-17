@@ -52,7 +52,8 @@ scp::SmurfProcessor::SmurfProcessor()
     dataCopy(numCh * sizeof(filter_t), 0),
     runTxThread(true),
     txDataReady(false),
-    pktTransmitterThread(std::thread( &SmurfProcessor::pktTansmitter, this ))
+    pktTransmitterThread(std::thread( &SmurfProcessor::pktTansmitter, this )),
+    eLog_(rogue::Logging::create("pysmurf.SmurfProcessor"))
 {
     if( pthread_setname_np( pktTransmitterThread.native_handle(), "pktTransmitter" ) )
         perror( "pthread_setname_np failed for pktTransmitterThread thread" );
@@ -470,16 +471,54 @@ void scp::SmurfProcessor::resetDownsampler()
 
 void scp::SmurfProcessor::acceptFrame(ris::FramePtr frame)
 {
+    std::size_t frameSize;
+
     // Copy the frame into a STL container
     {
         // Hold the frame lock
         ris::FrameLockPtr lockFrame{frame->lock()};
 
-        std::vector<uint8_t>::iterator outIt(frameBuffer.begin());
+        // Check for frames with errors or flags
+        if ( frame->getError() || ( frame->getFlags() & 0x100 ) )
+        {
+            eLog_->error("Received frame with errors and/or flags");
+            return;
+        }
+
+        // Get the frame size
+        frameSize = frame->getPayload();
+
+        // Check if the frame size is lower than the header size
+        if ( frameSize < SmurfHeader<std::vector<uint8_t>::iterator>::SmurfHeaderSize )
+        {
+            eLog_->error("Received frame with size lower than the header size. Frame size=%zu, Header size=%zu",
+                frameSize, SmurfHeader<std::vector<uint8_t>::iterator>::SmurfHeaderSize);
+            return;
+        }
 
         // Copy using BufferIterators in combination with std::copy for performance reasons
+        std::vector<uint8_t>::iterator outIt(frameBuffer.begin());
         for (ris::Frame::BufferIterator inIt=frame->beginBuffer(); inIt != frame->endBuffer(); ++inIt)
             outIt = std::copy((*inIt)->begin(), (*inIt)->endPayload(), outIt);
+    }
+
+    // Do sanity checks on the incoming frame
+    // - The frame has at least the header, so we can construct a (smart) pointer to it
+    SmurfHeaderPtr<std::vector<uint8_t>::iterator> header { SmurfHeader<std::vector<uint8_t>::iterator>::create(frameBuffer) };
+
+    // - Read the number of channel from the header
+    uint32_t numChannels { header->getNumberChannels() };
+
+    // - Check if the number of channels is lower than the maximum supported
+    if ( numChannels > maxNumCh )
+    {
+        return;
+    }
+
+    // - Check if the frame size is correct
+    if ( header->SmurfHeaderSize + (numChannels * sizeof(fw_t)) != frameSize )
+    {
+        return;
     }
 
     // Map and unwrap data at the same time
@@ -536,7 +575,6 @@ void scp::SmurfProcessor::acceptFrame(ris::FramePtr frame)
         }
 
         // Update the number of channels in the header
-        SmurfHeaderPtr<std::vector<uint8_t>::iterator> header{ SmurfHeader<std::vector<uint8_t>::iterator>::create(frameBuffer) };
         header->setNumberChannels(numCh);
     }
 

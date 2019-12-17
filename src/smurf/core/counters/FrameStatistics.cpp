@@ -33,8 +33,10 @@ scc::FrameStatistics::FrameStatistics()
     firstFrame(true),
     frameLossCnt(0),
     frameOutOrderCnt(0),
+    badFrameCnt(0),
     frameNumber(0),
-    prevFrameNumber(0)
+    prevFrameNumber(0),
+    eLog_(rogue::Logging::create("pysmurf.FrameStatistics"))
 {
 }
 
@@ -58,6 +60,7 @@ void scc::FrameStatistics::setup_python()
         .def("clearCnt",            &FrameStatistics::clearCnt)
         .def("getFrameLossCnt",     &FrameStatistics::getFrameLossCnt)
         .def("getFrameOutOrderCnt", &FrameStatistics::getFrameOutOrderCnt)
+        .def("getBadFrameCnt",      &FrameStatistics::getBadFrameCnt)
     ;
     bp::implicitly_convertible< scc::FrameStatisticsPtr, ris::SlavePtr  >();
     bp::implicitly_convertible< scc::FrameStatisticsPtr, ris::MasterPtr >();
@@ -93,11 +96,17 @@ const std::size_t scc::FrameStatistics::getFrameOutOrderCnt() const
     return frameOutOrderCnt;
 }
 
+const std::size_t scc::FrameStatistics::getBadFrameCnt() const
+{
+    return badFrameCnt;
+}
+
 void scc::FrameStatistics::clearCnt()
 {
     frameCnt         = 0;
     frameLossCnt     = 0;
     frameOutOrderCnt = 0;
+    badFrameCnt      = 0;
 }
 
 void scc::FrameStatistics::acceptFrame(ris::FramePtr frame)
@@ -107,17 +116,47 @@ void scc::FrameStatistics::acceptFrame(ris::FramePtr frame)
     // Only process the frame is the block is enable.
     if (!disable)
     {
-        // Update the frame counter
-        ++frameCnt;
-
         // Acquire lock on frame.
         ris::FrameLockPtr lock{frame->lock()};
 
-        //Update the last frame size
+        // Check for errors in the frame:
+
+        // - Check for frames with errors or flags
+        if (  frame->getError() || ( frame->getFlags() & 0x100 ) )
+        {
+            ++badFrameCnt;
+            eLog_->error("Received frame with errors and/or flags");
+            return;
+        }
+
+        // Get the frame size
         frameSize = frame->getPayload();
 
-        // (smart) pointer to the smurf header in the input frame (Read-only)
+        // - Check for frames with size less than at least the header size
+        if ( frameSize < SmurfHeaderRO<ris::FrameIterator>::SmurfHeaderSize )
+        {
+            ++badFrameCnt;
+            eLog_->error("Received frame with size lower than the header size. Frame size=%zu, Header size=%zu",
+                frameSize, SmurfHeaderRO<ris::FrameIterator>::SmurfHeaderSize);
+            return;
+        }
+
+
+        // - The frame has at least the header, so we can construct a (smart) pointer to
+        //   the SMuRF header in the input frame (Read-only)
         SmurfHeaderROPtr<ris::FrameIterator> smurfHeaderIn(SmurfHeaderRO<ris::FrameIterator>::create(frame));
+
+        // - Now we can get the number of channels from the header and check if the total frame size is correct
+        if ( ( SmurfHeaderRO<ris::FrameIterator>::SmurfHeaderSize + ( smurfHeaderIn->getNumberChannels() * sizeof(fw_t) ) ) != frameSize )
+        {
+            ++badFrameCnt;
+            return;
+        }
+
+        // At this point the frame is valid
+
+        // Update the frame counter
+        ++frameCnt;
 
         // Store the current and last frame numbers
         // - Previous frame number
