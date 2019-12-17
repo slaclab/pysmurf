@@ -92,7 +92,7 @@ void scc::Header2Smurf::acceptFrame(ris::FramePtr frame)
         // Check for frames with size less than at least the header size
         if ( frameSize < SmurfHeaderRO<ris::FrameIterator>::SmurfHeaderSize )
         {
-            eLog_->error("Received frame with size lower than the header size. Frame size=%zu, Header size=%zu",
+            eLog_->error("Received frame with size lower than the header size. Received frame size=%zu, expected header size=%zu",
                 frameSize, SmurfHeaderRO<ris::FrameIterator>::SmurfHeaderSize);
             return;
         }

@@ -49,7 +49,6 @@ scp::SmurfProcessor::SmurfProcessor()
     factor(20),
     sampleCnt(0),
     headerCopy(SmurfHeader<std::vector<uint8_t>::iterator>::SmurfHeaderSize, 0),
-    dataCopy(numCh * sizeof(filter_t), 0),
     runTxThread(true),
     txDataReady(false),
     pktTransmitterThread(std::thread( &SmurfProcessor::pktTansmitter, this )),
@@ -115,14 +114,7 @@ const std::size_t scp::SmurfProcessor::getPayloadSize() const
 
 void scp::SmurfProcessor::setPayloadSize(std::size_t s)
 {
-
-    // Take the mutex before changing the mask vector
-    std::lock_guard<std::mutex> lockMap(mutChMapper);
-
     payloadSize = s;
-
-    // Update the number of mapped channels
-    updateNumCh();
 }
 
 void scp::SmurfProcessor::setMask(bp::list m)
@@ -232,8 +224,10 @@ void scp::SmurfProcessor::resetUnwrapper()
     // they are potentially being resized.
     std::lock_guard<std::mutex> lockUnwrapper(mutUnwrapper);
 
-    std::vector<unwrap_t>(numCh).swap(inputData);
+    std::vector<fw_t>(numCh).swap(currentData);
+    std::vector<fw_t>(numCh).swap(previousData);
     std::vector<unwrap_t>(numCh).swap(wrapCounter);
+    std::vector<unwrap_t>(numCh).swap(inputData);
 }
 
 void scp::SmurfProcessor::setFilterDisable(bool d)
@@ -266,7 +260,7 @@ void scp::SmurfProcessor::setOrder(std::size_t o)
 
         order = o;
 
-        // When the order it change, reset the filter
+        // When the order change, reset the filter
         resetFilter();
     }
 }
@@ -287,42 +281,32 @@ void scp::SmurfProcessor::setA(bp::list l)
 
     std::size_t listSize = len(l);
 
-    // Verify that the input list is not empty.
-    // If empty, set the coefficients vector to a = [1.0].
     if (listSize == 0)
     {
-        // This should go to a logger instead
-        std::cerr << "ERROR: Trying to set an empty set of a coefficients. Defaulting to 'a = [1.0]'"<< std::endl;
+        // Verify that the input list is not empty.
+        // If empty, set the coefficients vector to a = [1.0].
+        eLog_->error("Trying to set an empty set of a coefficients. Defaulting to 'a = [1.0]'");
         temp.push_back(1.0);
-        a.swap(temp);
-
-        return;
     }
-
-    // Verify that the first coefficient is not zero.
-    // if it is, set the coefficients vector to a = [1.0].
-    if (l[0] == 0)
+    else if (l[0] == 0)
     {
-        // This should go to a logger instead
-        std::cerr << "ERROR: The first a coefficient can not be zero. Defaulting to 'a = [1.0]'"<< std::endl;
+        // Verify that the first coefficient is not zero.
+        // if it is, set the coefficients vector to a = [1.0].
+        eLog_->error("The first a coefficient can not be zero. Defaulting to 'a = [1.0]'");
         temp.push_back(1.0);
-        a.swap(temp);
-        return;
     }
-
-    // Extract the coefficients coming from python into a temporal vector
-    for (std::size_t i{0}; i < listSize; ++i)
+    else
     {
-        temp.push_back(bp::extract<double>(l[i]));
+        // Extract the coefficients coming from python into a temporal vector
+        for (std::size_t i{0}; i < listSize; ++i)
+            temp.push_back(bp::extract<double>(l[i]));
     }
 
     // Update the a vector with the new values
     a.swap(temp);
 
-    // Check that the a coefficient vector size is at least 'order + 1'.
-    // If not, add expand it with zeros.
-    if ( a.size() < (order + 1) )
-        a.resize(order +  1, 0);
+    // When the coefficients change, reset the filter
+    resetFilter();
 }
 
 const bp::list scp::SmurfProcessor::getA() const
@@ -346,31 +330,25 @@ void scp::SmurfProcessor::setB(bp::list l)
 
     std::size_t listSize = len(l);
 
-    // Verify that the input list is not empty.
-    // If empty, set the coefficients vector to a = [0.0].
     if (listSize == 0)
     {
-        // This should go to a logger instead
-        std::cerr << "ERROR: Trying to set an empty set of a coefficients. Defaulting to 'b = [0.0]'"<< std::endl;
+        // Verify that the input list is not empty.
+        // If empty, set the coefficients vector to a = [0.0].
+        eLog_->error("ERROR: Trying to set an empty set of a coefficients. Defaulting to 'b = [0.0]'");
         temp.push_back(0.0);
-        b.swap(temp);
-
-        return;
     }
-
-    // Extract the coefficients coming from python into a temporal vector
-    for (std::size_t i{0}; i < len(l); ++i)
+    else
     {
-        temp.push_back(bp::extract<double>(l[i]));
+        // Extract the coefficients coming from python into a temporal vector
+        for (std::size_t i{0}; i < len(l); ++i)
+            temp.push_back(bp::extract<double>(l[i]));
     }
 
     // Update the a vector with the new values
     b.swap(temp);
 
-    // Check that the b coefficient vector size is at least 'order + 1'.
-    // If not, add expand it with zeros.
-    if ( b.size() < (order + 1) )
-        b.resize(order +  1, 0);
+    // When the coefficients change, reset the filter
+    resetFilter();
 }
 
 const bp::list scp::SmurfProcessor::getB() const
@@ -491,7 +469,7 @@ void scp::SmurfProcessor::acceptFrame(ris::FramePtr frame)
         // Check if the frame size is lower than the header size
         if ( frameSize < SmurfHeader<std::vector<uint8_t>::iterator>::SmurfHeaderSize )
         {
-            eLog_->error("Received frame with size lower than the header size. Frame size=%zu, Header size=%zu",
+            eLog_->error("Received frame with size lower than the header size. Received frame size=%zu, expected header size=%zu",
                 frameSize, SmurfHeader<std::vector<uint8_t>::iterator>::SmurfHeaderSize);
             return;
         }
@@ -509,23 +487,30 @@ void scp::SmurfProcessor::acceptFrame(ris::FramePtr frame)
     // - Read the number of channel from the header
     uint32_t numChannels { header->getNumberChannels() };
 
-    // - Check if the number of channels is lower than the maximum supported
-    if ( numChannels > maxNumCh )
+    // - The incoming frame should have at least the supported maximum number of channels
+    if ( numChannels < maxNumCh )
     {
+         eLog_->error("Received frame with less channels that the maximum supported. Number of channels in received frame=%zu, supported maximum number of channels=%zu",
+            numChannels, maxNumCh);
         return;
     }
 
-    // - Check if the frame size is correct
-    if ( header->SmurfHeaderSize + (numChannels * sizeof(fw_t)) != frameSize )
+    // - Check if the frame size is correct. The frame should have at least enough room to
+    //   hold the number of channels defined in its header. Padded frames are allowed.
+    if ( header->SmurfHeaderSize + (numChannels * sizeof(fw_t)) > frameSize )
     {
+        eLog_->error("Received frame does not match expected size. Received frame size=%zu. Minimum expected sizes: header=%zu, payload=%i",
+            frameSize, header->SmurfHeaderSize, numChannels * sizeof(fw_t));
+
         return;
     }
+
+    // Acquire the channel mapper lock. We acquired here, so that is hold during the hold frame processing chain,
+    // to avoid the 'numCh' parameter to be changed during that time.
+    std::lock_guard<std::mutex> lockParam(mutChMapper);
 
     // Map and unwrap data at the same time
     {
-        // Acquire the lock while the channel map parameters are used.
-        std::lock_guard<std::mutex> lockParam(mutChMapper);
-
         // Move the current data to the previous data
         previousData.swap(currentData);
 
@@ -538,10 +523,6 @@ void scp::SmurfProcessor::acceptFrame(ris::FramePtr frame)
         // Map and unwrap data in a single loop
         for(auto const& m : mask)
         {
-            // Only process the first 'numCh' elements in the mask vector
-            if (i >= numCh)
-                break;
-
             // Get the mapped value from the framweBuffer and cast it
             // Reinterpret the bytes from the frameBuffer to 'fw_t' values. And the cast that value to 'unwrap_t' values
             currentData.at(i) = *(reinterpret_cast<fw_t*>(&(*( inIt + m * sizeof(fw_t) ))));
@@ -698,17 +679,22 @@ void scp::SmurfProcessor::pktTansmitter()
         }
         else
         {
-            // Request a new frame, to hold the same payload as the input frame
-            std::size_t outFrameSize = SmurfHeader<std::vector<uint8_t>::iterator>::SmurfHeaderSize;
+            // Output frame size. Start with the size of the header
+            std::size_t outFrameSize = SmurfHeaderRO<std::vector<uint8_t>::iterator>::SmurfHeaderSize;
 
-            if (payloadSize > numCh)
+            // Extract the number of channels from the passed header
+            SmurfHeaderROPtr<std::vector<uint8_t>::iterator> header { SmurfHeaderRO<std::vector<uint8_t>::iterator>::create(headerCopy) };
+            std::size_t numChannels { header->getNumberChannels() };
+
+            if (payloadSize > numChannels)
                 // If the payload size is greater that the number of channels, then reserved
                 // that number of channels in the output frame.
                 outFrameSize += payloadSize * sizeof(filter_t);
             else
                 // Otherwise, the size of the frame will only hold the number of channels
-                outFrameSize += numCh * sizeof(filter_t);
+                outFrameSize += numChannels * sizeof(filter_t);
 
+            // Request a new frame
             ris::FramePtr outFrame = reqFrame(outFrameSize, true);
             outFrame->setPayload(outFrameSize);
             ris::FrameIterator outFrameIt = outFrame->beginWrite();
@@ -723,6 +709,7 @@ void scp::SmurfProcessor::pktTansmitter()
                 for(auto it = outData.begin(); it != outData.end(); ++it)
                     helpers::setWord<filter_t>(outFrameIt, i++, *it);
             }
+
             // Send the frame to the next slave.
             sendFrame(outFrame);
 

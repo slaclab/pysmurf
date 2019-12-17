@@ -142,7 +142,6 @@ namespace smurf
                 std::size_t              sampleCnt;             // Sample counter
                 // Transmit thread
                 std::vector<uint8_t>     headerCopy;            // A copy of header to be send
-                std::vector<filter_t>    dataCopy;              // A copy of the data to be send
                 bool                     txDataReady;           // Flag to indicate new data is ready t be sent
                 std::atomic<bool>        runTxThread;           // Flag used to stop the thread
                 std::condition_variable  txCV;                  // Variable to notify the thread new data is ready

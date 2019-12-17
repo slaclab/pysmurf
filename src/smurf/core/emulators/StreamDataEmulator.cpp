@@ -213,7 +213,7 @@ void sce::StreamDataEmulator<T>::acceptFrame(ris::FramePtr frame)
             // Check for frames with size less than at least the header size
             if ( frameSize < SmurfHeaderRO<ris::FrameIterator>::SmurfHeaderSize )
             {
-                eLog_->error("Received frame with size lower than the header size. Frame size=%zu, Header size=%zu",
+                eLog_->error("Received frame with size lower than the header size. Received frame size=%zu, expected header size=%zu",
                     frameSize, SmurfHeaderRO<ris::FrameIterator>::SmurfHeaderSize);
                 return;
             }
@@ -224,11 +224,12 @@ void sce::StreamDataEmulator<T>::acceptFrame(ris::FramePtr frame)
             // Read the number of channel from the header
             uint32_t numChannels { header->getNumberChannels() };
 
-            // Check frame integrity.
-            if ( header->SmurfHeaderSize + (numChannels * sizeof(T)) != frameSize )
+            // Check frame integrity. The frame should have at least enough room to hold the number
+            // of channels defined in its header. Padded frames are allowed.
+            if ( header->SmurfHeaderSize + (numChannels * sizeof(T)) > frameSize )
             {
-                eLog_->error("Received frame does not match expected size. Size=%zu, header=%zu, payload=%i",
-                        frameSize, header->SmurfHeaderSize, numChannels*2);
+                eLog_->error("Received frame does not match expected size. Received frame size=%zu. Minimum expected sizes: header=%zu, payload=%i",
+                        frameSize, header->SmurfHeaderSize, numChannels * sizeof(T));
                 return;
             }
 

@@ -43,8 +43,9 @@ SmurfPacketRO::SmurfPacketRO(ris::FramePtr frame)
     // Get the number of data channels in the packet and reserve space in the data buffer
     dataSize = headerPtr->getNumberChannels();
 
-    // Check if the frame size is correct
-    if ( SmurfHeaderRO<std::vector<uint8_t>::iterator>::SmurfHeaderSize + ( dataSize * sizeof(data_t) ) != frameSize )
+    // Check if the frame size is at least enough to hold the number of channels defined in this header.
+    // Frame padded to increase its size are allowed.
+    if ( SmurfHeaderRO<std::vector<uint8_t>::iterator>::SmurfHeaderSize + ( dataSize * sizeof(data_t) ) > frameSize )
         throw std::runtime_error("Trying to construct a SmurfPacket object on a frame with bad size.");
 
     // Allocate space in the data vector to hold the data
