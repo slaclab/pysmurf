@@ -224,8 +224,10 @@ void scp::SmurfProcessor::resetUnwrapper()
     // they are potentially being resized.
     std::lock_guard<std::mutex> lockUnwrapper(mutUnwrapper);
 
-    std::vector<unwrap_t>(numCh).swap(inputData);
+    std::vector<fw_t>(numCh).swap(currentData);
+    std::vector<fw_t>(numCh).swap(previousData);
     std::vector<unwrap_t>(numCh).swap(wrapCounter);
+    std::vector<unwrap_t>(numCh).swap(inputData);
 }
 
 void scp::SmurfProcessor::setFilterDisable(bool d)
