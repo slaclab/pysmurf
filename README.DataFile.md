@@ -14,7 +14,7 @@ AMCc:StreamProcessor:FileWriter:DataFile       | RW   | Full path of the data fi
 AMCc:StreamProcessor:FileWriter:Open           | WO   | Open data file
 AMCc:StreamProcessor:FileWriter:Close          | WO   | Close data file
 AMCc:StreamProcessor:FileWriter:IsOpen         | RO   | Data file is open
-AMCc:StreamProcessor:FileWriter:BufferSize     | RO   | File buffering size. Enables caching of data before call to file system
+AMCc:StreamProcessor:FileWriter:BufferSize     | RW   | File buffering size. Enables caching of data before call to file system
 AMCc:StreamProcessor:FileWriter:MaxFileSize    | RW   | Maximum size for an individual file. Setting to a non zero splits the run data into multiple files
 AMCc:StreamProcessor:FileWriter:CurrentSize    | RO   | Size of current data files(s) for current open session in bytes
 AMCc:StreamProcessor:FileWriter:TotalSize      | RO   | Size of all data sub-files(s) for current open session in bytes
