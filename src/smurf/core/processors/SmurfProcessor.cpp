@@ -487,9 +487,11 @@ void scp::SmurfProcessor::acceptFrame(ris::FramePtr frame)
     // - Read the number of channel from the header
     uint32_t numChannels { header->getNumberChannels() };
 
-    // - Check if the number of channels is lower than the maximum supported
-    if ( numChannels > maxNumCh )
+    // - The incoming frame should have at least the supported maximum number of channels
+    if ( numChannels < maxNumCh )
     {
+         eLog_->error("Received frame with less channels that the maximum supported. Number of channels in received frame=%zu, supported maximum number of channels=%zu",
+            numChannels, maxNumCh);
         return;
     }
 
