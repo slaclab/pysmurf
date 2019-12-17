@@ -523,10 +523,6 @@ void scp::SmurfProcessor::acceptFrame(ris::FramePtr frame)
         // Map and unwrap data in a single loop
         for(auto const& m : mask)
         {
-            // Only process the first 'numCh' elements in the mask vector
-            if (i >= numCh)
-                break;
-
             // Get the mapped value from the framweBuffer and cast it
             // Reinterpret the bytes from the frameBuffer to 'fw_t' values. And the cast that value to 'unwrap_t' values
             currentData.at(i) = *(reinterpret_cast<fw_t*>(&(*( inIt + m * sizeof(fw_t) ))));
