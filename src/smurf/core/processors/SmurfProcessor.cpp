@@ -49,7 +49,6 @@ scp::SmurfProcessor::SmurfProcessor()
     factor(20),
     sampleCnt(0),
     headerCopy(SmurfHeader<std::vector<uint8_t>::iterator>::SmurfHeaderSize, 0),
-    dataCopy(numCh * sizeof(filter_t), 0),
     runTxThread(true),
     txDataReady(false),
     pktTransmitterThread(std::thread( &SmurfProcessor::pktTansmitter, this )),
