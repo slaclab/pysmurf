@@ -731,7 +731,8 @@ class SmurfTuneMixin(SmurfBase):
         # Calculate the rolling median. This uses pandas.
         if rolling_med:
             import pandas as pd
-            med_amp = pd.Series(amp).rolling(window=window, center=True).median()
+            med_amp = pd.Series(amp).rolling(window=window, center=True,
+                                             min_periods=1).median()
         else:
             med_amp = np.median(amp) * np.ones(len(amp))
 
@@ -1852,7 +1853,8 @@ class SmurfTuneMixin(SmurfBase):
         return f_sweep+sbc[subband], resp, eta
 
     def eta_estimator(self, band, freq, drive=10, f_sweep_half=.3, 
-                      df_sweep=.002, delta_freq=.01):
+                      df_sweep=.002, delta_freq=.01,
+                      lock_max_derivative=False):
         """
         Estimates eta parameters using the slow eta_scan
         """
@@ -1862,7 +1864,12 @@ class SmurfTuneMixin(SmurfBase):
         # resp = rr + 1.j*ii
         
         a_resp = np.abs(resp)
-        idx = np.ravel(np.where(a_resp == np.min(a_resp)))[0]
+        if lock_max_derivative:
+            self.log('Locking on max derivative instead of res min')
+            deriv = np.abs(np.diff(a_resp))
+            idx = np.ravel(np.where(deriv == np.max(deriv)))[0]
+        else:
+            idx = np.ravel(np.where(a_resp == np.min(a_resp)))[0]
         f0 = f_sweep[idx]
 
         try:
@@ -3109,7 +3116,8 @@ class SmurfTuneMixin(SmurfBase):
 
     def setup_notches(self, band, resonance=None, drive=None,
                       sweep_width=.3, df_sweep=.002, min_offset=0.1,
-                      delta_freq=None, new_master_assignment=False):
+                      delta_freq=None, new_master_assignment=False,
+                      lock_max_derivative=False):
         """
         Does a fine sweep over the resonances found in find_freq. This
         information is used for placing tones onto resonators. It is
@@ -3181,7 +3189,9 @@ class SmurfTuneMixin(SmurfBase):
             self.log('freq {:5.4f} - {} of {}'.format(f, i+1, n_res))
             freq, resp, eta = self.eta_estimator(band, f, drive,
                                                  f_sweep_half=sweep_width,
-                                                 df_sweep=df_sweep,delta_freq=delta_freq)
+                                                 df_sweep=df_sweep,
+                                                 delta_freq=delta_freq,
+                                                 lock_max_derivative=lock_max_derivative)
             eta_phase_deg = np.angle(eta)*180/np.pi
             eta_mag = np.abs(eta)
             eta_scaled = eta_mag / subband_half_width
