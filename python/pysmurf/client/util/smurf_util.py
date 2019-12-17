@@ -842,7 +842,7 @@ class SmurfUtilMixin(SmurfBase):
         
     def read_stream_data(self, datafile, channel=None,
         n_samp=None, array_size=None, return_header=False,
-        write_log=True, n_max=2048):
+        return_tes_bias=False, write_log=True, n_max=2048):
         """
         Loads data taken with the function stream_data_on.
         Gives back the resonator data in units of phase. Also
@@ -860,7 +860,9 @@ class SmurfUtilMixin(SmurfBase):
         array_size (int) : The size of the output arrays. If 0, then 
             the size will be the number of channels in the data file.
         return_header (bool) : Whether to also read in the header
-            and return the header data.
+            and return the header data. Returning the full header
+            is slow for large files. This overrides return_tes_bias.
+        return_tes_bias (bool) : Whether to return the TES bias.
         write_log (bool) : Whether to write outputs to the log
             file. Default True.
         n_max (int) : The number of elements to read in before appending
@@ -883,19 +885,12 @@ class SmurfUtilMixin(SmurfBase):
 
         if channel is not None:
             self.log('Only reading channel {}'.format(channel))
-            
-        eval_n_samp = False
-        if n_samp is not None:
-            eval_n_samp = True
 
         # Flag to indicate we are about the read the fist frame from the disk
         # The number of channel will be extracted from the first frame and the
         # data structures will be build based on that
         first_read = True
-
-        # Maximum number of elements to read before appending
-        
-        
+    
         with SmurfStreamReader(datafile,
             isRogue=True, metaEnable=True) as file:
 
@@ -923,35 +918,63 @@ class SmurfUtilMixin(SmurfBase):
                     t = np.array([])
                     
                     # Get header values if requested
-                    if return_header:
+                    if return_header or return_tes_bias:
+                        tmp_header_dict = {}
                         header_dict = {}
                         for i, h in enumerate(header._fields):
-                            header_dict[h] = np.array(header[i])
+                            tmp_header_dict[h] = np.array(header[i])
+                            header_dict[h] = np.array([],
+                                                      dtype=type(header[i]))
 
+                    if return_tes_bias:
+                        tes_bias = np.array((0, 15)) # 15 bias DACs
+                            
                     # Already loaded 1 element
                     counter = 1
                 else:
                     tmp_phase = np.vstack((tmp_phase, data))
                     tmp_t = np.append(tmp_t, header.timestamp)
 
-                    if return_header:
+                    if return_header or return_tes_bias:
                         for i, h in enumerate(header._fields):
-                            header_dict[h] = np.append(header_dict[h],
+                            tmp_header_dict[h] = np.append(tmp_header_dict[h],
                                                        header[i])
-                    
-                    if counter % n_max == n_max - 1 :
+                            
+                    if counter % n_max == n_max - 1:
                         if write_log:
                             self.log(f'{counter+1} elements loaded')
                         phase = np.vstack((phase, tmp_phase))
                         t = np.append(t, tmp_t)
                         tmp_phase = np.zeros((0, len(channel)))
                         tmp_t = np.array([])
-                    counter = counter + 1
+                        if return_header:
+                            for k in header_dict.keys():
+                                header_dict[k] = np.append(header_dict[k],
+                                                           tmp_header_dict[k])
+                                tmp_header_dict[k] = \
+                                    np.array([],
+                                             dtype=type(header_dict[k][0]))
+                        elif return_tes_bias:
+                            tes_bias = np.hstack((tes_bias,
+                                self.header_to_tes_bias(tmp_header_dict)))
+                            for k in tmp_header_dict:
+                                tmp_header_dict[k] = \
+                                    np.array([], dtype=type(tmp_header_dict[k]))
+                                
+                    counter += 1
 
         # Get the last temp block
         phase = np.vstack((phase, tmp_phase))
         t = np.append(t, tmp_t)
+        if return_header:
+            for k in header_dict.keys():
+                header_dict[k] = np.append(header_dict[k],
+                    tmp_header_dict[k])
 
+        elif return_tes_bias:
+            tes_bias = np.hstack((tes_bias,
+                self.header_to_tes_bias(tmp_header_dict)))
+        
         # rotate and transform to phase
         phase = np.squeeze(phase.T)
         phase = phase.astype(float) / 2**15 * np.pi 
@@ -969,7 +992,8 @@ class SmurfUtilMixin(SmurfBase):
 
         if return_header:
             return t, phase, mask, header_dict
-        
+        elif return_tes_bias:
+            return t, phase, mask, tes_bias
         else:
             return t, phase, mask
 
