@@ -1200,6 +1200,8 @@ class SmurfTuneMixin(SmurfBase):
         ax0.plot(plot_freq, Q, label='Q', linestyle='--', color='k')
         ax0.scatter(plot_freq, amp, c=np.arange(len(freq)), s=3,
             label='amp')
+        zero_idx = np.ravel(np.where(plot_freq == 0))[0]
+        ax0.plot(plot_freq[zero_idx], amp[zero_idx], 'x', color='r')
         if sk_fit is not None:
             ax0.plot(plot_freq, tools.skewed_lorentzian(plot_freq*1.0E6, 
                 *sk_fit), color='r', linestyle=':')
