@@ -446,8 +446,9 @@ class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin, Smu
         # Turn on stream enable for all bands
         self.set_stream_enable(1, write_log=write_log)
 
-        # self.set_smurf_to_gcp_clear(1, write_log=write_log, wait_after=1)
-        # self.set_smurf_to_gcp_clear(0, write_log=write_log)
+        # Set mask file to empty array and payload size
+        self.set_payload_size(2048)
+        self.set_channel_mask([])
 
         self.set_amplifier_bias(write_log=write_log)
         _ = self.get_amplifier_bias()
