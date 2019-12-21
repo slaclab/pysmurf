@@ -964,9 +964,9 @@ class SmurfUtilMixin(SmurfBase):
         self.log(f'ADC{band} max count: {adc_max}')
         self.log(f'ADC{band} min count: {adc_min}')
         if saturated:
-            self.log(f'\033[91mADC{band} saturated\033[00m') % color red
+            self.log(f'\033[91mADC{band} saturated\033[00m') # color red
         else:
-            self.log(f'\033[92mADC{band} not saturated\033[00m') % color green
+            self.log(f'\033[92mADC{band} not saturated\033[00m') # color green
         return saturated
 
     def check_dac_saturation(self, band):
@@ -989,9 +989,9 @@ class SmurfUtilMixin(SmurfBase):
         self.log(f'DAC{band} max count: {dac_max}')
         self.log(f'DAC{band} min count: {dac_min}')
         if saturated:
-            self.log(f'\033[91mDAC{band} saturated\033[00m') % color red
+            self.log(f'\033[91mDAC{band} saturated\033[00m') # color red
         else:
-            self.log(f'\033[92mDAC{band} not saturated\033[00m') % color green
+            self.log(f'\033[92mDAC{band} not saturated\033[00m') # color green
         return saturated
 
     def read_adc_data(self, band, data_length=2**19,
