@@ -12,6 +12,7 @@ cd /home/cryo/docker/pysmurf/dev/pysmurf/scratch/shawn/scripts/
 sudo ./install.sh
 
 rm /home/cryo/docker/smurf/current
-ln -s /home/cryo/docker/smurf/dev_fw/R3.1.1-3854241-c03lb-bay0 /home/cryo/docker/smurf/current
+#ln -s /home/cryo/docker/smurf/dev_fw/R3.1.1-3854241-c03lb-bay0 /home/cryo/docker/smurf/current
+ln -s /home/cryo/docker/smurf/dev_fw/R3.2.1-6d670ac-c03lb-bay0 /home/cryo/docker/smurf/current
 
 cd $wd
