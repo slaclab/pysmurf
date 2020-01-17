@@ -198,6 +198,9 @@ def get_args():
                     print("Not found. Omitting it.")
                     args['config_file'] = None
 
+        else:
+            print("Invalid zip file. Omitting it.")
+
     return args
 
 def verify_ip(args):
