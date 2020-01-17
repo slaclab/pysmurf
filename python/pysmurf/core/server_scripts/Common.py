@@ -77,7 +77,7 @@ def get_args():
     args = {'zip_file' : "",
             'ip_addr' : "",
             'epics_prefix' : "",
-            'config_file' : "",
+            'config_file' : None,
             'use_gui' : False,
             'polling_en' : True,
             'pcie_rssi_lane' : None,
