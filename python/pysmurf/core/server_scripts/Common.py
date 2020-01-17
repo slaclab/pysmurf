@@ -148,7 +148,7 @@ def get_args():
                 # or contain only one top level directory with 'python' under it.
 
                 # List of files and directories in the zip file
-                file_list = zf.namelist():
+                file_list = zf.namelist()
 
                 # Check first if there is a 'python' directory in the top level.
                 # If so, that is out python directory, and top level is empty
