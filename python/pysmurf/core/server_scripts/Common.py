@@ -153,6 +153,7 @@ def get_args():
                 # Check first if there is a 'python' directory in the top level.
                 # If so, that is out python directory, and top level is empty
                 if "python/" in file_list:
+                    print("A 'python' directory was found in the top level.")
                     top_name = ""
                     zip_python_path = "python/"
 
@@ -160,7 +161,7 @@ def get_args():
                 else:
                     # This is the name of the top directory inside the zip file
                     top_name = file_list[0]
-                    print(f"Top directory on zip file: '{top_name}'")
+                    print(f"The top directory in the zip file is '{top_name}'")
 
                     zip_python_path = top_name + "python/"
 
