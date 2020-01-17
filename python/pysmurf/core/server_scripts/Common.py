@@ -23,6 +23,7 @@ import pyrogue
 import socket
 import subprocess
 import os
+import zipfile
 
 # Print the usage message
 def usage(name):
@@ -131,15 +132,70 @@ def get_args():
         elif opt in ("--pcie-dev-data"):
             args['pcie_dev_data'] = arg
 
+    # Verify if the zip file was specified
+    if args['zip_file']:
+        zip_file_name = args['zip_file']
 
-    # If a zip file was specified and exist add it to the python path
-    if args['zip_file'] and os.path.exists(args['zip_file']):
-        pyrogue.addLibraryPath(args['zip_file']+"/python")
+        # Verify if the zip file exist and if it is valid
+        if os.path.exists(zip_file_name) and zipfile.is_zipfile(zip_file_name):
 
-        # If the default configuration file was given using a relative path,
-        # it is refereed to the zip file, so build the full path.
-        if args['config_file'] and args['config_file'][0] != '/':
-                args['config_file'] = args['zip_file'] + "/config/" + args['config_file']
+            print(f"Valid zip file '{zip_file_name}'. Looking for a python directory in it...")
+
+            # Verify that the zip file contains a python directory in it
+            # A directory called 'python' must be either the top, or the second directory
+            with zipfile.ZipFile(zip_file_name, 'r') as zf:
+                # The zip file must either contain a 'python' directory in the top level,
+                # or contain only one top level directory with 'python' under it.
+
+                # List of files and directories in the zip file
+                file_list = zf.namelist():
+
+                # Check first if there is a 'python' directory in the top level.
+                # If so, that is out python directory, and top level is empty
+                if "python/" in file_list:
+                    top_name = ""
+                    zip_python_path = "python/"
+
+                # Otherwise, look for 'python' under the top directory
+                else:
+                    # This is the name of the top directory inside the zip file
+                    top_name = file_list[0]
+                    print(f"Top directory on zip file: '{top_name}'")
+
+                    zip_python_path = top_name + "python/"
+
+                    print(f"Looking for '{zip_python_path}' in zip file..")
+
+                    if zip_python_path in file_list:
+                        print("Found!")
+                    else:
+                        # Not python directory was found. Exit with an error
+                        sys.exit("ERROR: Python directory not found in zip file")
+
+                # At this point we found the python directory, so we add it to the Python Path
+                # using it absolute path (including the path to the zip file)
+                print(f"Adding it to the Python path.")
+                pyrogue.addLibraryPath(zip_file_name + "/" + zip_python_path)
+
+            # If the default configuration file was given using a relative path,
+            # it is refereed to the zip file, so build its full path.
+            if args['config_file'] and args['config_file'][0] != '/':
+                # The configuration file will be in a directory called 'config' parallel to
+                # the 'python' directory
+                config_file = top_name + "config/" + args['config_file']
+
+                print("Default configuration was defined with a relative path.")
+                print(f"Looking if the zip file contains: {config_file}")
+
+                # Verify that the file exist inside the zip file
+                if config_file in file_list:
+                    # If found, build the full path to it, including the path to the zip file
+                    printf("Found!")
+                    args['config_file'] = zip_file_name + "/" + config_file
+                else:
+                    # if not found, then clear the argument as it is invalid.
+                    printf("Not found. Omitting it.")
+                    args['config_file'] = None
 
     return args
 
