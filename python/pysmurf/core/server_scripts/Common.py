@@ -191,11 +191,11 @@ def get_args():
                 # Verify that the file exist inside the zip file
                 if config_file in file_list:
                     # If found, build the full path to it, including the path to the zip file
-                    printf("Found!")
+                    print("Found!")
                     args['config_file'] = zip_file_name + "/" + config_file
                 else:
                     # if not found, then clear the argument as it is invalid.
-                    printf("Not found. Omitting it.")
+                    print("Not found. Omitting it.")
                     args['config_file'] = None
 
     return args
