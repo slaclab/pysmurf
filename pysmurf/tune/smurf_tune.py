@@ -1919,8 +1919,10 @@ class SmurfTuneMixin(SmurfBase):
         channel_order = self.get_channel_order(band)
         first_channel = channel_order[::n_channel//n_subband]
 
-        self.set_eta_scan_channel(band, first_channel[subband], 
+        # FIXME need to write at least 2 channels
+        self.set_eta_scan_channel(band, [first_channel[subband], first_channel[subband]], 
                                   write_log=write_log)
+        self.set_center_frequency_mhz(band, first_channel[subband], 0) # scan around 0
         self.set_eta_scan_amplitude(band, drive, write_log=write_log)
         self.set_eta_scan_freq(band, freq, write_log=write_log)
         self.set_eta_scan_dwell(band, 0, write_log=write_log)
@@ -2991,6 +2993,11 @@ class SmurfTuneMixin(SmurfBase):
             freq (list, n_freq x 1) = frequencies swept
             resp (array, n_freq x 2) = complex response
         """
+        try:
+            _ = (c for c in subband)
+        except:
+            subband = [subband]
+
 
         digitizer_freq = self.get_digitizer_frequency_mhz(band)  # in MHz
         n_subbands = self.get_number_sub_bands(band)
@@ -3000,21 +3007,54 @@ class SmurfTuneMixin(SmurfBase):
         subband_width = 2 * digitizer_freq / n_subbands
 
         scan_freq = (digitizer_freq/n_subbands/2)*np.linspace(-1,1,n_step)
-        
+
         resp = np.zeros((n_subbands, np.shape(scan_freq)[0]), dtype=complex)
         freq = np.zeros((n_subbands, np.shape(scan_freq)[0]))
 
+        channel_order = self.get_channel_order(band)
+
         subband_nos, subband_centers = self.get_subband_centers(band)
+        channels_per_subband = int(n_channels / n_subbands)
+        first_channel_per_subband = channel_order[0::channels_per_subband]
+
+        # scan around each band center
+        self.set_center_frequency_array(band,
+                np.zeros(n_channels, dtype=int))
 
         self.log('Working on band {:d}'.format(band))
-        for sb in subband:
-            self.log('Sweeping subband no: {}'.format(sb))
-            f, r = self.fast_eta_scan(band, sb, scan_freq, n_read, 
-                drive)
-            resp[sb,:] = r
-            freq[sb,:] = f
+        subchan = []
+        for idx, sb in enumerate(subband):
+            if idx == 0:
+                first = sb
+            subchan.append(first_channel_per_subband[sb])
             freq[sb,:] = scan_freq + \
-                subband_centers[subband_nos.index(sb)]
+                             subband_centers[subband_nos.index(sb)]
+            last = sb
+        self.log(f'Sweeping subbands: {first} to {last}')
+
+        self.set_eta_scan_freq(band, scan_freq)
+        self.set_eta_scan_amplitude(band, drive)
+
+        # FIXME writing length 1 results in 128 channel scan...
+        if len(subchan) == 1:
+            subchan.append(subchan[0])
+        self.set_eta_scan_channel(band, subchan)
+        self.set_eta_scan_dwell(band, 0)
+
+        self.set_run_eta_scan(band, 1)
+
+        resp_len = len(freq)*len(subchan)
+        I = self.get_eta_scan_results_real(band, count=resp_len)
+        Q = self.get_eta_scan_results_imag(band, count=resp_len)
+        self.log(f'Done sweeping')
+
+        self.band_off(band)
+
+        for idx, sb in enumerate(subband):
+            start = len(scan_freq)*idx
+            end   = len(scan_freq)*(idx+1)
+            resp[sb, :] = I[start:end] + 1j*Q[start:end]
+
         return freq, resp
 
 
@@ -3094,7 +3134,9 @@ class SmurfTuneMixin(SmurfBase):
 
         self.set_eta_scan_freq(band, freq)
         self.set_eta_scan_amplitude(band, drive)
-        self.set_eta_scan_channel(band, subchan)
+        # FIXME writing length 1 results in 128 channel scan...
+        self.set_eta_scan_channel(band, [subchan, subchan])
+        self.set_center_frequency_mhz_channel(band, subchan, 0) # scan freqs defined around here
         self.set_eta_scan_dwell(band, 0)
 
         self.set_run_eta_scan(band, 1)
@@ -3109,13 +3151,6 @@ class SmurfTuneMixin(SmurfBase):
         for index in range(len(freq)):
             Ielem = I[index]
             Qelem = Q[index]
-            if Ielem > 2**23:
-                Ielem = Ielem - 2**24
-            if Qelem > 2**23:
-                Qelem = Qelem - 2**24
-            
-            Ielem = Ielem / 2**23
-            Qelem = Qelem / 2**23
 
             response[index] = Ielem + 1j*Qelem
 
