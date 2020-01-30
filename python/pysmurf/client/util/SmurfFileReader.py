@@ -97,9 +97,9 @@ class SmurfHeader(SmurfHeaderTuple):
 
             self.tesBias.append(ret)
 
-    def initialize24(self, tesData):
+    def initialize24(self, rawData):
         self.external_time = self.external_time_raw & 0xFFFFFFFFFF # Only lower 5 bytes
-        self.tesBias = [int.from_bytes(tesData[8+i*3:8+i*3+3], 'little', signed=True) for i in range(16)]
+        self.tesBias = [int.from_bytes(rawData[8+i*3:8+i*3+3], 'little', signed=True) for i in range(16)]
 
 
 class SmurfStreamReader(object):
