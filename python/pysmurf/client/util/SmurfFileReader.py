@@ -76,6 +76,23 @@ RogueHeader = namedtuple( 'RogueHeader',
 
 class SmurfHeader(SmurfHeaderTuple):
 
+    def initialize20V2(self, rawData):
+        self.external_time = self.external_time_raw & 0xFFFFFFFFFF # Only lower 5 bytes
+        self.tesBias = []
+
+        for i in range(16):
+
+            # 2 TES value fit in 5 bytes, starting from byte 8
+            if i % 2 == 0:
+                tmp = int.from_bytes(rawData[8+i*5:8+i*5+3],'little',signed=False) & 0xFFFFF
+            else:
+                tmp = (int.from_bytes(rawData[8+i*5+2:8+i*5+5],'little',signed=False) >> 4) & 0xFFFFF;
+
+            # Adjust negative values
+            if tmp >= 0x80000: tmp -= 0x100000
+
+            self.tesBias.append(tmp)
+
     def initialize20(self, rawData):
         self.external_time = self.external_time_raw & 0xFFFFFFFFFF # Only lower 5 bytes
         self.tesBias = []
@@ -134,7 +151,8 @@ class SmurfStreamReader(object):
         data = self._currFile.read(SmurfHeaderSize)
         ret = SmurfHeader._make(struct.Struct(SmurfHeaderPack).unpack(data))
         #ret.initialize20(data)
-        ret.initialize24(data)
+        #ret.initialize24(data)
+        ret.initialize20V2(data)
         return ret
 
     def _readPayload(self,chanCount):
