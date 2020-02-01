@@ -64,7 +64,7 @@ if __name__ == "__main__":
         root.saveVariableList("varlist.txt")
 
         # Start the GUI
-        import pyrogue.gui
+        import pyrogue.pydm
         print("Starting GUI...\n")
-        pyrogue.gui.runGui(root=root)
+        pyrogue.pydm.runPyDM(root=root)
 

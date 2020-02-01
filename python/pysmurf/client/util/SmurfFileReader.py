@@ -76,10 +76,14 @@ RogueHeader = namedtuple( 'RogueHeader',
 
 class SmurfHeader(SmurfHeaderTuple):
 
-    def initialize20V2(self, rawData):
+    def initialize(self, rawData):
         self.external_time = self.external_time_raw & 0xFFFFFFFFFF # Only lower 5 bytes
         self.tesBias = []
 
+        # 24 bit bias values
+        #self.tesBias = [int.from_bytes(rawData[8+i*3:8+i*3+3], 'little', signed=True) for i in range(16)]
+
+        # 20 bit bias values
         for i in range(16):
 
             # 2 TES value fit in 5 bytes, starting from byte 8
@@ -92,32 +96,6 @@ class SmurfHeader(SmurfHeaderTuple):
             if tmp >= 0x80000: tmp -= 0x100000
 
             self.tesBias.append(tmp)
-
-    def initialize20(self, rawData):
-        self.external_time = self.external_time_raw & 0xFFFFFFFFFF # Only lower 5 bytes
-        self.tesBias = []
-
-        for index in range(16):
-            baseByte = int((index * 20) / 8)
-            baseBit  = int((index * 20) % 8)
-
-            val = 0
-            for idx,byte in enumerate(range(baseByte,baseByte+3)):
-                val += rawData[byte+8] << idx*8
-
-            tmp = (val >> baseBit) & 0xFFFFF;
-
-            if tmp & 0x80000: tmp |= 0xF00000;
-
-            ba = tmp.to_bytes(3,byteorder='little',signed=False)
-            ret = int.from_bytes(ba,byteorder='little',signed=True)
-
-            self.tesBias.append(ret)
-
-    def initialize24(self, rawData):
-        self.external_time = self.external_time_raw & 0xFFFFFFFFFF # Only lower 5 bytes
-        self.tesBias = [int.from_bytes(rawData[8+i*3:8+i*3+3], 'little', signed=True) for i in range(16)]
-
 
 class SmurfStreamReader(object):
 
@@ -150,9 +128,7 @@ class SmurfStreamReader(object):
     def _parseSmurfHeader(self):
         data = self._currFile.read(SmurfHeaderSize)
         ret = SmurfHeader._make(struct.Struct(SmurfHeaderPack).unpack(data))
-        #ret.initialize20(data)
-        #ret.initialize24(data)
-        ret.initialize20V2(data)
+        ret.initialize(data)
         return ret
 
     def _readPayload(self,chanCount):
