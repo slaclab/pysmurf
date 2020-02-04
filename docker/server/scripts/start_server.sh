@@ -1,23 +1,11 @@
 #!/usr/bin/env bash
 
-###############
-# Definitions #
-###############
-# Shell PID
-top_pid=$$
-
-# This script name
-script_name=$(basename $0)
-
-# Firmware file location
-fw_top_dir="/tmp/fw"
-
 ########################
 # Function definitions #
 ########################
 
-# Trap TERM signals and exit
-trap "echo 'An ERROR was found. Check shelf manager & card state! Aborting...'; exit 1" TERM
+# Import function from common script
+. server_common.sh
 
 # Usage message
 usage()
@@ -49,95 +37,108 @@ usage()
     exit 1
 }
 
-getGitHashFW()
+# Process and check input arguments
+#
+# During this call, several variables will be defined,
+# depending on the input arguments:
+# - shelfmanager: name of the ATCA crate shelfmanager,
+# - slot: ATCA crate slot number,
+# - no_check_fw: Flag to disable the automatic FW
+#                version checking,
+# - fpga_ip: FPGA IP address,
+# - comm_type: communication type,
+# - args: will contained the arguments to be passed
+#         to the next startup script.
+processArgs()
 {
-    local gh_inv
-    local gh
+    # Read inputs arguments
+    while [[ $# -gt 0 ]]
+    do
+    key="$1"
 
-    # Long githash (inverted)
-    #gh_inv=$(ipmitool -I lan -H $SHELFMANAGER -t $IPMB -b 0 -A NONE raw 0x34 0x04 0xd0 0x14  2> /dev/null)
-    # Short githash (inverted)
-    gh_inv=$(ipmitool -I lan -H $shelfmanager -t $ipmb -b 0 -A NONE raw 0x34 0x04 0xe0 0x04  2> /dev/null)
+    case ${key} in
+        -S|--shelfmanager)
+        shelfmanager="$2"
+        shift
+        ;;
+        -N|--slot)
+        slot="$2"
+        shift
+        ;;
+        -D|--no-check-fw)
+        no_check_fw=1
+        ;;
+        -a|--addr)
+        fpga_ip="$2"
+        shift
+        ;;
+        -c|--comm-type)
+        comm_type="$2"
+        shift
+        ;;
+        -s|--server)
+        ;;
+        -h|--help)
+        usage
+        ;;
+        *)
+        args="${args} $key"
+        ;;
+    esac
+    shift
+    done
 
-    if [ "$?" -ne 0 ]; then
-        kill -s TERM ${top_pid}
-    fi
+    # Verify mandatory parameters
 
-    # Invert the string
-    for c in ${gh_inv} ; do gh=${c}${gh} ; done
-
-    # Return the short hash (7 bytes)
-    echo ${gh} | cut -c 1-7
-}
-
-getGitHashMcs()
-{
-    local filename=$(basename $mcs_file_name)
-    local gh=$(echo $filename | sed  -r 's/.+-+(.+).mcs.*/\1/')
-
-    # Return the short hash (7 bytes)
-    echo ${gh} | cut -c 1-7
-}
-
-getCrateId()
-{
-    local crate_id_str
-
-    crate_id_str=$(ipmitool -I lan -H $shelfmanager -t $ipmb -b 0 -A NONE raw 0x34 0x04 0xFD 0x02 2> /dev/null)
-
-    if [ "$?" -ne 0 ]; then
-        kill -s TERM ${top_pid}
-    fi
-
-    local crate_id=`printf %04X  $((0x$(echo $crate_id_str | awk '{ print $2$1 }')))`
-
-    if [ -z ${crate_id} ]; then
-        kill -s TERM ${top_pid}
-    fi
-
-    echo ${crate_id}
-}
-
-getFpgaIp()
-{
-
-    # Calculate FPGA IP subnet from the crate ID
-    local subnet="10.$((0x${crate_id:0:2})).$((0x${crate_id:2:2}))"
-
-    # Calculate FPGA IP last octect from the slot number
-    local fpga_ip="${subnet}.$(expr 100 + $slot)"
-
-    echo ${fpga_ip}
-}
-
-# Look for python directories in a local checkout of a repository.
-# Python directories should match these patterns:
-# - /tmp/fw/*/firmware/python/
-# - /tmp/fw/*/firmware/submodules/*/python/
-# All those found, will be added to PYTHONPATH
-updatePythonPath()
-{
-    printf "Looking for local python directories... "
-
-    # Look for the python directories that match the patterns
-    local python_dirs=( $(find ${fw_top_dir} -type d \
-                          -regex "^${fw_top_dir}/[^/]+/firmware/python" -o \
-                          -regex "^${fw_top_dir}/[^/]+/firmware/submodules/[^/]+/python") )
-
-    # Check if any directory was found
-    if [ ${#python_dirs[@]} -eq 0 ]; then
-        # if nothing was found, just return without doing anything
-        echo "Not python directories found"
+    # Check communication type
+    if [ -z ${comm_type+x} ]; then
+        # If no type was selected, use 'eth' as default type
+        comm_type='eth'
     else
-        # If directories were found,add them all to PYTHONPATH
-        echo "The following python directories were found:"
-        for d in ${python_dirs[@]}; do
-            echo "  ${d}"
-            python_path=${d}:${python_path}
-        done
+        # Check if the communication type is invalid
+        if [ ${comm_type} != 'eth' ] && [ ${comm_type} != 'pcie' ]; then
+            echo "Invalid communication type!"
+            usage
+        fi
+    fi
 
-        export PYTHONPATH=${python_path}${PYTHONPATH}
-        echo "  PYTHONPATH updated!"
+    # Check IP address or shelfmanager/slot number
+    if [ -z ${fpga_ip+x} ]; then
+        # If the IP address is not defined, shelfmanager and slot numebr must be defined
+
+        if [ -z ${shelfmanager+x} ]; then
+            echo "Shelfmanager not defined!"
+            usage
+        fi
+
+        if [ -z ${slot+x} ]; then
+            echo "Slot number not defined!"
+            usage
+        fi
+
+        echo "IP address was not defined. It will be calculated automatically from the crate ID and slot number..."
+        echo
+
+	getIPAddr
+    else
+        echo "IP address was defined. Ignoring shelfmanager and slot number. FW version checking disabled."
+        echo
+        no_check_fw=1
+    fi
+
+    # Add the IP address to the SMuRF arguments
+    args="${args} -a ${fpga_ip}"
+
+    # If the slot number is defined, add the RSSI link number argument
+    # which is needed if the PCIe card is used for communication
+    if [ ${slot+x} ]; then
+        # Verify that the slot number is in the range [2,7]
+        if [ ${slot} -ge 2 -a ${slot} -le 7 ]; then
+            args="${args} -l $((slot-2))"
+        else
+            echo "Invalid slot number! Must be a number between 2 and 7."
+            exit 1
+        fi
     fi
 }
 
@@ -145,148 +146,15 @@ updatePythonPath()
 # Main body #
 #############
 
-# Verify inputs arguments
-while [[ $# -gt 0 ]]
-do
-key="$1"
+# Read input arguments
+processArgs "$@"
 
-case ${key} in
-    -S|--shelfmanager)
-    shelfmanager="$2"
-    shift
-    ;;
-    -N|--slot)
-    slot="$2"
-    shift
-    ;;
-    -D|--no-check-fw)
-    no_check_fw=1
-    ;;
-    -a|--addr)
-    fpga_ip="$2"
-    shift
-    ;;
-    -c|--comm-type)
-    comm_type="$2"
-    shift
-    ;;
-    -s|--server)
-    ;;
-    -h|--help)
-    usage
-    ;;
-    *)
-    args="${args} $key"
-    ;;
-esac
-shift
-done
-
-echo
-
-# Verify mandatory parameters
-
-# Check communication type
-if [ -z ${comm_type+x} ]; then
-    # If no type was selected, use 'eth' as default type
-    comm_type='eth'
-else
-    # Check if the communication type is invalid
-    if [ ${comm_type} != 'eth' ] && [ ${comm_type} != 'pcie' ]; then
-        echo "Invalid communication type!"
-        usage
-    fi
-fi
-
-# Check IP address or shelfmanager/slot number
-if [ -z ${fpga_ip+x} ]; then
-    # If the IP address is not defined, shelfmanager and slot numebr must be defined
-
-    if [ -z ${shelfmanager+x} ]; then
-        echo "Shelfmanager not defined!"
-        usage
-    fi
-
-    if [ -z ${slot+x} ]; then
-        echo "Slot number not defined!"
-        usage
-    fi
-
-    echo "IP address was not defined. It will be calculated automatically from the crate ID and slot number..."
-    echo
-
-    ipmb=$(expr 0128 + 2 \* $slot)
-
-    printf "Reading Crate ID via IPMI...            "
-    crate_id=$(getCrateId)
-    echo "Create ID: ${crate_id}"
-
-    printf "Calculating FPGA IP address...          "
-    fpga_ip=$(getFpgaIp)
-    echo "FPGA IP: ${fpga_ip}"
-
-else
-    echo "IP address was defined. Ignoring shelfmanager and slot number. FW version checking disabled."
-    echo
-    no_check_fw=1
-fi
-
-# Add the IP address to the SMuRF arguments
-args="${args} -a ${fpga_ip}"
-
-# If the slot number is defined, add the RSSI link number argument
-# which is needed if the PCIe card is used for communication
-if [ ${slot+x} ]; then
-    # Verify that the slot number is in the range [2,7]
-    if [ ${slot} -ge 2 -a ${slot} -le 7 ]; then
-        args="${args} -l $((slot-2))"
-    else
-        echo "Invalid slot number! Must be a number between 2 and 7."
-        exit 1
-    fi
-fi
-
-# Look for a pyrogue zip file
-printf "Looking for pyrogue zip file...         "
-pyrogue_file=$(find ${fw_top_dir} -maxdepth 1 -name *zip)
-if [ ! -f "$pyrogue_file" ]; then
-    echo "Pyrogue zip file not found!"
-
-    # if not found, then look for a local checkout repository.
-    updatePythonPath
-else
-    # If found, add it to the SMuRF arguments
-    echo "Pyrogue zip file found: ${pyrogue_file}"
-    args="${args} -z ${pyrogue_file}"
-fi
+# Look for pyrogue files
+findPyrogueFiles
 
 # Firmware version checking
 if [ -z ${no_check_fw+x} ]; then
-
-    mcs_file=$(find ${fw_top_dir} -maxdepth 1 -name *mcs*)
-    if [ ! -f "${mcs_file}" ]; then
-        echo "MCS file not found!"
-        exit 1
-    fi
-
-    mcs_file_name=$(basename ${mcs_file})
-    echo ${mcs_file_name}
-
-    echo "Reading FW Git Hash via IPMI..."
-    fw_gh=$(getGitHashFW)
-    echo "Firmware githash: '$fw_gh'"
-
-    echo "Reading MCS file Git Hash..."
-    mcs_gh=$(getGitHashMcs)
-    echo "MCS file githash: '$mcs_gh'"
-
-    if [ "${fw_gh}" == "${mcs_gh}" ]; then
-        echo "They match..."
-    else
-        echo "They don't match. Loading image..."
-        ProgramFPGA.bash -s $shelfmanager -n $slot -m $mcs_file
-    fi
-
+    checkFw
 else
     echo "Check firmware disabled."
 fi
