@@ -68,6 +68,36 @@ getCrateId()
     echo ${crate_id}
 }
 
+rebootFPGA()
+{
+    local retry_max=10
+    local retry_delay=10
+
+    printf "Sending reboot command to FPGA...                 "
+    ipmitool -I lan -H $shelfmanager -t $ipmb -b 0 -A NONE raw 0x2C 0x0A 0 0 2 0 &> /dev/null
+    sleep 1
+    ipmitool -I lan -H $shelfmanager -t $ipmb -b 0 -A NONE raw 0x2C 0x0A 0 0 1 0 &> /dev/null
+    printf "Done\n"
+
+    printf "Waiting for FPGA to boot...                       "
+    # Wait until FPGA boots
+    for i in $(seq 1 $retry_max); do
+        sleep $retry_delay
+        local bsi_state=$(ipmitool -I lan -H $shelfmanager -t $ipmb -b 0 -A NONE raw 0x34 0xF4 2> /dev/null | awk '{print $1}')
+        if [ "$?" -eq 0 ] && [ $bsi_state -eq 3 ]; then
+	    local done=1
+            break
+        fi
+    done
+
+    if [ -z $done ]; then
+        printf "FPGA didn't boot after $(($retry_max*$retry_delay)) seconds. Aborting...\n\n"
+        exit
+    else
+        printf "FPGA booted after $((i*$retry_delay)) seconds\n"
+    fi
+}
+
 getFpgaIp()
 {
     # Calculate FPGA IP subnet from the crate ID
