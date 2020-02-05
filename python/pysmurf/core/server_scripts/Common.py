@@ -42,8 +42,7 @@ def usage(name):
         "the communication type is based on Ethernet.")
     print("    -d|--defaults config_file   : Default configuration file. If the path is"\
         "relative, it refers to the zip file (i.e: file.zip/config/config_file.yml).")
-    print("    -c|--configure              : Load the default configuration at startup."\
-        "It will be ignored if -d|--defaults is not defined.")
+    print("    -c|--configure              : Load the default configuration at startup.")
     print("    -e|--epics prefix           : Start an EPICS server with",\
         "PV name prefix \"prefix\"")
     print("    -g|--gui                    : Start the server with a GUI.")
@@ -95,14 +94,16 @@ def get_args():
     # Read Arguments
     try:
         opts, _ = getopt.getopt(sys.argv[1:],
-            "hz:a:ge:d:nb:f:l:u:w:c:",
+            "hz:a:ge:d:nb:f:l:u:w:c",
             ["help", "zip=", "addr=", "gui", "epics=", "defaults=", "nopoll",
             "pcie-rssi-link=", "dump-pvs=",
             "disable-bay0", "disable-bay1", "windows-title=", "pcie-dev-rssi=",
-            "pcie-dev-data=","configure="])
+            "pcie-dev-data=","configure"])
 
-    except getopt.GetoptError:
-        usage(sys.argv[0])
+    except getopt.GetoptError as e:
+        print("ERROR while parsing input arguments:")
+        print(e)
+        print("")
         sys.exit()
 
     for opt, arg in opts:
@@ -136,7 +137,7 @@ def get_args():
         elif opt in ("--pcie-dev-data"):
             args['pcie_dev_data'] = arg
         elif opt in ["-c", "--configure"]:
-            args=['configure'] = True
+            args['configure'] = True
 
     # Verify if the zip file was specified
     if args['zip_file']:
