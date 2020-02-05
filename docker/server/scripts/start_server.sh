@@ -19,7 +19,7 @@ usage()
     echo "    -a|--addr         <FPGA_IP>           : FPGA IP address. If defined, -S and -N are ignored."
     echo "    -c|--comm-type    <comm_type>         : Communication type ('eth' or 'pcie'). Default is 'eth'."
     echo "    -D|--no-check-fw                      : Disabled FPGA version checking."
-    echo "    -r|--reboot                           : Reboot the FPGA before starting the server."
+    echo "    -H|--hard-boot                        : Do a hard boot: reboot the FPGA and load default configuration."
     echo "    -h|--help                             : Show this message."
     echo "    <pyrogue_server_args> are passed to the SMuRF pyrogue server. "
     echo ""
@@ -27,7 +27,7 @@ usage()
     echo "If -a if defined, -S and -N are ignored."
     echo
     echo "The script will by default check if the firmware githash read from the FPGA via IPMI is the same of the found in the MCS file name."
-    echo "If they don't match, then the MCS file will be loaded into the FPGA. If this happens, the then -r will be omitted."
+    echo "If they don't match, then the MCS file will be loaded into the FPGA. If this happens, the FPGA will be rebooted."
     echo "This checking can be disabled with -D. The checking will also be disabled if -a is used instead of -S and -N. If "
     echo
     echo "The script will look for a zip file under '${fw_top_dir}'. If found, it will be passed with the argument -z to the next startup script."
@@ -78,8 +78,8 @@ processArgs()
         comm_type="$2"
         shift
         ;;
-        -r|--reboot)
-        reboot_fpga=1
+        -H|--hard-boot)
+        hard_boot=1
         shift
         ;;
         -s|--server)
@@ -165,8 +165,9 @@ else
     echo "Check firmware disabled."
 fi
 
-# Reboot the FPGA, if requested
-if  ! [ -z ${reboot_fpga+x} ]; then
+# If a hard boot was request, reboot the FPGA and request the
+# default configuration to be loaded
+if  ! [ -z ${hard_boot+x} ]; then
 
     # Check if a new MCS was loaded. In that case there is not need
     # to reboot the FPGA, as it was already rebooted in the process
@@ -174,6 +175,10 @@ if  ! [ -z ${reboot_fpga+x} ]; then
     if [ -z ${mcs_loaded+x} ]; then
         rebootFPGA
     fi
+
+    # Pass the -c argument to the SMuRF server to request the default
+    # configuration to be loaded during the startup process
+    args="${args} -c"
 fi
 
 # Call the appropriate server startup script depending on the communication type
