@@ -94,58 +94,14 @@ processArgs()
     shift
     done
 
-    # Verify mandatory parameters
+    # Validate the selected communication type
+    validateCommType
 
-    # Check communication type
-    if [ -z ${comm_type+x} ]; then
-        # If no type was selected, use 'eth' as default type
-        comm_type='eth'
-    else
-        # Check if the communication type is invalid
-        if [ ${comm_type} != 'eth' ] && [ ${comm_type} != 'pcie' ]; then
-            echo "Invalid communication type!"
-            usage
-        fi
-    fi
+    # Validate the selected slot number
+    validateSlotNumber
 
-    # Check IP address or shelfmanager/slot number
-    if [ -z ${fpga_ip+x} ]; then
-        # If the IP address is not defined, shelfmanager and slot numebr must be defined
-
-        if [ -z ${shelfmanager+x} ]; then
-            echo "Shelfmanager not defined!"
-            usage
-        fi
-
-        if [ -z ${slot+x} ]; then
-            echo "Slot number not defined!"
-            usage
-        fi
-
-        echo "IP address was not defined. It will be calculated automatically from the crate ID and slot number..."
-        echo
-
-	getIPAddr
-    else
-        echo "IP address was defined. Ignoring shelfmanager and slot number. FW version checking disabled."
-        echo
-        no_check_fw=1
-    fi
-
-    # Add the IP address to the SMuRF arguments
-    args="${args} -a ${fpga_ip}"
-
-    # If the slot number is defined, add the RSSI link number argument
-    # which is needed if the PCIe card is used for communication
-    if [ ${slot+x} ]; then
-        # Verify that the slot number is in the range [2,7]
-        if [ ${slot} -ge 2 -a ${slot} -le 7 ]; then
-            args="${args} -l $((slot-2))"
-        else
-            echo "Invalid slot number! Must be a number between 2 and 7."
-            exit 1
-        fi
-    fi
+    # Get FPGA IP address
+    getFpgaIpAddr
 }
 
 #############

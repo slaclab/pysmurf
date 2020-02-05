@@ -141,19 +141,60 @@ updatePythonPath()
     fi
 }
 
-# Generate IP address from the shelfmanager name
-# and slot number
-getIPAddr()
+# Get FPGA IP address
+getFpgaIpAddr()
 {
-    ipmb=$(expr 0128 + 2 \* $slot)
+    # Check IP address or shelfmanager/slot number
+    if [ -z ${fpga_ip+x} ]; then
+        # If the IP address is not defined, shelfmanager and slot numebr must be defined
 
-    printf "Reading Crate ID via IPMI...            "
-    crate_id=$(getCrateId)
-    echo "Create ID: ${crate_id}"
+        if [ -z ${shelfmanager+x} ]; then
+            echo "Shelfmanager not defined!"
+            usage
+        fi
 
-    printf "Calculating FPGA IP address...          "
-    fpga_ip=$(getFpgaIp)
-    echo "FPGA IP: ${fpga_ip}"
+        if [ -z ${slot+x} ]; then
+            echo "Slot number not defined!"
+            usage
+        fi
+
+        echo "IP address was not defined. It will be calculated automatically from the crate ID and slot number..."
+        echo
+
+        ipmb=$(expr 0128 + 2 \* $slot)
+
+        printf "Reading Crate ID via IPMI...            "
+        crate_id=$(getCrateId)
+        echo "Create ID: ${crate_id}"
+
+        printf "Calculating FPGA IP address...          "
+        fpga_ip=$(getFpgaIp)
+        echo "FPGA IP: ${fpga_ip}"
+
+    else
+        echo "IP address was defined. Ignoring shelfmanager and slot number. FW version checking disabled."
+        echo
+        no_check_fw=1
+    fi
+
+    # Add the IP address to the SMuRF arguments
+    args="${args} -a ${fpga_ip}"
+}
+
+# Validate the selected slot number
+validateSlotNumber()
+{
+    # If the slot number is defined, add the RSSI link number argument
+    # which is needed if the PCIe card is used for communication
+    if [ ${slot+x} ]; then
+        # Verify that the slot number is in the range [2,7]
+        if [ ${slot} -ge 2 -a ${slot} -le 7 ]; then
+            args="${args} -l $((slot-2))"
+        else
+            echo "Invalid slot number! Must be a number between 2 and 7."
+            exit 1
+        fi
+    fi
 }
 
 # Check if firmware in FPGA matches MCS file
@@ -185,6 +226,22 @@ checkFw()
 
         # Set a flag indicating a new MCS was loaded
         mcs_loaded=1
+    fi
+}
+
+# Validate the communication type selected
+validateCommType()
+{
+    # Check communication type
+    if [ -z ${comm_type+x} ]; then
+        # If no type was selected, use 'eth' as default type
+        comm_type='eth'
+    else
+        # Check if the communication type is invalid
+        if [ ${comm_type} != 'eth' ] && [ ${comm_type} != 'pcie' ]; then
+            echo "Invalid communication type!"
+            usage
+        fi
     fi
 }
 
