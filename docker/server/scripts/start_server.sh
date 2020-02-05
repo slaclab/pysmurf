@@ -39,103 +39,68 @@ usage()
     exit 1
 }
 
-# Process and check input arguments
-#
-# During this call, several variables will be defined,
-# depending on the input arguments:
-# - shelfmanager: name of the ATCA crate shelfmanager,
-# - slot: ATCA crate slot number,
-# - no_check_fw: Flag to disable the automatic FW
-#                version checking,
-# - fpga_ip: FPGA IP address,
-# - comm_type: communication type,
-# - args: will contained the arguments to be passed
-#         to the next startup script.
-processArgs()
-{
-    # Read inputs arguments
-    while [[ $# -gt 0 ]]
-    do
-    key="$1"
-
-    case ${key} in
-        -S|--shelfmanager)
-        shelfmanager="$2"
-        shift
-        ;;
-        -N|--slot)
-        slot="$2"
-        shift
-        ;;
-        -D|--no-check-fw)
-        no_check_fw=1
-        ;;
-        -a|--addr)
-        fpga_ip="$2"
-        shift
-        ;;
-        -c|--comm-type)
-        comm_type="$2"
-        shift
-        ;;
-        -H|--hard-boot)
-        hard_boot=1
-        shift
-        ;;
-        -s|--server)
-        ;;
-        -h|--help)
-        usage
-        ;;
-        *)
-        args="${args} $key"
-        ;;
-    esac
-    shift
-    done
-
-    # Validate the selected communication type
-    validateCommType
-
-    # Validate the selected slot number
-    validateSlotNumber
-
-    # Get FPGA IP address
-    getFpgaIpAddr
-}
-
 #############
 # Main body #
 #############
 
-# Read input arguments
-processArgs "$@"
+# Read inputs arguments
+while [[ $# -gt 0 ]]
+do
+key="$1"
+
+case ${key} in
+    -S|--shelfmanager)
+    shelfmanager="$2"
+    shift
+    ;;
+    -N|--slot)
+    slot="$2"
+    shift
+    ;;
+    -D|--no-check-fw)
+    no_check_fw=1
+    ;;
+    -a|--addr)
+    fpga_ip="$2"
+    shift
+    ;;
+    -c|--comm-type)
+    comm_type="$2"
+    shift
+    ;;
+    -H|--hard-boot)
+    hard_boot=1
+    shift
+    ;;
+    -s|--server)
+    ;;
+    -h|--help)
+    usage
+    ;;
+    *)
+    args="${args} $key"
+    ;;
+esac
+shift
+done
+
+# Validate the selected communication type
+validateCommType
+
+# Validate the selected slot number
+validateSlotNumber
+
+# Get FPGA IP address
+getFpgaIpAddr
 
 # Look for pyrogue files
 findPyrogueFiles
 
 # Firmware version checking
-if [ -z ${no_check_fw+x} ]; then
-    checkFw
-else
-    echo "Check firmware disabled."
-fi
+checkFW
 
-# If a hard boot was request, reboot the FPGA and request the
-# default configuration to be loaded
-if  ! [ -z ${hard_boot+x} ]; then
-
-    # Check if a new MCS was loaded. In that case there is not need
-    # to reboot the FPGA, as it was already rebooted in the process
-    # of loading a new firmware image.
-    if [ -z ${mcs_loaded+x} ]; then
-        rebootFPGA
-    fi
-
-    # Pass the -c argument to the SMuRF server to request the default
-    # configuration to be loaded during the startup process
-    args="${args} -c"
-fi
+# Do a hard boot, if requested
+hardBoot
 
 # Call the appropriate server startup script depending on the communication type
 if [ ${comm_type} == 'eth' ]; then

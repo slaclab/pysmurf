@@ -198,34 +198,41 @@ validateSlotNumber()
 }
 
 # Check if firmware in FPGA matches MCS file
-checkFw()
+checkFW()
 {
-    printf "Looking for mcs file...                 "
-    mcs_file=$(find ${fw_top_dir} -maxdepth 1 -name *mcs*)
-    if [ ! -f "${mcs_file}" ]; then
-        echo "MCS file not found!"
-        exit 1
-    fi
+    # Check if the firmware checking is disabled
+    if [ -z ${no_check_fw+x} ]; then
 
-    mcs_file_name=$(basename ${mcs_file})
-    echo "Mcs file found: ${mcs_file_name}"
+        printf "Looking for mcs file...                 "
+        mcs_file=$(find ${fw_top_dir} -maxdepth 1 -name *mcs*)
+        if [ ! -f "${mcs_file}" ]; then
+            echo "MCS file not found!"
+            exit 1
+        fi
 
-    printf "Reading FW Git Hash via IPMI...         "
-    fw_gh=$(getGitHashFW)
-    echo "Firmware githash: '$fw_gh'"
+        mcs_file_name=$(basename ${mcs_file})
+        echo "Mcs file found: ${mcs_file_name}"
 
-    printf "Reading MCS file Git Hash...            "
-    mcs_gh=$(getGitHashMcs)
-    echo "MCS file githash: '$mcs_gh'"
+        printf "Reading FW Git Hash via IPMI...         "
+        fw_gh=$(getGitHashFW)
+        echo "Firmware githash: '$fw_gh'"
 
-    if [ "${fw_gh}" == "${mcs_gh}" ]; then
-        echo "They match!"
+        printf "Reading MCS file Git Hash...            "
+        mcs_gh=$(getGitHashMcs)
+        echo "MCS file githash: '$mcs_gh'"
+
+        if [ "${fw_gh}" == "${mcs_gh}" ]; then
+            echo "They match!"
+        else
+            echo "They don't match. Loading image..."
+            ProgramFPGA.bash -s $shelfmanager -n $slot -m $mcs_file
+
+            # Set a flag indicating a new MCS was loaded
+            mcs_loaded=1
+        fi
+
     else
-        echo "They don't match. Loading image..."
-        ProgramFPGA.bash -s $shelfmanager -n $slot -m $mcs_file
-
-        # Set a flag indicating a new MCS was loaded
-        mcs_loaded=1
+        echo "Check firmware disabled."
     fi
 }
 
@@ -242,6 +249,26 @@ validateCommType()
             echo "Invalid communication type!"
             usage
         fi
+    fi
+}
+
+# Do a hard boot, if requested
+hardBoot()
+{
+    # If a hard boot was request, reboot the FPGA and request the
+    # default configuration to be loaded
+    if  ! [ -z ${hard_boot+x} ]; then
+
+        # Check if a new MCS was loaded. In that case there is not need
+        # to reboot the FPGA, as it was already rebooted in the process
+        # of loading a new firmware image.
+        if [ -z ${mcs_loaded+x} ]; then
+            rebootFPGA
+        fi
+
+        # Pass the -c argument to the SMuRF server to request the default
+        # configuration to be loaded during the startup process
+        args="${args} -c"
     fi
 }
 
