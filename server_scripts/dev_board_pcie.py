@@ -54,6 +54,7 @@ if __name__ == "__main__":
                            disable_bay1   = args['disable_bay1'],
                            pcie_dev_rssi  = args['pcie_dev_rssi'],
                            pcie_dev_data  = args['pcie_dev_data'],
+                           configure      = args['configure'],
                            txDevice       = pysmurf.core.transmitters.BaseTransmitter(name='Transmitter')) as root:
 
             # The dev board doesn't support TES bias values, so let's set dummy

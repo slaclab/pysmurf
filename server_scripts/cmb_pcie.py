@@ -52,7 +52,8 @@ if __name__ == "__main__":
                       disable_bay1   = args['disable_bay1'],
                       pcie_rssi_lane = args['pcie_rssi_lane'],
                       pcie_dev_rssi  = args['pcie_dev_rssi'],
-                      pcie_dev_data  = args['pcie_dev_data']) as root:
+                      pcie_dev_data  = args['pcie_dev_data'],
+                      configure      = args['configure']) as root:
 
             if args['use_gui']:
                 # Start the GUI
