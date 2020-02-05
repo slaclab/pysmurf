@@ -73,13 +73,13 @@ rebootFPGA()
     local retry_max=10
     local retry_delay=10
 
-    printf "Sending reboot command to FPGA...                 "
+    printf "Sending reboot command to FPGA...       "
     ipmitool -I lan -H $shelfmanager -t $ipmb -b 0 -A NONE raw 0x2C 0x0A 0 0 2 0 &> /dev/null
     sleep 1
     ipmitool -I lan -H $shelfmanager -t $ipmb -b 0 -A NONE raw 0x2C 0x0A 0 0 1 0 &> /dev/null
-    printf "Done\n"
+    echo "Done"
 
-    printf "Waiting for FPGA to boot...                       "
+    printf "Waiting for FPGA to boot...             "
     # Wait until FPGA boots
     for i in $(seq 1 $retry_max); do
         sleep $retry_delay
@@ -91,10 +91,11 @@ rebootFPGA()
     done
 
     if [ -z $done ]; then
-        printf "FPGA didn't boot after $(($retry_max*$retry_delay)) seconds. Aborting...\n\n"
-        exit
+        echo "FPGA didn't boot after $(($retry_max*$retry_delay)) seconds. Aborting..."
+        echo
+        exit 1
     else
-        printf "FPGA booted after $((i*$retry_delay)) seconds\n"
+        echo "FPGA booted after $((i*$retry_delay)) seconds"
     fi
 }
 
@@ -181,6 +182,9 @@ checkFw()
     else
         echo "They don't match. Loading image..."
         ProgramFPGA.bash -s $shelfmanager -n $slot -m $mcs_file
+
+        # Set a flag indicating a new MCS was loaded
+        mcs_loaded=1
     fi
 }
 

@@ -19,6 +19,7 @@ usage()
     echo "    -a|--addr         <FPGA_IP>           : FPGA IP address. If defined, -S and -N are ignored."
     echo "    -c|--comm-type    <comm_type>         : Communication type ('eth' or 'pcie'). Default is 'eth'."
     echo "    -D|--no-check-fw                      : Disabled FPGA version checking."
+    echo "    -r|--reboot                           : Reboot the FPGA before starting the server."
     echo "    -h|--help                             : Show this message."
     echo "    <pyrogue_server_args> are passed to the SMuRF pyrogue server. "
     echo ""
@@ -26,7 +27,8 @@ usage()
     echo "If -a if defined, -S and -N are ignored."
     echo
     echo "The script will by default check if the firmware githash read from the FPGA via IPMI is the same of the found in the MCS file name."
-    echo "This checking can be disabled with -D. The checking will also be disabled if -a is used instead of -S and -N."
+    echo "If they don't match, then the MCS file will be loaded into the FPGA. If this happens, the then -r will be omitted."
+    echo "This checking can be disabled with -D. The checking will also be disabled if -a is used instead of -S and -N. If "
     echo
     echo "The script will look for a zip file under '${fw_top_dir}'. If found, it will be passed with the argument -z to the next startup script."
     echo "If not zip file is found, the script will then look for a local checked out repository in the same location; If found, the python directories"
@@ -74,6 +76,10 @@ processArgs()
         ;;
         -c|--comm-type)
         comm_type="$2"
+        shift
+        ;;
+        -r|--reboot)
+        reboot_fpga=1
         shift
         ;;
         -s|--server)
@@ -157,6 +163,17 @@ if [ -z ${no_check_fw+x} ]; then
     checkFw
 else
     echo "Check firmware disabled."
+fi
+
+# Reboot the FPGA, if requested
+if  ! [ -z ${reboot_fpga+x} ]; then
+
+    # Check if a new MCS was loaded. In that case there is not need
+    # to reboot the FPGA, as it was already rebooted in the process
+    # of loading a new firmware image.
+    if [ -z ${mcs_loaded+x} ]; then
+        rebootFPGA
+    fi
 fi
 
 # Call the appropriate server startup script depending on the communication type
