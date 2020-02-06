@@ -37,6 +37,7 @@ class Common(pyrogue.Root):
                  stream_pv_size = 2**19,    # Not sub-classed
                  stream_pv_type = 'Int16',  # Not sub-classed
                  configure      = False,
+                 VariableGroups = None,
                  **kwargs):
 
         pyrogue.Root.__init__(self, name="AMCc", initRead=True, pollEn=polling_en, streamIncGroups='stream', **kwargs)
@@ -131,6 +132,9 @@ class Common(pyrogue.Root):
         # once the root is started.
         self._configure = configure
 
+        # Variable groups
+        self._VariableGroups = VariableGroups
+
         # Add epics interface
         self._epics = None
         if epics_prefix:
@@ -186,7 +190,7 @@ class Common(pyrogue.Root):
         pyrogue.Root.start(self)
 
         # Setup groups
-        pysmurf.core.utilities.setupGroups(self)
+        pysmurf.core.utilities.setupGroups(self, self._VariableGroups)
 
         # Show image build information
         try:

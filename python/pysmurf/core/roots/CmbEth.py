@@ -36,6 +36,7 @@ class CmbEth(Common):
                  disable_bay1   = False,
                  txDevice       = None,
                  configure      = False,
+                 VariableGroups = None,
                  **kwargs):
 
 
@@ -78,5 +79,6 @@ class CmbEth(Common):
                               pv_dump_file   = pv_dump_file,
                               txDevice       = txDevice,
                               configure      = configure,
+                              VariableGroups = VariableGroups,
                               **kwargs)
 
