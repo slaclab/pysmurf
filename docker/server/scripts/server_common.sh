@@ -72,30 +72,75 @@ rebootFPGA()
 {
     local retry_max=10
     local retry_delay=10
+    local bsi_state
 
     printf "Sending reboot command to FPGA...       "
-    ipmitool -I lan -H $shelfmanager -t $ipmb -b 0 -A NONE raw 0x2C 0x0A 0 0 2 0 &> /dev/null
+    ipmitool -I lan -H ${shelfmanager} -t ${ipmb} -b 0 -A NONE raw 0x2C 0x0A 0 0 2 0 &> /dev/null
+
+    # Verify IPMI errors
+    if [ "$?" -ne 0 ]; then
+        kill -s TERM ${top_pid}
+        exit
+    fi
+
     sleep 1
-    ipmitool -I lan -H $shelfmanager -t $ipmb -b 0 -A NONE raw 0x2C 0x0A 0 0 1 0 &> /dev/null
+
+    ipmitool -I lan -H ${shelfmanager} -t ${ipmb} -b 0 -A NONE raw 0x2C 0x0A 0 0 1 0 &> /dev/null
+
+    # Verify IPMI errors
+    if [ "$?" -ne 0 ]; then
+        kill -s TERM ${top_pid}
+        exit
+    fi
+
     echo "Done"
 
     printf "Waiting for FPGA to boot...             "
+
     # Wait until FPGA boots
-    for i in $(seq 1 $retry_max); do
-        sleep $retry_delay
-        local bsi_state=$(ipmitool -I lan -H $shelfmanager -t $ipmb -b 0 -A NONE raw 0x34 0xF4 2> /dev/null | awk '{print $1}')
-        if [ "$?" -eq 0 ] && [ $bsi_state -eq 3 ]; then
-	    local done=1
+    for i in $(seq 1 ${retry_max}); do
+
+        sleep ${retry_delay}
+        bsi_state=$(ipmitool -I lan -H ${shelfmanager} -t ${ipmb} -b 0 -A NONE raw 0x34 0xF4 2> /dev/null | awk '{print $1}')
+
+        # Verify IPMI errors
+        if [ "$?" -eq 0 ] && [ ${bsi_state} -eq 3 ]; then
+            local ready_fpga=1
             break
         fi
+
     done
 
-    if [ -z $done ]; then
-        echo "FPGA didn't boot after $(($retry_max*$retry_delay)) seconds. Aborting..."
+    if [ -z ${ready_fpga+x} ]; then
+        echo "FPGA didn't boot after $((${retry_max}*${retry_delay})) seconds. Aborting..."
         echo
-        exit 1
+        kill -s TERM ${top_pid}
+        exit
     else
-        echo "FPGA booted after $((i*$retry_delay)) seconds"
+        echo "FPGA booted after $((i*${retry_delay})) seconds"
+    fi
+
+    printf "Waiting for FPGA's ETH to come up...    "
+
+    # Wait until FPGA's ETH is ready
+    for i in $(seq 1 ${retry_max}); do
+
+        if /bin/ping -c 2 ${fpga_ip} &> /dev/null ; then
+           local ready_eth=1
+           break
+        else
+           sleep ${retry_delay}
+        fi
+
+    done
+
+    if [ -z ${ready_eth+x} ]; then
+        echo "FPGA's ETH didn't come up after $((${retry_max}*${retry_delay})) seconds. Aborting..."
+        echo
+        kill -s TERM ${top_pid}
+        exit
+    else
+        echo "FPGA's ETH came up after $((i*${retry_delay})) seconds"
     fi
 }
 
