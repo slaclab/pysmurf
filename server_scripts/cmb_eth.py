@@ -53,7 +53,8 @@ if __name__ == "__main__":
                      polling_en     = args['polling_en'],
                      pv_dump_file   = args['pv_dump_file'],
                      disable_bay0   = args['disable_bay0'],
-                     disable_bay1   = args['disable_bay1']) as root:
+                     disable_bay1   = args['disable_bay1'],
+                     configure      = args['configure']) as root:
 
             if args['use_gui']:
                 # Start the GUI

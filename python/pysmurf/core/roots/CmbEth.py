@@ -35,6 +35,7 @@ class CmbEth(Common):
                  disable_bay0   = False,
                  disable_bay1   = False,
                  txDevice       = None,
+                 configure      = False,
                  **kwargs):
 
 
@@ -76,5 +77,6 @@ class CmbEth(Common):
                               polling_en     = polling_en,
                               pv_dump_file   = pv_dump_file,
                               txDevice       = txDevice,
+                              configure      = configure,
                               **kwargs)
 
