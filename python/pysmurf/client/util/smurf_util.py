@@ -922,8 +922,8 @@ class SmurfUtilMixin(SmurfBase):
             stream0 = self.epics_root + ":AMCc:Stream0"
             stream1 = self.epics_root + ":AMCc:Stream1"
         else:
-            stream0 = self.epics_root + ":AMCc:Stream4"
-            stream1 = self.epics_root + ":AMCc:Stream5"
+            stream0 = self.epics_root + ":AMCc:Stream2"
+            stream1 = self.epics_root + ":AMCc:Stream3"
 
         pvs = [stream0, stream1]
         sg  = SyncGroup(pvs, skip_first=True)
