@@ -40,6 +40,10 @@ if __name__ == "__main__":
     common.verify_ip(args)
     common.ping_fpga(args)
 
+    # Define variable groups (we use the provided example definition)
+    # We can disable it by defining "VariableGroups = None" instead.
+    from pysmurf.core.server_scripts._VariableGroupExample import VariableGroups
+
     # The PCIeCard object will take care of setting up the PCIe card (if present)
     with pysmurf.core.devices.PcieCard( lane      = args['pcie_rssi_lane'],
                                         comm_type = "eth-rssi-interleaved",
@@ -54,7 +58,8 @@ if __name__ == "__main__":
                      pv_dump_file   = args['pv_dump_file'],
                      disable_bay0   = args['disable_bay0'],
                      disable_bay1   = args['disable_bay1'],
-                     configure      = args['configure']) as root:
+                     configure      = args['configure'],
+                     VariableGroups = VariableGroups) as root:
 
             if args['use_gui']:
                 # Start the GUI
