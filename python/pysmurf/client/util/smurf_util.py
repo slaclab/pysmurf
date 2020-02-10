@@ -778,8 +778,8 @@ class SmurfUtilMixin(SmurfBase):
         Turns off streaming data.
         """
         self.close_data_file(write_log=write_log)
+        self.set_stream_enable(0, write_log=write_log, wait_after=.15)
 
-        
     def read_stream_data(self, datafile, channel=None,
                          n_samp=None, array_size=None):
         """
