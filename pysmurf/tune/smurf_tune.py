@@ -1431,6 +1431,10 @@ class SmurfTuneMixin(SmurfBase):
         channels (int array): An array of channel numbers to assign resonators
         offsets (float array): The frequency offset from the subband center
         """
+        if len(freq) < 1:
+            self.log('No resonator frequencies provided. Not assigning')
+            return None, None, None
+        
         freq = np.sort(freq)  # Just making sure its in sequential order
 
         if band is None and bandcenter is None:
@@ -1497,7 +1501,6 @@ class SmurfTuneMixin(SmurfBase):
                 channels[mask[:len(chans)]] = chans
 
             # Prune channels that are too close
-            print(close_idx)
             channels[~close_idx] = -1        
 
             # write the channel assignments to file
