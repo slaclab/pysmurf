@@ -41,6 +41,8 @@ class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin,
                  no_dir=False, shelf_manager='shm-smrf-sp01', 
                  validate_config=True, **kwargs):
         '''
+        Initializer for SmurfControl.
+
         Args:
         -----
         epics_root (string) : The epics root to be used. Default mitch_epics
@@ -71,12 +73,14 @@ class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin,
         '''
         if not offline and cfg_file is None:
             raise ValueError('Must provide config file.')
-        if cfg_file is not None:
-            self.config = SmurfConfig(cfg_file, validate_config=validate_config)
 
-        self.shelf_manager=shelf_manager
-        if epics_root is None:
-            epics_root = self.config.get('epics_root')
+            self.shelf_manager=shelf_manager
+            if epics_root is None:
+                epics_root = self.config.get('epics_root')
+
+        # In offline mode, epics root is not needed.
+        if offline and epics_root is None:
+            epics_root = ''
 
         super().__init__(epics_root=epics_root, offline=offline, **kwargs)
 
