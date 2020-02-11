@@ -98,6 +98,7 @@ class SmurfNoiseMixin(SmurfBase):
         plt.ion()
         if not show_plot:
             plt.ioff()
+        noise_ret = []
         for c, ch in enumerate(channel):
             if ch < 0:
                 continue
@@ -118,6 +119,7 @@ class SmurfNoiseMixin(SmurfBase):
                     f_knees[ch]=f_knee
                     n_list.append(n)
                     good_fit = True    
+                noise_ret.append(wl)
                 self.log('{}. b{}ch{:03}:'.format(c+1,band,ch) + 
                     ' white-noise level = {:.2f}'.format(wl) +
                         ' pA/rtHz, n = {:.2f}'.format(n) + 
@@ -251,7 +253,7 @@ class SmurfNoiseMixin(SmurfBase):
                 else:
                     plt.close()
 
-        return datafile
+        return datafile, noise_ret
 
     def turn_off_noisy_channels(self, band, noise, cutoff=150):
         """
