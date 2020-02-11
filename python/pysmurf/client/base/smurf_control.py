@@ -28,14 +28,14 @@ from pysmurf.client.base.smurf_config import SmurfConfig as SmurfConfig
 from pysmurf.client.util.pub import Publisher
 
 
-class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin, SmurfTuneMixin, 
-    SmurfNoiseMixin, SmurfIVMixin):
+class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin, 
+    SmurfTuneMixin, SmurfNoiseMixin, SmurfIVMixin):
     '''
     Base class for controlling Smurf. Loads all the mixins.
     '''
 
     def __init__(self, epics_root=None,
-                 cfg_file='/home/cryo/pysmurf/cfg_files/experiment_k2umux.cfg',
+                 cfg_file=None,
                  data_dir=None, name=None, make_logfile=True,
                  setup=False, offline=False, smurf_cmd_mode=False,
                  no_dir=False, shelf_manager='shm-smrf-sp01', 
@@ -44,17 +44,36 @@ class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin, Smu
         Args:
         -----
         epics_root (string) : The epics root to be used. Default mitch_epics
-        cfg_file (string) : Path the config file
+        cfg_file (string) : Config file path. Default is None. Must be provided
+            if not on offline mode.
         data_dir (string) : Path to the data dir
 
         Opt Args:
         ----------
+        data_dir (str) : Path to the data directory
+        name (str) : The name of the output directory. If None, it will use
+            the current timestamp as the output directory name. Default is None.
+        make_logfile (bool) : Whether to make a log file. If False, outputs will
+            go to the screen.
+        setup (bool) : Whether to run the setup step. Default is False.
+        smurf_cmd_mode (bool) : This mode tells the system that the input is
+            coming in from the command line (rather than a python session). 
+            Everything implemented here are in smurf_cmd.py. Default is False.
+        no_dir (bool) : Whether to make a skip making a directory. Default is 
+            False.
+        validate_config (bool) : Whether to check if the input config file is
+            correct. Default is True.
         shelf_manager (str):
             Shelf manager ip or network name.  Usually each SMuRF server is
             connected one-to-one with a SMuRF crate, in which case we by
             default give the shelf manager the network name 'shm-smrf-sp01'.
+
         '''
-        self.config = SmurfConfig(cfg_file, validate_config=validate_config)
+        if not offline and cfg_file is None:
+            raise ValueError('Must provide config file.')
+        if cfg_file is not None:
+            self.config = SmurfConfig(cfg_file, validate_config=validate_config)
+
         self.shelf_manager=shelf_manager
         if epics_root is None:
             epics_root = self.config.get('epics_root')
