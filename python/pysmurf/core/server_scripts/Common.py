@@ -132,32 +132,32 @@ def make_parser(parser=None):
     group = parser.add_argument_group('SMuRF Args')
 
     group.add_argument('--zip', '-z', dest='zip_file', default="",
-        help="Pyrogue zip file to be included in python path"
+        help="Pyrogue zip file to be included in python path."
     )
     group.add_argument('--addr', '-a', dest='ip_addr', default="",
-        help="FPGA IP address. Required when the communication is based off on Ethernet."
+        help="FPGA IP address. Required when the communication type is based on Ethernet."
     )
     group.add_argument('--defaults', '-d', dest='config_file',
         help="Default configuration file. If the path is relative, it refers to "
-             f"the zip file (i.e: file.zip/python/{top_rogue_package_name}/config/config_file.yml)."
+             f"the zip file (i.e: <file.zip>/python/{top_rogue_package_name}/config/<config_file.yml>)."
     )
     group.add_argument('--configure', '-c', action='store_true',
-        help="Load the default configuration at startup"
+        help="Load the default configuration at startup."
     )
     group.add_argument('--epics', '-e', dest='epics_prefix', default="",
-        help="Start an EPICS server with PV name prefix \"prefix\""
+        help="Start an EPICS server with PV name prefix \"prefix\"."
     )
     group.add_argument('--gui', '-g', action='store_true', dest='use_gui',
-        help="Starts the server with a gui"
+        help="Starts the server with a gui."
     )
     group.add_argument('--nopoll', '-n', action='store_false', dest='polling_en',
-        help="Disables all polling"
+        help="Disables all polling."
     )
     group.add_argument('--pcie-rssi-lane', '-l', type=int, choices=[0,1,2,3,4,5],
         help="PCIe RSSI lane. Only needed when using PCIe communication.", dest='pcie_rssi_lane'
     )
     group.add_argument('--dump-pvs', '-u', dest='pv_dump_file', default="",
-        help="Dump the PV list to \"file_name\". Must be used with -e"
+        help="Dump the PV list to \"file_name\". Must be used with -e."
     )
     group.add_argument('--disable-bay0', action='store_true',
         help="Disable the instantiation of devices for Bay 0."
@@ -171,11 +171,11 @@ def make_parser(parser=None):
     )
     group.add_argument('--pcie-dev-rssi', default="/dev/datadev_0",
         help="Set the PCIe card device name used for RSSI "
-             "(defaults to '/dev/datadev_0')"
+             "(defaults to '/dev/datadev_0')."
     )
     group.add_argument('--pcie-dev-data', default="/dev/datadev_1",
         help="Set the PCIe card device name used for data "
-             "(defaults to '/dev/datadev_1')"
+             "(defaults to '/dev/datadev_1')."
     )
 
     return parser
