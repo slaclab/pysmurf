@@ -139,13 +139,13 @@ def make_parser(parser=None):
     )
     group.add_argument('--defaults', '-d', dest='config_file',
         help="Default configuration file. If the path is relative, it refers to "
-             f"the zip file (i.e: <file.zip>/python/{top_rogue_package_name}/config/<config_file.yml>)."
+             f"the zip file (i.e: <ZIP_FILE>/python/{top_rogue_package_name}/config/<CONFIG_FILE>)."
     )
     group.add_argument('--configure', '-c', action='store_true',
         help="Load the default configuration at startup."
     )
     group.add_argument('--epics', '-e', dest='epics_prefix', default="",
-        help="Start an EPICS server with PV name prefix \"prefix\"."
+        help="Start an EPICS server with PV name prefix \"EPICS_PREFIX\"."
     )
     group.add_argument('--gui', '-g', action='store_true', dest='use_gui',
         help="Starts the server with a gui."
@@ -157,7 +157,7 @@ def make_parser(parser=None):
         help="PCIe RSSI lane. Only needed when using PCIe communication.", dest='pcie_rssi_lane'
     )
     group.add_argument('--dump-pvs', '-u', dest='pv_dump_file', default="",
-        help="Dump the PV list to \"file_name\". Must be used with -e."
+        help="Dump the PV list to \"DUMP_FILE\". Must be used with -e."
     )
     group.add_argument('--disable-bay0', action='store_true',
         help="Disable the instantiation of devices for Bay 0."
