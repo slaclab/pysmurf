@@ -25,10 +25,12 @@ import os
 import zipfile
 import argparse
 
+# Name of the TopRoguePackage in the ZIP file
+top_rogue_package_name="CryoDet"
 
 def get_args():
     """
-        Parses and processes args, returning the modified arguments as a dict. 
+        Parses and processes args, returning the modified arguments as a dict.
         This is to maintain backwards compatibility with the old of parsing
         arguments.
     """
@@ -51,60 +53,31 @@ def process_args(args):
         # Verify if the zip file exist and if it is valid
         if os.path.exists(zip_file_name) and zipfile.is_zipfile(zip_file_name):
 
-            print(f"Valid zip file '{zip_file_name}'. Looking for a python directory in it...")
+            # The ZIP file is valid
+            print(f"Valid zip file '{zip_file_name}'.")
 
-            # Verify that the zip file contains a python directory in it
-            # A directory called 'python' must be either the top, or the second directory
-            with zipfile.ZipFile(zip_file_name, 'r') as zf:
-                # The zip file must either contain a 'python' directory in the top level,
-                # or contain only one top level directory with 'python' under it.
-
-                # List of files and directories in the zip file
-                file_list = zf.namelist()
-
-                # Check first if there is a 'python' directory in the top level.
-                # If so, that is out python directory, and top level is empty
-                if "python/" in file_list:
-                    print("A 'python' directory was found in the top level.")
-                    top_name = ""
-                    zip_python_path = "python/"
-
-                # Otherwise, look for 'python' under the top directory
-                else:
-                    # This is the name of the top directory inside the zip file
-                    top_name = file_list[0]
-                    print(f"The top directory in the zip file is '{top_name}'")
-
-                    zip_python_path = top_name + "python/"
-
-                    print(f"Looking for '{zip_python_path}' in zip file..")
-
-                    if zip_python_path in file_list:
-                        print("Found!")
-                    else:
-                        # Not python directory was found. Exit with an error
-                        sys.exit("ERROR: Python directory not found in zip file")
-
-                # At this point we found the python directory, so we add it to the Python Path
-                # using it absolute path (including the path to the zip file)
-                print(f"Adding it to the Python path.")
-                pyrogue.addLibraryPath(zip_file_name + "/" + zip_python_path)
+            # Add the zip file's python directory to the python path.
+            pyrogue.addLibraryPath(f"{zip_file_name}/python")
 
             # If the default configuration file was given using a relative path,
             # it is refereed to the zip file, so build its full path.
             if args.config_file and args.config_file[0] != '/':
-                # The configuration file will be in a directory called 'config' parallel to
-                # the 'python' directory
-                config_file = top_name + "config/" + args.config_file
+
+                # The configuration file will be in 'python/${TOP_ROGUE_PACKAGE_NAME}/config/'
+                config_file = f"python/{top_rogue_package_name}/config/{args.config_file}"
 
                 print("Default configuration was defined with a relative path.")
                 print(f"Looking if the zip file contains: {config_file}")
+
+                # Get a list of files in the zip file
+                with zipfile.ZipFile(zip_file_name, 'r') as zf:
+                    file_list = zf.namelist()
 
                 # Verify that the file exist inside the zip file
                 if config_file in file_list:
                     # If found, build the full path to it, including the path to the zip file
                     print("Found!")
-                    args.config_file = zip_file_name + "/" + config_file
+                    args.config_file = f"{zip_file_name}/{config_file}"
                 else:
                     # if not found, then clear the argument as it is invalid.
                     print("Not found. Omitting it.")
@@ -146,9 +119,9 @@ def ping_fpga(args):
 def make_parser(parser=None):
     """
         Creates argparse parser containing smurf command-line options
-        
-        Args: 
-            parser (optional, argparse.ArgumentParser): 
+
+        Args:
+            parser (optional, argparse.ArgumentParser):
                 Existing parser to add arguments to. If not specified a new one
                 will be created and returned.
     """
@@ -156,7 +129,7 @@ def make_parser(parser=None):
     if parser is None:
         parser = argparse.ArgumentParser()
 
-    group = parser.add_argument_group('SMuRF Args') 
+    group = parser.add_argument_group('SMuRF Args')
 
     group.add_argument('--zip', '-z', dest='zip_file', default="",
         help="Pyrogue zip file to be included in python path"
