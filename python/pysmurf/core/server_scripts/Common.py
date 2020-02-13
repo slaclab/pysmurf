@@ -135,11 +135,11 @@ def make_parser(parser=None):
         help="Pyrogue zip file to be included in python path"
     )
     group.add_argument('--addr', '-a', dest='ip_addr', default="",
-        help="FPGA IP address. Required when the communication iss based off on Ethernet."
+        help="FPGA IP address. Required when the communication is based off on Ethernet."
     )
     group.add_argument('--defaults', '-d', dest='config_file',
         help="Default configuration file. If the path is relative, it refers to "
-             "the zip file (i.e: file.zip/config/config_file.yml)."
+             f"the zip file (i.e: file.zip/python/{top_rogue_package_name}/config/config_file.yml)."
     )
     group.add_argument('--configure', '-c', action='store_true',
         help="Load the default configuration at startup"
@@ -153,8 +153,8 @@ def make_parser(parser=None):
     group.add_argument('--nopoll', '-n', action='store_false', dest='polling_en',
         help="Disables all polling"
     )
-    group.add_argument('--pcie-rssi-link', '-l', type=int, choices=[0,1,2,3,4,5],
-        help="PCIe RSSI lane.", dest='pcie_rssi_lane'
+    group.add_argument('--pcie-rssi-lane', '-l', type=int, choices=[0,1,2,3,4,5],
+        help="PCIe RSSI lane. Only needed when using PCIe communication.", dest='pcie_rssi_lane'
     )
     group.add_argument('--dump-pvs', '-u', dest='pv_dump_file', default="",
         help="Dump the PV list to \"file_name\". Must be used with -e"
@@ -167,7 +167,7 @@ def make_parser(parser=None):
     )
     group.add_argument('--windows-title', '-w', default="",
         help="Sets the GUI windows title. Defaults to name of this script. "
-             "This value will be ignored when running in server mode"
+             "This value will be ignored when running in server mode."
     )
     group.add_argument('--pcie-dev-rssi', default="/dev/datadev_0",
         help="Set the PCIe card device name used for RSSI "
