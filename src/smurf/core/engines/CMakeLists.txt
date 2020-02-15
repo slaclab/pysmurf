@@ -13,12 +13,6 @@
 # contained in the LICENSE.txt file.
 # ----------------------------------------------------------------------------
 
-add_subdirectory(common)
-add_subdirectory(counters)
-add_subdirectory(conventers)
-add_subdirectory(processors)
-add_subdirectory(transmitters)
-add_subdirectory(emulators)
-add_subdirectory(engines)
-
+target_sources(smurf PRIVATE "${CMAKE_CURRENT_LIST_DIR}/SysgenCryo.cpp")
 target_sources(smurf PRIVATE "${CMAKE_CURRENT_LIST_DIR}/module.cpp")
+
