@@ -2069,7 +2069,7 @@ class SmurfTuneMixin(SmurfBase):
 
         Opt Args:
         ---------
-        channel (int) : The channel to check
+        channel (int or int array) : The channels to plot
         reset_rate_khz (float) : The flux ramp frequency
         write_log (bool) : Whether to write output to the log.  Default False.
         make_plot (bool) : Whether to make plots. Default False.
@@ -2154,14 +2154,16 @@ class SmurfTuneMixin(SmurfBase):
             else:
                 lms_freq_hz = self.config.get('tune_band').get('lms_freq')[str(band)]
             self.lms_freq_hz[band] = lms_freq_hz
-            self.log('Using lms_freq_estimator : {:.0f} Hz'.format(lms_freq_hz))
+            if write_log:
+                self.log('Using lms_freq_estimator : {:.0f} Hz'.format(lms_freq_hz))
 
         if not flux_ramp:
             lms_enable1 = 0
             lms_enable2 = 0
             lms_enable3 = 0
 
-        self.log("Using lmsFreqHz = {:.0f} Hz".format(lms_freq_hz), self.LOG_USER)
+        if write_log:
+            self.log("Using lmsFreqHz = {:.0f} Hz".format(lms_freq_hz), self.LOG_USER)
 
         self.set_lms_gain(band, lms_gain, write_log=write_log)
         self.set_lms_enable1(band, lms_enable1, write_log=write_log)
@@ -2193,7 +2195,8 @@ class SmurfTuneMixin(SmurfBase):
         self.set_feedback_start(band, feedback_start, write_log=write_log)
         self.set_feedback_end(band, feedback_end, write_log=write_log)
 
-        self.log("Applying feedback over {:.1f}% of each flux ramp cycle (with feedbackStart={} and feedbackEnd={})".format(
+        if write_log:
+            self.log("Applying feedback over {:.1f}% of each flux ramp cycle (with feedbackStart={} and feedbackEnd={})".format(
                                          (feedback_end_frac-feedback_start_frac)*100.,
                                          feedback_start,
                                          feedback_end),
@@ -2212,9 +2215,11 @@ class SmurfTuneMixin(SmurfBase):
             df_channels = np.ravel(np.where(df_std >0))
 
             channels_on = list(set(df_channels) & set(self.which_on(band)))
-            self.log("Number of channels on = {}".format(len(channels_on)), 
-                self.LOG_USER)
-
+            self.log(f"Number of channels on : {self.which_on(band)}",
+                     self.LOG_USER)
+            self.log(f"Number of channels on with flux ramp response : {len(channels_on)}",
+                     self.LOG_USER)
+            
             f_span = np.max(f,0) - np.min(f,0)
 
         if make_plot:
