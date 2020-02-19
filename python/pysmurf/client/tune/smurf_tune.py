@@ -1339,6 +1339,7 @@ class SmurfTuneMixin(SmurfBase):
         else:
             return True
 
+        
     def load_master_assignment(self, band, filename):
         """
         By default, pysmurf loads the most recent master assignment.
@@ -2056,7 +2057,8 @@ class SmurfTuneMixin(SmurfBase):
         nsamp=2**19, lms_freq_hz=None, meas_lms_freq=False, flux_ramp=True, 
         fraction_full_scale=None, lms_enable1=True, lms_enable2=True, 
         lms_enable3=True, lms_gain=None, return_data=True, new_epics_root=None,
-        feedback_start_frac=None, feedback_end_frac=None):
+                       feedback_start_frac=None, feedback_end_frac=None,
+                       setup_flux_ramp=True):
         """
         The function to start tracking. Starts the flux ramp and if requested
         attempts to measure the lms (demodulation) frequency. Otherwise this
@@ -2098,6 +2100,8 @@ class SmurfTuneMixin(SmurfBase):
         meas_lms_freq (bool) : Whether or not to try to estimate the
            carrier rate using the flux_mod2 function.  Default false.
            lms_freq_hz must be None.
+        setup_flux_ramp (bool) : Whether to setup the flux ramp. Default
+           is True.
         """
         if reset_rate_khz is None:
             reset_rate_khz = self.reset_rate_khz
@@ -2174,8 +2178,12 @@ class SmurfTuneMixin(SmurfBase):
         iq_stream_enable = 0  # must be zero to access f,df stream        
         self.set_iq_stream_enable(band, iq_stream_enable, write_log=write_log)
 
-        self.flux_ramp_setup(reset_rate_khz, fraction_full_scale,
+        if setup_flux_ramp:
+            self.flux_ramp_setup(reset_rate_khz, fraction_full_scale,
                              write_log=write_log, new_epics_root=new_epics_root)
+        else:
+            self.log("Not changing flux ramp status. Use setup_flux_ramp " +
+                     "boolean to run flux_ramp_setup")
 
         # Doing this after flux_ramp_setup so that if needed we can
         # set feedback_end based on the flux ramp settings.
