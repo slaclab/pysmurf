@@ -2202,7 +2202,8 @@ class SmurfUtilMixin(SmurfBase):
 
 
     def overbias_tes(self, bias_group, overbias_voltage=19.9, overbias_wait=5.,
-        tes_bias=19.9, cool_wait=20., high_current_mode=True, flip_polarity=False):
+                     tes_bias=19.9, cool_wait=20., high_current_mode=True, flip_polarity=False,
+                     actually_overbias=True):
         """
         Warning: This is horribly hardcoded. Needs a fix soon.
 
@@ -2226,15 +2227,17 @@ class SmurfUtilMixin(SmurfBase):
         assert (bias_group in bias_groups),\
         f'Bias group {bias_group} is not defined (available bias groups are {bias_groups}).  Doing nothing!'
 
-        # drive high current through the TES to attempt to drive normal
-        self.set_tes_bias_bipolar(bias_group, overbias_voltage,
-                                  flip_polarity=flip_polarity)
-        time.sleep(.1)
-
-        self.set_tes_bias_high_current(bias_group)
-        self.log('Driving high current through TES. ' + \
-            'Waiting {}'.format(overbias_wait), self.LOG_USER)
-        time.sleep(overbias_wait)
+        if actually_overbias:
+            # drive high current through the TES to attempt to drive normal
+            self.set_tes_bias_bipolar(bias_group, overbias_voltage,
+                                      flip_polarity=flip_polarity)
+            time.sleep(.1)
+            
+            self.set_tes_bias_high_current(bias_group)
+            self.log('Driving high current through TES. ' + \
+                     'Waiting {}'.format(overbias_wait), self.LOG_USER)
+            time.sleep(overbias_wait)
+            
         if not high_current_mode:
             self.set_tes_bias_low_current(bias_group)
             time.sleep(.1)
@@ -2246,7 +2249,7 @@ class SmurfUtilMixin(SmurfBase):
 
     def overbias_tes_all(self, bias_groups=None, overbias_voltage=19.9,
         overbias_wait=1.0, tes_bias=19.9, cool_wait=20.,
-        high_current_mode=True):
+        high_current_mode=True, actually_overbias=True):
         """
         Overbiases all requested bias groups (specified by the
         bias_groups array) at overbias_voltage in high current mode
@@ -2283,14 +2286,15 @@ class SmurfUtilMixin(SmurfBase):
             'Some of the bias groups requested are not valid '+\
             f'(available bias groups are {valid_bias_groups}).  Doing nothing!'
 
-        voltage_overbias_array = self.get_tes_bias_bipolar_array()
-        voltage_overbias_array[bias_groups] = overbias_voltage
-        self.set_tes_bias_bipolar_array(voltage_overbias_array)
-
-        self.set_tes_bias_high_current(bias_groups)
-        self.log('Driving high current through TES. ' + \
-            'Waiting {}'.format(overbias_wait), self.LOG_USER)
-        time.sleep(overbias_wait)
+        if actually_overbias:
+            voltage_overbias_array = self.get_tes_bias_bipolar_array()
+            voltage_overbias_array[bias_groups] = overbias_voltage
+            self.set_tes_bias_bipolar_array(voltage_overbias_array)
+            
+            self.set_tes_bias_high_current(bias_groups)
+            self.log('Driving high current through TES. ' + \
+                     'Waiting {}'.format(overbias_wait), self.LOG_USER)
+            time.sleep(overbias_wait)
 
         if not high_current_mode:
             self.log('setting to low current')

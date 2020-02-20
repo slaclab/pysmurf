@@ -2528,7 +2528,7 @@ class SmurfCommandMixin(SmurfBase):
         return self._caget(self.rtm_cryo_det_root + self._ramp_start_mode,
             **kwargs)
 
-    _enable_ramp_trigger = 'EnableRampeTrigger'
+    _enable_ramp_trigger = 'EnableRampTrigger'
     def set_enable_ramp_trigger(self, val, **kwargs):
         """
         """
@@ -3714,28 +3714,20 @@ class SmurfCommandMixin(SmurfBase):
                     val, **kwargs)
 
 
-    _trigger_enable = 'EvrV2TriggerReg[{}]:Enable'
+    _trigger_enable = 'EvrV2TriggerReg[{}]:EnableTrig'
     def set_trigger_enable(self, chan, val, **kwargs):
-        """
+        """                                                                     
         """
         self._caput(self.trigger_root + self._trigger_enable.format(chan),
                    val, **kwargs)
 
-
-    _trigger_channel_reg_enable = 'EvrV2ChannelReg[{}]:enable'
+    _trigger_channel_reg_enable = 'EvrV2ChannelReg[{}]:EnableReg'
     def set_evr_channel_reg_enable(self, chan, val, **kwargs):
+        """                                                                     
         """
-        """
-        # Setting enable is crashing in Rogue 4.  Not even clear we need to set enable=True.
-        #self.log('set_evr_channel_reg_enable sets 2 bits. enable and Enable.')
-        self._caput(self.trigger_root +
-                    self._trigger_channel_reg_enable.replace('enable', 'Enable').format(chan), int(val),
-                    **kwargs)
-        # Setting enable is crashing in Rogue 4.  Not even clear we need to set enable=True.        
-        #self._caput(self.trigger_root +
-        #            self._trigger_channel_reg_enable.format(chan), val,
-        #            **kwargs)
-
+        self._caput(self.trigger_root + self._trigger_channel_reg_enable.format(chan),
+                   val, **kwargs)        
+        
     # Crashing in rogue 4, and not clear it's ever needed.
     _trigger_reg_enable = 'EvrV2TriggerReg[{}]:enable'
     def set_evr_trigger_reg_enable(self, chan, val, **kwargs):
