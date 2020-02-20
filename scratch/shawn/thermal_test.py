@@ -5,19 +5,21 @@ import fcntl
 import sys
 import epics
 
-log_temperatures=False
-pause_btw_stages=True
+wait_to_check_full_band_response=False
+stop_logging_at_end=False
+log_temperatures=True
+pause_btw_stages=False
 pause_btw_band_fills=False
 pause_btw_eta_scans=False
-skip_setup=True
+skip_setup=False
 bands=range(8)
 
 shelfmanager='shm-smrf-sp01'
 
 #slots=[2,3,4]
-slots=[4]
+slots=[5]
 reset_rate_khz=10
-measure_full_band_response_after_setup=False
+measure_full_band_response_after_setup=True
 
 wait_before_setup_min=1
 wait_after_setup_min=1
@@ -177,7 +179,10 @@ if measure_full_band_response_after_setup:
         print(f'-> Checking full band response to confirm RF is properly configured on slot {slot}.')    
         measure_full_band_response(slot)
         wait_for_text_in_tmux(slot,"Done running full_band_response.py.")
-        input(f'-> Visually check the measured full band response on slot {slot} before continuing ...')
+        if wait_to_check_full_band_response:
+            input(f'-> Visually check the measured full band response on slot {slot} before continuing (press enter)...')
+        else:
+            print(f'-> Visually check the measured full band response on slot {slot} before continuing (press enter)...')            
     
 # fill bands, one at a time
 wait_btw_band_fills_sec=wait_btw_band_fills_min*60
@@ -284,8 +289,11 @@ for slot in slots:
     os.system(cmd)
     
 # stop hardware logging
-if log_temperatures:
-    for slot in slots:
-        stop_hardware_logging(slot)
+if stop_logging_at_end:
+    if log_temperatures:
+        for slot in slots:
+            stop_hardware_logging(slot)
+else:
+    print('Still logging ...')
 
 

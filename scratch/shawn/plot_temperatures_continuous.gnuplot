@@ -47,5 +47,5 @@ while 1 {
 
       plot datafile u 2:3 title 'fpga\_temp', datafile u 2:7 title 'cc\_temp', datafile u 2:12 title 'atca\_temp\_fpga', datafile u 2:13 title 'atca\_temp\_rtm', datafile u 2:14 title 'atca\_temp\_amc0', datafile u 2:15 title 'atca\_temp\_amc2', datafile u 2:16 title 'atca\_jct\_temp\_fpga', datafile u 2:17 title 'regulator\_iout', datafile u 2:18 title 'regulator\_temp1', datafile u 2:19 title 'regulator\_temp2'
 
-      pause 5
+      pause 3
 }

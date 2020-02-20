@@ -9,6 +9,33 @@ fi
 # didn't exit, so there must be a startup cfg file.  Load it.
 source ${startup_cfg}
 
+#https://sookocheff.com/post/bash/parsing-bash-script-arguments-with-shopts/
+while getopts ":i:t" opt; do
+    case ${opt} in
+      i )
+	  # make sure this file exists
+	  if [ ! -f $pysmurf/pysmurf/$OPTARG ]; then
+              echo "Invalid Input: No file found at $pysmurf/pysmurf/$OPTARG" 1>&2
+              exit 1	      
+	      echo "File not found!"
+	  fi
+	  pysmurf_init_script=$OPTARG
+          ;;
+      t )
+	  run_thermal_test=true
+	  ;;
+      \? )
+        echo "Invalid Option: -$OPTARG" 1>&2
+        exit 1
+        ;;
+      : )
+        echo "Invalid Option: -$OPTARG requires an argument" 1>&2
+        exit 1
+        ;;
+    esac
+done
+shift $((OPTIND -1))
+
 ## extract slot and configuration arrays
 # first column is the slot numbers, in slot configure order.
 slots=( $(awk '{print $1}' <<< "$slot_cfgs") )
@@ -227,6 +254,20 @@ fi
 
 ### Done configuring carriers
 ################################################################################
+
+if [ "$run_thermal_test" = true ] ; then
+    tmux new-window -t ${tmux_session_name}:8
+    tmux rename-window -t ${tmux_session_name}:8 tests
+    tmux send-keys -t ${tmux_session_name}:8 'cd '${pysmurf} C-m
+    tmux send-keys -t ${tmux_session_name}:8 'ipython3 -i pysmurf/'${thermal_test_script} C-m
+
+    sleep 30
+    
+    tmux split-window -v -t ${tmux_session_name}:8
+    tmux send-keys -t ${tmux_session_name}:8 'cd '${pysmurf}'/scratch/shawn/' C-m
+    tmux send-keys -t ${tmux_session_name}:8 'ipython3 -i pysmurf/'${thermal_test_script} C-m    
+    
+fi
 
 if [ "$attach_at_end" = true ] ; then
     tmux attach -t ${tmux_session_name}

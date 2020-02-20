@@ -27,6 +27,7 @@ start_slot_tmux_and_pyrogue() {
     pyrogue=$2
     tmux new-window -t ${tmux_session_name}:${slot_number}
     tmux rename-window -t ${tmux_session_name}:${slot_number} smurf_slot${slot_number}
+    tmux send-keys -l -t ${tmux_session_name}:${slot_number} C-b S-p
     tmux send-keys -t ${tmux_session_name}:${slot_number} 'cd '${pyrogue} C-m
     tmux send-keys -t ${tmux_session_name}:${slot_number} './run.sh -N '${slot_number}'; sleep 5; docker logs smurf_server_s'${slot_number}' -f' C-m
 }
@@ -86,6 +87,7 @@ start_slot_tmux_serial () {
     tmux send-keys -t ${tmux_session_name}:${slot_number} './run.sh shawnhammer_pysmurf_s'${slot_number} C-m
     sleep 1
 
+    tmux run-shell -t ${tmux_session_name}:${slot_number} /home/cryo/tmux-logging/scripts/toggle_logging.sh
     tmux send-keys -t ${tmux_session_name}:${slot_number} 'ipython3 -i '${pysmurf_init_script}' '${slot_number} C-m
 
     ## not the safest way to do this.  If someone else starts a
@@ -96,11 +98,11 @@ start_slot_tmux_serial () {
     echo "pysmurf_docker0=$pysmurf_docker0"
     latest_pysmurf_docker=`docker ps -a | grep pysmurf | grep -v pysmurf_s${slot_number} | head -n 1 | awk '{print $1}'`
     echo "latest_pysmurf_docker=$latest_pysmurf_docker"	    
-    while [ "$pysmurf_docker0" == "$latest_pysmurf_docker" ]; do
-    	latest_pysmurf_docker=`docker ps -a | grep pysmurf | grep -v pysmurf_s${slot_number} | head -n 1 | awk '{print $1}'`
-    	sleep 1
-	echo "latest_pysmurf_docker=$latest_pysmurf_docker"		
-    done
+#    while [ "$pysmurf_docker0" == "$latest_pysmurf_docker" ]; do
+#    	latest_pysmurf_docker=`docker ps -a | grep pysmurf | grep -v pysmurf_s${slot_number} | head -n 1 | awk '{print $1}'`
+#    	sleep 1
+#	echo "latest_pysmurf_docker=$latest_pysmurf_docker"		
+#    done
     
     # after running this, can run
     # pysmurf_docker=`docker ps -n 1 -q`
