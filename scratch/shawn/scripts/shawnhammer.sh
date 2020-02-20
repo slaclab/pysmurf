@@ -1,6 +1,7 @@
 #!/bin/bash
 
-xhost +
+# stalls sometimes for some reason...
+#xhost +
 
 #default startup cfg
 startup_cfg=/data/smurf_startup_cfg/smurf_startup.cfg
