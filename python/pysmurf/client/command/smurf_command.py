@@ -1865,7 +1865,7 @@ class SmurfCommandMixin(SmurfBase):
         '''
         '''
         return self._caget(self.jesd_tx_root.format(bay) + self._data_out_mux.format(b),
-            val, **kwargs)
+            **kwargs)
 
     # Jesd DAC commands
     _jesd_reset_n = "JesdRstN"
@@ -1904,7 +1904,7 @@ class SmurfCommandMixin(SmurfBase):
         '''
         Disables jesd link
         '''
-        return self._caget(self.jesd_rx_root.format(bay) + self._link_disable, val,
+        return self._caget(self.jesd_rx_root.format(bay) + self._link_disable,
             **kwargs)
 
     _jesd_tx_enable = 'Enable'
@@ -2141,7 +2141,7 @@ class SmurfCommandMixin(SmurfBase):
         ret=self._caget(self.stream_data_writer_root +
                         self._data_file, **kwargs)
         if as_str:
-            ret=tools.utf8_to_str(d)
+            ret=tools.utf8_to_str(ret)
         return ret
     
     _datawriter_open = 'Open'
@@ -2533,7 +2533,7 @@ class SmurfCommandMixin(SmurfBase):
         """
         """
         self._caput(self.rtm_cryo_det_root + self._enable_ramp_trigger,
-                    vale, **kwargs)
+                    val, **kwargs)
 
     timing_crate_root = ":AMCc:FpgaTopLevel:AmcCarrierCore:AmcCarrierTiming:EvrV2CoreTriggers"
     _trigger_rate_sel = ":EvrV2ChannelReg[0]:RateSel"
@@ -3487,7 +3487,7 @@ class SmurfCommandMixin(SmurfBase):
         if disable_poll:
             epics.caput(self.epics_root + self._global_poll_enable, False)
 
-    def set_cryo_card_hemt_ps_en(self, enable):
+    def set_cryo_card_hemt_ps_en(self, enable, write_log=False):
         """
         Set the cryo card HEMT power supply enable.
 
@@ -3513,7 +3513,7 @@ class SmurfCommandMixin(SmurfBase):
         # Write back the new value
         self.C.write_ps_en(new_en_value)
 
-    def set_cryo_card_50k_ps_en(self, enable):
+    def set_cryo_card_50k_ps_en(self, enable, write_log=False):
         """
         Set the cryo card 50k power supply enable.
 
@@ -3539,7 +3539,7 @@ class SmurfCommandMixin(SmurfBase):
         # Write back the new value
         self.C.write_ps_en(new_en_value)
 
-    def set_cryo_card_ps_en(self, enable=3):
+    def set_cryo_card_ps_en(self, enable=3, write_log=False):
         """
         Write the cryo card power supply enables. Can use this to set both power supplies
         at once rather than setting them individually
@@ -3785,7 +3785,7 @@ class SmurfCommandMixin(SmurfBase):
         dac (int): Which DAC no. [0 or 1].
         """
         return self._caget(self.DBG.format(bay) + self._dac_reset.format(dac),
-                           val, **kwargs)
+                           **kwargs)
 
 
     _debug_select = "DebugSelect[{}]"
@@ -3869,7 +3869,7 @@ class SmurfCommandMixin(SmurfBase):
         val (int): 0 or 1 for the debug bit
         """
         self._caput(self.epics_root + self._mcetransmit_debug, val,
-                    **channel)
+                    **kwargs)
 
     _frame_count = 'FrameCnt'
     def get_frame_count(self, **kwargs):

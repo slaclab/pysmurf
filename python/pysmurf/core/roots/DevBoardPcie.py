@@ -18,7 +18,6 @@
 #-----------------------------------------------------------------------------
 
 import pyrogue
-import pysmurf
 import rogue.hardware.axi
 import rogue.protocols.srp
 

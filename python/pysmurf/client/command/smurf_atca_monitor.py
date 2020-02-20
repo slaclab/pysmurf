@@ -13,12 +13,7 @@
 # copied, modified, propagated, or distributed except according to the terms 
 # contained in the LICENSE.txt file.
 #-----------------------------------------------------------------------------
-import numpy as np
-import os
-import epics
-import time
 from pysmurf.client.base import SmurfBase
-from pysmurf.client.command.sync_group import SyncGroup as SyncGroup
 
 class SmurfAtcaMonitorMixin(SmurfBase):
 

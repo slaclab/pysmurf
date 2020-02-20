@@ -1,5 +1,4 @@
 import pytest
-import numpy as np
 import pysmurf.client
 import os
 

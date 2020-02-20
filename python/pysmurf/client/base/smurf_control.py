@@ -15,7 +15,6 @@
 #-----------------------------------------------------------------------------
 import numpy as np
 import os
-import sys
 import time
 import glob
 from pysmurf.client.command.smurf_command import SmurfCommandMixin as SmurfCommandMixin
@@ -25,7 +24,6 @@ from pysmurf.client.tune.smurf_tune import SmurfTuneMixin as SmurfTuneMixin
 from pysmurf.client.debug.smurf_noise import SmurfNoiseMixin as SmurfNoiseMixin
 from pysmurf.client.debug.smurf_iv import SmurfIVMixin as SmurfIVMixin
 from pysmurf.client.base.smurf_config import SmurfConfig as SmurfConfig
-from pysmurf.client.util.pub import Publisher
 
 
 class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin, SmurfTuneMixin, 

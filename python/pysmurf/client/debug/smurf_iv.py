@@ -16,7 +16,7 @@
 import numpy as np
 from pysmurf.client.base import SmurfBase
 import time
-import os,sys
+import os
 import matplotlib.pyplot as plt
 from matplotlib.gridspec import GridSpec
 import matplotlib.colors as Colors
@@ -858,7 +858,7 @@ class SmurfIVMixin(SmurfBase):
                 plt.rcParams["patch.force_edgecolor"] = True
 
                 if not show_plot:
-                    plot.ioff()
+                    plt.ioff()
 
                 fig, ax = plt.subplots(1, sharex=True)
                 ax.plot(phase)

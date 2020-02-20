@@ -18,10 +18,8 @@ from pysmurf.client.base import SmurfBase
 from pysmurf.client.command.sync_group import SyncGroup as SyncGroup
 import time
 import os
-import struct
 import time
 from scipy import signal
-import shutil
 import glob
 import matplotlib.pyplot as plt
 # for hardware logging

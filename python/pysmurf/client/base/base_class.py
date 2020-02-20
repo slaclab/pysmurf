@@ -13,7 +13,6 @@
 # copied, modified, propagated, or distributed except according to the terms 
 # contained in the LICENSE.txt file.
 #-----------------------------------------------------------------------------
-import numpy as np
 from .logger import SmurfLogger
 from pysmurf.client.command.cryo_card import CryoCard
 

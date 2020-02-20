@@ -18,8 +18,6 @@
 #-----------------------------------------------------------------------------
 
 import pyrogue
-import pysmurf
-import os
 
 def setupGroups(root, VariableGroups):
     """

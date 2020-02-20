@@ -18,7 +18,6 @@ import os
 import glob
 import time
 from pysmurf.client.base import SmurfBase
-from scipy import optimize
 import scipy.signal as signal
 from collections import Counter
 from ..util import tools
@@ -1569,28 +1568,35 @@ class SmurfTuneMixin(SmurfBase):
         Compares tuning file to a reference tuning file. Does not work yet.
 
         """
-
-        # Load data
-        res1 = self.load_tune(tune)
-        if ref_tune is None:
-            res2 = self.freq_resp
-
-        if make_plot:
-            plt_freq = freq * 1.0E-6
-            fig, ax = plt.subplots(2, sharex=True, figsize=(6,5))
-            ax[0].plot(plt_freq, np.abs(resp))
-            ax[0].plot(plt_freq, np.abs(resp_ref))
-
-            for k in tune.keys():
-                ax[0].axvline(tune[k]['freq']*1.0E-6, color='b', linestyle=':')
-            for k in tune_ref.keys():
-                ax[0].axvline(tune_ref[k]['freq']*1.0E-6, color='r', 
-                    linestyle=':')
-
-
-            ax[1].plot(plt_freq, np.abs(resp) - np.abs(resp_ref))
-
-            plt.tight_layout()
+# FIXME
+# smurf_tune.py:1579:24: F821 undefined name 'freq'
+# smurf_tune.py:1581:41: F821 undefined name 'resp'
+# smurf_tune.py:1582:41: F821 undefined name 'resp_ref'
+# smurf_tune.py:1586:22: F821 undefined name 'tune_ref'
+# smurf_tune.py:1587:31: F821 undefined name 'tune_ref'
+# smurf_tune.py:1591:41: F821 undefined name 'resp'
+# smurf_tune.py:1591:56: F821 undefined name 'resp_ref'
+#        # Load data
+#        res1 = self.load_tune(tune)
+#        if ref_tune is None:
+#            res2 = self.freq_resp
+#
+#        if make_plot:
+#            plt_freq = freq * 1.0E-6
+#            fig, ax = plt.subplots(2, sharex=True, figsize=(6,5))
+#            ax[0].plot(plt_freq, np.abs(resp))
+#            ax[0].plot(plt_freq, np.abs(resp_ref))
+#
+#            for k in tune.keys():
+#                ax[0].axvline(tune[k]['freq']*1.0E-6, color='b', linestyle=':')
+#            for k in tune_ref.keys():
+#                ax[0].axvline(tune_ref[k]['freq']*1.0E-6, color='r', 
+#                    linestyle=':')
+#
+#
+#            ax[1].plot(plt_freq, np.abs(resp) - np.abs(resp_ref))
+#
+#            plt.tight_layout()
 
 
     def relock(self, band, res_num=None, drive=None, r2_max=.08, 
@@ -2424,6 +2430,7 @@ class SmurfTuneMixin(SmurfBase):
         eta_phase0 = self.get_eta_phase_array(band)
         ret['eta_phase0'] = eta_phase0
         ret['band'] = band
+        n_channels = self.get_number_channels(band)
 
         old_fb = self.get_feedback_enable_array(band)
         self.set_feedback_enable_array(band, np.zeros_like(old_fb))

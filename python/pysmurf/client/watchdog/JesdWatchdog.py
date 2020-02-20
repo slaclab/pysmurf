@@ -15,7 +15,6 @@
 #-----------------------------------------------------------------------------
 import logging
 import sys
-import os
 import time
 import epics
 from datetime import datetime
