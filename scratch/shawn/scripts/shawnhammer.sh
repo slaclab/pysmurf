@@ -1,16 +1,10 @@
 #!/bin/bash
 
+#default startup cfg
 startup_cfg=/data/smurf_startup_cfg/smurf_startup.cfg
-if [ ! -f "$startup_cfg" ]; then
-    echo "$startup_cfg doesn't exist, unable to shawnhammer."
-    exit 1
-fi
-
-# didn't exit, so there must be a startup cfg file.  Load it.
-source ${startup_cfg}
 
 #https://sookocheff.com/post/bash/parsing-bash-script-arguments-with-shopts/
-while getopts ":i:t" opt; do
+while getopts ":ic:t" opt; do
     case ${opt} in
       i )
 	  # make sure this file exists
@@ -21,6 +15,15 @@ while getopts ":i:t" opt; do
 	  fi
 	  pysmurf_init_script=$OPTARG
           ;;
+      c )
+	  # make sure this file exists
+	  if [ ! -f $OPTARG ]; then
+              echo "Invalid Input: No file found at $OPTARG" 1>&2
+              exit 1	      
+	      echo "File not found!"
+	  fi
+	  startup_cfg=$OPTARG
+          ;;      
       t )
 	  run_thermal_test=true
 	  ;;
@@ -35,6 +38,13 @@ while getopts ":i:t" opt; do
     esac
 done
 shift $((OPTIND -1))
+
+# can't hammer without a cfg ; exit if one doesn't exist
+if [ ! -f "$startup_cfg" ]; then
+    echo "$startup_cfg doesn't exist, unable to shawnhammer." 1>&2
+    exit 1
+fi
+source ${startup_cfg}
 
 ## extract slot and configuration arrays
 # first column is the slot numbers, in slot configure order.
