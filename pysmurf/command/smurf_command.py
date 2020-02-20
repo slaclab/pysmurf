@@ -1,3 +1,18 @@
+#!/usr/bin/env python
+#-----------------------------------------------------------------------------
+# Title      : pysmurf command module - SmurfCommandMixin class
+#-----------------------------------------------------------------------------
+# File       : pysmurf/command/smurf_command.py
+# Created    : 2018-08-29
+#-----------------------------------------------------------------------------
+# This file is part of the pysmurf software package. It is subject to 
+# the license terms in the LICENSE.txt file found in the top-level directory 
+# of this distribution and at: 
+#    https://confluence.slac.stanford.edu/display/ppareg/LICENSE.html. 
+# No part of the pysmurf software package, including this file, may be 
+# copied, modified, propagated, or distributed except according to the terms 
+# contained in the LICENSE.txt file.
+#-----------------------------------------------------------------------------
 import numpy as np
 import os
 import epics
@@ -367,7 +382,6 @@ class SmurfCommandMixin(SmurfBase):
         return self._caget(self._cryo_root(band) + self._gradient_descent_beta,
                            **kwargs)
 
-
     def run_parallel_eta_scan(self, band, sync_group=True, **kwargs):
         """
         runParallelScan
@@ -492,10 +506,22 @@ class SmurfCommandMixin(SmurfBase):
         self.log('{} sent'.format(triggerPV), self.LOG_USER)
 
 
+    _writestate = ":AMCc:WriteState"
+    def write_state(self, val, **kwargs):
+        """
+        Dumps all PyRogue settings to a yml file.
+
+        Args:
+        ----
+        val (str) : The path (including file name) to write the yml file to.
+        """
+        self._caput(self.epics_root + self._writestate,
+                    val, **kwargs)        
+
     _writeconfig = ":AMCc:WriteConfig"
     def write_config(self, val, **kwargs):
         """
-        Writes the current PyRogue settings to a yml file.
+        Writes the current (un-masked) PyRogue settings to a yml file.
 
         Args:
         ----
@@ -2122,6 +2148,249 @@ class SmurfCommandMixin(SmurfBase):
         return self._caget(self.daq_mux_root.format(bay) + self._trigger_hw_arm, **kwargs)
 
     # rtm commands
+
+    #########################################################    
+    ## start rtm arbitrary waveform
+
+    _rtm_arb_waveform_lut_table = 'Lut[{}]:MemArray'
+    def get_rtm_arb_waveform_lut_table(self, reg, **kwargs):
+        '''
+        Gets the table currently loaded into the LUT table indexed by
+        reg.
+        '''
+        assert (reg in range(2)), 'reg must be in [0,1]'        
+        return self._caget(self.rtm_lut_ctrl_root + \
+                           self._rtm_arb_waveform_lut_table.format(reg), \
+                           **kwargs)
+
+    def set_rtm_arb_waveform_lut_table(self, reg, arr, pad=0, **kwargs):
+        '''
+        Loads provided array into the LUT table indexed by reg.  If
+        array is empty, loads zeros into table.  If array exceeds
+        maximum length of 2048 entries, array is truncated.  If array
+        is less than 2048 entries, the table is padded on the end with
+        the value in the pad argument.
+
+        Args:
+        -----
+        arr (int array): Array of values to load into LUT table.  Each
+                         entry must be an integer and in [0,2^20).  
+
+        Opt Args:
+        -----
+        pad (int): Value to pad end of array with if provided array's
+                   length is less than 2048.  Default is 0.
+        '''
+        # cast as numpy array
+        lut_arr=np.pad(arr[:self._lut_table_array_length], \
+                       (0,self._lut_table_array_length-len(arr[:self._lut_table_array_length])), \
+                       'constant', constant_values=pad)
+        # round entries and type as integer
+        lut_arr=np.around(lut_arr).astype(int)
+
+        # clip exceed max number of DAC output bits
+        dac_nbits_fullscale=self._rtm_slow_dac_nbits
+        # warn user if some points get clipped
+        num_clip_above=len(np.where(lut_arr>(2**(dac_nbits_fullscale-1)-1))[0])
+        if num_clip_above>0:
+            self.log('{} points in LUT table exceed (2**{})-1.  Will be clipped to (2**{})-1.'.format(num_clip_above,(dac_nbits_fullscale-1),(dac_nbits_fullscale-1)))        
+        num_clip_below=len(np.where(lut_arr<(-2**(dac_nbits_fullscale-1)))[0])
+        if num_clip_below>0:
+            self.log('{} points in LUT table are less than -2**{}.  Will be clipped to -2**{}.'.format(num_clip_below,(dac_nbits_fullscale-1),(dac_nbits_fullscale-1)))               
+        # clip the array 
+        lut_arr=np.clip(lut_arr,a_min=-2**(dac_nbits_fullscale-1),a_max=2**(dac_nbits_fullscale-1)-1)
+        self._caput(self.rtm_lut_ctrl_root + \
+                    self._rtm_arb_waveform_lut_table.format(reg), \
+                    lut_arr, \
+                    **kwargs)    
+    
+    _rtm_arb_waveform_busy = 'Busy'
+    def get_rtm_arb_waveform_busy(self, **kwargs):
+        '''
+        =1 if waveform if Continuous=1 and the RTM arbitrary waveform
+        is being continously generated.  Can be toggled low again by
+        setting Continuous=0.
+        '''
+        return self._caget(self.rtm_lut_ctrl +
+                           self._rtm_arb_waveform_busy, \
+                           **kwargs)
+
+    _rtm_arb_waveform_trig_cnt = 'TrigCnt'
+    def get_rtm_arb_waveform_trig_cnt(self, **kwargs):
+        '''
+        Counts the number of RTM arbitrary waveform software triggers
+        since boot up or the last CntRst.
+        '''
+        return self._caget(self.rtm_lut_ctrl +
+                           self._rtm_arb_waveform_trig_cnt, \
+                           **kwargs)    
+    
+    _rtm_arb_waveform_continuous = 'Continuous'
+    def get_rtm_arb_waveform_continuous(self, **kwargs):
+        '''
+        If =1, RTM arbitrary waveform generation is continuous and
+        repeats, otherwise if =0, waveform in LUT tables is only
+        broadcast once on software trigger.
+        '''
+        return self._caget(self.rtm_lut_ctrl + \
+                           self._rtm_arb_waveform_continuous, \
+                           **kwargs)
+    
+    def set_rtm_arb_waveform_continuous(self, val, **kwargs):
+        '''
+        If =1, RTM arbitrary waveform generation is continuous and
+        repeats, otherwise if =0, waveform in LUT tables is only
+        broadcast once on software trigger.
+
+        Args:
+        -----
+        val (int): Whether or not arbitrary waveform generation is
+                   continuous on software trigger.  Must be in [0,1].
+        '''
+        assert (val in range(2)), 'val must be in [0,1]'                
+        self._caput(self.rtm_lut_ctrl + \
+                    self._rtm_arb_waveform_continuous, \
+                    val, \
+                    **kwargs)                    
+    
+    _rtm_arb_waveform_software_trigger = 'SwTrig'
+    def trigger_rtm_arb_waveform(self, continuous=False, **kwargs):
+        '''
+        Software trigger for arbitrary waveform generation on the slow
+        RTM DACs.  This will cause the RTM to play the LUT tables only
+        once.
+
+        Args:
+        -----
+        continuous (bool): Whether or not to continously broadcast the
+                           arbitrary waveform on software trigger.
+                           Default False.
+        '''        
+        if continuous is True:
+            self.set_rtm_arb_waveform_continuous(1)
+        else:
+            self.set_rtm_arb_waveform_continuous(0)
+            
+        triggerPV=self.rtm_lut_ctrl + \
+                  self._rtm_arb_waveform_software_trigger
+        self._caput(triggerPV, \
+                    1, \
+                    **kwargs)
+        self.log('{} sent'.format(triggerPV), self.LOG_USER)
+    
+    _dac_axil_addr = 'DacAxilAddr[{}]'
+    def get_dac_axil_addr(self, reg, **kwargs):
+        '''
+        Gets the DacAxilAddr[#] registers.
+        '''
+        assert (reg in range(2)), 'reg must be in [0,1]'        
+        return self._caget(self.rtm_lut_ctrl + \
+                           self._dac_axil_addr.format(reg), \
+                           **kwargs)
+    
+    def set_dac_axil_addr(self, reg, val, **kwargs):
+        '''
+        Sets the DacAxilAddr[#] registers.
+        '''
+        assert (reg in range(2)), 'reg must be in [0,1]'                
+        self._caput(self.rtm_lut_ctrl + \
+                    self._dac_axil_addr.format(reg), val, **kwargs)
+
+    _rtm_arb_waveform_timer_size = 'TimerSize'
+    def get_rtm_arb_waveform_timer_size(self, **kwargs):
+        '''
+        Arbitrary waveforms are written to the slow RTM DACs with time
+        between samples TimerSize*6.4ns.
+        '''
+        return self._caget(self.rtm_lut_ctrl +
+                           self._rtm_arb_waveform_timer_size, \
+                           **kwargs)
+
+    def set_rtm_arb_waveform_timer_size(self, val, **kwargs):
+        '''
+        Arbitrary waveforms are written to the slow RTM DACs with time
+        between samples TimerSize*6.4ns.
+
+        Args:
+        -----
+        val (int): The value to set TimerSize to.  Must be an integer
+                   in [0,2**24).
+        '''
+        assert (val in range(2**24)), 'reg must be in [0,16777216)'
+        self._caput(self.rtm_lut_ctrl +
+                    self._rtm_arb_waveform_timer_size, \
+                    val, \
+                    **kwargs)
+
+    _rtm_arb_waveform_max_addr = 'MaxAddr'
+    def get_rtm_arb_waveform_max_addr(self, **kwargs):
+        '''
+        Slow RTM DACs will play the sequence [0...MaxAddr] of points
+        out of the loaded LUT tables before stopping or repeating on
+        software trigger (if in continuous mode).  MaxAddr is an
+        11-bit number (must be in [0,2048), because that's the maximum
+        length of the LUT tables that store the waveforms.
+        '''
+        return self._caget(self.rtm_lut_ctrl +
+                           self._rtm_arb_waveform_max_addr, \
+                           **kwargs)
+
+    def set_rtm_arb_waveform_max_addr(self, val, **kwargs):
+        '''
+        Slow RTM DACs will play the sequence [0...MaxAddr] of points
+        out of the loaded LUT tables before stopping or repeating on
+        software trigger (if in continuous mode).  MaxAddr is an
+        11-bit number (must be in [0,2048), because that's the maximum
+        length of the LUT tables that store the waveforms.
+
+        Args:
+        -----
+        val (int): The value to set MaxAddr to.  Must be an integer
+                   in [0,2048).
+        '''
+        assert (val in range(2**11)), 'reg must be in [0,2048)'
+        self._caput(self.rtm_lut_ctrl +
+                    self._rtm_arb_waveform_max_addr, \
+                    val, \
+                    **kwargs)    
+
+    _rtm_arb_waveform_enable = 'EnableCh'
+    def get_rtm_arb_waveform_enable(self, **kwargs):
+        '''
+        Enable for generation of arbitrary waveforms on the RTM slow
+        DACs.
+        
+        EnableCh = 0x0 is disable
+        0x1 is Addr[0]
+        0x2 is Addr[1]
+        0x3 is Addr[0] and Addr[1]
+        '''
+        return self._caget(self.rtm_lut_ctrl + \
+                           self._rtm_arb_waveform_enable, \
+                           **kwargs)
+    
+    def set_rtm_arb_waveform_enable(self, val, **kwargs):
+        '''
+        Sets the enable for generation of arbitrary waveforms on the
+        RTM slow DACs.
+
+        Args:
+        -----
+        val (int): The value to set enable to.  
+           EnableCh = 0x0 is disable
+           0x1 is Addr[0]
+           0x2 is Addr[1]
+           0x3 is Addr[0] and Addr[1]
+        '''
+        assert (val in range(4)), 'reg must be in [0,1,2,3]'
+        self._caput(self.rtm_lut_ctrl + \
+                    self._rtm_arb_waveform_enable, \
+                    val, \
+                    **kwargs)
+
+    ## end rtm arbitrary waveform
+    #########################################################
+    
     _reset_rtm = 'resetRtm'
     def reset_rtm(self, **kwargs):
         '''
@@ -2361,57 +2630,268 @@ class SmurfCommandMixin(SmurfBase):
         '''
         return self._caget(self.rtm_spi_root + self._cfg_reg_ena_bit, **kwargs)
 
-    _tes_bias_enable = 'TesBiasDacCtrlRegCh[{}]'
-    def set_tes_bias_enable(self, daq, val, **kwargs):
-        """
-        """
-        self._caput(self.rtm_spi_max_root + self._tes_bias_enable.format(daq),
-            val, **kwargs)
-
-
-    def get_tes_bias_enable(self, daq, **kwargs):
-        """
-        """
-        return self._caget(self.rtm_spi_max_root + self._tes_bias.format(daq),
-            **kwargs)
-
-    _tes_bias_enable_array = 'TesBiasDacCtrlRegChArray'
-    def set_tes_bias_enable_array(self, val, **kwargs):
-        """
-        Set the TES bias DAC enable bits all at once
+    # Right now in pyrogue, this is named as if it's always a TesBias,
+    # but pysmurf doesn't only use them as TES biases - e.g. in
+    # systems using a 50K follow-on amplifier, one of these DACs is
+    # used to drive the amplifier gate.
+    _rtm_slow_dac_enable = 'TesBiasDacCtrlRegCh[{}]'
+    def set_rtm_slow_dac_enable(self, dac, val, **kwargs):
+        '''
+        Set DacCtrlReg for this DAC, which configures the AD5790
+        analog output for the requested DAC number.  Set to 0x2 to
+        enable for normal operation, which only needs to be done once
+        for each DAC in a boot session.
 
         Args:
-          val (int array): length 32, addresses the DACs in DAC ordering
-        """
+        -----
+        dac (int) : Which DAC to command.  1-indexed.  If a DAC index
+                    outside of the valid range is provided (must be
+                    within [1,32]), will assert.
+        val (int) : Value to set the DAC enable to.  
+        '''
+        assert (dac in range(1,33)),'dac must be an integer and in [1,32]'
+        
+        self._caput(self.rtm_spi_max_root +
+                    self._rtm_slow_dac_enable.format(dac), val, **kwargs)
 
-        self._caput(self.rtm_spi_max_root + self._tes_bias_enable_array, val,
+
+    def get_rtm_slow_dac_enable(self, dac, **kwargs):
+        """
+        Returns the DacCtrlReg for this DAC, which specifies the
+        AD5790 analog output configuration for the requested DAC
+        number.  Should be set to 0x2 in normal operation.
+
+        Args:
+        -----
+        dac (int) : Which DAC to query.  1-indexed.  If a DAC index
+                    outside of the valid range is provided (must be
+                    within [1,32]), will assert.
+
+        Returns:
+        --------
+        val (int) : The DacCtrlReg setting for the requested DAC.
+        """
+        assert (dac in range(1,33)),'dac must be an integer and in [1,32]'
+        
+        return self._caget(self.rtm_spi_max_root +
+                           self._rtm_slow_dac_enable.format(dac), **kwargs)
+
+    _rtm_slow_dac_enable_array = 'TesBiasDacCtrlRegChArray'
+    def set_rtm_slow_dac_enable_array(self, val, **kwargs):
+        '''
+        Sets DacCtrlReg for all of the DACs at once.  DacCtrlReg
+        configures the AD5790 analog outputs.  Setting to 0x2 enables
+        normal operation, and only needs to be done once for each DAC
+        in a boot session.  Writing the values as an array should be
+        much faster than writing them to each DAC individually using
+        the set_rtm_slow_dac_enable function (single versus multiple
+        transactions).
+
+        Args:
+        -----
+        val (int array): length 32, addresses the DACs in DAC
+                         ordering.  If provided array is not length
+                         32, asserts.
+        '''
+        assert (len(val)==32),'len(val) must be 32, the number of DACs in hardware.'        
+        self._caput(self.rtm_spi_max_root +
+                    self._rtm_slow_dac_enable_array, val, **kwargs)
+
+    def get_rtm_slow_dac_enable_array(self, **kwargs):
+        """
+        Returns the current DacCtrlReg setting for all of the DACs at
+        once (a 32 element integer array).  DacCtrlReg configures the
+        AD5790 analog outputs.  If set to 0x2, then the DAC is
+        configured for normal operation, which only needs to be done
+        once for each DAC in a boot session.  Reading the values as an
+        array should be much faster than reading them for each DAC
+        individually using the get_rtm_slow_dac_enable function
+        (single versus multiple transactions).
+
+        Returns:
+        --------
+        val (int array) : An array containing the DacCtrlReg settings
+                          for all of the slow RTM DACs.
+        """
+        return self._caget(self.rtm_spi_max_root +
+                           self._rtm_slow_dac_enable_array, **kwargs)
+
+    _rtm_slow_dac_data = 'TesBiasDacDataRegCh[{}]'
+    def set_rtm_slow_dac_data(self, dac, val, **kwargs):
+        '''
+        Sets the data register for the requested DAC, which sets the
+        output voltage of the DAC.
+        
+        Args:
+        -----
+        dac (int) : Which DAC to command.  1-indexed.  If a DAC index
+                    outside of the valid range is provided (must be
+                    within [1,32]), will assert.
+        val (int) : The DAC voltage to set in DAC units.  Must be in
+                    [-2^19,2^19).  If requested value is less
+                    (greater) than -2^19 (2^19-1), sets DAC to -2^19
+                    (2^19-1).
+        '''
+        assert (dac in range(1,33)),'dac must be an integer and in [1,32]'
+
+        nbits=self._rtm_slow_dac_nbits
+        if val > 2**(nbits-1)-1:
+            val = 2**(nbits-1)-1
+            self.log('Bias too high. Must be <= than 2^{}-1. Setting to '.format(nbits-1) +
+                'max value', self.LOG_ERROR)
+        elif val < -2**(nbits-1):
+            val = -2**(nbits-1)
+            self.log('Bias too low. Must be >= than -2^{}. Setting to '.format(nbits-1) +
+                'min value', self.LOG_ERROR)
+        self._caput(self.rtm_spi_max_root +
+                    self._rtm_slow_dac_data.format(dac), val, **kwargs)
+
+    def get_rtm_slow_dac_data(self, dac, **kwargs):
+        '''
+        Gets the value in the data register for the requested DAC,
+        which sets the output voltage of the DAC.
+        
+        Args:
+        -----
+        dac (int) : Which DAC to command.  1-indexed.  If a DAC index
+                    outside of the valid range is provided (must be
+                    within [1,32]), will assert.
+
+        Returns:
+        --------
+        val (int) : The data register setting for the requested DAC,
+                    in DAC units.  The data register sets the output
+                    voltage of the DAC.
+        '''
+        assert (dac in range(1,33)),'dac must be an integer and in [1,32]'        
+        return self._caget(self.rtm_spi_max_root +
+                           self._rtm_slow_dac_data.format(dac),
+                           **kwargs)
+
+    _rtm_slow_dac_data_array = 'TesBiasDacDataRegChArray'
+    def set_rtm_slow_dac_data_array(self, val, **kwargs):
+        """
+        Sets the data registers for all 32 DACs, which sets their
+        output voltages.  Must provide all 32 values.
+
+        Args:
+        -----
+        val (int array): The DAC voltages to set in DAC units.  Each
+                         element of the array must Must be in
+                         [-2^19,2^19).  If a requested value is less
+                         (greater) than -2^19 (2^19-1), sets that DAC
+                         to -2^19 (2^19-1).  (32,) in DAC units.  If
+                         provided array is not 32 elements long,
+                         asserts.
+        """
+        assert (len(val)==32),'len(val) must be 32, the number of DACs in hardware.'
+
+        nbits=self._rtm_slow_dac_nbits
+        val=np.array(val)
+        if len(np.ravel(np.where(val > 2**(nbits-1)-1))) > 0:
+            self.log('Bias too high for some values. Must be <= 2^{}-1. Setting to '.format(nbits-1) +
+            'max value', self.LOG_ERROR)        
+        val[np.ravel(np.where(val > 2**(nbits-1)-1))] = 2**(nbits-1)-1
+        
+        if len(np.ravel(np.where(val < - 2**(nbits-1)))) > 0:
+            self.log('Bias too low for some values. Must be >= -2^{}. Setting to '.format(nbits-1) +
+                     'min value', self.LOG_ERROR)
+        val[np.ravel(np.where(val < - 2**(nbits-1)))] = -2**(nbits-1)
+
+        self._caput(self.rtm_spi_max_root + self._rtm_slow_dac_data_array, val, **kwargs)
+
+    def get_rtm_slow_dac_data_array(self, **kwargs):
+        """
+        Gets the value in the data register, in DAC units, for all 32
+        DACs.  The value in these registers set the output voltages of
+        the DACs.
+
+        Returns:
+        -----
+        array (int array): Size (32,) array of DAC values, in DAC
+                           units.  The value of these registers set
+                           the output voltages of the DACs.
+        """
+        return self._caget(self.rtm_spi_max_root + self._rtm_slow_dac_data_array,
             **kwargs)
 
-    def get_tes_bias_enable_array(self, **kwargs):
+    def set_rtm_slow_dac_volt(self, dac, val, **kwargs):
+        '''
+        Sets the output voltage for the requested DAC.
+        
+        Args:
+        -----
+        dac (int) : Which DAC to command.  1-indexed.  If a DAC index
+                    outside of the valid range is provided (must be
+                    within [1,32]), will assert.
+        val (int) : The DAC voltage to set in volts.
+        '''
+        assert (dac in range(1,33)),'dac must be an integer and in [1,32]'        
+        self.set_rtm_slow_dac_data(dac, val/self._rtm_slow_dac_bit_to_volt, **kwargs)
+
+
+    def get_rtm_slow_dac_volt(self, dac, **kwargs):
+        '''
+        Gets the current output voltage for the requested DAC.
+        
+        Args:
+        -----
+        dac (int) : Which DAC to query.  1-indexed.  If a DAC index
+                    outside of the valid range is provided (must be
+                    within [1,32]), will assert.
+
+        Returns:
+        --------
+        val (float) : The DAC voltage in volts.
+        '''
+        assert (dac in range(1,33)),'dac must be an integer and in [1,32]'                
+        return self._rtm_slow_dac_bit_to_volt * self.get_rtm_slow_dac_data(dac, **kwargs)
+
+    def set_rtm_slow_dac_volt_array(self, val, **kwargs):
         """
-        Get the TES bias DAC enable bits all at once
+        Sets the output voltage for all 32 DACs at once.  Writing the
+        values as an array should be much faster than writing them to
+        each DAC individually using the set_rtm_slow_dac_volt
+        function (single versus multiple transactions).
 
-        Returns a numpy array of size (32,) for each of the DACs
+        Args:
+        -----
+        val (float array): TES biases to set for each DAC in
+                           Volts. Expects an array of size (32,).  If
+                           provided array is not 32 elements, asserts.
         """
+        assert (len(val)==32),'len(val) must be 32, the number of DACs in hardware.'        
+        int_val = np.array(np.array(val) / self._rtm_slow_dac_bit_to_volt, dtype=int)
+        self.set_rtm_slow_dac_data_array(int_val, **kwargs)
 
-        return self._caget(self.rtm_spi_max_root + self._tes_bias_enable_array,
-            **kwargs)
+    def get_rtm_slow_dac_volt_array(self, **kwargs):
+        """
+        Returns the output voltage for all 32 DACs at once, in volts.
+        Reading the values as an array should be much faster than
+        reading them for each DAC individually using the
+        get_rtm_slow_dac_volt function (single versus multiple
+        transactions).
 
-    #_bit_to_V_50k = 2.035/float(2**19)
-    #_dac_num_50k = 2
+        Returns:
+        -----
+        volt_array (float array): Size (32,) array of DAC values in
+                                  volts.
+        """
+        return self._rtm_slow_dac_bit_to_volt * self.get_rtm_slow_dac_data_array(**kwargs)
+    
     def set_50k_amp_gate_voltage(self, voltage, override=False, **kwargs):
         """
         """
         if (voltage > 0 or voltage < -1.) and not override:
             self.log('Voltage must be between -1 and 0. Doing nothing.')
         else:
-            self.set_tes_bias(self._dac_num_50k, voltage/self._bit_to_V_50k,
+            self.set_rtm_slow_dac_data(self._dac_num_50k, voltage/self._bit_to_V_50k,
                 **kwargs)
 
     def get_50k_amp_gate_voltage(self, **kwargs):
         """
         """
-        return self._bit_to_V_50k * self.get_tes_bias(self._dac_num_50k, **kwargs)
+        return self._bit_to_V_50k * self.get_rtm_slow_dac_data(self._dac_num_50k, **kwargs)
 
     def set_50k_amp_enable(self, disable=False, **kwargs):
         """
@@ -2422,112 +2902,9 @@ class SmurfCommandMixin(SmurfBase):
         disable (bool) : Disable the 50K amplifier. Default False.
         """
         if disable:
-            self.set_tes_bias_enable(self._dac_num_50k, 0, **kwargs)
+            self.set_rtm_slow_dac_enable(self._dac_num_50k, 0, **kwargs)
         else:
-            self.set_tes_bias_enable(self._dac_num_50k, 2, **kwargs)
-
-    _tes_bias = 'TesBiasDacDataRegCh[{}]'
-    def set_tes_bias(self, daq, val, **kwargs):
-        """
-        Sets the TES bias current
-
-        Args:
-        -----
-        val (int) : the TES bias current in DAC units
-        """
-
-        if val > 2**19-1:
-            val = 2**19-1
-            self.log('Bias too high. Must be <= than 2^19-1. Setting to ' +
-                'max value', self.LOG_ERROR)
-        elif val < -2**19:
-            val = -2**19
-            self.log('Bias too low. Must be >= than -2^19. Setting to ' +
-                'min value', self.LOG_ERROR)
-        self._caput(self.rtm_spi_max_root + self._tes_bias.format(daq), val,
-            **kwargs)
-
-
-    def get_tes_bias(self, daq, **kwargs):
-        """
-        Gets the TES bias current
-
-        Returns:
-        --------
-        bias (int) : The TES bias current
-        """
-        return self._caget(self.rtm_spi_max_root + self._tes_bias.format(daq),
-            **kwargs)
-
-    _tes_bias_array = 'TesBiasDacDataRegChArray'
-    def set_tes_bias_array(self, val, **kwargs):
-        """
-        Set the TES bias DACs. Must give all 32 values.
-
-        Args:
-        -----
-        val (int array): TES biases to set for each DAC. Expects np array of size
-          (32,) in DAC units.
-        """
-
-        val[np.ravel(np.where(val > 2**19-1))] = 2**19-1
-        if len(np.ravel(np.where(val > 2**19-1))) > 0:
-            self.log('Bias too high for some values. Must be <= 2^19 -1. Setting to ' +
-            'max value', self.LOG_ERROR)
-
-        val[np.ravel(np.where(val < - 2**19))] = -2**19
-        if len(np.ravel(np.where(val < - 2**19))) > 0:
-            self.log('Bias too low for some values. Must be >= -2^19. Setting to ' +
-            'min value', self.LOG_ERROR)
-        self._caput(self.rtm_spi_max_root + self._tes_bias_array, val, **kwargs)
-
-    def get_tes_bias_array(self, **kwargs):
-        """
-        Get the TES bias for all 32 DACs. Returns in DAC units.
-
-        Returns:
-        -----
-        bias_array (int array): Size (32,) array of DAC values, in DAC units
-        """
-
-        return self._caget(self.rtm_spi_max_root + self._tes_bias_array,
-            **kwargs)
-
-    _bit_to_volt = 10./2**19
-    def set_tes_bias_volt(self, dac_num, val, **kwargs):
-        """
-        """
-        self.set_tes_bias(dac_num, val/self._bit_to_volt, **kwargs)
-
-
-    def get_tes_bias_volt(self, dac_num, **kwargs):
-        """
-        """
-        return self._bit_to_volt * self.get_tes_bias(dac_num, **kwargs)
-
-    def set_tes_bias_array_volt(self, val, **kwargs):
-        """
-        Set TES bias DACs. Must give 32 values. Converted to volts based on
-          DAC full scale.
-
-        Args:
-        -----
-        val (float array): TES biases to set for each DAC. Expects np array
-          of size (32,) in volts.
-        """
-        int_val = np.array(val / self._bit_to_volt, dtype=int)
-
-        self.set_tes_bias_array(int_val, **kwargs)
-
-    def get_tes_bias_array_volt(self, **kwargs):
-        """
-        Get TES bias DAC settings in volt units.
-
-        Returns:
-        -----
-        bias_array (float array): Size (32,) array of DAC values in volts
-        """
-        return self._bit_to_volt * self.get_tes_bias_array(**kwargs)
+            self.set_rtm_slow_dac_enable(self._dac_num_50k, 2, **kwargs)
 
     def flux_ramp_on(self, **kwargs):
         '''
@@ -3228,6 +3605,35 @@ class SmurfCommandMixin(SmurfBase):
         self._caput(self.timing_header +
                     self._smurf_to_gcp_stream, val, **kwargs)
 
+    def clear_unwrapping_and_averages(self, epics_poll=True, **kwargs):
+        """
+        Resets unwrapping and averaging for all channels, in all bands.
+        """
+
+        # Set bit 0 of userConfig[0] high.  Use SyncGroup to detect
+        # when register changes so we're sure.
+        user_config0_pv=self.timing_header + self._smurf_to_gcp_stream
+        # Toggle using SyncGroup so we can confirm state as we toggle.
+        sg=SyncGroup([user_config0_pv])
+
+        # what is it now?
+        sg.wait(epics_poll=epics_poll) # wait for value
+        uc0=sg.get_values()[user_config0_pv]
+
+        # set bit high, keeping all other bits the same
+        self.set_user_config0(uc0 | (1 << 0))
+        sg.wait(epics_poll=epics_poll) # wait for change
+        uc0=sg.get_values()[user_config0_pv]
+        assert ( ( uc0 >> 0) & 1 ),'Failed to set averaging/clear bit high (userConfig0=%d).'%uc0
+
+        # toggle bit back to low, keeping all other bits the same
+        self.set_user_config0(uc0 & ~(1 << 0))
+        sg.wait(epics_poll=epics_poll) # wait for change
+        uc0=sg.get_values()[user_config0_pv]
+        assert ( ~( uc0 >> 0) & 1 ),'Failed to set averaging/clear bit low after setting it high (userConfig0=%d).'%(uc0)
+
+        self.log('Successfully toggled averaging/clearing bit (userConfig[0]=%d).'%uc0,
+                 self.LOG_USER)
 
     def set_smurf_to_gcp_stream(self, val, **kwargs):
         """

@@ -58,6 +58,8 @@ fi
 # kill smurf tmux, if running, and restart
 echo "-> Killing ${tmux_session_name} tmux session"
 tmux kill-session -t ${tmux_session_name}
+# Small wait to prevent https://github.com/slaclab/pysmurf/issues/115
+sleep 0.1
 echo "-> Starting a new ${tmux_session_name} tmux session"
 tmux new-session -d -s ${tmux_session_name}
 #tmux new -s ${tmux_session_name} -d

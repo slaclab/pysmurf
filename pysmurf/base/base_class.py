@@ -1,6 +1,23 @@
+#!/usr/bin/env python
+#-----------------------------------------------------------------------------
+# Title      : pysmurf base module - SmurfBase class
+#-----------------------------------------------------------------------------
+# File       : pysmurf/base/base_class.py
+# Created    : 2018-08-30
+#-----------------------------------------------------------------------------
+# This file is part of the pysmurf software package. It is subject to 
+# the license terms in the LICENSE.txt file found in the top-level directory 
+# of this distribution and at: 
+#    https://confluence.slac.stanford.edu/display/ppareg/LICENSE.html. 
+# No part of the pysmurf software package, including this file, may be 
+# copied, modified, propagated, or distributed except according to the terms 
+# contained in the LICENSE.txt file.
+#-----------------------------------------------------------------------------
 import numpy as np
 from .logger import SmurfLogger
 from pysmurf.command.cryo_card import CryoCard
+
+from pysmurf.util.pub import Publisher
 
 class SmurfBase(object):
     '''
@@ -27,7 +44,23 @@ class SmurfBase(object):
     Overall progress on a task
     """
 
-    def __init__(self, log=None, epics_root=None, offline=False, **kwargs):
+    def __init__(self, log=None, epics_root=None, offline=False,
+                 pub_root=None, script_id=None, **kwargs):
+        """
+        Opt Arguments
+        --------------
+        log (log file) : The log file to write to. If None, creates a new log
+            file.
+        epics_root (str) : The name of the epics root. For example "test_epics".
+        offline (bool) : Whether to run in offline mode (no rogue) or not. This
+            will break many things. Default is False.
+        pub_root (str):
+            Root of environment vars to set publisher options. If None, the
+            default root will be "SMURFPUB_".
+        script_id (str):
+            Script id included with publisher messages. For example, the
+            script or operation name.
+        """
         # Set up logging
         self.log = log
         if self.log is None:
@@ -36,6 +69,10 @@ class SmurfBase(object):
             verb = kwargs.pop('verbose', None)
             if verb is not None:
                 self.set_verbose(verb)
+
+        # If <pub_root>BACKEND environment variable is not set to 'udp', all
+        # publish calls will be no-ops.
+        self.pub = Publisher(env_root=pub_root, script_id=script_id)
 
         self.offline = offline
         if self.offline == True:
@@ -119,6 +156,10 @@ class SmurfBase(object):
             'RtmSpiMax:'
         self.rtm_spi_cryo_root = self.rtm_cryo_det_root + \
             'SpiCryo:'
+        self.rtm_lut_ctrl_root = self.rtm_cryo_det_root + \
+            'LutCtrl:'
+        self.rtm_lut_ctrl = self.rtm_lut_ctrl_root + \
+            'Ctrl:'        
 
         # Timing paths
         self.amctiming = self.amccc + 'AmcCarrierTiming:'
@@ -128,6 +169,19 @@ class SmurfBase(object):
         self.C = CryoCard(self.rtm_spi_cryo_root + 'read', 
             self.rtm_spi_cryo_root + 'write')
         self.freq_resp = {}
+
+        # RTM slow DAC parameters (used, e.g., for TES biasing). The
+        # DACs are AD5790 chips
+        self._rtm_slow_dac_max_volt=10. # Max unipolar DAC voltage,
+                                        # in Volts
+        self._rtm_slow_dac_nbits=20
+        # x2 because _rtm_slow_dac_max_volt is the maximum *unipolar*
+        # voltage.  Units of Volt/bit
+        self._rtm_slow_dac_bit_to_volt=( 2*self._rtm_slow_dac_max_volt /
+                                         ( 2**( self._rtm_slow_dac_nbits ) ) )
+
+        # LUT table length for arbitrary waveform generation
+        self._lut_table_array_length=2048
 
     def init_log(self, verbose=0, logger=SmurfLogger, logfile=None,
                  log_timestamp=True, log_prefix=None, **kwargs):

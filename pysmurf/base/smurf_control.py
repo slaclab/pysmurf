@@ -1,3 +1,18 @@
+#!/usr/bin/env python
+#-----------------------------------------------------------------------------
+# Title      : pysmurf base module - SmurfControl class
+#-----------------------------------------------------------------------------
+# File       : pysmurf/base/smurf_control.py
+# Created    : 2018-08-29
+#-----------------------------------------------------------------------------
+# This file is part of the pysmurf software package. It is subject to 
+# the license terms in the LICENSE.txt file found in the top-level directory 
+# of this distribution and at: 
+#    https://confluence.slac.stanford.edu/display/ppareg/LICENSE.html. 
+# No part of the pysmurf software package, including this file, may be 
+# copied, modified, propagated, or distributed except according to the terms 
+# contained in the LICENSE.txt file.
+#-----------------------------------------------------------------------------
 import numpy as np
 import os
 import sys
@@ -10,7 +25,7 @@ from pysmurf.tune.smurf_tune import SmurfTuneMixin as SmurfTuneMixin
 from pysmurf.debug.smurf_noise import SmurfNoiseMixin as SmurfNoiseMixin
 from pysmurf.debug.smurf_iv import SmurfIVMixin as SmurfIVMixin
 from pysmurf.base.smurf_config import SmurfConfig as SmurfConfig
-from pysmurf.util.pub import Publisher, DEFAULT_ENV_ROOT
+from pysmurf.util.pub import Publisher
 
 
 class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin, SmurfTuneMixin, 
@@ -23,8 +38,8 @@ class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin, Smu
                  cfg_file='/home/cryo/pysmurf/cfg_files/experiment_k2umux.cfg',
                  data_dir=None, name=None, make_logfile=True,
                  setup=False, offline=False, smurf_cmd_mode=False,
-                 no_dir=False, publish=False,
-                 shelf_manager='shm-smrf-sp01', **kwargs):
+                 no_dir=False, shelf_manager='shm-smrf-sp01', 
+                 validate_config=True, **kwargs):
         '''
         Args:
         -----
@@ -33,14 +48,13 @@ class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin, Smu
         data_dir (string) : Path to the data dir
 
         Opt Args:
-        -----
-        shelf_manager (str): Shelf manager ip or network name.  Usually
-                            each SMuRF server is connected one-to-one
-                            with a SMuRF crate, in which case we by
-                            default give the shelf manager the network
-                            name 'shm-smrf-sp01'.
+        ----------
+        shelf_manager (str):
+            Shelf manager ip or network name.  Usually each SMuRF server is
+            connected one-to-one with a SMuRF crate, in which case we by
+            default give the shelf manager the network name 'shm-smrf-sp01'.
         '''
-        self.config = SmurfConfig(cfg_file)
+        self.config = SmurfConfig(cfg_file, validate_config=validate_config)
         self.shelf_manager=shelf_manager
         if epics_root is None:
             epics_root = self.config.get('epics_root')
@@ -50,8 +64,7 @@ class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin, Smu
         if cfg_file is not None or data_dir is not None:
             self.initialize(cfg_file=cfg_file, data_dir=data_dir,
                 name=name, make_logfile=make_logfile, setup=setup,
-                smurf_cmd_mode=smurf_cmd_mode, no_dir=no_dir,
-                publish=publish, **kwargs)
+                smurf_cmd_mode=smurf_cmd_mode, no_dir=no_dir, **kwargs)
 
     def initialize(self, cfg_file, data_dir=None, name=None,
                    make_logfile=True, setup=False,
@@ -83,7 +96,8 @@ class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin, Smu
 
             # Set logfile
             datestr = time.strftime('%y%m%d_', time.gmtime())
-            self.log_file = os.path.join(self.output_dir, 'logs', datestr + 'smurf_cmd.log')
+            self.log_file = os.path.join(self.output_dir, 'logs', datestr + 
+                'smurf_cmd.log')
             self.log.set_logfile(self.log_file)
         else:
             # define data dir
@@ -123,11 +137,6 @@ class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin, Smu
         # Crate/carrier configuration details that won't change.
         self.crate_id=self.get_crate_id()
         self.slot_number=self.get_slot_number()
-
-        self.publish = publish
-        if publish:
-            os.environ[DEFAULT_ENV_ROOT + 'BACKEND'] = 'udp'
-            self.pub = Publisher()
 
         # Useful constants
         constant_cfg = self.config.get('constant')
@@ -183,7 +192,7 @@ class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin, Smu
         if not no_dir:
             for b in self.config.get('init').get('bands'):
                 all_channel_assignment_files=glob.glob(os.path.join(self.tune_dir, 
-                                                                    '*channel_assignment_b{}.txt'.format(b)))
+                    '*channel_assignment_b{}.txt'.format(b)))
                 if len(all_channel_assignment_files):
                     self.channel_assignment_files['band_{}'.format(b)] = \
                             np.sort(all_channel_assignment_files)[-1]
@@ -191,8 +200,10 @@ class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin, Smu
         # bias groups available
         self.all_groups = self.config.get('all_bias_groups')
 
-        # bias group to pair
+        # bias group to pair        
         bias_group_cfg = self.config.get('bias_group_to_pair')
+        # how many bias groups are there?
+        self._n_bias_groups=len(bias_group_cfg)
         keys = bias_group_cfg.keys()
         self.bias_group_to_pair = np.zeros((len(keys), 3), dtype=int)
         for i, k in enumerate(keys):
@@ -244,25 +255,30 @@ class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin, Smu
         self.freq_resp = {}
         self.lms_freq_hz = {}
         self.fraction_full_scale = self.config.get('tune_band').get('fraction_full_scale')
+        self.reset_rate_khz = self.config.get('tune_band').get('reset_rate_khz')
+        
         smurf_init_config = self.config.get('init')
         bands = smurf_init_config['bands']
         # Load in tuning parameters, if present
         tune_band_cfg=self.config.get('tune_band')
         tune_band_keys=tune_band_cfg.keys()
+        self.lms_gain = {}
         for b in bands:
             # Make band dictionaries
             self.freq_resp[b] = {}
             self.freq_resp[b]['lock_status'] = {}
             self.lms_freq_hz[b] = tune_band_cfg['lms_freq'][str(b)]
-
+            band_str = f'band_{b}'
+            self.lms_gain[b] = smurf_init_config[band_str]['lmsGain']
+            
         # Load in tuning parameters, if present
         tune_band_cfg=self.config.get('tune_band')
         tune_band_keys=tune_band_cfg.keys()
         for cfg_var in ['gradient_descent_gain', 'gradient_descent_averages',
                         'gradient_descent_converge_hz', 'gradient_descent_step_hz',
                         'gradient_descent_momentum', 'gradient_descent_beta',
-                        'eta_scan_del_f',
-                        'eta_scan_amplitude', 'eta_scan_averages','delta_freq']:
+                        'eta_scan_del_f', 'eta_scan_amplitude', 
+                        'eta_scan_averages','delta_freq']:
             if cfg_var in tune_band_keys:
                 setattr(self, cfg_var, {})
                 for b in bands:
@@ -282,15 +298,19 @@ class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin, Smu
 
         # If active, disable hardware logging while doing setup.
         if self._hardware_logging_thread is not None:
-            self.log('Hardware logging is enabled.  Pausing for setup.', (self.LOG_USER))
+            self.log('Hardware logging is enabled.  Pausing for setup.', 
+                (self.LOG_USER))
             self.pause_hardware_logging()
 
         # Thermal OT protection
-        ultrascale_temperature_limit_degC=self.config.get('ultrascale_temperature_limit_degC')
+        ultrascale_temperature_limit_degC = self.config.get('ultrascale_temperature_limit_degC')
         if ultrascale_temperature_limit_degC is not None:
-            self.log('Setting ultrascale OT protection limit to {}C'.format(ultrascale_temperature_limit_degC), (self.LOG_USER))
+            self.log('Setting ultrascale OT protection limit to {}C'.format(ultrascale_temperature_limit_degC), 
+                (self.LOG_USER))
             # OT threshold in degrees C
-            self.set_ultrascale_ot_threshold(self.config.get('ultrascale_temperature_limit_degC'),write_log=write_log)
+            self.set_ultrascale_ot_threshold(
+                self.config.get('ultrascale_temperature_limit_degC'),
+                write_log=write_log)
 
         # Which bands are we configuring?
         smurf_init_config = self.config.get('init')
@@ -460,7 +480,7 @@ class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin, Smu
             
             if timing_reference=='ext_ref':
                 for bay in self.bays:
-                    self.log('Select external reference for bay %i' % (bay))
+                    self.log(f'Select external reference for bay {bay}')
                     self.sel_ext_ref(bay)
 
                 # make sure RTM knows there's no timing system
@@ -482,16 +502,16 @@ class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin, Smu
                 # Check if link is up - just printing status to
                 # screen, not currently taking any action if it's not.
                 timingRxLinkUp=self.get_timing_link_up()
-                self.log('Timing RxLinkUp = {}'.format(timingRxLinkUp), self.LOG_USER if
+                self.log(f'Timing RxLinkUp = {timingRxLinkUp}', self.LOG_USER if
                          timingRxLinkUp else self.LOG_ERROR)
 
                 # Set LMK to use timing system as reference
                 for bay in self.bays:
-                    self.log('Configuring bay %i LMK to lock to the timing system' % (bay))
-                    self.set_lmk_reg(bay,0x147,0xA)
+                    self.log(f'Configuring bay {bay} LMK to lock to the timing system')
+                    self.set_lmk_reg(bay, 0x147, 0xA)
 
                 # Configure RTM to trigger off of the timing system
-                self.set_ramp_start_mode(1,write_log=write_log)
+                self.set_ramp_start_mode(1, write_log=write_log)
                 
         self.log('Done with setup')
 
