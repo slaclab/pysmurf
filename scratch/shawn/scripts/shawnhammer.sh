@@ -1,5 +1,7 @@
 #!/bin/bash
 
+xhost +
+
 #default startup cfg
 startup_cfg=/data/smurf_startup_cfg/smurf_startup.cfg
 
