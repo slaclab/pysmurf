@@ -200,6 +200,10 @@ if [ "$parallel_setup" = true ] ; then
 	    	echo "-> Starting pysmurf on ${slot}."		
 	    	start_slot_pysmurf ${slot}
 	    	slot_status[$slot_idx]=5;
+		if [ "${configure_pysmurf}" = false ]; then
+		    # skip setup
+	    	    slot_status[$slot_idx]=7;
+		fi
 	    fi
 
 	    # Run pysmurf setup

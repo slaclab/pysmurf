@@ -16,17 +16,22 @@ bands=range(8)
 
 shelfmanager='shm-smrf-sp01'
 
-#slots=[2,3,4]
-slots=[5]
+slots=[2,3]
 reset_rate_khz=10
 measure_full_band_response_after_setup=True
+wait_before_full_band_response_at_end_min=1
+measure_full_band_response_at_end=True
 
 wait_before_setup_min=1
 wait_after_setup_min=1
 wait_btw_band_fills_min=1
 wait_after_band_fills_min=1
-wait_btw_eta_scans_min=1
-wait_after_eta_scans_min=1
+
+# wait btw slots if using the ethernet interface to keep from stalling
+wait_btw_eta_scans_min=0
+wait_after_eta_scans_min=0
+wait_btw_slot_eta_scans_min=1
+
 wait_after_streaming_on_min=1
 # this wait is important because there's no easy way to know when each
 # bands' tracking setup is complete.
@@ -131,7 +136,7 @@ def wait_for_text_in_tmux(slot_number,text,tmux_session_name='smurf'):
         ret=p2.returncode 
     
 ctime=time.time()
-output_dir='/data/smurf_data/rflab_thermal_testing_swh_July2019'
+output_dir='/data/smurf_data/westpak_thermal_testing_Jan2020'
 hardware_logfile=os.path.join(output_dir,'{}_hwlog.dat'.format(int(ctime)))
 atca_yml=os.path.join(output_dir,'{}_atca.yml'.format(int(ctime)))
 server_ymls=os.path.join(output_dir,'{}'.format(int(ctime))+'_s{}.yml')
@@ -182,7 +187,7 @@ if measure_full_band_response_after_setup:
         if wait_to_check_full_band_response:
             input(f'-> Visually check the measured full band response on slot {slot} before continuing (press enter)...')
         else:
-            print(f'-> Visually check the measured full band response on slot {slot} before continuing (press enter)...')            
+            print(f'-> Done with full band response on slot {slot}.')
     
 # fill bands, one at a time
 wait_btw_band_fills_sec=wait_btw_band_fills_min*60
@@ -214,7 +219,13 @@ for band in bands:
     for slot in slots:
         while get_eta_scan_in_progress(slot,band):
             time.sleep(5)
-        print('-> Eta scan for slot {}, band {} completed.'.format(slot,band))                
+        print('-> Eta scan for slot {}, band {} completed.'.format(slot,band))
+
+        # only need this if using eth interface
+        print('-> Waiting {} min btw eta scans on different slots.'.format(wait_btw_slot_eta_scans_sec))
+        wait_btw_slot_eta_scans_sec=wait_btw_slot_eta_scans_min*60        
+        time.sleep(wait_btw_slot_eta_scans_sec)        
+        
     print('-> All band {} eta scans completed.'.format(band))
     print('-> Waiting {} min after band {} eta scans.'.format(wait_btw_eta_scans_min,band))            
     time.sleep(wait_btw_eta_scans_sec)
@@ -288,6 +299,17 @@ for slot in slots:
     cmd='docker logs smurf_server_s%d 2>&1 %s/%d_s%ddockerlog.dat'%(slot,output_dir,ctime,slot)
     os.system(cmd)
     
+if measure_full_band_response_at_end:
+    print('-> Waiting {} min before full band response at end.'.format(wait_before_full_band_response_at_end_min))
+    wait_before_full_band_response_at_end_sec=wait_before_full_band_response_at_end_min*60
+    time.sleep(wait_before_full_band_response_at_end_sec)    
+    
+    for slot in slots:
+        print(f'-> Checking full band response to confirm RF is still properly configured on slot {slot}.')    
+        measure_full_band_response(slot)
+        wait_for_text_in_tmux(slot,"Done running full_band_response.py.")
+        print(f'-> Done with full band response on slot {slot}.')
+
 # stop hardware logging
 if stop_logging_at_end:
     if log_temperatures:

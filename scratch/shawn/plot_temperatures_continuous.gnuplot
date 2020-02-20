@@ -1,8 +1,10 @@
 #! /usr/bin/gnuplot
 # call like
-# gnuplot -c plot_temperatures.gnuplot DATAFILE
+# gnuplot -c plot_temperatures.gnuplot DATAFILE SLOT
 datafile=ARG1
+slot=ARG2
 datafile_relpath=system(sprintf("basename %s",datafile))
+smurf_server=sprintf("smurf_server_s%s",slot)
 
 #1  epics_root
 #2  ctime
@@ -35,7 +37,7 @@ while 1 {
       set format x "%H:%M:%S"
       set xdata time
 
-      set title datafile_relpath noenhanced
+      set title sprintf("%s %s",datafile_relpath,smurf_server) noenhanced
       set key font ",6"
       set key left bottom
       set xtics font ", 6"
@@ -45,7 +47,7 @@ while 1 {
       #change size of tick labels
       set tics font ", 6"
 
-      plot datafile u 2:3 title 'fpga\_temp', datafile u 2:7 title 'cc\_temp', datafile u 2:12 title 'atca\_temp\_fpga', datafile u 2:13 title 'atca\_temp\_rtm', datafile u 2:14 title 'atca\_temp\_amc0', datafile u 2:15 title 'atca\_temp\_amc2', datafile u 2:16 title 'atca\_jct\_temp\_fpga', datafile u 2:17 title 'regulator\_iout', datafile u 2:18 title 'regulator\_temp1', datafile u 2:19 title 'regulator\_temp2'
+      plot datafile u (stringcolumn(1) eq smurf_server ? $2 : 1/0):3 title 'fpga\_temp', datafile u (stringcolumn(1) eq smurf_server ? $2 : 1/0):7 title 'cc\_temp', datafile u (stringcolumn(1) eq smurf_server ? $2 : 1/0):12 title 'atca\_temp\_fpga', datafile u (stringcolumn(1) eq smurf_server ? $2 : 1/0):13 title 'atca\_temp\_rtm', datafile u (stringcolumn(1) eq smurf_server ? $2 : 1/0):14 title 'atca\_temp\_amc0', datafile u (stringcolumn(1) eq smurf_server ? $2 : 1/0):15 title 'atca\_temp\_amc2', datafile u (stringcolumn(1) eq smurf_server ? $2 : 1/0):16 title 'atca\_jct\_temp\_fpga', datafile u (stringcolumn(1) eq smurf_server ? $2 : 1/0):17 title 'regulator\_iout', datafile u (stringcolumn(1) eq smurf_server ? $2 : 1/0):18 title 'regulator\_temp1', datafile u (stringcolumn(1) eq smurf_server ? $2 : 1/0):19 title 'regulator\_temp2'
 
-      pause 3
+      pause 6
 }
