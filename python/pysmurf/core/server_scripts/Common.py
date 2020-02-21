@@ -190,5 +190,8 @@ def make_parser(parser=None):
     group.add_argument('--server-port', dest='server_port', type=int, default=None,
         help="Set the server port. Defaults to 9000+2*slot_number"
     )
+    group.add_argument('--use-qt', action='store_true', dest='use_qt',
+        default=False, help="Use the QT ."
+    )
 
     return parser
