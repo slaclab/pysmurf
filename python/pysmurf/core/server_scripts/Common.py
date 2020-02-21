@@ -86,6 +86,16 @@ def process_args(args):
         else:
             print("Invalid zip file. Omitting it.")
 
+    # If the server port was not defined, set it to  (9000 + 2 * slot_number)
+    if args.server_port == None:
+        # Either the IP address or the RSSI lane number must be defined.
+        if args.pcie_rssi_lane:
+            # If the RSSI lane number was defined, get the slot number from it
+            args.server_port = 9000 + 2 * ( args.pcie_rssi_lane + 2 )
+        else:
+            # Otherwise, get th slot number from the last digit of the IP address
+            args.server_port = 9000 + 2 * int(args.ip_addr[-1:])
+
     return args
 
 
@@ -165,7 +175,7 @@ def make_parser(parser=None):
     group.add_argument('--disable-bay1', action='store_true',
         help="Disable the instantiation of devices for Bay 1"
     )
-    group.add_argument('--windows-title', '-w', default="",
+    group.add_argument('--windows-title', '-w', default=None,
         help="Sets the GUI windows title. Defaults to name of this script. "
              "This value will be ignored when running in server mode."
     )
@@ -176,6 +186,12 @@ def make_parser(parser=None):
     group.add_argument('--pcie-dev-data', default="/dev/datadev_1",
         help="Set the PCIe card device name used for data "
              "(defaults to '/dev/datadev_1')."
+    )
+    group.add_argument('--server-port', dest='server_port', type=int, default=None,
+        help="Set the server port. Defaults to 9000+2*slot_number"
+    )
+    group.add_argument('--use-qt', action='store_true', dest='use_qt',
+        default=False, help="Use the QT ."
     )
 
     return parser
