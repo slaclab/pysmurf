@@ -468,7 +468,7 @@ class SmurfNoiseMixin(SmurfBase):
         datafiles = np.array([], dtype=str)
         xlabel_override=None
         unit_override=None
-        actually_overbias=True        
+        actually_overbias=True
         for v in var_range:
             if var in biasaliases:
                 self.log('Bias {}'.format(v))
@@ -477,11 +477,11 @@ class SmurfNoiseMixin(SmurfBase):
                                  high_current_mode=kwargs['high_current_mode'],
                                  cool_wait=kwargs['cool_wait'],
                                  overbias_voltage=kwargs['overbias_voltage'],
-                                 actually_overbias=actually_overbias) 
+                                 actually_overbias=actually_overbias)
                 else:
                     self.overbias_tes_all(kwargs['bias_group'], tes_bias=v,
                                  high_current_mode=kwargs['high_current_mode'],
-                                 cool_wait=kwargs['cool_wait'], 
+                                 cool_wait=kwargs['cool_wait'],
                                  overbias_voltage=kwargs['overbias_voltage'],
                                  actually_overbias=actually_overbias)
                 if only_overbias_once:

@@ -3716,18 +3716,18 @@ class SmurfCommandMixin(SmurfBase):
 
     _trigger_enable = 'EvrV2TriggerReg[{}]:EnableTrig'
     def set_trigger_enable(self, chan, val, **kwargs):
-        """                                                                     
+        """
         """
         self._caput(self.trigger_root + self._trigger_enable.format(chan),
                    val, **kwargs)
 
     _trigger_channel_reg_enable = 'EvrV2ChannelReg[{}]:EnableReg'
     def set_evr_channel_reg_enable(self, chan, val, **kwargs):
-        """                                                                     
+        """
         """
         self._caput(self.trigger_root + self._trigger_channel_reg_enable.format(chan),
-                   val, **kwargs)        
-        
+                   val, **kwargs)
+
     # Crashing in rogue 4, and not clear it's ever needed.
     _trigger_reg_enable = 'EvrV2TriggerReg[{}]:enable'
     def set_evr_trigger_reg_enable(self, chan, val, **kwargs):
