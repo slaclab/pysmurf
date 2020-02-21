@@ -307,6 +307,7 @@ class SmurfTuneMixin(SmurfBase):
             self.get_att_uc(band, write_log=True)
             freq, resp = self.full_band_resp(band, n_samples=n_samples,
                                          make_plot=make_plot, save_data=save_data, 
+										 plotname_append=plotname_append, 
                                          show_plot=False, timestamp=timestamp,
                                          n_scan=n_scan)
             self.set_att_uc(band, old_att, write_log=True)
@@ -1039,7 +1040,8 @@ class SmurfTuneMixin(SmurfBase):
 
 
     def eta_fit(self, freq, resp, peak_freq, delta_freq,
-                make_plot=False, plot_chans=[], save_plot=True, plotname_append='', band=None,
+                make_plot=False, plot_chans=[], save_plot=True, 
+				plotname_append='', band=None,
                 timestamp=None, res_num=None, use_slow_eta=False):
         """
         Cyndia's eta finding code
@@ -1983,8 +1985,8 @@ class SmurfTuneMixin(SmurfBase):
         self.set_feedback_enable_array(band, np.zeros_like(old_fb))
         d, df, sync = self.tracking_setup(band,0, reset_rate_khz=reset_rate_khz,
                                           fraction_full_scale=fraction_full_scale,
-                                          make_plot=False,
-                                          save_plot=False, show_plot=False,
+                                          make_plot=False, save_plot=False, 
+										  plotname_append='', show_plot=False,
                                           lms_enable1=False, lms_enable2=False,
                                           lms_enable3=False, flux_ramp=flux_ramp)
 
@@ -2429,11 +2431,11 @@ class SmurfTuneMixin(SmurfBase):
 
         # Check the lock status and cut channels based on inputs.
         self.check_lock(band, f_min=f_min, f_max=f_max, df_max=df_max,
-            make_plot=make_plot, flux_ramp=flux_ramp, 
+            make_plot=False, flux_ramp=flux_ramp, 
             fraction_full_scale=fraction_full_scale, lms_freq_hz=lms_freq_hz,
             reset_rate_khz=reset_rate_khz, 
             feedback_start_frac=feedback_start_frac,
-            feedback_end_frac=feedback_end_frac)
+            feedback_end_frac=feedback_end_frac) 
     
 
     def eta_phase_check(self, band, rot_step_size=30, rot_max=360,
@@ -2765,7 +2767,7 @@ class SmurfTuneMixin(SmurfBase):
         f_min (float) : The maximum frequency swing.
         f_max (float) : The minimium frequency swing
         df_max (float) : The maximum value of the stddev of df
-        make_plot (bool) : Whether to make plots. Default False
+        make_plot (bool) : Whether to make plots. Default False. Does nothing in this function. 
         flux_ramp (bool) : Whether to flux ramp or not. Default True
         faction_full_scale (float): Number between 0 and 1. The amplitude
            of the flux ramp.
@@ -2855,8 +2857,8 @@ class SmurfTuneMixin(SmurfBase):
 
 
     def find_freq(self, band, subband=np.arange(13,115), drive_power=None,
-        n_read=2, make_plot=False, save_plot=True, plotname_append='', window=50, rolling_med=True,
-        make_subband_plot=False, show_plot=False):
+        n_read=2, make_plot=False, save_plot=True, plotname_append='', 
+		window=50, rolling_med=True, make_subband_plot=False, show_plot=False):
         '''
         Finds the resonances in a band (and specified subbands)
 
@@ -3027,8 +3029,9 @@ class SmurfTuneMixin(SmurfBase):
 
     def find_all_peak(self, freq, resp, subband=None, rolling_med=False, 
         window=500, grad_cut=0.05, amp_cut=0.25, freq_min=-2.5E8, freq_max=2.5E8, 
-        make_plot=False, save_plot=True, plotname_append='', band=None, make_subband_plot=False, 
-        subband_plot_with_slow=False, timestamp=None, pad=2, min_gap=2):
+        make_plot=False, save_plot=True, plotname_append='', band=None, 
+		make_subband_plot=False, subband_plot_with_slow=False, timestamp=None, 
+		pad=2, min_gap=2):
         """
         find the peaks within each subband requested from a fullbandamplsweep
 
@@ -3070,7 +3073,7 @@ class SmurfTuneMixin(SmurfBase):
         return peaks
 
     def fast_eta_scan(self, band, subband, freq, n_read, drive, 
-        make_plot=False):
+        make_plot=False, plotname_append=''):
         """copy of fastEtaScan.m from Matlab. Sweeps quickly across a range of
         freq and gets I, Q response
 
@@ -3083,7 +3086,8 @@ class SmurfTuneMixin(SmurfBase):
          drive (int): tone power
 
         Optional Args:
-        make_plot (bool): Make eta plots
+        make_plot (bool): Make eta plots. Not yet functional.
+		plotname_append (string): Appended to the default plot filename. Default is ''.
 
         Outputs:
          resp (n_freq x 2 array): real, imag response as a function of 
@@ -3129,6 +3133,7 @@ class SmurfTuneMixin(SmurfBase):
 
         if make_plot:
             # To do : make plotting
+			# remember to include the plotname_append when saving.
             self.log('Plotting does not work in this function yet...')
 
         return freq, response
@@ -3654,6 +3659,7 @@ class SmurfTuneMixin(SmurfBase):
         lms_freq_hz=None, flux_ramp=True, fraction_full_scale=.4950,
         lms_enable1=True, lms_enable2=True, lms_enable3=True, lms_gain=None):
         """
+		Does not actually allow any plotmaking.
         """
         if reset_rate_khz is None:
             reset_rate_khz = self.reset_rate_khz

@@ -310,7 +310,9 @@ class SmurfNoiseMixin(SmurfBase):
 
     def noise_vs_tone(self, band, tones=np.arange(10,15), meas_time=30,
                       analyze=False, bias_group=None, lms_freq_hz=None,
-                      fraction_full_scale=.72):
+                      fraction_full_scale=.72, save_plot=False, 
+					  plotname_append='', show_plot=False, 
+					  make_timestream_plot=False):
         """
         """
         timestamp = self.get_timestamp()
@@ -346,7 +348,11 @@ class SmurfNoiseMixin(SmurfBase):
         
         if analyze:
             self.analyze_noise_vs_tone(tone_save, datafile_save,
-                                       band=band, bias_group=bias_group)
+                                       band=band, bias_group=bias_group, 
+									   save_plot=save_plot, 
+									   plotname_append=plotname_append,
+									   show_plot=show_plot, 
+									   make_timestream_plot=make_timestream_plot)
         
 
 
