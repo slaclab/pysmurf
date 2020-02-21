@@ -74,4 +74,3 @@ class DevBoardPcie(Common):
                               txDevice       = txDevice,
                               configure      = configure,
                               **kwargs)
-

@@ -5,12 +5,12 @@
 # File       : pysmurf/base/smurf_control.py
 # Created    : 2018-08-29
 #-----------------------------------------------------------------------------
-# This file is part of the pysmurf software package. It is subject to 
-# the license terms in the LICENSE.txt file found in the top-level directory 
-# of this distribution and at: 
-#    https://confluence.slac.stanford.edu/display/ppareg/LICENSE.html. 
-# No part of the pysmurf software package, including this file, may be 
-# copied, modified, propagated, or distributed except according to the terms 
+# This file is part of the pysmurf software package. It is subject to
+# the license terms in the LICENSE.txt file found in the top-level directory
+# of this distribution and at:
+#    https://confluence.slac.stanford.edu/display/ppareg/LICENSE.html.
+# No part of the pysmurf software package, including this file, may be
+# copied, modified, propagated, or distributed except according to the terms
 # contained in the LICENSE.txt file.
 #-----------------------------------------------------------------------------
 import numpy as np
@@ -26,7 +26,7 @@ from pysmurf.client.debug.smurf_iv import SmurfIVMixin as SmurfIVMixin
 from pysmurf.client.base.smurf_config import SmurfConfig as SmurfConfig
 
 
-class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin, SmurfTuneMixin, 
+class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin, SmurfTuneMixin,
     SmurfNoiseMixin, SmurfIVMixin):
     '''
     Base class for controlling Smurf. Loads all the mixins.
@@ -36,7 +36,7 @@ class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin, Smu
                  cfg_file='/home/cryo/pysmurf/cfg_files/experiment_k2umux.cfg',
                  data_dir=None, name=None, make_logfile=True,
                  setup=False, offline=False, smurf_cmd_mode=False,
-                 no_dir=False, shelf_manager='shm-smrf-sp01', 
+                 no_dir=False, shelf_manager='shm-smrf-sp01',
                  validate_config=True, **kwargs):
         '''
         Args:
@@ -94,7 +94,7 @@ class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin, Smu
 
             # Set logfile
             datestr = time.strftime('%y%m%d_', time.gmtime())
-            self.log_file = os.path.join(self.output_dir, 'logs', datestr + 
+            self.log_file = os.path.join(self.output_dir, 'logs', datestr +
                 'smurf_cmd.log')
             self.log.set_logfile(self.log_file)
         else:
@@ -115,7 +115,7 @@ class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin, Smu
             self.base_dir = os.path.abspath(self.data_dir)
 
             # create output and plot directories
-            self.output_dir = os.path.join(self.base_dir, self.date, name, 
+            self.output_dir = os.path.join(self.base_dir, self.date, name,
                 'outputs')
             self.tune_dir = self.config.get('tune_dir')
             self.plot_dir = os.path.join(self.base_dir, self.date, name, 'plots')
@@ -166,13 +166,13 @@ class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin, Smu
         if 'hemt_Id_offset' in keys:
             self._hemt_Id_offset=amp_cfg['hemt_Id_offset']
         if '50k_Id_offset' in keys:
-            self._50k_Id_offset=amp_cfg['50k_Id_offset']            
+            self._50k_Id_offset=amp_cfg['50k_Id_offset']
         if 'hemt_gate_min_voltage' in keys:
             self._hemt_gate_min_voltage=amp_cfg['hemt_gate_min_voltage']
         if 'hemt_gate_max_voltage' in keys:
             self._hemt_gate_max_voltage=amp_cfg['hemt_gate_max_voltage']
 
-            
+
         # Flux ramp hardware detail
         flux_ramp_cfg = self.config.get('flux_ramp')
         keys = flux_ramp_cfg.keys()
@@ -185,13 +185,13 @@ class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin, Smu
         for i, k in enumerate(chip_cfg.keys()):
             val = chip_cfg[k]
             self.chip_to_freq[i] = [k, val[0], val[1]]
-                
+
         # channel assignment file
         #self.channel_assignment_files = self.config.get('channel_assignment')
         self.channel_assignment_files = {}
         if not no_dir:
             for b in self.config.get('init').get('bands'):
-                all_channel_assignment_files=glob.glob(os.path.join(self.tune_dir, 
+                all_channel_assignment_files=glob.glob(os.path.join(self.tune_dir,
                     '*channel_assignment_b{}.txt'.format(b)))
                 if len(all_channel_assignment_files):
                     self.channel_assignment_files['band_{}'.format(b)] = \
@@ -200,7 +200,7 @@ class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin, Smu
         # bias groups available
         self.all_groups = self.config.get('all_bias_groups')
 
-        # bias group to pair        
+        # bias group to pair
         bias_group_cfg = self.config.get('bias_group_to_pair')
         # how many bias groups are there?
         self._n_bias_groups=len(bias_group_cfg)
@@ -256,7 +256,7 @@ class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin, Smu
         self.lms_freq_hz = {}
         self.fraction_full_scale = self.config.get('tune_band').get('fraction_full_scale')
         self.reset_rate_khz = self.config.get('tune_band').get('reset_rate_khz')
-        
+
         smurf_init_config = self.config.get('init')
         bands = smurf_init_config['bands']
         # Load in tuning parameters, if present
@@ -270,14 +270,14 @@ class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin, Smu
             self.lms_freq_hz[b] = tune_band_cfg['lms_freq'][str(b)]
             band_str = f'band_{b}'
             self.lms_gain[b] = smurf_init_config[band_str]['lmsGain']
-            
+
         # Load in tuning parameters, if present
         tune_band_cfg=self.config.get('tune_band')
         tune_band_keys=tune_band_cfg.keys()
         for cfg_var in ['gradient_descent_gain', 'gradient_descent_averages',
                         'gradient_descent_converge_hz', 'gradient_descent_step_hz',
                         'gradient_descent_momentum', 'gradient_descent_beta',
-                        'eta_scan_del_f', 'eta_scan_amplitude', 
+                        'eta_scan_del_f', 'eta_scan_amplitude',
                         'eta_scan_averages','delta_freq']:
             if cfg_var in tune_band_keys:
                 setattr(self, cfg_var, {})
@@ -298,14 +298,14 @@ class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin, Smu
 
         # If active, disable hardware logging while doing setup.
         if self._hardware_logging_thread is not None:
-            self.log('Hardware logging is enabled.  Pausing for setup.', 
+            self.log('Hardware logging is enabled.  Pausing for setup.',
                 (self.LOG_USER))
             self.pause_hardware_logging()
 
         # Thermal OT protection
         ultrascale_temperature_limit_degC = self.config.get('ultrascale_temperature_limit_degC')
         if ultrascale_temperature_limit_degC is not None:
-            self.log('Setting ultrascale OT protection limit to {}C'.format(ultrascale_temperature_limit_degC), 
+            self.log('Setting ultrascale OT protection limit to {}C'.format(ultrascale_temperature_limit_degC),
                 (self.LOG_USER))
             # OT threshold in degrees C
             self.set_ultrascale_ot_threshold(
@@ -316,8 +316,8 @@ class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin, Smu
         smurf_init_config = self.config.get('init')
         bands = smurf_init_config['bands']
 
-        # determine which bays to configure from the 
-        # bands requested and the band-to-bay 
+        # determine which bays to configure from the
+        # bands requested and the band-to-bay
         # correspondence
         self.bays=np.unique([self.band_to_bay(band) for band in bands])
         # Right now, resetting both DACs in both MicrowaveMuxCore blocks,
@@ -336,52 +336,52 @@ class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin, Smu
         # The per band configs. May want to make available per-band values.
         for b in bands:
             band_str = 'band_{}'.format(b)
-            self.set_iq_swap_in(b, smurf_init_config[band_str]['iq_swap_in'], 
+            self.set_iq_swap_in(b, smurf_init_config[band_str]['iq_swap_in'],
                 write_log=write_log, **kwargs)
-            self.set_iq_swap_out(b, smurf_init_config[band_str]['iq_swap_out'], 
+            self.set_iq_swap_out(b, smurf_init_config[band_str]['iq_swap_out'],
                 write_log=write_log, **kwargs)
-            self.set_ref_phase_delay(b, 
-                smurf_init_config[band_str]['refPhaseDelay'], 
+            self.set_ref_phase_delay(b,
+                smurf_init_config[band_str]['refPhaseDelay'],
                 write_log=write_log, **kwargs)
-            self.set_ref_phase_delay_fine(b, 
-                smurf_init_config[band_str]['refPhaseDelayFine'], 
+            self.set_ref_phase_delay_fine(b,
+                smurf_init_config[band_str]['refPhaseDelayFine'],
                 write_log=write_log, **kwargs)
             # in DSPv3, lmsDelay should be 4*refPhaseDelay (says
             # Mitch).  If none provided in cfg, enforce that
             # constraint.  If provided in cfg, override with provided
             # value.
             if smurf_init_config[band_str]['lmsDelay'] is None:
-                self.set_lms_delay(b, int(4*smurf_init_config[band_str]['refPhaseDelay']), 
-                                   write_log=write_log, **kwargs)                        
-            else:
-                self.set_lms_delay(b, smurf_init_config[band_str]['lmsDelay'], 
+                self.set_lms_delay(b, int(4*smurf_init_config[band_str]['refPhaseDelay']),
                                    write_log=write_log, **kwargs)
-                
-            self.set_feedback_enable(b, 
+            else:
+                self.set_lms_delay(b, smurf_init_config[band_str]['lmsDelay'],
+                                   write_log=write_log, **kwargs)
+
+            self.set_feedback_enable(b,
                 smurf_init_config[band_str]['feedbackEnable'],
                 write_log=write_log, **kwargs)
-            self.set_feedback_gain(b, 
-                smurf_init_config[band_str]['feedbackGain'], 
+            self.set_feedback_gain(b,
+                smurf_init_config[band_str]['feedbackGain'],
                 write_log=write_log, **kwargs)
-            self.set_lms_gain(b, smurf_init_config[band_str]['lmsGain'], 
+            self.set_lms_gain(b, smurf_init_config[band_str]['lmsGain'],
                 write_log=write_log, **kwargs)
-            self.set_trigger_reset_delay(b, smurf_init_config[band_str]['trigRstDly'], 
-                write_log=write_log, **kwargs)            
+            self.set_trigger_reset_delay(b, smurf_init_config[band_str]['trigRstDly'],
+                write_log=write_log, **kwargs)
 
             self.set_feedback_limit_khz(b, smurf_init_config[band_str]['feedbackLimitkHz'],
                 write_log=write_log, **kwargs)
 
-            self.set_feedback_polarity(b, 
-                smurf_init_config[band_str]['feedbackPolarity'], 
+            self.set_feedback_polarity(b,
+                smurf_init_config[band_str]['feedbackPolarity'],
                 write_log=write_log, **kwargs)
 
             for dmx in np.array(smurf_init_config[band_str]["data_out_mux"]):
                 self.set_data_out_mux(int(self.band_to_bay(b)), int(dmx), "UserData", write_log=write_log,
                     **kwargs)
 
-            self.set_dsp_enable(b, smurf_init_config['dspEnable'], 
+            self.set_dsp_enable(b, smurf_init_config['dspEnable'],
                 write_log=write_log, **kwargs)
-            
+
             # Tuning defaults - only set if present in cfg
             if hasattr(self,'gradient_descent_gain') and b in self.gradient_descent_gain.keys():
                 self.set_gradient_descent_gain(b, self.gradient_descent_gain[b], write_log=write_log, **kwargs)
@@ -419,7 +419,7 @@ class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin, Smu
         # is plugged in there.
         for bay in [0,1]:
             self.set_trigger_hw_arm(bay, 0, write_log=write_log)
-        
+
         self.set_trigger_width(0, 10, write_log=write_log)  # mystery bit that makes triggering work
         self.set_trigger_enable(0, 1, write_log=write_log)
         self.set_evr_channel_reg_enable(0, True, write_log=write_log)
@@ -438,7 +438,7 @@ class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin, Smu
 
         # Make sure flux ramp starts off
         self.flux_ramp_off(write_log=write_log)
-        self.flux_ramp_setup(4, .5, write_log=write_log) 
+        self.flux_ramp_setup(4, .5, write_log=write_log)
 
 
         # Turn on stream enable for all bands
@@ -461,14 +461,14 @@ class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin, Smu
             assert (timing_reference in timing_options), 'timing_reference in cfg file (={}) not in timing_options={}'.format(timing_reference,str(timing_options))
 
             self.log('Configuring the system to take timing from {}'.format(timing_reference))
-            
+
             if timing_reference=='ext_ref':
                 for bay in self.bays:
                     self.log(f'Select external reference for bay {bay}')
                     self.sel_ext_ref(bay)
 
                 # make sure RTM knows there's no timing system
-                self.set_ramp_start_mode(0,write_log=write_log)                
+                self.set_ramp_start_mode(0,write_log=write_log)
 
             # https://confluence.slac.stanford.edu/display/SMuRF/Timing+Carrier#TimingCarrier-Howtoconfiguretodistributeoverbackplanefromslot2
             if timing_reference=='backplane':
@@ -482,7 +482,7 @@ class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin, Smu
 
                 self.log('Waiting 1 sec for timing up-link...')
                 time.sleep(1)
-                
+
                 # Check if link is up - just printing status to
                 # screen, not currently taking any action if it's not.
                 timingRxLinkUp=self.get_timing_link_up()
@@ -496,7 +496,7 @@ class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin, Smu
 
                 # Configure RTM to trigger off of the timing system
                 self.set_ramp_start_mode(1, write_log=write_log)
-                
+
         self.log('Done with setup')
 
         # If active, re-enable hardware logging after setup.
@@ -515,7 +515,7 @@ class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin, Smu
         if not os.path.exists(directory):
             os.makedirs(directory)
 
-            
+
     def get_timestamp(self, as_int=False):
         """
         Gets the unixtime timestamp.
@@ -523,7 +523,7 @@ class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin, Smu
         Opt Args:
         ---------
         as_int (bool) : Whether to returnt the timestamp as an
-            integer. 
+            integer.
 
         Returns:
         --------
@@ -536,7 +536,7 @@ class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin, Smu
         else:
             return t
 
-        
+
     def add_output(self, key, val):
         """
         Add a key to the output config.
@@ -561,10 +561,9 @@ class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin, Smu
 
         timestamp = self.get_timestamp()
         if filename is not None:
-            output_file = filename 
+            output_file = filename
         else:
             output_file = timestamp + '.cfg'
 
         full_path = os.path.join(self.output_dir, output_file)
         self.config.write(full_path)
-

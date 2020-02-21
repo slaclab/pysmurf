@@ -75,4 +75,3 @@ class CmbPcie(Common):
                               configure      = configure,
                               VariableGroups = VariableGroups,
                               **kwargs)
-

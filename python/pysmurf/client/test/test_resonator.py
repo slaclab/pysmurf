@@ -20,7 +20,7 @@ def smurf_control():
                                     setup=False,
                                     make_logfile=False,
                                     shelf_manager="shm-smrf-sp01")
-    
+
     return S
 
 
@@ -45,5 +45,3 @@ def test_amplifier_bias(smurf_control):
 
     assert amp_bias['50K_Vg'] < -.5 and amp_bias['50K_Vg'] > -1,\
         '50K gate voltage out of acceptable range.'
-
-

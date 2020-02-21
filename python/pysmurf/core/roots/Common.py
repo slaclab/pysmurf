@@ -238,5 +238,3 @@ class Common(pyrogue.Root):
 
         print('Setting defaults from file {}'.format(self._config_file))
         self.LoadConfig(self._config_file)
-
-

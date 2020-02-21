@@ -5,12 +5,12 @@
 # File       : pysmurf/base/base_class.py
 # Created    : 2018-08-30
 #-----------------------------------------------------------------------------
-# This file is part of the pysmurf software package. It is subject to 
-# the license terms in the LICENSE.txt file found in the top-level directory 
-# of this distribution and at: 
-#    https://confluence.slac.stanford.edu/display/ppareg/LICENSE.html. 
-# No part of the pysmurf software package, including this file, may be 
-# copied, modified, propagated, or distributed except according to the terms 
+# This file is part of the pysmurf software package. It is subject to
+# the license terms in the LICENSE.txt file found in the top-level directory
+# of this distribution and at:
+#    https://confluence.slac.stanford.edu/display/ppareg/LICENSE.html.
+# No part of the pysmurf software package, including this file, may be
+# copied, modified, propagated, or distributed except according to the terms
 # contained in the LICENSE.txt file.
 #-----------------------------------------------------------------------------
 from .logger import SmurfLogger
@@ -82,21 +82,21 @@ class SmurfBase(object):
         # than just hardcoding paths? This needs to be cleaned up somehow
 
         self.epics_root = epics_root
-        
+
         self.amcc = self.epics_root + ':AMCc:'
         self.smurf_processor = self.amcc + 'SmurfProcessor:'
         self.channel_mapper = self.smurf_processor + 'ChannelMapper:'
         self.frame_rx_stats = self.smurf_processor + 'FrameRxStats:'
 
         self.fpga_top_level = self.amcc + 'FpgaTopLevel:'
-        self.app_top = self.fpga_top_level + 'AppTop:'        
+        self.app_top = self.fpga_top_level + 'AppTop:'
         self.app_core = self.app_top + 'AppCore:'
 
         # AppTop
         self.dac_sig_gen = self.app_top + 'DacSigGen[{}]:'
-        
+
         # AppCore
-        self.microwave_mux_core = self.app_core + 'MicrowaveMuxCore[{}]:'        
+        self.microwave_mux_core = self.app_core + 'MicrowaveMuxCore[{}]:'
         self.sysgencryo = self.app_core + 'SysgenCryo:'
         self.timing_header = self.app_core + 'TimingHeader:'
 
@@ -107,7 +107,7 @@ class SmurfBase(object):
 
         # LMK
         self.lmk = self.microwave_mux_core + 'LMK:'
-        
+
         # SysgenCryo
         self.band_root = self.sysgencryo + 'Base[{}]:'
         self.adc_root = self.sysgencryo + 'CryoAdcMux:'
@@ -124,11 +124,11 @@ class SmurfBase(object):
         self.apptop = self.fpgatl + 'AppTop:'
 
         # AppCore
-        self.appcore = self.apptop + 'AppCore:'        
-        
+        self.appcore = self.apptop + 'AppCore:'
+
         # AmcCarrierCore
         self.amccc = self.fpgatl + 'AmcCarrierCore:'
-        
+
         # Crossbar
         self.crossbar = self.amccc + 'AxiSy56040:'
 
@@ -137,10 +137,10 @@ class SmurfBase(object):
 
         # CarrierBsi
         self.amc_carrier_bsi = self.amccc + 'AmcCarrierBsi:'
-        
+
         # FPGA
         self.ultrascale = self.amccc + 'AxiSysMonUltraScale:'
-    
+
         # Tx -> DAC , Rx <- ADC
         self.axi_version = self.amccc + 'AxiVersion:'
         self.waveform_engine_buffers_root = self.amccc + \
@@ -162,14 +162,14 @@ class SmurfBase(object):
         self.rtm_lut_ctrl_root = self.rtm_cryo_det_root + \
             'LutCtrl:'
         self.rtm_lut_ctrl = self.rtm_lut_ctrl_root + \
-            'Ctrl:'        
+            'Ctrl:'
 
         # Timing paths
         self.amctiming = self.amccc + 'AmcCarrierTiming:'
         self.trigger_root =  self.amctiming + 'EvrV2CoreTriggers:'
         self.timing_status = self.amctiming + 'TimingFrameRx:'
 
-        self.C = CryoCard(self.rtm_spi_cryo_root + 'read', 
+        self.C = CryoCard(self.rtm_spi_cryo_root + 'read',
             self.rtm_spi_cryo_root + 'write')
         self.freq_resp = {}
 

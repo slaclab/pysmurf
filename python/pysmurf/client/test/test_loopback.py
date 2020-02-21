@@ -27,7 +27,7 @@ def smurf_control():
                                     setup=False,
                                     make_logfile=False,
                                     shelf_manager="shm-smrf-sp01")
-    
+
     return S
 
 
@@ -36,7 +36,7 @@ def test_fpga_temperature(smurf_control):
     assert fpga_temp < 50, \
         "FPGA temperature over 50 C."
 
-    
+
 def test_amplifier_bias(smurf_control):
     amp_bias = smurf_control.get_amplifier_bias()
     assert amp_bias['hemt_Vg'] > .45 and amp_bias['hemt_Vg'] < .7,\
@@ -49,10 +49,10 @@ def test_amplifier_bias(smurf_control):
     assert amp_bias['50K_Vg'] < -.5 and amp_bias['50K_Vg'] > -1,\
         '50K gate voltage out of acceptable range.'
 
-    
+
 def test_uc_dc_atts(smurf_control):
     accept_frac = .1
-    
+
     band = 1
     # Turn off all attenuators on band
     smurf_control.set_att_uc(band, 0)
@@ -77,7 +77,7 @@ def test_uc_dc_atts(smurf_control):
 
     # Turn UC att back to 0
     smurf_control.set_att_uc(band, 0)
-    
+
     # Check DC atts
     dc_atts = np.array([5, 15, 25])
     for dc in dc_atts:
@@ -91,20 +91,20 @@ def test_uc_dc_atts(smurf_control):
             ratio > exp_ratio * (1-accept_frac), \
             "DC att not within acceptable limits."
 
-    
+
 def test_data_write_and_read(smurf_control):
     band = 1
-    
+
     # Define the payload size (this is the default val too)
     payload_size = 512
     smurf_control.set_payload_size(payload_size)
     smurf_control.set_payload_size(0)
-    
+
     # Turn on some channels
     x = (np.random.randn(512)>0)*10
     smurf_control.set_amplitude_scale_array(band, x, wait_done=True)
     input_n_chan = np.sum(x>0)
-    
+
     # Take 5 seconds of data
     filename = smurf_control.take_stream_data(5)
 
@@ -117,7 +117,7 @@ def test_data_write_and_read(smurf_control):
     #        f"The number of channels on band {band} is not the same as " + \
     #        "the number of channels the smurf_processor thinks are on." + \
     #        "You may have other channels on in another band."
-    
+
     t, d, m = smurf_control.read_stream_data(filename)
     n_chan, n_samp = np.shape(d)
 
@@ -125,7 +125,7 @@ def test_data_write_and_read(smurf_control):
         "The data written to disk has no samples. Something is wrong. " + \
         "Check that the flux ramp is on and you are triggering in the " + \
         "correct mode. See documentation for set_ramp_start_mode."
-    
+
     assert n_chan == 512, \
         "read_stream_data should return data with 512 channels " + \
         "by default. "

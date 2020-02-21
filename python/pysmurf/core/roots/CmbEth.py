@@ -81,4 +81,3 @@ class CmbEth(Common):
                               configure      = configure,
                               VariableGroups = VariableGroups,
                               **kwargs)
-

@@ -5,12 +5,12 @@
 # File       : pysmurf/watchdog/JesdWatchdog.py
 # Created    : 2018-12-06
 #-----------------------------------------------------------------------------
-# This file is part of the pysmurf software package. It is subject to 
-# the license terms in the LICENSE.txt file found in the top-level directory 
-# of this distribution and at: 
-#    https://confluence.slac.stanford.edu/display/ppareg/LICENSE.html. 
-# No part of the pysmurf software package, including this file, may be 
-# copied, modified, propagated, or distributed except according to the terms 
+# This file is part of the pysmurf software package. It is subject to
+# the license terms in the LICENSE.txt file found in the top-level directory
+# of this distribution and at:
+#    https://confluence.slac.stanford.edu/display/ppareg/LICENSE.html.
+# No part of the pysmurf software package, including this file, may be
+# copied, modified, propagated, or distributed except according to the terms
 # contained in the LICENSE.txt file.
 #-----------------------------------------------------------------------------
 import logging
@@ -54,7 +54,7 @@ class JesdWatchdog(object):
         PwrUpSysRef.put(1)
 
     @staticmethod
-    def jesdTXReset(prefix):       
+    def jesdTXReset(prefix):
         logging.error('[%s] ' % str(datetime.now()) + ' JesdTx went down, will attempt to recover...')
 
         # for recovery
@@ -81,9 +81,9 @@ class JesdWatchdog(object):
     def jesdValidChanged(self, pvname, value, *args, **kwargs):
         #print('[%s] ' % str(datetime.now()) + pvname + ' changed ; value=%s'%(str(value)))
         if self.enable == 1:
-            if value == 0:              
+            if value == 0:
                 # JesdRx
-                if 'JesdRx' in pvname:                    
+                if 'JesdRx' in pvname:
                     self.jesdrxreset_thread = epics.ca.CAThread(target=self.jesdRXReset, args=(self.prefix,))
                     self.jesdrxreset_thread.start()
 

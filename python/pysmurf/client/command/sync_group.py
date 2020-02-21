@@ -6,12 +6,12 @@
 # Created    : 2018-09-18
 # Author     : Mitch D'Ewart
 #-----------------------------------------------------------------------------
-# This file is part of the pysmurf software package. It is subject to 
-# the license terms in the LICENSE.txt file found in the top-level directory 
-# of this distribution and at: 
-#    https://confluence.slac.stanford.edu/display/ppareg/LICENSE.html. 
-# No part of the pysmurf software package, including this file, may be 
-# copied, modified, propagated, or distributed except according to the terms 
+# This file is part of the pysmurf software package. It is subject to
+# the license terms in the LICENSE.txt file found in the top-level directory
+# of this distribution and at:
+#    https://confluence.slac.stanford.edu/display/ppareg/LICENSE.html.
+# No part of the pysmurf software package, including this file, may be
+# copied, modified, propagated, or distributed except according to the terms
 # contained in the LICENSE.txt file.
 #-----------------------------------------------------------------------------
 import time
@@ -26,7 +26,7 @@ class SyncGroup(object):
         self.values = dict()
         self.timeout = timeout
         self.first = [skip_first] * len(pvs)
-        self.pvs = [epics.PV(pv, callback=self.channel_changed, 
+        self.pvs = [epics.PV(pv, callback=self.channel_changed,
             auto_monitor=True) for pv in pvs]
 
     def channel_changed(self, pvname, value, *args, **kwargs):

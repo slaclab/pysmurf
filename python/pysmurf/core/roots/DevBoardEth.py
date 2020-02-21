@@ -73,4 +73,3 @@ class DevBoardEth(Common):
                               txDevice       = txDevice,
                               configure      = configure,
                               **kwargs)
-

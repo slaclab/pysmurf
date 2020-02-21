@@ -705,7 +705,7 @@ class SmurfUtilMixin(SmurfBase):
                 self.log('Input downsample factor is None. Using '+
                      'value already in pyrogue:'+
                      f' {downsample_factor}')
-            
+
         # Check if flux ramp is non-zero
         ramp_max_cnt = self.get_ramp_max_cnt()
         if ramp_max_cnt == 0:
@@ -855,11 +855,11 @@ class SmurfUtilMixin(SmurfBase):
                     counter = 1
                 else:
                     phase = np.vstack((phase, data))
-                    t = np.append(t, header.timestamp)                    
+                    t = np.append(t, header.timestamp)
 
                     if counter % 2000 == 2000 - 1 :
                         self.log('{} elements loaded'.format(counter+1))
-                        
+
                     counter = counter + 1
 
         phase = np.squeeze(phase.T)
@@ -2470,7 +2470,7 @@ class SmurfUtilMixin(SmurfBase):
 
     def make_channel_mask(self, band=None, smurf_chans=None):
         """
-        Makes the channel mask. Only the channels in the 
+        Makes the channel mask. Only the channels in the
         mask will be streamed or written to disk.
 
         If no optional arguments are given, mask will contain all channels
@@ -2534,7 +2534,7 @@ class SmurfUtilMixin(SmurfBase):
 
         self.set_filter_reset(wait_after=.1,
                               write_log=write_log)
-        
+
     def get_filter_params(self):
         """
         Get the downsample filter parameters: filter order,
@@ -3278,4 +3278,3 @@ class SmurfUtilMixin(SmurfBase):
 
         # Zero TES biases on this bias group
         self.set_tes_bias_bipolar(bias_group, 0)
-

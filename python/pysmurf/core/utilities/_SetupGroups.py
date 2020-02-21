@@ -62,4 +62,3 @@ def setupGroups(root, VariableGroups):
 
             else:
                 print(f"setupGroups: Warning: {k} not found!")
-

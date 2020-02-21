@@ -103,5 +103,3 @@ class StreamDataEmulatorI32(pyrogue.Device):
         Method called by streamConnect, streamTap and streamConnectBiDir to access master.
         """
         return self._emulator
-
-
