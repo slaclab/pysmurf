@@ -44,6 +44,9 @@ class Common(pyrogue.Root):
         pyrogue.Root.__init__(self, name="AMCc", initRead=True, pollEn=polling_en,
             streamIncGroups='stream', serverPort=server_port, **kwargs)
 
+        # Debug message showing the serverPort number being used
+        print(f"Root's serverPort set to {server_port}")
+
         #########################################################################################
         # The following interfaces are expected to be defined at this point by a sub-class
         # self._streaming_stream # Data stream interface
