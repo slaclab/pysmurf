@@ -17,7 +17,6 @@
 import epics
 import time
 import os
-import time
 
 def write_csv(filename, header, line):
     should_write_header = os.path.exists(filename)

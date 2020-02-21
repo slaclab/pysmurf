@@ -997,18 +997,6 @@ class SmurfCommandMixin(SmurfBase):
         return self._caget(self.app_core + self._build_dsp_g,
             **kwargs)
 
-    _iq_stream_enable = 'iqStreamEnable'
-    def set_iq_stream_enable(self, band, val, **kwargs):
-        '''
-        '''
-        self._caput(self._band_root(band) + self._iq_stream_enable, val, **kwargs)
-
-    def get_iq_stream_enable(self, band, **kwargs):
-        '''
-        '''
-        return self._caget(self._band_root(band)  + self._iq_stream_enable,
-            **kwargs)
-
     _decimation = 'decimation'
     def set_decimation(self, band, val, **kwargs):
         '''
@@ -1300,20 +1288,6 @@ class SmurfCommandMixin(SmurfBase):
         """
         return self._caget(self._band_root(band) + self._noise_select,
             **kwargs)
-
-
-    _lms_delay = 'lmsDelay'
-    def set_lms_delay(self, band, val, **kwargs):
-        """
-        Match system latency for LMS feedback (2.4MHz ticks)
-        """
-        self._caput(self._band_root(band) + self._lms_delay, val, **kwargs)
-
-    def get_lms_delay(self, band, **kwargs):
-        """
-        Match system latency for LMS feedback (2.4MHz ticks)
-        """
-        return self._caget(self._band_root(band) + self._lms_delay, **kwargs)
 
     _lms_delay = 'lmsDelay'
     def set_lms_delay(self, band, val, **kwargs):
@@ -1632,28 +1606,6 @@ class SmurfCommandMixin(SmurfBase):
         return self._caget(self._band_root(band) + self._dsp_enable, **kwargs)
 
     # Single channel commands
-    _amplitude_scale_channel = 'amplitudeScale'
-    def set_amplitude_scale_channel(self, band, channel, val, **kwargs):
-        """
-        Set the amplitude scale for a single channel. The amplitude scale
-        defines the power of the tone.
-
-        Args:
-        -----
-        band (int): The band the channel is in
-        channel (int): The channel number
-        val (int): The value of the tone amplitude. Acceptable units are
-            0 to 15.
-        """
-        self._caput(self._channel_root(band, channel) +
-            self._amplitude_scale_channel, val, **kwargs)
-
-    def get_amplitude_scale_channel(self, band, channel, **kwargs):
-        """
-        """
-        return self._caget(self._channel_root(band, channel) +
-            self._amplitude_scale_channel, **kwargs)
-
     _feedback_enable = 'feedbackEnable'
     def set_feedback_enable_channel(self, band, channel, val, **kwargs):
         """
@@ -2492,49 +2444,6 @@ class SmurfCommandMixin(SmurfBase):
         """
         return self._caget(self.rtm_cryo_det_root + self._k_relay, **kwargs)
 
-    _ramp_max_cnt = 'RampMaxCnt'
-    def set_ramp_max_cnt(self, val, **kwargs):
-        """
-        """
-        self._caput(self.rtm_cryo_det_root + self._ramp_max_cnt, val, **kwargs)
-
-    def get_ramp_max_cnt(self, **kwargs):
-        """
-        """
-        return self._caget(self.rtm_cryo_det_root + self._ramp_max_cnt,
-            **kwargs)
-
-    _select_ramp = 'SelectRamp'
-    def set_select_ramp(self, val, **kwargs):
-        """
-        """
-        self._caput(self.rtm_cryo_det_root + self._select_ramp, val, **kwargs)
-
-    def get_select_ramp(self, **kwargs):
-        """
-        """
-        return self._caget(self.rtm_cryo_dte_root + self._select_ramp, **kwargs)
-
-    _ramp_start_mode = 'RampStartMode'
-    def set_ramp_start_mode(self, val, **kwargs):
-        """
-        """
-        self._caput(self.rtm_cryo_det_root + self._ramp_start_mode, val,
-            **kwargs)
-
-    def get_ramp_start_mode(self, **kwargs):
-        """
-        """
-        return self._caget(self.rtm_cryo_det_root + self._ramp_start_mode,
-            **kwargs)
-
-    _enable_ramp_trigger = 'EnableRampTrigger'
-    def set_enable_ramp_trigger(self, val, **kwargs):
-        """
-        """
-        self._caput(self.rtm_cryo_det_root + self._enable_ramp_trigger,
-                    val, **kwargs)
-
     timing_crate_root = ":AMCc:FpgaTopLevel:AmcCarrierCore:AmcCarrierTiming:EvrV2CoreTriggers"
     _trigger_rate_sel = ":EvrV2ChannelReg[0]:RateSel"
     def set_ramp_rate(self, val, **kwargs):
@@ -2585,17 +2494,6 @@ class SmurfCommandMixin(SmurfBase):
         trigger_delay = self._caget(self.epics_root + self.timing_crate_root +
                                     self._trigger_delay, **kwargs)
         return trigger_delay
-
-    _pulse_width = 'PulseWidth'
-    def set_pulse_width(self, val, **kwargs):
-        """
-        """
-        self._caput(self.rtm_cryo_det_root + self._pulse_width, val, **kwargs)
-
-    def get_pulse_width(self, **kwargs):
-        """
-        """
-        return self._caget(self.rtm_cryo_det_root + self._pulse_width, **kwargs)
 
     _debounce_width = 'DebounceWidth'
     def set_debounce_width(self, val, **kwargs):

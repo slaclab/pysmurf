@@ -20,7 +20,6 @@
 import socket
 from pathlib import Path
 import pyrogue
-import socket
 
 # Exit with a error message
 def exit_message(message):

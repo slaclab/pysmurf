@@ -18,7 +18,6 @@ from pysmurf.client.base import SmurfBase
 from pysmurf.client.command.sync_group import SyncGroup as SyncGroup
 import time
 import os
-import time
 from scipy import signal
 import glob
 import matplotlib.pyplot as plt
