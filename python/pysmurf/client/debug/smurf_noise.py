@@ -22,7 +22,7 @@ import time
 from pysmurf.client.util import tools
 import matplotlib.pyplot as plt
 from matplotlib.gridspec import GridSpec
-import seaborn as sns
+
 
 class SmurfNoiseMixin(SmurfBase):
 
@@ -1571,6 +1571,8 @@ class SmurfNoiseMixin(SmurfBase):
 
         fig, ax = plt.subplots(1, 2, figsize=(10,5))
 
+        import seaborn as sns
+        
         # heatmap of coefficients
         n_det, _ = np.shape(u)
         n_tick = 10

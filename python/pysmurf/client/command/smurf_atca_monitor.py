@@ -15,10 +15,13 @@
 #-----------------------------------------------------------------------------
 import numpy as np
 import os
-import epics
 import time
 from pysmurf.client.base import SmurfBase
 from pysmurf.client.command.sync_group import SyncGroup as SyncGroup
+try:
+    import epics
+except ModuleNotFoundError:
+    print("smurf_atca_monitor.py - epics not found.")
 
 class SmurfAtcaMonitorMixin(SmurfBase):
 

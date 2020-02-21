@@ -2506,8 +2506,6 @@ class SmurfTuneMixin(SmurfBase):
         ax.set_xlabel('Time [ms]')
 
 
-
-
     _num_flux_ramp_dac_bits = 16
     _cryo_card_flux_ramp_relay_bit = 16
     _cryo_card_relay_wait = 0.25 #sec
@@ -2552,7 +2550,7 @@ class SmurfTuneMixin(SmurfBase):
         # fractionFullScale must be between [0,1]
         if abs(np.abs(fractionFullScale))>1:
             raise ValueError(f"fractionFullScale = {fractionFullScale} not "+
-                "in [-1,1]".)
+                "in [-1,1].")
 
         ## Disable flux ramp if it was on
         ## Doesn't seem to effect the fixed DC value being output

@@ -15,11 +15,14 @@
 #-----------------------------------------------------------------------------
 import numpy as np
 import os
-import epics
 import time
 from pysmurf.client.base import SmurfBase
 from pysmurf.client.command.sync_group import SyncGroup as SyncGroup
 from pysmurf.client.util import tools
+try:
+    import epics
+except ModuleNotFoundError:
+    print("smurf_command.py - epics not found.")
 
 class SmurfCommandMixin(SmurfBase):
 
