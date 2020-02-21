@@ -191,9 +191,6 @@ class Common(pyrogue.Root):
     def start(self):
         pyrogue.Root.start(self)
 
-        # Debug message showing the serverPort number being used
-        print(f"Root started using server port: {self.serverPort}")
-
         # Setup groups
         pysmurf.core.utilities.setupGroups(self, self._VariableGroups)
 
