@@ -39,7 +39,7 @@ class DevBoardPcie(Common):
                  disable_bay1   = False,
                  txDevice       = None,
                  configure      = False,
-                 server_port    = 0
+                 server_port    = 0,
                  **kwargs):
 
         # TDEST 0 routed to streamr0 (SRPv3)
