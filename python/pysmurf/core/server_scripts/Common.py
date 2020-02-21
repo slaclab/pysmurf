@@ -175,7 +175,7 @@ def make_parser(parser=None):
     group.add_argument('--disable-bay1', action='store_true',
         help="Disable the instantiation of devices for Bay 1"
     )
-    group.add_argument('--windows-title', '-w', default="",
+    group.add_argument('--windows-title', '-w', default=None,
         help="Sets the GUI windows title. Defaults to name of this script. "
              "This value will be ignored when running in server mode."
     )
