@@ -34,7 +34,7 @@ class SmurfTuneMixin(SmurfBase):
     def tune(self, load_tune=True, tune_file=None, last_tune=False,
              retune=False, f_min=.02, f_max=.3, df_max=.03,
              fraction_full_scale=None, make_plot=False,
-             save_plot=True, show_plot=False,
+             save_plot=True, plotname_append='', show_plot=False,
              new_master_assignment=False, track_and_check=True):
         """
         This runs a tuning, does tracking setup, and prunes bad
@@ -59,6 +59,7 @@ class SmurfTuneMixin(SmurfBase):
             flux ramp amplitude.
         make_plot (bool): Whether to make a plot. Default is False.
         save_plot (bool): If making plots, whether to save them. Default is True.
+		plotname_append (string) : Appended to the default plot filename. Default is ''.
         show_plot (bool): Whether to display the plots to screen. Default is False.
         track_and_check (bool): Whether or not after tuning to run
             track and check.  Default is True.
@@ -97,7 +98,8 @@ class SmurfTuneMixin(SmurfBase):
                 self.log('Running tune band serial on band {}'.format(b))
                 self.tune_band_serial(b, from_old_tune=load_tune,
                     old_tune=tune_file, make_plot=make_plot, 
-                    show_plot=show_plot, save_plot=save_plot,
+                    show_plot=show_plot, save_plot=save_plot, 
+					plotname_append=plotname_append,
                     new_master_assignment=new_master_assignment)
 
         # Starts tracking and runs check_lock to prune bad resonators
@@ -106,11 +108,12 @@ class SmurfTuneMixin(SmurfBase):
                 self.log('Tracking and checking band {}'.format(b))
                 self.track_and_check(b, fraction_full_scale=fraction_full_scale, 
                     f_min=f_min, f_max=f_max, df_max=df_max, make_plot=make_plot,
-                    save_plot=save_plot, show_plot=show_plot)
+                    save_plot=save_plot, plotname_append=plotname_append, 
+					show_plot=show_plot)
         
 
     def tune_band(self, band, freq=None, resp=None, n_samples=2**19, 
-        make_plot=False, show_plot=False, plot_chans=[], save_plot=True, 
+        make_plot=False, show_plot=False, plot_chans=[], save_plot=True, plotname_append='', 
         save_data=True,  make_subband_plot=False, subband=None, n_scan=5,
         subband_plot_with_slow=False, drive=None, grad_cut=.05, freq_min=-2.5E8, 
         freq_max=2.5E8, amp_cut=.5, use_slow_eta=False):
@@ -138,6 +141,7 @@ class SmurfTuneMixin(SmurfBase):
         save_plot (bool): Whether to save the plot. If True, it will close the
             plots before they are shown. If False, plots will be brought to the
             screen.
+		plotname_append (string) : Appended to the default plot filename. Default is ''.
         save_data (bool): If True, saves the data to disk.
         grad_cut (float): The value of the gradient of phase to look for 
             resonances. Default is .05
@@ -174,7 +178,8 @@ class SmurfTuneMixin(SmurfBase):
         # Find peaks
         peaks = self.find_peak(freq, resp, rolling_med=True, band=band, 
             make_plot=make_plot, show_plot=show_plot, window=5000,
-            save_plot=save_plot, grad_cut=grad_cut, freq_min=freq_min,
+            save_plot=save_plot, plotname_append=plotname_append, 
+			grad_cut=grad_cut, freq_min=freq_min,
             freq_max=freq_max, amp_cut=amp_cut, 
             make_subband_plot=make_subband_plot, timestamp=timestamp,
             subband_plot_with_slow=subband_plot_with_slow, pad=50, min_gap=50)
@@ -185,7 +190,8 @@ class SmurfTuneMixin(SmurfBase):
         for i, p in enumerate(peaks):
             eta, eta_scaled, eta_phase_deg, r2, eta_mag, latency, Q= \
                 self.eta_fit(band, freq, resp, p, 50E3, make_plot=False, 
-                plot_chans=plot_chans, save_plot=save_plot, res_num=i, 
+                plot_chans=plot_chans, save_plot=save_plot, 
+				plotname_append=plotname_append, res_num=i, 
                 band=band, timestamp=timestamp, use_slow_eta=use_slow_eta)
 
             # Fill the resonances dict
@@ -233,7 +239,7 @@ class SmurfTuneMixin(SmurfBase):
         return resonances
 
     def tune_band_serial(self, band, n_samples=2**19,
-        make_plot=False, save_plot=True, save_data=True, show_plot=False,
+        make_plot=False, save_plot=True, plotname_append='', save_data=True, show_plot=False,
         make_subband_plot=False, subband=None, n_scan=5,
         subband_plot_with_slow=False, window=5000, rolling_med=True,
         grad_cut=.03, freq_min=-2.5E8, freq_max=2.5E8, amp_cut=.25,
@@ -262,6 +268,7 @@ class SmurfTuneMixin(SmurfBase):
         make_plot (bool): Whether to make plots. Default is False.
         save_plot (bool): If make_make plot is True, whether to save
             the plots. Default is True.
+		plotname_append (string) : Appended to the default plot filename. Default is ''.
         show_plot (bool): If make_plot is True, whether to display
             the plots to screen.
         """
@@ -307,7 +314,8 @@ class SmurfTuneMixin(SmurfBase):
             # Find peaks
             peaks = self.find_peak(freq, resp, rolling_med=rolling_med, 
                 window=window, band=band, make_plot=make_plot, 
-                save_plot=save_plot,  show_plot=show_plot, grad_cut=grad_cut, 
+                save_plot=save_plot, plotname_append=plotname_append,
+				show_plot=show_plot, grad_cut=grad_cut, 
                 freq_min=freq_min, freq_max=freq_max, amp_cut=amp_cut,
                 make_subband_plot=make_subband_plot, timestamp=timestamp,
                 subband_plot_with_slow=subband_plot_with_slow, pad=pad, 
@@ -389,7 +397,7 @@ class SmurfTuneMixin(SmurfBase):
 
         
     def plot_tune_summary(self, band, eta_scan=False, show_plot=False,
-        save_plot=True, eta_width=.3):
+        save_plot=True, plotname_append='', eta_width=.3):
         """
         Plots summary of tuning. Requires self.freq_resp to be filled.
         In other words, you must run find_freq and setup_notches
@@ -408,6 +416,7 @@ class SmurfTuneMixin(SmurfBase):
            Warning this is slow. Default is False.
         show_plot (bool) : Whether to display the plot. Default is False.
         save_plot (bool) : Whether to save the plot. Default is True.
+		plotname_append (string) : filename = <default filename><plotname_append>. 
         eta_width (float) : The width to plot in MHz.
         """
         if show_plot:
@@ -465,7 +474,7 @@ class SmurfTuneMixin(SmurfBase):
                             wspace=.21, hspace=.21)
 
         if save_plot:
-            save_name = '{}_tune_summary.png'.format(timestamp)
+            save_name = '{}_tune_summary{}.png'.format(timestamp, plotname_append)
             path = os.path.join(self.plot_dir, save_name)
             plt.savefig(path, bbox_inches='tight')
             self.pub.register_file(path, 'tune', plot=True)
@@ -491,8 +500,8 @@ class SmurfTuneMixin(SmurfBase):
                     self.plot_eta_fit(freq[idx], resp[idx], 
                         eta_mag=r['eta_mag'], eta_phase_deg=r['eta_phase'],
                         band=band, res_num=k, timestamp=timestamp, 
-                        save_plot=save_plot, show_plot=show_plot, 
-                        peak_freq=center_freq, channel=r['channel'])
+                        save_plot=save_plot, plotname_append=plotname_append, 
+						show_plot=show_plot, peak_freq=center_freq, channel=r['channel'])
             # This is for data from find_freq/setup_notches
             else:
                 for k in keys:
@@ -501,12 +510,13 @@ class SmurfTuneMixin(SmurfBase):
                     self.plot_eta_fit(r['freq_eta_scan'], r['resp_eta_scan'],
                         eta=r['eta'], eta_mag=r['eta_mag'], 
                         eta_phase_deg=r['eta_phase'], band=band, res_num=k,
-                        timestamp=timestamp, save_plot=save_plot,
+                        timestamp=timestamp, save_plot=save_plot, 
+						plotname_append=plotname_append,
                         show_plot=show_plot, peak_freq=r['freq'])
 
 
     def full_band_resp(self, band, n_scan=1, n_samples=2**19, make_plot=False, 
-        save_plot=True, show_plot=False, save_data=False, timestamp=None, 
+        save_plot=True, plotname_append='', show_plot=False, save_data=False, timestamp=None, 
         save_raw_data=False, correct_att=True, swap=False, hw_trigger=True, 
         write_log=False):
         """
@@ -522,7 +532,9 @@ class SmurfTuneMixin(SmurfBase):
         n_scan (int): The number of scans to take and average
         n_samples (int): The number of samples to take. Default 2^18.
         make_plot (bool): Whether the make plots. Default is False.
-        save_data (bool): Whether to save the data.
+		save_plot (bool): Whether to save plots.
+		plotname_append (string) : Appended to the default plot filename. Default is ''.
+        save_data (bool): Whether to save the data. Default is True.
         timestamp (str): The timestamp as a string.
         correct_att (bool): Correct the response for the attenuators. Default
             is True.
@@ -628,7 +640,7 @@ class SmurfTuneMixin(SmurfBase):
 
             if save_plot:
                 path = os.path.join(self.plot_dir,
-                    '{}_b{}_full_band_resp_raw.png'.format(timestamp, band))
+                    '{}_b{}_full_band_resp_raw{}.png'.format(timestamp, band, plotname_append))
                 plt.savefig(path, bbox_inches='tight')
                 self.pub.register_file(path, 'response', plot=True)
                 plt.close()
@@ -641,8 +653,9 @@ class SmurfTuneMixin(SmurfBase):
             ax.set_title(timestamp)
             if save_plot:
                 path = os.path.join(self.plot_dir,
-                             '{}_b{}_full_band_resp.png'.format(timestamp,
-                                                                band))
+                             '{}_b{}_full_band_resp{}.png'.format(timestamp,
+                                                                band,
+																plotname_append))
                 plt.savefig(path, bbox_inches='tight')
                 self.pub.register_file(path, 'response', plot=True)
             if show_plot:
@@ -670,7 +683,7 @@ class SmurfTuneMixin(SmurfBase):
 
     def find_peak(self, freq, resp, rolling_med=True, window=5000,
         grad_cut=.5, amp_cut=.25, freq_min=-2.5E8, freq_max=2.5E8, 
-        make_plot=False, save_plot=True, show_plot=False, band=None, 
+        make_plot=False, save_plot=True, plotname_append='', show_plot=False, band=None, 
         subband=None, make_subband_plot=False,  subband_plot_with_slow=False, 
         timestamp=None, pad=50, min_gap=100, plot_title=None, 
         grad_kernel_width=8):
@@ -699,6 +712,7 @@ class SmurfTuneMixin(SmurfBase):
             very slow. Default is False.
         save_plot (bool): Whether to save the plot to self.plot_dir. Default
             is True.
+		plotname_append (string) : Appended to the default plot filename. Default is ''.
         band (int): The band to take find the peaks in. Mainly for saving
             and plotting.
         timestamp (str): The timestamp. Mainly for saving and plotting
@@ -792,7 +806,7 @@ class SmurfTuneMixin(SmurfBase):
                     save_name = save_name + '_b{}'.format(int(band))
                 if subband is not None:
                     save_name = save_name + '_sb{}'.format(int(subband))
-                save_name = save_name + '_find_freq.png'
+                save_name = save_name + '_find_freq' + plotname_append+'.png'
                 path = os.path.join(self.plot_dir, save_name)
                 plt.savefig(path, bbox_inches='tight', dpi=300)
                 self.pub.register_file(path, 'find_freq', plot=True)
@@ -872,7 +886,8 @@ class SmurfTuneMixin(SmurfBase):
                         ax[1].plot(ff+sbc[1][sb], np.abs(dd)/2.5E6)
 
                     if save_plot:
-                        save_name = f'{timestamp}_find_freq_b{band}_sb{sb:03}.png'
+                        save_name = f'{timestamp}_find_freq_b{band}_sb{sb:03}'
+						save_name = save_name + plotname_append + '.png'
                         os.path.join(self.plot_dir, save_name)
                         plt.savefig(path, bbox_inches='tight')
                         self.pub.register_file(path, 'find_freq', plot=True)
@@ -1024,7 +1039,7 @@ class SmurfTuneMixin(SmurfBase):
 
 
     def eta_fit(self, freq, resp, peak_freq, delta_freq,
-                make_plot=False, plot_chans=[], save_plot=True, band=None,
+                make_plot=False, plot_chans=[], save_plot=True, plotname_append='', band=None,
                 timestamp=None, res_num=None, use_slow_eta=False):
         """
         Cyndia's eta finding code
@@ -1040,6 +1055,7 @@ class SmurfTuneMixin(SmurfBase):
         ---------
         make_plot (bool): Whether to make plots. Default is False.
         save_plot (bool): Whether to save plots. Default is True.
+		plotname_append (string) : Appended to the default plot filename. Default is ''.
         plot_chans (int array): The channels to plot. If an empty array, it
             will make plots for all channels.
         band (int): Only used for plotting - the band number of the resontaor
@@ -1128,7 +1144,8 @@ class SmurfTuneMixin(SmurfBase):
                 self.plot_eta_fit(freq[left_plot:right_plot], 
                     resp[left_plot:right_plot], 
                     eta=eta, eta_mag=eta_mag, r2=r2,
-                    save_plot=save_plot, timestamp=timestamp, band=band,
+                    save_plot=save_plot, plotname_append=plotname_append, 
+					timestamp=timestamp, band=band,
                     res_num=res_num, sk_fit=sk_fit, f_slow=f_slow, resp_slow=resp_slow)
             else:
                 if res_num in plot_chans:
@@ -1137,7 +1154,8 @@ class SmurfTuneMixin(SmurfBase):
                     self.plot_eta_fit(freq[left_plot:right_plot], 
                         resp[left_plot:right_plot], 
                         eta=eta, eta_mag=eta_mag, eta_phase_deg=eta_phase_deg, 
-                        r2=r2, save_plot=save_plot, timestamp=timestamp, 
+                        r2=r2, save_plot=save_plot, plotname_append=plotname_append, 
+						timestamp=timestamp, 
                         band=band, res_num=res_num, sk_fit=sk_fit, 
                         f_slow=f_slow, resp_slow=resp_slow)
 
@@ -1145,7 +1163,7 @@ class SmurfTuneMixin(SmurfBase):
 
 
     def plot_eta_fit(self, freq, resp, eta=None, eta_mag=None, peak_freq=None,
-        eta_phase_deg=None, r2=None, save_plot=True, show_plot=False, timestamp=None, 
+        eta_phase_deg=None, r2=None, save_plot=True, plotname_append='', show_plot=False, timestamp=None, 
         res_num=None, band=None, sk_fit=None, f_slow=None, resp_slow=None,
         channel=None):
         """
@@ -1163,6 +1181,7 @@ class SmurfTuneMixin(SmurfBase):
         eta_phase_deg (float): The angle of the eta parameter in degrees
         r2 (float): The R^2 value
         save_plot (bool): Whether to save the plot. Default True.
+		plotname_append (string) : Appended to the default plot filename. Default is ''.
         timestamp (str): The timestamp to name the file
         res_num (int): The resonator number to label the plot
         band (int): The band number to label the plot
@@ -1285,8 +1304,8 @@ class SmurfTuneMixin(SmurfBase):
 
         if save_plot:
             if res_num is not None and band is not None:
-                save_name = '{}_eta_b{}_res{:03}.png'.format(timestamp, band, 
-                    res_num)
+                save_name = '{}_eta_b{}_res{:03}{}.png'.format(timestamp, band, 
+                    res_num,plotname_append)
             else:
                 save_name = '{}_eta.png'.format(timestamp)
 
@@ -1928,7 +1947,7 @@ class SmurfTuneMixin(SmurfBase):
 
     def flux_ramp_check(self, band, reset_rate_khz=None, 
                         fraction_full_scale=None, flux_ramp=True,
-                        save_plot=True, show_plot=False):
+                        save_plot=True, plotname_append='', show_plot=False):
         """
         Tries to measure the V-phi curve in feedback disable mode. 
         You can also run this with flux ramp off to see the intrinsic
@@ -1945,6 +1964,7 @@ class SmurfTuneMixin(SmurfBase):
            zero to one.
         flux_ramp (bool) : Whether to flux ramp. Default is True.
         save_plot (bool) : Whether to save the plot. Default True.
+		plotname_append (string) : Appended to the default plot filename. Default is ''.
         show_plot (bool) : Whether to show the plot. Default False.
         """
         if show_plot:
@@ -2041,7 +2061,7 @@ class SmurfTuneMixin(SmurfBase):
                 if not flux_ramp:
                     save_name = save_name + '_no_FR'
                 save_name = save_name+ \
-                    '_b{}_sb{:03}_flux_ramp_check.png'.format(band, sb)
+                    '_b{}_sb{:03}_flux_ramp_check{}.png'.format(band, sb, plotname_append)
                 path = os.path.join(self.plot_dir, save_name)
                 plt.savefig(path, bbox_inches='tight')
                 self.pub.register_file(path, 'flux_ramp', plot=True)
@@ -2052,7 +2072,7 @@ class SmurfTuneMixin(SmurfBase):
         return d, df, sync
 
     def tracking_setup(self, band, channel=None, reset_rate_khz=None, 
-        write_log=False, make_plot=False, save_plot=True, show_plot=True, 
+        write_log=False, make_plot=False, save_plot=True, plotname_append='', show_plot=True, 
         nsamp=2**19, lms_freq_hz=None, meas_lms_freq=False, flux_ramp=True, 
         fraction_full_scale=None, lms_enable1=True, lms_enable2=True, 
         lms_enable3=True, lms_gain=None, return_data=True, new_epics_root=None,
@@ -2074,6 +2094,7 @@ class SmurfTuneMixin(SmurfBase):
         write_log (bool) : Whether to write output to the log.  Default False.
         make_plot (bool) : Whether to make plots. Default False.
         save_plot (bool) : Whether to save plots. Default True.
+		plotname_append (string) : Appended to the default plot filename. Default is ''.
         show_plot (bool) : Whether to display the plot. Default True.
         lms_freq_hz (float) : The frequency of the tracking algorithm.
            Default is 4000
@@ -2250,7 +2271,7 @@ class SmurfTuneMixin(SmurfBase):
             
             if save_plot:
                 path = os.path.join(self.plot_dir, 
-                    timestamp + '_FR_amp_v_err.png')
+                    timestamp + '_FR_amp_v_err' + plotname_append + '.png')
                 plt.savefig(path, bbox_inches='tight')
                 self.pub.register_file(path, 'amp_vs_err', plot=True)
 
@@ -2308,7 +2329,8 @@ class SmurfTuneMixin(SmurfBase):
 
                     if save_plot:
                         path = os.path.join(self.plot_dir, timestamp + 
-                            '_FRtracking_band{}_ch{:03}.png'.format(band,ch))                        
+                            '_FRtracking_band{}_ch{:03}{}.png'.format(band,ch,
+							plotname_append))                        
                         plt.savefig(path, bbox_inches='tight')
                         self.pub.register_file(path, 'tracking', plot=True)
 
@@ -2321,7 +2343,7 @@ class SmurfTuneMixin(SmurfBase):
             return f, df, sync
 
     def track_and_check(self, band, channel=None, reset_rate_khz=None, 
-        make_plot=False, save_plot=True, show_plot=True,
+        make_plot=False, save_plot=True, plotname_append='', show_plot=True,
         lms_freq_hz=None, flux_ramp=True, fraction_full_scale=None,
         lms_enable1=True, lms_enable2=True, lms_enable3=True, lms_gain=None,
         f_min=.015, f_max=.2, df_max=.03, toggle_feedback=True,
@@ -2349,6 +2371,7 @@ class SmurfTuneMixin(SmurfBase):
         write_log (bool) : Whether to write output to the log.  Default False.
         make_plot (bool) : Whether to make plots. Default False.
         save_plot (bool) : Whether to save plots. Default True.
+		plotname_append (string) : Appended to the default plot filename. Default is ''.
         show_plot (bool) : Whether to display the plot. Default True.
         lms_freq_hz (float) : The frequency of the tracking algorithm.
            Default is 4000
@@ -2389,7 +2412,8 @@ class SmurfTuneMixin(SmurfBase):
         if tracking_setup:
             self.tracking_setup(band, channel=channel, 
                 reset_rate_khz=reset_rate_khz, make_plot=make_plot, 
-                save_plot=save_plot, show_plot=show_plot,
+                save_plot=save_plot, plotname_append=plotname_append, 
+				show_plot=show_plot,
                 lms_freq_hz=lms_freq_hz, flux_ramp=flux_ramp, 
                 fraction_full_scale=fraction_full_scale, lms_enable1=lms_enable1, 
                 lms_enable2=lms_enable2, lms_enable3=lms_enable3, 
@@ -2831,7 +2855,7 @@ class SmurfTuneMixin(SmurfBase):
 
 
     def find_freq(self, band, subband=np.arange(13,115), drive_power=None,
-        n_read=2, make_plot=False, save_plot=True, window=50, rolling_med=True,
+        n_read=2, make_plot=False, save_plot=True, plotname_append='', window=50, rolling_med=True,
         make_subband_plot=False, show_plot=False):
         '''
         Finds the resonances in a band (and specified subbands)
@@ -2847,6 +2871,7 @@ class SmurfTuneMixin(SmurfBase):
         n_read (int) : The number sweeps to do per subband
         make_plot (bool) : make the plot frequency sweep. Default False.
         save_plot (bool) : save the plot. Default True.
+		plotname_append (string) : Appended to the default plot filename. Default is ''.
         save_name (string) : What to name the plot. default find_freq.png
         rolling_med (bool) : Whether to iterate on a rolling median or just
            the median of the whole sample.
@@ -2894,21 +2919,21 @@ class SmurfTuneMixin(SmurfBase):
         res_freq = self.find_all_peak(self.freq_resp[band]['find_freq']['f'],
             self.freq_resp[band]['find_freq']['resp'], subband, 
             make_plot=make_plot, band=band, rolling_med=rolling_med, 
-            window=window, make_subband_plot=make_subband_plot)
+            window=window, make_subband_plot=make_subband_plot, plotname_append=plotname_append)
         self.freq_resp[band]['find_freq']['resonance'] = res_freq
 
         # Save resonances
         path = os.path.join(self.output_dir, 
             save_name.format(timestamp, 'resonance'))
         np.savetxt(path, self.freq_resp[band]['find_freq']['resonance'])
-        self.pub.register_file(path, 'resonances', format='txt')
+        self.pub.register_file(path, 'resonances', format='txt')			
 
         # Call plotting
         if make_plot:
             self.plot_find_freq(self.freq_resp[band]['find_freq']['f'], 
-                self.freq_resp[band]['find_freq']['resp'], save_plot=save_plot,
+                self.freq_resp[band]['find_freq']['resp'], save_plot=save_plot, 
                 show_plot=show_plot, 
-                save_name=save_name.replace('.txt', '.png').format(timestamp, band))
+                save_name=save_name.replace('.txt', plotname_append+'.png').format(timestamp, band)
 
         return f, resp
 
@@ -2924,7 +2949,7 @@ class SmurfTuneMixin(SmurfBase):
         Opt Args:
         ---------
         save_plot (bool) : save the plot. Default True.
-        save_name (string) : What to name the plot. default find_freq.png
+        save_name (string) : What to name the plot. default amp_sweep.png
         '''
         if subband is None:
             subband = np.arange(128)
@@ -3002,7 +3027,7 @@ class SmurfTuneMixin(SmurfBase):
 
     def find_all_peak(self, freq, resp, subband=None, rolling_med=False, 
         window=500, grad_cut=0.05, amp_cut=0.25, freq_min=-2.5E8, freq_max=2.5E8, 
-        make_plot=False, save_plot=True, band=None, make_subband_plot=False, 
+        make_plot=False, save_plot=True, plotname_append='', band=None, make_subband_plot=False, 
         subband_plot_with_slow=False, timestamp=None, pad=2, min_gap=2):
         """
         find the peaks within each subband requested from a fullbandamplsweep
@@ -3037,7 +3062,8 @@ class SmurfTuneMixin(SmurfBase):
         peaks = self.find_peak(f_stack, r_stack, rolling_med=rolling_med, 
             window=window, grad_cut=grad_cut, amp_cut=amp_cut, freq_min=freq_min,
             freq_max=freq_max, make_plot=make_plot, save_plot=save_plot, 
-            band=band, make_subband_plot=make_subband_plot,
+			plotname_append=plotname_append, band=band, 
+			make_subband_plot=make_subband_plot,
             subband_plot_with_slow=subband_plot_with_slow, timestamp=timestamp, 
             pad=pad, min_gap=min_gap)
 
@@ -3624,7 +3650,7 @@ class SmurfTuneMixin(SmurfBase):
 
 
     def find_bad_pairs(self, band, reset_rate_khz=None, write_log=False,
-        make_plot=False, save_plot=True, show_plot=True,
+        make_plot=False, save_plot=True, plotname_append='', show_plot=True,
         lms_freq_hz=None, flux_ramp=True, fraction_full_scale=.4950,
         lms_enable1=True, lms_enable2=True, lms_enable3=True, lms_gain=None):
         """

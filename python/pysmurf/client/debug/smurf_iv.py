@@ -26,7 +26,8 @@ class SmurfIVMixin(SmurfBase):
     def slow_iv_all(self, bias_groups=None, wait_time=.1, bias=None, 
                     bias_high=1.5, bias_low=0, bias_step=.005, 
                     show_plot=False, overbias_wait=2., cool_wait=30,
-                    make_plot=True, save_plot=True, channels=None, band=None,
+                    make_plot=True, save_plot=True, plotname_append='', 
+					channels=None, band=None,
                     high_current_mode=True, overbias_voltage=8., 
                     grid_on=True, phase_excursion_min=3.):
         """
@@ -51,6 +52,7 @@ class SmurfIVMixin(SmurfBase):
             overbiasing before taking the IV.
         make_plot (bool) : Whether to make plots. Default True
         save_plot (bool) : Whether to save the plot. Default True.
+		plotname_append (string): Appended to the default plot filename. Default is ''.
         channels (int array) : A list of channels to make plots
         band (int array) : The bands to analyze
         high_current_mode (bool) : The current mode to take the IV in.
@@ -137,13 +139,14 @@ class SmurfIVMixin(SmurfBase):
 
         R_sh=self.R_sh
         self.analyze_slow_iv_from_file(fn_iv_raw_data, make_plot=make_plot,
-            show_plot=show_plot, save_plot=save_plot, R_sh=R_sh,
-            grid_on=grid_on,
+            show_plot=show_plot, save_plot=save_plot, 
+			plotname_append=plotname_append, R_sh=R_sh, grid_on=grid_on,
             phase_excursion_min=phase_excursion_min,chs=channels,band=band)
 
     def partial_load_curve_all(self, bias_high_array, bias_low_array=None, 
         wait_time=0.1, bias_step=0.1, show_plot=False, analyze=True,  
-        make_plot=True, save_plot=True, channels=None, overbias_voltage=None,
+        make_plot=True, save_plot=True, plotname_append='', 
+		channels=None, overbias_voltage=None,
         overbias_wait=1.0, phase_excursion_min=1.):
         """
         Take a partial load curve on all bias groups. Function will step 
@@ -169,6 +172,7 @@ class SmurfIVMixin(SmurfBase):
         make_plot (bool): whether to generate plots. Default True. 
         analyze (bool): whether to analyze the data. Default True.
         save_plot (bool): whether to save generated plots. Default True.
+		plotname_append (string): Appended to the default plot filename. Default is ''.
         channels (int array): which channels to analyze. Default to anything
           that exceeds phase_excursion_min
         overbias_voltage (float): value in V at which to overbias. If None, 
@@ -254,13 +258,15 @@ class SmurfIVMixin(SmurfBase):
 
         if analyze:
             self.analyze_plc_from_file(fn_plc_raw_data, make_plot=make_plot,
-                show_plot=show_plot, save_plot=save_plot, R_sh=self.R_sh,
+                show_plot=show_plot, save_plot=save_plot, 
+				plotname_append=plotname_append, R_sh=self.R_sh,
                 high_current_mode=self.high_current_mode_bool,
                 phase_excursion_min=phase_excursion_min, channels=channels)
 
 
     def analyze_slow_iv_from_file(self, fn_iv_raw_data, make_plot=True,
-                                  show_plot=False, save_plot=True, R_sh=None, 
+                                  show_plot=False, save_plot=True, 
+								  plotname_append='', R_sh=None, 
                                   phase_excursion_min=3., grid_on=False, 
                                   R_op_target=0.007,
                                   chs=None, band=None):
@@ -277,6 +283,7 @@ class SmurfIVMixin(SmurfBase):
         make_plot (bool): Defaults True. Usually this is the slowest part.
         show_plot (bool): Defaults False.
         save_plot (bool): Defaults True.
+		plotname_append (string): Appended to the default plot filename. Default is ''.
         phase_excursion_min (float): abs(max - min) of phase in radians. Analysis 
           ignores any channels without this phase excursion. Default 3.
         grid_on (bool): Whether to draw the grid on the PR plot. Defaults False
@@ -361,7 +368,7 @@ class SmurfIVMixin(SmurfBase):
 
 
                 plot_name = basename + \
-                    '_IV_stream_b{}_g{}_ch{:03}.png'.format(b, bg_str, ch)
+                    '_IV_stream_b{}_g{}_ch{:03}{}.png'.format(b, bg_str, ch, plotname_append)
                 if save_plot:
                     plot_fn = os.path.join(plot_dir, plot_name)
                     plt.savefig(plot_fn, bbox_inches='tight', dpi=300)
@@ -371,7 +378,8 @@ class SmurfIVMixin(SmurfBase):
 
             iv_dict = self.analyze_slow_iv(bias, phase, 
                 basename=basename, band=b, channel=ch, make_plot=make_plot, 
-                show_plot=show_plot, save_plot=save_plot, plot_dir=plot_dir,
+                show_plot=show_plot, save_plot=save_plot, 
+				plotname_append=plotname_append,  plot_dir=plot_dir,
                 R_sh = R_sh, high_current_mode = high_current_mode,
                 grid_on=grid_on,R_op_target=R_op_target)
             r = iv_dict['R']
@@ -475,7 +483,7 @@ class SmurfIVMixin(SmurfBase):
             # Title
             plt.suptitle('{}, band {}, group{}'.format(basename,\
                                              np.unique(band),bias_group))
-            iv_hist_filename = os.path.join(plot_dir, f'{basename}_IV_hist.png')
+            iv_hist_filename = os.path.join(plot_dir, f'{basename}_IV_hist{plotname_append}.png')
 
             # Save the figure
             plt.savefig(iv_hist_filename,bbox_inches='tight')
@@ -486,9 +494,9 @@ class SmurfIVMixin(SmurfBase):
                 plt.close()
 
     def analyze_slow_iv(self, v_bias, resp, make_plot=True, show_plot=False,
-        save_plot=True, basename=None, band=None, channel=None, R_sh=None,
-        plot_dir=None, high_current_mode=False, bias_group = None,
-        grid_on=False,R_op_target=0.007, **kwargs):
+        save_plot=True, plotname_append='', basename=None, band=None, 
+		channel=None, R_sh=None, plot_dir=None, high_current_mode=False, 
+		bias_group = None, grid_on=False,R_op_target=0.007, **kwargs):
         """
         Analyzes the IV curve taken with slow_iv()
 
@@ -663,7 +671,7 @@ class SmurfIVMixin(SmurfBase):
                 title += ', {:.2f} MHz'.format(self.channel_to_freq(band, channel))
             title += r', $R_\mathrm{sh}$ = ' + '${:.2f}$ '.format(R_sh*1.0E3) + \
                 r'$\mathrm{m}\Omega$'
-            plot_name = basename + '_' + plot_name
+            plot_name = basename + '_' + plot_name + plotname_append
             title = basename + ' ' + title
             plot_name += '.png'
 
@@ -793,8 +801,8 @@ class SmurfIVMixin(SmurfBase):
         return iv_dict
 
     def analyze_plc_from_file(self, fn_plc_raw_data, make_plot=True, show_plot=False, 
-        save_plot=True, R_sh=None, high_current_mode=None, phase_excursion_min=1., 
-        channels=None):
+        save_plot=True, plotname_append='', R_sh=None, 
+		high_current_mode=None, phase_excursion_min=1., channels=None):
         """
         Function to analyze a partial load curve from its raw file. Basically 
         the same as the slow_iv analysis but without fitting the superconducting
@@ -809,6 +817,7 @@ class SmurfIVMixin(SmurfBase):
         make_plot (bool): Defaults True. This is slow.
         show_plot (bool): Defaults False.
         save_plot (bool): Defaults True.
+		plotname_append (string): Appended to the default plot filename. Default is ''.
         R_sh (float): shunt resistance; defaults to the value in the config file
         high_current_mode (bool): Whether to perform analysis assuming that commanded 
           voltages were in high current mode. Defaults to the value in the config file.
@@ -875,7 +884,7 @@ class SmurfIVMixin(SmurfBase):
                         bg_str = bg_str + str(bg)
 
                     plot_name = basename + \
-                        'plc_stream_b{}_g{}_ch{:03}.png'.format(b, bg_str, ch)
+                        'plc_stream_b{}_g{}_ch{:03}{}.png'.format(b, bg_str, ch, plotname_append)
                     path = os.path.join(plot_dir, plot_name)
                     plt.savefig(path, bbox_inches='tight', dpi=300)
                     self.pub.register_file(path, 'plc_stream', plot=True)
@@ -974,7 +983,8 @@ class SmurfIVMixin(SmurfBase):
             ax_pr.grid()
             
             # Plot name
-            plot_name = basename_hot + '_' + basename_cold + f'_optEff_g{group}_ch{ch:03}.png'
+            plot_name = basename_hot + '_' + basename_cold + f'_optEff_g{group}_ch{ch:03}'+ \
+				plotname_append+'.png'
             plot_filename = os.path.join(plot_dir, plot_name)
             self.log('Saving optical-efficiency plot to {}'.format(plot_filename))
             plt.savefig(plot_filename, bbox_inches='tight', dpi=300)
@@ -990,7 +1000,7 @@ class SmurfIVMixin(SmurfBase):
         dPdT_median = np.median(dPdT_list)
         plt.title(f'Group {group}, median = {dPdT_median:.3f} pW/K '+
             f'({n_outliers} outliers not plotted)')
-        plot_name = basename_hot + '_' + basename_cold + '_dPdT_hist_g{}.png'.format(group)
+        plot_name = basename_hot + '_' + basename_cold + '_dPdT_hist_g{}{}.png'.format(group,plotname_append)
         hist_filename = os.path.join(plot_dir,plot_name)
         self.log('Saving optical-efficiency histogram to {}'.format(hist_filename))
         plt.savefig(hist_filename, bbox_inches='tight', dpi=300)

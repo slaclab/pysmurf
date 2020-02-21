@@ -30,7 +30,7 @@ class SmurfNoiseMixin(SmurfBase):
         channel=None, nperseg=2**12, 
         detrend='constant', fs=None, low_freq=np.array([.1, 1.]), 
         high_freq=np.array([1., 10.]), make_channel_plot=True,
-        make_summary_plot=True, save_data=False, show_plot=False,
+        make_summary_plot=True, save_data=False, plotname_append='', show_plot=False,
         grid_on=False, datafile=None, downsample_factor=None,
         write_log=True):
 
@@ -62,6 +62,7 @@ class SmurfNoiseMixin(SmurfBase):
             is True.
         save_data (bool): Whether to save the band averaged data as a text file.
             Default is False.
+		plotname_append (string): Appended to the default plot filename. Default is ''.
         show_plot (bool): Show the plot on the screen. Default False.
         datefile (str): if data has already been taken, can point to a file to 
             bypass data taking and just analyze.
@@ -211,7 +212,8 @@ class SmurfNoiseMixin(SmurfBase):
                 fig.tight_layout()
 
                 plot_name = basename + \
-                            f'_noise_timestream_b{b}_ch{ch:03}.png'
+                            f'_noise_timestream_b{b}_ch{ch:03}' + \
+							plotname_append + '.png'
                 fig.savefig(os.path.join(self.plot_dir, plot_name), 
                     bbox_inches='tight')
 
@@ -239,7 +241,7 @@ class SmurfNoiseMixin(SmurfBase):
                 ax.set_xlabel(r'Mean noise [$\mathrm{pA}/\sqrt{\mathrm{Hz}}$]')
 
                 plot_name = basename + \
-                    '{}_{}_noise_hist.png'.format(l, h)
+                    '{}_{}_noise_hist{}.png'.format(l, h, plotname_append)
                 plt.savefig(os.path.join(self.plot_dir, plot_name), 
                     bbox_inches='tight')
                 if show_plot:
@@ -276,7 +278,7 @@ class SmurfNoiseMixin(SmurfBase):
                 plt.tight_layout()
                 fig.subplots_adjust(top = 0.9)
                 noise_params_hist_fname = basename + \
-                    '_b{}_noise_params.png'.format(b)
+                    '_b{}_noise_params{}.png'.format(b, plotname_append)
                 plt.savefig(os.path.join(self.plot_dir,
                     noise_params_hist_fname),
                     bbox_inches='tight')
@@ -352,7 +354,7 @@ class SmurfNoiseMixin(SmurfBase):
                       step_size=0.25, bias=None, high_current_mode=True, 
                       overbias_voltage=9., meas_time=30., analyze=False, 
                       channel=None, nperseg=2**13, detrend='constant', 
-                      fs=None, show_plot=False, cool_wait=30.,
+                      fs=None, plotname_append='', show_plot=False, cool_wait=30.,
                       psd_ylim=(10.,1000.),make_timestream_plot=False,
                       only_overbias_once=False):
         """
@@ -383,6 +385,7 @@ class SmurfNoiseMixin(SmurfBase):
         detrend (str): Whether to detrend the data before taking the PSD.
             Default is to remove a constant.
         fs (float): The sample frequency.
+		plotname_append (string): Appended to the default plot filename. Default is ''.
         show_plot: Whether to show analysis plots. Defaults to False.
         only_overbias_once (bool): Whether or not to overbias right
             before each TES bias step
@@ -396,7 +399,8 @@ class SmurfNoiseMixin(SmurfBase):
                       var_range=bias, meas_time=meas_time,
                       analyze=analyze, channel=channel,
                       nperseg=nperseg, detrend=detrend, fs=fs,
-                      show_plot=show_plot, psd_ylim=psd_ylim,
+                      plotname_append=plotname_append, 
+					  show_plot=show_plot, psd_ylim=psd_ylim,
                       overbias_voltage=overbias_voltage,
                       cool_wait=cool_wait,high_current_mode=high_current_mode,
                       make_timestream_plot=make_timestream_plot,
@@ -405,7 +409,7 @@ class SmurfNoiseMixin(SmurfBase):
     def noise_vs_amplitude(self, band, amplitude_high=11, amplitude_low=9, step_size=1,
                            amplitudes=None,
                            meas_time=30., analyze=False, channel=None, nperseg=2**13,
-                           detrend='constant', fs=None, show_plot = False,
+                           detrend='constant', fs=None, plotname_append='', show_plot=False,
                            make_timestream_plot=False, 
                            psd_ylim = None):
         """
@@ -421,13 +425,14 @@ class SmurfNoiseMixin(SmurfBase):
 
         self.noise_vs(band=band,var='amplitude',var_range=amplitudes,
                  meas_time=meas_time, analyze=analyze, channel=channel, 
-                 nperseg=nperseg, detrend=detrend, fs=fs, show_plot=show_plot, 
+                 nperseg=nperseg, detrend=detrend, fs=fs, 
+				 plotname_append=plotname_append, show_plot=show_plot, 
                  make_timestream_plot=make_timestream_plot,  
                  psd_ylim=psd_ylim)
 
     def noise_vs(self, band, var, var_range, meas_time=30,
                  analyze=False, channel=None, nperseg=2**13,
-                 detrend='constant', fs=None, show_plot=False,
+                 detrend='constant', fs=None, plotname_append='', show_plot=False,
                  psd_ylim=None, make_timestream_plot=False,
                  only_overbias_once=False, **kwargs):
 
@@ -497,7 +502,7 @@ class SmurfNoiseMixin(SmurfBase):
                 self.run_serial_gradient_descent(band)
                 self.run_serial_eta_scan(band)
                 self.tracking_setup(band,lms_freq_hz=self.lms_freq_hz[band],
-                    save_plot=True, make_plot=True, channel=self.which_on(band),
+                    save_plot=True, plotname_append=plotname_append, make_plot=True, channel=self.which_on(band),
                     show_plot=False)
 
             self.log('Taking data')
@@ -521,7 +526,8 @@ class SmurfNoiseMixin(SmurfBase):
                                        band=band, 
                                        bias_group = kwargs['bias_group'], 
                                        nperseg=nperseg, detrend=detrend, fs=fs, 
-                                       save_plot=True, show_plot=show_plot, 
+                                       save_plot=True, plotname_append=plotname_append, 
+									   show_plot=show_plot, 
                                        data_timestamp=timestamp ,psd_ylim=psd_ylim,
                                        make_timestream_plot=make_timestream_plot,
                                        xlabel_override=xlabel_override, 
@@ -622,7 +628,7 @@ class SmurfNoiseMixin(SmurfBase):
 
     def analyze_noise_vs_bias(self, bias, datafile, channel=None, band=None,
         nperseg=2**13, detrend='constant', fs=None, save_plot=True, 
-        show_plot=False, make_timestream_plot=False, data_timestamp=None,
+        plotname_append='', show_plot=False, make_timestream_plot=False, data_timestamp=None,
         psd_ylim=(10.,1000.), bias_group=None, smooth_len=15,
         show_legend=True, freq_range_summary=None, R_sh=None,
         high_current_mode=True, iv_data_filename=None, NEP_ylim=(10.,1000.),
@@ -648,6 +654,7 @@ class SmurfNoiseMixin(SmurfBase):
         detrend (str): Passed to scipy.signal.welch.
         fs (float): Passed to scipy.signal.welch. The sample rate.
         save_plot (bool): Whether to save the plot. Default is True.
+		plotname_append (string): Appended to the default plot filename. Default is ''.
         show_plot (bool): Whether to how the plot. Default is False.
         data_timestamp (str): The string used as a save name. Default is None.
         bias_group (int or int array): which bias groups were used. Default is None. 
@@ -983,8 +990,8 @@ class SmurfNoiseMixin(SmurfBase):
                 plt.show()
 
             if save_plot:
-                plot_name = 'noise_vs_bias_band{}_g{}ch{:03}.png'.format(band,
-                    file_name_string, ch)
+                plot_name = 'noise_vs_bias_band{}_g{}ch{:03}{}.png'.format(band,
+                    file_name_string, ch, plotname_append)
                 if data_timestamp is not None:
                     plot_name = '{}_'.format(data_timestamp) + plot_name
                 else:
@@ -1071,7 +1078,8 @@ class SmurfNoiseMixin(SmurfBase):
         if show_plot:
             plt.show()
         if save_plot:
-            plot_name = 'noise_vs_bias_band{}_g{}NEI_hist.png'.format(band,file_name_string)
+            plot_name = 'noise_vs_bias_band{}_g{}NEI_hist{}.png'.format(band,
+			file_name_string,plotname_append)
             if data_timestamp is not None:
                 plot_name = '{}_'.format(data_timestamp) + plot_name
             else:
@@ -1117,7 +1125,8 @@ class SmurfNoiseMixin(SmurfBase):
             if show_plot:
                 plt.show()
             if save_plot:
-                plot_name = 'noise_vs_bias_band{}_g{}NEP_hist.png'.format(band,file_name_string)
+                plot_name = 'noise_vs_bias_band{}_g{}NEP_hist{}.png'.format(band,
+				file_name_string, plotname_append)
                 if data_timestamp is not None:
                     plot_name = '{}_'.format(data_timestamp) + plot_name
                 else:
@@ -1334,7 +1343,7 @@ class SmurfNoiseMixin(SmurfBase):
 
     def analyze_noise_vs_tone(self, tone, datafile, channel=None, band=None,
         nperseg=2**13, detrend='constant', fs=None, save_plot=True, 
-        show_plot=False, make_timestream_plot=False, data_timestamp=None,
+        plotname_append='', show_plot=False, make_timestream_plot=False, data_timestamp=None,
         psd_ylim=(10.,1000.), bias_group=None, smooth_len=11,
         show_legend=True, freq_range_summary=None):
         """
@@ -1396,7 +1405,7 @@ class SmurfNoiseMixin(SmurfBase):
                         plt.show()
                     if save_plot:
                         plt.savefig(os.path.join(self.plot_dir, basename + \
-                                    '_timestream_ch{:03}.png'.format(ch)),\
+                                    '_timestream_ch{:03}{}.png'.format(ch, plotname_append)),\
                                     bbox_inches='tight')
                         plt.close()
 
@@ -1512,7 +1521,8 @@ class SmurfNoiseMixin(SmurfBase):
                 plt.show()
 
             if save_plot:
-                plot_name = 'noise_vs_tone_band{}_g{}ch{:03}.png'.format(band,file_name_string,ch)
+                plot_name = 'noise_vs_tone_band{}_g{}ch{:03}{}.png'.format(band,
+				file_name_string,ch,plotname_append)
                 if data_timestamp is not None:
                     plot_name = '{}_'.format(data_timestamp) + plot_name
                 else:
