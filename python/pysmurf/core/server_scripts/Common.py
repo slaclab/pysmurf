@@ -187,7 +187,7 @@ def make_parser(parser=None):
         help="Set the PCIe card device name used for data "
              "(defaults to '/dev/datadev_1')."
     )
-    group.add_argument('--server-port', dest='server_port', default=None,
+    group.add_argument('--server-port', dest='server_port', type=int, default=None,
         help="Set the server port. Defaults to 9000+2*slot_number"
     )
 
