@@ -39,6 +39,7 @@ class CmbPcie(Common):
                  txDevice       = None,
                  configure      = False,
                  VariableGroups = None,
+                 server_port    = 0,
                  **kwargs):
 
         # TDEST 0 routed to streamr0 (SRPv3)
@@ -74,4 +75,5 @@ class CmbPcie(Common):
                               txDevice       = txDevice,
                               configure      = configure,
                               VariableGroups = VariableGroups,
+                              server_port    = server_port,
                               **kwargs)

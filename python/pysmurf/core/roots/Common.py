@@ -36,9 +36,11 @@ class Common(pyrogue.Root):
                  stream_pv_type = 'Int16',  # Not sub-classed
                  configure      = False,
                  VariableGroups = None,
+                 server_port    = 0,
                  **kwargs):
 
-        pyrogue.Root.__init__(self, name="AMCc", initRead=True, pollEn=polling_en, streamIncGroups='stream', **kwargs)
+        pyrogue.Root.__init__(self, name="AMCc", initRead=True, pollEn=polling_en,
+            streamIncGroups='stream', serverPort=server_port, **kwargs)
 
         #########################################################################################
         # The following interfaces are expected to be defined at this point by a sub-class

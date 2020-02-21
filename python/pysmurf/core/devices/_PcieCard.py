@@ -17,6 +17,7 @@
 # contained in the LICENSE.txt file.
 #-----------------------------------------------------------------------------
 
+import socket
 from pathlib import Path
 import pyrogue
 import socket

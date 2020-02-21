@@ -353,7 +353,8 @@ class SmurfNoiseMixin(SmurfBase):
                       overbias_voltage=9., meas_time=30., analyze=False,
                       channel=None, nperseg=2**13, detrend='constant',
                       fs=None, show_plot=False, cool_wait=30.,
-                      psd_ylim=(10.,1000.),make_timestream_plot=False):
+                      psd_ylim=(10.,1000.),make_timestream_plot=False,
+                      only_overbias_once=False):
         """
         This ramps the TES voltage from bias_high to bias_low and takes noise
         measurements. You can make it analyze the data and make plots with the
@@ -383,6 +384,8 @@ class SmurfNoiseMixin(SmurfBase):
             Default is to remove a constant.
         fs (float): The sample frequency.
         show_plot: Whether to show analysis plots. Defaults to False.
+        only_overbias_once (bool): Whether or not to overbias right
+            before each TES bias step
         """
         if bias is None:
             if step_size > 0:
@@ -390,12 +393,14 @@ class SmurfNoiseMixin(SmurfBase):
             bias = np.arange(bias_high, bias_low-np.absolute(step_size), step_size)
 
         self.noise_vs(band=band, bias_group=bias_group, var='bias',
-                      var_range=bias, meas_time=meas_time, analyze=analyze,
-                      channel=channel, nperseg=nperseg, detrend=detrend,
-                      fs=fs, show_plot=show_plot,
-                      psd_ylim=psd_ylim, overbias_voltage=overbias_voltage,
+                      var_range=bias, meas_time=meas_time,
+                      analyze=analyze, channel=channel,
+                      nperseg=nperseg, detrend=detrend, fs=fs,
+                      show_plot=show_plot, psd_ylim=psd_ylim,
+                      overbias_voltage=overbias_voltage,
                       cool_wait=cool_wait,high_current_mode=high_current_mode,
-                      make_timestream_plot=make_timestream_plot)
+                      make_timestream_plot=make_timestream_plot,
+                      only_overbias_once=only_overbias_once)
 
     def noise_vs_amplitude(self, band, amplitude_high=11, amplitude_low=9, step_size=1,
                            amplitudes=None,
@@ -420,11 +425,11 @@ class SmurfNoiseMixin(SmurfBase):
                  make_timestream_plot=make_timestream_plot,
                  psd_ylim=psd_ylim)
 
-    def noise_vs(self, band, var, var_range,
-                 meas_time=30, analyze=False, channel=None, nperseg=2**13,
+    def noise_vs(self, band, var, var_range, meas_time=30,
+                 analyze=False, channel=None, nperseg=2**13,
                  detrend='constant', fs=None, show_plot=False,
                  psd_ylim=None, make_timestream_plot=False,
-                 **kwargs):
+                 only_overbias_once=False, **kwargs):
 
         if fs is None:
             fs = self.fs
@@ -463,20 +468,24 @@ class SmurfNoiseMixin(SmurfBase):
         datafiles = np.array([], dtype=str)
         xlabel_override=None
         unit_override=None
+        actually_overbias=True        
         for v in var_range:
-
             if var in biasaliases:
                 self.log('Bias {}'.format(v))
                 if type(kwargs['bias_group']) is int: # only received one group
                     self.overbias_tes(kwargs['bias_group'], tes_bias=v,
                                  high_current_mode=kwargs['high_current_mode'],
                                  cool_wait=kwargs['cool_wait'],
-                                 overbias_voltage=kwargs['overbias_voltage'])
+                                 overbias_voltage=kwargs['overbias_voltage'],
+                                 actually_overbias=actually_overbias) 
                 else:
                     self.overbias_tes_all(kwargs['bias_group'], tes_bias=v,
                                  high_current_mode=kwargs['high_current_mode'],
-                                 cool_wait=kwargs['cool_wait'],
-                                 overbias_voltage=kwargs['overbias_voltage'])
+                                 cool_wait=kwargs['cool_wait'], 
+                                 overbias_voltage=kwargs['overbias_voltage'],
+                                 actually_overbias=actually_overbias)
+                if only_overbias_once:
+                    actually_overbias=False
 
             if var in amplitudealiases:
                 unit_override=''
