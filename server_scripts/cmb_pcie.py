@@ -62,16 +62,11 @@ if __name__ == "__main__":
 
             if args['use_gui']:
                 # Start the GUI
-                import pyrogue.gui
+                import pyrogue.pydm
                 #pyrogue.gui.runGui(root=root,title=args['windows_title'])
 
                 print("Starting GUI...\n")
-                app_top = pyrogue.gui.application(sys.argv)
-                gui_top = pyrogue.gui.GuiTop(incGroups=None,excGroups=None)
-                gui_top.setWindowTitle(args['windows_title'])
-                gui_top.addTree(root)
-                gui_top.resize(800,1000)
-                app_top.exec_()
+                pyrogue.pydm.runPyDM(root=root, title=args['windows_title'])
             else:
                 # Stop the server when Crtl+C is pressed
                 print("Running without GUI...")
