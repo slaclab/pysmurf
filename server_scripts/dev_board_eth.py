@@ -56,6 +56,7 @@ if __name__ == "__main__":
                            disable_bay0   = args['disable_bay0'],
                            disable_bay1   = args['disable_bay1'],
                            configure      = args['configure'],
+                           server_port    = args['server_port'],
                            txDevice       = pysmurf.core.transmitters.BaseTransmitter(name='Transmitter')) as root:
 
             # The dev board doesn't support TES bias values, so let's set dummy

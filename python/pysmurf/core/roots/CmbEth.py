@@ -37,6 +37,7 @@ class CmbEth(Common):
                  txDevice       = None,
                  configure      = False,
                  VariableGroups = None,
+                 server_port    = 0
                  **kwargs):
 
 
@@ -80,5 +81,6 @@ class CmbEth(Common):
                               txDevice       = txDevice,
                               configure      = configure,
                               VariableGroups = VariableGroups,
+                              server_port    = server_port,
                               **kwargs)
 

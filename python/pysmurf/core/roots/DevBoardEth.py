@@ -36,6 +36,7 @@ class DevBoardEth(Common):
                  disable_bay1   = False,
                  txDevice       = None,
                  configure      = False,
+                 server_port    = 0
                  **kwargs):
 
         # Create Interleaved RSSI interface
@@ -72,5 +73,6 @@ class DevBoardEth(Common):
                               pv_dump_file   = pv_dump_file,
                               txDevice       = txDevice,
                               configure      = configure,
+                              server_port    = server_port,
                               **kwargs)
 
