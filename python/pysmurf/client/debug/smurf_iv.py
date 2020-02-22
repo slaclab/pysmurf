@@ -145,8 +145,7 @@ class SmurfIVMixin(SmurfBase):
 
     def partial_load_curve_all(self, bias_high_array, bias_low_array=None, 
         wait_time=0.1, bias_step=0.1, show_plot=False, analyze=True,  
-        make_plot=True, save_plot=True, plotname_append='', 
-		channels=None, overbias_voltage=None,
+        make_plot=True, save_plot=True, channels=None, overbias_voltage=None,
         overbias_wait=1.0, phase_excursion_min=1.):
         """
         Take a partial load curve on all bias groups. Function will step 
@@ -154,12 +153,10 @@ class SmurfIVMixin(SmurfBase):
         relay (ie, will stay in high current mode if already there). Will 
         hold at the bias_low point at the end, so different bias groups 
         may have different length ramps. 
-
         Args:
         -----
         bias_high_array (float array): (n_bias_groups,) array of voltage biases, in
           bias group order
-
         Opt Args:
         -----
         bias_low_array (float array): (n_bias_groups,) array of voltage biases, in 
@@ -172,7 +169,6 @@ class SmurfIVMixin(SmurfBase):
         make_plot (bool): whether to generate plots. Default True. 
         analyze (bool): whether to analyze the data. Default True.
         save_plot (bool): whether to save generated plots. Default True.
-		plotname_append (string): Appended to the default plot filename. Default is ''.
         channels (int array): which channels to analyze. Default to anything
           that exceeds phase_excursion_min
         overbias_voltage (float): value in V at which to overbias. If None, 
@@ -258,8 +254,7 @@ class SmurfIVMixin(SmurfBase):
 
         if analyze:
             self.analyze_plc_from_file(fn_plc_raw_data, make_plot=make_plot,
-                show_plot=show_plot, save_plot=save_plot, 
-				plotname_append=plotname_append, R_sh=self.R_sh,
+                show_plot=show_plot, save_plot=save_plot, R_sh=self.R_sh,
                 high_current_mode=self.high_current_mode_bool,
                 phase_excursion_min=phase_excursion_min, channels=channels)
 
@@ -801,23 +796,20 @@ class SmurfIVMixin(SmurfBase):
         return iv_dict
 
     def analyze_plc_from_file(self, fn_plc_raw_data, make_plot=True, show_plot=False, 
-        save_plot=True, plotname_append='', R_sh=None, 
-		high_current_mode=None, phase_excursion_min=1., channels=None):
+        save_plot=True, R_sh=None, high_current_mode=None, phase_excursion_min=1., 
+        channels=None):
         """
         Function to analyze a partial load curve from its raw file. Basically 
         the same as the slow_iv analysis but without fitting the superconducting
         branch.
-
         Args:
         -----
         fn_plc_raw_data (str): *_plc_raw_data.npy file to analyze
-
         Opt Args:
         -----
         make_plot (bool): Defaults True. This is slow.
         show_plot (bool): Defaults False.
         save_plot (bool): Defaults True.
-		plotname_append (string): Appended to the default plot filename. Default is ''.
         R_sh (float): shunt resistance; defaults to the value in the config file
         high_current_mode (bool): Whether to perform analysis assuming that commanded 
           voltages were in high current mode. Defaults to the value in the config file.
@@ -884,7 +876,7 @@ class SmurfIVMixin(SmurfBase):
                         bg_str = bg_str + str(bg)
 
                     plot_name = basename + \
-                        'plc_stream_b{}_g{}_ch{:03}{}.png'.format(b, bg_str, ch, plotname_append)
+                        'plc_stream_b{}_g{}_ch{:03}.png'.format(b, bg_str, ch)
                     path = os.path.join(plot_dir, plot_name)
                     plt.savefig(path, bbox_inches='tight', dpi=300)
                     self.pub.register_file(path, 'plc_stream', plot=True)
@@ -897,11 +889,9 @@ class SmurfIVMixin(SmurfBase):
         """
         Estimate optical efficiency between two sets of load curves. Returns 
           per-channel plots and a histogram.
-
         Args:
         iv_fn_hot (str): timestamp/filename of load curve taken at higher temp
         iv_fn_cold (str): timestamp/filename of load curve taken at cooler temp
-
         Opt Args:
         t_hot (float): temperature in K of hotter load curve. Defaults to 293.
         t_cold (float): temperature in K of cooler load curve. Defaults to 77.
@@ -983,8 +973,7 @@ class SmurfIVMixin(SmurfBase):
             ax_pr.grid()
             
             # Plot name
-            plot_name = basename_hot + '_' + basename_cold + f'_optEff_g{group}_ch{ch:03}'+ \
-				plotname_append+'.png'
+            plot_name = basename_hot + '_' + basename_cold + f'_optEff_g{group}_ch{ch:03}.png'
             plot_filename = os.path.join(plot_dir, plot_name)
             self.log('Saving optical-efficiency plot to {}'.format(plot_filename))
             plt.savefig(plot_filename, bbox_inches='tight', dpi=300)
@@ -1000,11 +989,9 @@ class SmurfIVMixin(SmurfBase):
         dPdT_median = np.median(dPdT_list)
         plt.title(f'Group {group}, median = {dPdT_median:.3f} pW/K '+
             f'({n_outliers} outliers not plotted)')
-        plot_name = basename_hot + '_' + basename_cold + '_dPdT_hist_g{}{}.png'.format(group,plotname_append)
+        plot_name = basename_hot + '_' + basename_cold + '_dPdT_hist_g{}.png'.format(group)
         hist_filename = os.path.join(plot_dir,plot_name)
         self.log('Saving optical-efficiency histogram to {}'.format(hist_filename))
         plt.savefig(hist_filename, bbox_inches='tight', dpi=300)
         self.pub.register_file(hist_filename, 'opt_efficiency', plot=True)
         plt.close()
-
-
