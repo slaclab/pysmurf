@@ -30,7 +30,7 @@ class SmurfNoiseMixin(SmurfBase):
         channel=None, nperseg=2**12, 
         detrend='constant', fs=None, low_freq=np.array([.1, 1.]), 
         high_freq=np.array([1., 10.]), make_channel_plot=True,
-        make_summary_plot=True, save_data=False, plotname_append='', show_plot=False,
+        make_summary_plot=True, save_data=False, show_plot=False,
         grid_on=False, datafile=None, downsample_factor=None,
         write_log=True):
 
@@ -39,11 +39,9 @@ class SmurfNoiseMixin(SmurfBase):
         attempts to fit a white noise and 1/f component to the data.
         It takes into account the sampling frequency and the downsampling
         filter and downsampler. 
-
         Args:
         -----
         meas_time (float): The amount of time to observe in seconds.
-
         Opt Args:
         ---------
         channel (int array): The channels to plot. Note that this script always
@@ -62,7 +60,6 @@ class SmurfNoiseMixin(SmurfBase):
             is True.
         save_data (bool): Whether to save the band averaged data as a text file.
             Default is False.
-		plotname_append (string): Appended to the default plot filename. Default is ''.
         show_plot (bool): Show the plot on the screen. Default False.
         datefile (str): if data has already been taken, can point to a file to 
             bypass data taking and just analyze.
@@ -212,8 +209,7 @@ class SmurfNoiseMixin(SmurfBase):
                 fig.tight_layout()
 
                 plot_name = basename + \
-                            f'_noise_timestream_b{b}_ch{ch:03}' + \
-							plotname_append + '.png'
+                            f'_noise_timestream_b{b}_ch{ch:03}.png'
                 fig.savefig(os.path.join(self.plot_dir, plot_name), 
                     bbox_inches='tight')
 
@@ -241,7 +237,7 @@ class SmurfNoiseMixin(SmurfBase):
                 ax.set_xlabel(r'Mean noise [$\mathrm{pA}/\sqrt{\mathrm{Hz}}$]')
 
                 plot_name = basename + \
-                    '{}_{}_noise_hist{}.png'.format(l, h, plotname_append)
+                    '{}_{}_noise_hist.png'.format(l, h)
                 plt.savefig(os.path.join(self.plot_dir, plot_name), 
                     bbox_inches='tight')
                 if show_plot:
@@ -278,7 +274,7 @@ class SmurfNoiseMixin(SmurfBase):
                 plt.tight_layout()
                 fig.subplots_adjust(top = 0.9)
                 noise_params_hist_fname = basename + \
-                    '_b{}_noise_params{}.png'.format(b, plotname_append)
+                    '_b{}_noise_params.png'.format(b)
                 plt.savefig(os.path.join(self.plot_dir,
                     noise_params_hist_fname),
                     bbox_inches='tight')

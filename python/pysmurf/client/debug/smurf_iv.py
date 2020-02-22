@@ -26,16 +26,13 @@ class SmurfIVMixin(SmurfBase):
     def slow_iv_all(self, bias_groups=None, wait_time=.1, bias=None, 
                     bias_high=1.5, bias_low=0, bias_step=.005, 
                     show_plot=False, overbias_wait=2., cool_wait=30,
-                    make_plot=True, save_plot=True, plotname_append='', 
-					channels=None, band=None,
+                    make_plot=True, save_plot=True, channels=None, band=None,
                     high_current_mode=True, overbias_voltage=8., 
                     grid_on=True, phase_excursion_min=3.):
         """
         Steps the TES bias down slowly. Starts at bias_high to bias_low with
         step size bias_step. Waits wait_time between changing steps.
-
         If this analyzes the data, the outputs are stored to output_dir.
-
         Opt Args:
         ---------
         bias_groups (np array): which bias groups to take the IV on. defaults
@@ -52,7 +49,6 @@ class SmurfIVMixin(SmurfBase):
             overbiasing before taking the IV.
         make_plot (bool) : Whether to make plots. Default True
         save_plot (bool) : Whether to save the plot. Default True.
-		plotname_append (string): Appended to the default plot filename. Default is ''.
         channels (int array) : A list of channels to make plots
         band (int array) : The bands to analyze
         high_current_mode (bool) : The current mode to take the IV in.
@@ -139,8 +135,8 @@ class SmurfIVMixin(SmurfBase):
 
         R_sh=self.R_sh
         self.analyze_slow_iv_from_file(fn_iv_raw_data, make_plot=make_plot,
-            show_plot=show_plot, save_plot=save_plot, 
-			plotname_append=plotname_append, R_sh=R_sh, grid_on=grid_on,
+            show_plot=show_plot, save_plot=save_plot, R_sh=R_sh,
+            grid_on=grid_on,
             phase_excursion_min=phase_excursion_min,chs=channels,band=band)
 
     def partial_load_curve_all(self, bias_high_array, bias_low_array=None, 
@@ -260,25 +256,21 @@ class SmurfIVMixin(SmurfBase):
 
 
     def analyze_slow_iv_from_file(self, fn_iv_raw_data, make_plot=True,
-                                  show_plot=False, save_plot=True, 
-								  plotname_append='', R_sh=None, 
+                                  show_plot=False, save_plot=True, R_sh=None, 
                                   phase_excursion_min=3., grid_on=False, 
                                   R_op_target=0.007,
                                   chs=None, band=None):
         """
         Function to analyze a load curve from its raw file. Can be used to 
           analyze IV's/generate plots separately from issuing commands.
-
         Args:
         -----
         fn_iv_raw_data (str): *_iv_raw_data.npy file to analyze
-
         Opt Args:
         ---------
         make_plot (bool): Defaults True. Usually this is the slowest part.
         show_plot (bool): Defaults False.
         save_plot (bool): Defaults True.
-		plotname_append (string): Appended to the default plot filename. Default is ''.
         phase_excursion_min (float): abs(max - min) of phase in radians. Analysis 
           ignores any channels without this phase excursion. Default 3.
         grid_on (bool): Whether to draw the grid on the PR plot. Defaults False
@@ -363,7 +355,7 @@ class SmurfIVMixin(SmurfBase):
 
 
                 plot_name = basename + \
-                    '_IV_stream_b{}_g{}_ch{:03}{}.png'.format(b, bg_str, ch, plotname_append)
+                    '_IV_stream_b{}_g{}_ch{:03}.png'.format(b, bg_str, ch)
                 if save_plot:
                     plot_fn = os.path.join(plot_dir, plot_name)
                     plt.savefig(plot_fn, bbox_inches='tight', dpi=300)
@@ -373,8 +365,7 @@ class SmurfIVMixin(SmurfBase):
 
             iv_dict = self.analyze_slow_iv(bias, phase, 
                 basename=basename, band=b, channel=ch, make_plot=make_plot, 
-                show_plot=show_plot, save_plot=save_plot, 
-				plotname_append=plotname_append,  plot_dir=plot_dir,
+                show_plot=show_plot, save_plot=save_plot, plot_dir=plot_dir,
                 R_sh = R_sh, high_current_mode = high_current_mode,
                 grid_on=grid_on,R_op_target=R_op_target)
             r = iv_dict['R']
@@ -478,7 +469,7 @@ class SmurfIVMixin(SmurfBase):
             # Title
             plt.suptitle('{}, band {}, group{}'.format(basename,\
                                              np.unique(band),bias_group))
-            iv_hist_filename = os.path.join(plot_dir, f'{basename}_IV_hist{plotname_append}.png')
+            iv_hist_filename = os.path.join(plot_dir, f'{basename}_IV_hist.png')
 
             # Save the figure
             plt.savefig(iv_hist_filename,bbox_inches='tight')
@@ -489,18 +480,16 @@ class SmurfIVMixin(SmurfBase):
                 plt.close()
 
     def analyze_slow_iv(self, v_bias, resp, make_plot=True, show_plot=False,
-        save_plot=True, plotname_append='', basename=None, band=None, 
-		channel=None, R_sh=None, plot_dir=None, high_current_mode=False, 
-		bias_group = None, grid_on=False,R_op_target=0.007, **kwargs):
+        save_plot=True, basename=None, band=None, channel=None, R_sh=None,
+        plot_dir=None, high_current_mode=False, bias_group = None,
+        grid_on=False,R_op_target=0.007, **kwargs):
         """
         Analyzes the IV curve taken with slow_iv()
-
         Args:
         -----
         v_bias (float array): The commanded bias in voltage. Length n_steps
         resp (float array): The TES phase response in radians. Of length 
                             n_pts (not the same as n_steps
-
         Returns:
         --------
         R (float array): 
@@ -666,7 +655,7 @@ class SmurfIVMixin(SmurfBase):
                 title += ', {:.2f} MHz'.format(self.channel_to_freq(band, channel))
             title += r', $R_\mathrm{sh}$ = ' + '${:.2f}$ '.format(R_sh*1.0E3) + \
                 r'$\mathrm{m}\Omega$'
-            plot_name = basename + '_' + plot_name + plotname_append
+            plot_name = basename + '_' + plot_name
             title = basename + ' ' + title
             plot_name += '.png'
 
