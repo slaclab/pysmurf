@@ -21,9 +21,12 @@
  *-----------------------------------------------------------------------------
 **/
 
+#include <type_traits>
+#include <limits>
 #include <rogue/interfaces/stream/Frame.h>
 #include <rogue/interfaces/stream/FrameLock.h>
 #include <rogue/interfaces/stream/FrameIterator.h>
+#include <rogue/interfaces/stream/FrameAccessor.h>
 #include <rogue/interfaces/stream/Buffer.h>
 #include <rogue/interfaces/stream/Slave.h>
 #include <rogue/interfaces/stream/Master.h>
@@ -31,6 +34,7 @@
 #include <rogue/Logging.h>
 #include "smurf/core/common/SmurfHeader.h"
 #include "smurf/core/common/Helpers.h"
+#include <random>
 
 namespace bp  = boost::python;
 namespace ris = rogue::interfaces::stream;
@@ -41,54 +45,89 @@ namespace smurf
     {
         namespace emulators
         {
+            template<typename T>
             class StreamDataEmulator;
-            typedef std::shared_ptr<StreamDataEmulator> StreamDataEmulatorPtr;
 
+            template<typename T>
+            using StreamDataEmulatorPtr = std::shared_ptr< StreamDataEmulator<T> >;
+
+            template<typename T>
             class StreamDataEmulator : public ris::Slave, public ris::Master
             {
+            private:
+                // Data types
+                // - Data type from firmware (T), in its unsigned version
+                typedef typename std::make_unsigned<T>::type uT_t;
+
             public:
                 StreamDataEmulator();
-                ~StreamDataEmulator();
+                ~StreamDataEmulator() {};
 
-                static StreamDataEmulatorPtr create();
+                static StreamDataEmulatorPtr<T> create();
 
-                static void setup_python();
+                static void setup_python(const std::string& name);
 
                 // Accept new frames
                 void acceptFrame(ris::FramePtr frame);
 
-                // Sin parameters
-                void     setSinAmplitude(uint16_t value);
-                uint16_t getSinAmplitude();
+                // Disable the processing block. The data
+                // will just pass through to the next slave
+                void       setDisable(bool d);
+                const bool getDisable() const;
 
-                void     setSinBaseline(uint16_t value);
-                uint16_t getSinBaseline();
+                // Set/Get operation mode
+                void      setType(int value);
+                const int getType() const;
 
-                void     setSinPeriod(uint16_t value);
-                uint16_t getSinPeriod();
+                // Set/Get signal amplitude
+                void       setAmplitude(uT_t value);
+                const uT_t getAmplitude() const;
 
-                void     setSinChannel(uint16_t value);
-                uint16_t getSinChannel();
+                // Set/Get signal offset
+                void    setOffset(T value);
+                const T getOffset() const;
 
-                void     setSinEnable(bool value);
-                bool     getSinEnable();
+                // Set/Get  signal period
+                void              setPeriod(std::size_t value);
+                const std::size_t getPeriod() const;
 
             private:
+                // Types of signal
+                enum class SignalType { Zeros, ChannelNumber, Random, Square, Sawtooth, Triangle, Sine, DropFrame, Size };
 
-               // Generic sine wave generator
-               void genSinWave(ris::FramePtr &frame);
+                // Maximum amplitude value
+                const uT_t maxAmplitude = std::numeric_limits<uT_t>::max();
 
-               std::shared_ptr<rogue::Logging> eLog_;
+                // Signal generator methods
+                void genZeroWave(ris::FrameAccessor<T> &dPtr)          const;
+                void genChannelNumberWave(ris::FrameAccessor<T> &dPtr) const;
+                void genRandomWave(ris::FrameAccessor<T> &dPtr);
+                void genSquareWave(ris::FrameAccessor<T> &dPtr);
+                void getSawtoothWave(ris::FrameAccessor<T> &dPtr);
+                void genTriangleWave(ris::FrameAccessor<T> &dPtr);
+                void genSinWave(ris::FrameAccessor<T> &dPtr);
+                void genFrameDrop();
 
-               std::mutex  mtx_;
+                // Logger
+                std::shared_ptr<rogue::Logging> eLog_;
 
-               // Sine wave parameters
-               uint16_t sinAmplitude_;
-               uint16_t sinBaseline_;
-               uint16_t sinPeriod_;
-               uint16_t sinChannel_;
-               bool     sinEnable_;
-               uint16_t sinCount_;
+                // Mutex
+                std::mutex  mtx_;
+
+                // Variables
+                bool        disable_;       // Disable flag
+                SignalType  type_;          // signal type
+                uT_t        amplitude_;     // Signal amplitude
+                T           offset_;        // Signal offset
+                std::size_t period_;        // Signal period
+                std::size_t halfPeriod_;    // Signal half period
+                std::size_t periodCounter_; // Frame period counter
+                bool        dropFrame_;     // Flag to indicate if the frame should be dropped
+
+                // Variables use to generate random numbers
+                std::random_device                     rd;  // Will be used to obtain a seed for the random number engine
+                std::mt19937                           gen; // Standard mersenne_twister_engine seeded with rd()
+                std::uniform_real_distribution<double> dis; // Use to transform the random unsigned int generated by gen into a double
 
             };
         }

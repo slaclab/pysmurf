@@ -64,7 +64,7 @@ class FrameStatistics(pyrogue.Device):
             pollInterval=1,
             localGet=self._FrameStatistics.getFrameLossCnt))
 
-        # Add the out-of-order frames variable
+        # Add the out-of-order frame counter variable
         self.add(pyrogue.LocalVariable(
             name='FrameOutOrderCnt',
             description='Number of time we have received out-of-order frames',
@@ -72,6 +72,15 @@ class FrameStatistics(pyrogue.Device):
             value=0,
             pollInterval=1,
             localGet=self._FrameStatistics.getFrameOutOrderCnt))
+
+        # Add the bad frame counter variable
+        self.add(pyrogue.LocalVariable(
+            name='BadFrameCnt',
+            description='Number of bad frames',
+            mode='RO',
+            value=0,
+            pollInterval=1,
+            localGet=self._FrameStatistics.getBadFrameCnt))
 
         # Command to clear all the counters
         self.add(pyrogue.LocalCommand(

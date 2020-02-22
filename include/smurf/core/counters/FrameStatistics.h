@@ -69,6 +69,9 @@ namespace smurf
                 // Get the number of out-of-order frames
                 const std::size_t getFrameOutOrderCnt() const;
 
+                // Get the number of bad frames
+                const std::size_t getBadFrameCnt() const;
+
                 // Clear all counter.
                 void clearCnt();
 
@@ -76,14 +79,21 @@ namespace smurf
                 void acceptFrame(ris::FramePtr frame);
 
             private:
+                // Data type in incoming frame from firmware
+                typedef int16_t fw_t;
+
                 bool        disable;           // Disable flag
                 std::size_t frameCnt;          // Frame counter
                 std::size_t frameSize;         // Last frame size (bytes)
                 bool        firstFrame;        // Flag to indicate we are processing the first frame
                 std::size_t frameLossCnt;      // Number of frame lost
                 std::size_t frameOutOrderCnt;  // Counts the number of times we received an out-of-order frame
+                std::size_t badFrameCnt;       // Number of frames with errors
                 std::size_t frameNumber;       // Current frame number
                 std::size_t prevFrameNumber;   // Last frame number
+
+                // Logger
+                std::shared_ptr<rogue::Logging> eLog_;
             };
         }
     }

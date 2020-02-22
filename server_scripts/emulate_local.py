@@ -24,7 +24,7 @@ pyrogue.addLibraryPath("../python")
 pyrogue.addLibraryPath("../lib")
 pyrogue.addLibraryPath("../../cryo-det/firmware/python")
 pyrogue.addLibraryPath("../../cryo-det/firmware/submodules/amc-carrier-core/python")
-pyrogue.addLibraryPath("../../cryo-det/firmware/submodules/axi-pcie-core/python")
+#pyrogue.addLibraryPath("../../cryo-det/firmware/submodules/axi-pcie-core/python")
 pyrogue.addLibraryPath("../../cryo-det/firmware/submodules/lcls-timing-core/python")
 pyrogue.addLibraryPath("../../cryo-det/firmware/submodules/surf/python")
 

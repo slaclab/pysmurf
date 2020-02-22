@@ -28,13 +28,14 @@ scp::SmurfProcessor::SmurfProcessor()
     ris::Slave(),
     ris::Master(),
     frameBuffer(SmurfHeader<std::vector<uint8_t>::iterator>::SmurfHeaderSize + maxNumCh * sizeof(fw_t),0),
-    numCh(528),
-    payloadSize(numCh),
+    numCh(maxNumCh),
+    payloadSize(0),
     mask(numCh,0),
     disableUnwrapper(false),
     currentData(numCh, 0),
     previousData(numCh, 0),
     wrapCounter(numCh, 0),
+    inputData(numCh, 0),
     disableFilter(false),
     order(4),
     gain(1),
@@ -48,10 +49,10 @@ scp::SmurfProcessor::SmurfProcessor()
     factor(20),
     sampleCnt(0),
     headerCopy(SmurfHeader<std::vector<uint8_t>::iterator>::SmurfHeaderSize, 0),
-    dataCopy(numCh * sizeof(filter_t), 0),
     runTxThread(true),
     txDataReady(false),
-    pktTransmitterThread(std::thread( &SmurfProcessor::pktTansmitter, this ))
+    pktTransmitterThread(std::thread( &SmurfProcessor::pktTansmitter, this )),
+    eLog_(rogue::Logging::create("pysmurf.SmurfProcessor"))
 {
     if( pthread_setname_np( pktTransmitterThread.native_handle(), "pktTransmitter" ) )
         perror( "pthread_setname_np failed for pktTransmitterThread thread" );
@@ -113,14 +114,7 @@ const std::size_t scp::SmurfProcessor::getPayloadSize() const
 
 void scp::SmurfProcessor::setPayloadSize(std::size_t s)
 {
-
-    // Take the mutex before changing the mask vector
-    std::lock_guard<std::mutex> lockMap(mutChMapper);
-
     payloadSize = s;
-
-    // Update the number of mapped channels
-    updateNumCh();
 }
 
 void scp::SmurfProcessor::setMask(bp::list m)
@@ -192,11 +186,6 @@ void scp::SmurfProcessor::updateNumCh()
     // Start with the size of the mask vector as the new size
     std::size_t newNumCh = mask.size();
 
-    // If the payload is defined and it is lower that the
-    // size of the mask vector, that will be out new size
-    if (payloadSize && payloadSize < newNumCh)
-       newNumCh = payloadSize;
-
     // If the new size if different from the current size, update it
     if (numCh != newNumCh)
     {
@@ -235,9 +224,10 @@ void scp::SmurfProcessor::resetUnwrapper()
     // they are potentially being resized.
     std::lock_guard<std::mutex> lockUnwrapper(mutUnwrapper);
 
-    std::vector<unwrap_t>(numCh).swap(currentData);
-    std::vector<unwrap_t>(numCh).swap(previousData);
+    std::vector<fw_t>(numCh).swap(currentData);
+    std::vector<fw_t>(numCh).swap(previousData);
     std::vector<unwrap_t>(numCh).swap(wrapCounter);
+    std::vector<unwrap_t>(numCh).swap(inputData);
 }
 
 void scp::SmurfProcessor::setFilterDisable(bool d)
@@ -270,7 +260,7 @@ void scp::SmurfProcessor::setOrder(std::size_t o)
 
         order = o;
 
-        // When the order it change, reset the filter
+        // When the order change, reset the filter
         resetFilter();
     }
 }
@@ -291,42 +281,32 @@ void scp::SmurfProcessor::setA(bp::list l)
 
     std::size_t listSize = len(l);
 
-    // Verify that the input list is not empty.
-    // If empty, set the coefficients vector to a = [1.0].
     if (listSize == 0)
     {
-        // This should go to a logger instead
-        std::cerr << "ERROR: Trying to set an empty set of a coefficients. Defaulting to 'a = [1.0]'"<< std::endl;
+        // Verify that the input list is not empty.
+        // If empty, set the coefficients vector to a = [1.0].
+        eLog_->error("Trying to set an empty set of a coefficients. Defaulting to 'a = [1.0]'");
         temp.push_back(1.0);
-        a.swap(temp);
-
-        return;
     }
-
-    // Verify that the first coefficient is not zero.
-    // if it is, set the coefficients vector to a = [1.0].
-    if (l[0] == 0)
+    else if (l[0] == 0)
     {
-        // This should go to a logger instead
-        std::cerr << "ERROR: The first a coefficient can not be zero. Defaulting to 'a = [1.0]'"<< std::endl;
+        // Verify that the first coefficient is not zero.
+        // if it is, set the coefficients vector to a = [1.0].
+        eLog_->error("The first a coefficient can not be zero. Defaulting to 'a = [1.0]'");
         temp.push_back(1.0);
-        a.swap(temp);
-        return;
     }
-
-    // Extract the coefficients coming from python into a temporal vector
-    for (std::size_t i{0}; i < listSize; ++i)
+    else
     {
-        temp.push_back(bp::extract<double>(l[i]));
+        // Extract the coefficients coming from python into a temporal vector
+        for (std::size_t i{0}; i < listSize; ++i)
+            temp.push_back(bp::extract<double>(l[i]));
     }
 
     // Update the a vector with the new values
     a.swap(temp);
 
-    // Check that the a coefficient vector size is at least 'order + 1'.
-    // If not, add expand it with zeros.
-    if ( a.size() < (order + 1) )
-        a.resize(order +  1, 0);
+    // When the coefficients change, reset the filter
+    resetFilter();
 }
 
 const bp::list scp::SmurfProcessor::getA() const
@@ -350,31 +330,25 @@ void scp::SmurfProcessor::setB(bp::list l)
 
     std::size_t listSize = len(l);
 
-    // Verify that the input list is not empty.
-    // If empty, set the coefficients vector to a = [0.0].
     if (listSize == 0)
     {
-        // This should go to a logger instead
-        std::cerr << "ERROR: Trying to set an empty set of a coefficients. Defaulting to 'b = [0.0]'"<< std::endl;
+        // Verify that the input list is not empty.
+        // If empty, set the coefficients vector to a = [0.0].
+        eLog_->error("ERROR: Trying to set an empty set of a coefficients. Defaulting to 'b = [0.0]'");
         temp.push_back(0.0);
-        b.swap(temp);
-
-        return;
     }
-
-    // Extract the coefficients coming from python into a temporal vector
-    for (std::size_t i{0}; i < len(l); ++i)
+    else
     {
-        temp.push_back(bp::extract<double>(l[i]));
+        // Extract the coefficients coming from python into a temporal vector
+        for (std::size_t i{0}; i < len(l); ++i)
+            temp.push_back(bp::extract<double>(l[i]));
     }
 
     // Update the a vector with the new values
     b.swap(temp);
 
-    // Check that the b coefficient vector size is at least 'order + 1'.
-    // If not, add expand it with zeros.
-    if ( b.size() < (order + 1) )
-        b.resize(order +  1, 0);
+    // When the coefficients change, reset the filter
+    resetFilter();
 }
 
 const bp::list scp::SmurfProcessor::getB() const
@@ -475,23 +449,68 @@ void scp::SmurfProcessor::resetDownsampler()
 
 void scp::SmurfProcessor::acceptFrame(ris::FramePtr frame)
 {
+    std::size_t frameSize;
+
     // Copy the frame into a STL container
     {
         // Hold the frame lock
         ris::FrameLockPtr lockFrame{frame->lock()};
 
-        std::vector<uint8_t>::iterator outIt(frameBuffer.begin());
+        // Check for frames with errors or flags
+        if ( frame->getError() || ( frame->getFlags() & 0x100 ) )
+        {
+            eLog_->error("Received frame with errors and/or flags");
+            return;
+        }
+
+        // Get the frame size
+        frameSize = frame->getPayload();
+
+        // Check if the frame size is lower than the header size
+        if ( frameSize < SmurfHeader<std::vector<uint8_t>::iterator>::SmurfHeaderSize )
+        {
+            eLog_->error("Received frame with size lower than the header size. Received frame size=%zu, expected header size=%zu",
+                frameSize, SmurfHeader<std::vector<uint8_t>::iterator>::SmurfHeaderSize);
+            return;
+        }
 
         // Copy using BufferIterators in combination with std::copy for performance reasons
+        std::vector<uint8_t>::iterator outIt(frameBuffer.begin());
         for (ris::Frame::BufferIterator inIt=frame->beginBuffer(); inIt != frame->endBuffer(); ++inIt)
             outIt = std::copy((*inIt)->begin(), (*inIt)->endPayload(), outIt);
     }
 
+    // Do sanity checks on the incoming frame
+    // - The frame has at least the header, so we can construct a (smart) pointer to it
+    SmurfHeaderPtr<std::vector<uint8_t>::iterator> header { SmurfHeader<std::vector<uint8_t>::iterator>::create(frameBuffer) };
+
+    // - Read the number of channel from the header
+    uint32_t numChannels { header->getNumberChannels() };
+
+    // - The incoming frame should have at least the supported maximum number of channels
+    if ( numChannels < maxNumCh )
+    {
+         eLog_->error("Received frame with less channels that the maximum supported. Number of channels in received frame=%zu, supported maximum number of channels=%zu",
+            numChannels, maxNumCh);
+        return;
+    }
+
+    // - Check if the frame size is correct. The frame should have at least enough room to
+    //   hold the number of channels defined in its header. Padded frames are allowed.
+    if ( header->SmurfHeaderSize + (numChannels * sizeof(fw_t)) > frameSize )
+    {
+        eLog_->error("Received frame does not match expected size. Received frame size=%zu. Minimum expected sizes: header=%zu, payload=%i",
+            frameSize, header->SmurfHeaderSize, numChannels * sizeof(fw_t));
+
+        return;
+    }
+
+    // Acquire the channel mapper lock. We acquired here, so that is hold during the hold frame processing chain,
+    // to avoid the 'numCh' parameter to be changed during that time.
+    std::lock_guard<std::mutex> lockParam(mutChMapper);
+
     // Map and unwrap data at the same time
     {
-        // Acquire the lock while the channel map parameters are used.
-        std::lock_guard<std::mutex> lockParam(mutChMapper);
-
         // Move the current data to the previous data
         previousData.swap(currentData);
 
@@ -504,13 +523,10 @@ void scp::SmurfProcessor::acceptFrame(ris::FramePtr frame)
         // Map and unwrap data in a single loop
         for(auto const& m : mask)
         {
-            // Only process the first 'numCh' elements in the mask vector
-            if (i >= numCh)
-                break;
-
             // Get the mapped value from the framweBuffer and cast it
             // Reinterpret the bytes from the frameBuffer to 'fw_t' values. And the cast that value to 'unwrap_t' values
-            currentData.at(i) = static_cast<unwrap_t>(*(reinterpret_cast<fw_t*>(&(*( inIt + m * sizeof(fw_t) )))));
+            currentData.at(i) = *(reinterpret_cast<fw_t*>(&(*( inIt + m * sizeof(fw_t) ))));
+            inputData.at(i) = static_cast<unwrap_t>(currentData.at(i));
 
             // Unwrap the value is the unwrapper is not disabled.
             // If it is disabled, don't do anything to the data
@@ -532,7 +548,7 @@ void scp::SmurfProcessor::acceptFrame(ris::FramePtr frame)
                 }
 
                 // Add the wrap counter to the value
-                currentData.at(i) += wrapCounter.at(i);
+                inputData.at(i) += wrapCounter.at(i);
             }
 
             // increase output channel index
@@ -540,7 +556,6 @@ void scp::SmurfProcessor::acceptFrame(ris::FramePtr frame)
         }
 
         // Update the number of channels in the header
-        SmurfHeaderPtr<std::vector<uint8_t>::iterator> header{ SmurfHeader<std::vector<uint8_t>::iterator>::create(frameBuffer) };
         header->setNumberChannels(numCh);
     }
 
@@ -563,7 +578,7 @@ void scp::SmurfProcessor::acceptFrame(ris::FramePtr frame)
             auto yIt(y.begin());
             auto aIt(a.begin());
             auto bIt(b.begin());
-            auto dataIt(currentData.begin());
+            auto dataIt(inputData.begin());
 
             // Iterate over the channel samples
             for (std::size_t ch{0}; ch < numCh; ++ch)
@@ -622,12 +637,12 @@ void scp::SmurfProcessor::acceptFrame(ris::FramePtr frame)
             // Hold the mutex while we copy the data
             std::lock_guard<std::mutex> lock(outDataMutex);
 
-            // Check if the filter was disabled. If it was disabled, use the 'currentData' vector as source.
+            // Check if the filter was disabled. If it was disabled, use the 'inputData' vector as source.
             // Otherwise, use the 'y' vector, applying the gain and casting.
             if (disableFilter)
             {
                 // Just cast the data type
-                std::transform( currentData.begin(), currentData.end(), outData.begin(),
+                std::transform( inputData.begin(), inputData.end(), outData.begin(),
                     [this](const unwrap_t& v) -> filter_t { return static_cast<filter_t>(v); });
             }
             else
@@ -664,16 +679,22 @@ void scp::SmurfProcessor::pktTansmitter()
         }
         else
         {
-            // Request a new frame, to hold the same payload as the input frame
-            std::size_t outFrameSize = SmurfHeader<std::vector<uint8_t>::iterator>::SmurfHeaderSize;
+            // Output frame size. Start with the size of the header
+            std::size_t outFrameSize = SmurfHeaderRO<std::vector<uint8_t>::iterator>::SmurfHeaderSize;
 
-            if (payloadSize)
-                // If the payload size was defined, used that number as the number of channel in the output frame.
+            // Extract the number of channels from the passed header
+            SmurfHeaderROPtr<std::vector<uint8_t>::iterator> header { SmurfHeaderRO<std::vector<uint8_t>::iterator>::create(headerCopy) };
+            std::size_t numChannels { header->getNumberChannels() };
+
+            if (payloadSize > numChannels)
+                // If the payload size is greater that the number of channels, then reserved
+                // that number of channels in the output frame.
                 outFrameSize += payloadSize * sizeof(filter_t);
             else
                 // Otherwise, the size of the frame will only hold the number of channels
-                outFrameSize += numCh * sizeof(filter_t);
+                outFrameSize += numChannels * sizeof(filter_t);
 
+            // Request a new frame
             ris::FramePtr outFrame = reqFrame(outFrameSize, true);
             outFrame->setPayload(outFrameSize);
             ris::FrameIterator outFrameIt = outFrame->beginWrite();
@@ -688,6 +709,7 @@ void scp::SmurfProcessor::pktTansmitter()
                 for(auto it = outData.begin(); it != outData.end(); ++it)
                     helpers::setWord<filter_t>(outFrameIt, i++, *it);
             }
+
             // Send the frame to the next slave.
             sendFrame(outFrame);
 

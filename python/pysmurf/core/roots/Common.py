@@ -36,9 +36,13 @@ class Common(pyrogue.Root):
                  fpgaTopLevel   = None,
                  stream_pv_size = 2**19,    # Not sub-classed
                  stream_pv_type = 'Int16',  # Not sub-classed
+                 configure      = False,
+                 VariableGroups = None,
+                 server_port    = 0,
                  **kwargs):
 
-        pyrogue.Root.__init__(self, name="AMCc", initRead=True, pollEn=polling_en, streamIncGroups='stream', **kwargs)
+        pyrogue.Root.__init__(self, name="AMCc", initRead=True, pollEn=polling_en,
+            streamIncGroups='stream', serverPort=server_port, **kwargs)
 
         #########################################################################################
         # The following interfaces are expected to be defined at this point by a sub-class
@@ -126,6 +130,13 @@ class Common(pyrogue.Root):
             description='Set default configuration',
             function=self._set_defaults_cmd))
 
+        # Flag that indicates if the default configuration should be loaded
+        # once the root is started.
+        self._configure = configure
+
+        # Variable groups
+        self._VariableGroups = VariableGroups
+
         # Add epics interface
         self._epics = None
         if epics_prefix:
@@ -181,7 +192,7 @@ class Common(pyrogue.Root):
         pyrogue.Root.start(self)
 
         # Setup groups
-        pysmurf.core.utilities.setupGroups(self)
+        pysmurf.core.utilities.setupGroups(self, self._VariableGroups)
 
         # Show image build information
         try:
@@ -208,6 +219,11 @@ class Common(pyrogue.Root):
 
         # Add publisher, pub_root & script_id need to be updated
         self._pub = pysmurf.core.utilities.SmurfPublisher(root=self)
+
+        # Load default configuration, if requested
+        if self._configure:
+            self.setDefaults.call()
+
 
 
     def stop(self):

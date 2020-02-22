@@ -778,8 +778,8 @@ class SmurfUtilMixin(SmurfBase):
         Turns off streaming data.
         """
         self.close_data_file(write_log=write_log)
+        self.set_stream_enable(0, write_log=write_log, wait_after=.15)
 
-        
     def read_stream_data(self, datafile, channel=None,
                          n_samp=None, array_size=None):
         """
@@ -944,6 +944,56 @@ class SmurfUtilMixin(SmurfBase):
 
         return r0, r1
 
+    def check_adc_saturation(self, band):
+        """
+        Reads data directly off the ADC.  Checks for input saturation.
+
+        Args:
+        -----
+        band (int) : Which band.  Assumes adc number is band%4.
+
+        Ret:
+        ----
+        saturated (bool) : Flag if ADC is saturated.
+        """
+        adc = self.read_adc_data(band, data_length=2**12, do_plot=False,
+                  save_data=False, show_plot=False, save_plot=False)
+        adc_max   = int(np.max((adc.real.max(), adc.imag.max())))
+        adc_min   = int(np.min((adc.real.min(), adc.imag.min())))
+        saturated = ((adc_max > 31000) | (adc_min < -31000))
+        self.log(f'ADC{band} max count: {adc_max}')
+        self.log(f'ADC{band} min count: {adc_min}')
+        if saturated:
+            self.log(f'\033[91mADC{band} saturated\033[00m') # color red
+        else:
+            self.log(f'\033[92mADC{band} not saturated\033[00m') # color green
+        return saturated
+
+    def check_dac_saturation(self, band):
+        """
+        Reads data directly off the DAC.  Checks for input saturation.
+
+        Args:
+        -----
+        band (int) : Which band.  Assumes dac number is band%4.
+
+        Ret:
+        ----
+        saturated (bool) : Flag if DAC is saturated.
+        """
+        dac = self.read_dac_data(band, data_length=2**12, do_plot=False,
+                  save_data=False, show_plot=False, save_plot=False)
+        dac_max   = int(np.max((dac.real.max(), dac.imag.max())))
+        dac_min   = int(np.min((dac.real.min(), dac.imag.min())))
+        saturated = ((dac_max > 31000) | (dac_min < -31000))
+        self.log(f'DAC{band} max count: {dac_max}')
+        self.log(f'DAC{band} min count: {dac_min}')
+        if saturated:
+            self.log(f'\033[91mDAC{band} saturated\033[00m') # color red
+        else:
+            self.log(f'\033[92mDAC{band} not saturated\033[00m') # color green
+        return saturated
+
     def read_adc_data(self, band, data_length=2**19,
                       hw_trigger=False, do_plot=False, save_data=True,
                       timestamp=None, show_plot=True, save_plot=True,
@@ -999,23 +1049,31 @@ class SmurfUtilMixin(SmurfBase):
             digitizer_frequency_mhz = self.get_digitizer_frequency_mhz()
             f, p_adc = signal.welch(dat, fs=digitizer_frequency_mhz,
                 nperseg=data_length/2, return_onesided=False, detrend=False)
-            f_plot = f / 1.0E6
+            f_plot = f
 
             idx = np.argsort(f)
             f_plot = f_plot[idx]
             p_adc = p_adc[idx]
 
-            fig = plt.figure(figsize=(9,4.5))
-            ax=plt.gca()
+            fig = plt.figure(figsize=(9,9))
+            ax1 = plt.subplot(211)
+            ax1.plot(np.real(dat), label='I')
+            ax1.plot(np.imag(dat), label='Q')
+            ax1.set_xlabel('Sample number')
+            ax1.set_ylabel('Raw counts')
+            ax1.set_title(f'{timestamp} Timeseries')
+            ax1.legend()
+            ax1.set_ylim((-2**15, 2**15))
+            ax2 = plt.subplot(212)
+            ax2.plot(f_plot, 10*np.log10(p_adc))
+            ax2.set_ylabel('ADC{}'.format(band))
+            ax2.set_xlabel('Frequency [MHz]')
+            ax2.set_title(f'{timestamp} Spectrum')
+            plt.grid(which='both')
             if plot_ylimits[0] is not None:
                 plt.ylim(plot_ylimits[0],plt.ylim()[1])
             if plot_ylimits[1] is not None:
                 plt.ylim(plt.ylim()[0],plot_ylimits[1])
-            ax.set_ylabel('ADC{}'.format(band))
-            ax.set_xlabel('Frequency [MHz]')
-            ax.set_title(timestamp)
-            ax.semilogy(f_plot, p_adc)
-            plt.grid()
 
             if save_plot:
                 plot_fn = '{}/{}_adc{}.png'.format(self.plot_dir,timestamp,band)
@@ -1086,23 +1144,31 @@ class SmurfUtilMixin(SmurfBase):
             digitizer_frequency_mhz = self.get_digitizer_frequency_mhz()
             f, p_dac = signal.welch(dat, fs=digitizer_frequency_mhz,
                 nperseg=data_length/2, return_onesided=False,detrend=False)
-            f_plot = f / 1.0E6
+            f_plot = f
 
             idx = np.argsort(f)
             f_plot = f_plot[idx]
             p_dac = p_dac[idx]
 
-            fig = plt.figure(figsize=(9,4.5))
-            ax=plt.gca()
+            fig = plt.figure(figsize=(9,9))
+            ax1 = plt.subplot(211)
+            ax1.plot(np.real(dat), label='I')
+            ax1.plot(np.imag(dat), label='Q')
+            ax1.set_xlabel('Sample number')
+            ax1.set_ylabel('Raw counts')
+            ax1.set_title(f'{timestamp} Timeseries')
+            ax1.legend()
+            ax1.set_ylim((-2**15, 2**15))
+            ax2 = plt.subplot(212)
+            ax2.plot(f_plot, 10*np.log10(p_dac))
+            ax2.set_ylabel('ADC{}'.format(band))
+            ax2.set_xlabel('Frequency [MHz]')
+            ax2.set_title(f'{timestamp} Spectrum')
+            plt.grid(which='both')
             if plot_ylimits[0] is not None:
                 plt.ylim(plot_ylimits[0],plt.ylim()[1])
             if plot_ylimits[1] is not None:
                 plt.ylim(plt.ylim()[0],plot_ylimits[1])
-            ax.set_ylabel('DAC{}'.format(band))
-            ax.set_xlabel('Frequency [MHz]')
-            ax.set_title(timestamp)
-            ax.semilogy(f_plot, p_dac)
-            plt.grid()
 
             if save_plot:
                 plot_fn = '{}/{}_dac{}.png'.format(self.plot_dir,timestamp,band)
@@ -2136,7 +2202,8 @@ class SmurfUtilMixin(SmurfBase):
 
 
     def overbias_tes(self, bias_group, overbias_voltage=19.9, overbias_wait=5.,
-        tes_bias=19.9, cool_wait=20., high_current_mode=True, flip_polarity=False):
+                     tes_bias=19.9, cool_wait=20., high_current_mode=True, flip_polarity=False,
+                     actually_overbias=True):
         """
         Warning: This is horribly hardcoded. Needs a fix soon.
 
@@ -2160,15 +2227,17 @@ class SmurfUtilMixin(SmurfBase):
         assert (bias_group in bias_groups),\
         f'Bias group {bias_group} is not defined (available bias groups are {bias_groups}).  Doing nothing!'
 
-        # drive high current through the TES to attempt to drive normal
-        self.set_tes_bias_bipolar(bias_group, overbias_voltage,
-                                  flip_polarity=flip_polarity)
-        time.sleep(.1)
-
-        self.set_tes_bias_high_current(bias_group)
-        self.log('Driving high current through TES. ' + \
-            'Waiting {}'.format(overbias_wait), self.LOG_USER)
-        time.sleep(overbias_wait)
+        if actually_overbias:
+            # drive high current through the TES to attempt to drive normal
+            self.set_tes_bias_bipolar(bias_group, overbias_voltage,
+                                      flip_polarity=flip_polarity)
+            time.sleep(.1)
+            
+            self.set_tes_bias_high_current(bias_group)
+            self.log('Driving high current through TES. ' + \
+                     'Waiting {}'.format(overbias_wait), self.LOG_USER)
+            time.sleep(overbias_wait)
+            
         if not high_current_mode:
             self.set_tes_bias_low_current(bias_group)
             time.sleep(.1)
@@ -2180,7 +2249,7 @@ class SmurfUtilMixin(SmurfBase):
 
     def overbias_tes_all(self, bias_groups=None, overbias_voltage=19.9,
         overbias_wait=1.0, tes_bias=19.9, cool_wait=20.,
-        high_current_mode=True):
+        high_current_mode=True, actually_overbias=True):
         """
         Overbiases all requested bias groups (specified by the
         bias_groups array) at overbias_voltage in high current mode
@@ -2217,14 +2286,15 @@ class SmurfUtilMixin(SmurfBase):
             'Some of the bias groups requested are not valid '+\
             f'(available bias groups are {valid_bias_groups}).  Doing nothing!'
 
-        voltage_overbias_array = self.get_tes_bias_bipolar_array()
-        voltage_overbias_array[bias_groups] = overbias_voltage
-        self.set_tes_bias_bipolar_array(voltage_overbias_array)
-
-        self.set_tes_bias_high_current(bias_groups)
-        self.log('Driving high current through TES. ' + \
-            'Waiting {}'.format(overbias_wait), self.LOG_USER)
-        time.sleep(overbias_wait)
+        if actually_overbias:
+            voltage_overbias_array = self.get_tes_bias_bipolar_array()
+            voltage_overbias_array[bias_groups] = overbias_voltage
+            self.set_tes_bias_bipolar_array(voltage_overbias_array)
+            
+            self.set_tes_bias_high_current(bias_groups)
+            self.log('Driving high current through TES. ' + \
+                     'Waiting {}'.format(overbias_wait), self.LOG_USER)
+            time.sleep(overbias_wait)
 
         if not high_current_mode:
             self.log('setting to low current')

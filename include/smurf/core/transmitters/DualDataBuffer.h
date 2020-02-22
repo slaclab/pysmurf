@@ -83,9 +83,9 @@ namespace smurf
                 std::size_t             dataCnt;      // Number of data elements in the buffer
                 bool                    txDataReady;  // Flag to indicate new data is ready t be sent
                 std::atomic<bool>       runTxThread;  // Flag used to stop the thread
-                std::thread             txThread;     // Thread where the SMuRF packet transmission will run
                 std::condition_variable txCV;         // Variable to notify the thread new data is ready
                 std::mutex              txMutex;      // Mutex used for accessing the conditional variable
+                std::thread             txThread;     // Thread where the SMuRF packet transmission will run
 
                 // Transmit method. Will run in the 'txThread' thread.
                 // Here is where the txFunc callback function will be called.

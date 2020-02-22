@@ -70,6 +70,9 @@ namespace smurf
                 bool                                            disable; // Disable flag
                 std::vector<uint8_t>                            tesBias; // Buffer to hold the TES values
                 TesBiasArrayPtr<std::vector<uint8_t>::iterator> tba;     // TesBias interface object
+
+                // Logger
+                std::shared_ptr<rogue::Logging> eLog_;
             };
         }
     }

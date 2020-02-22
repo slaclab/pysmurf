@@ -38,6 +38,9 @@ class CmbPcie(Common):
                  disable_bay0   = False,
                  disable_bay1   = False,
                  txDevice       = None,
+                 configure      = False,
+                 VariableGroups = None,
+                 server_port    = 0,
                  **kwargs):
 
         # TDEST 0 routed to streamr0 (SRPv3)
@@ -71,5 +74,8 @@ class CmbPcie(Common):
                               polling_en     = polling_en,
                               pv_dump_file   = pv_dump_file,
                               txDevice       = txDevice,
+                              configure      = configure,
+                              VariableGroups = VariableGroups,
+                              server_port    = server_port,
                               **kwargs)
 
