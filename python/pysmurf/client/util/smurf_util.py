@@ -900,8 +900,9 @@ class SmurfUtilMixin(SmurfBase):
         ----
         mask_lookup (int array): An array with the GCP numbers.
         """
-        if self.config.get('smurf_to_mce').get('mask_channel_offset') is not None:
-            mask_channel_offset=int(self.config.get('smurf_to_mce').get('mask_channel_offset'))
+        if hasattr(self, 'config'):
+            if self.config.get('smurf_to_mce').get('mask_channel_offset') is not None:
+                mask_channel_offset=int(self.config.get('smurf_to_mce').get('mask_channel_offset'))
 
         mask = np.atleast_1d(np.loadtxt(mask_file))
         bands = np.unique(mask // 512).astype(int)
@@ -1053,7 +1054,7 @@ class SmurfUtilMixin(SmurfBase):
         data_length (int): The number of samples
 
         Opt Args:
-        ---------
+         ---------
         hw_trigger (bool) : Whether to use the hardware trigger. If
             False, uses an internal trigger.
         do_plot (bool) : Whether or not to plot.  Default false.

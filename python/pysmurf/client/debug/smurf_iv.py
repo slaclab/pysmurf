@@ -262,8 +262,9 @@ class SmurfIVMixin(SmurfBase):
     def analyze_slow_iv_from_file(self, fn_iv_raw_data, make_plot=True,
                                   show_plot=False, save_plot=True, R_sh=None, 
                                   phase_excursion_min=3., grid_on=False, 
-                                  R_op_target=0.007,
-                                  chs=None, band=None):
+                                  R_op_target=0.007, pA_per_phi0=None,
+                                  chs=None, band=None, datafile=None,
+                                  plot_dir=None, bias_line_resistance=None):
         """
         Function to analyze a load curve from its raw file. Can be used to 
           analyze IV's/generate plots separately from issuing commands.
@@ -286,6 +287,11 @@ class SmurfIVMixin(SmurfBase):
           this value. 
         chs (int array): Which channels to analyze. Defaults to all 
           the channels that are on and exceed phase_excursion_min
+        data_path (str) : The full path to the data. This is used for offline mode
+          where the data was copied to a new directory. The directory is usually
+          loaded from the .npy file, and this overwrites it.
+        plot_dir (str) : The full path to the plot directory. This is usually loaded
+          with the input numpy dictionary. This overwrites this.
         """
         self.log('Analyzing from file: {}'.format(fn_iv_raw_data))
 
@@ -293,14 +299,22 @@ class SmurfIVMixin(SmurfBase):
         bias = iv_raw_data['bias']
         high_current_mode = iv_raw_data['high_current_mode']
         bias_group = iv_raw_data['bias group']
-        datafile = iv_raw_data['datafile']
+
+        # This overwrites the datafile path, which is usually loaded
+        # from the .npy file
+        if datafile is None:
+            datafile = iv_raw_data['datafile']
+        else:
+            self.log(f"Using input datafile {datafile}")
         
         mask = self.make_mask_lookup(datafile.replace('.dat','_mask.txt'))
         bands, chans = np.where(mask != -1)
 
         basename = iv_raw_data['basename']
         output_dir = iv_raw_data['output_dir']
-        plot_dir = iv_raw_data['plot_dir']
+
+        if plot_dir is None:
+            plot_dir = iv_raw_data['plot_dir']
 
         # IV output dictionary
         ivs = {}
@@ -372,8 +386,10 @@ class SmurfIVMixin(SmurfBase):
             iv_dict = self.analyze_slow_iv(bias, phase, 
                 basename=basename, band=b, channel=ch, make_plot=make_plot, 
                 show_plot=show_plot, save_plot=save_plot, plot_dir=plot_dir,
-                R_sh = R_sh, high_current_mode = high_current_mode,
-                grid_on=grid_on,R_op_target=R_op_target)
+                R_sh=R_sh, high_current_mode=high_current_mode,
+                                           grid_on=grid_on, R_op_target=R_op_target,
+                                           pA_per_phi0=pA_per_phi0,
+                                           bias_line_resistance=bias_line_resistance)
             r = iv_dict['R']
             rn = iv_dict['R_n']
             idx = iv_dict['trans idxs']
@@ -488,7 +504,8 @@ class SmurfIVMixin(SmurfBase):
     def analyze_slow_iv(self, v_bias, resp, make_plot=True, show_plot=False,
         save_plot=True, basename=None, band=None, channel=None, R_sh=None,
         plot_dir=None, high_current_mode=False, bias_group = None,
-        grid_on=False,R_op_target=0.007, **kwargs):
+                        grid_on=False,R_op_target=0.007, pA_per_phi0=None,
+                        bias_line_resistance=None, **kwargs):
         """
         Analyzes the IV curve taken with slow_iv()
 
@@ -508,7 +525,9 @@ class SmurfIVMixin(SmurfBase):
         if R_sh is None:
             R_sh=self.R_sh
 
-        resp *= self.pA_per_phi0/(2.*np.pi*1e6) # convert phase to uA
+        if pA_per_phi0 is None:
+            pA_per_phi0 = self.pA_per_phi0
+        resp *= pA_per_phi0/(2.*np.pi*1e6) # convert phase to uA
 
         n_pts = len(resp)
         n_step = len(v_bias)
@@ -517,7 +536,11 @@ class SmurfIVMixin(SmurfBase):
 
         resp_bin = np.zeros(n_step)
 
-        r_inline = self.bias_line_resistance
+        if bias_line_resistance is None:
+            r_inline = self.bias_line_resistance
+        else:
+            r_inline = bias_line_resistance
+            
         if high_current_mode:
             # high-current mode generates higher current by decreases the 
             # in-line resistance
@@ -660,7 +683,10 @@ class SmurfIVMixin(SmurfBase):
             if basename is None:
                 basename = self.get_timestamp()
             if band is not None and channel is not None:
-                title += ', {:.2f} MHz'.format(self.channel_to_freq(band, channel))
+                if self.offline:
+                    self.log("Offline mode does not know resonator frequency. Not adding to title.")
+                else:
+                    title += ', {:.2f} MHz'.format(self.channel_to_freq(band, channel))
             title += r', $R_\mathrm{sh}$ = ' + '${:.2f}$ '.format(R_sh*1.0E3) + \
                 r'$\mathrm{m}\Omega$'
             plot_name = basename + '_' + plot_name
