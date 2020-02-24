@@ -9,6 +9,12 @@ env:
     - DOCKER_SERVER_REPO=pysmurf-server-base
     - DOCKER_CLIENT_REPO=pysmurf-client
 
+# Install dependencies
+addons:
+  apt:
+    packages:
+      - flake8
+
 stages:
   - test
   - name: deploy_server_docker
@@ -46,6 +52,9 @@ jobs:
           client_docker
 
       script:
+        # Run Flake8
+        - flake8 --count python/
+
         # Try to import the smurf module in the server container
         - |
           docker exec server \
