@@ -18,10 +18,7 @@ from pysmurf.client.base import SmurfBase
 from pysmurf.client.command.sync_group import SyncGroup as SyncGroup
 import time
 import os
-import struct
-import time
 from scipy import signal
-import shutil
 import glob
 import matplotlib.pyplot as plt
 # for hardware logging
@@ -707,7 +704,7 @@ class SmurfUtilMixin(SmurfBase):
                 self.log('Input downsample factor is None. Using '+
                      'value already in pyrogue:'+
                      f' {downsample_factor}')
-            
+
         # Check if flux ramp is non-zero
         ramp_max_cnt = self.get_ramp_max_cnt()
         if ramp_max_cnt == 0:
@@ -857,11 +854,11 @@ class SmurfUtilMixin(SmurfBase):
                     counter = 1
                 else:
                     phase = np.vstack((phase, data))
-                    t = np.append(t, header.timestamp)                    
+                    t = np.append(t, header.timestamp)
 
                     if counter % 2000 == 2000 - 1 :
                         self.log('{} elements loaded'.format(counter+1))
-                        
+
                     counter = counter + 1
 
         phase = np.squeeze(phase.T)
@@ -2232,12 +2229,12 @@ class SmurfUtilMixin(SmurfBase):
             self.set_tes_bias_bipolar(bias_group, overbias_voltage,
                                       flip_polarity=flip_polarity)
             time.sleep(.1)
-            
+
             self.set_tes_bias_high_current(bias_group)
             self.log('Driving high current through TES. ' + \
                      'Waiting {}'.format(overbias_wait), self.LOG_USER)
             time.sleep(overbias_wait)
-            
+
         if not high_current_mode:
             self.set_tes_bias_low_current(bias_group)
             time.sleep(.1)
@@ -2290,7 +2287,7 @@ class SmurfUtilMixin(SmurfBase):
             voltage_overbias_array = self.get_tes_bias_bipolar_array()
             voltage_overbias_array[bias_groups] = overbias_voltage
             self.set_tes_bias_bipolar_array(voltage_overbias_array)
-            
+
             self.set_tes_bias_high_current(bias_groups)
             self.log('Driving high current through TES. ' + \
                      'Waiting {}'.format(overbias_wait), self.LOG_USER)
@@ -2476,7 +2473,7 @@ class SmurfUtilMixin(SmurfBase):
 
     def make_channel_mask(self, band=None, smurf_chans=None):
         """
-        Makes the channel mask. Only the channels in the 
+        Makes the channel mask. Only the channels in the
         mask will be streamed or written to disk.
 
         If no optional arguments are given, mask will contain all channels
@@ -2540,7 +2537,7 @@ class SmurfUtilMixin(SmurfBase):
 
         self.set_filter_reset(wait_after=.1,
                               write_log=write_log)
-        
+
     def get_filter_params(self):
         """
         Get the downsample filter parameters: filter order,
@@ -3284,4 +3281,3 @@ class SmurfUtilMixin(SmurfBase):
 
         # Zero TES biases on this bias group
         self.set_tes_bias_bipolar(bias_group, 0)
-

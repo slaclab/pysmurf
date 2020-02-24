@@ -18,7 +18,6 @@
 #-----------------------------------------------------------------------------
 
 import pyrogue
-import pysmurf
 import rogue.hardware.axi
 import rogue.protocols.srp
 
@@ -77,4 +76,3 @@ class DevBoardPcie(Common):
                               configure      = configure,
                               server_port    = server_port,
                               **kwargs)
-

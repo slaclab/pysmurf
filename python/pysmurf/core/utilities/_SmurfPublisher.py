@@ -70,7 +70,7 @@ class SmurfPublisher(object):
         if script_id is not None:
             self.script_id = script_id
         self.pub_id = self._getoptenv('ID', options, 'undeclared')
-        
+
         # Now decode the backend-specific setup.
         backend = self._getoptenv('BACKEND', options, 'null')
 
@@ -192,4 +192,3 @@ class SmurfPublisher(object):
 
     def _varListen(self, path, varVal):
         self.publish(data=f'{path}={varVal.value}',msgtype='general')
-

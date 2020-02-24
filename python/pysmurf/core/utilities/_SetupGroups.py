@@ -18,8 +18,6 @@
 #-----------------------------------------------------------------------------
 
 import pyrogue
-import pysmurf
-import os
 
 def setupGroups(root, VariableGroups):
     """
@@ -64,4 +62,3 @@ def setupGroups(root, VariableGroups):
 
             else:
                 print(f"setupGroups: Warning: {k} not found!")
-

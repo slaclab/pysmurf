@@ -46,4 +46,3 @@ class SmurfApplication(pyrogue.Device):
             mode='RW',
             value=0, # Initial value determine variable type, (int, float, list, etc)
         ))
-

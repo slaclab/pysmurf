@@ -18,7 +18,6 @@
 #-----------------------------------------------------------------------------
 
 import pyrogue
-import pysmurf
 import rogue.hardware.axi
 import rogue.protocols.srp
 
@@ -78,4 +77,3 @@ class CmbPcie(Common):
                               VariableGroups = VariableGroups,
                               server_port    = server_port,
                               **kwargs)
-

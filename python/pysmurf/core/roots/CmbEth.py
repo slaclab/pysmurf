@@ -83,4 +83,3 @@ class CmbEth(Common):
                               VariableGroups = VariableGroups,
                               server_port    = server_port,
                               **kwargs)
-

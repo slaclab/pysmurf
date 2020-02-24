@@ -17,8 +17,6 @@
 # contained in the LICENSE.txt file.
 #-----------------------------------------------------------------------------
 
-import re
-
 import pyrogue
 import pysmurf
 import rogue.hardware.axi
@@ -141,7 +139,6 @@ class Common(pyrogue.Root):
         self._epics = None
         if epics_prefix:
             print("Starting EPICS server using prefix \"{}\"".format(epics_prefix))
-            from pyrogue.protocols import epics
             self._epics = pyrogue.protocols.epics.EpicsCaServer(base=epics_prefix, root=self)
             self._pv_dump_file = pv_dump_file
 
@@ -243,5 +240,3 @@ class Common(pyrogue.Root):
 
         print('Setting defaults from file {}'.format(self._config_file))
         self.LoadConfig(self._config_file)
-
-
