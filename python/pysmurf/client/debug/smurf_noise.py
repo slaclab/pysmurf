@@ -212,7 +212,7 @@ class SmurfNoiseMixin(SmurfBase):
 
                 plot_name = basename + \
                             f'_noise_timestream_b{b}_ch{ch:03}{plotname_append}.png'
-                fig.savefig(os.path.join(self.plot_dir, plot_name), 
+                fig.savefig(os.path.join(self.plot_dir, plot_name),
                     bbox_inches='tight')
 
                 # Close the individual channel plots - otherwise too many
@@ -241,7 +241,7 @@ class SmurfNoiseMixin(SmurfBase):
                 plot_name = basename + \
 
                     '{}_{}_noise_hist{}.png'.format(l, h, plotname_append)
-                plt.savefig(os.path.join(self.plot_dir, plot_name), 
+                plt.savefig(os.path.join(self.plot_dir, plot_name),
                     bbox_inches='tight')
                 if show_plot:
                     plt.show()
@@ -1558,7 +1558,7 @@ class SmurfNoiseMixin(SmurfBase):
         fig, ax = plt.subplots(1, 2, figsize=(10,5))
 
         # heatmap of coefficients
-        import seaborn as sns        
+        import seaborn as sns
         n_det, _ = np.shape(u)
         n_tick = 10
         tick = n_det//n_tick

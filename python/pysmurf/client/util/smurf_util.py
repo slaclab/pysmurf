@@ -5,12 +5,12 @@
 # File       : pysmurf/util/smurf_util.py
 # Created    : 2018-08-29
 #-----------------------------------------------------------------------------
-# This file is part of the pysmurf software package. It is subject to 
-# the license terms in the LICENSE.txt file found in the top-level directory 
-# of this distribution and at: 
-#    https://confluence.slac.stanford.edu/display/ppareg/LICENSE.html. 
-# No part of the pysmurf software package, including this file, may be 
-# copied, modified, propagated, or distributed except according to the terms 
+# This file is part of the pysmurf software package. It is subject to
+# the license terms in the LICENSE.txt file found in the top-level directory
+# of this distribution and at:
+#    https://confluence.slac.stanford.edu/display/ppareg/LICENSE.html.
+# No part of the pysmurf software package, including this file, may be
+# copied, modified, propagated, or distributed except according to the terms
 # contained in the LICENSE.txt file.
 #-----------------------------------------------------------------------------
 import numpy as np
@@ -57,11 +57,11 @@ class SmurfUtilMixin(SmurfBase):
         if channel is not None:
             if single_channel_readout == 1:
                 self.set_single_channel_readout(band, 1, write_log=write_log)
-                self.set_single_channel_readout_opt2(band, 0, 
+                self.set_single_channel_readout_opt2(band, 0,
                     write_log=write_log)
             elif single_channel_readout == 2:
                 self.set_single_channel_readout(band, 0, write_log=write_log)
-                self.set_single_channel_readout_opt2(band, 1, 
+                self.set_single_channel_readout_opt2(band, 1,
                     write_log=write_log)
             else:
                 self.log('single_channel_readout must be 1 or 2',
@@ -1145,7 +1145,7 @@ class SmurfUtilMixin(SmurfBase):
 
             import scipy.signal as signal
             digitizer_frequency_mhz = self.get_digitizer_frequency_mhz()
-            f, p_dac = signal.welch(dat, fs=digitizer_frequency_mhz, 
+            f, p_dac = signal.welch(dat, fs=digitizer_frequency_mhz,
                 nperseg=data_length/2, return_onesided=False, detrend=False)
             f_plot = f
 
@@ -1341,8 +1341,8 @@ class SmurfUtilMixin(SmurfBase):
         old_lms_enable2=self.get_lms_enable2(band)
         old_lms_enable3=self.get_lms_enable3(band)
 
-        self.log(f'Before toggling feedback on band {band}, ' + 
-            f'feedbackEnable={old_feedback_enable}, ' + 
+        self.log(f'Before toggling feedback on band {band}, ' +
+            f'feedbackEnable={old_feedback_enable}, ' +
             f'lmsEnable1={old_lms_enable1}, lmsEnable2={old_lms_enable2}, ' +
             f'and lmsEnable3={old_lms_enable3}.', self.LOG_USER)
 
@@ -1389,7 +1389,7 @@ class SmurfUtilMixin(SmurfBase):
 
     def channel_off(self, band, channel, **kwargs):
         """
-        Turns off the tone for a single channel by setting the amplitude to 
+        Turns off the tone for a single channel by setting the amplitude to
         zero and disabling feedback.
 
         Args:
@@ -1449,10 +1449,10 @@ class SmurfUtilMixin(SmurfBase):
             self.set_jesd_reset_n(bay,1,0x0)
             self.set_jesd_reset_n(bay,1,0x1)
 
-        # probably overkill...shouldn't call this function if you're not going 
+        # probably overkill...shouldn't call this function if you're not going
         # to do anything
         if (recover_jesd_rx or recover_jesd_tx):
-            # powers up the SYSREF which is required to sync fpga and 
+            # powers up the SYSREF which is required to sync fpga and
             # adc/dac jesd
             self.run_pwr_up_sys_ref(bay)
 
@@ -1482,7 +1482,7 @@ class SmurfUtilMixin(SmurfBase):
                     which_jesd_down0 = ('Jesd Rx is down' if
                         jesd_tx_ok0 else 'Jesd Tx is down')
 
-                self.log('%s ... will attempt to recover.'%which_jesd_down0, 
+                self.log('%s ... will attempt to recover.'%which_jesd_down0,
                     self.LOG_ERROR)
 
                 # attempt to recover ; if it fails it will assert
@@ -1490,8 +1490,8 @@ class SmurfUtilMixin(SmurfBase):
                     recover_jesd_tx=(not jesd_tx_ok0))
 
                 # rely on recover to assert if it failed
-                self.log('Successfully recovered Jesd but may need to redo' + 
-                    ' some setup ... rerun command at your own risk.', 
+                self.log('Successfully recovered Jesd but may need to redo' +
+                    ' some setup ... rerun command at your own risk.',
                     self.LOG_USER)
 
             # don't continue running the desired command by default.
@@ -1608,7 +1608,7 @@ class SmurfUtilMixin(SmurfBase):
         band_center = self.get_band_center_mhz(band)
         subband_width = 2*dig_freq/num_subband
 
-        subbands, subband_centers = self.get_subband_centers(band, 
+        subbands, subband_centers = self.get_subband_centers(band,
             as_offset=False)
 
         df = np.abs(freq - subband_centers)
@@ -1853,7 +1853,7 @@ class SmurfUtilMixin(SmurfBase):
         return s
 
 
-    def set_tes_bias_bipolar(self, bias_group, volt, do_enable=True, 
+    def set_tes_bias_bipolar(self, bias_group, volt, do_enable=True,
         flip_polarity=False, **kwargs):
         """
         Set an individual TES bias group to the specified voltage, in
@@ -1877,11 +1877,11 @@ class SmurfUtilMixin(SmurfBase):
 
         # Make sure the requested bias group is in the list of defined
         # bias groups.
-        bias_groups = self.bias_group_to_pair[:,0]        
+        bias_groups = self.bias_group_to_pair[:,0]
         assert (bias_group in bias_groups),\
             f'Bias group {bias_group} is not defined (available bias '+\
             f' groups are {bias_groups}).  Doing nothing!'
-        
+
         bias_order = bias_groups
         dac_positives = self.bias_group_to_pair[:,1]
         dac_negatives = self.bias_group_to_pair[:,2]
@@ -1937,7 +1937,7 @@ class SmurfUtilMixin(SmurfBase):
         # else.
         dac_enable_array = self.get_rtm_slow_dac_enable_array()
         dac_volt_array = self.get_rtm_slow_dac_volt_array()
-        
+
         if len(bias_group_volt_array) != n_bias_groups:
             self.log("Received the wrong number of biases. Expected an array of " +
                 "n_bias_groups={} voltages".format(n_bias_groups), self.LOG_ERROR)
@@ -1946,9 +1946,9 @@ class SmurfUtilMixin(SmurfBase):
                 bias_order = self.bias_group_to_pair[:,0]
                 dac_positives = self.bias_group_to_pair[:,1]
                 dac_negatives = self.bias_group_to_pair[:,2]
-                
+
                 bias_group_idx = np.ravel(np.where(bias_order == bg))
-                
+
                 dac_positive = dac_positives[bias_group_idx][0] - 1 # freakin Mitch
                 dac_negative = dac_negatives[bias_group_idx][0] - 1 # 1 vs 0 indexing
 
@@ -1990,7 +1990,7 @@ class SmurfUtilMixin(SmurfBase):
         Opt Args:
         ---------
         return_raw (bool) : Default is False. If True, returns pos and
-                            neg terminal values. 
+                            neg terminal values.
 
         Returns:
         --------
@@ -2002,10 +2002,10 @@ class SmurfUtilMixin(SmurfBase):
         """
         # Make sure the requested bias group is in the list of defined
         # bias groups.
-        bias_groups = self.bias_group_to_pair[:,0]        
+        bias_groups = self.bias_group_to_pair[:,0]
         assert (bias_group in bias_groups),\
             f'Bias group {bias_group} is not defined (available bias groups are {bias_groups}).  Doing nothing!'
-        
+
         bias_order = bias_groups
         dac_positives = self.bias_group_to_pair[:,1]
         dac_negatives = self.bias_group_to_pair[:,2]
@@ -2227,16 +2227,16 @@ class SmurfUtilMixin(SmurfBase):
         cool_wait (float): The time to wait after setting the TES bias for
             transients to die off.
         """
-        bias_groups = self.bias_group_to_pair[:,0]        
+        bias_groups = self.bias_group_to_pair[:,0]
         assert (bias_group in bias_groups),\
         f'Bias group {bias_group} is not defined (available bias groups are {bias_groups}).  Doing nothing!'
-        
+
         if actually_overbias:
         # drive high current through the TES to attempt to drive normal
         self.set_tes_bias_bipolar(bias_group, overbias_voltage,
                                   flip_polarity=flip_polarity)
         time.sleep(.1)
-        
+
         self.set_tes_bias_high_current(bias_group)
         self.log('Driving high current through TES. ' + \
             'Waiting {}'.format(overbias_wait), self.LOG_USER)
@@ -2276,7 +2276,7 @@ class SmurfUtilMixin(SmurfBase):
                           low current mode. Default is 19.9.
         cool_wait (float): The time to wait after setting the TES bias
                            for transients to die off.
-        """        
+        """
         # drive high current through the TES to attempt to drive normal
         if bias_groups is None:
             bias_groups = self.all_groups
@@ -2284,7 +2284,7 @@ class SmurfUtilMixin(SmurfBase):
             # assert requires array
             bias_groups = np.atleast_1d(bias_groups)
 
-        valid_bias_groups = self.bias_group_to_pair[:,0]        
+        valid_bias_groups = self.bias_group_to_pair[:,0]
 
         assert (all(bg in valid_bias_groups for bg in bias_groups)),\
             'Some of the bias groups requested are not valid '+\
@@ -2364,7 +2364,7 @@ class SmurfUtilMixin(SmurfBase):
         #self.log('Flipping bias group 0 relay only; PIC code will flip all ' +
         #    'of them')
 
-        n_bias_groups = self._n_bias_groups        
+        n_bias_groups = self._n_bias_groups
         bias_group = np.ravel(np.array(bias_group))
         self.log('Old relay {}'.format(bin(old_relay)))
         for bg in bias_group:
@@ -2545,7 +2545,7 @@ class SmurfUtilMixin(SmurfBase):
         self.set_filter_reset(wait_after=.1,
                               write_log=write_log)
 
-    
+
     def get_filter_params(self):
         """
         Get the downsample filter parameters: filter order,
@@ -2561,13 +2561,13 @@ class SmurfUtilMixin(SmurfBase):
         Ret:
         ----
         filter_params (dict) : A dictionary with the filter
-            parameters. 
+            parameters.
         """
         # Get filter order, gain, and averages
         filter_order = self.get_filter_order()
         filter_gain = self.get_filter_gain()
         num_averages = self.get_downsample_factor()
-        
+
         # Get filter order, gain, and averages
 
         if filter_order < 0:
@@ -2588,8 +2588,8 @@ class SmurfUtilMixin(SmurfBase):
         }
 
         return ret
-        
-            
+
+
     def make_gcp_mask(self, band=None, smurf_chans=None, gcp_chans=None,
                       read_gcp_mask=True, mask_channel_offset=0):
         """

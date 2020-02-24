@@ -28,7 +28,7 @@ class SmurfIVMixin(SmurfBase):
                     show_plot=False, overbias_wait=2., cool_wait=30,
                     make_plot=True, save_plot=True, plotname_append='',
                     channels=None, band=None,
-                    high_current_mode=True, overbias_voltage=8., 
+                    high_current_mode=True, overbias_voltage=8.,
                     grid_on=True, phase_excursion_min=3.):
         """
         Steps the TES bias down slowly. Starts at bias_high to bias_low with
@@ -137,8 +137,8 @@ class SmurfIVMixin(SmurfBase):
 
         R_sh=self.R_sh
         self.analyze_slow_iv_from_file(fn_iv_raw_data, make_plot=make_plot,
-            show_plot=show_plot, save_plot=save_plot, 
-            plotname_append=plotname_append, R_sh=R_sh, grid_on=grid_on, 
+            show_plot=show_plot, save_plot=save_plot,
+            plotname_append=plotname_append, R_sh=R_sh, grid_on=grid_on,
             phase_excursion_min=phase_excursion_min,chs=channels,band=band)
 
     def partial_load_curve_all(self, bias_high_array, bias_low_array=None,
@@ -259,9 +259,9 @@ class SmurfIVMixin(SmurfBase):
 
 
     def analyze_slow_iv_from_file(self, fn_iv_raw_data, make_plot=True,
-                                  show_plot=False, save_plot=True, 
-                                  plotname_append='', R_sh=None, 
-                                  phase_excursion_min=3., grid_on=False, 
+                                  show_plot=False, save_plot=True,
+                                  plotname_append='', R_sh=None,
+                                  phase_excursion_min=3., grid_on=False,
                                   R_op_target=0.007,
                                   chs=None, band=None):
         """
@@ -276,7 +276,7 @@ class SmurfIVMixin(SmurfBase):
         show_plot (bool): Defaults False.
         save_plot (bool): Defaults True.
         plotname_append (string): Appended to the default plot filename. Default ''.
-        phase_excursion_min (float): abs(max - min) of phase in radians. Analysis 
+        phase_excursion_min (float): abs(max - min) of phase in radians. Analysis
           ignores any channels without this phase excursion. Default 3.
         grid_on (bool): Whether to draw the grid on the PR plot. Defaults False
           Defaults true.
@@ -360,7 +360,7 @@ class SmurfIVMixin(SmurfBase):
 
 
                 plot_name = basename + \
-                    '_IV_stream_b{}_g{}_ch{:03}{}.png'.format(b, bg_str, ch, 
+                    '_IV_stream_b{}_g{}_ch{:03}{}.png'.format(b, bg_str, ch,
                                                               plotname_append)
                 if save_plot:
                     plot_fn = os.path.join(plot_dir, plot_name)
@@ -370,9 +370,9 @@ class SmurfIVMixin(SmurfBase):
                     plt.close()
 
 
-            iv_dict = self.analyze_slow_iv(bias, phase, 
-                basename=basename, band=b, channel=ch, make_plot=make_plot, 
-                show_plot=show_plot, save_plot=save_plot, 
+            iv_dict = self.analyze_slow_iv(bias, phase,
+                basename=basename, band=b, channel=ch, make_plot=make_plot,
+                show_plot=show_plot, save_plot=save_plot,
                 plotname_append=plotname_append, plot_dir=plot_dir,
                 R_sh = R_sh, high_current_mode = high_current_mode,
                 grid_on=grid_on,R_op_target=R_op_target)
@@ -488,7 +488,7 @@ class SmurfIVMixin(SmurfBase):
                 plt.close()
 
     def analyze_slow_iv(self, v_bias, resp, make_plot=True, show_plot=False,
-        save_plot=True, plotname_append='', basename=None, band=None, channel=None, 
+        save_plot=True, plotname_append='', basename=None, band=None, channel=None,
         R_sh=None, plot_dir=None, high_current_mode=False, bias_group = None,
         grid_on=False,R_op_target=0.007, **kwargs):
         """
