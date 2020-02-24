@@ -5,12 +5,12 @@
 # File       : pysmurf/tune/smurf_tune.py
 # Created    : 2018-08-31
 #-----------------------------------------------------------------------------
-# This file is part of the pysmurf software package. It is subject to
-# the license terms in the LICENSE.txt file found in the top-level directory
-# of this distribution and at:
-#    https://confluence.slac.stanford.edu/display/ppareg/LICENSE.html.
-# No part of the pysmurf software package, including this file, may be
-# copied, modified, propagated, or distributed except according to the terms
+# This file is part of the pysmurf software package. It is subject to 
+# the license terms in the LICENSE.txt file found in the top-level directory 
+# of this distribution and at: 
+#    https://confluence.slac.stanford.edu/display/ppareg/LICENSE.html. 
+# No part of the pysmurf software package, including this file, may be 
+# copied, modified, propagated, or distributed except according to the terms 
 # contained in the LICENSE.txt file.
 #-----------------------------------------------------------------------------
 import numpy as np
@@ -65,11 +65,11 @@ class SmurfTuneMixin(SmurfBase):
         """
         bands = self.config.get('init').get('bands')
         tune_cfg = self.config.get('tune_band')
-
+        
         # Load fraction_full_scale from file if not given
         if fraction_full_scale is None:
             fraction_full_scale = tune_cfg.get('fraction_full_scale')
-
+        
         if load_tune:
             if last_tune:
                 tune_file = self.last_tune()
@@ -84,9 +84,9 @@ class SmurfTuneMixin(SmurfBase):
             cfg = self.config.get('init')
             for b in bands:
                 drive = cfg.get('band_{}'.format(b)).get('amplitude_scale')
-                self.find_freq(b,
+                self.find_freq(b, 
                     drive_power=drive)
-                self.setup_notches(b, drive=drive,
+                self.setup_notches(b, drive=drive, 
                     new_master_assignment=new_master_assignment)
 
         # Runs tune_band_serial to re-estimate eta params
@@ -94,7 +94,7 @@ class SmurfTuneMixin(SmurfBase):
             for b in bands:
                 self.log('Running tune band serial on band {}'.format(b))
                 self.tune_band_serial(b, from_old_tune=load_tune,
-                    old_tune=tune_file, make_plot=make_plot,
+                    old_tune=tune_file, make_plot=make_plot, 
                     show_plot=show_plot, save_plot=save_plot,
                     new_master_assignment=new_master_assignment)
 
@@ -102,15 +102,15 @@ class SmurfTuneMixin(SmurfBase):
         if track_and_check:
             for b in bands:
                 self.log('Tracking and checking band {}'.format(b))
-                self.track_and_check(b, fraction_full_scale=fraction_full_scale,
+                self.track_and_check(b, fraction_full_scale=fraction_full_scale, 
                     f_min=f_min, f_max=f_max, df_max=df_max, make_plot=make_plot,
                     save_plot=save_plot, show_plot=show_plot)
+        
 
-
-    def tune_band(self, band, freq=None, resp=None, n_samples=2**19,
-        make_plot=False, show_plot=False, plot_chans=[], save_plot=True,
+    def tune_band(self, band, freq=None, resp=None, n_samples=2**19, 
+        make_plot=False, show_plot=False, plot_chans=[], save_plot=True, 
         save_data=True,  make_subband_plot=False, subband=None, n_scan=5,
-        subband_plot_with_slow=False, drive=None, grad_cut=.05, freq_min=-2.5E8,
+        subband_plot_with_slow=False, drive=None, grad_cut=.05, freq_min=-2.5E8, 
         freq_max=2.5E8, amp_cut=.5, use_slow_eta=False):
         """
         This does the full_band_resp, which takes the raw resonance data.
@@ -135,7 +135,7 @@ class SmurfTuneMixin(SmurfBase):
             plots before they are shown. If False, plots will be brought to the
             screen.
         save_data (bool): If True, saves the data to disk.
-        grad_cut (float): The value of the gradient of phase to look for
+        grad_cut (float): The value of the gradient of phase to look for 
             resonances. Default is .05
         amp_cut (float): The distance from the median value to decide whether
             there is a resonance. Default is .25.
@@ -158,7 +158,7 @@ class SmurfTuneMixin(SmurfBase):
             self.flux_ramp_off()
             self.log('Running full band resp')
 
-            # Inject high amplitude noise with known waveform, measure it, and
+            # Inject high amplitude noise with known waveform, measure it, and 
             # then find resonators and etaParameters from cross-correlation.
             freq, resp = self.full_band_resp(band, n_samples=n_samples,
                 make_plot=make_plot, save_data=save_data, timestamp=timestamp,
@@ -166,10 +166,10 @@ class SmurfTuneMixin(SmurfBase):
 
 
         # Find peaks
-        peaks = self.find_peak(freq, resp, rolling_med=True, band=band,
+        peaks = self.find_peak(freq, resp, rolling_med=True, band=band, 
             make_plot=make_plot, show_plot=show_plot, window=5000,
             save_plot=save_plot, grad_cut=grad_cut, freq_min=freq_min,
-            freq_max=freq_max, amp_cut=amp_cut,
+            freq_max=freq_max, amp_cut=amp_cut, 
             make_subband_plot=make_subband_plot, timestamp=timestamp,
             subband_plot_with_slow=subband_plot_with_slow, pad=50, min_gap=50)
 
@@ -178,8 +178,8 @@ class SmurfTuneMixin(SmurfBase):
         resonances = {}
         for i, p in enumerate(peaks):
             eta, eta_scaled, eta_phase_deg, r2, eta_mag, latency, Q= \
-                self.eta_fit(band, freq, resp, p, 50E3, make_plot=False,
-                plot_chans=plot_chans, save_plot=save_plot, res_num=i,
+                self.eta_fit(band, freq, resp, p, 50E3, make_plot=False, 
+                plot_chans=plot_chans, save_plot=save_plot, res_num=i, 
                 band=band, timestamp=timestamp, use_slow_eta=use_slow_eta)
 
             # Fill the resonances dict
@@ -214,11 +214,11 @@ class SmurfTuneMixin(SmurfBase):
         self.freq_resp[band]['resonances'] = resonances
         if drive is None:
             drive = self.config.get('init').get('band_{}'.format(band)).get('amplitude_scale')
-
+            
         # Add tone amplitude to tuning dictionary
         self.freq_resp[band]['drive'] = drive
 
-        # Save the data
+        # Save the data 
         self.save_tune()
 
         self.relock(band)
@@ -236,7 +236,7 @@ class SmurfTuneMixin(SmurfBase):
         """
         Tunes band using serial_gradient_descent and then serial_eta_scan.
         This requires an initial guess, which this function gets by either
-        loading an old tune or by using the full_band_resp.  This takes about 3
+        loading an old tune or by using the full_band_resp.  This takes about 3 
         minutes per band if there are about 150 resonators.
         This saves the results to the freq_resp dictionary.
         Args:
@@ -245,7 +245,7 @@ class SmurfTuneMixin(SmurfBase):
         Opt Args:
         ---------
         from_old_tune (bool): Whether to use an old tuning file. This
-            will load a tuning file and use its peak frequencies as
+            will load a tuning file and use its peak frequencies as 
             a starting point for seria_gradient_descent.
         old_tune (str): The full path to the tuning file.
         new_master_assignment (bool): Whether to overwrite the previous
@@ -290,18 +290,18 @@ class SmurfTuneMixin(SmurfBase):
             self.set_att_uc(band, 0, wait_after=.5, write_log=True)
             self.get_att_uc(band, write_log=True)
             freq, resp = self.full_band_resp(band, n_samples=n_samples,
-                                         make_plot=make_plot, save_data=save_data,
+                                         make_plot=make_plot, save_data=save_data, 
                                          show_plot=False, timestamp=timestamp,
                                          n_scan=n_scan)
             self.set_att_uc(band, old_att, write_log=True)
 
             # Find peaks
-            peaks = self.find_peak(freq, resp, rolling_med=rolling_med,
-                window=window, band=band, make_plot=make_plot,
-                save_plot=save_plot,  show_plot=show_plot, grad_cut=grad_cut,
+            peaks = self.find_peak(freq, resp, rolling_med=rolling_med, 
+                window=window, band=band, make_plot=make_plot, 
+                save_plot=save_plot,  show_plot=show_plot, grad_cut=grad_cut, 
                 freq_min=freq_min, freq_max=freq_max, amp_cut=amp_cut,
                 make_subband_plot=make_subband_plot, timestamp=timestamp,
-                subband_plot_with_slow=subband_plot_with_slow, pad=pad,
+                subband_plot_with_slow=subband_plot_with_slow, pad=pad, 
                 min_gap=min_gap)
 
             resonances = {}
@@ -319,7 +319,7 @@ class SmurfTuneMixin(SmurfBase):
             # Assign resonances to channels
             self.log('Assigning channels')
             f = np.array([resonances[k]['freq'] for k in resonances.keys()])
-            subbands, channels, offsets = self.assign_channels(f, band=band,
+            subbands, channels, offsets = self.assign_channels(f, band=band, 
                 as_offset=False, new_master_assignment=new_master_assignment)
 
             for i, k in enumerate(resonances.keys()):
@@ -340,14 +340,14 @@ class SmurfTuneMixin(SmurfBase):
         self.freq_resp[band]['timestamp'] = timestamp
 
 
-        # Set the resonator frequencies without eta params
+        # Set the resonator frequencies without eta params 
         self.relock(band, drive=drive)
 
         # Find the resonator minima
         self.log('Finding resonator minima...')
         self.run_serial_gradient_descent(band, timeout=1200)
         #self.run_serial_min_search(band)
-
+        
         # Calculate the eta params
         self.log('Calculating eta parameters...')
         self.run_serial_eta_scan(band, timeout=1200)
@@ -360,7 +360,7 @@ class SmurfTuneMixin(SmurfBase):
         eta_mag = eta_scaled * subband_half_width
         eta = eta_mag * np.cos(np.deg2rad(eta_phase)) + \
             1.j * np.sin(np.deg2rad(eta_phase))
-
+        
         chs = self.get_eta_scan_result_channel(band)
 
         chs = self.get_eta_scan_result_channel(band)
@@ -378,20 +378,21 @@ class SmurfTuneMixin(SmurfBase):
 
         self.log('Done with serial tuning')
 
-
+        
     def plot_tune_summary(self, band, eta_scan=False, show_plot=False,
-        save_plot=True, plotname_append='', eta_width=.3):
+                          save_plot=True, eta_width=.3, channel=None,
+                          plot_summary=True, plotname_append=''):
         """
         Plots summary of tuning. Requires self.freq_resp to be filled.
         In other words, you must run find_freq and setup_notches
         before calling this function. Saves the plot to plot_dir.
         This will also make individual eta plots as well if {eta_scan} is True.
         The eta scan plots are slow because there are many of them.
-
+        
         Args:
         -----
         band (int): The band number to plot
-
+        
         Opt Args:
         ---------
         eta_scan (bool) : Whether to also plot individual eta scans.
@@ -400,14 +401,18 @@ class SmurfTuneMixin(SmurfBase):
         save_plot (bool) : Whether to save the plot. Default is True.
         plotname_append (string): Appended to the default plot filename. Default is ''.
         eta_width (float) : The width to plot in MHz.
+        channel (int list) : Which channels to plot.  Default is None,
+                             which plots all available channels.
+        plot_summary (bool) : Plot summary.
         """
         if show_plot:
             plt.ion()
         else:
             plt.ioff()
 
-        timestamp = self.get_timestamp()
+        timestamp = self.get_timestamp()            
 
+        if plot_summary:
         fig, ax = plt.subplots(2,2, figsize=(10,6))
 
         # Subband
@@ -452,7 +457,7 @@ class SmurfTuneMixin(SmurfBase):
         ax[1,1].set_ylabel('Eta phase')
 
         fig.suptitle('Band {} {}'.format(band, timestamp))
-        plt.subplots_adjust(left=.08, right=.95, top=.92, bottom=.08,
+        plt.subplots_adjust(left=.08, right=.95, top=.92, bottom=.08, 
                             wspace=.21, hspace=.21)
 
         if save_plot:
@@ -474,7 +479,11 @@ class SmurfTuneMixin(SmurfBase):
                 resp = self.freq_resp[band]['full_band_resp']['resp']
                 for k in keys:
                     r = self.freq_resp[band]['resonances'][k]
-                    eta_width = .300 # in MHz. So this = 300 kHz
+                    channel=r['channel']
+                    # If user provides a channel restriction list, only
+                    # plot channels in that list.
+                    if channel is not None and channel not in channels:
+                        continue                    
                     center_freq = r['freq']
                     idx = np.logical_and(freq > center_freq - eta_width,
                         freq < center_freq + eta_width)
@@ -482,27 +491,35 @@ class SmurfTuneMixin(SmurfBase):
                     # Actually plot the data
                     self.plot_eta_fit(freq[idx], resp[idx],
                         eta_mag=r['eta_mag'], eta_phase_deg=r['eta_phase'],
-                        band=band, res_num=k, timestamp=timestamp,
-                        save_plot=save_plot, plotname_append=plotname_append,
-                        show_plot=show_plot, peak_freq=center_freq,
-                        channel=r['channel'])
-
+                        band=band, res_num=k, timestamp=timestamp, 
+                        save_plot=save_plot, show_plot=show_plot, 
+                        peak_freq=center_freq, channel=channel, plotname_append=plotname_append)
             # This is for data from find_freq/setup_notches
             else:
                 for k in keys:
+                    r = self.freq_resp[band]['resonances'][k]                    
+                    channel=r['channel']
+                    # If user provides a channel restriction list, only
+                    # plot channels in that list.
+                    if channels is not None:
+                        if channel not in channels:
+                            continue
+                        else:
+                            self.log('Eta plot for channel {}'.format(channel))
+                    else:
                     self.log('Eta plot {} of {}'.format(k+1, n_keys))
-                    r = self.freq_resp[band]['resonances'][k]
+                        
                     self.plot_eta_fit(r['freq_eta_scan'], r['resp_eta_scan'],
-                        eta=r['eta'], eta_mag=r['eta_mag'],
+                        eta=r['eta'], eta_mag=r['eta_mag'], 
                         eta_phase_deg=r['eta_phase'], band=band, res_num=k,
                         timestamp=timestamp, save_plot=save_plot,
-                        plotname_append=plotname_append,
-                        show_plot=show_plot, peak_freq=r['freq'])
+                        show_plot=show_plot, peak_freq=r['freq'],
+                        channel=channel, plotname_append=plotname_append)
 
 
-    def full_band_resp(self, band, n_scan=1, n_samples=2**19, make_plot=False,
-        save_plot=True, show_plot=False, save_data=False, timestamp=None,
-        save_raw_data=False, correct_att=True, swap=False, hw_trigger=True,
+    def full_band_resp(self, band, n_scan=1, n_samples=2**19, make_plot=False, 
+        save_plot=True, show_plot=False, save_data=False, timestamp=None, 
+        save_raw_data=False, correct_att=True, swap=False, hw_trigger=True, 
         write_log=False):
         """
         Injects high amplitude noise with known waveform. The ADC measures it.
@@ -576,7 +593,7 @@ class SmurfTuneMixin(SmurfBase):
                 self.pub.register_file(path, 'dac', format='npy')
 
             # To do : Implement cross correlation to get shift
-
+            
             if swap:
                 adc = adc[::-1]
 
@@ -657,12 +674,12 @@ class SmurfTuneMixin(SmurfBase):
             path = os.path.join(self.output_dir, save_name.format('imag'))
             np.savetxt(path, np.imag(resp))
             self.pub.register_file(path, 'full_band_resp', format='txt')
-
+            
         return f, resp
 
 
     def find_peak(self, freq, resp, rolling_med=True, window=5000,
-        grad_cut=.5, amp_cut=.25, freq_min=-2.5E8, freq_max=2.5E8,
+        grad_cut=.5, amp_cut=.25, freq_min=-2.5E8, freq_max=2.5E8, 
         make_plot=False, save_plot=True, plotname_append='', show_plot=False,
         band=None, subband=None, make_subband_plot=False,
         subband_plot_with_slow=False, timestamp=None, pad=50, min_gap=100,
@@ -679,7 +696,7 @@ class SmurfTuneMixin(SmurfBase):
         ---------
         rolling_med (bool): whether to use a rolling median for the background
         window (int): number of samples to window together for rolling med
-        grad_cut (float): The value of the gradient of phase to look for
+        grad_cut (float): The value of the gradient of phase to look for 
             resonances. Default is .05
         amp_cut (float): The fractional distance from the median value to decide
             whether there is a resonance. Default is .25.
@@ -697,7 +714,7 @@ class SmurfTuneMixin(SmurfBase):
         band (int): The band to take find the peaks in. Mainly for saving
             and plotting.
         timestamp (str): The timestamp. Mainly for saving and plotting
-        pad (int): number of samples to pad on either side of a resonance search
+        pad (int): number of samples to pad on either side of a resonance search 
             window
         min_gap (int): minimum number of samples between resonances
         grad_kernel_width (int) : The number of samples to take after a point
@@ -715,7 +732,7 @@ class SmurfTuneMixin(SmurfBase):
         x = np.arange(len(angle))
         p1 = np.poly1d(np.polyfit(x, angle, 1))
         angle -= p1(x)
-        grad = np.convolve(angle, np.repeat([1,-1], grad_kernel_width),
+        grad = np.convolve(angle, np.repeat([1,-1], grad_kernel_width), 
             mode='same')
 
         amp = np.abs(resp)
@@ -725,12 +742,13 @@ class SmurfTuneMixin(SmurfBase):
         # Calculate the rolling median. This uses pandas.
         if rolling_med:
             import pandas as pd
-            med_amp = pd.Series(amp).rolling(window=window, center=True).median()
+            med_amp = pd.Series(amp).rolling(window=window, center=True,
+                                             min_periods=1).median()
         else:
             med_amp = np.median(amp) * np.ones(len(amp))
 
         # Get the flagging
-        starts, ends = self.find_flag_blocks(self.pad_flags(grad_loc,
+        starts, ends = self.find_flag_blocks(self.pad_flags(grad_loc, 
             before_pad=pad, after_pad=pad, min_gap=min_gap))
 
         # Find the peaks locations
@@ -764,11 +782,11 @@ class SmurfTuneMixin(SmurfBase):
 
             ax[1].set_ylim(-2, 20)
             for s, e in zip(starts, ends):
-                ax[0].axvspan(plot_freq_mhz[s], plot_freq_mhz[e], color='k',
+                ax[0].axvspan(plot_freq_mhz[s], plot_freq_mhz[e], color='k', 
                     alpha=.1)
-                ax[1].axvspan(plot_freq_mhz[s], plot_freq_mhz[e], color='k',
+                ax[1].axvspan(plot_freq_mhz[s], plot_freq_mhz[e], color='k', 
                     alpha=.1)
-
+            
 
             ax[0].set_ylabel('Amp.')
             ax[1].set_xlabel('Freq. [MHz]')
@@ -797,7 +815,7 @@ class SmurfTuneMixin(SmurfBase):
 
         # Make plot per subband
         if make_subband_plot:
-            subbands, subband_freq = self.get_subband_centers(band,
+            subbands, subband_freq = self.get_subband_centers(band, 
                 hardcode=True)  # remove hardcode mode
             plot_freq_mhz = freq
             plot_width = 5.5  # width of plotting in MHz
@@ -825,9 +843,9 @@ class SmurfTuneMixin(SmurfBase):
                     ax[1].plot(f, ma, label='Median Amp')
                     for s, e in zip(starts, ends):
                         if (plot_freq_mhz[s] in f) or (plot_freq_mhz[e] in f):
-                            ax[0].axvspan(plot_freq_mhz[s], plot_freq_mhz[e],
+                            ax[0].axvspan(plot_freq_mhz[s], plot_freq_mhz[e], 
                                 color='k', alpha=.1)
-                            ax[1].axvspan(plot_freq_mhz[s], plot_freq_mhz[e],
+                            ax[1].axvspan(plot_freq_mhz[s], plot_freq_mhz[e], 
                                 color='k', alpha=.1)
 
                     for pp in peak:
@@ -840,13 +858,13 @@ class SmurfTuneMixin(SmurfBase):
 
                     ax[0].axvline(sbf, color='k' ,linestyle=':', alpha=.4)
                     ax[1].axvline(sbf, color='k' ,linestyle=':', alpha=.4)
-                    ax[0].axvline(sbf - width/2., color='k' ,linestyle='--',
+                    ax[0].axvline(sbf - width/2., color='k' ,linestyle='--', 
                                   alpha=.4)
-                    ax[0].axvline(sbf + width/2., color='k' ,linestyle='--',
+                    ax[0].axvline(sbf + width/2., color='k' ,linestyle='--', 
                                   alpha=.4)
-                    ax[1].axvline(sbf - width/2., color='k' ,linestyle='--',
+                    ax[1].axvline(sbf - width/2., color='k' ,linestyle='--', 
                                   alpha=.4)
-                    ax[1].axvline(sbf + width/2., color='k' ,linestyle='--',
+                    ax[1].axvline(sbf + width/2., color='k' ,linestyle='--', 
                                   alpha=.4)
 
                     ax[1].set_xlim((sbf-plot_width/2., sbf+plot_width/2.))
@@ -878,26 +896,26 @@ class SmurfTuneMixin(SmurfBase):
         return freq[peak]
 
     def find_flag_blocks(self, flag, minimum=None, min_gap=None):
-        """
-        Find blocks of adjacent points in a boolean array with the same value.
+        """ 
+        Find blocks of adjacent points in a boolean array with the same value. 
 
         Args:
         -----
-        flag : bool, array_like
-            The array in which to find blocks
+        flag : bool, array_like 
+            The array in which to find blocks 
 
         Opt Args:
         ---------
         minimum : int (optional)
-            The minimum length of block to return. Discards shorter blocks
+            The minimum length of block to return. Discards shorter blocks 
         min_gap : int (optional)
             The minimum gap between flag blocks. Fills in gaps smaller.
         Returns
-        -------
+        ------- 
         starts, ends : int arrays
             The start and end indices for each block.
-            NOTE: the end index is the last index in the block. Add 1 for
-            slicing, where the upper limit should be after the block
+            NOTE: the end index is the last index in the block. Add 1 for 
+            slicing, where the upper limit should be after the block 
         """
         if min_gap is not None:
             _flag = self.pad_flags(np.asarray(flag, dtype=bool),
@@ -922,7 +940,7 @@ class SmurfTuneMixin(SmurfBase):
 
     def pad_flags(self, f, before_pad=0, after_pad=0, min_gap=0, min_length=0):
         """
-        Adds and combines flagging.
+        Adds and combines flagging. 
 
         Args:
         -----
@@ -938,7 +956,7 @@ class SmurfTuneMixin(SmurfBase):
         pad_flag (bool array): The padded boolean array
         """
         before, after = self.find_flag_blocks(f)
-        after += 1
+        after += 1 
 
         inds = np.where(np.subtract(before[1:],after[:-1]) < min_gap)[0]
         after[inds] = before[inds+1]
@@ -954,7 +972,7 @@ class SmurfTuneMixin(SmurfBase):
 
         return padded
 
-    def plot_find_peak(self, freq, resp, peak_ind, save_plot=True,
+    def plot_find_peak(self, freq, resp, peak_ind, save_plot=True, 
         save_name=None):
         """
         Plots the output of find_Freq
@@ -977,7 +995,7 @@ class SmurfTuneMixin(SmurfBase):
         Idat = np.real(resp)
         Qdat = np.imag(resp)
         phase = np.unwrap(np.arctan2(Qdat, Idat))
-
+        
         # Plot
         fig, ax = plt.subplots(2, sharex=True, figsize=(6,4))
         ax[0].plot(freq, np.abs(resp), label='amp', color='b')
@@ -1033,7 +1051,7 @@ class SmurfTuneMixin(SmurfBase):
         band (int): Only used for plotting - the band number of the resontaor
         timestamp (str): The timestamp of the data.
         res_num (int): The resonator number
-
+        
         Rets:
         -----
         eta (complex): The eta parameter
@@ -1051,24 +1069,24 @@ class SmurfTuneMixin(SmurfBase):
             # list of bands specified in experiment.cfg.
             bands = self.config.get('init').get('bands')
             band = bands[0]
-
+        
         n_subbands = self.get_number_sub_bands(band)
         digitizer_frequency_mhz = self.get_digitizer_frequency_mhz(band)
         subband_half_width = digitizer_frequency_mhz/\
                              n_subbands
-
+        
         if timestamp is None:
             timestamp = self.get_timestamp()
 
         amp = np.abs(resp)
-
+        
         fit = np.polyfit(freq, np.unwrap(np.angle(resp)), 1)
-        fitted_line = np.poly1d(fit)
+        fitted_line = np.poly1d(fit)  
         phase = np.unwrap(np.angle(resp) - fitted_line(freq))
-
+        
         # Find minimum
         min_idx = np.ravel(np.where(freq == peak_freq))[0]
-
+        
         try:
             left = np.where(freq < peak_freq - delta_freq)[0][-1]
         except IndexError:
@@ -1080,12 +1098,12 @@ class SmurfTuneMixin(SmurfBase):
 
         right = np.where(freq > peak_freq + delta_freq)[0][0]
         right_plot = np.where(freq > peak_freq + 5*delta_freq)[0][0]
-
+        
         eta = (freq[right] - freq[left]) / (resp[right] - resp[left])
-
+        
         if use_slow_eta:
             band_center = self.get_band_center_mhz(band)
-            f_slow, resp_slow, eta_slow = self.eta_estimator(band,
+            f_slow, resp_slow, eta_slow = self.eta_estimator(band, 
                 peak_freq*1.0E-6+band_center)
 
         # Get eta parameters
@@ -1098,10 +1116,10 @@ class SmurfTuneMixin(SmurfBase):
 
 
         if left != right:
-            sk_fit = tools.fit_skewed_lorentzian(freq[left_plot:right_plot],
+            sk_fit = tools.fit_skewed_lorentzian(freq[left_plot:right_plot], 
                 amp[left_plot:right_plot])
-            r2 = np.sum((amp[left_plot:right_plot] -
-                tools.skewed_lorentzian(freq[left_plot:right_plot],
+            r2 = np.sum((amp[left_plot:right_plot] - 
+                tools.skewed_lorentzian(freq[left_plot:right_plot], 
                 *sk_fit))**2)
             Q = sk_fit[5]
         else:
@@ -1110,29 +1128,29 @@ class SmurfTuneMixin(SmurfBase):
 
         if make_plot:
             if len(plot_chans) == 0:
-                self.log('Making plot for band' +
+                self.log('Making plot for band' + 
                     ' {} res {:03}'.format(band, res_num))
-                self.plot_eta_fit(freq[left_plot:right_plot],
-                    resp[left_plot:right_plot],
+                self.plot_eta_fit(freq[left_plot:right_plot], 
+                    resp[left_plot:right_plot], 
                     eta=eta, eta_mag=eta_mag, r2=r2,
                     save_plot=save_plot, timestamp=timestamp, band=band,
                     res_num=res_num, sk_fit=sk_fit, f_slow=f_slow, resp_slow=resp_slow)
             else:
                 if res_num in plot_chans:
-                    self.log('Making plot for band ' +
+                    self.log('Making plot for band ' + 
                         '{} res {:03}'.format(band, res_num))
-                    self.plot_eta_fit(freq[left_plot:right_plot],
-                        resp[left_plot:right_plot],
-                        eta=eta, eta_mag=eta_mag, eta_phase_deg=eta_phase_deg,
-                        r2=r2, save_plot=save_plot, timestamp=timestamp,
-                        band=band, res_num=res_num, sk_fit=sk_fit,
+                    self.plot_eta_fit(freq[left_plot:right_plot], 
+                        resp[left_plot:right_plot], 
+                        eta=eta, eta_mag=eta_mag, eta_phase_deg=eta_phase_deg, 
+                        r2=r2, save_plot=save_plot, timestamp=timestamp, 
+                        band=band, res_num=res_num, sk_fit=sk_fit, 
                         f_slow=f_slow, resp_slow=resp_slow)
 
         return eta, eta_scaled, eta_phase_deg, r2, eta_mag, latency, Q
 
 
     def plot_eta_fit(self, freq, resp, eta=None, eta_mag=None, peak_freq=None,
-        eta_phase_deg=None, r2=None, save_plot=True, show_plot=False, timestamp=None,
+        eta_phase_deg=None, r2=None, save_plot=True, show_plot=False, timestamp=None, 
         res_num=None, band=None, sk_fit=None, f_slow=None, resp_slow=None,
         channel=None):
         """
@@ -1161,7 +1179,7 @@ class SmurfTuneMixin(SmurfBase):
             plt.ion()
         else:
             plt.ioff()
-
+        
         I = np.real(resp)
         Q = np.imag(resp)
         amp = np.sqrt(I**2 + Q**2)
@@ -1186,7 +1204,7 @@ class SmurfTuneMixin(SmurfBase):
         ax0.scatter(plot_freq, amp, c=np.arange(len(freq)), s=3,
             label='amp')
         if sk_fit is not None:
-            ax0.plot(plot_freq, tools.skewed_lorentzian(plot_freq*1.0E6,
+            ax0.plot(plot_freq, tools.skewed_lorentzian(plot_freq*1.0E6, 
                 *sk_fit), color='r', linestyle=':')
         ax0.legend(fontsize=10, loc='lower right')
         ax0.set_ylabel('Resp')
@@ -1198,13 +1216,13 @@ class SmurfTuneMixin(SmurfBase):
         # write what refPhaseDelay and refPhaseDelayFine were on the
         # phase plot, since we typically look at it when trying to
         # optimize them.
-        bbox = dict(boxstyle="round", ec='w', fc='w', alpha=.65)
-        ax1.text(.03, .15,
+        bbox = dict(boxstyle="round", ec='w', fc='w', alpha=.65)        
+        ax1.text(.03, .15, 
             'refPhaseDelay={}'.format(self.get_ref_phase_delay(band)),
             transform=ax1.transAxes, fontsize=8, bbox=bbox)
-        ax1.text(.03, .05,
+        ax1.text(.03, .05, 
             'refPhaseDelayFine={}'.format(self.get_ref_phase_delay_fine(band)),
-            transform=ax1.transAxes, fontsize=8, bbox=bbox)
+            transform=ax1.transAxes, fontsize=8, bbox=bbox)            
 
         # IQ circle
         ax2.axhline(0, color='k', linestyle=':', alpha=.5)
@@ -1223,7 +1241,7 @@ class SmurfTuneMixin(SmurfBase):
         if eta is not None:
             if eta_mag is not None:
                 lab = r'$\eta/\eta_{mag}$' + \
-                ': {:4.3f}+{:4.3f}'.format(np.real(eta/eta_mag),
+                ': {:4.3f}+{:4.3f}'.format(np.real(eta/eta_mag), 
                     np.imag(eta/eta_mag)) + '\n'
             else:
                 lab = lab + r'$\eta$' + ': {}'.format(eta) + '\n'
@@ -1260,11 +1278,11 @@ class SmurfTuneMixin(SmurfBase):
             Q_slow = np.imag(resp_slow)
             phase_slow = np.unwrap(np.arctan2(Q_slow, I_slow))  # radians
 
-            ax0.scatter(f_slow-band_center, np.abs(resp_slow),
+            ax0.scatter(f_slow-band_center, np.abs(resp_slow), 
                 c=np.arange(len(f_slow)), cmap='Greys', s=3)
             ax1.scatter(f_slow-band_center, np.rad2deg(phase_slow),
                 c=np.arange(len(f_slow)), cmap='Greys', s=3)
-            ax2.scatter(I_slow, Q_slow, c=np.arange(len(f_slow)), cmap='Greys',
+            ax2.scatter(I_slow, Q_slow, c=np.arange(len(f_slow)), cmap='Greys', 
                 s=3)
 
         plt.tight_layout()
@@ -1300,7 +1318,7 @@ class SmurfTuneMixin(SmurfBase):
             pass
         else:
             raise ValueError('{} and {}'.format(f, centers[0]))
-
+            
         idx = np.argmin([abs(x - f) for x in centers])
         return idx
 
@@ -1337,7 +1355,7 @@ class SmurfTuneMixin(SmurfBase):
         self.channel_assignment_files['band_{}'.format(band)] = filename
         self.log('New master assignment file:'+
                  ' {}'.format(self.channel_assignment_files['band_{}'.format(band)]))
-
+        
 
     def get_master_assignment(self, band):
         """
@@ -1363,7 +1381,7 @@ class SmurfTuneMixin(SmurfBase):
         return freqs, subbands, channels, groups
 
 
-    def assign_channels(self, freq, band=None, bandcenter=None,
+    def assign_channels(self, freq, band=None, bandcenter=None, 
         channel_per_subband=4, as_offset=True, min_offset=0.1,
         new_master_assignment=False):
         """
@@ -1397,7 +1415,7 @@ class SmurfTuneMixin(SmurfBase):
         subbands = np.zeros(len(freq), dtype=int)
         channels = -1 * np.ones(len(freq), dtype=int)
         offsets = np.zeros(len(freq))
-
+        
         if not new_master_assignment:
             freq_master,subbands_master,channels_master,groups_master = \
                 self.get_master_assignment(band)
@@ -1430,16 +1448,16 @@ class SmurfTuneMixin(SmurfBase):
         else:
             d_freq = np.diff(freq)
             close_idx = d_freq > min_offset
-            close_idx = np.logical_and(np.hstack((close_idx, True)),
+            close_idx = np.logical_and(np.hstack((close_idx, True)), 
                                        np.hstack((True, close_idx)))
             # Assign all frequencies to a subband
             for idx in range(len(freq)):
-                subbands[idx] = self.get_closest_subband(freq[idx], band,
+                subbands[idx] = self.get_closest_subband(freq[idx], band, 
                                                      as_offset=as_offset)
-                subband_center = self.get_subband_centers(band,
+                subband_center = self.get_subband_centers(band, 
                                           as_offset=as_offset)[1][subbands[idx]]
                 offsets[idx] = freq[idx] - subband_center
-
+        
             # Assign unique channel numbers
             for unique_subband in set(subbands):
                 chans = self.get_channels_in_subband(band, int(unique_subband))
@@ -1448,35 +1466,35 @@ class SmurfTuneMixin(SmurfBase):
                     concat_mask = mask[:channel_per_subband]
                 else:
                     concat_mask = mask[:]
-
+            
                 chans = chans[:len(list(concat_mask))] #I am so sorry
-
+            
                 channels[mask[:len(chans)]] = chans
 
             # Prune channels that are too close
-            channels[~close_idx] = -1
+            channels[~close_idx] = -1        
 
             # write the channel assignments to file
             self.write_master_assignment(band, freq, subbands, channels)
-
+        
         return subbands, channels, offsets
 
 
-    def write_master_assignment(self, band, freqs, subbands, channels,
+    def write_master_assignment(self, band, freqs, subbands, channels, 
         groups=None):
         '''
-        writes a comma-separated list in the form band, freq (MHz), subband,
+        writes a comma-separated list in the form band, freq (MHz), subband, 
         channel, group. Group number defaults to -1.
         '''
         timestamp = self.get_timestamp()
         if groups is None:
             groups = -np.ones(len(freqs),dtype=int)
 
-        fn = os.path.join(self.tune_dir,
+        fn = os.path.join(self.tune_dir, 
                           f'{timestamp}_channel_assignment_b{band}.txt')
         self.log('Writing new channel assignment to {}'.format(fn))
         f = open(fn,'w')
-        for i in range(len(channels)):
+        for i in range(len(channels)):   
             f.write('%.4f,%i,%i,%i\n' % (freqs[i],subbands[i],channels[i],
                 groups[i]))
         f.close()
@@ -1489,7 +1507,7 @@ class SmurfTuneMixin(SmurfBase):
         Args:
         -----
         band (int) : The band number
-        tuning_filename : The tuning file to use for generating the
+        tuning_filename : The tuning file to use for generating the 
             master_assignemnt
         """
         self.log('Drawing band-{} tuning data from {}'.format(band,
@@ -1509,7 +1527,7 @@ class SmurfTuneMixin(SmurfBase):
 
         self.write_master_assignment(band, freqs, subbands, channels)
 
-
+    
     def get_group_list(self,band,group):
         _,_,channels,groups = self.get_master_assignment(band)
         chs_in_group = []
@@ -1527,7 +1545,7 @@ class SmurfTuneMixin(SmurfBase):
 
     def write_group_assignment(self,band,group,ch_list):
         '''
-        Combs master channel assignment and assigns group number to all channels
+        Combs master channel assignment and assigns group number to all channels 
         in ch_list. Does not affect other channels in the master file.
         '''
         freqs_master, subbands_master, channels_master, groups_master = self.get_master_assignment(band)
@@ -1574,7 +1592,7 @@ class SmurfTuneMixin(SmurfBase):
 #            plt.tight_layout()
 
 
-    def relock(self, band, res_num=None, drive=None, r2_max=.08,
+    def relock(self, band, res_num=None, drive=None, r2_max=.08, 
         q_max=100000, q_min=0, check_vals=False, min_gap=None,
         write_log=False):
         """
@@ -1597,7 +1615,7 @@ class SmurfTuneMixin(SmurfBase):
         digitizer_freq = self.get_digitizer_frequency_mhz(band)
         n_subband = self.get_number_sub_bands(band)
         n_channels = self.get_number_channels(band)
-
+        
         self.log('Relocking...')
         if res_num is None:
             res_num = np.arange(n_channels)
@@ -1617,7 +1635,7 @@ class SmurfTuneMixin(SmurfBase):
 
         f = [self.freq_resp[band]['resonances'][k]['freq'] \
                  for k in self.freq_resp[band]['resonances'].keys()]
-
+                 
         # Populate arrays
         counter = 0
         for k in self.freq_resp[band]['resonances'].keys():
@@ -1632,7 +1650,7 @@ class SmurfTuneMixin(SmurfBase):
                 if f[idx] > ll and f[idx] < hh:
                     self.log('{:4.3f} in bad list.'.format(f[idx]))
                     ch = -1
-            if ch < 0:
+            if ch < 0: 
                 if write_log:
                     self.log('No channel assigned: res {:03}'.format(k))
             elif min_gap is not None and f_gap is not None and f_gap < min_gap:
@@ -1661,7 +1679,7 @@ class SmurfTuneMixin(SmurfBase):
             write_log=write_log, log_level=self.LOG_INFO)
         self.set_eta_phase_array(band, eta_phase, write_log=write_log,
             log_level=self.LOG_INFO)
-        self.set_eta_mag_array(band, eta_mag, write_log=write_log,
+        self.set_eta_mag_array(band, eta_mag, write_log=write_log, 
             log_level=self.LOG_INFO)
 
         self.log('Setting on {} channels on band {}'.format(counter, band),
@@ -1783,24 +1801,24 @@ class SmurfTuneMixin(SmurfBase):
 
     def get_eta_scan_result_offset(self, band):
         """
-        Convenience function that gets the offset from center frequency
+        Convenience function that gets the offset from center frequency 
         from eta scans.
         Args:
         -----
         band (int) : The band
         Ret:
         ----
-        offset (float array) : The offset from the subband centers  of
+        offset (float array) : The offset from the subband centers  of 
            the resonators.
         """
         return self._get_eta_scan_result_from_key(band, 'offset')
 
-
+        
     def eta_reestimator(self, band, f0, drive, delta_freq=.01):
         """
         """
         subband, offset = self.freq_to_subband(band, f0)
-
+        
         #left = f0 - delta_freq
         #right = f0 + delta_freq
 
@@ -1814,7 +1832,7 @@ class SmurfTuneMixin(SmurfBase):
 
         return f_sweep+sbc[subband], resp, eta
 
-    def eta_estimator(self, band, freq, drive=10, f_sweep_half=.3,
+    def eta_estimator(self, band, freq, drive=10, f_sweep_half=.3, 
                       df_sweep=.002, delta_freq=.01):
         """
         Estimates eta parameters using the slow eta_scan
@@ -1823,7 +1841,7 @@ class SmurfTuneMixin(SmurfBase):
         f_sweep = np.arange(offset-f_sweep_half, offset+f_sweep_half, df_sweep)
         f, resp = self.fast_eta_scan(band, subband, f_sweep, 2, drive)
         # resp = rr + 1.j*ii
-
+        
         a_resp = np.abs(resp)
         idx = np.ravel(np.where(a_resp == np.min(a_resp)))[0]
         f0 = f_sweep[idx]
@@ -1846,7 +1864,7 @@ class SmurfTuneMixin(SmurfBase):
         eta_phase = np.angle(eta)
         eta_phase_deg = np.rad2deg(eta_phase)
         eta_scaled = eta_mag/subband_half_width
-
+        
         sb, sbc = self.get_subband_centers(band, as_offset=False)
 
         return f_sweep+sbc[subband], resp, eta
@@ -1864,7 +1882,7 @@ class SmurfTuneMixin(SmurfBase):
         channel_order = self.get_channel_order(band)
         first_channel = channel_order[::n_channel//n_subband]
 
-        self.set_eta_scan_channel(band, first_channel[subband],
+        self.set_eta_scan_channel(band, first_channel[subband], 
                                   write_log=write_log)
         self.set_eta_scan_amplitude(band, drive, write_log=write_log)
         self.set_eta_scan_freq(band, freq, write_log=write_log)
@@ -1889,11 +1907,11 @@ class SmurfTuneMixin(SmurfBase):
 
         return rr, ii
 
-    def flux_ramp_check(self, band, reset_rate_khz=None,
+    def flux_ramp_check(self, band, reset_rate_khz=None, 
                         fraction_full_scale=None, flux_ramp=True,
                         save_plot=True, show_plot=False):
         """
-        Tries to measure the V-phi curve in feedback disable mode.
+        Tries to measure the V-phi curve in feedback disable mode. 
         You can also run this with flux ramp off to see the intrinsic
         noise on the readout channel.
         Args:
@@ -1917,7 +1935,7 @@ class SmurfTuneMixin(SmurfBase):
             reset_rate_khz = self.reset_rate_khz
             self.log('reset_rate_khz is None. ',
                      f'Using default: {reset_rate_khz}')
-        n_channels = self.get_number_channels(band)
+        n_channels = self.get_number_channels(band)            
         old_fb = self.get_feedback_enable_array(band)
 
         # Turn off feedback
@@ -1930,7 +1948,7 @@ class SmurfTuneMixin(SmurfBase):
                                           lms_enable3=False, flux_ramp=flux_ramp)
 
         n_samp, n_chan = np.shape(df)
-
+        
         dd = np.ravel(np.where(np.diff(sync[:,0]) !=0))
         first_idx = dd[0]//n_channels
         second_idx = dd[4]//n_channels
@@ -1954,12 +1972,12 @@ class SmurfTuneMixin(SmurfBase):
         unique_subband = np.unique(subband)
 
         cm = plt.get_cmap('viridis')
-
+        
         timestamp = self.get_timestamp()
 
         self.log('Making plots...')
         scale = 1.0E3
-
+        
         n_high = 3
         highs = np.zeros((n_high, len(chan)))
 
@@ -1985,9 +2003,9 @@ class SmurfTuneMixin(SmurfBase):
                 ax1.plot(np.arange(len(ds))/fs*scale, ds, color=color)
                 ff, pp = signal.welch(df[:,c], fs=fs)
                 ax2.semilogy(ff/1.0E3, pp, color=color)
-
+                
                 sort_idx = np.argsort(pp)[::-1]
-
+                
 
             for k in reset_idx:
                 ax0.axvline(k/fs*scale, color='k', alpha=.6, linestyle=':')
@@ -2013,7 +2031,7 @@ class SmurfTuneMixin(SmurfBase):
         return d, df, sync
 
 
-    def tracking_setup(self, band, channel=None, reset_rate_khz=None,
+    def tracking_setup(self, band, channel=None, reset_rate_khz=None, 
         write_log=False, make_plot=False, save_plot=True, plotname_append='',
         show_plot=True, nsamp=2**19, lms_freq_hz=None, meas_lms_freq=False,
         flux_ramp=True, fraction_full_scale=None, lms_enable1=True,
@@ -2023,7 +2041,7 @@ class SmurfTuneMixin(SmurfBase):
         The function to start tracking. Starts the flux ramp and if requested
         attempts to measure the lms (demodulation) frequency. Otherwise this
         just tracks at the input lms frequency. This will also make plots for
-        the channels listed in {channel} input.
+        the channels listed in {channel} input. 
 
         Args:
         -----
@@ -2065,7 +2083,7 @@ class SmurfTuneMixin(SmurfBase):
             reset_rate_khz = self.reset_rate_khz
         if lms_gain is None:
             lms_gain = self.lms_gain[band]
-
+        
         ##
         ## Load unprovided optional args from cfg
         if feedback_start_frac is None:
@@ -2080,7 +2098,7 @@ class SmurfTuneMixin(SmurfBase):
 
         # Validate feedback_start_frac and feedback_end_frac
         if (feedback_start_frac < 0) or (feedback_start_frac >= 1):
-            raise ValueError("feedback_start_frac = {} not in [0,1)".format(feedback_start_frac))
+            raise ValueError("feedback_start_frac = {} not in [0,1)".format(feedback_start_frac))        
         if (feedback_end_frac < 0):
             raise ValueError("feedback_end_frac = {} not > 0".format(feedback_end_frac))
         # If feedback_start_frac exceeds feedback_end_frac, then
@@ -2089,13 +2107,13 @@ class SmurfTuneMixin(SmurfBase):
         if (feedback_end_frac < feedback_start_frac):
             raise ValueError("feedback_end_frac = {} is not less than feedback_start_frac = {}".format(feedback_end_frac, feedback_start_frac))
         # Done validating feedbackStart and feedbackEnd
-
+        
         ## End argument validation
         ##
-
+        
         if not flux_ramp:
             self.log('WARNING: THIS WILL NOT TURN ON FLUX RAMP!')
-
+            
         if make_plot:
             if show_plot:
                 plt.ion()
@@ -2106,7 +2124,7 @@ class SmurfTuneMixin(SmurfBase):
             fraction_full_scale = self.fraction_full_scale
         else:
             self.fraction_full_scale = fraction_full_scale
-
+        
         # Switched to a more stable estimator
         if lms_freq_hz is None:
             if meas_lms_freq:
@@ -2131,7 +2149,7 @@ class SmurfTuneMixin(SmurfBase):
         self.set_lms_enable3(band, lms_enable3, write_log=write_log)
         self.set_lms_freq_hz(band, lms_freq_hz, write_log=write_log)
 
-        iq_stream_enable = 0  # must be zero to access f,df stream
+        iq_stream_enable = 0  # must be zero to access f,df stream        
         self.set_iq_stream_enable(band, iq_stream_enable, write_log=write_log)
 
         self.flux_ramp_setup(reset_rate_khz, fraction_full_scale,
@@ -2160,21 +2178,21 @@ class SmurfTuneMixin(SmurfBase):
                                          feedback_start,
                                          feedback_end),
                  self.LOG_USER)
-
+        
         if flux_ramp:
             self.flux_ramp_on(write_log=write_log, new_epics_root=new_epics_root)
 
         # take one dataset with all channels
         if return_data or make_plot:
-            f, df, sync = self.take_debug_data(band, IQstream = iq_stream_enable,
+            f, df, sync = self.take_debug_data(band, IQstream = iq_stream_enable, 
                                            single_channel_readout=0, nsamp=nsamp)
-
+            
             df_std = np.std(df, 0)
 
             df_channels = np.ravel(np.where(df_std >0))
 
             channels_on = list(set(df_channels) & set(self.which_on(band)))
-            self.log("Number of channels on = {}".format(len(channels_on)),
+            self.log("Number of channels on = {}".format(len(channels_on)), 
                 self.LOG_USER)
 
             f_span = np.max(f,0) - np.min(f,0)
@@ -2183,11 +2201,11 @@ class SmurfTuneMixin(SmurfBase):
             timestamp = self.get_timestamp()
 
             fig,ax = plt.subplots(1,3,figsize = (12,5))
-            fig.suptitle('LMS freq = {:.0f} Hz, n_channels = {}'.format(lms_freq_hz,
+            fig.suptitle('LMS freq = {:.0f} Hz, n_channels = {}'.format(lms_freq_hz, 
                 len(channels_on)))
-
+            
             # Histogram the stddev
-            ax[0].hist(df_std[channels_on] * 1e3,bins = 20,edgecolor = 'k')
+            ax[0].hist(df_std[channels_on] * 1e3,bins = 20,edgecolor = 'k')            
             ax[0].set_xlabel('Flux ramp demod error std (kHz)')
             ax[0].set_ylabel('number of channels')
 
@@ -2209,10 +2227,10 @@ class SmurfTuneMixin(SmurfBase):
             ax[2].legend(loc='best')
 
             fig.tight_layout(rect=[0, 0.03, 1, 0.95])
-
+            
             if save_plot:
 
-                path = os.path.join(self.plot_dir,
+                path = os.path.join(self.plot_dir, 
                     timestamp + '_FR_amp_v_err' + plotname_append + '.png')
                 plt.savefig(path, bbox_inches='tight')
                 self.pub.register_file(path, 'amp_vs_err', plot=True)
@@ -2234,23 +2252,23 @@ class SmurfTuneMixin(SmurfBase):
                     # Plot tracked component
                     ax[0].plot(f[:, ch]*1e3)
                     ax[0].set_ylabel('Tracked Freq [kHz]')
-                    ax[0].text(.025, .9,
+                    ax[0].text(.025, .9, 
                         'LMS Freq {:.0f} Hz'.format(lms_freq_hz), fontsize=10,
-                        transform=ax[0].transAxes, bbox=bbox, ha='left',
+                        transform=ax[0].transAxes, bbox=bbox, ha='left', 
                         va='top')
 
-                    ax[0].text(.95, .9, 'Band {} Ch {:03}'.format(band, ch),
-                        fontsize=10, transform=ax[0].transAxes, ha='right',
+                    ax[0].text(.95, .9, 'Band {} Ch {:03}'.format(band, ch), 
+                        fontsize=10, transform=ax[0].transAxes, ha='right', 
                         va='top', bbox=bbox)
 
                     # Plot the untracking part
                     ax[1].plot(df[:, ch]*1e3)
                     ax[1].set_ylabel('Freq Error [kHz]')
                     ax[1].set_xlabel('Samp Num')
-                    ax[1].text(.025, .9,
+                    ax[1].text(.025, .9, 
                         f'RMS error = {df_std[ch]*1e3:.2f} kHz\n' +
                         f'FR frac. full scale = {fraction_full_scale:.2f}',
-                        fontsize=10, transform=ax[1].transAxes, bbox=bbox,
+                        fontsize=10, transform=ax[1].transAxes, bbox=bbox, 
                         ha='left', va='top')
 
                     n_sync_idx = len(sync_idx)
@@ -2266,12 +2284,12 @@ class SmurfTuneMixin(SmurfBase):
                             end = s + feedback_end_frac*n_samp
                             ax[0].axvspan(start, end, color='k', alpha=.15)
                             ax[1].axvspan(start, end, color='k', alpha=.15)
-
+                        
                     plt.tight_layout()
 
                     if save_plot:
 
-                        path = os.path.join(self.plot_dir, timestamp +
+                        path = os.path.join(self.plot_dir, timestamp + 
                             '_FRtracking_band{}_ch{:03}{}.png'.format(band,ch,
                             plotname_append))
                         plt.savefig(path, bbox_inches='tight')
@@ -2285,7 +2303,7 @@ class SmurfTuneMixin(SmurfBase):
         if return_data:
             return f, df, sync
 
-    def track_and_check(self, band, channel=None, reset_rate_khz=None,
+    def track_and_check(self, band, channel=None, reset_rate_khz=None, 
         make_plot=False, save_plot=True, show_plot=True,
         lms_freq_hz=None, flux_ramp=True, fraction_full_scale=None,
         lms_enable1=True, lms_enable2=True, lms_enable3=True, lms_gain=None,
@@ -2295,20 +2313,20 @@ class SmurfTuneMixin(SmurfBase):
         """
         This runs tracking setup and check_lock to prune bad channels. This has
         all the same inputs and tracking_setup and check_lock. In particular the
-        cut parameters are f_min, f_max, and df_max.
-
+        cut parameters are f_min, f_max, and df_max. 
+        
         Args:
         -----
         band (int): The band to track and check
-
+        
         Opt Args:
         ---------
         channel (int or int array): List of channels to plot.
-        toggle_feedback (bool): Whether or not to reset feedback (both the
+        toggle_feedback (bool): Whether or not to reset feedback (both the 
             global band feedbackEnable and the lmsEnables between tracking_setup
             and  check_lock.
         relock (bool): Whether or not to relock at the start. Default True.
-        tracking_setup (bool): Whether or not to run tracking_setup. Default
+        tracking_setup (bool): Whether or not to run tracking_setup. Default 
             True.
         reset_rate_khz (float) : The flux ramp frequency
         write_log (bool) : Whether to write output to the log.  Default False.
@@ -2346,18 +2364,18 @@ class SmurfTuneMixin(SmurfBase):
             reset_rate_khz = self.reset_rate_khz
         if lms_gain is None:
             lms_gain = self.lms_gain[band]
-
+            
         if relock:
             self.relock(band)
 
         # Start tracking
         if tracking_setup:
-            self.tracking_setup(band, channel=channel,
-                reset_rate_khz=reset_rate_khz, make_plot=make_plot,
+            self.tracking_setup(band, channel=channel, 
+                reset_rate_khz=reset_rate_khz, make_plot=make_plot, 
                 save_plot=save_plot, show_plot=show_plot,
-                lms_freq_hz=lms_freq_hz, flux_ramp=flux_ramp,
-                fraction_full_scale=fraction_full_scale, lms_enable1=lms_enable1,
-                lms_enable2=lms_enable2, lms_enable3=lms_enable3,
+                lms_freq_hz=lms_freq_hz, flux_ramp=flux_ramp, 
+                fraction_full_scale=fraction_full_scale, lms_enable1=lms_enable1, 
+                lms_enable2=lms_enable2, lms_enable3=lms_enable3, 
                 lms_gain=lms_gain, return_data=False,
                 feedback_start_frac=feedback_start_frac,
                 feedback_end_frac=feedback_end_frac)
@@ -2370,12 +2388,12 @@ class SmurfTuneMixin(SmurfBase):
 
         # Check the lock status and cut channels based on inputs.
         self.check_lock(band, f_min=f_min, f_max=f_max, df_max=df_max,
-            make_plot=make_plot, flux_ramp=flux_ramp,
+            make_plot=make_plot, flux_ramp=flux_ramp, 
             fraction_full_scale=fraction_full_scale, lms_freq_hz=lms_freq_hz,
-            reset_rate_khz=reset_rate_khz,
+            reset_rate_khz=reset_rate_khz, 
             feedback_start_frac=feedback_start_frac,
             feedback_end_frac=feedback_end_frac)
-
+    
 
     def eta_phase_check(self, band, rot_step_size=30, rot_max=360,
         reset_rate_khz=None, fraction_full_scale=None, flux_ramp=True):
@@ -2383,7 +2401,7 @@ class SmurfTuneMixin(SmurfBase):
         """
         if reset_rate_khz is None:
             reset_rate_khz = self.reset_rate_khz
-
+            
         ret = {}
 
         eta_phase0 = self.get_eta_phase_array(band)
@@ -2404,12 +2422,12 @@ class SmurfTuneMixin(SmurfBase):
             for c in np.arange(n_channels):
                 eta_phase[c] = tools.limit_phase_deg(eta_phase0[c] + r)
             self.set_eta_phase_array(band, eta_phase)
-
-            d, df, sync = self.tracking_setup(band,0,
+                         
+            d, df, sync = self.tracking_setup(band,0, 
                 reset_rate_khz=reset_rate_khz,
                 fraction_full_scale=fraction_full_scale,
                 make_plot=False, save_plot=False, show_plot=False,
-                lms_enable1=False, lms_enable2=False, lms_enable3=False,
+                lms_enable1=False, lms_enable2=False, lms_enable3=False, 
                 flux_ramp=flux_ramp)
 
             ret['data'][r] = {}
@@ -2427,7 +2445,7 @@ class SmurfTuneMixin(SmurfBase):
         keys = dat['data'].keys()
         band = dat['band']
         n_keys = len(keys)
-
+        
         n_channels = self.get_number_channels(band)
         fs = self.get_digitizer_frequency_mhz(band) * 1.0E6 /2/n_channels
         scale = 1.0E3
@@ -2440,7 +2458,7 @@ class SmurfTuneMixin(SmurfBase):
             dd = np.ravel(np.where(np.diff(sync[:,0]) !=0))
             first_idx = dd[0]//n_channels
             second_idx = dd[4]//n_channels
-            dt = int(second_idx-first_idx)  # In slow samples
+            dt = int(second_idx-first_idx)  # In slow samples                                             
             n_fr = int(len(sync[:,0])/n_channels/dt)
             reset_idx = np.arange(first_idx, n_fr*dt + first_idx+1, dt)
 
@@ -2469,34 +2487,34 @@ class SmurfTuneMixin(SmurfBase):
         """
 
         # make sure flux ramp is configured off before switching back into mode=1
-        self.flux_ramp_off()
+        self.flux_ramp_off() 
 
-        self.log("Setting flux ramp ModeControl to 0.",self.LOG_USER)
+        self.log("Setting flux ramp ModeControl to 0.",self.LOG_USER)        
         self.set_mode_control(0)
 
         ## Don't want to flip relays more than we have to.  Check if it's in the correct
         ## position ; only explicitly flip to DC if we have to.
-        if acCouple and (self.get_cryo_card_relays() >>
+        if acCouple and (self.get_cryo_card_relays() >> 
             self._cryo_card_flux_ramp_relay_bit & 1):
             self.log("Flux ramp set to DC mode (rly=0).",
                      self.LOG_USER)
             self.set_cryo_card_relay_bit(self._cryo_card_flux_ramp_relay_bit,0)
 
             # make sure it gets picked up by cryo card before handing back
-            while (self.get_cryo_card_relays() >>
+            while (self.get_cryo_card_relays() >> 
                 self._cryo_card_flux_ramp_relay_bit & 1):
                 self.log("Waiting for cryo card to update",
                          self.LOG_USER)
                 time.sleep(self._cryo_card_relay_wait)
 
 
-    def set_fixed_flux_ramp_bias(self,fractionFullScale,debug=True,
+    def set_fixed_flux_ramp_bias(self,fractionFullScale,debug=True, 
         do_config=True):
         """
         ???
         Args:
         -----
-        fractionFullScale (float) : Fraction of full flux ramp scale to output
+        fractionFullScale (float) : Fraction of full flux ramp scale to output 
         from [-1,1]
         """
 
@@ -2507,7 +2525,7 @@ class SmurfTuneMixin(SmurfBase):
         ## Disable flux ramp if it was on
         ## Doesn't seem to effect the fixed DC value being output
         ## if already in fixed flux ramp mode ModeControl=1
-        self.flux_ramp_off()
+        self.flux_ramp_off() 
 
         ## Don't want to flip relays more than we have to.  Check if it's in the correct
         ## position ; only explicitly flip to DC if we have to.
@@ -2528,14 +2546,14 @@ class SmurfTuneMixin(SmurfBase):
 
                 #before switching to ModeControl=1, make sure DAC is set to output zero V
                 LTC1668RawDacData0=np.floor(0.5*(2**self._num_flux_ramp_dac_bits))
-                self.log("Before switching to fixed DC flux ramp output, " +
+                self.log("Before switching to fixed DC flux ramp output, " + 
                          " explicitly setting flux ramp DAC to zero "+
-                         "(LTC1668RawDacData0={})".format(mode_control,LTC1668RawDacData0),
+                         "(LTC1668RawDacData0={})".format(mode_control,LTC1668RawDacData0), 
                          self.LOG_USER)
                 self.set_flux_ramp_dac(LTC1668RawDacData0)
 
                 self.log("Flux ramp ModeControl is {}".format(mode_control) +
-                         " - changing to 1 for fixed DC output.",
+                         " - changing to 1 for fixed DC output.", 
                          self.LOG_USER)
                 self.set_mode_control(1)
 
@@ -2546,15 +2564,15 @@ class SmurfTuneMixin(SmurfBase):
         if fractionFullScale<0:
             LTC1668RawDacData = 2**self._num_flux_ramp_dac_bits-LTC1668RawDacData-1
         if debug:
-            self.log("Setting flux ramp to {}".format(100 * fractionFullScale,
-                     int(LTC1668RawDacData)) + "% of full scale (LTC1668RawDacData={})",
+            self.log("Setting flux ramp to {}".format(100 * fractionFullScale, 
+                     int(LTC1668RawDacData)) + "% of full scale (LTC1668RawDacData={})", 
                      self.LOG_USER)
-        self.set_flux_ramp_dac(LTC1668RawDacData)
+        self.set_flux_ramp_dac(LTC1668RawDacData)        
 
-    def flux_ramp_setup(self, reset_rate_khz, fraction_full_scale, df_range=.1,
+    def flux_ramp_setup(self, reset_rate_khz, fraction_full_scale, df_range=.1, 
         band=2, write_log=False, new_epics_root=None):
         """
-        Set flux ramp sawtooth rate and amplitude. If there are errors, check
+        Set flux ramp sawtooth rate and amplitude. If there are errors, check 
         that you are using an allowed reset rate! Not all rates are allowed.
         Allowed rates: 1, 2, 3, 4, 5, 6, 8, 10, 12, 15 kHz
         Args:
@@ -2565,8 +2583,8 @@ class SmurfTuneMixin(SmurfBase):
             fraction of the maximum possible value.
         Opt Args:
         ---------
-        df_range (float) :
-        band (int) : The band to setup the flux ramp on.
+        df_range (float) : 
+        band (int) : The band to setup the flux ramp on. 
         write_log (bool) : Whether to write output to the log
         new_epics_root (str) : Override the original epics root.
         """
@@ -2600,10 +2618,10 @@ class SmurfTuneMixin(SmurfBase):
         trialResetRate = (dspClockFrequencyMHz * 1e6) / (rampMaxCnt + 1)
         trialFractionFullScale = trialFullScaleRate / trialResetRate
         fractionFullScale = trialFractionFullScale
-        diffDesiredFractionFullScale = np.abs(trialFractionFullScale -
+        diffDesiredFractionFullScale = np.abs(trialFractionFullScale - 
             fraction_full_scale)
 
-        self.log("Percent full scale = {:0.3f}%".format(100 * fractionFullScale),
+        self.log("Percent full scale = {:0.3f}%".format(100 * fractionFullScale), 
             self.LOG_USER)
 
         if diffDesiredFractionFullScale > df_range:
@@ -2611,20 +2629,20 @@ class SmurfTuneMixin(SmurfBase):
                 "exceeded! {}".format(diffDesiredFractionFullScale) +
                 " vs acceptable {}".format(df_range))
             self.log("Difference from desired fraction of full scale exceeded!" +
-                " P{} vs acceptable {}".format(diffDesiredFractionFullScale,
-                    df_range),
+                " P{} vs acceptable {}".format(diffDesiredFractionFullScale, 
+                    df_range), 
                 self.LOG_USER)
 
         if rtmClock < 2e6:
             raise ValueError("RTM clock rate = "+
                 "{} is too low (SPI clock runs at 1MHz)".format(rtmClock*1e-6))
             self.log("RTM clock rate = "+
-                "{} is too low (SPI clock runs at 1MHz)".format(rtmClock * 1e-6),
+                "{} is too low (SPI clock runs at 1MHz)".format(rtmClock * 1e-6), 
                 self.LOG_USER)
             return
 
 
-        FastSlowRstValue = np.floor((2**self.num_flux_ramp_counter_bits) *
+        FastSlowRstValue = np.floor((2**self.num_flux_ramp_counter_bits) * 
             (1 - fractionFullScale)/2)
 
 
@@ -2638,7 +2656,7 @@ class SmurfTuneMixin(SmurfBase):
         EnableRampTrigger = 1
 
         self.set_low_cycle(LowCycle, new_epics_root=new_epics_root,
-                           write_log=write_log)
+                           write_log=write_log) 
         self.set_high_cycle(HighCycle, new_epics_root=new_epics_root,
                            write_log=write_log)
         self.set_k_relay(KRelay, new_epics_root=new_epics_root,
@@ -2681,16 +2699,16 @@ class SmurfTuneMixin(SmurfBase):
         return 1-2*(self.get_fast_slow_rst_value(new_epics_root=new_epics_root)/
                     2**self.num_flux_ramp_counter_bits)
 
-
+    
     def check_lock(self, band, f_min=.015, f_max=.2, df_max=.03,
         make_plot=False, flux_ramp=True, fraction_full_scale=None,
-        lms_freq_hz=None, reset_rate_khz=None, feedback_start_frac=None,
+        lms_freq_hz=None, reset_rate_khz=None, feedback_start_frac=None, 
         feedback_end_frac=None, **kwargs):
         """
         Takes a tracking setup and turns off channels that have bad
         tracking. The limits are set by the variables f_min, f_max,
         and df_max. The output is stored to freq_resp[band]['lock_status'] dict.
-
+        
         Args:
         -----
         band (int) : The band the check
@@ -2704,7 +2722,7 @@ class SmurfTuneMixin(SmurfBase):
         faction_full_scale (float): Number between 0 and 1. The amplitude
            of the flux ramp.
         lms_freq_hz (float) : The tracking frequency in Hz. Default is None
-        reset_rate_khz (float) : The flux ramp reset rate in kHz.
+        reset_rate_khz (float) : The flux ramp reset rate in kHz. 
         feedback_start_frac (float) : What fraction of the flux ramp to
             skip before feedback. Float between 0 and 1.
         feedback_end_frac (float) : What fraction of the flux ramp to skip
@@ -2714,7 +2732,7 @@ class SmurfTuneMixin(SmurfBase):
 
         if reset_rate_khz is None:
             reset_rate_khz = self.reset_rate_khz
-
+        
         if fraction_full_scale is None:
             fraction_full_scale = self.fraction_full_scale
 
@@ -2723,14 +2741,14 @@ class SmurfTuneMixin(SmurfBase):
 
         channels = self.which_on(band)
         n_chan = len(channels)
-
+        
         self.log('Currently {} channels on'.format(n_chan))
 
         # Tracking setup returns information on all channels in a band
         f, df, sync = self.tracking_setup(band, make_plot=False,
             flux_ramp=flux_ramp, fraction_full_scale=fraction_full_scale,
             lms_freq_hz=lms_freq_hz, reset_rate_khz=reset_rate_khz,
-            feedback_start_frac=feedback_start_frac,
+            feedback_start_frac=feedback_start_frac, 
             feedback_end_frac=feedback_end_frac)
 
         high_cut = np.array([])
@@ -2754,7 +2772,7 @@ class SmurfTuneMixin(SmurfBase):
                 df_cut = np.append(df_cut, ch)
 
         chan_after = self.which_on(band)
-
+        
         self.log('High cut channels {}'.format(high_cut))
         self.log('Low cut channels {}'.format(low_cut))
         self.log('df cut channels {}'.format(df_cut))
@@ -2784,7 +2802,7 @@ class SmurfTuneMixin(SmurfBase):
         """
         Simple wrapper function for check_lock with the flux ramp off
         """
-        self.check_lock(band, f_min=0., f_max=np.inf, df_max=df_max,
+        self.check_lock(band, f_min=0., f_max=np.inf, df_max=df_max, 
             make_plot=make_plot, flux_ramp=False, **kwargs)
 
 
@@ -2813,7 +2831,7 @@ class SmurfTuneMixin(SmurfBase):
         # this only turn off tones in each sub-band before sweeping,
         # instead?
         self.band_off(band)
-
+        
         if drive_power is None:
             drive_power = self.config.get('init')['band_{}'.format(band)].get('amplitude_scale')
             self.log(f'No drive_power given. Using value in config ' +
@@ -2830,7 +2848,7 @@ class SmurfTuneMixin(SmurfBase):
         path = os.path.join(self.output_dir, save_name.format(timestamp, 'freq'))
         np.savetxt(path, f)
         self.pub.register_file(path, 'sweep_response', format='txt')
-
+        
         path = os.path.join(self.output_dir, save_name.format(timestamp, 'resp'))
         np.savetxt(path, resp)
         self.pub.register_file(path, 'sweep_response', format='txt')
@@ -2848,30 +2866,30 @@ class SmurfTuneMixin(SmurfBase):
 
         # Find resonator peaks
         res_freq = self.find_all_peak(self.freq_resp[band]['find_freq']['f'],
-            self.freq_resp[band]['find_freq']['resp'], subband,
+            self.freq_resp[band]['find_freq']['resp'], subband, 
             make_plot=make_plot, plotname_append=plotname_append, band=band,
             rolling_med=rolling_med, window=window,
             make_subband_plot=make_subband_plot)
         self.freq_resp[band]['find_freq']['resonance'] = res_freq
 
         # Save resonances
-        path = os.path.join(self.output_dir,
+        path = os.path.join(self.output_dir, 
             save_name.format(timestamp, 'resonance'))
         np.savetxt(path, self.freq_resp[band]['find_freq']['resonance'])
         self.pub.register_file(path, 'resonances', format='txt')
 
         # Call plotting
         if make_plot:
-            self.plot_find_freq(self.freq_resp[band]['find_freq']['f'],
+            self.plot_find_freq(self.freq_resp[band]['find_freq']['f'], 
                 self.freq_resp[band]['find_freq']['resp'], save_plot=save_plot,
-                show_plot=show_plot,
+                show_plot=show_plot, 
                 save_name=save_name.replace('.txt', plotname_append + \
                                             '.png').format(timestamp, band))
 
 
         return f, resp
 
-    def plot_find_freq(self, f=None, resp=None, subband=None, filename=None,
+    def plot_find_freq(self, f=None, resp=None, subband=None, filename=None, 
         save_plot=True, save_name='amp_sweep.png', show_plot=False):
         '''
         Plots the response of the frequency sweep. Must input f and resp, or
@@ -2899,7 +2917,7 @@ class SmurfTuneMixin(SmurfBase):
 
             for i, sb in enumerate(subband):
                 color = cm(float(i)/len(subband)/2. + .5*(i%2))
-                plt.plot(f[sb,:], np.abs(resp[sb,:]), '.', markersize=4,
+                plt.plot(f[sb,:], np.abs(resp[sb,:]), '.', markersize=4, 
                     color=color)
             plt.title("findfreq response")
             plt.xlabel("Frequency offset (MHz)")
@@ -2937,7 +2955,7 @@ class SmurfTuneMixin(SmurfBase):
         subband_width = 2 * digitizer_freq / n_subbands
 
         scan_freq = (digitizer_freq/n_subbands/2)*np.linspace(-1,1,n_step)
-
+        
         resp = np.zeros((n_subbands, np.shape(scan_freq)[0]), dtype=complex)
         freq = np.zeros((n_subbands, np.shape(scan_freq)[0]))
 
@@ -2946,7 +2964,7 @@ class SmurfTuneMixin(SmurfBase):
         self.log('Working on band {:d}'.format(band))
         for sb in subband:
             self.log('Sweeping subband no: {}'.format(sb))
-            f, r = self.fast_eta_scan(band, sb, scan_freq, n_read,
+            f, r = self.fast_eta_scan(band, sb, scan_freq, n_read, 
                 drive)
             resp[sb,:] = r
             freq[sb,:] = f
@@ -2955,8 +2973,8 @@ class SmurfTuneMixin(SmurfBase):
         return freq, resp
 
 
-    def find_all_peak(self, freq, resp, subband=None, rolling_med=False,
-        window=500, grad_cut=0.05, amp_cut=0.25, freq_min=-2.5E8, freq_max=2.5E8,
+    def find_all_peak(self, freq, resp, subband=None, rolling_med=False, 
+        window=500, grad_cut=0.05, amp_cut=0.25, freq_min=-2.5E8, freq_max=2.5E8, 
         make_plot=False, save_plot=True, plotname_append='', band=None,
         make_subband_plot=False, subband_plot_with_slow=False, timestamp=None,
         pad=2, min_gap=2):
@@ -2965,7 +2983,7 @@ class SmurfTuneMixin(SmurfBase):
         Args:
         -----
         freq (array):  (n_subbands x n_freq_swept) array of frequencies swept
-        response (complex array): n_subbands x n_freq_swept array of complex
+        response (complex array): n_subbands x n_freq_swept array of complex 
             response
         subbands (list of ints): subbands that we care to search in
         Optional Args:
@@ -2976,45 +2994,45 @@ class SmurfTuneMixin(SmurfBase):
         subbands = np.array([])
         timestamp = self.get_timestamp()
 
-        # Stack all the frequency and response data into a
+        # Stack all the frequency and response data into a 
         sb, _ = np.where(freq !=0)
         idx = np.unique(sb)
         f_stack = np.ravel(freq[idx])
         r_stack = np.ravel(resp[idx])
-
+        
         # Frequency is interleaved, so sort it
         s = np.argsort(f_stack)
         f_stack = f_stack[s]
         r_stack = r_stack[s]
 
         # Now find the peaks
-        peaks = self.find_peak(f_stack, r_stack, rolling_med=rolling_med,
+        peaks = self.find_peak(f_stack, r_stack, rolling_med=rolling_med, 
             window=window, grad_cut=grad_cut, amp_cut=amp_cut, freq_min=freq_min,
-            freq_max=freq_max, make_plot=make_plot, save_plot=save_plot,
+            freq_max=freq_max, make_plot=make_plot, save_plot=save_plot, 
             plotname_append=plotname_append, band=band,
             make_subband_plot=make_subband_plot,
-            subband_plot_with_slow=subband_plot_with_slow, timestamp=timestamp,
+            subband_plot_with_slow=subband_plot_with_slow, timestamp=timestamp, 
             pad=pad, min_gap=min_gap)
 
         return peaks
 
-    def fast_eta_scan(self, band, subband, freq, n_read, drive,
+    def fast_eta_scan(self, band, subband, freq, n_read, drive, 
         make_plot=False):
         """copy of fastEtaScan.m from Matlab. Sweeps quickly across a range of
         freq and gets I, Q response
         Args:
          band (int): which 500MHz band to scan
          subband (int): which subband to scan
-         freq (n_freq x 1 array): frequencies to scan relative to subband
+         freq (n_freq x 1 array): frequencies to scan relative to subband 
             center
          n_read (int): number of times to scan
          drive (int): tone power
         Optional Args:
         make_plot (bool): Make eta plots
         Outputs:
-         resp (n_freq x 2 array): real, imag response as a function of
+         resp (n_freq x 2 array): real, imag response as a function of 
             frequency
-         freq (n_freq x n_read array): frequencies scanned, relative to
+         freq (n_freq x n_read array): frequencies scanned, relative to 
             subband center
         """
         n_subbands = self.get_number_sub_bands(band)
@@ -3047,7 +3065,7 @@ class SmurfTuneMixin(SmurfBase):
                 Ielem = Ielem - 2**24
             if Qelem > 2**23:
                 Qelem = Qelem - 2**24
-
+            
             Ielem = Ielem / 2**23
             Qelem = Qelem / 2**23
 
@@ -3066,15 +3084,15 @@ class SmurfTuneMixin(SmurfBase):
         Does a fine sweep over the resonances found in find_freq. This
         information is used for placing tones onto resonators. It is
         recommended that you follow this up with run_serial_gradient_descent()
-        afterwards.
+        afterwards. 
 
         Args:
         -----
         band (int) : The 500 MHz band to setup.
         Optional Args:
         --------------
-        resonance (float array) : A 2 dimensional array with resonance
-            frequencies and the subband they are in. If given, this will take
+        resonance (float array) : A 2 dimensional array with resonance 
+            frequencies and the subband they are in. If given, this will take 
             precedent over the one in self.freq_resp.
         drive (int) : The power to drive the resonators. Default is defined in cfg file.
         sweep_width (float) : The range to scan around the input resonance in
@@ -3092,7 +3110,7 @@ class SmurfTuneMixin(SmurfBase):
 
         # Turn off all tones in this band first
         self.band_off(band)
-
+        
         # Check if any resonances are stored
         if 'resonance' not in self.freq_resp[band]['find_freq'] and resonance is None:
             self.log('No resonances stored in band {}'.format(band) +
@@ -3105,7 +3123,7 @@ class SmurfTuneMixin(SmurfBase):
 
         if delta_freq is None:
             delta_freq = self.config.get('tune_band').get('delta_freq')[str(band)]
-
+            
         if resonance is not None:
             input_res = resonance
         else:
@@ -3136,7 +3154,7 @@ class SmurfTuneMixin(SmurfBase):
             eta_phase_deg = np.angle(eta)*180/np.pi
             eta_mag = np.abs(eta)
             eta_scaled = eta_mag / subband_half_width
-
+            
             abs_resp = np.abs(resp)
             idx = np.ravel(np.where(abs_resp == np.min(abs_resp)))[0]
 
@@ -3156,10 +3174,10 @@ class SmurfTuneMixin(SmurfBase):
             }
 
 
-        # Assign resonances to channels
+        # Assign resonances to channels                                                       
         self.log('Assigning channels')
         f = [resonances[k]['freq'] for k in resonances.keys()]
-        subbands, channels, offsets = self.assign_channels(f, band=band,
+        subbands, channels, offsets = self.assign_channels(f, band=band, 
                                         as_offset=False,min_offset=min_offset,
                                         new_master_assignment=new_master_assignment)
 
@@ -3173,7 +3191,7 @@ class SmurfTuneMixin(SmurfBase):
         self.save_tune()
 
         self.relock(band)
-
+    
     def save_tune(self, update_last_tune=True):
         """
         Saves the tuning information (self.freq_resp) to tuning directory
@@ -3227,7 +3245,7 @@ class SmurfTuneMixin(SmurfBase):
                 band=np.ravel(np.array(band))
                 self.log('Only loading tune data for bands={}.'.format(str(band)))
                 for b in band:
-                    self.freq_resp[b] = fs[b]
+                    self.freq_resp[b] = fs[b]                    
         else:
             # Right now, returns tune data for all bands in file;
             # doesn't know about the band arg.
@@ -3237,11 +3255,11 @@ class SmurfTuneMixin(SmurfBase):
         """
         Returns the full path to the most recent tuning file.
         """
-        return np.sort(glob.glob(os.path.join(self.tune_dir,
+        return np.sort(glob.glob(os.path.join(self.tune_dir, 
                                               '*_tune.npy')))[-1]
 
 
-    def parallel_scan(self, band, channels, drive,
+    def parallel_scan(self, band, channels, drive, 
         scan_freq=np.arange(-3, 3, .1)):
         """
         Does all the eta scans at once. The center frequency
@@ -3252,19 +3270,19 @@ class SmurfTuneMixin(SmurfBase):
         channels (int array): The list of channels to
            eta scan.
         drive (int) : The drive amplitude
-
+        
         Opt Args:
         ---------
-        scan_freq (float array) : The frequencies to
-           scan.
+        scan_freq (float array) : The frequencies to 
+           scan. 
         """
         self.flux_ramp_off()
 
-        n_channels = self.get_number_channels(band)
+        n_channels = self.get_number_channels(band)        
         ch_idx = np.zeros(n_channels, dtype=int)
         for c in channels:
             ch_idx[c] = 1
-
+        
         self.set_eta_mag_array(band, np.ones(n_channels, dtype=int))
         self.set_feedback_enable_array(band, np.zeros(n_channels, dtype=int))
         self.set_amplitude_scale_array(band, ch_idx*drive)
@@ -3274,13 +3292,13 @@ class SmurfTuneMixin(SmurfBase):
         eta_phase = np.array([0., 90.])
 
         self.log('Starting parallel scan')
-
+        
         for j in np.arange(2):
-            self.set_eta_phase_array(band,
+            self.set_eta_phase_array(band, 
                 eta_phase[j] * np.ones(n_channels, dtype=int))
             for i in np.arange(len(scan_freq)):
                 self.log('scan {}'.format(i))
-                self.set_center_frequency_array(band,
+                self.set_center_frequency_array(band, 
                     scan_freq[i]*np.ones(n_channels, dtype=int))
                 freq_error[i] = freq_error[i] + real_imag[j] * self.get_frequency_error_array(band)
 
@@ -3295,7 +3313,7 @@ class SmurfTuneMixin(SmurfBase):
         Attempts to estimate the carrier (phi0) rate for all channels
         on in the requested 500 MHz band (0..7) using the flux_mod2
         routine.
-
+        
         Args:
         -----
         band (int): Will attempt to estimate the carrier rate on the
@@ -3338,7 +3356,7 @@ class SmurfTuneMixin(SmurfBase):
         self.set_feedback_enable(band, old_feedback)
         return reset_rate_khz * s * 1000  # convert to Hz
 
-    def flux_mod2(self, band, df, sync, min_scale=0, make_plot=False,
+    def flux_mod2(self, band, df, sync, min_scale=0, make_plot=False, 
                   channel=None, threshold=.5):
         """
         Attempts to find the number of phi0s in a tracking_setup.
@@ -3359,7 +3377,7 @@ class SmurfTuneMixin(SmurfBase):
         make_plot (bool): Whether to make a plot. If True, you must
             also supply the channels to plot using the channel opt
             arg.
-        channel (int or int array): The channels to plot. Default
+        channel (int or int array): The channels to plot. Default 
             is None.
         Ret:
         ----
@@ -3369,7 +3387,7 @@ class SmurfTuneMixin(SmurfBase):
         sync_flag = self.make_sync_flag(sync)
 
         # The longest time between resets
-        max_len = np.max(np.diff(sync_flag))
+        max_len = np.max(np.diff(sync_flag)) 
         n_sync = len(sync_flag) - 1
         n_samp, n_chan = np.shape(df)
 
@@ -3424,7 +3442,7 @@ class SmurfTuneMixin(SmurfBase):
 
                     #kill shawn
                     peaks[ch]=peak
-
+                    
                 if make_plot and ch in channel:
                     fig, ax = plt.subplots(2)
                     for i in np.arange(n_sync):
@@ -3511,7 +3529,7 @@ class SmurfTuneMixin(SmurfBase):
                         pr = pt % rlen
                         sx = sx + refsig[pr] * flux[pt]
                     sxarray = np.append(sxarray, sx)
-
+                
                 ac = 0
                 for n in np.arange(pts):
                     ac = ac + flux[n]**2
@@ -3546,7 +3564,7 @@ class SmurfTuneMixin(SmurfBase):
                         c[n] = np.cos(n * 2 * np.pi / (dn/result[ch]));
                         rs = rs + s[n] * flux[n]
                         rc = rc + c[n] * flux[n]
-
+                    
                     theta = np.arctan2(rc, rs)
                     for n in range(0, pts):
                         r[n] = 0.5 * scl *  np.sin(theta + n * 2 * np.pi / (dn/result[ch]));
@@ -3574,7 +3592,7 @@ class SmurfTuneMixin(SmurfBase):
             reset_rate_khz = self.reset_rate_khz
         if lms_gain is None:
             lms_gain = self.lms_gain[band]
-
+            
         # Extract the resonators
         resonators = self.freq_resp[band]['resonances']
         keys = resonators.keys()
@@ -3606,10 +3624,10 @@ class SmurfTuneMixin(SmurfBase):
             self.band_off(band)
             self.relock(band, res_num=np.array([rn1, rn2]))
 
-            d, df, sync = self.tracking_setup(band, 0,
-                reset_rate_khz=reset_rate_khz, lms_freq_hz=lms_freq_hz,
-                flux_ramp=flux_ramp, lms_enable1=lms_enable1,
-                lms_enable2=lms_enable2, lms_enable3=lms_enable3,
+            d, df, sync = self.tracking_setup(band, 0, 
+                reset_rate_khz=reset_rate_khz, lms_freq_hz=lms_freq_hz, 
+                flux_ramp=flux_ramp, lms_enable1=lms_enable1, 
+                lms_enable2=lms_enable2, lms_enable3=lms_enable3, 
                 lms_gain=lms_gain, fraction_full_scale=fraction_full_scale,
                 make_plot=False)
             df_err[i,0] = np.std(df[:,ch1])
@@ -3625,10 +3643,10 @@ class SmurfTuneMixin(SmurfBase):
         Dump the current tuning info to config file and write to disk
         Args:
         -----
-        output_file (str): path to output file location. Defaults to the config
+        output_file (str): path to output file location. Defaults to the config 
             file status dir and timestamp
-        return_screen (bool): whether to also return the contents of the config
-            file in addition to writing to file. Defaults False.
+        return_screen (bool): whether to also return the contents of the config 
+            file in addition to writing to file. Defaults False. 
         """
 
         # get the HEMT info because why not
@@ -3651,7 +3669,7 @@ class SmurfTuneMixin(SmurfBase):
         # there is probably a better way to do this
         for band in self.config.get('init')['bands']:
             band_outputs = {} # Python copying is weird so this is easier
-            band_outputs[band] = {}
+            band_outputs[band] = {} 
             band_outputs[band]['amplitudes'] = list(self.get_amplitude_scale_array(band).astype(float))
             band_outputs[band]['freqs'] = list(self.get_center_frequency_array(band))
             band_outputs[band]['eta_mag'] = list(self.get_eta_mag_array(band))
@@ -3673,22 +3691,22 @@ class SmurfTuneMixin(SmurfBase):
 
     def fake_resonance_dict(self, freqs, save_sweeps=False):
         """
-        Takes a list of resonance frequencies and fakes a resonance dictionary
+        Takes a list of resonance frequencies and fakes a resonance dictionary 
         so that we can run setup_notches on a subset without find_freqs
         Args:
-        freqs (list of floats): given in MHz, list of frequencies to tune.
+        freqs (list of floats): given in MHz, list of frequencies to tune. 
         Need to be within 100kHz to be really effective
-        bands (list): band numbers that we have (This should be in the config
+        bands (list): band numbers that we have (This should be in the config 
         file but I can't find it...)
-        save_sweeps (bool): whether to save each band as an amplitude sweep.
+        save_sweeps (bool): whether to save each band as an amplitude sweep. 
         Defaults False.
         Outputs:
         resonance dictionary like the one that comes out of find_freqs
-        You probably want to assign it to the right place, as in S.freq_resp =
+        You probably want to assign it to the right place, as in S.freq_resp = 
         S.fake_resonance_dict(freqs, bands)
         """
 
-        bands = self.config.get('init').get('bands')
+        bands = self.config.get('init').get('bands')        
         band_centers = []
         for band_no in bands: # we can get up to 8 bands I guess
             center = self.get_band_center_mhz(band_no)
@@ -3735,7 +3753,7 @@ class SmurfTuneMixin(SmurfBase):
 
     def freq_to_band(self, frequency, band_center_list):
         """
-        Convert the frequency to which band we're in. This is almost certainly
+        Convert the frequency to which band we're in. This is almost certainly 
         a duplicate but I can't find the original...
         Args:
         -----
