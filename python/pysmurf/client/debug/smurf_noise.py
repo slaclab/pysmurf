@@ -30,7 +30,8 @@ class SmurfNoiseMixin(SmurfBase):
         channel=None, nperseg=2**12,
         detrend='constant', fs=None, low_freq=np.array([.1, 1.]),
         high_freq=np.array([1., 10.]), make_channel_plot=True,
-        make_summary_plot=True, save_data=False, show_plot=False,
+        make_summary_plot=True, plotname_append='',
+        save_data=False, show_plot=False,
         grid_on=False, datafile=None, downsample_factor=None,
         write_log=True):
 
@@ -43,7 +44,6 @@ class SmurfNoiseMixin(SmurfBase):
         Args:
         -----
         meas_time (float): The amount of time to observe in seconds.
-
         Opt Args:
         ---------
         channel (int array): The channels to plot. Note that this script always
@@ -62,6 +62,7 @@ class SmurfNoiseMixin(SmurfBase):
             is True.
         save_data (bool): Whether to save the band averaged data as a text file.
             Default is False.
+        plotname_append (string): Appended to the default plot filename. Default ''.
         show_plot (bool): Show the plot on the screen. Default False.
         datefile (str): if data has already been taken, can point to a file to
             bypass data taking and just analyze.
@@ -211,8 +212,8 @@ class SmurfNoiseMixin(SmurfBase):
                 fig.tight_layout()
 
                 plot_name = basename + \
-                            f'_noise_timestream_b{b}_ch{ch:03}.png'
-                fig.savefig(os.path.join(self.plot_dir, plot_name),
+                            f'_noise_timestream_b{b}_ch{ch:03}{plotname_append}.png'
+                fig.savefig(os.path.join(self.plot_dir, plot_name), 
                     bbox_inches='tight')
 
                 # Close the individual channel plots - otherwise too many
@@ -239,8 +240,9 @@ class SmurfNoiseMixin(SmurfBase):
                 ax.set_xlabel(r'Mean noise [$\mathrm{pA}/\sqrt{\mathrm{Hz}}$]')
 
                 plot_name = basename + \
-                    '{}_{}_noise_hist.png'.format(l, h)
-                plt.savefig(os.path.join(self.plot_dir, plot_name),
+
+                    '{}_{}_noise_hist{}.png'.format(l, h, plotname_append)
+                plt.savefig(os.path.join(self.plot_dir, plot_name), 
                     bbox_inches='tight')
                 if show_plot:
                     plt.show()
@@ -276,7 +278,7 @@ class SmurfNoiseMixin(SmurfBase):
                 plt.tight_layout()
                 fig.subplots_adjust(top = 0.9)
                 noise_params_hist_fname = basename + \
-                    '_b{}_noise_params.png'.format(b)
+                    '_b{}_noise_params{}.png'.format(b, plotname_append)
                 plt.savefig(os.path.join(self.plot_dir,
                     noise_params_hist_fname),
                     bbox_inches='tight')
@@ -295,7 +297,6 @@ class SmurfNoiseMixin(SmurfBase):
         band (int): The band to search
         noise (float array): The noise floors. Presumably calculated
             using take_noise_psd.
-
         Optional Args:
         --------------
         cutoff (float) : The value to cut at in the same units as noise.
@@ -360,12 +361,10 @@ class SmurfNoiseMixin(SmurfBase):
         measurements. You can make it analyze the data and make plots with the
         optional argument analyze=True. Note that the analysis is a little
         slow.
-
         Args:
         -----
         band (int): The band to take noise vs bias data on
         bias_group (int or int array): which bias group(s) to bias/read back.
-
         Opt Args:
         ---------
         bias (float array): The array of bias values to step through. If None,
@@ -531,7 +530,6 @@ class SmurfNoiseMixin(SmurfBase):
         '''
         For, e.g., noise_vs_bias, the list of datafiles is recorded in a txt file.
         This function simply extracts those filenames and returns them as a list.
-
         Args:
         -----
         fn_datafiles (str): full path to txt containing names of data files
@@ -548,7 +546,6 @@ class SmurfNoiseMixin(SmurfBase):
         For, e.g., noise_vs_bias, the list of commanded bias voltages is
         recorded in a txt file. This function simply extracts those values and
         returns them as a list.
-
         Args:
         -----
         fn_biases (str): full path to txt containing list of bias voltages
@@ -569,7 +566,6 @@ class SmurfNoiseMixin(SmurfBase):
         '''
         Takes IV data and extracts responsivities as a function of commanded
         bias voltage.
-
         Parameters
         ----------
         iv_data_filename (str): filename of output of IV analysis
@@ -600,7 +596,6 @@ class SmurfNoiseMixin(SmurfBase):
     def NEI_to_NEP(self,iv_band_data,ch,v_bias):
         '''
         Takes NEI in pA/rtHz and converts to NEP in aW/rtHz.
-
         Parameters
         ----------
         si_dict (dict): dictionary indexed by channel number; each entry is
@@ -611,7 +606,6 @@ class SmurfNoiseMixin(SmurfBase):
                                each element of si_dict.
         v_bias (float): commanded bias voltage at which to estimate NEP
         Pxx (array): NEI in pA/rtHz
-
         Returns
         -------
         1/si (float): noise-equivalent power in aW/rtHz
@@ -630,7 +624,6 @@ class SmurfNoiseMixin(SmurfBase):
         unit_override=None):
         """
         Analysis script associated with noise_vs_bias.
-
         Args:
         -----
         bias (float array): The bias in voltage. Can also pass an absolute
@@ -638,7 +631,6 @@ class SmurfNoiseMixin(SmurfBase):
         datafile (str array): The paths to the datafiles. Must be same length
             as bias array. Can also pass an absolute path to a txt containing
             the names of the datafiles.
-
         Opt Args:
         ---------
         channel (int array): The channels to analyze.
@@ -1134,19 +1126,16 @@ class SmurfNoiseMixin(SmurfBase):
         Return model fit for a PSD.
         p0 (float array): initial guesses for model fitting: [white-noise level
         in pA/rtHz, exponent of 1/f^n component, knee frequency in Hz]
-
         Args:
         -----
         f (float array) : The frequency information
         Pxx (float array) : The power spectral data
-
         Opt Args:
         ---------
         fs (float) : Sampling frequency. If None, loads in the current
             sampling frequency.
         flux_ramp_freq (float) : The flux ramp frequency in Hz
         p0 (float array) : Initial guess for fitting PSDs
-
         Ret:
         ----
         popt (float array) : The fit parameters - [white_noise_level, n, f_knee]
@@ -1204,11 +1193,9 @@ class SmurfNoiseMixin(SmurfBase):
         """
         Measures the noise with all the resonators on, then measures
         every channel individually.
-
         Args:
         -----
         band (int) : The band number
-
         Opt Args:
         ---------
         meas_time (float) : The measurement time per resonator in
@@ -1245,7 +1232,6 @@ class SmurfNoiseMixin(SmurfBase):
                                         make_channel_plot=False):
         """
         analyzes the data from noise_all_vs_noise_solo
-
         Args:
         -----
         ret (dict) : The returned values from noise_all_vs_noise_solo.
@@ -1298,21 +1284,18 @@ class SmurfNoiseMixin(SmurfBase):
         '''
         Converts current spectral noise density to NET in uK rt(s). Assumes NEI
         is white-noise level.
-
         Args
         ----
         NEI (float): current spectral density in pA/rtHz
         V_b (float): commanded bias voltage in V
         R_tes (float): resistance of TES at bias point in Ohm
         opt_eff (float): optical efficiency (in the range 0-1)
-
         Opt Args:
         ---------
         f_center (float): center optical frequency of detector in Hz, e.g., 150 GHz for E4c
         bw (float): effective optical bandwidth of detector in Hz, e.g., 32 GHz for E4c
         R_sh (float): shunt resistance in Ohm; defaults to stored config figure
         high_current_mode (bool): whether the bias voltage was set in high-current mode
-
         Ret:
         ----
         NET (float) : The noise equivalent temperature in units of uKrts
@@ -1532,17 +1515,14 @@ class SmurfNoiseMixin(SmurfBase):
         """
         Calculates the SVD modes of the input data.
         Only uses the data called out by the mask
-
         Args:
         -----
         d (float array) : The raw data
         mask (int array) : The channel mask
-
         Opt Args:
         ---------
         mean_subtract (bool) : Whether to mean subtract
             before taking the SVDs.
-
         Ret:
         ----
         u (float array) : The SVD coefficients
@@ -1561,12 +1541,10 @@ class SmurfNoiseMixin(SmurfBase):
         """
         Requires seaborn to be installed. Plots a heatmap
         of the coefficients and the log10 of the amplitudes.
-
         Args:
         -----
         u (float array) : SVD coefficients from noise_svd
         s (float array) : SVD amplitudes from noise_svd
-
         Opt Args:
         ---------
         save_plot (bool) : Whether to save the plot
@@ -1614,7 +1592,6 @@ class SmurfNoiseMixin(SmurfBase):
         save_plot=False, save_name=None, show_plot=False, sharey=True):
         """
         Plots the first N modes where N is n_row x n_col.
-
         Args:
         -----
         vh (float array) : SVD modes from noise_svd
@@ -1664,7 +1641,6 @@ class SmurfNoiseMixin(SmurfBase):
     def remove_svd(self, d, mask, u, s, vh, modes=3):
         """
         Removes the requsted SVD modes
-
         Args:
         -----
         d (float array) : The input data
@@ -1672,12 +1648,10 @@ class SmurfNoiseMixin(SmurfBase):
         s (float array) : The SVD amplitudes
         mask (int array) : The channel mask
         vh (float arrry) : The SVD modes
-
         Opt Args:
         ---------
         modes (int or int array) : The modes to remove. If int, removes the first
             N modes. If array, uses the modes indicated in the array. Default 3.
-
         Ret:
         ----
         diff (float array) : The difference of the input data matrix and the
