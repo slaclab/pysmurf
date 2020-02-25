@@ -75,4 +75,3 @@ class DevBoardEth(Common):
                               configure      = configure,
                               server_port    = server_port,
                               **kwargs)
-

@@ -5,12 +5,12 @@
 # File       : pysmurf/command/smurf_command.py
 # Created    : 2018-08-29
 #-----------------------------------------------------------------------------
-# This file is part of the pysmurf software package. It is subject to 
-# the license terms in the LICENSE.txt file found in the top-level directory 
-# of this distribution and at: 
-#    https://confluence.slac.stanford.edu/display/ppareg/LICENSE.html. 
-# No part of the pysmurf software package, including this file, may be 
-# copied, modified, propagated, or distributed except according to the terms 
+# This file is part of the pysmurf software package. It is subject to
+# the license terms in the LICENSE.txt file found in the top-level directory
+# of this distribution and at:
+#    https://confluence.slac.stanford.edu/display/ppareg/LICENSE.html.
+# No part of the pysmurf software package, including this file, may be
+# copied, modified, propagated, or distributed except according to the terms
 # contained in the LICENSE.txt file.
 #-----------------------------------------------------------------------------
 import numpy as np
@@ -163,7 +163,7 @@ class SmurfCommandMixin(SmurfBase):
         if as_str:
             ret = tools.utf8_to_str(ret)
         return ret
-        
+
     def get_enable(self, **kwargs):
         """
         Returns the status of the global poll bit epics_root:AMCc:enable.
@@ -408,7 +408,7 @@ class SmurfCommandMixin(SmurfBase):
             sg = SyncGroup([monitorPV])
             sg.wait()
             vals = sg.get_values()
-            self.log('parallel etaScan complete ; etaScanInProgress = ' + 
+            self.log('parallel etaScan complete ; etaScanInProgress = ' +
                 f'{vals[monitorPV]}', self.LOG_USER)
 
     _run_serial_eta_scan = 'runSerialEtaScan'
@@ -531,10 +531,10 @@ class SmurfCommandMixin(SmurfBase):
         self._caput(self.epics_root + self._savestate,
                     val, **kwargs)
     # alias older rogue 3 write_state function to save_state
-    write_state = save_state            
+    write_state = save_state
 
     # name changed in Rogue 4 from WriteConfig to SaveConfig.  Keeping
-    # the write_config function for backwards compatibilty.    
+    # the write_config function for backwards compatibilty.
     _saveconfig = ":AMCc:SaveConfig"
     def save_config(self, val, **kwargs):
         """
@@ -547,7 +547,7 @@ class SmurfCommandMixin(SmurfBase):
         self._caput(self.epics_root + self._saveconfig,
                     val, **kwargs)
     # alias older rogue 3 write_config function to save_config
-    write_config = save_config        
+    write_config = save_config
 
     _tone_file_path = 'CsvFilePath'
     def get_tone_file_path(self, bay, **kwargs):
@@ -610,7 +610,7 @@ class SmurfCommandMixin(SmurfBase):
 
         self.log('Loading tone file : {}'.format(val),
                  self.LOG_USER)
-        self._caput(self.dac_sig_gen.format(bay) + self._load_tone_file, val, 
+        self._caput(self.dac_sig_gen.format(bay) + self._load_tone_file, val,
             **kwargs)
 
     _tune_file_path = 'tuneFilePath'
@@ -732,7 +732,7 @@ class SmurfCommandMixin(SmurfBase):
     _eta_scan_averages = 'etaScanAverages'
     def set_eta_scan_averages(self, band, val, **kwargs):
         '''
-        Sets the number of frequency error averages to take at each point of 
+        Sets the number of frequency error averages to take at each point of
         the etaScan.
 
         Args:
@@ -745,7 +745,7 @@ class SmurfCommandMixin(SmurfBase):
 
     def get_eta_scan_averages(self, band, **kwargs):
         '''
-        Gets the number of frequency error averages taken at each point of 
+        Gets the number of frequency error averages taken at each point of
         the etaScan.
 
         Args:
@@ -754,7 +754,7 @@ class SmurfCommandMixin(SmurfBase):
 
         Returns:
         --------
-        eta_scan_averages (int) : The number of frequency error averages taken 
+        eta_scan_averages (int) : The number of frequency error averages taken
         at each point of the etaScan.
         '''
         return self._caget(self._cryo_root(band) + self._eta_scan_averages,
@@ -995,18 +995,6 @@ class SmurfCommandMixin(SmurfBase):
 
         """
         return self._caget(self.app_core + self._build_dsp_g,
-            **kwargs)
-
-    _iq_stream_enable = 'iqStreamEnable'
-    def set_iq_stream_enable(self, band, val, **kwargs):
-        '''
-        '''
-        self._caput(self._band_root(band) + self._iq_stream_enable, val, **kwargs)
-
-    def get_iq_stream_enable(self, band, **kwargs):
-        '''
-        '''
-        return self._caget(self._band_root(band)  + self._iq_stream_enable,
             **kwargs)
 
     _decimation = 'decimation'
@@ -1300,20 +1288,6 @@ class SmurfCommandMixin(SmurfBase):
         """
         return self._caget(self._band_root(band) + self._noise_select,
             **kwargs)
-
-
-    _lms_delay = 'lmsDelay'
-    def set_lms_delay(self, band, val, **kwargs):
-        """
-        Match system latency for LMS feedback (2.4MHz ticks)
-        """
-        self._caput(self._band_root(band) + self._lms_delay, val, **kwargs)
-
-    def get_lms_delay(self, band, **kwargs):
-        """
-        Match system latency for LMS feedback (2.4MHz ticks)
-        """
-        return self._caget(self._band_root(band) + self._lms_delay, **kwargs)
 
     _lms_delay = 'lmsDelay'
     def set_lms_delay(self, band, val, **kwargs):
@@ -1632,28 +1606,6 @@ class SmurfCommandMixin(SmurfBase):
         return self._caget(self._band_root(band) + self._dsp_enable, **kwargs)
 
     # Single channel commands
-    _amplitude_scale_channel = 'amplitudeScale'
-    def set_amplitude_scale_channel(self, band, channel, val, **kwargs):
-        """
-        Set the amplitude scale for a single channel. The amplitude scale
-        defines the power of the tone.
-
-        Args:
-        -----
-        band (int): The band the channel is in
-        channel (int): The channel number
-        val (int): The value of the tone amplitude. Acceptable units are
-            0 to 15.
-        """
-        self._caput(self._channel_root(band, channel) +
-            self._amplitude_scale_channel, val, **kwargs)
-
-    def get_amplitude_scale_channel(self, band, channel, **kwargs):
-        """
-        """
-        return self._caget(self._channel_root(band, channel) +
-            self._amplitude_scale_channel, **kwargs)
-
     _feedback_enable = 'feedbackEnable'
     def set_feedback_enable_channel(self, band, channel, val, **kwargs):
         """
@@ -1763,7 +1715,7 @@ class SmurfCommandMixin(SmurfBase):
         '''
         att = self.band_to_att(b)
         bay = self.band_to_bay(b)
-        self._caput(self.att_root.format(bay) + self._uc.format(int(att)), val, 
+        self._caput(self.att_root.format(bay) + self._uc.format(int(att)), val,
             **kwargs)
 
     def get_att_uc(self, b, **kwargs):
@@ -1776,7 +1728,7 @@ class SmurfCommandMixin(SmurfBase):
         '''
         att = self.band_to_att(b)
         bay = self.band_to_bay(b)
-        return self._caget(self.att_root.format(bay) + self._uc.format(int(att)), 
+        return self._caget(self.att_root.format(bay) + self._uc.format(int(att)),
             **kwargs)
 
 
@@ -1792,7 +1744,7 @@ class SmurfCommandMixin(SmurfBase):
         '''
         att = self.band_to_att(b)
         bay = self.band_to_bay(b)
-        self._caput(self.att_root.format(bay) + self._dc.format(int(att)), val, 
+        self._caput(self.att_root.format(bay) + self._dc.format(int(att)), val,
             **kwargs)
 
     def get_att_dc(self, b, **kwargs):
@@ -1805,7 +1757,7 @@ class SmurfCommandMixin(SmurfBase):
         '''
         att = self.band_to_att(b)
         bay = self.band_to_bay(b)
-        return self._caget(self.att_root.format(bay) + self._dc.format(int(att)), 
+        return self._caget(self.att_root.format(bay) + self._dc.format(int(att)),
             **kwargs)
 
     # ADC commands
@@ -1865,7 +1817,7 @@ class SmurfCommandMixin(SmurfBase):
         '''
         '''
         return self._caget(self.jesd_tx_root.format(bay) + self._data_out_mux.format(b),
-            val, **kwargs)
+            **kwargs)
 
     # Jesd DAC commands
     _jesd_reset_n = "JesdRstN"
@@ -1890,7 +1842,7 @@ class SmurfCommandMixin(SmurfBase):
 
     _jesd_rx_data_valid = 'DataValid'
     def get_jesd_rx_data_valid(self, bay, **kwargs):
-        return self._caget(self.jesd_rx_root.format(bay) + 
+        return self._caget(self.jesd_rx_root.format(bay) +
             self._jesd_rx_data_valid, **kwargs)
 
     _link_disable = 'LINK_DISABLE'
@@ -1904,7 +1856,7 @@ class SmurfCommandMixin(SmurfBase):
         '''
         Disables jesd link
         '''
-        return self._caget(self.jesd_rx_root.format(bay) + self._link_disable, val,
+        return self._caget(self.jesd_rx_root.format(bay) + self._link_disable,
             **kwargs)
 
     _jesd_tx_enable = 'Enable'
@@ -1916,7 +1868,7 @@ class SmurfCommandMixin(SmurfBase):
 
     _jesd_tx_data_valid = 'DataValid'
     def get_jesd_tx_data_valid(self, bay, **kwargs):
-        return self._caget(self.jesd_tx_root.format(bay) + 
+        return self._caget(self.jesd_tx_root.format(bay) +
             self._jesd_tx_data_valid, **kwargs)
 
     _fpga_uptime = 'UpTimeCnt'
@@ -1966,7 +1918,7 @@ class SmurfCommandMixin(SmurfBase):
     def set_input_mux_sel(self, bay, lane, val, **kwargs):
         """
         """
-        self._caput(self.daq_mux_root.format(bay) + 
+        self._caput(self.daq_mux_root.format(bay) +
             self._input_mux_sel.format(lane), val, **kwargs)
 
     def get_input_mux_sel(self, bay, lane, **kwargs):
@@ -2141,9 +2093,9 @@ class SmurfCommandMixin(SmurfBase):
         ret=self._caget(self.stream_data_writer_root +
                         self._data_file, **kwargs)
         if as_str:
-            ret=tools.utf8_to_str(d)
+            ret=tools.utf8_to_str(ret)
         return ret
-    
+
     _datawriter_open = 'Open'
     def set_streamdatawriter_open(self, val, **kwargs):
         """
@@ -2151,14 +2103,14 @@ class SmurfCommandMixin(SmurfBase):
         self._caput(self.stream_data_writer_root +
             self._datawriter_open, val, **kwargs)
 
-        
+
     def get_streamdatawriter_open(self, **kwargs):
         """
         """
         return self._caget(self.stream_data_writer_root +
             self._datawriter_open, **kwargs)
 
-    
+
     _datawriter_close = 'Close'
     def set_streamdatawriter_close(self, val, **kwargs):
         """
@@ -2166,13 +2118,13 @@ class SmurfCommandMixin(SmurfBase):
         self._caput(self.stream_data_writer_root +
             self._datawriter_close, val, **kwargs)
 
-        
+
     def get_streamdatawriter_close(self, **kwargs):
         """
         """
         return self._caget(self.stream_data_writer_root +
             self._datawriter_close, **kwargs)
-    
+
 
     _trigger_daq = 'TriggerDaq'
     def set_trigger_daq(self, bay, val, **kwargs):
@@ -2239,7 +2191,7 @@ class SmurfCommandMixin(SmurfBase):
                    length is less than 2048.  Default is 0.
         '''
         # cast as numpy array
-        lut_arr=np.pad(arr[:self._lut_table_array_length], 
+        lut_arr=np.pad(arr[:self._lut_table_array_length],
             (0, self._lut_table_array_length-len(arr[:self._lut_table_array_length])),
             'constant', constant_values=pad)
 
@@ -2251,18 +2203,18 @@ class SmurfCommandMixin(SmurfBase):
         # warn user if some points get clipped
         num_clip_above=len(np.where(lut_arr>(2**(dac_nbits_fullscale-1)-1))[0])
         if num_clip_above>0:
-            self.log(f'{num_clip_above} points in LUT table exceed' + 
-                f' (2**{dac_nbits_fullscale-1})-1. ' + 
+            self.log(f'{num_clip_above} points in LUT table exceed' +
+                f' (2**{dac_nbits_fullscale-1})-1. ' +
                 f' Will be clipped to (2**{dac_nbits_fullscale-1})-1.')
         num_clip_below=len(np.where(lut_arr<(-2**(dac_nbits_fullscale-1)))[0])
         if num_clip_below>0:
             self.log(f'{num_clip_below} points in LUT table are less than' +
-                f' -2**{dac_nbits_fullscale-1}.  ' + 
+                f' -2**{dac_nbits_fullscale-1}.  ' +
                 f'Will be clipped to -2**{dac_nbits_fullscale-1}.')
         # clip the array
         lut_arr=np.clip(lut_arr,a_min=-2**(dac_nbits_fullscale-1),
             a_max=2**(dac_nbits_fullscale-1)-1)
-        self._caput(self.rtm_lut_ctrl_root + 
+        self._caput(self.rtm_lut_ctrl_root +
             self._rtm_arb_waveform_lut_table.format(reg), lut_arr, **kwargs)
 
 
@@ -2492,49 +2444,6 @@ class SmurfCommandMixin(SmurfBase):
         """
         return self._caget(self.rtm_cryo_det_root + self._k_relay, **kwargs)
 
-    _ramp_max_cnt = 'RampMaxCnt'
-    def set_ramp_max_cnt(self, val, **kwargs):
-        """
-        """
-        self._caput(self.rtm_cryo_det_root + self._ramp_max_cnt, val, **kwargs)
-
-    def get_ramp_max_cnt(self, **kwargs):
-        """
-        """
-        return self._caget(self.rtm_cryo_det_root + self._ramp_max_cnt,
-            **kwargs)
-
-    _select_ramp = 'SelectRamp'
-    def set_select_ramp(self, val, **kwargs):
-        """
-        """
-        self._caput(self.rtm_cryo_det_root + self._select_ramp, val, **kwargs)
-
-    def get_select_ramp(self, **kwargs):
-        """
-        """
-        return self._caget(self.rtm_cryo_dte_root + self._select_ramp, **kwargs)
-
-    _ramp_start_mode = 'RampStartMode'
-    def set_ramp_start_mode(self, val, **kwargs):
-        """
-        """
-        self._caput(self.rtm_cryo_det_root + self._ramp_start_mode, val,
-            **kwargs)
-
-    def get_ramp_start_mode(self, **kwargs):
-        """
-        """
-        return self._caget(self.rtm_cryo_det_root + self._ramp_start_mode,
-            **kwargs)
-
-    _enable_ramp_trigger = 'EnableRampTrigger'
-    def set_enable_ramp_trigger(self, val, **kwargs):
-        """
-        """
-        self._caput(self.rtm_cryo_det_root + self._enable_ramp_trigger,
-                    vale, **kwargs)
-
     timing_crate_root = ":AMCc:FpgaTopLevel:AmcCarrierCore:AmcCarrierTiming:EvrV2CoreTriggers"
     _trigger_rate_sel = ":EvrV2ChannelReg[0]:RateSel"
     def set_ramp_rate(self, val, **kwargs):
@@ -2585,17 +2494,6 @@ class SmurfCommandMixin(SmurfBase):
         trigger_delay = self._caget(self.epics_root + self.timing_crate_root +
                                     self._trigger_delay, **kwargs)
         return trigger_delay
-
-    _pulse_width = 'PulseWidth'
-    def set_pulse_width(self, val, **kwargs):
-        """
-        """
-        self._caput(self.rtm_cryo_det_root + self._pulse_width, val, **kwargs)
-
-    def get_pulse_width(self, **kwargs):
-        """
-        """
-        return self._caget(self.rtm_cryo_det_root + self._pulse_width, **kwargs)
 
     _debounce_width = 'DebounceWidth'
     def set_debounce_width(self, val, **kwargs):
@@ -3150,7 +3048,7 @@ class SmurfCommandMixin(SmurfBase):
             False.
         """
         self.set_hemt_enable()
-        if (voltage > self._hemt_gate_max_voltage or voltage 
+        if (voltage > self._hemt_gate_max_voltage or voltage
             < self._hemt_gate_min_voltage ) and not override:
             self.log('Input voltage too high. Not doing anything.' +
                 ' If you really want it higher, use the override optional arg.')
@@ -3487,7 +3385,7 @@ class SmurfCommandMixin(SmurfBase):
         if disable_poll:
             epics.caput(self.epics_root + self._global_poll_enable, False)
 
-    def set_cryo_card_hemt_ps_en(self, enable):
+    def set_cryo_card_hemt_ps_en(self, enable, write_log=False):
         """
         Set the cryo card HEMT power supply enable.
 
@@ -3513,7 +3411,7 @@ class SmurfCommandMixin(SmurfBase):
         # Write back the new value
         self.C.write_ps_en(new_en_value)
 
-    def set_cryo_card_50k_ps_en(self, enable):
+    def set_cryo_card_50k_ps_en(self, enable, write_log=False):
         """
         Set the cryo card 50k power supply enable.
 
@@ -3539,7 +3437,7 @@ class SmurfCommandMixin(SmurfBase):
         # Write back the new value
         self.C.write_ps_en(new_en_value)
 
-    def set_cryo_card_ps_en(self, enable=3):
+    def set_cryo_card_ps_en(self, enable=3, write_log=False):
         """
         Write the cryo card power supply enables. Can use this to set both power supplies
         at once rather than setting them individually
@@ -3652,7 +3550,7 @@ class SmurfCommandMixin(SmurfBase):
             # Anything else is an error
             return("ERROR")
 
-        
+
     _smurf_to_gcp_stream = 'userConfig[0]'  # bit for streaming
     def get_user_config0(self, as_binary=False, **kwargs):
         """
@@ -3664,14 +3562,14 @@ class SmurfCommandMixin(SmurfBase):
 
         return val
 
-    
+
     def set_user_config0(self, val, as_binary=False, **kwargs):
         """
         """
         self._caput(self.timing_header +
                    self._smurf_to_gcp_stream, val, **kwargs)
 
-        
+
     def clear_unwrapping_and_averages(self, epics_poll=True, **kwargs):
         """
         Resets unwrapping and averaging for all channels, in all bands.
@@ -3716,18 +3614,18 @@ class SmurfCommandMixin(SmurfBase):
 
     _trigger_enable = 'EvrV2TriggerReg[{}]:EnableTrig'
     def set_trigger_enable(self, chan, val, **kwargs):
-        """                                                                     
+        """
         """
         self._caput(self.trigger_root + self._trigger_enable.format(chan),
                    val, **kwargs)
 
     _trigger_channel_reg_enable = 'EvrV2ChannelReg[{}]:EnableReg'
     def set_evr_channel_reg_enable(self, chan, val, **kwargs):
-        """                                                                     
+        """
         """
         self._caput(self.trigger_root + self._trigger_channel_reg_enable.format(chan),
-                   val, **kwargs)        
-        
+                   val, **kwargs)
+
     # Crashing in rogue 4, and not clear it's ever needed.
     _trigger_reg_enable = 'EvrV2TriggerReg[{}]:enable'
     def set_evr_trigger_reg_enable(self, chan, val, **kwargs):
@@ -3777,7 +3675,7 @@ class SmurfCommandMixin(SmurfBase):
         dac (int): Which DAC no. [0 or 1].
         """
         return self._caget(self.DBG.format(bay) + self._dac_reset.format(dac),
-                           val, **kwargs)
+                           **kwargs)
 
 
     _debug_select = "DebugSelect[{}]"
@@ -3861,7 +3759,7 @@ class SmurfCommandMixin(SmurfBase):
         val (int): 0 or 1 for the debug bit
         """
         self._caput(self.epics_root + self._mcetransmit_debug, val,
-                    **channel)
+                    **kwargs)
 
     _frame_count = 'FrameCnt'
     def get_frame_count(self, **kwargs):
@@ -3876,7 +3774,7 @@ class SmurfCommandMixin(SmurfBase):
         """
         return self._caget(self.frame_rx_stats + self._frame_count,
                     **kwargs)
-    
+
     _frame_size = 'FrameSize'
     def get_frame_size(self, **kwargs):
         """
@@ -3889,7 +3787,7 @@ class SmurfCommandMixin(SmurfBase):
         """
         return self._caget(self.frame_rx_stats + self._frame_size,
                            **kwargs)
-        
+
     _frame_loss_count = 'FrameLossCnt'
     def get_frame_loss_cnt(self, **kwargs):
         """
@@ -3898,15 +3796,15 @@ class SmurfCommandMixin(SmurfBase):
         """
         return self._caget(self.frame_rx_stats+ self._frame_loss_count,
                            **kwargs)
-        
+
     _frame_out_order_count = 'FrameOutOrderCnt'
     def get_frame_out_order_count(self, **kwargs):
         """
         """
         return self._caget(self.frame_rx_stats + self._frame_out_order_count,
                            **kwargs)
-                           
-    
+
+
     _channel_mask = 'ChannelMapper:Mask'
     def set_channel_mask(self, mask, **kwargs):
         """
@@ -3938,7 +3836,7 @@ class SmurfCommandMixin(SmurfBase):
         """
         self._caput(self.smurf_processor + self._filter_reset,
                     1, **kwargs)
-        
+
     _filter_a = 'Filter:A'
     def set_filter_a(self, coef, **kwargs):
         """
@@ -4040,7 +3938,7 @@ class SmurfCommandMixin(SmurfBase):
         -----
         factor (int): the down-sampling factor.
         """
-        self._caput(self.smurf_processor + self._downsampler_factor, factor, 
+        self._caput(self.smurf_processor + self._downsampler_factor, factor,
             **kwargs)
 
 
@@ -4052,7 +3950,7 @@ class SmurfCommandMixin(SmurfBase):
         -----
         factor (int): the down-sampling factor.
         """
-        return self._caget(self.smurf_processor + self._downsampler_factor, 
+        return self._caget(self.smurf_processor + self._downsampler_factor,
             **kwargs)
 
     _filter_disable = "Filter:Disable"
@@ -4078,7 +3976,7 @@ class SmurfCommandMixin(SmurfBase):
         return self._caget(self.smurf_processor + self._filter_disable,
                            **kwargs)
 
-    
+
     _data_file_name = 'FileWriter:DataFile'
     def set_data_file_name(self, name, **kwargs):
         """
@@ -4099,7 +3997,7 @@ class SmurfCommandMixin(SmurfBase):
         -----
         name (str): The file name.
         """
-        return self._caget(self.smurf_processor + self._data_file_name, 
+        return self._caget(self.smurf_processor + self._data_file_name,
             **kwargs)
 
 
@@ -4130,7 +4028,7 @@ class SmurfCommandMixin(SmurfBase):
         """
         return self._caget(self.channel_mapper + self._num_channels, **kwargs)
 
-    
+
     _payload_size = "PayloadSize"
     def get_payload_size(self, **kwargs):
         """
