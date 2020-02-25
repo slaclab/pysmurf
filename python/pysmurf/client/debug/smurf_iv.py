@@ -439,44 +439,44 @@ class SmurfIVMixin(SmurfBase):
             ax_rn.hist(rn_array_mOhm,bins=20,color=color_hist)
             ax_rn.set_xlabel(r'$R_N$ [$\mathrm{m}\Omega$]')
             ax_rn.axvline(rn_median/1e-3,linestyle='--',color=color_median,
-                              label=r'Median = {:.0f}'.format(rn_median/1e-3) +
-                              r' $\mathrm{m}\Omega$')
+                label=r'Median = {:.0f}'.format(rn_median/1e-3) +
+                r' $\mathrm{m}\Omega$')
             ax_rn.legend(loc='best')
 
             ax_vbias.hist(v_bias_target_list,bins=20,color=color_hist)
             ax_vbias.axvline(v_bias_target_median,linestyle = '--',
                         color=color_median,
                         label='Median = {:.2f} V'.format(v_bias_target_median))
-            ax_vbias.set_xlabel(r'Commanded voltage bias [V] for $R = $'
-                                    + '{:.0f}'.format(R_op_target/1e-3)
-                                    + r' $\mathrm{m}\Omega$')
+            ax_vbias.set_xlabel(r'Commanded voltage bias [V] for $R = $' +
+                '{:.0f}'.format(R_op_target/1e-3) +
+                r' $\mathrm{m}\Omega$')
             ax_vbias.legend(loc='best')
 
             ax_ptrans.hist(p_trans_list,bins=20,color=color_hist)
             ax_ptrans.axvline(ptrans_median,linestyle='--',color=color_median,
-                           label=r'Median = {:.1f} pW'.format(ptrans_median))
+                label=r'Median = {:.1f} pW'.format(ptrans_median))
             ax_ptrans.set_xlabel('In-transition electrical power [pW]')
             ax_ptrans.legend(loc='best')
 
             ax_si.hist(si_target_list,bins=20)
             ax_si.axvline(si_target_median,linestyle='--',color=color_median,
-                              label='Median = {:.2f}'.format(si_target_median)
-                              + r' $\mu\mathrm{V}^{-1}$')
-            ax_si.axvline(si_goal,linestyle='--',color=color_goal,\
-                              label=r'$-\mathrm{med}(V_\mathrm{TES})^{-1} = $' +
-                              '{:.2f}'.format(si_goal) + \
-                              r' $\mu\mathrm{V}^{-1}$')
+                label='Median = {:.2f}'.format(si_target_median) +
+                r' $\mu\mathrm{V}^{-1}$')
+            ax_si.axvline(si_goal,linestyle='--',color=color_goal,
+                label=r'$-\mathrm{med}(V_\mathrm{TES})^{-1} = $' +
+                '{:.2f}'.format(si_goal) +
+                r' $\mu\mathrm{V}^{-1}$')
             ax_si.set_xlabel(r'Responsivity [$\mu\mathrm{V}^{-1}$] at $R = $' +
-                                 '{:.0f}'.format(R_op_target/1e-3) +
-                                 r' $\mathrm{m}\Omega$')
+                '{:.0f}'.format(R_op_target/1e-3) +
+                r' $\mathrm{m}\Omega$')
             plt.legend(loc='best')
 
             plt.tight_layout()
             fig.subplots_adjust(top=0.925)
 
             # Title
-            plt.suptitle('{}, band {}, group{}'.format(basename,\
-                                             np.unique(band),bias_group))
+            plt.suptitle('{}, band {}, group{}'.format(basename,
+                np.unique(band),bias_group))
             iv_hist_filename = os.path.join(plot_dir, f'{basename}_IV_hist{plotname_append}.png')
 
             # Save the figure
@@ -488,9 +488,9 @@ class SmurfIVMixin(SmurfBase):
                 plt.close()
 
     def analyze_slow_iv(self, v_bias, resp, make_plot=True, show_plot=False,
-        save_plot=True, plotname_append='', basename=None, band=None, channel=None,
-        R_sh=None, plot_dir=None, high_current_mode=False, bias_group = None,
-        grid_on=False,R_op_target=0.007, **kwargs):
+            save_plot=True, plotname_append='', basename=None, band=None, channel=None,
+            R_sh=None, plot_dir=None, high_current_mode=False, bias_group = None,
+            grid_on=False,R_op_target=0.007, **kwargs):
         """
         Analyzes the IV curve taken with slow_iv()
         Args:
@@ -532,7 +532,7 @@ class SmurfIVMixin(SmurfBase):
 
         for i in np.arange(n_step):
             s = i*step_size
-            e = (i+1) * step_size
+            #e = (i+1) * step_size
             sb = int(s + np.ceil(step_size * 3. / 5))
             eb = int(s + np.ceil(step_size * 9. / 10))
 
@@ -681,8 +681,8 @@ class SmurfIVMixin(SmurfBase):
 
             ax_ii.plot(i_bias, norm_fit[0] * i_bias , linestyle='--',
                        color=color_norm, label=r'$R_N$' +
-                           '  = ${:.0f}$'.format(R_n/1e-3) +
-                           r' $\mathrm{m}\Omega$')
+                       '  = ${:.0f}$'.format(R_n/1e-3) +
+                       r' $\mathrm{m}\Omega$')
             ax_ii.plot(i_bias[:sc_idx],
                 sc_fit[0] * i_bias[:sc_idx] + sc_fit[1], linestyle='--',
                 color=color_sc, label=r'$R_L$' +
@@ -765,7 +765,7 @@ class SmurfIVMixin(SmurfBase):
             fig.subplots_adjust(top=0.875)
 
             if save_plot:
-                if plot_dir == None:
+                if plot_dir is None:
                     plot_dir = self.plot_dir
                 plot_filename = os.path.join(plot_dir, plot_name)
                 self.log('Saving IV plot to {}'.format(plot_filename))
@@ -793,8 +793,8 @@ class SmurfIVMixin(SmurfBase):
         return iv_dict
 
     def analyze_plc_from_file(self, fn_plc_raw_data, make_plot=True, show_plot=False,
-        save_plot=True, R_sh=None, high_current_mode=None, phase_excursion_min=1.,
-        channels=None):
+            save_plot=True, R_sh=None, high_current_mode=None, phase_excursion_min=1.,
+            channels=None):
         """
         Function to analyze a partial load curve from its raw file. Basically
         the same as the slow_iv analysis but without fitting the superconducting
@@ -819,11 +819,11 @@ class SmurfIVMixin(SmurfBase):
         self.log('Analyzing plc from file: {}'.format(fn_plc_raw_data))
 
         plc_raw_data = np.load(fn_plc_raw_data).item()
-        bias_sweep_array = plc_raw_data['bias']
+        #bias_sweep_array = plc_raw_data['bias']
         bias_group = plc_raw_data['band']
         datafile = plc_raw_data['datafile']
         basename = plc_raw_data['basename']
-        output_dir = plc_raw_data['output_dir']
+        #output_dir = plc_raw_data['output_dir']
         plot_dir = plc_raw_data['plot_dir']
 
         timestamp, phase_all, mask = self.read_stream_data(datafile)
@@ -831,10 +831,10 @@ class SmurfIVMixin(SmurfBase):
 
         band, chans = np.where(mask != -1) #are these masks secretly the same?
 
-        rn_list = []
+        #rn_list = []
         phase_excursion_list = []
-        v_bias_target_list = []
-        p_trans_list = []
+        #v_bias_target_list = []
+        #p_trans_list = []
 
         for c, (b, ch) in enumerate(zip(band, chans)):
             if (channels is not None) and (ch not in channels):
@@ -882,7 +882,7 @@ class SmurfIVMixin(SmurfBase):
                     plt.close()
 
     def estimate_opt_eff(self, iv_fn_hot, iv_fn_cold,t_hot=293.,t_cold=77.,
-        channels = None, dPdT_lim=(0.,0.5)):
+            channels = None, dPdT_lim=(0.,0.5)):
         """
         Estimate optical efficiency between two sets of load curves. Returns
           per-channel plots and a histogram.

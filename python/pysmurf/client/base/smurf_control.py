@@ -27,7 +27,7 @@ from pysmurf.client.base.smurf_config import SmurfConfig as SmurfConfig
 
 
 class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin, SmurfTuneMixin,
-    SmurfNoiseMixin, SmurfIVMixin):
+        SmurfNoiseMixin, SmurfIVMixin):
     '''
     Base class for controlling Smurf. Loads all the mixins.
     '''
@@ -74,7 +74,7 @@ class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin, Smu
         '''
 
         if no_dir:
-            print('Warning! Not making output directories!'+ \
+            print('Warning! Not making output directories!' +
                 'This will break may things!')
         elif smurf_cmd_mode:
             # Get data dir
@@ -195,7 +195,7 @@ class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin, Smu
                     '*channel_assignment_b{}.txt'.format(b)))
                 if len(all_channel_assignment_files):
                     self.channel_assignment_files['band_{}'.format(b)] = \
-                            np.sort(all_channel_assignment_files)[-1]
+                        np.sort(all_channel_assignment_files)[-1]
 
         # bias groups available
         self.all_groups = self.config.get('all_bias_groups')
@@ -453,7 +453,7 @@ class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin, Smu
 
         # if no timing section present, assumes your defaults.yml
         # has set you up...good luck.
-        if self.config.get('timing') is not None and self.config.get('timing').get('timing_reference') is not  None:
+        if self.config.get('timing') is not None and self.config.get('timing').get('timing_reference') is not None:
             timing_reference=self.config.get('timing').get('timing_reference')
 
             # check if supported

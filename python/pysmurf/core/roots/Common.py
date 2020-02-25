@@ -102,7 +102,7 @@ class Common(pyrogue.Root):
             try:
                 v = self.FpgaTopLevel.AppTop.AppCore.RtmCryoDet.RtmSpiMax.node(f'TesBiasDacDataRegCh[{i}]')
                 v.addListener(lambda path, value, lidx=idx: _update_tes_bias(lidx))
-            except Exception as e:
+            except Exception:
                 print(f"TesBiasDacDataRegCh[{i}] not found... Skipping!")
 
         # Run control for streaming interfaces

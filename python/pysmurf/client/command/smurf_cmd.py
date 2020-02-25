@@ -16,8 +16,8 @@ import numpy as np
 import sys
 import time
 import os
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
 import pysmurf
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
 
 cfg_filename = 'experiment_k2umux.cfg'
 
@@ -40,37 +40,37 @@ def make_runfile(output_dir, row_len=60, num_rows=60, data_rate=60,
     # 20181119 dB, modified to use the correct format runfile.
     #with open(os.path.join(os.path.dirname(__file__),"runfile/runfile_template.txt")) as f:
     with open(os.path.join(os.path.dirname(__file__),
-        "runfile/runfile.default.bicep53")) as f:
+            "runfile/runfile.default.bicep53")) as f:
         lines = f.readlines()
         line_holder = []
-        for l in lines:
+        for line in lines:
             # A bunch of replacements
-            if "ctime=<replace>" in l:
+            if "ctime=<replace>" in line:
                 timestamp = S.get_timestamp()
                 S.log('Adding ctime {}'.format(timestamp))
-                l = l.replace("ctime=<replace>", "ctime={}".format(timestamp))
-            elif "Date:<replace>" in l:
+                line = line.replace("ctime=<replace>", "ctime={}".format(timestamp))
+            elif "Date:<replace>" in line:
                 time_string = time.strftime("%a %b %d %H:%M:%S %Y",
                     time.localtime())
                 S.log('Adding date {}'.format(time_string))
-                l = l.replace('Date:<replace>', "Date: {}".format(time_string))
-            elif "row_len : <replace>" in l:
+                line = line.replace('Date:<replace>', "Date: {}".format(time_string))
+            elif "row_len : <replace>" in line:
                 S.log("Adding row_len {}".format(row_len))
-                l = l.replace('row_len : <replace>',
+                line = line.replace('row_len : <replace>',
                     'row_len : {}'.format(row_len))
-            elif "num_rows : <replace>" in l:
+            elif "num_rows : <replace>" in line:
                 S.log("Adding num_rows {}".format(num_rows))
-                l = l.replace('num_rows : <replace>',
+                line = line.replace('num_rows : <replace>',
                     'num_rows : {}'.format(num_rows))
-            elif "num_rows_reported : <replace>" in l:
+            elif "num_rows_reported : <replace>" in line:
                 S.log("Adding num_rows_reported {}".format(num_rows_reported))
-                l = l.replace('num_rows_reported : <replace>',
+                line = line.replace('num_rows_reported : <replace>',
                     'num_rows_reported : {}'.format(num_rows_reported))
-            elif "data_rate : <replace>" in l:
+            elif "data_rate : <replace>" in line:
                 S.log("Adding data_rate {}".format(data_rate))
-                l = l.replace('data_rate : <replace>',
+                line = line.replace('data_rate : <replace>',
                     'data_rate : {}'.format(data_rate))
-            line_holder.append(l)
+            line_holder.append(line)
 
     full_path = os.path.join(output_dir,
         'smurf_status_{}.txt'.format(S.get_timestamp()))
@@ -86,7 +86,7 @@ def make_runfile(output_dir, row_len=60, num_rows=60, data_rate=60,
     sys.stdout.writelines(line_holder)
 
 def start_acq(S, num_rows, num_rows_reported, data_rate,
-    row_len):
+        row_len):
     """
     """
     bands = S.config.get('init').get('bands')
@@ -104,14 +104,14 @@ def start_acq(S, num_rows, num_rows_reported, data_rate,
 def stop_acq(S):
     """
     """
-    bands = np.array(S.config.get('init').get('bands'))
+    np.array(S.config.get('init').get('bands'))
     S.log('Stopping streaming data')
     #for b in bands:
     #    S.set_stream_enable(0)
     S.set_smurf_to_gcp_stream(False, write_log=True)
 
 def acq_n_frames(S, num_rows, num_rows_reported, data_rate,
-    row_len, n_frames):
+        row_len, n_frames):
     """
     Sends the amount of data requested by the user in units of n_frames.
 
