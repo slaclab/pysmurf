@@ -448,7 +448,7 @@ class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin, Smu
         # self.set_smurf_to_gcp_clear(0, write_log=write_log)
 
         self.set_amplifier_bias(write_log=write_log)
-        _ = self.get_amplifier_bias()
+        self.get_amplifier_bias()
         self.log("Cryocard temperature = "+ str(self.C.read_temperature())) # also read the temperature of the CC
 
         # if no timing section present, assumes your defaults.yml
