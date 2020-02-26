@@ -478,6 +478,7 @@ class SmurfUtilMixin(SmurfBase):
             header = header1[::2] + header1[1::2] * (2**16) # what am I doing
         else:
             raise TypeError('Type {} not yet supported!'.format(dtype))
+
         if (header[1,1]>>24 == 2) or (header[1,1]>>24 == 0):
             header = np.fliplr(header)
             data = np.fliplr(data)
