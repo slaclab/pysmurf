@@ -23,6 +23,7 @@ from pysmurf.client.util.smurf_util import SmurfUtilMixin as SmurfUtilMixin
 from pysmurf.client.tune.smurf_tune import SmurfTuneMixin as SmurfTuneMixin
 from pysmurf.client.debug.smurf_noise import SmurfNoiseMixin as SmurfNoiseMixin
 from pysmurf.client.debug.smurf_iv import SmurfIVMixin as SmurfIVMixin
+from pysmurf.client.base.smurf_config import SmurfConfig as SmurfConfig
 
 class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin, SmurfTuneMixin,
         SmurfNoiseMixin, SmurfIVMixin):
@@ -69,10 +70,12 @@ class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin, Smu
         '''
         if not offline and cfg_file is None:
             raise ValueError('Must provide config file.')
+        elif cfg_file is not None:
+            self.config = SmurfConfig(cfg_file)
 
-            self.shelf_manager=shelf_manager
-            if epics_root is None:
-                epics_root = self.config.get('epics_root')
+        self.shelf_manager=shelf_manager
+        if epics_root is None:
+            epics_root = self.config.get('epics_root')
 
         # In offline mode, epics root is not needed.
         if offline and epics_root is None:
