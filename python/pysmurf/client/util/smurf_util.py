@@ -672,13 +672,13 @@ class SmurfUtilMixin(SmurfBase):
         data_filename (string): The fullpath to where the data is stored
         """
         if write_log:
-        self.log('Starting to take data.', self.LOG_USER)
+            self.log('Starting to take data.', self.LOG_USER)
         data_filename = self.stream_data_on(downsample_factor=downsample_factor,
                                             write_log=write_log)
         time.sleep(meas_time)
         self.stream_data_off(write_log=write_log)
         if write_log:
-        self.log('Done taking data.', self.LOG_USER)
+            self.log('Done taking data.', self.LOG_USER)
         return data_filename
 
 
@@ -722,10 +722,10 @@ class SmurfUtilMixin(SmurfBase):
             flux_ramp_ac_dc_relay_status=self.C.read_ac_dc_relay_status()
             if flux_ramp_ac_dc_relay_status == 0:
                 if write_log:
-                self.log("FLUX RAMP IS DC COUPLED.", self.LOG_USER)
+                    self.log("FLUX RAMP IS DC COUPLED.", self.LOG_USER)
             elif flux_ramp_ac_dc_relay_status == 3:
                 if write_log:
-                self.log("Flux ramp is AC-coupled.", self.LOG_USER)
+                    self.log("Flux ramp is AC-coupled.", self.LOG_USER)
             else:
                 self.log("flux_ramp_ac_dc_relay_status = " +
                          f"{flux_ramp_ac_dc_relay_status} " +
@@ -832,18 +832,18 @@ class SmurfUtilMixin(SmurfBase):
                     first_read = False
 
                     # Read in all used channels by default
-        if channel is None:
+                    if channel is None:
                         channel = np.arange(header.number_of_channels)
 
-        channel = np.ravel(np.asarray(channel))
-        n_chan = len(channel)
+                    channel = np.ravel(np.asarray(channel))
+                    n_chan = len(channel)
 
                     # Indexes for input channels
-        channel_mask = np.zeros(n_chan, dtype=int)
-        for i, c in enumerate(channel):
+                    channel_mask = np.zeros(n_chan, dtype=int)
+                    for i, c in enumerate(channel):
                         channel_mask[i] = c
 
-        # Make holder arrays for phase and timestamp
+                    # Make holder arrays for phase and timestamp
                     phase = np.zeros((1,n_chan))
                     phase[0] = data
                     t = np.array(header.timestamp)
@@ -2202,8 +2202,8 @@ class SmurfUtilMixin(SmurfBase):
 
 
     def overbias_tes(self, bias_group, overbias_voltage=19.9, overbias_wait=5.,
-                     tes_bias=19.9, cool_wait=20., high_current_mode=True, flip_polarity=False,
-                     actually_overbias=True):
+                     tes_bias=19.9, cool_wait=20., high_current_mode=True, 
+                     flip_polarity=False, actually_overbias=True):
         """
         Warning: This is horribly hardcoded. Needs a fix soon.
 
@@ -2229,14 +2229,14 @@ class SmurfUtilMixin(SmurfBase):
         
         if actually_overbias:
         # drive high current through the TES to attempt to drive normal
-        self.set_tes_bias_bipolar(bias_group, overbias_voltage,
-                                  flip_polarity=flip_polarity)
-        time.sleep(.1)
+            self.set_tes_bias_bipolar(bias_group, overbias_voltage,
+                flip_polarity=flip_polarity)
+            time.sleep(.1)
         
-        self.set_tes_bias_high_current(bias_group)
-        self.log('Driving high current through TES. ' + \
-            'Waiting {}'.format(overbias_wait), self.LOG_USER)
-        time.sleep(overbias_wait)
+            self.set_tes_bias_high_current(bias_group)
+            self.log('Driving high current through TES. ' + \
+                'Waiting {}'.format(overbias_wait), self.LOG_USER)
+            time.sleep(overbias_wait)
 
         if not high_current_mode:
             self.set_tes_bias_low_current(bias_group)
@@ -2287,14 +2287,14 @@ class SmurfUtilMixin(SmurfBase):
             f'(available bias groups are {valid_bias_groups}).  Doing nothing!'
 
         if actually_overbias:
-        voltage_overbias_array = self.get_tes_bias_bipolar_array()
-        voltage_overbias_array[bias_groups] = overbias_voltage
-        self.set_tes_bias_bipolar_array(voltage_overbias_array)
+            voltage_overbias_array = self.get_tes_bias_bipolar_array()
+            voltage_overbias_array[bias_groups] = overbias_voltage
+            self.set_tes_bias_bipolar_array(voltage_overbias_array)
 
-        self.set_tes_bias_high_current(bias_groups)
-        self.log('Driving high current through TES. ' + \
-            'Waiting {}'.format(overbias_wait), self.LOG_USER)
-        time.sleep(overbias_wait)
+            self.set_tes_bias_high_current(bias_groups)
+            self.log('Driving high current through TES. ' + \
+                'Waiting {}'.format(overbias_wait), self.LOG_USER)
+            time.sleep(overbias_wait)
 
         if not high_current_mode:
             self.log('setting to low current')
