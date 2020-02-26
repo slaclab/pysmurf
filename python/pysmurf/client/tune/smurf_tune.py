@@ -396,7 +396,6 @@ class SmurfTuneMixin(SmurfBase):
         self.log('Making plots in a separate thread. ' +
                  'Suppressing output.')
 
-        
         import multiprocessing as mp
         
         # Create process
