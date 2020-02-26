@@ -73,4 +73,3 @@ class StreamDataSource(pyrogue.Device):
         Method called by streamConnect, streamTap and streamConnectBiDir to access master.
         """
         return self._source
-

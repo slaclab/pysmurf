@@ -18,7 +18,6 @@
 #-----------------------------------------------------------------------------
 
 import pyrogue
-import pysmurf
 import rogue.hardware.axi
 import rogue.protocols.srp
 
@@ -39,6 +38,7 @@ class DevBoardPcie(Common):
                  disable_bay1   = False,
                  txDevice       = None,
                  configure      = False,
+                 server_port    = 0,
                  **kwargs):
 
         # TDEST 0 routed to streamr0 (SRPv3)
@@ -74,5 +74,5 @@ class DevBoardPcie(Common):
                               pv_dump_file   = pv_dump_file,
                               txDevice       = txDevice,
                               configure      = configure,
+                              server_port    = server_port,
                               **kwargs)
-

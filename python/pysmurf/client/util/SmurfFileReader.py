@@ -42,7 +42,7 @@ SmurfHeaderTuple = namedtuple( 'SmurfHeader',
                                 'slot_number'         ,                # 1 Byte, B
                                 'timing_cond'         ,                # 1 Byte, B
                                 'number_of_channels']                  # 4 Bytes, uint32, I
-      
+
                              # 40 bytes of TES data, 40B
                              + [f'tes_byte_{i}' for i in range (40)]
 
@@ -156,7 +156,7 @@ class SmurfStreamReader(object):
                 rogueHeader  = RogueHeader._make(struct.Struct(RogueHeaderPack).unpack(self._currFile.read(RogueHeaderSize)))
                 roguePayload = rogueHeader.size - 4
 
-                
+
                 # Set next frame position
                 recEnd = self._currFile.tell() + roguePayload
 
@@ -326,4 +326,3 @@ def yamlToData(stream):
     PyrogueLoader.add_constructor(yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG,construct_mapping)
 
     return yaml.load(stream, Loader=PyrogueLoader)
-

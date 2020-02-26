@@ -56,6 +56,7 @@ if __name__ == "__main__":
                            disable_bay0   = args['disable_bay0'],
                            disable_bay1   = args['disable_bay1'],
                            configure      = args['configure'],
+                           server_port    = args['server_port'],
                            txDevice       = pysmurf.core.transmitters.BaseTransmitter(name='Transmitter')) as root:
 
             # The dev board doesn't support TES bias values, so let's set dummy
@@ -65,16 +66,17 @@ if __name__ == "__main__":
 
             if args['use_gui']:
                 # Start the GUI
-                import pyrogue.gui
-                #pyrogue.gui.runGui(root=root,title=args['windows_title'])
-
                 print("Starting GUI...\n")
-                app_top = pyrogue.gui.application(sys.argv)
-                gui_top = pyrogue.gui.GuiTop(incGroups=None,excGroups=None)
-                gui_top.setWindowTitle(args['windows_title'])
-                gui_top.addTree(root)
-                gui_top.resize(800,1000)
-                app_top.exec_()
+
+                if args['use_qt']:
+                    # Start the QT GUI, is selected by the user
+                    import pyrogue.gui
+                    pyrogue.gui.runGui(root=root,title=args['windows_title'])
+                else:
+                    # Otherwise, start the PyDM GUI
+                    import pyrogue.pydm
+                    pyrogue.pydm.runPyDM(root=root, title=args['windows_title'])
+
             else:
                 # Stop the server when Crtl+C is pressed
                 print("Running without GUI...")

@@ -5,12 +5,12 @@
 # File       : pysmurf/base/smurf_config.py
 # Created    : 2018-08-30
 #-----------------------------------------------------------------------------
-# This file is part of the pysmurf software package. It is subject to 
-# the license terms in the LICENSE.txt file found in the top-level directory 
-# of this distribution and at: 
-#    https://confluence.slac.stanford.edu/display/ppareg/LICENSE.html. 
-# No part of the pysmurf software package, including this file, may be 
-# copied, modified, propagated, or distributed except according to the terms 
+# This file is part of the pysmurf software package. It is subject to
+# the license terms in the LICENSE.txt file found in the top-level directory
+# of this distribution and at:
+#    https://confluence.slac.stanford.edu/display/ppareg/LICENSE.html.
+# No part of the pysmurf software package, including this file, may be
+# copied, modified, propagated, or distributed except according to the terms
 # contained in the LICENSE.txt file.
 #-----------------------------------------------------------------------------
 import json
@@ -36,7 +36,7 @@ class SmurfConfig:
 
            Args:
         """
-        no_comments=[]        
+        no_comments=[]
         with open(self.filename) as config_file:
             for idx, line in enumerate(config_file):
                 if line.lstrip().startswith(comment_char):
@@ -53,7 +53,7 @@ class SmurfConfig:
 
         loaded_config = json.loads('\n'.join(no_comments))
         return loaded_config
-    
+
     def read(self, update=False, validate_config=True):
         """Reads config file and updates the configuration.
 
@@ -65,9 +65,9 @@ class SmurfConfig:
         # validate
         if validate_config:
             validated_config = self.validate_config(loaded_config)
-        
+
             if update:
-                # put in some logic here to make sure parameters in experiment file match 
+                # put in some logic here to make sure parameters in experiment file match
                 # the parameters we're looking for
                 self.config = validated_config
         else:
@@ -99,7 +99,7 @@ class SmurfConfig:
            Args:
               key (any): key to check for in configuration dictionary.
         """
-        
+
         if key in self.config:
             return True
         else:
@@ -112,7 +112,7 @@ class SmurfConfig:
            Args:
               key (any): key whose configuration entry to retrieve.
         """
-        
+
         if self.has(key):
             return self.config[key]
         else:
@@ -149,7 +149,7 @@ class SmurfConfig:
           val (any): value to write
         """
 
-        try: 
+        try:
             self.config[key][subkey] = val
         except TypeError:
             self.config[key] = {} # initialize an empty dictionary first
@@ -215,7 +215,7 @@ class SmurfConfig:
                 Optional('feedbackPolarity', default=1): And(int,lambda n: n in (0,1)),
                 # Global feedback gain (might no longer be used in dspv3).
                 "feedbackGain" :  And(int,lambda n: 0 <= n < 2**16),
-                # Global feedback gain (might no longer be used in dspv3). 
+                # Global feedback gain (might no longer be used in dspv3).
                 "feedbackLimitkHz" : And(Use(float),lambda f: 0 < f),
 
                 # Number of cycles to delay phase reference
@@ -226,7 +226,7 @@ class SmurfConfig:
 
                 # RF attenuator on SMuRF output.  UC=up convert.  0.5dB steps.
                 'att_uc': And(int,lambda n: 0 <= n < 2**5),
-                # RF attenuator on SMuRF input.  DC=down convert.  0.5dB steps.        
+                # RF attenuator on SMuRF input.  DC=down convert.  0.5dB steps.
                 'att_dc': And(int,lambda n: 0 <= n < 2**5),
                 # Tone amplitude.  3dB steps.
                 'amplitude_scale': And(int,lambda n: 0 <= n < 2**4),
@@ -260,7 +260,7 @@ class SmurfConfig:
             'att2' : And(int,lambda n: 0 <= n < 4),
             'att3' : And(int,lambda n: 0 <= n < 4),
             'att4' : And(int,lambda n: 0 <= n < 4)
-        }    
+        }
         #### Done specifying attenuator schema
 
         #### Start specifying cryostat card schema
@@ -268,7 +268,7 @@ class SmurfConfig:
         ## HARDWARE SPECIFIC CRYOSTAT CARD CONFIG FILE.  FOR NOW, JUST DO
         ## SOME VERY BASIC VALIDATION.
         def RepresentsInt(s):
-            try: 
+            try:
                 int(s)
                 return True
             except ValueError:
@@ -286,7 +286,7 @@ class SmurfConfig:
             # Conversion from bits (the digital value the RTM DAC is set to)
             # to volts for the 4K amplifier gate.  Units are volts/bit.  An
             # important dependency is the voltage division on the cryostat
-            # card, which can be different from cryostat card to cryostat card    
+            # card, which can be different from cryostat card to cryostat card
             "bit_to_V_hemt" : And(Use(float),lambda f: 0 < f ),
             # The 4K amplifier drain current is measured before a voltage
             # regulator, which also draws current.  An accurate measurement of
@@ -294,8 +294,8 @@ class SmurfConfig:
             # that regulator.  This is the offset to subtract off the measured
             # value, in mA.
             "hemt_Id_offset" : Use(float),
-            "50k_Id_offset" : Use(float),            
-            # 50K amplifier gate voltage, in volts.    
+            "50k_Id_offset" : Use(float),
+            # 50K amplifier gate voltage, in volts.
             "LNA_Vg" : Use(float),
             # Which RTM DAC is wired to the gate of the 50K amplifier.
             "dac_num_50k" : And(int,lambda n: 1 <= n <= 32),
@@ -306,7 +306,7 @@ class SmurfConfig:
             "bit_to_V_50k" : And(Use(float),lambda f: 0 < f ),
             # Software limit on the minimum gate voltage that can be set for the 4K amplifier.
             "hemt_gate_min_voltage" : Use(float),
-            # Software limit on the maximum gate voltage that can be set for the 4K amplifier.    
+            # Software limit on the maximum gate voltage that can be set for the 4K amplifier.
             "hemt_gate_max_voltage" :  Use(float)
         }
         #### Done specifiying amplifier
@@ -339,7 +339,7 @@ class SmurfConfig:
         ## Add tuning params that must be specified per band.
         per_band_tuning_params= [
             ( 'lms_freq',And(Use(float),lambda f: 0 < f) ),
-            ( 'delta_freq',And(Use(float),lambda f: 0 < f) ),            
+            ( 'delta_freq',And(Use(float),lambda f: 0 < f) ),
             ( 'feedback_start_frac',And(Use(float),lambda f: 0 <= f <= 1) ),
             ( 'feedback_end_frac',And(Use(float),lambda f: 0 <= f <= 1) ),
             ( 'gradient_descent_gain',And(Use(float),lambda f: 0 < f) ),
@@ -356,9 +356,9 @@ class SmurfConfig:
         for band in bands:
             for (p,v) in per_band_tuning_params:
                 if band==bands[0]:
-                    schema_dict['tune_band'][p]={}            
+                    schema_dict['tune_band'][p]={}
                 schema_dict['tune_band'][p][str(band)] = v
-        ## Done adding tuning params that must be specified per band.        
+        ## Done adding tuning params that must be specified per band.
 
         #### Done specifying tune parameter schema
 
@@ -405,12 +405,12 @@ class SmurfConfig:
         #### Start specifying constants schema
         # If all of a schema dictionary's keys are optional, must specify
         # them both in the schema key for that dictionary, and in the
-        # schema for that dictionary. 
+        # schema for that dictionary.
         constants_default_dict={ 'pA_per_phi0' : 9e6 }
         cdd_key=Optional("constant",default=constants_default_dict)
         schema_dict[cdd_key]={}
         # Assumes all constants default values are floats
-        for key, value in constants_default_dict.items():    
+        for key, value in constants_default_dict.items():
             schema_dict[cdd_key][Optional(key,default=value)] = Use(float)
         #### Done specifying constants schema
 
@@ -443,7 +443,7 @@ class SmurfConfig:
         # System should be smart enough to determine fs on the fly.
         schema_dict["fs"] = And(Use(float),lambda f: 0 < f )
 
-        userHasWriteAccess = lambda dirpath : os.access(dirpath,os.W_OK)    
+        userHasWriteAccess = lambda dirpath : os.access(dirpath,os.W_OK)
         def fileDirExistsAndUserHasWriteAccess(file_path):
             filedir_path=os.path.dirname(file_path)
             if not os.path.isdir(filedir_path):
@@ -453,7 +453,7 @@ class SmurfConfig:
             else:
                 return True
 
-        isValidPort = lambda port_number : (1 <= int(port_number) <= 65535)        
+        isValidPort = lambda port_number : (1 <= int(port_number) <= 65535)
         # Some documentation on some of these parameters is here -
         # https://confluence.slac.stanford.edu/display/SMuRF/SMURF2MCE
         schema_dict["smurf_to_mce"] = {
@@ -533,10 +533,10 @@ class SmurfConfig:
         # succeeds
 
         # Check that no DAC has been assigned to multiple TES bias groups
-        bias_group_to_pair=validated_config['bias_group_to_pair']        
+        bias_group_to_pair=validated_config['bias_group_to_pair']
         tes_bias_group_dacs=np.ndarray.flatten(np.array([bg2p[1] for bg2p in bias_group_to_pair.items()]))
         assert ( len(np.unique(tes_bias_group_dacs)) == len(tes_bias_group_dacs) ), 'Configuration failed - DACs may not be assigned to multiple TES bias groups.'
-        
+
         # Check that the DAC specified as the 50K gate driver
         # isn't also defined as one of the DACs in a TES bias group
         # pair.
@@ -545,11 +545,11 @@ class SmurfConfig:
         # that no DAC show up in more than one TES bias group
         # definition.
         assert (dac_num_50k not in tes_bias_group_dacs),'Configuration failed - DAC requested for driving 50K amplifier gate, %d, is also assigned to TES bias group %d.'%(int(dac_num_50k),int([bg2p[0] for bg2p in bias_group_to_pair.items() if dac_num_50k in bg2p[1]][0]))
-        
+
         ##### Done with higher level/composite validation.
         ###################################################
-        
+
         # Splice in the sorted init:bands key before returning
         validated_config['init']['bands']=bands
-        
-        return validated_config            
+
+        return validated_config

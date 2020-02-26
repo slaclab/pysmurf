@@ -17,8 +17,6 @@
 # contained in the LICENSE.txt file.
 #-----------------------------------------------------------------------------
 
-import re
-
 import pyrogue
 import pysmurf
 import rogue.hardware.axi
@@ -38,9 +36,11 @@ class Common(pyrogue.Root):
                  stream_pv_type = 'Int16',  # Not sub-classed
                  configure      = False,
                  VariableGroups = None,
+                 server_port    = 0,
                  **kwargs):
 
-        pyrogue.Root.__init__(self, name="AMCc", initRead=True, pollEn=polling_en, streamIncGroups='stream', **kwargs)
+        pyrogue.Root.__init__(self, name="AMCc", initRead=True, pollEn=polling_en,
+            streamIncGroups='stream', serverPort=server_port, **kwargs)
 
         #########################################################################################
         # The following interfaces are expected to be defined at this point by a sub-class
@@ -139,7 +139,6 @@ class Common(pyrogue.Root):
         self._epics = None
         if epics_prefix:
             print("Starting EPICS server using prefix \"{}\"".format(epics_prefix))
-            from pyrogue.protocols import epics
             self._epics = pyrogue.protocols.epics.EpicsCaServer(base=epics_prefix, root=self)
             self._pv_dump_file = pv_dump_file
 
@@ -241,5 +240,3 @@ class Common(pyrogue.Root):
 
         print('Setting defaults from file {}'.format(self._config_file))
         self.LoadConfig(self._config_file)
-
-

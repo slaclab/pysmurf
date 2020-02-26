@@ -59,4 +59,3 @@ class EmulationRoot(Common):
                               **kwargs)
 
         self.add(self._streaming_stream)
-
