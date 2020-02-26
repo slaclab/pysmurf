@@ -14,9 +14,13 @@
 # copied, modified, propagated, or distributed except according to the terms
 # contained in the LICENSE.txt file.
 #-----------------------------------------------------------------------------
-import epics
 import time
 import os
+import time
+try:
+    import epics
+except ModuleNotFoundError:
+    print("cryo_card.py - epics not found.")
 
 def write_csv(filename, header, line):
     should_write_header = os.path.exists(filename)

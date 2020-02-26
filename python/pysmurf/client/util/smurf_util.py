@@ -478,7 +478,7 @@ class SmurfUtilMixin(SmurfBase):
             header = header1[::2] + header1[1::2] * (2**16) # what am I doing
         else:
             raise TypeError('Type {} not yet supported!'.format(dtype))
-        if header[1,1] == 2:
+        if (header[1,1]>>24 == 2) or (header[1,1]>>24 == 0):
             header = np.fliplr(header)
             data = np.fliplr(data)
 
@@ -797,12 +797,16 @@ class SmurfUtilMixin(SmurfBase):
         try:
             datafile = glob.glob(datafile+'*')[-1]
         except BaseException:
-            print(f'datafile={datafile}')
+            self.log(f'datafile={datafile}')
 
         self.log(f'Reading {datafile}')
 
         if channel is not None:
             self.log('Only reading channel {}'.format(channel))
+
+        eval_n_samp = False
+        if n_samp is not None:
+            eval_n_samp = True
 
 
         # Flag to indicate we are about the read the fist frame from the disk
@@ -810,15 +814,10 @@ class SmurfUtilMixin(SmurfBase):
         # data structures will be build based on that
         first_read = True
 
-        #with open(datafile, mode='rb') as file:
         with SmurfStreamReader(datafile,
-                isRogue=True, metaEnable=True) as file:
-
+            isRogue=True, metaEnable=True) as file:
             for header, data in file.records():
-
-
                 if first_read:
-
                     # Update flag, so that we don't do this code again
                     first_read = False
 
@@ -829,14 +828,13 @@ class SmurfUtilMixin(SmurfBase):
                     channel = np.ravel(np.asarray(channel))
                     n_chan = len(channel)
 
-                                # Indexes for input channels
+                    # Indexes for input channels
                     channel_mask = np.zeros(n_chan, dtype=int)
                     for i, c in enumerate(channel):
                         channel_mask[i] = c
 
                     # Make holder arrays for phase and timestamp
                     phase = np.zeros((1,n_chan))
-                    #phase = np.atleast_2d(data)
                     phase[0] = data
                     t = np.array(header.timestamp)
                     counter = 1
@@ -853,7 +851,11 @@ class SmurfUtilMixin(SmurfBase):
         phase = phase.astype(float) / 2**15 * np.pi # where is decimal?  Is it in rad?
 
         # make a mask from mask file
-        mask = self.make_mask_lookup(datafile.replace('.dat', '_mask.txt'))
+        if ".dat.part" in datafile:
+            mask = self.make_mask_lookup(datafile.split(".dat.part")[0] + 
+                "_mask.txt")
+        else:
+            mask = self.make_mask_lookup(datafile.replace('.dat', '_mask.txt'))
 
         # If an array_size was defined, resize the phase array
         if array_size is not None:
@@ -881,8 +883,9 @@ class SmurfUtilMixin(SmurfBase):
         ----
         mask_lookup (int array): An array with the GCP numbers.
         """
-        if self.config.get('smurf_to_mce').get('mask_channel_offset') is not None:
-            mask_channel_offset=int(self.config.get('smurf_to_mce').get('mask_channel_offset'))
+        if hasattr(self, 'config'):
+            if self.config.get('smurf_to_mce').get('mask_channel_offset') is not None:
+                mask_channel_offset=int(self.config.get('smurf_to_mce').get('mask_channel_offset'))
 
         mask = np.atleast_1d(np.loadtxt(mask_file))
         bands = np.unique(mask // 512).astype(int)
@@ -1086,7 +1089,7 @@ class SmurfUtilMixin(SmurfBase):
         data_length (int): The number of samples
 
         Opt Args:
-        ---------
+         ---------
         hw_trigger (bool) : Whether to use the hardware trigger. If
             False, uses an internal trigger.
         do_plot (bool) : Whether or not to plot.  Default false.
@@ -2179,8 +2182,8 @@ class SmurfUtilMixin(SmurfBase):
 
 
     def overbias_tes(self, bias_group, overbias_voltage=19.9, overbias_wait=5.,
-                     tes_bias=19.9, cool_wait=20., high_current_mode=True, flip_polarity=False,
-                     actually_overbias=True):
+                     tes_bias=19.9, cool_wait=20., high_current_mode=True, 
+                     flip_polarity=False, actually_overbias=True):
         """
         Warning: This is horribly hardcoded. Needs a fix soon.
 
@@ -2207,20 +2210,24 @@ class SmurfUtilMixin(SmurfBase):
         if actually_overbias:
             # drive high current through the TES to attempt to drive normal
             self.set_tes_bias_bipolar(bias_group, overbias_voltage,
-                                      flip_polarity=flip_polarity)
+                flip_polarity=flip_polarity)
             time.sleep(.1)
-
+        
             self.set_tes_bias_high_current(bias_group)
-            self.log('Driving high current through TES. ' +
+            self.log('Driving high current through TES. ' + \
                 'Waiting {}'.format(overbias_wait), self.LOG_USER)
+
             time.sleep(overbias_wait)
 
         if not high_current_mode:
             self.set_tes_bias_low_current(bias_group)
             time.sleep(.1)
-        self.set_tes_bias_bipolar(bias_group, tes_bias, flip_polarity=flip_polarity)
+
+        self.set_tes_bias_bipolar(bias_group, tes_bias, 
+            flip_polarity=flip_polarity)
         self.log('Waiting %.2f seconds to cool' % (cool_wait), self.LOG_USER)
         time.sleep(cool_wait)
+
         self.log('Done waiting.', self.LOG_USER)
 
 
@@ -2269,7 +2276,8 @@ class SmurfUtilMixin(SmurfBase):
             self.set_tes_bias_bipolar_array(voltage_overbias_array)
 
             self.set_tes_bias_high_current(bias_groups)
-            self.log('Driving high current through TES. ' +
+
+            self.log('Driving high current through TES. ' + \
                 'Waiting {}'.format(overbias_wait), self.LOG_USER)
             time.sleep(overbias_wait)
 
