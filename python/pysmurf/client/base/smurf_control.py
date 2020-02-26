@@ -23,9 +23,6 @@ from pysmurf.client.util.smurf_util import SmurfUtilMixin as SmurfUtilMixin
 from pysmurf.client.tune.smurf_tune import SmurfTuneMixin as SmurfTuneMixin
 from pysmurf.client.debug.smurf_noise import SmurfNoiseMixin as SmurfNoiseMixin
 from pysmurf.client.debug.smurf_iv import SmurfIVMixin as SmurfIVMixin
-from pysmurf.client.base.smurf_config import SmurfConfig as SmurfConfig
-
-
 
 class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin, SmurfTuneMixin,
         SmurfNoiseMixin, SmurfIVMixin):
@@ -58,9 +55,9 @@ class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin, Smu
             go to the screen.
         setup (bool) : Whether to run the setup step. Default is False.
         smurf_cmd_mode (bool) : This mode tells the system that the input is
-            coming in from the command line (rather than a python session). 
+            coming in from the command line (rather than a python session).
             Everything implemented here are in smurf_cmd.py. Default is False.
-        no_dir (bool) : Whether to make a skip making a directory. Default is 
+        no_dir (bool) : Whether to make a skip making a directory. Default is
             False.
         validate_config (bool) : Whether to check if the input config file is
             correct. Default is True.

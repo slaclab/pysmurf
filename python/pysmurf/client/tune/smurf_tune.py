@@ -414,7 +414,7 @@ class SmurfTuneMixin(SmurfBase):
 
         if plot_summary:
             fig, ax = plt.subplots(2,2, figsize=(10,6))
-            
+
             # Subband
             sb = self.get_eta_scan_result_subband(band)
             ch = self.get_eta_scan_result_channel(band)
@@ -431,7 +431,7 @@ class SmurfTuneMixin(SmurfBase):
             ax[0,0].set_xlabel('Subband')
             ax[0,0].set_ylabel('# Res')
             ax[0,0].text(.02, .92, 'Total: {}'.format(len(sb)),
-                          fontsize=10, transform=ax[0,0].transAxes)
+                         fontsize=10, transform=ax[0,0].transAxes)
 
             # Eta stuff
             eta = self.get_eta_scan_result_eta(band)
@@ -457,7 +457,7 @@ class SmurfTuneMixin(SmurfBase):
             ax[1,1].set_ylabel('Eta phase')
 
             fig.suptitle('Band {} {}'.format(band, timestamp))
-            plt.subplots_adjust(left=.08, right=.95, top=.92, bottom=.08, 
+            plt.subplots_adjust(left=.08, right=.95, top=.92, bottom=.08,
                                 wspace=.21, hspace=.21)
 
             if save_plot:
@@ -509,7 +509,7 @@ class SmurfTuneMixin(SmurfBase):
                     else:
                         self.log('Eta plot {} of {}'.format(k+1, n_keys))
                         self.plot_eta_fit(r['freq_eta_scan'], r['resp_eta_scan'],
-                            eta=r['eta'], eta_mag=r['eta_mag'], 
+                            eta=r['eta'], eta_mag=r['eta_mag'],
                             eta_phase_deg=r['eta_phase'], band=band, res_num=k,
                             timestamp=timestamp, save_plot=save_plot,
                             show_plot=show_plot, peak_freq=r['freq'],
@@ -1329,7 +1329,7 @@ class SmurfTuneMixin(SmurfBase):
         else:
             return True
 
-        
+
     def load_master_assignment(self, band, filename):
         """
         By default, pysmurf loads the most recent master assignment.
@@ -1887,9 +1887,9 @@ class SmurfTuneMixin(SmurfBase):
 
         return rr, ii
 
-    def flux_ramp_check(self, band, reset_rate_khz=None, 
-        fraction_full_scale=None, flux_ramp=True, save_plot=True, 
-        show_plot=False, setup_flux_ramp=True):
+    def flux_ramp_check(self, band, reset_rate_khz=None,
+            fraction_full_scale=None, flux_ramp=True, save_plot=True,
+            show_plot=False, setup_flux_ramp=True):
         """
         Tries to measure the V-phi curve in feedback disable mode.
         You can also run this with flux ramp off to see the intrinsic
@@ -1922,7 +1922,7 @@ class SmurfTuneMixin(SmurfBase):
         self.set_feedback_enable_array(band, np.zeros_like(old_fb))
         d, df, sync = self.tracking_setup(band,0, reset_rate_khz=reset_rate_khz,
             fraction_full_scale=fraction_full_scale, make_plot=False,
-            save_plot=False, show_plot=False, lms_enable1=False, 
+            save_plot=False, show_plot=False, lms_enable1=False,
             lms_enable2=False, lms_enable3=False, flux_ramp=flux_ramp,
             setup_flux_ramp=setup_flux_ramp)
 
@@ -2004,12 +2004,12 @@ class SmurfTuneMixin(SmurfBase):
         return d, df, sync
 
 
-    def tracking_setup(self, band, channel=None, reset_rate_khz=None, 
-        write_log=False, make_plot=False, save_plot=True, show_plot=True, 
-        nsamp=2**19, lms_freq_hz=None, meas_lms_freq=False, flux_ramp=True, 
-        fraction_full_scale=None, lms_enable1=True, lms_enable2=True, 
-        lms_enable3=True, lms_gain=None, return_data=True, new_epics_root=None,
-        feedback_start_frac=None, feedback_end_frac=None, setup_flux_ramp=True):
+    def tracking_setup(self, band, channel=None, reset_rate_khz=None,
+            write_log=False, make_plot=False, save_plot=True, show_plot=True,
+            nsamp=2**19, lms_freq_hz=None, meas_lms_freq=False, flux_ramp=True,
+            fraction_full_scale=None, lms_enable1=True, lms_enable2=True,
+            lms_enable3=True, lms_gain=None, return_data=True, new_epics_root=None,
+            feedback_start_frac=None, feedback_end_frac=None, setup_flux_ramp=True):
         """
         The function to start tracking. Starts the flux ramp and if requested
         attempts to measure the lms (demodulation) frequency. Otherwise this
@@ -2159,7 +2159,7 @@ class SmurfTuneMixin(SmurfBase):
                 f"{(feedback_end_frac-feedback_start_frac)*100.:.1f}% of each "+
                 f"flux ramp cycle (with feedbackStart={feedback_start} and " +
                 f"feedbackEnd={feedback_end})", self.LOG_USER)
-        
+
         if flux_ramp:
             self.flux_ramp_on(write_log=write_log, new_epics_root=new_epics_root)
 
@@ -2178,7 +2178,7 @@ class SmurfTuneMixin(SmurfBase):
                      self.LOG_USER)
             self.log(f"Number of channels on with flux ramp response : {len(channels_on)}",
                      self.LOG_USER)
-            
+
             f_span = np.max(f,0) - np.min(f,0)
 
         if make_plot:
@@ -2288,13 +2288,13 @@ class SmurfTuneMixin(SmurfBase):
             return f, df, sync
 
 
-    def track_and_check(self, band, channel=None, reset_rate_khz=None, 
-        make_plot=False, save_plot=True, show_plot=True,
-        lms_freq_hz=None, flux_ramp=True, fraction_full_scale=None,
-        lms_enable1=True, lms_enable2=True, lms_enable3=True, lms_gain=None,
-        f_min=.015, f_max=.2, df_max=.03, toggle_feedback=True,
-        relock=True, tracking_setup=True,
-        feedback_start_frac=None, feedback_end_frac=None, setup_flux_ramp=True):
+    def track_and_check(self, band, channel=None, reset_rate_khz=None,
+            make_plot=False, save_plot=True, show_plot=True,
+            lms_freq_hz=None, flux_ramp=True, fraction_full_scale=None,
+            lms_enable1=True, lms_enable2=True, lms_enable3=True, lms_gain=None,
+            f_min=.015, f_max=.2, df_max=.03, toggle_feedback=True,
+            relock=True, tracking_setup=True,
+            feedback_start_frac=None, feedback_end_frac=None, setup_flux_ramp=True):
         """
         This runs tracking setup and check_lock to prune bad channels. This has
         all the same inputs and tracking_setup and check_lock. In particular the
@@ -2363,7 +2363,7 @@ class SmurfTuneMixin(SmurfBase):
                 lms_enable2=lms_enable2, lms_enable3=lms_enable3,
                 lms_gain=lms_gain, return_data=False,
                 feedback_start_frac=feedback_start_frac,
-                feedback_end_frac=feedback_end_frac, 
+                feedback_end_frac=feedback_end_frac,
                 setup_flux_ramp=setup_flux_ramp)
 
         # Toggle the feedback because sometimes tracking exits in a bad state.
@@ -2378,7 +2378,7 @@ class SmurfTuneMixin(SmurfBase):
             fraction_full_scale=fraction_full_scale, lms_freq_hz=lms_freq_hz,
             reset_rate_khz=reset_rate_khz,
             feedback_start_frac=feedback_start_frac,
-            feedback_end_frac=feedback_end_frac, 
+            feedback_end_frac=feedback_end_frac,
             setup_flux_ramp=setup_flux_ramp)
 
 
@@ -2521,8 +2521,8 @@ class SmurfTuneMixin(SmurfBase):
                 "it yet - explicitly setting to DC mode (=1).", self.LOG_USER)
             self.set_cryo_card_relay_bit(self._cryo_card_flux_ramp_relay_bit,1)
 
-            while not (self.get_cryo_card_relays() >> 
-                self._cryo_card_flux_ramp_relay_bit & 1):
+            while not (self.get_cryo_card_relays() >>
+                    self._cryo_card_flux_ramp_relay_bit & 1):
                 self.log("Waiting for cryo card to update", self.LOG_USER)
                 time.sleep(self._cryo_card_relay_wait)
 
@@ -2557,8 +2557,8 @@ class SmurfTuneMixin(SmurfBase):
         self.set_flux_ramp_dac(LTC1668RawDacData)
 
 
-    def flux_ramp_setup(self, reset_rate_khz, fraction_full_scale, df_range=.1, 
-        band=2, write_log=False, new_epics_root=None):
+    def flux_ramp_setup(self, reset_rate_khz, fraction_full_scale, df_range=.1,
+            band=2, write_log=False, new_epics_root=None):
         """
         Set flux ramp sawtooth rate and amplitude. If there are errors, check
         that you are using an allowed reset rate! Not all rates are allowed.
@@ -3001,8 +3001,8 @@ class SmurfTuneMixin(SmurfBase):
         return peaks
 
 
-    def fast_eta_scan(self, band, subband, freq, n_read, drive, 
-        make_plot=False):
+    def fast_eta_scan(self, band, subband, freq, n_read, drive,
+            make_plot=False):
         """copy of fastEtaScan.m from Matlab. Sweeps quickly across a range of
         freq and gets I, Q response
         Args:
@@ -3159,7 +3159,7 @@ class SmurfTuneMixin(SmurfBase):
         self.log('Assigning channels')
         f = [resonances[k]['freq'] for k in resonances.keys()]
 
-        subbands, channels, offsets = self.assign_channels(f, band=band, 
+        subbands, channels, offsets = self.assign_channels(f, band=band,
             as_offset=False, min_offset=min_offset,
             new_master_assignment=new_master_assignment)
 
@@ -3296,8 +3296,8 @@ class SmurfTuneMixin(SmurfBase):
         return reset_rate_khz * s * 1000  # convert to Hz
 
 
-    def flux_mod2(self, band, df, sync, min_scale=0, make_plot=False, 
-        channel=None, threshold=.5):
+    def flux_mod2(self, band, df, sync, min_scale=0, make_plot=False,
+            channel=None, threshold=.5):
         """
         Attempts to find the number of phi0s in a tracking_setup.
         Takes df and sync from a tracking_setup with feedback off.
@@ -3625,7 +3625,7 @@ class SmurfTuneMixin(SmurfBase):
             if save_sweeps:
                 save_name = '{}_amp_sweep_b{}_{}.txt'
 
-                path = os.path.join(self.output_dir, 
+                path = os.path.join(self.output_dir,
                     save_name.format(timestamp, str(band),'resonance'))
                 np.savetxt(path, freq_dict[band]['find_freq']['resonance'])
                 self.pub.register_file(path, 'resonances', format='txt')
