@@ -1,3 +1,5 @@
+dist: bionic
+
 language: minimal
 
 services:
@@ -8,6 +10,12 @@ env:
     - DOCKER_ORG_NAME=tidair
     - DOCKER_SERVER_REPO=pysmurf-server-base
     - DOCKER_CLIENT_REPO=pysmurf-client
+
+# Install dependencies
+addons:
+  apt:
+    packages:
+      - flake8
 
 stages:
   - test
@@ -46,6 +54,9 @@ jobs:
           client_docker
 
       script:
+        # Run Flake8
+        - flake8 --count python/
+
         # Try to import the smurf module in the server container
         - |
           docker exec server \
