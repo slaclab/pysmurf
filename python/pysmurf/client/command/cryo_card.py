@@ -16,7 +16,7 @@
 #-----------------------------------------------------------------------------
 import time
 import os
-import time
+
 try:
     import epics
 except ModuleNotFoundError:
