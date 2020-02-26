@@ -1556,6 +1556,8 @@ class SmurfNoiseMixin(SmurfBase):
 
         fig, ax = plt.subplots(1, 2, figsize=(10,5))
 
+        import seaborn as sns
+        
         # heatmap of coefficients
         import seaborn as sns        
         n_det, _ = np.shape(u)
