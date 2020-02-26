@@ -808,14 +808,12 @@ class SmurfUtilMixin(SmurfBase):
         try:
             datafile = glob.glob(datafile+'*')[-1]
         except:
-            print(f'datafile={datafile}')
+            self.log(f'datafile={datafile}')
 
         self.log(f'Reading {datafile}')
 
         if channel is not None:
             self.log('Only reading channel {}'.format(channel))
-
-
 
         eval_n_samp = False
         if n_samp is not None:
@@ -826,15 +824,10 @@ class SmurfUtilMixin(SmurfBase):
         # data structures will be build based on that
         first_read = True
 
-        #with open(datafile, mode='rb') as file:
         with SmurfStreamReader(datafile,
             isRogue=True, metaEnable=True) as file:
-
             for header, data in file.records():
-
-
                 if first_read:
-
                     # Update flag, so that we don't do this code again
                     first_read = False
 
@@ -852,7 +845,6 @@ class SmurfUtilMixin(SmurfBase):
 
         # Make holder arrays for phase and timestamp
                     phase = np.zeros((1,n_chan))
-                    #phase = np.atleast_2d(data)
                     phase[0] = data
                     t = np.array(header.timestamp)
                     counter = 1
@@ -873,7 +865,11 @@ class SmurfUtilMixin(SmurfBase):
         timestamp = filename.split('.')[0]
 
         # make a mask from mask file
-        mask = self.make_mask_lookup(datafile.replace('.dat', '_mask.txt'))
+        if ".dat.part" in datafile:
+            mask = self.make_mask_lookup(datafile.split(".dat.part")[0] + 
+                "_mask.txt")
+        else:
+            mask = self.make_mask_lookup(datafile.replace('.dat', '_mask.txt'))
 
         # If an array_size was defined, resize the phase array
         if array_size is not None:
