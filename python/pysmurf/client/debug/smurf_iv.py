@@ -259,20 +259,12 @@ class SmurfIVMixin(SmurfBase):
 
 
     def analyze_slow_iv_from_file(self, fn_iv_raw_data, make_plot=True,
-<<<<<<< HEAD
-                                  show_plot=False, save_plot=True,
-                                  plotname_append='', R_sh=None,
-                                  phase_excursion_min=3., grid_on=False,
-                                  R_op_target=0.007,
-                                  chs=None, band=None):
-=======
                                   show_plot=False, save_plot=True, 
                                   plotname_append='', R_sh=None, 
                                   phase_excursion_min=3., grid_on=False, 
                                   R_op_target=0.007, pA_per_phi0=None,
                                   chs=None, band=None, datafile=None,
                                   plot_dir=None, bias_line_resistance=None):
->>>>>>> master
         """
         Function to analyze a load curve from its raw file. Can be used to
           analyze IV's/generate plots separately from issuing commands.
@@ -297,8 +289,10 @@ class SmurfIVMixin(SmurfBase):
         data_path (str) : The full path to the data. This is used for offline mode
           where the data was copied to a new directory. The directory is usually
           loaded from the .npy file, and this overwrites it.
-        plot_dir (str) : The full path to the plot directory. This is usually loaded
-          with the input numpy dictionary. This overwrites this.
+        plot_dir (str) : The full path to the plot directory. This is usually 
+            loaded with the input numpy dictionary. This overwrites this.
+        bias_line_resistance (float) : The resistance of the bias lines in Ohms.
+            Default is None.
         """
         self.log('Analyzing from file: {}'.format(fn_iv_raw_data))
 
