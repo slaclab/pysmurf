@@ -847,6 +847,12 @@ class SmurfUtilMixin(SmurfBase):
 
                     counter = counter + 1
 
+                if eval_n_samp:
+                    if counter >= n_samp:
+                        self.log(f'Loaded {n_samp} samples. Stopping.')
+                        break
+
+
         phase = np.squeeze(phase.T)
         phase = phase.astype(float) / 2**15 * np.pi # where is decimal?  Is it in rad?
 

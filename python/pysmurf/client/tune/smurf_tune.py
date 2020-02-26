@@ -2008,8 +2008,9 @@ class SmurfTuneMixin(SmurfBase):
             write_log=False, make_plot=False, save_plot=True, show_plot=True,
             nsamp=2**19, lms_freq_hz=None, meas_lms_freq=False, flux_ramp=True,
             fraction_full_scale=None, lms_enable1=True, lms_enable2=True,
-            lms_enable3=True, lms_gain=None, return_data=True, new_epics_root=None,
-            feedback_start_frac=None, feedback_end_frac=None, setup_flux_ramp=True):
+            lms_enable3=True, lms_gain=None, return_data=True,
+            new_epics_root=None, feedback_start_frac=None,
+            feedback_end_frac=None, setup_flux_ramp=True, plotname_append=''):
         """
         The function to start tracking. Starts the flux ramp and if requested
         attempts to measure the lms (demodulation) frequency. Otherwise this
@@ -2026,7 +2027,8 @@ class SmurfTuneMixin(SmurfBase):
         write_log (bool) : Whether to write output to the log.  Default False.
         make_plot (bool) : Whether to make plots. Default False.
         save_plot (bool) : Whether to save plots. Default True.
-        plotname_append (string): Appended to the default plot filename. Default ''.
+        plotname_append (string): Appended to the default plot filename.
+            Default ''.
         show_plot (bool) : Whether to display the plot. Default True.
         lms_freq_hz (float) : The frequency of the tracking algorithm.
            Default is 4000
@@ -2053,6 +2055,7 @@ class SmurfTuneMixin(SmurfBase):
            lms_freq_hz must be None.
         setup_flux_ramp (bool) : Whether to setup the flux ramp. Default
            is True.
+        plotname_append (str) : Optional string to append plots with.
         """
         if reset_rate_khz is None:
             reset_rate_khz = self.reset_rate_khz
@@ -2165,8 +2168,8 @@ class SmurfTuneMixin(SmurfBase):
 
         # take one dataset with all channels
         if return_data or make_plot:
-            f, df, sync = self.take_debug_data(band, IQstream = iq_stream_enable,
-                                           single_channel_readout=0, nsamp=nsamp)
+            f, df, sync = self.take_debug_data(band, IQstream=iq_stream_enable,
+                single_channel_readout=0, nsamp=nsamp)
 
             df_std = np.std(df, 0)
             df_channels = np.ravel(np.where(df_std >0))
@@ -2176,8 +2179,8 @@ class SmurfTuneMixin(SmurfBase):
 
             self.log(f"Number of channels on : {self.which_on(band)}",
                      self.LOG_USER)
-            self.log(f"Number of channels on with flux ramp response : {len(channels_on)}",
-                     self.LOG_USER)
+            self.log("Number of channels on with flux ramp "+
+                f"response : {len(channels_on)}", self.LOG_USER)
 
             f_span = np.max(f,0) - np.min(f,0)
 
@@ -2185,8 +2188,8 @@ class SmurfTuneMixin(SmurfBase):
             timestamp = self.get_timestamp()
 
             fig,ax = plt.subplots(1,3,figsize = (12,5))
-            fig.suptitle('LMS freq = {:.0f} Hz, n_channels = {}'.format(lms_freq_hz,
-                len(channels_on)))
+            fig.suptitle(f'LMS freq = {lms_freq_hz:.0f} Hz, '+
+                f'n_channels = {len(channels_on)}')
 
             # Histogram the stddev
             ax[0].hist(df_std[channels_on] * 1e3,bins = 20,edgecolor = 'k')
@@ -2213,7 +2216,6 @@ class SmurfTuneMixin(SmurfBase):
             fig.tight_layout(rect=[0, 0.03, 1, 0.95])
 
             if save_plot:
-
                 path = os.path.join(self.plot_dir,
                     timestamp + '_FR_amp_v_err' + plotname_append + '.png')
                 plt.savefig(path, bbox_inches='tight')
@@ -2272,7 +2274,6 @@ class SmurfTuneMixin(SmurfBase):
                     plt.tight_layout()
 
                     if save_plot:
-
                         path = os.path.join(self.plot_dir, timestamp +
                             '_FRtracking_band{}_ch{:03}{}.png'.format(band,ch,
                             plotname_append))

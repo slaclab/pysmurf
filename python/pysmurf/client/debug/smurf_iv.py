@@ -374,10 +374,13 @@ class SmurfIVMixin(SmurfBase):
                 for bg in np.unique(bias_group):
                     bg_str = bg_str + str(bg)
 
-
+                # Define plot name
                 plot_name = basename + \
-                    '_IV_stream_b{}_g{}_ch{:03}{}.png'.format(b, bg_str, ch,
-                                                              plotname_append)
+                    '_IV_stream_b{}ch{:03}_g{}.png'.format(b, ch, bg_str)
+                # Optional append
+                if len(plotname_append) > 0:
+                    plot_name.replace('.png', f'_{plotname_append}.png')
+
                 if save_plot:
                     plot_fn = os.path.join(plot_dir, plot_name)
                     plt.savefig(plot_fn, bbox_inches='tight', dpi=300)
@@ -495,7 +498,8 @@ class SmurfIVMixin(SmurfBase):
             # Title
             plt.suptitle('{}, band {}, group{}'.format(basename,
                 np.unique(band),bias_group))
-            iv_hist_filename = os.path.join(plot_dir, f'{basename}_IV_hist{plotname_append}.png')
+            iv_hist_filename = os.path.join(plot_dir,
+                f'{basename}_IV_hist{plotname_append}.png')
 
             # Save the figure
             plt.savefig(iv_hist_filename,bbox_inches='tight')
@@ -507,16 +511,39 @@ class SmurfIVMixin(SmurfBase):
 
     def analyze_slow_iv(self, v_bias, resp, make_plot=True, show_plot=False,
             save_plot=True, basename=None, band=None, channel=None, R_sh=None,
-            plot_dir=None, high_current_mode=False, bias_group = None,
-            grid_on=False,R_op_target=0.007, pA_per_phi0=None,
-            bias_line_resistance=None, **kwargs):
+            plot_dir=None, high_current_mode=False, bias_group=None,
+            grid_on=False, R_op_target=0.007, pA_per_phi0=None,
+            bias_line_resistance=None, plotname_append='', **kwargs):
         """
         Analyzes the IV curve taken with slow_iv()
         Args:
         -----
         v_bias (float array): The commanded bias in voltage. Length n_steps
         resp (float array): The TES phase response in radians. Of length
-                            n_pts (not the same as n_steps
+            n_pts (not the same as n_steps).
+        make_plot (bool) : Whether to make the plot. Default is True.
+        show_plot (bool) : Whether to show the plot. Default is False.
+        save_plot (bool) : Whether to save the plot. Default is True.
+        basename (str) : The basename of the IV plot. If None, uses the current
+            timestamp. Default is None.
+        band (int) : The 500 MHz band the data was taken in. This is only for
+            plotting . Default None.
+        channel (int) : The SMuRF channel. Only used for plotting. Default
+            is None.
+        R_sh (int) : The shunt resistance in ohms. If not supplied, will try
+            to read from config file.
+        plot_dir (str) : Path to the plot directory where plots are to be saved.
+            If None, uses self.plot_dir. Default is None.
+        high_current_mode (bool) : Whether the data was taken in high current
+            mode. This is important for knowing what current actually enters
+            the cryostat.
+        grid_on (bool) : Whether to plot with grids on. Default is False.
+        pA_per_phi0 (float) : The conversion for phi0 to pA. If None, attempts
+            to read it from the config file. Default is None.
+        bias_line_resistance (float) : The resistance of the bias lines in
+            Ohms. If None, reads from config. Default is None.
+        plotname_append (str) : An optional string to append the plot names.
+
         Returns:
         --------
         R (float array):
@@ -686,7 +713,8 @@ class SmurfIVMixin(SmurfBase):
                 basename = self.get_timestamp()
             if band is not None and channel is not None:
                 if self.offline:
-                    self.log("Offline mode does not know resonator frequency. Not adding to title.")
+                    self.log("Offline mode does not know resonator frequency." +
+                        " Not adding to title.")
                 else:
                     title += ', {:.2f} MHz'.format(self.channel_to_freq(band, channel))
             title += r', $R_\mathrm{sh}$ = ' + '${:.2f}$ '.format(R_sh*1.0E3) + \
