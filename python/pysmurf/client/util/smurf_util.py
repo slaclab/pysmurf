@@ -743,13 +743,15 @@ class SmurfUtilMixin(SmurfBase):
 
                 # short wait
                 time.sleep(5.)
-                if write_log:
-                    self.log(f'Writing to file : {data_filename}',
+            if write_log:
+                self.log(f'Writing to file : {data_filename}',
                          self.LOG_USER)
 
-                smurf_chans = {}
-                for b in bands:
-                    smurf_chans[b] = self.which_on(b)
+            # Dictionary with all channels on in each band
+            smurf_chans = {}
+            for b in bands:
+                smurf_chans[b] = self.which_on(b)
+
             output_mask = self.make_channel_mask(bands, smurf_chans)
             self.set_channel_mask(output_mask)
 
