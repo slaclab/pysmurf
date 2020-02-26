@@ -87,7 +87,7 @@ def process_args(args):
             print("Invalid zip file. Omitting it.")
 
     # If the server port was not defined, set it to  (9000 + 2 * slot_number)
-    if args.server_port == None:
+    if args.server_port is None:
         # Either the IP address or the RSSI lane number must be defined.
         if args.pcie_rssi_lane:
             # If the RSSI lane number was defined, get the slot number from it
@@ -118,12 +118,12 @@ def ping_fpga(args):
     print("")
     print("Trying to ping the FPGA...")
     try:
-       dev_null = open(os.devnull, 'w')
-       subprocess.check_call(["ping", "-c2", args['ip_addr']], stdout=dev_null, stderr=dev_null)
-       print("    FPGA is online")
-       print("")
+        dev_null = open(os.devnull, 'w')
+        subprocess.check_call(["ping", "-c2", args['ip_addr']], stdout=dev_null, stderr=dev_null)
+        print("    FPGA is online")
+        print("")
     except subprocess.CalledProcessError:
-       sys.exit("    ERROR: FPGA can't be reached!")
+        sys.exit("    ERROR: FPGA can't be reached!")
 
 
 def make_parser(parser=None):
@@ -142,56 +142,56 @@ def make_parser(parser=None):
     group = parser.add_argument_group('SMuRF Args')
 
     group.add_argument('--zip', '-z', dest='zip_file', default="",
-        help="Pyrogue zip file to be included in python path."
-    )
+                       help="Pyrogue zip file to be included in python path."
+                       )
     group.add_argument('--addr', '-a', dest='ip_addr', default="",
-        help="FPGA IP address. Required when the communication type is based on Ethernet."
-    )
+                       help="FPGA IP address. Required when the communication type is based on Ethernet."
+                       )
     group.add_argument('--defaults', '-d', dest='config_file',
-        help="Default configuration file. If the path is relative, it refers to "
-             f"the zip file (i.e: <ZIP_FILE>/python/{top_rogue_package_name}/config/<CONFIG_FILE>)."
-    )
+                       help="Default configuration file. If the path is relative, it refers to "
+                       f"the zip file (i.e: <ZIP_FILE>/python/{top_rogue_package_name}/config/<CONFIG_FILE>)."
+                       )
     group.add_argument('--configure', '-c', action='store_true',
-        help="Load the default configuration at startup."
-    )
+                       help="Load the default configuration at startup."
+                       )
     group.add_argument('--epics', '-e', dest='epics_prefix', default="",
-        help="Start an EPICS server with PV name prefix \"EPICS_PREFIX\"."
-    )
+                       help="Start an EPICS server with PV name prefix \"EPICS_PREFIX\"."
+                       )
     group.add_argument('--gui', '-g', action='store_true', dest='use_gui',
-        help="Starts the server with a gui."
-    )
+                       help="Starts the server with a gui."
+                       )
     group.add_argument('--nopoll', '-n', action='store_false', dest='polling_en',
-        help="Disables all polling."
-    )
+                       help="Disables all polling."
+                       )
     group.add_argument('--pcie-rssi-lane', '-l', type=int, choices=[0,1,2,3,4,5],
-        help="PCIe RSSI lane. Only needed when using PCIe communication.", dest='pcie_rssi_lane'
-    )
+                       help="PCIe RSSI lane. Only needed when using PCIe communication.", dest='pcie_rssi_lane'
+                       )
     group.add_argument('--dump-pvs', '-u', dest='pv_dump_file', default="",
-        help="Dump the PV list to \"DUMP_FILE\". Must be used with -e."
-    )
+                       help="Dump the PV list to \"DUMP_FILE\". Must be used with -e."
+                       )
     group.add_argument('--disable-bay0', action='store_true',
-        help="Disable the instantiation of devices for Bay 0."
-    )
+                       help="Disable the instantiation of devices for Bay 0."
+                       )
     group.add_argument('--disable-bay1', action='store_true',
-        help="Disable the instantiation of devices for Bay 1"
-    )
+                       help="Disable the instantiation of devices for Bay 1"
+                       )
     group.add_argument('--windows-title', '-w', default=None,
-        help="Sets the GUI windows title. Defaults to name of this script. "
-             "This value will be ignored when running in server mode."
-    )
+                       help="Sets the GUI windows title. Defaults to name of this script. "
+                            "This value will be ignored when running in server mode."
+                       )
     group.add_argument('--pcie-dev-rssi', default="/dev/datadev_0",
-        help="Set the PCIe card device name used for RSSI "
-             "(defaults to '/dev/datadev_0')."
-    )
+                       help="Set the PCIe card device name used for RSSI "
+                            "(defaults to '/dev/datadev_0')."
+                       )
     group.add_argument('--pcie-dev-data', default="/dev/datadev_1",
-        help="Set the PCIe card device name used for data "
-             "(defaults to '/dev/datadev_1')."
-    )
+                       help="Set the PCIe card device name used for data "
+                            "(defaults to '/dev/datadev_1')."
+                       )
     group.add_argument('--server-port', dest='server_port', type=int, default=None,
-        help="Set the server port. Defaults to 9000+2*slot_number"
-    )
+                       help="Set the server port. Defaults to 9000+2*slot_number"
+                       )
     group.add_argument('--use-qt', action='store_true', dest='use_qt',
-        default=False, help="Use the QT ."
-    )
+                       default=False, help="Use the QT ."
+                       )
 
     return parser

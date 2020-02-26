@@ -253,7 +253,7 @@ class PcieCard():
                 exit_message("  ERROR: PCIe device {} not present.".format(dev_data))
 
             # Verify the lane number is valid
-            if lane == None:
+            if lane is None:
                 exit_message("  ERROR: Must specify an RSSI lane number")
 
             if lane in range(0, 6):
@@ -271,7 +271,7 @@ class PcieCard():
                 # Verify that its DeviceID is correct
                 dev_data_id = pcie.get_id()
                 if dev_data_id != 1:
-                    exit_message("  ERROR: The DeviceId for the PCIe dev for DATA is {} instead "\
+                    exit_message("  ERROR: The DeviceId for the PCIe dev for DATA is {} instead "
                         "of 1. Choose the correct device.".format(dev_data_id))
 
                 # Print FW information
@@ -283,7 +283,7 @@ class PcieCard():
                 # Verify that its DeviceID is correct
                 dev_rssi_id = pcie.get_id()
                 if dev_rssi_id != 0:
-                    exit_message("  ERROR: The DeviceId for the PCIe dev for RSSI is {} instead "\
+                    exit_message("  ERROR: The DeviceId for the PCIe dev for RSSI is {} instead "
                         "of 0. Choose the correct device.".format(dev_rssi_id))
 
                 # Print FW information

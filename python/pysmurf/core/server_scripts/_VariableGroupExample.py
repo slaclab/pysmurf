@@ -25,9 +25,8 @@
 # the polling interface if the path points to a variable. The poll interval value
 # is in seconds. Use None to leave interval unchanged, 0 to disable polling.
 
-VariableGroups = {
-    'root.RogueVersion'     : {'groups' : ['publish','stream'], 'pollInterval': None},
-    'root.RogueDirectory'   : {'groups' : ['publish','stream'], 'pollInterval': None},
-    'root.SmurfApplication' : {'groups' : ['publish','stream'], 'pollInterval': None},
-    'root.SmurfProcessor'   : {'groups' : ['publish','stream'], 'pollInterval': None},
-    }
+VariableGroups = {'root.RogueVersion'     : {'groups' : ['publish','stream'], 'pollInterval': None},
+                  'root.RogueDirectory'   : {'groups' : ['publish','stream'], 'pollInterval': None},
+                  'root.SmurfApplication' : {'groups' : ['publish','stream'], 'pollInterval': None},
+                  'root.SmurfProcessor'   : {'groups' : ['publish','stream'], 'pollInterval': None},
+                  }

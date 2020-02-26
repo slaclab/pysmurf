@@ -103,7 +103,7 @@ def test_data_write_and_read(smurf_control):
     # Turn on some channels
     x = (np.random.randn(512)>0)*10
     smurf_control.set_amplitude_scale_array(band, x, wait_done=True)
-    input_n_chan = np.sum(x>0)
+    #input_n_chan = np.sum(x>0)
 
     # Take 5 seconds of data
     filename = smurf_control.take_stream_data(5)

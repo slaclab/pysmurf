@@ -7,7 +7,8 @@
 
 import socket
 import json
-import os, sys
+import os
+import sys
 import time
 import pysmurf
 
@@ -21,6 +22,7 @@ class Publisher:
     script_id = 'undeclared'
     pub_id = 'undeclared'
     env_root = DEFAULT_ENV_ROOT
+
     def __init__(self, script_id=None, options={}, env_root=None):
         """The Publisher should normally be instantiated with just the
         script_id, e.g.:

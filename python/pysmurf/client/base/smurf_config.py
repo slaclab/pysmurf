@@ -314,8 +314,8 @@ class SmurfConfig:
         #### Start specifying chip-to-frequency schema
         schema_dict[Optional('chip_to_freq',default={})] = {
             # [chip lower frequency, chip upper frequency] in GHz
-            Optional(str) : And([ Use(float) ], list, lambda l: len(l)==2
-                                and l[0]<l[1] and all(ll >= 4 and ll<= 8 for ll in l) )
+            Optional(str) : And([ Use(float) ], list, lambda l: len(l) == 2 and
+                l[0]<l[1] and all(ll >= 4 and ll<= 8 for ll in l) )
         }
         #### Done specifying chip-to-frequency schema
 
@@ -366,8 +366,8 @@ class SmurfConfig:
         schema_dict[Optional('bad_mask', default = {})] = {
             # Why are these indexed by integers that are also strings?
             # I don't think the keys here are used at all.
-            Optional(str) : And([ Use(float) ], list, lambda l: len(l)==2
-                                and l[0]<l[1] and all(ll >= 4000 and ll<= 8000 for ll in l) )
+            Optional(str) : And([ Use(float) ], list, lambda l: len(l) == 2 and
+                l[0]<l[1] and all(ll >= 4000 and ll<= 8000 for ll in l) )
         }
         #### Done specifying bad mask
 
@@ -443,7 +443,9 @@ class SmurfConfig:
         # System should be smart enough to determine fs on the fly.
         schema_dict["fs"] = And(Use(float),lambda f: 0 < f )
 
-        userHasWriteAccess = lambda dirpath : os.access(dirpath,os.W_OK)
+        def userHasWriteAccess(dirpath):
+            return os.access(dirpath,os.W_OK)
+
         def fileDirExistsAndUserHasWriteAccess(file_path):
             filedir_path=os.path.dirname(file_path)
             if not os.path.isdir(filedir_path):
@@ -453,7 +455,8 @@ class SmurfConfig:
             else:
                 return True
 
-        isValidPort = lambda port_number : (1 <= int(port_number) <= 65535)
+        def isValidPort(port_number):
+            return (1 <= int(port_number) <= 65535)
         # Some documentation on some of these parameters is here -
         # https://confluence.slac.stanford.edu/display/SMuRF/SMURF2MCE
         schema_dict["smurf_to_mce"] = {

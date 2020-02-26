@@ -19,7 +19,8 @@
 
 import socket
 import json
-import os, sys
+import os
+import sys
 import time
 
 DEFAULT_ENV_ROOT = 'SMURFPUB_'

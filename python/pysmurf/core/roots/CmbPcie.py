@@ -68,12 +68,13 @@ class CmbPcie(Common):
             rogue.hardware.axi.AxiStreamDma(pcie_dev_data,(pcie_rssi_lane*0x100 + 0xC1), True)
 
         # Setup base class
-        Common.__init__(self, config_file    = config_file,
-                              epics_prefix   = epics_prefix,
-                              polling_en     = polling_en,
-                              pv_dump_file   = pv_dump_file,
-                              txDevice       = txDevice,
-                              configure      = configure,
-                              VariableGroups = VariableGroups,
-                              server_port    = server_port,
-                              **kwargs)
+        Common.__init__(self,
+                        config_file    = config_file,
+                        epics_prefix   = epics_prefix,
+                        polling_en     = polling_en,
+                        pv_dump_file   = pv_dump_file,
+                        txDevice       = txDevice,
+                        configure      = configure,
+                        VariableGroups = VariableGroups,
+                        server_port    = server_port,
+                        **kwargs)
