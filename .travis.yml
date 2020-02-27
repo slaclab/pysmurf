@@ -82,15 +82,13 @@ jobs:
           --entrypoint bash \
           client_docker
 
-        ## TO DO ##
-        # Fix this test in travis. It is failing when trying to import matplotlib
-        # with: assertion 'GDK_IS_DISPLAY (display)' failed
-        ## TO DO ##
+      script:
         # Try to import the pysmurf.client module in the client container
-        # - |
-        #   docker exec client \
-        #   /bin/bash -c "PYTHONPATH=/root/pysmurf/lib:/root/pysmurf/python:${PYTHONPATH} \
-        #   python3 -c 'import pysmurf.client'"
+        # Note: we need to disable the matplotlib graphics backend in order to
+        #       be able to run in travis.
+        - |
+          docker exec client \
+          /bin/bash -c "python3 -c 'import matplotlib; matplotlib.use(\"Agg\"); import pysmurf.client'"
 
     # Deployment stage for the server docker
     - stage: deploy_server_docker
