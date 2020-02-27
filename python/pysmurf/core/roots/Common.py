@@ -102,7 +102,7 @@ class Common(pyrogue.Root):
             try:
                 v = self.FpgaTopLevel.AppTop.AppCore.RtmCryoDet.RtmSpiMax.node(f'TesBiasDacDataRegCh[{i}]')
                 v.addListener(lambda path, value, lidx=idx: _update_tes_bias(lidx))
-            except Exception as e:
+            except Exception:
                 print(f"TesBiasDacDataRegCh[{i}] not found... Skipping!")
 
         # Run control for streaming interfaces
@@ -139,13 +139,14 @@ class Common(pyrogue.Root):
         self._epics = None
         if epics_prefix:
             print("Starting EPICS server using prefix \"{}\"".format(epics_prefix))
-            self._epics = pyrogue.protocols.epics.EpicsCaServer(base=epics_prefix, root=self)
+            from pyrogue.protocols import epics
+            self._epics = epics.EpicsCaServer(base=epics_prefix, root=self)
             self._pv_dump_file = pv_dump_file
 
             # PVs for stream data
             # This should be replaced with DataReceiver objects
             if stream_pv_size:
-                print("Enabling stream data on PVs (buffer size = {} points, data type = {})"\
+                print("Enabling stream data on PVs (buffer size = {} points, data type = {})"
                     .format(stream_pv_size,stream_pv_type))
 
                 self._stream_fifos  = []
@@ -196,11 +197,11 @@ class Common(pyrogue.Root):
             print("")
             print("FPGA image build information:")
             print("===================================")
-            print("BuildStamp              : {}"\
+            print("BuildStamp              : {}"
                 .format(self.FpgaTopLevel.AmcCarrierCore.AxiVersion.BuildStamp.get()))
-            print("FPGA Version            : 0x{:x}"\
+            print("FPGA Version            : 0x{:x}"
                 .format(self.FpgaTopLevel.AmcCarrierCore.AxiVersion.FpgaVersion.get()))
-            print("Git hash                : 0x{:x}"\
+            print("Git hash                : 0x{:x}"
                 .format(self.FpgaTopLevel.AmcCarrierCore.AxiVersion.GitHash.get()))
         except AttributeError as attr_error:
             print("Attibute error: {}".format(attr_error))
@@ -221,7 +222,13 @@ class Common(pyrogue.Root):
         if self._configure:
             self.setDefaults.call()
 
-
+        # Workaround: Set the Mask value to '[0]' by default when the server starts.
+        # This is needed because the pysmurf-client by default stat data streaming
+        # @4kHz without setting this mask, which by default has a value of '[0]*4096'.
+        # Under these conditions, the software processing block is not able to keep
+        # up, eventually making the PCIe card's buffer to get full, and that triggers
+        # some known issues in the PCIe FW.
+        self.SmurfProcessor.ChannelMapper.Mask.set([0])
 
     def stop(self):
         print("Stopping servers...")

@@ -106,6 +106,7 @@ class DataMaster(rogue.interfaces.stream.Master):
 
     # Method for generating a frame
     def sendData(self, data):
+
         """
         Send a Rogue Frame. The frame contains the SMuRF header and the
         input data point in the first channel. The frame will contain only

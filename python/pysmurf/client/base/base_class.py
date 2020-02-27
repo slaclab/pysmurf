@@ -74,7 +74,7 @@ class SmurfBase(object):
         self.pub = Publisher(env_root=pub_root, script_id=script_id)
 
         self.offline = offline
-        if self.offline == True:
+        if self.offline is True:
             self.log('Offline mode')
 
 

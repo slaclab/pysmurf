@@ -25,37 +25,61 @@ from pysmurf.client.debug.smurf_noise import SmurfNoiseMixin as SmurfNoiseMixin
 from pysmurf.client.debug.smurf_iv import SmurfIVMixin as SmurfIVMixin
 from pysmurf.client.base.smurf_config import SmurfConfig as SmurfConfig
 
-
 class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin, SmurfTuneMixin,
-    SmurfNoiseMixin, SmurfIVMixin):
+        SmurfNoiseMixin, SmurfIVMixin):
     '''
     Base class for controlling Smurf. Loads all the mixins.
     '''
 
     def __init__(self, epics_root=None,
-                 cfg_file='/home/cryo/pysmurf/cfg_files/experiment_k2umux.cfg',
+                 cfg_file=None,
                  data_dir=None, name=None, make_logfile=True,
                  setup=False, offline=False, smurf_cmd_mode=False,
                  no_dir=False, shelf_manager='shm-smrf-sp01',
                  validate_config=True, **kwargs):
         '''
+        Initializer for SmurfControl.
+
         Args:
         -----
         epics_root (string) : The epics root to be used. Default mitch_epics
-        cfg_file (string) : Path the config file
+        cfg_file (string) : Config file path. Default is None. Must be provided
+            if not on offline mode.
         data_dir (string) : Path to the data dir
 
         Opt Args:
         ----------
+        data_dir (str) : Path to the data directory
+        name (str) : The name of the output directory. If None, it will use
+            the current timestamp as the output directory name. Default is None.
+        make_logfile (bool) : Whether to make a log file. If False, outputs will
+            go to the screen.
+        setup (bool) : Whether to run the setup step. Default is False.
+        smurf_cmd_mode (bool) : This mode tells the system that the input is
+            coming in from the command line (rather than a python session).
+            Everything implemented here are in smurf_cmd.py. Default is False.
+        no_dir (bool) : Whether to make a skip making a directory. Default is
+            False.
+        validate_config (bool) : Whether to check if the input config file is
+            correct. Default is True.
         shelf_manager (str):
             Shelf manager ip or network name.  Usually each SMuRF server is
             connected one-to-one with a SMuRF crate, in which case we by
             default give the shelf manager the network name 'shm-smrf-sp01'.
+
         '''
-        self.config = SmurfConfig(cfg_file, validate_config=validate_config)
+        if not offline and cfg_file is None:
+            raise ValueError('Must provide config file.')
+        elif cfg_file is not None:
+            self.config = SmurfConfig(cfg_file)
+
         self.shelf_manager=shelf_manager
         if epics_root is None:
             epics_root = self.config.get('epics_root')
+
+        # In offline mode, epics root is not needed.
+        if offline and epics_root is None:
+            epics_root = ''
 
         super().__init__(epics_root=epics_root, offline=offline, **kwargs)
 
@@ -74,7 +98,7 @@ class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin, Smu
         '''
 
         if no_dir:
-            print('Warning! Not making output directories!'+ \
+            print('Warning! Not making output directories!' +
                 'This will break may things!')
         elif smurf_cmd_mode:
             # Get data dir
@@ -195,7 +219,7 @@ class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin, Smu
                     '*channel_assignment_b{}.txt'.format(b)))
                 if len(all_channel_assignment_files):
                     self.channel_assignment_files['band_{}'.format(b)] = \
-                            np.sort(all_channel_assignment_files)[-1]
+                        np.sort(all_channel_assignment_files)[-1]
 
         # bias groups available
         self.all_groups = self.config.get('all_bias_groups')
@@ -448,12 +472,12 @@ class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin, Smu
         # self.set_smurf_to_gcp_clear(0, write_log=write_log)
 
         self.set_amplifier_bias(write_log=write_log)
-        _ = self.get_amplifier_bias()
+        self.get_amplifier_bias()
         self.log("Cryocard temperature = "+ str(self.C.read_temperature())) # also read the temperature of the CC
 
         # if no timing section present, assumes your defaults.yml
         # has set you up...good luck.
-        if self.config.get('timing') is not None and self.config.get('timing').get('timing_reference') is not  None:
+        if self.config.get('timing') is not None and self.config.get('timing').get('timing_reference') is not None:
             timing_reference=self.config.get('timing').get('timing_reference')
 
             # check if supported

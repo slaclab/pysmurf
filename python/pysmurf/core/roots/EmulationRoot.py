@@ -51,11 +51,12 @@ class EmulationRoot(Common):
         self._streaming_stream = pysmurf.core.emulators.StreamDataSource()
 
         # Setup base class
-        Common.__init__(self, config_file    = config_file,
-                              epics_prefix   = epics_prefix,
-                              polling_en     = polling_en,
-                              pv_dump_file   = pv_dump_file,
-                              txDevice       = txDevice,
-                              **kwargs)
+        Common.__init__(self,
+                        config_file    = config_file,
+                        epics_prefix   = epics_prefix,
+                        polling_en     = polling_en,
+                        pv_dump_file   = pv_dump_file,
+                        txDevice       = txDevice,
+                        **kwargs)
 
         self.add(self._streaming_stream)
