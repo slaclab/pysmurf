@@ -36,17 +36,17 @@ RogueHeaderPack  = 'IHBB'
 # TO DO: Extract the TES BIAS values
 
 # Default header as a named tuple
-SmurfHeaderTuple = namedtuple( 'SmurfHeader',
+SmurfHeaderTuple = namedtuple(  'SmurfHeader',
                               [ 'protocol_version'    ,                # 1 Byte, B
                                 'crate_id'            ,                # 1 Byte, B
                                 'slot_number'         ,                # 1 Byte, B
                                 'timing_cond'         ,                # 1 Byte, B
-                                'number_of_channels']                  # 4 Bytes, uint32, I
+                                'number_of_channels'] +                # 4 Bytes, uint32, I
 
                              # 40 bytes of TES data, 40B
-                             + [f'tes_byte_{i}' for i in range (40)]
+                              [f'tes_byte_{i}' for i in range (40)] +
 
-                             + ['timestamp'           ,  # 8 Bytes, uint64, Q
+                              [ 'timestamp'           ,  # 8 Bytes, uint64, Q
                                 'flux_ramp_increment' ,  # 4 Bytes, int32,  I
                                 'flux_ramp_offset'    ,  # 4 bytes, int32,  I
                                 'counter_0'           ,  # 4 bytes, uint32, I
@@ -64,24 +64,21 @@ SmurfHeaderTuple = namedtuple( 'SmurfHeader',
                                 'num_rows_reported'   ,  # 2 bytes, uint16, H
                                                          # 4 bytes, unused, 4x
                                 'row_length'          ,  # 2 bytes, uint16, H
-                                'data_rate'              # 2 bytes, uint16, H
-                                                         # 4 bytes, unused, 4x
-                              ] )
+                                'data_rate' ])           # 2 bytes, uint16, H
 
 # Default header as a named tuple
 RogueHeader = namedtuple( 'RogueHeader',
                          [ 'size'                ,  # 4 Bytes, uint32, I
                            'flags'               ,  # 2 bytes, uint16, H
                            'error'               ,  # 1 bytes, uint8,  B
-                           'channel'                # 1 bytes, uint8,  B
-                         ] )
+                           'channel' ])             # 1 bytes, uint8,  B
 
 
 class SmurfHeader(SmurfHeaderTuple):
 
     @property
     def external_time(self):
-        return self.external_time_raw & 0xFFFFFFFFFF;  # Only lower 5 bytes
+        return self.external_time_raw & 0xFFFFFFFFFF  # Only lower 5 bytes
 
     def tesBias(self, index):
         baseByte = int((index * 20) / 8)
@@ -91,9 +88,10 @@ class SmurfHeader(SmurfHeaderTuple):
         for idx,byte in enumerate(range(baseByte,baseByte+3)):
             val += eval(f'self.tes_byte_{byte}') << idx*8
 
-        tmp = (val >> baseBit) & 0xFFFFF;
+        tmp = (val >> baseBit) & 0xFFFFF
 
-        if tmp & 0x80000: tmp |= 0xF00000;
+        if tmp & 0x80000:
+            tmp |= 0xF00000
 
         ba = tmp.to_bytes(3,byteorder='little',signed=False)
         ret = int.from_bytes(ba,byteorder='little',signed=True)
@@ -166,7 +164,8 @@ class SmurfStreamReader(object):
                     return False
 
                 # If this is a data channel, break
-                if rogueHeader.channel == 0: break
+                if rogueHeader.channel == 0:
+                    break
 
                 # Process meta data
                 elif self._metaEnable and rogueHeader.channel == 1:
@@ -176,7 +175,8 @@ class SmurfStreamReader(object):
                         print(f"Waring: Error processing meta data in {self._currFName}: {e}")
 
                 # Skip over meta data
-                else: self._currFile.seek(recEnd)
+                else:
+                    self._currFile.seek(recEnd)
 
             # Check if there is enough room for the Smurf header
             if SmurfHeaderSize > roguePayload:
@@ -229,7 +229,8 @@ class SmurfStreamReader(object):
         self._totCount += 1
 
         # Jump forward if neccessary
-        if ( self._currFile.tell() != recEnd ): self._currFile.seek(recEnd)
+        if ( self._currFile.tell() != recEnd ):
+            self._currFile.seek(recEnd)
 
         return True
 

@@ -26,14 +26,13 @@ from matplotlib.gridspec import GridSpec
 class SmurfNoiseMixin(SmurfBase):
 
     def take_noise_psd(self, meas_time,
-        channel=None, nperseg=2**12,
-        detrend='constant', fs=None, low_freq=np.array([.1, 1.]),
-        high_freq=np.array([1., 10.]), make_channel_plot=True,
-        make_summary_plot=True, plotname_append='',
-        save_data=False, show_plot=False,
-        grid_on=False, datafile=None, downsample_factor=None,
-        write_log=True):
-
+            channel=None, nperseg=2**12,
+            detrend='constant', fs=None, low_freq=np.array([.1, 1.]),
+            high_freq=np.array([1., 10.]), make_channel_plot=True,
+            make_summary_plot=True, plotname_append='',
+            save_data=False, show_plot=False,
+            grid_on=False, datafile=None, downsample_factor=None,
+            write_log=True):
         """
         Takes a timestream of noise and calculates its PSD. It also
         attempts to fit a white noise and 1/f component to the data.
@@ -70,7 +69,7 @@ class SmurfNoiseMixin(SmurfBase):
         write_log (bool) : Whether to write to the log file (or the screen
             if the logfile is not defined). Default is True.
         """
-        if datafile == None:
+        if datafile is None:
             datafile = self.take_stream_data(meas_time,
                                              downsample_factor=downsample_factor,
                                              write_log=write_log)
@@ -211,8 +210,8 @@ class SmurfNoiseMixin(SmurfBase):
                 fig.tight_layout()
 
                 plot_name = basename + \
-                            f'_noise_timestream_b{b}_ch{ch:03}{plotname_append}.png'
-                fig.savefig(os.path.join(self.plot_dir, plot_name), 
+                    f'_noise_timestream_b{b}_ch{ch:03}{plotname_append}.png'
+                fig.savefig(os.path.join(self.plot_dir, plot_name),
                     bbox_inches='tight')
 
                 # Close the individual channel plots - otherwise too many
@@ -239,9 +238,8 @@ class SmurfNoiseMixin(SmurfBase):
                 ax.set_xlabel(r'Mean noise [$\mathrm{pA}/\sqrt{\mathrm{Hz}}$]')
 
                 plot_name = basename + \
-
                     '{}_{}_noise_hist{}.png'.format(l, h, plotname_append)
-                plt.savefig(os.path.join(self.plot_dir, plot_name), 
+                plt.savefig(os.path.join(self.plot_dir, plot_name),
                     bbox_inches='tight')
                 if show_plot:
                     plt.show()
@@ -614,13 +612,13 @@ class SmurfNoiseMixin(SmurfBase):
         return 1./np.absolute(si)
 
     def analyze_noise_vs_bias(self, bias, datafile, channel=None, band=None,
-        nperseg=2**13, detrend='constant', fs=None, save_plot=True,
-        show_plot=False, make_timestream_plot=False, data_timestamp=None,
-        psd_ylim=(10.,1000.), bias_group=None, smooth_len=15,
-        show_legend=True, freq_range_summary=None, R_sh=None,
-        high_current_mode=True, iv_data_filename=None, NEP_ylim=(10.,1000.),
-        f_center_GHz=150.,bw_GHz=32., xlabel_override=None,
-        unit_override=None):
+            nperseg=2**13, detrend='constant', fs=None, save_plot=True,
+            show_plot=False, make_timestream_plot=False, data_timestamp=None,
+            psd_ylim=(10.,1000.), bias_group=None, smooth_len=15,
+            show_legend=True, freq_range_summary=None, R_sh=None,
+            high_current_mode=True, iv_data_filename=None, NEP_ylim=(10.,1000.),
+            f_center_GHz=150.,bw_GHz=32., xlabel_override=None,
+            unit_override=None):
         """
         Analysis script associated with noise_vs_bias.
         Args:
@@ -728,7 +726,7 @@ class SmurfNoiseMixin(SmurfBase):
         n_row = int(np.ceil(n_bias/2.)*3)
         h_NEI = int(n_row/3)
         w_NEI = 2
-        h_timestream = 1
+        #h_timestream = 1
         w_timestream = w_NEI
         h_NEIwl = h_NEI
         h_NEPwl = h_NEIwl
@@ -753,8 +751,8 @@ class SmurfNoiseMixin(SmurfBase):
                 if ch not in iv_band_data:
                     self.log('Skipping channel {}: no responsivity data.'.format(ch))
                     continue
-                ax_NEPwl = fig.add_subplot(gs[h_NEIwl:h_NEIwl+h_NEPwl,\
-                                        w_timestream:w_timestream+w_NEPwl])
+                ax_NEPwl = fig.add_subplot(gs[h_NEIwl:h_NEIwl+h_NEPwl,
+                    w_timestream:w_timestream+w_NEPwl])
                 ax_SI = fig.add_subplot(gs[h_NEIwl+h_NEPwl:h_NEIwl+h_NEPwl+h_SI,w_timestream:w_timestream+w_SI])
             if make_timestream_plot:
                 axs_timestream = []
@@ -776,7 +774,7 @@ class SmurfNoiseMixin(SmurfBase):
                     '_psd_ch{:03}.txt'.format(ch)))
                 if est_NEP:
                     NEI2NEP = self.NEI_to_NEP(iv_band_data,ch,b)
-                    NEP = Pxx*NEI2NEP
+                    #NEP = Pxx*NEI2NEP
                 # smooth Pxx for plotting
                 if smooth_len >= 3:
                     window_len = smooth_len
@@ -1174,7 +1172,7 @@ class SmurfNoiseMixin(SmurfBase):
         try:
             popt, pcov = optimize.curve_fit(noise_model, f[1:], Pxx[1:],
                                             p0=p0,bounds=bounds)
-        except Exception as e:
+        except Exception:
             wl = np.mean(Pxx[1:])
             self.log('Unable to fit noise model. ' +
                 f'Reporting mean noise: {wl:.2f} pA/rtHz')
@@ -1279,7 +1277,7 @@ class SmurfNoiseMixin(SmurfBase):
 
 
     def NET_CMB(self, NEI, V_b, R_tes, opt_eff, f_center=150e9, bw=32e9,
-        R_sh=None, high_current_mode=False):
+            R_sh=None, high_current_mode=False):
         '''
         Converts current spectral noise density to NET in uK rt(s). Assumes NEI
         is white-noise level.
@@ -1315,10 +1313,10 @@ class SmurfNoiseMixin(SmurfBase):
 
 
     def analyze_noise_vs_tone(self, tone, datafile, channel=None, band=None,
-        nperseg=2**13, detrend='constant', fs=None, save_plot=True,
-        show_plot=False, make_timestream_plot=False, data_timestamp=None,
-        psd_ylim=(10.,1000.), bias_group=None, smooth_len=11,
-        show_legend=True, freq_range_summary=None):
+            nperseg=2**13, detrend='constant', fs=None, save_plot=True,
+            show_plot=False, make_timestream_plot=False, data_timestamp=None,
+            psd_ylim=(10.,1000.), bias_group=None, smooth_len=11,
+            show_legend=True, freq_range_summary=None):
         """
         Analysis script associated with noise_vs_tone.
         """
@@ -1377,8 +1375,8 @@ class SmurfNoiseMixin(SmurfBase):
                     if show_plot:
                         plt.show()
                     if save_plot:
-                        plt.savefig(os.path.join(self.plot_dir, basename + \
-                                    '_timestream_ch{:03}.png'.format(ch)),\
+                        plt.savefig(os.path.join(self.plot_dir, basename +
+                                    '_timestream_ch{:03}.png'.format(ch)),
                                     bbox_inches='tight')
                         plt.close()
 
@@ -1536,7 +1534,7 @@ class SmurfNoiseMixin(SmurfBase):
         return u, s, vh
 
     def plot_svd_summary(self, u, s, save_plot=False,
-        save_name=None, show_plot=False):
+            save_name=None, show_plot=False):
         """
         Requires seaborn to be installed. Plots a heatmap
         of the coefficients and the log10 of the amplitudes.
@@ -1558,7 +1556,7 @@ class SmurfNoiseMixin(SmurfBase):
         fig, ax = plt.subplots(1, 2, figsize=(10,5))
 
         # heatmap of coefficients
-        import seaborn as sns        
+        import seaborn as sns
         n_det, _ = np.shape(u)
         n_tick = 10
         tick = n_det//n_tick
@@ -1589,7 +1587,7 @@ class SmurfNoiseMixin(SmurfBase):
             plt.close()
 
     def plot_svd_modes(self, vh, n_row=4, n_col=5, figsize=(10,7.5),
-        save_plot=False, save_name=None, show_plot=False, sharey=True):
+            save_plot=False, save_name=None, show_plot=False, sharey=True):
         """
         Plots the first N modes where N is n_row x n_col.
         Args:

@@ -15,7 +15,10 @@
 # contained in the LICENSE.txt file.
 #-----------------------------------------------------------------------------
 import time
-import epics
+try:
+    import epics
+except ModuleNotFoundError:
+    print("sync_group.py - epics not found.")
 
 """
 This class is written by Mitch to read PVs simultanesouly

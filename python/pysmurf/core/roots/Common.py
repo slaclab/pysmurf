@@ -102,7 +102,7 @@ class Common(pyrogue.Root):
             try:
                 v = self.FpgaTopLevel.AppTop.AppCore.RtmCryoDet.RtmSpiMax.node(f'TesBiasDacDataRegCh[{i}]')
                 v.addListener(lambda path, value, lidx=idx: _update_tes_bias(lidx))
-            except Exception as e:
+            except Exception:
                 print(f"TesBiasDacDataRegCh[{i}] not found... Skipping!")
 
         # Run control for streaming interfaces
@@ -145,7 +145,7 @@ class Common(pyrogue.Root):
             # PVs for stream data
             # This should be replaced with DataReceiver objects
             if stream_pv_size:
-                print("Enabling stream data on PVs (buffer size = {} points, data type = {})"\
+                print("Enabling stream data on PVs (buffer size = {} points, data type = {})"
                     .format(stream_pv_size,stream_pv_type))
 
                 self._stream_fifos  = []
@@ -196,11 +196,11 @@ class Common(pyrogue.Root):
             print("")
             print("FPGA image build information:")
             print("===================================")
-            print("BuildStamp              : {}"\
+            print("BuildStamp              : {}"
                 .format(self.FpgaTopLevel.AmcCarrierCore.AxiVersion.BuildStamp.get()))
-            print("FPGA Version            : 0x{:x}"\
+            print("FPGA Version            : 0x{:x}"
                 .format(self.FpgaTopLevel.AmcCarrierCore.AxiVersion.FpgaVersion.get()))
-            print("Git hash                : 0x{:x}"\
+            print("Git hash                : 0x{:x}"
                 .format(self.FpgaTopLevel.AmcCarrierCore.AxiVersion.GitHash.get()))
         except AttributeError as attr_error:
             print("Attibute error: {}".format(attr_error))
