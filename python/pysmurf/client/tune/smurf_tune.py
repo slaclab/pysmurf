@@ -3108,11 +3108,16 @@ class SmurfTuneMixin(SmurfBase):
             and channel number.
         """
 
+        
         # Turn off all tones in this band first
         self.band_off(band)
         
         # Check if any resonances are stored
-        if 'resonance' not in self.freq_resp[band]['find_freq'] and resonance is None:
+        if 'find_freq' not in self.freq_resp[band]:
+            self.log(f'No find_freq in freq_resp dictionary for band {band}. ' +
+                     'Run find_freq first.', self.LOG_ERROR)
+            return
+        elif 'resonance' not in self.freq_resp[band]['find_freq'] and resonance is None:
             self.log('No resonances stored in band {}'.format(band) +
                 '. Run find_freq first.', self.LOG_ERROR)
             return
