@@ -60,8 +60,9 @@ class CmbPcie(Common):
         # DDR streams. We are only using the first 2 channel of each AMC daughter card, i.e.
         # channels 0, 1, 4, 5.
         for i in [0, 1, 4, 5]:
-            self._ddr_streams.append(
-                rogue.hardware.axi.AxiStreamDma(pcie_dev_rssi,(pcie_rssi_lane*0x100 + 0x80 + i), True))
+            tmp = rogue.hardware.axi.AxiStreamDma(pcie_dev_rssi,(pcie_rssi_lane*0x100 + 0x80 + i), True)
+            tmp.setZeroCopyEn(False)
+            self._ddr_streams.append(tmp)
 
         # Streaming interface stream
         self._streaming_stream = \
