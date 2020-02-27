@@ -18,6 +18,7 @@ addons:
       - flake8
 
 stages:
+  - checks
   - test
   - name: deploy_server_docker
     if: tag IS present
@@ -26,6 +27,14 @@ stages:
 
 jobs:
   include:
+    # Check stages
+    ## Flake8 checks
+    - stage: checks
+      name: "Flake8 Checks"
+      script:
+        # Run Flake8
+        - flake8 --count python/
+
     # Test stage
     - stage: test
       name: "Unit Tests"
@@ -54,9 +63,6 @@ jobs:
           client_docker
 
       script:
-        # Run Flake8
-        - flake8 --count python/
-
         # Try to import the smurf module in the server container
         - |
           docker exec server \
