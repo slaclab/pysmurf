@@ -673,16 +673,22 @@ class SmurfUtilMixin(SmurfBase):
 
 
     def stream_data_on(self, write_config=False, data_filename=None,
-                       downsample_factor=None, write_log=True):
+                       downsample_factor=None, write_log=True,
+                       make_freq_mask=True):
         """
         Turns on streaming data.
 
         Opt Args:
         ---------
+        write_config (bool) : Whether to dump the entire config. Default
+            is False. Warning this can be slow.
         data_filename (str) : The full path to store the data. If None, it
             uses the timestamp.
-        downsample_filter (int) : The number of fast samples to skip between
-            sending.
+        downsample_factor (int) : The number of flux_ramp cycles to average
+            over before writing data out.
+        write_log (bool) : Whether to write outputs to the log.
+        make_freq_mask (bool) : Whether to write a text file with resonator
+            frequencies. Default True.
 
         Returns:
         --------
@@ -761,6 +767,11 @@ class SmurfUtilMixin(SmurfBase):
             np.savetxt(os.path.join(data_filename.replace('.dat', '_mask.txt')),
                 output_mask, fmt='%i')
 
+            if make_freq_mask:
+                freq_mask = self.make_freq_mask(output_mask)
+                np.savetxt(os.path.join(data_filename.replace('.dat', '_freq.txt')),
+                           freq_mask, fmt='%4.4f')
+
             self.open_data_file(write_log=write_log)
 
             return data_filename
@@ -774,7 +785,8 @@ class SmurfUtilMixin(SmurfBase):
         self.set_stream_enable(0, write_log=write_log, wait_after=.15)
 
     def read_stream_data(self, datafile, channel=None,
-                         n_samp=None, array_size=None):
+                         n_samp=None, array_size=None,
+                         make_freq_mask=False):
         """
         Loads data taken with the fucntion stream_data_on.
 
@@ -864,7 +876,8 @@ class SmurfUtilMixin(SmurfBase):
             mask = self.make_mask_lookup(datafile.split(".dat.part")[0] +
                 "_mask.txt")
         else:
-            mask = self.make_mask_lookup(datafile.replace('.dat', '_mask.txt'))
+            mask = self.make_mask_lookup(datafile.replace('.dat', '_mask.txt'),
+                                         make_freq_mask=make_freq_mask)
 
         # If an array_size was defined, resize the phase array
         if array_size is not None:
@@ -873,7 +886,8 @@ class SmurfUtilMixin(SmurfBase):
         return t, phase, mask
 
 
-    def make_mask_lookup(self, mask_file, mask_channel_offset=0):
+    def make_mask_lookup(self, mask_file, mask_channel_offset=0,
+                         make_freq_mask=False):
         """
         Makes an n_band x n_channel array where the elements correspond
         to the smurf_to_mce mask number. In other words, mask[band, channel]
@@ -899,9 +913,27 @@ class SmurfUtilMixin(SmurfBase):
         mask = np.atleast_1d(np.loadtxt(mask_file))
         bands = np.unique(mask // 512).astype(int)
         ret = np.ones((np.max(bands)+1, 512), dtype=int) * -1
+        if make_freq_mask:
+            freq_mask_file = mask_file.replace("_mask.txt", "_freq.txt")
+            freq_mask_ret = np.zeros_like(ret).astype(float)
+            try:
+                freq_mask = np.atleast_1d(np.loadtxt(freq_mask_file))
+            except OSError:
+                self.log(f'{freq_mask_file} does not exist.')
+                make_freq_mask = False
 
         for gcp_chan, smurf_chan in enumerate(mask):
-            ret[int(smurf_chan//512), int((smurf_chan-mask_channel_offset)%512)] = gcp_chan
+            b = int(smurf_chan//512)
+            ch = int((smurf_chan-mask_channel_offset)%512)
+            ret[b,ch] = gcp_chan
+
+            # fill corresponding elements with frequency
+            if make_freq_mask:
+                freq_mask_ret[b, ch] = freq_mask[gcp_chan]
+
+        # Append freq data if requested
+        if make_freq_mask:
+            ret = (ret, freq_mask_ret)
 
         return ret
 
@@ -1605,28 +1637,49 @@ class SmurfUtilMixin(SmurfBase):
 
         return subband_no, offset
 
-    def channel_to_freq(self, band, channel, yml=None):
+    def channel_to_freq(self, band, channel=None, yml=None):
         """
         Gives the frequency of the channel.
 
         Args:
         -----
         band (int) : The band the channel is in
+
+        Opt Args:
+        ---------
         channel (int) :  The channel number
 
         Ret:
         ----
-        freq (float): The channel frequency in MHz
+        freq (float): The channel frequency in MHz or an array
+            of values if channel is None. In the array format,
+            the freq list is aligned with self.which_on(band).
         """
-        if band is None or channel is None:
+        if band is None and channel is None:
             return None
 
-        subband = self.get_subband_from_channel(band, channel, yml=yml)
+        # Get subband centers
         _, sbc = self.get_subband_centers(band, as_offset=False, yml=yml)
-        offset = float(self.get_center_frequency_mhz_channel(band, channel,
-            yml=yml))
 
-        return sbc[subband] + offset
+        # Convenience function for turning band, channel into freq
+        def _get_cf(band, ch):
+            subband = self.get_subband_from_channel(band, channel, yml=yml)
+            offset = float(self.get_center_frequency_mhz_channel(band, channel,
+                                                                 yml=yml))
+            return sbc[subband] + offset
+
+        # If channel is requested
+        if channel is not None:
+            return _get_cf(band, channel)
+
+        # Get all channels that are on
+        else:
+            channels = self.which_on(band)
+            cfs = np.zeros(len(channels))
+            for i, channel in enumerate(channels):
+                cfs[i] = _get_cf(band, channel)
+
+            return cfs
 
 
     def get_channel_order(self, band=None, channel_orderfile=None):
@@ -2505,6 +2558,29 @@ class SmurfUtilMixin(SmurfBase):
                                              ch + n_chan*k)
 
         return output_chans
+
+
+    def make_freq_mask(self, mask):
+        """
+        Makes the frequency mask. These are the frequencies
+        associated with the channels in the channel mask.
+
+        Ret:
+        ----
+        freqs (float array) : An array with frequencies associated
+            with the mask file.
+        """
+        freqs = np.zeros(len(mask), dtype=float)
+        channels_per_band = 512  # avoid hardcoding this
+
+        # iterate over mask channels and find their freq
+        for i, mask_ch in enumerate(mask):
+            b = mask_ch // channels_per_band
+            ch = mask_ch % channels_per_band
+            freqs[i] = self.channel_to_freq(b, ch)
+
+        return freqs
+
 
     def set_downsample_filter(self, filter_order, cutoff_freq,
                               write_log=False):
