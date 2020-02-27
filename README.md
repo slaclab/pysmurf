@@ -1,6 +1,6 @@
 # pysmurf
 
-[![Documentation Status](https://readthedocs.org/projects/pysmurf/badge/?version=latest)](https://pysmurf.readthedocs.io/en/latest/?badge=latest)
+[![Build Status](https://travis-ci.com/slaclab/pysmurf.svg?branch=master)](https://travis-ci.com/slaclab/pysmurf) [![Documentation Status](https://readthedocs.org/projects/pysmurf/badge/?version=latest)](https://pysmurf.readthedocs.io/en/latest/?badge=latest)
 
 The python control software for SMuRF. Includes scripts to do low level
 commands as well as higher level analysis.
