@@ -26,6 +26,7 @@ stages:
     if: tag IS present
 
 jobs:
+  fast_finish: true
   include:
     # Check stages
     ## Flake8 checks
