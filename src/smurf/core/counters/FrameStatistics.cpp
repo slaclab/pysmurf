@@ -125,7 +125,7 @@ void scc::FrameStatistics::acceptFrame(ris::FramePtr frame)
         if (  frame->getError() || ( frame->getFlags() & 0x100 ) )
         {
             // Log error
-            eLog_->error("Received frame with errors and/or flags");
+            eLog_->warning("Received frame with errors and/or flags");
 
             // Increase bad frame counter
             ++badFrameCnt;
@@ -140,7 +140,7 @@ void scc::FrameStatistics::acceptFrame(ris::FramePtr frame)
         if ( frameSize < SmurfHeaderRO<ris::FrameIterator>::SmurfHeaderSize )
         {
             // Log error
-            eLog_->error("Received frame with size lower than the header size. Receive frame size=%zu, expected header size=%zu",
+            eLog_->warning("Received frame with size lower than the header size. Receive frame size=%zu, expected header size=%zu",
                 frameSize, SmurfHeaderRO<ris::FrameIterator>::SmurfHeaderSize);
 
             // Increase bad frame counter
@@ -163,7 +163,7 @@ void scc::FrameStatistics::acceptFrame(ris::FramePtr frame)
         if ( ( SmurfHeaderRO<ris::FrameIterator>::SmurfHeaderSize + ( numChannels * sizeof(fw_t) ) ) > frameSize )
         {
             // Log error
-            eLog_->error("Received frame does not match expected size. Received frame size=%zu. Minimum expected size: header=%zu + payload=%i",
+            eLog_->warning("Received frame does not match expected size. Received frame size=%zu. Minimum expected size: header=%zu + payload=%i",
                         frameSize, smurfHeaderIn->SmurfHeaderSize, numChannels * sizeof(fw_t));
 
             // Increase bad frame counter
