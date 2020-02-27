@@ -139,7 +139,8 @@ class Common(pyrogue.Root):
         self._epics = None
         if epics_prefix:
             print("Starting EPICS server using prefix \"{}\"".format(epics_prefix))
-            self._epics = pyrogue.protocols.epics.EpicsCaServer(base=epics_prefix, root=self)
+            from pyrogue.protocols import epics
+            self._epics = epics.EpicsCaServer(base=epics_prefix, root=self)
             self._pv_dump_file = pv_dump_file
 
             # PVs for stream data
