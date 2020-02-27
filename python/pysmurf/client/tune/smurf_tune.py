@@ -3093,8 +3093,6 @@ class SmurfTuneMixin(SmurfBase):
             file. This file defines the mapping between resonator frequency
             and channel number.
         """
-
-        
         # Turn off all tones in this band first
         self.band_off(band)
 
