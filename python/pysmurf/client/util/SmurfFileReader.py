@@ -61,9 +61,9 @@ SmurfHeaderTuple = namedtuple( 'SmurfHeader',
                                 'num_rows_reported'   ,  # 2  Bytes, uint16, H
                                                          # 4  Bytes, unused, 4x
                                 'row_length'          ,  # 2  Bytes, uint16, H
-                                'data_rate'              # 2  Bytes, uint16, H
+                                'data_rate' ] )          # 2  Bytes, uint16, H
                                                          # 4  Bytes, unused, 4x
-                              ] )
+
 
 # Default header as a named tuple
 RogueHeader = namedtuple( 'RogueHeader',
@@ -92,10 +92,11 @@ class SmurfHeader(SmurfHeaderTuple):
             if i % 2 == 0: # Even
                 tmp = int.from_bytes(rawData[8+i*5:8+i*5+3],'little',signed=False) & 0xFFFFF
             else: # Odd
-                tmp = (int.from_bytes(rawData[8+i*5+2:8+i*5+5],'little',signed=False) >> 4) & 0xFFFFF;
+                tmp = (int.from_bytes(rawData[8+i*5+2:8+i*5+5],'little',signed=False) >> 4) & 0xFFFFF
 
             # Adjust negative values
-            if tmp >= 0x80000: tmp -= 0x100000
+            if tmp >= 0x80000:
+                tmp -= 0x100000
 
             self.tesBias.append(tmp)
 
@@ -126,7 +127,7 @@ class SmurfStreamReader(object):
 
     def _parseRogueHeader(self):
         return RogueHeader._make(struct.Struct(RogueHeaderPack).unpack(self._currFile.read(RogueHeaderSize)))
- 
+
     def _parseSmurfHeader(self):
         data = self._currFile.read(SmurfHeaderSize)
         ret = SmurfHeader._make(struct.Struct(SmurfHeaderPack).unpack(data))
