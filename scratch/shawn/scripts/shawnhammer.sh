@@ -1,13 +1,60 @@
 #!/bin/bash
 
+# stalls sometimes for some reason...
+#xhost +
+
+#default startup cfg
 startup_cfg=/data/smurf_startup_cfg/smurf_startup.cfg
+
+#https://sookocheff.com/post/bash/parsing-bash-script-arguments-with-shopts/
+while getopts ":ic:t" opt; do
+    case ${opt} in
+      i )
+	  # make sure this file exists
+	  if [ ! -f $pysmurf/pysmurf/$OPTARG ]; then
+              echo "Invalid Input: No file found at $pysmurf/pysmurf/$OPTARG" 1>&2
+              exit 1	      
+	      echo "File not found!"
+	  fi
+	  pysmurf_init_script=$OPTARG
+          ;;
+      c )
+	  # make sure this file exists
+	  if [ ! -f $OPTARG ]; then
+              echo "Invalid Input: No file found at $OPTARG" 1>&2
+              exit 1	      
+	      echo "File not found!"
+	  fi
+	  startup_cfg=$OPTARG
+          ;;      
+      t )
+	  run_thermal_test=true
+	  ;;
+      \? )
+        echo "Invalid Option: -$OPTARG" 1>&2
+        exit 1
+        ;;
+      : )
+        echo "Invalid Option: -$OPTARG requires an argument" 1>&2
+        exit 1
+        ;;
+    esac
+done
+shift $((OPTIND -1))
+
+# can't hammer without a cfg ; exit if one doesn't exist
 if [ ! -f "$startup_cfg" ]; then
-    echo "$startup_cfg doesn't exist, unable to shawnhammer."
+    echo "$startup_cfg doesn't exist, unable to shawnhammer." 1>&2
     exit 1
 fi
-
-# didn't exit, so there must be a startup cfg file.  Load it.
 source ${startup_cfg}
+
+## extract slot and configuration arrays
+# first column is the slot numbers, in slot configure order.
+slots=( $(awk '{print $1}' <<< "$slot_cfgs") )
+# second column is the pyrogue directories, in slot configure order
+pyrogues=( $(awk '{print $2}' <<< "$slot_cfgs") )
+
 source shawnhammerfunctions
 
 ctime=`date +%s`
@@ -31,16 +78,20 @@ tmux new-session -d -s ${tmux_session_name}
 #tmux new -s ${tmux_session_name} -d
 
 # stop pyrogue servers on all carriers
-for slot in ${slots_in_configure_order[@]}; do
-    stop_pyrogue $slot
+for ((i=0; i<${#slots[@]}; ++i)); do
+    slot=${slots[i]}
+    pyrogue=${pyrogues[i]} 
+    stop_pyrogue $slot $pyrogue
 done
 cd $cpwd
 
 # stop all pysmurf dockers
 matching_dockers pysmurf
 if [ "$?" = "1" ]; then
-    echo "-> Stopping all running pysmurf dockers."
-    docker rm -f $(docker ps | grep pysmurf | awk '{print $1}')
+    echo "-> Stopping all running stable pysmurf dockers."
+    # this stops all pysmurf dockers
+    #docker rm -f $(docker ps | grep pysmurf | awk '{print $1}')
+    docker rm -f $(docker ps -q -f name=pysmurf | awk '{print $1}')
 fi
 
 # if using a timing master, check that timing docker is running,
@@ -95,20 +146,20 @@ if [ "$reboot" = true ] ; then
     # deactivate carriers
     deactivatecmd=""
     activatecmd=""    
-    for slot in ${slots_in_configure_order[@]}; do
+    for slot in ${slots[@]}; do
 	deactivatecmd="$deactivatecmd clia deactivate board ${slot};"
 	activatecmd="$activatecmd clia activate board ${slot};"	
     done
 
     # deactivate carriers
-    echo "-> Deactivating carrier(s) ${slots_in_configure_order[@]}"    
+    echo "-> Deactivating carrier(s) ${slots[@]}"    
     ssh root@${shelfmanager} "$deactivatecmd"
     
     echo "-> Waiting 5 sec before re-activating carrier(s)"
     sleep 5
 
     # activate carriers
-    echo "-> Activating carrier(s) ${slots_in_configure_order[@]}"    
+    echo "-> Activating carrier(s) ${slots[@]}"    
     ssh root@${shelfmanager} "$activatecmd"    
 fi
 
@@ -121,12 +172,13 @@ if [ "$parallel_setup" = true ] ; then
     # 0 = carriers off.
     # 1 = carrier eth responds to ping.
     setup_complete=false
-    completion_status=5
-    declare -a slot_status=( $(for slot in ${slots_in_configure_order[@]}; do echo 0; done) )
+    completion_status=7
+    declare -a slot_status=( $(for slot in ${slots[@]}; do echo 0; done) )
     setup_loop_cadence_sec=1
-    while [[ "${setup_complete}" = false ]] ; do 
-	for slot_idx in `seq 0 $((${#slots_in_configure_order[@]}-1))`; do 
-	    slot=${slots_in_configure_order[$slot_idx]}
+    while [[ "${setup_complete}" = false ]] ; do
+	for ((slot_idx=0; slot_idx<${#slots[@]}; ++slot_idx)); do
+	    slot=${slots[slot_idx]}
+	    pyrogue=${pyrogues[slot_idx]} 	
 
 	    if [ "${slot_status[${slot_idx}]}" = "0" ]; then
 		# make sure ethernet is up on carrier
@@ -139,36 +191,51 @@ if [ "$parallel_setup" = true ] ; then
 
 	    if [ "${slot_status[${slot_idx}]}" = "1" ]; then
 		echo "-> Creating tmux session and starting pyrogue on slot ${slot}."
-		start_slot_tmux_and_pyrogue ${slot}
+		start_slot_tmux_and_pyrogue ${slot} ${pyrogue}
 		slot_status[$slot_idx]=2
 	    fi
 
 	    if [ "${slot_status[${slot_idx}]}" = "2" ]; then
-		echo "-> Waiting for pyrogue server to start on slot ${slot}."
+	    	echo "-> Waiting for pyrogue server to start on slot ${slot}."
 		if is_slot_pyrogue_up ${slot}; then
 		    slot_status[$slot_idx]=3;
 		fi
 	    fi
-
+	    
 	    if [ "${slot_status[${slot_idx}]}" = "3" ]; then
-		echo "-> Waiting for gui to come up on slot ${slot}."
-		if is_slot_gui_up ${slot}; then
-		    slot_status[$slot_idx]=4;
-		fi
+	    	echo "-> Waiting for gui to come up on slot ${slot}."
+	    	if is_slot_gui_up ${slot}; then
+	    	    slot_status[$slot_idx]=4;
+	    	fi
 	    fi
-
+	    
 	    # GUI is up.  Splits each slot window and instantiate
 	    # pysmurf object
 	    if [ "${slot_status[${slot_idx}]}" = "4" ]; then
-		echo "-> Starting pysmurf on ${slot}."		
-		start_slot_pysmurf ${slot}
-		slot_status[$slot_idx]=5;
-	    fi	    
+	    	echo "-> Starting pysmurf on ${slot}."		
+	    	start_slot_pysmurf ${slot}
+	    	slot_status[$slot_idx]=5;
+		if [ "${configure_pysmurf}" = false ]; then
+		    # skip setup
+	    	    slot_status[$slot_idx]=7;
+		fi
+	    fi
 
-	    ## STILL NEED PYSMURF INITIALIZATION AND CONFIGURE STAGES
+	    # Run pysmurf setup
+	    if [ "${slot_status[${slot_idx}]}" = "5" ]; then
+		echo "-> Running pysmurf setup on slot ${slot}."
+		run_pysmurf_setup ${slot}
+		slot_status[$slot_idx]=6
+	    fi
 
-	    # Check status
-	    echo "slot_status="${slot_status[@]}
+	    # Check for pysmurf setup completion
+	    if [ "${slot_status[${slot_idx}]}" = "6" ]; then
+		echo "-> Waiting for carrier setup on slot ${slot} (watching pysmurf docker ${pysmurf_docker})"		
+	    	if is_slot_pysmurf_setup_complete ${slot}; then
+	    	    slot_status[$slot_idx]=7;
+	    	fi		
+	    fi	    	    
+
 	    # check if complete
 	    status_summary=(`echo ${slot_status[@]} | tr ' ' '\n' | sort | uniq`)
 	    # break out of setup loop once all slot statuses reach completion status.
@@ -176,17 +243,25 @@ if [ "$parallel_setup" = true ] ; then
 		setup_complete=true
 	    fi
 	done
+
+	# Print status
+	echo "slot_status="${slot_status[@]}
+
+	# Wait requested cadence between setup steps.
 	sleep ${setup_loop_cadence_sec}
     done
 else
     ##  older serial method
-    for slot in ${slots_in_configure_order[@]}; do
+    for ((i=0; i<${#slots[@]}; ++i)); do
+	slot=${slots[i]}
+	pyrogue=${pyrogues[i]} 
+
 	# make sure ethernet is up on carrier
 	echo "-> Waiting for ethernet on carrier in slot ${slot} to come up ..."
 	cd $cpwd
-	ping_carrier 10.0.${crate_id}.$((${slots_in_configure_order[0]}+100))
+	ping_carrier 10.0.${crate_id}.$((${slot}+100))
 	
-	start_slot_tmux_serial ${slot}
+	start_slot_tmux_serial ${slot} ${pyrogue}
 	
 	pysmurf_docker_slot=`docker ps -a -n 1 -q`
 	
@@ -198,6 +273,20 @@ fi
 
 ### Done configuring carriers
 ################################################################################
+
+if [ "$run_thermal_test" = true ] ; then
+    tmux new-window -t ${tmux_session_name}:8
+    tmux rename-window -t ${tmux_session_name}:8 tests
+    tmux send-keys -t ${tmux_session_name}:8 'cd '${pysmurf} C-m
+    tmux send-keys -t ${tmux_session_name}:8 'ipython3 -i pysmurf/'${thermal_test_script} C-m
+
+    sleep 30
+    
+    tmux split-window -v -t ${tmux_session_name}:8
+    tmux send-keys -t ${tmux_session_name}:8 'cd '${pysmurf}'/scratch/shawn/' C-m
+    tmux send-keys -t ${tmux_session_name}:8 'ipython3 -i pysmurf/'${thermal_test_script} C-m    
+    
+fi
 
 if [ "$attach_at_end" = true ] ; then
     tmux attach -t ${tmux_session_name}
