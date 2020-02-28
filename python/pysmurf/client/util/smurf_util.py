@@ -3021,6 +3021,49 @@ class SmurfUtilMixin(SmurfBase):
         return int(mask[mask_num]//512), int(mask[mask_num]%512)
 
 
+    def play_sine_tes(self, bias_group, tone_amp, tone_freq, dc_amp=None):
+        """
+        Play a sine wave on the bias group pair.
+
+        Tone file is in bias bit units. The bias is int20. The
+        inputs of this function are in units of bias dac output
+        voltage. The conversion from requested volts to bits
+        is calculated in this function.
+
+        Args:
+        -----
+        bias_group (int) : The bias group to play a sine wave on
+        tone_amp (float) : The amplitude of the sine wave in units of
+            out TES bias in volts.
+        tone_freq (float) : The frequency of the tone in Hz.
+
+        Opt Args:
+        ---------
+        dc_amp (float) : The amplitude of the DC term of the sine wave.
+            If None, reads the current DC value and uses that. Default
+            is None.
+        """
+        if dc_amp is None:
+            dc_amp = self.get_tes_bias_bipolar(bias_group)
+            self.log(f"No dc_amp provided. Using current value: {dc_amp} V")
+            
+        # The waveform is played on 2 DACs, so amp/2. Then convert
+        # to bits
+        dc_amp /= (2*self._rtm_slow_dac_bit_to_volt)
+        tone_amp /= (2*self._rtm_slow_dac_bit_to_volt)
+
+
+        # Make tone file. 2048 elements
+        n_tes_samp = 2048
+        sig = tone_amp * np.cos(2*np.pi*np.arange(n_tes_samp)/n_tes_samp) + dc_amp
+
+        # Calculate frequency - 6.4ns * TimerSize between samples
+        ts = int((tone_freq * n_tes_samp * 6.4E-9)**-1)
+        self.set_rtm_arb_waveform_timer_size(ts, wait_done=True)
+
+        self.play_tes_bipolar_waveform(bias_group, sig)
+
+        
     def play_tone_file(self, band, tone_file=None, load_tone_file=True):
         """
         Plays the specified tone file on this band.  If no path provided
@@ -3053,6 +3096,7 @@ class SmurfUtilMixin(SmurfBase):
                  self.LOG_USER)
         self.set_waveform_select(band,1)
 
+        
     def stop_tone_file(self, band):
         """
         Stops playing tone file on the specified band and reverts
