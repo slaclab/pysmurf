@@ -3406,3 +3406,103 @@ class SmurfUtilMixin(SmurfBase):
 
         # Zero TES biases on this bias group
         self.set_tes_bias_bipolar(bias_group, 0)
+
+
+    def identify_bias_groups(self, probe_freq=2.5, probe_time=3,
+                             bias_groups=None, make_plot=False,
+                             show_plot=False, save_plot=True,
+                             cutoff_frac=.05):
+        """
+        Identify bias groups of all the channels that are on.
+        """
+        # There should be something smarter than this
+        if bias_groups is None:
+            bias_groups = np.arange(8)
+
+        channels_dict = {}
+
+        # Get the cryocard settings before starting this script
+        cryo_card_bits = self.get_cryo_card_relays()
+        
+        for bias_group in bias_groups:
+            # Work in high current mode to bypass filter
+            self.set_tes_bias_high_current(bias_group)
+
+            # Play 2.5 Hz sine wave and take data
+            bias_volt = .1
+            self.play_sine_tes(bias_group, bias_volt,
+                               probe_freq, dc_amp=0)
+            datafile = self.take_stream_data(probe_time)
+
+            # Read back data
+            t, d, mm = self.read_stream_data(datafile, make_freq_mask=True)
+            m = mm[0]
+            m_freq = mm[1]
+            d *= (self.pA_per_phi0/2/np.pi)  # convert to pA
+            d = np.transpose(d.T - np.mean(d.T, axis=0))
+            
+            n_det, n_samp = np.shape(d)
+
+            # currents on lines
+            r_inline = self.bias_line_resistance / self.high_low_current_ratio
+            i_bias = bias_volt / r_inline * 1.0E12  # Bias current in pA
+
+            # sine/cosine decomp templates
+            s = np.sin(2*np.pi*np.arange(n_samp)/n_samp*probe_freq*probe_time)
+            c = np.cos(2*np.pi*np.arange(n_samp)/n_samp*probe_freq*probe_time)
+            s /= np.sum(s**2)
+            c /= np.sum(c**2)
+
+            sa = np.zeros(n_det)
+            ca = np.zeros(n_det)
+            
+            for ch in np.arange(n_det):
+                sa[ch] = np.dot(d[ch], s)
+                ca[ch]= np.dot(d[ch], c)
+            amp = np.sqrt(sa**2 + ca**2)
+
+            # In superconducting, amplitude of response should be 1
+            norm_amp = amp/i_bias
+            idx = np.where(np.logical_and(norm_amp < 1+cutoff_frac,
+                           norm_amp > 1-cutoff_frac))[0]
+
+            bands = np.zeros(len(idx), dtype=int)
+            channels = np.zeros(len(idx), dtype=int)
+            freqs = np.zeros(len(idx))
+            for i, ii in enumerate(idx):
+                bands[i], channels[i] = np.ravel(np.where(m == ii))
+                freqs[i] = m_freq[bands[i], channels[i]]
+
+            channels_dict[bias_group] = {}
+            channels_dict[bias_group]['band'] = bands
+            channels_dict[bias_group]['channel'] = channels
+            channels_dict[bias_group]['freq'] = freqs
+            
+            if make_plot:
+                fig, ax = plt.subplots(1, 2, figsize=(8.5, 3),
+                                       sharey=True)
+                ax[0].plot((t-t[0])*1.0E-9, d.T,
+                         color='k', alpha=.1)
+                ax[0].axhline(-i_bias, linestyle='--', color='r')
+                ax[0].axhline(i_bias, linestyle='--', color='r')
+                ax[1].axhline(-i_bias, linestyle='--', color='r')
+                ax[1].axhline(i_bias, linestyle='--', color='r')
+                ax[0].set_xlabel('Time [s]')
+                ax[0].set_ylabel('Amp [pA]')
+
+                ax[1].plot(sa, 'x', color='k', label='sine',
+                           alpha=.5)
+                ax[1].plot(ca, '+', color='k', label='cos',
+                           alpha=.5)
+                ax[1].plot(amp, 'o', color='k',
+                           label='amp')
+                ax[1].legend(loc='lower right')
+                ax[1].set_ylim((-1.5*i_bias, 1.5*i_bias))
+                ax[1].set_xlabel('Channel')
+                plt.tight_layout()
+
+                fig.suptitle(f'Bias Group {bias_group}')
+                
+            self.set_cryo_card_relays(cryo_card_bits)
+
+        return channels_dict
