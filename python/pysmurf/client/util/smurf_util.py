@@ -3413,8 +3413,51 @@ class SmurfUtilMixin(SmurfBase):
                              show_plot=False, save_plot=True,
                              cutoff_frac=.05):
         """
-        Identify bias groups of all the channels that are on.
+        Identify bias groups of all the channels that are on. Plays
+        a sine wave on a bias group and looks for a response. Does
+        this with the TESs superconducting so it can look for an
+        response is exactly the same amplitude as the input.
+
+        Opt Args:
+        ---------
+        probe_freq (float) : The frequency of the probe tone
+        probe_time (float) : The length of time to probe each
+            bias group in seconds. Default 3.
+        bias_groups (int array) : The bias groups to search.
+           If None, does the first 8 bias groups. Default is None.
+        cutoff_frac (float) : The fraction difference the response
+           can be away from the expected amplitude. Default .05.
+        make_plot (bool) : Whether to make the plot. Default False.
+        save_plot (bool) : Whether to save the plot. Default True.
+        show_plot (bool) : Whether to show the plot. Default False
+
+        Ret:
+        ----
+        channels_dict (dict) : A dictionary where the first key is
+            the bias group that is being probed. In each is the
+            band, channnel pairs, and frequency of the channels.
         """
+        # Check if probe frequency is too high
+        flux_ramp_freq = self.get_flux_ramp_freq()
+        fs = flux_ramp_freq * 1.0E3 * \
+             self.get_downsample_factor()
+
+        # Calculate downsample filter transfer function
+        filter_params = self.get_filter_params()
+        w, h = signal.freqz(filter_params['filter_b'],
+                            filter_params['filter_a'],
+                            fs=flux_ramp_freq)
+        df = np.abs(w - probe_freq)
+        df_idx = np.ravel(np.where(df == np.min(df)))[0]
+        if probe_freq > fs:
+            self.log('Probe frequency is higher than sample rate. Exiting',
+                     self.LOG_ERROR)
+            return
+        elif h[df_idx] < 1 - cutoff_frac/3:
+            self.log('Downsample filter cutting into the signal too much.' +
+                     ' Exiting.', self.LOG_ERROR)
+            return
+        
         # There should be something smarter than this
         if bias_groups is None:
             bias_groups = np.arange(8)
@@ -3436,8 +3479,8 @@ class SmurfUtilMixin(SmurfBase):
 
             # Read back data
             t, d, mm = self.read_stream_data(datafile, make_freq_mask=True)
-            m = mm[0]
-            m_freq = mm[1]
+            m = mm[0]  # extract mask
+            m_freq = mm[1]  #frequency mask
             d *= (self.pA_per_phi0/2/np.pi)  # convert to pA
             d = np.transpose(d.T - np.mean(d.T, axis=0))
             
@@ -3448,18 +3491,20 @@ class SmurfUtilMixin(SmurfBase):
             i_bias = bias_volt / r_inline * 1.0E12  # Bias current in pA
 
             # sine/cosine decomp templates
-            s = np.sin(2*np.pi*np.arange(n_samp)/n_samp*probe_freq*probe_time)
-            c = np.cos(2*np.pi*np.arange(n_samp)/n_samp*probe_freq*probe_time)
+            s = np.sin(2*np.pi*np.arange(n_samp)/
+                       n_samp*probe_freq*probe_time)
+            c = np.cos(2*np.pi*np.arange(n_samp)/
+                       n_samp*probe_freq*probe_time)
             s /= np.sum(s**2)
             c /= np.sum(c**2)
 
+            # cosine/sine decomposition
             sa = np.zeros(n_det)
             ca = np.zeros(n_det)
-            
             for ch in np.arange(n_det):
                 sa[ch] = np.dot(d[ch], s)
                 ca[ch]= np.dot(d[ch], c)
-            amp = np.sqrt(sa**2 + ca**2)
+            amp = np.sqrt(sa**2 + ca**2)  # amplitude calculation
 
             # In superconducting, amplitude of response should be 1
             norm_amp = amp/i_bias
@@ -3479,8 +3524,15 @@ class SmurfUtilMixin(SmurfBase):
             channels_dict[bias_group]['freq'] = freqs
             
             if make_plot:
+                # Turn off interactive plot
+                if show_plot:
+                    plt.ion()
+                else:
+                    plt.ioff()
+                    
                 fig, ax = plt.subplots(1, 2, figsize=(8.5, 3),
                                        sharey=True)
+                # Plot timestreams
                 ax[0].plot((t-t[0])*1.0E-9, d.T,
                          color='k', alpha=.1)
                 ax[0].axhline(-i_bias, linestyle='--', color='r')
@@ -3490,9 +3542,9 @@ class SmurfUtilMixin(SmurfBase):
                 ax[0].set_xlabel('Time [s]')
                 ax[0].set_ylabel('Amp [pA]')
 
-                ax[1].plot(sa, 'x', color='k', label='sine',
+                ax[1].plot(sa, 'x', color='b', label='sine',
                            alpha=.5)
-                ax[1].plot(ca, '+', color='k', label='cos',
+                ax[1].plot(ca, '+', color='y', label='cos',
                            alpha=.5)
                 ax[1].plot(amp, 'o', color='k',
                            label='amp')
@@ -3502,7 +3554,19 @@ class SmurfUtilMixin(SmurfBase):
                 plt.tight_layout()
 
                 fig.suptitle(f'Bias Group {bias_group}')
-                
+
+                if save_plot:
+                    timestamp = self.get_timestamp()
+                    savename = f'{timestamp}_identify_bg{bias_group}.png'
+                    plt.savefig(os.path.join(self.plot_dir, savename),
+                                bbox_inches='tight')
+                if not show_plot:
+                    plt.close()
+
+            # Set relays back to original state
             self.set_cryo_card_relays(cryo_card_bits)
 
+        # To do - add a check for band, channels that are on two different
+        # bias groups.
+        
         return channels_dict
