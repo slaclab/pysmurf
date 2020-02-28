@@ -5,56 +5,56 @@
 # File       : pysmurf/debug/smurf_iv.py
 # Created    : 2018-09-17
 #-----------------------------------------------------------------------------
-# This file is part of the pysmurf software package. It is subject to 
-# the license terms in the LICENSE.txt file found in the top-level directory 
-# of this distribution and at: 
-#    https://confluence.slac.stanford.edu/display/ppareg/LICENSE.html. 
-# No part of the pysmurf software package, including this file, may be 
-# copied, modified, propagated, or distributed except according to the terms 
+# This file is part of the pysmurf software package. It is subject to
+# the license terms in the LICENSE.txt file found in the top-level directory
+# of this distribution and at:
+#    https://confluence.slac.stanford.edu/display/ppareg/LICENSE.html.
+# No part of the pysmurf software package, including this file, may be
+# copied, modified, propagated, or distributed except according to the terms
 # contained in the LICENSE.txt file.
 #-----------------------------------------------------------------------------
 import numpy as np
 from pysmurf.client.base import SmurfBase
 import time
-import os,sys
+import os
 import matplotlib.pyplot as plt
 from matplotlib.gridspec import GridSpec
 import matplotlib.colors as Colors
 
 class SmurfIVMixin(SmurfBase):
 
-    def slow_iv_all(self, bias_groups=None, wait_time=.1, bias=None, 
-                    bias_high=1.5, bias_low=0, bias_step=.005, 
+    def slow_iv_all(self, bias_groups=None, wait_time=.1, bias=None,
+                    bias_high=1.5, bias_low=0, bias_step=.005,
                     show_plot=False, overbias_wait=2., cool_wait=30,
-                    make_plot=True, save_plot=True, channels=None, band=None,
-                    high_current_mode=True, overbias_voltage=8., 
+                    make_plot=True, save_plot=True, plotname_append='',
+                    channels=None, band=None,
+                    high_current_mode=True, overbias_voltage=8.,
                     grid_on=True, phase_excursion_min=3.):
         """
         Steps the TES bias down slowly. Starts at bias_high to bias_low with
         step size bias_step. Waits wait_time between changing steps.
-
         If this analyzes the data, the outputs are stored to output_dir.
-
         Opt Args:
         ---------
         bias_groups (np array): which bias groups to take the IV on. defaults
             to the groups in the config file
-        wait_time (float): The amount of time between changing TES biases in 
+        wait_time (float): The amount of time between changing TES biases in
             seconds. Default .1 sec.
         bias (float array): A float array of bias values. Must go high to low.
         bias_high (int): The maximum TES bias in volts. Default 19.9
         bias_low (int): The minimum TES bias in volts. Default 0
         bias_step (int): The step size in volts. Default .1
-        overbias_wait (float) : The time to stay in the overbiased state in 
+        overbias_wait (float) : The time to stay in the overbiased state in
             seconds. The default is 2 sec.
-        cool_wait (float) : The time to stay in the low current state after 
+        cool_wait (float) : The time to stay in the low current state after
             overbiasing before taking the IV.
         make_plot (bool) : Whether to make plots. Default True
         save_plot (bool) : Whether to save the plot. Default True.
+        plotname_append (string): Appended to the default plot filename. Default ''.
         channels (int array) : A list of channels to make plots
         band (int array) : The bands to analyze
         high_current_mode (bool) : The current mode to take the IV in.
-        overbias_voltage (float) : The voltage to set the TES bias in the 
+        overbias_voltage (float) : The voltage to set the TES bias in the
             overbias stage.
         grid_on (bool) : Grids on plotting. This is Aris fault.
         phase_excursion_min (float) : The minimum phase excursion required for
@@ -62,7 +62,7 @@ class SmurfIVMixin(SmurfBase):
         """
 
         n_bias_groups = self._n_bias_groups
-        
+
         if bias_groups is None:
             bias_groups = self.all_groups
 
@@ -77,8 +77,8 @@ class SmurfIVMixin(SmurfBase):
 
         # Overbias the TESs to drive them normal
         if overbias:
-            self.overbias_tes_all(bias_groups=bias_groups, 
-                overbias_wait=overbias_wait, tes_bias=np.max(bias), 
+            self.overbias_tes_all(bias_groups=bias_groups,
+                overbias_wait=overbias_wait, tes_bias=np.max(bias),
                 cool_wait=cool_wait, high_current_mode=high_current_mode,
                 overbias_voltage=overbias_voltage)
 
@@ -127,7 +127,7 @@ class SmurfIVMixin(SmurfBase):
         iv_raw_data['basename'] = basename
         iv_raw_data['output_dir'] = self.output_dir
         iv_raw_data['plot_dir'] = self.plot_dir
-        fn_iv_raw_data = os.path.join(self.output_dir, basename + 
+        fn_iv_raw_data = os.path.join(self.output_dir, basename +
             '_iv_raw_data.npy')
         self.log('Writing IV metadata to {}.'.format(fn_iv_raw_data))
 
@@ -137,46 +137,45 @@ class SmurfIVMixin(SmurfBase):
 
         R_sh=self.R_sh
         self.analyze_slow_iv_from_file(fn_iv_raw_data, make_plot=make_plot,
-            show_plot=show_plot, save_plot=save_plot, R_sh=R_sh,
-            grid_on=grid_on,
+            show_plot=show_plot, save_plot=save_plot,
+            plotname_append=plotname_append, R_sh=R_sh, grid_on=grid_on,
             phase_excursion_min=phase_excursion_min,chs=channels,band=band)
 
-    def partial_load_curve_all(self, bias_high_array, bias_low_array=None, 
-        wait_time=0.1, bias_step=0.1, show_plot=False, analyze=True,  
-        make_plot=True, save_plot=True, channels=None, overbias_voltage=None,
-        overbias_wait=1.0, phase_excursion_min=1.):
+    def partial_load_curve_all(self, bias_high_array, bias_low_array=None,
+            wait_time=0.1, bias_step=0.1, show_plot=False, analyze=True,
+            make_plot=True, save_plot=True, channels=None, overbias_voltage=None,
+            overbias_wait=1.0, phase_excursion_min=1.):
         """
-        Take a partial load curve on all bias groups. Function will step 
-        up to bias_high value, then step down. Will NOT change TES bias 
-        relay (ie, will stay in high current mode if already there). Will 
-        hold at the bias_low point at the end, so different bias groups 
-        may have different length ramps. 
+        Take a partial load curve on all bias groups. Function will step
+        up to bias_high value, then step down. Will NOT change TES bias
+        relay (ie, will stay in high current mode if already there). Will
+        hold at the bias_low point at the end, so different bias groups
+        may have different length ramps.
 
         Args:
         -----
         bias_high_array (float array): (n_bias_groups,) array of voltage biases, in
           bias group order
-
         Opt Args:
         -----
-        bias_low_array (float array): (n_bias_groups,) array of voltage biases, in 
+        bias_low_array (float array): (n_bias_groups,) array of voltage biases, in
           bias group order. Defaults to whatever is currently set
-        wait_time (float): Time to wait at each commanded bias value. 
+        wait_time (float): Time to wait at each commanded bias value.
             Default 0.1
         bias_step (float): Interval size to step the commanded voltage bias.
           Default 0.1
         show_plot (bool): whether to show plots. Default False.
-        make_plot (bool): whether to generate plots. Default True. 
+        make_plot (bool): whether to generate plots. Default True.
         analyze (bool): whether to analyze the data. Default True.
         save_plot (bool): whether to save generated plots. Default True.
         channels (int array): which channels to analyze. Default to anything
           that exceeds phase_excursion_min
-        overbias_voltage (float): value in V at which to overbias. If None, 
+        overbias_voltage (float): value in V at which to overbias. If None,
           won't overbias. If value is set, uses high current mode.
-        overbias_wait (float): if overbiasing, time to hold the overbiased 
+        overbias_wait (float): if overbiasing, time to hold the overbiased
           voltage in high current mode
-        phase_excursion_min (float): minimum change in phase to be analyzed, 
-          defined as abs(phase_max - phase_min). Default 1, units radians. 
+        phase_excursion_min (float): minimum change in phase to be analyzed,
+          defined as abs(phase_max - phase_min). Default 1, units radians.
         """
 
         original_biases = self.get_tes_bias_bipolar_array()
@@ -186,10 +185,10 @@ class SmurfIVMixin(SmurfBase):
 
         if overbias_voltage is not None: # only overbias if this is set
             if self.high_current_mode_bool:
-                tes_bias = 2. # Probably should actually move this over to 
+                tes_bias = 2. # Probably should actually move this over to
             else: #overbias_tes_all
-                tes_bias = 19.9 
-            self.overbias_tes_all(overbias_voltage=overbias_voltage, 
+                tes_bias = 19.9
+            self.overbias_tes_all(overbias_voltage=overbias_voltage,
             overbias_wait=overbias_wait, tes_bias=tes_bias,
             high_current_mode=self.high_current_mode_bool)
 
@@ -260,32 +259,40 @@ class SmurfIVMixin(SmurfBase):
 
 
     def analyze_slow_iv_from_file(self, fn_iv_raw_data, make_plot=True,
-                                  show_plot=False, save_plot=True, R_sh=None, 
-                                  phase_excursion_min=3., grid_on=False, 
-                                  R_op_target=0.007,
-                                  chs=None, band=None):
+                                  show_plot=False, save_plot=True,
+                                  plotname_append='', R_sh=None,
+                                  phase_excursion_min=3., grid_on=False,
+                                  R_op_target=0.007, pA_per_phi0=None,
+                                  chs=None, band=None, datafile=None,
+                                  plot_dir=None, bias_line_resistance=None):
         """
-        Function to analyze a load curve from its raw file. Can be used to 
+        Function to analyze a load curve from its raw file. Can be used to
           analyze IV's/generate plots separately from issuing commands.
-
         Args:
         -----
         fn_iv_raw_data (str): *_iv_raw_data.npy file to analyze
-
         Opt Args:
         ---------
         make_plot (bool): Defaults True. Usually this is the slowest part.
         show_plot (bool): Defaults False.
         save_plot (bool): Defaults True.
-        phase_excursion_min (float): abs(max - min) of phase in radians. Analysis 
+        plotname_append (string): Appended to the default plot filename. Default ''.
+        phase_excursion_min (float): abs(max - min) of phase in radians. Analysis
           ignores any channels without this phase excursion. Default 3.
         grid_on (bool): Whether to draw the grid on the PR plot. Defaults False
           Defaults true.
-        R_op_target (float): Target operating resistance. Function will 
-          generate a histogram indicating bias voltage needed to achieve 
-          this value. 
-        chs (int array): Which channels to analyze. Defaults to all 
+        R_op_target (float): Target operating resistance. Function will
+          generate a histogram indicating bias voltage needed to achieve
+          this value.
+        chs (int array): Which channels to analyze. Defaults to all
           the channels that are on and exceed phase_excursion_min
+        data_path (str) : The full path to the data. This is used for offline mode
+          where the data was copied to a new directory. The directory is usually
+          loaded from the .npy file, and this overwrites it.
+        plot_dir (str) : The full path to the plot directory. This is usually
+            loaded with the input numpy dictionary. This overwrites this.
+        bias_line_resistance (float) : The resistance of the bias lines in Ohms.
+            Default is None.
         """
         self.log('Analyzing from file: {}'.format(fn_iv_raw_data))
 
@@ -293,14 +300,22 @@ class SmurfIVMixin(SmurfBase):
         bias = iv_raw_data['bias']
         high_current_mode = iv_raw_data['high_current_mode']
         bias_group = iv_raw_data['bias group']
-        datafile = iv_raw_data['datafile']
-        
+
+        # This overwrites the datafile path, which is usually loaded
+        # from the .npy file
+        if datafile is None:
+            datafile = iv_raw_data['datafile']
+        else:
+            self.log(f"Using input datafile {datafile}")
+
         mask = self.make_mask_lookup(datafile.replace('.dat','_mask.txt'))
         bands, chans = np.where(mask != -1)
 
         basename = iv_raw_data['basename']
         output_dir = iv_raw_data['output_dir']
-        plot_dir = iv_raw_data['plot_dir']
+
+        if plot_dir is None:
+            plot_dir = iv_raw_data['plot_dir']
 
         # IV output dictionary
         ivs = {}
@@ -309,7 +324,7 @@ class SmurfIVMixin(SmurfBase):
             ivs[b] = {}
 
         timestamp, phase_all, mask = self.read_stream_data(datafile)
-        
+
         rn_list = []
         phase_excursion_list = []
         v_bias_target_list = []
@@ -325,11 +340,11 @@ class SmurfIVMixin(SmurfBase):
                 continue
 
             self.log('Analyzing band {} channel {}'.format(b,ch))
-        
+
             # ch_idx = np.where(mask == 512*band + ch)[0][0]
             ch_idx = mask[b, ch]
             phase = phase_all[ch_idx]
-         
+
             phase_excursion = max(phase) - min(phase)
 
             if phase_excursion < phase_excursion_min:
@@ -339,7 +354,7 @@ class SmurfIVMixin(SmurfBase):
 
             if make_plot:
                 plt.rcParams["patch.force_edgecolor"] = True
-                
+
                 if not show_plot:
                     plt.ioff()
 
@@ -359,9 +374,13 @@ class SmurfIVMixin(SmurfBase):
                 for bg in np.unique(bias_group):
                     bg_str = bg_str + str(bg)
 
-
+                # Define plot name
                 plot_name = basename + \
-                    '_IV_stream_b{}_g{}_ch{:03}.png'.format(b, bg_str, ch)
+                    '_IV_stream_b{}ch{:03}_g{}.png'.format(b, ch, bg_str)
+                # Optional append
+                if len(plotname_append) > 0:
+                    plot_name.replace('.png', f'_{plotname_append}.png')
+
                 if save_plot:
                     plot_fn = os.path.join(plot_dir, plot_name)
                     plt.savefig(plot_fn, bbox_inches='tight', dpi=300)
@@ -369,18 +388,22 @@ class SmurfIVMixin(SmurfBase):
                 if not show_plot:
                     plt.close()
 
-            iv_dict = self.analyze_slow_iv(bias, phase, 
-                basename=basename, band=b, channel=ch, make_plot=make_plot, 
+
+            iv_dict = self.analyze_slow_iv(bias, phase,
+                basename=basename, band=b, channel=ch, make_plot=make_plot,
                 show_plot=show_plot, save_plot=save_plot, plot_dir=plot_dir,
-                R_sh = R_sh, high_current_mode = high_current_mode,
-                grid_on=grid_on,R_op_target=R_op_target)
-            r = iv_dict['R']
+                R_sh=R_sh, high_current_mode=high_current_mode,
+                grid_on=grid_on, R_op_target=R_op_target,
+                pA_per_phi0=pA_per_phi0,
+                bias_line_resistance=bias_line_resistance)
+            iv_dict['R']
+
             rn = iv_dict['R_n']
-            idx = iv_dict['trans idxs']
-            p_tes = iv_dict['p_tes']
+            #idx = iv_dict['trans idxs']
+            #p_tes = iv_dict['p_tes']
             p_trans = iv_dict['p_trans']
             v_bias_target = iv_dict['v_bias_target']
-            si = iv_dict['si']
+            #si = iv_dict['si']
             si_target = iv_dict['si_target']
             v_tes_target = iv_dict['v_tes_target']
 
@@ -391,7 +414,7 @@ class SmurfIVMixin(SmurfBase):
                 continue
             try:
                 rn_list.append(rn)
-            except:
+            except BaseException:
                 self.log('fitted rn is not float')
                 continue
             v_bias_target_list.append(v_bias_target)
@@ -432,50 +455,51 @@ class SmurfIVMixin(SmurfBase):
             ax_ptrans = fig.add_subplot(gs[0,1])
             ax_vbias = fig.add_subplot(gs[1,0])
             ax_si = fig.add_subplot(gs[1,1])
-                      
+
             rn_array_mOhm = np.array(rn_list)/1e-3
             ax_rn.hist(rn_array_mOhm,bins=20,color=color_hist)
             ax_rn.set_xlabel(r'$R_N$ [$\mathrm{m}\Omega$]')
-            ax_rn.axvline(rn_median/1e-3,linestyle='--',color=color_median,\
-                              label=r'Median = {:.0f}'.format(rn_median/1e-3)+\
-                              r' $\mathrm{m}\Omega$')
+            ax_rn.axvline(rn_median/1e-3,linestyle='--',color=color_median,
+                label=r'Median = {:.0f}'.format(rn_median/1e-3) +
+                r' $\mathrm{m}\Omega$')
             ax_rn.legend(loc='best')
-                      
+
             ax_vbias.hist(v_bias_target_list,bins=20,color=color_hist)
-            ax_vbias.axvline(v_bias_target_median,linestyle = '--',\
-                        color=color_median,\
+            ax_vbias.axvline(v_bias_target_median,linestyle = '--',
+                        color=color_median,
                         label='Median = {:.2f} V'.format(v_bias_target_median))
-            ax_vbias.set_xlabel(r'Commanded voltage bias [V] for $R = $' + \
-                                    '{:.0f}'.format(R_op_target/1e-3) + \
-                                    r' $\mathrm{m}\Omega$')
-            ax_vbias.legend(loc='best')            
+            ax_vbias.set_xlabel(r'Commanded voltage bias [V] for $R = $' +
+                '{:.0f}'.format(R_op_target/1e-3) +
+                r' $\mathrm{m}\Omega$')
+            ax_vbias.legend(loc='best')
 
             ax_ptrans.hist(p_trans_list,bins=20,color=color_hist)
-            ax_ptrans.axvline(ptrans_median,linestyle='--',color=color_median,\
-                           label=r'Median = {:.1f} pW'.format(ptrans_median))
+            ax_ptrans.axvline(ptrans_median,linestyle='--',color=color_median,
+                label=r'Median = {:.1f} pW'.format(ptrans_median))
             ax_ptrans.set_xlabel('In-transition electrical power [pW]')
             ax_ptrans.legend(loc='best')
 
             ax_si.hist(si_target_list,bins=20)
-            ax_si.axvline(si_target_median,linestyle='--',color=color_median,\
-                              label='Median = {:.2f}'.format(si_target_median)\
-                              + r' $\mu\mathrm{V}^{-1}$')
-            ax_si.axvline(si_goal,linestyle='--',color=color_goal,\
-                              label=r'$-\mathrm{med}(V_\mathrm{TES})^{-1} = $'+\
-                              '{:.2f}'.format(si_goal) + \
-                              r' $\mu\mathrm{V}^{-1}$')
-            ax_si.set_xlabel(r'Responsivity [$\mu\mathrm{V}^{-1}$] at $R = $'+\
-                                 '{:.0f}'.format(R_op_target/1e-3) + \
-                                 r' $\mathrm{m}\Omega$')
+            ax_si.axvline(si_target_median,linestyle='--',color=color_median,
+                label='Median = {:.2f}'.format(si_target_median) +
+                r' $\mu\mathrm{V}^{-1}$')
+            ax_si.axvline(si_goal,linestyle='--',color=color_goal,
+                label=r'$-\mathrm{med}(V_\mathrm{TES})^{-1} = $' +
+                '{:.2f}'.format(si_goal) +
+                r' $\mu\mathrm{V}^{-1}$')
+            ax_si.set_xlabel(r'Responsivity [$\mu\mathrm{V}^{-1}$] at $R = $' +
+                '{:.0f}'.format(R_op_target/1e-3) +
+                r' $\mathrm{m}\Omega$')
             plt.legend(loc='best')
 
             plt.tight_layout()
             fig.subplots_adjust(top=0.925)
 
             # Title
-            plt.suptitle('{}, band {}, group{}'.format(basename,\
-                                             np.unique(band),bias_group))
-            iv_hist_filename = os.path.join(plot_dir, f'{basename}_IV_hist.png')
+            plt.suptitle('{}, band {}, group{}'.format(basename,
+                np.unique(band),bias_group))
+            iv_hist_filename = os.path.join(plot_dir,
+                f'{basename}_IV_hist{plotname_append}.png')
 
             # Save the figure
             plt.savefig(iv_hist_filename,bbox_inches='tight')
@@ -486,29 +510,53 @@ class SmurfIVMixin(SmurfBase):
                 plt.close()
 
     def analyze_slow_iv(self, v_bias, resp, make_plot=True, show_plot=False,
-        save_plot=True, basename=None, band=None, channel=None, R_sh=None,
-        plot_dir=None, high_current_mode=False, bias_group = None,
-        grid_on=False,R_op_target=0.007, **kwargs):
+            save_plot=True, basename=None, band=None, channel=None, R_sh=None,
+            plot_dir=None, high_current_mode=False, bias_group=None,
+            grid_on=False, R_op_target=0.007, pA_per_phi0=None,
+            bias_line_resistance=None, plotname_append='', **kwargs):
         """
         Analyzes the IV curve taken with slow_iv()
-
         Args:
         -----
         v_bias (float array): The commanded bias in voltage. Length n_steps
-        resp (float array): The TES phase response in radians. Of length 
-                            n_pts (not the same as n_steps
+        resp (float array): The TES phase response in radians. Of length
+            n_pts (not the same as n_steps).
+        make_plot (bool) : Whether to make the plot. Default is True.
+        show_plot (bool) : Whether to show the plot. Default is False.
+        save_plot (bool) : Whether to save the plot. Default is True.
+        basename (str) : The basename of the IV plot. If None, uses the current
+            timestamp. Default is None.
+        band (int) : The 500 MHz band the data was taken in. This is only for
+            plotting . Default None.
+        channel (int) : The SMuRF channel. Only used for plotting. Default
+            is None.
+        R_sh (int) : The shunt resistance in ohms. If not supplied, will try
+            to read from config file.
+        plot_dir (str) : Path to the plot directory where plots are to be saved.
+            If None, uses self.plot_dir. Default is None.
+        high_current_mode (bool) : Whether the data was taken in high current
+            mode. This is important for knowing what current actually enters
+            the cryostat.
+        grid_on (bool) : Whether to plot with grids on. Default is False.
+        pA_per_phi0 (float) : The conversion for phi0 to pA. If None, attempts
+            to read it from the config file. Default is None.
+        bias_line_resistance (float) : The resistance of the bias lines in
+            Ohms. If None, reads from config. Default is None.
+        plotname_append (str) : An optional string to append the plot names.
 
         Returns:
         --------
-        R (float array): 
-        R_n (float): 
-        idx (int array): 
+        R (float array):
+        R_n (float):
+        idx (int array):
         R_sh (float): Shunt resistance
         """
         if R_sh is None:
             R_sh=self.R_sh
 
-        resp *= self.pA_per_phi0/(2.*np.pi*1e6) # convert phase to uA
+        if pA_per_phi0 is None:
+            pA_per_phi0 = self.pA_per_phi0
+        resp *= pA_per_phi0/(2.*np.pi*1e6) # convert phase to uA
 
         n_pts = len(resp)
         n_step = len(v_bias)
@@ -517,12 +565,16 @@ class SmurfIVMixin(SmurfBase):
 
         resp_bin = np.zeros(n_step)
 
-        r_inline = self.bias_line_resistance
+        if bias_line_resistance is None:
+            r_inline = self.bias_line_resistance
+        else:
+            r_inline = bias_line_resistance
+
         if high_current_mode:
-            # high-current mode generates higher current by decreases the 
+            # high-current mode generates higher current by decreases the
             # in-line resistance
             r_inline /= self.high_low_current_ratio
-        i_bias = 1.0E6 * v_bias / r_inline 
+        i_bias = 1.0E6 * v_bias / r_inline
 
         if make_plot:
             if show_plot:
@@ -532,7 +584,7 @@ class SmurfIVMixin(SmurfBase):
 
         for i in np.arange(n_step):
             s = i*step_size
-            e = (i+1) * step_size
+            #e = (i+1) * step_size
             sb = int(s + np.ceil(step_size * 3. / 5))
             eb = int(s + np.ceil(step_size * 9. / 10))
 
@@ -557,7 +609,7 @@ class SmurfIVMixin(SmurfBase):
         for i in np.arange(nb_idx_default, sc_idx, -1):
             # look for minimum of IV curve outside of superconducting region
             # but get the sign right by looking at the sc branch
-            if d_resp[i]*np.mean(d_resp[:sc_idx]) < 0.: 
+            if d_resp[i]*np.mean(d_resp[:sc_idx]) < 0.:
                 nb_idx = i+1
                 break
 
@@ -571,13 +623,13 @@ class SmurfIVMixin(SmurfBase):
 
         sc_fit = np.polyfit(i_bias[:sc_idx], resp_bin[:sc_idx], 1)
 
-        # subtract off unphysical y-offset in superconducting branch; this is 
-        # probably due to an undetected phase wrap at the kink between the 
-        # superconducting branch and the transition, so it is *probably* 
-        # legitimate to remove it by hand. We don't use the offset of the 
-        # superconducting branch for anything meaningful anyway. This will just 
+        # subtract off unphysical y-offset in superconducting branch; this is
+        # probably due to an undetected phase wrap at the kink between the
+        # superconducting branch and the transition, so it is *probably*
+        # legitimate to remove it by hand. We don't use the offset of the
+        # superconducting branch for anything meaningful anyway. This will just
         # make our plots look nicer.
-        resp_bin[:sc_idx] -= sc_fit[1] 
+        resp_bin[:sc_idx] -= sc_fit[1]
         sc_fit[1] = 0 # now change s.c. fit offset to 0 for plotting
 
         R = R_sh * (i_bias/(resp_bin) - 1)
@@ -602,7 +654,7 @@ class SmurfIVMixin(SmurfBase):
         v_tes_target = v_tes[i_R_op]
         p_trans_median = np.median(p_tes[sc_idx:nb_idx])
 
-        i_tes = resp_bin        
+        i_tes = resp_bin
         smooth_dist = 5
         w_len = 2*smooth_dist + 1
 
@@ -660,12 +712,16 @@ class SmurfIVMixin(SmurfBase):
             if basename is None:
                 basename = self.get_timestamp()
             if band is not None and channel is not None:
-                title += ', {:.2f} MHz'.format(self.channel_to_freq(band, channel))
+                if self.offline:
+                    self.log("Offline mode does not know resonator frequency." +
+                        " Not adding to title.")
+                else:
+                    title += ', {:.2f} MHz'.format(self.channel_to_freq(band, channel))
             title += r', $R_\mathrm{sh}$ = ' + '${:.2f}$ '.format(R_sh*1.0E3) + \
                 r'$\mathrm{m}\Omega$'
             plot_name = basename + '_' + plot_name
             title = basename + ' ' + title
-            plot_name += '.png'
+            plot_name += plotname_append + '.png'
 
             fig.suptitle(title)
 
@@ -679,19 +735,19 @@ class SmurfIVMixin(SmurfBase):
             ax_ii.plot(i_bias, resp_bin, color=color_meas)
             ax_ii.set_ylabel(r'$I_\mathrm{TES}$ $[\mu A]$')
 
-            ax_ii.plot(i_bias, norm_fit[0] * i_bias , linestyle='--', 
-                       color=color_norm, label=r'$R_N$' + \
-                           '  = ${:.0f}$'.format(R_n/1e-3) + \
-                           r' $\mathrm{m}\Omega$')  
-            ax_ii.plot(i_bias[:sc_idx], 
-                sc_fit[0] * i_bias[:sc_idx] + sc_fit[1], linestyle='--', 
-                color=color_sc, label=r'$R_L$' + \
-                    ' = ${:.0f}$'.format(R_L/1e-6) + \
+            ax_ii.plot(i_bias, norm_fit[0] * i_bias , linestyle='--',
+                       color=color_norm, label=r'$R_N$' +
+                       '  = ${:.0f}$'.format(R_n/1e-3) +
+                       r' $\mathrm{m}\Omega$')
+            ax_ii.plot(i_bias[:sc_idx],
+                sc_fit[0] * i_bias[:sc_idx] + sc_fit[1], linestyle='--',
+                color=color_sc, label=r'$R_L$' +
+                    ' = ${:.0f}$'.format(R_L/1e-6) +
                     r' $\mu\mathrm{\Omega}$')
 
-            label_target = r'$R = {:.0f}$ '.format(R_op_target/1e-3)+\
+            label_target = r'$R = {:.0f}$ '.format(R_op_target/1e-3) + \
                 r'$\mathrm{m}\Omega$'
-            label_rfrac = '{:.2f}-{:.2f}'.format(R_frac_min,\
+            label_rfrac = '{:.2f}-{:.2f}'.format(R_frac_min,
                 R_frac_max) + r'$R_N$'
 
             for i in range(len(ax_i)):
@@ -703,7 +759,7 @@ class SmurfIVMixin(SmurfBase):
                     label_vspan = None
                 ax_i[i].axvline(i_op_target, color='g', linestyle='--',
                     label=label_vline)
-                ax_i[i].axvspan(i_bias[sc_idx], i_bias[nb_idx], 
+                ax_i[i].axvspan(i_bias[sc_idx], i_bias[nb_idx],
                     color=color_etf, alpha=.15,label=label_vspan)
                 if grid_on:
                     ax_i[i].grid()
@@ -720,7 +776,7 @@ class SmurfIVMixin(SmurfBase):
                 ax.axhline(1, color=color_norm, linestyle='--')
             ax_ri.set_ylabel(r'$R/R_N$')
             ax_i[-1].set_xlabel(r'$I_{b}$ [$\mu\mathrm{A}$]')
-            
+
             r_min = 0.
             r_max = 1.1
             ax_ri.set_ylim(r_min,r_max)
@@ -738,7 +794,7 @@ class SmurfIVMixin(SmurfBase):
             vb_min = np.min(v_bias)
             delta_v = float(vb_max - vb_min)/n_ticks
             axt.set_xticks(np.arange(ib_min, ib_max+delta, delta))
-            axt.set_xticklabels(['{:.2f}'.format(x) for x in 
+            axt.set_xticklabels(['{:.2f}'.format(x) for x in
                 np.arange(vb_min, vb_max+delta_v, delta_v)])
             axt.set_xlabel(r'Commanded $V_b$ [V]')
 
@@ -751,7 +807,7 @@ class SmurfIVMixin(SmurfBase):
 
             ax_pr.set_xlabel(r'$P_\mathrm{TES}$ [pW]')
             ax_pr.set_xscale('log')
-            ax_pr.axhspan(R_trans_min/R_n,R_trans_max/R_n,color=color_etf, 
+            ax_pr.axhspan(R_trans_min/R_n,R_trans_max/R_n,color=color_etf,
                 alpha=.15)
             label_pr = f'{p_trans_median:.1f} pW'
             ax_pr.axvline(p_trans_median, linestyle='--', label=label_pr,
@@ -765,7 +821,7 @@ class SmurfIVMixin(SmurfBase):
             fig.subplots_adjust(top=0.875)
 
             if save_plot:
-                if plot_dir == None:
+                if plot_dir is None:
                     plot_dir = self.plot_dir
                 plot_filename = os.path.join(plot_dir, plot_name)
                 self.log('Saving IV plot to {}'.format(plot_filename))
@@ -792,40 +848,38 @@ class SmurfIVMixin(SmurfBase):
 
         return iv_dict
 
-    def analyze_plc_from_file(self, fn_plc_raw_data, make_plot=True, show_plot=False, 
-        save_plot=True, R_sh=None, high_current_mode=None, phase_excursion_min=1., 
-        channels=None):
+    def analyze_plc_from_file(self, fn_plc_raw_data, make_plot=True, show_plot=False,
+            save_plot=True, R_sh=None, high_current_mode=None, phase_excursion_min=1.,
+            channels=None):
         """
-        Function to analyze a partial load curve from its raw file. Basically 
+        Function to analyze a partial load curve from its raw file. Basically
         the same as the slow_iv analysis but without fitting the superconducting
         branch.
-
         Args:
         -----
         fn_plc_raw_data (str): *_plc_raw_data.npy file to analyze
-
         Opt Args:
         -----
         make_plot (bool): Defaults True. This is slow.
         show_plot (bool): Defaults False.
         save_plot (bool): Defaults True.
         R_sh (float): shunt resistance; defaults to the value in the config file
-        high_current_mode (bool): Whether to perform analysis assuming that commanded 
+        high_current_mode (bool): Whether to perform analysis assuming that commanded
           voltages were in high current mode. Defaults to the value in the config file.
-        phase_excursion_min (float): abs(max-min) of phase in radian. Analysis will 
+        phase_excursion_min (float): abs(max-min) of phase in radian. Analysis will
           ignore any channels that do not meet this criterion. Default 1.
         channels (int array): which channels to analyze. Defaults to all channels that
-          are on and exceed phase_excursion_min 
+          are on and exceed phase_excursion_min
         """
 
         self.log('Analyzing plc from file: {}'.format(fn_plc_raw_data))
 
         plc_raw_data = np.load(fn_plc_raw_data).item()
-        bias_sweep_array = plc_raw_data['bias']
+        #bias_sweep_array = plc_raw_data['bias']
         bias_group = plc_raw_data['band']
         datafile = plc_raw_data['datafile']
         basename = plc_raw_data['basename']
-        output_dir = plc_raw_data['output_dir']
+        #output_dir = plc_raw_data['output_dir']
         plot_dir = plc_raw_data['plot_dir']
 
         timestamp, phase_all, mask = self.read_stream_data(datafile)
@@ -833,10 +887,10 @@ class SmurfIVMixin(SmurfBase):
 
         band, chans = np.where(mask != -1) #are these masks secretly the same?
 
-        rn_list = []
+        #rn_list = []
         phase_excursion_list = []
-        v_bias_target_list = []
-        p_trans_list = []
+        #v_bias_target_list = []
+        #p_trans_list = []
 
         for c, (b, ch) in enumerate(zip(band, chans)):
             if (channels is not None) and (ch not in channels):
@@ -858,14 +912,14 @@ class SmurfIVMixin(SmurfBase):
                 plt.rcParams["patch.force_edgecolor"] = True
 
                 if not show_plot:
-                    plot.ioff()
+                    plt.ioff()
 
                 fig, ax = plt.subplots(1, sharex=True)
                 ax.plot(phase)
                 ax.set_xlabel('Sample Num')
                 ax.set_ylabel('Phase [rad.]')
                 # no grid on for you, Ari
-                ax.set_title('Band {}, Group {}, Ch {:03}'.format(np.unique(band), 
+                ax.set_title('Band {}, Group {}, Ch {:03}'.format(np.unique(band),
                     bias_group, ch)) # this is not going to be very useful...
                 plt.tight_layout()
 
@@ -884,33 +938,31 @@ class SmurfIVMixin(SmurfBase):
                     plt.close()
 
     def estimate_opt_eff(self, iv_fn_hot, iv_fn_cold,t_hot=293.,t_cold=77.,
-        channels = None, dPdT_lim=(0.,0.5)):
+            channels = None, dPdT_lim=(0.,0.5)):
         """
-        Estimate optical efficiency between two sets of load curves. Returns 
+        Estimate optical efficiency between two sets of load curves. Returns
           per-channel plots and a histogram.
-
         Args:
         iv_fn_hot (str): timestamp/filename of load curve taken at higher temp
         iv_fn_cold (str): timestamp/filename of load curve taken at cooler temp
-
         Opt Args:
         t_hot (float): temperature in K of hotter load curve. Defaults to 293.
         t_cold (float): temperature in K of cooler load curve. Defaults to 77.
-        channels (int array): which channels to analyze. Defaults to the ones 
+        channels (int array): which channels to analyze. Defaults to the ones
           populated in the colder load curve
         dPdT_lim(len 2 tuple): min, max allowed values for dPdT. If calculated
-          val is outside this range, channel is excluded from histogram and 
+          val is outside this range, channel is excluded from histogram and
           added to outliers. Defaults to min=0pW/K, max=0.5pW/K.
         """
         ivs_hot = np.load(iv_fn_hot).item()
         ivs_cold = np.load(iv_fn_cold).item()
-    
+
         iv_fn_raw_hot = iv_fn_hot.split('.')[0] + '_raw_data.npy'
         iv_fn_raw_cold = iv_fn_cold.split('.')[0] + '_raw_data.npy'
 
         ivs_raw_hot = np.load(iv_fn_raw_hot).item()
         ivs_raw_cold = np.load(iv_fn_raw_cold).item()
-    
+
         basename_hot = ivs_raw_hot['basename']
         basename_cold = ivs_raw_cold['basename']
 
@@ -920,7 +972,7 @@ class SmurfIVMixin(SmurfBase):
         group = ivs_raw_hot['bias group']
         assert ivs_raw_cold['bias group'], \
             'Files must contain IVs from the same bias group'
-    
+
         plot_dir = self.plot_dir
 
         dT = t_hot - t_cold
@@ -932,10 +984,10 @@ class SmurfIVMixin(SmurfBase):
                     continue
             elif not isinstance(ch,np.int64):
                 continue
-            
+
             if ch not in ivs_cold:
                 continue
-                
+
             P_hot = ivs_hot[ch]['P']
             P_cold = ivs_cold[ch]['P']
             R_hot = ivs_hot[ch]['R']
@@ -972,7 +1024,7 @@ class SmurfIVMixin(SmurfBase):
             ax_pr.legend(loc='best')
             fig_pr.suptitle(f'Group {group}, Ch {ch:03}: dP/dT = {dPdT:.3f} pW/K')
             ax_pr.grid()
-            
+
             # Plot name
             plot_name = basename_hot + '_' + basename_cold + f'_optEff_g{group}_ch{ch:03}.png'
             plot_filename = os.path.join(plot_dir, plot_name)
@@ -996,5 +1048,3 @@ class SmurfIVMixin(SmurfBase):
         plt.savefig(hist_filename, bbox_inches='tight', dpi=300)
         self.pub.register_file(hist_filename, 'opt_efficiency', plot=True)
         plt.close()
-
-

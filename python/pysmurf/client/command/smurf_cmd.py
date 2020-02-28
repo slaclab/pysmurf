@@ -3,12 +3,12 @@
 # File       : pysmurf/command/smurf_cmd.py
 # Created    : 2018-10-05
 #-----------------------------------------------------------------------------
-# This file is part of the pysmurf software package. It is subject to 
-# the license terms in the LICENSE.txt file found in the top-level directory 
-# of this distribution and at: 
-#    https://confluence.slac.stanford.edu/display/ppareg/LICENSE.html. 
-# No part of the pysmurf software package, including this file, may be 
-# copied, modified, propagated, or distributed except according to the terms 
+# This file is part of the pysmurf software package. It is subject to
+# the license terms in the LICENSE.txt file found in the top-level directory
+# of this distribution and at:
+#    https://confluence.slac.stanford.edu/display/ppareg/LICENSE.html.
+# No part of the pysmurf software package, including this file, may be
+# copied, modified, propagated, or distributed except according to the terms
 # contained in the LICENSE.txt file.
 #-----------------------------------------------------------------------------
 import argparse
@@ -16,8 +16,8 @@ import numpy as np
 import sys
 import time
 import os
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
 import pysmurf
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
 
 cfg_filename = 'experiment_k2umux.cfg'
 
@@ -32,47 +32,47 @@ def make_runfile(output_dir, row_len=60, num_rows=60, data_rate=60,
     Make the runfile
     """
     #S.log('Making pysmurf object')
-    S = pysmurf.client.SmurfControl(cfg_file=os.path.join(os.path.dirname(__file__), 
+    S = pysmurf.client.SmurfControl(cfg_file=os.path.join(os.path.dirname(__file__),
         '..', 'cfg_files' , cfg_filename), smurf_cmd_mode=True, setup=False)
 
     S.log('Making Runfile')
-    
+
     # 20181119 dB, modified to use the correct format runfile.
     #with open(os.path.join(os.path.dirname(__file__),"runfile/runfile_template.txt")) as f:
     with open(os.path.join(os.path.dirname(__file__),
-        "runfile/runfile.default.bicep53")) as f:
+            "runfile/runfile.default.bicep53")) as f:
         lines = f.readlines()
         line_holder = []
-        for l in lines:
+        for line in lines:
             # A bunch of replacements
-            if "ctime=<replace>" in l:
+            if "ctime=<replace>" in line:
                 timestamp = S.get_timestamp()
                 S.log('Adding ctime {}'.format(timestamp))
-                l = l.replace("ctime=<replace>", "ctime={}".format(timestamp))
-            elif "Date:<replace>" in l:
-                time_string = time.strftime("%a %b %d %H:%M:%S %Y", 
+                line = line.replace("ctime=<replace>", "ctime={}".format(timestamp))
+            elif "Date:<replace>" in line:
+                time_string = time.strftime("%a %b %d %H:%M:%S %Y",
                     time.localtime())
                 S.log('Adding date {}'.format(time_string))
-                l = l.replace('Date:<replace>', "Date: {}".format(time_string))
-            elif "row_len : <replace>" in l:
+                line = line.replace('Date:<replace>', "Date: {}".format(time_string))
+            elif "row_len : <replace>" in line:
                 S.log("Adding row_len {}".format(row_len))
-                l = l.replace('row_len : <replace>', 
+                line = line.replace('row_len : <replace>',
                     'row_len : {}'.format(row_len))
-            elif "num_rows : <replace>" in l:
+            elif "num_rows : <replace>" in line:
                 S.log("Adding num_rows {}".format(num_rows))
-                l = l.replace('num_rows : <replace>', 
+                line = line.replace('num_rows : <replace>',
                     'num_rows : {}'.format(num_rows))
-            elif "num_rows_reported : <replace>" in l:
+            elif "num_rows_reported : <replace>" in line:
                 S.log("Adding num_rows_reported {}".format(num_rows_reported))
-                l = l.replace('num_rows_reported : <replace>', 
+                line = line.replace('num_rows_reported : <replace>',
                     'num_rows_reported : {}'.format(num_rows_reported))
-            elif "data_rate : <replace>" in l:
+            elif "data_rate : <replace>" in line:
                 S.log("Adding data_rate {}".format(data_rate))
-                l = l.replace('data_rate : <replace>', 
+                line = line.replace('data_rate : <replace>',
                     'data_rate : {}'.format(data_rate))
-            line_holder.append(l)
-            
-    full_path = os.path.join(output_dir, 
+            line_holder.append(line)
+
+    full_path = os.path.join(output_dir,
         'smurf_status_{}.txt'.format(S.get_timestamp()))
 
     #20181119 mod by dB to dump content of runfile, not path of runfile
@@ -85,8 +85,8 @@ def make_runfile(output_dir, row_len=60, num_rows=60, data_rate=60,
     S.log("Writing to {}".format(full_path))
     sys.stdout.writelines(line_holder)
 
-def start_acq(S, num_rows, num_rows_reported, data_rate, 
-    row_len):
+def start_acq(S, num_rows, num_rows_reported, data_rate,
+        row_len):
     """
     """
     bands = S.config.get('init').get('bands')
@@ -104,14 +104,14 @@ def start_acq(S, num_rows, num_rows_reported, data_rate,
 def stop_acq(S):
     """
     """
-    bands = np.array(S.config.get('init').get('bands'))
+    np.array(S.config.get('init').get('bands'))
     S.log('Stopping streaming data')
     #for b in bands:
     #    S.set_stream_enable(0)
     S.set_smurf_to_gcp_stream(False, write_log=True)
 
-def acq_n_frames(S, num_rows, num_rows_reported, data_rate, 
-    row_len, n_frames):
+def acq_n_frames(S, num_rows, num_rows_reported, data_rate,
+        row_len, n_frames):
     """
     Sends the amount of data requested by the user in units of n_frames.
 
@@ -120,7 +120,7 @@ def acq_n_frames(S, num_rows, num_rows_reported, data_rate,
     n_frames (int); The number of frames to keep data streaming on.
     """
     start_acq(S, num_rows, num_rows_reported, data_rate, row_len)
-    make_runfile(S.output_dir, num_rows=num_rows, data_rate=data_rate, 
+    make_runfile(S.output_dir, num_rows=num_rows, data_rate=data_rate,
         row_len=row_len, num_rows_reported=num_rows_reported)
     sample_rate = 50E6/num_rows/data_rate/row_len
     wait_time = n_frames/sample_rate
@@ -133,37 +133,37 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
 
     # Offline mode
-    parser.add_argument('--offline', help='For offline debugging', 
+    parser.add_argument('--offline', help='For offline debugging',
         default=False, action='store_true')
 
     # Stupid log command
     parser.add_argument('--log', help='Logs input phrase', default=None,
         action='store')
-    
+
     # TES bias commands
     parser.add_argument('--tes-bias', action='store_true', default=False,
         help='Set the tes bias. Must also set --bias-group and --bias-voltage')
     parser.add_argument('--bias-group', action='store', default=-1, type=int,
-        help='The bias group to set the TES bias. If -1, then sets all.', 
+        help='The bias group to set the TES bias. If -1, then sets all.',
         choices=np.array([-1,0,1,2,3,4,5,6,7], dtype=int))
-    parser.add_argument('--bias-voltage', action='store', default=0., 
+    parser.add_argument('--bias-voltage', action='store', default=0.,
         type=float, help='The bias voltage to set')
-    parser.add_argument('--bias-voltage-array', action='store', 
+    parser.add_argument('--bias-voltage-array', action='store',
         default=None, help='Array of voltages to set per bias group')
 
     parser.add_argument('--overbias-tes', action='store_true', default=False,
         help='Overbias the TESs')
-    parser.add_argument('--overbias-tes-wait', action='store', default=1.5, 
+    parser.add_argument('--overbias-tes-wait', action='store', default=1.5,
         type=float, help='The time to stay at the high current.')
 
     parser.add_argument('--bias-bump', action='store', default=False,
-        help='Bump the TES bias up and down') 
-    parser.add_argument('--bias-bump-step', action='store', default=0.01, 
-        type=float, help="Size of bias bump step in volts") 
-    parser.add_argument('--bias-bump-wait', action='store', default=5., 
+        help='Bump the TES bias up and down')
+    parser.add_argument('--bias-bump-step', action='store', default=0.01,
+        type=float, help="Size of bias bump step in volts")
+    parser.add_argument('--bias-bump-wait', action='store', default=5.,
         type=float, help="Time to dwell at stepped up/down bias")
     parser.add_argument('--bias-bump-between', action='store', default=3.,
-        type=float, help="Interval between up and down steps.") 
+        type=float, help="Interval between up and down steps.")
 
     # IV commands
     parser.add_argument('--slow-iv', action='store_true', default=False,
@@ -192,7 +192,7 @@ if __name__ == "__main__":
         help='Use the last tuning')
     parser.add_argument('--use-tune', action='store', type=str, default=None,
         help='The full path of a tuning file to use.')
-    parser.add_argument('--check-lock', action='store', default=False, 
+    parser.add_argument('--check-lock', action='store', default=False,
         help='Check tracking and kill unlocked channels.')
 
     # Start acq
@@ -202,7 +202,7 @@ if __name__ == "__main__":
         help='The variable to stuff into the runfile. See the MCE wiki')
     parser.add_argument('--num-rows', action='store', default=33, type=int,
         help='The variable to stuff into the runfile. See the MCE wiki')
-    parser.add_argument('--num-rows-reported', action='store', default=33, 
+    parser.add_argument('--num-rows-reported', action='store', default=33,
         type=int,
         help='The variable to stuff into the runfile. See the MCE wiki')
     parser.add_argument('--data-rate', action='store', default=60, type=int,
@@ -234,7 +234,7 @@ if __name__ == "__main__":
     # do we want this to be folded into tuning with an if statement?
     # separate for now
     # CY 20181125
-    parser.add_argument('--setup', action='store_true', default=False, 
+    parser.add_argument('--setup', action='store_true', default=False,
         help='Setup SMuRF and load defaults.')
 
     # Extract inputs
@@ -251,8 +251,8 @@ if __name__ == "__main__":
     if n_cmds > 1:
         sys.exit(0)
 
-    S = pysmurf.client.SmurfControl(cfg_file=os.path.join(os.path.dirname(__file__), 
-        '..', 'cfg_files' , cfg_filename), smurf_cmd_mode=True, setup=False, 
+    S = pysmurf.client.SmurfControl(cfg_file=os.path.join(os.path.dirname(__file__),
+        '..', 'cfg_files' , cfg_filename), smurf_cmd_mode=True, setup=False,
         offline=offline)
 
     if args.log is not None:
@@ -289,7 +289,7 @@ if __name__ == "__main__":
                 bias_voltage_array[S.all_groups] = bias_voltage # all_groups from cfg
             S.set_tes_bias_bipolar_array(bias_voltage_array, write_log=True)
         else:
-            S.set_tes_bias_bipolar(args.bias_group, bias_voltage, 
+            S.set_tes_bias_bipolar(args.bias_group, bias_voltage,
                 write_log=True)
 
     if args.overbias_tes:
@@ -300,10 +300,10 @@ if __name__ == "__main__":
             tes_bias=19.9 # factor of 10ish from above
 
         if args.bias_group < 0:
-            S.overbias_tes_all(overbias_wait=args.overbias_tes_wait, bias_groups=S.all_groups, 
+            S.overbias_tes_all(overbias_wait=args.overbias_tes_wait, bias_groups=S.all_groups,
                 high_current_mode=S.high_current_mode_bool, tes_bias=tes_bias)
         else:
-            S.overbias_tes(args.bias_group, overbias_wait=args.overbias_tes_wait, 
+            S.overbias_tes(args.bias_group, overbias_wait=args.overbias_tes_wait,
                 high_current_mode=S.high_current_mode_bool, tes_bias=tes_bias)
 
     if args.slow_iv:
@@ -314,7 +314,7 @@ if __name__ == "__main__":
         S.log('bias high {}'.format(iv_bias_high))
         S.log('bias low {}'.format(iv_bias_low))
         S.log('bias step {}'.format(iv_bias_step))
-        # 20181223: CY took out IV biases in terms of current. Revert if you 
+        # 20181223: CY took out IV biases in terms of current. Revert if you
         #  decide you want it back
 
         if iv_bias_high > 19.9:
@@ -332,15 +332,15 @@ if __name__ == "__main__":
                 bias_step=iv_bias_step, make_plot=False)
         else: # individual bias group
             S.log('running slow IV on bias group {}'.format(args.bias_group))
-            S.slow_iv_all(bias_groups=np.array([args.bias_group]), 
-                wait_time=args.iv_wait_time, bias_high=iv_bias_high, 
-                bias_low=iv_bias_low, 
-                high_current_wait=args.iv_high_current_wait, 
+            S.slow_iv_all(bias_groups=np.array([args.bias_group]),
+                wait_time=args.iv_wait_time, bias_high=iv_bias_high,
+                bias_low=iv_bias_low,
+                high_current_wait=args.iv_high_current_wait,
                 high_current_mode=S.high_current_mode_bool,
                 bias_step=iv_bias_step, make_plot=False)
 
     if args.bias_bump:
-        S.bias_bump(bias_group=S.all_groups, gcp_mode=True, 
+        S.bias_bump(bias_group=S.all_groups, gcp_mode=True,
             gcp_wait=args.bias_bump_wait, gcp_between=args.bias_bump_between,
             step_size=args.bias_bump_step) # always do this on all bias groups?
 
@@ -354,7 +354,7 @@ if __name__ == "__main__":
         iv_bias_step = np.abs(args.iv_bias_step) * 1.5 # speed this up relative to other mce's
 
         S.log('running plc on all bias groups')
-        S.partial_load_curve_all(bias_high, bias_step=iv_bias_step, 
+        S.partial_load_curve_all(bias_high, bias_step=iv_bias_step,
             wait_time=args.iv_wait_time, analyze=False, make_plot=False)
 
 
@@ -377,7 +377,7 @@ if __name__ == "__main__":
         if args.n_frames >= 1000000000:
             args.n_frames = -1 # if it is a big number then just make it continuous
 
-        if args.n_frames > 0: # was this a typo? used to be < 
+        if args.n_frames > 0: # was this a typo? used to be <
             acq_n_frames(S, args.num_rows, args.num_rows_reported,
                 args.data_rate, args.row_len, args.n_frames)
         else:
@@ -387,7 +387,7 @@ if __name__ == "__main__":
             make_runfile(S.output_dir, num_rows=args.num_rows,
                 data_rate=args.data_rate, row_len=args.row_len,
                 num_rows_reported=args.num_rows_reported)
-            # why are we making a runfile though? do we intend to dump it? 
+            # why are we making a runfile though? do we intend to dump it?
 
     if args.stop_acq:
         stop_acq(S)

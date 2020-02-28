@@ -18,10 +18,7 @@ from pysmurf.client.base import SmurfBase
 from pysmurf.client.command.sync_group import SyncGroup as SyncGroup
 import time
 import os
-import struct
-import time
 from scipy import signal
-import shutil
 import glob
 import matplotlib.pyplot as plt
 # for hardware logging
@@ -32,7 +29,7 @@ from pysmurf.client.util.SmurfFileReader import SmurfStreamReader
 class SmurfUtilMixin(SmurfBase):
 
     def take_debug_data(self, band, channel=None, nsamp=2**19, filename=None,
-        IQstream=1, single_channel_readout=1, debug=False, write_log=True):
+            IQstream=1, single_channel_readout=1, debug=False, write_log=True):
         """
         Takes raw debugging data
 
@@ -109,15 +106,17 @@ class SmurfUtilMixin(SmurfBase):
         bay=self.band_to_bay(band)
         self.set_trigger_daq(bay, 1, write_log=True) # this seems to = TriggerDM
 
-        end_addr = self.get_waveform_end_addr(bay, engine=0) # why engine=0 here?
-
         time.sleep(1) # maybe unnecessary
 
         done=False
         while not done:
             done=True
             for k in range(2):
-                wr_addr = self.get_waveform_wr_addr(bay, engine=0)
+                # see pysmurf issue 161.  This call is no longer used,
+                # and causes take_debug_data to crash if
+                # get_waveform_wr_addr is called before the
+                # acquisition completes.
+                #wr_addr = self.get_waveform_wr_addr(bay, engine=0)
                 empty = self.get_waveform_empty(bay, engine=k)
                 if not empty:
                     done=False
@@ -145,12 +144,12 @@ class SmurfUtilMixin(SmurfBase):
         import pysmurf.client.watchdog.JesdWatchdog as JesdWatchdog
         import subprocess
         import sys
-        pid = subprocess.Popen([sys.executable,JesdWatchdog.__file__])
+        subprocess.Popen([sys.executable,JesdWatchdog.__file__])
 
     # Shawn needs to make this better and add documentation.
     def estimate_phase_delay(self, band, n_samples=2**19, make_plot=True,
-        show_plot=True, save_plot=True, save_data=True, n_scan=5,
-        timestamp=None, uc_att=24, dc_att=0, freq_min=-2.5E8, freq_max=2.5E8):
+            show_plot=True, save_plot=True, save_data=True, n_scan=5,
+            timestamp=None, uc_att=24, dc_att=0, freq_min=-2.5E8, freq_max=2.5E8):
 
         # For some reason, pyrogue flips out if you try to set refPhaseDelay
         # to zero in 071150b0.  This allows an offset ; the offset just gets
@@ -168,8 +167,7 @@ class SmurfUtilMixin(SmurfBase):
         n_subbands = self.get_number_sub_bands(band)
         digitizer_frequency_mhz = self.get_digitizer_frequency_mhz(band)
         subband_half_width_mhz = digitizer_frequency_mhz/\
-                             n_subbands
-        band_center_mhz=self.get_band_center_mhz(band)
+            n_subbands
         subbands,subband_centers=self.get_subband_centers(band)
         subband_freq_min=-subband_half_width_mhz/2.
         subband_freq_max=subband_half_width_mhz/2.
@@ -181,7 +179,7 @@ class SmurfUtilMixin(SmurfBase):
             lower_sb_freq=sbc+subband_freq_min
             upper_sb_freq=sbc+subband_freq_max
             if lower_sb_freq>=(freq_min/1.e6-subband_half_width_mhz) and \
-                upper_sb_freq<=(freq_max/1.e6+subband_half_width_mhz):
+                    upper_sb_freq<=(freq_max/1.e6+subband_half_width_mhz):
                 dsp_subbands.append(sb)
 
         if timestamp is None:
@@ -226,10 +224,10 @@ class SmurfUtilMixin(SmurfBase):
             resp_cable = real_resp_cable + 1j*complex_resp_cable
         else:
             self.log('Running full band resp')
-            freq_cable, resp_cable = self.full_band_resp(band, n_samples=n_samples, \
-                                                      make_plot=make_plot, \
-                                                      save_data=save_data, \
-                                                      n_scan=n_scan)
+            freq_cable, resp_cable = self.full_band_resp(band, n_samples=n_samples,
+                make_plot=make_plot,
+                save_data=save_data,
+                n_scan=n_scan)
 
         idx_cable = np.where( (freq_cable > freq_min) & (freq_cable < freq_max) )
 
@@ -357,7 +355,6 @@ class SmurfUtilMixin(SmurfBase):
 
         # fit
         dsp_corr_z = np.polyfit(freq_dsp_corr_subset, np.unwrap(np.angle(resp_dsp_corr_subset)), 1)
-        dsp_corr_p = np.poly1d(dsp_corr_z)
         dsp_corr_delay_us=np.abs(1.e6*dsp_corr_z[0]/2/np.pi)
         #### done measuring total (DSP) delay with estimated correction applied
 
@@ -458,7 +455,7 @@ class SmurfUtilMixin(SmurfBase):
         data (np array)
         """
         n_chan = 2 # number of stream channels
-        header_size = 4 # 8 bytes in 16-bit word
+        #header_size = 4 # 8 bytes in 16-bit word
 
         rawdata = np.fromfile(filename, dtype='<u4').astype(dtype)
 
@@ -481,7 +478,8 @@ class SmurfUtilMixin(SmurfBase):
             header = header1[::2] + header1[1::2] * (2**16) # what am I doing
         else:
             raise TypeError('Type {} not yet supported!'.format(dtype))
-        if header[1,1] == 2:
+
+        if (header[1,1]>>24 == 2) or (header[1,1]>>24 == 0):
             header = np.fliplr(header)
             data = np.fliplr(data)
 
@@ -514,13 +512,6 @@ class SmurfUtilMixin(SmurfBase):
         digitizer_frequency_mhz = self.get_digitizer_frequency_mhz()
         subband_half_width_mhz = (digitizer_frequency_mhz / n_subbands)
 
-        if swapFdF:
-            nF = 1 # weirdly, I'm not sure this information gets used
-            nDF = 0
-        else:
-            nF = 0
-            nDF = 1
-
         header, rawdata = self.process_data(filename)
 
         # decode strobes
@@ -542,13 +533,13 @@ class SmurfUtilMixin(SmurfBase):
 
         if np.remainder(len(f), n_proc)!=0:
             if truncate:
-                self.log(f'Number of points in f not a multiple of {n_proc}. ' +
-                    f'Truncating f to the nearest multiple of {n_proc}.',
+                self.log(f'Number of points in f not a multiple of {n_proc}.' +
+                    f' Truncating f to the nearest multiple of {n_proc}.',
                     self.LOG_USER)
                 f=f[:(len(f)-np.remainder(len(f),n_proc))]
             else:
-                self.log(f'Number of points in f not a multiple of {n_proc}. ' +
-                    'Cannot decode', self.LOG_ERROR)
+                self.log(f'Number of points in f not a multiple of {n_proc}.'+
+                    ' Cannot decode', self.LOG_ERROR)
         f = np.reshape(f, (-1, n_proc)) * subband_half_width_mhz / 2**23
 
         # frequency errors
@@ -569,8 +560,8 @@ class SmurfUtilMixin(SmurfBase):
                         f' of {n_proc}.', self.LOG_USER)
                     df=df[:(len(df)-np.remainder(len(df),n_proc))]
                 else:
-                    self.log(f'Number of points in df not a multiple of {n_proc}.'+
-                        ' Cannot decode', self.LOG_ERROR)
+                    self.log(f'Number of points in df not a multiple of {n_proc}.' +
+                        'Cannot decode', self.LOG_ERROR)
             df = np.reshape(df, (-1, n_proc)) * subband_half_width_mhz / 2**23
 
         else:
@@ -682,16 +673,22 @@ class SmurfUtilMixin(SmurfBase):
 
 
     def stream_data_on(self, write_config=False, data_filename=None,
-                       downsample_factor=None, write_log=True):
+                       downsample_factor=None, write_log=True,
+                       make_freq_mask=True):
         """
         Turns on streaming data.
 
         Opt Args:
         ---------
+        write_config (bool) : Whether to dump the entire config. Default
+            is False. Warning this can be slow.
         data_filename (str) : The full path to store the data. If None, it
             uses the timestamp.
-        downsample_filter (int) : The number of fast samples to skip between
-            sending.
+        downsample_factor (int) : The number of flux_ramp cycles to average
+            over before writing data out.
+        write_log (bool) : Whether to write outputs to the log.
+        make_freq_mask (bool) : Whether to write a text file with resonator
+            frequencies. Default True.
 
         Returns:
         --------
@@ -707,7 +704,7 @@ class SmurfUtilMixin(SmurfBase):
                 self.log('Input downsample factor is None. Using '+
                      'value already in pyrogue:'+
                      f' {downsample_factor}')
-            
+
         # Check if flux ramp is non-zero
         ramp_max_cnt = self.get_ramp_max_cnt()
         if ramp_max_cnt == 0:
@@ -753,13 +750,15 @@ class SmurfUtilMixin(SmurfBase):
 
                 # short wait
                 time.sleep(5.)
-                if write_log:
-                    self.log(f'Writing to file : {data_filename}',
+            if write_log:
+                self.log(f'Writing to file : {data_filename}',
                          self.LOG_USER)
 
+            # Dictionary with all channels on in each band
             smurf_chans = {}
             for b in bands:
                 smurf_chans[b] = self.which_on(b)
+
             output_mask = self.make_channel_mask(bands, smurf_chans)
             self.set_channel_mask(output_mask)
 
@@ -767,6 +766,11 @@ class SmurfUtilMixin(SmurfBase):
             # raw data output
             np.savetxt(os.path.join(data_filename.replace('.dat', '_mask.txt')),
                 output_mask, fmt='%i')
+
+            if make_freq_mask:
+                freq_mask = self.make_freq_mask(output_mask)
+                np.savetxt(os.path.join(data_filename.replace('.dat', '_freq.txt')),
+                           freq_mask, fmt='%4.4f')
 
             self.open_data_file(write_log=write_log)
 
@@ -778,10 +782,11 @@ class SmurfUtilMixin(SmurfBase):
         Turns off streaming data.
         """
         self.close_data_file(write_log=write_log)
+        self.set_stream_enable(0, write_log=write_log, wait_after=.15)
 
-        
     def read_stream_data(self, datafile, channel=None,
-                         n_samp=None, array_size=None):
+                         n_samp=None, array_size=None,
+                         make_freq_mask=False):
         """
         Loads data taken with the fucntion stream_data_on.
 
@@ -806,34 +811,28 @@ class SmurfUtilMixin(SmurfBase):
         """
         try:
             datafile = glob.glob(datafile+'*')[-1]
-        except:
-            print(f'datafile={datafile}')
+        except BaseException:
+            self.log(f'datafile={datafile}')
 
         self.log(f'Reading {datafile}')
 
         if channel is not None:
             self.log('Only reading channel {}'.format(channel))
 
-
-
         eval_n_samp = False
         if n_samp is not None:
             eval_n_samp = True
+
 
         # Flag to indicate we are about the read the fist frame from the disk
         # The number of channel will be extracted from the first frame and the
         # data structures will be build based on that
         first_read = True
 
-        #with open(datafile, mode='rb') as file:
         with SmurfStreamReader(datafile,
-            isRogue=True, metaEnable=True) as file:
-
+                isRogue=True, metaEnable=True) as file:
             for header, data in file.records():
-
-
                 if first_read:
-
                     # Update flag, so that we don't do this code again
                     first_read = False
 
@@ -851,28 +850,34 @@ class SmurfUtilMixin(SmurfBase):
 
                     # Make holder arrays for phase and timestamp
                     phase = np.zeros((1,n_chan))
-                    #phase = np.atleast_2d(data)
                     phase[0] = data
                     t = np.array(header.timestamp)
                     counter = 1
                 else:
                     phase = np.vstack((phase, data))
-                    t = np.append(t, header.timestamp)                    
+                    t = np.append(t, header.timestamp)
 
                     if counter % 2000 == 2000 - 1 :
                         self.log('{} elements loaded'.format(counter+1))
-                        
+
                     counter = counter + 1
+
+                if eval_n_samp:
+                    if counter >= n_samp:
+                        self.log(f'Loaded {n_samp} samples. Stopping.')
+                        break
+
 
         phase = np.squeeze(phase.T)
         phase = phase.astype(float) / 2**15 * np.pi # where is decimal?  Is it in rad?
 
-        rootpath = os.path.dirname(datafile)
-        filename = os.path.basename(datafile)
-        timestamp = filename.split('.')[0]
-
         # make a mask from mask file
-        mask = self.make_mask_lookup(datafile.replace('.dat', '_mask.txt'))
+        if ".dat.part" in datafile:
+            mask = self.make_mask_lookup(datafile.split(".dat.part")[0] +
+                "_mask.txt")
+        else:
+            mask = self.make_mask_lookup(datafile.replace('.dat', '_mask.txt'),
+                                         make_freq_mask=make_freq_mask)
 
         # If an array_size was defined, resize the phase array
         if array_size is not None:
@@ -881,7 +886,8 @@ class SmurfUtilMixin(SmurfBase):
         return t, phase, mask
 
 
-    def make_mask_lookup(self, mask_file, mask_channel_offset=0):
+    def make_mask_lookup(self, mask_file, mask_channel_offset=0,
+                         make_freq_mask=False):
         """
         Makes an n_band x n_channel array where the elements correspond
         to the smurf_to_mce mask number. In other words, mask[band, channel]
@@ -900,21 +906,40 @@ class SmurfUtilMixin(SmurfBase):
         ----
         mask_lookup (int array): An array with the GCP numbers.
         """
-        if self.config.get('smurf_to_mce').get('mask_channel_offset') is not None:
-            mask_channel_offset=int(self.config.get('smurf_to_mce').get('mask_channel_offset'))
+        if hasattr(self, 'config'):
+            if self.config.get('smurf_to_mce').get('mask_channel_offset') is not None:
+                mask_channel_offset=int(self.config.get('smurf_to_mce').get('mask_channel_offset'))
 
         mask = np.atleast_1d(np.loadtxt(mask_file))
         bands = np.unique(mask // 512).astype(int)
         ret = np.ones((np.max(bands)+1, 512), dtype=int) * -1
+        if make_freq_mask:
+            freq_mask_file = mask_file.replace("_mask.txt", "_freq.txt")
+            freq_mask_ret = np.zeros_like(ret).astype(float)
+            try:
+                freq_mask = np.atleast_1d(np.loadtxt(freq_mask_file))
+            except OSError:
+                self.log(f'{freq_mask_file} does not exist.')
+                make_freq_mask = False
 
         for gcp_chan, smurf_chan in enumerate(mask):
-            ret[int(smurf_chan//512), int((smurf_chan-mask_channel_offset)%512)] = gcp_chan
+            b = int(smurf_chan//512)
+            ch = int((smurf_chan-mask_channel_offset)%512)
+            ret[b,ch] = gcp_chan
+
+            # fill corresponding elements with frequency
+            if make_freq_mask:
+                freq_mask_ret[b, ch] = freq_mask[gcp_chan]
+
+        # Append freq data if requested
+        if make_freq_mask:
+            ret = (ret, freq_mask_ret)
 
         return ret
 
 
     def read_stream_data_daq(self, data_length, bay=0, hw_trigger=False,
-        write_log=False):
+            write_log=False):
         """
         """
         # Ask mitch why this is what it is...
@@ -922,8 +947,8 @@ class SmurfUtilMixin(SmurfBase):
             stream0 = self.epics_root + ":AMCc:Stream0"
             stream1 = self.epics_root + ":AMCc:Stream1"
         else:
-            stream0 = self.epics_root + ":AMCc:Stream4"
-            stream1 = self.epics_root + ":AMCc:Stream5"
+            stream0 = self.epics_root + ":AMCc:Stream2"
+            stream1 = self.epics_root + ":AMCc:Stream3"
 
         pvs = [stream0, stream1]
         sg  = SyncGroup(pvs, skip_first=True)
@@ -943,6 +968,56 @@ class SmurfUtilMixin(SmurfBase):
         r1 = vals[pvs[1]]
 
         return r0, r1
+
+    def check_adc_saturation(self, band):
+        """
+        Reads data directly off the ADC.  Checks for input saturation.
+
+        Args:
+        -----
+        band (int) : Which band.  Assumes adc number is band%4.
+
+        Ret:
+        ----
+        saturated (bool) : Flag if ADC is saturated.
+        """
+        adc = self.read_adc_data(band, data_length=2**12, do_plot=False,
+                  save_data=False, show_plot=False, save_plot=False)
+        adc_max   = int(np.max((adc.real.max(), adc.imag.max())))
+        adc_min   = int(np.min((adc.real.min(), adc.imag.min())))
+        saturated = ((adc_max > 31000) | (adc_min < -31000))
+        self.log(f'ADC{band} max count: {adc_max}')
+        self.log(f'ADC{band} min count: {adc_min}')
+        if saturated:
+            self.log(f'\033[91mADC{band} saturated\033[00m') # color red
+        else:
+            self.log(f'\033[92mADC{band} not saturated\033[00m') # color green
+        return saturated
+
+    def check_dac_saturation(self, band):
+        """
+        Reads data directly off the DAC.  Checks for input saturation.
+
+        Args:
+        -----
+        band (int) : Which band.  Assumes dac number is band%4.
+
+        Ret:
+        ----
+        saturated (bool) : Flag if DAC is saturated.
+        """
+        dac = self.read_dac_data(band, data_length=2**12, do_plot=False,
+                  save_data=False, show_plot=False, save_plot=False)
+        dac_max   = int(np.max((dac.real.max(), dac.imag.max())))
+        dac_min   = int(np.min((dac.real.min(), dac.imag.min())))
+        saturated = ((dac_max > 31000) | (dac_min < -31000))
+        self.log(f'DAC{band} max count: {dac_max}')
+        self.log(f'DAC{band} min count: {dac_min}')
+        if saturated:
+            self.log(f'\033[91mDAC{band} saturated\033[00m') # color red
+        else:
+            self.log(f'\033[92mDAC{band} not saturated\033[00m') # color green
+        return saturated
 
     def read_adc_data(self, band, data_length=2**19,
                       hw_trigger=False, do_plot=False, save_data=True,
@@ -999,23 +1074,33 @@ class SmurfUtilMixin(SmurfBase):
             digitizer_frequency_mhz = self.get_digitizer_frequency_mhz()
             f, p_adc = signal.welch(dat, fs=digitizer_frequency_mhz,
                 nperseg=data_length/2, return_onesided=False, detrend=False)
-            f_plot = f / 1.0E6
+            f_plot = f
 
             idx = np.argsort(f)
             f_plot = f_plot[idx]
             p_adc = p_adc[idx]
 
-            fig = plt.figure(figsize=(9,4.5))
-            ax=plt.gca()
+            plt.figure(figsize=(9,9))
+            ax1 = plt.subplot(211)
+            ax1.plot(np.real(dat), label='I')
+            ax1.plot(np.imag(dat), label='Q')
+            ax1.set_xlabel('Sample number')
+            ax1.set_ylabel('Raw counts')
+            ax1.set_title(f'{timestamp} Timeseries')
+            ax1.legend()
+            ax1.set_ylim((-2**15, 2**15))
+            ax2 = plt.subplot(212)
+            ax2.plot(f_plot, 10*np.log10(p_adc))
+            ax2.set_ylabel('ADC{}'.format(band))
+            ax2.set_xlabel('Frequency [MHz]')
+            ax2.set_title(f'{timestamp} Spectrum')
+            plt.grid(which='both')
             if plot_ylimits[0] is not None:
                 plt.ylim(plot_ylimits[0],plt.ylim()[1])
             if plot_ylimits[1] is not None:
                 plt.ylim(plt.ylim()[0],plot_ylimits[1])
-            ax.set_ylabel('ADC{}'.format(band))
-            ax.set_xlabel('Frequency [MHz]')
-            ax.set_title(timestamp)
-            ax.semilogy(f_plot, p_adc)
-            plt.grid()
+
+
 
             if save_plot:
                 plot_fn = '{}/{}_adc{}.png'.format(self.plot_dir,timestamp,band)
@@ -1045,7 +1130,7 @@ class SmurfUtilMixin(SmurfBase):
         data_length (int): The number of samples
 
         Opt Args:
-        ---------
+         ---------
         hw_trigger (bool) : Whether to use the hardware trigger. If
             False, uses an internal trigger.
         do_plot (bool) : Whether or not to plot.  Default false.
@@ -1085,24 +1170,33 @@ class SmurfUtilMixin(SmurfBase):
             import scipy.signal as signal
             digitizer_frequency_mhz = self.get_digitizer_frequency_mhz()
             f, p_dac = signal.welch(dat, fs=digitizer_frequency_mhz,
-                nperseg=data_length/2, return_onesided=False,detrend=False)
-            f_plot = f / 1.0E6
+                nperseg=data_length/2, return_onesided=False, detrend=False)
+            f_plot = f
 
             idx = np.argsort(f)
             f_plot = f_plot[idx]
             p_dac = p_dac[idx]
 
-            fig = plt.figure(figsize=(9,4.5))
-            ax=plt.gca()
+            plt.figure(figsize=(9,9))
+            ax1 = plt.subplot(211)
+            ax1.plot(np.real(dat), label='I')
+            ax1.plot(np.imag(dat), label='Q')
+            ax1.set_xlabel('Sample number')
+            ax1.set_ylabel('Raw counts')
+            ax1.set_title(f'{timestamp} Timeseries')
+            ax1.legend()
+            ax1.set_ylim((-2**15, 2**15))
+            ax2 = plt.subplot(212)
+            ax2.plot(f_plot, 10*np.log10(p_dac))
+            ax2.set_ylabel('ADC{}'.format(band))
+            ax2.set_xlabel('Frequency [MHz]')
+            ax2.set_title(f'{timestamp} Spectrum')
+            plt.grid(which='both')
             if plot_ylimits[0] is not None:
                 plt.ylim(plot_ylimits[0],plt.ylim()[1])
             if plot_ylimits[1] is not None:
                 plt.ylim(plt.ylim()[0],plot_ylimits[1])
-            ax.set_ylabel('DAC{}'.format(band))
-            ax.set_xlabel('Frequency [MHz]')
-            ax.set_title(timestamp)
-            ax.semilogy(f_plot, p_dac)
-            plt.grid()
+
 
             if save_plot:
                 plot_fn = '{}/{}_dac{}.png'.format(self.plot_dir,timestamp,band)
@@ -1185,7 +1279,7 @@ class SmurfUtilMixin(SmurfBase):
 
 
     def config_cryo_channel(self, band, channel, frequencyMHz, amplitude,
-        feedback_enable, eta_phase, eta_mag):
+            feedback_enable, eta_phase, eta_mag):
         """
         Set parameters on a single cryo channel
 
@@ -1239,7 +1333,7 @@ class SmurfUtilMixin(SmurfBase):
 
 
     def which_on(self, band):
-        '''
+        """
         Finds all detectors that are on.
 
         Args:
@@ -1249,13 +1343,13 @@ class SmurfUtilMixin(SmurfBase):
         Returns:
         --------
         channels_on (int array) : The channels that are on
-        '''
+        """
         amps = self.get_amplitude_scale_array(band)
         return np.ravel(np.where(amps != 0))
 
 
     def toggle_feedback(self, band, **kwargs):
-        '''
+        """
         Toggles feedbackEnable (->0->1) and lmsEnables1-3 (->0->1) for
         this band.  Only toggles back to 1 if it was 1 when asked to
         toggle, otherwise leaves it zero.
@@ -1263,7 +1357,7 @@ class SmurfUtilMixin(SmurfBase):
         Args:
         -----
         band (int) : The band whose feedback to toggle.
-        '''
+        """
 
         # current vals?
         old_feedback_enable=self.get_feedback_enable(band)
@@ -1305,13 +1399,13 @@ class SmurfUtilMixin(SmurfBase):
                  self.LOG_USER)
 
     def band_off(self, band, **kwargs):
-        '''
+        """
         Turns off all tones in a band
 
         Args:
         -----
         band (int) : The band that is to be turned off.
-        '''
+        """
         self.set_amplitude_scales(band, 0, **kwargs)
         self.set_feedback_enable_array(band, np.zeros(512, dtype=int), **kwargs)
         self.set_cfg_reg_ena_bit(0, wait_after=.11, **kwargs)
@@ -1334,16 +1428,15 @@ class SmurfUtilMixin(SmurfBase):
 
 
     def set_feedback_limit_khz(self, band, feedback_limit_khz, **kwargs):
-        '''
+        """
         Sets the feedback limit
 
         Args:
         -----
         band (int) : The band that is to be turned off.
         feedback_limit_khz (float) : The feedback rate in units of kHz.
-        '''
+        """
         digitizer_freq_mhz = self.get_digitizer_frequency_mhz(band)
-        bandcenter = self.get_band_center_mhz(band)
         n_subband = self.get_number_sub_bands(band)
 
         subband_bandwidth = 2 * digitizer_freq_mhz / n_subband
@@ -1420,8 +1513,8 @@ class SmurfUtilMixin(SmurfBase):
                     recover_jesd_tx=(not jesd_tx_ok0))
 
                 # rely on recover to assert if it failed
-                self.log('Successfully recovered Jesd but may need to redo '+
-                    'some setup ... rerun command at your own risk.',
+                self.log('Successfully recovered Jesd but may need to redo' +
+                    ' some setup ... rerun command at your own risk.',
                     self.LOG_USER)
 
             # don't continue running the desired command by default.
@@ -1464,13 +1557,13 @@ class SmurfUtilMixin(SmurfBase):
         return (jesd_tx_ok,jesd_rx_ok)
 
     def get_fpga_status(self):
-        '''
+        """
         Loads FPGA status checks if JESD is ok.
 
         Returns:
         ret (dict) : A dictionary containing uptime, fpga_version, git_hash,
             build_stamp, jesd_tx_enable, and jesd_tx_valid
-        '''
+        """
         uptime = self.get_fpga_uptime()
         fpga_version = self.get_fpga_version()
         git_hash = self.get_fpga_git_hash()
@@ -1519,7 +1612,7 @@ class SmurfUtilMixin(SmurfBase):
         return bands
 
     def freq_to_subband(self, band, freq):
-        '''Look up subband number of a channel frequency, and its subband
+        """Look up subband number of a channel frequency, and its subband
         frequency offset.
 
         Args:
@@ -1532,12 +1625,7 @@ class SmurfUtilMixin(SmurfBase):
         subband_no (int): subband (0..128) of the frequency within the band
         offset (float): offset from subband center
 
-        '''
-        dig_freq = self.get_digitizer_frequency_mhz(band)
-        num_subband = self.get_number_sub_bands(band)
-        band_center = self.get_band_center_mhz(band)
-        subband_width = 2*dig_freq/num_subband
-
+        """
         subbands, subband_centers = self.get_subband_centers(band,
             as_offset=False)
 
@@ -1549,32 +1637,53 @@ class SmurfUtilMixin(SmurfBase):
 
         return subband_no, offset
 
-    def channel_to_freq(self, band, channel, yml=None):
+    def channel_to_freq(self, band, channel=None, yml=None):
         """
         Gives the frequency of the channel.
 
         Args:
         -----
         band (int) : The band the channel is in
+
+        Opt Args:
+        ---------
         channel (int) :  The channel number
 
         Ret:
         ----
-        freq (float): The channel frequency in MHz
+        freq (float): The channel frequency in MHz or an array
+            of values if channel is None. In the array format,
+            the freq list is aligned with self.which_on(band).
         """
-        if band is None or channel is None:
+        if band is None and channel is None:
             return None
 
-        subband = self.get_subband_from_channel(band, channel, yml=yml)
+        # Get subband centers
         _, sbc = self.get_subband_centers(band, as_offset=False, yml=yml)
-        offset = float(self.get_center_frequency_mhz_channel(band, channel,
-            yml=yml))
 
-        return sbc[subband] + offset
+        # Convenience function for turning band, channel into freq
+        def _get_cf(band, ch):
+            subband = self.get_subband_from_channel(band, channel, yml=yml)
+            offset = float(self.get_center_frequency_mhz_channel(band, channel,
+                                                                 yml=yml))
+            return sbc[subband] + offset
+
+        # If channel is requested
+        if channel is not None:
+            return _get_cf(band, channel)
+
+        # Get all channels that are on
+        else:
+            channels = self.which_on(band)
+            cfs = np.zeros(len(channels))
+            for i, channel in enumerate(channels):
+                cfs[i] = _get_cf(band, channel)
+
+            return cfs
 
 
     def get_channel_order(self, band=None, channel_orderfile=None):
-        ''' produces order of channels from a user-supplied input file
+        """ produces order of channels from a user-supplied input file
 
         Optional Args:
         --------------
@@ -1588,7 +1697,7 @@ class SmurfUtilMixin(SmurfBase):
         Returns :
         --------------
         channel_order (int array) : An array of channel orders
-        '''
+        """
 
         if band is None:
             # assume all bands have the same channel order, and pull
@@ -1633,7 +1742,7 @@ class SmurfUtilMixin(SmurfBase):
             channel_orderfile=channel_orderfile)[n_cut:-n_cut])
 
     def get_subband_from_channel(self, band, channel, channelorderfile=None,
-        yml=None):
+            yml=None):
         """ returns subband number given a channel number
         Args:
         -----
@@ -1669,7 +1778,7 @@ class SmurfUtilMixin(SmurfBase):
         return int(subband)
 
     def get_subband_centers(self, band, as_offset=True, hardcode=False,
-        yml=None):
+            yml=None):
         """ returns frequency in MHz of subband centers
         Args:
         -----
@@ -1679,7 +1788,7 @@ class SmurfUtilMixin(SmurfBase):
         """
 
         if hardcode:
-            bandCenterMHz = 3.75 + 0.5*(band + 1)
+            #bandCenterMHz = 3.75 + 0.5*(band + 1)
             digitizer_frequency_mhz = 614.4
             n_subbands = 128
         else:
@@ -1726,7 +1835,7 @@ class SmurfUtilMixin(SmurfBase):
             raise ValueError("requested subband less than zero")
 
         chanOrder = self.get_channel_order(band,channelorderfile)
-        subband_chans = chanOrder[subband * n_chanpersubband : subband * \
+        subband_chans = chanOrder[subband * n_chanpersubband : subband *
             n_chanpersubband + n_chanpersubband]
 
         return subband_chans
@@ -1784,7 +1893,7 @@ class SmurfUtilMixin(SmurfBase):
 
 
     def set_tes_bias_bipolar(self, bias_group, volt, do_enable=True,
-        flip_polarity=False, **kwargs):
+            flip_polarity=False, **kwargs):
         """
         Set an individual TES bias group to the specified voltage, in
         volts.  Asserts if the requested bias group is not defined in
@@ -1899,11 +2008,10 @@ class SmurfUtilMixin(SmurfBase):
 
 
     def set_tes_bias_off(self, **kwargs):
-        '''
+        """
         Turns off all of the DACs assigned to a TES bias group in the
         pysmurf configuration file.
-        '''
-        bias_groups=self.bias_group_to_pair[:,0]
+        """
         self.set_tes_bias_bipolar_array(np.zeros(self._n_bias_groups), **kwargs)
 
     def get_tes_bias_bipolar(self, bias_group, return_raw=False, **kwargs):
@@ -1955,39 +2063,39 @@ class SmurfUtilMixin(SmurfBase):
 
 
     def get_tes_bias_bipolar_array(self, return_raw=False, **kwargs):
-       """
-       Returns array of bias voltages per bias group in units of volts.
-       Currently hard coded to return the first 8 as (8,) array. I'm sorry -CY
+        """
+        Returns array of bias voltages per bias group in units of volts.
+        Currently hard coded to return the first 8 as (8,) array. I'm sorry -CY
 
-       Opt Args:
-       -----
-       return_raw (bool): Default is False. If True, returns +/- terminal
-           vals as separate arrays (pos, then negative)
-       """
+        Opt Args:
+        -----
+        return_raw (bool): Default is False. If True, returns +/- terminal
+            vals as separate arrays (pos, then negative)
+        """
 
-       bias_order = self.bias_group_to_pair[:,0]
-       dac_positives = self.bias_group_to_pair[:,1]
-       dac_negatives = self.bias_group_to_pair[:,2]
+        bias_order = self.bias_group_to_pair[:,0]
+        dac_positives = self.bias_group_to_pair[:,1]
+        dac_negatives = self.bias_group_to_pair[:,2]
 
-       n_bias_groups = self._n_bias_groups
+        n_bias_groups = self._n_bias_groups
 
-       bias_vals_pos = np.zeros((n_bias_groups,))
-       bias_vals_neg = np.zeros((n_bias_groups,))
+        bias_vals_pos = np.zeros((n_bias_groups,))
+        bias_vals_neg = np.zeros((n_bias_groups,))
 
-       volts_array = self.get_rtm_slow_dac_volt_array(**kwargs)
+        volts_array = self.get_rtm_slow_dac_volt_array(**kwargs)
 
-       for idx in np.arange(n_bias_groups):
-           dac_idx = np.ravel(np.where(bias_order == idx))
-           dac_positive = dac_positives[dac_idx][0] - 1
-           dac_negative = dac_negatives[dac_idx][0] - 1
+        for idx in np.arange(n_bias_groups):
+            dac_idx = np.ravel(np.where(bias_order == idx))
+            dac_positive = dac_positives[dac_idx][0] - 1
+            dac_negative = dac_negatives[dac_idx][0] - 1
 
-           bias_vals_pos[idx] = volts_array[dac_positive]
-           bias_vals_neg[idx] = volts_array[dac_negative]
+            bias_vals_pos[idx] = volts_array[dac_positive]
+            bias_vals_neg[idx] = volts_array[dac_negative]
 
-       if return_raw:
-           return bias_vals_pos, bias_vals_neg
-       else:
-           return bias_vals_pos - bias_vals_neg
+        if return_raw:
+            return bias_vals_pos, bias_vals_neg
+        else:
+            return bias_vals_pos - bias_vals_neg
 
     def set_amplifier_bias(self, bias_hemt=None, bias_50k=None, **kwargs):
         """
@@ -2018,7 +2126,7 @@ class SmurfUtilMixin(SmurfBase):
             bias_hemt_from_cfg = True
         # if user gave a value or value was found in cfg file,
         # set it and tell the user
-        if not bias_hemt is None:
+        if bias_hemt is not None:
             if bias_hemt_from_cfg:
                 self.log('Setting HEMT LNA Vg from config file to Vg={0:.{1}f}'.format(bias_hemt, 4),
                          self.LOG_USER)
@@ -2030,7 +2138,7 @@ class SmurfUtilMixin(SmurfBase):
 
         # otherwise do nothing and warn the user
         else:
-            self.log('No value specified for 50K LNA Vg and didn\'t find a '+
+            self.log('No value specified for 50K LNA Vg and didn\'t find a ' +
                 'default in cfg (amplifier[\'hemt_Vg\']).', self.LOG_ERROR)
         ### done with 4K HEMT
         ########################################################################
@@ -2046,7 +2154,7 @@ class SmurfUtilMixin(SmurfBase):
             bias_50k_from_cfg=True
         # if user gave a value or value was found in cfg file,
         # set it and tell the user
-        if not bias_50k is None:
+        if bias_50k is not None:
             if bias_50k_from_cfg:
                 self.log('Setting 50K LNA Vg from config file ' +
                     'to Vg={0:.{1}f}'.format(bias_50k, 4),
@@ -2060,7 +2168,7 @@ class SmurfUtilMixin(SmurfBase):
 
         # otherwise do nothing and warn the user
         else:
-            self.log('No value specified for 50K LNA Vg and didn\'t find a '+
+            self.log('No value specified for 50K LNA Vg and didn\'t find a ' +
                 'default in cfg (amplifier[\'LNA_Vg\']).',
                      self.LOG_ERROR)
         ### done with 50K LNA
@@ -2069,7 +2177,7 @@ class SmurfUtilMixin(SmurfBase):
         # add some latency in case PIC needs it
         time.sleep(1)
         # print amplifier biases after setting Vgs
-        amplifier_biases=self.get_amplifier_biases()
+        self.get_amplifier_biases()
 
     def get_amplifier_biases(self, write_log=True):
         """
@@ -2136,7 +2244,8 @@ class SmurfUtilMixin(SmurfBase):
 
 
     def overbias_tes(self, bias_group, overbias_voltage=19.9, overbias_wait=5.,
-        tes_bias=19.9, cool_wait=20., high_current_mode=True, flip_polarity=False):
+                     tes_bias=19.9, cool_wait=20., high_current_mode=True,
+                     flip_polarity=False, actually_overbias=True):
         """
         Warning: This is horribly hardcoded. Needs a fix soon.
 
@@ -2158,29 +2267,35 @@ class SmurfUtilMixin(SmurfBase):
         """
         bias_groups = self.bias_group_to_pair[:,0]
         assert (bias_group in bias_groups),\
-        f'Bias group {bias_group} is not defined (available bias groups are {bias_groups}).  Doing nothing!'
+            f'Bias group {bias_group} is not defined (available bias groups are {bias_groups}).  Doing nothing!'
 
-        # drive high current through the TES to attempt to drive normal
-        self.set_tes_bias_bipolar(bias_group, overbias_voltage,
-                                  flip_polarity=flip_polarity)
-        time.sleep(.1)
+        if actually_overbias:
+            # drive high current through the TES to attempt to drive normal
+            self.set_tes_bias_bipolar(bias_group, overbias_voltage,
+                flip_polarity=flip_polarity)
+            time.sleep(.1)
 
-        self.set_tes_bias_high_current(bias_group)
-        self.log('Driving high current through TES. ' + \
-            'Waiting {}'.format(overbias_wait), self.LOG_USER)
-        time.sleep(overbias_wait)
+            self.set_tes_bias_high_current(bias_group)
+            self.log('Driving high current through TES. ' +
+                'Waiting {}'.format(overbias_wait), self.LOG_USER)
+
+            time.sleep(overbias_wait)
+
         if not high_current_mode:
             self.set_tes_bias_low_current(bias_group)
             time.sleep(.1)
-        self.set_tes_bias_bipolar(bias_group, tes_bias, flip_polarity=flip_polarity)
+
+        self.set_tes_bias_bipolar(bias_group, tes_bias,
+            flip_polarity=flip_polarity)
         self.log('Waiting %.2f seconds to cool' % (cool_wait), self.LOG_USER)
         time.sleep(cool_wait)
+
         self.log('Done waiting.', self.LOG_USER)
 
 
     def overbias_tes_all(self, bias_groups=None, overbias_voltage=19.9,
-        overbias_wait=1.0, tes_bias=19.9, cool_wait=20.,
-        high_current_mode=True):
+            overbias_wait=1.0, tes_bias=19.9, cool_wait=20.,
+            high_current_mode=True, actually_overbias=True):
         """
         Overbiases all requested bias groups (specified by the
         bias_groups array) at overbias_voltage in high current mode
@@ -2217,14 +2332,16 @@ class SmurfUtilMixin(SmurfBase):
             'Some of the bias groups requested are not valid '+\
             f'(available bias groups are {valid_bias_groups}).  Doing nothing!'
 
-        voltage_overbias_array = self.get_tes_bias_bipolar_array()
-        voltage_overbias_array[bias_groups] = overbias_voltage
-        self.set_tes_bias_bipolar_array(voltage_overbias_array)
+        if actually_overbias:
+            voltage_overbias_array = self.get_tes_bias_bipolar_array()
+            voltage_overbias_array[bias_groups] = overbias_voltage
+            self.set_tes_bias_bipolar_array(voltage_overbias_array)
 
-        self.set_tes_bias_high_current(bias_groups)
-        self.log('Driving high current through TES. ' + \
-            'Waiting {}'.format(overbias_wait), self.LOG_USER)
-        time.sleep(overbias_wait)
+            self.set_tes_bias_high_current(bias_groups)
+
+            self.log('Driving high current through TES. ' +
+                'Waiting {}'.format(overbias_wait), self.LOG_USER)
+            time.sleep(overbias_wait)
 
         if not high_current_mode:
             self.log('setting to low current')
@@ -2260,8 +2377,8 @@ class SmurfUtilMixin(SmurfBase):
         bias_group = np.ravel(np.array(bias_group))
         for bg in bias_group:
             if bg < n_bias_groups:
-                r = np.ravel(self.pic_to_bias_group[np.where(
-                            self.pic_to_bias_group[:,1]==bg)])[0]
+                r = np.ravel(self.pic_to_bias_group[
+                    np.where(self.pic_to_bias_group[:,1]==bg)])[0]
             else:
                 r = bg
             new_relay = (1 << r) | new_relay
@@ -2296,7 +2413,7 @@ class SmurfUtilMixin(SmurfBase):
         for bg in bias_group:
             if bg < n_bias_groups:
                 r = np.ravel(self.pic_to_bias_group[np.where(
-                            self.pic_to_bias_group[:,1]==bg)])[0]
+                    self.pic_to_bias_group[:,1]==bg)])[0]
             else:
                 r = bg
             if old_relay & 1 << r != 0:
@@ -2406,7 +2523,7 @@ class SmurfUtilMixin(SmurfBase):
 
     def make_channel_mask(self, band=None, smurf_chans=None):
         """
-        Makes the channel mask. Only the channels in the 
+        Makes the channel mask. Only the channels in the
         mask will be streamed or written to disk.
 
         If no optional arguments are given, mask will contain all channels
@@ -2442,6 +2559,29 @@ class SmurfUtilMixin(SmurfBase):
 
         return output_chans
 
+
+    def make_freq_mask(self, mask):
+        """
+        Makes the frequency mask. These are the frequencies
+        associated with the channels in the channel mask.
+
+        Ret:
+        ----
+        freqs (float array) : An array with frequencies associated
+            with the mask file.
+        """
+        freqs = np.zeros(len(mask), dtype=float)
+        channels_per_band = 512  # avoid hardcoding this
+
+        # iterate over mask channels and find their freq
+        for i, mask_ch in enumerate(mask):
+            b = mask_ch // channels_per_band
+            ch = mask_ch % channels_per_band
+            freqs[i] = self.channel_to_freq(b, ch)
+
+        return freqs
+
+
     def set_downsample_filter(self, filter_order, cutoff_freq,
                               write_log=False):
         """
@@ -2470,12 +2610,15 @@ class SmurfUtilMixin(SmurfBase):
 
         self.set_filter_reset(wait_after=.1,
                               write_log=write_log)
-        
+
+
     def get_filter_params(self):
         """
         Get the downsample filter parameters: filter order,
         filter gain, num averages, and the actual filter
-        parameters.
+        parameters. This reads the most recent smurf_to_mce_file
+        to get the parameters. This is defined in
+        self.smurf_to_mce_file.
 
         If filter order is -1, the downsampler is using a
         rectangula integrator. This will set filter_a, filter_b
@@ -2490,6 +2633,8 @@ class SmurfUtilMixin(SmurfBase):
         filter_order = self.get_filter_order()
         filter_gain = self.get_filter_gain()
         num_averages = self.get_downsample_factor()
+
+        # Get filter order, gain, and averages
 
         if filter_order < 0:
             a = None
@@ -2744,8 +2889,8 @@ class SmurfUtilMixin(SmurfBase):
                 plt.ylabel('TES current (uA)')
                 plt.xlabel('Samples')
                 plt.title(resp[i])
-                plot_fn = '%s/%s_biasBump_b%d_ch%03d' % (self.plot_dir,\
-                                                         timestamp,b,c)
+                plot_fn = '%s/%s_biasBump_b%d_ch%03d' % (self.plot_dir,
+                    timestamp,b,c)
                 plt.savefig(plot_fn)
                 self.pub.register_file(plot_fn, 'bias_bump', plot=True)
 
@@ -2985,23 +3130,23 @@ class SmurfUtilMixin(SmurfBase):
             '500 MHz band with the closest band center ' + \
             f'(={band_center_mhz:0.0f} MHz). Doing nothing!'
 
-	# Find subband this frequency falls in, and its channels.
+    # Find subband this frequency falls in, and its channels.
         subband,foff=self.freq_to_subband(band,freq_mhz)
         subband_channels=self.get_channels_in_subband(band,subband)
 
-	# Which channels in the subband are unallocated?
+    # Which channels in the subband are unallocated?
         allocated_channels=self.which_on(band)
         unallocated_channels=[chan for chan in subband_channels if chan not in allocated_channels]
         # If no unallocated channels available in the subband, assert.
-        assert (len(unallocated_channels)),\
-            f'! No unallocated channels available in subband (={subband:d}).'+\
-                ' Doing nothing!'
+        assert (len(unallocated_channels)), \
+            f'! No unallocated channels available in subband (={subband:d}).' + \
+            ' Doing nothing!'
 
         # Take lowest channel number in the list of unallocated
         # channels for this subband.
         channel=sorted(unallocated_channels)[0]
 
-	# Put a fixed tone at the requested frequency
+    # Put a fixed tone at the requested frequency
         self.set_center_frequency_mhz_channel(band,channel,foff)
         self.set_amplitude_scale_channel(band,channel,drive)
         self.set_feedback_enable_channel(band,channel,0)
@@ -3009,8 +3154,8 @@ class SmurfUtilMixin(SmurfBase):
         # Unless asked to be quiet, print where we're putting a fixed
         # tone.
         if not quiet:
-            self.log('Setting a fixed tone at {0:.2f} MHz'.format(freq_mhz) + \
-                     ' and amplitude {}'.format(drive), self.LOG_USER)
+            self.log('Setting a fixed tone at {0:.2f} MHz'.format(freq_mhz) +
+                ' and amplitude {}'.format(drive), self.LOG_USER)
 
     # SHOULD MAKE A GET FIXED TONE CHANNELS FUNCTION - WOULD MAKE IT
     # EASIER TO CHANGE THINGS FAST USING THE ARRAY GET/SETS
@@ -3032,16 +3177,17 @@ class SmurfUtilMixin(SmurfBase):
         amplitude_scale_array=self.get_amplitude_scale_array(band)
         feedback_enable_array=self.get_feedback_enable_array(band)
 
-	# want to turn off all channels for which the amplitude is
-	# nonzero, but feedback is not enabled.
+    # want to turn off all channels for which the amplitude is
+    # nonzero, but feedback is not enabled.
         fixed_tone_channels=np.where((amplitude_scale_array*(1-feedback_enable_array))!=0)
         new_amplitude_scale_array=amplitude_scale_array.copy()
         new_amplitude_scale_array[fixed_tone_channels]=0
 
-	# set by array, not by channel
+    # set by array, not by channel
         self.set_amplitude_scale_array(band,new_amplitude_scale_array)
 
     __hardware_logging_pause_event=None
+
     def pause_hardware_logging(self):
         self.__hardware_logging_pause_event.set()
 
@@ -3049,18 +3195,20 @@ class SmurfUtilMixin(SmurfBase):
         self.__hardware_logging_pause_event.clear()
 
     __hardware_log_file=None
+
     def get_hardware_log_file(self):
         return self.__hardware_log_file
 
     _hardware_logging_thread=None
     __hardware_logging_stop_event=None
+
     def start_hardware_logging(self,filename=None):
         # Just in case somewhere the enable got set to false, explicitly enable here
         if filename is None:
             filename=str(self.get_timestamp())+'_hwlog.dat'
         self.__hardware_log_file = os.path.join(self.output_dir, filename)
         self.log('Starting hardware logging to file : {}'.format(self.__hardware_log_file),
-            self.LOG_USER)
+                 self.LOG_USER)
         self.__hardware_logging_stop_event=threading.Event()
         self.__hardware_logging_pause_event=threading.Event()
         self._hardware_logging_thread = threading.Thread(target=self._hardware_logger,
@@ -3164,7 +3312,7 @@ class SmurfUtilMixin(SmurfBase):
         return hdr,row
 
     def play_tes_bipolar_waveform(self, bias_group, waveform, do_enable=True,
-        **kwargs):
+            **kwargs):
         """
         bias_group (int): The bias group
         """
@@ -3214,4 +3362,3 @@ class SmurfUtilMixin(SmurfBase):
 
         # Zero TES biases on this bias group
         self.set_tes_bias_bipolar(bias_group, 0)
-

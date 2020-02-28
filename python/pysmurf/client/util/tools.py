@@ -1,11 +1,11 @@
 #!/usr/bin/env python
 #-----------------------------------------------------------------------------
-# This file is part of the pysmurf software package. It is subject to 
-# the license terms in the LICENSE.txt file found in the top-level directory 
-# of this distribution and at: 
-#    https://confluence.slac.stanford.edu/display/ppareg/LICENSE.html. 
-# No part of the pysmurf software package, including this file, may be 
-# copied, modified, propagated, or distributed except according to the terms 
+# This file is part of the pysmurf software package. It is subject to
+# the license terms in the LICENSE.txt file found in the top-level directory
+# of this distribution and at:
+#    https://confluence.slac.stanford.edu/display/ppareg/LICENSE.html.
+# No part of the pysmurf software package, including this file, may be
+# copied, modified, propagated, or distributed except according to the terms
 # contained in the LICENSE.txt file.
 #-----------------------------------------------------------------------------
 import numpy as np
@@ -22,7 +22,7 @@ def fit_skewed_lorentzian(f, mag):
     """
     Fits frequency and magnitude data with a skewed lorentzian
     """
-    
+
     # define the initial values
     bkg = (mag[0]+mag[-1])/2
     bkg_slp = (mag[-1]-mag[0])/(f[-1]-f[0])
@@ -35,7 +35,7 @@ def fit_skewed_lorentzian(f, mag):
     up_bounds = [bkg*2,1e-3,1,30,f[-1],1e5]
 
     try:
-        popt,pcov = curve_fit(skewed_lorentzian, f, mag, 
+        popt,pcov = curve_fit(skewed_lorentzian, f, mag,
             p0=[bkg,bkg_slp,skw,mintrans,res_f,Q], method='lm')
         if popt[5]<0:
             popt, pcov = curve_fit(skewed_lorentzian, f, mag,
@@ -51,7 +51,7 @@ def fit_skewed_lorentzian(f, mag):
 
 def limit_phase_deg(phase,minphase=-180):
     """
-    Brazenly stolen from                                                         
+    Brazenly stolen from
     https://stackoverflow.com/questions/2320986/easy-way-to-keeping-angles-between-179-and-180-degrees
     """
     newPhase=phase
@@ -63,8 +63,8 @@ def limit_phase_deg(phase,minphase=-180):
 
 def P_singleMode(f_center,bw,T):
     '''
-    Optical power in a single mode in a bandwidth bw centered on frequency 
-    f_center from an optical load of temperature T.  SI units. 
+    Optical power in a single mode in a bandwidth bw centered on frequency
+    f_center from an optical load of temperature T.  SI units.
     '''
     h=6.63e-34
     kB=1.38e-23
@@ -77,10 +77,10 @@ def P_singleMode(f_center,bw,T):
     return P
 
 def dPdT_singleMode(f_center,bw,T):
-    '''                                 
-    Change in optical power per change in temperature (dP/dT) in a single mode 
-    in a bandwidth bw centered on frequency f_center from an optical load of 
-    temperature T. SI units.                                
+    '''
+    Change in optical power per change in temperature (dP/dT) in a single mode
+    in a bandwidth bw centered on frequency f_center from an optical load of
+    temperature T. SI units.
     '''
     dT = T/1e6
     dP = P_singleMode(f_center,bw,T+dT) - P_singleMode(f_center,bw,T)

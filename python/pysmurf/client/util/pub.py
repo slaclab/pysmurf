@@ -7,7 +7,8 @@
 
 import socket
 import json
-import os, sys
+import os
+import sys
 import time
 import pysmurf
 
@@ -21,6 +22,7 @@ class Publisher:
     script_id = 'undeclared'
     pub_id = 'undeclared'
     env_root = DEFAULT_ENV_ROOT
+
     def __init__(self, script_id=None, options={}, env_root=None):
         """The Publisher should normally be instantiated with just the
         script_id, e.g.:
@@ -55,7 +57,7 @@ class Publisher:
         if script_id is not None:
             self.script_id = script_id
         self.pub_id = self._getoptenv('ID', options, 'undeclared')
-        
+
         # Now decode the backend-specific setup.
         backend = self._getoptenv('BACKEND', options, 'null')
 
@@ -162,7 +164,7 @@ class Publisher:
             'format': format,
             'timestamp': timestamp,
             'plot': plot,
-            'pysmurf_version': pysmurf.client.__version__
+            'pysmurf_version': pysmurf.__version__
         }
 
         return self.publish(file_data, 'data_file')

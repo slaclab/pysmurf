@@ -70,8 +70,7 @@ RogueHeader = namedtuple( 'RogueHeader',
                          [ 'size'                ,  # 4 Bytes, uint32, I
                            'flags'               ,  # 2 bytes, uint16, H
                            'error'               ,  # 1 bytes, uint8,  B
-                           'channel'                # 1 bytes, uint8,  B
-                         ] )
+                           'channel' ])             # 1 bytes, uint8,  B
 
 
 class SmurfHeader(SmurfHeaderTuple):
@@ -165,7 +164,7 @@ class SmurfStreamReader(object):
                 # Read in Rogue header data
                 rogueHeader  = self._parseRogueHeader()
                 roguePayload = rogueHeader.size - 4
-                
+
                 # Set next frame position
                 recEnd = self._currFile.tell() + roguePayload
 
@@ -175,7 +174,8 @@ class SmurfStreamReader(object):
                     return False
 
                 # If this is a data channel, break
-                if rogueHeader.channel == 0: break
+                if rogueHeader.channel == 0:
+                    break
 
                 # Process meta data
                 elif self._metaEnable and rogueHeader.channel == 1:
@@ -185,7 +185,8 @@ class SmurfStreamReader(object):
                         print(f"Waring: Error processing meta data in {self._currFName}: {e}")
 
                 # Skip over meta data
-                else: self._currFile.seek(recEnd)
+                else:
+                    self._currFile.seek(recEnd)
 
             # Check if there is enough room for the Smurf header
             if SmurfHeaderSize > roguePayload:
@@ -238,7 +239,8 @@ class SmurfStreamReader(object):
         self._totCount += 1
 
         # Jump forward if neccessary
-        if ( self._currFile.tell() != recEnd ): self._currFile.seek(recEnd)
+        if ( self._currFile.tell() != recEnd ):
+            self._currFile.seek(recEnd)
 
         return True
 
@@ -335,4 +337,3 @@ def yamlToData(stream):
     PyrogueLoader.add_constructor(yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG,construct_mapping)
 
     return yaml.load(stream, Loader=PyrogueLoader)
-

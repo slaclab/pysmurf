@@ -18,42 +18,47 @@
 #-----------------------------------------------------------------------------
 
 import pyrogue
-import pysmurf
-import os
 
-# Below is a dictionary with the key being the path to a Rogue Device or Variable
-# The 'groups' entry provides a list of groups to add the Device/Variable to. If the
-# path points to a device, the group will be added recursively to all devices and
-# variables deeper in the path.
-# The 'pollInterval' entry provides an optional value which will be used to update
-# the polling interface if the path points to a variable. The poll interval value
-# is in seconds. Use None to leave interval unchanged, 0 to disable polling.
+def setupGroups(root, VariableGroups):
+    """
+    Set variable groups.
 
-VariableGroups = {
-    'root.RogueVersion'     : {'groups' : ['publish','stream'], 'pollInterval': None},
-    'root.RogueDirectory'   : {'groups' : ['publish','stream'], 'pollInterval': None},
-    'root.SmurfApplication' : {'groups' : ['publish','stream'], 'pollInterval': None},
-    'root.SmurfProcessor'   : {'groups' : ['publish','stream'], 'pollInterval': None},
-    }
+    Args:
+    -----
+    VariableGroups (dict) : each entry must have the form
+                            '<Rogue device or Variable>' :
+                                {'groups' : [<list of groups>],
+                                 'pollInterval': <poll interval> }
 
+                            The 'groups' entry provides a list of groups to add the Device/Variable to.
+                            If the path points to a device, the group will be added recursively to all
+                            devices and variables deeper in the path.
+                            The 'pollInterval' entry provides an optional value which will be used to update
+                            the polling interface if the path points to a variable. The poll interval value
+                            is in seconds. Use None to leave interval unchanged, 0 to disable polling.
+                            If this argument is 'None' then nothing will be done.
 
-def setupGroups(root):
-    for k,v in VariableGroups.items():
+    Ret:
+    -----
+    None
+    """
 
-        # Get node
-        n = root.getNode(k)
+    if VariableGroups:
+        for k,v in VariableGroups.items():
 
-        # Did we find the node?
-        if n is not None:
+            # Get node
+            n = root.getNode(k)
 
-            # Add to each group
-            for grp in v['groups']:
-                n.addToGroup(grp)
+            # Did we find the node?
+            if n is not None:
 
-            # Update poll interval if provided.
-            if v['pollInterval'] is not None and n.isinstance(pyrogue.BaseVariable):
-                n.pollInterval = v['pollInterval']
+                # Add to each group
+                for grp in v['groups']:
+                    n.addToGroup(grp)
 
-        else:
-            print(f"setupGroups: Warning: {k} not found!")
+                # Update poll interval if provided.
+                if v['pollInterval'] is not None and n.isinstance(pyrogue.BaseVariable):
+                    n.pollInterval = v['pollInterval']
 
+            else:
+                print(f"setupGroups: Warning: {k} not found!")

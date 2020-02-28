@@ -32,7 +32,7 @@ class SmurfApplication(pyrogue.Device):
             name='SmurfVersion',
             description='SMURF Version Field',
             mode='RO',
-            value="Unknown"))
+            value=pysmurf.__version__))
 
         self.add(pyrogue.LocalVariable(
             name='SmurfDirectory',
@@ -46,4 +46,3 @@ class SmurfApplication(pyrogue.Device):
             mode='RW',
             value=0, # Initial value determine variable type, (int, float, list, etc)
         ))
-

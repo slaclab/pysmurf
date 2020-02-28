@@ -23,7 +23,7 @@ import rogue.protocols.srp
 
 from pysmurf.core.roots.Common import Common
 
-from  CryoDevBoard.Kcu105Eth import FpgaTopLevel as FpgaTopLevel
+from CryoDevBoard.Kcu105Eth import FpgaTopLevel as FpgaTopLevel
 
 class DevBoardEth(Common):
     def __init__(self, *,
@@ -35,6 +35,8 @@ class DevBoardEth(Common):
                  disable_bay0   = False,
                  disable_bay1   = False,
                  txDevice       = None,
+                 configure      = False,
+                 server_port    = 0,
                  **kwargs):
 
         # Create Interleaved RSSI interface
@@ -65,10 +67,12 @@ class DevBoardEth(Common):
         self._streaming_stream = pysmurf.core.devices.UdpReceiver(ip_addr=ip_addr, port=8195)
 
         # Setup base class
-        Common.__init__(self, config_file    = config_file,
-                              epics_prefix   = epics_prefix,
-                              polling_en     = polling_en,
-                              pv_dump_file   = pv_dump_file,
-                              txDevice       = txDevice,
-                              **kwargs)
-
+        Common.__init__(self,
+                        config_file    = config_file,
+                        epics_prefix   = epics_prefix,
+                        polling_en     = polling_en,
+                        pv_dump_file   = pv_dump_file,
+                        txDevice       = txDevice,
+                        configure      = configure,
+                        server_port    = server_port,
+                        **kwargs)

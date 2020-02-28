@@ -35,6 +35,9 @@ class CmbEth(Common):
                  disable_bay0   = False,
                  disable_bay1   = False,
                  txDevice       = None,
+                 configure      = False,
+                 VariableGroups = None,
+                 server_port    = 0,
                  **kwargs):
 
 
@@ -71,10 +74,13 @@ class CmbEth(Common):
         self._streaming_stream = self._smurf_processor_fifo
 
         # Setup base class
-        Common.__init__(self, config_file    = config_file,
-                              epics_prefix   = epics_prefix,
-                              polling_en     = polling_en,
-                              pv_dump_file   = pv_dump_file,
-                              txDevice       = txDevice,
-                              **kwargs)
-
+        Common.__init__(self,
+                        config_file    = config_file,
+                        epics_prefix   = epics_prefix,
+                        polling_en     = polling_en,
+                        pv_dump_file   = pv_dump_file,
+                        txDevice       = txDevice,
+                        configure      = configure,
+                        VariableGroups = VariableGroups,
+                        server_port    = server_port,
+                        **kwargs)
