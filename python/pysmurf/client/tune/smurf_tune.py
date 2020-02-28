@@ -550,17 +550,17 @@ class SmurfTuneMixin(SmurfBase):
 
             self.set_noise_select(band, 1, wait_done=True, write_log=write_log)
             try:
-                adc = self.read_adc_data(band, n_samples, hw_trigger=hw_trigger)
+                adc = self.read_adc_data(band, n_samples, hw_trigger=hw_trigger, save_data=False)
             except Exception:
                 self.log('ADC read failed. Trying one more time', self.LOG_ERROR)
-                adc = self.read_adc_data(band, n_samples, hw_trigger=hw_trigger)
+                adc = self.read_adc_data(band, n_samples, hw_trigger=hw_trigger, save_data=False)
             time.sleep(.05)  # Need to wait, otherwise dac call interferes with adc
 
             try:
                 dac = self.read_dac_data(band, n_samples, hw_trigger=hw_trigger)
             except BaseException:
                 self.log('ADC read failed. Trying one more time', self.LOG_ERROR)
-                dac = self.read_dac_data(band, n_samples, hw_trigger=hw_trigger)
+                dac = self.read_dac_data(band, n_samples, hw_trigger=hw_trigger, save_data=False)
             time.sleep(.05)
 
             self.set_noise_select(band, 0, wait_done=True, write_log=write_log)
