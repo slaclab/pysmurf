@@ -642,7 +642,7 @@ class SmurfUtilMixin(SmurfBase):
         return f, df, flux_ramp_strobe
 
     def take_stream_data(self, meas_time, downsample_factor=None,
-                         write_log=True):
+                         write_log=True, make_freq_mask=True):
         """
         Takes streaming data for a given amount of time
 
@@ -664,7 +664,8 @@ class SmurfUtilMixin(SmurfBase):
         if write_log:
             self.log('Starting to take data.', self.LOG_USER)
         data_filename = self.stream_data_on(downsample_factor=downsample_factor,
-                                            write_log=write_log)
+                                            write_log=write_log,
+                                            make_freq_mask=make_freq_mask)
         time.sleep(meas_time)
         self.stream_data_off(write_log=write_log)
         if write_log:
@@ -730,7 +731,7 @@ class SmurfUtilMixin(SmurfBase):
             # start streaming before opening file
             # to avoid transient filter step
             self.set_stream_enable(1, write_log=False,
-                                   wait_after=.15)
+                                   wait_done=True)
 
             # Make the data file
             timestamp = self.get_timestamp()
@@ -768,6 +769,8 @@ class SmurfUtilMixin(SmurfBase):
                 output_mask, fmt='%i')
 
             if make_freq_mask:
+                if write_log:
+                    self.log("Writing frequency mask.")
                 freq_mask = self.make_freq_mask(output_mask)
                 np.savetxt(os.path.join(data_filename.replace('.dat', '_freq.txt')),
                            freq_mask, fmt='%4.4f')
@@ -2371,7 +2374,8 @@ class SmurfUtilMixin(SmurfBase):
         old_relay = self.get_cryo_card_relays()
         old_relay = self.get_cryo_card_relays()  # querey twice to ensure update
         new_relay = np.copy(old_relay)
-        self.log('Old relay {}'.format(bin(old_relay)))
+        if write_log:
+            self.log('Old relay {}'.format(bin(old_relay)))
 
         n_bias_groups = self._n_bias_groups
         bias_group = np.ravel(np.array(bias_group))
@@ -2382,7 +2386,8 @@ class SmurfUtilMixin(SmurfBase):
             else:
                 r = bg
             new_relay = (1 << r) | new_relay
-        self.log('New relay {}'.format(bin(new_relay)))
+        if write_log:
+            self.log('New relay {}'.format(bin(new_relay)))
         self.set_cryo_card_relays(new_relay, write_log=write_log)
         self.get_cryo_card_relays()
 
@@ -2403,13 +2408,10 @@ class SmurfUtilMixin(SmurfBase):
         old_relay = self.get_cryo_card_relays()  # querey twice to ensure update
         new_relay = np.copy(old_relay)
 
-        # bias_group = 0
-        #self.log('Flipping bias group 0 relay only; PIC code will flip all ' +
-        #    'of them')
-
         n_bias_groups = self._n_bias_groups
         bias_group = np.ravel(np.array(bias_group))
-        self.log('Old relay {}'.format(bin(old_relay)))
+        if write_log:
+            self.log('Old relay {}'.format(bin(old_relay)))
         for bg in bias_group:
             if bg < n_bias_groups:
                 r = np.ravel(self.pic_to_bias_group[np.where(
@@ -2418,7 +2420,8 @@ class SmurfUtilMixin(SmurfBase):
                 r = bg
             if old_relay & 1 << r != 0:
                 new_relay = new_relay & ~(1 << r)
-        self.log('New relay {}'.format(bin(new_relay)))
+        if write_log:
+            self.log('New relay {}'.format(bin(new_relay)))
         self.set_cryo_card_relays(new_relay, write_log=write_log)
         self.get_cryo_card_relays()
 
@@ -3046,7 +3049,7 @@ class SmurfUtilMixin(SmurfBase):
         if dc_amp is None:
             dc_amp = self.get_tes_bias_bipolar(bias_group)
             self.log(f"No dc_amp provided. Using current value: {dc_amp} V")
-            
+
         # The waveform is played on 2 DACs, so amp/2. Then convert
         # to bits
         dc_amp /= (2*self._rtm_slow_dac_bit_to_volt)
@@ -3063,7 +3066,7 @@ class SmurfUtilMixin(SmurfBase):
 
         self.play_tes_bipolar_waveform(bias_group, sig)
 
-        
+
     def play_tone_file(self, band, tone_file=None, load_tone_file=True):
         """
         Plays the specified tone file on this band.  If no path provided
@@ -3096,7 +3099,7 @@ class SmurfUtilMixin(SmurfBase):
                  self.LOG_USER)
         self.set_waveform_select(band,1)
 
-        
+
     def stop_tone_file(self, band):
         """
         Stops playing tone file on the specified band and reverts
@@ -3409,6 +3412,7 @@ class SmurfUtilMixin(SmurfBase):
 
 
     def identify_bias_groups(self, probe_freq=2.5, probe_time=3,
+                             probe_amp=.1,
                              bias_groups=None, make_plot=False,
                              show_plot=False, save_plot=True,
                              cutoff_frac=.05):
@@ -3438,9 +3442,8 @@ class SmurfUtilMixin(SmurfBase):
             band, channnel pairs, and frequency of the channels.
         """
         # Check if probe frequency is too high
-        flux_ramp_freq = self.get_flux_ramp_freq()
-        fs = flux_ramp_freq * 1.0E3 * \
-             self.get_downsample_factor()
+        flux_ramp_freq = self.get_flux_ramp_freq() * 1.0E3
+        fs = flux_ramp_freq * self.get_downsample_factor()
 
         # Calculate downsample filter transfer function
         filter_params = self.get_filter_params()
@@ -3457,7 +3460,7 @@ class SmurfUtilMixin(SmurfBase):
             self.log('Downsample filter cutting into the signal too much.' +
                      ' Exiting.', self.LOG_ERROR)
             return
-        
+
         # There should be something smarter than this
         if bias_groups is None:
             bias_groups = np.arange(8)
@@ -3466,29 +3469,36 @@ class SmurfUtilMixin(SmurfBase):
 
         # Get the cryocard settings before starting this script
         cryo_card_bits = self.get_cryo_card_relays()
-        
+
+        timestamp = self.get_timestamp()
+
         for bias_group in bias_groups:
+            self.log(f"Working on bias group {bias_group}")
+
             # Work in high current mode to bypass filter
             self.set_tes_bias_high_current(bias_group)
 
-            # Play 2.5 Hz sine wave and take data
-            bias_volt = .1
-            self.play_sine_tes(bias_group, bias_volt,
+            # Play sine wave and take data
+            self.play_sine_tes(bias_group, probe_amp,
                                probe_freq, dc_amp=0)
-            datafile = self.take_stream_data(probe_time)
+            datafile = self.take_stream_data(probe_time,
+                                             write_log=False)
+
+            self.stop_tes_bipolar_waveform(bias_group)
 
             # Read back data
             t, d, mm = self.read_stream_data(datafile, make_freq_mask=True)
             m = mm[0]  # extract mask
             m_freq = mm[1]  #frequency mask
+            freq_arr = m_freq[np.where(m!=-1)]
             d *= (self.pA_per_phi0/2/np.pi)  # convert to pA
             d = np.transpose(d.T - np.mean(d.T, axis=0))
-            
+
             n_det, n_samp = np.shape(d)
 
             # currents on lines
             r_inline = self.bias_line_resistance / self.high_low_current_ratio
-            i_bias = bias_volt / r_inline * 1.0E12  # Bias current in pA
+            i_bias = probe_amp / r_inline * 1.0E12  # Bias current in pA
 
             # sine/cosine decomp templates
             s = np.sin(2*np.pi*np.arange(n_samp)/
@@ -3522,14 +3532,14 @@ class SmurfUtilMixin(SmurfBase):
             channels_dict[bias_group]['band'] = bands
             channels_dict[bias_group]['channel'] = channels
             channels_dict[bias_group]['freq'] = freqs
-            
+
             if make_plot:
                 # Turn off interactive plot
                 if show_plot:
                     plt.ion()
                 else:
                     plt.ioff()
-                    
+
                 fig, ax = plt.subplots(1, 2, figsize=(8.5, 3),
                                        sharey=True)
                 # Plot timestreams
@@ -3542,31 +3552,30 @@ class SmurfUtilMixin(SmurfBase):
                 ax[0].set_xlabel('Time [s]')
                 ax[0].set_ylabel('Amp [pA]')
 
-                ax[1].plot(sa, 'x', color='b', label='sine',
-                           alpha=.5)
-                ax[1].plot(ca, '+', color='y', label='cos',
-                           alpha=.5)
-                ax[1].plot(amp, 'o', color='k',
+                ax[1].plot(freq_arr, sa, 'x', color='b',
+                           label='sine', alpha=.5)
+                ax[1].plot(freq_arr, ca, '+', color='y',
+                           label='cos', alpha=.5)
+                ax[1].plot(freq_arr, amp, 'o', color='k',
                            label='amp')
                 ax[1].legend(loc='lower right')
                 ax[1].set_ylim((-1.5*i_bias, 1.5*i_bias))
-                ax[1].set_xlabel('Channel')
+                ax[1].set_xlabel('Res Freq [MHz]')
                 plt.tight_layout()
 
                 fig.suptitle(f'Bias Group {bias_group}')
 
                 if save_plot:
-                    timestamp = self.get_timestamp()
                     savename = f'{timestamp}_identify_bg{bias_group}.png'
                     plt.savefig(os.path.join(self.plot_dir, savename),
                                 bbox_inches='tight')
                 if not show_plot:
-                    plt.close()
+                    plt.close(fig)
 
             # Set relays back to original state
             self.set_cryo_card_relays(cryo_card_bits)
 
         # To do - add a check for band, channels that are on two different
         # bias groups.
-        
+
         return channels_dict
