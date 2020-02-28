@@ -17,6 +17,7 @@
 # contained in the LICENSE.txt file.
 #-----------------------------------------------------------------------------
 
+import socket
 from pathlib import Path
 import pyrogue
 
@@ -41,10 +42,10 @@ class PcieDev():
     def __init__(self, dev, name, description):
         import rogue.hardware.axi
         import SmurfKcu1500RssiOffload as fpga
-        self._root = pyrogue.Root(name=name,description=description)
+        self._root = pyrogue.Root(name=name,description=description, serverPort=None, pollEn='False',initRead='True')
         self._memMap = rogue.hardware.axi.AxiMemMap(dev)
         self._root.add(fpga.Core(memBase=self._memMap))
-        self._root.start(pollEn='False',initRead='True')
+        self._root.start()
 
     def __enter__(self):
         return self
@@ -252,7 +253,7 @@ class PcieCard():
                 exit_message("  ERROR: PCIe device {} not present.".format(dev_data))
 
             # Verify the lane number is valid
-            if lane == None:
+            if lane is None:
                 exit_message("  ERROR: Must specify an RSSI lane number")
 
             if lane in range(0, 6):
@@ -270,7 +271,7 @@ class PcieCard():
                 # Verify that its DeviceID is correct
                 dev_data_id = pcie.get_id()
                 if dev_data_id != 1:
-                    exit_message("  ERROR: The DeviceId for the PCIe dev for DATA is {} instead "\
+                    exit_message("  ERROR: The DeviceId for the PCIe dev for DATA is {} instead "
                         "of 1. Choose the correct device.".format(dev_data_id))
 
                 # Print FW information
@@ -282,7 +283,7 @@ class PcieCard():
                 # Verify that its DeviceID is correct
                 dev_rssi_id = pcie.get_id()
                 if dev_rssi_id != 0:
-                    exit_message("  ERROR: The DeviceId for the PCIe dev for RSSI is {} instead "\
+                    exit_message("  ERROR: The DeviceId for the PCIe dev for RSSI is {} instead "
                         "of 0. Choose the correct device.".format(dev_rssi_id))
 
                 # Print FW information

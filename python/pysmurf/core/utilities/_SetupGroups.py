@@ -18,25 +18,47 @@
 #-----------------------------------------------------------------------------
 
 import pyrogue
-import pysmurf
-import os
 
-VariableGroups = {
-    'root.RogueVersion'     : ['publish','stream'],
-    'root.RogueDirectory'   : ['publish','stream'],
-    'root.SmurfApplication' : ['publish','stream'],
-    'root.SmurfProcessor'   : ['publish','stream']
-    }
+def setupGroups(root, VariableGroups):
+    """
+    Set variable groups.
 
+    Args:
+    -----
+    VariableGroups (dict) : each entry must have the form
+                            '<Rogue device or Variable>' :
+                                {'groups' : [<list of groups>],
+                                 'pollInterval': <poll interval> }
 
-def setupGroups(root):
-    for k,v in VariableGroups.items():
+                            The 'groups' entry provides a list of groups to add the Device/Variable to.
+                            If the path points to a device, the group will be added recursively to all
+                            devices and variables deeper in the path.
+                            The 'pollInterval' entry provides an optional value which will be used to update
+                            the polling interface if the path points to a variable. The poll interval value
+                            is in seconds. Use None to leave interval unchanged, 0 to disable polling.
+                            If this argument is 'None' then nothing will be done.
 
-        # Get node
-        n = root.getNode(k)
+    Ret:
+    -----
+    None
+    """
 
-        # Add to groups
-        for g in v:
-            n.addToGroup(g)
+    if VariableGroups:
+        for k,v in VariableGroups.items():
 
+            # Get node
+            n = root.getNode(k)
 
+            # Did we find the node?
+            if n is not None:
+
+                # Add to each group
+                for grp in v['groups']:
+                    n.addToGroup(grp)
+
+                # Update poll interval if provided.
+                if v['pollInterval'] is not None and n.isinstance(pyrogue.BaseVariable):
+                    n.pollInterval = v['pollInterval']
+
+            else:
+                print(f"setupGroups: Warning: {k} not found!")

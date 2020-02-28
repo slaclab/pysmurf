@@ -1,0 +1,1 @@
+/home/cryo/docker/pysmurf/nist-cmb/pysmurf/scratch/shawn/tune_1000x_nist.py

@@ -40,6 +40,10 @@ if __name__ == "__main__":
     common.verify_ip(args)
     common.ping_fpga(args)
 
+    # Define variable groups (we use the provided example definition)
+    # We can disable it by defining "VariableGroups = None" instead.
+    from pysmurf.core.server_scripts._VariableGroupExample import VariableGroups
+
     # The PCIeCard object will take care of setting up the PCIe card (if present)
     with pysmurf.core.devices.PcieCard( lane      = args['pcie_rssi_lane'],
                                         comm_type = "eth-rssi-interleaved",
@@ -53,20 +57,24 @@ if __name__ == "__main__":
                      polling_en     = args['polling_en'],
                      pv_dump_file   = args['pv_dump_file'],
                      disable_bay0   = args['disable_bay0'],
-                     disable_bay1   = args['disable_bay1']) as root:
+                     disable_bay1   = args['disable_bay1'],
+                     configure      = args['configure'],
+                     server_port    = args['server_port'],
+                     VariableGroups = VariableGroups) as root:
 
             if args['use_gui']:
                 # Start the GUI
-                import pyrogue.gui
-                #pyrogue.gui.runGui(root=root,title=args['windows_title'])
-
                 print("Starting GUI...\n")
-                app_top = pyrogue.gui.application(sys.argv)
-                gui_top = pyrogue.gui.GuiTop(incGroups=None,excGroups=None)
-                gui_top.setWindowTitle(args['windows_title'])
-                gui_top.addTree(root)
-                gui_top.resize(800,1000)
-                app_top.exec_()
+
+                if args['use_qt']:
+                    # Start the QT GUI, is selected by the user
+                    import pyrogue.gui
+                    pyrogue.gui.runGui(root=root,title=args['windows_title'])
+                else:
+                    # Otherwise, start the PyDM GUI
+                    import pyrogue.pydm
+                    pyrogue.pydm.runPyDM(root=root, title=args['windows_title'])
+
             else:
                 # Stop the server when Crtl+C is pressed
                 print("Running without GUI...")

@@ -10,45 +10,61 @@ The processing pipeline is describe in the following diagram:
 
 
 ```
- +---------------+
- | FrameRxStats  |
- +-------+-------+
+ +-----------------+
+ | PreDataEmulator |
+ +--------+--------+
+          |
+  +-------+-------+
+  | FrameRxStats  |
+  +-------+-------+
+          |
+ +--------+--------+
+ | ChannelMapper   |
+ +--------+--------+
+          |
+   +------+------+
+   |  Unwrapper  |
+   +-----+-------+
          |
- +-------+-------+
- | DataEmulator  |
- +-------+-------+
-         |
-+--------+--------+
-| ChannelMapper   |
-+--------+--------+
+    +----+----+
+    |  Filter |
+    +----+----+
          |
   +------+------+
-  |  Unwrapper  |
-  +-----+-------+
-        |
-   +----+----+
-   |  Filter |
-   +----+----+
-        |
- +------+------+
- | Downsampler |
- +------+------+
-        |
-+-------+-------+
-| Header2Smurf  |
-+-------+-------+
-        |
-        |
-        |
-        +-------------------+
-        |                   |
-  +-----+------+      +-----+-------+
-  | FileWriter |      | Transmitter |
-  +------------+      | (optional)  |
-                      +-------------+
+  | Downsampler |
+  +------+------+
+         |
+ +-------+-------+
+ | Header2Smurf  |
+ +-------+-------+
+         |
++--------+---------+
+| PostDataEmulator |
++--------+---------+
+         |
+         +-------------------+
+         |                   |
+   +-----+------+      +-----+-------+
+   | FileWriter |      | Transmitter |
+   +------------+      | (optional)  |
+                       +-------------+
 ```
 
 Each module in the diagram perform the following operations:
+
+### DataEmulators
+
+Allows to replace the raw data in the incoming frame with emulated data.
+
+There are two data emulator block ins the processing chain:
+- **PreDataEmulator**: it is placed at the beginning of the chain, and it is used to replace the raw data coming from the firmware application before it goes into the processor blocks. It generates data of type `Int16`, to match the data type the firmware application generates.
+- **PostDataEmulator**: it is placed at the end of the chain, and it is used to replace the processed data at the output of the processor, before it goes to the FileWriter and the Transmitter. It generates data of type `Int32`, to match the data type the processor generates.
+
+Both emulator blocks provide the same functionality; the only difference is the type of data they produced
+
+This module can be disabled; the incoming frame will just pass through to the next block.
+
+For more details see [here](README.DataEmulator.md).
 
 ### FrameRxStats
 
@@ -56,20 +72,14 @@ Get statistics about the received frames from the firmware application, includin
 
 This module can be disabled; the incoming frame will just pass through to the next block.
 
-### DataEmulator
-
-Allows to replace the raw data in the incoming frame with emulated data.
-
-This module can be disabled; the incoming frame will just pass through to the next block.
-
 ### ChannelMapper
 
 Maps data channels from the incoming frame to channels in the out frame, using the `Mask` variable.
 
-The `PayloadSize` variable allows set the output frame size:
+The `PayloadSize` variable allows to modify the output frame size:
 - If it is set to zero, the the output frame will contain only the number of channels defined in the `Mask` list,
 - If it is set to a number greater than the number of channels defined in the `Mask` list, then the output frame will be padded with random data,
-- If it is set to a number lower that the number of channels defined in the `Mask` lits, then the output frame will only contain the first `PayloadSize` channel of the `Mask` list.
+- If it is set to a number lower that the number of channels defined in the `Mask` lits, then it will be ignored.
 
 
 ### Unwrapper

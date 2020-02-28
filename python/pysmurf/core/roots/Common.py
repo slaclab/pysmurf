@@ -17,8 +17,6 @@
 # contained in the LICENSE.txt file.
 #-----------------------------------------------------------------------------
 
-import re
-
 import pyrogue
 import pysmurf
 import rogue.hardware.axi
@@ -36,9 +34,13 @@ class Common(pyrogue.Root):
                  fpgaTopLevel   = None,
                  stream_pv_size = 2**19,    # Not sub-classed
                  stream_pv_type = 'Int16',  # Not sub-classed
+                 configure      = False,
+                 VariableGroups = None,
+                 server_port    = 0,
                  **kwargs):
 
-        pyrogue.Root.__init__(self, name="AMCc", initRead=True, pollEn=polling_en, streamIncGroups='stream', **kwargs)
+        pyrogue.Root.__init__(self, name="AMCc", initRead=True, pollEn=polling_en,
+            streamIncGroups='stream', serverPort=server_port, **kwargs)
 
         #########################################################################################
         # The following interfaces are expected to be defined at this point by a sub-class
@@ -88,7 +90,7 @@ class Common(pyrogue.Root):
         def _update_tes_bias(idx):
             v1 = self.FpgaTopLevel.AppTop.AppCore.RtmCryoDet.RtmSpiMax.node(f'TesBiasDacDataRegCh[{(2*idx)+2}]').value()
             v2 = self.FpgaTopLevel.AppTop.AppCore.RtmCryoDet.RtmSpiMax.node(f'TesBiasDacDataRegCh[{(2*idx)+1}]').value()
-            val = v1 - v2
+            val = (v1 - v2) // 2
 
             # Pass to data processor
             self._smurf_processor.setTesBias(index=idx, val=val)
@@ -100,7 +102,7 @@ class Common(pyrogue.Root):
             try:
                 v = self.FpgaTopLevel.AppTop.AppCore.RtmCryoDet.RtmSpiMax.node(f'TesBiasDacDataRegCh[{i}]')
                 v.addListener(lambda path, value, lidx=idx: _update_tes_bias(lidx))
-            except Exception as e:
+            except Exception:
                 print(f"TesBiasDacDataRegCh[{i}] not found... Skipping!")
 
         # Run control for streaming interfaces
@@ -126,18 +128,25 @@ class Common(pyrogue.Root):
             description='Set default configuration',
             function=self._set_defaults_cmd))
 
+        # Flag that indicates if the default configuration should be loaded
+        # once the root is started.
+        self._configure = configure
+
+        # Variable groups
+        self._VariableGroups = VariableGroups
+
         # Add epics interface
         self._epics = None
         if epics_prefix:
             print("Starting EPICS server using prefix \"{}\"".format(epics_prefix))
             from pyrogue.protocols import epics
-            self._epics = pyrogue.protocols.epics.EpicsCaServer(base=epics_prefix, root=self)
+            self._epics = epics.EpicsCaServer(base=epics_prefix, root=self)
             self._pv_dump_file = pv_dump_file
 
             # PVs for stream data
             # This should be replaced with DataReceiver objects
             if stream_pv_size:
-                print("Enabling stream data on PVs (buffer size = {} points, data type = {})"\
+                print("Enabling stream data on PVs (buffer size = {} points, data type = {})"
                     .format(stream_pv_size,stream_pv_type))
 
                 self._stream_fifos  = []
@@ -154,7 +163,7 @@ class Common(pyrogue.Root):
                         fifo_size = stream_pv_size * 4
 
                     self._stream_fifos.append(rogue.interfaces.stream.Fifo(1000, fifo_size, True)) # changes
-                    self._stream_fifos[i]._setSlave(self._stream_slaves[i])
+                    pyrogue.streamConnect(self._stream_fifos[i],self._stream_slaves[i])
                     pyrogue.streamTap(self._ddr_streams[i], self._stream_fifos[i])
 
 
@@ -181,18 +190,18 @@ class Common(pyrogue.Root):
         pyrogue.Root.start(self)
 
         # Setup groups
-        pysmurf.core.utilities.setupGroups(self)
+        pysmurf.core.utilities.setupGroups(self, self._VariableGroups)
 
         # Show image build information
         try:
             print("")
             print("FPGA image build information:")
             print("===================================")
-            print("BuildStamp              : {}"\
+            print("BuildStamp              : {}"
                 .format(self.FpgaTopLevel.AmcCarrierCore.AxiVersion.BuildStamp.get()))
-            print("FPGA Version            : 0x{:x}"\
+            print("FPGA Version            : 0x{:x}"
                 .format(self.FpgaTopLevel.AmcCarrierCore.AxiVersion.FpgaVersion.get()))
-            print("Git hash                : 0x{:x}"\
+            print("Git hash                : 0x{:x}"
                 .format(self.FpgaTopLevel.AmcCarrierCore.AxiVersion.GitHash.get()))
         except AttributeError as attr_error:
             print("Attibute error: {}".format(attr_error))
@@ -209,6 +218,17 @@ class Common(pyrogue.Root):
         # Add publisher, pub_root & script_id need to be updated
         self._pub = pysmurf.core.utilities.SmurfPublisher(root=self)
 
+        # Load default configuration, if requested
+        if self._configure:
+            self.setDefaults.call()
+
+        # Workaround: Set the Mask value to '[0]' by default when the server starts.
+        # This is needed because the pysmurf-client by default stat data streaming
+        # @4kHz without setting this mask, which by default has a value of '[0]*4096'.
+        # Under these conditions, the software processing block is not able to keep
+        # up, eventually making the PCIe card's buffer to get full, and that triggers
+        # some known issues in the PCIe FW.
+        self.SmurfProcessor.ChannelMapper.Mask.set([0])
 
     def stop(self):
         print("Stopping servers...")
@@ -227,5 +247,3 @@ class Common(pyrogue.Root):
 
         print('Setting defaults from file {}'.format(self._config_file))
         self.LoadConfig(self._config_file)
-
-

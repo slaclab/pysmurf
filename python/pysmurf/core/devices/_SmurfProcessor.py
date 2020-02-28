@@ -61,7 +61,7 @@ class SmurfChannelMapper(pyrogue.Device):
             name='Mask',
             description='Set the mapping mask',
             mode='RW',
-            value=[0]*528,
+            value=[0]*4096,
             localSet=lambda value: self.device.setMask(value),
             localGet=self.device.getMask))
 
@@ -208,13 +208,13 @@ class SmurfProcessor(pyrogue.Device):
     def __init__(self, name, description, root=None, txDevice=None, **kwargs):
         pyrogue.Device.__init__(self, name=name, description=description, **kwargs)
 
+        # Add a data emulator module, at the beginning of the chain
+        self.pre_data_emulator = pysmurf.core.emulators.StreamDataEmulatorI16(name="PreDataEmulator")
+        self.add(self.pre_data_emulator)
+
         # Add a frame statistics module
         self.smurf_frame_stats = pysmurf.core.counters.FrameStatistics(name="FrameRxStats")
         self.add(self.smurf_frame_stats)
-
-        # Add a data emulator module
-        self.data_emulator = pysmurf.core.emulators.StreamDataEmulator(name="DataEmulator")
-        self.add(self.data_emulator)
 
         # Add the SmurfProcessor C++ device. This module implements: channel mapping,
         # data unwrapping, filter, and downsampling. Python wrapper for these functions
@@ -236,6 +236,10 @@ class SmurfProcessor(pyrogue.Device):
         # This device doesn't have any user configurations, so we don't add it to the tree
         self.smurf_header2smurf = pysmurf.core.conventers.Header2Smurf(name="Header2Smurf")
 
+        # Add a data emulator module, at the end of the chain
+        self.post_data_emulator = pysmurf.core.emulators.StreamDataEmulatorI32(name="PostDataEmulator")
+        self.add(self.post_data_emulator)
+
         # Use a standard Rogue file writer.
         # - Channel 0 will be use for the smurf data
         # - Channel 1 will be use for the configuration data (aka metadata)
@@ -247,11 +251,12 @@ class SmurfProcessor(pyrogue.Device):
         self.fifo = rogue.interfaces.stream.Fifo(100,0,False)
 
         # Connect devices
-        pyrogue.streamConnect(self.smurf_frame_stats,  self.data_emulator)
-        pyrogue.streamConnect(self.data_emulator,      self.smurf_processor)
+        pyrogue.streamConnect(self.pre_data_emulator,  self.smurf_frame_stats)
+        pyrogue.streamConnect(self.smurf_frame_stats,  self.smurf_processor)
         pyrogue.streamConnect(self.smurf_processor,    self.smurf_header2smurf)
-        pyrogue.streamConnect(self.smurf_header2smurf, self.file_writer.getChannel(0))
-        pyrogue.streamTap(    self.smurf_header2smurf, self.fifo)
+        pyrogue.streamConnect(self.smurf_header2smurf, self.post_data_emulator)
+        pyrogue.streamConnect(self.post_data_emulator, self.file_writer.getChannel(0))
+        pyrogue.streamTap(    self.post_data_emulator, self.fifo)
 
         # If a root was defined, connect it to the file writer, on channel 1
         if root:
@@ -278,4 +283,4 @@ class SmurfProcessor(pyrogue.Device):
         We will pass a reference to the smurf device of the first element in the chain,
         which is the 'FrameStatistics'.
         """
-        return self.smurf_frame_stats.getSmurfDevice()
+        return self.pre_data_emulator.getSmurfDevice()

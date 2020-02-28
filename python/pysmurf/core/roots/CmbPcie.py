@@ -18,7 +18,6 @@
 #-----------------------------------------------------------------------------
 
 import pyrogue
-import pysmurf
 import rogue.hardware.axi
 import rogue.protocols.srp
 
@@ -38,6 +37,9 @@ class CmbPcie(Common):
                  disable_bay0   = False,
                  disable_bay1   = False,
                  txDevice       = None,
+                 configure      = False,
+                 VariableGroups = None,
+                 server_port    = 0,
                  **kwargs):
 
         # TDEST 0 routed to streamr0 (SRPv3)
@@ -58,18 +60,22 @@ class CmbPcie(Common):
         # DDR streams. We are only using the first 2 channel of each AMC daughter card, i.e.
         # channels 0, 1, 4, 5.
         for i in [0, 1, 4, 5]:
-            self._ddr_streams.append(
-                rogue.hardware.axi.AxiStreamDma(pcie_dev_rssi,(pcie_rssi_lane*0x100 + 0x80 + i), True))
+            tmp = rogue.hardware.axi.AxiStreamDma(pcie_dev_rssi,(pcie_rssi_lane*0x100 + 0x80 + i), True)
+            tmp.setZeroCopyEn(False)
+            self._ddr_streams.append(tmp)
 
         # Streaming interface stream
         self._streaming_stream = \
             rogue.hardware.axi.AxiStreamDma(pcie_dev_data,(pcie_rssi_lane*0x100 + 0xC1), True)
 
         # Setup base class
-        Common.__init__(self, config_file    = config_file,
-                              epics_prefix   = epics_prefix,
-                              polling_en     = polling_en,
-                              pv_dump_file   = pv_dump_file,
-                              txDevice       = txDevice,
-                              **kwargs)
-
+        Common.__init__(self,
+                        config_file    = config_file,
+                        epics_prefix   = epics_prefix,
+                        polling_en     = polling_en,
+                        pv_dump_file   = pv_dump_file,
+                        txDevice       = txDevice,
+                        configure      = configure,
+                        VariableGroups = VariableGroups,
+                        server_port    = server_port,
+                        **kwargs)

@@ -1,10 +1,10 @@
 # Data file
 
-The SMuRF processor device includes a Rogue's DataWriter device which allows to write the streamed data to disk after processing (that is, after channel mapping, unwrapping, filtering and downsamplig).
+The SMuRF processor device includes a Rogue's DataWriter device which allows to write the streamed data to disk after processing (that is, after channel mapping, unwrapping, filtering and downsampling).
 
 Configuration data (a.k.a. metadata) from the pyrogue tree is also written to the same data file, interleaved with the processed data.
 
-## How to configure the SmtremWriter device
+## How to configure the StreamWriter device
 
 The DataWriter device, can be controlled with the following variables (or its respective EPICS PV):
 
@@ -14,7 +14,7 @@ AMCc:StreamProcessor:FileWriter:DataFile       | RW   | Full path of the data fi
 AMCc:StreamProcessor:FileWriter:Open           | WO   | Open data file
 AMCc:StreamProcessor:FileWriter:Close          | WO   | Close data file
 AMCc:StreamProcessor:FileWriter:IsOpen         | RO   | Data file is open
-AMCc:StreamProcessor:FileWriter:BufferSize     | RO   | File buffering size. Enables caching of data before call to file system
+AMCc:StreamProcessor:FileWriter:BufferSize     | RW   | File buffering size. Enables caching of data before call to file system
 AMCc:StreamProcessor:FileWriter:MaxFileSize    | RW   | Maximum size for an individual file. Setting to a non zero splits the run data into multiple files
 AMCc:StreamProcessor:FileWriter:CurrentSize    | RO   | Size of current data files(s) for current open session in bytes
 AMCc:StreamProcessor:FileWriter:TotalSize      | RO   | Size of all data sub-files(s) for current open session in bytes

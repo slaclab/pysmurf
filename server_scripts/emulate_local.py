@@ -24,24 +24,19 @@ pyrogue.addLibraryPath("../python")
 pyrogue.addLibraryPath("../lib")
 pyrogue.addLibraryPath("../../cryo-det/firmware/python")
 pyrogue.addLibraryPath("../../cryo-det/firmware/submodules/amc-carrier-core/python")
-pyrogue.addLibraryPath("../../cryo-det/firmware/submodules/axi-pcie-core/python")
+#pyrogue.addLibraryPath("../../cryo-det/firmware/submodules/axi-pcie-core/python")
 pyrogue.addLibraryPath("../../cryo-det/firmware/submodules/lcls-timing-core/python")
 pyrogue.addLibraryPath("../../cryo-det/firmware/submodules/surf/python")
 
-import argparse
-import sys
-import getopt
-import socket
-import os
-import subprocess
-from packaging import version
-import re
-
 import pyrogue.utilities.fileio
-import rogue.interfaces.stream
-import pysmurf.core.devices
 
 from pysmurf.core.roots.EmulationRoot import EmulationRoot
+
+#rogue.Logging.setFilter('pyrogue.epicsV3.Value',rogue.Logging.Debug)
+#rogue.Logging.setLevel(rogue.Logging.Debug)
+
+#logger = logging.getLogger('pyrogue')
+#logger.setLevel(logging.DEBUG)
 
 # Main body
 if __name__ == "__main__":
@@ -53,8 +48,10 @@ if __name__ == "__main__":
                          disable_bay0   = False,
                          disable_bay1   = False) as root:
 
+        root.saveVariableList("varlist.txt")
+
         # Start the GUI
-        import pyrogue.gui
+        import pyrogue.pydm
         print("Starting GUI...\n")
-        pyrogue.gui.runGui(root=root)
+        pyrogue.pydm.runPyDM(root=root)
 

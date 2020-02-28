@@ -66,4 +66,3 @@ class BaseTransmitter(pyrogue.Device):
 
     def getMetaChannel(self):
         return self._transmitter.getMetaChannel()
-

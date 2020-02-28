@@ -18,13 +18,12 @@
 #-----------------------------------------------------------------------------
 
 import pyrogue
-import pysmurf
 import rogue.hardware.axi
 import rogue.protocols.srp
 
 from pysmurf.core.roots.Common import Common
 
-from  CryoDevBoard.Kcu105Eth import FpgaTopLevel as FpgaTopLevel
+from CryoDevBoard.Kcu105Eth import FpgaTopLevel as FpgaTopLevel
 
 class DevBoardPcie(Common):
     def __init__(self, *,
@@ -38,6 +37,8 @@ class DevBoardPcie(Common):
                  disable_bay0   = False,
                  disable_bay1   = False,
                  txDevice       = None,
+                 configure      = False,
+                 server_port    = 0,
                  **kwargs):
 
         # TDEST 0 routed to streamr0 (SRPv3)
@@ -67,10 +68,12 @@ class DevBoardPcie(Common):
             rogue.hardware.axi.AxiStreamDma(pcie_dev_data,(pcie_rssi_lane*0x100 + 0xC1), True)
 
         # Setup base class
-        Common.__init__(self, config_file    = config_file,
-                              epics_prefix   = epics_prefix,
-                              polling_en     = polling_en,
-                              pv_dump_file   = pv_dump_file,
-                              txDevice       = txDevice,
-                              **kwargs)
-
+        Common.__init__(self,
+                        config_file    = config_file,
+                        epics_prefix   = epics_prefix,
+                        polling_en     = polling_en,
+                        pv_dump_file   = pv_dump_file,
+                        txDevice       = txDevice,
+                        configure      = configure,
+                        server_port    = server_port,
+                        **kwargs)

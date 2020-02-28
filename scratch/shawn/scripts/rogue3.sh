@@ -1,6 +1,6 @@
-# 11/11/19 : smurf-srv12
+# 2/28/20 : smurf-srv12
 # Drop into rogue 3 configuration 
-wd=$PWD
+pwd=$PWD
 
 rm -v /data/smurf_startup_cfg/smurf_startup.cfg
 ln -s /home/cryo/docker/pysmurf/dev/pysmurf/cfg_files/stanford/fp30_smurf_startup.cfg /data/smurf_startup_cfg/smurf_startup.cfg
@@ -12,7 +12,8 @@ cd /home/cryo/docker/pysmurf/dev/pysmurf/scratch/shawn/scripts/
 sudo ./install.sh
 
 rm /home/cryo/docker/smurf/current
-#ln -s /home/cryo/docker/smurf/dev_fw/R3.1.1-3854241-c03lb-bay0 /home/cryo/docker/smurf/current
-ln -s /home/cryo/docker/smurf/dev_fw/R3.2.1-6d670ac-c03lb-bay0 /home/cryo/docker/smurf/current
 
-cd $wd
+#ln -s /home/cryo/docker/smurf/dev_fw/R3.1.1-3854241-c03lb-bay0 /home/cryo/docker/smurf/current
+ln -s /home/cryo/docker/smurf/dev_fw/R3.1.2-83947a3_speedup-c02lb-bay0 /home/cryo/docker/smurf/current
+
+cd $pwd

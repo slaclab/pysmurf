@@ -120,9 +120,10 @@ namespace smurf
                 std::mutex               mutChMapper;           // Mutex
                 // Unwrap variables
                 bool                     disableUnwrapper;      // Disable flag for the Unwrapper
-                std::vector<unwrap_t>    currentData;           // Current data buffer
-                std::vector<unwrap_t>    previousData;          // Previous data buffer
+                std::vector<fw_t>        currentData;           // Current data buffer
+                std::vector<fw_t>        previousData;          // Previous data buffer
                 std::vector<unwrap_t>    wrapCounter;           // Wrap counters
+                std::vector<unwrap_t>    inputData;             // Result
                 std::mutex               mutUnwrapper;          // Mutex
                 // Filter variables
                 bool                     disableFilter;         // Disable flag for the filter
@@ -141,16 +142,18 @@ namespace smurf
                 std::size_t              sampleCnt;             // Sample counter
                 // Transmit thread
                 std::vector<uint8_t>     headerCopy;            // A copy of header to be send
-                std::vector<filter_t>    dataCopy;              // A copy of the data to be send
                 bool                     txDataReady;           // Flag to indicate new data is ready t be sent
                 std::atomic<bool>        runTxThread;           // Flag used to stop the thread
-                std::thread              pktTransmitterThread;  // Thread to send the data to the next slave
                 std::condition_variable  txCV;                  // Variable to notify the thread new data is ready
                 std::mutex               txMutex;               // Mutex used for accessing the conditional variable
                 std::mutex               outDataMutex;          // Mutex used to access the data in the transition method
+                std::thread              pktTransmitterThread;  // Thread to send the data to the next slave
 
                 //** METHOD **//
                 void                    pktTansmitter();        // Send frame to the next slave
+
+                // Logger
+                std::shared_ptr<rogue::Logging> eLog_;
 
 
             };
