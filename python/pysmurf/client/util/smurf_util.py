@@ -642,7 +642,7 @@ class SmurfUtilMixin(SmurfBase):
         return f, df, flux_ramp_strobe
 
     def take_stream_data(self, meas_time, downsample_factor=None,
-                         write_log=True):
+                         write_log=True, make_freq_mask=True):
         """
         Takes streaming data for a given amount of time
 
@@ -664,7 +664,8 @@ class SmurfUtilMixin(SmurfBase):
         if write_log:
             self.log('Starting to take data.', self.LOG_USER)
         data_filename = self.stream_data_on(downsample_factor=downsample_factor,
-                                            write_log=write_log)
+                                            write_log=write_log,
+                                            make_freq_mask=make_freq_mask)
         time.sleep(meas_time)
         self.stream_data_off(write_log=write_log)
         if write_log:
@@ -730,7 +731,7 @@ class SmurfUtilMixin(SmurfBase):
             # start streaming before opening file
             # to avoid transient filter step
             self.set_stream_enable(1, write_log=False,
-                                   wait_after=.15)
+                                   wait_done=True)
 
             # Make the data file
             timestamp = self.get_timestamp()
@@ -768,6 +769,8 @@ class SmurfUtilMixin(SmurfBase):
                 output_mask, fmt='%i')
 
             if make_freq_mask:
+                if write_log:
+                    self.log("Writing frequency mask.")
                 freq_mask = self.make_freq_mask(output_mask)
                 np.savetxt(os.path.join(data_filename.replace('.dat', '_freq.txt')),
                            freq_mask, fmt='%4.4f')
@@ -2371,7 +2374,8 @@ class SmurfUtilMixin(SmurfBase):
         old_relay = self.get_cryo_card_relays()
         old_relay = self.get_cryo_card_relays()  # querey twice to ensure update
         new_relay = np.copy(old_relay)
-        self.log('Old relay {}'.format(bin(old_relay)))
+        if write_log:
+            self.log('Old relay {}'.format(bin(old_relay)))
 
         n_bias_groups = self._n_bias_groups
         bias_group = np.ravel(np.array(bias_group))
@@ -2382,7 +2386,8 @@ class SmurfUtilMixin(SmurfBase):
             else:
                 r = bg
             new_relay = (1 << r) | new_relay
-        self.log('New relay {}'.format(bin(new_relay)))
+        if write_log:
+            self.log('New relay {}'.format(bin(new_relay)))
         self.set_cryo_card_relays(new_relay, write_log=write_log)
         self.get_cryo_card_relays()
 
@@ -2403,13 +2408,10 @@ class SmurfUtilMixin(SmurfBase):
         old_relay = self.get_cryo_card_relays()  # querey twice to ensure update
         new_relay = np.copy(old_relay)
 
-        # bias_group = 0
-        #self.log('Flipping bias group 0 relay only; PIC code will flip all ' +
-        #    'of them')
-
         n_bias_groups = self._n_bias_groups
         bias_group = np.ravel(np.array(bias_group))
-        self.log('Old relay {}'.format(bin(old_relay)))
+        if write_log:
+            self.log('Old relay {}'.format(bin(old_relay)))
         for bg in bias_group:
             if bg < n_bias_groups:
                 r = np.ravel(self.pic_to_bias_group[np.where(
@@ -2418,7 +2420,8 @@ class SmurfUtilMixin(SmurfBase):
                 r = bg
             if old_relay & 1 << r != 0:
                 new_relay = new_relay & ~(1 << r)
-        self.log('New relay {}'.format(bin(new_relay)))
+        if write_log:
+            self.log('New relay {}'.format(bin(new_relay)))
         self.set_cryo_card_relays(new_relay, write_log=write_log)
         self.get_cryo_card_relays()
 
@@ -3021,6 +3024,49 @@ class SmurfUtilMixin(SmurfBase):
         return int(mask[mask_num]//512), int(mask[mask_num]%512)
 
 
+    def play_sine_tes(self, bias_group, tone_amp, tone_freq, dc_amp=None):
+        """
+        Play a sine wave on the bias group pair.
+
+        Tone file is in bias bit units. The bias is int20. The
+        inputs of this function are in units of bias dac output
+        voltage. The conversion from requested volts to bits
+        is calculated in this function.
+
+        Args:
+        -----
+        bias_group (int) : The bias group to play a sine wave on
+        tone_amp (float) : The amplitude of the sine wave in units of
+            out TES bias in volts.
+        tone_freq (float) : The frequency of the tone in Hz.
+
+        Opt Args:
+        ---------
+        dc_amp (float) : The amplitude of the DC term of the sine wave.
+            If None, reads the current DC value and uses that. Default
+            is None.
+        """
+        if dc_amp is None:
+            dc_amp = self.get_tes_bias_bipolar(bias_group)
+            self.log(f"No dc_amp provided. Using current value: {dc_amp} V")
+
+        # The waveform is played on 2 DACs, so amp/2. Then convert
+        # to bits
+        dc_amp /= (2*self._rtm_slow_dac_bit_to_volt)
+        tone_amp /= (2*self._rtm_slow_dac_bit_to_volt)
+
+
+        # Make tone file. 2048 elements
+        n_tes_samp = 2048
+        sig = tone_amp * np.cos(2*np.pi*np.arange(n_tes_samp)/n_tes_samp) + dc_amp
+
+        # Calculate frequency - 6.4ns * TimerSize between samples
+        ts = int((tone_freq * n_tes_samp * 6.4E-9)**-1)
+        self.set_rtm_arb_waveform_timer_size(ts, wait_done=True)
+
+        self.play_tes_bipolar_waveform(bias_group, sig)
+
+
     def play_tone_file(self, band, tone_file=None, load_tone_file=True):
         """
         Plays the specified tone file on this band.  If no path provided
@@ -3052,6 +3098,7 @@ class SmurfUtilMixin(SmurfBase):
         self.log('Playing tone file {} on band {}'.format(tone_file,band),
                  self.LOG_USER)
         self.set_waveform_select(band,1)
+
 
     def stop_tone_file(self, band):
         """
@@ -3362,3 +3409,173 @@ class SmurfUtilMixin(SmurfBase):
 
         # Zero TES biases on this bias group
         self.set_tes_bias_bipolar(bias_group, 0)
+
+
+    def identify_bias_groups(self, probe_freq=2.5, probe_time=3,
+                             probe_amp=.1,
+                             bias_groups=None, make_plot=False,
+                             show_plot=False, save_plot=True,
+                             cutoff_frac=.05):
+        """
+        Identify bias groups of all the channels that are on. Plays
+        a sine wave on a bias group and looks for a response. Does
+        this with the TESs superconducting so it can look for an
+        response is exactly the same amplitude as the input.
+
+        Opt Args:
+        ---------
+        probe_freq (float) : The frequency of the probe tone
+        probe_time (float) : The length of time to probe each
+            bias group in seconds. Default 3.
+        bias_groups (int array) : The bias groups to search.
+           If None, does the first 8 bias groups. Default is None.
+        cutoff_frac (float) : The fraction difference the response
+           can be away from the expected amplitude. Default .05.
+        make_plot (bool) : Whether to make the plot. Default False.
+        save_plot (bool) : Whether to save the plot. Default True.
+        show_plot (bool) : Whether to show the plot. Default False
+
+        Ret:
+        ----
+        channels_dict (dict) : A dictionary where the first key is
+            the bias group that is being probed. In each is the
+            band, channnel pairs, and frequency of the channels.
+        """
+        # Check if probe frequency is too high
+        flux_ramp_freq = self.get_flux_ramp_freq() * 1.0E3
+        fs = flux_ramp_freq * self.get_downsample_factor()
+
+        # Calculate downsample filter transfer function
+        filter_params = self.get_filter_params()
+        w, h = signal.freqz(filter_params['filter_b'],
+                            filter_params['filter_a'],
+                            fs=flux_ramp_freq)
+        df = np.abs(w - probe_freq)
+        df_idx = np.ravel(np.where(df == np.min(df)))[0]
+        if probe_freq > fs:
+            self.log('Probe frequency is higher than sample rate. Exiting',
+                     self.LOG_ERROR)
+            return
+        elif h[df_idx] < 1 - cutoff_frac/3:
+            self.log('Downsample filter cutting into the signal too much.' +
+                     ' Exiting.', self.LOG_ERROR)
+            return
+
+        # There should be something smarter than this
+        if bias_groups is None:
+            bias_groups = np.arange(8)
+
+        channels_dict = {}
+
+        # Get the cryocard settings before starting this script
+        cryo_card_bits = self.get_cryo_card_relays()
+
+        timestamp = self.get_timestamp()
+
+        for bias_group in bias_groups:
+            self.log(f"Working on bias group {bias_group}")
+
+            # Work in high current mode to bypass filter
+            self.set_tes_bias_high_current(bias_group)
+
+            # Play sine wave and take data
+            self.play_sine_tes(bias_group, probe_amp,
+                               probe_freq, dc_amp=0)
+            datafile = self.take_stream_data(probe_time,
+                                             write_log=False)
+
+            self.stop_tes_bipolar_waveform(bias_group)
+
+            # Read back data
+            t, d, mm = self.read_stream_data(datafile, make_freq_mask=True)
+            m = mm[0]  # extract mask
+            m_freq = mm[1]  #frequency mask
+            freq_arr = m_freq[np.where(m!=-1)]
+            d *= (self.pA_per_phi0/2/np.pi)  # convert to pA
+            d = np.transpose(d.T - np.mean(d.T, axis=0))
+
+            n_det, n_samp = np.shape(d)
+
+            # currents on lines
+            r_inline = self.bias_line_resistance / self.high_low_current_ratio
+            i_bias = probe_amp / r_inline * 1.0E12  # Bias current in pA
+
+            # sine/cosine decomp templates
+            s = np.sin(2*np.pi*np.arange(n_samp)/
+                       n_samp*probe_freq*probe_time)
+            c = np.cos(2*np.pi*np.arange(n_samp)/
+                       n_samp*probe_freq*probe_time)
+            s /= np.sum(s**2)
+            c /= np.sum(c**2)
+
+            # cosine/sine decomposition
+            sa = np.zeros(n_det)
+            ca = np.zeros(n_det)
+            for ch in np.arange(n_det):
+                sa[ch] = np.dot(d[ch], s)
+                ca[ch]= np.dot(d[ch], c)
+            amp = np.sqrt(sa**2 + ca**2)  # amplitude calculation
+
+            # In superconducting, amplitude of response should be 1
+            norm_amp = amp/i_bias
+            idx = np.where(np.logical_and(norm_amp < 1+cutoff_frac,
+                           norm_amp > 1-cutoff_frac))[0]
+
+            bands = np.zeros(len(idx), dtype=int)
+            channels = np.zeros(len(idx), dtype=int)
+            freqs = np.zeros(len(idx))
+            for i, ii in enumerate(idx):
+                bands[i], channels[i] = np.ravel(np.where(m == ii))
+                freqs[i] = m_freq[bands[i], channels[i]]
+
+            channels_dict[bias_group] = {}
+            channels_dict[bias_group]['band'] = bands
+            channels_dict[bias_group]['channel'] = channels
+            channels_dict[bias_group]['freq'] = freqs
+
+            if make_plot:
+                # Turn off interactive plot
+                if show_plot:
+                    plt.ion()
+                else:
+                    plt.ioff()
+
+                fig, ax = plt.subplots(1, 2, figsize=(8.5, 3),
+                                       sharey=True)
+                # Plot timestreams
+                ax[0].plot((t-t[0])*1.0E-9, d.T,
+                         color='k', alpha=.1)
+                ax[0].axhline(-i_bias, linestyle='--', color='r')
+                ax[0].axhline(i_bias, linestyle='--', color='r')
+                ax[1].axhline(-i_bias, linestyle='--', color='r')
+                ax[1].axhline(i_bias, linestyle='--', color='r')
+                ax[0].set_xlabel('Time [s]')
+                ax[0].set_ylabel('Amp [pA]')
+
+                ax[1].plot(freq_arr, sa, 'x', color='b',
+                           label='sine', alpha=.5)
+                ax[1].plot(freq_arr, ca, '+', color='y',
+                           label='cos', alpha=.5)
+                ax[1].plot(freq_arr, amp, 'o', color='k',
+                           label='amp')
+                ax[1].legend(loc='lower right')
+                ax[1].set_ylim((-1.5*i_bias, 1.5*i_bias))
+                ax[1].set_xlabel('Res Freq [MHz]')
+                plt.tight_layout()
+
+                fig.suptitle(f'Bias Group {bias_group}')
+
+                if save_plot:
+                    savename = f'{timestamp}_identify_bg{bias_group}.png'
+                    plt.savefig(os.path.join(self.plot_dir, savename),
+                                bbox_inches='tight')
+                if not show_plot:
+                    plt.close(fig)
+
+            # Set relays back to original state
+            self.set_cryo_card_relays(cryo_card_bits)
+
+        # To do - add a check for band, channels that are on two different
+        # bias groups.
+
+        return channels_dict
