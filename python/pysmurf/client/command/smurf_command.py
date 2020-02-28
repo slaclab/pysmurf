@@ -1936,6 +1936,11 @@ class SmurfCommandMixin(SmurfBase):
     def set_jesd_rx_enable(self, bay, val, **kwargs):
         self._caput(self.jesd_rx_root.format(bay) + self._jesd_rx_enable, val, **kwargs)
 
+    _jesd_rx_status_valid_cnt = 'StatusValidCnt'
+
+    def get_jesd_rx_status_valid_cnt(self, bay, num, **kwargs):
+        return self._caget(self.jesd_rx_root.format(bay) + self._jesd_rx_status_valid_cnt + f'[{num}]', **kwargs)
+
     _jesd_rx_data_valid = 'DataValid'
 
     def get_jesd_rx_data_valid(self, bay, **kwargs):
@@ -1970,6 +1975,11 @@ class SmurfCommandMixin(SmurfBase):
     def get_jesd_tx_data_valid(self, bay, **kwargs):
         return self._caget(self.jesd_tx_root.format(bay) +
             self._jesd_tx_data_valid, **kwargs)
+
+    _jesd_tx_status_valid_cnt = 'StatusValidCnt'
+
+    def get_jesd_tx_status_valid_cnt(self, bay, num, **kwargs):
+        return self._caget(self.jesd_tx_root.format(bay) + self._jesd_tx_status_valid_cnt + f'[{num}]', **kwargs)
 
     _fpga_uptime = 'UpTimeCnt'
 
