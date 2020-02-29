@@ -936,7 +936,7 @@ class SmurfUtilMixin(SmurfBase):
                             header_dict[h] = np.array([],
                                                       dtype=type(header[i]))
                         tmp_header_dict['tes_bias'] = np.array([header.tesBias])
-                        
+
 
                     # Already loaded 1 element
                     counter = 1
@@ -949,7 +949,7 @@ class SmurfUtilMixin(SmurfBase):
                             tmp_header_dict[h] = np.append(tmp_header_dict[h],
                                                        header[i])
                         tmp_tes_bias = np.vstack((tmp_tes_bias, header.tesBias))
-                            
+
                     if counter % n_max == n_max - 1:
                         if write_log:
                             self.log(f'{counter+1} elements loaded')

@@ -290,7 +290,7 @@ class SmurfIVMixin(SmurfBase):
 
         # Extract data from dict
         iv_raw_data = np.load(fn_iv_raw_data, allow_pickle=True).item()
-        bias = iv_raw_data['bias']
+        # bias = iv_raw_data['bias']
         high_current_mode = iv_raw_data['high_current_mode']
         bias_group = iv_raw_data['bias group']
 
@@ -563,8 +563,8 @@ class SmurfIVMixin(SmurfBase):
         if step_loc[0] != 0:
             step_loc = np.append([0], step_loc)  # starts from zero
         # step_size = np.diff(v_bias)[step_loc]
-        n_step = len(step_loc)-1
-        
+        n_step = len(step_loc) - 1
+
         resp_bin = np.zeros(n_step)
         v_bias_bin = np.zeros(n_step)
         i_bias_bin = np.zeros(n_step)
@@ -605,7 +605,7 @@ class SmurfIVMixin(SmurfBase):
         v_bias_bin = v_bias_bin[::-1]
         i_bias_bin = i_bias_bin[::-1]
         resp_bin = resp_bin[::-1]
-        
+
         # index of the end of the superconducting branch
         dd_resp_abs = np.abs(dd_resp)
         sc_idx = np.ravel(np.where(dd_resp_abs == np.max(dd_resp_abs)))[0] + 1
