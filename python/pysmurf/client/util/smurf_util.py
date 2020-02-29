@@ -898,7 +898,6 @@ class SmurfUtilMixin(SmurfBase):
         # The number of channel will be extracted from the first frame and the
         # data structures will be build based on that
         first_read = True
-
         with SmurfStreamReader(datafile,
                 isRogue=True, metaEnable=True) as file:
             for header, data in file.records():
@@ -922,6 +921,10 @@ class SmurfUtilMixin(SmurfBase):
                     tmp_phase = np.atleast_2d(data)
                     tmp_t = np.array(header.timestamp)
                     phase = np.zeros((0, len(channel)))
+                    if return_header or return_tes_bias:
+                        tmp_tes_bias = np.array(header.tesBias)
+                        tes_bias = np.zeros((0,16))
+
                     t = np.array([])
 
                     # Get header values if requested
@@ -932,9 +935,8 @@ class SmurfUtilMixin(SmurfBase):
                             tmp_header_dict[h] = np.array(header[i])
                             header_dict[h] = np.array([],
                                                       dtype=type(header[i]))
-
-                    if return_tes_bias:
-                        tes_bias = np.array((0, 15)) # 15 bias DACs
+                        tmp_header_dict['tes_bias'] = np.array([header.tesBias])
+                        
 
                     # Already loaded 1 element
                     counter = 1
@@ -946,7 +948,8 @@ class SmurfUtilMixin(SmurfBase):
                         for i, h in enumerate(header._fields):
                             tmp_header_dict[h] = np.append(tmp_header_dict[h],
                                                        header[i])
-
+                        tmp_tes_bias = np.vstack((tmp_tes_bias, header.tesBias))
+                            
                     if counter % n_max == n_max - 1:
                         if write_log:
                             self.log(f'{counter+1} elements loaded')
@@ -954,6 +957,7 @@ class SmurfUtilMixin(SmurfBase):
                         t = np.append(t, tmp_t)
                         tmp_phase = np.zeros((0, len(channel)))
                         tmp_t = np.array([])
+
                         if return_header:
                             for k in header_dict.keys():
                                 header_dict[k] = np.append(header_dict[k],
@@ -961,12 +965,13 @@ class SmurfUtilMixin(SmurfBase):
                                 tmp_header_dict[k] = \
                                     np.array([],
                                              dtype=type(header_dict[k][0]))
+                            print(np.shape(tes_bias), np.shape(tmp_tes_bias))
+                            tes_bias = np.vstack((tes_bias, tmp_tes_bias))
+                            tmp_tes_bias = np.zeros((0, 16))
+
                         elif return_tes_bias:
-                            tes_bias = np.hstack((tes_bias,
-                                self.header_to_tes_bias(tmp_header_dict)))
-                            for k in tmp_header_dict:
-                                tmp_header_dict[k] = \
-                                    np.array([], dtype=type(tmp_header_dict[k]))
+                            tes_bias = np.vstack((tes_bias, tmp_tes_bias))
+                            tmp_tes_bias = np.zeros((0, 16))
 
                     counter += 1
 
@@ -977,15 +982,17 @@ class SmurfUtilMixin(SmurfBase):
             for k in header_dict.keys():
                 header_dict[k] = np.append(header_dict[k],
                     tmp_header_dict[k])
+            tes_bias = np.vstack((tes_bias, tmp_tes_bias))
+            tes_bias = np.transpose(tes_bias)
 
         elif return_tes_bias:
-            tes_bias = np.hstack((tes_bias,
-                self.header_to_tes_bias(tmp_header_dict)))
+            tes_bias = np.vstack((tes_bias, tmp_tes_bias))
+            tes_bias = np.transpose(tes_bias)
 
         # rotate and transform to phase
-
         phase = np.squeeze(phase.T)
         phase = phase.astype(float) / 2**15 * np.pi
+
 
         # make a mask from mask file
         if ".dat.part" in datafile:
@@ -1000,6 +1007,7 @@ class SmurfUtilMixin(SmurfBase):
             phase.resize(array_size, phase.shape[1])
 
         if return_header:
+            header_dict['tes_bias'] = tes_bias
             return t, phase, mask, header_dict
         elif return_tes_bias:
             return t, phase, mask, tes_bias

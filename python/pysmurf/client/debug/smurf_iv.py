@@ -294,7 +294,6 @@ class SmurfIVMixin(SmurfBase):
         high_current_mode = iv_raw_data['high_current_mode']
         bias_group = iv_raw_data['bias group']
 
-
         # This overwrites the datafile path, which is usually loaded
         # from the .npy file
         if datafile is None:
@@ -312,8 +311,8 @@ class SmurfIVMixin(SmurfBase):
             plot_dir = iv_raw_data['plot_dir']
 
         # Load raw data
-        timestamp, phase_all, mask, header = self.read_stream_data(datafile,
-            return_header=True)
+        timestamp, phase_all, mask, tes_bias = self.read_stream_data(datafile,
+            return_tes_bias=True)
         bands, chans = np.where(mask != -1)
 
         # IV output dictionary
@@ -323,7 +322,7 @@ class SmurfIVMixin(SmurfBase):
             ivs[b] = {}
 
         # Extract V_bias
-        # v_bias = self.header_to_tes_bias(header)[bias_group[0]]
+        v_bias = 2 * tes_bias[bias_group[0]] * self._rtm_slow_dac_bit_to_volt
 
         rn_list = []
         phase_excursion_list = []
@@ -387,7 +386,7 @@ class SmurfIVMixin(SmurfBase):
                 if not show_plot:
                     plt.close()
 
-            iv_dict = self.analyze_slow_iv(bias, phase,
+            iv_dict = self.analyze_slow_iv(v_bias, phase,
                 basename=basename, band=b, channel=ch, make_plot=make_plot,
                 show_plot=show_plot, save_plot=save_plot, plot_dir=plot_dir,
                 R_sh=R_sh, high_current_mode=high_current_mode,
@@ -560,11 +559,12 @@ class SmurfIVMixin(SmurfBase):
 
         # n_pts = len(resp)
         step_loc = np.where(np.diff(v_bias))[0]
-        n_step = len(step_loc)
 
-        step_loc = np.append([0], step_loc)  # starts from zero
+        if step_loc[0] != 0:
+            step_loc = np.append([0], step_loc)  # starts from zero
         # step_size = np.diff(v_bias)[step_loc]
-
+        n_step = len(step_loc)-1
+        
         resp_bin = np.zeros(n_step)
         v_bias_bin = np.zeros(n_step)
         i_bias_bin = np.zeros(n_step)
@@ -586,15 +586,14 @@ class SmurfIVMixin(SmurfBase):
             else:
                 plt.ioff()
 
+        # Find steps and then calculate the TES values in bins
         for i in np.arange(n_step):
             s = step_loc[i]
             e = step_loc[i+1]
-            # sb = int(s + np.ceil(_step_size * 3. / 5))
-            # eb = int(s + np.ceil(_step_size * 9. / 10))
+
             st = e - s
             sb = int(s + np.floor(st/2))
             eb = int(e - np.floor(st/10))
-
 
             resp_bin[i] = np.mean(resp[sb:eb])
             v_bias_bin[i] = v_bias[sb]
@@ -606,7 +605,7 @@ class SmurfIVMixin(SmurfBase):
         v_bias_bin = v_bias_bin[::-1]
         i_bias_bin = i_bias_bin[::-1]
         resp_bin = resp_bin[::-1]
-
+        
         # index of the end of the superconducting branch
         dd_resp_abs = np.abs(dd_resp)
         sc_idx = np.ravel(np.where(dd_resp_abs == np.max(dd_resp_abs)))[0] + 1
@@ -842,47 +841,6 @@ class SmurfIVMixin(SmurfBase):
             if show_plot:
                 plt.show()
             else:
-                plt.close()
-
-            # timestream plot
-            plt.rcParams["patch.force_edgecolor"] = True
-
-            if not show_plot:
-                plt.ioff()
-
-            fig, ax = plt.subplots(1, sharex=True,
-                                   figsize=(8,4.5))
-
-            ax.plot(resp)
-            ax.set_xlabel('Sample Num')
-            ax.set_ylabel('Phase [rad.]')
-            if grid_on:
-                ax.grid()
-            for i in np.arange(n_step):
-                s = step_loc[i]
-                e = step_loc[i+1]
-
-                st = e - s
-                sb = int(s + np.floor(st/3))
-                eb = int(e - np.floor(st/10))
-
-                ax.axvspan(sb, eb, color='k', alpha=.25)
-
-            ax.set_title('Band {}, Group {}, Ch {:03}'.format(np.unique(band),
-                bias_group, channel))
-            plt.tight_layout()
-
-            bg_str = ""
-            for bg in np.unique(bias_group):
-                bg_str = bg_str + str(bg)
-
-            plot_name = basename + \
-                '_IV_stream_b{}_g{}_ch{:03}.png'.format(band, bg_str, channel)
-            if save_plot:
-                plot_fn = os.path.join(plot_dir, plot_name)
-                plt.savefig(plot_fn, bbox_inches='tight', dpi=300)
-                self.pub.register_file(plot_fn, 'iv_stream', plot=True)
-            if not show_plot:
                 plt.close()
 
         iv_dict = {}
