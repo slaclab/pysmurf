@@ -4023,6 +4023,7 @@ class SmurfCommandMixin(SmurfBase):
 
 
     _unwrapper_reset = 'Unwrapper:reset'
+
     def set_unwrapper_reset(self, **kwargs):
         """
         Resets the unwrap filter. There is no get function because
@@ -4030,8 +4031,8 @@ class SmurfCommandMixin(SmurfBase):
         """
         self._caput(self.smurf_processor + self._unwrapper_reset, 1,
                     **kwargs)
-        
-    
+
+
     _filter_reset = 'Filter:reset'
 
     def set_filter_reset(self, **kwargs):

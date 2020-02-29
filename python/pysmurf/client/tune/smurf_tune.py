@@ -1822,7 +1822,7 @@ class SmurfTuneMixin(SmurfBase):
         return f_sweep+sbc[subband], resp, eta
 
 
-    def eta_estimator(self, band, freq, drive=10, f_sweep_half=.3, 
+    def eta_estimator(self, band, freq, drive=10, f_sweep_half=.3,
                       df_sweep=.002, delta_freq=.01,
                       lock_max_derivative=False):
         """

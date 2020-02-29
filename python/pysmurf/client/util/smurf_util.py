@@ -642,9 +642,9 @@ class SmurfUtilMixin(SmurfBase):
         return f, df, flux_ramp_strobe
 
     def take_stream_data(self, meas_time, downsample_factor=None,
-        write_log=True, update_payload_size=True,
-        reset_unwrapper=True, reset_filter=True,
-        return_data=False, make_freq_mask=True):
+                         write_log=True, update_payload_size=True,
+                         reset_unwrapper=True, reset_filter=True,
+                         return_data=False, make_freq_mask=True):
         """
         Takes streaming data for a given amount of time
 
@@ -689,7 +689,7 @@ class SmurfUtilMixin(SmurfBase):
 
         # Stop acq
         self.stream_data_off(write_log=write_log)
-        
+
         if write_log:
             self.log('Done taking data.', self.LOG_USER)
 
@@ -755,7 +755,7 @@ class SmurfUtilMixin(SmurfBase):
                 self.log('Warning : The payload size is smaller than ' +
                          'the number of channels that are on. Only ' +
                          f'writing the first {payload_size} channels. ')
-                
+
 
         # Check if flux ramp is non-zero
         ramp_max_cnt = self.get_ramp_max_cnt()
@@ -790,8 +790,8 @@ class SmurfUtilMixin(SmurfBase):
                 self.set_filter_reset(write_log=write_log)
             if reset_unwrapper or reset_filter:
                 time.sleep(.1)
-                
-            
+
+
             # Make the data file
             timestamp = self.get_timestamp()
             if data_filename is None:
@@ -847,9 +847,10 @@ class SmurfUtilMixin(SmurfBase):
         self.set_stream_enable(0, write_log=write_log, wait_after=.15)
 
     def read_stream_data(self, datafile, channel=None,
-        n_samp=None, array_size=None, return_header=False,
-        return_tes_bias=False, write_log=True, n_max=2048,
-        make_freq_mask=False):
+                         n_samp=None, array_size=None,
+                         return_header=False,
+                         return_tes_bias=False, write_log=True,
+                         n_max=2048, make_freq_mask=False):
         """
         Loads data taken with the function stream_data_on.
         Gives back the resonator data in units of phase. Also
@@ -864,7 +865,7 @@ class SmurfUtilMixin(SmurfBase):
         ---------
         channel (int or int array): Channels to load.
         n_samp (int) : The number of samples to read.
-        array_size (int) : The size of the output arrays. If 0, then 
+        array_size (int) : The size of the output arrays. If 0, then
             the size will be the number of channels in the data file.
         return_header (bool) : Whether to also read in the header
             and return the header data. Returning the full header
@@ -893,10 +894,6 @@ class SmurfUtilMixin(SmurfBase):
         if channel is not None:
             self.log('Only reading channel {}'.format(channel))
 
-
-        eval_n_samp = False
-        if n_samp is not None:
-            eval_n_samp = True
         # Flag to indicate we are about the read the fist frame from the disk
         # The number of channel will be extracted from the first frame and the
         # data structures will be build based on that
@@ -926,7 +923,7 @@ class SmurfUtilMixin(SmurfBase):
                     tmp_t = np.array(header.timestamp)
                     phase = np.zeros((0, len(channel)))
                     t = np.array([])
-                    
+
                     # Get header values if requested
                     if return_header or return_tes_bias:
                         tmp_header_dict = {}
@@ -938,7 +935,7 @@ class SmurfUtilMixin(SmurfBase):
 
                     if return_tes_bias:
                         tes_bias = np.array((0, 15)) # 15 bias DACs
-                            
+
                     # Already loaded 1 element
                     counter = 1
                 else:
@@ -949,7 +946,7 @@ class SmurfUtilMixin(SmurfBase):
                         for i, h in enumerate(header._fields):
                             tmp_header_dict[h] = np.append(tmp_header_dict[h],
                                                        header[i])
-                            
+
                     if counter % n_max == n_max - 1:
                         if write_log:
                             self.log(f'{counter+1} elements loaded')
@@ -970,7 +967,7 @@ class SmurfUtilMixin(SmurfBase):
                             for k in tmp_header_dict:
                                 tmp_header_dict[k] = \
                                     np.array([], dtype=type(tmp_header_dict[k]))
-                                
+
                     counter += 1
 
         # Get the last temp block
@@ -984,11 +981,11 @@ class SmurfUtilMixin(SmurfBase):
         elif return_tes_bias:
             tes_bias = np.hstack((tes_bias,
                 self.header_to_tes_bias(tmp_header_dict)))
-        
+
         # rotate and transform to phase
 
         phase = np.squeeze(phase.T)
-        phase = phase.astype(float) / 2**15 * np.pi 
+        phase = phase.astype(float) / 2**15 * np.pi
 
         # make a mask from mask file
         if ".dat.part" in datafile:
@@ -1011,7 +1008,7 @@ class SmurfUtilMixin(SmurfBase):
 
 
     def header_to_tes_bias(self, header, as_volt=True,
-        n_tes_bias=15):
+                           n_tes_bias=15):
         """
         Takes the SmurfHeader returned from read_stream_data
         and turns it to a TES bias. The header is a 20 field,
@@ -1061,14 +1058,13 @@ class SmurfUtilMixin(SmurfBase):
 
         # Take care of factor of 2 thrown away in writing to the header
         bias *= 2
-                
+
         # Cast as voltage.
         if as_volt:
             bias *= self._rtm_slow_dac_bit_to_volt
-                
+
         return bias
 
-    
 
     def make_mask_lookup(self, mask_file, mask_channel_offset=0,
                          make_freq_mask=False):

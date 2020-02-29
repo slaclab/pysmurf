@@ -66,7 +66,7 @@ class SmurfIVMixin(SmurfBase):
         if bias_groups is None:
             bias_groups = self.all_groups
         bias_groups = np.array(bias_groups)
-            
+
         if overbias_voltage != 0.:
             overbias = True
         else:
@@ -315,7 +315,7 @@ class SmurfIVMixin(SmurfBase):
         timestamp, phase_all, mask, header = self.read_stream_data(datafile,
             return_header=True)
         bands, chans = np.where(mask != -1)
-        
+
         # IV output dictionary
         ivs = {}
         ivs['high_current_mode'] = high_current_mode
@@ -323,8 +323,7 @@ class SmurfIVMixin(SmurfBase):
             ivs[b] = {}
 
         # Extract V_bias
-        v_bias = self.header_to_tes_bias(header)[bias_group[0]]
-        
+        # v_bias = self.header_to_tes_bias(header)[bias_group[0]]
 
         rn_list = []
         phase_excursion_list = []
@@ -351,12 +350,14 @@ class SmurfIVMixin(SmurfBase):
                 self.log('Skipping channel {}:  phase excursion < min'.format(ch))
                 continue
             phase_excursion_list.append(phase_excursion)
-            
+
             if make_plot:
                 plt.rcParams["patch.force_edgecolor"] = True
 
                 if not show_plot:
                     plt.ioff()
+
+                fig, ax = plt.subplots(1)
 
                 ax.plot(phase)
                 ax.set_xlabel('Sample Num')
@@ -549,7 +550,7 @@ class SmurfIVMixin(SmurfBase):
         R_sh (float): Shunt resistance
         """
         v_bias = np.abs(v_bias)
-        
+
         if R_sh is None:
             R_sh=self.R_sh
 
@@ -557,14 +558,16 @@ class SmurfIVMixin(SmurfBase):
             pA_per_phi0 = self.pA_per_phi0
         resp *= pA_per_phi0/(2.*np.pi*1e6) # convert phase to uA
 
-        n_pts = len(resp)
+        # n_pts = len(resp)
         step_loc = np.where(np.diff(v_bias))[0]
         n_step = len(step_loc)
 
         step_loc = np.append([0], step_loc)  # starts from zero
-        step_size = np.diff(v_bias)[step_loc]
-        
+        # step_size = np.diff(v_bias)[step_loc]
+
         resp_bin = np.zeros(n_step)
+        v_bias_bin = np.zeros(n_step)
+        i_bias_bin = np.zeros(n_step)
 
         if bias_line_resistance is None:
             r_inline = self.bias_line_resistance
@@ -596,7 +599,7 @@ class SmurfIVMixin(SmurfBase):
             resp_bin[i] = np.mean(resp[sb:eb])
             v_bias_bin[i] = v_bias[sb]
             i_bias_bin[i] = i_bias[sb]
-            
+
         d_resp = np.diff(resp_bin)
         d_resp = d_resp[::-1]
         dd_resp = np.diff(d_resp)
@@ -742,15 +745,14 @@ class SmurfIVMixin(SmurfBase):
             ax_ii.plot(i_bias_bin, resp_bin, color=color_meas)
             ax_ii.set_ylabel(r'$I_\mathrm{TES}$ $[\mu A]$')
 
-            ax_ii.plot(i_bias_bin, norm_fit[0] * i_bias_bin , linestyle='--', 
-                       color=color_norm, label=r'$R_N$' + \
-                           '  = ${:.0f}$'.format(R_n/1e-3) + \
-                           r' $\mathrm{m}\Omega$')  
-            ax_ii.plot(i_bias_bin[:sc_idx], 
-                sc_fit[0] * i_bias_bin[:sc_idx] + sc_fit[1], linestyle='--', 
-                color=color_sc, label=r'$R_L$' + \
-                    ' = ${:.0f}$'.format(R_L/1e-6) + \
-
+            ax_ii.plot(i_bias_bin, norm_fit[0] * i_bias_bin , linestyle='--',
+                       color=color_norm, label=r'$R_N$' +
+                       '  = ${:.0f}$'.format(R_n/1e-3) +
+                       r' $\mathrm{m}\Omega$')
+            ax_ii.plot(i_bias_bin[:sc_idx],
+                sc_fit[0] * i_bias_bin[:sc_idx] + sc_fit[1], linestyle='--',
+                color=color_sc, label=r'$R_L$' +
+                    ' = ${:.0f}$'.format(R_L/1e-6) +
                     r' $\mu\mathrm{\Omega}$')
 
             label_target = r'$R = {:.0f}$ '.format(R_op_target/1e-3) + \
@@ -767,7 +769,7 @@ class SmurfIVMixin(SmurfBase):
                     label_vspan = None
                 ax_i[i].axvline(i_op_target, color='g', linestyle='--',
                     label=label_vline)
-                ax_i[i].axvspan(i_bias_bin[sc_idx], i_bias_bin[nb_idx], 
+                ax_i[i].axvspan(i_bias_bin[sc_idx], i_bias_bin[nb_idx],
 
                     color=color_etf, alpha=.15,label=label_vspan)
                 if grid_on:
@@ -844,7 +846,7 @@ class SmurfIVMixin(SmurfBase):
 
             # timestream plot
             plt.rcParams["patch.force_edgecolor"] = True
-                
+
             if not show_plot:
                 plt.ioff()
 
@@ -859,13 +861,13 @@ class SmurfIVMixin(SmurfBase):
             for i in np.arange(n_step):
                 s = step_loc[i]
                 e = step_loc[i+1]
-            
+
                 st = e - s
                 sb = int(s + np.floor(st/3))
                 eb = int(e - np.floor(st/10))
 
                 ax.axvspan(sb, eb, color='k', alpha=.25)
-            
+
             ax.set_title('Band {}, Group {}, Ch {:03}'.format(np.unique(band),
                 bias_group, channel))
             plt.tight_layout()
@@ -882,7 +884,7 @@ class SmurfIVMixin(SmurfBase):
                 self.pub.register_file(plot_fn, 'iv_stream', plot=True)
             if not show_plot:
                 plt.close()
-                
+
         iv_dict = {}
         iv_dict['R'] = R
         iv_dict['R_n'] = R_n
