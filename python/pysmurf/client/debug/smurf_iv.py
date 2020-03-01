@@ -506,6 +506,7 @@ class SmurfIVMixin(SmurfBase):
             if not show_plot:
                 plt.close()
 
+
     def analyze_slow_iv(self, v_bias, resp, make_plot=True, show_plot=False,
             save_plot=True, basename=None, band=None, channel=None, R_sh=None,
             plot_dir=None, high_current_mode=False, bias_group=None,
@@ -769,7 +770,6 @@ class SmurfIVMixin(SmurfBase):
                 ax_i[i].axvline(i_op_target, color='g', linestyle='--',
                     label=label_vline)
                 ax_i[i].axvspan(i_bias_bin[sc_idx], i_bias_bin[nb_idx],
-
                     color=color_etf, alpha=.15,label=label_vspan)
                 if grid_on:
                     ax_i[i].grid()

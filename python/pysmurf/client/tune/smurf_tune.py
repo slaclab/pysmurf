@@ -1474,14 +1474,27 @@ class SmurfTuneMixin(SmurfBase):
 
 
     def write_master_assignment(self, band, freqs, subbands, channels,
-            groups=None):
+            bias_groups=None):
         '''
-        writes a comma-separated list in the form band, freq (MHz), subband,
-        channel, group. Group number defaults to -1.
+        Writes a comma-separated list in the form band, freq (MHz), subband,
+        channel, group. Group number defaults to -1. The order of inputs is
+        legacy and weird.
+
+        Args:
+        -----
+        band (int array) : A list of bands
+        freqs (float array) : A list of frequencies
+        subbands (int array) : A list of subbands
+        channels (int array) : A list of channel numbers
+
+        Opt Args:
+        ---------
+        bias_groups (int array) : A list of bias groups. If None,
+           populates the array with -1.
         '''
         timestamp = self.get_timestamp()
-        if groups is None:
-            groups = -np.ones(len(freqs),dtype=int)
+        if bias_groups is None:
+            bias_groups = -np.ones(len(freqs),dtype=int)
 
         fn = os.path.join(self.tune_dir,
                           f'{timestamp}_channel_assignment_b{band}.txt')
@@ -1489,10 +1502,11 @@ class SmurfTuneMixin(SmurfBase):
         f = open(fn,'w')
         for i in range(len(channels)):
             f.write('%.4f,%i,%i,%i\n' % (freqs[i],subbands[i],channels[i],
-                groups[i]))
+                bias_groups[i]))
         f.close()
 
         self.load_master_assignment(band, fn)
+
 
     def make_master_assignment_from_file(self, band, tuning_filename):
         """
@@ -1521,68 +1535,89 @@ class SmurfTuneMixin(SmurfBase):
         self.write_master_assignment(band, freqs, subbands, channels)
 
 
-    def get_group_list(self,band,group):
-        _,_,channels,groups = self.get_master_assignment(band)
+    def get_group_list(self, band, group):
+        """
+        Returns a list of all the channels in a band and bias
+        group. Note that it is possible to have channels that are
+        on the same bias group but different bands.
+
+        Args:
+        ----
+        band (int) : The band number.
+        group (int) : The bias group number.
+
+        Ret:
+        ----
+        bias_group_list (int array) : The list of channels that
+            are in the band and bias group.
+        """
+        _, _, channels, groups = self.get_master_assignment(band)
         chs_in_group = []
         for i in range(len(channels)):
             if groups[i] == group:
                 chs_in_group.append(channels[i])
-        return chs_in_group
+        return np.array(chs_in_group)
 
-    def get_group_number(self,band,ch):
-        _,_,channels,groups = self.get_master_assignment(band)
+
+    def get_group_number(self, band, ch):
+        """
+        Gets the bias group number of a band, channel pair. The
+        master_channel_assignment must be filled.
+
+        Args:
+        -----
+        band (int) : The band number
+        ch (int) : The channel number
+
+        Ret:
+        ----
+        bias_group (int) : The bias group number
+        """
+        _, _, channels,groups = self.get_master_assignment(band)
         for i in range(len(channels)):
             if channels[i] == ch:
                 return groups[i]
         return None
 
-    def write_group_assignment(self,band,group,ch_list):
+
+    def write_group_assignment(self, bias_group_dict):
         '''
         Combs master channel assignment and assigns group number to all channels
         in ch_list. Does not affect other channels in the master file.
-        '''
-        freqs_master, subbands_master, channels_master, groups_master = self.get_master_assignment(band)
-        for i in range(len(ch_list)):
-            for j in range(len(channels_master)):
-                if ch_list[i] == channels_master[j]:
-                    groups_master[j] = group
-                    break
-        self.write_master_assignment(band,freqs_master,subbands_master,
-            channels_master,groups=groups_master)
 
-    def compare_tune(self, tune, ref_tune=None, make_plot=False):
-        """
-        Compares tuning file to a reference tuning file. Does not work yet.
-        """
-# FIXME
-# smurf_tune.py:1579:24: F821 undefined name 'freq'
-# smurf_tune.py:1581:41: F821 undefined name 'resp'
-# smurf_tune.py:1582:41: F821 undefined name 'resp_ref'
-# smurf_tune.py:1586:22: F821 undefined name 'tune_ref'
-# smurf_tune.py:1587:31: F821 undefined name 'tune_ref'
-# smurf_tune.py:1591:41: F821 undefined name 'resp'
-# smurf_tune.py:1591:56: F821 undefined name 'resp_ref'
-#        # Load data
-#        res1 = self.load_tune(tune)
-#        if ref_tune is None:
-#            res2 = self.freq_resp
-#
-#        if make_plot:
-#            plt_freq = freq * 1.0E-6
-#            fig, ax = plt.subplots(2, sharex=True, figsize=(6,5))
-#            ax[0].plot(plt_freq, np.abs(resp))
-#            ax[0].plot(plt_freq, np.abs(resp_ref))
-#
-#            for k in tune.keys():
-#                ax[0].axvline(tune[k]['freq']*1.0E-6, color='b', linestyle=':')
-#            for k in tune_ref.keys():
-#                ax[0].axvline(tune_ref[k]['freq']*1.0E-6, color='r',
-#                    linestyle=':')
-#
-#
-#            ax[1].plot(plt_freq, np.abs(resp) - np.abs(resp_ref))
-#
-#            plt.tight_layout()
+        Args:
+        -----
+        bias_group_dict (dict) : The output of identify_bias_groups
+        '''
+        bias_groups = list(bias_group_dict.keys())
+
+        # Find all unique bands
+        bands = np.array([], dtype=int)
+        for bg in bias_groups:
+            for b in bias_group_dict[bg]['band']:
+                if b not in bands:
+                    bands = np.append(bands, b)
+
+        for b in bands:
+            # Load previous channel assignment
+            freqs_master, subbands_master, channels_master, \
+                groups_master = self.get_master_assignment(b)
+            for bg in bias_groups:
+                for i in np.arange(len(bias_group_dict[bg]['channel'])):
+                    ch = bias_group_dict[bg]['channel'][i]
+                    bb = bias_group_dict[bg]['band'][i]
+
+                    # First check they are in the same band
+                    if bb == b:
+                        idx = np.ravel(np.where(channels_master == ch))
+                        if len(idx) == 1:
+                            groups_master[idx] = bg
+
+            # Save the new master channel assignment
+            self.write_master_assignment(b, freqs_master,
+                                         subbands_master,
+                                         channels_master,
+                                         bias_groups=groups_master)
 
 
     def relock(self, band, res_num=None, drive=None, r2_max=.08,

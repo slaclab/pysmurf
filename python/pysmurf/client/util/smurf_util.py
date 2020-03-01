@@ -3600,7 +3600,7 @@ class SmurfUtilMixin(SmurfBase):
                              probe_amp=.1,
                              bias_groups=None, make_plot=False,
                              show_plot=False, save_plot=True,
-                             cutoff_frac=.05):
+                             cutoff_frac=.05, update_channel_assignment=True):
         """
         Identify bias groups of all the channels that are on. Plays
         a sine wave on a bias group and looks for a response. Does
@@ -3619,6 +3619,9 @@ class SmurfUtilMixin(SmurfBase):
         make_plot (bool) : Whether to make the plot. Default False.
         save_plot (bool) : Whether to save the plot. Default True.
         show_plot (bool) : Whether to show the plot. Default False
+        update_channel_assignment (bool): Whether to update the
+            master channels assignment to contain the new bias group
+            information. Default True.
 
         Ret:
         ----
@@ -3762,5 +3765,20 @@ class SmurfUtilMixin(SmurfBase):
 
         # To do - add a check for band, channels that are on two different
         # bias groups.
+
+        for bias_group in bias_groups:
+            self.log(f'Bias Group {bias_group} : ')
+            self.log(f"   Bands : {np.unique(channels_dict[bias_group]['band'])}")
+            n_chan = len(channels_dict[bias_group]['channel'])
+            self.log("   Number of channels : "+
+                     f"{n_chan}")
+            if n_chan > 0:
+                ff = channels_dict[bias_group]['freq']
+                self.log(f"   Between freq : {np.min(ff)} and {np.max(ff)}")
+
+
+        if update_channel_assignment:
+            self.log('Updating channel assignment')
+            self.write_group_assignment(channels_dict)
 
         return channels_dict
