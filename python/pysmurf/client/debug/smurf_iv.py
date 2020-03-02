@@ -133,6 +133,7 @@ class SmurfIVMixin(SmurfBase):
             plotname_append=plotname_append, R_sh=R_sh, grid_on=grid_on,
             phase_excursion_min=phase_excursion_min,chs=channels,band=band)
 
+
     def partial_load_curve_all(self, bias_high_array, bias_low_array=None,
             wait_time=0.1, bias_step=0.1, show_plot=False, analyze=True,
             make_plot=True, save_plot=True, channels=None, overbias_voltage=None,
@@ -396,11 +397,8 @@ class SmurfIVMixin(SmurfBase):
             iv_dict['R']
 
             rn = iv_dict['R_n']
-            #idx = iv_dict['trans idxs']
-            #p_tes = iv_dict['p_tes']
             p_trans = iv_dict['p_trans']
             v_bias_target = iv_dict['v_bias_target']
-            #si = iv_dict['si']
             si_target = iv_dict['si_target']
             v_tes_target = iv_dict['v_tes_target']
 
@@ -420,9 +418,9 @@ class SmurfIVMixin(SmurfBase):
             ivs[b][ch] = iv_dict
 
         fn_iv_analyzed = basename + '_iv'
-        self.log('Writing analyzed IV data to {}.'.format(fn_iv_analyzed))
 
         path = os.path.join(output_dir, fn_iv_analyzed)
+        self.log(f'Writing analyzed IV data to {path}')
         np.save(path, ivs)
         self.pub.register_file(path, 'iv', format='npy')
 
@@ -514,6 +512,7 @@ class SmurfIVMixin(SmurfBase):
             bias_line_resistance=None, plotname_append='', **kwargs):
         """
         Analyzes the IV curve taken with slow_iv()
+
         Args:
         -----
         v_bias (float array): The commanded bias in voltage. Length n_steps
@@ -851,7 +850,7 @@ class SmurfIVMixin(SmurfBase):
         iv_dict['p_trans'] = p_trans_median
         iv_dict['v_bias_target'] = v_bias_target
         iv_dict['si'] = si
-        iv_dict['v_bias'] = v_bias
+        iv_dict['v_bias'] = v_bias_bin
         iv_dict['si_target'] = si_target
         iv_dict['v_tes_target'] = v_tes_target
         iv_dict['v_tes'] = v_tes
@@ -1058,3 +1057,90 @@ class SmurfIVMixin(SmurfBase):
         plt.savefig(hist_filename, bbox_inches='tight', dpi=300)
         self.pub.register_file(hist_filename, 'opt_efficiency', plot=True)
         plt.close()
+
+
+    def estimate_bias_voltage(self, iv_file, target_r_frac=.5,
+                              normal_resistance=None,
+                              normal_resistance_frac=.25,
+                              show_plot=False, save_plot=True,
+                              make_plot=True):
+        """
+        Attempts to estimate the bias point per bias group.
+        """
+        # Load IV summary file and raw dat file
+        iv = np.load(iv_file).item()
+        iv_raw_dat = np.load(iv_file.replace('_iv.npy',
+                                             '_iv_raw_data.npy')).item()
+
+        # Assume all ints in keys are bands
+        band = np.array([k for k in iv.keys()
+                          if np.issubdtype(type(k), np.integer)],
+                         dtype=int)
+        v_max = 0
+        
+        # Get bias groups - first index bg, second index band
+        bias_group = iv_raw_dat['bias group']
+        bg_list = {}
+        target_bias_voltage = np.zeros(len(bias_group))
+        
+        for bg in bias_group:
+            bg_list[bg] = {}
+            for b in band:
+                bg_list[bg][b] = self.get_group_list(b, bg)
+                
+        for bg in bias_group:
+            v_bias = np.array([])
+            R_n = np.array([])
+            for b in band:
+                channel = np.intersect1d(list(iv[b].keys()),
+                                         bg_list[bg][b])
+                for ch in channel:
+                    R = iv[b][ch]['R_n']
+                    if np.logical_and(R > normal_resistance * (1-normal_resistance_frac),
+                                      R < normal_resistance * (1+normal_resistance_frac)):
+                        R_frac = iv[b][ch]['R']/iv[b][ch]['R_n']
+                        dR_frac = np.abs(R_frac - target_r_frac)
+                        idx = np.where(dR_frac == np.min(dR_frac))
+                        v_bias = np.append(v_bias, iv[b][ch]['v_bias'][idx])
+                        R_n = np.append(R_n, iv[b][ch]['R_n'])
+                    v_max = np.max(iv[b][ch]['v_bias'])
+
+            if len(v_bias) > 0:
+                target_bias_voltage[bg] = np.median(v_bias)
+                    
+            # Make summary plot
+            if make_plot:
+                fig, ax = plt.subplots(2, figsize=(4,5), sharex=True)
+                for b in band:
+                    channel = np.intersect1d(list(iv[b].keys()),
+                                         bg_list[bg][b])
+                    for ch in channel:
+                        ax[0].plot(iv[b][ch]['v_bias'],
+                                iv[b][ch]['R']*1.0E3,
+                                color='k',alpha=.2)
+
+                    # ax[0].set_ylim((0, ax[0].get_ylim()[1]))
+                if len(R_n) > 0:
+                    ax[0].set_ylim((0, np.max(R_n)*1.1E3))
+                ax[0].set_ylabel('R [mOhm]')
+                if len(v_bias) > 0:
+                    ax[1].hist(v_bias,
+                                 bins=np.arange(0, v_max, .1),
+                               alpha=.5)
+
+                    ax[0].axvline(target_bias_voltage[bg], color='r',
+                                  linestyle='--')
+                    ax[1].axvline(target_bias_voltage[bg], color='r',
+                                  linestyle='--')
+                    
+                ax[1].set_xlabel(r'$V_{bias}$ [V]')
+                ax[0].set_title(f'Bias Group {bg}', fontsize=14)
+                plt.tight_layout()
+                plt.savefig(os.path.join(self.plot_dir,
+                                         iv_raw_dat['basename'] +
+                                         f'_estimate_bias_bg{bg}.png'),
+                            bbox_inches='tight')
+
+            if not show_plot:
+                plt.close(fig)
+        return target_bias_voltage
