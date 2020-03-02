@@ -1066,6 +1066,24 @@ class SmurfIVMixin(SmurfBase):
                               make_plot=True):
         """
         Attempts to estimate the bias point per bias group.
+
+        Args:
+        -----
+        iv_file (str) : Full path to an IV file.
+
+        Opt Args:
+        ---------
+        target_r_frac (float) : The target fractional resistance.
+            Default 0.5
+        normal_resistance (bool) : The expected normal resistance.
+            This is used for eliminating bad (non-transitioning)
+            TESs. This is only used if not None. Default is None.
+        normal_resisttance_frac (float) : The fractional deviation
+            from the input normal_resistance that the normal
+            resistance can deviate to be considered a good TES.
+        make_plot (bool) : Whether to make the plot. Default True.
+        show_plot (bool) : Whether to show the plot. Default False.
+        save_plot (bool) : Whether to save the plot. Default True.
         """
         # Load IV summary file and raw dat file
         iv = np.load(iv_file).item()
