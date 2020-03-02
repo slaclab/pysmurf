@@ -1074,20 +1074,20 @@ class SmurfIVMixin(SmurfBase):
 
         # Assume all ints in keys are bands
         band = np.array([k for k in iv.keys()
-                          if np.issubdtype(type(k), np.integer)],
-                         dtype=int)
+                         if np.issubdtype(type(k), np.integer)],
+                        dtype=int)
         v_max = 0
-        
+
         # Get bias groups - first index bg, second index band
         bias_group = iv_raw_dat['bias group']
         bg_list = {}
         target_bias_voltage = np.zeros(len(bias_group))
-        
+
         for bg in bias_group:
             bg_list[bg] = {}
             for b in band:
                 bg_list[bg][b] = self.get_group_list(b, bg)
-                
+
         for bg in bias_group:
             v_bias = np.array([])
             R_n = np.array([])
@@ -1107,10 +1107,10 @@ class SmurfIVMixin(SmurfBase):
 
             if len(v_bias) > 0:
                 target_bias_voltage[bg] = np.median(v_bias)
-                    
+
             # Make summary plot
             if make_plot:
-                fig, ax = plt.subplots(2, figsize=(4,5), sharex=True)
+                fig, ax = plt.subplots(2, figsize=(4,4), sharex=True)
                 for b in band:
                     channel = np.intersect1d(list(iv[b].keys()),
                                          bg_list[bg][b])
@@ -1124,17 +1124,27 @@ class SmurfIVMixin(SmurfBase):
                     ax[0].set_ylim((0, np.max(R_n)*1.1E3))
                 ax[0].set_ylabel('R [mOhm]')
                 if len(v_bias) > 0:
-                    ax[1].hist(v_bias,
-                                 bins=np.arange(0, v_max, .1),
+                    ax[1].hist(v_bias, bins=np.arange(0, v_max, .1),
                                alpha=.5)
 
                     ax[0].axvline(target_bias_voltage[bg], color='r',
                                   linestyle='--')
                     ax[1].axvline(target_bias_voltage[bg], color='r',
                                   linestyle='--')
-                    
+
                 ax[1].set_xlabel(r'$V_{bias}$ [V]')
-                ax[0].set_title(f'Bias Group {bg}', fontsize=14)
+                ax[0].set_title(f'Bias Group {bg}', fontsize=12)
+
+                # Label high/low current mode
+                if iv['high_current_mode']:
+                    text_label = 'High current\n'
+                else:
+                    text_label = 'Low current\n'
+                text_label += f'Bias: {target_bias_voltage[bg]:2.2f}'
+                ax[1].text(0.97, .97, text_label,
+                           transform=ax[1].transAxes,
+                           ha='right', va='top')
+
                 plt.tight_layout()
                 plt.savefig(os.path.join(self.plot_dir,
                                          iv_raw_dat['basename'] +
