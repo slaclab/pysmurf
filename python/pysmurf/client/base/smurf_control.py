@@ -25,8 +25,8 @@ from pysmurf.client.debug.smurf_noise import SmurfNoiseMixin as SmurfNoiseMixin
 from pysmurf.client.debug.smurf_iv import SmurfIVMixin as SmurfIVMixin
 from pysmurf.client.base.smurf_config import SmurfConfig as SmurfConfig
 
-class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin, SmurfTuneMixin,
-        SmurfNoiseMixin, SmurfIVMixin):
+class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin, 
+        SmurfTuneMixin, SmurfNoiseMixin, SmurfIVMixin):
     '''
     Base class for controlling Smurf. Loads all the mixins.
     '''
@@ -91,7 +91,7 @@ class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin, Smu
     def initialize(self, cfg_file, data_dir=None, name=None,
                    make_logfile=True, setup=False,
                    smurf_cmd_mode=False, no_dir=False, publish=False,
-                   **kwargs):
+                   payload_size=2048, **kwargs):
         '''
         Initizializes SMuRF with desired parameters set in experiment.cfg.
         Largely stolen from a Cyndia/Shawns SmurfTune script
@@ -273,7 +273,7 @@ class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin, Smu
             self.bad_mask[i] = bm_config[k]
 
         # Which MicrowaveMuxCore[#] blocks are being used?
-        self.bays=None
+        self.bays = None
 
         # Dictionary for frequency response
         self.freq_resp = {}
@@ -284,8 +284,8 @@ class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin, Smu
         smurf_init_config = self.config.get('init')
         bands = smurf_init_config['bands']
         # Load in tuning parameters, if present
-        tune_band_cfg=self.config.get('tune_band')
-        tune_band_keys=tune_band_cfg.keys()
+        tune_band_cfg = self.config.get('tune_band')
+        tune_band_keys = tune_band_cfg.keys()
         self.lms_gain = {}
         for b in bands:
             # Make band dictionaries
@@ -309,12 +309,12 @@ class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin, Smu
                     getattr(self,cfg_var)[b]=tune_band_cfg[cfg_var][str(b)]
 
         if setup:
-            self.setup(**kwargs)
+            self.setup(payload_size=payload_size, **kwargs)
 
         # initialize outputs cfg
         self.config.update('outputs', {})
 
-    def setup(self, write_log=True, **kwargs):
+    def setup(self, write_log=True, payload_size=2048, **kwargs):
         """
         Sets the PVs to the default values from the experiment.cfg file
         """
@@ -469,12 +469,14 @@ class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin, Smu
         self.set_stream_enable(1, write_log=write_log)
 
         # Set mask file to empty array and payload size
-        self.set_payload_size(2048)
+        self.set_payload_size(payload_size)
         self.set_channel_mask([])
 
         self.set_amplifier_bias(write_log=write_log)
         self.get_amplifier_bias()
-        self.log("Cryocard temperature = "+ str(self.C.read_temperature())) # also read the temperature of the CC
+
+        # also read the temperature of the CC
+        self.log("Cryocard temperature = "+ str(self.C.read_temperature()))
 
         # if no timing section present, assumes your defaults.yml
         # has set you up...good luck.
@@ -485,7 +487,7 @@ class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin, Smu
             timing_options=['ext_ref','backplane']
             assert (timing_reference in timing_options), 'timing_reference in cfg file (={}) not in timing_options={}'.format(timing_reference,str(timing_options))
 
-            self.log('Configuring the system to take timing from {}'.format(timing_reference))
+            self.log(f'Configuring the system to take timing from {timing_reference}')
 
             if timing_reference=='ext_ref':
                 for bay in self.bays:
@@ -493,7 +495,7 @@ class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin, Smu
                     self.sel_ext_ref(bay)
 
                 # make sure RTM knows there's no timing system
-                self.set_ramp_start_mode(0,write_log=write_log)
+                self.set_ramp_start_mode(0, write_log=write_log)
 
             # https://confluence.slac.stanford.edu/display/SMuRF/Timing+Carrier#TimingCarrier-Howtoconfiguretodistributeoverbackplanefromslot2
             if timing_reference=='backplane':
