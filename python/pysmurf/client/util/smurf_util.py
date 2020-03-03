@@ -2415,7 +2415,7 @@ class SmurfUtilMixin(SmurfBase):
 
         # on cryostat card
         hemt_Vd_series_resistor=200  #Ohm
-        hemt_Id_mA=2.*1000.*self.get_cryo_card_hemt_bias()/
+        hemt_Id_mA=2.*1000.*self.get_cryo_card_hemt_bias()/ \
             hemt_Vd_series_resistor - self._hemt_Id_offset
 
         return hemt_Id_mA
