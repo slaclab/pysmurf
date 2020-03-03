@@ -1056,6 +1056,8 @@ class SmurfUtilMixin(SmurfBase):
                     # Cast as type int instead of numpy.int64
                     val += int(header[f'tes_byte_{byte}'][i]) << idx*8
 
+                # https://github.com/slaclab/pysmurf/blob/master/README.SmurfPacket.md
+                # Dealing with the 16x20 bit in 10x32 bit words. 
                 tmp = (val >> base_bit) & 0xFFFFF
                 if tmp & 0x80000:
                     tmp |= 0xF00000
