@@ -2065,7 +2065,8 @@ class SmurfTuneMixin(SmurfBase):
 
     def tracking_setup(self, band, channel=None, reset_rate_khz=None,
             write_log=False, make_plot=False, save_plot=True, show_plot=True,
-            nsamp=2**19, lms_freq_hz=None, meas_lms_freq=False, flux_ramp=True,
+            nsamp=2**19, lms_freq_hz=None, meas_lms_freq=False,
+            meas_flux_ramp_amp=False, n_phi0=4, flux_ramp=True,
             fraction_full_scale=None, lms_enable1=True, lms_enable2=True,
             lms_enable3=True, lms_gain=None, return_data=True,
             new_epics_root=None, feedback_start_frac=None,
@@ -2162,12 +2163,21 @@ class SmurfTuneMixin(SmurfBase):
         else:
             self.fraction_full_scale = fraction_full_scale
 
-        # Switched to a more stable estimator
+        # Measure either LMS freq or the flux ramp amplitude
         if lms_freq_hz is None:
-            if meas_lms_freq:
+            if meas_lms_freq and meas_flux_ramp_amp:
+                self.log('Requested measurement of both LMS freq '+
+                         'and flux ramp amplitude. Cannot do both.',
+                         self.LOG_ERROR)
+                return None, None, None
+            elif meas_lms_freq:
                 lms_freq_hz = self.estimate_lms_freq(band,
                     reset_rate_khz,fraction_full_scale=fraction_full_scale,
                     channel=channel)
+            elif meas_flux_ramp_amp:
+                fraction_full_scale = self.estimate_flux_ramp_amp(band,
+                    n_phi0,reset_rate_khz=reset_rate_khz, channel=channel)
+                lms_freq_hz = reset_rate_khz * n_phi0 * 1.0E3
             else:
                 lms_freq_hz = self.config.get('tune_band').get('lms_freq')[str(band)]
             self.lms_freq_hz[band] = lms_freq_hz
@@ -2236,7 +2246,7 @@ class SmurfTuneMixin(SmurfBase):
             # Intersection of channels that are on and have some flux ramp resp
             channels_on = list(set(df_channels) & set(self.which_on(band)))
 
-            self.log(f"Number of channels on : {self.which_on(band)}",
+            self.log(f"Number of channels on : {len(self.which_on(band))}",
                      self.LOG_USER)
             self.log("Number of channels on with flux ramp "+
                 f"response : {len(channels_on)}", self.LOG_USER)
@@ -3363,10 +3373,69 @@ class SmurfTuneMixin(SmurfBase):
             reset_rate_khz=reset_rate_khz, lms_freq_hz=0,
             new_epics_root=new_epics_root)
 
-        s = self.flux_mod2(band, df, sync, make_plot=make_plot, channel=channel)
+        s = self.flux_mod2(band, df, sync,
+                           make_plot=make_plot, channel=channel)
 
         self.set_feedback_enable(band, old_feedback)
         return reset_rate_khz * s * 1000  # convert to Hz
+
+
+    def estimate_flux_ramp_amp(self, band, n_phi0, write_log=True,
+                               reset_rate_khz=None,
+                               new_epics_root=None, channel=None):
+        """
+        This is like estimate_lms_freq, except it changes the
+        flux ramp amplitude instead of the flux ramp frequency.
+
+        Args:
+        -----
+        band (int) : The beand to measure
+        n_phi0 (float) : The number of phi0 desired per flux
+            ramp cycle. It is recommended, but not required that
+            this is an integer.
+
+        Opt Args:
+        ---------
+        write_log (bool) : Whether to write log messages. Default True.
+        reset_rate_khz (bool) : The reset (or flux ramp cycle) frequency
+            in kHz. If None, reads the current value. Default is None.
+        channel (int array) : The channels to use to estimate the
+            amplitude. If None, uses all channels that are on. Default
+            None.
+        """
+        start_fraction_full_scale = self.get_fraction_full_scale()
+        if write_log:
+            self.log('Starting fraction full scale : '+
+                     f'{start_fraction_full_scale:1.3f}')
+
+        if reset_rate_khz is None:
+            reset_rate_khz = self.get_flux_ramp_freq()
+
+        # Get old feedback status to reset it at the end
+        old_feedback = self.get_feedback_enable(band)
+        self.set_feedback_enable(band, 0)
+
+        f, df, sync = self.tracking_setup(band, 0, make_plot=False,
+            flux_ramp=True, fraction_full_scale=start_fraction_full_scale,
+            reset_rate_khz=reset_rate_khz, lms_freq_hz=0,
+            new_epics_root=new_epics_root)
+
+        # Set feedback to original value
+        self.set_feedback_enable(band, old_feedback)
+
+        # The estimated phi0 cycles per flux ramp cycle
+        s = self.flux_mod2(band, df, sync, channel=channel)
+
+        new_fraction_full_scale = start_fraction_full_scale * n_phi0 / s
+
+        # Amplitude must be less than 1
+        if new_fraction_full_scale >= 1:
+            self.log('Estimated fraction full scale too high: '+
+                     f'{new_fraction_full_scale:2.4f}')
+            self.log('Returning original value.')
+            return start_fraction_full_scale
+        else:
+            return new_fraction_full_scale
 
 
     def flux_mod2(self, band, df, sync, min_scale=0, make_plot=False,
