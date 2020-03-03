@@ -1033,6 +1033,7 @@ class SmurfUtilMixin(SmurfBase):
         ---------
         as_volt (bool): Whether to return the data as voltage. If
             False, returns as DAC units. Default True.
+        n_tes_bias (int) : The number of TES bias pairs. Default 15.
 
         Ret:
         ----
