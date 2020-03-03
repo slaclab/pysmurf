@@ -56,13 +56,11 @@ class SmurfUtilMixin(SmurfBase):
         # Set proper single channel readout
         if channel is not None:
             if single_channel_readout == 1:
-                self.set_single_channel_readout(band, 1, write_log=write_log)
-                self.set_single_channel_readout_opt2(band, 0,
-                    write_log=write_log)
+                self.set_single_channel_readout(band, 1)
+                self.set_single_channel_readout_opt2(band, 0)
             elif single_channel_readout == 2:
-                self.set_single_channel_readout(band, 0, write_log=write_log)
-                self.set_single_channel_readout_opt2(band, 1,
-                    write_log=write_log)
+                self.set_single_channel_readout(band, 0)
+                self.set_single_channel_readout_opt2(band, 1)
             else:
                 self.log('single_channel_readout must be 1 or 2',
                     self.LOG_ERROR)
@@ -74,9 +72,9 @@ class SmurfUtilMixin(SmurfBase):
 
         # Set IQstream
         if IQstream==1:
-            self.set_iq_stream_enable(band, 1, write_log=write_log)
+            self.set_iq_stream_enable(band, 1)
         else:
-            self.set_iq_stream_enable(band, 0, write_log=write_log)
+            self.set_iq_stream_enable(band, 0)
 
         # set filename
         if filename is not None:
@@ -106,7 +104,7 @@ class SmurfUtilMixin(SmurfBase):
         bay=self.band_to_bay(band)
         self.set_trigger_daq(bay, 1, write_log=True) # this seems to = TriggerDM
 
-        time.sleep(1) # maybe unnecessary
+        time.sleep(.1) # maybe unnecessary
 
         done=False
         while not done:
@@ -122,11 +120,9 @@ class SmurfUtilMixin(SmurfBase):
                     done=False
             time.sleep(1)
 
-        time.sleep(1) # do we need all of these?
-        self.log('Finished acquisition', self.LOG_USER)
+        time.sleep(.25) # do we need all of these?
 
-        self.log('Closing file...', self.LOG_USER)
-        #self.set_streamdatawriter_open('false')
+        # Close the streamdatawriter
         self.set_streamdatawriter_close(True)
 
         self.log('Done taking data', self.LOG_USER)
@@ -642,7 +638,9 @@ class SmurfUtilMixin(SmurfBase):
         return f, df, flux_ramp_strobe
 
     def take_stream_data(self, meas_time, downsample_factor=None,
-                         write_log=True, make_freq_mask=True):
+                         write_log=True, update_payload_size=True,
+                         reset_unwrapper=True, reset_filter=True,
+                         return_data=False, make_freq_mask=True):
         """
         Takes streaming data for a given amount of time
 
@@ -655,7 +653,21 @@ class SmurfUtilMixin(SmurfBase):
         Opt Args:
         ---------
         downsample_factor (int) : The number of fast sample (the flux ramp
-            reset rate - typically 4kHz) to skip between reporting.
+            reset rate - typically 4kHz) to skip between reporting. If None,
+            does not update.
+        write_log (bool) : Whether to write to the log file. Default True.
+        update_payload_size (bool) : Whether to update the payload size
+            (the number of channels written to disk). If the number of channels
+            on is greater than the payload size, then only the first N channels
+            are written. This bool will update the payload size to be the same
+            as the number of channels on across all bands)
+        reset_unwrapper (bool) : Whether to reset the unwrapper before
+            taking data.
+        reset_filter (bool) : Whether to reset the filter before
+            taking data.
+        return_data (bool) : Whether to return the data. If False, returns
+            the full path to the data. Default False.
+
 
         Returns:
         --------
@@ -664,18 +676,30 @@ class SmurfUtilMixin(SmurfBase):
         if write_log:
             self.log('Starting to take data.', self.LOG_USER)
         data_filename = self.stream_data_on(downsample_factor=downsample_factor,
-                                            write_log=write_log,
-                                            make_freq_mask=make_freq_mask)
+            update_payload_size=update_payload_size, write_log=write_log,
+            reset_unwrapper=reset_unwrapper, reset_filter=reset_filter,
+            make_freq_mask=make_freq_mask)
+
+        # Sleep for the full measurement time
         time.sleep(meas_time)
+
+        # Stop acq
         self.stream_data_off(write_log=write_log)
+
         if write_log:
             self.log('Done taking data.', self.LOG_USER)
-        return data_filename
+
+        if return_data:
+            t, d, m = self.read_stream_data(data_filename)
+            return t, d, m
+        else:
+            return data_filename
 
 
     def stream_data_on(self, write_config=False, data_filename=None,
                        downsample_factor=None, write_log=True,
-                       make_freq_mask=True):
+                       update_payload_size=True, reset_filter=True,
+                       reset_unwrapper=True, make_freq_mask=True):
         """
         Turns on streaming data.
 
@@ -685,9 +709,18 @@ class SmurfUtilMixin(SmurfBase):
             is False. Warning this can be slow.
         data_filename (str) : The full path to store the data. If None, it
             uses the timestamp.
-        downsample_factor (int) : The number of flux_ramp cycles to average
-            over before writing data out.
-        write_log (bool) : Whether to write outputs to the log.
+        write_log (bool) : Whether to write to the log file. Default True.
+        update_payload_size (bool) : Whether to update the payload size
+            (the number of channels written to disk). If the number of channels
+            on is greater than the payload size, then only the first N channels
+            are written. This bool will update the payload size to be the same
+            as the number of channels on across all bands)
+        downsample_factor (int) : The number of fast samples to skip between
+            sending.
+        reset_unwrapper (bool) : Whether to reset the unwrapper before
+            taking data.
+        reset_filter (bool) : Whether to reset the filter before
+            taking data.
         make_freq_mask (bool) : Whether to write a text file with resonator
             frequencies. Default True.
 
@@ -705,6 +738,20 @@ class SmurfUtilMixin(SmurfBase):
                 self.log('Input downsample factor is None. Using '+
                      'value already in pyrogue:'+
                      f' {downsample_factor}')
+
+        # Check payload size
+        n_chan_in_mask = len(self.get_channel_mask())
+        payload_size = self.get_payload_size()
+        if n_chan_in_mask > payload_size:
+            if update_payload_size:
+                self.log('Updating payload size')
+                self.set_payload_size(n_chan_in_mask,
+                                      write_log=write_log)
+            else:
+                self.log('Warning : The payload size is smaller than ' +
+                         'the number of channels that are on. Only ' +
+                         f'writing the first {payload_size} channels. ')
+
 
         # Check if flux ramp is non-zero
         ramp_max_cnt = self.get_ramp_max_cnt()
@@ -732,6 +779,14 @@ class SmurfUtilMixin(SmurfBase):
             # to avoid transient filter step
             self.set_stream_enable(1, write_log=False,
                                    wait_done=True)
+
+            if reset_unwrapper:
+                self.set_unwrapper_reset(write_log=write_log)
+            if reset_filter:
+                self.set_filter_reset(write_log=write_log)
+            if reset_unwrapper or reset_filter:
+                time.sleep(.1)
+
 
             # Make the data file
             timestamp = self.get_timestamp()
@@ -789,11 +844,14 @@ class SmurfUtilMixin(SmurfBase):
 
     def read_stream_data(self, datafile, channel=None,
                          n_samp=None, array_size=None,
-                         make_freq_mask=False):
+                         return_header=False,
+                         return_tes_bias=False, write_log=True,
+                         n_max=2048, make_freq_mask=False):
         """
-        Loads data taken with the fucntion stream_data_on.
-
-        To do : return header rather than just timestamp2
+        Loads data taken with the function stream_data_on.
+        Gives back the resonator data in units of phase. Also
+        can optionally return the header (which has things
+        like the TES bias).
 
         Args:
         -----
@@ -803,35 +861,39 @@ class SmurfUtilMixin(SmurfBase):
         ---------
         channel (int or int array): Channels to load.
         n_samp (int) : The number of samples to read.
-        array_size (int) : The size of the output arrays. If 0, then the size
-                           will be the number of channels in the data file.
+        array_size (int) : The size of the output arrays. If 0, then
+            the size will be the number of channels in the data file.
+        return_header (bool) : Whether to also read in the header
+            and return the header data. Returning the full header
+            is slow for large files. This overrides return_tes_bias.
+        return_tes_bias (bool) : Whether to return the TES bias.
+        write_log (bool) : Whether to write outputs to the log
+            file. Default True.
+        n_max (int) : The number of elements to read in before appending
+            the datafile. This is just for speed.
 
         Ret:
         ----
         t (float array): The timestamp data
         d (float array): The resonator data in units of phi0
         m (int array): The maskfile that maps smurf num to gcp num
+        h (dict) : A dictionary with the header information.
         """
         try:
             datafile = glob.glob(datafile+'*')[-1]
         except BaseException:
             self.log(f'datafile={datafile}')
 
-        self.log(f'Reading {datafile}')
+        if write_log:
+            self.log(f'Reading {datafile}')
 
         if channel is not None:
             self.log('Only reading channel {}'.format(channel))
-
-        eval_n_samp = False
-        if n_samp is not None:
-            eval_n_samp = True
-
 
         # Flag to indicate we are about the read the fist frame from the disk
         # The number of channel will be extracted from the first frame and the
         # data structures will be build based on that
         first_read = True
-
         with SmurfStreamReader(datafile,
                 isRogue=True, metaEnable=True) as file:
             for header, data in file.records():
@@ -852,27 +914,81 @@ class SmurfUtilMixin(SmurfBase):
                         channel_mask[i] = c
 
                     # Make holder arrays for phase and timestamp
-                    phase = np.zeros((1,n_chan))
-                    phase[0] = data
-                    t = np.array(header.timestamp)
+                    tmp_phase = np.atleast_2d(data)
+                    tmp_t = np.array(header.timestamp)
+                    phase = np.zeros((0, len(channel)))
+                    if return_header or return_tes_bias:
+                        tmp_tes_bias = np.array(header.tesBias)
+                        tes_bias = np.zeros((0,16))
+
+                    t = np.array([])
+
+                    # Get header values if requested
+                    if return_header or return_tes_bias:
+                        tmp_header_dict = {}
+                        header_dict = {}
+                        for i, h in enumerate(header._fields):
+                            tmp_header_dict[h] = np.array(header[i])
+                            header_dict[h] = np.array([],
+                                                      dtype=type(header[i]))
+                        tmp_header_dict['tes_bias'] = np.array([header.tesBias])
+
+
+                    # Already loaded 1 element
                     counter = 1
                 else:
-                    phase = np.vstack((phase, data))
-                    t = np.append(t, header.timestamp)
+                    tmp_phase = np.vstack((tmp_phase, data))
+                    tmp_t = np.append(tmp_t, header.timestamp)
 
-                    if counter % 2000 == 2000 - 1 :
-                        self.log('{} elements loaded'.format(counter+1))
+                    if return_header or return_tes_bias:
+                        for i, h in enumerate(header._fields):
+                            tmp_header_dict[h] = np.append(tmp_header_dict[h],
+                                                       header[i])
+                        tmp_tes_bias = np.vstack((tmp_tes_bias, header.tesBias))
 
-                    counter = counter + 1
+                    if counter % n_max == n_max - 1:
+                        if write_log:
+                            self.log(f'{counter+1} elements loaded')
+                        phase = np.vstack((phase, tmp_phase))
+                        t = np.append(t, tmp_t)
+                        tmp_phase = np.zeros((0, len(channel)))
+                        tmp_t = np.array([])
 
-                if eval_n_samp:
-                    if counter >= n_samp:
-                        self.log(f'Loaded {n_samp} samples. Stopping.')
-                        break
+                        if return_header:
+                            for k in header_dict.keys():
+                                header_dict[k] = np.append(header_dict[k],
+                                                           tmp_header_dict[k])
+                                tmp_header_dict[k] = \
+                                    np.array([],
+                                             dtype=type(header_dict[k][0]))
+                            print(np.shape(tes_bias), np.shape(tmp_tes_bias))
+                            tes_bias = np.vstack((tes_bias, tmp_tes_bias))
+                            tmp_tes_bias = np.zeros((0, 16))
 
+                        elif return_tes_bias:
+                            tes_bias = np.vstack((tes_bias, tmp_tes_bias))
+                            tmp_tes_bias = np.zeros((0, 16))
 
+                    counter += 1
+
+        # Get the last temp block
+        phase = np.vstack((phase, tmp_phase))
+        t = np.append(t, tmp_t)
+        if return_header:
+            for k in header_dict.keys():
+                header_dict[k] = np.append(header_dict[k],
+                    tmp_header_dict[k])
+            tes_bias = np.vstack((tes_bias, tmp_tes_bias))
+            tes_bias = np.transpose(tes_bias)
+
+        elif return_tes_bias:
+            tes_bias = np.vstack((tes_bias, tmp_tes_bias))
+            tes_bias = np.transpose(tes_bias)
+
+        # rotate and transform to phase
         phase = np.squeeze(phase.T)
-        phase = phase.astype(float) / 2**15 * np.pi # where is decimal?  Is it in rad?
+        phase = phase.astype(float) / 2**15 * np.pi
+
 
         # make a mask from mask file
         if ".dat.part" in datafile:
@@ -886,7 +1002,75 @@ class SmurfUtilMixin(SmurfBase):
         if array_size is not None:
             phase.resize(array_size, phase.shape[1])
 
-        return t, phase, mask
+        if return_header:
+            header_dict['tes_bias'] = tes_bias
+            return t, phase, mask, header_dict
+        elif return_tes_bias:
+            return t, phase, mask, tes_bias
+        else:
+            return t, phase, mask
+
+
+    def header_to_tes_bias(self, header, as_volt=True,
+                           n_tes_bias=15):
+        """
+        Takes the SmurfHeader returned from read_stream_data
+        and turns it to a TES bias. The header is a 20 field,
+        and each DAC is 18 bits signed. So the output of the
+        data in the header is (dac_b - dac_a)/2. This function
+        also takes care of the factor of 2 in the denominator.
+
+        Args:
+        -----
+        header (dict) : The header dictionary from read_stream_data.
+            This includes all the tes_byte data.
+
+        Opt Args:
+        ---------
+        as_volt (bool): Whether to return the data as voltage. If
+            False, returns as DAC units. Default True.
+        n_tes_bias (int) : The number of TES bias pairs. Default 15.
+
+        Ret:
+        ----
+        bias (int array) : The tes bias data. (dac_b - dac_a) in
+            voltage or DAC units depending on the as_volt opt arg.
+        """
+        # Numbr of total elements
+        n_els = len(header['tes_byte_0'])
+
+        # Pre-allocate array
+        bias = np.zeros((n_tes_bias, n_els))
+
+        # Iterate over bias groups
+        for bias_group in np.arange(n_tes_bias):
+            base_byte = int((bias_group*20) / 8)
+            base_bit = int((bias_group*20) % 8)
+            for i in np.arange(n_els):
+                val = 0
+                for idx, byte in enumerate(range(base_byte, base_byte+3)):
+                    # Cast as type int instead of numpy.int64
+                    val += int(header[f'tes_byte_{byte}'][i]) << idx*8
+
+                # https://github.com/slaclab/pysmurf/blob/master/README.SmurfPacket.md
+                # Dealing with the 16x20 bit in 10x32 bit words.
+                tmp = (val >> base_bit) & 0xFFFFF
+                if tmp & 0x80000:
+                    tmp |= 0xF00000
+
+                # Cast data into int
+                ba = tmp.to_bytes(3, byteorder='little', signed=False)
+                bias[bias_group,i] = int.from_bytes(ba, byteorder='little',
+                                                    signed=True)
+
+        # Take care of factor of 2 thrown away in writing to the header
+        bias *= 2
+
+        # Cast as voltage.
+        if as_volt:
+            bias *= self._rtm_slow_dac_bit_to_volt
+
+        return bias
 
 
     def make_mask_lookup(self, mask_file, mask_channel_offset=0,
@@ -3415,7 +3599,7 @@ class SmurfUtilMixin(SmurfBase):
                              probe_amp=.1,
                              bias_groups=None, make_plot=False,
                              show_plot=False, save_plot=True,
-                             cutoff_frac=.05):
+                             cutoff_frac=.05, update_channel_assignment=True):
         """
         Identify bias groups of all the channels that are on. Plays
         a sine wave on a bias group and looks for a response. Does
@@ -3434,6 +3618,9 @@ class SmurfUtilMixin(SmurfBase):
         make_plot (bool) : Whether to make the plot. Default False.
         save_plot (bool) : Whether to save the plot. Default True.
         show_plot (bool) : Whether to show the plot. Default False
+        update_channel_assignment (bool): Whether to update the
+            master channels assignment to contain the new bias group
+            information. Default True.
 
         Ret:
         ----
@@ -3577,5 +3764,20 @@ class SmurfUtilMixin(SmurfBase):
 
         # To do - add a check for band, channels that are on two different
         # bias groups.
+
+        for bias_group in bias_groups:
+            self.log(f'Bias Group {bias_group} : ')
+            self.log(f"   Bands : {np.unique(channels_dict[bias_group]['band'])}")
+            n_chan = len(channels_dict[bias_group]['channel'])
+            self.log("   Number of channels : "+
+                     f"{n_chan}")
+            if n_chan > 0:
+                ff = channels_dict[bias_group]['freq']
+                self.log(f"   Between freq : {np.min(ff)} and {np.max(ff)}")
+
+
+        if update_channel_assignment:
+            self.log('Updating channel assignment')
+            self.write_group_assignment(channels_dict)
 
         return channels_dict

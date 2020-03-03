@@ -26,13 +26,19 @@ from matplotlib.gridspec import GridSpec
 class SmurfNoiseMixin(SmurfBase):
 
     def take_noise_psd(self, meas_time,
-            channel=None, nperseg=2**12,
-            detrend='constant', fs=None, low_freq=np.array([.1, 1.]),
-            high_freq=np.array([1., 10.]), make_channel_plot=True,
-            make_summary_plot=True, plotname_append='',
-            save_data=False, show_plot=False,
-            grid_on=False, datafile=None, downsample_factor=None,
-            write_log=True):
+                       channel=None, nperseg=2**12,
+                       detrend='constant', fs=None,
+                       low_freq=np.array([.1, 1.]),
+                       high_freq=np.array([1., 10.]),
+                       make_channel_plot=True,
+                       make_summary_plot=True, save_data=False,
+                       show_plot=False,
+                       grid_on=False, datafile=None,
+                       downsample_factor=None,
+                       write_log=True, reset_filter=True,
+                       reset_unwrapper=True,
+                       return_noise_params=False,
+                       plotname_append=''):
         """
         Takes a timestream of noise and calculates its PSD. It also
         attempts to fit a white noise and 1/f component to the data.
@@ -68,11 +74,20 @@ class SmurfNoiseMixin(SmurfBase):
             the downsample_factor.
         write_log (bool) : Whether to write to the log file (or the screen
             if the logfile is not defined). Default is True.
+        reset_unwrapper (bool) : Whether to reset the unwrapper before
+            taking data.
+        reset_filter (bool) : Whether to reset the filter before taking data.
+
+        Ret:
+        ----
+        datafile (str) : The full path to the raw data.
         """
         if datafile is None:
             datafile = self.take_stream_data(meas_time,
                                              downsample_factor=downsample_factor,
-                                             write_log=write_log)
+                                             write_log=write_log,
+                                             reset_unwrapper=reset_unwrapper,
+                                             reset_filter=reset_filter)
         else:
             self.log(f'Reading data from {datafile}')
 
@@ -99,7 +114,7 @@ class SmurfNoiseMixin(SmurfBase):
         # flux ramp freq
         downsample_freq, downsample_transfer = signal.freqz(filter_b,
             filter_a, worN=np.arange(.01, fs/2, .01), fs=flux_ramp_freq)
-        downsample_transfer = np.abs(downsample_transfer)**2
+        downsample_transfer = np.abs(downsample_transfer)
 
         if write_log:
             self.log(f'Plotting {bands}, {channels}', self.LOG_USER)
@@ -285,7 +300,11 @@ class SmurfNoiseMixin(SmurfBase):
                 else:
                     plt.close()
 
-        return datafile
+        if return_noise_params:
+            return datafile, (res_freqs,noise_floors,f_knees)
+
+        else:
+            return datafile
 
     def turn_off_noisy_channels(self, band, noise, cutoff=150):
         """
@@ -1161,7 +1180,7 @@ class SmurfNoiseMixin(SmurfBase):
 
             # The downsample filter is at the flux ramp frequency
             w, h = signal.freqz(b, a, worN=freq, fs=flux_ramp_freq)
-            tf = np.absolute(h)**2 # filter transfer function
+            tf = np.absolute(h) # filter transfer function
 
             return (A/(freq**n) + wl)*tf
 
