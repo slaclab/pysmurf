@@ -37,7 +37,6 @@ import pysmurf.client
 band = args.band
 status = {}
 status["band"] = band
-status["setup"] = args.setup
 
 # Initialize
 S = pysmurf.client.SmurfControl(epics_root=args.epics_root,
@@ -49,12 +48,14 @@ print("All outputs going to: ")
 print(S.output_dir)
 
 # Setup
+status["setup"] = args.setup
 if args.setup:
     S.setup()
 
 # Get amplifier biases
 S.set_amplifier_bias(write_log=True)
 S.C.write_ps_en(11)
+status['amplifier'] = S.get_amplifier_bias()
 
 # full band response
 S.full_band_resp(2, make_plot=True, save_plot=True,
