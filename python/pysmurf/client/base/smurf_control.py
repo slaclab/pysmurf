@@ -25,30 +25,25 @@ from pysmurf.client.debug.smurf_noise import SmurfNoiseMixin as SmurfNoiseMixin
 from pysmurf.client.debug.smurf_iv import SmurfIVMixin as SmurfIVMixin
 from pysmurf.client.base.smurf_config import SmurfConfig as SmurfConfig
 
-class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin, SmurfTuneMixin,
-        SmurfNoiseMixin, SmurfIVMixin):
+class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin,
+        SmurfTuneMixin, SmurfNoiseMixin, SmurfIVMixin):
     '''
     Base class for controlling Smurf. Loads all the mixins.
     '''
 
     def __init__(self, epics_root=None,
-                 cfg_file=None,
-                 data_dir=None, name=None, make_logfile=True,
+                 cfg_file=None, data_dir=None, name=None, make_logfile=True,
                  setup=False, offline=False, smurf_cmd_mode=False,
                  no_dir=False, shelf_manager='shm-smrf-sp01',
                  validate_config=True, **kwargs):
         '''
         Initializer for SmurfControl.
 
-        Args:
-        -----
-        epics_root (string) : The epics root to be used. Default mitch_epics
-        cfg_file (string) : Config file path. Default is None. Must be provided
-            if not on offline mode.
-        data_dir (string) : Path to the data dir
-
         Opt Args:
         ----------
+        epics_root (string) : The epics root to be used. Default None.
+        cfg_file (string) : Config file path. Default is None. Must be provided
+            if not on offline mode.
         data_dir (str) : Path to the data directory
         name (str) : The name of the output directory. If None, it will use
             the current timestamp as the output directory name. Default is None.
@@ -88,13 +83,38 @@ class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin, Smu
                 name=name, make_logfile=make_logfile, setup=setup,
                 smurf_cmd_mode=smurf_cmd_mode, no_dir=no_dir, **kwargs)
 
+
     def initialize(self, cfg_file, data_dir=None, name=None,
                    make_logfile=True, setup=False,
                    smurf_cmd_mode=False, no_dir=False, publish=False,
-                   **kwargs):
+                   payload_size=2048, **kwargs):
         '''
         Initizializes SMuRF with desired parameters set in experiment.cfg.
-        Largely stolen from a Cyndia/Shawns SmurfTune script
+
+
+        Args:
+        -----
+        epics_root (string) : The epics root to be used.
+
+        Opt Args:
+        ----------
+
+        cfg_file (string) : Config file path. Default is None. Must be provided
+            if not on offline mode.
+        data_dir (str) : Path to the data directory
+        name (str) : The name of the output directory. If None, it will use
+            the current timestamp as the output directory name. Default is None.
+        make_logfile (bool) : Whether to make a log file. If False, outputs will
+            go to the screen.
+        setup (bool) : Whether to run the setup step. Default is False.
+        smurf_cmd_mode (bool) : This mode tells the system that the input is
+            coming in from the command line (rather than a python session).
+            Everything implemented here are in smurf_cmd.py. Default is False.
+        no_dir (bool) : Whether to make a skip making a directory. Default is
+            False.
+        publish (bool) : Whether to send the OCE publishe messages. Default
+            False.
+        payload_size (int) : The payload size to set on setup. Default 2048.
         '''
 
         if no_dir:
@@ -273,7 +293,7 @@ class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin, Smu
             self.bad_mask[i] = bm_config[k]
 
         # Which MicrowaveMuxCore[#] blocks are being used?
-        self.bays=None
+        self.bays = None
 
         # Dictionary for frequency response
         self.freq_resp = {}
@@ -284,8 +304,8 @@ class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin, Smu
         smurf_init_config = self.config.get('init')
         bands = smurf_init_config['bands']
         # Load in tuning parameters, if present
-        tune_band_cfg=self.config.get('tune_band')
-        tune_band_keys=tune_band_cfg.keys()
+        tune_band_cfg = self.config.get('tune_band')
+        tune_band_keys = tune_band_cfg.keys()
         self.lms_gain = {}
         for b in bands:
             # Make band dictionaries
@@ -309,14 +329,19 @@ class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin, Smu
                     getattr(self,cfg_var)[b]=tune_band_cfg[cfg_var][str(b)]
 
         if setup:
-            self.setup(**kwargs)
+            self.setup(payload_size=payload_size, **kwargs)
 
         # initialize outputs cfg
         self.config.update('outputs', {})
 
-    def setup(self, write_log=True, **kwargs):
+    def setup(self, write_log=True, payload_size=2048, **kwargs):
         """
         Sets the PVs to the default values from the experiment.cfg file
+
+        Opt Args:
+        ---------
+        write_log (bool) : Whether to write to the log file. Default True
+        payload_size (int) : The starting size of the payload. Default 2048.
         """
         self.log('Setting up...', (self.LOG_USER))
 
@@ -329,8 +354,8 @@ class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin, Smu
         # Thermal OT protection
         ultrascale_temperature_limit_degC = self.config.get('ultrascale_temperature_limit_degC')
         if ultrascale_temperature_limit_degC is not None:
-            self.log('Setting ultrascale OT protection limit to {}C'.format(ultrascale_temperature_limit_degC),
-                (self.LOG_USER))
+            self.log('Setting ultrascale OT protection limit '+
+                f'to {ultrascale_temperature_limit_degC}C', self.LOG_USER)
             # OT threshold in degrees C
             self.set_ultrascale_ot_threshold(
                 self.config.get('ultrascale_temperature_limit_degC'),
@@ -343,7 +368,7 @@ class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin, Smu
         # determine which bays to configure from the
         # bands requested and the band-to-bay
         # correspondence
-        self.bays=np.unique([self.band_to_bay(band) for band in bands])
+        self.bays = np.unique([self.band_to_bay(band) for band in bands])
         # Right now, resetting both DACs in both MicrowaveMuxCore blocks,
         # but may want to determine at runtime which are actually needed and
         # only reset the DAC in those.
@@ -376,10 +401,10 @@ class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin, Smu
             # value.
             if smurf_init_config[band_str]['lmsDelay'] is None:
                 self.set_lms_delay(b, int(4*smurf_init_config[band_str]['refPhaseDelay']),
-                                   write_log=write_log, **kwargs)
+                    write_log=write_log, **kwargs)
             else:
                 self.set_lms_delay(b, smurf_init_config[band_str]['lmsDelay'],
-                                   write_log=write_log, **kwargs)
+                    write_log=write_log, **kwargs)
 
             self.set_feedback_enable(b,
                 smurf_init_config[band_str]['feedbackEnable'],
@@ -389,10 +414,12 @@ class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin, Smu
                 write_log=write_log, **kwargs)
             self.set_lms_gain(b, smurf_init_config[band_str]['lmsGain'],
                 write_log=write_log, **kwargs)
-            self.set_trigger_reset_delay(b, smurf_init_config[band_str]['trigRstDly'],
+            self.set_trigger_reset_delay(b,
+                smurf_init_config[band_str]['trigRstDly'],
                 write_log=write_log, **kwargs)
 
-            self.set_feedback_limit_khz(b, smurf_init_config[band_str]['feedbackLimitkHz'],
+            self.set_feedback_limit_khz(b,
+                smurf_init_config[band_str]['feedbackLimitkHz'],
                 write_log=write_log, **kwargs)
 
             self.set_feedback_polarity(b,
@@ -400,8 +427,8 @@ class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin, Smu
                 write_log=write_log, **kwargs)
 
             for dmx in np.array(smurf_init_config[band_str]["data_out_mux"]):
-                self.set_data_out_mux(int(self.band_to_bay(b)), int(dmx), "UserData", write_log=write_log,
-                    **kwargs)
+                self.set_data_out_mux(int(self.band_to_bay(b)), int(dmx),
+                    "UserData", write_log=write_log, **kwargs)
 
             self.set_dsp_enable(b, smurf_init_config['dspEnable'],
                 write_log=write_log, **kwargs)
@@ -469,12 +496,14 @@ class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin, Smu
         self.set_stream_enable(1, write_log=write_log)
 
         # Set mask file to empty array and payload size
-        self.set_payload_size(2048)
+        self.set_payload_size(payload_size)
         self.set_channel_mask([])
 
         self.set_amplifier_bias(write_log=write_log)
         self.get_amplifier_bias()
-        self.log("Cryocard temperature = "+ str(self.C.read_temperature())) # also read the temperature of the CC
+
+        # also read the temperature of the CC
+        self.log(f"Cryocard temperature = {self.C.read_temperature()}")
 
         # if no timing section present, assumes your defaults.yml
         # has set you up...good luck.
@@ -485,7 +514,7 @@ class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin, Smu
             timing_options=['ext_ref','backplane']
             assert (timing_reference in timing_options), 'timing_reference in cfg file (={}) not in timing_options={}'.format(timing_reference,str(timing_options))
 
-            self.log('Configuring the system to take timing from {}'.format(timing_reference))
+            self.log(f'Configuring the system to take timing from {timing_reference}')
 
             if timing_reference=='ext_ref':
                 for bay in self.bays:
@@ -493,7 +522,7 @@ class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin, Smu
                     self.sel_ext_ref(bay)
 
                 # make sure RTM knows there's no timing system
-                self.set_ramp_start_mode(0,write_log=write_log)
+                self.set_ramp_start_mode(0, write_log=write_log)
 
             # https://confluence.slac.stanford.edu/display/SMuRF/Timing+Carrier#TimingCarrier-Howtoconfiguretodistributeoverbackplanefromslot2
             if timing_reference=='backplane':
@@ -570,8 +599,8 @@ class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin, Smu
           key (any): the name of the key to update
           val (any): value to assign to the key
         """
-
         self.config.update_subkey('outputs', key, val)
+
 
     def write_output(self, filename=None):
         """
