@@ -87,7 +87,7 @@ start_slot_tmux_serial () {
     tmux send-keys -t ${tmux_session_name}:${slot_number} './run.sh shawnhammer_pysmurf_s'${slot_number} C-m
     sleep 1
 
-    tmux run-shell -t ${tmux_session_name}:${slot_number} /home/cryo/tmux-logging/scripts/toggle_logging.sh
+    #tmux run-shell -t ${tmux_session_name}:${slot_number} /home/cryo/tmux-logging/scripts/toggle_logging.sh
     tmux send-keys -t ${tmux_session_name}:${slot_number} 'ipython3 -i '${pysmurf_init_script}' '${slot_number} C-m
 
     ## not the safest way to do this.  If someone else starts a
@@ -145,7 +145,9 @@ config_pysmurf_serial () {
 	
 	# wait for setup to complete
 	echo "-> Waiting for 2nd carrier setup (watching pysmurf docker ${pysmurf_docker})"
-	grep -q "Done with setup" <(docker logs $pysmurf_docker -f)
+	# since second one, need the --since flag or else will catch
+	# the first
+	grep -q "Done with setup" <(docker logs $pysmurf_docker -f --since 0m)
 	echo "-> Done with 2nd setup"	
     fi
 
