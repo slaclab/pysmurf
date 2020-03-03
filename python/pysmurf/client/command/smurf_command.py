@@ -3596,7 +3596,8 @@ class SmurfCommandMixin(SmurfBase):
         None
         """
         if write_log:
-            self.log('Writing 50k PS enable using cryo_card object to {}'.format(enable))
+            self.log('Writing 50k PS enable using cryo_card object '+
+                f'to {enable}')
 
         # Read the current enable word and merge this bit in position 1
         current_en_value = self.C.read_ps_en()
