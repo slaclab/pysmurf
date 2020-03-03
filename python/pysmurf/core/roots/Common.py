@@ -139,7 +139,8 @@ class Common(pyrogue.Root):
         self._epics = None
         if epics_prefix:
             print("Starting EPICS server using prefix \"{}\"".format(epics_prefix))
-            self._epics = pyrogue.protocols.epics.EpicsCaServer(base=epics_prefix, root=self)
+            from pyrogue.protocols import epics
+            self._epics = epics.EpicsCaServer(base=epics_prefix, root=self)
             self._pv_dump_file = pv_dump_file
 
             # PVs for stream data
@@ -221,7 +222,13 @@ class Common(pyrogue.Root):
         if self._configure:
             self.setDefaults.call()
 
-
+        # Workaround: Set the Mask value to '[0]' by default when the server starts.
+        # This is needed because the pysmurf-client by default stat data streaming
+        # @4kHz without setting this mask, which by default has a value of '[0]*4096'.
+        # Under these conditions, the software processing block is not able to keep
+        # up, eventually making the PCIe card's buffer to get full, and that triggers
+        # some known issues in the PCIe FW.
+        self.SmurfProcessor.ChannelMapper.Mask.set([0])
 
     def stop(self):
         print("Stopping servers...")

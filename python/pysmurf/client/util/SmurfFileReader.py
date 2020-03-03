@@ -24,7 +24,7 @@ from collections import OrderedDict as odict
 SmurfHeaderSize  = 128
 RogueHeaderSize  = 8
 SmurfChannelSize = 4
-SmurfHeaderPack  = '4B 1I 40B 1Q 4I 1Q 3I 4x 1Q 2B 6x 2H 4x 2H 4x'
+SmurfHeaderPack  = '4B 1I 40x 1Q 4I 1Q 3I 4x 1Q 2B 6x 2H 4x 2H 4x'
 RogueHeaderPack  = 'IHBB'
 
 # Code derived from existing code copied from Edward Young, Jesus Vasquez
@@ -36,35 +36,34 @@ RogueHeaderPack  = 'IHBB'
 # TO DO: Extract the TES BIAS values
 
 # Default header as a named tuple
-SmurfHeaderTuple = namedtuple(  'SmurfHeader',
-                              [ 'protocol_version'    ,                # 1 Byte, B
-                                'crate_id'            ,                # 1 Byte, B
-                                'slot_number'         ,                # 1 Byte, B
-                                'timing_cond'         ,                # 1 Byte, B
-                                'number_of_channels'] +                # 4 Bytes, uint32, I
+SmurfHeaderTuple = namedtuple( 'SmurfHeader',
+                              [ 'protocol_version'    , # 1  Byte, B
+                                'crate_id'            , # 1  Byte, B
+                                'slot_number'         , # 1  Byte, B
+                                'timing_cond'         , # 1  Byte, B
+                                'number_of_channels'  , # 4  Bytes, uint32, I
+                                                        # 40 Bytes, TesBias, 40x
+                                'timestamp'           , # 8  Bytes, uint64, Q
+                                'flux_ramp_increment' , # 4  Bytes, int32,  I
+                                'flux_ramp_offset'    , # 4  Bytes, int32,  I
+                                'counter_0'           , # 4  Bytes, uint32, I
+                                'counter_1'           , # 4  Bytes, uint32, I
+                                'counter_2'           , # 8  Bytes, uint64, Q
+                                'reset_bits'          , # 4  Bytes, uint32, I
+                                'frame_counter'       , # 4  Bytes, uint32, I
+                                'tes_relays_config'   , # 4  Bytes, bit mask (uint32), I
+                                                        # 4  Bytes, unused, 4x
+                                'external_time_raw'   , # 5  Bytes, uint64, Q (3 extra bytes)
+                                'control_field'       , # 1  Byte, B
+                                'test_params'         , # 1  Byte, B
+                                                        # 6  Bytes, unused, 6x
+                                'num_rows'            , # 2  Bytes, uint16, H
+                                'num_rows_reported'   , # 2  Bytes, uint16, H
+                                                        # 4  Bytes, unused, 4x
+                                'row_length'          , # 2  Bytes, uint16, H
+                                'data_rate' ] )         # 2  Bytes, uint16, H
+                                                        # 4  Bytes, unused, 4x
 
-                             # 40 bytes of TES data, 40B
-                              [f'tes_byte_{i}' for i in range (40)] +
-
-                              [ 'timestamp'           ,  # 8 Bytes, uint64, Q
-                                'flux_ramp_increment' ,  # 4 Bytes, int32,  I
-                                'flux_ramp_offset'    ,  # 4 bytes, int32,  I
-                                'counter_0'           ,  # 4 bytes, uint32, I
-                                'counter_1'           ,  # 4 bytes, uint32, I
-                                'counter_2'           ,  # 8 bytes, uint64, Q
-                                'reset_bits'          ,  # 4 bytes, uint32, I
-                                'frame_counter'       ,  # 4 bytes, uint32, I
-                                'tes_relays_config'   ,  # 4 bytes, bit mask (uint32), I
-                                                         # 4 bytes, unused, 4x
-                                'external_time_raw'   ,  # 5 bytes, uint64, Q (3 extra bytes)
-                                'control_field'       ,  # 1 byte, B
-                                'test_params'         ,  # 1 byte, B
-                                                         # 6 bytes, unused, 6x
-                                'num_rows'            ,  # 2 bytes, uint16, H
-                                'num_rows_reported'   ,  # 2 bytes, uint16, H
-                                                         # 4 bytes, unused, 4x
-                                'row_length'          ,  # 2 bytes, uint16, H
-                                'data_rate' ])           # 2 bytes, uint16, H
 
 # Default header as a named tuple
 RogueHeader = namedtuple( 'RogueHeader',
@@ -76,28 +75,30 @@ RogueHeader = namedtuple( 'RogueHeader',
 
 class SmurfHeader(SmurfHeaderTuple):
 
-    @property
-    def external_time(self):
-        return self.external_time_raw & 0xFFFFFFFFFF  # Only lower 5 bytes
+    def initialize(self, rawData):
+        self.external_time = self.external_time_raw & 0xFFFFFFFFFF # Only lower 5 bytes
+        self.tesBias = []
 
-    def tesBias(self, index):
-        baseByte = int((index * 20) / 8)
-        baseBit  = int((index * 20) % 8)
+        # 24 bit bias values
+        #self.tesBias = [int.from_bytes(rawData[8+i*3:8+i*3+3], 'little', signed=True) for i in range(16)]
 
-        val = 0
-        for idx,byte in enumerate(range(baseByte,baseByte+3)):
-            val += eval(f'self.tes_byte_{byte}') << idx*8
+        # 20 bit bias values
+        for i in range(16):
 
-        tmp = (val >> baseBit) & 0xFFFFF
+            # 2 TES value fit in 5 bytes, starting from byte 8
+            # Each pair (byte 0 - 4): 00 00 01 11 11
+            # Even: bytes 0 - 2: 00 00 0x
+            # Odd: bytes 2 - 4: x1 11 11
+            if i % 2 == 0: # Even
+                tmp = int.from_bytes(rawData[8+i*5:8+i*5+3],'little',signed=False) & 0xFFFFF
+            else: # Odd
+                tmp = (int.from_bytes(rawData[8+i*5+2:8+i*5+5],'little',signed=False) >> 4) & 0xFFFFF
 
-        if tmp & 0x80000:
-            tmp |= 0xF00000
+            # Adjust negative values
+            if tmp >= 0x80000:
+                tmp -= 0x100000
 
-        ba = tmp.to_bytes(3,byteorder='little',signed=False)
-        ret = int.from_bytes(ba,byteorder='little',signed=True)
-
-        return ret
-
+            self.tesBias.append(tmp)
 
 class SmurfStreamReader(object):
 
@@ -124,6 +125,17 @@ class SmurfStreamReader(object):
             if not os.access(fn,os.R_OK):
                 raise Exception(f"Unable to read file {fn}")
 
+    def _parseRogueHeader(self):
+        return RogueHeader._make(struct.Struct(RogueHeaderPack).unpack(self._currFile.read(RogueHeaderSize)))
+
+    def _parseSmurfHeader(self):
+        data = self._currFile.read(SmurfHeaderSize)
+        ret = SmurfHeader._make(struct.Struct(SmurfHeaderPack).unpack(data))
+        ret.initialize(data)
+        return ret
+
+    def _readPayload(self,chanCount):
+        return numpy.fromfile(self._currFile, dtype=numpy.int32, count=chanCount)
 
     def _nextRecord(self):
         """
@@ -151,9 +163,8 @@ class SmurfStreamReader(object):
                     return False
 
                 # Read in Rogue header data
-                rogueHeader  = RogueHeader._make(struct.Struct(RogueHeaderPack).unpack(self._currFile.read(RogueHeaderSize)))
+                rogueHeader  = self._parseRogueHeader()
                 roguePayload = rogueHeader.size - 4
-
 
                 # Set next frame position
                 recEnd = self._currFile.tell() + roguePayload
@@ -189,7 +200,7 @@ class SmurfStreamReader(object):
             return None
 
         # Unpack header into named tuple
-        self._header = SmurfHeader._make(struct.Struct(SmurfHeaderPack).unpack(self._currFile.read(SmurfHeaderSize)))
+        self._header = self._parseSmurfHeader()
 
         # Number of data channels is taken from the header
         chanCount = self._header.number_of_channels
@@ -224,7 +235,7 @@ class SmurfStreamReader(object):
             return False
 
         # Read record data
-        self._data = numpy.fromfile(self._currFile, dtype=numpy.int32, count=chanCount)
+        self._data = self._readPayload(chanCount)
         self._currCount += 1
         self._totCount += 1
 

@@ -3,7 +3,8 @@ import matplotlib.pylab as plt
 import numpy as np
 
 epics_prefix = 'smurf_server_s2' 
-config_file='/data/pysmurf_cfg/experiment_pd009_cc02-01_lbOnlyBay0_r4.cfg'
+#config_file='/data/pysmurf_cfg/experiment_pd009_cc02-01_lbOnlyBay0_r4.cfg'
+config_file='/data/pysmurf_cfg/experiment_pd009_cc02-01_lbBay0Bay1_r4.cfg'
 
 S = pysmurf.client.SmurfControl(epics_root=epics_prefix,cfg_file=config_file,setup=False,make_logfile=False)
 
