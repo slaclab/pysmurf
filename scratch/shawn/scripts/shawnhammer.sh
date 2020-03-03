@@ -49,11 +49,46 @@ if [ ! -f "$startup_cfg" ]; then
 fi
 source ${startup_cfg}
 
-## extract slot and configuration arrays
-# first column is the slot numbers, in slot configure order.
-slots=( $(awk '{print $1}' <<< "$slot_cfgs") )
-# second column is the pyrogue directories, in slot configure order
-pyrogues=( $(awk '{print $2}' <<< "$slot_cfgs") )
+# must confirm a slot configuration has been provided.  If not
+# then for backwards compatilibity, take current
+if [ -z "$slot_cfgs" ]; then
+    # if no slot_cfg defined in the startup cfg, may be providing
+    # just a slot list and expecting all slots to point to
+    # /home/docker/smurf/current.  That's true if user has
+    # defined the slots_in_configure_order array.
+    if [ -v "slots_in_configure_order" ]; then    
+	echo "No slot_cfgs defined in $startup_cfg," 1>&2
+	echo "but slots_in_configure_order is defined," 1>&2
+	# Make sure a current softlink exists for the rogue docker
+	# to be assigned to each slot listed in the slots_in_configure_order
+	# array.
+	if [ -L /home/cryo/docker/smurf/current ]; then
+	    echo "Pointing every slot to /home/cryo/docker/smurf/current" 1>&2
+	    
+	    slots=("${slots_in_configure_order[@]}")
+	    pyrogues=(`seq ${#slots_in_configure_order[@]} | awk '{print "/home/cryo/docker/smurf/current"}' | tr '\n' ' '`)
+	else
+	    echo "... but must define /home/cryo/docker/smurf/current." 1>&2
+	    exit 1
+	fi
+    else
+	echo "Neither slot_cfgs nor slots_in_configure_order defined in $startup_cfg." 1>&2
+	exit 1
+    fi
+else
+    if [ -v "slots_in_configure_order" ]; then
+	echo "Both slot_cfgs and slots_in_configure_order defined in" 1>&2
+	echo "$startup_cfg.  Must choose just one." 1>&2
+	exit 1
+    fi
+    
+    echo "Taking docker<->slot configuration from slot_cfgs." 1>&2    
+    ## extract slot and configuration arrays
+    # first column is the slot numbers, in slot configure order.
+    slots=( $(awk '{print $1}' <<< "$slot_cfgs") )
+    # second column is the pyrogue directories, in slot configure order    
+    pyrogues=( $(awk '{print $2}' <<< "$slot_cfgs") )
+fi
 
 source shawnhammerfunctions
 
@@ -153,7 +188,7 @@ if [ "$reboot" = true ] ; then
 
     # deactivate carriers
     echo "-> Deactivating carrier(s) ${slots[@]}"    
-    ssh root@${shelfmanager} "$deactivatecmd"
+    echo ssh root@${shelfmanager} "$deactivatecmd"
     
     echo "-> Waiting 5 sec before re-activating carrier(s)"
     sleep 5
