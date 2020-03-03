@@ -56,13 +56,11 @@ class SmurfUtilMixin(SmurfBase):
         # Set proper single channel readout
         if channel is not None:
             if single_channel_readout == 1:
-                self.set_single_channel_readout(band, 1, write_log=write_log)
-                self.set_single_channel_readout_opt2(band, 0,
-                    write_log=write_log)
+                self.set_single_channel_readout(band, 1)
+                self.set_single_channel_readout_opt2(band, 0)
             elif single_channel_readout == 2:
-                self.set_single_channel_readout(band, 0, write_log=write_log)
-                self.set_single_channel_readout_opt2(band, 1,
-                    write_log=write_log)
+                self.set_single_channel_readout(band, 0)
+                self.set_single_channel_readout_opt2(band, 1)
             else:
                 self.log('single_channel_readout must be 1 or 2',
                     self.LOG_ERROR)
@@ -74,9 +72,9 @@ class SmurfUtilMixin(SmurfBase):
 
         # Set IQstream
         if IQstream==1:
-            self.set_iq_stream_enable(band, 1, write_log=write_log)
+            self.set_iq_stream_enable(band, 1)
         else:
-            self.set_iq_stream_enable(band, 0, write_log=write_log)
+            self.set_iq_stream_enable(band, 0)
 
         # set filename
         if filename is not None:
@@ -106,7 +104,7 @@ class SmurfUtilMixin(SmurfBase):
         bay=self.band_to_bay(band)
         self.set_trigger_daq(bay, 1, write_log=True) # this seems to = TriggerDM
 
-        time.sleep(1) # maybe unnecessary
+        time.sleep(.1) # maybe unnecessary
 
         done=False
         while not done:
@@ -122,11 +120,9 @@ class SmurfUtilMixin(SmurfBase):
                     done=False
             time.sleep(1)
 
-        time.sleep(1) # do we need all of these?
-        self.log('Finished acquisition', self.LOG_USER)
+        time.sleep(.25) # do we need all of these?
 
-        self.log('Closing file...', self.LOG_USER)
-        #self.set_streamdatawriter_open('false')
+        # Close the streamdatawriter
         self.set_streamdatawriter_close(True)
 
         self.log('Done taking data', self.LOG_USER)
