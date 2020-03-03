@@ -47,6 +47,8 @@ S = pysmurf.client.SmurfControl(epics_root=args.epics_root,
 print("All outputs going to: ")
 print(S.output_dir)
 
+S.why()
+
 # Setup
 status["setup"] = args.setup
 if args.setup:
