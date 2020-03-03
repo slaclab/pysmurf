@@ -2956,9 +2956,16 @@ class SmurfTuneMixin(SmurfBase):
         give a path to a text file containing the data for offline plotting.
         To do:
         Add ability to use timestamp and multiple plots
+
         Opt Args:
         ---------
+        f (float array) : An array of frequency data
+        resp (complex array) : An array of find_freq response values
+        subband (int array): A list of subbands that are scanned
+        filename (str) : The full path to the file where the find_freq
+            is stored.
         save_plot (bool) : save the plot. Default True.
+        show_plot (bool) : Whether to show the plot. Defualt False.
         save_name (string) : What to name the plot. default find_freq.png
         '''
         if subband is None:
@@ -2979,7 +2986,7 @@ class SmurfTuneMixin(SmurfBase):
                 color = cm(float(i)/len(subband)/2. + .5*(i%2))
                 plt.plot(f[sb,:], np.abs(resp[sb,:]), '.', markersize=4,
                     color=color)
-            plt.title("findfreq response")
+            plt.title("find_freq response")
             plt.xlabel("Frequency offset (MHz)")
             plt.ylabel("Normalized Amplitude")
 
