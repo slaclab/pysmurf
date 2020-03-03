@@ -116,11 +116,23 @@ config_pysmurf_serial () {
     
     # wait for setup to complete
     echo "-> Waiting for carrier setup (watching pysmurf docker ${pysmurf_docker})"
+
     # not clear why, but on smurf-srv03 need this wait or attempt to
     # wait until done with setup fails.
     sleep 2
     grep -q "Done with setup" <(docker logs $pysmurf_docker -f)
     echo "-> Carrier is configured"
+    
+    if [ "$double_setup" = true ] ; then
+	sleep 2    
+	tmux send-keys -t ${tmux_session_name}:${slot_number} 'S.setup()' C-m    
+	sleep 5
+	
+	# wait for setup to complete
+	echo "-> Waiting for 2nd carrier setup (watching pysmurf docker ${pysmurf_docker})"
+	grep -q "Done with setup" <(docker logs $pysmurf_docker -f)
+	echo "-> Done with 2nd setup"	
+    fi
 
     echo "-> Disable streaming (unless taking data)"
     tmux send-keys -t ${tmux_session_name}:${slot_number} 'S.set_stream_enable(0)' C-m
