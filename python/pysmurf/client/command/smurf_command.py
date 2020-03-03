@@ -197,6 +197,8 @@ class SmurfCommandMixin(SmurfBase):
         --------
         n_subbands (int): The number of subbands in the band
         """
+        if self.offline:
+            return 128
 
         if band is None:
             # assume all bands have the same number of channels, and
@@ -205,11 +207,8 @@ class SmurfCommandMixin(SmurfBase):
             bands = self.config.get('init').get('bands')
             band = bands[0]
 
-        if self.offline:
-            return 128
-        else:
-            return self._caget(self._band_root(band) + self._number_sub_bands,
-                **kwargs)
+        return self._caget(self._band_root(band) + self._number_sub_bands,
+            **kwargs)
 
 
     _number_channels = 'numberChannels'
@@ -229,6 +228,8 @@ class SmurfCommandMixin(SmurfBase):
         --------
         n_channels (int): The number of channels in the band
         """
+        if self.offline:
+            return 512  # Hard coded offline mode 512
 
         if band is None:
             # assume all bands have the same number of channels, and
@@ -237,11 +238,8 @@ class SmurfCommandMixin(SmurfBase):
             bands = self.config.get('init').get('bands')
             band = bands[0]
 
-        if self.offline:
-            return 512
-        else:
-            return self._caget(self._band_root(band) + self._number_channels,
-                **kwargs)
+        return self._caget(self._band_root(band) + self._number_channels,
+            **kwargs)
 
     def get_number_processed_channels(self, band=None, **kwargs):
         """
@@ -265,7 +263,6 @@ class SmurfCommandMixin(SmurfBase):
            channels if there's 128 channels (as in X-ray), or 416
            channels if there's 512 channels total (as in CMB).
         """
-
         n_channels=self.get_number_channels(band)
 
         n_processed_channels=int(0.8125*n_channels)
@@ -1647,6 +1644,8 @@ class SmurfCommandMixin(SmurfBase):
         digitizer_frequency_mhz (float): The digitizer frequency for
            this band in MHz.
         """
+        if self.offline:
+            return 614.4
 
         if band is None:
             # assume all bands have the same number of channels, and
@@ -1655,11 +1654,8 @@ class SmurfCommandMixin(SmurfBase):
             bands = self.config.get('init').get('bands')
             band = bands[0]
 
-        if self.offline:
-            return 614.4
-        else:
-            return self._caget(self._band_root(band) +
-                self._digitizer_frequency_mhz, **kwargs)
+        return self._caget(self._band_root(band) +
+            self._digitizer_frequency_mhz, **kwargs)
 
     _synthesis_scale = 'synthesisScale'
 

@@ -488,7 +488,7 @@ class SmurfUtilMixin(SmurfBase):
 
     def decode_data(self, filename, swapFdF=False, recast=True, truncate=True):
         """
-        take a dataset from take_debug_data and spit out results
+        Take a dataset from take_debug_data and spit out results.
 
         Args:
         -----
@@ -498,10 +498,12 @@ class SmurfUtilMixin(SmurfBase):
         ---------
         swapFdF (bool): whether the F and dF (or I/Q) streams are flipped
         recast (bool): Whether to recast from size n_channels_processed to
-        n_channels. Default True.
+            n_channels. Default True.
+        truncate (bool) : Truncates the data if the number of elements returned
+            is not an integer multiple of the sample rate. Default True.
 
         Returns:
-        -----
+        --------
         [f, df, sync] if iqStreamEnable = 0
         [I, Q, sync] if iqStreamEnable = 1
         """
