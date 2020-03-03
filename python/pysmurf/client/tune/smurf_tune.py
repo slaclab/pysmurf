@@ -2993,7 +2993,7 @@ class SmurfTuneMixin(SmurfBase):
             resp (array, n_freq x 2) = complex response
         """
         try:
-            _ = (c for c in subband)
+            [c for c in subband]
         except BaseException:
             subband = [subband]
 
