@@ -2417,36 +2417,6 @@ class SmurfUtilMixin(SmurfBase):
         return hemt_Id_mA
 
 
-    def set_50k_enable(self, write_log=False):
-        """
-        Helper function for enabling the 50K. This sets the cryo_card ps en
-        bit.
-
-        Opt Args:
-        ---------
-        write_log (bool) : Whether to write the log file. Default False
-        """
-        cc_bit = self.get_cryo_card_ps_en()
-        if cc_bit < 1:
-            self.set_cryo_card_ps_en(1, write_log=write_log)
-
-
-    def set_hemt_enable(self, write_log=True):
-        """
-        Helper function for enabling the HEMT. This sets the cryo_card ps en
-        bit.
-
-        Opt Args:
-        ---------
-        write_log (bool) : Whether to write the log file. Default False
-        """
-        cc_bit = self.get_cryo_card_ps_en()
-        if cc_bit == 0:
-            self.set_cryo_card_ps_en(2, write_log=write_log)
-        else:
-            self.set_cryo_card_ps_en(3, write_log=write_log)
-
-
     def get_50k_amp_drain_current(self):
         """
         Returns:
