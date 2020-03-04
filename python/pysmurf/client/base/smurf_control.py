@@ -68,13 +68,14 @@ class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin,
         elif cfg_file is not None:
             self.config = SmurfConfig(cfg_file)
 
+        # Save shelf manager - Should this be in the config?
         self.shelf_manager=shelf_manager
-        if epics_root is None:
-            epics_root = self.config.get('epics_root')
 
         # In offline mode, epics root is not needed.
         if offline and epics_root is None:
             epics_root = ''
+        elif epics_root is None:
+            epics_root = self.config.get('epics_root')
 
         super().__init__(epics_root=epics_root, offline=offline, **kwargs)
 

@@ -842,11 +842,13 @@ class SmurfUtilMixin(SmurfBase):
         self.close_data_file(write_log=write_log)
         self.set_stream_enable(0, write_log=write_log, wait_after=.15)
 
+
     def read_stream_data(self, datafile, channel=None,
                          n_samp=None, array_size=None,
                          return_header=False,
                          return_tes_bias=False, write_log=True,
-                         n_max=2048, make_freq_mask=False):
+                         n_max=2048, make_freq_mask=False,
+                         gcp_mode=False):
         """
         Loads data taken with the function stream_data_on.
         Gives back the resonator data in units of phase. Also
@@ -871,6 +873,8 @@ class SmurfUtilMixin(SmurfBase):
             file. Default True.
         n_max (int) : The number of elements to read in before appending
             the datafile. This is just for speed.
+        gcp_mode (bool) : Indicates that the data was written in GCP mode. This
+            is the legacy data mode which was depracatetd in Rogue 4.
 
         Ret:
         ----
@@ -879,6 +883,11 @@ class SmurfUtilMixin(SmurfBase):
         m (int array): The maskfile that maps smurf num to gcp num
         h (dict) : A dictionary with the header information.
         """
+        if gcp_mode:
+            self.log('Data is in GCP mode.')
+            return self.read_stream_data_gcp_save(datafile, channel=channel,
+            unwrap=True, downsample=1)
+
         try:
             datafile = glob.glob(datafile+'*')[-1]
         except BaseException:
@@ -989,6 +998,10 @@ class SmurfUtilMixin(SmurfBase):
         phase = np.squeeze(phase.T)
         phase = phase.astype(float) / 2**15 * np.pi
 
+        if np.size(phase) == 0:
+            self.log("Only 1 element in datafile. This is often an indication" +
+                "that the data was taken in GCP mode. Try running this"+
+                " function again with gcp_mode=True")
 
         # make a mask from mask file
         if ".dat.part" in datafile:
@@ -1009,6 +1022,124 @@ class SmurfUtilMixin(SmurfBase):
             return t, phase, mask, tes_bias
         else:
             return t, phase, mask
+
+
+    def read_stream_data_gcp_save(self, datafile, channel=None,
+            unwrap=True, downsample=1, n_samp=None):
+        """
+        Reads the special data that is designed to be a copy of the GCP data.
+        This was the most common data writing mode until the Rogue 4 update.
+        Maintining this function for backwards compatibility.
+
+        Args:
+        -----
+        datafile (str): The full path to the data made by stream_data_on
+
+        Opt Args:
+        ---------
+        channel (int or int array): Channels to load.
+        unwrap (bool) : Whether to unwrap units of 2pi. Default is True.
+        downsample (int): The amount to downsample.
+        n_samp (int) : The number of samples to read.
+
+        Ret:
+        ----
+        t (float array): The timestamp data
+        d (float array): The resonator data in units of phi0
+        m (int array): The maskfile that maps smurf num to gcp num
+        """
+        import struct
+        try:
+            datafile = glob.glob(datafile+'*')[-1]
+        except ValueError:
+            print('datafile=%s'%datafile)
+
+        self.log('Reading {}'.format(datafile))
+
+        if channel is not None:
+            self.log('Only reading channel {}'.format(channel))
+
+
+        keys = ['protocol_version','crate_id','slot_number','number_of_channels',
+                'rtm_dac_config0', 'rtm_dac_config1', 'rtm_dac_config2',
+                'rtm_dac_config3', 'rtm_dac_config4', 'rtm_dac_config5',
+                'flux_ramp_increment','flux_ramp_start', 'rate_since_1Hz',
+                'rate_since_TM', 'nanoseconds', 'seconds', 'fixed_rate_marker',
+                'sequence_counter', 'tes_relay_config', 'mce_word',
+                'user_word0', 'user_word1', 'user_word2'
+                ]
+
+        data_keys = [f'data{i}' for i in range(528)]
+
+        keys.extend(data_keys)
+        keys_dict = dict(zip(keys, range(len(keys))))
+
+        # Read in all channels by default
+        if channel is None:
+            channel = np.arange(512)
+
+        channel = np.ravel(np.asarray(channel))
+        n_chan = len(channel)
+
+        # Indices for input channels
+        channel_mask = np.zeros(n_chan, dtype=int)
+        for i, c in enumerate(channel):
+            channel_mask[i] = keys_dict['data{}'.format(c)]
+
+        eval_n_samp = False
+        if n_samp is not None:
+            eval_n_samp = True
+
+        # Make holder arrays for phase and timestamp
+        phase = np.zeros((n_chan,0))
+        timestamp2 = np.array([])
+        counter = 0
+        n = 20000  # Number of elements to load at a time
+        tmp_phase = np.zeros((n_chan, n))
+        tmp_timestamp2 = np.zeros(n)
+        with open(datafile, mode='rb') as file:
+            while True:
+                chunk = file.read(2240)  # Frame size is 2240
+                if not chunk:
+                    # If frame is incomplete - meaning end of file
+                    phase = np.hstack((phase, tmp_phase[:,:counter%n]))
+                    timestamp2 = np.append(timestamp2, tmp_timestamp2[:counter%n])
+                    break
+                elif eval_n_samp:
+                    if counter >= n_samp:
+                        phase = np.hstack((phase, tmp_phase[:,:counter%n]))
+                        timestamp2 = np.append(timestamp2,
+                                               tmp_timestamp2[:counter%n])
+                        break
+                frame = struct.Struct('3BxI6Q8I5Q528i').unpack(chunk)
+
+                # Extract detector data
+                for i, c in enumerate(channel_mask):
+                    tmp_phase[i,counter%n] = frame[c]
+
+                # Timestamp data
+                tmp_timestamp2[counter%n] = frame[keys_dict['rtm_dac_config5']]
+
+                # Store the data in a useful array and reset tmp arrays
+                if counter % n == n - 1 :
+                    self.log('{} elements loaded'.format(counter+1))
+                    phase = np.hstack((phase, tmp_phase))
+                    timestamp2 = np.append(timestamp2, tmp_timestamp2)
+                    tmp_phase = np.zeros((n_chan, n))
+                    tmp_timestamp2 = np.zeros(n)
+                counter = counter + 1
+
+        phase = np.squeeze(phase)
+        phase = phase.astype(float) / 2**15 * np.pi # where is decimal?  Is it in rad?
+
+        rootpath = os.path.dirname(datafile)
+        filename = os.path.basename(datafile)
+        timestamp = filename.split('.')[0]
+
+        mask = self.make_mask_lookup(os.path.join(rootpath,
+                                                  '{}_mask.txt'.format(timestamp)))
+
+        return timestamp2, phase, mask
 
 
     def header_to_tes_bias(self, header, as_volt=True,
