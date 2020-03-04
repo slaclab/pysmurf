@@ -3039,6 +3039,10 @@ class SmurfTuneMixin(SmurfBase):
 
         self.set_run_eta_scan(band, 1)
 
+        pvs = [self._cryo_root(band) + self._eta_scan_results_real,
+               self._cryo_root(band) + self._eta_scan_results_imag]
+        sg = SyncGroup(pvs, skip_first=False)
+        sg.wait()
         resp_len = len(freq)*len(subchan)
         I = self.get_eta_scan_results_real(band, count=resp_len)
         Q = self.get_eta_scan_results_imag(band, count=resp_len)
