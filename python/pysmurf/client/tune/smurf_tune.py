@@ -519,7 +519,7 @@ class SmurfTuneMixin(SmurfBase):
     def full_band_resp(self, band, n_scan=1, n_samples=2**19, make_plot=False,
             save_plot=True, show_plot=False, save_data=False, timestamp=None,
             save_raw_data=False, correct_att=True, swap=False, hw_trigger=True,
-            write_log=False):
+            write_log=False, check_if_adc_is_saturated=True):
         """
         Injects high amplitude noise with known waveform. The ADC measures it.
         The cross correlation contains the information about the resonances.
@@ -535,6 +535,10 @@ class SmurfTuneMixin(SmurfBase):
         timestamp (str): The timestamp as a string.
         correct_att (bool): Correct the response for the attenuators. Default
             is True.
+        check_if_adc_is_saturated (bool): Right after playing the
+            noise file, checks if ADC for the requested band is
+            saturated.  If it is saturated, gives up with an error.
+
         Returns:
         --------
         f (float array): The frequency information. Length n_samples/2
@@ -549,6 +553,12 @@ class SmurfTuneMixin(SmurfBase):
             self.set_trigger_hw_arm(bay, 0, write_log=write_log)  # Default setup sets to 1
 
             self.set_noise_select(band, 1, wait_done=True, write_log=write_log)
+            # if true, checks whether or not playing noise file saturates the ADC.  If
+            # ADC is saturated, throws an exception.
+            if check_if_adc_is_saturated:
+                adc_is_saturated=self.check_adc_saturation(band)
+                if adc_is_saturated:
+                    raise ValueError(f'Playing the noise file saturates the ADC for band {band}.  Try increasing the DC attenuation for this band.')
             try:
                 adc = self.read_adc_data(band, n_samples, hw_trigger=hw_trigger, save_data=False)
             except Exception:
