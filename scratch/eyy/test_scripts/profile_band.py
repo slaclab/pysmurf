@@ -72,14 +72,12 @@ if __name__ == "__main__":
         status_dict[label]['end'] = S.get_timestamp(as_int=True)
         np.save(os.path.join(S.output_dir, "status"),
                 status_dict)
-        
+
         return status_dict
 
-    status = execute(status, lambda: time.sleep(5), 'timer')
-    
     # why
     status = execute(status, lambda: S.why(), 'why')
-    
+
     # Setup
     if args.setup:
         status = execute(status, lambda: S.setup(), 'setup')
@@ -102,9 +100,10 @@ if __name__ == "__main__":
 
     # find_freq
     if not args.no_find_freq:
-        subband = None
+        subband = np.arange(10, 120)
         if args.subband_low is not None and args.subband_high is not None:
             subband = np.arange(args.subband_low, args.subband_high)
+        status['subband'] = subband
         status = execute(status,
                          lambda: S.find_freq(band, subband,
                                              make_plot=True, save_plot=True),
@@ -166,3 +165,6 @@ if __name__ == "__main__":
     # now take data using take_noise_psd and plot stuff
 
     # Command and IV.
+
+
+    
