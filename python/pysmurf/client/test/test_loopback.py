@@ -130,12 +130,13 @@ def test_data_write_and_read(smurf_control):
     assert n_chan == input_n_chan, \
         f"read_stream_data should return data with {input_n_chan} channels"
 
-    t, d, m = smurf_control.read_stream_data(filename, array_size=0)
+    array_size=0
+    t, d, m = smurf_control.read_stream_data(filename, array_size=array_size)
     n_chan, _ = np.shape(d)
 
-    assert n_chan == which_on_num,\
-        "read_stream_data it supposed to return an array of size n_chan " +\
-        "when optional arg array_size=0."
+    assert n_chan == array_size,\
+        "read_stream_data is supposed to return an array of size equal to " +\
+        "the optional arg array_size when it is defined."
 
     # Now change to a different payload size
     new_payload_size = 25
