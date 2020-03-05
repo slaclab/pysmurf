@@ -112,7 +112,7 @@ def test_data_write_and_read(smurf_control):
     # The mask file is set by the data streamer, so num_channels
     # is not set until then. So this check needs to happen
     # afterwards.
-    which_on_num = len(smurf_control.which_on(band))
+    #which_on_num = len(smurf_control.which_on(band))
     #assert (which_on_num ==
     #        smurf_control.get_smurf_processor_num_channels()),\
     #        f"The number of channels on band {band} is not the same as " + \
