@@ -2707,8 +2707,10 @@ class SmurfUtilMixin(SmurfBase):
         aphorisms = np.loadtxt(os.path.join(util_dir, 'aphorism.txt'),
             dtype='str', delimiter='\n')
 
-        self.log(np.random.choice(aphorisms))
-
+        aph = np.random.choice(aphorisms)
+        self.log(aph)
+        return(aph)
+        
 
     def make_channel_mask(self, band=None, smurf_chans=None):
         """

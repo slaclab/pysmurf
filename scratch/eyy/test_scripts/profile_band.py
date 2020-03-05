@@ -7,6 +7,102 @@ sys.path.append("../../../python")
 import pysmurf.client
 import time
 
+def make_html(data_path):
+    """
+    """
+    import shutil
+    import fileinput
+    import datetime
+    import glob
+    
+    # FIXME - move this somewhere smarter
+    template_path = '/data/smurf_data/20200304/1583352819/page_template'
+    html_path = os.path.join(data_path, "summary")
+    
+    # Copy template directory
+    shutil.copytree(template_path, html_path)
+
+    # Load status dict
+    status = np.load(os.path.join(data_path, 'outputs/status.npy')).item()
+    band = status["band"]
+
+    def replace_str(filename, search_str, replace_str):
+        with fileinput.FileInput(filename, inplace=True, backup='.bak') as file:
+            for line in file:
+                print(line.replace(search_str, replace_str), end='')
+
+    index_path = os.path.join(html_path, "index.html")
+
+    # Fill why
+    replace_str(index_path, "[[WHY]]",
+                status['why']['output'])
+    
+    # Fill in time
+    replace_str(index_path, "[[DATETIME]]",
+                datetime.datetime.fromtimestamp(status['why']['start']).strftime('%Y-%m-%d'))
+
+    # Do timing calculations
+    skip_keys = ["band", "subband"]
+    timing_str = '<table style=\"width:30%\" align=\"center\" border=\"1\">'
+    timing_str += '<tr><th>Function</th><th>Time [s]</th></tr>'
+    for k in list(status.keys()):
+        if k not in skip_keys:
+            t = status[k]['end'] - status[k]['start']
+            timing_str += f'<tr><td>{k}</td><td>{t}</td></tr>'
+    timing_str += '</table>'
+    replace_str(index_path, "[[TIMING]]",
+                timing_str)
+    
+    # Fill in band number
+    replace_str(index_path, "[[BAND]]",
+                str(band))
+
+    # Amplifier bias
+    amp_str = '<table style=\"width:30%\" align=\"center\" border=\"1\">'
+    amp_dict = status['get_amplifier_bias']['output']
+    for k in amp_dict.keys():
+        amp_str += f'<tr><td>{k}</td><td>{amp_dict[k]}</td></tr>'
+    amp_str += '</table>'
+    replace_str(index_path, "[[AMPLIFIER_BIAS]]",
+                amp_str)
+    
+    # Add full band response plot
+    basename = os.path.split(status['full_band_resp']['output'][band])[1]
+    basename = basename.replace('.png', '_raw.png')
+    replace_str(index_path, "[[FULL_BAND_RESP]]",
+                os.path.join('../plots/',basename))
+
+    # Load tuning
+    tn = np.load(status['save_tune']['output']).item()
+    res = tn[band]['resonances']
+    res_list = np.array([], dtype=str)
+    res_name = ""
+    res_to_chan = ""
+    for k in list(res.keys()):
+        res_list = np.append(res_list, f"{res[k]['freq']:4.3f}|{k}")
+        res_name = res_name + "\'" + f"{int(k):03}|{int(k):03}" + "\', "
+        chan = res[k]['channel']
+        res_to_chan = res_to_chan + f'\"{int(k):03}\":\"{chan:03}\", '
+        
+    res_name = '[' + res_name + ']'
+    replace_str(index_path, "[[FREQ_RESP_LIST]]",
+                res_name)
+
+    replace_str(index_path, "[[RES_DICT]]",
+                res_to_chan)
+    
+    # Load eta scans
+    basename = os.path.split(glob.glob(os.path.join(data_path, 'plots/*eta*'))[0])[1].split("res")
+    instr = f"\'{basename[0]}\' + \'res\' + p[\'res\'] + \'.png\'"
+    replace_str(index_path, "[[ETA_PATH]]",
+                instr)
+
+    # Load tracking setup
+    basename = os.path.split(glob.glob(os.path.join(data_path, 'plots/*tracking*'))[0])[1].split("_band")
+    instr = f"\'{basename[0]}\' + \'_band{band}_ch\' + res_to_chan(p[\'res\']) + \'.png\'"
+    replace_str(index_path, "[[TRACKING_PATH]]",
+                instr)
+    
 if __name__ == "__main__":
     #####################
     # Arg parse things
@@ -85,10 +181,14 @@ if __name__ == "__main__":
     # amplifier biases
     status = execute(status,
                      lambda: S.set_amplifier_bias(write_log=True),
-                     'amplifier_bias')
+                     'set_amplifier_bias')
     status = execute(status,
                      lambda: S.set_cryo_card_ps_en(write_log=True),
                      'amplifier_enable')
+    status = execute(status,
+                     lambda: S.get_amplifier_bias(),
+                     'get_amplifier_bias')
+
     
     # full band response
     status = execute(status,
@@ -158,6 +258,11 @@ if __name__ == "__main__":
                                                     update_channel_assignment=True),
                      'identify_bias_groups')
 
+    # Save tuning
+    status = execute(status,
+                     lambda: S.save_tune(),
+                     'save_tune')
+    
     # take data
 
     # read back data
@@ -168,3 +273,5 @@ if __name__ == "__main__":
 
 
     
+    # Make webpage
+    make_html(os.path.split(S.output_dir)[0])
