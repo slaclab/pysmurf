@@ -33,8 +33,8 @@ def smurf_control():
 
 def test_fpga_temperature(smurf_control):
     fpga_temp = smurf_control.get_fpga_temp()
-    assert fpga_temp < 50, \
-        "FPGA temperature over 50 C."
+    assert fpga_temp < 100, \
+        "FPGA temperature over 100 C."
 
 
 def test_amplifier_bias(smurf_control):
