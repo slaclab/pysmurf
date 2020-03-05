@@ -1,7 +1,6 @@
 import pytest
 import numpy as np
 import pysmurf.client
-import os
 
 ###
 # This is a generic test script in loopback mode (ie the ADC
@@ -17,26 +16,24 @@ import os
 
 
 @pytest.fixture(scope='session')
-def smurf_control():
-    epics_prefix = 'smurf_server_s5'
-    config_file = os.path.join('/usr/local/src/pysmurf/',
-                               'cfg_files/stanford/',
-                               'experiment_fp30_cc02-03_lbOnlyBay0.cfg' )
+def smurf_control(request):
+    epics_prefix = request.config.getoption("--epics")
+    config_file = request.config.getoption("--config")
     S = pysmurf.client.SmurfControl(epics_root=epics_prefix,
                                     cfg_file=config_file,
-                                    setup=False,
+                                    setup=request.param,
                                     make_logfile=False,
                                     shelf_manager="shm-smrf-sp01")
 
     return S
 
-
+@pytest.mark.parametrize('smurf_control', [False], indirect=True)
 def test_fpga_temperature(smurf_control):
     fpga_temp = smurf_control.get_fpga_temp()
-    assert fpga_temp < 50, \
-        "FPGA temperature over 50 C."
+    assert fpga_temp < 100, \
+        "FPGA temperature over 100 C."
 
-
+@pytest.mark.parametrize('smurf_control', [False], indirect=True)
 def test_amplifier_bias(smurf_control):
     amp_bias = smurf_control.get_amplifier_bias()
     assert amp_bias['hemt_Vg'] > .45 and amp_bias['hemt_Vg'] < .7,\
@@ -49,7 +46,7 @@ def test_amplifier_bias(smurf_control):
     assert amp_bias['50K_Vg'] < -.5 and amp_bias['50K_Vg'] > -1,\
         '50K gate voltage out of acceptable range.'
 
-
+@pytest.mark.parametrize('smurf_control', [False], indirect=True)
 def test_uc_dc_atts(smurf_control):
     accept_frac = .1
 
@@ -91,19 +88,20 @@ def test_uc_dc_atts(smurf_control):
             ratio > exp_ratio * (1-accept_frac), \
             "DC att not within acceptable limits."
 
-
+# In this case, we need to initialize the pysmurf.client.SmurfControl
+# object with the option setup=True
+@pytest.mark.parametrize('smurf_control', [True], indirect=True)
 def test_data_write_and_read(smurf_control):
     band = 1
 
     # Define the payload size (this is the default val too)
     payload_size = 512
     smurf_control.set_payload_size(payload_size)
-    smurf_control.set_payload_size(0)
 
     # Turn on some channels
     x = (np.random.randn(512)>0)*10
     smurf_control.set_amplitude_scale_array(band, x, wait_done=True)
-    #input_n_chan = np.sum(x>0)
+    input_n_chan = np.sum(x>0)
 
     # Take 5 seconds of data
     filename = smurf_control.take_stream_data(5)
@@ -111,7 +109,7 @@ def test_data_write_and_read(smurf_control):
     # The mask file is set by the data streamer, so num_channels
     # is not set until then. So this check needs to happen
     # afterwards.
-    which_on_num = len(smurf_control.which_on(band))
+    #which_on_num = len(smurf_control.which_on(band))
     #assert (which_on_num ==
     #        smurf_control.get_smurf_processor_num_channels()),\
     #        f"The number of channels on band {band} is not the same as " + \
@@ -126,16 +124,16 @@ def test_data_write_and_read(smurf_control):
         "Check that the flux ramp is on and you are triggering in the " + \
         "correct mode. See documentation for set_ramp_start_mode."
 
-    assert n_chan == 512, \
-        "read_stream_data should return data with 512 channels " + \
-        "by default. "
+    assert n_chan == input_n_chan, \
+        f"read_stream_data should return data with {input_n_chan} channels"
 
-    t, d, m = smurf_control.read_stream_data(filename, array_size=0)
+    array_size=0
+    t, d, m = smurf_control.read_stream_data(filename, array_size=array_size)
     n_chan, _ = np.shape(d)
 
-    assert n_chan == which_on_num,\
-        "read_stream_data it supposed to return an array of size n_chan " +\
-        "when optional arg array_size=0."
+    assert n_chan == array_size,\
+        "read_stream_data is supposed to return an array of size equal to " +\
+        "the optional arg array_size when it is defined."
 
     # Now change to a different payload size
     new_payload_size = 25
