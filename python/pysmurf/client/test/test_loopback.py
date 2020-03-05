@@ -1,7 +1,6 @@
 import pytest
 import numpy as np
 import pysmurf.client
-import os
 
 ###
 # This is a generic test script in loopback mode (ie the ADC
