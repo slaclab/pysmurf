@@ -41,14 +41,18 @@
   [[AMPLIFIER_BIAS]]
   <h3>Full Band Response</h3>
     <figure>
-        <img alt="Full band response" src="[[FULL_BAND_RESP]]" />
+        <img alt="Full band response" src="[[FULL_BAND_RESP]]" width="400"/>
         <figcaption>
             Full band response on band [[BAND]].
         </figcaption>
     </figure>
 </section>
 
+  <h3>Counts</h3>
+  The counts of resonators found, tracking, TES.
+
 <section><h2>Tuning</h2>
+  <h3>Eta Scans</h3>
     <figure>
         <img alt="Eta Scans" id="eta_scan" src="#" width="550"/>
         <figcaption>
@@ -73,7 +77,7 @@
   return ref_dict[res]
   }
 </script>
-
+  <h3>Tracking Plots</h3>
     <figure>
         <img alt="Tracking Setup" id="tracking_setup" src="#" width="550"/>
         <figcaption>
@@ -94,7 +98,49 @@
 
 </section>
 
+<section><h2>Bias groups and IV</h2>
+  <h3>Bias Group Identificaion</h3>
+  <figure>
+    <img alt="Bias Group Identification" id="bias_group" src="#" width="550"/>
+      <figcaption>
+        Bias group plots
+      </figcaption>
+      <script type="text/javascript">
+        opts = {
+          'bias group|bg': [[BIAS_GROUP_LIST]]
+        } 
+        pager.link("#bias_group", opts, function(p) {
+          return '../plots/' + [[BIAS_GROUP_PATH]]
+        });
+        pager.setparams(
+          {'bg': '00'}
+        );
+      </script>
+  </figure>
 
+  <h3>IV Curves</h3>
+  <figure>
+    <img alt="IV Curve" id="iv" src="#" width="550"/>
+      <figcaption>
+        IV curves. Only for channels that pass check_lock().
+      </figcaption>
+      <script type="text/javascript">
+        opts = {
+          'res|res': [[FREQ_RESP_LIST]]
+        } 
+        pager.link("#iv", opts, function(p) {
+          return '../plots/' + [[IV_PATH]]
+        });
+        pager.setparams(
+          {'res': '000'}
+        );
+      </script>
+  </figure>
+
+
+</section>
+
+<section><h2>Noise</h2>
 
 <section><h2>Timing</h2>
   <p>This is the timing summary to the nearest second.</p>

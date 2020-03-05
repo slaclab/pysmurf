@@ -17,14 +17,15 @@ def make_html(data_path):
     import glob
     
     # FIXME - move this somewhere smarter
-    template_path = '/data/smurf_data/20200304/1583352819/page_template'
+    template_path = './page_template'
     html_path = os.path.join(data_path, "summary")
     
     # Copy template directory
     shutil.copytree(template_path, html_path)
 
     # Load status dict
-    status = np.load(os.path.join(data_path, 'outputs/status.npy')).item()
+    status = np.load(os.path.join(data_path, 'outputs/status.npy'),
+        allow_pickle=True).item()
     band = status["band"]
 
     def replace_str(filename, search_str, replace_str):
@@ -53,7 +54,7 @@ def make_html(data_path):
     timing_str += '</table>'
     replace_str(index_path, "[[TIMING]]",
                 timing_str)
-    
+
     # Fill in band number
     replace_str(index_path, "[[BAND]]",
                 str(band))
@@ -66,7 +67,7 @@ def make_html(data_path):
     amp_str += '</table>'
     replace_str(index_path, "[[AMPLIFIER_BIAS]]",
                 amp_str)
-    
+
     # Add full band response plot
     basename = os.path.split(status['full_band_resp']['output'][band])[1]
     basename = basename.replace('.png', '_raw.png')
@@ -74,7 +75,11 @@ def make_html(data_path):
                 os.path.join('../plots/',basename))
 
     # Load tuning
-    tn = np.load(status['save_tune']['output']).item()
+    try:
+        tn = np.load(status['save_tune']['output']).item()
+    except FileNotFoundError:
+        print("Tuning file not found")
+
     res = tn[band]['resonances']
     res_list = np.array([], dtype=str)
     res_name = ""
@@ -84,22 +89,24 @@ def make_html(data_path):
         res_name = res_name + "\'" + f"{int(k):03}|{int(k):03}" + "\', "
         chan = res[k]['channel']
         res_to_chan = res_to_chan + f'\"{int(k):03}\":\"{chan:03}\", '
-        
+
     res_name = '[' + res_name + ']'
     replace_str(index_path, "[[FREQ_RESP_LIST]]",
                 res_name)
 
     replace_str(index_path, "[[RES_DICT]]",
                 res_to_chan)
-    
+
     # Load eta scans
-    basename = os.path.split(glob.glob(os.path.join(data_path, 'plots/*eta*'))[0])[1].split("res")
+    basename = os.path.split(glob.glob(os.path.join(data_path,
+        'plots/*eta*'))[0])[1].split("res")
     instr = f"\'{basename[0]}\' + \'res\' + p[\'res\'] + \'.png\'"
     replace_str(index_path, "[[ETA_PATH]]",
                 instr)
 
     # Load tracking setup
-    basename = os.path.split(glob.glob(os.path.join(data_path, 'plots/*tracking*'))[0])[1].split("_band")
+    basename = os.path.split(glob.glob(os.path.join(data_path,
+        'plots/*tracking*'))[0])[1].split("_band")
     instr = f"\'{basename[0]}\' + \'_band{band}_ch\' + res_to_chan(p[\'res\']) + \'.png\'"
     replace_str(index_path, "[[TRACKING_PATH]]",
                 instr)

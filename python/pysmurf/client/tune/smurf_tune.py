@@ -660,9 +660,9 @@ class SmurfTuneMixin(SmurfBase):
             ax.set_title(timestamp)
             if save_plot:
                 plot_path = os.path.join(self.plot_dir,
-                             '{}_b{}_full_band_resp.png'.format(timestamp,
-                                                                band))
-                plt.savefig(path, bbox_inches='tight')
+                    '{}_b{}_full_band_resp.png'.format(timestamp, band))
+
+                plt.savefig(plot_path, bbox_inches='tight')
                 self.pub.register_file(plot_path, 'response', plot=True)
 
             # Show/Close plots
