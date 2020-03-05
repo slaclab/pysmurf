@@ -104,7 +104,7 @@ def test_data_write_and_read(smurf_control):
     # Turn on some channels
     x = (np.random.randn(512)>0)*10
     smurf_control.set_amplitude_scale_array(band, x, wait_done=True)
-    #input_n_chan = np.sum(x>0)
+    input_n_chan = np.sum(x>0)
 
     # Take 5 seconds of data
     filename = smurf_control.take_stream_data(5)
@@ -127,9 +127,8 @@ def test_data_write_and_read(smurf_control):
         "Check that the flux ramp is on and you are triggering in the " + \
         "correct mode. See documentation for set_ramp_start_mode."
 
-    assert n_chan == 512, \
-        "read_stream_data should return data with 512 channels " + \
-        "by default. "
+    assert n_chan == input_n_chan, \
+        f"read_stream_data should return data with {input_n_chan} channels"
 
     t, d, m = smurf_control.read_stream_data(filename, array_size=0)
     n_chan, _ = np.shape(d)
