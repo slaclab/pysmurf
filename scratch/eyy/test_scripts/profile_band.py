@@ -7,6 +7,7 @@ sys.path.append("../../../python")
 import pysmurf.client
 import time
 
+
 def make_html(data_path):
     """
     """
@@ -103,6 +104,7 @@ def make_html(data_path):
     replace_str(index_path, "[[TRACKING_PATH]]",
                 instr)
     
+
 if __name__ == "__main__":
     #####################
     # Arg parse things
@@ -188,7 +190,6 @@ if __name__ == "__main__":
     status = execute(status,
                      lambda: S.get_amplifier_bias(),
                      'get_amplifier_bias')
-
     
     # full band response
     status = execute(status,
@@ -258,11 +259,13 @@ if __name__ == "__main__":
                                                     update_channel_assignment=True),
                      'identify_bias_groups')
 
+
     # Save tuning
     status = execute(status,
                      lambda: S.save_tune(),
                      'save_tune')
     
+
     # take data
 
     # read back data
@@ -273,5 +276,6 @@ if __name__ == "__main__":
 
 
     
+
     # Make webpage
     make_html(os.path.split(S.output_dir)[0])
