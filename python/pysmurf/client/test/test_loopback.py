@@ -17,26 +17,26 @@ import os
 
 
 @pytest.fixture(scope='session')
-def smurf_control():
+def smurf_control(request):
     epics_prefix = 'smurf_server_s5'
     config_file = os.path.join('/usr/local/src/pysmurf/',
                                'cfg_files/stanford/',
                                'experiment_fp30_cc02-03_lbOnlyBay0.cfg' )
     S = pysmurf.client.SmurfControl(epics_root=epics_prefix,
                                     cfg_file=config_file,
-                                    setup=False,
+                                    setup=request.param,
                                     make_logfile=False,
                                     shelf_manager="shm-smrf-sp01")
 
     return S
 
-
+@pytest.mark.parametrize('smurf_control', [False], indirect=True)
 def test_fpga_temperature(smurf_control):
     fpga_temp = smurf_control.get_fpga_temp()
     assert fpga_temp < 100, \
         "FPGA temperature over 100 C."
 
-
+@pytest.mark.parametrize('smurf_control', [False], indirect=True)
 def test_amplifier_bias(smurf_control):
     amp_bias = smurf_control.get_amplifier_bias()
     assert amp_bias['hemt_Vg'] > .45 and amp_bias['hemt_Vg'] < .7,\
@@ -49,7 +49,7 @@ def test_amplifier_bias(smurf_control):
     assert amp_bias['50K_Vg'] < -.5 and amp_bias['50K_Vg'] > -1,\
         '50K gate voltage out of acceptable range.'
 
-
+@pytest.mark.parametrize('smurf_control', [False], indirect=True)
 def test_uc_dc_atts(smurf_control):
     accept_frac = .1
 
@@ -91,7 +91,9 @@ def test_uc_dc_atts(smurf_control):
             ratio > exp_ratio * (1-accept_frac), \
             "DC att not within acceptable limits."
 
-
+# In this case, we need to initialize the pysmurf.client.SmurfControl
+# object with the option setup=True
+@pytest.mark.parametrize('smurf_control', [True], indirect=True)
 def test_data_write_and_read(smurf_control):
     band = 1
 
