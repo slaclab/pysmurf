@@ -100,7 +100,6 @@ def test_data_write_and_read(smurf_control):
     # Define the payload size (this is the default val too)
     payload_size = 512
     smurf_control.set_payload_size(payload_size)
-    smurf_control.set_payload_size(0)
 
     # Turn on some channels
     x = (np.random.randn(512)>0)*10
