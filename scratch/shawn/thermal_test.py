@@ -9,6 +9,8 @@ import epics
 slots=[int(slot) for slot in sys.argv[1].split(',')]
 print(f'Running thermal test on slots {slots} ...')
 
+# whether or not to automatically plot the hardware logs
+gnuplot_temperatures=True
 shelfmanager='shm-smrf-sp01'
 set_fans_to_full_at_start=True
 max_fan_level=100
@@ -43,13 +45,14 @@ wait_after_streaming_on_min=1
 wait_btw_tracking_setups_min=1
 wait_after_tracking_setups_min=1
 
-full_fan_level_dwell_min=30
+full_fan_level_dwell_min=2
 
 # Whether or not to restrict the fan level
-fan_frus=[(20,4),(20,3)]
+#fan_frus=[(20,4),(20,3)]
+fan_frus=[(20,3),(20,4)]
 restrict_fan_level=True
 restricted_fan_level=50
-restricted_fan_level_dwell_min=30
+restricted_fan_level_dwell_min=15
 
 # Dumb monitoring of FPGA and regulator temperatures
 #while true; do clear; awk '{print $1" "$3" "$17" "$18" "$19}' 1568751172_hwlog.dat | tail -n 3 | sort; sleep 1; done
@@ -148,20 +151,28 @@ def wait_for_text_in_tmux(slot_number,text,tmux_session_name='smurf'):
         p2.communicate()
         ret=p2.returncode
 
-def set_fan_level(shelfmanager,fanlevel):
-    os.system(f'ssh root@{shelfmanager} \"clia minfanlevel {fanlevel}; clia setfanlevel all {fanlevel}\"')
-
-def disable_fan_policy(shelfmanager,frus):
+# this sets them all at once
+#def set_fan_level(shelfmanager,fanlevel):
+#    os.system(f'ssh root@{shelfmanager} \"clia minfanlevel {fanlevel}; clia setfanlevel all {fanlevel}\"')
+# this sets them by fru
+def set_fan_level(shelfmanager,frus,fan_level,wait_btw_sec=1):
     command=''
     for fru1,fru2 in frus:
-        command+=f'clia setfanpolicy {fru1} {fru2} DISABLE;'
+        command+=f'clia minfanlevel {fru1} {fru2} {fan_level}; sleep {wait_btw_sec}; clia setfanlevel {fru1} {fru2} {fan_level}; sleep {wait_btw_sec};'
     print(command)
     os.system(f'ssh root@{shelfmanager} \"{command}\"')
 
-def enable_fan_policy(shelfmanager,frus):
+def disable_fan_policy(shelfmanager,frus,wait_btw_sec=1):
     command=''
     for fru1,fru2 in frus:
-        command+=f'clia setfanpolicy {fru1} {fru2} ENABLE;'
+        command+=f'clia setfanpolicy {fru1} {fru2} DISABLE; sleep {wait_btw_sec};'
+    print(command)
+    os.system(f'ssh root@{shelfmanager} \"{command}\"')
+
+def enable_fan_policy(shelfmanager,frus,wait_btw_sec=1):
+    command=''
+    for fru1,fru2 in frus:
+        command+=f'clia setfanpolicy {fru1} {fru2} ENABLE; sleep {wait_btw_sec};'
     print(command)
     os.system(f'ssh root@{shelfmanager} \"{command}\"')
 
@@ -186,7 +197,7 @@ def record_hardware_state(slots,atca_yml,server_ymls,amcc_dump_file,shelfmanager
     for slot in slots:
         cmd=f'docker logs smurf_server_s{slot} > {output_dir}/{ctime}_s{slot}dockerlog.dat'
         os.system(cmd)
-    
+
 ctime=time.time()
 #output_dir='/data/smurf_data/westpak_thermal_testing_Jan2020'
 output_dir='/data/smurf_data/simonsobs_first10carriers_thermal_testing_Feb2020'
@@ -198,7 +209,7 @@ amcc_dump_bsi_file=os.path.join(output_dir,'{}'.format(int(ctime))+'_amcc_dump_b
 
 if set_fans_to_full_at_start:
     print(f'-> Setting fan speeds to full (={max_fan_level})')
-    set_fan_level(shelfmanager,max_fan_level)
+    set_fan_level(shelfmanager,fan_frus,max_fan_level)
     time.sleep(5)
 
 # start hardware logging
@@ -211,6 +222,9 @@ if not skip_setup:
     print('-> Waiting {} min before setup.'.format(wait_before_setup_min))
     wait_before_setup_sec=wait_before_setup_min*60
     time.sleep(wait_before_setup_sec)    
+
+    if gnuplot_temperatures:
+        os.system('cd ./pysmurf/scratch/shawn/; ./plot_temperatures.sh %s'%(','.join([str(slot) for slot in slots])))
     
     # setup
     add_tag_to_hardware_log(hardware_logfile,tag='setup')
@@ -356,7 +370,7 @@ if restrict_fan_level:
     # must repeatedly disable the fan policy, for some reason
     while True:
         disable_fan_policy(shelfmanager,fan_frus)
-        set_fan_level(shelfmanager,restricted_fan_level)
+        set_fan_level(shelfmanager,fan_frus,restricted_fan_level)
         # only do it for the dwell time
         if (time.time()-start_restrict_fan_time)>restricted_fan_level_dwell_sec:
             # record hardware state after dwelling at restricted fan speed
