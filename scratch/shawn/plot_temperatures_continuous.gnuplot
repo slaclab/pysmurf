@@ -26,6 +26,7 @@ smurf_server=sprintf("smurf_server_s%s",slot)
 #18 regulator_temp1
 #19 regulator_temp2  
 
+first=1
 while 1 {
       set yrange [0:130]
       set xlabel 'Time'
@@ -47,7 +48,12 @@ while 1 {
       #change size of tick labels
       set tics font ", 6"
 
-      plot datafile u (stringcolumn(1) eq smurf_server ? $2 : 1/0):3 title 'fpga\_temp', datafile u (stringcolumn(1) eq smurf_server ? $2 : 1/0):7 title 'cc\_temp', datafile u (stringcolumn(1) eq smurf_server ? $2 : 1/0):12 title 'atca\_temp\_fpga', datafile u (stringcolumn(1) eq smurf_server ? $2 : 1/0):13 title 'atca\_temp\_rtm', datafile u (stringcolumn(1) eq smurf_server ? $2 : 1/0):14 title 'atca\_temp\_amc0', datafile u (stringcolumn(1) eq smurf_server ? $2 : 1/0):15 title 'atca\_temp\_amc2', datafile u (stringcolumn(1) eq smurf_server ? $2 : 1/0):16 title 'atca\_jct\_temp\_fpga', datafile u (stringcolumn(1) eq smurf_server ? $2 : 1/0):17 title 'regulator\_iout', datafile u (stringcolumn(1) eq smurf_server ? $2 : 1/0):18 title 'regulator\_temp1', datafile u (stringcolumn(1) eq smurf_server ? $2 : 1/0):19 title 'regulator\_temp2'
+      if(first==1){
+	plot datafile u (stringcolumn(1) eq smurf_server ? $2 : 1/0):3 title 'fpga\_temp', datafile u (stringcolumn(1) eq smurf_server ? $2 : 1/0):7 title 'cc\_temp', datafile u (stringcolumn(1) eq smurf_server ? $2 : 1/0):12 title 'atca\_temp\_fpga', datafile u (stringcolumn(1) eq smurf_server ? $2 : 1/0):13 title 'atca\_temp\_rtm', datafile u (stringcolumn(1) eq smurf_server ? $2 : 1/0):14 title 'atca\_temp\_amc0', datafile u (stringcolumn(1) eq smurf_server ? $2 : 1/0):15 title 'atca\_temp\_amc2', datafile u (stringcolumn(1) eq smurf_server ? $2 : 1/0):16 title 'atca\_jct\_temp\_fpga', datafile u (stringcolumn(1) eq smurf_server ? $2 : 1/0):17 title 'regulator\_iout', datafile u (stringcolumn(1) eq smurf_server ? $2 : 1/0):18 title 'regulator\_temp1', datafile u (stringcolumn(1) eq smurf_server ? $2 : 1/0):19 title 'regulator\_temp2'
+	first=0
+      } else {
+        replot
+      }
 
-      pause 6
+      pause 10
 }

@@ -1,4 +1,5 @@
 import os
+import matplotlib
 import pysmurf
 import numpy as np
 import sys

@@ -278,14 +278,7 @@ if [ "$run_thermal_test" = true ] ; then
     tmux new-window -t ${tmux_session_name}:8
     tmux rename-window -t ${tmux_session_name}:8 tests
     tmux send-keys -t ${tmux_session_name}:8 'cd '${pysmurf} C-m
-    tmux send-keys -t ${tmux_session_name}:8 'ipython3 -i pysmurf/'${thermal_test_script} C-m
-
-    sleep 30
-    
-    tmux split-window -v -t ${tmux_session_name}:8
-    tmux send-keys -t ${tmux_session_name}:8 'cd '${pysmurf}'/scratch/shawn/' C-m
-    tmux send-keys -t ${tmux_session_name}:8 'ipython3 -i pysmurf/'${thermal_test_script} C-m    
-    
+    tmux send-keys -t ${tmux_session_name}:8 'ipython3 -i '${pysmurf}'/pysmurf/'${thermal_test_script}' '`echo ${slots[@]} | tr ' ' ,` C-m
 fi
 
 if [ "$attach_at_end" = true ] ; then
