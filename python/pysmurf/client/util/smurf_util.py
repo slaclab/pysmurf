@@ -3757,7 +3757,7 @@ class SmurfUtilMixin(SmurfBase):
                 fig.suptitle(f'Bias Group {bias_group}')
 
                 if save_plot:
-                    savename = f'{timestamp}_identify_bg{bias_group}.png'
+                    savename = f'{timestamp}_identify_bg{bias_group:02}.png'
                     plt.savefig(os.path.join(self.plot_dir, savename),
                                 bbox_inches='tight')
                 if not show_plot:

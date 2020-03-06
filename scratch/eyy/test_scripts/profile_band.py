@@ -17,10 +17,14 @@ def make_html(data_path):
     import glob
     
     # FIXME - move this somewhere smarter
-    template_path = './page_template'
+    script_path = os.path.dirname(os.path.realpath(__file__))
+    template_path = os.path.join(script_path, 'page_template')
     html_path = os.path.join(data_path, "summary")
+
+    print(f'Making HTML output in : {html_path}')
     
     # Copy template directory
+    print(f"Copying {template_path} to {html_path}")
     shutil.copytree(template_path, html_path)
 
     # Load status dict
@@ -69,8 +73,7 @@ def make_html(data_path):
                 amp_str)
 
     # Add full band response plot
-    basename = os.path.split(status['full_band_resp']['output'][band])[1]
-    basename = basename.replace('.png', '_raw.png')
+    basename = os.path.split(status['full_band_resp']['output'][2])[1]
     replace_str(index_path, "[[FULL_BAND_RESP]]",
                 os.path.join('../plots/',basename))
 
@@ -106,11 +109,34 @@ def make_html(data_path):
 
     # Load tracking setup
     basename = os.path.split(glob.glob(os.path.join(data_path,
-        'plots/*tracking*'))[0])[1].split("_band")
-    instr = f"\'{basename[0]}\' + \'_band{band}_ch\' + res_to_chan(p[\'res\']) + \'.png\'"
+        'plots/*tracking*'))[0])[1].split("_FRtracking")
+    instr = f"\'{basename[0]}\' + \'_FRtracking_band{band}_ch\' + res_to_chan(p[\'res\']) + \'.png\'"
     replace_str(index_path, "[[TRACKING_PATH]]",
                 instr)
-    
+
+    # Load bias group data
+    bias_group_list = ""
+    for bg in np.arange(8):
+        bias_group_list += f"\'{bg:02}|{bg:02}\', "
+    bias_group_list = "[" + bias_group_list + "]"
+    replace_str(index_path, "[[BIAS_GROUP_LIST]]",
+                bias_group_list)
+
+    # Bias group path
+    basename = os.path.split(glob.glob(os.path.join(data_path,
+        'plots/*_identify_bg*'))[0])[1].split("_identify_bg")
+    instr = f"\'{basename[0]}\' + \'_identify_bg\' + p[\'bg\'] + \'.png\'"
+    replace_str(index_path, "[[BIAS_GROUP_PATH]]",
+                instr)
+
+    # Bias group path
+    basename = os.path.split(glob.glob(os.path.join(data_path,
+        'plots/*_IV_curve*'))[0])[1].split("_IV_curve")
+    instr = f"\'{basename[0]}\' + \'_IV_curve_b{band}_ch\' + res_to_chan(p[\'res\']) + \'.png\'"
+    replace_str(index_path, "[[IV_PATH]]",
+                instr)
+
+
 
 if __name__ == "__main__":
     #####################
@@ -146,7 +172,9 @@ if __name__ == "__main__":
                         help="The starting subband for find_freq")
     parser.add_argument("--subband-high", type=int, required=False,
                         help="The end subband for find_freq")
-
+    parser.add_argument("--no-band-off", default=False,
+                        action="store_true",
+                        help="Whether to skip turning off bands")
 
     args = parser.parse_args()
 
@@ -187,6 +215,13 @@ if __name__ == "__main__":
     if args.setup:
         status = execute(status, lambda: S.setup(), 'setup')
 
+    # Band off
+    if not args.no_band_off:
+        bands = S.config.get('init').get('bands')
+        for b in bands:
+            status = execute(status, lambda: S.band_off(b),
+                             f'band_off_b{b}')
+        
     # amplifier biases
     status = execute(status,
                      lambda: S.set_amplifier_bias(write_log=True),
@@ -254,10 +289,15 @@ if __name__ == "__main__":
                                               feedback_start_frac=.2,
                                               feedback_end_frac=.98),
                      'tracking_setup')
-                    
+
+    
+    status = execute(status, lambda: S.which_on(band), 'which_on_before_check')
+    
     # now track and check
     status = execute(status, lambda: S.check_lock(band), 'check_lock')
 
+    status = execute(status, lambda: S.which_on(band), 'which_on_after_check')
+    
     # Identify bias groups
     status = execute(status,
                      lambda: S.identify_bias_groups(bias_groups=np.arange(8),
@@ -274,14 +314,19 @@ if __name__ == "__main__":
     
 
     # take data
-
+    
     # read back data
 
     # now take data using take_noise_psd and plot stuff
 
-    # Command and IV.
-
-
+    # IV.
+    status = execute(status,
+                     lambda: S.slow_iv_all(np.arange(8), overbias_voltage=19.9,
+                                           bias_high=10, bias_step=.01,
+                                           wait_time=.1, high_current_mode=False,
+                                           overbias_wait=.5, cool_wait=60,
+                                           make_plot=True),
+                     'slow_iv_all')
     
 
     # Make webpage
