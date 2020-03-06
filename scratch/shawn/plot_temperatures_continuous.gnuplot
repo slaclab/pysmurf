@@ -42,7 +42,6 @@ while 1 {
       set key font ",6"
       set key left bottom
       set xtics font ", 6"
-      show title
       set key top left
 
       #change size of tick labels
