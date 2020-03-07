@@ -133,6 +133,7 @@ class SmurfIVMixin(SmurfBase):
             plotname_append=plotname_append, R_sh=R_sh, grid_on=grid_on,
             phase_excursion_min=phase_excursion_min,chs=channels,band=band)
 
+        return path
 
     def partial_load_curve_all(self, bias_high_array, bias_low_array=None,
             wait_time=0.1, bias_step=0.1, show_plot=False, analyze=True,
@@ -251,6 +252,8 @@ class SmurfIVMixin(SmurfBase):
                 phase_excursion_min=phase_excursion_min, channels=channels)
 
 
+        return path
+            
     def analyze_slow_iv_from_file(self, fn_iv_raw_data, make_plot=True,
                                   show_plot=False, save_plot=True,
                                   plotname_append='', R_sh=None,
