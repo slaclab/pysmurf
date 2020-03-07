@@ -39,6 +39,11 @@ def make_html(data_path):
 
     index_path = os.path.join(html_path, "index.html")
 
+    n_res_found = len(status['which_on_before_check']['output'])
+    n_res_track = len(status['which_on_after_check']['output'])
+    ivdict = np.load(status['slow_iv_all']['output'].split('_raw_data')[0]+'.npy').item()
+    n_tes = len(ivdict[band].keys())
+    
     # Fill why
     replace_str(index_path, "[[WHY]]",
                 status['why']['output'])
@@ -47,6 +52,16 @@ def make_html(data_path):
     replace_str(index_path, "[[DATETIME]]",
                 datetime.datetime.fromtimestamp(status['why']['start']).strftime('%Y-%m-%d'))
 
+    # Summary
+    summary_str = '<table style=\"width:30%\" align=\"center\" border=\"1\">'
+    summary_str += f"<tr><td>Band</td><td>{band}</td>"
+    summary_str += f"<tr><td>Resonators found</td><td>{n_res_found}</td>"
+    summary_str += f"<tr><td>Resonators tracking</td><td>{n_res_track}</td>"
+    summary_str += f"<tr><td>IV curves</td><td>{n_tes}</td>"
+    summary_str += '</table>'
+    replace_str(index_path, "[[SUMMARY]]",
+                summary_str)
+    
     # Do timing calculations
     skip_keys = ["band", "subband"]
     timing_str = '<table style=\"width:30%\" align=\"center\" border=\"1\">'
@@ -67,7 +82,7 @@ def make_html(data_path):
     amp_str = '<table style=\"width:30%\" align=\"center\" border=\"1\">'
     amp_dict = status['get_amplifier_bias']['output']
     for k in amp_dict.keys():
-        amp_str += f'<tr><td>{k}</td><td>{amp_dict[k]}</td></tr>'
+        amp_str += f'<tr><td>{k}</td><td>{amp_dict[k]:4.3f}</td></tr>'
     amp_str += '</table>'
     replace_str(index_path, "[[AMPLIFIER_BIAS]]",
                 amp_str)
@@ -312,10 +327,6 @@ if __name__ == "__main__":
                      lambda: S.save_tune(),
                      'save_tune')
     
-
-    # take data
-    
-    # read back data
 
     # now take data using take_noise_psd and plot stuff
 
