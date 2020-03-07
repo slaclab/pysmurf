@@ -354,8 +354,6 @@ detect_carrier_board()
         local __result_args=$1
 
         # Definitons
-        ## Shelfmanager node name
-        local shelfmanager="shm-smrf-sp01"
         ## AMC carrier board part numbers
         local carrier_gen1_pn="PC_379_396_01"
         local carrier_gen2_pn="PC_379_396_38"
