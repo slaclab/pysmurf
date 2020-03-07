@@ -34,6 +34,7 @@ class CmbEth(Common):
                  pv_dump_file   = "",
                  disable_bay0   = False,
                  disable_bay1   = False,
+                 enable_pwri2c  = False,
                  txDevice       = None,
                  configure      = False,
                  VariableGroups = None,
@@ -51,7 +52,8 @@ class CmbEth(Common):
         # Instantiate Fpga top level
         self._fpga = FpgaTopLevel( memBase      = self._srp,
                                    disableBay0  = disable_bay0,
-                                   disableBay1  = disable_bay1)
+                                   disableBay1  = disable_bay1,
+                                   enablePwrI2C = enable_pwri2c)
 
         # Create ddr stream interfaces for base class
         self._ddr_streams = []
