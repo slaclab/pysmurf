@@ -50,10 +50,21 @@ class CmbEth(Common):
         pyrogue.streamConnectBiDir(self._srp, self._stream.application(dest=0x0))
 
         # Instantiate Fpga top level
-        self._fpga = FpgaTopLevel( memBase      = self._srp,
-                                   disableBay0  = disable_bay0,
-                                   disableBay1  = disable_bay1,
-                                   enablePwrI2C = enable_pwri2c)
+        # In order to be backwards compatible for now, also support
+        # FpgaTopLevel which doesn't have the enablePwrI2C argument.
+        try:
+            self._fpga = FpgaTopLevel( memBase      = self._srp,
+                                       disableBay0  = disable_bay0,
+                                       disableBay1  = disable_bay1,
+                                       enablePwrI2C = enable_pwri2c)
+        except TypeError as e:
+            print(f"TypeError calling FpgaTopLevel: {e}")
+            print("This FpgaTopLevel does not support the option 'enablePwrI2C'.")
+            print("Please use a pyrogue zip file which is up to date.")
+            print("Staring the server without using the 'enablePwrI2C' option.")
+            self._fpga = FpgaTopLevel( memBase      = self._srp,
+                                       disableBay0  = disable_bay0,
+                                       disableBay1  = disable_bay1)
 
         # Create ddr stream interfaces for base class
         self._ddr_streams = []
