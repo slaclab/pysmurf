@@ -40,6 +40,9 @@ usage()
     echo "If not zip file is found, the script will then look for a local checked out repository in the same location; If found, the python directories"
     echo "under it will be added to PYTHONPATH."
     echo
+    echo "The option '-H|--hard-boot' can be used to request a hard boot. During this boot mode, the FPGA is rebooted by deactivating and activating the carrier"
+    echo "board before starting the pyrogue server, and the default configuration file is loaded during the pyrogue server booting process."
+    echo
     echo "All other arguments are passed verbatim to the next startup script."
     echo ""
     exit 1
