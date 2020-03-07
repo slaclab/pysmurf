@@ -29,12 +29,12 @@ usage()
     echo
     echo "The script will by default check if the firmware githash read from the FPGA via IPMI is the same of the found in the MCS file name."
     echo "If they don't match, then the MCS file will be loaded into the FPGA. If this happens, the FPGA will be rebooted."
-    echo "This checking can be disabled with -D. The checking will also be disabled if -a is used instead of -S and -N. If "
+    echo "This checking can be disabled with -D. The checking will also be disabled if -a is used instead of -S and -N."
     echo
     echo "The script will try to auto-detect the type of hardware, and automatically generate server startup arguments based on the hardware type."
     echo "Currently, this script only detects the type of carrier board, and uses the '--enable-em22xx' option when the carrier is a Gen2, version >= C03."
-    echo "This hardware auto-detection can be disabled using the option '-E|--disable-hw-detect'. The user should provided the appropriate startup arguments"
-    echo "based on the hardware type."
+    echo "This hardware auto-detection can be disabled using the option '-E|--disable-hw-detect'. This detection will also be disabled if -a is used instead"
+    echo "of -S and -N. The user should provided the appropriate startup arguments based on the hardware type."
     echo
     echo "The script will look for a zip file under '${fw_top_dir}'. If found, it will be passed with the argument -z to the next startup script."
     echo "If not zip file is found, the script will then look for a local checked out repository in the same location; If found, the python directories"

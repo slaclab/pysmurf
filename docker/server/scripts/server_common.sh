@@ -217,9 +217,14 @@ getFpgaIpAddr()
         echo "FPGA IP: ${fpga_ip}"
 
     else
-        echo "IP address was defined. Ignoring shelfmanager and slot number. FW version checking disabled."
+        # We  need the shelfmanager and slot number in order to get information
+        # via IPMI, which we do to get the FW version and to auto detect the HW type.
+        # So, when the IP address is used instead, disable these two features.
+        echo "IP address was defined. Ignoring shelfmanager and slot number."
+        echo "FW version checking and HW type auto  detection disabled."
         echo
         no_check_fw=1
+        disable_hw_detect=1
     fi
 
     # Add the IP address to the SMuRF arguments
