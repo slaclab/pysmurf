@@ -422,5 +422,7 @@ detect_carrier_board()
 
         # Write the result to the defined variable
         eval $__result_args="'${args}'"
+    else
+        echo "Auto-detection of type and version of AMC carrier board disabled."
     fi
 }
