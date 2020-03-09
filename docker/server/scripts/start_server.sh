@@ -102,6 +102,14 @@ checkFW
 # Do a hard boot, if requested
 hardBoot
 
+# Auto-detect hardware type
+## Detect type of AMCs, and get specific server startup arguments
+## for each specific type
+detect_amc_board amcs_args
+
+# Add the AMCs type specific argument to the list of argument
+args+=" ${amcs_args}"
+
 # Call the appropriate server startup script depending on the communication type
 if [ ${comm_type} == 'eth' ]; then
     echo "Staring the server using Ethernet communication..."
