@@ -835,11 +835,26 @@ class SmurfUtilMixin(SmurfBase):
             return data_filename
 
 
-    def stream_data_off(self, write_log=True):
+    def stream_data_off(self, write_log=True, register_file=False):
         """
         Turns off streaming data.
+
+        Args:
+            write_log (bool):
+                Whether to log the CA commands or not. Default False
+            register_file (bool):
+                If true, the stream data file will be registered through the
+                publisher.
         """
+
+        if register_file:
+            datafile = self.get_data_file_name().tostring().decode()
+
         self.close_data_file(write_log=write_log)
+
+        if register_file:
+            self.pub.register_file(datafile, 'data', format='dat')
+
         self.set_stream_enable(0, write_log=write_log, wait_after=.15)
 
 
