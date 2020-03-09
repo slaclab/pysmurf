@@ -22,6 +22,7 @@ import pysmurf
 import rogue.protocols.srp
 
 from pysmurf.core.roots.Common import Common
+import pysmurf.core.emulators
 
 from CryoDet._MicrowaveMuxBpEthGen2 import FpgaTopLevel
 
