@@ -462,7 +462,7 @@ detect_amc_board()
             local pn_str=$(cba_amc_init --dump ${shelfmanager}/${slot}/${bay} | grep -Po "Board Part Number\s+:\s+\K.+")
 
             # Check if a board is present in this slot
-            printf "Checking if board is present...                   "
+            printf "  Checking if board is present...                 "
             if [ -z ${pn_str} ]; then
                 printf "Board not present.\n"
                 continue
@@ -471,7 +471,7 @@ detect_amc_board()
             fi
 
             # Verify if the part number is correct
-            printf "Verifying the part number is supported...         "
+            printf "  Verifying the part number is supported...       "
             local supported=$(echo ${pn_str} | grep -o ${smurf_pn})
 
             if [ -z ${supported} ]; then
@@ -486,7 +486,7 @@ detect_amc_board()
             local ver_str=$(echo ${pn_str} | grep -Po "${smurf_pn}_C\K[0-9]{2}")
 
             # Verify if we extracted a version number string
-            printf "Verifying board version...                        "
+            printf "  Verifying board version...                      "
             if [ -z ${ver_str} ]; then
                 printf "Version not found in the part number string."
                 continue
@@ -495,7 +495,7 @@ detect_amc_board()
             fi
 
             # Verify is we extracted a type string
-            printf "Verifying board type...                           "
+            printf "  Verifying board type...                         "
             if [ -z ${type_str} ]; then
                 printf "Board type not found in the part number string.\n"
                 continue
@@ -521,7 +521,6 @@ detect_amc_board()
             # (and empty string here means there is not board, or that is it not supported).
             ver[${i}]="c${ver_str}"
 
-            echo
         done
 
         # Checking if both boards have the same version
@@ -532,7 +531,7 @@ detect_amc_board()
             else
                 printf "Version don't match: ${ver[0]} != ${ver[1]}\n"
                 echo
-                echo "Differenet board versions in the same carrier are not supported."
+                echo "Different board versions in the same carrier are not supported."
                 exit 1
             fi
         fi
