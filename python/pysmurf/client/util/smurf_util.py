@@ -849,14 +849,13 @@ class SmurfUtilMixin(SmurfBase):
                 If true, the stream data file will be registered through the
                 publisher.
         """
-        if register_file:
-            datafile = self.get_data_file_name().tostring().decode()
-
         self.close_data_file(write_log=write_log)
 
         if register_file:
-            self.log("Registering File {}".format(datafile))
-            self.pub.register_file(datafile, 'data', format='dat')
+            datafile = self.get_data_file_name().tostring().decode()
+            if datafile:
+                self.log("Registering File {}".format(datafile))
+                self.pub.register_file(datafile, 'data', format='dat')
 
         self.set_stream_enable(0, write_log=write_log, wait_after=.15)
 
