@@ -446,9 +446,9 @@ detect_amc_board()
 
         # Array variables, one entry for each bay:
         ## Band type
-        declare -a local band=("" "")
+        declare -a local band_bay=("" "")
         ## Version
-        declare -a local ver=("" "")
+        declare -a local ver_bay=("" "")
 
         echo "Auto-detecting type and version of AMC boards:"
         # Loop to read board in both slots
@@ -506,10 +506,10 @@ detect_amc_board()
             # Verify if the type is supported
             if [ ${type_str} == "A01" ]; then
                 printf "This is a LB board.\n"
-                band[$i]="lb"
+                band_bay[$i]="lb"
             elif [ ${type_str} == "A02" ]; then
                 printf "This is a HB board.\n"
-                band[$i]="hb"
+                band_bay[$i]="hb"
             else
                  printf "Board type not supported.\n"
                 continue
@@ -519,17 +519,17 @@ detect_amc_board()
             # a version number, write that version into the version array. We will
             # use this array to determine if the board is present and supported
             # (and empty string here means there is not board, or that is it not supported).
-            ver[${i}]="c${ver_str}"
+            ver_bay[${i}]="c${ver_str}"
 
         done
 
         # Checking if both boards have the same version
-        if [ ${ver[0]} ] && [ ${ver[1]} ]; then
+        if [ ${ver_bay[0]} ] && [ ${ver_bay[1]} ]; then
             printf "Boards present in both bays. Checking versions... "
-            if [ ${ver[0]} == ${ver[1]} ]; then
+            if [ ${ver_bay[0]} == ${ver_bay[1]} ]; then
                 printf "Versions macth.\n"
             else
-                printf "Version don't match: ${ver[0]} != ${ver[1]}\n"
+                printf "Version don't match: ${ver_bay[0]} != ${ver_bay[1]}\n"
                 echo
                 echo "Different board versions in the same carrier are not supported."
                 exit 1
@@ -539,10 +539,10 @@ detect_amc_board()
         # Get the version of the board that is present.
         # If both are present, we already check at this point
         # that they have the same version
-        if [ ${ver[0]} ]; then
-            local ver=${ver[0]}
+        if [ ${ver_bay[0]} ]; then
+            local ver=${ver_bay[0]}
         else
-            local ver=${ver[1]}
+            local ver=${ver_bay[1]}
         fi
 
         # Assemble the arguments and default file name
@@ -551,11 +551,11 @@ detect_amc_board()
 
         for i in $(seq 0 1); do
             defaults_file_name+="_"
-            if [ ! ${ver[$i]} ]; then
+            if [ ! ${ver_bay[$i]} ]; then
                 args+="--disable-bay$i "
                 defaults_file_name+="none"
             else
-                defaults_file_name+="${band[$i]}"
+                defaults_file_name+="${band_bay[$i]}"
             fi
         done
 
