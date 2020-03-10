@@ -136,4 +136,3 @@ fi
 
 echo ${cmd}
 ${cmd}
-echo
