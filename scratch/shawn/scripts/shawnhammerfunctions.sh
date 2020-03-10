@@ -25,9 +25,11 @@ wait_for_docker () {
 start_slot_tmux_and_pyrogue() {
     slot_number=$1
     pyrogue=$2
+
     tmux new-window -t ${tmux_session_name}:${slot_number}
     tmux rename-window -t ${tmux_session_name}:${slot_number} smurf_slot${slot_number}
-    tmux send-keys -l -t ${tmux_session_name}:${slot_number} C-b S-p
+    # what is this??
+    #tmux send-keys -l -t ${tmux_session_name}:${slot_number} C-b S-p
     tmux send-keys -t ${tmux_session_name}:${slot_number} 'cd '${pyrogue} C-m
     tmux send-keys -t ${tmux_session_name}:${slot_number} './run.sh -N '${slot_number}'; sleep 5; docker logs smurf_server_s'${slot_number}' -f' C-m
 }
@@ -43,7 +45,7 @@ is_slot_pyrogue_up() {
 
 is_slot_gui_up() {
     slot_number=$1
-    tmux capture-pane -pt ${tmux_session_name}:${slot_number} | grep -q "Starting GUI..."
+    tmux capture-pane -pt ${tmux_session_name}:${slot_number} | grep -q "Running GUI."
     return $?
 }
 
@@ -79,7 +81,7 @@ start_slot_tmux_serial () {
     
     echo '-> Waiting for smurf_server_s'${slot_number}' GUI to come up.'    
     sleep 2
-    grep -q "Starting GUI" <(docker logs smurf_server_s${slot_number} -f)
+    grep -q "Running GUI." <(docker logs smurf_server_s${slot_number} -f)
     
     # start pysmurf in a split window and initialize the carrier
     tmux split-window -v -t ${tmux_session_name}:${slot_number}
@@ -112,7 +114,7 @@ start_slot_tmux_serial () {
 
 run_pysmurf_setup () {
     slot_number=$1
-    tmux send-keys -t ${tmux_session_name}:${slot_number} 'S = pysmurf.SmurfControl(epics_root=epics_prefix,cfg_file=config_file,setup=True,make_logfile=False,shelf_manager="'${shelfmanager}'")' C-m
+    tmux send-keys -t ${tmux_session_name}:${slot_number} 'S = pysmurf.client.SmurfControl(epics_root=epics_prefix,cfg_file=config_file,setup=True,make_logfile=False,shelf_manager="'${shelfmanager}'")' C-m
 }
 
 is_slot_pysmurf_setup_complete() {

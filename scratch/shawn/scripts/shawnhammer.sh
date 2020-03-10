@@ -188,7 +188,7 @@ if [ "$reboot" = true ] ; then
 
     # deactivate carriers
     echo "-> Deactivating carrier(s) ${slots[@]}"    
-    echo ssh root@${shelfmanager} "$deactivatecmd"
+    ssh root@${shelfmanager} "$deactivatecmd"
     
     echo "-> Waiting 5 sec before re-activating carrier(s)"
     sleep 5
