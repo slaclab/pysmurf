@@ -515,7 +515,7 @@ detect_amc_board()
                 continue
             fi
 
-            # Now that we verify that the type is correct, and that we extarcted
+            # Now that we verify that the type is correct, and that we extracted
             # a version number, write that version into the version array. We will
             # use this array to determine if the board is present and supported
             # (and empty string here means there is not board, or that is it not supported).
