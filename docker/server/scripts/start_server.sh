@@ -128,11 +128,12 @@ args+=" ${carrier_args}"
 # Call the appropriate server startup script depending on the communication type
 if [ ${comm_type} == 'eth' ]; then
     echo "Staring the server using Ethernet communication..."
-    echo
-    /usr/local/src/pysmurf/server_scripts/cmb_eth.py  ${args}
+    cmd="/usr/local/src/pysmurf/server_scripts/cmb_eth.py  ${args}"
 else
     echo "Staring the server using PCIe communication..."
-    echo
-    /usr/local/src/pysmurf/server_scripts/cmb_pcie.py ${args}
+    cmd="/usr/local/src/pysmurf/server_scripts/cmb_pcie.py ${args}"
 fi
 
+echo
+echo ${cmd}
+${cmd}
