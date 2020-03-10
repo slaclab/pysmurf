@@ -640,7 +640,8 @@ class SmurfUtilMixin(SmurfBase):
     def take_stream_data(self, meas_time, downsample_factor=None,
                          write_log=True, update_payload_size=True,
                          reset_unwrapper=True, reset_filter=True,
-                         return_data=False, make_freq_mask=True):
+                         return_data=False, make_freq_mask=True,
+                         register_file=True):
         """
         Takes streaming data for a given amount of time
 
@@ -667,6 +668,8 @@ class SmurfUtilMixin(SmurfBase):
             taking data.
         return_data (bool) : Whether to return the data. If False, returns
             the full path to the data. Default False.
+        register_file (bool): Whether to register the data file with the
+            pysmurf publisher. Default True.
 
 
         Returns:
@@ -684,7 +687,7 @@ class SmurfUtilMixin(SmurfBase):
         time.sleep(meas_time)
 
         # Stop acq
-        self.stream_data_off(write_log=write_log)
+        self.stream_data_off(write_log=write_log, register_file=register_file)
 
         if write_log:
             self.log('Done taking data.', self.LOG_USER)
@@ -846,13 +849,13 @@ class SmurfUtilMixin(SmurfBase):
                 If true, the stream data file will be registered through the
                 publisher.
         """
-
         if register_file:
             datafile = self.get_data_file_name().tostring().decode()
 
         self.close_data_file(write_log=write_log)
 
         if register_file:
+            self.log("Registering File {}".format(datafile))
             self.pub.register_file(datafile, 'data', format='dat')
 
         self.set_stream_enable(0, write_log=write_log, wait_after=.15)
@@ -3164,7 +3167,7 @@ class SmurfUtilMixin(SmurfBase):
                                               wait_done=False)
                         time.sleep(wait_time)
 
-            self.stream_data_off()  # record data
+            self.stream_data_off(register_file=True)  # record data
         else:
             filename = dat_file
 
