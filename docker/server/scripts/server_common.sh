@@ -436,7 +436,7 @@ detect_amc_board()
     if [ -z ${disable_hw_detect+x} ]; then
 
         # The first argument points to a variable name to store the resulting argument list
-        local __result_args=$2
+        local __result_args=$1
 
         # Definitions
         ## SMuRF AMC board part number
