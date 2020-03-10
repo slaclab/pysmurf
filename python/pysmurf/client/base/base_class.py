@@ -133,7 +133,7 @@ class SmurfBase(object):
         self.crossbar = self.amccc + 'AxiSy56040:'
 
         # Regulator
-        self.regulator = self.amccc + 'IntelEnpirion:'
+        self.regulator = self.amccc + 'EM22xx:'
 
         # CarrierBsi
         self.amc_carrier_bsi = self.amccc + 'AmcCarrierBsi:'

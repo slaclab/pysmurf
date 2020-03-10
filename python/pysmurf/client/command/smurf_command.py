@@ -3393,8 +3393,7 @@ class SmurfCommandMixin(SmurfBase):
         return self._caget(self.epics_root + self.fpga_root + self._fpga_vccbram, **kwargs)
 
     # Regulator
-    _regulator_iout = "READ_IOUT"
-
+    _regulator_iout = "IOUT"
     def get_regulator_iout(self, **kwargs):
         """
         Returns:
@@ -3403,8 +3402,7 @@ class SmurfCommandMixin(SmurfBase):
         """
         return self._caget(self.regulator + self._regulator_iout, **kwargs)
 
-    _regulator_temp1 = "READ_TEMPERATURE_1"
-
+    _regulator_temp1 = "TEMPERATURE[1]"
     def get_regulator_temp1(self, **kwargs):
         """
         Returns:
@@ -3413,7 +3411,7 @@ class SmurfCommandMixin(SmurfBase):
         """
         return self._caget(self.regulator + self._regulator_temp1, **kwargs)
 
-    _regulator_temp2 = "READ_TEMPERATURE_2"
+    _regulator_temp2 = "TEMPERATURE[2]"
 
     def get_regulator_temp2(self, **kwargs):
         """
