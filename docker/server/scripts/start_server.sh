@@ -134,6 +134,6 @@ else
     cmd="/usr/local/src/pysmurf/server_scripts/cmb_pcie.py ${args}"
 fi
 
-echo
 echo ${cmd}
 ${cmd}
+echo
