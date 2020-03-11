@@ -3,6 +3,7 @@
 import time
 import numpy as np
 import sys
+import os
 
 n_scan_per_band=5
 wait_btw_bands_sec=5

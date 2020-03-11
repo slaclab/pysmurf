@@ -10,8 +10,8 @@ config_file_path='/data/pysmurf_cfg/'
 slot=int(sys.argv[1])
 epics_prefix = 'smurf_server_s%d'%slot
 
-config_file='experiment_pd009_cc02-01_lbOnlyBay0_r4.cfg'
-#config_file='experiment_pd009_cc02-01_lbBay0Bay1_r4.cfg'
+config_file='experiment_ucsd_k2so_cc02-06_lbOnlyBay0.cfg'
+
 config_file=os.path.join(config_file_path,config_file)
 
 S = pysmurf.client.SmurfControl(epics_root=epics_prefix,cfg_file=config_file,setup=False,make_logfile=False)
