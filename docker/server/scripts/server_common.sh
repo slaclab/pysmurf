@@ -426,3 +426,162 @@ detect_carrier_board()
         echo "Auto-detection of type and version of AMC carrier board disabled."
     fi
 }
+
+# Detect presence, type, and version of AMC boards,
+# and generated a list of according server input arguments.
+# The first argument indicates the variable to store the resulting argument list
+detect_amc_board()
+{
+    # Check if the hardware type auto-detection is disabled
+    if [ -z ${disable_hw_detect+x} ]; then
+
+        # The first argument points to a variable name to store the resulting argument list
+        local __result_args=$1
+
+        # Definitions
+        ## SMuRF AMC board part number
+        local smurf_pn="PC_379_396_30"
+        ## Path to default files
+        local defaults_path="/tmp/fw/smurf_cfg/defaults"
+
+        # Array variables, one entry for each bay:
+        ## Band type
+        declare -a local band_bay=("" "")
+        ## Version
+        declare -a local ver_bay=("" "")
+
+        echo "Auto-detecting type and version of AMC boards:"
+        # Loop to read board in both slots
+        for i in $(seq 0 1); do
+
+            # The bay number are 0 and 2, so need to multiply the index (0,1) by 2
+            local bay=$((i*2))
+            echo "- Reading board on bay ${bay}:"
+
+            # Get the AMC board part number
+            local pn_str=$(cba_amc_init --dump ${shelfmanager}/${slot}/${bay} | grep -Po "Board Part Number\s+:\s+\K.+")
+
+            # Check if a board is present in this slot
+            printf "  Checking if board is present...                 "
+            if [ -z ${pn_str} ]; then
+                printf "Board not present.\n"
+                continue
+            else
+                printf "Board present.\n"
+            fi
+
+            # Verify if the part number is correct
+            printf "  Verifying the part number is supported...       "
+            local supported=$(echo ${pn_str} | grep -o ${smurf_pn})
+
+            if [ -z ${supported} ]; then
+                printf "Part number ${pn_str} not supported.\n"
+                continue
+            else
+                printf "Part number ${pn_str} supported.\n"
+            fi
+
+            # Extract type and version from the part number string
+            local type_str=$(echo ${pn_str} | grep -Po "${smurf_pn}_C[0-9]{2}_\KA[0-9]{2}")
+            local ver_str=$(echo ${pn_str} | grep -Po "${smurf_pn}_C\K[0-9]{2}")
+
+            # Verify if we extracted a version number string
+            printf "  Verifying board version...                      "
+            if [ -z ${ver_str} ]; then
+                printf "Version not found in the part number string."
+                continue
+            else
+                printf "c${ver_str}\n"
+            fi
+
+            # Verify is we extracted a type string
+            printf "  Verifying board type...                         "
+            if [ -z ${type_str} ]; then
+                printf "Board type not found in the part number string.\n"
+                continue
+            else
+                 printf "${type_str}. "
+            fi
+
+            # Verify if the type is supported
+            if [ ${type_str} == "A01" ]; then
+                printf "This is a LB board.\n"
+                band_bay[$i]="lb"
+            elif [ ${type_str} == "A02" ]; then
+                printf "This is a HB board.\n"
+                band_bay[$i]="hb"
+            else
+                 printf "Board type not supported.\n"
+                continue
+            fi
+
+            # Now that we verify that the type is correct, and that we extracted
+            # a version number, write that version into the version array. We will
+            # use this array to determine if the board is present and supported
+            # (and empty string here means there is not board, or that is it not supported).
+            ver_bay[${i}]="c${ver_str}"
+
+        done
+
+        # Checking if both boards have the same version
+        if [ ${ver_bay[0]} ] && [ ${ver_bay[1]} ]; then
+            printf "Boards present in both bays. Checking versions... "
+            if [ ${ver_bay[0]} == ${ver_bay[1]} ]; then
+                printf "Versions macth.\n"
+            else
+                printf "Version don't match: ${ver_bay[0]} != ${ver_bay[1]}\n"
+                echo
+                echo "Different board versions in the same carrier are not supported."
+                exit 1
+            fi
+        fi
+
+        # Get the version of the board that is present.
+        # If both are present, we already check at this point
+        # that they have the same version
+        if [ ${ver_bay[0]} ]; then
+            local ver=${ver_bay[0]}
+        else
+            local ver=${ver_bay[1]}
+        fi
+
+        # Assemble the arguments and default file name
+        local args=""
+        local defaults_file_name="${defaults_path}/defaults_${ver}"
+
+        for i in $(seq 0 1); do
+            defaults_file_name+="_"
+            if [ ! ${ver_bay[$i]} ]; then
+                args+="--disable-bay$i "
+                defaults_file_name+="none"
+            else
+                defaults_file_name+="${band_bay[$i]}"
+            fi
+        done
+
+        defaults_file_name+=".yml"
+
+        printf "Defaults file name:                               ${defaults_file_name}\n"
+
+        # Check if default file exist
+        printf "Verifying is default file exist...                "
+        if [ ! -f ${defaults_file_name} ]; then
+            printf "File not found. Defaults won't be added to list of arguments.\n"
+        else
+            printf "File found!\n"
+            # As the default file exist, add it to the list of arguments
+            args+="-d ${defaults_file_name}"
+        fi
+
+
+        # Print the final list of auto-generated arguments
+        printf "Final list of generated arguments:                '${args}'\n"
+        echo "Done!"
+        echo
+
+        # Write the result to the defined variable
+        eval $__result_args="'${args}'"
+    else
+         echo "Auto-detection of presence, type and version of AMC boards disabled."
+    fi
+}
