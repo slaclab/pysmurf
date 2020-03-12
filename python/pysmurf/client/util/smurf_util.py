@@ -3060,9 +3060,10 @@ class SmurfUtilMixin(SmurfBase):
 
 
     def bias_bump(self, bias_group, wait_time=.5, step_size=.001, duration=5,
-                  fs=180., start_bias=None, make_plot=False, skip_samp_start=10,
+                  start_bias=None, make_plot=False, skip_samp_start=10,
                   high_current_mode=True, skip_samp_end=10, plot_channels=None,
-                  gcp_mode=False, gcp_wait=.5, gcp_between=1., dat_file=None):
+                  gcp_mode=False, gcp_wait=.5, gcp_between=1., dat_file=None,
+                  offset_percentile=2):
         """
         Toggles the TES bias high and back to its original state. From this, it
         calculates the electrical responsivity (sib), the optical responsivity (siq),
@@ -3086,7 +3087,6 @@ class SmurfUtilMixin(SmurfBase):
         step_size (float) : The voltage to step up and down in volts (for low
             current mode).
         duration (float) : The total time of observation
-        fs (float) : Sample frequency.
         start_bias (float) : The TES bias to start at. If None, uses the current
             TES bias.
         skip_samp_start (int) : The number of samples to skip before calculating
@@ -3099,6 +3099,8 @@ class SmurfUtilMixin(SmurfBase):
         plot_channels (int array) : The channels to plot.
         dat_file (str) : filename to read bias-bump data from; if provided, data is read
             from file instead of being measured live
+        offset_percentile (float) : Number between 0 and 100. Determines the percentile
+            used to calculate the DC level of the TES data.
 
         Ret:
         ---
@@ -3116,25 +3118,32 @@ class SmurfUtilMixin(SmurfBase):
                      ' signal to noise.')
             return
 
+        # Calculate sampling frequency
+        # flux_ramp_freq = self.get_flux_ramp_freq() * 1.0E3
+        # fs = flux_ramp_freq * self.get_downsample_factor()
+
+        # Cast the bias group as an array
         bias_group = np.ravel(np.array(bias_group))
-        if start_bias is None:
-            start_bias = np.array([])
+
+        # Fill in bias array if not provided
+        if start_bias is not None:
+            all_bias = self.get_tes_bias_bipolar_array()
             for bg in bias_group:
-                start_bias = np.append(start_bias,
-                                       self.get_tes_bias_bipolar(bg))
+                áll_bias[bg] += start_bias
+            start_bias = all_bias
         else:
-            start_bias = np.ravel(np.array(start_bias))
+            start_bias = self.get_tes_bias_bipolar_array()
+
+        step_array = np.zeros_like(start_bias)
+        for bg in bias_group:
+            step_array[bg] = step_size
 
         n_step = int(np.floor(duration / wait_time / 2))
-
-        i_bias = start_bias[0] / self.bias_line_resistance
-
         if high_current_mode:
             self.set_tes_bias_high_current(bias_group)
-            i_bias *= self.high_low_current_ratio
 
         if dat_file is None:
-            filename = self.stream_data_on()
+            filename = self.stream_data_on(make_freq_mask=False)
 
             if gcp_mode:
                 self.log('Doing GCP mode bias bump')
@@ -3157,14 +3166,13 @@ class SmurfUtilMixin(SmurfBase):
             else:
                 # Sets TES bias high then low
                 for i in np.arange(n_step):
-                    for j, bg in enumerate(bias_group):
-                        self.set_tes_bias_bipolar(bg, start_bias[j] + step_size,
-                                              wait_done=False)
+                    self.set_tes_bias_bipolar_array(start_bias + step_array,
+                                                    wait_done=False)
                     time.sleep(wait_time)
-                    for j, bg in enumerate(bias_group):
-                        self.set_tes_bias_bipolar(bg, start_bias[j],
-                                              wait_done=False)
-                        time.sleep(wait_time)
+
+                    self.set_tes_bias_bipolar_array(start_bias,
+                                                    wait_done=False)
+                    time.sleep(wait_time)
 
             self.stream_data_off(register_file=True)  # record data
         else:
@@ -3173,63 +3181,80 @@ class SmurfUtilMixin(SmurfBase):
         if gcp_mode:
             return
 
-        t, d, m = self.read_stream_data(filename)
-        d *= self.pA_per_phi0/(2*np.pi*1.0E6) # Convert to microamps
+        t, d, m, v_bias = self.read_stream_data(filename,
+                                                return_tes_bias=True)
+
+        # flag region after step
+        flag = np.ediff1d(v_bias[bias_group[0]],
+                          to_end=0).astype(bool)
+        flag = self.pad_flags(flag, after_pad=20,
+                              before_pad=2)
+
+        # flag first full step
+        s, e = self.find_flag_blocks(flag)
+        flag[0:s[1]] = np.nan
+
+        v_bias *= -2 * self._rtm_slow_dac_bit_to_volt
+        d *= self.pA_per_phi0/(2*np.pi*1.0E6) # Convert to microamp
         i_amp = step_size / self.bias_line_resistance * 1.0E6 # also uA
+        i_bias = v_bias[bias_group[0]] / self.bias_line_resistance * 1.0E6
+
+
+        # Scale the currents for high/low current
         if high_current_mode:
             i_amp *= self.high_low_current_ratio
+            i_bias *= self.high_low_current_ratio
 
-        n_demod = int(np.floor(fs*wait_time))
-        demod = np.append(np.ones(n_demod),-np.ones(n_demod))
-
+        # Demodulation timeline
+        demod = (v_bias[bias_group[0]] - np.min(v_bias[bias_group[0]]))
+        _amp = np.max(np.abs(v_bias[bias_group[0]])) - \
+               np.min(np.abs(v_bias[bias_group[0]]))
+        demod /= (_amp/2)
+        demod -= 1
+        demod[flag] = np.nan
+        
         bands, channels = np.where(m!=-1)
         resp = np.zeros(len(bands))
         sib = np.zeros(len(bands))*np.nan
 
-        # The vector to multiply by to get the DC offset
-        n_tile = int(duration/wait_time/2)-1
-
-        high = np.tile(np.append(np.append(np.nan*np.zeros(skip_samp_start),
-                                           np.ones(n_demod-skip_samp_start-skip_samp_end)),
-                                 np.nan*np.zeros(skip_samp_end+n_demod)),n_tile)
-        low = np.tile(np.append(np.append(np.nan*np.zeros(n_demod+skip_samp_start),
-                                          np.ones(n_demod-skip_samp_start-skip_samp_end)),
-                                np.nan*np.zeros(skip_samp_end)),n_tile)
-
         timestamp = filename.split('/')[-1].split('.')[0]
+
+        # Needs to be an array for the check later
+        if plot_channels is None:
+            plot_channels = np.array([])
 
         for i, (b, c) in enumerate(zip(bands, channels)):
             mm = m[b, c]
-            # Convolve to find the start of the bias step
-            conv = np.convolve(d[mm,:4*n_demod], demod, mode='valid')
-            start_idx = (len(demod) + np.where(conv == np.max(conv))[0][0])%(2*n_demod)
-            x = np.arange(len(low)) + start_idx
+            offset = (np.percentile(d[mm], 100-offset_percentile) +
+                      np.percentile(d[mm], offset_percentile))/2
+            d[mm] -= offset
 
-            # Calculate high and low state
-            h = np.nanmean(high*d[mm,start_idx:start_idx+len(high)])
-            l = np.nanmean(low*d[mm,start_idx:start_idx+len(low)])
-
-            resp[i] = h-l
+            # Calculate response amplitude and S_IB
+            resp[i] = np.nanmedian(2*d[mm]*demod/i_amp)
             sib[i] = resp[i] / i_amp
 
             if c in plot_channels:
-                plt.figure()
-                plt.plot(conv)
+                fig, ax = plt.subplots(2, figsize=(4.5, 3),
+                                       sharex=True)
+                ax[0].plot(d[mm], label='resp')
+                ax[0].plot(i_bias-np.min(i_bias), label='bias')
 
-                plt.figure()
-                plt.plot(d[mm])
-                plt.axvline(start_idx, color='k', linestyle=':')
-                plt.plot(x, h*high)
-                plt.plot(x, l*low)
-                plt.ylabel('TES current (uA)')
-                plt.xlabel('Samples')
-                plt.title(resp[i])
-                plot_fn = '%s/%s_biasBump_b%d_ch%03d' % (self.plot_dir,
-                    timestamp,b,c)
+                ax[1].plot(2*d[mm]*demod/i_amp, color='k')
+                ax[1].plot(demod)
+                ax[0].legend(loc='upper right')
+                ax[0].set_ylabel('Current [uA]')
+                ax[1].set_ylabel('Resp [A/A]')
+
+                ax[1].set_xlabel('Samples')
+                ax[0].set_title(f'b{b} ch{c:03}')
+                plt.tight_layout()
+
+                # Make plot name path
+                plot_fn = os.path.join(self.plot_dir,
+                                       f'{timestamp}_bias_bump_b{b}ch{c:03}.png')
                 plt.savefig(plot_fn)
+                plt.close(fig)
                 self.pub.register_file(plot_fn, 'bias_bump', plot=True)
-
-                self.log('Response plot saved to %s' % (plot_fn))
 
         resistance = np.abs(self.R_sh * (1-1/sib))
         siq = (2*sib-1)/(self.R_sh*i_amp) * 1.0E6/1.0E12  # convert to uA/pW
@@ -3245,7 +3270,7 @@ class SmurfUtilMixin(SmurfBase):
                 ret[b][c]['R'] = resistance[i]
                 ret[b][c]['Sib'] = sib[i]
                 ret[b][c]['Siq'] = siq[i]
-        #return bands, channels, resistance, sib, siq
+
         return ret
 
 
