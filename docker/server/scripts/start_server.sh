@@ -115,21 +115,24 @@ checkFW
 hardBoot
 
 # Auto-detect hardware type
-## Detect type of carrier, and get specific server startup arguments
-## for each specific type
-detect_carrier_board carrier_args
+## Detect type of AMCs, and get specific server startup arguments
+## for each specific type and add them to the list of arguments
+detect_amc_board amcs_args
+args+=" ${amcs_args}"
 
-# Add the carrier type specific argument to the list of argument
+## Detect type of carrier, and get specific server startup arguments
+## for each specific type and add them to the list of arguments
+detect_carrier_board carrier_args
 args+=" ${carrier_args}"
 
 # Call the appropriate server startup script depending on the communication type
 if [ ${comm_type} == 'eth' ]; then
     echo "Staring the server using Ethernet communication..."
-    echo
-    /usr/local/src/pysmurf/server_scripts/cmb_eth.py  ${args}
+    cmd="/usr/local/src/pysmurf/server_scripts/cmb_eth.py  ${args}"
 else
     echo "Staring the server using PCIe communication..."
-    echo
-    /usr/local/src/pysmurf/server_scripts/cmb_pcie.py ${args}
+    cmd="/usr/local/src/pysmurf/server_scripts/cmb_pcie.py ${args}"
 fi
 
+echo ${cmd}
+${cmd}
