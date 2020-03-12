@@ -1959,6 +1959,8 @@ class SmurfTuneMixin(SmurfBase):
         flux_ramp (bool) : Whether to flux ramp. Default is True.
         save_plot (bool) : Whether to save the plot. Default True.
         show_plot (bool) : Whether to show the plot. Default False.
+        setup_flux_ramp (bool) : Whether to setup the flux ramp at the end.
+            Default True.
         """
         if show_plot:
             plt.ion()
@@ -2409,6 +2411,8 @@ class SmurfTuneMixin(SmurfBase):
         f_min (float) : The maximum frequency swing.
         f_max (float) : The minimium frequency swing
         df_max (float) : The maximum value of the stddev of df
+        setup_flux_ramp (bool) : Whether to setup the flux ramp at the end.
+            Default True.
         """
         if reset_rate_khz is None:
             reset_rate_khz = self.reset_rate_khz
@@ -2756,7 +2760,7 @@ class SmurfTuneMixin(SmurfBase):
     def check_lock(self, band, f_min=.015, f_max=.2, df_max=.03,
             make_plot=False, flux_ramp=True, fraction_full_scale=None,
             lms_freq_hz=None, reset_rate_khz=None, feedback_start_frac=None,
-            feedback_end_frac=None, **kwargs):
+            feedback_end_frac=None, setup_flux_ramp=True, **kwargs):
         """
         Takes a tracking setup and turns off channels that have bad
         tracking. The limits are set by the variables f_min, f_max,
@@ -2780,6 +2784,8 @@ class SmurfTuneMixin(SmurfBase):
             skip before feedback. Float between 0 and 1.
         feedback_end_frac (float) : What fraction of the flux ramp to skip
             at the end of feedback. Float between 0 and 1.
+        setup_flux_ramp (bool) : Whether to setup the flux ramp at the end.
+            Default is True.
         """
         self.log('Checking lock on band {}'.format(band))
 
