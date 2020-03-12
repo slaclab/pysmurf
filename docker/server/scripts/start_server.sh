@@ -125,6 +125,8 @@ args+=" ${amcs_args}"
 detect_carrier_board carrier_args
 args+=" ${carrier_args}"
 
+echo
+
 # Call the appropriate server startup script depending on the communication type
 if [ ${comm_type} == 'eth' ]; then
     echo "Staring the server using Ethernet communication..."
