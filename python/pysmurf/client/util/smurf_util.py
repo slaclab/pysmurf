@@ -3240,13 +3240,12 @@ class SmurfUtilMixin(SmurfBase):
                 ax[0].plot(i_bias-np.min(i_bias), label='bias')
 
                 ax[1].plot(2*d[mm]*demod/i_amp, color='k')
-                ax[1].plot(demod)
                 ax[0].legend(loc='upper right')
                 ax[0].set_ylabel('Current [uA]')
                 ax[1].set_ylabel('Resp [A/A]')
 
                 ax[1].set_xlabel('Samples')
-                ax[0].set_title(f'b{b} ch{c:03}')
+                ax[0].set_title(f'Bias bump - b{b}ch{c:03}')
                 plt.tight_layout()
 
                 # Make plot name path
