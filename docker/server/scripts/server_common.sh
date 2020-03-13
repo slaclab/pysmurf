@@ -74,7 +74,7 @@ rebootFPGA()
     local retry_delay=10
     local bsi_state
 
-    printf "Sending reboot command to FPGA...       "
+    printf "Sending reboot command to FPGA...                 "
     ipmitool -I lan -H ${shelfmanager} -t ${ipmb} -b 0 -A NONE raw 0x2C 0x0A 0 0 2 0 &> /dev/null
 
     # Verify IPMI errors
@@ -93,9 +93,9 @@ rebootFPGA()
         exit
     fi
 
-    echo "Done"
+    echo "Done."
 
-    printf "Waiting for FPGA to boot...             "
+    printf "Waiting for FPGA to boot...                       "
 
     # Wait until FPGA boots
     for i in $(seq 1 ${retry_max}); do
@@ -120,7 +120,7 @@ rebootFPGA()
         echo "FPGA booted after $((i*${retry_delay})) seconds"
     fi
 
-    printf "Waiting for FPGA's ETH to come up...    "
+    printf "Waiting for FPGA's ETH to come up...              "
 
     # Wait until FPGA's ETH is ready
     for i in $(seq 1 ${retry_max}); do
@@ -140,7 +140,7 @@ rebootFPGA()
         kill -s TERM ${top_pid}
         exit
     else
-        echo "FPGA's ETH came up after $((i*${retry_delay})) seconds"
+        echo "FPGA's ETH came up after $((i*${retry_delay})) seconds."
     fi
 }
 
@@ -162,7 +162,7 @@ getFpgaIp()
 # All those found, will be added to PYTHONPATH
 updatePythonPath()
 {
-    printf "Looking for local python directories... "
+    printf "Looking for local python directories...           "
 
     # Look for the python directories that match the patterns
     local python_dirs=( $(find ${fw_top_dir} -type d \
@@ -172,7 +172,7 @@ updatePythonPath()
     # Check if any directory was found
     if [ ${#python_dirs[@]} -eq 0 ]; then
         # if nothing was found, just return without doing anything
-        echo "Not python directories found"
+        echo "Not python directories found."
     else
         # If directories were found,add them all to PYTHONPATH
         echo "The following python directories were found:"
@@ -194,32 +194,36 @@ getFpgaIpAddr()
         # If the IP address is not defined, shelfmanager and slot numebr must be defined
 
         if [ -z ${shelfmanager+x} ]; then
-            echo "Shelfmanager not defined!"
+            echo "Shelfmanager not defined!."
             usage
         fi
 
         if [ -z ${slot+x} ]; then
-            echo "Slot number not defined!"
+            echo "Slot number not defined!."
             usage
         fi
 
         echo "IP address was not defined. It will be calculated automatically from the crate ID and slot number..."
-        echo
 
         ipmb=$(expr 0128 + 2 \* $slot)
 
-        printf "Reading Crate ID via IPMI...            "
+        printf "Reading Crate ID via IPMI...                      "
         crate_id=$(getCrateId)
-        echo "Create ID: ${crate_id}"
+        echo "Create ID: ${crate_id}."
 
-        printf "Calculating FPGA IP address...          "
+        printf "Calculating FPGA IP address...                    "
         fpga_ip=$(getFpgaIp)
-        echo "FPGA IP: ${fpga_ip}"
+        echo "FPGA IP: ${fpga_ip}."
 
     else
-        echo "IP address was defined. Ignoring shelfmanager and slot number. FW version checking disabled."
+        # We  need the shelfmanager and slot number in order to get information
+        # via IPMI, which we do to get the FW version and to auto detect the HW type.
+        # So, when the IP address is used instead, disable these two features.
+        echo "IP address was defined. Ignoring shelfmanager and slot number."
+        echo "FW version checking and HW type auto  detection disabled."
         echo
         no_check_fw=1
+        disable_hw_detect=1
     fi
 
     # Add the IP address to the SMuRF arguments
@@ -248,28 +252,29 @@ checkFW()
     # Check if the firmware checking is disabled
     if [ -z ${no_check_fw+x} ]; then
 
-        printf "Looking for mcs file...                 "
+        printf "Looking for mcs file...                           "
         mcs_file=$(find ${fw_top_dir} -maxdepth 1 -name *mcs*)
         if [ ! -f "${mcs_file}" ]; then
-            echo "MCS file not found!"
+            echo "MCS file not found!."
             exit 1
         fi
 
         mcs_file_name=$(basename ${mcs_file})
         echo "Mcs file found: ${mcs_file_name}"
 
-        printf "Reading FW Git Hash via IPMI...         "
+        printf "Reading FW Git Hash via IPMI...                   "
         fw_gh=$(getGitHashFW)
-        echo "Firmware githash: '$fw_gh'"
+        echo "Firmware githash: '$fw_gh'."
 
-        printf "Reading MCS file Git Hash...            "
+        printf "Reading MCS file Git Hash...                      "
         mcs_gh=$(getGitHashMcs)
-        echo "MCS file githash: '$mcs_gh'"
+        printf "MCS file githash: '$mcs_gh'. "
 
         if [ "${fw_gh}" == "${mcs_gh}" ]; then
-            echo "They match!"
+            echo "They match!."
         else
-            echo "They don't match. Loading image..."
+            echo "They don't match."
+            echo "Loading image..."
             ProgramFPGA.bash -s $shelfmanager -n $slot -m $mcs_file
 
             # Set a flag indicating a new MCS was loaded
@@ -291,7 +296,7 @@ validateCommType()
     else
         # Check if the communication type is invalid
         if [ ${comm_type} != 'eth' ] && [ ${comm_type} != 'pcie' ]; then
-            echo "Invalid communication type!"
+            echo "Invalid communication type!."
             usage
         fi
     fi
@@ -323,16 +328,258 @@ hardBoot()
 findPyrogueFiles()
 {
     # Look for a pyrogue zip file
-    printf "Looking for pyrogue zip file...         "
+    printf "Looking for pyrogue zip file...                   "
     pyrogue_file=$(find ${fw_top_dir} -maxdepth 1 -name *zip)
     if [ ! -f "$pyrogue_file" ]; then
-        echo "Pyrogue zip file not found!"
+        echo "Pyrogue zip file not found!."
 
         # if not found, then look for a local checkout repository.
         updatePythonPath
     else
         # If found, add it to the SMuRF arguments
-        echo "Pyrogue zip file found: ${pyrogue_file}"
+        echo "Pyrogue zip file found: '${pyrogue_file}'."
         args="${args} -z ${pyrogue_file}"
+    fi
+}
+
+# Detect the type of carrier board
+# and generate a list of according server input arguments
+# The first argument indicates the a variable to store the resulting argument list
+detect_carrier_board()
+{
+    # Check if the hardware type auto-detection is disabled
+    if [ -z ${disable_hw_detect+x} ]; then
+
+        # The first argument a variable name to store the resulting argument list
+        local __result_args=$1
+
+        # Definitons
+        ## AMC carrier board part numbers
+        local carrier_gen1_pn="PC_379_396_01"
+        local carrier_gen2_pn="PC_379_396_38"
+
+        echo "Auto-detecting type and version of AMC carrier board:"
+
+        # Get the AMC carrier board part number
+        local pn_str=$(cba_fru_init --dump ${shelfmanager}/${slot} | grep -Po "Board Part Number\s+:\s+\K.+")
+
+        # Check if a board is present in this slot
+        printf "Checking if board is present...                   "
+        if [ -z ${pn_str} ]; then
+            echo "Board not present."
+            return
+        else
+            echo "Board present."
+        fi
+
+        # Verify if the part number is correct
+        printf "Verifying the part number is supported...         "
+        local gen1=$(echo ${pn_str} | grep -o ${carrier_gen1_pn})
+        local gen2=$(echo ${pn_str} | grep -o ${carrier_gen2_pn})
+
+        if [ -z ${gen1} ] && [ -z ${gen2} ]; then
+            echo "Part number ${pn_str} not supported."
+            return
+        else
+            echo "Part number ${pn_str} supported."
+        fi
+
+        printf "Type of carrier is:                               "
+        if [ ${gen1} ]; then
+            echo "Gen1."
+        else
+            echo "Gen2."
+        fi
+
+        # Extract version from the part number string
+        if [ ${gen1} ]; then
+            local ver_str=$(echo ${pn_str} | grep -Po "${carrier_gen1_pn}_C\K[0-9]{2}")
+        else
+            local ver_str=$(echo ${pn_str} | grep -Po "${carrier_gen2_pn}_C\K[0-9]{2}")
+        fi
+
+        # Verify if we extracted a version number string
+        printf "Verifying board version...                        "
+        if [ -z ${ver_str} ]; then
+            echo "Version not found in the part number string."
+            continue
+        else
+            echo "c${ver_str}."
+        fi
+
+        # Assemble the arguments and default file name
+        local args=""
+
+        # For Gen2 C03 carriers, we need to activate the EM22xx device via an input argument
+        if [ ${gen2} ] && [ ${ver_str} -ge 03 ]; then
+            args+="--enable-em22xx"
+        fi
+
+        # Printt the final list of autogenerated arguments
+        echo "Final list of generated arguments:                '${args}'"
+        echo "Done!."
+
+        # Write the result to the defined variable
+        eval $__result_args="'${args}'"
+    else
+        echo "Auto-detection of type and version of AMC carrier board disabled."
+    fi
+}
+
+# Detect presence, type, and version of AMC boards,
+# and generated a list of according server input arguments.
+# The first argument indicates the variable to store the resulting argument list
+detect_amc_board()
+{
+    # Check if the hardware type auto-detection is disabled
+    if [ -z ${disable_hw_detect+x} ]; then
+
+        # The first argument points to a variable name to store the resulting argument list
+        local __result_args=$1
+
+        # Definitions
+        ## SMuRF AMC board part number
+        local smurf_pn="PC_379_396_30"
+        ## Path to default files
+        local defaults_path="/tmp/fw/smurf_cfg/defaults"
+
+        # Array variables, one entry for each bay:
+        ## Band type
+        declare -a local band_bay=("" "")
+        ## Version
+        declare -a local ver_bay=("" "")
+
+        echo "Auto-detecting type and version of AMC boards:"
+        # Loop to read board in both slots
+        for i in $(seq 0 1); do
+
+            # The bay number are 0 and 2, so need to multiply the index (0,1) by 2
+            local bay=$((i*2))
+            echo "- Reading board on bay ${bay}:"
+
+            # Get the AMC board part number
+            local pn_str=$(cba_amc_init --dump ${shelfmanager}/${slot}/${bay} | grep -Po "Board Part Number\s+:\s+\K.+")
+
+            # Check if a board is present in this slot
+            printf "  Checking if board is present...                 "
+            if [ -z ${pn_str} ]; then
+                echo "Board not present.\n"
+                continue
+            else
+                echo "Board present.\n"
+            fi
+
+            # Verify if the part number is correct
+            printf "  Verifying the part number is supported...       "
+            local supported=$(echo ${pn_str} | grep -o ${smurf_pn})
+
+            if [ -z ${supported} ]; then
+                echo "Part number ${pn_str} not supported."
+                continue
+            else
+                echo "Part number ${pn_str} supported."
+            fi
+
+            # Extract type and version from the part number string
+            local type_str=$(echo ${pn_str} | grep -Po "${smurf_pn}_C[0-9]{2}_\KA[0-9]{2}")
+            local ver_str=$(echo ${pn_str} | grep -Po "${smurf_pn}_C\K[0-9]{2}")
+
+            # Verify if we extracted a version number string
+            printf "  Verifying board version...                      "
+            if [ -z ${ver_str} ]; then
+                echo "Version not found in the part number string."
+                continue
+            else
+                echo "c${ver_str}."
+            fi
+
+            # Verify is we extracted a type string
+            printf "  Verifying board type...                         "
+            if [ -z ${type_str} ]; then
+                echo "Board type not found in the part number string."
+                continue
+            else
+                 printf "${type_str}. "
+            fi
+
+            # Verify if the type is supported
+            if [ ${type_str} == "A01" ]; then
+                echo "This is a LB board."
+                band_bay[$i]="lb"
+            elif [ ${type_str} == "A02" ]; then
+                echo "This is a HB board."
+                band_bay[$i]="hb"
+            else
+                 echo "Board type not supported."
+                continue
+            fi
+
+            # Now that we verify that the type is correct, and that we extracted
+            # a version number, write that version into the version array. We will
+            # use this array to determine if the board is present and supported
+            # (and empty string here means there is not board, or that is it not supported).
+            ver_bay[${i}]="c${ver_str}"
+
+        done
+
+        # Checking if both boards have the same version
+        if [ ${ver_bay[0]} ] && [ ${ver_bay[1]} ]; then
+            printf "Boards present in both bays. Checking versions... "
+            if [ ${ver_bay[0]} == ${ver_bay[1]} ]; then
+                echo "Versions match."
+            else
+                echo "Version don't match: ${ver_bay[0]} != ${ver_bay[1]}."
+                echo
+                echo "Different board versions in the same carrier are not supported."
+                exit 1
+            fi
+        fi
+
+        # Get the version of the board that is present.
+        # If both are present, we already check at this point
+        # that they have the same version
+        if [ ${ver_bay[0]} ]; then
+            local ver=${ver_bay[0]}
+        else
+            local ver=${ver_bay[1]}
+        fi
+
+        # Assemble the arguments and default file name
+        local args=""
+        local defaults_file_name="${defaults_path}/defaults_${ver}"
+
+        for i in $(seq 0 1); do
+            defaults_file_name+="_"
+            if [ ! ${ver_bay[$i]} ]; then
+                args+="--disable-bay$i "
+                defaults_file_name+="none"
+            else
+                defaults_file_name+="${band_bay[$i]}"
+            fi
+        done
+
+        defaults_file_name+=".yml"
+
+        echo "Defaults file name:                               ${defaults_file_name}."
+
+        # Check if default file exist
+        printf "Verifying is default file exist...                "
+        if [ ! -f ${defaults_file_name} ]; then
+            echo "File not found. Defaults won't be added to list of arguments."
+        else
+            echo "File found!."
+            # As the default file exist, add it to the list of arguments
+            args+="-d ${defaults_file_name}"
+        fi
+
+
+        # Print the final list of auto-generated arguments
+        echo "Final list of generated arguments:                '${args}'."
+        echo "Done!."
+
+        # Write the result to the defined variable
+        eval $__result_args="'${args}'"
+    else
+         echo "Auto-detection of presence, type and version of AMC boards disabled."
     fi
 }

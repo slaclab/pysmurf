@@ -519,7 +519,8 @@ class SmurfTuneMixin(SmurfBase):
     def full_band_resp(self, band, n_scan=1, n_samples=2**19, make_plot=False,
             save_plot=True, show_plot=False, save_data=False, timestamp=None,
             save_raw_data=False, correct_att=True, swap=False, hw_trigger=True,
-            write_log=False, return_plot_path=False):
+            write_log=False, return_plot_path=False,
+            check_if_adc_is_saturated=True):
         """
         Injects high amplitude noise with known waveform. The ADC measures it.
         The cross correlation contains the information about the resonances.
@@ -538,6 +539,9 @@ class SmurfTuneMixin(SmurfBase):
             is True.
         return_plot_path (bool) : Whether to return the full path to the
             summary plot. Default False.
+        check_if_adc_is_saturated (bool): Right after playing the
+            noise file, checks if ADC for the requested band is
+            saturated.  If it is saturated, gives up with an error.
 
         Returns:
         --------
@@ -554,6 +558,12 @@ class SmurfTuneMixin(SmurfBase):
             self.set_trigger_hw_arm(bay, 0, write_log=write_log)
 
             self.set_noise_select(band, 1, wait_done=True, write_log=write_log)
+            # if true, checks whether or not playing noise file saturates the ADC.  If
+            # ADC is saturated, throws an exception.
+            if check_if_adc_is_saturated:
+                adc_is_saturated=self.check_adc_saturation(band)
+                if adc_is_saturated:
+                    raise ValueError(f'Playing the noise file saturates the ADC for band {band}.  Try increasing the DC attenuation for this band.')
             try:
                 adc = self.read_adc_data(band, n_samples, hw_trigger=hw_trigger,
                     save_data=False)
@@ -1966,6 +1976,8 @@ class SmurfTuneMixin(SmurfBase):
         flux_ramp (bool) : Whether to flux ramp. Default is True.
         save_plot (bool) : Whether to save the plot. Default True.
         show_plot (bool) : Whether to show the plot. Default False.
+        setup_flux_ramp (bool) : Whether to setup the flux ramp at the end.
+            Default True.
         """
         if show_plot:
             plt.ion()
@@ -2416,6 +2428,8 @@ class SmurfTuneMixin(SmurfBase):
         f_min (float) : The maximum frequency swing.
         f_max (float) : The minimium frequency swing
         df_max (float) : The maximum value of the stddev of df
+        setup_flux_ramp (bool) : Whether to setup the flux ramp at the end.
+            Default True.
         """
         if reset_rate_khz is None:
             reset_rate_khz = self.reset_rate_khz
@@ -2763,7 +2777,7 @@ class SmurfTuneMixin(SmurfBase):
     def check_lock(self, band, f_min=.015, f_max=.2, df_max=.03,
             make_plot=False, flux_ramp=True, fraction_full_scale=None,
             lms_freq_hz=None, reset_rate_khz=None, feedback_start_frac=None,
-            feedback_end_frac=None, **kwargs):
+            feedback_end_frac=None, setup_flux_ramp=True, **kwargs):
         """
         Takes a tracking setup and turns off channels that have bad
         tracking. The limits are set by the variables f_min, f_max,
@@ -2787,6 +2801,8 @@ class SmurfTuneMixin(SmurfBase):
             skip before feedback. Float between 0 and 1.
         feedback_end_frac (float) : What fraction of the flux ramp to skip
             at the end of feedback. Float between 0 and 1.
+        setup_flux_ramp (bool) : Whether to setup the flux ramp at the end.
+            Default is True.
         """
         self.log('Checking lock on band {}'.format(band))
 

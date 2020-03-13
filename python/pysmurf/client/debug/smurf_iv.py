@@ -100,7 +100,7 @@ class SmurfIVMixin(SmurfBase):
             self.set_tes_bias_bipolar_array(b * bias_group_bool)
             time.sleep(wait_time) # loops are now in pyrogue, so no division
 
-        self.stream_data_off()
+        self.stream_data_off(register_file=True)
         self.log('Done with TES bias ramp', self.LOG_USER)
 
 
@@ -219,7 +219,7 @@ class SmurfIVMixin(SmurfBase):
         # explicitly set back to the original biases
         self.set_tes_bias_bipolar_array(original_biases)
 
-        self.stream_data_off()
+        self.stream_data_off(register_file=True)
         self.log('Done with TES bias ramp', self.LOG_USER)
 
         # should I be messing with lmsGain?
