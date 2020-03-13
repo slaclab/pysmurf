@@ -3129,7 +3129,7 @@ class SmurfUtilMixin(SmurfBase):
         if start_bias is not None:
             all_bias = self.get_tes_bias_bipolar_array()
             for bg in bias_group:
-                áll_bias[bg] += start_bias
+                all_bias[bg] += start_bias
             start_bias = all_bias
         else:
             start_bias = self.get_tes_bias_bipolar_array()
@@ -3207,12 +3207,12 @@ class SmurfUtilMixin(SmurfBase):
 
         # Demodulation timeline
         demod = (v_bias[bias_group[0]] - np.min(v_bias[bias_group[0]]))
-        _amp = np.max(np.abs(v_bias[bias_group[0]])) - \
-               np.min(np.abs(v_bias[bias_group[0]]))
+        _amp = (np.max(np.abs(v_bias[bias_group[0]])) -
+                np.min(np.abs(v_bias[bias_group[0]])))
         demod /= (_amp/2)
         demod -= 1
         demod[flag] = np.nan
-        
+
         bands, channels = np.where(m!=-1)
         resp = np.zeros(len(bands))
         sib = np.zeros(len(bands))*np.nan
