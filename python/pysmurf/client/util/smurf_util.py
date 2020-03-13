@@ -2574,7 +2574,7 @@ class SmurfUtilMixin(SmurfBase):
 
         # on cryostat card
         fiftyK_amp_Vd_series_resistor=10 #Ohm
-        fiftyK_amp_Id_mA=2.*1000.*(self.get_cryo_card_50k_bias()/ \
+        fiftyK_amp_Id_mA=2.*1000.*(self.get_cryo_card_50k_bias()/
                                    fiftyK_amp_Vd_series_resistor) - self._50k_Id_offset
 
         return fiftyK_amp_Id_mA
@@ -2858,7 +2858,6 @@ class SmurfUtilMixin(SmurfBase):
         aph = np.random.choice(aphorisms)
         self.log(aph)
         return(aph)
-        
 
     def make_channel_mask(self, band=None, smurf_chans=None):
         """
