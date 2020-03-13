@@ -258,7 +258,7 @@ if __name__ == "__main__":
 
     # find_freq
     if not args.no_find_freq:
-        subband = np.arange(10, 120)
+        subband = np.arange(13, 115)
         if args.subband_low is not None and args.subband_high is not None:
             subband = np.arange(args.subband_low, args.subband_high)
         status['subband'] = subband
