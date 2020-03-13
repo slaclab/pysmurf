@@ -3625,7 +3625,7 @@ class SmurfCommandMixin(SmurfBase):
 
     def set_cryo_card_ps_en(self, enable=3, write_log=False):
         """
-        Write the cryo card power supply enables. Can use this to set both 
+        Write the cryo card power supply enables. Can use this to set both
         power supplies at once rather than setting them individually
 
         Args:

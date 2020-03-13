@@ -253,7 +253,7 @@ class SmurfIVMixin(SmurfBase):
 
 
         return path
-            
+
     def analyze_slow_iv_from_file(self, fn_iv_raw_data, make_plot=True,
                                   show_plot=False, save_plot=True,
                                   plotname_append='', R_sh=None,

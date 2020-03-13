@@ -3146,7 +3146,7 @@ class SmurfTuneMixin(SmurfBase):
 
             Ielem /= 2**23
             Qelem /= 2**23
-            
+
             response[index] = Ielem + 1j*Qelem
 
         if make_plot:
