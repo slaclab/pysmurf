@@ -3393,7 +3393,7 @@ class SmurfCommandMixin(SmurfBase):
         return self._caget(self.epics_root + self.fpga_root + self._fpga_vccbram, **kwargs)
 
     # Regulator
-    _regulator_iout = "READ_IOUT"
+    _regulator_iout = "IOUT"
 
     def get_regulator_iout(self, **kwargs):
         """
@@ -3403,7 +3403,7 @@ class SmurfCommandMixin(SmurfBase):
         """
         return self._caget(self.regulator + self._regulator_iout, **kwargs)
 
-    _regulator_temp1 = "READ_TEMPERATURE_1"
+    _regulator_temp1 = "TEMPERATURE[1]"
 
     def get_regulator_temp1(self, **kwargs):
         """
@@ -3413,7 +3413,7 @@ class SmurfCommandMixin(SmurfBase):
         """
         return self._caget(self.regulator + self._regulator_temp1, **kwargs)
 
-    _regulator_temp2 = "READ_TEMPERATURE_2"
+    _regulator_temp2 = "TEMPERATURE[2]"
 
     def get_regulator_temp2(self, **kwargs):
         """
@@ -4021,6 +4021,18 @@ class SmurfCommandMixin(SmurfBase):
         return self._caget(self.smurf_processor + self._channel_mask,
             **kwargs)
 
+
+    _unwrapper_reset = 'Unwrapper:reset'
+
+    def set_unwrapper_reset(self, **kwargs):
+        """
+        Resets the unwrap filter. There is no get function because
+        it is an executed command.
+        """
+        self._caput(self.smurf_processor + self._unwrapper_reset, 1,
+                    **kwargs)
+
+
     _filter_reset = 'Filter:reset'
 
     def set_filter_reset(self, **kwargs):
@@ -4029,6 +4041,7 @@ class SmurfCommandMixin(SmurfBase):
         """
         self._caput(self.smurf_processor + self._filter_reset,
                     1, **kwargs)
+
 
     _filter_a = 'Filter:A'
 

@@ -45,6 +45,8 @@ usage: start_server.sh [-S|--shelfmanager <shelfmanager_name> -N|--slot <slot_nu
     -a|--addr         <FPGA_IP>           : FPGA IP address. If defined, -S and -N are ignored.
     -c|--comm-type    <comm_type>         : Communication type ('eth' or 'pcie'). Default is 'eth'.
     -D|--no-check-fw                      : Disabled FPGA version checking.
+    -E|--disable-hw-detect                : Disable hardware type auto detection.
+    -H|--hard-boot                        : Do a hard boot: reboot the FPGA and load default configuration.
     -h|--help                             : Show this message.
     <pyrogue_server_args> are passed to the SMuRF pyrogue server.
 ```
@@ -59,6 +61,10 @@ The script looks a pyrogue zip file to be present in `/tmp/fw/`. If found, the l
 So, when starting the container you must have either a local copy of a pyrogue zip file, or a local checked out repository, in the host CPU, and mount that directory inside the container as `/tmp/fw/`.
 
 On the other hand, the scripts also looks for a MCS file in `/tmp/fw/`. The file name must include the short githash version of the firmware and an extension `mcs` or `mcs.gz`, following this expression: `*-<short-githash>.mcs[.gz]`. The script will also read the firmware short githash from the specified FPGA. If the version from the MCS file and the FPGA don't match, then the script will automatically load the MCS file into the FPGA. So, when starting the server you must have a local copy of this MCS file in the host CPU, and mount that directory inside the container as `/tmp/fw/`. This automatic version checking can be disabled either by passing the argument `-D|--no-check-fw`, or by addressing the FPGA by IP address instead of ATCA's shelfmanager_name/slot_number.
+
+The script will try to auto-detect the type of hardware, and automatically generate server startup arguments based on the hardware type. Currently, this script only detects the type of carrier board, and uses the `--enable-em22xx` option when the carrier is a Gen2, version >= C03. This hardware auto-detection can be disabled using the option `-E|--disable-hw-detect`, or by addressing the FPGA by IP address instead of ATCA's shelfmanager_name/slot_number. The user should provided the appropriate startup arguments based on the hardware type.
+
+The option `-H|--hard-boot` can be used to request a hard boot. During this boot mode, the FPGA is rebooted by deactivating and activating the carrier board before starting the pyrogue server, and the default configuration file is loaded during the pyrogue server booting process.
 
 The server by default start without a GUI. You can however start the server with a GUI using the argument `-g|--gui`.
 
