@@ -117,7 +117,6 @@ class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin,
             False.
         payload_size (int) : The payload size to set on setup. Default 2048.
         '''
-
         if no_dir:
             print('Warning! Not making output directories!' +
                 'This will break may things!')
