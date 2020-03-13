@@ -2551,29 +2551,73 @@ class SmurfUtilMixin(SmurfBase):
     get_amplifier_bias = get_amplifier_biases
 
     def get_hemt_drain_current(self):
-        """
+        """Reports the inferred 4K HEMT amplifier drain current in mA, inferred by
+        measuring the voltage across a resistor in series with the
+        applied drain voltage (before the regulator) by the PIC on the
+        cryostat card.  The conversion from the measured PIC ADC
+        voltage to drain current assumes the circuit topology on the
+        rev C2 cryostat card (SLAC board PC-248-103-02-C02, see
+        schematic sheet 3).  The series resistor in that schematic is
+        component R44.  The value of R54 can be specified in the
+        pysmurf configuration file (as hemt_Vd_series_resistor in
+        the amplifier block).  If not explicitly specified, pysmurf
+        assumes the default in the C2 cryostat card BOM of 200 Ohm.
+
+        Because the series resistor is before the regulator that drops
+        the RF6.0V from the RTM down to the drain voltage set by
+        manually adjusting a potentiometer on the cryostat card, the
+        drain current inferred from just naively dividing the measured
+        voltage across the series resistor by its resistance includes
+        any additional current drawn by the regulator.  This
+        additional current contribution must also be provided in
+        pysmurf configuration file - pysmurf will not assume a default
+        value for this offset (see hemt_Id_offset in the amplifier
+        block).
+
         Returns:
         --------
-        cur (float): Drain current in mA
+        cur (float): 4K HEMT amplifier drain current in mA.
         """
 
-        # on cryostat card
-        hemt_Vd_series_resistor=200  #Ohm
-        hemt_Id_mA=2.*1000.*(self.get_cryo_card_hemt_bias())/hemt_Vd_series_resistor - self._hemt_Id_offset
+        # assumes circuit topology on rev C2 cryostat card
+        # (PC-248-103-02-C02, sheet 3)
+        hemt_Id_mA=2.*1000.*(self.get_cryo_card_hemt_bias())/self._hemt_Vd_series_resistor - self._hemt_Id_offset
 
         return hemt_Id_mA
 
     def get_50k_amp_drain_current(self):
-        """
+        """Reports the inferred 50K amplifier drain current in mA, inferred by
+        measuring the voltage across a resistor in series with the
+        applied drain voltage (before the regulator) by the PIC on the
+        cryostat card.  The conversion from the measured PIC ADC
+        voltage to drain current assumes the circuit topology on the
+        rev C2 cryostat card (SLAC board PC-248-103-02-C02, see
+        schematic sheet 3).  The series resistor in that schematic is
+        component R54.  The value of R54 can be specified in the
+        pysmurf configuration file (as 50K_amp_Vd_series_resistor in
+        the amplifier block).  If not explicitly specified, pysmurf
+        assumes the default in the C2 cryostat card BOM of 10 Ohm.
+
+        Because the series resistor is before the regulator that drops
+        the RF6.0V from the RTM down to the drain voltage set by
+        manually adjusting a potentiometer on the cryostat card, the
+        drain current inferred from just naively dividing the measured
+        voltage across the series resistor by its resistance includes
+        any additional current drawn by the regulator.  This
+        additional current contribution must also be provided in
+        pysmurf configuration file - pysmurf will not assume a default
+        value for this offset (see 50k_Id_offset in the amplifier
+        block).
+
         Returns:
         --------
-        cur (float): The drain current in mA
+        cur (float): 50K amplifier drain current in mA
         """
 
-        # on cryostat card
-        fiftyK_amp_Vd_series_resistor=10 #Ohm
+        # assumes circuit topology on rev C2 cryostat card
+        # (PC-248-103-02-C02, sheet 3)
         fiftyK_amp_Id_mA=2.*1000.*(self.get_cryo_card_50k_bias()/
-                                   fiftyK_amp_Vd_series_resistor) - self._50k_Id_offset
+                                   self._50k_amp_Vd_series_resistor) - self._50k_Id_offset
 
         return fiftyK_amp_Id_mA
 
