@@ -207,6 +207,10 @@ class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin,
             self._bit_to_V_50k=amp_cfg['bit_to_V_50k']
         if 'bit_to_V_hemt' in keys:
             self._bit_to_V_hemt=amp_cfg['bit_to_V_hemt']
+        if '50K_amp_Vd_series_resistor' in keys:
+            self._50k_amp_Vd_series_resistor=amp_cfg['50K_amp_Vd_series_resistor']
+        if 'hemt_Vd_series_resistor' in keys:
+            self._hemt_Vd_series_resistor=amp_cfg['hemt_Vd_series_resistor']
         if 'hemt_Id_offset' in keys:
             self._hemt_Id_offset=amp_cfg['hemt_Id_offset']
         if '50k_Id_offset' in keys:

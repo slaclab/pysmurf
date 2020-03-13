@@ -295,6 +295,21 @@ class SmurfConfig:
             # value, in mA.
             "hemt_Id_offset" : Use(float),
             "50k_Id_offset" : Use(float),
+            # The resistance, in Ohm, of the resistor that is inline
+            # with the 4K HEMT amplifier drain voltage source which is
+            # used to infer the 4K HEMT amplifier drain current.  The
+            # default value of 200 Ohm is the standard value in the
+            # BOM for cryostat card revision C02 (PC-248-103-02-C02).
+            # The resistor on that revision of the cryostat card is
+            # R44.
+            Optional('hemt_Vd_series_resistor', default=200): And(float,lambda f: f>0),
+            # The resistance, in Ohm, of the resistor that is inline
+            # with the 50K amplifier drain voltage source which is
+            # used to infer the 50K amplifier drain current.  The
+            # default value of 10 Ohm is the standard value in the BOM
+            # for cryostat card revision C02 (PC-248-103-02-C02).  The
+            # resistor on that revision of the cryostat card is R54.
+            Optional('50K_amp_Vd_series_resistor', default=10): And(float,lambda f: f>0),
             # 50K amplifier gate voltage, in volts.
             "LNA_Vg" : Use(float),
             # Which RTM DAC is wired to the gate of the 50K amplifier.
