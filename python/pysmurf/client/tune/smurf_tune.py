@@ -626,7 +626,7 @@ class SmurfTuneMixin(SmurfBase):
                 adc = adc[::-1]
 
             # Take PSDs of ADC, DAC, and cross
-            fs = self.get_digitizer_freq_mhz() * 1.0E6
+            fs = self.get_digitizer_frequency_mhz() * 1.0E6
             f, p_dac = signal.welch(dac, fs=fs, nperseg=n_samples/2,
                                     return_onesided=True)
             f, p_adc = signal.welch(adc, fs=fs, nperseg=n_samples/2,
@@ -680,7 +680,7 @@ class SmurfTuneMixin(SmurfBase):
             ax.plot(f_plot[plot_idx], np.log10(np.abs(resp[plot_idx])))
             ax.set_xlabel('Freq [MHz]')
             ax.set_ylabel('Response')
-            ax.set_title(timestamp)
+            ax.set_title(f'full_band_resp {timestamp}')
             plt.tight_layout()
             if save_plot:
                 plot_path = os.path.join(self.plot_dir,
