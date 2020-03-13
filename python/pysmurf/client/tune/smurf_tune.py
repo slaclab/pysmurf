@@ -701,6 +701,7 @@ class SmurfTuneMixin(SmurfBase):
         freq (float array): should be a single row of the broader freq
                             array, in Mhz.
         resp (complex array): complex response for just this subband
+
         Opt Args:
         ---------
         rolling_med (bool): whether to use a rolling median for the background
@@ -728,6 +729,7 @@ class SmurfTuneMixin(SmurfBase):
         min_gap (int): minimum number of samples between resonances
         grad_kernel_width (int) : The number of samples to take after a point
             to calculate the gradient of phase. Default is 8.
+
         Returns:
         -------_
         resonances (float array): The frequency of the resonances in the band
@@ -2867,7 +2869,8 @@ class SmurfTuneMixin(SmurfBase):
 
     def find_freq(self, band, subband=np.arange(13,115), drive_power=None,
             n_read=2, make_plot=False, save_plot=True, plotname_append='',
-            window=50, rolling_med=True, make_subband_plot=False, show_plot=False):
+            window=50, rolling_med=True, make_subband_plot=False,
+            show_plot=False, grad_cut=.05, amp_cut=.25, pad=2, min_gap=2):
         '''
         Finds the resonances in a band (and specified subbands)
         Args:
@@ -2884,6 +2887,13 @@ class SmurfTuneMixin(SmurfBase):
         rolling_med (bool) : Whether to iterate on a rolling median or just
            the median of the whole sample.
         window (int) : The width of the rolling median window
+        pad (int): number of samples to pad on either side of a resonance search
+            window
+        min_gap (int): minimum number of samples between resonances
+        grad_cut (float): The value of the gradient of phase to look for
+            resonances. Default is .05
+        amp_cut (float): The fractional distance from the median value to decide
+            whether there is a resonance. Default is .25.
         '''
 
         # Turn off all tones in this band first.  May want to make
@@ -2892,7 +2902,7 @@ class SmurfTuneMixin(SmurfBase):
         self.band_off(band)
 
         if drive_power is None:
-            drive_power = self.config.get('init')['band_{}'.format(band)].get('amplitude_scale')
+            drive_power = self.config.get('init')[f'band_{band}'].get('amplitude_scale')
             self.log(f'No drive_power given. Using value in config ' +
                 f'file: {drive_power}')
 
@@ -2928,7 +2938,8 @@ class SmurfTuneMixin(SmurfBase):
             self.freq_resp[band]['find_freq']['resp'], subband,
             make_plot=make_plot, plotname_append=plotname_append, band=band,
             rolling_med=rolling_med, window=window,
-            make_subband_plot=make_subband_plot)
+            make_subband_plot=make_subband_plot, grad_cut=grad_cut,
+            amp_cut=amp_cut, pad=pad, min_gap=min_gap)
         self.freq_resp[band]['find_freq']['resonance'] = res_freq
 
         # Save resonances
@@ -3030,10 +3041,10 @@ class SmurfTuneMixin(SmurfBase):
 
 
     def find_all_peak(self, freq, resp, subband=None, rolling_med=False,
-            window=500, grad_cut=0.05, amp_cut=0.25, freq_min=-2.5E8, freq_max=2.5E8,
-            make_plot=False, save_plot=True, plotname_append='', band=None,
-            make_subband_plot=False, subband_plot_with_slow=False, timestamp=None,
-            pad=2, min_gap=2):
+            window=500, grad_cut=0.05, amp_cut=0.25, freq_min=-2.5E8,
+            freq_max=2.5E8, make_plot=False, save_plot=True, plotname_append='',
+            band=None, make_subband_plot=False, subband_plot_with_slow=False,
+            timestamp=None, pad=2, min_gap=2):
         """
         find the peaks within each subband requested from a fullbandamplsweep
         Args:
@@ -3042,9 +3053,38 @@ class SmurfTuneMixin(SmurfBase):
         response (complex array): n_subbands x n_freq_swept array of complex
             response
         subbands (list of ints): subbands that we care to search in
+
         Optional Args:
         --------------
-        see find_peak for optional arguments. Used the same defaults here.
+        rolling_med (bool): whether to use a rolling median for the background
+        window (int): number of samples to window together for rolling med
+        grad_cut (float): The value of the gradient of phase to look for
+            resonances. Default is .05
+        amp_cut (float): The fractional distance from the median value to decide
+            whether there is a resonance. Default is .25.
+        freq_min (float): The minimum frequency relative to the center of
+            the band to look for resonances. Units of Hz. Defaults is -2.5E8
+        freq_max (float): The maximum frequency relative to the center of
+            the band to look for resonances. Units of Hz. Defaults is 2.5E8
+        make_plot (bool): Whether to make a plot. Default is False.
+        make_subband_plot (bool): Whether to make a plot per subband. This is
+            very slow. Default is False.
+        save_plot (bool): Whether to save the plot to self.plot_dir. Default
+            is True.
+        plotname_append (string): Appended to the default plot filename.
+            Default is ''.
+        band (int): The band to take find the peaks in. Mainly for saving
+            and plotting.
+        timestamp (str): The timestamp. Mainly for saving and plotting
+        pad (int): number of samples to pad on either side of a resonance search
+            window
+        min_gap (int): minimum number of samples between resonances
+        grad_kernel_width (int) : The number of samples to take after a point
+            to calculate the gradient of phase. Default is 8.
+
+        Ret:
+        ----
+        peaks (float array) : The frequency of all the peaks found
         """
         peaks = np.array([])
         timestamp = self.get_timestamp()
