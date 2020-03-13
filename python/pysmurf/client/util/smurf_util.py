@@ -2700,14 +2700,13 @@ class SmurfUtilMixin(SmurfBase):
 
         Args:
         -----
-        bias_group (int): The bias group(s) to set to high current mode REMOVED
-          20190101 BECAUSE JOE'S CODE SECRETLY FLIPS ALL OF THEM ANYWAYS -CY
+        bias_group (int): The bias group(s) to set to high current mode.
         """
         old_relay = self.get_cryo_card_relays()
         old_relay = self.get_cryo_card_relays()  # querey twice to ensure update
         new_relay = np.copy(old_relay)
         if write_log:
-            self.log('Old relay {}'.format(bin(old_relay)))
+            self.log(f'Old relay {bin(old_relay)}')
 
         n_bias_groups = self._n_bias_groups
         bias_group = np.ravel(np.array(bias_group))
@@ -2719,7 +2718,7 @@ class SmurfUtilMixin(SmurfBase):
                 r = bg
             new_relay = (1 << r) | new_relay
         if write_log:
-            self.log('New relay {}'.format(bin(new_relay)))
+            self.log(f'New relay {bin(new_relay)}')
         self.set_cryo_card_relays(new_relay, write_log=write_log)
         self.get_cryo_card_relays()
 
@@ -2732,9 +2731,7 @@ class SmurfUtilMixin(SmurfBase):
 
         Args:
         -----
-        bias_group (int): The bias group to set to low current mode REMOVED
-          20190101 BECAUSE JOE'S CODE WILL FLIP ALL BIAS GROUPS WHEN ONE IS
-          COMMANDED -CY
+        bias_group (int): The bias group to set to low current mode
         """
         old_relay = self.get_cryo_card_relays()
         old_relay = self.get_cryo_card_relays()  # querey twice to ensure update
@@ -2743,7 +2740,7 @@ class SmurfUtilMixin(SmurfBase):
         n_bias_groups = self._n_bias_groups
         bias_group = np.ravel(np.array(bias_group))
         if write_log:
-            self.log('Old relay {}'.format(bin(old_relay)))
+            self.log(f'Old relay {bin(old_relay)}')
         for bg in bias_group:
             if bg < n_bias_groups:
                 r = np.ravel(self.pic_to_bias_group[np.where(
@@ -2753,7 +2750,7 @@ class SmurfUtilMixin(SmurfBase):
             if old_relay & 1 << r != 0:
                 new_relay = new_relay & ~(1 << r)
         if write_log:
-            self.log('New relay {}'.format(bin(new_relay)))
+            self.log(f'New relay {bin(new_relay)}')
         self.set_cryo_card_relays(new_relay, write_log=write_log)
         self.get_cryo_card_relays()
 
