@@ -20,6 +20,7 @@
 import pyrogue
 import pysmurf
 import os
+import sys
 
 class SmurfApplication(pyrogue.Device):
     """
@@ -30,19 +31,31 @@ class SmurfApplication(pyrogue.Device):
 
         self.add(pyrogue.LocalVariable(
             name='SmurfVersion',
-            description='SMURF Version Field',
+            description='PySMuRF Version',
             mode='RO',
             value=pysmurf.__version__))
 
         self.add(pyrogue.LocalVariable(
             name='SmurfDirectory',
-            description='Path to SMURF Python Files',
+            description='Path to the PySMuRF Python Files',
             value=os.path.dirname(pysmurf.__file__),
             mode='RO'))
 
         self.add(pyrogue.LocalVariable(
+            name='StartupScript',
+            description='PySMuRF Server Startup Script',
+            value=sys.argv[0],
+            mode='RO'))
+
+        self.add(pyrogue.LocalVariable(
+            name='StartupArguments',
+            description='PySMuRF Server Startup Arguments',
+            value=' '.join(sys.argv[1:]),
+            mode='RO'))
+
+        self.add(pyrogue.LocalVariable(
             name='SomePySmurfVariable',
-            description='PySmurf Variable Example',
+            description='PySMuRF Variable Example',
             mode='RW',
             value=0, # Initial value determine variable type, (int, float, list, etc)
         ))
