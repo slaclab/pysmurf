@@ -463,10 +463,10 @@ detect_amc_board()
             # Check if a board is present in this slot
             printf "  Checking if board is present...                 "
             if [ -z ${pn_str} ]; then
-                echo "Board not present.\n"
+                echo "Board not present."
                 continue
             else
-                echo "Board present.\n"
+                echo "Board present."
             fi
 
             # Verify if the part number is correct
