@@ -11,10 +11,50 @@ import os
 import sys
 import time
 import pysmurf
+from functools import wraps
 
 DEFAULT_ENV_ROOT = 'SMURFPUB_'
 DEFAULT_UDP_PORT = 8200
 UDP_MAX_BYTES = 64000
+
+def set_action(action=None):
+    """
+        Decorator to set the publisher action string and action timestamp. This 
+        provides a way to group all outputs/plots from a single function call 
+        together. This decorator is to handle nested function calls, so even
+        if the `tune` function calls `find_freq`, all output will be grouped
+        in a single directory `<action_ts>_tune.
+    """
+    def dec(func):
+        if action is None:
+            action = func.__name__
+
+        @wraps(func)
+        def wrapper(S, *args, **kwargs):
+            is_top = False
+            try:
+                if S.pub._action is None
+                    is_top = True
+                    S.pub._action = action
+                    S.pub._action_ts = S.get_timestamp()
+
+                    print("{}: Setting action to {}".format(func.__name__, action))
+                else:
+                    print("{}: Action already set to {}".format(func.__name__, action))
+
+                    
+                func(S, *args, **kwargs)
+
+            finally:
+                if is_top:
+                    S.pub._action = None
+                    S.pub._action_ts = None
+
+        return wrapper
+    return dec
+
+
+
 
 class Publisher:
     seq_no = 0

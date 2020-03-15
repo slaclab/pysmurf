@@ -24,12 +24,12 @@ from ..util import tools
 from pysmurf.client.command.sync_group import SyncGroup as SyncGroup
 import matplotlib.pyplot as plt
 from matplotlib.gridspec import GridSpec
+from pysmurf.client.util.pub import set_action
 
 class SmurfTuneMixin(SmurfBase):
     """
     This contains all the tuning scripts
     """
-
     def tune(self, load_tune=True, tune_file=None, last_tune=False,
              retune=False, f_min=.02, f_max=.3, df_max=.03,
              fraction_full_scale=None, make_plot=False,
