@@ -132,7 +132,7 @@ fi
 # stop all smurf-streamer dockers
 matching_dockers smurf-streamer
 if [ "$?" = "1" ]; then
-    echo "-> Stopping all running stable pysmurf dockers."
+    echo "-> Stopping all running smurf-streamer dockers."
     docker rm -f $(docker ps -q -f name=smurf-streamer | awk '{print $1}')
 fi
 
