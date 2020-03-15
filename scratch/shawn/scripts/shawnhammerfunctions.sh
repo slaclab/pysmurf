@@ -17,6 +17,17 @@ stop_pyrogue () {
     ./stop.sh -N $1;
 }
 
+wait_for_docker_instance () {
+    keyword=$1
+    cadence_sec=1
+    while [[ -z $(docker ps | grep $keyword | awk '{print $1}') ]];
+    do
+	sleep ${cadence_sec}
+    done
+    dockerid=$(docker ps | grep $keyword | awk '{print $1}' | head -n 1)
+    echo $dockerid
+}
+
 # I hate this
 wait_for_docker () {
     latest_docker=`docker ps -a -n 1 -q`    
@@ -55,7 +66,7 @@ start_slot_pysmurf() {
     # start pysmurf in a split window and initialize the carrier
     tmux split-window -v -t ${tmux_session_name}:${slot_number}
     tmux send-keys -t ${tmux_session_name}:${slot_number} 'cd '${pysmurf} C-m
-    tmux send-keys -t ${tmux_session_name}:${slot_number} './run.sh shawnhammer_pysmurf_s'${slot_number} C-m
+    tmux send-keys -t ${tmux_session_name}:${slot_number} './run.sh' C-m
     sleep 1
 
     tmux send-keys -t ${tmux_session_name}:${slot_number} 'ipython3 -i '${pysmurf_init_script}' '${slot_number} C-m
@@ -78,15 +89,23 @@ start_slot_tmux_serial () {
 	sleep 1
     done
     echo '-> smurf_server_s'${slot_number}' docker started.'    
-    
-    echo '-> Waiting for smurf_server_s'${slot_number}' GUI to come up.'    
-    sleep 2
-    grep -q "Running GUI." <(docker logs smurf_server_s${slot_number} -f)
+
+    # Old, terrible way, relies on parsing text in the rogue server docker log
+    #echo '-> Waiting for smurf_server_s'${slot_number}' GUI to come up.'    
+    #sleep 2
+    #grep -q "Running GUI." <(docker logs smurf_server_s${slot_number} -f)
+
+    echo '-> Waiting for smurf_server_s'${slot_number}' to come up ...'        
+    # Checks for incremeting LocalTime
+    while ! is_rogue_server_up ${slot_number}
+    do
+	sleep 5
+    done
     
     # start pysmurf in a split window and initialize the carrier
     tmux split-window -v -t ${tmux_session_name}:${slot_number}
     tmux send-keys -t ${tmux_session_name}:${slot_number} 'cd '${pysmurf} C-m
-    tmux send-keys -t ${tmux_session_name}:${slot_number} './run.sh shawnhammer_pysmurf_s'${slot_number} C-m
+    tmux send-keys -t ${tmux_session_name}:${slot_number} './run.sh' C-m
     sleep 1
 
     #tmux run-shell -t ${tmux_session_name}:${slot_number} /home/cryo/tmux-logging/scripts/toggle_logging.sh
@@ -182,3 +201,42 @@ config_pysmurf_serial () {
     
     sleep 1
 }
+
+is_rogue_server_up(){
+    slot=$1
+    timeout_sec=10
+    dockercmd="docker exec -it smurf_utils caget -w 1.0 -t smurf_server_s${slot}:AMCc:LocalTime -S"
+    localtime=`${dockercmd}`
+    epochtime=`date "+%s" -d "$localtime" 2> /dev/null`
+    
+    if [ "$?" -eq "0" ]; then
+	# read back a valid timestamp - server must be up.
+	val0=$epochtime
+	val1=$epochtime
+	# when we got the first valid timestamp back from the server
+	ctime0=`date +%s`
+	
+	echo "-> Got a valid timestamp back from smurf_server_s${slot}, checking to confirm it's incrementing ..."
+	while [[ $val0 -eq $val1 ]]; do
+	    localtime1=`${dockercmd}`
+	    epochtime1=`date "+%s" -d "$localtime1"`
+	    if [  "$?" -eq "0" ]; then
+		val1=$epochtime1
+	    fi
+	    
+	    # time out if timestamp from server is not incrementing
+	    ctime1=`date +%s`
+	    if [ "$(($ctime1-$ctime0))" -gt $timeout_sec ]; then
+		echo "-> Timed out waiting for smurf_server_s${slot} timestamp to increment (waited $timeout_sec seconds)!"
+		return 1
+	    fi
+	done
+    else
+	return 1
+    fi
+
+    # success!
+    echo "-> smurf_server_s${slot} timestamp is incrementing, server is up."    
+    return 0
+}
+

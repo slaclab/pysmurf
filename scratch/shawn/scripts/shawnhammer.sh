@@ -153,6 +153,10 @@ tmux rename-window -t ${tmux_session_name}:0 utils
 tmux send-keys -t ${tmux_session_name}:0 'cd /home/cryo/docker/utils' C-m
 tmux send-keys -t ${tmux_session_name}:0 './run.sh' C-m
 
+# wait for utils docker to come up and record the container ID
+utilsdockerid=`wait_for_docker_instance smurf-base`
+docker rename ${utilsdockerid} smurf_utils
+
 if [ "$using_timing_master" = true ] ; then
     # display tpg log in tmux 0 with utils term
     tmux split-window -v -t ${tmux_session_name}:0
