@@ -92,9 +92,13 @@ def process_args(args):
         if args.pcie_rssi_lane:
             # If the RSSI lane number was defined, get the slot number from it
             args.server_port = 9000 + 2 * ( args.pcie_rssi_lane + 2 )
-        else:
+        elif args.ip_addr:
             # Otherwise, get th slot number from the last digit of the IP address
             args.server_port = 9000 + 2 * int(args.ip_addr[-1:])
+        else:
+            # If the IP Address is not defined, we're probably running in emulation
+            # mode, and we default to port 9000
+            args.server_port = 9000
 
     return args
 
