@@ -54,9 +54,14 @@ is_slot_pyrogue_up() {
     return 0
 }
 
-is_slot_gui_up() {
+is_slot_server_up() {
     slot_number=$1
-    tmux capture-pane -pt ${tmux_session_name}:${slot_number} | grep -q "Running GUI."
+
+    ## Old, bad way of determining if server is up
+    #tmux capture-pane -pt ${tmux_session_name}:${slot_number} | grep -q "Running GUI."
+    #return $?
+    
+    is_rogue_server_up ${slot_number}
     return $?
 }
 
@@ -138,7 +143,7 @@ run_pysmurf_setup () {
 
 is_slot_pysmurf_setup_complete() {
     slot_number=$1
-    tmux capture-pane -pt ${tmux_session_name}:${slot_number} | grep -q "Done with setup"
+    tmux capture-pane -pt ${tmux_session_name}:${slot_number} -S -10 | grep -q "Done with setup"
     return $?
 }
 
