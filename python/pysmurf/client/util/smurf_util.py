@@ -2578,12 +2578,12 @@ class SmurfUtilMixin(SmurfBase):
         --------
         cur (float): 4K HEMT amplifier drain current in mA.
         """
-
         # assumes circuit topology on rev C2 cryostat card
         # (PC-248-103-02-C02, sheet 3)
         hemt_Id_mA=2.*1000.*(self.get_cryo_card_hemt_bias())/self._hemt_Vd_series_resistor - self._hemt_Id_offset
 
         return hemt_Id_mA
+
 
     def get_50k_amp_drain_current(self):
         """Reports the inferred 50K amplifier drain current in mA, inferred by
@@ -2894,8 +2894,9 @@ class SmurfUtilMixin(SmurfBase):
         aphorisms = np.loadtxt(os.path.join(util_dir, 'aphorism.txt'),
             dtype='str', delimiter='\n')
 
-        self.log(np.random.choice(aphorisms))
-
+        aph = np.random.choice(aphorisms)
+        self.log(aph)
+        return(aph)
 
     def make_channel_mask(self, band=None, smurf_chans=None):
         """
@@ -3966,7 +3967,7 @@ class SmurfUtilMixin(SmurfBase):
                 fig.suptitle(f'Bias Group {bias_group}')
 
                 if save_plot:
-                    savename = f'{timestamp}_identify_bg{bias_group}.png'
+                    savename = f'{timestamp}_identify_bg{bias_group:02}.png'
                     plt.savefig(os.path.join(self.plot_dir, savename),
                                 bbox_inches='tight')
                 if not show_plot:

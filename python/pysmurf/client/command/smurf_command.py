@@ -2995,6 +2995,16 @@ class SmurfCommandMixin(SmurfBase):
 
     def set_50k_amp_gate_voltage(self, voltage, override=False, **kwargs):
         """
+        Sets the 50K amplifier gate votlage.
+
+        Args:
+        -----
+        voltage (float) : The amplifier gate voltage between 0 and -1.
+
+        Opt Args:
+        ---------
+        override (bool) : Whether to override the software limit on the gate
+            voltage. This allows you to go outside the range of 0 and -1.
         """
         if (voltage > 0 or voltage < -1.) and not override:
             self.log('Voltage must be between -1 and 0. Doing nothing.')
@@ -3005,7 +3015,8 @@ class SmurfCommandMixin(SmurfBase):
     def get_50k_amp_gate_voltage(self, **kwargs):
         """
         """
-        return self._bit_to_V_50k * self.get_rtm_slow_dac_data(self._dac_num_50k, **kwargs)
+        return self._bit_to_V_50k * self.get_rtm_slow_dac_data(self._dac_num_50k,
+            **kwargs)
 
     def set_50k_amp_enable(self, disable=False, **kwargs):
         """
@@ -3570,7 +3581,8 @@ class SmurfCommandMixin(SmurfBase):
         None
         """
         if write_log:
-            self.log('Writing HEMT PS enable using cryo_card object to {}'.format(enable))
+            self.log('Writing HEMT PS enable using cryo_card object '+
+                f'to {enable}')
 
         # Read the current enable word and merge this bit in position 0
         current_en_value = self.C.read_ps_en()
@@ -3596,7 +3608,8 @@ class SmurfCommandMixin(SmurfBase):
         None
         """
         if write_log:
-            self.log('Writing 50k PS enable using cryo_card object to {}'.format(enable))
+            self.log('Writing 50k PS enable using cryo_card object '+
+                f'to {enable}')
 
         # Read the current enable word and merge this bit in position 1
         current_en_value = self.C.read_ps_en()
@@ -3612,8 +3625,8 @@ class SmurfCommandMixin(SmurfBase):
 
     def set_cryo_card_ps_en(self, enable=3, write_log=False):
         """
-        Write the cryo card power supply enables. Can use this to set both power supplies
-        at once rather than setting them individually
+        Write the cryo card power supply enables. Can use this to set both
+        power supplies at once rather than setting them individually
 
         Args:
         -----
@@ -3636,7 +3649,8 @@ class SmurfCommandMixin(SmurfBase):
         None
         """
         if write_log:
-            self.log('Writing Cryocard PS enable using cryo_card object to {}'.format(enable))
+            self.log('Writing Cryocard PS enable using cryo_card ' +
+                f'object to {enable}')
         self.C.write_ps_en(enable)
 
     def get_cryo_card_ps_en(self):
