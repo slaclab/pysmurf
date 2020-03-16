@@ -1089,9 +1089,10 @@ class SmurfIVMixin(SmurfBase):
         save_plot (bool) : Whether to save the plot. Default True.
         """
         # Load IV summary file and raw dat file
-        iv = np.load(iv_file).item()
+        iv = np.load(iv_file, allow_pickle=True).item()
         iv_raw_dat = np.load(iv_file.replace('_iv.npy',
-                                             '_iv_raw_data.npy')).item()
+                                             '_iv_raw_data.npy'),
+                             allow_pickle=True).item()
 
         # Assume all ints in keys are bands
         band = np.array([k for k in iv.keys()
@@ -1109,7 +1110,7 @@ class SmurfIVMixin(SmurfBase):
             for b in band:
                 bg_list[bg][b] = self.get_group_list(b, bg)
 
-        for bg in bias_group:
+        for i, bg in enumerate(bias_group):
             v_bias = np.array([])
             R_n = np.array([])
             for b in band:
@@ -1127,7 +1128,7 @@ class SmurfIVMixin(SmurfBase):
                     v_max = np.max(iv[b][ch]['v_bias'])
 
             if len(v_bias) > 0:
-                target_bias_voltage[bg] = np.median(v_bias)
+                target_bias_voltage[i] = np.median(v_bias)
 
             # Make summary plot
             if make_plot:
@@ -1148,9 +1149,9 @@ class SmurfIVMixin(SmurfBase):
                     ax[1].hist(v_bias, bins=np.arange(0, v_max, .1),
                                alpha=.5)
 
-                    ax[0].axvline(target_bias_voltage[bg], color='r',
+                    ax[0].axvline(target_bias_voltage[i], color='r',
                                   linestyle='--')
-                    ax[1].axvline(target_bias_voltage[bg], color='r',
+                    ax[1].axvline(target_bias_voltage[i], color='r',
                                   linestyle='--')
 
                 ax[1].set_xlabel(r'$V_{bias}$ [V]')
@@ -1161,7 +1162,7 @@ class SmurfIVMixin(SmurfBase):
                     text_label = 'High current\n'
                 else:
                     text_label = 'Low current\n'
-                text_label += f'Bias: {target_bias_voltage[bg]:2.2f}'
+                text_label += f'Bias: {target_bias_voltage[i]:2.2f}'
                 ax[1].text(0.97, .97, text_label,
                            transform=ax[1].transAxes,
                            ha='right', va='top')
@@ -1174,4 +1175,8 @@ class SmurfIVMixin(SmurfBase):
 
             if not show_plot:
                 plt.close(fig)
-        return target_bias_voltage
+
+        targets = np.zeros(8)
+        for i, bg in enumerate(bias_group):
+            targets[bg] = target_bias_voltage[i]
+        return targets
