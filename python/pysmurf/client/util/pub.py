@@ -17,20 +17,21 @@ DEFAULT_ENV_ROOT = 'SMURFPUB_'
 DEFAULT_UDP_PORT = 8200
 UDP_MAX_BYTES = 64000
 
+
 def set_action(action=None):
     """
-        Decorator to set the publisher action string and action timestamp. This 
-        provides a way to group all outputs/plots from a single function call 
+        Decorator to set the publisher action string and action timestamp. This
+        provides a way to group all outputs/plots from a single function call
         together. This decorator is to handle nested function calls, so even
         if the `tune` function calls `find_freq`, all output will be grouped
         in a single directory `<action_ts>_tune.
     """
     def dec(func):
-    
+
         @wraps(func)
         def wrapper(S, *args, pub_action=None, **kwargs):
             nonlocal action
-    
+
             is_top = False
             try:
                 if S.pub._action is None:
@@ -40,7 +41,7 @@ def set_action(action=None):
                         S.pub._action = pub_action
                     elif action:
                         S.pub._action = action
-                    else: 
+                    else:
                         S.pub._action = func.__name__
 
                     S.pub._action_ts = S.get_timestamp()
