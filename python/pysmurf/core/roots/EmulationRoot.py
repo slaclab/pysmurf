@@ -35,6 +35,7 @@ class EmulationRoot(Common):
                  disable_bay0   = False,
                  disable_bay1   = False,
                  txDevice       = None,
+                 server_port    = 0,
                  **kwargs):
 
         # Create the SRP Engine
@@ -58,6 +59,7 @@ class EmulationRoot(Common):
                         polling_en     = polling_en,
                         pv_dump_file   = pv_dump_file,
                         txDevice       = txDevice,
+                        server_port    = server_port,
                         **kwargs)
 
         self.add(self._streaming_stream)
