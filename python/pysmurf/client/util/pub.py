@@ -26,34 +26,35 @@ def set_action(action=None):
         in a single directory `<action_ts>_tune.
     """
     def dec(func):
-        if action is None:
-            action = func.__name__
-
+    
         @wraps(func)
-        def wrapper(S, *args, **kwargs):
+        def wrapper(S, *args, pub_action=None, **kwargs):
+            nonlocal action
+    
             is_top = False
             try:
-                if S.pub._action is None
+                if S.pub._action is None:
                     is_top = True
-                    S.pub._action = action
+
+                    if pub_action:
+                        S.pub._action = pub_action
+                    elif action:
+                        S.pub._action = action
+                    else: 
+                        S.pub._action = func.__name__
+
                     S.pub._action_ts = S.get_timestamp()
 
-                    print("{}: Setting action to {}".format(func.__name__, action))
-                else:
-                    print("{}: Action already set to {}".format(func.__name__, action))
-
-                    
-                func(S, *args, **kwargs)
+                rv = func(S, *args, **kwargs)
 
             finally:
                 if is_top:
                     S.pub._action = None
                     S.pub._action_ts = None
 
+            return rv
         return wrapper
     return dec
-
-
 
 
 class Publisher:
@@ -115,6 +116,9 @@ class Publisher:
             sys.stderr.write('%s: no backend for "%s", selecting null Publisher.\n' %
                              (self.__class__, backend))
             self._backend = self._backend_null
+
+        self._action = None
+        self._action_ts = None
 
         # Issue the start message.
         self.log_start()
@@ -198,11 +202,15 @@ class Publisher:
         if timestamp is None:
             timestamp = time.time()
 
+        print("Registering File {}".format(path))
+
         file_data = {
             'path': path,
             'type': type,
             'format': format,
             'timestamp': timestamp,
+            'action': self._action,
+            'action_ts': self._action_ts,
             'plot': plot,
             'pysmurf_version': pysmurf.__version__
         }
