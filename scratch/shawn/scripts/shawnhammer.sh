@@ -153,6 +153,10 @@ tmux rename-window -t ${tmux_session_name}:0 utils
 tmux send-keys -t ${tmux_session_name}:0 'cd /home/cryo/docker/utils' C-m
 tmux send-keys -t ${tmux_session_name}:0 './run.sh' C-m
 
+# wait for utils docker to come up and record the container ID
+utilsdockerid=`wait_for_docker_instance smurf-base`
+docker rename ${utilsdockerid} smurf_utils
+
 if [ "$using_timing_master" = true ] ; then
     # display tpg log in tmux 0 with utils term
     tmux split-window -v -t ${tmux_session_name}:0
@@ -238,8 +242,8 @@ if [ "$parallel_setup" = true ] ; then
 	    fi
 	    
 	    if [ "${slot_status[${slot_idx}]}" = "3" ]; then
-	    	echo "-> Waiting for gui to come up on slot ${slot}."
-	    	if is_slot_gui_up ${slot}; then
+	    	echo "-> Waiting for server to come up on slot ${slot}."
+	    	if is_slot_server_up ${slot}; then
 	    	    slot_status[$slot_idx]=4;
 	    	fi
 	    fi
@@ -258,14 +262,14 @@ if [ "$parallel_setup" = true ] ; then
 
 	    # Run pysmurf setup
 	    if [ "${slot_status[${slot_idx}]}" = "5" ]; then
-		echo "-> Running pysmurf setup on slot ${slot}."
+		echo "-> Running pysmurf setup on slot ${slot} ..."
 		run_pysmurf_setup ${slot}
 		slot_status[$slot_idx]=6
 	    fi
 
 	    # Check for pysmurf setup completion
 	    if [ "${slot_status[${slot_idx}]}" = "6" ]; then
-		echo "-> Waiting for carrier setup on slot ${slot} (watching pysmurf docker ${pysmurf_docker})"		
+		echo "-> Waiting for carrier setup on slot ${slot} ..."		
 	    	if is_slot_pysmurf_setup_complete ${slot}; then
 	    	    slot_status[$slot_idx]=7;
 	    	fi		
