@@ -43,7 +43,8 @@ def get_args():
 def process_args(args):
     """
         Processes args from argparse. Unzips zip_file and finds/sets the
-        args.config_file
+        args.config_file. Also set the server port to  a default values
+        if it was not defined.
     """
 
     # Verify if the zip file was specified
@@ -86,15 +87,21 @@ def process_args(args):
         else:
             print("Invalid zip file. Omitting it.")
 
-    # If the server port was not defined, set it to  (9000 + 2 * slot_number)
+    # If the server port was not defined, set it to a default value
     if args.server_port is None:
-        # Either the IP address or the RSSI lane number must be defined.
+        # When using a real target (AMC carrier or dev board), set the server port to
+        # (9000 + 2 * slot_number). Either the IP address or the RSSI lane number
+        # must be defined, so calculate the slot number based on those two cases
         if args.pcie_rssi_lane:
             # If the RSSI lane number was defined, get the slot number from it
             args.server_port = 9000 + 2 * ( args.pcie_rssi_lane + 2 )
-        else:
+        elif args.ip_addr:
             # Otherwise, get th slot number from the last digit of the IP address
             args.server_port = 9000 + 2 * int(args.ip_addr[-1:])
+        # Otherwise, for the emulator target set the server port to 9000.
+        # This target doesn't require IP address nor RSSI lane.
+        else:
+            args.server_port = 9000
 
     return args
 

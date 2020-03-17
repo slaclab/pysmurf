@@ -519,22 +519,34 @@ class SmurfTuneMixin(SmurfBase):
     def full_band_resp(self, band, n_scan=1, n_samples=2**19, make_plot=False,
             save_plot=True, show_plot=False, save_data=False, timestamp=None,
             save_raw_data=False, correct_att=True, swap=False, hw_trigger=True,
-            write_log=False, check_if_adc_is_saturated=True):
+            write_log=False, return_plot_path=False,
+            check_if_adc_is_saturated=True):
         """
         Injects high amplitude noise with known waveform. The ADC measures it.
         The cross correlation contains the information about the resonances.
         Args:
         -----
         band (int): The band to sweep.
+
         Opt Args:
         ---------
         n_scan (int): The number of scans to take and average
         n_samples (int): The number of samples to take. Default 2^18.
         make_plot (bool): Whether the make plots. Default is False.
+        show_plot (bool): Whether to show plots. Default False
         save_data (bool): Whether to save the data.
-        timestamp (str): The timestamp as a string.
+        save_raw_data (bool): Whether to save the raw ADC/DAC data. Default
+            False.
+        timestamp (str): The timestamp as a string. If None, loads the current
+            timestamp.
         correct_att (bool): Correct the response for the attenuators. Default
             is True.
+        swap (bool): Whether to reverse the data order of the ADC relative
+            to the DAC. This solved an legacy problem. Default False.
+        hw_trigger (bool): Whether to start the broadband noise file using
+            the hardware trigger. Default True.
+        return_plot_path (bool) : Whether to return the full path to the
+            summary plot. Default False.
         check_if_adc_is_saturated (bool): Right after playing the
             noise file, checks if ADC for the requested band is
             saturated.  If it is saturated, gives up with an error.
@@ -549,28 +561,36 @@ class SmurfTuneMixin(SmurfBase):
 
         resp = np.zeros((int(n_scan), int(n_samples/2)), dtype=complex)
         for n in np.arange(n_scan):
-            bay=self.band_to_bay(band)
-            self.set_trigger_hw_arm(bay, 0, write_log=write_log)  # Default setup sets to 1
+            bay = self.band_to_bay(band)
+            # Default setup sets to 1
+            self.set_trigger_hw_arm(bay, 0, write_log=write_log)
 
             self.set_noise_select(band, 1, wait_done=True, write_log=write_log)
-            # if true, checks whether or not playing noise file saturates the ADC.  If
-            # ADC is saturated, throws an exception.
+            # if true, checks whether or not playing noise file saturates the ADC.
+            #If ADC is saturated, throws an exception.
             if check_if_adc_is_saturated:
-                adc_is_saturated=self.check_adc_saturation(band)
+                adc_is_saturated = self.check_adc_saturation(band)
                 if adc_is_saturated:
-                    raise ValueError(f'Playing the noise file saturates the ADC for band {band}.  Try increasing the DC attenuation for this band.')
+                    raise ValueError('Playing the noise file saturates the '+
+                        f'ADC for band {band}.  Try increasing the DC '+
+                        'attenuation for this band.')
+
+            # Take read the ADC data
             try:
-                adc = self.read_adc_data(band, n_samples, hw_trigger=hw_trigger, save_data=False)
+                adc = self.read_adc_data(band, n_samples, hw_trigger=hw_trigger,
+                    save_data=False)
             except Exception:
                 self.log('ADC read failed. Trying one more time', self.LOG_ERROR)
-                adc = self.read_adc_data(band, n_samples, hw_trigger=hw_trigger, save_data=False)
+                adc = self.read_adc_data(band, n_samples, hw_trigger=hw_trigger,
+                    save_data=False)
             time.sleep(.05)  # Need to wait, otherwise dac call interferes with adc
 
             try:
                 dac = self.read_dac_data(band, n_samples, hw_trigger=hw_trigger)
             except BaseException:
                 self.log('ADC read failed. Trying one more time', self.LOG_ERROR)
-                dac = self.read_dac_data(band, n_samples, hw_trigger=hw_trigger, save_data=False)
+                dac = self.read_dac_data(band, n_samples, hw_trigger=hw_trigger,
+                    save_data=False)
             time.sleep(.05)
 
             self.set_noise_select(band, 0, wait_done=True, write_log=write_log)
@@ -579,8 +599,8 @@ class SmurfTuneMixin(SmurfBase):
             if correct_att:
                 att_uc = self.get_att_uc(band)
                 att_dc = self.get_att_dc(band)
-                self.log('UC (DAC) att: {}'.format(att_uc))
-                self.log('DC (ADC) att: {}'.format(att_dc))
+                self.log(f'UC (DAC) att: {att_uc}')
+                self.log(f'DC (ADC) att: {att_dc}')
                 if att_uc > 0:
                     scale = (10**(-att_uc/2/20))
                     self.log(f'UC attenuator > 0. Scaling by {scale:4.3f}')
@@ -601,18 +621,20 @@ class SmurfTuneMixin(SmurfBase):
                 np.save(path, dac)
                 self.pub.register_file(path, 'dac', format='npy')
 
-            # To do : Implement cross correlation to get shift
-
+            # Swap frequency ordering of data of ADC relative to DAC
             if swap:
                 adc = adc[::-1]
 
-            f, p_dac = signal.welch(dac, fs=614.4E6, nperseg=n_samples/2,
+            # Take PSDs of ADC, DAC, and cross
+            fs = self.get_digitizer_frequency_mhz() * 1.0E6
+            f, p_dac = signal.welch(dac, fs=fs, nperseg=n_samples/2,
                                     return_onesided=True)
-            f, p_adc = signal.welch(adc, fs=614.4E6, nperseg=n_samples/2,
+            f, p_adc = signal.welch(adc, fs=fs, nperseg=n_samples/2,
                                     return_onesided=True)
-            f, p_cross = signal.csd(dac, adc, fs=614.4E6, nperseg=n_samples/2,
+            f, p_cross = signal.csd(dac, adc, fs=fs, nperseg=n_samples/2,
                                     return_onesided=True)
 
+            # Sort frequencies
             idx = np.argsort(f)
             f = f[idx]
             p_dac = p_dac[idx]
@@ -621,8 +643,10 @@ class SmurfTuneMixin(SmurfBase):
 
             resp[n] = p_cross / p_dac
 
+        # Average over the multiple scans
         resp = np.mean(resp, axis=0)
 
+        plot_path = None
         if make_plot:
             if show_plot:
                 plt.ion()
@@ -643,8 +667,6 @@ class SmurfTuneMixin(SmurfBase):
             ax[2].set_xlabel('Frequency [MHz]')
             ax[0].set_title(timestamp)
 
-            # plt.tight_layout()
-
             if save_plot:
                 path = os.path.join(self.plot_dir,
                     '{}_b{}_full_band_resp_raw.png'.format(timestamp, band))
@@ -652,18 +674,22 @@ class SmurfTuneMixin(SmurfBase):
                 self.pub.register_file(path, 'response', plot=True)
                 plt.close()
 
-            fig, ax = plt.subplots(1)
+            fig, ax = plt.subplots(1, figsize=(5.5, 3))
 
+            # Log y-scale plot
             ax.plot(f_plot[plot_idx], np.log10(np.abs(resp[plot_idx])))
             ax.set_xlabel('Freq [MHz]')
             ax.set_ylabel('Response')
-            ax.set_title(timestamp)
+            ax.set_title(f'full_band_resp {timestamp}')
+            plt.tight_layout()
             if save_plot:
-                path = os.path.join(self.plot_dir,
-                             '{}_b{}_full_band_resp.png'.format(timestamp,
-                                                                band))
-                plt.savefig(path, bbox_inches='tight')
-                self.pub.register_file(path, 'response', plot=True)
+                plot_path = os.path.join(self.plot_dir,
+                    '{}_b{}_full_band_resp.png'.format(timestamp, band))
+
+                plt.savefig(plot_path, bbox_inches='tight')
+                self.pub.register_file(plot_path, 'response', plot=True)
+
+            # Show/Close plots
             if show_plot:
                 plt.show()
             else:
@@ -684,7 +710,10 @@ class SmurfTuneMixin(SmurfBase):
             np.savetxt(path, np.imag(resp))
             self.pub.register_file(path, 'full_band_resp', format='txt')
 
-        return f, resp
+        if return_plot_path:
+            return f, resp, plot_path
+        else:
+            return f, resp
 
 
     def find_peak(self, freq, resp, rolling_med=True, window=5000,
@@ -2966,9 +2995,16 @@ class SmurfTuneMixin(SmurfBase):
         give a path to a text file containing the data for offline plotting.
         To do:
         Add ability to use timestamp and multiple plots
+
         Opt Args:
         ---------
+        f (float array) : An array of frequency data
+        resp (complex array) : An array of find_freq response values
+        subband (int array): A list of subbands that are scanned
+        filename (str) : The full path to the file where the find_freq
+            is stored.
         save_plot (bool) : save the plot. Default True.
+        show_plot (bool) : Whether to show the plot. Defualt False.
         save_name (string) : What to name the plot. default find_freq.png
         '''
         if subband is None:
@@ -2989,7 +3025,7 @@ class SmurfTuneMixin(SmurfBase):
                 color = cm(float(i)/len(subband)/2. + .5*(i%2))
                 plt.plot(f[sb,:], np.abs(resp[sb,:]), '.', markersize=4,
                     color=color)
-            plt.title("findfreq response")
+            plt.title("find_freq response")
             plt.xlabel("Frequency offset (MHz)")
             plt.ylabel("Normalized Amplitude")
 
@@ -3017,7 +3053,6 @@ class SmurfTuneMixin(SmurfBase):
             freq (list, n_freq x 1) = frequencies swept
             resp (array, n_freq x 2) = complex response
         """
-
         digitizer_freq = self.get_digitizer_frequency_mhz(band)  # in MHz
         n_subbands = self.get_number_sub_bands(band)
 
@@ -3030,13 +3065,14 @@ class SmurfTuneMixin(SmurfBase):
 
         self.log('Working on band {:d}'.format(band))
         for sb in subband:
-            self.log('Sweeping subband no: {}'.format(sb))
+            self.log(f'Sweeping subband no: {sb}')
             f, r = self.fast_eta_scan(band, sb, scan_freq, n_read,
-                drive)
+                                      drive)
             resp[sb,:] = r
             freq[sb,:] = f
             freq[sb,:] = scan_freq + \
                 subband_centers[subband_nos.index(sb)]
+
         return freq, resp
 
 
@@ -3162,8 +3198,8 @@ class SmurfTuneMixin(SmurfBase):
             if Qelem > 2**23:
                 Qelem = Qelem - 2**24
 
-            Ielem = Ielem / 2**23
-            Qelem = Qelem / 2**23
+            Ielem /= 2**23
+            Qelem /= 2**23
 
             response[index] = Ielem + 1j*Qelem
 
