@@ -89,6 +89,7 @@ for line in loginfo.splitlines():
                 entry['Labels'] += ', ' + lbl.name
 
         # Add both to details list and sectioned summary list
+        found = False
         if entry['Labels'] is not None:
             details.append(entry)
             for section in ['Client','Core']:
@@ -96,6 +97,10 @@ for line in loginfo.splitlines():
 
                     if section.lower() in entry['Labels'] and label.lower() in entry['Labels']:
                         records[section][label].append(entry)
+                        found = True
+
+        if not found:
+            records['Unlabled'].append(entry)
 
         entry = {}
 
@@ -118,6 +123,12 @@ for section in ['Client','Core']:
     if len(subSec) > 0:
         md += f"## {section}\n"
         md += subSec
+
+if len(records['Unlabled']) > 0:
+    md += f"### Unlabled\n"
+
+    for entry in records['Unlabled']:
+        md += f" 1. {entry['PR']} - {entry['Title']}\n"
 
 # Detailed list
 det = '# Pull Request Details\n'
@@ -144,8 +155,10 @@ for entry in details:
 md += det
 
 # Create release using tag
-msg = f'Release {newTag}'
-remRel = remRepo.create_git_release(tag=newTag,name=msg, message=md, draft=False)
+#msg = f'Release {newTag}'
+#remRel = remRepo.create_git_release(tag=newTag,name=msg, message=md, draft=False)
+print("Notes")
+print(md)
 
 print(f"\nDone")
 
