@@ -66,7 +66,7 @@ for line in loginfo.splitlines():
         entry['Branch'] = line.split()[5].lstrip()
 
         # Get PR info from github
-        #print(f"{entry['Pull']}")
+        print(f"{entry['PR']}")
         req = remRepo.get_pull(int(entry['PR'][1:]))
         entry['Title'] = req.title
         entry['body']  = req.body
@@ -91,7 +91,6 @@ for line in loginfo.splitlines():
         # Add both to details list and sectioned summary list
         found = False
         if entry['Labels'] is not None:
-            details.append(entry)
             for section in ['Client','Core']:
                 for label in ['Bug','Enhancement']:
 
@@ -102,6 +101,7 @@ for line in loginfo.splitlines():
         if not found:
             records['Unlabled'].append(entry)
 
+        details.append(entry)
         entry = {}
 
 # Generate summary text
@@ -155,10 +155,8 @@ for entry in details:
 md += det
 
 # Create release using tag
-#msg = f'Release {newTag}'
-#remRel = remRepo.create_git_release(tag=newTag,name=msg, message=md, draft=False)
-print("Notes")
-print(md)
+msg = f'Release {newTag}'
+remRel = remRepo.create_git_release(tag=newTag,name=msg, message=md, draft=False)
 
 print(f"\nDone")
 
