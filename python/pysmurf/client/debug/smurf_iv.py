@@ -1131,7 +1131,7 @@ class SmurfIVMixin(SmurfBase):
                     calc_res = True
                     if normal_resistance is not None:
                         if not np.logical_and(R > normal_resistance * (1-normal_resistance_frac),
-                            R < normal_resistance * (1+normal_resistance_frac)):
+                                R < normal_resistance * (1+normal_resistance_frac)):
                             calc_res = False
 
                     if calc_res:
