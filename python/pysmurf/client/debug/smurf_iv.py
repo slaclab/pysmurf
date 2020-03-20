@@ -1072,7 +1072,7 @@ class SmurfIVMixin(SmurfBase):
                               show_plot=False, save_plot=True,
                               make_plot=True):
         """
-        Attempts to estimate the bias point per bias group. You must run 
+        Attempts to estimate the bias point per bias group. You must run
         identify_bias_group first (or manually input which channels are in
         which bias group), otherwise this doesn't know how to group things.
 

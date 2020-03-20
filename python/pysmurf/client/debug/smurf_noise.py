@@ -315,7 +315,7 @@ class SmurfNoiseMixin(SmurfBase):
         band (int): The band to search
         noise (float array): The noise floors. Presumably calculated
             using take_noise_psd.
-        
+
         Optional Args:
         --------------
         cutoff (float) : The value to cut at in the same units as noise.
@@ -594,7 +594,7 @@ class SmurfNoiseMixin(SmurfBase):
         Args:
         -----
         fn_datafiles (str): full path to txt containing names of data files
-        
+
         Ret:
         ----
         datafiles (list): strings of data-file names.
@@ -636,7 +636,7 @@ class SmurfNoiseMixin(SmurfBase):
         '''
         Takes IV data and extracts responsivities as a function of commanded
         bias voltage.
-        
+
         Args:
         -----
         iv_data_filename (str): filename of output of IV analysis
@@ -645,7 +645,7 @@ class SmurfNoiseMixin(SmurfBase):
         Opt Args:
         ---------
         high_current_mode (bool): whether or not to return the IV bias
-            voltages so that they look like the IV was taken in high-current 
+            voltages so that they look like the IV was taken in high-current
             mode.
 
         Ret:
@@ -1761,7 +1761,7 @@ class SmurfNoiseMixin(SmurfBase):
         ---------
         modes (int or int array) : The modes to remove. If int, removes the first
             N modes. If array, uses the modes indicated in the array. Default 3.
-            
+
         Ret:
         ----
         diff (float array) : The difference of the input data matrix and the
