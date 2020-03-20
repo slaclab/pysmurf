@@ -45,10 +45,10 @@ oldTag = git.Git('.').describe('--abbrev=0','--tags',newTag + '^')
 loginfo = git.Git('.').log(f"{oldTag}...{newTag}",'--grep','Merge pull request')
 
 # Grouping of recors
-records= odict({'Core':      odict({'Bug' : [], 'Enhancement':[]}),
-                'Client':    odict({'Bug' : [], 'Enhancement':[]}),
-                'Other':    odict({'Bug' : [], 'Enhancement':[]}),
-                'Unlabeled':  [] })
+records= odict({'Core':      odict({'Bug' : [], 'Enhancement':[], 'Interface-change':[]}),
+                'Client':    odict({'Bug' : [], 'Enhancement':[], 'Interface-change':[]}),
+                'Other':     odict({'Bug' : [], 'Enhancement':[], 'Interface-change':[]}),
+                'Unlabeled': [] })
 
 details = []
 entry = {}
