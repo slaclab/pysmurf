@@ -47,7 +47,7 @@ loginfo = git.Git('.').log(f"{oldTag}...{newTag}",'--grep','Merge pull request')
 # Grouping of recors
 records= odict({'Core':      odict({'Bug' : [], 'Enhancement':[]}),
                 'Client':    odict({'Bug' : [], 'Enhancement':[]}),
-                'Unlabled':  [] })
+                'Unlabeled':  [] })
 
 details = []
 entry = {}
@@ -98,7 +98,7 @@ for line in loginfo.splitlines():
                         found = True
 
         if not found:
-            records['Unlabled'].append(entry)
+            records['Unlabeled'].append(entry)
 
         details.append(entry)
         entry = {}
@@ -123,10 +123,10 @@ for section in ['Client','Core']:
         md += f"## {section}\n"
         md += subSec
 
-if len(records['Unlabled']) > 0:
-    md += f"### Unlabled\n"
+if len(records['Unlabeled']) > 0:
+    md += f"### Unlabeled\n"
 
-    for entry in records['Unlabled']:
+    for entry in records['Unlabeled']:
         md += f" 1. {entry['PR']} - {entry['Title']}\n"
 
 # Detailed list
