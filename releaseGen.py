@@ -47,6 +47,7 @@ loginfo = git.Git('.').log(f"{oldTag}...{newTag}",'--grep','Merge pull request')
 # Grouping of recors
 records= odict({'Core':      odict({'Bug' : [], 'Enhancement':[]}),
                 'Client':    odict({'Bug' : [], 'Enhancement':[]}),
+                'Other':    odict({'Bug' : [], 'Enhancement':[]}),
                 'Unlabeled':  [] })
 
 details = []
@@ -90,12 +91,18 @@ for line in loginfo.splitlines():
         # Add both to details list and sectioned summary list
         found = False
         if entry['Labels'] is not None:
-            for section in ['Client','Core']:
+            # if the PR does not have a 'core' nor a 'client' label, add it to the 'Other' section
+            if not any(x in entry['Labels'] for x in ['core', 'client']):
                 for label in ['Bug','Enhancement']:
-
-                    if section.lower() in entry['Labels'] and label.lower() in entry['Labels']:
-                        records[section][label].append(entry)
+                    if label.lower() in entry['Labels']:
+                        records['Other'][label].append(entry)
                         found = True
+            else:
+                for section in ['Client','Core']:
+                    for label in ['Bug','Enhancement']:
+                        if section.lower() in entry['Labels'] and label.lower() in entry['Labels']:
+                            records[section][label].append(entry)
+                            found = True
 
         if not found:
             records['Unlabeled'].append(entry)
@@ -107,7 +114,7 @@ for line in loginfo.splitlines():
 md = f'# Pull Requests Since {oldTag}\n'
 
 # Summary list is sectioned
-for section in ['Client','Core']:
+for section in ['Client','Core', 'Other']:
     subSec = ""
 
     for label in ['Bug','Enhancement']:
