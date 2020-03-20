@@ -1128,9 +1128,13 @@ class SmurfIVMixin(SmurfBase):
                     R = iv[b][ch]['R_n']
                     # Check if the resistance is close to the desired normal
                     # resistance
-                    if np.logical_and(R > normal_resistance * (1-normal_resistance_frac),
-                        R < normal_resistance * (1+normal_resistance_frac)):
+                    calc_res = True
+                    if normal_resistance is not None:
+                        if not np.logical_and(R > normal_resistance * (1-normal_resistance_frac),
+                            R < normal_resistance * (1+normal_resistance_frac)):
+                            calc_res = False
 
+                    if calc_res:
                         # Extract fractional resistance
                         R_frac = iv[b][ch]['R']/iv[b][ch]['R_n']
                         dR_frac = np.abs(R_frac - target_r_frac)
