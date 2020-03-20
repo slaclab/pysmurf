@@ -308,11 +308,14 @@ class SmurfNoiseMixin(SmurfBase):
 
     def turn_off_noisy_channels(self, band, noise, cutoff=150):
         """
+        Turns off channels with noise level above a cutoff.
+
         Args:
         -----
         band (int): The band to search
         noise (float array): The noise floors. Presumably calculated
             using take_noise_psd.
+        
         Optional Args:
         --------------
         cutoff (float) : The value to cut at in the same units as noise.
