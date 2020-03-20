@@ -554,20 +554,19 @@ class SmurfIVMixin(SmurfBase):
         v_bias = np.abs(v_bias)
 
         if R_sh is None:
-            R_sh=self.R_sh
+            R_sh = self.R_sh
 
         if pA_per_phi0 is None:
             pA_per_phi0 = self.pA_per_phi0
         resp *= pA_per_phi0/(2.*np.pi*1e6) # convert phase to uA
 
-        # n_pts = len(resp)
         step_loc = np.where(np.diff(v_bias))[0]
 
         if step_loc[0] != 0:
             step_loc = np.append([0], step_loc)  # starts from zero
-        # step_size = np.diff(v_bias)[step_loc]
         n_step = len(step_loc) - 1
 
+        # arrays for holding response, I, and V
         resp_bin = np.zeros(n_step)
         v_bias_bin = np.zeros(n_step)
         i_bias_bin = np.zeros(n_step)
@@ -710,6 +709,7 @@ class SmurfIVMixin(SmurfBase):
             ax_si = fig.add_subplot(gs[2,:2])
             ax_i = [ax_ii,ax_ri,ax_si] # axes with I_b as x-axis
 
+            # Construct title
             title = ""
             plot_name = "IV_curve"
             if band is not None:
@@ -747,10 +747,12 @@ class SmurfIVMixin(SmurfBase):
             ax_ii.plot(i_bias_bin, resp_bin, color=color_meas)
             ax_ii.set_ylabel(r'$I_\mathrm{TES}$ $[\mu A]$')
 
+            # Plot normal branch fit
             ax_ii.plot(i_bias_bin, norm_fit[0] * i_bias_bin , linestyle='--',
                        color=color_norm, label=r'$R_N$' +
                        '  = ${:.0f}$'.format(R_n/1e-3) +
                        r' $\mathrm{m}\Omega$')
+            # Plot superconducting branch fit
             ax_ii.plot(i_bias_bin[:sc_idx],
                 sc_fit[0] * i_bias_bin[:sc_idx] + sc_fit[1], linestyle='--',
                 color=color_sc, label=r'$R_L$' +
@@ -867,9 +869,11 @@ class SmurfIVMixin(SmurfBase):
         Function to analyze a partial load curve from its raw file. Basically
         the same as the slow_iv analysis but without fitting the superconducting
         branch.
+
         Args:
         -----
         fn_plc_raw_data (str): *_plc_raw_data.npy file to analyze
+
         Opt Args:
         -----
         make_plot (bool): Defaults True. This is slow.
@@ -887,11 +891,9 @@ class SmurfIVMixin(SmurfBase):
         self.log('Analyzing plc from file: {}'.format(fn_plc_raw_data))
 
         plc_raw_data = np.load(fn_plc_raw_data).item()
-        #bias_sweep_array = plc_raw_data['bias']
         bias_group = plc_raw_data['band']
         datafile = plc_raw_data['datafile']
         basename = plc_raw_data['basename']
-        #output_dir = plc_raw_data['output_dir']
         plot_dir = plc_raw_data['plot_dir']
 
         timestamp, phase_all, mask = self.read_stream_data(datafile)
@@ -899,10 +901,7 @@ class SmurfIVMixin(SmurfBase):
 
         band, chans = np.where(mask != -1) #are these masks secretly the same?
 
-        #rn_list = []
         phase_excursion_list = []
-        #v_bias_target_list = []
-        #p_trans_list = []
 
         for c, (b, ch) in enumerate(zip(band, chans)):
             if (channels is not None) and (ch not in channels):
@@ -930,7 +929,7 @@ class SmurfIVMixin(SmurfBase):
                 ax.plot(phase)
                 ax.set_xlabel('Sample Num')
                 ax.set_ylabel('Phase [rad.]')
-                # no grid on for you, Ari
+
                 ax.set_title('Band {}, Group {}, Ch {:03}'.format(np.unique(band),
                     bias_group, ch)) # this is not going to be very useful...
                 plt.tight_layout()
@@ -949,15 +948,20 @@ class SmurfIVMixin(SmurfBase):
                 if not show_plot:
                     plt.close()
 
+
     def estimate_opt_eff(self, iv_fn_hot, iv_fn_cold,t_hot=293.,t_cold=77.,
             channels = None, dPdT_lim=(0.,0.5)):
         """
         Estimate optical efficiency between two sets of load curves. Returns
           per-channel plots and a histogram.
+
         Args:
+        -----
         iv_fn_hot (str): timestamp/filename of load curve taken at higher temp
         iv_fn_cold (str): timestamp/filename of load curve taken at cooler temp
+
         Opt Args:
+        ---------
         t_hot (float): temperature in K of hotter load curve. Defaults to 293.
         t_cold (float): temperature in K of cooler load curve. Defaults to 77.
         channels (int array): which channels to analyze. Defaults to the ones
@@ -1068,7 +1072,9 @@ class SmurfIVMixin(SmurfBase):
                               show_plot=False, save_plot=True,
                               make_plot=True):
         """
-        Attempts to estimate the bias point per bias group.
+        Attempts to estimate the bias point per bias group. You must run
+        identify_bias_group first (or manually input which channels are in
+        which bias group), otherwise this doesn't know how to group things.
 
         Args:
         -----
