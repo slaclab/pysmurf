@@ -84,9 +84,9 @@ for line in loginfo.splitlines():
         entry['Labels'] = None
         for lbl in req.get_labels():
             if entry['Labels'] is None:
-                entry['Labels'] = lbl.name
+                entry['Labels'] = lbl.name.lower()
             else:
-                entry['Labels'] += ', ' + lbl.name
+                entry['Labels'] += ', ' + lbl.name.lower()
 
         # Add both to details list and sectioned summary list
         found = False
