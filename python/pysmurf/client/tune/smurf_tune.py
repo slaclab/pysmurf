@@ -399,11 +399,12 @@ class SmurfTuneMixin(SmurfBase):
            Warning this is slow. Default is False.
         show_plot (bool) : Whether to display the plot. Default is False.
         save_plot (bool) : Whether to save the plot. Default is True.
-        plotname_append (string): Appended to the default plot filename. Default is ''.
         eta_width (float) : The width to plot in MHz.
         channels (int list) : Which channels to plot.  Default is None,
                              which plots all available channels.
         plot_summary (bool) : Plot summary.
+        plotname_append (string): Appended to the default plot filename. Default
+            is ''.
         """
         if show_plot:
             plt.ion()
@@ -1015,12 +1016,14 @@ class SmurfTuneMixin(SmurfBase):
     def plot_find_peak(self, freq, resp, peak_ind, save_plot=True,
             save_name=None):
         """
-        Plots the output of find_Freq
+        Plots the output of find_freq.
+
         Args:
         -----
         freq (float array): The frequency data
         resp (float array): The response to full_band_resp
         peak_ind (int array): The indicies of peaks found
+
         Opt Args:
         ---------
         save_plot (bool): Whether to save the plot
@@ -1075,13 +1078,15 @@ class SmurfTuneMixin(SmurfBase):
                 make_plot=False, plot_chans=[], save_plot=True, band=None,
                 timestamp=None, res_num=None, use_slow_eta=False):
         """
-        Cyndia's eta finding code
+        Cyndia's eta finding code.
+
         Args:
         -----
         freq (float array): The frequency data
         resp (float array): The response data
         peak_freq (float): The frequency of the resonance peak
         delta_freq (float): The width of frequency to calculate values
+
         Opt Args:
         ---------
         make_plot (bool): Whether to make plots. Default is False.
@@ -1187,11 +1192,14 @@ class SmurfTuneMixin(SmurfBase):
             show_plot=False, timestamp=None, res_num=None, band=None,
             sk_fit=None, f_slow=None, resp_slow=None, channel=None):
         """
-        Plots the eta parameter fits
+        Plots the eta parameter fits. This is called by self.eta_fit or
+        plot_tune_summary.
+
         Args:
         -----
         freq (float array): The frequency data
         resp (complex array): THe response data
+
         Opt Args:
         ---------
         eta (complex): The eta parameter
@@ -1334,6 +1342,7 @@ class SmurfTuneMixin(SmurfBase):
         if not show_plot:
             plt.close()
 
+
     def get_closest_subband(self, f, band, as_offset=True):
         """
         Gives the closest subband number for a given input frequency.
@@ -1377,6 +1386,7 @@ class SmurfTuneMixin(SmurfBase):
         """
         By default, pysmurf loads the most recent master assignment.
         Use this function to overwrite the default one.
+
         Args:
         -----
         band (int): The band for the master assignment file
@@ -1420,11 +1430,13 @@ class SmurfTuneMixin(SmurfBase):
             new_master_assignment=False):
         """
         Figures out the subbands and channels to assign to resonators
+
         Args:
         -----
         freq (flot array): The frequency of the resonators. This is not the
             same as the frequency output from full_band_resp. This is only
             where the resonators are.
+
         Opt Args:
         ---------
         band (int): The band to assign channels
@@ -1434,6 +1446,7 @@ class SmurfTuneMixin(SmurfBase):
             subband. Default is 4.
         min_offset (float): The minimum offset between two resonators in MHz.
             If closer, then both are ignored.
+
         Ret:
         ----
         subbands (int array): An array of subbands to assign resonators
@@ -1552,6 +1565,7 @@ class SmurfTuneMixin(SmurfBase):
     def make_master_assignment_from_file(self, band, tuning_filename):
         """
         Makes a master assignment file
+
         Args:
         -----
         band (int) : The band number
@@ -1666,6 +1680,7 @@ class SmurfTuneMixin(SmurfBase):
             write_log=False):
         """
         Turns on the tones. Also cuts bad resonators.
+
         Args:
         -----
         band (int): The band to relock
@@ -1680,7 +1695,6 @@ class SmurfTuneMixin(SmurfBase):
         q_min (float): The minimum resonator Q factor
         min_gap (float) : Thee minimum distance between resonators.
         """
-
         n_channels = self.get_number_channels(band)
 
         self.log('Relocking...')
@@ -1698,6 +1712,7 @@ class SmurfTuneMixin(SmurfBase):
         eta_phase = np.zeros(n_channels)
         eta_mag = np.zeros(n_channels)
 
+        # Extract frequencies from dictionary
         f = [self.freq_resp[band]['resonances'][k]['freq']
             for k in self.freq_resp[band]['resonances'].keys()]
 
@@ -1706,28 +1721,32 @@ class SmurfTuneMixin(SmurfBase):
         for k in self.freq_resp[band]['resonances'].keys():
             ch = self.freq_resp[band]['resonances'][k]['channel']
             idx = np.where(f == self.freq_resp[band]['resonances'][k]['freq'])[0][0]
-            f_gap=None
-            if len(f)>1:
+            f_gap = None
+            if len(f) > 1:
                 f_gap = np.min(np.abs(np.append(f[:idx], f[idx+1:])-f[idx]))
             if write_log:
-                self.log('Res {:03} - Channel {}'.format(k, ch))
+                self.log(f'Res {k:03} - Channel {ch}')
             for ll, hh in self.bad_mask:
+                # Check again bad mask list
                 if f[idx] > ll and f[idx] < hh:
-                    self.log('{:4.3f} in bad list.'.format(f[idx]))
+                    self.log(f'{f[idx]:4.3f} in bad list.')
                     ch = -1
             if ch < 0:
                 if write_log:
-                    self.log('No channel assigned: res {:03}'.format(k))
+                    self.log(f'No channel assigned: res {k:03}')
             elif min_gap is not None and f_gap is not None and f_gap < min_gap:
+                # Resonators too close
                 if write_log:
-                    self.log('Closest resonator is {:3.3f} MHz away'.format(f_gap))
+                    self.log(f'Closest resonator is {f_gap:3.3f} MHz away')
             elif self.freq_resp[band]['resonances'][k]['r2'] > r2_max and check_vals:
+                # chi squared cut
                 if write_log:
-                    self.log('R2 too high: res {:03}'.format(k))
+                    self.log(f'R2 too high: res {k:03}')
             elif k not in res_num:
                 if write_log:
                     self.log('Not in resonator list')
             else:
+                # Channels passed all checks so actually turn on
                 center_freq[ch] = self.freq_resp[band]['resonances'][k]['offset']
                 amplitude_scale[ch] = drive
                 feedback_enable[ch] = 1
@@ -1760,6 +1779,16 @@ class SmurfTuneMixin(SmurfBase):
 
     def _get_eta_scan_result_from_key(self, band, key):
         """
+        Convenience function to get values from the freq_resp dictionary.
+
+        Args:
+        -----
+        band (int) : The 500 MHz band to get values from
+        key (str) : The dictionary value to read out
+
+        Ret:
+        ----
+        val (array) : The array of values associated with key.
         """
         if 'resonances' not in self.freq_resp[band].keys():
             self.log('No tuning. Run setup_notches() or load_tune()')
@@ -1771,12 +1800,14 @@ class SmurfTuneMixin(SmurfBase):
 
     def get_eta_scan_result_freq(self, band):
         """
-        Convenience function that gets the frequency results from
-        eta scans.
+        Convenience function that gets the frequency results from eta scans.
+
         Args:
         -----
         band (int) : The band
+
         Ret:
+        ----
         freq (float array) : The frequency in MHz of the resonators.
         """
         return self._get_eta_scan_result_from_key(band, 'freq')
@@ -1784,37 +1815,44 @@ class SmurfTuneMixin(SmurfBase):
 
     def get_eta_scan_result_eta(self, band):
         """
-        Convenience function that gets thee eta values from
-        eta scans.
+        Convenience function that gets thee eta values from eta scans.
+
         Args:
         -----
         band (int) : The band
+
         Ret:
         ----
         eta (complex array) : The eta of the resonators.
         """
         return self._get_eta_scan_result_from_key(band, 'eta')
 
+
     def get_eta_scan_result_eta_mag(self, band):
         """
         Convenience function that gets thee eta mags from
         eta scans.
+
         Args:
         -----
         band (int) : The band
+
         Ret:
         ----
         eta_mag (float array) : The eta of the resonators.
         """
         return self._get_eta_scan_result_from_key(band, 'eta_mag')
 
+
     def get_eta_scan_result_eta_scaled(self, band):
         """
         Convenience function that gets the eta scaled from
         eta scans. eta_scaled is eta_mag/digitizer_freq_mhz/n_subbands
+
         Args:
         -----
         band (int) : The band
+
         Ret:
         ----
         eta_mag (float array) : The eta_scaled of the resonators.
@@ -1826,9 +1864,11 @@ class SmurfTuneMixin(SmurfBase):
         """
         Convenience function that gets the eta phase values from
         eta scans.
+
         Args:
         -----
         band (int) : The band
+
         Ret:
         ----
         eta_phase (float array) : The eta_phase of the resonators.
@@ -1840,9 +1880,11 @@ class SmurfTuneMixin(SmurfBase):
         """
         Convenience function that gets the channel assignments from
         eta scans.
+
         Args:
         -----
         band (int) : The band
+
         Ret:
         ----
         channels (int array) : The channels of the resonators.
@@ -1852,11 +1894,12 @@ class SmurfTuneMixin(SmurfBase):
 
     def get_eta_scan_result_subband(self, band):
         """
-        Convenience function that gets the subband from
-        eta scans.
+        Convenience function that gets the subband from eta scans.
+
         Args:
         -----
         band (int) : The band
+
         Ret:
         ----
         subband (float array) : The subband of the resonators.
@@ -1868,9 +1911,11 @@ class SmurfTuneMixin(SmurfBase):
         """
         Convenience function that gets the offset from center frequency
         from eta scans.
+
         Args:
         -----
         band (int) : The band
+
         Ret:
         ----
         offset (float array) : The offset from the subband centers  of
@@ -1879,30 +1924,22 @@ class SmurfTuneMixin(SmurfBase):
         return self._get_eta_scan_result_from_key(band, 'offset')
 
 
-    def eta_reestimator(self, band, f0, drive, delta_freq=.01):
-        """
-        """
-        subband, offset = self.freq_to_subband(band, f0)
-
-        #left = f0 - delta_freq
-        #right = f0 + delta_freq
-
-        f_sweep = np.array([offset-delta_freq, offset+delta_freq])
-        f, resp = self.fast_eta_scan(band, subband, f_sweep, 2, drive)
-
-
-        eta = (f_sweep[1]-f_sweep[0])/(resp[1]-resp[0])
-
-        sb, sbc = self.get_subband_centers(band, as_offset=False)
-
-        return f_sweep+sbc[subband], resp, eta
-
-
     def eta_estimator(self, band, freq, drive=10, f_sweep_half=.3,
                       df_sweep=.002, delta_freq=.01,
                       lock_max_derivative=False):
         """
-        Estimates eta parameters using the slow eta_scan
+        Estimates eta parameters using the slow eta_scan.
+
+        Args:
+        -----
+        band (int) : The 500 MHz band
+        freq (float) : The frequency to scan
+
+        Opt Args:
+        ---------
+        drive (int) : The tone ampltidue. Default is 10.
+        f_sweep_half (float) : The frequency to sweep.
+        df_sweep (float) : The freqeucny step size
         """
         subband, offset = self.freq_to_subband(band, freq)
         f_sweep = np.arange(offset-f_sweep_half, offset+f_sweep_half, df_sweep)
@@ -1932,7 +1969,8 @@ class SmurfTuneMixin(SmurfBase):
 
         sb, sbc = self.get_subband_centers(band, as_offset=False)
 
-        return f_sweep+sbc[subband], resp, eta
+        return f_sweep + sbc[subband], resp, eta
+
 
     def eta_scan(self, band, subband, freq, drive, write_log=False,
                  sync_group=True):
