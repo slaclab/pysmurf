@@ -131,7 +131,7 @@ for section in ['Client','Core', 'Other']:
         md += subSec
 
 if len(records['Unlabeled']) > 0:
-    md += f"### Unlabeled\n"
+    md += f"## Unlabeled\n"
 
     for entry in records['Unlabeled']:
         md += f" 1. {entry['PR']} - {entry['Title']}\n"
