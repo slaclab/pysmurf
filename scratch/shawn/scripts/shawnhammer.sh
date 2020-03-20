@@ -129,6 +129,13 @@ if [ "$?" = "1" ]; then
     docker rm -f $(docker ps -q -f name=pysmurf | awk '{print $1}')
 fi
 
+# stop all smurf-streamer dockers
+matching_dockers smurf-streamer
+if [ "$?" = "1" ]; then
+    echo "-> Stopping all running smurf-streamer dockers."
+    docker rm -f $(docker ps -q -f name=smurf-streamer | awk '{print $1}')
+fi
+
 # if using a timing master, check that timing docker is running,
 # or else nothing will work.
 if [ "$using_timing_master" = true ] ; then
