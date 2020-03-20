@@ -1093,6 +1093,11 @@ class SmurfIVMixin(SmurfBase):
         make_plot (bool) : Whether to make the plot. Default True.
         show_plot (bool) : Whether to show the plot. Default False.
         save_plot (bool) : Whether to save the plot. Default True.
+
+        Ret:
+        ----
+        target (float array) : An array of size n_bias_groups with the target
+            bias voltage for each group.
         """
         # Load IV summary file and raw dat file
         iv = np.load(iv_file, allow_pickle=True).item()
