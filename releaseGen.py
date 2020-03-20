@@ -15,12 +15,12 @@ from github import Github # PyGithub
 from collections import OrderedDict as odict
 import re
 
-ghRepo = os.environ.get('GITHUB_REPO')
+ghRepo = os.environ.get('TRAVIS_REPO_SLUG')
 token  = os.environ.get('GITHUB_TOKEN')
 newTag = os.environ.get('TRAVIS_TAG')
 
 if ghRepo is None:
-    exit("GITHUB_REPO not in environment.")
+    exit("TRAVIS_REPO_SLUG not in environment.")
 
 if token is None:
     exit("GITHUB_TOKEN not in environment.")
