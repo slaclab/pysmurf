@@ -1276,6 +1276,18 @@ class SmurfUtilMixin(SmurfBase):
     def read_stream_data_daq(self, data_length, bay=0, hw_trigger=False,
             write_log=False):
         """
+        Reads the stream data from the DAQ.
+
+        Args:
+        -----
+        data_length (int) : The number of samples to process
+
+        Opt Args:
+        ---------
+        bay (int) : The AMC bay number
+        hw_trigger (bool) : Whehter to trigger the start of the acquistion
+            with a hardware trigger. Default False.
+        write_log (bool) : Whether to write outputs to log. Default False
         """
         # Ask mitch why this is what it is...
         if bay == 0:
@@ -1304,6 +1316,7 @@ class SmurfUtilMixin(SmurfBase):
 
         return r0, r1
 
+
     def check_adc_saturation(self, band):
         """
         Reads data directly off the ADC.  Checks for input saturation.
@@ -1329,6 +1342,7 @@ class SmurfUtilMixin(SmurfBase):
             self.log(f'\033[92mADC{band} not saturated\033[00m') # color green
         return saturated
 
+
     def check_dac_saturation(self, band):
         """
         Reads data directly off the DAC.  Checks for input saturation.
@@ -1353,6 +1367,7 @@ class SmurfUtilMixin(SmurfBase):
         else:
             self.log(f'\033[92mDAC{band} not saturated\033[00m') # color green
         return saturated
+
 
     def read_adc_data(self, band, data_length=2**19,
                       hw_trigger=False, do_plot=False, save_data=True,
@@ -1941,13 +1956,16 @@ class SmurfUtilMixin(SmurfBase):
         return ret
 
     def which_bands(self):
-        # encodes which bands the fw being used was built for.
+        """
+        Encodes which bands the fw being used was built for.
+        """
         build_dsp_g=self.get_build_dsp_g()
         bands=[b for b,x in enumerate(bin(build_dsp_g)[2:]) if x=='1']
         return bands
 
     def freq_to_subband(self, band, freq):
-        """Look up subband number of a channel frequency, and its subband
+        """
+        Look up subband number of a channel frequency, and its subband
         frequency offset.
 
         Args:
@@ -2801,7 +2819,11 @@ class SmurfUtilMixin(SmurfBase):
 
     def set_mode_dc(self, write_log=False):
         """
-        Sets it DC coupling
+        Sets flux ramp to DC coupling
+
+        Opt Args:
+        ---------
+        write_log (bool) : Whether to write outputs to log. Default False.
         """
         # The 16th bit (0 indexed) is the AC/DC coupling
         # self.set_tes_bias_high_current(16)
@@ -2820,7 +2842,11 @@ class SmurfUtilMixin(SmurfBase):
 
     def set_mode_ac(self, write_log=False):
         """
-        Sets it to AC coupling
+        Sets flux ramp to AC coupling
+
+        Opt Args:
+        ---------
+        write_log (bool) : Whether to write outputs to log. Default False.
         """
         # The 16th bit (0 indexed) is the AC/DC coupling
         # self.set_tes_bias_low_current(16)
@@ -2840,18 +2866,36 @@ class SmurfUtilMixin(SmurfBase):
     def att_to_band(self, att):
         """
         Gives the band associated with a given attenuator number
+
+        Args:
+        -----
+        att (int) : The attenuatory number.
+
+        Ret:
+        ----
+        band (int) : The band associated with the attenuator.
         """
         return self.att_to_band['band'][np.ravel(
             np.where(self.att_to_band['att']==att))[0]]
 
     def band_to_att(self, band):
         """
+        Gives the att associated with a given 500 MHz band.
+
+        Args:
+        -----
+        band (int) : The 500 MHz band number
+
+        Ret:
+        ----
+        att (int) : The attenuatory number.
         """
         # for now, mod 4 ; assumes the band <-> att correspondence is the same
         # for the LB and HB AMCs.
         band=band%4
         return self.att_to_band['att'][np.ravel(
             np.where(self.att_to_band['band']==band))[0]]
+
 
     def flux_ramp_rate_to_PV(self, val):
         """
@@ -2873,6 +2917,7 @@ class SmurfUtilMixin(SmurfBase):
         except IndexError:
             self.log("Reset rate not allowed! Look up help for allowed values")
             return
+
 
     def flux_ramp_PV_to_rate(self, val):
         """
@@ -2941,6 +2986,10 @@ class SmurfUtilMixin(SmurfBase):
         """
         Makes the frequency mask. These are the frequencies
         associated with the channels in the channel mask.
+
+        Args:
+        -----
+        mask (int array) : The channel mask file
 
         Ret:
         ----
@@ -3759,7 +3808,17 @@ class SmurfUtilMixin(SmurfBase):
     def play_tes_bipolar_waveform(self, bias_group, waveform, do_enable=True,
             **kwargs):
         """
+        Play a bipolar waveform on the bias group.
+
+        Args:
+        -----
         bias_group (int): The bias group
+        waveform (float array) : The waveform the play on the bias group.
+
+        Opt Args:
+        ---------
+        do_enable (bool) : Whether to enable the DACs (similar to what is
+            resuired for TES bias). Defualt True.
         """
         bias_order = self.bias_group_to_pair[:,0]
         dac_positives = self.bias_group_to_pair[:,1]
@@ -3793,8 +3852,12 @@ class SmurfUtilMixin(SmurfBase):
 
     # Readback on which DACs are selected is broken right now,
     # so has to be specified.
-    def stop_tes_bipolar_waveform(self, bias_group, zero=0, **kwargs):
+    def stop_tes_bipolar_waveform(self, bias_group, **kwargs):
         """
+        Stop the bipolar waveform being played on a bias group.
+
+        Args:
+        -----
         bias_group (int): The bias group
         """
         # https://confluence.slac.stanford.edu/display/SMuRF/SMuRF+firmware#SMuRFfirmware-RTMDACarbitrarywaveforms
