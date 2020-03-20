@@ -161,8 +161,7 @@ for entry in details:
 md += det
 
 # Create release using tag
-msg = f'Release {newTag}'
-remRel = remRepo.create_git_release(tag=newTag,name=msg, message=md, draft=False)
+remRel = remRepo.create_git_release(tag=newTag, name=newTag, message=md, draft=False)
 
 print("Success!")
 exit(0)
