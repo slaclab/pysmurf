@@ -66,7 +66,6 @@ for line in loginfo.splitlines():
         entry['Branch'] = line.split()[5].lstrip()
 
         # Get PR info from github
-        print(f"{entry['PR']}")
         req = remRepo.get_pull(int(entry['PR'][1:]))
         entry['Title'] = req.title
         entry['body']  = req.body
@@ -134,7 +133,7 @@ if len(records['Unlabled']) > 0:
 det = '# Pull Request Details\n'
 
 # Sort records
-details = sorted(details, key=lambda v : v['changes'], reverse=True)
+#details = sorted(details, key=lambda v : v['changes'], reverse=True)
 
 # Generate detailed PR notes
 for entry in details:
@@ -158,5 +157,6 @@ md += det
 msg = f'Release {newTag}'
 remRel = remRepo.create_git_release(tag=newTag,name=msg, message=md, draft=False)
 
-print(f"\nDone")
+print("Success!")
+exit(0)
 
