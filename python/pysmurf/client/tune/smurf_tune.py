@@ -1078,7 +1078,7 @@ class SmurfTuneMixin(SmurfBase):
                 make_plot=False, plot_chans=[], save_plot=True, band=None,
                 timestamp=None, res_num=None, use_slow_eta=False):
         """
-        Cyndia's eta finding code. 
+        Cyndia's eta finding code.
 
         Args:
         -----
@@ -1820,7 +1820,7 @@ class SmurfTuneMixin(SmurfBase):
         Args:
         -----
         band (int) : The band
-        
+
         Ret:
         ----
         eta (complex array) : The eta of the resonators.
@@ -1832,11 +1832,11 @@ class SmurfTuneMixin(SmurfBase):
         """
         Convenience function that gets thee eta mags from
         eta scans.
-        
+
         Args:
         -----
         band (int) : The band
-        
+
         Ret:
         ----
         eta_mag (float array) : The eta of the resonators.
@@ -1928,7 +1928,7 @@ class SmurfTuneMixin(SmurfBase):
                       df_sweep=.002, delta_freq=.01,
                       lock_max_derivative=False):
         """
-        Estimates eta parameters using the slow eta_scan. 
+        Estimates eta parameters using the slow eta_scan.
 
         Args:
         -----

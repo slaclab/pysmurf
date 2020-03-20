@@ -48,6 +48,7 @@ class SmurfNoiseMixin(SmurfBase):
         Args:
         -----
         meas_time (float): The amount of time to observe in seconds.
+
         Opt Args:
         ---------
         channel (int array): The channels to plot. Note that this script always
@@ -173,10 +174,10 @@ class SmurfNoiseMixin(SmurfBase):
                 noise_floors[i, c] = np.mean(Pxx[idx])
 
             if make_channel_plot:
-                fig, ax = plt.subplots(2, figsize=(5, 3.5))
+                fig, ax = plt.subplots(2, figsize=(8, 6))
 
                 sampleNums = np.arange(len(phase[ch_idx]))
-                t_array = sampleNums/fs
+                t_array = sampleNums / fs
 
                 # Plot the data
                 ax[0].plot(t_array,phase[ch_idx] - np.mean(phase[ch_idx]))
