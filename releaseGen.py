@@ -93,13 +93,13 @@ for line in loginfo.splitlines():
         if entry['Labels'] is not None:
             # if the PR does not have a 'core' nor a 'client' label, add it to the 'Other' section
             if not any(x in entry['Labels'] for x in ['core', 'client']):
-                for label in ['Bug','Enhancement']:
+                for label in ['Bug','Enhancement', 'Interface-change']:
                     if label.lower() in entry['Labels']:
                         records['Other'][label].append(entry)
                         found = True
             else:
                 for section in ['Client','Core']:
-                    for label in ['Bug','Enhancement']:
+                    for label in ['Bug','Enhancement', 'Interface-change']:
                         if section.lower() in entry['Labels'] and label.lower() in entry['Labels']:
                             records[section][label].append(entry)
                             found = True
@@ -117,7 +117,7 @@ md = f'# Pull Requests Since {oldTag}\n'
 for section in ['Client','Core', 'Other']:
     subSec = ""
 
-    for label in ['Bug','Enhancement']:
+    for label in ['Bug','Enhancement', 'Interface-change']:
         subLab = ""
         entries = sorted(records[section][label], key=lambda v : v['changes'], reverse=True)
         for entry in entries:
