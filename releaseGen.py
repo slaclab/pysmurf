@@ -117,7 +117,7 @@ md = f'# Pull Requests Since {oldTag}\n'
 for section in ['Client','Core', 'Other']:
     subSec = ""
 
-    for label in ['Bug','Enhancement', 'Interface-change']:
+    for label in ['Interface-change', 'Bug','Enhancement']:
         subLab = ""
         entries = sorted(records[section][label], key=lambda v : v['changes'], reverse=True)
         for entry in entries:
