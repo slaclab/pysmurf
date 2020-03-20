@@ -164,8 +164,7 @@ class SmurfNoiseMixin(SmurfBase):
                          ', f_knee = {:.2f} Hz'.format(f_knee))
             except Exception as e:
                 if write_log:
-                    self.log(f'{c+1} b{b}ch{ch:03}: '+
-                             'bad fit to noise model')
+                    self.log(f'{c+1} b{b}ch{ch:03}: bad fit to noise model')
                     self.log(e)
 
             # Calculate noise in various frequency bins
@@ -174,7 +173,7 @@ class SmurfNoiseMixin(SmurfBase):
                 noise_floors[i, c] = np.mean(Pxx[idx])
 
             if make_channel_plot:
-                fig, ax = plt.subplots(2, figsize=(8,6))
+                fig, ax = plt.subplots(2, figsize=(5, 3.5))
 
                 sampleNums = np.arange(len(phase[ch_idx]))
                 t_array = sampleNums/fs
@@ -269,10 +268,11 @@ class SmurfNoiseMixin(SmurfBase):
                 n_fit = len(wl_list)
                 n_attempt = len(channels)
 
-                fig,ax = plt.subplots(1,3,figsize=(10,6))
-                fig.suptitle('{}: band {} noise parameters'.format(basename, b) +
-                    ' ({} fit of {} attempted)'.format(n_fit, n_attempt))
-                ax[0].hist(wl_list,bins=np.logspace(np.floor(np.log10(np.min(wl_list))),
+                fig,ax = plt.subplots(1,3, figsize=(10,6))
+                fig.suptitle(f'{basename} noise parameters' +
+                    f' ({n_fit} fit of {n_attempt} attempted)')
+                ax[0].hist(wl_list,
+                    bins=np.logspace(np.floor(np.log10(np.min(wl_list))),
                         np.ceil(np.log10(np.max(wl_list))), 10))
 
                 ax[0].set_xlabel('White-noise level (pA/rtHz)')
@@ -290,7 +290,7 @@ class SmurfNoiseMixin(SmurfBase):
                 plt.tight_layout()
                 fig.subplots_adjust(top = 0.9)
                 noise_params_hist_fname = basename + \
-                    '_b{}_noise_params{}.png'.format(b, plotname_append)
+                    f'_noise_params{plotname_append}.png'
                 plt.savefig(os.path.join(self.plot_dir,
                     noise_params_hist_fname),
                     bbox_inches='tight')
@@ -301,7 +301,7 @@ class SmurfNoiseMixin(SmurfBase):
                     plt.close()
 
         if return_noise_params:
-            return datafile, (res_freqs,noise_floors,f_knees)
+            return datafile, (res_freqs, noise_floors, f_knees)
 
         else:
             return datafile
