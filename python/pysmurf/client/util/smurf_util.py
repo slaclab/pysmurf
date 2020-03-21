@@ -996,7 +996,7 @@ class SmurfUtilMixin(SmurfBase):
                             tmp_tes_bias = np.zeros((0, 16))
 
                     counter += 1
-                    
+        
         phase=np.array(phase)
         t=np.array(t)
         
