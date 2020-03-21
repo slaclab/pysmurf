@@ -1093,6 +1093,11 @@ class SmurfIVMixin(SmurfBase):
         make_plot (bool) : Whether to make the plot. Default True.
         show_plot (bool) : Whether to show the plot. Default False.
         save_plot (bool) : Whether to save the plot. Default True.
+
+        Ret:
+        ----
+        target (float array) : An array of size n_bias_groups with the target
+            bias voltage for each group.
         """
         # Load IV summary file and raw dat file
         iv = np.load(iv_file, allow_pickle=True).item()
@@ -1111,11 +1116,13 @@ class SmurfIVMixin(SmurfBase):
         bg_list = {}
         target_bias_voltage = np.zeros(len(bias_group))
 
+        # Get channels in each bias group
         for bg in bias_group:
             bg_list[bg] = {}
             for b in band:
                 bg_list[bg][b] = self.get_group_list(b, bg)
 
+        # Iterate over bias groups
         for i, bg in enumerate(bias_group):
             v_bias = np.array([])
             R_n = np.array([])
@@ -1124,11 +1131,21 @@ class SmurfIVMixin(SmurfBase):
                                          bg_list[bg][b])
                 for ch in channel:
                     R = iv[b][ch]['R_n']
-                    if np.logical_and(R > normal_resistance * (1-normal_resistance_frac),
-                                      R < normal_resistance * (1+normal_resistance_frac)):
+                    # Check if the resistance is close to the desired normal
+                    # resistance
+                    calc_res = True
+                    if normal_resistance is not None:
+                        if not np.logical_and(R > normal_resistance * (1-normal_resistance_frac),
+                                R < normal_resistance * (1+normal_resistance_frac)):
+                            calc_res = False
+
+                    if calc_res:
+                        # Extract fractional resistance
                         R_frac = iv[b][ch]['R']/iv[b][ch]['R_n']
                         dR_frac = np.abs(R_frac - target_r_frac)
                         idx = np.where(dR_frac == np.min(dR_frac))
+
+                        # Extract the voltage bias
                         v_bias = np.append(v_bias, iv[b][ch]['v_bias'][idx])
                         R_n = np.append(R_n, iv[b][ch]['R_n'])
                     v_max = np.max(iv[b][ch]['v_bias'])
@@ -1141,20 +1158,24 @@ class SmurfIVMixin(SmurfBase):
                 fig, ax = plt.subplots(2, figsize=(4,4), sharex=True)
                 for b in band:
                     channel = np.intersect1d(list(iv[b].keys()),
-                                         bg_list[bg][b])
+                        bg_list[bg][b])
+
+                    # Plot the individual IV curve of each channel
                     for ch in channel:
                         ax[0].plot(iv[b][ch]['v_bias'],
                                 iv[b][ch]['R']*1.0E3,
-                                color='k',alpha=.2)
+                                color='k', alpha=.2)
 
-                    # ax[0].set_ylim((0, ax[0].get_ylim()[1]))
+                # Set ylim
                 if len(R_n) > 0:
                     ax[0].set_ylim((0, np.max(R_n)*1.1E3))
+
                 ax[0].set_ylabel('R [mOhm]')
+
+                # Draw vertical lines where bias is
                 if len(v_bias) > 0:
                     ax[1].hist(v_bias, bins=np.arange(0, v_max, .1),
                                alpha=.5)
-
                     ax[0].axvline(target_bias_voltage[i], color='r',
                                   linestyle='--')
                     ax[1].axvline(target_bias_voltage[i], color='r',
@@ -1174,15 +1195,14 @@ class SmurfIVMixin(SmurfBase):
                            ha='right', va='top')
 
                 plt.tight_layout()
-                plt.savefig(os.path.join(self.plot_dir,
-                                         iv_raw_dat['basename'] +
-                                         f'_estimate_bias_bg{bg}.png'),
-                            bbox_inches='tight')
+                plt.savefig(os.path.join(self.plot_dir, iv_raw_dat['basename'] +
+                    f'_estimate_bias_bg{bg}.png'), bbox_inches='tight')
 
             if not show_plot:
                 plt.close(fig)
 
-        targets = np.zeros(8)
+        targets = np.zeros(self._n_bias_groups)
         for i, bg in enumerate(bias_group):
             targets[bg] = target_bias_voltage[i]
+
         return targets

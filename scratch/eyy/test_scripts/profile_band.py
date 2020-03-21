@@ -10,19 +10,24 @@ import time
 
 def make_html(data_path):
     """
+    Makes the HTML page.
+
+    Args:
+    -----
+    data_path (str) : The full path to the data output file.
     """
     import shutil
     import fileinput
     import datetime
     import glob
-    
+
     # FIXME - move this somewhere smarter
     script_path = os.path.dirname(os.path.realpath(__file__))
     template_path = os.path.join(script_path, 'page_template')
     html_path = os.path.join(data_path, "summary")
 
     print(f'Making HTML output in : {html_path}')
-    
+
     # Copy template directory
     print(f"Copying {template_path} to {html_path}")
     shutil.copytree(template_path, html_path)
@@ -41,13 +46,14 @@ def make_html(data_path):
 
     n_res_found = len(status['which_on_before_check']['output'])
     n_res_track = len(status['which_on_after_check']['output'])
-    ivdict = np.load(status['slow_iv_all']['output'].split('_raw_data')[0]+'.npy').item()
+    ivdict = np.load(status['slow_iv_all']['output'].split('_raw_data')[0]+'.npy',
+        allow_pickle=True).item()
     n_tes = len(ivdict[band].keys())
-    
+
     # Fill why
     replace_str(index_path, "[[WHY]]",
                 status['why']['output'])
-    
+
     # Fill in time
     replace_str(index_path, "[[DATETIME]]",
                 datetime.datetime.fromtimestamp(status['why']['start']).strftime('%Y-%m-%d'))
@@ -61,7 +67,7 @@ def make_html(data_path):
     summary_str += '</table>'
     replace_str(index_path, "[[SUMMARY]]",
                 summary_str)
-    
+
     # Do timing calculations
     skip_keys = ["band", "subband"]
     timing_str = '<table style=\"width:30%\" align=\"center\" border=\"1\">'
@@ -94,7 +100,7 @@ def make_html(data_path):
 
     # Load tuning
     try:
-        tn = np.load(status['save_tune']['output']).item()
+        tn = np.load(status['save_tune']['output'], allow_pickle=True).item()
     except FileNotFoundError:
         print("Tuning file not found")
 
@@ -213,6 +219,17 @@ if __name__ == "__main__":
     def execute(status_dict, func, label, save_dict=True):
         """
         Must pass func as a lambda.
+
+        Args:
+        -----
+        status_dict (dict) : The dictionary that stores all the start/end
+            times and outputs of the functions.
+        label (str) : The descriptor to label the function
+        save_dict (bool) : Whether to save the dict. Default True.
+
+        Ret:
+        ----
+        status_dict (dict) : The updated status dict
         """
         status_dict[label] = {}
         status_dict[label]['start'] = S.get_timestamp(as_int=True)
@@ -236,7 +253,7 @@ if __name__ == "__main__":
         for b in bands:
             status = execute(status, lambda: S.band_off(b),
                              f'band_off_b{b}')
-        
+
     # amplifier biases
     status = execute(status,
                      lambda: S.set_amplifier_bias(write_log=True),
@@ -247,7 +264,7 @@ if __name__ == "__main__":
     status = execute(status,
                      lambda: S.get_amplifier_bias(),
                      'get_amplifier_bias')
-    
+
     # full band response
     status = execute(status,
                      lambda: S.full_band_resp(2, make_plot=True,
@@ -305,14 +322,14 @@ if __name__ == "__main__":
                                               feedback_end_frac=.98),
                      'tracking_setup')
 
-    
+
     status = execute(status, lambda: S.which_on(band), 'which_on_before_check')
-    
+
     # now track and check
     status = execute(status, lambda: S.check_lock(band), 'check_lock')
 
     status = execute(status, lambda: S.which_on(band), 'which_on_after_check')
-    
+
     # Identify bias groups
     status = execute(status,
                      lambda: S.identify_bias_groups(bias_groups=np.arange(8),
@@ -326,7 +343,7 @@ if __name__ == "__main__":
     status = execute(status,
                      lambda: S.save_tune(),
                      'save_tune')
-    
+
 
     # now take data using take_noise_psd and plot stuff
 
@@ -338,7 +355,7 @@ if __name__ == "__main__":
                                            overbias_wait=.5, cool_wait=60,
                                            make_plot=True),
                      'slow_iv_all')
-    
+
 
     # Make webpage
     make_html(os.path.split(S.output_dir)[0])
