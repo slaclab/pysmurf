@@ -183,5 +183,3 @@ md += det
 remRel = remRepo.create_git_release(tag=newTag, name=newTag, message=md, draft=False)
 
 print("Success!")
-exit(0)
-
