@@ -1,8 +1,8 @@
+os: linux
 dist: bionic
 
-os: linux
-
-language: shell
+language: python
+python: 3.6
 
 services:
   - docker
@@ -90,6 +90,16 @@ jobs:
           /bin/bash -c "python3 -c 'import matplotlib; matplotlib.use(\"Agg\"); import pysmurf.client'"
 
     # Deployment stages
+    ## Generate release notes
+    - stage: deploy
+      name: "Generate Release Notes"
+      before_script:
+        # Install dependencies of the releaseGen.py script
+        - pip3 install GitPython PyGithub
+      script:
+        # Generate a release using the releaseGen.py script
+        - python3 releaseGen.py
+
     ## Server docker
     - stage: deploy
       name: "Server Docker Image"
