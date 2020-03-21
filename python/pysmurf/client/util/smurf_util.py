@@ -938,7 +938,7 @@ class SmurfUtilMixin(SmurfBase):
                     channel_mask = np.zeros(n_chan, dtype=int)
                     for i, c in enumerate(channel):
                         channel_mask[i] = c
-                    
+
                     #initialize data structure
                     phase=list()
                     for i,_ in enumerate(channel):
@@ -946,11 +946,10 @@ class SmurfUtilMixin(SmurfBase):
                     for i,_ in enumerate(channel):
                         phase[i].append(data[i])
                     t = [header.timestamp]
-                    
+
                     if return_header or return_tes_bias:
                         tmp_tes_bias = np.array(header.tesBias)
                         tes_bias = np.zeros((0,16))
-
 
                     # Get header values if requested
                     if return_header or return_tes_bias:
@@ -996,10 +995,10 @@ class SmurfUtilMixin(SmurfBase):
                             tmp_tes_bias = np.zeros((0, 16))
 
                     counter += 1
-        
+
         phase=np.array(phase)
         t=np.array(t)
-        
+
         if return_header:
             for k in header_dict.keys():
                 header_dict[k] = np.append(header_dict[k],
@@ -1012,7 +1011,6 @@ class SmurfUtilMixin(SmurfBase):
             tes_bias = np.transpose(tes_bias)
 
         # rotate and transform to phase
-        phase = np.squeeze(phase.T)
         phase = phase.astype(float) / 2**15 * np.pi
 
         if np.size(phase) == 0:
