@@ -88,6 +88,16 @@ for line in loginfo.splitlines():
             else:
                 entry['Labels'] += ', ' + lbl.name.lower()
 
+        # Attempt to locate any issues mentioned in the body
+        entry['Issues'] = None
+        iList = re.compile(r'.* (#\d+) ').findall(entry['body'])
+        if iList is not None:
+            for issue in iList:
+                if entry['Issues'] is None:
+                    entry['Issues'] = issue
+                else:
+                    entry['Issues'] += ', ' + issue
+
         # Add both to details list and sectioned summary list
         found = False
         if entry['Labels'] is not None:
@@ -147,7 +157,7 @@ for entry in details:
     det += f"### {entry['Title']}"
     det += '\n|||\n|---:|:---|\n'
 
-    for i in ['Author','Date','Pull','Branch','Jira','Labels']:
+    for i in ['Author','Date','Pull','Branch','Issues','Jira','Labels']:
         if entry[i] is not None:
             det += f'|**{i}:**|{entry[i]}|\n'
 
@@ -162,6 +172,7 @@ md += det
 
 # Create release using tag
 remRel = remRepo.create_git_release(tag=newTag, name=newTag, message=md, draft=False)
+#print(md)
 
 print("Success!")
 exit(0)
