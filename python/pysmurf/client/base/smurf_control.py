@@ -499,9 +499,9 @@ class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin,
         # Turn on stream enable for all bands
         self.set_stream_enable(1, write_log=write_log)
 
-        # Set mask file to empty array and payload size
+        # Set payload size and mask to a single channel
         self.set_payload_size(payload_size)
-        self.set_channel_mask([])
+        self.set_channel_mask([0])
 
         self.set_amplifier_bias(write_log=write_log)
         self.get_amplifier_bias()
