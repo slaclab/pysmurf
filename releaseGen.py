@@ -90,7 +90,7 @@ for line in loginfo.splitlines():
 
         # Attempt to locate any issues mentioned in the body
         entry['Issues'] = None
-        iList = re.compile(r'.* (#\d+) ').findall(entry['body'])
+        iList = re.compile(r' (#\d+)[\. ]').findall(entry['body'])
         if iList is not None:
             for issue in iList:
                 if entry['Issues'] is None:
