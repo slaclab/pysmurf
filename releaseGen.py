@@ -88,14 +88,23 @@ for line in loginfo.splitlines():
             else:
                 entry['Labels'] += ', ' + lbl.name.lower()
 
-        # Attempt to locate any issues mentioned in the body
+        # Attempt to locate any issues mentioned in the body and comments
         entry['Issues'] = None
-        iList = re.compile(r' (#\d+)[\. ]').findall(entry['body'])
+
+        ## Generate a list with the bodies of the PR and all its comments
+        bodies = [entry['body']]
+        for c in req.get_issue_comments():
+            bodies.append(c.body)
+
+        ## Look for the pattern '#\d+' in all the bodies, and add then to the
+        ## entry['Issues'] list, avoiding duplications
+        for body in bodies:
+            iList = re.compile(r' (#\d+)[\. ]').findall(body)
         if iList is not None:
             for issue in iList:
                 if entry['Issues'] is None:
                     entry['Issues'] = issue
-                else:
+                    elif not issue in entry['Issues']:
                     entry['Issues'] += ', ' + issue
 
         # Add both to details list and sectioned summary list
@@ -172,8 +181,5 @@ md += det
 
 # Create release using tag
 remRel = remRepo.create_git_release(tag=newTag, name=newTag, message=md, draft=False)
-#print(md)
 
 print("Success!")
-exit(0)
-
