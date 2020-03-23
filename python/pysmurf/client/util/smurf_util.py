@@ -368,12 +368,15 @@ class SmurfUtilMixin(SmurfBase):
         dsp_corr_phase = np.unwrap(np.angle(resp_dsp_corr_subset))
 
         ax[0].set_title('AMC in Bay {}, Band {} Cable Delay'.format(bay,band))
-        ax[0].plot(f_cable_plot,cable_phase,label='Cable (full_band_resp)',c='g',lw=3)
-        ax[0].plot(f_cable_plot,cable_p(f_cable_plot*1.0E6),'m--',label='Cable delay fit',lw=3)
+        ax[0].plot(f_cable_plot,cable_phase,label='Cable (full_band_resp)',
+            c='g', lw=3)
+        ax[0].plot(f_cable_plot,cable_p(f_cable_plot*1.0E6),'m--',
+            label='Cable delay fit',lw=3)
 
         ax[1].set_title('AMC in Bay {}, Band {} DSP Delay'.format(bay,band))
         ax[1].plot(f_dsp_plot,dsp_phase,label='DSP (find_freq)',c='c',lw=3)
-        ax[1].plot(f_dsp_plot,dsp_p(f_dsp_plot*1.0E6),c='orange',ls='--',label='DSP delay fit',lw=3)
+        ax[1].plot(f_dsp_plot,dsp_p(f_dsp_plot*1.0E6), c='orange', ls='--',
+            label='DSP delay fit', lw=3)
 
         ax[0].set_ylabel("Phase [rad]")
         ax[0].set_xlabel('Frequency offset from band center [MHz]')
@@ -394,10 +397,13 @@ class SmurfUtilMixin(SmurfBase):
                    bbox=bbox,horizontalalignment='right')
 
         cable_residuals=cable_phase-(cable_p(f_cable_plot*1.0E6))
-        ax[2].plot(f_cable_plot,cable_residuals-np.median(cable_residuals),label='Cable (full_band_resp)',c='g')
+        ax[2].plot(f_cable_plot,cable_residuals-np.median(cable_residuals),
+            label='Cable (full_band_resp)',c='g')
         dsp_residuals=dsp_phase-(dsp_p(f_dsp_plot*1.0E6))
-        ax[2].plot(f_dsp_plot,dsp_residuals-np.median(dsp_residuals),label='DSP (find_freq)',c='c')
-        ax[2].plot(f_dsp_corr_plot,dsp_corr_phase-np.median(dsp_corr_phase),label='DSP corrected (find_freq)',c='m')
+        ax[2].plot(f_dsp_plot,dsp_residuals-np.median(dsp_residuals),
+            label='DSP (find_freq)', c='c')
+        ax[2].plot(f_dsp_corr_plot,dsp_corr_phase-np.median(dsp_corr_phase),
+            label='DSP corrected (find_freq)', c='m')
         ax[2].set_title('AMC in Bay {}, Band {} Residuals'.format(bay,band))
         ax[2].set_ylabel("Residual [rad]")
         ax[2].set_xlabel('Frequency offset from band center [MHz]')
@@ -409,9 +415,10 @@ class SmurfUtilMixin(SmurfBase):
         ax[2].text(.97, .84, 'refPhaseDelayFine={}'.format(refPhaseDelayFine),
                    transform=ax[2].transAxes, fontsize=8,
                    bbox=bbox,horizontalalignment='right')
-        ax[2].text(.97, .76, 'processing delay={:.5f} us (fw={})'.format(processing_delay_us,fw_abbrev_sha),
-                   transform=ax[2].transAxes, fontsize=8,
-                   bbox=bbox,horizontalalignment='right')
+        ax[2].text(.97, .76,
+            'processing delay={:.5f} us (fw={})'.format(processing_delay_us,fw_abbrev_sha),
+            transform=ax[2].transAxes, fontsize=8,
+            bbox=bbox,horizontalalignment='right')
         ax[2].text(.97, .68, 'delay post-correction={:.3f} ns'.format(dsp_corr_delay_us*1000.),
                    transform=ax[2].transAxes, fontsize=8,
                    bbox=bbox,horizontalalignment='right')
@@ -914,7 +921,7 @@ class SmurfUtilMixin(SmurfBase):
             self.log(f'Reading {datafile}')
 
         if channel is not None:
-            self.log('Only reading channel {}'.format(channel))
+            self.log(f'Only reading channel {channel}')
 
         # Flag to indicate we are about the read the fist frame from the disk
         # The number of channel will be extracted from the first frame and the
@@ -2639,10 +2646,14 @@ class SmurfUtilMixin(SmurfBase):
 
 
     def overbias_tes(self, bias_group, overbias_voltage=19.9, overbias_wait=5.,
-                     tes_bias=19.9, cool_wait=20., high_current_mode=True,
+                     tes_bias=19.9, cool_wait=20., high_current_mode=False,
                      flip_polarity=False, actually_overbias=True):
         """
-        Warning: This is horribly hardcoded. Needs a fix soon.
+        Overbiases requested bias group at overbias_voltage in high current mode
+        for overbias_wait seconds. If high_current_mode=False,
+        returns to low current mode, after which it biases the TESs at
+        tes_bias.  Then waits cool_wait seconds before returning
+        control.
 
         Args:
         -----
@@ -2659,6 +2670,12 @@ class SmurfUtilMixin(SmurfBase):
             mode. Default is 19.9.
         cool_wait (float): The time to wait after setting the TES bias for
             transients to die off.
+        high_current_mode (bool) : Whether to keep the TES bias in high current
+            mode after the kick. Default is False
+        flip_polarity (bool) : Whether to flip the TES bias bipolar DAC
+            polarity. Default False.
+        actually_overbias (bool) : Whether to actaully do the overbias. Default
+            True.
         """
         bias_groups = self.bias_group_to_pair[:,0]
         assert (bias_group in bias_groups),\
@@ -2690,7 +2707,7 @@ class SmurfUtilMixin(SmurfBase):
 
     def overbias_tes_all(self, bias_groups=None, overbias_voltage=19.9,
             overbias_wait=1.0, tes_bias=19.9, cool_wait=20.,
-            high_current_mode=True, actually_overbias=True):
+            high_current_mode=False, actually_overbias=True):
         """
         Overbiases all requested bias groups (specified by the
         bias_groups array) at overbias_voltage in high current mode
@@ -2701,18 +2718,21 @@ class SmurfUtilMixin(SmurfBase):
 
         Opt Args:
         ---------
-        bias_groups (array): which bias groups to overbias. defaults
-                             to all_groups.  Asserts if any of the
-                             bias groups listed is not a defined bias
-                             group.
-        overbias_voltage (float): The value of the TES bias in the
-                                  high current mode. Default 19.9.
-        overbias_wait (float): The time to stay in high current mode
-                               in seconds.  Default is .5
-        tes_bias (float): The value of the TES bias when put back in
-                          low current mode. Default is 19.9.
-        cool_wait (float): The time to wait after setting the TES bias
-                           for transients to die off.
+        bias_groups (array): which bias groups to overbias. defaults to
+            all_groups.  Asserts if any of the bias groups listed is not a
+            defined bias group.
+        overbias_voltage (float): The value of the TES bias in the high current
+            mode. Default 19.9.
+        overbias_wait (float): The time to stay in high current mode in seconds.
+            Default is .5
+        tes_bias (float): The value of the TES bias when put back in low current
+            mode. Default is 19.9.
+        cool_wait (float): The time to wait after setting the TES bias for
+            transients to die off.
+        high_current_mode (bool) : Whether to keep the TES bias in high current
+            mode after the kick. Default is False
+        actually_overbias (bool) : Whether to actaully do the overbias. Default
+            True.
         """
         # drive high current through the TES to attempt to drive normal
         if bias_groups is None:
@@ -2727,25 +2747,30 @@ class SmurfUtilMixin(SmurfBase):
             'Some of the bias groups requested are not valid '+\
             f'(available bias groups are {valid_bias_groups}).  Doing nothing!'
 
+        # Set the overbias voltage
         if actually_overbias:
             voltage_overbias_array = self.get_tes_bias_bipolar_array()
             voltage_overbias_array[bias_groups] = overbias_voltage
             self.set_tes_bias_bipolar_array(voltage_overbias_array)
 
+            # Set high current mode
             self.set_tes_bias_high_current(bias_groups)
 
             self.log('Driving high current through TES. ' +
                 'Waiting {}'.format(overbias_wait), self.LOG_USER)
             time.sleep(overbias_wait)
 
+        # Set to low current mode
         if not high_current_mode:
             self.log('setting to low current')
             self.set_tes_bias_low_current(bias_groups)
 
+        # Set TES bias
         voltage_bias_array = self.get_tes_bias_bipolar_array()
         voltage_bias_array[bias_groups] = tes_bias
         self.set_tes_bias_bipolar_array(voltage_bias_array)
 
+        # Cool wait
         self.log('Waiting {:3.2f} seconds to cool'.format(cool_wait),
                  self.LOG_USER)
         time.sleep(cool_wait)

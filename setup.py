@@ -14,7 +14,7 @@ import versioneer
 
 setup(name='pysmurf',
       description='The python control software for SMuRF',
-      package_dir={'pysmurf': 'pysmurf'},
-      packages=find_packages(),
+      packages=find_packages(where='python'),
+      package_dir={'': 'python'},
       version=versioneer.get_version(),
       cmdclass=versioneer.get_cmdclass())
