@@ -99,7 +99,7 @@ for line in loginfo.splitlines():
         ## Look for the pattern '#\d+' in all the bodies, and add then to the
         ## entry['Issues'] list, avoiding duplications
         for body in bodies:
-            iList = re.compile(r'.*\s+(#\d+)[\s\W]+').findall(body)
+            iList = re.compile(r'(#\d+)').findall(body)
             if iList is not None:
                 for issue in iList:
                     if entry['Issues'] is None:
