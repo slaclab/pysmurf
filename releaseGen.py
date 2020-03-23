@@ -104,7 +104,7 @@ for line in loginfo.splitlines():
                 for issue in iList:
                     if entry['Issues'] is None:
                         entry['Issues'] = issue
-                        elif not issue in entry['Issues']:
+                    elif issue not in entry['Issues']:
                         entry['Issues'] += ', ' + issue
 
         # Add both to details list and sectioned summary list
