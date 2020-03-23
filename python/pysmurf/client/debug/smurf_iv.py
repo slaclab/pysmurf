@@ -27,13 +27,13 @@ class SmurfIVMixin(SmurfBase):
                     bias_high=1.5, bias_low=0, bias_step=.005,
                     show_plot=False, overbias_wait=2., cool_wait=30,
                     make_plot=True, save_plot=True, plotname_append='',
-                    channels=None, band=None,
-                    high_current_mode=True, overbias_voltage=8.,
-                    grid_on=True, phase_excursion_min=3.):
+                    channels=None, band=None, high_current_mode=True,
+                    overbias_voltage=8., grid_on=True, phase_excursion_min=3.):
         """
         Steps the TES bias down slowly. Starts at bias_high to bias_low with
         step size bias_step. Waits wait_time between changing steps.
         If this analyzes the data, the outputs are stored to output_dir.
+
         Opt Args:
         ---------
         bias_groups (np array): which bias groups to take the IV on. defaults
@@ -50,7 +50,8 @@ class SmurfIVMixin(SmurfBase):
             overbiasing before taking the IV.
         make_plot (bool) : Whether to make plots. Default True
         save_plot (bool) : Whether to save the plot. Default True.
-        plotname_append (string): Appended to the default plot filename. Default ''.
+        plotname_append (string): Appended to the default plot filename.
+            Default ''.
         channels (int array) : A list of channels to make plots
         band (int array) : The bands to analyze
         high_current_mode (bool) : The current mode to take the IV in.
@@ -59,6 +60,10 @@ class SmurfIVMixin(SmurfBase):
         grid_on (bool) : Grids on plotting. This is Aris fault.
         phase_excursion_min (float) : The minimum phase excursion required for
             making plots.
+
+        Ret:
+        ----
+        output_path (str) : Full path to IV analyzed file.
         """
 
         n_bias_groups = self._n_bias_groups
