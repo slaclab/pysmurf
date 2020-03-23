@@ -100,12 +100,12 @@ for line in loginfo.splitlines():
         ## entry['Issues'] list, avoiding duplications
         for body in bodies:
             iList = re.compile(r' (#\d+)[\. ]').findall(body)
-        if iList is not None:
-            for issue in iList:
-                if entry['Issues'] is None:
-                    entry['Issues'] = issue
-                    elif not issue in entry['Issues']:
-                    entry['Issues'] += ', ' + issue
+            if iList is not None:
+                for issue in iList:
+                    if entry['Issues'] is None:
+                        entry['Issues'] = issue
+                        elif not issue in entry['Issues']:
+                        entry['Issues'] += ', ' + issue
 
         # Add both to details list and sectioned summary list
         found = False
