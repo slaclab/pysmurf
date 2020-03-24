@@ -6,7 +6,8 @@
 Welcome to pysmurf's documentation!
 ===================================
 
-Insert description of pysmurf here.
+The python control software for SMuRF. Includes scripts to do low
+level commands as well as higher level analysis.
 
 API
 ---
