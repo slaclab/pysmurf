@@ -575,17 +575,24 @@ class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin,
 
 
     def get_timestamp(self, as_int=False):
-        """
-        Gets the unixtime timestamp.
+        """Gets the current unix time timestamp.
 
-        Opt Args:
-        ---------
-        as_int (bool) : Whether to returnt the timestamp as an
-            integer.
+        Gets the number of seconds that have elapsed since the Unix
+        epoch, that is the time 00:00:00 UTC on 1 January 1970, minus
+        leap seconds.
 
-        Returns:
-        --------
-        timestampe (str): Timestamp as a string
+        Args
+        ----
+        as_int : bool
+              Whether to return the timestamp as an integer
+              [optional].
+
+        Returns
+        -------
+        str
+              Timestamp as a string, unless optional argument
+              as_int=True, in which case returns timestamp as an
+              integer.
         """
         t = '{:10}'.format(int(time.time()))
 
