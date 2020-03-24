@@ -5,10 +5,10 @@ debug module
 
 smurf_iv
 ---------
-.. automodule:: pysmurf.debug.smurf_iv
+.. automodule:: pysmurf.client.debug.smurf_iv
     :members:
 
 smurf_noise
 -----------
-.. automodule:: pysmurf.debug.smurf_noise
+.. automodule:: pysmurf.client.debug.smurf_noise
     :members:
