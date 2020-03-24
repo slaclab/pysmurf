@@ -368,7 +368,7 @@ class SmurfNoiseMixin(SmurfBase):
             # Start tracking
             self.tracking_setup(band, fraction_full_scale=fraction_full_scale,
                 lms_freq_hz=lms_freq_hz, meas_flux_ramp_amp=meas_flux_ramp_amp,
-                n_phi0=nphi0)
+                n_phi0=n_phi0)
 
             # Check
             self.check_lock(band, lms_freq_hz=lms_freq_hz)
