@@ -5,5 +5,5 @@ tune module
 
 smurf_tune
 ----------
-.. automodule:: pysmurf.tune.smurf_tune
+.. automodule:: pysmurf.client.tune.smurf_tune
     :members:
