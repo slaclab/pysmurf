@@ -584,13 +584,12 @@ class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin,
 
         Args
         ----
-        as_int : bool, optional
+        as_int : bool, optional, default False
               Whether to return the timestamp as an integer.
-              Optional, default is False.
 
         Returns
         -------
-        str
+        str or int
               Timestamp as a string, unless optional argument
               as_int=True, in which case returns timestamp as an
               integer.
