@@ -3,3 +3,4 @@ scipy
 pyepics
 matplotlib
 pyyaml
+numpydoc
