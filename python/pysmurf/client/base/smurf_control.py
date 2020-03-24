@@ -119,8 +119,8 @@ class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin,
         payload_size : int, optional, default 2048
               The payload size to set on setup. 
         **kwargs 
-              These parameters will be passed to the pysmurf setup
-              routine.
+              These parameters will be passed to the pysmurf
+              :func:`~SmurfControl.setup` routine.
 
         See Also
         --------
