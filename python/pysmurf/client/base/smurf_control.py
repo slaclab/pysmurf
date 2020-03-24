@@ -77,45 +77,54 @@ class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin,
         elif epics_root is None:
             epics_root = self.config.get('epics_root')
 
-        super().__init__(epics_root=epics_root, offline=offline, **kwargs)
+        super().__init__(epics_root=epics_root, offline=offline,
+                **kwargs)
 
         if cfg_file is not None or data_dir is not None:
-            self.initialize(cfg_file=cfg_file, data_dir=data_dir,
+            self.initialize(data_dir=data_dir,
                 name=name, make_logfile=make_logfile, setup=setup,
-                smurf_cmd_mode=smurf_cmd_mode, no_dir=no_dir, **kwargs)
+                smurf_cmd_mode=smurf_cmd_mode, no_dir=no_dir,
+                **kwargs)
 
 
-    def initialize(self, cfg_file, data_dir=None, name=None,
+    def initialize(self, data_dir=None, name=None,
                    make_logfile=True, setup=False,
                    smurf_cmd_mode=False, no_dir=False, publish=False,
                    payload_size=2048, **kwargs):
         '''
         Initizializes SMuRF with desired parameters set in experiment.cfg.
 
+        Longer description of initialize routine here.
 
-        Args:
-        -----
-        epics_root (string) : The epics root to be used.
+        Args
+        ----
+        data_dir : str, optional, default None
+              Path to the data directory.
+        name : str, optional, default None
+              The name of the output directory. If None, it will use
+              the current timestamp as the output directory name.
+        make_logfile : bool, optional, default True
+              Whether to make a log file. If False, outputs will
+              go to the screen.
+        setup : bool, optional, default False
+              Whether to run the setup step.
+        smurf_cmd_mode : bool, optional, default False
+              This mode tells the system that the input is coming in
+              from the command line (rather than a python session).
+              Everything implemented here are in smurf_cmd.py.
+        no_dir : bool, optional, default False
+              Whether to make a skip making a directory.
+        publish : bool, optional, default False
+              Whether to send messages to the OCS publisher.
+        payload_size : int, optional, default 2048
+              The payload size to set on setup. 
+        **kwargs 
+              These parameters will be passed to the pysmurf setup
+              routine.
 
-        Opt Args:
-        ----------
-
-        cfg_file (string) : Config file path. Default is None. Must be provided
-            if not on offline mode.
-        data_dir (str) : Path to the data directory
-        name (str) : The name of the output directory. If None, it will use
-            the current timestamp as the output directory name. Default is None.
-        make_logfile (bool) : Whether to make a log file. If False, outputs will
-            go to the screen.
-        setup (bool) : Whether to run the setup step. Default is False.
-        smurf_cmd_mode (bool) : This mode tells the system that the input is
-            coming in from the command line (rather than a python session).
-            Everything implemented here are in smurf_cmd.py. Default is False.
-        no_dir (bool) : Whether to make a skip making a directory. Default is
-            False.
-        publish (bool) : Whether to send the OCE publishe messages. Default
-            False.
-        payload_size (int) : The payload size to set on setup. Default 2048.
+        See Also
+        --------
+        setup
         '''
         if no_dir:
             print('Warning! Not making output directories!' +
@@ -219,7 +228,6 @@ class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin,
             self._hemt_gate_min_voltage=amp_cfg['hemt_gate_min_voltage']
         if 'hemt_gate_max_voltage' in keys:
             self._hemt_gate_max_voltage=amp_cfg['hemt_gate_max_voltage']
-
 
         # Flux ramp hardware detail
         flux_ramp_cfg = self.config.get('flux_ramp')
@@ -564,13 +572,20 @@ class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin,
 
     def make_dir(self, directory):
         """
-        check if a directory exists; if not, make it
+        Creates a directory on the file system if it doesn't already
+        exist.
+        
+        Checks if a directory exists on the file system.  If directory
+        does not already exist on the file system, creates it.
 
-        Args:
-        -----
-        directory (str): path of directory to create
+        Args
+        ----
+        directory : str
+              Full path of directory to create on the file system.
         """
+        # if directory doesn't already exist on the file system
         if not os.path.exists(directory):
+            # create directory on file system.
             os.makedirs(directory)
 
 
