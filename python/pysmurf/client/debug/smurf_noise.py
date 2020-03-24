@@ -327,9 +327,10 @@ class SmurfNoiseMixin(SmurfBase):
                 self.channel_off(band, ch)
 
 
-    def noise_vs_tone(self, band, tones=np.arange(10,15), meas_time=30,
+    def noise_vs_tone(self, band, tones=None, meas_time=30,
                       analyze=False, bias_group=None, lms_freq_hz=None,
-                      fraction_full_scale=.72):
+                      fraction_full_scale=.72, meas_flux_ramp_amp=False,
+                      n_phi0=4, make_timestream_plot=True):
         """
         Takes timestream noise at various tone powers. Operates on one band
         at a time because it needs to retune between taking another timestream
@@ -341,7 +342,8 @@ class SmurfNoiseMixin(SmurfBase):
 
         Opt Args:
         ---------
-        tones (int array) : The tone amplitudes. Default np.arange(10,15).
+        tones (int array) : The tone amplitudes. If None, uses np.arange(10,15).
+            Default is None.
         meas_time (int) : The measurement time per tone power in seconds.
             Default 30.
         analyze (bool) : Whether to analyze the data.
@@ -352,16 +354,27 @@ class SmurfNoiseMixin(SmurfBase):
         """
         timestamp = self.get_timestamp()
 
+        if tones is None:
+            tones = np.arange(10,15)
+
         # Take data
         datafiles = np.array([])
         for i, t in enumerate(tones):
             self.log('Measuring for tone power {}'.format(t))
+
+            # Tune the band with the new drive power
             self.tune_band_serial(band, drive=t)
+
+            # Start tracking
             self.tracking_setup(band, fraction_full_scale=fraction_full_scale,
-                                lms_freq_hz=lms_freq_hz)
+                lms_freq_hz=lms_freq_hz, meas_flux_ramp_amp=meas_flux_ramp_amp,
+                n_phi0=nphi0)
+
+            # Check
             self.check_lock(band, lms_freq_hz=lms_freq_hz)
+
             time.sleep(2)
-            self.log(self.get_amplitude_scale_array(band))
+
             datafile = self.take_stream_data(meas_time)
             datafiles = np.append(datafiles, datafile)
 
@@ -371,15 +384,18 @@ class SmurfNoiseMixin(SmurfBase):
         tone_save = os.path.join(self.output_dir, timestamp +
                                 '_noise_vs_tone_tone.txt')
 
+        # Save the data
         np.savetxt(datafile_save,datafiles, fmt='%s')
-        self.pub.register_file(datafile_save, 'noise_vs_tone_data', format='txt')
-
+        self.pub.register_file(datafile_save, 'noise_vs_tone_data',
+            format='txt')
         np.savetxt(tone_save, tones, fmt='%i')
+
         self.pub.register_file(tone_save, 'noise_vs_tone_tone', format='txt')
 
         if analyze:
-            self.analyze_noise_vs_tone(tone_save, datafile_save,
-                                       band=band, bias_group=bias_group)
+            self.analyze_noise_vs_tone(tone_save, datafile_save, band=band,
+                bias_group=bias_group,
+                make_timestream_plot=make_timestream_plot)
 
 
 
@@ -388,7 +404,7 @@ class SmurfNoiseMixin(SmurfBase):
                       overbias_voltage=9., meas_time=30., analyze=False,
                       channel=None, nperseg=2**13, detrend='constant',
                       fs=None, show_plot=False, cool_wait=30.,
-                      psd_ylim=(10.,1000.),make_timestream_plot=False,
+                      psd_ylim=(10.,1000.), make_timestream_plot=False,
                       only_overbias_once=False):
         """
         This ramps the TES voltage from bias_high to bias_low and takes noise
@@ -1586,7 +1602,7 @@ class SmurfNoiseMixin(SmurfBase):
                 fig_title_string = str(bias_group) + ','
                 file_name_string = str(bias_group) + '_'
 
-            ax[0].set_title(basename +
+            ax0.set_title(basename +
                 f' Band {band}, Group {fig_title_string} Channel {ch:03} - ' +
                 f'{res_freq:.2f} MHz')
             plt.tight_layout(rect=[0.,0.03,1.,1.0])
