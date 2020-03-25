@@ -215,4 +215,4 @@ latex_documents = [
 #latex_use_modindex = True
 
 # Modules to mock up
-autodoc_mock_imports = ['pyrogue','smurf']
+autodoc_mock_imports = ['pyrogue','smurf','rogue']

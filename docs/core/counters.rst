@@ -1,9 +1,9 @@
-.. _conventers:
+.. _counters:
 
-conventers module
+counters module
 =================
 
 FrameStatistics
 ------------
-.. automodule:: pysmurf.core.conventers.FrameStatistics
+.. automodule:: pysmurf.core.counters.FrameStatistics
     :members:
