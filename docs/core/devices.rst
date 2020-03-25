@@ -11,8 +11,8 @@ PcieDev
 .. automodule:: pysmurf.core.devices._PcieCard.PcieDev
     :members:
 
-PcieDev
-```````
+PcieCard
+````````
 .. automodule:: pysmurf.core.devices._PcieCard.PcieCard
     :members:
 
@@ -24,7 +24,7 @@ SmurfApplication
 .. automodule:: pysmurf.core.devices._SmurfApplication.SmurfApplication
     :members:
 
-__SmurfProcessor
+_SmurfProcessor
 ----------------
 
 SmurfChannelMapper
