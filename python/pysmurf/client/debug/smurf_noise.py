@@ -331,7 +331,8 @@ class SmurfNoiseMixin(SmurfBase):
                       analyze=False, bias_group=None, lms_freq_hz=None,
                       fraction_full_scale=.72, meas_flux_ramp_amp=False,
                       n_phi0=4, make_timestream_plot=True,
-                      new_master_assignment=True):
+                      new_master_assignment=True, from_old_tune=False,
+                      old_tune=None):
         """ Takes timestream noise at various tone powers. Operates on one band
         at a time because it needs to retune between taking another timestream
         at a different tone power.
@@ -363,6 +364,10 @@ class SmurfNoiseMixin(SmurfBase):
             Whether to make a new master channel assignemnt. This will only
             make one for the first tone. It needs to keep the channel
             assignment the same after that for the analysis.
+        from_old_tune : bool
+            Whether to tune from an old tune
+        old_tune : str
+            The tune file if using old tune.
         """
         timestamp = self.get_timestamp()
 
