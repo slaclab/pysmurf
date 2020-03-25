@@ -36,6 +36,8 @@ level commands as well as higher level analysis.
    :caption: Core API
 
    core/conventers
+   core/counters
+   core/devices   
 
 Indices and tables
 ==================
