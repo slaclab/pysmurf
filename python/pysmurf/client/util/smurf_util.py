@@ -30,28 +30,35 @@ class SmurfUtilMixin(SmurfBase):
 
     def take_debug_data(self, band, channel=None, nsamp=2**19, filename=None,
             IQstream=1, single_channel_readout=1, debug=False, write_log=True):
-        """
-        Takes raw debugging data
+        """ Takes raw debugging data
 
-        Args:
-        -----
-        band (int) : The band to take data on
+        Parameters:
+        -----------
+        band : int
+            The band to take data on
+        single_channel_readout : int
+            Whether to look at one channel
+        channel : int
+            The channel to take debug data on in single_channel_mode
+        nsamp : int
+            The number of samples to take
+        filename : str
+            The name of the file to save to.
+        IQstream : int
+            Whether to take the raw IQ stream.
+        debug : bool
+            Whether to take data in debug mode. Defaults False.
+        write_log : bool
+            Whether to write lowlevel commands to the log file.
 
-        Opt Args:
-        ---------
-        single_channel_readout (int) : Whether to look at one channel
-        channel (int) : The channel to take debug data on in single_channel_mode
-        nsamp (int) : The number of samples to take
-        filename (str) : The name of the file to save to.
-        IQstream (int) : Whether to take the raw IQ stream.
-        debug (bool) :
-        write_log (bool) :  Whether to write lowlevel commands to the log file.
-
-        Ret:
-        ----
-        f (float array) : The frequency response
-        df (float array) : The frequency error
-        sync (float array) : The sync count
+        Returns:
+        --------
+        f : float array
+            The frequency response
+        df : float array
+            The frequency error
+        sync : float array
+            The sync count
         """
         # Set proper single channel readout
         if channel is not None:
@@ -82,7 +89,7 @@ class SmurfUtilMixin(SmurfBase):
             self.log('Writing to file : {}'.format(data_filename),
                 self.LOG_USER)
         else:
-            timestamp = '%10i' % time.time()
+            timestamp = self.get_timestamp()
             data_filename = os.path.join(self.output_dir, timestamp+'.dat')
             self.log('Writing to file : {}'.format(data_filename),
                 self.LOG_USER)
@@ -179,7 +186,7 @@ class SmurfUtilMixin(SmurfBase):
                 dsp_subbands.append(sb)
 
         if timestamp is None:
-            timestamp=self.get_timestamp()
+            timestamp = self.get_timestamp()
 
         if make_plot:
             if show_plot:
@@ -440,22 +447,24 @@ class SmurfUtilMixin(SmurfBase):
         self.set_att_uc(band,uc_att0,write_log=True)
         self.set_att_dc(band,dc_att0,write_log=True)
 
+
     def process_data(self, filename, dtype=np.uint32):
-        """
-        reads a file taken with take_debug_data and processes it into
-           data + header
+        """ Reads a file taken with take_debug_data and processes it into data
+        and header.
 
-        Args:
-        -----
-        filename (str): path to file
-
-        Optional:
-        dtype (np dtype): datatype to cast to, defaults unsigned 32 bit int
+        Parameters:
+        -----------
+        filename : str
+            Path to file
+        dtype : np dtype
+            datatype to cast to, defaults unsigned 32 bit int
 
         Returns:
-        -----
-        header (np array)
-        data (np array)
+        --------
+        header : np array
+            The header information
+        data : np array
+            The resonator data
         """
         n_chan = 2 # number of stream channels
         #header_size = 4 # 8 bytes in 16-bit word
@@ -480,7 +489,7 @@ class SmurfUtilMixin(SmurfBase):
             header1 = np.double(header1)
             header = header1[::2] + header1[1::2] * (2**16) # what am I doing
         else:
-            raise TypeError('Type {} not yet supported!'.format(dtype))
+            raise TypeError(f'Type {dtype} not yet supported!')
 
         if (header[1,1]>>24 == 2) or (header[1,1]>>24 == 0):
             header = np.fliplr(header)
@@ -490,25 +499,29 @@ class SmurfUtilMixin(SmurfBase):
 
 
     def decode_data(self, filename, swapFdF=False, recast=True, truncate=True):
-        """
-        Take a dataset from take_debug_data and spit out results.
+        """ Take a dataset from take_debug_data and spit out results.
 
-        Args:
-        -----
-        filename (str): path to file
-
-        Opt Args:
-        ---------
-        swapFdF (bool): whether the F and dF (or I/Q) streams are flipped
-        recast (bool): Whether to recast from size n_channels_processed to
-            n_channels. Default True.
-        truncate (bool) : Truncates the data if the number of elements returned
-            is not an integer multiple of the sample rate. Default True.
+        Parameters:
+        -----------
+        filename : str
+            Path to file
+        swapFdF : bool
+            Whether the F and dF (or I/Q) streams are flipped
+        recast : bool
+            Whether to recast from size n_channels_processed to n_channels.
+            Default True.
+        truncate : bool
+            Truncates the data if the number of elements returned is not an
+            integer multiple of the sample rate. Default True.
 
         Returns:
         --------
-        [f, df, sync] if iqStreamEnable = 0
-        [I, Q, sync] if iqStreamEnable = 1
+        [f, df, sync] :
+            if iqStreamEnable = 0. f is the tracking frequency, df is the
+            frequency error, and sync is the synchronizing pulse
+        [I, Q, sync] :
+            if iqStreamEnable = 1. I, Q are the in phase and quadrature signal.
+            sync is the synchronizing pulse.
         """
         n_proc = self.get_number_processed_channels()
         n_chan = self.get_number_channels()
