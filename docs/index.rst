@@ -37,7 +37,8 @@ level commands as well as higher level analysis.
 
    core/conventers
    core/counters
-   core/devices   
+   core/devices
+   core/roots
 
 Indices and tables
 ==================
