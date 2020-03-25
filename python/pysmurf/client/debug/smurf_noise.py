@@ -381,7 +381,8 @@ class SmurfNoiseMixin(SmurfBase):
 
             # Tune the band with the new drive power
             self.tune_band_serial(band, drive=t,
-                new_master_assignment=new_master_assignment)
+                new_master_assignment=new_master_assignment,
+                from_old_tune=from_old_tune, old_tune=old_tune)
 
             # all further tunings do not make new assignemnt
             new_master_assignment = False
