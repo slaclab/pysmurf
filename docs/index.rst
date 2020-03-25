@@ -9,20 +9,42 @@ Welcome to pysmurf's documentation!
 The python control software for SMuRF. Includes scripts to do low
 level commands as well as higher level analysis.
 
-API
----
 .. toctree::
+   :caption: User Guide
    :maxdepth: 2
 
-   base
-   command
-   debug
-   tune
-   util
+..    user/intro
+..    user/dependencies
+..    user/installation
+..    user/quickstart
+..    user/configuration
+
+.. toctree::
+   :caption: Client Reference
+   :maxdepth: 2
+	      
+    client/base
+    client/command
+    client/debug
+    client/tune
+    client/util
+
+.. toctree::
+   :caption: Core Reference	     
+   :maxdepth: 2
+
+    core/conventers
+..    core/counters
+..    core/devices
+..    core/emulators
+..    core/roots
+..    core/server_scripts
+..    core/transmitters
+..    core/utilities
 
 Indices and tables
 ==================
-
+    
 * :ref:`genindex`
 * :ref:`modindex`
 * :ref:`search`
