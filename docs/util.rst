@@ -5,15 +5,15 @@ util module
 
 pub
 ---
-.. autoclass:: pysmurf.util.pub.Publisher
+.. autoclass:: pysmurf.client.util.pub.Publisher
     :members:
 
 smurf_util
 ----------
-.. automodule:: pysmurf.util.smurf_util
+.. automodule:: pysmurf.client.util.smurf_util
     :members:
 
 tools
 -----
-.. automodule:: pysmurf.util.tools
+.. automodule:: pysmurf.client.util.tools
     :members:

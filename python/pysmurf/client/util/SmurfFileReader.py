@@ -84,15 +84,16 @@ class SmurfHeader(SmurfHeaderTuple):
 
         # 20 bit bias values
         for i in range(16):
+            b = int(i/2)
 
             # 2 TES value fit in 5 bytes, starting from byte 8
             # Each pair (byte 0 - 4): 00 00 01 11 11
             # Even: bytes 0 - 2: 00 00 0x
             # Odd: bytes 2 - 4: x1 11 11
             if i % 2 == 0: # Even
-                tmp = int.from_bytes(rawData[8+i*5:8+i*5+3],'little',signed=False) & 0xFFFFF
+                tmp = int.from_bytes(rawData[8+b*5:8+b*5+3],'little',signed=False) & 0xFFFFF
             else: # Odd
-                tmp = (int.from_bytes(rawData[8+i*5+2:8+i*5+5],'little',signed=False) >> 4) & 0xFFFFF
+                tmp = (int.from_bytes(rawData[8+b*5+2:8+b*5+5],'little',signed=False) >> 4) & 0xFFFFF
 
             # Adjust negative values
             if tmp >= 0x80000:

@@ -22,6 +22,7 @@ import pysmurf
 import rogue.protocols.srp
 
 from pysmurf.core.roots.Common import Common
+import pysmurf.core.emulators
 
 from CryoDet._MicrowaveMuxBpEthGen2 import FpgaTopLevel
 
@@ -34,6 +35,7 @@ class EmulationRoot(Common):
                  disable_bay0   = False,
                  disable_bay1   = False,
                  txDevice       = None,
+                 server_port    = 0,
                  **kwargs):
 
         # Create the SRP Engine
@@ -57,6 +59,7 @@ class EmulationRoot(Common):
                         polling_en     = polling_en,
                         pv_dump_file   = pv_dump_file,
                         txDevice       = txDevice,
+                        server_port    = server_port,
                         **kwargs)
 
         self.add(self._streaming_stream)

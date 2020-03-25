@@ -2991,6 +2991,16 @@ class SmurfCommandMixin(SmurfBase):
 
     def set_50k_amp_gate_voltage(self, voltage, override=False, **kwargs):
         """
+        Sets the 50K amplifier gate votlage.
+
+        Args:
+        -----
+        voltage (float) : The amplifier gate voltage between 0 and -1.
+
+        Opt Args:
+        ---------
+        override (bool) : Whether to override the software limit on the gate
+            voltage. This allows you to go outside the range of 0 and -1.
         """
         if (voltage > 0 or voltage < -1.) and not override:
             self.log('Voltage must be between -1 and 0. Doing nothing.')
@@ -3001,7 +3011,8 @@ class SmurfCommandMixin(SmurfBase):
     def get_50k_amp_gate_voltage(self, **kwargs):
         """
         """
-        return self._bit_to_V_50k * self.get_rtm_slow_dac_data(self._dac_num_50k, **kwargs)
+        return self._bit_to_V_50k * self.get_rtm_slow_dac_data(self._dac_num_50k,
+            **kwargs)
 
     def set_50k_amp_enable(self, disable=False, **kwargs):
         """
@@ -3389,7 +3400,7 @@ class SmurfCommandMixin(SmurfBase):
         return self._caget(self.epics_root + self.fpga_root + self._fpga_vccbram, **kwargs)
 
     # Regulator
-    _regulator_iout = "READ_IOUT"
+    _regulator_iout = "IOUT"
 
     def get_regulator_iout(self, **kwargs):
         """
@@ -3399,7 +3410,7 @@ class SmurfCommandMixin(SmurfBase):
         """
         return self._caget(self.regulator + self._regulator_iout, **kwargs)
 
-    _regulator_temp1 = "READ_TEMPERATURE_1"
+    _regulator_temp1 = "TEMPERATURE[1]"
 
     def get_regulator_temp1(self, **kwargs):
         """
@@ -3409,7 +3420,7 @@ class SmurfCommandMixin(SmurfBase):
         """
         return self._caget(self.regulator + self._regulator_temp1, **kwargs)
 
-    _regulator_temp2 = "READ_TEMPERATURE_2"
+    _regulator_temp2 = "TEMPERATURE[2]"
 
     def get_regulator_temp2(self, **kwargs):
         """
@@ -3566,7 +3577,8 @@ class SmurfCommandMixin(SmurfBase):
         None
         """
         if write_log:
-            self.log('Writing HEMT PS enable using cryo_card object to {}'.format(enable))
+            self.log('Writing HEMT PS enable using cryo_card object '+
+                f'to {enable}')
 
         # Read the current enable word and merge this bit in position 0
         current_en_value = self.C.read_ps_en()
@@ -3592,7 +3604,8 @@ class SmurfCommandMixin(SmurfBase):
         None
         """
         if write_log:
-            self.log('Writing 50k PS enable using cryo_card object to {}'.format(enable))
+            self.log('Writing 50k PS enable using cryo_card object '+
+                f'to {enable}')
 
         # Read the current enable word and merge this bit in position 1
         current_en_value = self.C.read_ps_en()
@@ -3608,8 +3621,8 @@ class SmurfCommandMixin(SmurfBase):
 
     def set_cryo_card_ps_en(self, enable=3, write_log=False):
         """
-        Write the cryo card power supply enables. Can use this to set both power supplies
-        at once rather than setting them individually
+        Write the cryo card power supply enables. Can use this to set both
+        power supplies at once rather than setting them individually
 
         Args:
         -----
@@ -3632,7 +3645,8 @@ class SmurfCommandMixin(SmurfBase):
         None
         """
         if write_log:
-            self.log('Writing Cryocard PS enable using cryo_card object to {}'.format(enable))
+            self.log('Writing Cryocard PS enable using cryo_card ' +
+                f'object to {enable}')
         self.C.write_ps_en(enable)
 
     def get_cryo_card_ps_en(self):
@@ -4017,6 +4031,18 @@ class SmurfCommandMixin(SmurfBase):
         return self._caget(self.smurf_processor + self._channel_mask,
             **kwargs)
 
+
+    _unwrapper_reset = 'Unwrapper:reset'
+
+    def set_unwrapper_reset(self, **kwargs):
+        """
+        Resets the unwrap filter. There is no get function because
+        it is an executed command.
+        """
+        self._caput(self.smurf_processor + self._unwrapper_reset, 1,
+                    **kwargs)
+
+
     _filter_reset = 'Filter:reset'
 
     def set_filter_reset(self, **kwargs):
@@ -4025,6 +4051,7 @@ class SmurfCommandMixin(SmurfBase):
         """
         self._caput(self.smurf_processor + self._filter_reset,
                     1, **kwargs)
+
 
     _filter_a = 'Filter:A'
 

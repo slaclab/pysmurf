@@ -49,11 +49,46 @@ if [ ! -f "$startup_cfg" ]; then
 fi
 source ${startup_cfg}
 
-## extract slot and configuration arrays
-# first column is the slot numbers, in slot configure order.
-slots=( $(awk '{print $1}' <<< "$slot_cfgs") )
-# second column is the pyrogue directories, in slot configure order
-pyrogues=( $(awk '{print $2}' <<< "$slot_cfgs") )
+# must confirm a slot configuration has been provided.  If not
+# then for backwards compatilibity, take current
+if [ -z "$slot_cfgs" ]; then
+    # if no slot_cfg defined in the startup cfg, may be providing
+    # just a slot list and expecting all slots to point to
+    # /home/docker/smurf/current.  That's true if user has
+    # defined the slots_in_configure_order array.
+    if [ -v "slots_in_configure_order" ]; then    
+	echo "No slot_cfgs defined in $startup_cfg," 1>&2
+	echo "but slots_in_configure_order is defined," 1>&2
+	# Make sure a current softlink exists for the rogue docker
+	# to be assigned to each slot listed in the slots_in_configure_order
+	# array.
+	if [ -L /home/cryo/docker/smurf/current ]; then
+	    echo "Pointing every slot to /home/cryo/docker/smurf/current" 1>&2
+	    
+	    slots=("${slots_in_configure_order[@]}")
+	    pyrogues=(`seq ${#slots_in_configure_order[@]} | awk '{print "/home/cryo/docker/smurf/current"}' | tr '\n' ' '`)
+	else
+	    echo "... but must define /home/cryo/docker/smurf/current." 1>&2
+	    exit 1
+	fi
+    else
+	echo "Neither slot_cfgs nor slots_in_configure_order defined in $startup_cfg." 1>&2
+	exit 1
+    fi
+else
+    if [ -v "slots_in_configure_order" ]; then
+	echo "Both slot_cfgs and slots_in_configure_order defined in" 1>&2
+	echo "$startup_cfg.  Must choose just one." 1>&2
+	exit 1
+    fi
+    
+    echo "Taking docker<->slot configuration from slot_cfgs." 1>&2    
+    ## extract slot and configuration arrays
+    # first column is the slot numbers, in slot configure order.
+    slots=( $(awk '{print $1}' <<< "$slot_cfgs") )
+    # second column is the pyrogue directories, in slot configure order    
+    pyrogues=( $(awk '{print $2}' <<< "$slot_cfgs") )
+fi
 
 source shawnhammerfunctions
 
@@ -94,6 +129,13 @@ if [ "$?" = "1" ]; then
     docker rm -f $(docker ps -q -f name=pysmurf | awk '{print $1}')
 fi
 
+# stop all smurf-streamer dockers
+matching_dockers smurf-streamer
+if [ "$?" = "1" ]; then
+    echo "-> Stopping all running smurf-streamer dockers."
+    docker rm -f $(docker ps -q -f name=smurf-streamer | awk '{print $1}')
+fi
+
 # if using a timing master, check that timing docker is running,
 # or else nothing will work.
 if [ "$using_timing_master" = true ] ; then
@@ -117,6 +159,10 @@ fi
 tmux rename-window -t ${tmux_session_name}:0 utils
 tmux send-keys -t ${tmux_session_name}:0 'cd /home/cryo/docker/utils' C-m
 tmux send-keys -t ${tmux_session_name}:0 './run.sh' C-m
+
+# wait for utils docker to come up and record the container ID
+utilsdockerid=`wait_for_docker_instance smurf-base`
+docker rename ${utilsdockerid} smurf_utils
 
 if [ "$using_timing_master" = true ] ; then
     # display tpg log in tmux 0 with utils term
@@ -203,8 +249,8 @@ if [ "$parallel_setup" = true ] ; then
 	    fi
 	    
 	    if [ "${slot_status[${slot_idx}]}" = "3" ]; then
-	    	echo "-> Waiting for gui to come up on slot ${slot}."
-	    	if is_slot_gui_up ${slot}; then
+	    	echo "-> Waiting for server to come up on slot ${slot}."
+	    	if is_slot_server_up ${slot}; then
 	    	    slot_status[$slot_idx]=4;
 	    	fi
 	    fi
@@ -223,14 +269,14 @@ if [ "$parallel_setup" = true ] ; then
 
 	    # Run pysmurf setup
 	    if [ "${slot_status[${slot_idx}]}" = "5" ]; then
-		echo "-> Running pysmurf setup on slot ${slot}."
+		echo "-> Running pysmurf setup on slot ${slot} ..."
 		run_pysmurf_setup ${slot}
 		slot_status[$slot_idx]=6
 	    fi
 
 	    # Check for pysmurf setup completion
 	    if [ "${slot_status[${slot_idx}]}" = "6" ]; then
-		echo "-> Waiting for carrier setup on slot ${slot} (watching pysmurf docker ${pysmurf_docker})"		
+		echo "-> Waiting for carrier setup on slot ${slot} ..."		
 	    	if is_slot_pysmurf_setup_complete ${slot}; then
 	    	    slot_status[$slot_idx]=7;
 	    	fi		
