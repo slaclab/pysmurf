@@ -9,9 +9,11 @@ Welcome to pysmurf's documentation!
 The python control software for SMuRF. Includes scripts to do low
 level commands as well as higher level analysis.
 
-.. User guide modeled after https://github.com/simonsobs/ocs/tree/master/docs/user
+.. User guide modeled after
+.. https://github.com/simonsobs/ocs/tree/master/docs/user
 User Guide
 ----------
+.. toctree::
    :maxdepth: 3
    :caption: User Guide
 
@@ -23,6 +25,7 @@ User Guide
 
 Client API
 ----------
+.. toctree::
    :maxdepth: 3
    :caption: Client API
 
