@@ -3897,6 +3897,19 @@ class SmurfUtilMixin(SmurfBase):
         self.set_tes_bias_bipolar(bias_group, 0)
 
 
+    def get_sample_frequency(self):
+        """ Gives the data rate.
+
+        Returns:
+        --------
+        sample_frequency : float
+            The data sample rate in Hz.
+        """
+        flux_ramp_freq = self.get_flux_ramp_freq() * 1.0E3
+        downsample_factor = self.get_downsample_factor()
+
+        return flux_ramp_freq / downsample_factor
+
     def identify_bias_groups(self, probe_freq=2.5, probe_time=3,
                              probe_amp=.1,
                              bias_groups=None, make_plot=False,
