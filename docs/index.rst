@@ -38,6 +38,7 @@ level commands as well as higher level analysis.
    core/conventers
    core/counters
    core/devices
+   core/emulators   
    core/roots
 
 Indices and tables
