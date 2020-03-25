@@ -196,7 +196,10 @@ if __name__ == "__main__":
     parser.add_argument("--no-band-off", default=False,
                         action="store_true",
                         help="Whether to skip turning off bands")
-
+    parser.add_argument("--threading-test", default=False,
+                       action="store_true",
+                       help="Whether to run threading test")
+    
     args = parser.parse_args()
 
     #######################
@@ -359,3 +362,9 @@ if __name__ == "__main__":
 
     # Make webpage
     make_html(os.path.split(S.output_dir)[0])
+
+    if args.threading_test:
+        import threading
+        for t in threading.enumerate():
+            print(t)
+            S.log(t)
