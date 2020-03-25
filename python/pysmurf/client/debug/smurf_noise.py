@@ -1484,10 +1484,13 @@ class SmurfNoiseMixin(SmurfBase):
                     fs=fs, detrend=detrend)
                 Pxx = np.ravel(np.sqrt(Pxx))  # pA
 
-                path = os.path.join(psd_dir,
-                                    basename + '_psd_ch{:03}.txt'.format(ch))
+                path = os.path.join(psd_dir, basename + f'_psd_ch{ch:03}.txt')
                 np.savetxt(path, np.vstack((f, Pxx)))
                 self.pub.register_file(path, 'psd', format='txt')
+
+                data_path = os.path.join(psd_dir, basename +
+                    f'_data_ch{ch:03}.txt')
+                np.savetxt(data_path, phase[ch_idx])
 
             # Explicitly remove objects from memory
             del timestamp
@@ -1527,7 +1530,7 @@ class SmurfNoiseMixin(SmurfBase):
                     self.log(f'Smoothing PSDs for plotting with window of length {window_len}')
                     s = np.r_[Pxx[window_len-1:0:-1],Pxx,Pxx[-2:-window_len-1:-1]]
                     w = np.hanning(window_len)
-                    Pxx_smooth_ext = np.convolve(w/w.sum(),s,mode='valid')
+                    Pxx_smooth_ext = np.convolve(w/w.sum(), s, mode='valid')
                     ndx_add = window_len % 2
                     Pxx_smooth = Pxx_smooth_ext[(window_len//2)-1+ndx_add:-(window_len//2)]
                 else:
@@ -1540,8 +1543,8 @@ class SmurfNoiseMixin(SmurfBase):
                 ax0.set_ylim(psd_ylim)
 
                 # fit to noise model; catch error if fit is bad
-                popt,pcov,f_fit,Pxx_fit = self.analyze_psd(f,Pxx)
-                wl,n,f_knee = popt
+                popt, pcov, f_fit, Pxx_fit = self.analyze_psd(f,Pxx)
+                wl, n, f_knee = popt
                 self.log('ch. {}, tone power = {}'.format(ch,b) +
                          ', white-noise level = {:.2f}'.format(wl) +
                          ' pA/rtHz, n = {:.2f}'.format(n) +
@@ -1561,14 +1564,16 @@ class SmurfNoiseMixin(SmurfBase):
                 ax0.plot(f_fit, Pxx_fit, color=color, linestyle='--')
                 ax0.plot(f, wl + np.zeros(len(f)), color=color,
                         linestyle=':')
-                ax0.plot(f_knee,2.*wl,marker = 'o',linestyle = 'none',
+                ax0.plot(f_knee,2.*wl,marker = 'o', linestyle='none',
                         color=color)
 
-                ax1.plot(b,wl,color=color,marker='s',linestyle='none')
+                ax1.plot(b, wl, color=color, marker='s', linestyle='none')
 
                 if make_timestream_plot:
                     ax_ts = fig.add_subplot(gs[3+i, :])
-                    ax_ts.plot(phase[ch_idx], color=color)
+                    phase = np.loadtxt(os.path.join(psd_dir,
+                        basename + f'_data_ch{ch:03}.txt'))
+                    ax_ts.plot(phase, color=color)
 
             ax0.set_xlabel(r'Freq [Hz]')
             ax0.set_ylabel(r'PSD [$\mathrm{pA}/\sqrt{\mathrm{Hz}}$]')
