@@ -31,6 +31,12 @@ level commands as well as higher level analysis.
    client/tune
    client/util
 
+.. toctree::
+   :maxdepth: 3
+   :caption: Core API
+
+   core/conventers
+
 Indices and tables
 ==================
 
