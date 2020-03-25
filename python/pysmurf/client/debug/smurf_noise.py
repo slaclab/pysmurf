@@ -330,7 +330,8 @@ class SmurfNoiseMixin(SmurfBase):
     def noise_vs_tone(self, band, tones=None, meas_time=30,
                       analyze=False, bias_group=None, lms_freq_hz=None,
                       fraction_full_scale=.72, meas_flux_ramp_amp=False,
-                      n_phi0=4, make_timestream_plot=True):
+                      n_phi0=4, make_timestream_plot=True,
+                      new_master_assignment=True):
         """ Takes timestream noise at various tone powers. Operates on one band
         at a time because it needs to retune between taking another timestream
         at a different tone power.
@@ -358,6 +359,10 @@ class SmurfNoiseMixin(SmurfBase):
             The number of phi0 to use if measuring flux ramp. Default 4.
         make_timestream_plot : bool
             Whether to make the timestream plot. Default True.
+        new_master_assignment : bool
+            Whether to make a new master channel assignemnt. This will only
+            make one for the first tone. It needs to keep the channel
+            assignment the same after that for the analysis.
         """
         timestamp = self.get_timestamp()
 
@@ -370,7 +375,11 @@ class SmurfNoiseMixin(SmurfBase):
             self.log('Measuring for tone power {}'.format(t))
 
             # Tune the band with the new drive power
-            self.tune_band_serial(band, drive=t)
+            self.tune_band_serial(band, drive=t,
+                new_master_assignment=new_master_assignment)
+
+            # all further tunings do not make new assignemnt
+            new_master_assignment = False
 
             # Start tracking
             self.tracking_setup(band, fraction_full_scale=fraction_full_scale,
