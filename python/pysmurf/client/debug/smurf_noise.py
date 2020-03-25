@@ -331,26 +331,33 @@ class SmurfNoiseMixin(SmurfBase):
                       analyze=False, bias_group=None, lms_freq_hz=None,
                       fraction_full_scale=.72, meas_flux_ramp_amp=False,
                       n_phi0=4, make_timestream_plot=True):
-        """
-        Takes timestream noise at various tone powers. Operates on one band
+        """ Takes timestream noise at various tone powers. Operates on one band
         at a time because it needs to retune between taking another timestream
         at a different tone power.
 
-        Args:
-        -----
-        band (int) : The 500 MHz band
-
-        Opt Args:
-        ---------
-        tones (int array) : The tone amplitudes. If None, uses np.arange(10,15).
-            Default is None.
-        meas_time (int) : The measurement time per tone power in seconds.
-            Default 30.
-        analyze (bool) : Whether to analyze the data.
-        bias_group (int array) : The bias groups to analyze
-        lms_freq_hz (float) : The tracking frequency in Hz. If None, measures
-            the tracking frequency. Defaultt is None.
-        fraction_full_scale (float) : The amplitude of the flux ramp.
+        Parameters:
+        -----------
+        band : int
+            The 500 MHz band to run
+        tones : int array
+            The tone amplitudes. If None, uses np.arange(10,15). Default is None.
+        meas_time : int
+            The measurement time per tone power in seconds. Default 30.
+        analyze : bool
+            Whether to analyze the data.
+        bias_group : int array
+            The bias groups to analyze
+        lms_freq_hz : float
+            The tracking frequency in Hz. If None, measures the tracking
+            frequency. Default is None.
+        fraction_full_scale : float
+            The amplitude of the flux ramp.
+        meas_flux_ramp_amp :bool
+            Whether to measure the flux ramp amplitude.
+        n_phi0 : float
+            The number of phi0 to use if measuring flux ramp. Default 4.
+        make_timestream_plot : bool
+            Whether to make the timestream plot. Default True.
         """
         timestamp = self.get_timestamp()
 
@@ -588,8 +595,8 @@ class SmurfNoiseMixin(SmurfBase):
         np.savetxt(fn_datafiles,datafiles, fmt='%s')
         self.pub.register_file(fn_datafiles, 'datafiles', format='txt')
 
-        self.log('Saving variables values to {}.'.format(fn_var_values))
-        self.log('Saving data filenames to {}.'.format(fn_datafiles))
+        self.log(f'Saving variables values to {fn_var_values}.')
+        self.log(f'Saving data filenames to {fn_datafiles}.')
 
         if analyze:
             self.analyze_noise_vs_bias(var_range, datafiles,  channel=channel,
@@ -862,7 +869,8 @@ class SmurfNoiseMixin(SmurfBase):
                     continue
                 ax_NEPwl = fig.add_subplot(gs[h_NEIwl:h_NEIwl+h_NEPwl,
                     w_timestream:w_timestream+w_NEPwl])
-                ax_SI = fig.add_subplot(gs[h_NEIwl+h_NEPwl:h_NEIwl+h_NEPwl+h_SI,w_timestream:w_timestream+w_SI])
+                ax_SI = fig.add_subplot(gs[h_NEIwl+h_NEPwl:h_NEIwl+h_NEPwl+h_SI,
+                    w_timestream:w_timestream+w_SI])
             if make_timestream_plot:
                 axs_timestream = []
                 for i in range(n_bias):
@@ -1481,35 +1489,27 @@ class SmurfNoiseMixin(SmurfBase):
                 np.savetxt(path, np.vstack((f, Pxx)))
                 self.pub.register_file(path, 'psd', format='txt')
 
-                if make_timestream_plot:
-                    fig,ax = plt.subplots(1)
-                    ax.plot(phase[ch])
-                    res_freq = self.channel_to_freq(band, ch)
-                    ax.set_title('Channel {:03} - {:5.4f} MHz'.format(ch, res_freq))
-                    ax.set_xlabel(r'Time index')
-                    ax.set_ylabel(r'Phase (pA)')
-
-                    if show_plot:
-                        plt.show()
-                    if save_plot:
-                        plt.savefig(os.path.join(self.plot_dir, basename +
-                                    '_timestream_ch{:03}.png'.format(ch)),
-                                    bbox_inches='tight')
-                        plt.close()
-
             # Explicitly remove objects from memory
             del timestamp
             del phase
 
+        # Get the number of tones
+        n_tone = len(tone)
+
         # Make plot
         cm = plt.get_cmap('plasma')
-        fig_width = 8
         n_col = 3
+        if make_timestream_plot:
+            figsize = (8, 5+n_tone*1.5)
+            n_row = 3 + int(n_tone)
+        else:
+            n_row = 3
+            figsize = (8,5)
         for ch in channel:
-            fig = plt.figure(figsize = (fig_width,5))
-            gs = GridSpec(1,n_col)
-            ax0 = fig.add_subplot(gs[:2])
-            ax1 = fig.add_subplot(gs[2])
+            fig = plt.figure(figsize=figsize)
+            gs = GridSpec(n_row, n_col)
+            ax0 = fig.add_subplot(gs[:3, :2])
+            ax1 = fig.add_subplot(gs[:3, 2])
 
             noise_est_list = []
             for i, (b, d) in enumerate(zip(tone, datafile)):
@@ -1566,6 +1566,10 @@ class SmurfNoiseMixin(SmurfBase):
 
                 ax1.plot(b,wl,color=color,marker='s',linestyle='none')
 
+                if make_timestream_plot:
+                    ax_ts = fig.add_subplot(gs[3+i, :])
+                    ax_ts.plot(phase[ch_idx], color=color)
+
             ax0.set_xlabel(r'Freq [Hz]')
             ax0.set_ylabel(r'PSD [$\mathrm{pA}/\sqrt{\mathrm{Hz}}$]')
             ax0.set_xscale('log')
@@ -1613,9 +1617,9 @@ class SmurfNoiseMixin(SmurfBase):
             if save_plot:
                 plot_name = f'noise_vs_tone_band{band}_g{file_name_string}ch{ch:03}.png'
                 if data_timestamp is not None:
-                    plot_name = '{}_'.format(data_timestamp) + plot_name
+                    plot_name = f'{data_timestamp}_' + plot_name
                 else:
-                    plot_name = '{}_'.format(self.get_timestamp()) + plot_name
+                    plot_name = f'{self.get_timestamp()}_' + plot_name
                 plot_fn = os.path.join(self.plot_dir, plot_name)
                 self.log(f'Saving plot to {plot_fn}')
                 plt.savefig(plot_fn,
