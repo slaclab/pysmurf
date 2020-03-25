@@ -387,7 +387,7 @@ class SmurfNoiseMixin(SmurfBase):
                 n_phi0=n_phi0)
 
             # Check
-            self.check_lock(band, lms_freq_hz=lms_freq_hz)
+            self.check_lock(band)
 
             time.sleep(2)
 

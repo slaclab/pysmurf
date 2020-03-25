@@ -349,7 +349,6 @@ class SmurfTuneMixin(SmurfBase):
         # Find the resonator minima
         self.log('Finding resonator minima...')
         self.run_serial_gradient_descent(band, timeout=1200)
-        #self.run_serial_min_search(band)
 
         # Calculate the eta params
         self.log('Calculating eta parameters...')
