@@ -9,10 +9,22 @@ Welcome to pysmurf's documentation!
 The python control software for SMuRF. Includes scripts to do low
 level commands as well as higher level analysis.
 
-API
----
-.. toctree::
-   :maxdepth: 2
+.. User guide modeled after https://github.com/simonsobs/ocs/tree/master/docs/user
+User Guide
+----------
+   :maxdepth: 3
+   :caption: User Guide
+
+   user/intro
+   user/dependencies
+   user/installation
+   user/quickstart
+   user/configuration
+
+Client API
+----------
+   :maxdepth: 3
+   :caption: Client API
 
    client/base
    client/command

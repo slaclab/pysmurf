@@ -12,6 +12,9 @@
 # serve to show the default.
 
 import sys, os
+sys.path.insert(0, os.path.abspath('..'))
+from pysmurf import __version__ as pysmurf_version
+print(f'pysmurf_version={pysmurf_version}')
 
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
