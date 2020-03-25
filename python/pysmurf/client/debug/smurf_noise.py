@@ -399,11 +399,13 @@ class SmurfNoiseMixin(SmurfBase):
 
         self.pub.register_file(tone_save, 'noise_vs_tone_tone', format='txt')
 
+        # Get sample frequency
+        fs = self.get_sample_frequency()
+
         if analyze:
             self.analyze_noise_vs_tone(tone_save, datafile_save, band=band,
-                bias_group=bias_group,
+                bias_group=bias_group, fs=fs,
                 make_timestream_plot=make_timestream_plot)
-
 
 
     def noise_vs_bias(self, band, bias_group,bias_high=1.5, bias_low=0.,
@@ -735,31 +737,43 @@ class SmurfNoiseMixin(SmurfBase):
             high_current_mode=True, iv_data_filename=None, NEP_ylim=(10.,1000.),
             f_center_GHz=150.,bw_GHz=32., xlabel_override=None,
             unit_override=None):
-        """
-        Analysis script associated with noise_vs_bias.
-        Args:
-        -----
-        bias (float array): The bias in voltage. Can also pass an absolute
-            path to a txt containing the bias points.
-        datafile (str array): The paths to the datafiles. Must be same length
-            as bias array. Can also pass an absolute path to a txt containing
-            the names of the datafiles.
-        Opt Args:
-        ---------
-        channel (int array): The channels to analyze.
-        band (int): The band where the data is taken.
-        nperseg (int): Passed to scipy.signal.welch. Number of elements per
-            segment of the PSD.
-        detrend (str): Passed to scipy.signal.welch.
-        fs (float): Passed to scipy.signal.welch. The sample rate.
-        save_plot (bool): Whether to save the plot. Default is True.
-        show_plot (bool): Whether to how the plot. Default is False.
-        data_timestamp (str): The string used as a save name. Default is None.
-        bias_group (int or int array): which bias groups were used. Default is None.
-        smooth_len (int): length of window over which to smooth PSDs for plotting
-        freq_range_summary (tup): frequencies between which to take mean noise
-            for summary plot of noise vs. bias; if None, then plot white-noise
-            level from model fit
+        """ Analysis script associated with noise_vs_bias.
+
+        Parameters:
+        -----------
+        bias :float array
+            The bias in voltage. Can also pass an absolute path to a txt
+            containing the bias points.
+        datafile :str array
+            The paths to the datafiles. Must be same length as bias array. Can
+            also pass an absolute path to a txt containing the names of the
+            datafiles.
+        channel : int array
+            The channels to analyze.
+        band : int
+            The band where the data is taken.
+        nperseg : int
+            Passed to scipy.signal.welch. Number of elements per segment of the
+            PSD.
+        detrend : str
+            Passed to scipy.signal.welch.
+        fs : float
+            Passed to scipy.signal.welch. The sample rate.
+        save_plot : bool
+            Whether to save the plot. Default is True.
+        show_plot : bool
+            Whether to how the plot. Default is False.
+        data_timestamp : str
+            The string used as a save name. Default is None.
+        bias_group : int or int array
+            which bias groups were used. Default is None.
+        smooth_len : int
+            length of window over which to smooth PSDs for plotting
+        show_legend : bool
+            Whether to show the legend. Default True.
+        freq_range_summary : tup
+            frequencies between which to take mean noise for summary plot of
+            noise vs. bias; if None, then plot white-noiselevel from model fit
         """
         if not show_plot:
             plt.ioff()
@@ -1442,10 +1456,42 @@ class SmurfNoiseMixin(SmurfBase):
             show_plot=False, make_timestream_plot=False, data_timestamp=None,
             psd_ylim=(10.,1000.), bias_group=None, smooth_len=11,
             show_legend=True, freq_range_summary=None):
-        """
-        Analysis script associated with noise_vs_tone.
-        """
+        """ Analysis script associated with noise_vs_tone. Writes outputs
+        and plots to output_dir and plot_dir respectively.
 
+        Parameters:
+        -----------
+        tone : str
+            The full path to the tone file
+        datafile : str
+            The full path to the text file holding all the data files.
+        channel : int array
+            The channels to analyze.
+        band : int
+            The band where the data is taken.
+        nperseg : int
+            Passed to scipy.signal.welch. Number of elements per segment of the
+            PSD.
+        detrend : str
+            Passed to scipy.signal.welch.
+        fs : float
+            Passed to scipy.signal.welch. The sample rate.
+        save_plot : bool
+            Whether to save the plot. Default is True.
+        show_plot : bool
+            Whether to how the plot. Default is False.
+        data_timestamp : str
+            The string used as a save name. Default is None.
+        bias_group : int or int array
+            which bias groups were used. Default is None.
+        smooth_len : int
+            length of window over which to smooth PSDs for plotting
+        show_legend : bool
+            Whether to show the legend. Default True.
+        freq_range_summary : tup
+            frequencies between which to take mean noise for summary plot of
+            noise vs. bias; if None, then plot white-noiselevel from model fit
+        """
         if not show_plot:
             plt.ioff()
 
@@ -1501,6 +1547,8 @@ class SmurfNoiseMixin(SmurfBase):
 
         # Make plot
         cm = plt.get_cmap('plasma')
+
+        # Different plot sizes depending on whether there are timestream plots
         n_col = 3
         if make_timestream_plot:
             figsize = (8, 5+n_tone*1.5)
@@ -1508,6 +1556,8 @@ class SmurfNoiseMixin(SmurfBase):
         else:
             n_row = 3
             figsize = (8,5)
+
+        # Loop over channels to plot
         for ch in channel:
             fig = plt.figure(figsize=figsize)
             gs = GridSpec(n_row, n_col)
@@ -1522,12 +1572,15 @@ class SmurfNoiseMixin(SmurfBase):
                 self.log(os.path.join(psd_dir, basename +
                     '_psd_ch{:03}.txt'.format(ch)))
 
+                # Load the PSD data
                 f, Pxx =  np.loadtxt(os.path.join(psd_dir, basename +
                     '_psd_ch{:03}.txt'.format(ch)))
+
                 # smooth Pxx for plotting
                 if smooth_len >= 3:
                     window_len = smooth_len
-                    self.log(f'Smoothing PSDs for plotting with window of length {window_len}')
+                    self.log(f'Smoothing PSDs for plotting with window of '+
+                        f'length {window_len}')
                     s = np.r_[Pxx[window_len-1:0:-1],Pxx,Pxx[-2:-window_len-1:-1]]
                     w = np.hanning(window_len)
                     Pxx_smooth_ext = np.convolve(w/w.sum(), s, mode='valid')
@@ -1538,17 +1591,17 @@ class SmurfNoiseMixin(SmurfBase):
                     Pxx_smooth = Pxx
 
                 color = cm(float(i)/len(tone))
-                ax0.plot(f, Pxx_smooth, color=color, label='{}'.format(b))
+                ax0.plot(f, Pxx_smooth, color=color, label=f'{b}')
                 ax0.set_xlim(min(f[1:]),max(f[1:]))
                 ax0.set_ylim(psd_ylim)
 
                 # fit to noise model; catch error if fit is bad
                 popt, pcov, f_fit, Pxx_fit = self.analyze_psd(f,Pxx)
                 wl, n, f_knee = popt
-                self.log('ch. {}, tone power = {}'.format(ch,b) +
-                         ', white-noise level = {:.2f}'.format(wl) +
-                         ' pA/rtHz, n = {:.2f}'.format(n) +
-                         ', f_knee = {:.2f} Hz'.format(f_knee))
+                self.log(f'ch. {ch}, tone power = {b}' +
+                         f', white-noise level = {wl:.2f}' +
+                         f' pA/rtHz, n = {n:.2f}' +
+                         f', f_knee = {f_knee:.2f} Hz')
 
                 # get noise estimate to summarize PSD for given bias
                 if freq_range_summary is not None:
@@ -1573,6 +1626,7 @@ class SmurfNoiseMixin(SmurfBase):
                     ax_ts = fig.add_subplot(gs[3+i, :])
                     phase = np.loadtxt(os.path.join(psd_dir,
                         basename + f'_data_ch{ch:03}.txt'))
+                    phase -= np.mean(phase)
                     ax_ts.plot(phase, color=color)
 
             ax0.set_xlabel(r'Freq [Hz]')

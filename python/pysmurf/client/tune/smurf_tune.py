@@ -231,30 +231,33 @@ class SmurfTuneMixin(SmurfBase):
             make_subband_plot=False, subband=None, n_scan=5,
             subband_plot_with_slow=False, window=5000, rolling_med=True,
             grad_cut=.03, freq_min=-2.5E8, freq_max=2.5E8, amp_cut=.25,
-            del_f=.005, drive=None, new_master_assignment=False, from_old_tune=False,
-            old_tune=None, pad=50, min_gap=50):
-        """
-        Tunes band using serial_gradient_descent and then serial_eta_scan.
+            del_f=.005, drive=None, new_master_assignment=False,
+            from_old_tune=False, old_tune=None, pad=50, min_gap=50):
+        """ Tunes band using serial_gradient_descent and then serial_eta_scan.
         This requires an initial guess, which this function gets by either
         loading an old tune or by using the full_band_resp.  This takes about 3
         minutes per band if there are about 150 resonators.
         This saves the results to the freq_resp dictionary.
-        Args:
-        -----
-        band (int): The band the tune
-        Opt Args:
-        ---------
-        from_old_tune (bool): Whether to use an old tuning file. This
-            will load a tuning file and use its peak frequencies as
-            a starting point for seria_gradient_descent.
-        old_tune (str): The full path to the tuning file.
-        new_master_assignment (bool): Whether to overwrite the previous
-            master_assignment list. Default is False.
-        make_plot (bool): Whether to make plots. Default is False.
-        save_plot (bool): If make_make plot is True, whether to save
-            the plots. Default is True.
-        show_plot (bool): If make_plot is True, whether to display
-            the plots to screen.
+
+        Parameters:
+        -----------
+        band : int
+            The band the tune
+        from_old_tune : bool
+            Whether to use an old tuning file. This will load a tuning file and
+            use its peak frequencies as a starting point for
+            serial_gradient_descent.
+        old_tune : str
+            The full path to the tuning file.
+        new_master_assignment : bool
+            Whether to overwrite the previous master_assignment list. Default
+            False.
+        make_plot : bool
+            Whether to make plots. Default is False.
+        save_plot : bool
+            If make_make plot is True, whether to save the plots. Default is True.
+        show_plot : bool
+            If make_plot is True, whether to display the plots to screen.
         """
         timestamp = self.get_timestamp()
         center_freq = self.get_band_center_mhz(band)
@@ -361,8 +364,8 @@ class SmurfTuneMixin(SmurfBase):
         eta = eta_mag * np.cos(np.deg2rad(eta_phase)) + \
             1.j * np.sin(np.deg2rad(eta_phase))
 
+        # Get the result twice. Pass it to the resonance dict
         chs = self.get_eta_scan_result_channel(band)
-
         chs = self.get_eta_scan_result_channel(band)
 
         for i, ch in enumerate(chs):
