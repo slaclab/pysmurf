@@ -40,6 +40,7 @@ level commands as well as higher level analysis.
    core/devices
    core/emulators   
    core/roots
+   core/server_scripts   
 
 Indices and tables
 ==================
