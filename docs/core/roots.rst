@@ -1,4 +1,4 @@
-.. _emulators:
+.. _roots:
 
 roots module
 ============
