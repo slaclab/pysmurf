@@ -13,6 +13,8 @@
 # copied, modified, propagated, or distributed except according to the terms
 # contained in the LICENSE.txt file.
 #-----------------------------------------------------------------------------
+'''Defines the SmurfControl class.
+'''
 import numpy as np
 import os
 import time
