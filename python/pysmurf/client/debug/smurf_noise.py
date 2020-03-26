@@ -1651,6 +1651,8 @@ class SmurfNoiseMixin(SmurfBase):
                             basename + f'_data_ch{ch:03}.txt'))
                         phase -= np.mean(phase)
                         ax_ts.plot(phase, color=color)
+                    except FileNotFoundError:
+                        self.log(f'No data found for {d} for channel {ch}')
 
             ax0.set_xlabel(r'Freq [Hz]')
             ax0.set_ylabel(r'PSD [$\mathrm{pA}/\sqrt{\mathrm{Hz}}$]')
