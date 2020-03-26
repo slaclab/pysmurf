@@ -73,6 +73,18 @@ class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin,
               'shm-smrf-sp01'
     validate_config : bool, optional, default True
               Whether to check if the input config file is correct.
+    **kwargs
+              These parameters will be passed to the pysmurf
+              :func:`~SmurfControl.initialize` routine.
+
+    Raises
+    ------
+    ValueError
+              If not `offline` and `cfg_file` is None.
+
+    See Also
+    --------
+    initialize
     '''
 
     def __init__(self, epics_root=None,
@@ -81,9 +93,9 @@ class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin,
                  no_dir=False, shelf_manager='shm-smrf-sp01',
                  validate_config=True, **kwargs):
         '''
-        Initializer for SmurfControl.
+        The constructor for the SmurfControl class.
 
-        SEE SMURF CONTROL DOCSTRING FOR MORE INFORMATON?
+        See the SmurfControl class docstring for more details.
         '''
         if not offline and cfg_file is None:
             raise ValueError('Must provide config file.')
