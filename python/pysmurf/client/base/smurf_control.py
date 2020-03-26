@@ -39,29 +39,41 @@ class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin,
         '''
         Initializer for SmurfControl.
 
-        Opt Args:
-        ----------
-        epics_root (string) : The epics root to be used. Default None.
-        cfg_file (string) : Config file path. Default is None. Must be provided
-            if not on offline mode.
-        data_dir (str) : Path to the data directory
-        name (str) : The name of the output directory. If None, it will use
-            the current timestamp as the output directory name. Default is None.
-        make_logfile (bool) : Whether to make a log file. If False, outputs will
-            go to the screen.
-        setup (bool) : Whether to run the setup step. Default is False.
-        smurf_cmd_mode (bool) : This mode tells the system that the input is
-            coming in from the command line (rather than a python session).
-            Everything implemented here are in smurf_cmd.py. Default is False.
-        no_dir (bool) : Whether to make a skip making a directory. Default is
-            False.
-        validate_config (bool) : Whether to check if the input config file is
-            correct. Default is True.
-        shelf_manager (str):
-            Shelf manager ip or network name.  Usually each SMuRF server is
-            connected one-to-one with a SMuRF crate, in which case we by
-            default give the shelf manager the network name 'shm-smrf-sp01'.
+        NEED LONGER DESCRIPTION OF SMURFCONTROL CLASS HERE.
 
+        Args
+        ----
+        epics_root : str, optional, default None
+              The epics root to be used.
+        cfg_file : str, optional, default None
+              Config file path.  Must be provided if not on offline
+              mode.
+        data_dir : str, optional, default None
+              Path to the data directory.
+        name : str, optional, default None
+              The name of the output directory. If None, it will use
+              the current timestamp as the output directory
+              name.
+        make_logfile : bool, optional, default True
+              Whether to make a log file. If False, outputs will go to
+              the screen.
+        setup : bool, optional, default False
+              Whether to run the setup step.
+        offline : bool, optional, default False
+              Whether or not to instantiate in offline mode.
+        smurf_cmd_mode : bool, optional, default False
+              This mode tells the system that the input is coming in
+              from the command line (rather than a python session).
+              Everything implemented here are in smurf_cmd.py.
+        no_dir :  bool, optional, default False
+              Whether to make a skip making a directory.
+        shelf_manager : str, optional, default 'shm-smrf-sp01'
+              Shelf manager ip or network name.  Usually each SMuRF
+              server is connected one-to-one with a SMuRF crate, and
+              the default shelf manager name is configured to be
+              'shm-smrf-sp01'
+        validate_config : bool, optional, default True
+              Whether to check if the input config file is correct.
         '''
         if not offline and cfg_file is None:
             raise ValueError('Must provide config file.')
@@ -350,10 +362,14 @@ class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin,
         """
         Sets the PVs to the default values from the experiment.cfg file
 
-        Opt Args:
-        ---------
-        write_log (bool) : Whether to write to the log file. Default True
-        payload_size (int) : The starting size of the payload. Default 2048.
+        NEED LONGER DESCRIPTION OF SETUP MEMBER FUNCTION HERE.
+
+        Args
+        ----
+        write_log : bool, optional, default True
+              Whether to write to the log file.
+        payload_size : int, optional, default 2048
+              The starting size of the payload.
         """
         self.log('Setting up...', (self.LOG_USER))
 
@@ -621,9 +637,14 @@ class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin,
         """
         Add a key to the output config.
 
-        Args:
-          key (any): the name of the key to update
-          val (any): value to assign to the key
+        NEED LONGER DESCRIPTION OF ADD OUTPUT MEMBER FUNCTION HERE.
+
+        Args
+        ----
+        key : any
+              The name of the key to update.
+        val : any
+              The value to assign to the key.
         """
         self.config.update_subkey('outputs', key, val)
 
@@ -634,9 +655,10 @@ class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin,
         file writing in the config object. Files are timestamped and dumped to
         the S.output_dir by default.
 
-        Opt Args:
-        -----
-        filename (str): full path to output file
+        Args
+        ----
+        filename : str, optional, default None
+              Full path of output configuration file to write to disk.
         """
 
         timestamp = self.get_timestamp()
