@@ -7,6 +7,7 @@ base_class
 ----------
 .. automodule:: pysmurf.client.base.base_class
     :members:
+    :special-members:
 
 logger
 ------
