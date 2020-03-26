@@ -117,8 +117,8 @@ class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin,
         publish : bool, optional, default False
               Whether to send messages to the OCS publisher.
         payload_size : int, optional, default 2048
-              The payload size to set on setup. 
-        **kwargs 
+              The payload size to set on setup.
+        **kwargs
               These parameters will be passed to the pysmurf
               :func:`~SmurfControl.setup` routine.
 
@@ -574,7 +574,7 @@ class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin,
         """
         Creates a directory on the file system if it doesn't already
         exist.
-        
+
         Checks if a directory exists on the file system.  If directory
         does not already exist on the file system, creates it.
 
