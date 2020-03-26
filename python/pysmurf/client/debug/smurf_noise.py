@@ -376,6 +376,7 @@ class SmurfNoiseMixin(SmurfBase):
 
         # Take data
         datafiles = np.array([])
+        channel = np.array([])
         for i, t in enumerate(tones):
             self.log('Measuring for tone power {}'.format(t))
 
@@ -386,6 +387,9 @@ class SmurfNoiseMixin(SmurfBase):
 
             # all further tunings do not make new assignemnt
             new_master_assignment = False
+
+            # Append list of channels that are on
+            channel = np.unique(np.append(channel, self.which_on(band)))
 
             # Start tracking
             self.tracking_setup(band, fraction_full_scale=fraction_full_scale,
@@ -419,8 +423,9 @@ class SmurfNoiseMixin(SmurfBase):
 
         if analyze:
             self.analyze_noise_vs_tone(tone_save, datafile_save, band=band,
-                bias_group=bias_group, fs=fs,
-                make_timestream_plot=make_timestream_plot)
+                channel=channel, bias_group=bias_group, fs=fs,
+                make_timestream_plot=make_timestream_plot,
+                data_timestamp=timestamp)
 
 
     def noise_vs_bias(self, band, bias_group,bias_high=1.5, bias_low=0.,
@@ -1539,7 +1544,9 @@ class SmurfNoiseMixin(SmurfBase):
             psd_dir = os.path.join(dirname, 'psd')
             self.make_dir(psd_dir)
 
-            for ch in channel:
+            # loop over all channels that are on in this data acq
+            _, chs = np.where(mask!=-1)
+            for ch in chs:
                 ch_idx = mask[band, ch]
                 f, Pxx = signal.welch(phase[ch_idx], nperseg=nperseg,
                     fs=fs, detrend=detrend)
@@ -1639,10 +1646,11 @@ class SmurfNoiseMixin(SmurfBase):
 
                 if make_timestream_plot:
                     ax_ts = fig.add_subplot(gs[3+i, :])
-                    phase = np.loadtxt(os.path.join(psd_dir,
-                        basename + f'_data_ch{ch:03}.txt'))
-                    phase -= np.mean(phase)
-                    ax_ts.plot(phase, color=color)
+                    try:
+                        phase = np.loadtxt(os.path.join(psd_dir,
+                            basename + f'_data_ch{ch:03}.txt'))
+                        phase -= np.mean(phase)
+                        ax_ts.plot(phase, color=color)
 
             ax0.set_xlabel(r'Freq [Hz]')
             ax0.set_ylabel(r'PSD [$\mathrm{pA}/\sqrt{\mathrm{Hz}}$]')
