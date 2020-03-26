@@ -1594,65 +1594,66 @@ class SmurfNoiseMixin(SmurfBase):
                 self.log(os.path.join(psd_dir, basename +
                     '_psd_ch{:03}.txt'.format(ch)))
 
-                # Load the PSD data
-                f, Pxx =  np.loadtxt(os.path.join(psd_dir, basename +
-                    '_psd_ch{:03}.txt'.format(ch)))
+                # Catch when there is no file
+                try:
+                    # Load the PSD data
+                    f, Pxx =  np.loadtxt(os.path.join(psd_dir, basename +
+                        '_psd_ch{:03}.txt'.format(ch)))
 
-                # smooth Pxx for plotting
-                if smooth_len >= 3:
-                    window_len = smooth_len
-                    self.log(f'Smoothing PSDs for plotting with window of '+
-                        f'length {window_len}')
-                    s = np.r_[Pxx[window_len-1:0:-1],Pxx,Pxx[-2:-window_len-1:-1]]
-                    w = np.hanning(window_len)
-                    Pxx_smooth_ext = np.convolve(w/w.sum(), s, mode='valid')
-                    ndx_add = window_len % 2
-                    Pxx_smooth = Pxx_smooth_ext[(window_len//2)-1+ndx_add:-(window_len//2)]
-                else:
-                    self.log('No smoothing of PSDs for plotting.')
-                    Pxx_smooth = Pxx
+                    # smooth Pxx for plotting
+                    if smooth_len >= 3:
+                        window_len = smooth_len
+                        self.log(f'Smoothing PSDs for plotting with window of '+
+                            f'length {window_len}')
+                        s = np.r_[Pxx[window_len-1:0:-1],Pxx,Pxx[-2:-window_len-1:-1]]
+                        w = np.hanning(window_len)
+                        Pxx_smooth_ext = np.convolve(w/w.sum(), s, mode='valid')
+                        ndx_add = window_len % 2
+                        Pxx_smooth = Pxx_smooth_ext[(window_len//2)-1+ndx_add:-(window_len//2)]
+                    else:
+                        self.log('No smoothing of PSDs for plotting.')
+                        Pxx_smooth = Pxx
 
-                color = cm(float(i)/len(tone))
-                ax0.plot(f, Pxx_smooth, color=color, label=f'{b}')
-                ax0.set_xlim(min(f[1:]),max(f[1:]))
-                ax0.set_ylim(psd_ylim)
+                    color = cm(float(i)/len(tone))
+                    ax0.plot(f, Pxx_smooth, color=color, label=f'{b}')
+                    ax0.set_xlim(min(f[1:]),max(f[1:]))
+                    ax0.set_ylim(psd_ylim)
 
-                # fit to noise model; catch error if fit is bad
-                popt, pcov, f_fit, Pxx_fit = self.analyze_psd(f,Pxx)
-                wl, n, f_knee = popt
-                self.log(f'ch. {ch}, tone power = {b}' +
-                         f', white-noise level = {wl:.2f}' +
-                         f' pA/rtHz, n = {n:.2f}' +
-                         f', f_knee = {f_knee:.2f} Hz')
+                    # fit to noise model; catch error if fit is bad
+                    popt, pcov, f_fit, Pxx_fit = self.analyze_psd(f,Pxx)
+                    wl, n, f_knee = popt
+                    self.log(f'ch. {ch}, tone power = {b}' +
+                             f', white-noise level = {wl:.2f}' +
+                             f' pA/rtHz, n = {n:.2f}' +
+                             f', f_knee = {f_knee:.2f} Hz')
 
-                # get noise estimate to summarize PSD for given bias
-                if freq_range_summary is not None:
-                    freq_min,freq_max = freq_range_summary
-                    noise_est = np.mean(Pxx[np.logical_and(f>=freq_min,f<=freq_max)])
-                    self.log(f'ch. {ch}, tone = {b}' +
-                             f', mean noise between {freq_min:.3e} and ' +
-                             f'{freq_max:.3e} Hz = {noise_est:.2f} pA/rtHz')
-                else:
-                    noise_est = wl
-                noise_est_list.append(noise_est)
+                    # get noise estimate to summarize PSD for given bias
+                    if freq_range_summary is not None:
+                        freq_min,freq_max = freq_range_summary
+                        noise_est = np.mean(Pxx[np.logical_and(f>=freq_min,f<=freq_max)])
+                        self.log(f'ch. {ch}, tone = {b}' +
+                                 f', mean noise between {freq_min:.3e} and ' +
+                                 f'{freq_max:.3e} Hz = {noise_est:.2f} pA/rtHz')
+                    else:
+                        noise_est = wl
+                    noise_est_list.append(noise_est)
 
-                ax0.plot(f_fit, Pxx_fit, color=color, linestyle='--')
-                ax0.plot(f, wl + np.zeros(len(f)), color=color,
-                        linestyle=':')
-                ax0.plot(f_knee,2.*wl,marker = 'o', linestyle='none',
-                        color=color)
+                    ax0.plot(f_fit, Pxx_fit, color=color, linestyle='--')
+                    ax0.plot(f, wl + np.zeros(len(f)), color=color,
+                            linestyle=':')
+                    ax0.plot(f_knee,2.*wl,marker = 'o', linestyle='none',
+                            color=color)
 
-                ax1.plot(b, wl, color=color, marker='s', linestyle='none')
+                    ax1.plot(b, wl, color=color, marker='s', linestyle='none')
 
-                if make_timestream_plot:
-                    ax_ts = fig.add_subplot(gs[3+i, :])
-                    try:
+                    if make_timestream_plot:
+                        ax_ts = fig.add_subplot(gs[3+i, :])
                         phase = np.loadtxt(os.path.join(psd_dir,
                             basename + f'_data_ch{ch:03}.txt'))
                         phase -= np.mean(phase)
                         ax_ts.plot(phase, color=color)
-                    except OSError:
-                        self.log(f'No data found for {d} for channel {ch}')
+                except OSError:
+                    self.log(f'No data found for {d} for channel {ch}')
 
             ax0.set_xlabel(r'Freq [Hz]')
             ax0.set_ylabel(r'PSD [$\mathrm{pA}/\sqrt{\mathrm{Hz}}$]')
