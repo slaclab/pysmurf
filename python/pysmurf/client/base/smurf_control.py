@@ -31,14 +31,14 @@ class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin,
     Base class for controlling SMuRF. 
 
     Loads all the mixins.  NEED LONGER DESCRIPTION OF THE SMURF
-    CONTROL CLASS HERE.  Implements the following mixins:
+    CONTROL CLASS HERE.  Inherits from the following mixins:
 
-    - :class: `SmurfCommandMixin` for ??
-    - :class: `SmurfAtcaMonitorMixin` for ??
-    - :class: `SmurfUtilMixin` for ??
-    - :class: `SmurfTuneMixin` for ??
-    - :class: `SmurfNoiseMixin` for ??
-    - :class: `SmurfIVMixin` for ??
+    * :class:`~pysmurf.client.command.smurf_command.SmurfCommandMixin` for WHAT IS THIS MIXIN FOR.
+    * :class:`~pysmurf.client.command.smurf_atca_monitor.SmurfAtcaMonitorMixin` for WHAT IS THIS MIXIN FOR.
+    * :class:`~pysmurf.client.util.smurf_util.SmurfUtilMixin` for WHAT IS THIS MIXIN FOR.
+    * :class:`~pysmurf.client.tune.smurf_tune.SmurfTuneMixin` for WHAT IS THIS MIXIN FOR.
+    * :class:`~pysmurf.client.debug.smurf_noise.SmurfNoiseMixin` for WHAT IS THIS MIXIN FOR.
+    * :class:`~pysmurf.client.debug.smurf_iv.SmurfIVMixin` for WHAT IS THIS MIXIN FOR.
 
     Args
     ----
@@ -73,21 +73,6 @@ class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin,
               'shm-smrf-sp01'
     validate_config : bool, optional, default True
               Whether to check if the input config file is correct.
-
-    Methods
-    -------
-    initialize()
-              Blah blah blah.
-    def setup()
-              Blah blah blah.
-    def make_dir()
-              Blah blah blah.
-    def get_timestamp()
-              Blah blah blah.
-    def add_output()
-              Blah blah blah.
-    def write_output()
-              Blah blah blah.
     '''
 
     def __init__(self, epics_root=None,
