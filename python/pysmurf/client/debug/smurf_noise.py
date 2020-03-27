@@ -872,7 +872,7 @@ class SmurfNoiseMixin(SmurfBase):
         n_row = int(np.ceil(n_bias/2.)*3)
         h_NEI = int(n_row/3)
         w_NEI = 2
-        #h_timestream = 1
+
         w_timestream = w_NEI
         h_NEIwl = h_NEI
         h_NEPwl = h_NEIwl
@@ -910,7 +910,7 @@ class SmurfNoiseMixin(SmurfBase):
             noise_est_list = []
             if est_NEP:
                 NEP_est_list = []
-            for i, (b, d) in enumerate(zip(bias, datafile)):  #HHHHERRREEE
+            for i, (bs, d) in enumerate(zip(bias, datafile)):
                 basename, _ = os.path.splitext(os.path.basename(d))
                 dirname = os.path.dirname(d)
 
