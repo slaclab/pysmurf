@@ -103,12 +103,6 @@ class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin,
         See the SmurfControl class docstring for more details.
         """
 
-        # Each of these maps to a getter and/or setter function
-        # defined in the SmurfControl class.
-        self._pA_per_phi0=None
-        # End internal getter/setter class instance attribute
-        # definitions.
-        
         if not offline and cfg_file is None:
             raise ValueError('Must provide config file.')
         elif cfg_file is not None:
@@ -699,30 +693,3 @@ class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin,
 
         full_path = os.path.join(self.output_dir, output_file)
         self.config.write(full_path)
-        
-    ###############################################################################################
-    # Getter/setter functions.  Docstrings only in getters per
-    # docstring numpy standard.
-    
-    ## pA_per_phi0
-    # Getter
-    @property
-    def pA_per_phi0(self):
-        """Get or set the conversion factor between demodulated phase
-        and TES current.
-        
-        Gets or sets the conversion factor between the demodulated
-        phase for every SMuRF channel and the equivalent TES current.
-        Units are pA per Phi0, with Phi0 the magnetic flux quantum.
-        """
-        return self._pA_per_phi0
-    
-    # Setter
-    @pA_per_phi0.setter
-    def pA_per_phi0(self,value):
-        self._pA_per_phi0=value
-
-    # Deleter
-    @pA_per_phi0.deleter
-    def pA_per_phi0(self):
-        del self._pA_per_phi0
