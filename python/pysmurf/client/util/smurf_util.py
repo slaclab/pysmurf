@@ -1244,28 +1244,36 @@ class SmurfUtilMixin(SmurfBase):
 
 
     def make_mask_lookup(self, mask_file, mask_channel_offset=0,
-                         make_freq_mask=False):
-        """
-        Makes an n_band x n_channel array where the elements correspond
+            make_freq_mask=False):
+        """ Makes an n_band x n_channel array where the elements correspond
         to the smurf_to_mce mask number. In other words, mask[band, channel]
         returns the GCP index in the mask that corresonds to band, channel.
 
-        Args:
-        -----
-        mask_file (str): The full path the a mask file
+        Parameters:
+        -----------
+        mask_file : str
+            The full path the a mask file
+        mask_channel_offset : int
+            Offset to remove from channel numbers in GCP mask file after
+            loading.  Default is 0.
 
-        Opt Args:
-        ---------
-        mask_channel_offset (int) : Offset to remove from channel
-            numbers in GCP mask file after loading.  Default is 0.
-
-        Ret:
-        ----
-        mask_lookup (int array): An array with the GCP numbers.
+        Returns:
+        --------
+        mask_lookup : int array
+            An array with the GCP numbers.
         """
         if hasattr(self, 'config'):
             if self.config.get('smurf_to_mce').get('mask_channel_offset') is not None:
-                mask_channel_offset=int(self.config.get('smurf_to_mce').get('mask_channel_offset'))
+                mask_channel_offset = int(self.config.get('smurf_to_mce').get('mask_channel_offset'))
+
+        # Look for .dat file and replace with mask file
+        if ".dat" in mask_file:
+            self.log("make_mask_lookup received a .dat file. " +
+                "Replacing with mask path.")
+            if ".dat.part" in mask_file:
+                mask_file = mask_file.split(".dat.part")[0] + "_mask.txt"
+            else:
+                mask_file = mask_file.replace(".dat", "._mask.txt")
 
         mask = np.atleast_1d(np.loadtxt(mask_file))
         bands = np.unique(mask // 512).astype(int)
