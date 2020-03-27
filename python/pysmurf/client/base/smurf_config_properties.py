@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 # -----------------------------------------------------------------------------
-# Title : pysmurf smurf_control_properties module -
-#         SmurfControlPropertiesMixin class
+# Title : pysmurf smurf_config_properties module -
+#         SmurfConfigPropertiesMixin class
 # -----------------------------------------------------------------------------
-# File : pysmurf/client/base/smurf_control_properties.py Created : 2020-03-27
+# File : pysmurf/client/base/smurf_config_properties.py Created : 2020-03-27
 # -----------------------------------------------------------------------------
 # This file is part of the pysmurf software package. It is subject to
 # the license terms in the LICENSE.txt file found in the top-level
@@ -13,22 +13,25 @@
 # copied, modified, propagated, or distributed except according to the
 # terms contained in the LICENSE.txt file.
 # -----------------------------------------------------------------------------
-"""Defines the SmurfControlPropertiesMixin class.
+"""Defines the SmurfConfigPropertiesMixin class.
 """
 from pysmurf.client.base import SmurfBase
 
-class SmurfControlPropertiesMixin(SmurfBase):
+class SmurfConfigPropertiesMixin(SmurfBase):
     """Mixin for ???x
     """
-    _pA_per_phi0=None
 
     ###########################################################################
     ## Start pA_per_phi0 property definition
+
+    # Internal attribute 
+    _pA_per_phi0=None
+    
     # Getter
     @property
     def pA_per_phi0(self):
-        """Get or set the conversion factor between demodulated phase
-        and TES current.
+        """Conversion factor between demodulated phase and TES
+        current.
         
         Gets or sets the conversion factor between the demodulated
         phase for every SMuRF channel and the equivalent TES current.

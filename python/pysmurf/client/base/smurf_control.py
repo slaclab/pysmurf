@@ -26,11 +26,11 @@ from pysmurf.client.tune.smurf_tune import SmurfTuneMixin as SmurfTuneMixin
 from pysmurf.client.debug.smurf_noise import SmurfNoiseMixin as SmurfNoiseMixin
 from pysmurf.client.debug.smurf_iv import SmurfIVMixin as SmurfIVMixin
 from pysmurf.client.base.smurf_config import SmurfConfig as SmurfConfig
-from pysmurf.client.base.smurf_control_properties import SmurfControlPropertiesMixin as SmurfControlPropertiesMixin
+from pysmurf.client.base.smurf_config_properties import SmurfConfigPropertiesMixin as SmurfConfigPropertiesMixin
 
 class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin,
         SmurfTuneMixin, SmurfNoiseMixin, SmurfIVMixin,
-        SmurfControlPropertiesMixin):
+        SmurfConfigPropertiesMixin):
     
     """Base class for controlling SMuRF. 
 
@@ -43,7 +43,7 @@ class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin,
     * :class:`~pysmurf.client.tune.smurf_tune.SmurfTuneMixin` for WHAT IS THIS MIXIN FOR.
     * :class:`~pysmurf.client.debug.smurf_noise.SmurfNoiseMixin` for WHAT IS THIS MIXIN FOR.
     * :class:`~pysmurf.client.debug.smurf_iv.SmurfIVMixin` for WHAT IS THIS MIXIN FOR.
-    * :class:`~pysmurf.client.command.smurf_control_properties.SmurfControlPropertiesMixin` for WHAT IS THIS MIXIN FOR.
+    * :class:`~pysmurf.client.command.smurf_config_properties.SmurfConfigPropertiesMixin` for WHAT IS THIS MIXIN FOR.
 
     Args
     ----
