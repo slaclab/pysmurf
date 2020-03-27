@@ -3326,7 +3326,7 @@ class SmurfUtilMixin(SmurfBase):
         flag[0:s[1]] = np.nan
 
         v_bias *= -2 * self._rtm_slow_dac_bit_to_volt  # FBU to V
-        d *= self.pA_per_phi0/(2*np.pi*1.0E6) # Convert to microamp
+        d *= self._pA_per_phi0/(2*np.pi*1.0E6) # Convert to microamp
         i_amp = step_size / self.bias_line_resistance * 1.0E6 # also uA
         i_bias = v_bias[bias_group[0]] / self.bias_line_resistance * 1.0E6
 
@@ -4008,7 +4008,7 @@ class SmurfUtilMixin(SmurfBase):
             m = mm[0]  # extract mask
             m_freq = mm[1]  #frequency mask
             freq_arr = m_freq[np.where(m!=-1)]
-            d *= (self.pA_per_phi0/2/np.pi)  # convert to pA
+            d *= (self._pA_per_phi0/2/np.pi)  # convert to pA
             d = np.transpose(d.T - np.mean(d.T, axis=0))
 
             n_det, n_samp = np.shape(d)

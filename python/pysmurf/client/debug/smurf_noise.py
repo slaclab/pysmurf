@@ -101,7 +101,7 @@ class SmurfNoiseMixin(SmurfBase):
         timestamp, phase, mask = self.read_stream_data(datafile)
         bands, channels = np.where(mask!=-1)
 
-        phase *= self.pA_per_phi0/(2.*np.pi) # phase converted to pA
+        phase *= self._pA_per_phi0/(2.*np.pi) # phase converted to pA
 
         flux_ramp_freq = self.get_flux_ramp_freq() * 1.0E3
 
@@ -843,7 +843,7 @@ class SmurfNoiseMixin(SmurfBase):
         for i, (b, d) in enumerate(zip(bias, datafile)):
             timestream_dict[b] = {}
             timestamp, phase, mask = self.read_stream_data(d)
-            phase *= self.pA_per_phi0/(2.*np.pi) # phase converted to pA
+            phase *= self._pA_per_phi0/(2.*np.pi) # phase converted to pA
 
             basename, _ = os.path.splitext(os.path.basename(d))
             dirname = os.path.dirname(d)
@@ -1397,14 +1397,14 @@ class SmurfNoiseMixin(SmurfBase):
         all_dir = ret.pop('all')
 
         t, d, m = self.read_stream_data(all_dir)
-        d *= self.pA_per_phi0/(2*np.pi)  # convert to pA
+        d *= self._pA_per_phi0/(2*np.pi)  # convert to pA
 
         wl_diff = np.zeros(len(keys))
 
         for i, k in enumerate(ret.keys()):
             self.log('{} : {}'.format(k, ret[k]))
             tc, dc, mc = self.read_stream_data(ret[k])
-            dc *= self.pA_per_phi0/(2*np.pi)
+            dc *= self._pA_per_phi0/(2*np.pi)
             band, channel = np.where(mc != -1)  # there should be only one
 
             ch_idx = m[band, channel][0]
@@ -1538,7 +1538,7 @@ class SmurfNoiseMixin(SmurfBase):
         # Analyze data and save
         for i, (b, d) in enumerate(zip(tone, datafile)):
             timestamp, phase, mask = self.read_stream_data(d)
-            phase *= self.pA_per_phi0/(2.*np.pi) # phase converted to pA
+            phase *= self._pA_per_phi0/(2.*np.pi) # phase converted to pA
 
             basename, _ = os.path.splitext(os.path.basename(d))
             dirname = os.path.dirname(d)

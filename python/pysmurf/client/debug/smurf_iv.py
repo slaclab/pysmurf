@@ -562,7 +562,7 @@ class SmurfIVMixin(SmurfBase):
             R_sh = self.R_sh
 
         if pA_per_phi0 is None:
-            pA_per_phi0 = self.pA_per_phi0
+            pA_per_phi0 = self._pA_per_phi0
         resp *= pA_per_phi0/(2.*np.pi*1e6) # convert phase to uA
 
         step_loc = np.where(np.diff(v_bias))[0]

@@ -26,9 +26,12 @@ from pysmurf.client.tune.smurf_tune import SmurfTuneMixin as SmurfTuneMixin
 from pysmurf.client.debug.smurf_noise import SmurfNoiseMixin as SmurfNoiseMixin
 from pysmurf.client.debug.smurf_iv import SmurfIVMixin as SmurfIVMixin
 from pysmurf.client.base.smurf_config import SmurfConfig as SmurfConfig
+from pysmurf.client.base.smurf_control_properties import SmurfControlPropertiesMixin as SmurfControlPropertiesMixin
 
 class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin,
-        SmurfTuneMixin, SmurfNoiseMixin, SmurfIVMixin):
+        SmurfTuneMixin, SmurfNoiseMixin, SmurfIVMixin,
+        SmurfControlPropertiesMixin):
+    
     """Base class for controlling SMuRF. 
 
     Loads all the mixins.  NEED LONGER DESCRIPTION OF THE SMURF
@@ -40,6 +43,7 @@ class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin,
     * :class:`~pysmurf.client.tune.smurf_tune.SmurfTuneMixin` for WHAT IS THIS MIXIN FOR.
     * :class:`~pysmurf.client.debug.smurf_noise.SmurfNoiseMixin` for WHAT IS THIS MIXIN FOR.
     * :class:`~pysmurf.client.debug.smurf_iv.SmurfIVMixin` for WHAT IS THIS MIXIN FOR.
+    * :class:`~pysmurf.client.command.smurf_control_properties.SmurfControlPropertiesMixin` for WHAT IS THIS MIXIN FOR.
 
     Args
     ----
@@ -231,7 +235,7 @@ class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin,
 
         # Useful constants
         constant_cfg = self.config.get('constant')
-        self.pA_per_phi0 = constant_cfg.get('pA_per_phi0')
+        self._pA_per_phi0 = constant_cfg.get('pA_per_phi0')
 
         # Mapping from attenuator numbers to bands
         att_cfg = self.config.get('attenuator')

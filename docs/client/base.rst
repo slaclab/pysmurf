@@ -27,3 +27,8 @@ smurf_control
 -------------
 .. automodule:: pysmurf.client.base.smurf_control
     :members:
+
+smurf_control_properties
+------------------------
+.. automodule:: pysmurf.client.base.smurf_control_properties
+    :members:
