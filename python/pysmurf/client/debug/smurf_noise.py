@@ -376,6 +376,7 @@ class SmurfNoiseMixin(SmurfBase):
 
         # Take data
         datafiles = np.array([])
+        channel = np.array([])
         for i, t in enumerate(tones):
             self.log('Measuring for tone power {}'.format(t))
 
@@ -386,6 +387,9 @@ class SmurfNoiseMixin(SmurfBase):
 
             # all further tunings do not make new assignemnt
             new_master_assignment = False
+
+            # Append list of channels that are on
+            channel = np.unique(np.append(channel, self.which_on(band)))
 
             # Start tracking
             self.tracking_setup(band, fraction_full_scale=fraction_full_scale,
@@ -419,8 +423,9 @@ class SmurfNoiseMixin(SmurfBase):
 
         if analyze:
             self.analyze_noise_vs_tone(tone_save, datafile_save, band=band,
-                bias_group=bias_group, fs=fs,
-                make_timestream_plot=make_timestream_plot)
+                channel=channel, bias_group=bias_group, fs=fs,
+                make_timestream_plot=make_timestream_plot,
+                data_timestamp=timestamp)
 
 
     def noise_vs_bias(self, band, bias_group,bias_high=1.5, bias_low=0.,
@@ -1515,6 +1520,7 @@ class SmurfNoiseMixin(SmurfBase):
             channel = np.arange(n_channel)
         elif band is not None and channel is None:
             channel = self.which_on(band)
+        channel = channel.astype(int)
 
         if fs is None:
             fs = self.fs
@@ -1539,7 +1545,9 @@ class SmurfNoiseMixin(SmurfBase):
             psd_dir = os.path.join(dirname, 'psd')
             self.make_dir(psd_dir)
 
-            for ch in channel:
+            # loop over all channels that are on in this data acq
+            _, chs = np.where(mask!=-1)
+            for ch in chs:
                 ch_idx = mask[band, ch]
                 f, Pxx = signal.welch(phase[ch_idx], nperseg=nperseg,
                     fs=fs, detrend=detrend)
@@ -1587,62 +1595,66 @@ class SmurfNoiseMixin(SmurfBase):
                 self.log(os.path.join(psd_dir, basename +
                     '_psd_ch{:03}.txt'.format(ch)))
 
-                # Load the PSD data
-                f, Pxx =  np.loadtxt(os.path.join(psd_dir, basename +
-                    '_psd_ch{:03}.txt'.format(ch)))
+                # Catch when there is no file
+                try:
+                    # Load the PSD data
+                    f, Pxx =  np.loadtxt(os.path.join(psd_dir, basename +
+                        '_psd_ch{:03}.txt'.format(ch)))
 
-                # smooth Pxx for plotting
-                if smooth_len >= 3:
-                    window_len = smooth_len
-                    self.log(f'Smoothing PSDs for plotting with window of '+
-                        f'length {window_len}')
-                    s = np.r_[Pxx[window_len-1:0:-1],Pxx,Pxx[-2:-window_len-1:-1]]
-                    w = np.hanning(window_len)
-                    Pxx_smooth_ext = np.convolve(w/w.sum(), s, mode='valid')
-                    ndx_add = window_len % 2
-                    Pxx_smooth = Pxx_smooth_ext[(window_len//2)-1+ndx_add:-(window_len//2)]
-                else:
-                    self.log('No smoothing of PSDs for plotting.')
-                    Pxx_smooth = Pxx
+                    # smooth Pxx for plotting
+                    if smooth_len >= 3:
+                        window_len = smooth_len
+                        # self.log(f'Smoothing PSDs for plotting with window of '+
+                        #     f'length {window_len}')
+                        s = np.r_[Pxx[window_len-1:0:-1],Pxx,Pxx[-2:-window_len-1:-1]]
+                        w = np.hanning(window_len)
+                        Pxx_smooth_ext = np.convolve(w/w.sum(), s, mode='valid')
+                        ndx_add = window_len % 2
+                        Pxx_smooth = Pxx_smooth_ext[(window_len//2)-1+ndx_add:-(window_len//2)]
+                    else:
+                        # self.log('No smoothing of PSDs for plotting.')
+                        Pxx_smooth = Pxx
 
-                color = cm(float(i)/len(tone))
-                ax0.plot(f, Pxx_smooth, color=color, label=f'{b}')
-                ax0.set_xlim(min(f[1:]),max(f[1:]))
-                ax0.set_ylim(psd_ylim)
+                    color = cm(float(i)/len(tone))
+                    ax0.plot(f, Pxx_smooth, color=color, label=f'{b}')
+                    ax0.set_xlim(min(f[1:]),max(f[1:]))
+                    ax0.set_ylim(psd_ylim)
 
-                # fit to noise model; catch error if fit is bad
-                popt, pcov, f_fit, Pxx_fit = self.analyze_psd(f,Pxx)
-                wl, n, f_knee = popt
-                self.log(f'ch. {ch}, tone power = {b}' +
-                         f', white-noise level = {wl:.2f}' +
-                         f' pA/rtHz, n = {n:.2f}' +
-                         f', f_knee = {f_knee:.2f} Hz')
+                    # fit to noise model; catch error if fit is bad
+                    popt, pcov, f_fit, Pxx_fit = self.analyze_psd(f,Pxx)
+                    wl, n, f_knee = popt
+                    # self.log(f'ch. {ch}, tone power = {b}' +
+                    #          f', white-noise level = {wl:.2f}' +
+                    #          f' pA/rtHz, n = {n:.2f}' +
+                    #          f', f_knee = {f_knee:.2f} Hz')
 
-                # get noise estimate to summarize PSD for given bias
-                if freq_range_summary is not None:
-                    freq_min,freq_max = freq_range_summary
-                    noise_est = np.mean(Pxx[np.logical_and(f>=freq_min,f<=freq_max)])
-                    self.log(f'ch. {ch}, tone = {b}' +
-                             f', mean noise between {freq_min:.3e} and ' +
-                             f'{freq_max:.3e} Hz = {noise_est:.2f} pA/rtHz')
-                else:
-                    noise_est = wl
-                noise_est_list.append(noise_est)
+                    # get noise estimate to summarize PSD for given bias
+                    if freq_range_summary is not None:
+                        freq_min,freq_max = freq_range_summary
+                        noise_est = np.mean(Pxx[np.logical_and(f>=freq_min,f<=freq_max)])
+                        # self.log(f'ch. {ch}, tone = {b}' +
+                        #          f', mean noise between {freq_min:.3e} and ' +
+                        #          f'{freq_max:.3e} Hz = {noise_est:.2f} pA/rtHz')
+                    else:
+                        noise_est = wl
+                    noise_est_list.append(noise_est)
 
-                ax0.plot(f_fit, Pxx_fit, color=color, linestyle='--')
-                ax0.plot(f, wl + np.zeros(len(f)), color=color,
-                        linestyle=':')
-                ax0.plot(f_knee,2.*wl,marker = 'o', linestyle='none',
-                        color=color)
+                    ax0.plot(f_fit, Pxx_fit, color=color, linestyle='--')
+                    ax0.plot(f, wl + np.zeros(len(f)), color=color,
+                            linestyle=':')
+                    ax0.plot(f_knee,2.*wl,marker = 'o', linestyle='none',
+                            color=color)
 
-                ax1.plot(b, wl, color=color, marker='s', linestyle='none')
+                    ax1.plot(b, wl, color=color, marker='s', linestyle='none')
 
-                if make_timestream_plot:
-                    ax_ts = fig.add_subplot(gs[3+i, :])
-                    phase = np.loadtxt(os.path.join(psd_dir,
-                        basename + f'_data_ch{ch:03}.txt'))
-                    phase -= np.mean(phase)
-                    ax_ts.plot(phase, color=color)
+                    if make_timestream_plot:
+                        ax_ts = fig.add_subplot(gs[3+i, :])
+                        phase = np.loadtxt(os.path.join(psd_dir,
+                            basename + f'_data_ch{ch:03}.txt'))
+                        phase -= np.mean(phase)
+                        ax_ts.plot(phase, color=color)
+                except OSError:
+                    self.log(f'No data found for {d} for channel {ch}')
 
             ax0.set_xlabel(r'Freq [Hz]')
             ax0.set_ylabel(r'PSD [$\mathrm{pA}/\sqrt{\mathrm{Hz}}$]')
@@ -1660,13 +1672,15 @@ class SmurfNoiseMixin(SmurfBase):
             ax1.set_ylabel(f'{ylabel_summary} ' +
                 r'[$\mathrm{pA}/\sqrt{\mathrm{Hz}}$]')
 
-            bottom = max(0.95*min(noise_est_list),0.)
-            top_desired = 1.05*max(noise_est_list)
-            if psd_ylim is not None:
-                top = min(psd_ylim[1],top_desired)
-            else:
-                top = top_desired
-            ax1.set_ylim(bottom=bottom, top=top)
+            # Set the ylim based on the white noise values found
+            if len(noise_est_list) > 0:
+                bottom = max(0.95*min(noise_est_list), 0.)
+                top_desired = 1.05*max(noise_est_list)
+                if psd_ylim is not None:
+                    top = min(psd_ylim[1], top_desired)
+                else:
+                    top = top_desired
+                ax1.set_ylim(bottom=bottom, top=top)
             ax1.grid()
 
             if type(bias_group) is not int: # ie if there were more than one
@@ -1695,13 +1709,11 @@ class SmurfNoiseMixin(SmurfBase):
                 else:
                     plot_name = f'{self.get_timestamp()}_' + plot_name
                 plot_fn = os.path.join(self.plot_dir, plot_name)
+
                 self.log(f'Saving plot to {plot_fn}')
                 plt.savefig(plot_fn,
                     bbox_inches='tight')
                 plt.close()
-
-            del f
-            del Pxx
 
 
 
