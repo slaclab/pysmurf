@@ -1603,15 +1603,15 @@ class SmurfNoiseMixin(SmurfBase):
                     # smooth Pxx for plotting
                     if smooth_len >= 3:
                         window_len = smooth_len
-                        self.log(f'Smoothing PSDs for plotting with window of '+
-                            f'length {window_len}')
+                        # self.log(f'Smoothing PSDs for plotting with window of '+
+                        #     f'length {window_len}')
                         s = np.r_[Pxx[window_len-1:0:-1],Pxx,Pxx[-2:-window_len-1:-1]]
                         w = np.hanning(window_len)
                         Pxx_smooth_ext = np.convolve(w/w.sum(), s, mode='valid')
                         ndx_add = window_len % 2
                         Pxx_smooth = Pxx_smooth_ext[(window_len//2)-1+ndx_add:-(window_len//2)]
                     else:
-                        self.log('No smoothing of PSDs for plotting.')
+                        # self.log('No smoothing of PSDs for plotting.')
                         Pxx_smooth = Pxx
 
                     color = cm(float(i)/len(tone))
@@ -1622,18 +1622,18 @@ class SmurfNoiseMixin(SmurfBase):
                     # fit to noise model; catch error if fit is bad
                     popt, pcov, f_fit, Pxx_fit = self.analyze_psd(f,Pxx)
                     wl, n, f_knee = popt
-                    self.log(f'ch. {ch}, tone power = {b}' +
-                             f', white-noise level = {wl:.2f}' +
-                             f' pA/rtHz, n = {n:.2f}' +
-                             f', f_knee = {f_knee:.2f} Hz')
+                    # self.log(f'ch. {ch}, tone power = {b}' +
+                    #          f', white-noise level = {wl:.2f}' +
+                    #          f' pA/rtHz, n = {n:.2f}' +
+                    #          f', f_knee = {f_knee:.2f} Hz')
 
                     # get noise estimate to summarize PSD for given bias
                     if freq_range_summary is not None:
                         freq_min,freq_max = freq_range_summary
                         noise_est = np.mean(Pxx[np.logical_and(f>=freq_min,f<=freq_max)])
-                        self.log(f'ch. {ch}, tone = {b}' +
-                                 f', mean noise between {freq_min:.3e} and ' +
-                                 f'{freq_max:.3e} Hz = {noise_est:.2f} pA/rtHz')
+                        # self.log(f'ch. {ch}, tone = {b}' +
+                        #          f', mean noise between {freq_min:.3e} and ' +
+                        #          f'{freq_max:.3e} Hz = {noise_est:.2f} pA/rtHz')
                     else:
                         noise_est = wl
                     noise_est_list.append(noise_est)
@@ -1708,6 +1708,7 @@ class SmurfNoiseMixin(SmurfBase):
                 else:
                     plot_name = f'{self.get_timestamp()}_' + plot_name
                 plot_fn = os.path.join(self.plot_dir, plot_name)
+
                 self.log(f'Saving plot to {plot_fn}')
                 plt.savefig(plot_fn,
                     bbox_inches='tight')
