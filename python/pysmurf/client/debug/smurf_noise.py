@@ -1520,6 +1520,7 @@ class SmurfNoiseMixin(SmurfBase):
             channel = np.arange(n_channel)
         elif band is not None and channel is None:
             channel = self.which_on(band)
+        channel = channel.astype(int)
 
         if fs is None:
             fs = self.fs
