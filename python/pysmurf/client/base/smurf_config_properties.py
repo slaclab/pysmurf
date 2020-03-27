@@ -15,18 +15,17 @@
 # -----------------------------------------------------------------------------
 """Defines the SmurfConfigPropertiesMixin class.
 """
-from pysmurf.client.base import SmurfBase
 
-class SmurfConfigPropertiesMixin(SmurfBase):
+class SmurfConfigPropertiesMixin:
     """Mixin for ???x
     """
 
+    def __init__(self, *args, **kwargs):
+        self._pA_per_phi0=None
+    
     ###########################################################################
     ## Start pA_per_phi0 property definition
 
-    # Internal attribute 
-    _pA_per_phi0=None
-    
     # Getter
     @property
     def pA_per_phi0(self):
@@ -44,10 +43,6 @@ class SmurfConfigPropertiesMixin(SmurfBase):
     def pA_per_phi0(self,value):
         self._pA_per_phi0=value
 
-    # Deleter
-    @pA_per_phi0.deleter
-    def pA_per_phi0(self):
-        del self._pA_per_phi0
     ## End pA_per_phi0 property definition
     ###########################################################################
         

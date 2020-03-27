@@ -28,8 +28,9 @@ from pysmurf.client.debug.smurf_iv import SmurfIVMixin as SmurfIVMixin
 from pysmurf.client.base.smurf_config import SmurfConfig as SmurfConfig
 from pysmurf.client.base.smurf_config_properties import SmurfConfigPropertiesMixin as SmurfConfigPropertiesMixin
 
-class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin,
-        SmurfTuneMixin, SmurfNoiseMixin, SmurfIVMixin,
+class SmurfControl(SmurfCommandMixin,
+        SmurfAtcaMonitorMixin, SmurfUtilMixin, SmurfTuneMixin,
+        SmurfNoiseMixin, SmurfIVMixin,
         SmurfConfigPropertiesMixin):
     
     """Base class for controlling SMuRF. 
@@ -80,7 +81,8 @@ class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin,
               Whether to check if the input config file is correct.
     **kwargs
               These parameters will be passed to the pysmurf
-              :func:`~SmurfControl.initialize` routine.
+              :func:`~SmurfControl.initialize` routine.  AND TO MIXIN
+              AND OTHER INHERITED CLASS CONSTRUCTORS.
 
     Attributes
     ----------
