@@ -29,8 +29,7 @@ from pysmurf.client.base.smurf_config import SmurfConfig as SmurfConfig
 
 class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin,
         SmurfTuneMixin, SmurfNoiseMixin, SmurfIVMixin):
-    '''
-    Base class for controlling SMuRF. 
+    '''Base class for controlling SMuRF. 
 
     Loads all the mixins.  NEED LONGER DESCRIPTION OF THE SMURF
     CONTROL CLASS HERE.  Inherits from the following mixins:
@@ -94,8 +93,7 @@ class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin,
                  setup=False, offline=False, smurf_cmd_mode=False,
                  no_dir=False, shelf_manager='shm-smrf-sp01',
                  validate_config=True, **kwargs):
-        '''
-        The constructor for the SmurfControl class.
+        '''Constructor for the SmurfControl class.
 
         See the SmurfControl class docstring for more details.
         '''
@@ -127,9 +125,7 @@ class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin,
                    make_logfile=True, setup=False,
                    smurf_cmd_mode=False, no_dir=False, publish=False,
                    payload_size=2048, **kwargs):
-        '''
-        Initizializes SMuRF with desired parameters set in
-        experiment.cfg.
+        '''Initializes SMuRF system.
 
         Longer description of initialize routine here.
 
@@ -162,6 +158,7 @@ class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin,
         See Also
         --------
         setup
+
         '''
         if no_dir:
             print('Warning! Not making output directories!' +
@@ -384,8 +381,7 @@ class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin,
         self.config.update('outputs', {})
 
     def setup(self, write_log=True, payload_size=2048, **kwargs):
-        '''
-        Sets the PVs to the default values from the experiment.cfg file
+        '''Sets the PVs to the default values in the experiment.cfg.
 
         NEED LONGER DESCRIPTION OF SETUP MEMBER FUNCTION HERE.
 
@@ -395,6 +391,7 @@ class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin,
               Whether to write to the log file.
         payload_size : int, optional, default 2048
               The starting size of the payload.
+
         '''
         self.log('Setting up...', (self.LOG_USER))
 
@@ -612,9 +609,7 @@ class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin,
             self.resume_hardware_logging()
 
     def make_dir(self, directory):
-        '''
-        Creates a directory on the file system if it doesn't already
-        exist.
+        '''Create directory on file system at the specified path.
 
         Checks if a directory exists on the file system.  If directory
         does not already exist on the file system, creates it.
@@ -631,8 +626,7 @@ class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin,
 
 
     def get_timestamp(self, as_int=False):
-        '''
-        Gets the current unix time timestamp.
+        '''Gets the current unix time timestamp.
 
         Gets the number of seconds that have elapsed since the Unix
         epoch, that is the time 00:00:00 UTC on 1 January 1970, minus
@@ -657,10 +651,8 @@ class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin,
         else:
             return t
 
-
     def add_output(self, key, val):
-        '''
-        Add a key to the output config.
+        '''Adds key/value pair to pysmurf configuration dictionary.
 
         NEED LONGER DESCRIPTION OF ADD OUTPUT MEMBER FUNCTION HERE.
 
@@ -675,8 +667,7 @@ class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin,
 
 
     def write_output(self, filename=None):
-        '''
-        SHORT DESCRIPTION OF WRITE_OUTPUT MEMBER FUNCTION
+        '''Writes internal pysmurf configuration to disk.
 
         Dump the current configuration to a file. This wraps around the config
         file writing in the config object. Files are timestamped and dumped to
