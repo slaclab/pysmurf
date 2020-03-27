@@ -82,34 +82,6 @@ class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin,
     ----------
     config : :class:`pysmurf.client.base.smurf_config.SmurfConfig`
               PUT DESCRIPTION OF THIS CLASS INSTANCE ATTRIBUTE HERE.
-    shelf_manager : str
-              Shelf manager ip or network name.
-    epics_root :  str
-              PUT DESCRIPTION OF THIS CLASS INSTANCE ATTRIBUTE HERE.
-    crate_id : TYPE?
-              PUT DESCRIPTION OF THIS CLASS INSTANCE ATTRIBUTE HERE.
-    slot_number : TYPE?
-              PUT DESCRIPTION OF THIS CLASS INSTANCE ATTRIBUTE HERE.
-    data_dir : TYPE?
-              PUT DESCRIPTION OF THIS CLASS INSTANCE ATTRIBUTE HERE.
-    base_dir : TYPE?
-              PUT DESCRIPTION OF THIS CLASS INSTANCE ATTRIBUTE HERE.
-    output_dir : TYPE?
-              PUT DESCRIPTION OF THIS CLASS INSTANCE ATTRIBUTE HERE.
-    tune_dir : TYPE?
-              PUT DESCRIPTION OF THIS CLASS INSTANCE ATTRIBUTE HERE.
-    plot_dir : TYPE?
-              PUT DESCRIPTION OF THIS CLASS INSTANCE ATTRIBUTE HERE.
-    status_dir : TYPE?
-              PUT DESCRIPTION OF THIS CLASS INSTANCE ATTRIBUTE HERE.
-    log_file : TYPE?
-              PUT DESCRIPTION OF THIS CLASS INSTANCE ATTRIBUTE HERE.
-    date : TYPE?
-              PUT DESCRIPTION OF THIS CLASS INSTANCE ATTRIBUTE HERE.
-    start_time : TYPE?
-              PUT DESCRIPTION OF THIS CLASS INSTANCE ATTRIBUTE HERE.
-    name : TYPE?
-              PUT DESCRIPTION OF THIS CLASS INSTANCE ATTRIBUTE HERE.
 
     Raises
     ------
@@ -131,9 +103,11 @@ class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin,
         See the SmurfControl class docstring for more details.
         """
 
-        # private class instance attributes
+        # Each of these maps to a getter and/or setter function
+        # defined in the SmurfControl class.
         self._pA_per_phi0=None
-        # end private class instance attributes
+        # End internal getter/setter class instance attribute
+        # definitions.
         
         if not offline and cfg_file is None:
             raise ValueError('Must provide config file.')
@@ -730,13 +704,17 @@ class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin,
     # Getter/setter functions.  Docstrings only in getters per
     # docstring numpy standard.
     
-    ##
     ## pA_per_phi0
-    #
     # Getter
     @property
     def pA_per_phi0(self):
-        """pA_per_phi0 docstring."""
+        """Get or set the conversion factor between demodulated phase
+        and TES current.
+        
+        Gets or sets the conversion factor between the demodulated
+        phase for every SMuRF channel and the equivalent TES current.
+        Units are pA per Phi0, with Phi0 the magnetic flux quantum.
+        """
         return self._pA_per_phi0
     
     # Setter
@@ -748,5 +726,3 @@ class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin,
     @pA_per_phi0.deleter
     def pA_per_phi0(self):
         del self._pA_per_phi0
-        
-    
