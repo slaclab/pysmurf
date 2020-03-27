@@ -1671,13 +1671,15 @@ class SmurfNoiseMixin(SmurfBase):
             ax1.set_ylabel(f'{ylabel_summary} ' +
                 r'[$\mathrm{pA}/\sqrt{\mathrm{Hz}}$]')
 
-            bottom = max(0.95*min(noise_est_list),0.)
-            top_desired = 1.05*max(noise_est_list)
-            if psd_ylim is not None:
-                top = min(psd_ylim[1],top_desired)
-            else:
-                top = top_desired
-            ax1.set_ylim(bottom=bottom, top=top)
+            # Set the ylim based on the white noise values found
+            if len(noise_est_list) > 0:
+                bottom = max(0.95*min(noise_est_list), 0.)
+                top_desired = 1.05*max(noise_est_list)
+                if psd_ylim is not None:
+                    top = min(psd_ylim[1], top_desired)
+                else:
+                    top = top_desired
+                ax1.set_ylim(bottom=bottom, top=top)
             ax1.grid()
 
             if type(bias_group) is not int: # ie if there were more than one
