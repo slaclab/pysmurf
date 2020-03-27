@@ -80,12 +80,36 @@ class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin,
 
     Attributes
     ----------
-    config : `SmurfConfig`
-              Test
+    config : :class:`pysmurf.client.base.smurf_config.SmurfConfig`
+              PUT DESCRIPTION OF THIS CLASS INSTANCE ATTRIBUTE HERE.
     shelf_manager : str
               Shelf manager ip or network name.
     epics_root :  str
-              Test
+              PUT DESCRIPTION OF THIS CLASS INSTANCE ATTRIBUTE HERE.
+    crate_id : TYPE?
+              PUT DESCRIPTION OF THIS CLASS INSTANCE ATTRIBUTE HERE.
+    slot_number : TYPE?
+              PUT DESCRIPTION OF THIS CLASS INSTANCE ATTRIBUTE HERE.
+    data_dir : TYPE?
+              PUT DESCRIPTION OF THIS CLASS INSTANCE ATTRIBUTE HERE.
+    base_dir : TYPE?
+              PUT DESCRIPTION OF THIS CLASS INSTANCE ATTRIBUTE HERE.
+    output_dir : TYPE?
+              PUT DESCRIPTION OF THIS CLASS INSTANCE ATTRIBUTE HERE.
+    tune_dir : TYPE?
+              PUT DESCRIPTION OF THIS CLASS INSTANCE ATTRIBUTE HERE.
+    plot_dir : TYPE?
+              PUT DESCRIPTION OF THIS CLASS INSTANCE ATTRIBUTE HERE.
+    status_dir : TYPE?
+              PUT DESCRIPTION OF THIS CLASS INSTANCE ATTRIBUTE HERE.
+    log_file : TYPE?
+              PUT DESCRIPTION OF THIS CLASS INSTANCE ATTRIBUTE HERE.
+    date : TYPE?
+              PUT DESCRIPTION OF THIS CLASS INSTANCE ATTRIBUTE HERE.
+    start_time : TYPE?
+              PUT DESCRIPTION OF THIS CLASS INSTANCE ATTRIBUTE HERE.
+    name : TYPE?
+              PUT DESCRIPTION OF THIS CLASS INSTANCE ATTRIBUTE HERE.
 
     Raises
     ------
@@ -106,6 +130,11 @@ class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin,
 
         See the SmurfControl class docstring for more details.
         """
+
+        # private class instance attributes
+        self._pA_per_phi0=None
+        # end private class instance attributes
+        
         if not offline and cfg_file is None:
             raise ValueError('Must provide config file.')
         elif cfg_file is not None:
@@ -696,3 +725,28 @@ class SmurfControl(SmurfCommandMixin, SmurfAtcaMonitorMixin, SmurfUtilMixin,
 
         full_path = os.path.join(self.output_dir, output_file)
         self.config.write(full_path)
+        
+    ###############################################################################################
+    # Getter/setter functions.  Docstrings only in getters per
+    # docstring numpy standard.
+    
+    ##
+    ## pA_per_phi0
+    #
+    # Getter
+    @property
+    def pA_per_phi0(self):
+        """pA_per_phi0 docstring."""
+        return self._pA_per_phi0
+    
+    # Setter
+    @pA_per_phi0.setter
+    def pA_per_phi0(self,value):
+        self._pA_per_phi0=value
+
+    # Deleter
+    @pA_per_phi0.deleter
+    def pA_per_phi0(self):
+        del self._pA_per_phi0
+        
+    
