@@ -1713,9 +1713,6 @@ class SmurfNoiseMixin(SmurfBase):
                     bbox_inches='tight')
                 plt.close()
 
-            del f
-            del Pxx
-
 
 
     def noise_svd(self, d, mask, mean_subtract=True):
