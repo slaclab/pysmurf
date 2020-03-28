@@ -847,7 +847,7 @@ class SmurfNoiseMixin(SmurfBase):
             self.make_dir(psd_dir)
 
             for b, ch in zip(band, channel):
-                ch_idx = mask[b ch]
+                ch_idx = mask[b, ch]
                 phase_ch = phase[ch_idx]
                 timestream_dict[bs][b][ch] = phase_ch
                 f, Pxx = signal.welch(phase_ch, nperseg=nperseg,
@@ -937,7 +937,7 @@ class SmurfNoiseMixin(SmurfBase):
 
                 color = cm(float(i)/len(bias))
 
-                label_bias = 'f{bs:.2f} {unit}'
+                label_bias = f'{bs:.2f} {unit}'
                 ax_NEI.plot(f, Pxx_smooth, color=color, label=label_bias)
                 ax_NEI.set_xlim(min(f[1:]), max(f[1:]))
                 ax_NEI.set_ylim(psd_ylim)
@@ -958,7 +958,7 @@ class SmurfNoiseMixin(SmurfBase):
                     ax_i.set_ylabel('Phase [pA]')
 
                 # fit to noise model; catch error if fit is bad
-                popt, pcov, f_fit, Pxx_fit = self.analyze_psd(f,Pxx)
+                popt, pcov, f_fit, Pxx_fit = self.analyze_psd(f, Pxx)
                 wl, n, f_knee = popt
                 self.log(f'ch. {ch}, bias = {bs:.2f}' +
                          f', white-noise level = {wl:.2f}' +
@@ -970,7 +970,7 @@ class SmurfNoiseMixin(SmurfBase):
                     freq_min,freq_max = freq_range_summary
                     idxs_est = np.logical_and(f>=freq_min,f<=freq_max)
                     noise_est = np.mean(Pxx[idxs_est])
-                    self.log(f'ch. {ch}, bias = {bs.2f}' +
+                    self.log(f'ch. {ch}, bias = {bs:.2f}' +
                              ', mean current noise between ' +
                              f'{freq_min:.3e} and {freq_max:.3e} Hz ' +
                              f'= {noise_est:.2f} pA/rtHz')
@@ -1027,7 +1027,10 @@ class SmurfNoiseMixin(SmurfBase):
             ax_NEI.set_yscale('log')
             if show_legend:
                 ax_NEI.legend(loc = 'upper right')
-            res_freq = self.channel_to_freq(band, ch)
+            if not self.offline:
+                res_freq = self.channel_to_freq(band, ch)
+            else:
+                res_freq = -1
 
             xrange_bias = max(bias) - min(bias)
             xbuffer_bias = xrange_bias/20.
@@ -1112,7 +1115,7 @@ class SmurfNoiseMixin(SmurfBase):
 
             # Title and layout
             fig.suptitle(basename +
-                f' Band {band}, Group {fig_title_string}' +
+                f' Band {np.unique(band)}, Group {fig_title_string}' +
                 f' Channel {ch:03} - {res_freq:.2f} MHz')
             plt.tight_layout()
 
@@ -1191,7 +1194,7 @@ class SmurfNoiseMixin(SmurfBase):
             r' [$\mathrm{pA}/\sqrt{\mathrm{Hz}}$]')
         plt.ylim(10**bin_min, 10**bin_max)
         plt.title(basename +
-            ': Band {}, Group {}, {} channels'.format(band,
+            ': Band {}, Group {}, {} channels'.format(np.unique(band),
                 fig_title_string.strip(','),n_analyzed))
         xtick_labels = []
         for bs in bias:
@@ -1244,7 +1247,7 @@ class SmurfNoiseMixin(SmurfBase):
                 r' [$\mathrm{aW}/\sqrt{\mathrm{Hz}}$]')
             plt.ylim(10**bin_NEP_min,10**bin_NEP_max)
             plt.title(basename +
-                ': Band {}, Group {}, {} channels'.format(band,
+                ': Band {}, Group {}, {} channels'.format(np.unique(band),
                     fig_title_string.strip(','), n_analyzed))
             plt.xticks(xtick_locs,xtick_labels)
             plt.xlabel('Commanded bias voltage [V]')
@@ -1265,8 +1268,8 @@ class SmurfNoiseMixin(SmurfBase):
                 plt.close()
 
 
-    def analyze_psd(self, f, Pxx, fs=None, flux_ramp_freq=None,
-                    p0=[100.,0.5,0.01]):
+    def analyze_psd(self, f, Pxx, fs=None, p0=[100.,0.5,0.01],
+            flux_ramp_freq=None):
         '''
         Return model fit for a PSD.
         p0 (float array): initial guesses for model fitting: [white-noise level
@@ -1296,10 +1299,10 @@ class SmurfNoiseMixin(SmurfBase):
         a = self.get_filter_a()
 
         if flux_ramp_freq is None:
-            flux_ramp_freq = self.get_flux_ramp_freq()*1.0E3
+            flux_ramp_freq = self.get_flux_ramp_freq()
 
         if fs is None:
-            fs = flux_ramp_freq/self.get_downsample_factor()
+            fs = self.get_sample_frequency()
 
         def noise_model(freq, wl, n, f_knee):
             '''
@@ -1322,7 +1325,7 @@ class SmurfNoiseMixin(SmurfBase):
 
         try:
             popt, pcov = optimize.curve_fit(noise_model, f[1:], Pxx[1:],
-                                            p0=p0,bounds=bounds)
+                                            p0=p0, bounds=bounds)
         except Exception:
             wl = np.mean(Pxx[1:])
             self.log('Unable to fit noise model. ' +

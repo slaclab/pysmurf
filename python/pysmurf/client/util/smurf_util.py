@@ -1273,7 +1273,7 @@ class SmurfUtilMixin(SmurfBase):
             if ".dat.part" in mask_file:
                 mask_file = mask_file.split(".dat.part")[0] + "_mask.txt"
             else:
-                mask_file = mask_file.replace(".dat", "._mask.txt")
+                mask_file = mask_file.replace(".dat", "_mask.txt")
 
         mask = np.atleast_1d(np.loadtxt(mask_file))
         bands = np.unique(mask // 512).astype(int)
