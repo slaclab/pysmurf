@@ -1123,7 +1123,7 @@ class SmurfNoiseMixin(SmurfBase):
                 plt.show()
 
             if save_plot:
-                plot_name = f'noise_vs_bias_band{b}_g{file_name_string}ch{ch:03}.png'
+                plot_name = f'noise_vs_bias_band{b}_g{file_title_string}ch{ch:03}.png'
                 if data_timestamp is not None:
                     plot_name = f'{data_timestamp}_' + plot_name
                 else:
@@ -1211,7 +1211,8 @@ class SmurfNoiseMixin(SmurfBase):
         if show_plot:
             plt.show()
         if save_plot:
-            plot_name = 'noise_vs_bias_band{}_g{}NEI_hist.png'.format(band,file_name_string)
+            plot_name = f'noise_vs_bias_band{np.unique(band)}' + \
+                '_g{file_name_string}NEI_hist.png'
             if data_timestamp is not None:
                 plot_name = f'{data_timestamp}_' + plot_name
             else:
@@ -1299,7 +1300,7 @@ class SmurfNoiseMixin(SmurfBase):
         a = self.get_filter_a()
 
         if flux_ramp_freq is None:
-            flux_ramp_freq = self.get_flux_ramp_freq()
+            flux_ramp_freq = self.get_flux_ramp_freq() * 1.0E3
 
         if fs is None:
             fs = self.get_sample_frequency()
