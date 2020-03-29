@@ -5,6 +5,7 @@ import pysmurf.client
 S = pysmurf.client.SmurfControl(offline=True)
 
 datafile_path = '/mnt/d/Google Drive/Work/uMux/1582161944/outputs'
+iv_path = '/mnt/d/Google Drive/Work/uMux/1582078535/outputs/1582087852_iv.npy'
 
 datafiles = ['1582162928.dat','1582163631.dat','1582164334.dat','1582165036.dat',
     '1582165740.dat','1582166443.dat','1582167146.dat','1582167850.dat',
@@ -35,7 +36,7 @@ var_range = [15,14.9,14.8,14.7,14.6,14.5,14.4,14.3,14.2,14.1,14.,13.9,13.8,
     10.7,10.6,10.5,10.4,10.3,10.2,10.1,10.,9.9,9.8,9.7,9.6,9.5,9.4,9.3,9.2,9.1,
     9.,8.9,8.8,8.7,8.6,8.5,8.4,8.3,8.2,8.1,8.,7.9,7.8,7.7,7.6,7.5,7.4]
 
-skip = 6
+skip = 4
 datafiles=datafiles[::skip]
 var_range=var_range[::skip]
 
@@ -52,14 +53,17 @@ psd_ylim=[10.0,1000.0]
 make_timestream_plot=True
 xlabel_override=None
 unit_override=None
-R_sh = .003
+R_sh = 738E-6
+high_current_mode=False
 
 S.pA_per_phi0 = 9.0E6
+S.high_low_current_ratio = 10.15  # CHECK ME
 S.plot_dir = datafile_path.replace('outputs', 'plots')
 
 S.analyze_noise_vs_bias(var_range, datafiles,  channel=channel, band=band,
     bias_group = bias_group, nperseg=nperseg, detrend=detrend, fs=fs,
     save_plot=save_plot, show_plot=show_plot, data_timestamp=timestamp,
     psd_ylim=psd_ylim, make_timestream_plot=make_timestream_plot,
-    xlabel_override=xlabel_override, unit_override=unit_override, R_sh=R_sh)
+    xlabel_override=xlabel_override, unit_override=unit_override, R_sh=R_sh,
+    iv_data_filename=iv_path, high_current_mode=high_current_mode)
 
