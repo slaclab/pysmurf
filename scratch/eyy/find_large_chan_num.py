@@ -135,8 +135,6 @@ def plot_data(datafile, make_timestream_plot=False, f_min=1, f_max=2,
     print(f"Plot saved to : {plot_name}")
 
 
-
-
 if __name__ == "__main__":
     recalc_psd = False
 

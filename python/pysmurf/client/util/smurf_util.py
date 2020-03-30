@@ -3581,18 +3581,17 @@ class SmurfUtilMixin(SmurfBase):
                                 already loaded the tone file for this DAC you
                                 don't have to do it again.
         """
-
         # the bay corresponding to this band.
-        bay=self.band_to_bay(band)
+        bay = self.band_to_bay(band)
 
         # load the tone file
         if load_tone_file:
             self.load_tone_file(bay,tone_file)
 
         # play it!
-        self.log('Playing tone file {} on band {}'.format(tone_file,band),
+        self.log(f'Playing tone file {tone_file} on band {band}',
                  self.LOG_USER)
-        self.set_waveform_select(band,1)
+        self.set_waveform_select(band, 1)
 
 
     def stop_tone_file(self, band):
@@ -3854,19 +3853,21 @@ class SmurfUtilMixin(SmurfBase):
         return hdr,row
 
     def play_tes_bipolar_waveform(self, bias_group, waveform, do_enable=True,
+            continuous=True
             **kwargs):
-        """
-        Play a bipolar waveform on the bias group.
+        """ Play a bipolar waveform on the bias group.
 
-        Args:
-        -----
-        bias_group (int): The bias group
-        waveform (float array) : The waveform the play on the bias group.
-
-        Opt Args:
-        ---------
-        do_enable (bool) : Whether to enable the DACs (similar to what is
-            resuired for TES bias). Defualt True.
+        Parameters:
+        ------------
+        bias_group : int
+            The bias group
+        waveform : float array
+            The waveform the play on the bias group.
+        do_enable : bool
+            Whether to enable the DACs (similar to what is resuired for TES
+            bias). Defualt True.
+        continuous : bool
+            Whether to play the TES waveform continuously. Default True.
         """
         bias_order = self.bias_group_to_pair[:,0]
         dac_positives = self.bias_group_to_pair[:,1]
@@ -3879,8 +3880,8 @@ class SmurfUtilMixin(SmurfBase):
 
         # https://confluence.slac.stanford.edu/display/SMuRF/SMuRF+firmware#SMuRFfirmware-RTMDACarbitrarywaveforms
         # Target the two bipolar DACs assigned to this bias group:
-        self.set_dac_axil_addr(0,dac_positive)
-        self.set_dac_axil_addr(1,dac_negative)
+        self.set_dac_axil_addr(0, dac_positive)
+        self.set_dac_axil_addr(1, dac_negative)
 
         # Enable waveform generation (3=on both DACs)
         self.set_rtm_arb_waveform_enable(3)
@@ -3892,11 +3893,14 @@ class SmurfUtilMixin(SmurfBase):
 
         # Load waveform into each DAC's LUT table.  Opposite sign so
         # they combine coherently
-        self.set_rtm_arb_waveform_lut_table(0,waveform)
-        self.set_rtm_arb_waveform_lut_table(1,-waveform)
+        self.set_rtm_arb_waveform_lut_table(0, waveform)
+        self.set_rtm_arb_waveform_lut_table(1, -waveform)
 
         # Continous mode to play the waveform continuously
-        self.set_rtm_arb_waveform_continuous(1)
+        if continuous:
+            self.set_rtm_arb_waveform_continuous(1)
+        else:
+            self.set_rtm_arb_waveform_continuous(0)
 
     # Readback on which DACs are selected is broken right now,
     # so has to be specified.
