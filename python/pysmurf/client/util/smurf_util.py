@@ -925,7 +925,7 @@ class SmurfUtilMixin(SmurfBase):
         if gcp_mode:
             self.log('Data is in GCP mode.')
             return self.read_stream_data_gcp_save(datafile, channel=channel,
-            unwrap=True, downsample=1)
+                unwrap=True, downsample=1, n_samp=n_samp)
 
         try:
             datafile = glob.glob(datafile+'*')[-1]
