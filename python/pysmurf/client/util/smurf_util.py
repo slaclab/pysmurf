@@ -3853,8 +3853,7 @@ class SmurfUtilMixin(SmurfBase):
         return hdr,row
 
     def play_tes_bipolar_waveform(self, bias_group, waveform, do_enable=True,
-            continuous=True
-            **kwargs):
+            continuous=True, **kwargs):
         """ Play a bipolar waveform on the bias group.
 
         Parameters:
