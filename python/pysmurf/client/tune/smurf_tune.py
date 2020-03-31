@@ -2324,9 +2324,8 @@ class SmurfTuneMixin(SmurfBase):
         if make_plot:
             timestamp = self.get_timestamp()
 
-            fig,ax = plt.subplots(1,3,figsize = (12,5))
-            fig.suptitle(f'Band {band} '+
-                f'n_channels = {len(channels_on)}')
+            fig,ax = plt.subplots(1,3, figsize=(12,5))
+            fig.suptitle(f'Band {band}')
 
             # Histogram the stddev
             ax[0].hist(df_std[channels_on]*1e3, bins=20, edgecolor = 'k')
@@ -2350,13 +2349,16 @@ class SmurfTuneMixin(SmurfBase):
             ax[2].plot(x, y, color='k', linestyle=':',label=f'1:{y_factor}')
             ax[2].legend(loc='best')
 
+            bbox = dict(boxstyle="round", ec='w', fc='w', alpha=.65)
+
             text = f"LMS freq: {lms_freq_hz:.0f} Hz" + "\n" + \
                 f"LMS gain: {lms_gain}" + "\n" + \
                 f"FR amp: {self.get_fraction_full_scale():1.3f}" + "\n" + \
                 f"FB start: {feedback_start_frac}" + "\n" + \
-                f"FB end: {feedback_end_frac}"
-            ax[2].text(.02, .98, text, transform=ax[2].transAxes, va='top',
-                ha='left', fontsize=10)
+                f"FB end: {feedback_end_frac}" + "\n" + \
+                r"$n_{chan}$:" + f" {len(channels_on)}"
+            ax[2].text(.05, .95, text, transform=ax[2].transAxes, va='top',
+                ha='left', fontsize=10, bbox=bbox)
 
             fig.tight_layout(rect=[0, 0.03, 1, 0.95])
 
@@ -2374,7 +2376,6 @@ class SmurfTuneMixin(SmurfBase):
                 channel = np.ravel(np.array(channel))
                 sync_idx = self.make_sync_flag(sync)
 
-                bbox = dict(boxstyle="round", ec='w', fc='w', alpha=.65)
 
                 for ch in channel:
                     # Setup plotting
