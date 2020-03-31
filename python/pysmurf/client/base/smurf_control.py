@@ -124,7 +124,10 @@ class SmurfControl(SmurfCommandMixin,
             epics_root = self.config.get('epics_root')
 
         super().__init__(epics_root=epics_root, offline=offline,
-                **kwargs)
+                         **kwargs)
+        # Shouldn't have to explicitly call this ; why isn't it being
+        # run automatically in the super call?
+        SmurfConfigPropertiesMixin.__init__(self)
 
         if cfg_file is not None or data_dir is not None:
             self.initialize(data_dir=data_dir,
@@ -235,10 +238,10 @@ class SmurfControl(SmurfCommandMixin,
         self.crate_id=self.get_crate_id()
         self.slot_number=self.get_slot_number()
 
-        # Useful constants
-        constant_cfg = self.config.get('constant')
-        self._pA_per_phi0 = constant_cfg.get('pA_per_phi0')
-
+        # Populate SmurfConfigPropertiesMixin properties with values
+        # from loaded pysmurf configuration file.
+        self.copy_config_to_properties(self.config)
+        
         # Mapping from attenuator numbers to bands
         att_cfg = self.config.get('attenuator')
         keys = att_cfg.keys()
@@ -252,8 +255,8 @@ class SmurfControl(SmurfCommandMixin,
         # Cold amplifier biases
         amp_cfg = self.config.get('amplifier')
         keys = amp_cfg.keys()
-        if 'hemt_Vg' in keys:
-            self.hemt_Vg=amp_cfg['hemt_Vg']
+        #if 'hemt_Vg' in keys:
+        #    self.hemt_Vg=amp_cfg['hemt_Vg']
         if 'LNA_Vg' in keys:
             self.LNA_Vg=amp_cfg['LNA_Vg']
         if 'dac_num_50k' in keys:

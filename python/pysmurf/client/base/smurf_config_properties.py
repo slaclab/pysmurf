@@ -16,13 +16,44 @@
 """Defines the SmurfConfigPropertiesMixin class.
 """
 
-class SmurfConfigPropertiesMixin:
+from pysmurf.client.base.smurf_config import SmurfConfig as SmurfConfig
+
+class SmurfConfigPropertiesMixin(object):
     """Mixin for ???x
     """
 
     def __init__(self, *args, **kwargs):
+        # Constants
         self._pA_per_phi0=None
-    
+
+        # Amplifiers
+        self._hemt_Vg=None
+
+    def copy_config_to_properties(self,config):
+        """Copy values from SmurfConfig instance to properties
+        
+        MORE EXPLANATION HERE. USES PROPERTY SETTERS IN CASE WE EVER
+        WANT TO IMPOSE ANY CONDITIONS IN THEM.
+
+        Args
+        ----
+        config : :class:`SmurfConfig`
+              Select values in the provided :class:`SmurfConfig` will
+              be copied into properties in this
+              :class:`~pysmurf.client.command.smurf_config_properties.SmurfConfigPropertiesMixin`
+              instance.
+        """
+        
+        # Useful constants
+        constant_cfg = config.get('constant')
+        self.pA_per_phi0 = constant_cfg.get('pA_per_phi0')
+
+        # Cold amplifier biases
+        amp_cfg = self.config.get('amplifier')
+        keys = amp_cfg.keys()
+        if 'hemt_Vg' in keys:
+            self.hemt_Vg=amp_cfg['hemt_Vg']
+
     ###########################################################################
     ## Start pA_per_phi0 property definition
 
@@ -45,4 +76,24 @@ class SmurfConfigPropertiesMixin:
 
     ## End pA_per_phi0 property definition
     ###########################################################################
+
+    ###########################################################################
+    ## Start hemt_Vg property definition
+
+    # Getter
+    @property
+    def hemt_Vg(self):
+        """4K HEMT Gate Voltage
         
+        Gets or sets the desired value for the 4K HEMT Gate voltage.
+        Units are Volts.
+        """
+        return self._hemt_Vg
+
+    # Setter
+    @hemt_Vg.setter
+    def hemt_Vg(self,value):
+        self._hemt_Vg=value
+
+    ## End hemt_Vg property definition
+    ###########################################################################    

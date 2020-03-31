@@ -2496,8 +2496,8 @@ class SmurfUtilMixin(SmurfBase):
         # if nothing specified take default from cfg file, if
         # it's specified there
         bias_hemt_from_cfg=False
-        if bias_hemt is None and hasattr(self,'hemt_Vg'):
-            bias_hemt = self.hemt_Vg
+        if bias_hemt is None and hasattr(self,'_hemt_Vg'):
+            bias_hemt = self._hemt_Vg
             bias_hemt_from_cfg = True
         # if user gave a value or value was found in cfg file,
         # set it and tell the user

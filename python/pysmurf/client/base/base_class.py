@@ -60,6 +60,8 @@ class SmurfBase(object):
             Script id included with publisher messages. For example, the
             script or operation name.
         """
+        print('SmurfBase __init__()')
+        
         # Set up logging
         self.log = log
         if self.log is None:
