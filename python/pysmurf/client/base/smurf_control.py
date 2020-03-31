@@ -252,32 +252,6 @@ class SmurfControl(SmurfCommandMixin,
             self.att_to_band['band'][i] = att_cfg[k]
             self.att_to_band['att'][i] = int(k[-1])
 
-        # Cold amplifier biases
-        amp_cfg = self.config.get('amplifier')
-        keys = amp_cfg.keys()
-        #if 'hemt_Vg' in keys:
-        #    self.hemt_Vg=amp_cfg['hemt_Vg']
-        #if 'LNA_Vg' in keys:
-        #    self.LNA_Vg=amp_cfg['LNA_Vg']
-        if 'dac_num_50k' in keys:
-            self._dac_num_50k=amp_cfg['dac_num_50k']
-        if 'bit_to_V_50k' in keys:
-            self._bit_to_V_50k=amp_cfg['bit_to_V_50k']
-        if 'bit_to_V_hemt' in keys:
-            self._bit_to_V_hemt=amp_cfg['bit_to_V_hemt']
-        if '50K_amp_Vd_series_resistor' in keys:
-            self._50k_amp_Vd_series_resistor=amp_cfg['50K_amp_Vd_series_resistor']
-        if 'hemt_Vd_series_resistor' in keys:
-            self._hemt_Vd_series_resistor=amp_cfg['hemt_Vd_series_resistor']
-        if 'hemt_Id_offset' in keys:
-            self._hemt_Id_offset=amp_cfg['hemt_Id_offset']
-        if '50k_Id_offset' in keys:
-            self._50k_Id_offset=amp_cfg['50k_Id_offset']
-        if 'hemt_gate_min_voltage' in keys:
-            self._hemt_gate_min_voltage=amp_cfg['hemt_gate_min_voltage']
-        if 'hemt_gate_max_voltage' in keys:
-            self._hemt_gate_max_voltage=amp_cfg['hemt_gate_max_voltage']
-
         # Flux ramp hardware detail
         flux_ramp_cfg = self.config.get('flux_ramp')
         keys = flux_ramp_cfg.keys()

@@ -3221,7 +3221,7 @@ class SmurfCommandMixin(SmurfBase):
             self.log('Input voltage too high. Not doing anything.' +
                 ' If you really want it higher, use the override optional arg.')
         else:
-            self.set_hemt_bias(int(voltage/self._bit_to_V_hemt),
+            self.set_hemt_bias(int(voltage/self._hemt_bit_to_V),
                 override=override, **kwargs)
 
     _hemt_v = 'HemtBiasDacDataRegCh[33]'
@@ -3258,8 +3258,7 @@ class SmurfCommandMixin(SmurfBase):
         """
         Returns the HEMT voltage in bits.
         """
-        return self._bit_to_V_hemt*(self.get_hemt_bias(**kwargs))
-
+        return self._hemt_bit_to_V*(self.get_hemt_bias(**kwargs))
 
     _stream_datafile = 'dataFile'
 
