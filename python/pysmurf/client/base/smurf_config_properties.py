@@ -106,7 +106,7 @@ class SmurfConfigPropertiesMixin(object):
 
         See Also
         --------
-        :func:`~pysmurf.client.debug.smurf_noise.take_noise_psd`,
+        :func:`take_noise_psd`,
         :func:`~pysmurf.client.debug.smurf_noise.analyze_noise_vs_bias`,
         :func:`~pysmurf.client.debug.smurf_noise.analyze_noise_all_vs_noise_solo`,
         :func:`~pysmurf.client.debug.smurf_noise.analyze_noise_vs_tone`,
