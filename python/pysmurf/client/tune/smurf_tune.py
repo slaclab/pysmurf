@@ -2325,16 +2325,16 @@ class SmurfTuneMixin(SmurfBase):
             timestamp = self.get_timestamp()
 
             fig,ax = plt.subplots(1,3,figsize = (12,5))
-            fig.suptitle(f'LMS freq = {lms_freq_hz:.0f} Hz, '+
+            fig.suptitle(f'Band {band} '+
                 f'n_channels = {len(channels_on)}')
 
             # Histogram the stddev
-            ax[0].hist(df_std[channels_on] * 1e3,bins = 20,edgecolor = 'k')
+            ax[0].hist(df_std[channels_on]*1e3, bins=20, edgecolor = 'k')
             ax[0].set_xlabel('Flux ramp demod error std (kHz)')
             ax[0].set_ylabel('number of channels')
 
             # Histogram the max-min flux ramp amplitude response
-            ax[1].hist(f_span[channels_on] * 1e3,bins = 20,edgecolor='k')
+            ax[1].hist(f_span[channels_on]*1e3, bins=20, edgecolor='k')
             ax[1].set_xlabel('Flux ramp amplitude (kHz)')
             ax[1].set_ylabel('number of channels')
 
@@ -2349,6 +2349,14 @@ class SmurfTuneMixin(SmurfBase):
             y = x/y_factor
             ax[2].plot(x, y, color='k', linestyle=':',label=f'1:{y_factor}')
             ax[2].legend(loc='best')
+
+            text = f"LMS freq: {lms_freq_hz:.0f} Hz" + "\n" + \
+                f"LMS gain: {lms_gain}" + "\n" + \
+                f"FR amp: {self.get_fraction_full_scale():1.3f}" + "\n" + \
+                f"FB start: {feedback_start_frac}" + "\n" +
+                f"FB end: {feedback_end_frac}"
+            ax[2].text(.02, .98, text, transform=ax[2].transAxes, va='top',
+                ha='left', fontsize=10)
 
             fig.tight_layout(rect=[0, 0.03, 1, 0.95])
 
