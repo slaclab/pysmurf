@@ -55,6 +55,7 @@ xlabel_override=None
 unit_override=None
 R_sh = 738E-6
 high_current_mode=False
+f_center_GHz = 90.
 
 S.pA_per_phi0 = 9.0E6
 S.high_low_current_ratio = 10.15  # CHECK ME
@@ -65,5 +66,6 @@ S.analyze_noise_vs_bias(var_range, datafiles,  channel=channel, band=band,
     save_plot=save_plot, show_plot=show_plot, data_timestamp=timestamp,
     psd_ylim=psd_ylim, make_timestream_plot=make_timestream_plot,
     xlabel_override=xlabel_override, unit_override=unit_override, R_sh=R_sh,
-    iv_data_filename=iv_path, high_current_mode=high_current_mode)
+    iv_data_filename=iv_path, high_current_mode=high_current_mode,
+    f_center_GHz=f_center_GHz)
 
