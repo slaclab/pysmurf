@@ -28,6 +28,7 @@ class SmurfConfigPropertiesMixin(object):
 
         # Amplifiers
         self._hemt_Vg=None
+        self._LNA_Vg=None
 
     def copy_config_to_properties(self,config):
         """Copy values from SmurfConfig instance to properties
@@ -53,6 +54,8 @@ class SmurfConfigPropertiesMixin(object):
         keys = amp_cfg.keys()
         if 'hemt_Vg' in keys:
             self.hemt_Vg=amp_cfg['hemt_Vg']
+        if 'LNA_Vg' in keys:
+            self.LNA_Vg=amp_cfg['LNA_Vg']
 
     ###########################################################################
     ## Start pA_per_phi0 property definition
@@ -96,4 +99,25 @@ class SmurfConfigPropertiesMixin(object):
         self._hemt_Vg=value
 
     ## End hemt_Vg property definition
-    ###########################################################################    
+    ###########################################################################
+
+    ###########################################################################
+    ## Start LNA_Vg property definition
+
+    # Getter
+    @property
+    def LNA_Vg(self):
+        """50K LNA Gate Voltage
+        
+        Gets or sets the desired value for the 50K LNA Gate voltage.
+        Units are Volts.
+        """
+        return self._LNA_Vg
+
+    # Setter
+    @LNA_Vg.setter
+    def LNA_Vg(self,value):
+        self._LNA_Vg=value
+
+    ## End LNA_Vg property definition
+    ###########################################################################        

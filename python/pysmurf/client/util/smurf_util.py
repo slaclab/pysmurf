@@ -2524,8 +2524,8 @@ class SmurfUtilMixin(SmurfBase):
         # if nothing specified take default from cfg file, if
         # it's specified there
         bias_50k_from_cfg=False
-        if bias_50k is None and hasattr(self,'LNA_Vg'):
-            bias_50k=self.LNA_Vg
+        if bias_50k is None and hasattr(self,'_LNA_Vg'):
+            bias_50k=self._LNA_Vg
             bias_50k_from_cfg=True
         # if user gave a value or value was found in cfg file,
         # set it and tell the user

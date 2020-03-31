@@ -257,8 +257,8 @@ class SmurfControl(SmurfCommandMixin,
         keys = amp_cfg.keys()
         #if 'hemt_Vg' in keys:
         #    self.hemt_Vg=amp_cfg['hemt_Vg']
-        if 'LNA_Vg' in keys:
-            self.LNA_Vg=amp_cfg['LNA_Vg']
+        #if 'LNA_Vg' in keys:
+        #    self.LNA_Vg=amp_cfg['LNA_Vg']
         if 'dac_num_50k' in keys:
             self._dac_num_50k=amp_cfg['dac_num_50k']
         if 'bit_to_V_50k' in keys:
