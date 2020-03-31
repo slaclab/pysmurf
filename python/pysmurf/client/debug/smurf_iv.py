@@ -150,7 +150,8 @@ class SmurfIVMixin(SmurfBase):
         self.analyze_slow_iv_from_file(fn_iv_raw_data, make_plot=make_plot,
             show_plot=show_plot, save_plot=save_plot,
             plotname_append=plotname_append, R_sh=R_sh, grid_on=grid_on,
-            phase_excursion_min=phase_excursion_min, chs=channels, band=band)
+            phase_excursion_min=phase_excursion_min, channel=channels,
+            band=band)
 
         return path
 
