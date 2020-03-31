@@ -2524,8 +2524,8 @@ class SmurfUtilMixin(SmurfBase):
         # if nothing specified take default from cfg file, if
         # it's specified there
         bias_50k_from_cfg=False
-        if bias_50k is None and hasattr(self,'_LNA_Vg'):
-            bias_50k=self._LNA_Vg
+        if bias_50k is None and hasattr(self,'_fiftyk_Vg'):
+            bias_50k=self._fiftyk_Vg
             bias_50k_from_cfg=True
         # if user gave a value or value was found in cfg file,
         # set it and tell the user
@@ -2591,16 +2591,16 @@ class SmurfUtilMixin(SmurfBase):
     get_amplifier_bias = get_amplifier_biases
 
     def get_hemt_drain_current(self):
-        """Reports the inferred 4K HEMT amplifier drain current in mA, inferred by
-        measuring the voltage across a resistor in series with the
-        applied drain voltage (before the regulator) by the PIC on the
-        cryostat card.  The conversion from the measured PIC ADC
-        voltage to drain current assumes the circuit topology on the
-        rev C2 cryostat card (SLAC board PC-248-103-02-C02, see
+        """Reports the inferred 4K HEMT amplifier drain current in mA,
+        inferred by measuring the voltage across a resistor in series
+        with the applied drain voltage (before the regulator) by the
+        PIC on the cryostat card.  The conversion from the measured
+        PIC ADC voltage to drain current assumes the circuit topology
+        on the rev C2 cryostat card (SLAC board PC-248-103-02-C02, see
         schematic sheet 3).  The series resistor in that schematic is
         component R44.  The value of R54 can be specified in the
-        pysmurf configuration file (as hemt_Vd_series_resistor in
-        the amplifier block).  If not explicitly specified, pysmurf
+        pysmurf configuration file (as hemt_Vd_series_resistor in the
+        amplifier block).  If not explicitly specified, pysmurf
         assumes the default in the C2 cryostat card BOM of 200 Ohm.
 
         Because the series resistor is before the regulator that drops
@@ -2626,12 +2626,12 @@ class SmurfUtilMixin(SmurfBase):
 
 
     def get_50k_amp_drain_current(self):
-        """Reports the inferred 50K amplifier drain current in mA, inferred by
-        measuring the voltage across a resistor in series with the
-        applied drain voltage (before the regulator) by the PIC on the
-        cryostat card.  The conversion from the measured PIC ADC
-        voltage to drain current assumes the circuit topology on the
-        rev C2 cryostat card (SLAC board PC-248-103-02-C02, see
+        """Reports the inferred 50K amplifier drain current in mA,
+        inferred by measuring the voltage across a resistor in series
+        with the applied drain voltage (before the regulator) by the
+        PIC on the cryostat card.  The conversion from the measured
+        PIC ADC voltage to drain current assumes the circuit topology
+        on the rev C2 cryostat card (SLAC board PC-248-103-02-C02, see
         schematic sheet 3).  The series resistor in that schematic is
         component R54.  The value of R54 can be specified in the
         pysmurf configuration file (as 50K_amp_Vd_series_resistor in
@@ -2656,10 +2656,10 @@ class SmurfUtilMixin(SmurfBase):
 
         # assumes circuit topology on rev C2 cryostat card
         # (PC-248-103-02-C02, sheet 3)
-        fiftyK_amp_Id_mA=2.*1000.*(self.get_cryo_card_50k_bias()/
-                                   self._50k_amp_Vd_series_resistor) - self._50k_Id_offset
+        fiftyk_amp_Id_mA=2.*1000.*(self.get_cryo_card_50k_bias()/
+                                   self._fiftyk_amp_Vd_series_resistor) - self._fiftyk_Id_offset
 
-        return fiftyK_amp_Id_mA
+        return fiftyk_amp_Id_mA
 
 
     def overbias_tes(self, bias_group, overbias_voltage=19.9, overbias_wait=5.,

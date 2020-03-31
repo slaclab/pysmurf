@@ -3005,13 +3005,13 @@ class SmurfCommandMixin(SmurfBase):
         if (voltage > 0 or voltage < -1.) and not override:
             self.log('Voltage must be between -1 and 0. Doing nothing.')
         else:
-            self.set_rtm_slow_dac_data(self._dac_num_50k, voltage/self._bit_to_V_50k,
+            self.set_rtm_slow_dac_data(self._fiftyk_dac_num, voltage/self._fiftyk_bit_to_V,
                 **kwargs)
 
     def get_50k_amp_gate_voltage(self, **kwargs):
         """
         """
-        return self._bit_to_V_50k * self.get_rtm_slow_dac_data(self._dac_num_50k,
+        return self._fiftyk_bit_to_V * self.get_rtm_slow_dac_data(self._fiftyk_dac_num,
             **kwargs)
 
     def set_50k_amp_enable(self, disable=False, **kwargs):
@@ -3023,9 +3023,9 @@ class SmurfCommandMixin(SmurfBase):
         disable (bool) : Disable the 50K amplifier. Default False.
         """
         if disable:
-            self.set_rtm_slow_dac_enable(self._dac_num_50k, 0, **kwargs)
+            self.set_rtm_slow_dac_enable(self._fiftyk_dac_num, 0, **kwargs)
         else:
-            self.set_rtm_slow_dac_enable(self._dac_num_50k, 2, **kwargs)
+            self.set_rtm_slow_dac_enable(self._fiftyk_dac_num, 2, **kwargs)
 
     def flux_ramp_on(self, **kwargs):
         """

@@ -81,7 +81,7 @@ class SmurfConfigPropertiesMixin(object):
             
         ## 50K HEMT                    
         if 'LNA_Vg' in keys:
-            self.fiftyK_Vg=amp_cfg['LNA_Vg']
+            self.fiftyk_Vg=amp_cfg['LNA_Vg']
         if 'dac_num_50k' in keys:
             self.fiftyk_dac_num=amp_cfg['dac_num_50k']
         if 'bit_to_V_50k' in keys:
@@ -103,6 +103,16 @@ class SmurfConfigPropertiesMixin(object):
         Gets or sets the conversion factor between the demodulated
         phase for every SMuRF channel and the equivalent TES current.
         Units are pA per Phi0, with Phi0 the magnetic flux quantum.
+
+        See Also
+        --------
+        :func:`~pysmurf.client.debug.smurf_noise.take_noise_psd`,
+        :func:`~pysmurf.client.debug.smurf_noise.analyze_noise_vs_bias`,
+        :func:`~pysmurf.client.debug.smurf_noise.analyze_noise_all_vs_noise_solo`,
+        :func:`~pysmurf.client.debug.smurf_noise.analyze_noise_vs_tone`,
+        :func:`~pysmurf.client.debug.smurf_iv.analyze_slow_iv`,
+        :func:`~pysmurf.client.util.smurf_util.bias_bump`,
+        :func:`~pysmurf.client.util.smurf_util.identify_bias_groups`
         """
         return self._pA_per_phi0
 
@@ -236,24 +246,24 @@ class SmurfConfigPropertiesMixin(object):
     ###########################################################################            
     
     ###########################################################################
-    ## Start fiftyK_Vg property definition
+    ## Start fiftyk_Vg property definition
 
     # Getter
     @property
-    def fiftyK_Vg(self):
+    def fiftyk_Vg(self):
         """50K LNA Gate Voltage
         
         Gets or sets the desired value for the 50K LNA Gate voltage.
         Units are Volts.
         """
-        return self._fiftyK_Vg
+        return self._fiftyk_Vg
 
     # Setter
-    @fiftyK_Vg.setter
-    def fiftyK_Vg(self,value):
-        self._fiftyK_Vg=value
+    @fiftyk_Vg.setter
+    def fiftyk_Vg(self,value):
+        self._fiftyk_Vg=value
 
-    ## End fiftyK_Vg property definition
+    ## End fiftyk_Vg property definition
     ###########################################################################        
 
     ###########################################################################
