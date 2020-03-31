@@ -2353,7 +2353,7 @@ class SmurfTuneMixin(SmurfBase):
             text = f"LMS freq: {lms_freq_hz:.0f} Hz" + "\n" + \
                 f"LMS gain: {lms_gain}" + "\n" + \
                 f"FR amp: {self.get_fraction_full_scale():1.3f}" + "\n" + \
-                f"FB start: {feedback_start_frac}" + "\n" +
+                f"FB start: {feedback_start_frac}" + "\n" + \
                 f"FB end: {feedback_end_frac}"
             ax[2].text(.02, .98, text, transform=ax[2].transAxes, va='top',
                 ha='left', fontsize=10)
