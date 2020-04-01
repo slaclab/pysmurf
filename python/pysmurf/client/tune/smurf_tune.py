@@ -2324,17 +2324,16 @@ class SmurfTuneMixin(SmurfBase):
         if make_plot:
             timestamp = self.get_timestamp()
 
-            fig,ax = plt.subplots(1,3,figsize = (12,5))
-            fig.suptitle(f'LMS freq = {lms_freq_hz:.0f} Hz, '+
-                f'n_channels = {len(channels_on)}')
+            fig,ax = plt.subplots(1,3, figsize=(12,5))
+            fig.suptitle(f'Band {band}')
 
             # Histogram the stddev
-            ax[0].hist(df_std[channels_on] * 1e3,bins = 20,edgecolor = 'k')
+            ax[0].hist(df_std[channels_on]*1e3, bins=20, edgecolor = 'k')
             ax[0].set_xlabel('Flux ramp demod error std (kHz)')
             ax[0].set_ylabel('number of channels')
 
             # Histogram the max-min flux ramp amplitude response
-            ax[1].hist(f_span[channels_on] * 1e3,bins = 20,edgecolor='k')
+            ax[1].hist(f_span[channels_on]*1e3, bins=20, edgecolor='k')
             ax[1].set_xlabel('Flux ramp amplitude (kHz)')
             ax[1].set_ylabel('number of channels')
 
@@ -2349,6 +2348,17 @@ class SmurfTuneMixin(SmurfBase):
             y = x/y_factor
             ax[2].plot(x, y, color='k', linestyle=':',label=f'1:{y_factor}')
             ax[2].legend(loc='best')
+
+            bbox = dict(boxstyle="round", ec='w', fc='w', alpha=.65)
+
+            text = f"LMS freq: {lms_freq_hz:.0f} Hz" + "\n" + \
+                f"LMS gain: {lms_gain}" + "\n" + \
+                f"FR amp: {self.get_fraction_full_scale():1.3f}" + "\n" + \
+                f"FB start: {feedback_start_frac}" + "\n" + \
+                f"FB end: {feedback_end_frac}" + "\n" + \
+                r"$n_{chan}$:" + f" {len(channels_on)}"
+            ax[2].text(.05, .97, text, transform=ax[2].transAxes, va='top',
+                ha='left', fontsize=10, bbox=bbox)
 
             fig.tight_layout(rect=[0, 0.03, 1, 0.95])
 
@@ -2366,8 +2376,6 @@ class SmurfTuneMixin(SmurfBase):
                 channel = np.ravel(np.array(channel))
                 sync_idx = self.make_sync_flag(sync)
 
-                bbox = dict(boxstyle="round", ec='w', fc='w', alpha=.65)
-
                 for ch in channel:
                     # Setup plotting
                     fig, ax = plt.subplots(2, sharex=True, figsize=(9, 4.75))
@@ -2375,12 +2383,12 @@ class SmurfTuneMixin(SmurfBase):
                     # Plot tracked component
                     ax[0].plot(f[:, ch]*1e3)
                     ax[0].set_ylabel('Tracked Freq [kHz]')
-                    ax[0].text(.025, .9,
+                    ax[0].text(.025, .93,
                         'LMS Freq {:.0f} Hz'.format(lms_freq_hz), fontsize=10,
                         transform=ax[0].transAxes, bbox=bbox, ha='left',
                         va='top')
 
-                    ax[0].text(.95, .9, 'Band {} Ch {:03}'.format(band, ch),
+                    ax[0].text(.95, .93, 'Band {} Ch {:03}'.format(band, ch),
                         fontsize=10, transform=ax[0].transAxes, ha='right',
                         va='top', bbox=bbox)
 
@@ -2388,7 +2396,7 @@ class SmurfTuneMixin(SmurfBase):
                     ax[1].plot(df[:, ch]*1e3)
                     ax[1].set_ylabel('Freq Error [kHz]')
                     ax[1].set_xlabel('Samp Num')
-                    ax[1].text(.025, .9,
+                    ax[1].text(.025, .93,
                         f'RMS error = {df_std[ch]*1e3:.2f} kHz\n' +
                         f'FR frac. full scale = {fraction_full_scale:.2f}',
                         fontsize=10, transform=ax[1].transAxes, bbox=bbox,
@@ -2412,8 +2420,7 @@ class SmurfTuneMixin(SmurfBase):
 
                     if save_plot:
                         path = os.path.join(self.plot_dir, timestamp +
-                            '_FRtracking_band{}_ch{:03}{}.png'.format(band,ch,
-                            plotname_append))
+                            f'_FRtracking_b{band}_ch{ch:03}{plotname_append}.png')
                         plt.savefig(path, bbox_inches='tight')
                         self.pub.register_file(path, 'tracking', plot=True)
 
