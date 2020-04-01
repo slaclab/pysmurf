@@ -18,6 +18,7 @@ import os
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 from pysmurf import __version__ as pysmurf_version
+from pysmurf import __file__ as pysmurf_file
 sys.path.insert(0, os.path.abspath('..'))
 
 # -- Project information -----------------------------------------------------
@@ -269,7 +270,7 @@ def linkcode_resolve(domain, info):
     else:
         linespec = ""
 
-    fn = relpath(fn, start=dirname(pysmurf.__file__))
+    fn = relpath(fn, start=dirname(pysmurf_file))
 
     return "https://github.com/slaclab/pysmurf/blob/master/numpy/%s%s" % (
         fn, linespec)
