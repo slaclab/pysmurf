@@ -804,11 +804,6 @@ class SmurfNoiseMixin(SmurfBase):
         else:
             unit=unit_override
 
-        if band is None and channel is None:
-            mask = self.make_mask_lookup(datafile[0])
-            band, channel = np.where(mask != -1)
-
-
         if fs is None:
             fs = self.get_sample_frequency()
 
@@ -822,6 +817,11 @@ class SmurfNoiseMixin(SmurfBase):
         if isinstance(datafile,str):
             self.log(f'Noise data files being read from {datafile}')
             datafile = self.get_datafiles_from_file(datafile)
+
+        if band is None and channel is None:
+            mask = self.make_mask_lookup(datafile[0])
+            band, channel = np.where(mask != -1)
+
 
         # If an analyzed IV datafile is given, estimate NEP
         if iv_data_filename is not None and band is not None:
