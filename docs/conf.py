@@ -13,6 +13,7 @@
 
 import sys
 import os
+import re
 
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
@@ -20,6 +21,8 @@ import os
 from pysmurf import __version__ as pysmurf_version
 from pysmurf import __file__ as pysmurf_file
 sys.path.insert(0, os.path.abspath('..'))
+
+pysmurf_git_tag = re.sub('^v', '', os.popen('git describe --tags').read().strip())
 
 # -- Project information -----------------------------------------------------
 # General information about the project.
@@ -271,6 +274,6 @@ def linkcode_resolve(domain, info):
         linespec = ""
 
     fn = relpath(fn, start=dirname(pysmurf_file))
-    print(f'{pysmurf_version}')
+    print(f'{pysmurf_git_tag}')
     return "https://github.com/slaclab/pysmurf/blob/%s/python/pysmurf/%s%s" % (
         pysmurf_version, fn, linespec)
