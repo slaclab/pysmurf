@@ -95,11 +95,12 @@ class SmurfConfigPropertiesMixin(object):
     # Getter
     @property
     def pA_per_phi0(self):
-        """Demodulated phase to TES current conversion factor.
+        """Demodulated SQUID phase to TES current conversion factor.
 
         Gets or sets the conversion factor between the demodulated
-        phase for every SMuRF channel and the equivalent TES current.
-        Units are pA per Phi0, with Phi0 the magnetic flux quantum.
+        SQUID phase for every SMuRF channel and the equivalent TES
+        current.  Units are pA per Phi0, with Phi0 the magnetic flux
+        quantum.
 
         See Also
         --------
@@ -188,16 +189,15 @@ class SmurfConfigPropertiesMixin(object):
 
         The resistance of the resistor that is inline with the 4K HEMT
         amplifier drain voltage source which is used to infer the 4K
-        HEMT amplifier drain current.  This resistor is inline but
-        before the regulator that steps the main RF6.0V supply down to
-        the lower 4K HEMT drain voltage, so the current flowing
-        through this resistor includes both the drain current drawn by
-        the 4K HEMT and any additional current drawn by the DC/DC
-        regulator that steps the RF6.0V supply voltage down to the
-        lower drain voltage the cryostat card provides to the 4K HEMT.
-        The default value of 200 Ohm is the standard value loaded onto
-        cryostat card revision C02 (PC-248-103-02-C02).  The resistor
-        on that revision of the cryostat card is R44.  Units are Ohms.
+        HEMT amplifier drain current.  This resistor is inline with
+        but before the regulator that steps the main RF6.0V supply
+        down to the lower 4K HEMT drain voltage, so the current
+        flowing through this resistor includes both the drain current
+        drawn by the 4K HEMT and any additional current drawn by the
+        DC/DC regulator.  The default value of 200 Ohm is the standard
+        value loaded onto cryostat card revision C02
+        (PC-248-103-02-C02).  The resistor on that revision of the
+        cryostat card is R44.  Units are Ohms.
 
         See Also
         --------
@@ -226,13 +226,13 @@ class SmurfConfigPropertiesMixin(object):
         that steps the main RF6.0V supply down to the lower 4K HEMT
         drain voltage using an inline resistor (see
         :func:`hemt_Vd_series_resistor`), so the total measured
-        includes both the drain current drawn by the 4K HEMT and any
-        additional current drawn by the DC/DC regulator that steps the
-        RF6.0V supply voltage down to the lower drain voltage the
-        cryostat card provides to the 4K HEMT.  An accurate
-        measurement of the 4K drain current requires subtracting the
-        current drawn by that regulator.  This is the offset to
-        subtract off the measured value.  Units are milliamperes.
+        current through the series resistor includes both the drain
+        current drawn by the 4K HEMT and any additional current drawn
+        by the DC/DC regulator.  An accurate measurement of the 4K
+        amplifier drain current requires subtracting the current drawn
+        by that regulator from the measured total current.  This is
+        the offset to subtract off the measured value.  Units are
+        milliamperes.
 
         See Also
         --------
@@ -388,9 +388,19 @@ class SmurfConfigPropertiesMixin(object):
     # Getter
     @property
     def fiftyk_amp_Vd_series_resistor(self):
-        """???
+        """50K amplifier drain current measurement resistor in Ohms.
 
-        ???
+        The resistance of the resistor that is inline with the 50K RF
+        amplifier drain voltage source which is used to infer the 50K
+        RF amplifier drain current.  This resistor is inline with but
+        before the regulator that steps the main RF6.0V supply down to
+        the lower 50K LNA drain voltage, so the current flowing
+        through this resistor includes both the drain current drawn by
+        the 50K RF amplifier and any additional current drawn by the
+        DC/DC regulator.  The default value of 10 Ohm is the standard
+        value loaded onto cryostat card revision C02
+        (PC-248-103-02-C02).  The resistor on that revision of the
+        cryostat card is R54.  Units are Ohms.
 
         See Also
         --------
@@ -413,9 +423,19 @@ class SmurfConfigPropertiesMixin(object):
     # Getter
     @property
     def fiftyk_Id_offset(self):
-        """???
+        """50K amplifier drain current offset in mA.
 
-        ???
+        The 50K RF amplifier drain current is measured before the
+        regulator that steps the main RF6.0V supply down to the lower
+        50K RF amplifier drain voltage using an inline resistor (see
+        :func:`fiftyk_amp_Vd_series_resistor`), so the total measured
+        current through the series resistor includes both the drain
+        current drawn by the 50K RF amplifier and any additional
+        current drawn by the DC/DC regulator.  An accurate measurement
+        of the 50K amplifier drain current requires subtracting the
+        current drawn by that regulator from the measured total
+        current.  This is the offset to subtract off the measured
+        value.  Units are milliamperes.
 
         See Also
         --------
