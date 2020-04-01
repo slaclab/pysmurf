@@ -884,7 +884,8 @@ class SmurfNoiseMixin(SmurfBase):
         w_NEPwl = w_NEIwl
         w_SI = w_NEPwl
         n_col = w_NEI + w_NEIwl
-        for ch in channel:
+        # for ch in channel:
+        for b, ch in zip(band, channel):
             if ch < 0:
                 continue
             w_fig = 13
