@@ -13,7 +13,7 @@
 # copied, modified, propagated, or distributed except according to the
 # terms contained in the LICENSE.txt file.
 # -----------------------------------------------------------------------------
-"""Defines the SmurfConfigPropertiesMixin class.
+"""Defines the mixin class :class:`SmurfConfigPropertiesMixin`.
 """
 
 class SmurfConfigPropertiesMixin(object):
@@ -95,8 +95,7 @@ class SmurfConfigPropertiesMixin(object):
     # Getter
     @property
     def pA_per_phi0(self):
-        """Conversion factor between demodulated phase and TES
-        current.
+        """Demodulated phase to TES current conversion factor.
 
         Gets or sets the conversion factor between the demodulated
         phase for every SMuRF channel and the equivalent TES current.
@@ -129,10 +128,10 @@ class SmurfConfigPropertiesMixin(object):
     # Getter
     @property
     def hemt_Vg(self):
-        """4K HEMT Gate Voltage
+        """4K HEMT gate voltage in volts.
 
-        Gets or sets the desired value for the 4K HEMT Gate voltage.
-        Units are Volts.
+        Gets or sets the desired value for the 4K HEMT gate voltage at
+        the output of the cryostat card.  Units are Volts.
 
         See Also
         --------
@@ -155,9 +154,13 @@ class SmurfConfigPropertiesMixin(object):
     # Getter
     @property
     def hemt_bit_to_V(self):
-        """???
+        """Bit to volts conversion for HEMT gate DAC.
 
-        ???
+        Conversion from bits (the digital value the RTM DAC is set to)
+        to Volts for the 4K amplifier gate (specified at the output of
+        the cryostat card).  An important dependency is the voltage
+        division on the cryostat card, which can be different from
+        cryostat card to cryostat card.  Units are Volts/bit.
 
         See Also
         --------
@@ -181,9 +184,20 @@ class SmurfConfigPropertiesMixin(object):
     # Getter
     @property
     def hemt_Vd_series_resistor(self):
-        """???
+        """4K HEMT drain current measurement resistor in Ohms.
 
-        ???
+        The resistance of the resistor that is inline with the 4K HEMT
+        amplifier drain voltage source which is used to infer the 4K
+        HEMT amplifier drain current.  This resistor is inline but
+        before the regulator that steps the main RF6.0V supply down to
+        the lower 4K HEMT drain voltage, so the current flowing
+        through this resistor includes both the drain current drawn by
+        the 4K HEMT and any additional current drawn by the DC/DC
+        regulator that steps the RF6.0V supply voltage down to the
+        lower drain voltage the cryostat card provides to the 4K HEMT.
+        The default value of 200 Ohm is the standard value loaded onto
+        cryostat card revision C02 (PC-248-103-02-C02).  The resistor
+        on that revision of the cryostat card is R44.  Units are Ohms.
 
         See Also
         --------
@@ -206,9 +220,19 @@ class SmurfConfigPropertiesMixin(object):
     # Getter
     @property
     def hemt_Id_offset(self):
-        """???
+        """4K HEMT drain current offset in mA.
 
-        ???
+        The 4K HEMT drain current is measured before the regulator
+        that steps the main RF6.0V supply down to the lower 4K HEMT
+        drain voltage using an inline resistor (see
+        :func:`hemt_Vd_series_resistor`), so the total measured
+        includes both the drain current drawn by the 4K HEMT and any
+        additional current drawn by the DC/DC regulator that steps the
+        RF6.0V supply voltage down to the lower drain voltage the
+        cryostat card provides to the 4K HEMT.  An accurate
+        measurement of the 4K drain current requires subtracting the
+        current drawn by that regulator.  This is the offset to
+        subtract off the measured value.  Units are milliamperes.
 
         See Also
         --------
@@ -263,7 +287,7 @@ class SmurfConfigPropertiesMixin(object):
         See Also
         --------
         :func:`copy_config_to_properties`,
-        :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.set_hemt_gate_voltage`,
+        :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.set_hemt_gate_voltage`
         """
         return self._hemt_gate_max_voltage
 
@@ -283,8 +307,13 @@ class SmurfConfigPropertiesMixin(object):
     def fiftyk_Vg(self):
         """50K LNA Gate Voltage
 
-        Gets or sets the desired value for the 50K LNA Gate voltage.
-        Units are Volts.
+        Gets or sets the desired value for the 50K LNA Gate voltage at
+        the output of the cryostat card.  Units are Volts.
+
+        See Also
+        --------
+        :func:`copy_config_to_properties`,
+        :func:`~pysmurf.client.util.smurf_util.SmurfUtilMixin.set_amplifier_bias`
         """
         return self._fiftyk_Vg
 
@@ -305,6 +334,13 @@ class SmurfConfigPropertiesMixin(object):
         """???
 
         ???
+
+        See Also
+        --------
+        :func:`copy_config_to_properties`,
+        :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.set_50k_amp_gate_voltage`,
+        :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.get_50k_amp_gate_voltage`,
+        :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.set_50k_amp_enable`
         """
         return self._fiftyk_dac_num
 
@@ -322,9 +358,19 @@ class SmurfConfigPropertiesMixin(object):
     # Getter
     @property
     def fiftyk_bit_to_V(self):
-        """???
+        """Bit to volts conversion for 50K amplifier gate DAC.
 
-        ???
+        Conversion from bits (the digital value the RTM DAC is set to)
+        to Volts for the 50K amplifier gate (specified at the output
+        of the cryostat card).  An important dependency is the voltage
+        division on the cryostat card, which can be different from
+        cryostat card to cryostat card.  Units are Volts/bit.
+
+        See Also
+        --------
+        :func:`copy_config_to_properties`,
+        :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.set_50k_amp_gate_voltage`,
+        :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.get_50k_amp_gate_voltage`
         """
         return self._fiftyk_bit_to_V
 
@@ -345,6 +391,11 @@ class SmurfConfigPropertiesMixin(object):
         """???
 
         ???
+
+        See Also
+        --------
+        :func:`copy_config_to_properties`,
+        :func:`~pysmurf.client.util.smurf_util.SmurfUtilMixin.get_50k_amp_drain_current`
         """
         return self._fiftyk_amp_Vd_series_resistor
 
@@ -365,6 +416,11 @@ class SmurfConfigPropertiesMixin(object):
         """???
 
         ???
+
+        See Also
+        --------
+        :func:`copy_config_to_properties`,
+        :func:`~pysmurf.client.util.smurf_util.SmurfUtilMixin.get_50k_amp_drain_current`
         """
         return self._fiftyk_Id_offset
 

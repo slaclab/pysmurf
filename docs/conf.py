@@ -42,6 +42,7 @@ extensions = [
     'sphinx.ext.autodoc',
     'sphinx.ext.napoleon',
     'sphinx.ext.todo',
+    'sphinx.ext.linkcode'
 ]
 
 # Napoleon settings
@@ -216,3 +217,61 @@ latex_documents = [
 
 # Modules to mock up
 autodoc_mock_imports = ['pyrogue','smurf','rogue','CryoDet','CryoDevBoard']
+
+
+# Source code links
+import inspect
+from os.path import relpath, dirname
+
+def linkcode_resolve(domain, info):
+    """
+    Determine the URL corresponding to Python object
+    """
+    if domain != 'py':
+        return None
+
+    modname = info['module']
+    fullname = info['fullname']
+
+    submod = sys.modules.get(modname)
+    if submod is None:
+        return None
+
+    obj = submod
+    for part in fullname.split('.'):
+        try:
+            obj = getattr(obj, part)
+        except Exception:
+            return None
+
+    # strip decorators, which would resolve to the source of the decorator
+    try:
+        unwrap = inspect.unwrap
+    except AttributeError:
+        pass
+    else:
+        obj = unwrap(obj)
+
+    try:
+        fn = inspect.getsourcefile(obj)
+    except Exception:
+        fn = None
+    if not fn:
+        return None
+
+    try:
+        source, lineno = inspect.getsourcelines(obj)
+    except Exception:
+        lineno = None
+
+    if lineno:
+        linespec = "#L%d-L%d" % (lineno, lineno + len(source) - 1)
+    else:
+        linespec = ""
+
+    fn = relpath(fn, start=dirname(numpy.__file__))
+
+    #return "https://github.com/numpy/numpy/blob/v%s/numpy/%s%s" % (
+    #    numpy.__version__, fn, linespec)
+    return "https://github.com/numpy/numpy/blob/master/numpy/%s%s" % (
+        fn, linespec)
