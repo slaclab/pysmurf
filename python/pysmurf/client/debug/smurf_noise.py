@@ -434,35 +434,48 @@ class SmurfNoiseMixin(SmurfBase):
             detrend='constant', fs=None, show_plot=False, cool_wait=30.,
             psd_ylim=(10.,1000.), make_timestream_plot=False,
             only_overbias_once=False, overbias_wait=1):
-        """
-        This ramps the TES voltage from bias_high to bias_low and takes noise
+        """ This ramps the TES voltage from bias_high to bias_low and takes noise
         measurements. You can make it analyze the data and make plots with the
         optional argument analyze=True. Note that the analysis is a little
-        slow.
-        Args:
-        -----
-        band (int): The band to take noise vs bias data on
-        bias_group (int or int array): which bias group(s) to bias/read back.
-        Opt Args:
-        ---------
-        bias (float array): The array of bias values to step through. If None,
-            uses values in defined by bias_high, bias_low, and step_size.
-        bias_high (float): The bias voltage to start at
-        bias_low (float): The bias votlage to end at
-        step_size (float): The step in voltage.
-        overbias_voltage (float): voltage to set the overbias
-        meas_time (float): The amount of time to take data at each TES bias.
-        analyze (bool): Whether to analyze the data
-        channel (int): The channel to run analysis on. Note that data is taken
-            on all channels. This only affects what is analyzed. You can always
-            run the analyze script later.
-        nperseg (int): The number of samples per segment in the PSD.
-        detrend (str): Whether to detrend the data before taking the PSD.
-            Default is to remove a constant.
-        fs (float): The sample frequency.
-        show_plot: Whether to show analysis plots. Defaults to False.
-        only_overbias_once (bool): Whether or not to overbias right
-            before each TES bias step
+        slow. band and channel inputs only dictate what plots are made. Data
+        is taken on every band and channel that is on.
+
+        Parameters:
+        -----------
+        bias_group : int or int array
+            which bias group(s) to bias/read back.
+        band :int
+            The band to take noise vs bias data on
+        bias : float array
+            The array of bias values to step through. If None, uses values in
+            defined by bias_high, bias_low, and step_size.
+        bias_high : float
+            The bias voltage to start at
+        bias_low : float
+            The bias votlage to end at
+        step_size : float
+            The step in voltage.
+        overbias_voltage : float
+            voltage to set the overbias
+        meas_time : float
+            The amount of time to take data at each TES bias.
+        analyze : bool
+            Whether to analyze the data
+        channel : int
+            The channel to run analysis on. Note that data is taken on all
+            channels. This only affects what is analyzed. You can always run the
+            analyze script later.
+        nperseg : int
+            The number of samples per segment in the PSD.
+        detrend : str
+            Whether to detrend the data before taking the PSD. Default is to
+            remove a constant.
+        fs : float
+            The sample frequency.
+        show_plot : bool
+            Whether to show analysis plots. Defaults to False.
+        only_overbias_once : bool
+            Whether or not to overbias right before each TES bias step
         """
         if bias is None:
             if step_size > 0:
@@ -885,6 +898,11 @@ class SmurfNoiseMixin(SmurfBase):
         w_SI = w_NEPwl
         n_col = w_NEI + w_NEIwl
         # for ch in channel:
+
+        # Load filter parameters
+        filter_a = self.get_filter_a()
+        filter_b = self.get_filter_b()
+
         for b, ch in zip(band, channel):
             if ch < 0:
                 continue
@@ -960,7 +978,8 @@ class SmurfNoiseMixin(SmurfBase):
                     ax_i.set_ylabel('Phase [pA]')
 
                 # fit to noise model; catch error if fit is bad
-                popt, pcov, f_fit, Pxx_fit = self.analyze_psd(f, Pxx)
+                popt, pcov, f_fit, Pxx_fit = self.analyze_psd(f, Pxx,
+                    filter_b=filter_b, filter_a=filter_a)
                 wl, n, f_knee = popt
                 self.log(f'ch. {ch}, bias = {bs:.2f}' +
                          f', white-noise level = {wl:.2f}' +
@@ -1126,7 +1145,7 @@ class SmurfNoiseMixin(SmurfBase):
 
             if save_plot:
                 plot_name = f'noise_vs_bias_band{b}_' + \
-                    f'g{file_name_string}ch{ch:03}.png'
+                    f'g{file_name_string}_b{b}ch{ch:03}.png'
                 if data_timestamp is not None:
                     plot_name = f'{data_timestamp}_' + plot_name
                 else:
@@ -1274,7 +1293,7 @@ class SmurfNoiseMixin(SmurfBase):
 
 
     def analyze_psd(self, f, Pxx, fs=None, p0=[100.,0.5,0.01],
-            flux_ramp_freq=None):
+            flux_ramp_freq=None, filter_a=None, filter_b=None):
         '''
         Return model fit for a PSD.
         p0 (float array): initial guesses for model fitting: [white-noise level
@@ -1300,8 +1319,10 @@ class SmurfNoiseMixin(SmurfBase):
         Pxx_fit (flot array) : The amplitude
         '''
         # incorporate timestream filtering
-        b = self.get_filter_b()
-        a = self.get_filter_a()
+        if filter_b is None:
+            filter_b = self.get_filter_b()
+        if filter_a is None:
+            filter_a = self.get_filter_a()
 
         if flux_ramp_freq is None:
             flux_ramp_freq = self.get_flux_ramp_freq() * 1.0E3
@@ -1319,7 +1340,8 @@ class SmurfNoiseMixin(SmurfBase):
             A = wl*(f_knee**n)
 
             # The downsample filter is at the flux ramp frequency
-            w, h = signal.freqz(b, a, worN=freq, fs=flux_ramp_freq)
+            w, h = signal.freqz(filter_b, filter_a, worN=freq,
+                fs=flux_ramp_freq)
             tf = np.absolute(h) # filter transfer function
 
             return (A/(freq**n) + wl)*tf
