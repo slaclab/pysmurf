@@ -2716,7 +2716,7 @@ class SmurfUtilMixin(SmurfBase):
 
         self.set_tes_bias_bipolar(bias_group, tes_bias,
             flip_polarity=flip_polarity)
-        self.log(f'Waiting {coolwait:1.1f} seconds to cool', self.LOG_USER)
+        self.log(f'Waiting {cool_wait:1.1f} seconds to cool', self.LOG_USER)
         time.sleep(cool_wait)
 
         self.log('Done waiting.', self.LOG_USER)
