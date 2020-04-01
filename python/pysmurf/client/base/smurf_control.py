@@ -32,8 +32,8 @@ class SmurfControl(SmurfCommandMixin,
         SmurfAtcaMonitorMixin, SmurfUtilMixin, SmurfTuneMixin,
         SmurfNoiseMixin, SmurfIVMixin,
         SmurfConfigPropertiesMixin):
-    
-    """Base class for controlling SMuRF. 
+
+    """Base class for controlling SMuRF.
 
     Loads all the mixins.  NEED LONGER DESCRIPTION OF THE SMURF
     CONTROL CLASS HERE.  Inherits from the following mixins:
@@ -241,7 +241,7 @@ class SmurfControl(SmurfCommandMixin,
         # Populate SmurfConfigPropertiesMixin properties with values
         # from loaded pysmurf configuration file.
         self.copy_config_to_properties(self.config)
-        
+
         # Mapping from attenuator numbers to bands
         att_cfg = self.config.get('attenuator')
         keys = att_cfg.keys()

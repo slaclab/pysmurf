@@ -16,8 +16,6 @@
 """Defines the SmurfConfigPropertiesMixin class.
 """
 
-from pysmurf.client.base.smurf_config import SmurfConfig as SmurfConfig
-
 class SmurfConfigPropertiesMixin(object):
     """Mixin for ???x
     """
@@ -33,18 +31,18 @@ class SmurfConfigPropertiesMixin(object):
         self._hemt_Vd_series_resistor=None
         self._hemt_Id_offset=None
         self._hemt_gate_min_voltage=None
-        self._hemt_gate_max_voltage=None        
-        
+        self._hemt_gate_max_voltage=None
+
         ## 50K LNA
         self._fiftyk_Vg=None
         self._fiftyk_dac_num=None
         self._fiftyk_bit_to_V=None
         self._fiftyk_amp_Vd_series_resistor=None
-        self._fiftyk_Id_offset=None    
-        
+        self._fiftyk_Id_offset=None
+
     def copy_config_to_properties(self,config):
         """Copy values from SmurfConfig instance to properties
-        
+
         MORE EXPLANATION HERE. USES PROPERTY SETTERS IN CASE WE EVER
         WANT TO IMPOSE ANY CONDITIONS IN THEM.
 
@@ -56,7 +54,7 @@ class SmurfConfigPropertiesMixin(object):
               :class:`~pysmurf.client.command.smurf_config_properties.SmurfConfigPropertiesMixin`
               instance.
         """
-        
+
         # Useful constants
         constant_cfg = config.get('constant')
         self.pA_per_phi0 = constant_cfg.get('pA_per_phi0')
@@ -65,7 +63,7 @@ class SmurfConfigPropertiesMixin(object):
         amp_cfg = self.config.get('amplifier')
         keys = amp_cfg.keys()
 
-        ## 4K HEMT        
+        ## 4K HEMT
         if 'hemt_Vg' in keys:
             self.hemt_Vg=amp_cfg['hemt_Vg']
         if 'bit_to_V_hemt' in keys:
@@ -77,9 +75,9 @@ class SmurfConfigPropertiesMixin(object):
         if 'hemt_gate_min_voltage' in keys:
             self.hemt_gate_min_voltage=amp_cfg['hemt_gate_min_voltage']
         if 'hemt_gate_max_voltage' in keys:
-            self.hemt_gate_max_voltage=amp_cfg['hemt_gate_max_voltage']                        
-            
-        ## 50K HEMT                    
+            self.hemt_gate_max_voltage=amp_cfg['hemt_gate_max_voltage']
+
+        ## 50K HEMT
         if 'LNA_Vg' in keys:
             self.fiftyk_Vg=amp_cfg['LNA_Vg']
         if 'dac_num_50k' in keys:
@@ -90,7 +88,7 @@ class SmurfConfigPropertiesMixin(object):
             self.fiftyk_amp_Vd_series_resistor=amp_cfg['50K_amp_Vd_series_resistor']
         if '50k_Id_offset' in keys:
             self.fiftyk_Id_offset=amp_cfg['50k_Id_offset']
-            
+
     ###########################################################################
     ## Start pA_per_phi0 property definition
 
@@ -99,21 +97,21 @@ class SmurfConfigPropertiesMixin(object):
     def pA_per_phi0(self):
         """Conversion factor between demodulated phase and TES
         current.
-        
+
         Gets or sets the conversion factor between the demodulated
         phase for every SMuRF channel and the equivalent TES current.
         Units are pA per Phi0, with Phi0 the magnetic flux quantum.
 
         See Also
         --------
-        :meth:`~pysmurf.client.debug.smurf_noise.SmurfNoiseMixin.take_noise_psd`,
-        :meth:`~pysmurf.client.debug.smurf_noise.SmurfNoiseMixin.analyze_noise_vs_bias`,
-        :meth:`~pysmurf.client.debug.smurf_noise.SmurfNoiseMixin.analyze_noise_all_vs_noise_solo`,
-        :meth:`~pysmurf.client.debug.smurf_noise.SmurfNoiseMixin.analyze_noise_vs_tone`,
-        :meth:`~pysmurf.client.debug.smurf_iv.SmurfIVMixin.analyze_slow_iv`,
-        :meth:`~pysmurf.client.util.smurf_util.SmurfUtilMixin.bias_bump`,
-        :meth:`~pysmurf.client.util.smurf_util.SmurfUtilMixin.identify_bias_groups`, 
-        :meth:`copy_config_to_properties`
+        :func:`copy_config_to_properties`,
+        :func:`~pysmurf.client.debug.smurf_noise.SmurfNoiseMixin.take_noise_psd`,
+        :func:`~pysmurf.client.debug.smurf_noise.SmurfNoiseMixin.analyze_noise_vs_bias`,
+        :func:`~pysmurf.client.debug.smurf_noise.SmurfNoiseMixin.analyze_noise_all_vs_noise_solo`,
+        :func:`~pysmurf.client.debug.smurf_noise.SmurfNoiseMixin.analyze_noise_vs_tone`,
+        :func:`~pysmurf.client.debug.smurf_iv.SmurfIVMixin.analyze_slow_iv`,
+        :func:`~pysmurf.client.util.smurf_util.SmurfUtilMixin.bias_bump`,
+        :func:`~pysmurf.client.util.smurf_util.SmurfUtilMixin.identify_bias_groups`
         """
         return self._pA_per_phi0
 
@@ -132,9 +130,14 @@ class SmurfConfigPropertiesMixin(object):
     @property
     def hemt_Vg(self):
         """4K HEMT Gate Voltage
-        
+
         Gets or sets the desired value for the 4K HEMT Gate voltage.
         Units are Volts.
+
+        See Also
+        --------
+        :func:`copy_config_to_properties`,
+        :func:`~pysmurf.client.util.smurf_util.SmurfUtilMixin.set_amplifier_bias`
         """
         return self._hemt_Vg
 
@@ -153,8 +156,14 @@ class SmurfConfigPropertiesMixin(object):
     @property
     def hemt_bit_to_V(self):
         """???
-        
+
         ???
+
+        See Also
+        --------
+        :func:`copy_config_to_properties`,
+        :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.set_hemt_gate_voltage`,
+        :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.get_hemt_gate_voltage`
         """
         return self._hemt_bit_to_V
 
@@ -173,8 +182,13 @@ class SmurfConfigPropertiesMixin(object):
     @property
     def hemt_Vd_series_resistor(self):
         """???
-        
+
         ???
+
+        See Also
+        --------
+        :func:`copy_config_to_properties`,
+        :func:`~pysmurf.client.util.smurf_util.SmurfUtilMixin.get_hemt_drain_current`
         """
         return self._hemt_Vd_series_resistor
 
@@ -193,8 +207,13 @@ class SmurfConfigPropertiesMixin(object):
     @property
     def hemt_Id_offset(self):
         """???
-        
+
         ???
+
+        See Also
+        --------
+        :func:`copy_config_to_properties`,
+        :func:`~pysmurf.client.util.smurf_util.SmurfUtilMixin.get_hemt_drain_current`
         """
         return self._hemt_Id_offset
 
@@ -213,8 +232,13 @@ class SmurfConfigPropertiesMixin(object):
     @property
     def hemt_gate_min_voltage(self):
         """???
-        
+
         ???
+
+        See Also
+        --------
+        :func:`copy_config_to_properties`,
+        :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.set_hemt_gate_voltage`
         """
         return self._hemt_gate_min_voltage
 
@@ -233,8 +257,13 @@ class SmurfConfigPropertiesMixin(object):
     @property
     def hemt_gate_max_voltage(self):
         """???
-        
+
         ???
+
+        See Also
+        --------
+        :func:`copy_config_to_properties`,
+        :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.set_hemt_gate_voltage`,
         """
         return self._hemt_gate_max_voltage
 
@@ -244,8 +273,8 @@ class SmurfConfigPropertiesMixin(object):
         self._hemt_gate_max_voltage=value
 
     ## End hemt_gate_max_voltage property definition
-    ###########################################################################            
-    
+    ###########################################################################
+
     ###########################################################################
     ## Start fiftyk_Vg property definition
 
@@ -253,7 +282,7 @@ class SmurfConfigPropertiesMixin(object):
     @property
     def fiftyk_Vg(self):
         """50K LNA Gate Voltage
-        
+
         Gets or sets the desired value for the 50K LNA Gate voltage.
         Units are Volts.
         """
@@ -265,7 +294,7 @@ class SmurfConfigPropertiesMixin(object):
         self._fiftyk_Vg=value
 
     ## End fiftyk_Vg property definition
-    ###########################################################################        
+    ###########################################################################
 
     ###########################################################################
     ## Start fiftyk_dac_num property definition
@@ -274,7 +303,7 @@ class SmurfConfigPropertiesMixin(object):
     @property
     def fiftyk_dac_num(self):
         """???
-        
+
         ???
         """
         return self._fiftyk_dac_num
@@ -294,7 +323,7 @@ class SmurfConfigPropertiesMixin(object):
     @property
     def fiftyk_bit_to_V(self):
         """???
-        
+
         ???
         """
         return self._fiftyk_bit_to_V
@@ -314,7 +343,7 @@ class SmurfConfigPropertiesMixin(object):
     @property
     def fiftyk_amp_Vd_series_resistor(self):
         """???
-        
+
         ???
         """
         return self._fiftyk_amp_Vd_series_resistor
@@ -334,7 +363,7 @@ class SmurfConfigPropertiesMixin(object):
     @property
     def fiftyk_Id_offset(self):
         """???
-        
+
         ???
         """
         return self._fiftyk_Id_offset
@@ -346,6 +375,3 @@ class SmurfConfigPropertiesMixin(object):
 
     ## End fiftyk_Id_offset property definition
     ###########################################################################
-
-    
-    
