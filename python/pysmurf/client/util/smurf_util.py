@@ -3925,35 +3925,41 @@ class SmurfUtilMixin(SmurfBase):
 
         return flux_ramp_freq / downsample_factor
 
-    def identify_bias_groups(self, probe_freq=2.5, probe_time=3,
-                             probe_amp=.1,
-                             bias_groups=None, make_plot=False,
-                             show_plot=False, save_plot=True,
-                             cutoff_frac=.05, update_channel_assignment=True):
-        """
-        Identify bias groups of all the channels that are on. Plays
+    def identify_bias_groups(self, bias_groups=None,
+            probe_freq=2.5, probe_time=3, probe_amp=.1, make_plot=False,
+            show_plot=False, save_plot=True, cutoff_frac=.05,
+            update_channel_assignment=True, high_current_mode=True):
+        """ Identify bias groups of all the channels that are on. Plays
         a sine wave on a bias group and looks for a response. Does
         this with the TESs superconducting so it can look for an
         response is exactly the same amplitude as the input.
 
-        Opt Args:
-        ---------
-        probe_freq (float) : The frequency of the probe tone
-        probe_time (float) : The length of time to probe each
-            bias group in seconds. Default 3.
-        bias_groups (int array) : The bias groups to search.
-           If None, does the first 8 bias groups. Default is None.
-        cutoff_frac (float) : The fraction difference the response
-           can be away from the expected amplitude. Default .05.
-        make_plot (bool) : Whether to make the plot. Default False.
-        save_plot (bool) : Whether to save the plot. Default True.
-        show_plot (bool) : Whether to show the plot. Default False
-        update_channel_assignment (bool): Whether to update the
-            master channels assignment to contain the new bias group
-            information. Default True.
+        Parameters:
+        -----------
+        bias_groups : int array
+            The bias groups to search. If None, does the first 8 bias groups.
+            Default is None.
+        probe_freq : float
+            The frequency of the probe tone
+        probe_time : float
+            The length of time to probe each bias group in seconds. Default 3.
+        cutoff_frac : float
+            The fraction difference the response can be away from the expected
+            amplitude. Default .05.
+        make_plot : bool
+            Whether to make the plot. Default False.
+        save_plot :bool
+            Whether to save the plot. Default True.
+        show_plot : bool
+            Whether to show the plot. Default False
+        update_channel_assignment : bool
+            Whether to update the master channels assignment to contain the new
+            bias group information. Default True.
+        high_current_mode : bool
+            Whether to use high or low current mode. Default True.
 
-        Ret:
-        ----
+        Returns:
+        --------
         channels_dict (dict) : A dictionary where the first key is
             the bias group that is being probed. In each is the
             band, channnel pairs, and frequency of the channels.
@@ -3980,7 +3986,7 @@ class SmurfUtilMixin(SmurfBase):
 
         # There should be something smarter than this
         if bias_groups is None:
-            bias_groups = np.arange(8)
+            bias_groups = np.arange(self._n_bias_groups)
 
         channels_dict = {}
 
@@ -3993,13 +3999,14 @@ class SmurfUtilMixin(SmurfBase):
             self.log(f"Working on bias group {bias_group}")
 
             # Work in high current mode to bypass filter
-            self.set_tes_bias_high_current(bias_group)
+            if high_current_mode:
+                self.set_tes_bias_high_current(bias_group)
+            else:
+                self.set_tes_bias_low_current(bias_group)
 
             # Play sine wave and take data
-            self.play_sine_tes(bias_group, probe_amp,
-                               probe_freq, dc_amp=0)
-            datafile = self.take_stream_data(probe_time,
-                                             write_log=False)
+            self.play_sine_tes(bias_group, probe_amp, probe_freq, dc_amp=0)
+            datafile = self.take_stream_data(probe_time, write_log=False)
 
             self.stop_tes_bipolar_waveform(bias_group)
 
@@ -4014,14 +4021,16 @@ class SmurfUtilMixin(SmurfBase):
             n_det, n_samp = np.shape(d)
 
             # currents on lines
-            r_inline = self.bias_line_resistance / self.high_low_current_ratio
+            if high_current_mode:
+                r_inline = self.bias_line_resistance / self.high_low_current_ratio
+            else:
+                r_inline = self.bias_line_resistance
+
             i_bias = probe_amp / r_inline * 1.0E12  # Bias current in pA
 
             # sine/cosine decomp templates
-            s = np.sin(2*np.pi*np.arange(n_samp)/
-                       n_samp*probe_freq*probe_time)
-            c = np.cos(2*np.pi*np.arange(n_samp)/
-                       n_samp*probe_freq*probe_time)
+            s = np.sin(2*np.pi*np.arange(n_samp) / n_samp*probe_freq*probe_time)
+            c = np.cos(2*np.pi*np.arange(n_samp) / n_samp*probe_freq*probe_time)
             s /= np.sum(s**2)
             c /= np.sum(c**2)
 
@@ -4068,6 +4077,12 @@ class SmurfUtilMixin(SmurfBase):
                 ax[1].axhline(i_bias, linestyle='--', color='r')
                 ax[0].set_xlabel('Time [s]')
                 ax[0].set_ylabel('Amp [pA]')
+
+                current_mode_label = 'high current'
+                if not high_current_mode:
+                    current_mode_label = 'low current'
+                ax[0].text(.02, .98, current_mode_label,
+                    transform=ax[0].transAxes, va='top', ha='left')
 
                 ax[1].plot(freq_arr, sa, 'x', color='b',
                            label='sine', alpha=.5)
