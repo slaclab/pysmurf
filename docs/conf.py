@@ -271,6 +271,6 @@ def linkcode_resolve(domain, info):
         linespec = ""
 
     fn = relpath(fn, start=dirname(pysmurf_file))
-    print('here')
-    return "https://github.com/slaclab/pysmurf/blob/master/python/pysmurf/%s%s" % (
-        fn, linespec)
+    print(f'{pysmurf_version}')
+    return "https://github.com/slaclab/pysmurf/blob/%s/python/pysmurf/%s%s" % (
+        pysmurf_version, fn, linespec)
