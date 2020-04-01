@@ -822,6 +822,8 @@ class SmurfNoiseMixin(SmurfBase):
             mask = self.make_mask_lookup(datafile[0])
             band, channel = np.where(mask != -1)
 
+        # Make sure band is an int array
+        band = np.array(band).astype(int)
 
         # If an analyzed IV datafile is given, estimate NEP
         if iv_data_filename is not None and band is not None:
@@ -856,7 +858,7 @@ class SmurfNoiseMixin(SmurfBase):
                 Pxx = np.sqrt(Pxx)  # pA
 
                 path = os.path.join(psd_dir,
-                    basename + '_psd_ch{:03}.txt'.format(ch))
+                    basename + f'_psd_b{b}ch{ch:03}.txt')
                 np.savetxt(path, np.array([f, Pxx]))
                 self.pub.register_file(path, 'psd', format='txt')
 
@@ -915,11 +917,8 @@ class SmurfNoiseMixin(SmurfBase):
                 basename, _ = os.path.splitext(os.path.basename(d))
                 dirname = os.path.dirname(d)
 
-                self.log(os.path.join(psd_dir, basename +
-                    f'_psd_ch{ch:03}.txt'))
-
                 f, Pxx =  np.loadtxt(os.path.join(psd_dir, basename +
-                    f'_psd_ch{ch:03}.txt'))
+                    f'_psd_b{b}ch{ch:03}.txt'))
                 if est_NEP:
                     print(f'Bias {bs}')
                     NEI2NEP = self.NEI_to_NEP(iv_band_data, ch, bs)
@@ -1059,10 +1058,10 @@ class SmurfNoiseMixin(SmurfBase):
             ax_NEIwl.set_ylabel(f'NEI {ylabel_summary} ' +
                 r'[$\mathrm{pA}/\sqrt{\mathrm{Hz}}$]')
 
-            bottom = max(0.95*min(noise_est_list),0.)
+            bottom = max(0.95*min(noise_est_list), 0.)
             top_desired = 1.05*max(noise_est_list)
             if psd_ylim is not None:
-                top = min(psd_ylim[1],top_desired)
+                top = min(psd_ylim[1], top_desired)
             else:
                 top = top_desired
             ax_NEIwl.set_ylim(bottom=bottom, top=top)
