@@ -428,13 +428,12 @@ class SmurfNoiseMixin(SmurfBase):
                 data_timestamp=timestamp)
 
 
-    def noise_vs_bias(self, band, bias_group,bias_high=1.5, bias_low=0.,
-                      step_size=0.25, bias=None, high_current_mode=True,
-                      overbias_voltage=9., meas_time=30., analyze=False,
-                      channel=None, nperseg=2**13, detrend='constant',
-                      fs=None, show_plot=False, cool_wait=30.,
-                      psd_ylim=(10.,1000.), make_timestream_plot=False,
-                      only_overbias_once=False, overbias_wait=1):
+    def noise_vs_bias(self, band=None, channel=None, bias_group,bias_high=1.5,
+            bias_low=0., step_size=0.25, bias=None, high_current_mode=True,
+            overbias_voltage=9., meas_time=30., analyze=False, nperseg=2**13,
+            detrend='constant', fs=None, show_plot=False, cool_wait=30.,
+            psd_ylim=(10.,1000.), make_timestream_plot=False,
+            only_overbias_once=False, overbias_wait=1):
         """
         This ramps the TES voltage from bias_high to bias_low and takes noise
         measurements. You can make it analyze the data and make plots with the
@@ -481,12 +480,10 @@ class SmurfNoiseMixin(SmurfBase):
                       only_overbias_once=only_overbias_once,
                       overbias_wait=overbias_wait)
 
-    def noise_vs_amplitude(self, band, amplitude_high=11, amplitude_low=9, step_size=1,
-                           amplitudes=None,
-                           meas_time=30., analyze=False, channel=None, nperseg=2**13,
-                           detrend='constant', fs=None, show_plot = False,
-                           make_timestream_plot=False,
-                           psd_ylim = None):
+    def noise_vs_amplitude(self, band, amplitude_high=11, amplitude_low=9,
+            step_size=1, amplitudes=None, meas_time=30., analyze=False,
+            channel=None, nperseg=2**13, detrend='constant', fs=None,
+            show_plot=False, make_timestream_plot=False, psd_ylim=None):
         """
         Args:
         -----
@@ -504,18 +501,19 @@ class SmurfNoiseMixin(SmurfBase):
                  make_timestream_plot=make_timestream_plot,
                  psd_ylim=psd_ylim)
 
+
     def noise_vs(self, band, var, var_range, meas_time=30,
                  analyze=False, channel=None, nperseg=2**13,
                  detrend='constant', fs=None, show_plot=False,
                  psd_ylim=None, make_timestream_plot=False,
                  only_overbias_once=False, **kwargs):
-        """
-        Generic script for analyzing noise vs some variable. This is called
+        """ Generic script for analyzing noise vs some variable. This is called
         by noise_vs_bias and noise_vs_tone.
 
-        Args:
-        -----
-        band (int) : The 500 MHz band to analyze
+        Parameters:
+        -----------
+        band int :
+            The 500 MHz band to analyze
         var (dict) : A dictionary values to use in the analysis. The values
             depend on which variable is being varied.
         var_range (float array) : The range of the test variable.
@@ -555,6 +553,7 @@ class SmurfNoiseMixin(SmurfBase):
                 kwargs['overbias_wait'] = 1
 
         if var in amplitudealiases:
+            assert (band is not None), "Must provide band for noise vs amplitude"
             # no parameters (yet) but need to null this until we rework the analysis
             kwargs['bias_group']=-1
             pass
@@ -805,11 +804,10 @@ class SmurfNoiseMixin(SmurfBase):
         else:
             unit=unit_override
 
-        n_channel = self.get_number_channels(band)
         if band is None and channel is None:
-            channel = np.arange(n_channel)
-        elif band is not None and channel is None:
-            channel = self.which_on(band)
+            mask = self.make_mask_lookup(datafile[0])
+            band, channel = np.where(mask != -1)
+
 
         if fs is None:
             fs = self.get_sample_frequency()
@@ -834,9 +832,6 @@ class SmurfNoiseMixin(SmurfBase):
             est_NEP = True
         else:
             est_NEP = False
-
-        mask = self.make_mask_lookup(datafile[0])
-        band, channel = np.where(mask != -1)
 
         timestream_dict = {}
         # Analyze data and save
@@ -1035,7 +1030,7 @@ class SmurfNoiseMixin(SmurfBase):
             if show_legend:
                 ax_NEI.legend(loc = 'upper right')
             if not self.offline:
-                res_freq = self.channel_to_freq(band, ch)
+                res_freq = self.channel_to_freq(b, ch)
             else:
                 res_freq = -1
 
