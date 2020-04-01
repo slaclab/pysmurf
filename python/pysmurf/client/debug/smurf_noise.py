@@ -428,7 +428,7 @@ class SmurfNoiseMixin(SmurfBase):
                 data_timestamp=timestamp)
 
 
-    def noise_vs_bias(self, band=None, channel=None, bias_group,bias_high=1.5,
+    def noise_vs_bias(self, bias_group, band=None, channel=None, bias_high=1.5,
             bias_low=0., step_size=0.25, bias=None, high_current_mode=True,
             overbias_voltage=9., meas_time=30., analyze=False, nperseg=2**13,
             detrend='constant', fs=None, show_plot=False, cool_wait=30.,
