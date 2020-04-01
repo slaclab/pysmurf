@@ -14,6 +14,9 @@
 import sys
 import os
 import re
+# used for source code link resolution
+import inspect
+from os.path import relpath, dirname
 
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
@@ -224,9 +227,6 @@ autodoc_mock_imports = ['pyrogue','smurf','rogue','CryoDet','CryoDevBoard']
 
 
 # Source code links
-import inspect
-from os.path import relpath, dirname
-
 def linkcode_resolve(domain, info):
     """
     Determine the URL corresponding to Python object

@@ -104,7 +104,6 @@ class SmurfConfigPropertiesMixin(object):
 
         See Also
         --------
-        :func:`copy_config_to_properties`,
         :func:`~pysmurf.client.debug.smurf_noise.SmurfNoiseMixin.take_noise_psd`,
         :func:`~pysmurf.client.debug.smurf_noise.SmurfNoiseMixin.analyze_noise_vs_bias`,
         :func:`~pysmurf.client.debug.smurf_noise.SmurfNoiseMixin.analyze_noise_all_vs_noise_solo`,
@@ -136,7 +135,6 @@ class SmurfConfigPropertiesMixin(object):
 
         See Also
         --------
-        :func:`copy_config_to_properties`,
         :func:`~pysmurf.client.util.smurf_util.SmurfUtilMixin.set_amplifier_bias`
         """
         return self._hemt_Vg
@@ -155,17 +153,17 @@ class SmurfConfigPropertiesMixin(object):
     # Getter
     @property
     def hemt_bit_to_V(self):
-        """Bit to volts conversion for HEMT gate DAC.
+        """Bit to volts conversion for 4K HEMT gate DAC.
 
-        Conversion from bits (the digital value the RTM DAC is set to)
-        to Volts for the 4K amplifier gate (specified at the output of
-        the cryostat card).  An important dependency is the voltage
-        division on the cryostat card, which can be different from
-        cryostat card to cryostat card.  Units are Volts/bit.
+        Gets or sets the conversion from bits (the digital value the
+        RTM DAC is set to) to Volts for the 4K amplifier gate
+        (specified at the output of the cryostat card).  An important
+        dependency is the voltage division on the cryostat card, which
+        can be different from cryostat card to cryostat card.  Units
+        are Volts/bit.
 
         See Also
         --------
-        :func:`copy_config_to_properties`,
         :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.set_hemt_gate_voltage`,
         :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.get_hemt_gate_voltage`
         """
@@ -187,21 +185,20 @@ class SmurfConfigPropertiesMixin(object):
     def hemt_Vd_series_resistor(self):
         """4K HEMT drain current measurement resistor in Ohms.
 
-        The resistance of the resistor that is inline with the 4K HEMT
-        amplifier drain voltage source which is used to infer the 4K
-        HEMT amplifier drain current.  This resistor is inline with
-        but before the regulator that steps the main RF6.0V supply
-        down to the lower 4K HEMT drain voltage, so the current
-        flowing through this resistor includes both the drain current
-        drawn by the 4K HEMT and any additional current drawn by the
-        DC/DC regulator.  The default value of 200 Ohm is the standard
-        value loaded onto cryostat card revision C02
+        Gets or sets the resistance of the resistor that is inline
+        with the 4K HEMT amplifier drain voltage source which is used
+        to infer the 4K HEMT amplifier drain current.  This resistor
+        is inline with but before the regulator that steps the main
+        RF6.0V supply down to the lower 4K HEMT drain voltage, so the
+        current flowing through this resistor includes both the drain
+        current drawn by the 4K HEMT and any additional current drawn
+        by the DC/DC regulator.  The default value of 200 Ohm is the
+        standard value loaded onto cryostat card revision C02
         (PC-248-103-02-C02).  The resistor on that revision of the
         cryostat card is R44.  Units are Ohms.
 
         See Also
         --------
-        :func:`copy_config_to_properties`,
         :func:`~pysmurf.client.util.smurf_util.SmurfUtilMixin.get_hemt_drain_current`
         """
         return self._hemt_Vd_series_resistor
@@ -222,9 +219,9 @@ class SmurfConfigPropertiesMixin(object):
     def hemt_Id_offset(self):
         """4K HEMT drain current offset in mA.
 
-        The 4K HEMT drain current is measured before the regulator
-        that steps the main RF6.0V supply down to the lower 4K HEMT
-        drain voltage using an inline resistor (see
+        Gets or sets the 4K HEMT drain current is measured before the
+        regulator that steps the main RF6.0V supply down to the lower
+        4K HEMT drain voltage using an inline resistor (see
         :func:`hemt_Vd_series_resistor`), so the total measured
         current through the series resistor includes both the drain
         current drawn by the 4K HEMT and any additional current drawn
@@ -236,7 +233,6 @@ class SmurfConfigPropertiesMixin(object):
 
         See Also
         --------
-        :func:`copy_config_to_properties`,
         :func:`~pysmurf.client.util.smurf_util.SmurfUtilMixin.get_hemt_drain_current`
         """
         return self._hemt_Id_offset
@@ -255,13 +251,18 @@ class SmurfConfigPropertiesMixin(object):
     # Getter
     @property
     def hemt_gate_min_voltage(self):
-        """???
+        """4K HEMT gate voltage minimum software limit
 
-        ???
+        Gets or sets the minimum voltage the 4K HEMT gate voltage can
+        be set to using the
+        :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.set_hemt_gate_voltage`
+        function unless this software limit is overriden with the
+        boolean `override` argument of
+        :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.set_hemt_gate_voltage`.
+        Units are Volts.
 
         See Also
         --------
-        :func:`copy_config_to_properties`,
         :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.set_hemt_gate_voltage`
         """
         return self._hemt_gate_min_voltage
@@ -280,13 +281,18 @@ class SmurfConfigPropertiesMixin(object):
     # Getter
     @property
     def hemt_gate_max_voltage(self):
-        """???
+        """4K HEMT gate voltage maximum software limit
 
-        ???
+        Gets or sets the maximum voltage the 4K HEMT gate voltage can
+        be set to using the
+        :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.set_hemt_gate_voltage`
+        function unless this software limit is overriden with the
+        boolean `override` argument of
+        :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.set_hemt_gate_voltage`.
+        Units are Volts.
 
         See Also
         --------
-        :func:`copy_config_to_properties`,
         :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.set_hemt_gate_voltage`
         """
         return self._hemt_gate_max_voltage
@@ -312,7 +318,6 @@ class SmurfConfigPropertiesMixin(object):
 
         See Also
         --------
-        :func:`copy_config_to_properties`,
         :func:`~pysmurf.client.util.smurf_util.SmurfUtilMixin.set_amplifier_bias`
         """
         return self._fiftyk_Vg
@@ -331,13 +336,21 @@ class SmurfConfigPropertiesMixin(object):
     # Getter
     @property
     def fiftyk_dac_num(self):
-        """???
+        """The RTM DAC number which is wired to the 50K LNA gate.
 
-        ???
+        Gets or sets the DAC number of the DAC on the RTM that is
+        wired to the 50K LNA gate.  Must be an integer between 1 and
+        32, at least for RTM main board revision C01
+        (PC-379-396-32-C01).  The DAC number corresponds to the number
+        on the RTM schematic (e.g. see the nets named DAC1,...,DAC32.
+        The connection between an RTM DAC and the 50K LNA gate is made
+        on the cryostat card.  The default RTM DAC that's wired to the
+        50K LNA gate for cryostat card revision C02
+        (PC-248-103-02-C02) is DAC32 (if JMP4 on the cryostat card is
+        populated correctly).
 
         See Also
         --------
-        :func:`copy_config_to_properties`,
         :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.set_50k_amp_gate_voltage`,
         :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.get_50k_amp_gate_voltage`,
         :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.set_50k_amp_enable`
@@ -358,17 +371,17 @@ class SmurfConfigPropertiesMixin(object):
     # Getter
     @property
     def fiftyk_bit_to_V(self):
-        """Bit to volts conversion for 50K amplifier gate DAC.
+        """Bit to volts conversion for 50K LNA gate DAC.
 
-        Conversion from bits (the digital value the RTM DAC is set to)
-        to Volts for the 50K amplifier gate (specified at the output
-        of the cryostat card).  An important dependency is the voltage
-        division on the cryostat card, which can be different from
-        cryostat card to cryostat card.  Units are Volts/bit.
+        Gets or set the conversion from bits (the digital value the
+        RTM DAC is set to) to Volts for the 50K LNA gate (specified at
+        the output of the cryostat card).  An important dependency is
+        the voltage division on the cryostat card, which can be
+        different from cryostat card to cryostat card.  Units are
+        Volts/bit.
 
         See Also
         --------
-        :func:`copy_config_to_properties`,
         :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.set_50k_amp_gate_voltage`,
         :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.get_50k_amp_gate_voltage`
         """
@@ -388,23 +401,22 @@ class SmurfConfigPropertiesMixin(object):
     # Getter
     @property
     def fiftyk_amp_Vd_series_resistor(self):
-        """50K amplifier drain current measurement resistor in Ohms.
+        """50K LNA drain current measurement resistor in Ohms.
 
-        The resistance of the resistor that is inline with the 50K RF
-        amplifier drain voltage source which is used to infer the 50K
-        RF amplifier drain current.  This resistor is inline with but
-        before the regulator that steps the main RF6.0V supply down to
-        the lower 50K LNA drain voltage, so the current flowing
-        through this resistor includes both the drain current drawn by
-        the 50K RF amplifier and any additional current drawn by the
-        DC/DC regulator.  The default value of 10 Ohm is the standard
-        value loaded onto cryostat card revision C02
+        Gets or sets the resistance of the resistor that is inline
+        with the 50K LNA drain voltage source which is used to infer
+        the 50K RF amplifier drain current.  This resistor is inline
+        with but before the regulator that steps the main RF6.0V
+        supply down to the lower 50K LNA drain voltage, so the current
+        flowing through this resistor includes both the drain current
+        drawn by the 50K RF amplifier and any additional current drawn
+        by the DC/DC regulator.  The default value of 10 Ohm is the
+        standard value loaded onto cryostat card revision C02
         (PC-248-103-02-C02).  The resistor on that revision of the
         cryostat card is R54.  Units are Ohms.
 
         See Also
         --------
-        :func:`copy_config_to_properties`,
         :func:`~pysmurf.client.util.smurf_util.SmurfUtilMixin.get_50k_amp_drain_current`
         """
         return self._fiftyk_amp_Vd_series_resistor
@@ -425,21 +437,20 @@ class SmurfConfigPropertiesMixin(object):
     def fiftyk_Id_offset(self):
         """50K amplifier drain current offset in mA.
 
-        The 50K RF amplifier drain current is measured before the
-        regulator that steps the main RF6.0V supply down to the lower
-        50K RF amplifier drain voltage using an inline resistor (see
-        :func:`fiftyk_amp_Vd_series_resistor`), so the total measured
-        current through the series resistor includes both the drain
-        current drawn by the 50K RF amplifier and any additional
-        current drawn by the DC/DC regulator.  An accurate measurement
-        of the 50K amplifier drain current requires subtracting the
-        current drawn by that regulator from the measured total
-        current.  This is the offset to subtract off the measured
-        value.  Units are milliamperes.
+        Gets or sets the 50K RF amplifier drain current is measured
+        before the regulator that steps the main RF6.0V supply down to
+        the lower 50K RF amplifier drain voltage using an inline
+        resistor (see :func:`fiftyk_amp_Vd_series_resistor`), so the
+        total measured current through the series resistor includes
+        both the drain current drawn by the 50K RF amplifier and any
+        additional current drawn by the DC/DC regulator.  An accurate
+        measurement of the 50K amplifier drain current requires
+        subtracting the current drawn by that regulator from the
+        measured total current.  This is the offset to subtract off
+        the measured value.  Units are milliamperes.
 
         See Also
         --------
-        :func:`copy_config_to_properties`,
         :func:`~pysmurf.client.util.smurf_util.SmurfUtilMixin.get_50k_amp_drain_current`
         """
         return self._fiftyk_Id_offset
