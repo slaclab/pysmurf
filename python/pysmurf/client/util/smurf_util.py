@@ -2778,11 +2778,13 @@ class SmurfUtilMixin(SmurfBase):
             voltage_overbias_array[bias_groups] = overbias_voltage
             self.set_tes_bias_bipolar_array(voltage_overbias_array)
 
+            self.log(f'Driving {overbias_voltage} V in high current mode '+
+                f'through bias groups {bias_groups}. ' +
+                f'Waiting {overbias_wait}', self.LOG_USER)
+
             # Set high current mode
             self.set_tes_bias_high_current(bias_groups)
 
-            self.log('Driving high current through TES. ' +
-                'Waiting {}'.format(overbias_wait), self.LOG_USER)
             time.sleep(overbias_wait)
 
         # Set to low current mode
