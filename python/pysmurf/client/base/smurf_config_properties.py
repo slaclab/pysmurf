@@ -106,14 +106,14 @@ class SmurfConfigPropertiesMixin(object):
 
         See Also
         --------
-        :func:`take_noise_psd`,
-        :func:`~pysmurf.client.debug.smurf_noise.analyze_noise_vs_bias`,
-        :func:`~pysmurf.client.debug.smurf_noise.analyze_noise_all_vs_noise_solo`,
-        :func:`~pysmurf.client.debug.smurf_noise.analyze_noise_vs_tone`,
-        :func:`~pysmurf.client.debug.smurf_iv.analyze_slow_iv`,
-        :func:`~pysmurf.client.util.smurf_util.bias_bump`,
-        :func:`~pysmurf.client.util.smurf_util.identify_bias_groups`, 
-        :func:`copy_config_to_properties`
+        :meth:`~pysmurf.client.debug.smurf_noise.SmurfNoiseMixin.take_noise_psd`,
+        :meth:`~pysmurf.client.debug.smurf_noise.SmurfNoiseMixin.analyze_noise_vs_bias`,
+        :meth:`~pysmurf.client.debug.smurf_noise.SmurfNoiseMixin.analyze_noise_all_vs_noise_solo`,
+        :meth:`~pysmurf.client.debug.smurf_noise.SmurfNoiseMixin.analyze_noise_vs_tone`,
+        :meth:`~pysmurf.client.debug.smurf_iv.SmurfIVMixin.analyze_slow_iv`,
+        :meth:`~pysmurf.client.util.smurf_util.SmurfUtilMixin.bias_bump`,
+        :meth:`~pysmurf.client.util.smurf_util.SmurfUtilMixin.identify_bias_groups`, 
+        :meth:`copy_config_to_properties`
         """
         return self._pA_per_phi0
 
