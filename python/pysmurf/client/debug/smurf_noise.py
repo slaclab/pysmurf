@@ -434,7 +434,7 @@ class SmurfNoiseMixin(SmurfBase):
                       channel=None, nperseg=2**13, detrend='constant',
                       fs=None, show_plot=False, cool_wait=30.,
                       psd_ylim=(10.,1000.), make_timestream_plot=False,
-                      only_overbias_once=False):
+                      only_overbias_once=False, overbias_wait=1):
         """
         This ramps the TES voltage from bias_high to bias_low and takes noise
         measurements. You can make it analyze the data and make plots with the
@@ -478,7 +478,8 @@ class SmurfNoiseMixin(SmurfBase):
                       overbias_voltage=overbias_voltage,
                       cool_wait=cool_wait,high_current_mode=high_current_mode,
                       make_timestream_plot=make_timestream_plot,
-                      only_overbias_once=only_overbias_once)
+                      only_overbias_once=only_overbias_once,
+                      overbias_wait=overbias_wait)
 
     def noise_vs_amplitude(self, band, amplitude_high=11, amplitude_low=9, step_size=1,
                            amplitudes=None,
@@ -548,9 +549,11 @@ class SmurfNoiseMixin(SmurfBase):
             assert ('bias_group' in kwargs.keys()),'Must specify bias_group.'
             # defaults
             if 'high_current_mode' not in kwargs.keys():
-                kwargs['high_current_mode']=False
+                kwargs['high_current_mode'] = False
             if 'cool_wait' not in kwargs.keys():
-                kwargs['cool_wait']=30.
+                kwargs['cool_wait'] = 30.
+            if 'overbias_wait' not in kwargs.keys():
+                kwargs['overbias_wait'] = 1
 
         if var in amplitudealiases:
             # no parameters (yet) but need to null this until we rework the analysis
@@ -581,13 +584,15 @@ class SmurfNoiseMixin(SmurfBase):
                                  high_current_mode=kwargs['high_current_mode'],
                                  cool_wait=kwargs['cool_wait'],
                                  overbias_voltage=kwargs['overbias_voltage'],
-                                 actually_overbias=actually_overbias)
+                                 actually_overbias=actually_overbias,
+                                 overbias_wait=kwargs['overbias_wait'])
                 else:
                     self.overbias_tes_all(kwargs['bias_group'], tes_bias=v,
                                  high_current_mode=kwargs['high_current_mode'],
                                  cool_wait=kwargs['cool_wait'],
                                  overbias_voltage=kwargs['overbias_voltage'],
-                                 actually_overbias=actually_overbias)
+                                 actually_overbias=actually_overbias,
+                                 overbias_wait=kwargs['overbias_wait'])
                 if only_overbias_once:
                     actually_overbias=False
 

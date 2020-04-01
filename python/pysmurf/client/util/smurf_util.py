@@ -2662,7 +2662,7 @@ class SmurfUtilMixin(SmurfBase):
         return fiftyK_amp_Id_mA
 
 
-    def overbias_tes(self, bias_group, overbias_voltage=19.9, overbias_wait=5.,
+    def overbias_tes(self, bias_group, overbias_voltage=19.9, overbias_wait=1.,
                      tes_bias=19.9, cool_wait=20., high_current_mode=False,
                      flip_polarity=False, actually_overbias=True):
         """
@@ -2716,7 +2716,7 @@ class SmurfUtilMixin(SmurfBase):
 
         self.set_tes_bias_bipolar(bias_group, tes_bias,
             flip_polarity=flip_polarity)
-        self.log('Waiting %.2f seconds to cool' % (cool_wait), self.LOG_USER)
+        self.log(f'Waiting {coolwait:1.1f} seconds to cool', self.LOG_USER)
         time.sleep(cool_wait)
 
         self.log('Done waiting.', self.LOG_USER)
