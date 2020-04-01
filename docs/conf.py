@@ -269,9 +269,7 @@ def linkcode_resolve(domain, info):
     else:
         linespec = ""
 
-    fn = relpath(fn, start=dirname(numpy.__file__))
+    fn = relpath(fn, start=dirname(pysmurf.__file__))
 
-    #return "https://github.com/numpy/numpy/blob/v%s/numpy/%s%s" % (
-    #    numpy.__version__, fn, linespec)
-    return "https://github.com/numpy/numpy/blob/master/numpy/%s%s" % (
+    return "https://github.com/slaclab/pysmurf/blob/master/numpy/%s%s" % (
         fn, linespec)
