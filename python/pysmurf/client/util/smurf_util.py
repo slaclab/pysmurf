@@ -1019,7 +1019,7 @@ class SmurfUtilMixin(SmurfBase):
 
         phase=np.array(phase)
         t=np.array(t)
-                    
+
         if return_header:
             for k in header_dict.keys():
                 header_dict[k] = np.append(header_dict[k],
