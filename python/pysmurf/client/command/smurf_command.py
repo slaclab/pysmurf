@@ -3071,7 +3071,10 @@ class SmurfCommandMixin(SmurfBase):
         """
         Returns flux ramp freq in units of Hz
         """
-        return 3.0725E5/(self.get_ramp_max_cnt(**kwargs)+1)
+        if self.offline: # FIX ME - this is a stupid hard code
+            return 4.0
+        else:
+            return 3.0725E5/(self.get_ramp_max_cnt(**kwargs)+1)
 
 
     _low_cycle = 'LowCycle'
@@ -4074,6 +4077,8 @@ class SmurfCommandMixin(SmurfBase):
         -----
         coef (list): the filter A coefficients.
         """
+        if self.offline:  # FIX ME - STUPPID HARDCODE
+            return np.array([ 1., -3.74145562,  5.25726624, -3.28776591, 0.77203984])
         return self._caget(self.smurf_processor + self._filter_a, **kwargs)
 
 
@@ -4098,6 +4103,9 @@ class SmurfCommandMixin(SmurfBase):
         -----
         coef (list): the filter B coefficients.
         """
+        if self.offline:
+            return np.array([5.28396689e-06, 2.11358676e-05, 3.17038014e-05,
+                2.11358676e-05, 5.28396689e-06])
         return self._caget(self.smurf_processor + self._filter_b, **kwargs)
 
 
@@ -4171,8 +4179,12 @@ class SmurfCommandMixin(SmurfBase):
         -----
         factor (int): the down-sampling factor.
         """
-        return self._caget(self.smurf_processor + self._downsampler_factor,
-            **kwargs)
+        if self.offline:  # FIX ME - STUPID HARD CODE
+            return 20
+
+        else:
+            return self._caget(self.smurf_processor + self._downsampler_factor,
+                **kwargs)
 
     _filter_disable = "Filter:Disable"
 
