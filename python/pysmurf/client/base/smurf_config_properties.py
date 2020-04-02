@@ -30,24 +30,24 @@ class SmurfConfigPropertiesMixin(object):
     instance.  The :func:`copy_config_to_properties` is called once to
     populate all of the :class:`SmurfConfigPropertiesMixin` attributes
     by a call to the
-    :func:`~pysmurf.client.command.smurf_control.SmurfControl.initialize`
+    :func:`~pysmurf.client.base.smurf_control.SmurfControl.initialize`
     function in the
-    :class:`~pysmurf.client.command.smurf_control.SmurfControl`
+    :class:`~pysmurf.client.base.smurf_control.SmurfControl`
     constructor (unless the
-    :class:`~pysmurf.client.command.smurf_control.SmurfControl`
+    :class:`~pysmurf.client.base.smurf_control.SmurfControl`
     instance is not instantiated with a configuration file).
 
     .. warning:: 
     	If a user changes the value of a property but then writes the
     	internal pysmurf configuration to disk with the
-    	:func:`~pysmurf.client.command.smurf_control.SmurfControl.write_output()`
+    	:func:`~pysmurf.client.base.smurf_control.SmurfControl.write_output()`
     	function, the value written to the file will not reflect the
     	user's change.
 
     Examples
     --------
     Taking the `pA_per_phi0` property as an example, if `S` is a
-    :class:`~pysmurf.client.command.smurf_control.SmurfControl` class
+    :class:`~pysmurf.client.base.smurf_control.SmurfControl` class
     instance, once the property has been set with a call to the
     :func:`copy_config_to_properties` routine, its value can be
     retrieved like this:
@@ -55,7 +55,7 @@ class SmurfConfigPropertiesMixin(object):
     >>> S.pA_per_phi0
     9000000.0
     
-    and it can be gotten like this:
+    and it can be set like this:
 
     >>> S.pA_per_phi0 = 9000000.0
 
@@ -70,7 +70,7 @@ class SmurfConfigPropertiesMixin(object):
 
     See Also
     --------
-    SmurfControl.initialize
+    :func:`~pysmurf.client.base.smurf_control.SmurfControl.initialize`
 
     References
     ----------
