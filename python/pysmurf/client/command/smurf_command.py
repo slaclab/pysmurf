@@ -117,9 +117,10 @@ class SmurfCommandMixin(SmurfBase):
         new_epics_root (str) : Temporarily replaces current epics root with
             a new one.
 
-        Returns:
-        --------
-        ret : The requested value
+        Returns
+        -------
+        ret : str
+            The requested value
         """
         if new_epics_root is not None:
             self.log('Temporarily using new epics root: {}'.format(new_epics_root))
@@ -161,7 +162,10 @@ class SmurfCommandMixin(SmurfBase):
 
     def get_rogue_version(self, as_str=True, **kwargs):
         """
-        Returns the rogue version
+        Returns
+        -------
+        ret : str
+            The rogue version
         """
         ret = self._caget(self.amcc + self._rogue_version,
                           **kwargs)
@@ -171,9 +175,12 @@ class SmurfCommandMixin(SmurfBase):
 
     def get_enable(self, **kwargs):
         """
-        Returns the status of the global poll bit epics_root:AMCc:enable.
-        If False, pyrogue is not currently polling the server. PVs will
-        not be updating.
+        Returns
+        -------
+        str
+            The status of the global poll bit epics_root:AMCc:enable.
+            If False, pyrogue is not currently polling the server. PVs
+            will not be updating.
         """
         return self._caget(self.epics_root + self._global_poll_enable,
                            enable_poll=False, disable_poll=False, **kwargs)
@@ -193,9 +200,10 @@ class SmurfCommandMixin(SmurfBase):
            pulls the number of sub bands from the first band in the
            list of bands specified in the experiment.cfg.
 
-        Returns:
-        --------
-        n_subbands (int): The number of subbands in the band
+        Returns
+        -------
+        int
+            The number of subbands in the band.
         """
         if self.offline:
             return 128
@@ -224,9 +232,10 @@ class SmurfCommandMixin(SmurfBase):
            pulls the number of channels from the first band in the
            list of bands specified in the experiment.cfg.
 
-        Returns:
-        --------
-        n_channels (int): The number of channels in the band
+        Returns
+        -------
+        int
+            The number of channels in the band.
         """
         if self.offline:
             return 512  # Hard coded offline mode 512
@@ -254,14 +263,10 @@ class SmurfCommandMixin(SmurfBase):
            from the first band in the list of bands specified in the
            experiment.cfg.
 
-        Returns:
-        --------
-        n_processed_channels (int): The number of processed channels
-           in the band.  Right now, there's not any way to determine
-           this from exposed pyrogue variables, so for now, assuming
-           only the center 104 sub-bands are processed ; so 104
-           channels if there's 128 channels (as in X-ray), or 416
-           channels if there's 512 channels total (as in CMB).
+        Returns
+        -------
+        n_processed_channels : int
+            The number of processed channels in the band.
         """
         n_channels=self.get_number_channels(band)
 
@@ -573,9 +578,10 @@ class SmurfCommandMixin(SmurfBase):
         """
         Returns the tone file path that's currently being used for this bay.
 
-        Args:
+        Args
         ----
-        bay (int) : Which AMC bay (0 or 1).
+        bay : int
+            Which AMC bay (0 or 1).
         """
 
         ret=self._caget(self.dac_sig_gen.format(bay) + self._tone_file_path,**kwargs)
@@ -687,12 +693,15 @@ class SmurfCommandMixin(SmurfBase):
 
     def get_eta_scan_freq(self, band, **kwargs):
         """
-        Args:
-        -----
-        band (int): The band to count
+        Args
+        ----
+        band : int
+            The band to count.
 
-        Returns:
-        freq (int) : The frequency of the scan
+        Returns
+        -------
+        freq : int
+            The frequency of the scan.
         """
         return self._caget(self._cryo_root(band) + self._eta_scan_freqs,
             **kwargs)
@@ -719,9 +728,10 @@ class SmurfCommandMixin(SmurfBase):
         -----
         band (int) : The band to set
 
-        Returns:
-        --------
-        amp (int) : The eta scan amplitude
+        Returns
+        -------
+        amp : int
+            The eta scan amplitude.
         """
         return self._caget(self._cryo_root(band) + self._eta_scan_amplitude,
             **kwargs)
@@ -748,9 +758,10 @@ class SmurfCommandMixin(SmurfBase):
         -----
         band (int) : The band to set
 
-        Returns:
-        --------
-        chan (int) : The channel that is being eta scanned
+        Returns
+        -------
+        chan : int
+            The channel that is being eta scanned.
         """
         return self._caget(self._cryo_root(band) + self._eta_scan_channel,
             **kwargs)
@@ -779,10 +790,11 @@ class SmurfCommandMixin(SmurfBase):
         -----
         band (int) : The band to set
 
-        Returns:
-        --------
-        eta_scan_averages (int) : The number of frequency error averages taken
-        at each point of the etaScan.
+        Returns
+        -------
+        eta_scan_averages : int
+            The number of frequency error averages taken at each point
+            of the etaScan.
         """
         return self._caget(self._cryo_root(band) + self._eta_scan_averages,
             **kwargs)
@@ -808,9 +820,10 @@ class SmurfCommandMixin(SmurfBase):
         -----
         band (int) : The band being eta scanned
 
-        Returns:
-        --------
-        dwell (int) : The time to dwell during an eta scan.
+        Returns
+        -------
+        dwell : int
+            The time to dwell during an eta scan.
         """
         return self._caget(self._cryo_root(band) + self._eta_scan_dwell,
             **kwargs)
@@ -836,9 +849,10 @@ class SmurfCommandMixin(SmurfBase):
         -----
         band (int) : The band that is being checked
 
-        Returns:
-        --------
-        status (int) : Whether the band is eta scanning.
+        Returns
+        -------
+        status : int
+            Whether the band is eta scanning.
         """
         return self._caget(self._cryo_root(band) + self._run_eta_scan, **kwargs)
 
@@ -853,9 +867,10 @@ class SmurfCommandMixin(SmurfBase):
         band (int) : The to get eta scans
         count (int) : The number of samples to read
 
-        Returns:
-        --------
-        resp (float array) : THe real component of the most recent eta scan
+        Returns
+        -------
+        resp : float array)
+            The real component of the most recent eta scan
         """
         return self._caget(self._cryo_root(band) + self._eta_scan_results_real,
             count=count, **kwargs)
@@ -871,9 +886,10 @@ class SmurfCommandMixin(SmurfBase):
         band (int) : The to get eta scans
         count (int) : The number of samples to read
 
-        Returns:
-        --------
-        resp (float array) : THe imaginary component of the most recent eta scan
+        Returns
+        -------
+        resp : float array
+            The imaginary component of the most recent eta scan
         """
         return self._caget(self._cryo_root(band) + self._eta_scan_results_imag,
             count=count, **kwargs)
@@ -908,9 +924,10 @@ class SmurfCommandMixin(SmurfBase):
         -----
         band (int) : The band to search.
 
-        Returns:
-        --------
-        amplitudes (array) : The tone amplitudes
+        Returns
+        -------
+        amplitudes : array
+            The tone amplitudes.
         """
         return self._caget(self._cryo_root(band) + self._amplitude_scale_array,
             **kwargs)
@@ -949,9 +966,10 @@ class SmurfCommandMixin(SmurfBase):
         -----
         band (int) : The band to search.
 
-        Returns:
-        --------
-        fb_on (boolean array) : An array of whether the feedback is on or off.
+        Returns
+        -------
+        fb_on : bool array
+            An array of whether the feedback is on or off.
         """
         return self._caget(self._cryo_root(band) + self._feedback_enable_array,
             **kwargs)
@@ -1607,10 +1625,10 @@ class SmurfCommandMixin(SmurfBase):
            pulls the channel frequency from the first band in the
            list of bands specified in the experiment.cfg.
 
-        Returns:
-        --------
-        channel_frequency_mhz (float): The rate at which channels in
-           this band are processed.
+        Returns
+        -------
+        channel_frequency_mhz : float
+            The rate at which channels in this band are processed.
         """
 
         if band is None:
@@ -1639,10 +1657,10 @@ class SmurfCommandMixin(SmurfBase):
            pulls the digitizer frequency from the first band in the
            list of bands specified in the experiment.cfg.
 
-        Returns:
-        --------
-        digitizer_frequency_mhz (float): The digitizer frequency for
-           this band in MHz.
+        Returns
+        -------
+        digitizer_frequency_mhz : float
+            The digitizer frequency for this band in MHz.
         """
         if self.offline:
             return 614.4
@@ -1981,8 +1999,10 @@ class SmurfCommandMixin(SmurfBase):
 
     def get_fpga_uptime(self, **kwargs):
         """
-        Returns:
-        uptime (float) : The FPGA uptime
+        Returns
+        -------
+        uptime : float
+            The FPGA uptime.
         """
         return self._caget(self.axi_version + self._fpga_uptime, **kwargs)
 
@@ -1990,8 +2010,10 @@ class SmurfCommandMixin(SmurfBase):
 
     def get_fpga_version(self, **kwargs):
         """
-        Returns:
-        version (str) : The FPGA version
+        Returns
+        -------
+        version : str
+            The FPGA version.
         """
         return self._caget(self.axi_version + self._fpga_version, **kwargs)
 
@@ -1999,8 +2021,10 @@ class SmurfCommandMixin(SmurfBase):
 
     def get_fpga_git_hash(self, **kwargs):
         """
-        Returns:
-        git_hash (str) : The git hash of the FPGA
+        Returns
+        -------
+        git_hash : str
+            The git hash of the FPGA.
         """
         gitHash=self._caget(self.axi_version + self._fpga_git_hash, **kwargs)
         return ''.join([str(s, encoding='UTF-8') for s in gitHash])
@@ -2009,8 +2033,10 @@ class SmurfCommandMixin(SmurfBase):
 
     def get_fpga_git_hash_short(self, **kwargs):
         """
-        Returns:
-        git_hash_short (str) : The short git hash of the FPGA
+        Returns
+        -------
+        git_hash_short : str
+            The short git hash of the FPGA.
         """
         gitHashShort=self._caget(self.axi_version + self._fpga_git_hash_short, **kwargs)
         return ''.join([str(s, encoding='UTF-8') for s in gitHashShort])
@@ -2020,8 +2046,10 @@ class SmurfCommandMixin(SmurfBase):
 
     def get_fpga_build_stamp(self, **kwargs):
         """
-        Returns:
-        build_stamp (str) : The FPGA build stamp
+        Returns
+        -------
+        build_stamp : str
+            The FPGA build stamp.
         """
         return self._caget(self.axi_version + self._fpga_build_stamp, **kwargs)
 
@@ -2774,9 +2802,10 @@ class SmurfCommandMixin(SmurfBase):
                     outside of the valid range is provided (must be
                     within [1,32]), will assert.
 
-        Returns:
-        --------
-        val (int) : The DacCtrlReg setting for the requested DAC.
+        Returns
+        -------
+        val : int
+            The DacCtrlReg setting for the requested DAC.
         """
         assert (dac in range(1,33)),'dac must be an integer and in [1,32]'
 
@@ -2816,10 +2845,11 @@ class SmurfCommandMixin(SmurfBase):
         individually using the get_rtm_slow_dac_enable function
         (single versus multiple transactions).
 
-        Returns:
-        --------
-        val (int array) : An array containing the DacCtrlReg settings
-                          for all of the slow RTM DACs.
+        Returns
+        -------
+        val : int array
+            An array containing the DacCtrlReg settings for all of the
+            slow RTM DACs.
         """
         return self._caget(self.rtm_spi_max_root +
                            self._rtm_slow_dac_enable_array, **kwargs)
@@ -2866,11 +2896,12 @@ class SmurfCommandMixin(SmurfBase):
                     outside of the valid range is provided (must be
                     within [1,32]), will assert.
 
-        Returns:
-        --------
-        val (int) : The data register setting for the requested DAC,
-                    in DAC units.  The data register sets the output
-                    voltage of the DAC.
+        Returns
+        -------
+        val : int
+            The data register setting for the requested DAC, in DAC
+            units.  The data register sets the output voltage of the
+            DAC.
         """
         assert (dac in range(1,33)),'dac must be an integer and in [1,32]'
         return self._caget(self.rtm_spi_max_root +
@@ -2916,11 +2947,11 @@ class SmurfCommandMixin(SmurfBase):
         DACs.  The value in these registers set the output voltages of
         the DACs.
 
-        Returns:
-        -----
-        array (int array): Size (32,) array of DAC values, in DAC
-                           units.  The value of these registers set
-                           the output voltages of the DACs.
+        Returns
+        -------
+        array : int array
+            Size (32,) array of DAC values, in DAC units.  The value
+            of these registers set the output voltages of the DACs.
         """
         return self._caget(self.rtm_spi_max_root + self._rtm_slow_dac_data_array,
             **kwargs)
@@ -2950,9 +2981,10 @@ class SmurfCommandMixin(SmurfBase):
                     outside of the valid range is provided (must be
                     within [1,32]), will assert.
 
-        Returns:
-        --------
-        val (float) : The DAC voltage in volts.
+        Returns
+        -------
+        val : float
+            The DAC voltage in volts.
         """
         assert (dac in range(1,33)),'dac must be an integer and in [1,32]'
         return self._rtm_slow_dac_bit_to_volt * self.get_rtm_slow_dac_data(dac, **kwargs)
@@ -2982,10 +3014,10 @@ class SmurfCommandMixin(SmurfBase):
         get_rtm_slow_dac_volt function (single versus multiple
         transactions).
 
-        Returns:
-        -----
-        volt_array (float array): Size (32,) array of DAC values in
-                                  volts.
+        Returns
+        -------
+        volt_array : float array
+            Size (32,) array of DAC values in volts.
         """
         return self._rtm_slow_dac_bit_to_volt * self.get_rtm_slow_dac_data_array(**kwargs)
 
@@ -3287,14 +3319,15 @@ class SmurfCommandMixin(SmurfBase):
         """
         Gets the datafile that streaming data is written to.
 
-        Returns:
-        --------
-        datafile (str or length 300 int array): The name of the datafile
-
         Opt Args:
         ---------
         as_string (bool): The output data returns as a string. If False, the
             input data must be a length 300 character int. Default True.
+
+        Returns
+        -------
+        datafile : str or length 300 int array
+            The name of the datafile.
         """
         datafile = self._caget(self.streaming_root + self._stream_datafile,
             **kwargs)
@@ -3319,9 +3352,10 @@ class SmurfCommandMixin(SmurfBase):
         """
         Gets the streaming file status. 1 is streaming, 0 is not.
 
-        Returns:
-        --------
-        val (int): The streaming status.
+        Returns
+        -------
+        val : int
+            The streaming status.
         """
         return self._caget(self.streaming_root + self._streaming_file_open,
             **kwargs)
@@ -3333,9 +3367,10 @@ class SmurfCommandMixin(SmurfBase):
         """
         Gets the slot number of the crate that the carrier is installed into.
 
-        Returns:
-        --------
-        val (int): The slot number of the crate that the carrier is installed into.
+        Returns
+        -------
+        val : int
+            The slot number of the crate that the carrier is installed into.
         """
         return self._caget(self.amc_carrier_bsi + self._slot_number, **kwargs)
 
@@ -3346,9 +3381,10 @@ class SmurfCommandMixin(SmurfBase):
         """
         Gets the crate id.
 
-        Returns:
-        --------
-        val (int): The crate id.
+        Returns
+        -------
+        val : int
+            The crate id.
         """
         return self._caget(self.amc_carrier_bsi + self._crate_id, **kwargs)
 
@@ -3362,9 +3398,10 @@ class SmurfCommandMixin(SmurfBase):
         Gets the temperature of the UltraScale+ FPGA.  Returns float32,
         the temperature in degrees Celsius.
 
-        Returns:
-        --------
-        val (float): The UltraScale+ FPGA temperature in degrees Celsius.
+        Returns
+        -------
+        val : float
+            The UltraScale+ FPGA temperature in degrees Celsius.
         """
         return self._caget(self.epics_root + self.fpga_root + self._fpga_temperature, **kwargs)
 
@@ -3372,9 +3409,10 @@ class SmurfCommandMixin(SmurfBase):
 
     def get_fpga_vccint(self, **kwargs):
         """
-        Returns:
-        --------
-        val (float): The UltraScale+ FPGA VccInt in Volts.
+        Returns
+        -------
+        val : float
+            The UltraScale+ FPGA VccInt in Volts.
         """
         return self._caget(self.epics_root + self.fpga_root + self._fpga_vccint, **kwargs)
 
@@ -3382,9 +3420,10 @@ class SmurfCommandMixin(SmurfBase):
 
     def get_fpga_vccaux(self, **kwargs):
         """
-        Returns:
-        --------
-        val (float): The UltraScale+ FPGA VccAux in Volts.
+        Returns
+        -------
+        val : float
+            The UltraScale+ FPGA VccAux in Volts.
         """
         return self._caget(self.epics_root + self.fpga_root + self._fpga_vccaux, **kwargs)
 
@@ -3392,9 +3431,10 @@ class SmurfCommandMixin(SmurfBase):
 
     def get_fpga_vccbram(self, **kwargs):
         """
-        Returns:
-        --------
-        val (float): The UltraScale+ FPGA VccBram in Volts.
+        Returns
+        -------
+        val : float
+            The UltraScale+ FPGA VccBram in Volts.
         """
         return self._caget(self.epics_root + self.fpga_root + self._fpga_vccbram, **kwargs)
 
@@ -3403,9 +3443,10 @@ class SmurfCommandMixin(SmurfBase):
 
     def get_regulator_iout(self, **kwargs):
         """
-        Returns:
-        --------
-        value (float): Regulator current in amperes.
+        Returns
+        -------
+        value : float
+            Regulator current in amperes.
         """
         return self._caget(self.regulator + self._regulator_iout, **kwargs)
 
@@ -3413,9 +3454,10 @@ class SmurfCommandMixin(SmurfBase):
 
     def get_regulator_temp1(self, **kwargs):
         """
-        Returns:
-        --------
-        value (float): Regulator PT temperature in C.
+        Returns
+        -------
+        value : float
+            Regulator PT temperature in C.
         """
         return self._caget(self.regulator + self._regulator_temp1, **kwargs)
 
@@ -3423,18 +3465,20 @@ class SmurfCommandMixin(SmurfBase):
 
     def get_regulator_temp2(self, **kwargs):
         """
-        Returns:
-        --------
-        value (float): A regulator CTRL temperature in C.
+        Returns
+        -------
+        value : float
+            A regulator CTRL temperature in C.
         """
         return self._caget(self.regulator + self._regulator_temp2, **kwargs)
 
     # Cryo card comands
     def get_cryo_card_temp(self, enable_poll=False, disable_poll=False):
         """
-        Returns:
-        --------
-        temp (float): Temperature of the cryostat card in Celsius
+        Returns
+        -------
+        temp : float
+            Temperature of the cryostat card in Celsius.
         """
         if enable_poll:
             epics.caput(self.epics_root + self._global_poll_enable, True)
@@ -3449,9 +3493,10 @@ class SmurfCommandMixin(SmurfBase):
 
     def get_cryo_card_hemt_bias(self, enable_poll=False, disable_poll=False):
         """
-        Returns:
-        --------
-        bias (float): The HEMT bias in volts
+        Returns
+        -------
+        bias : float
+            The HEMT bias in volts.
         """
         if enable_poll:
             epics.caput(self.epics_root + self._global_poll_enable, True)
@@ -3465,9 +3510,10 @@ class SmurfCommandMixin(SmurfBase):
 
     def get_cryo_card_50k_bias(self, enable_poll=False, disable_poll=False):
         """
-        Returns:
-        --------
-        bias (float): The 50K bias in volts
+        Returns
+        -------
+        bias : float
+            The 50K bias in volts.
         """
         if enable_poll:
             epics.caput(self.epics_root + self._global_poll_enable, True)
@@ -3481,18 +3527,20 @@ class SmurfCommandMixin(SmurfBase):
 
     def get_cryo_card_cycle_count(self, enable_poll=False, disable_poll=False):
         """
-        Returns:
-        --------
-        cycle_count (float): The cycle count
+        Returns
+        -------
+        cycle_count : float
+            The cycle count.
         """
         self.log('Not doing anything because not implement in cryo_card.py')
         # return self.C.read_cycle_count()
 
     def get_cryo_card_relays(self, enable_poll=False, disable_poll=False):
         """
-        Returns:
-        --------
-        relays (hex): The cryo card relays value
+        Returns
+        -------
+        relays : hex
+            The cryo card relays value.
         """
         if enable_poll:
             epics.caput(self.epics_root + self._global_poll_enable, True)
@@ -3571,9 +3619,6 @@ class SmurfCommandMixin(SmurfBase):
         Args:
         -----
         enable (bool): Power supply enable (True = enable, False = disable)
-        Returns:
-        --------
-        None
         """
         if write_log:
             self.log('Writing HEMT PS enable using cryo_card object '+
@@ -3598,9 +3643,6 @@ class SmurfCommandMixin(SmurfBase):
         Args:
         -----
         enable (bool): Power supply enable (True = enable, False = disable)
-        Returns:
-        --------
-        None
         """
         if write_log:
             self.log('Writing 50k PS enable using cryo_card object '+
@@ -3638,10 +3680,6 @@ class SmurfCommandMixin(SmurfBase):
          3 = both on
 
         Defaults to enable = 3, ie turn on both power supplies
-
-        Returns:
-        -----
-        None
         """
         if write_log:
             self.log('Writing Cryocard PS enable using cryo_card ' +
@@ -3652,19 +3690,21 @@ class SmurfCommandMixin(SmurfBase):
         """
         Read the cryo card power supply enable signals
 
-        Returns:
-        -----
-        enables (int): 2-bit number with status of the power supplies enables
-         Bit 0 for HEMT supply
-         Bit 1 for 50K supply
-         Bit == 1 means enabled
-         Bit == 0 means disabled
+        Returns
+        -------
+        enables : int
+            2-bit number with status of the power supplies enables
 
-         therefore:
-         0 = all off
-         1 = 50K on, HEMT off
-         2 = HEMT on, 50K off
-         3 = both on
+            Bit 0 for HEMT supply
+            Bit 1 for 50K supply
+            Bit == 1 means enabled
+            Bit == 0 means disabled
+        
+            therefore:
+            0 = all off
+            1 = 50K on, HEMT off
+            2 = HEMT on, 50K off
+            3 = both on
         """
         en_value = self.C.read_ps_en()
         return en_value
@@ -3674,12 +3714,10 @@ class SmurfCommandMixin(SmurfBase):
         """
         Get the cryo card HEMT power supply enable.
 
-        Args:
-        -----
-        None
-        Returns:
-        --------
-        enable (bool): Power supply enable (True = enable, False = disable)
+        Returns
+        -------
+        enable : bool
+            Power supply enable (True = enable, False = disable).
         """
 
         # Read the power supply enable word and extract the status of bit 0
@@ -3691,12 +3729,10 @@ class SmurfCommandMixin(SmurfBase):
         """
         Set the cryo card HEMT power supply enable.
 
-        Args:
-        -----
-        None
-        Returns:
-        --------
-        enable (bool): Power supply enable (True = enable, False = disable)
+        Returns
+        -------
+        enable : bool
+            Power supply enable (True = enable, False = disable).
         """
 
         # Read the power supply enable word and extract the status of bit 1
@@ -3712,10 +3748,11 @@ class SmurfCommandMixin(SmurfBase):
         -----
         None
 
-        Returns:
-        --------
-        mode(str): return string describing the operation mode. If the relays readback
-        don't match, then the string 'ERROR' is returned.
+        Returns
+        -------
+        mode : str
+            String describing the operation mode. If the relays
+            readback don't match, then the string 'ERROR' is returned.
         """
 
         # Read the relays status
