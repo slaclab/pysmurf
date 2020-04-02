@@ -192,8 +192,8 @@ class SmurfBase(object):
         """
         Initialize the logger from the input keyword arguments.
 
-        Arguments
-        ---------
+        Args
+        ----
         logger : logging class, optional
             Class to initialize, should be a subclass of SmurfLogger
             or equivalent.
@@ -248,12 +248,12 @@ class SmurfBase(object):
         '''
         Helper function that returns the epics path to a band.
 
-        Args:
-        -----
+        Args
+        ----
         band (int): The band to access
 
-        Returns:
-        --------
+        Returns
+        -------
         path (string) : The string to be passed to caget/caput to access
             the input band.
         '''
@@ -263,12 +263,12 @@ class SmurfBase(object):
         '''
         Helper function that returns the epics path to cryoroot.
 
-        Args:
-        -----
+        Args
+        ----
         band (int): The band to access
 
-        Returns:
-        --------
+        Returns
+        -------
         path (string) : The string to be passed to caget/caput to access
             the input band.
         '''
@@ -278,13 +278,13 @@ class SmurfBase(object):
         """
         Helper function that returns the epics path to channel root.
 
-        Args:
-        -----
+        Args
+        ----
         band (int) : The band to access
         channel (int) : The channel to access.
 
-        Returns:
-        --------
+        Returns
+        -------
         path (string) : The string to be passed to caget/caput to access
             the input band.
         """

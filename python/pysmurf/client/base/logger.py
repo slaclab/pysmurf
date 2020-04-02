@@ -58,8 +58,8 @@ class Logger(object):
         """
         Log a message.
 
-        Arguments
-        ---------
+        Args
+        ----
         msg : string
             The message to log.
         level : int, optional
