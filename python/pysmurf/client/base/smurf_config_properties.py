@@ -41,8 +41,8 @@ class SmurfConfigPropertiesMixin(object):
     configuration to disk with the :func:`SmurfControl.write_output()`
     function, the value written to the file will be the unchanged.
 
-    Examples:
-    ---------
+    Examples
+    --------
     Taking the `pA_per_phi0` property as an example, if `S` is a
     :class:`SmurfControl` class instance, once the property has been
     set with a call to the :func:`copy_config_to_properties` routine,
@@ -63,12 +63,12 @@ class SmurfConfigPropertiesMixin(object):
     internal attribute corresponding to the `pA_per_phi0` property is
     called `_pA_per_phi0`.
 
-    See Also:
-    ---------
+    See Also
+    --------
     SmurfControl.initialize
 
-    References:
-    -----------
+    References
+    ----------
     .. [1] https://docs.python.org/3/library/functions.html#property
     """
 
