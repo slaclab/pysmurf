@@ -17,7 +17,59 @@
 """
 
 class SmurfConfigPropertiesMixin(object):
-    """Mixin for ???x
+    """Mixin for loading pysmurf configuration parameters.
+
+    Defines properties used by pysmurf that can be populated from a
+    pysmurf configuration file.  More details on python properties can
+    be found in the documentation for python "Build-in Functions"
+    [1]_.
+    
+    Besides the properties, the :class:`SmurfConfigPropertiesMixin`
+    has only one function :func:`copy_config_to_properties` which can
+    populate the defined properties from a provided
+    :class:`SmurfConfig` class instance.  The
+    :func:`copy_config_to_properties` is called once to populate all
+    of the :class:`SmurfConfigPropertiesMixin` attributes by a call to
+    the :func:`SmurfControl:initialize` function in the
+    :class:`SmurfControl` constructor (unless the
+    :class:`SmurfControl` instance is not instantiated with a
+    configuration file).
+
+    .. warning:: Currently, properties values can only be loaded from
+    a :class:`SmurfConfig` instance.  For example, if a user changes
+    the value of a property but then writes the internal pysmurf
+    configuration to disk with the :func:`SmurfControl.write_output()`
+    function, the value written to the file will be the unchanged.
+
+    Examples:
+    ---------
+    Taking the `pA_per_phi0` property as an example, if `S` is a
+    :class:`SmurfControl` class instance, once the property has been
+    set with a call to the :func:`copy_config_to_properties` routine,
+    its value can be retrieved like this:
+
+    >>> S.pA_per_phi0
+    9000000.0
+    
+    and it can be gotten like this:
+
+    >>> S.pA_per_phi0 = 9000000.0
+
+    Each property has a corresponding attribute that the property
+    get/set operates on and which is used internally in all pysmurf
+    functions that rely on the property.  The internal attributes
+    corresponding to each property have the same name as the property
+    but with an underscore preceding the property name.  E.g. the
+    internal attribute corresponding to the `pA_per_phi0` property is
+    called `_pA_per_phi0`.
+
+    See Also:
+    ---------
+    SmurfControl.initialize
+
+    References:
+    -----------
+    .. [1] https://docs.python.org/3/library/functions.html#property
     """
 
     def __init__(self, *args, **kwargs):
