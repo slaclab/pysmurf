@@ -19,10 +19,9 @@
 class SmurfConfigPropertiesMixin(object):
     """Mixin for loading pysmurf configuration parameters.
 
-    Defines properties used by pysmurf that can be populated from a
-    pysmurf configuration file.  More details on python properties can
-    be found in the documentation for python "Build-in Functions"
-    [1]_.
+    Defines properties used by pysmurf that are defined in the pysmurf
+    configuration file.  More details on python properties can be
+    found in the documentation for python "Build-in Functions" [1]_.
     
     Besides the properties, the :class:`SmurfConfigPropertiesMixin`
     has only one function :func:`copy_config_to_properties` which can
@@ -35,11 +34,13 @@ class SmurfConfigPropertiesMixin(object):
     :class:`SmurfControl` instance is not instantiated with a
     configuration file).
 
-    .. warning:: Currently, properties values can only be loaded from
-    a :class:`SmurfConfig` instance.  For example, if a user changes
-    the value of a property but then writes the internal pysmurf
-    configuration to disk with the :func:`SmurfControl.write_output()`
-    function, the value written to the file will be the unchanged.
+    .. warning:: 
+    	Currently, properties values can only be loaded from a
+    	:class:`SmurfConfig` class instance.  For example, if a user
+    	changes the value of a property but then writes the internal
+    	pysmurf configuration to disk with the
+    	:func:`SmurfControl.write_output()` function, the value
+    	written to the file will be the unchanged.
 
     Examples
     --------
@@ -61,7 +62,8 @@ class SmurfConfigPropertiesMixin(object):
     corresponding to each property have the same name as the property
     but with an underscore preceding the property name.  E.g. the
     internal attribute corresponding to the `pA_per_phi0` property is
-    called `_pA_per_phi0`.
+    called `_pA_per_phi0`.  Users should never set or get the internal
+    attribute.
 
     See Also
     --------
