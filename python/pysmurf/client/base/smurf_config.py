@@ -156,8 +156,13 @@ class SmurfConfig:
             self.config[key][subkey] = val
 
     def validate_config(self,loaded_config):
-        # Useful schema objects
-        from schema import Schema, And, Use, Optional, Regex
+        # Import useful schema objects
+        # Try to import them from the system package. If it fails, then
+        # import the local copy available in this repository.
+        try:
+            from schema import Schema, And, Use, Optional, Regex
+        except ImportError as e:
+            from pysmurf.client.base.schema import Schema, And, Use, Optional, Regex
 
         # Start with an extremely limited validation to figure out
         # things that we need to validate the entire configuration
