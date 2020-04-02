@@ -1145,7 +1145,7 @@ class SmurfNoiseMixin(SmurfBase):
 
             if save_plot:
                 plot_name = f'noise_vs_bias_' + \
-                    f'g{file_name_string}_b{b}ch{ch:03}.png'
+                    f'g{file_name_string}b{b}ch{ch:03}.png'
                 if data_timestamp is not None:
                     plot_name = f'{data_timestamp}_' + plot_name
                 else:
@@ -1234,7 +1234,7 @@ class SmurfNoiseMixin(SmurfBase):
             plt.show()
         if save_plot:
             plot_name = f'noise_vs_bias_band{np.unique(band)}' + \
-                '_g{file_name_string}NEI_hist.png'
+                f'_g{file_name_string}NEI_hist.png'
             if data_timestamp is not None:
                 plot_name = f'{data_timestamp}_' + plot_name
             else:
