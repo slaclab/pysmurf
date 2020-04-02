@@ -25,26 +25,32 @@ class SmurfConfigPropertiesMixin(object):
     
     The :class:`SmurfConfigPropertiesMixin` class has only one
     function :func:`copy_config_to_properties` which can populate the
-    properties from a provided :class:`SmurfConfig` class instance.
-    The :func:`copy_config_to_properties` is called once to populate
-    all of the :class:`SmurfConfigPropertiesMixin` attributes by a
-    call to the :func:`SmurfControl:initialize` function in the
-    :class:`SmurfControl` constructor (unless the
-    :class:`SmurfControl` instance is not instantiated with a
-    configuration file).
+    properties from a provided
+    :class:`~pysmurf.client.command.smurf_config.SmurfConfig` class
+    instance.  The :func:`copy_config_to_properties` is called once to
+    populate all of the :class:`SmurfConfigPropertiesMixin` attributes
+    by a call to the
+    :func:`~pysmurf.client.command.smurf_control.SmurfControl.initialize`
+    function in the
+    :class:`~pysmurf.client.command.smurf_control.SmurfControl`
+    constructor (unless the
+    :class:`~pysmurf.client.command.smurf_control.SmurfControl`
+    instance is not instantiated with a configuration file).
 
     .. warning:: 
     	If a user changes the value of a property but then writes the
     	internal pysmurf configuration to disk with the
-    	:func:`SmurfControl.write_output()` function, the value
-    	written to the file will not reflect the user's change.
+    	:func:`~pysmurf.client.command.smurf_control.SmurfControl.write_output()`
+    	function, the value written to the file will not reflect the
+    	user's change.
 
     Examples
     --------
     Taking the `pA_per_phi0` property as an example, if `S` is a
-    :class:`SmurfControl` class instance, once the property has been
-    set with a call to the :func:`copy_config_to_properties` routine,
-    its value can be retrieved like this:
+    :class:`~pysmurf.client.command.smurf_control.SmurfControl` class
+    instance, once the property has been set with a call to the
+    :func:`copy_config_to_properties` routine, its value can be
+    retrieved like this:
 
     >>> S.pA_per_phi0
     9000000.0
