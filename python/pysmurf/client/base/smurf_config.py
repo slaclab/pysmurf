@@ -161,7 +161,7 @@ class SmurfConfig:
         # import the local copy available in this repository.
         try:
             from schema import Schema, And, Use, Optional, Regex
-        except ImportError as e:
+        except ImportError:
             from pysmurf.client.base.schema import Schema, And, Use, Optional, Regex
 
         # Start with an extremely limited validation to figure out
