@@ -925,7 +925,7 @@ class SmurfUtilMixin(SmurfBase):
         if gcp_mode:
             self.log('Data is in GCP mode.')
             return self.read_stream_data_gcp_save(datafile, channel=channel,
-            unwrap=True, downsample=1)
+                unwrap=True, downsample=1, n_samp=n_samp)
 
         try:
             datafile = glob.glob(datafile+'*')[-1]
@@ -1244,28 +1244,36 @@ class SmurfUtilMixin(SmurfBase):
 
 
     def make_mask_lookup(self, mask_file, mask_channel_offset=0,
-                         make_freq_mask=False):
-        """
-        Makes an n_band x n_channel array where the elements correspond
+            make_freq_mask=False):
+        """ Makes an n_band x n_channel array where the elements correspond
         to the smurf_to_mce mask number. In other words, mask[band, channel]
         returns the GCP index in the mask that corresonds to band, channel.
 
-        Args:
-        -----
-        mask_file (str): The full path the a mask file
+        Parameters:
+        -----------
+        mask_file : str
+            The full path the a mask file
+        mask_channel_offset : int
+            Offset to remove from channel numbers in GCP mask file after
+            loading.  Default is 0.
 
-        Opt Args:
-        ---------
-        mask_channel_offset (int) : Offset to remove from channel
-            numbers in GCP mask file after loading.  Default is 0.
-
-        Ret:
-        ----
-        mask_lookup (int array): An array with the GCP numbers.
+        Returns:
+        --------
+        mask_lookup : int array
+            An array with the GCP numbers.
         """
         if hasattr(self, 'config'):
             if self.config.get('smurf_to_mce').get('mask_channel_offset') is not None:
-                mask_channel_offset=int(self.config.get('smurf_to_mce').get('mask_channel_offset'))
+                mask_channel_offset = int(self.config.get('smurf_to_mce').get('mask_channel_offset'))
+
+        # Look for .dat file and replace with mask file
+        if ".dat" in mask_file:
+            self.log("make_mask_lookup received a .dat file. " +
+                "Replacing with mask path.")
+            if ".dat.part" in mask_file:
+                mask_file = mask_file.split(".dat.part")[0] + "_mask.txt"
+            else:
+                mask_file = mask_file.replace(".dat", "_mask.txt")
 
         mask = np.atleast_1d(np.loadtxt(mask_file))
         bands = np.unique(mask // 512).astype(int)
@@ -2770,11 +2778,13 @@ class SmurfUtilMixin(SmurfBase):
             voltage_overbias_array[bias_groups] = overbias_voltage
             self.set_tes_bias_bipolar_array(voltage_overbias_array)
 
+            self.log(f'Driving {overbias_voltage} V in high current mode '+
+                f'through bias groups {bias_groups}. ' +
+                f'Waiting {overbias_wait}', self.LOG_USER)
+
             # Set high current mode
             self.set_tes_bias_high_current(bias_groups)
 
-            self.log('Driving high current through TES. ' +
-                'Waiting {}'.format(overbias_wait), self.LOG_USER)
             time.sleep(overbias_wait)
 
         # Set to low current mode
@@ -3573,18 +3583,17 @@ class SmurfUtilMixin(SmurfBase):
                                 already loaded the tone file for this DAC you
                                 don't have to do it again.
         """
-
         # the bay corresponding to this band.
-        bay=self.band_to_bay(band)
+        bay = self.band_to_bay(band)
 
         # load the tone file
         if load_tone_file:
             self.load_tone_file(bay,tone_file)
 
         # play it!
-        self.log('Playing tone file {} on band {}'.format(tone_file,band),
+        self.log(f'Playing tone file {tone_file} on band {band}',
                  self.LOG_USER)
-        self.set_waveform_select(band,1)
+        self.set_waveform_select(band, 1)
 
 
     def stop_tone_file(self, band):
@@ -3846,19 +3855,20 @@ class SmurfUtilMixin(SmurfBase):
         return hdr,row
 
     def play_tes_bipolar_waveform(self, bias_group, waveform, do_enable=True,
-            **kwargs):
-        """
-        Play a bipolar waveform on the bias group.
+            continuous=True, **kwargs):
+        """ Play a bipolar waveform on the bias group.
 
-        Args:
-        -----
-        bias_group (int): The bias group
-        waveform (float array) : The waveform the play on the bias group.
-
-        Opt Args:
-        ---------
-        do_enable (bool) : Whether to enable the DACs (similar to what is
-            resuired for TES bias). Defualt True.
+        Parameters:
+        ------------
+        bias_group : int
+            The bias group
+        waveform : float array
+            The waveform the play on the bias group.
+        do_enable : bool
+            Whether to enable the DACs (similar to what is resuired for TES
+            bias). Defualt True.
+        continuous : bool
+            Whether to play the TES waveform continuously. Default True.
         """
         bias_order = self.bias_group_to_pair[:,0]
         dac_positives = self.bias_group_to_pair[:,1]
@@ -3871,8 +3881,8 @@ class SmurfUtilMixin(SmurfBase):
 
         # https://confluence.slac.stanford.edu/display/SMuRF/SMuRF+firmware#SMuRFfirmware-RTMDACarbitrarywaveforms
         # Target the two bipolar DACs assigned to this bias group:
-        self.set_dac_axil_addr(0,dac_positive)
-        self.set_dac_axil_addr(1,dac_negative)
+        self.set_dac_axil_addr(0, dac_positive)
+        self.set_dac_axil_addr(1, dac_negative)
 
         # Enable waveform generation (3=on both DACs)
         self.set_rtm_arb_waveform_enable(3)
@@ -3884,11 +3894,14 @@ class SmurfUtilMixin(SmurfBase):
 
         # Load waveform into each DAC's LUT table.  Opposite sign so
         # they combine coherently
-        self.set_rtm_arb_waveform_lut_table(0,waveform)
-        self.set_rtm_arb_waveform_lut_table(1,-waveform)
+        self.set_rtm_arb_waveform_lut_table(0, waveform)
+        self.set_rtm_arb_waveform_lut_table(1, -waveform)
 
         # Continous mode to play the waveform continuously
-        self.set_rtm_arb_waveform_continuous(1)
+        if continuous:
+            self.set_rtm_arb_waveform_continuous(1)
+        else:
+            self.set_rtm_arb_waveform_continuous(0)
 
     # Readback on which DACs are selected is broken right now,
     # so has to be specified.
