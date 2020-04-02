@@ -23,24 +23,21 @@ class SmurfConfigPropertiesMixin(object):
     configuration file.  More details on python properties can be
     found in the documentation for python "Built-in Functions" [1]_.
     
-    Besides the properties, the :class:`SmurfConfigPropertiesMixin`
-    has only one function :func:`copy_config_to_properties` which can
-    populate the defined properties from a provided
-    :class:`SmurfConfig` class instance.  The
-    :func:`copy_config_to_properties` is called once to populate all
-    of the :class:`SmurfConfigPropertiesMixin` attributes by a call to
-    the :func:`SmurfControl:initialize` function in the
+    The :class:`SmurfConfigPropertiesMixin` class has only one
+    function :func:`copy_config_to_properties` which can populate the
+    properties from a provided :class:`SmurfConfig` class instance.
+    The :func:`copy_config_to_properties` is called once to populate
+    all of the :class:`SmurfConfigPropertiesMixin` attributes by a
+    call to the :func:`SmurfControl:initialize` function in the
     :class:`SmurfControl` constructor (unless the
     :class:`SmurfControl` instance is not instantiated with a
     configuration file).
 
     .. warning:: 
-    	Currently, properties values can only be loaded from a
-    	:class:`SmurfConfig` class instance.  For example, if a user
-    	changes the value of a property but then writes the internal
-    	pysmurf configuration to disk with the
+    	If a user changes the value of a property but then writes the
+    	internal pysmurf configuration to disk with the
     	:func:`SmurfControl.write_output()` function, the value
-    	written to the file will be the unchanged.
+    	written to the file will not reflect the user's change.
 
     Examples
     --------
