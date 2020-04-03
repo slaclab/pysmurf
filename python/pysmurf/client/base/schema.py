@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 """schema is a library for validating Python data structures, such as those
 obtained from config-files, forms, external services or command-line
 parsing, converted from JSON/YAML (or something else) to Python data-types."""
@@ -10,7 +9,7 @@ try:
 except ImportError:
     from contextlib2 import ExitStack
 
-__version__ = "0.7.0"
+__version__ = "0.7.1"
 __all__ = [
     "Schema",
     "And",
@@ -20,6 +19,7 @@ __all__ = [
     "Use",
     "Forbidden",
     "Const",
+    "Literal",
     "SchemaError",
     "SchemaWrongKeyError",
     "SchemaMissingKeyError",
@@ -274,12 +274,16 @@ class Schema(object):
     schema for the data that will be validated.
     """
 
-    def __init__(self, schema, error=None, ignore_extra_keys=False, name=None, description=None):
+    def __init__(self, schema, error=None, ignore_extra_keys=False, name=None, description=None, as_reference=False):
         self._schema = schema
         self._error = error
         self._ignore_extra_keys = ignore_extra_keys
         self._name = name
         self._description = description
+        # Ask json_schema to create a definition for this schema and use it as part of another
+        self.as_reference = as_reference
+        if as_reference and name is None:
+            raise ValueError("Schema used as reference should have a name")
 
     def __repr__(self):
         return "%s(%r)" % (self.__class__.__name__, self._schema)
@@ -291,6 +295,14 @@ class Schema(object):
     @property
     def description(self):
         return self._description
+
+    @property
+    def name(self):
+        return self._name
+
+    @property
+    def ignore_extra_keys(self):
+        return self._ignore_extra_keys
 
     @staticmethod
     def _dict_key_priority(s):
@@ -331,6 +343,10 @@ class Schema(object):
         s = self._schema
         e = self._error
         i = self._ignore_extra_keys
+
+        if isinstance(s, Literal):
+            s = s.schema
+
         flavor = _priority(s)
         if flavor == ITERABLE:
             data = Schema(type(s), error=e).validate(data)
@@ -435,163 +451,233 @@ class Schema(object):
             raise SchemaError(message, e)
         if s == data:
             return data
-        if isinstance(s, Literal):
-            if s.schema == data:
-                return data
         else:
             message = "%r does not match %r" % (s, data)
             message = self._prepend_schema_name(message)
             raise SchemaError(message, e.format(data) if e else None)
 
-    def json_schema(self, schema_id=None, is_main_schema=True, description=None):
+    def json_schema(self, schema_id, use_refs=False):
         """Generate a draft-07 JSON schema dict representing the Schema.
         This method can only be called when the Schema's value is a dict.
-        This method must be called with a schema_id. Calling it without one
-        is used in a recursive context for sub schemas."""
+        This method must be called with a schema_id.
 
-        def _get_type_name(python_type):
-            """Return the JSON schema name for a Python type"""
-            if python_type == str:
-                return "string"
-            elif python_type == int:
-                return "integer"
-            elif python_type == float:
-                return "number"
-            elif python_type == bool:
-                return "boolean"
-            elif python_type == list:
-                return "array"
-            return "string"
+        :param schema_id: The value of the $id on the main schema
+        :param use_refs: Enable reusing object references in the resulting JSON schema.
+                         Schemas with references are harder to read by humans, but are a lot smaller when there
+                         is a lot of reuse
+        """
 
-        Schema = self.__class__
-        s = self.schema
-        i = self._ignore_extra_keys
-        flavor = _priority(s)
+        seen = dict()  # For use_refs
+        definitions_by_name = {}
 
-        return_schema = {}
-        if description:
-            return_schema["description"] = description
+        def _json_schema(schema, is_main_schema=True, description=None, allow_reference=True):
+            Schema = self.__class__
 
-        if flavor != DICT and is_main_schema:
-            raise ValueError("The main schema must be a dict.")
-
-        if flavor == TYPE:
-            # Handle type
-            return_schema["type"] = _get_type_name(s)
-            return return_schema
-        elif flavor == ITERABLE:
-            # Handle arrays or dict schema
-
-            return_schema["type"] = "array"
-            if len(s) == 1:
-                return_schema["items"] = Schema(s[0]).json_schema(is_main_schema=False)
-            elif len(s) > 1:
-                return_schema["items"] = Schema(Or(*s)).json_schema(is_main_schema=False)
-            return return_schema
-
-        elif isinstance(s, Or):
-            # Handle Or values
-
-            # Check if we can use an enum
-            if all(priority == COMPARABLE for priority in [_priority(value) for value in s.args]):
-                # All values are simple, can use enum or const
-                if len(s.args) == 1:
-                    return_schema["const"] = s.args[0]
+            def _create_or_use_ref(return_dict):
+                """If not already seen, return the provided part of the schema unchanged.
+                If already seen, give an id to the already seen dict and return a reference to the previous part
+                of the schema instead.
+                """
+                if not use_refs or is_main_schema:
                     return return_schema
-                return_schema["enum"] = list(s.args)
-                return return_schema
 
-            # No enum, let's go with recursive calls
-            any_of_values = []
-            for or_key in s.args:
-                new_value = Schema(or_key).json_schema(is_main_schema=False)
-                if new_value not in any_of_values:
-                    any_of_values.append(new_value)
-            return_schema["anyOf"] = any_of_values
-            return return_schema
-        elif isinstance(s, And):
-            # Handle And values
-            all_of_values = []
-            for and_key in s.args:
-                new_value = Schema(and_key).json_schema(is_main_schema=False)
-                if new_value != {} and new_value not in all_of_values:
-                    all_of_values.append(new_value)
-            return_schema["allOf"] = all_of_values
-            return return_schema
-        elif flavor == COMPARABLE:
-            return_schema["const"] = s
-            return return_schema
-        elif flavor == VALIDATOR and type(s) == Regex:
-            return_schema["type"] = "string"
-            return_schema["pattern"] = s.pattern_str
-            return return_schema
+                hashed = hash(repr(sorted(return_dict.items())))
 
-        if flavor != DICT:
-            # If not handled, do not check
-            return return_schema
+                if hashed not in seen:
+                    seen[hashed] = return_dict
+                    return return_dict
+                else:
+                    id_str = "#" + str(hashed)
+                    seen[hashed]["$id"] = id_str
+                    return {"$ref": id_str}
 
-        if is_main_schema and not schema_id:
-            raise ValueError("schema_id is required.")
+            def _get_type_name(python_type):
+                """Return the JSON schema name for a Python type"""
+                if python_type == str:
+                    return "string"
+                elif python_type == int:
+                    return "integer"
+                elif python_type == float:
+                    return "number"
+                elif python_type == bool:
+                    return "boolean"
+                elif python_type == list:
+                    return "array"
+                elif python_type == dict:
+                    return "object"
+                return "string"
 
-        # Handle dict
-        required_keys = []
-        expanded_schema = {}
-        for key in s:
-            if isinstance(key, Hook):
-                continue
+            def _to_json_type(value):
+                """Attempt to convert a constant value (for "const" and "default") to a JSON serializable value"""
+                if value is None or type(value) in (str, int, float, bool, list, dict):
+                    return value
 
-            def _get_key_description(key):
-                """Get the description associated to a key (as specified in a Literal object). Return None if not a Literal"""
-                if isinstance(key, Optional):
-                    return _get_key_description(key.schema)
+                if type(value) in (tuple, set, frozenset):
+                    return list(value)
 
-                if isinstance(key, Literal):
-                    return key.description
+                if isinstance(value, Literal):
+                    return value.schema
 
-                return None
+                return str(value)
 
-            def _get_key_name(key):
-                """Get the name of a key (as specified in a Literal object). Return the key unchanged if not a Literal"""
-                if isinstance(key, Optional):
-                    return _get_key_name(key.schema)
+            def _to_schema(s, ignore_extra_keys):
+                if not isinstance(s, Schema):
+                    return Schema(s, ignore_extra_keys=ignore_extra_keys)
 
-                if isinstance(key, Literal):
-                    return key.schema
+                return s
 
-                return key
+            s = schema.schema
+            i = schema.ignore_extra_keys
+            flavor = _priority(s)
 
-            sub_schema = s[key]
-            if not isinstance(sub_schema, Schema):
-                sub_schema = Schema(s[key], ignore_extra_keys=i)
+            return_schema = {}
 
-            key_name = _get_key_name(key)
+            is_a_ref = allow_reference and schema.as_reference
+            if schema.description and not is_a_ref:
+                return_schema["description"] = schema.description
+            if description and not is_a_ref:
+                return_schema["description"] = description
 
-            if isinstance(key_name, str):
-                if not isinstance(key, Optional):
-                    required_keys.append(key_name)
-                expanded_schema[key_name] = sub_schema.json_schema(
-                    is_main_schema=False, description=_get_key_description(key)
-                )
-            elif isinstance(key_name, Or):
-                # JSON schema does not support having a key named one name or another, so we just add both options
-                # This is less strict because we cannot enforce that one or the other is required
+            if flavor != DICT and is_main_schema:
+                raise ValueError("The main schema must be a dict.")
 
-                for or_key in key_name.args:
-                    expanded_schema[_get_key_name(or_key)] = sub_schema.json_schema(
-                        is_main_schema=False, description=_get_key_description(or_key)
+            if flavor == TYPE:
+                # Handle type
+                return_schema["type"] = _get_type_name(s)
+            elif flavor == ITERABLE:
+                # Handle arrays or dict schema
+
+                return_schema["type"] = "array"
+                if len(s) == 1:
+                    return_schema["items"] = _json_schema(_to_schema(s[0], i), is_main_schema=False)
+                elif len(s) > 1:
+                    return_schema["items"] = _json_schema(Schema(Or(*s)), is_main_schema=False)
+            elif isinstance(s, Or):
+                # Handle Or values
+
+                # Check if we can use an enum
+                if all(priority == COMPARABLE for priority in [_priority(value) for value in s.args]):
+                    or_values = [str(s) if isinstance(s, Literal) else s for s in s.args]
+                    # All values are simple, can use enum or const
+                    if len(or_values) == 1:
+                        return_schema["const"] = _to_json_type(or_values[0])
+                        return return_schema
+                    return_schema["enum"] = or_values
+                else:
+                    # No enum, let's go with recursive calls
+                    any_of_values = []
+                    for or_key in s.args:
+                        new_value = _json_schema(_to_schema(or_key, i), is_main_schema=False)
+                        if new_value != {} and new_value not in any_of_values:
+                            any_of_values.append(new_value)
+                    if len(any_of_values) == 1:
+                        # Only one representable condition remains, do not put under oneOf
+                        return_schema.update(any_of_values[0])
+                    else:
+                        return_schema["anyOf"] = any_of_values
+            elif isinstance(s, And):
+                # Handle And values
+                all_of_values = []
+                for and_key in s.args:
+                    new_value = _json_schema(_to_schema(and_key, i), is_main_schema=False)
+                    if new_value != {} and new_value not in all_of_values:
+                        all_of_values.append(new_value)
+                if len(all_of_values) == 1:
+                    # Only one representable condition remains, do not put under allOf
+                    return_schema.update(all_of_values[0])
+                else:
+                    return_schema["allOf"] = all_of_values
+            elif flavor == COMPARABLE:
+                return_schema["const"] = _to_json_type(s)
+            elif flavor == VALIDATOR and type(s) == Regex:
+                return_schema["type"] = "string"
+                return_schema["pattern"] = s.pattern_str
+            else:
+                if flavor != DICT:
+                    # If not handled, do not check
+                    return return_schema
+
+                # Schema is a dict
+
+                # Check if we have to create a common definition and use as reference
+                if is_a_ref:
+                    # Generate sub schema if not already done
+                    if schema.name not in definitions_by_name:
+                        definitions_by_name[schema.name] = {}  # Avoid infinite loop
+                        definitions_by_name[schema.name] = _json_schema(
+                            schema, is_main_schema=False, allow_reference=False
+                        )
+
+                    return_schema["$ref"] = "#/definitions/" + schema.name
+                else:
+                    required_keys = []
+                    expanded_schema = {}
+                    for key in s:
+                        if isinstance(key, Hook):
+                            continue
+
+                        def _get_key_description(key):
+                            """Get the description associated to a key (as specified in a Literal object). Return None if not a Literal"""
+                            if isinstance(key, Optional):
+                                return _get_key_description(key.schema)
+
+                            if isinstance(key, Literal):
+                                return key.description
+
+                            return None
+
+                        def _get_key_name(key):
+                            """Get the name of a key (as specified in a Literal object). Return the key unchanged if not a Literal"""
+                            if isinstance(key, Optional):
+                                return _get_key_name(key.schema)
+
+                            if isinstance(key, Literal):
+                                return key.schema
+
+                            return key
+
+                        sub_schema = _to_schema(s[key], ignore_extra_keys=i)
+                        key_name = _get_key_name(key)
+
+                        if isinstance(key_name, str):
+                            if not isinstance(key, Optional):
+                                required_keys.append(key_name)
+                            expanded_schema[key_name] = _json_schema(
+                                sub_schema, is_main_schema=False, description=_get_key_description(key)
+                            )
+                            if isinstance(key, Optional) and hasattr(key, "default"):
+                                expanded_schema[key_name]["default"] = _to_json_type(key.default)
+                        elif isinstance(key_name, Or):
+                            # JSON schema does not support having a key named one name or another, so we just add both options
+                            # This is less strict because we cannot enforce that one or the other is required
+
+                            for or_key in key_name.args:
+                                expanded_schema[_get_key_name(or_key)] = _json_schema(
+                                    sub_schema, is_main_schema=False, description=_get_key_description(or_key)
+                                )
+
+                    return_schema.update(
+                        {
+                            "type": "object",
+                            "properties": expanded_schema,
+                            "required": required_keys,
+                            "additionalProperties": i,
+                        }
                     )
 
-        return_schema.update(
-            {"type": "object", "properties": expanded_schema, "required": required_keys, "additionalProperties": i}
-        )
-        if is_main_schema:
-            return_schema.update({"id": schema_id, "$schema": "http://json-schema.org/draft-07/schema#"})
-            if self._name:
-                return_schema["title"] = self._name
-        if self._description:
-            return_schema["description"] = self._description
+                if is_main_schema:
+                    return_schema.update({"$id": schema_id, "$schema": "http://json-schema.org/draft-07/schema#"})
+                    if self._name:
+                        return_schema["title"] = self._name
 
-        return return_schema
+                    if definitions_by_name:
+                        return_schema["definitions"] = {}
+                        for definition_name, definition in definitions_by_name.items():
+                            return_schema["definitions"][definition_name] = definition
+
+            return _create_or_use_ref(return_schema)
+
+        return _json_schema(self, True)
 
 
 class Optional(Schema):
@@ -611,16 +697,16 @@ class Optional(Schema):
                     '"%r" is too complex.' % (self._schema,)
                 )
             self.default = default
-            self.key = self._schema
+            self.key = str(self._schema)
 
     def __hash__(self):
         return hash(self._schema)
 
     def __eq__(self, other):
         return (
-            self.__class__ is other.__class__ and
-            getattr(self, "default", self._MARKER) == getattr(other, "default", self._MARKER) and
-            self._schema == other._schema
+            self.__class__ is other.__class__
+            and getattr(self, "default", self._MARKER) == getattr(other, "default", self._MARKER)
+            and self._schema == other._schema
         )
 
     def reset(self):
@@ -649,6 +735,12 @@ class Literal(object):
     def __init__(self, value, description=None):
         self._schema = value
         self._description = description
+
+    def __str__(self):
+        return self._schema
+
+    def __repr__(self):
+        return 'Literal("' + self.schema + '", description="' + (self.description or "") + '")'
 
     @property
     def description(self):
