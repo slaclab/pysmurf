@@ -13,36 +13,36 @@
 # copied, modified, propagated, or distributed except according to the
 # terms contained in the LICENSE.txt file.
 # -----------------------------------------------------------------------------
-"""Defines the mixin class :class:`SmurfConfigPropertiesMixin`.
-"""
+"""Defines the mixin class :class:`SmurfConfigPropertiesMixin`."""
 
 class SmurfConfigPropertiesMixin(object):
     """Mixin for loading pysmurf configuration parameters.
 
-    Defines properties used by pysmurf that are defined in the pysmurf
-    configuration file.  More details on python properties can be
-    found in the documentation for python "Built-in Functions" [1]_.
-    
+    Defines properties used by pysmurf whose values are specified in
+    the pysmurf configuration file.  More details on python properties
+    can be found in the documentation for python "Built-in Functions"
+    [1]_.
+
     The :class:`SmurfConfigPropertiesMixin` class has only one
     function :func:`copy_config_to_properties` which can populate the
     properties from a provided
     :class:`~pysmurf.client.base.smurf_config.SmurfConfig` class
-    instance.  The :func:`copy_config_to_properties` is called once to
-    populate all of the :class:`SmurfConfigPropertiesMixin` attributes
-    by a call to the
+    instance.  :func:`copy_config_to_properties` can be called by the
+    user at any time, but it is called once to populate all of the
+    :class:`SmurfConfigPropertiesMixin` attributes by a call to the
     :func:`~pysmurf.client.base.smurf_control.SmurfControl.initialize`
     function in the
     :class:`~pysmurf.client.base.smurf_control.SmurfControl`
     constructor (unless the
-    :class:`~pysmurf.client.base.smurf_control.SmurfControl`
-    instance is not instantiated with a configuration file).
+    :class:`~pysmurf.client.base.smurf_control.SmurfControl` instance
+    is not instantiated with a configuration file).
 
-    .. warning:: 
-    	If a user changes the value of a property but then writes the
-    	internal pysmurf configuration to disk with the
-    	:func:`~pysmurf.client.base.smurf_control.SmurfControl.write_output()`
-    	function, the value written to the file will not reflect the
-    	user's change.
+    .. warning::
+        If a user changes the value of a property but then writes the
+        internal pysmurf configuration to disk with the
+        :func:`~pysmurf.client.base.smurf_control.SmurfControl.write_output()`
+        function, the value written to the file will not reflect the
+        user's change.
 
     Examples
     --------
@@ -54,7 +54,7 @@ class SmurfConfigPropertiesMixin(object):
 
     >>> S.pA_per_phi0
     9000000.0
-    
+
     and it can be set like this:
 
     >>> S.pA_per_phi0 = 9000000.0
@@ -75,9 +75,11 @@ class SmurfConfigPropertiesMixin(object):
     References
     ----------
     .. [1] https://docs.python.org/3/library/functions.html#property
+
     """
 
     def __init__(self, *args, **kwargs):
+        """SmurfConfigPropertiesMixin constructor."""
         # Constants
         self._pA_per_phi0=None
 
@@ -98,7 +100,7 @@ class SmurfConfigPropertiesMixin(object):
         self._fiftyk_Id_offset=None
 
     def copy_config_to_properties(self,config):
-        """Copy values from SmurfConfig instance to properties
+        """Copy values from SmurfConfig instance to properties.
 
         MORE EXPLANATION HERE. USES PROPERTY SETTERS IN CASE WE EVER
         WANT TO IMPOSE ANY CONDITIONS IN THEM.
@@ -110,8 +112,8 @@ class SmurfConfigPropertiesMixin(object):
               be copied into properties in this
               :class:`~pysmurf.client.command.smurf_config_properties.SmurfConfigPropertiesMixin`
               instance.
-        """
 
+        """
         # Useful constants
         constant_cfg = config.get('constant')
         self.pA_per_phi0 = constant_cfg.get('pA_per_phi0')
@@ -168,6 +170,7 @@ class SmurfConfigPropertiesMixin(object):
         :func:`~pysmurf.client.debug.smurf_iv.SmurfIVMixin.analyze_slow_iv`,
         :func:`~pysmurf.client.util.smurf_util.SmurfUtilMixin.bias_bump`,
         :func:`~pysmurf.client.util.smurf_util.SmurfUtilMixin.identify_bias_groups`
+
         """
         return self._pA_per_phi0
 
@@ -193,6 +196,7 @@ class SmurfConfigPropertiesMixin(object):
         See Also
         --------
         :func:`~pysmurf.client.util.smurf_util.SmurfUtilMixin.set_amplifier_bias`
+
         """
         return self._hemt_Vg
 
@@ -223,6 +227,7 @@ class SmurfConfigPropertiesMixin(object):
         --------
         :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.set_hemt_gate_voltage`,
         :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.get_hemt_gate_voltage`
+
         """
         return self._hemt_bit_to_V
 
@@ -257,6 +262,7 @@ class SmurfConfigPropertiesMixin(object):
         See Also
         --------
         :func:`~pysmurf.client.util.smurf_util.SmurfUtilMixin.get_hemt_drain_current`
+
         """
         return self._hemt_Vd_series_resistor
 
@@ -291,6 +297,7 @@ class SmurfConfigPropertiesMixin(object):
         See Also
         --------
         :func:`~pysmurf.client.util.smurf_util.SmurfUtilMixin.get_hemt_drain_current`
+
         """
         return self._hemt_Id_offset
 
@@ -308,7 +315,7 @@ class SmurfConfigPropertiesMixin(object):
     # Getter
     @property
     def hemt_gate_min_voltage(self):
-        """4K HEMT gate voltage minimum software limit
+        """4K HEMT gate voltage minimum software limit.
 
         Gets or sets the minimum voltage the 4K HEMT gate voltage can
         be set to using the
@@ -321,6 +328,7 @@ class SmurfConfigPropertiesMixin(object):
         See Also
         --------
         :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.set_hemt_gate_voltage`
+
         """
         return self._hemt_gate_min_voltage
 
@@ -338,7 +346,7 @@ class SmurfConfigPropertiesMixin(object):
     # Getter
     @property
     def hemt_gate_max_voltage(self):
-        """4K HEMT gate voltage maximum software limit
+        """4K HEMT gate voltage maximum software limit.
 
         Gets or sets the maximum voltage the 4K HEMT gate voltage can
         be set to using the
@@ -351,6 +359,7 @@ class SmurfConfigPropertiesMixin(object):
         See Also
         --------
         :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.set_hemt_gate_voltage`
+
         """
         return self._hemt_gate_max_voltage
 
@@ -368,7 +377,7 @@ class SmurfConfigPropertiesMixin(object):
     # Getter
     @property
     def fiftyk_Vg(self):
-        """50K LNA Gate Voltage
+        """50K LNA Gate Voltage.
 
         Gets or sets the desired value for the 50K LNA Gate voltage at
         the output of the cryostat card.  Units are Volts.
@@ -376,6 +385,7 @@ class SmurfConfigPropertiesMixin(object):
         See Also
         --------
         :func:`~pysmurf.client.util.smurf_util.SmurfUtilMixin.set_amplifier_bias`
+
         """
         return self._fiftyk_Vg
 
@@ -393,7 +403,7 @@ class SmurfConfigPropertiesMixin(object):
     # Getter
     @property
     def fiftyk_dac_num(self):
-        """The RTM DAC number which is wired to the 50K LNA gate.
+        """RTM DAC number wired to the 50K LNA gate.
 
         Gets or sets the DAC number of the DAC on the RTM that is
         wired to the 50K LNA gate.  Must be an integer between 1 and
@@ -411,6 +421,7 @@ class SmurfConfigPropertiesMixin(object):
         :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.set_50k_amp_gate_voltage`,
         :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.get_50k_amp_gate_voltage`,
         :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.set_50k_amp_enable`
+
         """
         return self._fiftyk_dac_num
 
@@ -441,6 +452,7 @@ class SmurfConfigPropertiesMixin(object):
         --------
         :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.set_50k_amp_gate_voltage`,
         :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.get_50k_amp_gate_voltage`
+
         """
         return self._fiftyk_bit_to_V
 
@@ -475,6 +487,7 @@ class SmurfConfigPropertiesMixin(object):
         See Also
         --------
         :func:`~pysmurf.client.util.smurf_util.SmurfUtilMixin.get_50k_amp_drain_current`
+
         """
         return self._fiftyk_amp_Vd_series_resistor
 
@@ -509,6 +522,7 @@ class SmurfConfigPropertiesMixin(object):
         See Also
         --------
         :func:`~pysmurf.client.util.smurf_util.SmurfUtilMixin.get_50k_amp_drain_current`
+
         """
         return self._fiftyk_Id_offset
 

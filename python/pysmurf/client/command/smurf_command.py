@@ -3742,7 +3742,7 @@ class SmurfCommandMixin(SmurfBase):
             Bit 1 for 50K supply
             Bit == 1 means enabled
             Bit == 0 means disabled
-        
+
             therefore:
             0 = all off
             1 = 50K on, HEMT off
