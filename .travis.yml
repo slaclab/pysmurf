@@ -37,6 +37,17 @@ jobs:
         - flake8 --count python/
 
     # Test stages
+    ## Documentation automatic build tests
+    - stage: tests
+      name: "Documentation Build Tests"
+      install:
+        # Install pysmurf
+        - pip3 install .
+      script:
+        # Try to build the documentation
+        - cd docs/
+        - make html
+
     ## Server tests
     - stage: tests
       name: "Server Tests"
