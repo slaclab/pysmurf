@@ -41,6 +41,8 @@ jobs:
     - stage: tests
       name: "Documentation Build Tests"
       install:
+        # Install requirements
+        - pip3 install -r requirements.txt
         # Install pysmurf
         - pip3 install .
         # Install sphinx
