@@ -347,6 +347,7 @@ class SmurfControl(SmurfCommandMixin,
             self.freq_resp[b] = {}
             self.freq_resp[b]['lock_status'] = {}
             self.lms_freq_hz[b] = tune_band_cfg['lms_freq'][str(b)]
+
             band_str = f'band_{b}'
             self.lms_gain[b] = smurf_init_config[band_str]['lmsGain']
 
