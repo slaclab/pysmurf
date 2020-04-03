@@ -26,7 +26,7 @@ class SmurfConfigPropertiesMixin(object):
     The :class:`SmurfConfigPropertiesMixin` class has only one
     function :func:`copy_config_to_properties` which can populate the
     properties from a provided
-    :class:`~pysmurf.client.command.smurf_config.SmurfConfig` class
+    :class:`~pysmurf.client.base.smurf_config.SmurfConfig` class
     instance.  The :func:`copy_config_to_properties` is called once to
     populate all of the :class:`SmurfConfigPropertiesMixin` attributes
     by a call to the
@@ -59,14 +59,14 @@ class SmurfConfigPropertiesMixin(object):
 
     >>> S.pA_per_phi0 = 9000000.0
 
-    Each property has a corresponding attribute that the property
-    get/set operates on and which is used internally in all pysmurf
-    functions that rely on the property.  The internal attributes
-    corresponding to each property have the same name as the property
-    but with an underscore preceding the property name.  E.g. the
-    internal attribute corresponding to the `pA_per_phi0` property is
-    called `_pA_per_phi0`.  Users should never set or get the internal
-    attribute.
+    Each property has a corresponding class instance internal
+    attribute that the property get/set operates on and which is used
+    internally in all pysmurf functions that rely on the property.
+    The internal attributes corresponding to each property have the
+    same name as the property but with an underscore preceding the
+    property name.  E.g. the internal attribute corresponding to the
+    `pA_per_phi0` property is called `_pA_per_phi0`.  Users should
+    never set or get the internal attribute directly.
 
     See Also
     --------

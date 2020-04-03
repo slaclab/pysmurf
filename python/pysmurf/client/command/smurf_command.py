@@ -34,27 +34,32 @@ class SmurfCommandMixin(SmurfBase):
         """
         Wrapper around pyrogue lcaput. Puts variables into epics
 
-        Args:
-        -----
-        cmd : The pyrogue command to be executed. Input as a string
-        val: The value to put into epics
-
-        Optional Args:
-        --------------
-        write_log (bool) : Whether to log the data or not. Default False
-        log_level (int):
-        execute (bool) : Whether to actually execute the command. Defualt True.
-        wait_before (int) : If not None, the number of seconds to wait before
-            issuing the command
-        wait_after (int) : If not None, the number of seconds to wait after
-            issuing the command
-        wait_done (bool) : Wait for the command to be finished before returning.
-            Default True.
-        enable_poll (bool) : Allows requests of all PVs. Default False.
-        disable_poll (bool) : Disables requests of all PVs after issueing command.
-            Default False.
-        new_epics_root (str) : Temporarily replaces current epics root with
-            a new one.
+        Args
+        ----
+        cmd : str
+            The pyrogue command to be executed.
+        val: any
+            The value to put into epics
+        write_log : bool, optional, default False
+            Whether to log the data or not.
+        execute : bool, optional, default True
+            Whether to actually execute the command.
+        wait_before : int, optional, default None
+            If not None, the number of seconds to wait before issuing
+            the command.
+        wait_after : int, optional, default None
+            If not None, the number of seconds to wait after issuing
+            the command.
+        wait_done : bool, optional, default True
+            Wait for the command to be finished before returning.
+        log_level : int, optional, default 0
+            Log level.
+        enable_poll : bool, optional, default False
+            Allows requests of all PVs.
+        disable_poll : bool, optional, default False
+            Disables requests of all PVs after issueing command.
+        new_epics_root : str, optional, default None
+            Temporarily replaces current epics root with a new one.
         """
         if new_epics_root is not None:
             self.log('Temporarily using new epics root: {}'.format(new_epics_root))
@@ -102,25 +107,31 @@ class SmurfCommandMixin(SmurfBase):
         """
         Wrapper around pyrogue lcaget. Gets variables from epics
 
-        Args:
-        -----
-        cmd : The pyrogue command to be exectued. Input as a string
-
-        Opt Args:
-        ---------
-        write_log : Whether to log the data or not. Default False
-        execute : Whether to actually execute the command. Defualt True.
-        count (int or None) : number of elements to return for array data
-        enable_poll (bool) : Allows requests of all PVs. Default False.
-        disable_poll (bool) : Disables requests of all PVs after issueing command.
-            Default False.
-        new_epics_root (str) : Temporarily replaces current epics root with
-            a new one.
+        Args
+        ----
+        cmd : str
+            The pyrogue command to be exectued.
+        write_log : bool, optional, default False
+            Whether to log the data or not.
+        execute : bool, optional, default True
+            Whether to actually execute the command.
+        count : int or None, optional, default None
+            Number of elements to return for array data.
+        log_level : int, optional, default 0
+            Log level.
+        enable_poll : bool, optional, default False
+            Allows requests of all PVs.
+        disable_poll : bool, optional, default False
+            Disables requests of all PVs after issueing command.
+        new_epics_root : str or None, optional, default None
+            Temporarily replaces current epics root with a new one.
+        yml : str or None, optional, default None
+            If not None, yaml file to parse for the result.
 
         Returns
         -------
-        ret : str
-            The requested value
+        str
+            The requested value.
         """
         if new_epics_root is not None:
             self.log('Temporarily using new epics root: {}'.format(new_epics_root))
@@ -193,12 +204,13 @@ class SmurfCommandMixin(SmurfBase):
         Returns the number of subbands in a band.
         To do - possibly hide this function.
 
-        Optional Args:
-        --------------
-        band (int): Which band.  Default is None.  If none specified,
-           assumes all bands have the same number of sub bands, and
-           pulls the number of sub bands from the first band in the
-           list of bands specified in the experiment.cfg.
+        Args
+        ----
+        band : int or None, optional, default None
+            Which band.  If None, assumes all bands have the same
+            number of sub bands, and pulls the number of sub bands
+            from the first band in the list of bands specified in the
+            experiment.cfg.
 
         Returns
         -------
@@ -225,12 +237,13 @@ class SmurfCommandMixin(SmurfBase):
         """
         Returns the number of channels in a band.
 
-        Optional Args:
-        --------------
-        band (int): Which band.  Default is None.  If none specified,
-           assumes all bands have the same number of channels, and
-           pulls the number of channels from the first band in the
-           list of bands specified in the experiment.cfg.
+        Args
+        ----
+        band : int or None, optional, default None
+            Which band.  If None, assumes all bands have the same
+            number of channels, and pulls the number of channels from
+            the first band in the list of bands specified in the
+            experiment.cfg.
 
         Returns
         -------
@@ -254,14 +267,13 @@ class SmurfCommandMixin(SmurfBase):
         """
         Returns the number of processed channels in a band.
 
-        Optional Args:
-        --------------
-        band (int): Which band.  Default is None.  The number of
-           channels processed per band depends on the total number of
-           channels.  If none specified, assumes all bands have the
-           same number of channels, and pulls the number of channels
-           from the first band in the list of bands specified in the
-           experiment.cfg.
+        Args
+        ----
+        band : int or None, optional, default None
+            Which band.  If None, assumes all bands have the same
+            number of channels, and pulls the number of channels from
+            the first band in the list of bands specified in the
+            experiment.cfg.
 
         Returns
         -------
@@ -437,15 +449,14 @@ class SmurfCommandMixin(SmurfBase):
         already be tuned close to the resontor dip. Use
         run_serial_gradient_descent to get it.
 
-        Args:
-        ----_
-        band (int) : The band to eta scan
-
-        Opt Args:
-        --------
-        sync_group (bool) : Whether to use the sync group to monitor
-            the PV. Defauult is True.
-        timeout (float) : The maximum amount of time to wait for the PV.
+        Args
+        ----
+        band  : int
+            The band to eta scan.
+        sync_group : bool, optional, default True
+            Whether to use the sync group to monitor the PV.
+        timeout : float, optional, default 240
+            The maximum amount of time to wait for the PV.
         """
 
         # need flux ramp off for this - enforce
@@ -470,15 +481,14 @@ class SmurfCommandMixin(SmurfBase):
         Does a brute force search for the resonator minima. Starts at
         the currently set frequency.
 
-        Args:
+        Args
         ----
-        band (int) : The band the min search
-
-        Opt Args:
-        --------
-        sync_group (bool) : Whether to use the sync group to monitor
-            the PV. Defauult is True.
-        timeout (float) : The maximum amount of time to wait for the PV.
+        band : int
+            The band the min search.
+        sync_group : bool, optional, default True
+            Whether to use the sync group to monitor the PV.
+        timeout : float, optional, default 240
+            The maximum amount of time to wait for the PV.
         """
         triggerPV = self._cryo_root(band) + self._run_serial_min_search
         monitorPV = self._cryo_root(band) + self._eta_scan_in_progress
@@ -497,16 +507,14 @@ class SmurfCommandMixin(SmurfBase):
         """
         Does a gradient descent search for the minimum.
 
-
-        Args:
+        Args
         ----
-        band (int) : The band the min search
-
-        Opt Args:
-        --------
-        sync_group (bool) : Whether to use the sync group to monitor
-            the PV. Defauult is True.
-        timeout (float) : The maximum amount of time to wait for the PV.
+        band : int
+            The band to run serial gradient descent on.
+        sync_group : bool, optional, default True
+            Whether to use the sync group to monitor the PV.
+        timeout : float, optional, default 240
+            The maximum amount of time to wait for the PV.
         """
 
         # need flux ramp off for this - enforce
@@ -527,11 +535,13 @@ class SmurfCommandMixin(SmurfBase):
 
     def sel_ext_ref(self, bay, **kwargs):
         """
-        Selects this bay to trigger off of external reference (through front panel)
+        Selects this bay to trigger off of external reference (through
+        front panel)
 
-        Args:
+        Args
         ----
-        bay (int) : which bay to set to ext ref.  Either 0 or 1.
+        bay : int
+            Which bay to set to ext ref.  Either 0 or 1.
         """
         assert (bay in [0,1]),'bay must be an integer and in [0,1]'
         triggerPV=self.microwave_mux_core.format(bay) + self._selextref
@@ -546,9 +556,10 @@ class SmurfCommandMixin(SmurfBase):
         """
         Dumps all PyRogue state variables to a yml file.
 
-        Args:
+        Args
         ----
-        val (str) : The path (including file name) to write the yml file to.
+        val : str
+            The path (including file name) to write the yml file to.
         """
         self._caput(self.epics_root + self._savestate,
                     val, **kwargs)
@@ -563,9 +574,10 @@ class SmurfCommandMixin(SmurfBase):
         """
         Writes the current (un-masked) PyRogue settings to a yml file.
 
-        Args:
+        Args
         ----
-        val (str) : The path (including file name) to write the yml file to.
+        val : str
+            The path (including file name) to write the yml file to.
         """
         self._caput(self.epics_root + self._saveconfig,
                     val, **kwargs)
@@ -595,10 +607,12 @@ class SmurfCommandMixin(SmurfBase):
         """
         Sets the tone file path for this bay.
 
-        Args:
+        Args
         ----
-        bay (int) : Which AMC bay (0 or 1).
-        val (str) : Path (including csv file name) to tone file.
+        bay : int
+            Which AMC bay (0 or 1).
+        val : str
+            Path (including csv file name) to tone file.
         """
         # make sure file exists before setting
 
@@ -616,15 +630,14 @@ class SmurfCommandMixin(SmurfBase):
         """
         Loads tone file specified in tone_file_path.
 
-        Args:
+        Args
         ----
-        bay (int) : Which AMC bay (0 or 1).
-
-        Optional Args:
-        --------------
-        val (str) : Path (including csv file name) to tone file.  If
-                    none provided, assumes something valid has already
-                    been loaded into DacSigGen[#]:CsvFilePath
+        bay : int
+            Which AMC bay (0 or 1).
+        val : str or None, optional, default None
+            Path (including csv file name) to tone file.  If none
+            provided, assumes something valid has already been loaded
+            into DacSigGen[#]:CsvFilePath
         """
 
         # Set tone file path if provided.
@@ -682,10 +695,12 @@ class SmurfCommandMixin(SmurfBase):
         """
         Sets the frequency to do the eta scan
 
-        Args:
-        -----
-        band (int) : The band to count
-        val (int) :  The frequency to scan
+        Args
+        ----
+        band : int
+            The band to count.
+        val : int
+            The frequency to scan.
         """
         self._caput(self._cryo_root(band) + self._eta_scan_freqs, val,
             **kwargs)
@@ -712,10 +727,12 @@ class SmurfCommandMixin(SmurfBase):
         """
         Sets the amplitude of the eta scan.
 
-        Args:
-        -----
-        band (int) : The band to set
-        val (in) : The eta scan amplitude. Typical value is 9 to 11.
+        Args
+        ----
+        band : int
+            The band to set.
+        val : int
+            The eta scan amplitude. Typical value is 9 to 11.
         """
         self._caput(self._cryo_root(band) + self._eta_scan_amplitude, val,
             **kwargs)
@@ -724,9 +741,10 @@ class SmurfCommandMixin(SmurfBase):
         """
         Gets the amplitude of the eta scan.
 
-        Args:
-        -----
-        band (int) : The band to set
+        Args
+        ----
+        band : int
+            The band to set.
 
         Returns
         -------
@@ -742,10 +760,12 @@ class SmurfCommandMixin(SmurfBase):
         """
         Sets the channel to eta scan.
 
-        Args:
-        -----
-        band (int) : The band to set
-        val (int) : The channel to set
+        Args
+        ----
+        band : int
+            The band to set.
+        val : int
+            The channel to set.
         """
         self._caput(self._cryo_root(band) + self._eta_scan_channel, val,
             **kwargs)
@@ -754,9 +774,10 @@ class SmurfCommandMixin(SmurfBase):
         """
         Gets the channel to eta scan.
 
-        Args:
-        -----
-        band (int) : The band to set
+        Args
+        ----
+        band : int
+            The band to set.
 
         Returns
         -------
@@ -773,10 +794,12 @@ class SmurfCommandMixin(SmurfBase):
         Sets the number of frequency error averages to take at each point of
         the etaScan.
 
-        Args:
-        -----
-        band (int) : The band to set
-        val (int) : The channel to set
+        Args
+        ----
+        band : int
+            The band to set.
+        val : int
+            The channel to set.
         """
         self._caput(self._cryo_root(band) + self._eta_scan_averages, val,
             **kwargs)
@@ -786,13 +809,14 @@ class SmurfCommandMixin(SmurfBase):
         Gets the number of frequency error averages taken at each point of
         the etaScan.
 
-        Args:
-        -----
-        band (int) : The band to set
+        Args
+        ----
+        band : int
+            The band to set.
 
         Returns
         -------
-        eta_scan_averages : int
+        int
             The number of frequency error averages taken at each point
             of the etaScan.
         """
@@ -805,10 +829,12 @@ class SmurfCommandMixin(SmurfBase):
         """
         Swets how long to dwell while eta scanning.
 
-        Args:
-        -----
-        band (int) : The band to eta scan.
-        val (int) : The time to dwell
+        Args
+        ----
+        band : int
+            The band to eta scan.
+        val : int
+            The time to dwell.
         """
         self._caput(self._cryo_root(band) + self._eta_scan_dwell, val, **kwargs)
 
@@ -816,9 +842,10 @@ class SmurfCommandMixin(SmurfBase):
         """
         Gets how long to dwell
 
-        Args:
-        -----
-        band (int) : The band being eta scanned
+        Args
+        ----
+        band : int
+            The band being eta scanned.
 
         Returns
         -------
@@ -834,10 +861,12 @@ class SmurfCommandMixin(SmurfBase):
         """
         Runs the eta scan. Set the channel using set_eta_scan_channel()
 
-        Args:
-        -----
-        band (int) : The band to eta scan.
-        val (bool) : Start the eta scan.
+        Args
+        ----
+        band : int
+            The band to eta scan.
+        val : bool
+            Start the eta scan.
         """
         self._caput(self._cryo_root(band) + self._run_eta_scan, val, **kwargs)
 
@@ -845,9 +874,10 @@ class SmurfCommandMixin(SmurfBase):
         """
         Gets the status of eta scan.
 
-        Args:
-        -----
-        band (int) : The band that is being checked
+        Args
+        ----
+        band : int
+            The band that is being checked.
 
         Returns
         -------
@@ -862,15 +892,17 @@ class SmurfCommandMixin(SmurfBase):
         """
         Gets the real component of the eta scan.
 
-        Args:
-        -----
-        band (int) : The to get eta scans
-        count (int) : The number of samples to read
+        Args
+        ----
+        band : int
+            The to get eta scans.
+        count : int
+            The number of samples to read.
 
         Returns
         -------
-        resp : float array)
-            The real component of the most recent eta scan
+        resp : float array
+            The real component of the most recent eta scan.
         """
         return self._caget(self._cryo_root(band) + self._eta_scan_results_real,
             count=count, **kwargs)
@@ -881,15 +913,17 @@ class SmurfCommandMixin(SmurfBase):
         """
         Gets the imaginary component of the eta scan.
 
-        Args:
-        -----
-        band (int) : The to get eta scans
-        count (int) : The number of samples to read
+        Args
+        ----
+        band : int
+            The to get eta scans.
+        count : int
+            The number of samples to read.
 
         Returns
         -------
         resp : float array
-            The imaginary component of the most recent eta scan
+            The imaginary component of the most recent eta scan.
         """
         return self._caget(self._cryo_root(band) + self._eta_scan_results_imag,
             count=count, **kwargs)
@@ -920,9 +954,10 @@ class SmurfCommandMixin(SmurfBase):
         """
         Gets the array of amplitudes
 
-        Args:
-        -----
-        band (int) : The band to search.
+        Args
+        ----
+        band : int
+            The band to search.
 
         Returns
         -------
@@ -938,10 +973,12 @@ class SmurfCommandMixin(SmurfBase):
         a more convenient wrapper for set_amplitude_scale_array to only change
         the channels that are on.
 
-        Args:
-        -----
-        band (int): the band to change
-        drive (int): tone power to change to
+        Args
+        ----
+        band : int
+            The band to change.
+        drive : int
+            Tone power to change to.
         """
 
         old_amp = self.get_amplitude_scale_array(band, **kwargs)
@@ -962,9 +999,10 @@ class SmurfCommandMixin(SmurfBase):
         """
         Gets the array of feedbacks enables
 
-        Args:
-        -----
-        band (int) : The band to search.
+        Args
+        ----
+        band : int
+            The band to search.
 
         Returns
         -------
@@ -980,9 +1018,10 @@ class SmurfCommandMixin(SmurfBase):
         """
         Sets the singleChannelReadout bit.
 
-        Args:
-        -----
-        band (int): The band to set to single channel readout
+        Args
+        ----
+        band : int
+            The band to set to single channel readout.
         """
         self._caput(self._band_root(band) + self._single_channel_readout, val,
             **kwargs)
@@ -1000,9 +1039,10 @@ class SmurfCommandMixin(SmurfBase):
         """
         Sets the singleChannelReadout2 bit.
 
-        Args:
-        -----
-        band (int): The band to set to single channel readout
+        Args
+        ----
+        band : int
+            The band to set to single channel readout.
         """
         self._caput(self._band_root(band) + self._single_channel_readout2, val,
             **kwargs)
