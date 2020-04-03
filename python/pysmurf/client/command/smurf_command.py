@@ -130,7 +130,7 @@ class SmurfCommandMixin(SmurfBase):
 
         Returns
         -------
-        str
+        ret : str
             The requested value.
         """
         if new_epics_root is not None:
@@ -172,7 +172,8 @@ class SmurfCommandMixin(SmurfBase):
     _rogue_version = 'RogueVersion'
 
     def get_rogue_version(self, as_str=True, **kwargs):
-        """
+        """Get rogue version
+
         Returns
         -------
         ret : str
@@ -1441,9 +1442,10 @@ class SmurfCommandMixin(SmurfBase):
         """
         Trigger reset delay, set such that the ramp resets at the flux ramp glitch.  2.4 MHz ticks.
 
-        Args:
-        -----
-        band (int) : Which band.
+        Args
+        ----
+        band : int
+            Which band.
         """
         self._caput(self._band_root(band) + self._trigger_reset_delay, val, **kwargs)
 
@@ -1451,9 +1453,10 @@ class SmurfCommandMixin(SmurfBase):
         """
         Trigger reset delay, set such that the ramp resets at the flux ramp glitch.  2.4 MHz ticks.
 
-        Args:
-        -----
-        band (int) : Which band.
+        Args
+        ----
+        band : int
+            Which band.
         """
         return self._caget(self._band_root(band) + self._trigger_reset_delay, **kwargs)
 
@@ -1464,9 +1467,10 @@ class SmurfCommandMixin(SmurfBase):
         The flux ramp DAC value at which to start applying feedback in each flux ramp cycle.
         In 2.4 MHz ticks.
 
-        Args:
-        -----
-        band (int) : Which band.
+        Args
+        ----
+        band : int
+            Which band.
         """
         self._caput(self._band_root(band) + self._feedback_start, val, **kwargs)
 
@@ -1475,9 +1479,10 @@ class SmurfCommandMixin(SmurfBase):
         The flux ramp DAC value at which to start applying feedback in each flux ramp cycle.
         In 2.4 MHz ticks.
 
-        Args:
-        -----
-        band (int) : Which band.
+        Args
+        ----
+        band : int
+            Which band.
         """
         return self._caget(self._band_root(band) + self._feedback_start, **kwargs)
 
@@ -1488,9 +1493,10 @@ class SmurfCommandMixin(SmurfBase):
         The flux ramp DAC value at which to stop applying feedback in each flux ramp cycle.
         In 2.4 MHz ticks.
 
-        Args:
-        -----
-        band (int) : Which band.
+        Args
+        ----
+        band : int
+            Which band.
         """
         self._caput(self._band_root(band) + self._feedback_end, val, **kwargs)
 
@@ -1499,9 +1505,10 @@ class SmurfCommandMixin(SmurfBase):
         The flux ramp DAC value at which to stop applying feedback in each flux ramp cycle.
         In 2.4 MHz ticks.
 
-        Args:
-        -----
-        band (int) : Which band.
+        Args
+        ----
+        band : int
+            Which band.
         """
         return self._caget(self._band_root(band) + self._feedback_end, **kwargs)
 
@@ -1658,16 +1665,17 @@ class SmurfCommandMixin(SmurfBase):
         Returns the channel frequency in MHz.  The channel frequency
         is the rate at which channels are processed.
 
-        Optional Args:
-        --------------
-        band (int): Which band.  Default is None.  If none specified,
-           assumes all bands have the same channel frequency, and
-           pulls the channel frequency from the first band in the
-           list of bands specified in the experiment.cfg.
+        Args
+        ----
+        band : int or None, optional, default None
+           Which band.  If None, assumes all bands have the same
+           channel frequency, and pulls the channel frequency from the
+           first band in the list of bands specified in the
+           experiment.cfg.
 
         Returns
         -------
-        channel_frequency_mhz : float
+        float
             The rate at which channels in this band are processed.
         """
 
@@ -1690,16 +1698,17 @@ class SmurfCommandMixin(SmurfBase):
         """
         Returns the digitizer frequency in MHz.
 
-        Optional Args:
-        --------------
-        band (int): Which band.  Default is None.  If none specified,
-           assumes all bands have the same digitizer frequency, and
-           pulls the digitizer frequency from the first band in the
-           list of bands specified in the experiment.cfg.
+        Args
+        ----
+        band : int or None, optional, default None
+           Which band.  If None, assumes all bands have the same
+           channel frequency, and pulls the channel frequency from the
+           first band in the list of bands specified in the
+           experiment.cfg.
 
         Returns
         -------
-        digitizer_frequency_mhz : float
+        float
             The digitizer frequency for this band in MHz.
         """
         if self.offline:
@@ -1831,9 +1840,10 @@ class SmurfCommandMixin(SmurfBase):
         Assumes LB is plugged into bay 0,  corresponding to bands [0,1,2,3] and that
         HB is plugged into bay 1, corresponding to bands [4,5,6,7].
 
-        Args:
-        -----
-        b (int): Band number.
+        Args
+        ----
+        b : int
+            Band number.
         """
         if b in [0,1,2,3]:
             bay=0
@@ -1851,10 +1861,12 @@ class SmurfCommandMixin(SmurfBase):
         """
         Set the upconverter attenuator
 
-        Args:
-        -----
-        b (int): The band number.
-        val (int): The attenuator value
+        Args
+        ----
+        b : int
+            The band number.
+        val : int
+            The attenuator value.
         """
         att = self.band_to_att(b)
         bay = self.band_to_bay(b)
@@ -1865,9 +1877,10 @@ class SmurfCommandMixin(SmurfBase):
         """
         Get the upconverter attenuator value
 
-        Args:
-        -----
-        b (int): The band number.
+        Args
+        ----
+        b : int
+            The band number.
         """
         att = self.band_to_att(b)
         bay = self.band_to_bay(b)
@@ -1881,10 +1894,12 @@ class SmurfCommandMixin(SmurfBase):
         """
         Set the down-converter attenuator
 
-        Args:
-        -----
-        b (int): The band number.
-        val (int): The attenuator value
+        Args
+        ----
+        b : int
+            The band number.
+        val : int
+            The attenuator value
         """
         att = self.band_to_att(b)
         bay = self.band_to_bay(b)
@@ -1895,9 +1910,10 @@ class SmurfCommandMixin(SmurfBase):
         """
         Get the down-converter attenuator value
 
-        Args:
-        -----
-        b (int): The band number.
+        Args
+        ----
+        b : int
+            The band number.
         """
         att = self.band_to_att(b)
         bay = self.band_to_bay(b)
@@ -1920,10 +1936,12 @@ class SmurfCommandMixin(SmurfBase):
         """
         Get temperature of the DAC in celsius
 
-        Args:
-        -----
-        bay (int): Which bay [0 or 1].
-        dac (int): Which DAC no. [0 or 1].
+        Args
+        ----
+        bay : int
+            Which bay [0 or 1].
+        dac : int
+            Which DAC no. [0 or 1].
         """
         return self._caget(self.dac_root.format(bay,dac) + self._dac_temp, **kwargs)
 
@@ -1933,11 +1951,14 @@ class SmurfCommandMixin(SmurfBase):
         """
         Enables DAC
 
-        Args:
-        -----
-        bay (int): Which bay [0 or 1].
-        dac (int): Which DAC no. [0 or 1].
-        val (int): Value to set the DAC enable register to [0 or 1].
+        Args
+        ----
+        bay : int
+            Which bay [0 or 1].
+        dac : int
+            Which DAC no. [0 or 1].
+        val : int
+            Value to set the DAC enable register to [0 or 1].
         """
         self._caput(self.dac_root.format(bay,dac) + self._dac_enable, val, **kwargs)
 
@@ -1945,10 +1966,12 @@ class SmurfCommandMixin(SmurfBase):
         """
         Gets enable status of DAC
 
-        Args:
-        -----
-        bay (int): Which bay [0 or 1].
-        dac (int): Which DAC no. [0 or 1].
+        Args
+        ----
+        bay : int
+            Which bay [0 or 1].
+        dac : int
+            Which DAC no. [0 or 1].
         """
         return self._caget(self.dac_root.format(bay,dac) + self._dac_enable, **kwargs)
 
@@ -1974,11 +1997,14 @@ class SmurfCommandMixin(SmurfBase):
         """
         Set DAC JesdRstN
 
-        Args:
-        -----
-        bay (int): Which bay [0 or 1].
-        dac (int): Which DAC no. [0 or 1].
-        val (int): Value to set JesdRstN to [0 or 1].
+        Args
+        ----
+        bay : int
+            Which bay [0 or 1].
+        dac : int
+            Which DAC no. [0 or 1].
+        val : int
+            Value to set JesdRstN to [0 or 1].
         """
         self._caput(self.dac_root.format(bay,dac) + self._jesd_reset_n, val, **kwargs)
 
@@ -2255,9 +2281,10 @@ class SmurfCommandMixin(SmurfBase):
         Sets the output path for the StreamDataWriter. This is what is
         used for take_debug_data.
 
-        Args:
-        -----
-        datafile_path (str) : The full path for the output.
+        Args
+        ----
+        datafile_path : str
+            The full path for the output.
         """
         self._caput(self.stream_data_writer_root + self._data_file,
             datafile_path, **kwargs)
@@ -2267,14 +2294,15 @@ class SmurfCommandMixin(SmurfBase):
         Gets the output path for the StreamDataWriter. This is what is
         used for take_debug_data.
 
-        Opt Args:
-        ---------
-        as_str (bool) : Whether to return the data as a string. Default
-            is True.
-
-        Ret:
+        Args
         ----
-        datafile_path (str) : The full path for the output.
+        as_str : bool, optional, default True
+            Whether to return the data as a string.
+
+        Returns
+        -------
+        ret : str
+            The full path for the output.
         """
         ret=self._caget(self.stream_data_writer_root +
                         self._data_file, **kwargs)
@@ -2372,15 +2400,16 @@ class SmurfCommandMixin(SmurfBase):
         is less than 2048 entries, the table is padded on the end with
         the value in the pad argument.
 
-        Args:
-        -----
-        arr (int array): Array of values to load into LUT table.  Each
-                         entry must be an integer and in [0,2^20).
-
-        Opt Args:
-        -----
-        pad (int): Value to pad end of array with if provided array's
-                   length is less than 2048.  Default is 0.
+        Args
+        ----
+        reg : int
+            LUT table index in [0,1].
+        arr : int array
+            Array of values to load into LUT table.  Each entry must
+            be an integer and in [0,2^20).
+        pad : int, optional, default 0
+            Value to pad end of array with if provided array's length
+            is less than 2048.  Default is 0.
         """
         # cast as numpy array
         lut_arr=np.pad(arr[:self._lut_table_array_length],
@@ -2451,10 +2480,11 @@ class SmurfCommandMixin(SmurfBase):
         repeats, otherwise if =0, waveform in LUT tables is only
         broadcast once on software trigger.
 
-        Args:
-        -----
-        val (int): Whether or not arbitrary waveform generation is
-                   continuous on software trigger.  Must be in [0,1].
+        Args
+        ----
+        val : int
+            Whether or not arbitrary waveform generation is continuous
+            on software trigger.  Must be in [0,1].
         """
         assert (val in range(2)), 'val must be in [0,1]'
         self._caput(self.rtm_lut_ctrl +
@@ -2470,11 +2500,11 @@ class SmurfCommandMixin(SmurfBase):
         RTM DACs.  This will cause the RTM to play the LUT tables only
         once.
 
-        Args:
-        -----
-        continuous (bool): Whether or not to continously broadcast the
-                           arbitrary waveform on software trigger.
-                           Default False.
+        Args
+        ----
+        continuous : bool, optional, default False
+            Whether or not to continously broadcast the arbitrary
+            waveform on software trigger.
         """
         if continuous is True:
             self.set_rtm_arb_waveform_continuous(1)
@@ -2523,10 +2553,11 @@ class SmurfCommandMixin(SmurfBase):
         Arbitrary waveforms are written to the slow RTM DACs with time
         between samples TimerSize*6.4ns.
 
-        Args:
-        -----
-        val (int): The value to set TimerSize to.  Must be an integer
-                   in [0,2**24).
+        Args
+        ----
+        val : int
+            The value to set TimerSize to.  Must be an integer in
+            [0,2**24).
         """
         assert (val in range(2**24)), 'reg must be in [0,16777216)'
         self._caput(self.rtm_lut_ctrl +
@@ -2556,10 +2587,11 @@ class SmurfCommandMixin(SmurfBase):
         11-bit number (must be in [0,2048), because that's the maximum
         length of the LUT tables that store the waveforms.
 
-        Args:
-        -----
-        val (int): The value to set MaxAddr to.  Must be an integer
-                   in [0,2048).
+        Args
+        ----
+        val : int
+            The value to set MaxAddr to.  Must be an integer in
+            [0,2048).
         """
         assert (val in range(2**11)), 'reg must be in [0,2048)'
         self._caput(self.rtm_lut_ctrl +
@@ -2588,13 +2620,12 @@ class SmurfCommandMixin(SmurfBase):
         Sets the enable for generation of arbitrary waveforms on the
         RTM slow DACs.
 
-        Args:
-        -----
-        val (int): The value to set enable to.
-           EnableCh = 0x0 is disable
-           0x1 is Addr[0]
-           0x2 is Addr[1]
-           0x3 is Addr[0] and Addr[1]
+        Args
+        ----
+        val : int
+            The value to set enable to.  EnableCh = 0x0 is disable,
+            0x1 is Addr[0], 0x2 is Addr[1], and 0x3 is Addr[0] and
+            Addr[1]
         """
         assert (val in range(4)), 'reg must be in [0,1,2,3]'
         self._caput(self.rtm_lut_ctrl +
@@ -2617,9 +2648,10 @@ class SmurfCommandMixin(SmurfBase):
 
     def set_cpld_reset(self, val, **kwargs):
         """
-        Args:
-        -----
-        val (int) : Set to 1 for a cpld reset
+        Args
+        ----
+        val : int
+            Set to 1 for a cpld reset.
         """
         self._caput(self.rtm_cryo_det_root + self._cpld_reset, val, **kwargs)
 
@@ -2817,12 +2849,14 @@ class SmurfCommandMixin(SmurfBase):
         enable for normal operation, which only needs to be done once
         for each DAC in a boot session.
 
-        Args:
-        -----
-        dac (int) : Which DAC to command.  1-indexed.  If a DAC index
-                    outside of the valid range is provided (must be
-                    within [1,32]), will assert.
-        val (int) : Value to set the DAC enable to.
+        Args
+        ----
+        dac : int
+            Which DAC to command.  1-indexed.  If a DAC index outside
+            of the valid range is provided (must be within [1,32]),
+            will assert.
+        val : int
+            Value to set the DAC enable to.
         """
         assert (dac in range(1,33)),'dac must be an integer and in [1,32]'
 
@@ -2836,11 +2870,12 @@ class SmurfCommandMixin(SmurfBase):
         AD5790 analog output configuration for the requested DAC
         number.  Should be set to 0x2 in normal operation.
 
-        Args:
-        -----
-        dac (int) : Which DAC to query.  1-indexed.  If a DAC index
-                    outside of the valid range is provided (must be
-                    within [1,32]), will assert.
+        Args
+        ----
+        dac : int
+            Which DAC to query.  1-indexed.  If a DAC index outside of
+            the valid range is provided (must be within [1,32]), will
+            assert.
 
         Returns
         -------
@@ -2864,11 +2899,11 @@ class SmurfCommandMixin(SmurfBase):
         the set_rtm_slow_dac_enable function (single versus multiple
         transactions).
 
-        Args:
-        -----
-        val (int array): length 32, addresses the DACs in DAC
-                         ordering.  If provided array is not length
-                         32, asserts.
+        Args
+        ----
+        val : int array 
+            Length 32, addresses the DACs in DAC ordering.  If
+            provided array is not length 32, asserts.
         """
         assert (len(val)==32),'len(val) must be 32, the number of DACs in hardware.'
         self._caput(self.rtm_spi_max_root +
@@ -2901,15 +2936,16 @@ class SmurfCommandMixin(SmurfBase):
         Sets the data register for the requested DAC, which sets the
         output voltage of the DAC.
 
-        Args:
-        -----
-        dac (int) : Which DAC to command.  1-indexed.  If a DAC index
-                    outside of the valid range is provided (must be
-                    within [1,32]), will assert.
-        val (int) : The DAC voltage to set in DAC units.  Must be in
-                    [-2^19,2^19).  If requested value is less
-                    (greater) than -2^19 (2^19-1), sets DAC to -2^19
-                    (2^19-1).
+        Args
+        ----
+        dac : int
+            Which DAC to command.  1-indexed.  If a DAC index outside
+            of the valid range is provided (must be within [1,32]),
+            will assert.
+        val : int
+            The DAC voltage to set in DAC units.  Must be in
+            [-2^19,2^19).  If requested value is less (greater) than
+            -2^19 (2^19-1), sets DAC to -2^19 (2^19-1).
         """
         assert (dac in range(1,33)),'dac must be an integer and in [1,32]'
 
@@ -2930,15 +2966,16 @@ class SmurfCommandMixin(SmurfBase):
         Gets the value in the data register for the requested DAC,
         which sets the output voltage of the DAC.
 
-        Args:
-        -----
-        dac (int) : Which DAC to command.  1-indexed.  If a DAC index
-                    outside of the valid range is provided (must be
-                    within [1,32]), will assert.
+        Args
+        ----
+        dac : int
+            Which DAC to command.  1-indexed.  If a DAC index outside
+            of the valid range is provided (must be within [1,32]),
+            will assert.
 
         Returns
         -------
-        val : int
+        int
             The data register setting for the requested DAC, in DAC
             units.  The data register sets the output voltage of the
             DAC.
@@ -2955,15 +2992,14 @@ class SmurfCommandMixin(SmurfBase):
         Sets the data registers for all 32 DACs, which sets their
         output voltages.  Must provide all 32 values.
 
-        Args:
-        -----
-        val (int array): The DAC voltages to set in DAC units.  Each
-                         element of the array must Must be in
-                         [-2^19,2^19).  If a requested value is less
-                         (greater) than -2^19 (2^19-1), sets that DAC
-                         to -2^19 (2^19-1).  (32,) in DAC units.  If
-                         provided array is not 32 elements long,
-                         asserts.
+        Args
+        ----
+        val : int array
+            The DAC voltages to set in DAC units.  Each element of the
+            array must Must be in [-2^19,2^19).  If a requested value
+            is less (greater) than -2^19 (2^19-1), sets that DAC to
+            -2^19 (2^19-1).  (32,) in DAC units.  If provided array is
+            not 32 elements long, asserts.
         """
         assert (len(val)==32),'len(val) must be 32, the number of DACs in hardware.'
 
@@ -3000,12 +3036,14 @@ class SmurfCommandMixin(SmurfBase):
         """
         Sets the output voltage for the requested DAC.
 
-        Args:
-        -----
-        dac (int) : Which DAC to command.  1-indexed.  If a DAC index
-                    outside of the valid range is provided (must be
-                    within [1,32]), will assert.
-        val (int) : The DAC voltage to set in volts.
+        Args
+        ----
+        dac : int
+            Which DAC to command.  1-indexed.  If a DAC index outside
+            of the valid range is provided (must be within [1,32]),
+            will assert.
+        val : int
+            The DAC voltage to set in volts.
         """
         assert (dac in range(1,33)),'dac must be an integer and in [1,32]'
         self.set_rtm_slow_dac_data(dac, val/self._rtm_slow_dac_bit_to_volt, **kwargs)
@@ -3015,15 +3053,16 @@ class SmurfCommandMixin(SmurfBase):
         """
         Gets the current output voltage for the requested DAC.
 
-        Args:
-        -----
-        dac (int) : Which DAC to query.  1-indexed.  If a DAC index
-                    outside of the valid range is provided (must be
-                    within [1,32]), will assert.
+        Args
+        ----
+        dac : int
+            Which DAC to query.  1-indexed.  If a DAC index outside of
+            the valid range is provided (must be within [1,32]), will
+            assert.
 
         Returns
         -------
-        val : float
+        float
             The DAC voltage in volts.
         """
         assert (dac in range(1,33)),'dac must be an integer and in [1,32]'
@@ -3036,11 +3075,12 @@ class SmurfCommandMixin(SmurfBase):
         each DAC individually using the set_rtm_slow_dac_volt
         function (single versus multiple transactions).
 
-        Args:
-        -----
-        val (float array): TES biases to set for each DAC in
-                           Volts. Expects an array of size (32,).  If
-                           provided array is not 32 elements, asserts.
+        Args
+        ----
+        val : float array
+            TES biases to set for each DAC in Volts. Expects an array
+            of size (32,).  If provided array is not 32 elements,
+            asserts.
         """
         assert (len(val)==32),'len(val) must be 32, the number of DACs in hardware.'
         int_val = np.array(np.array(val) / self._rtm_slow_dac_bit_to_volt, dtype=int)
@@ -3065,14 +3105,14 @@ class SmurfCommandMixin(SmurfBase):
         """
         Sets the 50K amplifier gate votlage.
 
-        Args:
-        -----
-        voltage (float) : The amplifier gate voltage between 0 and -1.
-
-        Opt Args:
-        ---------
-        override (bool) : Whether to override the software limit on the gate
-            voltage. This allows you to go outside the range of 0 and -1.
+        Args
+        ----
+        voltage : float
+            The amplifier gate voltage between 0 and -1.
+        override : bool, optional, default False
+            Whether to override the software limit on the gate
+            voltage. This allows you to go outside the range of 0 and
+            -1.
         """
         if (voltage > 0 or voltage < -1.) and not override:
             self.log('Voltage must be between -1 and 0. Doing nothing.')
@@ -3090,9 +3130,10 @@ class SmurfCommandMixin(SmurfBase):
         """
         Sets the 50K amp bit to 2 for enable and 0 for disable.
 
-        Opt Args:
-        ---------
-        disable (bool) : Disable the 50K amplifier. Default False.
+        Args
+        ----
+        disable : bool, optional, default False
+            Disable the 50K amplifier.
         """
         if disable:
             self.set_rtm_slow_dac_enable(self._fiftyk_dac_num, 0, **kwargs)
@@ -3261,13 +3302,14 @@ class SmurfCommandMixin(SmurfBase):
     # I think...
     _hemt_v_enable = 'HemtBiasDacCtrlRegCh[33]'
 
-    def set_hemt_enable(self, disable=False, zero_gate=False, **kwargs):
+    def set_hemt_enable(self, disable=False, **kwargs):
         """
         Sets bit to 2 for enable and 0 for disable.
 
-        Opt Args:
-        ---------
-        disable (bool): If True, sets the bit to 0.
+        Args
+        ----
+        disable : bool, optional, default False
+            If True, sets the HEMT enable bit to 0.
         """
         if disable:
             self._caput(self.rtm_spi_max_root + self._hemt_v_enable, 0,
@@ -3280,15 +3322,13 @@ class SmurfCommandMixin(SmurfBase):
         """
         Sets the HEMT gate voltage in units of volts.
 
-        Args:
-        -----
-        voltage (float): The voltage applied to the HEMT gate. Must be between
-            0 and .75.
-
-        Opt Args:
-        ---------
-        override (bool): Override thee limits on HEMT gate voltage. Default
-            False.
+        Args
+        ----
+        voltage : float
+            The voltage applied to the HEMT gate. Must be between 0
+            and .75.
+        override bool, optional, default False
+            Override thee limits on HEMT gate voltage.
         """
         self.set_hemt_enable()
         if (voltage > self._hemt_gate_max_voltage or voltage <
@@ -3309,13 +3349,12 @@ class SmurfCommandMixin(SmurfBase):
         There is a hardcoded maximum value. If exceeded, no voltage is set. This
         check can be ignored using the override optional argument.
 
-        Args:
-        -----
-        val (int) : The voltage in bits
-
-        Optional Args:
-        --------------
-        override (bool) : Allows exceeding the hardcoded limit. Default False.
+        Args
+        ----
+        val : int
+            The voltage in bits.
+        override : bool, optional, default False
+            Allows exceeding the hardcoded limit. Default False.
         """
         if val > 350E3 and not override:
             self.log('Input voltage too high. Not doing anything.' +
@@ -3341,14 +3380,13 @@ class SmurfCommandMixin(SmurfBase):
         """
         Sets the datafile to write streaming data
 
-        Args:
-        -----
-        datafile (str or length 300 int array): The name of the datafile
-
-        Opt Args:
-        ---------
-        as_string (bool): The input data is a string. If False, the input
-            data must be a length 300 character int. Default True.
+        Args
+        ----
+        datafile : str or length 300 int array
+            The name of the datafile.
+        as_string : bool, optional, default True
+            The input data is a string. If False, the input data must
+            be a length 300 character int.
         """
         if as_string:
             datafile = [ord(x) for x in datafile]
@@ -3362,10 +3400,11 @@ class SmurfCommandMixin(SmurfBase):
         """
         Gets the datafile that streaming data is written to.
 
-        Opt Args:
-        ---------
-        as_string (bool): The output data returns as a string. If False, the
-            input data must be a length 300 character int. Default True.
+        Args
+        ----
+        as_string : bool, optional, default True
+            The output data returns as a string. If False, the input
+            data must be a length 300 character int.
 
         Returns
         -------
@@ -3384,9 +3423,10 @@ class SmurfCommandMixin(SmurfBase):
         """
         Sets the streaming file open. 1 for streaming on. 0 for streaming off.
 
-        Args:
-        -----
-        val (int): The streaming status
+        Args
+        ----
+        val : int
+            The streaming status.
         """
         self._caput(self.streaming_root + self._streaming_file_open, val,
             **kwargs)
@@ -3599,10 +3639,12 @@ class SmurfCommandMixin(SmurfBase):
         """
         Sets a single cryo card relay to the value provided
 
-        Args:
-        -----
-        bitPosition (int): Which bit to set.  Must be in [0-16].
-        oneOrZero (int): What value to set the bit to.  Must be either 0 or 1.
+        Args
+        ----
+        bitPosition : int
+            Which bit to set.  Must be in [0-16].
+        oneOrZero : int
+            What value to set the bit to.  Must be either 0 or 1.
         """
         assert (bitPosition in range(17)), 'bitPosition must be in [0,...,16]'
         assert (oneOrZero in [0,1]), 'oneOrZero must be either 0 or 1'
@@ -3619,9 +3661,10 @@ class SmurfCommandMixin(SmurfBase):
         """
         Sets the cryo card relays
 
-        Args:
-        -----
-        relays (hex): The cryo card relays
+        Args
+        ----
+        relays : hex
+            The cryo card relays
         """
         if write_log:
             self.log('Writing relay using cryo_card object. {}'.format(relay))
@@ -3640,9 +3683,10 @@ class SmurfCommandMixin(SmurfBase):
         """
         Delatches the cryo card for a bit.
 
-        Args:
-        -----
-        bit (int): The bit to temporarily delatch
+        Args
+        ----
+        bit : int
+            The bit to temporarily delatch.
         """
         if enable_poll:
             epics.caput(self.epics_root + self._global_poll_enable, True)
@@ -3659,9 +3703,10 @@ class SmurfCommandMixin(SmurfBase):
         """
         Set the cryo card HEMT power supply enable.
 
-        Args:
-        -----
-        enable (bool): Power supply enable (True = enable, False = disable)
+        Args
+        ----
+        enable : bool
+            Power supply enable (True = enable, False = disable).
         """
         if write_log:
             self.log('Writing HEMT PS enable using cryo_card object '+
@@ -3683,9 +3728,10 @@ class SmurfCommandMixin(SmurfBase):
         """
         Set the cryo card 50k power supply enable.
 
-        Args:
-        -----
-        enable (bool): Power supply enable (True = enable, False = disable)
+        Args
+        ----
+        enable : bool
+            Power supply enable (True = enable, False = disable).
         """
         if write_log:
             self.log('Writing 50k PS enable using cryo_card object '+
@@ -3708,21 +3754,22 @@ class SmurfCommandMixin(SmurfBase):
         Write the cryo card power supply enables. Can use this to set both
         power supplies at once rather than setting them individually
 
-        Args:
-        -----
-        enables (int): 2-bit number with status of the power supplies enables
-         Bit 0 for HEMT supply
-         Bit 1 for 50K supply
-         Bit == 1 means enabled
-         Bit == 0 means disabled
+        Args
+        ----
+        enables : int, optional, default 3
+            2-bit number with status of the power supplies enables
+            Bit 0 for HEMT supply
+            Bit 1 for 50K supply
+            Bit == 1 means enabled
+            Bit == 0 means disabled
 
-         therefore:
-         0 = all off
-         1 = 50K on, HEMT off
-         2 = HEMT on, 50K off
-         3 = both on
+            therefore:
+            0 = all off
+            1 = 50K on, HEMT off
+            2 = HEMT on, 50K off
+            3 = both on
 
-        Defaults to enable = 3, ie turn on both power supplies
+            Default (enable=3) turns on both power supplies.
         """
         if write_log:
             self.log('Writing Cryocard PS enable using cryo_card ' +
@@ -3786,10 +3833,6 @@ class SmurfCommandMixin(SmurfBase):
     def get_cryo_card_ac_dc_mode(self):
         """
         Get the operation mode, AC or DC, based on the readback of the relays.
-
-        Args:
-        -----
-        None
 
         Returns
         -------
@@ -3927,10 +3970,12 @@ class SmurfCommandMixin(SmurfBase):
         """
         Toggles the physical reset line to DAC. Set to 1 then 0
 
-        Args:
-        -----
-        bay (int): Which bay [0 or 1].
-        dac (int): Which DAC no. [0 or 1].
+        Args
+        ----
+        bay : int
+            Which bay [0 or 1].
+        dac : int
+            Which DAC no. [0 or 1].
         """
         self._caput(self.DBG.format(bay) + self._dac_reset.format(dac), val,
                     **kwargs)
@@ -3939,10 +3984,12 @@ class SmurfCommandMixin(SmurfBase):
         """
         Reads the physical reset DAC register.  Will be either 0 or 1.
 
-        Args:
-        -----
-        bay (int): Which bay [0 or 1].
-        dac (int): Which DAC no. [0 or 1].
+        Args
+        ----
+        bay : int
+            Which bay [0 or 1].
+        dac : int
+            Which DAC no. [0 or 1].
         """
         return self._caget(self.DBG.format(bay) + self._dac_reset.format(dac),
                            **kwargs)
@@ -4030,9 +4077,10 @@ class SmurfCommandMixin(SmurfBase):
         Sets the mcetransmit debug bit. If 1, the debugger will
         print to the pyrogue screen.
 
-        Args:
-        -----
-        val (int): 0 or 1 for the debug bit
+        Args
+        ----
+        val : int
+            0 or 1 for the debug bit.
         """
         self._caput(self.epics_root + self._mcetransmit_debug, val,
                     **kwargs)
@@ -4045,9 +4093,10 @@ class SmurfCommandMixin(SmurfBase):
         must be incrementing if you are attempting to stream
         data.
 
-        Ret:
-        ----
-        frame_count (int) : The frame count number
+        Returns
+        -------
+        int
+            The frame count number
         """
         return self._caget(self.frame_rx_stats + self._frame_count,
                     **kwargs)
@@ -4058,10 +4107,10 @@ class SmurfCommandMixin(SmurfBase):
         """
         Gets the size of the frame going into the smurf processor.
 
-        Ret:
-        ----
-        frame_size (int) : The size of the data frame into the
-            smurf processor.
+        Returns
+        -------
+        int
+            The size of the data frame into the smurf processor.
         """
         return self._caget(self.frame_rx_stats + self._frame_size,
                            **kwargs)
@@ -4091,9 +4140,10 @@ class SmurfCommandMixin(SmurfBase):
         """
         Set the smurf processor channel mask.
 
-        Args:
-        -----
-        mask (list): the channel mask.
+        Args
+        ----
+        mask : list
+            The channel mask.
         """
         self._caput(self.smurf_processor + self._channel_mask,
                 mask, **kwargs)
@@ -4103,9 +4153,10 @@ class SmurfCommandMixin(SmurfBase):
         """
         Gets the smuf processor channel mask.
 
-        Ret:
-        ----
-        mask (list) ; the channel mask
+        Returns
+        -------
+        mask : list
+            The channel mask.
         """
         return self._caget(self.smurf_processor + self._channel_mask,
             **kwargs)
@@ -4138,9 +4189,10 @@ class SmurfCommandMixin(SmurfBase):
         """
         Set the smurf processor filter A coefficients.
 
-        Args:
-        -----
-        coef (list): the filter A coefficients.
+        Args
+        ----
+        coef : list
+            The filter A coefficients.
         """
         self._caput(self.smurf_processor + self._filter_a, coef, **kwargs)
 
@@ -4149,9 +4201,10 @@ class SmurfCommandMixin(SmurfBase):
         """
         Gets the smurf processor filter A coefficients.
 
-        Ret:
-        -----
-        coef (list): the filter A coefficients.
+        Returns
+        -------
+        coef : list
+            The filter A coefficients.
         """
         if self.offline:  # FIX ME - STUPPID HARDCODE
             return np.array([ 1., -3.74145562,  5.25726624, -3.28776591, 0.77203984])
@@ -4164,9 +4217,10 @@ class SmurfCommandMixin(SmurfBase):
         """
         Set the smurf processor filter B coefficients.
 
-        Args:
-        -----
-        coef (list): the filter B coefficients.
+        Args
+        ----
+        coef : list
+            The filter B coefficients.
         """
         self._caput(self.smurf_processor + self._filter_b, coef, **kwargs)
 
@@ -4175,9 +4229,10 @@ class SmurfCommandMixin(SmurfBase):
         """
         Get the smurf processor filter B coefficients.
 
-        Ret:
-        -----
-        coef (list): the filter B coefficients.
+        Returns
+        -------
+        coef : list
+            The filter B coefficients.
         """
         if self.offline:
             return np.array([5.28396689e-06, 2.11358676e-05, 3.17038014e-05,
@@ -4191,9 +4246,10 @@ class SmurfCommandMixin(SmurfBase):
         """
         Set the smurf processor filter order.
 
-        Args:
-        -----
-        order (int): the filter order.
+        Args
+        ----
+        int
+            The filter order.
         """
         self._caput(self.smurf_processor + self._filter_order,
                 order, **kwargs)
@@ -4202,9 +4258,10 @@ class SmurfCommandMixin(SmurfBase):
         """
         Get the smurf processor filter order.
 
-        Args:
-        -----
-        order (int): the filter order.
+        Args
+        ----
+        int
+            The filter order.
         """
         return self._caget(self.smurf_processor + self._filter_order, **kwargs)
 
@@ -4215,9 +4272,10 @@ class SmurfCommandMixin(SmurfBase):
         """
         Set the smurf processor filter gain.
 
-        Args:
-        -----
-        gain (float): the filter gain.
+        Args
+        ----
+        float
+            The filter gain.
         """
         self._caput(self.smurf_processor + self._filter_gain, gain, **kwargs)
 
@@ -4226,9 +4284,10 @@ class SmurfCommandMixin(SmurfBase):
         """
         Get the smurf processor filter gain.
 
-        Ret:
-        -----
-        gain (float): the filter gain.
+        Returns
+        -------
+        float
+            The filter gain.
         """
         return self._caget(self.smurf_processor + self._filter_gain, **kwargs)
 
@@ -4239,9 +4298,10 @@ class SmurfCommandMixin(SmurfBase):
         """
         Set the smurf processor down-sampling factor.
 
-        Args:
-        -----
-        factor (int): the down-sampling factor.
+        Args
+        ----
+        int
+            The down-sampling factor.
         """
         self._caput(self.smurf_processor + self._downsampler_factor, factor,
             **kwargs)
@@ -4251,9 +4311,10 @@ class SmurfCommandMixin(SmurfBase):
         """
         Get the smurf processor down-sampling factor.
 
-        Ret:
-        -----
-        factor (int): the down-sampling factor.
+        Returns
+        -------
+        int
+            The down-sampling factor.
         """
         if self.offline:  # FIX ME - STUPID HARD CODE
             return 20
@@ -4268,9 +4329,10 @@ class SmurfCommandMixin(SmurfBase):
         """
         If Disable is set to True, then the downsampling filter is off.
 
-        Args:
-        -----
-        disable_status (bool) : The status of the Disable bit.
+        Args
+        ----
+        bool
+            The status of the Disable bit.
         """
         self._caput(self.smurf_processor + self._filter_disable,
                     disable_status, **kwargs)
@@ -4279,9 +4341,10 @@ class SmurfCommandMixin(SmurfBase):
         """
         If Disable is set to True, then the downsampling filter is off.
 
-        Ret:
-        ----
-        disable_status (bool) : The status of the Disable bit.
+        Returns
+        -------
+        bool
+            The status of the Disable bit.
         """
         return self._caget(self.smurf_processor + self._filter_disable,
                            **kwargs)
@@ -4293,9 +4356,10 @@ class SmurfCommandMixin(SmurfBase):
         """
         Set the data file name.
 
-        Args:
-        -----
-        name (str): The file name.
+        Args
+        ----
+        str
+            The file name.
         """
         self._caput(self.smurf_processor + self._data_file_name, name, **kwargs)
 
@@ -4304,9 +4368,10 @@ class SmurfCommandMixin(SmurfBase):
         """
         Set the data file name.
 
-        Ret:
-        -----
-        name (str): The file name.
+        Returns
+        -------
+        str
+            The file name.
         """
         return self._caget(self.smurf_processor + self._data_file_name,
             **kwargs)
@@ -4351,10 +4416,11 @@ class SmurfCommandMixin(SmurfBase):
         to write to disk/stream. Payload size must be larger than
         the number of channels going into the channel mapper
 
-        Ret:
-        ----
-        payload_size (int) : The number of channels written to disk.
-            This is independent of the number of active channels.
+        Returns
+        -------
+        int
+            The number of channels written to disk.  This is
+            independent of the number of active channels.
         """
         return self._caget(self.channel_mapper + self._payload_size,
                            **kwargs)
@@ -4366,10 +4432,11 @@ class SmurfCommandMixin(SmurfBase):
         to write to disk/stream. Payload size must be larger than
         the number of channels going into the channel mapper
 
-        Args:
-        -----
-        payload_size (int) : The number of channels written to disk.
-            This is independent of the number of active channels.
+        Args
+        ----
+        int
+            The number of channels written to disk.  This is
+            independent of the number of active channels.
         """
         self._caput(self.channel_mapper + self._payload_size,
                     payload_size, **kwargs)
