@@ -43,6 +43,8 @@ jobs:
       install:
         # Install pysmurf
         - pip3 install .
+        # Install sphinx
+        - pip3 install sphinx
       script:
         # Try to build the documentation
         - cd docs/
