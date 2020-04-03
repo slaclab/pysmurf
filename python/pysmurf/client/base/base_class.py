@@ -13,10 +13,10 @@
 # copied, modified, propagated, or distributed except according to the terms
 # contained in the LICENSE.txt file.
 #-----------------------------------------------------------------------------
-from .logger import SmurfLogger
 from pysmurf.client.command.cryo_card import CryoCard
-
 from pysmurf.client.util.pub import Publisher
+
+from .logger import SmurfLogger
 
 class SmurfBase(object):
     '''

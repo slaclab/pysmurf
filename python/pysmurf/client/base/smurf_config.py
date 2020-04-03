@@ -13,10 +13,11 @@
 # copied, modified, propagated, or distributed except according to the terms
 # contained in the LICENSE.txt file.
 #-----------------------------------------------------------------------------
-import json
 import io
-import re
+import json
 import os
+import re
+
 import numpy as np
 
 class SmurfConfig:
