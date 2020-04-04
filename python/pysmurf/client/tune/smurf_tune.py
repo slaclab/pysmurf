@@ -1168,32 +1168,48 @@ class SmurfTuneMixin(SmurfBase):
         """
         Cyndia's eta finding code.
 
-        Args:
-        -----
-        freq (float array): The frequency data
-        resp (float array): The response data
-        peak_freq (float): The frequency of the resonance peak
-        delta_freq (float): The width of frequency to calculate values
+        Args
+        ----
+        freq : float array
+            The frequency data.
+        resp : float array
+            The response data.
+        peak_freq : float
+            The frequency of the resonance peak.
+        delta_freq : float
+            The width of frequency to calculate values.
+        make_plot : bool, optional, default False
+            Whether to make plots.
+        plot_chans : int array, optional, default []
+            The channels to plot. If an empty array, it will make
+            plots for all channels.
+        save_plot : bool, optional, default True
+            Whether to save plots.
+        band : int or None, optional, default None
+            Only used for plotting - the band number of the resontaor.
+        timestamp : str or None, optional, default None
+            The timestamp of the data.
+        res_num : int or None, optional, default None
+            The resonator number.
+        use_slow_eta : bool, optional, default False
+            ???.
 
-        Opt Args:
-        ---------
-        make_plot (bool): Whether to make plots. Default is False.
-        save_plot (bool): Whether to save plots. Default is True.
-        plot_chans (int array): The channels to plot. If an empty array, it
-            will make plots for all channels.
-        band (int): Only used for plotting - the band number of the resontaor
-        timestamp (str): The timestamp of the data.
-        res_num (int): The resonator number
-
-        Rets:
-        -----
-        eta (complex): The eta parameter
-        eta_scaled (complex): The eta parameter divided by subband_half_Width
-        eta_phase_deg (float): The angle to rotate IQ circle
-        r2 (float): The R^2 value copared to the resonator fit
-        eta_mag (float): The amplitude of eta
-        latency (float): THe delay
-        Q (float): THe resonator quality factor
+        Returns
+        -------
+        eta : complex
+            The eta parameter.
+        eta_scaled : complex
+            The eta parameter divided by subband_half_width.
+        eta_phase_deg : float
+            The angle to rotate IQ circle.
+        r2 : float
+            The R^2 value compared to the resonator fit.
+        eta_mag : float
+            The amplitude of eta.
+        latency : float
+            The delay.
+        Q : float
+            The resonator quality factor.
         """
 
         if band is None:
@@ -1283,23 +1299,42 @@ class SmurfTuneMixin(SmurfBase):
         Plots the eta parameter fits. This is called by self.eta_fit or
         plot_tune_summary.
 
-        Args:
-        -----
-        freq (float array): The frequency data
-        resp (complex array): THe response data
-
-        Opt Args:
-        ---------
-        eta (complex): The eta parameter
-        eta_mag (complex): The amplitude of the eta parameter
-        eta_phase_deg (float): The angle of the eta parameter in degrees
-        r2 (float): The R^2 value
-        save_plot (bool): Whether to save the plot. Default True.
-        plotname_append (string): Appended to the default plot filename. Default ''.
-        timestamp (str): The timestamp to name the file
-        res_num (int): The resonator number to label the plot
-        band (int): The band number to label the plot
-        sk_fit (flot array): The fit parameters for the skewe lorentzian
+        Args
+        ----
+        freq : float array
+            The frequency data.
+        resp : complex array
+            The response data.
+        eta : complex or None, optional, default None
+            The eta parameter.
+        eta_mag : complex or None, optional, default None
+            The amplitude of the eta parameter.
+        peak_freq : ??? or None, optional, default None
+            ???
+        eta_phase_deg : float or None, optional, default None
+            The angle of the eta parameter in degrees.
+        r2 : float or None, optional, default None
+            The R^2 value.
+        save_plot : bool, optional, default True
+            Whether to save the plot.
+        plotname_append : str, optional, default ''
+            Appended to the default plot filename.
+        show_plot : bool, optional, default False
+            ???
+        timestamp : str or None, optional, default None
+            The timestamp to name the file.
+        res_num : int or None, optional, default None
+            The resonator number to label the plot.
+        band : int or None, optional, default None
+            The band number to label the plot.
+        sk_fit : float array or None, optional, default None
+            The fit parameters for the skewed lorentzian.
+        f_slow : ??? or None, optional, default None
+            ???
+        resp_slow : ??? or None, optional, default None
+            ???
+        channel : ??? or None, optional, default None
+            ???
         """
         if timestamp is None:
             timestamp = self.get_timestamp()
