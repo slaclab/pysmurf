@@ -835,7 +835,11 @@ class SmurfTuneMixin(SmurfBase):
 
             if band is not None:
                 bandCenterMHz = self.get_band_center_mhz(band)
-                plot_freq_mhz = freq+bandCenterMHz
+                scale = 1
+                if np.max(freq) > 1.0E8:
+                    self.log('Frequency is probably in Hz. Converting to MHz')
+                    scale = 1.0E-6
+                plot_freq_mhz = freq*scale + bandCenterMHz
             else:
                 plot_freq_mhz = freq
 
