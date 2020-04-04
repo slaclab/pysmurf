@@ -232,7 +232,8 @@ class SmurfTuneMixin(SmurfBase):
             subband_plot_with_slow=False, window=5000, rolling_med=True,
             grad_cut=.03, freq_min=-2.5E8, freq_max=2.5E8, amp_cut=.25,
             del_f=.005, drive=None, new_master_assignment=False,
-            from_old_tune=False, old_tune=None, pad=50, min_gap=50):
+            from_old_tune=False, old_tune=None, pad=50, min_gap=50,
+            highlight_phase_slip=True):
         """ Tunes band using serial_gradient_descent and then serial_eta_scan.
         This requires an initial guess, which this function gets by either
         loading an old tune or by using the full_band_resp.  This takes about 3
@@ -258,6 +259,8 @@ class SmurfTuneMixin(SmurfBase):
             If make_make plot is True, whether to save the plots. Default is True.
         show_plot : bool
             If make_plot is True, whether to display the plots to screen.
+        highlight_phase_slip : bool
+            Whether to highlight the phase slip in plots
         """
         timestamp = self.get_timestamp()
         center_freq = self.get_band_center_mhz(band)
@@ -305,7 +308,7 @@ class SmurfTuneMixin(SmurfBase):
                 freq_min=freq_min, freq_max=freq_max, amp_cut=amp_cut,
                 make_subband_plot=make_subband_plot, timestamp=timestamp,
                 subband_plot_with_slow=subband_plot_with_slow, pad=pad,
-                min_gap=min_gap)
+                min_gap=min_gap, highlight_phase_slip=highlight_phase_slip)
 
             resonances = {}
             for i, p in enumerate(peaks):
