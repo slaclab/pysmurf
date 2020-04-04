@@ -784,44 +784,63 @@ class SmurfTuneMixin(SmurfBase):
         """
         Find the peaks within a given subband.
 
-        Args:
+        Args
         -----
-        freq (float array): should be a single row of the broader freq
-                            array, in Mhz.
-        resp (complex array): complex response for just this subband
+        freq : float array
+            Should be a single row of the broader freq array, in MHz.
+        resp : complex array
+            Complex response for just this subband.
 
-        Opt Args:
-        ---------
-        rolling_med (bool): whether to use a rolling median for the background
-        window (int): number of samples to window together for rolling med
-        grad_cut (float): The value of the gradient of phase to look for
-            resonances. Default is .05
-        amp_cut (float): The fractional distance from the median value to decide
-            whether there is a resonance. Default is .25.
-        freq_min (float): The minimum frequency relative to the center of
-            the band to look for resonances. Units of Hz. Defaults is -2.5E8
-        freq_max (float): The maximum frequency relative to the center of
-            the band to look for resonances. Units of Hz. Defaults is 2.5E8
-        make_plot (bool): Whether to make a plot. Default is False.
-        make_subband_plot (bool): Whether to make a plot per subband. This is
-            very slow. Default is False.
-        save_plot (bool): Whether to save the plot to self.plot_dir. Default
-            is True.
-        plotname_append (string): Appended to the default plot filename.
-            Default is ''.
-        band (int): The band to take find the peaks in. Mainly for saving
+        rolling_med : bool, optional, default True
+            Whether to use a rolling median for the background.
+        window : int, optional, default 5000
+            Number of samples to window together for rolling med.
+        grad_cut : float, optional, default 0.5
+            The value of the gradient of phase to look for resonances.
+        amp_cut : float, optional, default 0.25
+            The fractional distance from the median value to decide
+            whether there is a resonance.
+        freq_min : float, optional, default -2.5e8
+            The minimum frequency relative to the center of the band
+            to look for resonances. Units of Hz.
+        freq_max : float, optional, default 2.5e8
+            The maximum frequency relative to the center of the band
+            to look for resonances. Units of Hz.
+        make_plot : bool, optional, default False
+            Whether to make a plot.
+        save_plot : bool, optional, default True
+            Whether to save the plot to self.plot_dir.
+        plotname_append : str, optional, default '' 
+            Appended to the default plot filename.
+        show_plot : bool, optional, default False
+            ???
+        band : int or None, optional, default None
+            The band to take find the peaks in. Mainly for saving and
+            plotting.
+        subband : int or None, optional, default None
+            The subband to take find the peaks in. Mainly for saving
             and plotting.
-        timestamp (str): The timestamp. Mainly for saving and plotting
-        pad (int): number of samples to pad on either side of a resonance search
-            window
-        min_gap (int): minimum number of samples between resonances
-        grad_kernel_width (int) : The number of samples to take after a point
-            to calculate the gradient of phase. Default is 8.
+        make_subband_plot : bool, optional, default False
+            Whether to make a plot per subband. This is very slow.
+        subband_plot_with_slow : bool, optional, default False
+            ???
+        timestamp : str or None, optional, default None
+            The timestamp. Mainly for saving and plotting.
+        pad : int, optional, default 50
+            Number of samples to pad on either side of a resonance
+            search window.
+        min_gap : int, optional, default 100
+            Minimum number of samples between resonances.
+        plot_title : str or None, optional, default None
+            ???
+        grad_kernel_width : int, optional, default 8
+            The number of samples to take after a point to calculate
+            the gradient of phase.
 
-        Returns:
-        -------_
-        resonances (float array): The frequency of the resonances in the band
-            in Hz.
+        Returns
+        -------
+        float array
+            The frequencies of the resonances in the band in Hz.
         """
         if timestamp is None:
             timestamp = self.get_timestamp()
@@ -996,25 +1015,28 @@ class SmurfTuneMixin(SmurfBase):
 
     def find_flag_blocks(self, flag, minimum=None, min_gap=None):
         """
-        Find blocks of adjacent points in a boolean array with the same value.
+        Find blocks of adjacent points in a boolean array with the
+        same value.
 
-        Args:
-        -----
-        flag : bool, array_like
-            The array in which to find blocks
+        Args
+        ----
+        flag : array-like of bool
+            The array in which to find blocks.
+        minimum : int or None, optional, default None
+            The minimum length of block to return. Discards shorter
+            blocks.
+        min_gap : int or None, optional, default None
+            The minimum gap between flag blocks. Fills in gaps
+            smaller.
 
-        Opt Args:
-        ---------
-        minimum : int (optional)
-            The minimum length of block to return. Discards shorter blocks
-        min_gap : int (optional)
-            The minimum gap between flag blocks. Fills in gaps smaller.
         Returns
         -------
-        starts, ends : int arrays
-            The start and end indices for each block.
-            NOTE: the end index is the last index in the block. Add 1 for
-            slicing, where the upper limit should be after the block
+        starts : list of int
+            The start indices for each block.
+        ends : list of int
+            The end indices for each block.  NOTE: the end index is
+            the last index in the block. Add 1 for slicing, where the
+            upper limit should be after the block
         """
         if min_gap is not None:
             _flag = self.pad_flags(np.asarray(flag, dtype=bool),
@@ -1041,18 +1063,24 @@ class SmurfTuneMixin(SmurfBase):
         """
         Adds and combines flagging.
 
-        Args:
-        -----
-        f (bool array): The flag array to pad
-        Opt Args:
-        ---------
-        before_pad (int): The number of samples to pad before a flag
-        after_pad (int); The number of samples to pad after a flag
-        min_gap (int): The smallest allowable gap. If bigger, it combines.
-        min_length (int): The smallest length a pad can be.
-        Ret:
+        Args
         ----
-        pad_flag (bool array): The padded boolean array
+        f : list of bool
+            The flag array to pad.
+
+        before_pad : int, optional, default 0
+            The number of samples to pad before a flag.
+        after_pad : int, optional, default 0
+            The number of samples to pad after a flag.
+        min_gap : int, optional, default 0
+            The smallest allowable gap. If bigger, it combines.
+        min_length : int, optional, default 0
+            The smallest length a pad can be.
+
+        Returns
+        -------
+        pad_flag : list of bool
+            The padded boolean array.
         """
         before, after = self.find_flag_blocks(f)
         after += 1
@@ -1076,16 +1104,18 @@ class SmurfTuneMixin(SmurfBase):
         """
         Plots the output of find_freq.
 
-        Args:
-        -----
-        freq (float array): The frequency data
-        resp (float array): The response to full_band_resp
-        peak_ind (int array): The indicies of peaks found
-
-        Opt Args:
-        ---------
-        save_plot (bool): Whether to save the plot
-        save_name (str): THe name of the plot
+        Args
+        ----
+        freq : float array
+            The frequency data.
+        resp : float array
+            The response to full_band_resp.
+        peak_ind : int array
+            The indicies of peaks found.
+        save_plot : bool, optional, default True
+            Whether to save the plot.
+        save_name : str or None, optional, default None
+            The name of the plot.
         """
         if save_plot:
             plt.ioff()
@@ -1404,13 +1434,20 @@ class SmurfTuneMixin(SmurfBase):
     def get_closest_subband(self, f, band, as_offset=True):
         """
         Gives the closest subband number for a given input frequency.
-        Args:
-        -----
-        f (float): The frequency to search for a subband
-        band (int): The band to identify
-        Ret:
+
+        Args
         ----
-        subband (int): The subband that contains the frequency
+        f : float
+            The frequency to search for a subband.
+        band : int
+            The band to identify.
+        as_offset : bool, optional, default True
+            ???
+
+        Returns
+        -------
+        subband : int
+            The subband that contains the frequency.
         """
         # get subband centers:
         subbands, centers = self.get_subband_centers(band, as_offset=as_offset)
@@ -1426,13 +1463,18 @@ class SmurfTuneMixin(SmurfBase):
     def check_freq_scale(self, f1, f2):
         """
         Makes sure that items are the same frequency scale (ie MHz, kHZ, etc.)
-        Args:
-        -----
-        f1 (float): The first frequency
-        f2 (float): The second frequency
-        Ret:
+
+        Args
         ----
-        same_scale (bool): Whether the frequency scales are the same
+        f1 : float
+            The first frequency.
+        f2 : float
+            The second frequency.
+
+        Returns
+        -------
+        same_scale : bool
+            Whether the frequency scales are the same.
         """
         if abs(f1/f2) > 1e3:
             return False
@@ -1445,11 +1487,13 @@ class SmurfTuneMixin(SmurfBase):
         By default, pysmurf loads the most recent master assignment.
         Use this function to overwrite the default one.
 
-        Args:
-        -----
-        band (int): The band for the master assignment file
-        filename (str): The full path to the new master assignment
-            file. Should be in self.tune_dir.
+        Args
+        ----
+        band : int
+            The band for the master assignment file.
+        filename : str
+            The full path to the new master assignment file. Should be
+            in self.tune_dir.
         """
         if 'band_{}'.format(band) in self.channel_assignment_files.keys():
             self.log('Old master assignment file:'+
@@ -1462,15 +1506,22 @@ class SmurfTuneMixin(SmurfBase):
     def get_master_assignment(self, band):
         """
         Returns the master assignment list.
-        Args:
-        -----
-        band (int) : The band number
-        Ret:
+
+        Args
         ----
-        freqs (float array): The frequency of the resonators
-        subbands (int array): The subbands the channels are assigned to
-        channels (int array): The channels the resonators are assigned to
-        groups (int array): The bias group the channel is in
+        band : int
+            The band number.
+
+        Returns
+        -------
+        freqs : float array
+            The frequency of the resonators.
+        subbands : int array
+            The subbands the channels are assigned to.
+        channels : int array
+            The channels the resonators are assigned to.
+        groups : int array
+            The bias group the channel is in.
         """
         fn = self.channel_assignment_files[f'band_{band}']
         self.log(f'Drawing channel assignments from {fn}')
@@ -1489,27 +1540,34 @@ class SmurfTuneMixin(SmurfBase):
         """
         Figures out the subbands and channels to assign to resonators
 
-        Args:
-        -----
-        freq (flot array): The frequency of the resonators. This is not the
-            same as the frequency output from full_band_resp. This is only
+        Args
+        ----
+        freq : float array
+            The frequency of the resonators. This is not the same as
+            the frequency output from full_band_resp. This is only
             where the resonators are.
 
-        Opt Args:
-        ---------
-        band (int): The band to assign channels
-        band_center (float array): The frequency center of the band. Must supply
-            band or subband center.
-        channel_per_subband (int): The number of channels to assign per
-            subband. Default is 4.
-        min_offset (float): The minimum offset between two resonators in MHz.
-            If closer, then both are ignored.
+        band : int or None, optional, default None
+            The band to assign channels.
+        band_center : float array or None, optional, default None 
+            The frequency center of the band. Must supply band or
+            subband center.
+        channel_per_subband : int, optional, default 4
+            The number of channels to assign per subband.
+        as_offset : bool, optional, default True
+            ???
+        min_offset : float, optional, default 0.1
+            The minimum offset between two resonators in MHz.  If
+            closer, then both are ignored.
 
-        Ret:
-        ----
-        subbands (int array): An array of subbands to assign resonators
-        channels (int array): An array of channel numbers to assign resonators
-        offsets (float array): The frequency offset from the subband center
+        Returns
+        -------
+        subbands : int array
+            An array of subbands to assign resonators.
+        channels : int array
+            An array of channel numbers to assign resonators.
+        offsets : float array
+            The frequency offset from the subband center.
         """
         freq = np.sort(freq)  # Just making sure its in sequential order
 
@@ -1592,17 +1650,18 @@ class SmurfTuneMixin(SmurfBase):
         channel, group. Group number defaults to -1. The order of inputs is
         legacy and weird.
 
-        Args:
-        -----
-        band (int array) : A list of bands
-        freqs (float array) : A list of frequencies
-        subbands (int array) : A list of subbands
-        channels (int array) : A list of channel numbers
-
-        Opt Args:
-        ---------
-        bias_groups (int array) : A list of bias groups. If None,
-           populates the array with -1.
+        Args
+        ----
+        band : int array
+            A list of bands.
+        freqs : float array
+            A list of frequencies.
+        subbands : int array
+            A list of subbands
+        channels : int array
+            A list of channel numbers
+        bias_groups : list of int or None, optional, default None
+            A list of bias groups. If None, fills the array with -1.
         '''
         timestamp = self.get_timestamp()
         if bias_groups is None:
@@ -1624,11 +1683,13 @@ class SmurfTuneMixin(SmurfBase):
         """
         Makes a master assignment file
 
-        Args:
-        -----
-        band (int) : The band number
-        tuning_filename : The tuning file to use for generating the
-            master_assignemnt
+        Args
+        ----
+        band : int
+            The band number.
+        tuning_filename : str
+            The tuning file to use for generating the
+            master_assignment.
         """
         self.log('Drawing band-{} tuning data from {}'.format(band,
             tuning_filename))
@@ -1654,15 +1715,17 @@ class SmurfTuneMixin(SmurfBase):
         group. Note that it is possible to have channels that are
         on the same bias group but different bands.
 
-        Args:
+        Args
         ----
-        band (int) : The band number.
-        group (int) : The bias group number.
+        band : int
+            The band number.
+        group : int
+            The bias group number.
 
-        Ret:
-        ----
-        bias_group_list (int array) : The list of channels that
-            are in the band and bias group.
+        Returns
+        -------
+        bias_group_list : int array
+            The list of channels that are in the band and bias group.
         """
         _, _, channels, groups = self.get_master_assignment(band)
         chs_in_group = []
@@ -1677,14 +1740,17 @@ class SmurfTuneMixin(SmurfBase):
         Gets the bias group number of a band, channel pair. The
         master_channel_assignment must be filled.
 
-        Args:
-        -----
-        band (int) : The band number
-        ch (int) : The channel number
-
-        Ret:
+        Args
         ----
-        bias_group (int) : The bias group number
+        band : int
+            The band number.
+        ch : int
+            The channel number.
+
+        Returns
+        -------
+        bias_group : int
+            The bias group number.
         """
         _, _, channels,groups = self.get_master_assignment(band)
         for i in range(len(channels)):
@@ -1698,9 +1764,10 @@ class SmurfTuneMixin(SmurfBase):
         Combs master channel assignment and assigns group number to all channels
         in ch_list. Does not affect other channels in the master file.
 
-        Args:
-        -----
-        bias_group_dict (dict) : The output of identify_bias_groups
+        Args
+        ----
+        bias_group_dict : dict
+            The output of identify_bias_groups.
         '''
         bias_groups = list(bias_group_dict.keys())
 
@@ -1839,14 +1906,17 @@ class SmurfTuneMixin(SmurfBase):
         """
         Convenience function to get values from the freq_resp dictionary.
 
-        Args:
-        -----
-        band (int) : The 500 MHz band to get values from
-        key (str) : The dictionary value to read out
-
-        Ret:
+        Args
         ----
-        val (array) : The array of values associated with key.
+        band : int
+            The 500 MHz band to get values from.
+        key : str
+            The dictionary value to read out.
+
+        Returns
+        -------
+        array
+            The array of values associated with key.
         """
         if 'resonances' not in self.freq_resp[band].keys():
             self.log('No tuning. Run setup_notches() or load_tune()')
@@ -1860,13 +1930,15 @@ class SmurfTuneMixin(SmurfBase):
         """
         Convenience function that gets the frequency results from eta scans.
 
-        Args:
-        -----
-        band (int) : The band
-
-        Ret:
+        Args
         ----
-        freq (float array) : The frequency in MHz of the resonators.
+        band : int
+            The band.
+
+        Returns
+        -------
+        freq : float array
+            The frequency in MHz of the resonators.
         """
         return self._get_eta_scan_result_from_key(band, 'freq')
 
@@ -1875,13 +1947,15 @@ class SmurfTuneMixin(SmurfBase):
         """
         Convenience function that gets thee eta values from eta scans.
 
-        Args:
-        -----
-        band (int) : The band
-
-        Ret:
+        Args
         ----
-        eta (complex array) : The eta of the resonators.
+        band : int
+            The band.
+
+        Returns
+        -------
+        eta : complex array
+            The eta of the resonators.
         """
         return self._get_eta_scan_result_from_key(band, 'eta')
 
@@ -1891,13 +1965,15 @@ class SmurfTuneMixin(SmurfBase):
         Convenience function that gets thee eta mags from
         eta scans.
 
-        Args:
-        -----
-        band (int) : The band
-
-        Ret:
+        Args
         ----
-        eta_mag (float array) : The eta of the resonators.
+        band : int
+            The band.
+
+        Returns
+        -------
+        eta_mag : float array
+            The eta of the resonators.
         """
         return self._get_eta_scan_result_from_key(band, 'eta_mag')
 
@@ -1907,13 +1983,15 @@ class SmurfTuneMixin(SmurfBase):
         Convenience function that gets the eta scaled from
         eta scans. eta_scaled is eta_mag/digitizer_freq_mhz/n_subbands
 
-        Args:
-        -----
-        band (int) : The band
-
-        Ret:
+        Args
         ----
-        eta_mag (float array) : The eta_scaled of the resonators.
+        band : int
+            The band.
+
+        Returns
+        -------
+        eta_scaled : float array
+            The eta_scaled of the resonators.
         """
         return self._get_eta_scan_result_from_key(band, 'eta_scaled')
 
@@ -1923,13 +2001,15 @@ class SmurfTuneMixin(SmurfBase):
         Convenience function that gets the eta phase values from
         eta scans.
 
-        Args:
-        -----
-        band (int) : The band
-
-        Ret:
+        Args
         ----
-        eta_phase (float array) : The eta_phase of the resonators.
+        band : int
+            The band.
+
+        Returns
+        -------
+        eta_phase : float array
+            The eta_phase of the resonators.
         """
         return self._get_eta_scan_result_from_key(band, 'eta_phase')
 
@@ -1939,13 +2019,15 @@ class SmurfTuneMixin(SmurfBase):
         Convenience function that gets the channel assignments from
         eta scans.
 
-        Args:
-        -----
-        band (int) : The band
-
-        Ret:
+        Args
         ----
-        channels (int array) : The channels of the resonators.
+        band : int
+            The band.
+
+        Returns
+        -------
+        channels : int array
+            The channels of the resonators.
         """
         return self._get_eta_scan_result_from_key(band, 'channel')
 
@@ -1954,13 +2036,15 @@ class SmurfTuneMixin(SmurfBase):
         """
         Convenience function that gets the subband from eta scans.
 
-        Args:
-        -----
-        band (int) : The band
-
-        Ret:
+        Args
         ----
-        subband (float array) : The subband of the resonators.
+        band : int
+            The band.
+
+        Returns
+        -------
+        subband : float array
+            The subband of the resonators.
         """
         return self._get_eta_scan_result_from_key(band, 'subband')
 
@@ -1970,34 +2054,53 @@ class SmurfTuneMixin(SmurfBase):
         Convenience function that gets the offset from center frequency
         from eta scans.
 
-        Args:
-        -----
-        band (int) : The band
-
-        Ret:
+        Args
         ----
-        offset (float array) : The offset from the subband centers  of
-           the resonators.
+        band : int
+            The band.
+
+        Returns
+        -------
+        offset : float array
+            The offset from the subband centers of the resonators.
         """
         return self._get_eta_scan_result_from_key(band, 'offset')
 
 
-    def eta_estimator(self, band, freq, drive=10, f_sweep_half=.3,
+    def eta_estimator(self, band, freq, drive=12, f_sweep_half=.3,
                       df_sweep=.002, delta_freq=.01,
                       lock_max_derivative=False):
         """
         Estimates eta parameters using the slow eta_scan.
 
-        Args:
-        -----
-        band (int) : The 500 MHz band
-        freq (float) : The frequency to scan
+        Args
+        ----
+        band : int)
+            The band.
+        freq : float
+            The frequency to scan.
 
         Opt Args:
         ---------
-        drive (int) : The tone ampltidue. Default is 10.
-        f_sweep_half (float) : The frequency to sweep.
-        df_sweep (float) : The freqeucny step size
+        drive : int, optional, default 12
+            The tone amplitude.
+        f_sweep_half : float, optional, default 0.3
+            The frequency to sweep.
+        df_sweep : float, optional, default 0.002
+            The frequency step size.
+        delta_freq : float, optional, default 0.01
+            ???
+        lock_max_derivative : bool, optional, default False
+            ???
+
+        Returns
+        -------
+        f_sweep : array
+            ???
+        resp : array
+            ???
+        eta : array
+            ???
         """
         subband, offset = self.freq_to_subband(band, freq)
         f_sweep = np.arange(offset-f_sweep_half, offset+f_sweep_half, df_sweep)
