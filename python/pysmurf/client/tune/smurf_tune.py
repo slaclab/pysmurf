@@ -159,24 +159,22 @@ class SmurfTuneMixin(SmurfBase):
         make_subband_plot : bool, optional default False
             Whether to make a plot per subband. This is very slow.
         n_scan : int, optional, default 5
-            ???
+            The number of scans to take and average.
         subband_plot_with_slow : bool, optional, default False
             ???
         drive : int or None, optional, default None
             ???
         grad_cut : float, optional, default 0.05
             The value of the gradient of phase to look for resonances.
-        amp_cut : float, optional, default 
-            The distance from the median value to decide whether
-            there is a resonance.
         freq_min : float, optional, default -2.5e8
             The minimum frequency relative to the center of the band
             to look for resonances. Units of Hz.
         freq_max : float, optional, default 2.5e8
             The maximum frequency relative to the center of the band
             to look for resonances. Units of Hz.
-        amp_cut: float, optional, default 0.5
-            ???
+        amp_cut : float, optional, default 
+            The distance from the median value to decide whether
+            there is a resonance.
         use_slow_eta : bool, optional, default False
             ???
 
@@ -426,25 +424,30 @@ class SmurfTuneMixin(SmurfBase):
         Plots summary of tuning. Requires self.freq_resp to be filled.
         In other words, you must run find_freq and setup_notches
         before calling this function. Saves the plot to plot_dir.
-        This will also make individual eta plots as well if {eta_scan} is True.
-        The eta scan plots are slow because there are many of them.
+        This will also make individual eta plots as well if {eta_scan}
+        is True.  The eta scan plots are slow because there are many
+        of them.
 
-        Args:
-        -----
-        band (int): The band number to plot
-
-        Opt Args:
-        ---------
-        eta_scan (bool) : Whether to also plot individual eta scans.
-           Warning this is slow. Default is False.
-        show_plot (bool) : Whether to display the plot. Default is False.
-        save_plot (bool) : Whether to save the plot. Default is True.
-        eta_width (float) : The width to plot in MHz.
-        channels (int list) : Which channels to plot.  Default is None,
-                             which plots all available channels.
-        plot_summary (bool) : Plot summary.
-        plotname_append (string): Appended to the default plot filename. Default
-            is ''.
+        Args
+        ----
+        band : int
+            The band number to plot.
+        eta_scan : bool, optional, default False
+           Whether to also plot individual eta scans.  Warning this is
+           slow.
+        show_plot : bool, optional, default False
+            Whether to display the plot.
+        save_plot : bool, optional, default True
+            Whether to save the plot.
+        eta_width : float, optional, default 0.3
+            The width to plot in MHz.
+        channels : list of int or None, optional, default None
+            Which channels to plot.  If None, plots all available
+            channels.
+        plot_summary : bool, optional, default True
+            Plot summary.
+        plotname_append : str, optional, default '' 
+            Appended to the default plot filename.
         """
         if show_plot:
             plt.ion()
@@ -565,37 +568,52 @@ class SmurfTuneMixin(SmurfBase):
         """
         Injects high amplitude noise with known waveform. The ADC measures it.
         The cross correlation contains the information about the resonances.
-        Args:
-        -----
-        band (int): The band to sweep.
 
-        Opt Args:
-        ---------
-        n_scan (int): The number of scans to take and average
-        n_samples (int): The number of samples to take. Default 2^18.
-        make_plot (bool): Whether the make plots. Default is False.
-        show_plot (bool): Whether to show plots. Default False
-        save_data (bool): Whether to save the data.
-        save_raw_data (bool): Whether to save the raw ADC/DAC data. Default
-            False.
-        timestamp (str): The timestamp as a string. If None, loads the current
+        Args
+        ----
+        band : int
+            The band to sweep.
+
+        n_scan : int, optional, default 1
+            The number of scans to take and average.
+        n_samples : int, optional, default 2**19
+            The number of samples to take.
+        make_plot : bool, optional, default False
+            Whether the make plots.
+        save_plot : bool, optional, default True
+            If making plots, whether to save them.
+        show_plot : bool, optional, default False
+            Whether to show plots.
+        save_data : bool, optional, default False
+            Whether to save the data.
+        timestamp : str or None, optional, default None
+            The timestamp as a string. If None, loads the current
             timestamp.
-        correct_att (bool): Correct the response for the attenuators. Default
-            is True.
-        swap (bool): Whether to reverse the data order of the ADC relative
-            to the DAC. This solved an legacy problem. Default False.
-        hw_trigger (bool): Whether to start the broadband noise file using
-            the hardware trigger. Default True.
-        return_plot_path (bool) : Whether to return the full path to the
-            summary plot. Default False.
-        check_if_adc_is_saturated (bool): Right after playing the
-            noise file, checks if ADC for the requested band is
-            saturated.  If it is saturated, gives up with an error.
+        save_raw_data : bool, optional, default False
+            Whether to save the raw ADC/DAC data.
+        correct_att : bool, optional, default True
+            Correct the response for the attenuators.
+        swap : bool, optional, default False
+            Whether to reverse the data order of the ADC relative to
+            the DAC. This solved a legacy problem.
+        hw_trigger : bool, optional, default True 
+            Whether to start the broadband noise file using the
+            hardware trigger.
+        write_log : bool, optional, default False
+            Whether to write output to the log.
+        return_plot_path : bool, optional, default False
+            Whether to return the full path to the summary plot.
+        check_if_adc_is_saturated : bool, optional, default True
+            Right after playing the noise file, checks if ADC for the
+            requested band is saturated.  If it is saturated, gives up
+            with an error.
 
-        Returns:
-        --------
-        f (float array): The frequency information. Length n_samples/2
-        resp (complex array): The response information. Length n_samples/2
+        Returns
+        -------
+        f : float array
+            The frequency information. Length n_samples/2.
+        resp : complex array
+            The response information. Length n_samples/2.
         """
         if timestamp is None:
             timestamp = self.get_timestamp()
