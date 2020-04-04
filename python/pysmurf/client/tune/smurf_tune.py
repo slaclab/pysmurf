@@ -39,29 +39,40 @@ class SmurfTuneMixin(SmurfBase):
         This runs a tuning, does tracking setup, and prunes bad
         channels using check lock. When this is done, we should
         be ready to take data.
-        Opt Args:
-        ---------
-        load_tune (bool): Whether to load in a tuning file. If False, will
-            do a full tuning. This will be very slow (~ 1 hour)
-        tune_file (str): The tuning file to load in. Default is None. If
-            tune_file is None and last_tune is False, this will load the
-            default tune file defined in exp.cfg.
-        last_tune (bool): Whether to load the most recent tuning file. Default
-            is False.
-        retune (bool): Whether to re-run tune_band_serial to refind peaks and
-            eta params. This will take about 5 minutes. Default is False.
-        f_min (float): The minimum frequency swing allowable for check_lock.
-        f_max (float): The maximum frequency swing allowable for check_lock.
-        df_max (float): The maximum df stddev allowable for check_lock.
-        fraction_full_scale (float): The fraction (between 0-1) to set the
-            flux ramp amplitude.
-        make_plot (bool): Whether to make a plot. Default is False.
-        save_plot (bool): If making plots, whether to save them. Default is True.
-        show_plot (bool): Whether to display the plots to screen. Default is False.
-        track_and_check (bool): Whether or not after tuning to run
-            track and check.  Default is True.
-        new_master_assignment (bool): Whether to make a new master assignment
-            which forces resonators at a given frequency to a given channel.
+
+        Args
+        ----
+        load_tune : bool, optional, default True
+            Whether to load in a tuning file. If False, will do a full
+            tuning. This will be very slow (~ 1 hour)
+        tune_file : str or None, optional, default None
+            The tuning file to load in. If tune_file is None and
+            last_tune is False, this will load the default tune file
+            defined in exp.cfg.
+        last_tune : bool, optional, default False
+            Whether to load the most recent tuning file.
+        retune : bool, optional, default False
+            Whether to re-run tune_band_serial to refind peaks and eta
+            params. This will take about 5 minutes.
+        f_min : float, optional, default 0.02
+            The minimum frequency swing allowable for check_lock.
+        f_max : float, optional, default 0.3
+            The maximum frequency swing allowable for check_lock.
+        df_max : float, optional, default 0.03
+            The maximum df stddev allowable for check_lock.
+        fraction_full_scale : float or None, optional, default None
+            The fraction (between 0-1) to set the flux ramp amplitude.
+        make_plot : bool, optional, default False
+            Whether to make a plot.
+        save_plot : bool, optional, default True
+            If making plots, whether to save them.
+        show_plot : bool, optional, default False
+            Whether to display the plots to screen.
+        new_master_assignment : bool, optional, default False
+            Whether to make a new master assignment which forces
+            resonators at a given frequency to a given channel.
+        track_and_check : bool, optional, default True
+            Whether or not after tuning to run track and check.
         """
         bands = self.config.get('init').get('bands')
         tune_cfg = self.config.get('tune_band')
