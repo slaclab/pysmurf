@@ -119,44 +119,71 @@ class SmurfTuneMixin(SmurfBase):
 
 
     def tune_band(self, band, freq=None, resp=None, n_samples=2**19,
-            make_plot=False, show_plot=False, plot_chans=[], save_plot=True,
-            save_data=True,  make_subband_plot=False, subband=None, n_scan=5,
-            subband_plot_with_slow=False, drive=None, grad_cut=.05, freq_min=-2.5E8,
-            freq_max=2.5E8, amp_cut=.5, use_slow_eta=False):
+            make_plot=False, show_plot=False, plot_chans=[],
+            save_plot=True, save_data=True, make_subband_plot=False,
+            n_scan=5, subband_plot_with_slow=False, drive=None,
+            grad_cut=.05, freq_min=-2.5E8, freq_max=2.5E8, amp_cut=.5,
+            use_slow_eta=False):
         """
         This does the full_band_resp, which takes the raw resonance data.
         It then finds the where the resonances are. Using the resonance
         locations, it calculates the eta parameters.
-        Args:
-        -----
-        band (int): The band to tune
-        Opt Args:
-        ---------
-        freq (float array): The frequency information. If both freq and resp
-            are not None, it will skip full_band_resp.
-        resp (float array): The response information. If both freq and resp
-            are not None, it will skip full_band_resp.
-        n_samples (int): The number of samples to take in full_band_resp.
-            Default is 2^19.
-        make_plot (bool): Whether to make plots. This is slow, so if you want
-            to tune quickly, set to False. Default True.
-        plot_chans (list): if making plots, which channels to plot. If empty,
-            will just plot all of them
-        save_plot (bool): Whether to save the plot. If True, it will close the
-            plots before they are shown. If False, plots will be brought to the
-            screen.
-        save_data (bool): If True, saves the data to disk.
-        grad_cut (float): The value of the gradient of phase to look for
-            resonances. Default is .05
-        amp_cut (float): The distance from the median value to decide whether
-            there is a resonance. Default is .25.
-        freq_min (float): The minimum frequency relative to the center of
-            the band to look for resonances. Units of Hz. Defaults is -2.5E8
-        freq_max (float): The maximum frequency relative to the center of
-            the band to look for resonances. Units of Hz. Defaults is 2.5E8
-        Returns:
-        --------
-        res (dict): A dictionary with resonance frequency, eta, eta_phase,
+
+        Args
+        ----
+        band : int
+            The band to tune.
+
+        freq : float array or None, optional, default None
+            The frequency information. If both freq and resp are not
+            None, it will skip full_band_resp.
+        resp : float array or None, optional, default None
+            The response information. If both freq and resp are not
+            None, it will skip full_band_resp.
+        n_samples : int, optional, default 2**19
+            The number of samples to take in full_band_resp.
+        make_plot : bool, optional, default False
+            Whether to make plots. This is slow, so if you want to
+            tune quickly, set to False.
+        show_plot : bool, optional, default False
+            Whether to display the plots to screen.
+        plot_chans : list, optional, default []
+            If making plots, which channels to plot. If empty, will
+            just plot all of them.
+        save_plot : bool, optional, default True
+            Whether to save the plot. If True, it will close the plots
+            before they are shown. If False, plots will be brought to
+            the screen.
+        save_data : bool, optional, default True
+            If True, saves the data to disk.
+        make_subband_plot : bool, optional default False
+            Whether to make a plot per subband. This is very slow.
+        n_scan : int, optional, default 5
+            ???
+        subband_plot_with_slow : bool, optional, default False
+            ???
+        drive : int or None, optional, default None
+            ???
+        grad_cut : float, optional, default 0.05
+            The value of the gradient of phase to look for resonances.
+        amp_cut : float, optional, default 
+            The distance from the median value to decide whether
+            there is a resonance.
+        freq_min : float, optional, default -2.5e8
+            The minimum frequency relative to the center of the band
+            to look for resonances. Units of Hz.
+        freq_max : float, optional, default 2.5e8
+            The maximum frequency relative to the center of the band
+            to look for resonances. Units of Hz.
+        amp_cut: float, optional, default 0.5
+            ???
+        use_slow_eta : bool, optional, default False
+            ???
+
+        Returns
+        -------
+        resonances : dict
+            A dictionary with resonance frequency, eta, eta_phase,
             R^2, and amplitude.
         """
         timestamp = self.get_timestamp()
@@ -3933,3 +3960,4 @@ class SmurfTuneMixin(SmurfBase):
             print("Frequency not found. Check band list and that frequency "+
                 "is given in MHz")
             return
+        
