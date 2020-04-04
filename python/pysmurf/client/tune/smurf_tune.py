@@ -841,6 +841,8 @@ class SmurfTuneMixin(SmurfBase):
             ax[1].plot(plot_freq_mhz, grad)
 
             ax[1].set_ylim(-2, 20)
+
+            # Highlighht the identified phase slips
             if highlight_phase_slip:
                 for s, e in zip(starts, ends):
                     ax[0].axvspan(plot_freq_mhz[s], plot_freq_mhz[e], color='k',
@@ -849,15 +851,24 @@ class SmurfTuneMixin(SmurfBase):
                         alpha=.1)
 
             ax[0].set_ylabel('Amp.')
+            ax[1].set_ylabel('Deriv Phase')
             ax[1].set_xlabel('Freq. [MHz]')
+
+            # Text label
+            text = ''
+            if band is not None:
+                text += f'Band: {band}' + '\n'
+                text += f'Center Freq: {bandCenterMHz} MHz' + '\n'
+            if subband is not None:
+                text += f' Subband: {subband}' +'\n'
+            text += f'Peaks: {len(peak)}'
+            ax[0].text(.025, .975, text, transform=ax[0].transAxes, ha='left',
+                va='top')
 
             # Make title
             title = timestamp
-            if band is not None:
-                title = title + f': band {band}, center = {bandCenterMHz:.1f} MHz'
-            if subband is not None:
-                title = title + f' subband {subband}'
             fig.suptitle(title)
+            fig.tight_layout(rect=[0, 0.03, 1, 0.95])
 
             if save_plot:
                 save_name = timestamp
