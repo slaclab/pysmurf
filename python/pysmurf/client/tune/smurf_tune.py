@@ -1841,19 +1841,27 @@ class SmurfTuneMixin(SmurfBase):
         """
         Turns on the tones. Also cuts bad resonators.
 
-        Args:
-        -----
-        band (int): The band to relock
-        Opt args:
-        ---------
-        res_num (int array): The resonators to lock. If None, tries all the
-            resonators.
-        drive (int): The tone amplitudes to set
-        check_vals (bool) : Whether to check r2 and Q values. Default is False.
-        r2_max (float): The highest allowable R^2 value
-        q_max (float): The maximum resonator Q factor
-        q_min (float): The minimum resonator Q factor
-        min_gap (float) : Thee minimum distance between resonators.
+        Args
+        ----
+        band : int
+            The band to relock.
+
+        res_num : int array or None, optional, default None
+            The resonators to lock. If None, tries all the resonators.
+        drive : int or None, optional, default None
+            The tone amplitudes to set.
+        r2_max : float, optional, default 0.08
+            The highest allowable R^2 value.
+        q_max : float, optional, default 1e5
+            The maximum resonator Q factor.
+        q_min : float, optional, default 0
+            The minimum resonator Q factor.
+        check_vals : bool, optional, default False 
+            Whether to check r2 and Q values.
+        min_gap : float or None, optional, default None 
+            The minimum distance between resonators.
+        write_log : bool, optional, default False
+            ???
         """
         n_channels = self.get_number_channels(band)
 
@@ -2110,13 +2118,10 @@ class SmurfTuneMixin(SmurfBase):
 
         Args
         ----
-        band : int)
+        band : int
             The band.
         freq : float
             The frequency to scan.
-
-        Opt Args:
-        ---------
         drive : int, optional, default 12
             The tone amplitude.
         f_sweep_half : float, optional, default 0.3
@@ -2213,19 +2218,23 @@ class SmurfTuneMixin(SmurfBase):
         Tries to measure the V-phi curve in feedback disable mode.
         You can also run this with flux ramp off to see the intrinsic
         noise on the readout channel.
-        Args:
-        -----
-        band (int) : The band to check.
-        Opt Args:
-        ---------
-        reset_rate_khz (float) : The flux ramp rate in kHz.
-        fraction_full_scale (float) : The amplitude of the flux ramp from
-           zero to one.
-        flux_ramp (bool) : Whether to flux ramp. Default is True.
-        save_plot (bool) : Whether to save the plot. Default True.
-        show_plot (bool) : Whether to show the plot. Default False.
-        setup_flux_ramp (bool) : Whether to setup the flux ramp at the end.
-            Default True.
+
+        Args
+        ----
+        band : int
+            The band to check.
+        reset_rate_khz : float or None, optional, default None
+            The flux ramp rate in kHz.
+        fraction_full_scale : float or None, optional, default None
+            The amplitude of the flux ramp from zero to one.
+        flux_ramp : bool, optional, default True
+            Whether to flux ramp.
+        save_plot : bool, optional, default True
+            Whether to save the plot.
+        show_plot : bool, optional, default False
+            Whether to show the plot.
+        setup_flux_ramp : bool, optional, default True
+            Whether to setup the flux ramp at the end.
         """
         if show_plot:
             plt.ion()
@@ -2339,45 +2348,63 @@ class SmurfTuneMixin(SmurfBase):
         just tracks at the input lms frequency. This will also make plots for
         the channels listed in {channel} input.
 
-        Args:
-        -----
-        band (int) : The band number
-        Opt Args:
-        ---------
-        channel (int or int array) : The channels to plot
-        reset_rate_khz (float) : The flux ramp frequency
-        write_log (bool) : Whether to write output to the log.  Default False.
-        make_plot (bool) : Whether to make plots. Default False.
-        save_plot (bool) : Whether to save plots. Default True.
-        plotname_append (string): Appended to the default plot filename.
-            Default ''.
-        show_plot (bool) : Whether to display the plot. Default True.
-        lms_freq_hz (float) : The frequency of the tracking algorithm.
-           Default is 4000
-        flux_ramp (bool) : Whether to turn on flux ramp. Default True.
-        fraction_full_scale (float) : The flux ramp amplitude, as a
-           fraction of the maximum. Default is .4950.
-        lms_enable1 (bool) : Whether to use the first harmonic for tracking.
-           Default True.
-        lms_enable2 (bool) : Whether to use the second harmonic for tracking.
-           Default True.
-        lms_enable3 (bool) : Whether to use the third harmonic for tracking.
-           Default True.
-        lms_gain (int) : The tracking gain parameters. Default is the value
-           in the config table.
-        feedback_start_frac (float) : The fraction of the full flux
-           ramp at which to stop applying feedback in each flux ramp
-           cycle.  Must be in [0,1).  Defaults to whatever's in the cfg
-           file.
-        feedback_end_frac (float) : The fraction of the full flux ramp
-           at which to stop applying feedback in each flux ramp cycle.
-           Must be >0.  Defaults to whatever's in the cfg file.
-        meas_lms_freq (bool) : Whether or not to try to estimate the
-           carrier rate using the flux_mod2 function.  Default false.
-           lms_freq_hz must be None.
-        setup_flux_ramp (bool) : Whether to setup the flux ramp. Default
-           is True.
-        plotname_append (str) : Optional string to append plots with.
+        Args
+        ----
+        band : int
+            The band number.
+
+        channel : int or int array or None, optional default None
+            The channels to plot.
+        reset_rate_khz : float or None, optional default None
+            The flux ramp frequency.
+        write_log : bool, optional default False
+            Whether to write output to the log.
+        make_plot : bool, optional default False
+            Whether to make plots.
+        save_plot : bool, optional default True
+            Whether to save plots.
+        show_plot : bool, optional default True
+            Whether to display the plot.
+        nsamp : int, optional default 2**19
+            ???
+        lms_freq_hz : float or None, optional default None
+            The frequency of the tracking algorithm.
+        meas_lms_freq : bool, optional default False
+            Whether or not to try to estimate the carrier rate using
+            the flux_mod2 function.  lms_freq_hz must be None.
+        meas_flux_ramp_amp : bool, optional default False
+            ???
+        nphi0 : ???, optional default 4
+            ???
+        flux_ramp : bool, optional default True
+            Whether to turn on flux ramp.
+        fraction_full_scale : float or None, optional default None
+            The flux ramp amplitude, as a fraction of the maximum.
+        lms_enable1 : bool, optional default True
+            Whether to use the first harmonic for tracking.
+        lms_enable2 : bool, optional default True
+            Whether to use the second harmonic for tracking.
+        lms_enable3 : bool, optional default True
+            Whether to use the third harmonic for tracking.
+        lms_gain : int or None, optional default None
+            The tracking gain parameters. Default is the value in the
+            config table.
+        return_data : bool, optional default True
+            ???
+        new_epics_root : ??? or None, optional default None
+            ???
+        feedback_start_frac : float or None, optional default None
+            The fraction of the full flux ramp at which to stop
+            applying feedback in each flux ramp cycle.  Must be in
+            [0,1).  Defaults to whatever's in the cfg file.
+        feedback_end_frac : float or None, optional default None
+            The fraction of the full flux ramp at which to stop
+            applying feedback in each flux ramp cycle.  Must be >0.
+            Defaults to whatever's in the cfg file.
+        setup_flux_ramp : bool, optional default True
+            Whether to setup the flux ramp.
+        plotname_append : str, optional default ''
+            Optional string to append plots with.
         """
         if reset_rate_khz is None:
             reset_rate_khz = self.reset_rate_khz
