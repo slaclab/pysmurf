@@ -29,53 +29,56 @@ class SmurfIVMixin(SmurfBase):
                     make_plot=True, save_plot=True, plotname_append='',
                     channels=None, band=None, high_current_mode=True,
                     overbias_voltage=8., grid_on=True, phase_excursion_min=3.):
-        """ Steps the TES bias down slowly. Starts at bias_high to bias_low with
-        step size bias_step. Waits wait_time between changing steps. If this
-        analyzes the data, the outputs are stored to output_dir.
+        """Takes a slow IV
 
-        Parameters:
-        -----------
-        bias_groups : np array
-            which bias groups to take the IV on. defaults to the groups in the
-            config file
-        wait_time : float
-            The amount of time between changing TES biases in seconds. Default
-            .1 sec.
-        bias :float array
+        Steps the TES bias down slowly. Starts at bias_high to
+        bias_low with step size bias_step. Waits wait_time between
+        changing steps. If this analyzes the data, the outputs are
+        stored to output_dir.
+
+        Args
+        ----
+        bias_groups : numpy.ndarray or None, optional, default None
+            Which bias groups to take the IV on. If None, defaults to
+            the groups in the config file.
+        wait_time : float, optional, default 0.1
+            The amount of time between changing TES biases in seconds.
+        bias : float array or None, optional, default None
             A float array of bias values. Must go high to low.
-        bias_high :int
-            The maximum TES bias in volts. Default 19.9
-        bias_low :int
-            The minimum TES bias in volts. Default 0
-        bias_step :int
-            The step size in volts. Default .1
-        overbias_wait : float
-            The time to stay in the overbiased state in seconds. The default
-            is 2 sec.
-        cool_wait : float
-            The time to stay in the low current state after overbiasing before
-            taking the IV.
-        make_plot : bool
-            Whether to make plots. Default True
-        save_plot : bool
-            Whether to save the plot. Default True.
-        plotname_append : string
-            Appended to the default plot filename. Default ''.
-        channels : int array
-            A list of channels to make plots
-        band : int array
-            The bands to analyze
-        high_current_mode : bool
+        bias_high : float, optional, default 1.5
+            The maximum TES bias in volts.
+        bias_low : float, optional, default 0
+            The minimum TES bias in volts.
+        bias_step : float, optional, default 0.005
+            The step size in volts.
+        show_plot : bool, optional, default False
+            Whether to show plots.
+        overbias_wait : float, optional, default 2.0
+            The time to stay in the overbiased state in seconds.
+        cool_wait : float, optional, default 30.0
+            The time to stay in the low current state after
+            overbiasing before taking the IV.
+        make_plot : bool, optional, default True
+            Whether to make plots.
+        save_plot : bool, optional, default True
+            Whether to save the plot.
+        plotname_append : str, optional, default '' 
+            Appended to the default plot filename.
+        channels : int array or None, optional, default None
+            A list of channels to make plots.
+        band : int array or None, optional, default None
+            The bands to analyze.
+        high_current_mode : bool, optional, default True
             The current mode to take the IV in.
-        overbias_voltage : float
+        overbias_voltage : float, optional, default 8.0
             The voltage to set the TES bias in the overbias stage.
-        grid_on : bool
-            Grids on plotting. This is Aris fault.
-        phase_excursion_min : float
+        grid_on : bool, optional, default True
+            Grids on plotting. This is Ari's fault.
+        phase_excursion_min : float, optional, default 3.0
             The minimum phase excursion required for making plots.
 
-        Returns:
-        --------
+        Returns
+        -------
         output_path : str
             Full path to IV analyzed file.
         """
