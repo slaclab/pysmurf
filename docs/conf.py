@@ -11,18 +11,18 @@
 # All configuration values have a default; values that are commented out
 # serve to show the default.
 
-import sys
 import os
-import re
 # used for source code link resolution
 import inspect
-from os.path import relpath, dirname
+import sys
+import re
+from os.path import dirname, relpath
 
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
-from pysmurf import __version__ as pysmurf_version
 from pysmurf import __file__ as pysmurf_file
+from pysmurf import __version__ as pysmurf_version
 sys.path.insert(0, os.path.abspath('..'))
 
 pysmurf_git_tag = re.sub('^v', '', os.popen('git describe --tags').read().strip())

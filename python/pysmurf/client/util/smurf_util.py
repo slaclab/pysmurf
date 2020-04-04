@@ -32,8 +32,8 @@ class SmurfUtilMixin(SmurfBase):
             IQstream=1, single_channel_readout=1, debug=False, write_log=True):
         """ Takes raw debugging data
 
-        Parameters:
-        -----------
+        Args
+        ----
         band : int
             The band to take data on
         single_channel_readout : int
@@ -51,8 +51,8 @@ class SmurfUtilMixin(SmurfBase):
         write_log : bool
             Whether to write lowlevel commands to the log file.
 
-        Returns:
-        --------
+        Returns
+        -------
         f : float array
             The frequency response
         df : float array
@@ -609,16 +609,18 @@ class SmurfUtilMixin(SmurfBase):
         """
         decode take_debug_data file if in singlechannel mode
 
-        Args:
-        -----
-        filename (str): path to file to decode
+        Args
+        ----
+        filename : str
+            Path to file to decode.
+        swapFdF : bool, optional, default False
+            Whether to swap f and df streams.
 
-        Optional:
-        swapFdF (bool): whether to swap f and df streams
-
-        Returns:
-        [f, df, sync] if iq_stream_enable = False
-        [I, Q, sync] if iq_stream_enable = True
+        Returns
+        -------
+        list
+            [f, df, sync] if iq_stream_enable = False
+            [I, Q, sync] if iq_stream_enable = True
         """
 
         n_subbands = self.get_number_sub_bands()
@@ -669,34 +671,40 @@ class SmurfUtilMixin(SmurfBase):
 
         To do: move downsample_factor to config table
 
-        Args:
-        -----
-        meas_time (float) : The amount of time to observe for in seconds
+        Args
+        ----
+        meas_time : float
+            The amount of time to observe for in seconds.
+        downsample_factor : int or None, optional, default None
+            The number of fast sample (the flux ramp reset rate -
+            typically 4kHz) to skip between reporting. If None, does
+            not update.
+        write_log : bool, optional, default True
+            Whether to write to the log file.
+        update_payload_size : bool, optional, default True
+            Whether to update the payload size (the number of channels
+            written to disk). If the number of channels on is greater
+            than the payload size, then only the first N channels are
+            written. This bool will update the payload size to be the
+            same as the number of channels on across all bands)
+        reset_unwrapper : bool, optional, default True
+            Whether to reset the unwrapper before taking data.
+        reset_filter : bool, optional, default True
+            Whether to reset the filter before taking data.
+        return_data : bool, optional, default False
+            Whether to return the data. If False, returns the full
+            path to the data.
+        make_freq_mask : bool, optional, default True
+            Whether to write a text file with resonator frequencies.
+        register_file : bool, optional, default True
+            Whether to register the data file with the pysmurf
+            publisher.
 
-        Opt Args:
-        ---------
-        downsample_factor (int) : The number of fast sample (the flux ramp
-            reset rate - typically 4kHz) to skip between reporting. If None,
-            does not update.
-        write_log (bool) : Whether to write to the log file. Default True.
-        update_payload_size (bool) : Whether to update the payload size
-            (the number of channels written to disk). If the number of channels
-            on is greater than the payload size, then only the first N channels
-            are written. This bool will update the payload size to be the same
-            as the number of channels on across all bands)
-        reset_unwrapper (bool) : Whether to reset the unwrapper before
-            taking data.
-        reset_filter (bool) : Whether to reset the filter before
-            taking data.
-        return_data (bool) : Whether to return the data. If False, returns
-            the full path to the data. Default False.
-        register_file (bool): Whether to register the data file with the
-            pysmurf publisher. Default True.
 
-
-        Returns:
-        --------
-        data_filename (string): The fullpath to where the data is stored
+        Returns
+        -------
+        data_filename : str
+            The fullpath to where the data is stored.
         """
         if write_log:
             self.log('Starting to take data.', self.LOG_USER)
@@ -728,30 +736,35 @@ class SmurfUtilMixin(SmurfBase):
         """
         Turns on streaming data.
 
-        Opt Args:
-        ---------
-        write_config (bool) : Whether to dump the entire config. Default
-            is False. Warning this can be slow.
-        data_filename (str) : The full path to store the data. If None, it
-            uses the timestamp.
-        write_log (bool) : Whether to write to the log file. Default True.
-        update_payload_size (bool) : Whether to update the payload size
-            (the number of channels written to disk). If the number of channels
-            on is greater than the payload size, then only the first N channels
-            are written. This bool will update the payload size to be the same
-            as the number of channels on across all bands)
-        downsample_factor (int) : The number of fast samples to skip between
-            sending.
-        reset_unwrapper (bool) : Whether to reset the unwrapper before
-            taking data.
-        reset_filter (bool) : Whether to reset the filter before
-            taking data.
-        make_freq_mask (bool) : Whether to write a text file with resonator
-            frequencies. Default True.
+        Args
+        ----
+        write_config : bool, optional, default False
+            Whether to dump the entire config. Warning this can be
+            slow.
+        data_filename : str or None, optional, default None
+            The full path to store the data. If None, it uses the
+            timestamp.
+        downsample_factor : int or None, optional, default None
+            The number of fast samples to skip between sending.
+        write_log : bool, optional, default True
+            Whether to write to the log file.
+        update_payload_size : bool, optional, default True
+            Whether to update the payload size (the number of channels
+            written to disk). If the number of channels on is greater
+            than the payload size, then only the first N channels are
+            written. This bool will update the payload size to be the
+            same as the number of channels on across all bands)
+        reset_filter : bool, optional, default True
+            Whether to reset the filter before taking data.
+        reset_unwrapper : bool, optional, default True
+            Whether to reset the unwrapper before taking data.
+        make_freq_mask : bool, optional, default True
+            Whether to write a text file with resonator frequencies.
 
-        Returns:
-        --------
-        data_filename (string): The fullpath to where the data is stored
+        Returns
+        -------
+        data_filename : str
+            The fullpath to where the data is stored.
         """
         bands = self.config.get('init').get('bands')
 
@@ -864,12 +877,13 @@ class SmurfUtilMixin(SmurfBase):
         """
         Turns off streaming data.
 
-        Args:
-            write_log (bool):
-                Whether to log the CA commands or not. Default False
-            register_file (bool):
-                If true, the stream data file will be registered through the
-                publisher.
+        Args
+        ----
+        write_log : bool, optional, default True
+            Whether to log the CA commands or not.
+        register_file : bool, optional, default False
+            If true, the stream data file will be registered through
+            the publisher.
         """
         self.close_data_file(write_log=write_log)
 
@@ -894,24 +908,31 @@ class SmurfUtilMixin(SmurfBase):
         can optionally return the header (which has things
         like the TES bias).
 
-        Args:
-        -----
-        datafile (str): The full path to the data to read
-
-        Opt Args:
-        ---------
-        channel (int or int array): Channels to load.
-        n_samp (int) : The number of samples to read.
-        array_size (int) : The size of the output arrays. If 0, then
-            the size will be the number of channels in the data file.
-        return_header (bool) : Whether to also read in the header
-            and return the header data. Returning the full header
-            is slow for large files. This overrides return_tes_bias.
-        return_tes_bias (bool) : Whether to return the TES bias.
-        write_log (bool) : Whether to write outputs to the log
-            file. Default True.
-        n_max (int) : The number of elements to read in before appending
-            the datafile. This is just for speed.
+        Args
+        ----
+        datafile : str
+            The full path to the data to read.
+        
+        channel : int or int array or None, optional, default None
+            Channels to load.
+        n_samp : int or None, optional, default None
+            The number of samples to read.
+        array_size : int or None, optional, default None
+            The size of the output arrays. If 0, then the size will be
+            the number of channels in the data file.
+        return_header : bool, optional, default False
+            Whether to also read in the header and return the header
+            data. Returning the full header is slow for large
+            files. This overrides return_tes_bias.
+        return_tes_bias : bool, optional, default False
+            Whether to return the TES bias.
+        write_log : bool, optional, default True
+            Whether to write outputs to the log file.
+        n_max : int, optional, default 2048
+            The number of elements to read in before appending the
+            datafile. This is just for speed.
+        make_freq_mask : bool, optional, default False
+            Whether to write a text file with resonator frequencies.
         gcp_mode (bool) : Indicates that the data was written in GCP mode. This
             is the legacy data mode which was depracatetd in Rogue 4.
 
@@ -1249,16 +1270,18 @@ class SmurfUtilMixin(SmurfBase):
         to the smurf_to_mce mask number. In other words, mask[band, channel]
         returns the GCP index in the mask that corresonds to band, channel.
 
-        Parameters:
-        -----------
+        Args
+        ----
         mask_file : str
             The full path the a mask file
-        mask_channel_offset : int
+        mask_channel_offset : int, optional, default 0
             Offset to remove from channel numbers in GCP mask file after
-            loading.  Default is 0.
+            loading.
+        make_freq_mask : bool, optional, default False
+            Whether to write a text file with resonator frequencies.
 
-        Returns:
-        --------
+        Returns
+        -------
         mask_lookup : int array
             An array with the GCP numbers.
         """
@@ -1308,16 +1331,17 @@ class SmurfUtilMixin(SmurfBase):
         """
         Reads the stream data from the DAQ.
 
-        Args:
-        -----
-        data_length (int) : The number of samples to process
-
-        Opt Args:
-        ---------
-        bay (int) : The AMC bay number
-        hw_trigger (bool) : Whehter to trigger the start of the acquistion
-            with a hardware trigger. Default False.
-        write_log (bool) : Whether to write outputs to log. Default False
+        Args
+        ----
+        data_length : int
+            The number of samples to process.
+        bay : int, optional, default 0
+            The AMC bay number.
+        hw_trigger : bool, optional, default False
+            Whether to trigger the start of the acquistion with a
+            hardware trigger.
+        write_log : bool, optional, default False
+            Whether to write outputs to log.
         """
         # Ask mitch why this is what it is...
         if bay == 0:
@@ -1351,13 +1375,15 @@ class SmurfUtilMixin(SmurfBase):
         """
         Reads data directly off the ADC.  Checks for input saturation.
 
-        Args:
+        Args
         -----
-        band (int) : Which band.  Assumes adc number is band%4.
+        band : int
+            Which band.  Assumes adc number is band%4.
 
-        Ret:
-        ----
-        saturated (bool) : Flag if ADC is saturated.
+        Returns
+        -------
+        saturated : bool
+           True if ADC is saturated, otherwise False.
         """
         adc = self.read_adc_data(band, data_length=2**12, do_plot=False,
                   save_data=False, show_plot=False, save_plot=False)
