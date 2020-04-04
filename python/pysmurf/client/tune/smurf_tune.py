@@ -233,7 +233,7 @@ class SmurfTuneMixin(SmurfBase):
             grad_cut=.03, freq_min=-2.5E8, freq_max=2.5E8, amp_cut=.25,
             del_f=.005, drive=None, new_master_assignment=False,
             from_old_tune=False, old_tune=None, pad=50, min_gap=50,
-            highlight_phase_slip=True):
+            highlight_phase_slip=True, amp_ylim=None):
         """ Tunes band using serial_gradient_descent and then serial_eta_scan.
         This requires an initial guess, which this function gets by either
         loading an old tune or by using the full_band_resp.  This takes about 3
@@ -260,7 +260,10 @@ class SmurfTuneMixin(SmurfBase):
         show_plot : bool
             If make_plot is True, whether to display the plots to screen.
         highlight_phase_slip : bool
-            Whether to highlight the phase slip in plots
+            Whether to highlight the phase slip. Default True.
+        amp_ylim : float
+            The ylim for the amplitude plot. If None, does nothing. Default
+            None.
         """
         timestamp = self.get_timestamp()
         center_freq = self.get_band_center_mhz(band)
@@ -308,7 +311,8 @@ class SmurfTuneMixin(SmurfBase):
                 freq_min=freq_min, freq_max=freq_max, amp_cut=amp_cut,
                 make_subband_plot=make_subband_plot, timestamp=timestamp,
                 subband_plot_with_slow=subband_plot_with_slow, pad=pad,
-                min_gap=min_gap, highlight_phase_slip=highlight_phase_slip)
+                min_gap=min_gap, highlight_phase_slip=highlight_phase_slip,
+                amp_ylim=amp_ylim)
 
             resonances = {}
             for i, p in enumerate(peaks):
@@ -727,7 +731,8 @@ class SmurfTuneMixin(SmurfBase):
             make_plot=False, save_plot=True, plotname_append='', show_plot=False,
             band=None, subband=None, make_subband_plot=False,
             subband_plot_with_slow=False, timestamp=None, pad=50, min_gap=100,
-            plot_title=None, grad_kernel_width=8, highlight_phase_slip=True):
+            plot_title=None, grad_kernel_width=8, highlight_phase_slip=True,
+            amp_ylim=None):
         """ Find the peaks within a given subband.
 
         Parameters:
@@ -774,7 +779,9 @@ class SmurfTuneMixin(SmurfBase):
             gradient of phase. Default is 8.
         highlight_phase_slip : bool
             Whether to highlight the phase slip. Default True.
-
+        amp_ylim : float
+            The ylim for the amplitude plot. If None, does nothing. Default
+            None.
 
         Returns:
         --------
@@ -849,6 +856,10 @@ class SmurfTuneMixin(SmurfBase):
                         alpha=.1)
                     ax[1].axvspan(plot_freq_mhz[s], plot_freq_mhz[e], color='k',
                         alpha=.1)
+
+            # set ylim
+            if amp_ylim is not None:
+                ax[0].set_ylim(amp_ylim)
 
             ax[0].set_ylabel('Amp.')
             ax[1].set_ylabel('Deriv Phase')
