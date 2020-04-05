@@ -2352,7 +2352,6 @@ class SmurfTuneMixin(SmurfBase):
         ----
         band : int
             The band number.
-
         channel : int or int array or None, optional, default None
             The channels to plot.
         reset_rate_khz : float or None, optional, default None
@@ -2666,52 +2665,59 @@ class SmurfTuneMixin(SmurfBase):
         all the same inputs and tracking_setup and check_lock. In particular the
         cut parameters are f_min, f_max, and df_max.
 
-        Args:
-        -----
-        band (int): The band to track and check
-
-        Opt Args:
-        ---------
-        channel (int or int array): List of channels to plot.
-        toggle_feedback (bool): Whether or not to reset feedback (both the
-            global band feedbackEnable and the lmsEnables between tracking_setup
-            and  check_lock.
-        relock (bool): Whether or not to relock at the start. Default True.
-        tracking_setup (bool): Whether or not to run tracking_setup. Default
-            True.
-        reset_rate_khz (float) : The flux ramp frequency
-        write_log (bool) : Whether to write output to the log.  Default False.
-        make_plot (bool) : Whether to make plots. Default False.
-        save_plot (bool) : Whether to save plots. Default True.
-        show_plot (bool) : Whether to display the plot. Default True.
-        lms_freq_hz (float) : The frequency of the tracking algorithm.
-           Default is 4000
-        flux_ramp (bool) : Whether to turn on flux ramp. Default True.
-        fraction_full_scale (float) : The flux ramp amplitude, as a
-           fraction of the maximum. Default is .4950.
-        lms_enable1 (bool) : Whether to use the first harmonic for tracking.
-           Default True.
-        lms_enable2 (bool) : Whether to use the second harmonic for tracking.
-           Default True.
-        lms_enable3 (bool) : Whether to use the third harmonic for tracking.
-           Default True.
-        lms_gain (int) : The tracking gain parameters. Default is the value
-           in the config file
-        feedback_start_frac (float) : The fraction of the full flux
-           ramp at which to stop applying feedback in each flux ramp
-           cycle.  Must be in [0,1).  Defaults to whatever's in the cfg
-           file.
-        feedback_end_frac (float) : The fraction of the full flux ramp
-           at which to stop applying feedback in each flux ramp cycle.
-           Must be >0.  Defaults to whatever's in the cfg file.
-        meas_lms_freq (bool) : Whether or not to try to estimate the
-           carrier rate using the flux_mod2 function.  Default false.
-           lms_freq_hz must be None.
-        f_min (float) : The maximum frequency swing.
-        f_max (float) : The minimium frequency swing
-        df_max (float) : The maximum value of the stddev of df
-        setup_flux_ramp (bool) : Whether to setup the flux ramp at the end.
-            Default True.
+        Args
+        ----
+        band : int
+            The band to track and check.
+        channel : int or int array or None, optional, default None
+            List of channels to plot.
+        reset_rate_khz : float or None, optional, default None
+            The flux ramp frequency.
+        make_plot : bool, optional, default False
+            Whether to make plots.
+        save_plot : bool, optional, default True
+            Whether to save plots.
+        show_plot : bool, optional, default True
+            Whether to display the plot.
+        lms_freq_hz : float or None, optional, default None
+            The frequency of the tracking algorithm.
+        flux_ramp : bool, optional, default True
+            Whether to turn on flux ramp.
+        fraction_full_scale : float or None, optional, default None
+            The flux ramp amplitude, as a fraction of the maximum.
+        lms_enable1 : bool, optional, default True
+            Whether to use the first harmonic for tracking.
+        lms_enable2 : bool, optional, default True
+            Whether to use the second harmonic for tracking.
+        lms_enable3 : bool, optional, default True
+            Whether to use the third harmonic for tracking.
+        lms_gain : int or None, optional, default None
+            The tracking gain parameters. Default is the value in the
+            config file
+        f_min : float, optional, default 0.015
+            The maximum frequency swing.
+        f_max : float, optional, default 0.20
+            The minimium frequency swing.
+        df_max : float, optional, default 0.03
+            The maximum value of the stddev of df.
+        toggle_feedback : bool, optional, default True
+            Whether or not to reset feedback (both the global band
+            feedbackEnable and the lmsEnables between tracking_setup
+            and check_lock.
+        relock : bool, optional, default True
+            Whether or not to relock at the start.
+        tracking_setup : bool, optional, default True
+            Whether or not to run tracking_setup.
+        feedback_start_frac : float or None, optional, default None
+            The fraction of the full flux ramp at which to stop
+            applying feedback in each flux ramp cycle.  Must be in
+            [0,1).  Defaults to whatever's in the cfg file.
+        feedback_end_frac : float or None, optional, default None
+            The fraction of the full flux ramp at which to stop
+            applying feedback in each flux ramp cycle.  Must be >0.
+            Defaults to whatever's in the cfg file.
+        setup_flux_ramp : bool, optional, default True
+            Whether to setup the flux ramp at the end.
         """
         if reset_rate_khz is None:
             reset_rate_khz = self.reset_rate_khz
