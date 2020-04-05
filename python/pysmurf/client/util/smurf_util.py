@@ -2813,27 +2813,28 @@ class SmurfUtilMixin(SmurfBase):
         tes_bias.  Then waits cool_wait seconds before returning
         control.
 
-        Args:
-        -----
-        bias_group (int): The bias group to overbias.  Asserts if not
-                          a valid bias group.
-
-        Opt Args:
-        ---------
-        overbias_voltage (float): The value of the TES bias in the high current
-            mode. Default 19.9.
-        overbias_wait (float): The time to stay in high current mode in seconds.
-            Default is .5
-        tes_bias (float): The value of the TES bias when put back in low current
-            mode. Default is 19.9.
-        cool_wait (float): The time to wait after setting the TES bias for
-            transients to die off.
-        high_current_mode (bool) : Whether to keep the TES bias in high current
-            mode after the kick. Default is False
-        flip_polarity (bool) : Whether to flip the TES bias bipolar DAC
-            polarity. Default False.
-        actually_overbias (bool) : Whether to actaully do the overbias. Default
-            True.
+        Args
+        ----
+        bias_group : int
+            The bias group to overbias.  Asserts if not a valid bias
+            group.
+        overbias_voltage : float, optional, default 19.9
+            The value of the TES bias in the high current mode.
+        overbias_wait : float, optional, default 1.0
+            The time to stay in high current mode in seconds.
+        tes_bias : float, optional, default 19.9
+            The value of the TES bias when put back in low current
+            mode.
+        cool_wait : float, optional, default 20.0
+            The time to wait after setting the TES bias for transients
+            to die off.
+        high_current_mode : bool, optional, default False
+            Whether to keep the TES bias in high current mode after
+            the kick.
+        flip_polarity : bool, optional, default False
+            Whether to flip the TES bias bipolar DAC polarity.
+        actually_overbias : bool, optional, default True
+            Whether to actaully do the overbias.
         """
         bias_groups = self.bias_group_to_pair[:,0]
         assert (bias_group in bias_groups),\
@@ -2874,23 +2875,27 @@ class SmurfUtilMixin(SmurfBase):
         tes_bias.  Then waits cool_wait seconds before returning
         control.
 
-        Opt Args:
-        ---------
-        bias_groups (array): which bias groups to overbias. defaults to
-            all_groups.  Asserts if any of the bias groups listed is not a
-            defined bias group.
-        overbias_voltage (float): The value of the TES bias in the high current
-            mode. Default 19.9.
-        overbias_wait (float): The time to stay in high current mode in seconds.
-            Default is .5
-        tes_bias (float): The value of the TES bias when put back in low current
-            mode. Default is 19.9.
-        cool_wait (float): The time to wait after setting the TES bias for
-            transients to die off.
-        high_current_mode (bool) : Whether to keep the TES bias in high current
-            mode after the kick. Default is False
-        actually_overbias (bool) : Whether to actaully do the overbias. Default
-            True.
+        Args
+        ----
+        bias_groups : array or None, optional, default None
+            Which bias groups to overbias. defaults to all_groups.
+            Asserts if any of the bias groups listed is not a defined
+            bias group.
+        overbias_voltage : float, optional, default 19.9
+            The value of the TES bias in the high current mode.
+        overbias_wait : float, optional, default 1.0
+            The time to stay in high current mode in seconds.
+        tes_bias : float, optional, default 19.9
+            The value of the TES bias when put back in low current
+            mode.
+        cool_wait : float, optional, default 20.0
+            The time to wait after setting the TES bias for transients
+            to die off.
+        high_current_mode : bool, optional, default False
+            Whether to keep the TES bias in high current mode after
+            the kick.
+        actually_overbias : bool, optional, default True
+            Whether to actaully do the overbias.
         """
         # drive high current through the TES to attempt to drive normal
         if bias_groups is None:
@@ -2943,9 +2948,12 @@ class SmurfUtilMixin(SmurfBase):
         number is not the same as the relay number. It also does not matter,
         because Joe's code secretly flips all the relays when you flip one.
 
-        Args:
-        -----
-        bias_group (int): The bias group(s) to set to high current mode.
+        Args
+        ----
+        bias_group : int
+            The bias group(s) to set to high current mode.
+        write_log : bool, optional, default False
+            ???
         """
         old_relay = self.get_cryo_card_relays()
         old_relay = self.get_cryo_card_relays()  # querey twice to ensure update
@@ -2974,9 +2982,12 @@ class SmurfUtilMixin(SmurfBase):
         number is not the same as the relay number. It also does not matter,
         because Joe's code secretly flips all the relays when you flip one
 
-        Args:
-        -----
-        bias_group (int): The bias group to set to low current mode
+        Args
+        ----
+        bias_group : int
+            The bias group to set to low current mode.
+        write_log : bool, optional, default False
+            ???
         """
         old_relay = self.get_cryo_card_relays()
         old_relay = self.get_cryo_card_relays()  # querey twice to ensure update
@@ -3004,9 +3015,10 @@ class SmurfUtilMixin(SmurfBase):
         """
         Sets flux ramp to DC coupling
 
-        Opt Args:
-        ---------
-        write_log (bool) : Whether to write outputs to log. Default False.
+        Args
+        ----
+        write_log : bool, optional, default False
+            Whether to write outputs to log.
         """
         # The 16th bit (0 indexed) is the AC/DC coupling
         # self.set_tes_bias_high_current(16)
@@ -3027,9 +3039,10 @@ class SmurfUtilMixin(SmurfBase):
         """
         Sets flux ramp to AC coupling
 
-        Opt Args:
-        ---------
-        write_log (bool) : Whether to write outputs to log. Default False.
+        Args
+        ----
+        write_log : bool, optional, default False
+            Whether to write outputs to log.
         """
         # The 16th bit (0 indexed) is the AC/DC coupling
         # self.set_tes_bias_low_current(16)
@@ -3050,13 +3063,15 @@ class SmurfUtilMixin(SmurfBase):
         """
         Gives the band associated with a given attenuator number
 
-        Args:
-        -----
-        att (int) : The attenuatory number.
-
-        Ret:
+        Args
         ----
-        band (int) : The band associated with the attenuator.
+        att : int
+            The attenuatory number.
+
+        Returns
+        -------
+        band : int
+            The band associated with the attenuator.
         """
         return self.att_to_band['band'][np.ravel(
             np.where(self.att_to_band['att']==att))[0]]
@@ -3065,13 +3080,15 @@ class SmurfUtilMixin(SmurfBase):
         """
         Gives the att associated with a given 500 MHz band.
 
-        Args:
-        -----
-        band (int) : The 500 MHz band number
-
-        Ret:
+        Args
         ----
-        att (int) : The attenuatory number.
+        band : int
+            The 500 MHz band number.
+
+        Returns
+        -------
+        att : int
+            The attenuatory number.
         """
         # for now, mod 4 ; assumes the band <-> att correspondence is the same
         # for the LB and HB AMCs.
@@ -3135,16 +3152,19 @@ class SmurfUtilMixin(SmurfBase):
         that are on. If both band and smurf_chans are supplied, a mask
         in the input order is created.
 
-        Opt Args:
-        ---------
-        band (int array) : An array of band numbers. Must be the same
-            length as smurf_chans
-        smurf_chans (int_array) : An array of SMuRF channel numbers.
-            Must be the same length as band
-
-        Ret:
+        Args
         ----
-        output_chans (int array) : The output channels.
+        band : int array or None, optional, default None
+            An array of band numbers. Must be the same length as
+            smurf_chans
+        smurf_chans : int_array or None, optional, default None
+            An array of SMuRF channel numbers.  Must be the same
+            length as band.
+
+        Returns
+        -------
+        output_chans : int array
+            The output channels.
         """
         output_chans = np.array([], dtype=int)
 
@@ -3170,14 +3190,15 @@ class SmurfUtilMixin(SmurfBase):
         Makes the frequency mask. These are the frequencies
         associated with the channels in the channel mask.
 
-        Args:
-        -----
-        mask (int array) : The channel mask file
-
-        Ret:
+        Args
         ----
-        freqs (float array) : An array with frequencies associated
-            with the mask file.
+        mask : int array
+            The channel mask file.
+
+        Returns
+        -------
+        freqs : float array
+            An array with frequencies associated with the mask file.
         """
         freqs = np.zeros(len(mask), dtype=float)
         channels_per_band = 512  # avoid hardcoding this
@@ -3198,10 +3219,14 @@ class SmurfUtilMixin(SmurfBase):
         that filters data at the flux_ramp reset rate, which is
         before the downsampler.
 
-        Args:
-        -----
-        filter_order (int) : The number of poles in the filter.
-        cutoff_freq (float) : The filter cutoff frequency
+        Args
+        ----
+        filter_order : int
+            The number of poles in the filter.
+        cutoff_freq : float
+            The filter cutoff frequency.
+        write_log : bool, optional, default False
+            ???
         """
         # Get flux ramp frequency
         flux_ramp_freq = self.get_flux_ramp_freq()*1.0E3
@@ -3275,18 +3300,21 @@ class SmurfUtilMixin(SmurfBase):
         that are on. If both band and smurf_chans are supplied, a mask
         in the input order is created.
 
-        Opt Args:
-        ---------
-        band (int array) : An array of band numbers. Must be the same
-            length as smurf_chans
-        smurf_chans (int_array) : An array of SMuRF channel numbers.
-            Must be the same length as band.
-        gcp_chans (int_array) : A list of smurf numbers to be passed
-            on as GCP channels.
-        read_gcp_mask (bool) : Whether to read in the new GCP mask file.
-            If not read in, it will take no effect. Default is True.
-        mask_channel_offset (int) : Offset to add to channel numbers in GCP
-            mask file.  Default is 0.
+        Args
+        ----
+        band : int array or None, optional, default None
+            An array of band numbers. Must be the same length as
+            smurf_chans
+        smurf_chans : int_array or None, optional, default None
+            An array of SMuRF channel numbers.  Must be the same
+            length as band.
+        gcp_chans : int_array or None, optional, default None
+            A list of smurf numbers to be passed on as GCP channels.
+        read_gcp_mask : bool, optional, default True
+            Whether to read in the new GCP mask file.  If not read in,
+            it will take no effect.
+        mask_channel_offset : int, optional, default 0
+            Offset to add to channel numbers in GCP mask file.
         """
         if self.config.get('smurf_to_mce').get('mask_channel_offset') is not None:
             mask_channel_offset=int(self.config.get('smurf_to_mce').get('mask_channel_offset'))
