@@ -3599,19 +3599,20 @@ class SmurfUtilMixin(SmurfBase):
         """
         Converts from gcp number to smurf channel (band and channel).
 
-        Args:
-        -----
-        gcp_num (int) : The GCP number
-
-        Opt Args:
-        ---------
-        mask_file (int array) : The mask file to convert between smurf channel
-            and GCP number.
-
-        Ret:
+        Args
         ----
-        band (int) : The smurf band number
-        channel (int) : The smurf channel number
+        gcp_num : int
+            The GCP number.
+        mask_file : int array or None, optional, default None
+            The mask file to convert between smurf channel and GCP
+            number.
+
+        Returns
+        -------
+        band : int
+            The smurf band number.
+        channel : int
+            The smurf channel number.
         """
         if mask_file is None:
             mask_file = self.smurf_to_mce_mask_file
@@ -3630,18 +3631,18 @@ class SmurfUtilMixin(SmurfBase):
         voltage. The conversion from requested volts to bits
         is calculated in this function.
 
-        Args:
-        -----
-        bias_group (int) : The bias group to play a sine wave on
-        tone_amp (float) : The amplitude of the sine wave in units of
-            out TES bias in volts.
-        tone_freq (float) : The frequency of the tone in Hz.
-
-        Opt Args:
-        ---------
-        dc_amp (float) : The amplitude of the DC term of the sine wave.
-            If None, reads the current DC value and uses that. Default
-            is None.
+        Args
+        ----
+        bias_group : int
+            The bias group to play a sine wave on.
+        tone_amp : float
+            The amplitude of the sine wave in units of out TES bias in
+            volts.
+        tone_freq : float
+            The frequency of the tone in Hz.
+        dc_amp : float or None, optional, default None
+            The amplitude of the DC term of the sine wave.  If None,
+            reads the current DC value and uses that.
         """
         if dc_amp is None:
             dc_amp = self.get_tes_bias_bipolar(bias_group)
@@ -3670,18 +3671,17 @@ class SmurfUtilMixin(SmurfBase):
         for tone file, assumes the path to the correct tone file has
         already been loaded.
 
-        Args:
+        Args
         ----
-        band (int) : Which band to play tone file on.
-
-        Optional Args:
-        --------------
-        tone_file (str) : Path (including csv file name) to tone file.
-                          If none given, uses whatever's already been loaded.
-        load_tone_file (bool) : Whether or not to load the tone file.
-                                The tone file is loaded per DAC, so if you
-                                already loaded the tone file for this DAC you
-                                don't have to do it again.
+        band : int
+            Which band to play tone file on.
+        tone_file : str or None, optional, default None
+            Path (including csv file name) to tone file.  If None,
+            uses whatever's already been loaded.
+        load_tone_file : bool, optional, default True
+            Whether or not to load the tone file.  The tone file is
+            loaded per DAC, so if you already loaded the tone file for
+            this DAC you don't have to do it again.
         """
         # the bay corresponding to this band.
         bay = self.band_to_bay(band)
@@ -3701,9 +3701,10 @@ class SmurfUtilMixin(SmurfBase):
         Stops playing tone file on the specified band and reverts
         to DSP.
 
-        Args:
+        Args
         ----
-        band (int) : Which band to play tone file on.
+        band : int
+            Which band to play tone file on.
         """
 
         self.set_waveform_select(band,0)
@@ -3718,14 +3719,15 @@ class SmurfUtilMixin(SmurfBase):
         Convenience function for getting all the serial
         gradient descent parameters
 
-        Args:
-        -----
-        band (int): The band to query
-
-        Ret:
+        Args
         ----
-        params (dict): A dictionary with all the gradient
-            descent parameters
+        band : int
+            The band to query.
+
+        Returns
+        -------
+        params : dict
+            A dictionary with all the gradient descent parameters
         """
         ret = {}
         ret['averages'] = self.get_gradient_descent_averages(band)
@@ -3748,14 +3750,15 @@ class SmurfUtilMixin(SmurfBase):
         frequency falls into (where a channel is deemed "assigned" if
         it has non-zero amplitude).
 
-        Args:
-        -----
-        freq_mhz (float): The frequency in MHz at which to place a fixed tone.
-        drive (int): The amplitude for the fixed tone (0-15 in recent fw revisions).
-
-        Opt Args:
-        ---------
-        quiet (bool) : Whether to look at one channel
+        Args
+        ----
+        freq_mhz : float
+            The frequency in MHz at which to place a fixed tone.
+        drive : int
+            The amplitude for the fixed tone (0-15 in recent fw
+            revisions).
+        quiet : bool, optional, ddefault False
+            ???
         """
 
         # Find which band the requested frequency falls into.
@@ -3807,15 +3810,10 @@ class SmurfUtilMixin(SmurfBase):
         Turns off every channel which has nonzero amplitude but
         feedback set to zero.
 
-        Args:
-        -----
-        freq_mhz (float): The frequency in MHz at which to place a fixed tone.
-        drive (int): The amplitude for the fixed tone (0-15 in recent fw revisions).
-
-        Opt Args:
-        ---------
-        quiet (bool) : Whether to look at one channel
-
+        Args
+        ----
+        band : int
+            The band to query.
         """
         amplitude_scale_array=self.get_amplitude_scale_array(band)
         feedback_enable_array=self.get_feedback_enable_array(band)
@@ -4009,9 +4007,12 @@ class SmurfUtilMixin(SmurfBase):
         """
         Stop the bipolar waveform being played on a bias group.
 
-        Args:
-        -----
-        bias_group (int): The bias group
+        Args
+        ----
+        bias_group : int
+            The bias group.
+        **kwargs : ???
+            ???
         """
         # https://confluence.slac.stanford.edu/display/SMuRF/SMuRF+firmware#SMuRFfirmware-RTMDACarbitrarywaveforms
         # Target the two bipolar DACs assigned to this bias group:
@@ -4028,8 +4029,8 @@ class SmurfUtilMixin(SmurfBase):
     def get_sample_frequency(self):
         """ Gives the data rate.
 
-        Returns:
-        --------
+        Returns
+        -------
         sample_frequency : float
             The data sample rate in Hz.
         """
