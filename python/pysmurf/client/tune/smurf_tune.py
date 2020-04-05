@@ -2872,10 +2872,15 @@ class SmurfTuneMixin(SmurfBase):
             do_config=True):
         """
         ???
-        Args:
+
+        Args
         -----
-        fractionFullScale (float) : Fraction of full flux ramp scale to output
-        from [-1,1]
+        fractionFullScale : float
+            Fraction of full flux ramp scale to output from [-1,1].
+        debug : bool, optional, default True
+            ???
+        do_config : bool, optional, default True
+            ???
         """
 
         # fractionFullScale must be between [0,1]
@@ -2937,18 +2942,23 @@ class SmurfTuneMixin(SmurfBase):
         Set flux ramp sawtooth rate and amplitude. If there are errors, check
         that you are using an allowed reset rate! Not all rates are allowed.
         Allowed rates: 1, 2, 3, 4, 5, 6, 8, 10, 12, 15 kHz
-        Args:
-        -----
-        reset_rate_khz (int) : The flux ramp rate to set in kHz. The allowable
-            values are 1, 2, 3, 4, 5, 6, 8, 10, 12, 15 kHz
-        fraction_full_scale (float) : The amplitude of the flux ramp as a
-            fraction of the maximum possible value.
-        Opt Args:
-        ---------
-        df_range (float) :
-        band (int) : The band to setup the flux ramp on.
-        write_log (bool) : Whether to write output to the log
-        new_epics_root (str) : Override the original epics root.
+
+        Args
+        ----
+        reset_rate_khz : int
+            The flux ramp rate to set in kHz. The allowable values are
+            1, 2, 3, 4, 5, 6, 8, 10, 12, 15 kHz
+        fraction_full_scale : float
+            The amplitude of the flux ramp as a fraction of the
+            maximum possible value.
+        df_range : float, optional, default 0.1
+            ???
+        band : int, optional, default 2
+            The band to setup the flux ramp on.
+        write_log : bool, optional, default False
+            Whether to write output to the log.
+        new_epics_root : str or None, optional, default None
+            Override the original epics root.
         """
 
         # Disable flux ramp
