@@ -169,30 +169,44 @@ class SmurfIVMixin(SmurfBase):
         hold at the bias_low point at the end, so different bias groups
         may have different length ramps.
 
-        Args:
-        -----
-        bias_high_array (float array): (n_bias_groups,) array of voltage biases, in
-          bias group order
-        Opt Args:
-        -----
-        bias_low_array (float array): (n_bias_groups,) array of voltage biases, in
-          bias group order. Defaults to whatever is currently set
-        wait_time (float): Time to wait at each commanded bias value.
-            Default 0.1
-        bias_step (float): Interval size to step the commanded voltage bias.
-          Default 0.1
-        show_plot (bool): whether to show plots. Default False.
-        make_plot (bool): whether to generate plots. Default True.
-        analyze (bool): whether to analyze the data. Default True.
-        save_plot (bool): whether to save generated plots. Default True.
-        channels (int array): which channels to analyze. Default to anything
-          that exceeds phase_excursion_min
-        overbias_voltage (float): value in V at which to overbias. If None,
-          won't overbias. If value is set, uses high current mode.
-        overbias_wait (float): if overbiasing, time to hold the overbiased
-          voltage in high current mode
-        phase_excursion_min (float): minimum change in phase to be analyzed,
-          defined as abs(phase_max - phase_min). Default 1, units radians.
+        Args
+        ----
+        bias_high_array : float array)
+            (n_bias_groups,) array of voltage biases, in bias group
+            order
+
+        bias_low_array : float array or None, optional, default None
+            (n_bias_groups,) array of voltage biases, in bias group
+            order. Defaults to whatever is currently set.
+        wait_time : float, optional, default 0.1
+            Time in seconds to wait at each commanded bias value.
+        bias_step : float, optional, default 0.1
+            Interval size to step the commanded voltage bias in volts.
+        show_plot : bool, optional, default False
+            Whether to show plots.
+        analyze : bool, optional, default True
+            Whether to analyze the data.
+        make_plot : bool, optional, default True
+            Whether to generate plots.
+        save_plot : bool, optional, default True
+            Whether to save generated plots.
+        channels : int array or None, optional, default None
+            Which channels to analyze. Default to anything.  that
+            exceeds phase_excursion_min.
+        overbias_voltage : float or None, optional, default None
+            Value in volts at which to overbias. If None, won't
+            overbias. If value is set, uses high current mode.
+        overbias_wait : float, optional, default 1.0
+            If overbiasing, time to hold the overbiased voltage in
+            high current mode.
+        phase_excursion_min : float, optional, default 1.0
+            Minimum change in phase to be analyzed, defined as
+            abs(phase_max - phase_min). Units radians.
+
+        Returns
+        -------
+        path : str
+            ???
         """
 
         original_biases = self.get_tes_bias_bipolar_array()
@@ -287,31 +301,49 @@ class SmurfIVMixin(SmurfBase):
         """
         Function to analyze a load curve from its raw file. Can be used to
           analyze IV's/generate plots separately from issuing commands.
-        Args:
-        -----
-        fn_iv_raw_data (str): *_iv_raw_data.npy file to analyze
-        Opt Args:
-        ---------
-        make_plot (bool): Defaults True. Usually this is the slowest part.
-        show_plot (bool): Defaults False.
-        save_plot (bool): Defaults True.
-        plotname_append (string): Appended to the default plot filename. Default ''.
-        phase_excursion_min (float): abs(max - min) of phase in radians. Analysis
-          ignores any channels without this phase excursion. Default 3.
-        grid_on (bool): Whether to draw the grid on the PR plot. Defaults False
-          Defaults true.
-        R_op_target (float): Target operating resistance. Function will
-          generate a histogram indicating bias voltage needed to achieve
-          this value.
-        channel (int array): Which channels to analyze. Defaults to all
-          the channels that are on and exceed phase_excursion_min
-        data_path (str) : The full path to the data. This is used for offline mode
-          where the data was copied to a new directory. The directory is usually
-          loaded from the .npy file, and this overwrites it.
-        plot_dir (str) : The full path to the plot directory. This is usually
-            loaded with the input numpy dictionary. This overwrites this.
-        bias_line_resistance (float) : The resistance of the bias lines in Ohms.
-            Default is None.
+
+        Args
+        ----
+        fn_iv_raw_data : str
+            *_iv_raw_data.npy file to analyze.
+
+        make_plot : bool, optional, default True
+            Whether or not to make plots.  Usually this is the slowest
+            part.
+        show_plot : bool, optional, default False
+            Whether or not to show plots.
+        save_plot : bool, optional, default True
+            Whether or not to save plots.
+        plotname_append : str, optional, default ''
+            Appended to the default plot filename.
+        phase_excursion_min : float, optional, default 3.0
+            abs(max - min) of phase in radians. Analysis ignores any
+            channels without this phase excursion.
+        grid_on : bool, optional, default False
+            Whether to draw the grid on the PR plot.
+        R_op_target : float, optional, default 0.007
+            Target operating resistance. Function will generate a
+            histogram indicating bias voltage needed to achieve this
+            value.
+        pA_per_phi0 : float or None, optional, default None
+            The conversion for phi0 to pA. If None, attempts to read
+            it from the config file.
+        channel : int array or None, optional, default None
+            Which channels to analyze. Defaults to all the channels
+            that are on and exceed phase_excursion_min.
+        band : int or None, optional, default None
+            ???
+        datafile : str or None, optional, default None
+            The full path to the data. This is used for offline mode
+            where the data was copied to a new directory. The
+            directory is usually loaded from the .npy file, and this
+            overwrites it.
+        plot_dir : str or None, optional, default None
+            The full path to the plot directory. This is usually
+            loaded with the input numpy dictionary. This overwrites
+            this.
+        bias_line_resistance : float or None, optional, default None
+            The resistance of the bias lines in Ohms.
         """
         self.log('Analyzing from file: {}'.format(fn_iv_raw_data))
 
