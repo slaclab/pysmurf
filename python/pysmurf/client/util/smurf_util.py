@@ -3619,13 +3619,15 @@ class SmurfUtilMixin(SmurfBase):
         Goes from the smurf2mce mask file to a gcp number.
         Inverse of gcp_num_to_mask_num.
 
-        Args:
-        -----
-        mask_num (int) : The index in the mask file.
-
-        Ret:
+        Args
         ----
-        gcp_num (int) : The index of the channel in GCP.
+        mask_num : int
+            The index in the mask file.
+
+        Returns
+        -------
+        gcp_num : int
+            The index of the channel in GCP.
         """
         return (mask_num*33)%528+mask_num//16
 
@@ -3635,13 +3637,15 @@ class SmurfUtilMixin(SmurfBase):
         Goes from a GCP number to the smurf2mce index.
         Inverse of mask_num_to_gcp_num
 
-        Args:
+        Args
         ----
-        gcp_num (int) : The gcp index
+        gcp_num : int
+            The gcp index.
 
-        Ret:
-        ----
-        mask_num (int) : The index in the mask.
+        Returns
+        -------
+        mask_num : int
+            The index in the mask.
         """
         return (gcp_num*16)%528 + gcp_num//33
 
@@ -3650,19 +3654,20 @@ class SmurfUtilMixin(SmurfBase):
         """
         Converts from smurf channel (band and channel) to a gcp number
 
-        Args:
-        -----
-        band (int) : The smurf band number
-        channel (int) : The smurf channel number
-
-        Opt Args:
-        ---------
-        mask_file (int array) : The mask file to convert between smurf channel
-            and GCP number.
-
-        Ret:
+        Args
         ----
-        gcp_num (int) : The GCP number
+        band : int
+            The smurf band number.
+        channel : int
+            The smurf channel number.
+        mask_file : int array or None, optional, default None
+            The mask file to convert between smurf channel and GCP
+            number.
+
+        Returns
+        -------
+        gcp_num : int
+            The GCP number.
         """
         if mask_file is None:
             mask_file = self.smurf_to_mce_mask_file

@@ -45,11 +45,10 @@ class SmurfNoiseMixin(SmurfBase):
         It takes into account the sampling frequency and the downsampling
         filter and downsampler.
 
-        Args:
-        -----
+        Args
+        ----
         meas_time : float
             The amount of time to observe in seconds.
-
         channel : int array or None, optional, default None
             The channels to plot. Note that this script always takes
             data on all the channels. This only sets the ones to plot.
@@ -61,7 +60,9 @@ class SmurfNoiseMixin(SmurfBase):
         fs : float or None, optional, default None
             Sample frequency. If None, reads it in.
         low_freq : numpy.ndarray, optional, default numpy.array([0.1,1.0])
+            ???
         high_freq : numpy.ndarray, optional, default numpy.array([1.0,10.0])
+            ???
         make_channel_plot : bool, optional, default True
             Whether to make the individual channel plots.
         make_summary_plot : bool, optional, default True
@@ -453,42 +454,53 @@ class SmurfNoiseMixin(SmurfBase):
         slow. band and channel inputs only dictate what plots are made. Data
         is taken on every band and channel that is on.
 
-        Parameters:
-        -----------
+        Args
+        ----
         bias_group : int or int array
             which bias group(s) to bias/read back.
-        band :int
-            The band to take noise vs bias data on
-        bias : float array
-            The array of bias values to step through. If None, uses values in
-            defined by bias_high, bias_low, and step_size.
-        bias_high : float
-            The bias voltage to start at
-        bias_low : float
-            The bias votlage to end at
-        step_size : float
+        band : int or None, optional, default None
+            The band to take noise vs bias data on.
+        channel : int or None, optional, default None
+            The channel to run analysis on. Note that data is taken on
+            all channels. This only affects what is analyzed. You can
+            always run the analyze script later.
+        bias_high : float, optional, default 1.5
+            The bias voltage to start at.
+        bias_low : float, optional, default 0.0
+            The bias votlage to end at.
+        step_size : float, optional, default 0.25
             The step in voltage.
-        overbias_voltage : float
-            voltage to set the overbias
-        meas_time : float
+        bias : float array or None, optional, default None
+            The array of bias values to step through. If None, uses
+            values in defined by bias_high, bias_low, and step_size.
+        high_current_mode : bool, optional, default True
+            ???
+        overbias_voltage : float, optional, default 9.0
+            Voltage to set the overbias in volts.
+        meas_time : float, optional, default 30.0
             The amount of time to take data at each TES bias.
-        analyze : bool
-            Whether to analyze the data
-        channel : int
-            The channel to run analysis on. Note that data is taken on all
-            channels. This only affects what is analyzed. You can always run the
-            analyze script later.
-        nperseg : int
+        analyze : bool, optional, default False
+            Whether to analyze the data.
+        nperseg : int, optional, default 2**13
             The number of samples per segment in the PSD.
-        detrend : str
-            Whether to detrend the data before taking the PSD. Default is to
-            remove a constant.
-        fs : float
+        detrend : str, optional, default 'constant'
+            Whether to detrend the data before taking the PSD. Default
+            is to remove a constant.
+        fs : float or None, optional, default None
             The sample frequency.
-        show_plot : bool
-            Whether to show analysis plots. Defaults to False.
-        only_overbias_once : bool
-            Whether or not to overbias right before each TES bias step
+        show_plot : bool, optional, default False
+            Whether to show analysis plots.
+        cool_wait : float, optional, default 30.0
+            ???
+        psd_ylim : tuple of float, optional, default (10.0,1000.0)
+            ???
+        make_timestream_plot : bool, optional, default False
+            ???
+        only_overbias_once : bool, optional, default False
+            Whether or not to overbias right before each TES bias
+            step.
+        overbias_wait : float, optional, default 1.0
+            ???
         """
         if bias is None:
             if step_size > 0:
@@ -510,10 +522,14 @@ class SmurfNoiseMixin(SmurfBase):
             step_size=1, amplitudes=None, meas_time=30., analyze=False,
             channel=None, nperseg=2**13, detrend='constant', fs=None,
             show_plot=False, make_timestream_plot=False, psd_ylim=None):
-        """
-        Args:
-        -----
-        band (int): The band to take noise vs bias data on
+        """???
+
+        ???
+
+        Args
+        ----
+        band : int
+            The band to take noise vs bias data on.
         """
         if amplitudes is None:
             if step_size > 0:
@@ -536,28 +552,41 @@ class SmurfNoiseMixin(SmurfBase):
         """ Generic script for analyzing noise vs some variable. This is called
         by noise_vs_bias and noise_vs_tone.
 
-        Parameters:
-        -----------
-        band int :
-            The 500 MHz band to analyze
-        var (dict) : A dictionary values to use in the analysis. The values
+        Args
+        ----
+        band : int
+            The 500 MHz band to analyze.
+        var : dict
+            A dictionary values to use in the analysis. The values
             depend on which variable is being varied.
-        var_range (float array) : The range of the test variable.
-        meas_time (int) : The measurement time in seconds.
-        analyze (bool) : Whether to analyze the data.
-        channel (int array) : The channels to analyze
-        nperseg (int) : The number of segments in the PSD.
-        detrend (str) : The type of filtering to use before using the PSD.
-            See the documentation of scipy.signal.welch.
-        fs (float) : The sample frequency
-        show_plot (bool) : Whether to show the plot.
-        psd_ylim (float array) : The ylim to use in the plot. If None, uses
-            the default plot value. Default is None.
-        make_timestream_plot (bool) : Whether to plot the timestream. Default
-            False.
-        only_overbias_once (bool) : Whether to only overbias at the beginning
-            of the measurement (as opposed to between every step). Default
-            False.
+        var_range : float array
+            The range of the test variable.
+
+        meas_time : float, optional, default 30.0
+            The measurement time in seconds.
+        analyze : bool, optional, default False
+            Whether to analyze the data.
+        channel : int array or None, optional, default None
+            The channels to analyze.
+        nperseg : int, optional, default 2**13
+            The number of segments in the PSD.
+        detrend : str, optional, default 'constant'
+            The type of filtering to use before using the PSD.  See
+            the documentation of scipy.signal.welch.
+        fs : float or None, optional, default None
+            The sample frequency.
+        show_plot : bool, optional, default False
+            Whether to show the plot.
+        psd_ylim : float array or None, optional, default None
+            The ylim to use in the plot. If None, uses the default
+            plot value.
+        make_timestream_plot : bool, optional, default False
+            Whether to plot the timestream.
+        only_overbias_once : bool, optional, default False
+            Whether to only overbias at the beginning of the
+            measurement (as opposed to between every step).
+        **kwargs : ???
+            ???
         """
         if fs is None:
             fs = self.get_sample_frequency()
@@ -796,8 +825,8 @@ class SmurfNoiseMixin(SmurfBase):
             unit_override=None):
         """ Analysis script associated with noise_vs_bias.
 
-        Parameters:
-        -----------
+        Args
+        ----
         bias :float array
             The bias in voltage. Can also pass an absolute path to a txt
             containing the bias points.
