@@ -1549,31 +1549,37 @@ class SmurfUtilMixin(SmurfBase):
         """
         Read the data directly off the DAC.
 
-        Args:
-        -----
-        band (int) : Which band.  Assumes dac number is band%4.
-        data_length (int): The number of samples
-
-        Opt Args:
-         ---------
-        hw_trigger (bool) : Whether to use the hardware trigger. If
-            False, uses an internal trigger.
-        do_plot (bool) : Whether or not to plot.  Default false.
-        save_data (bool) : Whether or not to save the data in a time
-            stamped file.  Default true.
-        timestamp (int) : ctime to timestamp the plot and data with
-            (if saved to file).  Default None, in which case it gets
-            the time stamp right before acquiring data.
-        show_plot (bool) : If do_plot is True, whether or not to show
-            the plot.  Default True.
-        save_plot (bool) : Whether or not to save plot to file.
-            Default True.
-        plot_ylimits ([float,float]) : y-axis limit (amplitude) to
-            restrict plotting over.
-
-        Ret:
+        Args
         ----
-        dat (int array) : The raw DAC data.
+        band : int
+            Which band.  Assumes dac number is band%4.
+
+        data_length : int, optional, default 2**19
+            The number of samples.
+        hw_trigger : bool, optional, default False
+            Whether to use the hardware trigger. If False, uses an
+            internal trigger.
+        do_plot : bool, optional, default False
+            Whether or not to plot.
+        save_data : bool, optional, default True
+            Whether or not to save the data in a time stamped file.
+        timestamp : int or None, optional, default None
+            ctime to timestamp the plot and data with (if saved to
+            file).  If None, in which case it gets the time stamp
+            right before acquiring data.
+        show_plot : bool, optional, default True
+            If do_plot is True, whether or not to show the plot.
+        save_plot : bool, optional, default True
+            Whether or not to save plot to file.
+        plot_ylimits : list of float or list of None, optional,
+        default [None,None]
+            2-element list of y-axis limits (amplitude) to restrict
+            plotting over.
+
+        Returns
+        -------
+        dat : int array
+            The raw DAC data.
         """
         if timestamp is None:
             timestamp = self.get_timestamp()
@@ -1644,13 +1650,21 @@ class SmurfUtilMixin(SmurfBase):
         """
         Sets up for either ADC or DAC data taking.
 
-        Args:
-        -----
-        converter (str) : Whether it is the ADC or DAC. choices are 'adc',
-            'dac', or 'debug'. The last one takes data on a single band.
-        converter_number (int) : The ADC or DAC number to take data on.
-        data_length (int) : The amount of data to take.
-        band (int): which band to get data on
+        Args
+        ----
+        converter : str
+            Whether it is the ADC or DAC. choices are 'adc', 'dac', or
+            'debug'. The last one takes data on a single band.
+        converter_number : int
+            The ADC or DAC number to take data on.
+        data_length : int
+            The amount of data to take.
+        band : int, optional, default 0
+            which band to get data on.
+        debug : bool, optional, default False
+            ???
+        write_log : bool, optional, default False
+            ???
         """
 
         bay=self.band_to_bay(band)
@@ -1685,9 +1699,16 @@ class SmurfUtilMixin(SmurfBase):
         """
         Sets the buffer size for reading and writing DAQs
 
-        Args:
-        -----
-        size (int) : The buffer size in number of points
+        Args
+        ----
+        bay : int
+            ???
+        size : int
+            The buffer size in number of points.
+        debug : bool, optional, default False
+            ???
+        write_log : bool, optional, default False
+            ???
         """
         # Change DAQ data buffer size
 
@@ -1708,15 +1729,22 @@ class SmurfUtilMixin(SmurfBase):
         """
         Set parameters on a single cryo channel
 
-        Args:
-        -----
-        band (int) : The band for the channel
-        channel (int) : which channel to configure
-        frequencyMHz (float) : the frequency offset from the subband center in MHz
-        amplitude (int) : amplitude scale to set for the channel (0..15)
-        feedback_enable (bool) : whether to enable feedback for the channel
-        eta_phase (float) : feedback eta phase, in degrees (-180..180)
-        eta_mag (float) : feedback eta magnitude
+        Args
+        ----
+        band : int
+            The band for the channel.
+        channel : int
+            Which channel to configure.
+        frequencyMHz : float
+            The frequency offset from the subband center in MHz.
+        amplitude : int
+            Amplitude scale to set for the channel (0..15).
+        feedback_enable : bool
+            Whether to enable feedback for the channel.
+        eta_phase : float
+            Feedback eta phase, in degrees (-180..180).
+        eta_mag : float
+            Feedback eta magnitude.
         """
 
         n_subbands = self.get_number_sub_bands(band)
@@ -1761,13 +1789,15 @@ class SmurfUtilMixin(SmurfBase):
         """
         Finds all detectors that are on.
 
-        Args:
-        -----
-        band (int) : The band to search.
+        Args
+        ----
+        band : int
+            The band to search.
 
-        Returns:
+        Returns
         --------
-        channels_on (int array) : The channels that are on
+        int array
+            The channels that are on.
         """
         amps = self.get_amplitude_scale_array(band)
         return np.ravel(np.where(amps != 0))
@@ -1779,9 +1809,12 @@ class SmurfUtilMixin(SmurfBase):
         this band.  Only toggles back to 1 if it was 1 when asked to
         toggle, otherwise leaves it zero.
 
-        Args:
-        -----
-        band (int) : The band whose feedback to toggle.
+        Args
+        ----
+        band : int
+           The band whose feedback to toggle.
+        ***kwargs : ???
+           ???
         """
 
         # current vals?
@@ -1827,9 +1860,12 @@ class SmurfUtilMixin(SmurfBase):
         """
         Turns off all tones in a band
 
-        Args:
-        -----
-        band (int) : The band that is to be turned off.
+        Args
+        ----
+        band : int
+            The band that is to be turned off.
+        **kwards : ???
+            ???
         """
         self.set_amplitude_scales(band, 0, **kwargs)
         self.set_feedback_enable_array(band, np.zeros(512, dtype=int), **kwargs)
@@ -1841,10 +1877,12 @@ class SmurfUtilMixin(SmurfBase):
         Turns off the tone for a single channel by setting the amplitude to
         zero and disabling feedback.
 
-        Args:
-        -----
-        band (int) : The band that is to be turned off.
-        channel (int) : The channel to turn off.
+        Args
+        ----
+        band : int
+            The band that is to be turned off.
+        channel : int
+            The channel to turn off.
         """
         self.log('Turning off band {} channel {}'.format(band, channel),
             self.LOG_USER)
@@ -1856,10 +1894,12 @@ class SmurfUtilMixin(SmurfBase):
         """
         Sets the feedback limit
 
-        Args:
-        -----
-        band (int) : The band that is to be turned off.
-        feedback_limit_khz (float) : The feedback rate in units of kHz.
+        Args
+        ----
+        band : int
+            The band that is to be turned off.
+        feedback_limit_khz : float
+            The feedback rate in units of kHz.
         """
         digitizer_freq_mhz = self.get_digitizer_frequency_mhz(band)
         n_subband = self.get_number_sub_bands(band)
@@ -1955,10 +1995,17 @@ class SmurfUtilMixin(SmurfBase):
         Queries the Jesd tx and rx and compares the
         data_valid and enable bits.
 
-        Opt Args:
-        ---------
-        silent_if_valid (bool) : If True, does not print
-            anything if things are working.
+        Args
+        ----
+        bay : int
+            Which bay (0 or 1).
+        silent_if_valid : bool, optional, default False
+            If True, does not print anything if things are working.
+
+        Returns
+        -------
+        (bool,bool)
+            (JesdTx is ok, JesdRx is ok)
         """
         # JESD Tx
         jesd_tx_enable = self.get_jesd_tx_enable(bay)
@@ -1985,8 +2032,10 @@ class SmurfUtilMixin(SmurfBase):
         """
         Loads FPGA status checks if JESD is ok.
 
-        Returns:
-        ret (dict) : A dictionary containing uptime, fpga_version, git_hash,
+        Returns
+        -------
+        ret : dict
+            A dictionary containing uptime, fpga_version, git_hash,
             build_stamp, jesd_tx_enable, and jesd_tx_valid
         """
         uptime = self.get_fpga_uptime()
@@ -2043,15 +2092,19 @@ class SmurfUtilMixin(SmurfBase):
         Look up subband number of a channel frequency, and its subband
         frequency offset.
 
-        Args:
-        -----
-        band (float): The band to place the resonator
-        freq (float): frequency in MHz
+        Args
+        ----
+        band : float
+            The band to place the resonator.
+        freq : float
+            Frequency in MHz.
 
-        Returns:
-        --------
-        subband_no (int): subband (0..128) of the frequency within the band
-        offset (float): offset from subband center
+        Returns
+        -------
+        subband_no : int
+            Subband (0..128) of the frequency within the band.
+        offset : float
+            Offset from subband center.
 
         """
         subbands, subband_centers = self.get_subband_centers(band,
@@ -2069,19 +2122,21 @@ class SmurfUtilMixin(SmurfBase):
         """
         Gives the frequency of the channel.
 
-        Args:
-        -----
-        band (int) : The band the channel is in
-
-        Opt Args:
-        ---------
-        channel (int) :  The channel number
-
-        Ret:
+        Args
         ----
-        freq (float): The channel frequency in MHz or an array
-            of values if channel is None. In the array format,
-            the freq list is aligned with self.which_on(band).
+        band : int
+            The band the channel is in.
+        channel : int or None, optional, default none
+            The channel number.
+        yml : str or None, optional, default None
+            ???
+
+        Returns
+        -------
+        freq : float
+            The channel frequency in MHz or an array of values if
+            channel is None. In the array format, the freq list is
+            aligned with self.which_on(band).
         """
         if band is None and channel is None:
             return None
