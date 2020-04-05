@@ -2168,18 +2168,20 @@ class SmurfUtilMixin(SmurfBase):
     def get_channel_order(self, band=None, channel_orderfile=None):
         """ produces order of channels from a user-supplied input file
 
-        Optional Args:
-        --------------
-        band (int): Which band.  Default is None.  If none specified,
-           assumes all bands have the same number of channels, and
-           pulls the number of channels from the first band in the
-           list of bands specified in the experiment.cfg.
-        channelorderfile (str): path to a file that contains one
-           channel per line
+        Args
+        ----
+        band : int or None, optional, default None
+            Which band.  If None, assumes all bands have the same
+            number of channels, and pulls the number of channels from
+            the first band in the list of bands specified in the
+            experiment.cfg.
+        channelorderfile : str or None, optional, default None
+            Path to a file that contains one channel per line.
 
-        Returns :
-        --------------
-        channel_order (int array) : An array of channel orders
+        Returns
+        -------
+        channel_order : int array
+            An array of channel orders.
         """
 
         if band is None:
@@ -2210,13 +2212,15 @@ class SmurfUtilMixin(SmurfBase):
         tracking_setup only returns data for the processed
         channels. Therefore every channel is not returned.
 
-        Optional Args:
-        --------------
-        channelorderfile (str): path to a file that contains one channel per line
-
-        Ret:
+        Args
         ----
-        processed_channels (int array)
+        channelorderfile : str or None, optional, default None
+            Path to a file that contains one channel per line.
+
+        Returns
+        -------
+        processed_channels : int array
+            ???
         """
         n_proc = self.get_number_processed_channels()
         n_chan = self.get_number_channels()
@@ -2226,20 +2230,21 @@ class SmurfUtilMixin(SmurfBase):
 
     def get_subband_from_channel(self, band, channel, channelorderfile=None,
             yml=None):
-        """ returns subband number given a channel number
-        Args:
-        -----
-        root (str): epics root (eg mitch_epics)
-        band (int): which band we're working in
-        channel (int): ranges 0..(n_channels-1), cryo channel number
-
-        Opt Args:
-        ---------
-        channelorderfile(str): path to file containing order of channels
-
-        Ret:
+        """Returns subband number given a channel number
+        
+        Args
         ----
-        subband (int) : The subband the channel lives in
+        band : int
+            Which band we're working in.
+        channel : int
+            Ranges 0..(n_channels-1), cryo channel number.
+        channelorderfile : str or None, optional, default None
+            Path to file containing order of channels.
+
+        Returns
+        -------
+        subband : int
+            The subband the channel lives in.
         """
 
         n_subbands = self.get_number_sub_bands(band, yml=yml)
@@ -2263,11 +2268,24 @@ class SmurfUtilMixin(SmurfBase):
     def get_subband_centers(self, band, as_offset=True, hardcode=False,
             yml=None):
         """ returns frequency in MHz of subband centers
-        Args:
-        -----
-        band (int): which band
-        as_offset (bool): whether to return as offset from band center
-            (default is no, which returns absolute values)
+
+        Args
+        ----
+        band : int
+            Which band.
+        as_offset : bool, optional, default True
+            Whether to return as offset from band center.
+        hardcode : bool, optional, default False
+            ???
+        yml : str or None, optional, default None
+            ???
+
+        Returns
+        -------
+        subbands : ???
+            ???
+        subband_centers : ???
+            ???
         """
 
         if hardcode:
@@ -2293,18 +2311,20 @@ class SmurfUtilMixin(SmurfBase):
     def get_channels_in_subband(self, band, subband, channelorderfile=None):
         """
         Returns channels in subband
-        Args:
-        -----
-        band (int): which band
-        subband (int): subband number, ranges from 0..127
 
-        Opt Args:
-        ---------
-        channelorderfile (str): path to file specifying channel order
+        Args
+        ----
+        band : int
+            Which band.
+        subband : int
+            Subband number, ranges from 0..127.
+        channelorderfile : str or None, optional, default None
+            Path to file specifying channel order.
 
-        Returns:
-        --------
-        subband_chans (int array): The channels in the subband
+        Returns
+        -------
+        subband_chans : int array
+            The channels in the subband.
         """
 
         n_subbands = self.get_number_sub_bands(band)
@@ -2327,14 +2347,17 @@ class SmurfUtilMixin(SmurfBase):
         """
         Changes IQ to phase
 
-        Args:
-        -----
-        i (float array)
-        q (float arry)
+        Args
+        ----
+        i : float array
+            ???
+        q : float arry
+            ???
 
-        Returns:
-        --------
-        phase (float array) :
+        Returns
+        -------
+        phase : float array
+            ???
         """
         return np.unwrap(np.arctan2(q, i))
 
@@ -2343,13 +2366,15 @@ class SmurfUtilMixin(SmurfBase):
         """
         Converts hex string, which is an array of characters, into an int.
 
-        Args:
-        -----
-        s (character array) : An array of chars to be turned into a single int.
+        Args
+        ----
+        s : character array
+            An array of chars to be turned into a single int.
 
-        Returns:
-        --------
-        i (int64) : The 64 bit int
+        Returns
+        -------
+        i : numpy.int
+           The 64 bit int.
         """
         return np.int(''.join([chr(x) for x in s]),0)
 
@@ -2358,13 +2383,15 @@ class SmurfUtilMixin(SmurfBase):
         """
         Converts an int into a string of characters.
 
-        Args:
-        -----
-        i (int64) : A 64 bit int to convert into hex.
+        Args
+        ----
+        i : int
+            A 64 bit int to convert into hex.
 
-        Returns:
-        --------
-        s (char array) : A character array representing the int
+        Returns
+        -------
+        s : char array
+            A character array representing the int.
         """
         # Must be array length 300
         s = np.zeros(300, dtype=int)
@@ -2384,17 +2411,18 @@ class SmurfUtilMixin(SmurfBase):
         group is set to +volt/2, while the negative DAC in the bias
         group is set to -volt/2.
 
-        Args:
-        -----
-        bias_group (int): The bias group
-        volt (float): The TES bias to command in volts.
-
-        Opt args:
-        --------
-        do_enable (bool) : Sets the enable bit. Only must be done
-                           once.  Default is True.
-        flip_polarity (bool) : Sets the voltage to volt*-1.  Default
-                               is False.
+        Args
+        ----
+        bias_group : int
+            The bias group.
+        volt : float
+            The TES bias to command in volts.
+        do_enable : bool, optional, default True
+            Sets the enable bit. Only must be done once.
+        flip_polarity : bool, optional, default False
+            Sets the voltage to volt*-1.
+        **kwargs : ???
+           ???
         """
 
         # Make sure the requested bias group is in the list of defined
@@ -2437,18 +2465,15 @@ class SmurfUtilMixin(SmurfBase):
         voltage of all DACs not assigned to a TES bias group are
         maintained.
 
-        Args:
-        -----
-        bias_group_volt_array (float array): the TES bias to command
-                                             in voltage for each
-                                             bipolar TES bias
-                                             group. Should be
-                                             (n_bias_groups,)
-
-        Opt args:
-        -----
-        do_enable (bool): Set the enable bit for both DACs for every
-                          TES bias group. Defaults to True.
+        Args
+        ----
+        bias_group_volt_array : float array
+            The TES bias to command in voltage for each bipolar TES
+            bias group. Should be (n_bias_groups,).
+        do_enable : bool, optional, default True
+            Set the enable bit for both DACs for every TES bias group.
+        **kwargs : ???
+            ???
         """
 
         n_bias_groups = self._n_bias_groups
@@ -2502,24 +2527,24 @@ class SmurfUtilMixin(SmurfBase):
         Returns the bias voltage in units of Volts for the requested
         TES bias group.
 
-        Args:
-        -----
-        bias_group (int) : The number of the bias group.  Asserts if
-                           bias_group requested is not defined in the
-                           pysmurf configuration file.
+        Args
+        ----
+        bias_group : int
+            The number of the bias group.  Asserts if bias_group
+            requested is not defined in the pysmurf configuration
+            file.
+        return_raw : bool, optional, default False
+            If True, returns pos and neg terminal values.
+        **kwargs : ???
+            ???
 
-        Opt Args:
-        ---------
-        return_raw (bool) : Default is False. If True, returns pos and
-                            neg terminal values.
-
-        Returns:
-        --------
-        val (float) : The bipolar output TES bias voltage for the
-                      requested bias group.  If return_raw=True, then
-                      returns a two element float array containing the
-                      output voltages of the two DACs assigned to the
-                      requested TES bias group.
+        Returns
+        -------
+        val : float
+            The bipolar output TES bias voltage for the requested bias
+            group.  If return_raw=True, then returns a two element
+            float array containing the output voltages of the two DACs
+            assigned to the requested TES bias group.
         """
         # Make sure the requested bias group is in the list of defined
         # bias groups.
@@ -2550,10 +2575,13 @@ class SmurfUtilMixin(SmurfBase):
         Returns array of bias voltages per bias group in units of volts.
         Currently hard coded to return the first 8 as (8,) array. I'm sorry -CY
 
-        Opt Args:
-        -----
-        return_raw (bool): Default is False. If True, returns +/- terminal
-            vals as separate arrays (pos, then negative)
+        Args
+        ----
+        return_raw : bool, optional, default False
+            If True, returns +/- terminal vals as separate arrays
+            (pos, then negative)
+        **kwargs : ???
+            ???
         """
 
         bias_order = self.bias_group_to_pair[:,0]
@@ -2592,10 +2620,12 @@ class SmurfUtilMixin(SmurfBase):
         resulting amplifier biases at the end with a short wait in
         case there's latency between setting and reading.
 
-        Opt Args:
-        ---------
-        bias_hemt (float): The HEMT bias voltage in units of volts
-        bias_50k (float): The 50K bias voltage in units of volts
+        Args
+        ----
+        bias_hemt : float or None, optional default None
+            The HEMT bias voltage in units of volts.
+        bias_50k : float or None, optional, default None
+            The 50K bias voltage in units of volts.
         """
 
         ########################################################################
@@ -2666,14 +2696,16 @@ class SmurfUtilMixin(SmurfBase):
         """
         Queries the amplifier biases
 
-        Opt Args:
-        ---------
-        write_log (bool) : Whether to write to the log. Default is True.
-
-        Ret:
+        Args
         ----
-        amplifier_bias (dict) : Returns a dict with the hemt and 50K gate
-            voltage and drain current.
+        write_log : bool, optional, default True
+            Whether to write to the log.
+
+        Returns
+        -------
+        amplifier_bias : dict
+            Returns a dict with the hemt and 50K gate voltage and
+            drain current.
         """
         # 4K
         hemt_Id_mA=self.get_hemt_drain_current()
@@ -2722,9 +2754,10 @@ class SmurfUtilMixin(SmurfBase):
         value for this offset (see hemt_Id_offset in the amplifier
         block).
 
-        Returns:
-        --------
-        cur (float): 4K HEMT amplifier drain current in mA.
+        Returns
+        -------
+        cur : float
+            4K HEMT amplifier drain current in mA.
         """
         # assumes circuit topology on rev C2 cryostat card
         # (PC-248-103-02-C02, sheet 3)
@@ -3956,8 +3989,8 @@ class SmurfUtilMixin(SmurfBase):
             continuous=True, **kwargs):
         """ Play a bipolar waveform on the bias group.
 
-        Parameters:
-        ------------
+        Args
+        ----
         bias_group : int
             The bias group
         waveform : float array
@@ -3967,6 +4000,8 @@ class SmurfUtilMixin(SmurfBase):
             for TES bias).
         continuous : bool, optional, default True
             Whether to play the TES waveform continuously.
+        **kwargs : ???
+            ???
         """
         bias_order = self.bias_group_to_pair[:,0]
         dac_positives = self.bias_group_to_pair[:,1]
