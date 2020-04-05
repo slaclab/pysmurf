@@ -15,7 +15,7 @@
 # -----------------------------------------------------------------------------
 """Defines the mixin class :class:`SmurfConfigPropertiesMixin`."""
 
-class SmurfConfigPropertiesMixin(object):
+class SmurfConfigPropertiesMixin:
     """Mixin for loading pysmurf configuration parameters.
 
     Defines properties used by pysmurf whose values are specified in
@@ -81,25 +81,25 @@ class SmurfConfigPropertiesMixin(object):
     def __init__(self, *args, **kwargs):
         """SmurfConfigPropertiesMixin constructor."""
         # Constants
-        self._pA_per_phi0=None
+        self._pA_per_phi0 = None
 
         # Amplifiers
         ## 4K HEMT
-        self._hemt_Vg=None
-        self._hemt_bit_to_V=None
-        self._hemt_Vd_series_resistor=None
-        self._hemt_Id_offset=None
-        self._hemt_gate_min_voltage=None
-        self._hemt_gate_max_voltage=None
+        self._hemt_Vg = None
+        self._hemt_bit_to_V = None
+        self._hemt_Vd_series_resistor = None
+        self._hemt_Id_offset = None
+        self._hemt_gate_min_voltage = None
+        self._hemt_gate_max_voltage = None
 
         ## 50K LNA
-        self._fiftyk_Vg=None
-        self._fiftyk_dac_num=None
-        self._fiftyk_bit_to_V=None
-        self._fiftyk_amp_Vd_series_resistor=None
-        self._fiftyk_Id_offset=None
+        self._fiftyk_Vg = None
+        self._fiftyk_dac_num = None
+        self._fiftyk_bit_to_V = None
+        self._fiftyk_amp_Vd_series_resistor = None
+        self._fiftyk_Id_offset = None
 
-    def copy_config_to_properties(self,config):
+    def copy_config_to_properties(self, config):
         """Copy values from SmurfConfig instance to properties.
 
         MORE EXPLANATION HERE. USES PROPERTY SETTERS IN CASE WE EVER
@@ -124,29 +124,29 @@ class SmurfConfigPropertiesMixin(object):
 
         ## 4K HEMT
         if 'hemt_Vg' in keys:
-            self.hemt_Vg=amp_cfg['hemt_Vg']
+            self.hemt_Vg = amp_cfg['hemt_Vg']
         if 'bit_to_V_hemt' in keys:
-            self.hemt_bit_to_V=amp_cfg['bit_to_V_hemt']
+            self.hemt_bit_to_V = amp_cfg['bit_to_V_hemt']
         if 'hemt_Vd_series_resistor' in keys:
-            self.hemt_Vd_series_resistor=amp_cfg['hemt_Vd_series_resistor']
+            self.hemt_Vd_series_resistor = amp_cfg['hemt_Vd_series_resistor']
         if 'hemt_Id_offset' in keys:
-            self.hemt_Id_offset=amp_cfg['hemt_Id_offset']
+            self.hemt_Id_offset = amp_cfg['hemt_Id_offset']
         if 'hemt_gate_min_voltage' in keys:
-            self.hemt_gate_min_voltage=amp_cfg['hemt_gate_min_voltage']
+            self.hemt_gate_min_voltage = amp_cfg['hemt_gate_min_voltage']
         if 'hemt_gate_max_voltage' in keys:
-            self.hemt_gate_max_voltage=amp_cfg['hemt_gate_max_voltage']
+            self.hemt_gate_max_voltage = amp_cfg['hemt_gate_max_voltage']
 
         ## 50K HEMT
         if 'LNA_Vg' in keys:
-            self.fiftyk_Vg=amp_cfg['LNA_Vg']
+            self.fiftyk_Vg = amp_cfg['LNA_Vg']
         if 'dac_num_50k' in keys:
-            self.fiftyk_dac_num=amp_cfg['dac_num_50k']
+            self.fiftyk_dac_num = amp_cfg['dac_num_50k']
         if 'bit_to_V_50k' in keys:
-            self.fiftyk_bit_to_V=amp_cfg['bit_to_V_50k']
+            self.fiftyk_bit_to_V = amp_cfg['bit_to_V_50k']
         if '50K_amp_Vd_series_resistor' in keys:
-            self.fiftyk_amp_Vd_series_resistor=amp_cfg['50K_amp_Vd_series_resistor']
+            self.fiftyk_amp_Vd_series_resistor = amp_cfg['50K_amp_Vd_series_resistor']
         if '50k_Id_offset' in keys:
-            self.fiftyk_Id_offset=amp_cfg['50k_Id_offset']
+            self.fiftyk_Id_offset = amp_cfg['50k_Id_offset']
 
     ###########################################################################
     ## Start pA_per_phi0 property definition
@@ -176,8 +176,8 @@ class SmurfConfigPropertiesMixin(object):
 
     # Setter
     @pA_per_phi0.setter
-    def pA_per_phi0(self,value):
-        self._pA_per_phi0=value
+    def pA_per_phi0(self, value):
+        self._pA_per_phi0 = value
 
     ## End pA_per_phi0 property definition
     ###########################################################################
@@ -202,8 +202,8 @@ class SmurfConfigPropertiesMixin(object):
 
     # Setter
     @hemt_Vg.setter
-    def hemt_Vg(self,value):
-        self._hemt_Vg=value
+    def hemt_Vg(self, value):
+        self._hemt_Vg = value
 
     ## End hemt_Vg property definition
     ###########################################################################
@@ -233,8 +233,8 @@ class SmurfConfigPropertiesMixin(object):
 
     # Setter
     @hemt_bit_to_V.setter
-    def hemt_bit_to_V(self,value):
-        self._hemt_bit_to_V=value
+    def hemt_bit_to_V(self, value):
+        self._hemt_bit_to_V = value
 
     ## End hemt_bit_to_V property definition
     ###########################################################################
@@ -268,8 +268,8 @@ class SmurfConfigPropertiesMixin(object):
 
     # Setter
     @hemt_Vd_series_resistor.setter
-    def hemt_Vd_series_resistor(self,value):
-        self._hemt_Vd_series_resistor=value
+    def hemt_Vd_series_resistor(self, value):
+        self._hemt_Vd_series_resistor = value
 
     ## End hemt_Vd_series_resistor property definition
     ###########################################################################
@@ -303,8 +303,8 @@ class SmurfConfigPropertiesMixin(object):
 
     # Setter
     @hemt_Id_offset.setter
-    def hemt_Id_offset(self,value):
-        self._hemt_Id_offset=value
+    def hemt_Id_offset(self, value):
+        self._hemt_Id_offset = value
 
     ## End hemt_Id_offset property definition
     ###########################################################################
@@ -334,8 +334,8 @@ class SmurfConfigPropertiesMixin(object):
 
     # Setter
     @hemt_gate_min_voltage.setter
-    def hemt_gate_min_voltage(self,value):
-        self._hemt_gate_min_voltage=value
+    def hemt_gate_min_voltage(self, value):
+        self._hemt_gate_min_voltage = value
 
     ## End hemt_gate_min_voltage property definition
     ###########################################################################
@@ -365,8 +365,8 @@ class SmurfConfigPropertiesMixin(object):
 
     # Setter
     @hemt_gate_max_voltage.setter
-    def hemt_gate_max_voltage(self,value):
-        self._hemt_gate_max_voltage=value
+    def hemt_gate_max_voltage(self, value):
+        self._hemt_gate_max_voltage = value
 
     ## End hemt_gate_max_voltage property definition
     ###########################################################################
@@ -391,8 +391,8 @@ class SmurfConfigPropertiesMixin(object):
 
     # Setter
     @fiftyk_Vg.setter
-    def fiftyk_Vg(self,value):
-        self._fiftyk_Vg=value
+    def fiftyk_Vg(self, value):
+        self._fiftyk_Vg = value
 
     ## End fiftyk_Vg property definition
     ###########################################################################
@@ -427,8 +427,8 @@ class SmurfConfigPropertiesMixin(object):
 
     # Setter
     @fiftyk_dac_num.setter
-    def fiftyk_dac_num(self,value):
-        self._fiftyk_dac_num=value
+    def fiftyk_dac_num(self, value):
+        self._fiftyk_dac_num = value
 
     ## End fiftyk_dac_num property definition
     ###########################################################################
@@ -458,8 +458,8 @@ class SmurfConfigPropertiesMixin(object):
 
     # Setter
     @fiftyk_bit_to_V.setter
-    def fiftyk_bit_to_V(self,value):
-        self._fiftyk_bit_to_V=value
+    def fiftyk_bit_to_V(self, value):
+        self._fiftyk_bit_to_V = value
 
     ## End fiftyk_bit_to_V property definition
     ###########################################################################
@@ -493,8 +493,8 @@ class SmurfConfigPropertiesMixin(object):
 
     # Setter
     @fiftyk_amp_Vd_series_resistor.setter
-    def fiftyk_amp_Vd_series_resistor(self,value):
-        self._fiftyk_amp_Vd_series_resistor=value
+    def fiftyk_amp_Vd_series_resistor(self, value):
+        self._fiftyk_amp_Vd_series_resistor = value
 
     ## End fiftyk_amp_Vd_series_resistor property definition
     ###########################################################################
@@ -528,8 +528,8 @@ class SmurfConfigPropertiesMixin(object):
 
     # Setter
     @fiftyk_Id_offset.setter
-    def fiftyk_Id_offset(self,value):
-        self._fiftyk_Id_offset=value
+    def fiftyk_Id_offset(self, value):
+        self._fiftyk_Id_offset = value
 
     ## End fiftyk_Id_offset property definition
     ###########################################################################
