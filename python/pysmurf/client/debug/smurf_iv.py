@@ -1036,20 +1036,23 @@ class SmurfIVMixin(SmurfBase):
         Estimate optical efficiency between two sets of load curves. Returns
           per-channel plots and a histogram.
 
-        Args:
-        -----
-        iv_fn_hot (str): timestamp/filename of load curve taken at higher temp
-        iv_fn_cold (str): timestamp/filename of load curve taken at cooler temp
-
-        Opt Args:
-        ---------
-        t_hot (float): temperature in K of hotter load curve. Defaults to 293.
-        t_cold (float): temperature in K of cooler load curve. Defaults to 77.
-        channels (int array): which channels to analyze. Defaults to the ones
-          populated in the colder load curve
-        dPdT_lim(len 2 tuple): min, max allowed values for dPdT. If calculated
-          val is outside this range, channel is excluded from histogram and
-          added to outliers. Defaults to min=0pW/K, max=0.5pW/K.
+        Args
+        ----
+        iv_fn_hot : str
+            Timestamp/filename of load curve taken at higher temp.
+        iv_fn_cold : str
+            Timestamp/filename of load curve taken at cooler temp.
+        t_hot : float, optional, default 293.0
+            Temperature in K of hotter load curve.
+        t_cold : float, optional, default 77.0
+            Temperature in K of cooler load curve.
+        channels : int array or None, optional, default None
+            Which channels to analyze. If None, defaults to the ones
+            populated in the colder load curve.
+        dPdT_lim : len 2 tuple, optional, default (0.0, 0.5)
+            Min, max allowed values for dPdT. If calculated val is
+            outside this range, channel is excluded from histogram and
+            added to outliers. Units are pW/K.
         """
         ivs_hot = np.load(iv_fn_hot).item()
         ivs_cold = np.load(iv_fn_cold).item()
@@ -1157,28 +1160,33 @@ class SmurfIVMixin(SmurfBase):
         identify_bias_group first (or manually input which channels are in
         which bias group), otherwise this doesn't know how to group things.
 
-        Args:
-        -----
-        iv_file (str) : Full path to an IV file.
-
-        Opt Args:
-        ---------
-        target_r_frac (float) : The target fractional resistance.
-            Default 0.5
-        normal_resistance (bool) : The expected normal resistance.
-            This is used for eliminating bad (non-transitioning)
-            TESs. This is only used if not None. Default is None.
-        normal_resisttance_frac (float) : The fractional deviation
-            from the input normal_resistance that the normal
-            resistance can deviate to be considered a good TES.
-        make_plot (bool) : Whether to make the plot. Default True.
-        show_plot (bool) : Whether to show the plot. Default False.
-        save_plot (bool) : Whether to save the plot. Default True.
-
-        Ret:
+        Args
         ----
-        target (float array) : An array of size n_bias_groups with the target
-            bias voltage for each group.
+        iv_file : str
+            Full path to an IV file.
+
+        target_r_frac : float, optional, default 0.5
+            The target fractional resistance.
+        normal_resistance : float or None, optional, default None
+            The expected normal resistance.  This is used for
+            eliminating bad (non-transitioning) TESs. This is only
+            used if not None.
+        normal_resistance_frac : float, optional, default 0.25
+            The fractional deviation from the input normal_resistance
+            that the normal resistance can deviate to be considered a
+            good TES.
+        show_plot : bool, optional, default False
+            Whether to show the plot.
+        save_plot : bool, optional, default True
+            Whether to save the plot.
+        make_plot : bool, optional, default True
+            Whether to make the plot.
+
+        Returns
+        -------
+        target : float array
+            An array of size n_bias_groups with the target bias
+            voltage for each group.
         """
         # Load IV summary file and raw dat file
         iv = np.load(iv_file, allow_pickle=True).item()

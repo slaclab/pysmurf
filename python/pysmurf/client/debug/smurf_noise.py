@@ -47,41 +47,53 @@ class SmurfNoiseMixin(SmurfBase):
 
         Args:
         -----
-        meas_time (float): The amount of time to observe in seconds.
+        meas_time : float
+            The amount of time to observe in seconds.
 
-        Opt Args:
-        ---------
-        channel (int array): The channels to plot. Note that this script always
-            takes data on all the channels. This only sets the ones to plot.
-            If None, plots all channels that are on. Default is None.
-        nperseg (int): The number of elements per segment in the PSD. Default
-            2**12.
-        detrend (str): Extends the scipy.signal.welch detrend. Default is
-            'constant'
-        fs (float): Sample frequency. If None, reads it in. Default is None.
-        low_freq (float array):
-        high_freq (float array):
-        make_channel_plot (bool): Whether to make the individual channel
-            plots. Default is True.
-        make_summary_plot (bool): Whether to make the summary plots. Default
-            is True.
-        save_data (bool): Whether to save the band averaged data as a text file.
-            Default is False.
-        plotname_append (string): Appended to the default plot filename. Default ''.
-        show_plot (bool): Show the plot on the screen. Default False.
-        datefile (str): if data has already been taken, can point to a file to
+        channel : int array or None, optional, default None
+            The channels to plot. Note that this script always takes
+            data on all the channels. This only sets the ones to plot.
+            If None, plots all channels that are on.
+        nperseg : int, optional, default 2**12
+            The number of elements per segment in the PSD.
+        detrend : str, optional, default 'constant'
+            Extends the scipy.signal.welch detrend.
+        fs : float or None, optional, default None
+            Sample frequency. If None, reads it in.
+        low_freq : numpy.ndarray, optional, default numpy.array([0.1,1.0])
+        high_freq : numpy.ndarray, optional, default numpy.array([1.0,10.0])
+        make_channel_plot : bool, optional, default True
+            Whether to make the individual channel plots.
+        make_summary_plot : bool, optional, default True
+            Whether to make the summary plots.
+        save_data : bool, optional, default False
+            Whether to save the band averaged data as a text file.
+        show_plot : bool, optional, default False
+            Show the plot on the screen.
+        grid_on : bool, optional, default False
+            ???
+        datafile : str or None, optional, default None
+            If data has already been taken, can point to a file to
             bypass data taking and just analyze.
-        downsample_factor (int): The datarate is the flux ramp rate divided by
-            the downsample_factor.
-        write_log (bool) : Whether to write to the log file (or the screen
-            if the logfile is not defined). Default is True.
-        reset_unwrapper (bool) : Whether to reset the unwrapper before
-            taking data.
-        reset_filter (bool) : Whether to reset the filter before taking data.
+        downsample_factor : int or None, optional, default None
+            The datarate is the flux ramp rate divided by the
+            downsample_factor.
+        write_log : bool, optional, default True
+            Whether to write to the log file (or the screen if the
+            logfile is not defined).
+        reset_filter : bool, optional, default True
+            Whether to reset the filter before taking data.
+        reset_unwrapper : bool, optional, default True
+            Whether to reset the unwrapper before taking data.
+        return_noise_params : bool, optional, default False
+            ???
+        plotname_append : str, optional, default ''
+            Appended to the default plot filename.
 
-        Ret:
-        ----
-        datafile (str) : The full path to the raw data.
+        Returns
+        -------
+        datafile : str
+             The full path to the raw data.
         """
         if datafile is None:
             datafile = self.take_stream_data(meas_time,
@@ -311,15 +323,15 @@ class SmurfNoiseMixin(SmurfBase):
         """
         Turns off channels with noise level above a cutoff.
 
-        Args:
-        -----
-        band (int): The band to search
-        noise (float array): The noise floors. Presumably calculated
-            using take_noise_psd.
-
-        Optional Args:
-        --------------
-        cutoff (float) : The value to cut at in the same units as noise.
+        Args
+        ----
+        band : int
+            The band to search
+        noise : float array
+            The noise floors. Presumably calculated using
+            take_noise_psd.
+        cutoff : float, optional, default 150.0
+            The value to cut at in the same units as noise.
         """
         n_channel = self.get_number_channels(band)
         for ch in np.arange(n_channel):
@@ -333,40 +345,41 @@ class SmurfNoiseMixin(SmurfBase):
                       n_phi0=4, make_timestream_plot=True,
                       new_master_assignment=True, from_old_tune=False,
                       old_tune=None):
-        """ Takes timestream noise at various tone powers. Operates on one band
-        at a time because it needs to retune between taking another timestream
-        at a different tone power.
+        """Takes timestream noise at various tone powers. 
 
-        Parameters:
-        -----------
+        Operates on one band at a time because it needs to retune
+        between taking another timestream at a different tone power.
+
+        Args
+        ----
         band : int
             The 500 MHz band to run
-        tones : int array
-            The tone amplitudes. If None, uses np.arange(10,15). Default is None.
-        meas_time : int
-            The measurement time per tone power in seconds. Default 30.
-        analyze : bool
+        tones : int array or None, optional, default None
+            The tone amplitudes. If None, uses np.arange(10,15).
+        meas_time : float, optional, default 30.0
+            The measurement time per tone power in seconds.
+        analyze : bool, optional, default False
             Whether to analyze the data.
-        bias_group : int array
-            The bias groups to analyze
-        lms_freq_hz : float
-            The tracking frequency in Hz. If None, measures the tracking
-            frequency. Default is None.
-        fraction_full_scale : float
+        bias_group : int array or None, optional, default None
+            The bias groups to analyze.
+        lms_freq_hz : float or None, optional, default None
+            The tracking frequency in Hz. If None, measures the
+            tracking frequency.
+        fraction_full_scale : float, optional, default 0.72
             The amplitude of the flux ramp.
-        meas_flux_ramp_amp :bool
+        meas_flux_ramp_amp : bool or None, optional, default False
             Whether to measure the flux ramp amplitude.
-        n_phi0 : float
-            The number of phi0 to use if measuring flux ramp. Default 4.
-        make_timestream_plot : bool
-            Whether to make the timestream plot. Default True.
-        new_master_assignment : bool
-            Whether to make a new master channel assignemnt. This will only
-            make one for the first tone. It needs to keep the channel
-            assignment the same after that for the analysis.
-        from_old_tune : bool
-            Whether to tune from an old tune
-        old_tune : str
+        n_phi0 : float, optional, default 4.0
+            The number of phi0 to use if measuring flux ramp.
+        make_timestream_plot : bool, optional, default True
+            Whether to make the timestream plot.
+        new_master_assignment : bool, optional, default True
+            Whether to make a new master channel assignemnt. This will
+            only make one for the first tone. It needs to keep the
+            channel assignment the same after that for the analysis.
+        from_old_tune : bool, optional, default False
+            Whether to tune from an old tune.
+        old_tune : str or None, optional, default None
             The tune file if using old tune.
         """
         timestamp = self.get_timestamp()
@@ -650,13 +663,15 @@ class SmurfNoiseMixin(SmurfBase):
         For, e.g., noise_vs_bias, the list of datafiles is recorded in a txt file.
         This function simply extracts those filenames and returns them as a list.
 
-        Args:
-        -----
-        fn_datafiles (str): full path to txt containing names of data files
-
-        Ret:
+        Args
         ----
-        datafiles (list): strings of data-file names.
+        fn_datafiles : str
+            Full path to txt containing names of data files.
+
+        Returns
+        -------
+        datafiles : list of str
+            Strings of data-file names.
         '''
         datafiles = []
         f_datafiles = open(fn_datafiles,'r')
@@ -667,17 +682,19 @@ class SmurfNoiseMixin(SmurfBase):
 
     def get_biases_from_file(self, fn_biases, dtype=float):
         '''
-        For, e.g., noise_vs_bias, the list of commanded bias voltages is
-        recorded in a txt file. This function simply extracts those values and
-        returns them as a list.
+        For, e.g., noise_vs_bias, the list of commanded bias voltages
+        is recorded in a txt file. This function simply extracts those
+        values and returns them as a list.
 
-        Args:
-        -----
-        fn_biases (str): full path to txt containing list of bias voltages
-
-        Ret:
+        Args
         ----
-        biases (list): floats of commanded bias voltages
+        fn_biases : str
+            Full path to txt containing list of bias voltages.
+
+        Returns
+        -------
+        biases : list of float
+            Floats of commanded bias voltages.
         '''
         biases = []
         f_biases = open(fn_biases,'r')
@@ -696,20 +713,21 @@ class SmurfNoiseMixin(SmurfBase):
         Takes IV data and extracts responsivities as a function of commanded
         bias voltage.
 
-        Args:
-        -----
-        iv_data_filename (str): filename of output of IV analysis
-        band (int): band from which to extract responsivities
-
-        Opt Args:
-        ---------
-        high_current_mode (bool): whether or not to return the IV bias
-            voltages so that they look like the IV was taken in high-current
-            mode.
-
-        Ret:
+        Args
         ----
-        iv_band_data (dict): dictionary with IV information for band
+        iv_data_filename : str
+            Filename of output of IV analysis.
+        band : int
+            Band from which to extract responsivities.
+
+        high_current_mode : bool, optional, default False
+            Whether or not to return the IV bias voltages so that they
+            look like the IV was taken in high-current mode.
+
+        Returns
+        -------
+        iv_band_data : dict
+            Dictionary with IV information for band.
         '''
         self.log(f'Extracting IV data from {iv_data_filename}')
         iv_data = np.load(iv_data_filename, allow_pickle=True).item()
@@ -728,15 +746,19 @@ class SmurfNoiseMixin(SmurfBase):
         """
         Convenience function for getting the responsivitiy from the IV data.
 
-        Args:
-        -----
-        iv_band_data (dict) : The IV dictionary
-        ch (int) : The channel to extract the data from.
-
-        Ret:
+        Args
         ----
-        v_bias (float) : The bias voltage
-        si (float) : The responsivity
+        iv_band_data : dict
+            The IV dictionary.
+        ch : int
+            The channel to extract the data from.
+
+        Returns
+        -------
+        v_bias : float
+            The bias voltage.
+        si : float
+            The responsivity.
         """
         return iv_band_data[ch]['v_bias'], iv_band_data[ch]['si']
 
@@ -744,19 +766,20 @@ class SmurfNoiseMixin(SmurfBase):
     def NEI_to_NEP(self, iv_band_data, ch, v_bias):
         '''
         Takes NEI in pA/rtHz and converts to NEP in aW/rtHz.
-        Parameters
-        ----------
-        si_dict (dict): dictionary indexed by channel number; each entry is
-                        an array of responsivities in uV^-1.
-        iv_bias_array (array): array of commanded bias voltages from the IV
-                               curve from which si was estimated. The length
-                               of iv_bias_array is one greater than that of
-                               each element of si_dict.
-        v_bias (float): commanded bias voltage at which to estimate NEP
-        Pxx (array): NEI in pA/rtHz
+
+        Args
+        ----
+        iv_band_data : dict
+            The IV dictionary.
+        ch : int
+            The channel to extract the data from.
+        v_bias : float
+            Commanded bias voltage at which to estimate NEP.
+
         Returns
         -------
-        1/si (float): noise-equivalent power in aW/rtHz
+        float
+            Noise-equivalent power in aW/rtHz.
         '''
         v_bias_array,si_array = self.get_si_data(iv_band_data, ch)
         si = np.interp(v_bias, v_bias_array[:-1], si_array)
@@ -1368,19 +1391,22 @@ class SmurfNoiseMixin(SmurfBase):
         return popt, pcov, f_fit, Pxx_fit
 
 
-    def noise_all_vs_noise_solo(self, band, meas_time=10):
+    def noise_all_vs_noise_solo(self, band, meas_time=10.0):
         """
         Measures the noise with all the resonators on, then measures
         every channel individually.
 
-        Args:
-        -----
-        band (int) : The band number
+        Args
+        ----
+        band : int
+            The band number.
+        meas_time : float, optional, default 10.0
+            The measurement time per resonator in seconds.
 
-        Opt Args:
-        ---------
-        meas_time (float) : The measurement time per resonator in
-            seconds. Default is 10.
+        Returns
+        -------
+        ret : ???
+            ???
         """
         timestamp = self.get_timestamp()
 
@@ -1412,10 +1438,23 @@ class SmurfNoiseMixin(SmurfBase):
     def analyze_noise_all_vs_noise_solo(self, ret, fs=None, nperseg=2**10,
             make_channel_plot=False):
         """
-        analyzes the data from noise_all_vs_noise_solo
-        Args:
-        -----
-        ret (dict) : The returned values from noise_all_vs_noise_solo.
+        Analyzes the data from noise_all_vs_noise_solo
+        
+        Args
+        ----
+        ret : dict
+            The returned values from noise_all_vs_noise_solo.
+        fs : float or None, optional, default None
+            ???
+        nperseg : int, optional, defualt 2**10
+            ???
+        make_channel_plot : bool, optional, default False
+            ???
+        
+        Returns
+        -------
+        wl_diff : ???
+            ???
         """
         if fs is None:
             fs = self.fs
