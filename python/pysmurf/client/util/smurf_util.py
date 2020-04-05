@@ -3361,11 +3361,12 @@ class SmurfUtilMixin(SmurfBase):
             self.log('Warning: new mask has not been read in yet.')
 
 
-    def bias_bump(self, bias_group, wait_time=.5, step_size=.001, duration=5,
-                  start_bias=None, make_plot=False, skip_samp_start=10,
-                  high_current_mode=True, skip_samp_end=10, plot_channels=None,
-                  gcp_mode=False, gcp_wait=.5, gcp_between=1., dat_file=None,
-                  offset_percentile=2):
+    def bias_bump(self, bias_group, wait_time=.5, step_size=0.001,
+                  duration=5.0, start_bias=None, make_plot=False,
+                  skip_samp_start=10, high_current_mode=True,
+                  skip_samp_end=10, plot_channels=None,
+                  gcp_mode=False, gcp_wait=0.5, gcp_between=1.0,
+                  dat_file=None, offset_percentile=2):
         """
         Toggles the TES bias high and back to its original state. From this, it
         calculates the electrical responsivity (sib), the optical responsivity (siq),
@@ -3378,40 +3379,60 @@ class SmurfUtilMixin(SmurfBase):
         Note that only the resistance is well defined now because the phase response
         has an un-set factor of -1. We will need to calibrate this out.
 
-        Args:
-        -----
-        bias_group (int of int array): The bias groups to toggle. The response will
-            return every detector that is on.
+        Args
+        ----
+        bias_group : int of int array
+            The bias groups to toggle. The response will return every
+            detector that is on.
+        wait_time : float, optional, default 0.5
+            The time to wait between steps
+        step_size : float, optional, default 0.001
+            The voltage to step up and down in volts (for low current
+            mode).
+        duration : float, optional, default 5.0
+            The total time of observation.
+        start_bias : float or None, optional, default None
+            The TES bias to start at. If None, uses the current TES
+            bias.
+        make_plot : bool, optional, default False
+            Whether to make plots. Must set some channels in
+            plot_channels.
+        skip_samp_start : int, optional, default 10
+            The number of samples to skip before calculating a DC
+            level.
+        high_current_mode : bool, optional, default True
+            Whether to observe in high or low current mode.
+        skip_samp_end : int, optional, default 10
+            The number of samples to skip after calculating a DC
+            level.
+        plot_channels : int array or None, optional, default None
+           The channels to plot.
+        grid_mode : bool, optional, default False
+            ???
+        gcp_wait : float, optional, default 0.5
+            ???
+        gcp_between : float, optional, default 1.0
+            ???
+        dat_file : str or None, optional, default None
+            Filename to read bias-bump data from; if provided, data is
+            read from file instead of being measured live.
+        offset_percentile : float, optional, default 2.0
+            Number between 0 and 100. Determines the percentile used
+            to calculate the DC level of the TES data.
 
-        Opt Args:
-        --------
-        wait_time (float) : The time to wait between steps
-        step_size (float) : The voltage to step up and down in volts (for low
-            current mode).
-        duration (float) : The total time of observation
-        start_bias (float) : The TES bias to start at. If None, uses the current
-            TES bias.
-        skip_samp_start (int) : The number of samples to skip before calculating
-            a DC level
-        skip_samp_end (int) : The number of samples to skip after calculating a
-            DC level.
-        high_current_mode (bool) : Whether to observe in high or low current mode.
-            Default is True.
-        make_plot (bool) : Whether to make plots. Must set some channels in plot_channels.
-        plot_channels (int array) : The channels to plot.
-        dat_file (str) : filename to read bias-bump data from; if provided, data is read
-            from file instead of being measured live
-        offset_percentile (float) : Number between 0 and 100. Determines the percentile
-            used to calculate the DC level of the TES data.
-
-        Ret:
-        ---
-        bands (int array) : The bands
-        channels (int array) : The channels
-        resistance (float array) : The inferred resistance of the TESs in Ohms
-        sib (float array) : The electrical responsivity. This may be incorrect until
+        Returns
+        -------
+        bands : int array
+           The bands.
+        channels : int array
+           The channels.
+        resistance : float array
+            The inferred resistance of the TESs in Ohms.
+        sib : float array
+            The electrical responsivity. This may be incorrect until
             we define a phase convention. This is dimensionless.
-        siq (float array) : The power responsivity. This may be incorrect until we
+        siq : float array
+            The power responsivity. This may be incorrect until we
             define a phase convention. This is in uA/pW
 
         """
