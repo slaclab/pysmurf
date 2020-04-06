@@ -14,14 +14,15 @@ def make_html(data_path):
 
     Args:
     -----
-    data_path (str) : The full path to the data output file.
+    data_path : str
+        The full path to the data output file
     """
     import shutil
     import fileinput
     import datetime
     import glob
 
-    # FIXME - move this somewhere smarter
+    # Make output directories
     script_path = os.path.dirname(os.path.realpath(__file__))
     template_path = os.path.join(script_path, 'page_template')
     html_path = os.path.join(data_path, "summary")
@@ -131,7 +132,7 @@ def make_html(data_path):
     # Load tracking setup
     basename = os.path.split(glob.glob(os.path.join(data_path,
         'plots/*tracking*'))[0])[1].split("_FRtracking")
-    instr = f"\'{basename[0]}\' + \'_FRtracking_band{band}_ch\' + res_to_chan(p[\'res\']) + \'.png\'"
+    instr = f"\'{basename[0]}\' + \'_FRtracking_b{band}_ch\' + res_to_chan(p[\'res\']) + \'.png\'"
     replace_str(index_path, "[[TRACKING_PATH]]",
                 instr)
 
@@ -158,6 +159,154 @@ def make_html(data_path):
                 instr)
 
 
+def run(args):
+    band = args.band
+    status = {}
+    status["band"] = band
+
+    # Initialize
+    S = pysmurf.client.SmurfControl(epics_root=args.epics_root,
+        cfg_file=args.config_file, shelf_manager=args.shelf_manager,
+        setup=False)
+
+    print("All outputs going to: ")
+    print(S.output_dir)
+
+    def execute(status_dict, func, label, save_dict=True):
+        """ Convenienec function used to run and time any arbitrary pysmurf
+        functions. Must pass func as a lambda.
+
+        Args
+        ----
+        status_dict : dict
+            The dictionary that stores all the start/end times and outputs of
+            the functions.
+        label : str
+            The descriptor to label the function
+        save_dict : bool
+            Whether to save the dict. Default True.
+
+        Returns
+        -------
+        status_dict : dict
+            The updated status dict
+        """
+        # Add label to dict
+        status_dict[label] = {}
+
+        # Note start time
+        status_dict[label]['start'] = S.get_timestamp(as_int=True)
+
+        # Run function
+        status_dict[label]['output'] = func()
+
+        # Add end time
+        status_dict[label]['end'] = S.get_timestamp(as_int=True)
+
+        # Save the dict
+        np.save(os.path.join(S.output_dir, "status"),
+                status_dict)
+
+        return status_dict
+
+    # why
+    status = execute(status, lambda: S.why(), 'why')
+
+    # Setup
+    if args.setup:
+        status = execute(status, lambda: S.setup(), 'setup')
+
+    # Band off
+    if not args.no_band_off:
+        bands = S.config.get('init').get('bands')
+        for b in bands:
+            status = execute(status, lambda: S.band_off(b),
+                             f'band_off_b{b}')
+
+    # amplifier biases
+    status = execute(status, lambda: S.set_amplifier_bias(write_log=True),
+        'set_amplifier_bias')
+    status = execute(status, lambda: S.set_cryo_card_ps_en(write_log=True),
+        'amplifier_enable')
+    status = execute(status, lambda: S.get_amplifier_bias(),
+        'get_amplifier_bias')
+
+    # full band response
+    status = execute(status, lambda: S.full_band_resp(2, make_plot=True,
+        save_plot=True, show_plot=False, return_plot_path=True),
+        'full_band_resp')
+
+    # find_freq
+    if not args.no_find_freq:
+        subband = np.arange(13, 115)
+        if args.subband_low is not None and args.subband_high is not None:
+            subband = np.arange(args.subband_low, args.subband_high)
+        status['subband'] = subband
+        status = execute(status, lambda: S.find_freq(band, subband,
+            make_plot=True, save_plot=True), 'find_freq')
+
+    # setup notches
+    if not args.no_setup_notches:
+        status = execute(status, lambda: S.setup_notches(band,
+            new_master_assignment=True), 'setup_notches')
+
+        status = execute(status, lambda: S.plot_tune_summary(band,
+            eta_scan=True, show_plot=False, save_plot=True),
+            'plot_tune_summary')
+
+    # Actually take a tuning serial gradient descent using tune_band_serial
+    status = execute(status, lambda: S.run_serial_gradient_descent(band),
+        'serial_gradient_descent')
+
+    status = execute(status, lambda: S.run_serial_eta_scan(band),
+        'serial_eta_scan')
+
+    # track
+    channel = S.which_on(band)
+    status = execute(status, lambda: S.tracking_setup(band, channel=channel,
+        reset_rate_khz=args.reset_rate_khz, fraction_full_scale=.5,
+        make_plot=True, show_plot=False, nsamp=2**18, lms_gain=8,
+        lms_freq_hz=None, meas_lms_freq=False, meas_flux_ramp_amp=True,
+        n_phi0=args.n_phi0, feedback_start_frac=.2, feedback_end_frac=.98),
+        'tracking_setup')
+
+    # See what's on
+    status = execute(status, lambda: S.which_on(band), 'which_on_before_check')
+
+    # now track and check
+    status = execute(status, lambda: S.check_lock(band), 'check_lock')
+
+    status = execute(status, lambda: S.which_on(band), 'which_on_after_check')
+
+    # Identify bias groups
+    status = execute(status, lambda: S.identify_bias_groups(bias_groups=np.arange(8),
+        make_plot=True, show_plot=False, save_plot=True, update_channel_assignment=True),
+        'identify_bias_groups')
+
+
+    # Save tuning
+    status = execute(status, lambda: S.save_tune(), 'save_tune')
+
+
+    # now take data using take_noise_psd and plot stuff
+
+    # IV.
+    status = execute(status, lambda: S.slow_iv_all(np.arange(8),
+        overbias_voltage=19.9, bias_high=10, bias_step=.01, wait_time=.1,
+        high_current_mode=False, overbias_wait=.5, cool_wait=60,
+        make_plot=True), 'slow_iv_all')
+
+
+    # Make webpage
+    make_html(os.path.split(S.output_dir)[0])
+
+    if args.threading_test:
+        import threading
+        for t in threading.enumerate():
+            print(t)
+            S.log(t)
+
+    return html_path
 
 if __name__ == "__main__":
     #####################
@@ -199,172 +348,9 @@ if __name__ == "__main__":
     parser.add_argument("--threading-test", default=False,
                        action="store_true",
                        help="Whether to run threading test")
-    
+
+    # Parse arguments
     args = parser.parse_args()
 
-    #######################
-    # Actual functions
-    #######################
-    band = args.band
-    status = {}
-    status["band"] = band
-
-    # Initialize
-    S = pysmurf.client.SmurfControl(epics_root=args.epics_root,
-                                    cfg_file=args.config_file,
-                                    shelf_manager=args.shelf_manager,
-                                    setup=False)
-
-    print("All outputs going to: ")
-    print(S.output_dir)
-
-
-    def execute(status_dict, func, label, save_dict=True):
-        """
-        Must pass func as a lambda.
-
-        Args:
-        -----
-        status_dict (dict) : The dictionary that stores all the start/end
-            times and outputs of the functions.
-        label (str) : The descriptor to label the function
-        save_dict (bool) : Whether to save the dict. Default True.
-
-        Ret:
-        ----
-        status_dict (dict) : The updated status dict
-        """
-        status_dict[label] = {}
-        status_dict[label]['start'] = S.get_timestamp(as_int=True)
-        status_dict[label]['output'] = func()
-        status_dict[label]['end'] = S.get_timestamp(as_int=True)
-        np.save(os.path.join(S.output_dir, "status"),
-                status_dict)
-
-        return status_dict
-
-    # why
-    status = execute(status, lambda: S.why(), 'why')
-
-    # Setup
-    if args.setup:
-        status = execute(status, lambda: S.setup(), 'setup')
-
-    # Band off
-    if not args.no_band_off:
-        bands = S.config.get('init').get('bands')
-        for b in bands:
-            status = execute(status, lambda: S.band_off(b),
-                             f'band_off_b{b}')
-
-    # amplifier biases
-    status = execute(status,
-                     lambda: S.set_amplifier_bias(write_log=True),
-                     'set_amplifier_bias')
-    status = execute(status,
-                     lambda: S.set_cryo_card_ps_en(write_log=True),
-                     'amplifier_enable')
-    status = execute(status,
-                     lambda: S.get_amplifier_bias(),
-                     'get_amplifier_bias')
-
-    # full band response
-    status = execute(status,
-                     lambda: S.full_band_resp(2, make_plot=True,
-                                              save_plot=True,
-                                              show_plot=False,
-                                              return_plot_path=True),
-                     'full_band_resp')
-
-    # find_freq
-    if not args.no_find_freq:
-        subband = np.arange(13, 115)
-        if args.subband_low is not None and args.subband_high is not None:
-            subband = np.arange(args.subband_low, args.subband_high)
-        status['subband'] = subband
-        status = execute(status,
-                         lambda: S.find_freq(band, subband,
-                                             make_plot=True, save_plot=True),
-                         'find_freq')
-
-    # setup notches
-    if not args.no_setup_notches:
-        status = execute(status,
-                         lambda: S.setup_notches(band,
-                                                 new_master_assignment=True),
-                         'setup_notches')
-
-        status = execute(status,
-                         lambda: S.plot_tune_summary(band, eta_scan=True,
-                                                     show_plot=False,
-                                                     save_plot=True),
-                         'plot_tune_summary')
-
-    # Actually take a tuning serial gradient descent using tune_band_serial
-    status = execute(status,
-                     lambda: S.run_serial_gradient_descent(band),
-                     'serial_gradient_descent')
-
-    status = execute(status,
-                     lambda: S.run_serial_eta_scan(band),
-                     'serial_eta_scan')
-
-    # track
-    channel = S.which_on(band)
-    status = execute(status,
-                     lambda: S.tracking_setup(band, channel=channel,
-                                              reset_rate_khz=args.reset_rate_khz,
-                                              fraction_full_scale=.5,
-                                              make_plot=True, show_plot=False,
-                                              nsamp=2**18, lms_gain=8,
-                                              lms_freq_hz=None,
-                                              meas_lms_freq=False,
-                                              meas_flux_ramp_amp=True,
-                                              n_phi0=args.n_phi0,
-                                              feedback_start_frac=.2,
-                                              feedback_end_frac=.98),
-                     'tracking_setup')
-
-
-    status = execute(status, lambda: S.which_on(band), 'which_on_before_check')
-
-    # now track and check
-    status = execute(status, lambda: S.check_lock(band), 'check_lock')
-
-    status = execute(status, lambda: S.which_on(band), 'which_on_after_check')
-
-    # Identify bias groups
-    status = execute(status,
-                     lambda: S.identify_bias_groups(bias_groups=np.arange(8),
-                                                    make_plot=True, show_plot=False,
-                                                    save_plot=True,
-                                                    update_channel_assignment=True),
-                     'identify_bias_groups')
-
-
-    # Save tuning
-    status = execute(status,
-                     lambda: S.save_tune(),
-                     'save_tune')
-
-
-    # now take data using take_noise_psd and plot stuff
-
-    # IV.
-    status = execute(status,
-                     lambda: S.slow_iv_all(np.arange(8), overbias_voltage=19.9,
-                                           bias_high=10, bias_step=.01,
-                                           wait_time=.1, high_current_mode=False,
-                                           overbias_wait=.5, cool_wait=60,
-                                           make_plot=True),
-                     'slow_iv_all')
-
-
-    # Make webpage
-    make_html(os.path.split(S.output_dir)[0])
-
-    if args.threading_test:
-        import threading
-        for t in threading.enumerate():
-            print(t)
-            S.log(t)
+    # Run the generator script
+    run(args)
