@@ -18,7 +18,7 @@ from pysmurf.client.util.pub import Publisher
 
 from .logger import SmurfLogger
 
-class SmurfBase(object):
+class SmurfBase:
     '''
     Base class for common things
     '''
@@ -167,25 +167,25 @@ class SmurfBase(object):
 
         # Timing paths
         self.amctiming = self.amccc + 'AmcCarrierTiming:'
-        self.trigger_root =  self.amctiming + 'EvrV2CoreTriggers:'
+        self.trigger_root = self.amctiming + 'EvrV2CoreTriggers:'
         self.timing_status = self.amctiming + 'TimingFrameRx:'
 
         self.C = CryoCard(self.rtm_spi_cryo_root + 'read',
-            self.rtm_spi_cryo_root + 'write')
+                          self.rtm_spi_cryo_root + 'write')
         self.freq_resp = {}
 
         # RTM slow DAC parameters (used, e.g., for TES biasing). The
         # DACs are AD5790 chips
-        self._rtm_slow_dac_max_volt=10. # Max unipolar DAC voltage,
+        self._rtm_slow_dac_max_volt = 10. # Max unipolar DAC voltage,
                                         # in Volts
-        self._rtm_slow_dac_nbits=20
+        self._rtm_slow_dac_nbits = 20
         # x2 because _rtm_slow_dac_max_volt is the maximum *unipolar*
         # voltage.  Units of Volt/bit
-        self._rtm_slow_dac_bit_to_volt=( 2*self._rtm_slow_dac_max_volt /
-                                         ( 2**( self._rtm_slow_dac_nbits ) ) )
+        self._rtm_slow_dac_bit_to_volt = (2*self._rtm_slow_dac_max_volt/
+                                          (2**(self._rtm_slow_dac_nbits)))
 
         # LUT table length for arbitrary waveform generation
-        self._lut_table_array_length=2048
+        self._lut_table_array_length = 2048
 
     def init_log(self, verbose=0, logger=SmurfLogger, logfile=None,
                  log_timestamp=True, log_prefix=None, **kwargs):
