@@ -158,6 +158,7 @@ def make_html(data_path):
     replace_str(index_path, "[[IV_PATH]]",
                 instr)
 
+    return html_path
 
 def run(band, epics_root, config_file, shelf_manager, setup, no_band_off=False,
     no_find_freq=False, subband_low=13, subband_high=115,
@@ -302,7 +303,7 @@ def run(band, epics_root, config_file, shelf_manager, setup, no_band_off=False,
 
 
     # Make webpage
-    make_html(os.path.split(S.output_dir)[0])
+    html_path = make_html(os.path.split(S.output_dir)[0])
 
     if threading_test:
         import threading
