@@ -221,7 +221,7 @@ def run(band, epics_root, config_file, shelf_manager, setup, no_band_off=False,
         status = execute(status, lambda: S.setup(), 'setup')
 
     # Band off
-    if not .no_band_off:
+    if not no_band_off:
         bands = S.config.get('init').get('bands')
         for b in bands:
             status = execute(status, lambda: S.band_off(b),
