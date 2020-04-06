@@ -196,7 +196,7 @@ class PcieCard():
     * If PCIe communication type is used:
       * Verify that the DeviceId are correct for the RSSI (ID = 0) and
         the DATA (ID = 1) devices.
-      * the RSSI connection is open in the specific lane. Also, when
+      * The RSSI connection is open in the specific lane. Also, when
         the the server is closed, the RSSI connection is closed.
 
     If the PCIe card is not present:
