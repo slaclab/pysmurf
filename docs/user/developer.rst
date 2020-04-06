@@ -4,7 +4,7 @@ Developer's guide
 Writing a docstring
 -------------------
 
-``pysmurf`` docstrings should be written in the NumPy style, and
+pysmurf docstrings should be written in the NumPy style, and
 documentation should be written in the reStructuredText (reST)
 language.  See the `pandas docstring guide
 <https://pandas.pydata.org/docs/development/contributing_docstring.html>`_

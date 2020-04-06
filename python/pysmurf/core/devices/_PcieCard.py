@@ -191,11 +191,13 @@ class PcieCard():
     according to the communication type used.
 
     If the PCIe card is present in the system:
+    
     * All the RSSI connection lanes which point to the target IP
       address will be closed.
     * If PCIe communication type is used:
 
     If the PCIe card is not present:
+
     * If PCIe communication type is used, the program is terminated.
     * If ETH communication type is used, then this class does not do
       anything.
