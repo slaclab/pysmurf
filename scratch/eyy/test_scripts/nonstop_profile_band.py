@@ -12,7 +12,7 @@ output_dir = '/data/smurf_data/20200406/'
 while True:
     # Loop over bands
     for band in bands:
-        output_dir = profile_band.run(band, epics_root, config_file,
+        html_path = profile_band.run(band, epics_root, config_file, shelf_manager, True)
         f = open(os.path.join(output_dir, f'profile_band{band}.txt'), 'ab')
-        np.savetxt(f, output_dir)
+        np.savetxt(f, [html_path], fmt='%s')
         f.close()
