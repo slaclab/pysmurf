@@ -27,7 +27,7 @@ def setupGroups(root, VariableGroups):
     ----
     VariableGroups : dict
         Each entry must have the form '<Rogue device or Variable>' : {'groups' : [<list of groups>], 'pollInterval': <poll interval> }
-    
+
         The 'groups' entry provides a list of groups to add the
         Device/Variable to.  If the path points to a device, the group
         will be added recursively to all devices and variables deeper

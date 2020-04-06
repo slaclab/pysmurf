@@ -171,7 +171,7 @@ class SmurfTuneMixin(SmurfBase):
         freq_max : float, optional, default 2.5e8
             The maximum frequency relative to the center of the band
             to look for resonances. Units of Hz.
-        amp_cut : float, optional, default 
+        amp_cut : float, optional, default 0.5
             The distance from the median value to decide whether
             there is a resonance.
         use_slow_eta : bool, optional, default False
@@ -458,7 +458,7 @@ class SmurfTuneMixin(SmurfBase):
             channels.
         plot_summary : bool, optional, default True
             Plot summary.
-        plotname_append : str, optional, default '' 
+        plotname_append : str, optional, default ''
             Appended to the default plot filename.
         """
         if show_plot:
@@ -608,7 +608,7 @@ class SmurfTuneMixin(SmurfBase):
         swap : bool, optional, default False
             Whether to reverse the data order of the ADC relative to
             the DAC. This solved a legacy problem.
-        hw_trigger : bool, optional, default True 
+        hw_trigger : bool, optional, default True
             Whether to start the broadband noise file using the
             hardware trigger.
         write_log : bool, optional, default False
@@ -1617,7 +1617,7 @@ class SmurfTuneMixin(SmurfBase):
 
         band : int or None, optional, default None
             The band to assign channels.
-        band_center : float array or None, optional, default None 
+        band_center : float array or None, optional, default None
             The frequency center of the band. Must supply band or
             subband center.
         channel_per_subband : int, optional, default 4
@@ -1889,9 +1889,9 @@ class SmurfTuneMixin(SmurfBase):
             The maximum resonator Q factor.
         q_min : float, optional, default 0
             The minimum resonator Q factor.
-        check_vals : bool, optional, default False 
+        check_vals : bool, optional, default False
             Whether to check r2 and Q values.
-        min_gap : float or None, optional, default None 
+        min_gap : float or None, optional, default None
             The minimum distance between resonators.
         write_log : bool, optional, default False
             ???
@@ -4282,4 +4282,3 @@ class SmurfTuneMixin(SmurfBase):
             print("Frequency not found. Check band list and that frequency "+
                 "is given in MHz")
             return
-        

@@ -916,7 +916,6 @@ class SmurfUtilMixin(SmurfBase):
         ----
         datafile : str
             The full path to the data to read.
-        
         channel : int or int array or None, optional, default None
             Channels to load.
         n_samp : int or None, optional, default None
@@ -1115,7 +1114,7 @@ class SmurfUtilMixin(SmurfBase):
             The timestamp data.
         d : numpy.ndarray
             The resonator data in units of phi0.
-        m : numpy.ndarray 
+        m : numpy.ndarray
             The maskfile that maps smurf num to gcp num.
         """
         import struct
@@ -2231,7 +2230,7 @@ class SmurfUtilMixin(SmurfBase):
     def get_subband_from_channel(self, band, channel, channelorderfile=None,
             yml=None):
         """Returns subband number given a channel number
-        
+
         Args
         ----
         band : int
@@ -4159,7 +4158,7 @@ class SmurfUtilMixin(SmurfBase):
         update_channel_assignment : bool, optional, default True
             Whether to update the master channels assignment to
             contain the new bias group information.
-        high_current_mode : bool, optional, default True 
+        high_current_mode : bool, optional, default True
             Whether to use high or low current mode.
 
         Returns

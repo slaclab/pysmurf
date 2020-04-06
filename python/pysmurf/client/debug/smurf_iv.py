@@ -62,7 +62,7 @@ class SmurfIVMixin(SmurfBase):
             Whether to make plots.
         save_plot : bool, optional, default True
             Whether to save the plot.
-        plotname_append : str, optional, default '' 
+        plotname_append : str, optional, default ''
             Appended to the default plot filename.
         channels : int array or None, optional, default None
             A list of channels to make plots.

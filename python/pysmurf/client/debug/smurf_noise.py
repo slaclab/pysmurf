@@ -346,7 +346,7 @@ class SmurfNoiseMixin(SmurfBase):
                       n_phi0=4, make_timestream_plot=True,
                       new_master_assignment=True, from_old_tune=False,
                       old_tune=None):
-        """Takes timestream noise at various tone powers. 
+        """Takes timestream noise at various tone powers.
 
         Operates on one band at a time because it needs to retune
         between taking another timestream at a different tone power.
@@ -1481,7 +1481,7 @@ class SmurfNoiseMixin(SmurfBase):
             make_channel_plot=False):
         """
         Analyzes the data from noise_all_vs_noise_solo
-        
+
         Args
         ----
         ret : dict
@@ -1492,7 +1492,7 @@ class SmurfNoiseMixin(SmurfBase):
             ???
         make_channel_plot : bool, optional, default False
             ???
-        
+
         Returns
         -------
         wl_diff : ???

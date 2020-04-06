@@ -2202,7 +2202,7 @@ class SmurfCommandMixin(SmurfBase):
         val : int
             What val to set.
         convert : bool, optional, default True
-            Convert the output from a string of hex values to an int.        
+            Convert the output from a string of hex values to an int.
         """
         if convert:
             val = self.int_to_hex_string(val)
@@ -2932,7 +2932,7 @@ class SmurfCommandMixin(SmurfBase):
 
         Args
         ----
-        val : int array 
+        val : int array
             Length 32, addresses the DACs in DAC ordering.  If
             provided array is not length 32, asserts.
         """

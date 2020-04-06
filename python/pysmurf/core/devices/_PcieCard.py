@@ -191,7 +191,7 @@ class PcieCard():
     according to the communication type used.
 
     If the PCIe card is present in the system:
-    
+
     * All the RSSI connection lanes which point to the target IP
       address will be closed.
     * If PCIe communication type is used:
