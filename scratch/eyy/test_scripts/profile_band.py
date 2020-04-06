@@ -159,14 +159,18 @@ def make_html(data_path):
                 instr)
 
 
-def run(args):
-    band = args.band
+def run(band, epics_root, config_file, shelf_manager, setup, no_band_off=False,
+    no_find_freq=False, subband_low=13, subband_high=115,
+    no_setup_notches=False, reset_rate_khz=4, n_phi0=4, threading_test=False):
+    """
+    """
+    # Storage dictionary
     status = {}
     status["band"] = band
 
     # Initialize
-    S = pysmurf.client.SmurfControl(epics_root=args.epics_root,
-        cfg_file=args.config_file, shelf_manager=args.shelf_manager,
+    S = pysmurf.client.SmurfControl(epics_root=epics_root,
+        cfg_file=config_file, shelf_manager=shelf_manager,
         setup=False)
 
     print("All outputs going to: ")
@@ -213,11 +217,11 @@ def run(args):
     status = execute(status, lambda: S.why(), 'why')
 
     # Setup
-    if args.setup:
+    if setup:
         status = execute(status, lambda: S.setup(), 'setup')
 
     # Band off
-    if not args.no_band_off:
+    if not .no_band_off:
         bands = S.config.get('init').get('bands')
         for b in bands:
             status = execute(status, lambda: S.band_off(b),
@@ -237,16 +241,16 @@ def run(args):
         'full_band_resp')
 
     # find_freq
-    if not args.no_find_freq:
+    if not no_find_freq:
         subband = np.arange(13, 115)
-        if args.subband_low is not None and args.subband_high is not None:
-            subband = np.arange(args.subband_low, args.subband_high)
+        if subband_low is not None and subband_high is not None:
+            subband = np.arange(subband_low, subband_high)
         status['subband'] = subband
         status = execute(status, lambda: S.find_freq(band, subband,
             make_plot=True, save_plot=True), 'find_freq')
 
     # setup notches
-    if not args.no_setup_notches:
+    if not no_setup_notches:
         status = execute(status, lambda: S.setup_notches(band,
             new_master_assignment=True), 'setup_notches')
 
@@ -264,10 +268,10 @@ def run(args):
     # track
     channel = S.which_on(band)
     status = execute(status, lambda: S.tracking_setup(band, channel=channel,
-        reset_rate_khz=args.reset_rate_khz, fraction_full_scale=.5,
+        reset_rate_khz=reset_rate_khz, fraction_full_scale=.5,
         make_plot=True, show_plot=False, nsamp=2**18, lms_gain=8,
         lms_freq_hz=None, meas_lms_freq=False, meas_flux_ramp_amp=True,
-        n_phi0=args.n_phi0, feedback_start_frac=.2, feedback_end_frac=.98),
+        n_phi0=n_phi0, feedback_start_frac=.2, feedback_end_frac=.98),
         'tracking_setup')
 
     # See what's on
@@ -300,7 +304,7 @@ def run(args):
     # Make webpage
     make_html(os.path.split(S.output_dir)[0])
 
-    if args.threading_test:
+    if threading_test:
         import threading
         for t in threading.enumerate():
             print(t)
@@ -329,8 +333,7 @@ if __name__ == "__main__":
     parser.add_argument("--reset-rate-khz", type=int, required=False,
                         default=4,
                         help="The flux ramp reset rate")
-    parser.add_argument("--n-phi0", type=float, required=False,
-                        default=4,
+    parser.add_argument("--n-phi0", type=float, required=False, default=4,
                         help="The number of phi0 per flux ramp desired.")
     parser.add_argument("--no-find-freq", default=False,
                         action="store_true",
@@ -353,4 +356,9 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     # Run the generator script
-    run(args)
+    run(args.band, args.epics_root, args.config_file, args.shelf_manager,
+        args.setup, no_band_off=args.no_band_off, no_find_freq=args.no_find_freq,
+        subband_low=args.subband_low, subband_high=args.subband_high,
+        no_setup_notches=args.no_setup_notches,
+        reset_rate_khz=args.reset_rate_khz, n_phi0=args.n_phi0,
+        threading_test=args.threading_test)
