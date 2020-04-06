@@ -32,8 +32,8 @@ class SmurfUtilMixin(SmurfBase):
             IQstream=1, single_channel_readout=1, debug=False, write_log=True):
         """ Takes raw debugging data
 
-        Args
-        ----
+        Args:
+        -----
         band : int
             The band to take data on
         single_channel_readout : int
@@ -51,8 +51,8 @@ class SmurfUtilMixin(SmurfBase):
         write_log : bool
             Whether to write lowlevel commands to the log file.
 
-        Returns
-        -------
+        Returns:
+        --------
         f : float array
             The frequency response
         df : float array
@@ -504,13 +504,13 @@ class SmurfUtilMixin(SmurfBase):
         Args
         ----
         filename : str
-            Path to file
+            Path to file.
         swapFdF : bool, optional, default False
             Whether the F and dF (or I/Q) streams are flipped.
         recast : bool, optional, default True
             Whether to recast from size n_channels_processed to
             n_channels.
-        truncate : bool, optional, default=True
+        truncate : bool, optional, default True
             Truncates the data if the number of elements returned is
             not an integer multiple of the sample rate.
 
