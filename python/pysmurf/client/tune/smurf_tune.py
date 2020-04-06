@@ -3831,21 +3831,22 @@ class SmurfTuneMixin(SmurfBase):
         This is like estimate_lms_freq, except it changes the
         flux ramp amplitude instead of the flux ramp frequency.
 
-        Args:
-        -----
-        band (int) : The beand to measure
-        n_phi0 (float) : The number of phi0 desired per flux
-            ramp cycle. It is recommended, but not required that
-            this is an integer.
+        Args
+        ----
+        band : int
+            The band to measure.
+        n_phi0 : float
+            The number of phi0 desired per flux ramp cycle. It is
+            recommended, but not required that this is an integer.
 
-        Opt Args:
-        ---------
-        write_log (bool) : Whether to write log messages. Default True.
-        reset_rate_khz (bool) : The reset (or flux ramp cycle) frequency
-            in kHz. If None, reads the current value. Default is None.
-        channel (int array) : The channels to use to estimate the
-            amplitude. If None, uses all channels that are on. Default
-            None.
+        write_log : bool, optional, default True
+            Whether to write log messages.
+        reset_rate_khz : float or None, optional, default None
+            The reset (or flux ramp cycle) frequency in kHz. If None,
+            reads the current value.
+        channel : int array or None, optional, default None
+            The channels to use to estimate the amplitude. If None,
+            uses all channels that are on.
         """
         start_fraction_full_scale = self.get_fraction_full_scale()
         if write_log:
