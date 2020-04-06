@@ -304,8 +304,7 @@ class SmurfIVMixin(SmurfBase):
         Args
         ----
         fn_iv_raw_data : str
-            *_iv_raw_data.npy file to analyze.
-
+            ``*_iv_raw_data.npy`` file to analyze.
         make_plot : bool, optional, default True
             Whether or not to make plots.  Usually this is the slowest
             part.
@@ -952,7 +951,7 @@ class SmurfIVMixin(SmurfBase):
         Args
         ----
         fn_plc_raw_data : str
-            *_plc_raw_data.npy file to analyze
+            ``*_plc_raw_data.npy`` file to analyze
         make_plot : bool, optional, default True
             Whether to make plots.  This is slow.
         show_plot : bool, optional, default False

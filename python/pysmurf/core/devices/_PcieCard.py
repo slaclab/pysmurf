@@ -187,26 +187,26 @@ class PcieCard():
     """
     Class to setup the PCIe card devices.
 
-    This class takes care of setting up both PCIe card devices according to the
-    communication type used.
+    This class takes care of setting up both PCIe card devices
+    according to the communication type used.
 
     If the PCIe card is present in the system:
-    - All the RSSI connection lanes which point to the target IP address will
-      be closed.
-    - If PCIe communication type is used:
-        - Verify that the DeviceId are correct for the RSSI (ID = 0) and the DATA
-          (ID = 1) devices.
-        - the RSSI connection is open in the specific lane. Also, when the the server
-          is closed, the RSSI connection is closed.
-    -
+    * All the RSSI connection lanes which point to the target IP
+      address will be closed.
+    * If PCIe communication type is used:
+      * Verify that the DeviceId are correct for the RSSI (ID = 0) and
+        the DATA (ID = 1) devices.
+      * the RSSI connection is open in the specific lane. Also, when
+        the the server is closed, the RSSI connection is closed.
 
     If the PCIe card is not present:
-    - If PCIe communication type is used, the program is terminated.
-    - If ETH communication type is used, then this class does not do anything.
+    * If PCIe communication type is used, the program is terminated.
+    * If ETH communication type is used, then this class does not do
+      anything.
 
-    This class must be used in a 'with' block in order to ensure that the
-    RSSI connection is close correctly during exit even in the case of an
-    exception condition.
+    This class must be used in a 'with' block in order to ensure that
+    the RSSI connection is close correctly during exit even in the
+    case of an exception condition.
     """
 
     def __init__(self, comm_type, lane, ip_addr, dev_rssi, dev_data):

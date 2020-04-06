@@ -796,53 +796,56 @@ class SmurfTuneMixin(SmurfBase):
             amp_ylim=None):
         """ Find the peaks within a given subband.
 
-        Parameters:
-        -----------
+        Args
+        ----
         freq : float array
-            should be a single row of the broader freq array, in Mhz.
+            Should be a single row of the broader freq array, in Mhz.
         resp : complex array
-            complex response for just this subband
-        rolling_med : bool
-            Whether to use a rolling median for the background
-        window : int
-            number of samples to window together for rolling med
-        grad_cut : float
-            The value of the gradient of phase to look for resonances. Default
-            is .05
-        amp_cut : float
-            The fractional distance from the median value to decide whether
-            there is a resonance. Default is .25.
-        freq_min : float
-            The minimum frequency relative to the center of the band to look for
-            resonances. Units of Hz. Defaults is -2.5E8
-        freq_max : float
-            The maximum frequency relative to the center of the band to look for
-            resonances. Units of Hz. Defaults is 2.5E8
-        make_plot : bool
-            Whether to make a plot. Default is False.
-        make_subband_plot : bool
-            Whether to make a plot per subband. This is very slow. Default is
-            False.
-        save_plot :bool
-            Whether to save the plot to self.plot_dir. Default is True.
-        plotname_append : string
-            Appended to the default plot filename. Default is ''.
-        band : int
+            Complex response for just this subband.
+        rolling_med : bool, optional, default True
+            Whether to use a rolling median for the background.
+        window : int, optional, default 5000
+            Number of samples to window together for rolling med.
+        grad_cut : float, optional, default 0.5
+            The value of the gradient of phase to look for resonances.
+        amp_cut : float, optional, default 0.25
+            The fractional distance from the median value to decide
+            whether there is a resonance.
+        freq_min : float, optional, default -2.5e8
+            The minimum frequency relative to the center of the band
+            to look for resonances. Units of Hz.
+        freq_max : float, optional, default 2.5e8
+            The maximum frequency relative to the center of the band
+            to look for resonances. Units of Hz.
+        make_plot : bool, optional, default False
+            Whether to make a plot.
+        save_plot : bool, optional, default True
+            Whether to save the plot to self.plot_dir.
+        plotname_append : str, optional, default ''
+            Appended to the default plot filename.
+        show_plot : bool, optional, default False
+            Whether or not to show plots.
+        band : int or None, optional, default None
             The band to take find the peaks in. Mainly for saving and plotting.
-        timestamp : str
-            The timestamp. Mainly for saving and plotting
-        pad : int
-            number of samples to pad on either side of a resonance search window
-        min_gap : int
-            minimum number of samples between resonances
-        grad_kernel_width : int
-            The number of samples to take after a point to calculate the
-            gradient of phase. Default is 8.
-        highlight_phase_slip : bool
-            Whether to highlight the phase slip. Default True.
-        amp_ylim : float
-            The ylim for the amplitude plot. If None, does nothing. Default
-            None.
+        subband : int or None, optional, default None
+            The subband to take find the peaks in. Mainly for saving
+            and plotting.
+        make_subband_plot : bool, optional, default False
+            Whether to make a plot per subband. This is very slow.
+        timestamp : str or None, optional, default None
+            The timestamp. Mainly for saving and plotting.
+        pad : int, optional, default 50
+            Number of samples to pad on either side of a resonance
+            search window.
+        min_gap : int, optional, default 100
+            Minimum number of samples between resonances.
+        grad_kernel_width : int, optional, default 8
+            The number of samples to take after a point to calculate
+            the gradient of phase.
+        highlight_phase_slip : bool, optional, default True
+            Whether to highlight the phase slip.
+        amp_ylim : float or None, optional, default None
+            The ylim for the amplitude plot. If None, does nothing.
 
         Returns
         -------
@@ -3330,10 +3333,10 @@ class SmurfTuneMixin(SmurfBase):
     def plot_find_freq(self, f=None, resp=None, subband=None, filename=None,
             save_plot=True, save_name='amp_sweep.png', show_plot=False):
         '''
-        Plots the response of the frequency sweep. Must input f and resp, or
-        give a path to a text file containing the data for offline plotting.
-        To do:
-        Add ability to use timestamp and multiple plots
+        Plots the response of the frequency sweep. Must input f and
+        resp, or give a path to a text file containing the data for
+        offline plotting.  To do: Add ability to use timestamp and
+        multiple plots.
 
         Args
         ----
@@ -3349,7 +3352,7 @@ class SmurfTuneMixin(SmurfBase):
             Save the plot.
         save_name : str, optional, default 'amp_sweep.png'
             What to name the plot.
-         show_plot : bool, optional, default False
+        show_plot : bool, optional, default False
             Whether to show the plot.
         '''
         if subband is None:
@@ -3387,16 +3390,24 @@ class SmurfTuneMixin(SmurfBase):
 
     def full_band_ampl_sweep(self, band, subband, drive, n_read, n_step=121):
         """sweep a full band in amplitude, for finding frequencies
-        args:
-        -----
-            band (int) = bandNo (500MHz band)
-            subband (int) = which subbands to sweep
-            drive (int) = drive power (defaults to 10)
-            n_read (int) = numbers of times to sweep, defaults to 2
-        returns:
-        --------
-            freq (list, n_freq x 1) = frequencies swept
-            resp (array, n_freq x 2) = complex response
+
+        Args
+        ----
+        band : int
+            bandNo (500MHz band).
+        subband : int
+            Which subbands to sweep.
+        drive : int
+            Drive power.
+        n_read : int
+            Numbers of times to sweep.
+
+        Returns
+        -------
+        freq : (list, n_freq x 1)
+            Frequencies swept.
+        resp : (array, n_freq x 2)
+            Complex response.
         """
         digitizer_freq = self.get_digitizer_frequency_mhz(band)  # in MHz
         n_subbands = self.get_number_sub_bands(band)

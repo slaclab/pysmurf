@@ -76,9 +76,10 @@ class DataSlave(rogue.interfaces.stream.Slave):
         content of the data buffer (self._data) to the output file,
         one data point on each line as text.
 
-        Args:
-        -----
-        - file_name (str) : path to the output data file.
+        Args
+        ----
+        file_name : str
+            Path to the output data file.
         """
         if not file_name:
             print("ERROR: Must define a data file first!")
@@ -95,12 +96,13 @@ class DataSlave(rogue.interfaces.stream.Slave):
 
     def _acceptFrame(self, frame):
         """
-        Args:
         Receive a frame with SMuRF data. The first channel is appended
         to the data buffer.
 
-        -----
-        frame (rogue.interfaces.stream.Frame) : a frame with SMuRF data.
+        Args
+        ----
+        frame : rogue.interfaces.stream.Frame
+            A frame with SMuRF data.
         """
         with frame.lock():
             data = bytearray(4)
@@ -126,8 +128,9 @@ class MetaSlave(rogue.interfaces.stream.Slave):
         """
         Receive a frame with metadata. The frame is discarded.
 
-        Args:
-        -----
-        frame (rogue.interfaces.stream.Frame) : a frame with metadata
+        Args
+        ----
+        frame : rogue.interfaces.stream.Frame
+            A frame with metadata.
         """
         pass

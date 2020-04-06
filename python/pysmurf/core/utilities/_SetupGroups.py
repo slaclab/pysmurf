@@ -23,24 +23,20 @@ def setupGroups(root, VariableGroups):
     """
     Set variable groups.
 
-    Args:
-    -----
-    VariableGroups (dict) : each entry must have the form
-                            '<Rogue device or Variable>' :
-                                {'groups' : [<list of groups>],
-                                 'pollInterval': <poll interval> }
-
-                            The 'groups' entry provides a list of groups to add the Device/Variable to.
-                            If the path points to a device, the group will be added recursively to all
-                            devices and variables deeper in the path.
-                            The 'pollInterval' entry provides an optional value which will be used to update
-                            the polling interface if the path points to a variable. The poll interval value
-                            is in seconds. Use None to leave interval unchanged, 0 to disable polling.
-                            If this argument is 'None' then nothing will be done.
-
-    Ret:
-    -----
-    None
+    Args
+    ----
+    VariableGroups : dict
+        Each entry must have the form '<Rogue device or Variable>' : {'groups' : [<list of groups>], 'pollInterval': <poll interval> }
+    
+        The 'groups' entry provides a list of groups to add the
+        Device/Variable to.  If the path points to a device, the group
+        will be added recursively to all devices and variables deeper
+        in the path.  The 'pollInterval' entry provides an optional
+        value which will be used to update the polling interface if
+        the path points to a variable. The poll interval value is in
+        seconds. Use None to leave interval unchanged, 0 to disable
+        polling.  If this argument is 'None' then nothing will be
+        done.
     """
 
     if VariableGroups:

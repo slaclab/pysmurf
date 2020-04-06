@@ -2153,14 +2153,17 @@ class SmurfCommandMixin(SmurfBase):
 
     def set_waveform_start_addr(self, bay, engine, val, convert=True, **kwargs):
         """
-        bay=Which bay.
-        engine=Which waveform engine.
-        val=What value to set.
-
-        Optional Arg:
-        -------------
-        convert (bool) : Convert the output from a string of hex values to an
-            int. Default (True)
+        Args
+        ----
+        bay : int
+            Which bay.
+        engine : int
+            Which waveform engine.
+        val : int or str
+            What value to set.
+        convert : bool, optional, default True
+            Convert the input from an integer to a string of hex
+            values before setting.
         """
         if convert:
             val = self.int_to_hex_string(val)
@@ -2169,13 +2172,14 @@ class SmurfCommandMixin(SmurfBase):
 
     def get_waveform_start_addr(self, bay, engine, convert=True, **kwargs):
         """
-        bay=Which bay.
-        engine=Which waveform engine.
-
-        Optional Arg:
-        -------------
-        convert (bool) : Convert the output from a string of hex values to an
-            int. Default (True)
+        Args
+        ----
+        bay : int
+            Which bay.
+        engine : int
+            Which waveform engine.
+        convert : bool, optional, default True
+            Convert the output from a string of hex values to an int.
         """
 
         val = self._caget(self.waveform_engine_buffers_root.format(bay) +
@@ -2189,14 +2193,16 @@ class SmurfCommandMixin(SmurfBase):
 
     def set_waveform_end_addr(self, bay, engine, val, convert=True, **kwargs):
         """
-        bay=Which bay.
-        engine=Which waveform engine.
-        val=What value to set.
-
-        Optional Arg:
-        -------------
-        convert (bool) : Convert the output from a string of hex values to an
-            int. Default (True)
+        Args
+        ----
+        bay : int
+            Which bay.
+        engine : int
+            Which waveform engine.
+        val : int
+            What val to set.
+        convert : bool, optional, default True
+            Convert the output from a string of hex values to an int.        
         """
         if convert:
             val = self.int_to_hex_string(val)
@@ -2205,13 +2211,20 @@ class SmurfCommandMixin(SmurfBase):
 
     def get_waveform_end_addr(self, bay, engine, convert=True, **kwargs):
         """
-        bay=Which bay.
-        engine=Which waveform engine.
+        Args
+        ----
+        bay : int
+            Which bay.
+        engine : int
+            Which waveform engine.
+        convert : bool, optional, default True
+            Convert the output from a string of hex values to an int.
 
-        Optional Arg:
-        -------------
-        convert (bool) : Convert the output from a string of hex values to an
-            int. Default (True)
+        Returns
+        -------
+        val : str or int
+            Waveform end address (a string of hex values if convert is
+            False, otherwise an integer if convert is True).
         """
         val = self._caget(self.waveform_engine_buffers_root.format(bay) +
             self._end_addr.format(engine), **kwargs)
@@ -2224,14 +2237,16 @@ class SmurfCommandMixin(SmurfBase):
 
     def set_waveform_wr_addr(self, bay, engine, val, convert=True, **kwargs):
         """
-        bay=Which bay.
-        engine=Which waveform engine.
-        val=What val to set.
-
-        Optional Arg:
-        -------------
-        convert (bool) : Convert the output from a string of hex values to an
-            int. Default (True)
+        Args
+        ----
+        bay : int
+            Which bay.
+        engine : int
+            Which waveform engine.
+        val : int
+            What val to set.
+        convert : bool, optional, default True
+            Convert the output from a string of hex values to an int.
         """
         if convert:
             val = self.int_to_hex_string(val)
@@ -2240,13 +2255,20 @@ class SmurfCommandMixin(SmurfBase):
 
     def get_waveform_wr_addr(self, bay, engine, convert=True, **kwargs):
         """
-        bay=Which bay.
-        engine=Which waveform engine.
+        Args
+        ----
+        bay : int
+            Which bay.
+        engine : int
+            Which waveform engine.
+        convert : bool, optional, default True
+            Convert the output from a string of hex values to an int.
 
-        Optional Arg:
-        -------------
-        convert (bool) : Convert the output from a string of hex values to an
-            int. Default (True)
+        Returns
+        -------
+        val : str or int
+            Waveform end address (a string of hex values if convert is
+            False, otherwise an integer if convert is True).
         """
         val = self._caget(self.waveform_engine_buffers_root.format(bay) +
             self._wr_addr.format(engine), **kwargs)
@@ -2259,17 +2281,26 @@ class SmurfCommandMixin(SmurfBase):
 
     def set_waveform_empty(self, bay, engine, val, **kwargs):
         """
-        bay=Which bay.
-        engine=Which waveform engine.
-        val=What value to set.
+        Args
+        ----
+        bay : int
+            Which bay.
+        engine : int
+            Which waveform engine.
+        val : int
+            What val to set.
         """
         self._caput(self.waveform_engine_buffers_root.format(bay) +
             self._empty.format(engine), **kwargs)
 
     def get_waveform_empty(self, bay, engine, **kwargs):
         """
-        bay=Which bay.
-        engine=Which waveform engine.
+        Args
+        ----
+        bay : int
+            Which bay.
+        engine : int
+            Which waveform engine.
         """
         return self._caget(self.waveform_engine_buffers_root.format(bay) +
             self._empty.format(engine), **kwargs)

@@ -2790,9 +2790,10 @@ class SmurfUtilMixin(SmurfBase):
         value for this offset (see 50k_Id_offset in the amplifier
         block).
 
-        Returns:
-        --------
-        cur (float): 50K amplifier drain current in mA
+        Returns
+        -------
+        cur : float
+            50K amplifier drain current in mA.
         """
 
         # assumes circuit topology on rev C2 cryostat card
@@ -3248,20 +3249,18 @@ class SmurfUtilMixin(SmurfBase):
 
     def get_filter_params(self):
         """
-        Get the downsample filter parameters: filter order,
-        filter gain, num averages, and the actual filter
-        parameters. This reads the most recent smurf_to_mce_file
-        to get the parameters. This is defined in
-        self.smurf_to_mce_file.
+        Get the downsample filter parameters: filter order, filter
+        gain, num averages, and the actual filter parameters. This
+        reads the most recent smurf_to_mce_file to get the
+        parameters. This is defined in self.smurf_to_mce_file.
 
-        If filter order is -1, the downsampler is using a
-        rectangula integrator. This will set filter_a, filter_b
-        to None.
+        If filter order is -1, the downsampler is using a rectangula
+        integrator. This will set filter_a, filter_b to None.
 
-        Ret:
-        ----
-        filter_params (dict) : A dictionary with the filter
-            parameters.
+        Returns
+        -------
+        filter_params : dict
+            A dictionary with the filter parameters.
         """
         # Get filter order, gain, and averages
         filter_order = self.get_filter_order()
