@@ -3061,12 +3061,16 @@ class SmurfTuneMixin(SmurfBase):
     def get_fraction_full_scale(self, new_epics_root=None):
         """
         Returns the fraction_full_scale.
-        Opt Args:
-        ---------
-        new_epics_root (str) : Overrides the initialized epics root.
-        Ret:
+
+        Args
         ----
-        fraction_full_scale (float) : The fraction of the flux ramp amplitude
+        new_epics_root : str or None, optional, default None
+            Overrides the initialized epics root.
+
+        Returns
+        -------
+        fraction_full_scale : float
+            The fraction of the flux ramp amplitude.
         """
         return 1-2*(self.get_fast_slow_rst_value(new_epics_root=new_epics_root)/
                     2**self.num_flux_ramp_counter_bits)
@@ -3081,26 +3085,35 @@ class SmurfTuneMixin(SmurfBase):
         tracking. The limits are set by the variables f_min, f_max,
         and df_max. The output is stored to freq_resp[band]['lock_status'] dict.
 
-        Args:
-        -----
-        band (int) : The band the check
-        Opt Args:
-        ---------
-        f_min (float) : The maximum frequency swing.
-        f_max (float) : The minimium frequency swing
-        df_max (float) : The maximum value of the stddev of df
-        make_plot (bool) : Whether to make plots. Default False
-        flux_ramp (bool) : Whether to flux ramp or not. Default True
-        faction_full_scale (float): Number between 0 and 1. The amplitude
-           of the flux ramp.
-        lms_freq_hz (float) : The tracking frequency in Hz. Default is None
-        reset_rate_khz (float) : The flux ramp reset rate in kHz.
-        feedback_start_frac (float) : What fraction of the flux ramp to
-            skip before feedback. Float between 0 and 1.
-        feedback_end_frac (float) : What fraction of the flux ramp to skip
-            at the end of feedback. Float between 0 and 1.
-        setup_flux_ramp (bool) : Whether to setup the flux ramp at the end.
-            Default is True.
+        Args
+        ----
+        band : int
+            The band the check.
+
+        f_min : float, optional, default 0.015
+            The maximum frequency swing.
+        f_max : float, optional, default 0.2
+            The minimium frequency swing.
+        df_max : float, optional, default 0.03
+            The maximum value of the stddev of df.
+        make_plot : bool, optional, default False
+            Whether to make plots.
+        flux_ramp : bool, optional, default True
+            Whether to flux ramp or not.
+        faction_full_scale : float, optional, default None
+            Number between 0 and 1. The amplitude of the flux ramp.
+        lms_freq_hz : float or None, optional, default None
+            The tracking frequency in Hz.
+        reset_rate_khz : float or None, optional, default None
+            The flux ramp reset rate in kHz.
+        feedback_start_frac : float or None, optional, default None
+            What fraction of the flux ramp to skip before
+            feedback. Float between 0 and 1.
+        feedback_end_frac : float or None, optional, default None
+            What fraction of the flux ramp to skip at the end of
+            feedback. Float between 0 and 1.
+        setup_flux_ramp : bool, optional, default True
+            Whether to setup the flux ramp at the end.
         """
         self.log('Checking lock on band {}'.format(band))
 
@@ -3186,27 +3199,39 @@ class SmurfTuneMixin(SmurfBase):
             show_plot=False, grad_cut=.05, amp_cut=.25, pad=2, min_gap=2):
         '''
         Finds the resonances in a band (and specified subbands)
-        Args:
-        -----
-        band (int) : The band to search
-        Optional Args:
-        --------------
-        subband (int) : An int array for the subbands
-        drive_power (int) : The drive amplitude.  If none given, takes from cfg.
-        n_read (int) : The number sweeps to do per subband
-        make_plot (bool) : make the plot frequency sweep. Default False.
-        save_plot (bool) : save the plot. Default True.
-        plotname_append (string): Appended to the default plot filename. Default ''.
-        rolling_med (bool) : Whether to iterate on a rolling median or just
-           the median of the whole sample.
-        window (int) : The width of the rolling median window
-        pad (int): number of samples to pad on either side of a resonance search
-            window
-        min_gap (int): minimum number of samples between resonances
-        grad_cut (float): The value of the gradient of phase to look for
-            resonances. Default is .05
-        amp_cut (float): The fractional distance from the median value to decide
-            whether there is a resonance. Default is .25.
+
+        Args
+        ----
+        band : int
+            The band to search.
+        subband : numpy.ndarray of int, optional, default numpy.arange(13,115)
+            An int array for the subbands.
+        drive_power : int or None, optional, default None
+            The drive amplitude.  If None, takes from cfg.
+        n_read : int, optional, default 2
+            The number sweeps to do per subband.
+        make_plot : bool, optional, default False
+            Make the plot frequency sweep.
+        save_plot : bool, optional, default True
+            Save the plot.
+        plotname_append : str, optional, default ''
+            Appended to the default plot filename.
+        window : int, optional, default 50
+            The width of the rolling median window.
+        rolling_med : bool, optional, default True
+            Whether to iterate on a rolling median or just the median
+            of the whole sample.
+        grad_cut : float, optional, default 0.05
+            The value of the gradient of phase to look for
+            resonances.
+        amp_cut : float, optional, default 0.25
+            The fractional distance from the median value to decide
+            whether there is a resonance.
+        pad : int, optional, default 2
+            Number of samples to pad on either side of a resonance
+            search window
+        min_gap : int, optional, default 2
+            Minimum number of samples between resonances.
         '''
 
         # Turn off all tones in this band first.  May want to make
@@ -3280,16 +3305,22 @@ class SmurfTuneMixin(SmurfBase):
         To do:
         Add ability to use timestamp and multiple plots
 
-        Opt Args:
-        ---------
-        f (float array) : An array of frequency data
-        resp (complex array) : An array of find_freq response values
-        subband (int array): A list of subbands that are scanned
-        filename (str) : The full path to the file where the find_freq
-            is stored.
-        save_plot (bool) : save the plot. Default True.
-        show_plot (bool) : Whether to show the plot. Defualt False.
-        save_name (string) : What to name the plot. default find_freq.png
+        Args
+        ----
+        f : float array or None, optional, default None
+            An array of frequency data.
+        resp : complex array or None, optional, default None
+            An array of find_freq response values.
+        subband : int array or None, optional, default None
+            A list of subbands that are scanned.
+        filename : str or None, optional, default None
+            The full path to the file where the find_freq is stored.
+        save_plot : bool, optional, default True
+            Save the plot.
+        save_name : str, optional, default 'amp_sweep.png'
+            What to name the plot.
+         show_plot : bool, optional, default False
+            Whether to show the plot.
         '''
         if subband is None:
             subband = np.arange(128)
