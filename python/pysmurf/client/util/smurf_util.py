@@ -32,33 +32,33 @@ class SmurfUtilMixin(SmurfBase):
             IQstream=1, single_channel_readout=1, debug=False, write_log=True):
         """ Takes raw debugging data
 
-        Args:
-        -----
+        Args
+        ----
         band : int
-            The band to take data on
-        single_channel_readout : int
-            Whether to look at one channel
-        channel : int
-            The channel to take debug data on in single_channel_mode
-        nsamp : int
-            The number of samples to take
-        filename : str
+            The band to take data on.
+        channel : int or None, optional, default None
+            The channel to take debug data on in single_channel_mode.
+        nsamp : int, optional, default 2**19
+            The number of samples to take.
+        filename : str or None, optional, default None
             The name of the file to save to.
-        IQstream : int
+        IQstream : int, optional, default 1
             Whether to take the raw IQ stream.
-        debug : bool
-            Whether to take data in debug mode. Defaults False.
-        write_log : bool
-            Whether to write lowlevel commands to the log file.
+        single_channel_readout : int, optional, default 1
+            Whether to look at one channel.
+        debug : bool, optional, default False
+            Whether to take data in debug mode.
+        write_log : bool, optional, default True
+            Whether to write low-level commands to the log file.
 
-        Returns:
-        --------
+        Returns
+        -------
         f : float array
-            The frequency response
+            The frequency response.
         df : float array
-            The frequency error
+            The frequency error.
         sync : float array
-            The sync count
+            The sync count.
         """
         # Set proper single channel readout
         if channel is not None:

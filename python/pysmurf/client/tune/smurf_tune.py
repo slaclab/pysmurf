@@ -3888,28 +3888,31 @@ class SmurfTuneMixin(SmurfBase):
         """
         Attempts to find the number of phi0s in a tracking_setup.
         Takes df and sync from a tracking_setup with feedback off.
-        Args:
-        -----
-        band (int) : which band
-        df (float array): The df term from tracking setup with
-            feedback off.
-        sync (float array): The sync term from tracking setup.
-        Opt Args:
-        ---------
-        min_scale (float): The minimum df amplitude used in analysis.
-            This is used to cut channels that are not responding
-            to flux ramp. Default is .002
-        threshold (float): The minimum convolution amplitude to
-            consider a peak. Default is .01
-        make_plot (bool): Whether to make a plot. If True, you must
-            also supply the channels to plot using the channel opt
-            arg.
-        channel (int or int array): The channels to plot. Default
-            is None.
-        Ret:
+
+        Args
         ----
-        n (float): The number of phi0 swept out per sync. To get
-           lms_freq_hz, multiply by the flux ramp frequency.
+        band : int
+            Which band.
+        df : float array
+            The df term from tracking setup with feedback off.
+        sync : float array
+            The sync term from tracking setup.
+        min_scale : float, optional, default 0
+            The minimum df amplitude used in analysis.  This is used
+            to cut channels that are not responding to flux ramp.
+        make_plot : bool, optional, default False
+            Whether to make a plot. If True, you must also supply the
+            channels to plot using the channel opt arg.
+        channel : int or int array or None, optional, default None
+            The channels to plot.
+        threshold : float, optional, default 0.5
+            The minimum convolution amplitude to consider a peak.
+
+        Returns
+        -------
+        n : float
+            The number of phi0 swept out per sync. To get lms_freq_hz,
+            multiply by the flux ramp frequency.
         """
         sync_flag = self.make_sync_flag(sync)
 
@@ -3985,15 +3988,20 @@ class SmurfTuneMixin(SmurfBase):
 
     def make_sync_flag(self, sync):
         """
-        Takes the sync from tracking setup and makes a flag for when the sync
-        is True.
-        Args:
-        -----
-        sync (float array): The sync term from tracking_setup
-        Ret:
+        Takes the sync from tracking setup and makes a flag for when
+        the sync is True.
+
+        Args
         ----
-        start (int array): The start index of the sync
-        end (int array) The end index of the sync
+        sync : float array
+            The sync term from tracking_setup.
+
+        Returns
+        -------
+        start : int array
+            The start index of the sync.
+        end : int array
+            The end index of the sync.
         """
         s, e = self.find_flag_blocks(sync[:,0], min_gap=1000)
         n_proc=self.get_number_processed_channels()
@@ -4110,12 +4118,15 @@ class SmurfTuneMixin(SmurfBase):
     def dump_state(self, output_file=None, return_screen=False):
         """
         Dump the current tuning info to config file and write to disk
-        Args:
-        -----
-        output_file (str): path to output file location. Defaults to the config
-            file status dir and timestamp
-        return_screen (bool): whether to also return the contents of the config
-            file in addition to writing to file. Defaults False.
+
+        Args
+        ----
+        output_file : str or None, optional, default None
+            Path to output file location. Defaults to the config file
+            status dir and timestamp
+        return_screen : bool, optional, default False
+            Whether to also return the contents of the config file in
+            addition to writing to file.
         """
 
         # get the HEMT info because why not
@@ -4162,17 +4173,22 @@ class SmurfTuneMixin(SmurfBase):
         """
         Takes a list of resonance frequencies and fakes a resonance dictionary
         so that we can run setup_notches on a subset without find_freqs
-        Args:
-        freqs (list of floats): given in MHz, list of frequencies to tune.
-        Need to be within 100kHz to be really effective
-        bands (list): band numbers that we have (This should be in the config
-        file but I can't find it...)
-        save_sweeps (bool): whether to save each band as an amplitude sweep.
-        Defaults False.
-        Outputs:
-        resonance dictionary like the one that comes out of find_freqs
-        You probably want to assign it to the right place, as in S.freq_resp =
-        S.fake_resonance_dict(freqs, bands)
+
+        Args
+        ----
+        freqs : list of floats
+            Given in MHz, list of frequencies to tune.  Need to be
+            within 100kHz to be really effective
+        save_sweeps : bool, optional, default False
+            Whether to save each band as an amplitude sweep.
+
+        Returns
+        -------
+        freq_dict : dict
+            Resonance dictionary like the one that comes out of
+            find_freqs You probably want to assign it to the right
+            place, as in S.freq_resp = S.fake_resonance_dict(freqs,
+            bands)
         """
 
         bands = self.config.get('init').get('bands')
@@ -4223,14 +4239,19 @@ class SmurfTuneMixin(SmurfBase):
         """
         Convert the frequency to which band we're in. This is almost certainly
         a duplicate but I can't find the original...
-        Args:
-        -----
-        frequency (float): frequency in MHz
-        band_center_list (list): frequency centers of bands we're running with.
-        Formatted as [[band_no, band_center],[band_no, band_center],etc.]
-        Ret:
+
+        Args
         ----
-        band_no of the frequency
+        frequency : float
+            Frequency in MHz.
+        band_center_list : list
+            Frequency centers of bands we're running with.  Formatted
+            as [[band_no, band_center],[band_no, band_center],etc.]
+
+        Returns
+        -------
+        band_no : int
+            Which band.
         """
 
         band_width = 500. # hardcoding this is probably bad
