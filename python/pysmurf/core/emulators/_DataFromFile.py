@@ -86,9 +86,10 @@ class DataMaster(rogue.interfaces.stream.Master):
         frame with the SMuRF header, with only the first channel
         containing the data point.
 
-        Args:
-        -----
-        - file_name (str) : path to the input data file
+        Args
+        ----
+        file_name : str
+            Path to the input data file.
         """
         if not file_name:
             print("ERROR: Must define a data file first!")
@@ -113,9 +114,10 @@ class DataMaster(rogue.interfaces.stream.Master):
         one channel. The SMuRF header will be only partially filled, containing
         only the number of channels, and a the frame counter words.
 
-        Args:
-        -----
-        - data (int) : input data (must be of type int16)
+        Args
+        ----
+        data : int
+            Input data (must be of type int16).
         """
 
         # Request a frame to hold 1 data point

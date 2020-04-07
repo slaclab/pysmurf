@@ -20,6 +20,8 @@ level commands as well as higher level analysis.
    user/installation
    user/quickstart
    user/configuration
+   user/developer
+
 
 .. toctree::
    :maxdepth: 3
