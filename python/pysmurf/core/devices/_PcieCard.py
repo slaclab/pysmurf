@@ -16,9 +16,9 @@
 # copied, modified, propagated, or distributed except according to the terms
 # contained in the LICENSE.txt file.
 #-----------------------------------------------------------------------------
-
-import socket
 from pathlib import Path
+import socket
+
 import pyrogue
 
 # Exit with a error message

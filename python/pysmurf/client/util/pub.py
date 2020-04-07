@@ -5,11 +5,12 @@
 
 # From here: https://github.com/mhasself/stdpub/blob/master/pub.py
 
-import socket
 import json
 import os
+import socket
 import sys
 import time
+
 import pysmurf
 
 DEFAULT_ENV_ROOT = 'SMURFPUB_'

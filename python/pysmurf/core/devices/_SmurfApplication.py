@@ -16,11 +16,12 @@
 # copied, modified, propagated, or distributed except according to the terms
 # contained in the LICENSE.txt file.
 #-----------------------------------------------------------------------------
-
-import pyrogue
-import pysmurf
 import os
 import sys
+
+import pyrogue
+
+import pysmurf
 
 class SmurfApplication(pyrogue.Device):
     """

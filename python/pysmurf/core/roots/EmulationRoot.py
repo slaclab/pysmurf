@@ -17,14 +17,13 @@
 # contained in the LICENSE.txt file.
 #-----------------------------------------------------------------------------
 
+from CryoDet._MicrowaveMuxBpEthGen2 import FpgaTopLevel
 import pyrogue
-import pysmurf
 import rogue.protocols.srp
 
-from pysmurf.core.roots.Common import Common
+import pysmurf
 import pysmurf.core.emulators
-
-from CryoDet._MicrowaveMuxBpEthGen2 import FpgaTopLevel
+from pysmurf.core.roots.Common import Common
 
 class EmulationRoot(Common):
     def __init__(self, *,

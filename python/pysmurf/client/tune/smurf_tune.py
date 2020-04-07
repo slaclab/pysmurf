@@ -12,18 +12,20 @@
 # No part of the pysmurf software package, including this file, may be
 # copied, modified, propagated, or distributed except according to the terms
 # contained in the LICENSE.txt file.
-#-----------------------------------------------------------------------------
-import numpy as np
-import os
-import glob
-import time
-from pysmurf.client.base import SmurfBase
-import scipy.signal as signal
+#----------------------------------------------------------------------------
 from collections import Counter
-from ..util import tools
-from pysmurf.client.command.sync_group import SyncGroup as SyncGroup
+import glob
+import os
+import time
+
 import matplotlib.pyplot as plt
 from matplotlib.gridspec import GridSpec
+import numpy as np
+import scipy.signal as signal
+
+from pysmurf.client.base import SmurfBase
+from pysmurf.client.command.sync_group import SyncGroup as SyncGroup
+from ..util import tools
 
 class SmurfTuneMixin(SmurfBase):
     """

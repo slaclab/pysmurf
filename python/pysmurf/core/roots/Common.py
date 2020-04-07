@@ -18,12 +18,12 @@
 #-----------------------------------------------------------------------------
 
 import pyrogue
-import pysmurf
 import rogue.hardware.axi
 import rogue.protocols.srp
 
-import pysmurf.core.utilities
+import pysmurf
 import pysmurf.core.devices
+import pysmurf.core.utilities
 
 class Common(pyrogue.Root):
     def __init__(self, *,

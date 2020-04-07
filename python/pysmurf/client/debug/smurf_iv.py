@@ -13,13 +13,15 @@
 # copied, modified, propagated, or distributed except according to the terms
 # contained in the LICENSE.txt file.
 #-----------------------------------------------------------------------------
-import numpy as np
-from pysmurf.client.base import SmurfBase
 import time
 import os
-import matplotlib.pyplot as plt
-from matplotlib.gridspec import GridSpec
+
 import matplotlib.colors as Colors
+from matplotlib.gridspec import GridSpec
+import matplotlib.pyplot as plt
+import numpy as np
+
+from pysmurf.client.base import SmurfBase
 
 class SmurfIVMixin(SmurfBase):
 
