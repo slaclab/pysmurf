@@ -39,29 +39,40 @@ class SmurfTuneMixin(SmurfBase):
         This runs a tuning, does tracking setup, and prunes bad
         channels using check lock. When this is done, we should
         be ready to take data.
-        Opt Args:
-        ---------
-        load_tune (bool): Whether to load in a tuning file. If False, will
-            do a full tuning. This will be very slow (~ 1 hour)
-        tune_file (str): The tuning file to load in. Default is None. If
-            tune_file is None and last_tune is False, this will load the
-            default tune file defined in exp.cfg.
-        last_tune (bool): Whether to load the most recent tuning file. Default
-            is False.
-        retune (bool): Whether to re-run tune_band_serial to refind peaks and
-            eta params. This will take about 5 minutes. Default is False.
-        f_min (float): The minimum frequency swing allowable for check_lock.
-        f_max (float): The maximum frequency swing allowable for check_lock.
-        df_max (float): The maximum df stddev allowable for check_lock.
-        fraction_full_scale (float): The fraction (between 0-1) to set the
-            flux ramp amplitude.
-        make_plot (bool): Whether to make a plot. Default is False.
-        save_plot (bool): If making plots, whether to save them. Default is True.
-        show_plot (bool): Whether to display the plots to screen. Default is False.
-        track_and_check (bool): Whether or not after tuning to run
-            track and check.  Default is True.
-        new_master_assignment (bool): Whether to make a new master assignment
-            which forces resonators at a given frequency to a given channel.
+
+        Args
+        ----
+        load_tune : bool, optional, default True
+            Whether to load in a tuning file. If False, will do a full
+            tuning. This will be very slow (~ 1 hour)
+        tune_file : str or None, optional, default None
+            The tuning file to load in. If tune_file is None and
+            last_tune is False, this will load the default tune file
+            defined in exp.cfg.
+        last_tune : bool, optional, default False
+            Whether to load the most recent tuning file.
+        retune : bool, optional, default False
+            Whether to re-run tune_band_serial to refind peaks and eta
+            params. This will take about 5 minutes.
+        f_min : float, optional, default 0.02
+            The minimum frequency swing allowable for check_lock.
+        f_max : float, optional, default 0.3
+            The maximum frequency swing allowable for check_lock.
+        df_max : float, optional, default 0.03
+            The maximum df stddev allowable for check_lock.
+        fraction_full_scale : float or None, optional, default None
+            The fraction (between 0-1) to set the flux ramp amplitude.
+        make_plot : bool, optional, default False
+            Whether to make a plot.
+        save_plot : bool, optional, default True
+            If making plots, whether to save them.
+        show_plot : bool, optional, default False
+            Whether to display the plots to screen.
+        new_master_assignment : bool, optional, default False
+            Whether to make a new master assignment which forces
+            resonators at a given frequency to a given channel.
+        track_and_check : bool, optional, default True
+            Whether or not after tuning to run track and check.
         """
         bands = self.config.get('init').get('bands')
         tune_cfg = self.config.get('tune_band')
@@ -108,44 +119,68 @@ class SmurfTuneMixin(SmurfBase):
 
 
     def tune_band(self, band, freq=None, resp=None, n_samples=2**19,
-            make_plot=False, show_plot=False, plot_chans=[], save_plot=True,
-            save_data=True,  make_subband_plot=False, subband=None, n_scan=5,
-            subband_plot_with_slow=False, drive=None, grad_cut=.05, freq_min=-2.5E8,
-            freq_max=2.5E8, amp_cut=.5, use_slow_eta=False):
+            make_plot=False, show_plot=False, plot_chans=[],
+            save_plot=True, save_data=True, make_subband_plot=False,
+            n_scan=5, subband_plot_with_slow=False, drive=None,
+            grad_cut=.05, freq_min=-2.5E8, freq_max=2.5E8, amp_cut=.5,
+            use_slow_eta=False):
         """
         This does the full_band_resp, which takes the raw resonance data.
         It then finds the where the resonances are. Using the resonance
         locations, it calculates the eta parameters.
-        Args:
-        -----
-        band (int): The band to tune
-        Opt Args:
-        ---------
-        freq (float array): The frequency information. If both freq and resp
-            are not None, it will skip full_band_resp.
-        resp (float array): The response information. If both freq and resp
-            are not None, it will skip full_band_resp.
-        n_samples (int): The number of samples to take in full_band_resp.
-            Default is 2^19.
-        make_plot (bool): Whether to make plots. This is slow, so if you want
-            to tune quickly, set to False. Default True.
-        plot_chans (list): if making plots, which channels to plot. If empty,
-            will just plot all of them
-        save_plot (bool): Whether to save the plot. If True, it will close the
-            plots before they are shown. If False, plots will be brought to the
-            screen.
-        save_data (bool): If True, saves the data to disk.
-        grad_cut (float): The value of the gradient of phase to look for
-            resonances. Default is .05
-        amp_cut (float): The distance from the median value to decide whether
-            there is a resonance. Default is .25.
-        freq_min (float): The minimum frequency relative to the center of
-            the band to look for resonances. Units of Hz. Defaults is -2.5E8
-        freq_max (float): The maximum frequency relative to the center of
-            the band to look for resonances. Units of Hz. Defaults is 2.5E8
-        Returns:
-        --------
-        res (dict): A dictionary with resonance frequency, eta, eta_phase,
+
+        Args
+        ----
+        band : int
+            The band to tune.
+        freq : float array or None, optional, default None
+            The frequency information. If both freq and resp are not
+            None, it will skip full_band_resp.
+        resp : float array or None, optional, default None
+            The response information. If both freq and resp are not
+            None, it will skip full_band_resp.
+        n_samples : int, optional, default 2**19
+            The number of samples to take in full_band_resp.
+        make_plot : bool, optional, default False
+            Whether to make plots. This is slow, so if you want to
+            tune quickly, set to False.
+        show_plot : bool, optional, default False
+            Whether to display the plots to screen.
+        plot_chans : list, optional, default []
+            If making plots, which channels to plot. If empty, will
+            just plot all of them.
+        save_plot : bool, optional, default True
+            Whether to save the plot. If True, it will close the plots
+            before they are shown. If False, plots will be brought to
+            the screen.
+        save_data : bool, optional, default True
+            If True, saves the data to disk.
+        make_subband_plot : bool, optional, default False
+            Whether to make a plot per subband. This is very slow.
+        n_scan : int, optional, default 5
+            The number of scans to take and average.
+        subband_plot_with_slow : bool, optional, default False
+            ???
+        drive : int or None, optional, default None
+            ???
+        grad_cut : float, optional, default 0.05
+            The value of the gradient of phase to look for resonances.
+        freq_min : float, optional, default -2.5e8
+            The minimum frequency relative to the center of the band
+            to look for resonances. Units of Hz.
+        freq_max : float, optional, default 2.5e8
+            The maximum frequency relative to the center of the band
+            to look for resonances. Units of Hz.
+        amp_cut : float, optional, default 0.5
+            The distance from the median value to decide whether
+            there is a resonance.
+        use_slow_eta : bool, optional, default False
+            ???
+
+        Returns
+        -------
+        resonances : dict
+            A dictionary with resonance frequency, eta, eta_phase,
             R^2, and amplitude.
         """
         timestamp = self.get_timestamp()
@@ -226,44 +261,50 @@ class SmurfTuneMixin(SmurfBase):
 
         return resonances
 
-    def tune_band_serial(self, band, n_samples=2**19,
-            make_plot=False, save_plot=True, save_data=True, show_plot=False,
+    def tune_band_serial(self, band, n_samples=2**19, make_plot=False,
+            save_plot=True, save_data=True, show_plot=False,
             make_subband_plot=False, subband=None, n_scan=5,
-            subband_plot_with_slow=False, window=5000, rolling_med=True,
-            grad_cut=.03, freq_min=-2.5E8, freq_max=2.5E8, amp_cut=.25,
-            del_f=.005, drive=None, new_master_assignment=False,
-            from_old_tune=False, old_tune=None, pad=50, min_gap=50,
+            subband_plot_with_slow=False, window=5000,
+            rolling_med=True, grad_cut=.03, freq_min=-2.5E8,
+            freq_max=2.5E8, amp_cut=.25, del_f=.005, drive=None,
+            new_master_assignment=False, from_old_tune=False,
+            old_tune=None, pad=50, min_gap=50,
             highlight_phase_slip=True, amp_ylim=None):
-        """ Tunes band using serial_gradient_descent and then serial_eta_scan.
-        This requires an initial guess, which this function gets by either
-        loading an old tune or by using the full_band_resp.  This takes about 3
-        minutes per band if there are about 150 resonators.
-        This saves the results to the freq_resp dictionary.
+        """Tunes band using serial_gradient_descent and then
+        serial_eta_scan.  This requires an initial guess, which this
+        function gets by either loading an old tune or by using the
+        full_band_resp.  This takes about 3 minutes per band if there
+        are about 150 resonators.  This saves the results to the
+        freq_resp dictionary.
 
-        Parameters:
-        -----------
+        Args
+        ----
         band : int
-            The band the tune
-        from_old_tune : bool
-            Whether to use an old tuning file. This will load a tuning file and
-            use its peak frequencies as a starting point for
-            serial_gradient_descent.
-        old_tune : str
-            The full path to the tuning file.
-        new_master_assignment : bool
-            Whether to overwrite the previous master_assignment list. Default
-            False.
-        make_plot : bool
-            Whether to make plots. Default is False.
-        save_plot : bool
-            If make_make plot is True, whether to save the plots. Default is True.
-        show_plot : bool
+            The band the tune.
+        n_samples : int, optional, default 2**19
+            The number of samples to take in full_band_resp.
+        make_plot : bool, optional, default False
+            Whether to make plots.
+        save_plot : bool, optional, default True
+            Whether to save the plot. If True, it will close the plots
+            before they are shown. If False, plots will be brought to
+            the screen.
+        show_plot : bool, optional, default False
             If make_plot is True, whether to display the plots to screen.
-        highlight_phase_slip : bool
-            Whether to highlight the phase slip. Default True.
-        amp_ylim : float
-            The ylim for the amplitude plot. If None, does nothing. Default
-            None.
+        make_subband_plot : bool, optional, default False
+            Whether to make a plot per subband. This is very slow.
+        new_master_assignment : bool, optional, default False
+            Whether to overwrite the previous master_assignment list.
+        from_old_tune : bool, optional, default False
+            Whether to use an old tuning file. This will load a tuning
+            file and use its peak frequencies as a starting point for
+            serial_gradient_descent.
+        old_tune : str or None, optional, default None
+            The full path to the tuning file.
+        highlight_phase_slip : bool, optional, default True
+            Whether to highlight the phase slip.
+        amp_ylim : float or None, optional, default None
+            The ylim for the amplitude plot. If None, does nothing.
         """
         timestamp = self.get_timestamp()
         center_freq = self.get_band_center_mhz(band)
@@ -395,25 +436,30 @@ class SmurfTuneMixin(SmurfBase):
         Plots summary of tuning. Requires self.freq_resp to be filled.
         In other words, you must run find_freq and setup_notches
         before calling this function. Saves the plot to plot_dir.
-        This will also make individual eta plots as well if {eta_scan} is True.
-        The eta scan plots are slow because there are many of them.
+        This will also make individual eta plots as well if {eta_scan}
+        is True.  The eta scan plots are slow because there are many
+        of them.
 
-        Args:
-        -----
-        band (int): The band number to plot
-
-        Opt Args:
-        ---------
-        eta_scan (bool) : Whether to also plot individual eta scans.
-           Warning this is slow. Default is False.
-        show_plot (bool) : Whether to display the plot. Default is False.
-        save_plot (bool) : Whether to save the plot. Default is True.
-        eta_width (float) : The width to plot in MHz.
-        channels (int list) : Which channels to plot.  Default is None,
-                             which plots all available channels.
-        plot_summary (bool) : Plot summary.
-        plotname_append (string): Appended to the default plot filename. Default
-            is ''.
+        Args
+        ----
+        band : int
+            The band number to plot.
+        eta_scan : bool, optional, default False
+           Whether to also plot individual eta scans.  Warning this is
+           slow.
+        show_plot : bool, optional, default False
+            Whether to display the plot.
+        save_plot : bool, optional, default True
+            Whether to save the plot.
+        eta_width : float, optional, default 0.3
+            The width to plot in MHz.
+        channels : list of int or None, optional, default None
+            Which channels to plot.  If None, plots all available
+            channels.
+        plot_summary : bool, optional, default True
+            Plot summary.
+        plotname_append : str, optional, default ''
+            Appended to the default plot filename.
         """
         if show_plot:
             plt.ion()
@@ -534,37 +580,52 @@ class SmurfTuneMixin(SmurfBase):
         """
         Injects high amplitude noise with known waveform. The ADC measures it.
         The cross correlation contains the information about the resonances.
-        Args:
-        -----
-        band (int): The band to sweep.
 
-        Opt Args:
-        ---------
-        n_scan (int): The number of scans to take and average
-        n_samples (int): The number of samples to take. Default 2^18.
-        make_plot (bool): Whether the make plots. Default is False.
-        show_plot (bool): Whether to show plots. Default False
-        save_data (bool): Whether to save the data.
-        save_raw_data (bool): Whether to save the raw ADC/DAC data. Default
-            False.
-        timestamp (str): The timestamp as a string. If None, loads the current
+        Args
+        ----
+        band : int
+            The band to sweep.
+
+        n_scan : int, optional, default 1
+            The number of scans to take and average.
+        n_samples : int, optional, default 2**19
+            The number of samples to take.
+        make_plot : bool, optional, default False
+            Whether the make plots.
+        save_plot : bool, optional, default True
+            If making plots, whether to save them.
+        show_plot : bool, optional, default False
+            Whether to show plots.
+        save_data : bool, optional, default False
+            Whether to save the data.
+        timestamp : str or None, optional, default None
+            The timestamp as a string. If None, loads the current
             timestamp.
-        correct_att (bool): Correct the response for the attenuators. Default
-            is True.
-        swap (bool): Whether to reverse the data order of the ADC relative
-            to the DAC. This solved an legacy problem. Default False.
-        hw_trigger (bool): Whether to start the broadband noise file using
-            the hardware trigger. Default True.
-        return_plot_path (bool) : Whether to return the full path to the
-            summary plot. Default False.
-        check_if_adc_is_saturated (bool): Right after playing the
-            noise file, checks if ADC for the requested band is
-            saturated.  If it is saturated, gives up with an error.
+        save_raw_data : bool, optional, default False
+            Whether to save the raw ADC/DAC data.
+        correct_att : bool, optional, default True
+            Correct the response for the attenuators.
+        swap : bool, optional, default False
+            Whether to reverse the data order of the ADC relative to
+            the DAC. This solved a legacy problem.
+        hw_trigger : bool, optional, default True
+            Whether to start the broadband noise file using the
+            hardware trigger.
+        write_log : bool, optional, default False
+            Whether to write output to the log.
+        return_plot_path : bool, optional, default False
+            Whether to return the full path to the summary plot.
+        check_if_adc_is_saturated : bool, optional, default True
+            Right after playing the noise file, checks if ADC for the
+            requested band is saturated.  If it is saturated, gives up
+            with an error.
 
-        Returns:
-        --------
-        f (float array): The frequency information. Length n_samples/2
-        resp (complex array): The response information. Length n_samples/2
+        Returns
+        -------
+        f : float array
+            The frequency information. Length n_samples/2.
+        resp : complex array
+            The response information. Length n_samples/2.
         """
         if timestamp is None:
             timestamp = self.get_timestamp()
@@ -735,56 +796,59 @@ class SmurfTuneMixin(SmurfBase):
             amp_ylim=None):
         """ Find the peaks within a given subband.
 
-        Parameters:
-        -----------
+        Args
+        ----
         freq : float array
-            should be a single row of the broader freq array, in Mhz.
+            Should be a single row of the broader freq array, in Mhz.
         resp : complex array
-            complex response for just this subband
-        rolling_med : bool
-            Whether to use a rolling median for the background
-        window : int
-            number of samples to window together for rolling med
-        grad_cut : float
-            The value of the gradient of phase to look for resonances. Default
-            is .05
-        amp_cut : float
-            The fractional distance from the median value to decide whether
-            there is a resonance. Default is .25.
-        freq_min : float
-            The minimum frequency relative to the center of the band to look for
-            resonances. Units of Hz. Defaults is -2.5E8
-        freq_max : float
-            The maximum frequency relative to the center of the band to look for
-            resonances. Units of Hz. Defaults is 2.5E8
-        make_plot : bool
-            Whether to make a plot. Default is False.
-        make_subband_plot : bool
-            Whether to make a plot per subband. This is very slow. Default is
-            False.
-        save_plot :bool
-            Whether to save the plot to self.plot_dir. Default is True.
-        plotname_append : string
-            Appended to the default plot filename. Default is ''.
-        band : int
+            Complex response for just this subband.
+        rolling_med : bool, optional, default True
+            Whether to use a rolling median for the background.
+        window : int, optional, default 5000
+            Number of samples to window together for rolling med.
+        grad_cut : float, optional, default 0.5
+            The value of the gradient of phase to look for resonances.
+        amp_cut : float, optional, default 0.25
+            The fractional distance from the median value to decide
+            whether there is a resonance.
+        freq_min : float, optional, default -2.5e8
+            The minimum frequency relative to the center of the band
+            to look for resonances. Units of Hz.
+        freq_max : float, optional, default 2.5e8
+            The maximum frequency relative to the center of the band
+            to look for resonances. Units of Hz.
+        make_plot : bool, optional, default False
+            Whether to make a plot.
+        save_plot : bool, optional, default True
+            Whether to save the plot to self.plot_dir.
+        plotname_append : str, optional, default ''
+            Appended to the default plot filename.
+        show_plot : bool, optional, default False
+            Whether or not to show plots.
+        band : int or None, optional, default None
             The band to take find the peaks in. Mainly for saving and plotting.
-        timestamp : str
-            The timestamp. Mainly for saving and plotting
-        pad : int
-            number of samples to pad on either side of a resonance search window
-        min_gap : int
-            minimum number of samples between resonances
-        grad_kernel_width : int
-            The number of samples to take after a point to calculate the
-            gradient of phase. Default is 8.
-        highlight_phase_slip : bool
-            Whether to highlight the phase slip. Default True.
-        amp_ylim : float
-            The ylim for the amplitude plot. If None, does nothing. Default
-            None.
+        subband : int or None, optional, default None
+            The subband to take find the peaks in. Mainly for saving
+            and plotting.
+        make_subband_plot : bool, optional, default False
+            Whether to make a plot per subband. This is very slow.
+        timestamp : str or None, optional, default None
+            The timestamp. Mainly for saving and plotting.
+        pad : int, optional, default 50
+            Number of samples to pad on either side of a resonance
+            search window.
+        min_gap : int, optional, default 100
+            Minimum number of samples between resonances.
+        grad_kernel_width : int, optional, default 8
+            The number of samples to take after a point to calculate
+            the gradient of phase.
+        highlight_phase_slip : bool, optional, default True
+            Whether to highlight the phase slip.
+        amp_ylim : float or None, optional, default None
+            The ylim for the amplitude plot. If None, does nothing.
 
-        Returns:
-        --------
+        Returns
+        -------
         resonances : float array
             The frequency of the resonances in the band in Hz.
         """
@@ -984,25 +1048,28 @@ class SmurfTuneMixin(SmurfBase):
 
     def find_flag_blocks(self, flag, minimum=None, min_gap=None):
         """
-        Find blocks of adjacent points in a boolean array with the same value.
+        Find blocks of adjacent points in a boolean array with the
+        same value.
 
-        Args:
-        -----
-        flag : bool, array_like
-            The array in which to find blocks
+        Args
+        ----
+        flag : array-like of bool
+            The array in which to find blocks.
+        minimum : int or None, optional, default None
+            The minimum length of block to return. Discards shorter
+            blocks.
+        min_gap : int or None, optional, default None
+            The minimum gap between flag blocks. Fills in gaps
+            smaller.
 
-        Opt Args:
-        ---------
-        minimum : int (optional)
-            The minimum length of block to return. Discards shorter blocks
-        min_gap : int (optional)
-            The minimum gap between flag blocks. Fills in gaps smaller.
         Returns
         -------
-        starts, ends : int arrays
-            The start and end indices for each block.
-            NOTE: the end index is the last index in the block. Add 1 for
-            slicing, where the upper limit should be after the block
+        starts : list of int
+            The start indices for each block.
+        ends : list of int
+            The end indices for each block.  NOTE: the end index is
+            the last index in the block. Add 1 for slicing, where the
+            upper limit should be after the block
         """
         if min_gap is not None:
             _flag = self.pad_flags(np.asarray(flag, dtype=bool),
@@ -1029,18 +1096,24 @@ class SmurfTuneMixin(SmurfBase):
         """
         Adds and combines flagging.
 
-        Args:
-        -----
-        f (bool array): The flag array to pad
-        Opt Args:
-        ---------
-        before_pad (int): The number of samples to pad before a flag
-        after_pad (int); The number of samples to pad after a flag
-        min_gap (int): The smallest allowable gap. If bigger, it combines.
-        min_length (int): The smallest length a pad can be.
-        Ret:
+        Args
         ----
-        pad_flag (bool array): The padded boolean array
+        f : list of bool
+            The flag array to pad.
+
+        before_pad : int, optional, default 0
+            The number of samples to pad before a flag.
+        after_pad : int, optional, default 0
+            The number of samples to pad after a flag.
+        min_gap : int, optional, default 0
+            The smallest allowable gap. If bigger, it combines.
+        min_length : int, optional, default 0
+            The smallest length a pad can be.
+
+        Returns
+        -------
+        pad_flag : list of bool
+            The padded boolean array.
         """
         before, after = self.find_flag_blocks(f)
         after += 1
@@ -1064,16 +1137,18 @@ class SmurfTuneMixin(SmurfBase):
         """
         Plots the output of find_freq.
 
-        Args:
-        -----
-        freq (float array): The frequency data
-        resp (float array): The response to full_band_resp
-        peak_ind (int array): The indicies of peaks found
-
-        Opt Args:
-        ---------
-        save_plot (bool): Whether to save the plot
-        save_name (str): THe name of the plot
+        Args
+        ----
+        freq : float array
+            The frequency data.
+        resp : float array
+            The response to full_band_resp.
+        peak_ind : int array
+            The indicies of peaks found.
+        save_plot : bool, optional, default True
+            Whether to save the plot.
+        save_name : str or None, optional, default None
+            The name of the plot.
         """
         if save_plot:
             plt.ioff()
@@ -1126,32 +1201,48 @@ class SmurfTuneMixin(SmurfBase):
         """
         Cyndia's eta finding code.
 
-        Args:
-        -----
-        freq (float array): The frequency data
-        resp (float array): The response data
-        peak_freq (float): The frequency of the resonance peak
-        delta_freq (float): The width of frequency to calculate values
+        Args
+        ----
+        freq : float array
+            The frequency data.
+        resp : float array
+            The response data.
+        peak_freq : float
+            The frequency of the resonance peak.
+        delta_freq : float
+            The width of frequency to calculate values.
+        make_plot : bool, optional, default False
+            Whether to make plots.
+        plot_chans : int array, optional, default []
+            The channels to plot. If an empty array, it will make
+            plots for all channels.
+        save_plot : bool, optional, default True
+            Whether to save plots.
+        band : int or None, optional, default None
+            Only used for plotting - the band number of the resontaor.
+        timestamp : str or None, optional, default None
+            The timestamp of the data.
+        res_num : int or None, optional, default None
+            The resonator number.
+        use_slow_eta : bool, optional, default False
+            ???.
 
-        Opt Args:
-        ---------
-        make_plot (bool): Whether to make plots. Default is False.
-        save_plot (bool): Whether to save plots. Default is True.
-        plot_chans (int array): The channels to plot. If an empty array, it
-            will make plots for all channels.
-        band (int): Only used for plotting - the band number of the resontaor
-        timestamp (str): The timestamp of the data.
-        res_num (int): The resonator number
-
-        Rets:
-        -----
-        eta (complex): The eta parameter
-        eta_scaled (complex): The eta parameter divided by subband_half_Width
-        eta_phase_deg (float): The angle to rotate IQ circle
-        r2 (float): The R^2 value copared to the resonator fit
-        eta_mag (float): The amplitude of eta
-        latency (float): THe delay
-        Q (float): THe resonator quality factor
+        Returns
+        -------
+        eta : complex
+            The eta parameter.
+        eta_scaled : complex
+            The eta parameter divided by subband_half_width.
+        eta_phase_deg : float
+            The angle to rotate IQ circle.
+        r2 : float
+            The R^2 value compared to the resonator fit.
+        eta_mag : float
+            The amplitude of eta.
+        latency : float
+            The delay.
+        Q : float
+            The resonator quality factor.
         """
 
         if band is None:
@@ -1241,23 +1332,42 @@ class SmurfTuneMixin(SmurfBase):
         Plots the eta parameter fits. This is called by self.eta_fit or
         plot_tune_summary.
 
-        Args:
-        -----
-        freq (float array): The frequency data
-        resp (complex array): THe response data
-
-        Opt Args:
-        ---------
-        eta (complex): The eta parameter
-        eta_mag (complex): The amplitude of the eta parameter
-        eta_phase_deg (float): The angle of the eta parameter in degrees
-        r2 (float): The R^2 value
-        save_plot (bool): Whether to save the plot. Default True.
-        plotname_append (string): Appended to the default plot filename. Default ''.
-        timestamp (str): The timestamp to name the file
-        res_num (int): The resonator number to label the plot
-        band (int): The band number to label the plot
-        sk_fit (flot array): The fit parameters for the skewe lorentzian
+        Args
+        ----
+        freq : float array
+            The frequency data.
+        resp : complex array
+            The response data.
+        eta : complex or None, optional, default None
+            The eta parameter.
+        eta_mag : complex or None, optional, default None
+            The amplitude of the eta parameter.
+        peak_freq : ??? or None, optional, default None
+            ???
+        eta_phase_deg : float or None, optional, default None
+            The angle of the eta parameter in degrees.
+        r2 : float or None, optional, default None
+            The R^2 value.
+        save_plot : bool, optional, default True
+            Whether to save the plot.
+        plotname_append : str, optional, default ''
+            Appended to the default plot filename.
+        show_plot : bool, optional, default False
+            ???
+        timestamp : str or None, optional, default None
+            The timestamp to name the file.
+        res_num : int or None, optional, default None
+            The resonator number to label the plot.
+        band : int or None, optional, default None
+            The band number to label the plot.
+        sk_fit : float array or None, optional, default None
+            The fit parameters for the skewed lorentzian.
+        f_slow : ??? or None, optional, default None
+            ???
+        resp_slow : ??? or None, optional, default None
+            ???
+        channel : ??? or None, optional, default None
+            ???
         """
         if timestamp is None:
             timestamp = self.get_timestamp()
@@ -1392,13 +1502,20 @@ class SmurfTuneMixin(SmurfBase):
     def get_closest_subband(self, f, band, as_offset=True):
         """
         Gives the closest subband number for a given input frequency.
-        Args:
-        -----
-        f (float): The frequency to search for a subband
-        band (int): The band to identify
-        Ret:
+
+        Args
         ----
-        subband (int): The subband that contains the frequency
+        f : float
+            The frequency to search for a subband.
+        band : int
+            The band to identify.
+        as_offset : bool, optional, default True
+            ???
+
+        Returns
+        -------
+        subband : int
+            The subband that contains the frequency.
         """
         # get subband centers:
         subbands, centers = self.get_subband_centers(band, as_offset=as_offset)
@@ -1414,13 +1531,18 @@ class SmurfTuneMixin(SmurfBase):
     def check_freq_scale(self, f1, f2):
         """
         Makes sure that items are the same frequency scale (ie MHz, kHZ, etc.)
-        Args:
-        -----
-        f1 (float): The first frequency
-        f2 (float): The second frequency
-        Ret:
+
+        Args
         ----
-        same_scale (bool): Whether the frequency scales are the same
+        f1 : float
+            The first frequency.
+        f2 : float
+            The second frequency.
+
+        Returns
+        -------
+        same_scale : bool
+            Whether the frequency scales are the same.
         """
         if abs(f1/f2) > 1e3:
             return False
@@ -1433,11 +1555,13 @@ class SmurfTuneMixin(SmurfBase):
         By default, pysmurf loads the most recent master assignment.
         Use this function to overwrite the default one.
 
-        Args:
-        -----
-        band (int): The band for the master assignment file
-        filename (str): The full path to the new master assignment
-            file. Should be in self.tune_dir.
+        Args
+        ----
+        band : int
+            The band for the master assignment file.
+        filename : str
+            The full path to the new master assignment file. Should be
+            in self.tune_dir.
         """
         if 'band_{}'.format(band) in self.channel_assignment_files.keys():
             self.log('Old master assignment file:'+
@@ -1450,15 +1574,22 @@ class SmurfTuneMixin(SmurfBase):
     def get_master_assignment(self, band):
         """
         Returns the master assignment list.
-        Args:
-        -----
-        band (int) : The band number
-        Ret:
+
+        Args
         ----
-        freqs (float array): The frequency of the resonators
-        subbands (int array): The subbands the channels are assigned to
-        channels (int array): The channels the resonators are assigned to
-        groups (int array): The bias group the channel is in
+        band : int
+            The band number.
+
+        Returns
+        -------
+        freqs : float array
+            The frequency of the resonators.
+        subbands : int array
+            The subbands the channels are assigned to.
+        channels : int array
+            The channels the resonators are assigned to.
+        groups : int array
+            The bias group the channel is in.
         """
         fn = self.channel_assignment_files[f'band_{band}']
         self.log(f'Drawing channel assignments from {fn}')
@@ -1477,27 +1608,34 @@ class SmurfTuneMixin(SmurfBase):
         """
         Figures out the subbands and channels to assign to resonators
 
-        Args:
-        -----
-        freq (flot array): The frequency of the resonators. This is not the
-            same as the frequency output from full_band_resp. This is only
+        Args
+        ----
+        freq : float array
+            The frequency of the resonators. This is not the same as
+            the frequency output from full_band_resp. This is only
             where the resonators are.
 
-        Opt Args:
-        ---------
-        band (int): The band to assign channels
-        band_center (float array): The frequency center of the band. Must supply
-            band or subband center.
-        channel_per_subband (int): The number of channels to assign per
-            subband. Default is 4.
-        min_offset (float): The minimum offset between two resonators in MHz.
-            If closer, then both are ignored.
+        band : int or None, optional, default None
+            The band to assign channels.
+        band_center : float array or None, optional, default None
+            The frequency center of the band. Must supply band or
+            subband center.
+        channel_per_subband : int, optional, default 4
+            The number of channels to assign per subband.
+        as_offset : bool, optional, default True
+            ???
+        min_offset : float, optional, default 0.1
+            The minimum offset between two resonators in MHz.  If
+            closer, then both are ignored.
 
-        Ret:
-        ----
-        subbands (int array): An array of subbands to assign resonators
-        channels (int array): An array of channel numbers to assign resonators
-        offsets (float array): The frequency offset from the subband center
+        Returns
+        -------
+        subbands : int array
+            An array of subbands to assign resonators.
+        channels : int array
+            An array of channel numbers to assign resonators.
+        offsets : float array
+            The frequency offset from the subband center.
         """
         freq = np.sort(freq)  # Just making sure its in sequential order
 
@@ -1580,17 +1718,18 @@ class SmurfTuneMixin(SmurfBase):
         channel, group. Group number defaults to -1. The order of inputs is
         legacy and weird.
 
-        Args:
-        -----
-        band (int array) : A list of bands
-        freqs (float array) : A list of frequencies
-        subbands (int array) : A list of subbands
-        channels (int array) : A list of channel numbers
-
-        Opt Args:
-        ---------
-        bias_groups (int array) : A list of bias groups. If None,
-           populates the array with -1.
+        Args
+        ----
+        band : int array
+            A list of bands.
+        freqs : float array
+            A list of frequencies.
+        subbands : int array
+            A list of subbands
+        channels : int array
+            A list of channel numbers
+        bias_groups : list of int or None, optional, default None
+            A list of bias groups. If None, fills the array with -1.
         '''
         timestamp = self.get_timestamp()
         if bias_groups is None:
@@ -1612,11 +1751,13 @@ class SmurfTuneMixin(SmurfBase):
         """
         Makes a master assignment file
 
-        Args:
-        -----
-        band (int) : The band number
-        tuning_filename : The tuning file to use for generating the
-            master_assignemnt
+        Args
+        ----
+        band : int
+            The band number.
+        tuning_filename : str
+            The tuning file to use for generating the
+            master_assignment.
         """
         self.log('Drawing band-{} tuning data from {}'.format(band,
             tuning_filename))
@@ -1642,15 +1783,17 @@ class SmurfTuneMixin(SmurfBase):
         group. Note that it is possible to have channels that are
         on the same bias group but different bands.
 
-        Args:
+        Args
         ----
-        band (int) : The band number.
-        group (int) : The bias group number.
+        band : int
+            The band number.
+        group : int
+            The bias group number.
 
-        Ret:
-        ----
-        bias_group_list (int array) : The list of channels that
-            are in the band and bias group.
+        Returns
+        -------
+        bias_group_list : int array
+            The list of channels that are in the band and bias group.
         """
         _, _, channels, groups = self.get_master_assignment(band)
         chs_in_group = []
@@ -1665,14 +1808,17 @@ class SmurfTuneMixin(SmurfBase):
         Gets the bias group number of a band, channel pair. The
         master_channel_assignment must be filled.
 
-        Args:
-        -----
-        band (int) : The band number
-        ch (int) : The channel number
-
-        Ret:
+        Args
         ----
-        bias_group (int) : The bias group number
+        band : int
+            The band number.
+        ch : int
+            The channel number.
+
+        Returns
+        -------
+        bias_group : int
+            The bias group number.
         """
         _, _, channels,groups = self.get_master_assignment(band)
         for i in range(len(channels)):
@@ -1686,9 +1832,10 @@ class SmurfTuneMixin(SmurfBase):
         Combs master channel assignment and assigns group number to all channels
         in ch_list. Does not affect other channels in the master file.
 
-        Args:
-        -----
-        bias_group_dict (dict) : The output of identify_bias_groups
+        Args
+        ----
+        bias_group_dict : dict
+            The output of identify_bias_groups.
         '''
         bias_groups = list(bias_group_dict.keys())
 
@@ -1727,19 +1874,27 @@ class SmurfTuneMixin(SmurfBase):
         """
         Turns on the tones. Also cuts bad resonators.
 
-        Args:
-        -----
-        band (int): The band to relock
-        Opt args:
-        ---------
-        res_num (int array): The resonators to lock. If None, tries all the
-            resonators.
-        drive (int): The tone amplitudes to set
-        check_vals (bool) : Whether to check r2 and Q values. Default is False.
-        r2_max (float): The highest allowable R^2 value
-        q_max (float): The maximum resonator Q factor
-        q_min (float): The minimum resonator Q factor
-        min_gap (float) : Thee minimum distance between resonators.
+        Args
+        ----
+        band : int
+            The band to relock.
+
+        res_num : int array or None, optional, default None
+            The resonators to lock. If None, tries all the resonators.
+        drive : int or None, optional, default None
+            The tone amplitudes to set.
+        r2_max : float, optional, default 0.08
+            The highest allowable R^2 value.
+        q_max : float, optional, default 1e5
+            The maximum resonator Q factor.
+        q_min : float, optional, default 0
+            The minimum resonator Q factor.
+        check_vals : bool, optional, default False
+            Whether to check r2 and Q values.
+        min_gap : float or None, optional, default None
+            The minimum distance between resonators.
+        write_log : bool, optional, default False
+            ???
         """
         n_channels = self.get_number_channels(band)
 
@@ -1827,14 +1982,17 @@ class SmurfTuneMixin(SmurfBase):
         """
         Convenience function to get values from the freq_resp dictionary.
 
-        Args:
-        -----
-        band (int) : The 500 MHz band to get values from
-        key (str) : The dictionary value to read out
-
-        Ret:
+        Args
         ----
-        val (array) : The array of values associated with key.
+        band : int
+            The 500 MHz band to get values from.
+        key : str
+            The dictionary value to read out.
+
+        Returns
+        -------
+        array
+            The array of values associated with key.
         """
         if 'resonances' not in self.freq_resp[band].keys():
             self.log('No tuning. Run setup_notches() or load_tune()')
@@ -1848,13 +2006,15 @@ class SmurfTuneMixin(SmurfBase):
         """
         Convenience function that gets the frequency results from eta scans.
 
-        Args:
-        -----
-        band (int) : The band
-
-        Ret:
+        Args
         ----
-        freq (float array) : The frequency in MHz of the resonators.
+        band : int
+            The band.
+
+        Returns
+        -------
+        freq : float array
+            The frequency in MHz of the resonators.
         """
         return self._get_eta_scan_result_from_key(band, 'freq')
 
@@ -1863,13 +2023,15 @@ class SmurfTuneMixin(SmurfBase):
         """
         Convenience function that gets thee eta values from eta scans.
 
-        Args:
-        -----
-        band (int) : The band
-
-        Ret:
+        Args
         ----
-        eta (complex array) : The eta of the resonators.
+        band : int
+            The band.
+
+        Returns
+        -------
+        eta : complex array
+            The eta of the resonators.
         """
         return self._get_eta_scan_result_from_key(band, 'eta')
 
@@ -1879,13 +2041,15 @@ class SmurfTuneMixin(SmurfBase):
         Convenience function that gets thee eta mags from
         eta scans.
 
-        Args:
-        -----
-        band (int) : The band
-
-        Ret:
+        Args
         ----
-        eta_mag (float array) : The eta of the resonators.
+        band : int
+            The band.
+
+        Returns
+        -------
+        eta_mag : float array
+            The eta of the resonators.
         """
         return self._get_eta_scan_result_from_key(band, 'eta_mag')
 
@@ -1895,13 +2059,15 @@ class SmurfTuneMixin(SmurfBase):
         Convenience function that gets the eta scaled from
         eta scans. eta_scaled is eta_mag/digitizer_freq_mhz/n_subbands
 
-        Args:
-        -----
-        band (int) : The band
-
-        Ret:
+        Args
         ----
-        eta_mag (float array) : The eta_scaled of the resonators.
+        band : int
+            The band.
+
+        Returns
+        -------
+        eta_scaled : float array
+            The eta_scaled of the resonators.
         """
         return self._get_eta_scan_result_from_key(band, 'eta_scaled')
 
@@ -1911,13 +2077,15 @@ class SmurfTuneMixin(SmurfBase):
         Convenience function that gets the eta phase values from
         eta scans.
 
-        Args:
-        -----
-        band (int) : The band
-
-        Ret:
+        Args
         ----
-        eta_phase (float array) : The eta_phase of the resonators.
+        band : int
+            The band.
+
+        Returns
+        -------
+        eta_phase : float array
+            The eta_phase of the resonators.
         """
         return self._get_eta_scan_result_from_key(band, 'eta_phase')
 
@@ -1927,13 +2095,15 @@ class SmurfTuneMixin(SmurfBase):
         Convenience function that gets the channel assignments from
         eta scans.
 
-        Args:
-        -----
-        band (int) : The band
-
-        Ret:
+        Args
         ----
-        channels (int array) : The channels of the resonators.
+        band : int
+            The band.
+
+        Returns
+        -------
+        channels : int array
+            The channels of the resonators.
         """
         return self._get_eta_scan_result_from_key(band, 'channel')
 
@@ -1942,13 +2112,15 @@ class SmurfTuneMixin(SmurfBase):
         """
         Convenience function that gets the subband from eta scans.
 
-        Args:
-        -----
-        band (int) : The band
-
-        Ret:
+        Args
         ----
-        subband (float array) : The subband of the resonators.
+        band : int
+            The band.
+
+        Returns
+        -------
+        subband : float array
+            The subband of the resonators.
         """
         return self._get_eta_scan_result_from_key(band, 'subband')
 
@@ -1958,34 +2130,50 @@ class SmurfTuneMixin(SmurfBase):
         Convenience function that gets the offset from center frequency
         from eta scans.
 
-        Args:
-        -----
-        band (int) : The band
-
-        Ret:
+        Args
         ----
-        offset (float array) : The offset from the subband centers  of
-           the resonators.
+        band : int
+            The band.
+
+        Returns
+        -------
+        offset : float array
+            The offset from the subband centers of the resonators.
         """
         return self._get_eta_scan_result_from_key(band, 'offset')
 
 
-    def eta_estimator(self, band, freq, drive=10, f_sweep_half=.3,
+    def eta_estimator(self, band, freq, drive=12, f_sweep_half=.3,
                       df_sweep=.002, delta_freq=.01,
                       lock_max_derivative=False):
         """
         Estimates eta parameters using the slow eta_scan.
 
-        Args:
-        -----
-        band (int) : The 500 MHz band
-        freq (float) : The frequency to scan
+        Args
+        ----
+        band : int
+            The band.
+        freq : float
+            The frequency to scan.
+        drive : int, optional, default 12
+            The tone amplitude.
+        f_sweep_half : float, optional, default 0.3
+            The frequency to sweep.
+        df_sweep : float, optional, default 0.002
+            The frequency step size.
+        delta_freq : float, optional, default 0.01
+            ???
+        lock_max_derivative : bool, optional, default False
+            ???
 
-        Opt Args:
-        ---------
-        drive (int) : The tone ampltidue. Default is 10.
-        f_sweep_half (float) : The frequency to sweep.
-        df_sweep (float) : The freqeucny step size
+        Returns
+        -------
+        f_sweep : array
+            ???
+        resp : array
+            ???
+        eta : array
+            ???
         """
         subband, offset = self.freq_to_subband(band, freq)
         f_sweep = np.arange(offset-f_sweep_half, offset+f_sweep_half, df_sweep)
@@ -2063,19 +2251,23 @@ class SmurfTuneMixin(SmurfBase):
         Tries to measure the V-phi curve in feedback disable mode.
         You can also run this with flux ramp off to see the intrinsic
         noise on the readout channel.
-        Args:
-        -----
-        band (int) : The band to check.
-        Opt Args:
-        ---------
-        reset_rate_khz (float) : The flux ramp rate in kHz.
-        fraction_full_scale (float) : The amplitude of the flux ramp from
-           zero to one.
-        flux_ramp (bool) : Whether to flux ramp. Default is True.
-        save_plot (bool) : Whether to save the plot. Default True.
-        show_plot (bool) : Whether to show the plot. Default False.
-        setup_flux_ramp (bool) : Whether to setup the flux ramp at the end.
-            Default True.
+
+        Args
+        ----
+        band : int
+            The band to check.
+        reset_rate_khz : float or None, optional, default None
+            The flux ramp rate in kHz.
+        fraction_full_scale : float or None, optional, default None
+            The amplitude of the flux ramp from zero to one.
+        flux_ramp : bool, optional, default True
+            Whether to flux ramp.
+        save_plot : bool, optional, default True
+            Whether to save the plot.
+        show_plot : bool, optional, default False
+            Whether to show the plot.
+        setup_flux_ramp : bool, optional, default True
+            Whether to setup the flux ramp at the end.
         """
         if show_plot:
             plt.ion()
@@ -2189,45 +2381,62 @@ class SmurfTuneMixin(SmurfBase):
         just tracks at the input lms frequency. This will also make plots for
         the channels listed in {channel} input.
 
-        Args:
-        -----
-        band (int) : The band number
-        Opt Args:
-        ---------
-        channel (int or int array) : The channels to plot
-        reset_rate_khz (float) : The flux ramp frequency
-        write_log (bool) : Whether to write output to the log.  Default False.
-        make_plot (bool) : Whether to make plots. Default False.
-        save_plot (bool) : Whether to save plots. Default True.
-        plotname_append (string): Appended to the default plot filename.
-            Default ''.
-        show_plot (bool) : Whether to display the plot. Default True.
-        lms_freq_hz (float) : The frequency of the tracking algorithm.
-           Default is 4000
-        flux_ramp (bool) : Whether to turn on flux ramp. Default True.
-        fraction_full_scale (float) : The flux ramp amplitude, as a
-           fraction of the maximum. Default is .4950.
-        lms_enable1 (bool) : Whether to use the first harmonic for tracking.
-           Default True.
-        lms_enable2 (bool) : Whether to use the second harmonic for tracking.
-           Default True.
-        lms_enable3 (bool) : Whether to use the third harmonic for tracking.
-           Default True.
-        lms_gain (int) : The tracking gain parameters. Default is the value
-           in the config table.
-        feedback_start_frac (float) : The fraction of the full flux
-           ramp at which to stop applying feedback in each flux ramp
-           cycle.  Must be in [0,1).  Defaults to whatever's in the cfg
-           file.
-        feedback_end_frac (float) : The fraction of the full flux ramp
-           at which to stop applying feedback in each flux ramp cycle.
-           Must be >0.  Defaults to whatever's in the cfg file.
-        meas_lms_freq (bool) : Whether or not to try to estimate the
-           carrier rate using the flux_mod2 function.  Default false.
-           lms_freq_hz must be None.
-        setup_flux_ramp (bool) : Whether to setup the flux ramp. Default
-           is True.
-        plotname_append (str) : Optional string to append plots with.
+        Args
+        ----
+        band : int
+            The band number.
+        channel : int or int array or None, optional, default None
+            The channels to plot.
+        reset_rate_khz : float or None, optional, default None
+            The flux ramp frequency.
+        write_log : bool, optional, default False
+            Whether to write output to the log.
+        make_plot : bool, optional, default False
+            Whether to make plots.
+        save_plot : bool, optional, default True
+            Whether to save plots.
+        show_plot : bool, optional, default True
+            Whether to display the plot.
+        nsamp : int, optional, default 2**19
+            ???
+        lms_freq_hz : float or None, optional, default None
+            The frequency of the tracking algorithm.
+        meas_lms_freq : bool, optional, default False
+            Whether or not to try to estimate the carrier rate using
+            the flux_mod2 function.  lms_freq_hz must be None.
+        meas_flux_ramp_amp : bool, optional, default False
+            ???
+        nphi0 : ???, optional, default 4
+            ???
+        flux_ramp : bool, optional, default True
+            Whether to turn on flux ramp.
+        fraction_full_scale : float or None, optional, default None
+            The flux ramp amplitude, as a fraction of the maximum.
+        lms_enable1 : bool, optional, default True
+            Whether to use the first harmonic for tracking.
+        lms_enable2 : bool, optional, default True
+            Whether to use the second harmonic for tracking.
+        lms_enable3 : bool, optional, default True
+            Whether to use the third harmonic for tracking.
+        lms_gain : int or None, optional, default None
+            The tracking gain parameters. Default is the value in the
+            config table.
+        return_data : bool, optional, default True
+            ???
+        new_epics_root : ??? or None, optional, default None
+            ???
+        feedback_start_frac : float or None, optional, default None
+            The fraction of the full flux ramp at which to stop
+            applying feedback in each flux ramp cycle.  Must be in
+            [0,1).  Defaults to whatever's in the cfg file.
+        feedback_end_frac : float or None, optional, default None
+            The fraction of the full flux ramp at which to stop
+            applying feedback in each flux ramp cycle.  Must be >0.
+            Defaults to whatever's in the cfg file.
+        setup_flux_ramp : bool, optional, default True
+            Whether to setup the flux ramp.
+        plotname_append : str, optional, default ''
+            Optional string to append plots with.
         """
         if reset_rate_khz is None:
             reset_rate_khz = self.reset_rate_khz
@@ -2489,52 +2698,59 @@ class SmurfTuneMixin(SmurfBase):
         all the same inputs and tracking_setup and check_lock. In particular the
         cut parameters are f_min, f_max, and df_max.
 
-        Args:
-        -----
-        band (int): The band to track and check
-
-        Opt Args:
-        ---------
-        channel (int or int array): List of channels to plot.
-        toggle_feedback (bool): Whether or not to reset feedback (both the
-            global band feedbackEnable and the lmsEnables between tracking_setup
-            and  check_lock.
-        relock (bool): Whether or not to relock at the start. Default True.
-        tracking_setup (bool): Whether or not to run tracking_setup. Default
-            True.
-        reset_rate_khz (float) : The flux ramp frequency
-        write_log (bool) : Whether to write output to the log.  Default False.
-        make_plot (bool) : Whether to make plots. Default False.
-        save_plot (bool) : Whether to save plots. Default True.
-        show_plot (bool) : Whether to display the plot. Default True.
-        lms_freq_hz (float) : The frequency of the tracking algorithm.
-           Default is 4000
-        flux_ramp (bool) : Whether to turn on flux ramp. Default True.
-        fraction_full_scale (float) : The flux ramp amplitude, as a
-           fraction of the maximum. Default is .4950.
-        lms_enable1 (bool) : Whether to use the first harmonic for tracking.
-           Default True.
-        lms_enable2 (bool) : Whether to use the second harmonic for tracking.
-           Default True.
-        lms_enable3 (bool) : Whether to use the third harmonic for tracking.
-           Default True.
-        lms_gain (int) : The tracking gain parameters. Default is the value
-           in the config file
-        feedback_start_frac (float) : The fraction of the full flux
-           ramp at which to stop applying feedback in each flux ramp
-           cycle.  Must be in [0,1).  Defaults to whatever's in the cfg
-           file.
-        feedback_end_frac (float) : The fraction of the full flux ramp
-           at which to stop applying feedback in each flux ramp cycle.
-           Must be >0.  Defaults to whatever's in the cfg file.
-        meas_lms_freq (bool) : Whether or not to try to estimate the
-           carrier rate using the flux_mod2 function.  Default false.
-           lms_freq_hz must be None.
-        f_min (float) : The maximum frequency swing.
-        f_max (float) : The minimium frequency swing
-        df_max (float) : The maximum value of the stddev of df
-        setup_flux_ramp (bool) : Whether to setup the flux ramp at the end.
-            Default True.
+        Args
+        ----
+        band : int
+            The band to track and check.
+        channel : int or int array or None, optional, default None
+            List of channels to plot.
+        reset_rate_khz : float or None, optional, default None
+            The flux ramp frequency.
+        make_plot : bool, optional, default False
+            Whether to make plots.
+        save_plot : bool, optional, default True
+            Whether to save plots.
+        show_plot : bool, optional, default True
+            Whether to display the plot.
+        lms_freq_hz : float or None, optional, default None
+            The frequency of the tracking algorithm.
+        flux_ramp : bool, optional, default True
+            Whether to turn on flux ramp.
+        fraction_full_scale : float or None, optional, default None
+            The flux ramp amplitude, as a fraction of the maximum.
+        lms_enable1 : bool, optional, default True
+            Whether to use the first harmonic for tracking.
+        lms_enable2 : bool, optional, default True
+            Whether to use the second harmonic for tracking.
+        lms_enable3 : bool, optional, default True
+            Whether to use the third harmonic for tracking.
+        lms_gain : int or None, optional, default None
+            The tracking gain parameters. Default is the value in the
+            config file
+        f_min : float, optional, default 0.015
+            The maximum frequency swing.
+        f_max : float, optional, default 0.20
+            The minimium frequency swing.
+        df_max : float, optional, default 0.03
+            The maximum value of the stddev of df.
+        toggle_feedback : bool, optional, default True
+            Whether or not to reset feedback (both the global band
+            feedbackEnable and the lmsEnables between tracking_setup
+            and check_lock.
+        relock : bool, optional, default True
+            Whether or not to relock at the start.
+        tracking_setup : bool, optional, default True
+            Whether or not to run tracking_setup.
+        feedback_start_frac : float or None, optional, default None
+            The fraction of the full flux ramp at which to stop
+            applying feedback in each flux ramp cycle.  Must be in
+            [0,1).  Defaults to whatever's in the cfg file.
+        feedback_end_frac : float or None, optional, default None
+            The fraction of the full flux ramp at which to stop
+            applying feedback in each flux ramp cycle.  Must be >0.
+            Defaults to whatever's in the cfg file.
+        setup_flux_ramp : bool, optional, default True
+            Whether to setup the flux ramp at the end.
         """
         if reset_rate_khz is None:
             reset_rate_khz = self.reset_rate_khz
@@ -2689,10 +2905,15 @@ class SmurfTuneMixin(SmurfBase):
             do_config=True):
         """
         ???
-        Args:
+
+        Args
         -----
-        fractionFullScale (float) : Fraction of full flux ramp scale to output
-        from [-1,1]
+        fractionFullScale : float
+            Fraction of full flux ramp scale to output from [-1,1].
+        debug : bool, optional, default True
+            ???
+        do_config : bool, optional, default True
+            ???
         """
 
         # fractionFullScale must be between [0,1]
@@ -2754,18 +2975,23 @@ class SmurfTuneMixin(SmurfBase):
         Set flux ramp sawtooth rate and amplitude. If there are errors, check
         that you are using an allowed reset rate! Not all rates are allowed.
         Allowed rates: 1, 2, 3, 4, 5, 6, 8, 10, 12, 15 kHz
-        Args:
-        -----
-        reset_rate_khz (int) : The flux ramp rate to set in kHz. The allowable
-            values are 1, 2, 3, 4, 5, 6, 8, 10, 12, 15 kHz
-        fraction_full_scale (float) : The amplitude of the flux ramp as a
-            fraction of the maximum possible value.
-        Opt Args:
-        ---------
-        df_range (float) :
-        band (int) : The band to setup the flux ramp on.
-        write_log (bool) : Whether to write output to the log
-        new_epics_root (str) : Override the original epics root.
+
+        Args
+        ----
+        reset_rate_khz : int
+            The flux ramp rate to set in kHz. The allowable values are
+            1, 2, 3, 4, 5, 6, 8, 10, 12, 15 kHz
+        fraction_full_scale : float
+            The amplitude of the flux ramp as a fraction of the
+            maximum possible value.
+        df_range : float, optional, default 0.1
+            ???
+        band : int, optional, default 2
+            The band to setup the flux ramp on.
+        write_log : bool, optional, default False
+            Whether to write output to the log.
+        new_epics_root : str or None, optional, default None
+            Override the original epics root.
         """
 
         # Disable flux ramp
@@ -2868,12 +3094,16 @@ class SmurfTuneMixin(SmurfBase):
     def get_fraction_full_scale(self, new_epics_root=None):
         """
         Returns the fraction_full_scale.
-        Opt Args:
-        ---------
-        new_epics_root (str) : Overrides the initialized epics root.
-        Ret:
+
+        Args
         ----
-        fraction_full_scale (float) : The fraction of the flux ramp amplitude
+        new_epics_root : str or None, optional, default None
+            Overrides the initialized epics root.
+
+        Returns
+        -------
+        fraction_full_scale : float
+            The fraction of the flux ramp amplitude.
         """
         return 1-2*(self.get_fast_slow_rst_value(new_epics_root=new_epics_root)/
                     2**self.num_flux_ramp_counter_bits)
@@ -2888,26 +3118,35 @@ class SmurfTuneMixin(SmurfBase):
         tracking. The limits are set by the variables f_min, f_max,
         and df_max. The output is stored to freq_resp[band]['lock_status'] dict.
 
-        Args:
-        -----
-        band (int) : The band the check
-        Opt Args:
-        ---------
-        f_min (float) : The maximum frequency swing.
-        f_max (float) : The minimium frequency swing
-        df_max (float) : The maximum value of the stddev of df
-        make_plot (bool) : Whether to make plots. Default False
-        flux_ramp (bool) : Whether to flux ramp or not. Default True
-        faction_full_scale (float): Number between 0 and 1. The amplitude
-           of the flux ramp.
-        lms_freq_hz (float) : The tracking frequency in Hz. Default is None
-        reset_rate_khz (float) : The flux ramp reset rate in kHz.
-        feedback_start_frac (float) : What fraction of the flux ramp to
-            skip before feedback. Float between 0 and 1.
-        feedback_end_frac (float) : What fraction of the flux ramp to skip
-            at the end of feedback. Float between 0 and 1.
-        setup_flux_ramp (bool) : Whether to setup the flux ramp at the end.
-            Default is True.
+        Args
+        ----
+        band : int
+            The band the check.
+
+        f_min : float, optional, default 0.015
+            The maximum frequency swing.
+        f_max : float, optional, default 0.2
+            The minimium frequency swing.
+        df_max : float, optional, default 0.03
+            The maximum value of the stddev of df.
+        make_plot : bool, optional, default False
+            Whether to make plots.
+        flux_ramp : bool, optional, default True
+            Whether to flux ramp or not.
+        faction_full_scale : float, optional, default None
+            Number between 0 and 1. The amplitude of the flux ramp.
+        lms_freq_hz : float or None, optional, default None
+            The tracking frequency in Hz.
+        reset_rate_khz : float or None, optional, default None
+            The flux ramp reset rate in kHz.
+        feedback_start_frac : float or None, optional, default None
+            What fraction of the flux ramp to skip before
+            feedback. Float between 0 and 1.
+        feedback_end_frac : float or None, optional, default None
+            What fraction of the flux ramp to skip at the end of
+            feedback. Float between 0 and 1.
+        setup_flux_ramp : bool, optional, default True
+            Whether to setup the flux ramp at the end.
         """
         self.log('Checking lock on band {}'.format(band))
 
@@ -2993,27 +3232,39 @@ class SmurfTuneMixin(SmurfBase):
             show_plot=False, grad_cut=.05, amp_cut=.25, pad=2, min_gap=2):
         '''
         Finds the resonances in a band (and specified subbands)
-        Args:
-        -----
-        band (int) : The band to search
-        Optional Args:
-        --------------
-        subband (int) : An int array for the subbands
-        drive_power (int) : The drive amplitude.  If none given, takes from cfg.
-        n_read (int) : The number sweeps to do per subband
-        make_plot (bool) : make the plot frequency sweep. Default False.
-        save_plot (bool) : save the plot. Default True.
-        plotname_append (string): Appended to the default plot filename. Default ''.
-        rolling_med (bool) : Whether to iterate on a rolling median or just
-           the median of the whole sample.
-        window (int) : The width of the rolling median window
-        pad (int): number of samples to pad on either side of a resonance search
-            window
-        min_gap (int): minimum number of samples between resonances
-        grad_cut (float): The value of the gradient of phase to look for
-            resonances. Default is .05
-        amp_cut (float): The fractional distance from the median value to decide
-            whether there is a resonance. Default is .25.
+
+        Args
+        ----
+        band : int
+            The band to search.
+        subband : numpy.ndarray of int, optional, default numpy.arange(13,115)
+            An int array for the subbands.
+        drive_power : int or None, optional, default None
+            The drive amplitude.  If None, takes from cfg.
+        n_read : int, optional, default 2
+            The number sweeps to do per subband.
+        make_plot : bool, optional, default False
+            Make the plot frequency sweep.
+        save_plot : bool, optional, default True
+            Save the plot.
+        plotname_append : str, optional, default ''
+            Appended to the default plot filename.
+        window : int, optional, default 50
+            The width of the rolling median window.
+        rolling_med : bool, optional, default True
+            Whether to iterate on a rolling median or just the median
+            of the whole sample.
+        grad_cut : float, optional, default 0.05
+            The value of the gradient of phase to look for
+            resonances.
+        amp_cut : float, optional, default 0.25
+            The fractional distance from the median value to decide
+            whether there is a resonance.
+        pad : int, optional, default 2
+            Number of samples to pad on either side of a resonance
+            search window
+        min_gap : int, optional, default 2
+            Minimum number of samples between resonances.
         '''
 
         # Turn off all tones in this band first.  May want to make
@@ -3082,21 +3333,27 @@ class SmurfTuneMixin(SmurfBase):
     def plot_find_freq(self, f=None, resp=None, subband=None, filename=None,
             save_plot=True, save_name='amp_sweep.png', show_plot=False):
         '''
-        Plots the response of the frequency sweep. Must input f and resp, or
-        give a path to a text file containing the data for offline plotting.
-        To do:
-        Add ability to use timestamp and multiple plots
+        Plots the response of the frequency sweep. Must input f and
+        resp, or give a path to a text file containing the data for
+        offline plotting.  To do: Add ability to use timestamp and
+        multiple plots.
 
-        Opt Args:
-        ---------
-        f (float array) : An array of frequency data
-        resp (complex array) : An array of find_freq response values
-        subband (int array): A list of subbands that are scanned
-        filename (str) : The full path to the file where the find_freq
-            is stored.
-        save_plot (bool) : save the plot. Default True.
-        show_plot (bool) : Whether to show the plot. Defualt False.
-        save_name (string) : What to name the plot. default find_freq.png
+        Args
+        ----
+        f : float array or None, optional, default None
+            An array of frequency data.
+        resp : complex array or None, optional, default None
+            An array of find_freq response values.
+        subband : int array or None, optional, default None
+            A list of subbands that are scanned.
+        filename : str or None, optional, default None
+            The full path to the file where the find_freq is stored.
+        save_plot : bool, optional, default True
+            Save the plot.
+        save_name : str, optional, default 'amp_sweep.png'
+            What to name the plot.
+        show_plot : bool, optional, default False
+            Whether to show the plot.
         '''
         if subband is None:
             subband = np.arange(128)
@@ -3133,16 +3390,24 @@ class SmurfTuneMixin(SmurfBase):
 
     def full_band_ampl_sweep(self, band, subband, drive, n_read, n_step=121):
         """sweep a full band in amplitude, for finding frequencies
-        args:
-        -----
-            band (int) = bandNo (500MHz band)
-            subband (int) = which subbands to sweep
-            drive (int) = drive power (defaults to 10)
-            n_read (int) = numbers of times to sweep, defaults to 2
-        returns:
-        --------
-            freq (list, n_freq x 1) = frequencies swept
-            resp (array, n_freq x 2) = complex response
+
+        Args
+        ----
+        band : int
+            bandNo (500MHz band).
+        subband : int
+            Which subbands to sweep.
+        drive : int
+            Drive power.
+        n_read : int
+            Numbers of times to sweep.
+
+        Returns
+        -------
+        freq : (list, n_freq x 1)
+            Frequencies swept.
+        resp : (array, n_freq x 2)
+            Complex response.
         """
         digitizer_freq = self.get_digitizer_frequency_mhz(band)  # in MHz
         n_subbands = self.get_number_sub_bands(band)
@@ -3174,44 +3439,55 @@ class SmurfTuneMixin(SmurfBase):
             timestamp=None, pad=2, min_gap=2):
         """
         find the peaks within each subband requested from a fullbandamplsweep
-        Args:
-        -----
-        freq (array):  (n_subbands x n_freq_swept) array of frequencies swept
-        response (complex array): n_subbands x n_freq_swept array of complex
-            response
-        subbands (list of ints): subbands that we care to search in
 
-        Optional Args:
-        --------------
-        rolling_med (bool): whether to use a rolling median for the background
-        window (int): number of samples to window together for rolling med
-        grad_cut (float): The value of the gradient of phase to look for
-            resonances. Default is .05
-        amp_cut (float): The fractional distance from the median value to decide
-            whether there is a resonance. Default is .25.
-        freq_min (float): The minimum frequency relative to the center of
-            the band to look for resonances. Units of Hz. Defaults is -2.5E8
-        freq_max (float): The maximum frequency relative to the center of
-            the band to look for resonances. Units of Hz. Defaults is 2.5E8
-        make_plot (bool): Whether to make a plot. Default is False.
-        make_subband_plot (bool): Whether to make a plot per subband. This is
-            very slow. Default is False.
-        save_plot (bool): Whether to save the plot to self.plot_dir. Default
-            is True.
-        plotname_append (string): Appended to the default plot filename.
-            Default is ''.
-        band (int): The band to take find the peaks in. Mainly for saving
-            and plotting.
-        timestamp (str): The timestamp. Mainly for saving and plotting
-        pad (int): number of samples to pad on either side of a resonance search
-            window
-        min_gap (int): minimum number of samples between resonances
-        grad_kernel_width (int) : The number of samples to take after a point
-            to calculate the gradient of phase. Default is 8.
-
-        Ret:
+        Args
         ----
-        peaks (float array) : The frequency of all the peaks found
+        freq : array
+            (n_subbands x n_freq_swept) array of frequencies swept.
+        resp : complex array
+            n_subbands x n_freq_swept array of complex response
+        subband : list of int or None, optional, default None
+            Subbands that we care to search in.
+
+        rolling_med : bool, optional, default False
+            Whether to use a rolling median for the background.
+        window : int, optional, default 500
+            Number of samples to window together for rolling med.
+        grad_cut : float, optional, default 0.05
+            The value of the gradient of phase to look for resonances.
+        amp_cut : float, optional, default 0.25
+            The fractional distance from the median value to decide
+            whether there is a resonance.
+        freq_min : float, optional, default -2.5e8
+            The minimum frequency relative to the center of the band
+            to look for resonances. Units of Hz.
+        freq_max : float, optional, default 2.5e8
+            The maximum frequency relative to the center of the band
+            to look for resonances. Units of Hz.
+        make_plot : bool, optional, default False
+            Whether to make a plot.
+        save_plot : bool, optional, default True
+            Whether to save the plot to self.plot_dir.
+        plotname_append : str, optional, default ''
+            Appended to the default plot filename.
+        band : int or None, optional, default None
+            The band to take find the peaks in. Mainly for saving and
+            plotting.
+        make_subband_plot : bool, optional, default False
+            Whether to make a plot per subband. This is very
+            slow.
+        timestamp : str or None, optional, default None
+            The timestamp. Mainly for saving and plotting.
+        pad : int, optional, default 2
+            Number of samples to pad on either side of a resonance
+            search window.
+        min_gap : int, optional, default 2
+            Minimum number of samples between resonances.
+
+        Returns
+        -------
+        peaks : float array
+            The frequency of all the peaks found.
         """
         peaks = np.array([])
         timestamp = self.get_timestamp()
@@ -3241,22 +3517,30 @@ class SmurfTuneMixin(SmurfBase):
 
     def fast_eta_scan(self, band, subband, freq, n_read, drive,
             make_plot=False):
-        """copy of fastEtaScan.m from Matlab. Sweeps quickly across a range of
-        freq and gets I, Q response
-        Args:
-         band (int): which 500MHz band to scan
-         subband (int): which subband to scan
-         freq (n_freq x 1 array): frequencies to scan relative to subband
-            center
-         n_read (int): number of times to scan
-         drive (int): tone power
-        Optional Args:
-        make_plot (bool): Make eta plots
-        Outputs:
-         resp (n_freq x 2 array): real, imag response as a function of
-            frequency
-         freq (n_freq x n_read array): frequencies scanned, relative to
-            subband center
+        """copy of fastEtaScan.m from Matlab. Sweeps quickly across a
+        range of freq and gets I, Q response
+
+        Args
+        ----
+        band : int
+            Which 500MHz band to scan.
+        subband : int
+            Which subband to scan.
+        freq : (n_freq x 1 array
+            Frequencies to scan relative to subband center.
+        n_read : int
+            Number of times to scan.
+        drive : int
+            Tone power.
+        make_plot : bool, optional, default False
+            Make eta plots.
+
+        Returns
+        -------
+        resp : (n_freq x 2 array)
+            Real, imag response as a function of frequency.
+        freq : (n_freq x n_read array)
+            Frequencies scanned, relative to subband center.
         """
         n_subbands = self.get_number_sub_bands(band)
         n_channels = self.get_number_channels(band)
@@ -3310,26 +3594,32 @@ class SmurfTuneMixin(SmurfBase):
         recommended that you follow this up with run_serial_gradient_descent()
         afterwards.
 
-        Args:
-        -----
-        band (int) : The 500 MHz band to setup.
-        Optional Args:
-        --------------
-        resonance (float array) : A 2 dimensional array with resonance
-            frequencies and the subband they are in. If given, this will take
-            precedent over the one in self.freq_resp.
-        drive (int) : The power to drive the resonators. Default is defined in cfg file.
-        sweep_width (float) : The range to scan around the input resonance in
-            units of MHz. Default .3
-        df_sweep (float) : The sweep step size in MHz. Default .005
-        min_offset (float): Minimum distance in MHz between two resonators for assigning channels.
-        delta_freq (float): The frequency offset at which to measure
-            the complex transmission to compute the eta parameters.
-            Passed to eta_estimator.  Units are MHz.  If none supplied
-            as an argument, takes value in config file.
-        new_master_assignment (bool): Whether to create a new master assignment
-            file. This file defines the mapping between resonator frequency
-            and channel number.
+        Args
+        ----
+        band : int
+            The 500 MHz band to setup.
+        resonance : float array or None, optional, default None
+            A 2 dimensional array with resonance frequencies and the
+            subband they are in. If given, this will take precedent
+            over the one in self.freq_resp.
+        drive : int or None, optional, default None
+            The power to drive the resonators. Default is defined in cfg file.
+        sweep_width : float, optional, default 0.3
+            The range to scan around the input resonance in units of
+            MHz.
+        df_sweep : float, optional, default 0.002
+            The sweep step size in MHz.
+        min_offset : float, optional, default 0.1
+            Minimum distance in MHz between two resonators for assigning channels.
+        delta_freq : float or None, optional, default None
+            The frequency offset at which to measure the complex
+            transmission to compute the eta parameters.  Passed to
+            eta_estimator.  Units are MHz.  If None, takes value in
+            config file.
+        new_master_assignment : bool, optional, default False
+            Whether to create a new master assignment file. This file
+            defines the mapping between resonator frequency and
+            channel number.
         """
         # Turn off all tones in this band first
         self.band_off(band)
@@ -3437,16 +3727,19 @@ class SmurfTuneMixin(SmurfBase):
     def load_tune(self, filename=None, override=True, last_tune=True, band=None):
         """
         Loads the tuning information (self.freq_resp) from tuning directory
-        Opt Args:
-        ---------
-        filename (str) : The name of the tuning.
-        last_tune (bool): Whether to use the most recent tuning
-            file. Default is True.
-        override (bool) : Whether to replace self.freq_resp. Default
-            is True.
-        band (int, int array) : if None, loads entire tune.  If band
-            number is provided, only loads the tune for that band.
-            Not used at all unless override=True.
+
+        Args
+        ----
+        filename : str or None, optional, default None
+            The name of the tuning.
+        override : bool, optional, default True
+            Whether to replace self.freq_resp.
+        last_tune : bool, optional, default True
+            Whether to use the most recent tuning file.
+        band : (int, int array), optional, default None
+            If None, loads entire tune.  If band number is provided,
+            only loads the tune for that band.  Not used at all unless
+            override=True.
         """
         if filename is None and last_tune:
             filename = self.last_tune()
@@ -3497,30 +3790,31 @@ class SmurfTuneMixin(SmurfBase):
         on in the requested 500 MHz band (0..7) using the flux_mod2
         routine.
 
-        Args:
-        -----
-        band (int): Will attempt to estimate the carrier rate on the
-                    channels which are on in this band.
-        reset_rate_khz (float): The flux ramp reset rate (in kHz).
-        Opt Args:
-        ---------
-        fraction_full_scale (float): Passed on to the internal
-                                     tracking_setup call - the
-                                     fraction of full scale exercised
-                                     by the flux ramp.  Defaults to
-                                     value in cfg.
-        new_epics_root (str): Passed on to internal tracking_setup
-                              call ; If using a different RTM to flux
-                              ramp, the epics root of the pyrogue
-                              server controlling that RTM..  Defaults
-                              to None.
-        channel (int array): Passed on to the internal flux_mod2 call.
-                             Which channels (if any) to plot.  Default
-                             is None.
-        make_plot (bool): Whether or not to make plots.
-        Ret:
+        Args
         ----
-        The estimated lms frequency in Hz
+        band : int
+            Will attempt to estimate the carrier rate on the channels
+            which are on in this band.
+        reset_rate_khz : float
+            The flux ramp reset rate (in kHz).
+        fraction_full_scale : float or None, optional, default None
+            Passed on to the internal tracking_setup call - the
+            fraction of full scale exercised by the flux ramp.
+            Defaults to value in cfg.
+        new_epics_root : str or None, optional, default None
+            Passed on to internal tracking_setup call ; If using a
+            different RTM to flux ramp, the epics root of the pyrogue
+            server controlling that RTM.
+        channel : int array or None, optional, default None
+            Passed on to the internal flux_mod2 call.  Which channels
+            (if any) to plot.
+        make_plot : bool, optional, default False
+            Whether or not to make plots.
+
+        Returns
+        -------
+        float
+            The estimated lms frequency in Hz.
         """
         if fraction_full_scale is None:
             fraction_full_scale = \
@@ -3548,21 +3842,22 @@ class SmurfTuneMixin(SmurfBase):
         This is like estimate_lms_freq, except it changes the
         flux ramp amplitude instead of the flux ramp frequency.
 
-        Args:
-        -----
-        band (int) : The beand to measure
-        n_phi0 (float) : The number of phi0 desired per flux
-            ramp cycle. It is recommended, but not required that
-            this is an integer.
+        Args
+        ----
+        band : int
+            The band to measure.
+        n_phi0 : float
+            The number of phi0 desired per flux ramp cycle. It is
+            recommended, but not required that this is an integer.
 
-        Opt Args:
-        ---------
-        write_log (bool) : Whether to write log messages. Default True.
-        reset_rate_khz (bool) : The reset (or flux ramp cycle) frequency
-            in kHz. If None, reads the current value. Default is None.
-        channel (int array) : The channels to use to estimate the
-            amplitude. If None, uses all channels that are on. Default
-            None.
+        write_log : bool, optional, default True
+            Whether to write log messages.
+        reset_rate_khz : float or None, optional, default None
+            The reset (or flux ramp cycle) frequency in kHz. If None,
+            reads the current value.
+        channel : int array or None, optional, default None
+            The channels to use to estimate the amplitude. If None,
+            uses all channels that are on.
         """
         start_fraction_full_scale = self.get_fraction_full_scale()
         if write_log:
@@ -3604,28 +3899,31 @@ class SmurfTuneMixin(SmurfBase):
         """
         Attempts to find the number of phi0s in a tracking_setup.
         Takes df and sync from a tracking_setup with feedback off.
-        Args:
-        -----
-        band (int) : which band
-        df (float array): The df term from tracking setup with
-            feedback off.
-        sync (float array): The sync term from tracking setup.
-        Opt Args:
-        ---------
-        min_scale (float): The minimum df amplitude used in analysis.
-            This is used to cut channels that are not responding
-            to flux ramp. Default is .002
-        threshold (float): The minimum convolution amplitude to
-            consider a peak. Default is .01
-        make_plot (bool): Whether to make a plot. If True, you must
-            also supply the channels to plot using the channel opt
-            arg.
-        channel (int or int array): The channels to plot. Default
-            is None.
-        Ret:
+
+        Args
         ----
-        n (float): The number of phi0 swept out per sync. To get
-           lms_freq_hz, multiply by the flux ramp frequency.
+        band : int
+            Which band.
+        df : float array
+            The df term from tracking setup with feedback off.
+        sync : float array
+            The sync term from tracking setup.
+        min_scale : float, optional, default 0
+            The minimum df amplitude used in analysis.  This is used
+            to cut channels that are not responding to flux ramp.
+        make_plot : bool, optional, default False
+            Whether to make a plot. If True, you must also supply the
+            channels to plot using the channel opt arg.
+        channel : int or int array or None, optional, default None
+            The channels to plot.
+        threshold : float, optional, default 0.5
+            The minimum convolution amplitude to consider a peak.
+
+        Returns
+        -------
+        n : float
+            The number of phi0 swept out per sync. To get lms_freq_hz,
+            multiply by the flux ramp frequency.
         """
         sync_flag = self.make_sync_flag(sync)
 
@@ -3701,15 +3999,20 @@ class SmurfTuneMixin(SmurfBase):
 
     def make_sync_flag(self, sync):
         """
-        Takes the sync from tracking setup and makes a flag for when the sync
-        is True.
-        Args:
-        -----
-        sync (float array): The sync term from tracking_setup
-        Ret:
+        Takes the sync from tracking setup and makes a flag for when
+        the sync is True.
+
+        Args
         ----
-        start (int array): The start index of the sync
-        end (int array) The end index of the sync
+        sync : float array
+            The sync term from tracking_setup.
+
+        Returns
+        -------
+        start : int array
+            The start index of the sync.
+        end : int array
+            The end index of the sync.
         """
         s, e = self.find_flag_blocks(sync[:,0], min_gap=1000)
         n_proc=self.get_number_processed_channels()
@@ -3826,12 +4129,15 @@ class SmurfTuneMixin(SmurfBase):
     def dump_state(self, output_file=None, return_screen=False):
         """
         Dump the current tuning info to config file and write to disk
-        Args:
-        -----
-        output_file (str): path to output file location. Defaults to the config
-            file status dir and timestamp
-        return_screen (bool): whether to also return the contents of the config
-            file in addition to writing to file. Defaults False.
+
+        Args
+        ----
+        output_file : str or None, optional, default None
+            Path to output file location. Defaults to the config file
+            status dir and timestamp
+        return_screen : bool, optional, default False
+            Whether to also return the contents of the config file in
+            addition to writing to file.
         """
 
         # get the HEMT info because why not
@@ -3878,17 +4184,22 @@ class SmurfTuneMixin(SmurfBase):
         """
         Takes a list of resonance frequencies and fakes a resonance dictionary
         so that we can run setup_notches on a subset without find_freqs
-        Args:
-        freqs (list of floats): given in MHz, list of frequencies to tune.
-        Need to be within 100kHz to be really effective
-        bands (list): band numbers that we have (This should be in the config
-        file but I can't find it...)
-        save_sweeps (bool): whether to save each band as an amplitude sweep.
-        Defaults False.
-        Outputs:
-        resonance dictionary like the one that comes out of find_freqs
-        You probably want to assign it to the right place, as in S.freq_resp =
-        S.fake_resonance_dict(freqs, bands)
+
+        Args
+        ----
+        freqs : list of floats
+            Given in MHz, list of frequencies to tune.  Need to be
+            within 100kHz to be really effective
+        save_sweeps : bool, optional, default False
+            Whether to save each band as an amplitude sweep.
+
+        Returns
+        -------
+        freq_dict : dict
+            Resonance dictionary like the one that comes out of
+            find_freqs You probably want to assign it to the right
+            place, as in S.freq_resp = S.fake_resonance_dict(freqs,
+            bands)
         """
 
         bands = self.config.get('init').get('bands')
@@ -3939,14 +4250,19 @@ class SmurfTuneMixin(SmurfBase):
         """
         Convert the frequency to which band we're in. This is almost certainly
         a duplicate but I can't find the original...
-        Args:
-        -----
-        frequency (float): frequency in MHz
-        band_center_list (list): frequency centers of bands we're running with.
-        Formatted as [[band_no, band_center],[band_no, band_center],etc.]
-        Ret:
+
+        Args
         ----
-        band_no of the frequency
+        frequency : float
+            Frequency in MHz.
+        band_center_list : list
+            Frequency centers of bands we're running with.  Formatted
+            as [[band_no, band_center],[band_no, band_center],etc.]
+
+        Returns
+        -------
+        band_no : int
+            Which band.
         """
 
         band_width = 500. # hardcoding this is probably bad

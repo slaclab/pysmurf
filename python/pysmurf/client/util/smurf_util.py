@@ -32,33 +32,33 @@ class SmurfUtilMixin(SmurfBase):
             IQstream=1, single_channel_readout=1, debug=False, write_log=True):
         """ Takes raw debugging data
 
-        Parameters:
-        -----------
+        Args
+        ----
         band : int
-            The band to take data on
-        single_channel_readout : int
-            Whether to look at one channel
-        channel : int
-            The channel to take debug data on in single_channel_mode
-        nsamp : int
-            The number of samples to take
-        filename : str
+            The band to take data on.
+        channel : int or None, optional, default None
+            The channel to take debug data on in single_channel_mode.
+        nsamp : int, optional, default 2**19
+            The number of samples to take.
+        filename : str or None, optional, default None
             The name of the file to save to.
-        IQstream : int
+        IQstream : int, optional, default 1
             Whether to take the raw IQ stream.
-        debug : bool
-            Whether to take data in debug mode. Defaults False.
-        write_log : bool
-            Whether to write lowlevel commands to the log file.
+        single_channel_readout : int, optional, default 1
+            Whether to look at one channel.
+        debug : bool, optional, default False
+            Whether to take data in debug mode.
+        write_log : bool, optional, default True
+            Whether to write low-level commands to the log file.
 
-        Returns:
-        --------
+        Returns
+        -------
         f : float array
-            The frequency response
+            The frequency response.
         df : float array
-            The frequency error
+            The frequency error.
         sync : float array
-            The sync count
+            The sync count.
         """
         # Set proper single channel readout
         if channel is not None:
@@ -452,19 +452,19 @@ class SmurfUtilMixin(SmurfBase):
         """ Reads a file taken with take_debug_data and processes it into data
         and header.
 
-        Parameters:
-        -----------
+        Args
+        ----
         filename : str
             Path to file
-        dtype : np dtype
-            datatype to cast to, defaults unsigned 32 bit int
+        dtype : numpy.dtype, optional, default numpy.uint32
+            datatype to cast to.
 
-        Returns:
-        --------
-        header : np array
-            The header information
-        data : np array
-            The resonator data
+        Returns
+        -------
+        header : numpy.ndarray
+            The header information.
+        data : numpy.ndarray
+            The resonator data.
         """
         n_chan = 2 # number of stream channels
         #header_size = 4 # 8 bytes in 16-bit word
@@ -501,27 +501,31 @@ class SmurfUtilMixin(SmurfBase):
     def decode_data(self, filename, swapFdF=False, recast=True, truncate=True):
         """ Take a dataset from take_debug_data and spit out results.
 
-        Parameters:
-        -----------
+        Args
+        ----
         filename : str
-            Path to file
-        swapFdF : bool
-            Whether the F and dF (or I/Q) streams are flipped
-        recast : bool
-            Whether to recast from size n_channels_processed to n_channels.
-            Default True.
-        truncate : bool
-            Truncates the data if the number of elements returned is not an
-            integer multiple of the sample rate. Default True.
+            Path to file.
+        swapFdF : bool, optional, default False
+            Whether the F and dF (or I/Q) streams are flipped.
+        recast : bool, optional, default True
+            Whether to recast from size n_channels_processed to
+            n_channels.
+        truncate : bool, optional, default True
+            Truncates the data if the number of elements returned is
+            not an integer multiple of the sample rate.
 
-        Returns:
-        --------
-        [f, df, sync] :
-            if iqStreamEnable = 0. f is the tracking frequency, df is the
-            frequency error, and sync is the synchronizing pulse
-        [I, Q, sync] :
-            if iqStreamEnable = 1. I, Q are the in phase and quadrature signal.
-            sync is the synchronizing pulse.
+        Returns
+        -------
+        f : numpy.ndarray
+            If iqStreamEnable = 0. f is the tracking frequency.
+            Otherwise if iqStreamEnable = 1. f is the demodulated
+            in-phase tracking component.
+        df : numpy.ndarray
+            If iqStreamEnable = 0. df is the tracking frequency error.
+            Otherwise if iqStreamEnable = 1. f is the demodulated
+            quadrature tracking component.
+        flux_ramp_strobe : numpy.ndarray
+            The synchronizing pulse.
         """
         n_proc = self.get_number_processed_channels()
         n_chan = self.get_number_channels()
@@ -609,16 +613,18 @@ class SmurfUtilMixin(SmurfBase):
         """
         decode take_debug_data file if in singlechannel mode
 
-        Args:
-        -----
-        filename (str): path to file to decode
+        Args
+        ----
+        filename : str
+            Path to file to decode.
+        swapFdF : bool, optional, default False
+            Whether to swap f and df streams.
 
-        Optional:
-        swapFdF (bool): whether to swap f and df streams
-
-        Returns:
-        [f, df, sync] if iq_stream_enable = False
-        [I, Q, sync] if iq_stream_enable = True
+        Returns
+        -------
+        list
+            [f, df, sync] if iq_stream_enable = False
+            [I, Q, sync] if iq_stream_enable = True
         """
 
         n_subbands = self.get_number_sub_bands()
@@ -669,34 +675,40 @@ class SmurfUtilMixin(SmurfBase):
 
         To do: move downsample_factor to config table
 
-        Args:
-        -----
-        meas_time (float) : The amount of time to observe for in seconds
+        Args
+        ----
+        meas_time : float
+            The amount of time to observe for in seconds.
+        downsample_factor : int or None, optional, default None
+            The number of fast sample (the flux ramp reset rate -
+            typically 4kHz) to skip between reporting. If None, does
+            not update.
+        write_log : bool, optional, default True
+            Whether to write to the log file.
+        update_payload_size : bool, optional, default True
+            Whether to update the payload size (the number of channels
+            written to disk). If the number of channels on is greater
+            than the payload size, then only the first N channels are
+            written. This bool will update the payload size to be the
+            same as the number of channels on across all bands)
+        reset_unwrapper : bool, optional, default True
+            Whether to reset the unwrapper before taking data.
+        reset_filter : bool, optional, default True
+            Whether to reset the filter before taking data.
+        return_data : bool, optional, default False
+            Whether to return the data. If False, returns the full
+            path to the data.
+        make_freq_mask : bool, optional, default True
+            Whether to write a text file with resonator frequencies.
+        register_file : bool, optional, default True
+            Whether to register the data file with the pysmurf
+            publisher.
 
-        Opt Args:
-        ---------
-        downsample_factor (int) : The number of fast sample (the flux ramp
-            reset rate - typically 4kHz) to skip between reporting. If None,
-            does not update.
-        write_log (bool) : Whether to write to the log file. Default True.
-        update_payload_size (bool) : Whether to update the payload size
-            (the number of channels written to disk). If the number of channels
-            on is greater than the payload size, then only the first N channels
-            are written. This bool will update the payload size to be the same
-            as the number of channels on across all bands)
-        reset_unwrapper (bool) : Whether to reset the unwrapper before
-            taking data.
-        reset_filter (bool) : Whether to reset the filter before
-            taking data.
-        return_data (bool) : Whether to return the data. If False, returns
-            the full path to the data. Default False.
-        register_file (bool): Whether to register the data file with the
-            pysmurf publisher. Default True.
 
-
-        Returns:
-        --------
-        data_filename (string): The fullpath to where the data is stored
+        Returns
+        -------
+        data_filename : str
+            The fullpath to where the data is stored.
         """
         if write_log:
             self.log('Starting to take data.', self.LOG_USER)
@@ -728,30 +740,35 @@ class SmurfUtilMixin(SmurfBase):
         """
         Turns on streaming data.
 
-        Opt Args:
-        ---------
-        write_config (bool) : Whether to dump the entire config. Default
-            is False. Warning this can be slow.
-        data_filename (str) : The full path to store the data. If None, it
-            uses the timestamp.
-        write_log (bool) : Whether to write to the log file. Default True.
-        update_payload_size (bool) : Whether to update the payload size
-            (the number of channels written to disk). If the number of channels
-            on is greater than the payload size, then only the first N channels
-            are written. This bool will update the payload size to be the same
-            as the number of channels on across all bands)
-        downsample_factor (int) : The number of fast samples to skip between
-            sending.
-        reset_unwrapper (bool) : Whether to reset the unwrapper before
-            taking data.
-        reset_filter (bool) : Whether to reset the filter before
-            taking data.
-        make_freq_mask (bool) : Whether to write a text file with resonator
-            frequencies. Default True.
+        Args
+        ----
+        write_config : bool, optional, default False
+            Whether to dump the entire config. Warning this can be
+            slow.
+        data_filename : str or None, optional, default None
+            The full path to store the data. If None, it uses the
+            timestamp.
+        downsample_factor : int or None, optional, default None
+            The number of fast samples to skip between sending.
+        write_log : bool, optional, default True
+            Whether to write to the log file.
+        update_payload_size : bool, optional, default True
+            Whether to update the payload size (the number of channels
+            written to disk). If the number of channels on is greater
+            than the payload size, then only the first N channels are
+            written. This bool will update the payload size to be the
+            same as the number of channels on across all bands)
+        reset_filter : bool, optional, default True
+            Whether to reset the filter before taking data.
+        reset_unwrapper : bool, optional, default True
+            Whether to reset the unwrapper before taking data.
+        make_freq_mask : bool, optional, default True
+            Whether to write a text file with resonator frequencies.
 
-        Returns:
-        --------
-        data_filename (string): The fullpath to where the data is stored
+        Returns
+        -------
+        data_filename : str
+            The fullpath to where the data is stored.
         """
         bands = self.config.get('init').get('bands')
 
@@ -864,12 +881,13 @@ class SmurfUtilMixin(SmurfBase):
         """
         Turns off streaming data.
 
-        Args:
-            write_log (bool):
-                Whether to log the CA commands or not. Default False
-            register_file (bool):
-                If true, the stream data file will be registered through the
-                publisher.
+        Args
+        ----
+        write_log : bool, optional, default True
+            Whether to log the CA commands or not.
+        register_file : bool, optional, default False
+            If true, the stream data file will be registered through
+            the publisher.
         """
         self.close_data_file(write_log=write_log)
 
@@ -894,24 +912,30 @@ class SmurfUtilMixin(SmurfBase):
         can optionally return the header (which has things
         like the TES bias).
 
-        Args:
-        -----
-        datafile (str): The full path to the data to read
-
-        Opt Args:
-        ---------
-        channel (int or int array): Channels to load.
-        n_samp (int) : The number of samples to read.
-        array_size (int) : The size of the output arrays. If 0, then
-            the size will be the number of channels in the data file.
-        return_header (bool) : Whether to also read in the header
-            and return the header data. Returning the full header
-            is slow for large files. This overrides return_tes_bias.
-        return_tes_bias (bool) : Whether to return the TES bias.
-        write_log (bool) : Whether to write outputs to the log
-            file. Default True.
-        n_max (int) : The number of elements to read in before appending
-            the datafile. This is just for speed.
+        Args
+        ----
+        datafile : str
+            The full path to the data to read.
+        channel : int or int array or None, optional, default None
+            Channels to load.
+        n_samp : int or None, optional, default None
+            The number of samples to read.
+        array_size : int or None, optional, default None
+            The size of the output arrays. If 0, then the size will be
+            the number of channels in the data file.
+        return_header : bool, optional, default False
+            Whether to also read in the header and return the header
+            data. Returning the full header is slow for large
+            files. This overrides return_tes_bias.
+        return_tes_bias : bool, optional, default False
+            Whether to return the TES bias.
+        write_log : bool, optional, default True
+            Whether to write outputs to the log file.
+        n_max : int, optional, default 2048
+            The number of elements to read in before appending the
+            datafile. This is just for speed.
+        make_freq_mask : bool, optional, default False
+            Whether to write a text file with resonator frequencies.
         gcp_mode (bool) : Indicates that the data was written in GCP mode. This
             is the legacy data mode which was depracatetd in Rogue 4.
 
@@ -1070,22 +1094,28 @@ class SmurfUtilMixin(SmurfBase):
         This was the most common data writing mode until the Rogue 4 update.
         Maintining this function for backwards compatibility.
 
-        Args:
-        -----
-        datafile (str): The full path to the data made by stream_data_on
-
-        Opt Args:
-        ---------
-        channel (int or int array): Channels to load.
-        unwrap (bool) : Whether to unwrap units of 2pi. Default is True.
-        downsample (int): The amount to downsample.
-        n_samp (int) : The number of samples to read.
-
-        Ret:
+        Args
         ----
-        t (float array): The timestamp data
-        d (float array): The resonator data in units of phi0
-        m (int array): The maskfile that maps smurf num to gcp num
+        datafile : str
+            The full path to the data made by stream_data_on.
+
+        channel : int or list of int or None, optional, default None
+            Channels to load.
+        unwrap : bool, optional, default True
+            Whether to unwrap units of 2pi.
+        downsample : int, optional, default 1
+            The amount to downsample.
+        n_samp : int or None, optional, default None
+            The number of samples to read.
+
+        Returns
+        -------
+        t : numpy.ndarray
+            The timestamp data.
+        d : numpy.ndarray
+            The resonator data in units of phi0.
+        m : numpy.ndarray
+            The maskfile that maps smurf num to gcp num.
         """
         import struct
         try:
@@ -1190,21 +1220,23 @@ class SmurfUtilMixin(SmurfBase):
         data in the header is (dac_b - dac_a)/2. This function
         also takes care of the factor of 2 in the denominator.
 
-        Args:
-        -----
-        header (dict) : The header dictionary from read_stream_data.
-            This includes all the tes_byte data.
-
-        Opt Args:
-        ---------
-        as_volt (bool): Whether to return the data as voltage. If
-            False, returns as DAC units. Default True.
-        n_tes_bias (int) : The number of TES bias pairs. Default 15.
-
-        Ret:
+        Args
         ----
-        bias (int array) : The tes bias data. (dac_b - dac_a) in
-            voltage or DAC units depending on the as_volt opt arg.
+        header : dict
+            The header dictionary from read_stream_data.  This
+            includes all the tes_byte data.
+
+        as_volt : bool, optional, default True
+            Whether to return the data as voltage. If False, returns
+            as DAC units.
+        n_tes_bias : int, optional, default 15
+            The number of TES bias pairs.
+
+        Returns
+        -------
+        bias : numpy.ndarray
+            The tes bias data. (dac_b - dac_a) in voltage or DAC units
+            depending on the as_volt opt arg.
         """
         # Numbr of total elements
         n_els = len(header['tes_byte_0'])
@@ -1249,16 +1281,18 @@ class SmurfUtilMixin(SmurfBase):
         to the smurf_to_mce mask number. In other words, mask[band, channel]
         returns the GCP index in the mask that corresonds to band, channel.
 
-        Parameters:
-        -----------
+        Args
+        ----
         mask_file : str
             The full path the a mask file
-        mask_channel_offset : int
+        mask_channel_offset : int, optional, default 0
             Offset to remove from channel numbers in GCP mask file after
-            loading.  Default is 0.
+            loading.
+        make_freq_mask : bool, optional, default False
+            Whether to write a text file with resonator frequencies.
 
-        Returns:
-        --------
+        Returns
+        -------
         mask_lookup : int array
             An array with the GCP numbers.
         """
@@ -1308,16 +1342,17 @@ class SmurfUtilMixin(SmurfBase):
         """
         Reads the stream data from the DAQ.
 
-        Args:
-        -----
-        data_length (int) : The number of samples to process
-
-        Opt Args:
-        ---------
-        bay (int) : The AMC bay number
-        hw_trigger (bool) : Whehter to trigger the start of the acquistion
-            with a hardware trigger. Default False.
-        write_log (bool) : Whether to write outputs to log. Default False
+        Args
+        ----
+        data_length : int
+            The number of samples to process.
+        bay : int, optional, default 0
+            The AMC bay number.
+        hw_trigger : bool, optional, default False
+            Whether to trigger the start of the acquistion with a
+            hardware trigger.
+        write_log : bool, optional, default False
+            Whether to write outputs to log.
         """
         # Ask mitch why this is what it is...
         if bay == 0:
@@ -1351,13 +1386,15 @@ class SmurfUtilMixin(SmurfBase):
         """
         Reads data directly off the ADC.  Checks for input saturation.
 
-        Args:
+        Args
         -----
-        band (int) : Which band.  Assumes adc number is band%4.
+        band : int
+            Which band.  Assumes adc number is band%4.
 
-        Ret:
-        ----
-        saturated (bool) : Flag if ADC is saturated.
+        Returns
+        -------
+        saturated : bool
+           True if ADC is saturated, otherwise False.
         """
         adc = self.read_adc_data(band, data_length=2**12, do_plot=False,
                   save_data=False, show_plot=False, save_plot=False)
@@ -1377,13 +1414,15 @@ class SmurfUtilMixin(SmurfBase):
         """
         Reads data directly off the DAC.  Checks for input saturation.
 
-        Args:
-        -----
-        band (int) : Which band.  Assumes dac number is band%4.
-
-        Ret:
+        Args
         ----
-        saturated (bool) : Flag if DAC is saturated.
+        band : int
+            Which band.  Assumes dac number is band%4.
+
+        Returns
+        -------
+        saturated : bool
+            Flag if DAC is saturated.
         """
         dac = self.read_dac_data(band, data_length=2**12, do_plot=False,
                   save_data=False, show_plot=False, save_plot=False)
@@ -1406,31 +1445,36 @@ class SmurfUtilMixin(SmurfBase):
         """
         Reads data directly off the ADC.
 
-        Args:
-        -----
-        band (int) : Which band.  Assumes adc number is band%4.
-        data_length (int): The number of samples
-
-        Opt Args:
-        ---------
-        hw_trigger (bool) : Whether to use the hardware trigger. If
-            False, uses an internal trigger.
-        do_plot (bool) : Whether or not to plot.  Default false.
-        save_data (bool) : Whether or not to save the data in a time
-            stamped file.  Default true.
-        timestamp (int) : ctime to timestamp the plot and data with
-            (if saved to file).  Default None, in which case it gets
-            the time stamp right before acquiring data.
-        show_plot (bool) : If do_plot is True, whether or not to show
-            the plot.
-        save_plot (bool) : Whether or not to save plot to file.
-            Default True.
-        plot_ylimits ([float,float]) : y-axis limit (amplitude) to
-            restrict plotting over.
-
-        Ret:
+        Args
         ----
-        dat (int array) : The raw ADC data.
+        band : int
+            Which band.  Assumes adc number is band%4.
+
+        data_length : int, optional, default 2**19
+            The number of samples.
+        hw_trigger : bool, optional, default False
+            Whether to use the hardware trigger. If False, uses an
+            internal trigger.
+        do_plot : bool, optional, default False
+            Whether or not to plot.
+        save_data : bool, optional, default True
+            Whether or not to save the data in a time stamped file.
+        timestamp : int or None, optional, default None
+            ctime to timestamp the plot and data with (if saved to
+            file).  If None, it gets the time stamp right before
+            acquiring data.
+        show_plot : bool, optional, default True
+            If do_plot is True, whether or not to show the plot.
+        save_plot : bool, optional, default True
+            Whether or not to save plot to file.
+        plot_ylimits : [float or None, float or None], optional,
+        default [None,None]
+            y-axis limit (amplitude) to restrict plotting over.
+
+        Returns
+        -------
+        dat : int array
+            The raw ADC data.
         """
         if timestamp is None:
             timestamp = self.get_timestamp()
@@ -1504,31 +1548,37 @@ class SmurfUtilMixin(SmurfBase):
         """
         Read the data directly off the DAC.
 
-        Args:
-        -----
-        band (int) : Which band.  Assumes dac number is band%4.
-        data_length (int): The number of samples
-
-        Opt Args:
-         ---------
-        hw_trigger (bool) : Whether to use the hardware trigger. If
-            False, uses an internal trigger.
-        do_plot (bool) : Whether or not to plot.  Default false.
-        save_data (bool) : Whether or not to save the data in a time
-            stamped file.  Default true.
-        timestamp (int) : ctime to timestamp the plot and data with
-            (if saved to file).  Default None, in which case it gets
-            the time stamp right before acquiring data.
-        show_plot (bool) : If do_plot is True, whether or not to show
-            the plot.  Default True.
-        save_plot (bool) : Whether or not to save plot to file.
-            Default True.
-        plot_ylimits ([float,float]) : y-axis limit (amplitude) to
-            restrict plotting over.
-
-        Ret:
+        Args
         ----
-        dat (int array) : The raw DAC data.
+        band : int
+            Which band.  Assumes dac number is band%4.
+
+        data_length : int, optional, default 2**19
+            The number of samples.
+        hw_trigger : bool, optional, default False
+            Whether to use the hardware trigger. If False, uses an
+            internal trigger.
+        do_plot : bool, optional, default False
+            Whether or not to plot.
+        save_data : bool, optional, default True
+            Whether or not to save the data in a time stamped file.
+        timestamp : int or None, optional, default None
+            ctime to timestamp the plot and data with (if saved to
+            file).  If None, in which case it gets the time stamp
+            right before acquiring data.
+        show_plot : bool, optional, default True
+            If do_plot is True, whether or not to show the plot.
+        save_plot : bool, optional, default True
+            Whether or not to save plot to file.
+        plot_ylimits : list of float or list of None, optional,
+        default [None,None]
+            2-element list of y-axis limits (amplitude) to restrict
+            plotting over.
+
+        Returns
+        -------
+        dat : int array
+            The raw DAC data.
         """
         if timestamp is None:
             timestamp = self.get_timestamp()
@@ -1599,13 +1649,21 @@ class SmurfUtilMixin(SmurfBase):
         """
         Sets up for either ADC or DAC data taking.
 
-        Args:
-        -----
-        converter (str) : Whether it is the ADC or DAC. choices are 'adc',
-            'dac', or 'debug'. The last one takes data on a single band.
-        converter_number (int) : The ADC or DAC number to take data on.
-        data_length (int) : The amount of data to take.
-        band (int): which band to get data on
+        Args
+        ----
+        converter : str
+            Whether it is the ADC or DAC. choices are 'adc', 'dac', or
+            'debug'. The last one takes data on a single band.
+        converter_number : int
+            The ADC or DAC number to take data on.
+        data_length : int
+            The amount of data to take.
+        band : int, optional, default 0
+            which band to get data on.
+        debug : bool, optional, default False
+            ???
+        write_log : bool, optional, default False
+            ???
         """
 
         bay=self.band_to_bay(band)
@@ -1640,9 +1698,16 @@ class SmurfUtilMixin(SmurfBase):
         """
         Sets the buffer size for reading and writing DAQs
 
-        Args:
-        -----
-        size (int) : The buffer size in number of points
+        Args
+        ----
+        bay : int
+            ???
+        size : int
+            The buffer size in number of points.
+        debug : bool, optional, default False
+            ???
+        write_log : bool, optional, default False
+            ???
         """
         # Change DAQ data buffer size
 
@@ -1663,15 +1728,22 @@ class SmurfUtilMixin(SmurfBase):
         """
         Set parameters on a single cryo channel
 
-        Args:
-        -----
-        band (int) : The band for the channel
-        channel (int) : which channel to configure
-        frequencyMHz (float) : the frequency offset from the subband center in MHz
-        amplitude (int) : amplitude scale to set for the channel (0..15)
-        feedback_enable (bool) : whether to enable feedback for the channel
-        eta_phase (float) : feedback eta phase, in degrees (-180..180)
-        eta_mag (float) : feedback eta magnitude
+        Args
+        ----
+        band : int
+            The band for the channel.
+        channel : int
+            Which channel to configure.
+        frequencyMHz : float
+            The frequency offset from the subband center in MHz.
+        amplitude : int
+            Amplitude scale to set for the channel (0..15).
+        feedback_enable : bool
+            Whether to enable feedback for the channel.
+        eta_phase : float
+            Feedback eta phase, in degrees (-180..180).
+        eta_mag : float
+            Feedback eta magnitude.
         """
 
         n_subbands = self.get_number_sub_bands(band)
@@ -1716,13 +1788,15 @@ class SmurfUtilMixin(SmurfBase):
         """
         Finds all detectors that are on.
 
-        Args:
-        -----
-        band (int) : The band to search.
+        Args
+        ----
+        band : int
+            The band to search.
 
-        Returns:
+        Returns
         --------
-        channels_on (int array) : The channels that are on
+        int array
+            The channels that are on.
         """
         amps = self.get_amplitude_scale_array(band)
         return np.ravel(np.where(amps != 0))
@@ -1734,9 +1808,12 @@ class SmurfUtilMixin(SmurfBase):
         this band.  Only toggles back to 1 if it was 1 when asked to
         toggle, otherwise leaves it zero.
 
-        Args:
-        -----
-        band (int) : The band whose feedback to toggle.
+        Args
+        ----
+        band : int
+           The band whose feedback to toggle.
+        ***kwargs : ???
+           ???
         """
 
         # current vals?
@@ -1782,9 +1859,12 @@ class SmurfUtilMixin(SmurfBase):
         """
         Turns off all tones in a band
 
-        Args:
-        -----
-        band (int) : The band that is to be turned off.
+        Args
+        ----
+        band : int
+            The band that is to be turned off.
+        **kwards : ???
+            ???
         """
         self.set_amplitude_scales(band, 0, **kwargs)
         self.set_feedback_enable_array(band, np.zeros(512, dtype=int), **kwargs)
@@ -1796,10 +1876,12 @@ class SmurfUtilMixin(SmurfBase):
         Turns off the tone for a single channel by setting the amplitude to
         zero and disabling feedback.
 
-        Args:
-        -----
-        band (int) : The band that is to be turned off.
-        channel (int) : The channel to turn off.
+        Args
+        ----
+        band : int
+            The band that is to be turned off.
+        channel : int
+            The channel to turn off.
         """
         self.log('Turning off band {} channel {}'.format(band, channel),
             self.LOG_USER)
@@ -1811,10 +1893,12 @@ class SmurfUtilMixin(SmurfBase):
         """
         Sets the feedback limit
 
-        Args:
-        -----
-        band (int) : The band that is to be turned off.
-        feedback_limit_khz (float) : The feedback rate in units of kHz.
+        Args
+        ----
+        band : int
+            The band that is to be turned off.
+        feedback_limit_khz : float
+            The feedback rate in units of kHz.
         """
         digitizer_freq_mhz = self.get_digitizer_frequency_mhz(band)
         n_subband = self.get_number_sub_bands(band)
@@ -1910,10 +1994,17 @@ class SmurfUtilMixin(SmurfBase):
         Queries the Jesd tx and rx and compares the
         data_valid and enable bits.
 
-        Opt Args:
-        ---------
-        silent_if_valid (bool) : If True, does not print
-            anything if things are working.
+        Args
+        ----
+        bay : int
+            Which bay (0 or 1).
+        silent_if_valid : bool, optional, default False
+            If True, does not print anything if things are working.
+
+        Returns
+        -------
+        (bool,bool)
+            (JesdTx is ok, JesdRx is ok)
         """
         # JESD Tx
         jesd_tx_enable = self.get_jesd_tx_enable(bay)
@@ -1940,8 +2031,10 @@ class SmurfUtilMixin(SmurfBase):
         """
         Loads FPGA status checks if JESD is ok.
 
-        Returns:
-        ret (dict) : A dictionary containing uptime, fpga_version, git_hash,
+        Returns
+        -------
+        ret : dict
+            A dictionary containing uptime, fpga_version, git_hash,
             build_stamp, jesd_tx_enable, and jesd_tx_valid
         """
         uptime = self.get_fpga_uptime()
@@ -1998,15 +2091,19 @@ class SmurfUtilMixin(SmurfBase):
         Look up subband number of a channel frequency, and its subband
         frequency offset.
 
-        Args:
-        -----
-        band (float): The band to place the resonator
-        freq (float): frequency in MHz
+        Args
+        ----
+        band : float
+            The band to place the resonator.
+        freq : float
+            Frequency in MHz.
 
-        Returns:
-        --------
-        subband_no (int): subband (0..128) of the frequency within the band
-        offset (float): offset from subband center
+        Returns
+        -------
+        subband_no : int
+            Subband (0..128) of the frequency within the band.
+        offset : float
+            Offset from subband center.
 
         """
         subbands, subband_centers = self.get_subband_centers(band,
@@ -2024,19 +2121,21 @@ class SmurfUtilMixin(SmurfBase):
         """
         Gives the frequency of the channel.
 
-        Args:
-        -----
-        band (int) : The band the channel is in
-
-        Opt Args:
-        ---------
-        channel (int) :  The channel number
-
-        Ret:
+        Args
         ----
-        freq (float): The channel frequency in MHz or an array
-            of values if channel is None. In the array format,
-            the freq list is aligned with self.which_on(band).
+        band : int
+            The band the channel is in.
+        channel : int or None, optional, default none
+            The channel number.
+        yml : str or None, optional, default None
+            ???
+
+        Returns
+        -------
+        freq : float
+            The channel frequency in MHz or an array of values if
+            channel is None. In the array format, the freq list is
+            aligned with self.which_on(band).
         """
         if band is None and channel is None:
             return None
@@ -2068,18 +2167,20 @@ class SmurfUtilMixin(SmurfBase):
     def get_channel_order(self, band=None, channel_orderfile=None):
         """ produces order of channels from a user-supplied input file
 
-        Optional Args:
-        --------------
-        band (int): Which band.  Default is None.  If none specified,
-           assumes all bands have the same number of channels, and
-           pulls the number of channels from the first band in the
-           list of bands specified in the experiment.cfg.
-        channelorderfile (str): path to a file that contains one
-           channel per line
+        Args
+        ----
+        band : int or None, optional, default None
+            Which band.  If None, assumes all bands have the same
+            number of channels, and pulls the number of channels from
+            the first band in the list of bands specified in the
+            experiment.cfg.
+        channelorderfile : str or None, optional, default None
+            Path to a file that contains one channel per line.
 
-        Returns :
-        --------------
-        channel_order (int array) : An array of channel orders
+        Returns
+        -------
+        channel_order : int array
+            An array of channel orders.
         """
 
         if band is None:
@@ -2110,13 +2211,15 @@ class SmurfUtilMixin(SmurfBase):
         tracking_setup only returns data for the processed
         channels. Therefore every channel is not returned.
 
-        Optional Args:
-        --------------
-        channelorderfile (str): path to a file that contains one channel per line
-
-        Ret:
+        Args
         ----
-        processed_channels (int array)
+        channelorderfile : str or None, optional, default None
+            Path to a file that contains one channel per line.
+
+        Returns
+        -------
+        processed_channels : int array
+            ???
         """
         n_proc = self.get_number_processed_channels()
         n_chan = self.get_number_channels()
@@ -2126,20 +2229,21 @@ class SmurfUtilMixin(SmurfBase):
 
     def get_subband_from_channel(self, band, channel, channelorderfile=None,
             yml=None):
-        """ returns subband number given a channel number
-        Args:
-        -----
-        root (str): epics root (eg mitch_epics)
-        band (int): which band we're working in
-        channel (int): ranges 0..(n_channels-1), cryo channel number
+        """Returns subband number given a channel number
 
-        Opt Args:
-        ---------
-        channelorderfile(str): path to file containing order of channels
-
-        Ret:
+        Args
         ----
-        subband (int) : The subband the channel lives in
+        band : int
+            Which band we're working in.
+        channel : int
+            Ranges 0..(n_channels-1), cryo channel number.
+        channelorderfile : str or None, optional, default None
+            Path to file containing order of channels.
+
+        Returns
+        -------
+        subband : int
+            The subband the channel lives in.
         """
 
         n_subbands = self.get_number_sub_bands(band, yml=yml)
@@ -2163,11 +2267,24 @@ class SmurfUtilMixin(SmurfBase):
     def get_subband_centers(self, band, as_offset=True, hardcode=False,
             yml=None):
         """ returns frequency in MHz of subband centers
-        Args:
-        -----
-        band (int): which band
-        as_offset (bool): whether to return as offset from band center
-            (default is no, which returns absolute values)
+
+        Args
+        ----
+        band : int
+            Which band.
+        as_offset : bool, optional, default True
+            Whether to return as offset from band center.
+        hardcode : bool, optional, default False
+            ???
+        yml : str or None, optional, default None
+            ???
+
+        Returns
+        -------
+        subbands : ???
+            ???
+        subband_centers : ???
+            ???
         """
 
         if hardcode:
@@ -2193,18 +2310,20 @@ class SmurfUtilMixin(SmurfBase):
     def get_channels_in_subband(self, band, subband, channelorderfile=None):
         """
         Returns channels in subband
-        Args:
-        -----
-        band (int): which band
-        subband (int): subband number, ranges from 0..127
 
-        Opt Args:
-        ---------
-        channelorderfile (str): path to file specifying channel order
+        Args
+        ----
+        band : int
+            Which band.
+        subband : int
+            Subband number, ranges from 0..127.
+        channelorderfile : str or None, optional, default None
+            Path to file specifying channel order.
 
-        Returns:
-        --------
-        subband_chans (int array): The channels in the subband
+        Returns
+        -------
+        subband_chans : int array
+            The channels in the subband.
         """
 
         n_subbands = self.get_number_sub_bands(band)
@@ -2227,14 +2346,17 @@ class SmurfUtilMixin(SmurfBase):
         """
         Changes IQ to phase
 
-        Args:
-        -----
-        i (float array)
-        q (float arry)
+        Args
+        ----
+        i : float array
+            ???
+        q : float arry
+            ???
 
-        Returns:
-        --------
-        phase (float array) :
+        Returns
+        -------
+        phase : float array
+            ???
         """
         return np.unwrap(np.arctan2(q, i))
 
@@ -2243,13 +2365,15 @@ class SmurfUtilMixin(SmurfBase):
         """
         Converts hex string, which is an array of characters, into an int.
 
-        Args:
-        -----
-        s (character array) : An array of chars to be turned into a single int.
+        Args
+        ----
+        s : character array
+            An array of chars to be turned into a single int.
 
-        Returns:
-        --------
-        i (int64) : The 64 bit int
+        Returns
+        -------
+        i : numpy.int
+           The 64 bit int.
         """
         return np.int(''.join([chr(x) for x in s]),0)
 
@@ -2258,13 +2382,15 @@ class SmurfUtilMixin(SmurfBase):
         """
         Converts an int into a string of characters.
 
-        Args:
-        -----
-        i (int64) : A 64 bit int to convert into hex.
+        Args
+        ----
+        i : int
+            A 64 bit int to convert into hex.
 
-        Returns:
-        --------
-        s (char array) : A character array representing the int
+        Returns
+        -------
+        s : char array
+            A character array representing the int.
         """
         # Must be array length 300
         s = np.zeros(300, dtype=int)
@@ -2284,17 +2410,18 @@ class SmurfUtilMixin(SmurfBase):
         group is set to +volt/2, while the negative DAC in the bias
         group is set to -volt/2.
 
-        Args:
-        -----
-        bias_group (int): The bias group
-        volt (float): The TES bias to command in volts.
-
-        Opt args:
-        --------
-        do_enable (bool) : Sets the enable bit. Only must be done
-                           once.  Default is True.
-        flip_polarity (bool) : Sets the voltage to volt*-1.  Default
-                               is False.
+        Args
+        ----
+        bias_group : int
+            The bias group.
+        volt : float
+            The TES bias to command in volts.
+        do_enable : bool, optional, default True
+            Sets the enable bit. Only must be done once.
+        flip_polarity : bool, optional, default False
+            Sets the voltage to volt*-1.
+        **kwargs : ???
+           ???
         """
 
         # Make sure the requested bias group is in the list of defined
@@ -2337,18 +2464,15 @@ class SmurfUtilMixin(SmurfBase):
         voltage of all DACs not assigned to a TES bias group are
         maintained.
 
-        Args:
-        -----
-        bias_group_volt_array (float array): the TES bias to command
-                                             in voltage for each
-                                             bipolar TES bias
-                                             group. Should be
-                                             (n_bias_groups,)
-
-        Opt args:
-        -----
-        do_enable (bool): Set the enable bit for both DACs for every
-                          TES bias group. Defaults to True.
+        Args
+        ----
+        bias_group_volt_array : float array
+            The TES bias to command in voltage for each bipolar TES
+            bias group. Should be (n_bias_groups,).
+        do_enable : bool, optional, default True
+            Set the enable bit for both DACs for every TES bias group.
+        **kwargs : ???
+            ???
         """
 
         n_bias_groups = self._n_bias_groups
@@ -2402,24 +2526,24 @@ class SmurfUtilMixin(SmurfBase):
         Returns the bias voltage in units of Volts for the requested
         TES bias group.
 
-        Args:
-        -----
-        bias_group (int) : The number of the bias group.  Asserts if
-                           bias_group requested is not defined in the
-                           pysmurf configuration file.
+        Args
+        ----
+        bias_group : int
+            The number of the bias group.  Asserts if bias_group
+            requested is not defined in the pysmurf configuration
+            file.
+        return_raw : bool, optional, default False
+            If True, returns pos and neg terminal values.
+        **kwargs : ???
+            ???
 
-        Opt Args:
-        ---------
-        return_raw (bool) : Default is False. If True, returns pos and
-                            neg terminal values.
-
-        Returns:
-        --------
-        val (float) : The bipolar output TES bias voltage for the
-                      requested bias group.  If return_raw=True, then
-                      returns a two element float array containing the
-                      output voltages of the two DACs assigned to the
-                      requested TES bias group.
+        Returns
+        -------
+        val : float
+            The bipolar output TES bias voltage for the requested bias
+            group.  If return_raw=True, then returns a two element
+            float array containing the output voltages of the two DACs
+            assigned to the requested TES bias group.
         """
         # Make sure the requested bias group is in the list of defined
         # bias groups.
@@ -2450,10 +2574,13 @@ class SmurfUtilMixin(SmurfBase):
         Returns array of bias voltages per bias group in units of volts.
         Currently hard coded to return the first 8 as (8,) array. I'm sorry -CY
 
-        Opt Args:
-        -----
-        return_raw (bool): Default is False. If True, returns +/- terminal
-            vals as separate arrays (pos, then negative)
+        Args
+        ----
+        return_raw : bool, optional, default False
+            If True, returns +/- terminal vals as separate arrays
+            (pos, then negative)
+        **kwargs : ???
+            ???
         """
 
         bias_order = self.bias_group_to_pair[:,0]
@@ -2492,10 +2619,12 @@ class SmurfUtilMixin(SmurfBase):
         resulting amplifier biases at the end with a short wait in
         case there's latency between setting and reading.
 
-        Opt Args:
-        ---------
-        bias_hemt (float): The HEMT bias voltage in units of volts
-        bias_50k (float): The 50K bias voltage in units of volts
+        Args
+        ----
+        bias_hemt : float or None, optional default None
+            The HEMT bias voltage in units of volts.
+        bias_50k : float or None, optional, default None
+            The 50K bias voltage in units of volts.
         """
 
         ########################################################################
@@ -2504,8 +2633,8 @@ class SmurfUtilMixin(SmurfBase):
         # if nothing specified take default from cfg file, if
         # it's specified there
         bias_hemt_from_cfg=False
-        if bias_hemt is None and hasattr(self,'hemt_Vg'):
-            bias_hemt = self.hemt_Vg
+        if bias_hemt is None and hasattr(self,'_hemt_Vg'):
+            bias_hemt = self._hemt_Vg
             bias_hemt_from_cfg = True
         # if user gave a value or value was found in cfg file,
         # set it and tell the user
@@ -2532,8 +2661,8 @@ class SmurfUtilMixin(SmurfBase):
         # if nothing specified take default from cfg file, if
         # it's specified there
         bias_50k_from_cfg=False
-        if bias_50k is None and hasattr(self,'LNA_Vg'):
-            bias_50k=self.LNA_Vg
+        if bias_50k is None and hasattr(self,'_fiftyk_Vg'):
+            bias_50k=self._fiftyk_Vg
             bias_50k_from_cfg=True
         # if user gave a value or value was found in cfg file,
         # set it and tell the user
@@ -2566,14 +2695,16 @@ class SmurfUtilMixin(SmurfBase):
         """
         Queries the amplifier biases
 
-        Opt Args:
-        ---------
-        write_log (bool) : Whether to write to the log. Default is True.
-
-        Ret:
+        Args
         ----
-        amplifier_bias (dict) : Returns a dict with the hemt and 50K gate
-            voltage and drain current.
+        write_log : bool, optional, default True
+            Whether to write to the log.
+
+        Returns
+        -------
+        amplifier_bias : dict
+            Returns a dict with the hemt and 50K gate voltage and
+            drain current.
         """
         # 4K
         hemt_Id_mA=self.get_hemt_drain_current()
@@ -2599,16 +2730,16 @@ class SmurfUtilMixin(SmurfBase):
     get_amplifier_bias = get_amplifier_biases
 
     def get_hemt_drain_current(self):
-        """Reports the inferred 4K HEMT amplifier drain current in mA, inferred by
-        measuring the voltage across a resistor in series with the
-        applied drain voltage (before the regulator) by the PIC on the
-        cryostat card.  The conversion from the measured PIC ADC
-        voltage to drain current assumes the circuit topology on the
-        rev C2 cryostat card (SLAC board PC-248-103-02-C02, see
+        """Reports the inferred 4K HEMT amplifier drain current in mA,
+        inferred by measuring the voltage across a resistor in series
+        with the applied drain voltage (before the regulator) by the
+        PIC on the cryostat card.  The conversion from the measured
+        PIC ADC voltage to drain current assumes the circuit topology
+        on the rev C2 cryostat card (SLAC board PC-248-103-02-C02, see
         schematic sheet 3).  The series resistor in that schematic is
         component R44.  The value of R54 can be specified in the
-        pysmurf configuration file (as hemt_Vd_series_resistor in
-        the amplifier block).  If not explicitly specified, pysmurf
+        pysmurf configuration file (as hemt_Vd_series_resistor in the
+        amplifier block).  If not explicitly specified, pysmurf
         assumes the default in the C2 cryostat card BOM of 200 Ohm.
 
         Because the series resistor is before the regulator that drops
@@ -2622,9 +2753,10 @@ class SmurfUtilMixin(SmurfBase):
         value for this offset (see hemt_Id_offset in the amplifier
         block).
 
-        Returns:
-        --------
-        cur (float): 4K HEMT amplifier drain current in mA.
+        Returns
+        -------
+        cur : float
+            4K HEMT amplifier drain current in mA.
         """
         # assumes circuit topology on rev C2 cryostat card
         # (PC-248-103-02-C02, sheet 3)
@@ -2634,12 +2766,12 @@ class SmurfUtilMixin(SmurfBase):
 
 
     def get_50k_amp_drain_current(self):
-        """Reports the inferred 50K amplifier drain current in mA, inferred by
-        measuring the voltage across a resistor in series with the
-        applied drain voltage (before the regulator) by the PIC on the
-        cryostat card.  The conversion from the measured PIC ADC
-        voltage to drain current assumes the circuit topology on the
-        rev C2 cryostat card (SLAC board PC-248-103-02-C02, see
+        """Reports the inferred 50K amplifier drain current in mA,
+        inferred by measuring the voltage across a resistor in series
+        with the applied drain voltage (before the regulator) by the
+        PIC on the cryostat card.  The conversion from the measured
+        PIC ADC voltage to drain current assumes the circuit topology
+        on the rev C2 cryostat card (SLAC board PC-248-103-02-C02, see
         schematic sheet 3).  The series resistor in that schematic is
         component R54.  The value of R54 can be specified in the
         pysmurf configuration file (as 50K_amp_Vd_series_resistor in
@@ -2657,17 +2789,18 @@ class SmurfUtilMixin(SmurfBase):
         value for this offset (see 50k_Id_offset in the amplifier
         block).
 
-        Returns:
-        --------
-        cur (float): 50K amplifier drain current in mA
+        Returns
+        -------
+        cur : float
+            50K amplifier drain current in mA.
         """
 
         # assumes circuit topology on rev C2 cryostat card
         # (PC-248-103-02-C02, sheet 3)
-        fiftyK_amp_Id_mA=2.*1000.*(self.get_cryo_card_50k_bias()/
-                                   self._50k_amp_Vd_series_resistor) - self._50k_Id_offset
+        fiftyk_amp_Id_mA=2.*1000.*(self.get_cryo_card_50k_bias()/
+                                   self._fiftyk_amp_Vd_series_resistor) - self._fiftyk_Id_offset
 
-        return fiftyK_amp_Id_mA
+        return fiftyk_amp_Id_mA
 
 
     def overbias_tes(self, bias_group, overbias_voltage=19.9, overbias_wait=1.,
@@ -2680,27 +2813,28 @@ class SmurfUtilMixin(SmurfBase):
         tes_bias.  Then waits cool_wait seconds before returning
         control.
 
-        Args:
-        -----
-        bias_group (int): The bias group to overbias.  Asserts if not
-                          a valid bias group.
-
-        Opt Args:
-        ---------
-        overbias_voltage (float): The value of the TES bias in the high current
-            mode. Default 19.9.
-        overbias_wait (float): The time to stay in high current mode in seconds.
-            Default is .5
-        tes_bias (float): The value of the TES bias when put back in low current
-            mode. Default is 19.9.
-        cool_wait (float): The time to wait after setting the TES bias for
-            transients to die off.
-        high_current_mode (bool) : Whether to keep the TES bias in high current
-            mode after the kick. Default is False
-        flip_polarity (bool) : Whether to flip the TES bias bipolar DAC
-            polarity. Default False.
-        actually_overbias (bool) : Whether to actaully do the overbias. Default
-            True.
+        Args
+        ----
+        bias_group : int
+            The bias group to overbias.  Asserts if not a valid bias
+            group.
+        overbias_voltage : float, optional, default 19.9
+            The value of the TES bias in the high current mode.
+        overbias_wait : float, optional, default 1.0
+            The time to stay in high current mode in seconds.
+        tes_bias : float, optional, default 19.9
+            The value of the TES bias when put back in low current
+            mode.
+        cool_wait : float, optional, default 20.0
+            The time to wait after setting the TES bias for transients
+            to die off.
+        high_current_mode : bool, optional, default False
+            Whether to keep the TES bias in high current mode after
+            the kick.
+        flip_polarity : bool, optional, default False
+            Whether to flip the TES bias bipolar DAC polarity.
+        actually_overbias : bool, optional, default True
+            Whether to actaully do the overbias.
         """
         bias_groups = self.bias_group_to_pair[:,0]
         assert (bias_group in bias_groups),\
@@ -2741,23 +2875,27 @@ class SmurfUtilMixin(SmurfBase):
         tes_bias.  Then waits cool_wait seconds before returning
         control.
 
-        Opt Args:
-        ---------
-        bias_groups (array): which bias groups to overbias. defaults to
-            all_groups.  Asserts if any of the bias groups listed is not a
-            defined bias group.
-        overbias_voltage (float): The value of the TES bias in the high current
-            mode. Default 19.9.
-        overbias_wait (float): The time to stay in high current mode in seconds.
-            Default is .5
-        tes_bias (float): The value of the TES bias when put back in low current
-            mode. Default is 19.9.
-        cool_wait (float): The time to wait after setting the TES bias for
-            transients to die off.
-        high_current_mode (bool) : Whether to keep the TES bias in high current
-            mode after the kick. Default is False
-        actually_overbias (bool) : Whether to actaully do the overbias. Default
-            True.
+        Args
+        ----
+        bias_groups : array or None, optional, default None
+            Which bias groups to overbias. defaults to all_groups.
+            Asserts if any of the bias groups listed is not a defined
+            bias group.
+        overbias_voltage : float, optional, default 19.9
+            The value of the TES bias in the high current mode.
+        overbias_wait : float, optional, default 1.0
+            The time to stay in high current mode in seconds.
+        tes_bias : float, optional, default 19.9
+            The value of the TES bias when put back in low current
+            mode.
+        cool_wait : float, optional, default 20.0
+            The time to wait after setting the TES bias for transients
+            to die off.
+        high_current_mode : bool, optional, default False
+            Whether to keep the TES bias in high current mode after
+            the kick.
+        actually_overbias : bool, optional, default True
+            Whether to actaully do the overbias.
         """
         # drive high current through the TES to attempt to drive normal
         if bias_groups is None:
@@ -2810,9 +2948,12 @@ class SmurfUtilMixin(SmurfBase):
         number is not the same as the relay number. It also does not matter,
         because Joe's code secretly flips all the relays when you flip one.
 
-        Args:
-        -----
-        bias_group (int): The bias group(s) to set to high current mode.
+        Args
+        ----
+        bias_group : int
+            The bias group(s) to set to high current mode.
+        write_log : bool, optional, default False
+            ???
         """
         old_relay = self.get_cryo_card_relays()
         old_relay = self.get_cryo_card_relays()  # querey twice to ensure update
@@ -2841,9 +2982,12 @@ class SmurfUtilMixin(SmurfBase):
         number is not the same as the relay number. It also does not matter,
         because Joe's code secretly flips all the relays when you flip one
 
-        Args:
-        -----
-        bias_group (int): The bias group to set to low current mode
+        Args
+        ----
+        bias_group : int
+            The bias group to set to low current mode.
+        write_log : bool, optional, default False
+            ???
         """
         old_relay = self.get_cryo_card_relays()
         old_relay = self.get_cryo_card_relays()  # querey twice to ensure update
@@ -2871,9 +3015,10 @@ class SmurfUtilMixin(SmurfBase):
         """
         Sets flux ramp to DC coupling
 
-        Opt Args:
-        ---------
-        write_log (bool) : Whether to write outputs to log. Default False.
+        Args
+        ----
+        write_log : bool, optional, default False
+            Whether to write outputs to log.
         """
         # The 16th bit (0 indexed) is the AC/DC coupling
         # self.set_tes_bias_high_current(16)
@@ -2894,9 +3039,10 @@ class SmurfUtilMixin(SmurfBase):
         """
         Sets flux ramp to AC coupling
 
-        Opt Args:
-        ---------
-        write_log (bool) : Whether to write outputs to log. Default False.
+        Args
+        ----
+        write_log : bool, optional, default False
+            Whether to write outputs to log.
         """
         # The 16th bit (0 indexed) is the AC/DC coupling
         # self.set_tes_bias_low_current(16)
@@ -2917,13 +3063,15 @@ class SmurfUtilMixin(SmurfBase):
         """
         Gives the band associated with a given attenuator number
 
-        Args:
-        -----
-        att (int) : The attenuatory number.
-
-        Ret:
+        Args
         ----
-        band (int) : The band associated with the attenuator.
+        att : int
+            The attenuatory number.
+
+        Returns
+        -------
+        band : int
+            The band associated with the attenuator.
         """
         return self.att_to_band['band'][np.ravel(
             np.where(self.att_to_band['att']==att))[0]]
@@ -2932,13 +3080,15 @@ class SmurfUtilMixin(SmurfBase):
         """
         Gives the att associated with a given 500 MHz band.
 
-        Args:
-        -----
-        band (int) : The 500 MHz band number
-
-        Ret:
+        Args
         ----
-        att (int) : The attenuatory number.
+        band : int
+            The 500 MHz band number.
+
+        Returns
+        -------
+        att : int
+            The attenuatory number.
         """
         # for now, mod 4 ; assumes the band <-> att correspondence is the same
         # for the LB and HB AMCs.
@@ -3002,16 +3152,19 @@ class SmurfUtilMixin(SmurfBase):
         that are on. If both band and smurf_chans are supplied, a mask
         in the input order is created.
 
-        Opt Args:
-        ---------
-        band (int array) : An array of band numbers. Must be the same
-            length as smurf_chans
-        smurf_chans (int_array) : An array of SMuRF channel numbers.
-            Must be the same length as band
-
-        Ret:
+        Args
         ----
-        output_chans (int array) : The output channels.
+        band : int array or None, optional, default None
+            An array of band numbers. Must be the same length as
+            smurf_chans
+        smurf_chans : int_array or None, optional, default None
+            An array of SMuRF channel numbers.  Must be the same
+            length as band.
+
+        Returns
+        -------
+        output_chans : int array
+            The output channels.
         """
         output_chans = np.array([], dtype=int)
 
@@ -3037,14 +3190,15 @@ class SmurfUtilMixin(SmurfBase):
         Makes the frequency mask. These are the frequencies
         associated with the channels in the channel mask.
 
-        Args:
-        -----
-        mask (int array) : The channel mask file
-
-        Ret:
+        Args
         ----
-        freqs (float array) : An array with frequencies associated
-            with the mask file.
+        mask : int array
+            The channel mask file.
+
+        Returns
+        -------
+        freqs : float array
+            An array with frequencies associated with the mask file.
         """
         freqs = np.zeros(len(mask), dtype=float)
         channels_per_band = 512  # avoid hardcoding this
@@ -3065,10 +3219,14 @@ class SmurfUtilMixin(SmurfBase):
         that filters data at the flux_ramp reset rate, which is
         before the downsampler.
 
-        Args:
-        -----
-        filter_order (int) : The number of poles in the filter.
-        cutoff_freq (float) : The filter cutoff frequency
+        Args
+        ----
+        filter_order : int
+            The number of poles in the filter.
+        cutoff_freq : float
+            The filter cutoff frequency.
+        write_log : bool, optional, default False
+            ???
         """
         # Get flux ramp frequency
         flux_ramp_freq = self.get_flux_ramp_freq()*1.0E3
@@ -3090,20 +3248,18 @@ class SmurfUtilMixin(SmurfBase):
 
     def get_filter_params(self):
         """
-        Get the downsample filter parameters: filter order,
-        filter gain, num averages, and the actual filter
-        parameters. This reads the most recent smurf_to_mce_file
-        to get the parameters. This is defined in
-        self.smurf_to_mce_file.
+        Get the downsample filter parameters: filter order, filter
+        gain, num averages, and the actual filter parameters. This
+        reads the most recent smurf_to_mce_file to get the
+        parameters. This is defined in self.smurf_to_mce_file.
 
-        If filter order is -1, the downsampler is using a
-        rectangula integrator. This will set filter_a, filter_b
-        to None.
+        If filter order is -1, the downsampler is using a rectangula
+        integrator. This will set filter_a, filter_b to None.
 
-        Ret:
-        ----
-        filter_params (dict) : A dictionary with the filter
-            parameters.
+        Returns
+        -------
+        filter_params : dict
+            A dictionary with the filter parameters.
         """
         # Get filter order, gain, and averages
         filter_order = self.get_filter_order()
@@ -3142,18 +3298,21 @@ class SmurfUtilMixin(SmurfBase):
         that are on. If both band and smurf_chans are supplied, a mask
         in the input order is created.
 
-        Opt Args:
-        ---------
-        band (int array) : An array of band numbers. Must be the same
-            length as smurf_chans
-        smurf_chans (int_array) : An array of SMuRF channel numbers.
-            Must be the same length as band.
-        gcp_chans (int_array) : A list of smurf numbers to be passed
-            on as GCP channels.
-        read_gcp_mask (bool) : Whether to read in the new GCP mask file.
-            If not read in, it will take no effect. Default is True.
-        mask_channel_offset (int) : Offset to add to channel numbers in GCP
-            mask file.  Default is 0.
+        Args
+        ----
+        band : int array or None, optional, default None
+            An array of band numbers. Must be the same length as
+            smurf_chans
+        smurf_chans : int_array or None, optional, default None
+            An array of SMuRF channel numbers.  Must be the same
+            length as band.
+        gcp_chans : int_array or None, optional, default None
+            A list of smurf numbers to be passed on as GCP channels.
+        read_gcp_mask : bool, optional, default True
+            Whether to read in the new GCP mask file.  If not read in,
+            it will take no effect.
+        mask_channel_offset : int, optional, default 0
+            Offset to add to channel numbers in GCP mask file.
         """
         if self.config.get('smurf_to_mce').get('mask_channel_offset') is not None:
             mask_channel_offset=int(self.config.get('smurf_to_mce').get('mask_channel_offset'))
@@ -3200,11 +3359,12 @@ class SmurfUtilMixin(SmurfBase):
             self.log('Warning: new mask has not been read in yet.')
 
 
-    def bias_bump(self, bias_group, wait_time=.5, step_size=.001, duration=5,
-                  start_bias=None, make_plot=False, skip_samp_start=10,
-                  high_current_mode=True, skip_samp_end=10, plot_channels=None,
-                  gcp_mode=False, gcp_wait=.5, gcp_between=1., dat_file=None,
-                  offset_percentile=2):
+    def bias_bump(self, bias_group, wait_time=.5, step_size=0.001,
+                  duration=5.0, start_bias=None, make_plot=False,
+                  skip_samp_start=10, high_current_mode=True,
+                  skip_samp_end=10, plot_channels=None,
+                  gcp_mode=False, gcp_wait=0.5, gcp_between=1.0,
+                  dat_file=None, offset_percentile=2):
         """
         Toggles the TES bias high and back to its original state. From this, it
         calculates the electrical responsivity (sib), the optical responsivity (siq),
@@ -3217,40 +3377,60 @@ class SmurfUtilMixin(SmurfBase):
         Note that only the resistance is well defined now because the phase response
         has an un-set factor of -1. We will need to calibrate this out.
 
-        Args:
-        -----
-        bias_group (int of int array): The bias groups to toggle. The response will
-            return every detector that is on.
+        Args
+        ----
+        bias_group : int of int array
+            The bias groups to toggle. The response will return every
+            detector that is on.
+        wait_time : float, optional, default 0.5
+            The time to wait between steps
+        step_size : float, optional, default 0.001
+            The voltage to step up and down in volts (for low current
+            mode).
+        duration : float, optional, default 5.0
+            The total time of observation.
+        start_bias : float or None, optional, default None
+            The TES bias to start at. If None, uses the current TES
+            bias.
+        make_plot : bool, optional, default False
+            Whether to make plots. Must set some channels in
+            plot_channels.
+        skip_samp_start : int, optional, default 10
+            The number of samples to skip before calculating a DC
+            level.
+        high_current_mode : bool, optional, default True
+            Whether to observe in high or low current mode.
+        skip_samp_end : int, optional, default 10
+            The number of samples to skip after calculating a DC
+            level.
+        plot_channels : int array or None, optional, default None
+           The channels to plot.
+        grid_mode : bool, optional, default False
+            ???
+        gcp_wait : float, optional, default 0.5
+            ???
+        gcp_between : float, optional, default 1.0
+            ???
+        dat_file : str or None, optional, default None
+            Filename to read bias-bump data from; if provided, data is
+            read from file instead of being measured live.
+        offset_percentile : float, optional, default 2.0
+            Number between 0 and 100. Determines the percentile used
+            to calculate the DC level of the TES data.
 
-        Opt Args:
-        --------
-        wait_time (float) : The time to wait between steps
-        step_size (float) : The voltage to step up and down in volts (for low
-            current mode).
-        duration (float) : The total time of observation
-        start_bias (float) : The TES bias to start at. If None, uses the current
-            TES bias.
-        skip_samp_start (int) : The number of samples to skip before calculating
-            a DC level
-        skip_samp_end (int) : The number of samples to skip after calculating a
-            DC level.
-        high_current_mode (bool) : Whether to observe in high or low current mode.
-            Default is True.
-        make_plot (bool) : Whether to make plots. Must set some channels in plot_channels.
-        plot_channels (int array) : The channels to plot.
-        dat_file (str) : filename to read bias-bump data from; if provided, data is read
-            from file instead of being measured live
-        offset_percentile (float) : Number between 0 and 100. Determines the percentile
-            used to calculate the DC level of the TES data.
-
-        Ret:
-        ---
-        bands (int array) : The bands
-        channels (int array) : The channels
-        resistance (float array) : The inferred resistance of the TESs in Ohms
-        sib (float array) : The electrical responsivity. This may be incorrect until
+        Returns
+        -------
+        bands : int array
+           The bands.
+        channels : int array
+           The channels.
+        resistance : float array
+            The inferred resistance of the TESs in Ohms.
+        sib : float array
+            The electrical responsivity. This may be incorrect until
             we define a phase convention. This is dimensionless.
-        siq (float array) : The power responsivity. This may be incorrect until we
+        siq : float array
+            The power responsivity. This may be incorrect until we
             define a phase convention. This is in uA/pW
 
         """
@@ -3336,7 +3516,7 @@ class SmurfUtilMixin(SmurfBase):
         flag[0:s[1]] = np.nan
 
         v_bias *= -2 * self._rtm_slow_dac_bit_to_volt  # FBU to V
-        d *= self.pA_per_phi0/(2*np.pi*1.0E6) # Convert to microamp
+        d *= self._pA_per_phi0/(2*np.pi*1.0E6) # Convert to microamp
         i_amp = step_size / self.bias_line_resistance * 1.0E6 # also uA
         i_bias = v_bias[bias_group[0]] / self.bias_line_resistance * 1.0E6
 
@@ -3437,13 +3617,15 @@ class SmurfUtilMixin(SmurfBase):
         Goes from the smurf2mce mask file to a gcp number.
         Inverse of gcp_num_to_mask_num.
 
-        Args:
-        -----
-        mask_num (int) : The index in the mask file.
-
-        Ret:
+        Args
         ----
-        gcp_num (int) : The index of the channel in GCP.
+        mask_num : int
+            The index in the mask file.
+
+        Returns
+        -------
+        gcp_num : int
+            The index of the channel in GCP.
         """
         return (mask_num*33)%528+mask_num//16
 
@@ -3453,13 +3635,15 @@ class SmurfUtilMixin(SmurfBase):
         Goes from a GCP number to the smurf2mce index.
         Inverse of mask_num_to_gcp_num
 
-        Args:
+        Args
         ----
-        gcp_num (int) : The gcp index
+        gcp_num : int
+            The gcp index.
 
-        Ret:
-        ----
-        mask_num (int) : The index in the mask.
+        Returns
+        -------
+        mask_num : int
+            The index in the mask.
         """
         return (gcp_num*16)%528 + gcp_num//33
 
@@ -3468,19 +3652,20 @@ class SmurfUtilMixin(SmurfBase):
         """
         Converts from smurf channel (band and channel) to a gcp number
 
-        Args:
-        -----
-        band (int) : The smurf band number
-        channel (int) : The smurf channel number
-
-        Opt Args:
-        ---------
-        mask_file (int array) : The mask file to convert between smurf channel
-            and GCP number.
-
-        Ret:
+        Args
         ----
-        gcp_num (int) : The GCP number
+        band : int
+            The smurf band number.
+        channel : int
+            The smurf channel number.
+        mask_file : int array or None, optional, default None
+            The mask file to convert between smurf channel and GCP
+            number.
+
+        Returns
+        -------
+        gcp_num : int
+            The GCP number.
         """
         if mask_file is None:
             mask_file = self.smurf_to_mce_mask_file
@@ -3499,19 +3684,20 @@ class SmurfUtilMixin(SmurfBase):
         """
         Converts from gcp number to smurf channel (band and channel).
 
-        Args:
-        -----
-        gcp_num (int) : The GCP number
-
-        Opt Args:
-        ---------
-        mask_file (int array) : The mask file to convert between smurf channel
-            and GCP number.
-
-        Ret:
+        Args
         ----
-        band (int) : The smurf band number
-        channel (int) : The smurf channel number
+        gcp_num : int
+            The GCP number.
+        mask_file : int array or None, optional, default None
+            The mask file to convert between smurf channel and GCP
+            number.
+
+        Returns
+        -------
+        band : int
+            The smurf band number.
+        channel : int
+            The smurf channel number.
         """
         if mask_file is None:
             mask_file = self.smurf_to_mce_mask_file
@@ -3530,18 +3716,18 @@ class SmurfUtilMixin(SmurfBase):
         voltage. The conversion from requested volts to bits
         is calculated in this function.
 
-        Args:
-        -----
-        bias_group (int) : The bias group to play a sine wave on
-        tone_amp (float) : The amplitude of the sine wave in units of
-            out TES bias in volts.
-        tone_freq (float) : The frequency of the tone in Hz.
-
-        Opt Args:
-        ---------
-        dc_amp (float) : The amplitude of the DC term of the sine wave.
-            If None, reads the current DC value and uses that. Default
-            is None.
+        Args
+        ----
+        bias_group : int
+            The bias group to play a sine wave on.
+        tone_amp : float
+            The amplitude of the sine wave in units of out TES bias in
+            volts.
+        tone_freq : float
+            The frequency of the tone in Hz.
+        dc_amp : float or None, optional, default None
+            The amplitude of the DC term of the sine wave.  If None,
+            reads the current DC value and uses that.
         """
         if dc_amp is None:
             dc_amp = self.get_tes_bias_bipolar(bias_group)
@@ -3570,18 +3756,17 @@ class SmurfUtilMixin(SmurfBase):
         for tone file, assumes the path to the correct tone file has
         already been loaded.
 
-        Args:
+        Args
         ----
-        band (int) : Which band to play tone file on.
-
-        Optional Args:
-        --------------
-        tone_file (str) : Path (including csv file name) to tone file.
-                          If none given, uses whatever's already been loaded.
-        load_tone_file (bool) : Whether or not to load the tone file.
-                                The tone file is loaded per DAC, so if you
-                                already loaded the tone file for this DAC you
-                                don't have to do it again.
+        band : int
+            Which band to play tone file on.
+        tone_file : str or None, optional, default None
+            Path (including csv file name) to tone file.  If None,
+            uses whatever's already been loaded.
+        load_tone_file : bool, optional, default True
+            Whether or not to load the tone file.  The tone file is
+            loaded per DAC, so if you already loaded the tone file for
+            this DAC you don't have to do it again.
         """
         # the bay corresponding to this band.
         bay = self.band_to_bay(band)
@@ -3601,9 +3786,10 @@ class SmurfUtilMixin(SmurfBase):
         Stops playing tone file on the specified band and reverts
         to DSP.
 
-        Args:
+        Args
         ----
-        band (int) : Which band to play tone file on.
+        band : int
+            Which band to play tone file on.
         """
 
         self.set_waveform_select(band,0)
@@ -3618,14 +3804,15 @@ class SmurfUtilMixin(SmurfBase):
         Convenience function for getting all the serial
         gradient descent parameters
 
-        Args:
-        -----
-        band (int): The band to query
-
-        Ret:
+        Args
         ----
-        params (dict): A dictionary with all the gradient
-            descent parameters
+        band : int
+            The band to query.
+
+        Returns
+        -------
+        params : dict
+            A dictionary with all the gradient descent parameters
         """
         ret = {}
         ret['averages'] = self.get_gradient_descent_averages(band)
@@ -3648,14 +3835,15 @@ class SmurfUtilMixin(SmurfBase):
         frequency falls into (where a channel is deemed "assigned" if
         it has non-zero amplitude).
 
-        Args:
-        -----
-        freq_mhz (float): The frequency in MHz at which to place a fixed tone.
-        drive (int): The amplitude for the fixed tone (0-15 in recent fw revisions).
-
-        Opt Args:
-        ---------
-        quiet (bool) : Whether to look at one channel
+        Args
+        ----
+        freq_mhz : float
+            The frequency in MHz at which to place a fixed tone.
+        drive : int
+            The amplitude for the fixed tone (0-15 in recent fw
+            revisions).
+        quiet : bool, optional, ddefault False
+            ???
         """
 
         # Find which band the requested frequency falls into.
@@ -3707,15 +3895,10 @@ class SmurfUtilMixin(SmurfBase):
         Turns off every channel which has nonzero amplitude but
         feedback set to zero.
 
-        Args:
-        -----
-        freq_mhz (float): The frequency in MHz at which to place a fixed tone.
-        drive (int): The amplitude for the fixed tone (0-15 in recent fw revisions).
-
-        Opt Args:
-        ---------
-        quiet (bool) : Whether to look at one channel
-
+        Args
+        ----
+        band : int
+            The band to query.
         """
         amplitude_scale_array=self.get_amplitude_scale_array(band)
         feedback_enable_array=self.get_feedback_enable_array(band)
@@ -3858,17 +4041,19 @@ class SmurfUtilMixin(SmurfBase):
             continuous=True, **kwargs):
         """ Play a bipolar waveform on the bias group.
 
-        Parameters:
-        ------------
+        Args
+        ----
         bias_group : int
             The bias group
         waveform : float array
             The waveform the play on the bias group.
-        do_enable : bool
-            Whether to enable the DACs (similar to what is resuired for TES
-            bias). Defualt True.
-        continuous : bool
-            Whether to play the TES waveform continuously. Default True.
+        do_enable : bool, optional, default True
+            Whether to enable the DACs (similar to what is required
+            for TES bias).
+        continuous : bool, optional, default True
+            Whether to play the TES waveform continuously.
+        **kwargs : ???
+            ???
         """
         bias_order = self.bias_group_to_pair[:,0]
         dac_positives = self.bias_group_to_pair[:,1]
@@ -3909,9 +4094,12 @@ class SmurfUtilMixin(SmurfBase):
         """
         Stop the bipolar waveform being played on a bias group.
 
-        Args:
-        -----
-        bias_group (int): The bias group
+        Args
+        ----
+        bias_group : int
+            The bias group.
+        **kwargs : ???
+            ???
         """
         # https://confluence.slac.stanford.edu/display/SMuRF/SMuRF+firmware#SMuRFfirmware-RTMDACarbitrarywaveforms
         # Target the two bipolar DACs assigned to this bias group:
@@ -3928,8 +4116,8 @@ class SmurfUtilMixin(SmurfBase):
     def get_sample_frequency(self):
         """ Gives the data rate.
 
-        Returns:
-        --------
+        Returns
+        -------
         sample_frequency : float
             The data sample rate in Hz.
         """
@@ -3947,35 +4135,38 @@ class SmurfUtilMixin(SmurfBase):
         this with the TESs superconducting so it can look for an
         response is exactly the same amplitude as the input.
 
-        Parameters:
-        -----------
-        bias_groups : int array
-            The bias groups to search. If None, does the first 8 bias groups.
-            Default is None.
-        probe_freq : float
-            The frequency of the probe tone
-        probe_time : float
-            The length of time to probe each bias group in seconds. Default 3.
-        cutoff_frac : float
-            The fraction difference the response can be away from the expected
-            amplitude. Default .05.
-        make_plot : bool
-            Whether to make the plot. Default False.
-        save_plot :bool
-            Whether to save the plot. Default True.
-        show_plot : bool
-            Whether to show the plot. Default False
-        update_channel_assignment : bool
-            Whether to update the master channels assignment to contain the new
-            bias group information. Default True.
-        high_current_mode : bool
-            Whether to use high or low current mode. Default True.
+        Args
+        ----
+        bias_groups : int array or None, optional, default None
+            The bias groups to search. If None, does the first 8 bias
+            groups.
+        probe_freq : float, optional, default 2.5
+            The frequency of the probe tone.
+        probe_time : float, optional, default 3
+            The length of time to probe each bias group in seconds.
+        probe_amp : float, optional, default 0.1
+            Amplitude of the probe signal in volts.
+        make_plot : bool, optional, default False
+            Whether to make the plot.
+        show_plot : bool, optional, default False
+            Whether to show the plot.
+        save_plot : bool, optional, default True
+            Whether to save the plot.
+        cutoff_frac : float, optional, default 0.05
+            The fraction difference the response can be away from the
+            expected amplitude.
+        update_channel_assignment : bool, optional, default True
+            Whether to update the master channels assignment to
+            contain the new bias group information.
+        high_current_mode : bool, optional, default True
+            Whether to use high or low current mode.
 
-        Returns:
-        --------
-        channels_dict (dict) : A dictionary where the first key is
-            the bias group that is being probed. In each is the
-            band, channnel pairs, and frequency of the channels.
+        Returns
+        -------
+        channels_dict : dict of {int : dict of {str : numpy.ndarray} }
+            A dictionary where the first key is the bias group that is
+            being probed. In each is the band, channnel pairs, and
+            frequency of the channels.
         """
         # Check if probe frequency is too high
         flux_ramp_freq = self.get_flux_ramp_freq() * 1.0E3
@@ -4028,7 +4219,7 @@ class SmurfUtilMixin(SmurfBase):
             m = mm[0]  # extract mask
             m_freq = mm[1]  #frequency mask
             freq_arr = m_freq[np.where(m!=-1)]
-            d *= (self.pA_per_phi0/2/np.pi)  # convert to pA
+            d *= (self._pA_per_phi0/2/np.pi)  # convert to pA
             d = np.transpose(d.T - np.mean(d.T, axis=0))
 
             n_det, n_samp = np.shape(d)

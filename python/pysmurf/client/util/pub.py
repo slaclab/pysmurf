@@ -142,17 +142,17 @@ class Publisher:
         """
         Publishes file info so it can be picked up by the pysmurf-archiver.
 
-        Args:
-        -----
-        path (str):
-            full path to file.
-        type (str):
-            Type of data file, e.g. "tuning" or "config_snapshot"
-        format (str):
-            File extension. E.g. "npy" or "txt"
-        timestamp (float):
+        Args
+        ----
+        path : str
+            Full path to file.
+        type : str
+            Type of data file, e.g. "tuning" or "config_snapshot".
+        format : str
+            File extension. E.g. "npy" or "txt".
+        timestamp : float or None, optional, default None
             Unix timestamp when file was created.
-        plot (bool):
+        plot : bool, optional, default False
             True if file is a plot
         """
         if timestamp is None:

@@ -118,13 +118,14 @@ def utf8_to_str(d):
     int arrays. This function changes them from UTF8 to a
     string
 
-    Args:
-    -----
-    d (int array) : An integer array with each element equal to
-        a character
-
-    Ret:
+    Args
     ----
-    d_str (str) : The string associated with input d
+    d : int array
+        An integer array with each element equal to a character.
+
+    Returns
+    -------
+    str
+        The string associated with input d.
     """
     return ''.join([str(s, encoding='UTF-8') for s in d])

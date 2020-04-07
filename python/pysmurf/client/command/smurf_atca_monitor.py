@@ -24,7 +24,7 @@ class SmurfAtcaMonitorMixin(SmurfBase):
         """
         Writes all current ATCA monitor values to a yml file.
 
-        Args:
+        Args
         ----
         val (str) : The path (including file name) to write the yml file to.
         """
