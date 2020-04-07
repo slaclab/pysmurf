@@ -13,12 +13,12 @@
 # copied, modified, propagated, or distributed except according to the terms
 # contained in the LICENSE.txt file.
 #-----------------------------------------------------------------------------
-from .logger import SmurfLogger
 from pysmurf.client.command.cryo_card import CryoCard
-
 from pysmurf.client.util.pub import Publisher
 
-class SmurfBase(object):
+from .logger import SmurfLogger
+
+class SmurfBase:
     '''
     Base class for common things
     '''
@@ -60,6 +60,7 @@ class SmurfBase(object):
             Script id included with publisher messages. For example, the
             script or operation name.
         """
+
         # Set up logging
         self.log = log
         if self.log is None:
@@ -166,33 +167,33 @@ class SmurfBase(object):
 
         # Timing paths
         self.amctiming = self.amccc + 'AmcCarrierTiming:'
-        self.trigger_root =  self.amctiming + 'EvrV2CoreTriggers:'
+        self.trigger_root = self.amctiming + 'EvrV2CoreTriggers:'
         self.timing_status = self.amctiming + 'TimingFrameRx:'
 
         self.C = CryoCard(self.rtm_spi_cryo_root + 'read',
-            self.rtm_spi_cryo_root + 'write')
+                          self.rtm_spi_cryo_root + 'write')
         self.freq_resp = {}
 
         # RTM slow DAC parameters (used, e.g., for TES biasing). The
         # DACs are AD5790 chips
-        self._rtm_slow_dac_max_volt=10. # Max unipolar DAC voltage,
+        self._rtm_slow_dac_max_volt = 10. # Max unipolar DAC voltage,
                                         # in Volts
-        self._rtm_slow_dac_nbits=20
+        self._rtm_slow_dac_nbits = 20
         # x2 because _rtm_slow_dac_max_volt is the maximum *unipolar*
         # voltage.  Units of Volt/bit
-        self._rtm_slow_dac_bit_to_volt=( 2*self._rtm_slow_dac_max_volt /
-                                         ( 2**( self._rtm_slow_dac_nbits ) ) )
+        self._rtm_slow_dac_bit_to_volt = (2*self._rtm_slow_dac_max_volt/
+                                          (2**(self._rtm_slow_dac_nbits)))
 
         # LUT table length for arbitrary waveform generation
-        self._lut_table_array_length=2048
+        self._lut_table_array_length = 2048
 
     def init_log(self, verbose=0, logger=SmurfLogger, logfile=None,
                  log_timestamp=True, log_prefix=None, **kwargs):
         """
         Initialize the logger from the input keyword arguments.
 
-        Arguments
-        ---------
+        Args
+        ----
         logger : logging class, optional
             Class to initialize, should be a subclass of SmurfLogger
             or equivalent.
@@ -247,12 +248,12 @@ class SmurfBase(object):
         '''
         Helper function that returns the epics path to a band.
 
-        Args:
-        -----
+        Args
+        ----
         band (int): The band to access
 
-        Returns:
-        --------
+        Returns
+        -------
         path (string) : The string to be passed to caget/caput to access
             the input band.
         '''
@@ -262,12 +263,12 @@ class SmurfBase(object):
         '''
         Helper function that returns the epics path to cryoroot.
 
-        Args:
-        -----
+        Args
+        ----
         band (int): The band to access
 
-        Returns:
-        --------
+        Returns
+        -------
         path (string) : The string to be passed to caget/caput to access
             the input band.
         '''
@@ -277,13 +278,13 @@ class SmurfBase(object):
         """
         Helper function that returns the epics path to channel root.
 
-        Args:
-        -----
+        Args
+        ----
         band (int) : The band to access
         channel (int) : The channel to access.
 
-        Returns:
-        --------
+        Returns
+        -------
         path (string) : The string to be passed to caget/caput to access
             the input band.
         """

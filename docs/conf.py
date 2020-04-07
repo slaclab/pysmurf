@@ -11,14 +11,21 @@
 # All configuration values have a default; values that are commented out
 # serve to show the default.
 
-import sys, os
+import os
+# used for source code link resolution
+import inspect
+import sys
+import re
+from os.path import dirname, relpath
 
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
-#sys.path.append(os.path.abspath('.'))
-sys.path.insert(0, os.path.abspath('..'))
+from pysmurf import __file__ as pysmurf_file
 from pysmurf import __version__ as pysmurf_version
+sys.path.insert(0, os.path.abspath('..'))
+
+pysmurf_git_tag = re.sub('^v', '', os.popen('git describe --tags').read().strip())
 
 # -- Project information -----------------------------------------------------
 # General information about the project.
@@ -42,6 +49,7 @@ extensions = [
     'sphinx.ext.autodoc',
     'sphinx.ext.napoleon',
     'sphinx.ext.todo',
+    'sphinx.ext.linkcode'
 ]
 
 # Napoleon settings
@@ -193,8 +201,8 @@ htmlhelp_basename = 'pysmurfdoc'
 # Grouping the document tree into LaTeX files. List of tuples
 # (source start file, target name, title, author, documentclass [howto/manual]).
 latex_documents = [
-  ('index', 'pysmurf.tex', u'pysmurf Documentation',
-   u'Edward Young', 'manual'),
+    ('index', 'pysmurf.tex', u'pysmurf Documentation',
+     u'Edward Young', 'manual'),
 ]
 
 # The name of an image file (relative to this directory) to place at the top of
@@ -215,4 +223,56 @@ latex_documents = [
 #latex_use_modindex = True
 
 # Modules to mock up
-autodoc_mock_imports = ['pyrogue','smurf','rogue','CryoDet','CryoDevBoard']
+autodoc_mock_imports = ['pyrogue','smurf','rogue','CryoDet','CryoDevBoard','pysmurf.core.devices._UdpReceiver']
+
+
+# Source code links
+def linkcode_resolve(domain, info):
+    """
+    Determine the URL corresponding to Python object
+    """
+    if domain != 'py':
+        return None
+
+    modname = info['module']
+    fullname = info['fullname']
+
+    submod = sys.modules.get(modname)
+    if submod is None:
+        return None
+
+    obj = submod
+    for part in fullname.split('.'):
+        try:
+            obj = getattr(obj, part)
+        except Exception:
+            return None
+
+    # strip decorators, which would resolve to the source of the decorator
+    try:
+        unwrap = inspect.unwrap
+    except AttributeError:
+        pass
+    else:
+        obj = unwrap(obj)
+
+    try:
+        fn = inspect.getsourcefile(obj)
+    except Exception:
+        fn = None
+    if not fn:
+        return None
+
+    try:
+        source, lineno = inspect.getsourcelines(obj)
+    except Exception:
+        lineno = None
+
+    if lineno:
+        linespec = "#L%d-L%d" % (lineno, lineno + len(source) - 1)
+    else:
+        linespec = ""
+
+    fn = relpath(fn, start=dirname(pysmurf_file))
+    return "https://github.com/slaclab/pysmurf/blob/%s/python/pysmurf/%s%s" % (
+        pysmurf_git_tag, fn, linespec)
