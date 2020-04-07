@@ -46,19 +46,21 @@ class SmurfBase:
     def __init__(self, log=None, epics_root=None, offline=False,
                  pub_root=None, script_id=None, **kwargs):
         """
-        Opt Arguments
-        --------------
-        log (log file) : The log file to write to. If None, creates a new log
-            file.
-        epics_root (str) : The name of the epics root. For example "test_epics".
-        offline (bool) : Whether to run in offline mode (no rogue) or not. This
+        Args
+        ----
+        log : log file or None, optional, default None
+            The log file to write to. If None, creates a new log file.
+        epics_root : str or None, optional, default None
+            The name of the epics root. For example "test_epics".
+        offline : bool, optional, default False
+            Whether to run in offline mode (no rogue) or not. This
             will break many things. Default is False.
-        pub_root (str):
-            Root of environment vars to set publisher options. If None, the
-            default root will be "SMURFPUB_".
-        script_id (str):
-            Script id included with publisher messages. For example, the
-            script or operation name.
+        pub_root : str or None, optional, default None
+            Root of environment vars to set publisher options. If
+            None, the default root will be "SMURFPUB_".
+        script_id : str or None, optional, default None
+            Script id included with publisher messages. For example,
+            the script or operation name.
         """
 
         # Set up logging

@@ -1449,7 +1449,6 @@ class SmurfUtilMixin(SmurfBase):
         ----
         band : int
             Which band.  Assumes adc number is band%4.
-
         data_length : int, optional, default 2**19
             The number of samples.
         hw_trigger : bool, optional, default False
@@ -1467,8 +1466,7 @@ class SmurfUtilMixin(SmurfBase):
             If do_plot is True, whether or not to show the plot.
         save_plot : bool, optional, default True
             Whether or not to save plot to file.
-        plot_ylimits : [float or None, float or None], optional,
-        default [None,None]
+        plot_ylimits : [float or None, float or None], optional, default [None,None]
             y-axis limit (amplitude) to restrict plotting over.
 
         Returns
@@ -1552,7 +1550,6 @@ class SmurfUtilMixin(SmurfBase):
         ----
         band : int
             Which band.  Assumes dac number is band%4.
-
         data_length : int, optional, default 2**19
             The number of samples.
         hw_trigger : bool, optional, default False
@@ -1570,8 +1567,7 @@ class SmurfUtilMixin(SmurfBase):
             If do_plot is True, whether or not to show the plot.
         save_plot : bool, optional, default True
             Whether or not to save plot to file.
-        plot_ylimits : list of float or list of None, optional,
-        default [None,None]
+        plot_ylimits : list of float or list of None, optional, default [None,None]
             2-element list of y-axis limits (amplitude) to restrict
             plotting over.
 
@@ -1660,10 +1656,6 @@ class SmurfUtilMixin(SmurfBase):
             The amount of data to take.
         band : int, optional, default 0
             which band to get data on.
-        debug : bool, optional, default False
-            ???
-        write_log : bool, optional, default False
-            ???
         """
 
         bay=self.band_to_bay(band)
@@ -1700,14 +1692,8 @@ class SmurfUtilMixin(SmurfBase):
 
         Args
         ----
-        bay : int
-            ???
         size : int
             The buffer size in number of points.
-        debug : bool, optional, default False
-            ???
-        write_log : bool, optional, default False
-            ???
         """
         # Change DAQ data buffer size
 
@@ -1812,8 +1798,6 @@ class SmurfUtilMixin(SmurfBase):
         ----
         band : int
            The band whose feedback to toggle.
-        ***kwargs : ???
-           ???
         """
 
         # current vals?
@@ -1863,8 +1847,6 @@ class SmurfUtilMixin(SmurfBase):
         ----
         band : int
             The band that is to be turned off.
-        **kwards : ???
-            ???
         """
         self.set_amplitude_scales(band, 0, **kwargs)
         self.set_feedback_enable_array(band, np.zeros(512, dtype=int), **kwargs)
@@ -2127,8 +2109,6 @@ class SmurfUtilMixin(SmurfBase):
             The band the channel is in.
         channel : int or None, optional, default none
             The channel number.
-        yml : str or None, optional, default None
-            ???
 
         Returns
         -------
@@ -2215,11 +2195,6 @@ class SmurfUtilMixin(SmurfBase):
         ----
         channelorderfile : str or None, optional, default None
             Path to a file that contains one channel per line.
-
-        Returns
-        -------
-        processed_channels : int array
-            ???
         """
         n_proc = self.get_number_processed_channels()
         n_chan = self.get_number_channels()
@@ -2274,17 +2249,6 @@ class SmurfUtilMixin(SmurfBase):
             Which band.
         as_offset : bool, optional, default True
             Whether to return as offset from band center.
-        hardcode : bool, optional, default False
-            ???
-        yml : str or None, optional, default None
-            ???
-
-        Returns
-        -------
-        subbands : ???
-            ???
-        subband_centers : ???
-            ???
         """
 
         if hardcode:
@@ -2345,18 +2309,6 @@ class SmurfUtilMixin(SmurfBase):
     def iq_to_phase(self, i, q):
         """
         Changes IQ to phase
-
-        Args
-        ----
-        i : float array
-            ???
-        q : float arry
-            ???
-
-        Returns
-        -------
-        phase : float array
-            ???
         """
         return np.unwrap(np.arctan2(q, i))
 
@@ -2420,8 +2372,6 @@ class SmurfUtilMixin(SmurfBase):
             Sets the enable bit. Only must be done once.
         flip_polarity : bool, optional, default False
             Sets the voltage to volt*-1.
-        **kwargs : ???
-           ???
         """
 
         # Make sure the requested bias group is in the list of defined
@@ -2471,8 +2421,6 @@ class SmurfUtilMixin(SmurfBase):
             bias group. Should be (n_bias_groups,).
         do_enable : bool, optional, default True
             Set the enable bit for both DACs for every TES bias group.
-        **kwargs : ???
-            ???
         """
 
         n_bias_groups = self._n_bias_groups
@@ -2534,8 +2482,6 @@ class SmurfUtilMixin(SmurfBase):
             file.
         return_raw : bool, optional, default False
             If True, returns pos and neg terminal values.
-        **kwargs : ???
-            ???
 
         Returns
         -------
@@ -2579,8 +2525,6 @@ class SmurfUtilMixin(SmurfBase):
         return_raw : bool, optional, default False
             If True, returns +/- terminal vals as separate arrays
             (pos, then negative)
-        **kwargs : ???
-            ???
         """
 
         bias_order = self.bias_group_to_pair[:,0]
@@ -2952,8 +2896,6 @@ class SmurfUtilMixin(SmurfBase):
         ----
         bias_group : int
             The bias group(s) to set to high current mode.
-        write_log : bool, optional, default False
-            ???
         """
         old_relay = self.get_cryo_card_relays()
         old_relay = self.get_cryo_card_relays()  # querey twice to ensure update
@@ -2986,8 +2928,6 @@ class SmurfUtilMixin(SmurfBase):
         ----
         bias_group : int
             The bias group to set to low current mode.
-        write_log : bool, optional, default False
-            ???
         """
         old_relay = self.get_cryo_card_relays()
         old_relay = self.get_cryo_card_relays()  # querey twice to ensure update
@@ -3225,8 +3165,6 @@ class SmurfUtilMixin(SmurfBase):
             The number of poles in the filter.
         cutoff_freq : float
             The filter cutoff frequency.
-        write_log : bool, optional, default False
-            ???
         """
         # Get flux ramp frequency
         flux_ramp_freq = self.get_flux_ramp_freq()*1.0E3
@@ -3405,12 +3343,6 @@ class SmurfUtilMixin(SmurfBase):
             level.
         plot_channels : int array or None, optional, default None
            The channels to plot.
-        grid_mode : bool, optional, default False
-            ???
-        gcp_wait : float, optional, default 0.5
-            ???
-        gcp_between : float, optional, default 1.0
-            ???
         dat_file : str or None, optional, default None
             Filename to read bias-bump data from; if provided, data is
             read from file instead of being measured live.
@@ -3842,8 +3774,6 @@ class SmurfUtilMixin(SmurfBase):
         drive : int
             The amplitude for the fixed tone (0-15 in recent fw
             revisions).
-        quiet : bool, optional, ddefault False
-            ???
         """
 
         # Find which band the requested frequency falls into.
@@ -4052,8 +3982,6 @@ class SmurfUtilMixin(SmurfBase):
             for TES bias).
         continuous : bool, optional, default True
             Whether to play the TES waveform continuously.
-        **kwargs : ???
-            ???
         """
         bias_order = self.bias_group_to_pair[:,0]
         dac_positives = self.bias_group_to_pair[:,1]
@@ -4098,8 +4026,6 @@ class SmurfUtilMixin(SmurfBase):
         ----
         bias_group : int
             The bias group.
-        **kwargs : ???
-            ???
         """
         # https://confluence.slac.stanford.edu/display/SMuRF/SMuRF+firmware#SMuRFfirmware-RTMDACarbitrarywaveforms
         # Target the two bipolar DACs assigned to this bias group:

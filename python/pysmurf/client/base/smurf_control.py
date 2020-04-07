@@ -81,10 +81,6 @@ class SmurfControl(SmurfCommandMixin,
               'shm-smrf-sp01'
     validate_config : bool, optional, default True
               Whether to check if the input config file is correct.
-    **kwargs
-              These parameters will be passed to the pysmurf
-              :func:`~SmurfControl.initialize` routine.  AND TO MIXIN
-              AND OTHER INHERITED CLASS CONSTRUCTORS.
 
     Attributes
     ----------
@@ -168,9 +164,6 @@ class SmurfControl(SmurfCommandMixin,
               Whether to send messages to the OCS publisher.
         payload_size : int, optional, default 2048
               The payload size to set on setup.
-        **kwargs
-              These parameters will be passed to the pysmurf
-              :func:`~SmurfControl.setup` routine.
 
         See Also
         --------
