@@ -2,6 +2,8 @@
 obtained from config-files, forms, external services or command-line
 parsing, converted from JSON/YAML (or something else) to Python data-types."""
 
+# pylint: skip-file
+
 import re
 
 try:
