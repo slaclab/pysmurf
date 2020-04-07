@@ -50,7 +50,7 @@ jobs:
       script:
         # Try to build the documentation
         - cd docs/
-        - make html SPHINXOPTS="-W --keep-going -n"
+        - make html SPHINXOPTS="-W --keep-going"
 
     ## Server tests
     - stage: tests
