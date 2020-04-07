@@ -223,7 +223,7 @@ latex_documents = [
 #latex_use_modindex = True
 
 # Modules to mock up
-autodoc_mock_imports = ['pyrogue','smurf','rogue','CryoDet','CryoDevBoard']
+autodoc_mock_imports = ['pyrogue','smurf','rogue','CryoDet','CryoDevBoard','pysmurf.core.devices._UdpReceiver']
 
 
 # Source code links
