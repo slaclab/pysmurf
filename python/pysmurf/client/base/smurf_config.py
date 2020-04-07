@@ -13,10 +13,11 @@
 # copied, modified, propagated, or distributed except according to the terms
 # contained in the LICENSE.txt file.
 #-----------------------------------------------------------------------------
-import json
 import io
-import re
+import json
 import os
+import re
+
 import numpy as np
 
 class SmurfConfig:
@@ -33,8 +34,6 @@ class SmurfConfig:
 
     def read_json(self, filename, comment_char='#'):
         """Reads a json config file
-
-           Args:
         """
         no_comments=[]
         with open(self.filename) as config_file:
@@ -57,7 +56,8 @@ class SmurfConfig:
     def read(self, update=False, validate_config=True):
         """Reads config file and updates the configuration.
 
-           Args:
+           Args
+           ----
               update (bool): Whether or not to update the configuration.
         """
         loaded_config=self.read_json(self.filename)
@@ -76,7 +76,8 @@ class SmurfConfig:
     def update(self, key, val):
         """Updates a single key in the config
 
-           Args:
+           Args
+           ----
               key (any): key to update in the config dictionary
               val (any): value to assign to the given key
         """
@@ -85,7 +86,8 @@ class SmurfConfig:
     def write(self, outputfile):
         """Dumps the current config to a file
 
-           Args:
+           Args
+           ----
               outputfile (str): The name of the file to save the configuration to.
         """
         ## dump current config to outputfile ##
@@ -96,7 +98,8 @@ class SmurfConfig:
     def has(self, key):
         """Reports if configuration has requested key.
 
-           Args:
+           Args
+           ----
               key (any): key to check for in configuration dictionary.
         """
 
@@ -109,7 +112,8 @@ class SmurfConfig:
         """Returns configuration entry for requested key.  Returns
            None if key not present in configuration.
 
-           Args:
+           Args
+           ----
               key (any): key whose configuration entry to retrieve.
         """
 
@@ -123,7 +127,8 @@ class SmurfConfig:
         Get the subkey value. A dumb thing that just formats strings for you.
         Will return None if it can't find stuff
 
-        Args:
+        Args
+        ----
           key (any): key in config
           subkey (any): config subkey
         """
@@ -143,7 +148,8 @@ class SmurfConfig:
         """
         More dumb wrappers for nested dictionaries.
 
-        Args:
+        Args
+        ----
           key (any): key in config
           subkey (any): config subkey
           val (any): value to write

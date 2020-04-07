@@ -115,9 +115,10 @@ def acq_n_frames(S, num_rows, num_rows_reported, data_rate,
     """
     Sends the amount of data requested by the user in units of n_frames.
 
-    Args:
-    -----
-    n_frames (int); The number of frames to keep data streaming on.
+    Args
+    ----
+    n_frames : int
+        The number of frames to keep data streaming on.
     """
     start_acq(S, num_rows, num_rows_reported, data_rate, row_len)
     make_runfile(S.output_dir, num_rows=num_rows, data_rate=data_rate,

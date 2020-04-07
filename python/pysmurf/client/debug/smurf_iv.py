@@ -29,53 +29,56 @@ class SmurfIVMixin(SmurfBase):
                     make_plot=True, save_plot=True, plotname_append='',
                     channels=None, band=None, high_current_mode=True,
                     overbias_voltage=8., grid_on=True, phase_excursion_min=3.):
-        """ Steps the TES bias down slowly. Starts at bias_high to bias_low with
-        step size bias_step. Waits wait_time between changing steps. If this
-        analyzes the data, the outputs are stored to output_dir.
+        """Takes a slow IV
 
-        Parameters:
-        -----------
-        bias_groups : np array
-            which bias groups to take the IV on. defaults to the groups in the
-            config file
-        wait_time : float
-            The amount of time between changing TES biases in seconds. Default
-            .1 sec.
-        bias :float array
+        Steps the TES bias down slowly. Starts at bias_high to
+        bias_low with step size bias_step. Waits wait_time between
+        changing steps. If this analyzes the data, the outputs are
+        stored to output_dir.
+
+        Args
+        ----
+        bias_groups : numpy.ndarray or None, optional, default None
+            Which bias groups to take the IV on. If None, defaults to
+            the groups in the config file.
+        wait_time : float, optional, default 0.1
+            The amount of time between changing TES biases in seconds.
+        bias : float array or None, optional, default None
             A float array of bias values. Must go high to low.
-        bias_high :int
-            The maximum TES bias in volts. Default 19.9
-        bias_low :int
-            The minimum TES bias in volts. Default 0
-        bias_step :int
-            The step size in volts. Default .1
-        overbias_wait : float
-            The time to stay in the overbiased state in seconds. The default
-            is 2 sec.
-        cool_wait : float
-            The time to stay in the low current state after overbiasing before
-            taking the IV.
-        make_plot : bool
-            Whether to make plots. Default True
-        save_plot : bool
-            Whether to save the plot. Default True.
-        plotname_append : string
-            Appended to the default plot filename. Default ''.
-        channels : int array
-            A list of channels to make plots
-        band : int array
-            The bands to analyze
-        high_current_mode : bool
+        bias_high : float, optional, default 1.5
+            The maximum TES bias in volts.
+        bias_low : float, optional, default 0
+            The minimum TES bias in volts.
+        bias_step : float, optional, default 0.005
+            The step size in volts.
+        show_plot : bool, optional, default False
+            Whether to show plots.
+        overbias_wait : float, optional, default 2.0
+            The time to stay in the overbiased state in seconds.
+        cool_wait : float, optional, default 30.0
+            The time to stay in the low current state after
+            overbiasing before taking the IV.
+        make_plot : bool, optional, default True
+            Whether to make plots.
+        save_plot : bool, optional, default True
+            Whether to save the plot.
+        plotname_append : str, optional, default ''
+            Appended to the default plot filename.
+        channels : int array or None, optional, default None
+            A list of channels to make plots.
+        band : int array or None, optional, default None
+            The bands to analyze.
+        high_current_mode : bool, optional, default True
             The current mode to take the IV in.
-        overbias_voltage : float
+        overbias_voltage : float, optional, default 8.0
             The voltage to set the TES bias in the overbias stage.
-        grid_on : bool
-            Grids on plotting. This is Aris fault.
-        phase_excursion_min : float
+        grid_on : bool, optional, default True
+            Grids on plotting. This is Ari's fault.
+        phase_excursion_min : float, optional, default 3.0
             The minimum phase excursion required for making plots.
 
-        Returns:
-        --------
+        Returns
+        -------
         output_path : str
             Full path to IV analyzed file.
         """
@@ -166,30 +169,44 @@ class SmurfIVMixin(SmurfBase):
         hold at the bias_low point at the end, so different bias groups
         may have different length ramps.
 
-        Args:
-        -----
-        bias_high_array (float array): (n_bias_groups,) array of voltage biases, in
-          bias group order
-        Opt Args:
-        -----
-        bias_low_array (float array): (n_bias_groups,) array of voltage biases, in
-          bias group order. Defaults to whatever is currently set
-        wait_time (float): Time to wait at each commanded bias value.
-            Default 0.1
-        bias_step (float): Interval size to step the commanded voltage bias.
-          Default 0.1
-        show_plot (bool): whether to show plots. Default False.
-        make_plot (bool): whether to generate plots. Default True.
-        analyze (bool): whether to analyze the data. Default True.
-        save_plot (bool): whether to save generated plots. Default True.
-        channels (int array): which channels to analyze. Default to anything
-          that exceeds phase_excursion_min
-        overbias_voltage (float): value in V at which to overbias. If None,
-          won't overbias. If value is set, uses high current mode.
-        overbias_wait (float): if overbiasing, time to hold the overbiased
-          voltage in high current mode
-        phase_excursion_min (float): minimum change in phase to be analyzed,
-          defined as abs(phase_max - phase_min). Default 1, units radians.
+        Args
+        ----
+        bias_high_array : float array)
+            (n_bias_groups,) array of voltage biases, in bias group
+            order
+
+        bias_low_array : float array or None, optional, default None
+            (n_bias_groups,) array of voltage biases, in bias group
+            order. Defaults to whatever is currently set.
+        wait_time : float, optional, default 0.1
+            Time in seconds to wait at each commanded bias value.
+        bias_step : float, optional, default 0.1
+            Interval size to step the commanded voltage bias in volts.
+        show_plot : bool, optional, default False
+            Whether to show plots.
+        analyze : bool, optional, default True
+            Whether to analyze the data.
+        make_plot : bool, optional, default True
+            Whether to generate plots.
+        save_plot : bool, optional, default True
+            Whether to save generated plots.
+        channels : int array or None, optional, default None
+            Which channels to analyze. Default to anything.  that
+            exceeds phase_excursion_min.
+        overbias_voltage : float or None, optional, default None
+            Value in volts at which to overbias. If None, won't
+            overbias. If value is set, uses high current mode.
+        overbias_wait : float, optional, default 1.0
+            If overbiasing, time to hold the overbiased voltage in
+            high current mode.
+        phase_excursion_min : float, optional, default 1.0
+            Minimum change in phase to be analyzed, defined as
+            abs(phase_max - phase_min). Units radians.
+
+        Returns
+        -------
+        path : str
+            ???
         """
 
         original_biases = self.get_tes_bias_bipolar_array()
@@ -268,7 +285,6 @@ class SmurfIVMixin(SmurfBase):
         if analyze:
             self.analyze_plc_from_file(fn_plc_raw_data, make_plot=make_plot,
                 show_plot=show_plot, save_plot=save_plot, R_sh=self.R_sh,
-                high_current_mode=self.high_current_mode_bool,
                 phase_excursion_min=phase_excursion_min, channels=channels)
 
 
@@ -284,31 +300,48 @@ class SmurfIVMixin(SmurfBase):
         """
         Function to analyze a load curve from its raw file. Can be used to
           analyze IV's/generate plots separately from issuing commands.
-        Args:
-        -----
-        fn_iv_raw_data (str): *_iv_raw_data.npy file to analyze
-        Opt Args:
-        ---------
-        make_plot (bool): Defaults True. Usually this is the slowest part.
-        show_plot (bool): Defaults False.
-        save_plot (bool): Defaults True.
-        plotname_append (string): Appended to the default plot filename. Default ''.
-        phase_excursion_min (float): abs(max - min) of phase in radians. Analysis
-          ignores any channels without this phase excursion. Default 3.
-        grid_on (bool): Whether to draw the grid on the PR plot. Defaults False
-          Defaults true.
-        R_op_target (float): Target operating resistance. Function will
-          generate a histogram indicating bias voltage needed to achieve
-          this value.
-        channel (int array): Which channels to analyze. Defaults to all
-          the channels that are on and exceed phase_excursion_min
-        data_path (str) : The full path to the data. This is used for offline mode
-          where the data was copied to a new directory. The directory is usually
-          loaded from the .npy file, and this overwrites it.
-        plot_dir (str) : The full path to the plot directory. This is usually
-            loaded with the input numpy dictionary. This overwrites this.
-        bias_line_resistance (float) : The resistance of the bias lines in Ohms.
-            Default is None.
+
+        Args
+        ----
+        fn_iv_raw_data : str
+            ``*_iv_raw_data.npy`` file to analyze.
+        make_plot : bool, optional, default True
+            Whether or not to make plots.  Usually this is the slowest
+            part.
+        show_plot : bool, optional, default False
+            Whether or not to show plots.
+        save_plot : bool, optional, default True
+            Whether or not to save plots.
+        plotname_append : str, optional, default ''
+            Appended to the default plot filename.
+        phase_excursion_min : float, optional, default 3.0
+            abs(max - min) of phase in radians. Analysis ignores any
+            channels without this phase excursion.
+        grid_on : bool, optional, default False
+            Whether to draw the grid on the PR plot.
+        R_op_target : float, optional, default 0.007
+            Target operating resistance. Function will generate a
+            histogram indicating bias voltage needed to achieve this
+            value.
+        pA_per_phi0 : float or None, optional, default None
+            The conversion for phi0 to pA. If None, attempts to read
+            it from the config file.
+        channel : int array or None, optional, default None
+            Which channels to analyze. Defaults to all the channels
+            that are on and exceed phase_excursion_min.
+        band : int or None, optional, default None
+            ???
+        datafile : str or None, optional, default None
+            The full path to the data. This is used for offline mode
+            where the data was copied to a new directory. The
+            directory is usually loaded from the .npy file, and this
+            overwrites it.
+        plot_dir : str or None, optional, default None
+            The full path to the plot directory. This is usually
+            loaded with the input numpy dictionary. This overwrites
+            this.
+        bias_line_resistance : float or None, optional, default None
+            The resistance of the bias lines in Ohms.
         """
         self.log('Analyzing from file: {}'.format(fn_iv_raw_data))
 
@@ -536,40 +569,65 @@ class SmurfIVMixin(SmurfBase):
         """
         Analyzes the IV curve taken with slow_iv()
 
-        Args:
-        -----
-        v_bias (float array): The commanded bias in voltage. Length n_steps
-        resp (float array): The TES phase response in radians. Of length
-            n_pts (not the same as n_steps).
-        make_plot (bool) : Whether to make the plot. Default is True.
-        show_plot (bool) : Whether to show the plot. Default is False.
-        save_plot (bool) : Whether to save the plot. Default is True.
-        basename (str) : The basename of the IV plot. If None, uses the current
-            timestamp. Default is None.
-        band (int) : The 500 MHz band the data was taken in. This is only for
-            plotting . Default None.
-        channel (int) : The SMuRF channel. Only used for plotting. Default
-            is None.
-        R_sh (int) : The shunt resistance in ohms. If not supplied, will try
-            to read from config file.
-        plot_dir (str) : Path to the plot directory where plots are to be saved.
-            If None, uses self.plot_dir. Default is None.
-        high_current_mode (bool) : Whether the data was taken in high current
-            mode. This is important for knowing what current actually enters
-            the cryostat.
-        grid_on (bool) : Whether to plot with grids on. Default is False.
-        pA_per_phi0 (float) : The conversion for phi0 to pA. If None, attempts
-            to read it from the config file. Default is None.
-        bias_line_resistance (float) : The resistance of the bias lines in
-            Ohms. If None, reads from config. Default is None.
-        plotname_append (str) : An optional string to append the plot names.
+        Args
+        ----
+        v_bias : float array
+            The commanded bias in voltage. Length n_steps.
+        resp : float array
+            The TES phase response in radians. Of length n_pts (not
+            the same as n_steps).
 
-        Returns:
-        --------
-        R (float array):
-        R_n (float):
-        idx (int array):
-        R_sh (float): Shunt resistance
+        make_plot : bool, optional, default True
+            Whether to make the plot.
+        show_plot : bool, optional, default False
+            Whether to show the plot.
+        save_plot : bool, optional, default True
+            Whether to save the plot.
+        basename : str or None, optional, default None
+            The basename of the IV plot. If None, uses the current
+            timestamp.
+        band : int or None, optional, default None
+            The 500 MHz band the data was taken in. This is only for
+            plotting.
+        channel : int or None, optional, default None
+            The SMuRF channel. Only used for plotting.
+        R_sh : float or None, optional, default None
+            The shunt resistance in ohms. If not supplied, will try to
+            read from config file.
+        plot_dir : str or None, optional, default None
+            Path to the plot directory where plots are to be saved.
+            If None, uses self.plot_dir.
+        high_current_mode : bool, optional, default False
+            Whether the data was taken in high current mode. This is
+            important for knowing what current actually enters the
+            cryostat.
+        bias group : ??? or None, optional, default None
+            ???
+        grid_on : bool, optional, default False
+            Whether to plot with grids on.
+        R_op_target : float, optional, default 0.007
+            ???
+        pA_per_phi0 : float or None, optional, default None
+            The conversion for phi0 to pA. If None, attempts to read
+            it from the config file.
+        bias_line_resistance : float or None, optional, default None
+            The resistance of the bias lines in Ohms. If None, reads
+            from config.
+        plotname_append : str, optional, default ''
+            An optional string to append the plot names.
+        **kwargs : ???
+            ???
+
+        Returns
+        -------
+        R : float array
+            ???
+        R_n : float
+            ???
+        idx : int array
+            ???
+        R_sh : float
+            Shunt resistance.
         """
         v_bias = np.abs(v_bias)
 
@@ -577,7 +635,7 @@ class SmurfIVMixin(SmurfBase):
             R_sh = self.R_sh
 
         if pA_per_phi0 is None:
-            pA_per_phi0 = self.pA_per_phi0
+            pA_per_phi0 = self._pA_per_phi0
         resp *= pA_per_phi0/(2.*np.pi*1e6) # convert phase to uA
 
         step_loc = np.where(np.diff(v_bias))[0]
@@ -882,30 +940,32 @@ class SmurfIVMixin(SmurfBase):
 
         return iv_dict
 
-    def analyze_plc_from_file(self, fn_plc_raw_data, make_plot=True, show_plot=False,
-            save_plot=True, R_sh=None, high_current_mode=None, phase_excursion_min=1.,
-            channels=None):
+    def analyze_plc_from_file(self, fn_plc_raw_data, make_plot=True,
+            show_plot=False, save_plot=True, R_sh=None,
+            phase_excursion_min=1., channels=None):
         """
-        Function to analyze a partial load curve from its raw file. Basically
-        the same as the slow_iv analysis but without fitting the superconducting
-        branch.
+        Function to analyze a partial load curve from its raw
+        file. Basically the same as the slow_iv analysis but without
+        fitting the superconducting branch.
 
-        Args:
-        -----
-        fn_plc_raw_data (str): *_plc_raw_data.npy file to analyze
-
-        Opt Args:
-        -----
-        make_plot (bool): Defaults True. This is slow.
-        show_plot (bool): Defaults False.
-        save_plot (bool): Defaults True.
-        R_sh (float): shunt resistance; defaults to the value in the config file
-        high_current_mode (bool): Whether to perform analysis assuming that commanded
-          voltages were in high current mode. Defaults to the value in the config file.
-        phase_excursion_min (float): abs(max-min) of phase in radian. Analysis will
-          ignore any channels that do not meet this criterion. Default 1.
-        channels (int array): which channels to analyze. Defaults to all channels that
-          are on and exceed phase_excursion_min
+        Args
+        ----
+        fn_plc_raw_data : str
+            ``*_plc_raw_data.npy`` file to analyze
+        make_plot : bool, optional, default True
+            Whether to make plots.  This is slow.
+        show_plot : bool, optional, default False
+            Whether to show plots.
+        save_plot : bool, optional, default True
+            Whether to save plots.
+        R_sh : float or None, optional, default None
+            Shunt resistance; defaults to the value in the config file.
+        phase_excursion_min : float, optional, default 1.0
+            abs(max-min) of phase in radian. Analysis will
+            ignore any channels that do not meet this criterion.
+        channels : int array or None, optional, default None
+            Which channels to analyze. Defaults to all channels that
+            are on and exceed phase_excursion_min.
         """
 
         self.log('Analyzing plc from file: {}'.format(fn_plc_raw_data))
@@ -975,20 +1035,23 @@ class SmurfIVMixin(SmurfBase):
         Estimate optical efficiency between two sets of load curves. Returns
           per-channel plots and a histogram.
 
-        Args:
-        -----
-        iv_fn_hot (str): timestamp/filename of load curve taken at higher temp
-        iv_fn_cold (str): timestamp/filename of load curve taken at cooler temp
-
-        Opt Args:
-        ---------
-        t_hot (float): temperature in K of hotter load curve. Defaults to 293.
-        t_cold (float): temperature in K of cooler load curve. Defaults to 77.
-        channels (int array): which channels to analyze. Defaults to the ones
-          populated in the colder load curve
-        dPdT_lim(len 2 tuple): min, max allowed values for dPdT. If calculated
-          val is outside this range, channel is excluded from histogram and
-          added to outliers. Defaults to min=0pW/K, max=0.5pW/K.
+        Args
+        ----
+        iv_fn_hot : str
+            Timestamp/filename of load curve taken at higher temp.
+        iv_fn_cold : str
+            Timestamp/filename of load curve taken at cooler temp.
+        t_hot : float, optional, default 293.0
+            Temperature in K of hotter load curve.
+        t_cold : float, optional, default 77.0
+            Temperature in K of cooler load curve.
+        channels : int array or None, optional, default None
+            Which channels to analyze. If None, defaults to the ones
+            populated in the colder load curve.
+        dPdT_lim : len 2 tuple, optional, default (0.0, 0.5)
+            Min, max allowed values for dPdT. If calculated val is
+            outside this range, channel is excluded from histogram and
+            added to outliers. Units are pW/K.
         """
         ivs_hot = np.load(iv_fn_hot).item()
         ivs_cold = np.load(iv_fn_cold).item()
@@ -1096,28 +1159,33 @@ class SmurfIVMixin(SmurfBase):
         identify_bias_group first (or manually input which channels are in
         which bias group), otherwise this doesn't know how to group things.
 
-        Args:
-        -----
-        iv_file (str) : Full path to an IV file.
-
-        Opt Args:
-        ---------
-        target_r_frac (float) : The target fractional resistance.
-            Default 0.5
-        normal_resistance (bool) : The expected normal resistance.
-            This is used for eliminating bad (non-transitioning)
-            TESs. This is only used if not None. Default is None.
-        normal_resisttance_frac (float) : The fractional deviation
-            from the input normal_resistance that the normal
-            resistance can deviate to be considered a good TES.
-        make_plot (bool) : Whether to make the plot. Default True.
-        show_plot (bool) : Whether to show the plot. Default False.
-        save_plot (bool) : Whether to save the plot. Default True.
-
-        Ret:
+        Args
         ----
-        target (float array) : An array of size n_bias_groups with the target
-            bias voltage for each group.
+        iv_file : str
+            Full path to an IV file.
+
+        target_r_frac : float, optional, default 0.5
+            The target fractional resistance.
+        normal_resistance : float or None, optional, default None
+            The expected normal resistance.  This is used for
+            eliminating bad (non-transitioning) TESs. This is only
+            used if not None.
+        normal_resistance_frac : float, optional, default 0.25
+            The fractional deviation from the input normal_resistance
+            that the normal resistance can deviate to be considered a
+            good TES.
+        show_plot : bool, optional, default False
+            Whether to show the plot.
+        save_plot : bool, optional, default True
+            Whether to save the plot.
+        make_plot : bool, optional, default True
+            Whether to make the plot.
+
+        Returns
+        -------
+        target : float array
+            An array of size n_bias_groups with the target bias
+            voltage for each group.
         """
         # Load IV summary file and raw dat file
         iv = np.load(iv_file, allow_pickle=True).item()

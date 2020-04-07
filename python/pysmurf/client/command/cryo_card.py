@@ -103,8 +103,8 @@ class CryoCard():
         """
         Write the power supply enable signals.
 
-        Arguments
-        ---------
+        Args
+        ----
         enables (int): 2-bit number to set the power supplies enables.
            Bit 0 set the enable for HEMT power supply.
            Bit 1 set the enable for 50k power supply.
@@ -121,13 +121,13 @@ class CryoCard():
         """
         Read the power supply enable signals.
 
-        Arguments
-        ---------
+        Args
+        ----
         None
 
 
-        Return
-        ------
+        Returns
+        -------
         enables (int): 2-bit number with the status of the power supplies enables.
            Bit 0 for the HEMT power supply.
            Bit 1 for the 50k power supply.
@@ -141,12 +141,12 @@ class CryoCard():
         """
         Read the AC/DC mode relays readback status
 
-        Arguments
-        ---------
+        Args
+        ----
         None
 
-        Return
-        ------
+        Returns
+        -------
         status (int): 2-bit number with the readback relay status
             Bit 0: Status of FRN_RLY
             Bit 1: Status of FRP_RLY
