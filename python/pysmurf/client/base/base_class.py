@@ -57,7 +57,7 @@ class SmurfBase:
             will break many things. Default is False.
         pub_root : str or None, optional, default None
             Root of environment vars to set publisher options. If
-            None, the default root will be "SMURFPUB_".
+            None, the default root will be `SMURFPUB_`.
         script_id : str or None, optional, default None
             Script id included with publisher messages. For example,
             the script or operation name.
