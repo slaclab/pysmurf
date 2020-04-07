@@ -8,8 +8,8 @@
 # This is adapted from spider_tools.  Originally written by
 # M. Hasselfield and ported by S. Rahlin
 #-----------------------------------------------------------------------------
-import sys
 import datetime as dt
+import sys
 
 __all__ = ['Logger', 'SmurfLogger']
 
@@ -58,8 +58,8 @@ class Logger(object):
         """
         Log a message.
 
-        Arguments
-        ---------
+        Args
+        ----
         msg : string
             The message to log.
         level : int, optional
