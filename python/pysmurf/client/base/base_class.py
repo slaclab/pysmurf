@@ -85,6 +85,9 @@ class SmurfBase:
         self.epics_root = epics_root
 
         self.amcc = self.epics_root + ':AMCc:'
+
+        self.smurf_application = self.amcc + 'SmurfApplication:'
+        
         self.smurf_processor = self.amcc + 'SmurfProcessor:'
         self.channel_mapper = self.smurf_processor + 'ChannelMapper:'
         self.frame_rx_stats = self.smurf_processor + 'FrameRxStats:'
