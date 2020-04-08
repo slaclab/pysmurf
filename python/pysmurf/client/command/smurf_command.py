@@ -169,6 +169,81 @@ class SmurfCommandMixin(SmurfBase):
         return ret
 
 
+    #### Start SmurfApplication gets/sets
+    _smurf_version = 'SmurfVersion'
+
+    def get_smurf_version(self, as_str=True, **kwargs):
+        """???
+
+        ???
+        
+        Returns
+        -------
+        ret : str
+            ???
+        """
+        ret = self._caget(self.smurf_application +
+                          self._smurf_version, **kwargs)
+        if as_str:
+            ret = tools.utf8_to_str(ret)
+        return ret
+
+    _smurf_directory = 'SmurfDirectory'
+
+    def get_smurf_directory(self, as_str=True, **kwargs):
+        """???
+
+        ???
+        
+        Returns
+        -------
+        ret : str
+            ???
+        """
+        ret = self._caget(self.smurf_application +
+                          self._smurf_directory, **kwargs)
+        if as_str:
+            ret = tools.utf8_to_str(ret)
+        return ret
+    
+    _smurf_startup_script = 'StartupScript'
+
+    def get_smurf_startup_script(self, as_str=True, **kwargs):
+        """???
+
+        ???
+        
+        Returns
+        -------
+        ret : str
+            ???
+        """
+        ret = self._caget(self.smurf_application +
+                          self._smurf_startup_script, **kwargs)
+        if as_str:
+            ret = tools.utf8_to_str(ret)
+        return ret
+    
+    _smurf_startup_arguments = 'StartupArguments'
+
+    def get_smurf_startup_args(self, as_str=True, **kwargs):
+        """???
+
+        ???
+        
+        Returns
+        -------
+        ret : str
+            ???
+        """
+        ret = self._caget(self.smurf_application +
+                          self._smurf_startup_arguments, **kwargs)
+        if as_str:
+            ret = tools.utf8_to_str(ret)
+        return ret
+    
+    #### End SmurfApplication gets/sets
+    
     _rogue_version = 'RogueVersion'
 
     def get_rogue_version(self, as_str=True, **kwargs):
