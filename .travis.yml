@@ -37,6 +37,21 @@ jobs:
         - flake8 --count python/
 
     # Test stages
+    ## Documentation automatic build tests
+    - stage: tests
+      name: "Documentation Build Tests"
+      install:
+        # Install requirements
+        - pip3 install -r requirements.txt
+        # Install pysmurf
+        - pip3 install .
+        # Install sphinx
+        - pip3 install sphinx
+      script:
+        # Try to build the documentation
+        - cd docs/
+        - make html SPHINXOPTS="-W --keep-going"
+
     ## Server tests
     - stage: tests
       name: "Server Tests"
