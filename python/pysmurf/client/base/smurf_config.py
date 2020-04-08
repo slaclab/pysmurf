@@ -105,8 +105,8 @@ class SmurfConfig:
 
         if key in self.config:
             return True
-        else:
-            return False
+        
+        return False
 
     def get(self, key):
         """Returns configuration entry for requested key.  Returns
@@ -119,8 +119,8 @@ class SmurfConfig:
 
         if self.has(key):
             return self.config[key]
-        else:
-            return None
+
+        return None
 
     def get_subkey(self, key, subkey):
         """
@@ -228,7 +228,7 @@ class SmurfConfig:
                 # Global feedback gain (might no longer be used in dspv3).
                 "feedbackGain" :  And(int, lambda n: 0 <= n < 2**16),
                 # Global feedback gain (might no longer be used in dspv3).
-                "feedbackLimitkHz" : And(Use(float), lambda f: 0 < f),
+                "feedbackLimitkHz" : And(Use(float), lambda f: f > 0),
 
                 # Number of cycles to delay phase reference
                 'refPhaseDelay': And(int, lambda n: 0 <= n < 2**4),
@@ -299,7 +299,7 @@ class SmurfConfig:
             # to volts for the 4K amplifier gate.  Units are volts/bit.  An
             # important dependency is the voltage division on the cryostat
             # card, which can be different from cryostat card to cryostat card
-            "bit_to_V_hemt" : And(Use(float), lambda f: 0 < f),
+            "bit_to_V_hemt" : And(Use(float), lambda f: f > 0),
             # The 4K amplifier drain current is measured before a voltage
             # regulator, which also draws current.  An accurate measurement of
             # the 4K drain current requires subtracting the current drawn by
@@ -400,16 +400,16 @@ class SmurfConfig:
 
         #### Start specifying TES-related
         # TES shunt resistance
-        schema_dict["R_sh"] = And(Use(float), lambda f: 0 < f)
+        schema_dict["R_sh"] = And(Use(float), lambda f: f > 0)
 
         # Round-trip resistance on TES bias lines, in low current mode.
         # Includes the resistance on the cryostat cards, and cable resistance.
-        schema_dict["bias_line_resistance"] = And(Use(float), lambda f: 0 < f)
+        schema_dict["bias_line_resistance"] = And(Use(float), lambda f: f > 0)
 
         # Ratio between the current per DAC unit in high current mode to the
         # current in low current mode.  Constained to be greater than or equal
         # to 1 since otherwise what does high current mode EVEN MEAN.
-        schema_dict["high_low_current_ratio"] = And(Use(float), lambda f: 1 <= f)
+        schema_dict["high_low_current_ratio"] = And(Use(float), lambda f: f >= 1)
 
         # If 1, TES biasing will *always* be in high current mode.
         schema_dict[Optional('high_current_mode_bool', default=0)] = And(int, lambda n: n in (0, 1))
@@ -469,7 +469,7 @@ class SmurfConfig:
 
         #### Start specifying smurf2mce
         # System should be smart enough to determine fs on the fly.
-        schema_dict["fs"] = And(Use(float), lambda f: 0 < f)
+        schema_dict["fs"] = And(Use(float), lambda f: f > 0)
 
         def userHasWriteAccess(dirpath):
             return os.access(dirpath, os.W_OK)

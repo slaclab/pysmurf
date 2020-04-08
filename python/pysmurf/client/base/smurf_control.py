@@ -21,14 +21,14 @@ import time
 
 import numpy as np
 
-from pysmurf.client.base.smurf_config import SmurfConfig as SmurfConfig
-from pysmurf.client.base.smurf_config_properties import SmurfConfigPropertiesMixin as SmurfConfigPropertiesMixin
-from pysmurf.client.command.smurf_atca_monitor import SmurfAtcaMonitorMixin as SmurfAtcaMonitorMixin
-from pysmurf.client.command.smurf_command import SmurfCommandMixin as SmurfCommandMixin
-from pysmurf.client.debug.smurf_iv import SmurfIVMixin as SmurfIVMixin
-from pysmurf.client.debug.smurf_noise import SmurfNoiseMixin as SmurfNoiseMixin
-from pysmurf.client.tune.smurf_tune import SmurfTuneMixin as SmurfTuneMixin
-from pysmurf.client.util.smurf_util import SmurfUtilMixin as SmurfUtilMixin
+from pysmurf.client.base.smurf_config import SmurfConfig
+from pysmurf.client.base.smurf_config_properties import SmurfConfigPropertiesMixin
+from pysmurf.client.command.smurf_atca_monitor import SmurfAtcaMonitorMixin
+from pysmurf.client.command.smurf_command import SmurfCommandMixin
+from pysmurf.client.debug.smurf_iv import SmurfIVMixin
+from pysmurf.client.debug.smurf_noise import SmurfNoiseMixin
+from pysmurf.client.tune.smurf_tune import SmurfTuneMixin
+from pysmurf.client.util.smurf_util import SmurfUtilMixin
 
 class SmurfControl(SmurfCommandMixin,
         SmurfAtcaMonitorMixin, SmurfUtilMixin, SmurfTuneMixin,
@@ -117,7 +117,7 @@ class SmurfControl(SmurfCommandMixin,
             self.config = SmurfConfig(cfg_file)
 
         # Save shelf manager - Should this be in the config?
-        self.shelf_manager=shelf_manager
+        self.shelf_manager = shelf_manager
 
         # In offline mode, epics root is not needed.
         if offline and epics_root is None:
@@ -179,7 +179,7 @@ class SmurfControl(SmurfCommandMixin,
         """
         if no_dir:
             print('Warning! Not making output directories!' +
-                'This will break may things!')
+                  'This will break may things!')
         elif smurf_cmd_mode:
             # Get data dir
             self.data_dir = self.config.get('smurf_cmd_dir')
@@ -237,8 +237,8 @@ class SmurfControl(SmurfCommandMixin,
                 self.log.set_logfile(None)
 
         # Crate/carrier configuration details that won't change.
-        self.crate_id=self.get_crate_id()
-        self.slot_number=self.get_slot_number()
+        self.crate_id = self.get_crate_id()
+        self.slot_number = self.get_slot_number()
 
         # Populate SmurfConfigPropertiesMixin properties with values
         # from loaded pysmurf configuration file.
@@ -257,7 +257,7 @@ class SmurfControl(SmurfCommandMixin,
         # Flux ramp hardware detail
         flux_ramp_cfg = self.config.get('flux_ramp')
         keys = flux_ramp_cfg.keys()
-        self.num_flux_ramp_counter_bits=flux_ramp_cfg['num_flux_ramp_counter_bits']
+        self.num_flux_ramp_counter_bits = flux_ramp_cfg['num_flux_ramp_counter_bits']
 
         # Mapping from chip number to frequency in GHz
         chip_cfg = self.config.get('chip_to_freq')
@@ -272,7 +272,7 @@ class SmurfControl(SmurfCommandMixin,
         self.channel_assignment_files = {}
         if not no_dir:
             for b in self.config.get('init').get('bands'):
-                all_channel_assignment_files=glob.glob(os.path.join(self.tune_dir,
+                all_channel_assignment_files = glob.glob(os.path.join(self.tune_dir,
                     '*channel_assignment_b{}.txt'.format(b)))
                 if len(all_channel_assignment_files):
                     self.channel_assignment_files['band_{}'.format(b)] = \
@@ -284,7 +284,7 @@ class SmurfControl(SmurfCommandMixin,
         # bias group to pair
         bias_group_cfg = self.config.get('bias_group_to_pair')
         # how many bias groups are there?
-        self._n_bias_groups=len(bias_group_cfg)
+        self._n_bias_groups = len(bias_group_cfg)
         keys = bias_group_cfg.keys()
         self.bias_group_to_pair = np.zeros((len(keys), 3), dtype=int)
         for i, k in enumerate(keys):
@@ -354,17 +354,17 @@ class SmurfControl(SmurfCommandMixin,
             self.lms_gain[b] = smurf_init_config[band_str]['lmsGain']
 
         # Load in tuning parameters, if present
-        tune_band_cfg=self.config.get('tune_band')
-        tune_band_keys=tune_band_cfg.keys()
+        tune_band_cfg = self.config.get('tune_band')
+        tune_band_keys = tune_band_cfg.keys()
         for cfg_var in ['gradient_descent_gain', 'gradient_descent_averages',
                         'gradient_descent_converge_hz', 'gradient_descent_step_hz',
                         'gradient_descent_momentum', 'gradient_descent_beta',
                         'eta_scan_del_f', 'eta_scan_amplitude',
-                        'eta_scan_averages','delta_freq']:
+                        'eta_scan_averages', 'delta_freq']:
             if cfg_var in tune_band_keys:
                 setattr(self, cfg_var, {})
                 for b in bands:
-                    getattr(self,cfg_var)[b]=tune_band_cfg[cfg_var][str(b)]
+                    getattr(self, cfg_var)[b] = tune_band_cfg[cfg_var][str(b)]
 
         if setup:
             self.setup(payload_size=payload_size, **kwargs)
@@ -390,14 +390,14 @@ class SmurfControl(SmurfCommandMixin,
         # If active, disable hardware logging while doing setup.
         if self._hardware_logging_thread is not None:
             self.log('Hardware logging is enabled.  Pausing for setup.',
-                (self.LOG_USER))
+                     (self.LOG_USER))
             self.pause_hardware_logging()
 
         # Thermal OT protection
         ultrascale_temperature_limit_degC = self.config.get('ultrascale_temperature_limit_degC')
         if ultrascale_temperature_limit_degC is not None:
             self.log('Setting ultrascale OT protection limit '+
-                f'to {ultrascale_temperature_limit_degC}C', self.LOG_USER)
+                     f'to {ultrascale_temperature_limit_degC}C', self.LOG_USER)
             # OT threshold in degrees C
             self.set_ultrascale_ot_threshold(
                 self.config.get('ultrascale_temperature_limit_degC'),
@@ -415,8 +415,8 @@ class SmurfControl(SmurfCommandMixin,
         # but may want to determine at runtime which are actually needed and
         # only reset the DAC in those.
         self.log('Toggling DACs')
-        dacs=[0,1]
-        for val in [1,0]:
+        dacs = [0, 1]
+        for val in [1, 0]:
             for bay in self.bays:
                 for dac in dacs:
                     self.set_dac_reset(bay, dac, val, write_log=write_log)
@@ -476,23 +476,23 @@ class SmurfControl(SmurfCommandMixin,
                 write_log=write_log, **kwargs)
 
             # Tuning defaults - only set if present in cfg
-            if hasattr(self,'gradient_descent_gain') and b in self.gradient_descent_gain.keys():
+            if hasattr(self, 'gradient_descent_gain') and b in self.gradient_descent_gain.keys():
                 self.set_gradient_descent_gain(b, self.gradient_descent_gain[b], write_log=write_log, **kwargs)
-            if hasattr(self,'gradient_descent_averages') and b in self.gradient_descent_averages.keys():
+            if hasattr(self, 'gradient_descent_averages') and b in self.gradient_descent_averages.keys():
                 self.set_gradient_descent_averages(b, self.gradient_descent_averages[b], write_log=write_log, **kwargs)
-            if hasattr(self,'gradient_descent_converge_hz') and b in self.gradient_descent_converge_hz.keys():
+            if hasattr(self, 'gradient_descent_converge_hz') and b in self.gradient_descent_converge_hz.keys():
                 self.set_gradient_descent_converge_hz(b, self.gradient_descent_converge_hz[b], write_log=write_log, **kwargs)
-            if hasattr(self,'gradient_descent_step_hz') and b in self.gradient_descent_step_hz.keys():
+            if hasattr(self, 'gradient_descent_step_hz') and b in self.gradient_descent_step_hz.keys():
                 self.set_gradient_descent_step_hz(b, self.gradient_descent_step_hz[b], write_log=write_log, **kwargs)
-            if hasattr(self,'gradient_descent_momentum') and b in self.gradient_descent_momentum.keys():
+            if hasattr(self, 'gradient_descent_momentum') and b in self.gradient_descent_momentum.keys():
                 self.set_gradient_descent_momentum(b, self.gradient_descent_momentum[b], write_log=write_log, **kwargs)
-            if hasattr(self,'gradient_descent_beta') and b in self.gradient_descent_beta.keys():
+            if hasattr(self, 'gradient_descent_beta') and b in self.gradient_descent_beta.keys():
                 self.set_gradient_descent_beta(b, self.gradient_descent_beta[b], write_log=write_log, **kwargs)
-            if hasattr(self,'eta_scan_averages') and b in self.eta_scan_averages.keys():
+            if hasattr(self, 'eta_scan_averages') and b in self.eta_scan_averages.keys():
                 self.set_eta_scan_averages(b, self.eta_scan_averages[b], write_log=write_log, **kwargs)
-            if hasattr(self,'eta_scan_amplitude') and b in self.eta_scan_amplitude.keys():
+            if hasattr(self, 'eta_scan_amplitude') and b in self.eta_scan_amplitude.keys():
                 self.set_eta_scan_amplitude(b, self.eta_scan_amplitude[b], write_log=write_log, **kwargs)
-            if hasattr(self,'eta_scan_del_f') and b in self.eta_scan_del_f.keys():
+            if hasattr(self, 'eta_scan_del_f') and b in self.eta_scan_del_f.keys():
                 self.set_eta_scan_del_f(b, self.eta_scan_del_f[b], write_log=write_log, **kwargs)
 
         # To work around issue where setting the UC attenuators is for
@@ -510,7 +510,7 @@ class SmurfControl(SmurfCommandMixin,
 
         # Things that have to be done for both AMC bays, regardless of whether or not an AMC
         # is plugged in there.
-        for bay in [0,1]:
+        for bay in [0, 1]:
             self.set_trigger_hw_arm(bay, 0, write_log=write_log)
 
         self.set_trigger_width(0, 10, write_log=write_log)  # mystery bit that makes triggering work
@@ -550,15 +550,15 @@ class SmurfControl(SmurfCommandMixin,
         # if no timing section present, assumes your defaults.yml
         # has set you up...good luck.
         if self.config.get('timing') is not None and self.config.get('timing').get('timing_reference') is not None:
-            timing_reference=self.config.get('timing').get('timing_reference')
+            timing_reference = self.config.get('timing').get('timing_reference')
 
             # check if supported
-            timing_options=['ext_ref','backplane']
-            assert (timing_reference in timing_options), 'timing_reference in cfg file (={}) not in timing_options={}'.format(timing_reference,str(timing_options))
+            timing_options = ['ext_ref', 'backplane']
+            assert (timing_reference in timing_options), 'timing_reference in cfg file (={}) not in timing_options={}'.format(timing_reference, str(timing_options))
 
             self.log(f'Configuring the system to take timing from {timing_reference}')
 
-            if timing_reference=='ext_ref':
+            if timing_reference == 'ext_ref':
                 for bay in self.bays:
                     self.log(f'Select external reference for bay {bay}')
                     self.sel_ext_ref(bay)
@@ -567,23 +567,23 @@ class SmurfControl(SmurfCommandMixin,
                 self.set_ramp_start_mode(0, write_log=write_log)
 
             # https://confluence.slac.stanford.edu/display/SMuRF/Timing+Carrier#TimingCarrier-Howtoconfiguretodistributeoverbackplanefromslot2
-            if timing_reference=='backplane':
+            if timing_reference == 'backplane':
                 # Set SMuRF carrier crossbar to use the backplane
                 # distributed timing.
                 # OutputConfig[1] = 0x2 configures the SMuRF carrier's
                 # FPGA to take the timing signals from the backplane
                 # (TO_FPGA = FROM_BACKPLANE)
                 self.log('Setting crossbar OutputConfig[1]=0x2 (TO_FPGA=FROM_BACKPLANE)')
-                self.set_crossbar_output_config(1,2)
+                self.set_crossbar_output_config(1, 2)
 
                 self.log('Waiting 1 sec for timing up-link...')
                 time.sleep(1)
 
                 # Check if link is up - just printing status to
                 # screen, not currently taking any action if it's not.
-                timingRxLinkUp=self.get_timing_link_up()
-                self.log(f'Timing RxLinkUp = {timingRxLinkUp}', self.LOG_USER if
-                         timingRxLinkUp else self.LOG_ERROR)
+                timing_rx_link_up = self.get_timing_link_up()
+                self.log(f'Timing RxLinkUp = {timing_rx_link_up}', self.LOG_USER if
+                         timing_rx_link_up else self.LOG_ERROR)
 
                 # Set LMK to use timing system as reference
                 for bay in self.bays:
@@ -640,8 +640,8 @@ class SmurfControl(SmurfCommandMixin,
 
         if as_int:
             return int(t)
-        else:
-            return t
+
+        return t
 
     def add_output(self, key, val):
         """Adds key/value pair to pysmurf configuration dictionary.
