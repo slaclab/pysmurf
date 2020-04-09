@@ -985,15 +985,16 @@ class SmurfUtilMixin(SmurfBase):
                     for i, c in enumerate(channel):
                         channel_mask[i] = c
 
-                    # Make holder arrays for phase and timestamp
-                    tmp_phase = np.atleast_2d(data)
-                    tmp_t = np.array(header.timestamp)
-                    phase = np.zeros((0, len(channel)))
+                    #initialize data structure
+                    phase=list()
+                    for i,_ in enumerate(channel):
+                        phase.append(list())
+                    for i,_ in enumerate(channel):
+                        phase[i].append(data[i])
+                    t = [header.timestamp]
                     if return_header or return_tes_bias:
                         tmp_tes_bias = np.array(header.tesBias)
                         tes_bias = np.zeros((0,16))
-
-                    t = np.array([])
 
                     # Get header values if requested
                     if return_header or return_tes_bias:
@@ -1009,8 +1010,9 @@ class SmurfUtilMixin(SmurfBase):
                     # Already loaded 1 element
                     counter = 1
                 else:
-                    tmp_phase = np.vstack((tmp_phase, data))
-                    tmp_t = np.append(tmp_t, header.timestamp)
+                    for i in range(n_chan):
+                        phase[i].append(data[i])
+                    t.append(header.timestamp)
 
                     if return_header or return_tes_bias:
                         for i, h in enumerate(header._fields):
@@ -1021,10 +1023,6 @@ class SmurfUtilMixin(SmurfBase):
                     if counter % n_max == n_max - 1:
                         if write_log:
                             self.log(f'{counter+1} elements loaded')
-                        phase = np.vstack((phase, tmp_phase))
-                        t = np.append(t, tmp_t)
-                        tmp_phase = np.zeros((0, len(channel)))
-                        tmp_t = np.array([])
 
                         if return_header:
                             for k in header_dict.keys():
@@ -1043,9 +1041,9 @@ class SmurfUtilMixin(SmurfBase):
 
                     counter += 1
 
-        # Get the last temp block
-        phase = np.vstack((phase, tmp_phase))
-        t = np.append(t, tmp_t)
+        phase=np.array(phase)
+        t=np.array(t)
+
         if return_header:
             for k in header_dict.keys():
                 header_dict[k] = np.append(header_dict[k],
@@ -1058,7 +1056,6 @@ class SmurfUtilMixin(SmurfBase):
             tes_bias = np.transpose(tes_bias)
 
         # rotate and transform to phase
-        phase = np.squeeze(phase.T)
         phase = phase.astype(float) / 2**15 * np.pi
 
         if np.size(phase) == 0:
