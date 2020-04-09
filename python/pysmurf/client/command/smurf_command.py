@@ -28,10 +28,11 @@ class SmurfCommandMixin(SmurfBase):
 
     _global_poll_enable = ':AMCc:enable'
 
-    def _caput(self, cmd, val, write_log=False, execute=True, wait_before=None,
-            wait_after=None, wait_done=True, log_level=0, enable_poll=False,
-            disable_poll=False, new_epics_root=None):
-        """Puts variables into epics.
+    def _caput(self, cmd, val, write_log=False, execute=True,
+            wait_before=None, wait_after=None, wait_done=True,
+            log_level=0, enable_poll=False, disable_poll=False,
+            new_epics_root=None, **kwargs):
+        r"""Puts variables into epics.
 
         Wrapper around pyrogue lcaput. Puts variables into epics.
 
@@ -61,6 +62,9 @@ class SmurfCommandMixin(SmurfBase):
             Disables requests of all PVs after issueing command.
         new_epics_root : str, optional, default None
             Temporarily replaces current epics root with a new one.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `epics.caput` call.
         """
         if new_epics_root is not None:
             self.log('Temporarily using new epics root: {}'.format(new_epics_root))
@@ -84,7 +88,7 @@ class SmurfCommandMixin(SmurfBase):
             self.log(log_str, log_level)
 
         if execute and not self.offline:
-            epics.caput(cmd, val, wait=wait_done)
+            epics.caput(cmd, val, wait=wait_done, **kwargs)
 
         if wait_after is not None:
             if write_log:
@@ -130,15 +134,14 @@ class SmurfCommandMixin(SmurfBase):
         yml : str or None, optional, default None
             If not None, yaml file to parse for the result.
         \**kwargs
-            Arbitrary keyword arguments.
+            Arbitrary keyword arguments.  Passed directly to the
+            `epics.caget` call.
 
         Returns
         -------
         ret : str
             The requested value.
         """
-        print("=> kwargs=%s" % (kwargs))
-        
         if new_epics_root is not None:
             self.log('Temporarily using new epics root: {}'.format(new_epics_root))
             old_epics_root = self.epics_root
@@ -158,7 +161,7 @@ class SmurfCommandMixin(SmurfBase):
             return tools.yaml_parse(yml, cmd)
 
         elif execute and not self.offline:
-            ret = epics.caget(cmd, count=count)
+            ret = epics.caget(cmd, count=count, **kwargs)
             if write_log:
                 self.log(ret)
         else:
@@ -180,17 +183,19 @@ class SmurfCommandMixin(SmurfBase):
     def get_rogue_version(self, **kwargs):
         r"""Get rogue version
 
+        Args
+        ----
+        \**kwargs
+            Arbitrary keyword arguments.  Passed to directly to the
+            `_caget` call.
+
         Returns
         -------
         ret : str
             The rogue version
-        \**kwargs : ?
-            ???
         """
         ret = self._caget(self.amcc + self._rogue_version,
-                          **kwargs)
-        if as_str:
-            ret = tools.utf8_to_str(ret)
+                          as_string=True, **kwargs)
         return ret
 
     def get_enable(self, **kwargs):
