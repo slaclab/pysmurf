@@ -627,21 +627,22 @@ class SmurfControl(SmurfCommandMixin,
         Args
         ----
         as_int : bool, optional, default False
-              Whether to return the timestamp as an integer.
+            Whether to return the timestamp as an integer.  If False,
+            timestamp is returned as an integer.
 
         Returns
         -------
-        str or int
-              Timestamp as a string, unless optional argument
-              as_int=True, in which case returns timestamp as an
-              integer.
+        timestamp : str or int
+            Timestamp as a string, unless optional argument
+            as_int=True, in which case returns timestamp as an
+            integer.
         """
-        t = '{:10}'.format(int(time.time()))
+        timestamp = '{:10}'.format(int(time.time()))
 
         if as_int:
-            return int(t)
+            return int(timestamp)
 
-        return t
+        return timestamp
 
     def add_output(self, key, val):
         """Adds key/value pair to pysmurf configuration dictionary.
