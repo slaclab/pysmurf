@@ -183,7 +183,7 @@ class SmurfCommandMixin(SmurfBase):
         \**kwargs
             Arbitrary keyword arguments to pass on to the internal
             :func:`_caget` call.
-        
+
         Returns
         -------
         ret : str or numpy.ndarray
@@ -204,7 +204,7 @@ class SmurfCommandMixin(SmurfBase):
         """Returns path to the pysmurf python files.
 
         ???
-        
+
         Returns
         -------
         ret : str
@@ -222,7 +222,7 @@ class SmurfCommandMixin(SmurfBase):
         """Returns path to the pysmurf server startup script.
 
         ???
-        
+
         Returns
         -------
         ret : str
@@ -240,7 +240,7 @@ class SmurfCommandMixin(SmurfBase):
         """Returns pysmurf server startup arguments.
 
         ???
-        
+
         Returns
         -------
         ret : str
