@@ -31,8 +31,9 @@ class SmurfCommandMixin(SmurfBase):
     def _caput(self, cmd, val, write_log=False, execute=True, wait_before=None,
             wait_after=None, wait_done=True, log_level=0, enable_poll=False,
             disable_poll=False, new_epics_root=None):
-        """
-        Wrapper around pyrogue lcaput. Puts variables into epics
+        """Puts variables into epics.
+
+        Wrapper around pyrogue lcaput. Puts variables into epics.
 
         Args
         ----
@@ -103,9 +104,10 @@ class SmurfCommandMixin(SmurfBase):
 
     def _caget(self, cmd, write_log=False, execute=True, count=None,
                log_level=0, enable_poll=False, disable_poll=False,
-               new_epics_root=None, yml=None):
-        """
-        Wrapper around pyrogue lcaget. Gets variables from epics
+               new_epics_root=None, yml=None, **kwargs):
+        r"""Gets variables from epics.
+        
+        Wrapper around pyrogue lcaget. Gets variables from epics.
 
         Args
         ----
@@ -127,12 +129,16 @@ class SmurfCommandMixin(SmurfBase):
             Temporarily replaces current epics root with a new one.
         yml : str or None, optional, default None
             If not None, yaml file to parse for the result.
+        \**kwargs
+            Arbitrary keyword arguments.
 
         Returns
         -------
         ret : str
             The requested value.
         """
+        print("=> kwargs=%s" % (kwargs))
+        
         if new_epics_root is not None:
             self.log('Temporarily using new epics root: {}'.format(new_epics_root))
             old_epics_root = self.epics_root
@@ -171,13 +177,15 @@ class SmurfCommandMixin(SmurfBase):
 
     _rogue_version = 'RogueVersion'
 
-    def get_rogue_version(self, as_str=True, **kwargs):
-        """Get rogue version
+    def get_rogue_version(self, **kwargs):
+        r"""Get rogue version
 
         Returns
         -------
         ret : str
             The rogue version
+        \**kwargs : ?
+            ???
         """
         ret = self._caget(self.amcc + self._rogue_version,
                           **kwargs)
