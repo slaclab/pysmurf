@@ -344,14 +344,14 @@ class SmurfControl(SmurfCommandMixin,
         tune_band_cfg = self.config.get('tune_band')
         tune_band_keys = tune_band_cfg.keys()
         self.lms_gain = {}
-        for b in bands:
+        for band in bands:
             # Make band dictionaries
-            self.freq_resp[b] = {}
-            self.freq_resp[b]['lock_status'] = {}
-            self.lms_freq_hz[b] = tune_band_cfg['lms_freq'][str(b)]
+            self.freq_resp[band] = {}
+            self.freq_resp[band]['lock_status'] = {}
+            self.lms_freq_hz[band] = tune_band_cfg['lms_freq'][str(band)]
 
-            band_str = f'band_{b}'
-            self.lms_gain[b] = smurf_init_config[band_str]['lmsGain']
+            band_str = f'band_{band}'
+            self.lms_gain[band] = smurf_init_config[band_str]['lmsGain']
 
         # Load in tuning parameters, if present
         tune_band_cfg = self.config.get('tune_band')
@@ -501,11 +501,11 @@ class SmurfControl(SmurfCommandMixin,
         # (which don't seem to be affected by setting the DC
         # attenuators, at least for LB bands 2 and 3), then set all
         # the UC attenuators.
-        for b in bands:
-            self.set_att_uc(b, smurf_init_config[band_str]['att_uc'],
+        for band in bands:
+            self.set_att_uc(band, smurf_init_config[band_str]['att_uc'],
                             write_log=write_log)
-        for b in bands:
-            self.set_att_dc(b, smurf_init_config[band_str]['att_dc'],
+        for band in bands:
+            self.set_att_dc(band, smurf_init_config[band_str]['att_dc'],
                             write_log=write_log)
 
         # Things that have to be done for both AMC bays, regardless of whether or not an AMC
@@ -652,9 +652,9 @@ class SmurfControl(SmurfCommandMixin,
         Args
         ----
         key : any
-              The name of the key to update.
+            The name of the key to update.
         val : any
-              The value to assign to the key.
+            The value to assign to the key.
         """
         self.config.update_subkey('outputs', key, val)
 
