@@ -110,7 +110,7 @@ class SmurfCommandMixin(SmurfBase):
                log_level=0, enable_poll=False, disable_poll=False,
                new_epics_root=None, yml=None, **kwargs):
         r"""Gets variables from epics.
-        
+
         Wrapper around pyrogue lcaget. Gets variables from epics.
 
         Args
@@ -191,12 +191,11 @@ class SmurfCommandMixin(SmurfBase):
 
         Returns
         -------
-        ret : str
+        str
             The rogue version
         """
-        ret = self._caget(self.amcc + self._rogue_version,
-                          as_string=True, **kwargs)
-        return ret
+        return self._caget(self.amcc + self._rogue_version,
+                           as_string=True, **kwargs)
 
     def get_enable(self, **kwargs):
         """
@@ -601,21 +600,27 @@ class SmurfCommandMixin(SmurfBase):
     _tone_file_path = 'CsvFilePath'
 
     def get_tone_file_path(self, bay, **kwargs):
-        """
-        Returns the tone file path that's currently being used for this bay.
+        r"""Get tone file path.
+
+        Returns the tone file path that's currently being used for
+        this bay.
 
         Args
         ----
         bay : int
             Which AMC bay (0 or 1).
+        \**kwargs
+            Arbitrary keyword arguments.  Passed to directly to the
+            `_caget` call.
+
+        Returns
+        -------
+        str
+            Full path to tone file.
         """
 
-        ret=self._caget(self.dac_sig_gen.format(bay) + self._tone_file_path,**kwargs)
-        # convert to human-readable string
-        ret=''.join([str(s, encoding='UTF-8') for s in ret])
-        # strip \x00 - not sure why I have to do this
-        ret=ret.strip('\x00')
-        return ret
+        return self._caget(self.dac_sig_gen.format(bay) +
+                           self._tone_file_path, as_string=True, **kwargs)
 
     def set_tone_file_path(self, bay, val, **kwargs):
         """
@@ -2099,38 +2104,61 @@ class SmurfCommandMixin(SmurfBase):
     _fpga_git_hash = 'GitHash'
 
     def get_fpga_git_hash(self, **kwargs):
-        """
+        r"""Get the full FPGA firmware SHA-1 git hash.
+
+        Args
+        ----
+        \**kwargs
+            Arbitrary keyword arguments.  Passed to directly to the
+            `_caget` call.
+
         Returns
         -------
-        git_hash : str
-            The git hash of the FPGA.
+        str
+            The full git SHA-1 hash of the FPGA firmware.
         """
-        gitHash=self._caget(self.axi_version + self._fpga_git_hash, **kwargs)
-        return ''.join([str(s, encoding='UTF-8') for s in gitHash])
+        return self._caget(self.axi_version + self._fpga_git_hash,
+                           as_string=True, **kwargs)
 
     _fpga_git_hash_short = 'GitHashShort'
 
     def get_fpga_git_hash_short(self, **kwargs):
-        """
+        r"""Get the short FPGA firmware SHA-1 git hash.
+
+        Args
+        ----
+        \**kwargs
+            Arbitrary keyword arguments.  Passed to directly to the
+            `_caget` call.
+
         Returns
         -------
-        git_hash_short : str
-            The short git hash of the FPGA.
+        str
+            The short git SHA-1 hash of the FPGA firmware.
         """
-        gitHashShort=self._caget(self.axi_version + self._fpga_git_hash_short, **kwargs)
-        return ''.join([str(s, encoding='UTF-8') for s in gitHashShort])
+        return self._caget(self.axi_version +
+                           self._fpga_git_hash_short, as_string=True,
+                           **kwargs)
 
 
     _fpga_build_stamp = 'BuildStamp'
 
     def get_fpga_build_stamp(self, **kwargs):
-        """
+        """Get the FPGA build stamp.
+
+        Args
+        ----
+        \**kwargs
+            Arbitrary keyword arguments.  Passed to directly to the
+            `_caget` call.        
+
         Returns
         -------
-        build_stamp : str
+        str
             The FPGA build stamp.
         """
-        return self._caget(self.axi_version + self._fpga_build_stamp, **kwargs)
+        return self._caget(self.axi_version + self._fpga_build_stamp,
+                           as_string=True, **kwargs)
 
     _input_mux_sel = 'InputMuxSel[{}]'
 
@@ -2334,25 +2362,23 @@ class SmurfCommandMixin(SmurfBase):
             datafile_path, **kwargs)
 
     def get_streamdatawriter_datafile(self, as_str=True, **kwargs):
-        """
-        Gets the output path for the StreamDataWriter. This is what is
-        used for take_debug_data.
+        r"""Gets output path for the StreamDataWriter.
+        
+        This is what is used for take_debug_data.
 
         Args
         ----
-        as_str : bool, optional, default True
-            Whether to return the data as a string.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed to directly to the
+            `_caget` call.
 
         Returns
         -------
-        ret : str
+        str
             The full path for the output.
         """
-        ret=self._caget(self.stream_data_writer_root +
-                        self._data_file, **kwargs)
-        if as_str:
-            ret=tools.utf8_to_str(ret)
-        return ret
+        return self._caget(self.stream_data_writer_root +
+                           self._data_file, as_string=True, **kwargs)
 
     _datawriter_open = 'Open'
 
