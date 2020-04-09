@@ -2144,13 +2144,13 @@ class SmurfCommandMixin(SmurfBase):
     _fpga_build_stamp = 'BuildStamp'
 
     def get_fpga_build_stamp(self, **kwargs):
-        """Get the FPGA build stamp.
+        r"""Get the FPGA build stamp.
 
         Args
         ----
         \**kwargs
             Arbitrary keyword arguments.  Passed to directly to the
-            `_caget` call.        
+            `_caget` call.
 
         Returns
         -------
@@ -2363,7 +2363,7 @@ class SmurfCommandMixin(SmurfBase):
 
     def get_streamdatawriter_datafile(self, as_str=True, **kwargs):
         r"""Gets output path for the StreamDataWriter.
-        
+
         This is what is used for take_debug_data.
 
         Args
