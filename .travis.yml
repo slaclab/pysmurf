@@ -36,10 +36,7 @@ jobs:
         - pip3 install flake8-rst-docstrings
       script:
         # Run Flake8
-        - flake8 \
-            --rst-roles class,func,ref \
-            --rst-directives envvar,exception \
-            --count python/
+        - flake8 --count python/
 
     # Test stages
     ## Documentation automatic build tests
