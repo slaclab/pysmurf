@@ -181,85 +181,88 @@ class SmurfCommandMixin(SmurfBase):
     #### Start SmurfApplication gets/sets
     _smurf_version = 'SmurfVersion'
 
-    def get_smurf_version(self, as_str=True, **kwargs):
+    def get_pysmurf_version(self, **kwargs):
         r"""Returns the pysmurf version.
+
+        Alias for `pysmurf.__version__`.
 
         Args
         ----
-        as_str : bool, optional, default True
-            If True, return type is a str, otherwise return type is a
-            1D numpy.ndarray with `numpy.uint8` type UTF-8 byte array.
         \**kwargs
-            Arbitrary keyword arguments to pass on to the internal
-            :func:`_caget` call.
+            Arbitrary keyword arguments.  Passed to directly to the
+            `_caget` call.
 
         Returns
         -------
-        ret : str or numpy.ndarray
-            pysmurf version.  Return type is `str` if `as_str` is True
-            (the default behavior).  If `as_str` is False, return type
-            is a 1D numpy.ndarray with `numpy.uint8` type UTF-8 byte
-            array.
+        str
+            pysmurf version.
         """
-        ret = self._caget(self.smurf_application +
-                          self._smurf_version, **kwargs)
-        if as_str:
-            ret = tools.utf8_to_str(ret)
-        return ret
+        return self._caget(self.smurf_application +
+                           self._smurf_version, as_string=True,
+                           **kwargs)
 
     _smurf_directory = 'SmurfDirectory'
 
-    def get_smurf_directory(self, as_str=True, **kwargs):
-        """Returns path to the pysmurf python files.
+    def get_pysmurf_directory(self, **kwargs):
+        r"""Returns path to the pysmurf python files.
 
-        ???
+        Path to the files from which the pysmurf module was loaded.
+        Alias for `pysmurf__file__`.
+
+        Args
+        ----
+        \**kwargs
+            Arbitrary keyword arguments.  Passed to directly to the
+            `_caget` call.
 
         Returns
         -------
-        ret : str
-            ???
+        str
+            Path to pysmurf files.
         """
-        ret = self._caget(self.smurf_application +
-                          self._smurf_directory, **kwargs)
-        if as_str:
-            ret = tools.utf8_to_str(ret)
-        return ret
+        return self._caget(self.smurf_application +
+                           self._smurf_directory, as_string=True,
+                           **kwargs)
     
     _smurf_startup_script = 'StartupScript'
 
-    def get_smurf_startup_script(self, as_str=True, **kwargs):
-        """Returns path to the pysmurf server startup script.
+    def get_smurf_startup_script(self, **kwargs):
+        r"""Returns path to the pysmurf server startup script.
 
-        ???
+        Args
+        ----
+        \**kwargs
+            Arbitrary keyword arguments.  Passed to directly to the
+            `_caget` call.
 
         Returns
         -------
-        ret : str
-            ???
+        str
+            Path to pysmurf server startup script.
         """
-        ret = self._caget(self.smurf_application +
-                          self._smurf_startup_script, **kwargs)
-        if as_str:
-            ret = tools.utf8_to_str(ret)
-        return ret
-    
+        return self._caget(self.smurf_application +
+                           self._smurf_startup_script, as_string=True,
+                           **kwargs)
+
     _smurf_startup_arguments = 'StartupArguments'
 
-    def get_smurf_startup_args(self, as_str=True, **kwargs):
-        """Returns pysmurf server startup arguments.
+    def get_smurf_startup_args(self, **kwargs):
+        r"""Returns pysmurf server startup arguments.
 
-        ???
+        Args
+        ----
+        \**kwargs
+            Arbitrary keyword arguments.  Passed to directly to the
+            `_caget` call.
 
         Returns
         -------
-        ret : str
-            ???
+        str
+            pysmurf server startup arguments.
         """
-        ret = self._caget(self.smurf_application +
-                          self._smurf_startup_arguments, **kwargs)
-        if as_str:
-            ret = tools.utf8_to_str(ret)
-        return ret
+        return self._caget(self.smurf_application +
+                           self._smurf_startup_arguments,
+                           as_string=True, **kwargs)
     
     #### End SmurfApplication gets/sets
     
