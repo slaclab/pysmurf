@@ -2094,22 +2094,20 @@ class SmurfUtilMixin(SmurfBase):
         Returns
         -------
         bays : list of int
-            Which bays were enabled on pysmurf server startup.  Will
-            be either [0] (bay 0), [1] (bay 1), or [0,1] (both bays 0
-            and 1).
+            Which bays were enabled on pysmurf server startup.
         """
         # What arguments were passed to the pysmurf server on startup?
         smurf_startup_args=self.get_smurf_startup_args()
-        
+
         # Bays are enabled unless --disable-bay{bay} is provided to
         # the pysmurf server on startup.
         bays=[]
         for bay in [0,1]:
             if f'--disable-bay{bay}' not in smurf_startup_args:
                 bays.append(bay)
-        
+
         return bays
-    
+
     def which_bands(self):
         """Which bands the carrier firmware was built for.
 
