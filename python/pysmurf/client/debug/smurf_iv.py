@@ -202,11 +202,6 @@ class SmurfIVMixin(SmurfBase):
         phase_excursion_min : float, optional, default 1.0
             Minimum change in phase to be analyzed, defined as
             abs(phase_max - phase_min). Units radians.
-
-        Returns
-        -------
-        path : str
-            ???
         """
 
         original_biases = self.get_tes_bias_bipolar_array()
@@ -329,8 +324,6 @@ class SmurfIVMixin(SmurfBase):
         channel : int array or None, optional, default None
             Which channels to analyze. Defaults to all the channels
             that are on and exceed phase_excursion_min.
-        band : int or None, optional, default None
-            ???
         datafile : str or None, optional, default None
             The full path to the data. This is used for offline mode
             where the data was copied to a new directory. The
@@ -576,7 +569,6 @@ class SmurfIVMixin(SmurfBase):
         resp : float array
             The TES phase response in radians. Of length n_pts (not
             the same as n_steps).
-
         make_plot : bool, optional, default True
             Whether to make the plot.
         show_plot : bool, optional, default False
@@ -601,12 +593,8 @@ class SmurfIVMixin(SmurfBase):
             Whether the data was taken in high current mode. This is
             important for knowing what current actually enters the
             cryostat.
-        bias group : ??? or None, optional, default None
-            ???
         grid_on : bool, optional, default False
             Whether to plot with grids on.
-        R_op_target : float, optional, default 0.007
-            ???
         pA_per_phi0 : float or None, optional, default None
             The conversion for phi0 to pA. If None, attempts to read
             it from the config file.
@@ -615,17 +603,9 @@ class SmurfIVMixin(SmurfBase):
             from config.
         plotname_append : str, optional, default ''
             An optional string to append the plot names.
-        **kwargs : ???
-            ???
 
         Returns
         -------
-        R : float array
-            ???
-        R_n : float
-            ???
-        idx : int array
-            ???
         R_sh : float
             Shunt resistance.
         """

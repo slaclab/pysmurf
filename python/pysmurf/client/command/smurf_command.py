@@ -178,6 +178,94 @@ class SmurfCommandMixin(SmurfBase):
         return ret
 
 
+    #### Start SmurfApplication gets/sets
+    _smurf_version = 'SmurfVersion'
+
+    def get_pysmurf_version(self, **kwargs):
+        r"""Returns the pysmurf version.
+
+        Alias for `pysmurf.__version__`.
+
+        Args
+        ----
+        \**kwargs
+            Arbitrary keyword arguments.  Passed to directly to the
+            `_caget` call.
+
+        Returns
+        -------
+        str
+            pysmurf version.
+        """
+        return self._caget(self.smurf_application +
+                           self._smurf_version, as_string=True,
+                           **kwargs)
+
+    _smurf_directory = 'SmurfDirectory'
+
+    def get_pysmurf_directory(self, **kwargs):
+        r"""Returns path to the pysmurf python files.
+
+        Path to the files from which the pysmurf module was loaded.
+        Alias for `pysmurf__file__`.
+
+        Args
+        ----
+        \**kwargs
+            Arbitrary keyword arguments.  Passed to directly to the
+            `_caget` call.
+
+        Returns
+        -------
+        str
+            Path to pysmurf files.
+        """
+        return self._caget(self.smurf_application +
+                           self._smurf_directory, as_string=True,
+                           **kwargs)
+
+    _smurf_startup_script = 'StartupScript'
+
+    def get_smurf_startup_script(self, **kwargs):
+        r"""Returns path to the pysmurf server startup script.
+
+        Args
+        ----
+        \**kwargs
+            Arbitrary keyword arguments.  Passed to directly to the
+            `_caget` call.
+
+        Returns
+        -------
+        str
+            Path to pysmurf server startup script.
+        """
+        return self._caget(self.smurf_application +
+                           self._smurf_startup_script, as_string=True,
+                           **kwargs)
+
+    _smurf_startup_arguments = 'StartupArguments'
+
+    def get_smurf_startup_args(self, **kwargs):
+        r"""Returns pysmurf server startup arguments.
+
+        Args
+        ----
+        \**kwargs
+            Arbitrary keyword arguments.  Passed to directly to the
+            `_caget` call.
+
+        Returns
+        -------
+        str
+            pysmurf server startup arguments.
+        """
+        return self._caget(self.smurf_application +
+                           self._smurf_startup_arguments,
+                           as_string=True, **kwargs)
+
+    #### End SmurfApplication gets/sets
+
     _rogue_version = 'RogueVersion'
 
     def get_rogue_version(self, **kwargs):

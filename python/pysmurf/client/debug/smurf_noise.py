@@ -59,10 +59,6 @@ class SmurfNoiseMixin(SmurfBase):
             Extends the scipy.signal.welch detrend.
         fs : float or None, optional, default None
             Sample frequency. If None, reads it in.
-        low_freq : numpy.ndarray, optional, default numpy.array([0.1,1.0])
-            ???
-        high_freq : numpy.ndarray, optional, default numpy.array([1.0,10.0])
-            ???
         make_channel_plot : bool, optional, default True
             Whether to make the individual channel plots.
         make_summary_plot : bool, optional, default True
@@ -71,8 +67,6 @@ class SmurfNoiseMixin(SmurfBase):
             Whether to save the band averaged data as a text file.
         show_plot : bool, optional, default False
             Show the plot on the screen.
-        grid_on : bool, optional, default False
-            ???
         datafile : str or None, optional, default None
             If data has already been taken, can point to a file to
             bypass data taking and just analyze.
@@ -86,8 +80,6 @@ class SmurfNoiseMixin(SmurfBase):
             Whether to reset the filter before taking data.
         reset_unwrapper : bool, optional, default True
             Whether to reset the unwrapper before taking data.
-        return_noise_params : bool, optional, default False
-            ???
         plotname_append : str, optional, default ''
             Appended to the default plot filename.
 
@@ -473,8 +465,6 @@ class SmurfNoiseMixin(SmurfBase):
         bias : float array or None, optional, default None
             The array of bias values to step through. If None, uses
             values in defined by bias_high, bias_low, and step_size.
-        high_current_mode : bool, optional, default True
-            ???
         overbias_voltage : float, optional, default 9.0
             Voltage to set the overbias in volts.
         meas_time : float, optional, default 30.0
@@ -490,17 +480,9 @@ class SmurfNoiseMixin(SmurfBase):
             The sample frequency.
         show_plot : bool, optional, default False
             Whether to show analysis plots.
-        cool_wait : float, optional, default 30.0
-            ???
-        psd_ylim : tuple of float, optional, default (10.0,1000.0)
-            ???
-        make_timestream_plot : bool, optional, default False
-            ???
         only_overbias_once : bool, optional, default False
             Whether or not to overbias right before each TES bias
             step.
-        overbias_wait : float, optional, default 1.0
-            ???
         """
         if bias is None:
             if step_size > 0:
@@ -522,10 +504,7 @@ class SmurfNoiseMixin(SmurfBase):
             step_size=1, amplitudes=None, meas_time=30., analyze=False,
             channel=None, nperseg=2**13, detrend='constant', fs=None,
             show_plot=False, make_timestream_plot=False, psd_ylim=None):
-        """???
-
-        ???
-
+        """
         Args
         ----
         band : int
@@ -585,8 +564,6 @@ class SmurfNoiseMixin(SmurfBase):
         only_overbias_once : bool, optional, default False
             Whether to only overbias at the beginning of the
             measurement (as opposed to between every step).
-        **kwargs : ???
-            ???
         """
         if fs is None:
             fs = self.get_sample_frequency()
@@ -1444,11 +1421,6 @@ class SmurfNoiseMixin(SmurfBase):
             The band number.
         meas_time : float, optional, default 10.0
             The measurement time per resonator in seconds.
-
-        Returns
-        -------
-        ret : ???
-            ???
         """
         timestamp = self.get_timestamp()
 
@@ -1486,17 +1458,6 @@ class SmurfNoiseMixin(SmurfBase):
         ----
         ret : dict
             The returned values from noise_all_vs_noise_solo.
-        fs : float or None, optional, default None
-            ???
-        nperseg : int, optional, defualt 2**10
-            ???
-        make_channel_plot : bool, optional, default False
-            ???
-
-        Returns
-        -------
-        wl_diff : ???
-            ???
         """
         if fs is None:
             fs = self.fs
@@ -1616,12 +1577,8 @@ class SmurfNoiseMixin(SmurfBase):
             Whether to save the plot.
         show_plot : bool, optional, default False
             Whether to how the plot.
-        make_timestream_plot : bool, optional, default False
-            ???
         data_timestamp : str or None, optional, default None
             The string used as a save name.
-        psd_ylim : ???, optional, default (10.0,1000.0)
-            ???
         bias_group : int or int array or None, optional, default None
             Which bias groups were used.
         smooth_len : int, optional, default 11
