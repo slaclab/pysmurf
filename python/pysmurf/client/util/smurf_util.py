@@ -2079,15 +2079,16 @@ class SmurfUtilMixin(SmurfBase):
         r"""Which carrier AMC bays are enabled.
 
         Returns which AMC bays were enabled on pysmurf server startup.
-        Each SMuRF carrier has two AMC bays, indexed bay 0 and bay 1.
-        If looking an installed carrier from the front of a crate, bay
-        0 is on the right and bay 1 is on the left.
+        Each SMuRF carrier has two AMC bays, indexed by an integer,
+        either 0 or 1.  If looking at an installed carrier from the
+        front of a crate, bay 0 is on the right and bay 1 is on the
+        left.
 
         A bay is enabled if the `--disable-bay#` argument is not
-        provided as a startup argument to the pysmurf server on
-        startup, where # the bay number, either 0 or 1.  The pysmurf
-        server startup arguments are returned by the
-        :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.smurf_command.get_smurf_startup_args`
+        provided as a startup argument to the pysmurf server where #
+        is the bay number, either 0 or 1.  The pysmurf server startup
+        arguments are returned by the
+        :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.get_smurf_startup_args`
         routine.
 
         Returns

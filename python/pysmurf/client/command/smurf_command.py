@@ -223,7 +223,7 @@ class SmurfCommandMixin(SmurfBase):
         return self._caget(self.smurf_application +
                            self._smurf_directory, as_string=True,
                            **kwargs)
-    
+
     _smurf_startup_script = 'StartupScript'
 
     def get_smurf_startup_script(self, **kwargs):
@@ -263,9 +263,9 @@ class SmurfCommandMixin(SmurfBase):
         return self._caget(self.smurf_application +
                            self._smurf_startup_arguments,
                            as_string=True, **kwargs)
-    
+
     #### End SmurfApplication gets/sets
-    
+
     _rogue_version = 'RogueVersion'
 
     def get_rogue_version(self, **kwargs):
