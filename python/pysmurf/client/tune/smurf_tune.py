@@ -159,10 +159,6 @@ class SmurfTuneMixin(SmurfBase):
             Whether to make a plot per subband. This is very slow.
         n_scan : int, optional, default 5
             The number of scans to take and average.
-        subband_plot_with_slow : bool, optional, default False
-            ???
-        drive : int or None, optional, default None
-            ???
         grad_cut : float, optional, default 0.05
             The value of the gradient of phase to look for resonances.
         freq_min : float, optional, default -2.5e8
@@ -174,8 +170,6 @@ class SmurfTuneMixin(SmurfBase):
         amp_cut : float, optional, default 0.5
             The distance from the median value to decide whether
             there is a resonance.
-        use_slow_eta : bool, optional, default False
-            ???
 
         Returns
         -------
@@ -1224,8 +1218,6 @@ class SmurfTuneMixin(SmurfBase):
             The timestamp of the data.
         res_num : int or None, optional, default None
             The resonator number.
-        use_slow_eta : bool, optional, default False
-            ???.
 
         Returns
         -------
@@ -1342,8 +1334,6 @@ class SmurfTuneMixin(SmurfBase):
             The eta parameter.
         eta_mag : complex or None, optional, default None
             The amplitude of the eta parameter.
-        peak_freq : ??? or None, optional, default None
-            ???
         eta_phase_deg : float or None, optional, default None
             The angle of the eta parameter in degrees.
         r2 : float or None, optional, default None
@@ -1352,8 +1342,6 @@ class SmurfTuneMixin(SmurfBase):
             Whether to save the plot.
         plotname_append : str, optional, default ''
             Appended to the default plot filename.
-        show_plot : bool, optional, default False
-            ???
         timestamp : str or None, optional, default None
             The timestamp to name the file.
         res_num : int or None, optional, default None
@@ -1362,12 +1350,6 @@ class SmurfTuneMixin(SmurfBase):
             The band number to label the plot.
         sk_fit : float array or None, optional, default None
             The fit parameters for the skewed lorentzian.
-        f_slow : ??? or None, optional, default None
-            ???
-        resp_slow : ??? or None, optional, default None
-            ???
-        channel : ??? or None, optional, default None
-            ???
         """
         if timestamp is None:
             timestamp = self.get_timestamp()
@@ -1509,8 +1491,6 @@ class SmurfTuneMixin(SmurfBase):
             The frequency to search for a subband.
         band : int
             The band to identify.
-        as_offset : bool, optional, default True
-            ???
 
         Returns
         -------
@@ -1622,8 +1602,6 @@ class SmurfTuneMixin(SmurfBase):
             subband center.
         channel_per_subband : int, optional, default 4
             The number of channels to assign per subband.
-        as_offset : bool, optional, default True
-            ???
         min_offset : float, optional, default 0.1
             The minimum offset between two resonators in MHz.  If
             closer, then both are ignored.
@@ -1893,8 +1871,6 @@ class SmurfTuneMixin(SmurfBase):
             Whether to check r2 and Q values.
         min_gap : float or None, optional, default None
             The minimum distance between resonators.
-        write_log : bool, optional, default False
-            ???
         """
         n_channels = self.get_number_channels(band)
 
@@ -2161,19 +2137,6 @@ class SmurfTuneMixin(SmurfBase):
             The frequency to sweep.
         df_sweep : float, optional, default 0.002
             The frequency step size.
-        delta_freq : float, optional, default 0.01
-            ???
-        lock_max_derivative : bool, optional, default False
-            ???
-
-        Returns
-        -------
-        f_sweep : array
-            ???
-        resp : array
-            ???
-        eta : array
-            ???
         """
         subband, offset = self.freq_to_subband(band, freq)
         f_sweep = np.arange(offset-f_sweep_half, offset+f_sweep_half, df_sweep)
@@ -2397,17 +2360,11 @@ class SmurfTuneMixin(SmurfBase):
             Whether to save plots.
         show_plot : bool, optional, default True
             Whether to display the plot.
-        nsamp : int, optional, default 2**19
-            ???
         lms_freq_hz : float or None, optional, default None
             The frequency of the tracking algorithm.
         meas_lms_freq : bool, optional, default False
             Whether or not to try to estimate the carrier rate using
             the flux_mod2 function.  lms_freq_hz must be None.
-        meas_flux_ramp_amp : bool, optional, default False
-            ???
-        nphi0 : ???, optional, default 4
-            ???
         flux_ramp : bool, optional, default True
             Whether to turn on flux ramp.
         fraction_full_scale : float or None, optional, default None
@@ -2421,10 +2378,6 @@ class SmurfTuneMixin(SmurfBase):
         lms_gain : int or None, optional, default None
             The tracking gain parameters. Default is the value in the
             config table.
-        return_data : bool, optional, default True
-            ???
-        new_epics_root : ??? or None, optional, default None
-            ???
         feedback_start_frac : float or None, optional, default None
             The fraction of the full flux ramp at which to stop
             applying feedback in each flux ramp cycle.  Must be in
@@ -2904,16 +2857,10 @@ class SmurfTuneMixin(SmurfBase):
     def set_fixed_flux_ramp_bias(self,fractionFullScale,debug=True,
             do_config=True):
         """
-        ???
-
         Args
         -----
         fractionFullScale : float
             Fraction of full flux ramp scale to output from [-1,1].
-        debug : bool, optional, default True
-            ???
-        do_config : bool, optional, default True
-            ???
         """
 
         # fractionFullScale must be between [0,1]
@@ -2984,8 +2931,6 @@ class SmurfTuneMixin(SmurfBase):
         fraction_full_scale : float
             The amplitude of the flux ramp as a fraction of the
             maximum possible value.
-        df_range : float, optional, default 0.1
-            ???
         band : int, optional, default 2
             The band to setup the flux ramp on.
         write_log : bool, optional, default False
