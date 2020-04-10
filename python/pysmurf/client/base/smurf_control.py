@@ -137,7 +137,6 @@ class SmurfControl(SmurfCommandMixin,
                 smurf_cmd_mode=smurf_cmd_mode, no_dir=no_dir,
                 **kwargs)
 
-
     def initialize(self, data_dir=None, name=None,
                    make_logfile=True, setup=False,
                    smurf_cmd_mode=False, no_dir=False, publish=False,
@@ -329,8 +328,8 @@ class SmurfControl(SmurfCommandMixin,
         for i, k in enumerate(bm_keys):
             self.bad_mask[i] = bm_config[k]
 
-        # Which MicrowaveMuxCore[#] blocks are being used?
-        self.bays = None
+        # Which bays were enabled on pysmurf server startup?
+        self.bays = self.which_bays()
 
         # Dictionary for frequency response
         self.freq_resp = {}
@@ -407,10 +406,6 @@ class SmurfControl(SmurfCommandMixin,
         smurf_init_config = self.config.get('init')
         bands = smurf_init_config['bands']
 
-        # determine which bays to configure from the
-        # bands requested and the band-to-bay
-        # correspondence
-        self.bays = np.unique([self.band_to_bay(band) for band in bands])
         # Right now, resetting both DACs in both MicrowaveMuxCore blocks,
         # but may want to determine at runtime which are actually needed and
         # only reset the DAC in those.
