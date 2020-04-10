@@ -26,7 +26,8 @@ make html
 ```
 
 Output will be located in `_build/html`. You can view the compiled
-documentation by opening `_build/html/index.html` in the browser of your
-choice.
+documentation by opening `_build/html/index.html` in the browser of your choice.
+
+The documentation is also updated to readthedocs here: https://pysmurf.readthedocs.io/en/master/
 
 [1]: https://sphinxcontrib-napoleon.readthedocs.io/en/latest/example_google.html
