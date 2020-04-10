@@ -28,11 +28,13 @@ class SmurfCommandMixin(SmurfBase):
 
     _global_poll_enable = ':AMCc:enable'
 
-    def _caput(self, cmd, val, write_log=False, execute=True, wait_before=None,
-            wait_after=None, wait_done=True, log_level=0, enable_poll=False,
-            disable_poll=False, new_epics_root=None):
-        """
-        Wrapper around pyrogue lcaput. Puts variables into epics
+    def _caput(self, cmd, val, write_log=False, execute=True,
+            wait_before=None, wait_after=None, wait_done=True,
+            log_level=0, enable_poll=False, disable_poll=False,
+            new_epics_root=None, **kwargs):
+        r"""Puts variables into epics.
+
+        Wrapper around pyrogue lcaput. Puts variables into epics.
 
         Args
         ----
@@ -60,6 +62,9 @@ class SmurfCommandMixin(SmurfBase):
             Disables requests of all PVs after issueing command.
         new_epics_root : str, optional, default None
             Temporarily replaces current epics root with a new one.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `epics.caput` call.
         """
         if new_epics_root is not None:
             self.log('Temporarily using new epics root: {}'.format(new_epics_root))
@@ -83,7 +88,7 @@ class SmurfCommandMixin(SmurfBase):
             self.log(log_str, log_level)
 
         if execute and not self.offline:
-            epics.caput(cmd, val, wait=wait_done)
+            epics.caput(cmd, val, wait=wait_done, **kwargs)
 
         if wait_after is not None:
             if write_log:
@@ -103,9 +108,10 @@ class SmurfCommandMixin(SmurfBase):
 
     def _caget(self, cmd, write_log=False, execute=True, count=None,
                log_level=0, enable_poll=False, disable_poll=False,
-               new_epics_root=None, yml=None):
-        """
-        Wrapper around pyrogue lcaget. Gets variables from epics
+               new_epics_root=None, yml=None, **kwargs):
+        r"""Gets variables from epics.
+
+        Wrapper around pyrogue lcaget. Gets variables from epics.
 
         Args
         ----
@@ -127,6 +133,9 @@ class SmurfCommandMixin(SmurfBase):
             Temporarily replaces current epics root with a new one.
         yml : str or None, optional, default None
             If not None, yaml file to parse for the result.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `epics.caget` call.
 
         Returns
         -------
@@ -152,7 +161,7 @@ class SmurfCommandMixin(SmurfBase):
             return tools.yaml_parse(yml, cmd)
 
         elif execute and not self.offline:
-            ret = epics.caget(cmd, count=count)
+            ret = epics.caget(cmd, count=count, **kwargs)
             if write_log:
                 self.log(ret)
         else:
@@ -171,19 +180,22 @@ class SmurfCommandMixin(SmurfBase):
 
     _rogue_version = 'RogueVersion'
 
-    def get_rogue_version(self, as_str=True, **kwargs):
-        """Get rogue version
+    def get_rogue_version(self, **kwargs):
+        r"""Get rogue version
+
+        Args
+        ----
+        \**kwargs
+            Arbitrary keyword arguments.  Passed to directly to the
+            `_caget` call.
 
         Returns
         -------
-        ret : str
+        str
             The rogue version
         """
-        ret = self._caget(self.amcc + self._rogue_version,
-                          **kwargs)
-        if as_str:
-            ret = tools.utf8_to_str(ret)
-        return ret
+        return self._caget(self.amcc + self._rogue_version,
+                           as_string=True, **kwargs)
 
     def get_enable(self, **kwargs):
         """
@@ -588,21 +600,27 @@ class SmurfCommandMixin(SmurfBase):
     _tone_file_path = 'CsvFilePath'
 
     def get_tone_file_path(self, bay, **kwargs):
-        """
-        Returns the tone file path that's currently being used for this bay.
+        r"""Get tone file path.
+
+        Returns the tone file path that's currently being used for
+        this bay.
 
         Args
         ----
         bay : int
             Which AMC bay (0 or 1).
+        \**kwargs
+            Arbitrary keyword arguments.  Passed to directly to the
+            `_caget` call.
+
+        Returns
+        -------
+        str
+            Full path to tone file.
         """
 
-        ret=self._caget(self.dac_sig_gen.format(bay) + self._tone_file_path,**kwargs)
-        # convert to human-readable string
-        ret=''.join([str(s, encoding='UTF-8') for s in ret])
-        # strip \x00 - not sure why I have to do this
-        ret=ret.strip('\x00')
-        return ret
+        return self._caget(self.dac_sig_gen.format(bay) +
+                           self._tone_file_path, as_string=True, **kwargs)
 
     def set_tone_file_path(self, bay, val, **kwargs):
         """
@@ -2086,38 +2104,61 @@ class SmurfCommandMixin(SmurfBase):
     _fpga_git_hash = 'GitHash'
 
     def get_fpga_git_hash(self, **kwargs):
-        """
+        r"""Get the full FPGA firmware SHA-1 git hash.
+
+        Args
+        ----
+        \**kwargs
+            Arbitrary keyword arguments.  Passed to directly to the
+            `_caget` call.
+
         Returns
         -------
-        git_hash : str
-            The git hash of the FPGA.
+        str
+            The full git SHA-1 hash of the FPGA firmware.
         """
-        gitHash=self._caget(self.axi_version + self._fpga_git_hash, **kwargs)
-        return ''.join([str(s, encoding='UTF-8') for s in gitHash])
+        return self._caget(self.axi_version + self._fpga_git_hash,
+                           as_string=True, **kwargs)
 
     _fpga_git_hash_short = 'GitHashShort'
 
     def get_fpga_git_hash_short(self, **kwargs):
-        """
+        r"""Get the short FPGA firmware SHA-1 git hash.
+
+        Args
+        ----
+        \**kwargs
+            Arbitrary keyword arguments.  Passed to directly to the
+            `_caget` call.
+
         Returns
         -------
-        git_hash_short : str
-            The short git hash of the FPGA.
+        str
+            The short git SHA-1 hash of the FPGA firmware.
         """
-        gitHashShort=self._caget(self.axi_version + self._fpga_git_hash_short, **kwargs)
-        return ''.join([str(s, encoding='UTF-8') for s in gitHashShort])
+        return self._caget(self.axi_version +
+                           self._fpga_git_hash_short, as_string=True,
+                           **kwargs)
 
 
     _fpga_build_stamp = 'BuildStamp'
 
     def get_fpga_build_stamp(self, **kwargs):
-        """
+        r"""Get the FPGA build stamp.
+
+        Args
+        ----
+        \**kwargs
+            Arbitrary keyword arguments.  Passed to directly to the
+            `_caget` call.
+
         Returns
         -------
-        build_stamp : str
+        str
             The FPGA build stamp.
         """
-        return self._caget(self.axi_version + self._fpga_build_stamp, **kwargs)
+        return self._caget(self.axi_version + self._fpga_build_stamp,
+                           as_string=True, **kwargs)
 
     _input_mux_sel = 'InputMuxSel[{}]'
 
@@ -2321,25 +2362,23 @@ class SmurfCommandMixin(SmurfBase):
             datafile_path, **kwargs)
 
     def get_streamdatawriter_datafile(self, as_str=True, **kwargs):
-        """
-        Gets the output path for the StreamDataWriter. This is what is
-        used for take_debug_data.
+        r"""Gets output path for the StreamDataWriter.
+
+        This is what is used for take_debug_data.
 
         Args
         ----
-        as_str : bool, optional, default True
-            Whether to return the data as a string.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed to directly to the
+            `_caget` call.
 
         Returns
         -------
-        ret : str
+        str
             The full path for the output.
         """
-        ret=self._caget(self.stream_data_writer_root +
-                        self._data_file, **kwargs)
-        if as_str:
-            ret=tools.utf8_to_str(ret)
-        return ret
+        return self._caget(self.stream_data_writer_root +
+                           self._data_file, as_string=True, **kwargs)
 
     _datawriter_open = 'Open'
 
