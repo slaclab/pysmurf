@@ -32,9 +32,14 @@ jobs:
     ## Flake8 checks
     - stage: checks
       name: "Flake8 Checks"
+      install:
+        - pip3 install flake8-rst-docstrings
       script:
         # Run Flake8
-        - flake8 --count python/
+        - flake8 \
+            --rst-roles class,func,ref \
+            --rst-directives envvar,exception \
+            --count python/
 
     # Test stages
     ## Documentation automatic build tests
