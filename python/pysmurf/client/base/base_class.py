@@ -79,15 +79,16 @@ class SmurfBase:
             self.log('Offline mode')
 
 
-        # Setting paths for easier commands - Is there a better way to do this
-        # than just hardcoding paths? This needs to be cleaned up somehow
+        # Setting paths for easier commands - Is there a better way to
+        # do this than just hardcoding paths? This needs to be cleaned
+        # up somehow
 
         self.epics_root = epics_root
 
         self.amcc = self.epics_root + ':AMCc:'
 
         self.smurf_application = self.amcc + 'SmurfApplication:'
-        
+
         self.smurf_processor = self.amcc + 'SmurfProcessor:'
         self.channel_mapper = self.smurf_processor + 'ChannelMapper:'
         self.frame_rx_stats = self.smurf_processor + 'FrameRxStats:'

@@ -236,7 +236,7 @@ class SmurfControl(SmurfCommandMixin,
                 self.log.set_logfile(None)
 
         # Which bays were enabled on pysmurf server startup?
-        self.bays = self.which_bays()                
+        self.bays = self.which_bays()
 
         # Crate/carrier configuration details that won't change.
         self.crate_id=self.get_crate_id()
@@ -352,7 +352,7 @@ class SmurfControl(SmurfCommandMixin,
 
         # Compare usable bands to bands defined in pysmurf
         # configuration file.
-        
+
         # Check if an unusable band is defined in the pysmurf cfg
         # file.
         for band in bands:
