@@ -137,7 +137,6 @@ class SmurfControl(SmurfCommandMixin,
                 smurf_cmd_mode=smurf_cmd_mode, no_dir=no_dir,
                 **kwargs)
 
-
     def initialize(self, data_dir=None, name=None,
                    make_logfile=True, setup=False,
                    smurf_cmd_mode=False, no_dir=False, publish=False,
@@ -236,6 +235,9 @@ class SmurfControl(SmurfCommandMixin,
             else:
                 self.log.set_logfile(None)
 
+        # Which bays were enabled on pysmurf server startup?
+        self.bays = self.which_bays()
+
         # Crate/carrier configuration details that won't change.
         self.crate_id=self.get_crate_id()
         self.slot_number=self.get_slot_number()
@@ -329,17 +331,44 @@ class SmurfControl(SmurfCommandMixin,
         for i, k in enumerate(bm_keys):
             self.bad_mask[i] = bm_config[k]
 
-        # Which MicrowaveMuxCore[#] blocks are being used?
-        self.bays = None
-
         # Dictionary for frequency response
         self.freq_resp = {}
         self.lms_freq_hz = {}
         self.fraction_full_scale = self.config.get('tune_band').get('fraction_full_scale')
         self.reset_rate_khz = self.config.get('tune_band').get('reset_rate_khz')
 
+        # Which bands are present in the pysmurf configuration file?
         smurf_init_config = self.config.get('init')
         bands = smurf_init_config['bands']
+
+        # Which bands are usable, based on which bays are enabled.
+        # Will use to check if pysmurf configuration file has unusable
+        # bands defined, or no definition for usable bands.
+        usable_bands=[]
+        for bay in self.bays:
+            # There are four bands per bay.  Bay 0 provides bands 0,
+            # 1, 2, and 3, and bay 1 provides bands 4, 5, 6 and 7.
+            usable_bands+=range(bay*4,4*(bay+1))
+
+        # Compare usable bands to bands defined in pysmurf
+        # configuration file.
+
+        # Check if an unusable band is defined in the pysmurf cfg
+        # file.
+        for band in bands:
+            if band not in usable_bands:
+                self.log(f'ERROR : band {band} is present in ' +
+                         'pysmurf cfg file, but its bay is not ' +
+                         'enabled!', self.LOG_ERROR)
+
+        # Check if a usable band is not defined in the pysmurf cfg
+        # file.
+        for band in usable_bands:
+            if band not in bands:
+                self.log(f'WARNING : band {band} bay is enabled, ' +
+                         'but no configuration information ' +
+                         'provided!', self.LOG_ERROR)
+
         # Load in tuning parameters, if present
         tune_band_cfg = self.config.get('tune_band')
         tune_band_keys = tune_band_cfg.keys()
@@ -407,10 +436,6 @@ class SmurfControl(SmurfCommandMixin,
         smurf_init_config = self.config.get('init')
         bands = smurf_init_config['bands']
 
-        # determine which bays to configure from the
-        # bands requested and the band-to-bay
-        # correspondence
-        self.bays = np.unique([self.band_to_bay(band) for band in bands])
         # Right now, resetting both DACs in both MicrowaveMuxCore blocks,
         # but may want to determine at runtime which are actually needed and
         # only reset the DAC in those.

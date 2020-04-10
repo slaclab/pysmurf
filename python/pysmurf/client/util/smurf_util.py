@@ -2075,9 +2075,46 @@ class SmurfUtilMixin(SmurfBase):
 
         return ret
 
-    def which_bands(self):
+    def which_bays(self):
+        r"""Which carrier AMC bays are enabled.
+
+        Returns which AMC bays were enabled on pysmurf server startup.
+        Each SMuRF carrier has two AMC bays, indexed by an integer,
+        either 0 or 1.  If looking at an installed carrier from the
+        front of a crate, bay 0 is on the right and bay 1 is on the
+        left.
+
+        A bay is enabled if the `--disable-bay#` argument is not
+        provided as a startup argument to the pysmurf server where #
+        is the bay number, either 0 or 1.  The pysmurf server startup
+        arguments are returned by the
+        :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.get_smurf_startup_args`
+        routine.
+
+        Returns
+        -------
+        bays : list of int
+            Which bays were enabled on pysmurf server startup.
         """
-        Encodes which bands the fw being used was built for.
+        # What arguments were passed to the pysmurf server on startup?
+        smurf_startup_args=self.get_smurf_startup_args()
+
+        # Bays are enabled unless --disable-bay{bay} is provided to
+        # the pysmurf server on startup.
+        bays=[]
+        for bay in [0,1]:
+            if f'--disable-bay{bay}' not in smurf_startup_args:
+                bays.append(bay)
+
+        return bays
+
+    def which_bands(self):
+        """Which bands the carrier firmware was built for.
+
+        Returns
+        -------
+        bands : list of int
+            Which bands the carrier firmware was built for.
         """
         build_dsp_g=self.get_build_dsp_g()
         bands=[b for b,x in enumerate(bin(build_dsp_g)[2:]) if x=='1']
