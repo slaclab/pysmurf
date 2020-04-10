@@ -217,8 +217,8 @@ def yaml_parse(yml, cmd):
 
 def utf8_to_str(d):
     """
-    Many of the rogue variables are returned as UTF8 formatted
-    int arrays. This function changes them from UTF8 to a
+    Many of the rogue variables are returned as UTF8 formatted byte
+    arrays by default. This function changes them from UTF8 to a
     string
 
     Args
