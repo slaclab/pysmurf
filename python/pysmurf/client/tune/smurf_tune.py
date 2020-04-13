@@ -133,10 +133,10 @@ class SmurfTuneMixin(SmurfBase):
         ----
         band : int
             The band to tune.
-        freq : float array or None, optional, default None
+        freq : float or None, optional, default None
             The frequency information. If both freq and resp are not
             None, it will skip full_band_resp.
-        resp : float array or None, optional, default None
+        resp : float or None, optional, default None
             The response information. If both freq and resp are not
             None, it will skip full_band_resp.
         n_samples : int, optional, default 2**19
@@ -146,7 +146,7 @@ class SmurfTuneMixin(SmurfBase):
             tune quickly, set to False.
         show_plot : bool, optional, default False
             Whether to display the plots to screen.
-        plot_chans : list, optional, default []
+        plot_chans : list or None, optional, default None
             If making plots, which channels to plot. If empty, will
             just plot all of them.
         save_plot : bool, optional, default True
@@ -162,7 +162,7 @@ class SmurfTuneMixin(SmurfBase):
         subband_plot_with_slow : bool, optional, default False
             Whether to make a subband plot with a slow tuning file. This
             uses the output of an individual eta_scan.
-        drive : int, optional, default None
+        drive : int or None, optional, default None
             The tone power to run find_freq and setup_notches.
         grad_cut : float, optional, default 0.05
             The value of the gradient of phase to look for resonances.
@@ -458,7 +458,7 @@ class SmurfTuneMixin(SmurfBase):
             Which channels to plot.  If None, plots all available
             channels.
         plot_summary : bool, optional, default True
-            Plot summary.
+            Whether to make a summary plot
         plotname_append : str, optional, default ''
             Appended to the default plot filename.
         """
@@ -2919,8 +2919,8 @@ class SmurfTuneMixin(SmurfBase):
         if fractionFullScale < 0:
             LTC1668RawDacData = 2**self._num_flux_ramp_dac_bits-LTC1668RawDacData-1
         if debug:
-            self.log("Setting flux ramp to {}".format(100 * fractionFullScale,
-                     int(LTC1668RawDacData)) + "% of full scale (LTC1668RawDacData={})",
+            self.log(f"Setting flux ramp to {100 * fractionFullScale}" +
+                f"% of full scale (LTC1668RawDacData={int(LTC1668RawDacData)})",
                      self.LOG_USER)
         self.set_flux_ramp_dac(LTC1668RawDacData)
 
@@ -3043,7 +3043,6 @@ class SmurfTuneMixin(SmurfBase):
             write_log=write_log)
         self.set_ramp_rate(reset_rate_khz, new_epics_root=new_epics_root,
             write_log=write_log)
-
 
 
     def get_fraction_full_scale(self, new_epics_root=None):
