@@ -862,8 +862,10 @@ class SmurfUtilMixin(SmurfBase):
 
             # Save mask file as text file. Eventually this will be in the
             # raw data output
-            np.savetxt(os.path.join(data_filename.replace('.dat', '_mask.txt')),
-                output_mask, fmt='%i')
+            mask_fname = os.path.join(data_filename.replace('.dat', '_mask.txt'))
+            np.savetxt(mask_fname, output_mask, fmt='%i')
+            self.pub.register_file(mask_fname, 'mask')
+            self.log(mask_fname)
 
             if make_freq_mask:
                 if write_log:
@@ -3323,7 +3325,6 @@ class SmurfUtilMixin(SmurfBase):
             self.log('Generating gcp mask file. {} channels added'.format(len(gcp_chans)))
 
             np.savetxt(self.smurf_to_mce_mask_file, gcp_chans, fmt='%i')
-            self.pub.register_file(self.smurf_to_mce_mask_file, 'mask', format='txt')
 
         if read_gcp_mask:
             self.read_smurf_to_gcp_config()
