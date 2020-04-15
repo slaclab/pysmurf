@@ -24,7 +24,7 @@ def set_action(action=None):
         provides a way to group all outputs/plots from a single function call
         together. This decorator is to handle nested function calls, so even
         if the `tune` function calls `find_freq`, all output will be grouped
-        in a single directory `<action_ts>_tune.
+        in a single directory `<action_ts>_tune`.
     """
     def dec(func):
 
@@ -202,8 +202,6 @@ class Publisher:
         """
         if timestamp is None:
             timestamp = time.time()
-
-        print("Registering File {}".format(path))
 
         file_data = {
             'path': path,
