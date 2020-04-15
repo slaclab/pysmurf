@@ -21,6 +21,7 @@ import os
 from scipy import signal
 import glob
 import matplotlib.pyplot as plt
+from contextlib import contextmanager
 # for hardware logging
 import threading
 from pysmurf.client.util.SmurfFileReader import SmurfStreamReader
@@ -732,6 +733,53 @@ class SmurfUtilMixin(SmurfBase):
         else:
             return data_filename
 
+    @contextmanager
+    def stream_data_cm(self, write_log=True, register_file=False,
+                       **stream_on_kwargs):
+        """
+        Context manager for data streaming. If you intend to turn streaming
+        on, do something, and then turn streaming off this is a safe way to make
+        sure streaming is in fact stopped properly even if an error is raised.
+
+        Args
+        ----
+        write_config : bool, optional, default False
+            Whether to dump the entire config. Warning this can be
+            slow.
+        data_filename : str or None, optional, default None
+            The full path to store the data. If None, it uses the
+            timestamp.
+        downsample_factor : int or None, optional, default None
+            The number of fast samples to skip between sending.
+        write_log : bool, optional, default True
+            Whether to write to the log file.
+        update_payload_size : bool, optional, default True
+            Whether to update the payload size (the number of channels
+            written to disk). If the number of channels on is greater
+            than the payload size, then only the first N channels are
+            written. This bool will update the payload size to be the
+            same as the number of channels on across all bands)
+        reset_filter : bool, optional, default True
+            Whether to reset the filter before taking data.
+        reset_unwrapper : bool, optional, default True
+            Whether to reset the unwrapper before taking data.
+        make_freq_mask : bool, optional, default True
+            Whether to write a text file with resonator frequencies.
+        register_file : bool, optional, default False
+            If true, the stream data file will be registered through
+            the publisher.
+
+        Yields
+        -------
+        data_filename : str
+            The fullpath to where the data is stored.
+        """
+        data_filename = self.stream_data_on(write_log=write_log, **stream_on_kwargs)
+        try:
+            yield data_filename
+        finally:
+            self.stream_data_off(write_log=write_log,
+                                 register_file=register_file)
 
     def stream_data_on(self, write_config=False, data_filename=None,
                        downsample_factor=None, write_log=True,
