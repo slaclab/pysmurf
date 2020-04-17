@@ -114,7 +114,11 @@ class SmurfUtilMixin(SmurfBase):
         while not done:
             done=True
             for k in range(2):
-                wr_addr = self.get_waveform_wr_addr(bay, engine=0)
+                # see pysmurf issue 161.  This call is no longer used,
+                # and causes take_debug_data to crash if
+                # get_waveform_wr_addr is called before the
+                # acquisition completes.
+                #wr_addr = self.get_waveform_wr_addr(bay, engine=0)
                 empty = self.get_waveform_empty(bay, engine=k)
                 if not empty:
                     done=False
@@ -1109,23 +1113,28 @@ class SmurfUtilMixin(SmurfBase):
             import scipy.signal as signal
             digitizer_frequency_mhz = self.get_digitizer_frequency_mhz()
             f, p_adc = signal.welch(dat, fs=digitizer_frequency_mhz, nperseg=data_length/2, return_onesided=False,detrend=False)
-            f_plot = f / 1.0E6
+            f_plot = f
 
             idx = np.argsort(f)
             f_plot = f_plot[idx]
             p_adc = p_adc[idx]
 
-            fig = plt.figure(figsize=(9,4.5))
-            ax=plt.gca()
+            fig = plt.figure(figsize=(9,9))
+            ax1 = plt.subplot(2,1,1)
+            ax1.plot(np.real(dat))
+            ax1.plot(np.imag(dat))
+            ax1.set_xlabel('Sample number')
+            ax1.set_ylabel('Raw counts')
+            ax1.set_title(timestamp)
+            ax2=plt.subplot(2,1,2)
             if plot_ylimits[0] is not None:
                 plt.ylim(plot_ylimits[0],plt.ylim()[1])
             if plot_ylimits[1] is not None:
                 plt.ylim(plt.ylim()[0],plot_ylimits[1])
-            ax.set_ylabel('ADC{}'.format(band))
-            ax.set_xlabel('Frequency [MHz]')
-            ax.set_title(timestamp)
-            ax.semilogy(f_plot, p_adc)
-            plt.grid()
+            ax2.set_ylabel('ADC {} PSD [dB/Hz]'.format(band))
+            ax2.set_xlabel('Frequency [MHz]')
+            ax2.plot(f_plot, 10*np.log10(p_adc))
+            plt.grid(which='both')
 
             if save_plot:
                 plot_fn = '{}/{}_adc{}.png'.format(self.plot_dir,timestamp,band)
@@ -1196,23 +1205,28 @@ class SmurfUtilMixin(SmurfBase):
             digitizer_frequency_mhz = self.get_digitizer_frequency_mhz()
             f, p_dac = signal.welch(dat, fs=digitizer_frequency_mhz, 
                 nperseg=data_length/2, return_onesided=False, detrend=False)
-            f_plot = f / 1.0E6
+            f_plot = f
 
             idx = np.argsort(f)
             f_plot = f_plot[idx]
             p_dac = p_dac[idx]
 
-            fig = plt.figure(figsize=(9,4.5))
-            ax=plt.gca()
+            fig = plt.figure(figsize=(9,9))
+            ax1 = plt.subplot(2,1,1)
+            ax1.plot(np.real(dat))
+            ax1.plot(np.imag(dat))
+            ax1.set_xlabel('Sample number')
+            ax1.set_ylabel('Raw counts')
+            ax1.set_title(timestamp)
+            ax2 = plt.subplot(2,1,2)
             if plot_ylimits[0] is not None:
                 plt.ylim(plot_ylimits[0],plt.ylim()[1])
             if plot_ylimits[1] is not None:
                 plt.ylim(plt.ylim()[0],plot_ylimits[1])
-            ax.set_ylabel('DAC{}'.format(band))
-            ax.set_xlabel('Frequency [MHz]')
-            ax.set_title(timestamp)
-            ax.semilogy(f_plot, p_dac)
-            plt.grid()
+            ax2.set_ylabel('DAC {} PSD [dB/Hz]'.format(band))
+            ax2.set_xlabel('Frequency [MHz]')
+            ax2.plot(f_plot, 10*np.log10(p_dac))
+            plt.grid(which='both')
 
             if save_plot:
                 plot_fn = '{}/{}_dac{}.png'.format(self.plot_dir,timestamp,band)
