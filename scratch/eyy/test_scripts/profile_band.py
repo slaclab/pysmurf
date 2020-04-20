@@ -177,6 +177,10 @@ def run(band, epics_root, config_file, shelf_manager, setup, no_band_off=False,
 
     print("All outputs going to: ")
     print(S.output_dir)
+    if no_find_freq:
+        print("Skipping find_freq")
+    if no_setup_notches:
+        print("Skipping setup_notches")
 
     def execute(status_dict, func, label, save_dict=True):
         """ Convenienec function used to run and time any arbitrary pysmurf
@@ -366,9 +370,12 @@ if __name__ == "__main__":
 
     if args.loopback:
         print("---=== LOOPBACK MODE ===---")
-        print("Overriding some inputs")
+        print("Overriding the following inputs:")
+        # Without resonators, no need to look for resonators (duh...)
         parser.no_find_freq = True
         parser.no_setup_notches = True
+        print("   no_find_freq = True" + "\n" + "   no_setup_notches = True")
+
 
     # Run the generator script
     run(args.band, args.epics_root, args.config_file, args.shelf_manager,
