@@ -153,13 +153,52 @@ class SmurfUtilMixin(SmurfBase):
         import sys
         subprocess.Popen([sys.executable,JesdWatchdog.__file__])
 
-    # Shawn needs to make this better and add documentation.
+
     @set_action()
     def estimate_phase_delay(self, band, n_samples=2**19, make_plot=True,
-            show_plot=True, save_plot=True, save_data=True, n_scan=5,
+            show_plot=False, save_plot=True, save_data_full_band_resp=True,
+            n_scan=5,
             timestamp=None, uc_att=24, dc_att=0, freq_min=-2.5E8, freq_max=2.5E8,
-            return_delays=False, save_delays=False):
-        """
+            return_delays=False, save_delays=True):
+        """ Shawn needs to make this better and add documentation. This
+        either uses full_band_resp or find_freq to send in power at different
+        microwave frequencies. It the response to estimate the phase delay of
+        the system.
+
+        Args
+        ----
+        band : int
+            The 500 MHz band to measure the phase delay
+        n_samples : int, optional, default 2**19
+            The number of samples to take if using full_band_resp.
+        make_plot : bool, optional, default True
+            Whether to make the plot
+        show_plot : bool, optional, default False
+            Whether to show the plot.
+        save_plot : bool, optional, default True
+            Whether to save the plot. Saves the plot to self.plot_dir
+        save_data_full_band_resp : bool, optional, default True
+            Whether to save the full_band_resp data. Default True.
+        n_scan : int, optional, default 5
+            The number of noise scans to play in full_band_resp.
+        timestamp : int or None, optional, default None
+            The timestamp to tag the data with. If None, timestamp is the
+            current time.
+        uc_att : int, optional, default 24
+            The upconverter (RF output) side attenuator
+        dc_att : int, optional, default 0
+            The downconverter (RF input) side attenuator. Each unit is .5 dB
+            step.
+        freq_min : float, optional, default -2.5E8
+            The minimum frequency to be used for estimating phase delays in
+            units of Hz.
+        freq_max : float, optional, default 2.5E8
+            The maximum frequency to be used for estimating phase delays in
+            units of Hz.
+        return_delays : bool, optional, default False
+            Whether to return the delays to the user.
+        save_delays : bool, option, default True
+            Whether to save the delays to disk. Saves to self.output_dir
         """
 
         # For some reason, pyrogue flips out if you try to set refPhaseDelay
@@ -197,11 +236,13 @@ class SmurfUtilMixin(SmurfBase):
             timestamp = self.get_timestamp()
 
         if make_plot:
+            # Turn off interactive plotting
             if show_plot:
                 plt.ion()
             else:
                 plt.ioff()
 
+        # FIXME - remove hardcoded paths
         load_full_band_resp=False
         fbr_path='/data/smurf_data/20190702/1562052474/outputs'
         fbr_ctime=1562052477
@@ -216,13 +257,14 @@ class SmurfUtilMixin(SmurfBase):
 
         bay=int(band/4)
 
-        fw_abbrev_sha=self.get_fpga_git_hash_short()
+        # FPGA git hash for reference - used in plot
+        fw_abbrev_sha = self.get_fpga_git_hash_short()
 
         self.band_off(band)
         self.flux_ramp_off()
 
-        freq_cable=None
-        resp_cable=None
+        freq_cable = None
+        resp_cable = None
         if load_full_band_resp:
             self.log('Loading full band resp data')
             fbr_freq_file = os.path.join(fbr_path,
@@ -239,8 +281,8 @@ class SmurfUtilMixin(SmurfBase):
         else:
             self.log('Running full band resp')
             freq_cable, resp_cable = self.full_band_resp(band,
-                n_samples=n_samples, make_plot=make_plot, save_data=save_data,
-                n_scan=n_scan)
+                n_samples=n_samples, make_plot=make_plot,
+                save_data=save_data_full_band_resp, n_scan=n_scan)
 
         idx_cable = np.where( (freq_cable > freq_min) & (freq_cable < freq_max) )
 
@@ -273,7 +315,7 @@ class SmurfUtilMixin(SmurfBase):
             freq_dsp=np.loadtxt(ff_freq_file)
             resp_dsp=np.loadtxt(ff_resp_file, dtype='complex')
         else:
-            self.log('Running find_freq')
+            self.log('Running find_freq in estimate_phase delay')
             freq_dsp,resp_dsp=self.find_freq(band,subband=dsp_subbands)
             ## not really faster if reduce n_step or n_read...somehow.
             #freq_dsp,resp_dsp=self.full_band_ampl_sweep(band,
@@ -319,11 +361,11 @@ class SmurfUtilMixin(SmurfBase):
             (refPhaseDelay - dsp_delay_us*(subband_half_width_mhz/2.)))))
         processing_delay_us = dsp_delay_us-cable_delay_us
 
-        print('-------------------------------------------------------')
-        print('Estimated refPhaseDelay={}'.format(refPhaseDelay))
-        print('Estimated refPhaseDelayFine={}'.format(refPhaseDelayFine))
-        print('Estimated processing_delay_us={}'.format(processing_delay_us))
-        print('-------------------------------------------------------')
+        self.log('-------------------------------------------------------')
+        self.log('Estimated refPhaseDelay={}'.format(refPhaseDelay))
+        self.log('Estimated refPhaseDelayFine={}'.format(refPhaseDelayFine))
+        self.log('Estimated processing_delay_us={}'.format(processing_delay_us))
+        self.log('-------------------------------------------------------')
 
         #### done measuring dsp delay (cable+processing)
 
@@ -346,31 +388,34 @@ class SmurfUtilMixin(SmurfBase):
             resp_dsp_corr=np.loadtxt(ff_corr_resp_file,dtype='complex')
         else:
             self.log('Running find_freq')
-            freq_dsp_corr,resp_dsp_corr=self.find_freq(band,dsp_subbands)
+            freq_dsp_corr, resp_dsp_corr = self.find_freq(band, dsp_subbands)
 
         freq_dsp_corr_subset=[]
         resp_dsp_corr_subset=[]
         for sb,sbc in zip(subbands,subband_centers):
             freq_subband=freq_dsp_corr[sb]-sbc
-            idx = np.where( ( freq_subband > subband_freq_min ) & (freq_subband < subband_freq_max) )
+            idx = np.where(( freq_subband > subband_freq_min ) &
+                (freq_subband < subband_freq_max))
             freq_dsp_corr_subset.extend(freq_dsp_corr[sb][idx])
             resp_dsp_corr_subset.extend(resp_dsp_corr[sb][idx])
 
-        freq_dsp_corr_subset=np.array(freq_dsp_corr_subset)
-        resp_dsp_corr_subset=np.array(resp_dsp_corr_subset)
+        freq_dsp_corr_subset = np.array(freq_dsp_corr_subset)
+        resp_dsp_corr_subset = np.array(resp_dsp_corr_subset)
 
         # restrict to requested frequency subset
-        idx_dsp_corr = np.where( (freq_dsp_corr_subset > freq_min) & (freq_dsp_corr_subset < freq_max) )
+        idx_dsp_corr = np.where((freq_dsp_corr_subset > freq_min) &
+            (freq_dsp_corr_subset < freq_max))
 
         # restrict to requested frequencies only
-        freq_dsp_corr_subset=freq_dsp_corr_subset[idx_dsp_corr]
-        resp_dsp_corr_subset=resp_dsp_corr_subset[idx_dsp_corr]
+        freq_dsp_corr_subset = freq_dsp_corr_subset[idx_dsp_corr]
+        resp_dsp_corr_subset = resp_dsp_corr_subset[idx_dsp_corr]
 
         # to Hz
         freq_dsp_corr_subset=(freq_dsp_corr_subset)*1.0E6
 
         # fit
-        dsp_corr_z = np.polyfit(freq_dsp_corr_subset, np.unwrap(np.angle(resp_dsp_corr_subset)), 1)
+        dsp_corr_z = np.polyfit(freq_dsp_corr_subset,
+            np.unwrap(np.angle(resp_dsp_corr_subset)), 1)
         dsp_corr_delay_us=np.abs(1.e6*dsp_corr_z[0]/2/np.pi)
         #### done measuring total (DSP) delay with estimated correction applied
 
@@ -388,8 +433,9 @@ class SmurfUtilMixin(SmurfBase):
             dsp_corr_phase = np.unwrap(np.angle(resp_dsp_corr_subset))
 
             ax[0].set_title('AMC in Bay {}, Band {} Cable Delay'.format(bay,band))
-            ax[0].plot(f_cable_plot,cable_phase,label='Cable (full_band_resp)',
-                c='g', lw=3)
+
+            ax[0].plot(f_cable_plot, cable_phase,
+                label='Cable (full_band_resp)', c='g', lw=3)
             ax[0].plot(f_cable_plot,cable_p(f_cable_plot*1.0E6),'m--',
                 label='Cable delay fit',lw=3)
 
@@ -397,11 +443,9 @@ class SmurfUtilMixin(SmurfBase):
             ax[1].plot(f_dsp_plot,dsp_p(f_dsp_plot*1.0E6), c='orange', ls='--',
                 label='DSP delay fit', lw=3)
 
+            # y labels
             ax[0].set_ylabel("Phase [rad]")
-            ax[0].set_xlabel('Frequency offset from band center [MHz]')
-
             ax[1].set_ylabel("Phase [rad]")
-            ax[1].set_xlabel('Frequency offset from band center [MHz]')
 
             ax[0].legend(loc='lower left',fontsize=8)
             ax[1].legend(loc='lower left',fontsize=8)
@@ -470,7 +514,8 @@ class SmurfUtilMixin(SmurfBase):
         ret['timestamp'] = timestamp
 
         if save_delays:
-            np.save(os.path.join(output_dir, f'{timestamp}_phase_delay'), ret)
+            np.save(os.path.join(self.output_dir, f'{timestamp}_phase_delay'),
+                ret)
 
         if return_delays:
             return ret
