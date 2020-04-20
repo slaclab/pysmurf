@@ -356,7 +356,7 @@ if __name__ == "__main__":
         help="Whether to run threading test")
     parser.add_argument("--no-estimate-phase-delay", default=False,
         action="store_true",
-        "Whether to skip estimate_phase_delay")
+        help="Whether to skip estimate_phase_delay")
     parser.add_argument("--loopback", default=False,
         action="store_true",
         help="Whether to test only loopback")
