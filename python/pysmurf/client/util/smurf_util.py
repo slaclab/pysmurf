@@ -227,7 +227,7 @@ class SmurfUtilMixin(SmurfBase):
             self.log('Loading full band resp data')
             fbr_freq_file = os.path.join(fbr_path,
                 f'{fbr_ctime}_freq_full_band_resp.txt')
-            fbr_real_resp_fil e =os.path.join(fbr_path,
+            fbr_real_resp_file = os.path.join(fbr_path,
                 f'{fbr_ctime}_real_full_band_resp.txt')
             fbr_complex_resp_file = os.path.join(fbr_path,
                 f'{fbr_ctime}_imag_full_band_resp.txt')
