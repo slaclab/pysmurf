@@ -286,7 +286,7 @@ def run(band, epics_root, config_file, shelf_manager, setup, no_band_off=False,
         status = execute(status, lambda: S.which_on(band), 'which_on_after_check')
 
         # Identify bias groups
-        status = execute(status, lambda: S.identify_bias_groups(bias_groups=S._n_bias_group,
+        status = execute(status, lambda: S.identify_bias_groups(bias_groups=S._n_bias_groups,
             make_plot=True, show_plot=False, save_plot=True,
             update_channel_assignment=True), 'identify_bias_groups')
 
