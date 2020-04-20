@@ -372,8 +372,8 @@ if __name__ == "__main__":
         print("---=== LOOPBACK MODE ===---")
         print("Overriding the following inputs:")
         # Without resonators, no need to look for resonators (duh...)
-        parser.no_find_freq = True
-        parser.no_setup_notches = True
+        args.no_find_freq = True
+        args.no_setup_notches = True
         print("   no_find_freq = True" + "\n" + "   no_setup_notches = True")
 
 
