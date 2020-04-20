@@ -158,7 +158,7 @@ class SmurfUtilMixin(SmurfBase):
     def estimate_phase_delay(self, band, n_samples=2**19, make_plot=True,
             show_plot=True, save_plot=True, save_data=True, n_scan=5,
             timestamp=None, uc_att=24, dc_att=0, freq_min=-2.5E8, freq_max=2.5E8,
-            return_delays=False):
+            return_delays=False, save_delays=False):
         """
         """
 
@@ -459,16 +459,20 @@ class SmurfUtilMixin(SmurfBase):
         self.set_att_uc(band,uc_att0,write_log=True)
         self.set_att_dc(band,dc_att0,write_log=True)
 
-        if return_delays:
-            ret = {}
-            ret['cable_delay_us'] = cable_delay_us
-            ret['dsp_delay_us'] = dsp_delay_us
-            ret['refPhaseDelay'] = refPhaseDelay
-            ret['refPhaseDelayFine'] = refPhaseDelayFine
-            ret['processing_delay_us'] = processing_delay_us
-            ret['fw'] = fw_abbrev_sha
-            ret['dsp_corr_delay_us'] = dsp_corr_delay_us
+        ret = {}
+        ret['cable_delay_us'] = cable_delay_us
+        ret['dsp_delay_us'] = dsp_delay_us
+        ret['refPhaseDelay'] = refPhaseDelay
+        ret['refPhaseDelayFine'] = refPhaseDelayFine
+        ret['processing_delay_us'] = processing_delay_us
+        ret['fw'] = fw_abbrev_sha
+        ret['dsp_corr_delay_us'] = dsp_corr_delay_us
+        ret['timestamp'] = timestamp
 
+        if save_delays:
+            np.save(os.path.join(output_dir, f'{timestamp}_phase_delay'), ret)
+
+        if return_delays:
             return ret
 
     def process_data(self, filename, dtype=np.uint32):

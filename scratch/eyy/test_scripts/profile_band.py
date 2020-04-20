@@ -162,7 +162,8 @@ def make_html(data_path):
 
 def run(band, epics_root, config_file, shelf_manager, setup, no_band_off=False,
     no_find_freq=False, subband_low=13, subband_high=115,
-    no_setup_notches=False, reset_rate_khz=4, n_phi0=4, threading_test=False):
+    no_setup_notches=False, reset_rate_khz=4, n_phi0=4, threading_test=False,
+    no_estimate_phase_delay=False):
     """
     """
     # Storage dictionary
@@ -260,47 +261,53 @@ def run(band, epics_root, config_file, shelf_manager, setup, no_band_off=False,
             'plot_tune_summary')
 
     # Actually take a tuning serial gradient descent using tune_band_serial
-    status = execute(status, lambda: S.run_serial_gradient_descent(band),
-        'serial_gradient_descent')
+    if not no_setup_notches or not no_find_freq:
+        status = execute(status, lambda: S.run_serial_gradient_descent(band),
+            'serial_gradient_descent')
 
-    status = execute(status, lambda: S.run_serial_eta_scan(band),
-        'serial_eta_scan')
+        status = execute(status, lambda: S.run_serial_eta_scan(band),
+            'serial_eta_scan')
 
-    # track
-    channel = S.which_on(band)
-    status = execute(status, lambda: S.tracking_setup(band, channel=channel,
-        reset_rate_khz=reset_rate_khz, fraction_full_scale=.5,
-        make_plot=True, show_plot=False, nsamp=2**18, lms_gain=8,
-        lms_freq_hz=None, meas_lms_freq=False, meas_flux_ramp_amp=True,
-        n_phi0=n_phi0, feedback_start_frac=.2, feedback_end_frac=.98),
-        'tracking_setup')
+        # track
+        channel = S.which_on(band)
+        status = execute(status, lambda: S.tracking_setup(band, channel=channel,
+            reset_rate_khz=reset_rate_khz, fraction_full_scale=.5,
+            make_plot=True, show_plot=False, nsamp=2**18, lms_gain=8,
+            lms_freq_hz=None, meas_lms_freq=False, meas_flux_ramp_amp=True,
+            n_phi0=n_phi0, feedback_start_frac=.2, feedback_end_frac=.98),
+            'tracking_setup')
 
-    # See what's on
-    status = execute(status, lambda: S.which_on(band), 'which_on_before_check')
+        # See what's on
+        status = execute(status, lambda: S.which_on(band), 'which_on_before_check')
 
-    # now track and check
-    status = execute(status, lambda: S.check_lock(band), 'check_lock')
+        # now track and check
+        status = execute(status, lambda: S.check_lock(band), 'check_lock')
 
-    status = execute(status, lambda: S.which_on(band), 'which_on_after_check')
+        status = execute(status, lambda: S.which_on(band), 'which_on_after_check')
 
-    # Identify bias groups
-    status = execute(status, lambda: S.identify_bias_groups(bias_groups=np.arange(8),
-        make_plot=True, show_plot=False, save_plot=True, update_channel_assignment=True),
-        'identify_bias_groups')
-
-
-    # Save tuning
-    status = execute(status, lambda: S.save_tune(), 'save_tune')
+        # Identify bias groups
+        status = execute(status, lambda: S.identify_bias_groups(bias_groups=S._n_bias_group,
+            make_plot=True, show_plot=False, save_plot=True,
+            update_channel_assignment=True), 'identify_bias_groups')
 
 
-    # now take data using take_noise_psd and plot stuff
+        # Save tuning
+        status = execute(status, lambda: S.save_tune(), 'save_tune')
 
-    # IV.
-    status = execute(status, lambda: S.slow_iv_all(np.arange(8),
-        overbias_voltage=19.9, bias_high=10, bias_step=.01, wait_time=.1,
-        high_current_mode=False, overbias_wait=.5, cool_wait=60,
-        make_plot=True), 'slow_iv_all')
 
+        # now take data using take_noise_psd and plot stuff
+
+        # IV.
+        status = execute(status, lambda: S.slow_iv_all(np.arange(8),
+            overbias_voltage=19.9, bias_high=10, bias_step=.01, wait_time=.1,
+            high_current_mode=False, overbias_wait=.5, cool_wait=60,
+            make_plot=True), 'slow_iv_all')
+
+
+    if not no_estimate_phase_delay:
+        status = execute(status, lambda: S.estimate_phase_delay(band,
+            save_delays=True),
+            'estimate_phase_delay')
 
     # Make webpage
     html_path = make_html(os.path.split(S.output_dir)[0])
@@ -321,40 +328,47 @@ if __name__ == "__main__":
     # Create argument parser
     parser = argparse.ArgumentParser()
     parser.add_argument("--epics-root", type=str, required=True,
-                        help="The epics root.")
+        help="The epics root.")
     parser.add_argument("--config-file", type=str, required=True,
-                        help="The configuration file to use for this test.")
+        help="The configuration file to use for this test.")
     parser.add_argument("--shelf-manager", type=str, required=True,
-                        help="The shelf manager root.")
-    parser.add_argument("--setup", default=False,
-                        action="store_true",
-                        help="Whether to run setup.")
+        help="The shelf manager root.")
+    parser.add_argument("--setup", default=False, action="store_true",
+        help="Whether to run setup.")
     parser.add_argument("--band", type=int, required=True,
-                        help="The band to run the analysis on.")
-    parser.add_argument("--reset-rate-khz", type=int, required=False,
-                        default=4,
-                        help="The flux ramp reset rate")
+        help="The band to run the analysis on.")
+    parser.add_argument("--reset-rate-khz", type=int, required=False, default=4,
+        help="The flux ramp reset rate")
     parser.add_argument("--n-phi0", type=float, required=False, default=4,
-                        help="The number of phi0 per flux ramp desired.")
-    parser.add_argument("--no-find-freq", default=False,
-                        action="store_true",
-                        help="Skip the find_freq step")
+        help="The number of phi0 per flux ramp desired.")
+    parser.add_argument("--no-find-freq", default=False, action="store_true",
+        help="Skip the find_freq step")
     parser.add_argument("--no-setup-notches", default=False,
-                        action="store_true",
-                        help="Skip the setup_notches")
+        action="store_true",
+        help="Skip the setup_notches")
     parser.add_argument("--subband-low", type=int, required=False,
-                        help="The starting subband for find_freq")
+        help="The starting subband for find_freq")
     parser.add_argument("--subband-high", type=int, required=False,
-                        help="The end subband for find_freq")
-    parser.add_argument("--no-band-off", default=False,
-                        action="store_true",
-                        help="Whether to skip turning off bands")
-    parser.add_argument("--threading-test", default=False,
-                       action="store_true",
-                       help="Whether to run threading test")
+        help="The end subband for find_freq")
+    parser.add_argument("--no-band-off", default=False, action="store_true",
+        help="Whether to skip turning off bands")
+    parser.add_argument("--threading-test", default=False, action="store_true",
+        help="Whether to run threading test")
+    parser.add_argument("--no-estimate-phase-delay", default=False,
+        action="store_true",
+        "Whether to skip estimate_phase_delay")
+    parser.add_argument("--loopback", default=False,
+        action="store_true",
+        help="Whether to test only loopback")
 
     # Parse arguments
     args = parser.parse_args()
+
+    if args.loopback:
+        print("---=== LOOPBACK MODE ===---")
+        print("Overriding some inputs")
+        parser.no_find_freq = True
+        parser.no_setup_notches = True
 
     # Run the generator script
     run(args.band, args.epics_root, args.config_file, args.shelf_manager,
@@ -362,4 +376,5 @@ if __name__ == "__main__":
         subband_low=args.subband_low, subband_high=args.subband_high,
         no_setup_notches=args.no_setup_notches,
         reset_rate_khz=args.reset_rate_khz, n_phi0=args.n_phi0,
+        no_estimate_phase_delay=args.no_estimate_phase_delay,
         threading_test=args.threading_test)
