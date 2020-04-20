@@ -157,13 +157,16 @@ class SmurfUtilMixin(SmurfBase):
     @set_action()
     def estimate_phase_delay(self, band, n_samples=2**19, make_plot=True,
             show_plot=True, save_plot=True, save_data=True, n_scan=5,
-            timestamp=None, uc_att=24, dc_att=0, freq_min=-2.5E8, freq_max=2.5E8):
+            timestamp=None, uc_att=24, dc_att=0, freq_min=-2.5E8, freq_max=2.5E8,
+            return_delays=False):
+        """
+        """
 
         # For some reason, pyrogue flips out if you try to set refPhaseDelay
         # to zero in 071150b0.  This allows an offset ; the offset just gets
         # subtracted off the delay measurement with DSP after it's made.
-        refPhaseDelay0=1
-        refPhaseDelayFine0=0
+        refPhaseDelay0 = 1
+        refPhaseDelayFine0 = 0
 
         uc_att0=self.get_att_dc(band)
         dc_att0=self.get_att_uc(band)
@@ -176,18 +179,18 @@ class SmurfUtilMixin(SmurfBase):
         digitizer_frequency_mhz = self.get_digitizer_frequency_mhz(band)
         subband_half_width_mhz = digitizer_frequency_mhz/\
             n_subbands
-        subbands,subband_centers=self.get_subband_centers(band)
-        subband_freq_min=-subband_half_width_mhz/2.
-        subband_freq_max=subband_half_width_mhz/2.
-        dsp_subbands=[]
+        subbands,subband_centers = self.get_subband_centers(band)
+        subband_freq_min = -subband_half_width_mhz/2.
+        subband_freq_max = subband_half_width_mhz/2.
+        dsp_subbands = []
         for sb,sbc in zip(subbands,subband_centers):
             # ignore unprocessed sub-bands
             if sb not in subbands:
                 continue
-            lower_sb_freq=sbc+subband_freq_min
-            upper_sb_freq=sbc+subband_freq_max
-            if lower_sb_freq>=(freq_min/1.e6-subband_half_width_mhz) and \
-                    upper_sb_freq<=(freq_max/1.e6+subband_half_width_mhz):
+            lower_sb_freq = sbc + subband_freq_min
+            upper_sb_freq = sbc + subband_freq_max
+            if lower_sb_freq >= (freq_min/1.e6-subband_half_width_mhz) and \
+                    upper_sb_freq <= (freq_max/1.e6+subband_half_width_mhz):
                 dsp_subbands.append(sb)
 
         if timestamp is None:
@@ -222,9 +225,12 @@ class SmurfUtilMixin(SmurfBase):
         resp_cable=None
         if load_full_band_resp:
             self.log('Loading full band resp data')
-            fbr_freq_file=os.path.join(fbr_path,'%d_freq_full_band_resp.txt'%fbr_ctime)
-            fbr_real_resp_file=os.path.join(fbr_path,'%d_real_full_band_resp.txt'%fbr_ctime)
-            fbr_complex_resp_file=os.path.join(fbr_path,'%d_imag_full_band_resp.txt'%fbr_ctime)
+            fbr_freq_file = os.path.join(fbr_path,
+                f'{fbr_ctime}_freq_full_band_resp.txt')
+            fbr_real_resp_fil e =os.path.join(fbr_path,
+                f'{fbr_ctime}_real_full_band_resp.txt')
+            fbr_complex_resp_file = os.path.join(fbr_path,
+                f'{fbr_ctime}_imag_full_band_resp.txt')
 
             freq_cable = np.loadtxt(fbr_freq_file)
             real_resp_cable = np.loadtxt(fbr_real_resp_file)
@@ -232,16 +238,16 @@ class SmurfUtilMixin(SmurfBase):
             resp_cable = real_resp_cable + 1j*complex_resp_cable
         else:
             self.log('Running full band resp')
-            freq_cable, resp_cable = self.full_band_resp(band, n_samples=n_samples,
-                make_plot=make_plot,
-                save_data=save_data,
+            freq_cable, resp_cable = self.full_band_resp(band,
+                n_samples=n_samples, make_plot=make_plot, save_data=save_data,
                 n_scan=n_scan)
 
         idx_cable = np.where( (freq_cable > freq_min) & (freq_cable < freq_max) )
 
-        cable_z = np.polyfit(freq_cable[idx_cable], np.unwrap(np.angle(resp_cable[idx_cable])), 1)
+        cable_z = np.polyfit(freq_cable[idx_cable],
+            np.unwrap(np.angle(resp_cable[idx_cable])), 1)
         cable_p = np.poly1d(cable_z)
-        cable_delay_us=np.abs(1.e6*cable_z[0]/2/np.pi)
+        cable_delay_us = np.abs(1.e6*cable_z[0]/2/np.pi)
 
         freq_cable_subset=freq_cable[idx_cable]
         resp_cable_subset=resp_cable[idx_cable]
@@ -259,11 +265,13 @@ class SmurfUtilMixin(SmurfBase):
         resp_dsp=None
         if load_find_freq:
             self.log('Loading DSP frequency sweep data')
-            ff_freq_file=os.path.join(ff_path,'%d_amp_sweep_freq.txt'%ff_ctime)
-            ff_resp_file=os.path.join(ff_path,'%d_amp_sweep_resp.txt'%ff_ctime)
+            ff_freq_file = os.path.join(ff_path,
+                f'{ff_ctime}_amp_sweep_freq.txt')
+            ff_resp_file = os.path.join(ff_path,
+                f'{ff_ctime}_amp_sweep_resp.txt')
 
             freq_dsp=np.loadtxt(ff_freq_file)
-            resp_dsp=np.loadtxt(ff_resp_file,dtype='complex')
+            resp_dsp=np.loadtxt(ff_resp_file, dtype='complex')
         else:
             self.log('Running find_freq')
             freq_dsp,resp_dsp=self.find_freq(band,subband=dsp_subbands)
@@ -301,15 +309,15 @@ class SmurfUtilMixin(SmurfBase):
 
         # if refPhaseDelay0 or refPhaseDelayFine0 aren't zero, must add into
         # delay here
-        dsp_delay_us+=refPhaseDelay0/(subband_half_width_mhz/2.)
-        dsp_delay_us-=refPhaseDelayFine0/(digitizer_frequency_mhz/2)
+        dsp_delay_us += refPhaseDelay0/(subband_half_width_mhz/2.)
+        dsp_delay_us -= refPhaseDelayFine0/(digitizer_frequency_mhz/2)
 
         ## compute refPhaseDelay and refPhaseDelayFine
-        refPhaseDelay=int(np.ceil(dsp_delay_us*(subband_half_width_mhz/2.)))
-        refPhaseDelayFine=int(np.round((digitizer_frequency_mhz/2/
+        refPhaseDelay = int(np.ceil(dsp_delay_us*(subband_half_width_mhz/2.)))
+        refPhaseDelayFine = int(np.round((digitizer_frequency_mhz/2/
             (subband_half_width_mhz/2.)*
-            (refPhaseDelay-dsp_delay_us*(subband_half_width_mhz/2.)))))
-        processing_delay_us=dsp_delay_us-cable_delay_us
+            (refPhaseDelay - dsp_delay_us*(subband_half_width_mhz/2.)))))
+        processing_delay_us = dsp_delay_us-cable_delay_us
 
         print('-------------------------------------------------------')
         print('Estimated refPhaseDelay={}'.format(refPhaseDelay))
@@ -323,12 +331,12 @@ class SmurfUtilMixin(SmurfBase):
         # Zero refPhaseDelay and refPhaseDelayFine to get uncorrected phase
         # delay.
         # max is 7
-        self.set_ref_phase_delay(band,refPhaseDelay)
+        self.set_ref_phase_delay(band, refPhaseDelay)
         # max is 255
-        self.set_ref_phase_delay_fine(band,refPhaseDelayFine)
+        self.set_ref_phase_delay_fine(band, refPhaseDelayFine)
 
-        freq_dsp_corr=None
-        resp_dsp_corr=None
+        freq_dsp_corr = None
+        resp_dsp_corr = None
         if load_find_freq_check:
             self.log('Loading delay-corrected DSP frequency sweep data')
             ff_corr_freq_file=os.path.join(ff_corr_path,'%d_amp_sweep_freq.txt'%ff_corr_ctime)
@@ -367,84 +375,83 @@ class SmurfUtilMixin(SmurfBase):
         #### done measuring total (DSP) delay with estimated correction applied
 
         # plot unwraped phase in top panel, subtracted in bottom
+        if make_plot:
+            fig, ax = plt.subplots(3, figsize=(6,7.5), sharex=True)
 
-        fig, ax = plt.subplots(3, figsize=(6,7.5), sharex=True)
+            f_cable_plot = (freq_cable_subset) / 1.0E6
+            cable_phase = np.unwrap(np.angle(resp_cable_subset))
 
-        f_cable_plot = (freq_cable_subset) / 1.0E6
-        cable_phase = np.unwrap(np.angle(resp_cable_subset))
+            f_dsp_plot = (freq_dsp_subset) / 1.0E6
+            dsp_phase = np.unwrap(np.angle(resp_dsp_subset))
 
-        f_dsp_plot = (freq_dsp_subset) / 1.0E6
-        dsp_phase = np.unwrap(np.angle(resp_dsp_subset))
+            f_dsp_corr_plot = (freq_dsp_corr_subset) / 1.0E6
+            dsp_corr_phase = np.unwrap(np.angle(resp_dsp_corr_subset))
 
-        f_dsp_corr_plot = (freq_dsp_corr_subset) / 1.0E6
-        dsp_corr_phase = np.unwrap(np.angle(resp_dsp_corr_subset))
+            ax[0].set_title('AMC in Bay {}, Band {} Cable Delay'.format(bay,band))
+            ax[0].plot(f_cable_plot,cable_phase,label='Cable (full_band_resp)',
+                c='g', lw=3)
+            ax[0].plot(f_cable_plot,cable_p(f_cable_plot*1.0E6),'m--',
+                label='Cable delay fit',lw=3)
 
-        ax[0].set_title('AMC in Bay {}, Band {} Cable Delay'.format(bay,band))
-        ax[0].plot(f_cable_plot,cable_phase,label='Cable (full_band_resp)',
-            c='g', lw=3)
-        ax[0].plot(f_cable_plot,cable_p(f_cable_plot*1.0E6),'m--',
-            label='Cable delay fit',lw=3)
+            ax[1].plot(f_dsp_plot,dsp_phase,label='DSP (find_freq)',c='c',lw=3)
+            ax[1].plot(f_dsp_plot,dsp_p(f_dsp_plot*1.0E6), c='orange', ls='--',
+                label='DSP delay fit', lw=3)
 
-        ax[1].set_title('AMC in Bay {}, Band {} DSP Delay'.format(bay,band))
-        ax[1].plot(f_dsp_plot,dsp_phase,label='DSP (find_freq)',c='c',lw=3)
-        ax[1].plot(f_dsp_plot,dsp_p(f_dsp_plot*1.0E6), c='orange', ls='--',
-            label='DSP delay fit', lw=3)
+            ax[0].set_ylabel("Phase [rad]")
+            ax[0].set_xlabel('Frequency offset from band center [MHz]')
 
-        ax[0].set_ylabel("Phase [rad]")
-        ax[0].set_xlabel('Frequency offset from band center [MHz]')
+            ax[1].set_ylabel("Phase [rad]")
+            ax[1].set_xlabel('Frequency offset from band center [MHz]')
 
-        ax[1].set_ylabel("Phase [rad]")
-        ax[1].set_xlabel('Frequency offset from band center [MHz]')
+            ax[0].legend(loc='lower left',fontsize=8)
+            ax[1].legend(loc='lower left',fontsize=8)
 
-        ax[0].legend(loc='lower left',fontsize=8)
-        ax[1].legend(loc='lower left',fontsize=8)
+            bbox = dict(boxstyle="round", ec='w', fc='w', alpha=.65)
+            ax[0].text(.97, .90, 'cable delay={:.5f} us'.format(cable_delay_us),
+                       transform=ax[0].transAxes, fontsize=10,
+                       bbox=bbox,horizontalalignment='right')
 
-        bbox = dict(boxstyle="round", ec='w', fc='w', alpha=.65)
-        ax[0].text(.97, .90, 'cable delay={:.5f} us'.format(cable_delay_us),
-                   transform=ax[0].transAxes, fontsize=10,
-                   bbox=bbox,horizontalalignment='right')
+            ax[1].text(.97, .90, 'dsp delay={:.5f} us'.format(dsp_delay_us),
+                       transform=ax[1].transAxes, fontsize=10,
+                       bbox=bbox,horizontalalignment='right')
 
-        ax[1].text(.97, .90, 'dsp delay={:.5f} us'.format(dsp_delay_us),
-                   transform=ax[1].transAxes, fontsize=10,
-                   bbox=bbox,horizontalalignment='right')
+            cable_residuals=cable_phase-(cable_p(f_cable_plot*1.0E6))
+            ax[2].plot(f_cable_plot,cable_residuals-np.median(cable_residuals),
+                label='Cable (full_band_resp)',c='g')
+            dsp_residuals=dsp_phase-(dsp_p(f_dsp_plot*1.0E6))
+            ax[2].plot(f_dsp_plot,dsp_residuals-np.median(dsp_residuals),
+                label='DSP (find_freq)', c='c')
+            ax[2].plot(f_dsp_corr_plot,dsp_corr_phase-np.median(dsp_corr_phase),
+                label='DSP corrected (find_freq)', c='m')
+            ax[2].set_ylabel("Residual [rad]")
+            ax[2].set_xlabel('Frequency offset from band center [MHz]')
+            ax[2].set_ylim([-5,5])
 
-        cable_residuals=cable_phase-(cable_p(f_cable_plot*1.0E6))
-        ax[2].plot(f_cable_plot,cable_residuals-np.median(cable_residuals),
-            label='Cable (full_band_resp)',c='g')
-        dsp_residuals=dsp_phase-(dsp_p(f_dsp_plot*1.0E6))
-        ax[2].plot(f_dsp_plot,dsp_residuals-np.median(dsp_residuals),
-            label='DSP (find_freq)', c='c')
-        ax[2].plot(f_dsp_corr_plot,dsp_corr_phase-np.median(dsp_corr_phase),
-            label='DSP corrected (find_freq)', c='m')
-        ax[2].set_title('AMC in Bay {}, Band {} Residuals'.format(bay,band))
-        ax[2].set_ylabel("Residual [rad]")
-        ax[2].set_xlabel('Frequency offset from band center [MHz]')
-        ax[2].set_ylim([-5,5])
+            ax[2].text(.97, .92, 'refPhaseDelay={}'.format(refPhaseDelay),
+                       transform=ax[2].transAxes, fontsize=8,
+                       bbox=bbox,horizontalalignment='right')
+            ax[2].text(.97, .84, 'refPhaseDelayFine={}'.format(refPhaseDelayFine),
+                       transform=ax[2].transAxes, fontsize=8,
+                       bbox=bbox,horizontalalignment='right')
+            ax[2].text(.97, .76,
+                'processing delay={:.5f} us (fw={})'.format(processing_delay_us,
+                    fw_abbrev_sha),
+                transform=ax[2].transAxes, fontsize=8,
+                bbox=bbox,horizontalalignment='right')
+            ax[2].text(.97, .68, 'delay post-correction={:.3f} ns'.format(dsp_corr_delay_us*1000.),
+                       transform=ax[2].transAxes, fontsize=8,
+                       bbox=bbox, horizontalalignment='right')
 
-        ax[2].text(.97, .92, 'refPhaseDelay={}'.format(refPhaseDelay),
-                   transform=ax[2].transAxes, fontsize=8,
-                   bbox=bbox,horizontalalignment='right')
-        ax[2].text(.97, .84, 'refPhaseDelayFine={}'.format(refPhaseDelayFine),
-                   transform=ax[2].transAxes, fontsize=8,
-                   bbox=bbox,horizontalalignment='right')
-        ax[2].text(.97, .76,
-            'processing delay={:.5f} us (fw={})'.format(processing_delay_us,fw_abbrev_sha),
-            transform=ax[2].transAxes, fontsize=8,
-            bbox=bbox,horizontalalignment='right')
-        ax[2].text(.97, .68, 'delay post-correction={:.3f} ns'.format(dsp_corr_delay_us*1000.),
-                   transform=ax[2].transAxes, fontsize=8,
-                   bbox=bbox,horizontalalignment='right')
+            ax[2].legend(loc='upper left',fontsize=8)
 
-        ax[2].legend(loc='upper left',fontsize=8)
+            plt.tight_layout()
 
-        plt.tight_layout()
+            if save_plot:
+                save_name = '{}_b{}_delay.png'.format(timestamp, band)
 
-        if save_plot:
-            save_name = '{}_b{}_delay.png'.format(timestamp,band)
-
-            path = os.path.join(self.plot_dir, save_name)
-            plt.savefig(path,bbox_inches='tight')
-            self.pub.register_file(path, 'delay', plot=True)
+                path = os.path.join(self.plot_dir, save_name)
+                plt.savefig(path, bbox_inches='tight')
+                self.pub.register_file(path, 'delay', plot=True)
 
             if not show_plot:
                 plt.close()
@@ -452,6 +459,17 @@ class SmurfUtilMixin(SmurfBase):
         self.set_att_uc(band,uc_att0,write_log=True)
         self.set_att_dc(band,dc_att0,write_log=True)
 
+        if return_delays:
+            ret = {}
+            ret['cable_delay_us'] = cable_delay_us
+            ret['dsp_delay_us'] = dsp_delay_us
+            ret['refPhaseDelay'] = refPhaseDelay
+            ret['refPhaseDelayFine'] = refPhaseDelayFine
+            ret['processing_delay_us'] = processing_delay_us
+            ret['fw'] = fw_abbrev_sha
+            ret['dsp_corr_delay_us'] = dsp_corr_delay_us
+
+            return ret
 
     def process_data(self, filename, dtype=np.uint32):
         """ Reads a file taken with take_debug_data and processes it into data
