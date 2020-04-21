@@ -132,40 +132,46 @@ def make_html(data_path):
                 res_to_chan)
 
     # Load eta scans
-    basename = os.path.split(glob.glob(os.path.join(data_path,
-        'plots/*eta*'))[0])[1].split("res")
-    instr = f"\'{basename[0]}\' + \'res\' + p[\'res\'] + \'.png\'"
-    replace_str(index_path, "[[ETA_PATH]]",
-                instr)
+    if "plot_tune_summary" in status.keys()
+        basename = os.path.split(glob.glob(os.path.join(data_path,
+            'plots/*eta*'))[0])[1].split("res")
+        instr = f"\'{basename[0]}\' + \'res\' + p[\'res\'] + \'.png\'"
+        replace_str(index_path, "[[ETA_PATH]]",
+                    instr)
+
 
     # Load tracking setup
-    basename = os.path.split(glob.glob(os.path.join(data_path,
-        'plots/*tracking*'))[0])[1].split("_FRtracking")
-    instr = f"\'{basename[0]}\' + \'_FRtracking_b{band}_ch\' + res_to_chan(p[\'res\']) + \'.png\'"
-    replace_str(index_path, "[[TRACKING_PATH]]",
-                instr)
+    if "tracking_setup" in status.keys()
+        basename = os.path.split(glob.glob(os.path.join(data_path,
+            'plots/*tracking*'))[0])[1].split("_FRtracking")
+        instr = f"\'{basename[0]}\' + \'_FRtracking_b{band}_ch\' + res_to_chan(p[\'res\']) + \'.png\'"
+        replace_str(index_path, "[[TRACKING_PATH]]",
+                    instr)
+
 
     # Load bias group data
-    bias_group_list = ""
-    for bg in np.arange(8):
-        bias_group_list += f"\'{bg:02}|{bg:02}\', "
-    bias_group_list = "[" + bias_group_list + "]"
-    replace_str(index_path, "[[BIAS_GROUP_LIST]]",
-                bias_group_list)
+    if "identify_bias_groups" in status.keys()
+        bias_group_list = ""
+        for bg in np.arange(8):
+            bias_group_list += f"\'{bg:02}|{bg:02}\', "
+        bias_group_list = "[" + bias_group_list + "]"
+        replace_str(index_path, "[[BIAS_GROUP_LIST]]",
+                    bias_group_list)
 
-    # Bias group path
-    basename = os.path.split(glob.glob(os.path.join(data_path,
-        'plots/*_identify_bg*'))[0])[1].split("_identify_bg")
-    instr = f"\'{basename[0]}\' + \'_identify_bg\' + p[\'bg\'] + \'.png\'"
-    replace_str(index_path, "[[BIAS_GROUP_PATH]]",
-                instr)
+        # Bias group path
+        basename = os.path.split(glob.glob(os.path.join(data_path,
+            'plots/*_identify_bg*'))[0])[1].split("_identify_bg")
+        instr = f"\'{basename[0]}\' + \'_identify_bg\' + p[\'bg\'] + \'.png\'"
+        replace_str(index_path, "[[BIAS_GROUP_PATH]]",
+                    instr)
 
-    # Bias group path
-    basename = os.path.split(glob.glob(os.path.join(data_path,
-        'plots/*_IV_curve*'))[0])[1].split("_IV_curve")
-    instr = f"\'{basename[0]}\' + \'_IV_curve_b{band}_ch\' + res_to_chan(p[\'res\']) + \'.png\'"
-    replace_str(index_path, "[[IV_PATH]]",
-                instr)
+    # IV
+    if "slow_iv_all" in status.keys():
+        basename = os.path.split(glob.glob(os.path.join(data_path,
+            'plots/*_IV_curve*'))[0])[1].split("_IV_curve")
+        instr = f"\'{basename[0]}\' + \'_IV_curve_b{band}_ch\' + res_to_chan(p[\'res\']) + \'.png\'"
+        replace_str(index_path, "[[IV_PATH]]",
+                    instr)
 
     return html_path
 
