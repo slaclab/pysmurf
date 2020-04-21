@@ -122,8 +122,7 @@ def make_html(data_path):
             res_to_chan = res_to_chan + f'\"{int(k):03}\":\"{chan:03}\", '
     except KeyError:
         # print("Tuning file not found")
-
-
+        print('Passing on KeyError. No tuning file found')
 
     res_name = '[' + res_name + ']'
     replace_str(index_path, "[[FREQ_RESP_LIST]]",
