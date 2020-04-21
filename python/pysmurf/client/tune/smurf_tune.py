@@ -1631,7 +1631,7 @@ class SmurfTuneMixin(SmurfBase):
 
 
     @set_action()
-    def assign_channels(self, freq, band=None, 
+    def assign_channels(self, freq, band=None,
             channel_per_subband=4, as_offset=True, min_offset=0.1,
             new_master_assignment=False):
         """
@@ -3012,7 +3012,7 @@ class SmurfTuneMixin(SmurfBase):
 
 
     @set_action()
-    def set_fixed_flux_ramp_bias(self, fractionFullScale, debug=True,
+    def set_fixed_flux_ramp_bias(self, fraction_full_scale, debug=True,
             do_config=True):
         """
         Args
@@ -4124,9 +4124,9 @@ class SmurfTuneMixin(SmurfBase):
                 else:
                     peaks[ch] = np.argmax(corr_amp[s[0]:e[0]]) + s[0]
 
-                    #polyfit
+                    # polyfit
                     Xf = [-1, 0, 1]
-                    Yf = [corr_amp[int(peaks[ch]-1)], corr_amp[int(peaks[ch])],\
+                    Yf = [corr_amp[int(peaks[ch]-1)], corr_amp[int(peaks[ch])],
                         corr_amp[int(peaks[ch]+1)]]
                     V = np.polyfit(Xf, Yf, 2)
                     offset = -V[1]/(2.0 * V[0])
