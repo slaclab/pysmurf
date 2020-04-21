@@ -45,11 +45,20 @@ def make_html(data_path):
 
     index_path = os.path.join(html_path, "index.html")
 
-    n_res_found = len(status['which_on_before_check']['output'])
-    n_res_track = len(status['which_on_after_check']['output'])
-    ivdict = np.load(status['slow_iv_all']['output'].split('_raw_data')[0]+'.npy',
-        allow_pickle=True).item()
-    n_tes = len(ivdict[band].keys())
+    try:
+        n_res_found = len(status['which_on_before_check']['output'])
+    except KeyError:
+        n_res_found = 0
+    try:
+        n_res_track = len(status['which_on_after_check']['output'])
+    except KeyError:
+        n_res_track = 0
+    try:
+        ivdict = np.load(status['slow_iv_all']['output'].split('_raw_data')[0]+'.npy',
+            allow_pickle=True).item()
+        n_tes = len(ivdict[band].keys())
+    except KeyError:
+        n_tes = 0
 
     # Fill why
     replace_str(index_path, "[[WHY]]",
@@ -102,18 +111,19 @@ def make_html(data_path):
     # Load tuning
     try:
         tn = np.load(status['save_tune']['output'], allow_pickle=True).item()
+        res = tn[band]['resonances']
+        res_list = np.array([], dtype=str)
+        res_name = ""
+        res_to_chan = ""
+        for k in list(res.keys()):
+            res_list = np.append(res_list, f"{res[k]['freq']:4.3f}|{k}")
+            res_name = res_name + "\'" + f"{int(k):03}|{int(k):03}" + "\', "
+            chan = res[k]['channel']
+            res_to_chan = res_to_chan + f'\"{int(k):03}\":\"{chan:03}\", '
     except FileNotFoundError:
         print("Tuning file not found")
 
-    res = tn[band]['resonances']
-    res_list = np.array([], dtype=str)
-    res_name = ""
-    res_to_chan = ""
-    for k in list(res.keys()):
-        res_list = np.append(res_list, f"{res[k]['freq']:4.3f}|{k}")
-        res_name = res_name + "\'" + f"{int(k):03}|{int(k):03}" + "\', "
-        chan = res[k]['channel']
-        res_to_chan = res_to_chan + f'\"{int(k):03}\":\"{chan:03}\", '
+
 
     res_name = '[' + res_name + ']'
     replace_str(index_path, "[[FREQ_RESP_LIST]]",
