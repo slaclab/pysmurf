@@ -133,7 +133,7 @@ def make_html(data_path):
 
     # Load eta scans
     print(status.keys())
-    if "plot_tune_summary" in status.keys()
+    if "plot_tune_summary" in status.keys():
         basename = os.path.split(glob.glob(os.path.join(data_path,
             'plots/*eta*'))[0])[1].split("res")
         instr = f"\'{basename[0]}\' + \'res\' + p[\'res\'] + \'.png\'"
@@ -142,7 +142,7 @@ def make_html(data_path):
 
 
     # Load tracking setup
-    if "tracking_setup" in status.keys()
+    if "tracking_setup" in status.keys():
         basename = os.path.split(glob.glob(os.path.join(data_path,
             'plots/*tracking*'))[0])[1].split("_FRtracking")
         instr = f"\'{basename[0]}\' + \'_FRtracking_b{band}_ch\' + res_to_chan(p[\'res\']) + \'.png\'"
@@ -151,7 +151,7 @@ def make_html(data_path):
 
 
     # Load bias group data
-    if "identify_bias_groups" in status.keys()
+    if "identify_bias_groups" in status.keys():
         bias_group_list = ""
         for bg in np.arange(8):
             bias_group_list += f"\'{bg:02}|{bg:02}\', "
