@@ -109,19 +109,19 @@ def make_html(data_path):
                 os.path.join('../plots/',basename))
 
     # Load tuning
+    res_list = np.array([], dtype=str)
+    res_name = ""
+    res_to_chan = ""
     try:
         tn = np.load(status['save_tune']['output'], allow_pickle=True).item()
         res = tn[band]['resonances']
-        res_list = np.array([], dtype=str)
-        res_name = ""
-        res_to_chan = ""
         for k in list(res.keys()):
             res_list = np.append(res_list, f"{res[k]['freq']:4.3f}|{k}")
             res_name = res_name + "\'" + f"{int(k):03}|{int(k):03}" + "\', "
             chan = res[k]['channel']
             res_to_chan = res_to_chan + f'\"{int(k):03}\":\"{chan:03}\", '
-    except FileNotFoundError:
-        print("Tuning file not found")
+    except KeyError:
+        # print("Tuning file not found")
 
 
 
