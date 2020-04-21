@@ -1770,7 +1770,7 @@ class SmurfTuneMixin(SmurfBase):
         self.log('Writing new channel assignment to {}'.format(fn))
         f = open(fn, 'w')
         for i in range(len(channels)):
-            f.write(f'{freqs[i]:.4f},{subbands[i]:i},{channels[i]:i},{bias_groups[i]:i}\n')
+            f.write(f'{freqs[i]:.4f},{subbands[i]},{channels[i]},{bias_groups[i]}\n')
         f.close()
 
         self.load_master_assignment(band, fn)
