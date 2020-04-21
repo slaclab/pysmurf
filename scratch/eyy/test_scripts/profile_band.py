@@ -132,6 +132,7 @@ def make_html(data_path):
                 res_to_chan)
 
     # Load eta scans
+    print(status.keys())
     if "plot_tune_summary" in status.keys()
         basename = os.path.split(glob.glob(os.path.join(data_path,
             'plots/*eta*'))[0])[1].split("res")
