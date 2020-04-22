@@ -21,13 +21,17 @@ import os
 from scipy import signal
 import glob
 import matplotlib.pyplot as plt
+from contextlib import contextmanager
 # for hardware logging
 import threading
 from pysmurf.client.util.SmurfFileReader import SmurfStreamReader
+from pysmurf.client.util.pub import set_action
+
 
 
 class SmurfUtilMixin(SmurfBase):
 
+    @set_action()
     def take_debug_data(self, band, channel=None, nsamp=2**19, filename=None,
             IQstream=1, single_channel_readout=1, debug=False, write_log=True):
         """ Takes raw debugging data
@@ -150,6 +154,7 @@ class SmurfUtilMixin(SmurfBase):
         subprocess.Popen([sys.executable,JesdWatchdog.__file__])
 
     # Shawn needs to make this better and add documentation.
+    @set_action()
     def estimate_phase_delay(self, band, n_samples=2**19, make_plot=True,
             show_plot=True, save_plot=True, save_data=True, n_scan=5,
             timestamp=None, uc_att=24, dc_att=0, freq_min=-2.5E8, freq_max=2.5E8):
@@ -497,7 +502,7 @@ class SmurfUtilMixin(SmurfBase):
 
         return header, data
 
-
+    @set_action()
     def decode_data(self, filename, swapFdF=False, recast=True, truncate=True):
         """ Take a dataset from take_debug_data and spit out results.
 
@@ -609,6 +614,7 @@ class SmurfUtilMixin(SmurfBase):
 
         return f, df, flux_ramp_strobe
 
+    @set_action()
     def decode_single_channel(self, filename, swapFdF=False):
         """
         decode take_debug_data file if in singlechannel mode
@@ -665,6 +671,7 @@ class SmurfUtilMixin(SmurfBase):
 
         return f, df, flux_ramp_strobe
 
+    @set_action(action=None)
     def take_stream_data(self, meas_time, downsample_factor=None,
                          write_log=True, update_payload_size=True,
                          reset_unwrapper=True, reset_filter=True,
@@ -732,7 +739,55 @@ class SmurfUtilMixin(SmurfBase):
         else:
             return data_filename
 
+    @contextmanager
+    def stream_data_cm(self, write_log=True, register_file=False,
+                       **stream_on_kwargs):
+        """
+        Context manager for data streaming. If you intend to turn streaming
+        on, do something, and then turn streaming off this is a safe way to make
+        sure streaming is in fact stopped properly even if an error is raised.
 
+        Args
+        ----
+        write_config : bool, optional, default False
+            Whether to dump the entire config. Warning this can be
+            slow.
+        data_filename : str or None, optional, default None
+            The full path to store the data. If None, it uses the
+            timestamp.
+        downsample_factor : int or None, optional, default None
+            The number of fast samples to skip between sending.
+        write_log : bool, optional, default True
+            Whether to write to the log file.
+        update_payload_size : bool, optional, default True
+            Whether to update the payload size (the number of channels
+            written to disk). If the number of channels on is greater
+            than the payload size, then only the first N channels are
+            written. This bool will update the payload size to be the
+            same as the number of channels on across all bands)
+        reset_filter : bool, optional, default True
+            Whether to reset the filter before taking data.
+        reset_unwrapper : bool, optional, default True
+            Whether to reset the unwrapper before taking data.
+        make_freq_mask : bool, optional, default True
+            Whether to write a text file with resonator frequencies.
+        register_file : bool, optional, default False
+            If true, the stream data file will be registered through
+            the publisher.
+
+        Yields
+        -------
+        data_filename : str
+            The fullpath to where the data is stored.
+        """
+        data_filename = self.stream_data_on(write_log=write_log, **stream_on_kwargs)
+        try:
+            yield data_filename
+        finally:
+            self.stream_data_off(write_log=write_log,
+                                 register_file=register_file)
+
+    @set_action()
     def stream_data_on(self, write_config=False, data_filename=None,
                        downsample_factor=None, write_log=True,
                        update_payload_size=True, reset_filter=True,
@@ -862,8 +917,10 @@ class SmurfUtilMixin(SmurfBase):
 
             # Save mask file as text file. Eventually this will be in the
             # raw data output
-            np.savetxt(os.path.join(data_filename.replace('.dat', '_mask.txt')),
-                output_mask, fmt='%i')
+            mask_fname = os.path.join(data_filename.replace('.dat', '_mask.txt'))
+            np.savetxt(mask_fname, output_mask, fmt='%i')
+            self.pub.register_file(mask_fname, 'mask')
+            self.log(mask_fname)
 
             if make_freq_mask:
                 if write_log:
@@ -871,12 +928,15 @@ class SmurfUtilMixin(SmurfBase):
                 freq_mask = self.make_freq_mask(output_mask)
                 np.savetxt(os.path.join(data_filename.replace('.dat', '_freq.txt')),
                            freq_mask, fmt='%4.4f')
+                self.pub.register_file(
+                    os.path.join(data_filename.replace('.dat', '_freq.txt')),
+                    'mask', format='txt')
 
             self.open_data_file(write_log=write_log)
 
             return data_filename
 
-
+    @set_action()
     def stream_data_off(self, write_log=True, register_file=False):
         """
         Turns off streaming data.
@@ -899,7 +959,7 @@ class SmurfUtilMixin(SmurfBase):
 
         self.set_stream_enable(0, write_log=write_log, wait_after=.15)
 
-
+    @set_action()
     def read_stream_data(self, datafile, channel=None,
                          n_samp=None, array_size=None,
                          return_header=False,
@@ -1083,7 +1143,7 @@ class SmurfUtilMixin(SmurfBase):
         else:
             return t, phase, mask
 
-
+    @set_action()
     def read_stream_data_gcp_save(self, datafile, channel=None,
             unwrap=True, downsample=1, n_samp=None):
         """
@@ -1207,7 +1267,7 @@ class SmurfUtilMixin(SmurfBase):
 
         return timestamp2, phase, mask
 
-
+    @set_action()
     def header_to_tes_bias(self, header, as_volt=True,
                            n_tes_bias=15):
         """
@@ -1271,7 +1331,7 @@ class SmurfUtilMixin(SmurfBase):
 
         return bias
 
-
+    @set_action()
     def make_mask_lookup(self, mask_file, mask_channel_offset=0,
             make_freq_mask=False):
         """ Makes an n_band x n_channel array where the elements correspond
@@ -1333,7 +1393,7 @@ class SmurfUtilMixin(SmurfBase):
 
         return ret
 
-
+    @set_action()
     def read_stream_data_daq(self, data_length, bay=0, hw_trigger=False,
             write_log=False):
         """
@@ -1378,7 +1438,7 @@ class SmurfUtilMixin(SmurfBase):
 
         return r0, r1
 
-
+    @set_action()
     def check_adc_saturation(self, band):
         """
         Reads data directly off the ADC.  Checks for input saturation.
@@ -1406,7 +1466,7 @@ class SmurfUtilMixin(SmurfBase):
             self.log(f'\033[92mADC{band} not saturated\033[00m') # color green
         return saturated
 
-
+    @set_action()
     def check_dac_saturation(self, band):
         """
         Reads data directly off the DAC.  Checks for input saturation.
@@ -1434,7 +1494,7 @@ class SmurfUtilMixin(SmurfBase):
             self.log(f'\033[92mDAC{band} not saturated\033[00m') # color green
         return saturated
 
-
+    @set_action()
     def read_adc_data(self, band, data_length=2**19,
                       hw_trigger=False, do_plot=False, save_data=True,
                       timestamp=None, show_plot=True, save_plot=True,
@@ -1536,6 +1596,7 @@ class SmurfUtilMixin(SmurfBase):
 
         return dat
 
+    @set_action()
     def read_dac_data(self, band, data_length=2**19,
                       hw_trigger=False, do_plot=False, save_data=True,
                       timestamp=None, show_plot=True, save_plot=True,
@@ -1636,7 +1697,7 @@ class SmurfUtilMixin(SmurfBase):
 
         return dat
 
-
+    @set_action()
     def setup_daq_mux(self, converter, converter_number, data_length,
                       band=0, debug=False, write_log=False):
         """
@@ -1681,7 +1742,7 @@ class SmurfUtilMixin(SmurfBase):
         # which f,df stream to route to MUX, maybe?
         self.set_debug_select(bay, band%4, write_log=True)
 
-
+    @set_action()
     def set_buffer_size(self, bay, size, debug=False,
                         write_log=False):
         """
@@ -1705,7 +1766,7 @@ class SmurfUtilMixin(SmurfBase):
             if debug:
                 self.log('DAQ number {}: start {} - end {}'.format(daq_num, s, e))
 
-
+    @set_action()
     def config_cryo_channel(self, band, channel, frequencyMHz, amplitude,
             feedback_enable, eta_phase, eta_mag):
         """
@@ -1766,7 +1827,7 @@ class SmurfUtilMixin(SmurfBase):
         self.set_eta_phase_degree_channel(band, channel, phase)
         self.set_eta_mag_scaled_channel(band, channel, eta_mag)
 
-
+    @set_action()
     def which_on(self, band):
         """
         Finds all detectors that are on.
@@ -1784,7 +1845,7 @@ class SmurfUtilMixin(SmurfBase):
         amps = self.get_amplitude_scale_array(band)
         return np.ravel(np.where(amps != 0))
 
-
+    @set_action()
     def toggle_feedback(self, band, **kwargs):
         """
         Toggles feedbackEnable (->0->1) and lmsEnables1-3 (->0->1) for
@@ -1836,6 +1897,7 @@ class SmurfUtilMixin(SmurfBase):
         self.log(logstr,
                  self.LOG_USER)
 
+    @set_action()
     def band_off(self, band, **kwargs):
         """
         Turns off all tones in a band
@@ -3259,7 +3321,7 @@ class SmurfUtilMixin(SmurfBase):
 
         return ret
 
-
+    @set_action()
     def make_gcp_mask(self, band=None, smurf_chans=None, gcp_chans=None,
                       read_gcp_mask=True, mask_channel_offset=0):
         """
@@ -3323,14 +3385,13 @@ class SmurfUtilMixin(SmurfBase):
             self.log('Generating gcp mask file. {} channels added'.format(len(gcp_chans)))
 
             np.savetxt(self.smurf_to_mce_mask_file, gcp_chans, fmt='%i')
-            self.pub.register_file(self.smurf_to_mce_mask_file, 'mask', format='txt')
 
         if read_gcp_mask:
             self.read_smurf_to_gcp_config()
         else:
             self.log('Warning: new mask has not been read in yet.')
 
-
+    @set_action()
     def bias_bump(self, bias_group, wait_time=.5, step_size=0.001,
                   duration=5.0, start_bias=None, make_plot=False,
                   skip_samp_start=10, high_current_mode=True,
@@ -4072,7 +4133,7 @@ class SmurfUtilMixin(SmurfBase):
         # Zero TES biases on this bias group
         self.set_tes_bias_bipolar(bias_group, 0)
 
-
+    @set_action()
     def get_sample_frequency(self):
         """ Gives the data rate.
 
@@ -4265,6 +4326,9 @@ class SmurfUtilMixin(SmurfBase):
                     savename = f'{timestamp}_identify_bg{bias_group:02}.png'
                     plt.savefig(os.path.join(self.plot_dir, savename),
                                 bbox_inches='tight')
+                    self.pub.register_file(
+                        os.path.join(self.plot_dir, savename),
+                        'identify_bg', plot=True)
                 if not show_plot:
                     plt.close(fig)
 
