@@ -13,6 +13,7 @@
 # copied, modified, propagated, or distributed except according to the terms
 # contained in the LICENSE.txt file.
 #-----------------------------------------------------------------------------
+"""Defines the :class:`SmurfConfig` class."""
 import io
 import json
 import os
@@ -22,13 +23,83 @@ import numpy as np
 
 class SmurfConfig:
     """Initialize, read, or dump a SMuRF config file.
-       Will be updated to not require a json, which is unfortunate
+
+    Class for loading pysmurf configuration files.  In addition to
+    functions for reading and writing pysmurf configuration files,
+    contains helper functions for manipulating configuration
+    variables, which are stored internally in a class instance
+    attribute `config` dictionary.
+
+    pysmurf configuration files must be in the JSON format [1]_.  On
+    instantiation, attempts to read the pysmurf configuration file at
+    the path provided by the `filename` argument into a the `config`
+    class instance attribute as a dictionary.  If the `filename`
+    argument is not provided, the `config` attribute is None.
+
+    If a pysmurf configuration file is successfully loaded and the
+    `validate_config` constructor argument is True (which is the
+    default behavior), the parameters in the configuration file will
+    be validated using the 3rd party `schema` python library [2]_
+    using the rules specified in the :func:`validate_config` member
+    function.  If the configuration file data is valid, parameters are
+    loaded into the `config` dictionary class instance attribute.
+
+    `schema` validation does several important things to data loaded
+    from the pysmurf configuration file:
+
+    - Checks that all mandatory configuration variables are defined.
+    - Conditions all configuration variables into the correct type
+      (e.g. `float`, `int`, `str`, etc.).
+    - Automatically fill in the values for missing optional
+      parameters.
+    - Checks if parameters have valid values (e.g., some parameters can
+      only be zero or 1, or must be in a predefined interval, etc.).
+    - Performs validation of some known higher level configuration
+      data interdependencies (e.g. prevents the user from defining an
+      RTM DAC as both a TES bias and an RF amplifier bias).
+
+    If validation fails, `schema` will raise a `SchemaError` exception
+    and fail to load the configuration data, forcing the user to fix
+    the cause of the `SchemaError` exception before the configuration
+    file can be loaded and used.
+
+    If `validate_config` is False, the pysmurf configuration data will
+    be loaded without `schema` validation.
+
+    Args
+    ----
+    filename : str or None, optional, default None
+       Path to pysmurf configuration file.
+    validate_config : bool, optional, default True
+       Whether or not to run `schema` validation on the pysmurf
+       configuration file data.  If `schema` validation fails, a
+       `SchemaError` exception will be raised.
+
+    Attributes
+    ----------
+    filename : str or None
+       Path to loaded pysmurf configuration file.  None if no pysmurf
+       configuration file has been loaded.
+    config : dict or None
+       Dictionary of pysmurf configuration data.  None if no pysmurf
+       configuration file has been loaded.
+
+    See Also
+    --------
+    :func:`validate_config` : Run schema validation on loaded
+    configuration dictionary.
+
+    References
+    ----------
+    .. [1] https://www.json.org/json-en.html
+    .. [2] https://github.com/keleshev/schema
 
     """
 
     def __init__(self, filename=None, validate_config=True):
+        """SmurfConfig constructor."""
         self.filename = filename
-        # self.config = [] # do I need to initialize this? I don't think so
+        self.config = None
         if self.filename is not None:
             self.read(update=True, validate_config=validate_config)
 
@@ -105,7 +176,7 @@ class SmurfConfig:
 
         if key in self.config:
             return True
-        
+
         return False
 
     def get(self, key):
