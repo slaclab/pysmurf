@@ -14,7 +14,8 @@ import sys
 __all__ = ['Logger', 'SmurfLogger']
 
 class Logger(object):
-    """Basic prioritized logger, by M. Hasselfield"""
+    """Basic prioritized logger, by M. Hasselfield."""
+    
     def __init__(self, verbosity=0, indent=True, logfile=None):
         self.v = verbosity
         self.indent = indent
