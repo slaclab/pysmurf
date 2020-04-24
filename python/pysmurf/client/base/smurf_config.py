@@ -27,8 +27,8 @@ class SmurfConfig:
     Class for loading pysmurf configuration files.  In addition to
     functions for reading and writing pysmurf configuration files,
     contains helper functions for manipulating configuration variables
-    which are stored internally in a class instance attribute `config`
-    dictionary.
+    which are stored internally in a class instance attribute
+    dictionary named `config`.
 
     pysmurf configuration files must be in the JSON format [1]_ .  On
     instantiation, attempts to read the pysmurf configuration file at
@@ -38,12 +38,13 @@ class SmurfConfig:
     attribute is `None`.
 
     If a pysmurf configuration file is successfully loaded and the
-    :func:`validate_config` constructor argument is True (which is the
+    `validate_config` constructor argument is True (which is the
     default behavior), the parameters in the configuration file will
     be validated using the 3rd party `schema` python library [2]_
-    using the rules specified in the :func:`validate_config` member
-    function.  If the configuration file data is valid, parameters are
-    loaded into the `config` dictionary class instance attribute.
+    using the rules specified in the
+    :func:`~pysmurf.client.base.validate_config` member function.  If
+    the configuration file data is valid, parameters are loaded into
+    the `config` dictionary class instance attribute.
 
     `schema` validation does several important things to data loaded
     from the pysmurf configuration file:
@@ -107,32 +108,71 @@ class SmurfConfig:
             self.read(update=True, validate_config=validate_config)
 
     def read_json(self, filename, comment_char='#'):
-        """Reads a json config file
+        """Reads a pysmurf configuration file.
+
+        Opens configuration file at the path provided by the
+        `filename` argument, strips off all lines that start with the
+        character provided by the `comment_char` argument, and then
+        parses the remaining lines in the pysmurf configuration file
+        into a dictionary using the `json.loads` routine.
+
+        .. warning::
+           The pysmurf configuration file must be in the JSON format.
+
+        Args
+        ----
+        filename : str
+           Path to pysmurf configuration file to load.
+        comment_char : str, optional, default '#'
+           Comments that start with this character will be ignored.
+           
+        Returns
+        -------
+        loaded_config : dict
+           Dictionary of loaded pysmurf configuration parameters.
+
+        Raises
+        ------
+        FileNotFoundError
+           Raised if the configuration file does not exist.
+        JSONDecodeError
+           Raised if the loaded configuration file data is not in JSON
+           format.
         """
         no_comments = []
-        with open(self.filename) as config_file:
-            for idx, line in enumerate(config_file):
-                if line.lstrip().startswith(comment_char):
-                    # line starts with comment character - remove it
-                    continue
-                elif comment_char in line:
-                    # there's a comment character on this line.
-                    # ignore it and everything that follows
-                    line = line.split('#')[0]
-                    no_comments.append(line)
-                else:
-                    # will pass on to json parser
-                    no_comments.append(line)
-
+        try:
+            with open(self.filename) as config_file:
+                for idx, line in enumerate(config_file):
+                    if line.lstrip().startswith(comment_char):
+                        # line starts with comment character - remove it
+                        continue
+                    elif comment_char in line:
+                        # there's a comment character on this line.
+                        # ignore it and everything that follows
+                        line = line.split(comment_char)[0]
+                        no_comments.append(line)
+                    else:
+                        # will pass on to json parser
+                        no_comments.append(line)
+        except FileNotFoundError as error:
+            print('No configuration file found at' +
+                  f' filename={filename}')
+            raise
+            
         loaded_config = json.loads('\n'.join(no_comments))
         return loaded_config
 
     def read(self, update=False, validate_config=True):
         """Reads config file and updates the configuration.
 
-           Args
-           ----
-              update (bool): Whether or not to update the configuration.
+        Args
+        ----
+        update : bool, optional, default False
+           Whether or not to update the configuration.
+        validate_config : bool, optional, default True
+           Whether or not to run `schema` validation on the pysmurf
+           configuration file data.  If `schema` validation fails, a
+           `SchemaError` exception will be raised.
         """
         loaded_config = self.read_json(self.filename)
 

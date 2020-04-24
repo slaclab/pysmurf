@@ -38,11 +38,11 @@ class SmurfConfigPropertiesMixin:
     is not instantiated with a configuration file).
 
     .. warning::
-        If a user changes the value of a property but then writes the
-        internal pysmurf configuration to disk with the
-        :func:`~pysmurf.client.base.smurf_control.SmurfControl.write_output()`
-        function, the value written to the file will not reflect the
-        user's change.
+       If a user changes the value of a property but then writes the
+       internal pysmurf configuration to disk with the
+       :func:`~pysmurf.client.base.smurf_control.SmurfControl.write_output()`
+       function, the value written to the file will not reflect the
+       user's change.
 
     Examples
     --------
