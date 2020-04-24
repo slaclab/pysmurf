@@ -38,13 +38,13 @@ class SmurfConfig:
     attribute is `None`.
 
     If a pysmurf configuration file is successfully loaded and the
-    `validate_config` constructor argument is True (which is the
+    XYZ constructor argument is True (which is the
     default behavior), the parameters in the configuration file will
     be validated using the 3rd party `schema` python library [schema]_
     using the rules specified in the
-    :func:`~pysmurf.client.base.validate_config` member function.  If
-    the configuration file data is valid, parameters are loaded into
-    the `config` dictionary class instance attribute.
+    :func:`~pysmurf.client.base.smurf_config.validate_config` member
+    function.  If the configuration file data is valid, parameters are
+    loaded into the `config` dictionary class instance attribute.
 
     `schema` validation does several important things to data loaded
     from the pysmurf configuration file:
