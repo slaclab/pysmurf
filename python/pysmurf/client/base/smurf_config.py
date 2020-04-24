@@ -40,7 +40,7 @@ class SmurfConfig:
     If a pysmurf configuration file is successfully loaded and the
     `validate_config` constructor argument is True (which is the
     default behavior), the parameters in the configuration file will
-    be validated using the 3rd party `schema` python library [schema]_
+    be validated using the 3rd party `schema` python library [#schema]_
     using the rules specified in the
     :func:`~SmurfConfig.validate_config` member function.  If the
     configuration file data is valid, parameters are loaded into the
@@ -96,7 +96,7 @@ class SmurfConfig:
     References
     ----------
     .. [json] https://www.json.org/json-en.html
-    .. [schema] https://github.com/keleshev/schema
+    .. [#schema] https://github.com/keleshev/schema
 
     """
 
