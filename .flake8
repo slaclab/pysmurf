@@ -38,6 +38,7 @@ rst-roles =
     class,
     func,
     ref,
+    meth,
 rst-directives =
     envvar,
     exception,

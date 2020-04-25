@@ -197,11 +197,12 @@ class SmurfConfig:
         self.config[key] = val
 
     def write(self, outputfile):
-        """Dumps the current config to a file
+        """Dump the current config to a file.
 
-           Args
-           ----
-              outputfile (str): The name of the file to save the configuration to.
+        Args
+        ----
+        outputfile : str
+           The name of the file to save the configuration to.
         """
         ## dump current config to outputfile ##
         with io.open(outputfile, 'w', encoding='utf8') as out_file:
@@ -209,13 +210,13 @@ class SmurfConfig:
             out_file.write(str_)
 
     def has(self, key):
-        """Reports if configuration has requested key.
+        """Report if configuration has requested key.
 
-           Args
-           ----
-              key (any): key to check for in configuration dictionary.
+        Args
+        ----
+        key : any
+           Key to check for in configuration dictionary.
         """
-
         if key in self.config:
             return True
 
@@ -223,7 +224,7 @@ class SmurfConfig:
 
     def get(self, key):
         """Return entry in config dictionary for requested key.
-        
+
         Returns `None` if the key not present in config dictionary.
 
         Args
@@ -231,7 +232,6 @@ class SmurfConfig:
         key : any
            Key whose configuration entry to retrieve.
         """
-
         if self.has(key):
             return self.config[key]
 
@@ -250,7 +250,6 @@ class SmurfConfig:
         subkey : any
            config dictionary subkey.
         """
-
         if self.has(key):
             sub_dict = self.config[key]
             try:
@@ -272,7 +271,6 @@ class SmurfConfig:
           subkey (any): config subkey
           val (any): value to write
         """
-
         try:
             self.config[key][subkey] = val
         except TypeError:
