@@ -24,14 +24,14 @@ class SmurfConfigPropertiesMixin:
     [#pyprop]_.
 
     The :class:`SmurfConfigPropertiesMixin` class has only one
-    function :func:`copy_config_to_properties` which can populate the
+    method :meth:`copy_config_to_properties` which can populate the
     properties from a provided
     :class:`~pysmurf.client.base.smurf_config.SmurfConfig` class
-    instance.  :func:`copy_config_to_properties` can be called by the
+    instance.  :meth:`copy_config_to_properties` can be called by the
     user at any time, but it is called once to populate all of the
     :class:`SmurfConfigPropertiesMixin` attributes by a call to the
     :func:`~pysmurf.client.base.smurf_control.SmurfControl.initialize`
-    function in the
+    method in the
     :class:`~pysmurf.client.base.smurf_control.SmurfControl`
     constructor (unless the
     :class:`~pysmurf.client.base.smurf_control.SmurfControl` instance
