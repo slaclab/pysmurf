@@ -139,7 +139,7 @@ class SmurfConfig:
         no_comments = []
         try:
             with open(self.filename) as config_file:
-                for idx, line in enumerate(config_file):
+                for _, line in enumerate(config_file):
                     if line.lstrip().startswith(comment_char):
                         # line starts with comment character - remove it
                         continue
@@ -471,8 +471,10 @@ class SmurfConfig:
             # Digitizer sampling rate is 614.4 MHz, so biggest range of
             # frequencies user could possibly be interested in is between
             # -614.4MHz/2 and 614.4MHz/2, or -307.2MHz to +307.2MHz.
-            Optional('freq_max', default=250.e6) : And(Use(float), lambda f: -307.2e6 <= f <= 307.2e6),
-            Optional('freq_min', default=-250.e6) : And(Use(float), lambda f: -307.2e6 <= f <= 307.2e6),
+            Optional('freq_max', default=250.e6) : And(
+                Use(float), lambda f: -307.2e6 <= f <= 307.2e6),
+            Optional('freq_min', default=-250.e6) : And(
+                Use(float), lambda f: -307.2e6 <= f <= 307.2e6),
 
             'fraction_full_scale' : And(Use(float), lambda f: 0 < f <= 1.),
             'reset_rate_khz' : And(Use(float), lambda f: 0 <= f <= 100),
