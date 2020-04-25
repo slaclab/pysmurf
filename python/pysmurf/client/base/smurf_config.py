@@ -42,7 +42,7 @@ class SmurfConfig:
     default behavior), the parameters in the configuration file will
     be validated using the 3rd party `schema` python library [#schema]_
     using the rules specified in the
-    :func:`~SmurfConfig.validate_config` member function.  If the
+    :meth:`~.SmurfConfig.validate_config` member function.  If the
     configuration file data is valid, parameters are loaded into the
     `config` dictionary class instance attribute.
 
@@ -90,7 +90,7 @@ class SmurfConfig:
 
     See Also
     --------
-    :func:`validate_config` : Run schema validation on loaded
+    :meth:`~.SmurfConfig.validate_config` : Run schema validation on loaded
     configuration dictionary.
 
     References
