@@ -38,7 +38,7 @@ class SmurfConfig:
     attribute is `None`.
 
     If a pysmurf configuration file is successfully loaded and the
-    `validate_config` constructor argument is True (which is the
+    `validate` constructor argument is True (which is the
     default behavior), the parameters in the configuration file will
     be validated using the 3rd party `schema` python library [#schema]_
     using the rules specified in the
@@ -67,14 +67,14 @@ class SmurfConfig:
     the cause of the `SchemaError` exception before the configuration
     file can be loaded and used.
 
-    If `validate_config` is False, the pysmurf configuration data will
+    If `validate` is False, the pysmurf configuration data will
     be loaded without `schema` validation.
 
     Args
     ----
     filename : str or None, optional, default None
        Path to pysmurf configuration file to load.
-    validate_config : bool, optional, default True
+    validate : bool, optional, default True
        Whether or not to run `schema` validation on the pysmurf
        configuration file data.  If `schema` validation fails, a
        `SchemaError` exception will be raised.
@@ -90,8 +90,8 @@ class SmurfConfig:
 
     See Also
     --------
-    :meth:`validate_config` : Run schema validation on loaded configuration dictionary.
-    :meth:`read_json`
+    :meth:`validate_config`
+       Run schema validation on loaded configuration dictionary.
 
     References
     ----------
@@ -100,15 +100,15 @@ class SmurfConfig:
 
     """
 
-    def __init__(self, filename=None, validate_config=True):
+    def __init__(self, filename=None, validate=True):
         """SmurfConfig constructor."""
         self.filename = filename
         self.config = None
         if self.filename is not None:
-            self.read(update=True, validate_config=validate_config)
+            self.read(update=True, validate=validate)
 
     def read_json(self, filename, comment_char='#'):
-        """Reads a pysmurf configuration file.
+        """Read a pysmurf configuration file.
 
         Opens configuration file at the path provided by the
         `filename` argument, strips off all lines that start with the
@@ -122,7 +122,7 @@ class SmurfConfig:
            Path to pysmurf configuration file to load.
         comment_char : str, optional, default '#'
            Comments that start with this character will be ignored.
-           
+
         Returns
         -------
         loaded_config : dict
@@ -134,7 +134,7 @@ class SmurfConfig:
            Raised if the configuration file does not exist.
         JSONDecodeError
            Raised if the loaded configuration file data is not in JSON
-           format [#json]_.
+           format.
         """
         no_comments = []
         try:
@@ -151,22 +151,22 @@ class SmurfConfig:
                     else:
                         # will pass on to json parser
                         no_comments.append(line)
-        except FileNotFoundError as error:
+        except FileNotFoundError:
             print('No configuration file found at' +
                   f' filename={filename}')
             raise
-            
+
         loaded_config = json.loads('\n'.join(no_comments))
         return loaded_config
 
-    def read(self, update=False, validate_config=True):
-        """Reads config file and updates the configuration.
+    def read(self, update=False, validate=True):
+        """Read config file and update the configuration.
 
         Args
         ----
         update : bool, optional, default False
            Whether or not to update the configuration.
-        validate_config : bool, optional, default True
+        validate : bool, optional, default True
            Whether or not to run `schema` validation on the pysmurf
            configuration file data.  If `schema` validation fails, a
            `SchemaError` exception will be raised.
@@ -174,7 +174,7 @@ class SmurfConfig:
         loaded_config = self.read_json(self.filename)
 
         # validate
-        if validate_config:
+        if validate:
             validated_config = self.validate_config(loaded_config)
 
             if update:
@@ -185,12 +185,14 @@ class SmurfConfig:
             self.config = loaded_config
 
     def update(self, key, val):
-        """Updates a single key in the config
+        """Update a single key in the config dictionary.
 
-           Args
-           ----
-              key (any): key to update in the config dictionary
-              val (any): value to assign to the given key
+        Args
+        ----
+        key : any
+           Key to update in the config dictionary.
+        val : any
+           Value to assign to the given key
         """
         self.config[key] = val
 
@@ -220,12 +222,14 @@ class SmurfConfig:
         return False
 
     def get(self, key):
-        """Returns configuration entry for requested key.  Returns
-           None if key not present in configuration.
+        """Return entry in config dictionary for requested key.
+        
+        Returns `None` if the key not present in config dictionary.
 
-           Args
-           ----
-              key (any): key whose configuration entry to retrieve.
+        Args
+        ----
+        key : any
+           Key whose configuration entry to retrieve.
         """
 
         if self.has(key):
@@ -234,14 +238,17 @@ class SmurfConfig:
         return None
 
     def get_subkey(self, key, subkey):
-        """
+        """Get config dictionary subkey value.
+
         Get the subkey value. A dumb thing that just formats strings for you.
         Will return None if it can't find stuff
 
         Args
         ----
-          key (any): key in config
-          subkey (any): config subkey
+        key : any
+           Key in config dictionary.
+        subkey : any
+           config dictionary subkey.
         """
 
         if self.has(key):
