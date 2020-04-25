@@ -21,7 +21,7 @@ class SmurfConfigPropertiesMixin:
     Defines properties used by pysmurf whose values are specified in
     the pysmurf configuration file.  More details on python properties
     can be found in the documentation for python "Built-in Functions"
-    [pyprop]_.
+    [#pyprop]_.
 
     The :class:`SmurfConfigPropertiesMixin` class has only one
     function :func:`copy_config_to_properties` which can populate the
@@ -74,7 +74,7 @@ class SmurfConfigPropertiesMixin:
 
     References
     ----------
-    .. [pyprop] https://docs.python.org/3/library/functions.html#property
+    .. [#pyprop] https://docs.python.org/3/library/functions.html#property
 
     """
 

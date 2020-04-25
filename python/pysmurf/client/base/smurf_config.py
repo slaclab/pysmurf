@@ -30,7 +30,7 @@ class SmurfConfig:
     which are stored internally in a class instance attribute
     dictionary named `config`.
 
-    pysmurf configuration files must be in the JSON format [json]_ .
+    pysmurf configuration files must be in the JSON format [#json]_ .
     On instantiation, attempts to read the pysmurf configuration file
     at the path provided by the `filename` argument into the `config`
     dictionary class instance attribute.  If the `filename` argument
@@ -91,11 +91,11 @@ class SmurfConfig:
     See Also
     --------
     :meth:`~.SmurfConfig.validate_config` : Run schema validation on loaded
-    configuration dictionary.
+       configuration dictionary.
 
     References
     ----------
-    .. [json] https://www.json.org/json-en.html
+    .. [#json] https://www.json.org/json-en.html
     .. [#schema] https://github.com/keleshev/schema
 
     """
