@@ -38,13 +38,12 @@ class SmurfConfig:
     attribute is `None`.
 
     If a pysmurf configuration file is successfully loaded and the
-    `validate` constructor argument is True (which is the
-    default behavior), the parameters in the configuration file will
-    be validated using the 3rd party `schema` python library [#schema]_
-    using the rules specified in the
-    :meth:`validate_config` member function.  If the
-    configuration file data is valid, parameters are loaded into the
-    `config` dictionary class instance attribute.
+    `validate` constructor argument is True (which is the default
+    behavior), the parameters in the configuration file will be
+    validated using the 3rd party `schema` python library [#schema]_
+    using the rules specified in the :meth:`validate_config` class
+    method.  If the configuration file data is valid, parameters are
+    loaded into the `config` dictionary class instance attribute.
 
     If `validate` is False, the pysmurf configuration data will
     be loaded without `schema` validation.
@@ -119,10 +118,12 @@ class SmurfConfig:
         try:
             with open(self.filename) as config_file:
                 for _, line in enumerate(config_file):
+
                     if line.lstrip().startswith(comment_char):
                         # line starts with comment character - remove it
                         continue
-                    elif comment_char in line:
+
+                    if comment_char in line:
                         # there's a comment character on this line.
                         # ignore it and everything that follows
                         line = line.split(comment_char)[0]
@@ -130,6 +131,7 @@ class SmurfConfig:
                     else:
                         # will pass on to json parser
                         no_comments.append(line)
+
         except FileNotFoundError:
             print('No configuration file found at' +
                   f' filename={filename}')
@@ -256,17 +258,18 @@ class SmurfConfig:
             self.config[key] = {} # initialize an empty dictionary first
             self.config[key][subkey] = val
 
-    def validate_config(self, loaded_config):
+    @classmethod
+    def validate_config(cls, loaded_config):
         """Validate pysmurf configuration dictionary.
-        
+
         Validates the parameters in the configuration dictionary
         provided by the `loaded_config` argument using the 3rd party
         `schema` python library.  If the configuration data is valid,
         parameters are returned as a dictionary.
-        
+
         `schema` validation does several important things to raw data
         loaded from the pysmurf configuration file:
-        
+
         - Checks that all mandatory configuration variables are defined.
         - Conditions all configuration variables into the correct type
         (e.g. `float`, `int`, `str`, etc.).
@@ -279,11 +282,11 @@ class SmurfConfig:
         - Performs validation of some known higher level configuration
         data interdependencies (e.g. prevents the user from defining an
         RTM DAC as both a TES bias and an RF amplifier bias).
-        
+
         If validation fails, `schema` will raise a `SchemaError` exception
         and fail to load the configuration data, forcing the user to fix
         the cause of the `SchemaError` exception before the configuration
-        file can be loaded and used.        
+        file can be loaded and used.
 
         Args
         ----
@@ -302,6 +305,7 @@ class SmurfConfig:
         ------
         SchemaError
            Raised if the configuration data fails `schema` validation.
+
         """
         # Import useful schema objects
         # Try to import them from the system package. If it fails, then
@@ -321,8 +325,8 @@ class SmurfConfig:
 
         # Build list of bands from which band_[0-7] blocks are present.  Will
         # use this to build the rest of the validation schema.
-        r = re.compile("band_([0-7])")
-        bands = sorted([int(m.group(1)) for m in (r.match(s) for s in
+        band_regexp = re.compile("band_([0-7])")
+        bands = sorted([int(m.group(1)) for m in (band_regexp.match(s) for s in
                                                   band_validated['init'].keys()) if m])
 
         ###################################################
@@ -420,15 +424,15 @@ class SmurfConfig:
         ## SHOULD MAKE IT SO THAT WE JUST LOAD AND VALIDATE A SEPARATE,
         ## HARDWARE SPECIFIC CRYOSTAT CARD CONFIG FILE.  FOR NOW, JUST DO
         ## SOME VERY BASIC VALIDATION.
-        def RepresentsInt(s):
+        def represents_int(string):
             try:
-                int(s)
+                int(string)
                 return True
             except ValueError:
                 return False
 
-        schema_dict["pic_to_bias_group"] = {And(str, RepresentsInt) : int}
-        schema_dict["bias_group_to_pair"] = {And(str, RepresentsInt) : [int, int]}
+        schema_dict["pic_to_bias_group"] = {And(str, represents_int) : int}
+        schema_dict["bias_group_to_pair"] = {And(str, represents_int) : [int, int]}
         #### Done specifying cryostat card schema
 
         #### Start specifiying amplifier
@@ -524,10 +528,10 @@ class SmurfConfig:
         ]
 
         for band in bands:
-            for (p, v) in per_band_tuning_params:
+            for (param, value) in per_band_tuning_params:
                 if band == bands[0]:
-                    schema_dict['tune_band'][p] = {}
-                schema_dict['tune_band'][p][str(band)] = v
+                    schema_dict['tune_band'][param] = {}
+                schema_dict['tune_band'][param][str(band)] = value
         ## Done adding tuning params that must be specified per band.
 
         #### Done specifying tune parameter schema
@@ -614,20 +618,19 @@ class SmurfConfig:
         # System should be smart enough to determine fs on the fly.
         schema_dict["fs"] = And(Use(float), lambda f: f > 0)
 
-        def userHasWriteAccess(dirpath):
+        def user_has_write_access(dirpath):
             return os.access(dirpath, os.W_OK)
 
-        def fileDirExistsAndUserHasWriteAccess(file_path):
+        def dir_exists_with_write_access(file_path):
             filedir_path = os.path.dirname(file_path)
-            if not os.path.isdir(filedir_path):
+            if (not os.path.isdir(filedir_path) or
+                    not user_has_write_access(filedir_path)):
                 return False
-            elif not userHasWriteAccess(filedir_path):
-                return False
-            else:
-                return True
+            return True
 
-        def isValidPort(port_number):
+        def is_valid_port(port_number):
             return 1 <= int(port_number) <= 65535
+
         # Some documentation on some of these parameters is here -
         # https://confluence.slac.stanford.edu/display/SMuRF/SMURF2MCE
         schema_dict["smurf_to_mce"] = {
@@ -635,9 +638,9 @@ class SmurfConfig:
             # files on the fly, so just need to make sure the directory #
             # exists and is writeable
             Optional("smurf_to_mce_file", default="/data/smurf2mce_config/smurf2mce.cfg") \
-               : And(str, fileDirExistsAndUserHasWriteAccess),
+               : And(str, dir_exists_with_write_access),
             Optional("mask_file", default="/data/smurf2mce_config/mask.txt") \
-               : And(str, fileDirExistsAndUserHasWriteAccess),
+               : And(str, dir_exists_with_write_access),
 
             # Whether or not to dynamically generate the gcp mask
             # everytime you stream data based on which channels have tones
@@ -674,7 +677,7 @@ class SmurfConfig:
 
             # This is the port used for communication. Must match the port
             # set at the receive end
-            Optional('port_number', default='3334') : And(str, RepresentsInt, isValidPort),
+            Optional('port_number', default='3334') : And(str, represents_int, is_valid_port),
 
             # Could and should improve validation on this one if it's ever
             # used again.  This default is also ridiculous.
@@ -688,10 +691,10 @@ class SmurfConfig:
         #### Done specifying smurf2mce
 
         #### Start specifying directories
-        schema_dict[Optional("default_data_dir", default="/data/smurf_data")] = And(str, os.path.isdir, userHasWriteAccess)
-        schema_dict[Optional("smurf_cmd_dir", default="/data/smurf_data/smurf_cmd")] = And(str, os.path.isdir, userHasWriteAccess)
-        schema_dict[Optional("tune_dir", default="/data/smurf_data/tune")] = And(str, os.path.isdir, userHasWriteAccess)
-        schema_dict[Optional("status_dir", default="/data/smurf_data/status")] = And(str, os.path.isdir, userHasWriteAccess)
+        schema_dict[Optional("default_data_dir", default="/data/smurf_data")] = And(str, os.path.isdir, user_has_write_access)
+        schema_dict[Optional("smurf_cmd_dir", default="/data/smurf_data/smurf_cmd")] = And(str, os.path.isdir, user_has_write_access)
+        schema_dict[Optional("tune_dir", default="/data/smurf_data/tune")] = And(str, os.path.isdir, user_has_write_access)
+        schema_dict[Optional("status_dir", default="/data/smurf_data/status")] = And(str, os.path.isdir, user_has_write_access)
         #### Done specifying directories
 
         ##### Done building validation schema
