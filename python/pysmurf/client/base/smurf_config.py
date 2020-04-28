@@ -46,27 +46,6 @@ class SmurfConfig:
     configuration file data is valid, parameters are loaded into the
     `config` dictionary class instance attribute.
 
-    `schema` validation does several important things to data loaded
-    from the pysmurf configuration file:
-
-    - Checks that all mandatory configuration variables are defined.
-    - Conditions all configuration variables into the correct type
-      (e.g. `float`, `int`, `str`, etc.).
-    - Automatically fills in the values for missing optional
-      parameters.  Optional parameters are typically parameters which
-      almost never change from SMuRF system to SMuRF system.
-    - Checks if parameters have valid values (e.g., some parameters
-      can only be either 0 or 1, or must be in a predefined interval,
-      etc.).
-    - Performs validation of some known higher level configuration
-      data interdependencies (e.g. prevents the user from defining an
-      RTM DAC as both a TES bias and an RF amplifier bias).
-
-    If validation fails, `schema` will raise a `SchemaError` exception
-    and fail to load the configuration data, forcing the user to fix
-    the cause of the `SchemaError` exception before the configuration
-    file can be loaded and used.
-
     If `validate` is False, the pysmurf configuration data will
     be loaded without `schema` validation.
 
@@ -278,6 +257,52 @@ class SmurfConfig:
             self.config[key][subkey] = val
 
     def validate_config(self, loaded_config):
+        """Validate pysmurf configuration dictionary.
+        
+        Validates the parameters in the configuration dictionary
+        provided by the `loaded_config` argument using the 3rd party
+        `schema` python library.  If the configuration data is valid,
+        parameters are returned as a dictionary.
+        
+        `schema` validation does several important things to raw data
+        loaded from the pysmurf configuration file:
+        
+        - Checks that all mandatory configuration variables are defined.
+        - Conditions all configuration variables into the correct type
+        (e.g. `float`, `int`, `str`, etc.).
+        - Automatically fills in the values for missing optional
+        parameters.  Optional parameters are typically parameters which
+        almost never change from SMuRF system to SMuRF system.
+        - Checks if parameters have valid values (e.g., some parameters
+        can only be either 0 or 1, or must be in a predefined interval,
+        etc.).
+        - Performs validation of some known higher level configuration
+        data interdependencies (e.g. prevents the user from defining an
+        RTM DAC as both a TES bias and an RF amplifier bias).
+        
+        If validation fails, `schema` will raise a `SchemaError` exception
+        and fail to load the configuration data, forcing the user to fix
+        the cause of the `SchemaError` exception before the configuration
+        file can be loaded and used.        
+
+        Args
+        ----
+        loaded_config : dict
+           Dictionary of pysmurf configuration parameters to run
+           `schema` validation on.
+
+        Returns
+        -------
+        validated_config : dict
+           Dictionary of validated configuration parameters.
+           Parameter values are conditioned by `schema` to conform to
+           the specified types.
+
+        Raises
+        ------
+        SchemaError
+           Raised if the configuration data fails `schema` validation.
+        """
         # Import useful schema objects
         # Try to import them from the system package. If it fails, then
         # import the local copy available in this repository.
