@@ -197,39 +197,52 @@ class SmurfConfig:
         ----
         key : any
            Key to check for in configuration dictionary.
+
+        Returns
+        -------
+        bool
+           Returns True if key is in the configuration dictionary,
+           False if it is not.
         """
         if key in self.config:
             return True
-
         return False
 
     def get(self, key):
         """Return entry in config dictionary for requested key.
 
-        Returns `None` if the key not present in config dictionary.
-
         Args
         ----
         key : any
            Key whose configuration entry to retrieve.
+
+        Returns
+        -------
+        any or None
+           Returns value for requested key from configuration
+           dictionary.  Returns `None` if key is not present in the
+           config dictionary.
         """
         if self.has(key):
             return self.config[key]
-
         return None
 
     def get_subkey(self, key, subkey):
         """Get config dictionary subkey value.
-
-        Get the subkey value. A dumb thing that just formats strings for you.
-        Will return None if it can't find stuff
 
         Args
         ----
         key : any
            Key in config dictionary.
         subkey : any
-           config dictionary subkey.
+           Subkey in config dictionary.
+
+        Returns
+        -------
+        any or None
+           Returns value for requested subkey from configuration
+           dictionary.  Returns `None` if either key or subkey are not
+           present in the config dictionary.
         """
         if self.has(key):
             sub_dict = self.config[key]
@@ -243,14 +256,16 @@ class SmurfConfig:
             return None
 
     def update_subkey(self, key, subkey, val):
-        """
-        More dumb wrappers for nested dictionaries.
+        """Set config dictionary subkey value.
 
         Args
         ----
-          key (any): key in config
-          subkey (any): config subkey
-          val (any): value to write
+        key : any
+           Key in config dictionary.
+        subkey : any
+           Subkey in config dictionary
+        val : any
+           Value to write.
         """
         try:
             self.config[key][subkey] = val
@@ -601,9 +616,10 @@ class SmurfConfig:
         # RF lab at SLAC where they've been testing with an ASIS
         # crate.  Shawn has yet to have this work for him.  Newer fw
         # versions will have OT protection enabled in the fw.
-        schema_dict[Optional('ultrascale_temperature_limit_degC',
-                             default=None)] = \
-                    And(Use(float), lambda f: 0 <= f <= 99)
+        schema_dict[
+            Optional('ultrascale_temperature_limit_degC',
+                     default=None)] = And(Use(float),
+                                          lambda f: 0 <= f <= 99)
         #### Done specifying thermal schema
 
         #### Start specifying timing-related schema
@@ -697,18 +713,29 @@ class SmurfConfig:
         #### Done specifying smurf2mce
 
         #### Start specifying directories
-        schema_dict[Optional("default_data_dir",
-                             default="/data/smurf_data")] = \
-                    And(str, os.path.isdir, user_has_write_access)
-        schema_dict[Optional("smurf_cmd_dir",
-                             default="/data/smurf_data/smurf_cmd")] = \
-                    And(str, os.path.isdir, user_has_write_access)
-        schema_dict[Optional("tune_dir",
-                             default="/data/smurf_data/tune")] = \
-                    And(str, os.path.isdir, user_has_write_access)
-        schema_dict[Optional("status_dir",
-                             default="/data/smurf_data/status")] = \
-                    And(str, os.path.isdir, user_has_write_access)
+        schema_dict[
+            Optional(
+                "default_data_dir",
+                default="/data/smurf_data")] = And(str,
+                                                   os.path.isdir,
+                                                   user_has_write_access)
+        schema_dict[
+            Optional(
+                "smurf_cmd_dir",
+                default="/data/smurf_data/smurf_cmd")] = And(str,
+                                                             os.path.isdir,
+                                                             user_has_write_access)
+        schema_dict[
+            Optional("tune_dir",
+                     default="/data/smurf_data/tune")] = And(str,
+                                                             os.path.isdir,
+                                                             user_has_write_access)
+        schema_dict[
+            Optional(
+                "status_dir",
+                default="/data/smurf_data/status")] = And(str,
+                                                          os.path.isdir,
+                                                          user_has_write_access)
         #### Done specifying directories
 
         ##### Done building validation schema
@@ -727,10 +754,10 @@ class SmurfConfig:
         bias_group_to_pair = validated_config['bias_group_to_pair']
         tes_bias_group_dacs = np.ndarray.flatten(
             np.array([bg2p[1] for bg2p in bias_group_to_pair.items()]))
-        assert (len(np.unique(tes_bias_group_dacs)) == \
-                len(tes_bias_group_dacs)), \
-        'Configuration failed - DACs may not be assigned to ' + \
-            'multiple TES bias groups.'
+        assert (len(np.unique(tes_bias_group_dacs)) ==
+                len(tes_bias_group_dacs)), (
+                    'Configuration failed - DACs may not be ' +
+                    'assigned to multiple TES bias groups.')
 
         # Check that the DAC specified as the 50K gate driver
         # isn't also defined as one of the DACs in a TES bias group
