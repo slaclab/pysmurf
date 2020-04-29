@@ -655,7 +655,7 @@ class SmurfControl(SmurfCommandMixin,
             as_int=True, in which case returns timestamp as an
             integer.
         """
-        timestamp = '{:10}'.format(int(time.time()))
+        timestamp = f'{time.time():.0f}'
 
         if as_int:
             return int(timestamp)

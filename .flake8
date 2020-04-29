@@ -42,3 +42,7 @@ rst-roles =
 rst-directives =
     envvar,
     exception,
+# enforces fstrings only
+extend-ignore =
+    # Ignore f-strings, we like them:
+    SFS301,
