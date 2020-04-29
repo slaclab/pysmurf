@@ -268,9 +268,9 @@ class SmurfControl(SmurfCommandMixin,
         if not no_dir:
             for b in self.config.get('init').get('bands'):
                 all_channel_assignment_files = glob.glob(os.path.join(self.tune_dir,
-                    '*channel_assignment_b{}.txt'.format(b)))
+                    f'*channel_assignment_b{b}.txt'))
                 if len(all_channel_assignment_files):
-                    self.channel_assignment_files['band_{}'.format(b)] = \
+                    self.channel_assignment_files[f'band_{b}'] = \
                         np.sort(all_channel_assignment_files)[-1]
 
         # bias groups available
@@ -444,7 +444,7 @@ class SmurfControl(SmurfCommandMixin,
 
         # The per band configs. May want to make available per-band values.
         for b in bands:
-            band_str = 'band_{}'.format(b)
+            band_str = f'band_{b}'
             self.set_iq_swap_in(b, smurf_init_config[band_str]['iq_swap_in'],
                 write_log=write_log, **kwargs)
             self.set_iq_swap_out(b, smurf_init_config[band_str]['iq_swap_out'],
@@ -572,7 +572,7 @@ class SmurfControl(SmurfCommandMixin,
 
             # check if supported
             timing_options = ['ext_ref', 'backplane']
-            assert (timing_reference in timing_options), 'timing_reference in cfg file (={}) not in timing_options={}'.format(timing_reference, str(timing_options))
+            assert (timing_reference in timing_options), f'timing_reference in cfg file (={timing_reference}) not in timing_options={timing_options}'
 
             self.log(f'Configuring the system to take timing from {timing_reference}')
 

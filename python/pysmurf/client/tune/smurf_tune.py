@@ -3670,7 +3670,7 @@ class SmurfTuneMixin(SmurfBase):
         """
         timestamp = self.get_timestamp()
         savedir = os.path.join(self.tune_dir, timestamp+"_tune")
-        self.log('Saving to : {}.npy'.format(savedir))
+        self.log(f'Saving to : {savedir}.npy')
         np.save(savedir, self.freq_resp)
         self.pub.register_file(savedir, 'tune', format='npy')
 
@@ -3698,7 +3698,7 @@ class SmurfTuneMixin(SmurfBase):
         """
         if filename is None and last_tune:
             filename = self.last_tune()
-            self.log('Defaulting to last tuning: {}'.format(filename))
+            self.log(f'Defaulting to last tuning: {filename}')
         elif filename is not None and last_tune:
             self.log('filename explicitly given. Overriding last_tune bool in load_tune.')
 
@@ -3708,7 +3708,7 @@ class SmurfTuneMixin(SmurfBase):
         if override:
             if band is None:
                 bands_in_file=list(fs.keys())
-                self.log('Loading tune data for all bands={}.'.format(str(bands_in_file)))
+                self.log(f'Loading tune data for all bands={bands_in_file}.')
                 self.freq_resp = fs
                 # Load all tune data for all bands in file.  only
                 # update tune_file if both band are loaded from the
