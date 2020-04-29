@@ -258,8 +258,8 @@ class SmurfConfig:
             self.config[key] = {} # initialize an empty dictionary first
             self.config[key][subkey] = val
 
-    @classmethod
-    def validate_config(cls, loaded_config):
+    @staticmethod
+    def validate_config(loaded_config):
         """Validate pysmurf configuration dictionary.
 
         Validates the parameters in the configuration dictionary
@@ -272,16 +272,16 @@ class SmurfConfig:
 
         - Checks that all mandatory configuration variables are defined.
         - Conditions all configuration variables into the correct type
-        (e.g. `float`, `int`, `str`, etc.).
+          (e.g. `float`, `int`, `str`, etc.).
         - Automatically fills in the values for missing optional
-        parameters.  Optional parameters are typically parameters which
-        almost never change from SMuRF system to SMuRF system.
+          parameters.  Optional parameters are typically parameters which
+          almost never change from SMuRF system to SMuRF system.
         - Checks if parameters have valid values (e.g., some parameters
-        can only be either 0 or 1, or must be in a predefined interval,
-        etc.).
+          can only be either 0 or 1, or must be in a predefined interval,
+          etc.).
         - Performs validation of some known higher level configuration
-        data interdependencies (e.g. prevents the user from defining an
-        RTM DAC as both a TES bias and an RF amplifier bias).
+          data interdependencies (e.g. prevents the user from defining an
+          RTM DAC as both a TES bias and an RF amplifier bias).
 
         If validation fails, `schema` will raise a `SchemaError` exception
         and fail to load the configuration data, forcing the user to fix
@@ -359,7 +359,7 @@ class SmurfConfig:
         default_data_out_mux_dict[7] = [8, 9]
 
         for band in bands:
-            schema_dict['init']['band_%d'%band] = {
+            schema_dict['init'][f'band_{band}'] = {
 
                 # Swap IQ channels on input
                 Optional('iq_swap_in', default=0): And(int, lambda n: n in (0, 1)),
@@ -389,8 +389,10 @@ class SmurfConfig:
                 'amplitude_scale': And(int, lambda n: 0 <= n < 2**4),
 
                 # data_out_mux
-                Optional("data_out_mux", default=default_data_out_mux_dict[band]) \
-                  : And([Use(int)], list, lambda l: len(l) == 2 and l[0] != l[1] and all(ll >= 0 and ll <= 9 for ll in l)),
+                Optional("data_out_mux",
+                         default=default_data_out_mux_dict[band]) : \
+                And([Use(int)], list, lambda l: len(l) == 2 and
+                    l[0] != l[1] and all(0 <= ll <= 9 for ll in l)),
 
                 # Matches system latency for LMS feedback (9.6 MHz
                 # ticks, use multiples of 52).  For dspv3 to adjust to
@@ -487,7 +489,7 @@ class SmurfConfig:
         schema_dict[Optional('chip_to_freq', default={})] = {
             # [chip lower frequency, chip upper frequency] in GHz
             Optional(str) : And([Use(float)], list, lambda l: len(l) == 2 and
-                                l[0] < l[1] and all(ll >= 4 and ll <= 8 for ll in l))
+                                l[0] < l[1] and all(4 <= ll <= 8 for ll in l))
         }
         #### Done specifying chip-to-frequency schema
 
@@ -541,7 +543,7 @@ class SmurfConfig:
             # Why are these indexed by integers that are also strings?
             # I don't think the keys here are used at all.
             Optional(str) : And([Use(float)], list, lambda l: len(l) == 2 and
-                                l[0] < l[1] and all(ll >= 4000 and ll <= 8000 for ll in l))
+                                l[0] < l[1] and all(4000 <= ll <= 8000 for ll in l))
         }
         #### Done specifying bad mask
 
@@ -563,7 +565,7 @@ class SmurfConfig:
 
         # All SMuRF bias groups with TESs connected.
         schema_dict["all_bias_groups"] = And([int], list, lambda l:
-                                             all(ll >= 0 and ll < 16 for ll in l))
+                                             all(0 <= ll < 16 for ll in l))
         #### Done specifying TES-related
 
         #### Start specifying flux ramp-related
@@ -599,7 +601,9 @@ class SmurfConfig:
         # RF lab at SLAC where they've been testing with an ASIS
         # crate.  Shawn has yet to have this work for him.  Newer fw
         # versions will have OT protection enabled in the fw.
-        schema_dict[Optional('ultrascale_temperature_limit_degC', default=None)] = And(Use(float), lambda f: 0 <= f <= 99)
+        schema_dict[Optional('ultrascale_temperature_limit_degC',
+                             default=None)] = \
+                    And(Use(float), lambda f: 0 <= f <= 99)
         #### Done specifying thermal schema
 
         #### Start specifying timing-related schema
@@ -677,7 +681,9 @@ class SmurfConfig:
 
             # This is the port used for communication. Must match the port
             # set at the receive end
-            Optional('port_number', default='3334') : And(str, represents_int, is_valid_port),
+            Optional('port_number', default='3334') : And(str,
+                                                          represents_int,
+                                                          is_valid_port),
 
             # Could and should improve validation on this one if it's ever
             # used again.  This default is also ridiculous.
@@ -691,10 +697,18 @@ class SmurfConfig:
         #### Done specifying smurf2mce
 
         #### Start specifying directories
-        schema_dict[Optional("default_data_dir", default="/data/smurf_data")] = And(str, os.path.isdir, user_has_write_access)
-        schema_dict[Optional("smurf_cmd_dir", default="/data/smurf_data/smurf_cmd")] = And(str, os.path.isdir, user_has_write_access)
-        schema_dict[Optional("tune_dir", default="/data/smurf_data/tune")] = And(str, os.path.isdir, user_has_write_access)
-        schema_dict[Optional("status_dir", default="/data/smurf_data/status")] = And(str, os.path.isdir, user_has_write_access)
+        schema_dict[Optional("default_data_dir",
+                             default="/data/smurf_data")] = \
+                    And(str, os.path.isdir, user_has_write_access)
+        schema_dict[Optional("smurf_cmd_dir",
+                             default="/data/smurf_data/smurf_cmd")] = \
+                    And(str, os.path.isdir, user_has_write_access)
+        schema_dict[Optional("tune_dir",
+                             default="/data/smurf_data/tune")] = \
+                    And(str, os.path.isdir, user_has_write_access)
+        schema_dict[Optional("status_dir",
+                             default="/data/smurf_data/status")] = \
+                    And(str, os.path.isdir, user_has_write_access)
         #### Done specifying directories
 
         ##### Done building validation schema
@@ -711,8 +725,12 @@ class SmurfConfig:
 
         # Check that no DAC has been assigned to multiple TES bias groups
         bias_group_to_pair = validated_config['bias_group_to_pair']
-        tes_bias_group_dacs = np.ndarray.flatten(np.array([bg2p[1] for bg2p in bias_group_to_pair.items()]))
-        assert (len(np.unique(tes_bias_group_dacs)) == len(tes_bias_group_dacs)), 'Configuration failed - DACs may not be assigned to multiple TES bias groups.'
+        tes_bias_group_dacs = np.ndarray.flatten(
+            np.array([bg2p[1] for bg2p in bias_group_to_pair.items()]))
+        assert (len(np.unique(tes_bias_group_dacs)) == \
+                len(tes_bias_group_dacs)), \
+        'Configuration failed - DACs may not be assigned to ' + \
+            'multiple TES bias groups.'
 
         # Check that the DAC specified as the 50K gate driver
         # isn't also defined as one of the DACs in a TES bias group
@@ -721,7 +739,15 @@ class SmurfConfig:
         # Taking the first element works because we already required
         # that no DAC show up in more than one TES bias group
         # definition.
-        assert (dac_num_50k not in tes_bias_group_dacs), 'Configuration failed - DAC requested for driving 50K amplifier gate, %d, is also assigned to TES bias group %d.'%(int(dac_num_50k), int([bg2p[0] for bg2p in bias_group_to_pair.items() if dac_num_50k in bg2p[1]][0]))
+        if dac_num_50k in tes_bias_group_dacs:
+            # which TES bias group is defined as using the requested
+            # DAC for biasing the 50K amplifier?
+            bias_group = int([bg2p[0] for bg2p in
+                              bias_group_to_pair.items() if
+                              dac_num_50k in bg2p[1]][0])
+            assert False, 'Configuration failed - DAC requested ' + \
+                f'for driving 50K amplifier gate, {dac_num_50k}, is ' + \
+                f'also assigned to TES bias group {bias_group}.'
 
         ##### Done with higher level/composite validation.
         ###################################################
