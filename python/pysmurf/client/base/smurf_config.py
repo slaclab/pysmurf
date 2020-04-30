@@ -145,13 +145,17 @@ class SmurfConfig:
         """Read config file and update the config dictionary.
 
         Reads raw configuration parameters from configuration file at
-        the path specified by the `filename` class instance attribute
-        using the :meth:`read_json` method.
+        the path specified by the :attr:`filename` class instance
+        attribute using the :meth:`read_json` method.
 
         If the `validate` argument is `True` (which is the default
-        behavior), the loaded configuration parameter dictionary, the
-        loaded configuration parameters are validated using the
-        :meth:`validate_config` routine.  If successful and the `update`
+        behavior), the loaded configuration parameters are validated
+        using the :meth:`validate_config` routine.
+
+        The :attr:`config` class instance attribute is only updated
+        with the loaded configuration parameters if the `update`
+        argument is `True` (it is `False` by default).  Either way,
+        the loaded configuration parameter dictionary is returned.
 
         Args
         ----
@@ -162,12 +166,18 @@ class SmurfConfig:
             configuration file data.  If `schema` validation fails, a
             `SchemaError` exception will be raised.
 
+        Returns
+        -------
+        config : dict
+            The loaded dictionary of pysmurf configuration parameters.
+
         See Also
         --------
         :meth:`read_json`
             Reads raw configuration file into a dictionary.
         :meth:`validate_config`
-            Run `schema` validation on loaded configuration dictionary.
+            Run `schema` validation on loaded configuration
+            dictionary.
         """
         config = self.read_json(self.filename)
 
