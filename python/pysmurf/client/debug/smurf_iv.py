@@ -806,7 +806,7 @@ class SmurfIVMixin(SmurfBase):
                 else:
                     channel_freq=self.channel_to_freq(band, channel)
                     title += f', {channel_freq:.2f} MHz'
-            title += (r', $R_\mathrm{sh}$ = ' + f'${R_sh*1.0E3:.2f}$ ' + 
+            title += (r', $R_\mathrm{sh}$ = ' + f'${R_sh*1.0E3:.2f}$ ' +
                       r'$\mathrm{m}\Omega$')
             plot_name = basename + '_' + plot_name
             title = basename + ' ' + title

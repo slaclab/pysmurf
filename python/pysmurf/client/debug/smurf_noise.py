@@ -256,8 +256,9 @@ class SmurfNoiseMixin(SmurfBase):
                         transform=ax.transAxes, fontsize=10)
                 ax.set_xlabel(r'Mean noise [$\mathrm{pA}/\sqrt{\mathrm{Hz}}$]')
 
-                plot_name = basename + \
-                            '{l}_{h}_noise_hist{plotname_append}.png'
+                plot_name = (
+                    basename +
+                    f'{l}_{h}_noise_hist{plotname_append}.png')
                 plt.savefig(os.path.join(self.plot_dir, plot_name),
                     bbox_inches='tight')
                 if show_plot:
@@ -274,7 +275,8 @@ class SmurfNoiseMixin(SmurfBase):
                 n_attempt = len(channels)
 
                 fig,ax = plt.subplots(1,3, figsize=(10,6))
-                fig.suptitle(f'{basename} noise parameters' +
+                fig.suptitle(
+                    f'{basename} noise parameters' +
                     f' ({n_fit} fit of {n_attempt} attempted)')
                 ax[0].hist(wl_list,
                     bins=np.logspace(np.floor(np.log10(np.min(wl_list))),
@@ -1302,7 +1304,7 @@ class SmurfNoiseMixin(SmurfBase):
                       plt.title(basename +
                                 f": Band {np.unique(band)}, Group " +
                                 f"{fig_title_string.strip(',')}, {n_analyzed}" +
-                                "channels")                      
+                                "channels"))
             plt.xticks(xtick_locs,xtick_labels)
             plt.xlabel('Commanded bias voltage [V]')
             plt.plot(xtick_locs,NEP_est_median_list, linestyle='--', marker='o',
