@@ -38,14 +38,14 @@ class SmurfConfig:
     attribute is `None`.
 
     If a pysmurf configuration file is successfully loaded and the
-    `validate` constructor argument is True (which is the default
+    `validate` constructor argument is `True` (which is the default
     behavior), the parameters in the configuration file will be
     validated using the 3rd party `schema` python library [#schema]_
     using the rules specified in the :meth:`validate_config` class
     method.  If the configuration file data is valid, parameters are
     loaded into the :attr:`config` dictionary.
 
-    If `validate` is False, the pysmurf configuration data will be
+    If `validate` is `False`, the pysmurf configuration data will be
     loaded without `schema` validation.  *Use at your own risk!*
 
     Args
@@ -94,7 +94,8 @@ class SmurfConfig:
         `filename` argument, strips off all lines that start with the
         character provided by the `comment_char` argument, and then
         parses the remaining lines in the pysmurf configuration file
-        into a dictionary using the `json.loads` routine.
+        into a dictionary using the `json.loads` routine.  Any text
+        after the `comment_char` on a line is also ignored.
 
         Args
         ----
@@ -232,8 +233,8 @@ class SmurfConfig:
         Returns
         -------
         bool
-            Returns True if key is in the :attr:`config` dictionary,
-            False if it is not.
+            Returns `True` if key is in the :attr:`config` dictionary,
+            `False` if it is not.
         """
         if key in self.config:
             return True
