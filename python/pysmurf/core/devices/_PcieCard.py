@@ -335,9 +335,12 @@ class PcieCard():
                 # by the user.
                 self._ip_addr = ip_addr
 
-        # Yes no function for reporting status
+        # Yes no functions for reporting status
         def yes_or_no(b):
             return ("Yes" if b else "No")
+
+        def yes_or_no_addr(b):
+            return ("Yes" if b else "No. A default address was loaded")
 
         # Print system configuration and status
         print("  - PCIe for RSSI present in the system    : " +
@@ -349,10 +352,10 @@ class PcieCard():
 
         # Show IP address and lane when the PCIe is in use
         if self._use_pcie:
-            print("  - Valid MAC address                      : {}".format(
-                "Yes" if valid_local_mac_addr else "No. A default address was loaded"))
-            print("  - Valid IP address                       : {}".format(
-                "Yes" if valid_local_ip_addr else "No. A default address was loaded"))
+            print("  - Valid MAC address                      : " +
+                  f"{yes_or_no_addr(valid_local_mac_addr)}")
+            print("  - Valid IP address                       : " +
+                  f"{yes_or_no_addr(valid_local_ip_addr)}")
             print(f"  - Local MAC address:                     : {local_mac_addr}")
             print(f"  - Local IP address:                      : {local_ip_addr}")
             print(f"  - Using IP address                       : {self._ip_addr}")
