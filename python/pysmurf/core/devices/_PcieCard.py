@@ -338,7 +338,7 @@ class PcieCard():
         # Yes no function for reporting status
         def yes_or_no(b):
             return ("Yes" if b else "No")
-                
+
         # Print system configuration and status
         print("  - PCIe for RSSI present in the system    : " +
               f"{yes_or_no(self._pcie_rssi_present)}")
