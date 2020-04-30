@@ -335,13 +335,17 @@ class PcieCard():
                 # by the user.
                 self._ip_addr = ip_addr
 
+        # Yes no function for reporting status
+        def yes_or_no(b):
+            return ("Yes" if b else "No")
+                
         # Print system configuration and status
-        print("  - PCIe for RSSI present in the system    : {}".format(
-            "Yes" if self._pcie_rssi_present else "No"))
-        print("  - PCIe for Data present in the system    : {}".format(
-            "Yes" if self._pcie_data_present else "No"))
-        print("  - PCIe based communicartion selected     : {}".format(
-            "Yes" if self._use_pcie else "No"))
+        print("  - PCIe for RSSI present in the system    : " +
+              f"{yes_or_no(self._pcie_rssi_present)}")
+        print("  - PCIe for Data present in the system    : " +
+              f"{yes_or_no(self._pcie_data_present)}")
+        print("  - PCIe based communication selected     : " +
+              f"{yes_or_no(self._use_pcie)}")
 
         # Show IP address and lane when the PCIe is in use
         if self._use_pcie:
