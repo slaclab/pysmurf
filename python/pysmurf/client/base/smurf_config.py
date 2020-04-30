@@ -28,13 +28,13 @@ class SmurfConfig:
     functions for reading and writing pysmurf configuration files,
     contains helper functions for manipulating configuration variables
     which are stored internally in a class instance attribute
-    dictionary named `config`.
+    dictionary named :attr:`config`.
 
     pysmurf configuration files must be in the JSON format [#json]_.
     On instantiation, attempts to read the pysmurf configuration file
-    at the path provided by the `filename` argument into the `config`
-    dictionary class instance attribute.  If the `filename` argument
-    is not provided, no configuration file is loaded and the `config`
+    at the path provided by the `filename` argument into the
+    :attr:`config` dictionary.  If the `filename` argument is not
+    provided, no configuration file is loaded and the :attr:`config`
     attribute is `None`.
 
     If a pysmurf configuration file is successfully loaded and the
@@ -43,10 +43,10 @@ class SmurfConfig:
     validated using the 3rd party `schema` python library [#schema]_
     using the rules specified in the :meth:`validate_config` class
     method.  If the configuration file data is valid, parameters are
-    loaded into the `config` dictionary class instance attribute.
+    loaded into the :attr:`config` dictionary.
 
-    If `validate` is False, the pysmurf configuration data will
-    be loaded without `schema` validation.
+    If `validate` is False, the pysmurf configuration data will be
+    loaded without `schema` validation.  *Use at your own risk!*
 
     Args
     ----
@@ -60,11 +60,12 @@ class SmurfConfig:
     Attributes
     ----------
     filename : str or None
-        Path to loaded pysmurf configuration file.  `None` if no pysmurf
-        configuration file has been loaded.
+        Path to loaded pysmurf configuration file, or configuration
+        file to load.  `None` if no pysmurf configuration file has
+        been loaded.
     config : dict or None
-        Dictionary of pysmurf configuration data.  `None` if no pysmurf
-        configuration file has been loaded.
+        Loaded dictionary of pysmurf configuration data.  `None` if no
+        pysmurf configuration file has been loaded.
 
     See Also
     --------
@@ -197,7 +198,7 @@ class SmurfConfig:
         Args
         ----
         key : any
-            Key to update in the config dictionary.
+            Key to update in the :attr:`config` dictionary.
         val : any
             Value to assign to the given key
         """
@@ -205,6 +206,10 @@ class SmurfConfig:
 
     def write(self, outputfile):
         """Dump the current config to a file.
+
+        Writes the :attr:`config` dictionary to file at the path
+        provided by the `outputfile` argument using the `json.dumps`
+        routine.
 
         Args
         ----
@@ -222,12 +227,12 @@ class SmurfConfig:
         Args
         ----
         key : any
-            Key to check for in configuration dictionary.
+            Key to check for in :attr:`config` dictionary.
 
         Returns
         -------
         bool
-            Returns True if key is in the configuration dictionary,
+            Returns True if key is in the :attr:`config` dictionary,
             False if it is not.
         """
         if key in self.config:
@@ -240,14 +245,14 @@ class SmurfConfig:
         Args
         ----
         key : any
-            Key whose configuration entry to retrieve.
+            Key whose :attr:`config` dictionary entry to retrieve.
 
         Returns
         -------
         any or None
-            Returns value for requested key from configuration
+            Returns value for requested key from :attr:`config`
             dictionary.  Returns `None` if key is not present in the
-            config dictionary.
+            :attr:`config` dictionary.
         """
         if self.has(key):
             return self.config[key]
@@ -259,16 +264,16 @@ class SmurfConfig:
         Args
         ----
         key : any
-            Key in config dictionary.
+            Key in :attr:`config` dictionary.
         subkey : any
-            Subkey in config dictionary.
+            Subkey in :attr:`config` dictionary.
 
         Returns
         -------
         any or None
-            Returns value for requested subkey from configuration
-            dictionary.  Returns `None` if either key or subkey are not
-            present in the config dictionary.
+            Returns value for requested subkey from :attr:`config`
+            dictionary.  Returns `None` if either key or subkey are
+            not present in the :attr:`config` dictionary.
         """
         if self.has(key):
             sub_dict = self.config[key]
@@ -287,11 +292,11 @@ class SmurfConfig:
         Args
         ----
         key : any
-            Key in config dictionary.
+            Key in :attr:`config` dictionary.
         subkey : any
-            Subkey in config dictionary
+            Subkey in :attr:`config` dictionary
         val : any
-            Value to write.
+            Value to write to :attr:`config` dictionary subkey.
         """
         try:
             self.config[key][subkey] = val
