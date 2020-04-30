@@ -169,18 +169,17 @@ class SmurfConfig:
         :meth:`validate_config`
             Run `schema` validation on loaded configuration dictionary.
         """
-        loaded_config = self.read_json(self.filename)
+        config = self.read_json(self.filename)
 
         # validate
         if validate:
-            validated_config = self.validate_config(loaded_config)
+            config = self.validate_config(config)
 
-            if update:
-                # put in some logic here to make sure parameters in experiment file match
-                # the parameters we're looking for
-                self.config = validated_config
-        else:
-            self.config = loaded_config
+        # only update config dictionary if update=True
+        if update:
+            self.config = config
+
+        return config
 
     def update(self, key, val):
         """Update a single key in the config dictionary.
