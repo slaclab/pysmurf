@@ -117,10 +117,10 @@ class SmurfIVMixin(SmurfBase):
         time.sleep(wait_time) # loops are in pyrogue now, which are faster?
 
         datafile = self.stream_data_on()
-        self.log('writing to {}'.format(datafile))
+        self.log(f'writing to {datafile}')
 
         for b in bias:
-            self.log('Bias at {:4.3f}'.format(b))
+            self.log(f'Bias at {b:4.3f}')
             self.set_tes_bias_bipolar_array(b * bias_group_bool)
             time.sleep(wait_time) # loops are now in pyrogue, so no division
 
@@ -145,7 +145,7 @@ class SmurfIVMixin(SmurfBase):
         iv_raw_data['plot_dir'] = self.plot_dir
         fn_iv_raw_data = os.path.join(self.output_dir, basename +
             '_iv_raw_data.npy')
-        self.log('Writing IV metadata to {}.'.format(fn_iv_raw_data))
+        self.log(f'Writing IV metadata to {fn_iv_raw_data}.')
 
         path = os.path.join(self.output_dir, fn_iv_raw_data)
         np.save(path, iv_raw_data)
@@ -244,7 +244,7 @@ class SmurfIVMixin(SmurfBase):
         self.log('Starting TES bias ramp.', self.LOG_USER)
 
         datafile = self.stream_data_on()
-        self.log('writing to {}'.format(datafile))
+        self.log(f'Writing to {datafile}')
 
         # actually set the arrays
         for step in np.arange(np.shape(bias_sweep_array)[1]):
@@ -339,7 +339,7 @@ class SmurfIVMixin(SmurfBase):
         bias_line_resistance : float or None, optional, default None
             The resistance of the bias lines in Ohms.
         """
-        self.log('Analyzing from file: {}'.format(fn_iv_raw_data))
+        self.log(f'Analyzing from file: {fn_iv_raw_data}')
 
         # Extract data from dict
         iv_raw_data = np.load(fn_iv_raw_data, allow_pickle=True).item()
@@ -417,8 +417,8 @@ class SmurfIVMixin(SmurfBase):
                 if grid_on:
                     ax.grid()
 
-                ax.set_title('Band {}, Group {}, Ch {:03}'.format(np.unique(band),
-                    bias_group, ch))
+                ax.set_title(f'Band {np.unique(band)}, ' +
+                             f'Group {bias_group}, Ch {ch:03}')
                 plt.tight_layout()
 
                 bg_str = ""
@@ -506,36 +506,48 @@ class SmurfIVMixin(SmurfBase):
             rn_array_mOhm = np.array(rn_list)/1e-3
             ax_rn.hist(rn_array_mOhm, bins=20, color=color_hist)
             ax_rn.set_xlabel(r'$R_N$ [$\mathrm{m}\Omega$]')
-            ax_rn.axvline(rn_median/1e-3, linestyle='--', color=color_median,
-                label=r'Median = {:.0f}'.format(rn_median/1e-3) +
+            ax_rn.axvline(
+                rn_median/1e-3, linestyle='--',
+                color=color_median,
+                label=f'Median = {rn_median*1000.:.0f}' +
                 r' $\mathrm{m}\Omega$')
             ax_rn.legend(loc='best')
 
             ax_vbias.hist(v_bias_target_list, bins=20, color=color_hist)
-            ax_vbias.axvline(v_bias_target_median, linestyle='--',
-                        color=color_median,
-                        label='Median = {:.2f} V'.format(v_bias_target_median))
-            ax_vbias.set_xlabel(r'Commanded voltage bias [V] for $R = $' +
-                '{:.0f}'.format(R_op_target/1e-3) +
+            ax_vbias.axvline(
+                v_bias_target_median, linestyle='--',
+                color=color_median,
+                label=f'Median = {v_bias_target_median:.2f} V')
+            ax_vbias.set_xlabel(
+                r'Commanded voltage bias [V] for $R = $' +
+                f'{R_op_target*1000.:.0f}' +
                 r' $\mathrm{m}\Omega$')
             ax_vbias.legend(loc='best')
 
             ax_ptrans.hist(p_trans_list, bins=20, color=color_hist)
-            ax_ptrans.axvline(ptrans_median, linestyle='--', color=color_median,
-                label=r'Median = {:.1f} pW'.format(ptrans_median))
-            ax_ptrans.set_xlabel('In-transition electrical power [pW]')
+            ax_ptrans.axvline(
+                ptrans_median, linestyle='--',
+                color=color_median,
+                label=f'Median = {ptrans_median:.1f} pW')
+            ax_ptrans.set_xlabel(
+                'In-transition electrical power [pW]')
             ax_ptrans.legend(loc='best')
 
             ax_si.hist(si_target_list, bins=20)
-            ax_si.axvline(si_target_median, linestyle='--', color=color_median,
-                label='Median = {:.2f}'.format(si_target_median) +
+            ax_si.axvline(
+                si_target_median, linestyle='--',
+                color=color_median,
+                label=f'Median = {si_target_median:.2f}' +
                 r' $\mu\mathrm{V}^{-1}$')
-            ax_si.axvline(si_goal, linestyle='--', color=color_goal,
+            ax_si.axvline(
+                si_goal, linestyle='--',
+                color=color_goal,
                 label=r'$-\mathrm{med}(V_\mathrm{TES})^{-1} = $' +
-                '{:.2f}'.format(si_goal) +
+                f'{si_goal:.2f}' +
                 r' $\mu\mathrm{V}^{-1}$')
-            ax_si.set_xlabel(r'Responsivity [$\mu\mathrm{V}^{-1}$] at $R = $' +
-                '{:.0f}'.format(R_op_target/1e-3) +
+            ax_si.set_xlabel(
+                r'Responsivity [$\mu\mathrm{V}^{-1}$] at $R = $' +
+                f'{R_op_target*1000.:.0f}' +
                 r' $\mathrm{m}\Omega$')
             plt.legend(loc='best')
 
@@ -543,9 +555,11 @@ class SmurfIVMixin(SmurfBase):
             fig.subplots_adjust(top=0.925)
 
             # Title
-            plt.suptitle('{}, band {}, group{}'.format(basename,
-                np.unique(band),bias_group))
-            iv_hist_filename = os.path.join(plot_dir,
+            plt.suptitle(
+                f'{basename}, band {np.unique(band)}, ' +
+                f'group{bias_group}')
+            iv_hist_filename = os.path.join(
+                plot_dir,
                 f'{basename}_IV_hist{plotname_append}.png')
 
             # Save the figure
@@ -774,24 +788,26 @@ class SmurfIVMixin(SmurfBase):
             title = ""
             plot_name = "IV_curve"
             if band is not None:
-                title = title + 'Band {}'.format(band)
-                plot_name = plot_name + '_b{}'.format(band)
+                title = title + f'Band {band}'
+                plot_name = plot_name + f'_b{band}'
             if bias_group is not None:
-                title = title + ' BG {}'.format(bias_group)
-                plot_name = plot_name + '_bg{}'.format(bias_group)
+                title = title + f' BG {bias_group}'
+                plot_name = plot_name + f'_bg{bias_group}'
             if channel is not None:
-                title = title + ' Ch {:03}'.format(channel)
-                plot_name = plot_name + '_ch{:03}'.format(channel)
+                title = title + f' Ch {channel:03}'
+                plot_name = plot_name + f'_ch{channel:03}'
             if basename is None:
                 basename = self.get_timestamp()
             if band is not None and channel is not None:
                 if self.offline:
-                    self.log("Offline mode does not know resonator frequency." +
-                        " Not adding to title.")
+                    self.log(
+                        "Offline mode does not know resonator " +
+                        "frequency.  Not adding to title.")
                 else:
-                    title += ', {:.2f} MHz'.format(self.channel_to_freq(band, channel))
-            title += r', $R_\mathrm{sh}$ = ' + '${:.2f}$ '.format(R_sh*1.0E3) + \
-                r'$\mathrm{m}\Omega$'
+                    channel_freq=self.channel_to_freq(band, channel)
+                    title += f', {channel_freq:.2f} MHz'
+            title += (r', $R_\mathrm{sh}$ = ' + f'${R_sh*1.0E3:.2f}$ ' + 
+                      r'$\mathrm{m}\Omega$')
             plot_name = basename + '_' + plot_name
             title = basename + ' ' + title
             plot_name += plotname_append + '.png'
@@ -809,21 +825,27 @@ class SmurfIVMixin(SmurfBase):
             ax_ii.set_ylabel(r'$I_\mathrm{TES}$ $[\mu A]$')
 
             # Plot normal branch fit
-            ax_ii.plot(i_bias_bin, norm_fit[0] * i_bias_bin , linestyle='--',
+            ax_ii.plot(i_bias_bin, norm_fit[0] * i_bias_bin ,
+                       linestyle='--',
                        color=color_norm, label=r'$R_N$' +
-                       '  = ${:.0f}$'.format(R_n/1e-3) +
+                       f'  = ${R_n*1000.:.0f}$' +
                        r' $\mathrm{m}\Omega$')
             # Plot superconducting branch fit
-            ax_ii.plot(i_bias_bin[:sc_idx],
-                sc_fit[0] * i_bias_bin[:sc_idx] + sc_fit[1], linestyle='--',
-                color=color_sc, label=r'$R_L$' +
-                    ' = ${:.0f}$'.format(R_L/1e-6) +
-                    r' $\mu\mathrm{\Omega}$')
+            ax_ii.plot(
+                i_bias_bin[:sc_idx],
+                sc_fit[0] * i_bias_bin[:sc_idx] + sc_fit[1],
+                linestyle='--',
+                color=color_sc,
+                label=(
+                    r'$R_L$' +
+                    f' = ${R_L/1e-6:.0f}$' +
+                    r' $\mu\mathrm{\Omega}$'))
 
-            label_target = r'$R = {:.0f}$ '.format(R_op_target/1e-3) + \
-                r'$\mathrm{m}\Omega$'
-            label_rfrac = '{:.2f}-{:.2f}'.format(R_frac_min,
-                R_frac_max) + r'$R_N$'
+            label_target = (
+                r'$R = ' + f'{R_op_target/1e-3:.0f}' + r'$ ' +
+                r'$\mathrm{m}\Omega$')
+            label_rfrac = (f'{R_frac_min:.2f}-{R_frac_max:.2f}' +
+                           r'$R_N$')
 
             for i in range(len(ax_i)):
                 if ax_i[i] == ax_ri:
@@ -869,8 +891,9 @@ class SmurfIVMixin(SmurfBase):
             vb_min = np.min(v_bias)
             delta_v = float(vb_max - vb_min)/n_ticks
             axt.set_xticks(np.arange(ib_min, ib_max+delta, delta))
-            axt.set_xticklabels(['{:.2f}'.format(x) for x in
-                np.arange(vb_min, vb_max+delta_v, delta_v)])
+            axt.set_xticklabels(
+                [f'{x:.2f}' for x in
+                 np.arange(vb_min, vb_max+delta_v, delta_v)])
             axt.set_xlabel(r'Commanded $V_b$ [V]')
 
             ax_si.plot(i_bias_bin[:-1],si,color=color_meas)
@@ -899,7 +922,7 @@ class SmurfIVMixin(SmurfBase):
                 if plot_dir is None:
                     plot_dir = self.plot_dir
                 plot_filename = os.path.join(plot_dir, plot_name)
-                self.log('Saving IV plot to {}'.format(plot_filename))
+                self.log(f'Saving IV plot to {plot_filename}')
                 plt.savefig(plot_filename,bbox_inches='tight')
                 self.pub.register_file(plot_filename, 'iv', plot=True)
 
@@ -952,7 +975,7 @@ class SmurfIVMixin(SmurfBase):
             are on and exceed phase_excursion_min.
         """
 
-        self.log('Analyzing plc from file: {}'.format(fn_plc_raw_data))
+        self.log(f'Analyzing plc from file: {fn_plc_raw_data}')
 
         plc_raw_data = np.load(fn_plc_raw_data).item()
         bias_group = plc_raw_data['band']
@@ -970,13 +993,13 @@ class SmurfIVMixin(SmurfBase):
         for c, (b, ch) in enumerate(zip(band, chans)):
             if (channels is not None) and (ch not in channels):
                 continue
-            self.log('Analyzing band {} channel {}'.format(b,ch))
+            self.log(f'Analyzing band {b} channel {ch}')
             ch_idx = mask[b,ch]
             phase = phase_all[ch_idx]
 
             phase_excursion = max(phase) - min(phase)
             if phase_excursion < phase_excursion_min:
-                self.log('Skipping ch {}: phase excursion < min'.format(ch))
+                self.log(f'Skipping ch {ch}: phase excursion < min')
                 continue
             phase_excursion_list.append(phase_excursion)
 
@@ -994,8 +1017,8 @@ class SmurfIVMixin(SmurfBase):
                 ax.set_xlabel('Sample Num')
                 ax.set_ylabel('Phase [rad.]')
 
-                ax.set_title('Band {}, Group {}, Ch {:03}'.format(np.unique(band),
-                    bias_group, ch)) # this is not going to be very useful...
+                ax.set_title(f'Band {np.unique(band)}, ' +
+                             f'Group {bias_group}, Ch {ch:03}')
                 plt.tight_layout()
 
                 if save_plot:
@@ -1003,8 +1026,9 @@ class SmurfIVMixin(SmurfBase):
                     for bg in np.unique(bias_group):
                         bg_str = bg_str + str(bg)
 
-                    plot_name = basename + \
-                        'plc_stream_b{}_g{}_ch{:03}.png'.format(b, bg_str, ch)
+                    plot_name = (
+                        basename +
+                        f'plc_stream_b{b}_g{bg_str}_ch{ch:03}.png')
                     path = os.path.join(plot_dir, plot_name)
                     plt.savefig(path, bbox_inches='tight', dpi=300)
                     self.pub.register_file(path, 'plc_stream', plot=True)
@@ -1109,9 +1133,12 @@ class SmurfIVMixin(SmurfBase):
             ax_pr.grid()
 
             # Plot name
-            plot_name = basename_hot + '_' + basename_cold + f'_optEff_g{group}_ch{ch:03}.png'
+            plot_name = (
+                basename_hot + '_' + basename_cold +
+                f'_optEff_g{group}_ch{ch:03}.png')
             plot_filename = os.path.join(plot_dir, plot_name)
-            self.log('Saving optical-efficiency plot to {}'.format(plot_filename))
+            self.log(
+                f'Saving optical-efficiency plot to {plot_filename}')
             plt.savefig(plot_filename, bbox_inches='tight', dpi=300)
 
             # Publish
@@ -1125,9 +1152,10 @@ class SmurfIVMixin(SmurfBase):
         dPdT_median = np.median(dPdT_list)
         plt.title(f'Group {group}, median = {dPdT_median:.3f} pW/K '+
             f'({n_outliers} outliers not plotted)')
-        plot_name = basename_hot + '_' + basename_cold + '_dPdT_hist_g{}.png'.format(group)
+        plot_name = basename_hot + '_' + basename_cold + f'_dPdT_hist_g{group}.png'
         hist_filename = os.path.join(plot_dir,plot_name)
-        self.log('Saving optical-efficiency histogram to {}'.format(hist_filename))
+        self.log(
+            f'Saving optical-efficiency histogram to {hist_filename}')
         plt.savefig(hist_filename, bbox_inches='tight', dpi=300)
         self.pub.register_file(hist_filename, 'opt_efficiency', plot=True)
         plt.close()
