@@ -26,13 +26,13 @@ while True:
     d = json.loads(data)
     print(d)
     if last_seq is None:
-        print('New sequence: %i' % d['seq_no'])
+        print(f"New sequence: {d['seq_no']}")
     else:
         delta = d['seq_no'] - last_seq
         if delta != 1:
-            print('Sequence jump: %i + %i' % (last_seq, delta))
+            print(f'Sequence jump: {last_seq} + {delta}')
             types = []
     last_seq = d['seq_no']
     if not d['type'] in types:
-        print('New type: %s at %i' % (d['type'], d['seq_no']))
+        print(f"New type: {d['type']} at {d['seq_no']}")
         types.append(d['type'])

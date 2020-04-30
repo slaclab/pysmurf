@@ -90,12 +90,12 @@ class SmurfUtilMixin(SmurfBase):
         # set filename
         if filename is not None:
             data_filename = os.path.join(self.output_dir, filename+'.dat')
-            self.log('Writing to file : {}'.format(data_filename),
+            self.log(f'Writing to file : {data_filename}',
                 self.LOG_USER)
         else:
             timestamp = self.get_timestamp()
             data_filename = os.path.join(self.output_dir, timestamp+'.dat')
-            self.log('Writing to file : {}'.format(data_filename),
+            self.log(f'Writing to file : {data_filename}',
                 self.LOG_USER)
 
         dtype = 'debug'
@@ -222,9 +222,15 @@ class SmurfUtilMixin(SmurfBase):
         resp_cable=None
         if load_full_band_resp:
             self.log('Loading full band resp data')
-            fbr_freq_file=os.path.join(fbr_path,'%d_freq_full_band_resp.txt'%fbr_ctime)
-            fbr_real_resp_file=os.path.join(fbr_path,'%d_real_full_band_resp.txt'%fbr_ctime)
-            fbr_complex_resp_file=os.path.join(fbr_path,'%d_imag_full_band_resp.txt'%fbr_ctime)
+            fbr_freq_file=(
+                os.path.join(fbr_path,
+                             f'{fbr_ctime}_freq_full_band_resp.txt'))
+            fbr_real_resp_file=(
+                os.path.join(fbr_path,
+                             f'{fbr_ctime}_real_full_band_resp.txt'))
+            fbr_complex_resp_file=(
+                os.path.join(fbr_path,
+                             f'{fbr_ctime}_imag_full_band_resp.txt'))
 
             freq_cable = np.loadtxt(fbr_freq_file)
             real_resp_cable = np.loadtxt(fbr_real_resp_file)
@@ -259,8 +265,12 @@ class SmurfUtilMixin(SmurfBase):
         resp_dsp=None
         if load_find_freq:
             self.log('Loading DSP frequency sweep data')
-            ff_freq_file=os.path.join(ff_path,'%d_amp_sweep_freq.txt'%ff_ctime)
-            ff_resp_file=os.path.join(ff_path,'%d_amp_sweep_resp.txt'%ff_ctime)
+            ff_freq_file=(
+                os.path.join(ff_path,
+                             f'{ff_ctime}_amp_sweep_freq.txt'))
+            ff_resp_file=(
+                os.path.join(ff_path,
+                             f'{ff_ctime}_amp_sweep_resp.txt'))
 
             freq_dsp=np.loadtxt(ff_freq_file)
             resp_dsp=np.loadtxt(ff_resp_file,dtype='complex')
@@ -312,9 +322,9 @@ class SmurfUtilMixin(SmurfBase):
         processing_delay_us=dsp_delay_us-cable_delay_us
 
         print('-------------------------------------------------------')
-        print('Estimated refPhaseDelay={}'.format(refPhaseDelay))
-        print('Estimated refPhaseDelayFine={}'.format(refPhaseDelayFine))
-        print('Estimated processing_delay_us={}'.format(processing_delay_us))
+        print(f'Estimated refPhaseDelay={refPhaseDelay}')
+        print(f'Estimated refPhaseDelayFine={refPhaseDelayFine}')
+        print(f'Estimated processing_delay_us={processing_delay_us}')
         print('-------------------------------------------------------')
 
         #### done measuring dsp delay (cable+processing)
@@ -331,8 +341,12 @@ class SmurfUtilMixin(SmurfBase):
         resp_dsp_corr=None
         if load_find_freq_check:
             self.log('Loading delay-corrected DSP frequency sweep data')
-            ff_corr_freq_file=os.path.join(ff_corr_path,'%d_amp_sweep_freq.txt'%ff_corr_ctime)
-            ff_corr_resp_file=os.path.join(ff_corr_path,'%d_amp_sweep_resp.txt'%ff_corr_ctime)
+            ff_corr_freq_file=(
+                os.path.join(ff_corr_path,
+                             f'{ff_corr_ctime}_amp_sweep_freq.txt'))
+            ff_corr_resp_file=(
+                os.path.join(ff_corr_path,
+                             f'{ff_corr_ctime}_amp_sweep_resp.txt'))
 
             freq_dsp_corr=np.loadtxt(ff_corr_freq_file)
             resp_dsp_corr=np.loadtxt(ff_corr_resp_file,dtype='complex')
@@ -379,16 +393,16 @@ class SmurfUtilMixin(SmurfBase):
         f_dsp_corr_plot = (freq_dsp_corr_subset) / 1.0E6
         dsp_corr_phase = np.unwrap(np.angle(resp_dsp_corr_subset))
 
-        ax[0].set_title('AMC in Bay {}, Band {} Cable Delay'.format(bay,band))
+        ax[0].set_title(f'AMC in Bay {bay}, Band {band} Cable Delay')
         ax[0].plot(f_cable_plot,cable_phase,label='Cable (full_band_resp)',
             c='g', lw=3)
         ax[0].plot(f_cable_plot,cable_p(f_cable_plot*1.0E6),'m--',
             label='Cable delay fit',lw=3)
 
-        ax[1].set_title('AMC in Bay {}, Band {} DSP Delay'.format(bay,band))
+        ax[1].set_title(f'AMC in Bay {bay}, Band {band} DSP Delay')
         ax[1].plot(f_dsp_plot,dsp_phase,label='DSP (find_freq)',c='c',lw=3)
         ax[1].plot(f_dsp_plot,dsp_p(f_dsp_plot*1.0E6), c='orange', ls='--',
-            label='DSP delay fit', lw=3)
+                   label='DSP delay fit', lw=3)
 
         ax[0].set_ylabel("Phase [rad]")
         ax[0].set_xlabel('Frequency offset from band center [MHz]')
@@ -400,11 +414,11 @@ class SmurfUtilMixin(SmurfBase):
         ax[1].legend(loc='lower left',fontsize=8)
 
         bbox = dict(boxstyle="round", ec='w', fc='w', alpha=.65)
-        ax[0].text(.97, .90, 'cable delay={:.5f} us'.format(cable_delay_us),
+        ax[0].text(.97, .90, f'cable delay={cable_delay_us:.5f} us',
                    transform=ax[0].transAxes, fontsize=10,
                    bbox=bbox,horizontalalignment='right')
 
-        ax[1].text(.97, .90, 'dsp delay={:.5f} us'.format(dsp_delay_us),
+        ax[1].text(.97, .90, f'dsp delay={dsp_delay_us:.5f} us',
                    transform=ax[1].transAxes, fontsize=10,
                    bbox=bbox,horizontalalignment='right')
 
@@ -416,31 +430,31 @@ class SmurfUtilMixin(SmurfBase):
             label='DSP (find_freq)', c='c')
         ax[2].plot(f_dsp_corr_plot,dsp_corr_phase-np.median(dsp_corr_phase),
             label='DSP corrected (find_freq)', c='m')
-        ax[2].set_title('AMC in Bay {}, Band {} Residuals'.format(bay,band))
+        ax[2].set_title(f'AMC in Bay {bay}, Band {band} Residuals'.format(bay,band))
         ax[2].set_ylabel("Residual [rad]")
         ax[2].set_xlabel('Frequency offset from band center [MHz]')
         ax[2].set_ylim([-5,5])
 
-        ax[2].text(.97, .92, 'refPhaseDelay={}'.format(refPhaseDelay),
+        ax[2].text(.97, .92, f'refPhaseDelay={refPhaseDelay}',
                    transform=ax[2].transAxes, fontsize=8,
                    bbox=bbox,horizontalalignment='right')
-        ax[2].text(.97, .84, 'refPhaseDelayFine={}'.format(refPhaseDelayFine),
+        ax[2].text(.97, .84, f'refPhaseDelayFine={refPhaseDelayFine}',
                    transform=ax[2].transAxes, fontsize=8,
                    bbox=bbox,horizontalalignment='right')
         ax[2].text(.97, .76,
-            'processing delay={:.5f} us (fw={})'.format(processing_delay_us,fw_abbrev_sha),
-            transform=ax[2].transAxes, fontsize=8,
-            bbox=bbox,horizontalalignment='right')
-        ax[2].text(.97, .68, 'delay post-correction={:.3f} ns'.format(dsp_corr_delay_us*1000.),
+                   f'processing delay={processing_delay_us:.5f} us (fw={fw_abbrev_sha})',
                    transform=ax[2].transAxes, fontsize=8,
                    bbox=bbox,horizontalalignment='right')
+        ax[2].text(.97, .68, f'delay post-correction={dsp_corr_delay_us*1000.:.3f} ns',
+                   transform=ax[2].transAxes, fontsize=8,
+                bbox=bbox,horizontalalignment='right')
 
         ax[2].legend(loc='upper left',fontsize=8)
 
         plt.tight_layout()
 
         if save_plot:
-            save_name = '{}_b{}_delay.png'.format(timestamp,band)
+            save_name = f'{timestamp}_b{band}_delay.png'
 
             path = os.path.join(self.plot_dir, save_name)
             plt.savefig(path,bbox_inches='tight')
@@ -954,7 +968,7 @@ class SmurfUtilMixin(SmurfBase):
         if register_file:
             datafile = self.get_data_file_name().tostring().decode()
             if datafile:
-                self.log("Registering File {}".format(datafile))
+                self.log(f"Registering File {datafile}")
                 self.pub.register_file(datafile, 'data', format='dat')
 
         self.set_stream_enable(0, write_log=write_log, wait_after=.15)
@@ -1178,12 +1192,12 @@ class SmurfUtilMixin(SmurfBase):
         try:
             datafile = glob.glob(datafile+'*')[-1]
         except ValueError:
-            print('datafile=%s'%datafile)
+            print(f'datafile={datafile}')
 
-        self.log('Reading {}'.format(datafile))
+        self.log(f'Reading {datafile}')
 
         if channel is not None:
-            self.log('Only reading channel {}'.format(channel))
+            self.log(f'Only reading channel {channel}')
 
 
         keys = ['protocol_version','crate_id','slot_number','number_of_channels',
@@ -1210,7 +1224,7 @@ class SmurfUtilMixin(SmurfBase):
         # Indices for input channels
         channel_mask = np.zeros(n_chan, dtype=int)
         for i, c in enumerate(channel):
-            channel_mask[i] = keys_dict['data{}'.format(c)]
+            channel_mask[i] = keys_dict[f'data{c}']
 
         eval_n_samp = False
         if n_samp is not None:
@@ -1248,7 +1262,7 @@ class SmurfUtilMixin(SmurfBase):
 
                 # Store the data in a useful array and reset tmp arrays
                 if counter % n == n - 1 :
-                    self.log('{} elements loaded'.format(counter+1))
+                    self.log(f'{counter+1} elements loaded')
                     phase = np.hstack((phase, tmp_phase))
                     timestamp2 = np.append(timestamp2, tmp_timestamp2)
                     tmp_phase = np.zeros((n_chan, n))
@@ -1263,7 +1277,7 @@ class SmurfUtilMixin(SmurfBase):
         timestamp = filename.split('.')[0]
 
         mask = self.make_mask_lookup(os.path.join(rootpath,
-                                                  '{}_mask.txt'.format(timestamp)))
+                                                  f'{timestamp}_mask.txt'))
 
         return timestamp2, phase, mask
 
@@ -1570,7 +1584,7 @@ class SmurfUtilMixin(SmurfBase):
             ax1.set_ylim((-2**15, 2**15))
             ax2 = plt.subplot(212)
             ax2.plot(f_plot, 10*np.log10(p_adc))
-            ax2.set_ylabel('ADC{}'.format(band))
+            ax2.set_ylabel(f'ADC{band}')
             ax2.set_xlabel('Frequency [MHz]')
             ax2.set_title(f'{timestamp} Spectrum')
             plt.grid(which='both')
@@ -1582,14 +1596,16 @@ class SmurfUtilMixin(SmurfBase):
 
 
             if save_plot:
-                plot_fn = '{}/{}_adc{}.png'.format(self.plot_dir,timestamp,band)
+                plot_fn = f'{self.plot_dir}/{timestamp}_adc{band}.png'
                 plt.savefig(plot_fn)
                 self.pub.register_file(plot_fn, 'adc', plot=True)
-                self.log('ADC plot saved to %s' % (plot_fn))
+                self.log(f'ADC plot saved to {plot_fn}')
 
         if save_data:
-            outfn=os.path.join(self.output_dir,'{}_adc{}'.format(timestamp,band))
-            self.log('Saving raw adc data to {}'.format(outfn), self.LOG_USER)
+            outfn=os.path.join(self.output_dir,
+                               f'{timestamp}_adc{band}')
+            self.log(f'Saving raw adc data to {outfn}',
+                     self.LOG_USER)
 
             np.save(outfn, res)
             self.pub.register_file(outfn, 'adc', format='npy')
@@ -1672,7 +1688,7 @@ class SmurfUtilMixin(SmurfBase):
             ax1.set_ylim((-2**15, 2**15))
             ax2 = plt.subplot(212)
             ax2.plot(f_plot, 10*np.log10(p_dac))
-            ax2.set_ylabel('ADC{}'.format(band))
+            ax2.set_ylabel(f'ADC{band}')
             ax2.set_xlabel('Frequency [MHz]')
             ax2.set_title(f'{timestamp} Spectrum')
             plt.grid(which='both')
@@ -1683,14 +1699,14 @@ class SmurfUtilMixin(SmurfBase):
 
 
             if save_plot:
-                plot_fn = '{}/{}_dac{}.png'.format(self.plot_dir,timestamp,band)
+                plot_fn = f'{self.plot_dir}/{timestamp}_dac{band}.png'
                 plt.savefig(plot_fn)
                 self.pub.register_file(plot_fn, 'dac', plot=True)
-                self.log('DAC plot saved to %s' % (plot_fn))
+                self.log(f'DAC plot saved to {plot_fn}')
 
         if save_data:
-            outfn = os.path.join(self.output_dir,'{}_dac{}'.format(timestamp,band))
-            self.log('Saving raw dac data to {}'.format(outfn), self.LOG_USER)
+            outfn = os.path.join(self.output_dir,f'{timestamp}_dac{band}')
+            self.log(f'Saving raw dac data to {outfn}', self.LOG_USER)
 
             np.save(outfn, res)
             self.pub.register_file(outfn, 'dac', format='npy')
@@ -1764,7 +1780,7 @@ class SmurfUtilMixin(SmurfBase):
             self.set_waveform_end_addr(bay, daq_num, e, convert=True,
                 write_log=debug)
             if debug:
-                self.log('DAQ number {}: start {} - end {}'.format(daq_num, s, e))
+                self.log(f'DAQ number {daq_num}: start {s} - end {e}')
 
     @set_action()
     def config_cryo_channel(self, band, channel, frequencyMHz, amplitude,
@@ -1924,8 +1940,8 @@ class SmurfUtilMixin(SmurfBase):
         channel : int
             The channel to turn off.
         """
-        self.log('Turning off band {} channel {}'.format(band, channel),
-            self.LOG_USER)
+        self.log(f'Turning off band {band} channel {channel}',
+                 self.LOG_USER)
         self.set_amplitude_scale_channel(band, channel, 0, **kwargs)
         self.set_feedback_enable_channel(band, channel, 0, **kwargs)
 
@@ -2010,8 +2026,8 @@ class SmurfUtilMixin(SmurfBase):
                     which_jesd_down0 = ('Jesd Rx is down' if
                         jesd_tx_ok0 else 'Jesd Tx is down')
 
-                self.log('%s ... will attempt to recover.'%which_jesd_down0,
-                    self.LOG_ERROR)
+                self.log(f'{which_jesd_down0} ... will attempt to recover.',
+                         self.LOG_ERROR)
 
                 # attempt to recover ; if it fails it will assert
                 self.recover_jesd(recover_jesd_rx=(not jesd_rx_ok0),
@@ -2529,8 +2545,9 @@ class SmurfUtilMixin(SmurfBase):
         dac_volt_array = self.get_rtm_slow_dac_volt_array()
 
         if len(bias_group_volt_array) != n_bias_groups:
-            self.log("Received the wrong number of biases. Expected an array of " +
-                "n_bias_groups={} voltages".format(n_bias_groups), self.LOG_ERROR)
+            self.log("Received the wrong number of biases. Expected " +
+                     f"an array of n_bias_groups={n_bias_groups} voltages",
+                     self.LOG_ERROR)
         else:
             for bg in np.arange(n_bias_groups):
                 bias_order = self.bias_group_to_pair[:,0]
@@ -2680,18 +2697,22 @@ class SmurfUtilMixin(SmurfBase):
         # set it and tell the user
         if bias_hemt is not None:
             if bias_hemt_from_cfg:
-                self.log('Setting HEMT LNA Vg from config file to Vg={0:.{1}f}'.format(bias_hemt, 4),
+                self.log('Setting HEMT LNA Vg from config file to ' +
+                         f'Vg={bias_hemt:.3f}',
                          self.LOG_USER)
             else:
-                self.log('Setting HEMT LNA Vg to requested Vg={0:.{1}f}'.format(bias_hemt, 4),
+                self.log('Setting HEMT LNA Vg to requested ' +
+                         f'Vg={bias_hemt:.3f}',
                          self.LOG_USER)
 
             self.set_hemt_gate_voltage(bias_hemt, override=True, **kwargs)
 
         # otherwise do nothing and warn the user
         else:
-            self.log('No value specified for 50K LNA Vg and didn\'t find a ' +
-                'default in cfg (amplifier[\'hemt_Vg\']).', self.LOG_ERROR)
+            self.log("No value specified for 4K HEMT Vg and " +
+                     "didn't find a default in cfg " +
+                     "(amplifier['hemt_Vg']).",
+                     self.LOG_ERROR)
         ### done with 4K HEMT
         ########################################################################
 
@@ -2708,20 +2729,21 @@ class SmurfUtilMixin(SmurfBase):
         # set it and tell the user
         if bias_50k is not None:
             if bias_50k_from_cfg:
-                self.log('Setting 50K LNA Vg from config file ' +
-                    'to Vg={0:.{1}f}'.format(bias_50k, 4),
+                self.log('Setting 50K LNA Vg from config file to ' +
+                         f'Vg={bias_50k:.3f}',
                          self.LOG_USER)
             else:
                 self.log('Setting 50K LNA Vg to requested '+
-                    'Vg={0:.{1}f}'.format(bias_50k, 4),
+                         f'Vg={bias_50k:.3f}',
                          self.LOG_USER)
 
             self.set_50k_amp_gate_voltage(bias_50k, **kwargs)
 
         # otherwise do nothing and warn the user
         else:
-            self.log('No value specified for 50K LNA Vg and didn\'t find a ' +
-                'default in cfg (amplifier[\'LNA_Vg\']).',
+            self.log("No value specified for 50K LNA Vg and " +
+                     "didn't find a default in cfg " +
+                     "(amplifier['LNA_Vg']).",
                      self.LOG_ERROR)
         ### done with 50K LNA
         ########################################################################
@@ -2888,7 +2910,7 @@ class SmurfUtilMixin(SmurfBase):
 
             self.set_tes_bias_high_current(bias_group)
             self.log('Driving high current through TES. ' +
-                'Waiting {}'.format(overbias_wait), self.LOG_USER)
+                     f'Waiting {overbias_wait}', self.LOG_USER)
 
             time.sleep(overbias_wait)
 
@@ -2976,7 +2998,7 @@ class SmurfUtilMixin(SmurfBase):
         self.set_tes_bias_bipolar_array(voltage_bias_array)
 
         # Cool wait
-        self.log('Waiting {:3.2f} seconds to cool'.format(cool_wait),
+        self.log(f'Waiting {cool_wait:3.2f} seconds to cool',
                  self.LOG_USER)
         time.sleep(cool_wait)
         self.log('Done waiting.', self.LOG_USER)
@@ -3061,12 +3083,13 @@ class SmurfUtilMixin(SmurfBase):
         r = 16
 
         old_relay = self.get_cryo_card_relays()
-        old_relay = self.get_cryo_card_relays() # query twice to ensure update
-        self.log('Old relay {}'.format(bin(old_relay)))
+        # query twice to ensure update
+        old_relay = self.get_cryo_card_relays()
+        self.log(f'Old relay {bin(old_relay)}')
 
         new_relay = np.copy(old_relay)
         new_relay = (1 << r) | new_relay
-        self.log('New relay {}'.format(bin(new_relay)))
+        self.log(f'New relay {bin(new_relay)}')
         self.set_cryo_card_relays(new_relay, write_log=write_log)
         self.get_cryo_card_relays()
 
@@ -3090,7 +3113,7 @@ class SmurfUtilMixin(SmurfBase):
         if old_relay & 1 << r != 0:
             new_relay = new_relay & ~(1 << r)
 
-        self.log('New relay {}'.format(bin(new_relay)))
+        self.log(f'New relay {bin(new_relay)}')
         self.set_cryo_card_relays(new_relay)
         self.get_cryo_card_relays()
 
@@ -3359,7 +3382,7 @@ class SmurfUtilMixin(SmurfBase):
         elif smurf_chans is not None:
             keys = smurf_chans.keys()
             for k in keys:
-                self.log('Band {}'.format(k))
+                self.log(f'Band {k}')
                 n_chan = self.get_number_channels(k)
                 for ch in smurf_chans[k]:
 
@@ -3382,7 +3405,8 @@ class SmurfUtilMixin(SmurfBase):
             self.log('NOT DYNAMICALLY GENERATING THE MASK. STATIC. SET static_mask=0 '+
                      'IN CFG TO DYNAMICALLY GENERATE MASKS!!!')
         else:
-            self.log('Generating gcp mask file. {} channels added'.format(len(gcp_chans)))
+            self.log(f'Generating gcp mask file. {len(gcp_chans)} ' +
+                     'channels added')
 
             np.savetxt(self.smurf_to_mce_mask_file, gcp_chans, fmt='%i')
 
@@ -3701,7 +3725,7 @@ class SmurfUtilMixin(SmurfBase):
         mask = self.make_mask_lookup(mask_file)
 
         if mask[band, channel] == -1:
-            self.log('Band {} Ch {} not in mask file'.format(band, channel))
+            self.log(f'Band {band} Ch {channel} not in mask file')
             return None
 
         return self.mask_num_to_gcp_num(mask[band, channel])
@@ -3910,8 +3934,8 @@ class SmurfUtilMixin(SmurfBase):
         # Unless asked to be quiet, print where we're putting a fixed
         # tone.
         if not quiet:
-            self.log('Setting a fixed tone at {0:.2f} MHz'.format(freq_mhz) +
-                ' and amplitude {}'.format(drive), self.LOG_USER)
+            self.log(f'Setting a fixed tone at {freq_mhz:.2f} MHz' +
+                     f' and amplitude {drive}', self.LOG_USER)
 
     # SHOULD MAKE A GET FIXED TONE CHANNELS FUNCTION - WOULD MAKE IT
     # EASIER TO CHANGE THINGS FAST USING THE ARRAY GET/SETS
@@ -3958,7 +3982,8 @@ class SmurfUtilMixin(SmurfBase):
         if filename is None:
             filename=str(self.get_timestamp())+'_hwlog.dat'
         self.__hardware_log_file = os.path.join(self.output_dir, filename)
-        self.log('Starting hardware logging to file : {}'.format(self.__hardware_log_file),
+        self.log('Starting hardware logging to file : ' +
+                 f'{self.__hardware_log_file}',
                  self.LOG_USER)
         self.__hardware_logging_stop_event=threading.Event()
         self.__hardware_logging_pause_event=threading.Event()
@@ -4028,7 +4053,8 @@ class SmurfUtilMixin(SmurfBase):
 
         for bay in bays:
             for dac in [0,1]:
-                d['bay%d_dac%d_temp'%(bay,dac)]=lambda:self.get_dac_temp(bay,dac)
+                d[f'bay{bay}_dac{dac}_temp']=(
+                    lambda:self.get_dac_temp(bay,dac))
 
         #AT THE MOMENT, WAY TOO SLOW
         # keep track of how many tones are on in each band
@@ -4054,7 +4080,7 @@ class SmurfUtilMixin(SmurfBase):
         for key, value in d.items():
             columns.append(str(value()))
             names.append(key)
-            fmt+='{0[%d]:<20}'%counter
+            fmt+=f'{0[{counter}]:<20}'
             counter+=1
         fmt+='\n'
 
