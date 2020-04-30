@@ -47,33 +47,33 @@ def make_runfile(output_dir, row_len=60, num_rows=60, data_rate=60,
             # A bunch of replacements
             if "ctime=<replace>" in line:
                 timestamp = S.get_timestamp()
-                S.log('Adding ctime {}'.format(timestamp))
-                line = line.replace("ctime=<replace>", "ctime={}".format(timestamp))
+                S.log(f'Adding ctime {timestamp}')
+                line = line.replace("ctime=<replace>", f'ctime={timestamp}')
             elif "Date:<replace>" in line:
                 time_string = time.strftime("%a %b %d %H:%M:%S %Y",
                     time.localtime())
-                S.log('Adding date {}'.format(time_string))
-                line = line.replace('Date:<replace>', "Date: {}".format(time_string))
+                S.log(f'Adding date {time_string}')
+                line = line.replace('Date:<replace>', f'Date: {time_string}')
             elif "row_len : <replace>" in line:
-                S.log("Adding row_len {}".format(row_len))
+                S.log(f"Adding row_len {row_len}")
                 line = line.replace('row_len : <replace>',
-                    'row_len : {}'.format(row_len))
+                                    f'row_len : {row_len}')
             elif "num_rows : <replace>" in line:
-                S.log("Adding num_rows {}".format(num_rows))
+                S.log(f"Adding num_rows {num_rows}")
                 line = line.replace('num_rows : <replace>',
-                    'num_rows : {}'.format(num_rows))
+                                    f'num_rows : {num_rows}')
             elif "num_rows_reported : <replace>" in line:
-                S.log("Adding num_rows_reported {}".format(num_rows_reported))
+                S.log(f"Adding num_rows_reported {num_rows_reported}")
                 line = line.replace('num_rows_reported : <replace>',
-                    'num_rows_reported : {}'.format(num_rows_reported))
+                                    f'num_rows_reported : {num_rows_reported}')
             elif "data_rate : <replace>" in line:
-                S.log("Adding data_rate {}".format(data_rate))
+                S.log(f"Adding data_rate {data_rate}")
                 line = line.replace('data_rate : <replace>',
-                    'data_rate : {}'.format(data_rate))
+                                    f'data_rate : {data_rate}')
             line_holder.append(line)
 
     full_path = os.path.join(output_dir,
-        'smurf_status_{}.txt'.format(S.get_timestamp()))
+                             f'smurf_status_{S.get_timestamp()}.txt')
 
     #20181119 mod by dB to dump content of runfile, not path of runfile
     #print(full_path)
@@ -82,7 +82,7 @@ def make_runfile(output_dir, row_len=60, num_rows=60, data_rate=60,
     with open(full_path, "w") as f1:
         f1.writelines(line_holder)
 
-    S.log("Writing to {}".format(full_path))
+    S.log(f"Writing to {full_path}")
     sys.stdout.writelines(line_holder)
 
 def start_acq(S, num_rows, num_rows_reported, data_rate,
@@ -265,7 +265,7 @@ if __name__ == "__main__":
         S.tune(last_tune=True, make_plot=args.tune_make_plot)
 
     if args.use_tune is not None:
-        S.log('Loading old tune from file: {}'.format(args.use_tune))
+        S.log(f'Loading old tune from file: {args.use_tune}')
         S.tune(tune_file = args.use_tune, make_plot=args.tune_make_plot)
 
     if args.tune:
@@ -312,9 +312,9 @@ if __name__ == "__main__":
         iv_bias_low = args.iv_bias_low
         iv_bias_step = args.iv_bias_step
 
-        S.log('bias high {}'.format(iv_bias_high))
-        S.log('bias low {}'.format(iv_bias_low))
-        S.log('bias step {}'.format(iv_bias_step))
+        S.log(f'bias high {iv_bias_high}')
+        S.log(f'bias low {iv_bias_low}')
+        S.log(f'bias step {iv_bias_step}')
         # 20181223: CY took out IV biases in terms of current. Revert if you
         #  decide you want it back
 
@@ -332,7 +332,7 @@ if __name__ == "__main__":
                 high_current_mode=S.high_current_mode_bool,
                 bias_step=iv_bias_step, make_plot=False)
         else: # individual bias group
-            S.log('running slow IV on bias group {}'.format(args.bias_group))
+            S.log(f'running slow IV on bias group {args.bias_group}')
             S.slow_iv_all(bias_groups=np.array([args.bias_group]),
                 wait_time=args.iv_wait_time, bias_high=iv_bias_high,
                 bias_low=iv_bias_low,
@@ -348,9 +348,9 @@ if __name__ == "__main__":
     if args.plc:
         bias_high = np.zeros((8,))
         bias_high[S.all_groups] = args.iv_bias_high
-        S.log('plc bias high {}'.format(bias_high))
-        S.log('plc bias low {}'.format(S.get_tes_bias_bipolar_array()))
-        S.log('plc bias step {}'.format(args.iv_bias_step))
+        S.log(f'plc bias high {bias_high}')
+        S.log(f'plc bias low {S.get_tes_bias_bipolar_array()}')
+        S.log(f'plc bias step {args.iv_bias_step}')
 
         iv_bias_step = np.abs(args.iv_bias_step) * 1.5 # speed this up relative to other mce's
 

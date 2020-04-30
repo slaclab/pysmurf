@@ -41,7 +41,7 @@ class SmurfAtcaMonitorMixin(SmurfBase):
             slot_number=self.slot_number
         if atca_epics_root is None:
             shelf_manager=self.shelf_manager
-        return self._caget('{}:Crate:Slot_{}:'.format(shelf_manager,slot_number) +
+        return self._caget(f'{shelf_manager}:Crate:Slot_{slot_number}:' +
                            self._board_temp_fpga,**kwargs)
 
     _board_temp_rtm = 'BoardTemp:RTM'
@@ -54,7 +54,7 @@ class SmurfAtcaMonitorMixin(SmurfBase):
             slot_number=self.slot_number
         if atca_epics_root is None:
             shelf_manager=self.shelf_manager
-        return self._caget('{}:Crate:Slot_{}:'.format(shelf_manager,slot_number) +
+        return self._caget(f'{shelf_manager}:Crate:Slot_{slot_number}:' +
                            self._board_temp_rtm,**kwargs)
 
     _board_temp_amc0 = 'BoardTemp:AMC0'
@@ -67,7 +67,7 @@ class SmurfAtcaMonitorMixin(SmurfBase):
             slot_number=self.slot_number
         if atca_epics_root is None:
             shelf_manager=self.shelf_manager
-        return self._caget('{}:Crate:Slot_{}:'.format(shelf_manager,slot_number) +
+        return self._caget(f'{shelf_manager}:Crate:Slot_{slot_number}:' +
                            self._board_temp_amc0,**kwargs)
 
     _board_temp_amc2 = 'BoardTemp:AMC2'
@@ -80,7 +80,7 @@ class SmurfAtcaMonitorMixin(SmurfBase):
             slot_number=self.slot_number
         if atca_epics_root is None:
             shelf_manager=self.shelf_manager
-        return self._caget('{}:Crate:Slot_{}:'.format(shelf_manager,slot_number) +
+        return self._caget(f'{shelf_manager}:Crate:Slot_{slot_number}:' +
                            self._board_temp_amc2,**kwargs)
 
     _junction_temp_fpga = 'JunctionTemp:FPG'
@@ -93,5 +93,5 @@ class SmurfAtcaMonitorMixin(SmurfBase):
             slot_number=self.slot_number
         if atca_epics_root is None:
             shelf_manager=self.shelf_manager
-        return self._caget('{}:Crate:Slot_{}:'.format(shelf_manager,slot_number) +
+        return self._caget(f'{shelf_manager}:Crate:Slot_{slot_number}:' +
                            self._junction_temp_fpga,**kwargs)
