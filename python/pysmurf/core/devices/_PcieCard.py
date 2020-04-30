@@ -99,7 +99,7 @@ class PcieDev():
         """
         Open the RSSI connection on the specified lane, using the specified IP address.
         """
-        print("    Opening PCIe RSSI lane {}".format(lane))
+        print(f"    Opening PCIe RSSI lane {lane}")
         self._root.Core.UdpGrp.UdpConfig[lane].EnKeepAlive.set(1)
         self._root.Core.UdpGrp.UdpConfig[lane].KeepAliveConfig.set(0x2E90EDD0)  # 5 seconds
         self._root.Core.UdpGrp.RssiClient[lane].OpenConn.set(1)
@@ -116,7 +116,7 @@ class PcieDev():
         """
         Close the RSSI connection on the specified Ethernet lane.
         """
-        print("    Closing PCIe RSSI lane {}".format(lane))
+        print(f"    Closing PCIe RSSI lane {lane}")
         self._root.Core.UdpGrp.UdpConfig[lane].KeepAliveConfig.set(0)
         self._root.Core.UdpGrp.RssiClient[lane].OpenConn.set(0)
         self._root.Core.UdpGrp.RssiClient[lane].CloseConn.set(1)
@@ -131,26 +131,36 @@ class PcieDev():
         Print the register for the specified Ethernet lane.
         """
         print("      PCIe register status:")
-        print("      Core.UdpGrp.UdpConfig[{}].EnKeepAlive         = {}".format(lane,
-            self._root.Core.UdpGrp.UdpConfig[lane].EnKeepAlive.get()))
-        print("      Core.UdpGrp.UdpConfig[{}].KeepAliveConfig     = 0x{:02X}".format(lane,
-            self._root.Core.UdpGrp.UdpConfig[lane].KeepAliveConfig.get()))
-        print("      Core.UdpGrp.RssiClient[{}].OpenConn           = {}".format(lane,
-            self._root.Core.UdpGrp.RssiClient[lane].OpenConn.get()))
-        print("      Core.UdpGrp.RssiClient[{}].CloseConn          = {}".format(lane,
-            self._root.Core.UdpGrp.RssiClient[lane].CloseConn.get()))
-        print("      Core.UdpGrp.UdpEngine[{}].ClientRemotePort[0] = {}".format(lane,
-            self._root.Core.UdpGrp.UdpEngine[lane].ClientRemotePort[0].get()))
-        print("      Core.UdpGrp.UdpEngine[{}].ClientRemoteIp[0]   = {}".format(lane,
-            self._root.Core.UdpGrp.UdpEngine[lane].ClientRemoteIp[0].get()))
-        print("      Core.UdpGrp.UdpEngine[{}].ClientRemotePort[1] = {}".format(lane,
-            self._root.Core.UdpGrp.UdpEngine[lane].ClientRemotePort[1].get()))
-        print("      Core.UdpGrp.UdpEngine[{}].ClientRemoteIp[1]   = {}".format(lane,
-            self._root.Core.UdpGrp.UdpEngine[lane].ClientRemoteIp[1].get()))
-        print("      Core.EthPhyGrp.EthConfig[{}].LocalMac         = {}".format(lane,
-            self._root.Core.EthPhyGrp.EthConfig[lane].LocalMac.get()))
-        print("      Core.EthPhyGrp.EthConfig[{}].LocalIp          = {}".format(lane,
-            self._root.Core.EthPhyGrp.EthConfig[lane].LocalIp.get()))
+        print(
+            f"      Core.UdpGrp.UdpConfig[{lane}].EnKeepAlive         = " +
+            f"{self._root.Core.UdpGrp.UdpConfig[lane].EnKeepAlive.get()}")
+        print(
+            f"      Core.UdpGrp.UdpConfig[{lane}].KeepAliveConfig     = 0x" +
+            f"{self._root.Core.UdpGrp.UdpConfig[lane].KeepAliveConfig.get():02X}")
+        print(
+            f"      Core.UdpGrp.RssiClient[{lane}].OpenConn           = " +
+            f"{self._root.Core.UdpGrp.RssiClient[lane].OpenConn.get()}")
+        print(
+            f"      Core.UdpGrp.RssiClient[{lane}].CloseConn          = " +
+            f"{self._root.Core.UdpGrp.RssiClient[lane].CloseConn.get()}")
+        print(
+            f"      Core.UdpGrp.UdpEngine[{lane}].ClientRemotePort[0] = " +
+            f"{self._root.Core.UdpGrp.UdpEngine[lane].ClientRemotePort[0].get()}")
+        print(
+            f"      Core.UdpGrp.UdpEngine[{lane}].ClientRemoteIp[0]   = " +
+            f"{self._root.Core.UdpGrp.UdpEngine[lane].ClientRemoteIp[0].get()}")
+        print(
+            f"      Core.UdpGrp.UdpEngine[{lane}].ClientRemotePort[1] = " +
+            f"{self._root.Core.UdpGrp.UdpEngine[lane].ClientRemotePort[1].get()}")
+        print(
+            f"      Core.UdpGrp.UdpEngine[{lane}].ClientRemoteIp[1]   = " +
+            f"{self._root.Core.UdpGrp.UdpEngine[lane].ClientRemoteIp[1].get()}")
+        print(
+            f"      Core.EthPhyGrp.EthConfig[{lane}].LocalMac         = " +
+            f"{self._root.Core.EthPhyGrp.EthConfig[lane].LocalMac.get()}")
+        print(
+            f"      Core.EthPhyGrp.EthConfig[{lane}].LocalIp          = " +
+            f"{self._root.Core.EthPhyGrp.EthConfig[lane].LocalIp.get()}")
         print("")
 
     def print_version(self):
@@ -158,28 +168,28 @@ class PcieDev():
         Print the PCIe device firmware information.
         """
         print("  ==============================================================")
-        print("                   {}".format(self._root.description))
+        print(f"                   {self._root.description}")
         print("  ==============================================================")
-        print("    FW Version      : 0x{:08X}".format(
-            self._root.Core.AxiPcieCore.AxiVersion.FpgaVersion.get()))
-        print("    FW GitHash      : 0x{:040X}".format(
-            self._root.Core.AxiPcieCore.AxiVersion.GitHash.get()))
-        print("    FW image name   : {}".format(
-            self._root.Core.AxiPcieCore.AxiVersion.ImageName.get()))
-        print("    FW build env    : {}".format(
-            self._root.Core.AxiPcieCore.AxiVersion.BuildEnv.get()))
-        print("    FW build server : {}".format(
-            self._root.Core.AxiPcieCore.AxiVersion.BuildServer.get()))
-        print("    FW build date   : {}".format(
-            self._root.Core.AxiPcieCore.AxiVersion.BuildDate.get()))
-        print("    FW builder      : {}".format(
-            self._root.Core.AxiPcieCore.AxiVersion.Builder.get()))
-        print("    Up time         : {}".format(
-            self._root.Core.AxiPcieCore.AxiVersion.UpTime.get()))
-        print("    Xilinx DNA ID   : 0x{:032X}".format(
-            self._root.Core.AxiPcieCore.AxiVersion.DeviceDna.get()))
-        print("    Device ID       : {}".format(
-            self._root.Core.AxiPcieCore.AxiVersion.DeviceId.get()))
+        print("    FW Version      : 0x" +
+              f"{self._root.Core.AxiPcieCore.AxiVersion.FpgaVersion.get():08X}")
+        print("    FW GitHash      : 0x" +
+              f"{self._root.Core.AxiPcieCore.AxiVersion.GitHash.get():040X}")
+        print("    FW image name   : " +
+              f"{self._root.Core.AxiPcieCore.AxiVersion.ImageName.get()}")
+        print("    FW build env    : " +
+              f"{self._root.Core.AxiPcieCore.AxiVersion.BuildEnv.get()}")
+        print("    FW build server : " +
+              f"{self._root.Core.AxiPcieCore.AxiVersion.BuildServer.get()}")
+        print("    FW build date   : " +
+              f"{self._root.Core.AxiPcieCore.AxiVersion.BuildDate.get()}")
+        print("    FW builder      : " +
+              f"{self._root.Core.AxiPcieCore.AxiVersion.Builder.get()}")
+        print("    Up time         : " +
+              f"{self._root.Core.AxiPcieCore.AxiVersion.UpTime.get()}")
+        print("    Xilinx DNA ID   : 0x" +
+              f"{self._root.Core.AxiPcieCore.AxiVersion.DeviceDna.get():032X}")
+        print("    Device ID       : " +
+              f"{self._root.Core.AxiPcieCore.AxiVersion.DeviceId.get()}")
         print("  ==============================================================")
         print("")
 
@@ -247,10 +257,10 @@ class PcieCard():
             # Check if we are trying to use PCIe communication without the PCIe
             # cards present in the system
             if not self._pcie_rssi_present:
-                exit_message("  ERROR: PCIe device {} not present.".format(dev_rssi))
+                exit_message(f"  ERROR: PCIe device {dev_rssi} not present.")
 
             if not self._pcie_data_present:
-                exit_message("  ERROR: PCIe device {} not present.".format(dev_data))
+                exit_message(f"  ERROR: PCIe device {dev_data} not present.")
 
             # Verify the lane number is valid
             if lane is None:
@@ -271,8 +281,9 @@ class PcieCard():
                 # Verify that its DeviceID is correct
                 dev_data_id = pcie.get_id()
                 if dev_data_id != 1:
-                    exit_message("  ERROR: The DeviceId for the PCIe dev for DATA is {} instead "
-                        "of 1. Choose the correct device.".format(dev_data_id))
+                    exit_message(
+                        f"  ERROR: The DeviceId for the PCIe dev for DATA is {dev_data_id} instead "
+                        "of 1. Choose the correct device.")
 
                 # Print FW information
                 pcie.print_version()
@@ -283,8 +294,9 @@ class PcieCard():
                 # Verify that its DeviceID is correct
                 dev_rssi_id = pcie.get_id()
                 if dev_rssi_id != 0:
-                    exit_message("  ERROR: The DeviceId for the PCIe dev for RSSI is {} instead "
-                        "of 0. Choose the correct device.".format(dev_rssi_id))
+                    exit_message(
+                        f"  ERROR: The DeviceId for the PCIe dev for RSSI is {dev_rssi_id} instead "
+                        "of 0. Choose the correct device.")
 
                 # Print FW information
                 pcie.print_version()
@@ -295,14 +307,14 @@ class PcieCard():
                 local_mac_addr = pcie.get_local_mac(lane=self._lane)
                 if local_mac_addr == "00:00:00:00:00:00":
                     valid_local_mac_addr = False
-                    pcie.set_local_mac(lane=self._lane, mac="08:00:56:00:45:5{}".format(lane))
+                    pcie.set_local_mac(lane=self._lane, mac=f"08:00:56:00:45:5{lane}")
                     local_mac_addr = pcie.get_local_mac(lane=self._lane)
 
                 valid_local_ip_addr = True
                 local_ip_addr = pcie.get_local_ip(lane=self._lane)
                 if local_ip_addr == "0.0.0.0":
                     valid_local_ip_addr = False
-                    pcie.set_local_ip(lane=self._lane, ip="10.0.1.20{}".format(lane))
+                    pcie.set_local_ip(lane=self._lane, ip=f"10.0.1.20{lane}")
                     local_ip_addr = pcie.get_local_ip(lane=self._lane)
 
 
@@ -315,7 +327,8 @@ class PcieCard():
                     try:
                         socket.inet_pton(socket.AF_INET, ip_addr)
                     except socket.error:
-                        exit_message("ERROR: IP Address read from the PCIe card: {} is invalid.".format(ip_addr))
+                        exit_message(
+                            f"ERROR: IP Address read from the PCIe card: {ip_addr} is invalid.")
 
                 # Update the IP address.
                 # Note: when the PCIe card is not in use, the IP will be defined
@@ -336,10 +349,10 @@ class PcieCard():
                 "Yes" if valid_local_mac_addr else "No. A default address was loaded"))
             print("  - Valid IP address                       : {}".format(
                 "Yes" if valid_local_ip_addr else "No. A default address was loaded"))
-            print("  - Local MAC address:                     : {}".format(local_mac_addr))
-            print("  - Local IP address:                      : {}".format(local_ip_addr))
-            print("  - Using IP address                       : {}".format(self._ip_addr))
-            print("  - Using RSSI lane number                 : {}".format(self._lane))
+            print(f"  - Local MAC address:                     : {local_mac_addr}")
+            print(f"  - Local IP address:                      : {local_ip_addr}")
+            print(f"  - Using IP address                       : {self._ip_addr}")
+            print(f"  - Using RSSI lane number                 : {self._lane}")
             print("")
 
         # When the PCIe card is not present we don't do anything
@@ -379,11 +392,11 @@ class PcieCard():
         # Check if the PCIe is present
         if self._pcie_rssi_present:
             with self._pcie_rssi as pcie:
-                print("  * Looking for RSSI lanes pointing to {}...".format(self._ip_addr))
+                print(f"  * Looking for RSSI lanes pointing to {self._ip_addr}...")
                 # Look for links with the target IP address, and close their RSSI connection
                 for i in range(6):
                     if self._ip_addr == pcie.get_remote_ip(lane=i, client=0):
-                        print("    Lane {} points to it. Disabling it...".format(i))
+                        print(f"    Lane {i} points to it. Disabling it...")
                         pcie.close_lane(i)
                         print("")
                 print("  Done!")
