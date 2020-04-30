@@ -4056,7 +4056,7 @@ class SmurfCommandMixin(SmurfBase):
         sg.wait(epics_poll=epics_poll) # wait for change
         uc0=sg.get_values()[user_config0_pv]
         assert ( ( uc0 >> 0) & 1 ),(
-            'Failed to set averaging/clear bit high ' + 
+            'Failed to set averaging/clear bit high ' +
             f'(userConfig0={uc0})')
 
         # toggle bit back to low, keeping all other bits the same
