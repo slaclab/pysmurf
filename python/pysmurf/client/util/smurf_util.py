@@ -4445,7 +4445,7 @@ class SmurfUtilMixin(SmurfBase):
 
     def analyze_measure_tes_transfer(self, datafile, probe_freq,
         probe_amp, band=None, bias_group=None, channel=None, fs=None,
-        high_current_mode=high_current_mode):
+        high_current_mode=False):
         """
         """
         if fs is None:
