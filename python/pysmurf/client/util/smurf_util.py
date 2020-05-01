@@ -4399,7 +4399,7 @@ class SmurfUtilMixin(SmurfBase):
 
         # Default probe frequency
         if probe_freq is None:
-            prob_freq = 10**np.arange(0, 3, .5)
+            probe_freq = 10**np.arange(0, 3, .5)
 
         # Overbias the TES
         if overbias_tes:
@@ -4417,7 +4417,7 @@ class SmurfUtilMixin(SmurfBase):
         for i, pf in enumerate(probe_freq):
             self.log(f'Playing tone at {pf} Hz')
             self.play_sine_tes(bias_group, probe_amp, pf)
-            probe_time = np.min([min_probe_time, n_cycle/probe_freq])
+            probe_time = np.min([min_probe_time, n_cycle/pf])
             datafile[i] = self.take_stream_data(probe_time)
 
         return datafile
