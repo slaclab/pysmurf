@@ -4394,7 +4394,7 @@ class SmurfUtilMixin(SmurfBase):
             probe_amp=.002, n_cycle=5, min_probe_time=2,
             overbias_tes=False, tes_bias=None,
             overbias_wait=None, cool_wait=None, overbias_voltage=19.9,
-            analyze=True, high_current_mode=False):
+            analyze=True, high_current_mode=False, make_plot=False):
         """
         """
         f, sb, ch, bg = self.get_master_assignment(band)
@@ -4439,7 +4439,7 @@ class SmurfUtilMixin(SmurfBase):
             amp = self.analyze_measure_tes_transfer(datafile, probe_freq,
                 probe_amp, band=band, bias_group=bias_group,
                 channel=ch[bg==bias_group], high_current_mode=high_current_mode,
-                fs=fs)
+                fs=fs, make_plot=make_plot)
 
             return amp
 
