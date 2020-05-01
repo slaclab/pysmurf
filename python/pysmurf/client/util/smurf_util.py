@@ -3765,13 +3765,18 @@ class SmurfUtilMixin(SmurfBase):
         dc_amp /= (2*self._rtm_slow_dac_bit_to_volt)
         tone_amp /= (2*self._rtm_slow_dac_bit_to_volt)
 
+        freq_split = 5
+        scale = 1
+        if tone_freq > freq_split:
+            scale = np.ceil(tone_freq / freq_split)
 
         # Make tone file. 2048 elements
         n_tes_samp = 2048
-        sig = tone_amp * np.cos(2*np.pi*np.arange(n_tes_samp)/n_tes_samp) + dc_amp
+        sig = tone_amp * np.cos(2*np.pi*scale*np.arange(n_tes_samp)/n_tes_samp) + dc_amp
 
         # Calculate frequency - 6.4ns * TimerSize between samples
         ts = int((tone_freq * n_tes_samp * 6.4E-9)**-1)
+        ts *= scale
         self.set_rtm_arb_waveform_timer_size(ts, wait_done=True)
 
         self.play_tes_bipolar_waveform(bias_group, sig)
