@@ -4424,6 +4424,9 @@ class SmurfUtilMixin(SmurfBase):
             else:
                 self.set_tes_bias_low_current(bias_group)
 
+        # Read back the TES bias voltage
+        tes_bias = self.get_tes_bias_bipolar(bias_group)
+
         # Loop over probe frequencies and take data
         datafile = np.array([], dtype='str')
         for i, pf in enumerate(probe_freq):
@@ -4449,7 +4452,7 @@ class SmurfUtilMixin(SmurfBase):
                 probe_amp, band=band, bias_group=bias_group,
                 channel=ch[bg==bias_group], high_current_mode=high_current_mode,
                 fs=fs, make_plot=make_plot, save_plot=save_plot,
-                show_plot=show_plot, timestamp=timestamp)
+                show_plot=show_plot, timestamp=timestamp, tes_bias=tes_bias)
 
             return amp
 
@@ -4459,7 +4462,7 @@ class SmurfUtilMixin(SmurfBase):
 
     def analyze_measure_tes_transfer(self, datafile, probe_freq,
             probe_amp, band=None, bias_group=None, channel=None, fs=None,
-            high_current_mode=False, make_plot=False,
+            high_current_mode=False, tes_bias=None, make_plot=False,
             save_plot=True, show_plot=False, timestamp=None):
         """
         """
@@ -4534,12 +4537,22 @@ class SmurfUtilMixin(SmurfBase):
                         transform=ax[i].transAxes,
                         va='top', ha='right', bbox=bbox)
 
-                ax[-1].set_xlabel('Time [s]')
+                ax[len(probe_freq)].set_xlabel('Time [s]')
+
                 # Summary plot
                 axsm = plt.subplot(gs[:,1])
                 axsm.semilogx(probe_freq, norm_amp[:,j], '.')
                 axsm.set_ylabel(r'$dI_{TES}/dI_{b}$')
                 axsm.set_xlabel('Probe Freq [Hz]')
+
+                # Text label
+                text = ''
+                text += r'$f_{s}$: ' + f'{fs:0.1f}' + '\n'
+                if tes_bias is not None:
+                    text += r'$I_b$: ' + f'{tes_bias:1.2f}' + '\n'
+                text += 'high bias: ' + f'{high_current_mode}' + '\n'
+                axsm.text(.98, .96, text, transform=axsm.transAxes,
+                    va='top', ha='right', bbox=bbox)
 
                 fig.suptitle(f'{timestamp} b{band}ch{ch:03} BG{bias_group}')
 
