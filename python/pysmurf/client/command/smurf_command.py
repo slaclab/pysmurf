@@ -67,7 +67,7 @@ class SmurfCommandMixin(SmurfBase):
             `epics.caput` call.
         """
         if new_epics_root is not None:
-            self.log('Temporarily using new epics root: {}'.format(new_epics_root))
+            self.log(f'Temporarily using new epics root: {new_epics_root}')
             old_epics_root = self.epics_root
             self.epics_root = new_epics_root
             cmd = cmd.replace(old_epics_root, self.epics_root)
@@ -77,8 +77,8 @@ class SmurfCommandMixin(SmurfBase):
 
         if wait_before is not None:
             if write_log:
-                self.log('Waiting {:3.2f} seconds before...'.format(wait_before),
-                    self.LOG_USER)
+                self.log(f'Waiting {wait_before:3.2f} seconds before...',
+                         self.LOG_USER)
             time.sleep(wait_before)
 
         if write_log:
@@ -92,7 +92,7 @@ class SmurfCommandMixin(SmurfBase):
 
         if wait_after is not None:
             if write_log:
-                self.log('Waiting {:3.2f} seconds after...'.format(wait_after),
+                self.log(f'Waiting {wait_after:3.2f} seconds after...',
                     self.LOG_USER)
             time.sleep(wait_after)
             if write_log:
@@ -104,7 +104,7 @@ class SmurfCommandMixin(SmurfBase):
         if new_epics_root is not None:
             self.epics_root = old_epics_root
             self.log('Returning back to original epics root'+
-                     ' : {}'.format(self.epics_root))
+                     f' : {self.epics_root}')
 
     def _caget(self, cmd, write_log=False, execute=True, count=None,
                log_level=0, enable_poll=False, disable_poll=False,
@@ -143,7 +143,7 @@ class SmurfCommandMixin(SmurfBase):
             The requested value.
         """
         if new_epics_root is not None:
-            self.log('Temporarily using new epics root: {}'.format(new_epics_root))
+            self.log(f'Temporarily using new epics root: {new_epics_root}')
             old_epics_root = self.epics_root
             self.epics_root = new_epics_root
             cmd = cmd.replace(old_epics_root, self.epics_root)
@@ -157,7 +157,7 @@ class SmurfCommandMixin(SmurfBase):
         # load the data from yml file if provided
         if yml is not None:
             if write_log:
-                self.log('Reading from yml file\n {}'.format(cmd))
+                self.log(f'Reading from yml file\n {cmd}')
             return tools.yaml_parse(yml, cmd)
 
         elif execute and not self.offline:
@@ -173,7 +173,7 @@ class SmurfCommandMixin(SmurfBase):
         if new_epics_root is not None:
             self.epics_root = old_epics_root
             self.log('Returning back to original epics root'+
-                     ' : {}'.format(self.epics_root))
+                     f' : {self.epics_root}')
 
         return ret
 
@@ -411,7 +411,7 @@ class SmurfCommandMixin(SmurfBase):
         """
         triggerPV=self.lmk.format(bay) + 'PwrUpSysRef'
         self._caput(triggerPV, 1, wait_after=5, **kwargs)
-        self.log('{} sent'.format(triggerPV), self.LOG_USER)
+        self.log(f'{triggerPV} sent', self.LOG_USER)
 
     _eta_scan_in_progress = 'etaScanInProgress'
 
@@ -532,7 +532,7 @@ class SmurfCommandMixin(SmurfBase):
         monitorPV=self._cryo_root(band) + self._eta_scan_in_progress
 
         self._caput(triggerPV, 1, wait_after=5, **kwargs)
-        self.log('{} sent'.format(triggerPV), self.LOG_USER)
+        self.log(f'{triggerPV} sent', self.LOG_USER)
 
         if sync_group:
             sg = SyncGroup([monitorPV])
@@ -647,7 +647,7 @@ class SmurfCommandMixin(SmurfBase):
         assert (bay in [0,1]),'bay must be an integer and in [0,1]'
         triggerPV=self.microwave_mux_core.format(bay) + self._selextref
         self._caput(triggerPV, 1, wait_after=5, **kwargs)
-        self.log('{} sent'.format(triggerPV), self.LOG_USER)
+        self.log(f'{triggerPV} sent', self.LOG_USER)
 
     # name changed in Rogue 4 from WriteState to SaveState.  Keeping
     # the write_state function for backwards compatibilty.
@@ -724,7 +724,7 @@ class SmurfCommandMixin(SmurfBase):
         # make sure file exists before setting
 
         if not os.path.exists(val):
-            self.log('Tone file {} does not exist!  Doing nothing!'.format(val),
+            self.log(f'Tone file {val} does not exist!  Doing nothing!',
                      self.LOG_ERROR)
             raise ValueError('Must provide a path to an existing tone file.')
 
@@ -754,7 +754,7 @@ class SmurfCommandMixin(SmurfBase):
             val=self.get_tone_file_path(bay)
 
 
-        self.log('Loading tone file : {}'.format(val),
+        self.log(f'Loading tone file : {val}',
                  self.LOG_USER)
         self._caput(self.dac_sig_gen.format(bay) + self._load_tone_file, val,
             **kwargs)
@@ -2674,7 +2674,7 @@ class SmurfCommandMixin(SmurfBase):
         self._caput(triggerPV,
                     1,
                     **kwargs)
-        self.log('{} sent'.format(triggerPV), self.LOG_USER)
+        self.log(f'{triggerPV} sent', self.LOG_USER)
 
     _dac_axil_addr = 'DacAxilAddr[{}]'
 
@@ -3110,12 +3110,12 @@ class SmurfCommandMixin(SmurfBase):
         nbits=self._rtm_slow_dac_nbits
         if val > 2**(nbits-1)-1:
             val = 2**(nbits-1)-1
-            self.log('Bias too high. Must be <= than 2^{}-1. Setting to '.format(nbits-1) +
-                'max value', self.LOG_ERROR)
+            self.log(f'Bias too high. Must be <= than 2^{nbits-1}-1.  ' +
+                     'Setting to max value', self.LOG_ERROR)
         elif val < -2**(nbits-1):
             val = -2**(nbits-1)
-            self.log('Bias too low. Must be >= than -2^{}. Setting to '.format(nbits-1) +
-                'min value', self.LOG_ERROR)
+            self.log(f'Bias too low. Must be >= than -2^{nbits-1}.  ' +
+                     'Setting to min value', self.LOG_ERROR)
         self._caput(self.rtm_spi_max_root +
                     self._rtm_slow_dac_data.format(dac), val, **kwargs)
 
@@ -3164,13 +3164,15 @@ class SmurfCommandMixin(SmurfBase):
         nbits=self._rtm_slow_dac_nbits
         val=np.array(val)
         if len(np.ravel(np.where(val > 2**(nbits-1)-1))) > 0:
-            self.log('Bias too high for some values. Must be <= 2^{}-1. Setting to '.format(nbits-1) +
-            'max value', self.LOG_ERROR)
+            self.log('Bias too high for some values. Must be ' +
+                     f'<= 2^{nbits-1}-1. Setting to max value',
+                     self.LOG_ERROR)
         val[np.ravel(np.where(val > 2**(nbits-1)-1))] = 2**(nbits-1)-1
 
         if len(np.ravel(np.where(val < - 2**(nbits-1)))) > 0:
-            self.log('Bias too low for some values. Must be >= -2^{}. Setting to '.format(nbits-1) +
-                     'min value', self.LOG_ERROR)
+            self.log('Bias too low for some values. Must be ' +
+                     f'>= -2^{nbits-1}. Setting to min value',
+                     self.LOG_ERROR)
         val[np.ravel(np.where(val < - 2**(nbits-1)))] = -2**(nbits-1)
 
         self._caput(self.rtm_spi_max_root + self._rtm_slow_dac_data_array, val, **kwargs)
@@ -3825,7 +3827,7 @@ class SmurfCommandMixin(SmurfBase):
             The cryo card relays
         """
         if write_log:
-            self.log('Writing relay using cryo_card object. {}'.format(relay))
+            self.log(f'Writing relay using cryo_card object. {relay}')
 
         if enable_poll:
             epics.caput(self.epics_root + self._global_poll_enable, True)
@@ -3851,7 +3853,7 @@ class SmurfCommandMixin(SmurfBase):
 
         if write_log:
             self.log('Setting delatch bit using cryo_card ' +
-                'object. {}'.format(bit))
+                     f'object. {bit}')
         self.C.delatch_bit(bit)
 
         if disable_poll:
@@ -4053,18 +4055,20 @@ class SmurfCommandMixin(SmurfBase):
         self.set_user_config0(uc0 | (1 << 0))
         sg.wait(epics_poll=epics_poll) # wait for change
         uc0=sg.get_values()[user_config0_pv]
-        assert ( ( uc0 >> 0) & 1 ),'Failed to set averaging/clear bit high (userConfig0=%d).'%uc0
+        assert ( ( uc0 >> 0) & 1 ),(
+            'Failed to set averaging/clear bit high ' +
+            f'(userConfig0={uc0})')
 
         # toggle bit back to low, keeping all other bits the same
         self.set_user_config0(uc0 & ~(1 << 0))
         sg.wait(epics_poll=epics_poll) # wait for change
         uc0=sg.get_values()[user_config0_pv]
-        assert ( ~( uc0 >> 0) & 1 ),'Failed to set averaging/clear bit low after setting it high (userConfig0=%d).'%(uc0)
+        assert ( ~( uc0 >> 0) & 1 ),(
+            'Failed to set averaging/clear bit low after setting ' +
+            f'it high (userConfig0={uc0}).')
 
-        self.log('Successfully toggled averaging/clearing bit (userConfig[0]=%d).'%uc0,
-                 self.LOG_USER)
-
-
+        self.log('Successfully toggled averaging/clearing bit ' +
+                 f'(userConfig[0]={uc0}).',self.LOG_USER)
 
     # Triggering commands
     _trigger_width = 'EvrV2TriggerReg[{}]:Width'

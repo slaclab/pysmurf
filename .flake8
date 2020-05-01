@@ -1,5 +1,5 @@
 [flake8]
-exclude = __init__.py, rogue_plugin.py
+exclude = __init__.py, rogue_plugin.py, _version.py
 #############################################################
 # Note: Command to remove white space at the end of lines
 # $ find . -type f -name "*.py" -print0 | xargs -0 sed -i 's/\s*$//g'
@@ -38,6 +38,12 @@ rst-roles =
     class,
     func,
     ref,
+    meth,
+    attr,
 rst-directives =
     envvar,
     exception,
+# enforces fstrings only
+extend-ignore =
+    # Ignore f-strings, we like them:
+    SFS301,

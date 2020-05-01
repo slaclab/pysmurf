@@ -41,7 +41,8 @@ class JesdWatchdog(object):
 
     @staticmethod
     def jesdRXReset(prefix):
-        logging.error('[%s] ' % str(datetime.now()) + ' JesdRx went down, will attempt to recover...')
+        logging.error(f'[{datetime.now()}] ' +
+                      ' JesdRx went down, will attempt to recover...')
 
         # for recovery
         PwrUpSysRef = epics.get_pv(prefix + ':AMCc:FpgaTopLevel:AppTop:AppCore:MicrowaveMuxCore[0]:LMK:PwrUpSysRef')
@@ -55,7 +56,8 @@ class JesdWatchdog(object):
 
     @staticmethod
     def jesdTXReset(prefix):
-        logging.error('[%s] ' % str(datetime.now()) + ' JesdTx went down, will attempt to recover...')
+        logging.error(f'[{datetime.now()}] ' +
+                      ' JesdTx went down, will attempt to recover...')
 
         # for recovery
         PwrUpSysRef = epics.get_pv(prefix + ':AMCc:FpgaTopLevel:AppTop:AppCore:MicrowaveMuxCore[0]:LMK:PwrUpSysRef')

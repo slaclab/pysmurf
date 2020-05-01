@@ -139,7 +139,7 @@ class Common(pyrogue.Root):
         # Add epics interface
         self._epics = None
         if epics_prefix:
-            print("Starting EPICS server using prefix \"{}\"".format(epics_prefix))
+            print(f"Starting EPICS server using prefix \"{epics_prefix}\"")
             from pyrogue.protocols import epics
             self._epics = epics.EpicsCaServer(base=epics_prefix, root=self)
             self._pv_dump_file = pv_dump_file
@@ -147,13 +147,15 @@ class Common(pyrogue.Root):
             # PVs for stream data
             # This should be replaced with DataReceiver objects
             if stream_pv_size:
-                print("Enabling stream data on PVs (buffer size = {} points, data type = {})"
-                    .format(stream_pv_size,stream_pv_type))
+                print(
+                    "Enabling stream data on PVs " +
+                    f"(buffer size = {stream_pv_size} points, " +
+                    f"data type = {stream_pv_type})")
 
                 self._stream_fifos  = []
                 self._stream_slaves = []
                 for i in range(4):
-                    self._stream_slaves.append(self._epics.createSlave(name="AMCc:Stream{}".format(i),
+                    self._stream_slaves.append(self._epics.createSlave(name=f"AMCc:Stream{i}",
                                                                        maxSize=stream_pv_size,
                                                                        type=stream_pv_type))
 
@@ -198,14 +200,17 @@ class Common(pyrogue.Root):
             print("")
             print("FPGA image build information:")
             print("===================================")
-            print("BuildStamp              : {}"
-                .format(self.FpgaTopLevel.AmcCarrierCore.AxiVersion.BuildStamp.get()))
-            print("FPGA Version            : 0x{:x}"
-                .format(self.FpgaTopLevel.AmcCarrierCore.AxiVersion.FpgaVersion.get()))
-            print("Git hash                : 0x{:x}"
-                .format(self.FpgaTopLevel.AmcCarrierCore.AxiVersion.GitHash.get()))
+            print(
+                "BuildStamp              : " +
+                f"{self.FpgaTopLevel.AmcCarrierCore.AxiVersion.BuildStamp.get()}")
+            print(
+                "FPGA Version            : 0x" +
+                f"{self.FpgaTopLevel.AmcCarrierCore.AxiVersion.FpgaVersion.get():x}")
+            print(
+                "Git hash                : 0x" +
+                f"{self.FpgaTopLevel.AmcCarrierCore.AxiVersion.GitHash.get():x}")
         except AttributeError as attr_error:
-            print("Attibute error: {}".format(attr_error))
+            print(f"Attibute error: {attr_error}")
         print("")
 
         # Start epics
@@ -246,5 +251,5 @@ class Common(pyrogue.Root):
             print('No default configuration file was specified...')
             return
 
-        print('Setting defaults from file {}'.format(self._config_file))
+        print(f'Setting defaults from file {self._config_file}')
         self.LoadConfig(self._config_file)

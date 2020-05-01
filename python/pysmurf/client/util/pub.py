@@ -114,8 +114,8 @@ class Publisher:
             self._backend = self._backend_udp
 
         else:
-            sys.stderr.write('%s: no backend for "%s", selecting null Publisher.\n' %
-                             (self.__class__, backend))
+            sys.stderr.write(f'{self.__class__}: no backend for ' +
+                             f'"{backend}", selecting null Publisher.\n')
             self._backend = self._backend_null
 
         self._action = None
@@ -147,8 +147,8 @@ class Publisher:
         payload = bytes(json_msg, 'utf_8')
         if len(payload) > UDP_MAX_BYTES:
             # Can't send this; write to stderr and notify consumer.
-            error = 'Backend error: dropped large UDP packet (%i bytes).' % len(payload)
-            sys.stderr.write('%s %s' % (self, error))
+            error = f'Backend error: dropped large UDP packet ({len(payload)} bytes).'
+            sys.stderr.write(f'{self} {error}')
             self.publish({'message': error}, 'backend_error')
             return
         self.udp_sock.sendto(payload, (self.udp_ip, self.udp_port))
