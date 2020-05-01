@@ -4504,6 +4504,8 @@ class SmurfUtilMixin(SmurfBase):
             # sine/cosine decomp templates
             s = np.sin(2*np.pi*np.arange(n_samp) / fs *pf)
             c = np.cos(2*np.pi*np.arange(n_samp) / fs* pf)
+            s /= np.sum(s**2)
+            c /= np.sum(c**2)
 
             # cosine/sine decomposition
             for j, ch in enumerate(channel):
