@@ -4392,7 +4392,8 @@ class SmurfUtilMixin(SmurfBase):
     def measure_tes_transfer(self, band, bias_group, probe_freq=None,
             probe_amp=.002, n_cycle=5, min_probe_time=2,
             overbias_tes=False, tes_bias=None,
-            overbias_wait=None, cool_wait=None, overbias_voltage=19.9):
+            overbias_wait=None, cool_wait=None, overbias_voltage=19.9,
+            analyze=True, high_current_mode=False):
         """
         """
         f, sb, ch, bg = self.get_master_assignment(band)
@@ -4400,6 +4401,7 @@ class SmurfUtilMixin(SmurfBase):
         # Default probe frequency
         if probe_freq is None:
             probe_freq = 10**np.arange(0, 3, .5)
+
 
         # Overbias the TES
         if overbias_tes:
@@ -4410,7 +4412,13 @@ class SmurfUtilMixin(SmurfBase):
             else:
                 self.overbias_tes_all(bias_groups=np.array([bias_group]),
                     overbias_voltage=overbias_voltage, tes_bias=tes_bias,
-                    overbias_wait=overbias_wait, cool_wait=cool_wait)
+                    overbias_wait=overbias_wait, cool_wait=cool_wait,
+                    high_current_mode=high_current_mode)
+        else:
+            if high_current_mode:
+                self.set_tes_bias_high_current(bias_group)
+            else:
+                self.set_tes_bias_low_current(bias_group)
 
         # Loop over probe frequencies and take data
         datafile = np.array([], dtype='str')
@@ -4419,10 +4427,59 @@ class SmurfUtilMixin(SmurfBase):
 
             # Play the TES tone
             self.play_sine_tes(bias_group, probe_amp, pf)
-            probe_time = np.min([min_probe_time, n_cycle/pf])
+            probe_time = np.max([min_probe_time, n_cycle/pf])
 
             # Take data and safe datafile name
             df = self.take_stream_data(probe_time)
             datafile = np.append(datafile, df)
 
-        return datafile
+        if analyze:
+            fs = self.get_flux_ramp_freq() * 1.0E3 / self.get_downsample_factor()
+            amp = self.analyze_measure_tes_transfer(datafile, probe_freq,
+                probe_amp, band=band, bias_group=bias_group,
+                channel=ch[bg==bias_group], high_current_mode=high_current_mode,
+                fs=fs)
+
+            return amp
+
+
+    def analyze_measure_tes_transfer(self, datafile, probe_freq,
+        probe_amp, band=None, bias_group=None, channel=None, fs=None,
+        high_current_mode=high_current_mode):
+        """
+        """
+        if fs is None:
+            fs = self.get_flux_ramp_freq() * 1.0E3 / self.get_downsample_factor()
+
+        if channel is None:
+            channel = self.which_on(band)
+        n_det = len(channel)
+        n_freq = len(probe_freq)
+
+        # currents on lines
+        if high_current_mode:
+            r_inline = self.bias_line_resistance / self.high_low_current_ratio
+        else:
+            r_inline = self.bias_line_resistance
+        i_bias = probe_amp / r_inline * 1.0E12  # Bias current in pA
+
+        sa = np.zeros((n_freq, n_det))
+        ca = np.zeros((n_freq, n_det))
+        for i, pf in enumerate(probe_freq):
+            # Load data
+            t, d, m = self.read_stream_data(datafile[i])
+            _, n_samp = np.shape(d)
+
+            # sine/cosine decomp templates
+            s = np.sin(2*np.pi*np.arange(n_samp) / fs *pf)
+            c = np.cos(2*np.pi*np.arange(n_samp) / fs* pf)
+
+            # cosine/sine decomposition
+            for j, ch in enumerate(channel):
+                idx = m[b, ch]
+                sa[i, j] = np.dot(d[idx], s)
+                ca[i, j] = np.dot(d[idx], c)
+
+        amp = np.sqrt(sa**2 + ca**2)
+
+        return amp
