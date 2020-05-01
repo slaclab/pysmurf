@@ -268,6 +268,13 @@ def run(band, epics_root, config_file, shelf_manager, setup, no_band_off=False,
 
     # track
     channel = S.which_on(band)
+
+    # Check if there are any channels. If None, turn on 1 so the the
+    # script doesn't crash.
+    if len(channel) == 0:
+        print('No channels are on! Turning one on')
+        S.set_amplitude_scale_channel(band, 0, 10)
+        
     status = execute(status, lambda: S.tracking_setup(band, channel=channel,
         reset_rate_khz=reset_rate_khz, fraction_full_scale=.5,
         make_plot=True, show_plot=False, nsamp=2**18, lms_gain=8,
@@ -289,6 +296,13 @@ def run(band, epics_root, config_file, shelf_manager, setup, no_band_off=False,
         'identify_bias_groups')
 
 
+    # Check if there are any channels. If None, turn on 1 so the the
+    # script doesn't crash.
+    if len(channel) == 0:
+        print('No channels are on! Turning one on')
+        S.set_amplitude_scale_channel(band, 0, 10)
+
+    
     # Save tuning
     status = execute(status, lambda: S.save_tune(), 'save_tune')
 
