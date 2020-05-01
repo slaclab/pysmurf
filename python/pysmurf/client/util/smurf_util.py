@@ -4490,6 +4490,9 @@ class SmurfUtilMixin(SmurfBase):
         for i, pf in enumerate(probe_freq):
             # Load data
             _, d, m = self.read_stream_data(datafile[i])
+            d *= (self._pA_per_phi0/2/np.pi)  # convert to pA
+            d = np.transpose(d.T - np.mean(d.T, axis=0))  # mean subtract
+
             _, n_samp = np.shape(d)
 
             # sine/cosine decomp templates
@@ -4508,22 +4511,35 @@ class SmurfUtilMixin(SmurfBase):
                 mask[i] = m
 
         amp = np.sqrt(sa**2 + ca**2)
+        norm_amp = amp/i_bias
 
         if make_plot:
+            bbox = dict(boxstyle="round", ec='w', fc='w', alpha=.65)
+            ax = {}
             for j, ch in enumerate(channel):
                 fig = plt.figure(figsize=(8, 5.5))
                 gs = gridspec.GridSpec(n_freq, 2, width_ratios=[2, 1])
                 for i, pf in enumerate(probe_freq):
-                    ax = plt.subplot(gs[i, 0])
+                    ax[i] = plt.subplot(gs[i, 0])
+                    if i > 0:
+                        ax[i].get_shared_x_axes().join(ax[i], ax[i-1])
 
                     idx = mask[i][band, ch]
-                    ax.plot(dd[i][idx])
+                    ax[i].plot(dd[i][idx])
+                    ax[i].text(.02, .98, f'{pf:0.2f} Hz', transform=ax.transAxes,
+                        va='top', ha='left', bbox=bbox)
 
+                # Summary plot
                 axsm = plt.subplot(gs[:,1])
-                axsm.plot(probe_freq, amp[:,j])
+                axsm.plot(probe_freq, norm_amp[:,j], '.')
+                axsm.set_xlabel('Probe Freq [Hz]')
+
+                fig.suptitle(f'{timestamp} b{band}ch{ch:03} BG{bias_group}')
+
+                fig.tight_layout(rect=[0, 0.03, 1, 0.95])
 
                 if save_plot:
-                    savename = f'{timestamp}_tes_transfer_b{band}ch{ch}bg{bias_group}.png'
+                    savename = f'{timestamp}_tes_transfer_b{band}ch{ch:03}bg{bias_group}.png'
                     plt.savefig(os.path.join(self.plot_dir, savename))
                 if show_plot:
                     plt.show()
