@@ -4531,13 +4531,19 @@ class SmurfUtilMixin(SmurfBase):
                         ax[i].get_shared_x_axes().join(ax[i], ax[i-1])
 
                     idx = mask[i][band, ch]
+
+                    # Plot time and data
                     tt = np.arange(len(dd[i][idx])) / fs
                     ax[i].plot(tt, dd[i][idx])
                     ax[i].text(.98, .96, f'{pf:0.2f} Hz',
                         transform=ax[i].transAxes,
                         va='top', ha='right', bbox=bbox)
 
-                ax[len(probe_freq)].set_xlabel('Time [s]')
+                    # Suppress x-tick labels
+                    if i < len(probe_freq) - 1:
+                        ax[i].axes.xaxis.set_ticklabels([])
+
+                ax[len(probe_freq)-1].set_xlabel('Time [s]')
 
                 # Summary plot
                 axsm = plt.subplot(gs[:,1])
@@ -4555,12 +4561,14 @@ class SmurfUtilMixin(SmurfBase):
                     va='top', ha='right', bbox=bbox)
 
                 fig.suptitle(f'{timestamp} b{band}ch{ch:03} BG{bias_group}')
-
                 fig.tight_layout(rect=[0, 0.03, 1, 0.95])
 
+                # Saving
                 if save_plot:
                     savename = f'{timestamp}_tes_transfer_b{band}ch{ch:03}bg{bias_group}.png'
                     plt.savefig(os.path.join(self.plot_dir, savename))
+
+                # Showing plot
                 if show_plot:
                     plt.show()
                 else:
