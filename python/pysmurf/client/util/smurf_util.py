@@ -4437,6 +4437,9 @@ class SmurfUtilMixin(SmurfBase):
             df = self.take_stream_data(probe_time)
             datafile = np.append(datafile, df)
 
+            # Turn off tone
+            self.stop_tes_bipolar_waveform(bias_group)
+
         if analyze:
             # Get sample frequency
             fs = self.get_flux_ramp_freq() * 1.0E3 / self.get_downsample_factor()
@@ -4526,7 +4529,8 @@ class SmurfUtilMixin(SmurfBase):
 
                     idx = mask[i][band, ch]
                     ax[i].plot(dd[i][idx])
-                    ax[i].text(.02, .98, f'{pf:0.2f} Hz', transform=ax.transAxes,
+                    ax[i].text(.02, .98, f'{pf:0.2f} Hz',
+                        transform=ax[i].transAxes,
                         va='top', ha='left', bbox=bbox)
 
                 # Summary plot
