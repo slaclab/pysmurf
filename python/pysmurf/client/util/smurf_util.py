@@ -4525,8 +4525,11 @@ class SmurfUtilMixin(SmurfBase):
             bbox = dict(boxstyle="round", ec='w', fc='w', alpha=.65)
             ax = {}
             for j, ch in enumerate(channel):
-                fig = plt.figure(figsize=(8, 5.5))
+                # Instatiate figure
+                fig = plt.figure(figsize=(9, 5.5))
                 gs = gridspec.GridSpec(n_freq, 2, width_ratios=[2, 1])
+
+                # Loop over probe frequencies
                 for i, pf in enumerate(probe_freq):
                     ax[i] = plt.subplot(gs[i, 0])
                     if i > 0:
@@ -4559,8 +4562,8 @@ class SmurfUtilMixin(SmurfBase):
                 if tes_bias is not None:
                     text += r'$I_b$: ' + f'{tes_bias:1.2f}' + '\n'
                 text += 'high bias: ' + f'{high_current_mode}' + '\n'
-                axsm.text(.98, .96, text, transform=axsm.transAxes,
-                    va='top', ha='right', bbox=bbox)
+                axsm.text(.02, .02, text, transform=axsm.transAxes,
+                    va='bottom', ha='left', bbox=bbox)
 
                 fig.suptitle(f'{timestamp} b{band}ch{ch:03} BG{bias_group}')
                 fig.tight_layout(rect=[0, 0.03, 1, 0.95])
