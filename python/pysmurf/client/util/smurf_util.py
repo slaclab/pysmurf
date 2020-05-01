@@ -4387,3 +4387,37 @@ class SmurfUtilMixin(SmurfBase):
             self.write_group_assignment(channels_dict)
 
         return channels_dict
+
+
+    def measure_tes_transfer(self, band, bias_group, probe_freq=None,
+            probe_amp=.002, n_cycle=5, min_probe_time=2,
+            overbias_tes=False, tes_bias=None,
+            overbias_wait=None, cool_wait=None, overbias_voltage=19.9):
+        """
+        """
+        f, sb, ch, bg = self.get_master_assignment(band)
+
+        # Default probe frequency
+        if probe_freq is None:
+            prob_freq = 10**np.arange(0, 3, .5)
+
+        # Overbias the TES
+        if overbias_tes:
+            if tes_bias is None:
+                raise ValueError('Must supply tes_bias')
+            elif overbias_wait is None:
+                raise ValueError('Must supply overbias_wait')
+            else:
+                self.overbias_tes_all(bias_groups=np.array([bias_group]),
+                    overbias_voltage=overbias_voltage, tes_bias=tes_bias,
+                    overbias_wait=overbias_wait, cool_wait=cool_wait)
+
+        # Loop over probe frequencies and take data
+        datafile = np.array([], dtype='str')
+        for i, pf in enumerate(probe_freq):
+            self.log(f'Playing tone at {pf} Hz')
+            self.play_sine_tes(bias_group, probe_amp, pf)
+            probe_time = np.min([min_probe_time, n_cycle/probe_freq])
+            datafile[i] = self.take_stream_data(probe_time)
+
+        return datafile
