@@ -4476,7 +4476,7 @@ class SmurfUtilMixin(SmurfBase):
 
             # cosine/sine decomposition
             for j, ch in enumerate(channel):
-                idx = m[b, ch]
+                idx = m[band, ch]
                 sa[i, j] = np.dot(d[idx], s)
                 ca[i, j] = np.dot(d[idx], c)
 
