@@ -4394,10 +4394,13 @@ class SmurfUtilMixin(SmurfBase):
             probe_amp=.002, n_cycle=5, min_probe_time=2,
             overbias_tes=False, tes_bias=None,
             overbias_wait=None, cool_wait=None, overbias_voltage=19.9,
-            analyze=True, high_current_mode=False, make_plot=False):
+            analyze=True, high_current_mode=False, make_plot=False,
+            save_plot=True, show_plot=False):
         """
         """
         f, sb, ch, bg = self.get_master_assignment(band)
+
+        timestamp = self.get_timestamp()
 
         # Default probe frequency
         if probe_freq is None:
@@ -4435,18 +4438,26 @@ class SmurfUtilMixin(SmurfBase):
             datafile = np.append(datafile, df)
 
         if analyze:
+            # Get sample frequency
             fs = self.get_flux_ramp_freq() * 1.0E3 / self.get_downsample_factor()
+
+            # Calculate amplitudes
             amp = self.analyze_measure_tes_transfer(datafile, probe_freq,
                 probe_amp, band=band, bias_group=bias_group,
                 channel=ch[bg==bias_group], high_current_mode=high_current_mode,
-                fs=fs, make_plot=make_plot)
+                fs=fs, make_plot=make_plot, save_plot=save_plot,
+                show_plot=show_plot, timestamp=timestamp)
 
             return amp
 
+        else:
+            return datafile
+
 
     def analyze_measure_tes_transfer(self, datafile, probe_freq,
-        probe_amp, band=None, bias_group=None, channel=None, fs=None,
-        high_current_mode=False, make_plot=False):
+            probe_amp, band=None, bias_group=None, channel=None, fs=None,
+            high_current_mode=False, make_plot=False,
+            save_plot=True, show_plot=False, timestamp=None):
         """
         """
         if fs is None:
@@ -4456,6 +4467,14 @@ class SmurfUtilMixin(SmurfBase):
             channel = self.which_on(band)
         n_det = len(channel)
         n_freq = len(probe_freq)
+
+        if timestamp is None:
+            timestamp = self.get_timestamp()
+
+        if show_plot:
+            plt.ion()
+        else:
+            plt.ioff()
 
         # currents on lines
         if high_current_mode:
@@ -4501,6 +4520,14 @@ class SmurfUtilMixin(SmurfBase):
                     ax.plot(dd[i][idx])
 
                 axsm = plt.subplot(gs[:,1])
-                axsm.plot(probe_freq, amp[j])
+                axsm.plot(probe_freq, amp[:,j])
+
+                if save_plot:
+                    savename = f'{timestamp}_tes_transfer_b{band}ch{ch}bg{bias_group}.png'
+                    plt.savefig(os.path.join(self.plot_dir, savename))
+                if show_plot:
+                    plt.show()
+                else:
+                    plt.close()
 
         return amp
