@@ -4528,14 +4528,17 @@ class SmurfUtilMixin(SmurfBase):
                         ax[i].get_shared_x_axes().join(ax[i], ax[i-1])
 
                     idx = mask[i][band, ch]
-                    ax[i].plot(dd[i][idx])
-                    ax[i].text(.02, .98, f'{pf:0.2f} Hz',
+                    tt = np.arange(len(dd[i][idx])) / fs
+                    ax[i].plot(tt, dd[i][idx])
+                    ax[i].text(.98, .96, f'{pf:0.2f} Hz',
                         transform=ax[i].transAxes,
-                        va='top', ha='left', bbox=bbox)
+                        va='top', ha='right', bbox=bbox)
 
+                ax[-1].set_xlabel('Time [s]')
                 # Summary plot
                 axsm = plt.subplot(gs[:,1])
-                axsm.plot(probe_freq, norm_amp[:,j], '.')
+                axsm.semilogx(probe_freq, norm_amp[:,j], '.')
+                axsm.set_ylabel(r'$dI_{TES}/dI_{b}$')
                 axsm.set_xlabel('Probe Freq [Hz]')
 
                 fig.suptitle(f'{timestamp} b{band}ch{ch:03} BG{bias_group}')
