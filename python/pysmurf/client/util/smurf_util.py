@@ -3765,6 +3765,7 @@ class SmurfUtilMixin(SmurfBase):
         dc_amp /= (2*self._rtm_slow_dac_bit_to_volt)
         tone_amp /= (2*self._rtm_slow_dac_bit_to_volt)
 
+        # Handles issue where it won't play faster than ~7 Hz
         freq_split = 5
         scale = 1
         if tone_freq > freq_split:
@@ -3772,7 +3773,8 @@ class SmurfUtilMixin(SmurfBase):
 
         # Make tone file. 2048 elements
         n_tes_samp = 2048
-        sig = tone_amp * np.cos(2*np.pi*scale*np.arange(n_tes_samp)/n_tes_samp) + dc_amp
+        sig = tone_amp * \
+            np.cos(2*np.pi*scale*np.arange(n_tes_samp)/n_tes_samp) + dc_amp
 
         # Calculate frequency - 6.4ns * TimerSize between samples
         ts = int((tone_freq * n_tes_samp * 6.4E-9)**-1)
