@@ -21,6 +21,7 @@ import os
 from scipy import signal
 import glob
 import matplotlib.pyplot as plt
+from matplotlib import gridspec
 from contextlib import contextmanager
 # for hardware logging
 import threading
@@ -4445,7 +4446,7 @@ class SmurfUtilMixin(SmurfBase):
 
     def analyze_measure_tes_transfer(self, datafile, probe_freq,
         probe_amp, band=None, bias_group=None, channel=None, fs=None,
-        high_current_mode=False):
+        high_current_mode=False, make_plot=False):
         """
         """
         if fs is None:
@@ -4465,9 +4466,11 @@ class SmurfUtilMixin(SmurfBase):
 
         sa = np.zeros((n_freq, n_det))
         ca = np.zeros((n_freq, n_det))
+        dd = {}
+        mask = {}
         for i, pf in enumerate(probe_freq):
             # Load data
-            t, d, m = self.read_stream_data(datafile[i])
+            _, d, m = self.read_stream_data(datafile[i])
             _, n_samp = np.shape(d)
 
             # sine/cosine decomp templates
@@ -4480,6 +4483,24 @@ class SmurfUtilMixin(SmurfBase):
                 sa[i, j] = np.dot(d[idx], s)
                 ca[i, j] = np.dot(d[idx], c)
 
+            # Store timestreams if making plots
+            if make_plot:
+                dd[i] = d
+                mask[i] = m
+
         amp = np.sqrt(sa**2 + ca**2)
+
+        if make_plot:
+            for j, ch in enumerate(channel):
+                fig = plt.figure(figsize=(8, 5.5))
+                gs = gridspec.GridSpec(n_freq, 2, width_ratios=[2, 1])
+                for i, pf in enumerate(probe_freq):
+                    ax = plt.subplot(gs[i, 0])
+
+                    idx = mask[i][band, ch]
+                    ax.plot(dd[i][idx])
+
+                axsm = plt.subplot(gs[:,1])
+                axsm.plot(probe_freq, amp[j])
 
         return amp
