@@ -4433,11 +4433,11 @@ class SmurfUtilMixin(SmurfBase):
             self.log(f'Playing tone at {pf} Hz')
 
             # Play the TES tone
-            self.play_sine_tes(bias_group, probe_amp, pf)
+            self.play_sine_tes(bias_group, probe_amp, pf, dc_amp=tes_bias)
             probe_time = np.max([min_probe_time, n_cycle/pf])
 
-            # Take data and safe datafile name
-            df = self.take_stream_data(probe_time)
+            # Take data and safe datafile name - no freq mask for faster
+            df = self.take_stream_data(probe_time, make_freq_mask=False)
             datafile = np.append(datafile, df)
 
             # Turn off tone
