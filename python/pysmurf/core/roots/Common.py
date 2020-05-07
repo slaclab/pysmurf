@@ -38,6 +38,8 @@ class Common(pyrogue.Root):
                  configure      = False,
                  VariableGroups = None,
                  server_port    = 0,
+                 disable_bay0   = False,
+                 disable_bay1   = False,
                  **kwargs):
 
         pyrogue.Root.__init__(self, name="AMCc", initRead=True, pollEn=polling_en,
@@ -128,6 +130,17 @@ class Common(pyrogue.Root):
             name='setDefaults',
             description='Set default configuration',
             function=self._set_defaults_cmd))
+
+        bays = []
+        if not disable_bay0:
+            bays.append(0)
+        if not disable_bay1:
+            bays.append(1)
+        self.add(pyrogue.LocalVariable(
+            name='EnabledBays',
+            description='List of bays that are enabled',
+            value=bays,
+            mode='RO'))
 
         # Flag that indicates if the default configuration should be loaded
         # once the root is started.
