@@ -139,7 +139,7 @@ class Common(pyrogue.Root):
         self.add(pyrogue.LocalVariable(
             name='EnabledBays',
             description='List of bays that are enabled',
-            value=bays,
+            value=str(bays),
             mode='RO'))
 
         # Flag that indicates if the default configuration should be loaded

@@ -4603,7 +4603,6 @@ class SmurfCommandMixin(SmurfBase):
         self._caput(self.channel_mapper + self._payload_size,
                     payload_size, **kwargs)
 
-    _enabled_bays = self.amcc + "EnabledBays"
     def get_enabled_bays(self, **kwargs):
         """
         Gets list of enabled bays.
@@ -4613,4 +4612,9 @@ class SmurfCommandMixin(SmurfBase):
         bays : list of int
             Which bays were enabled on pysmurf server startup.
         """
-        return self._caget(self._enabled_bays, **kwargs)
+        bays = []
+        _bays = self._caget(self.amcc + "EnabledBays", as_string=True, **kwargs)
+        for i in [0, 1]:
+            if str(i) in _bays:
+                bays.append(i)
+        return bays
