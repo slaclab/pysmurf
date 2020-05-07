@@ -88,6 +88,8 @@ else
     slots=( $(awk '{print $1}' <<< "$slot_cfgs") )
     # second column is the pyrogue directories, in slot configure order    
     pyrogues=( $(awk '{print $2}' <<< "$slot_cfgs") )
+    # third (optional) column is the pysmurf experiment.cfg
+    pysmurf_cfgs=( $(awk '{print $3}' <<< "$slot_cfgs") )
 fi
 
 source shawnhammerfunctions
@@ -224,7 +226,8 @@ if [ "$parallel_setup" = true ] ; then
     while [[ "${setup_complete}" = false ]] ; do
 	for ((slot_idx=0; slot_idx<${#slots[@]}; ++slot_idx)); do
 	    slot=${slots[slot_idx]}
-	    pyrogue=${pyrogues[slot_idx]} 	
+	    pyrogue=${pyrogues[slot_idx]}
+	    pysmurf_cfg=${pysmurf_cfgs[slot_idx]}
 
 	    if [ "${slot_status[${slot_idx}]}" = "0" ]; then
 		# make sure ethernet is up on carrier
@@ -259,7 +262,7 @@ if [ "$parallel_setup" = true ] ; then
 	    # pysmurf object
 	    if [ "${slot_status[${slot_idx}]}" = "4" ]; then
 	    	echo "-> Starting pysmurf on ${slot}."		
-	    	start_slot_pysmurf ${slot}
+	    	start_slot_pysmurf ${slot} ${pysmurf_cfg}
 	    	slot_status[$slot_idx]=5;
 		if [ "${configure_pysmurf}" = false ]; then
 		    # skip setup
@@ -300,14 +303,15 @@ else
     ##  older serial method
     for ((i=0; i<${#slots[@]}; ++i)); do
 	slot=${slots[i]}
-	pyrogue=${pyrogues[i]} 
+	pyrogue=${pyrogues[i]}
+	pysmurf_cfg=${pysmurf_cfgs[i]} 	
 
 	# make sure ethernet is up on carrier
 	echo "-> Waiting for ethernet on carrier in slot ${slot} to come up ..."
 	cd $cpwd
 	ping_carrier 10.0.${crate_id}.$((${slot}+100))
 	
-	start_slot_tmux_serial ${slot} ${pyrogue}
+	start_slot_tmux_serial ${slot} ${pyrogue} ${pysmurf_cfg}
 	
 	pysmurf_docker_slot=`docker ps -a -n 1 -q`
 	
