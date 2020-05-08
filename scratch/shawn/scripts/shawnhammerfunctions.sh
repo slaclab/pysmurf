@@ -95,10 +95,12 @@ pysmurf_init() {
 	tmux send-keys -t ${tmux_session_name}:${slot_number} "import matplotlib.pylab as plt" C-m
 	tmux send-keys -t ${tmux_session_name}:${slot_number} "import numpy as np" C-m
 	tmux send-keys -t ${tmux_session_name}:${slot_number} "import sys" C-m
+	tmux send-keys -t ${tmux_session_name}:${slot_number} "import os" C-m	
 
 	# define some local variables that some shawnhammer functions will use later
 	tmux send-keys -t ${tmux_session_name}:${slot_number} 'epics_prefix="'smurf_server_s${slot_number}'"' C-m
-	tmux send-keys -t ${tmux_session_name}:${slot_number} 'config_file="'${pysmurf_cfg}'"' C-m
+	# abs path in case user specified the relative path
+	tmux send-keys -t ${tmux_session_name}:${slot_number} 'config_file=os.path.abspath("'${pysmurf_cfg}'")' C-m
 
 	# instantiate pysmurf
 	tmux send-keys -t ${tmux_session_name}:${slot_number} 'S = pysmurf.client.SmurfControl(epics_root=epics_prefix,cfg_file=config_file,setup=False,make_logfile=False,shelf_manager="'${shelfmanager}'")' C-m
