@@ -85,11 +85,9 @@ def make_runfile(output_dir, row_len=60, num_rows=60, data_rate=60,
     S.log(f"Writing to {full_path}")
     sys.stdout.writelines(line_holder)
 
-def start_acq(S, num_rows, num_rows_reported, data_rate,
-        row_len):
+def start_acq(S, num_rows, num_rows_reported, data_rate, row_len):
     """
     """
-    bands = S.config.get('init').get('bands')
     S.log('Setting PVs for streaming header')
     S.set_num_rows(num_rows, write_log=True)
     S.set_num_rows_reported(num_rows_reported, write_log=True)
@@ -98,8 +96,7 @@ def start_acq(S, num_rows, num_rows_reported, data_rate,
 
     S.log('Starting streaming data')
     S.set_smurf_to_gcp_stream(True, write_log=True)
-    for b in bands:
-        S.set_stream_enable(1, write_log=True)
+    S.set_stream_enable(1, write_log=True)
 
 def stop_acq(S):
     """

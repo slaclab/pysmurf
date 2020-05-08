@@ -383,7 +383,7 @@ class SmurfIVMixin(SmurfBase):
         p_trans_list = []
         si_target_list = []
         v_tes_target_list = []
-        for c, (b, ch) in enumerate(zip(bands,chans)):
+        for _, (b, ch) in enumerate(zip(bands,chans)):
             if (channel is not None) and (ch not in channel):
                 self.log(f'Not in desired channel list: skipping band {b} ch {ch}')
                 continue
@@ -990,7 +990,7 @@ class SmurfIVMixin(SmurfBase):
 
         phase_excursion_list = []
 
-        for c, (b, ch) in enumerate(zip(band, chans)):
+        for _, (b, ch) in enumerate(zip(band, chans)):
             if (channels is not None) and (ch not in channels):
                 continue
             self.log(f'Analyzing band {b} channel {ch}')

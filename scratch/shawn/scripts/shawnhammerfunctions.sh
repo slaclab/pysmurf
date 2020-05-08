@@ -65,8 +65,51 @@ is_slot_server_up() {
     return $?
 }
 
+pysmurf_init() {
+    slot_number=$1
+    pysmurf_cfg=$2
+
+    if [ -z "$pysmurf_cfg" ]
+    then
+	# used to have an institution init script, specified in the
+	# smurf_startup.cfg script as `pysmurf_init_script`
+	if [ ! -z ${pysmurf_init_script} ];
+	then
+	    # using old init script pysmurf startup
+	    tmux send-keys -t ${tmux_session_name}:${slot_number} 'ipython3 -i '${pysmurf_init_script}' '${slot_number} C-m
+	else
+	    echo "Must either specify pysmurf_cfg for each slot in slot_cfgs," 1>&2
+	    echo "or specify a global pysmurf init script using the" 1>&2
+	    echo '`pysmurf_init_script`'" variable in $startup_cfg." 1>&2
+	    echo "Unable to start a pysmurf session." 1>&2
+	    exit 1	    
+	fi
+    else
+	# start ipython session
+	tmux send-keys -t ${tmux_session_name}:${slot_number} "ipython3" C-m
+
+	# load pysmurf.client
+	tmux send-keys -t ${tmux_session_name}:${slot_number} "import pysmurf.client" C-m
+
+	# load 3rd party libraries
+	tmux send-keys -t ${tmux_session_name}:${slot_number} "import matplotlib.pylab as plt" C-m
+	tmux send-keys -t ${tmux_session_name}:${slot_number} "import numpy as np" C-m
+	tmux send-keys -t ${tmux_session_name}:${slot_number} "import sys" C-m
+	tmux send-keys -t ${tmux_session_name}:${slot_number} "import os" C-m	
+
+	# define some local variables that some shawnhammer functions will use later
+	tmux send-keys -t ${tmux_session_name}:${slot_number} 'epics_prefix="'smurf_server_s${slot_number}'"' C-m
+	# abs path in case user specified the relative path
+	tmux send-keys -t ${tmux_session_name}:${slot_number} 'config_file=os.path.abspath("'${pysmurf_cfg}'")' C-m
+
+	# instantiate pysmurf
+	tmux send-keys -t ${tmux_session_name}:${slot_number} 'S = pysmurf.client.SmurfControl(epics_root=epics_prefix,cfg_file=config_file,setup=False,make_logfile=False,shelf_manager="'${shelfmanager}'")' C-m
+    fi    
+}
+
 start_slot_pysmurf() {
     slot_number=$1
+    pysmurf_cfg=$2
     
     # start pysmurf in a split window and initialize the carrier
     tmux split-window -v -t ${tmux_session_name}:${slot_number}
@@ -74,12 +117,13 @@ start_slot_pysmurf() {
     tmux send-keys -t ${tmux_session_name}:${slot_number} './run.sh' C-m
     sleep 1
 
-    tmux send-keys -t ${tmux_session_name}:${slot_number} 'ipython3 -i '${pysmurf_init_script}' '${slot_number} C-m
+    pysmurf_init ${slot_number} ${pysmurf_cfg}
 }
 
 start_slot_tmux_serial () {
     slot_number=$1
     pyrogue=$2
+    pysmurf_cfg=$3
 
     pysmurf_docker0=`docker ps -a | grep pysmurf | grep -v pysmurf_s${slot_number} | head -n 1 | awk '{print $1}'`
     
@@ -87,7 +131,6 @@ start_slot_tmux_serial () {
     tmux rename-window -t ${tmux_session_name}:${slot_number} smurf_slot${slot_number}
     tmux send-keys -t ${tmux_session_name}:${slot_number} 'cd '$2 C-m
     tmux send-keys -t ${tmux_session_name}:${slot_number} './run.sh -N '${slot_number}'; sleep 5; docker logs smurf_server_s'${slot_number}' -f' C-m
-
 
     echo '-> Waiting for smurf_server_s'${slot_number}' docker to start.'
     while [[ -z `docker ps  | grep smurf_server_s${slot_number}`  ]]; do
@@ -114,7 +157,8 @@ start_slot_tmux_serial () {
     sleep 1
 
     #tmux run-shell -t ${tmux_session_name}:${slot_number} /home/cryo/tmux-logging/scripts/toggle_logging.sh
-    tmux send-keys -t ${tmux_session_name}:${slot_number} 'ipython3 -i '${pysmurf_init_script}' '${slot_number} C-m
+    #tmux send-keys -t ${tmux_session_name}:${slot_number} 'ipython3 -i '${pysmurf_init_script}' '${slot_number} C-m
+    pysmurf_init ${slot_number} ${pysmurf_cfg}    
 
     ## not the safest way to do this.  If someone else starts a
     ## pysmurf docker, will satisfy this condition.  Not even sure why
@@ -138,7 +182,7 @@ start_slot_tmux_serial () {
 
 run_pysmurf_setup () {
     slot_number=$1
-    tmux send-keys -t ${tmux_session_name}:${slot_number} 'S = pysmurf.client.SmurfControl(epics_root=epics_prefix,cfg_file=config_file,setup=True,make_logfile=False,shelf_manager="'${shelfmanager}'")' C-m
+    tmux send-keys -t ${tmux_session_name}:${slot_number} 'S.setup()' C-m
 }
 
 is_slot_pysmurf_setup_complete() {
@@ -153,7 +197,7 @@ config_pysmurf_serial () {
     slot_number=$1
     pysmurf_docker=$2
     
-    tmux send-keys -t ${tmux_session_name}:${slot_number} 'S = pysmurf.client.SmurfControl(epics_root=epics_prefix,cfg_file=config_file,setup=True,make_logfile=False,shelf_manager="'${shelfmanager}'")' C-m    
+    tmux send-keys -t ${tmux_session_name}:${slot_number} 'S.setup()' C-m    
     
     # wait for setup to complete
     echo "-> Waiting for carrier setup (watching pysmurf docker ${pysmurf_docker})"
@@ -185,9 +229,15 @@ config_pysmurf_serial () {
 
     # write config
     if [ "$write_config" = true ] ; then
-	sleep 2    
-	tmux send-keys -t ${tmux_session_name}:${slot_number} 'S.set_read_all(write_log=True); S.write_config("/home/cryo/shawn/'${ctime}'_slot'${slot_number}'.yml")' C-m
-	sleep 45
+	sleep 2
+	echo "-> Writing rogue configuration to /data/smurf_data/${ctime}_slot${slot_number}.yml"
+	tmux send-keys -t ${tmux_session_name}:${slot_number} 'S.set_read_all(write_log=True); S.write_config("/data/smurf_data/'${ctime}'_slot'${slot_number}'.yml")' C-m
+	# wait until file exists
+	echo "-> Waiting for /data/smurf_data/${ctime}_slot${slot_number}.yml to be written to disk ..."
+	until [ -s /data/smurf_data/${ctime}_slot${slot_number}.yml ]
+	do
+	    sleep 5
+	done
     fi
 
     if [ "$run_full_band_response" = true ] ; then    
