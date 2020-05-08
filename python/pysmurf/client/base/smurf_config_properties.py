@@ -163,6 +163,9 @@ class SmurfConfigPropertiesMixin:
         current.  Units are pA per Phi0, with Phi0 the magnetic flux
         quantum.
 
+        Specified in the pysmurf configuration file as
+        `constant:pA_per_phi0`.
+
         See Also
         --------
         :func:`~pysmurf.client.debug.smurf_noise.SmurfNoiseMixin.take_noise_psd`,
@@ -195,6 +198,9 @@ class SmurfConfigPropertiesMixin:
         Gets or sets the desired value for the 4K HEMT gate voltage at
         the output of the cryostat card.  Units are Volts.
 
+        Specified in the pysmurf configuration file as
+        `amplifier:hemt_Vg`.
+
         See Also
         --------
         :func:`~pysmurf.client.util.smurf_util.SmurfUtilMixin.set_amplifier_bias`
@@ -224,6 +230,9 @@ class SmurfConfigPropertiesMixin:
         dependency is the voltage division on the cryostat card, which
         can be different from cryostat card to cryostat card.  Units
         are Volts/bit.
+
+        Specified in the pysmurf configuration file as
+        `amplifier:bit_to_V_hemt`.
 
         See Also
         --------
@@ -261,6 +270,9 @@ class SmurfConfigPropertiesMixin:
         (PC-248-103-02-C02).  The resistor on that revision of the
         cryostat card is R44.  Units are Ohms.
 
+        Specified in the pysmurf configuration file as
+        `amplifier:hemt_Vd_series_resistor`.
+
         See Also
         --------
         :func:`~pysmurf.client.util.smurf_util.SmurfUtilMixin.get_hemt_drain_current`
@@ -296,6 +308,9 @@ class SmurfConfigPropertiesMixin:
         the offset to subtract off the measured value.  Units are
         milliamperes.
 
+        Specified in the pysmurf configuration file as
+        `amplifier:hemt_Id_offset`.
+
         See Also
         --------
         :func:`~pysmurf.client.util.smurf_util.SmurfUtilMixin.get_hemt_drain_current`
@@ -326,6 +341,9 @@ class SmurfConfigPropertiesMixin:
         boolean `override` argument of
         :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.set_hemt_gate_voltage`.
         Units are Volts.
+
+        Specified in the pysmurf configuration file as
+        `amplifier:hemt_gate_min_voltage`.
 
         See Also
         --------
@@ -358,6 +376,9 @@ class SmurfConfigPropertiesMixin:
         :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.set_hemt_gate_voltage`.
         Units are Volts.
 
+        Specified in the pysmurf configuration file as
+        `amplifier:hemt_gate_max_voltage`.
+
         See Also
         --------
         :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.set_hemt_gate_voltage`
@@ -383,6 +404,9 @@ class SmurfConfigPropertiesMixin:
 
         Gets or sets the desired value for the 50K LNA Gate voltage at
         the output of the cryostat card.  Units are Volts.
+
+        Specified in the pysmurf configuration file as
+        `amplifier:LNA_Vg`.
 
         See Also
         --------
@@ -418,6 +442,9 @@ class SmurfConfigPropertiesMixin:
         (PC-248-103-02-C02) is DAC32 (if JMP4 on the cryostat card is
         populated correctly).
 
+        Specified in the pysmurf configuration file as
+        `amplifier:dac_num_50k`.
+
         See Also
         --------
         :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.set_50k_amp_gate_voltage`,
@@ -449,6 +476,9 @@ class SmurfConfigPropertiesMixin:
         the voltage division on the cryostat card, which can be
         different from cryostat card to cryostat card.  Units are
         Volts/bit.
+
+        Specified in the pysmurf configuration file as
+        `amplifier:bit_to_V_50k`.
 
         See Also
         --------
@@ -486,6 +516,9 @@ class SmurfConfigPropertiesMixin:
         (PC-248-103-02-C02).  The resistor on that revision of the
         cryostat card is R54.  Units are Ohms.
 
+        Specified in the pysmurf configuration file as
+        `amplifier:50K_amp_Vd_series_resistor`.
+
         See Also
         --------
         :func:`~pysmurf.client.util.smurf_util.SmurfUtilMixin.get_50k_amp_drain_current`
@@ -520,6 +553,9 @@ class SmurfConfigPropertiesMixin:
         subtracting the current drawn by that regulator from the
         measured total current.  This is the offset to subtract off
         the measured value.  Units are milliamperes.
+
+        Specified in the pysmurf configuration file as
+        `amplifier:50k_Id_offset`.
 
         See Also
         --------
