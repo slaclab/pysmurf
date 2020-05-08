@@ -94,8 +94,8 @@ class SmurfConfig:
         `filename` argument, strips off all lines that start with the
         character provided by the `comment_char` argument, and then
         parses the remaining lines in the pysmurf configuration file
-        into a dictionary using the `json.loads` routine.  Any text
-        after the `comment_char` on a line is also ignored.
+        into a dictionary using the :py:func:`json.loads` routine.
+        Any text after the `comment_char` on a line is also ignored.
 
         Args
         ----

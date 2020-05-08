@@ -49,8 +49,12 @@ extensions = [
     'sphinx.ext.autodoc',
     'sphinx.ext.napoleon',
     'sphinx.ext.todo',
-    'sphinx.ext.linkcode'
+    'sphinx.ext.linkcode',
+    'sphinx.ext.intersphinx'
 ]
+
+# Intersphinx settings
+intersphinx_mapping = {'python': ('https://docs.python.org/release/3.6.9', None)}
 
 # Napoleon settings
 napoleon_google_docstring = True
