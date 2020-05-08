@@ -113,7 +113,7 @@ class SmurfConfig:
         ------
         FileNotFoundError
             Raised if the configuration file does not exist.
-        JSONDecodeError
+        :py:exc:`~json.JSONDecodeError`
             Raised if the loaded configuration file data is not in JSON
             format.
         """
