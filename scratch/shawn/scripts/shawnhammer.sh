@@ -342,6 +342,8 @@ if [ "$attach_at_end" = true ] ; then
     tmux attach -t ${tmux_session_name}
 fi
 
+# Rarely used for some lofi debugging at Stanford.
+#
 # terminal running script that screenshots can't overlap with the
 # remote desktop window, for some stupid reason.
 if [ "$screenshot_signal_analyzer" = true ] ; then

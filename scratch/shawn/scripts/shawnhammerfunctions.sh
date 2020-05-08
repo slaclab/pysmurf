@@ -96,8 +96,12 @@ pysmurf_init() {
 	tmux send-keys -t ${tmux_session_name}:${slot_number} "import numpy as np" C-m
 	tmux send-keys -t ${tmux_session_name}:${slot_number} "import sys" C-m
 
+	# define some local variables that some shawnhammer functions will use later
+	tmux send-keys -t ${tmux_session_name}:${slot_number} 'epics_prefix="'smurf_server_s${slot_number}'"' C-m
+	tmux send-keys -t ${tmux_session_name}:${slot_number} 'config_file="'${pysmurf_cfg}'"' C-m
+
 	# instantiate pysmurf
-	tmux send-keys -t ${tmux_session_name}:${slot_number} 'S = pysmurf.client.SmurfControl(epics_root="'smurf_server_s${slot_number}'",cfg_file="'${pysmurf_cfg}'",setup=True,make_logfile=False,shelf_manager="'${shelfmanager}'")' C-m
+	tmux send-keys -t ${tmux_session_name}:${slot_number} 'S = pysmurf.client.SmurfControl(epics_root=epics_prefix,cfg_file=config_file,setup=False,make_logfile=False,shelf_manager="'${shelfmanager}'")' C-m
     fi    
 }
 
@@ -176,7 +180,7 @@ start_slot_tmux_serial () {
 
 run_pysmurf_setup () {
     slot_number=$1
-    tmux send-keys -t ${tmux_session_name}:${slot_number} 'S = pysmurf.client.SmurfControl(epics_root=epics_prefix,cfg_file=config_file,setup=True,make_logfile=False,shelf_manager="'${shelfmanager}'")' C-m
+    tmux send-keys -t ${tmux_session_name}:${slot_number} 'S.setup()' C-m
 }
 
 is_slot_pysmurf_setup_complete() {
@@ -191,7 +195,7 @@ config_pysmurf_serial () {
     slot_number=$1
     pysmurf_docker=$2
     
-    tmux send-keys -t ${tmux_session_name}:${slot_number} 'S = pysmurf.client.SmurfControl(epics_root=epics_prefix,cfg_file=config_file,setup=True,make_logfile=False,shelf_manager="'${shelfmanager}'")' C-m    
+    tmux send-keys -t ${tmux_session_name}:${slot_number} 'S.setup()' C-m    
     
     # wait for setup to complete
     echo "-> Waiting for carrier setup (watching pysmurf docker ${pysmurf_docker})"
@@ -223,9 +227,15 @@ config_pysmurf_serial () {
 
     # write config
     if [ "$write_config" = true ] ; then
-	sleep 2    
-	tmux send-keys -t ${tmux_session_name}:${slot_number} 'S.set_read_all(write_log=True); S.write_config("/home/cryo/shawn/'${ctime}'_slot'${slot_number}'.yml")' C-m
-	sleep 45
+	sleep 2
+	echo "-> Writing rogue configuration to /data/smurf_data/${ctime}_slot${slot_number}.yml"
+	tmux send-keys -t ${tmux_session_name}:${slot_number} 'S.set_read_all(write_log=True); S.write_config("/data/smurf_data/'${ctime}'_slot'${slot_number}'.yml")' C-m
+	# wait until file exists
+	echo "-> Waiting for /data/smurf_data/${ctime}_slot${slot_number}.yml to be written to disk ..."
+	until [ -s /data/smurf_data/${ctime}_slot${slot_number}.yml ]
+	do
+	    sleep 5
+	done
     fi
 
     if [ "$run_full_band_response" = true ] ; then    
