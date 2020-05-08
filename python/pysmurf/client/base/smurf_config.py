@@ -209,8 +209,8 @@ class SmurfConfig:
         """Dump the current config to a file.
 
         Writes the :attr:`config` dictionary to file at the path
-        provided by the `outputfile` argument using the `json.dumps`
-        routine.
+        provided by the `outputfile` argument using the
+        :py:func:`json.dumps` routine.
 
         Args
         ----
