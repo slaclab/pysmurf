@@ -1061,7 +1061,7 @@ class SmurfUtilMixin(SmurfBase):
 
                     #initialize data structure
                     phase=list()
-                    for i,_ in enumerate(channel):
+                    for _,_ in enumerate(channel):
                         phase.append(list())
                     for i,_ in enumerate(channel):
                         phase[i].append(data[i])
@@ -3537,7 +3537,7 @@ class SmurfUtilMixin(SmurfBase):
 
             else:
                 # Sets TES bias high then low
-                for i in np.arange(n_step):
+                for _ in np.arange(n_step):
                     self.set_tes_bias_bipolar_array(start_bias + step_array,
                                                     wait_done=False)
                     time.sleep(wait_time)
