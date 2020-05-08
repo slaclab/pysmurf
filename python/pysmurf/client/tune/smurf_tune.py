@@ -2794,7 +2794,7 @@ class SmurfTuneMixin(SmurfBase):
         ret['rot_ang'] = rot_ang
         ret['data'] = {}
 
-        for i, r in enumerate(rot_ang):
+        for _, r in enumerate(rot_ang):
             self.log(f'Rotating {r:3.1f} deg')
             eta_phase = np.zeros_like(eta_phase0)
             for c in np.arange(n_channels):
