@@ -17,8 +17,8 @@ pip3 install .
 
 ## Documentation
 Documentation is built using Sphinx, and follows the [NumPy Style
-Docstrings][1]. To build the documentation first install the pysmurf
-package, then run:
+Docstrings][1] convention. To build the documentation first install
+the pysmurf package, then run:
 
 ```
 cd docs/
