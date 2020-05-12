@@ -104,7 +104,6 @@ class DataMaster(rogue.interfaces.stream.Master):
         except IOError:
             print("Error trying to open {file_name}")
 
-
     # Method for generating a frame
     def sendData(self, data):
         """
