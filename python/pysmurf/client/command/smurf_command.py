@@ -436,92 +436,105 @@ class SmurfCommandMixin(SmurfBase):
                            **kwargs)
 
 
-    _gradient_descent_averages = 'gradientDescentAverages'
+    _gradient_descent_averages_reg = 'gradientDescentAverages'
 
     def set_gradient_descent_averages(self, band, val, **kwargs):
         """
         """
-        self._caput(self._cryo_root(band) + self._gradient_descent_averages, val,
+        self._caput(self._cryo_root(band) +
+                    self._gradient_descent_averages_reg,
+                    val,
                     **kwargs)
 
     def get_gradient_descent_averages(self, band, **kwargs):
         """
         """
-        return self._caget(self._cryo_root(band) + self._gradient_descent_averages,
+        return self._caget(self._cryo_root(band) +
+                           self._gradient_descent_averages_reg,
                            **kwargs)
 
-    _gradient_descent_gain = 'gradientDescentGain'
+    _gradient_descent_gain_reg = 'gradientDescentGain'
 
     def set_gradient_descent_gain(self, band, val, **kwargs):
         """
         """
-        self._caput(self._cryo_root(band) + self._gradient_descent_gain, val,
-                    **kwargs)
+        self._caput(self._cryo_root(band) +
+                    self._gradient_descent_gain_reg,
+                    val, **kwargs)
 
     def get_gradient_descent_gain(self, band, **kwargs):
         """
         """
-        return self._caget(self._cryo_root(band) + self._gradient_descent_gain,
+        return self._caget(self._cryo_root(band) +
+                           self._gradient_descent_gain_reg,
                            **kwargs)
 
 
-    _gradient_descent_converge_hz = 'gradientDescentConvergeHz'
+    _gradient_descent_converge_hz_reg = 'gradientDescentConvergeHz'
 
     def set_gradient_descent_converge_hz(self, band, val, **kwargs):
         """
         """
-        self._caput(self._cryo_root(band) + self._gradient_descent_converge_hz, val,
-                    **kwargs)
+        self._caput(self._cryo_root(band) +
+                    self._gradient_descent_converge_hz_reg,
+                    val, **kwargs)
 
     def get_gradient_descent_converge_hz(self, band, **kwargs):
         """
         """
-        return self._caget(self._cryo_root(band) + self._gradient_descent_converge_hz,
+        return self._caget(self._cryo_root(band) +
+                           self._gradient_descent_converge_hz_reg,
                            **kwargs)
 
-    _gradient_descent_step_hz = 'gradientDescentStepHz'
+    _gradient_descent_step_hz_reg = 'gradientDescentStepHz'
 
     def set_gradient_descent_step_hz(self, band, val, **kwargs):
         """
         Sets the step size of the gradient descent in units of Hz
         """
-        self._caput(self._cryo_root(band) + self._gradient_descent_step_hz, val,
-                    **kwargs)
+        self._caput(self._cryo_root(band) +
+                    self._gradient_descent_step_hz_reg,
+                    val, **kwargs)
 
     def get_gradient_descent_step_hz(self, band, **kwargs):
         """
         """
-        return self._caget(self._cryo_root(band) + self._gradient_descent_step_hz,
+        return self._caget(self._cryo_root(band) +
+                           self._gradient_descent_step_hz_reg,
                            **kwargs)
 
 
-    _gradient_descent_momentum = 'gradientDescentMomentum'
+    _gradient_descent_momentum_reg = 'gradientDescentMomentum'
 
     def set_gradient_descent_momentum(self, band, val, **kwargs):
         """
         Sets the momentum term of the gradient descent
         """
-        self._caput(self._cryo_root(band) + self._gradient_descent_momentum, val,
-                    **kwargs)
+        self._caput(self._cryo_root(band) +
+                    self._gradient_descent_momentum_reg,
+                    val, **kwargs)
 
     def get_gradient_descent_momentum(self, band, **kwargs):
         """
         """
-        return self._caget(self._cryo_root(band) + self._gradient_descent_momentum,
+        return self._caget(self._cryo_root(band) +
+                           self._gradient_descent_momentum_reg,
                            **kwargs)
 
-    _gradient_descent_beta = 'gradientDescentBeta'
+    _gradient_descent_beta_reg = 'gradientDescentBeta'
 
     def set_gradient_descent_beta(self, band, val, **kwargs):
         """
         """
-        self._caput(self._cryo_root(band) + self._gradient_descent_beta, val,
-                    **kwargs)
+        self._caput(self._cryo_root(band) +
+                    self._gradient_descent_beta_reg,
+                    val, **kwargs)
 
     def get_gradient_descent_beta(self, band, **kwargs):
         """
         """
-        return self._caget(self._cryo_root(band) + self._gradient_descent_beta,
+        return self._caget(self._cryo_root(band) +
+                           self._gradient_descent_beta_reg,
                            **kwargs)
 
     def run_parallel_eta_scan(self, band, sync_group=True, **kwargs):
@@ -788,13 +801,21 @@ class SmurfCommandMixin(SmurfBase):
                     **kwargs)
 
 
-    _eta_scan_del_f = 'etaScanDelF'
+    _eta_scan_del_f_reg = 'etaScanDelF'
 
     def set_eta_scan_del_f(self, band, val, **kwargs):
         """
         """
-        self._caput(self._cryo_root(band) + self._eta_scan_del_f, val,
-                    **kwargs)
+        self._caput(self._cryo_root(band) +
+                    self._eta_scan_del_f_reg,
+                    val, **kwargs)
+
+    def get_eta_scan_del_f(self, band, **kwargs):
+        """
+        """
+        return self._caget(self._cryo_root(band) +
+                           self._eta_scan_del_f_reg,
+                           **kwargs)
 
     _eta_scan_freqs = 'etaScanFreqs'
 
@@ -828,7 +849,7 @@ class SmurfCommandMixin(SmurfBase):
         return self._caget(self._cryo_root(band) + self._eta_scan_freqs,
             **kwargs)
 
-    _eta_scan_amplitude = 'etaScanAmplitude'
+    _eta_scan_amplitude_reg = 'etaScanAmplitude'
 
     def set_eta_scan_amplitude(self, band, val, **kwargs):
         """
@@ -841,8 +862,9 @@ class SmurfCommandMixin(SmurfBase):
         val : int
             The eta scan amplitude. Typical value is 9 to 11.
         """
-        self._caput(self._cryo_root(band) + self._eta_scan_amplitude, val,
-            **kwargs)
+        self._caput(self._cryo_root(band) +
+                    self._eta_scan_amplitude_reg,
+                    val, **kwargs)
 
     def get_eta_scan_amplitude(self, band, **kwargs):
         """
@@ -858,8 +880,9 @@ class SmurfCommandMixin(SmurfBase):
         amp : int
             The eta scan amplitude.
         """
-        return self._caget(self._cryo_root(band) + self._eta_scan_amplitude,
-            **kwargs)
+        return self._caget(self._cryo_root(band) +
+                           self._eta_scan_amplitude_reg,
+                           **kwargs)
 
     _eta_scan_channel = 'etaScanChannel'
 
@@ -894,7 +917,7 @@ class SmurfCommandMixin(SmurfBase):
         return self._caget(self._cryo_root(band) + self._eta_scan_channel,
             **kwargs)
 
-    _eta_scan_averages = 'etaScanAverages'
+    _eta_scan_averages_reg = 'etaScanAverages'
 
     def set_eta_scan_averages(self, band, val, **kwargs):
         """
@@ -908,8 +931,9 @@ class SmurfCommandMixin(SmurfBase):
         val : int
             The channel to set.
         """
-        self._caput(self._cryo_root(band) + self._eta_scan_averages, val,
-            **kwargs)
+        self._caput(self._cryo_root(band) +
+                    self._eta_scan_averages_reg,
+                    val, **kwargs)
 
     def get_eta_scan_averages(self, band, **kwargs):
         """
@@ -927,8 +951,9 @@ class SmurfCommandMixin(SmurfBase):
             The number of frequency error averages taken at each point
             of the etaScan.
         """
-        return self._caget(self._cryo_root(band) + self._eta_scan_averages,
-            **kwargs)
+        return self._caget(self._cryo_root(band) +
+                           self._eta_scan_averages_reg,
+                           **kwargs)
 
     _eta_scan_dwell = 'etaScanDwell'
 

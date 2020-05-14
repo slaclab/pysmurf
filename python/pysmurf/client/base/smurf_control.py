@@ -431,88 +431,102 @@ class SmurfControl(SmurfCommandMixin,
         self.set_defaults_pv(write_log=write_log)
 
         # The per band configs. May want to make available per-band values.
-        for b in bands:
-            band_str = f'band_{b}'
-            self.set_iq_swap_in(b, smurf_init_config[band_str]['iq_swap_in'],
+        for band in bands:
+            band_str = f'band_{band}'
+
+            self.set_iq_swap_in(band, smurf_init_config[band_str]['iq_swap_in'],
                 write_log=write_log, **kwargs)
-            self.set_iq_swap_out(b, smurf_init_config[band_str]['iq_swap_out'],
+            self.set_iq_swap_out(band, smurf_init_config[band_str]['iq_swap_out'],
                 write_log=write_log, **kwargs)
-            self.set_ref_phase_delay(b,
+
+            self.set_ref_phase_delay(band,
                 smurf_init_config[band_str]['refPhaseDelay'],
                 write_log=write_log, **kwargs)
-            self.set_ref_phase_delay_fine(b,
+            self.set_ref_phase_delay_fine(band,
                 smurf_init_config[band_str]['refPhaseDelayFine'],
                 write_log=write_log, **kwargs)
+
             # in DSPv3, lmsDelay should be 4*refPhaseDelay (says
             # Mitch).  If none provided in cfg, enforce that
             # constraint.  If provided in cfg, override with provided
             # value.
             if smurf_init_config[band_str]['lmsDelay'] is None:
-                self.set_lms_delay(b, int(4*smurf_init_config[band_str]['refPhaseDelay']),
+                self.set_lms_delay(
+                    band, int(4*smurf_init_config[band_str]['refPhaseDelay']),
                     write_log=write_log, **kwargs)
             else:
-                self.set_lms_delay(b, smurf_init_config[band_str]['lmsDelay'],
+                self.set_lms_delay(
+                    band, smurf_init_config[band_str]['lmsDelay'],
                     write_log=write_log, **kwargs)
 
-            self.set_feedback_enable(b,
-                smurf_init_config[band_str]['feedbackEnable'],
-                write_log=write_log, **kwargs)
-            self.set_feedback_gain(b,
-                smurf_init_config[band_str]['feedbackGain'],
-                write_log=write_log, **kwargs)
-            self.set_lms_gain(b, smurf_init_config[band_str]['lmsGain'],
-                write_log=write_log, **kwargs)
-            self.set_trigger_reset_delay(b,
-                smurf_init_config[band_str]['trigRstDly'],
+            self.set_lms_gain(
+                band, smurf_init_config[band_str]['lmsGain'],
                 write_log=write_log, **kwargs)
 
-            self.set_feedback_limit_khz(b,
-                smurf_init_config[band_str]['feedbackLimitkHz'],
+            self.set_trigger_reset_delay(
+                band, smurf_init_config[band_str]['trigRstDly'],
                 write_log=write_log, **kwargs)
 
-            self.set_feedback_polarity(b,
-                smurf_init_config[band_str]['feedbackPolarity'],
+            self.set_feedback_enable(
+                band, smurf_init_config[band_str]['feedbackEnable'],
+                write_log=write_log, **kwargs)
+            self.set_feedback_gain(
+                band, smurf_init_config[band_str]['feedbackGain'],
+                write_log=write_log, **kwargs)            
+            self.set_feedback_limit_khz(
+                band, smurf_init_config[band_str]['feedbackLimitkHz'],
+                write_log=write_log, **kwargs)
+            self.set_feedback_polarity(
+                band, smurf_init_config[band_str]['feedbackPolarity'],
                 write_log=write_log, **kwargs)
 
-            for dmx in np.array(smurf_init_config[band_str]["data_out_mux"]):
-                self.set_data_out_mux(int(self.band_to_bay(b)), int(dmx),
+            for dmx in np.array(
+                    smurf_init_config[band_str]["data_out_mux"]):
+                self.set_data_out_mux(
+                    int(self.band_to_bay(band)), int(dmx),
                     "UserData", write_log=write_log, **kwargs)
 
-            self.set_dsp_enable(b, smurf_init_config['dspEnable'],
+            self.set_dsp_enable(
+                band, smurf_init_config['dspEnable'],
                 write_log=write_log, **kwargs)
 
-            # Tuning defaults - only set if present in cfg
-            if hasattr(self, 'gradient_descent_gain') and b in self.gradient_descent_gain.keys():
-                self.set_gradient_descent_gain(b, self.gradient_descent_gain[b], write_log=write_log, **kwargs)
-            if hasattr(self, 'gradient_descent_averages') and b in self.gradient_descent_averages.keys():
-                self.set_gradient_descent_averages(b, self.gradient_descent_averages[b], write_log=write_log, **kwargs)
-            if hasattr(self, 'gradient_descent_converge_hz') and b in self.gradient_descent_converge_hz.keys():
-                self.set_gradient_descent_converge_hz(b, self.gradient_descent_converge_hz[b], write_log=write_log, **kwargs)
-            if hasattr(self, 'gradient_descent_step_hz') and b in self.gradient_descent_step_hz.keys():
-                self.set_gradient_descent_step_hz(b, self.gradient_descent_step_hz[b], write_log=write_log, **kwargs)
-            if hasattr(self, 'gradient_descent_momentum') and b in self.gradient_descent_momentum.keys():
-                self.set_gradient_descent_momentum(b, self.gradient_descent_momentum[b], write_log=write_log, **kwargs)
-            if hasattr(self, 'gradient_descent_beta') and b in self.gradient_descent_beta.keys():
-                self.set_gradient_descent_beta(b, self.gradient_descent_beta[b], write_log=write_log, **kwargs)
-            if hasattr(self, 'eta_scan_averages') and b in self.eta_scan_averages.keys():
-                self.set_eta_scan_averages(b, self.eta_scan_averages[b], write_log=write_log, **kwargs)
-            if hasattr(self, 'eta_scan_amplitude') and b in self.eta_scan_amplitude.keys():
-                self.set_eta_scan_amplitude(b, self.eta_scan_amplitude[b], write_log=write_log, **kwargs)
-            if hasattr(self, 'eta_scan_del_f') and b in self.eta_scan_del_f.keys():
-                self.set_eta_scan_del_f(b, self.eta_scan_del_f[b], write_log=write_log, **kwargs)
+            # Tuning defaults
+            self.set_gradient_descent_gain(
+                band, self._gradient_descent_gain[band],
+                write_log=write_log, **kwargs)
+            self.set_gradient_descent_averages(
+                band, self._gradient_descent_averages[band],
+                write_log=write_log, **kwargs)
+            self.set_gradient_descent_converge_hz(
+                band, self._gradient_descent_converge_hz[band],
+                write_log=write_log, **kwargs)
+            self.set_gradient_descent_step_hz(
+                band, self._gradient_descent_step_hz[band],
+                write_log=write_log, **kwargs)
+            self.set_gradient_descent_momentum(
+                band, self._gradient_descent_momentum[band],
+                write_log=write_log, **kwargs)
+            self.set_gradient_descent_beta(
+                band, self._gradient_descent_beta[band],
+                write_log=write_log, **kwargs)
+            self.set_eta_scan_averages(
+                band, self._eta_scan_averages[band],
+                write_log=write_log, **kwargs)
+            self.set_eta_scan_amplitude(
+                band, self._eta_scan_amplitude[band],
+                write_log=write_log, **kwargs)
+            self.set_eta_scan_del_f(
+                band, self._eta_scan_del_f[band],
+                write_log=write_log, **kwargs)
 
-        # To work around issue where setting the UC attenuators is for
-        # some reason also setting the UC attenuators for other bands
-        # with the new C03 AMCs, first set all the UC attenuators
-        # (which don't seem to be affected by setting the DC
-        # attenuators, at least for LB bands 2 and 3), then set all
-        # the UC attenuators.
+        # Set UC and DC attenuators
         for band in bands:
-            self.set_att_uc(band, smurf_init_config[band_str]['att_uc'],
-                            write_log=write_log)
-        for band in bands:
-            self.set_att_dc(band, smurf_init_config[band_str]['att_dc'],
-                            write_log=write_log)
+            self.set_att_uc(
+                band, smurf_init_config[band_str]['att_uc'],
+                write_log=write_log)
+            self.set_att_dc(
+                band, smurf_init_config[band_str]['att_dc'],
+                write_log=write_log)
 
         # Things that have to be done for both AMC bays, regardless of whether or not an AMC
         # is plugged in there.
@@ -521,10 +535,9 @@ class SmurfControl(SmurfCommandMixin,
 
         self.set_trigger_width(0, 10, write_log=write_log)  # mystery bit that makes triggering work
         self.set_trigger_enable(0, 1, write_log=write_log)
-        self.set_evr_channel_reg_enable(0, True, write_log=write_log)
         ## only sets enable, but is initialized to True already by
-        ## default, and crashing for unknown reasons in rogue 4.
-        #self.set_evr_trigger_reg_enable(0, True, write_log=write_log)
+        ## default, and crashing for unknown reasons in rogue 4.        
+        self.set_evr_channel_reg_enable(0, True, write_log=write_log)
         self.set_evr_trigger_channel_reg_dest_sel(0, 0x20000, write_log=write_log)
 
         self.set_enable_ramp_trigger(1, write_log=write_log)
@@ -538,7 +551,6 @@ class SmurfControl(SmurfCommandMixin,
         # Make sure flux ramp starts off
         self.flux_ramp_off(write_log=write_log)
         self.flux_ramp_setup(4, .5, write_log=write_log)
-
 
         # Turn on stream enable for all bands
         self.set_stream_enable(1, write_log=write_log)
