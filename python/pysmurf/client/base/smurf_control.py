@@ -173,7 +173,7 @@ class SmurfControl(SmurfCommandMixin,
         # Populate SmurfConfigPropertiesMixin properties with values
         # from loaded pysmurf configuration file.
         self.copy_config_to_properties(self.config)
-        
+
         if no_dir:
             print('Warning! Not making output directories!' +
                   'This will break may things!')
@@ -365,7 +365,6 @@ class SmurfControl(SmurfCommandMixin,
 
         # Load in tuning parameters, if present
         tune_band_cfg = self.config.get('tune_band')
-        tune_band_keys = tune_band_cfg.keys()
         self.lms_gain = {}
         for band in bands:
             # Make band dictionaries
@@ -472,7 +471,7 @@ class SmurfControl(SmurfCommandMixin,
                 write_log=write_log, **kwargs)
             self.set_feedback_gain(
                 band, smurf_init_config[band_str]['feedbackGain'],
-                write_log=write_log, **kwargs)            
+                write_log=write_log, **kwargs)
             self.set_feedback_limit_khz(
                 band, smurf_init_config[band_str]['feedbackLimitkHz'],
                 write_log=write_log, **kwargs)
@@ -536,7 +535,7 @@ class SmurfControl(SmurfCommandMixin,
         self.set_trigger_width(0, 10, write_log=write_log)  # mystery bit that makes triggering work
         self.set_trigger_enable(0, 1, write_log=write_log)
         ## only sets enable, but is initialized to True already by
-        ## default, and crashing for unknown reasons in rogue 4.        
+        ## default, and crashing for unknown reasons in rogue 4.
         self.set_evr_channel_reg_enable(0, True, write_log=write_log)
         self.set_evr_trigger_channel_reg_dest_sel(0, 0x20000, write_log=write_log)
 

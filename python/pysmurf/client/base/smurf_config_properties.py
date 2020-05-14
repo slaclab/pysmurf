@@ -182,7 +182,7 @@ class SmurfConfigPropertiesMixin:
             tune_band_cfg['eta_scan_averages'].items()}
         self.delta_freq={
             int(band):v for (band,v) in
-            tune_band_cfg['delta_freq'].items()}        
+            tune_band_cfg['delta_freq'].items()}
 
     ###########################################################################
     ## Start pA_per_phi0 property definition
