@@ -82,6 +82,7 @@ class SmurfConfigPropertiesMixin:
 
     def __init__(self, *args, **kwargs):
         """SmurfConfigPropertiesMixin constructor."""
+
         # Constants
         self._pA_per_phi0 = None
 
@@ -100,6 +101,18 @@ class SmurfConfigPropertiesMixin:
         self._fiftyk_bit_to_V = None
         self._fiftyk_amp_Vd_series_resistor = None
         self._fiftyk_Id_offset = None
+
+        ## Tuning parameters
+        self._gradient_descent_gain = None
+        self._gradient_descent_averages = None
+        self._gradient_descent_converge_hz = None
+        self._gradient_descent_step_hz = None
+        self._gradient_descent_momentum = None
+        self._gradient_descent_beta = None
+        self._eta_scan_del_f = None
+        self._eta_scan_amplitude = None
+        self._eta_scan_averages = None
+        self._delta_freq = None
 
     def copy_config_to_properties(self, config):
         """Copy values from SmurfConfig instance to properties.
@@ -122,33 +135,54 @@ class SmurfConfigPropertiesMixin:
 
         # Cold amplifier biases
         amp_cfg = self.config.get('amplifier')
-        keys = amp_cfg.keys()
 
         ## 4K HEMT
-        if 'hemt_Vg' in keys:
-            self.hemt_Vg = amp_cfg['hemt_Vg']
-        if 'bit_to_V_hemt' in keys:
-            self.hemt_bit_to_V = amp_cfg['bit_to_V_hemt']
-        if 'hemt_Vd_series_resistor' in keys:
-            self.hemt_Vd_series_resistor = amp_cfg['hemt_Vd_series_resistor']
-        if 'hemt_Id_offset' in keys:
-            self.hemt_Id_offset = amp_cfg['hemt_Id_offset']
-        if 'hemt_gate_min_voltage' in keys:
-            self.hemt_gate_min_voltage = amp_cfg['hemt_gate_min_voltage']
-        if 'hemt_gate_max_voltage' in keys:
-            self.hemt_gate_max_voltage = amp_cfg['hemt_gate_max_voltage']
+        self.hemt_Vg = amp_cfg['hemt_Vg']
+        self.hemt_bit_to_V = amp_cfg['bit_to_V_hemt']
+        self.hemt_Vd_series_resistor = amp_cfg['hemt_Vd_series_resistor']
+        self.hemt_Id_offset = amp_cfg['hemt_Id_offset']
+        self.hemt_gate_min_voltage = amp_cfg['hemt_gate_min_voltage']
+        self.hemt_gate_max_voltage = amp_cfg['hemt_gate_max_voltage']
 
         ## 50K HEMT
-        if 'LNA_Vg' in keys:
-            self.fiftyk_Vg = amp_cfg['LNA_Vg']
-        if 'dac_num_50k' in keys:
-            self.fiftyk_dac_num = amp_cfg['dac_num_50k']
-        if 'bit_to_V_50k' in keys:
-            self.fiftyk_bit_to_V = amp_cfg['bit_to_V_50k']
-        if '50K_amp_Vd_series_resistor' in keys:
-            self.fiftyk_amp_Vd_series_resistor = amp_cfg['50K_amp_Vd_series_resistor']
-        if '50k_Id_offset' in keys:
-            self.fiftyk_Id_offset = amp_cfg['50k_Id_offset']
+        self.fiftyk_Vg = amp_cfg['LNA_Vg']
+        self.fiftyk_dac_num = amp_cfg['dac_num_50k']
+        self.fiftyk_bit_to_V = amp_cfg['bit_to_V_50k']
+        self.fiftyk_amp_Vd_series_resistor = amp_cfg['50K_amp_Vd_series_resistor']
+        self.fiftyk_Id_offset = amp_cfg['50k_Id_offset']
+
+        # Tune parameters
+        tune_band_cfg = self.config.get('tune_band')
+        self.gradient_descent_gain={
+            int(band):v for (band,v) in
+            tune_band_cfg['gradient_descent_gain'].items()}
+        self.gradient_descent_averages={
+            int(band):v for (band,v) in
+            tune_band_cfg['gradient_descent_averages'].items()}
+        self.gradient_descent_converge_hz={
+            int(band):v for (band,v) in
+            tune_band_cfg['gradient_descent_converge_hz'].items()}
+        self.gradient_descent_step_hz={
+            int(band):v for (band,v) in
+            tune_band_cfg['gradient_descent_step_hz'].items()}
+        self.gradient_descent_momentum={
+            int(band):v for (band,v) in
+            tune_band_cfg['gradient_descent_momentum'].items()}
+        self.gradient_descent_beta={
+            int(band):v for (band,v) in
+            tune_band_cfg['gradient_descent_beta'].items()}
+        self.eta_scan_del_f={
+            int(band):v for (band,v) in
+            tune_band_cfg['eta_scan_del_f'].items()}
+        self.eta_scan_amplitude={
+            int(band):v for (band,v) in
+            tune_band_cfg['eta_scan_amplitude'].items()}
+        self.eta_scan_averages={
+            int(band):v for (band,v) in
+            tune_band_cfg['eta_scan_averages'].items()}
+        self.delta_freq={
+            int(band):v for (band,v) in
+            tune_band_cfg['delta_freq'].items()}        
 
     ###########################################################################
     ## Start pA_per_phi0 property definition
@@ -570,4 +604,932 @@ class SmurfConfigPropertiesMixin:
         self._fiftyk_Id_offset = value
 
     ## End fiftyk_Id_offset property definition
+    ###########################################################################
+
+    ###########################################################################
+    ## Start att_to_band property definition
+
+    # Getter
+    @property
+    def att_to_band(self):
+        """Short description.
+
+        Gets or sets ?.
+        Units are ?.
+
+        Specified in the pysmurf configuration file as
+        `?`.
+
+        See Also
+        --------
+        ?
+
+        """
+        return self._att_to_band
+
+    # Setter
+    @att_to_band.setter
+    def att_to_band(self, value):
+        self._att_to_band = value
+
+    ## End att_to_band property definition
+    ###########################################################################
+
+    ###########################################################################
+    ## Start num_flux_ramp_counter_bits property definition
+
+    # Getter
+    @property
+    def num_flux_ramp_counter_bits(self):
+        """Short description.
+
+        Gets or sets ?.
+        Units are ?.
+
+        Specified in the pysmurf configuration file as
+        `?`.
+
+        See Also
+        --------
+        ?
+
+        """
+        return self._num_flux_ramp_counter_bits
+
+    # Setter
+    @num_flux_ramp_counter_bits.setter
+    def num_flux_ramp_counter_bits(self, value):
+        self._num_flux_ramp_counter_bits = value
+
+    ## End num_flux_ramp_counter_bits property definition
+    ###########################################################################
+
+    ###########################################################################
+    ## Start chip_to_freq property definition
+
+    # Getter
+    @property
+    def chip_to_freq(self):
+        """Short description.
+
+        Gets or sets ?.
+        Units are ?.
+
+        Specified in the pysmurf configuration file as
+        `?`.
+
+        See Also
+        --------
+        ?
+
+        """
+        return self._chip_to_freq
+
+    # Setter
+    @chip_to_freq.setter
+    def chip_to_freq(self, value):
+        self._chip_to_freq = value
+
+    ## End chip_to_freq property definition
+    ###########################################################################
+
+    ###########################################################################
+    ## Start channel_assignment_files property definition
+
+    # Getter
+    @property
+    def channel_assignment_files(self):
+        """Short description.
+
+        Gets or sets ?.
+        Units are ?.
+
+        Specified in the pysmurf configuration file as
+        `?`.
+
+        See Also
+        --------
+        ?
+
+        """
+        return self._channel_assignment_files
+
+    # Setter
+    @channel_assignment_files.setter
+    def channel_assignment_files(self, value):
+        self._channel_assignment_files = value
+
+    ## End channel_assignment_files property definition
+    ###########################################################################
+
+    ###########################################################################
+    ## Start all_groups property definition
+
+    # Getter
+    @property
+    def all_groups(self):
+        """Short description.
+
+        Gets or sets ?.
+        Units are ?.
+
+        Specified in the pysmurf configuration file as
+        `?`.
+
+        See Also
+        --------
+        ?
+
+        """
+        return self._all_groups
+
+    # Setter
+    @all_groups.setter
+    def all_groups(self, value):
+        self._all_groups = value
+
+    ## End all_groups property definition
+    ###########################################################################
+
+    ###########################################################################
+    ## Start n_bias_groups property definition
+
+    # Getter
+    @property
+    def n_bias_groups(self):
+        """Short description.
+
+        Gets or sets ?.
+        Units are ?.
+
+        Specified in the pysmurf configuration file as
+        `?`.
+
+        See Also
+        --------
+        ?
+
+        """
+        return self._n_bias_groups
+
+    # Setter
+    @n_bias_groups.setter
+    def n_bias_groups(self, value):
+        self._n_bias_groups = value
+
+    ## End n_bias_groups property definition
+    ###########################################################################
+
+    ###########################################################################
+    ## Start bias_group_to_pair property definition
+
+    # Getter
+    @property
+    def bias_group_to_pair(self):
+        """Short description.
+
+        Gets or sets ?.
+        Units are ?.
+
+        Specified in the pysmurf configuration file as
+        `?`.
+
+        See Also
+        --------
+        ?
+
+        """
+        return self._bias_group_to_pair
+
+    # Setter
+    @bias_group_to_pair.setter
+    def bias_group_to_pair(self, value):
+        self._bias_group_to_pair = value
+
+    ## End bias_group_to_pair property definition
+    ###########################################################################
+
+    ###########################################################################
+    ## Start pic_to_bias_group property definition
+
+    # Getter
+    @property
+    def pic_to_bias_group(self):
+        """Short description.
+
+        Gets or sets ?.
+        Units are ?.
+
+        Specified in the pysmurf configuration file as
+        `?`.
+
+        See Also
+        --------
+        ?
+
+        """
+        return self._pic_to_bias_group
+
+    # Setter
+    @pic_to_bias_group.setter
+    def pic_to_bias_group(self, value):
+        self._pic_to_bias_group = value
+
+    ## End pic_to_bias_group property definition
+    ###########################################################################
+
+    ###########################################################################
+    ## Start bias_line_resistance property definition
+
+    # Getter
+    @property
+    def bias_line_resistance(self):
+        """Short description.
+
+        Gets or sets ?.
+        Units are ?.
+
+        Specified in the pysmurf configuration file as
+        `?`.
+
+        See Also
+        --------
+        ?
+
+        """
+        return self._bias_line_resistance
+
+    # Setter
+    @bias_line_resistance.setter
+    def bias_line_resistance(self, value):
+        self._bias_line_resistance = value
+
+    ## End bias_line_resistance property definition
+    ###########################################################################
+
+    ###########################################################################
+    ## Start R_sh property definition
+
+    # Getter
+    @property
+    def R_sh(self):
+        """Short description.
+
+        Gets or sets ?.
+        Units are ?.
+
+        Specified in the pysmurf configuration file as
+        `?`.
+
+        See Also
+        --------
+        ?
+
+        """
+        return self._R_sh
+
+    # Setter
+    @R_sh.setter
+    def R_sh(self, value):
+        self._R_sh = value
+
+    ## End R_sh property definition
+    ###########################################################################
+
+    ###########################################################################
+    ## Start high_low_current_ratio property definition
+
+    # Getter
+    @property
+    def high_low_current_ratio(self):
+        """Short description.
+
+        Gets or sets ?.
+        Units are ?.
+
+        Specified in the pysmurf configuration file as
+        `?`.
+
+        See Also
+        --------
+        ?
+
+        """
+        return self._high_low_current_ratio
+
+    # Setter
+    @high_low_current_ratio.setter
+    def high_low_current_ratio(self, value):
+        self._high_low_current_ratio = value
+
+    ## End high_low_current_ratio property definition
+    ###########################################################################
+
+    ###########################################################################
+    ## Start high_current_mode_bool property definition
+
+    # Getter
+    @property
+    def high_current_mode_bool(self):
+        """Short description.
+
+        Gets or sets ?.
+        Units are ?.
+
+        Specified in the pysmurf configuration file as
+        `?`.
+
+        See Also
+        --------
+        ?
+
+        """
+        return self._high_current_mode_bool
+
+    # Setter
+    @high_current_mode_bool.setter
+    def high_current_mode_bool(self, value):
+        self._high_current_mode_bool = value
+
+    ## End high_current_mode_bool property definition
+    ###########################################################################
+
+    ###########################################################################
+    ## Start fs property definition
+
+    # Getter
+    @property
+    def fs(self):
+        """Short description.
+
+        Gets or sets ?.
+        Units are ?.
+
+        Specified in the pysmurf configuration file as
+        `?`.
+
+        See Also
+        --------
+        ?
+
+        """
+        return self._fs
+
+    # Setter
+    @fs.setter
+    def fs(self, value):
+        self._fs = value
+
+    ## End fs property definition
+    ###########################################################################
+
+    ###########################################################################
+    ## Start smurf_to_mce_file property definition
+
+    # Getter
+    @property
+    def smurf_to_mce_file(self):
+        """Short description.
+
+        Gets or sets ?.
+        Units are ?.
+
+        Specified in the pysmurf configuration file as
+        `?`.
+
+        See Also
+        --------
+        ?
+
+        """
+        return self._smurf_to_mce_file
+
+    # Setter
+    @smurf_to_mce_file.setter
+    def smurf_to_mce_file(self, value):
+        self._smurf_to_mce_file = value
+
+    ## End smurf_to_mce_file property definition
+    ###########################################################################
+
+    ###########################################################################
+    ## Start smurf_to_mce_ip property definition
+
+    # Getter
+    @property
+    def smurf_to_mce_ip(self):
+        """Short description.
+
+        Gets or sets ?.
+        Units are ?.
+
+        Specified in the pysmurf configuration file as
+        `?`.
+
+        See Also
+        --------
+        ?
+
+        """
+        return self._smurf_to_mce_ip
+
+    # Setter
+    @smurf_to_mce_ip.setter
+    def smurf_to_mce_ip(self, value):
+        self._smurf_to_mce_ip = value
+
+    ## End smurf_to_mce_ip property definition
+    ###########################################################################
+
+    ###########################################################################
+    ## Start smurf_to_mce_port property definition
+
+    # Getter
+    @property
+    def smurf_to_mce_port(self):
+        """Short description.
+
+        Gets or sets ?.
+        Units are ?.
+
+        Specified in the pysmurf configuration file as
+        `?`.
+
+        See Also
+        --------
+        ?
+
+        """
+        return self._smurf_to_mce_port
+
+    # Setter
+    @smurf_to_mce_port.setter
+    def smurf_to_mce_port(self, value):
+        self._smurf_to_mce_port = value
+
+    ## End smurf_to_mce_port property definition
+    ###########################################################################
+
+    ###########################################################################
+    ## Start smurf_to_mce_mask_file property definition
+
+    # Getter
+    @property
+    def smurf_to_mce_mask_file(self):
+        """Short description.
+
+        Gets or sets ?.
+        Units are ?.
+
+        Specified in the pysmurf configuration file as
+        `?`.
+
+        See Also
+        --------
+        ?
+
+        """
+        return self._smurf_to_mce_mask_file
+
+    # Setter
+    @smurf_to_mce_mask_file.setter
+    def smurf_to_mce_mask_file(self, value):
+        self._smurf_to_mce_mask_file = value
+
+    ## End smurf_to_mce_mask_file property definition
+    ###########################################################################
+
+    ###########################################################################
+    ## Start bad_mask property definition
+
+    # Getter
+    @property
+    def bad_mask(self):
+        """Short description.
+
+        Gets or sets ?.
+        Units are ?.
+
+        Specified in the pysmurf configuration file as
+        `?`.
+
+        See Also
+        --------
+        ?
+
+        """
+        return self._bad_mask
+
+    # Setter
+    @bad_mask.setter
+    def bad_mask(self, value):
+        self._bad_mask = value
+
+    ## End bad_mask property definition
+    ###########################################################################
+
+    ###########################################################################
+    ## Start fraction_full_scale property definition
+
+    # Getter
+    @property
+    def fraction_full_scale(self):
+        """Short description.
+
+        Gets or sets ?.
+        Units are ?.
+
+        Specified in the pysmurf configuration file as
+        `?`.
+
+        See Also
+        --------
+        ?
+
+        """
+        return self._fraction_full_scale
+
+    # Setter
+    @fraction_full_scale.setter
+    def fraction_full_scale(self, value):
+        self._fraction_full_scale = value
+
+    ## End fraction_full_scale property definition
+    ###########################################################################
+
+    ###########################################################################
+    ## Start reset_rate_khz property definition
+
+    # Getter
+    @property
+    def reset_rate_khz(self):
+        """Short description.
+
+        Gets or sets ?.
+        Units are ?.
+
+        Specified in the pysmurf configuration file as
+        `?`.
+
+        See Also
+        --------
+        ?
+
+        """
+        return self._reset_rate_khz
+
+    # Setter
+    @reset_rate_khz.setter
+    def reset_rate_khz(self, value):
+        self._reset_rate_khz = value
+
+    ## End reset_rate_khz property definition
+    ###########################################################################
+
+    ###########################################################################
+    ## Start lms_gain property definition
+
+    # Getter
+    @property
+    def lms_gain(self):
+        """Short description.
+
+        Gets or sets ?.
+        Units are ?.
+
+        Specified in the pysmurf configuration file as
+        `?`.
+
+        See Also
+        --------
+        ?
+
+        """
+        return self._lms_gain
+
+    # Setter
+    @lms_gain.setter
+    def lms_gain(self, value):
+        self._lms_gain = value
+
+    ## End lms_gain property definition
+    ###########################################################################
+
+    ###########################################################################
+    ## Start lms_freq_hz property definition
+
+    # Getter
+    @property
+    def lms_freq_hz(self):
+        """Short description.
+
+        Gets or sets ?.
+        Units are ?.
+
+        Specified in the pysmurf configuration file as
+        `?`.
+
+        See Also
+        --------
+        ?
+
+        """
+        return self._lms_freq_hz
+
+    # Setter
+    @lms_freq_hz.setter
+    def lms_freq_hz(self, value):
+        self._lms_freq_hz = value
+
+    ## End lms_freq_hz property definition
+    ###########################################################################
+
+    ###########################################################################
+    ## Start gradient_descent_gain property definition
+
+    # Getter
+    @property
+    def gradient_descent_gain(self):
+        """Short description.
+
+        Gets or sets ?.
+        Units are ?.
+
+        Specified in the pysmurf configuration file as
+        `tune_band:gradient_descent_gain`.
+
+        See Also
+        --------
+        ?
+
+        """
+        return self._gradient_descent_gain
+
+    # Setter
+    @gradient_descent_gain.setter
+    def gradient_descent_gain(self, value):
+        self._gradient_descent_gain = value
+
+    ## End gradient_descent_gain property definition
+    ###########################################################################
+
+    ###########################################################################
+    ## Start gradient_descent_averages property definition
+
+    # Getter
+    @property
+    def gradient_descent_averages(self):
+        """Short description.
+
+        Gets or sets ?.
+        Units are ?.
+
+        Specified in the pysmurf configuration file as
+        `tune_band:gradient_descent_averages`.
+
+        See Also
+        --------
+        ?
+
+        """
+        return self._gradient_descent_averages
+
+    # Setter
+    @gradient_descent_averages.setter
+    def gradient_descent_averages(self, value):
+        self._gradient_descent_averages = value
+
+    ## End gradient_descent_averages property definition
+    ###########################################################################
+
+    ###########################################################################
+    ## Start gradient_descent_converge_hz property definition
+
+    # Getter
+    @property
+    def gradient_descent_converge_hz(self):
+        """Short description.
+
+        Gets or sets ?.
+        Units are ?.
+
+        Specified in the pysmurf configuration file as
+        `tune_band:gradient_descent_converge_hz`.
+
+        See Also
+        --------
+        ?
+
+        """
+        return self._gradient_descent_converge_hz
+
+    # Setter
+    @gradient_descent_converge_hz.setter
+    def gradient_descent_converge_hz(self, value):
+        self._gradient_descent_converge_hz = value
+
+    ## End gradient_descent_converge_hz property definition
+    ###########################################################################
+
+    ###########################################################################
+    ## Start gradient_descent_step_hz property definition
+
+    # Getter
+    @property
+    def gradient_descent_step_hz(self):
+        """Short description.
+
+        Gets or sets ?.
+        Units are ?.
+
+        Specified in the pysmurf configuration file as
+        `tune_band:gradient_descent_step_hz`.
+
+        See Also
+        --------
+        ?
+
+        """
+        return self._gradient_descent_step_hz
+
+    # Setter
+    @gradient_descent_step_hz.setter
+    def gradient_descent_step_hz(self, value):
+        self._gradient_descent_step_hz = value
+
+    ## End gradient_descent_step_hz property definition
+    ###########################################################################
+
+    ###########################################################################
+    ## Start gradient_descent_momentum property definition
+
+    # Getter
+    @property
+    def gradient_descent_momentum(self):
+        """Short description.
+
+        Gets or sets ?.
+        Units are ?.
+
+        Specified in the pysmurf configuration file as
+        `tune_band:gradient_descent_momentum`.
+
+        See Also
+        --------
+        ?
+
+        """
+        return self._gradient_descent_momentum
+
+    # Setter
+    @gradient_descent_momentum.setter
+    def gradient_descent_momentum(self, value):
+        self._gradient_descent_momentum = value
+
+    ## End gradient_descent_momentum property definition
+    ###########################################################################
+
+    ###########################################################################
+    ## Start gradient_descent_beta property definition
+
+    # Getter
+    @property
+    def gradient_descent_beta(self):
+        """Short description.
+
+        Gets or sets ?.
+        Units are ?.
+
+        Specified in the pysmurf configuration file as
+        `tune_band:gradient_descent_beta`.
+
+        See Also
+        --------
+        ?
+
+        """
+        return self._gradient_descent_beta
+
+    # Setter
+    @gradient_descent_beta.setter
+    def gradient_descent_beta(self, value):
+        self._gradient_descent_beta = value
+
+    ## End gradient_descent_beta property definition
+    ###########################################################################
+
+    ###########################################################################
+    ## Start eta_scan_del_f property definition
+
+    # Getter
+    @property
+    def eta_scan_del_f(self):
+        """Short description.
+
+        Gets or sets ?.
+        Units are ?.
+
+        Specified in the pysmurf configuration file as
+        `tune_band:eta_scan_del_f`.
+
+        See Also
+        --------
+        ?
+
+        """
+        return self._eta_scan_del_f
+
+    # Setter
+    @eta_scan_del_f.setter
+    def eta_scan_del_f(self, value):
+        self._eta_scan_del_f = value
+
+    ## End eta_scan_del_f property definition
+    ###########################################################################
+
+    ###########################################################################
+    ## Start eta_scan_amplitude property definition
+
+    # Getter
+    @property
+    def eta_scan_amplitude(self):
+        """Short description.
+
+        Gets or sets ?.
+        Units are ?.
+
+        Specified in the pysmurf configuration file as
+        `tune_band:eta_scan_amplitude`.
+
+        See Also
+        --------
+        ?
+
+        """
+        return self._eta_scan_amplitude
+
+    # Setter
+    @eta_scan_amplitude.setter
+    def eta_scan_amplitude(self, value):
+        self._eta_scan_amplitude = value
+
+    ## End eta_scan_amplitude property definition
+    ###########################################################################
+
+    ###########################################################################
+    ## Start eta_scan_averages property definition
+
+    # Getter
+    @property
+    def eta_scan_averages(self):
+        """Short description.
+
+        Gets or sets ?.
+        Units are ?.
+
+        Specified in the pysmurf configuration file as
+        `tune_band:eta_scan_averages`.
+
+        See Also
+        --------
+        ?
+
+        """
+        return self._eta_scan_averages
+
+    # Setter
+    @eta_scan_averages.setter
+    def eta_scan_averages(self, value):
+        self._eta_scan_averages = value
+
+    ## End eta_scan_averages property definition
+    ###########################################################################
+
+    ###########################################################################
+    ## Start delta_freq property definition
+
+    # Getter
+    @property
+    def delta_freq(self):
+        """Short description.
+
+        Gets or sets ?.
+        Units are ?.
+
+        Specified in the pysmurf configuration file as
+        `tune_band:delta_freq`.
+
+        See Also
+        --------
+        ?
+
+        """
+        return self._delta_freq
+
+    # Setter
+    @delta_freq.setter
+    def delta_freq(self, value):
+        self._delta_freq = value
+
+    ## End delta_freq property definition
     ###########################################################################

@@ -169,6 +169,11 @@ class SmurfControl(SmurfCommandMixin,
         setup
 
         """
+
+        # Populate SmurfConfigPropertiesMixin properties with values
+        # from loaded pysmurf configuration file.
+        self.copy_config_to_properties(self.config)
+        
         if no_dir:
             print('Warning! Not making output directories!' +
                   'This will break may things!')
@@ -234,10 +239,6 @@ class SmurfControl(SmurfCommandMixin,
         # Crate/carrier configuration details that won't change.
         self.crate_id = self.get_crate_id()
         self.slot_number = self.get_slot_number()
-
-        # Populate SmurfConfigPropertiesMixin properties with values
-        # from loaded pysmurf configuration file.
-        self.copy_config_to_properties(self.config)
 
         # Mapping from attenuator numbers to bands
         att_cfg = self.config.get('attenuator')
@@ -374,19 +375,6 @@ class SmurfControl(SmurfCommandMixin,
 
             band_str = f'band_{band}'
             self.lms_gain[band] = smurf_init_config[band_str]['lmsGain']
-
-        # Load in tuning parameters, if present
-        tune_band_cfg = self.config.get('tune_band')
-        tune_band_keys = tune_band_cfg.keys()
-        for cfg_var in ['gradient_descent_gain', 'gradient_descent_averages',
-                        'gradient_descent_converge_hz', 'gradient_descent_step_hz',
-                        'gradient_descent_momentum', 'gradient_descent_beta',
-                        'eta_scan_del_f', 'eta_scan_amplitude',
-                        'eta_scan_averages', 'delta_freq']:
-            if cfg_var in tune_band_keys:
-                setattr(self, cfg_var, {})
-                for b in bands:
-                    getattr(self, cfg_var)[b] = tune_band_cfg[cfg_var][str(b)]
 
         if setup:
             self.setup(payload_size=payload_size, **kwargs)
