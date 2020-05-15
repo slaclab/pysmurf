@@ -449,6 +449,9 @@ void scp::SmurfProcessor::resetDownsampler()
 
 void scp::SmurfProcessor::acceptFrame(ris::FramePtr frame)
 {
+    // Release the GIL
+    rogue::GilRelease noGil;
+
     std::size_t frameSize;
 
     // Copy the frame into a STL container
