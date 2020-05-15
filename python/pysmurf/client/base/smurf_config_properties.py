@@ -241,7 +241,8 @@ class SmurfConfigPropertiesMixin:
         ## RF
         # Which bands are present in the pysmurf configuration file?
         smurf_init_config = config.get('init')
-        self.bands = smurf_init_config['bands']
+        bands = smurf_init_config['bands']
+        self.bands = bands
 
         # Mapping from attenuator numbers to bands
         att_cfg = config.get('attenuator')
@@ -272,6 +273,15 @@ class SmurfConfigPropertiesMixin:
             val = pic_cfg[k]
             pic_to_bias_group[i] = [k, val]
         self.pic_to_bias_group = pic_to_bias_group
+
+        ## Tracking algo
+        # lmsGain ; this one's a little odd ; it's defined in each of
+        # the band_# configuration file blocks, while the other main
+        # tracking algorithm parameter, lms_freq_hz, is defined in the
+        # tune_band configuration file block...
+        self.lms_gain = {
+            band:smurf_init_config[f'band_{band}']['lmsGain']
+            for band in bands}
 
         ## Mappings
         # Mapping from chip number to frequency in GHz
