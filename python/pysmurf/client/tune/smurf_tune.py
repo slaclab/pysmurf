@@ -1197,8 +1197,9 @@ class SmurfTuneMixin(SmurfBase):
 
     @set_action()
     def eta_fit(self, freq, resp, peak_freq, delta_freq,
-                make_plot=False, plot_chans=[], save_plot=True, band=None,
-                timestamp=None, res_num=None, use_slow_eta=False):
+                make_plot=False, plot_chans=[], save_plot=True,
+                band=None, timestamp=None, res_num=None,
+                use_slow_eta=False):
         """
         Cyndia's eta finding code.
 
@@ -3628,7 +3629,7 @@ class SmurfTuneMixin(SmurfBase):
                 f'No drive given. Using value in config file: {drive}')
 
         if delta_freq is None:
-            delta_freq = self.config.get('tune_band').get('delta_freq')[str(band)]
+            delta_freq = self._delta_freq[band]
 
         if resonance is not None:
             input_res = resonance
