@@ -520,6 +520,10 @@ void scp::SmurfProcessor::acceptFrame(ris::FramePtr frame)
         // Output channel index
         std::size_t i{0};
 
+        // Acquire the lock while the unwrapper vectors are used.
+        // Acquire this lock outside the loop, to increase performance.
+        std::lock_guard<std::mutex> lock(mutUnwrapper);
+
         // Map and unwrap data in a single loop
         for(auto const& m : mask)
         {
@@ -532,9 +536,6 @@ void scp::SmurfProcessor::acceptFrame(ris::FramePtr frame)
             // If it is disabled, don't do anything to the data
             if (!disableUnwrapper)
             {
-                // Acquire the lock while the unwrapper vectors are used
-                std::lock_guard<std::mutex> lock(mutUnwrapper);
-
                 // Check if the value wrapped
                 if ((currentData.at(i) > upperUnwrap) && (previousData.at(i) < lowerUnwrap))
                 {
