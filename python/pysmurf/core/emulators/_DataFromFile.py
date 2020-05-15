@@ -118,11 +118,14 @@ class DataMaster(rogue.interfaces.stream.Master):
             Input data (must be of type int16).
         """
 
-        # Request a frame to hold 1 data point
-        frame = self._reqFrame(128+2, True)
+        # Request a frame to hold an SMuRF frame
+        frame = self._reqFrame(128+2*4096, True)
+
+        # Fill the frame with zeros
+        frame.write( bytearray([0]*(128+2*4096)), 0 )
 
         # Write the number of channels
-        frame.write( bytearray((1).to_bytes(4, sys.byteorder)), 4)
+        frame.write( bytearray((4096).to_bytes(4, sys.byteorder)), 4)
 
         # Write the frame counter into the header
         frame.write( bytearray(self._frame_cnt.to_bytes(4, sys.byteorder)), 84)
