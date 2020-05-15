@@ -240,80 +240,17 @@ class SmurfControl(SmurfCommandMixin,
         self.crate_id = self.get_crate_id()
         self.slot_number = self.get_slot_number()
 
-        # Mapping from attenuator numbers to bands
-        att_cfg = self.config.get('attenuator')
-        keys = att_cfg.keys()
-        self.att_to_band = {}
-        self.att_to_band['band'] = np.zeros(len(keys))
-        self.att_to_band['att'] = np.zeros(len(keys))
-        for i, k in enumerate(keys):
-            self.att_to_band['band'][i] = att_cfg[k]
-            self.att_to_band['att'][i] = int(k[-1])
-
-        # Flux ramp hardware detail
-        flux_ramp_cfg = self.config.get('flux_ramp')
-        keys = flux_ramp_cfg.keys()
-        self.num_flux_ramp_counter_bits = flux_ramp_cfg['num_flux_ramp_counter_bits']
-
-        # Mapping from chip number to frequency in GHz
-        chip_cfg = self.config.get('chip_to_freq')
-        keys = chip_cfg.keys()
-        self.chip_to_freq = np.zeros((len(keys), 3))
-        for i, k in enumerate(chip_cfg.keys()):
-            val = chip_cfg[k]
-            self.chip_to_freq[i] = [k, val[0], val[1]]
-
-        # channel assignment file
-        #self.channel_assignment_files = self.config.get('channel_assignment')
+        # Channel assignment files
         self.channel_assignment_files = {}
         if not no_dir:
-            for b in self.config.get('init').get('bands'):
-                all_channel_assignment_files = glob.glob(os.path.join(self.tune_dir,
-                    f'*channel_assignment_b{b}.txt'))
+            for band in self._bands:
+                all_channel_assignment_files = glob.glob(
+                    os.path.join(
+                        self.tune_dir,
+                        f'*channel_assignment_b{band}.txt'))
                 if len(all_channel_assignment_files):
-                    self.channel_assignment_files[f'band_{b}'] = \
+                    self.channel_assignment_files[f'band_{band}'] = \
                         np.sort(all_channel_assignment_files)[-1]
-
-        # bias groups available
-        self.all_groups = self.config.get('all_bias_groups')
-
-        # bias group to pair
-        bias_group_cfg = self.config.get('bias_group_to_pair')
-        # how many bias groups are there?
-        self._n_bias_groups = len(bias_group_cfg)
-        keys = bias_group_cfg.keys()
-        self.bias_group_to_pair = np.zeros((len(keys), 3), dtype=int)
-        for i, k in enumerate(keys):
-            val = bias_group_cfg[k]
-            self.bias_group_to_pair[i] = np.append([k], val)
-
-        # Mapping from peripheral interface controller (PIC) to bias group
-        pic_cfg = self.config.get('pic_to_bias_group')
-        keys = pic_cfg.keys()
-        self.pic_to_bias_group = np.zeros((len(keys), 2), dtype=int)
-        for i, k in enumerate(keys):
-            val = pic_cfg[k]
-            self.pic_to_bias_group[i] = [k, val]
-
-        # Sampling frequency in gcp mode in Hz
-        self.fs = self.config.get('fs')
-
-        # Bad resonator mask
-        bm_config = self.config.get('bad_mask')
-        bm_keys = bm_config.keys()
-        self.bad_mask = np.zeros((len(bm_keys), 2))
-        for i, k in enumerate(bm_keys):
-            self.bad_mask[i] = bm_config[k]
-
-        # Dictionary for frequency response
-        self.freq_resp = {}
-        self.lms_freq_hz = {}
-        self.fraction_full_scale = self.config.get('tune_band').get('fraction_full_scale')
-        self.reset_rate_khz = self.config.get('tune_band').get('reset_rate_khz')
-
-        # Which bands are present in the pysmurf configuration file?
-        smurf_init_config = self.config.get('init')
-        bands = smurf_init_config['bands']
 
         # Which bands are usable, based on which bays are enabled.
         # Will use to check if pysmurf configuration file has unusable
@@ -329,7 +266,7 @@ class SmurfControl(SmurfCommandMixin,
 
         # Check if an unusable band is defined in the pysmurf cfg
         # file.
-        for band in bands:
+        for band in self._bands:
             if band not in usable_bands:
                 self.log(f'ERROR : band {band} is present in ' +
                          'pysmurf cfg file, but its bay is not ' +
@@ -338,22 +275,16 @@ class SmurfControl(SmurfCommandMixin,
         # Check if a usable band is not defined in the pysmurf cfg
         # file.
         for band in usable_bands:
-            if band not in bands:
+            if band not in self._bands:
                 self.log(f'WARNING : band {band} bay is enabled, ' +
                          'but no configuration information ' +
                          'provided!', self.LOG_ERROR)
 
-        # Load in tuning parameters, if present
-        tune_band_cfg = self.config.get('tune_band')
-        self.lms_gain = {}
-        for band in bands:
-            # Make band dictionaries
+        ## Make band dictionaries
+        self.freq_resp = {}
+        for band in self._bands:
             self.freq_resp[band] = {}
             self.freq_resp[band]['lock_status'] = {}
-            self.lms_freq_hz[band] = tune_band_cfg['lms_freq'][str(band)]
-
-            band_str = f'band_{band}'
-            self.lms_gain[band] = smurf_init_config[band_str]['lmsGain']
 
         if setup:
             self.setup(payload_size=payload_size, **kwargs)

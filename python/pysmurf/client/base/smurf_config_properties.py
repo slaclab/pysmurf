@@ -14,6 +14,7 @@
 # terms contained in the LICENSE.txt file.
 # -----------------------------------------------------------------------------
 """Defines the mixin class :class:`SmurfConfigPropertiesMixin`."""
+import numpy as np
 
 class SmurfConfigPropertiesMixin:
     """Mixin for loading pysmurf configuration parameters.
@@ -114,20 +115,42 @@ class SmurfConfigPropertiesMixin:
         self._eta_scan_averages = None
         self._delta_freq = None
 
-        # SMuRF to MCE
+        # Reading/writing data
         self._smurf_to_mce_file = None
         self._smurf_to_mce_ip = None
         self._smurf_to_mce_port = None
         self._smurf_to_mce_mask_file = None
+        self._mask_channel_offset = None
+        self._fs = None
 
-        # Reading data
-        self._mask_channel_offset = None        
-
-        # TES biasing hardware parameters
-        self._bias_line_resistance = None
+        # In fridge
         self._R_sh = None
+
+        # RF
+        self._bands = None
+        self._att_to_band = None
+
+        # RTM
+        self._num_flux_ramp_counter_bits = None
+        self._fraction_full_scale = None
+        self._reset_rate_khz = None
+
+        # Cryocard
+        self._bias_line_resistance = None
         self._high_low_current_ratio = None
         self._high_current_mode_bool = None
+        self._pic_to_bias_group = None
+
+        # Tracking algo
+        self._lms_gain = None
+        self._lms_freq_hz = None
+
+        # Mappings
+        self._chip_to_freq = None
+        self._all_groups = None
+        self._n_bias_groups = None
+        self._bias_group_to_pair = None
+        self._bad_mask = None
 
     def copy_config_to_properties(self, config):
         """Copy values from SmurfConfig instance to properties.
@@ -144,14 +167,14 @@ class SmurfConfigPropertiesMixin:
               instance.
 
         """
-        # Useful constants
+        ## Useful constants
         constant_cfg = config.get('constant')
         self.pA_per_phi0 = constant_cfg.get('pA_per_phi0')
 
-        # Cold amplifier biases
+        ## Cold amplifier biases
         amp_cfg = config.get('amplifier')
 
-        ## 4K HEMT
+        # 4K HEMT
         self.hemt_Vg = amp_cfg['hemt_Vg']
         self.hemt_bit_to_V = amp_cfg['bit_to_V_hemt']
         self.hemt_Vd_series_resistor = amp_cfg['hemt_Vd_series_resistor']
@@ -159,61 +182,132 @@ class SmurfConfigPropertiesMixin:
         self.hemt_gate_min_voltage = amp_cfg['hemt_gate_min_voltage']
         self.hemt_gate_max_voltage = amp_cfg['hemt_gate_max_voltage']
 
-        ## 50K HEMT
+        # 50K HEMT
         self.fiftyk_Vg = amp_cfg['LNA_Vg']
         self.fiftyk_dac_num = amp_cfg['dac_num_50k']
         self.fiftyk_bit_to_V = amp_cfg['bit_to_V_50k']
         self.fiftyk_amp_Vd_series_resistor = amp_cfg['50K_amp_Vd_series_resistor']
         self.fiftyk_Id_offset = amp_cfg['50k_Id_offset']
 
-        # Tune parameters
+        ## Tune parameters
         tune_band_cfg = config.get('tune_band')
-        self.gradient_descent_gain={
+        self.gradient_descent_gain = {
             int(band):v for (band,v) in
             tune_band_cfg['gradient_descent_gain'].items()}
-        self.gradient_descent_averages={
+        self.gradient_descent_averages = {
             int(band):v for (band,v) in
             tune_band_cfg['gradient_descent_averages'].items()}
-        self.gradient_descent_converge_hz={
+        self.gradient_descent_converge_hz = {
             int(band):v for (band,v) in
             tune_band_cfg['gradient_descent_converge_hz'].items()}
-        self.gradient_descent_step_hz={
+        self.gradient_descent_step_hz = {
             int(band):v for (band,v) in
             tune_band_cfg['gradient_descent_step_hz'].items()}
-        self.gradient_descent_momentum={
+        self.gradient_descent_momentum = {
             int(band):v for (band,v) in
             tune_band_cfg['gradient_descent_momentum'].items()}
-        self.gradient_descent_beta={
+        self.gradient_descent_beta = {
             int(band):v for (band,v) in
             tune_band_cfg['gradient_descent_beta'].items()}
-        self.eta_scan_del_f={
+        self.eta_scan_del_f = {
             int(band):v for (band,v) in
             tune_band_cfg['eta_scan_del_f'].items()}
-        self.eta_scan_amplitude={
+        self.eta_scan_amplitude = {
             int(band):v for (band,v) in
             tune_band_cfg['eta_scan_amplitude'].items()}
-        self.eta_scan_averages={
+        self.eta_scan_averages = {
             int(band):v for (band,v) in
             tune_band_cfg['eta_scan_averages'].items()}
-        self.delta_freq={
+        self.delta_freq = {
             int(band):v for (band,v) in
             tune_band_cfg['delta_freq'].items()}
+        # Tracking algo
+        self.lms_freq_hz = {
+            int(band):v for (band,v) in
+            tune_band_cfg['lms_freq'].items()}
 
-        # smurf2mce config parameters
+        ## Reading/writing data
         smurf_to_mce_cfg = config.get('smurf_to_mce')
         self.smurf_to_mce_file = smurf_to_mce_cfg.get('smurf_to_mce_file')
         self.smurf_to_mce_ip = smurf_to_mce_cfg.get('receiver_ip')
         self.smurf_to_mce_port = smurf_to_mce_cfg.get('port_number')
         self.smurf_to_mce_mask_file = smurf_to_mce_cfg.get('mask_file')
-
-        # Reading data
         self.mask_channel_offset = smurf_to_mce_cfg.get('mask_channel_offset')
+        self.fs = config.get('fs')
 
-        # TES biasing hardware parameters
-        self.bias_line_resistance = config.get('bias_line_resistance')
+        ## In fridge
         self.R_sh = config.get('R_sh')
+
+        ## RF
+        # Which bands are present in the pysmurf configuration file?
+        smurf_init_config = config.get('init')
+        self.bands = smurf_init_config['bands']
+
+        # Mapping from attenuator numbers to bands
+        att_cfg = config.get('attenuator')
+        att_cfg_keys = att_cfg.keys()
+        att_to_band = {}
+        att_to_band['band'] = np.zeros(len(att_cfg_keys))
+        att_to_band['att'] = np.zeros(len(att_cfg_keys))
+        for i, k in enumerate(att_cfg_keys):
+            att_to_band['band'][i] = att_cfg[k]
+            att_to_band['att'][i] = int(k[-1])
+        self.att_to_band = att_to_band
+
+        ## RTM
+        flux_ramp_cfg = config.get('flux_ramp')
+        self.num_flux_ramp_counter_bits = flux_ramp_cfg['num_flux_ramp_counter_bits']
+        self.fraction_full_scale = tune_band_cfg.get('fraction_full_scale')
+        self.reset_rate_khz = tune_band_cfg.get('reset_rate_khz')
+
+        ## Cryocard
+        self.bias_line_resistance = config.get('bias_line_resistance')
         self.high_low_current_ratio = config.get('high_low_current_ratio')
-        self.high_current_mode_bool = config.get('high_current_mode_bool')        
+        self.high_current_mode_bool = config.get('high_current_mode_bool')
+        # Mapping from peripheral interface controller (PIC) to bias group
+        pic_cfg = config.get('pic_to_bias_group')
+        pic_cfg_keys = pic_cfg.keys()
+        pic_to_bias_group = np.zeros((len(pic_cfg_keys), 2), dtype=int)
+        for i, k in enumerate(pic_cfg_keys):
+            val = pic_cfg[k]
+            pic_to_bias_group[i] = [k, val]
+        self.pic_to_bias_group = pic_to_bias_group
+
+        ## Mappings
+        # Mapping from chip number to frequency in GHz
+        chip_to_freq_cfg = config.get('chip_to_freq')
+        chip_to_freq_keys = chip_to_freq_cfg.keys()
+        chip_to_freq = np.zeros((len(chip_to_freq_keys), 3))
+        for i, k in enumerate(chip_to_freq_keys):
+            val = chip_to_freq_cfg[k]
+            chip_to_freq[i] = [k, val[0], val[1]]
+        self.chip_to_freq = chip_to_freq
+
+        # Bias groups available
+        self.all_groups = config.get('all_bias_groups')
+
+        # Number of bias groups and bias group to RTM DAC pair
+        # mapping
+        bias_group_cfg = config.get('bias_group_to_pair')
+        bias_group_keys = bias_group_cfg.keys()
+
+        # Number of bias groups
+        self.n_bias_groups = len(bias_group_cfg)
+
+        # Bias group to RTM DAC pair mapping
+        bias_group_to_pair = np.zeros((len(bias_group_keys), 3), dtype=int)
+        for i, k in enumerate(bias_group_keys):
+            val = bias_group_cfg[k]
+            bias_group_to_pair[i] = np.append([k], val)
+        self.bias_group_to_pair = bias_group_to_pair
+
+        # Bad resonator mask
+        bad_mask_config = config.get('bad_mask')
+        bad_mask_keys = bad_mask_config.keys()
+        bad_mask = np.zeros((len(bad_mask_keys), 2))
+        for i, k in enumerate(bad_mask_keys):
+            self.bad_mask[i] = bad_mask_config[k]
+        self.bad_mask = bad_mask
 
     ###########################################################################
     ## Start pA_per_phi0 property definition
@@ -725,35 +819,6 @@ class SmurfConfigPropertiesMixin:
     ###########################################################################
 
     ###########################################################################
-    ## Start channel_assignment_files property definition
-
-    # Getter
-    @property
-    def channel_assignment_files(self):
-        """Short description.
-
-        Gets or sets ?.
-        Units are ?.
-
-        Specified in the pysmurf configuration file as
-        `?`.
-
-        See Also
-        --------
-        ?
-
-        """
-        return self._channel_assignment_files
-
-    # Setter
-    @channel_assignment_files.setter
-    def channel_assignment_files(self, value):
-        self._channel_assignment_files = value
-
-    ## End channel_assignment_files property definition
-    ###########################################################################
-
-    ###########################################################################
     ## Start all_groups property definition
 
     # Getter
@@ -1157,7 +1222,7 @@ class SmurfConfigPropertiesMixin:
         self._mask_channel_offset = value
 
     ## End mask_channel_offset property definition
-    ###########################################################################    
+    ###########################################################################
 
     ###########################################################################
     ## Start bad_mask property definition
@@ -1592,4 +1657,33 @@ class SmurfConfigPropertiesMixin:
         self._delta_freq = value
 
     ## End delta_freq property definition
+    ###########################################################################
+
+    ###########################################################################
+    ## Start bands property definition
+
+    # Getter
+    @property
+    def bands(self):
+        """Short description.
+
+        Gets or sets ?.
+        Units are ?.
+
+        Specified in the pysmurf configuration file as
+        `tune_band:bands`.
+
+        See Also
+        --------
+        ?
+
+        """
+        return self._bands
+
+    # Setter
+    @bands.setter
+    def bands(self, value):
+        self._bands = value
+
+    ## End bands property definition
     ###########################################################################
