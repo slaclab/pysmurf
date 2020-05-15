@@ -476,7 +476,7 @@ void scp::SmurfProcessor::acceptFrame(ris::FramePtr frame)
 
     // Create a FrameAccessor object to access the frame data.
     ris::FrameIterator frameIt { frame->begin() };
-    ris::FrameAccessor<uint8_t> frameAccessor { frameIt, frameSize };
+    ris::FrameAccessor<uint8_t> frameAccessor { frameIt, static_cast<uint32_t>(frameSize) };
 
     // Do sanity checks on the incoming frame
     // - The frame has at least the header, so we can construct a (smart) pointer to it
