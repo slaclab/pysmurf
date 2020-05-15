@@ -80,7 +80,7 @@ if __name__ == "__main__":
 
     with LocalRoot() as root:
         # Start the generation of frames
-        root.StreamDataSource.Period.set(1e-4)
+        root.StreamDataSource.Period.set(1e-6)
         root.StreamDataSource.SourceEnable.set(True)
 
         # Wait until we have received 100k frames. This assumes the
