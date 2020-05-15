@@ -88,5 +88,5 @@ if __name__ == "__main__":
         while root.FrameRxStats.FrameCnt.get() < 100000:
             time.sleep(5.0)
 
-        print(f"Final number of received frames = {self.FrameRxStats.FrameCnt.get()}")
-        print(f"Number of lost frames           = {self.FrameRxStats.FrameLossCnt.get()}")
+        print(f"Final number of received frames = {root.FrameRxStats.FrameCnt.get()}")
+        print(f"Number of lost frames           = {root.FrameRxStats.FrameLossCnt.get()}")
