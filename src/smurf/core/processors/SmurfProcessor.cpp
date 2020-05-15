@@ -27,7 +27,6 @@ scp::SmurfProcessor::SmurfProcessor()
 :
     ris::Slave(),
     ris::Master(),
-    frameBuffer(SmurfHeader<std::vector<uint8_t>::iterator>::SmurfHeaderSize + maxNumCh * sizeof(fw_t),0),
     numCh(maxNumCh),
     payloadSize(0),
     mask(numCh,0),
@@ -454,38 +453,34 @@ void scp::SmurfProcessor::acceptFrame(ris::FramePtr frame)
 
     std::size_t frameSize;
 
-    // Copy the frame into a STL container
+    // Hold the frame lock
+    ris::FrameLockPtr lockFrame{frame->lock()};
+
+    // Check for frames with errors or flags
+    if ( frame->getError() || ( frame->getFlags() & 0x100 ) )
     {
-        // Hold the frame lock
-        ris::FrameLockPtr lockFrame{frame->lock()};
-
-        // Check for frames with errors or flags
-        if ( frame->getError() || ( frame->getFlags() & 0x100 ) )
-        {
-            eLog_->error("Received frame with errors and/or flags");
-            return;
-        }
-
-        // Get the frame size
-        frameSize = frame->getPayload();
-
-        // Check if the frame size is lower than the header size
-        if ( frameSize < SmurfHeader<std::vector<uint8_t>::iterator>::SmurfHeaderSize )
-        {
-            eLog_->error("Received frame with size lower than the header size. Received frame size=%zu, expected header size=%zu",
-                frameSize, SmurfHeader<std::vector<uint8_t>::iterator>::SmurfHeaderSize);
-            return;
-        }
-
-        // Copy using BufferIterators in combination with std::copy for performance reasons
-        std::vector<uint8_t>::iterator outIt(frameBuffer.begin());
-        for (ris::Frame::BufferIterator inIt=frame->beginBuffer(); inIt != frame->endBuffer(); ++inIt)
-            outIt = std::copy((*inIt)->begin(), (*inIt)->endPayload(), outIt);
+        eLog_->error("Received frame with errors and/or flags");
+        return;
     }
+
+    // Get the frame size
+    frameSize = frame->getPayload();
+
+    // Check if the frame size is lower than the header size
+    if ( frameSize < SmurfHeader<std::vector<uint8_t>::iterator>::SmurfHeaderSize )
+    {
+        eLog_->error("Received frame with size lower than the header size. Received frame size=%zu, expected header size=%zu",
+            frameSize, SmurfHeader<std::vector<uint8_t>::iterator>::SmurfHeaderSize);
+        return;
+    }
+
+    // Create a FrameAccessor object to access the frame data.
+    ris::FrameIterator frameIt { frame->begin() };
+    ris::FrameAccessor<uint8_t> frameAccessor { frameIt, frameSize };
 
     // Do sanity checks on the incoming frame
     // - The frame has at least the header, so we can construct a (smart) pointer to it
-    SmurfHeaderPtr<std::vector<uint8_t>::iterator> header { SmurfHeader<std::vector<uint8_t>::iterator>::create(frameBuffer) };
+    SmurfHeaderPtr<ris::FrameIterator> header { SmurfHeader<ris::FrameIterator>::create(frame) };
 
     // - Read the number of channel from the header
     uint32_t numChannels { header->getNumberChannels() };
@@ -517,8 +512,8 @@ void scp::SmurfProcessor::acceptFrame(ris::FramePtr frame)
         // Move the current data to the previous data
         previousData.swap(currentData);
 
-        // Begining of the data area in the frameBuffer
-        std::vector<uint8_t>::iterator inIt(frameBuffer.begin() + SmurfHeader<std::vector<uint8_t>::iterator>::SmurfHeaderSize);
+        // Beginning of the data area in the frame, using the FrameAccessor
+        std::vector<uint8_t>::const_iterator inIt(frameAccessor.begin() + SmurfHeader<std::vector<uint8_t>::iterator>::SmurfHeaderSize);
 
         // Build iterator to the data vectors
         std::vector<fw_t>::iterator     currentIt  { currentData.begin()  };
@@ -534,7 +529,7 @@ void scp::SmurfProcessor::acceptFrame(ris::FramePtr frame)
         for(auto const& m : mask)
         {
             // Get the mapped value from the framweBuffer and cast it
-            // Reinterpret the bytes from the frameBuffer to 'fw_t' values. And the cast that value to 'unwrap_t' values
+            // Reinterpret the bytes from the frame to 'fw_t' values. And the cast that value to 'unwrap_t' values
             *currentIt = *(reinterpret_cast<const fw_t*>(&(*( inIt + m * sizeof(fw_t) ))));
             *inputIt = static_cast<unwrap_t>(*currentIt);
 
@@ -637,7 +632,7 @@ void scp::SmurfProcessor::acceptFrame(ris::FramePtr frame)
     // Give the data to the Tx thread to be sent to the next slave.
     {
         // Copy the header
-        std::copy(frameBuffer.begin(), frameBuffer.begin() + SmurfHeader<std::vector<uint8_t>::iterator>::SmurfHeaderSize, headerCopy.begin());
+        std::copy(frameAccessor.begin(), frameAccessor.begin() + SmurfHeader<std::vector<uint8_t>::iterator>::SmurfHeaderSize, headerCopy.begin());
 
         // Copy the data
         {
