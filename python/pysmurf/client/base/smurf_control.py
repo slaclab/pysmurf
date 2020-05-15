@@ -295,28 +295,8 @@ class SmurfControl(SmurfCommandMixin,
             val = pic_cfg[k]
             self.pic_to_bias_group[i] = [k, val]
 
-        # The resistance in line with the TES bias
-        self.bias_line_resistance = self.config.get('bias_line_resistance')
-
-        # The TES shunt resistance
-        self.R_sh = self.config.get('R_sh')
-
-        # The ratio of current for high-current mode to low-current mode;
-        # also the inverse of the in-line resistance for the bias lines.
-        self.high_low_current_ratio = self.config.get('high_low_current_ratio')
-
-        # whether we are running in high vs low current mode
-        self.high_current_mode_bool = self.config.get('high_current_mode_bool')
-
         # Sampling frequency in gcp mode in Hz
         self.fs = self.config.get('fs')
-
-        # The smurf to mce config data
-        smurf_to_mce_cfg = self.config.get('smurf_to_mce')
-        self.smurf_to_mce_file = smurf_to_mce_cfg.get('smurf_to_mce_file')
-        self.smurf_to_mce_ip = smurf_to_mce_cfg.get('receiver_ip')
-        self.smurf_to_mce_port = smurf_to_mce_cfg.get('port_number')
-        self.smurf_to_mce_mask_file = smurf_to_mce_cfg.get('mask_file')
 
         # Bad resonator mask
         bm_config = self.config.get('bad_mask')

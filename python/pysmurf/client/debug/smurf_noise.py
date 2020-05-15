@@ -744,9 +744,9 @@ class SmurfNoiseMixin(SmurfBase):
         for ch in iv_band_data:
             v_bias = iv_band_data[ch]['v_bias']
             if iv_high_current_mode and not high_current_mode:
-                iv_band_data[ch]['v_bias'] = v_bias*self.high_low_current_ratio
+                iv_band_data[ch]['v_bias'] = v_bias*self._high_low_current_ratio
             elif not iv_high_current_mode and high_current_mode:
-                iv_band_data[ch]['v_bias'] = v_bias/self.high_low_current_ratio
+                iv_band_data[ch]['v_bias'] = v_bias/self._high_low_current_ratio
         return iv_band_data
 
 
@@ -852,7 +852,7 @@ class SmurfNoiseMixin(SmurfBase):
             fs = self.get_sample_frequency()
 
         if R_sh is None:
-            R_sh = self.R_sh
+            R_sh = self._R_sh
 
         if isinstance(bias,str):
             self.log(f'Biases being read from {bias}')
@@ -1539,10 +1539,10 @@ class SmurfNoiseMixin(SmurfBase):
         """
         NEI *= 1e-12 # bring NEI to SI units, i.e., A/rt(Hz)
         if high_current_mode:
-            V_b *= self.high_low_current_ratio
-        I_b = V_b/self.bias_line_resistance # bias current running through shunt+TES network
+            V_b *= self._high_low_current_ratio
+        I_b = V_b/self._bias_line_resistance # bias current running through shunt+TES network
         if R_sh is None:
-            R_sh = self.R_sh
+            R_sh = self._R_sh
         V_tes = I_b*R_sh*R_tes/(R_sh+R_tes) # voltage across TES
         NEP = V_tes*NEI # power spectral density
         T_CMB = 2.7
@@ -1615,7 +1615,7 @@ class SmurfNoiseMixin(SmurfBase):
             self.log(f'Noise data files being read from {datafile}')
             datafile = self.get_datafiles_from_file(datafile)
 
-        mask = np.loadtxt(self.smurf_to_mce_mask_file)
+        mask = np.loadtxt(self._smurf_to_mce_mask_file)
 
         # Analyze data and save
         for _, (_, d) in enumerate(zip(tone, datafile)):

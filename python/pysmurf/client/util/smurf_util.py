@@ -3408,7 +3408,7 @@ class SmurfUtilMixin(SmurfBase):
             self.log(f'Generating gcp mask file. {len(gcp_chans)} ' +
                      'channels added')
 
-            np.savetxt(self.smurf_to_mce_mask_file, gcp_chans, fmt='%i')
+            np.savetxt(self._smurf_to_mce_mask_file, gcp_chans, fmt='%i')
 
         if read_gcp_mask:
             self.read_smurf_to_gcp_config()
@@ -3568,14 +3568,14 @@ class SmurfUtilMixin(SmurfBase):
 
         v_bias *= -2 * self._rtm_slow_dac_bit_to_volt  # FBU to V
         d *= self._pA_per_phi0/(2*np.pi*1.0E6) # Convert to microamp
-        i_amp = step_size / self.bias_line_resistance * 1.0E6 # also uA
-        i_bias = v_bias[bias_group[0]] / self.bias_line_resistance * 1.0E6
+        i_amp = step_size / self._bias_line_resistance * 1.0E6 # also uA
+        i_bias = v_bias[bias_group[0]] / self._bias_line_resistance * 1.0E6
 
 
         # Scale the currents for high/low current
         if high_current_mode:
-            i_amp *= self.high_low_current_ratio
-            i_bias *= self.high_low_current_ratio
+            i_amp *= self._high_low_current_ratio
+            i_bias *= self._high_low_current_ratio
 
         # Demodulation timeline
         demod = (v_bias[bias_group[0]] - np.min(v_bias[bias_group[0]]))
@@ -3627,8 +3627,8 @@ class SmurfUtilMixin(SmurfBase):
                 plt.close(fig)
                 self.pub.register_file(plot_fn, 'bias_bump', plot=True)
 
-        resistance = np.abs(self.R_sh * (1-1/sib))
-        siq = (2*sib-1)/(self.R_sh*i_amp) * 1.0E6/1.0E12  # convert to uA/pW
+        resistance = np.abs(self._R_sh * (1-1/sib))
+        siq = (2*sib-1)/(self._R_sh*i_amp) * 1.0E6/1.0E12  # convert to uA/pW
 
         ret = {}
         for b in np.unique(bands):
@@ -3719,7 +3719,7 @@ class SmurfUtilMixin(SmurfBase):
             The GCP number.
         """
         if mask_file is None:
-            mask_file = self.smurf_to_mce_mask_file
+            mask_file = self._smurf_to_mce_mask_file
 
 
         mask = self.make_mask_lookup(mask_file)
@@ -3751,7 +3751,7 @@ class SmurfUtilMixin(SmurfBase):
             The smurf channel number.
         """
         if mask_file is None:
-            mask_file = self.smurf_to_mce_mask_file
+            mask_file = self._smurf_to_mce_mask_file
         mask = np.loadtxt(mask_file)
 
         mask_num = self.gcp_num_to_mask_num(gcp_num)
@@ -4280,9 +4280,9 @@ class SmurfUtilMixin(SmurfBase):
 
             # currents on lines
             if high_current_mode:
-                r_inline = self.bias_line_resistance / self.high_low_current_ratio
+                r_inline = self._bias_line_resistance / self._high_low_current_ratio
             else:
-                r_inline = self.bias_line_resistance
+                r_inline = self._bias_line_resistance
 
             i_bias = probe_amp / r_inline * 1.0E12  # Bias current in pA
 

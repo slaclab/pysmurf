@@ -114,6 +114,21 @@ class SmurfConfigPropertiesMixin:
         self._eta_scan_averages = None
         self._delta_freq = None
 
+        # SMuRF to MCE
+        self._smurf_to_mce_file = None
+        self._smurf_to_mce_ip = None
+        self._smurf_to_mce_port = None
+        self._smurf_to_mce_mask_file = None
+
+        # Reading data
+        self._mask_channel_offset = None        
+
+        # TES biasing hardware parameters
+        self._bias_line_resistance = None
+        self._R_sh = None
+        self._high_low_current_ratio = None
+        self._high_current_mode_bool = None
+
     def copy_config_to_properties(self, config):
         """Copy values from SmurfConfig instance to properties.
 
@@ -134,7 +149,7 @@ class SmurfConfigPropertiesMixin:
         self.pA_per_phi0 = constant_cfg.get('pA_per_phi0')
 
         # Cold amplifier biases
-        amp_cfg = self.config.get('amplifier')
+        amp_cfg = config.get('amplifier')
 
         ## 4K HEMT
         self.hemt_Vg = amp_cfg['hemt_Vg']
@@ -152,7 +167,7 @@ class SmurfConfigPropertiesMixin:
         self.fiftyk_Id_offset = amp_cfg['50k_Id_offset']
 
         # Tune parameters
-        tune_band_cfg = self.config.get('tune_band')
+        tune_band_cfg = config.get('tune_band')
         self.gradient_descent_gain={
             int(band):v for (band,v) in
             tune_band_cfg['gradient_descent_gain'].items()}
@@ -183,6 +198,22 @@ class SmurfConfigPropertiesMixin:
         self.delta_freq={
             int(band):v for (band,v) in
             tune_band_cfg['delta_freq'].items()}
+
+        # smurf2mce config parameters
+        smurf_to_mce_cfg = config.get('smurf_to_mce')
+        self.smurf_to_mce_file = smurf_to_mce_cfg.get('smurf_to_mce_file')
+        self.smurf_to_mce_ip = smurf_to_mce_cfg.get('receiver_ip')
+        self.smurf_to_mce_port = smurf_to_mce_cfg.get('port_number')
+        self.smurf_to_mce_mask_file = smurf_to_mce_cfg.get('mask_file')
+
+        # Reading data
+        self.mask_channel_offset = smurf_to_mce_cfg.get('mask_channel_offset')
+
+        # TES biasing hardware parameters
+        self.bias_line_resistance = config.get('bias_line_resistance')
+        self.R_sh = config.get('R_sh')
+        self.high_low_current_ratio = config.get('high_low_current_ratio')
+        self.high_current_mode_bool = config.get('high_current_mode_bool')        
 
     ###########################################################################
     ## Start pA_per_phi0 property definition
@@ -1098,6 +1129,35 @@ class SmurfConfigPropertiesMixin:
 
     ## End smurf_to_mce_mask_file property definition
     ###########################################################################
+
+    ###########################################################################
+    ## Start mask_channel_offset property definition
+
+    # Getter
+    @property
+    def mask_channel_offset(self):
+        """Short description.
+
+        Gets or sets ?.
+        Units are ?.
+
+        Specified in the pysmurf configuration file as
+        `?`.
+
+        See Also
+        --------
+        ?
+
+        """
+        return self._mask_channel_offset
+
+    # Setter
+    @mask_channel_offset.setter
+    def mask_channel_offset(self, value):
+        self._mask_channel_offset = value
+
+    ## End mask_channel_offset property definition
+    ###########################################################################    
 
     ###########################################################################
     ## Start bad_mask property definition

@@ -151,7 +151,7 @@ class SmurfIVMixin(SmurfBase):
         np.save(path, iv_raw_data)
         self.pub.register_file(path, 'iv_raw', format='npy')
 
-        R_sh=self.R_sh
+        R_sh=self._R_sh
         self.analyze_slow_iv_from_file(fn_iv_raw_data, make_plot=make_plot,
             show_plot=show_plot, save_plot=save_plot,
             plotname_append=plotname_append, R_sh=R_sh, grid_on=grid_on,
@@ -213,13 +213,14 @@ class SmurfIVMixin(SmurfBase):
             bias_low_array = original_biases
 
         if overbias_voltage is not None: # only overbias if this is set
-            if self.high_current_mode_bool:
+            if self._high_current_mode_bool:
                 tes_bias = 2. # Probably should actually move this over to
             else: #overbias_tes_all
                 tes_bias = 19.9
-            self.overbias_tes_all(overbias_voltage=overbias_voltage,
-            overbias_wait=overbias_wait, tes_bias=tes_bias,
-            high_current_mode=self.high_current_mode_bool)
+            self.overbias_tes_all(
+                overbias_voltage=overbias_voltage,
+                overbias_wait=overbias_wait, tes_bias=tes_bias,
+                high_current_mode=self._high_current_mode_bool)
 
         ### make arrays of voltages to set ###
         # first, figure out the length of the longest sweep
@@ -282,7 +283,7 @@ class SmurfIVMixin(SmurfBase):
 
         if analyze:
             self.analyze_plc_from_file(fn_plc_raw_data, make_plot=make_plot,
-                show_plot=show_plot, save_plot=save_plot, R_sh=self.R_sh,
+                show_plot=show_plot, save_plot=save_plot, R_sh=self._R_sh,
                 phase_excursion_min=phase_excursion_min, channels=channels)
 
         return path
@@ -629,7 +630,7 @@ class SmurfIVMixin(SmurfBase):
         v_bias = np.abs(v_bias)
 
         if R_sh is None:
-            R_sh = self.R_sh
+            R_sh = self._R_sh
 
         if pA_per_phi0 is None:
             pA_per_phi0 = self._pA_per_phi0
@@ -647,14 +648,14 @@ class SmurfIVMixin(SmurfBase):
         i_bias_bin = np.zeros(n_step)
 
         if bias_line_resistance is None:
-            r_inline = self.bias_line_resistance
+            r_inline = self._bias_line_resistance
         else:
             r_inline = bias_line_resistance
 
         if high_current_mode:
             # high-current mode generates higher current by decreases the
             # in-line resistance
-            r_inline /= self.high_low_current_ratio
+            r_inline /= self._high_low_current_ratio
         i_bias = 1.0E6 * v_bias / r_inline
 
         if make_plot:
