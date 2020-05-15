@@ -520,8 +520,11 @@ void scp::SmurfProcessor::acceptFrame(ris::FramePtr frame)
         // Begining of the data area in the frameBuffer
         std::vector<uint8_t>::iterator inIt(frameBuffer.begin() + SmurfHeader<std::vector<uint8_t>::iterator>::SmurfHeaderSize);
 
-        // Output channel index
-        std::size_t i{0};
+        // Build iterator to the data vectors
+        std::vector<fw_t>::iterator     currentIt  { currentData.begin()  };
+        std::vector<fw_t>::iterator     previousIt { previousData.begin() };
+        std::vector<unwrap_t>::iterator inputIt    { inputData.begin()    };
+        std::vector<unwrap_t>::iterator wrapIt     { wrapCounter.begin()  };
 
         // Acquire the lock while the unwrapper vectors are used.
         // Acquire this lock outside the loop, to increase performance.
@@ -532,31 +535,34 @@ void scp::SmurfProcessor::acceptFrame(ris::FramePtr frame)
         {
             // Get the mapped value from the framweBuffer and cast it
             // Reinterpret the bytes from the frameBuffer to 'fw_t' values. And the cast that value to 'unwrap_t' values
-            currentData.at(i) = *(reinterpret_cast<fw_t*>(&(*( inIt + m * sizeof(fw_t) ))));
-            inputData.at(i) = static_cast<unwrap_t>(currentData.at(i));
+            *currentIt = *(reinterpret_cast<const fw_t*>(&(*( inIt + m * sizeof(fw_t) ))));
+            *inputIt = static_cast<unwrap_t>(*currentIt);
 
             // Unwrap the value is the unwrapper is not disabled.
             // If it is disabled, don't do anything to the data
             if (!disableUnwrapper)
             {
                 // Check if the value wrapped
-                if ((currentData.at(i) > upperUnwrap) && (previousData.at(i) < lowerUnwrap))
+                if ((*currentIt > upperUnwrap) && (*previousIt < lowerUnwrap))
                 {
                     // Decrement wrap counter
-                    wrapCounter.at(i) -= stepUnwrap;
+                    *wrapIt -= stepUnwrap;
                 }
-                else if ((currentData.at(i) < lowerUnwrap) && (previousData.at(i) > upperUnwrap))
+                else if ((*currentIt < lowerUnwrap) && (*previousIt > upperUnwrap))
                 {
                     // Increment wrap counter
-                    wrapCounter.at(i) += stepUnwrap;
+                    *wrapIt += stepUnwrap;
                 }
 
                 // Add the wrap counter to the value
-                inputData.at(i) += wrapCounter.at(i);
+                *inputIt += *wrapIt;
             }
 
             // increase output channel index
-            ++i;
+            ++currentIt;
+            ++previousIt;
+            ++inputIt;
+            ++wrapIt;
         }
 
         // Update the number of channels in the header
