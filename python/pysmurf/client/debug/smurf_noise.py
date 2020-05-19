@@ -637,7 +637,7 @@ class SmurfNoiseMixin(SmurfBase):
                         np.max(self.get_amplitude_scale_array(band)),dtype=int))
                 self.run_serial_gradient_descent(band)
                 self.run_serial_eta_scan(band)
-                self.tracking_setup(band,lms_freq_hz=self.lms_freq_hz[band],
+                self.tracking_setup(band,lms_freq_hz=self._lms_freq_hz[band],
                     save_plot=True, make_plot=True, channel=self.which_on(band),
                     show_plot=False)
 
@@ -1464,7 +1464,7 @@ class SmurfNoiseMixin(SmurfBase):
             The returned values from noise_all_vs_noise_solo.
         """
         if fs is None:
-            fs = self.fs
+            fs = self._fs
 
         keys = ret.keys()
         all_dir = ret.pop('all')
@@ -1605,7 +1605,7 @@ class SmurfNoiseMixin(SmurfBase):
         channel = channel.astype(int)
 
         if fs is None:
-            fs = self.fs
+            fs = self._fs
 
         if isinstance(tone,str):
             self.log(f'Tone powers being read from {tone}')

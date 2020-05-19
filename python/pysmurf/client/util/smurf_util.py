@@ -2961,7 +2961,7 @@ class SmurfUtilMixin(SmurfBase):
         """
         # drive high current through the TES to attempt to drive normal
         if bias_groups is None:
-            bias_groups = self.all_groups
+            bias_groups = self._all_groups
         else:
             # assert requires array
             bias_groups = np.atleast_1d(bias_groups)
@@ -3025,8 +3025,8 @@ class SmurfUtilMixin(SmurfBase):
         bias_group = np.ravel(np.array(bias_group))
         for bg in bias_group:
             if bg < n_bias_groups:
-                r = np.ravel(self.pic_to_bias_group[
-                    np.where(self.pic_to_bias_group[:,1]==bg)])[0]
+                r = np.ravel(self._pic_to_bias_group[
+                    np.where(self._pic_to_bias_group[:,1]==bg)])[0]
             else:
                 r = bg
             new_relay = (1 << r) | new_relay
@@ -3057,8 +3057,8 @@ class SmurfUtilMixin(SmurfBase):
             self.log(f'Old relay {bin(old_relay)}')
         for bg in bias_group:
             if bg < n_bias_groups:
-                r = np.ravel(self.pic_to_bias_group[np.where(
-                    self.pic_to_bias_group[:,1]==bg)])[0]
+                r = np.ravel(self._pic_to_bias_group[np.where(
+                    self._pic_to_bias_group[:,1]==bg)])[0]
             else:
                 r = bg
             if old_relay & 1 << r != 0:
@@ -3132,8 +3132,8 @@ class SmurfUtilMixin(SmurfBase):
         band : int
             The band associated with the attenuator.
         """
-        return self.att_to_band['band'][np.ravel(
-            np.where(self.att_to_band['att']==att))[0]]
+        return self._att_to_band['band'][np.ravel(
+            np.where(self._att_to_band['att']==att))[0]]
 
     def band_to_att(self, band):
         """
@@ -3152,8 +3152,8 @@ class SmurfUtilMixin(SmurfBase):
         # for now, mod 4 ; assumes the band <-> att correspondence is the same
         # for the LB and HB AMCs.
         band=band%4
-        return self.att_to_band['att'][np.ravel(
-            np.where(self.att_to_band['band']==band))[0]]
+        return self._att_to_band['att'][np.ravel(
+            np.where(self._att_to_band['band']==band))[0]]
 
 
     def flux_ramp_rate_to_PV(self, val):

@@ -88,7 +88,7 @@ class SmurfIVMixin(SmurfBase):
         n_bias_groups = self._n_bias_groups
 
         if bias_groups is None:
-            bias_groups = self.all_groups
+            bias_groups = self._all_groups
         bias_groups = np.array(bias_groups)
 
         if overbias_voltage != 0.:

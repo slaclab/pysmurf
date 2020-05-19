@@ -1922,7 +1922,7 @@ class SmurfTuneMixin(SmurfBase):
                 f_gap = np.min(np.abs(np.append(f[:idx], f[idx+1:])-f[idx]))
             if write_log:
                 self.log(f'Res {k:03} - Channel {ch}')
-            for ll, hh in self.bad_mask:
+            for ll, hh in self._bad_mask:
                 # Check again bad mask list
                 if f[idx] > ll and f[idx] < hh:
                     self.log(f'{f[idx]:4.3f} in bad list.')
@@ -2260,7 +2260,7 @@ class SmurfTuneMixin(SmurfBase):
             plt.ioff()
 
         if reset_rate_khz is None:
-            reset_rate_khz = self.reset_rate_khz
+            reset_rate_khz = self._reset_rate_khz
             self.log('reset_rate_khz is None. ',
                      f'Using default: {reset_rate_khz}')
         n_channels = self.get_number_channels(band)
@@ -2415,9 +2415,9 @@ class SmurfTuneMixin(SmurfBase):
             Optional string to append plots with.
         """
         if reset_rate_khz is None:
-            reset_rate_khz = self.reset_rate_khz
+            reset_rate_khz = self._reset_rate_khz
         if lms_gain is None:
-            lms_gain = self.lms_gain[band]
+            lms_gain = self._lms_gain[band]
 
         ##
         ## Load unprovided optional args from cfg
@@ -2462,7 +2462,7 @@ class SmurfTuneMixin(SmurfBase):
                 plt.ioff()
 
         if fraction_full_scale is None:
-            fraction_full_scale = self.fraction_full_scale
+            fraction_full_scale = self._fraction_full_scale
         else:
             self.fraction_full_scale = fraction_full_scale
 
@@ -2474,8 +2474,9 @@ class SmurfTuneMixin(SmurfBase):
                          self.LOG_ERROR)
                 return None, None, None
             elif meas_lms_freq:
-                lms_freq_hz = self.estimate_lms_freq(band,
-                    reset_rate_khz,fraction_full_scale=fraction_full_scale,
+                lms_freq_hz = self.estimate_lms_freq(
+                    band, reset_rate_khz,
+                    fraction_full_scale=fraction_full_scale,
                     channel=channel)
             elif meas_flux_ramp_amp:
                 fraction_full_scale = self.estimate_flux_ramp_amp(band,
@@ -2483,7 +2484,7 @@ class SmurfTuneMixin(SmurfBase):
                 lms_freq_hz = reset_rate_khz * n_phi0 * 1.0E3
             else:
                 lms_freq_hz = self.config.get('tune_band').get('lms_freq')[str(band)]
-            self.lms_freq_hz[band] = lms_freq_hz
+            self._lms_freq_hz[band] = lms_freq_hz
             if write_log:
                 self.log('Using lms_freq_estimator : ' +
                          f'{lms_freq_hz:.0f} Hz')
@@ -2738,9 +2739,9 @@ class SmurfTuneMixin(SmurfBase):
             Whether to setup the flux ramp at the end.
         """
         if reset_rate_khz is None:
-            reset_rate_khz = self.reset_rate_khz
+            reset_rate_khz = self._reset_rate_khz
         if lms_gain is None:
-            lms_gain = self.lms_gain[band]
+            lms_gain = self._lms_gain[band]
 
         if relock:
             self.relock(band)
@@ -2779,7 +2780,7 @@ class SmurfTuneMixin(SmurfBase):
         """
         """
         if reset_rate_khz is None:
-            reset_rate_khz = self.reset_rate_khz
+            reset_rate_khz = self._reset_rate_khz
 
         ret = {}
 
@@ -2993,11 +2994,11 @@ class SmurfTuneMixin(SmurfBase):
         trialRTMClock = rtmClock
 
         fullScaleRate = fraction_full_scale * resetRate
-        desFastSlowStepSize = (fullScaleRate * 2**self.num_flux_ramp_counter_bits) / rtmClock
+        desFastSlowStepSize = (fullScaleRate * 2**self._num_flux_ramp_counter_bits) / rtmClock
         trialFastSlowStepSize = round(desFastSlowStepSize)
         FastSlowStepSize = trialFastSlowStepSize
 
-        trialFullScaleRate = trialFastSlowStepSize * trialRTMClock / (2**self.num_flux_ramp_counter_bits)
+        trialFullScaleRate = trialFastSlowStepSize * trialRTMClock / (2**self._num_flux_ramp_counter_bits)
 
         trialResetRate = (dspClockFrequencyMHz * 1e6) / (rampMaxCnt + 1)
         trialFractionFullScale = trialFullScaleRate / trialResetRate
@@ -3033,7 +3034,7 @@ class SmurfTuneMixin(SmurfBase):
             return
 
 
-        FastSlowRstValue = np.floor((2**self.num_flux_ramp_counter_bits) *
+        FastSlowRstValue = np.floor((2**self._num_flux_ramp_counter_bits) *
             (1 - fractionFullScale)/2)
 
 
@@ -3092,7 +3093,7 @@ class SmurfTuneMixin(SmurfBase):
             The fraction of the flux ramp amplitude.
         """
         return 1-2*(self.get_fast_slow_rst_value(new_epics_root=new_epics_root)/
-                    2**self.num_flux_ramp_counter_bits)
+                    2**self._num_flux_ramp_counter_bits)
 
     @set_action()
     def check_lock(self, band, f_min=.015, f_max=.2, df_max=.03,
@@ -3137,13 +3138,13 @@ class SmurfTuneMixin(SmurfBase):
         self.log(f'Checking lock on band {band}')
 
         if reset_rate_khz is None:
-            reset_rate_khz = self.reset_rate_khz
+            reset_rate_khz = self._reset_rate_khz
 
         if fraction_full_scale is None:
-            fraction_full_scale = self.fraction_full_scale
+            fraction_full_scale = self._fraction_full_scale
 
         if lms_freq_hz is None:
-            lms_freq_hz = self.lms_freq_hz[band]
+            lms_freq_hz = self._lms_freq_hz[band]
 
         channels = self.which_on(band)
         n_chan = len(channels)
