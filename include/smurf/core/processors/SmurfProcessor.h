@@ -131,7 +131,7 @@ namespace smurf
                 double                   gain;                  // Filter gain
                 std::vector<double>      a;                     // Filter's a coefficients
                 std::vector<double>      b;                     // Filter's b coefficients
-                std::size_t              currentBlockIndex;     // Index of current data point in the buffer
+                std::size_t              currentIndex;          // Index of current data point in the pass sample buffer
                 std::vector<double>      x;                     // pass inputs
                 std::vector<double>      y;                     // pass output
                 std::vector<filter_t>    outData;               // Result

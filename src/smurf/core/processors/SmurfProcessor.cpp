@@ -40,9 +40,9 @@ scp::SmurfProcessor::SmurfProcessor()
     gain(1),
     a( order + 1 ,1 ),
     b( order + 1, 1 ),
-    currentBlockIndex(order),
-    x( (order +1) * numCh ),
-    y( (order +1) * numCh ),
+    currentIndex(0),
+    x( ( order + 1 ) * numCh ),
+    y( ( order + 1 ) * numCh ),
     outData(numCh,0),
     disableDownsampler(false),
     factor(20),
@@ -376,8 +376,8 @@ const double scp::SmurfProcessor::getGain() const
 void scp::SmurfProcessor::resetFilter()
 {
     // Resize and re-initialize the data buffer
-    std::vector<double>( (order + 1) * numCh ).swap(x);
-    std::vector<double>( (order + 1) * numCh ).swap(y);
+    std::vector<double>( ( order + 1 ) * numCh ).swap(x);
+    std::vector<double>( ( order + 1 ) * numCh ).swap(y);
 
     // Use the mutex to update the outData buffer
     {
@@ -396,7 +396,7 @@ void scp::SmurfProcessor::resetFilter()
         b.resize(order +  1, 0);
 
     // Reset the index of the older point in the buffer
-    currentBlockIndex = 0;
+    currentIndex = 0;
 }
 
 // Reset the filter but holding the mutex. This is need when reseting the
@@ -572,48 +572,94 @@ void scp::SmurfProcessor::acceptFrame(ris::FramePtr frame)
             // Acquire the lock while the filter parameters are used.
             std::lock_guard<std::mutex> lockParam(mutFilter);
 
-            // Update the 'current' index to the oldest slot in the buffer
-            currentBlockIndex = (currentBlockIndex + 1) % (order + 1);
+            // The pass sample buffer x and y have the following structure:
+            //
+            //  |     .....    |     .....    |      ...     |     .....    |
+            //  ^              ^              ^              ^              ^
+            //  |--------------|--------------|              |--------------|
+            //     (order + 1)    (order + 1)                  (order + 1)
+            //    Pass samples   Pass samples                  Pass samples
+            //    of channel 0   of channel 1                  of channel (numCh-1)
+            //  ^                                                           ^
+            //  |-----------------------------------------------------------|
+            //                    ( ( order + 1 ) * numCh )
+            //
+            // Each block of (order + 1) values container the current values plus the pass
+            // (order) values of each channel, as a circular buffer.
+            // The 'currentIndex' variable contains the index of the current sample (time = 0).
+            // The value at index (currentIndex - 1) will be the sample at time = -1.
+            // The value at index (currentIndex + 1) will be the sample at time = -order.
 
-            // Get index to the current data block
-            std::size_t currentBlockPointer{currentBlockIndex * numCh};
+            // Move the 'currentIndex' index to the oldest slot in the buffer
+            if (currentIndex == order)
+                currentIndex = 0;
+            else
+                ++currentIndex;
 
             // Create iterators
-            auto xIt(x.begin());
-            auto yIt(y.begin());
-            auto aIt(a.begin());
-            auto bIt(b.begin());
-            auto dataIt(inputData.begin());
+            std::vector<double>::iterator         xCh    { x.begin() + currentIndex };  // Current X value, first channel
+            std::vector<double>::iterator         yCh    { y.begin() + currentIndex };  // Current Y value, first channel
+            std::vector<double>::const_iterator   aIt    { a.begin()                };  // A coefficients
+            std::vector<double>::const_iterator   bIt    { b.begin()                };  // B coefficients
+            std::vector<unwrap_t>::const_iterator dataIt { inputData.begin()        };  // Input data
 
-            // Iterate over the channel samples
-            for (std::size_t ch{0}; ch < numCh; ++ch)
+            // First, update the first points in the x and y buffers for all channels.
+
+            // On each cycle, move the iterators to the next channel, which is in the
+            // next block of size (order + 1)
+            for (std::size_t ch{0}; ch < numCh; ++ch, xCh += order + 1, yCh += order + 1)
             {
-                // Cast the input value to double into the output buffer
-                *(xIt + currentBlockPointer) = static_cast<double>( *dataIt );
+                // New input value
+                *xCh = static_cast<double>(*dataIt++);
 
-                // Start computing the output value
-                *(yIt + currentBlockPointer) = *bIt * *(xIt + currentBlockPointer);
+                // Stat computing the output value
+                *yCh= *bIt * *xCh;
+            }
 
-                // Iterate over the pass samples
-                for (std::size_t t{1}; t < order + 1; ++t)
+            // Now calculate the output value based on previous values from time -1 to -order
+            // for all channels.
+
+            // Index to the previous sample. It will be updated inside the loop
+            std::size_t previousIndex { currentIndex };
+
+            // Create iterator
+            std::vector<double>::const_iterator xChPrev; // Previous X value, first channel
+            std::vector<double>::const_iterator yChPrev; // Previous Y value, first channel
+
+            // We first iterate over all the previous samples.
+            for (std::size_t t{1}; t < order + 1; ++t)
+            {
+                // Get the index to the previous sample
+                if (previousIndex == 0)
+                    previousIndex = order;
+                else
+                    --previousIndex;
+
+                // Update the iterators each time we move to a previous sample
+                yCh     = y.begin() + currentIndex;  // Go back to first channel
+                xChPrev = x.begin() + previousIndex; // Go back to first channel
+                yChPrev = y.begin() + previousIndex; // Go back to first channel
+                ++aIt;                               // Go the next coefficient
+                ++bIt;                               // Go the next coefficient
+
+                // Update the output value for all channels. On each cycle, move the iterators
+                // to the next channel, which is in the next block of size (order + 1)
+                for (std::size_t ch{0}; ch < numCh; ++ch, yCh += order + 1, xChPrev += order + 1, yChPrev += order + 1)
                 {
-                    // Compute the correct index in the 'circular' buffer
-                    std::size_t passBlockIndex{ ( ( order + currentBlockIndex - t + 1 ) % (order + 1) ) * numCh };
-
-                    *(yIt + currentBlockPointer) += *(bIt + t) * *(xIt + passBlockIndex)
-                        - *(aIt + t) * *(yIt + passBlockIndex);
+                    *yCh += *bIt * *xChPrev - *aIt * *yChPrev;
                 }
+            }
 
-                // Divide the resulting value by the first a coefficient
-                *(yIt + currentBlockPointer) /= *(aIt);
+            // Finally, divide the results for all channels by the coefficient a[0].
 
-                //Move to the next channel sample
-                ++xIt;
-                ++yIt;
-                ++dataIt;
+            // On each cycle, move the iterator to the next channel, which is in
+            // the next block of size (order + 1)
+            yCh = y.begin() + currentIndex;     // Go back to the first channel
+            for (std::size_t ch{0}; ch < numCh; ++ch, yCh += order + 1)
+            {
+                *yCh /= a[0];
             }
         }
-
     } // filter parameter lock scope
 
     // Downsample the data, if the downsampler is not disabled.
@@ -636,9 +682,6 @@ void scp::SmurfProcessor::acceptFrame(ris::FramePtr frame)
 
         // Copy the data
         {
-            // Iterator to the current output buffer
-            auto yIt(y.begin() + currentBlockIndex * numCh);
-
             // Hold the mutex while we copy the data
             std::lock_guard<std::mutex> lock(outDataMutex);
 
@@ -652,12 +695,19 @@ void scp::SmurfProcessor::acceptFrame(ris::FramePtr frame)
             }
             else
             {
+                // Create iterators
+                std::vector<double>::const_iterator yCh(y.begin() + currentIndex); // Filtered value, first channel
+                std::vector<filter_t>::iterator     outIt(outData.begin());        // Destination
+
                 // Multiply the values by the gain, and cast the result
-                // to 'filter_t' into he outData buffer
-                std::transform( y.begin() + currentBlockIndex * numCh,
-                    y.begin() + currentBlockIndex * numCh + numCh,
-                    outData.begin(),
-                    [this](const double& v) -> filter_t { return static_cast<filter_t>(v * gain); });
+                // to 'filter_t' into he outData buffer.
+                // The current filtered values for each channel will be located at steps of (order+1) in the 'y' buffer.
+                // On each cycle, move the iterator to the next channel, which is in
+                // the next block of size (order + 1)
+                for (std::size_t ch{0}; ch < numCh; ++ch, yCh += order + 1)
+                {
+                    *outIt++ = static_cast<filter_t>(*yCh * gain);
+                }
             }
         }
 
