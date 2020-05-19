@@ -1346,7 +1346,7 @@ class SmurfUtilMixin(SmurfBase):
         return bias
 
     @set_action()
-    def make_mask_lookup(self, mask_file, mask_channel_offset=0,
+    def make_mask_lookup(self, mask_file, mask_channel_offset=None,
             make_freq_mask=False):
         """ Makes an n_band x n_channel array where the elements correspond
         to the smurf_to_mce mask number. In other words, mask[band, channel]
@@ -1355,10 +1355,11 @@ class SmurfUtilMixin(SmurfBase):
         Args
         ----
         mask_file : str
-            The full path the a mask file
-        mask_channel_offset : int, optional, default 0
+            The full path the a mask file.
+        mask_channel_offset : int, optional, default None
             Offset to remove from channel numbers in GCP mask file after
-            loading.
+            loading.  If None, uses value specified in pysmurf
+            configuration file.
         make_freq_mask : bool, optional, default False
             Whether to write a text file with resonator frequencies.
 
@@ -1367,9 +1368,8 @@ class SmurfUtilMixin(SmurfBase):
         mask_lookup : int array
             An array with the GCP numbers.
         """
-        if hasattr(self, 'config'):
-            if self.config.get('smurf_to_mce').get('mask_channel_offset') is not None:
-                mask_channel_offset = int(self.config.get('smurf_to_mce').get('mask_channel_offset'))
+        if mask_channel_offset is None:
+            mask_channel_offset = self._mask_channel_offset
 
         # Look for .dat file and replace with mask file
         if ".dat" in mask_file:
@@ -3345,8 +3345,9 @@ class SmurfUtilMixin(SmurfBase):
         return ret
 
     @set_action()
-    def make_gcp_mask(self, band=None, smurf_chans=None, gcp_chans=None,
-                      read_gcp_mask=True, mask_channel_offset=0):
+    def make_gcp_mask(self, band=None, smurf_chans=None,
+                      gcp_chans=None, read_gcp_mask=True,
+                      mask_channel_offset=None):
         """
         Makes the gcp mask. Only the channels in this mask will be stored
         by GCP.
@@ -3368,11 +3369,13 @@ class SmurfUtilMixin(SmurfBase):
         read_gcp_mask : bool, optional, default True
             Whether to read in the new GCP mask file.  If not read in,
             it will take no effect.
-        mask_channel_offset : int, optional, default 0
-            Offset to add to channel numbers in GCP mask file.
+        mask_channel_offset : int, optional, default None
+            Offset to add to channel numbers in GCP mask file.  If
+            None, will use value specified in pysmurf configuration
+            file.
         """
-        if self.config.get('smurf_to_mce').get('mask_channel_offset') is not None:
-            mask_channel_offset=int(self.config.get('smurf_to_mce').get('mask_channel_offset'))
+        if mask_channel_offset is None:
+            mask_channel_offset = self._mask_channel_offset
 
         gcp_chans = np.array([], dtype=int)
         if smurf_chans is None and band is not None:
