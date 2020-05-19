@@ -57,7 +57,9 @@ private:
 
 // This timer will take a defined number of samples (in ns), and it will print
 // statistics when done (maximum, minimum, and average values). Also, if
-// and output file is specified, it will write the histogram data to it.
+// and output file is specified, it will write the histogram data to it. The
+// histogram data will be written only once, the first time the number of
+// samples is reached.
 // Time samples are taken using the start() and stop() methods. So, it can
 // be used like this:
 //    TimerWithStats t { "MyTimer", 1000000, "/tmp/MyTimer.dat" };
@@ -115,6 +117,7 @@ public:
             {
                 writeHistogram();
                 fclose(file);
+                file = NULL;
             }
 
             index = 0;
