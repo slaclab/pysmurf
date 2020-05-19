@@ -347,7 +347,7 @@ class PcieCard():
               f"{yes_or_no(self._pcie_rssi_present)}")
         print("  - PCIe for Data present in the system    : " +
               f"{yes_or_no(self._pcie_data_present)}")
-        print("  - PCIe based communication selected     : " +
+        print("  - PCIe based communication selected      : " +
               f"{yes_or_no(self._use_pcie)}")
 
         # Show IP address and lane when the PCIe is in use
