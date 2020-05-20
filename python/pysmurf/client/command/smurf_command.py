@@ -3691,7 +3691,11 @@ class SmurfCommandMixin(SmurfBase):
         value : float
             Regulator current in amperes.
         """
-        return self._caget(self.regulator + self._regulator_iout, **kwargs)
+        return float(
+            float(self._caget(
+                self.regulator + self._regulator_iout,
+                as_string=True,
+                **kwargs)))
 
     _regulator_temp1 = "TEMPERATURE[1]"
 
@@ -3702,7 +3706,11 @@ class SmurfCommandMixin(SmurfBase):
         value : float
             Regulator PT temperature in C.
         """
-        return self._caget(self.regulator + self._regulator_temp1, **kwargs)
+        return float(
+            float(self._caget(
+                self.regulator + self._regulator_temp1,
+                as_string=True,
+                **kwargs)))        
 
     _regulator_temp2 = "TEMPERATURE[2]"
 
@@ -3713,7 +3721,11 @@ class SmurfCommandMixin(SmurfBase):
         value : float
             A regulator CTRL temperature in C.
         """
-        return self._caget(self.regulator + self._regulator_temp2, **kwargs)
+        return float(
+            float(self._caget(
+                self.regulator + self._regulator_temp2,
+                as_string=True,
+                **kwargs)))
 
     # Cryo card comands
     def get_cryo_card_temp(self, enable_poll=False, disable_poll=False):

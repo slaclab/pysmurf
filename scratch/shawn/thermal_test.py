@@ -108,6 +108,10 @@ def write_atca_monitor_state(slot_number,filename):
     cmd="""S.write_atca_monitor_state(\"{}\")""".format(filename)
     tmux_cmd(slot_number,cmd)        
 
+def extend_argv_if_needed(slot_number):
+    cmd="""if len(sys.argv)==1: sys.argv=[sys.argv[0],None]"""
+    tmux_cmd(slot_number,cmd)
+    
 def measure_full_band_response(slot_number):
     cmd="""exec(open("/usr/local/src/pysmurf/scratch/shawn/full_band_response.py").read())"""
     tmux_cmd(slot_number,cmd)    
@@ -218,6 +222,11 @@ if log_temperatures:
     for slot in slots:
         start_hardware_logging(slot,hardware_logfile)
 
+# STUPID HACK - make sure sys.argv is big enough in all the pysmurf
+# sessions so that we can use it to pass args to open().read() calls.
+for slot in slots:
+    extend_argv_if_needed(slot)
+    
 if not skip_setup:
     print('-> Waiting {} min before setup.'.format(wait_before_setup_min))
     wait_before_setup_sec=wait_before_setup_min*60

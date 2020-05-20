@@ -4087,7 +4087,7 @@ class SmurfUtilMixin(SmurfBase):
         for key, value in d.items():
             columns.append(str(value()))
             names.append(key)
-            fmt+=f'{0[{counter}]:<20}'
+            fmt+=('{0['+f'{counter}'+']:<20}')
             counter+=1
         fmt+='\n'
 
