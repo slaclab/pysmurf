@@ -347,8 +347,8 @@ class SmurfConfigPropertiesMixin:
         ## RTM
         flux_ramp_cfg = config.get('flux_ramp')
         self.num_flux_ramp_counter_bits = flux_ramp_cfg['num_flux_ramp_counter_bits']
-        self.reset_rate_khz = flux_ramp_cfg.get('reset_rate_khz')
-        self.select_ramp = flux_ramp_cfg.get('select_ramp')        
+        self.select_ramp = flux_ramp_cfg.get('select_ramp')
+        self.reset_rate_khz = tune_band_cfg.get('reset_rate_khz')        
         self.fraction_full_scale = tune_band_cfg.get('fraction_full_scale')
 
         ## Cryocard

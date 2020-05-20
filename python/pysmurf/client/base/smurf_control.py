@@ -341,64 +341,64 @@ class SmurfControl(SmurfCommandMixin,
         self.set_defaults_pv(write_log=write_log)
 
         # The per band configs. May want to make available per-band values.
-        smurf_init_config = self.config.get('init')        
         for band in bands:
             band_str = f'band_{band}'
             
-            self.set_iq_swap_in(band, smurf_init_config[band_str]['iq_swap_in'],
-                write_log=write_log, **kwargs)
-            self.set_iq_swap_out(band, smurf_init_config[band_str]['iq_swap_out'],
-                write_log=write_log, **kwargs)
+            self.set_iq_swap_in(band, self._iq_swap_in[band],
+                                write_log=write_log, **kwargs)
+            self.set_iq_swap_out(band, self._iq_swap_out[band],
+                                 write_log=write_log, **kwargs)
 
-            self.set_ref_phase_delay(band,
-                smurf_init_config[band_str]['refPhaseDelay'],
+            self.set_ref_phase_delay(
+                band,
+                self._ref_phase_delay[band],
                 write_log=write_log, **kwargs)
-            self.set_ref_phase_delay_fine(band,
-                smurf_init_config[band_str]['refPhaseDelayFine'],
+            self.set_ref_phase_delay_fine(
+                band,
+                self._ref_phase_delay_fine[band],
                 write_log=write_log, **kwargs)
 
             # in DSPv3, lmsDelay should be 4*refPhaseDelay (says
             # Mitch).  If none provided in cfg, enforce that
             # constraint.  If provided in cfg, override with provided
             # value.
-            if smurf_init_config[band_str]['lmsDelay'] is None:
+            if self._lms_delay[band] is None:
                 self.set_lms_delay(
-                    band, int(4*smurf_init_config[band_str]['refPhaseDelay']),
+                    band, int(4*self._ref_phase_delay[band]),
                     write_log=write_log, **kwargs)
             else:
                 self.set_lms_delay(
-                    band, smurf_init_config[band_str]['lmsDelay'],
+                    band, self._lms_delay[band],
                     write_log=write_log, **kwargs)
 
             self.set_lms_gain(
-                band, smurf_init_config[band_str]['lmsGain'],
+                band, self._lms_gain[band],
                 write_log=write_log, **kwargs)
 
             self.set_trigger_reset_delay(
-                band, smurf_init_config[band_str]['trigRstDly'],
+                band, self._trigger_reset_delay[band],
                 write_log=write_log, **kwargs)
 
             self.set_feedback_enable(
-                band, smurf_init_config[band_str]['feedbackEnable'],
+                band, self._feedback_enable[band],
                 write_log=write_log, **kwargs)
             self.set_feedback_gain(
-                band, smurf_init_config[band_str]['feedbackGain'],
+                band, self._feedback_gain[band],
                 write_log=write_log, **kwargs)
             self.set_feedback_limit_khz(
-                band, smurf_init_config[band_str]['feedbackLimitkHz'],
+                band, self._feedback_limit_khz[band],
                 write_log=write_log, **kwargs)
             self.set_feedback_polarity(
-                band, smurf_init_config[band_str]['feedbackPolarity'],
+                band, self._feedback_polarity[band],
                 write_log=write_log, **kwargs)
 
-            for dmx in np.array(
-                    smurf_init_config[band_str]["data_out_mux"]):
+            for dmx in np.array(self._data_out_mux[band]):
                 self.set_data_out_mux(
                     int(self.band_to_bay(band)), int(dmx),
                     "UserData", write_log=write_log, **kwargs)
 
             self.set_dsp_enable(
-                band, smurf_init_config['dspEnable'],
+                band, self._dsp_enable,
                 write_log=write_log, **kwargs)
 
             # Tuning defaults
@@ -433,10 +433,10 @@ class SmurfControl(SmurfCommandMixin,
         # Set UC and DC attenuators
         for band in bands:
             self.set_att_uc(
-                band, smurf_init_config[band_str]['att_uc'],
+                band, self._att_uc[band],
                 write_log=write_log)
             self.set_att_dc(
-                band, smurf_init_config[band_str]['att_dc'],
+                band, self._att_dc[band],
                 write_log=write_log)
 
         # Things that have to be done for both AMC bays, regardless of whether or not an AMC
@@ -449,19 +449,22 @@ class SmurfControl(SmurfCommandMixin,
         ## only sets enable, but is initialized to True already by
         ## default, and crashing for unknown reasons in rogue 4.
         self.set_evr_channel_reg_enable(0, True, write_log=write_log)
-        self.set_evr_trigger_channel_reg_dest_sel(0, 0x20000, write_log=write_log)
+        self.set_evr_trigger_channel_reg_dest_sel(0,
+                                                  0x20000,
+                                                  write_log=write_log)
 
         self.set_enable_ramp_trigger(1, write_log=write_log)
 
-        flux_ramp_cfg = self.config.get('flux_ramp')
-        self.set_select_ramp(flux_ramp_cfg['select_ramp'], write_log=write_log)
+        self.set_select_ramp(self._select_ramp, write_log=write_log)
 
         self.set_cpld_reset(0, write_log=write_log)
         self.cpld_toggle(write_log=write_log)
 
         # Make sure flux ramp starts off
         self.flux_ramp_off(write_log=write_log)
-        self.flux_ramp_setup(4, .5, write_log=write_log)
+        self.flux_ramp_setup(self._reset_rate_khz,
+                             self._fraction_full_scale,
+                             write_log=write_log)
 
         # Turn on stream enable for all bands
         self.set_stream_enable(1, write_log=write_log)
