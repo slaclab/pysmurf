@@ -83,9 +83,20 @@ class SmurfConfigPropertiesMixin:
 
     def __init__(self, *args, **kwargs):
         """SmurfConfigPropertiesMixin constructor."""
-
+        # EPICS
+        self._epics_root = None
+        
+        # Directories
+        self._smurf_cmd_dir = None
+        self._tune_dir = None
+        self._status_dir = None
+        self._default_data_dir = None
+        
         # Constants
         self._pA_per_phi0 = None
+
+        # Timing
+        self._timing_reference = None
 
         # Amplifiers
         ## 4K HEMT
@@ -104,12 +115,15 @@ class SmurfConfigPropertiesMixin:
         self._fiftyk_Id_offset = None
 
         ## Tuning parameters
+        self._default_tune = None
         self._gradient_descent_gain = None
         self._gradient_descent_averages = None
         self._gradient_descent_converge_hz = None
         self._gradient_descent_step_hz = None
         self._gradient_descent_momentum = None
         self._gradient_descent_beta = None
+        self._feedback_start_frac = None
+        self._feedback_end_frac = None
         self._eta_scan_del_f = None
         self._eta_scan_amplitude = None
         self._eta_scan_averages = None
@@ -120,13 +134,17 @@ class SmurfConfigPropertiesMixin:
         self._smurf_to_mce_ip = None
         self._smurf_to_mce_port = None
         self._smurf_to_mce_mask_file = None
+        self._static_mask = None        
         self._mask_channel_offset = None
         self._fs = None
 
         # In fridge
         self._R_sh = None
 
-        # RF
+        # Carrier
+        self._ultrascale_temperature_limit_degC = None
+        
+        # AMC
         self._bands = None
         self._att_to_band = None
 
@@ -167,9 +185,22 @@ class SmurfConfigPropertiesMixin:
               instance.
 
         """
+        ## EPICS
+        self.epics_root = config.get('epics_root')        
+        
+        ## Directories
+        self.smurf_cmd_dir = config.get('smurf_cmd_dir')
+        self.tune_dir = config.get('tune_dir')
+        self.status_dir = config.get('status_dir')
+        self.default_data_dir = config.get('default_data_dir')
+        
         ## Useful constants
         constant_cfg = config.get('constant')
         self.pA_per_phi0 = constant_cfg.get('pA_per_phi0')
+
+        ## Timing
+        timing_cfg = config.get('timing')
+        self.timing_reference = timing_cfg['timing_reference']
 
         ## Cold amplifier biases
         amp_cfg = config.get('amplifier')
@@ -191,6 +222,7 @@ class SmurfConfigPropertiesMixin:
 
         ## Tune parameters
         tune_band_cfg = config.get('tune_band')
+        self.default_tune = tune_band_cfg['default_tune']
         self.gradient_descent_gain = {
             int(band):v for (band,v) in
             tune_band_cfg['gradient_descent_gain'].items()}
@@ -209,6 +241,12 @@ class SmurfConfigPropertiesMixin:
         self.gradient_descent_beta = {
             int(band):v for (band,v) in
             tune_band_cfg['gradient_descent_beta'].items()}
+        self.feedback_start_frac = {
+            int(band):v for (band,v) in
+            tune_band_cfg['feedback_start_frac'].items()}
+        self.feedback_end_frac = {
+            int(band):v for (band,v) in
+            tune_band_cfg['feedback_end_frac'].items()}        
         self.eta_scan_del_f = {
             int(band):v for (band,v) in
             tune_band_cfg['eta_scan_del_f'].items()}
@@ -232,13 +270,17 @@ class SmurfConfigPropertiesMixin:
         self.smurf_to_mce_ip = smurf_to_mce_cfg.get('receiver_ip')
         self.smurf_to_mce_port = smurf_to_mce_cfg.get('port_number')
         self.smurf_to_mce_mask_file = smurf_to_mce_cfg.get('mask_file')
+        self.static_mask = smurf_to_mce_cfg.get('static_mask')        
         self.mask_channel_offset = smurf_to_mce_cfg.get('mask_channel_offset')
         self.fs = config.get('fs')
 
         ## In fridge
         self.R_sh = config.get('R_sh')
 
-        ## RF
+        ## Carrier
+        self.ultrascale_temperature_limit_degC = config.get('ultrascale_temperature_limit_degC')
+        
+        ## AMC
         # Which bands are present in the pysmurf configuration file?
         smurf_init_config = config.get('init')
         bands = smurf_init_config['bands']
@@ -1697,3 +1739,323 @@ class SmurfConfigPropertiesMixin:
 
     ## End bands property definition
     ###########################################################################
+
+    ###########################################################################
+    ## Start static_mask property definition
+
+    # Getter
+    @property
+    def static_mask(self):
+        """Short description.
+
+        Gets or sets ?.
+        Units are ?.
+
+        Specified in the pysmurf configuration file as
+        `smurf_to_mce:static_mask`.
+
+        See Also
+        --------
+        ?
+
+        """
+        return self._static_mask
+
+    # Setter
+    @static_mask.setter
+    def static_mask(self, value):
+        self._static_mask = value
+
+    ## End static_mask property definition
+    ###########################################################################
+
+    ###########################################################################
+    ## Start default_tune property definition
+
+    # Getter
+    @property
+    def default_tune(self):
+        """Short description.
+
+        Gets or sets ?.
+        Units are ?.
+
+        Specified in the pysmurf configuration file as
+        `smurf_to_mce:default_tune`.
+
+        See Also
+        --------
+        ?
+
+        """
+        return self._default_tune
+
+    # Setter
+    @default_tune.setter
+    def default_tune(self, value):
+        self._default_tune = value
+
+    ## End default_tune property definition
+    ###########################################################################
+
+    ###########################################################################
+    ## Start epics_root property definition
+
+    # Getter
+    @property
+    def epics_root(self):
+        """Short description.
+
+        Gets or sets ?.
+        Units are ?.
+
+        Specified in the pysmurf configuration file as
+        `smurf_to_mce:epics_root`.
+
+        See Also
+        --------
+        ?
+
+        """
+        return self._epics_root
+
+    # Setter
+    @epics_root.setter
+    def epics_root(self, value):
+        self._epics_root = value
+
+    ## End epics_root property definition
+    ###########################################################################        
+
+    ###########################################################################
+    ## Start smurf_cmd_dir property definition
+
+    # Getter
+    @property
+    def smurf_cmd_dir(self):
+        """Short description.
+
+        Gets or sets ?.
+        Units are ?.
+
+        Specified in the pysmurf configuration file as
+        `smurf_to_mce:smurf_cmd_dir`.
+
+        See Also
+        --------
+        ?
+
+        """
+        return self._smurf_cmd_dir
+
+    # Setter
+    @smurf_cmd_dir.setter
+    def smurf_cmd_dir(self, value):
+        self._smurf_cmd_dir = value
+
+    ## End smurf_cmd_dir property definition
+    ###########################################################################
+
+    ###########################################################################
+    ## Start tune_dir property definition
+
+    # Getter
+    @property
+    def tune_dir(self):
+        """Short description.
+
+        Gets or sets ?.
+        Units are ?.
+
+        Specified in the pysmurf configuration file as
+        `smurf_to_mce:tune_dir`.
+
+        See Also
+        --------
+        ?
+
+        """
+        return self._tune_dir
+
+    # Setter
+    @tune_dir.setter
+    def tune_dir(self, value):
+        self._tune_dir = value
+
+    ## End tune_dir property definition
+    ###########################################################################
+
+    ###########################################################################
+    ## Start status_dir property definition
+
+    # Getter
+    @property
+    def status_dir(self):
+        """Short description.
+
+        Gets or sets ?.
+        Units are ?.
+
+        Specified in the pysmurf configuration file as
+        `smurf_to_mce:status_dir`.
+
+        See Also
+        --------
+        ?
+
+        """
+        return self._status_dir
+
+    # Setter
+    @status_dir.setter
+    def status_dir(self, value):
+        self._status_dir = value
+
+    ## End status_dir property definition
+    ###########################################################################
+
+    ###########################################################################
+    ## Start default_data_dir property definition
+
+    # Getter
+    @property
+    def default_data_dir(self):
+        """Short description.
+
+        Gets or sets ?.
+        Units are ?.
+
+        Specified in the pysmurf configuration file as
+        `smurf_to_mce:default_data_dir`.
+
+        See Also
+        --------
+        ?
+
+        """
+        return self._default_data_dir
+
+    # Setter
+    @default_data_dir.setter
+    def default_data_dir(self, value):
+        self._default_data_dir = value
+
+    ## End default_data_dir property definition
+    ###########################################################################
+
+    ###########################################################################
+    ## Start ultrascale_temperature_limit_degC property definition
+
+    # Getter
+    @property
+    def ultrascale_temperature_limit_degC(self):
+        """Short description.
+
+        Gets or sets ?.
+        Units are ?.
+
+        Specified in the pysmurf configuration file as
+        `smurf_to_mce:ultrascale_temperature_limit_degC`.
+
+        See Also
+        --------
+        ?
+
+        """
+        return self._ultrascale_temperature_limit_degC
+
+    # Setter
+    @ultrascale_temperature_limit_degC.setter
+    def ultrascale_temperature_limit_degC(self, value):
+        self._ultrascale_temperature_limit_degC = value
+
+    ## End ultrascale_temperature_limit_degC property definition
+    ###########################################################################
+
+    ###########################################################################
+    ## Start timing_reference property definition
+
+    # Getter
+    @property
+    def timing_reference(self):
+        """Short description.
+
+        Gets or sets ?.
+        Units are ?.
+
+        Specified in the pysmurf configuration file as
+        `smurf_to_mce:timing_reference`.
+
+        See Also
+        --------
+        ?
+
+        """
+        return self._timing_reference
+
+    # Setter
+    @timing_reference.setter
+    def timing_reference(self, value):
+        self._timing_reference = value
+
+    ## End timing_reference property definition
+    ###########################################################################
+
+    ###########################################################################
+    ## Start feedback_start_frac property definition
+
+    # Getter
+    @property
+    def feedback_start_frac(self):
+        """Short description.
+
+        Gets or sets ?.
+        Units are ?.
+
+        Specified in the pysmurf configuration file as
+        `smurf_to_mce:feedback_start_frac`.
+
+        See Also
+        --------
+        ?
+
+        """
+        return self._feedback_start_frac
+
+    # Setter
+    @feedback_start_frac.setter
+    def feedback_start_frac(self, value):
+        self._feedback_start_frac = value
+
+    ## End feedback_start_frac property definition
+    ###########################################################################
+
+    ###########################################################################
+    ## Start feedback_end_frac property definition
+
+    # Getter
+    @property
+    def feedback_end_frac(self):
+        """Short description.
+
+        Gets or sets ?.
+        Units are ?.
+
+        Specified in the pysmurf configuration file as
+        `smurf_to_mce:feedback_end_frac`.
+
+        See Also
+        --------
+        ?
+
+        """
+        return self._feedback_end_frac
+
+    # Setter
+    @feedback_end_frac.setter
+    def feedback_end_frac(self, value):
+        self._feedback_end_frac = value
+
+    ## End feedback_end_frac property definition
+    ###########################################################################    
+    

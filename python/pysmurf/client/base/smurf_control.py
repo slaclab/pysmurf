@@ -179,15 +179,15 @@ class SmurfControl(SmurfCommandMixin,
                   'This will break may things!')
         elif smurf_cmd_mode:
             # Get data dir
-            self.data_dir = self.config.get('smurf_cmd_dir')
+            self.data_dir = self._smurf_cmd_dir
             self.start_time = self.get_timestamp()
 
             # Define output and plot dirs
             self.base_dir = os.path.abspath(self.data_dir)
             self.output_dir = os.path.join(self.base_dir, 'outputs')
-            self.tune_dir = self.config.get('tune_dir')
+            self.tune_dir = self._tune_dir
             self.plot_dir = os.path.join(self.base_dir, 'plots')
-            self.status_dir = self.config.get('status_dir')
+            self.status_dir = self._status_dir
             self.make_dir(self.output_dir)
             self.make_dir(self.tune_dir)
             self.make_dir(self.plot_dir)
@@ -203,7 +203,7 @@ class SmurfControl(SmurfCommandMixin,
             if data_dir is not None:
                 self.data_dir = data_dir
             else:
-                self.data_dir = self.config.get('default_data_dir')
+                self.data_dir = self._default_data_dir
 
             self.date = time.strftime("%Y%m%d")
 
@@ -218,9 +218,9 @@ class SmurfControl(SmurfCommandMixin,
             # create output and plot directories
             self.output_dir = os.path.join(self.base_dir, self.date, name,
                 'outputs')
-            self.tune_dir = self.config.get('tune_dir')
+            self.tune_dir = self._tune_dir
             self.plot_dir = os.path.join(self.base_dir, self.date, name, 'plots')
-            self.status_dir = self.config.get('status_dir')
+            self.status_dir = self._status_dir
             self.make_dir(self.output_dir)
             self.make_dir(self.tune_dir)
             self.make_dir(self.plot_dir)
@@ -314,18 +314,18 @@ class SmurfControl(SmurfCommandMixin,
             self.pause_hardware_logging()
 
         # Thermal OT protection
-        ultrascale_temperature_limit_degC = self.config.get('ultrascale_temperature_limit_degC')
+        ultrascale_temperature_limit_degC = (
+            self._ultrascale_temperature_limit_degC)
         if ultrascale_temperature_limit_degC is not None:
             self.log('Setting ultrascale OT protection limit '+
                      f'to {ultrascale_temperature_limit_degC}C', self.LOG_USER)
             # OT threshold in degrees C
             self.set_ultrascale_ot_threshold(
-                self.config.get('ultrascale_temperature_limit_degC'),
+                self._ultrascale_temperature_limit_degC,
                 write_log=write_log)
 
         # Which bands are we configuring?
-        smurf_init_config = self.config.get('init')
-        bands = smurf_init_config['bands']
+        bands = self._bands
 
         # Right now, resetting both DACs in both MicrowaveMuxCore blocks,
         # but may want to determine at runtime which are actually needed and

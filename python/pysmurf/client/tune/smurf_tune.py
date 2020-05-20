@@ -75,12 +75,12 @@ class SmurfTuneMixin(SmurfBase):
         track_and_check : bool, optional, default True
             Whether or not after tuning to run track and check.
         """
-        bands = self.config.get('init').get('bands')
+        bands = self._bands
         tune_cfg = self.config.get('tune_band')
 
         # Load fraction_full_scale from file if not given
         if fraction_full_scale is None:
-            fraction_full_scale = tune_cfg.get('fraction_full_scale')
+            fraction_full_scale = self._fraction_full_scale
 
         if load_tune:
             if last_tune:
@@ -1249,8 +1249,7 @@ class SmurfTuneMixin(SmurfBase):
             # assume all bands have the same number of channels, and
             # pull the number of channels from the first band in the
             # list of bands specified in experiment.cfg.
-            bands = self.config.get('init').get('bands')
-            band = bands[0]
+            band = self._bands[0]
 
         n_subbands = self.get_number_sub_bands(band)
         digitizer_frequency_mhz = self.get_digitizer_frequency_mhz(band)
@@ -2483,7 +2482,7 @@ class SmurfTuneMixin(SmurfBase):
                     n_phi0,reset_rate_khz=reset_rate_khz, channel=channel)
                 lms_freq_hz = reset_rate_khz * n_phi0 * 1.0E3
             else:
-                lms_freq_hz = self.config.get('tune_band').get('lms_freq')[str(band)]
+                lms_freq_hz = self._lms_freq_hz[band]
             self._lms_freq_hz[band] = lms_freq_hz
             if write_log:
                 self.log('Using lms_freq_estimator : ' +

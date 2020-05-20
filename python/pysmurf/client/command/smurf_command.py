@@ -325,8 +325,7 @@ class SmurfCommandMixin(SmurfBase):
             # assume all bands have the same number of channels, and
             # pull the number of channels from the first band in the
             # list of bands specified in experiment.cfg.
-            bands = self.config.get('init').get('bands')
-            band = bands[0]
+            band = self._bands[0]
 
         return self._caget(self._band_root(band) + self._number_sub_bands,
             **kwargs)
@@ -358,8 +357,7 @@ class SmurfCommandMixin(SmurfBase):
             # assume all bands have the same number of channels, and
             # pull the number of channels from the first band in the
             # list of bands specified in experiment.cfg.
-            bands = self.config.get('init').get('bands')
-            band = bands[0]
+            band = self._bands[0]
 
         return self._caget(self._band_root(band) + self._number_channels,
             **kwargs)
@@ -1814,8 +1812,7 @@ class SmurfCommandMixin(SmurfBase):
             # assume all bands have the same number of channels, and
             # pull the number of channels from the first band in the
             # list of bands specified in experiment.cfg.
-            bands = self.config.get('init').get('bands')
-            band = bands[0]
+            band = self._bands[0]
 
         if self.offline:
             return 2.4
@@ -1849,8 +1846,7 @@ class SmurfCommandMixin(SmurfBase):
             # assume all bands have the same number of channels, and
             # pull the number of channels from the first band in the
             # list of bands specified in experiment.cfg.
-            bands = self.config.get('init').get('bands')
-            band = bands[0]
+            band = self._bands[0]
 
         return self._caget(self._band_root(band) +
             self._digitizer_frequency_mhz, **kwargs)

@@ -839,7 +839,7 @@ class SmurfUtilMixin(SmurfBase):
         data_filename : str
             The fullpath to where the data is stored.
         """
-        bands = self.config.get('init').get('bands')
+        bands = self._bands
 
         if downsample_factor is not None:
             self.set_downsample_factor(downsample_factor)
@@ -2279,7 +2279,7 @@ class SmurfUtilMixin(SmurfBase):
             # assume all bands have the same channel order, and pull
             # the channel frequency ordering from the first band in
             # the list of bands specified in experiment.cfg.
-            bands = self.config.get('init').get('bands')
+            bands = self._bands
             band = bands[0]
 
         tone_freq_offset = self.get_tone_frequency_offset_mhz(band)
@@ -3403,13 +3403,16 @@ class SmurfUtilMixin(SmurfBase):
             self.log('WARNING: too many gcp channels!')
             return
 
-        static_mask = self.config.get('smurf_to_mce').get('static_mask')
+        static_mask = self._static_mask
         if static_mask:
-            self.log('NOT DYNAMICALLY GENERATING THE MASK. STATIC. SET static_mask=0 '+
-                     'IN CFG TO DYNAMICALLY GENERATE MASKS!!!')
+            self.log(
+                'NOT DYNAMICALLY GENERATING THE MASK. STATIC. SET ' +
+                'static_mask=0 IN CFG TO DYNAMICALLY GENERATE' +
+                'MASKS!!!')
         else:
-            self.log(f'Generating gcp mask file. {len(gcp_chans)} ' +
-                     'channels added')
+            self.log(
+                f'Generating gcp mask file. {len(gcp_chans)} ' +
+                'channels added')
 
             np.savetxt(self._smurf_to_mce_mask_file, gcp_chans, fmt='%i')
 
@@ -3653,7 +3656,7 @@ class SmurfUtilMixin(SmurfBase):
         Turns off everything. Does band off, flux ramp off, then TES bias off.
         """
         self.log('Turning off tones')
-        bands = self.config.get('init').get('bands')
+        bands = self._bands
         for b in bands:
             self.band_off(b)
 
