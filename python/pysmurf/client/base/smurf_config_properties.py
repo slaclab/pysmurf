@@ -143,15 +143,26 @@ class SmurfConfigPropertiesMixin:
 
         # Carrier
         self._ultrascale_temperature_limit_degC = None
+        self._data_out_mux = None
+        self._dsp_enable = None
         
         # AMC
+        self._amplitude_scale = None
         self._bands = None
         self._att_to_band = None
+        self._iq_swap_in = None
+        self._iq_swap_out = None
+        self._ref_phase_delay = None
+        self._ref_phase_delay_fine = None
+        self._att_uc = None
+        self._att_dc = None
+        self._trigger_reset_delay = None        
 
         # RTM
         self._num_flux_ramp_counter_bits = None
         self._fraction_full_scale = None
         self._reset_rate_khz = None
+        self._select_ramp = None
 
         # Cryocard
         self._bias_line_resistance = None
@@ -160,8 +171,13 @@ class SmurfConfigPropertiesMixin:
         self._pic_to_bias_group = None
 
         # Tracking algo
+        self._lms_delay = None        
         self._lms_gain = None
         self._lms_freq_hz = None
+        self._feedback_enable = None
+        self._feedback_gain = None
+        self._feedback_limit_khz = None
+        self._feedback_polarity = None
 
         # Mappings
         self._chip_to_freq = None
@@ -277,14 +293,45 @@ class SmurfConfigPropertiesMixin:
         ## In fridge
         self.R_sh = config.get('R_sh')
 
-        ## Carrier
-        self.ultrascale_temperature_limit_degC = config.get('ultrascale_temperature_limit_degC')
-        
-        ## AMC
-        # Which bands are present in the pysmurf configuration file?
+        ## Which bands are have their configurations specified in the
+        ## pysmurf configuration file?
         smurf_init_config = config.get('init')
         bands = smurf_init_config['bands']
+        
+        ## Carrier
+        self.dsp_enable = smurf_init_config['dspEnable']
+        self.ultrascale_temperature_limit_degC = config.get('ultrascale_temperature_limit_degC')        
+        self.data_out_mux = {
+            band:smurf_init_config[f'band_{band}']['data_out_mux']
+            for band in bands}        
+        
+        ## AMC
+        # Which bands are present in the pysmurf configuration file?        
         self.bands = bands
+        self.amplitude_scale = {
+            band:smurf_init_config[f'band_{band}']['amplitude_scale']
+            for band in bands}
+        self.iq_swap_in = {
+            band:smurf_init_config[f'band_{band}']['iq_swap_in']
+            for band in bands}
+        self.iq_swap_out = {
+            band:smurf_init_config[f'band_{band}']['iq_swap_out']
+            for band in bands}
+        self.ref_phase_delay = {
+            band:smurf_init_config[f'band_{band}']['refPhaseDelay']
+            for band in bands}
+        self.ref_phase_delay_fine = {
+            band:smurf_init_config[f'band_{band}']['refPhaseDelayFine']
+            for band in bands}
+        self.att_uc = {
+            band:smurf_init_config[f'band_{band}']['att_uc']
+            for band in bands}
+        self.att_dc = {
+            band:smurf_init_config[f'band_{band}']['att_dc']
+            for band in bands}
+        self.trigger_reset_delay= {
+            band:smurf_init_config[f'band_{band}']['trigRstDly']
+            for band in bands}                
 
         # Mapping from attenuator numbers to bands
         att_cfg = config.get('attenuator')
@@ -300,8 +347,9 @@ class SmurfConfigPropertiesMixin:
         ## RTM
         flux_ramp_cfg = config.get('flux_ramp')
         self.num_flux_ramp_counter_bits = flux_ramp_cfg['num_flux_ramp_counter_bits']
+        self.reset_rate_khz = flux_ramp_cfg.get('reset_rate_khz')
+        self.select_ramp = flux_ramp_cfg.get('select_ramp')        
         self.fraction_full_scale = tune_band_cfg.get('fraction_full_scale')
-        self.reset_rate_khz = tune_band_cfg.get('reset_rate_khz')
 
         ## Cryocard
         self.bias_line_resistance = config.get('bias_line_resistance')
@@ -324,6 +372,21 @@ class SmurfConfigPropertiesMixin:
         self.lms_gain = {
             band:smurf_init_config[f'band_{band}']['lmsGain']
             for band in bands}
+        self.lms_delay = {
+            band:smurf_init_config[f'band_{band}']['lmsDelay']
+            for band in bands}
+        self.feedback_enable = {
+            band:smurf_init_config[f'band_{band}']['feedbackEnable']
+            for band in bands}
+        self.feedback_gain = {
+            band:smurf_init_config[f'band_{band}']['feedbackGain']
+            for band in bands}
+        self.feedback_limit_khz = {
+            band:smurf_init_config[f'band_{band}']['feedbackLimitkHz']
+            for band in bands}
+        self.feedback_polarity = {
+            band:smurf_init_config[f'band_{band}']['feedbackPolarity']
+            for band in bands}                
 
         ## Mappings
         # Mapping from chip number to frequency in GHz
@@ -2057,5 +2120,468 @@ class SmurfConfigPropertiesMixin:
         self._feedback_end_frac = value
 
     ## End feedback_end_frac property definition
-    ###########################################################################    
-    
+    ###########################################################################
+
+    ###########################################################################
+    ## Start amplitude_scale property definition
+
+    # Getter
+    @property
+    def amplitude_scale(self):
+        """Short description.
+
+        Gets or sets ?.
+        Units are ?.
+
+        Specified in the pysmurf configuration file as
+        `amplitude_scale`.
+
+        See Also
+        --------
+        ?
+
+        """
+        return self._amplitude_scale
+
+    # Setter
+    @amplitude_scale.setter
+    def amplitude_scale(self, value):
+        self._amplitude_scale = value
+
+    ## End amplitude_scale property definition
+    ###########################################################################
+
+    ###########################################################################
+    ## Start select_ramp property definition
+
+    # Getter
+    @property
+    def select_ramp(self):
+        """Short description.
+
+        Gets or sets ?.
+        Units are ?.
+
+        Specified in the pysmurf configuration file as
+        `select_ramp`.
+
+        See Also
+        --------
+        ?
+
+        """
+        return self._select_ramp
+
+    # Setter
+    @select_ramp.setter
+    def select_ramp(self, value):
+        self._select_ramp = value
+
+    ## End select_ramp property definition
+    ###########################################################################
+
+    ###########################################################################
+    ## Start iq_swap_in property definition
+
+    # Getter
+    @property
+    def iq_swap_in(self):
+        """Short description.
+
+        Gets or sets ?.
+        Units are ?.
+
+        Specified in the pysmurf configuration file as
+        `iq_swap_in`.
+
+        See Also
+        --------
+        ?
+
+        """
+        return self._iq_swap_in
+
+    # Setter
+    @iq_swap_in.setter
+    def iq_swap_in(self, value):
+        self._iq_swap_in = value
+
+    ## End iq_swap_in property definition
+    ###########################################################################
+
+    ###########################################################################
+    ## Start iq_swap_out property definition
+
+    # Getter
+    @property
+    def iq_swap_out(self):
+        """Short description.
+
+        Gets or sets ?.
+        Units are ?.
+
+        Specified in the pysmurf configuration file as
+        `iq_swap_out`.
+
+        See Also
+        --------
+        ?
+
+        """
+        return self._iq_swap_out
+
+    # Setter
+    @iq_swap_out.setter
+    def iq_swap_out(self, value):
+        self._iq_swap_out = value
+
+    ## End iq_swap_out property definition
+    ###########################################################################
+
+    ###########################################################################
+    ## Start ref_phase_delay property definition
+
+    # Getter
+    @property
+    def ref_phase_delay(self):
+        """Short description.
+
+        Gets or sets ?.
+        Units are ?.
+
+        Specified in the pysmurf configuration file as
+        `ref_phase_delay`.
+
+        See Also
+        --------
+        ?
+
+        """
+        return self._ref_phase_delay
+
+    # Setter
+    @ref_phase_delay.setter
+    def ref_phase_delay(self, value):
+        self._ref_phase_delay = value
+
+    ## End ref_phase_delay property definition
+    ###########################################################################
+
+    ###########################################################################
+    ## Start ref_phase_delay_fine property definition
+
+    # Getter
+    @property
+    def ref_phase_delay_fine(self):
+        """Short description.
+
+        Gets or sets ?.
+        Units are ?.
+
+        Specified in the pysmurf configuration file as
+        `ref_phase_delay_fine`.
+
+        See Also
+        --------
+        ?
+
+        """
+        return self._ref_phase_delay_fine
+
+    # Setter
+    @ref_phase_delay_fine.setter
+    def ref_phase_delay_fine(self, value):
+        self._ref_phase_delay_fine = value
+
+    ## End ref_phase_delay_fine property definition
+    ###########################################################################
+
+    ###########################################################################
+    ## Start lms_delay property definition
+
+    # Getter
+    @property
+    def lms_delay(self):
+        """Short description.
+
+        Gets or sets ?.
+        Units are ?.
+
+        Specified in the pysmurf configuration file as
+        `lms_delay`.
+
+        See Also
+        --------
+        ?
+
+        """
+        return self._lms_delay
+
+    # Setter
+    @lms_delay.setter
+    def lms_delay(self, value):
+        self._lms_delay = value
+
+    ## End lms_delay property definition
+    ###########################################################################
+
+    ###########################################################################
+    ## Start trigger_reset_delay property definition
+
+    # Getter
+    @property
+    def trigger_reset_delay(self):
+        """Short description.
+
+        Gets or sets ?.
+        Units are ?.
+
+        Specified in the pysmurf configuration file as
+        `trigger_reset_delay`.
+
+        See Also
+        --------
+        ?
+
+        """
+        return self._trigger_reset_delay
+
+    # Setter
+    @trigger_reset_delay.setter
+    def trigger_reset_delay(self, value):
+        self._trigger_reset_delay = value
+
+    ## End trigger_reset_delay property definition
+    ###########################################################################
+
+    ###########################################################################
+    ## Start feedback_enable property definition
+
+    # Getter
+    @property
+    def feedback_enable(self):
+        """Short description.
+
+        Gets or sets ?.
+        Units are ?.
+
+        Specified in the pysmurf configuration file as
+        `feedback_enable`.
+
+        See Also
+        --------
+        ?
+
+        """
+        return self._feedback_enable
+
+    # Setter
+    @feedback_enable.setter
+    def feedback_enable(self, value):
+        self._feedback_enable = value
+
+    ## End feedback_enable property definition
+    ###########################################################################
+
+    ###########################################################################
+    ## Start feedback_gain property definition
+
+    # Getter
+    @property
+    def feedback_gain(self):
+        """Short description.
+
+        Gets or sets ?.
+        Units are ?.
+
+        Specified in the pysmurf configuration file as
+        `feedback_gain`.
+
+        See Also
+        --------
+        ?
+
+        """
+        return self._feedback_gain
+
+    # Setter
+    @feedback_gain.setter
+    def feedback_gain(self, value):
+        self._feedback_gain = value
+
+    ## End feedback_gain property definition
+    ###########################################################################
+
+    ###########################################################################
+    ## Start feedback_limit_khz property definition
+
+    # Getter
+    @property
+    def feedback_limit_khz(self):
+        """Short description.
+
+        Gets or sets ?.
+        Units are ?.
+
+        Specified in the pysmurf configuration file as
+        `feedback_limit_khz`.
+
+        See Also
+        --------
+        ?
+
+        """
+        return self._feedback_limit_khz
+
+    # Setter
+    @feedback_limit_khz.setter
+    def feedback_limit_khz(self, value):
+        self._feedback_limit_khz = value
+
+    ## End feedback_limit_khz property definition
+    ###########################################################################
+
+    ###########################################################################
+    ## Start feedback_polarity property definition
+
+    # Getter
+    @property
+    def feedback_polarity(self):
+        """Short description.
+
+        Gets or sets ?.
+        Units are ?.
+
+        Specified in the pysmurf configuration file as
+        `feedback_polarity`.
+
+        See Also
+        --------
+        ?
+
+        """
+        return self._feedback_polarity
+
+    # Setter
+    @feedback_polarity.setter
+    def feedback_polarity(self, value):
+        self._feedback_polarity = value
+
+    ## End feedback_polarity property definition
+    ###########################################################################
+
+    ###########################################################################
+    ## Start data_out_mux property definition
+
+    # Getter
+    @property
+    def data_out_mux(self):
+        """Short description.
+
+        Gets or sets ?.
+        Units are ?.
+
+        Specified in the pysmurf configuration file as
+        `data_out_mux`.
+
+        See Also
+        --------
+        ?
+
+        """
+        return self._data_out_mux
+
+    # Setter
+    @data_out_mux.setter
+    def data_out_mux(self, value):
+        self._data_out_mux = value
+
+    ## End data_out_mux property definition
+    ###########################################################################
+
+    ###########################################################################
+    ## Start dsp_enable property definition
+
+    # Getter
+    @property
+    def dsp_enable(self):
+        """Short description.
+
+        Gets or sets ?.
+        Units are ?.
+
+        Specified in the pysmurf configuration file as
+        `dsp_enable`.
+
+        See Also
+        --------
+        ?
+
+        """
+        return self._dsp_enable
+
+    # Setter
+    @dsp_enable.setter
+    def dsp_enable(self, value):
+        self._dsp_enable = value
+
+    ## End dsp_enable property definition
+    ###########################################################################
+
+    ###########################################################################
+    ## Start att_uc property definition
+
+    # Getter
+    @property
+    def att_uc(self):
+        """Short description.
+
+        Gets or sets ?.
+        Units are ?.
+
+        Specified in the pysmurf configuration file as
+        `att_uc`.
+
+        See Also
+        --------
+        ?
+
+        """
+        return self._att_uc
+
+    # Setter
+    @att_uc.setter
+    def att_uc(self, value):
+        self._att_uc = value
+
+    ## End att_uc property definition
+    ###########################################################################
+
+    ###########################################################################
+    ## Start att_dc property definition
+
+    # Getter
+    @property
+    def att_dc(self):
+        """Short description.
+
+        Gets or sets ?.
+        Units are ?.
+
+        Specified in the pysmurf configuration file as
+        `att_dc`.
+
+        See Also
+        --------
+        ?
+
+        """
+        return self._att_dc
+
+    # Setter
+    @att_dc.setter
+    def att_dc(self, value):
+        self._att_dc = value
+
+    ## End att_dc property definition
+    ###########################################################################

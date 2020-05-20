@@ -341,9 +341,10 @@ class SmurfControl(SmurfCommandMixin,
         self.set_defaults_pv(write_log=write_log)
 
         # The per band configs. May want to make available per-band values.
+        smurf_init_config = self.config.get('init')        
         for band in bands:
             band_str = f'band_{band}'
-
+            
             self.set_iq_swap_in(band, smurf_init_config[band_str]['iq_swap_in'],
                 write_log=write_log, **kwargs)
             self.set_iq_swap_out(band, smurf_init_config[band_str]['iq_swap_out'],
@@ -477,14 +478,19 @@ class SmurfControl(SmurfCommandMixin,
 
         # if no timing section present, assumes your defaults.yml
         # has set you up...good luck.
-        if self.config.get('timing') is not None and self.config.get('timing').get('timing_reference') is not None:
-            timing_reference = self.config.get('timing').get('timing_reference')
-
+        if self._timing_reference is not None:
+            timing_reference = self._timing_reference
+            
             # check if supported
             timing_options = ['ext_ref', 'backplane']
-            assert (timing_reference in timing_options), f'timing_reference in cfg file (={timing_reference}) not in timing_options={timing_options}'
+            assert (timing_reference in timing_options), (
+                'timing_reference in cfg file ' +
+                f'(={timing_reference}) not in ' +
+                f'timing_options={timing_options}')
 
-            self.log(f'Configuring the system to take timing from {timing_reference}')
+            self.log(
+                'Configuring the system to take timing ' +
+                f'from {timing_reference}')
 
             if timing_reference == 'ext_ref':
                 for bay in self.bays:

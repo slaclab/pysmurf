@@ -76,7 +76,6 @@ class SmurfTuneMixin(SmurfBase):
             Whether or not after tuning to run track and check.
         """
         bands = self._bands
-        tune_cfg = self.config.get('tune_band')
 
         # Load fraction_full_scale from file if not given
         if fraction_full_scale is None:
@@ -87,7 +86,7 @@ class SmurfTuneMixin(SmurfBase):
                 tune_file = self.last_tune()
                 self.log(f'Last tune is : {tune_file}')
             elif tune_file is None:
-                tune_file = tune_cfg.get('default_tune')
+                tune_file = self._default_tune
                 self.log(f'Loading default tune file: {tune_file}')
             self.load_tune(tune_file)
 
@@ -313,7 +312,7 @@ class SmurfTuneMixin(SmurfBase):
         if from_old_tune:
             if old_tune is None:
                 self.log('Using default tuning file')
-                old_tune = self.config.get('tune_band').get('default_tune')
+                old_tune = self._default_tune
             self.load_tune(old_tune,band=band)
 
             resonances = np.copy(self.freq_resp[band]['resonances']).item()
@@ -2421,9 +2420,9 @@ class SmurfTuneMixin(SmurfBase):
         ##
         ## Load unprovided optional args from cfg
         if feedback_start_frac is None:
-            feedback_start_frac = self.config.get('tune_band').get('feedback_start_frac')[str(band)]
+            feedback_start_frac = self._feedback_start_frac[band]
         if feedback_end_frac is None:
-            feedback_end_frac = self.config.get('tune_band').get('feedback_end_frac')[str(band)]
+            feedback_end_frac = self._feedback_end_frac[band]
         ## End loading unprovided optional args from cfg
         ##
 
@@ -3807,8 +3806,7 @@ class SmurfTuneMixin(SmurfBase):
             The estimated lms frequency in Hz.
         """
         if fraction_full_scale is None:
-            fraction_full_scale = \
-                self.config.get('tune_band').get('fraction_full_scale')
+            fraction_full_scale = self._fraction_full_scale
 
         old_feedback = self.get_feedback_enable(band)
 
@@ -4148,7 +4146,7 @@ class SmurfTuneMixin(SmurfBase):
         self.add_output('band_outputs', {})
 
         # there is probably a better way to do this
-        for band in self.config.get('init')['bands']:
+        for band in self._bands:
             band_outputs = {} # Python copying is weird so this is easier
             band_outputs[band] = {}
             band_outputs[band]['amplitudes'] = list(self.get_amplitude_scale_array(band).astype(float))
@@ -4192,7 +4190,7 @@ class SmurfTuneMixin(SmurfBase):
             bands)
         """
 
-        bands = self.config.get('init').get('bands')
+        bands = self._bands
         band_centers = []
         for band_no in bands: # we can get up to 8 bands I guess
             center = self.get_band_center_mhz(band_no)
