@@ -4,6 +4,8 @@ import time
 import numpy as np
 import sys
 import os
+import matplotlib.pylab as plt
+plt.ion()
 
 n_scan_per_band=5
 wait_btw_bands_sec=5
@@ -51,12 +53,15 @@ ax[1].legend(loc='lower left',fontsize=8)
 ax[1].set_ylabel("phase [rad]")
 ax[1].set_xlabel('Frequency [MHz]')
     
-plt.tight_layout()
 save_name = '{}_full_band_resp_all.png'.format(timestamp)
+plt.title(save_name)
+
+plt.tight_layout()
+
 print(f'Saving plot to {os.path.join(S.plot_dir, save_name)}')
 plt.savefig(os.path.join(S.plot_dir, save_name), 
             bbox_inches='tight')
-#plt.show()
+plt.show()
 
 # log plot file
 logf=open('scratch/shawn/scripts/loop_full_band_resps.txt','a+')
