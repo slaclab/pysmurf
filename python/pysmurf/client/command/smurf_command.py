@@ -812,9 +812,9 @@ class SmurfCommandMixin(SmurfBase):
         See Also
         --------
         :func:`run_serial_eta_scan` : Runs rogue serial eta scan, which uses
-		this parameter.
+                this parameter.
         :func:`get_eta_scan_del_f` : Gets the current value of this
-		parameter in rogue.
+                parameter in rogue.
         """
         self._caput(
             self._cryo_root(band) + self._eta_scan_del_f_reg, val,
@@ -845,13 +845,13 @@ class SmurfCommandMixin(SmurfBase):
         See Also
         --------
         :func:`run_serial_eta_scan` : Runs rogue serial eta scan, which uses
-		this parameter.
+                this parameter.
         :func:`set_eta_scan_del_f` : Sets the value of this parameter in
-		rogue.
-        """        
+                rogue.
+        """
         return self._caget(
             self._cryo_root(band) + self._eta_scan_del_f_reg,
-            **kwargs)        
+            **kwargs)
 
     _eta_scan_freqs = 'etaScanFreqs'
 

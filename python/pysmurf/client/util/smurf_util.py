@@ -3973,7 +3973,7 @@ class SmurfUtilMixin(SmurfBase):
         self.__hardware_logging_pause_event.set()
 
     def resume_hardware_logging(self):
-        """Resumes hardware logging thread."""        
+        """Resumes hardware logging thread."""
         self.__hardware_logging_pause_event.clear()
 
     __hardware_log_file=None
@@ -3990,7 +3990,7 @@ class SmurfUtilMixin(SmurfBase):
         See Also
         --------
         start_hardware_logging : Starts hardware logging thread.
-        """        
+        """
         return self.__hardware_log_file
 
     _hardware_logging_thread=None
@@ -4011,7 +4011,7 @@ class SmurfUtilMixin(SmurfBase):
         pause_hardware_logging : Pauses hardware logging thread.
         resume_hardware_logging : Resumes hardware logging thread.
         stop_hardware_logging : Starts hardware logging thread.
-        """                
+        """
         # Just in case somewhere the enable got set to false,
         # explicitly enable here
         if filename is None:
