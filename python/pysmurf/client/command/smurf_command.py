@@ -794,7 +794,7 @@ class SmurfCommandMixin(SmurfBase):
         """Sets offset frequency for serial eta scan estimation.
 
         The rogue serial eta scan routine (run using
-        `run_serial_eta_scan`) estimates the eta parameter for each
+        :func:`run_serial_eta_scan`) estimates the eta parameter for each
         tone with nonzero amplitude in the provided `band` by sampling
         the frequency error at the tone frequency +/- this offset
         frequency.  Units are Hz.
@@ -811,10 +811,10 @@ class SmurfCommandMixin(SmurfBase):
 
         See Also
         --------
-        `run_serial_eta_scan` : Runs rogue serial eta scan, which uses
-                                this parameter.
-        `get_eta_scan_del_f` : Gets the current value of this
-                               parameter in rogue.
+        :func:`run_serial_eta_scan` : Runs rogue serial eta scan, which uses
+		this parameter.
+        :func:`get_eta_scan_del_f` : Gets the current value of this
+		parameter in rogue.
         """
         self._caput(
             self._cryo_root(band) + self._eta_scan_del_f_reg, val,
@@ -824,7 +824,7 @@ class SmurfCommandMixin(SmurfBase):
         """Gets offset frequency for serial eta scan estimation.
 
         The rogue serial eta scan routine (run using
-        `run_serial_eta_scan`) estimates the eta parameter for each
+        :func:`run_serial_eta_scan`) estimates the eta parameter for each
         tone with nonzero amplitude in the provided `band` by sampling
         the frequency error at the tone frequency +/- this offset
         frequency.  Units are Hz.
@@ -844,10 +844,10 @@ class SmurfCommandMixin(SmurfBase):
 
         See Also
         --------
-        `run_serial_eta_scan` : Runs rogue serial eta scan, which uses
-                                this parameter.
-        `set_eta_scan_del_f` : Sets the value of this parameter in
-                               rogue.
+        :func:`run_serial_eta_scan` : Runs rogue serial eta scan, which uses
+		this parameter.
+        :func:`set_eta_scan_del_f` : Sets the value of this parameter in
+		rogue.
         """        
         return self._caget(
             self._cryo_root(band) + self._eta_scan_del_f_reg,
