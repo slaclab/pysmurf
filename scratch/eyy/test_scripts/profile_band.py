@@ -161,6 +161,7 @@ def make_html(data_path, loopback=False):
         replace_str(index_path, "[[IV_PATH]]",
                     instr)
 
+
     return html_path
 
 def run(band, epics_root, config_file, shelf_manager, setup, no_band_off=False,
@@ -298,7 +299,6 @@ def run(band, epics_root, config_file, shelf_manager, setup, no_band_off=False,
             make_plot=True, show_plot=False, save_plot=True, update_channel_assignment=True),
             'identify_bias_groups')
 
-
         # Save tuning
         status = execute(status, lambda: S.save_tune(), 'save_tune')
 
@@ -310,6 +310,18 @@ def run(band, epics_root, config_file, shelf_manager, setup, no_band_off=False,
             overbias_voltage=19.9, bias_high=10, bias_step=.01, wait_time=.1,
             high_current_mode=False, overbias_wait=.5, cool_wait=60,
             make_plot=True), 'slow_iv_all')
+    else:
+        # Randomly turn on channels and stream them
+        x = np.random.randn(512) > 0
+        xa = (xa*10).astype(int)
+        status = execute(status, lambda: S.set_amplitude_scale_array(band, xa),
+            'set_amplitude_scale_array')
+        status = execute(status, lambda: S.set_feedback_enable_array(band, x),
+            'set_feedback_enable_array')
+        status = execute(status, lambda: S.flux_ramp_setup(4, .5),
+            'flux_ramp_setup')
+        status = execute(status, lambda: S.take_stream_data(60),
+            'take_stream_data')
 
 
     # Make webpage
