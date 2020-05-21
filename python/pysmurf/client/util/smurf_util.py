@@ -3969,11 +3969,25 @@ class SmurfUtilMixin(SmurfBase):
     __hardware_logging_pause_event=None
 
     def pause_hardware_logging(self):
-        """Pauses hardware logging thread."""
+        """Pauses hardware logging thread.
+
+        See Also
+        --------
+        resume_hardware_logging : Resumes hardware logging thread.
+        start_hardware_logging : Starts hardware logging thread.
+        stop_hardware_logging : Starts hardware logging thread.
+        """
         self.__hardware_logging_pause_event.set()
 
     def resume_hardware_logging(self):
-        """Resumes hardware logging thread."""
+        """Resumes hardware logging thread.
+
+        See Also
+        --------
+        pause_hardware_logging : Pauses hardware logging thread.
+        start_hardware_logging : Starts hardware logging thread.
+        stop_hardware_logging : Starts hardware logging thread.
+        """
         self.__hardware_logging_pause_event.clear()
 
     __hardware_log_file=None
@@ -4006,11 +4020,11 @@ class SmurfUtilMixin(SmurfBase):
            (including path).  If None, file name is automatically
            generated as *CTIME_hwlog.dat* with CTIME the current unix
            epoch timestamp returned by
-           :func:~pysmurf.client.base.smurf_control.SmurfControl.get_timestamp`,
+           :func:`~pysmurf.client.base.smurf_control.SmurfControl.get_timestamp`,
            and saved in the directory specified by the
-           :class:~pysmurf.client.base.smurf_control.SmurfControl
+           :class:`~pysmurf.client.base.smurf_control.SmurfControl
            class attribute
-           :attr:~pysmurf.client.base.smurf_control.SmurfControl.output_dir`
+           :attr:`~pysmurf.client.base.smurf_control.SmurfControl.output_dir`
         wait_btw_sec : float, optional, default 5.0 Time to wait, in
            seconds, between each poll of the hardware registers being
            logged.
