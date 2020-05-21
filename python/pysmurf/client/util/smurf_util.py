@@ -4024,7 +4024,7 @@ class SmurfUtilMixin(SmurfBase):
            and saved in the directory specified by the
            :class:`~pysmurf.client.base.smurf_control.SmurfControl`
            class attribute
-           :attr:`~pysmurf.client.base.smurf_control.SmurfControl.output_dir`
+           :attr:`~pysmurf.client.base.smurf_control.SmurfControl.output_dir`.
         wait_btw_sec : float, optional, default 5.0 Time to wait, in
            seconds, between each poll of the hardware registers being
            logged.
