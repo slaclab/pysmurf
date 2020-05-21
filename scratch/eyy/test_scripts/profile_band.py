@@ -45,11 +45,12 @@ def make_html(data_path, loopback=False):
 
     index_path = os.path.join(html_path, "index.html")
 
-    n_res_found = len(status['which_on_before_check']['output'])
-    n_res_track = len(status['which_on_after_check']['output'])
-    ivdict = np.load(status['slow_iv_all']['output'].split('_raw_data')[0]+'.npy',
-        allow_pickle=True).item()
-    n_tes = len(ivdict[band].keys())
+    if not loopback:
+        n_res_found = len(status['which_on_before_check']['output'])
+        n_res_track = len(status['which_on_after_check']['output'])
+        ivdict = np.load(status['slow_iv_all']['output'].split('_raw_data')[0]+'.npy',
+            allow_pickle=True).item()
+        n_tes = len(ivdict[band].keys())
 
     # Fill why
     replace_str(index_path, "[[WHY]]",
@@ -62,9 +63,10 @@ def make_html(data_path, loopback=False):
     # Summary
     summary_str = '<table style=\"width:30%\" align=\"center\" border=\"1\">'
     summary_str += f"<tr><td>Band</td><td>{band}</td>"
-    summary_str += f"<tr><td>Resonators found</td><td>{n_res_found}</td>"
-    summary_str += f"<tr><td>Resonators tracking</td><td>{n_res_track}</td>"
-    summary_str += f"<tr><td>IV curves</td><td>{n_tes}</td>"
+    if not loopback:
+        summary_str += f"<tr><td>Resonators found</td><td>{n_res_found}</td>"
+        summary_str += f"<tr><td>Resonators tracking</td><td>{n_res_track}</td>"
+        summary_str += f"<tr><td>IV curves</td><td>{n_tes}</td>"
     summary_str += '</table>'
     replace_str(index_path, "[[SUMMARY]]",
                 summary_str)
