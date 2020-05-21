@@ -3710,7 +3710,7 @@ class SmurfCommandMixin(SmurfBase):
             float(self._caget(
                 self.regulator + self._regulator_temp1,
                 as_string=True,
-                **kwargs)))        
+                **kwargs)))
 
     _regulator_temp2 = "TEMPERATURE[2]"
 
