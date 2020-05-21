@@ -313,7 +313,7 @@ def run(band, epics_root, config_file, shelf_manager, setup, no_band_off=False,
     else:
         # Randomly turn on channels and stream them
         x = np.random.randn(512) > 0
-        xa = (xa*10).astype(int)
+        xa = (x*10).astype(int)
         status = execute(status, lambda: S.set_amplitude_scale_array(band, xa),
             'set_amplitude_scale_array')
         status = execute(status, lambda: S.set_feedback_enable_array(band, x),
