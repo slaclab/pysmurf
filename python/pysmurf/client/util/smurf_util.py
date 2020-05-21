@@ -3975,7 +3975,7 @@ class SmurfUtilMixin(SmurfBase):
         --------
         resume_hardware_logging : Resumes hardware logging thread.
         start_hardware_logging : Starts hardware logging thread.
-        stop_hardware_logging : Starts hardware logging thread.
+        stop_hardware_logging : Stops hardware logging thread.
         """
         self.__hardware_logging_pause_event.set()
 
@@ -3986,7 +3986,7 @@ class SmurfUtilMixin(SmurfBase):
         --------
         pause_hardware_logging : Pauses hardware logging thread.
         start_hardware_logging : Starts hardware logging thread.
-        stop_hardware_logging : Starts hardware logging thread.
+        stop_hardware_logging : Stops hardware logging thread.
         """
         self.__hardware_logging_pause_event.clear()
 
@@ -4022,9 +4022,9 @@ class SmurfUtilMixin(SmurfBase):
            epoch timestamp returned by
            :func:`~pysmurf.client.base.smurf_control.SmurfControl.get_timestamp`,
            and saved in the directory specified by the
-           :class:`~pysmurf.client.base.smurf_control.SmurfControl
+           :class:`~pysmurf.client.base.smurf_control.SmurfControl`
            class attribute
-           :attr:`~pysmurf.client.base.smurf_control.SmurfControl.output_dir`
+           :py:attr:`~pysmurf.client.base.smurf_control.SmurfControl.output_dir`
         wait_btw_sec : float, optional, default 5.0 Time to wait, in
            seconds, between each poll of the hardware registers being
            logged.
@@ -4035,7 +4035,7 @@ class SmurfUtilMixin(SmurfBase):
 	        logging data written to file.
         pause_hardware_logging : Pauses hardware logging thread.
         resume_hardware_logging : Resumes hardware logging thread.
-        stop_hardware_logging : Starts hardware logging thread.
+        stop_hardware_logging : Stops hardware logging thread.
         """
         # Just in case somewhere the enable got set to false,
         # explicitly enable here
@@ -4057,7 +4057,12 @@ class SmurfUtilMixin(SmurfBase):
         self._hardware_logging_thread.start()
 
     def stop_hardware_logging(self):
-        """Stops and cleans up hardware logging thread."""
+        """Stops and cleans up hardware logging thread.
+
+        See Also
+        --------
+        start_hardware_logging : Starts hardware logging thread.
+        """
         self.__hardware_logging_stop_event.set()
         self._hardware_logging_thread.join()
         self._hardware_logging_thread=None
@@ -4083,7 +4088,7 @@ class SmurfUtilMixin(SmurfBase):
         pause_hardware_logging : Pauses hardware logging thread.
         resume_hardware_logging : Resumes hardware logging thread.
         start_hardware_logging : Starts hardware logging thread.
-        stop_hardware_logging : Starts hardware logging thread.
+        stop_hardware_logging : Stops hardware logging thread.
         """
         filename=self.get_hardware_log_file()
         import fcntl
