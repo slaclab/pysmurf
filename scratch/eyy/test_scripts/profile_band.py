@@ -179,6 +179,10 @@ def run(band, epics_root, config_file, shelf_manager, setup, no_band_off=False,
     print("All outputs going to: ")
     print(S.output_dir)
 
+    if loopback:
+        print("Only doing loopback tests")
+
+
     def execute(status_dict, func, label, save_dict=True):
         """ Convenienec function used to run and time any arbitrary pysmurf
         functions. Must pass func as a lambda.

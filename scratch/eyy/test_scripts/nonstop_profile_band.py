@@ -16,7 +16,8 @@ while True:
     # Loop over bands
     for band in bands:
         html_path = profile_band.run(band, epics_root, config_file,
-            shelf_manager, True, loopback=loopback)
+            shelf_manager, True, loopback=loopback, no_find_freq=True,
+            no_setup_notches=True)
         f = open(os.path.join(output_dir, f'profile_band{band}.txt'), 'ab')
         np.savetxt(f, [html_path], fmt='%s')
         f.close()
