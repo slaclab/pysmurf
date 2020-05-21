@@ -85,25 +85,27 @@ pysmurf_init() {
 	    exit 1	    
 	fi
     else
-	# start ipython session
-	tmux send-keys -t ${tmux_session_name}:${slot_number} "ipython3" C-m
+	tmp_pysmurf_init_script=/tmp/psmurf_init_`date +%s`.py
 
 	# load pysmurf.client
-	tmux send-keys -t ${tmux_session_name}:${slot_number} "import pysmurf.client" C-m
+	tmux send-keys -t ${tmux_session_name}:${slot_number} 'echo "import pysmurf.client" >> '${tmp_pysmurf_init_script} C-m
 
 	# load 3rd party libraries
-	tmux send-keys -t ${tmux_session_name}:${slot_number} "import matplotlib.pylab as plt" C-m
-	tmux send-keys -t ${tmux_session_name}:${slot_number} "import numpy as np" C-m
-	tmux send-keys -t ${tmux_session_name}:${slot_number} "import sys" C-m
-	tmux send-keys -t ${tmux_session_name}:${slot_number} "import os" C-m	
+	tmux send-keys -t ${tmux_session_name}:${slot_number} 'echo "import matplotlib.pylab as plt" >> '${tmp_pysmurf_init_script} C-m
+	tmux send-keys -t ${tmux_session_name}:${slot_number} 'echo "import numpy as np" >> '${tmp_pysmurf_init_script} C-m
+	tmux send-keys -t ${tmux_session_name}:${slot_number} 'echo "import sys" >> '${tmp_pysmurf_init_script} C-m
+	tmux send-keys -t ${tmux_session_name}:${slot_number} 'echo "import os" >> '${tmp_pysmurf_init_script} C-m	
 
 	# define some local variables that some shawnhammer functions will use later
-	tmux send-keys -t ${tmux_session_name}:${slot_number} 'epics_prefix="'smurf_server_s${slot_number}'"' C-m
+	tmux send-keys -t ${tmux_session_name}:${slot_number} 'echo "epics_prefix=\"smurf_server_s'${slot_number}'\"" >> '${tmp_pysmurf_init_script} C-m
 	# abs path in case user specified the relative path
-	tmux send-keys -t ${tmux_session_name}:${slot_number} 'config_file=os.path.abspath("'${pysmurf_cfg}'")' C-m
+	tmux send-keys -t ${tmux_session_name}:${slot_number} 'echo "config_file=os.path.abspath(\"'${pysmurf_cfg}'\")" >> '${tmp_pysmurf_init_script} C-m
 
 	# instantiate pysmurf
-	tmux send-keys -t ${tmux_session_name}:${slot_number} 'S = pysmurf.client.SmurfControl(epics_root=epics_prefix,cfg_file=config_file,setup=False,make_logfile=False,shelf_manager="'${shelfmanager}'")' C-m
+	tmux send-keys -t ${tmux_session_name}:${slot_number} 'echo "S = pysmurf.client.SmurfControl(epics_root=epics_prefix,cfg_file=config_file,setup=False,make_logfile=False,shelf_manager=\"'${shelfmanager}'\")" >> '${tmp_pysmurf_init_script} C-m
+
+	# start in new ipython session
+	tmux send-keys -t ${tmux_session_name}:${slot_number} "ipython3 -i ${tmp_pysmurf_init_script}" C-m	
     fi    
 }
 
@@ -117,6 +119,9 @@ start_slot_pysmurf() {
     tmux send-keys -t ${tmux_session_name}:${slot_number} './run.sh' C-m
     sleep 1
 
+    if [ "$enable_tmux_logging" = true ] ; then
+	tmux run-shell -t ${tmux_session_name}:${slot_number} /home/cryo/tmux-logging/scripts/toggle_logging.sh
+    fi    
     pysmurf_init ${slot_number} ${pysmurf_cfg}
 }
 
@@ -156,7 +161,9 @@ start_slot_tmux_serial () {
     tmux send-keys -t ${tmux_session_name}:${slot_number} './run.sh' C-m
     sleep 1
 
-    #tmux run-shell -t ${tmux_session_name}:${slot_number} /home/cryo/tmux-logging/scripts/toggle_logging.sh
+    if [ "$enable_tmux_logging" = true ] ; then
+	tmux run-shell -t ${tmux_session_name}:${slot_number} /home/cryo/tmux-logging/scripts/toggle_logging.sh
+    fi
     #tmux send-keys -t ${tmux_session_name}:${slot_number} 'ipython3 -i '${pysmurf_init_script}' '${slot_number} C-m
     pysmurf_init ${slot_number} ${pysmurf_cfg}    
 
