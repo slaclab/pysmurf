@@ -4004,10 +4004,12 @@ class SmurfUtilMixin(SmurfBase):
         filename : str or None, optional, default None
            Name of file on disk to write hardware logging to
            (including path).  If None, file name is automatically
-           generated as CTIME_hwlog.dat with CTIME the current unix
+           generated as *CTIME_hwlog.dat* with CTIME the current unix
            epoch timestamp returned by
            :func:~pysmurf.client.base.smurf_control.SmurfControl.get_timestamp`,
-           and saved in the directory specified by
+           and saved in the directory specified by the
+           :class:~pysmurf.client.base.smurf_control.SmurfControl
+           class attribute
            :attr:~pysmurf.client.base.smurf_control.SmurfControl.output_dir`
         wait_btw_sec : float, optional, default 5.0 Time to wait, in
            seconds, between each poll of the hardware registers being
@@ -4015,11 +4017,11 @@ class SmurfUtilMixin(SmurfBase):
 
         See Also
         --------
+        get_hardware_log_entry : Generates each row of hardware
+	        logging data written to file.
         pause_hardware_logging : Pauses hardware logging thread.
         resume_hardware_logging : Resumes hardware logging thread.
         stop_hardware_logging : Starts hardware logging thread.
-        get_hardware_log_entry : Generates each row of hardware
-	        logging data written to file.
         """
         # Just in case somewhere the enable got set to false,
         # explicitly enable here
@@ -4041,12 +4043,34 @@ class SmurfUtilMixin(SmurfBase):
         self._hardware_logging_thread.start()
 
     def stop_hardware_logging(self):
+        """Stops and cleans up hardware logging thread."""
         self.__hardware_logging_stop_event.set()
         self._hardware_logging_thread.join()
         self._hardware_logging_thread=None
         self.__hardware_log_file=None
 
     def _hardware_logger(self,pause_event,stop_event,wait_btw_sec=5):
+        """Hardware logging thread function.
+        
+        Args
+        ----
+        pause_event : :py:class:`threading.Event`
+           :py:class:`threading.Event` object for pausing the hardware
+           logging thread.
+        stop_event : :py:class:`threading.Event`
+           :py:class:`threading.Event` object for stopping the
+           hardware logging thread.
+        wait_btw_sec : float, optional, default 5.0 Time to wait, in
+           seconds, between each poll of the hardware registers being
+           logged.
+
+        See Also
+        --------
+        pause_hardware_logging : Pauses hardware logging thread.
+        resume_hardware_logging : Resumes hardware logging thread.
+        start_hardware_logging : Starts hardware logging thread.
+        stop_hardware_logging : Starts hardware logging thread.
+        """
         filename=self.get_hardware_log_file()
         import fcntl
         #counter=0
