@@ -4024,15 +4024,14 @@ class SmurfUtilMixin(SmurfBase):
            and saved in the directory specified by the
            :class:`~pysmurf.client.base.smurf_control.SmurfControl`
            class attribute
-           :py:attr:`~pysmurf.client.base.smurf_control.SmurfControl.output_dir`
+           :attr:`~pysmurf.client.base.smurf_control.SmurfControl.output_dir`
         wait_btw_sec : float, optional, default 5.0 Time to wait, in
            seconds, between each poll of the hardware registers being
            logged.
 
         See Also
         --------
-        get_hardware_log_entry : Generates each row of hardware
-	        logging data written to file.
+        get_hardware_log_entry : Generates each row of hardware logging data written to file.
         pause_hardware_logging : Pauses hardware logging thread.
         resume_hardware_logging : Resumes hardware logging thread.
         stop_hardware_logging : Stops hardware logging thread.
@@ -4070,7 +4069,7 @@ class SmurfUtilMixin(SmurfBase):
 
     def _hardware_logger(self,pause_event,stop_event,wait_btw_sec=5):
         """Hardware logging thread function.
-        
+
         Args
         ----
         pause_event : :py:class:`threading.Event`
