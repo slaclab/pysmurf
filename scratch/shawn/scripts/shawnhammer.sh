@@ -123,6 +123,13 @@ echo "-> Starting a new ${tmux_session_name} tmux session"
 tmux new-session -d -s ${tmux_session_name}
 #tmux new -s ${tmux_session_name} -d
 
+# if enable-tmux-logging, check that the tmux-logging plugin is
+# installed in /home/cryo/
+if [[ "$enable_tmux_logging" = true ]]; then
+    mkdir -vp /data/smurf_data/tmux_logs
+    tmux set -g @logging-path "/data/smurf_data/tmux_logs"
+fi
+
 # stop pyrogue servers on all carriers
 for ((i=0; i<${#slots[@]}; ++i)); do
     slot=${slots[i]}

@@ -39,6 +39,7 @@ start_slot_tmux_and_pyrogue() {
 
     tmux new-window -t ${tmux_session_name}:${slot_number}
     tmux rename-window -t ${tmux_session_name}:${slot_number} smurf_slot${slot_number}
+
     # what is this??
     #tmux send-keys -l -t ${tmux_session_name}:${slot_number} C-b S-p
     tmux send-keys -t ${tmux_session_name}:${slot_number} 'cd '${pyrogue} C-m
@@ -134,6 +135,7 @@ start_slot_tmux_serial () {
     
     tmux new-window -t ${tmux_session_name}:${slot_number}
     tmux rename-window -t ${tmux_session_name}:${slot_number} smurf_slot${slot_number}
+    
     tmux send-keys -t ${tmux_session_name}:${slot_number} 'cd '$2 C-m
     tmux send-keys -t ${tmux_session_name}:${slot_number} './run.sh -N '${slot_number}'; sleep 5; docker logs smurf_server_s'${slot_number}' -f' C-m
 
@@ -234,18 +236,31 @@ config_pysmurf_serial () {
 	sleep 2
     fi
 
-    # write config
+    # actually, write state
     if [ "$write_config" = true ] ; then
 	sleep 2
-	echo "-> Writing rogue configuration to /data/smurf_data/${ctime}_slot${slot_number}.yml"
-	tmux send-keys -t ${tmux_session_name}:${slot_number} 'S.set_read_all(write_log=True); S.write_config("/data/smurf_data/'${ctime}'_slot'${slot_number}'.yml")' C-m
+	echo "-> Writing rogue configuration to /data/smurf_data/${ctime}_slot${slot_number}_config.yml"
+	tmux send-keys -t ${tmux_session_name}:${slot_number} 'S.set_read_all(write_log=True); S.write_config("/data/smurf_data/'${ctime}'_slot'${slot_number}'_config.yml")' C-m
 	# wait until file exists
-	echo "-> Waiting for /data/smurf_data/${ctime}_slot${slot_number}.yml to be written to disk ..."
-	until [ -s /data/smurf_data/${ctime}_slot${slot_number}.yml ]
+	echo "-> Waiting for /data/smurf_data/${ctime}_slot${slot_number}_config.yml to be written to disk ..."
+	until [ -s /data/smurf_data/${ctime}_slot${slot_number}_config.yml ]
 	do
 	    sleep 5
 	done
     fi
+
+    # actually, write state
+    if [ "$save_state" = true ] ; then
+	sleep 2
+	echo "-> Writing rogue state to /data/smurf_data/${ctime}_slot${slot_number}_state.yml"
+	tmux send-keys -t ${tmux_session_name}:${slot_number} 'S.set_read_all(write_log=True); S.save_state("/data/smurf_data/'${ctime}'_slot'${slot_number}'_state.yml")' C-m
+	# wait until file exists
+	echo "-> Waiting for /data/smurf_data/${ctime}_slot${slot_number}_state.yml to be written to disk ..."
+	until [ -s /data/smurf_data/${ctime}_slot${slot_number}_state.yml ]
+	do
+	    sleep 5
+	done
+    fi    
 
     if [ "$run_full_band_response" = true ] ; then    
 	sleep 2

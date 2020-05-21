@@ -3996,27 +3996,38 @@ class SmurfUtilMixin(SmurfBase):
     _hardware_logging_thread=None
     __hardware_logging_stop_event=None
 
-    def start_hardware_logging(self,filename=None,wait_btw_sec=5):
+    def start_hardware_logging(self,filename=None,wait_btw_sec=5.0):
         """Starts hardware logging in external thread.
 
         Args
         ----
         filename : str or None, optional, default None
-           ???
-        wait_btw_sec : int, optional, default 5
-           ???
+           Name of file on disk to write hardware logging to
+           (including path).  If None, file name is automatically
+           generated as CTIME_hwlog.dat with CTIME the current unix
+           epoch timestamp returned by
+           :func:~pysmurf.client.base.smurf_control.SmurfControl.get_timestamp`,
+           and saved in the directory specified by
+           :attr:~pysmurf.client.base.smurf_control.SmurfControl.output_dir`
+        wait_btw_sec : float, optional, default 5.0 Time to wait, in
+           seconds, between each poll of the hardware registers being
+           logged.
 
         See Also
         --------
         pause_hardware_logging : Pauses hardware logging thread.
         resume_hardware_logging : Resumes hardware logging thread.
         stop_hardware_logging : Starts hardware logging thread.
+        get_hardware_log_entry : Generates each row of hardware
+	        logging data written to file.
         """
         # Just in case somewhere the enable got set to false,
         # explicitly enable here
         if filename is None:
-            filename=str(self.get_timestamp())+'_hwlog.dat'
-        self.__hardware_log_file = os.path.join(self.output_dir, filename)
+            filename=os.path.join(
+                self.output_dir,
+                str(self.get_timestamp())+'_hwlog.dat')
+        self.__hardware_log_file = os.path.join(filename)
         self.log('Starting hardware logging to file : ' +
                  f'{self.__hardware_log_file}',
                  self.LOG_USER)

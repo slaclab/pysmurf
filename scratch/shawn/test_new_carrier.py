@@ -5,6 +5,8 @@ import sys
 import time
 import glob
 
+slot = S.slot_number
+
 wait_before_setup_min=1
 print('-> Waiting {} min before setup.'.format(wait_before_setup_min))
 wait_before_setup_sec=wait_before_setup_min*60
@@ -66,5 +68,5 @@ for bay in [0, 1]:
     print(f'    Bay {bay} JESD Tx Valid Count {tx_valid_cnt[bay]}')
 input('-> Make sure JESDs are all valid and counts are 0 (press enter)...')
 print('Test complete.  Copy the logfile and loopback test image to the hardware database:')
-print(max(glob.iglob('/home/cryo/tmux*log'), key=os.path.getctime))
+print(max(glob.iglob('/data/smurf_data/tmux_logs/tmux*log'), key=os.path.getctime))
 print(max(glob.iglob('/data/smurf_data/*/*/plots/*full_band_resp_all.png'), key=os.path.getctime))
