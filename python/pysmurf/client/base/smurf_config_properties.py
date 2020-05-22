@@ -85,13 +85,13 @@ class SmurfConfigPropertiesMixin:
         """SmurfConfigPropertiesMixin constructor."""
         # EPICS
         self._epics_root = None
-        
+
         # Directories
         self._smurf_cmd_dir = None
         self._tune_dir = None
         self._status_dir = None
         self._default_data_dir = None
-        
+
         # Constants
         self._pA_per_phi0 = None
 
@@ -134,7 +134,7 @@ class SmurfConfigPropertiesMixin:
         self._smurf_to_mce_ip = None
         self._smurf_to_mce_port = None
         self._smurf_to_mce_mask_file = None
-        self._static_mask = None        
+        self._static_mask = None
         self._mask_channel_offset = None
         self._fs = None
 
@@ -145,7 +145,7 @@ class SmurfConfigPropertiesMixin:
         self._ultrascale_temperature_limit_degC = None
         self._data_out_mux = None
         self._dsp_enable = None
-        
+
         # AMC
         self._amplitude_scale = None
         self._bands = None
@@ -156,7 +156,7 @@ class SmurfConfigPropertiesMixin:
         self._ref_phase_delay_fine = None
         self._att_uc = None
         self._att_dc = None
-        self._trigger_reset_delay = None        
+        self._trigger_reset_delay = None
 
         # RTM
         self._num_flux_ramp_counter_bits = None
@@ -171,7 +171,7 @@ class SmurfConfigPropertiesMixin:
         self._pic_to_bias_group = None
 
         # Tracking algo
-        self._lms_delay = None        
+        self._lms_delay = None
         self._lms_gain = None
         self._lms_freq_hz = None
         self._feedback_enable = None
@@ -202,14 +202,14 @@ class SmurfConfigPropertiesMixin:
 
         """
         ## EPICS
-        self.epics_root = config.get('epics_root')        
-        
+        self.epics_root = config.get('epics_root')
+
         ## Directories
         self.smurf_cmd_dir = config.get('smurf_cmd_dir')
         self.tune_dir = config.get('tune_dir')
         self.status_dir = config.get('status_dir')
         self.default_data_dir = config.get('default_data_dir')
-        
+
         ## Useful constants
         constant_cfg = config.get('constant')
         self.pA_per_phi0 = constant_cfg.get('pA_per_phi0')
@@ -262,7 +262,7 @@ class SmurfConfigPropertiesMixin:
             tune_band_cfg['feedback_start_frac'].items()}
         self.feedback_end_frac = {
             int(band):v for (band,v) in
-            tune_band_cfg['feedback_end_frac'].items()}        
+            tune_band_cfg['feedback_end_frac'].items()}
         self.eta_scan_del_f = {
             int(band):v for (band,v) in
             tune_band_cfg['eta_scan_del_f'].items()}
@@ -286,7 +286,7 @@ class SmurfConfigPropertiesMixin:
         self.smurf_to_mce_ip = smurf_to_mce_cfg.get('receiver_ip')
         self.smurf_to_mce_port = smurf_to_mce_cfg.get('port_number')
         self.smurf_to_mce_mask_file = smurf_to_mce_cfg.get('mask_file')
-        self.static_mask = smurf_to_mce_cfg.get('static_mask')        
+        self.static_mask = smurf_to_mce_cfg.get('static_mask')
         self.mask_channel_offset = smurf_to_mce_cfg.get('mask_channel_offset')
         self.fs = config.get('fs')
 
@@ -297,16 +297,16 @@ class SmurfConfigPropertiesMixin:
         ## pysmurf configuration file?
         smurf_init_config = config.get('init')
         bands = smurf_init_config['bands']
-        
+
         ## Carrier
         self.dsp_enable = smurf_init_config['dspEnable']
-        self.ultrascale_temperature_limit_degC = config.get('ultrascale_temperature_limit_degC')        
+        self.ultrascale_temperature_limit_degC = config.get('ultrascale_temperature_limit_degC')
         self.data_out_mux = {
             band:smurf_init_config[f'band_{band}']['data_out_mux']
-            for band in bands}        
-        
+            for band in bands}
+
         ## AMC
-        # Which bands are present in the pysmurf configuration file?        
+        # Which bands are present in the pysmurf configuration file?
         self.bands = bands
         self.amplitude_scale = {
             band:smurf_init_config[f'band_{band}']['amplitude_scale']
@@ -331,7 +331,7 @@ class SmurfConfigPropertiesMixin:
             for band in bands}
         self.trigger_reset_delay= {
             band:smurf_init_config[f'band_{band}']['trigRstDly']
-            for band in bands}                
+            for band in bands}
 
         # Mapping from attenuator numbers to bands
         att_cfg = config.get('attenuator')
@@ -348,7 +348,7 @@ class SmurfConfigPropertiesMixin:
         flux_ramp_cfg = config.get('flux_ramp')
         self.num_flux_ramp_counter_bits = flux_ramp_cfg['num_flux_ramp_counter_bits']
         self.select_ramp = flux_ramp_cfg.get('select_ramp')
-        self.reset_rate_khz = tune_band_cfg.get('reset_rate_khz')        
+        self.reset_rate_khz = tune_band_cfg.get('reset_rate_khz')
         self.fraction_full_scale = tune_band_cfg.get('fraction_full_scale')
 
         ## Cryocard
@@ -386,7 +386,7 @@ class SmurfConfigPropertiesMixin:
             for band in bands}
         self.feedback_polarity = {
             band:smurf_init_config[f'band_{band}']['feedbackPolarity']
-            for band in bands}                
+            for band in bands}
 
         ## Mappings
         # Mapping from chip number to frequency in GHz
@@ -1888,7 +1888,7 @@ class SmurfConfigPropertiesMixin:
         self._epics_root = value
 
     ## End epics_root property definition
-    ###########################################################################        
+    ###########################################################################
 
     ###########################################################################
     ## Start smurf_cmd_dir property definition

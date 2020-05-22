@@ -344,15 +344,15 @@ class SmurfControl(SmurfCommandMixin,
         for val in [1, 0]:
             for bay in self.bays:
                 for dac in dacs:
-                    self.set_dac_reset(bay, dac, val, write_log=write_log)
+                    self.set_dac_reset(
+                        bay, dac, val, write_log=write_log)
 
         self.set_read_all(write_log=write_log)
         self.set_defaults_pv(write_log=write_log)
 
-        # The per band configs. May want to make available per-band values.
+        # The per band configs. May want to make available per-band
+        # values.
         for band in bands:
-            band_str = f'band_{band}'
-            
             self.set_iq_swap_in(band, self._iq_swap_in[band],
                                 write_log=write_log, **kwargs)
             self.set_iq_swap_out(band, self._iq_swap_out[band],
@@ -492,7 +492,7 @@ class SmurfControl(SmurfCommandMixin,
         # has set you up...good luck.
         if self._timing_reference is not None:
             timing_reference = self._timing_reference
-            
+
             # check if supported
             timing_options = ['ext_ref', 'backplane']
             assert (timing_reference in timing_options), (
