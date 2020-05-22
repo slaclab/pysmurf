@@ -43,6 +43,7 @@ rst-roles =
     py:func,
     py:exc,
     py:func,
+    py:class,
 rst-directives =
     envvar,
     exception,
