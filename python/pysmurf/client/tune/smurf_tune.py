@@ -654,10 +654,13 @@ class SmurfTuneMixin(SmurfBase):
             time.sleep(.05)  # Need to wait, otherwise dac call interferes with adc
 
             try:
-                dac = self.read_dac_data(band, n_samples, hw_trigger=hw_trigger)
+                dac = self.read_dac_data(
+                    band, n_samples, hw_trigger=hw_trigger,
+                    save_data=False)
             except BaseException:
                 self.log('ADC read failed. Trying one more time', self.LOG_ERROR)
-                dac = self.read_dac_data(band, n_samples, hw_trigger=hw_trigger,
+                dac = self.read_dac_data(
+                    band, n_samples, hw_trigger=hw_trigger,
                     save_data=False)
             time.sleep(.05)
 

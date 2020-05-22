@@ -31,5 +31,3 @@ pngname=system(sprintf("echo %s | sed s/.dat/.png/g",datafile_relpath))
 set output pngname
 replot
 set term x11
-
-
