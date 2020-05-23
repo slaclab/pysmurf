@@ -4164,11 +4164,6 @@ class SmurfUtilMixin(SmurfBase):
                 d[f'bay{bay}_dac{dac}_temp']=(
                     lambda:self.get_dac_temp(bay,dac))
 
-        #AT THE MOMENT, WAY TOO SLOW
-        # keep track of how many tones are on in each band
-        #for band in bands:
-        #    d['chans_b%d'%band]=lambda:len(self.which_on(band))
-
         # atca monitor
         d['atca_temp_fpga']=self.get_board_temp_fpga
         d['atca_temp_rtm']=self.get_board_temp_rtm

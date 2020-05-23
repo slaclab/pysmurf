@@ -92,30 +92,33 @@ class SmurfTuneMixin(SmurfBase):
 
         # Runs find_freq and setup_notches. This takes forever.
         else:
-            cfg = self.config.get('init')
-            for b in bands:
-                drive = cfg.get(f'band_{b}').get('amplitude_scale')
-                self.find_freq(b,
-                    drive_power=drive)
-                self.setup_notches(b, drive=drive,
+            for band in bands:
+                drive = self._amplitude_scale[band]
+                self.find_freq(
+                    band, drive_power=drive)
+                self.setup_notches(
+                    band, drive=drive,
                     new_master_assignment=new_master_assignment)
 
         # Runs tune_band_serial to re-estimate eta params
         if retune:
-            for b in bands:
-                self.log(f'Running tune band serial on band {b}')
-                self.tune_band_serial(b, from_old_tune=load_tune,
-                    old_tune=tune_file, make_plot=make_plot,
-                    show_plot=show_plot, save_plot=save_plot,
+            for band in bands:
+                self.log(f'Running tune band serial on band {band}')
+                self.tune_band_serial(
+                    band, from_old_tune=load_tune, old_tune=tune_file,
+                    make_plot=make_plot, show_plot=show_plot,
+                    save_plot=save_plot,
                     new_master_assignment=new_master_assignment)
 
         # Starts tracking and runs check_lock to prune bad resonators
         if track_and_check:
-            for b in bands:
-                self.log(f'Tracking and checking band {b}')
-                self.track_and_check(b, fraction_full_scale=fraction_full_scale,
-                    f_min=f_min, f_max=f_max, df_max=df_max, make_plot=make_plot,
-                    save_plot=save_plot, show_plot=show_plot)
+            for band in bands:
+                self.log(f'Tracking and checking band {band}')
+                self.track_and_check(
+                    band, fraction_full_scale=fraction_full_scale,
+                    f_min=f_min, f_max=f_max, df_max=df_max,
+                    make_plot=make_plot, save_plot=save_plot,
+                    show_plot=show_plot)
 
     @set_action()
     def tune_band(self, band, freq=None, resp=None, n_samples=2**19,
@@ -243,7 +246,7 @@ class SmurfTuneMixin(SmurfBase):
 
         self.freq_resp[band]['resonances'] = resonances
         if drive is None:
-            drive = self.config.get('init').get(f'band_{band}').get('amplitude_scale')
+            drive = self._amplitude_scale[band]
 
         # Add tone amplitude to tuning dictionary
         self.freq_resp[band]['drive'] = drive
@@ -376,8 +379,7 @@ class SmurfTuneMixin(SmurfBase):
                 self.freq_resp[band]['resonances'] = resonances
 
         if drive is None:
-            drive = (
-                self.config.get('init')[f'band_{band}']['amplitude_scale'])
+            drive = self._amplitude_scale[band]
         self.freq_resp[band]['drive'] = drive
         self.freq_resp[band]['full_band_resp'] = {}
         if freq is not None:
@@ -3261,7 +3263,7 @@ class SmurfTuneMixin(SmurfBase):
         self.band_off(band)
 
         if drive_power is None:
-            drive_power = self.config.get('init')[f'band_{band}'].get('amplitude_scale')
+            drive_power = self._amplitude_scale[band]
             self.log('No drive_power given. Using value in config ' +
                      f'file: {drive_power}')
 
@@ -3626,7 +3628,7 @@ class SmurfTuneMixin(SmurfBase):
             return
 
         if drive is None:
-            drive = self.config.get('init')[f'band_{band}'].get('amplitude_scale')
+            drive = self._amplitude_scale[band]
             self.log(
                 f'No drive given. Using value in config file: {drive}')
 
