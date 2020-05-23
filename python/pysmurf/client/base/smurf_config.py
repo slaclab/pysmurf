@@ -573,7 +573,7 @@ class SmurfConfig:
             ('gradient_descent_beta', And(Use(float), lambda f: 0 <= f <= 1)),
             ('eta_scan_averages', And(Use(int), lambda n: n > 0)),
             ('eta_scan_del_f', And(Use(int), lambda n: n > 0)),
-            ('eta_scan_amplitude', And(Use(int), lambda n: n > 0)),
+            ('eta_scan_amplitude', And(Use(int), lambda n: 0 <= n < 2**4)),
         ]
 
         for band in bands:
