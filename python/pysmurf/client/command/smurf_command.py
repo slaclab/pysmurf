@@ -997,7 +997,7 @@ class SmurfCommandMixin(SmurfBase):
                            self._eta_scan_averages_reg,
                            **kwargs)
 
-    _eta_scan_dwell = 'etaScanDwell'
+    _eta_scan_dwell_reg = 'etaScanDwell'
 
     def set_eta_scan_dwell(self, band, val, **kwargs):
         """
@@ -1010,7 +1010,9 @@ class SmurfCommandMixin(SmurfBase):
         val : int
             The time to dwell.
         """
-        self._caput(self._cryo_root(band) + self._eta_scan_dwell, val, **kwargs)
+        self._caput(
+            self._cryo_root(band) + self._eta_scan_dwell_reg,
+            val, **kwargs)
 
     def get_eta_scan_dwell(self, band, **kwargs):
         """
@@ -1026,7 +1028,8 @@ class SmurfCommandMixin(SmurfBase):
         dwell : int
             The time to dwell during an eta scan.
         """
-        return self._caget(self._cryo_root(band) + self._eta_scan_dwell,
+        return self._caget(
+            self._cryo_root(band) + self._eta_scan_dwell_reg,
             **kwargs)
 
     _run_eta_scan_reg = 'runEtaScan'
@@ -1414,14 +1417,14 @@ class SmurfCommandMixin(SmurfBase):
         return self._caget(self._band_root(band) + self._waveform_start_reg,
             **kwargs)
 
-    _rf_enable = 'rfEnable'
+    _rf_enable_reg = 'rfEnable'
 
     def set_rf_enable(self, band, val, **kwargs):
         """
         0x0 output all 0s to DAC
         0x1 enable output to DAC (from DSP or waveform table)
         """
-        self._caput(self._band_root(band) + self._rf_enable, val,
+        self._caput(self._band_root(band) + self._rf_enable_reg, val,
             **kwargs)
 
     def get_rf_enable(self, band, **kwargs):
@@ -1429,156 +1432,180 @@ class SmurfCommandMixin(SmurfBase):
         0x0 output all 0s to DAC
         0x1 enable output to DAC (from DSP or waveform table)
         """
-        return self._caget(self._band_root(band) + self._rf_enable, **kwargs)
+        return self._caget(self._band_root(band) + self._rf_enable_reg, **kwargs)
 
-    _analysis_scale = 'analysisScale'
+    _analysis_scale_reg = 'analysisScale'
 
     def set_analysis_scale(self, band, val, **kwargs):
         """
         """
-        self._caput(self._band_root(band) + self._analysis_scale, val, **kwargs)
+        self._caput(
+            self._band_root(band) + self._analysis_scale_reg,
+            val, **kwargs)
 
     def get_analysis_scale(self, band, **kwargs):
         """
         """
-        return self._caget(self._band_root(band) + self._analysis_scale,
+        return self._caget(
+            self._band_root(band) + self._analysis_scale_reg,
             **kwargs)
 
-    _feedback_enable = 'feedbackEnable'
+    _feedback_enable_reg = 'feedbackEnable'
 
     def set_feedback_enable(self, band, val, **kwargs):
         """
         """
-        self._caput(self._band_root(band) + self._feedback_enable, val,
-            **kwargs)
+        self._caput(
+            self._band_root(band) + self._feedback_enable_reg,
+            val, **kwargs)
 
     def get_feedback_enable(self, band, **kwargs):
         """
         """
-        return self._caget(self._band_root(band) + self._feedback_enable,
+        return self._caget(
+            self._band_root(band) + self._feedback_enable_reg,
             **kwargs)
 
-    _loop_filter_output_array = 'loopFilterOutputArray'
+    _loop_filter_output_array_reg = 'loopFilterOutputArray'
 
     def get_loop_filter_output_array(self, band, **kwargs):
         """
         """
-        return self._caget(self._cryo_root(band) + self._loop_filter_output_array,
+        return self._caget(
+            self._cryo_root(band) + self._loop_filter_output_array_reg,
             **kwargs)
 
-    _tone_frequency_offset_mhz = 'toneFrequencyOffsetMHz'
-
-    def get_tone_frequency_offset_mhz(self, band, **kwargs):
-        """
-        """
-        return self._caget(self._band_root(band) +
-                           self._tone_frequency_offset_mhz,**kwargs)
+    _tone_frequency_offset_mhz_reg = 'toneFrequencyOffsetMHz'
 
     def set_tone_frequency_offset_mhz(self, band, val, **kwargs):
         """
         """
         self._caput(self._band_root(band) +
-                    self._tone_frequency_offset_mhz, val,
-                    **kwargs)
+                    self._tone_frequency_offset_mhz_reg,
+                    val, **kwargs)
 
-    _center_frequency_array = 'centerFrequencyArray'
+    def get_tone_frequency_offset_mhz(self, band, **kwargs):
+        """
+        """
+        return self._caget(
+            self._band_root(band) + self._tone_frequency_offset_mhz_reg,
+            **kwargs)
+
+    _center_frequency_array_reg = 'centerFrequencyArray'
 
     def set_center_frequency_array(self, band, val, **kwargs):
         """
         Sets all the center frequencies in a band
         """
-        self._caput(self._cryo_root(band) + self._center_frequency_array, val,
-            **kwargs)
+        self._caput(
+            self._cryo_root(band) + self._center_frequency_array_reg,
+            val, **kwargs)
 
     def get_center_frequency_array(self, band, **kwargs):
         """
         """
-        return self._caget(self._cryo_root(band) + self._center_frequency_array,
+        return self._caget(
+            self._cryo_root(band) + self._center_frequency_array_reg,
             **kwargs)
 
-    _feedback_gain = 'feedbackGain'
+    _feedback_gain_reg = 'feedbackGain'
 
     def set_feedback_gain(self, band, val, **kwargs):
         """
         """
-        self._caput(self._band_root(band) + self._feedback_gain, val, **kwargs)
+        self._caput(
+            self._band_root(band) + self._feedback_gain_reg,
+            val, **kwargs)
 
     def get_feedback_gain(self, band, **kwargs):
         """
         """
-        return self._caget(self._band_root(band) + self._feedback_gain,
+        return self._caget(
+            self._band_root(band) + self._feedback_gain_reg,
             **kwargs)
 
-    _eta_phase_array = 'etaPhaseArray'
+    _eta_phase_array_reg = 'etaPhaseArray'
 
     def set_eta_phase_array(self, band, val, **kwargs):
         """
         """
-        self._caput(self._cryo_root(band) + self._eta_phase_array, val,
-            **kwargs)
+        self._caput(
+            self._cryo_root(band) + self._eta_phase_array_reg,
+            val, **kwargs)
 
     def get_eta_phase_array(self, band, **kwargs):
         """
         """
-        return self._caget(self._cryo_root(band) + self._eta_phase_array,
+        return self._caget(
+            self._cryo_root(band) + self._eta_phase_array_reg,
             **kwargs)
 
-    _frequency_error_array = 'frequencyErrorArray'
+    _frequency_error_array_reg = 'frequencyErrorArray'
 
     def set_frequency_error_array(self, band, val, **kwargs):
         """
         """
-        self._caput(self._cryo_root(band) + self._frequency_error_array, val,
-            **kwargs)
+        self._caput(
+            self._cryo_root(band) + self._frequency_error_array_reg,
+            val, **kwargs)
 
     def get_frequency_error_array(self, band, **kwargs):
         """
         """
-        return self._caget(self._cryo_root(band) + self._frequency_error_array,
+        return self._caget(
+            self._cryo_root(band) + self._frequency_error_array_reg,
             **kwargs)
 
-    _eta_mag_array = 'etaMagArray'
+    _eta_mag_array_reg = 'etaMagArray'
 
     def set_eta_mag_array(self, band, val, **kwargs):
         """
         """
-        self._caput(self._cryo_root(band) + self._eta_mag_array, val, **kwargs)
+        self._caput(
+            self._cryo_root(band) + self._eta_mag_array_reg,
+            val, **kwargs)
 
     def get_eta_mag_array(self, band, **kwargs):
         """
         """
-        return self._caget(self._cryo_root(band) + self._eta_mag_array,
+        return self._caget(
+            self._cryo_root(band) + self._eta_mag_array_reg,
             **kwargs)
 
-    _feedback_limit = 'feedbackLimit'
+    _feedback_limit_reg = 'feedbackLimit'
 
     def set_feedback_limit(self, band, val, **kwargs):
         """
         freq = centerFreq + feedbackFreq
         abs(freq) < centerFreq + feedbackLimit
         """
-        self._caput(self._band_root(band) + self._feedback_limit, val, **kwargs)
+        self._caput(
+            self._band_root(band) + self._feedback_limit_reg,
+            val, **kwargs)
 
     def get_feedback_limit(self, band, **kwargs):
         """
         freq = centerFreq + feedbackFreq
         abs(freq) < centerFreq + feedbackLimit
         """
-        return self._caget(self._band_root(band) + self._feedback_limit,
+        return self._caget(
+            self._band_root(band) + self._feedback_limit_reg,
             **kwargs)
 
-    _noise_select = 'noiseSelect'
+    _noise_select_reg = 'noiseSelect'
 
     def set_noise_select(self, band, val, **kwargs):
         """
         """
-        self._caput(self._band_root(band) + self._noise_select, val,
-            **kwargs)
+        self._caput(
+            self._band_root(band) + self._noise_select_reg,
+            val, **kwargs)
 
     def get_noise_select(self, band, **kwargs):
         """
         """
-        return self._caget(self._band_root(band) + self._noise_select,
+        return self._caget(
+            self._band_root(band) + self._noise_select_reg,
             **kwargs)
 
     _lms_delay_reg = 'lmsDelay'
@@ -1599,21 +1626,23 @@ class SmurfCommandMixin(SmurfBase):
             self._band_root(band) + self._lms_delay_reg,
             **kwargs)
 
-    _lms_gain = 'lmsGain'
+    _lms_gain_reg = 'lmsGain'
 
     def set_lms_gain(self, band, val, **kwargs):
         """
         LMS gain, powers of 2
         """
-        self._caput(self._band_root(band) + self._lms_gain, val, **kwargs)
+        self._caput(
+            self._band_root(band) + self._lms_gain_reg, val, **kwargs)
 
     def get_lms_gain(self, band, **kwargs):
         """
         LMS gain, powers of 2
         """
-        return self._caget(self._band_root(band) + self._lms_gain, **kwargs)
+        return self._caget(
+            self._band_root(band) + self._lms_gain_reg, **kwargs)
 
-    _trigger_reset_delay = 'trigRstDly'
+    _trigger_reset_delay_reg = 'trigRstDly'
 
     def set_trigger_reset_delay(self, band, val, **kwargs):
         """
@@ -1624,7 +1653,9 @@ class SmurfCommandMixin(SmurfBase):
         band : int
             Which band.
         """
-        self._caput(self._band_root(band) + self._trigger_reset_delay, val, **kwargs)
+        self._caput(
+            self._band_root(band) + self._trigger_reset_delay_reg,
+            val, **kwargs)
 
     def get_trigger_reset_delay(self, band, **kwargs):
         """
@@ -1635,9 +1666,11 @@ class SmurfCommandMixin(SmurfBase):
         band : int
             Which band.
         """
-        return self._caget(self._band_root(band) + self._trigger_reset_delay, **kwargs)
+        return self._caget(
+            self._band_root(band) + self._trigger_reset_delay_reg,
+            **kwargs)
 
-    _feedback_start = 'feedbackStart'
+    _feedback_start_reg = 'feedbackStart'
 
     def set_feedback_start(self, band, val, **kwargs):
         """
@@ -1649,7 +1682,9 @@ class SmurfCommandMixin(SmurfBase):
         band : int
             Which band.
         """
-        self._caput(self._band_root(band) + self._feedback_start, val, **kwargs)
+        self._caput(
+            self._band_root(band) + self._feedback_start_reg,
+            val, **kwargs)
 
     def get_feedback_start(self, band, **kwargs):
         """
@@ -1661,9 +1696,11 @@ class SmurfCommandMixin(SmurfBase):
         band : int
             Which band.
         """
-        return self._caget(self._band_root(band) + self._feedback_start, **kwargs)
+        return self._caget(
+            self._band_root(band) + self._feedback_start_reg,
+            **kwargs)
 
-    _feedback_end = 'feedbackEnd'
+    _feedback_end_reg = 'feedbackEnd'
 
     def set_feedback_end(self, band, val, **kwargs):
         """
@@ -1675,7 +1712,9 @@ class SmurfCommandMixin(SmurfBase):
         band : int
             Which band.
         """
-        self._caput(self._band_root(band) + self._feedback_end, val, **kwargs)
+        self._caput(
+            self._band_root(band) + self._feedback_end_reg,
+            val, **kwargs)
 
     def get_feedback_end(self, band, **kwargs):
         """
@@ -1687,141 +1726,176 @@ class SmurfCommandMixin(SmurfBase):
         band : int
             Which band.
         """
-        return self._caget(self._band_root(band) + self._feedback_end, **kwargs)
+        return self._caget(
+            self._band_root(band) + self._feedback_end_reg,
+            **kwargs)
 
-    _lms_enable1 = 'lmsEnable1'
+    _lms_enable1_reg = 'lmsEnable1'
 
     def set_lms_enable1(self, band, val, **kwargs):
         """
         Enable 1st harmonic tracking
         """
-        self._caput(self._band_root(band) + self._lms_enable1, val, **kwargs)
+        self._caput(
+            self._band_root(band) + self._lms_enable1_reg,
+            val, **kwargs)
 
     def get_lms_enable1(self, band, **kwargs):
         """
         Enable 1st harmonic tracking
         """
-        return self._caget(self._band_root(band) + self._lms_enable1, **kwargs)
+        return self._caget(
+            self._band_root(band) + self._lms_enable1_reg,
+            **kwargs)
 
-    _lms_enable2 = 'lmsEnable2'
+    _lms_enable2_reg = 'lmsEnable2'
 
     def set_lms_enable2(self, band, val, **kwargs):
         """
         Enable 2nd harmonic tracking
         """
-        self._caput(self._band_root(band) + self._lms_enable2, val, **kwargs)
+        self._caput(
+            self._band_root(band) + self._lms_enable2_reg,
+            val, **kwargs),
 
     def get_lms_enable2(self, band, **kwargs):
         """
         Enable 2nd harmonic tracking
         """
-        return self._caget(self._band_root(band) + self._lms_enable2, **kwargs)
+        return self._caget(
+            self._band_root(band) + self._lms_enable2_reg,
+            **kwargs)
 
-    _lms_enable3 = 'lmsEnable3'
+    _lms_enable3_reg = 'lmsEnable3'
 
     def set_lms_enable3(self, band, val, **kwargs):
         """
         Enable 3rd harmonic tracking
         """
-        self._caput(self._band_root(band) + self._lms_enable3, val, **kwargs)
+        self._caput(
+            self._band_root(band) + self._lms_enable3_reg,
+            val, **kwargs)
 
     def get_lms_enable3(self, band, **kwargs):
         """
         Enable 3rd harmonic tracking
         """
-        return self._caget(self._band_root(band) + self._lms_enable3, **kwargs)
+        return self._caget(
+            self._band_root(band) + self._lms_enable3_reg,
+            **kwargs)
 
-    _lms_rst_dly = 'lmsRstDly'
+    _lms_rst_dly_reg = 'lmsRstDly'
 
     def set_lms_rst_dly(self, band, val, **kwargs):
         """
         Disable feedback after reset (2.4MHz ticks)
         """
-        self._caput(self._band_root(band) + self._lms_rst_dly, val, **kwargs)
+        self._caput(
+            self._band_root(band) + self._lms_rst_dly_reg,
+            val, **kwargs)
 
     def get_lms_rst_dly(self, band, **kwargs):
         """
         Disable feedback after reset (2.4MHz ticks)
         """
-        return self._caget(self._band_root(band) + self._lms_rst_dly, **kwargs)
+        return self._caget(
+            self._band_root(band) + self._lms_rst_dly_reg,
+            **kwargs)
 
-    _lms_freq = 'lmsFreq'
+    _lms_freq_reg = 'lmsFreq'
 
     def set_lms_freq(self, band, val, **kwargs):
         """
         LMS frequency = flux ramp freq * nPhi0
         """
-        self._caput(self._band_root(band) + self._lms_freq, val, **kwargs)
+        self._caput(
+            self._band_root(band) + self._lms_freq_reg,
+            val, **kwargs)
 
     def get_lms_freq(self, band, **kwargs):
         """
         LMS frequency = flux ramp freq * nPhi0
         """
-        return self._caget(self._band_root(band) + self._lms_freq, **kwargs)
+        return self._caget(
+            self._band_root(band) + self._lms_freq_reg,
+            **kwargs)
 
-    _lms_freq_hz = 'lmsFreqHz'
+    _lms_freq_hz_reg = 'lmsFreqHz'
 
     def set_lms_freq_hz(self, band, val, **kwargs):
         """
         LMS frequency = flux ramp freq * nPhi0
         """
-        self._caput(self._band_root(band) + self._lms_freq_hz, val, **kwargs)
+        self._caput(
+            self._band_root(band) + self._lms_freq_hz_reg,
+            val, **kwargs)
 
     def get_lms_freq_hz(self, band, **kwargs):
         """
         LMS frequency = flux ramp freq * nPhi0
         """
-        return self._caget(self._band_root(band) + self._lms_freq_hz, **kwargs)
+        return self._caget(
+            self._band_root(band) + self._lms_freq_hz_reg,
+            **kwargs)
 
-    _lms_dly_fine = 'lmsDlyFine'
+    _lms_dly_fine_reg = 'lmsDlyFine'
 
     def set_lms_dly_fine(self, band, val, **kwargs):
         """
         fine delay control (38.4MHz ticks)
         """
-        self._caput(self._band_root(band) + self._lms_dly_fine, val, **kwargs)
+        self._caput(
+            self._band_root(band) + self._lms_dly_fine_reg,
+            val, **kwargs)
 
     def get_lms_dly_fine(self, band, **kwargs):
         """
         fine delay control (38.4MHz ticks)
         """
-        return self._caget(self._band_root(band) + self._lms_dly_fine, **kwargs)
+        return self._caget(
+            self._band_root(band) + self._lms_dly_fine_reg,
+            **kwargs)
 
     _iq_stream_enable_reg = 'iqStreamEnable'
 
     def set_iq_stream_enable(self, band, val, **kwargs):
         """
         """
-        self._caput(self._band_root(band) + self._iq_stream_enable_reg, val,
-            **kwargs)
+        self._caput(
+            self._band_root(band) + self._iq_stream_enable_reg,
+            val, **kwargs)
 
     def get_iq_stream_enable(self, band, **kwargs):
         """
         """
-        return self._caget(self._band_root(band) + self._iq_stream_enable_reg,
+        return self._caget(
+            self._band_root(band) + self._iq_stream_enable_reg,
             **kwargs)
 
-    _feedback_polarity = 'feedbackPolarity'
+    _feedback_polarity_reg = 'feedbackPolarity'
 
     def set_feedback_polarity(self, band, val, **kwargs):
         """
         """
-        self._caput(self._band_root(band) + self._feedback_polarity, val,
-            **kwargs)
+        self._caput(
+            self._band_root(band) + self._feedback_polarity_reg,
+            val, **kwargs)
 
     def get_feedback_polarity(self, band, **kwargs):
         """
         """
-        return self._caget(self._band_root(band) + self._feedback_polarity,
+        return self._caget(
+            self._band_root(band) + self._feedback_polarity_reg,
             **kwargs)
 
-    _band_center_mhz = 'bandCenterMHz'
-
+    _band_center_mhz_reg = 'bandCenterMHz'
+    
     def set_band_center_mhz(self, band, val, **kwargs):
         """
         """
-        self._caput(self._band_root(band) + self._band_center_mhz, val,
-            **kwargs)
+        self._caput(
+            self._band_root(band) + self._band_center_mhz_reg,
+            val, **kwargs)
 
     def get_band_center_mhz(self, band, **kwargs):
         """
@@ -1831,11 +1905,12 @@ class SmurfCommandMixin(SmurfBase):
             bc = (4250 + band*500)
             return bc
         else:
-            return self._caget(self._band_root(band) + self._band_center_mhz,
+            return self._caget(
+                self._band_root(band) + self._band_center_mhz_reg,
                 **kwargs)
 
 
-    _channel_frequency_mhz = 'channelFrequencyMHz'
+    _channel_frequency_mhz_reg = 'channelFrequencyMHz'
 
     def get_channel_frequency_mhz(self, band=None, **kwargs):
         """
@@ -1865,10 +1940,12 @@ class SmurfCommandMixin(SmurfBase):
         if self.offline:
             return 2.4
         else:
-            return self._caget(self._band_root(band) +
-                self._channel_frequency_mhz, **kwargs)
+            return self._caget(
+                self._band_root(band) +
+                self._channel_frequency_mhz_reg,
+                **kwargs)
 
-    _digitizer_frequency_mhz = 'digitizerFrequencyMHz'
+    _digitizer_frequency_mhz_reg = 'digitizerFrequencyMHz'
 
     def get_digitizer_frequency_mhz(self, band=None, **kwargs):
         """
@@ -1896,117 +1973,147 @@ class SmurfCommandMixin(SmurfBase):
             # list of bands specified in experiment.cfg.
             band = self._bands[0]
 
-        return self._caget(self._band_root(band) +
-            self._digitizer_frequency_mhz, **kwargs)
+        return self._caget(
+            self._band_root(band) + self._digitizer_frequency_mhz_reg,
+            **kwargs)
 
-    _synthesis_scale = 'synthesisScale'
+    _synthesis_scale_reg = 'synthesisScale'
 
     def set_synthesis_scale(self, band, val, **kwargs):
         """
         """
-        self._caput(self._band_root(band) + self._synthesis_scale, val,
-            **kwargs)
+        self._caput(
+            self._band_root(band) + self._synthesis_scale_reg,
+            val, **kwargs)
 
     def get_synthesis_scale(self, band, **kwargs):
         """
         """
-        return self._caget(self._band_root(band) + self._synthesis_scale,
+        return self._caget(
+            self._band_root(band) + self._synthesis_scale_reg,
             **kwargs)
 
-    _dsp_enable = 'dspEnable'
+    _dsp_enable_reg = 'dspEnable'
 
     def set_dsp_enable(self, band, val, **kwargs):
         """
         """
-        self._caput(self._band_root(band) + self._dsp_enable, val, **kwargs)
+        self._caput(
+            self._band_root(band) + self._dsp_enable_reg,
+            val, **kwargs)
 
     def get_dsp_enable(self, band, **kwargs):
         """
         """
-        return self._caget(self._band_root(band) + self._dsp_enable, **kwargs)
+        return self._caget(
+            self._band_root(band) + self._dsp_enable_reg,
+            **kwargs)
 
     # Single channel commands
-    _feedback_enable = 'feedbackEnable'
+    _feedback_enable_reg = 'feedbackEnable'
 
-    def set_feedback_enable_channel(self, band, channel, val, **kwargs):
+    def set_feedback_enable_channel(self, band, channel, val,
+                                    **kwargs):
         """
         Set the feedback for a single channel
         """
-        self._caput(self._channel_root(band, channel) +
-            self._feedback_enable, val, **kwargs)
+        self._caput(
+            self._channel_root(band, channel) +
+            self._feedback_enable_reg,
+            val, **kwargs)
 
     def get_feedback_enable_channel(self, band, channel, **kwargs):
         """
         Get the feedback for a single channel
         """
-        return self._caget(self._channel_root(band, channel) +
-            self._feedback_enable, **kwargs)
+        return self._caget(
+            self._channel_root(band, channel) +
+            self._feedback_enable_reg,
+            **kwargs)
 
-    _eta_mag_scaled_channel = 'etaMagScaled'
+    _eta_mag_scaled_channel_reg = 'etaMagScaled'
 
     def set_eta_mag_scaled_channel(self, band, channel, val, **kwargs):
         """
         """
-        self._caput(self._channel_root(band, channel) +
-            self._eta_mag_scaled_channel, val, **kwargs)
+        self._caput(
+            self._channel_root(band, channel) +
+            self._eta_mag_scaled_channel_reg,
+            val, **kwargs)
 
     def get_eta_mag_scaled_channel(self, band, channel, **kwargs):
         """
         """
-        return self._caget(self._channel_root(band, channel) +
-            self._eta_mag_scaled_channel, **kwargs)
+        return self._caget(
+            self._channel_root(band, channel) +
+            self._eta_mag_scaled_channel_reg,
+            **kwargs)
 
 
-    _center_frequency_mhz_channel = 'centerFrequencyMHz'
+    _center_frequency_mhz_channel_reg = 'centerFrequencyMHz'
 
     def set_center_frequency_mhz_channel(self, band, channel, val, **kwargs):
         """
         """
-        self._caput(self._channel_root(band, channel) +
-            self._center_frequency_mhz_channel, val, **kwargs)
+        self._caput(
+            self._channel_root(band, channel) +
+            self._center_frequency_mhz_channel_reg,
+            val, **kwargs)
 
     def get_center_frequency_mhz_channel(self, band, channel, **kwargs):
         """
         """
-        return self._caget(self._channel_root(band, channel) +
-            self._center_frequency_mhz_channel, **kwargs)
+        return self._caget(
+            self._channel_root(band, channel) +
+            self._center_frequency_mhz_channel_reg,
+            **kwargs)
 
 
-    _amplitude_scale_channel = 'amplitudeScale'
+    _amplitude_scale_channel_reg = 'amplitudeScale'
 
     def set_amplitude_scale_channel(self, band, channel, val, **kwargs):
         """
         """
-        self._caput(self._channel_root(band, channel) +
-            self._amplitude_scale_channel, val, **kwargs)
+        self._caput(
+            self._channel_root(band, channel) +
+            self._amplitude_scale_channel_reg,
+            val, **kwargs)
 
     def get_amplitude_scale_channel(self, band, channel, **kwargs):
         """
         """
-        return self._caget(self._channel_root(band, channel) +
-            self._amplitude_scale_channel, **kwargs)
+        return self._caget(
+            self._channel_root(band, channel) +
+            self._amplitude_scale_channel_reg,
+            **kwargs)
 
-    _eta_phase_degree_channel = 'etaPhaseDegree'
+    _eta_phase_degree_channel_reg = 'etaPhaseDegree'
 
     def set_eta_phase_degree_channel(self, band, channel, val, **kwargs):
         """
         """
-        self._caput(self._channel_root(band, channel) +
-            self._eta_phase_degree_channel, val, **kwargs)
+        self._caput(
+            self._channel_root(band, channel) +
+            self._eta_phase_degree_channel_reg,
+            val, **kwargs)
 
     def get_eta_phase_degree_channel(self, band, channel, **kwargs):
         """
         """
-        return self._caget(self._channel_root(band, channel) +
-            self._eta_phase_degree_channel, **kwargs)
+        return self._caget(
+            self._channel_root(band, channel) +
+            self._eta_phase_degree_channel_reg,
+            **kwargs)
 
-    _frequency_error_mhz = 'frequencyErrorMHz'
+    _frequency_error_mhz_reg = 'frequencyErrorMHz'
 
     def get_frequency_error_mhz(self, band, channel, **kwargs):
         """
         """
-        return self._caget(self._channel_root(band, channel) +
-            self._frequency_error_mhz, **kwargs)
+        return self._caget(
+            self._channel_root(band, channel) +
+            self._frequency_error_mhz_reg,
+            **kwargs)
 
 
     def band_to_bay(self,b):
@@ -2030,8 +2137,8 @@ class SmurfCommandMixin(SmurfBase):
         return bay
 
     # Attenuator
-    _uc = 'UC[{}]'
-
+    _uc_reg = 'UC[{}]'
+    
     def set_att_uc(self, b, val, **kwargs):
         """
         Set the upconverter attenuator
@@ -2045,8 +2152,9 @@ class SmurfCommandMixin(SmurfBase):
         """
         att = self.band_to_att(b)
         bay = self.band_to_bay(b)
-        self._caput(self.att_root.format(bay) + self._uc.format(int(att)), val,
-            **kwargs)
+        self._caput(
+            self.att_root.format(bay) + self._uc_reg.format(int(att)),
+            val, **kwargs)
 
     def get_att_uc(self, b, **kwargs):
         """
@@ -2059,11 +2167,12 @@ class SmurfCommandMixin(SmurfBase):
         """
         att = self.band_to_att(b)
         bay = self.band_to_bay(b)
-        return self._caget(self.att_root.format(bay) + self._uc.format(int(att)),
+        return self._caget(
+            self.att_root.format(bay) + self._uc_reg.format(int(att)),
             **kwargs)
 
 
-    _dc = 'DC[{}]'
+    _dc_reg = 'DC[{}]'
 
     def set_att_dc(self, b, val, **kwargs):
         """
@@ -2078,8 +2187,9 @@ class SmurfCommandMixin(SmurfBase):
         """
         att = self.band_to_att(b)
         bay = self.band_to_bay(b)
-        self._caput(self.att_root.format(bay) + self._dc.format(int(att)), val,
-            **kwargs)
+        self._caput(
+            self.att_root.format(bay) + self._dc_reg.format(int(att)),
+            val, **kwargs)
 
     def get_att_dc(self, b, **kwargs):
         """
@@ -2092,20 +2202,23 @@ class SmurfCommandMixin(SmurfBase):
         """
         att = self.band_to_att(b)
         bay = self.band_to_bay(b)
-        return self._caget(self.att_root.format(bay) + self._dc.format(int(att)),
+        return self._caget(
+            self.att_root.format(bay) + self._dc_reg.format(int(att)),
             **kwargs)
 
     # ADC commands
-    _adc_remap = "Remap[0]"  # Why is this hardcoded 0
+    _adc_remap_reg = "Remap[0]"  # Why is this hardcoded 0
 
     def set_remap(self, **kwargs):
         """
         This command should probably be renamed to something more descriptive.
         """
-        self._caput(self.adc_root + self._adc_remap, 1, **kwargs)
+        self._caput(
+            self.adc_root + self._adc_remap_reg,
+            1, **kwargs)
 
     # DAC commands
-    _dac_temp = "Temperature"
+    _dac_temp_reg = "Temperature"
 
     def get_dac_temp(self, bay, dac, **kwargs):
         """
@@ -2118,9 +2231,11 @@ class SmurfCommandMixin(SmurfBase):
         dac : int
             Which DAC no. [0 or 1].
         """
-        return self._caget(self.dac_root.format(bay,dac) + self._dac_temp, **kwargs)
+        return self._caget(
+            self.dac_root.format(bay,dac) + self._dac_temp_reg,
+            **kwargs)
 
-    _dac_enable = "enable"
+    _dac_enable_reg = "enable"
 
     def set_dac_enable(self, bay, dac, val, **kwargs):
         """
@@ -2135,7 +2250,9 @@ class SmurfCommandMixin(SmurfBase):
         val : int
             Value to set the DAC enable register to [0 or 1].
         """
-        self._caput(self.dac_root.format(bay,dac) + self._dac_enable, val, **kwargs)
+        self._caput(
+            self.dac_root.format(bay,dac) + self._dac_enable_reg,
+            val, **kwargs)
 
     def get_dac_enable(self, bay, dac, **kwargs):
         """
@@ -2148,21 +2265,27 @@ class SmurfCommandMixin(SmurfBase):
         dac : int
             Which DAC no. [0 or 1].
         """
-        return self._caget(self.dac_root.format(bay,dac) + self._dac_enable, **kwargs)
+        return self._caget(
+            self.dac_root.format(bay,dac) + self._dac_enable_reg,
+            **kwargs)
 
     # Jesd commands
-    _data_out_mux = 'dataOutMux[{}]'
+    _data_out_mux_reg = 'dataOutMux[{}]'
 
     def set_data_out_mux(self, bay, b, val, **kwargs):
         """
         """
-        self._caput(self.jesd_tx_root.format(bay) +
-            self._data_out_mux.format(b), val, **kwargs)
+        self._caput(
+            self.jesd_tx_root.format(bay) +
+            self._data_out_mux_reg.format(b),
+            val, **kwargs)
 
     def get_data_out_mux(self, bay, b, **kwargs):
         """
         """
-        return self._caget(self.jesd_tx_root.format(bay) + self._data_out_mux.format(b),
+        return self._caget(
+            self.jesd_tx_root.format(bay) +
+            self._data_out_mux_reg.format(b),
             **kwargs)
 
     # Jesd DAC commands
