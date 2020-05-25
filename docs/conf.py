@@ -51,6 +51,7 @@ extensions = [
     'sphinx.ext.todo',
     'sphinx.ext.linkcode',
     'sphinx.ext.intersphinx',
+    'sphinx.ext.viewcode',
     'code_include.extension'
 ]
 
