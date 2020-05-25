@@ -50,7 +50,8 @@ extensions = [
     'sphinx.ext.napoleon',
     'sphinx.ext.todo',
     'sphinx.ext.linkcode',
-    'sphinx.ext.intersphinx'
+    'sphinx.ext.intersphinx',
+    'code_include.extension'
 ]
 
 # Intersphinx settings
