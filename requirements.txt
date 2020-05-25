@@ -4,4 +4,3 @@ pyepics
 matplotlib
 pyyaml
 schema
-sphinx-code-include
