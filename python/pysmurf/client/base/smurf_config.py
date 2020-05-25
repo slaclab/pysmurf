@@ -532,14 +532,6 @@ class SmurfConfig:
         }
         #### Done specifiying amplifier
 
-        #### Start specifying chip-to-frequency schema
-        schema_dict[Optional('chip_to_freq', default={})] = {
-            # [chip lower frequency, chip upper frequency] in GHz
-            Optional(str) : And([Use(float)], list, lambda l: len(l) == 2 and
-                                l[0] < l[1] and all(4 <= ll <= 8 for ll in l))
-        }
-        #### Done specifying chip-to-frequency schema
-
         #### Start specifying tune parameter schema
         schema_dict['tune_band'] = {
             "grad_cut" : And(Use(float), lambda f: f > 0),

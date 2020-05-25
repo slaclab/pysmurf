@@ -180,7 +180,6 @@ class SmurfConfigPropertiesMixin:
         self._feedback_polarity = None
 
         # Mappings
-        self._chip_to_freq = None
         self._all_groups = None
         self._n_bias_groups = None
         self._bias_group_to_pair = None
@@ -389,15 +388,6 @@ class SmurfConfigPropertiesMixin:
             for band in bands}
 
         ## Mappings
-        # Mapping from chip number to frequency in GHz
-        chip_to_freq_cfg = config.get('chip_to_freq')
-        chip_to_freq_keys = chip_to_freq_cfg.keys()
-        chip_to_freq = np.zeros((len(chip_to_freq_keys), 3))
-        for i, k in enumerate(chip_to_freq_keys):
-            val = chip_to_freq_cfg[k]
-            chip_to_freq[i] = [k, val[0], val[1]]
-        self.chip_to_freq = chip_to_freq
-
         # Bias groups available
         self.all_groups = config.get('all_bias_groups')
 
@@ -434,19 +424,25 @@ class SmurfConfigPropertiesMixin:
 
         Gets or sets the conversion factor between the demodulated
         SQUID phase for every SMuRF channel and the equivalent TES
-        current.  Units are pA per Phi0, with Phi0 the magnetic flux
-        quantum.
+        current.  Units are picoamperes per Phi0, with Phi0 the
+        magnetic flux quantum.
 
         Specified in the pysmurf configuration file as
         `constant:pA_per_phi0`.
 
+        Returns
+        -------
+        float
+           Conversion factor between demodulated SQUID phase and
+           equivalent TES current in picoamperes per Phi0.
+
         See Also
         --------
-        :func:`~pysmurf.client.debug.smurf_noise.SmurfNoiseMixin.take_noise_psd`,
-        :func:`~pysmurf.client.debug.smurf_noise.SmurfNoiseMixin.analyze_noise_vs_bias`,
-        :func:`~pysmurf.client.debug.smurf_noise.SmurfNoiseMixin.analyze_noise_all_vs_noise_solo`,
-        :func:`~pysmurf.client.debug.smurf_noise.SmurfNoiseMixin.analyze_noise_vs_tone`,
         :func:`~pysmurf.client.debug.smurf_iv.SmurfIVMixin.analyze_slow_iv`,
+        :func:`~pysmurf.client.debug.smurf_noise.SmurfNoiseMixin.analyze_noise_all_vs_noise_solo`,
+        :func:`~pysmurf.client.debug.smurf_noise.SmurfNoiseMixin.analyze_noise_vs_bias`,
+        :func:`~pysmurf.client.debug.smurf_noise.SmurfNoiseMixin.analyze_noise_vs_tone`,
+        :func:`~pysmurf.client.debug.smurf_noise.SmurfNoiseMixin.take_noise_psd`,
         :func:`~pysmurf.client.util.smurf_util.SmurfUtilMixin.bias_bump`,
         :func:`~pysmurf.client.util.smurf_util.SmurfUtilMixin.identify_bias_groups`
 
@@ -902,35 +898,6 @@ class SmurfConfigPropertiesMixin:
         self._num_flux_ramp_counter_bits = value
 
     ## End num_flux_ramp_counter_bits property definition
-    ###########################################################################
-
-    ###########################################################################
-    ## Start chip_to_freq property definition
-
-    # Getter
-    @property
-    def chip_to_freq(self):
-        """Short description.
-
-        Gets or sets ?.
-        Units are ?.
-
-        Specified in the pysmurf configuration file as
-        `?`.
-
-        See Also
-        --------
-        ?
-
-        """
-        return self._chip_to_freq
-
-    # Setter
-    @chip_to_freq.setter
-    def chip_to_freq(self, value):
-        self._chip_to_freq = value
-
-    ## End chip_to_freq property definition
     ###########################################################################
 
     ###########################################################################
