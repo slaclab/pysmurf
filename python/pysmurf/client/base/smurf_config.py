@@ -767,7 +767,7 @@ class SmurfConfig:
 
         ###################################################
         # Validate the full config
-        schema = Schema(schema_dict)
+        schema = Schema(schema_dict, ignore_extra_keys=True)
         validated_config = schema.validate(loaded_config)
 
         ###################################################
