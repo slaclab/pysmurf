@@ -6,9 +6,6 @@ Adding a pysmurf configuration file parameter
 
 .. code-include :: :func:`pysmurf.client.base.smurf_config_properties.SmurfConfigPropertiesMixin.pA_per_phi0`
     :language: python
-    :link-at-bottom:
-    :link-to-documentation:
-    :link-to-source:
 
 Writing a docstring
 -------------------
