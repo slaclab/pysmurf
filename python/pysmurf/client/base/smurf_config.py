@@ -508,14 +508,14 @@ class SmurfConfig:
             # BOM for cryostat card revision C02 (PC-248-103-02-C02).
             # The resistor on that revision of the cryostat card is
             # R44.
-            Optional('hemt_Vd_series_resistor', default=200): And(float, lambda f: f > 0),
+            Optional('hemt_Vd_series_resistor', default=200.0): And(float, lambda f: f > 0),
             # The resistance, in Ohm, of the resistor that is inline
             # with the 50K amplifier drain voltage source which is
             # used to infer the 50K amplifier drain current.  The
             # default value of 10 Ohm is the standard value in the BOM
             # for cryostat card revision C02 (PC-248-103-02-C02).  The
             # resistor on that revision of the cryostat card is R54.
-            Optional('50K_amp_Vd_series_resistor', default=10): And(float, lambda f: f > 0),
+            Optional('50K_amp_Vd_series_resistor', default=10.0): And(float, lambda f: f > 0),
             # 50K amplifier gate voltage, in volts.
             "LNA_Vg" : Use(float),
             # Which RTM DAC is wired to the gate of the 50K amplifier.
@@ -622,7 +622,7 @@ class SmurfConfig:
         # If all of a schema dictionary's keys are optional, must specify
         # them both in the schema key for that dictionary, and in the
         # schema for that dictionary.
-        constants_default_dict = {'pA_per_phi0' : 9e6}
+        constants_default_dict = {'pA_per_phi0' : 9.e6}
         cdd_key = Optional("constant", default=constants_default_dict)
         schema_dict[cdd_key] = {}
         # Assumes all constants default values are floats
