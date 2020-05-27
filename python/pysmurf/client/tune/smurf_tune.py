@@ -1481,7 +1481,7 @@ class SmurfTuneMixin(SmurfBase):
             if res_num is not None and band is not None:
                 save_name = (
                     f'{timestamp}_eta_b{band}_' +
-                    'res{res_num:03}{plotname_append}.png')
+                    f'res{res_num:03}{plotname_append}.png')
             else:
                 save_name = f'{timestamp}_eta{plotname_append}.png'
 
