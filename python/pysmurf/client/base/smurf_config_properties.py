@@ -923,7 +923,7 @@ class SmurfConfigPropertiesMixin:
 
         Returns
         -------
-        { 'band' : :py:class:`~numpy.ndarray` of int, 'att' : :py:class:`numpy.ndarray` of int }
+        dict
            A dictionary with two keys, 'band' and 'att', which map to
            two :py:class:`numpy.ndarray`s of integers corresponding to
            the UC and DC attenuator numbers and their corresponding
