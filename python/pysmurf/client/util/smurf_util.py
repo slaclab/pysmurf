@@ -3115,44 +3115,42 @@ class SmurfUtilMixin(SmurfBase):
         self.set_cryo_card_relays(new_relay)
         self.get_cryo_card_relays()
 
-
     def att_to_band(self, att):
-        """
-        Gives the band associated with a given attenuator number
-
+        """500 MHz band associated with this attenuator number.
+        
         Args
         ----
         att : int
-            The attenuatory number.
-
+            Attenuator number.
+        
         Returns
         -------
         band : int
-            The band associated with the attenuator.
+            The 500 MHz band associated with the attenuator.
         """
-        return self._att_to_band['band'][np.ravel(
-            np.where(self._att_to_band['att']==att))[0]]
-
+        return int(
+            self._attenuator['band'][np.ravel(
+                np.where(self._attenuator['att']==att))[0]])
+        
     def band_to_att(self, band):
-        """
-        Gives the att associated with a given 500 MHz band.
+        """Attenuator number associated with this 500 MHz band.
 
         Args
         ----
         band : int
-            The 500 MHz band number.
+            500 MHz band number.
 
         Returns
         -------
         att : int
-            The attenuatory number.
+            The attenuator number associated with the band.
         """
-        # for now, mod 4 ; assumes the band <-> att correspondence is the same
-        # for the LB and HB AMCs.
+        # for now, mod 4 ; assumes the band <-> att correspondence is
+        # the same for the LB and HB AMCs.
         band=band%4
-        return self._att_to_band['att'][np.ravel(
-            np.where(self._att_to_band['band']==band))[0]]
-
+        return int(
+            self._attenuator['att'][np.ravel(
+                np.where(self._attenuator['band']==band))[0]])
 
     def flux_ramp_rate_to_PV(self, val):
         """

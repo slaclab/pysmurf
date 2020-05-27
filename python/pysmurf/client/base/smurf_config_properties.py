@@ -149,7 +149,7 @@ class SmurfConfigPropertiesMixin:
         # AMC
         self._amplitude_scale = None
         self._bands = None
-        self._att_to_band = None
+        self._attenuator = None
         self._iq_swap_in = None
         self._iq_swap_out = None
         self._ref_phase_delay = None
@@ -335,13 +335,13 @@ class SmurfConfigPropertiesMixin:
         # Mapping from attenuator numbers to bands
         att_cfg = config.get('attenuator')
         att_cfg_keys = att_cfg.keys()
-        att_to_band = {}
-        att_to_band['band'] = np.zeros(len(att_cfg_keys))
-        att_to_band['att'] = np.zeros(len(att_cfg_keys))
+        attenuator = {}
+        attenuator['band'] = np.zeros(len(att_cfg_keys),dtype=int)
+        attenuator['att'] = np.zeros(len(att_cfg_keys),dtype=int)
         for i, k in enumerate(att_cfg_keys):
-            att_to_band['band'][i] = att_cfg[k]
-            att_to_band['att'][i] = int(k[-1])
-        self.att_to_band = att_to_band
+            attenuator['band'][i] = att_cfg[k]
+            attenuator['att'][i] = k[-1]
+        self.attenuator = attenuator
 
         ## RTM
         flux_ramp_cfg = config.get('flux_ramp')
@@ -411,7 +411,7 @@ class SmurfConfigPropertiesMixin:
         bad_mask_keys = bad_mask_config.keys()
         bad_mask = np.zeros((len(bad_mask_keys), 2))
         for i, k in enumerate(bad_mask_keys):
-            self.bad_mask[i] = bad_mask_config[k]
+            bad_mask[i] = bad_mask_config[k]
         self.bad_mask = bad_mask
 
     ###########################################################################
@@ -471,6 +471,11 @@ class SmurfConfigPropertiesMixin:
         Specified in the pysmurf configuration file as
         `amplifier:hemt_Vg`.
 
+        Returns
+        -------
+        float
+           4K HEMT gate voltage in Volts.
+
         See Also
         --------
         :func:`~pysmurf.client.util.smurf_util.SmurfUtilMixin.set_amplifier_bias`
@@ -503,6 +508,12 @@ class SmurfConfigPropertiesMixin:
 
         Specified in the pysmurf configuration file as
         `amplifier:bit_to_V_hemt`.
+
+        Returns
+        -------
+        float
+           Conversion factor from bits to volts for the 4K amplifier
+           gate in Volts/bit.
 
         See Also
         --------
@@ -543,6 +554,12 @@ class SmurfConfigPropertiesMixin:
         Specified in the pysmurf configuration file as
         `amplifier:hemt_Vd_series_resistor`.
 
+        Returns
+        -------
+        float
+           Resistance in Ohms of the inline resistor used to measure
+           the 4K HEMT amplifier drain current.
+
         See Also
         --------
         :func:`~pysmurf.client.util.smurf_util.SmurfUtilMixin.get_hemt_drain_current`
@@ -581,6 +598,11 @@ class SmurfConfigPropertiesMixin:
         Specified in the pysmurf configuration file as
         `amplifier:hemt_Id_offset`.
 
+        Returns
+        -------
+        float
+           4K HEMT drain current offset in milliamperes.
+
         See Also
         --------
         :func:`~pysmurf.client.util.smurf_util.SmurfUtilMixin.get_hemt_drain_current`
@@ -614,6 +636,12 @@ class SmurfConfigPropertiesMixin:
 
         Specified in the pysmurf configuration file as
         `amplifier:hemt_gate_min_voltage`.
+
+        Returns
+        -------
+        float
+           Software limit on minimum 4K HEMT gate voltage user can
+           apply, in Volts.
 
         See Also
         --------
@@ -649,6 +677,12 @@ class SmurfConfigPropertiesMixin:
         Specified in the pysmurf configuration file as
         `amplifier:hemt_gate_max_voltage`.
 
+        Returns
+        -------
+        float
+           Software limit on maximum 4K HEMT gate voltage user can
+           apply, in Volts.
+
         See Also
         --------
         :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.set_hemt_gate_voltage`
@@ -677,6 +711,11 @@ class SmurfConfigPropertiesMixin:
 
         Specified in the pysmurf configuration file as
         `amplifier:LNA_Vg`.
+
+        Returns
+        -------
+        float
+           50K LNA gate voltage in Volts.
 
         See Also
         --------
@@ -715,6 +754,11 @@ class SmurfConfigPropertiesMixin:
         Specified in the pysmurf configuration file as
         `amplifier:dac_num_50k`.
 
+        Returns
+        -------
+        int
+           DAC number of RTM DAC wired to the 50K LNA gate.
+
         See Also
         --------
         :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.set_50k_amp_gate_voltage`,
@@ -749,6 +793,12 @@ class SmurfConfigPropertiesMixin:
 
         Specified in the pysmurf configuration file as
         `amplifier:bit_to_V_50k`.
+
+        Returns
+        -------
+        float
+           Conversion factor from bits to volts for the 50K LNA gate
+           in Volts/bit.
 
         See Also
         --------
@@ -789,6 +839,12 @@ class SmurfConfigPropertiesMixin:
         Specified in the pysmurf configuration file as
         `amplifier:50K_amp_Vd_series_resistor`.
 
+        Returns
+        -------
+        float
+           Resistance in Ohms of the inline resistor used to measure
+           the 50K LNA drain current.
+
         See Also
         --------
         :func:`~pysmurf.client.util.smurf_util.SmurfUtilMixin.get_50k_amp_drain_current`
@@ -827,6 +883,11 @@ class SmurfConfigPropertiesMixin:
         Specified in the pysmurf configuration file as
         `amplifier:50k_Id_offset`.
 
+        Returns
+        -------
+        float
+           50K LNA drain current offset in milliamperes.
+
         See Also
         --------
         :func:`~pysmurf.client.util.smurf_util.SmurfUtilMixin.get_50k_amp_drain_current`
@@ -843,32 +904,68 @@ class SmurfConfigPropertiesMixin:
     ###########################################################################
 
     ###########################################################################
-    ## Start att_to_band property definition
+    ## Start attenuator property definition
 
     # Getter
     @property
-    def att_to_band(self):
-        """Short description.
+    def attenuator(self):
+        """Map between the 500MHz bands and their RF attenuators.
 
-        Gets or sets ?.
-        Units are ?.
+        Gets or sets the assumed hardware correspondence between the
+        500 MHz attenuators and their UC and DC RF attenuator numbers.
+        Only the mapping for bands 0-3 should be specified, since the
+        mapping is assumed to be identical for the two carrier AMC
+        bays (e.g. the mapping is identical from band to attenuator
+        number for band % 4).  Unitless.
 
         Specified in the pysmurf configuration file as
-        `?`.
+        `attenuator`.
+
+        Returns
+        -------
+        { 'band' : :py:class:`~numpy.ndarray` of int, 'att' : :py:class:`numpy.ndarray` of int }
+           A dictionary with two keys, 'band' and 'att', which map to
+           two :py:class:`numpy.ndarray`s of integers corresponding to
+           the UC and DC attenuator numbers and their corresponding
+           500 MHz band numbers, in the same order.
 
         See Also
         --------
-        ?
+        :func:`~pysmurf.client.util.smurf_util.SmurfUtilMixin.att_to_band`
+        :func:`~pysmurf.client.util.smurf_util.SmurfUtilMixin.band_to_att`
+
+        Examples
+        --------
+        The attenuator mapping is specified as a dictionary in the
+        pysmurf configuration file like this::
+
+           "attenuator" : {
+              "att1" : 0,
+              "att2" : 1,
+              "att3" : 2,
+              "att4" : 3
+           },
+
+        where the keys (e.g. "att1") specify which attenuator maps to
+        which 500 MHz band (the integer value).  The mapping is stored
+        in a very different format inside pysmurf - loading the above
+        attenuator mapping results in the following value for the
+        `attenuator` property (here `S` is a
+        :class:`~pysmurf.client.base.smurf_control.SmurfControl` class
+        instance):
+
+        >>> print(S.att_to_band)                                                 
+        {'band': array([0, 1, 2, 3]), 'att': array([1, 2, 3, 4])}
 
         """
-        return self._att_to_band
+        return self._attenuator
 
     # Setter
-    @att_to_band.setter
-    def att_to_band(self, value):
-        self._att_to_band = value
+    @attenuator.setter
+    def attenuator(self, value):
+        self._attenuator = value
 
-    ## End att_to_band property definition
+    ## End attenuator property definition
     ###########################################################################
 
     ###########################################################################

@@ -54,7 +54,10 @@ extensions = [
 ]
 
 # Intersphinx settings
-intersphinx_mapping = {'python': ('https://docs.python.org/release/3.6.9', None)}
+intersphinx_mapping = {
+    'python': ('https://docs.python.org/release/3.6.9', None),
+    'numpy': ('https://numpy.org/doc/stable', None),    
+}
 
 # Napoleon settings
 napoleon_google_docstring = True
