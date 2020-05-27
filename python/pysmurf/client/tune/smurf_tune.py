@@ -3770,6 +3770,52 @@ class SmurfTuneMixin(SmurfBase):
                                               '*_tune.npy')))[-1]
 
     @set_action()
+    def optimize_lms_delay(self, band, lms_delays=None, reset_rate_khz=None,
+        fraction_full_scale=None, nsamp=2**18, lms_gain=7, lms_freq_hz=None,
+        meas_lms_freq=False, feedback_start_frac=.2, feedback_end_frac=.98,
+        meas_flux_ramp_amp=True):
+        """
+        """
+        if lms_delays is None:
+            lms_delays = np.array([12, 16, 20, 22, 23, 24, 25, 26, 28])
+
+        # Measure the LMS tracking parameters with current values.
+        f, df, sync = self.tracking_setup(band,
+            reset_rate_khz=reset_rate_khz,
+            fraction_full_scale=fraction_full_scale, make_plot=False,
+            show_plot=False, nsamp=nsamp, lms_gain=lms_gain,
+            lms_freq_hz=lms_freq_hz, meas_lms_freq=meas_lms_freq,
+            meas_flux_ramp_amp=meas_flux_ramp_amp)
+
+
+        frac_full_scale = self.get_fraction_full_scale()
+        lms_freq_hz = self.get_lms_freq_hz(band)
+        reset_rate_khz = int(self.get_flux_ramp_freq())
+
+        # Extract channels that are on
+        channel = np.where(np.std(df, axis=0)!=0)[0]
+        n_chan = len(channel)
+        n_lms_delay = len(lms_delays)
+
+        f_swing = np.zeros((n_lms_delays, n_chan))
+        df_std = np.zeros_like(f_swing)
+
+        for i, lmsd in enumerate(lms_delays):
+            self.set_lms_delay(band, lmds)
+            f, df, sync = self.tracking_setup(band,
+                reset_rate_khz=reset_rate_khz,
+                fraction_full_scale=frac_full_scale, make_plot=False,
+                show_plot=False, nsamp=nsamp, lms_gain=lms_gain,
+                lms_freq_hz=lms_freq_hz, meas_lms_freq=False,
+                meas_flux_ramp_amp=False)
+            f_swing[i] = np.max(f[:,channel], axis=0) - \
+                np.min(f[:,channel], axis=0)
+            df_std[i] = np.std(df[:,channel], axis=0)
+
+        return lms_delays, f_swing, df_std
+
+
+    @set_action()
     def estimate_lms_freq(self, band, reset_rate_khz,
                           fraction_full_scale=None,
                           new_epics_root=None, channel=None,
