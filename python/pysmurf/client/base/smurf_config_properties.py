@@ -1148,17 +1148,18 @@ class SmurfConfigPropertiesMixin:
     # Getter
     @property
     def R_sh(self):
-        """Short description.
+        """Resistance of the TES shunt resistors.
 
-        Gets or sets ?.
-        Units are ?.
+        Gets or sets the resistance of the TES shunt resistors.
+        Assumes the same shunt resistance for every channel.  Units
+        are Ohms.
 
-        Specified in the pysmurf configuration file as
-        `?`.
+        Specified in the pysmurf configuration file as `R_sh`.
 
-        See Also
-        --------
-        ?
+        Returns
+        -------
+        float
+           Resistance of the TES shunt resistors in Ohms.
 
         """
         return self._R_sh
