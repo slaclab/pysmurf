@@ -925,7 +925,7 @@ class SmurfConfigPropertiesMixin:
         -------
         dict
            A dictionary with two keys, 'band' and 'att', which map to
-           two :py:class:`numpy.ndarray`\ s of integers corresponding to
+           two :py:class:`numpy.ndarray` of integers corresponding to
            the UC and DC attenuator numbers and their corresponding
            500 MHz band numbers, in the same order.
 
@@ -954,7 +954,7 @@ class SmurfConfigPropertiesMixin:
         :class:`~pysmurf.client.base.smurf_control.SmurfControl` class
         instance):
 
-        >>> print(S.att_to_band)                                                 
+        >>> print(S.att_to_band)
         {'band': array([0, 1, 2, 3]), 'att': array([1, 2, 3, 4])}
 
         """

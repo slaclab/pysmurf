@@ -3117,12 +3117,12 @@ class SmurfUtilMixin(SmurfBase):
 
     def att_to_band(self, att):
         """500 MHz band associated with this attenuator number.
-        
+
         Args
         ----
         att : int
             Attenuator number.
-        
+
         Returns
         -------
         band : int
@@ -3131,7 +3131,7 @@ class SmurfUtilMixin(SmurfBase):
         return int(
             self._attenuator['band'][np.ravel(
                 np.where(self._attenuator['att']==att))[0]])
-        
+
     def band_to_att(self, band):
         """Attenuator number associated with this 500 MHz band.
 

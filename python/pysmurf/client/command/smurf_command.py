@@ -740,7 +740,7 @@ class SmurfCommandMixin(SmurfBase):
         return self._caget(
             self.dac_sig_gen.format(bay) + self._tone_file_path_reg,
             as_string=True, **kwargs)
-    
+
     def set_tone_file_path(self, bay, val, **kwargs):
         """
         Sets the tone file path for this bay.
@@ -1401,7 +1401,7 @@ class SmurfCommandMixin(SmurfBase):
         self._caput(
             self._band_root(band) + self._iq_swap_out_reg,
             val, **kwargs)
-        
+
     def get_iq_swap_out(self, band, **kwargs):
         """
         Swaps I&Q out of DSP (to DAC).  Swapping I&Q flips spectrum
@@ -1985,7 +1985,7 @@ class SmurfCommandMixin(SmurfBase):
             **kwargs)
 
     _band_center_mhz_reg = 'bandCenterMHz'
-    
+
     def set_band_center_mhz(self, band, val, **kwargs):
         """
         """
@@ -2238,7 +2238,7 @@ class SmurfCommandMixin(SmurfBase):
 
     # Attenuator
     _uc_reg = 'UC[{}]'
-    
+
     def set_att_uc(self, b, val, **kwargs):
         """
         Set the upconverter attenuator
@@ -2460,7 +2460,7 @@ class SmurfCommandMixin(SmurfBase):
         self._caput(
             self.jesd_tx_root.format(bay) + self._jesd_tx_enable_reg,
             val, **kwargs)
-    
+
     def get_jesd_tx_enable(self, bay, **kwargs):
         return self._caget(
             self.jesd_tx_root.format(bay) + self._jesd_tx_enable_reg,
@@ -2647,7 +2647,7 @@ class SmurfCommandMixin(SmurfBase):
             self.waveform_engine_buffers_root.format(bay) +
             self._start_addr_reg.format(engine),
             **kwargs)
-        
+
         if convert:
             return self.hex_string_to_int(val)
         else:
@@ -2696,7 +2696,7 @@ class SmurfCommandMixin(SmurfBase):
             self.waveform_engine_buffers_root.format(bay) +
             self._end_addr_reg.format(engine),
             **kwargs)
-        
+
         if convert:
             return self.hex_string_to_int(val)
         else:
@@ -2745,7 +2745,7 @@ class SmurfCommandMixin(SmurfBase):
             self.waveform_engine_buffers_root.format(bay) +
             self._wr_addr_reg.format(engine),
             **kwargs)
-        
+
         if convert:
             return self.hex_string_to_int(val)
         else:
@@ -2948,7 +2948,7 @@ class SmurfCommandMixin(SmurfBase):
             self.rtm_lut_ctrl_root +
             self._rtm_arb_waveform_lut_table_reg.format(reg),
             lut_arr, **kwargs)
-    
+
     def get_rtm_arb_waveform_lut_table(self, reg, **kwargs):
         """
         Gets the table currently loaded into the LUT table indexed by
@@ -3001,7 +3001,7 @@ class SmurfCommandMixin(SmurfBase):
         self._caput(
             self.rtm_lut_ctrl + self._rtm_arb_waveform_continuous_reg,
             val, **kwargs)
-    
+
     def get_rtm_arb_waveform_continuous(self, **kwargs):
         """
         If =1, RTM arbitrary waveform generation is continuous and
@@ -3047,7 +3047,7 @@ class SmurfCommandMixin(SmurfBase):
         self._caput(
             self.rtm_lut_ctrl + self._dac_axil_addr_reg.format(reg),
             val, **kwargs)
-    
+
     def get_dac_axil_addr(self, reg, **kwargs):
         """
         Gets the DacAxilAddr[#] registers.
@@ -3074,7 +3074,7 @@ class SmurfCommandMixin(SmurfBase):
         self._caput(
             self.rtm_lut_ctrl + self._rtm_arb_waveform_timer_size_reg,
             val, **kwargs)
-    
+
     def get_rtm_arb_waveform_timer_size(self, **kwargs):
         """
         Arbitrary waveforms are written to the slow RTM DACs with time
@@ -3104,7 +3104,7 @@ class SmurfCommandMixin(SmurfBase):
         self._caput(
             self.rtm_lut_ctrl + self._rtm_arb_waveform_max_addr_reg,
             val, **kwargs)
-    
+
     def get_rtm_arb_waveform_max_addr(self, **kwargs):
         """
         Slow RTM DACs will play the sequence [0...MaxAddr] of points
@@ -3135,7 +3135,7 @@ class SmurfCommandMixin(SmurfBase):
         self._caput(
             self.rtm_lut_ctrl + self._rtm_arb_waveform_enable_reg,
             val, **kwargs)
-    
+
     def get_rtm_arb_waveform_enable(self, **kwargs):
         """
         Enable for generation of arbitrary waveforms on the RTM slow
@@ -4191,7 +4191,7 @@ class SmurfCommandMixin(SmurfBase):
             self._caget(
                 self.regulator + self._regulator_iout_reg,
                 as_string=True, **kwargs))
-    
+
     _regulator_temp1_reg = "TEMPERATURE[1]"
 
     def get_regulator_temp1(self, **kwargs):
@@ -4559,7 +4559,7 @@ class SmurfCommandMixin(SmurfBase):
         val =  self._caget(
             self.timing_header + self._smurf_to_gcp_stream_reg,
             **kwargs)
-        
+
         if as_binary:
             val = bin(val)
 
@@ -4583,7 +4583,7 @@ class SmurfCommandMixin(SmurfBase):
         # when register changes so we're sure.
         user_config0_pv=(
             self.timing_header + self._smurf_to_gcp_stream_reg)
-        
+
         # Toggle using SyncGroup so we can confirm state as we toggle.
         sg=SyncGroup([user_config0_pv])
 
@@ -4788,7 +4788,7 @@ class SmurfCommandMixin(SmurfBase):
         return self._caget(
             self.lmk.format(bay) + self._lmk_reg.format(reg),
             **kwargs)
-    
+
     _mcetransmit_debug_reg = ':AMCc:mcetransmitDebug'
 
     def set_mcetransmit_debug(self, val, **kwargs):
@@ -5172,7 +5172,7 @@ class SmurfCommandMixin(SmurfBase):
         self._caput(
             self.channel_mapper + self._payload_size_reg,
             payload_size, **kwargs)
-    
+
     def get_payload_size(self, **kwargs):
         """
         The payload size defines the number of available channels
