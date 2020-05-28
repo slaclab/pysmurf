@@ -384,7 +384,7 @@ class SmurfNoiseMixin(SmurfBase):
         # Take data
         datafiles = np.array([])
         channel = np.array([])
-        for i, t in enumerate(tones):
+        for _, t in enumerate(tones):
             self.log(f'Measuring for tone power {t}')
 
             # Tune the band with the new drive power
@@ -881,7 +881,7 @@ class SmurfNoiseMixin(SmurfBase):
 
         timestream_dict = {}
         # Analyze data and save
-        for i, (bs, d) in enumerate(zip(bias, datafile)):
+        for _, (bs, d) in enumerate(zip(bias, datafile)):
             timestream_dict[bs] = {}
             for b in np.unique(band):
                 timestream_dict[bs][b] = {}
@@ -1175,7 +1175,7 @@ class SmurfNoiseMixin(SmurfBase):
                 plt.show()
 
             if save_plot:
-                plot_name = f'noise_vs_bias_' + \
+                plot_name = 'noise_vs_bias_' + \
                     f'g{file_name_string}b{b}ch{ch:03}.png'
                 if data_timestamp is not None:
                     plot_name = f'{data_timestamp}_' + plot_name
@@ -1618,7 +1618,7 @@ class SmurfNoiseMixin(SmurfBase):
         mask = np.loadtxt(self.smurf_to_mce_mask_file)
 
         # Analyze data and save
-        for i, (b, d) in enumerate(zip(tone, datafile)):
+        for _, (_, d) in enumerate(zip(tone, datafile)):
             timestamp, phase, mask = self.read_stream_data(d)
             phase *= self._pA_per_phi0/(2.*np.pi) # phase converted to pA
 

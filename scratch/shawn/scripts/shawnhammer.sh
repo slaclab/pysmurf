@@ -49,6 +49,15 @@ if [ ! -f "$startup_cfg" ]; then
 fi
 source ${startup_cfg}
 
+# if enable-tmux-logging, check that the tmux-logging plugin is
+# installed in /home/cryo/
+if [[ "$enable_tmux_logging" = true && ! -d "/home/cryo/tmux-logging" ]] ; then
+    echo "tmux logging enabled, but can't find tmux-logging plugin." 1>&2
+    echo "To use this option, must install to /home/cryo/tmux-logging." 1>&2
+    echo "Disabling tmux logging (enable_tmux_logging=false)." 1>&2
+    enable_tmux_logging=false
+fi
+
 # must confirm a slot configuration has been provided.  If not
 # then for backwards compatilibity, take current
 if [ -z "$slot_cfgs" ]; then
@@ -88,6 +97,8 @@ else
     slots=( $(awk '{print $1}' <<< "$slot_cfgs") )
     # second column is the pyrogue directories, in slot configure order    
     pyrogues=( $(awk '{print $2}' <<< "$slot_cfgs") )
+    # third (optional) column is the pysmurf experiment.cfg
+    pysmurf_cfgs=( $(awk '{print $3}' <<< "$slot_cfgs") )
 fi
 
 source shawnhammerfunctions
@@ -111,6 +122,13 @@ sleep 0.1
 echo "-> Starting a new ${tmux_session_name} tmux session"
 tmux new-session -d -s ${tmux_session_name}
 #tmux new -s ${tmux_session_name} -d
+
+# if enable-tmux-logging, check that the tmux-logging plugin is
+# installed in /home/cryo/
+if [[ "$enable_tmux_logging" = true ]]; then
+    mkdir -vp /data/smurf_data/tmux_logs
+    tmux set -g @logging-path "/data/smurf_data/tmux_logs"
+fi
 
 # stop pyrogue servers on all carriers
 for ((i=0; i<${#slots[@]}; ++i)); do
@@ -224,7 +242,8 @@ if [ "$parallel_setup" = true ] ; then
     while [[ "${setup_complete}" = false ]] ; do
 	for ((slot_idx=0; slot_idx<${#slots[@]}; ++slot_idx)); do
 	    slot=${slots[slot_idx]}
-	    pyrogue=${pyrogues[slot_idx]} 	
+	    pyrogue=${pyrogues[slot_idx]}
+	    pysmurf_cfg=${pysmurf_cfgs[slot_idx]}
 
 	    if [ "${slot_status[${slot_idx}]}" = "0" ]; then
 		# make sure ethernet is up on carrier
@@ -259,7 +278,7 @@ if [ "$parallel_setup" = true ] ; then
 	    # pysmurf object
 	    if [ "${slot_status[${slot_idx}]}" = "4" ]; then
 	    	echo "-> Starting pysmurf on ${slot}."		
-	    	start_slot_pysmurf ${slot}
+	    	start_slot_pysmurf ${slot} ${pysmurf_cfg}
 	    	slot_status[$slot_idx]=5;
 		if [ "${configure_pysmurf}" = false ]; then
 		    # skip setup
@@ -300,14 +319,15 @@ else
     ##  older serial method
     for ((i=0; i<${#slots[@]}; ++i)); do
 	slot=${slots[i]}
-	pyrogue=${pyrogues[i]} 
+	pyrogue=${pyrogues[i]}
+	pysmurf_cfg=${pysmurf_cfgs[i]} 	
 
 	# make sure ethernet is up on carrier
 	echo "-> Waiting for ethernet on carrier in slot ${slot} to come up ..."
 	cd $cpwd
 	ping_carrier 10.0.${crate_id}.$((${slot}+100))
 	
-	start_slot_tmux_serial ${slot} ${pyrogue}
+	start_slot_tmux_serial ${slot} ${pyrogue} ${pysmurf_cfg}
 	
 	pysmurf_docker_slot=`docker ps -a -n 1 -q`
 	
@@ -324,20 +344,24 @@ if [ "$run_thermal_test" = true ] ; then
     tmux new-window -t ${tmux_session_name}:8
     tmux rename-window -t ${tmux_session_name}:8 tests
     tmux send-keys -t ${tmux_session_name}:8 'cd '${pysmurf} C-m
-    tmux send-keys -t ${tmux_session_name}:8 'ipython3 -i pysmurf/'${thermal_test_script} C-m
+    tmux send-keys -t ${tmux_session_name}:8 'ipython3 -i pysmurf/'${thermal_test_script}' '`echo ${slots[@]} | tr ' ' ,` C-m
+fi
 
-    sleep 30
-    
-    tmux split-window -v -t ${tmux_session_name}:8
-    tmux send-keys -t ${tmux_session_name}:8 'cd '${pysmurf}'/scratch/shawn/' C-m
-    tmux send-keys -t ${tmux_session_name}:8 'ipython3 -i pysmurf/'${thermal_test_script} C-m    
-    
+### Last thing ; script user can specify to run at the end of the
+### hammer in each pysmurf session
+if [ ! -z "$script_to_run" ]; then
+    echo "-> Done hammering, running script_to_run=${script_to_run} on all slots ..."    
+    for slot in ${slots[@]}; do    
+	tmux send-keys -t ${tmux_session_name}:${slot} 'exec(open("scratch/shawn/test_new_carrier.py").read())' C-m
+    done
 fi
 
 if [ "$attach_at_end" = true ] ; then
     tmux attach -t ${tmux_session_name}
 fi
 
+# Rarely used for some lofi debugging at Stanford.
+#
 # terminal running script that screenshots can't overlap with the
 # remote desktop window, for some stupid reason.
 if [ "$screenshot_signal_analyzer" = true ] ; then

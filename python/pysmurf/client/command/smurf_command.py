@@ -784,17 +784,74 @@ class SmurfCommandMixin(SmurfBase):
     def get_load_tune_file(self, band, **kwargs):
         """
         """
-        self._caget(self._cryo_root(band) + self._load_tune_file,
-                    **kwargs)
+        return self._caget(
+            self._cryo_root(band) + self._load_tune_file,
+            **kwargs)
 
-
-    _eta_scan_del_f = 'etaScanDelF'
+    _eta_scan_del_f_reg = 'etaScanDelF'
 
     def set_eta_scan_del_f(self, band, val, **kwargs):
+        """Sets offset frequency for serial eta scan estimation.
+
+        The rogue serial eta scan routine (run using
+        :func:`run_serial_eta_scan`) estimates the eta parameter for each
+        tone with nonzero amplitude in the provided `band` by sampling
+        the frequency error at the tone frequency +/- this offset
+        frequency.  Units are Hz.
+
+        Args
+        ----
+        band : int
+           Which band.
+        val : int
+           Offset frequency in Hz about each resonator's central
+           frequency at which to sample the frequency error in order
+           to estimate the eta parameters of each resonator in the
+           rogue serial eta scan routine.
+
+        See Also
+        --------
+        :func:`run_serial_eta_scan` : Runs rogue serial eta scan, which uses
+                this parameter.
+        :func:`get_eta_scan_del_f` : Gets the current value of this
+                parameter in rogue.
         """
+        self._caput(
+            self._cryo_root(band) + self._eta_scan_del_f_reg, val,
+            **kwargs)
+
+    def get_eta_scan_del_f(self, band, **kwargs):
+        """Gets offset frequency for serial eta scan estimation.
+
+        The rogue serial eta scan routine (run using
+        :func:`run_serial_eta_scan`) estimates the eta parameter for each
+        tone with nonzero amplitude in the provided `band` by sampling
+        the frequency error at the tone frequency +/- this offset
+        frequency.  Units are Hz.
+
+        Args
+        ----
+        band : int
+           Which band.
+
+        Returns
+        -------
+        val : int
+           Offset frequency in Hz about each resonator's central
+           frequency at which to sample the frequency error in order
+           to estimate the eta parameters of each resonator in the
+           rogue serial eta scan routine.
+
+        See Also
+        --------
+        :func:`run_serial_eta_scan` : Runs rogue serial eta scan, which uses
+                this parameter.
+        :func:`set_eta_scan_del_f` : Sets the value of this parameter in
+                rogue.
         """
-        self._caput(self._cryo_root(band) + self._eta_scan_del_f, val,
-                    **kwargs)
+        return self._caget(
+            self._cryo_root(band) + self._eta_scan_del_f_reg,
+            **kwargs)
 
     _eta_scan_freqs = 'etaScanFreqs'
 
@@ -3691,7 +3748,11 @@ class SmurfCommandMixin(SmurfBase):
         value : float
             Regulator current in amperes.
         """
-        return self._caget(self.regulator + self._regulator_iout, **kwargs)
+        return float(
+            float(self._caget(
+                self.regulator + self._regulator_iout,
+                as_string=True,
+                **kwargs)))
 
     _regulator_temp1 = "TEMPERATURE[1]"
 
@@ -3702,7 +3763,11 @@ class SmurfCommandMixin(SmurfBase):
         value : float
             Regulator PT temperature in C.
         """
-        return self._caget(self.regulator + self._regulator_temp1, **kwargs)
+        return float(
+            float(self._caget(
+                self.regulator + self._regulator_temp1,
+                as_string=True,
+                **kwargs)))
 
     _regulator_temp2 = "TEMPERATURE[2]"
 
@@ -3713,7 +3778,11 @@ class SmurfCommandMixin(SmurfBase):
         value : float
             A regulator CTRL temperature in C.
         """
-        return self._caget(self.regulator + self._regulator_temp2, **kwargs)
+        return float(
+            float(self._caget(
+                self.regulator + self._regulator_temp2,
+                as_string=True,
+                **kwargs)))
 
     # Cryo card comands
     def get_cryo_card_temp(self, enable_poll=False, disable_poll=False):

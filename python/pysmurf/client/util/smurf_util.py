@@ -27,8 +27,6 @@ import threading
 from pysmurf.client.util.SmurfFileReader import SmurfStreamReader
 from pysmurf.client.util.pub import set_action
 
-
-
 class SmurfUtilMixin(SmurfBase):
 
     @set_action()
@@ -1061,7 +1059,7 @@ class SmurfUtilMixin(SmurfBase):
 
                     #initialize data structure
                     phase=list()
-                    for i,_ in enumerate(channel):
+                    for _,_ in enumerate(channel):
                         phase.append(list())
                     for i,_ in enumerate(channel):
                         phase[i].append(data[i])
@@ -3527,7 +3525,7 @@ class SmurfUtilMixin(SmurfBase):
 
             else:
                 # Sets TES bias high then low
-                for i in np.arange(n_step):
+                for _ in np.arange(n_step):
                     self.set_tes_bias_bipolar_array(start_bias + step_array,
                                                     wait_done=False)
                     time.sleep(wait_time)
@@ -3961,42 +3959,126 @@ class SmurfUtilMixin(SmurfBase):
     __hardware_logging_pause_event=None
 
     def pause_hardware_logging(self):
+        """Pauses hardware logging thread.
+
+        See Also
+        --------
+        resume_hardware_logging : Resumes hardware logging thread.
+        start_hardware_logging : Starts hardware logging thread.
+        stop_hardware_logging : Stops hardware logging thread.
+        """
         self.__hardware_logging_pause_event.set()
 
     def resume_hardware_logging(self):
+        """Resumes hardware logging thread.
+
+        See Also
+        --------
+        pause_hardware_logging : Pauses hardware logging thread.
+        start_hardware_logging : Starts hardware logging thread.
+        stop_hardware_logging : Stops hardware logging thread.
+        """
         self.__hardware_logging_pause_event.clear()
 
     __hardware_log_file=None
 
     def get_hardware_log_file(self):
+        """Returns path to current hardware log file.
+
+        Returns
+        -------
+        str or None
+           Path on disk to current hardware log file.  If not
+           currently hardware logging, returns None.
+
+        See Also
+        --------
+        start_hardware_logging : Starts hardware logging thread.
+        """
         return self.__hardware_log_file
 
     _hardware_logging_thread=None
     __hardware_logging_stop_event=None
 
-    def start_hardware_logging(self,filename=None):
-        # Just in case somewhere the enable got set to false, explicitly enable here
+    def start_hardware_logging(self,filename=None,wait_btw_sec=5.0):
+        """Starts hardware logging in external thread.
+
+        Args
+        ----
+        filename : str or None, optional, default None
+           Name of file on disk to write hardware logging to
+           (including path).  If None, file name is automatically
+           generated as *CTIME_hwlog.dat* with CTIME the current unix
+           epoch timestamp returned by
+           :func:`~pysmurf.client.base.smurf_control.SmurfControl.get_timestamp`,
+           and saved in the directory specified by the
+           :class:`~pysmurf.client.base.smurf_control.SmurfControl`
+           class attribute
+           :attr:`~pysmurf.client.base.smurf_control.SmurfControl.output_dir`.
+        wait_btw_sec : float, optional, default 5.0 Time to wait, in
+           seconds, between each poll of the hardware registers being
+           logged.
+
+        See Also
+        --------
+        get_hardware_log_entry : Generates each row of hardware logging data written to file.
+        pause_hardware_logging : Pauses hardware logging thread.
+        resume_hardware_logging : Resumes hardware logging thread.
+        stop_hardware_logging : Stops hardware logging thread.
+        """
+        # Just in case somewhere the enable got set to false,
+        # explicitly enable here
         if filename is None:
-            filename=str(self.get_timestamp())+'_hwlog.dat'
-        self.__hardware_log_file = os.path.join(self.output_dir, filename)
+            filename=os.path.join(
+                self.output_dir,
+                str(self.get_timestamp())+'_hwlog.dat')
+        self.__hardware_log_file = os.path.join(filename)
         self.log('Starting hardware logging to file : ' +
                  f'{self.__hardware_log_file}',
                  self.LOG_USER)
         self.__hardware_logging_stop_event=threading.Event()
         self.__hardware_logging_pause_event=threading.Event()
         self._hardware_logging_thread = threading.Thread(target=self._hardware_logger,
-            args=(self.__hardware_logging_pause_event,
-                self.__hardware_logging_stop_event,))
+            args=(
+                self.__hardware_logging_pause_event,
+                self.__hardware_logging_stop_event,wait_btw_sec))
         self._hardware_logging_thread.daemon = True
         self._hardware_logging_thread.start()
 
     def stop_hardware_logging(self):
+        """Stops and cleans up hardware logging thread.
+
+        See Also
+        --------
+        start_hardware_logging : Starts hardware logging thread.
+        """
         self.__hardware_logging_stop_event.set()
         self._hardware_logging_thread.join()
         self._hardware_logging_thread=None
         self.__hardware_log_file=None
 
     def _hardware_logger(self,pause_event,stop_event,wait_btw_sec=5):
+        """Hardware logging thread function.
+
+        Args
+        ----
+        pause_event : :py:class:`threading.Event`
+           :py:class:`threading.Event` object for pausing the hardware
+           logging thread.
+        stop_event : :py:class:`threading.Event`
+           :py:class:`threading.Event` object for stopping the
+           hardware logging thread.
+        wait_btw_sec : float, optional, default 5.0 Time to wait, in
+           seconds, between each poll of the hardware registers being
+           logged.
+
+        See Also
+        --------
+        pause_hardware_logging : Pauses hardware logging thread.
+        resume_hardware_logging : Resumes hardware logging thread.
+        start_hardware_logging : Starts hardware logging thread.
+        stop_hardware_logging : Stops hardware logging thread.
+        """
         filename=self.get_hardware_log_file()
         import fcntl
         #counter=0
@@ -4015,7 +4097,7 @@ class SmurfUtilMixin(SmurfBase):
                     with open(filename) as logf:
                         hdr2=logf.readline()
                         if not hdr.rstrip().split() == hdr2.rstrip().split():
-                            self.log('Attempting to temperature log to an ' +
+                            self.log('Attempting to hardware log to an ' +
                                 'incompatible file.  Giving up without ' +
                                 'logging any data!', self.LOG_ERROR)
                             return
@@ -4030,7 +4112,20 @@ class SmurfUtilMixin(SmurfBase):
                 #counter+=1
 
     def get_hardware_log_entry(self):
+        """Returns hardware log file header and data.
 
+        Returns
+        -------
+        hdr : str
+           Header for hardware log file.
+        row : str
+           One row of data for hardware log file.  Measured values are
+           polled once each time function is called.
+
+        See Also
+        --------
+        start_hardware_logging : Starts hardware logging thread.
+        """
         d={}
         d['epics_root']=lambda:self.epics_root
         d['ctime']=self.get_timestamp
@@ -4077,7 +4172,7 @@ class SmurfUtilMixin(SmurfBase):
         for key, value in d.items():
             columns.append(str(value()))
             names.append(key)
-            fmt+=f'{0[{counter}]:<20}'
+            fmt+=('{0['+f'{counter}'+']:<20}')
             counter+=1
         fmt+='\n'
 

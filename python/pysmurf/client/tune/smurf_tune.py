@@ -654,10 +654,13 @@ class SmurfTuneMixin(SmurfBase):
             time.sleep(.05)  # Need to wait, otherwise dac call interferes with adc
 
             try:
-                dac = self.read_dac_data(band, n_samples, hw_trigger=hw_trigger)
+                dac = self.read_dac_data(
+                    band, n_samples, hw_trigger=hw_trigger,
+                    save_data=False)
             except BaseException:
                 self.log('ADC read failed. Trying one more time', self.LOG_ERROR)
-                dac = self.read_dac_data(band, n_samples, hw_trigger=hw_trigger,
+                dac = self.read_dac_data(
+                    band, n_samples, hw_trigger=hw_trigger,
                     save_data=False)
             time.sleep(.05)
 
@@ -2794,7 +2797,7 @@ class SmurfTuneMixin(SmurfBase):
         ret['rot_ang'] = rot_ang
         ret['data'] = {}
 
-        for i, r in enumerate(rot_ang):
+        for _, r in enumerate(rot_ang):
             self.log(f'Rotating {r:3.1f} deg')
             eta_phase = np.zeros_like(eta_phase0)
             for c in np.arange(n_channels):
@@ -3259,8 +3262,8 @@ class SmurfTuneMixin(SmurfBase):
 
         if drive_power is None:
             drive_power = self.config.get('init')[f'band_{band}'].get('amplitude_scale')
-            self.log(f'No drive_power given. Using value in config ' +
-                f'file: {drive_power}')
+            self.log('No drive_power given. Using value in config ' +
+                     f'file: {drive_power}')
 
         self.log('Sweeping across frequencies')
         f, resp = self.full_band_ampl_sweep(band, subband, drive_power, n_read)
