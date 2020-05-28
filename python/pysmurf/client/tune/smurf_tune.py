@@ -2387,6 +2387,13 @@ class SmurfTuneMixin(SmurfBase):
         meas_lms_freq : bool, optional, default False
             Whether or not to try to estimate the carrier rate using
             the flux_mod2 function.  lms_freq_hz must be None.
+        meas_flux_ramp_amp : bool, optional, default False
+            Whether or not to adjust fraction_full_scale to get the number of
+            phi0 defined by n_phi0. lms_freq_hz must be None for this to work.
+        n_phi0 : float, optional, default 4
+            The number of phi0 to match using meas_flux_ramp_amp.
+        nsamp : int, optional, default 2**19
+            The number of samples to take of the flux ramp
         flux_ramp : bool, optional, default True
             Whether to turn on flux ramp.
         fraction_full_scale : float or None, optional, default None
@@ -3773,9 +3780,67 @@ class SmurfTuneMixin(SmurfBase):
     def optimize_lms_delay(self, band, lms_delays=None, reset_rate_khz=None,
         fraction_full_scale=None, nsamp=2**18, lms_gain=7, lms_freq_hz=None,
         meas_lms_freq=False, feedback_start_frac=.2, feedback_end_frac=.98,
-        meas_flux_ramp_amp=True, make_plot=False, show_plot=False,
+        meas_flux_ramp_amp=True, n_phi0=4, make_plot=False, show_plot=False,
         save_plot=True, df_bins=np.arange(0,50.1,2.5)):
         """
+        Loops over multiple LMS delays and measures df. Looks for the minima
+        of the median of the df terms for all the channels that are on. It is
+        recommended that you turn off all bad channels before running this.
+
+        Args
+        ----
+        band : int
+            The 500 MHz band to optimize
+        lms_delays : int array, optional, default None
+            The delays to test. If None, uses default values
+            [12, 16, 20, 22, 23, 24, 25, 26, 28]
+        reset_rate_khz : float or None, optional, default None
+            The flux ramp frequency.
+        fraction_full_scale : float or None, optional, default None
+            The flux ramp amplitude, as a fraction of the maximum.
+        nsamp : int, optional, default 2**19
+            The number of samples to take of the flux ramp
+        lms_gain : int or None, optional, default None
+            The tracking gain parameters. Default is the value in the
+            config table.
+        lms_freq_hz : float or None, optional, default None
+            The frequency of the tracking algorithm.
+        meas_lms_freq : bool, optional, default False
+            Whether or not to try to estimate the carrier rate using
+            the flux_mod2 function.  lms_freq_hz must be None.
+        feedback_start_frac : float or None, optional, default None
+            The fraction of the full flux ramp at which to stop
+            applying feedback in each flux ramp cycle.  Must be in
+            [0,1).  Defaults to whatever's in the cfg file.
+        feedback_end_frac : float or None, optional, default None
+            The fraction of the full flux ramp at which to stop
+            applying feedback in each flux ramp cycle.  Must be >0.
+            Defaults to whatever's in the cfg file.
+        make_plot : bool, optional, default False
+            Whether to make plots.
+        save_plot : bool, optional, default True
+            Whether to save plots.
+        show_plot : bool, optional, default True
+            Whether to display the plot.
+        meas_lms_freq : bool, optional, default False
+            Whether or not to try to estimate the carrier rate using
+            the flux_mod2 function.  lms_freq_hz must be None.
+        meas_flux_ramp_amp : bool, optional, default False
+            Whether or not to adjust fraction_full_scale to get the number of
+            phi0 defined by n_phi0. lms_freq_hz must be None for this to work.
+        n_phi0 : float, optional, default 4
+            The number of phi0 to match using meas_flux_ramp_amp.
+        df_bins : float array, optional, default np.arange(0, 50.1, 2.5)
+            The histogram bins for the plotting.
+
+        Return
+        ------
+        lms_delays : int array
+            A list of lms delays swept through
+        f_swing : float array
+            The max - min swing for the flux ramp response
+        df_std : float array
+            The standard deviation of the flux ramp df term
         """
         timestamp = self.get_timestamp()
 
@@ -3790,7 +3855,7 @@ class SmurfTuneMixin(SmurfBase):
             lms_freq_hz=lms_freq_hz, meas_lms_freq=meas_lms_freq,
             meas_flux_ramp_amp=meas_flux_ramp_amp)
 
-
+        # Store the values
         frac_full_scale = self.get_fraction_full_scale()
         lms_freq_hz = self.get_lms_freq_hz(band)
         reset_rate_khz = int(self.get_flux_ramp_freq())
@@ -3800,9 +3865,11 @@ class SmurfTuneMixin(SmurfBase):
         n_chan = len(channel)
         n_lms_delay = len(lms_delays)
 
+        # Vars to hold the solutions
         f_swing = np.zeros((n_lms_delay, n_chan))
         df_std = np.zeros_like(f_swing)
 
+        # Loop over lms delays
         for i, lmsd in enumerate(lms_delays):
             self.set_lms_delay(band, lmsd)
             f, df, sync = self.tracking_setup(band,
@@ -3820,29 +3887,30 @@ class SmurfTuneMixin(SmurfBase):
         df_std *= 1.0E3
 
         if make_plot:
+            # Instantiate plots for df terms
             fig, ax = plt.subplots(n_lms_delay, sharex=True,
                 figsize=(4, 2*n_lms_delay))
             for i, lmsd in enumerate(lms_delays):
                 ax[i].hist(df_std[i])
                 m = np.median(df_std[i])
                 ax[i].axvline(m, color='k', linestyle='--')
-                text = f'delay {lmsd}' + '\n' + f'med {m:3.1f}'
+                text = f'delay {lmsd}' + '\n' + f'med {m:3.2f}'
                 ax[i].text(.97, .95, text, transform=ax[i].transAxes,
                     fontsize=10, va='top', ha='right')
 
+            # Add labels
             ax[0].set_title(f'Optimize LMS delay {timestamp}')
+            ax[1].set_xlabel('std(df) [kHz]')
             plt.tight_layout()
-
 
             if save_plot:
                 plt.savefig(os.path.join(self.plot_dir,
                     f'{timestamp}_optimize_lms_delay_b{band}.png'),
-                bbox_inches='tight')
+                    bbox_inches='tight')
             if show_plot:
                 plt.show()
             else:
                 plt.close()
-
 
         return lms_delays, f_swing, df_std
 
