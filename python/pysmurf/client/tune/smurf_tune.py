@@ -3797,7 +3797,7 @@ class SmurfTuneMixin(SmurfBase):
         n_chan = len(channel)
         n_lms_delay = len(lms_delays)
 
-        f_swing = np.zeros((n_lms_delays, n_chan))
+        f_swing = np.zeros((n_lms_delay, n_chan))
         df_std = np.zeros_like(f_swing)
 
         for i, lmsd in enumerate(lms_delays):
