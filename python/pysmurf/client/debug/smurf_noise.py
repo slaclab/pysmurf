@@ -658,12 +658,15 @@ class SmurfNoiseMixin(SmurfBase):
         self.log(f'Saving data filenames to {fn_datafiles}.')
 
         if analyze:
-            self.analyze_noise_vs_bias(var_range, datafiles,  channel=channel,
-                band=band, bias_group=kwargs['bias_group'], nperseg=nperseg,
-                detrend=detrend, fs=fs, save_plot=True, show_plot=show_plot,
-                data_timestamp=timestamp ,psd_ylim=psd_ylim,
+            self.analyze_noise_vs_bias(
+                var_range, datafiles, channel=channel, band=band,
+                bias_group=kwargs['bias_group'], nperseg=nperseg,
+                detrend=detrend, fs=fs, save_plot=True,
+                show_plot=show_plot, data_timestamp=timestamp,
+                psd_ylim=psd_ylim,
                 make_timestream_plot=make_timestream_plot,
-                xlabel_override=xlabel_override, unit_override=unit_override)
+                xlabel_override=xlabel_override,
+                unit_override=unit_override)
 
 
     def get_datafiles_from_file(self, fn_datafiles):

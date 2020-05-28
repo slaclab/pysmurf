@@ -1119,17 +1119,32 @@ class SmurfConfigPropertiesMixin:
     # Getter
     @property
     def bias_line_resistance(self):
-        """Short description.
+        """Total low current mode TES bias line resistance.
 
-        Gets or sets ?.
-        Units are ?.
+        Gets or sets the total low current mode TES bias line
+        resistance.  Assumes the same resistance for every TES bias
+        line.  Includes the inline resistance on the cryostat card
+        (with the cryostat card relays set to the low current
+        operation mode position) and cryocable impedance (including
+        any cold resistors).  Technically includes the resistance
+        added by the connected TES+shunt resistor chain, but that is
+        typically negligible compared to the cryostat card and
+        cryocable impedances.  Units are Ohms.
 
         Specified in the pysmurf configuration file as
-        `?`.
+        `bias_line_resistance`.
+
+        Returns
+        -------
+        float
+           Total low current mode TES bias line resistance in Ohms.
 
         See Also
         --------
-        ?
+        :func:`~pysmurf.client.debug.smurf_iv.SmurfIVMixin.analyze_slow_iv`,
+        :func:`~pysmurf.client.debug.smurf_noise.SmurfNoiseMixin.NET_CMB`,
+        :func:`~pysmurf.client.util.smurf_util.SmurfUtilMixin.bias_bump`
+        :func:`~pysmurf.client.util.smurf_util.SmurfUtilMixin.identify_bias_groups`
 
         """
         return self._bias_line_resistance
@@ -1161,6 +1176,15 @@ class SmurfConfigPropertiesMixin:
         float
            Resistance of the TES shunt resistors in Ohms.
 
+        See Also
+        --------
+        :func:`~pysmurf.client.debug.smurf_iv.SmurfIVMixin.analyze_slow_iv`,
+        :func:`~pysmurf.client.debug.smurf_iv.SmurfIVMixin.partial_load_curve_all`,
+        :func:`~pysmurf.client.debug.smurf_iv.SmurfIVMixin.slow_iv_all`,
+        :func:`~pysmurf.client.debug.smurf_noise.SmurfNoiseMixin.NET_CMB`,
+        :func:`~pysmurf.client.debug.smurf_noise.SmurfNoiseMixin.analyze_noise_vs_bias`,
+        :func:`~pysmurf.client.util.smurf_util.SmurfUtilMixin.bias_bump`
+
         """
         return self._R_sh
 
@@ -1178,17 +1202,40 @@ class SmurfConfigPropertiesMixin:
     # Getter
     @property
     def high_low_current_ratio(self):
-        """Short description.
+        """Current ratio between low- to high-current modes.
 
-        Gets or sets ?.
-        Units are ?.
+        Gets or sets the ratio of currents sourced by the cryostat
+        card for the same applied TES bias voltage (from the RTM, at
+        the input to the cryostat card) in high- versus low-current
+        cryostat card TES bias relay modes.  In typical applications,
+        this ratio is >1, since otherwise the currents sourced in
+        high-current mode wouldn't be higher than the currents sourced
+        in low current mode!  Assumes the same ratio for every TES
+        bias line.  In typical applications, this ratio is well
+        approximated by the ratio of the resistances on the cryostat
+        card alone (computed as the total resistance for the relay in
+        the low-current mode position divided by the total resistance
+        for the relay in the high-current mode position).  Unitless.
 
         Specified in the pysmurf configuration file as
-        `?`.
+        `high_low_current_ratio`.
+
+        Returns
+        -------
+        float
+           The ratio of currents sourced by the cryostat card for the
+           same applied TES bias voltage (from the RTM, at the input
+           to the cryostat card) in high- versus low-current modes
+           (unitless).
 
         See Also
         --------
-        ?
+        :func:`~pysmurf.client.debug.smurf_iv.SmurfIVMixin.analyze_slow_iv`,
+        :func:`~pysmurf.client.debug.smurf_iv.SmurfIVMixin.partial_load_curve_all`,
+        :func:`~pysmurf.client.debug.smurf_noise.SmurfNoiseMixin.NET_CMB`,
+        :func:`~pysmurf.client.debug.smurf_noise.SmurfNoiseMixin.get_iv_data`,
+        :func:`~pysmurf.client.util.smurf_util.SmurfUtilMixin.bias_bump`
+        :func:`~pysmurf.client.util.smurf_util.SmurfUtilMixin.identify_bias_groups`
 
         """
         return self._high_low_current_ratio
