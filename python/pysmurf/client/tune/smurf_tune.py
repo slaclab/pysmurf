@@ -3773,9 +3773,12 @@ class SmurfTuneMixin(SmurfBase):
     def optimize_lms_delay(self, band, lms_delays=None, reset_rate_khz=None,
         fraction_full_scale=None, nsamp=2**18, lms_gain=7, lms_freq_hz=None,
         meas_lms_freq=False, feedback_start_frac=.2, feedback_end_frac=.98,
-        meas_flux_ramp_amp=True):
+        meas_flux_ramp_amp=True, make_plot=False, show_plot=False,
+        save_plot=True):
         """
         """
+        timestamp = self.get_timestamp()
+
         if lms_delays is None:
             lms_delays = np.array([12, 16, 20, 22, 23, 24, 25, 26, 28])
 
@@ -3811,6 +3814,31 @@ class SmurfTuneMixin(SmurfBase):
             f_swing[i] = np.max(f[:,channel], axis=0) - \
                 np.min(f[:,channel], axis=0)
             df_std[i] = np.std(df[:,channel], axis=0)
+
+        # Convert to kHz
+        f_swing *= 1.0E3
+        df_std *= 1.0E3
+
+        if make_plot:
+            fig, ax = plt.subplots(n_lms_delay, sharex=True,
+                figsize=(4, 2*n_lms_delay))
+            for i, lmsd in enumerate(lms_delays):
+                ax[0].hist(df_std[i])
+                ax[0].set_ylabel(f'LMS Delay {lmsd}')
+
+            fig.suptitle(f'Optimize LMS delay {timestamp}')
+            plt.tight_layout()
+
+
+            if save_plot:
+                plt.savefig(os.path.join(self.plot_dir,
+                    f'{timestamp}_optimize_lms_delay_b{band}.png'),
+                bbox_inches='tight')
+            if show_plot:
+                plt.show()
+            else:
+                plt.close()
+
 
         return lms_delays, f_swing, df_std
 
