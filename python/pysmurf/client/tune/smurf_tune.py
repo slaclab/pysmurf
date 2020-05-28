@@ -3801,7 +3801,7 @@ class SmurfTuneMixin(SmurfBase):
         df_std = np.zeros_like(f_swing)
 
         for i, lmsd in enumerate(lms_delays):
-            self.set_lms_delay(band, lmds)
+            self.set_lms_delay(band, lmsd)
             f, df, sync = self.tracking_setup(band,
                 reset_rate_khz=reset_rate_khz,
                 fraction_full_scale=frac_full_scale, make_plot=False,
