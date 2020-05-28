@@ -52,7 +52,9 @@ class Common(pyrogue.Root):
         # self._fpga = Top level FPGA
 
         # Add PySmurf Application Block
-        self.add(pysmurf.core.devices.SmurfApplication())
+        self.add(pysmurf.core.devices.SmurfApplication(
+            disable_bay0=disable_bay0,
+            disable_bay1=disable_bay1))
 
         # Add FPGA
         self.add(self._fpga)
@@ -130,17 +132,6 @@ class Common(pyrogue.Root):
             name='setDefaults',
             description='Set default configuration',
             function=self._set_defaults_cmd))
-
-        bays = []
-        if not disable_bay0:
-            bays.append(0)
-        if not disable_bay1:
-            bays.append(1)
-        self.add(pyrogue.LocalVariable(
-            name='EnabledBays',
-            description='List of bays that are enabled',
-            value=str(bays),
-            mode='RO'))
 
         # Flag that indicates if the default configuration should be loaded
         # once the root is started.

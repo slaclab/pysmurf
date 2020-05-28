@@ -26,7 +26,11 @@ class SmurfApplication(pyrogue.Device):
     """
     SMuRF Application Block
     """
-    def __init__(self, **kwargs):
+    def __init__(self,
+                 disable_bay0 = False,
+                 disable_bay1 = False,
+                 **kwargs):
+
         pyrogue.Device.__init__(self, name="SmurfApplication", description='SMuRF Application Container', **kwargs)
 
         self.add(pyrogue.LocalVariable(
@@ -59,3 +63,9 @@ class SmurfApplication(pyrogue.Device):
             mode='RW',
             value=0, # Initial value determine variable type, (int, float, list, etc)
         ))
+
+        self.add(pyrogue.LocalVariable(
+            name='EnabledBays',
+            description='List of bays that are enabled',
+            value=[i for i,e in enumerate([disable_bay0, disable_bay1]) if not e],
+            mode='RO'))
