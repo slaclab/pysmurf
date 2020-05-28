@@ -3774,7 +3774,7 @@ class SmurfTuneMixin(SmurfBase):
         fraction_full_scale=None, nsamp=2**18, lms_gain=7, lms_freq_hz=None,
         meas_lms_freq=False, feedback_start_frac=.2, feedback_end_frac=.98,
         meas_flux_ramp_amp=True, make_plot=False, show_plot=False,
-        save_plot=True):
+        save_plot=True, df_bins=np.arange(0,50.1,2.5)):
         """
         """
         timestamp = self.get_timestamp()
@@ -3824,7 +3824,11 @@ class SmurfTuneMixin(SmurfBase):
                 figsize=(4, 2*n_lms_delay))
             for i, lmsd in enumerate(lms_delays):
                 ax[i].hist(df_std[i])
-                ax[i].set_ylabel(f'LMS Delay {lmsd}')
+                m = np.median(df_std[i])
+                ax[i].axvline(m, color='k', linestyle='--')
+                text = f'delay {lmsd}' + '\n' + f'med {m:3.1f}'
+                ax[i].text(.97, .95, text, transform=ax[i].transAxes,
+                    fontsize=10, va='top', ha='right')
 
             ax[0].set_title(f'Optimize LMS delay {timestamp}')
             plt.tight_layout()
