@@ -3823,10 +3823,10 @@ class SmurfTuneMixin(SmurfBase):
             fig, ax = plt.subplots(n_lms_delay, sharex=True,
                 figsize=(4, 2*n_lms_delay))
             for i, lmsd in enumerate(lms_delays):
-                ax[0].hist(df_std[i])
-                ax[0].set_ylabel(f'LMS Delay {lmsd}')
+                ax[i].hist(df_std[i])
+                ax[i].set_ylabel(f'LMS Delay {lmsd}')
 
-            fig.suptitle(f'Optimize LMS delay {timestamp}')
+            ax[0].set_title(f'Optimize LMS delay {timestamp}')
             plt.tight_layout()
 
 
