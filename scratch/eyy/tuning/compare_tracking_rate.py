@@ -35,9 +35,39 @@ df = {}
 
 n_steps = len(reset_rate_khzs)
 
+# Take measurements
 for i in np.arange(n_steps):
     f[i], df[i], sync = S.tracking_setup(band, reset_rate_khz=reset_rate_khzs[i],
         fraction_full_scale=.5, make_plot=False, nsamp=2**18, lms_gain=lms_gain,
         lms_freq_hz=None, meas_lms_freq=False, feedback_start_frac=.2,
         feedback_end_frac=.98, meas_flux_ramp_amp=True, n_phi0=n_phi0s[i],
         lms_enable2=lms_enable2, lms_enable3=lms_enable3)
+
+# Make plot
+f_swing = {}
+df_std = {}
+
+ax = plt.subplots(1, figsize=(5,4.5))
+cm = plt.get_cmap('viridis')
+for i in np.arange(n_step):
+    channel = np.where(np.std(df[i], axis=0)!=0)[0]
+    f_swing[i] = np.max(f[:,channel], axis=0) - \
+        np.min(f[:,channel], axis=0)
+    df_std[i] = np.std(df[:,channel], axis=0)
+
+    # Convert to kHz
+    f_swing[i] *= 1.0E3
+    df_std[i] *= 1.0E3
+
+    color = cm(i/n_step)
+
+    label = f'r{reset_rate_khzs[i]} ' + r'n$\phi_0$ ' + f'{n_phi0s[i]}'
+    ax.plot(f_swing[i], df_std[i], color=color, fmt='.', label=label)
+
+timestamp = S.get_timestamp()
+
+ax.legend()
+ax.set_xlabel('Freq Swing [kHz]')
+ax.set_ylabel('std(df) [kHz]')
+ax.set_title(f'{timestamp} LMS2 {lms_enable2} LMS3 {lms_enable3} Gain {lms_gain}')
+plt.tight_layout()
