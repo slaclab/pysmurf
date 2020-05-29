@@ -13,7 +13,7 @@ config_file = os.path.join('/data/pysmurf_cfg/experiment_fp30_cc02-03_lbOnlyBay0
 
 ### Function variables ###
 band = 2
-subband = np.arange(50, 52)
+subband = np.arange(13, 115)
 
 reset_rate_khzs = np.array([4, 10, 15, 15])
 n_phi0s = np.array([4, 4, 4, 6])
@@ -25,10 +25,10 @@ lms_gain = 7
 S = pysmurf.client.SmurfControl(epics_root=epics_prefix, cfg_file=config_file,
     setup=False, make_logfile=False, shelf_manager='shm-smrf-sp01')
 
-# S.find_freq(band, subband, make_plot=True)
-# S.setup_notches(band, new_master_assignment=True)
-# S.run_serial_gradient_descent(band)
-# S.run_serial_eta_scan(band)
+S.find_freq(band, subband, make_plot=True)
+S.setup_notches(band, new_master_assignment=True)
+S.run_serial_gradient_descent(band)
+S.run_serial_eta_scan(band)
 
 f = {}
 df = {}
@@ -48,7 +48,7 @@ f_swing = {}
 df_std = {}
 
 fig, ax = plt.subplots(1, figsize=(5,4.5))
-cm = plt.get_cmap('viridis')
+cm = plt.get_cmap('gist_rainbow')
 for i in np.arange(n_steps):
     channel = np.where(np.std(df[i], axis=0)!=0)[0]
     f_swing[i] = np.max(f[i][:,channel], axis=0) - \
