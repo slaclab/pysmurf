@@ -264,6 +264,19 @@ class SmurfCommandMixin(SmurfBase):
                            self._smurf_startup_arguments_reg,
                            as_string=True, **kwargs)
 
+    _enabled_bays = "EnabledBays"
+
+    def get_enabled_bays(self, **kwargs):
+        """
+        Gets list of enabled bays.
+
+        Returns
+        -------
+        bays : list of int
+            Which bays were enabled on pysmurf server startup.
+        """
+        return list(self._caget(self.smurf_application + self._enabled_bays, **kwargs))
+
     #### End SmurfApplication gets/sets
 
     _rogue_version_reg = 'RogueVersion'
