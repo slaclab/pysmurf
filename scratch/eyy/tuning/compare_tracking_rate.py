@@ -13,7 +13,7 @@ config_file = os.path.join('/data/pysmurf_cfg/experiment_fp30_cc02-03_lbOnlyBay0
 
 ### Function variables ###
 band = 2
-subband = np.arange(50, 55)
+subband = np.arange(50, 52)
 
 reset_rate_khzs = np.array([4, 10, 15, 15])
 n_phi0s = np.array([4, 4, 4, 6])
@@ -33,7 +33,7 @@ S.run_serial_eta_scan(band)
 f = {}
 df = {}
 
-n_steps = len(reset_rate_khz)
+n_steps = len(reset_rate_khzs)
 
 for i in np.arange(n_steps):
     f[i], df[i], sync = S.tracking_setup(band, reset_rate_khz=reset_rate_khzs[i],
