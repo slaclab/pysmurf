@@ -11,7 +11,8 @@ import scipy.signal as signal
 ### System Configuration ###
 datafile_file = os.path.join('/data/smurf_data/20200529/1590773672/outputs/',
     '1590774028_compare_tracking_noise.npy')
-fs = 200
+reset_rate_khzs = np.load(datafile_file.replace('_compare_tracking_noise.npy',
+    '_reset_rate_khz.npy'))
 nperseg = 2**12
 bins_min = np.array([.2, .5, 1, 3, 10])
 bins_max = np.array([.5, 1, 3, 10, 30])
@@ -32,6 +33,7 @@ bin_vals_all = {}
 
 for kk in datafiles:
     datafile = datafiles[kk]
+    fs = reset_rate_khzs[kk] * 1.0E3  # downsample fitler set to 1
 
     # Load data
     print(datafile)
