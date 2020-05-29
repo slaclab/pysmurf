@@ -49,7 +49,7 @@ df_std = {}
 
 ax = plt.subplots(1, figsize=(5,4.5))
 cm = plt.get_cmap('viridis')
-for i in np.arange(n_step):
+for i in np.arange(n_steps):
     channel = np.where(np.std(df[i], axis=0)!=0)[0]
     f_swing[i] = np.max(f[:,channel], axis=0) - \
         np.min(f[:,channel], axis=0)
