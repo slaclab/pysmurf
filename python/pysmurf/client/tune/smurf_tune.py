@@ -3166,7 +3166,7 @@ class SmurfTuneMixin(SmurfBase):
         self.log(f'Currently {n_chan} channels on')
 
         # Tracking setup returns information on all channels in a band
-        f, df, sync = self.tracking_setup(band, make_plot=False,
+        f, df, sync = self.tracking_setup(band, make_plot=make_plot,
             flux_ramp=flux_ramp, fraction_full_scale=fraction_full_scale,
             lms_freq_hz=lms_freq_hz, reset_rate_khz=reset_rate_khz,
             feedback_start_frac=feedback_start_frac,
