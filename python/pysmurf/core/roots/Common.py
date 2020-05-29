@@ -52,9 +52,7 @@ class Common(pyrogue.Root):
         # self._fpga = Top level FPGA
 
         # Add PySmurf Application Block
-        self.add(pysmurf.core.devices.SmurfApplication(
-            disable_bay0=disable_bay0,
-            disable_bay1=disable_bay1))
+        self.add(pysmurf.core.devices.SmurfApplication())
 
         # Add FPGA
         self.add(self._fpga)
@@ -192,6 +190,8 @@ class Common(pyrogue.Root):
                                                                   autoPrefix='config',
                                                                   autoCompress=False))
 
+        # List of enabled bays
+        self._enabled_bays = [i for i,e in enumerate([disable_bay0, disable_bay1]) if not e]
 
     def start(self):
         pyrogue.Root.start(self)
@@ -231,6 +231,9 @@ class Common(pyrogue.Root):
         # Load default configuration, if requested
         if self._configure:
             self.setDefaults.call()
+
+        # Update the 'EnabledBays' variable with the correct list of enabled bays.
+        self.SmurfApplication.EnabledBays.set(self._enabled_bays)
 
         # Workaround: Set the Mask value to '[0]' by default when the server starts.
         # This is needed because the pysmurf-client by default stat data streaming
