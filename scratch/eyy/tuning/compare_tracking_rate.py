@@ -13,6 +13,7 @@ config_file = os.path.join('/data/pysmurf_cfg/experiment_fp30_cc02-03_lbOnlyBay0
 
 ### Function variables ###
 find_resonators = False
+tune_filename = None
 band = 2
 subband = np.arange(13, 115)
 noise_time = 60
@@ -32,6 +33,8 @@ if find_resonators:
     S.setup_notches(band, new_master_assignment=True)
     S.run_serial_gradient_descent(band)
     S.run_serial_eta_scan(band)
+else:
+    S.load_tune(filename=tune_filename)
 
 f = {}
 df = {}
