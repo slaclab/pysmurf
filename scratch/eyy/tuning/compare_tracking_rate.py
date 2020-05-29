@@ -56,7 +56,7 @@ for i in np.arange(n_steps):
     S.check_lock(band)
 
     # Take noise data
-    factor = int(reset_rate_khz[i]/data_rate)
+    factor = int(reset_rate_khzs[i]/data_rate)
     S.set_downsample_factor(factor)
     noise_files[i] = S.take_stream_data(noise_time)
 
