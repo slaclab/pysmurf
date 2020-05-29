@@ -3107,7 +3107,7 @@ class SmurfTuneMixin(SmurfBase):
             make_plot=False, flux_ramp=True, fraction_full_scale=None,
             lms_freq_hz=None, reset_rate_khz=None, feedback_start_frac=None,
             feedback_end_frac=None, setup_flux_ramp=True, lms_enable1=None,
-            lms_enable2=None, lms_enable3=None, **kwargs):
+            lms_enable2=None, lms_enable3=None, lms_gain=None, **kwargs):
         """
         Takes a tracking setup and turns off channels that have bad
         tracking. The limits are set by the variables f_min, f_max,
@@ -3161,6 +3161,8 @@ class SmurfTuneMixin(SmurfBase):
             lms_enable2 = self.get_lms_enable2(band)
         if lms_enable3 is None:
             lms_enable3 = self.get_lms_enable3(band)
+        if lms_gain is None:
+            lms_gain = self.get_lms_gain(band)
 
         channels = self.which_on(band)
         n_chan = len(channels)
