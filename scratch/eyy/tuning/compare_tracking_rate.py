@@ -17,6 +17,7 @@ tune_filename = None
 band = 2
 subband = np.arange(13, 115)
 noise_time = 60
+data_rate = 200  # Hz
 
 reset_rate_khzs = np.array([4, 10, 15, 15])
 n_phi0s = np.array([4, 4, 4, 6])
@@ -55,6 +56,8 @@ for i in np.arange(n_steps):
     S.check_lock(band)
 
     # Take noise data
+    factor = int(reset_rate_khz[i]/data_rate)
+    S.set_downsample_factor(factor)
     noise_files[i] = S.take_stream_data(noise_time)
 
 
