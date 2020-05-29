@@ -101,3 +101,5 @@ np.save(os.path.join(S.output_dir, f'{timestamp}_compare_tracking_noise'),
     noise_files)
 np.save(os.path.join(S.output_dir, f'{timestamp}_reset_rate_khz'),
     reset_rate_khzs)
+np.save(os.path.join(S.output_dir, f'{timestamp}_n_phi0'),
+    n_phi0s)

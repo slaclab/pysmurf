@@ -13,6 +13,11 @@ datafile_file = os.path.join('/data/smurf_data/20200529/1590773672/outputs/',
     '1590774028_compare_tracking_noise.npy')
 reset_rate_khzs = np.load(datafile_file.replace('_compare_tracking_noise.npy',
     '_reset_rate_khz.npy'))
+n_phi0s = np.load(datafile_file.replace('_compare_tracking_noise.npy',
+    '_n_phi0.npy'))
+plot_dir = os.path.split(datafile_file)[0].replace('outputs', 'plots')
+
+
 nperseg = 2**12
 bins_min = np.array([.2, .5, 1, 3, 10])
 bins_max = np.array([.5, 1, 3, 10, 30])
@@ -30,6 +35,8 @@ datafiles = np.load(datafile_file, allow_pickle=True).item()
 
 pxx_all = {}
 bin_vals_all = {}
+bands_all = {}
+channels_all = {}
 
 for kk in datafiles:
     datafile = datafiles[kk]
@@ -55,5 +62,42 @@ for kk in datafiles:
             idx = np.where(np.logical_and(f > bmin, f < bmax))
             bin_vals[i, j] = np.median(pxx[key][idx])
 
+    bands_all[kk] = bands
+    channels_all[kk] = channels
+
     bin_vals_all[kk] = bin_vals
     pxx_all[kk] = np.sqrt(pxx)
+
+# Find unique channels
+all_channels = np.array([])
+for k in bands_all.keys():
+    bands = bands_all[k]
+    channels = channels_all[k]
+    all_channels = np.append(all_channels, bands*512+channels)
+all_channels = np.unique(all_channels)
+
+cm = plt.get_cmap('gist_rainbow')
+for cchh in all_channels:
+    b = cchh // 512
+    ch = cchh % 512
+
+    plt.figure()
+    nm = np.max(list(datafiles.keys()))
+    for kk in datafiles:
+        color = cm(kk/nm)
+        if b in bands_all[kk] and ch in channels_all[kk]:
+            idx = np.ravel(np.where(np.logical_and(bands_all[kk] == b,
+                channels_all[kk] == ch)))
+            label = f'FR {reset_rate_khzs[kk]} kHz ' + r'n$\phi_0$ ' + \
+                f'{n_phi0s[kk]}'
+            plt.semilogx(f, pxx_all[kk][idx], label=label)
+
+    plt.legend(loc='upper right')
+    plt.xlabel('Freq [Hz]')
+    plt.ylabel('Amp [pA/rtHz]')
+    plt.title(f'b{b}ch{ch:03}')
+    plt.tight_layout()
+
+    plt.savefig(os.path.join(plot_dir, f'noise_b{b}ch{ch:03}.png'),
+        bbox_inches='tight')
+    plt.close()
