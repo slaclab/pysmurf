@@ -25,10 +25,10 @@ lms_gain = 7
 S = pysmurf.client.SmurfControl(epics_root=epics_prefix, cfg_file=config_file,
     setup=False, make_logfile=False, shelf_manager='shm-smrf-sp01')
 
-S.find_freq(band, subband, make_plot=True)
-S.setup_notches(band, new_master_assignment=True)
-S.run_serial_gradient_descent(band)
-S.run_serial_eta_scan(band)
+# S.find_freq(band, subband, make_plot=True)
+# S.setup_notches(band, new_master_assignment=True)
+# S.run_serial_gradient_descent(band)
+# S.run_serial_eta_scan(band)
 
 f = {}
 df = {}
@@ -51,9 +51,9 @@ ax = plt.subplots(1, figsize=(5,4.5))
 cm = plt.get_cmap('viridis')
 for i in np.arange(n_steps):
     channel = np.where(np.std(df[i], axis=0)!=0)[0]
-    f_swing[i] = np.max(f[:,channel], axis=0) - \
-        np.min(f[:,channel], axis=0)
-    df_std[i] = np.std(df[:,channel], axis=0)
+    f_swing[i] = np.max(f[i][:,channel], axis=0) - \
+        np.min(f[i][:,channel], axis=0)
+    df_std[i] = np.std(df[i][:,channel], axis=0)
 
     # Convert to kHz
     f_swing[i] *= 1.0E3
@@ -69,5 +69,5 @@ timestamp = S.get_timestamp()
 ax.legend()
 ax.set_xlabel('Freq Swing [kHz]')
 ax.set_ylabel('std(df) [kHz]')
-ax.set_title(f'{timestamp} LMS2 {lms_enable2} LMS3 {lms_enable3} Gain {lms_gain}')
+ax.set_title(f'band {band} {timestamp} LMS2 {lms_enable2} LMS3 {lms_enable3} Gain {lms_gain}')
 plt.tight_layout()
