@@ -2569,7 +2569,7 @@ class SmurfTuneMixin(SmurfBase):
             timestamp = self.get_timestamp()
 
             fig,ax = plt.subplots(1,3, figsize=(12,5))
-            fig.suptitle(f'Band {band}')
+            fig.suptitle(f'{timestamp} Band {band}')
 
             # Histogram the stddev
             ax[0].hist(df_std[channels_on]*1e3, bins=20, edgecolor = 'k')
@@ -2591,7 +2591,7 @@ class SmurfTuneMixin(SmurfBase):
             y_factor = 100
             y = x/y_factor
             ax[2].plot(x, y, color='k', linestyle=':',label=f'1:{y_factor}')
-            ax[2].legend(loc='best')
+            ax[2].legend(loc='upper right')
 
             bbox = dict(boxstyle="round", ec='w', fc='w', alpha=.65)
 
@@ -2600,6 +2600,8 @@ class SmurfTuneMixin(SmurfBase):
                 f"FR amp: {self.get_fraction_full_scale():1.3f}" + "\n" + \
                 f"FB start: {feedback_start_frac}" + "\n" + \
                 f"FB end: {feedback_end_frac}" + "\n" + \
+                f"FB enable 1/2/3 : {lms_enable1}/{lms_enable2}/{lms_enable3}" +
+                "\n" + \
                 r"$n_{chan}$:" + f" {len(channels_on)}"
             ax[2].text(.05, .97, text, transform=ax[2].transAxes, va='top',
                 ha='left', fontsize=10, bbox=bbox)
