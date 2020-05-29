@@ -12,7 +12,7 @@ epics_prefix = 'smurf_server_s5'
 config_file = os.path.join('/data/pysmurf_cfg/experiment_fp30_cc02-03_lbOnlyBay0.cfg')
 
 ### Function variables ###
-find_resonators = True
+find_resonators = False
 tune_filename = None
 band = 2
 subband = np.arange(13, 115)
