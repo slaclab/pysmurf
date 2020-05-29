@@ -2607,7 +2607,8 @@ class SmurfTuneMixin(SmurfBase):
 
             bbox = dict(boxstyle="round", ec='w', fc='w', alpha=.65)
 
-            text = f"LMS freq: {lms_freq_hz:.0f} Hz" + "\n" + \
+            text = f"Reset rate: {reset_rate_khz} kHz" + "\n" + \
+                f"LMS freq: {lms_freq_hz:.0f} Hz" + "\n" + \
                 f"LMS gain: {lms_gain}" + "\n" + \
                 f"FR amp: {self.get_fraction_full_scale():1.3f}" + "\n" + \
                 f"FB start: {feedback_start_frac}" + "\n" + \
@@ -3158,13 +3159,16 @@ class SmurfTuneMixin(SmurfBase):
         self.log(f'Checking lock on band {band}')
 
         if reset_rate_khz is None:
-            reset_rate_khz = self.reset_rate_khz
+            # reset_rate_khz = self.reset_rate_khz
+            reset_rate_khz = int(self.get_flux_ramp_freq())
 
         if fraction_full_scale is None:
-            fraction_full_scale = self.fraction_full_scale
+            # fraction_full_scale = self.fraction_full_scale
+            fraction_full_scale = self.get_fraction_full_scale()
 
         if lms_freq_hz is None:
-            lms_freq_hz = self.lms_freq_hz[band]
+            # lms_freq_hz = self.lms_freq_hz[band]
+            lms_freq_hz = self.get_lms_freq_hz(band)
 
         # Retrieve LMS enable status if not provided
         if lms_enable1 is None:
