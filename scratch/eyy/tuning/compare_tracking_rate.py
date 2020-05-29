@@ -47,7 +47,7 @@ for i in np.arange(n_steps):
 f_swing = {}
 df_std = {}
 
-ax = plt.subplots(1, figsize=(5,4.5))
+fig, ax = plt.subplots(1, figsize=(5,4.5))
 cm = plt.get_cmap('viridis')
 for i in np.arange(n_steps):
     channel = np.where(np.std(df[i], axis=0)!=0)[0]
