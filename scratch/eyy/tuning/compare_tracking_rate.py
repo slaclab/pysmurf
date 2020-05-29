@@ -51,7 +51,7 @@ for i in np.arange(n_steps):
     S.check_lock(band)
 
     # Take noise data
-    filenames[i] = S.take_streamdata(noise_time)
+    filenames[i] = S.take_stream_data(noise_time)
 
 
 # Make plot
