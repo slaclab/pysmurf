@@ -9,8 +9,7 @@ import os
 
 ### System Configuration ###
 epics_prefix = 'smurf_server_s5'
-config_file = os.path.join('/home/cryo/shawn/tmp/pysmurf/cfg_files/',
-    'stanford/experiment_fp30_cc02-03_lbOnlyBay0.cfg')
+config_file = os.path.join('/data/pysmurf_cfg/experiment_fp30_cc02-03_lbOnlyBay0.cfg')
 
 ### Function variables ###
 band = 2
