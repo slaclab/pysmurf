@@ -2351,6 +2351,27 @@ class SmurfTuneMixin(SmurfBase):
 
         return d, df, sync
 
+    def _feedback_frac_to_feedback(self, frac):
+        """
+        Convenience function for convervting from feedback_start/end_frac
+        to feedback_start/end.
+        """
+        channel_frequency_mhz = self.get_channel_frequency_mhz(band)
+        digitizer_frequency_mhz = self.get_digitizer_frequency_mhz(band)
+        return int(frac*(self.get_ramp_max_cnt()+1)/(
+                digitizer_frequency_mhz/channel_frequency_mhz/2. ) )
+
+    def _feedback_to_feedback_frac(self, feedback):
+        """
+        Convenience function for converting from feedback_start/end to
+        feedback_start/end_frac.
+        """
+        channel_frequency_mhz = self.get_channel_frequency_mhz(band)
+        digitizer_frequency_mhz = self.get_digitizer_frequency_mhz(band)
+        return feedback * digitizer_frequency_mhz / (2 *
+            channel_frequency_mhz *(self.get_ramp_max_cnt()+1))
+
+
     @set_action()
     def tracking_setup(self, band, channel=None, reset_rate_khz=None,
             write_log=False, make_plot=False, save_plot=True, show_plot=True,
@@ -2522,17 +2543,8 @@ class SmurfTuneMixin(SmurfBase):
 
         # Doing this after flux_ramp_setup so that if needed we can
         # set feedback_end based on the flux ramp settings.
-
-        # Compute feedback_start/feedback_end from
-        # feedback_start_frac/feedback_end_frac.
-        channel_frequency_mhz = self.get_channel_frequency_mhz(band)
-        digitizer_frequency_mhz = self.get_digitizer_frequency_mhz(band)
-        feedback_start = int(
-            feedback_start_frac*(self.get_ramp_max_cnt()+1)/(
-                digitizer_frequency_mhz/channel_frequency_mhz/2. ) )
-        feedback_end = int(
-            feedback_end_frac*(self.get_ramp_max_cnt()+1)/(
-                digitizer_frequency_mhz/channel_frequency_mhz/2. ) )
+        feedback_start = self._feedback_frac_to_feedback(feedback_start_frac)
+        feedback_end = self._feedback_frac_to_feedback(feedback_end_frac)
 
         # Set feedbackStart and feedbackEnd
         self.set_feedback_start(band, feedback_start, write_log=write_log)
