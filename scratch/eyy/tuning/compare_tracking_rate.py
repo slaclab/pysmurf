@@ -38,6 +38,6 @@ n_steps = len(reset_rate_khzs)
 for i in np.arange(n_steps):
     f[i], df[i], sync = S.tracking_setup(band, reset_rate_khz=reset_rate_khzs[i],
         fraction_full_scale=.5, make_plot=False, nsamp=2**18, lms_gain=lms_gain,
-        lms_freq_hz=None, measure_lms_freq=False, feedback_start_frac=.2,
+        lms_freq_hz=None, meas_lms_freq=False, feedback_start_frac=.2,
         feedback_end_frac=.98, meas_flux_ramp_amp=True, n_phi0=n_phi0s[i],
         lms_enable2=lms_enable2, lms_enable3=lms_enable3)
