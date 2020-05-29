@@ -59,7 +59,7 @@ for i in np.arange(n_steps):
     f_swing[i] *= 1.0E3
     df_std[i] *= 1.0E3
 
-    color = cm(i/n_step)
+    color = cm(i/n_steps)
 
     label = f'r{reset_rate_khzs[i]} ' + r'n$\phi_0$ ' + f'{n_phi0s[i]}'
     ax.plot(f_swing[i], df_std[i], color=color, fmt='.', label=label)
