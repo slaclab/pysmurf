@@ -3175,7 +3175,8 @@ class SmurfTuneMixin(SmurfBase):
             lms_freq_hz=lms_freq_hz, reset_rate_khz=reset_rate_khz,
             feedback_start_frac=feedback_start_frac,
             feedback_end_frac=feedback_end_frac, lms_enable1=lms_enable1,
-            lms_enable2=lms_enable2, lms_enable3=lms_enable3)
+            lms_enable2=lms_enable2, lms_enable3=lms_enable3,
+            lms_gain=lms_gain)
 
         high_cut = np.array([])
         low_cut = np.array([])
