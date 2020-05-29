@@ -3104,7 +3104,8 @@ class SmurfTuneMixin(SmurfBase):
     def check_lock(self, band, f_min=.015, f_max=.2, df_max=.03,
             make_plot=False, flux_ramp=True, fraction_full_scale=None,
             lms_freq_hz=None, reset_rate_khz=None, feedback_start_frac=None,
-            feedback_end_frac=None, setup_flux_ramp=True, **kwargs):
+            feedback_end_frac=None, setup_flux_ramp=True, lms_enable1=None,
+            lms_dnable2=None, lms_enable3=None, **kwargs):
         """
         Takes a tracking setup and turns off channels that have bad
         tracking. The limits are set by the variables f_min, f_max,
@@ -3151,6 +3152,14 @@ class SmurfTuneMixin(SmurfBase):
         if lms_freq_hz is None:
             lms_freq_hz = self.lms_freq_hz[band]
 
+        # Retrieve LMS enable status if not provided
+        if lms_enable1 is None:
+            lms_enable1 = self.get_lms_enable1(band)
+        if lms_enable2 is None:
+            lms_enable2 = self.get_lms_enable1(band)
+        if lms_enable3 is None:
+            lms_enable3 = self.get_lms_enable1(band)
+
         channels = self.which_on(band)
         n_chan = len(channels)
 
@@ -3161,7 +3170,8 @@ class SmurfTuneMixin(SmurfBase):
             flux_ramp=flux_ramp, fraction_full_scale=fraction_full_scale,
             lms_freq_hz=lms_freq_hz, reset_rate_khz=reset_rate_khz,
             feedback_start_frac=feedback_start_frac,
-            feedback_end_frac=feedback_end_frac)
+            feedback_end_frac=feedback_end_frac, lms_enable1=lms_enable1,
+            lms_enable2=lms_enable2, lms_enable3=lms_enable3)
 
         high_cut = np.array([])
         low_cut = np.array([])
