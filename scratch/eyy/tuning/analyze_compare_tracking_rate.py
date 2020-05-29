@@ -32,6 +32,7 @@ bin_vals_all = {}
 
 for kk, datafile in enumerate(datafiles):
     # Load data
+    print(datafile)
     t, d, m = S.read_stream_data(datafile)
     d *= S.pA_per_phi0/2/np.pi
 
