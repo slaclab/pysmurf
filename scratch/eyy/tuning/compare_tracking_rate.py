@@ -12,6 +12,7 @@ epics_prefix = 'smurf_server_s5'
 config_file = os.path.join('/data/pysmurf_cfg/experiment_fp30_cc02-03_lbOnlyBay0.cfg')
 
 ### Function variables ###
+find_resonators = False
 band = 2
 subband = np.arange(13, 115)
 noise_time = 60
@@ -26,10 +27,11 @@ lms_gain = 7
 S = pysmurf.client.SmurfControl(epics_root=epics_prefix, cfg_file=config_file,
     setup=False, make_logfile=False, shelf_manager='shm-smrf-sp01')
 
-S.find_freq(band, subband, make_plot=True)
-S.setup_notches(band, new_master_assignment=True)
-S.run_serial_gradient_descent(band)
-S.run_serial_eta_scan(band)
+if find_resonators:
+    S.find_freq(band, subband, make_plot=True)
+    S.setup_notches(band, new_master_assignment=True)
+    S.run_serial_gradient_descent(band)
+    S.run_serial_eta_scan(band)
 
 f = {}
 df = {}
@@ -49,7 +51,7 @@ for i in np.arange(n_steps):
     S.check_lock(band)
 
     # Take noise data
-    filenames[i] = S.take_stream9data(noise_time)
+    filenames[i] = S.take_streamdata(noise_time)
 
 
 # Make plot
