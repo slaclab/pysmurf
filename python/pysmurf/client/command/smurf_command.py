@@ -264,6 +264,19 @@ class SmurfCommandMixin(SmurfBase):
                            self._smurf_startup_arguments,
                            as_string=True, **kwargs)
 
+    _enabled_bays = "EnabledBays"
+
+    def get_enabled_bays(self, **kwargs):
+        """
+        Gets list of enabled bays.
+
+        Returns
+        -------
+        bays : list of int
+            Which bays were enabled on pysmurf server startup.
+        """
+        return list(self._caget(self.smurf_application + self._enabled_bays, **kwargs))
+
     #### End SmurfApplication gets/sets
 
     _rogue_version = 'RogueVersion'
@@ -4671,19 +4684,3 @@ class SmurfCommandMixin(SmurfBase):
         """
         self._caput(self.channel_mapper + self._payload_size,
                     payload_size, **kwargs)
-
-    def get_enabled_bays(self, **kwargs):
-        """
-        Gets list of enabled bays.
-
-        Returns
-        -------
-        bays : list of int
-            Which bays were enabled on pysmurf server startup.
-        """
-        bays = []
-        _bays = self._caget(self.amcc + "EnabledBays", as_string=True, **kwargs)
-        for i in [0, 1]:
-            if str(i) in _bays:
-                bays.append(i)
-        return bays
