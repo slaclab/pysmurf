@@ -3158,9 +3158,9 @@ class SmurfTuneMixin(SmurfBase):
         if lms_enable1 is None:
             lms_enable1 = self.get_lms_enable1(band)
         if lms_enable2 is None:
-            lms_enable2 = self.get_lms_enable1(band)
+            lms_enable2 = self.get_lms_enable2(band)
         if lms_enable3 is None:
-            lms_enable3 = self.get_lms_enable1(band)
+            lms_enable3 = self.get_lms_enable3(band)
 
         channels = self.which_on(band)
         n_chan = len(channels)
