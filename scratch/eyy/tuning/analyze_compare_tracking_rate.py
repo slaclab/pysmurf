@@ -32,14 +32,17 @@ bin_vals_all = {}
 
 for kk in datafiles:
     datafile = datafiles[kk]
+
     # Load data
     print(datafile)
     t, d, m = S.read_stream_data(datafile)
     d *= S.pA_per_phi0/2/np.pi
 
+    # Extract channels
     bands, channels = np.where(m != -1)
     n_chan = len(bands)
 
+    # Calculate psds
     pxx = np.zeros((n_chan, nperseg//2+1))
     bin_vals = np.zeros((n_chan, n_bins))
     for i, (b, ch) in enumerate(zip(bands, channels)):
@@ -51,4 +54,4 @@ for kk in datafiles:
             bin_vals[i, j] = np.median(pxx[key][idx])
 
     bin_vals_all[kk] = bin_vals
-    pxx_all[kk] = pxx
+    pxx_all[kk] = np.sqrt(pxx)
