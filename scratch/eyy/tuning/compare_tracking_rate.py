@@ -41,6 +41,7 @@ n_steps = len(reset_rate_khzs)
 
 # Take measurements
 for i in np.arange(n_steps):
+    S.relock(band)
     f[i], df[i], sync = S.tracking_setup(band, reset_rate_khz=reset_rate_khzs[i],
         fraction_full_scale=.5, make_plot=False, nsamp=2**18, lms_gain=lms_gain,
         lms_freq_hz=None, meas_lms_freq=False, feedback_start_frac=.2,
@@ -51,7 +52,7 @@ for i in np.arange(n_steps):
     S.check_lock(band)
 
     # Take noise data
-    filenames[i] = S.take_stream_data(noise_time)
+    noise_files[i] = S.take_stream_data(noise_time)
 
 
 # Make plot
