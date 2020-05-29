@@ -3176,6 +3176,14 @@ class SmurfTuneMixin(SmurfBase):
         if lms_gain is None:
             lms_gain = self.get_lms_gain(band)
 
+        # Get feedback values
+        if feedback_start_frac is None:
+            feedback_start_frac = self._feedback_to_feedback_frac(band,
+                self.get_feedback_start(band))
+        if feedback_end_frac is None:
+            feedback_end_frac = self._feedback_to_feedback_frac(band,
+                self.get_feedback_end(band))
+
         channels = self.which_on(band)
         n_chan = len(channels)
 
