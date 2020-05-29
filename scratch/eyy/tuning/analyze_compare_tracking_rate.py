@@ -30,7 +30,8 @@ datafiles = np.load(datafile_file, allow_pickle=True).item()
 pxx_all = {}
 bin_vals_all = {}
 
-for kk, datafile in enumerate(datafiles):
+for kk in datafiles:
+    datafile = datafiles[kk]
     # Load data
     print(datafile)
     t, d, m = S.read_stream_data(datafile)
