@@ -87,7 +87,7 @@ for cchh in all_channels:
         color = cm(kk/nm)
         if b in bands_all[kk] and ch in channels_all[kk]:
             idx = np.ravel(np.where(np.logical_and(bands_all[kk] == b,
-                channels_all[kk] == ch)))
+                channels_all[kk] == ch)))[0]
             label = f'FR {reset_rate_khzs[kk]} kHz ' + r'n$\phi_0$ ' + \
                 f'{n_phi0s[kk]}'
             plt.semilogx(f, pxx_all[kk][idx], label=label)
