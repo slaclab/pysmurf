@@ -1828,6 +1828,9 @@ class SmurfNoiseMixin(SmurfBase):
             self.run_serial_gradient_descent(band)
             self.run_serial_eta_scan(band)
 
+        eta_mag = self.get_eta_mag_scaled_channel(band, channel)
+        eta_phase = self.get_eta_phase_degree_channel(band, channel)
+
         # Turn off feedback and FR
         self.set_feedback_enable(band, 0)
         self.flux_ramp_off()
@@ -1848,6 +1851,12 @@ class SmurfNoiseMixin(SmurfBase):
             ax[1].loglog(ff, np.sqrt(pxx))
             ax[1].set_xlabel("Freq [Hz]")
             ax[1].set_ylabel("Amp [FBU/rtHz]")
+
+            text = f'Res {freq:4.2f} MHz' + '\n' +\
+                r'\eta_{mag} ' + f'{eta_mag:2.3f}' + \
+                r'\eta_{phase} ' + f'{eta_phase:2.1f} deg' + \
+            ax[1].text(.98, .98, text, transform=ax[2].transAxes, va='top',
+                ha='right')
 
             ax[0].set_title(f'High Rate b{band}ch{channel:03}')
 
