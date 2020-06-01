@@ -1803,7 +1803,8 @@ class SmurfNoiseMixin(SmurfBase):
 
     def take_noise_high_bandwidth(self, band, channel, tone_power=10,
         nsamp=2**25, nperseg=2**18, make_plot=True, show_plot=False,
-        save_plot=True, band_off=True, reoptimize_resonator=True):
+        save_plot=True, band_off=True, reoptimize_resonator=True,
+        save_psd=False):
         """
         This script is shamelessly stolen from Max. This tunes up a single
         resonator and takes data in single_channel_readout mode, with is 2.4 MHz.
@@ -1841,8 +1842,9 @@ class SmurfNoiseMixin(SmurfBase):
         ff, pxx = signal.welch(df, nperseg=nperseg, fs=channel_freq)
 
         if make_plot:
-            fig, ax = plt.subplots(2, figsize=(6,5.5))
-            ax[0].plot(df[:nperseg])
+            fig, ax = plt.subplots(2, figsize=(6,5.5),
+                gridspec_kw={'height_ratios': [1, 2]})
+            ax[0].plot(df[:nperseg])  # Plot only the first nperseg samples
             ax[1].loglog(ff, np.sqrt(pxx))
             ax[1].set_xlabel("Freq [Hz]")
             ax[1].set_ylabel("Amp [FBU/rtHz]")
@@ -1858,6 +1860,10 @@ class SmurfNoiseMixin(SmurfBase):
                 plt.show()
             else:
                 plt.close()
+
+        if save_psd:
+            np.save(os.path.join(self.output_dir, f'{filename_f}'), ff)
+            np.save(os.path.join(self.output_dir, f'{filename_pxx}'), pxx)
 
         return ff, pxx
 
