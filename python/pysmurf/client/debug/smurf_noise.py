@@ -1802,7 +1802,8 @@ class SmurfNoiseMixin(SmurfBase):
 
 
     def take_noise_high_bandwidth(self, band, channel, tone_power=10,
-        nsamp=2**25):
+        nsamp=2**25, nperseg=2**18, make_plot=True, show_plot=False,
+        save_plot=True):
         """
         This script is shamelessly stolen from Max. This tunes up a single
         resonator and takes data in single_channel_readout mode, with is 2.4 MHz.
@@ -1813,6 +1814,7 @@ class SmurfNoiseMixin(SmurfBase):
         channel = int(channel)
 
         freq = self.channel_to_freq(band, channel)  # resonance frequency
+        channel_freq = self.get_channel_frequency_mhz(band)  # sampling freq
 
         # Turn on single tone
         self.set_fixed_tone(freq, tone_power)
@@ -1823,11 +1825,33 @@ class SmurfNoiseMixin(SmurfBase):
 
         # Take data
         timestamp = self.get_timestamp()
-        filename = f'{timestamp}_single_channel_b{band}ch{channel:03}.dat'
+        filename = f'{timestamp}_single_channel_b{band}ch{channel:03}'
         f, df, sync = self.take_debug_data(band, channel=channel,
             IQstream=False, single_channel_readout=2,
             nsamp=nsamp, filename=filename)
 
+        ff, pxx = signal.welch(df, nperseg=npserseg, fs=channel_freq)
+
+        if make_plot:
+            fig, ax = plt.subplots(2, figsize=(6,5.5))
+            ax[0].plot(df[:nperseg])
+            ax[1].plot(ff, np.sqrt(pxx))
+            ax[1].set_xlabel("Freq [Hz]")
+            ax[1].set_ylabel("Amp [FBU/rtHz]")
+
+            ax[0].set_title(f'High Rate b{band}ch{channel:03}')
+
+            plt.tight_layout()
+
+            if save_plot:
+                plt.savefig(os.path.join(self.plot_dir, f'{filename}.png'),
+                    bbox_inches='tight')
+            if show_plot:
+                plt.show()
+            else:
+                plt.close()
+
+        return ff, pxx
 
 
     def noise_svd(self, d, mask, mean_subtract=True):
