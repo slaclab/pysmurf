@@ -1814,7 +1814,7 @@ class SmurfNoiseMixin(SmurfBase):
         channel = int(channel)
 
         freq = self.channel_to_freq(band, channel)  # resonance frequency
-        channel_freq = self.get_channel_frequency_mhz(band)  # sampling freq
+        channel_freq = self.get_channel_frequency_mhz(band) * 1.0E6 # sampling freq
 
         # Turn on single tone
         self.set_fixed_tone(freq, tone_power)
@@ -1830,7 +1830,7 @@ class SmurfNoiseMixin(SmurfBase):
             IQstream=False, single_channel_readout=2,
             nsamp=nsamp, filename=filename)
 
-        ff, pxx = signal.welch(df, nperseg=npserseg, fs=channel_freq)
+        ff, pxx = signal.welch(df, nperseg=nperseg, fs=channel_freq)
 
         if make_plot:
             fig, ax = plt.subplots(2, figsize=(6,5.5))
