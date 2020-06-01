@@ -1801,6 +1801,34 @@ class SmurfNoiseMixin(SmurfBase):
                 plt.close()
 
 
+    def take_noise_high_bandwidth(self, band, channel, tone_power=10,
+        nsamp=2**25):
+        """
+        This script is shamelessly stolen from Max. This tunes up a single
+        resonator and takes data in single_channel_readout mode, with is 2.4 MHz.
+        The flux ramp is off in this measurement.
+        """
+        # Make sure band and channel are int
+        band = int(band)
+        channel = int(channel)
+
+        freq = self.channel_to_freq(band, channel)  # resonance frequency
+
+        # Turn on single tone
+        self.set_fixed_tone(freq, tone_power)
+
+        # Turn off feedback and FR
+        self.set_feedback_enable(band, 0)
+        self.flux_ramp_off()
+
+        # Take data
+        timestamp = self.get_timestamp()
+        filename = f'{timestamp}_single_channel_b{band}ch{channel:03}.dat'
+        f, df, sync = self.take_debug_data(band, channel=channel,
+            IQstream=False, single_channel_readout=2,
+            nsamp=nsamp, filename=filename)
+
+
 
     def noise_svd(self, d, mask, mean_subtract=True):
         """

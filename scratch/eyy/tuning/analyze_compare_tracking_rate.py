@@ -90,7 +90,7 @@ for cchh in all_channels:
                 channels_all[kk] == ch)))[0]
             label = f'FR {reset_rate_khzs[kk]} kHz ' + r'n$\phi_0$ ' + \
                 f'{n_phi0s[kk]}'
-            plt.semilogx(f, pxx_all[kk][idx], label=label)
+            plt.semilogx(f, pxx_all[kk][idx], label=label, color=color)
 
     plt.legend(loc='upper right')
     plt.xlabel('Freq [Hz]')
@@ -98,6 +98,6 @@ for cchh in all_channels:
     plt.title(f'b{b}ch{ch:03}')
     plt.tight_layout()
 
-    plt.savefig(os.path.join(plot_dir, f'noise_b{b}ch{ch:03}.png'),
+    plt.savefig(os.path.join(plot_dir, f'noise_b{int(b)}ch{int(ch):03}.png'),
         bbox_inches='tight')
     plt.close()
