@@ -1810,10 +1810,13 @@ class SmurfNoiseMixin(SmurfBase):
         resonator and takes data in single_channel_readout mode, with is 2.4 MHz.
         The flux ramp is off in this measurement.
         """
-        if freq is None:
+        if freq is not None:
             self.log('Resonator frequency provided by user.' +
                 ' Ignoring input band and channel.')
+        else:
             freq = self.channel_to_freq(band, channel)  # resonance frequency
+            self.log('Loading band/channel pair. Resonator frequency' +
+                f' {freq:4.3} MHz')
         channel_freq = self.get_channel_frequency_mhz(band) * 1.0E6 # sampling freq
 
         if tone_power is None:
@@ -1884,8 +1887,8 @@ class SmurfNoiseMixin(SmurfBase):
                 plt.close()
 
         if save_psd:
-            np.save(os.path.join(self.output_dir, f'{filename_f}'), ff)
-            np.save(os.path.join(self.output_dir, f'{filename_pxx}'), pxx)
+            np.save(os.path.join(self.output_dir, f'{filename}'), ff)
+            np.save(os.path.join(self.output_dir, f'{filename}'), pxx)
 
         return ff, pxx
 
