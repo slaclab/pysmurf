@@ -3802,7 +3802,7 @@ class SmurfTuneMixin(SmurfBase):
             h.ax_join.axvline(0 ,color='k', linestyle=':')
 
             quiver_amp = lims*.8
-            h.ax_join.quiver([0], [0], [quiver_amp*np.cos(ang_rad)],
+            h.ax_joint.quiver([0], [0], [quiver_amp*np.cos(ang_rad)],
                 [quiver_amp*np.sin(ang_rad)],
                 color='k')
 
