@@ -3751,6 +3751,7 @@ class SmurfTuneMixin(SmurfBase):
         eta_phase = self.get_eta_phase_degree_channel(band, channel)
         eta_mag = self.get_eta_mag_scaled_channel(band, channel)
 
+        freq = self.channel_to_freq(band, channel)
         channel_freq = self.get_channel_frequency_mhz(band) * 1.0E6  # Sampling freq
 
         # Take data at default eta value
@@ -3801,10 +3802,19 @@ class SmurfTuneMixin(SmurfBase):
             h.ax_joint.axhline(0 ,color='k', linestyle=':')
             h.ax_joint.axvline(0 ,color='k', linestyle=':')
 
-            quiver_amp = lims*.8
-            h.ax_joint.quiver([0], [0], [quiver_amp*np.cos(ang_rad)],
-                [quiver_amp*np.sin(ang_rad)],
+            quiver_amp = lims
+            h.ax_joint.quiver([0], [0], [quiver_amp*np.sin(ang_rad)],
+                [quiver_amp*np.cos(ang_rad)],
                 color='k')
+
+            # Text labels with useful values
+            text = f'b{band}ch{channel:03}' + '\n' + \
+                f'{freq:4.2f} MHz' + '\n' + \
+                r'$\eta_Q$' + f' {eta_phase:3.1f} deg' + \
+                r'$\eta_I$' + f' {eta_phase_rot:3.1f} deg' + \
+                r'Ang ' + f'{ang:3.2f} deg'
+            h.ax_joint.text(.02, .98, text, transform=h.ax_joint.transAxes,
+                va='top', ha='left')
 
             plt.tight_layout()
             if save_plot:
