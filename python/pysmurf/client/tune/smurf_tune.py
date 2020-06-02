@@ -3095,8 +3095,9 @@ class SmurfTuneMixin(SmurfBase):
             write_log=write_log)
         self.set_enable_ramp_trigger(EnableRampTrigger, new_epics_root=new_epics_root,
             write_log=write_log)
-        self.set_ramp_rate(reset_rate_khz, new_epics_root=new_epics_root,
-            write_log=write_log)
+        if self.get_ramp_start_mode() == 1:
+            self.set_ramp_rate(reset_rate_khz, new_epics_root=new_epics_root,
+                write_log=write_log)
 
 
 
