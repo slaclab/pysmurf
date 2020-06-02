@@ -9,8 +9,8 @@ import scipy.signal as signal
 ####
 
 ### System Configuration ###
-datafile_file = os.path.join('/data/smurf_data/20200529/1590773672/outputs/',
-    '1590774028_compare_tracking_noise.npy')
+datafile_file = os.path.join('/data/smurf_data/20200602/1591140920/outputs/',
+    '1591141210_compare_tracking_noise.npy')
 reset_rate_khzs = np.load(datafile_file.replace('_compare_tracking_noise.npy',
     '_reset_rate_khz.npy'))
 n_phi0s = np.load(datafile_file.replace('_compare_tracking_noise.npy',
