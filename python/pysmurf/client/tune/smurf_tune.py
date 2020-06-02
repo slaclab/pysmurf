@@ -19,6 +19,7 @@ import glob
 import time
 from pysmurf.client.base import SmurfBase
 import scipy.signal as signal
+import scipy.linalg as linalg
 from collections import Counter
 from ..util import tools
 from pysmurf.client.command.sync_group import SyncGroup as SyncGroup
@@ -3775,7 +3776,7 @@ class SmurfTuneMixin(SmurfBase):
 
         # Calculate the SVDs
         SVD_array = np.asarray([dfQ, dfI])
-        U, s, Vh = scipy.linalg.svd(SVD_array)
+        U, s, Vh = linalg.svd(SVD_array)
 
         ang = np.angle(U[1,0] + 1.j*U[1,1], deg=True)
 
