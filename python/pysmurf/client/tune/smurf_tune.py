@@ -25,6 +25,7 @@ from pysmurf.client.command.sync_group import SyncGroup as SyncGroup
 import matplotlib.pyplot as plt
 from matplotlib.gridspec import GridSpec
 from pysmurf.client.util.pub import set_action
+import seaborn as sns
 
 class SmurfTuneMixin(SmurfBase):
     """
