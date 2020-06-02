@@ -3779,22 +3779,33 @@ class SmurfTuneMixin(SmurfBase):
 
         dfI -= np.median(dfI)
         dfQ -= np.median(dfQ)
-        lims = np.max(np.abs([np.max(dfI), np.min(dfI), np.min(dfQ), np.max(dfQ)]))
 
         # Calculate the SVDs
         SVD_array = np.asarray([dfQ, dfI])
         U, s, Vh = linalg.svd(SVD_array)
 
         ang = np.angle(U[1,0] + 1.j*U[1,1], deg=True)
+        ang_rad = np.deg2rad(ang)
 
         print(eta_phase, eta_phase_rot)
         print(ang)
 
         if make_plot:
+            lims = np.max(np.abs([np.max(dfI), np.min(dfI), np.min(dfQ),
+                np.max(dfQ)]))
             h = sns.jointplot(dfQ, dfI, alpha=.1, edgecolors='none',
                 xlim=(-lims, lims), ylim=(-lims, lims))
             h.ax_joint.set_xlabel('Q')
             h.ax_joint.set_ylabel('I')
+
+            h.ax_join.axhline(0 ,color='k', linestyle=':')
+            h.ax_join.axvline(0 ,color='k', linestyle=':')
+
+            quiver_amp = lims*.8
+            h.ax_join.quiver([0], [0], [quiver_amp*np.cos(ang_rad)],
+                [quiver_amp*np.sin(ang_rad)],
+                color='k')
+
             plt.tight_layout()
             if save_plot:
                 timestamp = self.get_timestamp()
