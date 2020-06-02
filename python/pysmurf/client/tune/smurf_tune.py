@@ -3784,7 +3784,7 @@ class SmurfTuneMixin(SmurfBase):
         print(ang)
 
         if make_plot:
-            h = sns.jointplot(dfQ, dfI, alpha=.1, markeredgewidth=0.0)
+            h = sns.jointplot(dfQ, dfI, alpha=.1, edgecolors='none')
             h.ax_joint.set_xlabel('Q')
             h.ax_joint.set_ylabel('I')
             plt.tight_layout()
