@@ -18,6 +18,7 @@
 #-----------------------------------------------------------------------------
 
 import pyrogue
+
 import smurf
 
 class Header2Smurf(pyrogue.Device):

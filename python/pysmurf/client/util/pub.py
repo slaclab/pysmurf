@@ -5,6 +5,7 @@
 
 # From here: https://github.com/mhasself/stdpub/blob/master/pub.py
 
+from functools import wraps
 import json
 import os
 import socket
@@ -12,7 +13,6 @@ import sys
 import time
 
 import pysmurf
-from functools import wraps
 
 DEFAULT_ENV_ROOT = 'SMURFPUB_'
 DEFAULT_UDP_PORT = 8200

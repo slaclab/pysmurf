@@ -25,8 +25,8 @@ import scipy.signal as signal
 
 from pysmurf.client.base import SmurfBase
 from pysmurf.client.command.sync_group import SyncGroup as SyncGroup
-from ..util import tools
 from pysmurf.client.util.pub import set_action
+from ..util import tools
 
 class SmurfTuneMixin(SmurfBase):
     """
