@@ -3785,7 +3785,7 @@ class SmurfTuneMixin(SmurfBase):
         SVD_array = np.asarray([dfQ, dfI])
         U, s, Vh = linalg.svd(SVD_array)
 
-        ang = np.angle(U[1,0] + 1.j*U[1,1], deg=True)
+        ang = np.angle(U[1,0] + 1.j*U[1,1], deg=True) - 90
         ang_rad = np.deg2rad(ang)
 
         print(eta_phase, eta_phase_rot)
@@ -3820,7 +3820,7 @@ class SmurfTuneMixin(SmurfBase):
             if save_plot:
                 timestamp = self.get_timestamp()
                 plt.savefig(os.path.join(self.plot_dir,
-                    f'{timestamp}_IQ_svd.png'),
+                    f'{timestamp}_IQ_svd_b{band}ch{channel:03}.png'),
                     bbox_inches='tight')
             if show_plot:
                 plt.show()
