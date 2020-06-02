@@ -3754,8 +3754,8 @@ class SmurfTuneMixin(SmurfBase):
 
         # Take data at default eta value
         timestamp = self.get_timestamp()
-        filename = f'{timestamp}_fast_dat_I'
-        fI, dfI, syncI = self.take_debug_data(band, channel=channel,
+        filename = f'{timestamp}_fast_dat_Q'
+        fQ, dfQ, syncQ = self.take_debug_data(band, channel=channel,
             IQstream=False, single_channel_readout=2,
             nsamp=nsamp, filename=filename)
 
@@ -3763,8 +3763,8 @@ class SmurfTuneMixin(SmurfBase):
         eta_phase_rot = tools.limit_phase_deg(eta_phase + 90)
         self.set_eta_phase_degree_channel(band, channel, eta_phase_rot)
         timestamp = self.get_timestamp()
-        filename = f'{timestamp}_fast_data_Q'
-        fQ, dfQ, syncQ = self.take_debug_data(band, channel=channel,
+        filename = f'{timestamp}_fast_data_I'
+        fI, dfI, syncI = self.take_debug_data(band, channel=channel,
             IQstream=False, single_channel_readout=2,
             nsamp=nsamp, filename=filename)
 
@@ -3773,13 +3773,16 @@ class SmurfTuneMixin(SmurfBase):
             dfI = signal.filtfilt(b, a, dfI, method=method)
             dfQ = signal.filtfilt(b, a, dfQ, method=method)
 
-        print(np.shape(dfI))
-        print(np.shape(dfQ))
+        # Calculate the SVDs
+        SVD_array = np.asarray([dfQ, dfI])
+        U, s, Vh = scipy.linalg.svd(SVD_array)
+
+        ang = np.angle(U[1,0] + 1.j*U[1,1], deg=True)
 
         if make_plot:
-            sns.jointplot(dfI, dfQ)
-            plt.xlabel('I')
-            plt.ylabel('Q')
+            h = sns.jointplot(dfQ, dfI, alpha=.1)
+            h.ax_joint.set_xlabel('Q')
+            h.ax_joint.set_ylabel('I')
             if save_plot:
                 timestamp = self.get_timestamp()
                 plt.savefig(os.path.join(self.plot_dir,
