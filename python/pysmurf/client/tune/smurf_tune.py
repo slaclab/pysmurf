@@ -3802,16 +3802,16 @@ class SmurfTuneMixin(SmurfBase):
             h.ax_joint.axhline(0 ,color='k', linestyle=':')
             h.ax_joint.axvline(0 ,color='k', linestyle=':')
 
-            quiver_amp = lims
-            h.ax_joint.quiver([0], [0], [quiver_amp*np.sin(ang_rad)],
-                [quiver_amp*np.cos(ang_rad)],
-                color='k')
+            quiver_amp = lims*.6
+            h.ax_joint.quiver([0], [0], [quiver_amp*np.cos(ang_rad)],
+                [quiver_amp*np.sin(ang_rad)],
+                color='k', angles='xy')
 
             # Text labels with useful values
             text = f'b{band}ch{channel:03}' + '\n' + \
                 f'{freq:4.2f} MHz' + '\n' + \
-                r'$\eta_Q$' + f' {eta_phase:3.1f} deg' + \
-                r'$\eta_I$' + f' {eta_phase_rot:3.1f} deg' + \
+                r'$\eta_Q$' + f' {eta_phase:3.1f} deg' + '\n' + \
+                r'$\eta_I$' + f' {eta_phase_rot:3.1f} deg' + '\n' +\
                 r'Ang ' + f'{ang:3.2f} deg'
             h.ax_joint.text(.02, .98, text, transform=h.ax_joint.transAxes,
                 va='top', ha='left')
