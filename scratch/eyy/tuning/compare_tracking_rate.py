@@ -19,8 +19,8 @@ subband = np.arange(13, 115)
 noise_time = 60
 data_rate = 200  # Hz
 
-reset_rate_khzs = np.array([4, 10, 15, 15])
-n_phi0s = np.array([4, 4, 4, 6])
+reset_rate_khzs = np.array([4, 10, 15, 20, 25])
+n_phi0s = np.array([4, 4, 4, 4, 4, 4])
 lms_enable2 = False
 lms_enable3 = False
 lms_gain = 7
@@ -49,7 +49,7 @@ for i in np.arange(n_steps):
     S.relock(band)
     f[i], df[i], sync = S.tracking_setup(band, reset_rate_khz=reset_rate_khzs[i],
         fraction_full_scale=.5, make_plot=False, nsamp=2**18, lms_gain=lms_gain,
-        lms_freq_hz=None, meas_lms_freq=False, feedback_start_frac=.2,
+        lms_freq_hz=None, meas_lms_freq=False, feedback_start_frac=.25,
         feedback_end_frac=.98, meas_flux_ramp_amp=True, n_phi0=n_phi0s[i],
         lms_enable2=lms_enable2, lms_enable3=lms_enable3)
 
