@@ -1853,8 +1853,8 @@ class SmurfNoiseMixin(SmurfBase):
             ax[1].set_ylabel("Amp [FBU/rtHz]")
 
             text = f'Res {freq:4.2f} MHz' + '\n' +\
-                r'\eta_{mag} ' + f'{eta_mag:2.3f}' + \
-                r'\eta_{phase} ' + f'{eta_phase:2.1f} deg'
+                r'$\eta_{mag}$ ' + f'{eta_mag:2.3f}' + '\n' +\
+                r'$\eta_{phase}$ ' + f'{eta_phase:2.1f} deg'
             ax[1].text(.98, .98, text, transform=ax[1].transAxes, va='top',
                 ha='right')
 
