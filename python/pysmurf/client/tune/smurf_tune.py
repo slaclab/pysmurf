@@ -3780,8 +3780,11 @@ class SmurfTuneMixin(SmurfBase):
 
         ang = np.angle(U[1,0] + 1.j*U[1,1], deg=True)
 
+        print(eta_phase, eta_phase_rot)
+        print(ang)
+
         if make_plot:
-            h = sns.jointplot(dfQ, dfI, alpha=.1)
+            h = sns.jointplot(dfQ, dfI, alpha=.1, markeredgewidth=0.0)
             h.ax_joint.set_xlabel('Q')
             h.ax_joint.set_ylabel('I')
             if save_plot:
