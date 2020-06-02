@@ -3744,8 +3744,9 @@ class SmurfTuneMixin(SmurfBase):
         self.relock(band)
 
     def calculate_eta_svd(self, band, channel, nsampe=2**16, filter=True,
-        nsamp=2**16, N=4, Wn=50000, btype='lowpass', method='gust',
-        make_plot=True, show_plot=False, save_plot=True, subtract_median=True):
+        nsamp=2**15, N=4, Wn=50000, btype='lowpass', method='gust',
+        make_plot=True, show_plot=False, save_plot=True, subtract_median=True,
+        update_eta_phase=True):
         """
         """
         eta_phase = self.get_eta_phase_degree_channel(band, channel)
@@ -3770,8 +3771,7 @@ class SmurfTuneMixin(SmurfBase):
             IQstream=False, single_channel_readout=2,
             nsamp=nsamp, filename=filename)
 
-        # Return phase back to original value
-        self.set_eta_phase_degree_channel(band, channel, eta_phase)
+
 
         if filter:
             b, a = signal.butter(N=N, Wn=Wn, btype=btype, fs=channel_freq)
@@ -3788,8 +3788,11 @@ class SmurfTuneMixin(SmurfBase):
         ang = np.angle(U[1,0] + 1.j*U[1,1], deg=True) - 90
         ang_rad = np.deg2rad(ang)
 
-        print(eta_phase, eta_phase_rot)
-        print(ang)
+        # Update phase - either new eta or return to original
+        if update_eta_phase:
+            self.set_eta_phase_degree_channel(band, channel, eta_phase+ang)
+        else:
+            self.set_eta_phase_degree_channel(band, channel, eta_phase)
 
         if make_plot:
             lims = np.max(np.abs([np.max(dfI), np.min(dfI), np.min(dfQ),
@@ -3802,7 +3805,7 @@ class SmurfTuneMixin(SmurfBase):
             h.ax_joint.axhline(0 ,color='k', linestyle=':')
             h.ax_joint.axvline(0 ,color='k', linestyle=':')
 
-            quiver_amp = lims*.6
+            quiver_amp = lims
             h.ax_joint.quiver([0], [0], [quiver_amp*np.cos(ang_rad)],
                 [quiver_amp*np.sin(ang_rad)],
                 color='k', angles='xy')
@@ -3826,6 +3829,8 @@ class SmurfTuneMixin(SmurfBase):
                 plt.show()
             else:
                 plt.close()
+
+
 
 
     @set_action()
