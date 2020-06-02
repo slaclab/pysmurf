@@ -36,6 +36,7 @@ if find_resonators:
     S.run_serial_eta_scan(band)
 else:
     S.load_tune(filename=tune_filename)
+    S.relock(band)
     S.run_serial_gradient_descent(band)
     S.run_serial_eta_scan(band)
 
