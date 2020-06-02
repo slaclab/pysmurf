@@ -16,7 +16,7 @@ find_resonators = False
 tune_filename = None
 band = 2
 subband = np.arange(13, 115)
-noise_time = 60
+noise_time = 10
 data_rate = 200  # Hz
 
 reset_rate_khzs = np.array([4, 10, 15, 20, 25, 30])
