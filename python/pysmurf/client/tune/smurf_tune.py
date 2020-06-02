@@ -3745,7 +3745,7 @@ class SmurfTuneMixin(SmurfBase):
 
     def calculate_eta_svd(self, band, channel, nsampe=2**16, filter=True,
         nsamp=2**16, N=4, Wn=50000, btype='lowpass', method='gust',
-        make_plot=True, show_plot=False, save_plot=True):
+        make_plot=True, show_plot=False, save_plot=True, subtract_median=True):
         """
         """
         eta_phase = self.get_eta_phase_degree_channel(band, channel)
@@ -3769,10 +3769,17 @@ class SmurfTuneMixin(SmurfBase):
             IQstream=False, single_channel_readout=2,
             nsamp=nsamp, filename=filename)
 
+        # Return phase back to original value
+        self.set_eta_phase_degree_channel(band, channel, eta_phase)
+
         if filter:
             b, a = signal.butter(N=N, Wn=Wn, btype=btype, fs=channel_freq)
             dfI = signal.filtfilt(b, a, dfI, method=method)
             dfQ = signal.filtfilt(b, a, dfQ, method=method)
+
+        if subtract_median:
+            dfI -= np.median(dfI)
+            dfQ -= np.median(dfQ)
 
         # Calculate the SVDs
         SVD_array = np.asarray([dfQ, dfI])
