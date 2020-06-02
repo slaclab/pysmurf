@@ -3778,7 +3778,7 @@ class SmurfTuneMixin(SmurfBase):
             plt.figure()
             sns.jointplot(dfI, dfQ)
             plt.xlabel('I')
-            plt.ylable('Q')
+            plt.ylabel('Q')
             if save_plot:
                 timestamp = self.get_timestamp()
                 plt.savefig(os.path.join(self.plot_dir,
