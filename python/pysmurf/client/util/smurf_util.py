@@ -3884,7 +3884,7 @@ class SmurfUtilMixin(SmurfBase):
         return ret
 
 
-    def set_fixed_tone(self,freq_mhz,drive,quiet=False):
+    def set_fixed_tone(self, freq_mhz, drive, write_log=False):
         """
         Places a fixed tone at the requested frequency.  Asserts
         without doing anything if the requested resonator frequency
@@ -3900,6 +3900,11 @@ class SmurfUtilMixin(SmurfBase):
         drive : int
             The amplitude for the fixed tone (0-15 in recent fw
             revisions).
+
+        Ret
+        ---
+        band, channel : int
+            The band channel number that was used to turn on the tone
         """
 
         # Find which band the requested frequency falls into.
@@ -3907,7 +3912,7 @@ class SmurfUtilMixin(SmurfBase):
         band_centers_mhz=[self.get_band_center_mhz(b) for b in bands]
 
         band_idx=min(range(len(band_centers_mhz)), key=lambda i: abs(band_centers_mhz[i]-freq_mhz))
-        band=bands[band_idx]
+        band = bands[band_idx]
         band_center_mhz=band_centers_mhz[band_idx]
 
         # Confirm that the requested frequency falls into a 500 MHz
@@ -3917,11 +3922,11 @@ class SmurfUtilMixin(SmurfBase):
             '500 MHz band with the closest band center ' + \
             f'(={band_center_mhz:0.0f} MHz). Doing nothing!'
 
-    # Find subband this frequency falls in, and its channels.
-        subband,foff=self.freq_to_subband(band,freq_mhz)
-        subband_channels=self.get_channels_in_subband(band,subband)
+        # Find subband this frequency falls in, and its channels.
+        subband, foff = self.freq_to_subband(band, freq_mhz)
+        subband_channels = self.get_channels_in_subband(band, subband)
 
-    # Which channels in the subband are unallocated?
+        # Which channels in the subband are unallocated?
         allocated_channels=self.which_on(band)
         unallocated_channels=[chan for chan in subband_channels if chan not in allocated_channels]
         # If no unallocated channels available in the subband, assert.
@@ -3931,18 +3936,21 @@ class SmurfUtilMixin(SmurfBase):
 
         # Take lowest channel number in the list of unallocated
         # channels for this subband.
-        channel=sorted(unallocated_channels)[0]
+        channel = sorted(unallocated_channels)[0]
 
-    # Put a fixed tone at the requested frequency
-        self.set_center_frequency_mhz_channel(band,channel,foff)
-        self.set_amplitude_scale_channel(band,channel,drive)
-        self.set_feedback_enable_channel(band,channel,0)
+        # Put a fixed tone at the requested frequency
+        self.set_center_frequency_mhz_channel(band, channel, foff)
+        self.set_amplitude_scale_channel(band, channel, drive)
+        self.set_feedback_enable_channel(band, channel, 0)
 
         # Unless asked to be quiet, print where we're putting a fixed
         # tone.
-        if not quiet:
+        if write_log:
             self.log(f'Setting a fixed tone at {freq_mhz:.2f} MHz' +
                      f' and amplitude {drive}', self.LOG_USER)
+
+        return band, channel
+
 
     # SHOULD MAKE A GET FIXED TONE CHANNELS FUNCTION - WOULD MAKE IT
     # EASIER TO CHANGE THINGS FAST USING THE ARRAY GET/SETS

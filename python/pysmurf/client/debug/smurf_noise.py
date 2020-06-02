@@ -1801,20 +1801,19 @@ class SmurfNoiseMixin(SmurfBase):
                 plt.close()
 
 
-    def take_noise_high_bandwidth(self, band, channel, tone_power=None,
-        nsamp=2**25, nperseg=2**18, make_plot=True, show_plot=False,
-        save_plot=True, band_off=True, reoptimize_resonator=True,
-        save_psd=False):
+    def take_noise_high_bandwidth(self, band, channel, freq=None,
+        tone_power=None, nsamp=2**25, nperseg=2**18, make_plot=True,
+        show_plot=False, save_plot=True, band_off=True,
+        reoptimize_resonator=True, save_psd=False):
         """
         This script is shamelessly stolen from Max. This tunes up a single
         resonator and takes data in single_channel_readout mode, with is 2.4 MHz.
         The flux ramp is off in this measurement.
         """
-        # Make sure band and channel are int
-        band = int(band)
-        channel = int(channel)
-
-        freq = self.channel_to_freq(band, channel)  # resonance frequency
+        if freq is None:
+            self.log('Resonator frequency provided by user.' +
+                ' Ignoring input band and channel.')
+            freq = self.channel_to_freq(band, channel)  # resonance frequency
         channel_freq = self.get_channel_frequency_mhz(band) * 1.0E6 # sampling freq
 
         if tone_power is None:
@@ -1827,8 +1826,7 @@ class SmurfNoiseMixin(SmurfBase):
             self.band_off(band)
 
         # Turn on single tone
-        # self.set_fixed_tone(freq, tone_power)
-        self.set_amplitude_scale_channel(band, channel, tone_power)
+        band, channel = self.set_fixed_tone(freq, tone_power)
 
         if reoptimize_resonator:
             self.log('Reoptimizing resonator')
@@ -1873,7 +1871,7 @@ class SmurfNoiseMixin(SmurfBase):
                 transform=ax[1].transAxes, va='top', ha='right')
 
 
-            ax[0].set_title(f'High Rate b{band}ch{channel:03}')
+            ax[0].set_title(f'{timestamp} Single Channel Noise b{band}ch{channel:03}')
 
             plt.tight_layout()
 
