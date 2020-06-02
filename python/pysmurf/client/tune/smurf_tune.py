@@ -3773,9 +3773,10 @@ class SmurfTuneMixin(SmurfBase):
             dfI = signal.filtfilt(b, a, dfI, method=method)
             dfQ = signal.filtfilt(b, a, dfQ, method=method)
 
+        print(np.shape(dfI))
+        print(np.shape(dfQ))
 
         if make_plot:
-            plt.figure()
             sns.jointplot(dfI, dfQ)
             plt.xlabel('I')
             plt.ylabel('Q')
