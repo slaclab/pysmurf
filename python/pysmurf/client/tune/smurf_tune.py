@@ -3777,9 +3777,9 @@ class SmurfTuneMixin(SmurfBase):
             dfI = signal.filtfilt(b, a, dfI, method=method)
             dfQ = signal.filtfilt(b, a, dfQ, method=method)
 
-        if subtract_median:
-            dfI -= np.median(dfI)
-            dfQ -= np.median(dfQ)
+        dfI -= np.median(dfI)
+        dfQ -= np.median(dfQ)
+        lims = np.max(np.abs([np.max(dfI), np.min(dfI), np.min(dfQ), np.max(dfQ)]))
 
         # Calculate the SVDs
         SVD_array = np.asarray([dfQ, dfI])
@@ -3791,7 +3791,8 @@ class SmurfTuneMixin(SmurfBase):
         print(ang)
 
         if make_plot:
-            h = sns.jointplot(dfQ, dfI, alpha=.1, edgecolors='none')
+            h = sns.jointplot(dfQ, dfI, alpha=.1, edgecolors='none',
+                xlim=(-lims, lims), ylim=(-lims, lims))
             h.ax_joint.set_xlabel('Q')
             h.ax_joint.set_ylabel('I')
             plt.tight_layout()
