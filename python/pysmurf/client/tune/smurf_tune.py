@@ -3742,6 +3742,7 @@ class SmurfTuneMixin(SmurfBase):
         self.relock(band)
 
     def calculate_eta_svd(self, band, channel, nsampe=2**16, filter=True,
+        nsamp=2**16
         N=4, Wn=50000, btype='lowpass', method='gust', make_plot=True,
         show_plot=False, save_plot=True):
         """
