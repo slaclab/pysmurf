@@ -3769,8 +3769,8 @@ class SmurfTuneMixin(SmurfBase):
 
         if filter:
             b, a = signal.butter(N=N, Wn=Wn, btype=btype, fs=channel_freq)
-            dfI = signal.filtflit(b, a, dfI, method=method)
-            dfQ = signal.filtflit(b, a, dfQ, method=method)
+            dfI = signal.filtfilt(b, a, dfI, method=method)
+            dfQ = signal.filtfilt(b, a, dfQ, method=method)
 
 
         if make_plot:
