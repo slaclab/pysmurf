@@ -13,6 +13,7 @@
 # copied, modified, propagated, or distributed except according to the terms
 # contained in the LICENSE.txt file.
 #-----------------------------------------------------------------------------
+from contextlib import contextmanager
 import glob
 import os
 import threading
@@ -24,15 +25,6 @@ from scipy import signal
 
 from pysmurf.client.base import SmurfBase
 from pysmurf.client.command.sync_group import SyncGroup as SyncGroup
-
-import time
-import os
-from scipy import signal
-import glob
-import matplotlib.pyplot as plt
-from contextlib import contextmanager
->>>>>>> master
-# for hardware logging
 from pysmurf.client.util.SmurfFileReader import SmurfStreamReader
 from pysmurf.client.util.pub import set_action
 
