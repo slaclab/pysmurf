@@ -99,7 +99,7 @@ The option `-H|--hard-boot` can be used to request a hard boot. During this boot
 
 All other arguments are passed verbatim to the next startup script.
 
-Depending on the communication type, one the following startup scripts are called, which are located under the [server_scripts] folder:
+Depending on the communication type, one the following startup scripts are called, which are located under the [server_scripts](server_scripts) folder:
 - if `eth` is used, then [cmb_eth.py](server_scripts/cmb_eth.py) is called,
 - if `pcie` is used, then [cmb_pcie.py](server_scripts/cmb_pcie.py) is called.
 
