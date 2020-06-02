@@ -1801,7 +1801,7 @@ class SmurfNoiseMixin(SmurfBase):
                 plt.close()
 
 
-    def take_noise_high_bandwidth(self, band, channel, tone_power=10,
+    def take_noise_high_bandwidth(self, band, channel, tone_power=None,
         nsamp=2**25, nperseg=2**18, make_plot=True, show_plot=False,
         save_plot=True, band_off=True, reoptimize_resonator=True,
         save_psd=False):
@@ -1817,11 +1817,18 @@ class SmurfNoiseMixin(SmurfBase):
         freq = self.channel_to_freq(band, channel)  # resonance frequency
         channel_freq = self.get_channel_frequency_mhz(band) * 1.0E6 # sampling freq
 
+        if tone_power is None:
+            tone_power = self.get_amplitude_scale_channel(band, channel)
+            if tone_power == 0:
+                self.log("Tone amplitude is set to zero. Using default of 10")
+                tone_power = 10
+
         if band_off:
             self.band_off(band)
 
         # Turn on single tone
-        self.set_fixed_tone(freq, tone_power)
+        # self.set_fixed_tone(freq, tone_power)
+        self.set_amplitude_scale_channel(band, channel, tone_power)
 
         if reoptimize_resonator:
             self.log('Reoptimizing resonator')
