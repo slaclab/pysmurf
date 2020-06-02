@@ -32,6 +32,8 @@ jobs:
     ## Flake8 checks
     - stage: checks
       name: "Flake8 Checks"
+      install:
+        - pip3 install flake8-rst-docstrings flake8-sfs
       script:
         # Run Flake8
         - flake8 --count python/

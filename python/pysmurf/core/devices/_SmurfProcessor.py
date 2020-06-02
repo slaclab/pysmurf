@@ -198,11 +198,15 @@ class SmurfProcessor(pyrogue.Device):
 
     Args
     ----
-    name        (str)            : Name of the device
-    description (str)            : Description of the device
-    root        (pyrogue.Root)   : The pyrogue root. The configuration status of
-                                   this root will go to the data file as metadata.
-    txDevice    (pyrogue.Device) : A packet transmitter device
+    name : str
+        Name of the device.
+    description : str
+        Description of the device.
+    root : pyrogue.Root or None, optional, default None
+        The pyrogue root. The configuration status of this root will
+        go to the data file as metadata.
+    txDevice : pyrogue.Device or None, optional, default None
+        A packet transmitter device.
     """
     def __init__(self, name, description, root=None, txDevice=None, **kwargs):
         pyrogue.Device.__init__(self, name=name, description=description, **kwargs)

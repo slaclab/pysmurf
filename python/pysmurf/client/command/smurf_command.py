@@ -31,11 +31,13 @@ class SmurfCommandMixin(SmurfBase):
 
     _global_poll_enable = ':AMCc:enable'
 
-    def _caput(self, cmd, val, write_log=False, execute=True, wait_before=None,
-            wait_after=None, wait_done=True, log_level=0, enable_poll=False,
-            disable_poll=False, new_epics_root=None):
-        """
-        Wrapper around pyrogue lcaput. Puts variables into epics
+    def _caput(self, cmd, val, write_log=False, execute=True,
+            wait_before=None, wait_after=None, wait_done=True,
+            log_level=0, enable_poll=False, disable_poll=False,
+            new_epics_root=None, **kwargs):
+        r"""Puts variables into epics.
+
+        Wrapper around pyrogue lcaput. Puts variables into epics.
 
         Args
         ----
@@ -63,9 +65,12 @@ class SmurfCommandMixin(SmurfBase):
             Disables requests of all PVs after issueing command.
         new_epics_root : str, optional, default None
             Temporarily replaces current epics root with a new one.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `epics.caput` call.
         """
         if new_epics_root is not None:
-            self.log('Temporarily using new epics root: {}'.format(new_epics_root))
+            self.log(f'Temporarily using new epics root: {new_epics_root}')
             old_epics_root = self.epics_root
             self.epics_root = new_epics_root
             cmd = cmd.replace(old_epics_root, self.epics_root)
@@ -75,8 +80,8 @@ class SmurfCommandMixin(SmurfBase):
 
         if wait_before is not None:
             if write_log:
-                self.log('Waiting {:3.2f} seconds before...'.format(wait_before),
-                    self.LOG_USER)
+                self.log(f'Waiting {wait_before:3.2f} seconds before...',
+                         self.LOG_USER)
             time.sleep(wait_before)
 
         if write_log:
@@ -86,11 +91,11 @@ class SmurfCommandMixin(SmurfBase):
             self.log(log_str, log_level)
 
         if execute and not self.offline:
-            epics.caput(cmd, val, wait=wait_done)
+            epics.caput(cmd, val, wait=wait_done, **kwargs)
 
         if wait_after is not None:
             if write_log:
-                self.log('Waiting {:3.2f} seconds after...'.format(wait_after),
+                self.log(f'Waiting {wait_after:3.2f} seconds after...',
                     self.LOG_USER)
             time.sleep(wait_after)
             if write_log:
@@ -102,13 +107,14 @@ class SmurfCommandMixin(SmurfBase):
         if new_epics_root is not None:
             self.epics_root = old_epics_root
             self.log('Returning back to original epics root'+
-                     ' : {}'.format(self.epics_root))
+                     f' : {self.epics_root}')
 
     def _caget(self, cmd, write_log=False, execute=True, count=None,
                log_level=0, enable_poll=False, disable_poll=False,
-               new_epics_root=None, yml=None):
-        """
-        Wrapper around pyrogue lcaget. Gets variables from epics
+               new_epics_root=None, yml=None, **kwargs):
+        r"""Gets variables from epics.
+
+        Wrapper around pyrogue lcaget. Gets variables from epics.
 
         Args
         ----
@@ -130,6 +136,9 @@ class SmurfCommandMixin(SmurfBase):
             Temporarily replaces current epics root with a new one.
         yml : str or None, optional, default None
             If not None, yaml file to parse for the result.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `epics.caget` call.
 
         Returns
         -------
@@ -137,7 +146,7 @@ class SmurfCommandMixin(SmurfBase):
             The requested value.
         """
         if new_epics_root is not None:
-            self.log('Temporarily using new epics root: {}'.format(new_epics_root))
+            self.log(f'Temporarily using new epics root: {new_epics_root}')
             old_epics_root = self.epics_root
             self.epics_root = new_epics_root
             cmd = cmd.replace(old_epics_root, self.epics_root)
@@ -151,11 +160,11 @@ class SmurfCommandMixin(SmurfBase):
         # load the data from yml file if provided
         if yml is not None:
             if write_log:
-                self.log('Reading from yml file\n {}'.format(cmd))
+                self.log(f'Reading from yml file\n {cmd}')
             return tools.yaml_parse(yml, cmd)
 
         elif execute and not self.offline:
-            ret = epics.caget(cmd, count=count)
+            ret = epics.caget(cmd, count=count, **kwargs)
             if write_log:
                 self.log(ret)
         else:
@@ -167,26 +176,130 @@ class SmurfCommandMixin(SmurfBase):
         if new_epics_root is not None:
             self.epics_root = old_epics_root
             self.log('Returning back to original epics root'+
-                     ' : {}'.format(self.epics_root))
+                     f' : {self.epics_root}')
 
         return ret
 
 
-    _rogue_version = 'RogueVersion'
+    #### Start SmurfApplication gets/sets
+    _smurf_version = 'SmurfVersion'
 
-    def get_rogue_version(self, as_str=True, **kwargs):
-        """Get rogue version
+    def get_pysmurf_version(self, **kwargs):
+        r"""Returns the pysmurf version.
+
+        Alias for `pysmurf.__version__`.
+
+        Args
+        ----
+        \**kwargs
+            Arbitrary keyword arguments.  Passed to directly to the
+            `_caget` call.
 
         Returns
         -------
-        ret : str
+        str
+            pysmurf version.
+        """
+        return self._caget(self.smurf_application +
+                           self._smurf_version, as_string=True,
+                           **kwargs)
+
+    _smurf_directory = 'SmurfDirectory'
+
+    def get_pysmurf_directory(self, **kwargs):
+        r"""Returns path to the pysmurf python files.
+
+        Path to the files from which the pysmurf module was loaded.
+        Alias for `pysmurf__file__`.
+
+        Args
+        ----
+        \**kwargs
+            Arbitrary keyword arguments.  Passed to directly to the
+            `_caget` call.
+
+        Returns
+        -------
+        str
+            Path to pysmurf files.
+        """
+        return self._caget(self.smurf_application +
+                           self._smurf_directory, as_string=True,
+                           **kwargs)
+
+    _smurf_startup_script = 'StartupScript'
+
+    def get_smurf_startup_script(self, **kwargs):
+        r"""Returns path to the pysmurf server startup script.
+
+        Args
+        ----
+        \**kwargs
+            Arbitrary keyword arguments.  Passed to directly to the
+            `_caget` call.
+
+        Returns
+        -------
+        str
+            Path to pysmurf server startup script.
+        """
+        return self._caget(self.smurf_application +
+                           self._smurf_startup_script, as_string=True,
+                           **kwargs)
+
+    _smurf_startup_arguments = 'StartupArguments'
+
+    def get_smurf_startup_args(self, **kwargs):
+        r"""Returns pysmurf server startup arguments.
+
+        Args
+        ----
+        \**kwargs
+            Arbitrary keyword arguments.  Passed to directly to the
+            `_caget` call.
+
+        Returns
+        -------
+        str
+            pysmurf server startup arguments.
+        """
+        return self._caget(self.smurf_application +
+                           self._smurf_startup_arguments,
+                           as_string=True, **kwargs)
+
+    _enabled_bays = "EnabledBays"
+
+    def get_enabled_bays(self, **kwargs):
+        """
+        Gets list of enabled bays.
+
+        Returns
+        -------
+        bays : list of int
+            Which bays were enabled on pysmurf server startup.
+        """
+        return list(self._caget(self.smurf_application + self._enabled_bays, **kwargs))
+
+    #### End SmurfApplication gets/sets
+
+    _rogue_version = 'RogueVersion'
+
+    def get_rogue_version(self, **kwargs):
+        r"""Get rogue version
+
+        Args
+        ----
+        \**kwargs
+            Arbitrary keyword arguments.  Passed to directly to the
+            `_caget` call.
+
+        Returns
+        -------
+        str
             The rogue version
         """
-        ret = self._caget(self.amcc + self._rogue_version,
-                          **kwargs)
-        if as_str:
-            ret = tools.utf8_to_str(ret)
-        return ret
+        return self._caget(self.amcc + self._rogue_version,
+                           as_string=True, **kwargs)
 
     def get_enable(self, **kwargs):
         """
@@ -314,7 +427,7 @@ class SmurfCommandMixin(SmurfBase):
         """
         triggerPV=self.lmk.format(bay) + 'PwrUpSysRef'
         self._caput(triggerPV, 1, wait_after=5, **kwargs)
-        self.log('{} sent'.format(triggerPV), self.LOG_USER)
+        self.log(f'{triggerPV} sent', self.LOG_USER)
 
     _eta_scan_in_progress = 'etaScanInProgress'
 
@@ -435,7 +548,7 @@ class SmurfCommandMixin(SmurfBase):
         monitorPV=self._cryo_root(band) + self._eta_scan_in_progress
 
         self._caput(triggerPV, 1, wait_after=5, **kwargs)
-        self.log('{} sent'.format(triggerPV), self.LOG_USER)
+        self.log(f'{triggerPV} sent', self.LOG_USER)
 
         if sync_group:
             sg = SyncGroup([monitorPV])
@@ -550,7 +663,7 @@ class SmurfCommandMixin(SmurfBase):
         assert (bay in [0,1]),'bay must be an integer and in [0,1]'
         triggerPV=self.microwave_mux_core.format(bay) + self._selextref
         self._caput(triggerPV, 1, wait_after=5, **kwargs)
-        self.log('{} sent'.format(triggerPV), self.LOG_USER)
+        self.log(f'{triggerPV} sent', self.LOG_USER)
 
     # name changed in Rogue 4 from WriteState to SaveState.  Keeping
     # the write_state function for backwards compatibilty.
@@ -591,21 +704,27 @@ class SmurfCommandMixin(SmurfBase):
     _tone_file_path = 'CsvFilePath'
 
     def get_tone_file_path(self, bay, **kwargs):
-        """
-        Returns the tone file path that's currently being used for this bay.
+        r"""Get tone file path.
+
+        Returns the tone file path that's currently being used for
+        this bay.
 
         Args
         ----
         bay : int
             Which AMC bay (0 or 1).
+        \**kwargs
+            Arbitrary keyword arguments.  Passed to directly to the
+            `_caget` call.
+
+        Returns
+        -------
+        str
+            Full path to tone file.
         """
 
-        ret=self._caget(self.dac_sig_gen.format(bay) + self._tone_file_path,**kwargs)
-        # convert to human-readable string
-        ret=''.join([str(s, encoding='UTF-8') for s in ret])
-        # strip \x00 - not sure why I have to do this
-        ret=ret.strip('\x00')
-        return ret
+        return self._caget(self.dac_sig_gen.format(bay) +
+                           self._tone_file_path, as_string=True, **kwargs)
 
     def set_tone_file_path(self, bay, val, **kwargs):
         """
@@ -621,7 +740,7 @@ class SmurfCommandMixin(SmurfBase):
         # make sure file exists before setting
 
         if not os.path.exists(val):
-            self.log('Tone file {} does not exist!  Doing nothing!'.format(val),
+            self.log(f'Tone file {val} does not exist!  Doing nothing!',
                      self.LOG_ERROR)
             raise ValueError('Must provide a path to an existing tone file.')
 
@@ -651,7 +770,7 @@ class SmurfCommandMixin(SmurfBase):
             val=self.get_tone_file_path(bay)
 
 
-        self.log('Loading tone file : {}'.format(val),
+        self.log(f'Loading tone file : {val}',
                  self.LOG_USER)
         self._caput(self.dac_sig_gen.format(bay) + self._load_tone_file, val,
             **kwargs)
@@ -681,17 +800,74 @@ class SmurfCommandMixin(SmurfBase):
     def get_load_tune_file(self, band, **kwargs):
         """
         """
-        self._caget(self._cryo_root(band) + self._load_tune_file,
-                    **kwargs)
+        return self._caget(
+            self._cryo_root(band) + self._load_tune_file,
+            **kwargs)
 
-
-    _eta_scan_del_f = 'etaScanDelF'
+    _eta_scan_del_f_reg = 'etaScanDelF'
 
     def set_eta_scan_del_f(self, band, val, **kwargs):
+        """Sets offset frequency for serial eta scan estimation.
+
+        The rogue serial eta scan routine (run using
+        :func:`run_serial_eta_scan`) estimates the eta parameter for each
+        tone with nonzero amplitude in the provided `band` by sampling
+        the frequency error at the tone frequency +/- this offset
+        frequency.  Units are Hz.
+
+        Args
+        ----
+        band : int
+           Which band.
+        val : int
+           Offset frequency in Hz about each resonator's central
+           frequency at which to sample the frequency error in order
+           to estimate the eta parameters of each resonator in the
+           rogue serial eta scan routine.
+
+        See Also
+        --------
+        :func:`run_serial_eta_scan` : Runs rogue serial eta scan, which uses
+                this parameter.
+        :func:`get_eta_scan_del_f` : Gets the current value of this
+                parameter in rogue.
         """
+        self._caput(
+            self._cryo_root(band) + self._eta_scan_del_f_reg, val,
+            **kwargs)
+
+    def get_eta_scan_del_f(self, band, **kwargs):
+        """Gets offset frequency for serial eta scan estimation.
+
+        The rogue serial eta scan routine (run using
+        :func:`run_serial_eta_scan`) estimates the eta parameter for each
+        tone with nonzero amplitude in the provided `band` by sampling
+        the frequency error at the tone frequency +/- this offset
+        frequency.  Units are Hz.
+
+        Args
+        ----
+        band : int
+           Which band.
+
+        Returns
+        -------
+        val : int
+           Offset frequency in Hz about each resonator's central
+           frequency at which to sample the frequency error in order
+           to estimate the eta parameters of each resonator in the
+           rogue serial eta scan routine.
+
+        See Also
+        --------
+        :func:`run_serial_eta_scan` : Runs rogue serial eta scan, which uses
+                this parameter.
+        :func:`set_eta_scan_del_f` : Sets the value of this parameter in
+                rogue.
         """
-        self._caput(self._cryo_root(band) + self._eta_scan_del_f, val,
-                    **kwargs)
+        return self._caget(
+            self._cryo_root(band) + self._eta_scan_del_f_reg,
+            **kwargs)
 
     _eta_scan_freqs = 'etaScanFreqs'
 
@@ -2089,38 +2265,61 @@ class SmurfCommandMixin(SmurfBase):
     _fpga_git_hash = 'GitHash'
 
     def get_fpga_git_hash(self, **kwargs):
-        """
+        r"""Get the full FPGA firmware SHA-1 git hash.
+
+        Args
+        ----
+        \**kwargs
+            Arbitrary keyword arguments.  Passed to directly to the
+            `_caget` call.
+
         Returns
         -------
-        git_hash : str
-            The git hash of the FPGA.
+        str
+            The full git SHA-1 hash of the FPGA firmware.
         """
-        gitHash=self._caget(self.axi_version + self._fpga_git_hash, **kwargs)
-        return ''.join([str(s, encoding='UTF-8') for s in gitHash])
+        return self._caget(self.axi_version + self._fpga_git_hash,
+                           as_string=True, **kwargs)
 
     _fpga_git_hash_short = 'GitHashShort'
 
     def get_fpga_git_hash_short(self, **kwargs):
-        """
+        r"""Get the short FPGA firmware SHA-1 git hash.
+
+        Args
+        ----
+        \**kwargs
+            Arbitrary keyword arguments.  Passed to directly to the
+            `_caget` call.
+
         Returns
         -------
-        git_hash_short : str
-            The short git hash of the FPGA.
+        str
+            The short git SHA-1 hash of the FPGA firmware.
         """
-        gitHashShort=self._caget(self.axi_version + self._fpga_git_hash_short, **kwargs)
-        return ''.join([str(s, encoding='UTF-8') for s in gitHashShort])
+        return self._caget(self.axi_version +
+                           self._fpga_git_hash_short, as_string=True,
+                           **kwargs)
 
 
     _fpga_build_stamp = 'BuildStamp'
 
     def get_fpga_build_stamp(self, **kwargs):
-        """
+        r"""Get the FPGA build stamp.
+
+        Args
+        ----
+        \**kwargs
+            Arbitrary keyword arguments.  Passed to directly to the
+            `_caget` call.
+
         Returns
         -------
-        build_stamp : str
+        str
             The FPGA build stamp.
         """
-        return self._caget(self.axi_version + self._fpga_build_stamp, **kwargs)
+        return self._caget(self.axi_version + self._fpga_build_stamp,
+                           as_string=True, **kwargs)
 
     _input_mux_sel = 'InputMuxSel[{}]'
 
@@ -2324,25 +2523,23 @@ class SmurfCommandMixin(SmurfBase):
             datafile_path, **kwargs)
 
     def get_streamdatawriter_datafile(self, as_str=True, **kwargs):
-        """
-        Gets the output path for the StreamDataWriter. This is what is
-        used for take_debug_data.
+        r"""Gets output path for the StreamDataWriter.
+
+        This is what is used for take_debug_data.
 
         Args
         ----
-        as_str : bool, optional, default True
-            Whether to return the data as a string.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed to directly to the
+            `_caget` call.
 
         Returns
         -------
-        ret : str
+        str
             The full path for the output.
         """
-        ret=self._caget(self.stream_data_writer_root +
-                        self._data_file, **kwargs)
-        if as_str:
-            ret=tools.utf8_to_str(ret)
-        return ret
+        return self._caget(self.stream_data_writer_root +
+                           self._data_file, as_string=True, **kwargs)
 
     _datawriter_open = 'Open'
 
@@ -2550,7 +2747,7 @@ class SmurfCommandMixin(SmurfBase):
         self._caput(triggerPV,
                     1,
                     **kwargs)
-        self.log('{} sent'.format(triggerPV), self.LOG_USER)
+        self.log(f'{triggerPV} sent', self.LOG_USER)
 
     _dac_axil_addr = 'DacAxilAddr[{}]'
 
@@ -2986,12 +3183,12 @@ class SmurfCommandMixin(SmurfBase):
         nbits=self._rtm_slow_dac_nbits
         if val > 2**(nbits-1)-1:
             val = 2**(nbits-1)-1
-            self.log('Bias too high. Must be <= than 2^{}-1. Setting to '.format(nbits-1) +
-                'max value', self.LOG_ERROR)
+            self.log(f'Bias too high. Must be <= than 2^{nbits-1}-1.  ' +
+                     'Setting to max value', self.LOG_ERROR)
         elif val < -2**(nbits-1):
             val = -2**(nbits-1)
-            self.log('Bias too low. Must be >= than -2^{}. Setting to '.format(nbits-1) +
-                'min value', self.LOG_ERROR)
+            self.log(f'Bias too low. Must be >= than -2^{nbits-1}.  ' +
+                     'Setting to min value', self.LOG_ERROR)
         self._caput(self.rtm_spi_max_root +
                     self._rtm_slow_dac_data.format(dac), val, **kwargs)
 
@@ -3040,13 +3237,15 @@ class SmurfCommandMixin(SmurfBase):
         nbits=self._rtm_slow_dac_nbits
         val=np.array(val)
         if len(np.ravel(np.where(val > 2**(nbits-1)-1))) > 0:
-            self.log('Bias too high for some values. Must be <= 2^{}-1. Setting to '.format(nbits-1) +
-            'max value', self.LOG_ERROR)
+            self.log('Bias too high for some values. Must be ' +
+                     f'<= 2^{nbits-1}-1. Setting to max value',
+                     self.LOG_ERROR)
         val[np.ravel(np.where(val > 2**(nbits-1)-1))] = 2**(nbits-1)-1
 
         if len(np.ravel(np.where(val < - 2**(nbits-1)))) > 0:
-            self.log('Bias too low for some values. Must be >= -2^{}. Setting to '.format(nbits-1) +
-                     'min value', self.LOG_ERROR)
+            self.log('Bias too low for some values. Must be ' +
+                     f'>= -2^{nbits-1}. Setting to min value',
+                     self.LOG_ERROR)
         val[np.ravel(np.where(val < - 2**(nbits-1)))] = -2**(nbits-1)
 
         self._caput(self.rtm_spi_max_root + self._rtm_slow_dac_data_array, val, **kwargs)
@@ -3565,7 +3764,11 @@ class SmurfCommandMixin(SmurfBase):
         value : float
             Regulator current in amperes.
         """
-        return self._caget(self.regulator + self._regulator_iout, **kwargs)
+        return float(
+            float(self._caget(
+                self.regulator + self._regulator_iout,
+                as_string=True,
+                **kwargs)))
 
     _regulator_temp1 = "TEMPERATURE[1]"
 
@@ -3576,7 +3779,11 @@ class SmurfCommandMixin(SmurfBase):
         value : float
             Regulator PT temperature in C.
         """
-        return self._caget(self.regulator + self._regulator_temp1, **kwargs)
+        return float(
+            float(self._caget(
+                self.regulator + self._regulator_temp1,
+                as_string=True,
+                **kwargs)))
 
     _regulator_temp2 = "TEMPERATURE[2]"
 
@@ -3587,7 +3794,11 @@ class SmurfCommandMixin(SmurfBase):
         value : float
             A regulator CTRL temperature in C.
         """
-        return self._caget(self.regulator + self._regulator_temp2, **kwargs)
+        return float(
+            float(self._caget(
+                self.regulator + self._regulator_temp2,
+                as_string=True,
+                **kwargs)))
 
     # Cryo card comands
     def get_cryo_card_temp(self, enable_poll=False, disable_poll=False):
@@ -3701,7 +3912,7 @@ class SmurfCommandMixin(SmurfBase):
             The cryo card relays
         """
         if write_log:
-            self.log('Writing relay using cryo_card object. {}'.format(relay))
+            self.log(f'Writing relay using cryo_card object. {relay}')
 
         if enable_poll:
             epics.caput(self.epics_root + self._global_poll_enable, True)
@@ -3727,7 +3938,7 @@ class SmurfCommandMixin(SmurfBase):
 
         if write_log:
             self.log('Setting delatch bit using cryo_card ' +
-                'object. {}'.format(bit))
+                     f'object. {bit}')
         self.C.delatch_bit(bit)
 
         if disable_poll:
@@ -3929,18 +4140,20 @@ class SmurfCommandMixin(SmurfBase):
         self.set_user_config0(uc0 | (1 << 0))
         sg.wait(epics_poll=epics_poll) # wait for change
         uc0=sg.get_values()[user_config0_pv]
-        assert ( ( uc0 >> 0) & 1 ),'Failed to set averaging/clear bit high (userConfig0=%d).'%uc0
+        assert ( ( uc0 >> 0) & 1 ),(
+            'Failed to set averaging/clear bit high ' +
+            f'(userConfig0={uc0})')
 
         # toggle bit back to low, keeping all other bits the same
         self.set_user_config0(uc0 & ~(1 << 0))
         sg.wait(epics_poll=epics_poll) # wait for change
         uc0=sg.get_values()[user_config0_pv]
-        assert ( ~( uc0 >> 0) & 1 ),'Failed to set averaging/clear bit low after setting it high (userConfig0=%d).'%(uc0)
+        assert ( ~( uc0 >> 0) & 1 ),(
+            'Failed to set averaging/clear bit low after setting ' +
+            f'it high (userConfig0={uc0}).')
 
-        self.log('Successfully toggled averaging/clearing bit (userConfig[0]=%d).'%uc0,
-                 self.LOG_USER)
-
-
+        self.log('Successfully toggled averaging/clearing bit ' +
+                 f'(userConfig[0]={uc0}).',self.LOG_USER)
 
     # Triggering commands
     _trigger_width = 'EvrV2TriggerReg[{}]:Width'

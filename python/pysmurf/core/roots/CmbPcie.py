@@ -89,4 +89,6 @@ class CmbPcie(Common):
                         configure      = configure,
                         VariableGroups = VariableGroups,
                         server_port    = server_port,
+                        disable_bay0   = disable_bay0,
+                        disable_bay1   = disable_bay1,
                         **kwargs)

@@ -61,10 +61,6 @@ class SmurfNoiseMixin(SmurfBase):
             Extends the scipy.signal.welch detrend.
         fs : float or None, optional, default None
             Sample frequency. If None, reads it in.
-        low_freq : numpy.ndarray, optional, default numpy.array([0.1,1.0])
-            ???
-        high_freq : numpy.ndarray, optional, default numpy.array([1.0,10.0])
-            ???
         make_channel_plot : bool, optional, default True
             Whether to make the individual channel plots.
         make_summary_plot : bool, optional, default True
@@ -73,8 +69,6 @@ class SmurfNoiseMixin(SmurfBase):
             Whether to save the band averaged data as a text file.
         show_plot : bool, optional, default False
             Show the plot on the screen.
-        grid_on : bool, optional, default False
-            ???
         datafile : str or None, optional, default None
             If data has already been taken, can point to a file to
             bypass data taking and just analyze.
@@ -88,8 +82,6 @@ class SmurfNoiseMixin(SmurfBase):
             Whether to reset the filter before taking data.
         reset_unwrapper : bool, optional, default True
             Whether to reset the unwrapper before taking data.
-        return_noise_params : bool, optional, default False
-            ???
         plotname_append : str, optional, default ''
             Appended to the default plot filename.
 
@@ -175,9 +167,9 @@ class SmurfNoiseMixin(SmurfBase):
                     good_fit = True
                 if write_log:
                     self.log(f'{c+1}. b{b}ch{ch:03}:' +
-                         ' white-noise level = {:.2f}'.format(wl) +
-                         ' pA/rtHz, n = {:.2f}'.format(n) +
-                         ', f_knee = {:.2f} Hz'.format(f_knee))
+                         f' white-noise level = {wl:.2f}' +
+                         f' pA/rtHz, n = {n:.2f}' +
+                         f', f_knee = {f_knee:.2f} Hz')
             except Exception as e:
                 if write_log:
                     self.log(f'{c+1} b{b}ch{ch:03}: bad fit to noise model')
@@ -262,13 +254,13 @@ class SmurfNoiseMixin(SmurfBase):
             for i, (l, h) in enumerate(zip(low_freq, high_freq)):
                 fig, ax = plt.subplots(1, figsize=(10,6))
                 ax.hist(noise_floors[i,~np.isnan(noise_floors[i])], bins=bins)
-                ax.text(0.03, 0.95, '{:3.2f}'.format(l) + '-' +
-                    '{:3.2f} Hz'.format(h),
-                    transform=ax.transAxes, fontsize=10)
+                ax.text(0.03, 0.95, f'{l:3.2f}' + '-' + f'{h:3.2f} Hz',
+                        transform=ax.transAxes, fontsize=10)
                 ax.set_xlabel(r'Mean noise [$\mathrm{pA}/\sqrt{\mathrm{Hz}}$]')
 
-                plot_name = basename + \
-                    '{}_{}_noise_hist{}.png'.format(l, h, plotname_append)
+                plot_name = (
+                    basename +
+                    f'{l}_{h}_noise_hist{plotname_append}.png')
                 plt.savefig(os.path.join(self.plot_dir, plot_name),
                     bbox_inches='tight')
                 if show_plot:
@@ -285,7 +277,8 @@ class SmurfNoiseMixin(SmurfBase):
                 n_attempt = len(channels)
 
                 fig,ax = plt.subplots(1,3, figsize=(10,6))
-                fig.suptitle(f'{basename} noise parameters' +
+                fig.suptitle(
+                    f'{basename} noise parameters' +
                     f' ({n_fit} fit of {n_attempt} attempted)')
                 ax[0].hist(wl_list,
                     bins=np.logspace(np.floor(np.log10(np.min(wl_list))),
@@ -393,8 +386,8 @@ class SmurfNoiseMixin(SmurfBase):
         # Take data
         datafiles = np.array([])
         channel = np.array([])
-        for i, t in enumerate(tones):
-            self.log('Measuring for tone power {}'.format(t))
+        for _, t in enumerate(tones):
+            self.log(f'Measuring for tone power {t}')
 
             # Tune the band with the new drive power
             self.tune_band_serial(band, drive=t,
@@ -475,8 +468,6 @@ class SmurfNoiseMixin(SmurfBase):
         bias : float array or None, optional, default None
             The array of bias values to step through. If None, uses
             values in defined by bias_high, bias_low, and step_size.
-        high_current_mode : bool, optional, default True
-            ???
         overbias_voltage : float, optional, default 9.0
             Voltage to set the overbias in volts.
         meas_time : float, optional, default 30.0
@@ -492,17 +483,9 @@ class SmurfNoiseMixin(SmurfBase):
             The sample frequency.
         show_plot : bool, optional, default False
             Whether to show analysis plots.
-        cool_wait : float, optional, default 30.0
-            ???
-        psd_ylim : tuple of float, optional, default (10.0,1000.0)
-            ???
-        make_timestream_plot : bool, optional, default False
-            ???
         only_overbias_once : bool, optional, default False
             Whether or not to overbias right before each TES bias
             step.
-        overbias_wait : float, optional, default 1.0
-            ???
         """
         if bias is None:
             if step_size > 0:
@@ -524,10 +507,7 @@ class SmurfNoiseMixin(SmurfBase):
             step_size=1, amplitudes=None, meas_time=30., analyze=False,
             channel=None, nperseg=2**13, detrend='constant', fs=None,
             show_plot=False, make_timestream_plot=False, psd_ylim=None):
-        """???
-
-        ???
-
+        """
         Args
         ----
         band : int
@@ -587,8 +567,6 @@ class SmurfNoiseMixin(SmurfBase):
         only_overbias_once : bool, optional, default False
             Whether to only overbias at the beginning of the
             measurement (as opposed to between every step).
-        **kwargs : ???
-            ???
         """
         if fs is None:
             fs = self.get_sample_frequency()
@@ -619,12 +597,13 @@ class SmurfNoiseMixin(SmurfBase):
         self.make_dir(psd_dir)
 
         timestamp = self.get_timestamp()
-        fn_var_values = os.path.join(psd_dir, '{}_{}.txt'.format(timestamp,var))
+        fn_var_values = os.path.join(psd_dir,
+                                     f'{timestamp}_{var}.txt')
 
 
         np.savetxt(fn_var_values, var_range)
         # Is this an accurate tag?
-        self.pub.register_file(fn_var_values, 'noise_vs_{}'.format(var),
+        self.pub.register_file(fn_var_values, f'noise_vs_{var}',
                                format='txt')
 
         datafiles = np.array([], dtype=str)
@@ -633,7 +612,7 @@ class SmurfNoiseMixin(SmurfBase):
         actually_overbias = True
         for v in var_range:
             if var in biasaliases:
-                self.log('Bias {}'.format(v))
+                self.log(f'Bias {v}')
                 if type(kwargs['bias_group']) is int: # only received one group
                     self.overbias_tes(kwargs['bias_group'], tes_bias=v,
                                  high_current_mode=kwargs['high_current_mode'],
@@ -654,7 +633,7 @@ class SmurfNoiseMixin(SmurfBase):
             if var in amplitudealiases:
                 unit_override=''
                 xlabel_override='Tone amplitude [unit-less]'
-                self.log('Retuning at tone amplitude {}'.format(v))
+                self.log(f'Retuning at tone amplitude {v}')
                 self.set_amplitude_scale_array(band,
                     np.array(self.get_amplitude_scale_array(band)*v/
                         np.max(self.get_amplitude_scale_array(band)),dtype=int))
@@ -667,12 +646,12 @@ class SmurfNoiseMixin(SmurfBase):
             self.log('Taking data')
             datafile = self.take_stream_data(meas_time)
             datafiles = np.append(datafiles, datafile)
-            self.log('datafile {}'.format(datafile))
+            self.log(f'datafile {datafile}')
 
         self.log(f'Done with noise vs {var}')
 
         fn_datafiles = os.path.join(psd_dir,
-            '{}_datafiles.txt'.format(timestamp))
+                                    f'{timestamp}_datafiles.txt')
 
         np.savetxt(fn_datafiles,datafiles, fmt='%s')
         self.pub.register_file(fn_datafiles, 'datafiles', format='txt')
@@ -904,7 +883,7 @@ class SmurfNoiseMixin(SmurfBase):
 
         timestream_dict = {}
         # Analyze data and save
-        for i, (bs, d) in enumerate(zip(bias, datafile)):
+        for _, (bs, d) in enumerate(zip(bias, datafile)):
             timestream_dict[bs] = {}
             for b in np.unique(band):
                 timestream_dict[bs][b] = {}
@@ -1198,7 +1177,7 @@ class SmurfNoiseMixin(SmurfBase):
                 plt.show()
 
             if save_plot:
-                plot_name = f'noise_vs_bias_' + \
+                plot_name = 'noise_vs_bias_' + \
                     f'g{file_name_string}b{b}ch{ch:03}.png'
                 if data_timestamp is not None:
                     plot_name = f'{data_timestamp}_' + plot_name
@@ -1270,11 +1249,12 @@ class SmurfNoiseMixin(SmurfBase):
             r' [$\mathrm{pA}/\sqrt{\mathrm{Hz}}$]')
         plt.ylim(10**bin_min, 10**bin_max)
         plt.title(basename +
-            ': Band {}, Group {}, {} channels'.format(np.unique(band),
-                fig_title_string.strip(','),n_analyzed))
+                  f": Band {np.unique(band)}, Group " +
+                  f"{fig_title_string.strip(',')}, {n_analyzed}" +
+                  "channels")
         xtick_labels = []
         for bs in bias:
-            xtick_labels.append('{}'.format(bs))
+            xtick_labels.append(f'{bs}')
         xtick_locs = np.arange(len(bias)-1,-1,-1) + 0.5
         plt.xticks(xtick_locs, xtick_labels)
         plt.xlabel('Commanded bias voltage [V]')
@@ -1322,10 +1302,11 @@ class SmurfNoiseMixin(SmurfBase):
             plt.yscale('log')
             plt.ylabel(f'NEP {ylabel_summary}' +
                 r' [$\mathrm{aW}/\sqrt{\mathrm{Hz}}$]')
-            plt.ylim(10**bin_NEP_min,10**bin_NEP_max)
             plt.title(basename +
-                ': Band {}, Group {}, {} channels'.format(np.unique(band),
-                    fig_title_string.strip(','), n_analyzed))
+                      plt.title(basename +
+                                f": Band {np.unique(band)}, Group " +
+                                f"{fig_title_string.strip(',')}, {n_analyzed}" +
+                                "channels"))
             plt.xticks(xtick_locs,xtick_labels)
             plt.xlabel('Commanded bias voltage [V]')
             plt.plot(xtick_locs,NEP_est_median_list, linestyle='--', marker='o',
@@ -1446,11 +1427,6 @@ class SmurfNoiseMixin(SmurfBase):
             The band number.
         meas_time : float, optional, default 10.0
             The measurement time per resonator in seconds.
-
-        Returns
-        -------
-        ret : ???
-            ???
         """
         timestamp = self.get_timestamp()
 
@@ -1465,7 +1441,7 @@ class SmurfNoiseMixin(SmurfBase):
         ret = {'all': filename}
 
         for i, ch in enumerate(channel):
-            self.log('ch {:03} - {} of {}'.format(ch, i+1, n_channel))
+            self.log(f'ch {ch:03} - {i+1} of {n_channel}')
             self.band_off(band)
             self.flux_ramp_on()
             self.set_amplitude_scale_channel(band, ch, drive)
@@ -1488,17 +1464,6 @@ class SmurfNoiseMixin(SmurfBase):
         ----
         ret : dict
             The returned values from noise_all_vs_noise_solo.
-        fs : float or None, optional, default None
-            ???
-        nperseg : int, optional, defualt 2**10
-            ???
-        make_channel_plot : bool, optional, default False
-            ???
-
-        Returns
-        -------
-        wl_diff : ???
-            ???
         """
         if fs is None:
             fs = self.fs
@@ -1512,7 +1477,7 @@ class SmurfNoiseMixin(SmurfBase):
         wl_diff = np.zeros(len(keys))
 
         for i, k in enumerate(ret.keys()):
-            self.log('{} : {}'.format(k, ret[k]))
+            self.log(f'{k} : {ret[k]}')
             tc, dc, mc = self.read_stream_data(ret[k])
             dc *= self._pA_per_phi0/(2*np.pi)
             band, channel = np.where(mc != -1)  # there should be only one
@@ -1618,12 +1583,8 @@ class SmurfNoiseMixin(SmurfBase):
             Whether to save the plot.
         show_plot : bool, optional, default False
             Whether to how the plot.
-        make_timestream_plot : bool, optional, default False
-            ???
         data_timestamp : str or None, optional, default None
             The string used as a save name.
-        psd_ylim : ???, optional, default (10.0,1000.0)
-            ???
         bias_group : int or int array or None, optional, default None
             Which bias groups were used.
         smooth_len : int, optional, default 11
@@ -1659,7 +1620,7 @@ class SmurfNoiseMixin(SmurfBase):
         mask = np.loadtxt(self.smurf_to_mce_mask_file)
 
         # Analyze data and save
-        for i, (b, d) in enumerate(zip(tone, datafile)):
+        for _, (_, d) in enumerate(zip(tone, datafile)):
             timestamp, phase, mask = self.read_stream_data(d)
             phase *= self._pA_per_phi0/(2.*np.pi) # phase converted to pA
 
@@ -1715,14 +1676,17 @@ class SmurfNoiseMixin(SmurfBase):
                 basename, _ = os.path.splitext(os.path.basename(d))
                 dirname = os.path.dirname(d)
 
-                self.log(os.path.join(psd_dir, basename +
-                    '_psd_ch{:03}.txt'.format(ch)))
+                self.log(
+                    os.path.join(psd_dir, basename +
+                                 f'_psd_ch{ch:03}.txt'))
 
                 # Catch when there is no file
                 try:
                     # Load the PSD data
-                    f, Pxx =  np.loadtxt(os.path.join(psd_dir, basename +
-                        '_psd_ch{:03}.txt'.format(ch)))
+                    f, Pxx =  np.loadtxt(
+                        os.path.join(
+                            psd_dir, basename +
+                            f'_psd_ch{ch:03}.txt'))
 
                     # smooth Pxx for plotting
                     if smooth_len >= 3:
@@ -1970,7 +1934,7 @@ class SmurfNoiseMixin(SmurfBase):
             y = i // n_col
             x = i % n_col
             ax[y,x].plot(vh[i])
-            ax[y,x].text(0.04, 0.91, '{}'.format(i), transform=ax[y,x].transAxes)
+            ax[y,x].text(0.04, 0.91, f'{i}', transform=ax[y,x].transAxes)
 
         plt.tight_layout()
 

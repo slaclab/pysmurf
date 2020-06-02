@@ -21,28 +21,28 @@ class SmurfConfigPropertiesMixin:
     Defines properties used by pysmurf whose values are specified in
     the pysmurf configuration file.  More details on python properties
     can be found in the documentation for python "Built-in Functions"
-    [1]_.
+    [#pyprop]_.
 
     The :class:`SmurfConfigPropertiesMixin` class has only one
-    function :func:`copy_config_to_properties` which can populate the
+    method :meth:`copy_config_to_properties` which can populate the
     properties from a provided
     :class:`~pysmurf.client.base.smurf_config.SmurfConfig` class
-    instance.  :func:`copy_config_to_properties` can be called by the
+    instance.  :meth:`copy_config_to_properties` can be called by the
     user at any time, but it is called once to populate all of the
     :class:`SmurfConfigPropertiesMixin` attributes by a call to the
     :func:`~pysmurf.client.base.smurf_control.SmurfControl.initialize`
-    function in the
+    method in the
     :class:`~pysmurf.client.base.smurf_control.SmurfControl`
     constructor (unless the
     :class:`~pysmurf.client.base.smurf_control.SmurfControl` instance
     is not instantiated with a configuration file).
 
     .. warning::
-        If a user changes the value of a property but then writes the
-        internal pysmurf configuration to disk with the
-        :func:`~pysmurf.client.base.smurf_control.SmurfControl.write_output()`
-        function, the value written to the file will not reflect the
-        user's change.
+       If a user changes the value of a property but then writes the
+       internal pysmurf configuration to disk with the
+       :func:`~pysmurf.client.base.smurf_control.SmurfControl.write_output()`
+       function, the value written to the file will not reflect the
+       user's change.
 
     Examples
     --------
@@ -74,7 +74,7 @@ class SmurfConfigPropertiesMixin:
 
     References
     ----------
-    .. [1] https://docs.python.org/3/library/functions.html#property
+    .. [#pyprop] https://docs.python.org/3/library/functions.html#property
 
     """
 

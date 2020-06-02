@@ -14,7 +14,8 @@ import sys
 __all__ = ['Logger', 'SmurfLogger']
 
 class Logger(object):
-    """Basic prioritized logger, by M. Hasselfield"""
+    """Basic prioritized logger, by M. Hasselfield."""
+
     def __init__(self, verbosity=0, indent=True, logfile=None):
         self.v = verbosity
         self.indent = indent
@@ -88,7 +89,7 @@ class SmurfLogger(Logger):
             return 0
         v = self.levels.get(v, v)
         if not isinstance(v, int):
-            raise ValueError('Unrecognized logging level {}'.format(v))
+            raise ValueError(f'Unrecognized logging level {v}')
         return v
 
     def format(self, s, level=0):
@@ -96,12 +97,12 @@ class SmurfLogger(Logger):
         Format the input for writing to the logfile.
         """
         if self.prefix:
-            s = '{}{}'.format(self.prefix, s)
+            s = f'{self.prefix}{s}'
         else:
-            s = '{}'.format(s)
+            s = f'{s}'
         if self.timestamp:
             stamp = dt.datetime.now().strftime('%Y-%m-%d %H:%M:%S%Z')
-            s = '[ {} ]  {}'.format(stamp, s)
+            s = f'[ {stamp} ]  {s}'
         return super(SmurfLogger, self).format(s, self.get_level(level))
 
     # root argument added as hack so that MPI/non-MPI code can get along
