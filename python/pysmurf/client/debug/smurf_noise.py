@@ -1855,16 +1855,16 @@ class SmurfNoiseMixin(SmurfBase):
         if make_plot:
             fig, ax = plt.subplots(2, figsize=(6,5.5),
                 gridspec_kw={'height_ratios': [1, 2]})
-            t = np.arange(nperseg)/channel_freq * 1.0E6 # Time in us
+            t = np.arange(nperseg)/channel_freq * 1.0E3 # Time in ms
             ax[0].plot(t, df[:nperseg])  # Plot only the first nperseg samples
-            ax[0].set_xlabel(r'Time [$\mu$s]')
+            ax[0].set_xlabel(r'Time [ms]')
             ax[1].loglog(ff, np.sqrt(pxx))
             ax[1].set_xlabel("Freq [Hz]")
             ax[1].set_ylabel("Amp [FBU/rtHz]")
 
             text = f'Res {freq:4.2f} MHz' + '\n' +\
                 r'$\eta_{mag}$ ' + f'{eta_mag:2.3f}' + '\n' +\
-                r'$\eta_{phase}$ ' + f'{eta_phase:2.1f} deg' + \
+                r'$\eta_{phase}$ ' + f'{eta_phase:2.1f} deg' + '\n' + \
                 f'Tone {tone_power}'
             ax[1].text(.98, .98, text, transform=ax[1].transAxes, va='top',
                 ha='right')
