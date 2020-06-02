@@ -367,7 +367,13 @@ detect_carrier_board()
         printf "Checking if board is present...                   "
         if [ -z ${pn_str} ]; then
             echo "Board not present."
-            return
+            echo
+            echo "The carrier board is not present, or it contains an empty 'Board Part Number' string. Aborting!"
+            echo "Please install a supported carrier board, or disable the hardware auto-detection by passing the flag '--disable-hw-detect'."
+            echo "You will need to manually pass the appropriate '--disable-bay[0,1]' flags as well as pointing to the correct defaults"
+            echo "file using the '--defaults <path_to_defaults_file>' argument."
+            echo
+            exit 1
         else
             echo "Board present."
         fi
@@ -379,7 +385,13 @@ detect_carrier_board()
 
         if [ -z ${gen1} ] && [ -z ${gen2} ]; then
             echo "Part number ${pn_str} not supported."
-            return
+            echo
+            echo "Unsupported carrier board, or with bad 'Board Part Number' string, was found. Aborting!"
+            echo "Please install a supported carrier board, or disable the hardware auto-detection by passing the flag '--disable-hw-detect'."
+            echo "You will need to manually pass the appropriate '--disable-bay[0,1]' flags as well as pointing to the correct defaults"
+            echo "file using the '--defaults <path_to_defaults_file>' argument."
+            echo
+            exit 1
         else
             echo "Part number ${pn_str} supported."
         fi
@@ -402,7 +414,13 @@ detect_carrier_board()
         printf "Verifying board version...                        "
         if [ -z ${ver_str} ]; then
             echo "Version not found in the part number string."
-            continue
+            echo
+            echo "Unsupported carrier board, or with bad 'Board Part Number' string, was found. Aborting!"
+            echo "Please install a supported carrier board, or disable the hardware auto-detection by passing the flag '--disable-hw-detect'."
+            echo "You will need to manually pass the appropriate '--disable-bay[0,1]' flags as well as pointing to the correct defaults"
+            echo "file using the '--defaults <path_to_defaults_file>' argument."
+            echo
+            exit 1
         else
             echo "c${ver_str}."
         fi
