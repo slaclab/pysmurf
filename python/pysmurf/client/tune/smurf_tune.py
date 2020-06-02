@@ -3697,10 +3697,8 @@ class SmurfTuneMixin(SmurfBase):
         for i, f in enumerate(input_res):
             self.log(f'freq {f:5.4f} - {i+1} of {n_res}')
             freq, resp, eta = self.eta_estimator(band, f, drive,
-                                                 f_sweep_half=sweep_width,
-                                                 df_sweep=df_sweep,
-                                                 delta_freq=delta_freq,
-                                                 lock_max_derivative=lock_max_derivative)
+                f_sweep_half=sweep_width, df_sweep=df_sweep,
+                delta_freq=delta_freq, lock_max_derivative=lock_max_derivative)
             eta_phase_deg = np.angle(eta)*180/np.pi
             eta_mag = np.abs(eta)
             eta_scaled = eta_mag / subband_half_width
@@ -3742,6 +3740,54 @@ class SmurfTuneMixin(SmurfBase):
         self.save_tune()
 
         self.relock(band)
+
+    def calculate_eta_svd(self, band, channel, nsampe=2**16, filter=True,
+        N=4, Wn=50000, btype='lowpass', method='gust', make_plot=True,
+        show_plot=False, save_plot=True):
+        """
+        """
+        eta_phase = self.get_eta_phase_degree_channel(band, channel)
+        eta_mag = self.get_eta_mag_scaled_channel(band, channel)
+
+        channel_freq = self.get_channel_freq(band) * 1.0E6  # Sampling freq
+
+        # Take data at default eta value
+        timestamp = self.get_timestamp()
+        filename = f'{timestamp}_fast_dat_I'
+        fI, dfI, syncI = self.take_debug_data(band, channel=channel,
+            IQstream=False, single_channel_readout=2,
+            nsamp=nsamp, filename=filename)
+
+        # Rotate 90 degrees and take data
+        eta_phase_rot = tools.limit_phase_deg(eta_phase + 90)
+        self.set_eta_phase_degree_channel(band, channel, eta_phase_rot)
+        timestamp = self.get_timestamp()
+        filename = f'{timestamp}_fast_data_Q'
+        fQ, dfQ, syncQ = self.take_debug_data(band, channel=channel,
+            IQstream=False, single_channel_readout=2,
+            nsamp=nsamp, filename=filename)
+
+        if filter:
+            b, a = signal.butter(N=N, Wn=Wn, btype=btype, fs=channel_freq)
+            dfI = signal.filter(b, a, dfI, method=method)
+            dfQ = signal.filter(b, a, dfQ, method=method)
+
+
+        if make_plot:
+            plt.figure()
+            sns.jointplot(dfI, dfQ)
+            plt.xlabel('I')
+            plt.ylable('Q')
+            if save_plot:
+                timestamp = self.get_timestamp()
+                plt.savefig(os.path.join(self.plot_dir,
+                    f'{timestamp}_IQ_svd.png'),
+                    bbox_inches='tight')
+            if show_plot:
+                plt.show()
+            else:
+                plt.close()
+
 
     @set_action()
     def save_tune(self, update_last_tune=True):
