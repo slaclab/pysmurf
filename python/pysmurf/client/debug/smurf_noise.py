@@ -1866,8 +1866,12 @@ class SmurfNoiseMixin(SmurfBase):
                 r'$\eta_{mag}$ ' + f'{eta_mag:2.3f}' + '\n' +\
                 r'$\eta_{phase}$ ' + f'{eta_phase:2.1f} deg' + '\n' + \
                 f'Tone {tone_power}'
-            ax[1].text(.98, .98, text, transform=ax[1].transAxes, va='top',
-                ha='right')
+            ax[1].text(.02, .98, text, transform=ax[1].transAxes, va='top',
+                ha='left')
+
+            ax[1].text(.98, .981, f'Acq Time {nsamp/channel_freq:3.2f} s',
+                transform=ax[1].transAxes, va='top', ha='right')
+
 
             ax[0].set_title(f'High Rate b{band}ch{channel:03}')
 
