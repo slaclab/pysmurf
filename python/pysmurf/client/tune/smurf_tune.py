@@ -3749,7 +3749,7 @@ class SmurfTuneMixin(SmurfBase):
         eta_phase = self.get_eta_phase_degree_channel(band, channel)
         eta_mag = self.get_eta_mag_scaled_channel(band, channel)
 
-        channel_freq = self.get_channel_freq(band) * 1.0E6  # Sampling freq
+        channel_freq = self.get_channel_frequency_mhz(band) * 1.0E6  # Sampling freq
 
         # Take data at default eta value
         timestamp = self.get_timestamp()
