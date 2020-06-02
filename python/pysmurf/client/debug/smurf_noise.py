@@ -1828,8 +1828,9 @@ class SmurfNoiseMixin(SmurfBase):
             self.run_serial_gradient_descent(band)
             self.run_serial_eta_scan(band)
 
-        eta_mag = self.get_eta_mag_scaled_channel(band, channel)
+
         eta_phase = self.get_eta_phase_degree_channel(band, channel)
+        eta_mag = self.get_eta_mag_scaled_channel(band, channel)
 
         # Turn off feedback and FR
         self.set_feedback_enable(band, 0)
