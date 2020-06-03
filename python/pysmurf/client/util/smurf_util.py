@@ -3679,7 +3679,7 @@ class SmurfUtilMixin(SmurfBase):
         return (gcp_num*16)%528 + gcp_num//33
 
 
-    def smurf_channel_to_gcp_num(self, band, channel)
+    def smurf_channel_to_gcp_num(self, band, channel):
         """
         Converts from smurf channel (band and channel) to a gcp number
 
