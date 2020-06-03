@@ -219,7 +219,11 @@ class SmurfConfig:
         """
         ## dump current config to outputfile ##
         with io.open(outputfile, 'w', encoding='utf8') as out_file:
-            str_ = json.dumps(self.config, indent=4, separators=(',', ': '))
+            str_ = json.dumps(
+                config_out,
+                indent=4,
+                skipkeys=True,
+                separators=(',', ': '))
             out_file.write(str_)
 
     def has(self, key):
