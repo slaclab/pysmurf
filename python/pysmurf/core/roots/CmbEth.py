@@ -16,14 +16,12 @@
 # copied, modified, propagated, or distributed except according to the terms
 # contained in the LICENSE.txt file.
 #-----------------------------------------------------------------------------
-
+from CryoDet._MicrowaveMuxBpEthGen2 import FpgaTopLevel
 import pyrogue
-import pysmurf
 import rogue.protocols.srp
 
+import pysmurf
 from pysmurf.core.roots.Common import Common
-
-from CryoDet._MicrowaveMuxBpEthGen2 import FpgaTopLevel
 
 class CmbEth(Common):
     def __init__(self, *,

@@ -13,12 +13,13 @@
 # copied, modified, propagated, or distributed except according to the terms
 # contained in the LICENSE.txt file.
 #-----------------------------------------------------------------------------
-import struct
-import numpy
-import os
-import yaml
 from collections import namedtuple
 from collections import OrderedDict as odict
+import os
+import struct
+
+import numpy
+import yaml
 
 # Frame Format Constants
 SmurfHeaderSize  = 128

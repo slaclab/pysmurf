@@ -12,11 +12,14 @@
 # contained in the LICENSE.txt file.
 #-----------------------------------------------------------------------------
 import argparse
-import numpy as np
+import os
 import sys
 import time
-import os
+
+import numpy as np
+
 import pysmurf
+
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
 
 cfg_filename = 'experiment_k2umux.cfg'

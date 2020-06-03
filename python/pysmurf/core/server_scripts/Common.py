@@ -17,13 +17,14 @@
 # contained in the LICENSE.txt file.
 #-----------------------------------------------------------------------------
 
-import sys
-import pyrogue
+import argparse
+import os
 import socket
 import subprocess
-import os
+import sys
 import zipfile
-import argparse
+
+import pyrogue
 
 # Name of the TopRoguePackage in the ZIP file
 top_rogue_package_name="CryoDet"
