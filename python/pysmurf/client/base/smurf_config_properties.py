@@ -130,7 +130,6 @@ class SmurfConfigPropertiesMixin:
         self._delta_freq = None
 
         # Reading/writing data
-        self._mask_channel_offset = None
         self._fs = None
 
         # In fridge
@@ -276,7 +275,6 @@ class SmurfConfigPropertiesMixin:
 
         ## Reading/writing data
         smurf_to_mce_cfg = config.get('smurf_to_mce')
-        self.mask_channel_offset = smurf_to_mce_cfg.get('mask_channel_offset')
         self.fs = config.get('fs')
 
         ## In fridge
@@ -1294,35 +1292,6 @@ class SmurfConfigPropertiesMixin:
         self._fs = value
 
     ## End fs property definition
-    ###########################################################################
-
-    ###########################################################################
-    ## Start mask_channel_offset property definition
-
-    # Getter
-    @property
-    def mask_channel_offset(self):
-        """Short description.
-
-        Gets or sets ?.
-        Units are ?.
-
-        Specified in the pysmurf configuration file as
-        `?`.
-
-        See Also
-        --------
-        ?
-
-        """
-        return self._mask_channel_offset
-
-    # Setter
-    @mask_channel_offset.setter
-    def mask_channel_offset(self, value):
-        self._mask_channel_offset = value
-
-    ## End mask_channel_offset property definition
     ###########################################################################
 
     ###########################################################################

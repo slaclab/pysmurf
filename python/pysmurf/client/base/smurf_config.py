@@ -698,12 +698,6 @@ class SmurfConfig:
             #    horribly
             'data_frames' : And(int, lambda n: n >= 0),
 
-            # Optional kludge to account for a circshift offset.
-            # Implemented to get arounda bug in channel number in early
-            # versions of the DSPv3 fw (specifically, fw version
-            # mitch_4_30).  If not specified, no offset is applied.
-            Optional('mask_channel_offset', default=0) : Use(int),
-
             # Filter params
             'filter_freq' : And(Use(float), lambda f: f > 0),
             'filter_order' : And(int, lambda n: n >= 0),

@@ -1345,8 +1345,7 @@ class SmurfUtilMixin(SmurfBase):
         return bias
 
     @set_action()
-    def make_mask_lookup(self, mask_file, mask_channel_offset=None,
-            make_freq_mask=False):
+    def make_mask_lookup(self, mask_file, make_freq_mask=False):
         """ Makes an n_band x n_channel array where the elements correspond
         to the smurf_to_mce mask number. In other words, mask[band, channel]
         returns the GCP index in the mask that corresonds to band, channel.
@@ -1355,10 +1354,6 @@ class SmurfUtilMixin(SmurfBase):
         ----
         mask_file : str
             The full path the a mask file.
-        mask_channel_offset : int, optional, default None
-            Offset to remove from channel numbers in GCP mask file after
-            loading.  If None, uses value specified in pysmurf
-            configuration file.
         make_freq_mask : bool, optional, default False
             Whether to write a text file with resonator frequencies.
 
@@ -1367,9 +1362,6 @@ class SmurfUtilMixin(SmurfBase):
         mask_lookup : int array
             An array with the GCP numbers.
         """
-        if mask_channel_offset is None:
-            mask_channel_offset = self._mask_channel_offset
-
         # Look for .dat file and replace with mask file
         if ".dat" in mask_file:
             self.log("make_mask_lookup received a .dat file. " +
@@ -1393,7 +1385,7 @@ class SmurfUtilMixin(SmurfBase):
 
         for gcp_chan, smurf_chan in enumerate(mask):
             b = int(smurf_chan//512)
-            ch = int((smurf_chan-mask_channel_offset)%512)
+            ch = int((smurf_chan)%512)
             ret[b,ch] = gcp_chan
 
             # fill corresponding elements with frequency
@@ -3349,8 +3341,7 @@ class SmurfUtilMixin(SmurfBase):
 
     @set_action()
     def make_gcp_mask(self, band=None, smurf_chans=None,
-                      gcp_chans=None, read_gcp_mask=True,
-                      mask_channel_offset=None):
+                      gcp_chans=None, read_gcp_mask=True):
         """
         THIS FUNCTION WAS USED FOR BKUMUX DATA ACQUISITION.  IT'S
         COMPLETELY BROKEN NOW, POST ROGUE4 MIGRATION.
@@ -3375,15 +3366,8 @@ class SmurfUtilMixin(SmurfBase):
         read_gcp_mask : bool, optional, default True
             Whether to read in the new GCP mask file.  If not read in,
             it will take no effect.
-        mask_channel_offset : int, optional, default None
-            Offset to add to channel numbers in GCP mask file.  If
-            None, will use value specified in pysmurf configuration
-            file.
-            
-        """
-        if mask_channel_offset is None:
-            mask_channel_offset = self._mask_channel_offset
 
+        """
         gcp_chans = np.array([], dtype=int)
         if smurf_chans is None and band is not None:
             band = np.ravel(np.array(band))
@@ -3395,16 +3379,7 @@ class SmurfUtilMixin(SmurfBase):
                 self.log(f'Band {k}')
                 n_chan = self.get_number_channels(k)
                 for ch in smurf_chans[k]:
-
-                    # optionally shift by an offset.  The offset is applied
-                    # circularly within each 512 channel band
-                    channel_offset = mask_channel_offset
-                    if (ch+channel_offset)<0:
-                        channel_offset+=n_chan
-                    if (ch+channel_offset+1)>n_chan:
-                        channel_offset-=n_chan
-
-                    gcp_chans = np.append(gcp_chans, ch + n_chan*k + channel_offset)
+                    gcp_chans = np.append(gcp_chans, ch + n_chan*k)
 
         if len(gcp_chans) > 512:
             self.log('WARNING: too many gcp channels!')
