@@ -26,6 +26,7 @@ n_phi0s = np.array([4, 4, 4, 4])
 lms_enable2 = False
 lms_enable3 = False
 lms_gain = 7
+filter_order = 4
 
 # Instatiate pysmurf object
 S = pysmurf.client.SmurfControl(epics_root=epics_prefix, cfg_file=config_file,
@@ -64,6 +65,7 @@ for i in np.arange(n_steps):
     # Take noise data
     # factor = int(reset_rate_khzs[i]/data_rate)
     # S.set_downsample_factor(factor)
+    S.set_downsample_filter(filter_order, reset_rate_khzs[i]/4, write_log=False):
     noise_files[i] = S.take_stream_data(noise_time)
 
 
