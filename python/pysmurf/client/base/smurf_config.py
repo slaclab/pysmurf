@@ -672,9 +672,6 @@ class SmurfConfig:
                 return False
             return True
 
-        def is_valid_port(port_number):
-            return 1 <= int(port_number) <= 65535
-
         # Some documentation on some of these parameters is here -
         # https://confluence.slac.stanford.edu/display/SMuRF/SMURF2MCE
         schema_dict["smurf_to_mce"] = {
@@ -718,16 +715,6 @@ class SmurfConfig:
             # versions of the DSPv3 fw (specifically, fw version
             # mitch_4_30).  If not specified, no offset is applied.
             Optional('mask_channel_offset', default=0) : Use(int),
-
-            # This is the port used for communication. Must match the port
-            # set at the receive end
-            Optional('port_number', default='3334') : And(str,
-                                                          represents_int,
-                                                          is_valid_port),
-
-            # Could and should improve validation on this one if it's ever
-            # used again.  This default is also ridiculous.
-            Optional('receiver_ip', default='tcp://192.168.3.1:3334') : str,
 
             # Filter params
             'filter_freq' : And(Use(float), lambda f: f > 0),

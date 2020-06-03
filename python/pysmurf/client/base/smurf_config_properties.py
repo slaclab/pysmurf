@@ -131,8 +131,6 @@ class SmurfConfigPropertiesMixin:
 
         # Reading/writing data
         self._smurf_to_mce_file = None
-        self._smurf_to_mce_ip = None
-        self._smurf_to_mce_port = None
         self._smurf_to_mce_mask_file = None
         self._static_mask = None
         self._mask_channel_offset = None
@@ -282,8 +280,6 @@ class SmurfConfigPropertiesMixin:
         ## Reading/writing data
         smurf_to_mce_cfg = config.get('smurf_to_mce')
         self.smurf_to_mce_file = smurf_to_mce_cfg.get('smurf_to_mce_file')
-        self.smurf_to_mce_ip = smurf_to_mce_cfg.get('receiver_ip')
-        self.smurf_to_mce_port = smurf_to_mce_cfg.get('port_number')
         self.smurf_to_mce_mask_file = smurf_to_mce_cfg.get('mask_file')
         self.static_mask = smurf_to_mce_cfg.get('static_mask')
         self.mask_channel_offset = smurf_to_mce_cfg.get('mask_channel_offset')
@@ -1333,64 +1329,6 @@ class SmurfConfigPropertiesMixin:
         self._smurf_to_mce_file = value
 
     ## End smurf_to_mce_file property definition
-    ###########################################################################
-
-    ###########################################################################
-    ## Start smurf_to_mce_ip property definition
-
-    # Getter
-    @property
-    def smurf_to_mce_ip(self):
-        """Short description.
-
-        Gets or sets ?.
-        Units are ?.
-
-        Specified in the pysmurf configuration file as
-        `?`.
-
-        See Also
-        --------
-        ?
-
-        """
-        return self._smurf_to_mce_ip
-
-    # Setter
-    @smurf_to_mce_ip.setter
-    def smurf_to_mce_ip(self, value):
-        self._smurf_to_mce_ip = value
-
-    ## End smurf_to_mce_ip property definition
-    ###########################################################################
-
-    ###########################################################################
-    ## Start smurf_to_mce_port property definition
-
-    # Getter
-    @property
-    def smurf_to_mce_port(self):
-        """Short description.
-
-        Gets or sets ?.
-        Units are ?.
-
-        Specified in the pysmurf configuration file as
-        `?`.
-
-        See Also
-        --------
-        ?
-
-        """
-        return self._smurf_to_mce_port
-
-    # Setter
-    @smurf_to_mce_port.setter
-    def smurf_to_mce_port(self, value):
-        self._smurf_to_mce_port = value
-
-    ## End smurf_to_mce_port property definition
     ###########################################################################
 
     ###########################################################################
