@@ -53,10 +53,10 @@ for i in np.arange(n_steps):
     S.run_serial_gradient_descent(band)
     S.run_serial_eta_scan(band)
     f[i], df[i], sync = S.tracking_setup(band, reset_rate_khz=reset_rate_khzs[i],
-        fraction_full_scale=.5, make_plot=False, nsamp=2**18, lms_gain=lms_gain,
-        lms_freq_hz=None, meas_lms_freq=False, feedback_start_frac=.25,
-        feedback_end_frac=.98, meas_flux_ramp_amp=True, n_phi0=n_phi0s[i],
-        lms_enable2=lms_enable2, lms_enable3=lms_enable3)
+        fraction_full_scale=.5, make_plot=True, show_plot=False, nsamp=2**18,
+        lms_gain=lms_gain, lms_freq_hz=None, meas_lms_freq=False,
+        feedback_start_frac=.25, feedback_end_frac=.98, meas_flux_ramp_amp=True,
+        n_phi0=n_phi0s[i], lms_enable2=lms_enable2, lms_enable3=lms_enable3)
 
     # Cull bad detectors
     S.check_lock(band)
