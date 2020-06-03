@@ -19,10 +19,12 @@ subband = np.arange(13, 115)
 noise_time = 10
 data_rate = 200  # Hz
 
-reset_rate_khzs = np.array([4, 10, 15, 20, 25, 30])
-n_phi0s = np.array([4, 4, 4, 4, 4, 4, 4])
-lms_enable2 = False
-lms_enable3 = False
+# reset_rate_khzs = np.array([4, 10, 15, 20, 25, 30])
+# n_phi0s = np.array([4, 4, 4, 4, 4, 4, 4])
+reset_rate_khzs = np.array([20, 30, 40, 50])
+n_phi0s = np.array([4, 4, 4, 4])
+lms_enable2 = True
+lms_enable3 = True
 lms_gain = 7
 
 # Instatiate pysmurf object
