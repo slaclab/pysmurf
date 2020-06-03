@@ -278,7 +278,11 @@ class SmurfCommandMixin(SmurfBase):
         bays : list of int
             Which bays were enabled on pysmurf server startup.
         """
-        return list(self._caget(self.smurf_application + self._enabled_bays, **kwargs))
+        enabled_bays = self._caget(self.smurf_application + self._enabled_bays, **kwargs)
+        try:
+            return list(enabled_bays)
+        except Exception:
+            return enabled_bays
 
     #### End SmurfApplication gets/sets
 
