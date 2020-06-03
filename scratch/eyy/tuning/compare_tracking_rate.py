@@ -21,7 +21,7 @@ data_rate = 200  # Hz
 
 # reset_rate_khzs = np.array([4, 10, 15, 20, 25, 30])
 # n_phi0s = np.array([4, 4, 4, 4, 4, 4, 4])
-reset_rate_khzs = np.array([20, 40, 60, 80, 100])
+reset_rate_khzs = np.array([4, 20, 40, 60])
 n_phi0s = np.array([4, 4, 4, 4])
 lms_enable2 = False
 lms_enable3 = False
