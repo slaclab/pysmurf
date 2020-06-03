@@ -432,9 +432,6 @@ class SmurfControl(SmurfCommandMixin,
             self.set_eta_scan_averages(
                 band, self._eta_scan_averages[band],
                 write_log=write_log, **kwargs)
-            self.set_eta_scan_amplitude(
-                band, self._eta_scan_amplitude[band],
-                write_log=write_log, **kwargs)
             self.set_eta_scan_del_f(
                 band, self._eta_scan_del_f[band],
                 write_log=write_log, **kwargs)

@@ -125,7 +125,6 @@ class SmurfConfigPropertiesMixin:
         self._feedback_start_frac = None
         self._feedback_end_frac = None
         self._eta_scan_del_f = None
-        self._eta_scan_amplitude = None
         self._eta_scan_averages = None
         self._delta_freq = None
 
@@ -259,9 +258,6 @@ class SmurfConfigPropertiesMixin:
         self.eta_scan_del_f = {
             int(band):v for (band,v) in
             tune_band_cfg['eta_scan_del_f'].items()}
-        self.eta_scan_amplitude = {
-            int(band):v for (band,v) in
-            tune_band_cfg['eta_scan_amplitude'].items()}
         self.eta_scan_averages = {
             int(band):v for (band,v) in
             tune_band_cfg['eta_scan_averages'].items()}
@@ -968,7 +964,7 @@ class SmurfConfigPropertiesMixin:
         Units are ?.
 
         Specified in the pysmurf configuration file as
-        `?`.
+        `flux_ramp:num_flux_ramp_counter_bits`.
 
         See Also
         --------
@@ -997,7 +993,7 @@ class SmurfConfigPropertiesMixin:
         Units are ?.
 
         Specified in the pysmurf configuration file as
-        `?`.
+        `all_bias_groups`.
 
         See Also
         --------
@@ -1055,7 +1051,7 @@ class SmurfConfigPropertiesMixin:
         Units are ?.
 
         Specified in the pysmurf configuration file as
-        `?`.
+        `bias_group_to_pair`.
 
         See Also
         --------
@@ -1084,7 +1080,7 @@ class SmurfConfigPropertiesMixin:
         Units are ?.
 
         Specified in the pysmurf configuration file as
-        `?`.
+        `pic_to_bias_group`.
 
         See Also
         --------
@@ -1248,7 +1244,7 @@ class SmurfConfigPropertiesMixin:
         Units are ?.
 
         Specified in the pysmurf configuration file as
-        `?`.
+        `high_current_mode_bool`.
 
         See Also
         --------
@@ -1277,7 +1273,7 @@ class SmurfConfigPropertiesMixin:
         Units are ?.
 
         Specified in the pysmurf configuration file as
-        `?`.
+        `fs`.
 
         See Also
         --------
@@ -1306,7 +1302,7 @@ class SmurfConfigPropertiesMixin:
         Units are ?.
 
         Specified in the pysmurf configuration file as
-        `?`.
+        `bad_mask`.
 
         See Also
         --------
@@ -1335,7 +1331,7 @@ class SmurfConfigPropertiesMixin:
         Units are ?.
 
         Specified in the pysmurf configuration file as
-        `?`.
+        `tune_band:fraction_full_scale`.
 
         See Also
         --------
@@ -1364,7 +1360,7 @@ class SmurfConfigPropertiesMixin:
         Units are ?.
 
         Specified in the pysmurf configuration file as
-        `?`.
+        `tune_band:reset_rate_khz`.
 
         See Also
         --------
@@ -1640,35 +1636,6 @@ class SmurfConfigPropertiesMixin:
         self._eta_scan_del_f = value
 
     ## End eta_scan_del_f property definition
-    ###########################################################################
-
-    ###########################################################################
-    ## Start eta_scan_amplitude property definition
-
-    # Getter
-    @property
-    def eta_scan_amplitude(self):
-        """Short description.
-
-        Gets or sets ?.
-        Units are ?.
-
-        Specified in the pysmurf configuration file as
-        `tune_band:eta_scan_amplitude`.
-
-        See Also
-        --------
-        ?
-
-        """
-        return self._eta_scan_amplitude
-
-    # Setter
-    @eta_scan_amplitude.setter
-    def eta_scan_amplitude(self, value):
-        self._eta_scan_amplitude = value
-
-    ## End eta_scan_amplitude property definition
     ###########################################################################
 
     ###########################################################################
