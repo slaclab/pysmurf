@@ -675,11 +675,10 @@ class SmurfConfig:
         # Some documentation on some of these parameters is here -
         # https://confluence.slac.stanford.edu/display/SMuRF/SMURF2MCE
         schema_dict["smurf_to_mce"] = {
+
             # smurf2mce configuration files.  pysmurf generates these
             # files on the fly, so just need to make sure the directory #
             # exists and is writeable
-            Optional("smurf_to_mce_file", default="/data/smurf2mce_config/smurf2mce.cfg") \
-               : And(str, dir_exists_with_write_access),
             Optional("mask_file", default="/data/smurf2mce_config/mask.txt") \
                : And(str, dir_exists_with_write_access),
 

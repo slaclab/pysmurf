@@ -130,7 +130,6 @@ class SmurfConfigPropertiesMixin:
         self._delta_freq = None
 
         # Reading/writing data
-        self._smurf_to_mce_file = None
         self._smurf_to_mce_mask_file = None
         self._static_mask = None
         self._mask_channel_offset = None
@@ -279,7 +278,6 @@ class SmurfConfigPropertiesMixin:
 
         ## Reading/writing data
         smurf_to_mce_cfg = config.get('smurf_to_mce')
-        self.smurf_to_mce_file = smurf_to_mce_cfg.get('smurf_to_mce_file')
         self.smurf_to_mce_mask_file = smurf_to_mce_cfg.get('mask_file')
         self.static_mask = smurf_to_mce_cfg.get('static_mask')
         self.mask_channel_offset = smurf_to_mce_cfg.get('mask_channel_offset')
@@ -1300,35 +1298,6 @@ class SmurfConfigPropertiesMixin:
         self._fs = value
 
     ## End fs property definition
-    ###########################################################################
-
-    ###########################################################################
-    ## Start smurf_to_mce_file property definition
-
-    # Getter
-    @property
-    def smurf_to_mce_file(self):
-        """Short description.
-
-        Gets or sets ?.
-        Units are ?.
-
-        Specified in the pysmurf configuration file as
-        `?`.
-
-        See Also
-        --------
-        ?
-
-        """
-        return self._smurf_to_mce_file
-
-    # Setter
-    @smurf_to_mce_file.setter
-    def smurf_to_mce_file(self, value):
-        self._smurf_to_mce_file = value
-
-    ## End smurf_to_mce_file property definition
     ###########################################################################
 
     ###########################################################################

@@ -3311,9 +3311,7 @@ class SmurfUtilMixin(SmurfBase):
     def get_filter_params(self):
         """
         Get the downsample filter parameters: filter order, filter
-        gain, num averages, and the actual filter parameters. This
-        reads the most recent smurf_to_mce_file to get the
-        parameters. This is defined in self.smurf_to_mce_file.
+        gain, num averages, and the actual filter parameters.
 
         If filter order is -1, the downsampler is using a rectangula
         integrator. This will set filter_a, filter_b to None.
