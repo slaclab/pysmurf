@@ -1,4 +1,6 @@
 [flake8]
+import-order-style = pep8
+application-import-names = pysmurf, smurf
 exclude = __init__.py, rogue_plugin.py, _version.py
 #############################################################
 # Note: Command to remove white space at the end of lines

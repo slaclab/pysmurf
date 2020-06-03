@@ -16,14 +16,12 @@
 # copied, modified, propagated, or distributed except according to the terms
 # contained in the LICENSE.txt file.
 #-----------------------------------------------------------------------------
-
+from CryoDevBoard.Kcu105Eth import FpgaTopLevel as FpgaTopLevel
 import pyrogue
 import rogue.hardware.axi
 import rogue.protocols.srp
 
 from pysmurf.core.roots.Common import Common
-
-from CryoDevBoard.Kcu105Eth import FpgaTopLevel as FpgaTopLevel
 
 class DevBoardPcie(Common):
     def __init__(self, *,

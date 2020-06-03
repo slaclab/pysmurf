@@ -13,15 +13,17 @@
 # copied, modified, propagated, or distributed except according to the terms
 # contained in the LICENSE.txt file.
 #-----------------------------------------------------------------------------
-import numpy as np
-from scipy import signal
-from scipy import optimize
-from pysmurf.client.base import SmurfBase
 import os
 import time
-from pysmurf.client.util import tools
+
 import matplotlib.pyplot as plt
 from matplotlib.gridspec import GridSpec
+import numpy as np
+from scipy import optimize
+from scipy import signal
+
+from pysmurf.client.base import SmurfBase
+from pysmurf.client.util import tools
 
 class SmurfNoiseMixin(SmurfBase):
 
