@@ -23,8 +23,8 @@ data_rate = 200  # Hz
 # n_phi0s = np.array([4, 4, 4, 4, 4, 4, 4])
 reset_rate_khzs = np.array([20, 30, 40, 50])
 n_phi0s = np.array([4, 4, 4, 4])
-lms_enable2 = True
-lms_enable3 = True
+lms_enable2 = False
+lms_enable3 = False
 lms_gain = 7
 
 # Instatiate pysmurf object
