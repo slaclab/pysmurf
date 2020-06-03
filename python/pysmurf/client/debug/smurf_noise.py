@@ -1620,7 +1620,7 @@ class SmurfNoiseMixin(SmurfBase):
             self.log(f'Noise data files being read from {datafile}')
             datafile = self.get_datafiles_from_file(datafile)
 
-        mask = np.loadtxt(self._smurf_to_mce_mask_file)
+        mask = self.get_channel_mask()
 
         # Analyze data and save
         for _, (_, d) in enumerate(zip(tone, datafile)):

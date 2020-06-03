@@ -3351,7 +3351,7 @@ class SmurfUtilMixin(SmurfBase):
     def make_gcp_mask(self, band=None, smurf_chans=None,
                       gcp_chans=None, read_gcp_mask=True,
                       mask_channel_offset=None,
-                      mask_file='/data/smurf2mce_config/mask.txt'):
+                      mask_file=None):
         """
         Makes the gcp mask. Only the channels in this mask will be stored
         by GCP.
@@ -3377,6 +3377,10 @@ class SmurfUtilMixin(SmurfBase):
             Offset to add to channel numbers in GCP mask file.  If
             None, will use value specified in pysmurf configuration
             file.
+        mask_file : str or None, optional, default None
+            If not using a static mask and not None, mask is generated
+            and saved to the file provided by this keyword.
+            
         """
         if mask_channel_offset is None:
             mask_channel_offset = self._mask_channel_offset
@@ -3418,7 +3422,10 @@ class SmurfUtilMixin(SmurfBase):
                 f'Generating gcp mask file. {len(gcp_chans)} ' +
                 'channels added')
 
-            np.savetxt(mask_file, gcp_chans, fmt='%i')
+            # Used to get saved to /data/smurf2mce_config/mask.txt,
+            # but as of rogue4 that file is no longer used.
+            if mask_file is not None:
+                np.savetxt(mask_file, gcp_chans, fmt='%i')
 
         if read_gcp_mask:
             self.read_smurf_to_gcp_config()
@@ -3709,8 +3716,7 @@ class SmurfUtilMixin(SmurfBase):
         return (gcp_num*16)%528 + gcp_num//33
 
 
-    def smurf_channel_to_gcp_num(self, band, channel,
-                                 mask_file='/data/smurf2mce_config/mask.txt'):
+    def smurf_channel_to_gcp_num(self, band, channel)
         """
         Converts from smurf channel (band and channel) to a gcp number
 
@@ -3720,26 +3726,22 @@ class SmurfUtilMixin(SmurfBase):
             The smurf band number.
         channel : int
             The smurf channel number.
-        mask_file : int array or None, optional, default None
-            The mask file to convert between smurf channel and GCP
-            number.
 
         Returns
         -------
         gcp_num : int
             The GCP number.
         """
-        mask = self.make_mask_lookup(mask_file)
+        mask = self.get_channel_mask()
 
         if mask[band, channel] == -1:
-            self.log(f'Band {band} Ch {channel} not in mask file')
+            self.log(f'Band {band} Ch {channel} not in mask')
             return None
 
         return self.mask_num_to_gcp_num(mask[band, channel])
 
 
-    def gcp_num_to_smurf_channel(self, gcp_num,
-                                 mask_file='/data/smurf2mce_config/mask.txt'):
+    def gcp_num_to_smurf_channel(self, gcp_num):
         """
         Converts from gcp number to smurf channel (band and channel).
 
@@ -3747,9 +3749,6 @@ class SmurfUtilMixin(SmurfBase):
         ----
         gcp_num : int
             The GCP number.
-        mask_file : int array or None, optional, default None
-            The mask file to convert between smurf channel and GCP
-            number.
 
         Returns
         -------
@@ -3758,7 +3757,7 @@ class SmurfUtilMixin(SmurfBase):
         channel : int
             The smurf channel number.
         """
-        mask = np.loadtxt(mask_file)
+        mask = self.get_channel_mask()
 
         mask_num = self.gcp_num_to_mask_num(gcp_num)
         return int(mask[mask_num]//512), int(mask[mask_num]%512)

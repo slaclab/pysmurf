@@ -676,12 +676,6 @@ class SmurfConfig:
         # https://confluence.slac.stanford.edu/display/SMuRF/SMURF2MCE
         schema_dict["smurf_to_mce"] = {
 
-            # smurf2mce configuration files.  pysmurf generates these
-            # files on the fly, so just need to make sure the directory #
-            # exists and is writeable
-            Optional("mask_file", default="/data/smurf2mce_config/mask.txt") \
-               : And(str, dir_exists_with_write_access),
-
             # Whether or not to dynamically generate the gcp mask
             # everytime you stream data based on which channels have tones
             # assigned and on.
