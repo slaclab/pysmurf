@@ -13,17 +13,18 @@
 # copied, modified, propagated, or distributed except according to the terms
 # contained in the LICENSE.txt file.
 #-----------------------------------------------------------------------------
+from contextlib import contextmanager
+import glob
+import os
+import threading
+import time
+
+import matplotlib.pyplot as plt
 import numpy as np
+from scipy import signal
+
 from pysmurf.client.base import SmurfBase
 from pysmurf.client.command.sync_group import SyncGroup as SyncGroup
-import time
-import os
-from scipy import signal
-import glob
-import matplotlib.pyplot as plt
-from contextlib import contextmanager
-# for hardware logging
-import threading
 from pysmurf.client.util.SmurfFileReader import SmurfStreamReader
 from pysmurf.client.util.pub import set_action
 
@@ -2154,7 +2155,25 @@ class SmurfUtilMixin(SmurfBase):
         bays : list of int
             Which bays were enabled on pysmurf server startup.
         """
-        return self.get_enabled_bays()
+        if hasattr(self, '_cached_enabled_bays'):
+            return self._cached_enabled_bays
+
+        # New method of getting enabled bays:
+        enabled_bays = self.get_enabled_bays()
+
+        if enabled_bays is None:  # Then new rogue var doesn't exist
+            # Old method of getting enabled bays
+            smurf_startup_args = self.get_smurf_startup_args()
+
+            # Bays are enabled unless --disable-bay{bay} is provided to
+            # the pysmurf server on startup.
+            enabled_bays = []
+            for bay in [0, 1]:
+                if f'--disable-bay{bay}' not in smurf_startup_args:
+                    enabled_bays.append(bay)
+
+        self._cached_enabled_bays = enabled_bays
+        return enabled_bays
 
     def which_bands(self):
         """Which bands the carrier firmware was built for.

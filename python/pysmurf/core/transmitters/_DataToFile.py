@@ -18,8 +18,9 @@
 #-----------------------------------------------------------------------------
 
 import sys
-import rogue.interfaces.stream
+
 import pyrogue
+import rogue.interfaces.stream
 
 class DataToFile(pyrogue.Device):
     """

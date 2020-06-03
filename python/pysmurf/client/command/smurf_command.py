@@ -13,12 +13,15 @@
 # copied, modified, propagated, or distributed except according to the terms
 # contained in the LICENSE.txt file.
 #-----------------------------------------------------------------------------
-import numpy as np
 import os
 import time
+
+import numpy as np
+
 from pysmurf.client.base import SmurfBase
 from pysmurf.client.command.sync_group import SyncGroup as SyncGroup
 from pysmurf.client.util import tools
+
 try:
     import epics
 except ModuleNotFoundError:
@@ -275,11 +278,15 @@ class SmurfCommandMixin(SmurfBase):
         bays : list of int
             Which bays were enabled on pysmurf server startup.
         """
-        return list(
-            self._caget(
-                self.smurf_application +
-                self._enabled_bays_reg,
-                **kwargs))
+        enabled_bays = self._caget(
+            self.smurf_application +
+            self._enabled_bays_reg,
+            **kwargs)
+        try:
+            return list(enabled_bays)
+        except Exception:
+            return enabled_bays
+
 
     #### End SmurfApplication gets/sets
 

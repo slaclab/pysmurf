@@ -18,6 +18,7 @@
 #-----------------------------------------------------------------------------
 
 import pyrogue
+
 import smurf
 
 class BaseTransmitter(pyrogue.Device):

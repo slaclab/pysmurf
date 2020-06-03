@@ -1,6 +1,8 @@
-import pytest
-import pysmurf.client
 import os
+
+import pytest
+
+import pysmurf.client
 
 ###
 # This is a generic test script in loopback mode (ie the ADC
