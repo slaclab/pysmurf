@@ -534,18 +534,6 @@ class SmurfConfig:
 
         #### Start specifying tune parameter schema
         schema_dict['tune_band'] = {
-            "grad_cut" : And(Use(float), lambda f: f > 0),
-            "amp_cut" : And(Use(float), lambda f: f > 0),
-
-            Optional('n_samples', default=2**18) : And(int, lambda n: n > 0),
-            # Digitizer sampling rate is 614.4 MHz, so biggest range of
-            # frequencies user could possibly be interested in is between
-            # -614.4MHz/2 and 614.4MHz/2, or -307.2MHz to +307.2MHz.
-            Optional('freq_max', default=250.e6) : And(
-                Use(float), lambda f: -307.2e6 <= f <= 307.2e6),
-            Optional('freq_min', default=-250.e6) : And(
-                Use(float), lambda f: -307.2e6 <= f <= 307.2e6),
-
             'fraction_full_scale' : And(Use(float), lambda f: 0 < f <= 1.),
             'reset_rate_khz' : And(Use(float), lambda f: 0 <= f <= 100),
             Optional('default_tune', default=None) : And(str, os.path.isfile)
@@ -671,39 +659,6 @@ class SmurfConfig:
                     not user_has_write_access(filedir_path)):
                 return False
             return True
-
-        # Some documentation on some of these parameters is here -
-        # https://confluence.slac.stanford.edu/display/SMuRF/SMURF2MCE
-        schema_dict["smurf_to_mce"] = {
-
-            # 0 means use MCE sync word to determine when data is sent
-            # Any positive number means average that many SMuRF frames
-            #    before sending out the averaged frame
-            # Any negative number means "please crash horribly". Same for
-            #    anything that isn't a number
-            'num_averages' : And(int, lambda n: n >= 0),
-
-            # The “file_name_extend” parameter now makes a new file every
-            # “data_frames” frames.  Then files are written as long as the
-            # writer is enabled.  E.g.
-            #  <file_name>.part_00000
-            #  <file_name>.part_00001
-            #  ...
-            'file_name_extend' : And(int, lambda n: n in (0, 1)),
-
-            # 0 in this field disables file writing
-            # Setting a positive number causes a new file to be written
-            #    after that many AVERAGED frames.
-            # Setting a negative number causes the program to crash
-            #    horribly
-            'data_frames' : And(int, lambda n: n >= 0),
-
-            # Filter params
-            'filter_freq' : And(Use(float), lambda f: f > 0),
-            'filter_order' : And(int, lambda n: n >= 0),
-            Optional('filter_gain', default=1.0) : Use(float)
-        }
-        #### Done specifying smurf2mce
 
         #### Start specifying directories
         schema_dict[
