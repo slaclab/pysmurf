@@ -3350,7 +3350,8 @@ class SmurfUtilMixin(SmurfBase):
     @set_action()
     def make_gcp_mask(self, band=None, smurf_chans=None,
                       gcp_chans=None, read_gcp_mask=True,
-                      mask_channel_offset=None):
+                      mask_channel_offset=None,
+                      mask_file='/data/smurf2mce_config/mask.txt'):
         """
         Makes the gcp mask. Only the channels in this mask will be stored
         by GCP.
@@ -3417,7 +3418,7 @@ class SmurfUtilMixin(SmurfBase):
                 f'Generating gcp mask file. {len(gcp_chans)} ' +
                 'channels added')
 
-            np.savetxt(self._smurf_to_mce_mask_file, gcp_chans, fmt='%i')
+            np.savetxt(mask_file, gcp_chans, fmt='%i')
 
         if read_gcp_mask:
             self.read_smurf_to_gcp_config()
@@ -3708,7 +3709,8 @@ class SmurfUtilMixin(SmurfBase):
         return (gcp_num*16)%528 + gcp_num//33
 
 
-    def smurf_channel_to_gcp_num(self, band, channel, mask_file=None):
+    def smurf_channel_to_gcp_num(self, band, channel,
+                                 mask_file='/data/smurf2mce_config/mask.txt'):
         """
         Converts from smurf channel (band and channel) to a gcp number
 
@@ -3727,10 +3729,6 @@ class SmurfUtilMixin(SmurfBase):
         gcp_num : int
             The GCP number.
         """
-        if mask_file is None:
-            mask_file = self._smurf_to_mce_mask_file
-
-
         mask = self.make_mask_lookup(mask_file)
 
         if mask[band, channel] == -1:
@@ -3740,7 +3738,8 @@ class SmurfUtilMixin(SmurfBase):
         return self.mask_num_to_gcp_num(mask[band, channel])
 
 
-    def gcp_num_to_smurf_channel(self, gcp_num, mask_file=None):
+    def gcp_num_to_smurf_channel(self, gcp_num,
+                                 mask_file='/data/smurf2mce_config/mask.txt'):
         """
         Converts from gcp number to smurf channel (band and channel).
 
@@ -3759,8 +3758,6 @@ class SmurfUtilMixin(SmurfBase):
         channel : int
             The smurf channel number.
         """
-        if mask_file is None:
-            mask_file = self._smurf_to_mce_mask_file
         mask = np.loadtxt(mask_file)
 
         mask_num = self.gcp_num_to_mask_num(gcp_num)
