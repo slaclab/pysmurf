@@ -65,7 +65,8 @@ for i in np.arange(n_steps):
     # Take noise data
     # factor = int(reset_rate_khzs[i]/data_rate)
     # S.set_downsample_factor(factor)
-    S.set_downsample_filter(filter_order, reset_rate_khzs[i]/4, write_log=False)
+    S.set_downsample_filter(filter_order, reset_rate_khzs[i]*1.0E3/4,
+        write_log=False)
     noise_files[i] = S.take_stream_data(noise_time)
 
 
