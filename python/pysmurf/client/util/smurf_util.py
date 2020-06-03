@@ -3350,9 +3350,11 @@ class SmurfUtilMixin(SmurfBase):
     @set_action()
     def make_gcp_mask(self, band=None, smurf_chans=None,
                       gcp_chans=None, read_gcp_mask=True,
-                      mask_channel_offset=None,
-                      mask_file=None):
+                      mask_channel_offset=None):
         """
+        THIS FUNCTION WAS USED FOR BKUMUX DATA ACQUISITION.  IT'S
+        COMPLETELY BROKEN NOW, POST ROGUE4 MIGRATION.
+
         Makes the gcp mask. Only the channels in this mask will be stored
         by GCP.
 
@@ -3377,9 +3379,6 @@ class SmurfUtilMixin(SmurfBase):
             Offset to add to channel numbers in GCP mask file.  If
             None, will use value specified in pysmurf configuration
             file.
-        mask_file : str or None, optional, default None
-            If not using a static mask and not None, mask is generated
-            and saved to the file provided by this keyword.
             
         """
         if mask_channel_offset is None:
@@ -3411,26 +3410,15 @@ class SmurfUtilMixin(SmurfBase):
             self.log('WARNING: too many gcp channels!')
             return
 
-        static_mask = self._static_mask
-        if static_mask:
-            self.log(
-                'NOT DYNAMICALLY GENERATING THE MASK. STATIC. SET ' +
-                'static_mask=0 IN CFG TO DYNAMICALLY GENERATE' +
-                'MASKS!!!')
-        else:
-            self.log(
-                f'Generating gcp mask file. {len(gcp_chans)} ' +
-                'channels added')
-
-            # Used to get saved to /data/smurf2mce_config/mask.txt,
-            # but as of rogue4 that file is no longer used.
-            if mask_file is not None:
-                np.savetxt(mask_file, gcp_chans, fmt='%i')
+        self.log(f'Generating gcp mask file. {len(gcp_chans)} ' +
+                 'channels added')
+        
+        np.savetxt(self.smurf_to_mce_mask_file, gcp_chans, fmt='%i')
 
         if read_gcp_mask:
             self.read_smurf_to_gcp_config()
         else:
-            self.log('Warning: new mask has not been read in yet.')
+            self.log('Warning: new mask has not been read in yet.')        
 
     @set_action()
     def bias_bump(self, bias_group, wait_time=.5, step_size=0.001,

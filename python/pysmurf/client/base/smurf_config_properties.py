@@ -130,7 +130,6 @@ class SmurfConfigPropertiesMixin:
         self._delta_freq = None
 
         # Reading/writing data
-        self._static_mask = None
         self._mask_channel_offset = None
         self._fs = None
 
@@ -277,7 +276,6 @@ class SmurfConfigPropertiesMixin:
 
         ## Reading/writing data
         smurf_to_mce_cfg = config.get('smurf_to_mce')
-        self.static_mask = smurf_to_mce_cfg.get('static_mask')
         self.mask_channel_offset = smurf_to_mce_cfg.get('mask_channel_offset')
         self.fs = config.get('fs')
 
@@ -1789,35 +1787,6 @@ class SmurfConfigPropertiesMixin:
         self._bands = value
 
     ## End bands property definition
-    ###########################################################################
-
-    ###########################################################################
-    ## Start static_mask property definition
-
-    # Getter
-    @property
-    def static_mask(self):
-        """Short description.
-
-        Gets or sets ?.
-        Units are ?.
-
-        Specified in the pysmurf configuration file as
-        `smurf_to_mce:static_mask`.
-
-        See Also
-        --------
-        ?
-
-        """
-        return self._static_mask
-
-    # Setter
-    @static_mask.setter
-    def static_mask(self, value):
-        self._static_mask = value
-
-    ## End static_mask property definition
     ###########################################################################
 
     ###########################################################################

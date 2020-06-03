@@ -676,11 +676,6 @@ class SmurfConfig:
         # https://confluence.slac.stanford.edu/display/SMuRF/SMURF2MCE
         schema_dict["smurf_to_mce"] = {
 
-            # Whether or not to dynamically generate the gcp mask
-            # everytime you stream data based on which channels have tones
-            # assigned and on.
-            Optional('static_mask', default=0) : And(int, lambda n: n in (0, 1)),
-
             # 0 means use MCE sync word to determine when data is sent
             # Any positive number means average that many SMuRF frames
             #    before sending out the averaged frame
