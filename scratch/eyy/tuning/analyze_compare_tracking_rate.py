@@ -17,6 +17,7 @@ n_phi0s = np.load(datafile_file.replace('_compare_tracking_noise.npy',
     '_n_phi0.npy'))
 plot_dir = os.path.split(datafile_file)[0].replace('outputs', 'plots')
 
+timestamp = os.path.split(datafile_file)[1].split('_')[0]
 
 nperseg = 2**12
 bins_min = np.array([.2, .5, 1, 3, 10])
@@ -95,9 +96,10 @@ for cchh in all_channels:
     plt.legend(loc='upper right')
     plt.xlabel('Freq [Hz]')
     plt.ylabel('Amp [pA/rtHz]')
-    plt.title(f'b{b}ch{ch:03}')
+    plt.title(f'b{int(b)}ch{int(ch):03}')
     plt.tight_layout()
 
-    plt.savefig(os.path.join(plot_dir, f'noise_b{int(b)}ch{int(ch):03}.png'),
+    plt.savefig(os.path.join(plot_dir,
+        f'{timestamp}_noise_b{int(b)}ch{int(ch):03}.png'),
         bbox_inches='tight')
     plt.close()
