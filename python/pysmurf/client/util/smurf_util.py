@@ -3954,7 +3954,6 @@ class SmurfUtilMixin(SmurfBase):
 
         return band, channel
 
-
     # SHOULD MAKE A GET FIXED TONE CHANNELS FUNCTION - WOULD MAKE IT
     # EASIER TO CHANGE THINGS FAST USING THE ARRAY GET/SETS
 

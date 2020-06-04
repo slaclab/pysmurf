@@ -23,11 +23,11 @@ from matplotlib.gridspec import GridSpec
 import numpy as np
 import scipy.signal as signal
 import scipy.linalg as linalg
+import seaborn as sns
 
 from pysmurf.client.base import SmurfBase
 from pysmurf.client.command.sync_group import SyncGroup as SyncGroup
 from pysmurf.client.util.pub import set_action
-import seaborn as sns
 from ..util import tools
 
 
