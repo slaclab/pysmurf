@@ -18,12 +18,12 @@
 #-----------------------------------------------------------------------------
 
 import pyrogue
-import pysmurf
 import rogue.hardware.axi
 import rogue.protocols.srp
 
-import pysmurf.core.utilities
+import pysmurf
 import pysmurf.core.devices
+import pysmurf.core.utilities
 
 class Common(pyrogue.Root):
     def __init__(self, *,
@@ -38,6 +38,8 @@ class Common(pyrogue.Root):
                  configure      = False,
                  VariableGroups = None,
                  server_port    = 0,
+                 disable_bay0   = False,
+                 disable_bay1   = False,
                  **kwargs):
 
         pyrogue.Root.__init__(self, name="AMCc", initRead=True, pollEn=polling_en,
@@ -188,6 +190,8 @@ class Common(pyrogue.Root):
                                                                   autoPrefix='config',
                                                                   autoCompress=False))
 
+        # List of enabled bays
+        self._enabled_bays = [i for i,e in enumerate([disable_bay0, disable_bay1]) if not e]
 
     def start(self):
         pyrogue.Root.start(self)
@@ -227,6 +231,9 @@ class Common(pyrogue.Root):
         # Load default configuration, if requested
         if self._configure:
             self.setDefaults.call()
+
+        # Update the 'EnabledBays' variable with the correct list of enabled bays.
+        self.SmurfApplication.EnabledBays.set(self._enabled_bays)
 
         # Workaround: Set the Mask value to '[0]' by default when the server starts.
         # This is needed because the pysmurf-client by default stat data streaming

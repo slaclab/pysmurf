@@ -49,6 +49,15 @@ if [ ! -f "$startup_cfg" ]; then
 fi
 source ${startup_cfg}
 
+# if enable-tmux-logging, check that the tmux-logging plugin is
+# installed in /home/cryo/
+if [[ "$enable_tmux_logging" = true && ! -d "/home/cryo/tmux-logging" ]] ; then
+    echo "tmux logging enabled, but can't find tmux-logging plugin." 1>&2
+    echo "To use this option, must install to /home/cryo/tmux-logging." 1>&2
+    echo "Disabling tmux logging (enable_tmux_logging=false)." 1>&2
+    enable_tmux_logging=false
+fi
+
 # must confirm a slot configuration has been provided.  If not
 # then for backwards compatilibity, take current
 if [ -z "$slot_cfgs" ]; then
@@ -113,6 +122,13 @@ sleep 0.1
 echo "-> Starting a new ${tmux_session_name} tmux session"
 tmux new-session -d -s ${tmux_session_name}
 #tmux new -s ${tmux_session_name} -d
+
+# if enable-tmux-logging, check that the tmux-logging plugin is
+# installed in /home/cryo/
+if [[ "$enable_tmux_logging" = true ]]; then
+    mkdir -vp /data/smurf_data/tmux_logs
+    tmux set -g @logging-path "/data/smurf_data/tmux_logs"
+fi
 
 # stop pyrogue servers on all carriers
 for ((i=0; i<${#slots[@]}; ++i)); do
@@ -328,14 +344,16 @@ if [ "$run_thermal_test" = true ] ; then
     tmux new-window -t ${tmux_session_name}:8
     tmux rename-window -t ${tmux_session_name}:8 tests
     tmux send-keys -t ${tmux_session_name}:8 'cd '${pysmurf} C-m
-    tmux send-keys -t ${tmux_session_name}:8 'ipython3 -i pysmurf/'${thermal_test_script} C-m
+    tmux send-keys -t ${tmux_session_name}:8 'ipython3 -i pysmurf/'${thermal_test_script}' '`echo ${slots[@]} | tr ' ' ,` C-m
+fi
 
-    sleep 30
-    
-    tmux split-window -v -t ${tmux_session_name}:8
-    tmux send-keys -t ${tmux_session_name}:8 'cd '${pysmurf}'/scratch/shawn/' C-m
-    tmux send-keys -t ${tmux_session_name}:8 'ipython3 -i pysmurf/'${thermal_test_script} C-m    
-    
+### Last thing ; script user can specify to run at the end of the
+### hammer in each pysmurf session
+if [ ! -z "$script_to_run" ]; then
+    echo "-> Done hammering, running script_to_run=${script_to_run} on all slots ..."    
+    for slot in ${slots[@]}; do    
+	tmux send-keys -t ${tmux_session_name}:${slot} 'exec(open("scratch/shawn/test_new_carrier.py").read())' C-m
+    done
 fi
 
 if [ "$attach_at_end" = true ] ; then

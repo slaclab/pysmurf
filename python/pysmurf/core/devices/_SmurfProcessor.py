@@ -16,16 +16,15 @@
 # copied, modified, propagated, or distributed except according to the terms
 # contained in the LICENSE.txt file.
 #-----------------------------------------------------------------------------
-
-import rogue
 import pyrogue
 import pyrogue.utilities.fileio
+import rogue
 
-import smurf
-import smurf.core.processors
 import pysmurf.core.counters
 import pysmurf.core.conventers
 import pysmurf.core.emulators
+import smurf
+import smurf.core.processors
 
 class SmurfChannelMapper(pyrogue.Device):
     """

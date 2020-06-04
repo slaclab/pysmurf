@@ -16,17 +16,19 @@
 # copied, modified, propagated, or distributed except according to the terms
 # contained in the LICENSE.txt file.
 #-----------------------------------------------------------------------------
-
-import pyrogue
-import pysmurf
 import os
 import sys
+
+import pyrogue
+
+import pysmurf
 
 class SmurfApplication(pyrogue.Device):
     """
     SMuRF Application Block
     """
     def __init__(self, **kwargs):
+
         pyrogue.Device.__init__(self, name="SmurfApplication", description='SMuRF Application Container', **kwargs)
 
         self.add(pyrogue.LocalVariable(
@@ -59,3 +61,17 @@ class SmurfApplication(pyrogue.Device):
             mode='RW',
             value=0, # Initial value determine variable type, (int, float, list, etc)
         ))
+
+        # This variable will hold a list of the enabled bays. We set here the initial
+        # value as a list of 2 elements, which will be its maximum size (as we have at
+        # most 2 enabled bays). Its EPICS PV will be created with the initial size of
+        # this list. This will generated an EPICS PV of size 2 in all cases, as currently
+        # a bug in rogue does not allow to read list of size 1; also on the client side,
+        # epics.caget will always return an numpy array even when only 1 bay is enabled.
+        # We fill the list will invalid values; the list will be updated after the rogue
+        # root is started (to wait for the PV to be created) with the correct values.
+        self.add(pyrogue.LocalVariable(
+            name='EnabledBays',
+            description='List of bays that are enabled',
+            value=[2, 2],
+            mode='RO'))
