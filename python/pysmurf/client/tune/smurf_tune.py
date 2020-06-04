@@ -2378,8 +2378,8 @@ class SmurfTuneMixin(SmurfBase):
         """
         channel_frequency_mhz = self.get_channel_frequency_mhz(band)
         digitizer_frequency_mhz = self.get_digitizer_frequency_mhz(band)
-        return int(frac*(self.get_ramp_max_cnt()+1)/(
-                digitizer_frequency_mhz/channel_frequency_mhz/2. ) )
+        return int(frac*(self.get_ramp_max_cnt()+1)/
+            (digitizer_frequency_mhz/channel_frequency_mhz/2. ) )
 
     def _feedback_to_feedback_frac(self, band, feedback):
         """
@@ -3006,9 +3006,9 @@ class SmurfTuneMixin(SmurfBase):
     def flux_ramp_setup(self, reset_rate_khz, fraction_full_scale, df_range=.1,
             band=2, write_log=False, new_epics_root=None):
         """
-        Set flux ramp sawtooth rate and amplitude. 
+        Set flux ramp sawtooth rate and amplitude.
 
-        If you are using a timing system , Flux ramp reset rate must integer 
+        If you are using a timing system , Flux ramp reset rate must integer
         divide 2.4MHz. E.g. you can't run with a 7kHz flux ramp rate.
 
         If you are not using the timing system, you can use any flux ramp
@@ -3779,10 +3779,10 @@ class SmurfTuneMixin(SmurfBase):
         self.relock(band)
 
 
-    def calculate_eta_svd(self, band, channel, nsamp=2**16,
-        nsamp=2**15, filter=True, N=4, Wn=50000, btype='lowpass', method='gust',
-        make_plot=True, show_plot=False, save_plot=True, subtract_median=True,
-        update_eta_phase=True):
+    def calculate_eta_svd(self, band, channel,
+            nsamp=2**15, filter=True, N=4, Wn=50000, btype='lowpass',
+            method='gust', make_plot=True, show_plot=False, save_plot=True,
+            subtract_median=True, update_eta_phase=True):
         """
         Takes I and Q data at attempts to calculate the eta parameters by
         maximizing the noise in Q. This uses SVD to calculate the rotation.
@@ -3793,7 +3793,7 @@ class SmurfTuneMixin(SmurfBase):
             The 500 Mhz band
         channel : int
             The channel number in the 500 Mhz band.
-        nsamp : int, optional, default 2**16
+        nsamp : int, optional, default 2**15
             The number of samples to take to estimate the rotation. Warning:
             nsamp > 2**16 occassionaly crashes the SVD calculation.
         filter : bool, optional, default True
@@ -3825,7 +3825,6 @@ class SmurfTuneMixin(SmurfBase):
             The angle to rotate the eta parameter
         """
         eta_phase = self.get_eta_phase_degree_channel(band, channel)
-        eta_mag = self.get_eta_mag_scaled_channel(band, channel)
 
         freq = self.channel_to_freq(band, channel)
         channel_freq = self.get_channel_frequency_mhz(band) * 1.0E6  # Sampling freq
@@ -3982,10 +3981,10 @@ class SmurfTuneMixin(SmurfBase):
 
     @set_action()
     def optimize_lms_delay(self, band, lms_delays=None, reset_rate_khz=None,
-        fraction_full_scale=None, nsamp=2**18, lms_gain=7, lms_freq_hz=None,
-        meas_lms_freq=False, feedback_start_frac=.2, feedback_end_frac=.98,
-        meas_flux_ramp_amp=True, n_phi0=4, make_plot=False, show_plot=False,
-        save_plot=True, df_bins=np.arange(0,50.1,2.5)):
+            fraction_full_scale=None, nsamp=2**18, lms_gain=7, lms_freq_hz=None,
+            meas_lms_freq=False, feedback_start_frac=.2, feedback_end_frac=.98,
+            meas_flux_ramp_amp=True, n_phi0=4, make_plot=False, show_plot=False,
+            save_plot=True, df_bins=np.arange(0,50.1,2.5)):
         """
         Loops over multiple LMS delays and measures df. Looks for the minima
         of the median of the df terms for all the channels that are on. It is
