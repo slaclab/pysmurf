@@ -1810,6 +1810,49 @@ class SmurfNoiseMixin(SmurfBase):
         This script is shamelessly stolen from Max. This tunes up a single
         resonator and takes data in single_channel_readout mode, with is 2.4 MHz.
         The flux ramp is off in this measurement.
+
+        To Do - add conversion to dBc
+            ability to set eta parameters
+
+        Args
+        ----
+        band : int
+            The 500 MHz band number
+        channel : int
+            The channel in the 500 MHz band
+        freq : float, optional, default None
+            The tone frequency in MHz. If provided, overrides band and channel.
+            The script will choose the best band/channel pair to use.
+        tone_power : int, optional, default None
+            The RF probe tone power. If None, loads the value that is currently
+            designated for the channel.
+        nsamp : int, optional, default 2**25
+            The number of samples to take.
+        nperseg : int, optional, default 2**18
+            The number of samples used in the PSD estimator. See
+            scipy.signal.welch
+        make_plot : bool, optional, default True
+            Whether to make the plot
+        show_plot : bool, optional, default False,
+            Whether to show the plot.
+        save_plot : bool, optional, default True
+            Whether to save the plot.
+        band_off : bool, optional, defaualt True
+            Whether to turn off all the other tones in the band before taking
+            the measurement.
+        run_serial_gradient_descent : bool, optional, default True
+            Whether to run serial_gradient_descent after turning on the tone.
+        run_serial_eta_scan : bool, optional, default True
+            Whether to run serial_eta_scan after turning on the tone.
+        save_psd : bool, optional, default True
+            Whether to save the PSD.
+
+        Ret
+        ---
+        ff : float array
+            The frequency bins
+        pxx : float array
+            The PSD values in pA^2/Hz
         """
         if freq is not None:
             self.log('Resonator frequency provided by user.' +

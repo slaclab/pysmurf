@@ -2357,6 +2357,18 @@ class SmurfTuneMixin(SmurfBase):
         """
         Convenience function for convervting from feedback_start/end_frac
         to feedback_start/end.
+
+        Args
+        ----
+        band : int
+            The 500 MHz band
+        frac : float
+            The fraction of the flux ramp to start/end
+
+        Ret
+        ---
+        feedback : int
+            The feedback value to put into the PV
         """
         channel_frequency_mhz = self.get_channel_frequency_mhz(band)
         digitizer_frequency_mhz = self.get_digitizer_frequency_mhz(band)
@@ -2367,6 +2379,18 @@ class SmurfTuneMixin(SmurfBase):
         """
         Convenience function for converting from feedback_start/end to
         feedback_start/end_frac.
+
+        Args
+        ----
+        band : int
+            The 500 MHz band
+        feedback : int
+            The feedback value to put into the PV
+
+        Ret
+        ---
+        frac : float
+            The fraction of the flux ramp to start/end
         """
         channel_frequency_mhz = self.get_channel_frequency_mhz(band)
         digitizer_frequency_mhz = self.get_digitizer_frequency_mhz(band)
@@ -3744,11 +3768,51 @@ class SmurfTuneMixin(SmurfBase):
 
         self.relock(band)
 
-    def calculate_eta_svd(self, band, channel, nsampe=2**16, filter=True,
-        nsamp=2**15, N=4, Wn=50000, btype='lowpass', method='gust',
+
+    def calculate_eta_svd(self, band, channel, nsamp=2**16,
+        nsamp=2**15, filter=True, N=4, Wn=50000, btype='lowpass', method='gust',
         make_plot=True, show_plot=False, save_plot=True, subtract_median=True,
         update_eta_phase=True):
         """
+        Takes I and Q data at attempts to calculate the eta parameters by
+        maximizing the noise in Q. This uses SVD to calculate the rotation.
+
+        Args
+        ----
+        band : int
+            The 500 Mhz band
+        channel : int
+            The channel number in the 500 Mhz band.
+        nsamp : int, optional, default 2**16
+            The number of samples to take to estimate the rotation. Warning:
+            nsamp > 2**16 occassionaly crashes the SVD calculation.
+        filter : bool, optional, default True
+            Whether to filter the data before eta estimation
+        N : int, optional, default 4
+            The filter order
+        Wn : int, optional, default 50000
+            The cutoff frequency in Hz of the filter.
+        btype : str, optional, default 'lowpass'
+            The type of filter to use. See scipy.filter for more info.
+        method : str, optional, default "gust"
+            The type of filtering to use in the filter application
+        make_plot : bool, optional, default True
+            Whether to make the plot
+        show_plot : bool, optional, default False,
+            Whether to show the plot.
+        save_plot : bool, optional, default True
+            Whether to save the plot.
+        subtract_median : bool, optional, default True
+            Whether to subtract the median of the timestream. This mainly matters
+            for plotting.
+        update_eta_phase : bool, optional, default True
+            Whether to update the phase in the PV after caluclating the eta
+            rotation
+
+        Ret
+        ---
+        ang : float
+            The angle to rotate the eta parameter
         """
         eta_phase = self.get_eta_phase_degree_channel(band, channel)
         eta_mag = self.get_eta_mag_scaled_channel(band, channel)
@@ -3772,8 +3836,6 @@ class SmurfTuneMixin(SmurfBase):
             IQstream=False, single_channel_readout=2,
             nsamp=nsamp, filename=filename)
 
-
-
         if filter:
             b, a = signal.butter(N=N, Wn=Wn, btype=btype, fs=channel_freq)
             dfI = signal.filtfilt(b, a, dfI, method=method)
@@ -3796,6 +3858,7 @@ class SmurfTuneMixin(SmurfBase):
             self.set_eta_phase_degree_channel(band, channel, eta_phase)
 
         if make_plot:
+            # Calculate the limits of the plot
             lims = np.max(np.abs([np.max(dfI), np.min(dfI), np.min(dfQ),
                 np.max(dfQ)]))
             h = sns.jointplot(dfQ, dfI, alpha=.1, edgecolors='none',
@@ -3803,6 +3866,7 @@ class SmurfTuneMixin(SmurfBase):
             h.ax_joint.set_xlabel('Q')
             h.ax_joint.set_ylabel('I')
 
+            # Draw guiding lines
             h.ax_joint.axhline(0 ,color='k', linestyle=':')
             h.ax_joint.axvline(0 ,color='k', linestyle=':')
 
@@ -3831,7 +3895,7 @@ class SmurfTuneMixin(SmurfBase):
             else:
                 plt.close()
 
-
+        return ang
 
 
     @set_action()
