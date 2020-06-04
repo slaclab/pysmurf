@@ -27,9 +27,10 @@ import scipy.linalg as linalg
 from pysmurf.client.base import SmurfBase
 from pysmurf.client.command.sync_group import SyncGroup as SyncGroup
 from pysmurf.client.util.pub import set_action
+import seaborn as sns
 from ..util import tools
 
-import seaborn as sns
+
 
 class SmurfTuneMixin(SmurfBase):
     """

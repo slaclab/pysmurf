@@ -3957,6 +3957,7 @@ class SmurfUtilMixin(SmurfBase):
 
     # SHOULD MAKE A GET FIXED TONE CHANNELS FUNCTION - WOULD MAKE IT
     # EASIER TO CHANGE THINGS FAST USING THE ARRAY GET/SETS
+
     def turn_off_fixed_tones(self,band):
         """
         Turns off every channel which has nonzero amplitude but
