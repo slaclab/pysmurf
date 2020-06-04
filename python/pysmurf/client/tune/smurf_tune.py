@@ -3000,9 +3000,13 @@ class SmurfTuneMixin(SmurfBase):
     def flux_ramp_setup(self, reset_rate_khz, fraction_full_scale, df_range=.1,
             band=2, write_log=False, new_epics_root=None):
         """
-        Set flux ramp sawtooth rate and amplitude. If there are errors, check
-        that you are using an allowed reset rate! Not all rates are allowed.
-        Allowed rates: 1, 2, 3, 4, 5, 6, 8, 10, 12, 15 kHz
+        Set flux ramp sawtooth rate and amplitude. 
+
+        If you are using a timing system , Flux ramp reset rate must integer 
+        divide 2.4MHz. E.g. you can't run with a 7kHz flux ramp rate.
+
+        If you are not using the timing system, you can use any flux ramp
+        rate.
 
         Args
         ----
