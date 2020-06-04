@@ -1804,10 +1804,10 @@ class SmurfNoiseMixin(SmurfBase):
 
 
     def take_noise_high_bandwidth(self, band, channel, freq=None,
-        tone_power=None, nsamp=2**25, nperseg=2**18, make_plot=True,
-        show_plot=False, save_plot=True, band_off=True,
-        run_serial_gradient_descent=True, run_serial_eta_scan=True,
-        save_psd=False):
+            tone_power=None, nsamp=2**25, nperseg=2**18, make_plot=True,
+            show_plot=False, save_plot=True, band_off=True,
+            run_serial_gradient_descent=True, run_serial_eta_scan=True,
+            save_psd=False):
         """
         This script is shamelessly stolen from Max. This tunes up a single
         resonator and takes data in single_channel_readout mode, with is 2.4 MHz.
