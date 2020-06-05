@@ -47,10 +47,6 @@ d = I * 1.j*Q
 ff_nofr, pxx_nofr = signal.welch(d, fs=S.get_channel_frequency_mhz()*1.0E6,
     nperseg=nperseg)
 idx = np.argsort(ff_nofr)
-# plt.figure()
-# plt.semilogy(f[idx]*1.0E-3, pxx[idx])
-# plt.xlabel('Freq [kHz]')
-# plt.show()
 
 f = {}
 df = {}
@@ -72,7 +68,7 @@ for i in np.arange(n_steps):
     d = I * 1.j*Q
 
     S.set_downsample_factor(reset_rate_khzs[i]*1.0E3//data_fs)
-    S.set_downsample_filter(4, reset_rate_khzs[i]*1.0E3/data_fs/4)
+    S.set_downsample_filter(4, data_fs/4)
 
     ff[i], pxx[i] = signal.welch(d, fs=S.get_channel_frequency_mhz()*1.0E6,
         nperseg=nperseg)
@@ -83,9 +79,9 @@ bin_low = np.array([.5, 1, 2, 5, 10 ])
 bin_high = np.array([1, 2, 5, 10, 20])
 for i in np.arange(n_steps):
     t, d, m = S.read_stream_data(noise_datafile[i])
-    idx = m[band, channel]
+    chidx = m[band, channel]
     d *= S.pA_per_phi0 / 2 / np.pi
-    ftmp, pxxtmp = signal.welch(d[idx], fs=data_fs, nperseg=2**11)
+    ftmp, pxxtmp = signal.welch(d[chidx], fs=data_fs, nperseg=2**11)
 
     noise_tmp = np.zeros(len(bin_low))
     for j, (bl, bh) in enumerate(zip(bin_low, bin_high)):
