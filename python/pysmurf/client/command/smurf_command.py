@@ -1269,27 +1269,35 @@ class SmurfCommandMixin(SmurfBase):
 
     _rf_iq_stream_enable = 'rfIQStreamEnable'
 
-    def set_rf_iq_stream_enable(self, val, **kwargs):
+    def set_rf_iq_stream_enable(self, band, val, **kwargs):
         """
         Sets the bit that turns on RF IQ streaming for take_debug_data
 
         Args
         ----
+        band : int
+            The 500 Mhz band
         val : int or bool
             Whether to set the mode to RF IQ.
         """
-        self._caput(self.sysgencryo + self._rf_iq_stream_enable, val, **kwargs)
+        self._caput(self._band_root(band) + self._rf_iq_stream_enable, val,
+            **kwargs)
 
-    def get_rf_iq_stream_enable(self, **kwargs):
+    def get_rf_iq_stream_enable(self, band, **kwargs):
         """
         gets the bit that turns on RF IQ streaming for take_debug_data
+
+        Args
+        ----
+        band : int
+            The 500 MHz band
 
         Ret
         ---
         rf_iq_stream_bit : int
             The bit that sets the RF streaming
         """
-        return self._caget(self.sysgencryo + self._rf_iq_stream_enable,
+        return self._caget(self._band_root(band) + self._rf_iq_stream_enable,
             **kwargs)
 
 
