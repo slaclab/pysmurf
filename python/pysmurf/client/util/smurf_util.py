@@ -70,7 +70,7 @@ class SmurfUtilMixin(SmurfBase):
         if channel is not None:
             if rf_iq:
                 single_channel_readout = 2
-                self.set_rf_iq_stream_enable(1)
+                self.set_rf_iq_stream_enable(band, 1)
 
             if single_channel_readout == 1:
                 self.set_single_channel_readout(band, 1)
@@ -145,7 +145,7 @@ class SmurfUtilMixin(SmurfBase):
         self.log('Done taking data', self.LOG_USER)
 
         if rf_iq:
-            self.set_rf_iq_stream_enable(0)
+            self.set_rf_iq_stream_enable(band, 0)
 
         if single_channel_readout > 0:
             f, df, sync = self.decode_single_channel(data_filename)
