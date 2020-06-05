@@ -37,6 +37,8 @@ S.set_amplitude_scale_channel(band, channel, 12)
 S.run_serial_gradient_descent(band)
 S.run_serial_eta_scan(band)
 
+print(S.which_on(band))
+
 I, Q, sync = S.take_debug_data(band=band, channel=channel, rf_iq=True,
     IQstream=False)
 d = I * 1.j*Q
