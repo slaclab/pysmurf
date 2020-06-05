@@ -16,6 +16,15 @@ tune_file = '/data/smurf_data/tune/1590781150_tune.npy'
 ### Function variables ###
 band = 2
 channel = 443
+nperseg = 2**17
+reset_rate_khzs = np.array([4, 10, 20, 40])
+n_phi0s = np.array([4, 4, 4, 4])
+lms_enable2 = False
+lms_enable3 = False
+lms_gain = 3
+filter_order = 4
+
+n_steps = len(reset_rate_khzs)
 
 # Instatiate pysmurf object
 S = pysmurf.client.SmurfControl(epics_root=epics_prefix, cfg_file=config_file,
@@ -31,10 +40,27 @@ S.run_serial_eta_scan(band)
 I, Q, sync = S.take_debug_data(band=band, channel=channel, rf_iq=True,
     IQstream=False)
 d = I * 1.j*Q
-f, pxx = signal.welch(d, fs=S.get_channel_frequency_mhz()*1.0E6,
-    nperseg=len(d))
-idx = np.argsort(f)
-plt.figure()
-plt.semilogy(f[idx]*1.0E-3, pxx[idx])
-plt.xlabel('Freq [kHz]')
-plt.show()
+ff_nofr, pxx_nofr = signal.welch(d, fs=S.get_channel_frequency_mhz()*1.0E6,
+    nperseg=nperseg)
+idx = np.argsort(ff_nofr)
+# plt.figure()
+# plt.semilogy(f[idx]*1.0E-3, pxx[idx])
+# plt.xlabel('Freq [kHz]')
+# plt.show()
+
+f = {}
+df = {}
+ff = {}
+pxx = {}
+for i in np.arange(n_steps):
+    f[i], df[i], sync = S.tracking_setup(band,
+        channel=channel, reset_rate_khz=reset_rate_khzs[i],
+        fraction_full_scale=.5, make_plot=True, show_plot=False, nsamp=2**18,
+        lms_gain=lms_gain, lms_freq_hz=None, meas_lms_freq=False,
+        feedback_start_frac=.25, feedback_end_frac=.98, meas_flux_ramp_amp=True,
+        n_phi0=n_phi0s[i], lms_enable2=lms_enable2, lms_enable3=lms_enable3)
+    I, Q, sync = S.take_debug_data(band=band, channel=channel, rf_iq=True)
+    d = I * 1.j*Q
+
+    ff[i], pxx[i] = signal.welch(d, fs=S.get_channel_frequency_mhz()*1.0E6,
+        nperseg=nperseg)
