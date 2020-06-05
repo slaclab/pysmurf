@@ -23,6 +23,7 @@ lms_enable2 = False
 lms_enable3 = False
 lms_gain = 3
 filter_order = 4
+data_fs = 400
 plt.ion()
 
 n_steps = len(reset_rate_khzs)
@@ -56,6 +57,7 @@ df = {}
 ff = {}
 pxx = {}
 noise_datafile = {}
+
 for i in np.arange(n_steps):
     print(i, reset_rate_khzs[i])
     f[i], df[i], sync = S.tracking_setup(band,
@@ -65,19 +67,39 @@ for i in np.arange(n_steps):
         feedback_start_frac=.25, feedback_end_frac=.98, meas_flux_ramp_amp=True,
         n_phi0=n_phi0s[i], lms_enable2=lms_enable2, lms_enable3=lms_enable3)
     print(i, reset_rate_khzs[i], S.get_flux_ramp_freq())
+
     I, Q, sync = S.take_debug_data(band=band, channel=channel, rf_iq=True)
     d = I * 1.j*Q
 
+    S.set_downsample_factor(reset_rate_khzs[i]*1.0E3//data_fs)
+    S.set_downsample_filter(4, reset_rate_khzs[i]*1.0E3/data_fs/4)
+
     ff[i], pxx[i] = signal.welch(d, fs=S.get_channel_frequency_mhz()*1.0E6,
         nperseg=nperseg)
-    noise_datafile[i] = S.take_stream_data(5, )
+    noise_datafile[i] = S.take_stream_data(8)
+
+noise = {}
+bin_low = np.array([.5, 1, 2, 5, 10 ])
+bin_high = np.array([1, 2, 5, 10, 20])
+for i in np.arange(n_steps):
+    t, d, m = S.read_stream_data(noise_datafile[i])
+    idx = m[band, channel]
+    d *= S.pA_per_phi0 / 2 / np.pi
+    ftmp, pxxtmp = signal.welch(d[idx], fs=data_fs, nperseg=2**11)
+
+    noise_tmp = np.zeros(len(bin_low))
+    for j, (bl, bh) in enumerate(zip(bin_low, bin_high)):
+        tmp_idx = np.where(np.logical_and(ftmp > bl, ftmp < bh))
+        noise_tmp[j] = np.median(pxxtmp[tmp_idx])
+
+    noise[i] = noise_tmp
 
 cm = plt.get_cmap('viridis')
 plt.figure(figsize=(8,4.5))
 for i in np.arange(n_steps):
     color = cm(i/n_steps)
     plt.semilogy(ff[i][idx], pxx[i][idx], color=color,
-        label=f'{reset_rate_khzs[i]*n_phi0s[i]*1.0E-3} kHz')
+        label=f'{reset_rate_khzs[i]*n_phi0s[i]} kHz')
 plt.plot(ff_nofr[idx], pxx_nofr[idx], color='k', label='None')
 plt.xlabel('Freq [kHz]')
 plt.ylabel('Resp')
