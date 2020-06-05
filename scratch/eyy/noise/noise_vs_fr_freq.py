@@ -53,12 +53,14 @@ df = {}
 ff = {}
 pxx = {}
 for i in np.arange(n_steps):
+    print(i, reset_rate_khzs[i])
     f[i], df[i], sync = S.tracking_setup(band,
         channel=channel, reset_rate_khz=reset_rate_khzs[i],
         fraction_full_scale=.5, make_plot=True, show_plot=False, nsamp=2**18,
         lms_gain=lms_gain, lms_freq_hz=None, meas_lms_freq=False,
         feedback_start_frac=.25, feedback_end_frac=.98, meas_flux_ramp_amp=True,
         n_phi0=n_phi0s[i], lms_enable2=lms_enable2, lms_enable3=lms_enable3)
+    print(i, reset_rate_khzs[i], S.get_flux_ramp_freq())
     I, Q, sync = S.take_debug_data(band=band, channel=channel, rf_iq=True)
     d = I * 1.j*Q
 
