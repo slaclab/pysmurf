@@ -64,3 +64,12 @@ for i in np.arange(n_steps):
 
     ff[i], pxx[i] = signal.welch(d, fs=S.get_channel_frequency_mhz()*1.0E6,
         nperseg=nperseg)
+
+cm = plt.get_cmap('viridis')
+plt.figure(figsize=(8,4.5))
+for i in np.arange(n_steps):
+    color = cm(i/n_steps)
+    plt.semilogy(ff[i][idx], pxx[i][idx], color=color,
+        label=f'{reset_rate_khzs[i]*n_phi0s[i]*1.0E-3} kHz')
+plt.plot(ff_nofr[idx], pxx_nofr[idx], color='k', label='None')
+plt.show()
