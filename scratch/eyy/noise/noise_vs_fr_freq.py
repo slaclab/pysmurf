@@ -98,9 +98,10 @@ for i in np.arange(n_steps):
         label=f'{reset_rate_khzs[i]*n_phi0s[i]} kHz')
     ax[1].plot(reset_rate_khzs[i]*n_phi0s[i], noise[i][-1],'.',
         color=color)
-ax[0].plot(ff_nofr[idx], pxx_nofr[idx], color='k', label='None')
+ax[0].plot(ff_nofr[idx]*1.0E-3, pxx_nofr[idx], color='k', label='None')
 ax[1].set_xlabel('Freq [kHz]')
 ax[0].set_ylabel('Resp')
 ax[1].set_ylabel('Noise [pA/rtHz]')
 ax[0].legend()
+ax[1].set_xlim((-400, 400))
 plt.show()
