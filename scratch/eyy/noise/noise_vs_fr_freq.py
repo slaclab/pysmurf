@@ -17,8 +17,8 @@ tune_file = '/data/smurf_data/tune/1590781150_tune.npy'
 band = 2
 channel = 443
 nperseg = 2**17
-reset_rate_khzs = np.array([4, 10, 15])
-n_phi0s = np.array([4, 4, 4])
+reset_rate_khzs = np.array([4, 10, 15, 20, 25, 30])
+n_phi0s = np.array([4, 4, 4, 4, 4, 4])
 lms_enable2 = False
 lms_enable3 = False
 lms_gain = 3
@@ -94,13 +94,13 @@ cm = plt.get_cmap('viridis')
 fig, ax = plt.subplots(2, figsize=(8,4.5), sharex=True)
 for i in np.arange(n_steps):
     color = cm(i/n_steps)
-    ax[0].semilogy(ff[i][idx], pxx[i][idx], color=color,
+    ax[0].semilogy(ff[i][idx]*1.0E-3, pxx[i][idx], color=color,
         label=f'{reset_rate_khzs[i]*n_phi0s[i]} kHz')
-    ax[1].plot(reset_rate_khzs[i]*n_phi0s[i]*1.0E3, noise[i][-1],'.',
+    ax[1].plot(reset_rate_khzs[i]*n_phi0s[i], noise[i][-1],'.',
         color=color)
 ax[0].plot(ff_nofr[idx], pxx_nofr[idx], color='k', label='None')
 ax[1].set_xlabel('Freq [kHz]')
-ax[0].ylabel('Resp')
+ax[0].set_ylabel('Resp')
 ax[1].set_ylabel('Noise [pA/rtHz]')
 plt.legend()
 plt.show()
