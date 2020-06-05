@@ -54,12 +54,21 @@ ff = {}
 pxx = {}
 noise_datafile = {}
 
+_, _, _ = S.tracking_setup(band, reset_rate_khz=reset_rate_khzs[0],
+    fraction_full_scale=.5, make_plot=True, show_plot=False, nsamp=2**18,
+    lms_gain=lms_gain, lms_freq_hz=None, meas_lms_freq=False,
+    feedback_start_frac=.25, feedback_end_frac=.98, meas_flux_ramp_amp=True,
+    n_phi0=n_phi0s[0], lms_enable2=lms_enable2, lms_enable3=lms_enable3)
+fraction_full_scale = S.get_fraction_full_scale()
+
 for i in np.arange(n_steps):
     print(i, reset_rate_khzs[i])
     f[i], df[i], sync = S.tracking_setup(band, reset_rate_khz=reset_rate_khzs[i],
-        fraction_full_scale=.5, make_plot=True, show_plot=False, nsamp=2**18,
-        lms_gain=lms_gain, lms_freq_hz=None, meas_lms_freq=False,
-        feedback_start_frac=.25, feedback_end_frac=.95, meas_flux_ramp_amp=True,
+        fraction_full_scale=fraction_full_scale, make_plot=True,
+        show_plot=False, nsamp=2**18,
+        lms_gain=lms_gain, lms_freq_hz=n_phi0s[i]*reset_rate_khzs[i]*1.0E3,
+        meas_lms_freq=False,
+        feedback_start_frac=.25, feedback_end_frac=.98, meas_flux_ramp_amp=False,
         n_phi0=n_phi0s[i], lms_enable2=lms_enable2, lms_enable3=lms_enable3)
     print(i, reset_rate_khzs[i], S.get_flux_ramp_freq())
 
