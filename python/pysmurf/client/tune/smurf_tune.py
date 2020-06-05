@@ -4282,7 +4282,11 @@ class SmurfTuneMixin(SmurfBase):
                 # Holds the data for all flux ramps
                 flux_resp = np.zeros((n_sync, max_len)) * np.nan
                 for i in np.arange(n_sync):
-                    flux_resp[i] = df[sync_flag[i]:sync_flag[i+1],ch]
+                    df_tmp = df[sync_flag[i]:sync_flag[i+1],ch]
+                    if len(df_tmp) < max_len
+                        df_tmp = np.append(df_tmp,
+                            df_tmp[-1]*np.ones(max_len - len(df_tmp)))
+                    flux_resp[i] = df_tmp
 
                 # Average over all the flux ramp sweeps to generate template
                 template = np.nanmean(flux_resp, axis=0)
