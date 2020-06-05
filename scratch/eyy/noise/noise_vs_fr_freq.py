@@ -17,8 +17,10 @@ tune_file = '/data/smurf_data/tune/1590781150_tune.npy'
 band = 2
 channel = 443
 nperseg = 2**17
-reset_rate_khzs = np.array([4, 10, 15, 20, 25, 30, 40, 50, 60, 70, 80, 90])
-n_phi0s = np.array([4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4])
+reset_rate_khzs = np.array([4, 10, 15, 20, 21, 22, 23, 24, 25, 28, 29, 30, 31,
+    32, 33, 34, 35, 37, 39, 41, 45, 50])
+# n_phi0s = np.array([4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4])
+n_phi0s = (np.ones(len(reset_rate_khzs)) * 4).astype(int)
 lms_enable2 = False
 lms_enable3 = False
 lms_gain = 3
