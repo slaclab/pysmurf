@@ -2,6 +2,7 @@ import pysmurf.client
 import numpy as np
 import matplotlib.pyplot as plt
 import os
+import scipy.signal as signal
 
 ####
 # Assumes you've already setup the system.
