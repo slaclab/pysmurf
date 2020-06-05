@@ -91,13 +91,16 @@ for i in np.arange(n_steps):
     noise[i] = noise_tmp
 
 cm = plt.get_cmap('viridis')
-plt.figure(figsize=(8,4.5))
+fig, ax = plt.subplots(2, figsize=(8,4.5), sharex=True)
 for i in np.arange(n_steps):
     color = cm(i/n_steps)
-    plt.semilogy(ff[i][idx], pxx[i][idx], color=color,
+    ax[0].semilogy(ff[i][idx], pxx[i][idx], color=color,
         label=f'{reset_rate_khzs[i]*n_phi0s[i]} kHz')
-plt.plot(ff_nofr[idx], pxx_nofr[idx], color='k', label='None')
-plt.xlabel('Freq [kHz]')
-plt.ylabel('Resp')
+    ax[1].plot(reset_rate_khzs[i]*n_phi0s[i]*1.0E3, noise[i][-1],'.',
+        color=color)
+ax[0].plot(ff_nofr[idx], pxx_nofr[idx], color='k', label='None')
+ax[1].set_xlabel('Freq [kHz]')
+ax[0].ylabel('Resp')
+ax[1].set_ylabel('Noise [pA/rtHz]')
 plt.legend()
 plt.show()
