@@ -23,7 +23,7 @@ lms_enable2 = False
 lms_enable3 = False
 lms_gain = 3
 filter_order = 4
-data_fs = 400
+data_fs = 4000
 plt.ion()
 
 n_steps = len(reset_rate_khzs)
@@ -110,6 +110,6 @@ ax[0].plot(ff_nofr[idx]*1.0E-3, pxx_nofr[idx], color='k', label='None')
 ax[1].set_xlabel('Freq [kHz]')
 ax[0].set_ylabel('Resp')
 ax[1].set_ylabel('Noise [pA/rtHz]')
-ax[0].legend()
+ax[0].legend(loc='upper right')
 ax[1].set_xlim((-400, 400))
 plt.show()
