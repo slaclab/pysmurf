@@ -1267,6 +1267,32 @@ class SmurfCommandMixin(SmurfBase):
         return self._caget(self.app_core + self._stream_enable,
             **kwargs)
 
+    _rf_iq_stream_enable = 'rfIQStreamEnable'
+
+    def set_rf_iq_stream_enable(self, val, **kwargs):
+        """
+        Sets the bit that turns on RF IQ streaming for take_debug_data
+
+        Args
+        ----
+        val : int or bool
+            Whether to set the mode to RF IQ.
+        """
+        self._caput(self.sysgencryo + self._rf_iq_stream_enable, val, **kwargs)
+
+    def get_rf_iq_stream_enable(self, **kwargs):
+        """
+        gets the bit that turns on RF IQ streaming for take_debug_data
+
+        Ret
+        ---
+        rf_iq_stream_bit : int
+            The bit that sets the RF streaming
+        """
+        return self._caget(self.sysgencryo + self._rf_iq_stream_enable,
+            **kwargs)
+
+
     _build_dsp_g = 'BUILD_DSP_G'
 
     def get_build_dsp_g(self, **kwargs):
