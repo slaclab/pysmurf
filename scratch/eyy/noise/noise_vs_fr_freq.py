@@ -17,12 +17,13 @@ tune_file = '/data/smurf_data/tune/1590781150_tune.npy'
 band = 2
 channel = 443
 nperseg = 2**17
-reset_rate_khzs = np.array([4, 10, 15, 20, 25])
-n_phi0s = np.array([4, 4, 4, 4, 4])
+reset_rate_khzs = np.array([4, 10, 15])
+n_phi0s = np.array([4, 4, 4])
 lms_enable2 = False
 lms_enable3 = False
 lms_gain = 3
 filter_order = 4
+plt.ion()
 
 n_steps = len(reset_rate_khzs)
 
@@ -54,6 +55,7 @@ f = {}
 df = {}
 ff = {}
 pxx = {}
+noise_datafile = {}
 for i in np.arange(n_steps):
     print(i, reset_rate_khzs[i])
     f[i], df[i], sync = S.tracking_setup(band,
@@ -68,6 +70,7 @@ for i in np.arange(n_steps):
 
     ff[i], pxx[i] = signal.welch(d, fs=S.get_channel_frequency_mhz()*1.0E6,
         nperseg=nperseg)
+    noise_datafile[i] = S.take_stream_data(5, )
 
 cm = plt.get_cmap('viridis')
 plt.figure(figsize=(8,4.5))
@@ -76,4 +79,7 @@ for i in np.arange(n_steps):
     plt.semilogy(ff[i][idx], pxx[i][idx], color=color,
         label=f'{reset_rate_khzs[i]*n_phi0s[i]*1.0E-3} kHz')
 plt.plot(ff_nofr[idx], pxx_nofr[idx], color='k', label='None')
+plt.xlabel('Freq [kHz]')
+plt.ylabel('Resp')
+plt.legend()
 plt.show()
