@@ -2739,8 +2739,8 @@ class SmurfCommandMixin(SmurfBase):
         See Also
         --------
         :func:`~pysmurf.client.util.SmurfUtilMixin.play_tes_bipolar_waveform`
-        	: Configures system to play an arbitrary waveform on a
-        	TES bias group in either continuous or triggered mode.
+                : Configures system to play an arbitrary waveform on a
+                TES bias group in either continuous or triggered mode.
         """
         # Makes sure system is in triggered, not continuous, mode.  If
         # system was in continuous mode, drops into triggered mode.

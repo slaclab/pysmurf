@@ -4223,10 +4223,10 @@ class SmurfUtilMixin(SmurfBase):
         See Also
         --------
         :func:`~pysmurf.client.command.SmurfCommandMixin.trigger_rtm_arb_waveform`
-        	: Trigger playing the TES bias waveform.  Only if not
-        	in continuous mode.
+                : Trigger playing the TES bias waveform.  Only if not
+                in continuous mode.
         :meth:`stop_tes_bipolar_waveform` : Stop and disable TES
-        	waveform generation.
+                waveform generation.
         """
         ## Order of operations:
         #
@@ -4264,9 +4264,9 @@ class SmurfUtilMixin(SmurfBase):
             # Continuous mode - must set before enable.
             self.set_rtm_arb_waveform_continuous(1)
             # Enable waveform generation (3=on both DACs)
-            self.set_rtm_arb_waveform_enable(3)            
+            self.set_rtm_arb_waveform_enable(3)
         else:
-            # Trigger mode - must set before enable.            
+            # Trigger mode - must set before enable.
             self.set_rtm_arb_waveform_continuous(0)
             # Enable waveform generation (3=on both DACs)
             self.set_rtm_arb_waveform_enable(3)
@@ -4279,45 +4279,46 @@ class SmurfUtilMixin(SmurfBase):
     def stop_tes_bipolar_waveform(self, dc_amp=None, **kwargs):
         """Stop and disable bipolar TES bias waveform.
 
-        Clears the waveform generation enable bit, the waveform DAC
-        address bits, and the continuous waveform generation bit, in
-        that order.
-        
+        Disables TES waveform generation.  Clears the waveform
+        generation enable bit, the waveform DAC address bits, and the
+        continuous waveform generation bit, in that order.
+
         Args
         ----
         dc_amp : float or None, optional, default None
-            The amplitude of the DC term of the sine wave.  If None,
-            reads the current DC value and uses that.
+           Voltage to set the bias group that the system was
+           configured to play TES bias waveforms on to after disabling
+           waveforms.  If None, only disables waveform generation
+           without explicitly setting the TES bias group that was
+           being used for waveform generation (if any) to anything.
 
         See Also
         --------
         :meth:`play_tes_bipolar_waveform` : Enable and play TES
-        	waveform.
+                waveform.
         """
         # Which DACs were being used (if any)
         dac0=self.get_dac_axil_addr(0)
         dac1=self.get_dac_axil_addr(1)
-        
+
         # Disable waveform generation (3=on both DACs)
         self.set_rtm_arb_waveform_enable(0)
 
-        # Determine which bias group (if any) was being used to play a
-        # TES waveform.  There's probably a better way to do this.
-        bias_group=[
-            bg for [bg,d0,d1] in self.bias_group_to_pair if
-            sorted([dac0,dac1])==sorted([d0,d1])]
-        # Should only ever be either empty, or a one-element list.  If
-        # it's a one-element list, it should contain the bias group we
-        # want.
-        if len(bias_group) == 1:
-            bias_group=bias_group[0]
-            if dc_amp is None:
-                dc_amp = self.get_tes_bias_bipolar(bias_group)
-                self.log(f"No dc_amp provided. Using current value: {dc_amp} V.")
+        if dc_amp is not None:
+            # Determine which bias group (if any) was being used to play a
+            # TES waveform.  There's probably a better way to do this.
+            bias_group=[
+                bg for [bg,d0,d1] in self.bias_group_to_pair if
+                sorted([dac0,dac1])==sorted([d0,d1])]
+            # Should only ever be either empty, or a one-element list.
+            # If it's a one-element list, it should contain the bias
+            # group that was being used for waveforms.
+            if len(bias_group) == 1:
+                bias_group=bias_group[0]
 
-            self.set_tes_bias_bipolar(bias_group,dc_amp)
-            self.log(f"TES bias group {bias_group} set to {dc_amp} V.") 
-        
+                self.set_tes_bias_bipolar(bias_group,dc_amp)
+                self.log(f"TES bias group {bias_group} set to {dc_amp} V.")
+
         # https://confluence.slac.stanford.edu/display/SMuRF/SMuRF+firmware#SMuRFfirmware-RTMDACarbitrarywaveforms
         # Target the two bipolar DACs assigned to this bias group:
         self.set_dac_axil_addr(0,0) # Disabled
