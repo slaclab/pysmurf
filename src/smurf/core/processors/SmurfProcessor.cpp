@@ -590,8 +590,11 @@ void scp::SmurfProcessor::acceptFrame(ris::FramePtr frame)
             // The value at index (currentIndex - 1) will be the sample at time = -1.
             // The value at index (currentIndex + 1) will be the sample at time = -order.
 
+            // Copy the 'order' value to a local variable. This improve the performance of this function.
+            std::size_t order_copy { order };
+
             // Move the 'currentIndex' index to the oldest slot in the buffer
-            if (currentIndex == order)
+            if (currentIndex == order_copy)
                 currentIndex = 0;
             else
                 ++currentIndex;
@@ -607,7 +610,7 @@ void scp::SmurfProcessor::acceptFrame(ris::FramePtr frame)
 
             // On each cycle, move the iterators to the next channel, which is in the
             // next block of size (order + 1)
-            for (std::size_t ch{0}; ch < numCh; ++ch, xCh += order + 1, yCh += order + 1)
+            for (std::size_t ch{0}; ch < numCh; ++ch, xCh += order_copy + 1, yCh += order_copy + 1)
             {
                 // New input value
                 *xCh = static_cast<double>(*dataIt++);
@@ -631,7 +634,7 @@ void scp::SmurfProcessor::acceptFrame(ris::FramePtr frame)
             {
                 // Get the index to the previous sample
                 if (previousIndex == 0)
-                    previousIndex = order;
+                    previousIndex = order_copy;
                 else
                     --previousIndex;
 
@@ -644,7 +647,7 @@ void scp::SmurfProcessor::acceptFrame(ris::FramePtr frame)
 
                 // Update the output value for all channels. On each cycle, move the iterators
                 // to the next channel, which is in the next block of size (order + 1)
-                for (std::size_t ch{0}; ch < numCh; ++ch, yCh += order + 1, xChPrev += order + 1, yChPrev += order + 1)
+                for (std::size_t ch{0}; ch < numCh; ++ch, yCh += order_copy + 1, xChPrev += order_copy + 1, yChPrev += order_copy + 1)
                 {
                     *yCh += *bIt * *xChPrev - *aIt * *yChPrev;
                 }
@@ -655,7 +658,7 @@ void scp::SmurfProcessor::acceptFrame(ris::FramePtr frame)
             // On each cycle, move the iterator to the next channel, which is in
             // the next block of size (order + 1)
             yCh = y.begin() + currentIndex;     // Go back to the first channel
-            for (std::size_t ch{0}; ch < numCh; ++ch, yCh += order + 1)
+            for (std::size_t ch{0}; ch < numCh; ++ch, yCh += order_copy + 1)
             {
                 *yCh /= a[0];
             }
