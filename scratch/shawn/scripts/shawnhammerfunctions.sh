@@ -86,7 +86,7 @@ pysmurf_init() {
 	    exit 1	    
 	fi
     else
-	tmp_pysmurf_init_script=/tmp/psmurf_init_`date +%s`.py
+	tmp_pysmurf_init_script=/tmp/pysmurf_init_`date +%s`.py
 
 	# load pysmurf.client
 	tmux send-keys -t ${tmux_session_name}:${slot_number} 'echo "import pysmurf.client" >> '${tmp_pysmurf_init_script} C-m
