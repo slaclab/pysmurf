@@ -4301,23 +4301,32 @@ class SmurfUtilMixin(SmurfBase):
         dac0=self.get_dac_axil_addr(0)
         dac1=self.get_dac_axil_addr(1)
 
+        # Check if these DACs correspond to a valid bias group.  If
+        # not, throw a warning and give up.  There's probably a better
+        # way to do this.
+        bias_group=[
+            bg for [bg,d0,d1] in self.bias_group_to_pair if
+            sorted([dac0,dac1])==sorted([d0,d1])]
+        # Should only ever be either empty, or a one-element list.
+        # If it's a one-element list, it should contain the bias
+        # group that was being used for waveforms.
+        if len(bias_group) == 1:
+            bias_group=bias_group[0]
+            self.log("Waveforms are being played on TES bias " +
+                     f"group {bias_group}.")
+        else:
+            self.log("Waveforms were not being played on a " +
+                     "known TES bias group.  Doing nothing.")
+            return
+        
         # Disable waveform generation (3=on both DACs)
         self.set_rtm_arb_waveform_enable(0)
-
-        if dc_amp is not None:
-            # Determine which bias group (if any) was being used to play a
-            # TES waveform.  There's probably a better way to do this.
-            bias_group=[
-                bg for [bg,d0,d1] in self.bias_group_to_pair if
-                sorted([dac0,dac1])==sorted([d0,d1])]
-            # Should only ever be either empty, or a one-element list.
-            # If it's a one-element list, it should contain the bias
-            # group that was being used for waveforms.
-            if len(bias_group) == 1:
-                bias_group=bias_group[0]
-
-                self.set_tes_bias_bipolar(bias_group,dc_amp)
-                self.log(f"TES bias group {bias_group} set to {dc_amp} V.")
+        self.log("Waveform generation disabled on bias group " +
+                 f"{bias_group}.")
+        
+        # Force TES to provided bias after disabling waveform generation.
+        if dc_amp is not None:            
+            self.set_tes_bias_bipolar(bias_group,dc_amp)            
 
         # https://confluence.slac.stanford.edu/display/SMuRF/SMuRF+firmware#SMuRFfirmware-RTMDACarbitrarywaveforms
         # Target the two bipolar DACs assigned to this bias group:
