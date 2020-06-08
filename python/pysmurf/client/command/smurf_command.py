@@ -2729,22 +2729,22 @@ class SmurfCommandMixin(SmurfBase):
 
     _rtm_arb_waveform_software_trigger = 'SwTrig'
 
-    def trigger_rtm_arb_waveform(self, continuous=False, **kwargs):
-        """
+    def trigger_rtm_arb_waveform(self, **kwargs):
+        """Triggers RTM arbitrary waveform.
+
         Software trigger for arbitrary waveform generation on the slow
         RTM DACs.  This will cause the RTM to play the LUT tables only
         once.
 
-        Args
-        ----
-        continuous : bool, optional, default False
-            Whether or not to continously broadcast the arbitrary
-            waveform on software trigger.
+        See Also
+        --------
+        :func:`~pysmurf.client.util.SmurfUtilMixin.play_tes_bipolar_waveform`
+        	: Configures system to play an arbitrary waveform on a
+        	TES bias group in either continuous or triggered mode.
         """
-        if continuous is True:
-            self.set_rtm_arb_waveform_continuous(1)
-        else:
-            self.set_rtm_arb_waveform_continuous(0)
+        # Makes sure system is in triggered, not continuous, mode.  If
+        # system was in continuous mode, drops into triggered mode.
+        self.set_rtm_arb_waveform_continuous(0)
 
         triggerPV=self.rtm_lut_ctrl + \
             self._rtm_arb_waveform_software_trigger
