@@ -82,7 +82,8 @@ public:
         index(0),
         samples(ns),
         histogramStep(hs),
-        fileName(f)
+        fileName(f),
+        file(NULL)
     {
         if ( ! fileName.empty() )
         {
