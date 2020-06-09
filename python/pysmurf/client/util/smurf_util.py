@@ -4223,8 +4223,11 @@ class SmurfUtilMixin(SmurfBase):
         See Also
         --------
         :func:`~pysmurf.client.command.SmurfCommandMixin.trigger_rtm_arb_waveform` : \
-           Trigger playing the TES bias waveform.  Only if not in continuous mode.
-        :meth:`stop_tes_bipolar_waveform` : Stop and disable TES waveform generation.
+           Trigger playing the TES bias waveform.  Only if not in \
+           continuous mode.
+
+        :meth:`stop_tes_bipolar_waveform` : Stop and disable TES \
+           waveform generation.
         """
         ## Order of operations:
         #
