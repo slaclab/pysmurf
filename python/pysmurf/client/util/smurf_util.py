@@ -4222,11 +4222,9 @@ class SmurfUtilMixin(SmurfBase):
 
         See Also
         --------
-        :func:`~pysmurf.client.command.SmurfCommandMixin.trigger_rtm_arb_waveform`
-        	: Trigger playing the TES bias waveform.  Only if not
-        	in continuous mode.
-        :meth:`stop_tes_bipolar_waveform` : Stop and disable TES
-        	waveform generation.
+        :func:`~pysmurf.client.command.SmurfCommandMixin.trigger_rtm_arb_waveform` : \
+           Trigger playing the TES bias waveform.  Only if not in continuous mode.
+        :meth:`stop_tes_bipolar_waveform` : Stop and disable TES waveform generation.
         """
         ## Order of operations:
         #
@@ -4294,8 +4292,7 @@ class SmurfUtilMixin(SmurfBase):
 
         See Also
         --------
-        :meth:`play_tes_bipolar_waveform` : Enable and play TES
-                waveform.
+        :meth:`play_tes_bipolar_waveform` : Enable and play TES waveform.
         """
         # Which DACs were being used (if any)
         dac0=self.get_dac_axil_addr(0)
