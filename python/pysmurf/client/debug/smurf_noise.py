@@ -2012,10 +2012,10 @@ class SmurfNoiseMixin(SmurfBase):
             fig, ax = plt.subplots(order + 1, figsize=(5, (order+1)*2),
                 sharex=True)
             for i in np.arange(order):
-                ax[i].plot(t, alpha_mat[i])
-                ax[i].plot(t, alpha_mat[i+1])
+                ax[i].plot(t, alpha_mat[:,i])
+                ax[i].plot(t, alpha_mat[:,i+1])
                 ax[i].set_ylabel(f'Order {i+1}')
-            ax[-1].plot(t, alpha_mat[-1])
+            ax[-1].plot(t, alpha_mat[:,-1])
             ax[-1].set_ylabel('DC')
 
             plt.tight_layout()
