@@ -4340,7 +4340,7 @@ class SmurfTuneMixin(SmurfBase):
         return max_len/np.nanmedian(peaks)
 
     @set_action()
-    def make_sync_flag(self, sync):
+    def make_sync_flag(self, sync, min_gap=250):
         """
         Takes the sync from tracking setup and makes a flag for when
         the sync is True.
@@ -4357,8 +4357,8 @@ class SmurfTuneMixin(SmurfBase):
         end : int array
             The end index of the sync.
         """
-        s, e = self.find_flag_blocks(sync[:,0], min_gap=1000)
-        n_proc=self.get_number_processed_channels()
+        s, e = self.find_flag_blocks(sync[:,0], min_gap=min_gap)
+        n_proc = self.get_number_processed_channels()
         return s//n_proc
 
     @set_action()

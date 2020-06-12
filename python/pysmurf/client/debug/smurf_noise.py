@@ -1940,6 +1940,66 @@ class SmurfNoiseMixin(SmurfBase):
         return ff, pxx
 
 
+    def take_offline_demod(self, band, channel, order=3):
+        """
+        """
+        # Get inital feedback status
+        feedback_status = self.get_feedback_enable(band)
+        self.set_feedback_enable(band, False)
+
+        # Take the data
+        dat = self.take_debug_data(band, channel=channel, 
+            single_channel_readout=1, IQstream=False, debug=True)
+        
+        fs = self.get_channel_frequency_mhz(band) * 1.0E6
+        lms_freq_hz = self.get_lms_freq_hz(band)
+
+        self.set_feedback_enable(band, feedback_status)
+        self.offline_demod(dat, lms_freq_hz=lms_freq_hz, fs=fs, order=order)
+
+
+
+    def offline_demod(self, dat, lms_freq_hz=None, fs=None, order=3, gain=1./32):
+        """
+        """
+        # Get sample frequency
+        if fs is None:
+            fs = self.get_channel_frequency_mhz(band) * 1.0E6
+
+        # Get tracking frequency
+        if lms_freq_hz is None:
+            lms_freq_hz = self.get_lms_freq_hz(band)
+
+        normalize_freq = lms_freq_hz / fs
+
+        _, d, sync = dat
+        nsamp = len(d)
+
+
+        sync_flag = self.make_sync_flag(sync)
+
+        H = np.zeros((nsamp, order*2 + 1))
+
+        t = np.arange(nsamp) / fs
+        for i in np.arange(order):
+            o = i + 1
+            H[2*i] = np.cos(2*np.pi*t*lms_freq_hz*o)
+            H[2*i+1] = np.sin(2*np.pi*t*lms_freq_hz*o)
+
+        H[:,-1] = np.ones(nsamp)
+
+        y_hat = np.zeros(nsamp)
+        alpha_mat = np.zeros(nsamp, 2*order + 1)
+
+        alpha_mat[0] = np.ones(2*order+1) * .1  # initial guess
+        for i in np.arange(1, nsamp):
+            y_hat[i] = H[:,i]*alpha_mat[i-1]
+            err = d[i] - y_hat[i]
+            alpha_mat[i] = alpha_mat[i-1] + gain * err * H[:,i]
+
+        return alpha_mat
+
+
     def noise_svd(self, d, mask, mean_subtract=True):
         """
         Calculates the SVD modes of the input data.
