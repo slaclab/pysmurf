@@ -1948,14 +1948,16 @@ class SmurfNoiseMixin(SmurfBase):
         self.set_feedback_enable(band, False)
 
         # Take the data
-        dat = self.take_debug_data(band, channel=channel, 
+        dat = self.take_debug_data(band, channel=channel,
             single_channel_readout=1, IQstream=False, debug=True)
-        
+
         fs = self.get_channel_frequency_mhz(band) * 1.0E6
         lms_freq_hz = self.get_lms_freq_hz(band)
 
         self.set_feedback_enable(band, feedback_status)
         self.offline_demod(dat, lms_freq_hz=lms_freq_hz, fs=fs, order=order)
+
+
 
 
 
@@ -1983,8 +1985,8 @@ class SmurfNoiseMixin(SmurfBase):
         t = np.arange(nsamp) / fs
         for i in np.arange(order):
             o = i + 1
-            H[2*i] = np.cos(2*np.pi*t*lms_freq_hz*o)
-            H[2*i+1] = np.sin(2*np.pi*t*lms_freq_hz*o)
+            H[:,2*i] = np.cos(2*np.pi*t*lms_freq_hz*o)
+            H[:,2*i+1] = np.sin(2*np.pi*t*lms_freq_hz*o)
 
         H[:,-1] = np.ones(nsamp)
 
