@@ -1949,7 +1949,8 @@ class SmurfNoiseMixin(SmurfBase):
 
         # Take the data
         dat = self.take_debug_data(band, channel=channel,
-            single_channel_readout=1, IQstream=False, debug=True)
+            single_channel_readout=1, IQstream=False, debug=True,
+            write_log=False)
 
         fs = self.get_channel_frequency_mhz(band) * 1.0E6
         lms_freq_hz = self.get_lms_freq_hz(band)
@@ -1995,7 +1996,7 @@ class SmurfNoiseMixin(SmurfBase):
 
         alpha_mat[0] = np.ones(2*order+1) * .1  # initial guess
         for i in np.arange(1, nsamp):
-            y_hat[i] = H[i]*alpha_mat[i-1]
+            y_hat[i] = np.dot(H[i], alpha_mat[i-1])
             err = d[i] - y_hat[i]
             alpha_mat[i] = alpha_mat[i-1] + gain * err * H[:,i]
 
