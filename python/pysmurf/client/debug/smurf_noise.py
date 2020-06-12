@@ -1943,6 +1943,8 @@ class SmurfNoiseMixin(SmurfBase):
     def take_offline_demod(self, band, channel, order=3):
         """
         """
+        timestamp = self.get_timestamp()
+
         # Get inital feedback status
         feedback_status = self.get_feedback_enable(band)
         self.set_feedback_enable(band, False)
@@ -1957,14 +1959,18 @@ class SmurfNoiseMixin(SmurfBase):
 
         self.set_feedback_enable(band, feedback_status)
         alpha_mat = self.offline_demod(dat, lms_freq_hz=lms_freq_hz, fs=fs,
-            order=order)
+            order=order, timestamp=timestamp)
 
         return alpha_mat
 
 
-    def offline_demod(self, dat, lms_freq_hz=None, fs=None, order=3, gain=1./32):
+    def offline_demod(self, dat, lms_freq_hz=None, fs=None, order=3, gain=1./32,
+        make_plot=True, show_plot=False, save_plot=False, timestamp=None):
         """
         """
+        if timestamp is None:
+            timestamp = self.get_timestamp()
+
         # Get sample frequency
         if fs is None:
             fs = self.get_channel_frequency_mhz(band) * 1.0E6
@@ -1999,6 +2005,27 @@ class SmurfNoiseMixin(SmurfBase):
             y_hat[i] = np.dot(H[i], alpha_mat[i-1])
             err = d[i] - y_hat[i]
             alpha_mat[i] = alpha_mat[i-1] + gain * err * H[i]
+
+        if make_plot:
+            fig, ax = plt.subplots(order + 1, figsize=(5, (order+1)*2),
+                sharex=True)
+            for i in np.arange(order):
+                ax[i].plot(t, alpha_mat[i])
+                ax[i].plot(t, alpha_mat[i+1])
+                ax[i].set_ylabel(f'Order {i+1}')
+            ax[-1].plot(t, alpha_mat[-1])
+            ax[-1].set_ylabel('DC')
+
+            plt.tight_layout()
+
+            if save_plot:
+                plt.savefig(os.path.join(self.plot_dir,
+                    f'{timestamp}_offline_demod.png'), bbox_inches='tight')
+
+            if show_plot:
+                plt.show()
+            else:
+                plt.close()
 
         return alpha_mat
 
