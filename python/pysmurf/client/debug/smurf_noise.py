@@ -1998,7 +1998,7 @@ class SmurfNoiseMixin(SmurfBase):
         for i in np.arange(1, nsamp):
             y_hat[i] = np.dot(H[i], alpha_mat[i-1])
             err = d[i] - y_hat[i]
-            alpha_mat[i] = alpha_mat[i-1] + gain * err * H[:,i]
+            alpha_mat[i] = alpha_mat[i-1] + gain * err * H[i]
 
         return alpha_mat
 
