@@ -1955,10 +1955,10 @@ class SmurfNoiseMixin(SmurfBase):
         lms_freq_hz = self.get_lms_freq_hz(band)
 
         self.set_feedback_enable(band, feedback_status)
-        self.offline_demod(dat, lms_freq_hz=lms_freq_hz, fs=fs, order=order)
+        alpha_mat = self.offline_demod(dat, lms_freq_hz=lms_freq_hz, fs=fs,
+            order=order)
 
-
-
+        return alpha_mat
 
 
     def offline_demod(self, dat, lms_freq_hz=None, fs=None, order=3, gain=1./32):
@@ -1991,7 +1991,7 @@ class SmurfNoiseMixin(SmurfBase):
         H[:,-1] = np.ones(nsamp)
 
         y_hat = np.zeros(nsamp)
-        alpha_mat = np.zeros(nsamp, 2*order + 1)
+        alpha_mat = np.zeros((nsamp, 2*order + 1))
 
         alpha_mat[0] = np.ones(2*order+1) * .1  # initial guess
         for i in np.arange(1, nsamp):
