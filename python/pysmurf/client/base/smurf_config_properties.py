@@ -920,7 +920,7 @@ class SmurfConfigPropertiesMixin:
 
         Examples
         --------
-        The attenuator mapping is specified as a dictionary in the
+        The `attenuator` mapping is specified as a dictionary in the
         pysmurf configuration file like this::
 
            "attenuator" : {
@@ -1300,15 +1300,38 @@ class SmurfConfigPropertiesMixin:
     def bad_mask(self):
         """Short description.
 
-        Gets or sets ?.
-        Units are ?.
+        Gets or sets the list of RF frequency intervals in which to
+        ignore resonator candidates in calls to
+        :func:`~pysmurf.client.tune.smurf_tune.SmurfTuneMixin.relock`
+        Frequencies are in units of MHz.
+        :func:`~pysmurf.client.tune.smurf_tune.SmurfTuneMixin.relock`
+        is called at the end of many tuning functions including
+        :func:`~pysmurf.client.tune.smurf_tune.SmurfTuneMixin.setup_notches`.
 
         Specified in the pysmurf configuration file as
         `bad_mask`.
 
         See Also
         --------
-        ?
+        :func:`~pysmurf.client.tune.smurf_tune.SmurfTuneMixin.relock`
+
+        Examples
+        --------
+        The `bad_mask` property is specified as a dictionary in the
+        pysmurf configuration file like this (where ellipsis denotes
+        additional possible dictionary entries):
+
+        "bad_mask" : {
+	   "0" : [5000, 5100],
+	   "1" : [5500, 5750],
+           ...
+        },
+
+        where the keys are ignored (but must be unique) and the values
+        specify intervals of RF frequencies in MHz over which to
+        discard resonator candidates when relocking.  The frequency
+        ranges are stored in pysmurf in the `bad_mask` property as a
+        :py:class:`numpy.ndarray` of :py:class:`numpy.ndarray`.
 
         """
         return self._bad_mask
