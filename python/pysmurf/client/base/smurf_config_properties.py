@@ -1295,7 +1295,7 @@ class SmurfConfigPropertiesMixin:
     # Getter
     @property
     def bad_mask(self):
-        """RF frequency intervals to ignore when relocking.
+        """Resonator frequency ranges to ignore when relocking.
 
         Gets or sets the list of RF frequency intervals in which to
         ignore resonator candidates in calls to
@@ -1318,7 +1318,7 @@ class SmurfConfigPropertiesMixin:
         --------
         The `bad_mask` property is specified as a dictionary in the
         pysmurf configuration file like this (where ellipsis denotes
-        additional possible dictionary entries)::
+        additional possible `bad_mask` entries)::
 
            "bad_mask" : {
               "0" : [5000, 5100],
