@@ -831,9 +831,10 @@ class SmurfCommandMixin(SmurfBase):
 
         See Also
         --------
-        :func:`run_serial_eta_scan` : Runs rogue serial eta scan, which uses
-                this parameter.
-        :func:`get_eta_scan_del_f` : Gets the current value of this
+        :func:`run_serial_eta_scan` : Runs rogue serial eta scan, \
+                which uses this parameter.
+
+        :func:`get_eta_scan_del_f` : Gets the current value of this \
                 parameter in rogue.
         """
         self._caput(
@@ -864,10 +865,11 @@ class SmurfCommandMixin(SmurfBase):
 
         See Also
         --------
-        :func:`run_serial_eta_scan` : Runs rogue serial eta scan, which uses
-                this parameter.
-        :func:`set_eta_scan_del_f` : Sets the value of this parameter in
-                rogue.
+        :func:`run_serial_eta_scan` : Runs rogue serial eta scan, \
+                which uses this parameter.
+
+        :func:`set_eta_scan_del_f` : Sets the value of this parameter \
+                in rogue.
         """
         return self._caget(
             self._cryo_root(band) + self._eta_scan_del_f_reg,
@@ -2738,9 +2740,9 @@ class SmurfCommandMixin(SmurfBase):
 
         See Also
         --------
-        :func:`~pysmurf.client.util.SmurfUtilMixin.play_tes_bipolar_waveform`
-                : Configures system to play an arbitrary waveform on a
-                TES bias group in either continuous or triggered mode.
+        :func:`~pysmurf.client.util.SmurfUtilMixin.play_tes_bipolar_waveform` : \
+           Configures system to play an arbitrary waveform on a TES \
+           bias group in either continuous or triggered mode.
         """
         # Makes sure system is in triggered, not continuous, mode.  If
         # system was in continuous mode, drops into triggered mode.
