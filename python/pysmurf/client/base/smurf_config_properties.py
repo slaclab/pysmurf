@@ -155,7 +155,6 @@ class SmurfConfigPropertiesMixin:
         self._num_flux_ramp_counter_bits = None
         self._fraction_full_scale = None
         self._reset_rate_khz = None
-        self._select_ramp = None
 
         # Cryocard
         self._bias_line_resistance = None
@@ -330,7 +329,6 @@ class SmurfConfigPropertiesMixin:
         ## RTM
         flux_ramp_cfg = config.get('flux_ramp')
         self.num_flux_ramp_counter_bits = flux_ramp_cfg['num_flux_ramp_counter_bits']
-        self.select_ramp = flux_ramp_cfg.get('select_ramp')
         self.reset_rate_khz = tune_band_cfg.get('reset_rate_khz')
         self.fraction_full_scale = tune_band_cfg.get('fraction_full_scale')
 
@@ -2069,35 +2067,6 @@ class SmurfConfigPropertiesMixin:
         self._amplitude_scale = value
 
     ## End amplitude_scale property definition
-    ###########################################################################
-
-    ###########################################################################
-    ## Start select_ramp property definition
-
-    # Getter
-    @property
-    def select_ramp(self):
-        """Short description.
-
-        Gets or sets ?.
-        Units are ?.
-
-        Specified in the pysmurf configuration file as
-        `select_ramp`.
-
-        See Also
-        --------
-        ?
-
-        """
-        return self._select_ramp
-
-    # Setter
-    @select_ramp.setter
-    def select_ramp(self, value):
-        self._select_ramp = value
-
-    ## End select_ramp property definition
     ###########################################################################
 
     ###########################################################################

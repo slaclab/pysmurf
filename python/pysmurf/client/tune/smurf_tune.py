@@ -3044,8 +3044,6 @@ class SmurfTuneMixin(SmurfBase):
 
 
         KRelay = 3 #where do these values come from
-        SelectRamp = self.get_select_ramp(new_epics_root=new_epics_root) # from config file
-        RampStartMode = self.get_ramp_start_mode(new_epics_root=new_epics_root) # from config file
         PulseWidth = 64
         DebounceWidth = 255
         RampSlope = 0
@@ -3059,10 +3057,6 @@ class SmurfTuneMixin(SmurfBase):
         self.set_k_relay(KRelay, new_epics_root=new_epics_root,
             write_log=write_log)
         self.set_ramp_max_cnt(rampMaxCnt, new_epics_root=new_epics_root,
-            write_log=write_log)
-        self.set_select_ramp(SelectRamp, new_epics_root=new_epics_root,
-            write_log=write_log)
-        self.set_ramp_start_mode(RampStartMode, new_epics_root=new_epics_root,
             write_log=write_log)
         self.set_pulse_width(PulseWidth, new_epics_root=new_epics_root,
             write_log=write_log)

@@ -461,7 +461,10 @@ class SmurfControl(SmurfCommandMixin,
 
         self.set_enable_ramp_trigger(1, write_log=write_log)
 
-        self.set_select_ramp(self._select_ramp, write_log=write_log)
+        # 0x1 selects fast flux ramp, 0x0 selects slow flux ramp.  The
+        # slow flux ramp only existed on the first rev of RTM boards,
+        # C0, and wasn't ever really used.        
+        self.set_select_ramp(0x1, write_log=write_log)
 
         self.set_cpld_reset(0, write_log=write_log)
         self.cpld_toggle(write_log=write_log)

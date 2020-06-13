@@ -599,10 +599,6 @@ class SmurfConfig:
 
         #### Start specifying flux ramp-related
         schema_dict["flux_ramp"] = {
-            # 0x1 selects fast flux ramp, 0x0 selects slow flux ramp.  The
-            # slow flux ramp only existed on the first rev of RTM boards,
-            # C0, and wasn't ever really used.
-            Optional("select_ramp", default=1) : And(int, lambda n: n in (0, 1)),
             # 20 bits for the C0 RTMs, 32 bits for the C1 RTMs.
             "num_flux_ramp_counter_bits" : And(int, lambda n: n in (20, 32))
         }
