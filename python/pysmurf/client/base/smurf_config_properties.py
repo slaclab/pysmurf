@@ -935,7 +935,7 @@ class SmurfConfigPropertiesMixin:
         :class:`~pysmurf.client.base.smurf_control.SmurfControl` class
         instance):
 
-        >>> print(S.att_to_band)
+        >>> print(S.attenuator)
         {'band': array([0, 1, 2, 3]), 'att': array([1, 2, 3, 4])}
 
         """
@@ -1317,8 +1317,8 @@ class SmurfConfigPropertiesMixin:
         Examples
         --------
         The `bad_mask` property is specified as a dictionary in the
-        pysmurf configuration file like this (where ellipsis denotes
-        additional possible `bad_mask` entries)::
+        pysmurf configuration file like this (where the ellipsis
+        denotes additional possible `bad_mask` entries)::
 
            "bad_mask" : {
               "0" : [5000, 5100],
@@ -1331,6 +1331,16 @@ class SmurfConfigPropertiesMixin:
         discard resonator candidates when relocking.  The frequency
         ranges are stored in pysmurf in the `bad_mask` property as a
         :py:class:`numpy.ndarray` of :py:class:`numpy.ndarray`.
+
+        For example, the above would result in the following value for
+        the `bad_mask` property (here `S` is a
+        :class:`~pysmurf.client.base.smurf_control.SmurfControl` class
+        instance and the ellipsis denotes additional possible
+        entries):
+
+        >>> import pprint
+        >>> pprint.pprint(S.bad_mask)
+        array([[5000., 5100.], [5500., 5750.], ...])
 
         """
         return self._bad_mask
