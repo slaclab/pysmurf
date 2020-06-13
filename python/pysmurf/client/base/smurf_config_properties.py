@@ -1298,7 +1298,7 @@ class SmurfConfigPropertiesMixin:
     # Getter
     @property
     def bad_mask(self):
-        """Short description.
+        """RF frequency intervals to ignore when relocking.
 
         Gets or sets the list of RF frequency intervals in which to
         ignore resonator candidates in calls to
@@ -1306,7 +1306,9 @@ class SmurfConfigPropertiesMixin:
         Frequencies are in units of MHz.
         :func:`~pysmurf.client.tune.smurf_tune.SmurfTuneMixin.relock`
         is called at the end of many tuning functions including
-        :func:`~pysmurf.client.tune.smurf_tune.SmurfTuneMixin.setup_notches`.
+        :func:`~pysmurf.client.tune.smurf_tune.SmurfTuneMixin.setup_notches`
+        and
+        :func:`~pysmurf.client.tune.smurf_tune.SmurfTuneMixin.track_and_check`.
 
         Specified in the pysmurf configuration file as
         `bad_mask`.
