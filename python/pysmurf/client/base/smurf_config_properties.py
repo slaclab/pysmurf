@@ -987,18 +987,20 @@ class SmurfConfigPropertiesMixin:
     # Getter
     @property
     def all_groups(self):
-        """Short description.
+        """Which TES bias groups are in use.
 
-        Gets or sets ?.
-        Units are ?.
+        Gets or sets the list of TES bias groups in use.  Each element
+        of this list must be an integer corresponding to a TES bias
+        group and in [0,16).  :func:`bias_group_to_pair` encodes the
+        mapping from TES bias group number to bipolar RTM DAC pair.
 
         Specified in the pysmurf configuration file as
         `all_bias_groups`.
 
         See Also
         --------
-        ?
-
+        :func:`~pysmurf.client.debug.smurf_iv.SmurfIVMixin.slow_iv_all`,
+        :func:`~pysmurf.client.util.smurf_util.SmurfUtilMixin.overbias_tes_all`
         """
         return self._all_groups
 
