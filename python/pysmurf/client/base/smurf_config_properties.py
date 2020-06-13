@@ -269,7 +269,6 @@ class SmurfConfigPropertiesMixin:
             tune_band_cfg['lms_freq'].items()}
 
         ## Reading/writing data
-        smurf_to_mce_cfg = config.get('smurf_to_mce')
         self.fs = config.get('fs')
 
         ## In fridge
@@ -1319,13 +1318,13 @@ class SmurfConfigPropertiesMixin:
         --------
         The `bad_mask` property is specified as a dictionary in the
         pysmurf configuration file like this (where ellipsis denotes
-        additional possible dictionary entries):
+        additional possible dictionary entries)::
 
-        "bad_mask" : {
-	   "0" : [5000, 5100],
-	   "1" : [5500, 5750],
-           ...
-        },
+           "bad_mask" : {
+              "0" : [5000, 5100],
+              "1" : [5500, 5750],
+              ...
+           },
 
         where the keys are ignored (but must be unique) and the values
         specify intervals of RF frequencies in MHz over which to

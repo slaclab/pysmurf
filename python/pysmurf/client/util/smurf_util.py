@@ -3387,13 +3387,13 @@ class SmurfUtilMixin(SmurfBase):
 
         self.log(f'Generating gcp mask file. {len(gcp_chans)} ' +
                  'channels added')
-        
+
         np.savetxt(self.smurf_to_mce_mask_file, gcp_chans, fmt='%i')
 
         if read_gcp_mask:
             self.read_smurf_to_gcp_config()
         else:
-            self.log('Warning: new mask has not been read in yet.')        
+            self.log('Warning: new mask has not been read in yet.')
 
     @set_action()
     def bias_bump(self, bias_group, wait_time=.5, step_size=0.001,
