@@ -2048,8 +2048,9 @@ class SmurfNoiseMixin(SmurfBase):
             fig, ax = plt.subplots(order + 1, figsize=(5, (order+1)*2),
                 sharex=True)
             for i in np.arange(order):
-                ax[i].plot(t, alpha_mat[:,i], label='cos')
-                ax[i].plot(t, alpha_mat[:,i+1], label='sin')
+                # ax[i].plot(t, alpha_mat[:,i], label='cos')
+                # ax[i].plot(t, alpha_mat[:,i+1], label='sin')
+                ax[i].plot(t, phase[:,i])
                 ax[i].set_ylabel(f'Order {i+1}')
                 ax[i].legend(loc='upper right')
             ax[-1].plot(t, alpha_mat[:,-1])

@@ -33,7 +33,7 @@ class SmurfUtilMixin(SmurfBase):
     @set_action()
     def take_debug_data(self, band, channel=None, nsamp=2**19, filename=None,
             IQstream=1, single_channel_readout=1, debug=False, rf_iq=False,
-            write_log=True):
+            write_log=False):
         """ Takes raw debugging data
 
         single_channel_readout=1 - but filtered by a single pole filter. You
