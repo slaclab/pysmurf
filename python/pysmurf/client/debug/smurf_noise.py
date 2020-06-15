@@ -1941,7 +1941,7 @@ class SmurfNoiseMixin(SmurfBase):
 
 
     def take_offline_demod(self, band, channel, order=3, make_plot=True,
-        show_plot=False, save_plot=False):
+        show_plot=False, save_plot=False, make_debug_plot=False):
         """
         """
         timestamp = self.get_timestamp()
@@ -1961,14 +1961,15 @@ class SmurfNoiseMixin(SmurfBase):
         self.set_feedback_enable(band, feedback_status)
         alpha_mat = self.offline_demod(dat, lms_freq_hz=lms_freq_hz, fs=fs,
             order=order, timestamp=timestamp, make_plot=make_plot,
-            show_plot=show_plot, save_plot=save_plot)
+            show_plot=show_plot, save_plot=save_plot,
+            make_debug_plot=make_debug_plot)
 
         return alpha_mat
 
 
     def offline_demod(self, dat, lms_freq_hz=None, fs=None, order=3, gain=1./32,
         make_plot=True, show_plot=False, save_plot=True, timestamp=None,
-        make_debug_plot=True):
+        make_debug_plot=False):
         """
         """
         if timestamp is None:
