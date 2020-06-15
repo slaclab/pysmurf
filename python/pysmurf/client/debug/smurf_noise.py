@@ -2036,7 +2036,7 @@ class SmurfNoiseMixin(SmurfBase):
             end_sync_idx = sync_flag[n_flux_ramp_cycle]
             t_small = t[:end_sync_idx] * 1.0E6
 
-            amp = (np.max(d[:end_sync_idx]) - np.min(d[:end_sync_flag]))/2
+            amp = (np.max(d[:end_sync_idx]) - np.min(d[:end_sync_idx]))/2
 
             fig, ax = plt.subplots(1)
             ax.plot(t_small, d[:end_sync_idx], color='k')
