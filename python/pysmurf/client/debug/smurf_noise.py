@@ -1963,7 +1963,7 @@ class SmurfNoiseMixin(SmurfBase):
             single_channel_readout=single_channel_readout, IQstream=False,
             debug=True, write_log=False)
 
-        if single_channel_reaodut == 1:
+        if single_channel_readout == 1:
             fs = self.get_channel_frequency_mhz(band) * 1.0E6 / 4
         elif single_channel_readout == 2:
             fs = self.get_channel_frequency_mhz(band) * 1.0E6
@@ -1981,7 +1981,7 @@ class SmurfNoiseMixin(SmurfBase):
 
     def offline_demod(self, dat, lms_freq_hz=None, fs=None, order=3, gain=1./32,
         make_plot=True, show_plot=False, save_plot=True, timestamp=None,
-        make_debug_plot=False):
+        make_debug_plot=False, single_channel_readout=2):
         """
         """
         if timestamp is None:
@@ -1989,7 +1989,10 @@ class SmurfNoiseMixin(SmurfBase):
 
         # Get sample frequency
         if fs is None:
-            fs = self.get_channel_frequency_mhz(band) * 1.0E6
+            if single_channel_readout == 1:
+                fs = self.get_channel_frequency_mhz(band) * 1.0E6 / 4
+            elif single_channel_readout == 2:
+                fs = self.get_channel_frequency_mhz(band) * 1.0E6
 
         # Get tracking frequency
         if lms_freq_hz is None:
