@@ -2045,7 +2045,7 @@ class SmurfNoiseMixin(SmurfBase):
 
             ax.legend()
 
-            for i, s in enumerate(n_flux_ramp_cycle):
+            for i, s in enumerate(np.arange(n_flux_ramp_cycle)):
                 ax.axvline(t_small[i], color='k', linestyle=':', alpha=.5)
 
             plt.tight_layout()
