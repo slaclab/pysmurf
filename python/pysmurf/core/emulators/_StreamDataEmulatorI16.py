@@ -18,6 +18,7 @@
 #-----------------------------------------------------------------------------
 
 import pyrogue
+
 import smurf
 import smurf.core.emulators
 

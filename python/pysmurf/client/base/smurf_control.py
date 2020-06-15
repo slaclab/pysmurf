@@ -84,8 +84,10 @@ class SmurfControl(SmurfCommandMixin,
 
     Attributes
     ----------
-    config : :class:`pysmurf.client.base.smurf_config.SmurfConfig`
-              PUT DESCRIPTION OF THIS CLASS INSTANCE ATTRIBUTE HERE.
+    config : :class:`~pysmurf.client.base.smurf_config.SmurfConfig` or None
+       ???
+    output_dir : str or None
+       ???
 
     Raises
     ------
@@ -107,6 +109,13 @@ class SmurfControl(SmurfCommandMixin,
         See the SmurfControl class docstring for more details.
         """
 
+        # Class attributes
+        self.config = None
+        self.output_dir = None
+
+        # Require specification of configuration file if not in
+        # offline mode.  If configuration file is specified, load into
+        # config attribute.
         if not offline and cfg_file is None:
             raise ValueError('Must provide config file.')
         elif cfg_file is not None:

@@ -16,8 +16,9 @@
 import logging
 import sys
 import time
-import epics
 from datetime import datetime
+
+import epics
 
 class JesdWatchdog(object):
     def __init__(self, prefix):

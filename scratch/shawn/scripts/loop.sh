@@ -1,4 +1,4 @@
-rm -v loop_full_band_resps.txt
+rm -v /data/smurf_data/loop_full_band_resps.txt
 
 for i in `seq 1 50`; do
     shawnhammer

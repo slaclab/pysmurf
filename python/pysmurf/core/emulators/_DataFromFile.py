@@ -19,8 +19,9 @@
 
 import sys
 import time
-import rogue.interfaces.stream
+
 import pyrogue
+import rogue.interfaces.stream
 
 class DataFromFile(pyrogue.Device):
     """

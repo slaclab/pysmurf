@@ -12,19 +12,21 @@
 # No part of the pysmurf software package, including this file, may be
 # copied, modified, propagated, or distributed except according to the terms
 # contained in the LICENSE.txt file.
-#-----------------------------------------------------------------------------
-import numpy as np
-import os
-import glob
-import time
-from pysmurf.client.base import SmurfBase
-import scipy.signal as signal
+#----------------------------------------------------------------------------
 from collections import Counter
-from ..util import tools
-from pysmurf.client.command.sync_group import SyncGroup as SyncGroup
+import glob
+import os
+import time
+
 import matplotlib.pyplot as plt
 from matplotlib.gridspec import GridSpec
+import numpy as np
+import scipy.signal as signal
+
+from pysmurf.client.base import SmurfBase
+from pysmurf.client.command.sync_group import SyncGroup as SyncGroup
 from pysmurf.client.util.pub import set_action
+from ..util import tools
 
 class SmurfTuneMixin(SmurfBase):
     """
@@ -654,10 +656,13 @@ class SmurfTuneMixin(SmurfBase):
             time.sleep(.05)  # Need to wait, otherwise dac call interferes with adc
 
             try:
-                dac = self.read_dac_data(band, n_samples, hw_trigger=hw_trigger)
+                dac = self.read_dac_data(
+                    band, n_samples, hw_trigger=hw_trigger,
+                    save_data=False)
             except BaseException:
                 self.log('ADC read failed. Trying one more time', self.LOG_ERROR)
-                dac = self.read_dac_data(band, n_samples, hw_trigger=hw_trigger,
+                dac = self.read_dac_data(
+                    band, n_samples, hw_trigger=hw_trigger,
                     save_data=False)
             time.sleep(.05)
 
@@ -1024,7 +1029,7 @@ class SmurfTuneMixin(SmurfBase):
                     ax[1].set_xlabel('Freq [MHz]')
                     ax[1].set_ylabel('Amp')
 
-                    ax[0].set_title('Band {band} Subband {sb}')
+                    ax[0].set_title(f'Band {band} Subband {sb}')
 
                     if subband_plot_with_slow:
                         ff = np.arange(-3, 3.1, .05)
@@ -1481,7 +1486,7 @@ class SmurfTuneMixin(SmurfBase):
             if res_num is not None and band is not None:
                 save_name = (
                     f'{timestamp}_eta_b{band}_' +
-                    'res{res_num:03}{plotname_append}.png')
+                    f'res{res_num:03}{plotname_append}.png')
             else:
                 save_name = f'{timestamp}_eta{plotname_append}.png'
 
@@ -1559,7 +1564,7 @@ class SmurfTuneMixin(SmurfBase):
             old_file=self.channel_assignment_files[f'band_{band}']
             self.log(f'Old master assignment file: {old_file}')
         self.channel_assignment_files[f'band_{band}'] = filename
-        self.log('New master assignment file: {filename}')
+        self.log(f'New master assignment file: {filename}')
 
     @set_action()
     def get_master_assignment(self, band):
