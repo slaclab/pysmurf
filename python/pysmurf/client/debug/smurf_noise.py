@@ -2033,7 +2033,7 @@ class SmurfNoiseMixin(SmurfBase):
         alpha_mat[0] = np.ones(2*order+1) * .01  # initial guess
         for i in np.arange(1, nsamp):
             y_hat[i] = np.dot(H[i], alpha_mat[i-1])
-            if frac_mask:
+            if frac_mask[i]:
                 err = d[i] - y_hat[i]
             else:
                 err = 0
