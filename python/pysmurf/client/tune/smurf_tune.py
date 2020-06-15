@@ -4357,8 +4357,8 @@ class SmurfTuneMixin(SmurfBase):
         end : int array
             The end index of the sync.
         """
-        s, e = self.find_flag_blocks(sync[:,1], min_gap=min_gap)
-        # s, e = self.find_flag_blocks(sync[:,0], min_gap=min_gap)
+        # s, e = self.find_flag_blocks(sync[:,1], min_gap=min_gap)
+        s, e = self.find_flag_blocks(sync[:,0], min_gap=min_gap)
         n_proc = self.get_number_processed_channels()
         return s//n_proc
 

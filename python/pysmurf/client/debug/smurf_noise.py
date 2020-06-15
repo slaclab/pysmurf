@@ -1988,8 +1988,7 @@ class SmurfNoiseMixin(SmurfBase):
         _, d, sync = dat
         nsamp = len(d)
 
-
-        sync_flag = self.make_sync_flag(sync)
+        sync_flag, _ = self.find_flag_blakcs(sync[:,1])
 
         H = np.zeros((nsamp, order*2 + 1))
 
