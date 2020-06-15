@@ -1942,7 +1942,8 @@ class SmurfNoiseMixin(SmurfBase):
 
     def take_offline_demod(self, band, channel, order=3, make_plot=True,
         show_plot=False, save_plot=False, make_debug_plot=False,
-        single_channel_readout=2, gain=1./32):
+        single_channel_readout=2, gain=1./32,
+        feedback_start_frac=.25, feedback_stop_frac=.98):
         """
 
         single_channel_readout=1 - but filtered by a single pole filter. You
@@ -1974,14 +1975,17 @@ class SmurfNoiseMixin(SmurfBase):
         alpha_mat = self.offline_demod(dat, lms_freq_hz=lms_freq_hz, fs=fs,
             order=order, timestamp=timestamp, make_plot=make_plot,
             show_plot=show_plot, save_plot=save_plot,
-            make_debug_plot=make_debug_plot, gain=gain)
+            make_debug_plot=make_debug_plot, gain=gain,
+            feedback_start_frac=feedback_start_frac,
+            feedback_stop_frac=feedback_stop_frac)
 
         return alpha_mat
 
 
     def offline_demod(self, dat, lms_freq_hz=None, fs=None, order=3, gain=1./32,
         make_plot=True, show_plot=False, save_plot=True, timestamp=None,
-        make_debug_plot=False, single_channel_readout=2):
+        make_debug_plot=False, single_channel_readout=2,
+        feedback_start_frac=.25, feedback_stop_frac=.98):
         """
         """
         if timestamp is None:
@@ -2004,6 +2008,14 @@ class SmurfNoiseMixin(SmurfBase):
         nsamp = len(d)
 
         sync_flag, _ = self.find_flag_blocks(sync[:,1])
+        frac_mask = np.zeros(nsamp, dtype=bool)
+        for i in np.arange(len(sync_flag)-1):
+            n_samp_frac = sync_flag[i+1]-sync_flag[i]
+            start = int(sync_flag[i] + feedback_start_frac*n_samp_frac)
+            end = int(sync_flag[i] + feedback_end_frac*n_samp_frac)
+            frac_mask[start:end] = True
+
+
 
         H = np.zeros((nsamp, order*2 + 1))
 
@@ -2018,11 +2030,19 @@ class SmurfNoiseMixin(SmurfBase):
         y_hat = np.zeros(nsamp)
         alpha_mat = np.zeros((nsamp, 2*order + 1))
 
-        alpha_mat[0] = np.ones(2*order+1) * .1  # initial guess
+        alpha_mat[0] = np.ones(2*order+1) * .01  # initial guess
         for i in np.arange(1, nsamp):
             y_hat[i] = np.dot(H[i], alpha_mat[i-1])
-            err = d[i] - y_hat[i]
+            if frac_mask:
+                err = d[i] - y_hat[i]
+            else:
+                err = 0
             alpha_mat[i] = alpha_mat[i-1] + gain * err * H[i]
+
+        # Calculate phase
+        phase = np.zeros((nsamp, order))
+        for i in np.arange(order):
+            phase[:,i] = np.arctan(alpha_mat[:,2*i+1], alpha_mat[:,2*i])
 
         if make_plot:
             fig, ax = plt.subplots(order + 1, figsize=(5, (order+1)*2),
