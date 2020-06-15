@@ -2034,19 +2034,24 @@ class SmurfNoiseMixin(SmurfBase):
         if make_debug_plot:
             n_flux_ramp_cycle = 5
             end_sync_idx = sync_flag[n_flux_ramp_cycle]
-            t_small = t[:end_sync_idx]
+            t_small = t[:end_sync_idx] * 1.0E6
+
+            amp = (np.max(d[:end_sync_idx]) - np.min(d[:end_sync_flag]))/2
 
             fig, ax = plt.subplots(1)
             ax.plot(t_small, d[:end_sync_idx], color='k')
 
             for o in np.arange(order):
-                ax.plot(t_small, H[:end_sync_idx, 2*o], color='b',
+                ax.plot(t_small, amp*H[:end_sync_idx, 2*o], color='b',
                     label=f'cos {o+1}')
 
             ax.legend()
 
-            for i, s in enumerate(np.arange(n_flux_ramp_cycle)):
-                ax.axvline(t_small[i], color='k', linestyle=':', alpha=.5)
+            for i in np.arange(n_flux_ramp_cycle):
+                ax.axvline(t_small[sync_flag[i]], color='k', linestyle=':',
+                    alpha=.5)
+
+            ax.set_xlabel(r'Time [$\mu$s]')
 
             plt.tight_layout()
 
