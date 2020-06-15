@@ -2039,14 +2039,14 @@ class SmurfNoiseMixin(SmurfBase):
             fig, ax = plt.subplots(1)
             ax.plot(t_small, d[:end_sync_idx], color='k')
 
-            for o in order:
+            for o in np.arange(order):
                 ax.plot(t_small, H[:end_sync_idx, 2*o], color='b',
                     label=f'cos {o+1}')
 
             ax.legend()
 
             for i, s in enumerate(n_flux_ramp_cycle):
-                ax.axvline(t_small[i], color='k', linestyle=':')
+                ax.axvline(t_small[i], color='k', linestyle=':', alpha=.5)
 
             plt.tight_layout()
 
