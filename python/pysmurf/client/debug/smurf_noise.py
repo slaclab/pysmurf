@@ -1963,7 +1963,7 @@ class SmurfNoiseMixin(SmurfBase):
             single_channel_readout=single_channel_readout, IQstream=False,
             debug=True, write_log=False)
 
-        if single_channel_reaodut == 1
+        if single_channel_reaodut == 1:
             fs = self.get_channel_frequency_mhz(band) * 1.0E6 / 4
         elif single_channel_readout == 2:
             fs = self.get_channel_frequency_mhz(band) * 1.0E6
