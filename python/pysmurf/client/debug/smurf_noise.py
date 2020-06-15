@@ -1967,7 +1967,8 @@ class SmurfNoiseMixin(SmurfBase):
 
 
     def offline_demod(self, dat, lms_freq_hz=None, fs=None, order=3, gain=1./32,
-        make_plot=True, show_plot=False, save_plot=True, timestamp=None):
+        make_plot=True, show_plot=False, save_plot=True, timestamp=None,
+        make_debug_plot=True):
         """
         """
         if timestamp is None:
@@ -2029,6 +2030,26 @@ class SmurfNoiseMixin(SmurfBase):
                 plt.show()
             else:
                 plt.close()
+
+        if make_debug_plot:
+            n_flux_ramp_cycle = 5
+            end_sync_idx = sync_flag[n_flux_ramp_cycle]
+            t_small = t[:end_sync_idx]
+
+            fig, ax = plt.subplots(1)
+            ax.plot(t_small, d[:end_sync_idx], color='k')
+
+            for o in order:
+                ax.plot(t_small, H[:end_sync_idx, 2*o], color='b',
+                    label=f'cos {o+1}')
+
+            ax.legend()
+
+            for i, s in enumerate(n_flux_ramp_cycle):
+                ax.axvline(t_small[i], color='k', linestyle=':')
+
+            plt.tight_layout()
+
 
         return alpha_mat
 
