@@ -36,6 +36,12 @@ class SmurfUtilMixin(SmurfBase):
             write_log=True):
         """ Takes raw debugging data
 
+        single_channel_readout=1 - but filtered by a single pole filter. You
+        can add FW decimation. single_channel_readout=1 has some options but by
+        default it's 600kHz
+
+        single_channel_readout=2 bypass single pole filter and stream at 2.4MHz
+
         Args
         ----
         band : int

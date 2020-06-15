@@ -1941,8 +1941,16 @@ class SmurfNoiseMixin(SmurfBase):
 
 
     def take_offline_demod(self, band, channel, order=3, make_plot=True,
-        show_plot=False, save_plot=False, make_debug_plot=False):
+        show_plot=False, save_plot=False, make_debug_plot=False,
+        single_channel_readout=2):
         """
+
+        single_channel_readout=1 - but filtered by a single pole filter. You
+        can add FW decimation. single_channel_readout=1 has some options but by
+        default it's 600kHz
+
+        single_channel_readout=2 bypass single pole filter and stream at 2.4MHz
+
         """
         timestamp = self.get_timestamp()
 
@@ -1952,10 +1960,14 @@ class SmurfNoiseMixin(SmurfBase):
 
         # Take the data
         dat = self.take_debug_data(band, channel=channel,
-            single_channel_readout=1, IQstream=False, debug=True,
-            write_log=False)
+            single_channel_readout=single_channel_readout, IQstream=False,
+            debug=True, write_log=False)
 
-        fs = self.get_channel_frequency_mhz(band) * 1.0E6
+        if single_channel_reaodut == 1
+            fs = self.get_channel_frequency_mhz(band) * 1.0E6 / 4
+        elif single_channel_readout == 2:
+            fs = self.get_channel_frequency_mhz(band) * 1.0E6
+
         lms_freq_hz = self.get_lms_freq_hz(band)
 
         self.set_feedback_enable(band, feedback_status)
