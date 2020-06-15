@@ -1967,7 +1967,7 @@ class SmurfNoiseMixin(SmurfBase):
 
 
     def offline_demod(self, dat, lms_freq_hz=None, fs=None, order=3, gain=1./32,
-        make_plot=True, show_plot=False, save_plot=False, timestamp=None):
+        make_plot=True, show_plot=False, save_plot=True, timestamp=None):
         """
         """
         if timestamp is None:
@@ -2012,9 +2012,10 @@ class SmurfNoiseMixin(SmurfBase):
             fig, ax = plt.subplots(order + 1, figsize=(5, (order+1)*2),
                 sharex=True)
             for i in np.arange(order):
-                ax[i].plot(t, alpha_mat[:,i])
-                ax[i].plot(t, alpha_mat[:,i+1])
+                ax[i].plot(t, alpha_mat[:,i], label='cos')
+                ax[i].plot(t, alpha_mat[:,i+1], label='sin')
                 ax[i].set_ylabel(f'Order {i+1}')
+                ax[i].legend(loc='upper right')
             ax[-1].plot(t, alpha_mat[:,-1])
             ax[-1].set_ylabel('DC')
 
