@@ -2056,7 +2056,8 @@ class SmurfNoiseMixin(SmurfBase):
             for i in np.arange(order):
                 color = cm(i/order)
                 ax[i] = fig.add_subplot(gs[i,0])
-                ax[i].plot(t, phase[:,i], color=color)
+                ax[i].plot(t[mask_samples_psd:], phase[mask_samples_psd:,i],
+                    color=color)
                 ax[i].set_ylabel(f'Order {i+1}')
 
                 # Calculate PSDs
