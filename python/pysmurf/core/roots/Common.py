@@ -43,7 +43,7 @@ class Common(pyrogue.Root):
                  **kwargs):
 
         pyrogue.Root.__init__(self, name="AMCc", initRead=True, pollEn=polling_en,
-            streamIncGroups='stream', serverPort=server_port, **kwargs)
+            timeout=5.0, streamIncGroups='stream', serverPort=server_port, **kwargs)
 
         #########################################################################################
         # The following interfaces are expected to be defined at this point by a sub-class
