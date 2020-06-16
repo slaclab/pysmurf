@@ -2042,7 +2042,9 @@ class SmurfNoiseMixin(SmurfBase):
         # Calculate phase
         phase = np.zeros((nsamp, order))
         for i in np.arange(order):
-            phase[:,i] = np.arctan2(alpha_mat[:,2*i+1], alpha_mat[:,2*i])
+            phase[:,i] = np.unwrap(np.arctan2(alpha_mat[:,2*i+1],
+                alpha_mat[:,2*i]))
+
 
         if make_plot:
             cm = plt.get_cmap('viridis')
