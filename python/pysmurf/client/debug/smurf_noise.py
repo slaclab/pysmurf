@@ -1943,7 +1943,8 @@ class SmurfNoiseMixin(SmurfBase):
     def take_offline_demod(self, band, channel, order=3, make_plot=True,
         show_plot=False, save_plot=False, make_debug_plot=False,
         single_channel_readout=2, gain=1./32,
-        feedback_start_frac=.25, feedback_end_frac=.98, return_alpha_mat=False):
+        feedback_start_frac=.25, feedback_end_frac=.98, return_alpha_mat=False,
+        mask_samples_psd=2500):
         """
 
         single_channel_readout=1 - but filtered by a single pole filter. You
@@ -1978,7 +1979,8 @@ class SmurfNoiseMixin(SmurfBase):
             make_debug_plot=make_debug_plot, gain=gain,
             feedback_start_frac=feedback_start_frac,
             feedback_end_frac=feedback_end_frac,
-            return_alpha_mat=return_alpha_mat, band=band, channel=channel)
+            return_alpha_mat=return_alpha_mat, band=band, channel=channel,
+            mask_samples_psd=mask_samples_psd)
 
         return ret
 
@@ -1987,7 +1989,7 @@ class SmurfNoiseMixin(SmurfBase):
         make_plot=True, show_plot=False, save_plot=True, timestamp=None,
         make_debug_plot=False, single_channel_readout=2, nperseg=2**15,
         feedback_start_frac=.25, feedback_end_frac=.98, return_alpha_mat=False,
-        band=None, channel=None, mask_samples_psd=1000):
+        band=None, channel=None, mask_samples_psd=2500):
         """
         """
         if timestamp is None:
