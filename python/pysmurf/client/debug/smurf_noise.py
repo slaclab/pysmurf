@@ -1978,7 +1978,7 @@ class SmurfNoiseMixin(SmurfBase):
             make_debug_plot=make_debug_plot, gain=gain,
             feedback_start_frac=feedback_start_frac,
             feedback_end_frac=feedback_end_frac,
-            return_alpha_mat=return_alpha_mat)
+            return_alpha_mat=return_alpha_mat, band=band, channel=channel)
 
         return ret
 
@@ -1986,7 +1986,8 @@ class SmurfNoiseMixin(SmurfBase):
     def offline_demod(self, dat, lms_freq_hz=None, fs=None, order=3, gain=1./32,
         make_plot=True, show_plot=False, save_plot=True, timestamp=None,
         make_debug_plot=False, single_channel_readout=2, nperseg=2**15,
-        feedback_start_frac=.25, feedback_end_frac=.98, return_alpha_mat=False):
+        feedback_start_frac=.25, feedback_end_frac=.98, return_alpha_mat=False,
+        band=None, channel=None):
         """
         """
         if timestamp is None:
@@ -2045,7 +2046,7 @@ class SmurfNoiseMixin(SmurfBase):
 
         if make_plot:
             cm = plt.get_cmap('viridis')
-            fig = plt.figure(figsize=(7, (order+1)*2))
+            fig = plt.figure(figsize=(10, (order+1)*2))
             gs = fig.add_gridspec(order+1, 2)
             # fig, ax = plt.subplots(order + 1, 2, figsize=(7, (order+1)*2))
             ax = {}
@@ -2057,11 +2058,16 @@ class SmurfNoiseMixin(SmurfBase):
                 ax[i].set_ylabel(f'Order {i+1}')
                 ax[i].legend(loc='upper right')
                 f, pxx = signal.welch(phase[:,i], fs=fs, nperseg=nperseg)
-                ax_psd.loglog(f, pxx, color=color, label=f'Order {i+1}')
-            ax_psd.legend()
+                ax_psd.loglog(f, np.sqrt(pxx), color=color,
+                    label=f'Order {i+1}')
+            ax_psd.legend(loc='lower left')
             ax[order] = fig.add_subplot(gs[order,0])
             ax[order].plot(t, alpha_mat[:,-1])
             ax[order].set_ylabel('DC')
+            ax_psd.set_xlabel('Freq [Hz]')
+            ax_psd.set_ylabel('Amp [rad/rtHz]')
+            ax_psd.text(.98, .98, f'b{band}ch{channel:03}',
+                transform=ax_psd.transAxes, va='top', ha='right')
 
             plt.tight_layout()
 
