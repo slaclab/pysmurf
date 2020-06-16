@@ -258,15 +258,22 @@ class Common(pyrogue.Root):
             print('No default configuration file was specified...')
             return
 
-        # Load defaults catching exceptions, and retying if any.
+        # Load defaults catching exceptions and checking the return value of "LoadConfig"
+        # and retrying if there were errors.
         done = False
         max_retries=10
         for i in range(max_retries):
             print(f'Setting defaults from file {self._config_file}')
             try:
-                self.LoadConfig(self._config_file)
-                done = True
-                break
+                # Try to load the defaults file
+                ret = self.LoadConfig(self._config_file)
+
+                # Check the return value from 'LoadConfig'.
+                if not ret:
+                    print(f'  Setting defaults try number {i} failed. "LoadConfig" returned "False"')
+                else:
+                    done = True
+                    break
             except pyrogue.DeviceError as err:
                 print(f'  Setting defaults try number {i} failed with: {err}')
 
