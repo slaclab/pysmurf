@@ -2045,17 +2045,23 @@ class SmurfNoiseMixin(SmurfBase):
 
         if make_plot:
             cm = plt.get_cmap('viridis')
-            fig, ax = plt.subplots(order + 1, 2, figsize=(7, (order+1)*2))
+            fig = plt.figure(figsize=(7, (order+1)*2))
+            gs = fig.add_gridspec((order+1, 2))
+            # fig, ax = plt.subplots(order + 1, 2, figsize=(7, (order+1)*2))
+            ax = {}
+            ax_psd = fig.add_subplot(gs[:,1])
             for i in np.arange(order):
                 color = cm(i/order)
-                ax[i, 0].plot(t, phase[:,i], color=color)
-                ax[i, 0].set_ylabel(f'Order {i+1}')
-                ax[i, 0].legend(loc='upper right')
+                ax[i] = fig.add_subplot(gs[i,0])
+                ax[i].plot(t, phase[:,i], color=color)
+                ax[i].set_ylabel(f'Order {i+1}')
+                ax[i].legend(loc='upper right')
                 f, pxx = signal.welch(phase, fs=fs, nperseg=nperseg)
-                ax[:,1].loglog(f, pxx, color=color, label=f'Order {i+1}')
-            ax[:,1].legend()
-            ax[-1, 0].plot(t, alpha_mat[:,-1])
-            ax[-1, 0].set_ylabel('DC')
+                ax_psd.loglog(f, pxx, color=color, label=f'Order {i+1}')
+            ax_psd.legend()
+            ax[order] = fig.add_subplot(gs[order,0])
+            ax[order].plot(t, alpha_mat[:,-1])
+            ax[order].set_ylabel('DC')
 
             plt.tight_layout()
 
