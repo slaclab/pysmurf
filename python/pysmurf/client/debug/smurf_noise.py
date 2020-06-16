@@ -1985,7 +1985,7 @@ class SmurfNoiseMixin(SmurfBase):
 
     def offline_demod(self, dat, lms_freq_hz=None, fs=None, order=3, gain=1./32,
         make_plot=True, show_plot=False, save_plot=True, timestamp=None,
-        make_debug_plot=False, single_channel_readout=2,
+        make_debug_plot=False, single_channel_readout=2, nperseg=2**15
         feedback_start_frac=.25, feedback_end_frac=.98, return_alpha_mat=False):
         """
         """
@@ -2016,8 +2016,6 @@ class SmurfNoiseMixin(SmurfBase):
             end = int(sync_flag[i] + feedback_end_frac*n_samp_frac)
             frac_mask[start:end] = True
 
-
-
         H = np.zeros((nsamp, order*2 + 1))
 
         t = np.arange(nsamp) / fs
@@ -2046,13 +2044,18 @@ class SmurfNoiseMixin(SmurfBase):
             phase[:,i] = np.arctan2(alpha_mat[:,2*i+1], alpha_mat[:,2*i])
 
         if make_plot:
-            fig, ax = plt.subplots(2, order + 1, figsize=(5, (order+1)*2))
+            cm = plt.get_cmap('viridis')
+            fig, ax = plt.subplots(order + 1, 2, figsize=(7, (order+1)*2))
             for i in np.arange(order):
-                ax[0, i].plot(t, phase[:,i])
-                ax[0, i].set_ylabel(f'Order {i+1}')
-                ax[0, i].legend(loc='upper right')
-            ax[-1].plot(t, alpha_mat[:,-1])
-            ax[-1].set_ylabel('DC')
+                color = cm(i/order)
+                ax[i, 0].plot(t, phase[:,i], color=color)
+                ax[i, 0].set_ylabel(f'Order {i+1}')
+                ax[i, 0].legend(loc='upper right')
+                f, pxx = signal.welch(phase, fs=fs, nperseg=nperseg)
+                ax[:,1].loglog(f, pxx, color=color, label=f'Order {i+1}')
+            ax[:,1].legend()
+            ax[-1, 0].plot(t, alpha_mat[:,-1])
+            ax[-1, 0].set_ylabel('DC')
 
             plt.tight_layout()
 
