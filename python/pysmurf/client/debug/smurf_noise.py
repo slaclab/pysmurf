@@ -2046,7 +2046,7 @@ class SmurfNoiseMixin(SmurfBase):
         if make_plot:
             cm = plt.get_cmap('viridis')
             fig = plt.figure(figsize=(7, (order+1)*2))
-            gs = fig.add_gridspec((order+1, 2))
+            gs = fig.add_gridspec(order+1, 2)
             # fig, ax = plt.subplots(order + 1, 2, figsize=(7, (order+1)*2))
             ax = {}
             ax_psd = fig.add_subplot(gs[:,1])
