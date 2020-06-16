@@ -1987,7 +1987,7 @@ class SmurfNoiseMixin(SmurfBase):
         make_plot=True, show_plot=False, save_plot=True, timestamp=None,
         make_debug_plot=False, single_channel_readout=2, nperseg=2**15,
         feedback_start_frac=.25, feedback_end_frac=.98, return_alpha_mat=False,
-        band=None, channel=None):
+        band=None, channel=None, mask_samples_psd=1000):
         """
         """
         if timestamp is None:
@@ -2058,8 +2058,10 @@ class SmurfNoiseMixin(SmurfBase):
                 ax[i] = fig.add_subplot(gs[i,0])
                 ax[i].plot(t, phase[:,i], color=color)
                 ax[i].set_ylabel(f'Order {i+1}')
-                ax[i].legend(loc='upper right')
-                f, pxx = signal.welch(phase[:,i], fs=fs, nperseg=nperseg)
+
+                # Calculate PSDs
+                f, pxx = signal.welch(phase[mask_samples_psd:,i], fs=fs,
+                    nperseg=nperseg)
                 ax_psd.loglog(f, np.sqrt(pxx), color=color,
                     label=f'Order {i+1}')
             ax_psd.legend(loc='lower left')
