@@ -2042,7 +2042,7 @@ class SmurfNoiseMixin(SmurfBase):
         # Calculate phase
         phase = np.zeros((nsamp, order))
         for i in np.arange(order):
-            phase[:,i] = np.arctan(alpha_mat[:,2*i+1], alpha_mat[:,2*i])
+            phase[:,i] = np.arctan2(alpha_mat[:,2*i+1], alpha_mat[:,2*i])
 
         if make_plot:
             fig, ax = plt.subplots(order + 1, figsize=(5, (order+1)*2),
@@ -2091,6 +2091,15 @@ class SmurfNoiseMixin(SmurfBase):
 
             plt.tight_layout()
 
+            if save_plot:
+                plt.savefig(os.path.join(self.plot_dir,
+                    f'{timestamp}_offline_demod_debug.png'),
+                    bbox_inches='tight')
+
+            if show_plot:
+                plt.show()
+            else:
+                plt.close()
 
         return alpha_mat
 

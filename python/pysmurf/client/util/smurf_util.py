@@ -126,7 +126,8 @@ class SmurfUtilMixin(SmurfBase):
         self.set_streamdatawriter_open(True)
 
         bay=self.band_to_bay(band)
-        self.set_trigger_daq(bay, 1, write_log=True) # this seems to = TriggerDM
+        # this seems to = TriggerDM
+        self.set_trigger_daq(bay, 1, write_log=write_log)
 
         time.sleep(.1) # maybe unnecessary
 
