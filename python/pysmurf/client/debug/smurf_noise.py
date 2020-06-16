@@ -1943,7 +1943,7 @@ class SmurfNoiseMixin(SmurfBase):
     def take_offline_demod(self, band, channel, order=3, make_plot=True,
         show_plot=False, save_plot=False, make_debug_plot=False,
         single_channel_readout=2, gain=1./32,
-        feedback_start_frac=.25, feedback_end_frac=.98):
+        feedback_start_frac=.25, feedback_end_frac=.98, return_alpha_mat=False):
         """
 
         single_channel_readout=1 - but filtered by a single pole filter. You
@@ -1972,20 +1972,21 @@ class SmurfNoiseMixin(SmurfBase):
         lms_freq_hz = self.get_lms_freq_hz(band)
 
         self.set_feedback_enable(band, feedback_status)
-        alpha_mat = self.offline_demod(dat, lms_freq_hz=lms_freq_hz, fs=fs,
+        ret = self.offline_demod(dat, lms_freq_hz=lms_freq_hz, fs=fs,
             order=order, timestamp=timestamp, make_plot=make_plot,
             show_plot=show_plot, save_plot=save_plot,
             make_debug_plot=make_debug_plot, gain=gain,
             feedback_start_frac=feedback_start_frac,
-            feedback_end_frac=feedback_end_frac)
+            feedback_end_frac=feedback_end_frac,
+            return_alpha_mat=return_alpha_mat)
 
-        return alpha_mat
+        return ret
 
 
     def offline_demod(self, dat, lms_freq_hz=None, fs=None, order=3, gain=1./32,
         make_plot=True, show_plot=False, save_plot=True, timestamp=None,
         make_debug_plot=False, single_channel_readout=2,
-        feedback_start_frac=.25, feedback_end_frac=.98):
+        feedback_start_frac=.25, feedback_end_frac=.98, return_alpha_mat=False):
         """
         """
         if timestamp is None:
@@ -2045,14 +2046,11 @@ class SmurfNoiseMixin(SmurfBase):
             phase[:,i] = np.arctan2(alpha_mat[:,2*i+1], alpha_mat[:,2*i])
 
         if make_plot:
-            fig, ax = plt.subplots(order + 1, figsize=(5, (order+1)*2),
-                sharex=True)
+            fig, ax = plt.subplots(2, order + 1, figsize=(5, (order+1)*2))
             for i in np.arange(order):
-                # ax[i].plot(t, alpha_mat[:,i], label='cos')
-                # ax[i].plot(t, alpha_mat[:,i+1], label='sin')
-                ax[i].plot(t, phase[:,i])
-                ax[i].set_ylabel(f'Order {i+1}')
-                ax[i].legend(loc='upper right')
+                ax[0, i].plot(t, phase[:,i])
+                ax[0, i].set_ylabel(f'Order {i+1}')
+                ax[0, i].legend(loc='upper right')
             ax[-1].plot(t, alpha_mat[:,-1])
             ax[-1].set_ylabel('DC')
 
@@ -2101,7 +2099,10 @@ class SmurfNoiseMixin(SmurfBase):
             else:
                 plt.close()
 
-        return alpha_mat
+        if return_alpha_mat:
+            return alpha_mat
+        else:
+            return phase
 
 
     def noise_svd(self, d, mask, mean_subtract=True):
