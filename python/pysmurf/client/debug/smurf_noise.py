@@ -1941,7 +1941,7 @@ class SmurfNoiseMixin(SmurfBase):
 
 
     def take_offline_demod(self, band, channel, order=3, make_plot=True,
-        show_plot=False, save_plot=False, make_debug_plot=False,
+        show_plot=False, save_plot=False, make_debug_plot=False, nsamp=2**23,
         single_channel_readout=2, gain=1./32, nperseg=2**15,
         feedback_start_frac=.25, feedback_end_frac=.98, return_alpha_mat=False,
         mask_samples_psd=2500):
@@ -1963,7 +1963,7 @@ class SmurfNoiseMixin(SmurfBase):
         # Take the data
         dat = self.take_debug_data(band, channel=channel,
             single_channel_readout=single_channel_readout, IQstream=False,
-            debug=True, write_log=False)
+            debug=True, write_log=False, nsamp=nsamp)
 
         if single_channel_readout == 1:
             fs = self.get_channel_frequency_mhz(band) * 1.0E6 / 4
