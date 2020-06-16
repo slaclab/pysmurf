@@ -2056,7 +2056,7 @@ class SmurfNoiseMixin(SmurfBase):
                 ax[i].plot(t, phase[:,i], color=color)
                 ax[i].set_ylabel(f'Order {i+1}')
                 ax[i].legend(loc='upper right')
-                f, pxx = signal.welch(phase, fs=fs, nperseg=nperseg)
+                f, pxx = signal.welch(phase[:,i], fs=fs, nperseg=nperseg)
                 ax_psd.loglog(f, pxx, color=color, label=f'Order {i+1}')
             ax_psd.legend()
             ax[order] = fig.add_subplot(gs[order,0])
