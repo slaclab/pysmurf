@@ -319,4 +319,3 @@ class Common(pyrogue.Root):
             print('Elastic buffer check passed!')
         else:
             print(f'ERROR: Elastic buffer check failed {max_retries} times')
-
