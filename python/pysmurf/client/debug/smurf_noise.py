@@ -1942,7 +1942,7 @@ class SmurfNoiseMixin(SmurfBase):
 
     def take_offline_demod(self, band, channel, order=3, make_plot=True,
         show_plot=False, save_plot=False, make_debug_plot=False,
-        single_channel_readout=2, gain=1./32,
+        single_channel_readout=2, gain=1./32, nperseg=2**15,
         feedback_start_frac=.25, feedback_end_frac=.98, return_alpha_mat=False,
         mask_samples_psd=2500):
         """
@@ -1975,7 +1975,7 @@ class SmurfNoiseMixin(SmurfBase):
         self.set_feedback_enable(band, feedback_status)
         ret = self.offline_demod(dat, lms_freq_hz=lms_freq_hz, fs=fs,
             order=order, timestamp=timestamp, make_plot=make_plot,
-            show_plot=show_plot, save_plot=save_plot,
+            show_plot=show_plot, save_plot=save_plot, nperseg=nperseg,
             make_debug_plot=make_debug_plot, gain=gain,
             feedback_start_frac=feedback_start_frac,
             feedback_end_frac=feedback_end_frac,
@@ -2069,7 +2069,8 @@ class SmurfNoiseMixin(SmurfBase):
                     label=f'Order {i+1}')
             ax_psd.legend(loc='lower left')
             ax[order] = fig.add_subplot(gs[order,0])
-            ax[order].plot(t, alpha_mat[:,-1])
+            ax[order].plot(t[mask_samples_psd:],
+                alpha_mat[mask_samples_psd:,-1])
             ax[order].set_ylabel('DC')
             ax_psd.set_xlabel('Freq [Hz]')
             ax_psd.set_ylabel('Amp [rad/rtHz]')
