@@ -192,7 +192,7 @@ class SmurfCommandMixin(SmurfBase):
         Args
         ----
         \**kwargs
-            Arbitrary keyword arguments.  Passed to directly to the
+            Arbitrary keyword arguments.  Passed directly to the
             `_caget` call.
 
         Returns
@@ -215,7 +215,7 @@ class SmurfCommandMixin(SmurfBase):
         Args
         ----
         \**kwargs
-            Arbitrary keyword arguments.  Passed to directly to the
+            Arbitrary keyword arguments.  Passed directly to the
             `_caget` call.
 
         Returns
@@ -235,7 +235,7 @@ class SmurfCommandMixin(SmurfBase):
         Args
         ----
         \**kwargs
-            Arbitrary keyword arguments.  Passed to directly to the
+            Arbitrary keyword arguments.  Passed directly to the
             `_caget` call.
 
         Returns
@@ -255,7 +255,7 @@ class SmurfCommandMixin(SmurfBase):
         Args
         ----
         \**kwargs
-            Arbitrary keyword arguments.  Passed to directly to the
+            Arbitrary keyword arguments.  Passed directly to the
             `_caget` call.
 
         Returns
@@ -294,7 +294,7 @@ class SmurfCommandMixin(SmurfBase):
         Args
         ----
         \**kwargs
-            Arbitrary keyword arguments.  Passed to directly to the
+            Arbitrary keyword arguments.  Passed directly to the
             `_caget` call.
 
         Returns
@@ -718,7 +718,7 @@ class SmurfCommandMixin(SmurfBase):
         bay : int
             Which AMC bay (0 or 1).
         \**kwargs
-            Arbitrary keyword arguments.  Passed to directly to the
+            Arbitrary keyword arguments.  Passed directly to the
             `_caget` call.
 
         Returns
@@ -2274,7 +2274,7 @@ class SmurfCommandMixin(SmurfBase):
         Args
         ----
         \**kwargs
-            Arbitrary keyword arguments.  Passed to directly to the
+            Arbitrary keyword arguments.  Passed directly to the
             `_caget` call.
 
         Returns
@@ -2293,7 +2293,7 @@ class SmurfCommandMixin(SmurfBase):
         Args
         ----
         \**kwargs
-            Arbitrary keyword arguments.  Passed to directly to the
+            Arbitrary keyword arguments.  Passed directly to the
             `_caget` call.
 
         Returns
@@ -2314,7 +2314,7 @@ class SmurfCommandMixin(SmurfBase):
         Args
         ----
         \**kwargs
-            Arbitrary keyword arguments.  Passed to directly to the
+            Arbitrary keyword arguments.  Passed directly to the
             `_caget` call.
 
         Returns
@@ -2534,7 +2534,7 @@ class SmurfCommandMixin(SmurfBase):
         Args
         ----
         \**kwargs
-            Arbitrary keyword arguments.  Passed to directly to the
+            Arbitrary keyword arguments.  Passed directly to the
             `_caget` call.
 
         Returns
@@ -3415,7 +3415,7 @@ class SmurfCommandMixin(SmurfBase):
         r"""Sets flux ramp reset rate in kHz.
 
         Sets the flux ramp reset rate.  In units of kHz.  Wrapper
-        function for set_ramp_max_cnt. Takes input in Hz.
+        function for :func:`set_ramp_max_cnt`.
 
         The flux ramp reset rate is specified by setting the trigger
         repetition rate (the `RampMaxCnt` register in
@@ -3427,10 +3427,11 @@ class SmurfCommandMixin(SmurfBase):
         val : float
             The frequency to set the flux ramp reset rate to in kHz.
         \**kwargs
-            Arbitrary keyword arguments.  Passed to directly to the
+            Arbitrary keyword arguments.  Passed directly to the
             `_caput` call.
 
-        .. warning::
+        .. note::
+
            Because `RampMaxCnt` is specified in 307.2 MHz ticks, the
            flux ramp rate must be an integer divisor of 307.2 MHz.
            For example, for this reason it is not possible to set the
@@ -3442,7 +3443,8 @@ class SmurfCommandMixin(SmurfBase):
            reports the flux ramp reset rate that will actually be
            programmed.
 
-        .. warning::
+        .. note::
+
            If `RampMaxCnt` is set too low, then it will invert and
            produce a train of pulses 1x or 2x 307.2 MHz ticks wide,
            but it will be mostly high.
@@ -3481,7 +3483,7 @@ class SmurfCommandMixin(SmurfBase):
         Args
         ----
         \**kwargs
-            Arbitrary keyword arguments.  Passed to directly to the
+            Arbitrary keyword arguments.  Passed directly to the
             `_caget` call.
 
         Returns
