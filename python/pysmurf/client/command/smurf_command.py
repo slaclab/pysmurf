@@ -3410,7 +3410,7 @@ class SmurfCommandMixin(SmurfBase):
         """
         return self._caget(self.rtm_cryo_det_root + self._ramp_max_cnt,
             **kwargs)
-    
+
     def set_flux_ramp_freq(self, val, **kwargs):
         r"""Sets flux ramp reset rate in kHz.
 
@@ -3497,7 +3497,7 @@ class SmurfCommandMixin(SmurfBase):
         if self.offline: # FIX ME - this is a stupid hard code
             return 4.0
         else:
-            ramp_max_cnt_rate_khz = self._ramp_max_cnt_clock_hz/1.e3            
+            ramp_max_cnt_rate_khz = self._ramp_max_cnt_clock_hz/1.e3
             return ramp_max_cnt_rate_khz/(
                 self.get_ramp_max_cnt(**kwargs)+1)
 
