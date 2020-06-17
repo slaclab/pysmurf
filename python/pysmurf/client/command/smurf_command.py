@@ -3411,21 +3411,75 @@ class SmurfCommandMixin(SmurfBase):
             **kwargs)
 
     def set_flux_ramp_freq(self, val, **kwargs):
+        r"""Sets flux ramp reset rate in kHz.
+
+        Sets the flux ramp reset rate.  In units of kHz.  Wrapper
+        function for set_ramp_max_cnt. Takes input in Hz.
+
+        The flux ramp reset rate is specified by setting the trigger
+        repetition rate (the `RampMaxCnt` register in
+        `RtmCryoDet`).  `RampMaxCnt` is a 32-bit counter where each
+        count represents a 307.2 MHz tick.
+
+        Args
+        ----
+        val : float
+            The frequency to set the flux ramp reset rate to in kHz.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed to directly to the
+            `_caput` call.
+
+        .. warning::
+           If `RampMaxCnt` is set too low, then it will invert and
+           produce a train of pulses 1x or 2x 307.2 MHz ticks wide,
+           but it will be mostly high.
+
+        See Also
+        --------
+        get_flux_ramp_freq : Gets the flux ramp reset rate.
+        set_ramp_max_cnt : Sets the flux ramp trigger repetition rate.
         """
-        Wrapper function for set_ramp_max_cnt. Takes input in Hz.
-        """
-        cnt = 3.072E5/float(val)-1
+        # the digitizer frequency is 2x the default fw rate because
+        # the digitizer clocks an I and a Q sample both at 307.2MHz,
+        # or data at 614.4MHz.
+        ramp_max_cnt_rate_khz = (
+            1.e3*self.get_digitizer_frequency_mhz()/2.)
+        cnt = ramp_max_cnt_rate_khz/float(val)-1
         self.set_ramp_max_cnt(cnt, **kwargs)
 
     def get_flux_ramp_freq(self, **kwargs):
-        """
-        Returns flux ramp freq in units of Hz
+        r"""Returns flux ramp reset rate in kHz.
+
+        Returns the current flux ramp reset rate.  In units of kHz.
+
+        The flux ramp reset rate is determined by polling the trigger
+        repetition rate (the `RampMaxCnt` register in `RtmCryoDet`).
+        `RampMaxCnt` is a 32-bit counter where each count represents a
+        307.2 MHz tick.
+
+        Args
+        ----
+        \**kwargs
+            Arbitrary keyword arguments.  Passed to directly to the
+            `_caget` call.
+
+        Returns
+        -------
+        float
+            Currently programmed flux ramp reset rate, in kHz.
+
+        See Also
+        --------
+        set_flux_ramp_freq : Sets the flux ramp reset rate.
+        get_ramp_max_cnt : Gets the flux ramp trigger repetition rate.
         """
         if self.offline: # FIX ME - this is a stupid hard code
             return 4.0
         else:
-            return 3.0725E5/(self.get_ramp_max_cnt(**kwargs)+1)
-
+            ramp_max_cnt_rate_khz = (
+                1.e3*self.get_digitizer_frequency_mhz()/2.)
+            return ramp_max_cnt_rate_khz/(
+                self.get_ramp_max_cnt(**kwargs)+1)
 
     _low_cycle = 'LowCycle'
 
