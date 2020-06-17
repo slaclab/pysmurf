@@ -3390,6 +3390,7 @@ class SmurfCommandMixin(SmurfBase):
         self.set_cfg_reg_ena_bit(0, **kwargs)
 
     _ramp_max_cnt = 'RampMaxCnt'
+    _ramp_max_cnt_clock_hz = 307.2e6
 
     def set_ramp_max_cnt(self, val, **kwargs):
         """
@@ -3409,7 +3410,7 @@ class SmurfCommandMixin(SmurfBase):
         """
         return self._caget(self.rtm_cryo_det_root + self._ramp_max_cnt,
             **kwargs)
-
+    
     def set_flux_ramp_freq(self, val, **kwargs):
         r"""Sets flux ramp reset rate in kHz.
 
@@ -3430,6 +3431,18 @@ class SmurfCommandMixin(SmurfBase):
             `_caput` call.
 
         .. warning::
+           Because `RampMaxCnt` is specified in 307.2 MHz ticks, the
+           flux ramp rate must be an integer divisor of 307.2 MHz.
+           For example, for this reason it is not possible to set the
+           flux ramp rate to exactly 7 kHz.
+           :func:`set_flux_ramp_freq` rounds the `RampMaxCnt` computed
+           for the desired flux ramp reset rate to the nearest integer
+           using the built-in :py:func:`round` routine, and if the
+           computed `RampMaxCnt` differs from the rounded value,
+           reports the flux ramp reset rate that will actually be
+           programmed.
+
+        .. warning::
            If `RampMaxCnt` is set too low, then it will invert and
            produce a train of pulses 1x or 2x 307.2 MHz ticks wide,
            but it will be mostly high.
@@ -3442,10 +3455,18 @@ class SmurfCommandMixin(SmurfBase):
         # the digitizer frequency is 2x the default fw rate because
         # the digitizer clocks an I and a Q sample both at 307.2MHz,
         # or data at 614.4MHz.
-        ramp_max_cnt_rate_khz = (
-            1.e3*self.get_digitizer_frequency_mhz()/2.)
-        cnt = ramp_max_cnt_rate_khz/float(val)-1
-        self.set_ramp_max_cnt(cnt, **kwargs)
+        ramp_max_cnt_rate_khz = self._ramp_max_cnt_clock_hz/1.e3
+        cnt_estimate = ramp_max_cnt_rate_khz/float(val)-1.
+        cnt_rounded  = round(cnt_estimate)
+        if cnt_estimate != cnt_rounded:
+            val_rounded = ramp_max_cnt_rate_khz/(cnt_rounded+1.)
+            self.log(
+                f'WARNING : Requested flux ramp reset rate of {val} '
+                'kHz does not integer divide '
+                f'{ramp_max_cnt_rate_khz/1e3} MHz.  Setting flux ramp'
+                f' reset rate to {val_rounded} kHz instead.',
+                self.LOG_ERROR)
+        self.set_ramp_max_cnt(cnt_rounded, **kwargs)
 
     def get_flux_ramp_freq(self, **kwargs):
         r"""Returns flux ramp reset rate in kHz.
@@ -3476,8 +3497,7 @@ class SmurfCommandMixin(SmurfBase):
         if self.offline: # FIX ME - this is a stupid hard code
             return 4.0
         else:
-            ramp_max_cnt_rate_khz = (
-                1.e3*self.get_digitizer_frequency_mhz()/2.)
+            ramp_max_cnt_rate_khz = self._ramp_max_cnt_clock_hz/1.e3            
             return ramp_max_cnt_rate_khz/(
                 self.get_ramp_max_cnt(**kwargs)+1)
 
