@@ -3430,8 +3430,8 @@ class SmurfCommandMixin(SmurfBase):
             Arbitrary keyword arguments.  Passed directly to the
             `_caput` call.
 
-        .. note::
-
+        Note
+        ----
            Because `RampMaxCnt` is specified in 307.2 MHz ticks, the
            flux ramp rate must be an integer divisor of 307.2 MHz.
            For example, for this reason it is not possible to set the
@@ -3443,8 +3443,8 @@ class SmurfCommandMixin(SmurfBase):
            reports the flux ramp reset rate that will actually be
            programmed.
 
-        .. note::
-
+        Warning
+        -------
            If `RampMaxCnt` is set too low, then it will invert and
            produce a train of pulses 1x or 2x 307.2 MHz ticks wide,
            but it will be mostly high.
