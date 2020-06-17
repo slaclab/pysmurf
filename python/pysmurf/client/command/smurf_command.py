@@ -3438,7 +3438,7 @@ class SmurfCommandMixin(SmurfBase):
            flux ramp rate to exactly 7 kHz.
            :func:`set_flux_ramp_freq` rounds the `RampMaxCnt` computed
            for the desired flux ramp reset rate to the nearest integer
-           using the built-in :py:func:`round` routine, and if the
+           using the built-in `round` routine, and if the
            computed `RampMaxCnt` differs from the rounded value,
            reports the flux ramp reset rate that will actually be
            programmed.
