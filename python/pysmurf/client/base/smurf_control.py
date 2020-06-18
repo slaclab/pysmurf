@@ -116,25 +116,27 @@ class SmurfControl(SmurfCommandMixin,
         # Require specification of configuration file if not in
         # offline mode.  If configuration file is specified, load into
         # config attribute.
+        SmurfConfigPropertiesMixin.__init__(self)        
         if not offline and cfg_file is None:
             raise ValueError('Must provide config file.')
         elif cfg_file is not None:
             self.config = SmurfConfig(cfg_file)
+            # Populate SmurfConfigPropertiesMixin properties with
+            # values from loaded pysmurf configuration file.
+            self.copy_config_to_properties(self.config)                        
 
         # Save shelf manager - Should this be in the config?
         self.shelf_manager = shelf_manager
 
         # In offline mode, epics root is not needed.
         if offline and epics_root is None:
-            epics_root = ''
-        elif epics_root is None:
-            epics_root = self.config.get('epics_root')
+            self.epics_root = ''
+        else:
+            # If user provides an epics root, override whatever's in
+            # the pysmurf cfg file with it.
+            self.epics_root = epics_root
 
-        super().__init__(epics_root=epics_root, offline=offline,
-                         **kwargs)
-        # Shouldn't have to explicitly call this ; why isn't it being
-        # run automatically in the super call?
-        SmurfConfigPropertiesMixin.__init__(self)
+        super().__init__(offline=offline, **kwargs)
 
         if cfg_file is not None or data_dir is not None:
             self.initialize(data_dir=data_dir,
@@ -178,11 +180,6 @@ class SmurfControl(SmurfCommandMixin,
         setup
 
         """
-
-        # Populate SmurfConfigPropertiesMixin properties with values
-        # from loaded pysmurf configuration file.
-        self.copy_config_to_properties(self.config)
-
         if no_dir:
             print('Warning! Not making output directories!' +
                   'This will break may things!')
