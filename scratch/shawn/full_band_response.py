@@ -64,7 +64,7 @@ plt.savefig(os.path.join(S.plot_dir, save_name),
 plt.show()
 
 # log plot file
-logf=open('/data/smurf_data/loop_full_band_resps.txt','a+')
+logf=open('/data/smurf_data/smurf_loop.log','a+')
 logf.write(f'{os.path.join(S.plot_dir, save_name)}'+'\n')
 logf.close()
 
