@@ -116,14 +116,14 @@ class SmurfControl(SmurfCommandMixin,
         # Require specification of configuration file if not in
         # offline mode.  If configuration file is specified, load into
         # config attribute.
-        SmurfConfigPropertiesMixin.__init__(self)        
+        SmurfConfigPropertiesMixin.__init__(self)
         if not offline and cfg_file is None:
             raise ValueError('Must provide config file.')
         elif cfg_file is not None:
             self.config = SmurfConfig(cfg_file)
             # Populate SmurfConfigPropertiesMixin properties with
             # values from loaded pysmurf configuration file.
-            self.copy_config_to_properties(self.config)                        
+            self.copy_config_to_properties(self.config)
 
         # Save shelf manager - Should this be in the config?
         self.shelf_manager = shelf_manager
