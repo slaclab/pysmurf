@@ -119,7 +119,7 @@ class SmurfCommandMixin(SmurfBase):
         Args
         ----
         cmd : str
-            The pyrogue command to be exectued.
+            The pyrogue command to be executed.
         write_log : bool, optional, default False
             Whether to log the data or not.
         execute : bool, optional, default True
@@ -3390,7 +3390,6 @@ class SmurfCommandMixin(SmurfBase):
         self.set_cfg_reg_ena_bit(0, **kwargs)
 
     _ramp_max_cnt = 'RampMaxCnt'
-    _ramp_max_cnt_clock_hz = 307.2e6
 
     def set_ramp_max_cnt(self, val, **kwargs):
         """
@@ -3456,8 +3455,16 @@ class SmurfCommandMixin(SmurfBase):
         """
         # the digitizer frequency is 2x the default fw rate because
         # the digitizer clocks an I and a Q sample both at 307.2MHz,
-        # or data at 614.4MHz.
-        ramp_max_cnt_rate_khz = self._ramp_max_cnt_clock_hz/1.e3
+        # or data at 614.4MHz.  For some reason I don't understand,
+        # there's too much precision error to get the right value out
+        # of rogue, unless I poll the digitizer frequency as a string
+        # and then cast to float in python.
+        ramp_max_cnt_clock_hz = 1.e6*(
+            float(
+                self.get_digitizer_frequency_mhz(as_string=True)
+            ) / 2.
+        )
+        ramp_max_cnt_rate_khz = ramp_max_cnt_clock_hz/1.e3
         cnt_estimate = ramp_max_cnt_rate_khz/float(val)-1.
         cnt_rounded  = round(cnt_estimate)
         if cnt_estimate != cnt_rounded:
@@ -3499,7 +3506,18 @@ class SmurfCommandMixin(SmurfBase):
         if self.offline: # FIX ME - this is a stupid hard code
             return 4.0
         else:
-            ramp_max_cnt_rate_khz = self._ramp_max_cnt_clock_hz/1.e3
+            # the digitizer frequency is 2x the default fw rate
+            # because the digitizer clocks an I and a Q sample both at
+            # 307.2MHz, or data at 614.4MHz.  For some reason I don't
+            # understand, there's too much precision error to get the
+            # right value out of rogue, unless I poll the digitizer
+            # frequency as a string and then cast to float in python.
+            ramp_max_cnt_clock_hz = 1.e6*(
+                float(
+                    self.get_digitizer_frequency_mhz(as_string=True)
+                ) / 2.
+            )
+            ramp_max_cnt_rate_khz = ramp_max_cnt_clock_hz/1.e3
             return ramp_max_cnt_rate_khz/(
                 self.get_ramp_max_cnt(**kwargs)+1)
 
