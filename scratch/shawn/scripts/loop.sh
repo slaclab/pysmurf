@@ -1,7 +1,7 @@
-rm -v /data/smurf_data/loop_full_band_resps.txt
+#rm -v /data/smurf_data/smurf_loop.log
 
-for i in `seq 1 50`; do
+for i in `seq 1 5`; do
     shawnhammer
-    echo "Waiting 15 seconds before next reboot."
-    sleep 15
+    echo "Waiting 60 seconds before next reboot."
+    sleep 60
 done
