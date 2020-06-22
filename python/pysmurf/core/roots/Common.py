@@ -290,7 +290,7 @@ class Common(pyrogue.Root):
         for k in range(max_retries):
             print(f'Check elastic buffers ({k})...')
             retryAppTopInit = False
-            for i in range(2):
+            for i in self._enabled_bays:
                 # Workaround: Reading the individual registers does not work. So, we need to read
                 # the whole device, and then use the 'value()' method to get the register values.
                 self.FpgaTopLevel.AppTop.AppTopJesd[i].JesdRx.ReadDevice()
