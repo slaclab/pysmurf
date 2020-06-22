@@ -352,7 +352,7 @@ fi
 if [ ! -z "$script_to_run" ]; then
     echo "-> Done hammering, running script_to_run=${script_to_run} on all slots ..."    
     for slot in ${slots[@]}; do    
-	tmux send-keys -t ${tmux_session_name}:${slot} 'exec(open("scratch/shawn/test_new_carrier.py").read())' C-m
+	tmux send-keys -t ${tmux_session_name}:${slot} 'exec(open("'$script_to_run'").read())' C-m
     done
 fi
 
