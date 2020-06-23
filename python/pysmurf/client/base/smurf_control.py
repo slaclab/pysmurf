@@ -128,13 +128,22 @@ class SmurfControl(SmurfCommandMixin,
         # Save shelf manager - Should this be in the config?
         self.shelf_manager = shelf_manager
 
-        # In offline mode, epics root is not needed.
-        if offline and epics_root is None:
-            self.epics_root = ''
-        else:
+        # Setting epics_root
+        #
+        # self.epics_root is already populated by the above call to
+        # copy_config_to_properties() from the pysmurf configuration
+        # file (if a configuration file is provided).
+        #
+        # Override epics_root from pysmurf configuration file if user
+        # provides a different one.
+        if epics_root is not None:
             # If user provides an epics root, override whatever's in
             # the pysmurf cfg file with it.
             self.epics_root = epics_root
+        # In offline mode, epics root is not needed.
+        if offline:
+            self.epics_root = ''
+        # Done setting epics_root
 
         super().__init__(offline=offline, **kwargs)
 
