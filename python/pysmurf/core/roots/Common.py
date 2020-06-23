@@ -43,7 +43,7 @@ class Common(pyrogue.Root):
                  **kwargs):
 
         pyrogue.Root.__init__(self, name="AMCc", initRead=True, pollEn=polling_en,
-            streamIncGroups='stream', serverPort=server_port, **kwargs)
+            timeout=5.0, streamIncGroups='stream', serverPort=server_port, **kwargs)
 
         #########################################################################################
         # The following interfaces are expected to be defined at this point by a sub-class
@@ -258,5 +258,64 @@ class Common(pyrogue.Root):
             print('No default configuration file was specified...')
             return
 
-        print(f'Setting defaults from file {self._config_file}')
-        self.LoadConfig(self._config_file)
+        # Load defaults catching exceptions and checking the return value of "LoadConfig"
+        # and retrying if there were errors.
+        done = False
+        max_retries=10
+        for i in range(max_retries):
+            print(f'Setting defaults from file {self._config_file}')
+            try:
+                # Try to load the defaults file
+                ret = self.LoadConfig(self._config_file)
+
+                # Check the return value from 'LoadConfig'.
+                if not ret:
+                    print(f'  Setting defaults try number {i} failed. "LoadConfig" returned "False"')
+                else:
+                    done = True
+                    break
+            except pyrogue.DeviceError as err:
+                print(f'  Setting defaults try number {i} failed with: {err}')
+
+        # Check if we could load the defaults before 'max_retries' retires.
+        if done:
+            print('Defaults were set correctly!')
+        else:
+            print(f'ERROR: Failed to set defaults after {max_retries} retries!')
+            return
+
+        # After loading defaults successfully, check the status of the elastic buffers
+        done = True
+        max_retries=10
+        for k in range(max_retries):
+            print(f'Check elastic buffers ({k})...')
+            retryAppTopInit = False
+            for i in self._enabled_bays:
+                # Workaround: Reading the individual registers does not work. So, we need to read
+                # the whole device, and then use the 'value()' method to get the register values.
+                self.FpgaTopLevel.AppTop.AppTopJesd[i].JesdRx.ReadDevice()
+                for j in range(5):
+                    el_buff_latency_1 = self.FpgaTopLevel.AppTop.AppTopJesd[i].JesdRx.ElBuffLatency[2*j].value()
+                    el_buff_latency_2 = self.FpgaTopLevel.AppTop.AppTopJesd[i].JesdRx.ElBuffLatency[2*j+1].value()
+
+                    # Check that the difference in latency between two adjacent buffers
+                    # is not greater than 2.
+                    if abs( el_buff_latency_1 - el_buff_latency_2 ) > 2:
+                        print(f'  Test failed. JesdRx[{i}].ElBuffLatency[{2*j}] = {el_buff_latency_1}, JesdRx[{i}].ElBuffLatency[{2*j+1}] = {el_buff_latency_2}')
+                        retryAppTopInit = True
+                        done = False
+                    else:
+                        print(f'  OK - JesdRx[{i}].ElBuffLatency[{2*j}] = {el_buff_latency_1}, JesdRx[{i}].ElBuffLatency[{2*j+1}] = {el_buff_latency_2}')
+
+            # If the check failed, call 'AppTop.Init()' command again
+            if retryAppTopInit:
+                print('  Executing AppTop.Init()...')
+                self.FpgaTopLevel.AppTop.Init()
+            else:
+                break
+
+        # Check if the test passed before 'max_retries' retries
+        if done:
+            print('Elastic buffer check passed!')
+        else:
+            print(f'ERROR: Elastic buffer check failed {max_retries} times')

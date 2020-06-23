@@ -83,7 +83,7 @@ rebootFPGA()
         exit
     fi
 
-    sleep 1
+    sleep 5
 
     ipmitool -I lan -H ${shelfmanager} -t ${ipmb} -b 0 -A NONE raw 0x2C 0x0A 0 0 1 0 &> /dev/null
 
