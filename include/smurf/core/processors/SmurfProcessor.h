@@ -28,6 +28,7 @@
 #include <rogue/interfaces/stream/Frame.h>
 #include <rogue/interfaces/stream/FrameLock.h>
 #include <rogue/interfaces/stream/FrameIterator.h>
+#include <rogue/interfaces/stream/FrameAccessor.h>
 #include <rogue/interfaces/stream/Buffer.h>
 #include <rogue/interfaces/stream/Slave.h>
 #include <rogue/interfaces/stream/Master.h>
@@ -112,7 +113,6 @@ namespace smurf
                 const unwrap_t   stepUnwrap = 0x10000;          // Wrap counter steps
 
                 //** VARIABLES **//
-                std::vector<uint8_t>     frameBuffer;           // Buffer to copy the input frame into a STL container
                 // Channel mapping variables
                 std::size_t              numCh;                 // Number of channels being processed
                 std::size_t              payloadSize;           // Size of the payload (if 0, payload = numCh)
@@ -131,7 +131,7 @@ namespace smurf
                 double                   gain;                  // Filter gain
                 std::vector<double>      a;                     // Filter's a coefficients
                 std::vector<double>      b;                     // Filter's b coefficients
-                std::size_t              currentBlockIndex;     // Index of current data point in the buffer
+                std::size_t              currentIndex;          // Index of current data point in the pass sample buffer
                 std::vector<double>      x;                     // pass inputs
                 std::vector<double>      y;                     // pass output
                 std::vector<filter_t>    outData;               // Result
