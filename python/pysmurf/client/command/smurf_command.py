@@ -412,20 +412,17 @@ class SmurfCommandMixin(SmurfBase):
         """
         Sets the default epics variables
         """
-        self._caput(
-            self.epics_root + ':AMCc:setDefaults',
-            1, wait_after=20, **kwargs)
-        self.log('Defaults are set.', self.LOG_INFO)
+        self._caput(self.epics_root + ':AMCc:setDefaults', 1, wait_after=30,
+            **kwargs)
 
     def set_read_all(self, **kwargs):
         """
         ReadAll sends a command to read all register to the pyrogue server
-        Registers must upated in order to PVs to update.
-        This call is necesary to read register with pollIntervale=0.
+        Registers must updated in order to PVs to update.
+        This call is necessary to read register with pollIntervale=0.
         """
-        self._caput(
-            self.epics_root + ':AMCc:ReadAll',
-            1, wait_after=5, **kwargs)
+        self._caput(self.epics_root + ':AMCc:ReadAll', 1, wait_after=20,
+            **kwargs)
         self.log('ReadAll sent', self.LOG_INFO)
 
     def run_pwr_up_sys_ref(self,bay, **kwargs):
