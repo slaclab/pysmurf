@@ -112,7 +112,7 @@ if __name__ == "__main__":
     # Filter the data
     print('Filtering data...', end='')
     y1, _ = signal.lfilter(b, a, x, zi=signal.lfilter_zi(b, a)*[0])
-    y = y1.astype('int16')
+    y = y1.astype('int32')
     print('Done')
 
     # Save the input data to disk
@@ -177,7 +177,7 @@ if __name__ == "__main__":
 
     # Load the results obtained using the smurf processor
     print('Reading results... ', end='')
-    y_smurf = np.loadtxt(smurf_filtered_file, dtype='int16')
+    y_smurf = np.loadtxt(smurf_filtered_file, dtype='int32')
     print('Done.')
 
     # Calculate the RMSE between the 2 filter's output
