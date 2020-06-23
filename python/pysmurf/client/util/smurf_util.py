@@ -1215,7 +1215,8 @@ class SmurfUtilMixin(SmurfBase):
 
         # Read in all channels by default
         if channel is None:
-            channel = np.arange(512)
+            n_channels = self.get_number_channels()
+            channel = np.arange(n_channels)
 
         channel = np.ravel(np.asarray(channel))
         n_chan = len(channel)
@@ -1371,9 +1372,10 @@ class SmurfUtilMixin(SmurfBase):
             else:
                 mask_file = mask_file.replace(".dat", "_mask.txt")
 
+        n_channels = self.get_number_channels()
         mask = np.atleast_1d(np.loadtxt(mask_file))
-        bands = np.unique(mask // 512).astype(int)
-        ret = np.ones((np.max(bands)+1, 512), dtype=int) * -1
+        bands = np.unique(mask // n_channels).astype(int)
+        ret = np.ones((np.max(bands)+1, n_channels), dtype=int) * -1
         if make_freq_mask:
             freq_mask_file = mask_file.replace("_mask.txt", "_freq.txt")
             freq_mask_ret = np.zeros_like(ret).astype(float)
@@ -1384,8 +1386,8 @@ class SmurfUtilMixin(SmurfBase):
                 make_freq_mask = False
 
         for gcp_chan, smurf_chan in enumerate(mask):
-            b = int(smurf_chan//512)
-            ch = int((smurf_chan)%512)
+            b = int(smurf_chan//n_channels)
+            ch = int((smurf_chan)%n_channels)
             ret[b,ch] = gcp_chan
 
             # fill corresponding elements with frequency
@@ -1915,9 +1917,10 @@ class SmurfUtilMixin(SmurfBase):
             The band that is to be turned off.
         """
         self.set_amplitude_scales(band, 0, **kwargs)
-        self.set_feedback_enable_array(band, np.zeros(512, dtype=int), **kwargs)
-        self.set_cfg_reg_ena_bit(0, wait_after=.11, **kwargs)
-
+        n_channels = self.get_number_channels(band)
+        self.set_feedback_enable_array(
+            band, np.zeros(n_channels, dtype=int), **kwargs)
+        self.set_cfg_reg_ena_bit(0, wait_after=.2, **kwargs)
 
     def channel_off(self, band, channel, **kwargs):
         """
@@ -3257,7 +3260,7 @@ class SmurfUtilMixin(SmurfBase):
             An array with frequencies associated with the mask file.
         """
         freqs = np.zeros(len(mask), dtype=float)
-        channels_per_band = 512  # avoid hardcoding this
+        channels_per_band = self.get_number_channels()
 
         # iterate over mask channels and find their freq
         for i, mask_ch in enumerate(mask):
@@ -3381,7 +3384,8 @@ class SmurfUtilMixin(SmurfBase):
                 for ch in smurf_chans[k]:
                     gcp_chans = np.append(gcp_chans, ch + n_chan*k)
 
-        if len(gcp_chans) > 512:
+        n_channels = self.get_number_channels(band)
+        if len(gcp_chans) > n_channels:
             self.log('WARNING: too many gcp channels!')
             return
 
@@ -3721,9 +3725,10 @@ class SmurfUtilMixin(SmurfBase):
             The smurf channel number.
         """
         mask = self.get_channel_mask()
+        n_channels = self.get_number_channels()
 
         mask_num = self.gcp_num_to_mask_num(gcp_num)
-        return int(mask[mask_num]//512), int(mask[mask_num]%512)
+        return int(mask[mask_num]//n_channels), int(mask[mask_num]%n_channels)
 
 
     def play_sine_tes(self, bias_group, tone_amp, tone_freq, dc_amp=None):
