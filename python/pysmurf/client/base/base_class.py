@@ -85,7 +85,8 @@ class SmurfBase:
         # do this than just hardcoding paths? This needs to be cleaned
         # up somehow
 
-        self.epics_root = epics_root
+        if epics_root is not None:
+            self.epics_root = epics_root
 
         self.amcc = self.epics_root + ':AMCc:'
 

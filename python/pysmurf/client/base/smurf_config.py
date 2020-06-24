@@ -94,8 +94,8 @@ class SmurfConfig:
         `filename` argument, strips off all lines that start with the
         character provided by the `comment_char` argument, and then
         parses the remaining lines in the pysmurf configuration file
-        into a dictionary using the `json.loads` routine.  Any text
-        after the `comment_char` on a line is also ignored.
+        into a dictionary using the :py:func:`json.loads` routine.
+        Any text after the `comment_char` on a line is also ignored.
 
         Args
         ----
@@ -113,7 +113,7 @@ class SmurfConfig:
         ------
         FileNotFoundError
             Raised if the configuration file does not exist.
-        JSONDecodeError
+        :py:exc:`~json.JSONDecodeError`
             Raised if the loaded configuration file data is not in JSON
             format.
         """
@@ -209,8 +209,8 @@ class SmurfConfig:
         """Dump the current config to a file.
 
         Writes the :attr:`config` dictionary to file at the path
-        provided by the `outputfile` argument using the `json.dumps`
-        routine.
+        provided by the `outputfile` argument using the
+        :py:func:`json.dumps` routine.
 
         Args
         ----
@@ -219,7 +219,10 @@ class SmurfConfig:
         """
         ## dump current config to outputfile ##
         with io.open(outputfile, 'w', encoding='utf8') as out_file:
-            str_ = json.dumps(self.config, indent=4, separators=(',', ': '))
+            str_ = json.dumps(
+                self.config,
+                indent=4,
+                separators=(',', ': '))
             out_file.write(str_)
 
     def has(self, key):
@@ -508,14 +511,14 @@ class SmurfConfig:
             # BOM for cryostat card revision C02 (PC-248-103-02-C02).
             # The resistor on that revision of the cryostat card is
             # R44.
-            Optional('hemt_Vd_series_resistor', default=200): And(float, lambda f: f > 0),
+            Optional('hemt_Vd_series_resistor', default=200.0): And(float, lambda f: f > 0),
             # The resistance, in Ohm, of the resistor that is inline
             # with the 50K amplifier drain voltage source which is
             # used to infer the 50K amplifier drain current.  The
             # default value of 10 Ohm is the standard value in the BOM
             # for cryostat card revision C02 (PC-248-103-02-C02).  The
             # resistor on that revision of the cryostat card is R54.
-            Optional('50K_amp_Vd_series_resistor', default=10): And(float, lambda f: f > 0),
+            Optional('50K_amp_Vd_series_resistor', default=10.0): And(float, lambda f: f > 0),
             # 50K amplifier gate voltage, in volts.
             "LNA_Vg" : Use(float),
             # Which RTM DAC is wired to the gate of the 50K amplifier.
@@ -532,28 +535,8 @@ class SmurfConfig:
         }
         #### Done specifiying amplifier
 
-        #### Start specifying chip-to-frequency schema
-        schema_dict[Optional('chip_to_freq', default={})] = {
-            # [chip lower frequency, chip upper frequency] in GHz
-            Optional(str) : And([Use(float)], list, lambda l: len(l) == 2 and
-                                l[0] < l[1] and all(4 <= ll <= 8 for ll in l))
-        }
-        #### Done specifying chip-to-frequency schema
-
         #### Start specifying tune parameter schema
         schema_dict['tune_band'] = {
-            "grad_cut" : And(Use(float), lambda f: f > 0),
-            "amp_cut" : And(Use(float), lambda f: f > 0),
-
-            Optional('n_samples', default=2**18) : And(int, lambda n: n > 0),
-            # Digitizer sampling rate is 614.4 MHz, so biggest range of
-            # frequencies user could possibly be interested in is between
-            # -614.4MHz/2 and 614.4MHz/2, or -307.2MHz to +307.2MHz.
-            Optional('freq_max', default=250.e6) : And(
-                Use(float), lambda f: -307.2e6 <= f <= 307.2e6),
-            Optional('freq_min', default=-250.e6) : And(
-                Use(float), lambda f: -307.2e6 <= f <= 307.2e6),
-
             'fraction_full_scale' : And(Use(float), lambda f: 0 < f <= 1.),
             'reset_rate_khz' : And(Use(float), lambda f: 0 <= f <= 100),
             Optional('default_tune', default=None) : And(str, os.path.isfile)
@@ -573,7 +556,6 @@ class SmurfConfig:
             ('gradient_descent_beta', And(Use(float), lambda f: 0 <= f <= 1)),
             ('eta_scan_averages', And(Use(int), lambda n: n > 0)),
             ('eta_scan_del_f', And(Use(int), lambda n: n > 0)),
-            ('eta_scan_amplitude', And(Use(int), lambda n: n > 0)),
         ]
 
         for band in bands:
@@ -617,10 +599,6 @@ class SmurfConfig:
 
         #### Start specifying flux ramp-related
         schema_dict["flux_ramp"] = {
-            # 0x1 selects fast flux ramp, 0x0 selects slow flux ramp.  The
-            # slow flux ramp only existed on the first rev of RTM boards,
-            # C0, and wasn't ever really used.
-            Optional("select_ramp", default=1) : And(int, lambda n: n in (0, 1)),
             # 20 bits for the C0 RTMs, 32 bits for the C1 RTMs.
             "num_flux_ramp_counter_bits" : And(int, lambda n: n in (20, 32))
         }
@@ -630,7 +608,7 @@ class SmurfConfig:
         # If all of a schema dictionary's keys are optional, must specify
         # them both in the schema key for that dictionary, and in the
         # schema for that dictionary.
-        constants_default_dict = {'pA_per_phi0' : 9e6}
+        constants_default_dict = {'pA_per_phi0' : 9.e6}
         cdd_key = Optional("constant", default=constants_default_dict)
         schema_dict[cdd_key] = {}
         # Assumes all constants default values are floats
@@ -680,70 +658,6 @@ class SmurfConfig:
                 return False
             return True
 
-        def is_valid_port(port_number):
-            return 1 <= int(port_number) <= 65535
-
-        # Some documentation on some of these parameters is here -
-        # https://confluence.slac.stanford.edu/display/SMuRF/SMURF2MCE
-        schema_dict["smurf_to_mce"] = {
-            # smurf2mce configuration files.  pysmurf generates these
-            # files on the fly, so just need to make sure the directory #
-            # exists and is writeable
-            Optional("smurf_to_mce_file", default="/data/smurf2mce_config/smurf2mce.cfg") \
-               : And(str, dir_exists_with_write_access),
-            Optional("mask_file", default="/data/smurf2mce_config/mask.txt") \
-               : And(str, dir_exists_with_write_access),
-
-            # Whether or not to dynamically generate the gcp mask
-            # everytime you stream data based on which channels have tones
-            # assigned and on.
-            Optional('static_mask', default=0) : And(int, lambda n: n in (0, 1)),
-
-            # 0 means use MCE sync word to determine when data is sent
-            # Any positive number means average that many SMuRF frames
-            #    before sending out the averaged frame
-            # Any negative number means "please crash horribly". Same for
-            #    anything that isn't a number
-            'num_averages' : And(int, lambda n: n >= 0),
-
-            # The “file_name_extend” parameter now makes a new file every
-            # “data_frames” frames.  Then files are written as long as the
-            # writer is enabled.  E.g.
-            #  <file_name>.part_00000
-            #  <file_name>.part_00001
-            #  ...
-            'file_name_extend' : And(int, lambda n: n in (0, 1)),
-
-            # 0 in this field disables file writing
-            # Setting a positive number causes a new file to be written
-            #    after that many AVERAGED frames.
-            # Setting a negative number causes the program to crash
-            #    horribly
-            'data_frames' : And(int, lambda n: n >= 0),
-
-            # Optional kludge to account for a circshift offset.
-            # Implemented to get arounda bug in channel number in early
-            # versions of the DSPv3 fw (specifically, fw version
-            # mitch_4_30).  If not specified, no offset is applied.
-            Optional('mask_channel_offset', default=0) : Use(int),
-
-            # This is the port used for communication. Must match the port
-            # set at the receive end
-            Optional('port_number', default='3334') : And(str,
-                                                          represents_int,
-                                                          is_valid_port),
-
-            # Could and should improve validation on this one if it's ever
-            # used again.  This default is also ridiculous.
-            Optional('receiver_ip', default='tcp://192.168.3.1:3334') : str,
-
-            # Filter params
-            'filter_freq' : And(Use(float), lambda f: f > 0),
-            'filter_order' : And(int, lambda n: n >= 0),
-            Optional('filter_gain', default=1.0) : Use(float)
-        }
-        #### Done specifying smurf2mce
-
         #### Start specifying directories
         schema_dict[
             Optional(
@@ -775,7 +689,7 @@ class SmurfConfig:
 
         ###################################################
         # Validate the full config
-        schema = Schema(schema_dict)
+        schema = Schema(schema_dict, ignore_extra_keys=True)
         validated_config = schema.validate(loaded_config)
 
         ###################################################
