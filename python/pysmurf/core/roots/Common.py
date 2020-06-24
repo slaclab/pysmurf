@@ -289,7 +289,7 @@ class Common(pyrogue.Root):
         max_retries=10
         for k in range(max_retries):
             print(f'Check elastic buffers ({k})...')
-            retryAppTopInit = False
+            retry_app_top_init = False
             for i in self._enabled_bays:
                 # Workaround: Reading the individual registers does not work. So, we need to read
                 # the whole device, and then use the 'value()' method to get the register values.
@@ -311,11 +311,11 @@ class Common(pyrogue.Root):
                         print(f'  OK - JesdRx[{i}].ElBuffLatency[{j}] = {latency}')
                     else:
                         print(f'  Test failed. JesdRx[{i}].ElBuffLatency[{j}] = {latency}')
-                        retryAppTopInit = True
+                        retry_app_top_init = True
                         done = False
 
             # If the check failed, call 'AppTop.Init()' command again
-            if retryAppTopInit:
+            if retry_app_top_init:
                 print('  Executing AppTop.Init()...')
                 self.FpgaTopLevel.AppTop.Init()
             else:
