@@ -25,7 +25,7 @@ usage()
     echo "Start the SMuRF server on a specific board."
     echo ""
     echo "usage: ${script_name} [-S|--shelfmanager <shelfmanager_name> -N|--slot <slot_number>]"
-    echo "                      [-a|--addr <FPGA_IP>] [-D|--no-check-fw] <pyrogue_server-args>"
+    echo "                       [-a|--addr <FPGA_IP>] [-D|--no-check-fw] <pyrogue_server-args>"
     echo "    -S|--shelfmanager <shelfmanager_name> : ATCA shelfmanager node name or IP address. Must be used with -N."
     echo "    -N|--slot         <slot_number>       : ATCA crate slot number. Must be used with -S."
     echo "    -a|--addr         <FPGA_IP>           : FPGA IP address. If defined, -S and -N are ignored."
