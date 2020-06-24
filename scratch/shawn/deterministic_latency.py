@@ -68,10 +68,11 @@ for band in bands:
     this_ax=None
     this_title=f'band {band}'
     if len(bands)>4:
-        this_ax=ax[band%2][band%4]
+        this_ax=ax[int(band/4)][band%4]
     else:
         this_ax=ax[band%4]
     this_ax.set_aspect('equal')
+    this_ax.set_title(this_title)
     #f_plot=results_dict[band]['freq']/1e6
     resp_plot=results_dict[band]['resp']
     #ax[0].plot(f_plot[plot_idx]+results_dict[band]['fc'], np.log10(np.abs(resp_plot[plot_idx])),label=f'b{band}')
