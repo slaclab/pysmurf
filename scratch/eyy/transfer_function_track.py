@@ -96,4 +96,6 @@ for ch in channel:
     ax[1].set_ylim((.01, 1.1))
     ax[2].semilogx(freq, np.unwrap(np.angle(H)))
 
+    fig.suptitle(f'ch {ch:03}')
+    
     plt.tight_layout()
