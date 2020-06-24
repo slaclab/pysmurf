@@ -119,7 +119,7 @@ class SmurfCommandMixin(SmurfBase):
         Args
         ----
         cmd : str
-            The pyrogue command to be exectued.
+            The pyrogue command to be executed.
         write_log : bool, optional, default False
             Whether to log the data or not.
         execute : bool, optional, default True
@@ -192,7 +192,7 @@ class SmurfCommandMixin(SmurfBase):
         Args
         ----
         \**kwargs
-            Arbitrary keyword arguments.  Passed to directly to the
+            Arbitrary keyword arguments.  Passed directly to the
             `_caget` call.
 
         Returns
@@ -215,7 +215,7 @@ class SmurfCommandMixin(SmurfBase):
         Args
         ----
         \**kwargs
-            Arbitrary keyword arguments.  Passed to directly to the
+            Arbitrary keyword arguments.  Passed directly to the
             `_caget` call.
 
         Returns
@@ -235,7 +235,7 @@ class SmurfCommandMixin(SmurfBase):
         Args
         ----
         \**kwargs
-            Arbitrary keyword arguments.  Passed to directly to the
+            Arbitrary keyword arguments.  Passed directly to the
             `_caget` call.
 
         Returns
@@ -255,7 +255,7 @@ class SmurfCommandMixin(SmurfBase):
         Args
         ----
         \**kwargs
-            Arbitrary keyword arguments.  Passed to directly to the
+            Arbitrary keyword arguments.  Passed directly to the
             `_caget` call.
 
         Returns
@@ -298,7 +298,7 @@ class SmurfCommandMixin(SmurfBase):
         Args
         ----
         \**kwargs
-            Arbitrary keyword arguments.  Passed to directly to the
+            Arbitrary keyword arguments.  Passed directly to the
             `_caget` call.
 
         Returns
@@ -749,7 +749,7 @@ class SmurfCommandMixin(SmurfBase):
         bay : int
             Which AMC bay (0 or 1).
         \**kwargs
-            Arbitrary keyword arguments.  Passed to directly to the
+            Arbitrary keyword arguments.  Passed directly to the
             `_caget` call.
 
         Returns
@@ -2537,7 +2537,7 @@ class SmurfCommandMixin(SmurfBase):
         Args
         ----
         \**kwargs
-            Arbitrary keyword arguments.  Passed to directly to the
+            Arbitrary keyword arguments.  Passed directly to the
             `_caget` call.
 
         Returns
@@ -2557,7 +2557,7 @@ class SmurfCommandMixin(SmurfBase):
         Args
         ----
         \**kwargs
-            Arbitrary keyword arguments.  Passed to directly to the
+            Arbitrary keyword arguments.  Passed directly to the
             `_caget` call.
 
         Returns
@@ -2578,7 +2578,7 @@ class SmurfCommandMixin(SmurfBase):
         Args
         ----
         \**kwargs
-            Arbitrary keyword arguments.  Passed to directly to the
+            Arbitrary keyword arguments.  Passed directly to the
             `_caget` call.
 
         Returns
@@ -2828,7 +2828,7 @@ class SmurfCommandMixin(SmurfBase):
         Args
         ----
         \**kwargs
-            Arbitrary keyword arguments.  Passed to directly to the
+            Arbitrary keyword arguments.  Passed directly to the
             `_caget` call.
 
         Returns
@@ -3794,20 +3794,115 @@ class SmurfCommandMixin(SmurfBase):
             **kwargs)
 
     def set_flux_ramp_freq(self, val, **kwargs):
+        r"""Sets flux ramp reset rate in kHz.
+
+        Sets the flux ramp reset rate.  In units of kHz.  Wrapper
+        function for :func:`set_ramp_max_cnt`.
+
+        The flux ramp reset rate is specified by setting the trigger
+        repetition rate (the `RampMaxCnt` register in
+        `RtmCryoDet`).  `RampMaxCnt` is a 32-bit counter where each
+        count represents a 307.2 MHz tick.
+
+        Args
+        ----
+        val : float
+            The frequency to set the flux ramp reset rate to in kHz.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caput` call.
+
+        Note
+        ----
+           Because `RampMaxCnt` is specified in 307.2 MHz ticks, the
+           flux ramp rate must be an integer divisor of 307.2 MHz.
+           For example, for this reason it is not possible to set the
+           flux ramp rate to exactly 7 kHz.
+           :func:`set_flux_ramp_freq` rounds the `RampMaxCnt` computed
+           for the desired flux ramp reset rate to the nearest integer
+           using the built-in `round` routine, and if the
+           computed `RampMaxCnt` differs from the rounded value,
+           reports the flux ramp reset rate that will actually be
+           programmed.
+
+        Warning
+        -------
+           If `RampMaxCnt` is set too low, then it will invert and
+           produce a train of pulses 1x or 2x 307.2 MHz ticks wide,
+           but it will be mostly high.
+
+        See Also
+        --------
+        get_flux_ramp_freq : Gets the flux ramp reset rate.
+        set_ramp_max_cnt : Sets the flux ramp trigger repetition rate.
         """
-        Wrapper function for set_ramp_max_cnt. Takes input in Hz.
-        """
-        cnt = 3.072E5/float(val)-1
-        self.set_ramp_max_cnt(cnt, **kwargs)
+        # the digitizer frequency is 2x the default fw rate because
+        # the digitizer clocks an I and a Q sample both at 307.2MHz,
+        # or data at 614.4MHz.  For some reason I don't understand,
+        # there's too much precision error to get the right value out
+        # of rogue, unless I poll the digitizer frequency as a string
+        # and then cast to float in python.
+        ramp_max_cnt_clock_hz = 1.e6*(
+            float(
+                self.get_digitizer_frequency_mhz(as_string=True)
+            ) / 2.
+        )
+        ramp_max_cnt_rate_khz = ramp_max_cnt_clock_hz/1.e3
+        cnt_estimate = ramp_max_cnt_rate_khz/float(val)-1.
+        cnt_rounded  = round(cnt_estimate)
+        if cnt_estimate != cnt_rounded:
+            val_rounded = ramp_max_cnt_rate_khz/(cnt_rounded+1.)
+            self.log(
+                f'WARNING : Requested flux ramp reset rate of {val} '
+                'kHz does not integer divide '
+                f'{ramp_max_cnt_rate_khz/1e3} MHz.  Setting flux ramp'
+                f' reset rate to {val_rounded} kHz instead.',
+                self.LOG_ERROR)
+        self.set_ramp_max_cnt(cnt_rounded, **kwargs)
 
     def get_flux_ramp_freq(self, **kwargs):
-        """
-        Returns flux ramp freq in units of Hz
+        r"""Returns flux ramp reset rate in kHz.
+
+        Returns the current flux ramp reset rate.  In units of kHz.
+
+        The flux ramp reset rate is determined by polling the trigger
+        repetition rate (the `RampMaxCnt` register in `RtmCryoDet`).
+        `RampMaxCnt` is a 32-bit counter where each count represents a
+        307.2 MHz tick.
+
+        Args
+        ----
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caget` call.
+
+        Returns
+        -------
+        float
+            Currently programmed flux ramp reset rate, in kHz.
+
+        See Also
+        --------
+        set_flux_ramp_freq : Sets the flux ramp reset rate.
+        get_ramp_max_cnt : Gets the flux ramp trigger repetition rate.
         """
         if self.offline: # FIX ME - this is a stupid hard code
             return 4.0
         else:
-            return 3.0725E5/(self.get_ramp_max_cnt(**kwargs)+1)
+            # the digitizer frequency is 2x the default fw rate
+            # because the digitizer clocks an I and a Q sample both at
+            # 307.2MHz, or data at 614.4MHz.  For some reason I don't
+            # understand, there's too much precision error to get the
+            # right value out of rogue, unless I poll the digitizer
+            # frequency as a string and then cast to float in python.
+            ramp_max_cnt_clock_hz = 1.e6*(
+                float(
+                    self.get_digitizer_frequency_mhz(as_string=True)
+                ) / 2.
+            )
+            ramp_max_cnt_rate_khz = ramp_max_cnt_clock_hz/1.e3
+            return ramp_max_cnt_rate_khz/(
+                self.get_ramp_max_cnt(**kwargs)+1)
 
     _low_cycle_reg = 'LowCycle'
 
