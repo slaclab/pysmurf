@@ -251,19 +251,18 @@ class Common(pyrogue.Root):
         print("Stopping root...")
         pyrogue.Root.stop(self)
 
-    # Function for setting a default configuration.
-    def _set_defaults_cmd(self):
-        # Check if a default configuration file has been defined
-        if self._config_file is None:
-            print('No default configuration file was specified...')
-            return
-
-        # Load defaults catching exceptions and checking the return value of "LoadConfig"
-        # and retrying if there were errors.
-        done = False
+    # Function to load the configuration file, catching exceptions and checking the
+    # return value of "LoadConfig", and trying if there were errors, up to
+    # "max_retries" times.
+    # This method return "True" if the configuration file was load correctly, and
+    # "returns False" otherwise.
+    def _load_config(self):
+        success = False
         max_retries=10
+
         for i in range(max_retries):
-            print(f'Setting defaults from file {self._config_file}')
+            print(f'Setting defaults from file {self._config_file} (try number {i})')
+
             try:
                 # Try to load the defaults file
                 ret = self.LoadConfig(self._config_file)
@@ -272,16 +271,28 @@ class Common(pyrogue.Root):
                 if not ret:
                     print(f'  Setting defaults try number {i} failed. "LoadConfig" returned "False"')
                 else:
-                    done = True
+                    success = True
                     break
             except pyrogue.DeviceError as err:
                 print(f'  Setting defaults try number {i} failed with: {err}')
 
         # Check if we could load the defaults before 'max_retries' retires.
-        if done:
+        if success:
             print('Defaults were set correctly!')
+            return True
         else:
             print(f'ERROR: Failed to set defaults after {max_retries} retries!')
+            return False
+
+    # Function for setting a default configuration.
+    def _set_defaults_cmd(self):
+        # Check if a default configuration file has been defined
+        if self._config_file is None:
+            print('No default configuration file was specified...')
+            return
+
+        # Try to load the configuration file
+        if not _load_config():
             return
 
         # After loading defaults successfully, check the status of the elastic buffers
