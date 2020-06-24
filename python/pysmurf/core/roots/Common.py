@@ -294,18 +294,25 @@ class Common(pyrogue.Root):
                 # Workaround: Reading the individual registers does not work. So, we need to read
                 # the whole device, and then use the 'value()' method to get the register values.
                 self.FpgaTopLevel.AppTop.AppTopJesd[i].JesdRx.ReadDevice()
-                for j in range(5):
-                    el_buff_latency_1 = self.FpgaTopLevel.AppTop.AppTopJesd[i].JesdRx.ElBuffLatency[2*j].value()
-                    el_buff_latency_2 = self.FpgaTopLevel.AppTop.AppTopJesd[i].JesdRx.ElBuffLatency[2*j+1].value()
+                for j in range(10):
+                    # Check if the latency values are correct. The latency values should be:
+                    # - 13 or 14, for lanes = 0:1,4:9
+                    # - 255, for lanes 2:3
+                    latency = self.FpgaTopLevel.AppTop.AppTopJesd[i].JesdRx.ElBuffLatency[j].value()
+                    latency_ok = False
+                    if j in [2,3]:
+                        if latency == 255:
+                            latency_ok = True
+                    else:
+                        if latency in [13,14]:
+                            latency_ok = True
 
-                    # Check that the difference in latency between two adjacent buffers
-                    # is not greater than 2.
-                    if abs( el_buff_latency_1 - el_buff_latency_2 ) > 2:
-                        print(f'  Test failed. JesdRx[{i}].ElBuffLatency[{2*j}] = {el_buff_latency_1}, JesdRx[{i}].ElBuffLatency[{2*j+1}] = {el_buff_latency_2}')
+                    if latency_ok:
+                        print(f'  OK - JesdRx[{i}].ElBuffLatency[{j}] = {latency}')
+                    else:
+                        print(f'  Test failed. JesdRx[{i}].ElBuffLatency[{j}] = {latency}')
                         retryAppTopInit = True
                         done = False
-                    else:
-                        print(f'  OK - JesdRx[{i}].ElBuffLatency[{2*j}] = {el_buff_latency_1}, JesdRx[{i}].ElBuffLatency[{2*j+1}] = {el_buff_latency_2}')
 
             # If the check failed, call 'AppTop.Init()' command again
             if retryAppTopInit:
