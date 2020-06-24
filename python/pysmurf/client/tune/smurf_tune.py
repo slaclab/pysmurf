@@ -77,48 +77,50 @@ class SmurfTuneMixin(SmurfBase):
         track_and_check : bool, optional, default True
             Whether or not after tuning to run track and check.
         """
-        bands = self.config.get('init').get('bands')
-        tune_cfg = self.config.get('tune_band')
+        bands = self._bands
 
         # Load fraction_full_scale from file if not given
         if fraction_full_scale is None:
-            fraction_full_scale = tune_cfg.get('fraction_full_scale')
+            fraction_full_scale = self._fraction_full_scale
 
         if load_tune:
             if last_tune:
                 tune_file = self.last_tune()
                 self.log(f'Last tune is : {tune_file}')
             elif tune_file is None:
-                tune_file = tune_cfg.get('default_tune')
+                tune_file = self._default_tune
                 self.log(f'Loading default tune file: {tune_file}')
             self.load_tune(tune_file)
 
         # Runs find_freq and setup_notches. This takes forever.
         else:
-            cfg = self.config.get('init')
-            for b in bands:
-                drive = cfg.get(f'band_{b}').get('amplitude_scale')
-                self.find_freq(b,
-                    drive_power=drive)
-                self.setup_notches(b, drive=drive,
+            for band in bands:
+                drive = self._amplitude_scale[band]
+                self.find_freq(
+                    band, drive_power=drive)
+                self.setup_notches(
+                    band, drive=drive,
                     new_master_assignment=new_master_assignment)
 
         # Runs tune_band_serial to re-estimate eta params
         if retune:
-            for b in bands:
-                self.log(f'Running tune band serial on band {b}')
-                self.tune_band_serial(b, from_old_tune=load_tune,
-                    old_tune=tune_file, make_plot=make_plot,
-                    show_plot=show_plot, save_plot=save_plot,
+            for band in bands:
+                self.log(f'Running tune band serial on band {band}')
+                self.tune_band_serial(
+                    band, from_old_tune=load_tune, old_tune=tune_file,
+                    make_plot=make_plot, show_plot=show_plot,
+                    save_plot=save_plot,
                     new_master_assignment=new_master_assignment)
 
         # Starts tracking and runs check_lock to prune bad resonators
         if track_and_check:
-            for b in bands:
-                self.log(f'Tracking and checking band {b}')
-                self.track_and_check(b, fraction_full_scale=fraction_full_scale,
-                    f_min=f_min, f_max=f_max, df_max=df_max, make_plot=make_plot,
-                    save_plot=save_plot, show_plot=show_plot)
+            for band in bands:
+                self.log(f'Tracking and checking band {band}')
+                self.track_and_check(
+                    band, fraction_full_scale=fraction_full_scale,
+                    f_min=f_min, f_max=f_max, df_max=df_max,
+                    make_plot=make_plot, save_plot=save_plot,
+                    show_plot=show_plot)
 
     @set_action()
     def tune_band(self, band, freq=None, resp=None, n_samples=2**19,
@@ -246,7 +248,7 @@ class SmurfTuneMixin(SmurfBase):
 
         self.freq_resp[band]['resonances'] = resonances
         if drive is None:
-            drive = self.config.get('init').get(f'band_{band}').get('amplitude_scale')
+            drive = self._amplitude_scale[band]
 
         # Add tone amplitude to tuning dictionary
         self.freq_resp[band]['drive'] = drive
@@ -315,7 +317,7 @@ class SmurfTuneMixin(SmurfBase):
         if from_old_tune:
             if old_tune is None:
                 self.log('Using default tuning file')
-                old_tune = self.config.get('tune_band').get('default_tune')
+                old_tune = self._default_tune
             self.load_tune(old_tune,band=band)
 
             resonances = np.copy(self.freq_resp[band]['resonances']).item()
@@ -379,8 +381,7 @@ class SmurfTuneMixin(SmurfBase):
                 self.freq_resp[band]['resonances'] = resonances
 
         if drive is None:
-            drive = (
-                self.config.get('init')[f'band_{band}']['amplitude_scale'])
+            drive = self._amplitude_scale[band]
         self.freq_resp[band]['drive'] = drive
         self.freq_resp[band]['full_band_resp'] = {}
         if freq is not None:
@@ -1202,8 +1203,9 @@ class SmurfTuneMixin(SmurfBase):
 
     @set_action()
     def eta_fit(self, freq, resp, peak_freq, delta_freq,
-                make_plot=False, plot_chans=[], save_plot=True, band=None,
-                timestamp=None, res_num=None, use_slow_eta=False):
+                make_plot=False, plot_chans=[], save_plot=True,
+                band=None, timestamp=None, res_num=None,
+                use_slow_eta=False):
         """
         Cyndia's eta finding code.
 
@@ -1253,8 +1255,7 @@ class SmurfTuneMixin(SmurfBase):
             # assume all bands have the same number of channels, and
             # pull the number of channels from the first band in the
             # list of bands specified in experiment.cfg.
-            bands = self.config.get('init').get('bands')
-            band = bands[0]
+            band = self._bands[0]
 
         n_subbands = self.get_number_sub_bands(band)
         digitizer_frequency_mhz = self.get_digitizer_frequency_mhz(band)
@@ -1926,7 +1927,7 @@ class SmurfTuneMixin(SmurfBase):
                 f_gap = np.min(np.abs(np.append(f[:idx], f[idx+1:])-f[idx]))
             if write_log:
                 self.log(f'Res {k:03} - Channel {ch}')
-            for ll, hh in self.bad_mask:
+            for ll, hh in self._bad_mask:
                 # Check again bad mask list
                 if f[idx] > ll and f[idx] < hh:
                     self.log(f'{f[idx]:4.3f} in bad list.')
@@ -2264,7 +2265,7 @@ class SmurfTuneMixin(SmurfBase):
             plt.ioff()
 
         if reset_rate_khz is None:
-            reset_rate_khz = self.reset_rate_khz
+            reset_rate_khz = self._reset_rate_khz
             self.log('reset_rate_khz is None. ',
                      f'Using default: {reset_rate_khz}')
         n_channels = self.get_number_channels(band)
@@ -2419,16 +2420,16 @@ class SmurfTuneMixin(SmurfBase):
             Optional string to append plots with.
         """
         if reset_rate_khz is None:
-            reset_rate_khz = self.reset_rate_khz
+            reset_rate_khz = self._reset_rate_khz
         if lms_gain is None:
-            lms_gain = self.lms_gain[band]
+            lms_gain = self._lms_gain[band]
 
         ##
         ## Load unprovided optional args from cfg
         if feedback_start_frac is None:
-            feedback_start_frac = self.config.get('tune_band').get('feedback_start_frac')[str(band)]
+            feedback_start_frac = self._feedback_start_frac[band]
         if feedback_end_frac is None:
-            feedback_end_frac = self.config.get('tune_band').get('feedback_end_frac')[str(band)]
+            feedback_end_frac = self._feedback_end_frac[band]
         ## End loading unprovided optional args from cfg
         ##
 
@@ -2466,7 +2467,7 @@ class SmurfTuneMixin(SmurfBase):
                 plt.ioff()
 
         if fraction_full_scale is None:
-            fraction_full_scale = self.fraction_full_scale
+            fraction_full_scale = self._fraction_full_scale
         else:
             self.fraction_full_scale = fraction_full_scale
 
@@ -2478,16 +2479,17 @@ class SmurfTuneMixin(SmurfBase):
                          self.LOG_ERROR)
                 return None, None, None
             elif meas_lms_freq:
-                lms_freq_hz = self.estimate_lms_freq(band,
-                    reset_rate_khz,fraction_full_scale=fraction_full_scale,
+                lms_freq_hz = self.estimate_lms_freq(
+                    band, reset_rate_khz,
+                    fraction_full_scale=fraction_full_scale,
                     channel=channel)
             elif meas_flux_ramp_amp:
                 fraction_full_scale = self.estimate_flux_ramp_amp(band,
                     n_phi0,reset_rate_khz=reset_rate_khz, channel=channel)
                 lms_freq_hz = reset_rate_khz * n_phi0 * 1.0E3
             else:
-                lms_freq_hz = self.config.get('tune_band').get('lms_freq')[str(band)]
-            self.lms_freq_hz[band] = lms_freq_hz
+                lms_freq_hz = self._lms_freq_hz[band]
+            self._lms_freq_hz[band] = lms_freq_hz
             if write_log:
                 self.log('Using lms_freq_estimator : ' +
                          f'{lms_freq_hz:.0f} Hz')
@@ -2742,9 +2744,9 @@ class SmurfTuneMixin(SmurfBase):
             Whether to setup the flux ramp at the end.
         """
         if reset_rate_khz is None:
-            reset_rate_khz = self.reset_rate_khz
+            reset_rate_khz = self._reset_rate_khz
         if lms_gain is None:
-            lms_gain = self.lms_gain[band]
+            lms_gain = self._lms_gain[band]
 
         if relock:
             self.relock(band)
@@ -2783,7 +2785,7 @@ class SmurfTuneMixin(SmurfBase):
         """
         """
         if reset_rate_khz is None:
-            reset_rate_khz = self.reset_rate_khz
+            reset_rate_khz = self._reset_rate_khz
 
         ret = {}
 
@@ -2997,11 +2999,11 @@ class SmurfTuneMixin(SmurfBase):
         trialRTMClock = rtmClock
 
         fullScaleRate = fraction_full_scale * resetRate
-        desFastSlowStepSize = (fullScaleRate * 2**self.num_flux_ramp_counter_bits) / rtmClock
+        desFastSlowStepSize = (fullScaleRate * 2**self._num_flux_ramp_counter_bits) / rtmClock
         trialFastSlowStepSize = round(desFastSlowStepSize)
         FastSlowStepSize = trialFastSlowStepSize
 
-        trialFullScaleRate = trialFastSlowStepSize * trialRTMClock / (2**self.num_flux_ramp_counter_bits)
+        trialFullScaleRate = trialFastSlowStepSize * trialRTMClock / (2**self._num_flux_ramp_counter_bits)
 
         trialResetRate = (dspClockFrequencyMHz * 1e6) / (rampMaxCnt + 1)
         trialFractionFullScale = trialFullScaleRate / trialResetRate
@@ -3037,13 +3039,11 @@ class SmurfTuneMixin(SmurfBase):
             return
 
 
-        FastSlowRstValue = np.floor((2**self.num_flux_ramp_counter_bits) *
+        FastSlowRstValue = np.floor((2**self._num_flux_ramp_counter_bits) *
             (1 - fractionFullScale)/2)
 
 
         KRelay = 3 #where do these values come from
-        SelectRamp = self.get_select_ramp(new_epics_root=new_epics_root) # from config file
-        RampStartMode = self.get_ramp_start_mode(new_epics_root=new_epics_root) # from config file
         PulseWidth = 64
         DebounceWidth = 255
         RampSlope = 0
@@ -3057,10 +3057,6 @@ class SmurfTuneMixin(SmurfBase):
         self.set_k_relay(KRelay, new_epics_root=new_epics_root,
             write_log=write_log)
         self.set_ramp_max_cnt(rampMaxCnt, new_epics_root=new_epics_root,
-            write_log=write_log)
-        self.set_select_ramp(SelectRamp, new_epics_root=new_epics_root,
-            write_log=write_log)
-        self.set_ramp_start_mode(RampStartMode, new_epics_root=new_epics_root,
             write_log=write_log)
         self.set_pulse_width(PulseWidth, new_epics_root=new_epics_root,
             write_log=write_log)
@@ -3096,7 +3092,7 @@ class SmurfTuneMixin(SmurfBase):
             The fraction of the flux ramp amplitude.
         """
         return 1-2*(self.get_fast_slow_rst_value(new_epics_root=new_epics_root)/
-                    2**self.num_flux_ramp_counter_bits)
+                    2**self._num_flux_ramp_counter_bits)
 
     @set_action()
     def check_lock(self, band, f_min=.015, f_max=.2, df_max=.03,
@@ -3141,13 +3137,13 @@ class SmurfTuneMixin(SmurfBase):
         self.log(f'Checking lock on band {band}')
 
         if reset_rate_khz is None:
-            reset_rate_khz = self.reset_rate_khz
+            reset_rate_khz = self._reset_rate_khz
 
         if fraction_full_scale is None:
-            fraction_full_scale = self.fraction_full_scale
+            fraction_full_scale = self._fraction_full_scale
 
         if lms_freq_hz is None:
-            lms_freq_hz = self.lms_freq_hz[band]
+            lms_freq_hz = self._lms_freq_hz[band]
 
         channels = self.which_on(band)
         n_chan = len(channels)
@@ -3263,7 +3259,7 @@ class SmurfTuneMixin(SmurfBase):
         self.band_off(band)
 
         if drive_power is None:
-            drive_power = self.config.get('init')[f'band_{band}'].get('amplitude_scale')
+            drive_power = self._amplitude_scale[band]
             self.log('No drive_power given. Using value in config ' +
                      f'file: {drive_power}')
 
@@ -3628,12 +3624,12 @@ class SmurfTuneMixin(SmurfBase):
             return
 
         if drive is None:
-            drive = self.config.get('init')[f'band_{band}'].get('amplitude_scale')
+            drive = self._amplitude_scale[band]
             self.log(
                 f'No drive given. Using value in config file: {drive}')
 
         if delta_freq is None:
-            delta_freq = self.config.get('tune_band').get('delta_freq')[str(band)]
+            delta_freq = self._delta_freq[band]
 
         if resonance is not None:
             input_res = resonance
@@ -3811,8 +3807,7 @@ class SmurfTuneMixin(SmurfBase):
             The estimated lms frequency in Hz.
         """
         if fraction_full_scale is None:
-            fraction_full_scale = \
-                self.config.get('tune_band').get('fraction_full_scale')
+            fraction_full_scale = self._fraction_full_scale
 
         old_feedback = self.get_feedback_enable(band)
 
@@ -4152,7 +4147,7 @@ class SmurfTuneMixin(SmurfBase):
         self.add_output('band_outputs', {})
 
         # there is probably a better way to do this
-        for band in self.config.get('init')['bands']:
+        for band in self._bands:
             band_outputs = {} # Python copying is weird so this is easier
             band_outputs[band] = {}
             band_outputs[band]['amplitudes'] = list(self.get_amplitude_scale_array(band).astype(float))
@@ -4196,7 +4191,7 @@ class SmurfTuneMixin(SmurfBase):
             bands)
         """
 
-        bands = self.config.get('init').get('bands')
+        bands = self._bands
         band_centers = []
         for band_no in bands: # we can get up to 8 bands I guess
             center = self.get_band_center_mhz(band_no)

@@ -42,6 +42,8 @@ rst-roles =
     ref,
     meth,
     attr,
+    py:func,
+    py:exc,
     py:class,
 rst-directives =
     envvar,
