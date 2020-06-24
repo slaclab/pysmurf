@@ -258,7 +258,7 @@ class Common(pyrogue.Root):
     # "returns False" otherwise.
     def _load_config(self):
         success = False
-        max_retries=10
+        max_retries = 10
 
         for i in range(max_retries):
             print(f'Setting defaults from file {self._config_file} (try number {i})')
@@ -293,14 +293,16 @@ class Common(pyrogue.Root):
 
         # Try to load the configuration file
         if not _load_config():
+            print('Aborting...')
             return
 
         # After loading defaults successfully, check the status of the elastic buffers
-        done = True
-        max_retries=10
+        success = True
+        max_retries = 10
+
         for k in range(max_retries):
-            print(f'Check elastic buffers ({k})...')
-            retry_app_top_init = False
+            print(f'Check elastic buffers (try number {k})...')
+            retry_load_config = False
 
             for i in self._enabled_bays:
                 # Workaround: Reading the individual registers does not work. So, we need to read
@@ -325,18 +327,20 @@ class Common(pyrogue.Root):
                         print(f'  OK - JesdRx[{i}].ElBuffLatency[{j}] = {latency}')
                     else:
                         print(f'  Test failed. JesdRx[{i}].ElBuffLatency[{j}] = {latency}')
-                        retry_app_top_init = True
-                        done = False
+                        retry_load_config = True
+                        success = False
 
-            # If the check failed, call 'AppTop.Init()' command again
-            if retry_app_top_init:
-                print('  Executing AppTop.Init()...')
-                self.FpgaTopLevel.AppTop.Init()
+            # If the check failed, try to reload the configuration again
+            if retry_load_config:
+                print('  Trying to reload the configuration again...')
+                if not _load_config():
+                    print('Aborting...')
+                    return
             else:
                 break
 
         # Check if the test passed before 'max_retries' retries
-        if done:
+        if success:
             print('Elastic buffer check passed!')
         else:
             print(f'ERROR: Elastic buffer check failed {max_retries} times')
