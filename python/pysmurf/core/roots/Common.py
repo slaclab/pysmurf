@@ -325,7 +325,7 @@ class Common(pyrogue.Root):
             # If the check failed, try to reload the configuration again
             if retry_load_config:
                 print('  Trying to reload the configuration again...')
-                if not _load_config():
+                if not self._load_config():
                     break
             else:
                 success = True
@@ -347,11 +347,11 @@ class Common(pyrogue.Root):
             return
 
         # Try to load the configuration file
-        if not _load_config():
+        if not self._load_config():
             print('Aborting...')
             return
 
         # After loading defaults successfully, check the status of the elastic buffers
-        if not _check_elastic_buffers():
+        if not self._check_elastic_buffers():
             print('Aborting...')
             return
