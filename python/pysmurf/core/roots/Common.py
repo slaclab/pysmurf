@@ -343,6 +343,11 @@ class Common(pyrogue.Root):
     # It returns "True" if the configuration was set correctly, or
     # "False" otherwise
     def _set_defaults_cmd(self):
+
+        # Set the "SystemConfigured" flag to "False". It will set to "True"
+        # at the end of this method, if the setup success.
+        self.SmurfApplication.SystemConfigured.set(False)
+
         # Check if a default configuration file has been defined
         if self._config_file is None:
             print('No default configuration file was specified...')
@@ -358,5 +363,7 @@ class Common(pyrogue.Root):
             print('Aborting...')
             return False
 
-        # The configuration was set successfully
+        # The configuration was set successfully.
+        # Set the "SystemConfigured" flag to "True".
+        self.SmurfApplication.SystemConfigured.set(True)
         return True
