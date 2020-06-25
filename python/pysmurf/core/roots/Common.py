@@ -340,18 +340,23 @@ class Common(pyrogue.Root):
             return False
 
     # Function for setting a default configuration.
+    # It returns "True" if the configuration was set correctly, or
+    # "False" otherwise
     def _set_defaults_cmd(self):
         # Check if a default configuration file has been defined
         if self._config_file is None:
             print('No default configuration file was specified...')
-            return
+            return False
 
         # Try to load the configuration file
         if not self._load_config():
             print('Aborting...')
-            return
+            return False
 
         # After loading defaults successfully, check the status of the elastic buffers
         if not self._check_elastic_buffers():
             print('Aborting...')
-            return
+            return False
+
+        # The configuration was set successfully
+        return True
