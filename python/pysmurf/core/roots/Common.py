@@ -251,11 +251,11 @@ class Common(pyrogue.Root):
         print("Stopping root...")
         pyrogue.Root.stop(self)
 
-    # Function to load the configuration file, catching exceptions and checking the
+    # Method to load the configuration file, catching exceptions and checking the
     # return value of "LoadConfig", and trying if there were errors, up to
     # "max_retries" times.
-    # This method return "True" if the configuration file was load correctly, and
-    # "returns False" otherwise.
+    # This method returns "True" if the configuration file was load correctly, or
+    # "False" otherwise.
     def _load_config(self):
         success = False
         max_retries = 10
@@ -284,26 +284,19 @@ class Common(pyrogue.Root):
             print(f'ERROR: Failed to set defaults after {max_retries} retries!')
             return False
 
-    # Function for setting a default configuration.
-    def _set_defaults_cmd(self):
-        # Check if a default configuration file has been defined
-        if self._config_file is None:
-            print('No default configuration file was specified...')
-            return
-
-        # Try to load the configuration file
-        if not _load_config():
-            print('Aborting...')
-            return
-
-        # After loading defaults successfully, check the status of the elastic buffers
-        success = True
+    # Method to check the status of the elastic buffers. It must be called after
+    # loading configuration. If the test fails, it will retry to reload the configuration
+    # up to "max_retries" times.
+    # This method returns "True" if the check passed, or "False" otherwise.
+    def _check_elastic_buffers(self):
+        success = False
         max_retries = 10
 
         for k in range(max_retries):
             print(f'Check elastic buffers (try number {k})...')
             retry_load_config = False
 
+            # Check the buffers in all the enabled bays
             for i in self._enabled_bays:
                 # Workaround: Reading the individual registers does not work. So, we need to read
                 # the whole device, and then use the 'value()' method to get the register values.
@@ -328,19 +321,37 @@ class Common(pyrogue.Root):
                     else:
                         print(f'  Test failed. JesdRx[{i}].ElBuffLatency[{j}] = {latency}')
                         retry_load_config = True
-                        success = False
 
             # If the check failed, try to reload the configuration again
             if retry_load_config:
                 print('  Trying to reload the configuration again...')
                 if not _load_config():
-                    print('Aborting...')
-                    return
+                    break
             else:
+                success = True
                 break
 
         # Check if the test passed before 'max_retries' retries
         if success:
             print('Elastic buffer check passed!')
+            return True
         else:
             print(f'ERROR: Elastic buffer check failed {max_retries} times')
+            return False
+
+    # Function for setting a default configuration.
+    def _set_defaults_cmd(self):
+        # Check if a default configuration file has been defined
+        if self._config_file is None:
+            print('No default configuration file was specified...')
+            return
+
+        # Try to load the configuration file
+        if not _load_config():
+            print('Aborting...')
+            return
+
+        # After loading defaults successfully, check the status of the elastic buffers
+        if not _check_elastic_buffers():
+            print('Aborting...')
+            return
