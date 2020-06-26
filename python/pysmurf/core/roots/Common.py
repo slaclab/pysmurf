@@ -251,19 +251,18 @@ class Common(pyrogue.Root):
         print("Stopping root...")
         pyrogue.Root.stop(self)
 
-    # Function for setting a default configuration.
-    def _set_defaults_cmd(self):
-        # Check if a default configuration file has been defined
-        if self._config_file is None:
-            print('No default configuration file was specified...')
-            return
+    # Method to load the configuration file, catching exceptions and checking the
+    # return value of "LoadConfig", and trying if there were errors, up to
+    # "max_retries" times.
+    # This method returns "True" if the configuration file was load correctly, or
+    # "False" otherwise.
+    def _load_config(self):
+        success = False
+        max_retries = 10
 
-        # Load defaults catching exceptions and checking the return value of "LoadConfig"
-        # and retrying if there were errors.
-        done = False
-        max_retries=10
         for i in range(max_retries):
-            print(f'Setting defaults from file {self._config_file}')
+            print(f'Setting defaults from file {self._config_file} (try number {i})')
+
             try:
                 # Try to load the defaults file
                 ret = self.LoadConfig(self._config_file)
@@ -272,50 +271,99 @@ class Common(pyrogue.Root):
                 if not ret:
                     print(f'  Setting defaults try number {i} failed. "LoadConfig" returned "False"')
                 else:
-                    done = True
+                    success = True
                     break
             except pyrogue.DeviceError as err:
                 print(f'  Setting defaults try number {i} failed with: {err}')
 
         # Check if we could load the defaults before 'max_retries' retires.
-        if done:
+        if success:
             print('Defaults were set correctly!')
+            return True
         else:
             print(f'ERROR: Failed to set defaults after {max_retries} retries!')
-            return
+            return False
 
-        # After loading defaults successfully, check the status of the elastic buffers
-        done = True
-        max_retries=10
+    # Method to check the status of the elastic buffers. It must be called after
+    # loading configuration. If the test fails, it will retry to reload the configuration
+    # up to "max_retries" times.
+    # This method returns "True" if the check passed, or "False" otherwise.
+    def _check_elastic_buffers(self):
+        success = False
+        max_retries = 10
+
         for k in range(max_retries):
-            print(f'Check elastic buffers ({k})...')
-            retryAppTopInit = False
+            print(f'Check elastic buffers (try number {k})...')
+            retry_load_config = False
+
+            # Check the buffers in all the enabled bays
             for i in self._enabled_bays:
                 # Workaround: Reading the individual registers does not work. So, we need to read
                 # the whole device, and then use the 'value()' method to get the register values.
                 self.FpgaTopLevel.AppTop.AppTopJesd[i].JesdRx.ReadDevice()
-                for j in range(5):
-                    el_buff_latency_1 = self.FpgaTopLevel.AppTop.AppTopJesd[i].JesdRx.ElBuffLatency[2*j].value()
-                    el_buff_latency_2 = self.FpgaTopLevel.AppTop.AppTopJesd[i].JesdRx.ElBuffLatency[2*j+1].value()
 
-                    # Check that the difference in latency between two adjacent buffers
-                    # is not greater than 2.
-                    if abs( el_buff_latency_1 - el_buff_latency_2 ) > 2:
-                        print(f'  Test failed. JesdRx[{i}].ElBuffLatency[{2*j}] = {el_buff_latency_1}, JesdRx[{i}].ElBuffLatency[{2*j+1}] = {el_buff_latency_2}')
-                        retryAppTopInit = True
-                        done = False
+                for j in range(10):
+                    # Check if the latency values are correct. The latency values should be:
+                    # - 13 or 14, for lanes = 0:1,4:9
+                    # - 255, for lanes 2:3
+                    latency = self.FpgaTopLevel.AppTop.AppTopJesd[i].JesdRx.ElBuffLatency[j].value()
+                    latency_ok = False
+
+                    if j in [2,3]:
+                        if latency == 255:
+                            latency_ok = True
                     else:
-                        print(f'  OK - JesdRx[{i}].ElBuffLatency[{2*j}] = {el_buff_latency_1}, JesdRx[{i}].ElBuffLatency[{2*j+1}] = {el_buff_latency_2}')
+                        if latency in [13,14]:
+                            latency_ok = True
 
-            # If the check failed, call 'AppTop.Init()' command again
-            if retryAppTopInit:
-                print('  Executing AppTop.Init()...')
-                self.FpgaTopLevel.AppTop.Init()
+                    if latency_ok:
+                        print(f'  OK - JesdRx[{i}].ElBuffLatency[{j}] = {latency}')
+                    else:
+                        print(f'  Test failed. JesdRx[{i}].ElBuffLatency[{j}] = {latency}')
+                        retry_load_config = True
+
+            # If the check failed, try to reload the configuration again
+            if retry_load_config:
+                print('  Trying to reload the configuration again...')
+                if not self._load_config():
+                    break
             else:
+                success = True
                 break
 
         # Check if the test passed before 'max_retries' retries
-        if done:
+        if success:
             print('Elastic buffer check passed!')
+            return True
         else:
             print(f'ERROR: Elastic buffer check failed {max_retries} times')
+            return False
+
+    # Function for setting a default configuration.
+    # It returns "True" if the configuration was set correctly, or
+    # "False" otherwise
+    def _set_defaults_cmd(self):
+
+        # Set the "SystemConfigured" flag to "False". It will set to "True"
+        # at the end of this method, if the setup success.
+        self.SmurfApplication.SystemConfigured.set(False)
+
+        # Check if a default configuration file has been defined
+        if self._config_file is None:
+            print('No default configuration file was specified...')
+            return False
+
+        # Try to load the configuration file
+        if not self._load_config():
+            print('Aborting...')
+            return False
+
+        # After loading defaults successfully, check the status of the elastic buffers
+        if not self._check_elastic_buffers():
+            print('Aborting...')
+            return False
+
+        # The configuration was set successfully.
+        # Set the "SystemConfigured" flag to "True".
+        self.SmurfApplication.SystemConfigured.set(True)
+        return True
