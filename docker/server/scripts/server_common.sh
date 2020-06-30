@@ -774,15 +774,15 @@ initialize()
     # Auto-detect hardware type
     ## Detect type of AMCs, and get specific server startup arguments
     ## for each specific type and add them to the list of arguments
-    local __extar_amcs_args
-    detect_amc_board __extar_amcs_args
-    __extra_args+=" ${__extar_amcs_args}"
+    local __extra_amcs_args
+    detect_amc_board __extra_amcs_args
+    __extra_args+=" ${__extra_amcs_args}"
 
     ## Detect type of carrier, and get specific server startup arguments
     ## for each specific type and add them to the list of arguments
-    local __extar_carrier_args
-    detect_carrier_board __extar_carrier_args
-    __extra_args+=" ${__extar_carrier_args}"
+    local __extra_carrier_args
+    detect_carrier_board __extra_carrier_args
+    __extra_args+=" ${__extra_carrier_args}"
 
     # Write the result to the defined output variable
     eval $__result_args="'${__extra_args}'"
