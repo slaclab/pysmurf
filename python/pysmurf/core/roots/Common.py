@@ -344,26 +344,39 @@ class Common(pyrogue.Root):
     # "False" otherwise
     def _set_defaults_cmd(self):
 
+        # Set the "DoneConfiguring" flag to "False" to indicate the
+        # start of the system configuration sequence.
+        self.SmurfApplication.DoneConfiguring.set(False)
+
         # Set the "SystemConfigured" flag to "False". It will set to "True"
         # at the end of this method, if the setup success.
         self.SmurfApplication.SystemConfigured.set(False)
 
+        # Flag to indicate the final state of the system
+        # configuration sequence (True = success)
+        success = True
+
         # Check if a default configuration file has been defined
         if self._config_file is None:
-            print('No default configuration file was specified...')
-            return False
+            print('\nERROR: No default configuration file was specified. Aborting!\n')
+            success = False
 
-        # Try to load the configuration file
-        if not self._load_config():
-            print('Aborting...')
-            return False
+        # Try to load the configuration file, if the file was defined
+        if success:
+            if not self._load_config():
+                print('Aborting!\n')
+                success = False
 
         # After loading defaults successfully, check the status of the elastic buffers
-        if not self._check_elastic_buffers():
-            print('Aborting...')
-            return False
+        if success:
+            if not self._check_elastic_buffers():
+                print('Aborting!\n')
+                success = False
 
-        # The configuration was set successfully.
-        # Set the "SystemConfigured" flag to "True".
-        self.SmurfApplication.SystemConfigured.set(True)
-        return True
+        # Set the "SystemConfigured" flag to the final state of the
+        # configuration sequence.
+        self.SmurfApplication.SystemConfigured.set(success)
+
+        # Set the "DoneConfiguring" flag to "True" to indicate the
+        # end of the system configuration sequence
+        self.SmurfApplication.DoneConfiguring.set(True)

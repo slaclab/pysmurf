@@ -77,6 +77,12 @@ class SmurfApplication(pyrogue.Device):
             mode='RO'))
 
         self.add(pyrogue.LocalVariable(
+            name='DoneConfiguring',
+            description='The system configuration sequence is done',
+            mode='RO',
+            value=False))
+
+        self.add(pyrogue.LocalVariable(
             name='SystemConfigured',
             description='The system was configured correctly',
             mode='RO',
