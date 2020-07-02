@@ -269,19 +269,19 @@ class Common(pyrogue.Root):
 
                 # Check the return value from 'LoadConfig'.
                 if not ret:
-                    print(f'  Setting defaults try number {i} failed. "LoadConfig" returned "False"')
+                    print(f'\nSetting defaults try number {i} failed. "LoadConfig" returned "False"\n')
                 else:
                     success = True
                     break
-            except pyrogue.DeviceError as err:
-                print(f'  Setting defaults try number {i} failed with: {err}')
+            except Exception as e:
+                print(f'\nERROR: Setting defaults try number {i} failed with: {e}\n')
 
         # Check if we could load the defaults before 'max_retries' retires.
         if success:
             print('Defaults were set correctly!')
             return True
         else:
-            print(f'ERROR: Failed to set defaults after {max_retries} retries!')
+            print(f'\nERROR: Failed to set defaults after {max_retries} retries. Aborting!\n')
             return False
 
     # Method to check the status of the elastic buffers. It must be called after
@@ -324,9 +324,11 @@ class Common(pyrogue.Root):
 
             # If the check failed, try to reload the configuration again
             if retry_load_config:
-                print('  Trying to reload the configuration again...')
-                if not self._load_config():
-                    break
+                # Not need to reload defaults if the last iteration test fails
+                if k < max_retries - 1:
+                    print('Check failed. Trying to reload the configuration again...\n')
+                    if not self._load_config():
+                        break
             else:
                 success = True
                 break
@@ -336,7 +338,7 @@ class Common(pyrogue.Root):
             print('Elastic buffer check passed!')
             return True
         else:
-            print(f'ERROR: Elastic buffer check failed {max_retries} times')
+            print(f'\nERROR: Elastic buffer check failed {max_retries} times')
             return False
 
     # Function for setting a default configuration.
@@ -344,26 +346,39 @@ class Common(pyrogue.Root):
     # "False" otherwise
     def _set_defaults_cmd(self):
 
+        # Set the "ConfiguringInProgress" flag to "True" to indicate
+        # the start of the system configuration sequence.
+        self.SmurfApplication.ConfiguringInProgress.set(True)
+
         # Set the "SystemConfigured" flag to "False". It will set to "True"
         # at the end of this method, if the setup success.
         self.SmurfApplication.SystemConfigured.set(False)
 
+        # Flag to indicate the final state of the system
+        # configuration sequence (True = success)
+        success = True
+
         # Check if a default configuration file has been defined
         if self._config_file is None:
-            print('No default configuration file was specified...')
-            return False
+            print('\nERROR: No default configuration file was specified. Aborting!\n')
+            success = False
 
-        # Try to load the configuration file
-        if not self._load_config():
-            print('Aborting...')
-            return False
+        # Try to load the configuration file, if the file was defined
+        if success:
+            if not self._load_config():
+                print('Aborting!\n')
+                success = False
 
         # After loading defaults successfully, check the status of the elastic buffers
-        if not self._check_elastic_buffers():
-            print('Aborting...')
-            return False
+        if success:
+            if not self._check_elastic_buffers():
+                print('Aborting!\n')
+                success = False
 
-        # The configuration was set successfully.
-        # Set the "SystemConfigured" flag to "True".
-        self.SmurfApplication.SystemConfigured.set(True)
-        return True
+        # Set the "SystemConfigured" flag to the final state of the
+        # configuration sequence.
+        self.SmurfApplication.SystemConfigured.set(success)
+
+        # Set the "ConfiguringInProgress" flag to "False" to indicate
+        # the end of the system configuration sequence
+        self.SmurfApplication.ConfiguringInProgress.set(False)
