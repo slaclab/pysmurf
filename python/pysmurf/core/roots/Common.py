@@ -346,9 +346,9 @@ class Common(pyrogue.Root):
     # "False" otherwise
     def _set_defaults_cmd(self):
 
-        # Set the "DoneConfiguring" flag to "False" to indicate the
-        # start of the system configuration sequence.
-        self.SmurfApplication.DoneConfiguring.set(False)
+        # Set the "ConfiguringInProgress" flag to "True" to indicate
+        # the start of the system configuration sequence.
+        self.SmurfApplication.ConfiguringInProgress.set(True)
 
         # Set the "SystemConfigured" flag to "False". It will set to "True"
         # at the end of this method, if the setup success.
@@ -379,6 +379,6 @@ class Common(pyrogue.Root):
         # configuration sequence.
         self.SmurfApplication.SystemConfigured.set(success)
 
-        # Set the "DoneConfiguring" flag to "True" to indicate the
-        # end of the system configuration sequence
-        self.SmurfApplication.DoneConfiguring.set(True)
+        # Set the "ConfiguringInProgress" flag to "False" to indicate
+        # the end of the system configuration sequence
+        self.SmurfApplication.ConfiguringInProgress.set(False)

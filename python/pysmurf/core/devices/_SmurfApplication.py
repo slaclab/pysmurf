@@ -77,8 +77,8 @@ class SmurfApplication(pyrogue.Device):
             mode='RO'))
 
         self.add(pyrogue.LocalVariable(
-            name='DoneConfiguring',
-            description='The system configuration sequence is done',
+            name='ConfiguringInProgress',
+            description='The system configuration sequence is in progress',
             mode='RO',
             value=False))
 
