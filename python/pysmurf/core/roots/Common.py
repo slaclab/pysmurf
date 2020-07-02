@@ -324,7 +324,7 @@ class Common(pyrogue.Root):
 
             # If the check failed, try to reload the configuration again
             if retry_load_config:
-                print('  Trying to reload the configuration again...')
+                print('Check failed. Trying to reload the configuration again...\n')
                 if not self._load_config():
                     break
             else:
@@ -336,7 +336,7 @@ class Common(pyrogue.Root):
             print('Elastic buffer check passed!')
             return True
         else:
-            print(f'ERROR: Elastic buffer check failed {max_retries} times')
+            print(f'\nERROR: Elastic buffer check failed {max_retries} times')
             return False
 
     # Function for setting a default configuration.
