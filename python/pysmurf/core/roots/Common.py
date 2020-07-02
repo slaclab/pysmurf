@@ -324,9 +324,11 @@ class Common(pyrogue.Root):
 
             # If the check failed, try to reload the configuration again
             if retry_load_config:
-                print('Check failed. Trying to reload the configuration again...\n')
-                if not self._load_config():
-                    break
+                # Not need to reload defaults if the last iteration test fails
+                if k < max_retries - 1:
+                    print('Check failed. Trying to reload the configuration again...\n')
+                    if not self._load_config():
+                        break
             else:
                 success = True
                 break
