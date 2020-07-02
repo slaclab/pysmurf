@@ -17,38 +17,16 @@
 # The list of extra arguments will be store in 'args'
 arg_parser args "$@"
 
-# Validate the selected communication type
-validateCommType
-
-# Validate the selected slot number
-validateSlotNumber
-
-# Get FPGA IP address
-getFpgaIpAddr
-
-# Look for pyrogue files
-findPyrogueFiles
-
-# Firmware version checking
-checkFW
-
-# Do a hard boot, if requested
-hardBoot
-
-# Auto-detect hardware type
-## Detect type of AMCs, and get specific server startup arguments
-## for each specific type and add them to the list of arguments
-detect_amc_board amcs_args
-args+=" ${amcs_args}"
-
-## Detect type of carrier, and get specific server startup arguments
-## for each specific type and add them to the list of arguments
-detect_carrier_board carrier_args
-args+=" ${carrier_args}"
+# Call the initialization routines.
+# The list of extra arguments will be store in 'extra_args' and it
+# will be added to the list arguments 'args'.
+initialize extra_args
+args+=" ${extra_args}"
 
 echo
 
 # Call the appropriate server startup script depending on the communication type
+# and pass the list of arguments 'args'.
 if [ ${comm_type} == 'eth' ]; then
     echo "Staring the server using Ethernet communication..."
     cmd="/usr/local/src/pysmurf/server_scripts/cmb_eth.py  ${args}"
