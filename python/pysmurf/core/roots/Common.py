@@ -269,19 +269,19 @@ class Common(pyrogue.Root):
 
                 # Check the return value from 'LoadConfig'.
                 if not ret:
-                    print(f'  Setting defaults try number {i} failed. "LoadConfig" returned "False"')
+                    print(f'\nSetting defaults try number {i} failed. "LoadConfig" returned "False"\n')
                 else:
                     success = True
                     break
-            except pyrogue.DeviceError as err:
-                print(f'  Setting defaults try number {i} failed with: {err}')
+            except Exception as e:
+                print(f'\nERROR: Setting defaults try number {i} failed with: {e}\n')
 
         # Check if we could load the defaults before 'max_retries' retires.
         if success:
             print('Defaults were set correctly!')
             return True
         else:
-            print(f'ERROR: Failed to set defaults after {max_retries} retries!')
+            print(f'\nERROR: Failed to set defaults after {max_retries} retries. Aborting!\n')
             return False
 
     # Method to check the status of the elastic buffers. It must be called after
