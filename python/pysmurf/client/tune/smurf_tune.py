@@ -3194,7 +3194,7 @@ class SmurfTuneMixin(SmurfBase):
 
         if reset_rate_khz is None:
             # reset_rate_khz = self.reset_rate_khz
-            reset_rate_khz = int(self.get_flux_ramp_freq())
+            reset_rate_khz = self.get_flux_ramp_freq()
 
         if fraction_full_scale is None:
             # fraction_full_scale = self.fraction_full_scale
@@ -4058,7 +4058,7 @@ class SmurfTuneMixin(SmurfBase):
         # Store the values
         frac_full_scale = self.get_fraction_full_scale()
         lms_freq_hz = self.get_lms_freq_hz(band)
-        reset_rate_khz = int(self.get_flux_ramp_freq())
+        reset_rate_khz = self.get_flux_ramp_freq()
 
         # Extract channels that are on
         channel = np.where(np.std(df, axis=0)!=0)[0]
