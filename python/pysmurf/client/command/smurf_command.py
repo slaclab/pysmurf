@@ -1341,7 +1341,7 @@ class SmurfCommandMixin(SmurfBase):
     def set_rf_iq_stream_enable(self, band, val, **kwargs):
         """
         Sets the bit that turns on RF IQ streaming for take_debug_data
-        
+
         Args
         ----
         band : int
