@@ -43,7 +43,7 @@ class Common(pyrogue.Root):
                  **kwargs):
 
         pyrogue.Root.__init__(self, name="AMCc", initRead=True, pollEn=polling_en,
-            streamIncGroups='stream', serverPort=server_port, **kwargs)
+            timeout=5.0, streamIncGroups='stream', serverPort=server_port, **kwargs)
 
         #########################################################################################
         # The following interfaces are expected to be defined at this point by a sub-class
@@ -251,12 +251,134 @@ class Common(pyrogue.Root):
         print("Stopping root...")
         pyrogue.Root.stop(self)
 
+    # Method to load the configuration file, catching exceptions and checking the
+    # return value of "LoadConfig", and trying if there were errors, up to
+    # "max_retries" times.
+    # This method returns "True" if the configuration file was load correctly, or
+    # "False" otherwise.
+    def _load_config(self):
+        success = False
+        max_retries = 10
+
+        for i in range(max_retries):
+            print(f'Setting defaults from file {self._config_file} (try number {i})')
+
+            try:
+                # Try to load the defaults file
+                ret = self.LoadConfig(self._config_file)
+
+                # Check the return value from 'LoadConfig'.
+                if not ret:
+                    print(f'\nSetting defaults try number {i} failed. "LoadConfig" returned "False"\n')
+                else:
+                    success = True
+                    break
+            except Exception as e:
+                print(f'\nERROR: Setting defaults try number {i} failed with: {e}\n')
+
+        # Check if we could load the defaults before 'max_retries' retires.
+        if success:
+            print('Defaults were set correctly!')
+            return True
+        else:
+            print(f'\nERROR: Failed to set defaults after {max_retries} retries. Aborting!\n')
+            return False
+
+    # Method to check the status of the elastic buffers. It must be called after
+    # loading configuration. If the test fails, it will retry to reload the configuration
+    # up to "max_retries" times.
+    # This method returns "True" if the check passed, or "False" otherwise.
+    def _check_elastic_buffers(self):
+        success = False
+        max_retries = 10
+
+        for k in range(max_retries):
+            print(f'Check elastic buffers (try number {k})...')
+            retry_load_config = False
+
+            # Check the buffers in all the enabled bays
+            for i in self._enabled_bays:
+                # Workaround: Reading the individual registers does not work. So, we need to read
+                # the whole device, and then use the 'value()' method to get the register values.
+                self.FpgaTopLevel.AppTop.AppTopJesd[i].JesdRx.ReadDevice()
+
+                for j in range(10):
+                    # Check if the latency values are correct. The latency values should be:
+                    # - 13 or 14, for lanes = 0:1,4:9
+                    # - 255, for lanes 2:3
+                    latency = self.FpgaTopLevel.AppTop.AppTopJesd[i].JesdRx.ElBuffLatency[j].value()
+                    latency_ok = False
+
+                    if j in [2,3]:
+                        if latency == 255:
+                            latency_ok = True
+                    else:
+                        if latency in [13,14]:
+                            latency_ok = True
+
+                    if latency_ok:
+                        print(f'  OK - JesdRx[{i}].ElBuffLatency[{j}] = {latency}')
+                    else:
+                        print(f'  Test failed. JesdRx[{i}].ElBuffLatency[{j}] = {latency}')
+                        retry_load_config = True
+
+            # If the check failed, try to reload the configuration again
+            if retry_load_config:
+                # Not need to reload defaults if the last iteration test fails
+                if k < max_retries - 1:
+                    print('Check failed. Trying to reload the configuration again...\n')
+                    if not self._load_config():
+                        break
+            else:
+                success = True
+                break
+
+        # Check if the test passed before 'max_retries' retries
+        if success:
+            print('Elastic buffer check passed!')
+            return True
+        else:
+            print(f'\nERROR: Elastic buffer check failed {max_retries} times')
+            return False
+
     # Function for setting a default configuration.
+    # It returns "True" if the configuration was set correctly, or
+    # "False" otherwise
     def _set_defaults_cmd(self):
+
+        # Set the "ConfiguringInProgress" flag to "True" to indicate
+        # the start of the system configuration sequence.
+        self.SmurfApplication.ConfiguringInProgress.set(True)
+
+        # Set the "SystemConfigured" flag to "False". It will set to "True"
+        # at the end of this method, if the setup success.
+        self.SmurfApplication.SystemConfigured.set(False)
+
+        # Flag to indicate the final state of the system
+        # configuration sequence (True = success)
+        success = True
+
         # Check if a default configuration file has been defined
         if self._config_file is None:
-            print('No default configuration file was specified...')
-            return
+            print('\nERROR: No default configuration file was specified. Aborting!\n')
+            success = False
 
-        print(f'Setting defaults from file {self._config_file}')
-        self.LoadConfig(self._config_file)
+        # Try to load the configuration file, if the file was defined
+        if success:
+            if not self._load_config():
+                print('Aborting!\n')
+                success = False
+
+        # After loading defaults successfully, check the status of the elastic buffers
+        if success:
+            if not self._check_elastic_buffers():
+                print('Aborting!\n')
+                success = False
+
+        # Set the "SystemConfigured" flag to the final state of the
+        # configuration sequence.
+        self.SmurfApplication.SystemConfigured.set(success)
+
+        # Set the "ConfiguringInProgress" flag to "False" to indicate
+        # the end of the system configuration sequence
+        self.SmurfApplication.ConfiguringInProgress.set(False)

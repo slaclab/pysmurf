@@ -639,7 +639,7 @@ class SmurfNoiseMixin(SmurfBase):
                         np.max(self.get_amplitude_scale_array(band)),dtype=int))
                 self.run_serial_gradient_descent(band)
                 self.run_serial_eta_scan(band)
-                self.tracking_setup(band,lms_freq_hz=self.lms_freq_hz[band],
+                self.tracking_setup(band,lms_freq_hz=self._lms_freq_hz[band],
                     save_plot=True, make_plot=True, channel=self.which_on(band),
                     show_plot=False)
 
@@ -660,12 +660,15 @@ class SmurfNoiseMixin(SmurfBase):
         self.log(f'Saving data filenames to {fn_datafiles}.')
 
         if analyze:
-            self.analyze_noise_vs_bias(var_range, datafiles,  channel=channel,
-                band=band, bias_group=kwargs['bias_group'], nperseg=nperseg,
-                detrend=detrend, fs=fs, save_plot=True, show_plot=show_plot,
-                data_timestamp=timestamp ,psd_ylim=psd_ylim,
+            self.analyze_noise_vs_bias(
+                var_range, datafiles, channel=channel, band=band,
+                bias_group=kwargs['bias_group'], nperseg=nperseg,
+                detrend=detrend, fs=fs, save_plot=True,
+                show_plot=show_plot, data_timestamp=timestamp,
+                psd_ylim=psd_ylim,
                 make_timestream_plot=make_timestream_plot,
-                xlabel_override=xlabel_override, unit_override=unit_override)
+                xlabel_override=xlabel_override,
+                unit_override=unit_override)
 
 
     def get_datafiles_from_file(self, fn_datafiles):
@@ -746,9 +749,9 @@ class SmurfNoiseMixin(SmurfBase):
         for ch in iv_band_data:
             v_bias = iv_band_data[ch]['v_bias']
             if iv_high_current_mode and not high_current_mode:
-                iv_band_data[ch]['v_bias'] = v_bias*self.high_low_current_ratio
+                iv_band_data[ch]['v_bias'] = v_bias*self._high_low_current_ratio
             elif not iv_high_current_mode and high_current_mode:
-                iv_band_data[ch]['v_bias'] = v_bias/self.high_low_current_ratio
+                iv_band_data[ch]['v_bias'] = v_bias/self._high_low_current_ratio
         return iv_band_data
 
 
@@ -854,7 +857,7 @@ class SmurfNoiseMixin(SmurfBase):
             fs = self.get_sample_frequency()
 
         if R_sh is None:
-            R_sh = self.R_sh
+            R_sh = self._R_sh
 
         if isinstance(bias,str):
             self.log(f'Biases being read from {bias}')
@@ -1466,7 +1469,7 @@ class SmurfNoiseMixin(SmurfBase):
             The returned values from noise_all_vs_noise_solo.
         """
         if fs is None:
-            fs = self.fs
+            fs = self._fs
 
         keys = ret.keys()
         all_dir = ret.pop('all')
@@ -1541,10 +1544,10 @@ class SmurfNoiseMixin(SmurfBase):
         """
         NEI *= 1e-12 # bring NEI to SI units, i.e., A/rt(Hz)
         if high_current_mode:
-            V_b *= self.high_low_current_ratio
-        I_b = V_b/self.bias_line_resistance # bias current running through shunt+TES network
+            V_b *= self._high_low_current_ratio
+        I_b = V_b/self._bias_line_resistance # bias current running through shunt+TES network
         if R_sh is None:
-            R_sh = self.R_sh
+            R_sh = self._R_sh
         V_tes = I_b*R_sh*R_tes/(R_sh+R_tes) # voltage across TES
         NEP = V_tes*NEI # power spectral density
         T_CMB = 2.7
@@ -1607,7 +1610,7 @@ class SmurfNoiseMixin(SmurfBase):
         channel = channel.astype(int)
 
         if fs is None:
-            fs = self.fs
+            fs = self._fs
 
         if isinstance(tone,str):
             self.log(f'Tone powers being read from {tone}')
@@ -1617,7 +1620,7 @@ class SmurfNoiseMixin(SmurfBase):
             self.log(f'Noise data files being read from {datafile}')
             datafile = self.get_datafiles_from_file(datafile)
 
-        mask = np.loadtxt(self.smurf_to_mce_mask_file)
+        mask = self.get_channel_mask()
 
         # Analyze data and save
         for _, (_, d) in enumerate(zip(tone, datafile)):

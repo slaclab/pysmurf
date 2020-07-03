@@ -75,3 +75,15 @@ class SmurfApplication(pyrogue.Device):
             description='List of bays that are enabled',
             value=[2, 2],
             mode='RO'))
+
+        self.add(pyrogue.LocalVariable(
+            name='ConfiguringInProgress',
+            description='The system configuration sequence is in progress',
+            mode='RO',
+            value=False))
+
+        self.add(pyrogue.LocalVariable(
+            name='SystemConfigured',
+            description='The system was configured correctly',
+            mode='RO',
+            value=False))

@@ -849,7 +849,7 @@ class SmurfUtilMixin(SmurfBase):
         data_filename : str
             The fullpath to where the data is stored.
         """
-        bands = self.config.get('init').get('bands')
+        bands = self._bands
 
         if downsample_factor is not None:
             self.set_downsample_factor(downsample_factor)
@@ -1226,7 +1226,8 @@ class SmurfUtilMixin(SmurfBase):
 
         # Read in all channels by default
         if channel is None:
-            channel = np.arange(512)
+            n_channels = self.get_number_channels()
+            channel = np.arange(n_channels)
 
         channel = np.ravel(np.asarray(channel))
         n_chan = len(channel)
@@ -1356,8 +1357,7 @@ class SmurfUtilMixin(SmurfBase):
         return bias
 
     @set_action()
-    def make_mask_lookup(self, mask_file, mask_channel_offset=0,
-            make_freq_mask=False):
+    def make_mask_lookup(self, mask_file, make_freq_mask=False):
         """ Makes an n_band x n_channel array where the elements correspond
         to the smurf_to_mce mask number. In other words, mask[band, channel]
         returns the GCP index in the mask that corresonds to band, channel.
@@ -1365,10 +1365,7 @@ class SmurfUtilMixin(SmurfBase):
         Args
         ----
         mask_file : str
-            The full path the a mask file
-        mask_channel_offset : int, optional, default 0
-            Offset to remove from channel numbers in GCP mask file after
-            loading.
+            The full path the a mask file.
         make_freq_mask : bool, optional, default False
             Whether to write a text file with resonator frequencies.
 
@@ -1377,10 +1374,6 @@ class SmurfUtilMixin(SmurfBase):
         mask_lookup : int array
             An array with the GCP numbers.
         """
-        if hasattr(self, 'config'):
-            if self.config.get('smurf_to_mce').get('mask_channel_offset') is not None:
-                mask_channel_offset = int(self.config.get('smurf_to_mce').get('mask_channel_offset'))
-
         # Look for .dat file and replace with mask file
         if ".dat" in mask_file:
             self.log("make_mask_lookup received a .dat file. " +
@@ -1390,9 +1383,10 @@ class SmurfUtilMixin(SmurfBase):
             else:
                 mask_file = mask_file.replace(".dat", "_mask.txt")
 
+        n_channels = self.get_number_channels()
         mask = np.atleast_1d(np.loadtxt(mask_file))
-        bands = np.unique(mask // 512).astype(int)
-        ret = np.ones((np.max(bands)+1, 512), dtype=int) * -1
+        bands = np.unique(mask // n_channels).astype(int)
+        ret = np.ones((np.max(bands)+1, n_channels), dtype=int) * -1
         if make_freq_mask:
             freq_mask_file = mask_file.replace("_mask.txt", "_freq.txt")
             freq_mask_ret = np.zeros_like(ret).astype(float)
@@ -1403,8 +1397,8 @@ class SmurfUtilMixin(SmurfBase):
                 make_freq_mask = False
 
         for gcp_chan, smurf_chan in enumerate(mask):
-            b = int(smurf_chan//512)
-            ch = int((smurf_chan-mask_channel_offset)%512)
+            b = int(smurf_chan//n_channels)
+            ch = int((smurf_chan)%n_channels)
             ret[b,ch] = gcp_chan
 
             # fill corresponding elements with frequency
@@ -1934,9 +1928,10 @@ class SmurfUtilMixin(SmurfBase):
             The band that is to be turned off.
         """
         self.set_amplitude_scales(band, 0, **kwargs)
-        self.set_feedback_enable_array(band, np.zeros(512, dtype=int), **kwargs)
-        self.set_cfg_reg_ena_bit(0, wait_after=.11, **kwargs)
-
+        n_channels = self.get_number_channels(band)
+        self.set_feedback_enable_array(
+            band, np.zeros(n_channels, dtype=int), **kwargs)
+        self.set_cfg_reg_ena_bit(0, wait_after=.2, **kwargs)
 
     def channel_off(self, band, channel, **kwargs):
         """
@@ -2297,7 +2292,7 @@ class SmurfUtilMixin(SmurfBase):
             # assume all bands have the same channel order, and pull
             # the channel frequency ordering from the first band in
             # the list of bands specified in experiment.cfg.
-            bands = self.config.get('init').get('bands')
+            bands = self._bands
             band = bands[0]
 
         tone_freq_offset = self.get_tone_frequency_offset_mhz(band)
@@ -2979,7 +2974,7 @@ class SmurfUtilMixin(SmurfBase):
         """
         # drive high current through the TES to attempt to drive normal
         if bias_groups is None:
-            bias_groups = self.all_groups
+            bias_groups = self._all_groups
         else:
             # assert requires array
             bias_groups = np.atleast_1d(bias_groups)
@@ -3043,8 +3038,8 @@ class SmurfUtilMixin(SmurfBase):
         bias_group = np.ravel(np.array(bias_group))
         for bg in bias_group:
             if bg < n_bias_groups:
-                r = np.ravel(self.pic_to_bias_group[
-                    np.where(self.pic_to_bias_group[:,1]==bg)])[0]
+                r = np.ravel(self._pic_to_bias_group[
+                    np.where(self._pic_to_bias_group[:,1]==bg)])[0]
             else:
                 r = bg
             new_relay = (1 << r) | new_relay
@@ -3075,8 +3070,8 @@ class SmurfUtilMixin(SmurfBase):
             self.log(f'Old relay {bin(old_relay)}')
         for bg in bias_group:
             if bg < n_bias_groups:
-                r = np.ravel(self.pic_to_bias_group[np.where(
-                    self.pic_to_bias_group[:,1]==bg)])[0]
+                r = np.ravel(self._pic_to_bias_group[np.where(
+                    self._pic_to_bias_group[:,1]==bg)])[0]
             else:
                 r = bg
             if old_relay & 1 << r != 0:
@@ -3135,44 +3130,42 @@ class SmurfUtilMixin(SmurfBase):
         self.set_cryo_card_relays(new_relay)
         self.get_cryo_card_relays()
 
-
     def att_to_band(self, att):
-        """
-        Gives the band associated with a given attenuator number
+        """500 MHz band associated with this attenuator number.
 
         Args
         ----
         att : int
-            The attenuatory number.
+            Attenuator number.
 
         Returns
         -------
         band : int
-            The band associated with the attenuator.
+            The 500 MHz band associated with the attenuator.
         """
-        return self.att_to_band['band'][np.ravel(
-            np.where(self.att_to_band['att']==att))[0]]
+        return int(
+            self._attenuator['band'][np.ravel(
+                np.where(self._attenuator['att']==att))[0]])
 
     def band_to_att(self, band):
-        """
-        Gives the att associated with a given 500 MHz band.
+        """Attenuator number associated with this 500 MHz band.
 
         Args
         ----
         band : int
-            The 500 MHz band number.
+            500 MHz band number.
 
         Returns
         -------
         att : int
-            The attenuatory number.
+            The attenuator number associated with the band.
         """
-        # for now, mod 4 ; assumes the band <-> att correspondence is the same
-        # for the LB and HB AMCs.
+        # for now, mod 4 ; assumes the band <-> att correspondence is
+        # the same for the LB and HB AMCs.
         band=band%4
-        return self.att_to_band['att'][np.ravel(
-            np.where(self.att_to_band['band']==band))[0]]
-
+        return int(
+            self._attenuator['att'][np.ravel(
+                np.where(self._attenuator['band']==band))[0]])
 
     def flux_ramp_rate_to_PV(self, val):
         """
@@ -3278,7 +3271,7 @@ class SmurfUtilMixin(SmurfBase):
             An array with frequencies associated with the mask file.
         """
         freqs = np.zeros(len(mask), dtype=float)
-        channels_per_band = 512  # avoid hardcoding this
+        channels_per_band = self.get_number_channels()
 
         # iterate over mask channels and find their freq
         for i, mask_ch in enumerate(mask):
@@ -3320,9 +3313,7 @@ class SmurfUtilMixin(SmurfBase):
     def get_filter_params(self):
         """
         Get the downsample filter parameters: filter order, filter
-        gain, num averages, and the actual filter parameters. This
-        reads the most recent smurf_to_mce_file to get the
-        parameters. This is defined in self.smurf_to_mce_file.
+        gain, num averages, and the actual filter parameters.
 
         If filter order is -1, the downsampler is using a rectangula
         integrator. This will set filter_a, filter_b to None.
@@ -3359,9 +3350,12 @@ class SmurfUtilMixin(SmurfBase):
         return ret
 
     @set_action()
-    def make_gcp_mask(self, band=None, smurf_chans=None, gcp_chans=None,
-                      read_gcp_mask=True, mask_channel_offset=0):
+    def make_gcp_mask(self, band=None, smurf_chans=None,
+                      gcp_chans=None, read_gcp_mask=True):
         """
+        THIS FUNCTION WAS USED FOR BKUMUX DATA ACQUISITION.  IT'S
+        COMPLETELY BROKEN NOW, POST ROGUE4 MIGRATION.
+
         Makes the gcp mask. Only the channels in this mask will be stored
         by GCP.
 
@@ -3382,12 +3376,8 @@ class SmurfUtilMixin(SmurfBase):
         read_gcp_mask : bool, optional, default True
             Whether to read in the new GCP mask file.  If not read in,
             it will take no effect.
-        mask_channel_offset : int, optional, default 0
-            Offset to add to channel numbers in GCP mask file.
-        """
-        if self.config.get('smurf_to_mce').get('mask_channel_offset') is not None:
-            mask_channel_offset=int(self.config.get('smurf_to_mce').get('mask_channel_offset'))
 
+        """
         gcp_chans = np.array([], dtype=int)
         if smurf_chans is None and band is not None:
             band = np.ravel(np.array(band))
@@ -3399,30 +3389,17 @@ class SmurfUtilMixin(SmurfBase):
                 self.log(f'Band {k}')
                 n_chan = self.get_number_channels(k)
                 for ch in smurf_chans[k]:
+                    gcp_chans = np.append(gcp_chans, ch + n_chan*k)
 
-                    # optionally shift by an offset.  The offset is applied
-                    # circularly within each 512 channel band
-                    channel_offset = mask_channel_offset
-                    if (ch+channel_offset)<0:
-                        channel_offset+=n_chan
-                    if (ch+channel_offset+1)>n_chan:
-                        channel_offset-=n_chan
-
-                    gcp_chans = np.append(gcp_chans, ch + n_chan*k + channel_offset)
-
-        if len(gcp_chans) > 512:
+        n_channels = self.get_number_channels(band)
+        if len(gcp_chans) > n_channels:
             self.log('WARNING: too many gcp channels!')
             return
 
-        static_mask = self.config.get('smurf_to_mce').get('static_mask')
-        if static_mask:
-            self.log('NOT DYNAMICALLY GENERATING THE MASK. STATIC. SET static_mask=0 '+
-                     'IN CFG TO DYNAMICALLY GENERATE MASKS!!!')
-        else:
-            self.log(f'Generating gcp mask file. {len(gcp_chans)} ' +
-                     'channels added')
+        self.log(f'Generating gcp mask file. {len(gcp_chans)} ' +
+                 'channels added')
 
-            np.savetxt(self.smurf_to_mce_mask_file, gcp_chans, fmt='%i')
+        np.savetxt(self.smurf_to_mce_mask_file, gcp_chans, fmt='%i')
 
         if read_gcp_mask:
             self.read_smurf_to_gcp_config()
@@ -3582,14 +3559,14 @@ class SmurfUtilMixin(SmurfBase):
 
         v_bias *= -2 * self._rtm_slow_dac_bit_to_volt  # FBU to V
         d *= self._pA_per_phi0/(2*np.pi*1.0E6) # Convert to microamp
-        i_amp = step_size / self.bias_line_resistance * 1.0E6 # also uA
-        i_bias = v_bias[bias_group[0]] / self.bias_line_resistance * 1.0E6
+        i_amp = step_size / self._bias_line_resistance * 1.0E6 # also uA
+        i_bias = v_bias[bias_group[0]] / self._bias_line_resistance * 1.0E6
 
 
         # Scale the currents for high/low current
         if high_current_mode:
-            i_amp *= self.high_low_current_ratio
-            i_bias *= self.high_low_current_ratio
+            i_amp *= self._high_low_current_ratio
+            i_bias *= self._high_low_current_ratio
 
         # Demodulation timeline
         demod = (v_bias[bias_group[0]] - np.min(v_bias[bias_group[0]]))
@@ -3641,8 +3618,8 @@ class SmurfUtilMixin(SmurfBase):
                 plt.close(fig)
                 self.pub.register_file(plot_fn, 'bias_bump', plot=True)
 
-        resistance = np.abs(self.R_sh * (1-1/sib))
-        siq = (2*sib-1)/(self.R_sh*i_amp) * 1.0E6/1.0E12  # convert to uA/pW
+        resistance = np.abs(self._R_sh * (1-1/sib))
+        siq = (2*sib-1)/(self._R_sh*i_amp) * 1.0E6/1.0E12  # convert to uA/pW
 
         ret = {}
         for b in np.unique(bands):
@@ -3664,7 +3641,7 @@ class SmurfUtilMixin(SmurfBase):
         Turns off everything. Does band off, flux ramp off, then TES bias off.
         """
         self.log('Turning off tones')
-        bands = self.config.get('init').get('bands')
+        bands = self._bands
         for b in bands:
             self.band_off(b)
 
@@ -3713,7 +3690,7 @@ class SmurfUtilMixin(SmurfBase):
         return (gcp_num*16)%528 + gcp_num//33
 
 
-    def smurf_channel_to_gcp_num(self, band, channel, mask_file=None):
+    def smurf_channel_to_gcp_num(self, band, channel):
         """
         Converts from smurf channel (band and channel) to a gcp number
 
@@ -3723,29 +3700,22 @@ class SmurfUtilMixin(SmurfBase):
             The smurf band number.
         channel : int
             The smurf channel number.
-        mask_file : int array or None, optional, default None
-            The mask file to convert between smurf channel and GCP
-            number.
 
         Returns
         -------
         gcp_num : int
             The GCP number.
         """
-        if mask_file is None:
-            mask_file = self.smurf_to_mce_mask_file
-
-
-        mask = self.make_mask_lookup(mask_file)
+        mask = self.get_channel_mask()
 
         if mask[band, channel] == -1:
-            self.log(f'Band {band} Ch {channel} not in mask file')
+            self.log(f'Band {band} Ch {channel} not in mask')
             return None
 
         return self.mask_num_to_gcp_num(mask[band, channel])
 
 
-    def gcp_num_to_smurf_channel(self, gcp_num, mask_file=None):
+    def gcp_num_to_smurf_channel(self, gcp_num):
         """
         Converts from gcp number to smurf channel (band and channel).
 
@@ -3753,9 +3723,6 @@ class SmurfUtilMixin(SmurfBase):
         ----
         gcp_num : int
             The GCP number.
-        mask_file : int array or None, optional, default None
-            The mask file to convert between smurf channel and GCP
-            number.
 
         Returns
         -------
@@ -3764,12 +3731,11 @@ class SmurfUtilMixin(SmurfBase):
         channel : int
             The smurf channel number.
         """
-        if mask_file is None:
-            mask_file = self.smurf_to_mce_mask_file
-        mask = np.loadtxt(mask_file)
+        mask = self.get_channel_mask()
+        n_channels = self.get_number_channels()
 
         mask_num = self.gcp_num_to_mask_num(gcp_num)
-        return int(mask[mask_num]//512), int(mask[mask_num]%512)
+        return int(mask[mask_num]//n_channels), int(mask[mask_num]%n_channels)
 
 
     def play_sine_tes(self, bias_group, tone_amp, tone_freq, dc_amp=None):
@@ -4182,11 +4148,6 @@ class SmurfUtilMixin(SmurfBase):
                 d[f'bay{bay}_dac{dac}_temp']=(
                     lambda:self.get_dac_temp(bay,dac))
 
-        #AT THE MOMENT, WAY TOO SLOW
-        # keep track of how many tones are on in each band
-        #for band in bands:
-        #    d['chans_b%d'%band]=lambda:len(self.which_on(band))
-
         # atca monitor
         d['atca_temp_fpga']=self.get_board_temp_fpga
         d['atca_temp_rtm']=self.get_board_temp_rtm
@@ -4399,9 +4360,9 @@ class SmurfUtilMixin(SmurfBase):
 
             # currents on lines
             if high_current_mode:
-                r_inline = self.bias_line_resistance / self.high_low_current_ratio
+                r_inline = self._bias_line_resistance / self._high_low_current_ratio
             else:
-                r_inline = self.bias_line_resistance
+                r_inline = self._bias_line_resistance
 
             i_bias = probe_amp / r_inline * 1.0E12  # Bias current in pA
 
