@@ -3880,11 +3880,15 @@ class SmurfUtilMixin(SmurfBase):
         drive : int
             The amplitude for the fixed tone (0-15 in recent fw
             revisions).
+        write_log : bool, optional, default False
+            Whether to write low-level commands to the log file.
 
-        Ret
-        ---
-        band, channel : int
-            The band channel number that was used to turn on the tone
+        Returns
+        -------
+        band : int
+            The band number in which a tone was turned on.
+        channel : int
+            The band channel number that was used to turn on the tone.
         """
 
         # Find which band the requested frequency falls into.
