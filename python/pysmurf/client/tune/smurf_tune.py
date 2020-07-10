@@ -2437,6 +2437,8 @@ class SmurfTuneMixin(SmurfBase):
             Whether to save plots.
         show_plot : bool, optional, default True
             Whether to display the plot.
+        nsamp : int, optional, default 2**19
+            The number of samples to take of the flux ramp.
         lms_freq_hz : float or None, optional, default None
             The frequency of the tracking algorithm.
         meas_lms_freq : bool, optional, default False
@@ -2447,8 +2449,6 @@ class SmurfTuneMixin(SmurfBase):
             phi0 defined by n_phi0. lms_freq_hz must be None for this to work.
         n_phi0 : float, optional, default 4
             The number of phi0 to match using meas_flux_ramp_amp.
-        nsamp : int, optional, default 2**19
-            The number of samples to take of the flux ramp
         flux_ramp : bool, optional, default True
             Whether to turn on flux ramp.
         fraction_full_scale : float or None, optional, default None
@@ -2462,6 +2462,10 @@ class SmurfTuneMixin(SmurfBase):
         lms_gain : int or None, optional, default None
             The tracking gain parameters. Default is the value in the
             config table.
+        return_data : bool, optional, default True
+            Whether or not to return f, df, sync.
+        new_epics_root : str or None, optional, default None
+            Override the original epics root.
         feedback_start_frac : float or None, optional, default None
             The fraction of the full flux ramp at which to stop
             applying feedback in each flux ramp cycle.  Must be in
