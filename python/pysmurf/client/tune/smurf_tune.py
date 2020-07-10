@@ -3155,7 +3155,7 @@ class SmurfTuneMixin(SmurfBase):
             lms_freq_hz=None, reset_rate_khz=None, feedback_start_frac=None,
             feedback_end_frac=None, setup_flux_ramp=True, lms_enable1=None,
             lms_enable2=None, lms_enable3=None, lms_gain=None, **kwargs):
-        """
+        r"""
         Takes a tracking setup and turns off channels that have bad
         tracking. The limits are set by the variables f_min, f_max,
         and df_max. The output is stored to freq_resp[band]['lock_status'] dict.
@@ -3200,6 +3200,9 @@ class SmurfTuneMixin(SmurfBase):
         lms_gain : int or None, optional, default None
             Tracking loop gain.  If None, doesn't change what's
             currently being used.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed to some register sets
+            and gets.
         """
         self.log(f'Checking lock on band {band}')
 
