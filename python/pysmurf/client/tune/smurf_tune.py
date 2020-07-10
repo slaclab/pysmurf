@@ -3164,7 +3164,6 @@ class SmurfTuneMixin(SmurfBase):
         ----
         band : int
             The band the check.
-
         f_min : float, optional, default 0.015
             The maximum frequency swing.
         f_max : float, optional, default 0.2
@@ -3175,7 +3174,7 @@ class SmurfTuneMixin(SmurfBase):
             Whether to make plots.
         flux_ramp : bool, optional, default True
             Whether to flux ramp or not.
-        faction_full_scale : float, optional, default None
+        fraction_full_scale : float, optional, default None
             Number between 0 and 1. The amplitude of the flux ramp.
         lms_freq_hz : float or None, optional, default None
             The tracking frequency in Hz.
@@ -3189,6 +3188,18 @@ class SmurfTuneMixin(SmurfBase):
             feedback. Float between 0 and 1.
         setup_flux_ramp : bool, optional, default True
             Whether to setup the flux ramp at the end.
+        lms_enable1 : bool, optional, default None
+            Whether to use the first harmonic for tracking.  If None,
+            doesn't change what's currently being used.
+        lms_enable2 : bool or None, optional, default None
+            Whether to use the second harmonic for tracking.  If None,
+            doesn't change what's currently being used.
+        lms_enable3 : bool or None, optional, default None
+            Whether to use the third harmonic for tracking.  If None,
+            doesn't change what's currently being used.
+        lms_gain : int or None, optional, default None
+            Tracking loop gain.  If None, doesn't change what's
+            currently being used.
         """
         self.log(f'Checking lock on band {band}')
 
