@@ -3130,8 +3130,13 @@ class SmurfTuneMixin(SmurfBase):
             write_log=write_log)
         self.set_enable_ramp_trigger(EnableRampTrigger, new_epics_root=new_epics_root,
             write_log=write_log)
+        # If RampStartMode is 0x1, using timing system, which
+        # overrides internal triggering.  Must select one of the
+        # available ramp rates programmed into the timing system using
+        # the set_ramp_rate routine.
         if self.get_ramp_start_mode() == 1:
-            self.set_ramp_rate(reset_rate_khz, new_epics_root=new_epics_root,
+            self.set_ramp_rate(
+                reset_rate_khz, new_epics_root=new_epics_root,
                 write_log=write_log)
 
 
