@@ -1871,8 +1871,8 @@ class SmurfNoiseMixin(SmurfBase):
         if tone_power is None:
             tone_power = self.get_amplitude_scale_channel(band, channel)
             if tone_power == 0:
-                self.log("Tone amplitude is set to zero. Using default of 10")
-                tone_power = 10
+                self.log("Tone amplitude is set to zero. Using default of 12")
+                tone_power = 12
 
         if band_off:
             self.band_off(band)
