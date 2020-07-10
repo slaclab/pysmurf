@@ -1906,8 +1906,8 @@ class SmurfNoiseMixin(SmurfBase):
         if make_plot:
             fig, ax = plt.subplots(2, figsize=(6,5.5),
                 gridspec_kw={'height_ratios': [1, 2]})
-            t = np.arange(nperseg)/channel_freq * 1.0E3 # Time in ms
-            ax[0].plot(t, df[:nperseg])  # Plot only the first nperseg samples
+            t_ms = np.arange(nperseg)/channel_freq * 1.0E3 # Time in ms
+            ax[0].plot(t_ms, df[:nperseg])  # Plot only the first nperseg samples
             ax[0].set_xlabel(r'Time [ms]')
             ax[1].loglog(ff, np.sqrt(pxx))
             ax[1].set_xlabel("Freq [Hz]")
