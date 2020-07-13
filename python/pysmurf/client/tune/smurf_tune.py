@@ -3124,11 +3124,14 @@ class SmurfTuneMixin(SmurfBase):
             write_log=write_log)
         self.set_mode_control(ModeControl, new_epics_root=new_epics_root,
             write_log=write_log)
-        self.set_fast_slow_step_size(FastSlowStepSize, new_epics_root=new_epics_root,
+        self.set_fast_slow_step_size(FastSlowStepSize,
+            new_epics_root=new_epics_root,
             write_log=write_log)
-        self.set_fast_slow_rst_value(FastSlowRstValue, new_epics_root=new_epics_root,
+        self.set_fast_slow_rst_value(FastSlowRstValue,
+            new_epics_root=new_epics_root,
             write_log=write_log)
-        self.set_enable_ramp_trigger(EnableRampTrigger, new_epics_root=new_epics_root,
+        self.set_enable_ramp_trigger(EnableRampTrigger,
+            new_epics_root=new_epics_root,
             write_log=write_log)
         # If RampStartMode is 0x1, using timing system, which
         # overrides internal triggering.  Must select one of the
@@ -4301,6 +4304,9 @@ class SmurfTuneMixin(SmurfBase):
                 flux_resp = np.zeros((n_sync, max_len)) * np.nan
                 for i in np.arange(n_sync):
                     df_tmp = df[sync_flag[i]:sync_flag[i+1],ch]
+
+                    # Some blocks are 1 sample shorter. This appends the block
+                    # by 1 sample.
                     if len(df_tmp) < max_len:
                         df_tmp = np.append(df_tmp,
                             df_tmp[-1]*np.ones(max_len - len(df_tmp)))
@@ -4337,7 +4343,8 @@ class SmurfTuneMixin(SmurfBase):
 
                     #polyfit
                     Xf = [-1, 0, 1]
-                    Yf = [corr_amp[int(peaks[ch]-1)],corr_amp[int(peaks[ch])],corr_amp[int(peaks[ch]+1)]]
+                    Yf = [corr_amp[int(peaks[ch]-1)],corr_amp[int(peaks[ch])],\
+                        corr_amp[int(peaks[ch]+1)]]
                     V = np.polyfit(Xf, Yf, 2)
                     offset = -V[1]/(2.0 * V[0])
                     peak = offset + peaks[ch]
@@ -4472,7 +4479,8 @@ class SmurfTuneMixin(SmurfBase):
 
                     theta = np.arctan2(rc, rs)
                     for n in range(0, pts):
-                        r[n] = 0.5 * scl *  np.sin(theta + n * 2 * np.pi / (dn/result[ch]))
+                        r[n] = 0.5 * scl *  np.sin(theta + n * 2 * np.pi /
+                            (dn/result[ch]))
 
                     plt.figure()
                     plt.plot(r)
