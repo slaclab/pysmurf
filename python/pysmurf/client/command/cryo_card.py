@@ -171,7 +171,7 @@ class CryoCard():
         # bytes, one byte per version digit.  For example: Version
         # R2.3.1 is coded as 0x020301.
         data = self.do_read(self.fw_version_address)
-        
+
         hexdata = f'{cmd_data(data):06x}'
         patch = int(hexdata[-2:],16)
         minor = int(hexdata[-4:-2],16)
