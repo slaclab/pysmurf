@@ -33,6 +33,7 @@ class CryoCard():
     def __init__(self, readpv_in, writepv_in):
         self.readpv = readpv_in
         self.writepv = writepv_in
+        self.fw_version_address = 0x0
         self.relay_address = 0x2
         self.hemt_bias_address = 0x3
         self.a50K_bias_address = 0x4
@@ -111,20 +112,12 @@ class CryoCard():
            Bit set to 1 mean enable power supply.
            Bit set to 0 mean disable the power supply.
 
-        Returns
-        -------
-        Nothing
         """
         epics.caput(self.writepv, cmd_make(0, self.ps_en_address, enables))
 
     def read_ps_en(self):
         """
         Read the power supply enable signals.
-
-        Args
-        ----
-        None
-
 
         Returns
         -------
@@ -133,6 +126,7 @@ class CryoCard():
            Bit 1 for the 50k power supply.
            Bit set to 1 means the power supply is enabled.
            Bit set to 0 means the power supply is disabled.
+
         """
         data = self.do_read(self.ps_en_address)
         return(cmd_data(data))
@@ -141,19 +135,49 @@ class CryoCard():
         """
         Read the AC/DC mode relays readback status
 
-        Args
-        ----
-        None
-
         Returns
         -------
         status (int): 2-bit number with the readback relay status
             Bit 0: Status of FRN_RLY
             Bit 1: Status of FRP_RLY
+
         """
         data = self.do_read(self.ac_dc_status_address)
         return(cmd_data(data))
 
+    def read_fw_version(self):
+        """Read cryostat card PIC firmware version.
+
+        Read the version of the firmware currently loaded on the
+        cryostat card PIC.  The cryostat card PIC fw code is version
+        controlled on github and details on each firmware version is
+        listed there under "Releases" [#ccfw]_.
+
+        TODO : add note about what's returned for versions in which we
+        weren't yet using this register to return the fw version, and
+        a note about what's returned if no cryostat card is connected
+        (if anything - maybe it just stalls?).
+
+        Returns
+        -------
+        str
+           Cryostat card PIC firmware version, e.g. 'R2.3.1'.
+
+        References
+        ----------
+        .. [#ccfw] https://github.com/slaclab/smurfc/releases
+        """
+        # Raw data is the firmware version, coded in HEX in three
+        # bytes, one byte per version digit.  For example: Version
+        # R2.3.1 is coded as 0x020301.
+        data = self.do_read(self.fw_version_address)
+        
+        hexdata = f'{cmd_data(data):06x}'
+        patch = int(hexdata[-2:],16)
+        minor = int(hexdata[-4:-2],16)
+        major = int(hexdata[-6:-4],16)
+
+        return(f'R{major}.{minor}.{patch}')
 
 # low level data conversion
 
