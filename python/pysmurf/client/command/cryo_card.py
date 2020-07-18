@@ -22,14 +22,7 @@ try:
 except ModuleNotFoundError:
     print("cryo_card.py - epics not found.")
 
-def write_csv(filename, header, line):
-    should_write_header = os.path.exists(filename)
-    with open(filename, 'a+') as f:
-        if not should_write_header:
-            f.write(header+'\n')
-        f.write(line+'\n')
-
-class CryoCard():
+class CryoCard(object):
     def __init__(self, readpv_in, writepv_in):
         self.readpv = readpv_in
         self.writepv = writepv_in

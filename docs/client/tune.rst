@@ -7,3 +7,4 @@ smurf_tune
 ----------
 .. automodule:: pysmurf.client.tune.smurf_tune
     :members:
+    :undoc-members:

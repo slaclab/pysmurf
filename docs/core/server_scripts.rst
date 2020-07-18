@@ -7,8 +7,10 @@ Common
 ------
 .. automodule:: pysmurf.core.server_scripts.Common
     :members:
+    :undoc-members:
 
 _VariableGroupExample
 ---------------------
 .. automodule:: pysmurf.core.server_scripts._VariableGroupExample
-    :members:       
+    :members:
+    :undoc-members:
