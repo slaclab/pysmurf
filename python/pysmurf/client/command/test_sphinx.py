@@ -16,13 +16,19 @@
 import time
 import epics
 
-from pysmurf.client.base import SmurfBase
-from pysmurf.client.command.sync_group import SyncGroup as SyncGroup
-from pysmurf.client.util import tools
+class SmurfCommandMixin(object):
 
-class SmurfCommandMixin(SmurfBase):
+    def write_ps_en(self, enables):
+        """
+        Write the power supply enable signals.
 
-    _rogue_version_reg = 'RogueVersion'
+        Args
+        ----
+        enables (int): 2-bit number to set the power supplies enables.
+           Bit 0 set the enable for HEMT power supply.
+           Bit 1 set the enable for 50k power supply.
+           Bit set to 1 mean enable power supply.
+           Bit set to 0 mean disable the power supply.
 
-    def get_rogue_version(self, **kwargs):
-        return None
+        """
+        epics.caput(self.writepv, cmd_make(0, self.ps_en_address, enables))    
