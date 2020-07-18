@@ -27,7 +27,6 @@ sync_group
 ----------
 .. automodule:: pysmurf.client.command.sync_group
     :members:
-    :members:
     :undoc-members:
     :show-inheritance:       
 
