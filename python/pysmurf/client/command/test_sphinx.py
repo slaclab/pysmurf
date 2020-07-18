@@ -27,7 +27,7 @@ def write_csv(filename, header, line):
             f.write(header+'\n')
         f.write(line+'\n')
 
-class SmurfCommandMixin(SmurfBase):
+class CryoCard():
 
     def write_ps_en(self, enables):
         """
