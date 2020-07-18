@@ -15,7 +15,6 @@
 # contained in the LICENSE.txt file.
 #-----------------------------------------------------------------------------
 import time
-
 try:
     import epics
 except ModuleNotFoundError:
