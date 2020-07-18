@@ -20,14 +20,25 @@ from pysmurf.client.base import SmurfBase
 from pysmurf.client.command.sync_group import SyncGroup as SyncGroup
 from pysmurf.client.util import tools
 
-def write_csv(filename, header, line):
-    should_write_header = os.path.exists(filename)
-    with open(filename, 'a+') as f:
-        if not should_write_header:
-            f.write(header+'\n')
-        f.write(line+'\n')
-
 class SmurfCommandMixin(SmurfBase):
+
+    _rogue_version_reg = 'RogueVersion'
+
+    def get_rogue_version(self, **kwargs):
+        r"""Get rogue version
+
+        Args
+        ----
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caget` call.
+
+        Returns
+        -------
+        str
+            The rogue version
+        """
+        return None
 
     def write_ps_en(self, enables):
         """
