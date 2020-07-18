@@ -27,8 +27,13 @@ sync_group
 ----------
 .. automodule:: pysmurf.client.command.sync_group
     :members:
+    :members:
+    :undoc-members:
+    :show-inheritance:       
 
 test_sphinx
 -----------
 .. automodule:: pysmurf.client.command.test_sphinx
-    :members:       
+    :members:
+    :undoc-members:
+    :show-inheritance:
