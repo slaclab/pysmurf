@@ -15,6 +15,7 @@
 #-----------------------------------------------------------------------------
 import os
 import time
+import epics
 
 import numpy as np
 
