@@ -16,29 +16,7 @@
 import time
 import epics
 
-from pysmurf.client.base import SmurfBase
-from pysmurf.client.command.sync_group import SyncGroup as SyncGroup
-from pysmurf.client.util import tools
-
-class SmurfCommandMixin(SmurfBase):
-
-    _rogue_version_reg = 'RogueVersion'
-
-    def get_rogue_version(self, **kwargs):
-        r"""Get rogue version
-
-        Args
-        ----
-        \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caget` call.
-
-        Returns
-        -------
-        str
-            The rogue version
-        """
-        return None
+class SmurfCommandMixin(object):
 
     def write_ps_en(self, enables):
         """
@@ -53,5 +31,4 @@ class SmurfCommandMixin(SmurfBase):
            Bit set to 0 mean disable the power supply.
 
         """
-        epics.caput(self.writepv, cmd_make(0, self.ps_en_address, enables))
-    
+        epics.caput(self.writepv, cmd_make(0, self.ps_en_address, enables))    
