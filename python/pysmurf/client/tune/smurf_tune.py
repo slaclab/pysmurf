@@ -3345,7 +3345,7 @@ class SmurfTuneMixin(SmurfBase):
             Whether to show the plot.
         '''
         if subband is None:
-            subband = np.arange(self.get_number_sub_bands(band))
+            subband = np.arange(self.get_number_sub_bands())
         subband = np.asarray(subband)
 
         if (f is None or resp is None) and filename is None:
