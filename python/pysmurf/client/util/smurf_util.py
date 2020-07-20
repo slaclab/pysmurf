@@ -173,6 +173,7 @@ class SmurfUtilMixin(SmurfBase):
         # save time)
         n_subbands = self.get_number_sub_bands(band)
         digitizer_frequency_mhz = self.get_digitizer_frequency_mhz(band)
+        channel_frequency_mhz = self.get_channel_frequency_mhz(band)
         subband_half_width_mhz = digitizer_frequency_mhz/\
             n_subbands
         subbands,subband_centers=self.get_subband_centers(band)
@@ -314,9 +315,9 @@ class SmurfUtilMixin(SmurfBase):
         dsp_delay_us-=refPhaseDelayFine0/(digitizer_frequency_mhz/2)
 
         ## compute refPhaseDelay and refPhaseDelayFine
-        refPhaseDelay=int(np.ceil(dsp_delay_us*(subband_half_width_mhz/2.)))
+        refPhaseDelay=int(np.ceil(dsp_delay_us*channel_frequency_mhz))
         refPhaseDelayFine=int(np.round((digitizer_frequency_mhz/2/
-            (subband_half_width_mhz/2.)*
+            (channel_frequency_mhz)*
             (refPhaseDelay-dsp_delay_us*(subband_half_width_mhz/2.)))))
         processing_delay_us=dsp_delay_us-cable_delay_us
 

@@ -3308,7 +3308,9 @@ class SmurfTuneMixin(SmurfBase):
         # Call plotting
         if make_plot:
             self.plot_find_freq(self.freq_resp[band]['find_freq']['f'],
-                self.freq_resp[band]['find_freq']['resp'], save_plot=save_plot,
+                self.freq_resp[band]['find_freq']['resp'],
+                subband=np.arange(self.get_number_sub_bands(band)),
+                save_plot=save_plot,
                 show_plot=show_plot,
                 save_name=save_name.replace('.txt', plotname_append +
                                             '.png').format(timestamp, band))
@@ -3343,7 +3345,7 @@ class SmurfTuneMixin(SmurfBase):
             Whether to show the plot.
         '''
         if subband is None:
-            subband = np.arange(128)
+            subband = np.arange(self.get_number_sub_bands(band))
         subband = np.asarray(subband)
 
         if (f is None or resp is None) and filename is None:
