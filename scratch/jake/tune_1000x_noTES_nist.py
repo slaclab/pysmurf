@@ -30,7 +30,7 @@ if band==2:
     S.freq_resp=S.fake_resonance_dict(resonly)
     #####################################
     
-S.setup_notches(band,new_master_assignment=True)
+S.setup_notches(band,new_main_assignment=True)
 S.plot_tune_summary(band,eta_scan=True)
 S.run_serial_gradient_descent(band)
 S.run_serial_eta_scan(band)

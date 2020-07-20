@@ -28,8 +28,8 @@ class DataToFile(pyrogue.Device):
     """
     def __init__(self, name="DataToFile", description="Data to file writer", **kwargs):
         pyrogue.Device.__init__(self, name=name, description=description, **kwargs)
-        self._data_slave = DataSlave()
-        self._meta_slave = MetaSlave()
+        self._data_subordinate = DataSubordinate()
+        self._meta_subordinate = MetaSubordinate()
 
         self.add(pyrogue.LocalVariable(
             name='FileName',
@@ -47,25 +47,25 @@ class DataToFile(pyrogue.Device):
         Method to write the data to the specified text file.
         """
         file_name = self.FileName.get()
-        self._data_slave.write_data(file_name=file_name)
+        self._data_subordinate.write_data(file_name=file_name)
 
     def getDataChannel(self):
         """
-        Method called by streamConnect, streamTap and streamConnectBiDir to access slave.
+        Method called by streamConnect, streamTap and streamConnectBiDir to access subordinate.
         This is method is called to request the data channel.
         """
-        return self._data_slave
+        return self._data_subordinate
 
     def getMetaChannel(self):
         """
-        Method called by streamConnect, streamTap and streamConnectBiDir to access slave.
+        Method called by streamConnect, streamTap and streamConnectBiDir to access subordinate.
         This is method is called to request the metadata channel.
         """
-        return self._meta_slave
+        return self._meta_subordinate
 
-class DataSlave(rogue.interfaces.stream.Slave):
+class DataSubordinate(rogue.interfaces.stream.Subordinate):
     """
-    A Rogue slave device, used receive a stream of data and write it to disk.
+    A Rogue subordinate device, used receive a stream of data and write it to disk.
     """
     def __init__(self):
         super().__init__()
@@ -118,9 +118,9 @@ class DataSlave(rogue.interfaces.stream.Slave):
             #    pass
 
 
-class MetaSlave(rogue.interfaces.stream.Slave):
+class MetaSubordinate(rogue.interfaces.stream.Subordinate):
     """
-    A Rogue slave device, used to connect to the metadata channel.
+    A Rogue subordinate device, used to connect to the metadata channel.
     """
     def __init__(self):
         super().__init__()

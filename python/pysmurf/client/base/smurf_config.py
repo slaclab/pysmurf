@@ -638,7 +638,7 @@ class SmurfConfig:
             #   front-panel reference, or unlocked if there is no front
             #   panel reference.  (LmkReg_0x0147 : 0x1A).  Also sets
             #   flux_ramp_start_mode=0
-            # "backplane" : takes timing from timing master through
+            # "backplane" : takes timing from timing main through
             #   backplane.  Also sets flux_ramp_start_mode=1.
             "timing_reference" : And(str, lambda s: s in ('ext_ref', 'backplane'))
         }

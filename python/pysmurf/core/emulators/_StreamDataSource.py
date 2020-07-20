@@ -63,14 +63,14 @@ class StreamDataSource(pyrogue.Device):
             localGet = lambda: self._source.getSlotNum(),
             localSet = lambda value: self._source.setSlotNum(value)))
 
-    def _getStreamSlave(self):
+    def _getStreamSubordinate(self):
         """
-        Method called by streamConnect, streamTap and streamConnectBiDir to access slave.
+        Method called by streamConnect, streamTap and streamConnectBiDir to access subordinate.
         """
         return self._source
 
-    def _getStreamMaster(self):
+    def _getStreamMain(self):
         """
-        Method called by streamConnect, streamTap and streamConnectBiDir to access master.
+        Method called by streamConnect, streamTap and streamConnectBiDir to access main.
         """
         return self._source

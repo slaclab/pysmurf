@@ -75,7 +75,7 @@ class Unwrapper(pyrogue.Device):
         # Add "Disable" variable
         self.add(pyrogue.LocalVariable(
             name='Disable',
-            description='Disable the processing block. Data will just pass thorough to the next slave.',
+            description='Disable the processing block. Data will just pass thorough to the next subordinate.',
             mode='RW',
             value=False,
             localSet=lambda value: self.device.setUnwrapperDisable(value),
@@ -98,7 +98,7 @@ class Downsampler(pyrogue.Device):
         # Add "Disable" variable
         self.add(pyrogue.LocalVariable(
             name='Disable',
-            description='Disable the processing block. Data will just pass thorough to the next slave.',
+            description='Disable the processing block. Data will just pass thorough to the next subordinate.',
             mode='RW',
             value=False,
             localSet=lambda value: self.device.setDownsamplerDisable(value),
@@ -124,7 +124,7 @@ class GeneralAnalogFilter(pyrogue.Device):
         # Add "Disable" variable
         self.add(pyrogue.LocalVariable(
             name='Disable',
-            description='Disable the processing block. Data will just pass thorough to the next slave.',
+            description='Disable the processing block. Data will just pass thorough to the next subordinate.',
             mode='RW',
             value=False,
             localSet=lambda value: self.device.setFilterDisable(value),
@@ -191,7 +191,7 @@ class SmurfProcessor(pyrogue.Device):
     """
     SMuRF Processor device.
 
-    This is a slave device that accepts a raw SMuRF Streaming data
+    This is a subordinate device that accepts a raw SMuRF Streaming data
     stream from the FW application, and process it by doing channel
     mapping, data unwrapping, filtering and downsampling in a
     monolithic C++ module.
@@ -250,7 +250,7 @@ class SmurfProcessor(pyrogue.Device):
         self.add(self.file_writer)
 
         # Add a Fifo. It will hold up to 100 copies of processed frames, to be processed by
-        # downstream slaves. The frames will be tapped before the file writer.
+        # downstream subordinates. The frames will be tapped before the file writer.
         self.fifo = rogue.interfaces.stream.Fifo(100,0,False)
 
         # Connect devices
@@ -280,9 +280,9 @@ class SmurfProcessor(pyrogue.Device):
     def setTesBias(self, index, val):
         self.smurf_header2smurf.setTesBias(index, val)
 
-    def _getStreamSlave(self):
+    def _getStreamSubordinate(self):
         """
-        Method called by streamConnect, streamTap and streamConnectBiDir to access slave.
+        Method called by streamConnect, streamTap and streamConnectBiDir to access subordinate.
         We will pass a reference to the smurf device of the first element in the chain,
         which is the 'FrameStatistics'.
         """

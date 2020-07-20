@@ -253,7 +253,7 @@ def run(band, epics_root, config_file, shelf_manager, setup, no_band_off=False,
     # setup notches
     if not no_setup_notches:
         status = execute(status, lambda: S.setup_notches(band,
-            new_master_assignment=True), 'setup_notches')
+            new_main_assignment=True), 'setup_notches')
 
         status = execute(status, lambda: S.plot_tune_summary(band,
             eta_scan=True, show_plot=False, save_plot=True),

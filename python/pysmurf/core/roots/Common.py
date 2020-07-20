@@ -155,9 +155,9 @@ class Common(pyrogue.Root):
                     f"data type = {stream_pv_type})")
 
                 self._stream_fifos  = []
-                self._stream_slaves = []
+                self._stream_subordinates = []
                 for i in range(4):
-                    self._stream_slaves.append(self._epics.createSlave(name=f"AMCc:Stream{i}",
+                    self._stream_subordinates.append(self._epics.createSubordinate(name=f"AMCc:Stream{i}",
                                                                        maxSize=stream_pv_size,
                                                                        type=stream_pv_type))
 
@@ -168,7 +168,7 @@ class Common(pyrogue.Root):
                         fifo_size = stream_pv_size * 4
 
                     self._stream_fifos.append(rogue.interfaces.stream.Fifo(1000, fifo_size, True)) # changes
-                    pyrogue.streamConnect(self._stream_fifos[i],self._stream_slaves[i])
+                    pyrogue.streamConnect(self._stream_fifos[i],self._stream_subordinates[i])
                     pyrogue.streamTap(self._ddr_streams[i], self._stream_fifos[i])
 
 

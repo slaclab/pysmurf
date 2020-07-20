@@ -35,7 +35,7 @@ lms_freq_hz[3]=19996
 for band in bands:
     #S.set_amplitude_scales(band,drive_power)
     S.find_freq(band,drive_power=drive_power,make_plot=True,show_plot=False,save_plot=True)
-    S.setup_notches(band,drive=drive_power,new_master_assignment=True)
+    S.setup_notches(band,drive=drive_power,new_main_assignment=True)
     S.run_serial_gradient_descent(band)
     S.run_serial_eta_scan(band)
     # only plot first ten channels 

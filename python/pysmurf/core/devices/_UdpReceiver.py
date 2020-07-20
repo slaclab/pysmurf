@@ -22,17 +22,17 @@ import time
 import pyrogue
 import rogue
 
-class KeepAlive(rogue.interfaces.stream.Master, threading.Thread):
+class KeepAlive(rogue.interfaces.stream.Main, threading.Thread):
     """
     Class used to keep alive the streaming data UDP connection.
 
-    It is a Rogue Master device, which will be connected to the
-    UDP Client slave.
+    It is a Rogue Main device, which will be connected to the
+    UDP Client subordinate.
 
     It will run a thread which will send an UDP packet every
     5 seconds to avoid the connection to be closed. After
     instantiate an object of this class, and connect it to the
-    UDP Client slave, its 'start()' method must be called to
+    UDP Client subordinate, its 'start()' method must be called to
     start the thread itself.
     """
     def __init__(self):
@@ -43,11 +43,11 @@ class KeepAlive(rogue.interfaces.stream.Master, threading.Thread):
         # soon as the main program exits.
         self.daemon = True
 
-        # Request a 1-byte frame from the slave.
+        # Request a 1-byte frame from the subordinate.
         self.frame = self._reqFrame(1, True)
 
         # Create a 1-byte element to be sent to the
-        # slave. The content of the packet is not
+        # subordinate. The content of the packet is not
         # important.
         self.ba = bytearray(1)
 
@@ -69,7 +69,7 @@ class UdpReceiver(pyrogue.Device):
     Class used to receive SMuRF streaming data over UDP,
     without RSSI, and with a keep alive mechanism.
 
-    It is a Rogue master device, which will connected to the
+    It is a Rogue main device, which will connected to the
     smurf-processor.
     """
     def __init__(self, ip_addr, port):
@@ -84,6 +84,6 @@ class UdpReceiver(pyrogue.Device):
         # Start the KeepAlive thread
         self._keep_alive.start()
 
-    # Method called by streamConnect, streamTap and streamConnectBiDir to access master
-    def _getStreamMaster(self):
+    # Method called by streamConnect, streamTap and streamConnectBiDir to access main
+    def _getStreamMain(self):
         return self._udp_receiver

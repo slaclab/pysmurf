@@ -83,7 +83,7 @@ S.set_lms_enable2(band,True)
 S.set_lms_enable3(band,True)
 
 S.find_freq(band,drive_power=12,make_plot=True,show_plot=False,save_plot=True)
-S.setup_notches(band,drive=12,new_master_assignment=False)
+S.setup_notches(band,drive=12,new_main_assignment=False)
 S.run_serial_gradient_descent(band)
 S.run_serial_eta_scan(band)
 Bad_Track_Chans = [15, 23, 28, 29, 59, 63, 87, 91, 127, 151, 183, 187, 255,267, 287, 295, 303, 315, 319, 335, 423]

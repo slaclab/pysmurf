@@ -34,7 +34,7 @@ class StreamDataEmulatorI32(pyrogue.Device):
         # Add "Disable" variable
         self.add(pyrogue.LocalVariable(
             name='Disable',
-            description='Disable the processing block. Data will just pass thorough to the next slave.',
+            description='Disable the processing block. Data will just pass thorough to the next subordinate.',
             mode='RW',
             value=True,
             localSet=lambda value: self._emulator.setDisable(value),
@@ -93,14 +93,14 @@ class StreamDataEmulatorI32(pyrogue.Device):
         """
         return self._emulator
 
-    def _getStreamSlave(self):
+    def _getStreamSubordinate(self):
         """
-        Method called by streamConnect, streamTap and streamConnectBiDir to access slave.
+        Method called by streamConnect, streamTap and streamConnectBiDir to access subordinate.
         """
         return self._emulator
 
-    def _getStreamMaster(self):
+    def _getStreamMain(self):
         """
-        Method called by streamConnect, streamTap and streamConnectBiDir to access master.
+        Method called by streamConnect, streamTap and streamConnectBiDir to access main.
         """
         return self._emulator

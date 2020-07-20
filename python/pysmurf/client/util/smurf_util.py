@@ -4275,7 +4275,7 @@ class SmurfUtilMixin(SmurfBase):
             The fraction difference the response can be away from the
             expected amplitude.
         update_channel_assignment : bool, optional, default True
-            Whether to update the master channels assignment to
+            Whether to update the main channels assignment to
             contain the new bias group information.
         high_current_mode : bool, optional, default True
             Whether to use high or low current mode.

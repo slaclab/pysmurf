@@ -32,7 +32,7 @@ class Header2Smurf(pyrogue.Device):
         # Add "Disable" variable
         self.add(pyrogue.LocalVariable(
             name='Disable',
-            description='Disable the processing block. Data will just pass thorough to the next slave.',
+            description='Disable the processing block. Data will just pass thorough to the next subordinate.',
             mode='RW',
             value=False,
             localSet=lambda value: self._header2smurf.setDisable(value),
@@ -42,10 +42,10 @@ class Header2Smurf(pyrogue.Device):
     def setTesBias(self, index, value):
         self._header2smurf.setTesBias(index, value)
 
-    # Method called by streamConnect, streamTap and streamConnectBiDir to access slave
-    def _getStreamSlave(self):
+    # Method called by streamConnect, streamTap and streamConnectBiDir to access subordinate
+    def _getStreamSubordinate(self):
         return self._header2smurf
 
-    # Method called by streamConnect, streamTap and streamConnectBiDir to access master
-    def _getStreamMaster(self):
+    # Method called by streamConnect, streamTap and streamConnectBiDir to access main
+    def _getStreamMain(self):
         return self._header2smurf

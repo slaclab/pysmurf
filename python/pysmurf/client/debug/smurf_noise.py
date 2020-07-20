@@ -339,7 +339,7 @@ class SmurfNoiseMixin(SmurfBase):
                       analyze=False, bias_group=None, lms_freq_hz=None,
                       fraction_full_scale=.72, meas_flux_ramp_amp=False,
                       n_phi0=4, make_timestream_plot=True,
-                      new_master_assignment=True, from_old_tune=False,
+                      new_main_assignment=True, from_old_tune=False,
                       old_tune=None):
         """Takes timestream noise at various tone powers.
 
@@ -369,8 +369,8 @@ class SmurfNoiseMixin(SmurfBase):
             The number of phi0 to use if measuring flux ramp.
         make_timestream_plot : bool, optional, default True
             Whether to make the timestream plot.
-        new_master_assignment : bool, optional, default True
-            Whether to make a new master channel assignemnt. This will
+        new_main_assignment : bool, optional, default True
+            Whether to make a new main channel assignemnt. This will
             only make one for the first tone. It needs to keep the
             channel assignment the same after that for the analysis.
         from_old_tune : bool, optional, default False
@@ -391,11 +391,11 @@ class SmurfNoiseMixin(SmurfBase):
 
             # Tune the band with the new drive power
             self.tune_band_serial(band, drive=t,
-                new_master_assignment=new_master_assignment,
+                new_main_assignment=new_main_assignment,
                 from_old_tune=from_old_tune, old_tune=old_tune)
 
             # all further tunings do not make new assignemnt
-            new_master_assignment = False
+            new_main_assignment = False
 
             # Append list of channels that are on
             channel = np.unique(np.append(channel, self.which_on(band)))
