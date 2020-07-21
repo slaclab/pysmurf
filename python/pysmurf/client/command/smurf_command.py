@@ -324,9 +324,10 @@ class SmurfCommandMixin(SmurfBase):
                 configuration process.
 
         """
-        return self._caget(self.smurf_application +
-                           self._configuring_in_progress_reg,
-                           **kwargs)
+        return bool(
+            self._caget(self.smurf_application +
+                        self._configuring_in_progress_reg, **kwargs)
+        )
 
     _system_configured_reg = 'SystemConfigured'
 
@@ -360,9 +361,10 @@ class SmurfCommandMixin(SmurfBase):
                 configuration process in progress.
 
         """
-        return self._caget(self.smurf_application +
-                           self._system_configured_reg,
-                           **kwargs)
+        return bool(
+            self._caget(self.smurf_application +
+                        self._system_configured_reg, **kwargs)
+        )
 
     #### End SmurfApplication gets/sets
 
