@@ -266,17 +266,23 @@ class SmurfCommandMixin(SmurfBase):
         return self._caget(self.smurf_application +
                            self._smurf_startup_arguments_reg,
                            as_string=True, **kwargs)
-    
+
     _enabled_bays_reg = "EnabledBays"
 
     def get_enabled_bays(self, **kwargs):
-        """
-        Gets list of enabled bays.
+        r"""Returns list of enabled AMC bays.
+
+        Args
+        ----
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caget` call.
 
         Returns
         -------
         bays : list of int
             Which bays were enabled on pysmurf server startup.
+
         """
         enabled_bays = self._caget(
             self.smurf_application +
@@ -291,11 +297,11 @@ class SmurfCommandMixin(SmurfBase):
 
     def get_configuring_in_progress(self, **kwargs):
         r"""Whether or not configuration process in progress.
-        
+
         Set to `True` when the rogue `setDefaults` command is called
         (usually by a call to :func:`set_defaults_pv`), and then set
         to `False` when the rogue `setDefaults` method exits.
-        
+
         Args
         ----
         \**kwargs
@@ -313,8 +319,10 @@ class SmurfCommandMixin(SmurfBase):
         See Also
         --------
         :func:`set_defaults_pv` : Loads the default configuration.
+
         :func:`get_system_configured` : Returns final state of
                 configuration process.
+
         """
         return self._caget(self.smurf_application +
                            self._configuring_in_progress_reg,
@@ -329,7 +337,7 @@ class SmurfCommandMixin(SmurfBase):
         `setDefaults` command (usually by a call to
         :func:`set_defaults_pv`) and all tests pass, this flag is set
         to `True` when the rogue `setDefaults` method exits.
-        
+
         Args
         ----
         \**kwargs
@@ -347,12 +355,14 @@ class SmurfCommandMixin(SmurfBase):
         See Also
         --------
         :func:`set_defaults_pv` : Loads the default configuration.
+
         :func:`get_configuring_in_progress` : Whether or not
                 configuration process in progress.
+
         """
         return self._caget(self.smurf_application +
                            self._system_configured_reg,
-                           **kwargs)            
+                           **kwargs)
 
     #### End SmurfApplication gets/sets
 
@@ -479,7 +489,7 @@ class SmurfCommandMixin(SmurfBase):
 
         Calls the rogue `setDefaults` command, which loads the default
         software and hardware configuration.
-        
+
         Args
         ----
         \**kwargs
@@ -492,8 +502,10 @@ class SmurfCommandMixin(SmurfBase):
                 configuration process in progress.
         :func:`get_system_configured` : Returns final state of
                 configuration process.
-        """        
-        self._caput(self.epics_root + ':AMCc:setDefaults', 1, wait_after=30,
+
+        """
+        self._caput(
+            self.epics_root + ':AMCc:setDefaults', 1, wait_after=30,
             **kwargs)
 
     def set_read_all(self, **kwargs):
