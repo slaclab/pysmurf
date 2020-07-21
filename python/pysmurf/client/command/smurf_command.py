@@ -534,20 +534,20 @@ class SmurfCommandMixin(SmurfBase):
             start_time = time.time()
 
             # Start by calling the 'setDefaults' command. Set the 'wait' flag
-            # to wait for the command to finish, although the server usually 
+            # to wait for the command to finish, although the server usually
             # gets unresponsive during setup and the connection is lost.
             self._caput(
                 self.epics_root + ':AMCc:setDefaults', 1,
-                wait_done=True, **kwargs)            
-            
+                wait_done=True, **kwargs)
+
             # Now let's wait until the process is finished. We define a maximum
-            # time we will wait, 400 seconds in this case, divided in smaller 
+            # time we will wait, 400 seconds in this case, divided in smaller
             # tries of 10 second each
             max_timeout = 400
             caget_timeout = 10
             num_retries = int(max_timeout/caget_timeout)
             success = False
-            for i in range(num_retries):
+            for _ in range(num_retries):
                 # Try to read the status of the
                 # "ConfiguringInProgress" flag.
                 #
@@ -583,7 +583,7 @@ class SmurfCommandMixin(SmurfBase):
                 f' {int(end_time - start_time)} seconds.'
                 f' The final state was {success}',
                 self.LOG_INFO)
-            
+
             return success
 
         else:
