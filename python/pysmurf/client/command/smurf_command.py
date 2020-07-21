@@ -487,7 +487,9 @@ class SmurfCommandMixin(SmurfBase):
         n_processed_channels=int(0.8125*n_channels)
         return n_processed_channels
 
-    def set_defaults_pv(self, wait_after_sec=30.0, **kwargs):
+    def set_defaults_pv(self, wait_after_sec=30.0,
+                        max_timeout_sec=400.0, caget_timeout_sec=10.0,
+                        **kwargs):
         r"""Loads the default configuration.
 
         Calls the rogue `setDefaults` command, which loads the default
@@ -498,13 +500,17 @@ class SmurfCommandMixin(SmurfBase):
         wait_after_sec : float or None, optional, default 30.0
             If not None, the number of seconds to wait after
             triggering the rogue `setDefaults` command.
+        max_timeout_sec : float, optional, default 400.0
+            ???.
+        caget_timeout_sec : float, optional, default 10.0
+            ???.
         \**kwargs
             Arbitrary keyword arguments.  Passed directly to the
             `_caget` call.
 
         Returns
         -------
-        bool or None
+        success : bool or None
             Returns `True` if the system was successfully configured,
             otherwise returns `False`.  Configuration checking is only
             implemented for pysmurf core code versions >= 4.1.0.  If
@@ -543,9 +549,7 @@ class SmurfCommandMixin(SmurfBase):
             # Now let's wait until the process is finished. We define a maximum
             # time we will wait, 400 seconds in this case, divided in smaller
             # tries of 10 second each
-            max_timeout = 400
-            caget_timeout = 10
-            num_retries = int(max_timeout/caget_timeout)
+            num_retries = int(max_timeout_sec/caget_timeout_sec)
             success = False
             for _ in range(num_retries):
                 # Try to read the status of the
@@ -563,12 +567,9 @@ class SmurfCommandMixin(SmurfBase):
             # error on error.
             if not success:
                 self.log(
-                    'The system configuration did not finished after'
-                    f' {max_timeout} seconds.', self.LOG_ERROR)
+                    'The system configuration did not finish after'
+                    f' {max_timeout_sec} seconds.', self.LOG_ERROR)
                 return False
-
-            # Measure how long the process take
-            end_time = time.time()
 
             # At this point, we determine that the configuration
             # sequence ended in the server via the
@@ -576,13 +577,25 @@ class SmurfCommandMixin(SmurfBase):
             # The final status of the configuration sequence is
             # available in the "SystemConfigured" flag.
             # So, let's read it and use it as out return value.
+            #
+            # Found that there's approximately a 5 sec lag between
+            # when ConfiguringInProgress flag clears and when
+            # SystemConfigured.  For now, wait 30 sec and pray.
+            # SystemConfigured is also not cleared by triggering
+            # setDefaults, so may run into trouble if a 2nd
+            # configuration fails but this SystemConfigured poll
+            # returns the True from a previous setDefaults.
+            time.sleep(30)
             success = self.get_system_configured()
+
+            # Measure how long the process take
+            end_time = time.time()            
 
             self.log(
                 'System configuration finished after'
                 f' {int(end_time - start_time)} seconds.'
-                f' The final state was {success}',
-                self.LOG_INFO)
+                f' The final state was {success}.',
+                self.LOG_USER)
 
             return success
 
