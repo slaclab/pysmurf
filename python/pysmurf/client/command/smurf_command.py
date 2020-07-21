@@ -17,6 +17,7 @@ import os
 import time
 
 import numpy as np
+from packaging import version
 
 from pysmurf.client.base import SmurfBase
 from pysmurf.client.command.sync_group import SyncGroup as SyncGroup
@@ -486,7 +487,7 @@ class SmurfCommandMixin(SmurfBase):
         n_processed_channels=int(0.8125*n_channels)
         return n_processed_channels
 
-    def set_defaults_pv(self, **kwargs):
+    def set_defaults_pv(self, wait_after_sec=30.0, **kwargs):
         r"""Loads the default configuration.
 
         Calls the rogue `setDefaults` command, which loads the default
@@ -494,9 +495,20 @@ class SmurfCommandMixin(SmurfBase):
 
         Args
         ----
+        wait_after_sec : float or None, optional, default 30.0
+            If not None, the number of seconds to wait after
+            triggering the rogue `setDefaults` command.
         \**kwargs
             Arbitrary keyword arguments.  Passed directly to the
             `_caget` call.
+
+        Returns
+        -------
+        bool or None
+            Returns `True` if the system was successfully configured,
+            otherwise returns `False`.  Configuration checking is only
+            implemented for pysmurf core code versions >= 4.1.0.  If
+            configuration validation is not available, returns None.
 
         See Also
         --------
@@ -506,9 +518,79 @@ class SmurfCommandMixin(SmurfBase):
                 configuration process.
 
         """
-        self._caput(
-            self.epics_root + ':AMCc:setDefaults', 1, wait_after=30,
-            **kwargs)
+        # strip any commit info off the end of the pysmurf version
+        # string
+        pysmurf_version = self.get_pysmurf_version().split('+')[0]
+        # temporary override for testing
+        pysmurf_version = '4.1.0'
+
+        # Extra registers allow confirmation of successful
+        # configuration for pysmurf versions >=4.1.0.
+        # see https://github.com/slaclab/pysmurf/issues/462
+        # for more details.
+        if version.parse(pysmurf_version) >= version.parse('4.1.0'):
+            # Will report how long the configuration process takes
+            # once complete.
+            start_time = time.time()
+
+            # Start by calling the 'setDefaults' command. Set the 'wait' flag
+            # to wait for the command to finish, although the server usually 
+            # gets unresponsive during setup and the connection is lost.
+            self._caput(
+                self.epics_root + ':AMCc:setDefaults', 1,
+                wait_done=True, **kwargs)            
+            
+            # Now let's wait until the process is finished. We define a maximum
+            # time we will wait, 400 seconds in this case, divided in smaller 
+            # tries of 10 second each
+            max_timeout = 400
+            caget_timeout = 10
+            num_retries = int(max_timeout/caget_timeout)
+            success = False
+            for i in range(num_retries):
+                # Try to read the status of the
+                # "ConfiguringInProgress" flag.
+                #
+                # We successfully exit the loop when we are able to
+                # read the "ConfiguringInProgress" flag and it is set
+                # to "False".  Otherwise we keep trying.
+                if not self.get_configuring_in_progress():
+                    success=True
+                    break
+
+            # If after out maximum defined timeout, we weren't able to
+            # read the "ConfiguringInProgress" flags as "False", we
+            # error on error.
+            if not success:
+                self.log(
+                    'The system configuration did not finished after'
+                    f' {max_timeout} seconds.', self.LOG_ERROR)
+                return False
+
+            # Measure how long the process take
+            end_time = time.time()
+
+            # At this point, we determine that the configuration
+            # sequence ended in the server via the
+            # "ConfiguringInProgress" flag.
+            # The final status of the configuration sequence is
+            # available in the "SystemConfigured" flag.
+            # So, let's read it and use it as out return value.
+            success = self.get_system_configured()
+
+            self.log(
+                'System configuration finished after'
+                f' {int(end_time - start_time)} seconds.'
+                f' The final state was {success}',
+                self.LOG_INFO)
+            
+            return success
+
+        else:
+            self._caput(
+                self.epics_root + ':AMCc:setDefaults', 1,
+                wait_after=wait_after_sec, **kwargs)
+            return None
 
     def set_read_all(self, **kwargs):
         """
