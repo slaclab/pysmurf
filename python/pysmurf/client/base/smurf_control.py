@@ -377,7 +377,7 @@ class SmurfControl(SmurfCommandMixin,
         # don't support checking if setDefaults succeeded.
         if set_defaults_success is None:
             set_defaults_success = True
-        
+
         # Log an error if setDefaults failed.
         if not set_defaults_success:
             self.log(
@@ -582,11 +582,11 @@ class SmurfControl(SmurfCommandMixin,
 
                     # Configure RTM to trigger off of the timing system
                     self.set_ramp_start_mode(1, write_log=write_log)
-                    
+
             self.log('Done with setup.', self.LOG_USER)
         else:
             self.log('Setup failed!', self.LOG_ERROR)
-            
+
         # If active, re-enable hardware logging after setup.
         if self._hardware_logging_thread is not None:
             self.log('Resuming hardware logging.', self.LOG_USER)

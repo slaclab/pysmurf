@@ -501,9 +501,13 @@ class SmurfCommandMixin(SmurfBase):
             If not None, the number of seconds to wait after
             triggering the rogue `setDefaults` command.
         max_timeout_sec : float, optional, default 400.0
-            ???.
+            Seconds to wait for system to configure before giving up.
+            Only used for pysmurf core code versions >= 4.1.0.
         caget_timeout_sec : float, optional, default 10.0
-            ???.
+            Seconds to wait for each poll of the configuration process
+            status registers (see :func:`get_configuring_in_progress`
+            and :func:`get_system_configured`).  Only used for pysmurf
+            core code versions >= 4.1.0.
         \**kwargs
             Arbitrary keyword arguments.  Passed directly to the
             `_caget` call.
@@ -558,7 +562,7 @@ class SmurfCommandMixin(SmurfBase):
                 # We successfully exit the loop when we are able to
                 # read the "ConfiguringInProgress" flag and it is set
                 # to "False".  Otherwise we keep trying.
-                if not self.get_configuring_in_progress():
+                if not self.get_configuring_in_progress(timeout=caget_timeout_sec):
                     success=True
                     break
 
@@ -586,10 +590,10 @@ class SmurfCommandMixin(SmurfBase):
             # configuration fails but this SystemConfigured poll
             # returns the True from a previous setDefaults.
             time.sleep(30)
-            success = self.get_system_configured()
+            success = self.get_system_configured(timeout=caget_timeout_sec)
 
             # Measure how long the process take
-            end_time = time.time()            
+            end_time = time.time()
 
             self.log(
                 'System configuration finished after'
