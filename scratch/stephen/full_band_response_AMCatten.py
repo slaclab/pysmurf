@@ -16,7 +16,7 @@ for x in range(4):
     S.set_att_dc(x,0)
 
 #Low band boards have fewer attenuation settings
-BoardType = raw_input("Enter board type <high> or <low>:" ).strip()
+BoardType = input("Enter board type <high> or <low>: ").strip()
 if BoardType == "high":
     att=[0,1,2,4,8,16,31]
 elif BoardType =="low":
