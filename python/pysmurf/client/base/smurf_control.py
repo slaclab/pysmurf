@@ -315,7 +315,7 @@ class SmurfControl(SmurfCommandMixin,
 
     def setup(self, write_log=True, payload_size=2048, **kwargs):
         r"""Configures SMuRF system.
-        
+
         TODO: NEED TO BE MORE DETAILED, CLEARER.
 
         Sets up the SMuRF system by first loading hardware register
@@ -323,7 +323,7 @@ class SmurfControl(SmurfCommandMixin,
         values with defaults from the pysmurf configuration file.
 
         Setup steps (in order of execution):
-        
+
         - Disables hardware logging if it’s active (to avoid register
           access collisions).
         - Sets FPGA OT limit (if one is specified in pysmurf cfg).
@@ -367,9 +367,9 @@ class SmurfControl(SmurfCommandMixin,
            Returns `True` if system setup succeeded, otherwise
            `False`.
 
-        See Also                                                                
+        See Also
         --------
-        :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.set_defaults_pv` : 
+        :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.set_defaults_pv` :
               Loads the hardware defaults.
 
         """

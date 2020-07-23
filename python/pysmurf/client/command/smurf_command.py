@@ -514,7 +514,7 @@ class SmurfCommandMixin(SmurfBase):
             and :func:`get_system_configured`).  Only used for pysmurf
             core code versions >= 4.1.0.
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to 
+            Arbitrary keyword arguments.  Passed directly to
             all `_caget` calls.
 
         Returns
