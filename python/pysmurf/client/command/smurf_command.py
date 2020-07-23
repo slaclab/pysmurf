@@ -585,15 +585,6 @@ class SmurfCommandMixin(SmurfBase):
             # The final status of the configuration sequence is
             # available in the "SystemConfigured" flag.
             # So, let's read it and use it as out return value.
-            #
-            # Found that there's approximately a 5 sec lag between
-            # when ConfiguringInProgress flag clears and when
-            # SystemConfigured.  For now, wait 30 sec and pray.
-            # SystemConfigured is also not cleared by triggering
-            # setDefaults, so may run into trouble if a 2nd
-            # configuration fails but this SystemConfigured poll
-            # returns the True from a previous setDefaults.
-            time.sleep(30)
             success = self.get_system_configured(
                 timeout=caget_timeout_sec, **kwargs)
 
