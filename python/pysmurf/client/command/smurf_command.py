@@ -514,8 +514,8 @@ class SmurfCommandMixin(SmurfBase):
             and :func:`get_system_configured`).  Only used for pysmurf
             core code versions >= 4.1.0.
         \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caget` call.
+            Arbitrary keyword arguments.  Passed directly to 
+            all `_caget` calls.
 
         Returns
         -------
@@ -535,7 +535,7 @@ class SmurfCommandMixin(SmurfBase):
         """
         # strip any commit info off the end of the pysmurf version
         # string
-        pysmurf_version = self.get_pysmurf_version().split('+')[0]
+        pysmurf_version = self.get_pysmurf_version(**kwargs).split('+')[0]
 
         # Extra registers allow confirmation of successful
         # configuration for pysmurf versions >=4.1.0.
@@ -565,7 +565,8 @@ class SmurfCommandMixin(SmurfBase):
                 # We successfully exit the loop when we are able to
                 # read the "ConfiguringInProgress" flag and it is set
                 # to "False".  Otherwise we keep trying.
-                if not self.get_configuring_in_progress(timeout=caget_timeout_sec):
+                if not self.get_configuring_in_progress(
+                        timeout=caget_timeout_sec, **kwargs):
                     success=True
                     break
 
@@ -593,7 +594,8 @@ class SmurfCommandMixin(SmurfBase):
             # configuration fails but this SystemConfigured poll
             # returns the True from a previous setDefaults.
             time.sleep(30)
-            success = self.get_system_configured(timeout=caget_timeout_sec)
+            success = self.get_system_configured(
+                timeout=caget_timeout_sec, **kwargs)
 
             # Measure how long the process take
             end_time = time.time()

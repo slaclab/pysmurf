@@ -314,9 +314,42 @@ class SmurfControl(SmurfCommandMixin,
         self.config.update('outputs', {})
 
     def setup(self, write_log=True, payload_size=2048, **kwargs):
-        """Sets the PVs to the default values in the experiment.cfg.
+        r"""Configures SMuRF system.
+        
+        TODO: NEED TO BE MORE DETAILED, CLEARER.
 
-        NEED LONGER DESCRIPTION OF SETUP MEMBER FUNCTION HERE.
+        Sets up the SMuRF system by first loading hardware register
+        defaults followed by overriding the hardware default register
+        values with defaults from the pysmurf configuration file.
+
+        Setup steps (in order of execution):
+        
+        - Disables hardware logging if it’s active (to avoid register
+          access collisions).
+        - Sets FPGA OT limit (if one is specified in pysmurf cfg).
+        - Resets the RF DACs on AMCs in use.
+        - Sets hardware defaults using
+          :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.set_defaults_pv`.
+        - Overrides hardware defaults register values for subset of
+          registers controlled by the pysmurf configuration file.
+        - Resets the RTM CPLD.
+        - Turns off flux ramp, but configures based on values for
+          reset rate and fraction full scale provided in pysmurf
+          configuration file.
+        - Enables data streaming.
+        - Sets mask and payload size to a single channel.
+        - Sets RF amplifier biases (without enabling drain voltages).
+        - Configures timing based on pysmurf configuration file settings.
+        - Resumes hardware logging if it was active at beginning.
+
+        If system configuration fails, returns `False`, otherwise
+        returns `True`.  Failure modes (which will return `False`) are
+        as follows:
+
+        - :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.set_defaults_pv`
+          fails (only supported for pysmurf core code versions
+          >=4.1.0).  If failure is detected, doesn't attempt to
+          execute the subsequent setup steps.
 
         Args
         ----
@@ -324,12 +357,21 @@ class SmurfControl(SmurfCommandMixin,
             Whether to write to the log file.
         payload_size : int, optional, default 2048
             The starting size of the payload.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed to many, but not all,
+            of the `_caput` calls.
 
         Returns
         -------
         success : bool
            Returns `True` if system setup succeeded, otherwise
            `False`.
+
+        See Also                                                                
+        --------
+        :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.set_defaults_pv` : 
+              Loads the hardware defaults.
+
         """
         success=True
         self.log('Setting up...', (self.LOG_USER))
