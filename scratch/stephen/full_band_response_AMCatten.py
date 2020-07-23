@@ -1,4 +1,4 @@
-# Runlike this exec(open("scratch/shawn/full_band_response.py").read())
+# Runlike this exec(open("scratch/stephen/full_band_response_AMCatten.py").read())
 # to use the pysmurf S object you've already initialized
 import time
 import numpy as np
