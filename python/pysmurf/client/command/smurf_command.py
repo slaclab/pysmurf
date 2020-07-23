@@ -495,6 +495,11 @@ class SmurfCommandMixin(SmurfBase):
         Calls the rogue `setDefaults` command, which loads the default
         software and hardware configuration.
 
+        If using pysmurf core code versions >=4.1.0 (as reported by
+        :func:`get_pysmurf_version`), returns `True` if the
+        `setDefaults` command was successfully executed on the rogue
+        side, or failed.  Returns `None` for older versions.
+
         Args
         ----
         wait_after_sec : float or None, optional, default 30.0
@@ -531,8 +536,6 @@ class SmurfCommandMixin(SmurfBase):
         # strip any commit info off the end of the pysmurf version
         # string
         pysmurf_version = self.get_pysmurf_version().split('+')[0]
-        # temporary override for testing
-        pysmurf_version = '4.1.0'
 
         # Extra registers allow confirmation of successful
         # configuration for pysmurf versions >=4.1.0.
