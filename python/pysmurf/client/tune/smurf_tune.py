@@ -3021,26 +3021,45 @@ class SmurfTuneMixin(SmurfBase):
         """
         Set flux ramp sawtooth rate and amplitude.
 
-        If you are using a timing system , Flux ramp reset rate must integer
-        divide 2.4MHz. E.g. you can't run with a 7kHz flux ramp rate.
+        Flux ramp reset rate must integer divide 2.4MHz. E.g. you
+        can't run with a 7kHz flux ramp rate.
 
-        If you are not using the timing system, you can use any flux ramp
-        rate.
+        If you are not using the timing system, you can use any flux
+        ramp rate which integer divides 2.4MHz.
+
+        If you are using a timing system (i.e. if
+        :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.get_ramp_start_mode`
+        returns 0x1), you may only select from a handful of
+        pre-programmed reset rates.  See
+        :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.set_ramp_rate`
+        for more details.
 
         Args
         ----
-        reset_rate_khz : int
-            The flux ramp rate to set in kHz. The allowable values are
-            1, 2, 3, 4, 5, 6, 8, 10, 12, 15 kHz
+        reset_rate_khz : float
+           The flux ramp rate to set in kHz.
         fraction_full_scale : float
-            The amplitude of the flux ramp as a fraction of the
-            maximum possible value.
+           The amplitude of the flux ramp as a fraction of the maximum
+           possible value.
+        df_range : float, optional, default 0.1
+           If the difference between the desired fraction full scale
+           and the closest achievable fraction full scale exceeds
+           this will turn off the flux ramp and raise an exception.
         band : int, optional, default 2
-            The band to setup the flux ramp on.
+           The band to setup the flux ramp on.
         write_log : bool, optional, default False
-            Whether to write output to the log.
+           Whether to write output to the log.
         new_epics_root : str or None, optional, default None
-            Override the original epics root.
+           Override the original epics root.  If None, does nothing.
+
+        Raises
+        ------
+        ValueError
+           Raised if either 1) the requested RTM clock rate is too low
+           (<2MHz) or 2) the difference between the desired fraction
+           full scale and the closest achievable fraction full scale
+           exceeds the `df_range` argument.
+
         """
 
         # Disable flux ramp
@@ -3102,10 +3121,8 @@ class SmurfTuneMixin(SmurfBase):
                 self.LOG_USER)
             return
 
-
         FastSlowRstValue = np.floor((2**self._num_flux_ramp_counter_bits) *
             (1 - fractionFullScale)/2)
-
 
         KRelay = 3 #where do these values come from
         PulseWidth = 64
@@ -3147,8 +3164,6 @@ class SmurfTuneMixin(SmurfBase):
             self.set_ramp_rate(
                 reset_rate_khz, new_epics_root=new_epics_root,
                 write_log=write_log)
-
-
 
     def get_fraction_full_scale(self, new_epics_root=None):
         """
