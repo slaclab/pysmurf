@@ -93,7 +93,7 @@ class SmurfApplication(pyrogue.Device):
         # and it will update the 'JesdStatus' status register with the appropriate
         # value depending on the returned value of that command.
         self.add(pyrogue.LocalCommand(
-            name='checkJesd',
+            name='CheckJesd',
             description='Check JESD health status',
             function=lambda arg: self.root._check_jesd_health()))
 
@@ -107,7 +107,7 @@ class SmurfApplication(pyrogue.Device):
         # If the command does not exist, the status is set to "Not found".
         self.add(pyrogue.LocalVariable(
             name='JesdStatus',
-            description='Jesd health status',
+            description='JESD health status (updates by calling the "CheckJesd" command)',
             mode='RO',
             enum={0:'Unlocked', 1:'Locked', 2:'Checking', 3:'Not found'},
             value=0))
