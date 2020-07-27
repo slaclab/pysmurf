@@ -100,7 +100,11 @@ class SmurfApplication(pyrogue.Device):
         # Status of the 'AppTop.JesdHealth' command. When the command is executed
         # this status is set to 'Checking' until the command finished, and then this
         # status is set to the returned value of the command (Locked/Unlocked)
-        # accordingly. If the command does not exist, the status is set to "Not found".
+        # accordingly.
+        # By default this status is set to 'Unlocked', and the 'checkJesd' commands
+        # need to be call once the system is started to updated it with the correct
+        # value.
+        # If the command does not exist, the status is set to "Not found".
         self.add(pyrogue.LocalVariable(
             name='JesdStatus',
             description='Jesd health status',
