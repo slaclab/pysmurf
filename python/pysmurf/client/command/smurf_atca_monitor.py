@@ -120,7 +120,7 @@ class SmurfAtcaMonitorMixin(SmurfBase):
             class attribute        
             :attr:`~pysmurf.client.base.smurf_control.SmurfControl.slot_number`.
         atca_epics_root : str or None, optional, default None
-            EPICS root for ATCA monitor server to query.  If None,
+            ATCA monitor server application EPICS root.  If None,
             defaults to the
             :class:`~pysmurf.client.base.smurf_control.SmurfControl`
             class attribute
