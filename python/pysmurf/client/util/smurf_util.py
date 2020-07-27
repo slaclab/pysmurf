@@ -32,7 +32,8 @@ class SmurfUtilMixin(SmurfBase):
 
     @set_action()
     def take_debug_data(self, band, channel=None, nsamp=2**19, filename=None,
-            IQstream=1, single_channel_readout=1, debug=False, write_log=True):
+            IQstream=1, single_channel_readout=1, debug=False, rf_iq=False,
+            write_log=True):
         """ Takes raw debugging data
 
         Args
@@ -51,6 +52,8 @@ class SmurfUtilMixin(SmurfBase):
             Whether to look at one channel.
         debug : bool, optional, default False
             Whether to take data in debug mode.
+        rf_iq : bool, optional, default False
+            Return the RF IQ. Must provide channel.
         write_log : bool, optional, default True
             Whether to write low-level commands to the log file.
 
@@ -65,6 +68,11 @@ class SmurfUtilMixin(SmurfBase):
         """
         # Set proper single channel readout
         if channel is not None:
+            if rf_iq:
+                IQstream = False
+                single_channel_readout = 2
+                self.set_rf_iq_stream_enable(band, 1)
+
             if single_channel_readout == 1:
                 self.set_single_channel_readout(band, 1)
                 self.set_single_channel_readout_opt2(band, 0)
@@ -81,7 +89,7 @@ class SmurfUtilMixin(SmurfBase):
             self.set_single_channel_readout_opt2(band, 0, write_log=write_log)
 
         # Set IQstream
-        if IQstream==1:
+        if IQstream == 1:
             self.set_iq_stream_enable(band, 1)
         else:
             self.set_iq_stream_enable(band, 0)
@@ -136,6 +144,9 @@ class SmurfUtilMixin(SmurfBase):
         self.set_streamdatawriter_close(True)
 
         self.log('Done taking data', self.LOG_USER)
+
+        if rf_iq:
+            self.set_rf_iq_stream_enable(band, 0)
 
         if single_channel_readout > 0:
             f, df, sync = self.decode_single_channel(data_filename)
@@ -3272,8 +3283,7 @@ class SmurfUtilMixin(SmurfBase):
         return freqs
 
 
-    def set_downsample_filter(self, filter_order, cutoff_freq,
-                              write_log=False):
+    def set_downsample_filter(self, filter_order, cutoff_freq, write_log=False):
         """
         Sets the downsample filter. This is anti-alias filter
         that filters data at the flux_ramp reset rate, which is
@@ -3294,14 +3304,11 @@ class SmurfUtilMixin(SmurfBase):
                              2*cutoff_freq/flux_ramp_freq)
 
         # Set filter parameters
-        self.set_filter_order(filter_order,
-                              write_log=write_log)
+        self.set_filter_order(filter_order, write_log=write_log)
         self.set_filter_a(a, write_log=write_log)
-        self.set_filter_b(b, write_log=write_log,
-                          wait_done=True)
+        self.set_filter_b(b, write_log=write_log, wait_done=True)
 
-        self.set_filter_reset(wait_after=.1,
-                              write_log=write_log)
+        self.set_filter_reset(wait_after=.1, write_log=write_log)
 
 
     def get_filter_params(self):
@@ -3858,7 +3865,7 @@ class SmurfUtilMixin(SmurfBase):
         return ret
 
 
-    def set_fixed_tone(self,freq_mhz,drive,quiet=False):
+    def set_fixed_tone(self, freq_mhz, drive, write_log=False):
         """
         Places a fixed tone at the requested frequency.  Asserts
         without doing anything if the requested resonator frequency
@@ -3874,6 +3881,15 @@ class SmurfUtilMixin(SmurfBase):
         drive : int
             The amplitude for the fixed tone (0-15 in recent fw
             revisions).
+        write_log : bool, optional, default False
+            Whether to write low-level commands to the log file.
+
+        Returns
+        -------
+        band : int
+            The band number in which a tone was turned on.
+        channel : int
+            The band channel number that was used to turn on the tone.
         """
 
         # Find which band the requested frequency falls into.
@@ -3881,7 +3897,7 @@ class SmurfUtilMixin(SmurfBase):
         band_centers_mhz=[self.get_band_center_mhz(b) for b in bands]
 
         band_idx=min(range(len(band_centers_mhz)), key=lambda i: abs(band_centers_mhz[i]-freq_mhz))
-        band=bands[band_idx]
+        band = bands[band_idx]
         band_center_mhz=band_centers_mhz[band_idx]
 
         # Confirm that the requested frequency falls into a 500 MHz
@@ -3891,11 +3907,11 @@ class SmurfUtilMixin(SmurfBase):
             '500 MHz band with the closest band center ' + \
             f'(={band_center_mhz:0.0f} MHz). Doing nothing!'
 
-    # Find subband this frequency falls in, and its channels.
-        subband,foff=self.freq_to_subband(band,freq_mhz)
-        subband_channels=self.get_channels_in_subband(band,subband)
+        # Find subband this frequency falls in, and its channels.
+        subband, foff = self.freq_to_subband(band, freq_mhz)
+        subband_channels = self.get_channels_in_subband(band, subband)
 
-    # Which channels in the subband are unallocated?
+        # Which channels in the subband are unallocated?
         allocated_channels=self.which_on(band)
         unallocated_channels=[chan for chan in subband_channels if chan not in allocated_channels]
         # If no unallocated channels available in the subband, assert.
@@ -3905,21 +3921,24 @@ class SmurfUtilMixin(SmurfBase):
 
         # Take lowest channel number in the list of unallocated
         # channels for this subband.
-        channel=sorted(unallocated_channels)[0]
+        channel = sorted(unallocated_channels)[0]
 
-    # Put a fixed tone at the requested frequency
-        self.set_center_frequency_mhz_channel(band,channel,foff)
-        self.set_amplitude_scale_channel(band,channel,drive)
-        self.set_feedback_enable_channel(band,channel,0)
+        # Put a fixed tone at the requested frequency
+        self.set_center_frequency_mhz_channel(band, channel, foff)
+        self.set_amplitude_scale_channel(band, channel, drive)
+        self.set_feedback_enable_channel(band, channel, 0)
 
         # Unless asked to be quiet, print where we're putting a fixed
         # tone.
-        if not quiet:
+        if write_log:
             self.log(f'Setting a fixed tone at {freq_mhz:.2f} MHz' +
                      f' and amplitude {drive}', self.LOG_USER)
 
+        return band, channel
+
     # SHOULD MAKE A GET FIXED TONE CHANNELS FUNCTION - WOULD MAKE IT
     # EASIER TO CHANGE THINGS FAST USING THE ARRAY GET/SETS
+
     def turn_off_fixed_tones(self,band):
         """
         Turns off every channel which has nonzero amplitude but
