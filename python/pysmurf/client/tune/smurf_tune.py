@@ -2539,20 +2539,26 @@ class SmurfTuneMixin(SmurfBase):
                          self.LOG_ERROR)
                 return None, None, None
             elif meas_lms_freq:
+                # attempts to measure the flux ramp frequency and leave the
+                # flux ramp amplitude the same
                 lms_freq_hz = self.estimate_lms_freq(
                     band, reset_rate_khz,
                     fraction_full_scale=fraction_full_scale,
                     channel=channel)
             elif meas_flux_ramp_amp:
+                # attempts to measure the the number of phi0 and adjust
+                # the ampltidue of the flux ramp to achieve the desired number
+                # of phi0 per flux ramp
                 fraction_full_scale = self.estimate_flux_ramp_amp(band,
                     n_phi0,reset_rate_khz=reset_rate_khz, channel=channel)
                 lms_freq_hz = reset_rate_khz * n_phi0 * 1.0E3
             else:
+                # Load from config
                 lms_freq_hz = self._lms_freq_hz[band]
             self._lms_freq_hz[band] = lms_freq_hz
             if write_log:
                 self.log('Using lms_freq_estimator : ' +
-                         f'{lms_freq_hz:.0f} Hz')
+                    f'{lms_freq_hz:.0f} Hz')
 
         if not flux_ramp:
             lms_enable1 = 0
@@ -3165,7 +3171,7 @@ class SmurfTuneMixin(SmurfBase):
     def check_lock(self, band, f_min=.015, f_max=.2, df_max=.03,
             make_plot=False, flux_ramp=True, fraction_full_scale=None,
             lms_freq_hz=None, reset_rate_khz=None, feedback_start_frac=None,
-            feedback_end_frac=None, setup_flux_ramp=True, lms_enable1=None,
+            feedback_end_frac=None, lms_enable1=None,
             lms_enable2=None, lms_enable3=None, lms_gain=None, **kwargs):
         r"""
         Takes a tracking setup and turns off channels that have bad
@@ -3187,19 +3193,22 @@ class SmurfTuneMixin(SmurfBase):
         flux_ramp : bool, optional, default True
             Whether to flux ramp or not.
         fraction_full_scale : float, optional, default None
-            Number between 0 and 1. The amplitude of the flux ramp.
+            Number between 0 and 1. The amplitude of the flux ramp. If None,
+            doesn't change what's currently being used.
         lms_freq_hz : float or None, optional, default None
-            The tracking frequency in Hz.
+            The tracking frequency in Hz. If None,
+            doesn't change what's currently being used.
         reset_rate_khz : float or None, optional, default None
-            The flux ramp reset rate in kHz.
+            The flux ramp reset rate in kHz. If None,
+            doesn't change what's currently being used.
         feedback_start_frac : float or None, optional, default None
             What fraction of the flux ramp to skip before
-            feedback. Float between 0 and 1.
+            feedback. Float between 0 and 1. If None,
+            doesn't change what's currently being used.
         feedback_end_frac : float or None, optional, default None
             What fraction of the flux ramp to skip at the end of
-            feedback. Float between 0 and 1.
-        setup_flux_ramp : bool, optional, default True
-            Whether to setup the flux ramp at the end.
+            feedback. Float between 0 and 1. If None,
+            doesn't change what's currently being used.
         lms_enable1 : bool, optional, default None
             Whether to use the first harmonic for tracking.  If None,
             doesn't change what's currently being used.
@@ -4345,7 +4354,7 @@ class SmurfTuneMixin(SmurfBase):
 
                     #polyfit
                     Xf = [-1, 0, 1]
-                    Yf = [corr_amp[int(peaks[ch]-1)],corr_amp[int(peaks[ch])],\
+                    Yf = [corr_amp[int(peaks[ch]-1)],corr_amp[int(peaks[ch])],
                         corr_amp[int(peaks[ch]+1)]]
                     V = np.polyfit(Xf, Yf, 2)
                     offset = -V[1]/(2.0 * V[0])
