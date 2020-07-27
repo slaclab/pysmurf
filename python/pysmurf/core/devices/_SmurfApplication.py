@@ -111,4 +111,3 @@ class SmurfApplication(pyrogue.Device):
             mode='RO',
             enum={0:'Unlocked', 1:'Locked', 2:'Checking', 3:'Not found'},
             value=0))
-
