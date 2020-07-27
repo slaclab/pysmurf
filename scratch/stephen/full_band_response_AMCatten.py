@@ -7,8 +7,8 @@ import os
 import matplotlib.pylab as plt
 plt.ion()
 
-n_scan_per_band=2
-wait_btw_bands_sec=5
+n_scan_per_band=1
+wait_btw_bands_sec=2
 
 #Set all attenuators to 0 just to be safe
 for x in range(8):
