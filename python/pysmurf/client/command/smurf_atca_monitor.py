@@ -115,11 +115,15 @@ class SmurfAtcaMonitorMixin(SmurfBase):
             Which AMC bay (0 or 1).
         slot_number : int or None, optional, default None
             The crate slot number that the AMC is installed into.  If
-            None, defaults to
+            None, defaults to the 
+            :class:`~pysmurf.client.base.smurf_control.SmurfControl`
+            class attribute        
             :attr:`~pysmurf.client.base.smurf_control.SmurfControl.slot_number`.
         atca_epics_root : str or None, optional, default None
             EPICS root for ATCA monitor server to query.  If None,
-            defaults to
+            defaults to the
+            :class:`~pysmurf.client.base.smurf_control.SmurfControl`
+            class attribute
             :attr:`~pysmurf.client.base.smurf_control.SmurfControl.shelf_manager`.
         \**kwargs
             Arbitrary keyword arguments.  Passed directly to the

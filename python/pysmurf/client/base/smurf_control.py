@@ -76,8 +76,6 @@ class SmurfControl(SmurfCommandMixin,
        Shelf manager ip or network name.  Usually each SMuRF server is
        connected one-to-one with a SMuRF crate, and the default shelf
        manager name is configured to be 'shm-smrf-sp01'
-    slot_number : int
-       SMuRF crate slot number.
     validate_config : bool, optional, default True
        Whether to check if the input config file is correct.
     
