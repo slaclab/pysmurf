@@ -51,37 +51,36 @@ class SmurfControl(SmurfCommandMixin,
     Args
     ----
     epics_root : str, optional, default None
-              The epics root to be used.
+       The epics root to be used.
     cfg_file : str, optional, default None
-              Config file path.  Must be provided if not on offline
-              mode.
+       Config file path.  Must be provided if not on offline mode.
     data_dir : str, optional, default None
-              Path to the data directory.
+       Path to the data directory.
     name : str, optional, default None
-              The name of the output directory. If None, it will use
-              the current timestamp as the output directory
-              name.
+       The name of the output directory. If None, it will use the
+       current timestamp as the output directory name.
     make_logfile : bool, optional, default True
-              Whether to make a log file. If False, outputs will go to
-              the screen.
+       Whether to make a log file. If False, outputs will go to the
+       screen.
     setup : bool, optional, default False
-              Whether to run the setup step.
+       Whether to run the setup step.
     offline : bool, optional, default False
-              Whether or not to instantiate in offline mode.
+       Whether or not to instantiate in offline mode.
     smurf_cmd_mode : bool, optional, default False
-              This mode tells the system that the input is coming in
-              from the command line (rather than a python session).
-              Everything implemented here are in smurf_cmd.py.
+       This mode tells the system that the input is coming in from the
+       command line (rather than a python session).  Everything
+       implemented here are in smurf_cmd.py.
     no_dir :  bool, optional, default False
-              Whether to make a skip making a directory.
+       Whether to make a skip making a directory.
     shelf_manager : str, optional, default 'shm-smrf-sp01'
-              Shelf manager ip or network name.  Usually each SMuRF
-              server is connected one-to-one with a SMuRF crate, and
-              the default shelf manager name is configured to be
-              'shm-smrf-sp01'
+       Shelf manager ip or network name.  Usually each SMuRF server is
+       connected one-to-one with a SMuRF crate, and the default shelf
+       manager name is configured to be 'shm-smrf-sp01'
+    slot_number : int
+       SMuRF crate slot number.
     validate_config : bool, optional, default True
-              Whether to check if the input config file is correct.
-
+       Whether to check if the input config file is correct.
+    
     Attributes
     ----------
     config : :class:`~pysmurf.client.base.smurf_config.SmurfConfig` or None
@@ -92,7 +91,7 @@ class SmurfControl(SmurfCommandMixin,
     Raises
     ------
     ValueError
-              If not `offline` and `cfg_file` is None.
+       If not `offline` and `cfg_file` is None.
 
     See Also
     --------
