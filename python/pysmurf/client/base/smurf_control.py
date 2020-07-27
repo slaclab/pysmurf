@@ -78,7 +78,7 @@ class SmurfControl(SmurfCommandMixin,
        manager name is configured to be 'shm-smrf-sp01'
     validate_config : bool, optional, default True
        Whether to check if the input config file is correct.
-    
+
     Attributes
     ----------
     config : :class:`~pysmurf.client.base.smurf_config.SmurfConfig` or None
