@@ -3020,7 +3020,10 @@ class SmurfTuneMixin(SmurfBase):
         Set flux ramp sawtooth rate and amplitude.
 
         Flux ramp reset rate must integer divide 2.4MHz. E.g. you
-        can't run with a 7kHz flux ramp rate.
+        can't run with a 7kHz flux ramp rate.  If you ask for a flux
+        ramp reset rate which doesn't integer divide 2.4MHz, you'll
+        get the closest reset rate to your requested rate that integer
+        divides 2.4MHz.
 
         If you are not using the timing system, you can use any flux
         ramp rate which integer divides 2.4MHz.
