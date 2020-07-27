@@ -30,8 +30,6 @@ from pysmurf.client.command.sync_group import SyncGroup as SyncGroup
 from pysmurf.client.util.pub import set_action
 from ..util import tools
 
-
-
 class SmurfTuneMixin(SmurfBase):
     """
     This contains all the tuning scripts
