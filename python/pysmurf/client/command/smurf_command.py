@@ -2503,6 +2503,52 @@ class SmurfCommandMixin(SmurfBase):
             self._jesd_tx_status_valid_cnt_reg + f'[{num}]',
             **kwargs)
 
+    _jesd_check_jesd = "CheckJesd"
+
+    def get_check_jesd(self, **kwargs):
+        """
+        Gets the check_jesd PV. This is different from
+        SmurfControl.check_jesd, which calls this function
+        as one of the responses.
+        """
+        return self._caget(self.smurf_application + self._jesd_check_jesd,
+                           **kwargs)
+
+    def set_check_jesd(self, val, **kwargs):
+        """
+        Gets the check_jesd PV. This is different from
+        SmurfControl.check_jesd, which calls this function
+        as one of the responses.
+
+        Args
+        ----
+        val : int or bool
+            Set to 1 or True to start check jesd
+        """
+        return self._caput(self.smurf_application + self._jesd_check_jesd,
+                           val, **kwargs)
+
+    
+    _jesd_status = "JesdStatus"
+    
+    def get_jesd_status(self, as_string=True, **kwargs):
+        """
+        Gets the status of the JESD PV.
+
+        Args
+        ----
+        as_string : bool, optional, default True
+            Returns the data as a string
+
+        Ret
+        ---
+        ret : int or string
+            The JESD stats as int or string
+        """
+        return self._caget(self.smurf_application + self._jesd_status,
+                           as_string=as_string, **kwargs)
+        
+        
     _fpga_uptime_reg = 'UpTimeCnt'
 
     def get_fpga_uptime(self, **kwargs):
