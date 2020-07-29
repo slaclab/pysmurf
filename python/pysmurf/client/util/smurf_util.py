@@ -477,6 +477,7 @@ class SmurfUtilMixin(SmurfBase):
         self.set_att_uc(band,uc_att0,write_log=True)
         self.set_att_dc(band,dc_att0,write_log=True)
 
+        return refPhaseDelay, refPhaseDelayFine, processing_delay_us, dsp_corr_delay_us
 
     def process_data(self, filename, dtype=np.uint32):
         """ Reads a file taken with take_debug_data and processes it into data
