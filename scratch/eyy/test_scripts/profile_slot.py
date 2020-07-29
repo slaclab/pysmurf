@@ -43,7 +43,7 @@ def make_html(data_path, loopback=False):
     # Load status dict
     status = np.load(os.path.join(data_path, 'outputs/status.npy'),
         allow_pickle=True).item()
-    band = status["band"]
+    bands = status["bands"]
 
     def replace_str(filename, search_str, replace_str):
         with fileinput.FileInput(filename, inplace=True, backup='.bak') as file:
@@ -171,7 +171,7 @@ def make_html(data_path, loopback=False):
 
     return html_path
 
-def run(band, epics_root, config_file, shelf_manager, setup,
+def run(epics_root, config_file, shelf_manager, setup,
     no_find_freq=False, bands=np.arange(8), subband_low=13, subband_high=115,
     no_setup_notches=False, reset_rate_khz=4, n_phi0=4, threading_test=False,
     loopback=False):
@@ -227,8 +227,8 @@ def run(band, epics_root, config_file, shelf_manager, setup,
 
         return status_dict
 
-    S.log(f'Working on band {band}...')
-    print(f'Working on band {band}...')
+    S.log(f'Working on bands {bands}...')
+    print(f'Working on bands {bands}...')
 
     print("All outputs going to: ")
     print(S.output_dir)
@@ -320,12 +320,15 @@ def run(band, epics_root, config_file, shelf_manager, setup,
             # Save tuning
             status = execute(status, lambda: S.save_tune(), f'save_tune_b{band}')
 
-
             # IV.
             status = execute(status, lambda: S.slow_iv_all(np.arange(8),
                 overbias_voltage=19.9, bias_high=10, bias_step=.01, wait_time=.1,
                 high_current_mode=False, overbias_wait=.5, cool_wait=60,
                 make_plot=True), f'slow_iv_all_b{band}')
+
+            # Noise
+            status = execute(status, lambda: S.take_noise_psd(60),
+                f'noise_psd_b{band}')
     else:
         # Randomly turn on channels and stream them
         for band in bands:
@@ -367,8 +370,6 @@ if __name__ == "__main__":
     parser.add_argument("--setup", default=False,
                         action="store_true",
                         help="Whether to run setup.")
-    parser.add_argument("--band", type=int, required=True,
-                        help="The band to run the analysis on.")
     parser.add_argument("--reset-rate-khz", type=int, required=False,
                         default=4,
                         help="The flux ramp reset rate")
@@ -398,7 +399,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     # Run the generator script
-    run(args.band, args.epics_root, args.config_file, args.shelf_manager,
+    run(args.epics_root, args.config_file, args.shelf_manager,
         args.setup, no_band_off=args.no_band_off, no_find_freq=args.no_find_freq,
         subband_low=args.subband_low, subband_high=args.subband_high,
         no_setup_notches=args.no_setup_notches,
