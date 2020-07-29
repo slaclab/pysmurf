@@ -2066,11 +2066,23 @@ class SmurfUtilMixin(SmurfBase):
             Which bay (0 or 1).
         silent_if_valid : bool, optional, default False
             If True, does not print anything if things are working.
+        max_timeout : int, optional, default 60
+            The time in seconds to wait for a response.
+        get_timeout : int, optional, default 5
+            The time to wait between requesting JESD status
 
         Returns
         -------
-        (bool,bool)
-            (JesdTx is ok, JesdRx is ok)
+        jesd_tx : bool
+            True if ok.
+        jesd_rx : bool
+            True if ok
+        jesd_status : str
+            "Unlocked" - The AppTop.JesdHealth said the JESD are not locked
+            "Locked" - The AppTop.JesdHealth said the JESD are locked/
+            "Checking" - The AppTop.JesdHealth check is still in progress. 
+                This means the max timeout has been exceeded.
+            "Not found" - The ZIP file does not contain AppTop.JesdHealth method.
         """
         # JESD Tx
         jesd_tx_enable = self.get_jesd_tx_enable(bay)
