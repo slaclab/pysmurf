@@ -173,12 +173,15 @@ def run(band, epics_root, config_file, shelf_manager, setup, no_band_off=False,
     # Storage dictionary
     status = {}
     status["band"] = band
-
+    
     # Initialize
     S = pysmurf.client.SmurfControl(epics_root=epics_root,
         cfg_file=config_file, shelf_manager=shelf_manager,
         setup=False)
 
+    S.log(f'Working on band {band}...')
+    print(f'Working on band {band}...')
+    
     print("All outputs going to: ")
     print(S.output_dir)
 
@@ -246,10 +249,15 @@ def run(band, epics_root, config_file, shelf_manager, setup, no_band_off=False,
         'get_amplifier_bias')
 
     # full band response
-    status = execute(status, lambda: S.full_band_resp(2, make_plot=True,
+    status = execute(status, lambda: S.full_band_resp(band, make_plot=True,
         save_plot=True, show_plot=False, return_plot_path=True),
         'full_band_resp')
 
+    # estimate ref phase delay
+    status = execute(status, lambda: S.estimate_phase_delay(band, make_plot=True,
+        save_plot=True, show_plot=False),
+        'estimate_phase_delay')
+    
     # find_freq
     if not no_find_freq:
         subband = np.arange(13, 115)
