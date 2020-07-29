@@ -7,6 +7,13 @@ sys.path.append("../../../python")
 import pysmurf.client
 import time
 
+#############################################
+#
+# This is a test script that runs some basic function on all bands on a slot.
+# This is used for diagnostic purposes.
+#
+#############################################
+
 
 def make_html(data_path, loopback=False):
     """
@@ -164,26 +171,20 @@ def make_html(data_path, loopback=False):
 
     return html_path
 
-def run(band, epics_root, config_file, shelf_manager, setup, no_band_off=False,
-    no_find_freq=False, subband_low=13, subband_high=115,
+def run(band, epics_root, config_file, shelf_manager, setup,
+    no_find_freq=False, bands=np.arange(8), subband_low=13, subband_high=115,
     no_setup_notches=False, reset_rate_khz=4, n_phi0=4, threading_test=False,
     loopback=False):
     """
     """
     # Storage dictionary
     status = {}
-    status["band"] = band
+    status["bands"] = bands
 
     # Initialize
     S = pysmurf.client.SmurfControl(epics_root=epics_root,
         cfg_file=config_file, shelf_manager=shelf_manager,
         setup=False)
-
-    S.log(f'Working on band {band}...')
-    print(f'Working on band {band}...')
-
-    print("All outputs going to: ")
-    print(S.output_dir)
 
     if loopback:
         print("Only doing loopback tests")
@@ -226,6 +227,14 @@ def run(band, epics_root, config_file, shelf_manager, setup, no_band_off=False,
 
         return status_dict
 
+    S.log(f'Working on band {band}...')
+    print(f'Working on band {band}...')
+
+    print("All outputs going to: ")
+    print(S.output_dir)
+
+
+
     # why
     status = execute(status, lambda: S.why(), 'why')
 
@@ -233,12 +242,6 @@ def run(band, epics_root, config_file, shelf_manager, setup, no_band_off=False,
     if setup:
         status = execute(status, lambda: S.setup(), 'setup')
 
-    # Band off
-    if not no_band_off:
-        bands = S.config.get('init').get('bands')
-        for b in bands:
-            status = execute(status, lambda: S.band_off(b),
-                             f'band_off_b{b}')
 
     # amplifier biases
     status = execute(status, lambda: S.set_amplifier_bias(write_log=True),
@@ -249,14 +252,16 @@ def run(band, epics_root, config_file, shelf_manager, setup, no_band_off=False,
         'get_amplifier_bias')
 
     # full band response
-    status = execute(status, lambda: S.full_band_resp(band, make_plot=True,
-        save_plot=True, show_plot=False, return_plot_path=True),
-        'full_band_resp')
+    for band in bands:
+        status = execute(status, lambda: S.full_band_resp(band, make_plot=True,
+            save_plot=True, show_plot=False, return_plot_path=True),
+            f'full_band_resp_b{band}')
 
     # estimate ref phase delay
-    status = execute(status, lambda: S.estimate_phase_delay(band, make_plot=True,
-        save_plot=True, show_plot=False),
-        'estimate_phase_delay')
+    for band in bands:
+        status = execute(status, lambda: S.estimate_phase_delay(band, make_plot=True,
+            save_plot=True, show_plot=False),
+            f'estimate_phase_delay_b{band}')
 
     # find_freq
     if not no_find_freq:
@@ -264,76 +269,79 @@ def run(band, epics_root, config_file, shelf_manager, setup, no_band_off=False,
         if subband_low is not None and subband_high is not None:
             subband = np.arange(subband_low, subband_high)
         status['subband'] = subband
-        status = execute(status, lambda: S.find_freq(band, subband,
-            make_plot=True, save_plot=True), 'find_freq')
+        for band in bands:
+            status = execute(status, lambda: S.find_freq(band, subband,
+                make_plot=True, save_plot=True), f'find_freq_b{band}')
 
     # setup notches
     if not no_setup_notches:
-        status = execute(status, lambda: S.setup_notches(band,
-            new_master_assignment=True), 'setup_notches')
+        for band in bands:
+            status = execute(status, lambda: S.setup_notches(band,
+                new_master_assignment=True), f'setup_notches_b{band}')
 
-        status = execute(status, lambda: S.plot_tune_summary(band,
-            eta_scan=True, show_plot=False, save_plot=True),
-            'plot_tune_summary')
-
-
-    if not no_setup_notches:
-        # Actually take a tuning serial gradient descent using tune_band_serial
-        status = execute(status, lambda: S.run_serial_gradient_descent(band),
-            'serial_gradient_descent')
-
-        status = execute(status, lambda: S.run_serial_eta_scan(band),
-            'serial_eta_scan')
-
-        # track
-        channel = S.which_on(band)
-        status = execute(status, lambda: S.tracking_setup(band, channel=channel,
-            reset_rate_khz=reset_rate_khz, fraction_full_scale=.5,
-            make_plot=True, show_plot=False, nsamp=2**18, lms_gain=8,
-            lms_freq_hz=None, meas_lms_freq=False, meas_flux_ramp_amp=True,
-            n_phi0=n_phi0, feedback_start_frac=.2, feedback_end_frac=.98),
-            'tracking_setup')
-
-        # See what's on
-        status = execute(status, lambda: S.which_on(band), 'which_on_before_check')
-
-        # now track and check
-        status = execute(status, lambda: S.check_lock(band), 'check_lock')
-
-        status = execute(status, lambda: S.which_on(band), 'which_on_after_check')
-
-        # Identify bias groups
-        status = execute(status, lambda: S.identify_bias_groups(bias_groups=np.arange(8),
-            make_plot=True, show_plot=False, save_plot=True, update_channel_assignment=True),
-            'identify_bias_groups')
-
-        # Save tuning
-        status = execute(status, lambda: S.save_tune(), 'save_tune')
+            status = execute(status, lambda: S.plot_tune_summary(band,
+                eta_scan=True, show_plot=False, save_plot=True),
+                f'plot_tune_summary_b{band}')
 
 
-        # now take data using take_noise_psd and plot stuff
+            # Actually take a tuning serial gradient descent using tune_band_serial
+            status = execute(status, lambda: S.run_serial_gradient_descent(band),
+                f'serial_gradient_descent_b{band}')
 
-        # IV.
-        status = execute(status, lambda: S.slow_iv_all(np.arange(8),
-            overbias_voltage=19.9, bias_high=10, bias_step=.01, wait_time=.1,
-            high_current_mode=False, overbias_wait=.5, cool_wait=60,
-            make_plot=True), 'slow_iv_all')
+            status = execute(status, lambda: S.run_serial_eta_scan(band),
+                f'serial_eta_scan_b{band}')
+
+            # track
+            channel = S.which_on(band)
+            status = execute(status, lambda: S.tracking_setup(band, channel=channel,
+                reset_rate_khz=reset_rate_khz, fraction_full_scale=.5,
+                make_plot=True, show_plot=False, nsamp=2**18, lms_gain=8,
+                lms_freq_hz=None, meas_lms_freq=False, meas_flux_ramp_amp=True,
+                n_phi0=n_phi0, feedback_start_frac=.2, feedback_end_frac=.98),
+                f'tracking_setup_b{band}')
+
+            # See what's on
+            status = execute(status, lambda: S.which_on(band),
+                f'which_on_before_check_b{band}')
+
+            # now track and check
+            status = execute(status, lambda: S.check_lock(band),
+                f'check_lock_b{band}')
+
+            status = execute(status, lambda: S.which_on(band),
+                f'which_on_after_check_b{band}')
+
+            # Identify bias groups
+            status = execute(status, lambda: S.identify_bias_groups(bias_groups=np.arange(8),
+                make_plot=True, show_plot=False, save_plot=True,
+                update_channel_assignment=True),
+                f'identify_bias_groups_b{band}')
+
+            # Save tuning
+            status = execute(status, lambda: S.save_tune(), f'save_tune_b{band}')
+
+
+            # IV.
+            status = execute(status, lambda: S.slow_iv_all(np.arange(8),
+                overbias_voltage=19.9, bias_high=10, bias_step=.01, wait_time=.1,
+                high_current_mode=False, overbias_wait=.5, cool_wait=60,
+                make_plot=True), f'slow_iv_all_b{band}')
     else:
         # Randomly turn on channels and stream them
-        x = np.random.randn(512) > 0
-        xa = (x*10).astype(int)
-        status = execute(status, lambda: S.set_amplitude_scale_array(band, xa),
-            'set_amplitude_scale_array')
-        status = execute(status, lambda: S.set_feedback_enable_array(band, x),
-            'set_feedback_enable_array')
-        status = execute(status, lambda: S.flux_ramp_setup(4, .5),
-            'flux_ramp_setup')
-        status = execute(status, lambda: S.take_stream_data(60),
-            'take_stream_data')
-
+        for band in bands:
+            x = np.random.randn(512) > 0
+            xa = (x*10).astype(int)
+            status = execute(status, lambda: S.set_amplitude_scale_array(band, xa),
+                f'set_amplitude_scale_array_b{band}')
+            status = execute(status, lambda: S.set_feedback_enable_array(band, x),
+                f'set_feedback_enable_array_b{band}')
+            status = execute(status, lambda: S.flux_ramp_setup(4, .5),
+                f'flux_ramp_setup_b{band}')
+            status = execute(status, lambda: S.take_stream_data(60),
+                f'take_stream_data_b{band}')
 
     # Make webpage
-    # html_path = make_html(os.path.split(S.output_dir)[0], loopback=loopback)
+    html_path = make_html(os.path.split(S.output_dir)[0], loopback=loopback)
 
     if threading_test:
         import threading
