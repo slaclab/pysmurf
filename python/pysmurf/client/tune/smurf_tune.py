@@ -22,6 +22,8 @@ import matplotlib.pyplot as plt
 from matplotlib.gridspec import GridSpec
 import numpy as np
 import scipy.signal as signal
+import scipy.linalg as linalg
+import seaborn as sns
 
 from pysmurf.client.base import SmurfBase
 from pysmurf.client.command.sync_group import SyncGroup as SyncGroup
@@ -2357,6 +2359,51 @@ class SmurfTuneMixin(SmurfBase):
 
         return d, df, sync
 
+    def _feedback_frac_to_feedback(self, band, frac):
+        """
+        Convenience function for convervting from feedback_start/end_frac
+        to feedback_start/end.
+
+        Args
+        ----
+        band : int
+            The 500 MHz band
+        frac : float
+            The fraction of the flux ramp to start/end
+
+        Ret
+        ---
+        feedback : int
+            The feedback value to put into the PV
+        """
+        channel_frequency_mhz = self.get_channel_frequency_mhz(band)
+        digitizer_frequency_mhz = self.get_digitizer_frequency_mhz(band)
+        return int(frac*(self.get_ramp_max_cnt()+1)/
+            (digitizer_frequency_mhz/channel_frequency_mhz/2. ) )
+
+    def _feedback_to_feedback_frac(self, band, feedback):
+        """
+        Convenience function for converting from feedback_start/end to
+        feedback_start/end_frac.
+
+        Args
+        ----
+        band : int
+            The 500 MHz band
+        feedback : int
+            The feedback value to put into the PV
+
+        Ret
+        ---
+        frac : float
+            The fraction of the flux ramp to start/end
+        """
+        channel_frequency_mhz = self.get_channel_frequency_mhz(band)
+        digitizer_frequency_mhz = self.get_digitizer_frequency_mhz(band)
+        return feedback * digitizer_frequency_mhz / (2 *
+            channel_frequency_mhz *(self.get_ramp_max_cnt()+1))
+
+
     @set_action()
     def tracking_setup(self, band, channel=None, reset_rate_khz=None,
             write_log=False, make_plot=False, save_plot=True, show_plot=True,
@@ -2388,11 +2435,18 @@ class SmurfTuneMixin(SmurfBase):
             Whether to save plots.
         show_plot : bool, optional, default True
             Whether to display the plot.
+        nsamp : int, optional, default 2**19
+            The number of samples to take of the flux ramp.
         lms_freq_hz : float or None, optional, default None
             The frequency of the tracking algorithm.
         meas_lms_freq : bool, optional, default False
             Whether or not to try to estimate the carrier rate using
             the flux_mod2 function.  lms_freq_hz must be None.
+        meas_flux_ramp_amp : bool, optional, default False
+            Whether or not to adjust fraction_full_scale to get the number of
+            phi0 defined by n_phi0. lms_freq_hz must be None for this to work.
+        n_phi0 : float, optional, default 4
+            The number of phi0 to match using meas_flux_ramp_amp.
         flux_ramp : bool, optional, default True
             Whether to turn on flux ramp.
         fraction_full_scale : float or None, optional, default None
@@ -2406,6 +2460,10 @@ class SmurfTuneMixin(SmurfBase):
         lms_gain : int or None, optional, default None
             The tracking gain parameters. Default is the value in the
             config table.
+        return_data : bool, optional, default True
+            Whether or not to return f, df, sync.
+        new_epics_root : str or None, optional, default None
+            Override the original epics root.
         feedback_start_frac : float or None, optional, default None
             The fraction of the full flux ramp at which to stop
             applying feedback in each flux ramp cycle.  Must be in
@@ -2479,20 +2537,26 @@ class SmurfTuneMixin(SmurfBase):
                          self.LOG_ERROR)
                 return None, None, None
             elif meas_lms_freq:
+                # attempts to measure the flux ramp frequency and leave the
+                # flux ramp amplitude the same
                 lms_freq_hz = self.estimate_lms_freq(
                     band, reset_rate_khz,
                     fraction_full_scale=fraction_full_scale,
                     channel=channel)
             elif meas_flux_ramp_amp:
+                # attempts to measure the the number of phi0 and adjust
+                # the ampltidue of the flux ramp to achieve the desired number
+                # of phi0 per flux ramp
                 fraction_full_scale = self.estimate_flux_ramp_amp(band,
                     n_phi0,reset_rate_khz=reset_rate_khz, channel=channel)
                 lms_freq_hz = reset_rate_khz * n_phi0 * 1.0E3
             else:
+                # Load from config
                 lms_freq_hz = self._lms_freq_hz[band]
             self._lms_freq_hz[band] = lms_freq_hz
             if write_log:
                 self.log('Using lms_freq_estimator : ' +
-                         f'{lms_freq_hz:.0f} Hz')
+                    f'{lms_freq_hz:.0f} Hz')
 
         if not flux_ramp:
             lms_enable1 = 0
@@ -2522,17 +2586,8 @@ class SmurfTuneMixin(SmurfBase):
 
         # Doing this after flux_ramp_setup so that if needed we can
         # set feedback_end based on the flux ramp settings.
-
-        # Compute feedback_start/feedback_end from
-        # feedback_start_frac/feedback_end_frac.
-        channel_frequency_mhz = self.get_channel_frequency_mhz(band)
-        digitizer_frequency_mhz = self.get_digitizer_frequency_mhz(band)
-        feedback_start = int(
-            feedback_start_frac*(self.get_ramp_max_cnt()+1)/(
-                digitizer_frequency_mhz/channel_frequency_mhz/2. ) )
-        feedback_end = int(
-            feedback_end_frac*(self.get_ramp_max_cnt()+1)/(
-                digitizer_frequency_mhz/channel_frequency_mhz/2. ) )
+        feedback_start = self._feedback_frac_to_feedback(band, feedback_start_frac)
+        feedback_end = self._feedback_frac_to_feedback(band, feedback_end_frac)
 
         # Set feedbackStart and feedbackEnd
         self.set_feedback_start(band, feedback_start, write_log=write_log)
@@ -2569,7 +2624,7 @@ class SmurfTuneMixin(SmurfBase):
             timestamp = self.get_timestamp()
 
             fig,ax = plt.subplots(1,3, figsize=(12,5))
-            fig.suptitle(f'Band {band}')
+            fig.suptitle(f'{timestamp} Band {band}')
 
             # Histogram the stddev
             ax[0].hist(df_std[channels_on]*1e3, bins=20, edgecolor = 'k')
@@ -2591,15 +2646,18 @@ class SmurfTuneMixin(SmurfBase):
             y_factor = 100
             y = x/y_factor
             ax[2].plot(x, y, color='k', linestyle=':',label=f'1:{y_factor}')
-            ax[2].legend(loc='best')
+            ax[2].legend(loc='upper right')
 
             bbox = dict(boxstyle="round", ec='w', fc='w', alpha=.65)
 
-            text = f"LMS freq: {lms_freq_hz:.0f} Hz" + "\n" + \
+            text = f"Reset rate: {reset_rate_khz} kHz" + "\n" + \
+                f"LMS freq: {lms_freq_hz:.0f} Hz" + "\n" + \
                 f"LMS gain: {lms_gain}" + "\n" + \
                 f"FR amp: {self.get_fraction_full_scale():1.3f}" + "\n" + \
                 f"FB start: {feedback_start_frac}" + "\n" + \
                 f"FB end: {feedback_end_frac}" + "\n" + \
+                f"FB enable 1/2/3 : {lms_enable1}/{lms_enable2}/{lms_enable3}" + \
+                "\n" + \
                 r"$n_{chan}$:" + f" {len(channels_on)}"
             ax[2].text(.05, .97, text, transform=ax[2].transAxes, va='top',
                 ha='left', fontsize=10, bbox=bbox)
@@ -2959,24 +3017,50 @@ class SmurfTuneMixin(SmurfBase):
     def flux_ramp_setup(self, reset_rate_khz, fraction_full_scale, df_range=.1,
             band=2, write_log=False, new_epics_root=None):
         """
-        Set flux ramp sawtooth rate and amplitude. If there are errors, check
-        that you are using an allowed reset rate! Not all rates are allowed.
-        Allowed rates: 1, 2, 3, 4, 5, 6, 8, 10, 12, 15 kHz
+        Set flux ramp sawtooth rate and amplitude.
+
+        Flux ramp reset rate must integer divide 2.4MHz. E.g. you
+        can't run with a 7kHz flux ramp rate.  If you ask for a flux
+        ramp reset rate which doesn't integer divide 2.4MHz, you'll
+        get the closest reset rate to your requested rate that integer
+        divides 2.4MHz.
+
+        If you are not using the timing system, you can use any flux
+        ramp rate which integer divides 2.4MHz.
+
+        If you are using a timing system (i.e. if
+        :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.get_ramp_start_mode`
+        returns 0x1), you may only select from a handful of
+        pre-programmed reset rates.  See
+        :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.set_ramp_rate`
+        for more details.
 
         Args
         ----
-        reset_rate_khz : int
-            The flux ramp rate to set in kHz. The allowable values are
-            1, 2, 3, 4, 5, 6, 8, 10, 12, 15 kHz
+        reset_rate_khz : float
+           The flux ramp rate to set in kHz.
         fraction_full_scale : float
-            The amplitude of the flux ramp as a fraction of the
-            maximum possible value.
+           The amplitude of the flux ramp as a fraction of the maximum
+           possible value.
+        df_range : float, optional, default 0.1
+           If the difference between the desired fraction full scale
+           and the closest achievable fraction full scale exceeds
+           this will turn off the flux ramp and raise an exception.
         band : int, optional, default 2
-            The band to setup the flux ramp on.
+           The band to setup the flux ramp on.
         write_log : bool, optional, default False
-            Whether to write output to the log.
+           Whether to write output to the log.
         new_epics_root : str or None, optional, default None
-            Override the original epics root.
+           Override the original epics root.  If None, does nothing.
+
+        Raises
+        ------
+        ValueError
+           Raised if either 1) the requested RTM clock rate is too low
+           (<2MHz) or 2) the difference between the desired fraction
+           full scale and the closest achievable fraction full scale
+           exceeds the `df_range` argument.
+
         """
 
         # Disable flux ramp
@@ -3038,10 +3122,8 @@ class SmurfTuneMixin(SmurfBase):
                 self.LOG_USER)
             return
 
-
         FastSlowRstValue = np.floor((2**self._num_flux_ramp_counter_bits) *
             (1 - fractionFullScale)/2)
-
 
         KRelay = 3 #where do these values come from
         PulseWidth = 64
@@ -3066,16 +3148,23 @@ class SmurfTuneMixin(SmurfBase):
             write_log=write_log)
         self.set_mode_control(ModeControl, new_epics_root=new_epics_root,
             write_log=write_log)
-        self.set_fast_slow_step_size(FastSlowStepSize, new_epics_root=new_epics_root,
+        self.set_fast_slow_step_size(FastSlowStepSize,
+            new_epics_root=new_epics_root,
             write_log=write_log)
-        self.set_fast_slow_rst_value(FastSlowRstValue, new_epics_root=new_epics_root,
+        self.set_fast_slow_rst_value(FastSlowRstValue,
+            new_epics_root=new_epics_root,
             write_log=write_log)
-        self.set_enable_ramp_trigger(EnableRampTrigger, new_epics_root=new_epics_root,
+        self.set_enable_ramp_trigger(EnableRampTrigger,
+            new_epics_root=new_epics_root,
             write_log=write_log)
-        self.set_ramp_rate(reset_rate_khz, new_epics_root=new_epics_root,
-            write_log=write_log)
-
-
+        # If RampStartMode is 0x1, using timing system, which
+        # overrides internal triggering.  Must select one of the
+        # available ramp rates programmed into the timing system using
+        # the set_ramp_rate routine.
+        if self.get_ramp_start_mode() == 1:
+            self.set_ramp_rate(
+                reset_rate_khz, new_epics_root=new_epics_root,
+                write_log=write_log)
 
     def get_fraction_full_scale(self, new_epics_root=None):
         """
@@ -3098,8 +3187,9 @@ class SmurfTuneMixin(SmurfBase):
     def check_lock(self, band, f_min=.015, f_max=.2, df_max=.03,
             make_plot=False, flux_ramp=True, fraction_full_scale=None,
             lms_freq_hz=None, reset_rate_khz=None, feedback_start_frac=None,
-            feedback_end_frac=None, setup_flux_ramp=True, **kwargs):
-        """
+            feedback_end_frac=None, lms_enable1=None,
+            lms_enable2=None, lms_enable3=None, lms_gain=None, **kwargs):
+        r"""
         Takes a tracking setup and turns off channels that have bad
         tracking. The limits are set by the variables f_min, f_max,
         and df_max. The output is stored to freq_resp[band]['lock_status'] dict.
@@ -3108,7 +3198,6 @@ class SmurfTuneMixin(SmurfBase):
         ----
         band : int
             The band the check.
-
         f_min : float, optional, default 0.015
             The maximum frequency swing.
         f_max : float, optional, default 0.2
@@ -3119,31 +3208,70 @@ class SmurfTuneMixin(SmurfBase):
             Whether to make plots.
         flux_ramp : bool, optional, default True
             Whether to flux ramp or not.
-        faction_full_scale : float, optional, default None
-            Number between 0 and 1. The amplitude of the flux ramp.
+        fraction_full_scale : float, optional, default None
+            Number between 0 and 1. The amplitude of the flux ramp. If None,
+            doesn't change what's currently being used.
         lms_freq_hz : float or None, optional, default None
-            The tracking frequency in Hz.
+            The tracking frequency in Hz. If None,
+            doesn't change what's currently being used.
         reset_rate_khz : float or None, optional, default None
-            The flux ramp reset rate in kHz.
+            The flux ramp reset rate in kHz. If None,
+            doesn't change what's currently being used.
         feedback_start_frac : float or None, optional, default None
             What fraction of the flux ramp to skip before
-            feedback. Float between 0 and 1.
+            feedback. Float between 0 and 1. If None,
+            doesn't change what's currently being used.
         feedback_end_frac : float or None, optional, default None
             What fraction of the flux ramp to skip at the end of
-            feedback. Float between 0 and 1.
-        setup_flux_ramp : bool, optional, default True
-            Whether to setup the flux ramp at the end.
+            feedback. Float between 0 and 1. If None,
+            doesn't change what's currently being used.
+        lms_enable1 : bool, optional, default None
+            Whether to use the first harmonic for tracking.  If None,
+            doesn't change what's currently being used.
+        lms_enable2 : bool or None, optional, default None
+            Whether to use the second harmonic for tracking.  If None,
+            doesn't change what's currently being used.
+        lms_enable3 : bool or None, optional, default None
+            Whether to use the third harmonic for tracking.  If None,
+            doesn't change what's currently being used.
+        lms_gain : int or None, optional, default None
+            Tracking loop gain.  If None, doesn't change what's
+            currently being used.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed to some register sets
+            and gets.
         """
         self.log(f'Checking lock on band {band}')
 
         if reset_rate_khz is None:
-            reset_rate_khz = self._reset_rate_khz
+            # reset_rate_khz = self.reset_rate_khz
+            reset_rate_khz = self.get_flux_ramp_freq()
 
         if fraction_full_scale is None:
-            fraction_full_scale = self._fraction_full_scale
+            # fraction_full_scale = self.fraction_full_scale
+            fraction_full_scale = self.get_fraction_full_scale()
 
         if lms_freq_hz is None:
-            lms_freq_hz = self._lms_freq_hz[band]
+            # lms_freq_hz = self.lms_freq_hz[band]
+            lms_freq_hz = self.get_lms_freq_hz(band)
+
+        # Retrieve LMS enable status if not provided
+        if lms_enable1 is None:
+            lms_enable1 = self.get_lms_enable1(band)
+        if lms_enable2 is None:
+            lms_enable2 = self.get_lms_enable2(band)
+        if lms_enable3 is None:
+            lms_enable3 = self.get_lms_enable3(band)
+        if lms_gain is None:
+            lms_gain = self.get_lms_gain(band)
+
+        # Get feedback values
+        if feedback_start_frac is None:
+            feedback_start_frac = self._feedback_to_feedback_frac(band,
+                self.get_feedback_start(band))
+        if feedback_end_frac is None:
+            feedback_end_frac = self._feedback_to_feedback_frac(band,
+                self.get_feedback_end(band))
 
         channels = self.which_on(band)
         n_chan = len(channels)
@@ -3151,11 +3279,13 @@ class SmurfTuneMixin(SmurfBase):
         self.log(f'Currently {n_chan} channels on')
 
         # Tracking setup returns information on all channels in a band
-        f, df, sync = self.tracking_setup(band, make_plot=False,
+        f, df, sync = self.tracking_setup(band, make_plot=make_plot,
             flux_ramp=flux_ramp, fraction_full_scale=fraction_full_scale,
             lms_freq_hz=lms_freq_hz, reset_rate_khz=reset_rate_khz,
             feedback_start_frac=feedback_start_frac,
-            feedback_end_frac=feedback_end_frac)
+            feedback_end_frac=feedback_end_frac, lms_enable1=lms_enable1,
+            lms_enable2=lms_enable2, lms_enable3=lms_enable3,
+            lms_gain=lms_gain)
 
         high_cut = np.array([])
         low_cut = np.array([])
@@ -3654,10 +3784,8 @@ class SmurfTuneMixin(SmurfBase):
         for i, f in enumerate(input_res):
             self.log(f'freq {f:5.4f} - {i+1} of {n_res}')
             freq, resp, eta = self.eta_estimator(band, f, drive,
-                                                 f_sweep_half=sweep_width,
-                                                 df_sweep=df_sweep,
-                                                 delta_freq=delta_freq,
-                                                 lock_max_derivative=lock_max_derivative)
+                f_sweep_half=sweep_width, df_sweep=df_sweep,
+                delta_freq=delta_freq, lock_max_derivative=lock_max_derivative)
             eta_phase_deg = np.angle(eta)*180/np.pi
             eta_mag = np.abs(eta)
             eta_scaled = eta_mag / subband_half_width
@@ -3699,6 +3827,135 @@ class SmurfTuneMixin(SmurfBase):
         self.save_tune()
 
         self.relock(band)
+
+
+    def calculate_eta_svd(self, band, channel,
+            nsamp=2**15, filter=True, N=4, Wn=50000, btype='lowpass',
+            method='gust', make_plot=True, show_plot=False, save_plot=True,
+            subtract_median=True, update_eta_phase=True):
+        """
+        Takes I and Q data at attempts to calculate the eta parameters by
+        maximizing the noise in Q. This uses SVD to calculate the rotation.
+
+        Args
+        ----
+        band : int
+            The 500 Mhz band
+        channel : int
+            The channel number in the 500 Mhz band.
+        nsamp : int, optional, default 2**15
+            The number of samples to take to estimate the rotation. Warning:
+            nsamp > 2**16 occassionaly crashes the SVD calculation.
+        filter : bool, optional, default True
+            Whether to filter the data before eta estimation
+        N : int, optional, default 4
+            The filter order
+        Wn : int, optional, default 50000
+            The cutoff frequency in Hz of the filter.
+        btype : str, optional, default 'lowpass'
+            The type of filter to use. See scipy.filter for more info.
+        method : str, optional, default "gust"
+            The type of filtering to use in the filter application
+        make_plot : bool, optional, default True
+            Whether to make the plot
+        show_plot : bool, optional, default False,
+            Whether to show the plot.
+        save_plot : bool, optional, default True
+            Whether to save the plot.
+        subtract_median : bool, optional, default True
+            Whether to subtract the median of the timestream. This mainly matters
+            for plotting.
+        update_eta_phase : bool, optional, default True
+            Whether to update the phase in the PV after caluclating the eta
+            rotation
+
+        Ret
+        ---
+        ang : float
+            The angle to rotate the eta parameter
+        """
+        eta_phase = self.get_eta_phase_degree_channel(band, channel)
+
+        freq = self.channel_to_freq(band, channel)
+        channel_freq = self.get_channel_frequency_mhz(band) * 1.0E6  # Sampling freq
+
+        # Take data at default eta value
+        timestamp = self.get_timestamp()
+        filename = f'{timestamp}_fast_dat_Q'
+        fQ, dfQ, syncQ = self.take_debug_data(band, channel=channel,
+            IQstream=False, single_channel_readout=2,
+            nsamp=nsamp, filename=filename)
+
+        # Rotate 90 degrees and take data
+        eta_phase_rot = tools.limit_phase_deg(eta_phase + 90)
+        self.set_eta_phase_degree_channel(band, channel, eta_phase_rot)
+        timestamp = self.get_timestamp()
+        filename = f'{timestamp}_fast_data_I'
+        fI, dfI, syncI = self.take_debug_data(band, channel=channel,
+            IQstream=False, single_channel_readout=2,
+            nsamp=nsamp, filename=filename)
+
+        if filter:
+            b, a = signal.butter(N=N, Wn=Wn, btype=btype, fs=channel_freq)
+            dfI = signal.filtfilt(b, a, dfI, method=method)
+            dfQ = signal.filtfilt(b, a, dfQ, method=method)
+
+        dfI -= np.median(dfI)
+        dfQ -= np.median(dfQ)
+
+        # Calculate the SVDs
+        SVD_array = np.asarray([dfQ, dfI])
+        U, s, Vh = linalg.svd(SVD_array)
+
+        ang = np.angle(U[1,0] + 1.j*U[1,1], deg=True) - 90
+        ang_rad = np.deg2rad(ang)
+
+        # Update phase - either new eta or return to original
+        if update_eta_phase:
+            self.set_eta_phase_degree_channel(band, channel, eta_phase+ang)
+        else:
+            self.set_eta_phase_degree_channel(band, channel, eta_phase)
+
+        if make_plot:
+            # Calculate the limits of the plot
+            lims = np.max(np.abs([np.max(dfI), np.min(dfI), np.min(dfQ),
+                np.max(dfQ)]))
+            h = sns.jointplot(dfQ, dfI, alpha=.1, edgecolors='none',
+                xlim=(-lims, lims), ylim=(-lims, lims))
+            h.ax_joint.set_xlabel('Q')
+            h.ax_joint.set_ylabel('I')
+
+            # Draw guiding lines
+            h.ax_joint.axhline(0 ,color='k', linestyle=':')
+            h.ax_joint.axvline(0 ,color='k', linestyle=':')
+
+            quiver_amp = lims
+            h.ax_joint.quiver([0], [0], [quiver_amp*np.cos(ang_rad)],
+                [quiver_amp*np.sin(ang_rad)],
+                color='k', angles='xy')
+
+            # Text labels with useful values
+            text = f'b{band}ch{channel:03}' + '\n' + \
+                f'{freq:4.2f} MHz' + '\n' + \
+                r'$\eta_Q$' + f' {eta_phase:3.1f} deg' + '\n' + \
+                r'$\eta_I$' + f' {eta_phase_rot:3.1f} deg' + '\n' +\
+                r'Ang ' + f'{ang:3.2f} deg'
+            h.ax_joint.text(.02, .98, text, transform=h.ax_joint.transAxes,
+                va='top', ha='left')
+
+            plt.tight_layout()
+            if save_plot:
+                timestamp = self.get_timestamp()
+                plt.savefig(os.path.join(self.plot_dir,
+                    f'{timestamp}_IQ_svd_b{band}ch{channel:03}.png'),
+                    bbox_inches='tight')
+            if show_plot:
+                plt.show()
+            else:
+                plt.close()
+
+        return ang
+
 
     @set_action()
     def save_tune(self, update_last_tune=True):
@@ -3771,6 +4028,145 @@ class SmurfTuneMixin(SmurfBase):
         """
         return np.sort(glob.glob(os.path.join(self.tune_dir,
                                               '*_tune.npy')))[-1]
+
+    @set_action()
+    def optimize_lms_delay(self, band, lms_delays=None, reset_rate_khz=None,
+            fraction_full_scale=None, nsamp=2**18, lms_gain=7, lms_freq_hz=None,
+            meas_lms_freq=False, feedback_start_frac=.2, feedback_end_frac=.98,
+            meas_flux_ramp_amp=True, n_phi0=4, make_plot=False, show_plot=False,
+            save_plot=True, df_bins=np.arange(0,50.1,2.5)):
+        """
+        Loops over multiple LMS delays and measures df. Looks for the minima
+        of the median of the df terms for all the channels that are on. It is
+        recommended that you turn off all bad channels before running this.
+
+        Args
+        ----
+        band : int
+            The 500 MHz band to optimize
+        lms_delays : int array, optional, default None
+            The delays to test. If None, uses default values
+            [12, 16, 20, 22, 23, 24, 25, 26, 28]
+        reset_rate_khz : float or None, optional, default None
+            The flux ramp frequency.
+        fraction_full_scale : float or None, optional, default None
+            The flux ramp amplitude, as a fraction of the maximum.
+        nsamp : int, optional, default 2**19
+            The number of samples to take of the flux ramp
+        lms_gain : int or None, optional, default None
+            The tracking gain parameters. Default is the value in the
+            config table.
+        lms_freq_hz : float or None, optional, default None
+            The frequency of the tracking algorithm.
+        meas_lms_freq : bool, optional, default False
+            Whether or not to try to estimate the carrier rate using
+            the flux_mod2 function.  lms_freq_hz must be None.
+        feedback_start_frac : float or None, optional, default None
+            The fraction of the full flux ramp at which to stop
+            applying feedback in each flux ramp cycle.  Must be in
+            [0,1).  Defaults to whatever's in the cfg file.
+        feedback_end_frac : float or None, optional, default None
+            The fraction of the full flux ramp at which to stop
+            applying feedback in each flux ramp cycle.  Must be >0.
+            Defaults to whatever's in the cfg file.
+        make_plot : bool, optional, default False
+            Whether to make plots.
+        save_plot : bool, optional, default True
+            Whether to save plots.
+        show_plot : bool, optional, default True
+            Whether to display the plot.
+        meas_lms_freq : bool, optional, default False
+            Whether or not to try to estimate the carrier rate using
+            the flux_mod2 function.  lms_freq_hz must be None.
+        meas_flux_ramp_amp : bool, optional, default False
+            Whether or not to adjust fraction_full_scale to get the number of
+            phi0 defined by n_phi0. lms_freq_hz must be None for this to work.
+        n_phi0 : float, optional, default 4
+            The number of phi0 to match using meas_flux_ramp_amp.
+        df_bins : float array, optional, default np.arange(0, 50.1, 2.5)
+            The histogram bins for the plotting.
+
+        Return
+        ------
+        lms_delays : int array
+            A list of lms delays swept through
+        f_swing : float array
+            The max - min swing for the flux ramp response
+        df_std : float array
+            The standard deviation of the flux ramp df term
+        """
+        timestamp = self.get_timestamp()
+
+        if lms_delays is None:
+            lms_delays = np.array([12, 16, 20, 22, 23, 24, 25, 26, 28])
+
+        # Measure the LMS tracking parameters with current values.
+        f, df, sync = self.tracking_setup(band,
+            reset_rate_khz=reset_rate_khz,
+            fraction_full_scale=fraction_full_scale, make_plot=False,
+            show_plot=False, nsamp=nsamp, lms_gain=lms_gain,
+            lms_freq_hz=lms_freq_hz, meas_lms_freq=meas_lms_freq,
+            meas_flux_ramp_amp=meas_flux_ramp_amp)
+
+        # Store the values
+        frac_full_scale = self.get_fraction_full_scale()
+        lms_freq_hz = self.get_lms_freq_hz(band)
+        reset_rate_khz = self.get_flux_ramp_freq()
+
+        # Extract channels that are on
+        channel = np.where(np.std(df, axis=0)!=0)[0]
+        n_chan = len(channel)
+        n_lms_delay = len(lms_delays)
+
+        # Vars to hold the solutions
+        f_swing = np.zeros((n_lms_delay, n_chan))
+        df_std = np.zeros_like(f_swing)
+
+        # Loop over lms delays
+        for i, lmsd in enumerate(lms_delays):
+            self.set_lms_delay(band, lmsd)
+            f, df, sync = self.tracking_setup(band,
+                reset_rate_khz=reset_rate_khz,
+                fraction_full_scale=frac_full_scale, make_plot=False,
+                show_plot=False, nsamp=nsamp, lms_gain=lms_gain,
+                lms_freq_hz=lms_freq_hz, meas_lms_freq=False,
+                meas_flux_ramp_amp=False)
+            f_swing[i] = np.max(f[:,channel], axis=0) - \
+                np.min(f[:,channel], axis=0)
+            df_std[i] = np.std(df[:,channel], axis=0)
+
+        # Convert to kHz
+        f_swing *= 1.0E3
+        df_std *= 1.0E3
+
+        if make_plot:
+            # Instantiate plots for df terms
+            fig, ax = plt.subplots(n_lms_delay, sharex=True,
+                figsize=(4, 2*n_lms_delay))
+            for i, lmsd in enumerate(lms_delays):
+                ax[i].hist(df_std[i])
+                m = np.median(df_std[i])
+                ax[i].axvline(m, color='k', linestyle='--')
+                text = f'delay {lmsd}' + '\n' + f'med {m:3.2f}'
+                ax[i].text(.97, .95, text, transform=ax[i].transAxes,
+                    fontsize=10, va='top', ha='right')
+
+            # Add labels
+            ax[0].set_title(f'Optimize LMS delay {timestamp}')
+            ax[1].set_xlabel('std(df) [kHz]')
+            plt.tight_layout()
+
+            if save_plot:
+                plt.savefig(os.path.join(self.plot_dir,
+                    f'{timestamp}_optimize_lms_delay_b{band}.png'),
+                    bbox_inches='tight')
+            if show_plot:
+                plt.show()
+            else:
+                plt.close()
+
+        return lms_delays, f_swing, df_std
+
 
     @set_action()
     def estimate_lms_freq(self, band, reset_rate_khz,
@@ -3934,7 +4330,14 @@ class SmurfTuneMixin(SmurfBase):
                 # Holds the data for all flux ramps
                 flux_resp = np.zeros((n_sync, max_len)) * np.nan
                 for i in np.arange(n_sync):
-                    flux_resp[i] = df[sync_flag[i]:sync_flag[i+1],ch]
+                    df_tmp = df[sync_flag[i]:sync_flag[i+1],ch]
+
+                    # Some blocks are 1 sample shorter. This appends the block
+                    # by 1 sample.
+                    if len(df_tmp) < max_len:
+                        df_tmp = np.append(df_tmp,
+                            df_tmp[-1]*np.ones(max_len - len(df_tmp)))
+                    flux_resp[i] = df_tmp
 
                 # Average over all the flux ramp sweeps to generate template
                 template = np.nanmean(flux_resp, axis=0)
@@ -3967,7 +4370,8 @@ class SmurfTuneMixin(SmurfBase):
 
                     #polyfit
                     Xf = [-1, 0, 1]
-                    Yf = [corr_amp[int(peaks[ch]-1)],corr_amp[int(peaks[ch])],corr_amp[int(peaks[ch]+1)]]
+                    Yf = [corr_amp[int(peaks[ch]-1)],corr_amp[int(peaks[ch])],
+                        corr_amp[int(peaks[ch]+1)]]
                     V = np.polyfit(Xf, Yf, 2)
                     offset = -V[1]/(2.0 * V[0])
                     peak = offset + peaks[ch]
@@ -4102,7 +4506,8 @@ class SmurfTuneMixin(SmurfBase):
 
                     theta = np.arctan2(rc, rs)
                     for n in range(0, pts):
-                        r[n] = 0.5 * scl *  np.sin(theta + n * 2 * np.pi / (dn/result[ch]))
+                        r[n] = 0.5 * scl *  np.sin(theta + n * 2 * np.pi /
+                            (dn/result[ch]))
 
                     plt.figure()
                     plt.plot(r)

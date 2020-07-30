@@ -17,6 +17,7 @@ import os
 import time
 
 import numpy as np
+from packaging import version
 
 from pysmurf.client.base import SmurfBase
 from pysmurf.client.command.sync_group import SyncGroup as SyncGroup
@@ -270,13 +271,19 @@ class SmurfCommandMixin(SmurfBase):
     _enabled_bays_reg = "EnabledBays"
 
     def get_enabled_bays(self, **kwargs):
-        """
-        Gets list of enabled bays.
+        r"""Returns list of enabled AMC bays.
+
+        Args
+        ----
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caget` call.
 
         Returns
         -------
         bays : list of int
             Which bays were enabled on pysmurf server startup.
+
         """
         enabled_bays = self._caget(
             self.smurf_application +
@@ -287,6 +294,78 @@ class SmurfCommandMixin(SmurfBase):
         except Exception:
             return enabled_bays
 
+    _configuring_in_progress_reg = 'ConfiguringInProgress'
+
+    def get_configuring_in_progress(self, **kwargs):
+        r"""Whether or not configuration process in progress.
+
+        Set to `True` when the rogue `setDefaults` command is called
+        (usually by a call to :func:`set_defaults_pv`), and then set
+        to `False` when the rogue `setDefaults` method exits.
+
+        Args
+        ----
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caget` call.
+
+        Returns
+        -------
+        bool
+           Boolean flag indicating whether or not the configuration
+           process is in progress.  Returns `True` if the
+           configuration process is in progress, otherwise returns
+           `False`.
+
+        See Also
+        --------
+        :func:`set_defaults_pv` : Loads the default configuration.
+
+        :func:`get_system_configured` : Returns final state of
+                configuration process.
+
+        """
+        return bool(
+            self._caget(self.smurf_application +
+                        self._configuring_in_progress_reg, **kwargs)
+        )
+
+    _system_configured_reg = 'SystemConfigured'
+
+    def get_system_configured(self, **kwargs):
+        r"""Returns final state of the configuration process.
+
+        If the configuration was loaded without errors by the rogue
+        `setDefaults` command (usually by a call to
+        :func:`set_defaults_pv`) and all tests pass, this flag is set
+        to `True` when the rogue `setDefaults` method exits.
+
+        Args
+        ----
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caget` call.
+
+        Returns
+        -------
+        bool
+           Boolean flag indicating the final state of the
+           configuration process.  If the configuration was loaded
+           without errors and all tests passed, then this flag is set
+           to `True`.  Otherwise it is set to `False`.
+
+        See Also
+        --------
+        :func:`set_defaults_pv` : Loads the default configuration.
+
+        :func:`get_configuring_in_progress` : Whether or not
+                configuration process in progress.
+
+        """
+        return bool(
+            self._caget(self.smurf_application +
+                        self._system_configured_reg, **kwargs)
+        )
 
     #### End SmurfApplication gets/sets
 
@@ -408,12 +487,123 @@ class SmurfCommandMixin(SmurfBase):
         n_processed_channels=int(0.8125*n_channels)
         return n_processed_channels
 
-    def set_defaults_pv(self, **kwargs):
+    def set_defaults_pv(self, wait_after_sec=30.0,
+                        max_timeout_sec=400.0, caget_timeout_sec=10.0,
+                        **kwargs):
+        r"""Loads the default configuration.
+
+        Calls the rogue `setDefaults` command, which loads the default
+        software and hardware configuration.
+
+        If using pysmurf core code versions >=4.1.0 (as reported by
+        :func:`get_pysmurf_version`), returns `True` if the
+        `setDefaults` command was successfully executed on the rogue
+        side, or failed.  Returns `None` for older versions.
+
+        Args
+        ----
+        wait_after_sec : float or None, optional, default 30.0
+            If not None, the number of seconds to wait after
+            triggering the rogue `setDefaults` command.
+        max_timeout_sec : float, optional, default 400.0
+            Seconds to wait for system to configure before giving up.
+            Only used for pysmurf core code versions >= 4.1.0.
+        caget_timeout_sec : float, optional, default 10.0
+            Seconds to wait for each poll of the configuration process
+            status registers (see :func:`get_configuring_in_progress`
+            and :func:`get_system_configured`).  Only used for pysmurf
+            core code versions >= 4.1.0.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to
+            all `_caget` calls.
+
+        Returns
+        -------
+        success : bool or None
+            Returns `True` if the system was successfully configured,
+            otherwise returns `False`.  Configuration checking is only
+            implemented for pysmurf core code versions >= 4.1.0.  If
+            configuration validation is not available, returns None.
+
+        See Also
+        --------
+        :func:`get_configuring_in_progress` : Whether or not
+                configuration process in progress.
+        :func:`get_system_configured` : Returns final state of
+                configuration process.
+
         """
-        Sets the default epics variables
-        """
-        self._caput(self.epics_root + ':AMCc:setDefaults', 1, wait_after=30,
-            **kwargs)
+        # strip any commit info off the end of the pysmurf version
+        # string
+        pysmurf_version = self.get_pysmurf_version(**kwargs).split('+')[0]
+
+        # Extra registers allow confirmation of successful
+        # configuration for pysmurf versions >=4.1.0.
+        # see https://github.com/slaclab/pysmurf/issues/462
+        # for more details.
+        if version.parse(pysmurf_version) >= version.parse('4.1.0'):
+            # Will report how long the configuration process takes
+            # once complete.
+            start_time = time.time()
+
+            # Start by calling the 'setDefaults' command. Set the 'wait' flag
+            # to wait for the command to finish, although the server usually
+            # gets unresponsive during setup and the connection is lost.
+            self._caput(
+                self.epics_root + ':AMCc:setDefaults', 1,
+                wait_done=True, **kwargs)
+
+            # Now let's wait until the process is finished. We define a maximum
+            # time we will wait, 400 seconds in this case, divided in smaller
+            # tries of 10 second each
+            num_retries = int(max_timeout_sec/caget_timeout_sec)
+            success = False
+            for _ in range(num_retries):
+                # Try to read the status of the
+                # "ConfiguringInProgress" flag.
+                #
+                # We successfully exit the loop when we are able to
+                # read the "ConfiguringInProgress" flag and it is set
+                # to "False".  Otherwise we keep trying.
+                if not self.get_configuring_in_progress(
+                        timeout=caget_timeout_sec, **kwargs):
+                    success=True
+                    break
+
+            # If after out maximum defined timeout, we weren't able to
+            # read the "ConfiguringInProgress" flags as "False", we
+            # error on error.
+            if not success:
+                self.log(
+                    'The system configuration did not finish after'
+                    f' {max_timeout_sec} seconds.', self.LOG_ERROR)
+                return False
+
+            # At this point, we determine that the configuration
+            # sequence ended in the server via the
+            # "ConfiguringInProgress" flag.
+            # The final status of the configuration sequence is
+            # available in the "SystemConfigured" flag.
+            # So, let's read it and use it as out return value.
+            success = self.get_system_configured(
+                timeout=caget_timeout_sec, **kwargs)
+
+            # Measure how long the process take
+            end_time = time.time()
+
+            self.log(
+                'System configuration finished after'
+                f' {int(end_time - start_time)} seconds.'
+                f' The final state was {success}.',
+                self.LOG_USER)
+
+            return success
+
+        else:
+            self._caput(
+                self.epics_root + ':AMCc:setDefaults', 1,
+                wait_after=wait_after_sec, **kwargs)
+            return None
 
     def set_read_all(self, **kwargs):
         """
@@ -1335,6 +1525,42 @@ class SmurfCommandMixin(SmurfBase):
         return self._caget(
             self.app_core + self._stream_enable_reg,
             **kwargs)
+
+    _rf_iq_stream_enable_reg = 'rfIQStreamEnable'
+
+    def set_rf_iq_stream_enable(self, band, val, **kwargs):
+        """
+        Sets the bit that turns on RF IQ streaming for take_debug_data
+
+        Args
+        ----
+        band : int
+            The 500 Mhz band
+        val : int or bool
+            Whether to set the mode to RF IQ.
+        """
+        self._caput(self._band_root(band) +
+                    self._rf_iq_stream_enable_reg,
+                    val, **kwargs)
+
+    def get_rf_iq_stream_enable(self, band, **kwargs):
+        """
+        gets the bit that turns on RF IQ streaming for take_debug_data
+
+        Args
+        ----
+        band : int
+            The 500 MHz band
+
+        Ret
+        ---
+        rf_iq_stream_bit : int
+            The bit that sets the RF streaming
+        """
+        return self._caget(self._band_root(band) +
+                           self._rf_iq_stream_enable_reg,
+                           **kwargs)
+
 
     _build_dsp_g_reg = 'BUILD_DSP_G'
 

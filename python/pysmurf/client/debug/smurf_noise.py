@@ -1806,6 +1806,142 @@ class SmurfNoiseMixin(SmurfBase):
                 plt.close()
 
 
+    def take_noise_high_bandwidth(self, band, channel, freq=None,
+            tone_power=None, nsamp=2**25, nperseg=2**18, make_plot=True,
+            show_plot=False, save_plot=True, band_off=True,
+            run_serial_gradient_descent=True, run_serial_eta_scan=True,
+            save_psd=False):
+        """
+        This script is shamelessly stolen from Max. This tunes up a single
+        resonator and takes data in single_channel_readout mode, with is 2.4 MHz.
+        The flux ramp is off in this measurement.
+
+        To Do - add conversion to dBc
+            ability to set eta parameters
+
+        Args
+        ----
+        band : int
+            The 500 MHz band number
+        channel : int
+            The channel in the 500 MHz band
+        freq : float, optional, default None
+            The tone frequency in MHz. If provided, overrides band and channel.
+            The script will choose the best band/channel pair to use.
+        tone_power : int, optional, default None
+            The RF probe tone power. If None, loads the value that is currently
+            designated for the channel.
+        nsamp : int, optional, default 2**25
+            The number of samples to take.
+        nperseg : int, optional, default 2**18
+            The number of samples used in the PSD estimator. See
+            scipy.signal.welch
+        make_plot : bool, optional, default True
+            Whether to make the plot
+        show_plot : bool, optional, default False,
+            Whether to show the plot.
+        save_plot : bool, optional, default True
+            Whether to save the plot.
+        band_off : bool, optional, defaualt True
+            Whether to turn off all the other tones in the band before taking
+            the measurement.
+        run_serial_gradient_descent : bool, optional, default True
+            Whether to run serial_gradient_descent after turning on the tone.
+        run_serial_eta_scan : bool, optional, default True
+            Whether to run serial_eta_scan after turning on the tone.
+        save_psd : bool, optional, default True
+            Whether to save the PSD.
+
+        Ret
+        ---
+        ff : float array
+            The frequency bins
+        pxx : float array
+            The PSD values in pA^2/Hz
+        """
+        if freq is not None:
+            self.log('Resonator frequency provided by user.' +
+                ' Ignoring input band and channel.')
+        else:
+            freq = self.channel_to_freq(band, channel)  # resonance frequency
+            self.log('Loading band/channel pair. Resonator frequency' +
+                f' {freq:4.3} MHz')
+        channel_freq = self.get_channel_frequency_mhz(band) * 1.0E6 # sampling freq
+
+        if tone_power is None:
+            tone_power = self.get_amplitude_scale_channel(band, channel)
+            if tone_power == 0:
+                self.log("Tone amplitude is set to zero. Using default of 12")
+                tone_power = 12
+
+        if band_off:
+            self.band_off(band)
+
+        # Turn on single tone
+        band, channel = self.set_fixed_tone(freq, tone_power)
+
+        # Run optimization
+        if run_serial_gradient_descent:
+            self.run_serial_gradient_descent(band)
+        if run_serial_eta_scan:
+            self.run_serial_eta_scan(band)
+
+
+        eta_phase = self.get_eta_phase_degree_channel(band, channel)
+        eta_mag = self.get_eta_mag_scaled_channel(band, channel)
+
+        # Turn off feedback and FR
+        self.set_feedback_enable(band, 0)
+        self.flux_ramp_off()
+
+        # Take data
+        timestamp = self.get_timestamp()
+        filename = f'{timestamp}_single_channel_b{band}ch{channel:03}'
+        f, df, sync = self.take_debug_data(band, channel=channel,
+            IQstream=False, single_channel_readout=2,
+            nsamp=nsamp, filename=filename)
+
+        ff, pxx = signal.welch(df, nperseg=nperseg, fs=channel_freq)
+
+        if make_plot:
+            fig, ax = plt.subplots(2, figsize=(6,5.5),
+                gridspec_kw={'height_ratios': [1, 2]})
+            t_ms = np.arange(nperseg)/channel_freq * 1.0E3 # Time in ms
+            ax[0].plot(t_ms, df[:nperseg])  # Plot only the first nperseg samples
+            ax[0].set_xlabel(r'Time [ms]')
+            ax[1].loglog(ff, np.sqrt(pxx))
+            ax[1].set_xlabel("Freq [Hz]")
+            ax[1].set_ylabel("Amp [FBU/rtHz]")
+
+            text = f'Res {freq:4.2f} MHz' + '\n' +\
+                r'$\eta_{mag}$ ' + f'{eta_mag:2.3f}' + '\n' +\
+                r'$\eta_{phase}$ ' + f'{eta_phase:2.1f} deg' + '\n' + \
+                f'Tone {tone_power}'
+            ax[1].text(.02, .98, text, transform=ax[1].transAxes, va='top',
+                ha='left')
+
+            ax[1].text(.98, .981, f'Acq Time {nsamp/channel_freq:3.2f} s',
+                transform=ax[1].transAxes, va='top', ha='right')
+
+
+            ax[0].set_title(f'{timestamp} Single Channel Noise b{band}ch{channel:03}')
+
+            plt.tight_layout()
+
+            if save_plot:
+                plt.savefig(os.path.join(self.plot_dir, f'{filename}.png'),
+                    bbox_inches='tight')
+            if show_plot:
+                plt.show()
+            else:
+                plt.close()
+
+        if save_psd:
+            np.save(os.path.join(self.output_dir, f'{filename}'), ff)
+            np.save(os.path.join(self.output_dir, f'{filename}'), pxx)
+
+        return ff, pxx
+
 
     def noise_svd(self, d, mask, mean_subtract=True):
         """
