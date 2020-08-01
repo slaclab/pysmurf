@@ -1,6 +1,7 @@
-numpy
-scipy
-pyepics
 matplotlib
+numpy
+pyepics
 pyyaml
 schema
+scipy
+seaborn
