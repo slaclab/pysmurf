@@ -78,7 +78,7 @@ class SmurfControl(SmurfCommandMixin,
        manager name is configured to be 'shm-smrf-sp01'
     validate_config : bool, optional, default True
        Whether to check if the input config file is correct.
-    
+
     Attributes
     ----------
     config : :class:`~pysmurf.client.base.smurf_config.SmurfConfig` or None
@@ -299,24 +299,78 @@ class SmurfControl(SmurfCommandMixin,
             self.freq_resp[band]['lock_status'] = {}
 
         if setup:
-            self.setup(payload_size=payload_size, **kwargs)
+            success = self.setup(payload_size=payload_size, **kwargs)
+            # Log an error if system setup failed.
+            if not success:
+                self.log(
+                    'ERROR : System setup failed!  Proceed at your own'
+                    ' risk!',
+                    self.LOG_ERROR)
 
         # initialize outputs cfg
         self.config.update('outputs', {})
 
     def setup(self, write_log=True, payload_size=2048, **kwargs):
-        """Sets the PVs to the default values in the experiment.cfg.
+        r"""Configures SMuRF system.
 
-        NEED LONGER DESCRIPTION OF SETUP MEMBER FUNCTION HERE.
+        TODO: NEED TO BE MORE DETAILED, CLEARER.
+
+        Sets up the SMuRF system by first loading hardware register
+        defaults followed by overriding the hardware default register
+        values with defaults from the pysmurf configuration file.
+
+        Setup steps (in order of execution):
+
+        - Disables hardware logging if it’s active (to avoid register
+          access collisions).
+        - Sets FPGA OT limit (if one is specified in pysmurf cfg).
+        - Resets the RF DACs on AMCs in use.
+        - Sets hardware defaults using
+          :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.set_defaults_pv`.
+        - Overrides hardware defaults register values for subset of
+          registers controlled by the pysmurf configuration file.
+        - Resets the RTM CPLD.
+        - Turns off flux ramp, but configures based on values for
+          reset rate and fraction full scale provided in pysmurf
+          configuration file.
+        - Enables data streaming.
+        - Sets mask and payload size to a single channel.
+        - Sets RF amplifier biases (without enabling drain voltages).
+        - Configures timing based on pysmurf configuration file settings.
+        - Resumes hardware logging if it was active at beginning.
+
+        If system configuration fails, returns `False`, otherwise
+        returns `True`.  Failure modes (which will return `False`) are
+        as follows:
+
+        - :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.set_defaults_pv`
+          fails (only supported for pysmurf core code versions
+          >=4.1.0).  If failure is detected, doesn't attempt to
+          execute the subsequent setup steps.
 
         Args
         ----
         write_log : bool, optional, default True
-              Whether to write to the log file.
+            Whether to write to the log file.
         payload_size : int, optional, default 2048
-              The starting size of the payload.
+            The starting size of the payload.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed to many, but not all,
+            of the `_caput` calls.
+
+        Returns
+        -------
+        success : bool
+           Returns `True` if system setup succeeded, otherwise
+           `False`.
+
+        See Also
+        --------
+        :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.set_defaults_pv` :
+              Loads the hardware defaults.
 
         """
+        success=True
         self.log('Setting up...', (self.LOG_USER))
 
         # If active, disable hardware logging while doing setup.
@@ -325,7 +379,8 @@ class SmurfControl(SmurfCommandMixin,
                      (self.LOG_USER))
             self.pause_hardware_logging()
 
-        # Thermal OT protection
+        # Thermal OT protection - should this be moved after
+        # setDefaults?
         ultrascale_temperature_limit_degC = (
             self._ultrascale_temperature_limit_degC)
         if ultrascale_temperature_limit_degC is not None:
@@ -350,204 +405,234 @@ class SmurfControl(SmurfCommandMixin,
                     self.set_dac_reset(
                         bay, dac, val, write_log=write_log)
 
+        # setDefaults
         self.set_read_all(write_log=write_log)
-        self.set_defaults_pv(write_log=write_log)
+        set_defaults_success = self.set_defaults_pv(write_log=write_log)
 
-        # The per band configs. May want to make available per-band
-        # values.
-        for band in bands:
-            self.set_iq_swap_in(band, self._iq_swap_in[band],
-                                write_log=write_log, **kwargs)
-            self.set_iq_swap_out(band, self._iq_swap_out[band],
-                                 write_log=write_log, **kwargs)
+        # Checking if setDefaults succeeded is only supported for
+        # pysmurf core code versions >=4.1.0.  If it's not supported,
+        # self.set_defaults_pv will return None.  Overriding None with
+        # True to skip this check for older versions of pysmurf that
+        # don't support checking if setDefaults succeeded.
+        if set_defaults_success is None:
+            set_defaults_success = True
 
-            self.set_ref_phase_delay(
-                band,
-                self._ref_phase_delay[band],
-                write_log=write_log, **kwargs)
-            self.set_ref_phase_delay_fine(
-                band,
-                self._ref_phase_delay_fine[band],
-                write_log=write_log, **kwargs)
-
-            # in DSPv3, lmsDelay should be 4*refPhaseDelay (says
-            # Mitch).  If none provided in cfg, enforce that
-            # constraint.  If provided in cfg, override with provided
-            # value.
-            if self._lms_delay[band] is None:
-                self.set_lms_delay(
-                    band, int(4*self._ref_phase_delay[band]),
-                    write_log=write_log, **kwargs)
-            else:
-                self.set_lms_delay(
-                    band, self._lms_delay[band],
-                    write_log=write_log, **kwargs)
-
-            self.set_lms_gain(
-                band, self._lms_gain[band],
-                write_log=write_log, **kwargs)
-
-            self.set_trigger_reset_delay(
-                band, self._trigger_reset_delay[band],
-                write_log=write_log, **kwargs)
-
-            self.set_feedback_enable(
-                band, self._feedback_enable[band],
-                write_log=write_log, **kwargs)
-            self.set_feedback_gain(
-                band, self._feedback_gain[band],
-                write_log=write_log, **kwargs)
-            self.set_feedback_limit_khz(
-                band, self._feedback_limit_khz[band],
-                write_log=write_log, **kwargs)
-            self.set_feedback_polarity(
-                band, self._feedback_polarity[band],
-                write_log=write_log, **kwargs)
-
-            for dmx in np.array(self._data_out_mux[band]):
-                self.set_data_out_mux(
-                    int(self.band_to_bay(band)), int(dmx),
-                    "UserData", write_log=write_log, **kwargs)
-
-            self.set_dsp_enable(
-                band, self._dsp_enable,
-                write_log=write_log, **kwargs)
-
-            # Tuning defaults
-            self.set_gradient_descent_gain(
-                band, self._gradient_descent_gain[band],
-                write_log=write_log, **kwargs)
-            self.set_gradient_descent_averages(
-                band, self._gradient_descent_averages[band],
-                write_log=write_log, **kwargs)
-            self.set_gradient_descent_converge_hz(
-                band, self._gradient_descent_converge_hz[band],
-                write_log=write_log, **kwargs)
-            self.set_gradient_descent_step_hz(
-                band, self._gradient_descent_step_hz[band],
-                write_log=write_log, **kwargs)
-            self.set_gradient_descent_momentum(
-                band, self._gradient_descent_momentum[band],
-                write_log=write_log, **kwargs)
-            self.set_gradient_descent_beta(
-                band, self._gradient_descent_beta[band],
-                write_log=write_log, **kwargs)
-            self.set_eta_scan_averages(
-                band, self._eta_scan_averages[band],
-                write_log=write_log, **kwargs)
-            self.set_eta_scan_del_f(
-                band, self._eta_scan_del_f[band],
-                write_log=write_log, **kwargs)
-
-        # Set UC and DC attenuators
-        for band in bands:
-            self.set_att_uc(
-                band, self._att_uc[band],
-                write_log=write_log)
-            self.set_att_dc(
-                band, self._att_dc[band],
-                write_log=write_log)
-
-        # Things that have to be done for both AMC bays, regardless of whether or not an AMC
-        # is plugged in there.
-        for bay in [0, 1]:
-            self.set_trigger_hw_arm(bay, 0, write_log=write_log)
-
-        self.set_trigger_width(0, 10, write_log=write_log)  # mystery bit that makes triggering work
-        self.set_trigger_enable(0, 1, write_log=write_log)
-        ## only sets enable, but is initialized to True already by
-        ## default, and crashing for unknown reasons in rogue 4.
-        self.set_evr_channel_reg_enable(0, True, write_log=write_log)
-        self.set_evr_trigger_channel_reg_dest_sel(0,
-                                                  0x20000,
-                                                  write_log=write_log)
-
-        self.set_enable_ramp_trigger(1, write_log=write_log)
-
-        # 0x1 selects fast flux ramp, 0x0 selects slow flux ramp.  The
-        # slow flux ramp only existed on the first rev of RTM boards,
-        # C0, and wasn't ever really used.
-        self.set_select_ramp(0x1, write_log=write_log)
-
-        self.set_cpld_reset(0, write_log=write_log)
-        self.cpld_toggle(write_log=write_log)
-
-        # Make sure flux ramp starts off
-        self.flux_ramp_off(write_log=write_log)
-        self.flux_ramp_setup(self._reset_rate_khz,
-                             self._fraction_full_scale,
-                             write_log=write_log)
-
-        # Turn on stream enable for all bands
-        self.set_stream_enable(1, write_log=write_log)
-
-        # Set payload size and mask to a single channel
-        self.set_payload_size(payload_size)
-        self.set_channel_mask([0])
-
-        self.set_amplifier_bias(write_log=write_log)
-        self.get_amplifier_bias()
-
-        # also read the temperature of the CC
-        self.log(f"Cryocard temperature = {self.C.read_temperature()}")
-
-        # if no timing section present, assumes your defaults.yml
-        # has set you up...good luck.
-        if self._timing_reference is not None:
-            timing_reference = self._timing_reference
-
-            # check if supported
-            timing_options = ['ext_ref', 'backplane']
-            assert (timing_reference in timing_options), (
-                'timing_reference in cfg file ' +
-                f'(={timing_reference}) not in ' +
-                f'timing_options={timing_options}')
-
+        # Log an error if setDefaults failed.
+        if not set_defaults_success:
             self.log(
-                'Configuring the system to take timing ' +
-                f'from {timing_reference}')
+                'ERROR : System configuration/setDefaults failed!  Do'
+                ' not proceed!  Reboot or ask someone for help.  You'
+                ' are strongly encouraged to report this as an issue'
+                ' on the pysmurf github repo at'
+                ' https://github.com/slaclab/pysmurf/issues (please'
+                ' provide a state dump using the pysmurf'
+                ' set_read_all/save_state functions).',
+                self.LOG_ERROR)
+            success = False
 
-            if timing_reference == 'ext_ref':
-                for bay in self.bays:
-                    self.log(f'Select external reference for bay {bay}')
-                    self.sel_ext_ref(bay)
+        # Only proceed with the rest of setup if setDefaults
+        # succeeded, otherwise we risk giving users false hope.
+        if success:
+            # The per band configs. May want to make available per-band
+            # values.
+            for band in bands:
+                self.set_iq_swap_in(band, self._iq_swap_in[band],
+                                    write_log=write_log, **kwargs)
+                self.set_iq_swap_out(band, self._iq_swap_out[band],
+                                     write_log=write_log, **kwargs)
 
-                # make sure RTM knows there's no timing system
-                self.set_ramp_start_mode(0, write_log=write_log)
+                self.set_ref_phase_delay(
+                    band,
+                    self._ref_phase_delay[band],
+                    write_log=write_log, **kwargs)
+                self.set_ref_phase_delay_fine(
+                    band,
+                    self._ref_phase_delay_fine[band],
+                    write_log=write_log, **kwargs)
 
-            # https://confluence.slac.stanford.edu/display/SMuRF/Timing+Carrier#TimingCarrier-Howtoconfiguretodistributeoverbackplanefromslot2
-            if timing_reference == 'backplane':
-                # Set SMuRF carrier crossbar to use the backplane
-                # distributed timing.
-                # OutputConfig[1] = 0x2 configures the SMuRF carrier's
-                # FPGA to take the timing signals from the backplane
-                # (TO_FPGA = FROM_BACKPLANE)
-                self.log('Setting crossbar OutputConfig[1]=0x2 (TO_FPGA=FROM_BACKPLANE)')
-                self.set_crossbar_output_config(1, 2)
+                # in DSPv3, lmsDelay should be 4*refPhaseDelay (says
+                # Mitch).  If none provided in cfg, enforce that
+                # constraint.  If provided in cfg, override with provided
+                # value.
+                if self._lms_delay[band] is None:
+                    self.set_lms_delay(
+                        band, int(4*self._ref_phase_delay[band]),
+                        write_log=write_log, **kwargs)
+                else:
+                    self.set_lms_delay(
+                        band, self._lms_delay[band],
+                        write_log=write_log, **kwargs)
 
-                self.log('Waiting 1 sec for timing up-link...')
-                time.sleep(1)
+                self.set_lms_gain(
+                    band, self._lms_gain[band],
+                    write_log=write_log, **kwargs)
 
-                # Check if link is up - just printing status to
-                # screen, not currently taking any action if it's not.
-                timing_rx_link_up = self.get_timing_link_up()
-                self.log(f'Timing RxLinkUp = {timing_rx_link_up}', self.LOG_USER if
-                         timing_rx_link_up else self.LOG_ERROR)
+                self.set_trigger_reset_delay(
+                    band, self._trigger_reset_delay[band],
+                    write_log=write_log, **kwargs)
 
-                # Set LMK to use timing system as reference
-                for bay in self.bays:
-                    self.log(f'Configuring bay {bay} LMK to lock to the timing system')
-                    self.set_lmk_reg(bay, 0x147, 0xA)
+                self.set_feedback_enable(
+                    band, self._feedback_enable[band],
+                    write_log=write_log, **kwargs)
+                self.set_feedback_gain(
+                    band, self._feedback_gain[band],
+                    write_log=write_log, **kwargs)
+                self.set_feedback_limit_khz(
+                    band, self._feedback_limit_khz[band],
+                    write_log=write_log, **kwargs)
+                self.set_feedback_polarity(
+                    band, self._feedback_polarity[band],
+                    write_log=write_log, **kwargs)
 
-                # Configure RTM to trigger off of the timing system
-                self.set_ramp_start_mode(1, write_log=write_log)
+                for dmx in np.array(self._data_out_mux[band]):
+                    self.set_data_out_mux(
+                        int(self.band_to_bay(band)), int(dmx),
+                        "UserData", write_log=write_log, **kwargs)
 
-        self.log('Done with setup')
+                self.set_dsp_enable(
+                    band, self._dsp_enable,
+                    write_log=write_log, **kwargs)
+
+                # Tuning defaults
+                self.set_gradient_descent_gain(
+                    band, self._gradient_descent_gain[band],
+                    write_log=write_log, **kwargs)
+                self.set_gradient_descent_averages(
+                    band, self._gradient_descent_averages[band],
+                    write_log=write_log, **kwargs)
+                self.set_gradient_descent_converge_hz(
+                    band, self._gradient_descent_converge_hz[band],
+                    write_log=write_log, **kwargs)
+                self.set_gradient_descent_step_hz(
+                    band, self._gradient_descent_step_hz[band],
+                    write_log=write_log, **kwargs)
+                self.set_gradient_descent_momentum(
+                    band, self._gradient_descent_momentum[band],
+                    write_log=write_log, **kwargs)
+                self.set_gradient_descent_beta(
+                    band, self._gradient_descent_beta[band],
+                    write_log=write_log, **kwargs)
+                self.set_eta_scan_averages(
+                    band, self._eta_scan_averages[band],
+                    write_log=write_log, **kwargs)
+                self.set_eta_scan_del_f(
+                    band, self._eta_scan_del_f[band],
+                    write_log=write_log, **kwargs)
+
+            # Set UC and DC attenuators
+            for band in bands:
+                self.set_att_uc(
+                    band, self._att_uc[band],
+                    write_log=write_log)
+                self.set_att_dc(
+                    band, self._att_dc[band],
+                    write_log=write_log)
+
+            # Things that have to be done for both AMC bays, regardless of whether or not an AMC
+            # is plugged in there.
+            for bay in [0, 1]:
+                self.set_trigger_hw_arm(bay, 0, write_log=write_log)
+
+            self.set_trigger_width(0, 10, write_log=write_log)  # mystery bit that makes triggering work
+            self.set_trigger_enable(0, 1, write_log=write_log)
+            ## only sets enable, but is initialized to True already by
+            ## default, and crashing for unknown reasons in rogue 4.
+            self.set_evr_channel_reg_enable(0, True, write_log=write_log)
+            self.set_evr_trigger_channel_reg_dest_sel(0,
+                                                      0x20000,
+                                                      write_log=write_log)
+
+            self.set_enable_ramp_trigger(1, write_log=write_log)
+
+            # 0x1 selects fast flux ramp, 0x0 selects slow flux ramp.  The
+            # slow flux ramp only existed on the first rev of RTM boards,
+            # C0, and wasn't ever really used.
+            self.set_select_ramp(0x1, write_log=write_log)
+
+            self.set_cpld_reset(0, write_log=write_log)
+            self.cpld_toggle(write_log=write_log)
+
+            # Make sure flux ramp starts off
+            self.flux_ramp_off(write_log=write_log)
+            self.flux_ramp_setup(self._reset_rate_khz,
+                                 self._fraction_full_scale,
+                                 write_log=write_log)
+
+            # Turn on stream enable for all bands
+            self.set_stream_enable(1, write_log=write_log)
+
+            # Set payload size and mask to a single channel
+            self.set_payload_size(payload_size)
+            self.set_channel_mask([0])
+
+            self.set_amplifier_bias(write_log=write_log)
+            self.get_amplifier_bias()
+
+            # also read the temperature of the CC
+            self.log(f"Cryocard temperature = {self.C.read_temperature()}")
+
+            # if no timing section present, assumes your defaults.yml
+            # has set you up...good luck.
+            if self._timing_reference is not None:
+                timing_reference = self._timing_reference
+
+                # check if supported
+                timing_options = ['ext_ref', 'backplane']
+                assert (timing_reference in timing_options), (
+                    'timing_reference in cfg file ' +
+                    f'(={timing_reference}) not in ' +
+                    f'timing_options={timing_options}')
+
+                self.log(
+                    'Configuring the system to take timing ' +
+                    f'from {timing_reference}')
+
+                if timing_reference == 'ext_ref':
+                    for bay in self.bays:
+                        self.log(f'Select external reference for bay {bay}')
+                        self.sel_ext_ref(bay)
+
+                    # make sure RTM knows there's no timing system
+                    self.set_ramp_start_mode(0, write_log=write_log)
+
+                # https://confluence.slac.stanford.edu/display/SMuRF/Timing+Carrier#TimingCarrier-Howtoconfiguretodistributeoverbackplanefromslot2
+                if timing_reference == 'backplane':
+                    # Set SMuRF carrier crossbar to use the backplane
+                    # distributed timing.
+                    # OutputConfig[1] = 0x2 configures the SMuRF carrier's
+                    # FPGA to take the timing signals from the backplane
+                    # (TO_FPGA = FROM_BACKPLANE)
+                    self.log('Setting crossbar OutputConfig[1]=0x2 (TO_FPGA=FROM_BACKPLANE)')
+                    self.set_crossbar_output_config(1, 2)
+
+                    self.log('Waiting 1 sec for timing up-link...')
+                    time.sleep(1)
+
+                    # Check if link is up - just printing status to
+                    # screen, not currently taking any action if it's not.
+                    timing_rx_link_up = self.get_timing_link_up()
+                    self.log(f'Timing RxLinkUp = {timing_rx_link_up}', self.LOG_USER if
+                             timing_rx_link_up else self.LOG_ERROR)
+
+                    # Set LMK to use timing system as reference
+                    for bay in self.bays:
+                        self.log(f'Configuring bay {bay} LMK to lock to the timing system')
+                        self.set_lmk_reg(bay, 0x147, 0xA)
+
+                    # Configure RTM to trigger off of the timing system
+                    self.set_ramp_start_mode(1, write_log=write_log)
+
+            self.log('Done with setup.', self.LOG_USER)
+        else:
+            self.log('Setup failed!', self.LOG_ERROR)
 
         # If active, re-enable hardware logging after setup.
         if self._hardware_logging_thread is not None:
-            self.log('Resuming hardware logging.', (self.LOG_USER))
+            self.log('Resuming hardware logging.', self.LOG_USER)
             self.resume_hardware_logging()
+
+        # Assume if we made it here that configuration was successful.
+        return success
 
     def make_dir(self, directory):
         """Create directory on file system at the specified path.
