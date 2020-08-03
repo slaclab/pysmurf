@@ -441,9 +441,9 @@ class SmurfControl(SmurfCommandMixin,
             success = False
 
         # TEST
-        S.set_jesd_tx_enable(0,0)
+        self.set_jesd_tx_enable(0,0)
         time.sleep(0.1)
-        S.set_check_jesd()
+        self.set_check_jesd()
         
         #
         # setDefaults runs the JesdHealth check, so just need to poll
