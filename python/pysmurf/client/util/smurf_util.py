@@ -2089,11 +2089,14 @@ class SmurfUtilMixin(SmurfBase):
         jesd_rx : bool
             True if ok
         jesd_status : str
-            "Unlocked" - The AppTop.JesdHealth said the JESD are not locked
-            "Locked" - The AppTop.JesdHealth said the JESD are locked/
-            "Checking" - The AppTop.JesdHealth check is still in progress. 
-                This means the max timeout has been exceeded.
-            "Not found" - The ZIP file does not contain AppTop.JesdHealth method.
+            Possible statuses:
+
+            - "Unlocked" : The AppTop.JesdHealth said the JESD are not locked.
+            - "Locked" : The AppTop.JesdHealth said the JESD are locked.
+            - "Checking" : The AppTop.JesdHealth check is still in
+              progress.  This means the max timeout has been exceeded.
+            - "Not found" : The ZIP file does not contain AppTop.JesdHealth method.
+
         """
         # JESD Tx
         jesd_tx_enable = self.get_jesd_tx_enable(bay)
@@ -2125,7 +2128,7 @@ class SmurfUtilMixin(SmurfBase):
             self.set_check_jesd(1)
             num_retries = int(max_timeout/get_timeout)
 
-            for i in np.arange(num_retries):
+            for _ in np.arange(num_retries):
                 status = self.get_jesd_status(as_string=True,
                                               timeout=get_timeout)
 
@@ -2146,7 +2149,7 @@ class SmurfUtilMixin(SmurfBase):
             else:
                 self.log("The ZIP file does not contain " +
                          "AppTop.JesdHealth method.")
-                
+
         return (jesd_tx_ok, jesd_rx_ok, status)
 
     def get_fpga_status(self):
@@ -2184,7 +2187,6 @@ class SmurfUtilMixin(SmurfBase):
             self.log("JESD Rx DOWN", self.LOG_USER)
         else:
             self.log("JESD Rx Okay", self.LOG_USER)
-
 
         # dict containing all values
         ret = {

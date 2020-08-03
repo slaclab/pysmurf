@@ -2754,7 +2754,7 @@ class SmurfCommandMixin(SmurfBase):
             Seconds to wait for JESD health check to complete before
             giving up.
         caget_timeout_sec : float, optional, default 5.0
-            Seconds to wait for each poll of the JESD health check 
+            Seconds to wait for each poll of the JESD health check
             status register (see :func:`get_jesd_status`).
         \**kwargs
             Arbitrary keyword arguments.  Passed directly to
@@ -2792,7 +2792,7 @@ class SmurfCommandMixin(SmurfBase):
             # current ZIP file does not contain the new JesdHealth command.
             status = self.get_jesd_status(**kwargs)
 
-            if status == None:
+            if status is None:
                 self.log(
                     'The `JesdHealth` method is not present in the Rogue'
                     ' ZIP file.'  , self.LOG_ERROR)
@@ -2845,9 +2845,9 @@ class SmurfCommandMixin(SmurfBase):
                 f' (current version is {pysmurf_version}).',
                 self.LOG_ERROR)
             return None
-    
+
     _jesd_status_reg = "JesdStatus"
-    
+
     def get_jesd_status(self, as_string=True, **kwargs):
         r"""Gets the status of the Rogue `AppTop.JesdHealth` method.
 
@@ -2885,7 +2885,7 @@ class SmurfCommandMixin(SmurfBase):
         --------
         :func:`set_check_jesd` : Gets the status of the Rogue
               `AppTop.JesdHealth` method.
-        
+
         """
         # strip any commit info off the end of the pysmurf version
         # string
@@ -2895,7 +2895,7 @@ class SmurfCommandMixin(SmurfBase):
         # lock for pysmurf versions >=4.1.0.
         # https://github.com/slaclab/pysmurf/issues/467 for more
         # details.
-        if version.parse(pysmurf_version) >= version.parse('4.1.0'):        
+        if version.parse(pysmurf_version) >= version.parse('4.1.0'):
             return self._caget(
                 self.smurf_application + self._jesd_status_reg,
                 as_string=as_string, **kwargs)
@@ -2906,7 +2906,7 @@ class SmurfCommandMixin(SmurfBase):
                 f' (current version is {pysmurf_version}).',
                 self.LOG_ERROR)
             return None
-        
+
     _fpga_uptime_reg = 'UpTimeCnt'
 
     def get_fpga_uptime(self, **kwargs):

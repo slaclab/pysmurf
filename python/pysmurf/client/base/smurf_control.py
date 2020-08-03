@@ -438,12 +438,12 @@ class SmurfControl(SmurfCommandMixin,
                 ' provide a state dump using the pysmurf'
                 ' set_read_all/save_state functions).',
                 self.LOG_ERROR)
-            success = False            
+            success = False
 
         #
         # JesdHealth check (not strictly necessary to re-check, since
         # setDefaults runs the check, but doing it anyway).
-        jesd_health_success = self.set_check_jesd(write_log=write_log)        
+        jesd_health_success = self.set_check_jesd(write_log=write_log)
 
         # Checking if JesdHealth is Locked is only supported for Rogue
         # ZIP file versions >=0.3.0 and pysmurf core code versions
@@ -465,7 +465,7 @@ class SmurfControl(SmurfCommandMixin,
                 ' provide a state dump using the pysmurf'
                 ' set_read_all/save_state functions).',
                 self.LOG_ERROR)
-            success = False            
+            success = False
 
         # Only proceed with the rest of setup if basic system checks
         # succeeded, otherwise we risk giving users false hope.
