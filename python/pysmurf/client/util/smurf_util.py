@@ -2019,8 +2019,8 @@ class SmurfUtilMixin(SmurfBase):
             self.run_pwr_up_sys_ref(bay)
 
         # check if Jesds recovered - enable printout
-        (jesd_tx_ok, jesd_rx_ok, jesd_status) = self.check_jesd(bay,
-                                                                silent_if_valid=False)
+        (jesd_tx_ok, jesd_rx_ok, jesd_status) = self.check_jesd(
+            bay, silent_if_valid=False)
 
         # raise exception if failed to recover
         if (jesd_rx_ok and jesd_tx_ok):
@@ -2065,11 +2065,13 @@ class SmurfUtilMixin(SmurfBase):
 
         return jesd_decorator_function
 
-    def check_jesd(self, bay, silent_if_valid=False, max_timeout=60,
-                   get_timeout=5):
-        """
-        Queries the Jesd tx and rx and compares the
-        data_valid and enable bits.
+    def check_jesd(self, bay, silent_if_valid=False,
+                   max_timeout_sec=60, get_timeout_sec=5):
+        """Checks JESD status for requested bay.
+
+        Queries the Jesd tx and rx and compares the data_valid and
+        enable bits.  If newer Rogue `AppTop.JesdHealth` method is
+        available, returns its status.
 
         Args
         ----
@@ -2077,25 +2079,35 @@ class SmurfUtilMixin(SmurfBase):
             Which bay (0 or 1).
         silent_if_valid : bool, optional, default False
             If True, does not print anything if things are working.
-        max_timeout : int, optional, default 60
-            The time in seconds to wait for a response.
-        get_timeout : int, optional, default 5
-            The time to wait between requesting JESD status
+        max_timeout_sec : float, optional, default 60.0
+            Seconds to wait for JESD health check to complete before
+            giving up.  Passed to
+            :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.set_check_jesd`
+        caget_timeout_sec : float, optional, default 5.0
+            Seconds to wait for each poll of the JESD health check
+            status register (see
+            :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.get_jesd_status`).
+            Passed to
+            :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.set_check_jesd`
 
         Returns
         -------
         jesd_tx : bool
-            True if ok.
+            True if DataValid = Enable for this bay's JesdTx,
+            otherwise False.
         jesd_rx : bool
-            True if ok
-        jesd_status : str
-            Possible statuses:
+            True if DataValid = Enable for this bay's JesdRx,
+            otherwise False.
+        jesd_status : str or None
+            System (all bays) JESD health status (see
+            :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.get_jesd_status`
+            for a description of the possible statuses).
 
-            - "Unlocked" : The AppTop.JesdHealth said the JESD are not locked.
-            - "Locked" : The AppTop.JesdHealth said the JESD are locked.
-            - "Checking" : The AppTop.JesdHealth check is still in
-              progress.  This means the max timeout has been exceeded.
-            - "Not found" : The ZIP file does not contain AppTop.JesdHealth method.
+        See Also
+        --------
+        :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.set_check_jesd` : 
+              Gets the status of the Rogue `AppTop.JesdHealth`
+              method.
 
         """
         # JESD Tx
@@ -2119,36 +2131,7 @@ class SmurfUtilMixin(SmurfBase):
                 self.log("JESD Rx Okay", self.LOG_USER)
 
         # New checks introduced
-        status = self.get_jesd_status()
-        if status == "Not found":
-            self.log('Newer checks not implemented in ' +
-                     'firmware version')
-        else:
-            # Tell the system to check the jesd
-            self.set_check_jesd(1)
-            num_retries = int(max_timeout/get_timeout)
-
-            for _ in np.arange(num_retries):
-                status = self.get_jesd_status(as_string=True,
-                                              timeout=get_timeout)
-
-                if status not in [None, "Checking"]:
-                    break
-
-        if not silent_if_valid:
-            if status == "Unlocked":
-                self.log("The AppTop.JesdHealth said the " +
-                         "JESD are not locked.")
-            elif status == "Locked":
-                self.log("The AppTop.JesdHealth said the " +
-                         "JESD are locked.")
-            elif status == "Checking":
-                self.log("The AppTop.JesdHealth check is " +
-                         "still in progress. This means the " +
-                         "the max timeout has been exceeded.")
-            else:
-                self.log("The ZIP file does not contain " +
-                         "AppTop.JesdHealth method.")
+        status = self.set_check_jesd()
 
         return (jesd_tx_ok, jesd_rx_ok, status)
 

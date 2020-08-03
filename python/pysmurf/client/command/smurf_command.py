@@ -2731,7 +2731,7 @@ class SmurfCommandMixin(SmurfBase):
 
     def set_check_jesd(self, max_timeout_sec=60.0,
                        caget_timeout_sec=5.0, **kwargs):
-        r"""Runs JESD health check and returns result.
+        r"""Runs JESD health check and returns status.
 
         Toggles the pysmurf core code `SmurfApplication:CheckJesd`
         register, which triggers a call to the `AppTop.JesdHealth`
@@ -2762,11 +2762,12 @@ class SmurfCommandMixin(SmurfBase):
 
         Returns
         -------
-        success : bool or None
-            Returns `True` if JESD is locked (good), otherwise returns
-            `False`.  Returns `None` for pysmurf core code versions <
-            4.1.0 and Rogue ZIP file versions that do not have the
-            `AppTop.JesdHealth` method.
+        status : str or None
+            Returns JESD health status (see :func:`get_jesd_status`
+            for a description of the possible statuses).  Returns
+            `None` for pysmurf core code versions < 4.1.0 and Rogue
+            ZIP file versions that do not have the `AppTop.JesdHealth`
+            method.
 
         See Also
         --------
@@ -2777,6 +2778,7 @@ class SmurfCommandMixin(SmurfBase):
         # strip any commit info off the end of the pysmurf version
         # string
         pysmurf_version = self.get_pysmurf_version(**kwargs).split('+')[0]
+        pysmurf_version = '4.1.0'
 
         # Extra registers allow confirmation of JESD lock for pysmurf
         # versions >=4.1.0 and Rogue ZIP file versions >=0.3.0.  see
@@ -2796,7 +2798,7 @@ class SmurfCommandMixin(SmurfBase):
                 self.log(
                     'The `JesdHealth` method is not present in the Rogue'
                     ' ZIP file.'  , self.LOG_ERROR)
-                return None
+                return status
 
             # If the command exists, then start by calling the `CheckJesd`
             # wrapper command.
@@ -2807,22 +2809,23 @@ class SmurfCommandMixin(SmurfBase):
             # Now let's wait for it to finish.
             num_retries = int(max_timeout_sec/caget_timeout_sec)
             success = False
+            status = None
             for _ in range(num_retries):
                 # Try to read the status register.
-                state = self.get_jesd_status(timeout=caget_timeout_sec, **kwargs)
+                status = self.get_jesd_status(timeout=caget_timeout_sec, **kwargs)
 
-                if state not in [None, 'Checking']:
+                if status not in [None, 'Checking']:
                     success = True
                     break
 
             # If after out maximum defined timeout, we weren't able to
-            # read the "JesdStatus" status register with a valid state,
+            # read the "JesdStatus" status register with a valid status,
             # then we exit on error.
             if not success:
                 self.log(
                     'JESD health check did not finish after'
                     f' {max_timeout_sec} seconds.', self.LOG_ERROR)
-                return False
+                return status
 
             # Measure how long the process take
             end_time = time.time()
@@ -2830,13 +2833,10 @@ class SmurfCommandMixin(SmurfBase):
             self.log(
                 'JESD health check finished after'
                 f' {int(end_time - start_time)} seconds.'
-                f' The final state was {state}.',
+                f' The final status was {status}.',
                 self.LOG_USER)
 
-            if state == "Locked":
-                return True
-            else:
-                return False
+            return status
         else:
             self.log(
                 'The `SmurfApplication:CheckJesd` and '
@@ -2890,6 +2890,7 @@ class SmurfCommandMixin(SmurfBase):
         # strip any commit info off the end of the pysmurf version
         # string
         pysmurf_version = self.get_pysmurf_version(**kwargs).split('+')[0]
+        pysmurf_version = '4.1.0'        
 
         # Extra registers were added to allow confirmation of JESD
         # lock for pysmurf versions >=4.1.0.
