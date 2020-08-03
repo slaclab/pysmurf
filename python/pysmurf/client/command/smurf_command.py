@@ -2760,7 +2760,8 @@ class SmurfCommandMixin(SmurfBase):
 
         See Also
         --------
-        :func:`get_jesd_status` : ???
+        :func:`get_jesd_status` : Gets the status of the Rogue
+              `AppTop.JesdHealth` method.
 
         """
 
@@ -2772,7 +2773,7 @@ class SmurfCommandMixin(SmurfBase):
         # current ZIP file does not contain the new JesdHealth command.
         status = self.get_jesd_status(**kwargs)
 
-        if status == "Not found":
+        if status == None:
             self.log(
                 'The `JesdHealth` method is not present in the Rogue'
                 ' ZIP file.'  , self.LOG_ERROR)
@@ -2783,6 +2784,9 @@ class SmurfCommandMixin(SmurfBase):
         self._caput(
             self.epics_root + ':AMCc:SmurfApplication:CheckJesd', 1,
             wait_done=True, **kwargs)
+
+        # TEST
+        self.set_jesd_tx_enable(0,0)
         
         # Now let's wait for it to finish.
         num_retries = int(max_timeout_sec/caget_timeout_sec)
@@ -2790,7 +2794,7 @@ class SmurfCommandMixin(SmurfBase):
         for _ in range(num_retries):
             # Try to read the status register.
             state = self.get_jesd_status(timeout=caget_timeout_sec, **kwargs)
-            
+
             if state not in [None, 'Checking']:
                 success = True
                 break
@@ -2850,7 +2854,8 @@ class SmurfCommandMixin(SmurfBase):
 
         See Also
         --------
-        :func:`set_check_jesd` : ???
+        :func:`set_check_jesd` : Gets the status of the Rogue
+              `AppTop.JesdHealth` method.
         
         """
         return self._caget(
