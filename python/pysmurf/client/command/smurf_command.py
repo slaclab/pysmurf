@@ -2733,10 +2733,20 @@ class SmurfCommandMixin(SmurfBase):
                        caget_timeout_sec=5.0, **kwargs):
         r"""Runs JESD health check and returns result.
 
-        Calls the rogue `CheckJesd` command, which triggers a call to
-        the `AppTop.JesdHealth` method. The command will check if the
-        Rogue ZIP file's `AppTop` device contains the `JesdHealth`
-        method, call it if it exists, and return the returned value.
+        Toggles the pysmurf core code `SmurfApplication:CheckJesd`
+        register, which triggers a call to the `AppTop.JesdHealth`
+        method. The command will check if the Rogue ZIP file's
+        `AppTop` device contains the `JesdHealth` method, call it if
+        it exists, and return the result.
+
+        The `SmurfApplication:CheckJesd` and
+        `SmurfApplication:JesdStatus` (see :func:`get_jesd_status`)
+        registers are only present in pysmurf core code versions
+        >=4.1.0 ; returns `None` if pysmurf core code version is
+        <4.1.0.  The `AppTop.JesdHealth` method is only present in
+        Rogue ZIP file versions >=0.3.0 ; also returns `None` if the
+        `AppTop.JesdHealth` method is not present in the Rogue ZIP
+        file.
 
         Args
         ----
@@ -2745,8 +2755,7 @@ class SmurfCommandMixin(SmurfBase):
             giving up.
         caget_timeout_sec : float, optional, default 5.0
             Seconds to wait for each poll of the JESD health check 
-            status register (see :func:`get_configuring_in_progress`
-            and :func:`get_system_configured`).
+            status register (see :func:`get_jesd_status`).
         \**kwargs
             Arbitrary keyword arguments.  Passed directly to
             all `_caget` calls.
@@ -2755,8 +2764,9 @@ class SmurfCommandMixin(SmurfBase):
         -------
         success : bool or None
             Returns `True` if JESD is locked (good), otherwise returns
-            `False`.  Returns `None` if `JesdHealth` method is not
-            present in the Rogue ZIP file.
+            `False`.  Returns `None` for pysmurf core code versions <
+            4.1.0 and Rogue ZIP file versions that do not have the
+            `AppTop.JesdHealth` method.
 
         See Also
         --------
@@ -2764,63 +2774,77 @@ class SmurfCommandMixin(SmurfBase):
               `AppTop.JesdHealth` method.
 
         """
+        # strip any commit info off the end of the pysmurf version
+        # string
+        pysmurf_version = self.get_pysmurf_version(**kwargs).split('+')[0]
 
-        # Will report how long the JESD health check takes to
-        # complete.
-        start_time = time.time()
+        # Extra registers allow confirmation of JESD lock for pysmurf
+        # versions >=4.1.0 and Rogue ZIP file versions >=0.3.0.  see
+        # https://github.com/slaclab/pysmurf/issues/467 for more
+        # details.
+        if version.parse(pysmurf_version) >= version.parse('4.1.0'):
 
-        # First, check if the 'JesdStatus' register is set to 'Not found'. That means that the
-        # current ZIP file does not contain the new JesdHealth command.
-        status = self.get_jesd_status(**kwargs)
+            # Will report how long the JESD health check takes to
+            # complete.
+            start_time = time.time()
 
-        if status == None:
+            # First, check if the 'JesdStatus' register is set to 'Not found'. That means that the
+            # current ZIP file does not contain the new JesdHealth command.
+            status = self.get_jesd_status(**kwargs)
+
+            if status == None:
+                self.log(
+                    'The `JesdHealth` method is not present in the Rogue'
+                    ' ZIP file.'  , self.LOG_ERROR)
+                return None
+
+            # If the command exists, then start by calling the `CheckJesd`
+            # wrapper command.
+            self._caput(
+                self.epics_root + ':AMCc:SmurfApplication:CheckJesd', 1,
+                wait_done=True, **kwargs)
+
+            # Now let's wait for it to finish.
+            num_retries = int(max_timeout_sec/caget_timeout_sec)
+            success = False
+            for _ in range(num_retries):
+                # Try to read the status register.
+                state = self.get_jesd_status(timeout=caget_timeout_sec, **kwargs)
+
+                if state not in [None, 'Checking']:
+                    success = True
+                    break
+
+            # If after out maximum defined timeout, we weren't able to
+            # read the "JesdStatus" status register with a valid state,
+            # then we exit on error.
+            if not success:
+                self.log(
+                    'JESD health check did not finish after'
+                    f' {max_timeout_sec} seconds.', self.LOG_ERROR)
+                return False
+
+            # Measure how long the process take
+            end_time = time.time()
+
             self.log(
-                'The `JesdHealth` method is not present in the Rogue'
-                ' ZIP file.'  , self.LOG_ERROR)
-            return None
-        
-        # If the command exists, then start by calling the `CheckJesd`
-        # wrapper command.
-        self._caput(
-            self.epics_root + ':AMCc:SmurfApplication:CheckJesd', 1,
-            wait_done=True, **kwargs)
+                'JESD health check finished after'
+                f' {int(end_time - start_time)} seconds.'
+                f' The final state was {state}.',
+                self.LOG_USER)
 
-        # TEST
-        self.set_jesd_tx_enable(0,0)
-        
-        # Now let's wait for it to finish.
-        num_retries = int(max_timeout_sec/caget_timeout_sec)
-        success = False
-        for _ in range(num_retries):
-            # Try to read the status register.
-            state = self.get_jesd_status(timeout=caget_timeout_sec, **kwargs)
-
-            if state not in [None, 'Checking']:
-                success = True
-                break
-
-        # If after out maximum defined timeout, we weren't able to
-        # read the "JesdStatus" status register with a valid state,
-        # then we exit on error.
-        if not success:
-            self.log(
-                'JESD health check did not finish after'
-                f' {max_timeout_sec} seconds.', self.LOG_ERROR)
-            return False
-        
-        # Measure how long the process take
-        end_time = time.time()
-        
-        self.log(
-            'JESD health check finished after'
-            f' {int(end_time - start_time)} seconds.'
-            f' The final state was {state}.',
-            self.LOG_USER)
-
-        if state == "Locked":
-            return True
+            if state == "Locked":
+                return True
+            else:
+                return False
         else:
-            return False
+            self.log(
+                'The `SmurfApplication:CheckJesd` and '
+                ' `SmurfApplication:JesdStatus` registers are not'
+                ' implemented for pysmurf core code versions <4.1.0'
+                f' (current version is {pysmurf_version}).',
+                self.LOG_ERROR)
+            return None
     
     _jesd_status_reg = "JesdStatus"
     
@@ -2838,6 +2862,8 @@ class SmurfCommandMixin(SmurfBase):
         * "Checking" : The `AppTop.JesdHealth` command is in progress.
         * "Not found" : The Rogue ZIP file currently in use does not
           contains the `AppTop.JesdHealth` method.
+        * `None` : The `SmurfApplication:JesdStatus` register is not
+          implemented in pysmurf core code versions <4.1.0.
 
         Args
         ----
@@ -2849,8 +2875,11 @@ class SmurfCommandMixin(SmurfBase):
 
         Returns
         -------
-        str
+        str or None
             The status of the Rogue `AppTop.JesdHealth` method.
+            Returns None for pysmurf core code versions <4.1.0 where
+            the `SmurfApplication:JesdStatus` register is not
+            implemented.
 
         See Also
         --------
@@ -2858,9 +2887,25 @@ class SmurfCommandMixin(SmurfBase):
               `AppTop.JesdHealth` method.
         
         """
-        return self._caget(
-            self.smurf_application + self._jesd_status_reg,
-            as_string=as_string, **kwargs)
+        # strip any commit info off the end of the pysmurf version
+        # string
+        pysmurf_version = self.get_pysmurf_version(**kwargs).split('+')[0]
+
+        # Extra registers were added to allow confirmation of JESD
+        # lock for pysmurf versions >=4.1.0.
+        # https://github.com/slaclab/pysmurf/issues/467 for more
+        # details.
+        if version.parse(pysmurf_version) >= version.parse('4.1.0'):        
+            return self._caget(
+                self.smurf_application + self._jesd_status_reg,
+                as_string=as_string, **kwargs)
+        else:
+            self.log(
+                'The `SmurfApplication:JesdStatus` register is not'
+                ' implemented for pysmurf core code versions <4.1.0'
+                f' (current version is {pysmurf_version}).',
+                self.LOG_ERROR)
+            return None
         
     _fpga_uptime_reg = 'UpTimeCnt'
 

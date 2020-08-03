@@ -441,14 +441,16 @@ class SmurfControl(SmurfCommandMixin,
             success = False            
 
         #
-        # JesdHealth check
-        jesd_health_success = self.set_check_jesd(write_log=write_log)
+        # JesdHealth check (not strictly necessary to re-check, since
+        # setDefaults runs the check, but doing it anyway).
+        jesd_health_success = self.set_check_jesd(write_log=write_log)        
 
-        # Checking if JesdHealth is Locked is only supported for
-        # Rogue ZIP file versions >=0.3.0.  If it's not supported,
-        # self.set_check_jesd will return None.  Overriding None with
-        # True to skip this check for older versions of pysmurf that
-        # don't support the JesdHealth check.
+        # Checking if JesdHealth is Locked is only supported for Rogue
+        # ZIP file versions >=0.3.0 and pysmurf core code versions
+        # >=4.1.0.  If it's not supported, self.set_check_jesd will
+        # return None.  Overriding None with True to skip this check
+        # for older versions of pysmurf that don't support the
+        # JesdHealth check.
         if jesd_health_success is None:
             jesd_health_success = True
 
