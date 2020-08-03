@@ -243,6 +243,18 @@ class Common(pyrogue.Root):
         # some known issues in the PCIe FW.
         self.SmurfProcessor.ChannelMapper.Mask.set([0])
 
+        # Check if the 'AppTop.JesdHelath' command exist. The 'self._jesd_health_found'
+        # flag will indicated if it was found, and if it was found, a reference to the
+        # command will be available in 'self._jesd_health_cmd'.
+        c = self.FpgaTopLevel.AppTop.find(name='JesdHealth', recurse=False)
+        if c:
+            self._jesd_health_found = True
+            self._jesd_health_cmd = c[0]
+        else:
+            self._jesd_health_found = False
+            # Set the status register to 'Not found'.
+            self.SmurfApplication.JesdStatus.set(3)
+
     def stop(self):
         print("Stopping servers...")
         if self._epics:
@@ -379,6 +391,21 @@ class Common(pyrogue.Root):
         # configuration sequence.
         self.SmurfApplication.SystemConfigured.set(success)
 
+        # Update the JESD status register as well as 'AppTop.JesdHelth' is called
+        # as part of the configuration process
+        self.SmurfApplication.JesdStatus.set(success)
+
         # Set the "ConfiguringInProgress" flag to "False" to indicate
         # the end of the system configuration sequence
         self.SmurfApplication.ConfiguringInProgress.set(False)
+
+    # Function to call the 'AppTop.JesdHelth' command and, based on its returned value,
+    # set the appropriate value in the status register 'SmurfApplication.JesdStatus'
+    def _check_jesd_health(self):
+        # Check if the 'AppTop.JesdHelath' was found. Otherwise do not do anything.
+        if self._jesd_health_found:
+            # Set the status to "Checking"
+            self.SmurfApplication.JesdStatus.set(2)
+            # Call the command and set the status to the returned value
+            # False = 'Unlocked', True: 'Locked'
+            self.SmurfApplication.JesdStatus.set(self._jesd_health_cmd.call())

@@ -196,8 +196,17 @@ run_pysmurf_setup () {
 
 is_slot_pysmurf_setup_complete() {
     slot_number=$1
-    tmux capture-pane -pt ${tmux_session_name}:${slot_number} -S -10 | grep -q "Done with setup"
-    return $?
+    tmux capture-pane -pt ${tmux_session_name}:${slot_number} -S -10 | grep -qE "Done with setup|Setup failed"
+    ret=$?
+    
+    # check if setup failed
+    tmux capture-pane -pt ${tmux_session_name}:${slot_number} -S -10 | grep -Eom1 "Done with setup|Setup failed" | grep -q failed
+    if [[ $? -eq 0 ]]; then
+	echo '-> Carrier failed to configure.  Attach using `tmux a` to view errors.'
+	exit 1
+    fi    
+    
+    return $ret
 }
 
 # right now, real dumb.  Assumes the active window in tmux is this
@@ -214,8 +223,16 @@ config_pysmurf_serial () {
     # not clear why, but on smurf-srv03 need this wait or attempt to
     # wait until done with setup fails.
     sleep 2
-    grep -q "Done with setup" <(docker logs $pysmurf_docker -f)
-    echo "-> Carrier is configured"
+    grep -qE "Done with setup|Setup failed" <(docker logs $pysmurf_docker -f)
+
+    # check if setup failed
+    docker logs $pysmurf_docker | grep -Eom1 "Done with setup|Setup failed" | grep -q failed
+    if [[ $? -eq 0 ]]; then
+	echo '-> Carrier failed to configure.  Attach using `tmux a` to view errors.'
+	exit 1
+    fi
+    
+    echo "-> Carrier is configured."
     
     if [ "$double_setup" = true ] ; then
 	sleep 2    

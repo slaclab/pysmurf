@@ -30,8 +30,6 @@ from pysmurf.client.command.sync_group import SyncGroup as SyncGroup
 from pysmurf.client.util.pub import set_action
 from ..util import tools
 
-
-
 class SmurfTuneMixin(SmurfBase):
     """
     This contains all the tuning scripts
@@ -2539,20 +2537,26 @@ class SmurfTuneMixin(SmurfBase):
                          self.LOG_ERROR)
                 return None, None, None
             elif meas_lms_freq:
+                # attempts to measure the flux ramp frequency and leave the
+                # flux ramp amplitude the same
                 lms_freq_hz = self.estimate_lms_freq(
                     band, reset_rate_khz,
                     fraction_full_scale=fraction_full_scale,
                     channel=channel)
             elif meas_flux_ramp_amp:
+                # attempts to measure the the number of phi0 and adjust
+                # the ampltidue of the flux ramp to achieve the desired number
+                # of phi0 per flux ramp
                 fraction_full_scale = self.estimate_flux_ramp_amp(band,
                     n_phi0,reset_rate_khz=reset_rate_khz, channel=channel)
                 lms_freq_hz = reset_rate_khz * n_phi0 * 1.0E3
             else:
+                # Load from config
                 lms_freq_hz = self._lms_freq_hz[band]
             self._lms_freq_hz[band] = lms_freq_hz
             if write_log:
                 self.log('Using lms_freq_estimator : ' +
-                         f'{lms_freq_hz:.0f} Hz')
+                    f'{lms_freq_hz:.0f} Hz')
 
         if not flux_ramp:
             lms_enable1 = 0
@@ -3015,26 +3019,48 @@ class SmurfTuneMixin(SmurfBase):
         """
         Set flux ramp sawtooth rate and amplitude.
 
-        If you are using a timing system , Flux ramp reset rate must integer
-        divide 2.4MHz. E.g. you can't run with a 7kHz flux ramp rate.
+        Flux ramp reset rate must integer divide 2.4MHz. E.g. you
+        can't run with a 7kHz flux ramp rate.  If you ask for a flux
+        ramp reset rate which doesn't integer divide 2.4MHz, you'll
+        get the closest reset rate to your requested rate that integer
+        divides 2.4MHz.
 
-        If you are not using the timing system, you can use any flux ramp
-        rate.
+        If you are not using the timing system, you can use any flux
+        ramp rate which integer divides 2.4MHz.
+
+        If you are using a timing system (i.e. if
+        :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.get_ramp_start_mode`
+        returns 0x1), you may only select from a handful of
+        pre-programmed reset rates.  See
+        :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.set_ramp_rate`
+        for more details.
 
         Args
         ----
-        reset_rate_khz : int
-            The flux ramp rate to set in kHz. The allowable values are
-            1, 2, 3, 4, 5, 6, 8, 10, 12, 15 kHz
+        reset_rate_khz : float
+           The flux ramp rate to set in kHz.
         fraction_full_scale : float
-            The amplitude of the flux ramp as a fraction of the
-            maximum possible value.
+           The amplitude of the flux ramp as a fraction of the maximum
+           possible value.
+        df_range : float, optional, default 0.1
+           If the difference between the desired fraction full scale
+           and the closest achievable fraction full scale exceeds
+           this will turn off the flux ramp and raise an exception.
         band : int, optional, default 2
-            The band to setup the flux ramp on.
+           The band to setup the flux ramp on.
         write_log : bool, optional, default False
-            Whether to write output to the log.
+           Whether to write output to the log.
         new_epics_root : str or None, optional, default None
-            Override the original epics root.
+           Override the original epics root.  If None, does nothing.
+
+        Raises
+        ------
+        ValueError
+           Raised if either 1) the requested RTM clock rate is too low
+           (<2MHz) or 2) the difference between the desired fraction
+           full scale and the closest achievable fraction full scale
+           exceeds the `df_range` argument.
+
         """
 
         # Disable flux ramp
@@ -3096,10 +3122,8 @@ class SmurfTuneMixin(SmurfBase):
                 self.LOG_USER)
             return
 
-
         FastSlowRstValue = np.floor((2**self._num_flux_ramp_counter_bits) *
             (1 - fractionFullScale)/2)
-
 
         KRelay = 3 #where do these values come from
         PulseWidth = 64
@@ -3142,8 +3166,6 @@ class SmurfTuneMixin(SmurfBase):
                 reset_rate_khz, new_epics_root=new_epics_root,
                 write_log=write_log)
 
-
-
     def get_fraction_full_scale(self, new_epics_root=None):
         """
         Returns the fraction_full_scale.
@@ -3165,7 +3187,7 @@ class SmurfTuneMixin(SmurfBase):
     def check_lock(self, band, f_min=.015, f_max=.2, df_max=.03,
             make_plot=False, flux_ramp=True, fraction_full_scale=None,
             lms_freq_hz=None, reset_rate_khz=None, feedback_start_frac=None,
-            feedback_end_frac=None, setup_flux_ramp=True, lms_enable1=None,
+            feedback_end_frac=None, lms_enable1=None,
             lms_enable2=None, lms_enable3=None, lms_gain=None, **kwargs):
         r"""
         Takes a tracking setup and turns off channels that have bad
@@ -3187,19 +3209,22 @@ class SmurfTuneMixin(SmurfBase):
         flux_ramp : bool, optional, default True
             Whether to flux ramp or not.
         fraction_full_scale : float, optional, default None
-            Number between 0 and 1. The amplitude of the flux ramp.
+            Number between 0 and 1. The amplitude of the flux ramp. If None,
+            doesn't change what's currently being used.
         lms_freq_hz : float or None, optional, default None
-            The tracking frequency in Hz.
+            The tracking frequency in Hz. If None,
+            doesn't change what's currently being used.
         reset_rate_khz : float or None, optional, default None
-            The flux ramp reset rate in kHz.
+            The flux ramp reset rate in kHz. If None,
+            doesn't change what's currently being used.
         feedback_start_frac : float or None, optional, default None
             What fraction of the flux ramp to skip before
-            feedback. Float between 0 and 1.
+            feedback. Float between 0 and 1. If None,
+            doesn't change what's currently being used.
         feedback_end_frac : float or None, optional, default None
             What fraction of the flux ramp to skip at the end of
-            feedback. Float between 0 and 1.
-        setup_flux_ramp : bool, optional, default True
-            Whether to setup the flux ramp at the end.
+            feedback. Float between 0 and 1. If None,
+            doesn't change what's currently being used.
         lms_enable1 : bool, optional, default None
             Whether to use the first harmonic for tracking.  If None,
             doesn't change what's currently being used.
@@ -3413,7 +3438,9 @@ class SmurfTuneMixin(SmurfBase):
         # Call plotting
         if make_plot:
             self.plot_find_freq(self.freq_resp[band]['find_freq']['f'],
-                self.freq_resp[band]['find_freq']['resp'], save_plot=save_plot,
+                self.freq_resp[band]['find_freq']['resp'],
+                subband=np.arange(self.get_number_sub_bands(band)),
+                save_plot=save_plot,
                 show_plot=show_plot,
                 save_name=save_name.replace('.txt', plotname_append +
                                             '.png').format(timestamp, band))
@@ -3448,7 +3475,7 @@ class SmurfTuneMixin(SmurfBase):
             Whether to show the plot.
         '''
         if subband is None:
-            subband = np.arange(128)
+            subband = np.arange(self.get_number_sub_bands())
         subband = np.asarray(subband)
 
         if (f is None or resp is None) and filename is None:
@@ -4343,7 +4370,7 @@ class SmurfTuneMixin(SmurfBase):
 
                     #polyfit
                     Xf = [-1, 0, 1]
-                    Yf = [corr_amp[int(peaks[ch]-1)],corr_amp[int(peaks[ch])],\
+                    Yf = [corr_amp[int(peaks[ch]-1)],corr_amp[int(peaks[ch])],
                         corr_amp[int(peaks[ch]+1)]]
                     V = np.polyfit(Xf, Yf, 2)
                     offset = -V[1]/(2.0 * V[0])

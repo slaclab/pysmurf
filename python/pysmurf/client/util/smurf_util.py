@@ -184,6 +184,7 @@ class SmurfUtilMixin(SmurfBase):
         # save time)
         n_subbands = self.get_number_sub_bands(band)
         digitizer_frequency_mhz = self.get_digitizer_frequency_mhz(band)
+        channel_frequency_mhz = self.get_channel_frequency_mhz(band)
         subband_half_width_mhz = digitizer_frequency_mhz/\
             n_subbands
         subbands,subband_centers=self.get_subband_centers(band)
@@ -325,9 +326,9 @@ class SmurfUtilMixin(SmurfBase):
         dsp_delay_us-=refPhaseDelayFine0/(digitizer_frequency_mhz/2)
 
         ## compute refPhaseDelay and refPhaseDelayFine
-        refPhaseDelay=int(np.ceil(dsp_delay_us*(subband_half_width_mhz/2.)))
+        refPhaseDelay=int(np.ceil(dsp_delay_us*channel_frequency_mhz))
         refPhaseDelayFine=int(np.round((digitizer_frequency_mhz/2/
-            (subband_half_width_mhz/2.)*
+            (channel_frequency_mhz)*
             (refPhaseDelay-dsp_delay_us*(subband_half_width_mhz/2.)))))
         processing_delay_us=dsp_delay_us-cable_delay_us
 
@@ -1977,26 +1978,38 @@ class SmurfUtilMixin(SmurfBase):
         self.set_feedback_limit(band, desired_feedback_limit_dec, **kwargs)
 
     # if no guidance given, tries to reset both
-    def recover_jesd(self,bay,recover_jesd_rx=True,recover_jesd_tx=True):
+    def recover_jesd(self, bay, recover_jesd_rx=True, recover_jesd_tx=True):
+        """
+        Attempts to recover the JESDs
+
+        Args
+        ----
+        bay : int
+            The AMC bay to recover
+        recover_jesd_rx : bool, optional, default True
+            Whether to attempt to recover the JESD RX
+        recover_jesd_tx : bool, optional, default True
+            Whether to attempt to recover the JESD TX
+        """
         if recover_jesd_rx:
             #1. Toggle JesdRx:Enable 0x3F3 -> 0x0 -> 0x3F3
-            self.set_jesd_rx_enable(bay,0x0)
-            self.set_jesd_rx_enable(bay,0x3F3)
+            self.set_jesd_rx_enable(bay, 0x0)
+            self.set_jesd_rx_enable(bay, 0x3F3)
 
         if recover_jesd_tx:
             #1. Toggle JesdTx:Enable 0x3CF -> 0x0 -> 0x3CF
-            self.set_jesd_tx_enable(bay,0x0)
-            self.set_jesd_tx_enable(bay,0x3CF)
+            self.set_jesd_tx_enable(bay, 0x0)
+            self.set_jesd_tx_enable(bay, 0x3CF)
 
             #2. Toggle AMCcc:FpgaTopLevel:AppTop:AppCore:MicrowaveMuxCore[0]:
             # DAC[0]:JesdRstN 0x1 -> 0x0 -> 0x1
-            self.set_jesd_reset_n(bay,0,0x0)
-            self.set_jesd_reset_n(bay,0,0x1)
+            self.set_jesd_reset_n(bay, 0, 0x0)
+            self.set_jesd_reset_n(bay, 0, 0x1)
 
             #3. Toggle AMCcc:FpgaTopLevel:AppTop:AppCore:MicrowaveMuxCore[0]:
             # DAC[1]:JesdRstN 0x1 -> 0x0 -> 0x1
-            self.set_jesd_reset_n(bay,1,0x0)
-            self.set_jesd_reset_n(bay,1,0x1)
+            self.set_jesd_reset_n(bay, 1, 0x0)
+            self.set_jesd_reset_n(bay, 1, 0x1)
 
         # probably overkill...shouldn't call this function if you're not going
         # to do anything
@@ -2006,7 +2019,8 @@ class SmurfUtilMixin(SmurfBase):
             self.run_pwr_up_sys_ref(bay)
 
         # check if Jesds recovered - enable printout
-        (jesd_tx_ok,jesd_rx_ok)=self.check_jesd(bay,silent_if_valid=False)
+        (jesd_tx_ok, jesd_rx_ok, jesd_status) = self.check_jesd(bay,
+                                                                silent_if_valid=False)
 
         # raise exception if failed to recover
         if (jesd_rx_ok and jesd_tx_ok):
@@ -2022,7 +2036,7 @@ class SmurfUtilMixin(SmurfBase):
     def jesd_decorator(decorated):
         def jesd_decorator_function(self):
             # check JESDs
-            (jesd_tx_ok0,jesd_rx_ok0)=self.check_jesd(silent_if_valid=True)
+            (jesd_tx_ok0, jesd_rx_ok0, jesd_status) = self.check_jesd(silent_if_valid=True)
 
             # if either JESD is down, try to fix
             if not (jesd_rx_ok0 and jesd_tx_ok0):
@@ -2051,7 +2065,8 @@ class SmurfUtilMixin(SmurfBase):
 
         return jesd_decorator_function
 
-    def check_jesd(self, bay, silent_if_valid=False):
+    def check_jesd(self, bay, silent_if_valid=False, max_timeout=60,
+                   get_timeout=5):
         """
         Queries the Jesd tx and rx and compares the
         data_valid and enable bits.
@@ -2062,11 +2077,23 @@ class SmurfUtilMixin(SmurfBase):
             Which bay (0 or 1).
         silent_if_valid : bool, optional, default False
             If True, does not print anything if things are working.
+        max_timeout : int, optional, default 60
+            The time in seconds to wait for a response.
+        get_timeout : int, optional, default 5
+            The time to wait between requesting JESD status
 
         Returns
         -------
-        (bool,bool)
-            (JesdTx is ok, JesdRx is ok)
+        jesd_tx : bool
+            True if ok.
+        jesd_rx : bool
+            True if ok
+        jesd_status : str
+            "Unlocked" - The AppTop.JesdHealth said the JESD are not locked
+            "Locked" - The AppTop.JesdHealth said the JESD are locked/
+            "Checking" - The AppTop.JesdHealth check is still in progress. 
+                This means the max timeout has been exceeded.
+            "Not found" - The ZIP file does not contain AppTop.JesdHealth method.
         """
         # JESD Tx
         jesd_tx_enable = self.get_jesd_tx_enable(bay)
@@ -2087,7 +2114,40 @@ class SmurfUtilMixin(SmurfBase):
         else:
             if not silent_if_valid:
                 self.log("JESD Rx Okay", self.LOG_USER)
-        return (jesd_tx_ok,jesd_rx_ok)
+
+        # New checks introduced
+        status = self.get_jesd_status()
+        if status == "Not found":
+            self.log('Newer checks not implemented in ' +
+                     'firmware version')
+        else:
+            # Tell the system to check the jesd
+            self.set_check_jesd(1)
+            num_retries = int(max_timeout/get_timeout)
+
+            for i in np.arange(num_retries):
+                status = self.get_jesd_status(as_string=True,
+                                              timeout=get_timeout)
+
+                if status not in [None, "Checking"]:
+                    break
+
+        if not silent_if_valid:
+            if status == "Unlocked":
+                self.log("The AppTop.JesdHealth said the " +
+                         "JESD are not locked.")
+            elif status == "Locked":
+                self.log("The AppTop.JesdHealth said the " +
+                         "JESD are locked.")
+            elif status == "Checking":
+                self.log("The AppTop.JesdHealth check is " +
+                         "still in progress. This means the " +
+                         "the max timeout has been exceeded.")
+            else:
+                self.log("The ZIP file does not contain " +
+                         "AppTop.JesdHealth method.")
+                
+        return (jesd_tx_ok, jesd_rx_ok, status)
 
     def get_fpga_status(self):
         """

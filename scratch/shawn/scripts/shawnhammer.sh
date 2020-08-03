@@ -298,7 +298,7 @@ if [ "$parallel_setup" = true ] ; then
 		echo "-> Waiting for carrier setup on slot ${slot} ..."		
 	    	if is_slot_pysmurf_setup_complete ${slot}; then
 	    	    slot_status[$slot_idx]=7;
-	    	fi		
+	    	fi
 	    fi	    	    
 
 	    # check if complete
