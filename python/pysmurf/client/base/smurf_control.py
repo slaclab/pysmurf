@@ -458,7 +458,7 @@ class SmurfControl(SmurfCommandMixin,
         # JesdHealth check.  Log an error if the JesdHealth check
         # reports that JESD is unlocked.
         if ( jesd_health_status is not None and
-             jesd_health_success != 'Locked' ):
+             jesd_health_status != 'Locked' ):
             self.log(
                 'ERROR : JESD is not locked!  Do not proceed!'
                 ' Reboot or ask someone for help.  You are strongly'
