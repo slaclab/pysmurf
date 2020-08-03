@@ -2729,51 +2729,133 @@ class SmurfCommandMixin(SmurfBase):
             self._jesd_tx_status_valid_cnt_reg + f'[{num}]',
             **kwargs)
 
-    _jesd_check_jesd = "CheckJesd"
+    def set_check_jesd(self, max_timeout_sec=60.0,
+                       caget_timeout_sec=5.0, **kwargs):
+        r"""Runs JESD health check and returns result.
 
-    def get_check_jesd(self, **kwargs):
-        """
-        Gets the check_jesd PV. This is different from
-        SmurfControl.check_jesd, which calls this function
-        as one of the responses.
-        """
-        return self._caget(self.smurf_application + self._jesd_check_jesd,
-                           **kwargs)
-
-    def set_check_jesd(self, val, **kwargs):
-        """
-        Gets the check_jesd PV. This is different from
-        SmurfControl.check_jesd, which calls this function
-        as one of the responses.
+        Calls the rogue `CheckJesd` command, which triggers a call to
+        the `AppTop.JesdHealth` method. The command will check if the
+        Rogue ZIP file's `AppTop` device contains the `JesdHealth`
+        method, call it if it exists, and return the returned value.
 
         Args
         ----
-        val : int or bool
-            Set to 1 or True to start check jesd
-        """
-        return self._caput(self.smurf_application + self._jesd_check_jesd,
-                           val, **kwargs)
+        max_timeout_sec : float, optional, default 60.0
+            Seconds to wait for JESD health check to complete before
+            giving up.
+        caget_timeout_sec : float, optional, default 5.0
+            Seconds to wait for each poll of the JESD health check 
+            status register (see :func:`get_configuring_in_progress`
+            and :func:`get_system_configured`).
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to
+            all `_caget` calls.
 
+        Returns
+        -------
+        success : bool or None
+            Returns `True` if JESD is locked (good), otherwise returns
+            `False`.  Returns `None` if `JesdHealth` method is not
+            present in the Rogue ZIP file.
+
+        See Also
+        --------
+        :func:`get_jesd_status` : ???
+
+        """
+
+        # Will report how long the JESD health check takes to
+        # complete.
+        start_time = time.time()
+
+        # First, check if the 'JesdStatus' register is set to 'Not found'. That means that the
+        # current ZIP file does not contain the new JesdHealth command.
+        status = self.get_jesd_status(**kwargs)
+
+        if status == "Not found":
+            self.log(
+                'The `JesdHealth` method is not present in the Rogue'
+                ' ZIP file.'  , self.LOG_ERROR)
+            return None
+        
+        # If the command exists, then start by calling the `CheckJesd`
+        # wrapper command.
+        self._caput(
+            self.epics_root + ':AMCc:SmurfApplication:CheckJesd', 1,
+            wait_done=True, **kwargs)
+        
+        # Now let's wait for it to finish.
+        num_retries = int(max_timeout_sec/caget_timeout_sec)
+        success = False
+        for _ in range(num_retries):
+            # Try to read the status register.
+            state = self.get_jesd_status(timeout=caget_timeout_sec, **kwargs)
+            
+            if state not in [None, 'Checking']:
+                success = True
+                break
+
+        # If after out maximum defined timeout, we weren't able to
+        # read the "JesdStatus" status register with a valid state,
+        # then we exit on error.
+        if not success:
+            self.log(
+                'JESD health check did not finish after'
+                f' {max_timeout_sec} seconds.', self.LOG_ERROR)
+            return False
+        
+        # Measure how long the process take
+        end_time = time.time()
+        
+        self.log(
+            'JESD health check finished after'
+            f' {int(end_time - start_time)} seconds.'
+            f' The final state was {state}.',
+            self.LOG_USER)
+
+        if state == "Locked":
+            return True
+        else:
+            return False
     
-    _jesd_status = "JesdStatus"
+    _jesd_status_reg = "JesdStatus"
     
     def get_jesd_status(self, as_string=True, **kwargs):
-        """
-        Gets the status of the JESD PV.
+        r"""Gets the status of the Rogue `AppTop.JesdHealth` method.
+
+        Returns the status of a call to the `AppTop.JesdHealth`
+        method.  States are:
+
+        * "Unlocked" : The `AppTop.JesdHealth` command has been run
+          and has reported that the JESD were unlocked (**that's
+          bad!**).
+        * "Locked" : The `AppTop.JesdHealth` command has been run and
+          has reported that the JESD were locked (that's good!).
+        * "Checking" : The `AppTop.JesdHealth` command is in progress.
+        * "Not found" : The Rogue ZIP file currently in use does not
+          contains the `AppTop.JesdHealth` method.
 
         Args
         ----
         as_string : bool, optional, default True
-            Returns the data as a string
+            Returns the data as a string.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to
+            all `_caget` calls.
 
-        Ret
-        ---
-        ret : int or string
-            The JESD stats as int or string
-        """
-        return self._caget(self.smurf_application + self._jesd_status,
-                           as_string=as_string, **kwargs)
+        Returns
+        -------
+        str
+            The status of the Rogue `AppTop.JesdHealth` method.
+
+        See Also
+        --------
+        :func:`set_check_jesd` : ???
         
+        """
+        return self._caget(
+            self.smurf_application + self._jesd_status_reg,
+            as_string=as_string, **kwargs)
         
     _fpga_uptime_reg = 'UpTimeCnt'
 
