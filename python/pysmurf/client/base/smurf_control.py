@@ -440,11 +440,6 @@ class SmurfControl(SmurfCommandMixin,
                 self.LOG_ERROR)
             success = False
 
-        # TEST
-        self.set_jesd_tx_enable(0,0)
-        time.sleep(0.1)
-        self.set_check_jesd()
-        
         #
         # setDefaults runs the JesdHealth check, so just need to poll
         # status.

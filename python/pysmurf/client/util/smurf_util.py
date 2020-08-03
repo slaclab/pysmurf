@@ -2105,7 +2105,7 @@ class SmurfUtilMixin(SmurfBase):
 
         See Also
         --------
-        :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.set_check_jesd` : 
+        :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.set_check_jesd` :
               Gets the status of the Rogue `AppTop.JesdHealth`
               method.
 

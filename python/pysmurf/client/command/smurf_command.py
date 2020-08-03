@@ -2890,7 +2890,7 @@ class SmurfCommandMixin(SmurfBase):
         # strip any commit info off the end of the pysmurf version
         # string
         pysmurf_version = self.get_pysmurf_version(**kwargs).split('+')[0]
-        pysmurf_version = '4.1.0'        
+        pysmurf_version = '4.1.0'
 
         # Extra registers were added to allow confirmation of JESD
         # lock for pysmurf versions >=4.1.0.
