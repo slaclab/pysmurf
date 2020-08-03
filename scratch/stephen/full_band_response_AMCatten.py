@@ -60,7 +60,7 @@ for uatt in att:
     for band in range(8):
         print(' ')
         print(' ')
-        print(f'Up Conveters, Attenuation {uatt}, Band {band}')
+        print(f'Up Converters, Attenuation {uatt}, Band {band}')
         print(' ')
         print(' ')
         resp_dict[band]={}
@@ -69,7 +69,7 @@ for uatt in att:
         else:
             resp_dict[band]['fc']=(4250+(band%4)*500) + (2000 if RBoardType=='high' else 0) #sets Bay 1 band center based on board type
         
-        f,resp=S.full_band_resp(band=band, make_plot=False, show_plot=False, n_scan=n_scan_per_band, timestamp=timestamp,correct_att=False) #returns band response around band center
+        f,resp=S.full_band_resp(band=band, make_plot=False, save_plot=False, show_plot=False, n_scan=n_scan_per_band, timestamp=timestamp, correct_att=False) #returns band response around band center
         
         resp_dict[band]['f']=f 
         resp_dict[band]['resp']=resp 
@@ -84,45 +84,17 @@ for uatt in att:
         else:
             Ruxplot = np.concatenate([Ruxplot,f_plot[plot_idx]+resp_dict[band]['fc']])       #Bay 1 full band response x-axis for attenuation setting
             Ruyplot = np.concatenate([Ruyplot,20*np.log10(np.abs(resp_plot[plot_idx]))])     #Bay 1 full band response y-axis for attenuation setting
-            
         
         time.sleep(wait_btw_bands_sec)
      
     ax[0,0].plot(Luxplot,Luyplot,color=colors[Z],label=f'att{uatt}') #plot for Bay 0, up conveters
-    ax[0,0].set_title(f'UC band response for Bay 0(Board {lhsbay})')
-    ax[0,0].legend(loc='lower left',fontsize=8)
-    ax[0,0].set_ylabel("20*log10(abs(Response))")
-    ax[0,0].set_xlabel('Frequency [MHz]')
-    
     ax[0,1].plot(Ruxplot,Ruyplot,color=colors[Z],label=f'att{uatt}') #plot for Bay 1, up conveters
-    ax[0,1].set_title(f'UC band response for Bay 1(Board {rhsbay})')
-    ax[0,1].legend(loc='lower left',fontsize=8)
-    ax[0,1].set_ylabel("20*log10(abs(Response))")
-    ax[0,1].set_xlabel('Frequency [MHz]')
-    
     Z = Z + 1
 
-for band in range(4):
-    attax[0,0].plot(np.divide(att,2),np.abs(uattplt[band]-uattplt[band][0]), color=colors[z],label=f'band{band}')  #attenuation check for Bay 0
-    attax[0,0].set_title(f'Bay 0 Attenuation Check Plot')
-    attax[0,0].legend(loc='lower left',fontsize=8)
-    attax[0,0].set_ylabel("Average Band Normalized Attenuation")
-    attax[0,0].set_xlabel('Attenuation Setpoint')
-    bb=band+4  
-    attax[0,1].plot(np.divide(att,2),np.abs(uattplt[bb]-uattplt[bb][0]), color=colors[z],label=f'band{band}')   #attenuation check for Bay 1
-    attax[0,1].set_title(f'Bay 1 Attenuation Check Plot')
-    attax[0,1].legend(loc='lower left',fontsize=8)
-    attax[0,1].set_ylabel("Average Band Normalized Attenuation")
-    attax[0,1].set_xlabel('Attenuation Setpoint')
-    z = z+1
-    
 for x in range(8):
     S.set_att_uc(x, 0)
     S.set_att_dc(x, 0)
-Z = 0  
-z = 0
-
-
+Z = 0
 #Test for Down Converters
 for datt in att:
     for x in range(8):
@@ -138,7 +110,7 @@ for datt in att:
     for band in range(8):
         print(' ')
         print(' ')
-        print(f'Down Conveters, Attenuation {datt}, Band {band}')
+        print(f'Down Converters, Attenuation {datt}, Band {band}')
         print(' ')
         print(' ')
         resp_dict[band]={}
@@ -147,7 +119,7 @@ for datt in att:
         else:
             resp_dict[band]['fc']=(4250+(band%4)*500) + (2000 if RBoardType=='high' else 0) #sets Bay 1 band center based on board type
         
-        f,resp=S.full_band_resp(band=band, make_plot=False, show_plot=False, n_scan=n_scan_per_band, timestamp=timestamp,correct_att=False) #returns band response around band center
+        f,resp=S.full_band_resp(band=band, make_plot=False, show_plot=False, n_scan=n_scan_per_band,save_plot=False, timestamp=timestamp,correct_att=False) #returns band response around band center
         
         resp_dict[band]['f']=f 
         resp_dict[band]['resp']=resp 
@@ -162,45 +134,61 @@ for datt in att:
         else:
             Rdxplot = np.concatenate([Rdxplot,f_plot[plot_idx]+resp_dict[band]['fc']])       #Bay 1 full band response x-axis for attenuation setting
             Rdyplot = np.concatenate([Rdyplot,20*np.log10(np.abs(resp_plot[plot_idx]))])     #Bay 1 full band response y-axis for attenuation setting
-            
         
         time.sleep(wait_btw_bands_sec)
      
     ax[1,0].plot(Ldxplot,Ldyplot,color=colors[Z],label=f'att{datt}') #plot for Bay 0, down conveters
-    ax[1,0].set_title(f'DC band response for Bay 0(Board {lhsbay})')
-    ax[1,0].legend(loc='lower left',fontsize=8)
-    ax[1,0].set_ylabel("20*log10(abs(Response))")
-    ax[1,0].set_xlabel('Frequency [MHz]')
-    
-    ax[1,1].plot(Rdxplot,Rdyplot,color=colors[Z],label=f'att{datt}') #plot for Bay 1, up conveters
-    ax[1,1].set_title(f'DC band response for Bay 1(Board {rhsbay})')
-    ax[1,1].legend(loc='lower left',fontsize=8)
-    ax[1,1].set_ylabel("20*log10(abs(Response))")
-    ax[1,1].set_xlabel('Frequency [MHz]')
-    
+    ax[1,1].plot(Rdxplot,Rdyplot,color=colors[Z],label=f'att{datt}') #plot for Bay 1, down conveters
     Z = Z + 1
 
+
 for band in range(4):
-    attax[1,0].plot(np.divide(att,2),np.abs(dattplt[band]-dattplt[band][0]), color=colors[z],label=f'band{band}')  #attenuation check for Bay 0
-    attax[1,0].set_title(f'Bay 0 Attenuation Check Plot')
-    attax[1,0].legend(loc='lower left',fontsize=8)
-    attax[1,0].set_ylabel("Average Band Normalized Attenuation")
-    attax[1,0].set_xlabel('Attenuation Setpoint')
-    bb=band+4  #accessing the bay 1 bands
-    attax[1,1].plot(np.divide(att,2),np.abs(dattplt[bb]-dattplt[bb][0]), color=colors[z],label=f'band{band}')   #attenuation check for Bay 1
-    attax[1,1].set_title(f'Bay 1 Attenuation Check Plot')
-    attax[1,1].legend(loc='lower left',fontsize=8)
-    attax[1,1].set_ylabel("Average Band Normalized Attenuation")
-    attax[1,1].set_xlabel('Attenuation Setpoint')
+    attax[0,0].plot(np.divide(att,2),np.abs(uattplt[band]-uattplt[band][0]), color=colors[z],label=f'band{band}')  #up attenuation check for Bay 0
+    attax[0,1].plot(np.divide(att,2),np.abs(uattplt[band+4]-uattplt[band+4][0]), color=colors[z],label=f'band{band}')   #up attenuation check for Bay 1
+    attax[1,0].plot(np.divide(att,2),np.abs(dattplt[band]-dattplt[band][0]), color=colors[z],label=f'band{band}')  #down attenuation check for Bay 0
+    attax[1,1].plot(np.divide(att,2),np.abs(dattplt[band+4]-dattplt[band+4][0]), color=colors[z],label=f'band{band}')   #down attenuation check for Bay 1
     z = z+1
     
 for x in range(8):
     S.set_att_uc(x, 0)
     S.set_att_dc(x, 0)
-Z = 0  
+
+#setting up response plots
+ax[0,0].set_title(f'UC band response for Bay 0(Board {lhsbay})')
+ax[0,0].legend(loc='lower left',fontsize=8)
+ax[0,0].set_ylabel("20*log10(abs(Response))")
+ax[0,0].set_xlabel('Frequency [MHz]')
+ax[0,1].set_title(f'DC band response for Bay 0(Board {rhsbay})')
+ax[0,0].legend(loc='lower left',fontsize=8)
+ax[0,0].set_ylabel("20*log10(abs(Response))")
+ax[0,0].set_xlabel('Frequency [MHz]') 
+ax[1,0].set_title(f'DC band response for Bay 0(Board {lhsbay})')
+ax[1,0].legend(loc='lower left',fontsize=8)
+ax[1,0].set_ylabel("20*log10(abs(Response))")
+ax[1,0].set_xlabel('Frequency [MHz]')
+ax[1,1].set_title(f'DC band response for Bay 1(Board {rhsbay})')
+ax[1,1].legend(loc='lower left',fontsize=8)
+ax[1,1].set_ylabel("20*log10(abs(Response))")
+ax[1,1].set_xlabel('Frequency [MHz]')
+#setting up attenuation plots
+attax[0,0].set_title(f'Bay 0 Attenuation Check Plot')
+attax[0,0].legend(loc='lower left',fontsize=8)
+attax[0,0].set_ylabel("Average Band Normalized Attenuation")
+attax[0,0].set_xlabel('Attenuation Setpoint')
+attax[0,1].set_title(f'Bay 1 Attenuation Check Plot')
+attax[0,1].legend(loc='lower left',fontsize=8)
+attax[0,1].set_ylabel("Average Band Normalized Attenuation")
+attax[0,1].set_xlabel('Attenuation Setpoint')
+attax[1,0].set_title(f'Bay 0 Attenuation Check Plot')
+attax[1,0].legend(loc='lower left',fontsize=8)
+attax[1,0].set_ylabel("Average Band Normalized Attenuation")
+attax[1,0].set_xlabel('Attenuation Setpoint')
+attax[1,1].set_title(f'Bay 1 Attenuation Check Plot')
+attax[1,1].legend(loc='lower left',fontsize=8)
+attax[1,1].set_ylabel("Average Band Normalized Attenuation")
+attax[1,1].set_xlabel('Attenuation Setpoint')
 
 
-  
 save_name = '{}_full_band_resp_atten.png'.format(timestamp)
 
 fig.suptitle(save_name)
