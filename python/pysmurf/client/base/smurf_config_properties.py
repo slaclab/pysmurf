@@ -419,7 +419,7 @@ class SmurfConfigPropertiesMixin:
 
         See Also
         --------
-        :func:`~pysmurf.client.debug.smurf_iv.SmurfIVMixin.analyze_slow_iv`,
+        :func:`~pysmurf.client.debug.smurf_iv.SmurfIVMixin.analyze_iv`,
         :func:`~pysmurf.client.debug.smurf_noise.SmurfNoiseMixin.analyze_noise_all_vs_noise_solo`,
         :func:`~pysmurf.client.debug.smurf_noise.SmurfNoiseMixin.analyze_noise_vs_bias`,
         :func:`~pysmurf.client.debug.smurf_noise.SmurfNoiseMixin.analyze_noise_vs_tone`,
@@ -1124,7 +1124,7 @@ class SmurfConfigPropertiesMixin:
 
         See Also
         --------
-        :func:`~pysmurf.client.debug.smurf_iv.SmurfIVMixin.analyze_slow_iv`,
+        :func:`~pysmurf.client.debug.smurf_iv.SmurfIVMixin.analyze_iv`,
         :func:`~pysmurf.client.debug.smurf_noise.SmurfNoiseMixin.NET_CMB`,
         :func:`~pysmurf.client.util.smurf_util.SmurfUtilMixin.bias_bump`
         :func:`~pysmurf.client.util.smurf_util.SmurfUtilMixin.identify_bias_groups`
@@ -1161,7 +1161,7 @@ class SmurfConfigPropertiesMixin:
 
         See Also
         --------
-        :func:`~pysmurf.client.debug.smurf_iv.SmurfIVMixin.analyze_slow_iv`,
+        :func:`~pysmurf.client.debug.smurf_iv.SmurfIVMixin.analyze_iv`,
         :func:`~pysmurf.client.debug.smurf_iv.SmurfIVMixin.partial_load_curve_all`,
         :func:`~pysmurf.client.debug.smurf_iv.SmurfIVMixin.run_iv`,
         :func:`~pysmurf.client.debug.smurf_noise.SmurfNoiseMixin.NET_CMB`,
@@ -1213,7 +1213,7 @@ class SmurfConfigPropertiesMixin:
 
         See Also
         --------
-        :func:`~pysmurf.client.debug.smurf_iv.SmurfIVMixin.analyze_slow_iv`,
+        :func:`~pysmurf.client.debug.smurf_iv.SmurfIVMixin.analyze_iv`,
         :func:`~pysmurf.client.debug.smurf_iv.SmurfIVMixin.partial_load_curve_all`,
         :func:`~pysmurf.client.debug.smurf_noise.SmurfNoiseMixin.NET_CMB`,
         :func:`~pysmurf.client.debug.smurf_noise.SmurfNoiseMixin.get_iv_data`,

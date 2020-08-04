@@ -154,7 +154,7 @@ class SmurfIVMixin(SmurfBase):
         self.pub.register_file(path, 'iv_raw', format='npy')
 
         R_sh=self._R_sh
-        self.analyze_slow_iv_from_file(fn_iv_raw_data, make_plot=make_plot,
+        self.analyze_iv_from_file(fn_iv_raw_data, make_plot=make_plot,
             show_plot=show_plot, save_plot=save_plot,
             plotname_append=plotname_append, R_sh=R_sh, grid_on=grid_on,
             phase_excursion_min=phase_excursion_min, channel=channels,
@@ -291,7 +291,7 @@ class SmurfIVMixin(SmurfBase):
         return path
 
     @set_action()
-    def analyze_slow_iv_from_file(self, fn_iv_raw_data, make_plot=True,
+    def analyze_iv_from_file(self, fn_iv_raw_data, make_plot=True,
                                   show_plot=False, save_plot=True,
                                   plotname_append='', R_sh=None,
                                   phase_excursion_min=3., grid_on=False,
@@ -442,7 +442,7 @@ class SmurfIVMixin(SmurfBase):
                 if not show_plot:
                     plt.close()
 
-            iv_dict = self.analyze_slow_iv(v_bias, phase,
+            iv_dict = self.analyze_iv(v_bias, phase,
                 basename=basename, band=b, channel=ch, make_plot=make_plot,
                 show_plot=show_plot, save_plot=save_plot, plot_dir=plot_dir,
                 R_sh=R_sh, high_current_mode=high_current_mode,
@@ -574,13 +574,13 @@ class SmurfIVMixin(SmurfBase):
                 plt.close()
 
     @set_action()
-    def analyze_slow_iv(self, v_bias, resp, make_plot=True, show_plot=False,
+    def analyze_iv(self, v_bias, resp, make_plot=True, show_plot=False,
             save_plot=True, basename=None, band=None, channel=None, R_sh=None,
             plot_dir=None, high_current_mode=False, bias_group=None,
             grid_on=False, R_op_target=0.007, pA_per_phi0=None,
             bias_line_resistance=None, plotname_append='', **kwargs):
         """
-        Analyzes the IV curve taken with slow_iv()
+        Analyzes the IV curve taken with run_iv()
 
         Args
         ----
@@ -955,7 +955,7 @@ class SmurfIVMixin(SmurfBase):
             phase_excursion_min=1., channels=None):
         """
         Function to analyze a partial load curve from its raw
-        file. Basically the same as the slow_iv analysis but without
+        file. Basically the same as the run_iv analysis but without
         fitting the superconducting branch.
 
         Args
