@@ -181,6 +181,9 @@ def run(epics_root, config_file, shelf_manager, setup,
     status = {}
     status["bands"] = bands
 
+    if loopback:
+        no_setup_notches = True
+    
     # Initialize
     S = pysmurf.client.SmurfControl(epics_root=epics_root,
         cfg_file=config_file, shelf_manager=shelf_manager,
@@ -344,7 +347,7 @@ def run(epics_root, config_file, shelf_manager, setup,
                 f'take_stream_data_b{band}')
 
     # Make webpage
-    html_path = make_html(os.path.split(S.output_dir)[0], loopback=loopback)
+    # html_path = make_html(os.path.split(S.output_dir)[0], loopback=loopback)
 
     if threading_test:
         import threading
@@ -352,7 +355,7 @@ def run(epics_root, config_file, shelf_manager, setup,
             print(t)
             S.log(t)
 
-    return html_path
+    # return html_path
 
 if __name__ == "__main__":
     #####################
