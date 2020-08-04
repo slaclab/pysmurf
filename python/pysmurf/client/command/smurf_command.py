@@ -2861,7 +2861,7 @@ class SmurfCommandMixin(SmurfBase):
           has reported that the JESD were locked (that's good!).
         * "Checking" : The `AppTop.JesdHealth` command is in progress.
         * "Not found" : The Rogue ZIP file currently in use does not
-          contains the `AppTop.JesdHealth` method.
+          contain the `AppTop.JesdHealth` method.
         * `None` : The `SmurfApplication:JesdStatus` register is not
           implemented in pysmurf core code versions <4.1.0.
 

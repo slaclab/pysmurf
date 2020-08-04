@@ -443,7 +443,7 @@ class SmurfControl(SmurfCommandMixin,
         #
         # setDefaults runs the JesdHealth check, so just need to poll
         # status.
-        jesd_health_status = self.get_jesd_status(**kwargs)
+        jesd_health_status = self.get_jesd_status(write_log=write_log)
 
         # Checking if JesdHealth is Locked is only supported for Rogue
         # ZIP file versions >=0.3.0 and pysmurf core code versions
