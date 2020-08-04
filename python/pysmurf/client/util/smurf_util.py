@@ -290,7 +290,7 @@ class SmurfUtilMixin(SmurfBase):
             freq_dsp,resp_dsp=self.find_freq(band,subband=dsp_subbands)
             ## not really faster if reduce n_step or n_read...somehow.
             #freq_dsp,resp_dsp=self.full_band_ampl_sweep(band,
-            # subband=dsp_subbands, drive=drive, n_read=2, n_step=n_step)
+            # subband=dsp_subbands, tone_power=tone_power, n_read=2, n_step=n_step)
 
         # only preserve data in the subband half width
         freq_dsp_subset=[]
@@ -3909,7 +3909,7 @@ class SmurfUtilMixin(SmurfBase):
         return ret
 
 
-    def set_fixed_tone(self, freq_mhz, drive, write_log=False):
+    def set_fixed_tone(self, freq_mhz, tone_power, write_log=False):
         """
         Places a fixed tone at the requested frequency.  Asserts
         without doing anything if the requested resonator frequency
@@ -3922,7 +3922,7 @@ class SmurfUtilMixin(SmurfBase):
         ----
         freq_mhz : float
             The frequency in MHz at which to place a fixed tone.
-        drive : int
+        tone_power : int
             The amplitude for the fixed tone (0-15 in recent fw
             revisions).
         write_log : bool, optional, default False
@@ -3969,14 +3969,14 @@ class SmurfUtilMixin(SmurfBase):
 
         # Put a fixed tone at the requested frequency
         self.set_center_frequency_mhz_channel(band, channel, foff)
-        self.set_amplitude_scale_channel(band, channel, drive)
+        self.set_amplitude_scale_channel(band, channel, tone_power)
         self.set_feedback_enable_channel(band, channel, 0)
 
         # Unless asked to be quiet, print where we're putting a fixed
         # tone.
         if write_log:
             self.log(f'Setting a fixed tone at {freq_mhz:.2f} MHz' +
-                     f' and amplitude {drive}', self.LOG_USER)
+                     f' and amplitude {tone_power}', self.LOG_USER)
 
         return band, channel
 

@@ -97,11 +97,11 @@ class SmurfTuneMixin(SmurfBase):
         # Runs find_freq and setup_notches. This takes forever.
         else:
             for band in bands:
-                drive = self._amplitude_scale[band]
+                tone_power = self._amplitude_scale[band]
                 self.find_freq(
-                    band, drive_power=drive)
+                    band, tone_power=tone_power)
                 self.setup_notches(
-                    band, drive=drive,
+                    band, tone_power=tone_power,
                     new_master_assignment=new_master_assignment)
 
         # Runs tune_band_serial to re-estimate eta params
@@ -128,7 +128,7 @@ class SmurfTuneMixin(SmurfBase):
     def tune_band(self, band, freq=None, resp=None, nsamp=2**19,
             make_plot=False, show_plot=False, plot_chans=[],
             save_plot=True, save_data=True, make_subband_plot=False,
-            n_scan=5, subband_plot_with_slow=False, drive=None,
+            n_scan=5, subband_plot_with_slow=False, tone_power=None,
             grad_cut=.05, freq_min=-2.5E8, freq_max=2.5E8, amp_cut=.5,
             use_slow_eta=False):
         """
@@ -249,11 +249,11 @@ class SmurfTuneMixin(SmurfBase):
             resonances[k].update({'offset': offsets[i]})
 
         self.freq_resp[band]['resonances'] = resonances
-        if drive is None:
-            drive = self._amplitude_scale[band]
+        if tone_power is None:
+            tone_power = self._amplitude_scale[band]
 
         # Add tone amplitude to tuning dictionary
-        self.freq_resp[band]['drive'] = drive
+        self.freq_resp[band]['tone_power'] = tone_power
 
         # Save the data
         self.save_tune()
@@ -269,7 +269,7 @@ class SmurfTuneMixin(SmurfBase):
             make_subband_plot=False, subband=None, n_scan=5,
             subband_plot_with_slow=False, window=5000,
             rolling_med=True, grad_cut=.03, freq_min=-2.5E8,
-            freq_max=2.5E8, amp_cut=.25, del_f=.005, drive=None,
+            freq_max=2.5E8, amp_cut=.25, del_f=.005, tone_power=None,
             new_master_assignment=False, from_old_tune=False,
             old_tune=None, pad=50, min_gap=50,
             highlight_phase_slip=True, amp_ylim=None):
@@ -382,9 +382,9 @@ class SmurfTuneMixin(SmurfBase):
                 resonances[k].update({'offset': offsets[i]})
                 self.freq_resp[band]['resonances'] = resonances
 
-        if drive is None:
-            drive = self._amplitude_scale[band]
-        self.freq_resp[band]['drive'] = drive
+        if tone_power is None:
+            tone_power = self._amplitude_scale[band]
+        self.freq_resp[band]['tone_power'] = tone_power
         self.freq_resp[band]['full_band_resp'] = {}
         if freq is not None:
             self.freq_resp[band]['full_band_resp']['freq'] = freq * 1.0E-6 + center_freq
@@ -394,7 +394,7 @@ class SmurfTuneMixin(SmurfBase):
 
 
         # Set the resonator frequencies without eta params
-        self.relock(band, drive=drive)
+        self.relock(band, tone_power=tone_power)
 
         # Find the resonator minima
         self.log('Finding resonator minima...')
@@ -1872,7 +1872,7 @@ class SmurfTuneMixin(SmurfBase):
                                          bias_groups=groups_master)
 
     @set_action()
-    def relock(self, band, res_num=None, drive=None, r2_max=.08,
+    def relock(self, band, res_num=None, tone_power=None, r2_max=.08,
             q_max=100000, q_min=0, check_vals=False, min_gap=None,
             write_log=False):
         """
@@ -1885,7 +1885,7 @@ class SmurfTuneMixin(SmurfBase):
 
         res_num : int array or None, optional, default None
             The resonators to lock. If None, tries all the resonators.
-        drive : int or None, optional, default None
+        tone_power : int or None, optional, default None
             The tone amplitudes to set.
         r2_max : float, optional, default 0.08
             The highest allowable R^2 value.
@@ -1906,8 +1906,8 @@ class SmurfTuneMixin(SmurfBase):
         else:
             res_num = np.array(res_num)
 
-        if drive is None:
-            drive = self.freq_resp[band]['drive']
+        if tone_power is None:
+            tone_power = self.freq_resp[band]['tone_power']
 
         amplitude_scale = np.zeros(n_channels)
         center_freq = np.zeros(n_channels)
@@ -1951,7 +1951,7 @@ class SmurfTuneMixin(SmurfBase):
             else:
                 # Channels passed all checks so actually turn on
                 center_freq[ch] = self.freq_resp[band]['resonances'][k]['offset']
-                amplitude_scale[ch] = drive
+                amplitude_scale[ch] = tone_power
                 feedback_enable[ch] = 1
                 eta_phase[ch] = self.freq_resp[band]['resonances'][k]['eta_phase']
                 eta_mag[ch] = self.freq_resp[band]['resonances'][k]['eta_scaled']
@@ -2147,7 +2147,7 @@ class SmurfTuneMixin(SmurfBase):
         return self._get_eta_scan_result_from_key(band, 'offset')
 
 
-    def eta_estimator(self, band, freq, drive=12, f_sweep_half=.3,
+    def eta_estimator(self, band, freq, tone_power=12, f_sweep_half=.3,
                       df_sweep=.002, delta_freq=.01,
                       lock_max_derivative=False):
         """
@@ -2159,7 +2159,7 @@ class SmurfTuneMixin(SmurfBase):
             The band.
         freq : float
             The frequency to scan.
-        drive : int, optional, default 12
+        tone_power : int, optional, default 12
             The tone amplitude.
         f_sweep_half : float, optional, default 0.3
             The frequency to sweep.
@@ -2168,7 +2168,7 @@ class SmurfTuneMixin(SmurfBase):
         """
         subband, offset = self.freq_to_subband(band, freq)
         f_sweep = np.arange(offset-f_sweep_half, offset+f_sweep_half, df_sweep)
-        f, resp = self.fast_eta_scan(band, subband, f_sweep, 2, drive)
+        f, resp = self.fast_eta_scan(band, subband, f_sweep, 2, tone_power)
         # resp = rr + 1.j*ii
 
         a_resp = np.abs(resp)
@@ -2197,7 +2197,7 @@ class SmurfTuneMixin(SmurfBase):
         return f_sweep + sbc[subband], resp, eta
 
     @set_action()
-    def eta_scan(self, band, subband, freq, drive, write_log=False,
+    def eta_scan(self, band, subband, freq, tone_power, write_log=False,
                  sync_group=True):
         """
         Same as slow eta scans
@@ -2212,7 +2212,7 @@ class SmurfTuneMixin(SmurfBase):
 
         self.set_eta_scan_channel(band, first_channel[subband],
                                   write_log=write_log)
-        self.set_eta_scan_amplitude(band, drive, write_log=write_log)
+        self.set_eta_scan_amplitude(band, tone_power, write_log=write_log)
         self.set_eta_scan_freq(band, freq, write_log=write_log)
         self.set_eta_scan_dwell(band, 0, write_log=write_log)
 
@@ -3342,7 +3342,7 @@ class SmurfTuneMixin(SmurfBase):
             make_plot=make_plot, flux_ramp=False, **kwargs)
 
     @set_action()
-    def find_freq(self, band, subband=None, drive_power=None,
+    def find_freq(self, band, subband=None, tone_power=None,
             n_read=2, make_plot=False, save_plot=True, plotname_append='',
             window=50, rolling_med=True, make_subband_plot=False,
             show_plot=False, grad_cut=.05, amp_cut=.25, pad=2, min_gap=2):
@@ -3356,7 +3356,7 @@ class SmurfTuneMixin(SmurfBase):
         subband : numpy.ndarray of int or None, optional, default None
             An int array for the subbands.  If None, set to all
             processed subbands =numpy.arange(13,115).
-        drive_power : int or None, optional, default None
+        tone_power : int or None, optional, default None
             The drive amplitude.  If None, takes from cfg.
         n_read : int, optional, default 2
             The number sweeps to do per subband.
@@ -3391,13 +3391,13 @@ class SmurfTuneMixin(SmurfBase):
         # instead?
         self.band_off(band)
 
-        if drive_power is None:
-            drive_power = self._amplitude_scale[band]
-            self.log('No drive_power given. Using value in config ' +
-                     f'file: {drive_power}')
+        if tone_power is None:
+            tone_power = self._amplitude_scale[band]
+            self.log('No tone_power given. Using value in config ' +
+                     f'file: {tone_power}')
 
         self.log('Sweeping across frequencies')
-        f, resp = self.full_band_ampl_sweep(band, subband, drive_power, n_read)
+        f, resp = self.full_band_ampl_sweep(band, subband, tone_power, n_read)
 
         timestamp = self.get_timestamp()
 
@@ -3510,7 +3510,7 @@ class SmurfTuneMixin(SmurfBase):
                 plt.close()
 
     @set_action()
-    def full_band_ampl_sweep(self, band, subband, drive, n_read, n_step=121):
+    def full_band_ampl_sweep(self, band, subband, tone_power, n_read, n_step=121):
         """sweep a full band in amplitude, for finding frequencies
 
         Args
@@ -3519,7 +3519,7 @@ class SmurfTuneMixin(SmurfBase):
             bandNo (500MHz band).
         subband : int
             Which subbands to sweep.
-        drive : int
+        tone_power : int
             Drive power.
         n_read : int
             Numbers of times to sweep.
@@ -3545,7 +3545,7 @@ class SmurfTuneMixin(SmurfBase):
         for sb in subband:
             self.log(f'Sweeping subband no: {sb}')
             f, r = self.fast_eta_scan(band, sb, scan_freq, n_read,
-                                      drive)
+                                      tone_power)
             resp[sb,:] = r
             freq[sb,:] = f
             freq[sb,:] = scan_freq + \
@@ -3637,7 +3637,7 @@ class SmurfTuneMixin(SmurfBase):
         return peaks
 
     @set_action()
-    def fast_eta_scan(self, band, subband, freq, n_read, drive,
+    def fast_eta_scan(self, band, subband, freq, n_read, tone_power,
             make_plot=False):
         """copy of fastEtaScan.m from Matlab. Sweeps quickly across a
         range of freq and gets I, Q response
@@ -3652,7 +3652,7 @@ class SmurfTuneMixin(SmurfBase):
             Frequencies to scan relative to subband center.
         n_read : int
             Number of times to scan.
-        drive : int
+        tone_power : int
             Tone power.
         make_plot : bool, optional, default False
             Make eta plots.
@@ -3674,7 +3674,7 @@ class SmurfTuneMixin(SmurfBase):
         subchan = first_channel_per_subband[subband]
 
         self.set_eta_scan_freq(band, freq)
-        self.set_eta_scan_amplitude(band, drive)
+        self.set_eta_scan_amplitude(band, tone_power)
         self.set_eta_scan_channel(band, subchan)
         self.set_eta_scan_dwell(band, 0)
 
@@ -3707,7 +3707,7 @@ class SmurfTuneMixin(SmurfBase):
         return freq, response
 
     @set_action()
-    def setup_notches(self, band, resonance=None, drive=None,
+    def setup_notches(self, band, resonance=None, tone_power=None,
                       sweep_width=.3, df_sweep=.002, min_offset=0.1,
                       delta_freq=None, new_master_assignment=False,
                       lock_max_derivative=False):
@@ -3725,7 +3725,7 @@ class SmurfTuneMixin(SmurfBase):
             A 2 dimensional array with resonance frequencies and the
             subband they are in. If given, this will take precedent
             over the one in self.freq_resp.
-        drive : int or None, optional, default None
+        tone_power : int or None, optional, default None
             The power to drive the resonators. Default is defined in cfg file.
         sweep_width : float, optional, default 0.3
             The range to scan around the input resonance in units of
@@ -3758,10 +3758,10 @@ class SmurfTuneMixin(SmurfBase):
                 '. Run find_freq first.', self.LOG_ERROR)
             return
 
-        if drive is None:
-            drive = self._amplitude_scale[band]
+        if tone_power is None:
+            tone_power = self._amplitude_scale[band]
             self.log(
-                f'No drive given. Using value in config file: {drive}')
+                f'No tone_power given. Using value in config file: {tone_power}')
 
         if delta_freq is None:
             delta_freq = self._delta_freq[band]
@@ -3776,7 +3776,7 @@ class SmurfTuneMixin(SmurfBase):
         subband_half_width = digitizer_frequency_mhz/\
             n_subbands
 
-        self.freq_resp[band]['drive'] = drive
+        self.freq_resp[band]['tone_power'] = tone_power
 
         # Loop over inputs and do eta scans
         resonances = {}
@@ -3786,7 +3786,7 @@ class SmurfTuneMixin(SmurfBase):
         n_res = len(input_res)
         for i, f in enumerate(input_res):
             self.log(f'freq {f:5.4f} - {i+1} of {n_res}')
-            freq, resp, eta = self.eta_estimator(band, f, drive,
+            freq, resp, eta = self.eta_estimator(band, f, tone_power,
                 f_sweep_half=sweep_width, df_sweep=df_sweep,
                 delta_freq=delta_freq, lock_max_derivative=lock_max_derivative)
             eta_phase_deg = np.angle(eta)*180/np.pi
