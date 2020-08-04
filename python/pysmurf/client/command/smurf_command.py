@@ -2778,6 +2778,7 @@ class SmurfCommandMixin(SmurfBase):
         # strip any commit info off the end of the pysmurf version
         # string
         pysmurf_version = self.get_pysmurf_version(**kwargs).split('+')[0]
+        pysmurf_version = '4.1.0'
 
         # Extra registers allow confirmation of JESD lock for pysmurf
         # versions >=4.1.0 and Rogue ZIP file versions >=0.3.0.  see
@@ -2793,7 +2794,7 @@ class SmurfCommandMixin(SmurfBase):
             # current ZIP file does not contain the new JesdHealth command.
             status = self.get_jesd_status(**kwargs)
 
-            if status is None:
+            if status == 'Not found':
                 self.log(
                     'The `JesdHealth` method is not present in the Rogue'
                     ' ZIP file.'  , self.LOG_ERROR)
@@ -2874,7 +2875,7 @@ class SmurfCommandMixin(SmurfBase):
 
         Returns
         -------
-        str or None
+        status : str or None
             The status of the Rogue `AppTop.JesdHealth` method.
             Returns None for pysmurf core code versions <4.1.0 where
             the `SmurfApplication:JesdStatus` register is not
@@ -2889,15 +2890,23 @@ class SmurfCommandMixin(SmurfBase):
         # strip any commit info off the end of the pysmurf version
         # string
         pysmurf_version = self.get_pysmurf_version(**kwargs).split('+')[0]
+        pysmurf_version = '4.1.0'
 
         # Extra registers were added to allow confirmation of JESD
         # lock for pysmurf versions >=4.1.0.
         # https://github.com/slaclab/pysmurf/issues/467 for more
         # details.
         if version.parse(pysmurf_version) >= version.parse('4.1.0'):
-            return self._caget(
+            status =  self._caget(
                 self.smurf_application + self._jesd_status_reg,
                 as_string=as_string, **kwargs)
+
+            if status == 'Not found':
+                self.log(
+                    'The `JesdHealth` method is not present in the Rogue'
+                    ' ZIP file.'  , self.LOG_ERROR)
+
+            return status
         else:
             self.log(
                 'The `SmurfApplication:JesdStatus` register is not'

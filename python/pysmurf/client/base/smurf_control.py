@@ -448,11 +448,15 @@ class SmurfControl(SmurfCommandMixin,
         # Checking if JesdHealth is Locked is only supported for Rogue
         # ZIP file versions >=0.3.0 and pysmurf core code versions
         # >=4.1.0.  If it's not supported, self.set_check_jesd will
-        # return None.  Overriding None with True to skip this check
-        # for older versions of pysmurf that don't support the
-        # JesdHealth check.  Log an error if the JesdHealth check
-        # reports that JESD is unlocked.
+        # return None if the JesdHealth registers in SmurfApplication
+        # aren't present or 'Not found' if they are present but the
+        # JesdHealth method isn't implemented in the loaded Rogue ZIP
+        # file.  Overriding None with True to skip this check for
+        # older versions of pysmurf that don't support the JesdHealth
+        # check.  Log an error if the JesdHealth check reports that
+        # JESD is unlocked.
         if ( jesd_health_status is not None and
+             jesd_health_status != 'Not found' and
              jesd_health_status != 'Locked' ):
             self.log(
                 'ERROR : JESD is not locked!  Do not proceed!'
