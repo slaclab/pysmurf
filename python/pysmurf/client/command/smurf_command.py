@@ -2847,7 +2847,7 @@ class SmurfCommandMixin(SmurfBase):
 
     _jesd_status_reg = "JesdStatus"
 
-    def get_jesd_status(self, as_string=True, **kwargs):
+    def get_jesd_status(self, **kwargs):
         r"""Gets the status of the Rogue `AppTop.JesdHealth` method.
 
         Returns the status of a call to the `AppTop.JesdHealth`
@@ -2866,8 +2866,6 @@ class SmurfCommandMixin(SmurfBase):
 
         Args
         ----
-        as_string : bool, optional, default True
-            Returns the data as a string.
         \**kwargs
             Arbitrary keyword arguments.  Passed directly to
             all `_caget` calls.
@@ -2895,9 +2893,10 @@ class SmurfCommandMixin(SmurfBase):
         # https://github.com/slaclab/pysmurf/issues/467 for more
         # details.
         if version.parse(pysmurf_version) >= version.parse('4.1.0'):
+            # Must be as_string=True to compare below
             status =  self._caget(
                 self.smurf_application + self._jesd_status_reg,
-                as_string=as_string, **kwargs)
+                as_string=True, **kwargs)
 
             if status == 'Not found':
                 self.log(
