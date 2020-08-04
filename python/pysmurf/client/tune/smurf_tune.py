@@ -3342,7 +3342,7 @@ class SmurfTuneMixin(SmurfBase):
             make_plot=make_plot, flux_ramp=False, **kwargs)
 
     @set_action()
-    def find_freq(self, band, subband=np.arange(13,115), drive_power=None,
+    def find_freq(self, band, subband=None, drive_power=None,
             n_read=2, make_plot=False, save_plot=True, plotname_append='',
             window=50, rolling_med=True, make_subband_plot=False,
             show_plot=False, grad_cut=.05, amp_cut=.25, pad=2, min_gap=2):
@@ -3353,8 +3353,9 @@ class SmurfTuneMixin(SmurfBase):
         ----
         band : int
             The band to search.
-        subband : numpy.ndarray of int, optional, default numpy.arange(13,115)
-            An int array for the subbands.
+        subband : numpy.ndarray of int or None, optional, default None
+            An int array for the subbands.  If None, set to all
+            processed subbands =numpy.arange(13,115).
         drive_power : int or None, optional, default None
             The drive amplitude.  If None, takes from cfg.
         n_read : int, optional, default 2
@@ -3382,6 +3383,8 @@ class SmurfTuneMixin(SmurfBase):
         min_gap : int, optional, default 2
             Minimum number of samples between resonances.
         '''
+        if subband is None:
+            subband = np.arange(13,115)
 
         # Turn off all tones in this band first.  May want to make
         # this only turn off tones in each sub-band before sweeping,
@@ -4030,11 +4033,13 @@ class SmurfTuneMixin(SmurfBase):
                                               '*_tune.npy')))[-1]
 
     @set_action()
-    def optimize_lms_delay(self, band, lms_delays=None, reset_rate_khz=None,
-            fraction_full_scale=None, nsamp=2**18, lms_gain=7, lms_freq_hz=None,
-            meas_lms_freq=False, feedback_start_frac=.2, feedback_end_frac=.98,
-            meas_flux_ramp_amp=True, n_phi0=4, make_plot=False, show_plot=False,
-            save_plot=True, df_bins=np.arange(0,50.1,2.5)):
+    def optimize_lms_delay(self, band, lms_delays=None,
+            reset_rate_khz=None, fraction_full_scale=None,
+            nsamp=2**18, lms_gain=7, lms_freq_hz=None,
+            meas_lms_freq=False, feedback_start_frac=.2,
+            feedback_end_frac=.98, meas_flux_ramp_amp=True, n_phi0=4,
+            make_plot=False, show_plot=False, save_plot=True,
+            df_bins=None):
         """
         Loops over multiple LMS delays and measures df. Looks for the minima
         of the median of the df terms for all the channels that are on. It is
@@ -4083,8 +4088,9 @@ class SmurfTuneMixin(SmurfBase):
             phi0 defined by n_phi0. lms_freq_hz must be None for this to work.
         n_phi0 : float, optional, default 4
             The number of phi0 to match using meas_flux_ramp_amp.
-        df_bins : float array, optional, default np.arange(0, 50.1, 2.5)
-            The histogram bins for the plotting.
+        df_bins : float array or None, optional, default None
+            The histogram bins for the plotting.  If None, set to
+            np.arange(0,50.1,2.5).
 
         Return
         ------
@@ -4097,6 +4103,8 @@ class SmurfTuneMixin(SmurfBase):
         """
         timestamp = self.get_timestamp()
 
+        if df_bins is None:
+            df_bins = np.arange(0,50.1,2.5)
         if lms_delays is None:
             lms_delays = np.array([12, 16, 20, 22, 23, 24, 25, 26, 28])
 

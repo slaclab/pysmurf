@@ -330,6 +330,8 @@ class SmurfControl(SmurfCommandMixin,
         - Resets the RF DACs on AMCs in use.
         - Sets hardware defaults using
           :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.set_defaults_pv`.
+        - Checks if JESD is locked using
+          :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.set_check_jesd`.
         - Overrides hardware defaults register values for subset of
           registers controlled by the pysmurf configuration file.
         - Resets the RTM CPLD.
@@ -350,6 +352,10 @@ class SmurfControl(SmurfCommandMixin,
           fails (only supported for pysmurf core code versions
           >=4.1.0).  If failure is detected, doesn't attempt to
           execute the subsequent setup steps.
+        - :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.set_check_jesd`
+          fails (only supported for Rogue ZIP file versions >=0.3.0).
+          If failure is detected, doesn't attempt to execute the
+          subsequent setup steps.
 
         Args
         ----
@@ -408,6 +414,7 @@ class SmurfControl(SmurfCommandMixin,
                     self.set_dac_reset(
                         bay, dac, val, write_log=write_log)
 
+        #
         # setDefaults
         self.set_read_all(write_log=write_log)
         set_defaults_success = self.set_defaults_pv(write_log=write_log)
@@ -433,7 +440,36 @@ class SmurfControl(SmurfCommandMixin,
                 self.LOG_ERROR)
             success = False
 
-        # Only proceed with the rest of setup if setDefaults
+        #
+        # setDefaults runs the JesdHealth check, so just need to poll
+        # status.
+        jesd_health_status = self.get_jesd_status(write_log=write_log)
+
+        # Checking if JesdHealth is Locked is only supported for Rogue
+        # ZIP file versions >=0.3.0 and pysmurf core code versions
+        # >=4.1.0.  If it's not supported, self.set_check_jesd will
+        # return None if the JesdHealth registers in SmurfApplication
+        # aren't present or 'Not found' if they are present but the
+        # JesdHealth method isn't implemented in the loaded Rogue ZIP
+        # file.  Overriding None with True to skip this check for
+        # older versions of pysmurf that don't support the JesdHealth
+        # check.  Log an error if the JesdHealth check reports that
+        # JESD is unlocked.
+        if ( jesd_health_status is not None and
+             jesd_health_status != 'Not found' and
+             jesd_health_status != 'Locked' ):
+            self.log(
+                'ERROR : JESD is not locked!  Do not proceed!'
+                ' Reboot or ask someone for help.  You are strongly'
+                ' encouraged to report this as an issue on the'
+                ' pysmurf github repo at'
+                ' https://github.com/slaclab/pysmurf/issues (please'
+                ' provide a state dump using the pysmurf'
+                ' set_read_all/save_state functions).',
+                self.LOG_ERROR)
+            success = False
+
+        # Only proceed with the rest of setup if basic system checks
         # succeeded, otherwise we risk giving users false hope.
         if success:
             # The per band configs. May want to make available per-band
