@@ -27,7 +27,7 @@ from pysmurf.client.util.pub import set_action
 class SmurfIVMixin(SmurfBase):
 
     @set_action()
-    def slow_iv_all(self, bias_groups=None, wait_time=.1, bias=None,
+    def run_iv(self, bias_groups=None, wait_time=.1, bias=None,
                     bias_high=1.5, bias_low=0, bias_step=.005,
                     show_plot=False, overbias_wait=2., cool_wait=30,
                     make_plot=True, save_plot=True, plotname_append='',
