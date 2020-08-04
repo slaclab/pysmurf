@@ -98,7 +98,7 @@
 
 </section>
 
-<section><h2>Bias groups and IV</h2>
+<section><h2>Bias Groups and IV</h2>
   <h3>Bias Group Identificaion</h3>
   <figure>
     <img alt="Bias Group Identification" id="bias_group" src="#" width="550"/>
@@ -141,6 +141,28 @@
 </section>
 
 <section><h2>Noise</h2>
+
+  <h3>Take Noise PSD for 60 Seconds</h3>
+  <figure>
+    <img alt="Noise PSD" id="noise_psd" src="#" width="550"/>
+      <figcaption>
+        Noise PSDs (60 seconds). Only for channels that pass check_lock().
+      </figcaption>
+      <script type="text/javascript">
+        opts = {
+          'res|res': [[FREQ_RESP_LIST]]
+        } 
+        pager.link("#noise_psd", opts, function(p) {
+          return '../plots/' + [[NOISE_PSD_PATH]]
+        });
+        pager.setparams(
+          {'res': '000'}
+        );
+      </script>
+  </figure>
+
+
+</section>
 
 <section><h2>Timing</h2>
   <p>This is the timing summary to the nearest second.</p>
