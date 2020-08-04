@@ -391,9 +391,10 @@ class Common(pyrogue.Root):
         # configuration sequence.
         self.SmurfApplication.SystemConfigured.set(success)
 
-        # Update the JESD status register as well as 'AppTop.JesdHelth' is called
-        # as part of the configuration process
-        self.SmurfApplication.JesdStatus.set(success)
+        # If the 'AppTop.JesdHelath' was found, update the JESD status register as well
+        # as 'AppTop.JesdHelth' is called as part of the configuration process
+        if self._jesd_health_found:
+            self.SmurfApplication.JesdStatus.set(success)
 
         # Set the "ConfiguringInProgress" flag to "False" to indicate
         # the end of the system configuration sequence
