@@ -15,7 +15,6 @@
 # contained in the LICENSE.txt file.
 #-----------------------------------------------------------------------------
 import time
-import os
 
 try:
     import epics
@@ -187,7 +186,7 @@ class CryoCard(object):
                   'R1.1.0+, so the current firmware likely predates\n'
                   'R1.1.0.  Returning None.\n')
             return None
-            
+
         patch = int(hexstr[-2:],16)
         minor = int(hexstr[-4:-2],16)
         major = int(hexstr[-6:-4],16)
