@@ -125,7 +125,7 @@ class SmurfTuneMixin(SmurfBase):
                     show_plot=show_plot)
 
     @set_action()
-    def tune_band(self, band, freq=None, resp=None, n_samples=2**19,
+    def tune_band(self, band, freq=None, resp=None, nsamp=2**19,
             make_plot=False, show_plot=False, plot_chans=[],
             save_plot=True, save_data=True, make_subband_plot=False,
             n_scan=5, subband_plot_with_slow=False, drive=None,
@@ -146,7 +146,7 @@ class SmurfTuneMixin(SmurfBase):
         resp : float array or None, optional, default None
             The response information. If both freq and resp are not
             None, it will skip full_band_resp.
-        n_samples : int, optional, default 2**19
+        nsamp : int, optional, default 2**19
             The number of samples to take in full_band_resp.
         make_plot : bool, optional, default False
             Whether to make plots. This is slow, so if you want to
@@ -196,7 +196,7 @@ class SmurfTuneMixin(SmurfBase):
 
             # Inject high amplitude noise with known waveform, measure it, and
             # then find resonators and etaParameters from cross-correlation.
-            freq, resp = self.full_band_resp(band, n_samples=n_samples,
+            freq, resp = self.full_band_resp(band, nsamp=nsamp,
                 make_plot=make_plot, save_data=save_data, timestamp=timestamp,
                 n_scan=n_scan, show_plot=show_plot)
 
@@ -264,7 +264,7 @@ class SmurfTuneMixin(SmurfBase):
         return resonances
 
     @set_action()
-    def tune_band_serial(self, band, n_samples=2**19, make_plot=False,
+    def tune_band_serial(self, band, nsamp=2**19, make_plot=False,
             save_plot=True, save_data=True, show_plot=False,
             make_subband_plot=False, subband=None, n_scan=5,
             subband_plot_with_slow=False, window=5000,
@@ -284,7 +284,7 @@ class SmurfTuneMixin(SmurfBase):
         ----
         band : int
             The band the tune.
-        n_samples : int, optional, default 2**19
+        nsamp : int, optional, default 2**19
             The number of samples to take in full_band_resp.
         make_plot : bool, optional, default False
             Whether to make plots.
@@ -342,7 +342,7 @@ class SmurfTuneMixin(SmurfBase):
             old_att = self.get_att_uc(band)
             self.set_att_uc(band, 0, wait_after=.5, write_log=True)
             self.get_att_uc(band, write_log=True)
-            freq, resp = self.full_band_resp(band, n_samples=n_samples,
+            freq, resp = self.full_band_resp(band, nsamp=nsamp,
                                          make_plot=make_plot, save_data=save_data,
                                          show_plot=False, timestamp=timestamp,
                                          n_scan=n_scan)
@@ -574,7 +574,7 @@ class SmurfTuneMixin(SmurfBase):
                             channel=channel, plotname_append=plotname_append)
 
     @set_action()
-    def full_band_resp(self, band, n_scan=1, n_samples=2**19, make_plot=False,
+    def full_band_resp(self, band, n_scan=1, nsamp=2**19, make_plot=False,
             save_plot=True, show_plot=False, save_data=False, timestamp=None,
             save_raw_data=False, correct_att=True, swap=False, hw_trigger=True,
             write_log=False, return_plot_path=False,
@@ -590,7 +590,7 @@ class SmurfTuneMixin(SmurfBase):
 
         n_scan : int, optional, default 1
             The number of scans to take and average.
-        n_samples : int, optional, default 2**19
+        nsamp : int, optional, default 2**19
             The number of samples to take.
         make_plot : bool, optional, default False
             Whether the make plots.
@@ -625,14 +625,14 @@ class SmurfTuneMixin(SmurfBase):
         Returns
         -------
         f : float array
-            The frequency information. Length n_samples/2.
+            The frequency information. Length nsamp/2.
         resp : complex array
-            The response information. Length n_samples/2.
+            The response information. Length nsamp/2.
         """
         if timestamp is None:
             timestamp = self.get_timestamp()
 
-        resp = np.zeros((int(n_scan), int(n_samples/2)), dtype=complex)
+        resp = np.zeros((int(n_scan), int(nsamp/2)), dtype=complex)
         for n in np.arange(n_scan):
             bay = self.band_to_bay(band)
             # Default setup sets to 1
@@ -650,22 +650,22 @@ class SmurfTuneMixin(SmurfBase):
 
             # Take read the ADC data
             try:
-                adc = self.read_adc_data(band, n_samples, hw_trigger=hw_trigger,
+                adc = self.read_adc_data(band, nsamp, hw_trigger=hw_trigger,
                     save_data=False)
             except Exception:
                 self.log('ADC read failed. Trying one more time', self.LOG_ERROR)
-                adc = self.read_adc_data(band, n_samples, hw_trigger=hw_trigger,
+                adc = self.read_adc_data(band, nsamp, hw_trigger=hw_trigger,
                     save_data=False)
             time.sleep(.05)  # Need to wait, otherwise dac call interferes with adc
 
             try:
                 dac = self.read_dac_data(
-                    band, n_samples, hw_trigger=hw_trigger,
+                    band, nsamp, hw_trigger=hw_trigger,
                     save_data=False)
             except BaseException:
                 self.log('ADC read failed. Trying one more time', self.LOG_ERROR)
                 dac = self.read_dac_data(
-                    band, n_samples, hw_trigger=hw_trigger,
+                    band, nsamp, hw_trigger=hw_trigger,
                     save_data=False)
             time.sleep(.05)
 
@@ -703,11 +703,11 @@ class SmurfTuneMixin(SmurfBase):
 
             # Take PSDs of ADC, DAC, and cross
             fs = self.get_digitizer_frequency_mhz() * 1.0E6
-            f, p_dac = signal.welch(dac, fs=fs, nperseg=n_samples/2,
+            f, p_dac = signal.welch(dac, fs=fs, nperseg=nsamp/2,
                                     return_onesided=True)
-            f, p_adc = signal.welch(adc, fs=fs, nperseg=n_samples/2,
+            f, p_adc = signal.welch(adc, fs=fs, nperseg=nsamp/2,
                                     return_onesided=True)
-            f, p_cross = signal.csd(dac, adc, fs=fs, nperseg=n_samples/2,
+            f, p_cross = signal.csd(dac, adc, fs=fs, nperseg=nsamp/2,
                                     return_onesided=True)
 
             # Sort frequencies
@@ -2281,7 +2281,7 @@ class SmurfTuneMixin(SmurfBase):
             lms_enable2=False, lms_enable3=False, flux_ramp=flux_ramp,
             setup_flux_ramp=setup_flux_ramp)
 
-        n_samp, n_chan = np.shape(df)
+        nsamp, n_chan = np.shape(df)
 
         dd = np.ravel(np.where(np.diff(sync[:,0]) !=0))
         first_idx = dd[0]//n_channels
@@ -2324,7 +2324,7 @@ class SmurfTuneMixin(SmurfBase):
 
             for i, c in enumerate(chs):
                 color = cm(i/len(chs))
-                ax0.plot(np.arange(n_samp)/fs*scale,
+                ax0.plot(np.arange(nsamp)/fs*scale,
                          df[:,c], label=f'ch {c}',
                          color=color)
                 holder = np.zeros((n_fr-1, dt))
@@ -2712,9 +2712,9 @@ class SmurfTuneMixin(SmurfBase):
 
                         # highlight used regions
                         if i < n_sync_idx-1:
-                            n_samp = sync_idx[i+1]-sync_idx[i]
-                            start = s + feedback_start_frac*n_samp
-                            end = s + feedback_end_frac*n_samp
+                            nsamp = sync_idx[i+1]-sync_idx[i]
+                            start = s + feedback_start_frac*nsamp
+                            end = s + feedback_end_frac*nsamp
 
                             ax[0].axvspan(start, end, color='k', alpha=.15)
                             ax[1].axvspan(start, end, color='k', alpha=.15)
@@ -4325,7 +4325,7 @@ class SmurfTuneMixin(SmurfBase):
         # The longest time between resets
         max_len = np.max(np.diff(sync_flag))
         n_sync = len(sync_flag) - 1
-        n_samp, n_chan = np.shape(df)
+        nsamp, n_chan = np.shape(df)
 
         # Only for plotting
         channel = np.ravel(np.array(channel))

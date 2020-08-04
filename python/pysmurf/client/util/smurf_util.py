@@ -165,7 +165,7 @@ class SmurfUtilMixin(SmurfBase):
 
     # Shawn needs to make this better and add documentation.
     @set_action()
-    def estimate_phase_delay(self, band, n_samples=2**19, make_plot=True,
+    def estimate_phase_delay(self, band, nsamp=2**19, make_plot=True,
             show_plot=True, save_plot=True, save_data=True, n_scan=5,
             timestamp=None, uc_att=24, dc_att=0, freq_min=-2.5E8, freq_max=2.5E8):
 
@@ -249,7 +249,7 @@ class SmurfUtilMixin(SmurfBase):
             resp_cable = real_resp_cable + 1j*complex_resp_cable
         else:
             self.log('Running full band resp')
-            freq_cable, resp_cable = self.full_band_resp(band, n_samples=n_samples,
+            freq_cable, resp_cable = self.full_band_resp(band, nsamp=nsamp,
                 make_plot=make_plot,
                 save_data=save_data,
                 n_scan=n_scan)
@@ -986,7 +986,7 @@ class SmurfUtilMixin(SmurfBase):
 
     @set_action()
     def read_stream_data(self, datafile, channel=None,
-                         n_samp=None, array_size=None,
+                         nsamp=None, array_size=None,
                          return_header=False,
                          return_tes_bias=False, write_log=True,
                          n_max=2048, make_freq_mask=False,
@@ -1003,7 +1003,7 @@ class SmurfUtilMixin(SmurfBase):
             The full path to the data to read.
         channel : int or int array or None, optional, default None
             Channels to load.
-        n_samp : int or None, optional, default None
+        nsamp : int or None, optional, default None
             The number of samples to read.
         array_size : int or None, optional, default None
             The size of the output arrays. If 0, then the size will be
@@ -1034,7 +1034,7 @@ class SmurfUtilMixin(SmurfBase):
         if gcp_mode:
             self.log('Data is in GCP mode.')
             return self.read_stream_data_gcp_save(datafile, channel=channel,
-                unwrap=True, downsample=1, n_samp=n_samp)
+                unwrap=True, downsample=1, nsamp=nsamp)
 
         try:
             datafile = glob.glob(datafile+'*')[-1]
@@ -1170,7 +1170,7 @@ class SmurfUtilMixin(SmurfBase):
 
     @set_action()
     def read_stream_data_gcp_save(self, datafile, channel=None,
-            unwrap=True, downsample=1, n_samp=None):
+            unwrap=True, downsample=1, nsamp=None):
         """
         Reads the special data that is designed to be a copy of the GCP data.
         This was the most common data writing mode until the Rogue 4 update.
@@ -1187,7 +1187,7 @@ class SmurfUtilMixin(SmurfBase):
             Whether to unwrap units of 2pi.
         downsample : int, optional, default 1
             The amount to downsample.
-        n_samp : int or None, optional, default None
+        nsamp : int or None, optional, default None
             The number of samples to read.
 
         Returns
@@ -1239,7 +1239,7 @@ class SmurfUtilMixin(SmurfBase):
             channel_mask[i] = keys_dict[f'data{c}']
 
         eval_n_samp = False
-        if n_samp is not None:
+        if nsamp is not None:
             eval_n_samp = True
 
         # Make holder arrays for phase and timestamp
@@ -1258,7 +1258,7 @@ class SmurfUtilMixin(SmurfBase):
                     timestamp2 = np.append(timestamp2, tmp_timestamp2[:counter%n])
                     break
                 elif eval_n_samp:
-                    if counter >= n_samp:
+                    if counter >= nsamp:
                         phase = np.hstack((phase, tmp_phase[:,:counter%n]))
                         timestamp2 = np.append(timestamp2,
                                                tmp_timestamp2[:counter%n])
@@ -4405,7 +4405,7 @@ class SmurfUtilMixin(SmurfBase):
             d *= (self._pA_per_phi0/2/np.pi)  # convert to pA
             d = np.transpose(d.T - np.mean(d.T, axis=0))
 
-            n_det, n_samp = np.shape(d)
+            n_det, nsamp = np.shape(d)
 
             # currents on lines
             if high_current_mode:
@@ -4416,8 +4416,8 @@ class SmurfUtilMixin(SmurfBase):
             i_bias = probe_amp / r_inline * 1.0E12  # Bias current in pA
 
             # sine/cosine decomp templates
-            s = np.sin(2*np.pi*np.arange(n_samp) / n_samp*probe_freq*probe_time)
-            c = np.cos(2*np.pi*np.arange(n_samp) / n_samp*probe_freq*probe_time)
+            s = np.sin(2*np.pi*np.arange(nsamp) / nsamp*probe_freq*probe_time)
+            c = np.cos(2*np.pi*np.arange(nsamp) / nsamp*probe_freq*probe_time)
             s /= np.sum(s**2)
             c /= np.sum(c**2)
 
