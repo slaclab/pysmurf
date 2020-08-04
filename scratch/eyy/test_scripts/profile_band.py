@@ -151,11 +151,18 @@ def make_html(data_path):
     replace_str(index_path, "[[BIAS_GROUP_PATH]]",
                 instr)
 
-    # Bias group path
+    # IV path
     basename = os.path.split(glob.glob(os.path.join(data_path,
         'plots/*_IV_curve*'))[0])[1].split("_IV_curve")
     instr = f"\'{basename[0]}\' + \'_IV_curve_b{band}_ch\' + res_to_chan(p[\'res\']) + \'.png\'"
     replace_str(index_path, "[[IV_PATH]]",
+                instr)
+    
+    # Noise PSD path
+    basename = os.path.split(glob.glob(os.path.join(data_path,
+        'plots/*_noise_timestream*'))[0])[1].split("_noise_timestream")
+    instr = f"\'{basename[0]}\' + \'_noise_timestream_b{band}_ch\' + res_to_chan(p[\'res\']) + \'.png\'"
+    replace_str(index_path, "[[NOISE_PSD_PATH]]",
                 instr)
 
     return html_path
@@ -301,6 +308,8 @@ def run(band, epics_root, config_file, shelf_manager, setup, no_band_off=False,
         high_current_mode=False, overbias_wait=.5, cool_wait=60,
         make_plot=True), 'slow_iv_all')
 
+    # Take noise for 60 seconds
+    status = execute(status, lambda: S.take_noise_psd(60), 'take_noise_psd')
 
     # Make webpage
     html_path = make_html(os.path.split(S.output_dir)[0])
