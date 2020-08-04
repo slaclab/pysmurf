@@ -1978,26 +1978,38 @@ class SmurfUtilMixin(SmurfBase):
         self.set_feedback_limit(band, desired_feedback_limit_dec, **kwargs)
 
     # if no guidance given, tries to reset both
-    def recover_jesd(self,bay,recover_jesd_rx=True,recover_jesd_tx=True):
+    def recover_jesd(self, bay, recover_jesd_rx=True, recover_jesd_tx=True):
+        """
+        Attempts to recover the JESDs
+
+        Args
+        ----
+        bay : int
+            The AMC bay to recover
+        recover_jesd_rx : bool, optional, default True
+            Whether to attempt to recover the JESD RX
+        recover_jesd_tx : bool, optional, default True
+            Whether to attempt to recover the JESD TX
+        """
         if recover_jesd_rx:
             #1. Toggle JesdRx:Enable 0x3F3 -> 0x0 -> 0x3F3
-            self.set_jesd_rx_enable(bay,0x0)
-            self.set_jesd_rx_enable(bay,0x3F3)
+            self.set_jesd_rx_enable(bay, 0x0)
+            self.set_jesd_rx_enable(bay, 0x3F3)
 
         if recover_jesd_tx:
             #1. Toggle JesdTx:Enable 0x3CF -> 0x0 -> 0x3CF
-            self.set_jesd_tx_enable(bay,0x0)
-            self.set_jesd_tx_enable(bay,0x3CF)
+            self.set_jesd_tx_enable(bay, 0x0)
+            self.set_jesd_tx_enable(bay, 0x3CF)
 
             #2. Toggle AMCcc:FpgaTopLevel:AppTop:AppCore:MicrowaveMuxCore[0]:
             # DAC[0]:JesdRstN 0x1 -> 0x0 -> 0x1
-            self.set_jesd_reset_n(bay,0,0x0)
-            self.set_jesd_reset_n(bay,0,0x1)
+            self.set_jesd_reset_n(bay, 0, 0x0)
+            self.set_jesd_reset_n(bay, 0, 0x1)
 
             #3. Toggle AMCcc:FpgaTopLevel:AppTop:AppCore:MicrowaveMuxCore[0]:
             # DAC[1]:JesdRstN 0x1 -> 0x0 -> 0x1
-            self.set_jesd_reset_n(bay,1,0x0)
-            self.set_jesd_reset_n(bay,1,0x1)
+            self.set_jesd_reset_n(bay, 1, 0x0)
+            self.set_jesd_reset_n(bay, 1, 0x1)
 
         # probably overkill...shouldn't call this function if you're not going
         # to do anything
@@ -2007,7 +2019,8 @@ class SmurfUtilMixin(SmurfBase):
             self.run_pwr_up_sys_ref(bay)
 
         # check if Jesds recovered - enable printout
-        (jesd_tx_ok,jesd_rx_ok)=self.check_jesd(bay,silent_if_valid=False)
+        (jesd_tx_ok, jesd_rx_ok, jesd_status) = self.check_jesd(
+            bay, silent_if_valid=False)
 
         # raise exception if failed to recover
         if (jesd_rx_ok and jesd_tx_ok):
@@ -2023,7 +2036,7 @@ class SmurfUtilMixin(SmurfBase):
     def jesd_decorator(decorated):
         def jesd_decorator_function(self):
             # check JESDs
-            (jesd_tx_ok0,jesd_rx_ok0)=self.check_jesd(silent_if_valid=True)
+            (jesd_tx_ok0, jesd_rx_ok0, jesd_status) = self.check_jesd(silent_if_valid=True)
 
             # if either JESD is down, try to fix
             if not (jesd_rx_ok0 and jesd_tx_ok0):
@@ -2052,10 +2065,13 @@ class SmurfUtilMixin(SmurfBase):
 
         return jesd_decorator_function
 
-    def check_jesd(self, bay, silent_if_valid=False):
-        """
-        Queries the Jesd tx and rx and compares the
-        data_valid and enable bits.
+    def check_jesd(self, bay, silent_if_valid=False,
+                   max_timeout_sec=60, get_timeout_sec=5):
+        """Checks JESD status for requested bay.
+
+        Queries the Jesd tx and rx and compares the data_valid and
+        enable bits.  If newer Rogue `AppTop.JesdHealth` method is
+        available, returns its status.
 
         Args
         ----
@@ -2063,11 +2079,36 @@ class SmurfUtilMixin(SmurfBase):
             Which bay (0 or 1).
         silent_if_valid : bool, optional, default False
             If True, does not print anything if things are working.
+        max_timeout_sec : float, optional, default 60.0
+            Seconds to wait for JESD health check to complete before
+            giving up.  Passed to
+            :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.set_check_jesd`
+        caget_timeout_sec : float, optional, default 5.0
+            Seconds to wait for each poll of the JESD health check
+            status register (see
+            :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.get_jesd_status`).
+            Passed to
+            :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.set_check_jesd`
 
         Returns
         -------
-        (bool,bool)
-            (JesdTx is ok, JesdRx is ok)
+        jesd_tx : bool
+            True if DataValid = Enable for this bay's JesdTx,
+            otherwise False.
+        jesd_rx : bool
+            True if DataValid = Enable for this bay's JesdRx,
+            otherwise False.
+        jesd_status : str or None
+            System (all bays) JESD health status (see
+            :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.get_jesd_status`
+            for a description of the possible statuses).
+
+        See Also
+        --------
+        :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.set_check_jesd` :
+              Gets the status of the Rogue `AppTop.JesdHealth`
+              method.
+
         """
         # JESD Tx
         jesd_tx_enable = self.get_jesd_tx_enable(bay)
@@ -2088,7 +2129,11 @@ class SmurfUtilMixin(SmurfBase):
         else:
             if not silent_if_valid:
                 self.log("JESD Rx Okay", self.LOG_USER)
-        return (jesd_tx_ok,jesd_rx_ok)
+
+        # New checks introduced
+        status = self.set_check_jesd()
+
+        return (jesd_tx_ok, jesd_rx_ok, status)
 
     def get_fpga_status(self):
         """
@@ -2125,7 +2170,6 @@ class SmurfUtilMixin(SmurfBase):
             self.log("JESD Rx DOWN", self.LOG_USER)
         else:
             self.log("JESD Rx Okay", self.LOG_USER)
-
 
         # dict containing all values
         ret = {
