@@ -315,7 +315,7 @@ class SmurfCommandMixin(SmurfBase):
            Boolean flag indicating whether or not the configuration
            process is in progress.  Returns `True` if the
            configuration process is in progress, otherwise returns
-           `False`. If the underlaying PV can not be read, this
+           `False`. If the underlying PV can not be read, this
            function returns `None`.
 
         See Also
@@ -358,8 +358,9 @@ class SmurfCommandMixin(SmurfBase):
            Boolean flag indicating the final state of the
            configuration process.  If the configuration was loaded
            without errors and all tests passed, then this flag is set
-           to `True`.  Otherwise it is set to `False`. If the underlaying
-           PV can not be read, this function returns `None`.
+           to `True`.  Otherwise it is set to `False`. If the
+           underlying PV can not be read, this function returns
+           `None`.
 
         See Also
         --------
