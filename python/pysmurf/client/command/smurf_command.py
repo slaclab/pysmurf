@@ -311,11 +311,12 @@ class SmurfCommandMixin(SmurfBase):
 
         Returns
         -------
-        bool
+        bool or None
            Boolean flag indicating whether or not the configuration
            process is in progress.  Returns `True` if the
            configuration process is in progress, otherwise returns
-           `False`.
+           `False`. If the underlaying PV can not be read, this
+           function returns `None`.
 
         See Also
         --------
@@ -325,10 +326,15 @@ class SmurfCommandMixin(SmurfBase):
                 configuration process.
 
         """
-        return bool(
-            self._caget(self.smurf_application +
-                        self._configuring_in_progress_reg, **kwargs)
-        )
+        ret = self._caget(self.smurf_application +
+                          self._configuring_in_progress_reg,
+                          as_string=True, **kwargs)
+        if ret == 'True':
+            return True
+        elif ret == 'False':
+            return False
+        else:
+            return None
 
     _system_configured_reg = 'SystemConfigured'
 
@@ -348,11 +354,12 @@ class SmurfCommandMixin(SmurfBase):
 
         Returns
         -------
-        bool
+        bool or None
            Boolean flag indicating the final state of the
            configuration process.  If the configuration was loaded
            without errors and all tests passed, then this flag is set
-           to `True`.  Otherwise it is set to `False`.
+           to `True`.  Otherwise it is set to `False`. If the underlaying
+           PV can not be read, this function returns `None`.
 
         See Also
         --------
@@ -362,10 +369,16 @@ class SmurfCommandMixin(SmurfBase):
                 configuration process in progress.
 
         """
-        return bool(
-            self._caget(self.smurf_application +
-                        self._system_configured_reg, **kwargs)
-        )
+        ret = self._caget(self.smurf_application +
+                          self._system_configured_reg,
+                          as_string=True, **kwargs)
+
+        if ret == 'True':
+            return True
+        elif ret == 'False':
+            return False
+        else:
+            return None
 
     #### End SmurfApplication gets/sets
 
@@ -565,8 +578,8 @@ class SmurfCommandMixin(SmurfBase):
                 # We successfully exit the loop when we are able to
                 # read the "ConfiguringInProgress" flag and it is set
                 # to "False".  Otherwise we keep trying.
-                if not self.get_configuring_in_progress(
-                        timeout=caget_timeout_sec, **kwargs):
+                if self.get_configuring_in_progress(
+                       timeout=caget_timeout_sec, **kwargs) == False:
                     success=True
                     break
 
