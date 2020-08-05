@@ -30,8 +30,8 @@ class SmurfNoiseMixin(SmurfBase):
     def take_noise_psd(self, meas_time,
                        channel=None, nperseg=2**12,
                        detrend='constant', fs=None,
-                       low_freq=np.array([.1, 1.]),
-                       high_freq=np.array([1., 10.]),
+                       low_freq=None,
+                       high_freq=None,
                        make_channel_plot=True,
                        make_summary_plot=True, save_data=False,
                        show_plot=False,
@@ -90,6 +90,10 @@ class SmurfNoiseMixin(SmurfBase):
         datafile : str
              The full path to the raw data.
         """
+        if low_freq is None:
+            low_freq=np.array([.1, 1.])
+        if high_freq is None:
+            high_freq=np.array([1., 10.])
         if datafile is None:
             datafile = self.take_stream_data(meas_time,
                                              downsample_factor=downsample_factor,
@@ -1330,8 +1334,9 @@ class SmurfNoiseMixin(SmurfBase):
                 plt.close()
 
 
-    def analyze_psd(self, f, Pxx, fs=None, p0=[100.,0.5,0.01],
-            flux_ramp_freq=None, filter_a=None, filter_b=None):
+    def analyze_psd(
+            self, f, Pxx, fs=None, p0=None, flux_ramp_freq=None,
+            filter_a=None, filter_b=None):
         """
         Return model fit for a PSD.
         p0 (float array): initial guesses for model fitting: [white-noise level
@@ -1343,12 +1348,12 @@ class SmurfNoiseMixin(SmurfBase):
             The frequency information.
         Pxx : float array
             The power spectral data.
-
         fs : float or None, optional, default None
             Sampling frequency. If None, loads in the current sampling
             frequency.
-        p0 : float array, optional, default [100.0,0.5,0.01]
-            Initial guess for fitting PSDs.
+        p0 : float array or None, optional, default None
+            Initial guess for fitting PSDs.  If None, sets to p0 =
+            [100.0,0.5,0.01].
         flux_ramp_freq : float, optional, default None
             The flux ramp frequency in Hz.
 
@@ -1364,6 +1369,8 @@ class SmurfNoiseMixin(SmurfBase):
             The amplitude.
         """
         # incorporate timestream filtering
+        if p0 is None:
+            p0 = [100.,0.5,0.01]
         if filter_b is None:
             filter_b = self.get_filter_b()
         if filter_a is None:

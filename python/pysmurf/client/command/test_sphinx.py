@@ -17,7 +17,6 @@ import os
 import time
 
 import numpy as np
-from packaging import version
 
 from pysmurf.client.base import SmurfBase
 from pysmurf.client.command.sync_group import SyncGroup as SyncGroup
@@ -271,19 +270,13 @@ class SmurfCommandMixin(SmurfBase):
     _enabled_bays_reg = "EnabledBays"
 
     def get_enabled_bays(self, **kwargs):
-        r"""Returns list of enabled AMC bays.
-
-        Args
-        ----
-        \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caget` call.
+        """
+        Gets list of enabled bays.
 
         Returns
         -------
         bays : list of int
             Which bays were enabled on pysmurf server startup.
-
         """
         enabled_bays = self._caget(
             self.smurf_application +
@@ -294,92 +287,6 @@ class SmurfCommandMixin(SmurfBase):
         except Exception:
             return enabled_bays
 
-    _configuring_in_progress_reg = 'ConfiguringInProgress'
-
-    def get_configuring_in_progress(self, **kwargs):
-        r"""Whether or not configuration process in progress.
-
-        Set to `True` when the rogue `setDefaults` command is called
-        (usually by a call to :func:`set_defaults_pv`), and then set
-        to `False` when the rogue `setDefaults` method exits.
-
-        Args
-        ----
-        \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caget` call.
-
-        Returns
-        -------
-        bool or None
-           Boolean flag indicating whether or not the configuration
-           process is in progress.  Returns `True` if the
-           configuration process is in progress, otherwise returns
-           `False`. If the underlying PV can not be read, this
-           function returns `None`.
-
-        See Also
-        --------
-        :func:`set_defaults_pv` : Loads the default configuration.
-
-        :func:`get_system_configured` : Returns final state of
-                configuration process.
-
-        """
-        ret = self._caget(self.smurf_application +
-                          self._configuring_in_progress_reg,
-                          as_string=True, **kwargs)
-        if ret == 'True':
-            return True
-        elif ret == 'False':
-            return False
-        else:
-            return None
-
-    _system_configured_reg = 'SystemConfigured'
-
-    def get_system_configured(self, **kwargs):
-        r"""Returns final state of the configuration process.
-
-        If the configuration was loaded without errors by the rogue
-        `setDefaults` command (usually by a call to
-        :func:`set_defaults_pv`) and all tests pass, this flag is set
-        to `True` when the rogue `setDefaults` method exits.
-
-        Args
-        ----
-        \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `_caget` call.
-
-        Returns
-        -------
-        bool or None
-           Boolean flag indicating the final state of the
-           configuration process.  If the configuration was loaded
-           without errors and all tests passed, then this flag is set
-           to `True`.  Otherwise it is set to `False`. If the
-           underlying PV can not be read, this function returns
-           `None`.
-
-        See Also
-        --------
-        :func:`set_defaults_pv` : Loads the default configuration.
-
-        :func:`get_configuring_in_progress` : Whether or not
-                configuration process in progress.
-
-        """
-        ret = self._caget(self.smurf_application +
-                          self._system_configured_reg,
-                          as_string=True, **kwargs)
-
-        if ret == 'True':
-            return True
-        elif ret == 'False':
-            return False
-        else:
-            return None
 
     #### End SmurfApplication gets/sets
 
@@ -501,123 +408,12 @@ class SmurfCommandMixin(SmurfBase):
         n_processed_channels=int(0.8125*n_channels)
         return n_processed_channels
 
-    def set_defaults_pv(self, wait_after_sec=30.0,
-                        max_timeout_sec=400.0, caget_timeout_sec=10.0,
-                        **kwargs):
-        r"""Loads the default configuration.
-
-        Calls the rogue `setDefaults` command, which loads the default
-        software and hardware configuration.
-
-        If using pysmurf core code versions >=4.1.0 (as reported by
-        :func:`get_pysmurf_version`), returns `True` if the
-        `setDefaults` command was successfully executed on the rogue
-        side, or failed.  Returns `None` for older versions.
-
-        Args
-        ----
-        wait_after_sec : float or None, optional, default 30.0
-            If not None, the number of seconds to wait after
-            triggering the rogue `setDefaults` command.
-        max_timeout_sec : float, optional, default 400.0
-            Seconds to wait for system to configure before giving up.
-            Only used for pysmurf core code versions >= 4.1.0.
-        caget_timeout_sec : float, optional, default 10.0
-            Seconds to wait for each poll of the configuration process
-            status registers (see :func:`get_configuring_in_progress`
-            and :func:`get_system_configured`).  Only used for pysmurf
-            core code versions >= 4.1.0.
-        \**kwargs
-            Arbitrary keyword arguments.  Passed directly to
-            all `_caget` calls.
-
-        Returns
-        -------
-        success : bool or None
-            Returns `True` if the system was successfully configured,
-            otherwise returns `False`.  Configuration checking is only
-            implemented for pysmurf core code versions >= 4.1.0.  If
-            configuration validation is not available, returns None.
-
-        See Also
-        --------
-        :func:`get_configuring_in_progress` : Whether or not
-                configuration process in progress.
-        :func:`get_system_configured` : Returns final state of
-                configuration process.
-
+    def set_defaults_pv(self, **kwargs):
         """
-        # strip any commit info off the end of the pysmurf version
-        # string
-        pysmurf_version = self.get_pysmurf_version(**kwargs).split('+')[0]
-
-        # Extra registers allow confirmation of successful
-        # configuration for pysmurf versions >=4.1.0.
-        # see https://github.com/slaclab/pysmurf/issues/462
-        # for more details.
-        if version.parse(pysmurf_version) >= version.parse('4.1.0'):
-            # Will report how long the configuration process takes
-            # once complete.
-            start_time = time.time()
-
-            # Start by calling the 'setDefaults' command. Set the 'wait' flag
-            # to wait for the command to finish, although the server usually
-            # gets unresponsive during setup and the connection is lost.
-            self._caput(
-                self.epics_root + ':AMCc:setDefaults', 1,
-                wait_done=True, **kwargs)
-
-            # Now let's wait until the process is finished. We define a maximum
-            # time we will wait, 400 seconds in this case, divided in smaller
-            # tries of 10 second each
-            num_retries = int(max_timeout_sec/caget_timeout_sec)
-            success = False
-            for _ in range(num_retries):
-                # Try to read the status of the
-                # "ConfiguringInProgress" flag.
-                #
-                # We successfully exit the loop when we are able to
-                # read the "ConfiguringInProgress" flag and it is set
-                # to "False".  Otherwise we keep trying.
-                if self.get_configuring_in_progress(
-                        timeout=caget_timeout_sec, **kwargs) is False:
-                    success=True
-                    break
-
-            # If after out maximum defined timeout, we weren't able to
-            # read the "ConfiguringInProgress" flags as "False", we
-            # error on error.
-            if not success:
-                self.log(
-                    'The system configuration did not finish after'
-                    f' {max_timeout_sec} seconds.', self.LOG_ERROR)
-                return False
-
-            # At this point, we determine that the configuration
-            # sequence ended in the server via the
-            # "ConfiguringInProgress" flag.
-            # The final status of the configuration sequence is
-            # available in the "SystemConfigured" flag.
-            # So, let's read it and use it as out return value.
-            success = self.get_system_configured(
-                timeout=caget_timeout_sec, **kwargs)
-
-            # Measure how long the process take
-            end_time = time.time()
-
-            self.log(
-                'System configuration finished after'
-                f' {int(end_time - start_time)} seconds.'
-                f' The final state was {success}.',
-                self.LOG_USER)
-
-            return success
-
-        else:
-            self._caput(
-                self.epics_root + ':AMCc:setDefaults', 1,
-                wait_after=wait_after_sec, **kwargs)
-            return None
+        Sets the default epics variables
+        """
+        self._caput(self.epics_root + ':AMCc:setDefaults', 1, wait_after=30,
+            **kwargs)
 
     def set_read_all(self, **kwargs):
         """
@@ -2742,189 +2538,6 @@ class SmurfCommandMixin(SmurfBase):
             self.jesd_tx_root.format(bay) +
             self._jesd_tx_status_valid_cnt_reg + f'[{num}]',
             **kwargs)
-
-    def set_check_jesd(self, max_timeout_sec=60.0,
-                       caget_timeout_sec=5.0, **kwargs):
-        r"""Runs JESD health check and returns status.
-
-        Toggles the pysmurf core code `SmurfApplication:CheckJesd`
-        register, which triggers a call to the `AppTop.JesdHealth`
-        method. The command will check if the Rogue ZIP file's
-        `AppTop` device contains the `JesdHealth` method, call it if
-        it exists, and return the result.
-
-        The `SmurfApplication:CheckJesd` and
-        `SmurfApplication:JesdStatus` (see :func:`get_jesd_status`)
-        registers are only present in pysmurf core code versions
-        >=4.1.0 ; returns `None` if pysmurf core code version is
-        <4.1.0.  The `AppTop.JesdHealth` method is only present in
-        Rogue ZIP file versions >=0.3.0 ; also returns `None` if the
-        `AppTop.JesdHealth` method is not present in the Rogue ZIP
-        file.
-
-        Args
-        ----
-        max_timeout_sec : float, optional, default 60.0
-            Seconds to wait for JESD health check to complete before
-            giving up.
-        caget_timeout_sec : float, optional, default 5.0
-            Seconds to wait for each poll of the JESD health check
-            status register (see :func:`get_jesd_status`).
-        \**kwargs
-            Arbitrary keyword arguments.  Passed directly to
-            all `_caget` calls.
-
-        Returns
-        -------
-        status : str or None
-            Returns JESD health status (see :func:`get_jesd_status`
-            for a description of the possible statuses).  Returns
-            `None` for pysmurf core code versions < 4.1.0 and Rogue
-            ZIP file versions that do not have the `AppTop.JesdHealth`
-            method.
-
-        See Also
-        --------
-        :func:`get_jesd_status` : Gets the status of the Rogue
-              `AppTop.JesdHealth` method.
-
-        """
-        # strip any commit info off the end of the pysmurf version
-        # string
-        pysmurf_version = self.get_pysmurf_version(**kwargs).split('+')[0]
-
-        # Extra registers allow confirmation of JESD lock for pysmurf
-        # versions >=4.1.0 and Rogue ZIP file versions >=0.3.0.  see
-        # https://github.com/slaclab/pysmurf/issues/467 for more
-        # details.
-        if version.parse(pysmurf_version) >= version.parse('4.1.0'):
-
-            # Will report how long the JESD health check takes to
-            # complete.
-            start_time = time.time()
-
-            # First, check if the 'JesdStatus' register is set to 'Not found'. That means that the
-            # current ZIP file does not contain the new JesdHealth command.
-            status = self.get_jesd_status(**kwargs)
-
-            if status == 'Not found':
-                self.log(
-                    'The `JesdHealth` method is not present in the Rogue'
-                    ' ZIP file.'  , self.LOG_ERROR)
-                return status
-
-            # If the command exists, then start by calling the `CheckJesd`
-            # wrapper command.
-            self._caput(
-                self.epics_root + ':AMCc:SmurfApplication:CheckJesd', 1,
-                wait_done=True, **kwargs)
-
-            # Now let's wait for it to finish.
-            num_retries = int(max_timeout_sec/caget_timeout_sec)
-            success = False
-            status = None
-            for _ in range(num_retries):
-                # Try to read the status register.
-                status = self.get_jesd_status(timeout=caget_timeout_sec, **kwargs)
-
-                if status not in [None, 'Checking']:
-                    success = True
-                    break
-
-            # If after out maximum defined timeout, we weren't able to
-            # read the "JesdStatus" status register with a valid status,
-            # then we exit on error.
-            if not success:
-                self.log(
-                    'JESD health check did not finish after'
-                    f' {max_timeout_sec} seconds.', self.LOG_ERROR)
-                return status
-
-            # Measure how long the process take
-            end_time = time.time()
-
-            self.log(
-                'JESD health check finished after'
-                f' {int(end_time - start_time)} seconds.'
-                f' The final status was {status}.',
-                self.LOG_USER)
-
-            return status
-        else:
-            self.log(
-                'The `SmurfApplication:CheckJesd` and '
-                ' `SmurfApplication:JesdStatus` registers are not'
-                ' implemented for pysmurf core code versions <4.1.0'
-                f' (current version is {pysmurf_version}).',
-                self.LOG_ERROR)
-            return None
-
-    _jesd_status_reg = "JesdStatus"
-
-    def get_jesd_status(self, **kwargs):
-        r"""Gets the status of the Rogue `AppTop.JesdHealth` method.
-
-        Returns the status of a call to the `AppTop.JesdHealth`
-        method.  States are:
-
-        * "Unlocked" : The `AppTop.JesdHealth` command has been run
-          and has reported that the JESD were unlocked (**that's
-          bad!**).
-        * "Locked" : The `AppTop.JesdHealth` command has been run and
-          has reported that the JESD were locked (that's good!).
-        * "Checking" : The `AppTop.JesdHealth` command is in progress.
-        * "Not found" : The Rogue ZIP file currently in use does not
-          contain the `AppTop.JesdHealth` method.
-        * `None` : The `SmurfApplication:JesdStatus` register is not
-          implemented in pysmurf core code versions <4.1.0.
-
-        Args
-        ----
-        \**kwargs
-            Arbitrary keyword arguments.  Passed directly to
-            all `_caget` calls.
-
-        Returns
-        -------
-        status : str or None
-            The status of the Rogue `AppTop.JesdHealth` method.
-            Returns None for pysmurf core code versions <4.1.0 where
-            the `SmurfApplication:JesdStatus` register is not
-            implemented.
-
-        See Also
-        --------
-        :func:`set_check_jesd` : Gets the status of the Rogue
-              `AppTop.JesdHealth` method.
-
-        """
-        # strip any commit info off the end of the pysmurf version
-        # string
-        pysmurf_version = self.get_pysmurf_version(**kwargs).split('+')[0]
-
-        # Extra registers were added to allow confirmation of JESD
-        # lock for pysmurf versions >=4.1.0.
-        # https://github.com/slaclab/pysmurf/issues/467 for more
-        # details.
-        if version.parse(pysmurf_version) >= version.parse('4.1.0'):
-            # Must be as_string=True to compare below
-            status =  self._caget(
-                self.smurf_application + self._jesd_status_reg,
-                as_string=True, **kwargs)
-
-            if status == 'Not found':
-                self.log(
-                    'The `JesdHealth` method is not present in the Rogue'
-                    ' ZIP file.'  , self.LOG_ERROR)
-
-            return status
-        else:
-            self.log(
-                'The `SmurfApplication:JesdStatus` register is not'
-                ' implemented for pysmurf core code versions <4.1.0'
-                f' (current version is {pysmurf_version}).',
-                self.LOG_ERROR)
-            return None
 
     _fpga_uptime_reg = 'UpTimeCnt'
 
