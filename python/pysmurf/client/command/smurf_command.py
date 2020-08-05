@@ -579,7 +579,7 @@ class SmurfCommandMixin(SmurfBase):
                 # read the "ConfiguringInProgress" flag and it is set
                 # to "False".  Otherwise we keep trying.
                 if self.get_configuring_in_progress(
-                       timeout=caget_timeout_sec, **kwargs) == False:
+                        timeout=caget_timeout_sec, **kwargs) is False:
                     success=True
                     break
 
