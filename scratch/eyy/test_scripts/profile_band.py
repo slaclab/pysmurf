@@ -48,7 +48,7 @@ def make_html(data_path, loopback=False):
     if not loopback:
         n_res_found = len(status['which_on_before_check']['output'])
         n_res_track = len(status['which_on_after_check']['output'])
-        ivdict = np.load(status['slow_iv_all']['output'].split('_raw_data')[0]+'.npy',
+        ivdict = np.load(status['run_iv']['output'].split('_raw_data')[0]+'.npy',
             allow_pickle=True).item()
         n_tes = len(ivdict[band].keys())
 
@@ -306,10 +306,10 @@ def run(band, epics_root, config_file, shelf_manager, setup, no_band_off=False,
         # now take data using take_noise_psd and plot stuff
 
         # IV.
-        status = execute(status, lambda: S.slow_iv_all(np.arange(8),
+        status = execute(status, lambda: S.run_iv(np.arange(8),
             overbias_voltage=19.9, bias_high=10, bias_step=.01, wait_time=.1,
             high_current_mode=False, overbias_wait=.5, cool_wait=60,
-            make_plot=True), 'slow_iv_all')
+            make_plot=True), 'run_iv')
     else:
         # Randomly turn on channels and stream them
         x = np.random.randn(512) > 0

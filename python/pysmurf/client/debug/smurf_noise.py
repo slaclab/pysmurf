@@ -394,7 +394,7 @@ class SmurfNoiseMixin(SmurfBase):
             self.log(f'Measuring for tone power {t}')
 
             # Tune the band with the new drive power
-            self.tune_band_serial(band, drive=t,
+            self.tune_band_serial(band, tone_power=t,
                 new_master_assignment=new_master_assignment,
                 from_old_tune=from_old_tune, old_tune=old_tune)
 
@@ -1442,7 +1442,7 @@ class SmurfNoiseMixin(SmurfBase):
 
         channel = self.which_on(2)
         n_channel = len(channel)
-        drive = self.freq_resp[band]['drive']
+        tone_power = self.freq_resp[band]['tone_power']
 
         self.log('Taking noise with all channels')
 
@@ -1454,7 +1454,7 @@ class SmurfNoiseMixin(SmurfBase):
             self.log(f'ch {ch:03} - {i+1} of {n_channel}')
             self.band_off(band)
             self.flux_ramp_on()
-            self.set_amplitude_scale_channel(band, ch, drive)
+            self.set_amplitude_scale_channel(band, ch, tone_power)
             self.set_feedback_enable_channel(band, ch, 1, wait_after=1)
             filename = self.take_stream_data(meas_time)
             ret[ch] = filename
