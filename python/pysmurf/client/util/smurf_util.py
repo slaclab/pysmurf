@@ -34,7 +34,7 @@ class SmurfUtilMixin(SmurfBase):
     def take_debug_data(self, band, channel=None, nsamp=2**19, filename=None,
             IQstream=1, single_channel_readout=1, debug=False, rf_iq=False,
             write_log=True):
-        """ Takes raw debugging data
+        """Takes raw debugging data.
 
         Args
         ----
@@ -65,6 +65,7 @@ class SmurfUtilMixin(SmurfBase):
             The frequency error.
         sync : float array
             The sync count.
+
         """
         # Set proper single channel readout
         if channel is not None:
@@ -168,6 +169,34 @@ class SmurfUtilMixin(SmurfBase):
     def estimate_phase_delay(self, band, nsamp=2**19, make_plot=True,
             show_plot=True, save_plot=True, save_data=True, n_scan=5,
             timestamp=None, uc_att=24, dc_att=0, freq_min=-2.5E8, freq_max=2.5E8):
+        """Estimate latency.
+
+        Args
+        ----
+        band : int
+            The band to estimate phase delay on.
+        channel : int or None, optional, default None
+            The channel to take debug data on in single_channel_mode.
+        nsamp : int, optional, default 2**19
+            The number of samples to take.
+        filename : str or None, optional, default None
+            The name of the file to save to.
+        IQstream : int, optional, default 1
+            Whether to take the raw IQ stream.
+        single_channel_readout : int, optional, default 1
+            Whether to look at one channel.
+        debug : bool, optional, default False
+            Whether to take data in debug mode.
+        rf_iq : bool, optional, default False
+            Return the RF IQ. Must provide channel.
+        write_log : bool, optional, default True
+            Whether to write low-level commands to the log file.
+
+        Returns
+        -------
+        ??? : ???
+           ???
+        """
 
         # For some reason, pyrogue flips out if you try to set refPhaseDelay
         # to zero in 071150b0.  This allows an offset ; the offset just gets
