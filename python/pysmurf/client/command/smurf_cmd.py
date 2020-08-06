@@ -326,14 +326,14 @@ if __name__ == "__main__":
 
         if args.bias_group < 0: # all
             S.log('running slow IV on all bias groups')
-            S.slow_iv_all(bias_groups=S.all_groups, wait_time=args.iv_wait_time,
+            S.run_iv(bias_groups=S.all_groups, wait_time=args.iv_wait_time,
                 bias_high=iv_bias_high, bias_low = iv_bias_low,
                 high_current_wait=args.iv_high_current_wait,
                 high_current_mode=S.high_current_mode_bool,
                 bias_step=iv_bias_step, make_plot=False)
         else: # individual bias group
             S.log(f'running slow IV on bias group {args.bias_group}')
-            S.slow_iv_all(bias_groups=np.array([args.bias_group]),
+            S.run_iv(bias_groups=np.array([args.bias_group]),
                 wait_time=args.iv_wait_time, bias_high=iv_bias_high,
                 bias_low=iv_bias_low,
                 high_current_wait=args.iv_high_current_wait,
