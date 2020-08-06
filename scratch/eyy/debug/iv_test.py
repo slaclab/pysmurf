@@ -27,7 +27,7 @@ for ch in chs:
     phase = S.iq_to_phase(I[ch], Q[ch]) * 1.443
 
     print('Running IV analysis')
-    r, rn, idx = S.analyze_slow_iv(bias, phase, make_plot=True, 
+    r, rn, idx = S.analyze_iv(bias, phase, make_plot=True, 
         show_plot=True, save_plot=True, band=3, channel=ch, 
         basename='1537818492')
     ivs[ch] = {
