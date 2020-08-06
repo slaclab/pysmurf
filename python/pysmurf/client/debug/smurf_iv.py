@@ -32,7 +32,8 @@ class SmurfIVMixin(SmurfBase):
                     show_plot=False, overbias_wait=2., cool_wait=30,
                     make_plot=True, save_plot=True, plotname_append='',
                     channels=None, band=None, high_current_mode=True,
-                    overbias_voltage=8., grid_on=True, phase_excursion_min=3.):
+                    overbias_voltage=8., grid_on=True, phase_excursion_min=3.,
+                    bias_line_resistance=None):
         """Takes a slow IV
 
         Steps the TES bias down slowly. Starts at bias_high to
@@ -158,7 +159,7 @@ class SmurfIVMixin(SmurfBase):
             show_plot=show_plot, save_plot=save_plot,
             plotname_append=plotname_append, R_sh=R_sh, grid_on=grid_on,
             phase_excursion_min=phase_excursion_min, channel=channels,
-            band=band)
+            band=band, bias_line_resistance=bias_line_resistance)
 
         return path
 
