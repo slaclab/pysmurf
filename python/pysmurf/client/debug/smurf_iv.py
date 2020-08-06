@@ -28,11 +28,12 @@ class SmurfIVMixin(SmurfBase):
 
     @set_action()
     def run_iv(self, bias_groups=None, wait_time=.1, bias=None,
-                    bias_high=1.5, bias_low=0, bias_step=.005,
-                    show_plot=False, overbias_wait=2., cool_wait=30,
-                    make_plot=True, save_plot=True, plotname_append='',
-                    channels=None, band=None, high_current_mode=True,
-                    overbias_voltage=8., grid_on=True, phase_excursion_min=3.):
+               bias_high=1.5, bias_low=0, bias_step=.005,
+               show_plot=False, overbias_wait=2., cool_wait=30,
+               make_plot=True, save_plot=True, plotname_append='',
+               channels=None, band=None, high_current_mode=True,
+               overbias_voltage=8., grid_on=True,
+               phase_excursion_min=3.):
         """Takes a slow IV
 
         Steps the TES bias down slowly. Starts at bias_high to
@@ -292,12 +293,13 @@ class SmurfIVMixin(SmurfBase):
 
     @set_action()
     def analyze_iv_from_file(self, fn_iv_raw_data, make_plot=True,
-                                  show_plot=False, save_plot=True,
-                                  plotname_append='', R_sh=None,
-                                  phase_excursion_min=3., grid_on=False,
-                                  R_op_target=0.007, pA_per_phi0=None,
-                                  channel=None, band=None, datafile=None,
-                                  plot_dir=None, bias_line_resistance=None):
+                             show_plot=False, save_plot=True,
+                             plotname_append='', R_sh=None,
+                             phase_excursion_min=3., grid_on=False,
+                             R_op_target=0.007, pA_per_phi0=None,
+                             channel=None, band=None, datafile=None,
+                             plot_dir=None,
+                             bias_line_resistance=None):
         """
         Function to analyze a load curve from its raw file. Can be used to
           analyze IV's/generate plots separately from issuing commands.
