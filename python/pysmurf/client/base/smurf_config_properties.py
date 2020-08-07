@@ -2167,16 +2167,15 @@ class SmurfConfigPropertiesMixin:
 
         The total effective delay can be fine tuned by also setting
         the `refPhaseDelayFine` register (see
-        :func:`ref_phase_delay_fine`). which adjusts the compensated
+        :func:`ref_phase_delay_fine`) which adjusts the compensated
         delay more finely by 307.2 MHz ticks (although they way
         `refPhaseDelayFine` compensates for delay in firmware is not
         the same as `refPhaseDelay` - see the docstring for the
-        :func:`ref_phase_delay_fine` routine for more details).
+        :func:`ref_phase_delay_fine` property for more details).
 
         Specified in the pysmurf configuration file as
         `init:band_#:refPhaseDelay` with # the SMuRF 500 MHz band
-        number (in [0,7]), *e.g.* `init:band_0:refPhaseDelay` for band
-        0.
+        number *e.g.* `init:band_0:refPhaseDelay` for band 0.
 
         .. warning::
            Because `refPhaseDelay` and `refPhaseDelayFine` include the
@@ -2187,10 +2186,11 @@ class SmurfConfigPropertiesMixin:
         --------
         For firmware where `refPhaseDelay` is measured in 2.4 MHz
         ticks, if `refPhaseDelay` is 6 that corresponds to a time
-        delay of 6/(2.4 MHz) = 2.5uS.  For example, a 2 microsecond
-        delay for a 100 kHz phi0 rate corresponds to a ~1 rad phase
-        shift -- so it's particularly important to set `refPhaseDelay`
-        correctly if running at high phi0 rates (10 kHz or higher).
+        delay of 6/(2.4 MHz) = 2.5 microseconds.  For example, a 2
+        microsecond delay for a 100 kHz phi0 rate corresponds to an ~1
+        rad phase shift -- so it's particularly important to set
+        `refPhaseDelay` correctly if running at high phi0 rates (10
+        kHz or higher).
 
         Returns
         -------
@@ -2209,7 +2209,7 @@ class SmurfConfigPropertiesMixin:
 
         :func:`ref_phase_delay_fine` : Fine adjustment for system roundtrip delay.
 
-        :func:`lms_delay` : Tracking algorithm system roundtrip delay.
+        :func:`lms_delay` : System roundtrip delay including the tracking algorithm.
 
         """
         return self._ref_phase_delay
@@ -2251,8 +2251,7 @@ class SmurfConfigPropertiesMixin:
 
         Specified in the pysmurf configuration file as
         `init:band_#:refPhaseDelayFine` with # the SMuRF 500 MHz band
-        number (in [0,7]), *e.g.* `init:band_0:refPhaseDelayFine` for band
-        0.
+        number *e.g.* `init:band_0:refPhaseDelayFine` for band 0.
 
         .. warning::
            Because `refPhaseDelay` and `refPhaseDelayFine` include the
@@ -2294,7 +2293,7 @@ class SmurfConfigPropertiesMixin:
 
         :func:`ref_phase_delay` : Coarse system roundtrip delay.
 
-        :func:`lms_delay` : Tracking algorithm system roundtrip delay.
+        :func:`lms_delay` : System roundtrip delay including the tracking algorithm.
 
         """
         return self._ref_phase_delay_fine
