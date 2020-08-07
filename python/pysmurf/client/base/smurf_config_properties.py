@@ -2271,7 +2271,7 @@ class SmurfConfigPropertiesMixin:
         `refPhaseDelay` does).  So setting `refPhaseDelayFine` to 61
         would result in a programmed delay of:
 
-        | refPhaseDelay/(2.4 MHz) - refPhaseDelayFine/(307.2 MHz)
+        | `refPhaseDelay`/(2.4 MHz) - `refPhaseDelayFine`/(307.2 MHz)
         | = 6/(2.4 MHz) - 61/(307.2 MHz)
         | = 2.30143 microseconds
 
