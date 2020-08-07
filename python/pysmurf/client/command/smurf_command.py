@@ -1413,7 +1413,7 @@ class SmurfCommandMixin(SmurfBase):
             self._cryo_root(band) + self._amplitude_scale_array_reg,
             **kwargs)
 
-    def set_amplitude_scale_array_currentchans(self, band, drive,
+    def set_amplitude_scale_array_currentchans(self, band, tone_power,
                                                **kwargs):
         """
         Set only the currently on channels to a new drive power. Essentially
@@ -1424,14 +1424,14 @@ class SmurfCommandMixin(SmurfBase):
         ----
         band : int
             The band to change.
-        drive : int
+        tone_power : int
             Tone power to change to.
         """
 
         old_amp = self.get_amplitude_scale_array(band, **kwargs)
         n_channels=self.get_number_channels(band)
         new_amp = np.zeros((n_channels,),dtype=int)
-        new_amp[np.where(old_amp!=0)] = drive
+        new_amp[np.where(old_amp!=0)] = tone_power
         self.set_amplitude_scale_array(self, new_amp, **kwargs)
 
     _feedback_enable_array_reg = 'feedbackEnableArray'
