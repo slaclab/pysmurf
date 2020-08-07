@@ -33,7 +33,7 @@ class SmurfIVMixin(SmurfBase):
                make_plot=True, save_plot=True, plotname_append='',
                channels=None, band=None, high_current_mode=True,
                overbias_voltage=8., grid_on=True,
-               phase_excursion_min=3.):
+               phase_excursion_min=3., bias_line_resistance=None):
         """Takes a slow IV
 
         Steps the TES bias down slowly. Starts at bias_high to
@@ -81,7 +81,9 @@ class SmurfIVMixin(SmurfBase):
             Grids on plotting. This is Ari's fault.
         phase_excursion_min : float, optional, default 3.0
             The minimum phase excursion required for making plots.
-
+        bias_line_resistance : float or None, optional, default None
+            The resistance of the bias lines in Ohms. If None, loads value
+            in config file
         Returns
         -------
         output_path : str
@@ -159,7 +161,7 @@ class SmurfIVMixin(SmurfBase):
             show_plot=show_plot, save_plot=save_plot,
             plotname_append=plotname_append, R_sh=R_sh, grid_on=grid_on,
             phase_excursion_min=phase_excursion_min, channel=channels,
-            band=band)
+            band=band, bias_line_resistance=bias_line_resistance)
 
         return path
 
@@ -651,6 +653,7 @@ class SmurfIVMixin(SmurfBase):
         v_bias_bin = np.zeros(n_step)
         i_bias_bin = np.zeros(n_step)
 
+        # load bias line resistance for voltage/current conversion
         if bias_line_resistance is None:
             r_inline = self._bias_line_resistance
         else:
