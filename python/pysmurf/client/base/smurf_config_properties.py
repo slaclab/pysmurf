@@ -2166,9 +2166,9 @@ class SmurfConfigPropertiesMixin:
         The programmed delay can be fine tuned by setting the
         `refPhaseDelayFine` register using the
         :func:`ref_phase_delay_fine` routine. which adjusts the
-        compensated delay more finely by 9.6 MHz ticks (although they
+        compensated delay more finely by 307.2 MHz ticks (although they
         way `refPhaseDelayFine` compensates for delay in firmware is
-        not the same as `refPhaseDelay - see the docstring for the
+        not the same as `refPhaseDelay` - see the docstring for the
         :func:`ref_phase_delay_fine` routine for more details).
 
         Specified in the pysmurf configuration file as
@@ -2202,7 +2202,7 @@ class SmurfConfigPropertiesMixin:
               Measures `ref_phase_delay` and `ref_phase_delay_fine`.
 
         :func:`ref_phase_delay_fine` : Finer system roundtrip delay
-              compensation (9.6 MHz ticks).
+              compensation (307.2 MHz ticks).
 
         :func:`lms_delay` : Tracking algorithm system roundtrip delay.
 
@@ -2223,17 +2223,57 @@ class SmurfConfigPropertiesMixin:
     # Getter
     @property
     def ref_phase_delay_fine(self):
-        """Short description.
+        """Fine adjustment for (analog + digital) round-trip delay.
 
-        Gets or sets ?.
-        Units are ?.
+        Gets or sets fine adjustment for the total (analog + digital)
+        round-trip delay.  This allows for fine adjustment of the
+        total effective system round-trip delay on top of the coarser
+        correction provided by setting :func:`ref_phase_delay`.
+
+        Unit-less unsigned integer.  Each step is a 9.6 MHz tick.
+        Different carrier firmware versions support different ranges.
+
+        This register is named `refPhaseDelayFine` in firmware and is
+        implemented differently than :func:`ref_phase_delay` ; setting
+        `refPhaseDelayFine` adds a time lag to the RF DAC output.
+        `refPhaseDelayFine` can be measured using the
+        :func:`~pysmurf.client.util.smurf_util.SmurfUtilMixin.estimate_phase_delay`
+        routine.
 
         Specified in the pysmurf configuration file as
-        `ref_phase_delay_fine`.
+        `init:band_#:refPhaseDelayFine` with # the SMuRF 500 MHz band
+        number (in [0,7]), *e.g.* `init:band_0:refPhaseDelayFine` for band
+        0.
+
+        Examples
+        --------
+        Say the total delay measured using
+        :func:`~pysmurf.client.util.smurf_util.SmurfUtilMixin.estimate_phase_delay`
+        is 2.3 microseconds.  To compensate for this delay, you'd
+        first set `refPhaseDelay` to 6, which is 2.5 microseconds
+        (since `refPhaseDelay` is measured in 2.4 MHz ticks and 6/(2.4
+        MHz) = 2.5 microseconds).  Because `refPhaseDelayFine` adds
+        time lag to the RF DAC output, it subtracts from the total
+        delay (so it compensates in the opposite direction that
+        `refPhaseDelay` does).
+
+        Returns
+        -------
+        int
+           Fine adjustment for (analog + digital) round-trip delay.
+           Unit-less unsigned integer.  Each step is a 9.6 MHz tick.
+           Different carrier firmware versions support different
+           ranges.
 
         See Also
         --------
-        ?
+        :func:`~pysmurf.client.util.smurf_util.SmurfUtilMixin.estimate_phase_delay` :
+              Measures `ref_phase_delay` and `ref_phase_delay_fine`.
+
+        :func:`ref_phase_delay` : Coarse system roundtrip delay
+              compensation (2.4 MHz ticks).
+
+        :func:`lms_delay` : Tracking algorithm system roundtrip delay.
 
         """
         return self._ref_phase_delay_fine
