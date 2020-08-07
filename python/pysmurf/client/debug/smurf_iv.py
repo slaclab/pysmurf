@@ -84,7 +84,7 @@ class SmurfIVMixin(SmurfBase):
         bias_line_resistance : float or None, optional, default None
             The resistance of the bias lines in Ohms. If None, loads value
             in config file
-            
+
         Returns
         -------
         output_path : str
