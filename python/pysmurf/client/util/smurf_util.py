@@ -169,33 +169,46 @@ class SmurfUtilMixin(SmurfBase):
     def estimate_phase_delay(self, band, nsamp=2**19, make_plot=True,
             show_plot=True, save_plot=True, save_data=True, n_scan=5,
             timestamp=None, uc_att=24, dc_att=0, freq_min=-2.5E8, freq_max=2.5E8):
-        """Estimate latency.
+        """Estimates total system latency for requested band.
 
         Args
         ----
         band : int
-            The band to estimate phase delay on.
-        channel : int or None, optional, default None
-            The channel to take debug data on in single_channel_mode.
+           The band to estimate phase delay on.
         nsamp : int, optional, default 2**19
-            The number of samples to take.
-        filename : str or None, optional, default None
-            The name of the file to save to.
-        IQstream : int, optional, default 1
-            Whether to take the raw IQ stream.
-        single_channel_readout : int, optional, default 1
-            Whether to look at one channel.
-        debug : bool, optional, default False
-            Whether to take data in debug mode.
-        rf_iq : bool, optional, default False
-            Return the RF IQ. Must provide channel.
-        write_log : bool, optional, default True
-            Whether to write low-level commands to the log file.
+           The number of samples to take.
+        make_plot : bool, optional, default True
+           ???
+        show_plot : bool, optional, default True
+           ???
+        save_plot : bool, optional, default True
+           ???
+        save_data : bool, optional, default True
+           ???
+        n_scan : int, optional, default 5
+           ???
+        timestamp : str, optional, default None
+           ???
+        uc_att : int, optional, default 24
+           ???
+        dc_att : int, optional, default 0
+           ???
+        freq_min : float, optional, default -2.5E8
+           ???
+        freq_max : float, optional, default 2.5E8
+           ???
 
         Returns
         -------
-        ??? : ???
+        refPhaseDelay : ???
            ???
+        refPhaseDelayFine : ???
+           ???
+        processing_delay_us : ???
+           ???
+        dsp_corr_delay_us : ???
+           ???
+
         """
 
         # For some reason, pyrogue flips out if you try to set refPhaseDelay
@@ -239,49 +252,16 @@ class SmurfUtilMixin(SmurfBase):
             else:
                 plt.ioff()
 
-        load_full_band_resp=False
-        fbr_path='/data/smurf_data/20190702/1562052474/outputs'
-        fbr_ctime=1562052477
-
-        load_find_freq=False
-        ff_path='/data/smurf_data/20190702/1562052474/outputs'
-        ff_ctime=1562052881
-
-        load_find_freq_check=False
-        ff_corr_path='/data/smurf_data/20190702/1562052474/outputs'
-        ff_corr_ctime=1562053274
-
         bay=int(band/4)
-
         fw_abbrev_sha=self.get_fpga_git_hash_short()
 
         self.band_off(band)
         self.flux_ramp_off()
 
-        freq_cable=None
-        resp_cable=None
-        if load_full_band_resp:
-            self.log('Loading full band resp data')
-            fbr_freq_file=(
-                os.path.join(fbr_path,
-                             f'{fbr_ctime}_freq_full_band_resp.txt'))
-            fbr_real_resp_file=(
-                os.path.join(fbr_path,
-                             f'{fbr_ctime}_real_full_band_resp.txt'))
-            fbr_complex_resp_file=(
-                os.path.join(fbr_path,
-                             f'{fbr_ctime}_imag_full_band_resp.txt'))
-
-            freq_cable = np.loadtxt(fbr_freq_file)
-            real_resp_cable = np.loadtxt(fbr_real_resp_file)
-            complex_resp_cable = np.loadtxt(fbr_complex_resp_file)
-            resp_cable = real_resp_cable + 1j*complex_resp_cable
-        else:
-            self.log('Running full band resp')
-            freq_cable, resp_cable = self.full_band_resp(band, nsamp=nsamp,
-                make_plot=make_plot,
-                save_data=save_data,
-                n_scan=n_scan)
+        self.log('Running full band resp')
+        freq_cable, resp_cable = self.full_band_resp(
+            band, nsamp=nsamp, make_plot=make_plot,
+            save_data=save_data, n_scan=n_scan)
 
         idx_cable = np.where( (freq_cable > freq_min) & (freq_cable < freq_max) )
 
@@ -301,25 +281,8 @@ class SmurfUtilMixin(SmurfBase):
         # max is 255
         self.set_ref_phase_delay_fine(band,refPhaseDelayFine0)
 
-        freq_dsp=None
-        resp_dsp=None
-        if load_find_freq:
-            self.log('Loading DSP frequency sweep data')
-            ff_freq_file=(
-                os.path.join(ff_path,
-                             f'{ff_ctime}_amp_sweep_freq.txt'))
-            ff_resp_file=(
-                os.path.join(ff_path,
-                             f'{ff_ctime}_amp_sweep_resp.txt'))
-
-            freq_dsp=np.loadtxt(ff_freq_file)
-            resp_dsp=np.loadtxt(ff_resp_file,dtype='complex')
-        else:
-            self.log('Running find_freq')
-            freq_dsp,resp_dsp=self.find_freq(band,subband=dsp_subbands)
-            ## not really faster if reduce n_step or n_read...somehow.
-            #freq_dsp,resp_dsp=self.full_band_ampl_sweep(band,
-            # subband=dsp_subbands, tone_power=tone_power, n_read=2, n_step=n_step)
+        self.log('Running find_freq')
+        freq_dsp,resp_dsp=self.find_freq(band,subband=dsp_subbands)
 
         # only preserve data in the subband half width
         freq_dsp_subset=[]
@@ -377,22 +340,8 @@ class SmurfUtilMixin(SmurfBase):
         # max is 255
         self.set_ref_phase_delay_fine(band,refPhaseDelayFine)
 
-        freq_dsp_corr=None
-        resp_dsp_corr=None
-        if load_find_freq_check:
-            self.log('Loading delay-corrected DSP frequency sweep data')
-            ff_corr_freq_file=(
-                os.path.join(ff_corr_path,
-                             f'{ff_corr_ctime}_amp_sweep_freq.txt'))
-            ff_corr_resp_file=(
-                os.path.join(ff_corr_path,
-                             f'{ff_corr_ctime}_amp_sweep_resp.txt'))
-
-            freq_dsp_corr=np.loadtxt(ff_corr_freq_file)
-            resp_dsp_corr=np.loadtxt(ff_corr_resp_file,dtype='complex')
-        else:
-            self.log('Running find_freq')
-            freq_dsp_corr,resp_dsp_corr=self.find_freq(band,dsp_subbands)
+        self.log('Running find_freq')
+        freq_dsp_corr,resp_dsp_corr=self.find_freq(band,dsp_subbands)
 
         freq_dsp_corr_subset=[]
         resp_dsp_corr_subset=[]
