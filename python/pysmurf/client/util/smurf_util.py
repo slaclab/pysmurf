@@ -171,7 +171,28 @@ class SmurfUtilMixin(SmurfBase):
             timestamp=None, uc_att=None, dc_att=None, freq_min=-2.4E6, freq_max=2.4E6):
         """Estimates total system latency for requested band.
 
-        Estimates by sweeping the central subband of the 500 MHz band.  
+        Measures the analog and digital (=processing) phase delay (or
+        latency) by sweeping the [freq_min, freq_max] interval of the
+        requested 500 MHz band.  Estimates the best values for the
+        `refPhaseDelay` and `refPhaseDelayFine` registers to
+        compensate for the measured delay.  Three steps:
+
+        #. Measures the analog latency using the [freq_min, freq_max]
+        sub-interval of data taken using the
+        :func:`~pysmurf.client.tune.smurf_tune.SmurfTuneMixin.full_band_resp`
+        routine.
+        #. Measures the total latency using the
+        :func:`~pysmurf.client.tune.smurf_tune.SmurfTuneMixin.find_freq`
+        routine.
+        #. Sets the `refPhaseDelay` and `refPhaseDelayFine` registers
+        to the values computed to best compensate for the total
+        measured latency and re-measures the total latency again using
+        the
+        :func:`~pysmurf.client.tune.smurf_tune.SmurfTuneMixin.find_freq`
+        routine.
+
+        On completion, the `refPhaseDelay` and `refPhaseDelayFine`
+        registers are set to the estimated optimal values.
 
         Args
         ----
@@ -203,10 +224,10 @@ class SmurfUtilMixin(SmurfBase):
            uses currently programmed setting.
         freq_min : float, optional, default -2.4E6
            Lower bound of the frequency interval used to estimate the
-           phase delay, in Hz.
+           phase delay, in Hz.  From the center of the 500 MHz band.
         freq_max : float, optional, default 2.4E6
            Upper bound of the frequency interval used to estimate the
-           phase delay, in Hz.
+           phase delay, in Hz.  From the center of the 500 MHz band.
 
         Returns
         -------

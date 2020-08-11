@@ -17,17 +17,17 @@
 from pysmurf.client.base import SmurfBase
 
 class SmurfAtcaMonitorMixin(SmurfBase):
-    """Mixin providing interface with the smurf_atca_monitor server.
+    """Mixin providing interface with the atca_monitor server.
 
     This Mixin provides the pysmurf interface to the atca_monitor
-    registers.  The smurf_atca_monitor server is a Rogue application
+    registers.  The atca_monitor server is a Rogue application
     which uses IPMI to monitor information from the ATCA system
-    [#smurf_atca_monitor]_.  The smurf_atca_monitor server must be
+    [#atca_monitor]_.  The atca_monitor server must be
     running or all queries will timeout and return `None`.
 
     References
     ----------
-    .. [#smurf_atca_monitor] https://github.com/slaclab/smurf-atca-monitor
+    .. [#atca_monitor] https://github.com/slaclab/smurf-atca-monitor
 
     """
 
@@ -136,9 +136,8 @@ class SmurfAtcaMonitorMixin(SmurfBase):
             self, slot_number=None, atca_epics_root=None, **kwargs):
         r"""Returns FPGA junction temperature.
 
-        A proxy for the FPGA die temperature - probably from a sensor
-        on the FPGA.  If you are looking at this, you probably should
-        be looking at
+        FPGA die temperature - probably from a sensor on the FPGA.  If
+        you are looking at this, you probably should be looking at
         :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.get_fpga_temp`
         instead, which we think is more reliable.
 
