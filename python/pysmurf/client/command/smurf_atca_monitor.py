@@ -77,7 +77,7 @@ class SmurfAtcaMonitorMixin(SmurfBase):
         -------
         float or None
             AMC carrier board temperature in Celsius.  If None, either
-            the EPICS query timed out, or the atca_monitor server
+            the EPICS query timed out or the atca_monitor server
             isn't running.
         """
         if slot_number is None:
@@ -119,7 +119,7 @@ class SmurfAtcaMonitorMixin(SmurfBase):
         -------
         float or None
             RTM board temperature in Celsius.  If None, either the
-            EPICS query timed out, or the atca_monitor server isn't
+            EPICS query timed out or the atca_monitor server isn't
             running.
         """
         if slot_number is None:
@@ -167,7 +167,7 @@ class SmurfAtcaMonitorMixin(SmurfBase):
         -------
         float or None
             FPGA junction temperature in Celsius.  If None, either the
-            EPICS query timed out, or the atca_monitor server isn't
+            EPICS query timed out or the atca_monitor server isn't
             running.
         """
         if slot_number is None:
@@ -211,7 +211,7 @@ class SmurfAtcaMonitorMixin(SmurfBase):
         -------
         float or None
             AMC board temperature in Celsius.  If None, either the
-            EPICS query timed out, or the atca_monitor server isn't
+            EPICS query timed out or the atca_monitor server isn't
             running.
         """
         if slot_number is None:
@@ -258,7 +258,7 @@ class SmurfAtcaMonitorMixin(SmurfBase):
         -------
         str or None
             AMC asset tag for the requested bay *e.g.* 'C03-A01-01'.
-            If None, either the EPICS query timed out, or the
+            If None, either the EPICS query timed out or the
             atca_monitor server isn't running.
         """
         if slot_number is None:

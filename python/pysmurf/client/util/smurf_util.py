@@ -171,6 +171,8 @@ class SmurfUtilMixin(SmurfBase):
             timestamp=None, uc_att=None, dc_att=None, freq_min=-2.4E6, freq_max=2.4E6):
         """Estimates total system latency for requested band.
 
+        Estimates by sweeping the central subband of the 500 MHz band.  
+
         Args
         ----
         band : int
@@ -178,38 +180,51 @@ class SmurfUtilMixin(SmurfBase):
         nsamp : int, optional, default 2**19
            The number of samples to take.
         make_plot : bool, optional, default True
-           ???
+           Whether or not to make plots.
         show_plot : bool, optional, default True
-           ???
+           Whether or not to show plots.
         save_plot : bool, optional, default True
-           ???
+           Whether or not to save plot to file.
         save_data : bool, optional, default True
-           ???
+           Whether or not to save data to file.
         n_scan : int, optional, default 5
-           ???
+           Number of scans to do to estimate analog phase delay,
+           passed to
+           :func:`~pysmurf.client.tune.smurf_tune.SmurfTuneMixin.full_band_resp`.
         timestamp : str or None, optional, default None
-            ctime to timestamp the plot and data with (if saved to
-            file).  If None, it gets the time stamp right before
-            acquiring data.
+           ctime to timestamp the plot and data with (if saved to
+           file).  If None, it gets the time stamp right before
+           acquiring data.
         uc_att : int or None, optional, default None
-           ???
+           UC attenuator setting to use during measurements.  If None,
+           uses currently programmed setting.
         dc_att : int or None, optional, default None
-           ???
-        freq_min : float, optional, default -2.5E8
-           ???
-        freq_max : float, optional, default 2.5E8
-           ???
+           DC attenuator setting to use during measurements.  If None,
+           uses currently programmed setting.
+        freq_min : float, optional, default -2.4E6
+           Lower bound of the frequency interval used to estimate the
+           phase delay, in Hz.
+        freq_max : float, optional, default 2.4E6
+           Upper bound of the frequency interval used to estimate the
+           phase delay, in Hz.
 
         Returns
         -------
-        refPhaseDelay : ???
-           ???
-        refPhaseDelayFine : ???
-           ???
-        processing_delay_us : ???
-           ???
-        dsp_corr_delay_us : ???
-           ???
+        refPhaseDelay : int
+           Estimated value for the `refPhaseDelay` firmware register
+           for this 500MHz band.  For more details on the
+           `refPhaseDelay` register, see
+           :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.set_ref_phase_delay`.
+        refPhaseDelayFine : int
+           Estimated value for the `refPhaseDelayFine` firmware
+           register for this 500MHz band.  For more details on the
+           `refPhaseDelayFine` register, see
+           :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.set_ref_phase_delay_fine`.
+        processing_delay_us : float
+           Estimated processing phase delay, in microseconds.
+        dsp_corr_delay_us : float
+           Residual total phase delay, for estimated `refPhaseDelay`
+           and `refPhaseDelayFine`.
 
         """
 
@@ -1524,7 +1539,7 @@ class SmurfUtilMixin(SmurfBase):
             file).  If None, it gets the time stamp right before
             acquiring data.
         show_plot : bool, optional, default True
-            If do_plot is True, whether or not to show the plot.
+            Whether or not to show plots.
         save_plot : bool, optional, default True
             Whether or not to save plot to file.
         plot_ylimits : [float or None, float or None], optional, default [None,None]
