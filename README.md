@@ -1,6 +1,6 @@
 # pysmurf
 
-[![Build Status](https://travis-ci.com/slaclab/pysmurf.svg?branch=master)](https://travis-ci.com/slaclab/pysmurf) [![Documentation Status](https://readthedocs.org/projects/pysmurf/badge/?version=master)](https://pysmurf.readthedocs.io/en/master/?badge=master)
+[![Build Status](https://travis-ci.com/slaclab/pysmurf.svg?branch=main)](https://travis-ci.com/slaclab/pysmurf) [![Documentation Status](https://readthedocs.org/projects/pysmurf/badge/?version=main)](https://pysmurf.readthedocs.io/en/main/?badge=main)
 
 The python control software for SMuRF. Includes scripts to do low level
 commands as well as higher level analysis.
@@ -28,6 +28,6 @@ make html
 Output will be located in `_build/html`. You can view the compiled
 documentation by opening `_build/html/index.html` in the browser of your choice.
 
-The documentation is also updated to readthedocs here: https://pysmurf.readthedocs.io/en/master/
+The documentation is also updated to readthedocs here: https://pysmurf.readthedocs.io/en/main/
 
 [1]: https://sphinxcontrib-napoleon.readthedocs.io/en/latest/example_numpy.html
