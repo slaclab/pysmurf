@@ -60,34 +60,6 @@ class SmurfAtcaMonitorMixin(SmurfBase):
             f'{shelf_manager}:Crate:Slot_{slot_number}:' +
             self._board_temp_rtm_reg,**kwargs)
 
-    _board_temp_amc0_reg = 'BoardTemp:AMC0'
-
-    def get_board_temp_amc0(
-            self, slot_number=None, atca_epics_root=None, **kwargs):
-        """
-        """
-        if slot_number is None:
-            slot_number=self.slot_number
-        if atca_epics_root is None:
-            shelf_manager=self.shelf_manager
-        return self._caget(
-            f'{shelf_manager}:Crate:Slot_{slot_number}:' +
-            self._board_temp_amc0_reg,**kwargs)
-
-    _board_temp_amc2_reg = 'BoardTemp:AMC2'
-
-    def get_board_temp_amc2(
-            self, slot_number=None, atca_epics_root=None, **kwargs):
-        """
-        """
-        if slot_number is None:
-            slot_number=self.slot_number
-        if atca_epics_root is None:
-            shelf_manager=self.shelf_manager
-        return self._caget(
-            f'{shelf_manager}:Crate:Slot_{slot_number}:' +
-            self._board_temp_amc2_reg,**kwargs)
-
     _junction_temp_fpga_reg = 'JunctionTemp:FPG'
 
     def get_junction_temp_fpga(
@@ -101,6 +73,50 @@ class SmurfAtcaMonitorMixin(SmurfBase):
         return self._caget(
             f'{shelf_manager}:Crate:Slot_{slot_number}:' +
             self._junction_temp_fpga_reg,**kwargs)
+    
+    _board_temp_amc_reg = 'BoardTemp:AMC{}'
+
+    def get_board_temp_amc(self, bay, slot_number=None,
+                           atca_epics_root=None, **kwargs):
+        r"""Returns the AMC board temperature.
+
+        Args
+        ----
+        bay : int
+            Which AMC bay (0 or 1).
+        slot_number : int or None, optional, default None
+            The crate slot number that the AMC is installed into.  If
+            None, defaults to the
+            :class:`~pysmurf.client.base.smurf_control.SmurfControl`
+            class attribute
+            :attr:`~pysmurf.client.base.smurf_control.SmurfControl.slot_number`.
+        atca_epics_root : str or None, optional, default None
+            ATCA monitor server application EPICS root.  If None,
+            defaults to the
+            :class:`~pysmurf.client.base.smurf_control.SmurfControl`
+            class attribute
+            :attr:`~pysmurf.client.base.smurf_control.SmurfControl.shelf_manager`.
+            For typical systems, atca_epics_root is the name of the
+            shelf manager which for default systems is
+            'shm-smrf-sp01'.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caget` call.
+
+        Returns
+        -------
+        float
+            AMC board temperature in Celsius.
+        """        
+        if slot_number is None:
+            slot_number=self.slot_number
+        if atca_epics_root is None:
+            shelf_manager=self.shelf_manager
+        # For some reason, the bay 0 AMC is at AMC[0] and the bay 1
+        # AMC is at AMC[2], hence the bay*2.
+        return self._caget(
+            f'{shelf_manager}:Crate:Slot_{slot_number}:' +
+            self._board_temp_amc_reg.format(bay*2),**kwargs)
 
     _amc_asset_tag_reg = 'AMC[{}]:Product_Asset_Tag'
 
@@ -125,9 +141,17 @@ class SmurfAtcaMonitorMixin(SmurfBase):
             :class:`~pysmurf.client.base.smurf_control.SmurfControl`
             class attribute
             :attr:`~pysmurf.client.base.smurf_control.SmurfControl.shelf_manager`.
+            For typical systems, atca_epics_root is the name of the
+            shelf manager which for default systems is
+            'shm-smrf-sp01'.
         \**kwargs
             Arbitrary keyword arguments.  Passed directly to the
             `_caget` call.
+
+        Returns
+        -------
+        str
+            AMC asset tag for the requested bay *e.g.* 'C03-A01-01'.
         """
         if slot_number is None:
             slot_number=self.slot_number
