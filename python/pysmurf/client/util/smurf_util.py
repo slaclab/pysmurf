@@ -172,12 +172,12 @@ class SmurfUtilMixin(SmurfBase):
         """Estimates total system latency for requested band.
 
         Measures the analog and digital (=processing) phase delay (or
-        latency) by sweeping the [freq_min, freq_max] interval of the
+        latency) by sweeping the [`freq_min`, `freq_max`] interval of the
         requested 500 MHz band.  Estimates the best values for the
-        `refPhaseDelay` and `refPhaseDelayFine` registers to
+        `refPhaseDelay` and `refPhaseDelayFine` firmware registers to
         compensate for the measured delay.  Three steps:
 
-        1. Measures the analog latency using the [freq_min, freq_max]
+        1. Measures the analog latency using the [`freq_min`, `freq_max`]
            sub-interval of data taken using the
            :func:`~pysmurf.client.tune.smurf_tune.SmurfTuneMixin.full_band_resp`
            routine.
