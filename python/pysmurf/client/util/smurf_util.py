@@ -178,18 +178,18 @@ class SmurfUtilMixin(SmurfBase):
         compensate for the measured delay.  Three steps:
 
         1. Measures the analog latency using the [freq_min, freq_max]
-        sub-interval of data taken using the
-        :func:`~pysmurf.client.tune.smurf_tune.SmurfTuneMixin.full_band_resp`
-        routine.
+           sub-interval of data taken using the
+           :func:`~pysmurf.client.tune.smurf_tune.SmurfTuneMixin.full_band_resp`
+           routine.
         2. Measures the total latency using the
-        :func:`~pysmurf.client.tune.smurf_tune.SmurfTuneMixin.find_freq`
-        routine.
+           :func:`~pysmurf.client.tune.smurf_tune.SmurfTuneMixin.find_freq`
+           routine.
         3. Sets the `refPhaseDelay` and `refPhaseDelayFine` registers
-        to the values computed to best compensate for the total
-        measured latency and re-measures the total latency again using
-        the
-        :func:`~pysmurf.client.tune.smurf_tune.SmurfTuneMixin.find_freq`
-        routine.
+           to the values computed to best compensate for the total
+           measured latency and re-measures the total latency again
+           using the
+           :func:`~pysmurf.client.tune.smurf_tune.SmurfTuneMixin.find_freq`
+           routine.
 
         On completion, the `refPhaseDelay` and `refPhaseDelayFine`
         registers are set to the estimated optimal values.
