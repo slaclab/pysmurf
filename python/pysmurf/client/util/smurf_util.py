@@ -34,7 +34,7 @@ class SmurfUtilMixin(SmurfBase):
     def take_debug_data(self, band, channel=None, nsamp=2**19, filename=None,
             IQstream=1, single_channel_readout=1, debug=False, rf_iq=False,
             write_log=True):
-        """ Takes raw debugging data
+        """Takes raw debugging data.
 
         Args
         ----
@@ -65,6 +65,7 @@ class SmurfUtilMixin(SmurfBase):
             The frequency error.
         sync : float array
             The sync count.
+
         """
         # Set proper single channel readout
         if channel is not None:
@@ -167,7 +168,86 @@ class SmurfUtilMixin(SmurfBase):
     @set_action()
     def estimate_phase_delay(self, band, nsamp=2**19, make_plot=True,
             show_plot=True, save_plot=True, save_data=True, n_scan=5,
-            timestamp=None, uc_att=24, dc_att=0, freq_min=-2.5E8, freq_max=2.5E8):
+            timestamp=None, uc_att=None, dc_att=None, freq_min=-2.4E6, freq_max=2.4E6):
+        """Estimates total system latency for requested band.
+
+        Measures the analog and digital (=processing) phase delay (or
+        latency) by sweeping the [`freq_min`, `freq_max`] interval of the
+        requested 500 MHz band.  Estimates the best values for the
+        `refPhaseDelay` and `refPhaseDelayFine` firmware registers to
+        compensate for the measured delay.  Three steps:
+
+        1. Measures the analog latency using the [`freq_min`, `freq_max`]
+           sub-interval of data taken using the
+           :func:`~pysmurf.client.tune.smurf_tune.SmurfTuneMixin.full_band_resp`
+           routine.
+        2. Measures the total latency using the
+           :func:`~pysmurf.client.tune.smurf_tune.SmurfTuneMixin.find_freq`
+           routine.
+        3. Sets the `refPhaseDelay` and `refPhaseDelayFine` registers
+           to the values computed to best compensate for the total
+           measured latency and re-measures the total latency again
+           using the
+           :func:`~pysmurf.client.tune.smurf_tune.SmurfTuneMixin.find_freq`
+           routine.
+
+        On completion, the `refPhaseDelay` and `refPhaseDelayFine`
+        registers are set to the estimated optimal values.
+
+        Args
+        ----
+        band : int
+           The band to estimate phase delay on.
+        nsamp : int, optional, default 2**19
+           The number of samples to take.
+        make_plot : bool, optional, default True
+           Whether or not to make plots.
+        show_plot : bool, optional, default True
+           Whether or not to show plots.
+        save_plot : bool, optional, default True
+           Whether or not to save plot to file.
+        save_data : bool, optional, default True
+           Whether or not to save data to file.
+        n_scan : int, optional, default 5
+           Number of scans to do to estimate analog phase delay,
+           passed to
+           :func:`~pysmurf.client.tune.smurf_tune.SmurfTuneMixin.full_band_resp`.
+        timestamp : str or None, optional, default None
+           ctime to timestamp the plot and data with (if saved to
+           file).  If None, it gets the time stamp right before
+           acquiring data.
+        uc_att : int or None, optional, default None
+           UC attenuator setting to use during measurements.  If None,
+           uses currently programmed setting.
+        dc_att : int or None, optional, default None
+           DC attenuator setting to use during measurements.  If None,
+           uses currently programmed setting.
+        freq_min : float, optional, default -2.4E6
+           Lower bound of the frequency interval used to estimate the
+           phase delay, in Hz.  From the center of the 500 MHz band.
+        freq_max : float, optional, default 2.4E6
+           Upper bound of the frequency interval used to estimate the
+           phase delay, in Hz.  From the center of the 500 MHz band.
+
+        Returns
+        -------
+        refPhaseDelay : int
+           Estimated value for the `refPhaseDelay` firmware register
+           for this 500MHz band.  For more details on the
+           `refPhaseDelay` register, see
+           :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.set_ref_phase_delay`.
+        refPhaseDelayFine : int
+           Estimated value for the `refPhaseDelayFine` firmware
+           register for this 500MHz band.  For more details on the
+           `refPhaseDelayFine` register, see
+           :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.set_ref_phase_delay_fine`.
+        processing_delay_us : float
+           Estimated processing phase delay, in microseconds.
+        dsp_corr_delay_us : float
+           Residual total phase delay, for estimated `refPhaseDelay`
+           and `refPhaseDelayFine`.
+
+        """
 
         # For some reason, pyrogue flips out if you try to set refPhaseDelay
         # to zero in 071150b0.  This allows an offset ; the offset just gets
@@ -177,6 +257,10 @@ class SmurfUtilMixin(SmurfBase):
 
         uc_att0=self.get_att_dc(band)
         dc_att0=self.get_att_uc(band)
+        if uc_att is None:
+            uc_att = self.get_att_uc(band)
+        if dc_att is None:
+            dc_att = self.get_att_dc(band)
         self.set_att_uc(band,uc_att, write_log=True)
         self.set_att_dc(band,dc_att, write_log=True)
 
@@ -210,49 +294,16 @@ class SmurfUtilMixin(SmurfBase):
             else:
                 plt.ioff()
 
-        load_full_band_resp=False
-        fbr_path='/data/smurf_data/20190702/1562052474/outputs'
-        fbr_ctime=1562052477
-
-        load_find_freq=False
-        ff_path='/data/smurf_data/20190702/1562052474/outputs'
-        ff_ctime=1562052881
-
-        load_find_freq_check=False
-        ff_corr_path='/data/smurf_data/20190702/1562052474/outputs'
-        ff_corr_ctime=1562053274
-
         bay=int(band/4)
-
         fw_abbrev_sha=self.get_fpga_git_hash_short()
 
         self.band_off(band)
         self.flux_ramp_off()
 
-        freq_cable=None
-        resp_cable=None
-        if load_full_band_resp:
-            self.log('Loading full band resp data')
-            fbr_freq_file=(
-                os.path.join(fbr_path,
-                             f'{fbr_ctime}_freq_full_band_resp.txt'))
-            fbr_real_resp_file=(
-                os.path.join(fbr_path,
-                             f'{fbr_ctime}_real_full_band_resp.txt'))
-            fbr_complex_resp_file=(
-                os.path.join(fbr_path,
-                             f'{fbr_ctime}_imag_full_band_resp.txt'))
-
-            freq_cable = np.loadtxt(fbr_freq_file)
-            real_resp_cable = np.loadtxt(fbr_real_resp_file)
-            complex_resp_cable = np.loadtxt(fbr_complex_resp_file)
-            resp_cable = real_resp_cable + 1j*complex_resp_cable
-        else:
-            self.log('Running full band resp')
-            freq_cable, resp_cable = self.full_band_resp(band, nsamp=nsamp,
-                make_plot=make_plot,
-                save_data=save_data,
-                n_scan=n_scan)
+        self.log('Running full band resp')
+        freq_cable, resp_cable = self.full_band_resp(
+            band, nsamp=nsamp, make_plot=make_plot,
+            save_data=save_data, n_scan=n_scan)
 
         idx_cable = np.where( (freq_cable > freq_min) & (freq_cable < freq_max) )
 
@@ -272,25 +323,8 @@ class SmurfUtilMixin(SmurfBase):
         # max is 255
         self.set_ref_phase_delay_fine(band,refPhaseDelayFine0)
 
-        freq_dsp=None
-        resp_dsp=None
-        if load_find_freq:
-            self.log('Loading DSP frequency sweep data')
-            ff_freq_file=(
-                os.path.join(ff_path,
-                             f'{ff_ctime}_amp_sweep_freq.txt'))
-            ff_resp_file=(
-                os.path.join(ff_path,
-                             f'{ff_ctime}_amp_sweep_resp.txt'))
-
-            freq_dsp=np.loadtxt(ff_freq_file)
-            resp_dsp=np.loadtxt(ff_resp_file,dtype='complex')
-        else:
-            self.log('Running find_freq')
-            freq_dsp,resp_dsp=self.find_freq(band,subband=dsp_subbands)
-            ## not really faster if reduce n_step or n_read...somehow.
-            #freq_dsp,resp_dsp=self.full_band_ampl_sweep(band,
-            # subband=dsp_subbands, tone_power=tone_power, n_read=2, n_step=n_step)
+        self.log('Running find_freq')
+        freq_dsp,resp_dsp=self.find_freq(band,subband=dsp_subbands)
 
         # only preserve data in the subband half width
         freq_dsp_subset=[]
@@ -348,22 +382,8 @@ class SmurfUtilMixin(SmurfBase):
         # max is 255
         self.set_ref_phase_delay_fine(band,refPhaseDelayFine)
 
-        freq_dsp_corr=None
-        resp_dsp_corr=None
-        if load_find_freq_check:
-            self.log('Loading delay-corrected DSP frequency sweep data')
-            ff_corr_freq_file=(
-                os.path.join(ff_corr_path,
-                             f'{ff_corr_ctime}_amp_sweep_freq.txt'))
-            ff_corr_resp_file=(
-                os.path.join(ff_corr_path,
-                             f'{ff_corr_ctime}_amp_sweep_resp.txt'))
-
-            freq_dsp_corr=np.loadtxt(ff_corr_freq_file)
-            resp_dsp_corr=np.loadtxt(ff_corr_resp_file,dtype='complex')
-        else:
-            self.log('Running find_freq')
-            freq_dsp_corr,resp_dsp_corr=self.find_freq(band,dsp_subbands)
+        self.log('Running find_freq')
+        freq_dsp_corr,resp_dsp_corr=self.find_freq(band,dsp_subbands)
 
         freq_dsp_corr_subset=[]
         resp_dsp_corr_subset=[]
@@ -477,6 +497,7 @@ class SmurfUtilMixin(SmurfBase):
         self.set_att_uc(band,uc_att0,write_log=True)
         self.set_att_dc(band,dc_att0,write_log=True)
 
+        return refPhaseDelay, refPhaseDelayFine, processing_delay_us, dsp_corr_delay_us
 
     def process_data(self, filename, dtype=np.uint32):
         """ Reads a file taken with take_debug_data and processes it into data
@@ -1539,7 +1560,7 @@ class SmurfUtilMixin(SmurfBase):
             file).  If None, it gets the time stamp right before
             acquiring data.
         show_plot : bool, optional, default True
-            If do_plot is True, whether or not to show the plot.
+            Whether or not to show plots.
         save_plot : bool, optional, default True
             Whether or not to save plot to file.
         plot_ylimits : [float or None, float or None], optional, default [None,None]
