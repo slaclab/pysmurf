@@ -124,4 +124,4 @@ Write the processed data to disk. See [here](README.DataFile.md) for details.
 
 ### Transmitter
 
-This is an optional block. It is intended for adding a custom block which will take the processed data and set it to a third party system. See [here](README.DataTransmitter.md) for details.
+This is an optional block. It is intended for adding a custom block which will take the processed data and set it to a third party system. See [here](README.CustomDataTransmitter.md) for details.
