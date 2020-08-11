@@ -31,6 +31,8 @@ class SmurfAtcaMonitorMixin(SmurfBase):
 
     """
 
+    _write_atca_monitor_state_reg = ":Crate:SaveState"
+
     def write_atca_monitor_state(self, val, **kwargs):
         """Writes atca_monitor state to yml file.
 
