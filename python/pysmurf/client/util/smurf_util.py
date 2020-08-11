@@ -168,7 +168,7 @@ class SmurfUtilMixin(SmurfBase):
     @set_action()
     def estimate_phase_delay(self, band, nsamp=2**19, make_plot=True,
             show_plot=True, save_plot=True, save_data=True, n_scan=5,
-            timestamp=None, uc_att=24, dc_att=0, freq_min=-2.5E8, freq_max=2.5E8):
+            timestamp=None, uc_att=None, dc_att=None, freq_min=-2.4E6, freq_max=2.4E6):
         """Estimates total system latency for requested band.
 
         Args
@@ -187,11 +187,13 @@ class SmurfUtilMixin(SmurfBase):
            ???
         n_scan : int, optional, default 5
            ???
-        timestamp : str, optional, default None
+        timestamp : str or None, optional, default None
+            ctime to timestamp the plot and data with (if saved to
+            file).  If None, it gets the time stamp right before
+            acquiring data.
+        uc_att : int or None, optional, default None
            ???
-        uc_att : int, optional, default 24
-           ???
-        dc_att : int, optional, default 0
+        dc_att : int or None, optional, default None
            ???
         freq_min : float, optional, default -2.5E8
            ???
@@ -219,6 +221,10 @@ class SmurfUtilMixin(SmurfBase):
 
         uc_att0=self.get_att_dc(band)
         dc_att0=self.get_att_uc(band)
+        if uc_att is None:
+            uc_att = self.get_att_uc(band)
+        if dc_att is None:
+            dc_att = self.get_att_dc(band)
         self.set_att_uc(band,uc_att, write_log=True)
         self.set_att_dc(band,dc_att, write_log=True)
 
