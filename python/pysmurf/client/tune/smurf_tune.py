@@ -3403,7 +3403,7 @@ class SmurfTuneMixin(SmurfBase):
         n_subbands = self.get_number_sub_bands(band)
 
         # scan_freq = (digitizer_freq/n_subbands/2)*np.linspace(-1,1,n_step)
-        scan_freq = (digitizer_freq/n_subbands/4)*np.linspace(-1,1,n_step)
+        scan_freq = (digitizer_freq/n_subbands/2)*np.linspace(-1,1,n_step)
 
         resp = np.zeros((n_subbands, np.shape(scan_freq)[0]), dtype=complex)
         freq = np.zeros((n_subbands, np.shape(scan_freq)[0]))
@@ -3633,6 +3633,11 @@ class SmurfTuneMixin(SmurfBase):
         # Q = self.get_eta_scan_results_imag(band, count=len(freq))
         I = readback_data[4::8]
         Q = readback_data[8::8]
+
+        names = [amplitude_pv]
+        values = [0]
+        readwrite = [0]
+        self.C.SHERIFF_register_rw(names, values, readwrite)
 
         self.band_off(band)
 
