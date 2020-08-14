@@ -69,14 +69,14 @@ class SmurfCommandMixin(SmurfBase):
             Arbitrary keyword arguments.  Passed directly to the
             `epics.caput` call.
         """
-        if new_epics_root is not None:
-            self.log(f'Temporarily using new epics root: {new_epics_root}')
-            old_epics_root = self.epics_root
-            self.epics_root = new_epics_root
-            cmd = cmd.replace(old_epics_root, self.epics_root)
+        # if new_epics_root is not None:
+        #     self.log(f'Temporarily using new epics root: {new_epics_root}')
+        #     old_epics_root = self.epics_root
+        #     self.epics_root = new_epics_root
+        #     cmd = cmd.replace(old_epics_root, self.epics_root)
 
-        if enable_poll:
-            epics.caput(self.epics_root + self._global_poll_enable_reg, True)
+        # if enable_poll:
+        #     epics.caput(self.epics_root + self._global_poll_enable_reg, True)
 
         if wait_before is not None:
             if write_log:
@@ -90,8 +90,9 @@ class SmurfCommandMixin(SmurfBase):
                 log_str = 'OFFLINE - ' + log_str
             self.log(log_str, log_level)
 
-        if execute and not self.offline:
-            epics.caput(cmd, val, wait=wait_done, **kwargs)
+        if execute:
+            # epics.caput(cmd, val, wait=wait_done, **kwargs)
+            self.C.SHERIFF_register_rw([cmd], [val], [0])
 
         if wait_after is not None:
             if write_log:
@@ -101,13 +102,14 @@ class SmurfCommandMixin(SmurfBase):
             if write_log:
                 self.log('Done waiting.', self.LOG_USER)
 
-        if disable_poll:
-            epics.caput(self.epics_root + self._global_poll_enable_reg, False)
 
-        if new_epics_root is not None:
-            self.epics_root = old_epics_root
-            self.log('Returning back to original epics root'+
-                     f' : {self.epics_root}')
+        # if disable_poll:
+        #     epics.caput(self.epics_root + self._global_poll_enable_reg, False)
+
+        # if new_epics_root is not None:
+        #     self.epics_root = old_epics_root
+        #     self.log('Returning back to original epics root'+
+        #              f' : {self.epics_root}')
 
     def _caget(self, cmd, write_log=False, execute=True, count=None,
                log_level=0, enable_poll=False, disable_poll=False,
@@ -145,38 +147,44 @@ class SmurfCommandMixin(SmurfBase):
         ret : str
             The requested value.
         """
-        if new_epics_root is not None:
-            self.log(f'Temporarily using new epics root: {new_epics_root}')
-            old_epics_root = self.epics_root
-            self.epics_root = new_epics_root
-            cmd = cmd.replace(old_epics_root, self.epics_root)
+        # if new_epics_root is not None:
+        #     self.log(f'Temporarily using new epics root: {new_epics_root}')
+        #     old_epics_root = self.epics_root
+        #     self.epics_root = new_epics_root
+        #     cmd = cmd.replace(old_epics_root, self.epics_root)
 
-        if enable_poll:
-            epics.caput(self.epics_root+ self._global_poll_enable_reg, True)
+        # if enable_poll:
+        #     epics.caput(self.epics_root+ self._global_poll_enable_reg, True)
 
         if write_log:
             self.log('caget ' + cmd, log_level)
 
         # load the data from yml file if provided
-        if yml is not None:
-            if write_log:
-                self.log(f'Reading from yml file\n {cmd}')
-            return tools.yaml_parse(yml, cmd)
+        # if yml is not None:
+        #     if write_log:
+        #         self.log(f'Reading from yml file\n {cmd}')
+        #     return tools.yaml_parse(yml, cmd)
 
-        elif execute and not self.offline:
-            ret = epics.caget(cmd, count=count, **kwargs)
+        if execute:
+            # ret = epics.caget(cmd, count=count, **kwargs)
+            err, ret_all = self.C.SHERIFF_register_rw([cmd], [0], [1])
+            if len(err) > 0:
+                self.log(err)
+                ret = None
+            else:
+                ret = ret_all[1]
             if write_log:
                 self.log(ret)
         else:
             ret = None
 
-        if disable_poll:
-            epics.caput(self.epics_root+ self._global_poll_enable_reg, False)
+        # if disable_poll:
+        #     epics.caput(self.epics_root+ self._global_poll_enable_reg, False)
 
-        if new_epics_root is not None:
-            self.epics_root = old_epics_root
-            self.log('Returning back to original epics root'+
-                     f' : {self.epics_root}')
+        # if new_epics_root is not None:
+        #     self.epics_root = old_epics_root
+        #     self.log('Returning back to original epics root'+
+        #              f' : {self.epics_root}')
 
         return ret
 
@@ -1599,10 +1607,74 @@ class SmurfCommandMixin(SmurfBase):
     def get_tone_frequency_offset_mhz(self, band, **kwargs):
         """
         """
-        return self._caget(
-            self._band_root(band) +
-            self._tone_frequency_offset_mhz_reg,
-            **kwargs)
+        return np.array([   0. ,  307.2,  153.6, -153.6,   76.8, -230.4,  230.4,  -76.8,
+            38.4, -268.8,  192. , -115.2,  115.2, -192. ,  268.8,  -38.4,
+            19.2, -288. ,  172.8, -134.4,   96. , -211.2,  249.6,  -57.6,
+            57.6, -249.6,  211.2,  -96. ,  134.4, -172.8,  288. ,  -19.2,
+            9.6, -297.6,  163.2, -144. ,   86.4, -220.8,  240. ,  -67.2,
+            48. , -259.2,  201.6, -105.6,  124.8, -182.4,  278.4,  -28.8,
+            28.8, -278.4,  182.4, -124.8,  105.6, -201.6,  259.2,  -48. ,
+            67.2, -240. ,  220.8,  -86.4,  144. , -163.2,  297.6,   -9.6,
+            0. ,  307.2,  153.6, -153.6,   76.8, -230.4,  230.4,  -76.8,
+             38.4, -268.8,  192. , -115.2,  115.2, -192. ,  268.8,  -38.4,
+             19.2, -288. ,  172.8, -134.4,   96. , -211.2,  249.6,  -57.6,
+             57.6, -249.6,  211.2,  -96. ,  134.4, -172.8,  288. ,  -19.2,
+              9.6, -297.6,  163.2, -144. ,   86.4, -220.8,  240. ,  -67.2,
+             48. , -259.2,  201.6, -105.6,  124.8, -182.4,  278.4,  -28.8,
+             28.8, -278.4,  182.4, -124.8,  105.6, -201.6,  259.2,  -48. ,
+             67.2, -240. ,  220.8,  -86.4,  144. , -163.2,  297.6,   -9.6,
+              0. ,  307.2,  153.6, -153.6,   76.8, -230.4,  230.4,  -76.8,
+             38.4, -268.8,  192. , -115.2,  115.2, -192. ,  268.8,  -38.4,
+             19.2, -288. ,  172.8, -134.4,   96. , -211.2,  249.6,  -57.6,
+             57.6, -249.6,  211.2,  -96. ,  134.4, -172.8,  288. ,  -19.2,
+              9.6, -297.6,  163.2, -144. ,   86.4, -220.8,  240. ,  -67.2,
+             48. , -259.2,  201.6, -105.6,  124.8, -182.4,  278.4,  -28.8,
+             28.8, -278.4,  182.4, -124.8,  105.6, -201.6,  259.2,  -48. ,
+             67.2, -240. ,  220.8,  -86.4,  144. , -163.2,  297.6,   -9.6,
+              0. ,  307.2,  153.6, -153.6,   76.8, -230.4,  230.4,  -76.8,
+             38.4, -268.8,  192. , -115.2,  115.2, -192. ,  268.8,  -38.4,
+             19.2, -288. ,  172.8, -134.4,   96. , -211.2,  249.6,  -57.6,
+             57.6, -249.6,  211.2,  -96. ,  134.4, -172.8,  288. ,  -19.2,
+              9.6, -297.6,  163.2, -144. ,   86.4, -220.8,  240. ,  -67.2,
+             48. , -259.2,  201.6, -105.6,  124.8, -182.4,  278.4,  -28.8,
+             28.8, -278.4,  182.4, -124.8,  105.6, -201.6,  259.2,  -48. ,
+             67.2, -240. ,  220.8,  -86.4,  144. , -163.2,  297.6,   -9.6,
+              4.8, -302.4,  158.4, -148.8,   81.6, -225.6,  235.2,  -72. ,
+             43.2, -264. ,  196.8, -110.4,  120. , -187.2,  273.6,  -33.6,
+             24. , -283.2,  177.6, -129.6,  100.8, -206.4,  254.4,  -52.8,
+             62.4, -244.8,  216. ,  -91.2,  139.2, -168. ,  292.8,  -14.4,
+             14.4, -292.8,  168. , -139.2,   91.2, -216. ,  244.8,  -62.4,
+             52.8, -254.4,  206.4, -100.8,  129.6, -177.6,  283.2,  -24. ,
+             33.6, -273.6,  187.2, -120. ,  110.4, -196.8,  264. ,  -43.2,
+             72. , -235.2,  225.6,  -81.6,  148.8, -158.4,  302.4,   -4.8,
+              4.8, -302.4,  158.4, -148.8,   81.6, -225.6,  235.2,  -72. ,
+             43.2, -264. ,  196.8, -110.4,  120. , -187.2,  273.6,  -33.6,
+             24. , -283.2,  177.6, -129.6,  100.8, -206.4,  254.4,  -52.8,
+             62.4, -244.8,  216. ,  -91.2,  139.2, -168. ,  292.8,  -14.4,
+             14.4, -292.8,  168. , -139.2,   91.2, -216. ,  244.8,  -62.4,
+             52.8, -254.4,  206.4, -100.8,  129.6, -177.6,  283.2,  -24. ,
+             33.6, -273.6,  187.2, -120. ,  110.4, -196.8,  264. ,  -43.2,
+             72. , -235.2,  225.6,  -81.6,  148.8, -158.4,  302.4,   -4.8,
+              4.8, -302.4,  158.4, -148.8,   81.6, -225.6,  235.2,  -72. ,
+             43.2, -264. ,  196.8, -110.4,  120. , -187.2,  273.6,  -33.6,
+             24. , -283.2,  177.6, -129.6,  100.8, -206.4,  254.4,  -52.8,
+             62.4, -244.8,  216. ,  -91.2,  139.2, -168. ,  292.8,  -14.4,
+             14.4, -292.8,  168. , -139.2,   91.2, -216. ,  244.8,  -62.4,
+             52.8, -254.4,  206.4, -100.8,  129.6, -177.6,  283.2,  -24. ,
+             33.6, -273.6,  187.2, -120. ,  110.4, -196.8,  264. ,  -43.2,
+             72. , -235.2,  225.6,  -81.6,  148.8, -158.4,  302.4,   -4.8,
+              4.8, -302.4,  158.4, -148.8,   81.6, -225.6,  235.2,  -72. ,
+             43.2, -264. ,  196.8, -110.4,  120. , -187.2,  273.6,  -33.6,
+             24. , -283.2,  177.6, -129.6,  100.8, -206.4,  254.4,  -52.8,
+             62.4, -244.8,  216. ,  -91.2,  139.2, -168. ,  292.8,  -14.4,
+             14.4, -292.8,  168. , -139.2,   91.2, -216. ,  244.8,  -62.4,
+             52.8, -254.4,  206.4, -100.8,  129.6, -177.6,  283.2,  -24. ,
+             33.6, -273.6,  187.2, -120. ,  110.4, -196.8,  264. ,  -43.2,
+             72. , -235.2,  225.6,  -81.6,  148.8, -158.4,  302.4,   -4.8])
+        # return self._caget(
+        #     self._band_root(band) +
+        #     self._tone_frequency_offset_mhz_reg,
+        #     **kwargs)
 
     _center_frequency_array_reg = 'centerFrequencyArray'
 

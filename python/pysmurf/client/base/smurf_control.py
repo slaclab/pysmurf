@@ -30,6 +30,11 @@ from pysmurf.client.debug.smurf_noise import SmurfNoiseMixin
 from pysmurf.client.tune.smurf_tune import SmurfTuneMixin
 from pysmurf.client.util.smurf_util import SmurfUtilMixin
 
+import sys
+sys.path.append('/mnt/c/Users/Edward/Documents/GitHub/SHERIFF/src')
+import SHERIFF_python_com as PC
+import SHERIFF_global
+
 class SmurfControl(SmurfCommandMixin,
         SmurfAtcaMonitorMixin, SmurfUtilMixin, SmurfTuneMixin,
         SmurfNoiseMixin, SmurfIVMixin,
@@ -111,7 +116,7 @@ class SmurfControl(SmurfCommandMixin,
 
         # Class attributes
         self.config = None
-        self.output_dir = None
+        self.output_dir = '.'
 
         # Require specification of configuration file if not in
         # offline mode.  If configuration file is specified, load into
@@ -141,11 +146,21 @@ class SmurfControl(SmurfCommandMixin,
             # the pysmurf cfg file with it.
             self.epics_root = epics_root
         # In offline mode, epics root is not needed.
-        if offline:
+        elif offline:
             self.epics_root = ''
         # Done setting epics_root
 
         super().__init__(offline=offline, **kwargs)
+
+        system_num = 2
+        # config_name = '/mnt/c/Users/Edward/Documents/GitHub/SHERIFF/config/loopback_config.txt'
+        config_name = '/mnt/c/Users/Edward/Documents/GitHub/SHERIFF/config/zynq_config.txt'
+        # ipaddr = '127.0.0.1'
+        ipaddr = '192.168.2.99'
+
+        B = PC.SHERIFF_config_reader(config_name, system_num, ipaddr)
+        B.config['rack_defs_file_name'] = '/mnt/c/Users/Edward/Documents/GitHub/SHERIFF/config/SHERIFF_com_defs.h'
+        self.C = PC.SHERIFF_cmd(B)
 
         if cfg_file is not None or data_dir is not None:
             self.initialize(data_dir=data_dir,
@@ -233,9 +248,12 @@ class SmurfControl(SmurfCommandMixin,
             # create output and plot directories
             self.output_dir = os.path.join(self.base_dir, self.date, name,
                 'outputs')
-            self.tune_dir = self._tune_dir
+            #self.tune_dir = self._tune_dir
+            # This is a hack
+            self.tune_dir = os.path.join(self.base_dir, self.date, name, "tune")
             self.plot_dir = os.path.join(self.base_dir, self.date, name, 'plots')
-            self.status_dir = self._status_dir
+            # self.status_dir = self._status_dir
+            self.status_dir = os.path.join(self.base_dir, self.date, name, "status")
             self.make_dir(self.output_dir)
             self.make_dir(self.tune_dir)
             self.make_dir(self.plot_dir)
@@ -249,63 +267,63 @@ class SmurfControl(SmurfCommandMixin,
                 self.log.set_logfile(None)
 
         # Which bays were enabled on pysmurf server startup?
-        self.bays = self.which_bays()
+        # self.bays = self.which_bays()
 
         # Crate/carrier configuration details that won't change.
         self.crate_id = self.get_crate_id()
         self.slot_number = self.get_slot_number()
 
         # Channel assignment files
-        self.channel_assignment_files = {}
-        if not no_dir:
-            for band in self._bands:
-                all_channel_assignment_files = glob.glob(
-                    os.path.join(
-                        self.tune_dir,
-                        f'*channel_assignment_b{band}.txt'))
-                if len(all_channel_assignment_files):
-                    self.channel_assignment_files[f'band_{band}'] = \
-                        np.sort(all_channel_assignment_files)[-1]
+        # self.channel_assignment_files = {}
+        # if not no_dir:
+        #     for band in self._bands:
+        #         all_channel_assignment_files = glob.glob(
+        #             os.path.join(
+        #                 self.tune_dir,
+        #                 f'*channel_assignment_b{band}.txt'))
+        #         if len(all_channel_assignment_files):
+        #             self.channel_assignment_files[f'band_{band}'] = \
+        #                 np.sort(all_channel_assignment_files)[-1]
 
         # Which bands are usable, based on which bays are enabled.
         # Will use to check if pysmurf configuration file has unusable
         # bands defined, or no definition for usable bands.
-        usable_bands=[]
-        for bay in self.bays:
+        # usable_bands=[]
+        # for bay in self.bays:
             # There are four bands per bay.  Bay 0 provides bands 0,
             # 1, 2, and 3, and bay 1 provides bands 4, 5, 6 and 7.
-            usable_bands+=range(bay*4,4*(bay+1))
+            # usable_bands+=range(bay*4,4*(bay+1))
 
         # Compare usable bands to bands defined in pysmurf
         # configuration file.
 
         # Check if an unusable band is defined in the pysmurf cfg
         # file.
-        for band in self._bands:
-            if band not in usable_bands:
-                self.log(f'ERROR : band {band} is present in ' +
-                         'pysmurf cfg file, but its bay is not ' +
-                         'enabled!', self.LOG_ERROR)
+        # for band in self._bands:
+        #     if band not in usable_bands:
+        #         self.log(f'ERROR : band {band} is present in ' +
+        #                  'pysmurf cfg file, but its bay is not ' +
+        #                  'enabled!', self.LOG_ERROR)
 
         # Check if a usable band is not defined in the pysmurf cfg
         # file.
-        for band in usable_bands:
-            if band not in self._bands:
-                self.log(f'WARNING : band {band} bay is enabled, ' +
-                         'but no configuration information ' +
-                         'provided!', self.LOG_ERROR)
+        # for band in usable_bands:
+        #     if band not in self._bands:
+        #         self.log(f'WARNING : band {band} bay is enabled, ' +
+        #                  'but no configuration information ' +
+        #                  'provided!', self.LOG_ERROR)
 
         ## Make band dictionaries
-        self.freq_resp = {}
-        for band in self._bands:
-            self.freq_resp[band] = {}
-            self.freq_resp[band]['lock_status'] = {}
+        # self.freq_resp = {}
+        # for band in self._bands:
+        #     self.freq_resp[band] = {}
+        #     self.freq_resp[band]['lock_status'] = {}
 
         if setup:
             self.setup(payload_size=payload_size, **kwargs)
 
         # initialize outputs cfg
-        self.config.update('outputs', {})
+        # self.config.update('outputs', {})
 
     def setup(self, write_log=True, payload_size=2048, **kwargs):
         """Sets the PVs to the default values in the experiment.cfg.

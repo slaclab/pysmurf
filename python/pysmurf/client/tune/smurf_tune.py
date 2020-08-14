@@ -3271,6 +3271,9 @@ class SmurfTuneMixin(SmurfBase):
         # Save data
         save_name = '{}_amp_sweep_{}.txt'
 
+        print(self.output_dir)
+        print(timestamp)
+
         path = os.path.join(self.output_dir, save_name.format(timestamp, 'freq'))
         np.savetxt(path, f)
         self.pub.register_file(path, 'sweep_response', format='txt')
@@ -3399,7 +3402,8 @@ class SmurfTuneMixin(SmurfBase):
         digitizer_freq = self.get_digitizer_frequency_mhz(band)  # in MHz
         n_subbands = self.get_number_sub_bands(band)
 
-        scan_freq = (digitizer_freq/n_subbands/2)*np.linspace(-1,1,n_step)
+        # scan_freq = (digitizer_freq/n_subbands/2)*np.linspace(-1,1,n_step)
+        scan_freq = (digitizer_freq/n_subbands/4)*np.linspace(-1,1,n_step)
 
         resp = np.zeros((n_subbands, np.shape(scan_freq)[0]), dtype=complex)
         freq = np.zeros((n_subbands, np.shape(scan_freq)[0]))
@@ -3537,16 +3541,98 @@ class SmurfTuneMixin(SmurfBase):
         channels_per_subband = int(n_channels / n_subbands)
         first_channel_per_subband = channel_order[0::channels_per_subband]
         subchan = first_channel_per_subband[subband]
+        cryo_channel = subchan
 
-        self.set_eta_scan_freq(band, freq)
-        self.set_eta_scan_amplitude(band, drive)
-        self.set_eta_scan_channel(band, subchan)
-        self.set_eta_scan_dwell(band, 0)
+        print(band, subband, cryo_channel)
 
-        self.set_run_eta_scan(band, 1)
+        # self.set_eta_scan_freq(band, freq)
+        # self.set_eta_scan_amplitude(band, drive)
+        # self.set_eta_scan_channel(band, subchan)
+        # self.set_eta_scan_dwell(band, 0)
 
-        I = self.get_eta_scan_results_real(band, count=len(freq))
-        Q = self.get_eta_scan_results_imag(band, count=len(freq))
+        # self.set_run_eta_scan(band, 1)
+
+        # input frequency is in MHz - convert to Hz
+        freq_hz = freq*1.0E6
+        freq = [int(f*2**23/1.2E6) for f in freq_hz]
+        num_scan = len(freq)
+
+        print(freq_hz)
+        print(freq)
+
+        # creating lists
+        names = []
+        values = []
+        readwrite = []
+
+        # Int24
+        frequency_pv = f'{self._epics_root}:AMCc:FpgaTopLevel:AppTop:AppCore:SysgenCryo:Base[0]:CryoChannels:centerFrequency[{cryo_channel}]'
+
+        # UInt4
+        amplitude_pv = f'{self._epics_root}:AMCc:FpgaTopLevel:AppTop:AppCore:SysgenCryo:Base[0]:CryoChannels:amplitudeScale[{cryo_channel}]'
+
+        # Int16
+        eta_i_pv     = f'{self._epics_root}:AMCc:FpgaTopLevel:AppTop:AppCore:SysgenCryo:Base[0]:CryoChannels:etaI[{cryo_channel}]'
+        eta_q_pv     = f'{self._epics_root}:AMCc:FpgaTopLevel:AppTop:AppCore:SysgenCryo:Base[0]:CryoChannels:etaQ[{cryo_channel}]'
+
+        # readback PV
+        # Int24
+        frequency_error_pv = f'{self._epics_root}:AMCc:FpgaTopLevel:AppTop:AppCore:SysgenCryo:Base[0]:CryoChannels:frequencyError[{cryo_channel}]'
+
+        # creating lists
+        names = []
+        values = []
+        readwrite = []
+
+        names.append(amplitude_pv)
+        values.append(int(drive))
+        readwrite.append(0)
+
+        for i in range(num_scan):
+            # set frequency
+            names.append(frequency_pv)
+            values.append(freq[i])
+            readwrite.append(0)
+
+            # set inphase
+            names.append(eta_i_pv)
+            values.append(int(0))
+            readwrite.append(0)
+
+            names.append(eta_q_pv)
+            values.append(int(2**14))
+            readwrite.append(0)
+
+            # read inphase
+            names.append(frequency_error_pv)
+            values.append(0)
+            readwrite.append(1)
+
+            names.append(frequency_pv)
+            values.append(freq[i])
+            readwrite.append(0)
+
+            # set quadrature
+            names.append(eta_i_pv)
+            values.append(int(2**14))
+            readwrite.append(0)
+
+            names.append(eta_q_pv)
+            values.append(int(0))
+            readwrite.append(0)
+
+            # read inphase
+            names.append(frequency_error_pv)
+            values.append(0)
+            readwrite.append(1)
+
+        X = self.C.SHERIFF_register_rw(names, values, readwrite)
+        readback_data = X[1][1]
+
+        # I = self.get_eta_scan_results_real(band, count=len(freq))
+        # Q = self.get_eta_scan_results_imag(band, count=len(freq))
+        I = readback_data[4::8]
+        Q = readback_data[8::8]
 
         self.band_off(band)
 
