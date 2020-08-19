@@ -30,6 +30,7 @@ class DataFromFile(pyrogue.Device):
     def __init__(self, name="DataFromFile", description="Data from file source", **kwargs):
         pyrogue.Device.__init__(self, name=name, description=description, **kwargs)
         self._data_master = DataMaster()
+        self._maxNumCh    = 1024
 
         self.add(pyrogue.LocalVariable(
             name='FileName',
@@ -120,13 +121,13 @@ class DataMaster(rogue.interfaces.stream.Master):
         """
 
         # Request a frame to hold an SMuRF frame
-        frame = self._reqFrame(128+2*4096, True)
+        frame = self._reqFrame(128+2*self._maxNumCh, True)
 
         # Fill the frame with zeros
-        frame.write( bytearray([0]*(128+2*4096)), 0 )
+        frame.write( bytearray([0]*(128+2*self._maxNumCh)), 0 )
 
         # Write the number of channels
-        frame.write( bytearray((4096).to_bytes(4, sys.byteorder)), 4)
+        frame.write( bytearray((self._maxNumCh).to_bytes(4, sys.byteorder)), 4)
 
         # Write the frame counter into the header
         frame.write( bytearray(self._frame_cnt.to_bytes(4, sys.byteorder)), 84)

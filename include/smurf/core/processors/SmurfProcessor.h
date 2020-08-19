@@ -105,7 +105,7 @@ namespace smurf
                 // ** CONSTANTS **//
                 // This is the maximum number of channel we expect from the FW application,
                 // and, therefore, the maximum number of channels allowed in a SMuRF packet.
-                static const std::size_t maxNumCh = 4096;
+                static const std::size_t maxNumCh = 1024;
 
                 // Unwrap related constants
                 const fw_t      upperUnwrap =  0x6000;          // If we are above this and jump, assume a wrap

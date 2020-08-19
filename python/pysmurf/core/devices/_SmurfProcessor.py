@@ -33,6 +33,7 @@ class SmurfChannelMapper(pyrogue.Device):
     def __init__(self, name, device, **kwargs):
         pyrogue.Device.__init__(self, name=name, description='SMuRF Channel Mapper', **kwargs)
         self.device = device
+        self._maxNumCh = 1024
 
         # Add the number of enabled channels  variable
         self.add(pyrogue.LocalVariable(
@@ -60,7 +61,7 @@ class SmurfChannelMapper(pyrogue.Device):
             name='Mask',
             description='Set the mapping mask',
             mode='RW',
-            value=[0]*4096,
+            value=[0]*self._maxNumCh,
             localSet=lambda value: self.device.setMask(value),
             localGet=self.device.getMask))
 

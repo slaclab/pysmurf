@@ -70,6 +70,8 @@ namespace smurf
 
             private:
 
+               static const std::size_t maxNumCh = 1024;
+
                std::shared_ptr<rogue::Logging> eLog_;
 
                uint32_t sourcePeriod_;

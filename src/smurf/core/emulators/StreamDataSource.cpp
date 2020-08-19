@@ -136,7 +136,7 @@ void sce::StreamDataSource::runThread() {
          unixTime += currTime.tv_usec * 1e3;
 
          if ( timercmp(&currTime,&endTime,>=)) {
-            size = SmurfHeader<ris::FrameIterator>::SmurfHeaderSize + 2*4096;
+            size = SmurfHeader<ris::FrameIterator>::SmurfHeaderSize + 2*maxNumCh;
 
             frame = this->reqFrame(size, true);
             frame->setPayload(size);
@@ -149,7 +149,7 @@ void sce::StreamDataSource::runThread() {
             header->setCrateID(crateId_);              // Set ATCA crate ID
             header->setSlotNumber(slotNumber_);        // Set ATCA slot number
             header->setTimingConfiguration(0);         // Set timing configuration
-            header->setNumberChannels(4096);           // Set number of channel in this packet
+            header->setNumberChannels(maxNumCh);       // Set number of channel in this packet
             header->setUnixTime(unixTime);             // Set 64 bit unix time nanoseconds
             header->setFluxRampIncrement(0);           // Set signed 32 bit integer for increment
             header->setFluxRampOffset(0);              // Set signed 32 it integer for offset
@@ -177,10 +177,10 @@ void sce::StreamDataSource::runThread() {
             fPtr += header->SmurfHeaderSize;
 
             // Create uint16 accessor to the data
-            ris::FrameAccessor<uint16_t> dPtr(fPtr,4096);
+            ris::FrameAccessor<uint16_t> dPtr(fPtr, maxNumCh);
 
             // Set data to zero
-            memset(dPtr.begin(),0,4096*2);
+            memset(dPtr.begin(),0,maxNumCh*2);
 
             this->sendFrame(frame);
             frame.reset();
