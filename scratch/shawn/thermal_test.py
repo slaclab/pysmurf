@@ -121,7 +121,7 @@ def disable_streaming(slot_number):
     tmux_cmd(slot_number,cmd)
 
 def enable_streaming(slot_number):
-    print("-> Disable streaming")
+    print("-> Enable streaming")
     cmd="""S.set_stream_enable(1)"""
     tmux_cmd(slot_number,cmd)    
 
@@ -262,9 +262,12 @@ for slot in slots:
 if not skip_setup:
 
     if gnuplot_temperatures:
-        plot_cmd='cd ./pysmurf/scratch/shawn/; ./plot_temperatures.sh %s %s'%(','.join([str(slot) for slot in slots]),output_dir)
+        while not os.path.exists(hardware_logfile):
+            print(f'Waiting for {hardware_logfile} to start being populated ...')
+            time.sleep(5)
+        plot_cmd='cd ./pysmurf/scratch/shawn/; ./plot_temperatures.sh %s %s'%(','.join([str(slot) for slot in slots]),hardware_logfile)
         os.system(plot_cmd)
-    
+
     print('-> Waiting {} min before setup.'.format(wait_before_setup_min))
     wait_before_setup_sec=wait_before_setup_min*60
     time.sleep(wait_before_setup_sec)    
@@ -355,20 +358,6 @@ if pause_btw_stages:
     input('Press enter to continue ...')
 
 #######################################################################    
-# streaming on
-print('-> Enabling streaming.'.format(wait_after_streaming_on_min))
-add_tag_to_hardware_log(hardware_logfile,tag='streaming'.format(band))        
-enable_streaming(slot)
-
-print('-> Waiting {} min after turning on streaming.'.format(wait_after_streaming_on_min))
-wait_after_streaming_on_sec=wait_after_streaming_on_min*60
-time.sleep(wait_after_streaming_on_sec)
-###### done enabling streaming
-
-if pause_btw_stages:
-    input('Press enter to continue ...')    
-
-#######################################################################    
 # tracking setup on all bands
 wait_btw_tracking_setups_sec=wait_btw_tracking_setups_min*60
 for band in bands:
@@ -388,6 +377,20 @@ time.sleep(wait_after_tracking_setups_sec)
 
 if pause_btw_stages:
     input('Press enter to continue ...')
+
+#######################################################################    
+# streaming on
+print('-> Enabling streaming.'.format(wait_after_streaming_on_min))
+add_tag_to_hardware_log(hardware_logfile,tag='streaming'.format(band))        
+enable_streaming(slot)
+
+print('-> Waiting {} min after turning on streaming.'.format(wait_after_streaming_on_min))
+wait_after_streaming_on_sec=wait_after_streaming_on_min*60
+time.sleep(wait_after_streaming_on_sec)
+###### done enabling streaming
+
+if pause_btw_stages:
+    input('Press enter to continue ...')        
 
 ##### DWELL WITH EVERYTHING ON AND FANS AT FULL LEVEL
 full_fan_level_dwell_sec=full_fan_level_dwell_min*60
