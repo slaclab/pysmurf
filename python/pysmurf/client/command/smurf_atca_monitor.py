@@ -87,7 +87,7 @@ class SmurfAtcaMonitorMixin(SmurfBase):
         if atca_epics_root is None:
             shelf_manager=self.shelf_manager
         return self._caget(
-            f'{shelf_manager}:Crate:Slot_{slot_number}:' +
+            f'{shelf_manager}:Crate:Sensors:Slots:{slot_number}:' +
             self._board_temp_fpga_reg,**kwargs)
 
     _board_temp_rtm_reg = 'BoardTemp:RTM'
@@ -129,7 +129,7 @@ class SmurfAtcaMonitorMixin(SmurfBase):
         if atca_epics_root is None:
             shelf_manager=self.shelf_manager
         return self._caget(
-            f'{shelf_manager}:Crate:Slot_{slot_number}:' +
+            f'{shelf_manager}:Crate:Sensors:Slots:{slot_number}:' +
             self._board_temp_rtm_reg,**kwargs)
 
     _junction_temp_fpga_reg = 'JunctionTemp:FPG'
@@ -176,7 +176,7 @@ class SmurfAtcaMonitorMixin(SmurfBase):
         if atca_epics_root is None:
             shelf_manager=self.shelf_manager
         return self._caget(
-            f'{shelf_manager}:Crate:Slot_{slot_number}:' +
+            f'{shelf_manager}:Crate:Sensors:Slots:{slot_number}:' +
             self._junction_temp_fpga_reg,**kwargs)
 
     _board_temp_amc_reg = 'BoardTemp:AMC{}'
@@ -222,10 +222,10 @@ class SmurfAtcaMonitorMixin(SmurfBase):
         # For some reason, the bay 0 AMC is at AMC[0] and the bay 1
         # AMC is at AMC[2], hence the bay*2.
         return self._caget(
-            f'{shelf_manager}:Crate:Slot_{slot_number}:' +
+            f'{shelf_manager}:Crate:Sensors:Slots:{slot_number}:' +
             self._board_temp_amc_reg.format(bay*2),**kwargs)
 
-    _amc_asset_tag_reg = 'AMC[{}]:Product_Asset_Tag'
+    _amc_asset_tag_reg = 'Product_Asset_Tag'
 
     def get_amc_asset_tag(
             self, bay, slot_number=None, atca_epics_root=None,
@@ -269,6 +269,7 @@ class SmurfAtcaMonitorMixin(SmurfBase):
         # For some reason, the bay 0 AMC is at AMC[0] and the bay 1
         # AMC is at AMC[2], hence the bay*2.
         return self._caget(
-            f'{shelf_manager}:Crate:Slot_{slot_number}:' +
-            self._amc_asset_tag_reg.format(bay*2), as_string=True,
+            f'{shelf_manager}:Crate:Sensors:Slots:{slot_number}:' +
+            f'AMCInfo:{bay*2}:' +
+            self._amc_asset_tag_reg, as_string=True,
             **kwargs)

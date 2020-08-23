@@ -5,15 +5,47 @@ import fcntl
 import sys
 import epics
 
+shelfmanager='shm-smrf-sp01'
+
+def get_crate_mfr(shelfmanager,timeout=5):
+    print(f'{shelfmanager}:Crate:Sensors:Crate:CrateInfo:manufacturer')
+    crate_mfr=epics.caget(f'{shelfmanager}:Crate:Sensors:Crate:CrateInfo:manufacturer',as_string=True,timeout=5)
+    return crate_mfr
+
+# atca_monitor not working right now, have to hardcode.
+crate_mfr='asis'
+#while crate_mfr is None:
+#    print('Polling atca_monitor for crate manufacturer ...')
+#    crate_mfr=get_crate_mfr(shelfmanager)
+#
+#print(f"Got crate manufacturer!  It's \"{crate_mfr}\"")
+    
+# Comtel 7-slot crate defaults
+max_fan_level=100
+fan_frus=[(20,4),(20,3)]
+restricted_fan_level=50
+if 'comtel' in crate_mfr.lower():
+    # Comtel 7-slot settings are default values above.
+    print('COMTEL crate!')
+    pass
+elif 'asis' in crate_mfr.lower():
+    # ASIS 7-slot
+    print('ASIS crate!  Adjusting fan levels and FRU ids.')
+    max_fan_level=15
+    fan_frus=[(20,10),(20,9)]
+    restricted_fan_level=7
+else:
+    print(f'Thermal test not supported for crate manufacturer "{crate_mfr}".')
+    print(f'Aborting thermal test!')
+    sys.exit(1)
+
 # Takes a comma delimited list of slots to run the thermal test on
 slots=[int(slot) for slot in sys.argv[1].split(',')]
 print(f'Running thermal test on slots {slots} ...')
 
 # whether or not to automatically plot the hardware logs
 gnuplot_temperatures=True
-shelfmanager='shm-smrf-sp01'
 set_fans_to_full_at_start=True
-max_fan_level=100
 
 wait_to_check_full_band_response=False
 stop_logging_at_end=False
@@ -48,10 +80,7 @@ wait_after_tracking_setups_min=1
 full_fan_level_dwell_min=2
 
 # Whether or not to restrict the fan level
-#fan_frus=[(20,4),(20,3)]
-fan_frus=[(20,3),(20,4)]
-restrict_fan_level=True
-restricted_fan_level=50
+restrict_fan_level=False
 restricted_fan_level_dwell_min=15
 
 # Dumb monitoring of FPGA and regulator temperatures
@@ -204,7 +233,10 @@ def record_hardware_state(slots,atca_yml,server_ymls,amcc_dump_file,shelfmanager
 
 ctime=time.time()
 #output_dir='/data/smurf_data/westpak_thermal_testing_Jan2020'
-output_dir='/data/smurf_data/simonsobs_first10carriers_thermal_testing_Feb2020'
+#output_dir='/data/smurf_data/simonsobs_first10carriers_thermal_testing_Feb2020'
+output_dir='/data/smurf_data/simonsobs_6carrier_long_thermal_test_Aug2020'
+if not os.path.exists(output_dir):
+    os.makedirs(output_dir)
 hardware_logfile=os.path.join(output_dir,'{}_hwlog.dat'.format(int(ctime)))
 atca_yml=os.path.join(output_dir,'{}_atca.yml'.format(int(ctime)))
 server_ymls=os.path.join(output_dir,'{}'.format(int(ctime))+'_s{}.yml')
@@ -228,12 +260,14 @@ for slot in slots:
     extend_argv_if_needed(slot)
     
 if not skip_setup:
+
+    if gnuplot_temperatures:
+        plot_cmd='cd ./pysmurf/scratch/shawn/; ./plot_temperatures.sh %s %s'%(','.join([str(slot) for slot in slots]),output_dir)
+        os.system(plot_cmd)
+    
     print('-> Waiting {} min before setup.'.format(wait_before_setup_min))
     wait_before_setup_sec=wait_before_setup_min*60
     time.sleep(wait_before_setup_sec)    
-
-    if gnuplot_temperatures:
-        os.system('cd ./pysmurf/scratch/shawn/; ./plot_temperatures.sh %s'%(','.join([str(slot) for slot in slots])))
     
     # setup
     add_tag_to_hardware_log(hardware_logfile,tag='setup')
@@ -361,10 +395,6 @@ add_tag_to_hardware_log(hardware_logfile,tag='startfullfandwell')
 print('-> Dwelling for {} min with everything on at full fan level ...'.format(full_fan_level_dwell_min))
 time.sleep(full_fan_level_dwell_sec)
 add_tag_to_hardware_log(hardware_logfile,tag='endfullfandwell')
-
-#restrict_fan_level=True
-#restricted_fan_level=50
-#restricted_fan_level_dwell_min=10
 
 if restrict_fan_level:
     print(f'-> Restricting fan speeds to {restricted_fan_level} (out of {max_fan_level}).')

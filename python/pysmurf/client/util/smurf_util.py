@@ -4221,8 +4221,10 @@ class SmurfUtilMixin(SmurfBase):
         # atca monitor
         d['atca_temp_fpga']=self.get_board_temp_fpga
         d['atca_temp_rtm']=self.get_board_temp_rtm
-        d['atca_temp_amc0']=self.get_board_temp_amc0
-        d['atca_temp_amc2']=self.get_board_temp_amc2
+        d['atca_temp_amc0']=(
+            lambda:self.get_board_temp_amc(bay=0))
+        d['atca_temp_amc2']=(
+            lambda:self.get_board_temp_amc(bay=1))
         d['atca_jct_temp_fpga']=self.get_junction_temp_fpga
 
         # regulator
