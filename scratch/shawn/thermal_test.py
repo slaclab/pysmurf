@@ -380,11 +380,12 @@ if pause_btw_stages:
 
 #######################################################################    
 # streaming on
-print('-> Enabling streaming.'.format(wait_after_streaming_on_min))
-add_tag_to_hardware_log(hardware_logfile,tag='streaming'.format(band))        
-enable_streaming(slot)
+for slot in slots:
+    print('-> Enabling streaming on slot {}.'.format(slot))
+    enable_streaming(slot)
+add_tag_to_hardware_log(hardware_logfile,tag='streaming'.format(band))            
 
-print('-> Waiting {} min after turning on streaming.'.format(wait_after_streaming_on_min))
+print('-> Waiting {} min after turning on streaming for all slots.'.format(wait_after_streaming_on_min))
 wait_after_streaming_on_sec=wait_after_streaming_on_min*60
 time.sleep(wait_after_streaming_on_sec)
 ###### done enabling streaming
