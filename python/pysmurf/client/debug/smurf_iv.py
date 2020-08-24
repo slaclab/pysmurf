@@ -952,6 +952,8 @@ class SmurfIVMixin(SmurfBase):
         iv_dict['si_target'] = si_target
         iv_dict['v_tes_target'] = v_tes_target
         iv_dict['v_tes'] = v_tes
+        iv_dict['i_bias'] = i_bias_bin
+        iv_dict['i_tes'] = resp_bin
 
         return iv_dict
 
