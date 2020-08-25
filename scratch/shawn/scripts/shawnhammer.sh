@@ -330,12 +330,17 @@ else
 	start_slot_tmux_serial ${slot} ${pyrogue} ${pysmurf_cfg}
 	
 	pysmurf_docker_slot=`docker ps -a -n 1 -q`
+	docker rename ${pysmurf_docker_slot} pysmurf_dev_s${slot}
 	
 	if [[ "$reboot" = true && "$configure_pysmurf" = true ]] ; then
     	    config_pysmurf_serial ${slot} ${pysmurf_docker_slot}
 	fi
     done
 fi
+
+# shawnhammer uses the dev pysmurf docker.  Kill the stable versions.
+echo "-> Killing stable pysmurf dockers ..."
+docker rm -f $(docker ps -q -f name=pysmurf_s)
 
 ### Done configuring carriers
 ################################################################################

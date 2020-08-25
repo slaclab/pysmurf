@@ -120,6 +120,9 @@ start_slot_pysmurf() {
     tmux send-keys -t ${tmux_session_name}:${slot_number} './run.sh' C-m
     sleep 1
 
+    pysmurf_docker_slot=`docker ps -a -n 1 -q`
+    docker rename ${pysmurf_docker_slot} pysmurf_dev_s${slot}    
+    
     if [ "$enable_tmux_logging" = true ] ; then
 	tmux run-shell -t ${tmux_session_name}:${slot_number} /home/cryo/tmux-logging/scripts/toggle_logging.sh
     fi    
