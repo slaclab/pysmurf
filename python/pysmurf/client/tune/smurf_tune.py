@@ -1702,7 +1702,7 @@ class SmurfTuneMixin(SmurfBase):
             channels[~close_idx] = -1
 
             # write the channel assignments to file
-            self.write_master_assignment(band, freq, subbands, channels)
+            # self.write_master_assignment(band, freq, subbands, channels)
 
         return subbands, channels, offsets
 
@@ -3271,9 +3271,6 @@ class SmurfTuneMixin(SmurfBase):
         # Save data
         save_name = '{}_amp_sweep_{}.txt'
 
-        print(self.output_dir)
-        print(timestamp)
-
         path = os.path.join(self.output_dir, save_name.format(timestamp, 'freq'))
         np.savetxt(path, f)
         self.pub.register_file(path, 'sweep_response', format='txt')
@@ -3312,7 +3309,7 @@ class SmurfTuneMixin(SmurfBase):
         if make_plot:
             self.plot_find_freq(self.freq_resp[band]['find_freq']['f'],
                 self.freq_resp[band]['find_freq']['resp'], save_plot=save_plot,
-                show_plot=show_plot,
+                show_plot=show_plot, subband=subband,
                 save_name=save_name.replace('.txt', plotname_append +
                                             '.png').format(timestamp, band))
 
@@ -3543,13 +3540,6 @@ class SmurfTuneMixin(SmurfBase):
         subchan = first_channel_per_subband[subband]
         cryo_channel = subchan
 
-        print(band, subband, cryo_channel)
-
-        # self.set_eta_scan_freq(band, freq)
-        # self.set_eta_scan_amplitude(band, drive)
-        # self.set_eta_scan_channel(band, subchan)
-        # self.set_eta_scan_dwell(band, 0)
-
         # self.set_run_eta_scan(band, 1)
 
         # input frequency is in MHz - convert to Hz
@@ -3557,104 +3547,53 @@ class SmurfTuneMixin(SmurfBase):
         freq = [int(f*2**23/1.2E6) for f in freq_hz]
         num_scan = len(freq)
 
-        print(freq_hz)
-        print(freq)
-
-        # creating lists
-        names = []
-        values = []
-        readwrite = []
-
-        # Int24
+        # PVs
         frequency_pv = f'{self._epics_root}:AMCc:FpgaTopLevel:AppTop:AppCore:SysgenCryo:Base[0]:CryoChannels:centerFrequency[{cryo_channel}]'
-
-        # UInt4
         amplitude_pv = f'{self._epics_root}:AMCc:FpgaTopLevel:AppTop:AppCore:SysgenCryo:Base[0]:CryoChannels:amplitudeScale[{cryo_channel}]'
-
-        # Int16
-        eta_i_pv     = f'{self._epics_root}:AMCc:FpgaTopLevel:AppTop:AppCore:SysgenCryo:Base[0]:CryoChannels:etaI[{cryo_channel}]'
-        eta_q_pv     = f'{self._epics_root}:AMCc:FpgaTopLevel:AppTop:AppCore:SysgenCryo:Base[0]:CryoChannels:etaQ[{cryo_channel}]'
-
-        # readback PV
-        # Int24
+        eta_i_pv = f'{self._epics_root}:AMCc:FpgaTopLevel:AppTop:AppCore:SysgenCryo:Base[0]:CryoChannels:etaI[{cryo_channel}]'
+        eta_q_pv = f'{self._epics_root}:AMCc:FpgaTopLevel:AppTop:AppCore:SysgenCryo:Base[0]:CryoChannels:etaQ[{cryo_channel}]'
         frequency_error_pv = f'{self._epics_root}:AMCc:FpgaTopLevel:AppTop:AppCore:SysgenCryo:Base[0]:CryoChannels:frequencyError[{cryo_channel}]'
 
-        # creating lists
-        names = []
-        values = []
-        readwrite = []
+        function_name = "SHERIFF_eta_scan"
+        rtn = 1
+        arglist = []
+        steps = num_scan
+        amplitude = 15
+        cryo_channel = int(cryo_channel)
 
-        names.append(amplitude_pv)
-        values.append(int(drive))
-        readwrite.append(0)
+        # Fill list of input vars - eventually move these paths to the script itself
+        arglist.append(frequency_pv)
+        arglist.append(amplitude_pv)
+        arglist.append(eta_i_pv)
+        arglist.append(eta_q_pv)
+        arglist.append(frequency_error_pv)
+        arglist.append(cryo_channel)
+        arglist.append(steps)
+        arglist.append(amplitude)
 
-        for i in range(num_scan):
-            # set frequency
-            names.append(frequency_pv)
-            values.append(freq[i])
-            readwrite.append(0)
+        [err, resp] = self.SHERIFF_C.SHERIFF_remote_command(function_name, rtn, arglist)
 
-            # set inphase
-            names.append(eta_i_pv)
-            values.append(int(0))
-            readwrite.append(0)
+        # self.band_off(band)
 
-            names.append(eta_q_pv)
-            values.append(int(2**14))
-            readwrite.append(0)
+        I = np.array(resp[0])
+        Q = np.array(resp[1])
 
-            # read inphase
-            names.append(frequency_error_pv)
-            values.append(0)
-            readwrite.append(1)
+        # response = np.zeros((len(freq), ), dtype=complex)
 
-            names.append(frequency_pv)
-            values.append(freq[i])
-            readwrite.append(0)
+        response = I + 1.j * Q
 
-            # set quadrature
-            names.append(eta_i_pv)
-            values.append(int(2**14))
-            readwrite.append(0)
+        # for index in range(len(freq)):
+        #     Ielem = I[index]
+        #     Qelem = Q[index]
+        #     if Ielem > 2**23:
+        #         Ielem = Ielem - 2**24
+        #     if Qelem > 2**23:
+        #         Qelem = Qelem - 2**24
 
-            names.append(eta_q_pv)
-            values.append(int(0))
-            readwrite.append(0)
+        #     Ielem /= 2**23
+        #     Qelem /= 2**23
 
-            # read inphase
-            names.append(frequency_error_pv)
-            values.append(0)
-            readwrite.append(1)
-
-        X = self.C.SHERIFF_register_rw(names, values, readwrite)
-        readback_data = X[1][1]
-
-        # I = self.get_eta_scan_results_real(band, count=len(freq))
-        # Q = self.get_eta_scan_results_imag(band, count=len(freq))
-        I = readback_data[4::8]
-        Q = readback_data[8::8]
-
-        names = [amplitude_pv]
-        values = [0]
-        readwrite = [0]
-        self.C.SHERIFF_register_rw(names, values, readwrite)
-
-        self.band_off(band)
-
-        response = np.zeros((len(freq), ), dtype=complex)
-
-        for index in range(len(freq)):
-            Ielem = I[index]
-            Qelem = Q[index]
-            if Ielem > 2**23:
-                Ielem = Ielem - 2**24
-            if Qelem > 2**23:
-                Qelem = Qelem - 2**24
-
-            Ielem /= 2**23
-            Qelem /= 2**23
-
-            response[index] = Ielem + 1j*Qelem
+        #     response[index] = Ielem + 1j*Qelem
 
         if make_plot:
             # To do : make plotting
@@ -3787,7 +3726,7 @@ class SmurfTuneMixin(SmurfBase):
 
         self.save_tune()
 
-        self.relock(band)
+        # self.relock(band)
 
     @set_action()
     def save_tune(self, update_last_tune=True):
@@ -3798,7 +3737,7 @@ class SmurfTuneMixin(SmurfBase):
         savedir = os.path.join(self.tune_dir, timestamp+"_tune")
         self.log(f'Saving to : {savedir}.npy')
         np.save(savedir, self.freq_resp)
-        self.pub.register_file(savedir, 'tune', format='npy')
+        # self.pub.register_file(savedir, 'tune', format='npy')
 
         self.tune_file = savedir+'.npy'
 

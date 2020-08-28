@@ -152,15 +152,20 @@ class SmurfControl(SmurfCommandMixin,
 
         super().__init__(offline=offline, **kwargs)
 
-        system_num = 2
-        # config_name = '/mnt/c/Users/Edward/Documents/GitHub/SHERIFF/config/loopback_config.txt'
-        config_name = '/mnt/c/Users/Edward/Documents/GitHub/SHERIFF/config/zynq_config.txt'
-        # ipaddr = '127.0.0.1'
-        ipaddr = '192.168.2.99'
+        # system_num = 2
+        # config_name = '/mnt/c/Users/Edward/Documents/GitHub/SHERIFF/config/zynq_config.txt'
+        # ipaddr = '192.168.2.99'
 
-        B = PC.SHERIFF_config_reader(config_name, system_num, ipaddr)
-        B.config['rack_defs_file_name'] = '/mnt/c/Users/Edward/Documents/GitHub/SHERIFF/config/SHERIFF_com_defs.h'
-        self.C = PC.SHERIFF_cmd(B)
+        system_num = 2                                     # This number is appended to various stuff to allow multple copies to run without impactint each other
+        config_name = '/mnt/c/Users/Edward/Documents/GitHub/SHERIFF/config/zynq_config.txt'                 # Defaut will override with config file
+        ipaddr = '192.168.2.99'                               # default will override with config file
+
+        self.SHERIFF_B = PC.SHERIFF_config_reader(config_name, system_num, ipaddr)
+        self.SHERIFF_B.config['rack_defs_file_name'] = '/mnt/c/Users/Edward/Documents/GitHub/SHERIFF/config/SHERIFF_com_defs.h'
+        self.SHERIFF_B.config['rack_c_executable'] = '/mnt/c/Users/Edward/Documents/GitHub/SHERIFF/rack_bin/SHERIFF_python_com'
+        self.SHERIFF_B.config['register_file_name'] = '/mnt/c/Users/Edward/Documents/GitHub/SHERIFF/config/rfsoc_reg.txt'
+
+        self.SHERIFF_C = PC.SHERIFF_cmd(self.SHERIFF_B)
 
         if cfg_file is not None or data_dir is not None:
             self.initialize(data_dir=data_dir,

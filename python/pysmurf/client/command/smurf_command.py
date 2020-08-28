@@ -92,7 +92,7 @@ class SmurfCommandMixin(SmurfBase):
 
         if execute:
             # epics.caput(cmd, val, wait=wait_done, **kwargs)
-            self.C.SHERIFF_register_rw([cmd], [val], [0])
+            self.SHERIFF_C.SHERIFF_register_rw([cmd], [val], [0])
 
         if wait_after is not None:
             if write_log:
@@ -167,7 +167,7 @@ class SmurfCommandMixin(SmurfBase):
 
         if execute:
             # ret = epics.caget(cmd, count=count, **kwargs)
-            err, ret_all = self.C.SHERIFF_register_rw([cmd], [0], [1])
+            err, ret_all = self.SHERIFF_C.SHERIFF_register_rw([cmd], [0], [1])
             if len(err) > 0:
                 self.log(err)
                 ret = None
