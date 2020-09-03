@@ -426,7 +426,7 @@ class SmurfConfig:
                 "feedbackLimitkHz" : And(Use(float), lambda f: f > 0),
 
                 # Number of cycles to delay phase reference
-                'refPhaseDelay': And(int, lambda n: 0 <= n < 2**4),
+                'refPhaseDelay': And(int, lambda n: 0 <= n < 2**6),
                 # Finer phase reference delay, 307.2MHz clock ticks.  This
                 # goes in the opposite direction as refPhaseDelay.
                 'refPhaseDelayFine': And(int, lambda n: 0 <= n < 2**8),
