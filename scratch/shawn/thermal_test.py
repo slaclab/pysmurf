@@ -13,7 +13,7 @@ def get_crate_mfr(shelfmanager,timeout=5):
     return crate_mfr
 
 # atca_monitor not working right now, have to hardcode.
-crate_mfr='asis'
+crate_mfr='comtel'
 #while crate_mfr is None:
 #    print('Polling atca_monitor for crate manufacturer ...')
 #    crate_mfr=get_crate_mfr(shelfmanager)
@@ -88,9 +88,9 @@ restricted_fan_level_dwell_min=15
 
 def tmux_cmd(slot_number,cmd,tmux_session_name='smurf'):
     os.system("""tmux send-keys -t {}:{} '{}' C-m""".format(tmux_session_name,slot_number,cmd))
-    
-def get_eta_scan_in_progress(slot_number,band,tmux_session_name='smurf'):
-    etaScanInProgress=int(epics.caget('smurf_server_s{}:AMCc:FpgaTopLevel:AppTop:AppCore:SysgenCryo:Base[{}]:CryoChannels:etaScanInProgress'.format(slot_number,band)))
+
+def get_eta_scan_in_progress(slot_number,band,tmux_session_name='smurf',timeout=5):
+    etaScanInProgress=int(epics.caget('smurf_server_s{}:AMCc:FpgaTopLevel:AppTop:AppCore:SysgenCryo:Base[{}]:CryoChannels:etaScanInProgress'.format(slot_number,band),timeout=timeout))
     return etaScanInProgress
     
 def start_hardware_logging(slot_number,filename=None):
