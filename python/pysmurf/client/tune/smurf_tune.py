@@ -3504,7 +3504,7 @@ class SmurfTuneMixin(SmurfBase):
 
     @set_action()
     def fast_eta_scan(self, band, subband, freq, n_read, drive,
-            make_plot=False):
+            make_plot=False, show_plot=False, save_plot=True):
         """copy of fastEtaScan.m from Matlab. Sweeps quickly across a
         range of freq and gets I, Q response
 
@@ -3545,59 +3545,67 @@ class SmurfTuneMixin(SmurfBase):
         # input frequency is in MHz - convert to Hz
         freq_hz = freq*1.0E6
         freq = [int(f*2**23/1.2E6) for f in freq_hz]
-        num_scan = len(freq)
+        steps = len(freq)  # total number of measurements
 
-        # PVs
-        frequency_pv = f'{self._epics_root}:AMCc:FpgaTopLevel:AppTop:AppCore:SysgenCryo:Base[0]:CryoChannels:centerFrequency[{cryo_channel}]'
-        amplitude_pv = f'{self._epics_root}:AMCc:FpgaTopLevel:AppTop:AppCore:SysgenCryo:Base[0]:CryoChannels:amplitudeScale[{cryo_channel}]'
-        eta_i_pv = f'{self._epics_root}:AMCc:FpgaTopLevel:AppTop:AppCore:SysgenCryo:Base[0]:CryoChannels:etaI[{cryo_channel}]'
-        eta_q_pv = f'{self._epics_root}:AMCc:FpgaTopLevel:AppTop:AppCore:SysgenCryo:Base[0]:CryoChannels:etaQ[{cryo_channel}]'
-        frequency_error_pv = f'{self._epics_root}:AMCc:FpgaTopLevel:AppTop:AppCore:SysgenCryo:Base[0]:CryoChannels:frequencyError[{cryo_channel}]'
-
+        # Function name defined in SHERIFF
         function_name = "SHERIFF_eta_scan"
-        rtn = 1
-        arglist = []
-        steps = num_scan
-        amplitude = 15
+        rtn = 1  # 1 means yes
+
+        # Make cure cryochannel is cast as int
         cryo_channel = int(cryo_channel)
 
-        # Fill list of input vars - eventually move these paths to the script itself
-        arglist.append(frequency_pv)
-        arglist.append(amplitude_pv)
-        arglist.append(eta_i_pv)
-        arglist.append(eta_q_pv)
-        arglist.append(frequency_error_pv)
+        # Add commands to arglist
+        arglist = []
+        arglist.append(self.epics_root)
         arglist.append(cryo_channel)
         arglist.append(steps)
-        arglist.append(amplitude)
+        arglist.append(drive)
+        arglist.append(freq)
 
-        [err, resp] = self.SHERIFF_C.SHERIFF_remote_command(function_name, rtn, arglist)
+        # Execute command on FPGA
+        [err, resp] = self.SHERIFF_C.SHERIFF_remote_command(function_name,
+            rtn, arglist)
 
-        # self.band_off(band)
-
+        # Get I and Q then construct complex response
         I = np.array(resp[0])
         Q = np.array(resp[1])
 
-        # response = np.zeros((len(freq), ), dtype=complex)
-
         response = I + 1.j * Q
 
-        # for index in range(len(freq)):
-        #     Ielem = I[index]
-        #     Qelem = Q[index]
-        #     if Ielem > 2**23:
-        #         Ielem = Ielem - 2**24
-        #     if Qelem > 2**23:
-        #         Qelem = Qelem - 2**24
-
-        #     Ielem /= 2**23
-        #     Qelem /= 2**23
-
-        #     response[index] = Ielem + 1j*Qelem
-
         if make_plot:
-            # To do : make plotting
-            self.log('Plotting does not work in this function yet...')
+            if show_plot:
+                plt.ion()
+            else:
+                plt.ioff()
+
+            timestamp = self.get_timestamp()
+
+            freq_khz = freq_hz / 1.0E3
+            freq_plot = freq_khz
+
+            fig, ax = plt.subplots(2, sharex=True)
+            ax[0].plot(freq_plot, np.real(response), label='Real')
+            ax[0].plot(freq_plot, np.imag(response), label='Imag')
+            ax[0].plot(freq_plot,np.abs(response), color='k', label='Abs')
+            ax[0].legend()
+            ax[0].set_ylabel('Amplitude')
+            ax[1].plot(freq_plot, np.rad2deg(np.unwrap(np.angle(response))))
+            ax[1].set_ylabel('Angle [deg]')
+            ax[1].set_xlabel('Freq [kHz]')
+
+            ax[0].set_title(f'{timestamp} fast_eta_scan b{band}' +
+                f' subband{subband}')
+            plt.tight_layout()
+
+            if save_plot:
+                plt.savefig(os.path.join(self.plot_dir,
+                    f"{timestamp}_fast_eta_scan_b{band}sb{subband}.png"),
+                    bbox_inches='tight')
+
+            if show_plot:
+                plt.show()
+            else:
+                plt.close()
 
         return freq, response
 
