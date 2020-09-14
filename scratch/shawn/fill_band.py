@@ -7,7 +7,7 @@ import random
 
 band=int(sys.argv[1])
 
-amplitude=12
+amplitude=10
 freq_std_khz=100
 freq_std_mhz=freq_std_khz/1000.
 one_subband_at_a_time=False
@@ -37,23 +37,29 @@ cfa=np.empty_like(cfa0)
 cfa[:]=cfa0
 asa[:]=asa0
 
-subbands=np.arange(13,115)
+
+subbands=np.arange(S.get_number_sub_bands())
+processed_channels = S.get_processed_channels()
+
 for sb in subbands:
     chans_in_subband=S.get_channels_in_subband(band,sb)
 
-    cfa[chans_in_subband]=foffs
-    frand=np.random.normal(0,freq_std_mhz,n_channels_per_subband)
-    cfa[chans_in_subband]+=frand
+    # only operate on processed subbands
+    if chans_in_subband[0] in processed_channels:
 
-    #print(cfa[chans_in_subband])
-    asa[chans_in_subband]=amplitude
+        cfa[chans_in_subband]=foffs
+        frand=np.random.normal(0,freq_std_mhz,n_channels_per_subband)
+        cfa[chans_in_subband]+=frand
 
-    if one_subband_at_a_time:
-        print('-> Setting band {}, subband {}.'.format(band,sb))
-        S.set_center_frequency_array(band,cfa)
-        S.set_amplitude_scale_array(band,asa)        
-        time.sleep(wait_btw_subbands_sec)
-        #input('Press return to continue to next subband...')
+        #print(cfa[chans_in_subband])
+        asa[chans_in_subband]=amplitude
+
+        if one_subband_at_a_time:
+            print('-> Setting band {}, subband {}.'.format(band,sb))
+            S.set_center_frequency_array(band,cfa)
+            S.set_amplitude_scale_array(band,asa)        
+            time.sleep(wait_btw_subbands_sec)
+            #input('Press return to continue to next subband...')
         
 if not one_subband_at_a_time:
     if restrict_nper_band is not None:
