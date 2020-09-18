@@ -24,6 +24,7 @@ import numpy as np
 from pysmurf.client.base.smurf_config import SmurfConfig
 from pysmurf.client.base.smurf_config_properties import SmurfConfigPropertiesMixin
 from pysmurf.client.command.smurf_atca_monitor import SmurfAtcaMonitorMixin
+from pysmurf.client.command.smurf_timing import SmurfTimingMixin
 from pysmurf.client.command.smurf_command import SmurfCommandMixin
 from pysmurf.client.debug.smurf_iv import SmurfIVMixin
 from pysmurf.client.debug.smurf_noise import SmurfNoiseMixin
