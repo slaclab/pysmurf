@@ -34,7 +34,7 @@ from pysmurf.client.util.smurf_util import SmurfUtilMixin
 class SmurfControl(SmurfCommandMixin,
         SmurfAtcaMonitorMixin, SmurfUtilMixin, SmurfTuneMixin,
         SmurfNoiseMixin, SmurfIVMixin,
-        SmurfConfigPropertiesMixin):
+        SmurfConfigPropertiesMixin, SmurfTimingMixin):
 
     """Base class for controlling SMuRF.
 
