@@ -31,9 +31,11 @@ from pysmurf.client.debug.smurf_noise import SmurfNoiseMixin
 from pysmurf.client.tune.smurf_tune import SmurfTuneMixin
 from pysmurf.client.util.smurf_util import SmurfUtilMixin
 
+
+# SmurfConfigPropertiesMixin must be the last inheretance below
 class SmurfControl(SmurfCommandMixin,
         SmurfAtcaMonitorMixin, SmurfUtilMixin, SmurfTuneMixin,
-                   SmurfNoiseMixin, SmurfIVMixin, SmurfTimingMixin,
+        SmurfNoiseMixin, SmurfIVMixin, SmurfTimingMixin,
         SmurfConfigPropertiesMixin):
 
     """Base class for controlling SMuRF.
@@ -145,7 +147,7 @@ class SmurfControl(SmurfCommandMixin,
         # Done setting epics_root
 
         super().__init__(offline=offline, **kwargs)
-        
+
         if cfg_file is not None or data_dir is not None:
             self.initialize(data_dir=data_dir,
                 name=name, make_logfile=make_logfile, setup=setup,
@@ -218,7 +220,7 @@ class SmurfControl(SmurfCommandMixin,
                 self.data_dir = data_dir
             else:
                 self.data_dir = self._default_data_dir
-                
+
             self.date = time.strftime("%Y%m%d")
 
             # name
@@ -226,7 +228,7 @@ class SmurfControl(SmurfCommandMixin,
             if name is None:
                 name = self.start_time
             self.name = name
-            
+
             self.base_dir = os.path.abspath(self.data_dir)
 
             # create output and plot directories
@@ -251,7 +253,7 @@ class SmurfControl(SmurfCommandMixin,
         # Which bays were enabled on pysmurf server startup?
         # self.bays = self.which_bays()
         self.bays = [0,1]
-        
+
         # Crate/carrier configuration details that won't change.
         self.crate_id = self.get_crate_id()
         self.slot_number = self.get_slot_number()
