@@ -33,8 +33,8 @@ from pysmurf.client.util.smurf_util import SmurfUtilMixin
 
 class SmurfControl(SmurfCommandMixin,
         SmurfAtcaMonitorMixin, SmurfUtilMixin, SmurfTuneMixin,
-        SmurfNoiseMixin, SmurfIVMixin,
-        SmurfConfigPropertiesMixin, SmurfTimingMixin):
+                   SmurfNoiseMixin, SmurfIVMixin, SmurfTimingMixin,
+        SmurfConfigPropertiesMixin):
 
     """Base class for controlling SMuRF.
 
@@ -114,6 +114,8 @@ class SmurfControl(SmurfCommandMixin,
         # Require specification of configuration file if not in
         # offline mode.  If configuration file is specified, load into
         # config attribute.
+
+
         SmurfConfigPropertiesMixin.__init__(self)
         if not offline and cfg_file is None:
             raise ValueError('Must provide config file.')
@@ -122,7 +124,6 @@ class SmurfControl(SmurfCommandMixin,
             # Populate SmurfConfigPropertiesMixin properties with
             # values from loaded pysmurf configuration file.
             self.copy_config_to_properties(self.config)
-
         # Save shelf manager - Should this be in the config?
         self.shelf_manager = shelf_manager
 
@@ -144,7 +145,7 @@ class SmurfControl(SmurfCommandMixin,
         # Done setting epics_root
 
         super().__init__(offline=offline, **kwargs)
-
+        
         if cfg_file is not None or data_dir is not None:
             self.initialize(data_dir=data_dir,
                 name=name, make_logfile=make_logfile, setup=setup,
@@ -217,7 +218,7 @@ class SmurfControl(SmurfCommandMixin,
                 self.data_dir = data_dir
             else:
                 self.data_dir = self._default_data_dir
-
+                
             self.date = time.strftime("%Y%m%d")
 
             # name
@@ -225,7 +226,7 @@ class SmurfControl(SmurfCommandMixin,
             if name is None:
                 name = self.start_time
             self.name = name
-
+            
             self.base_dir = os.path.abspath(self.data_dir)
 
             # create output and plot directories
@@ -241,14 +242,16 @@ class SmurfControl(SmurfCommandMixin,
 
             # name the logfile and create flags for it
             if make_logfile:
+	        # Set up logging
                 self.log_file = os.path.join(self.output_dir, name + '.log')
                 self.log.set_logfile(self.log_file)
             else:
                 self.log.set_logfile(None)
 
         # Which bays were enabled on pysmurf server startup?
-        self.bays = self.which_bays()
-
+        # self.bays = self.which_bays()
+        self.bays = [0,1]
+        
         # Crate/carrier configuration details that won't change.
         self.crate_id = self.get_crate_id()
         self.slot_number = self.get_slot_number()

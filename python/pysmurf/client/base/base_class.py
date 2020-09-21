@@ -62,8 +62,7 @@ class SmurfBase:
                  pub_root=None, script_id=None, **kwargs):
         """
         """
-
-        # Set up logging
+	# Set up logging
         self.log = log
         if self.log is None:
             self.log = self.init_log(**kwargs)
