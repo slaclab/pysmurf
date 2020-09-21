@@ -41,7 +41,6 @@ class SmurfTimingMixin(SmurfBase):
         """
         return self._caget(self.timing_root + self._ckst, **kwargs)
 
-
     _time_skew = "TIMESKEW"
 
     def get_timing_time_skew(self, **kwargs):
@@ -117,21 +116,21 @@ class SmurfTimingMixin(SmurfBase):
         """
         return self._caget(self.timing_root + self._remlnkready, **kwargs)
 
-    def get_timing_all(self):
+    def get_timing_all(self, **kwargs):
         """
         Polls all the timing PVs
         """
         timing_status = {}
-        timing_status['timing_state'] = self.get_timing_state()
-        timing_status['time_skew'] = self.get_timing_time_skew()
-        timing_status['clock_rate'] = self.get_timing_clock_rate()
-        timing_status['pll_count'] = self.get_timing_pll_count()
-        timing_status['base_rate'] = self.get_timing_base_rate()
-        timing_status['sync_err'] = self.get_timing_sync_err()
-        timing_status['interval_counter'] = self.get_timing_interval_counter()
-        timing_status['phyreadyrx'] = self.get_timing_phyreadyrx()
-        timing_status['phyreadytx'] = self.get_timing_phyreadytx()
-        timing_status['loclnkready'] = self.get_timing_loclnkready()
-        timing_status['remlnkready'] = self.get_timing_remlnkready()
+        timing_status['timing_state'] = self.get_timing_state(**kwargs)
+        timing_status['time_skew'] = self.get_timing_time_skew(**kwargs)
+        timing_status['clock_rate'] = self.get_timing_clock_rate(**kwargs)
+        timing_status['pll_count'] = self.get_timing_pll_count(**kwargs)
+        timing_status['base_rate'] = self.get_timing_base_rate(**kwargs)
+        timing_status['sync_err'] = self.get_timing_sync_err(**kwargs)
+        timing_status['interval_counter'] = self.get_timing_interval_counter(**kwargs)
+        timing_status['phyreadyrx'] = self.get_timing_phyreadyrx(**kwargs)
+        timing_status['phyreadytx'] = self.get_timing_phyreadytx(**kwargs)
+        timing_status['loclnkready'] = self.get_timing_loclnkready(**kwargs)
+        timing_status['remlnkready'] = self.get_timing_remlnkready(**kwargs)
 
         return timing_status
