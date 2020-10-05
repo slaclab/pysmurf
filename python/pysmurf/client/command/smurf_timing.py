@@ -34,7 +34,7 @@ class SmurfTimingMixin(SmurfBase):
     # To do - Move to base
     timing_root = "TPG:SMRF:1:"
 
-    _ckst = "CKST"
+    _ckst = "CLKST"
 
     def get_timing_state(self, **kwargs):
         """
@@ -88,28 +88,28 @@ class SmurfTimingMixin(SmurfBase):
         """
         return self._caget(self.timing_root + self._countintv, **kwargs)
 
-    _phyreadyrx = "PHYREADYRX"
+    _phyreadyrx = "MPSLNK:PHYREADYRX"
 
     def get_timing_phyreadyrx(self, **kwargs):
         """
         """
         return self._caget(self.timing_root + self._phyreadyrx, **kwargs)
 
-    _phyreadytx = "PHYREADYTX"
+    _phyreadytx = "MPSLNK:PHYREADYTX"
 
     def get_timing_phyreadytx(self, **kwargs):
         """
         """
         return self._caget(self.timing_root + self._phyreadytx, **kwargs)
 
-    _loclnkready = "LOCLNKREADY"
+    _loclnkready = "MPSLNK:LOCLNKREADY"
 
     def get_timing_loclnkready(self, **kwargs):
         """
         """
         return self._caget(self.timing_root + self._loclnkready, **kwargs)
 
-    _remlnkready = "REMLNKREADY"
+    _remlnkready = "MPSLNK:REMLNKREADY"
 
     def get_timing_remlnkready(self, **kwargs):
         """
