@@ -16,6 +16,7 @@
 """Defines the :class:`SmurfTimingMixin` class."""
 from pysmurf.client.base import SmurfBase
 import time
+import numpy as np
 
 class SmurfTimingMixin(SmurfBase):
     """Mixin providing interface with the atca_monitor server.
