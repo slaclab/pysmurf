@@ -15,6 +15,7 @@
 #-----------------------------------------------------------------------------
 """Defines the :class:`SmurfTimingMixin` class."""
 from pysmurf.client.base import SmurfBase
+import time
 
 class SmurfTimingMixin(SmurfBase):
     """Mixin providing interface with the atca_monitor server.
@@ -134,3 +135,78 @@ class SmurfTimingMixin(SmurfBase):
         timing_status['remlnkready'] = self.get_timing_remlnkready(**kwargs)
 
         return timing_status
+
+
+    def check_timing(self, n=3, wait_time=1, **kwargs):
+        """
+        This takes a few seconds because it attempts to see if some values are
+        constant over time.
+        """
+
+        # Query timing system several times
+        timing_status_dict = {}
+        for i in np.arange(n):
+            self.log(f'{i+1} of {n}')
+            timing_status_dict[i] = self.get_timing_all(**kwargs)
+            time.sleep(wait_time)
+
+        # Set default success bit
+        success = True
+        failure_list = np.array([], dtype='str')
+
+        # check all constant values
+        ready_bit = 0
+        keys = ['phyreadyrx', 'phyreadytx', 'loclnkready', 'remlnkready']
+        for i in np.arange(n):
+            for k in keys:
+                if timing_status_dict[i][k] != ready_bit:
+                    success = False
+                    failure_list = failure_list.append(k)
+
+        normal_bit = 1
+        keys = ['timing_state']
+        for i in np.arange(n):
+            for k in keys:
+                if timing_status_dict[i][k] != normal_bit:
+                    success = False
+                    failure_list = failure_list.append(k)
+
+        # checking time skew
+        k = 'time_skew'
+        skew_max = 50  # microseconds
+        for i in np.arange(n):
+            if np.abs(timing_status_dict[i][k]) > skew_max:
+                success = False
+                failure_list = failure_list.append(k)
+
+        # check clock_rate
+        k = 'clock_rate'
+        clkrate_var = .1
+        clkrate_med = 186.
+        for i in np.arange(n):
+            if np.abs(timing_status_dict[i][k]-clkrate_med) > clkrate_var:
+                success = False
+                failure_list = failure_list.append(k)
+
+        # Check constant values
+        keys = ['pll_count', 'base_rate', 'interval_counter']
+        for i in np.arange(n-1):
+            for k in keys:
+                if timing_status_dict[i][k] != timing_status_dict[+1][k]:
+                    success = False
+                    failure_list = failure_list.append(k)
+
+        # check sync error counter
+        k = 'sync_err'
+        for i in np.arange(n):
+            if np.abs(timing_status_dict[i][k]) !=0:
+                success = False
+                failure_list = failure_list.append(k)
+
+        if not success:
+            self.log('Timing system not properly configured.')
+            self.log(f'The error is likely in : ')
+            for f in failure_list:
+                self.log(f'   {f}')
+
+        return success
