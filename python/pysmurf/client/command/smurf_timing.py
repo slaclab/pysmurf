@@ -162,7 +162,7 @@ class SmurfTimingMixin(SmurfBase):
             for k in keys:
                 if timing_status_dict[i][k] != ready_bit:
                     success = False
-                    failure_list = failure_list.append(k)
+                    failure_list = np.append(failure_list, k)
 
         normal_bit = 1
         keys = ['timing_state']
@@ -170,7 +170,7 @@ class SmurfTimingMixin(SmurfBase):
             for k in keys:
                 if timing_status_dict[i][k] != normal_bit:
                     success = False
-                    failure_list = failure_list.append(k)
+                    failure_list = np.append(failure_list, k)
 
         # checking time skew
         k = 'time_skew'
@@ -178,7 +178,7 @@ class SmurfTimingMixin(SmurfBase):
         for i in np.arange(n):
             if np.abs(timing_status_dict[i][k]) > skew_max:
                 success = False
-                failure_list = failure_list.append(k)
+                failure_list = np.append(failure_list, k)
 
         # check clock_rate
         k = 'clock_rate'
@@ -187,7 +187,7 @@ class SmurfTimingMixin(SmurfBase):
         for i in np.arange(n):
             if np.abs(timing_status_dict[i][k]-clkrate_med) > clkrate_var:
                 success = False
-                failure_list = failure_list.append(k)
+                failure_list = np.append(failure_list, k)
 
         # Check constant values
         keys = ['pll_count', 'base_rate', 'interval_counter']
@@ -195,14 +195,14 @@ class SmurfTimingMixin(SmurfBase):
             for k in keys:
                 if timing_status_dict[i][k] != timing_status_dict[+1][k]:
                     success = False
-                    failure_list = failure_list.append(k)
+                    failure_list = np.append(failure_list, k)
 
         # check sync error counter
         k = 'sync_err'
         for i in np.arange(n):
             if np.abs(timing_status_dict[i][k]) !=0:
                 success = False
-                failure_list = failure_list.append(k)
+                failure_list = np.append(failure_list, k)
 
         if not success:
             self.log('Timing system not properly configured.')
