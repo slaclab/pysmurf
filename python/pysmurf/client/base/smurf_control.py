@@ -492,7 +492,7 @@ class SmurfControl(SmurfCommandMixin,
                 # value.
                 if self._lms_delay[band] is None:
                     self.set_lms_delay(
-                        band, int(4*self._ref_phase_delay[band]),
+                        band, int(self._ref_phase_delay[band]),
                         write_log=write_log, **kwargs)
                 else:
                     self.set_lms_delay(
