@@ -3355,7 +3355,7 @@ class SmurfTuneMixin(SmurfBase):
             The band to search.
         subband : numpy.ndarray of int or None, optional, default None
             An int array for the subbands.  If None, set to all
-            processed subbands =numpy.arange(13,115).
+            processed subbands =numpy.arange(number_subbands).
         tone_power : int or None, optional, default None
             The drive amplitude.  If None, takes from cfg.
         n_read : int, optional, default 2
@@ -3384,7 +3384,7 @@ class SmurfTuneMixin(SmurfBase):
             Minimum number of samples between resonances.
         '''
         if subband is None:
-            subband = np.arange(13,115)
+            subband = np.arange(self.get_number_sub_bands(band))
 
         # Turn off all tones in this band first.  May want to make
         # this only turn off tones in each sub-band before sweeping,
