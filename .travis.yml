@@ -1,0 +1,158 @@
+os: linux
+dist: bionic
+
+language: python
+python: 3.6
+
+services:
+  - docker
+
+env:
+  global:
+    - DOCKER_ORG_NAME=tidair
+    - DOCKER_SERVER_REPO=pysmurf-server-base
+    - DOCKER_CLIENT_REPO=pysmurf-client
+
+# Install dependencies
+addons:
+  apt:
+    packages:
+      - flake8
+
+stages:
+  - checks
+  - tests
+  - name: deploy
+    if: tag IS present
+
+jobs:
+  fast_finish: true
+  include:
+    # Check stages
+    ## Flake8 checks
+    - stage: checks
+      name: "Flake8 Checks"
+      install:
+        - pip3 install flake8-rst-docstrings flake8-sfs flake8-import-order
+      script:
+        # Run Flake8
+        - flake8 --count python/
+
+    # Test stages
+    ## Documentation automatic build tests
+    - stage: tests
+      name: "Documentation Build Tests"
+      install:
+        # Install requirements
+        - pip3 install -r requirements.txt
+        # Install pysmurf
+        - pip3 install .
+        # Install sphinx
+        - pip3 install sphinx
+      script:
+        # Try to build the documentation
+        - cd docs/
+        - make html SPHINXOPTS="-W --keep-going"
+
+    ## Server tests
+    - stage: tests
+      name: "Server Tests"
+      install:
+        # Build the server docker
+        - cd docker/server/
+        - docker build --build-arg branch=$TRAVIS_BRANCH -t server_docker .
+        - cd -
+
+      before_script:
+        # Start the server container in the background
+        - |
+          docker run -dti --rm --name server \
+          --entrypoint bash \
+          server_docker
+
+      script:
+        # Try to import the smurf module in the server container
+        - |
+          docker exec server \
+          /bin/bash -c "python3 -c 'import rogue; import smurf;'"
+
+        # Try to import the pysmurf's SmurfProcessor module in the server container
+        - |
+          docker exec server \
+          /bin/bash -c "python3 -c 'import pysmurf.core.devices; \
+          s = pysmurf.core.devices.SmurfProcessor(name=\"\", description=\"\")'"
+
+    ## Client tests
+    - stage: tests
+      name: "Client Tests"
+      install:
+        # Build the client docker
+        - cd docker/client/
+        - docker build --build-arg branch=$TRAVIS_BRANCH -t client_docker .
+        - cd -
+
+      before_script:
+        # Start the client container in the background
+        - |
+          docker run -dti --rm --name client \
+          --entrypoint bash \
+          client_docker
+
+      script:
+        # Try to import the pysmurf.client module in the client container
+        # Note: we need to disable the matplotlib graphics backend in order to
+        #       be able to run in travis.
+        - |
+          docker exec client \
+          /bin/bash -c "python3 -c 'import matplotlib; matplotlib.use(\"Agg\"); import pysmurf.client'"
+
+    # Deployment stages
+    ## Generate release notes
+    - stage: deploy
+      name: "Generate Release Notes"
+      before_script:
+        # Install dependencies of the releaseGen.py script
+        - pip3 install GitPython PyGithub
+      script:
+        # Generate a release using the releaseGen.py script
+        - python3 releaseGen.py
+
+    ## Server docker
+    - stage: deploy
+      name: "Server Docker Image"
+      before_script:
+        # Use the git tag to tag tag docker image
+        - export DOCKER_TAG=`git describe --tags --always`
+        # Login to docker
+        - echo "${DOCKER_PASSWORD}" | docker login -u "${DOCKER_ORG_NAME}" --password-stdin;
+
+      script:
+        # Build the docker image
+        - cd docker/server/
+        - docker build --build-arg branch=$TRAVIS_BRANCH -t ${DOCKER_ORG_NAME}/${DOCKER_SERVER_REPO} .
+
+      after_success:
+        # Upload docker image (as tagged and latest version)
+        - docker push ${DOCKER_ORG_NAME}/${DOCKER_SERVER_REPO};
+        - docker tag ${DOCKER_ORG_NAME}/${DOCKER_SERVER_REPO} ${DOCKER_ORG_NAME}/${DOCKER_SERVER_REPO}:${DOCKER_TAG};
+        - docker push ${DOCKER_ORG_NAME}/${DOCKER_SERVER_REPO}:${DOCKER_TAG};
+
+    ## Client docker
+    - stage: deploy
+      name: "Client Docker Image"
+      before_script:
+        # Use the git tag to tag tag docker image
+        - export DOCKER_TAG=`git describe --tags --always`
+        # Login to docker
+        - echo "${DOCKER_PASSWORD}" | docker login -u "${DOCKER_ORG_NAME}" --password-stdin;
+
+      script:
+        # Build the docker image
+        - cd docker/client/
+        - docker build --build-arg branch=$TRAVIS_BRANCH -t ${DOCKER_ORG_NAME}/${DOCKER_CLIENT_REPO} .
+
+      after_success:
+        # Upload docker image (as tagged and latest version)
+        - docker push ${DOCKER_ORG_NAME}/${DOCKER_CLIENT_REPO};
+        - docker tag ${DOCKER_ORG_NAME}/${DOCKER_CLIENT_REPO} ${DOCKER_ORG_NAME}/${DOCKER_CLIENT_REPO}:${DOCKER_TAG};
+        - docker push ${DOCKER_ORG_NAME}/${DOCKER_CLIENT_REPO}:${DOCKER_TAG};

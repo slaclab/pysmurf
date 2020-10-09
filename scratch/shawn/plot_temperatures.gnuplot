@@ -4,7 +4,7 @@
 datafile=ARG1
 datafile_relpath=system(sprintf("basename %s",datafile))
 
-set yrange [0:100]
+set yrange [0:120]
 set xlabel 'Time'
 set ylabel 'Temperature (C)'
 set grid
@@ -14,7 +14,8 @@ set timefmt "%s"
 set format x "%H:%M:%S"
 set xdata time
 
-plot datafile u 1:2 title 'FPGA BTemp', datafile u 1:3 title 'FPGA JTemp', datafile u 1:4 title 'Bay 0 DAC0 temp', datafile u 1:5 title 'Bay 0 DAC1 temp', datafile u 1:6 title 'Bay 1 DAC0 temp', datafile u 1:7 title 'Bay 1 DAC1 temp', datafile u 1:8 title 'AxiSysMonUltraScale:Temperature'
+plot datafile u 2:3 title 'fpga\_temp', datafile u 2:7 title 'cc\_temp', datafile u 2:12 title 'atca\_temp\_fpga', datafile u 2:13 title 'atca\_temp\_rtm', datafile u 2:14 title 'atca\_temp\_amc0', datafile u 2:15 title 'atca\_temp\_amc2', datafile u 2:16 title 'atca\_jct\_temp\_fpga', datafile u 2:17 title 'regulator\_iout', datafile u 2:18 title 'regulator\_temp1', datafile u 2:19 title 'regulator\_temp2'
+
 set title datafile_relpath noenhanced
 set key font ",12"
 set key left bottom
@@ -30,5 +31,3 @@ pngname=system(sprintf("echo %s | sed s/.dat/.png/g",datafile_relpath))
 set output pngname
 replot
 set term x11
-
-
