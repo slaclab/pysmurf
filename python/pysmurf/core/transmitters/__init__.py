@@ -19,3 +19,4 @@
 
 from pysmurf.core.transmitters._BaseTransmitter import *
 from pysmurf.core.transmitters._DataToFile      import DataToFile
+from pysmurf.core.transmitters._GCPTransmitter  import GCPTransmitter

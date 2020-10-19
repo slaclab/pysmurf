@@ -55,6 +55,8 @@ public:
     // Get a data value
     const data_t getData(std::size_t index) const;
 
+    const std::vector<data_t>& getDataVector() const { return data; }
+
 private:
     // Prevent construction using the default or copy constructor.
     // Prevent an SmurfHeaderRO object to be assigned as well.
