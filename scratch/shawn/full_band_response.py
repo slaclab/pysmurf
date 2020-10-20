@@ -23,7 +23,7 @@ for band in bands:
     resp_dict[band]={}
     resp_dict[band]['fc']=S.get_band_center_mhz(band)
 
-    f,resp=S.full_band_resp(band=band, make_plot=False, show_plot=False, n_scan=n_scan_per_band, timestamp=timestamp)
+    f,resp=S.full_band_resp(band=band, make_plot=False, show_plot=False, n_scan=n_scan_per_band, timestamp=timestamp, save_data=True)
     resp_dict[band]['f']=f
     resp_dict[band]['resp']=resp
     
@@ -64,6 +64,10 @@ print(f'Saving plot to {os.path.join(S.plot_dir, save_name)}')
 plt.savefig(os.path.join(S.plot_dir, save_name), 
             bbox_inches='tight')
 plt.show()
+
+save_name = '{}_full_band_resp_all.npy'.format(timestamp)
+print(f'Saving data to {os.path.join(S.output_dir, save_name)}')
+np.save(save_name,resp_dict)
 
 # log plot file
 logf=open('/data/smurf_data/smurf_loop.log','a+')
