@@ -2559,13 +2559,13 @@ class SmurfUtilMixin(SmurfBase):
         Args
         ----
         bias_group : int
-            The bias group.
+           The bias group.
         volt : float
-            The TES bias to command in volts.
+           The TES bias to command in volts.
         do_enable : bool, optional, default True
-            Sets the enable bit. Only must be done once.
+           Sets the enable bit. Only must be done once.
         flip_polarity : bool, optional, default False
-            Sets the voltage to volt*-1.
+           Sets the voltage to volt*-1.
         """
 
         # Make sure the requested bias group is in the list of defined
@@ -2598,7 +2598,8 @@ class SmurfUtilMixin(SmurfBase):
         self.set_rtm_slow_dac_volt(dac_positive, volts_pos, **kwargs)
         self.set_rtm_slow_dac_volt(dac_negative, volts_neg, **kwargs)
 
-    def set_tes_bias_bipolar_array(self, bias_group_volt_array, do_enable=True, **kwargs):
+    def set_tes_bias_bipolar_array(self, bias_group_volt_array, do_enable=True,
+                                   **kwargs):
         """
         Set TES bipolar values for all DACs at once.  Set using a
         pyrogue array write, so should be much more efficient than
@@ -2713,13 +2714,20 @@ class SmurfUtilMixin(SmurfBase):
     def get_tes_bias_bipolar_array(self, return_raw=False, **kwargs):
         """
         Returns array of bias voltages per bias group in units of volts.
-        Currently hard coded to return the first 8 as (8,) array. I'm sorry -CY
 
         Args
         ----
         return_raw : bool, optional, default False
             If True, returns +/- terminal vals as separate arrays
             (pos, then negative)
+
+        Returns
+        -------
+        bias_vals : float, array
+            If return_raw is False, returns an array of size n_bias_group
+            with the TES bias in units of volts. If return_raw is True,
+            returns two arrays of size n_bias_group. The first is the positive
+            bias DAC and the second is the negative bias DAC.
         """
 
         bias_order = self.bias_group_to_pair[:,0]
