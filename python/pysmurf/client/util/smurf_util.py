@@ -2556,13 +2556,13 @@ class SmurfUtilMixin(SmurfBase):
         Args
         ----
         bias_group : int
-            The bias group.
+           The bias group.
         volt : float
-            The TES bias to command in volts.
+           The TES bias to command in volts.
         do_enable : bool, optional, default True
-            Sets the enable bit. Only must be done once.
+           Sets the enable bit. Only must be done once.
         flip_polarity : bool, optional, default False
-            Sets the voltage to volt*-1.
+           Sets the voltage to volt*-1.
         """
 
         # Make sure the requested bias group is in the list of defined
@@ -2596,7 +2596,7 @@ class SmurfUtilMixin(SmurfBase):
         self.set_rtm_slow_dac_volt(dac_negative, volts_neg, **kwargs)
 
     def set_tes_bias_bipolar_array(self, bias_group_volt_array, do_enable=True,
-        **kwargs):
+                                   **kwargs):
         """
         Set TES bipolar values for all DACs at once.  Set using a
         pyrogue array write, so should be much more efficient than
