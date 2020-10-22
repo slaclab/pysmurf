@@ -255,14 +255,14 @@ class SmurfUtilMixin(SmurfBase):
         refPhaseDelay0=1
         refPhaseDelayFine0=0
 
-        uc_att0=self.get_att_dc(band)
-        dc_att0=self.get_att_uc(band)
+        uc_att0 = self.get_att_uc(band)
+        dc_att0 = self.get_att_dc(band)
         if uc_att is None:
             uc_att = self.get_att_uc(band)
         if dc_att is None:
             dc_att = self.get_att_dc(band)
-        self.set_att_uc(band,uc_att, write_log=True)
-        self.set_att_dc(band,dc_att, write_log=True)
+        self.set_att_uc(band, uc_att, write_log=True)
+        self.set_att_dc(band, dc_att, write_log=True)
 
         # only loop over dsp subbands in requested frequency range (to
         # save time)
@@ -494,8 +494,11 @@ class SmurfUtilMixin(SmurfBase):
             if not show_plot:
                 plt.close()
 
-        self.set_att_uc(band,uc_att0,write_log=True)
-        self.set_att_dc(band,dc_att0,write_log=True)
+        self.log('Setting attenuator values back to original values')
+        self.log(f'UC Att: {uc_att0}')
+        self.log(f'DC Att: {dc_att0}')
+        self.set_att_uc(band, uc_att0, write_log=True)
+        self.set_att_dc(band, dc_att0, write_log=True)
 
         return refPhaseDelay, refPhaseDelayFine, processing_delay_us, dsp_corr_delay_us
 
