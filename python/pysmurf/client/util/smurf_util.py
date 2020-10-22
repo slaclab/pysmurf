@@ -1496,7 +1496,7 @@ class SmurfUtilMixin(SmurfBase):
         saturated : bool
            True if ADC is saturated, otherwise False.
         """
-        adc = self.read_adc_data(band, data_length=2**12, do_plot=False,
+        adc = self.read_adc_data(band, data_length=2**12, make_plot=False,
                   save_data=False, show_plot=False, save_plot=False)
         adc_max   = int(np.max((adc.real.max(), adc.imag.max())))
         adc_min   = int(np.min((adc.real.min(), adc.imag.min())))
@@ -1524,7 +1524,7 @@ class SmurfUtilMixin(SmurfBase):
         saturated : bool
             Flag if DAC is saturated.
         """
-        dac = self.read_dac_data(band, data_length=2**12, do_plot=False,
+        dac = self.read_dac_data(band, data_length=2**12, make_plot=False,
                   save_data=False, show_plot=False, save_plot=False)
         dac_max   = int(np.max((dac.real.max(), dac.imag.max())))
         dac_min   = int(np.min((dac.real.min(), dac.imag.min())))
@@ -1539,7 +1539,7 @@ class SmurfUtilMixin(SmurfBase):
 
     @set_action()
     def read_adc_data(self, band, data_length=2**19,
-                      hw_trigger=False, do_plot=False, save_data=True,
+                      hw_trigger=False, make_plot=False, save_data=True,
                       timestamp=None, show_plot=True, save_plot=True,
                       plot_ylimits=[None,None]):
         """
@@ -1554,7 +1554,7 @@ class SmurfUtilMixin(SmurfBase):
         hw_trigger : bool, optional, default False
             Whether to use the hardware trigger. If False, uses an
             internal trigger.
-        do_plot : bool, optional, default False
+        make_plot : bool, optional, default False
             Whether or not to plot.
         save_data : bool, optional, default True
             Whether or not to save the data in a time stamped file.
@@ -1586,7 +1586,7 @@ class SmurfUtilMixin(SmurfBase):
             hw_trigger=hw_trigger)
         dat = res[1] + 1.j * res[0]
 
-        if do_plot:
+        if make_plot:
             if show_plot:
                 plt.ion()
             else:
@@ -1643,7 +1643,7 @@ class SmurfUtilMixin(SmurfBase):
 
     @set_action()
     def read_dac_data(self, band, data_length=2**19,
-                      hw_trigger=False, do_plot=False, save_data=True,
+                      hw_trigger=False, make_plot=False, save_data=True,
                       timestamp=None, show_plot=True, save_plot=True,
                       plot_ylimits=[None,None]):
         """
@@ -1658,7 +1658,7 @@ class SmurfUtilMixin(SmurfBase):
         hw_trigger : bool, optional, default False
             Whether to use the hardware trigger. If False, uses an
             internal trigger.
-        do_plot : bool, optional, default False
+        make_plot : bool, optional, default False
             Whether or not to plot.
         save_data : bool, optional, default True
             Whether or not to save the data in a time stamped file.
@@ -1667,7 +1667,7 @@ class SmurfUtilMixin(SmurfBase):
             file).  If None, in which case it gets the time stamp
             right before acquiring data.
         show_plot : bool, optional, default True
-            If do_plot is True, whether or not to show the plot.
+            If make_plot is True, whether or not to show the plot.
         save_plot : bool, optional, default True
             Whether or not to save plot to file.
         plot_ylimits : list of float or list of None, optional, default [None,None]
@@ -1690,7 +1690,7 @@ class SmurfUtilMixin(SmurfBase):
         res = self.read_stream_data_daq(data_length, bay=bay, hw_trigger=hw_trigger)
         dat = res[1] + 1.j * res[0]
 
-        if do_plot:
+        if make_plot:
             if show_plot:
                 plt.ion()
             else:
