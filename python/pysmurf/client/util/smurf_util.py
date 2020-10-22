@@ -2588,12 +2588,22 @@ class SmurfUtilMixin(SmurfBase):
             volts_pos *= -1
             volts_neg *= -1
 
-        if do_enable:
-            self.set_rtm_slow_dac_enable(dac_positive, 2, **kwargs)
-            self.set_rtm_slow_dac_enable(dac_negative, 2, **kwargs)
-
         self.set_rtm_slow_dac_volt(dac_positive, volts_pos, **kwargs)
         self.set_rtm_slow_dac_volt(dac_negative, volts_neg, **kwargs)
+
+        if do_enable:
+            self.toggle_rtm_slow_dac_enable(dac_positive, **kwargs)
+            self.toggle_rtm_slow_dac_enable(dac_negative, **kwargs)
+
+
+    def toggle_rtm_slow_dac_enable(self, dac_num, **kwargs):
+        """
+        """
+        on_val = 2
+        off_val = 0
+        self.set_rtm_slow_dac_enable(dac_num, on_val, **kwargs)
+        self.set_rtm_slow_dac_enable(dac_num, off_val, **kwargs)
+
 
     def set_tes_bias_bipolar_array(self, bias_group_volt_array, do_enable=True, **kwargs):
         """
