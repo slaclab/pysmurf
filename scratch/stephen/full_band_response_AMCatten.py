@@ -70,7 +70,7 @@ for uatt in att:
         else:
             resp_dict[band]['fc']=(4250+(band%4)*500) + (2000 if RBoardType=='high' else 0) #sets Bay 1 band center based on board type
         
-        f,resp=S.full_band_resp(band=band, make_plot=False, save_plot=False, show_plot=False, n_scan=n_scan_per_band, timestamp=timestamp, correct_att=False) #returns band response around band center
+        f,resp=S.full_band_resp(band=band, make_plot=False, save_plot=False, show_plot=False,save_data=True, n_scan=n_scan_per_band, timestamp=timestamp, correct_att=False) #returns band response around band center
         
         resp_dict[band]['f']=f 
         resp_dict[band]['resp']=resp 

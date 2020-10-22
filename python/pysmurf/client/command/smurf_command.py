@@ -4666,12 +4666,11 @@ class SmurfCommandMixin(SmurfBase):
             The UltraScale+ FPGA temperature in degrees Celsius.
         """
         return self._caget(
-            self.epics_root +
             self.ultrascale +
             self._fpga_temperature_reg,
             **kwargs)
 
-    _fpga_vccint_reg = ":VccInt"
+    _fpga_vccint_reg = "VccInt"
 
     def get_fpga_vccint(self, **kwargs):
         """
@@ -4681,7 +4680,6 @@ class SmurfCommandMixin(SmurfBase):
             The UltraScale+ FPGA VccInt in Volts.
         """
         return self._caget(
-            self.epics_root +
             self.ultrascale +
             self._fpga_vccint_reg,
             **kwargs)
@@ -4696,7 +4694,6 @@ class SmurfCommandMixin(SmurfBase):
             The UltraScale+ FPGA VccAux in Volts.
         """
         return self._caget(
-            self.epics_root +
             self.ultrascale +
             self._fpga_vccaux_reg,
             **kwargs)
@@ -4711,7 +4708,6 @@ class SmurfCommandMixin(SmurfBase):
             The UltraScale+ FPGA VccBram in Volts.
         """
         return self._caget(
-            self.epics_root +
             self.ultrascale +
             self._fpga_vccbram_reg,
             **kwargs)
