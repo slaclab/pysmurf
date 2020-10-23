@@ -1291,6 +1291,37 @@ class SmurfCommandMixin(SmurfBase):
             self._cryo_root(band) + self._eta_scan_dwell_reg,
             **kwargs)
 
+    _run_serial_find_freq_reg = 'runSerialFindFreq'
+
+    def set_run_serial_find_freq(self, band, val, sync_group=True, **kwargs):
+        """
+        Runs the eta scan. Set the channel using set_eta_scan_channel()
+
+        Args
+        ----
+        band : int
+            The band to eta scan.
+        val : bool
+            Start the eta scan.
+        """
+        self._caput(
+            self._cryo_root(band) + self._run_serial_find_freq_reg,
+            val, **kwargs)
+
+        monitorPV=(
+            self._cryo_root(band) + self._eta_scan_in_progress_reg)
+
+        inProgress = True
+        if sync_group:
+            while inProgress:
+                sg = SyncGroup([monitorPV], timeout=360)
+                sg.wait()
+                vals = sg.get_values()
+                inProgress = (vals[monitorPV] == 1)
+            self.log(
+                'serial find freq complete ; etaScanInProgress = ' +
+                f'{vals[monitorPV]}', self.LOG_USER)
+
     _run_eta_scan_reg = 'runEtaScan'
 
     def set_run_eta_scan(self, band, val, **kwargs):

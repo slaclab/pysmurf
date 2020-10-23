@@ -3533,22 +3533,50 @@ class SmurfTuneMixin(SmurfBase):
         """
         digitizer_freq = self.get_digitizer_frequency_mhz(band)  # in MHz
         n_subbands = self.get_number_sub_bands(band)
+        n_channels = self.get_number_channels(band)
 
         scan_freq = (digitizer_freq/n_subbands/2)*np.linspace(-1,1,n_step)
 
-        resp = np.zeros((n_subbands, np.shape(scan_freq)[0]), dtype=complex)
-        freq = np.zeros((n_subbands, np.shape(scan_freq)[0]))
+        channel_order = self.get_channel_order(band)
+
+        channels_per_subband = int(n_channels / n_subbands)
+        first_channel_per_subband = channel_order[0::channels_per_subband]
+        subchan = first_channel_per_subband[subband]
+
+        resp = np.zeros((n_subbands, n_step), dtype=complex)
+        freq = np.zeros((n_subbands, n_step))
+
 
         subband_nos, subband_centers = self.get_subband_centers(band)
 
         self.log(f'Working on band {band}')
         for sb in subband:
-            self.log(f'Sweeping subband no: {sb}')
-            f, r = self.fast_eta_scan(band, sb, scan_freq, n_read,
-                                      tone_power)
-            resp[sb,:] = r
-            freq[sb,:] = f
-            freq[sb,:] = scan_freq + \
+            subchan          = first_channel_per_subband[sb]
+            freq[subchan, :] = scan_freq
+        #
+        self.set_eta_scan_freq(band, freq.flatten())
+        self.set_eta_scan_amplitude(band, tone_power)
+        self.set_run_serial_find_freq(band, 1)
+
+        I = self.get_eta_scan_results_real(band, count=n_step*n_subbands)
+        I = np.asarray(I)
+        idx = np.where( I > 2**23 )
+        I[idx] = I[idx] - 2**24
+        I /= 2**23
+        I = I.reshape(n_subbands, n_step)
+
+        Q = self.get_eta_scan_results_imag(band, count=n_step*n_subbands)
+        Q = np.asarray(Q)
+        idx = np.where( Q > 2**23 )
+        Q[idx] = Q[idx] - 2**24
+        Q /= 2**23
+        Q = Q.reshape(n_subbands, n_step)
+
+        resp = I + 1j*Q
+
+        for sb in subband:
+            subchan    = first_channel_per_subband[sb]
+            freq[subchan,:] = scan_freq + \
                 subband_centers[subband_nos.index(sb)]
 
         return freq, resp
