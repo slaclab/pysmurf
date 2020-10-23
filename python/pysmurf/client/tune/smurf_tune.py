@@ -3543,8 +3543,8 @@ class SmurfTuneMixin(SmurfBase):
         first_channel_per_subband = channel_order[0::channels_per_subband]
         subchan = first_channel_per_subband[subband]
 
-        resp = np.zeros((n_subbands, n_step), dtype=complex)
-        freq = np.zeros((n_subbands, n_step))
+        resp = np.zeros((n_channels, n_step), dtype=complex)
+        freq = np.zeros((n_channels, n_step))
 
 
         subband_nos, subband_centers = self.get_subband_centers(band)
