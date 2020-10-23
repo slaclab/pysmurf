@@ -3510,7 +3510,7 @@ class SmurfTuneMixin(SmurfBase):
                 plt.close()
 
     @set_action()
-    def full_band_ampl_sweep(self, band, subband, tone_power, n_read, n_step=121):
+    def full_band_ampl_sweep(self, band, subband, tone_power, n_read, n_step=31):
         """sweep a full band in amplitude, for finding frequencies
 
         Args
