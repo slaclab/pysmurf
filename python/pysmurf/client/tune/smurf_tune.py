@@ -1284,10 +1284,11 @@ class SmurfTuneMixin(SmurfBase):
         eta = (freq[right] - freq[left]) / (resp[right] - resp[left])
 
         if use_slow_eta:
+            band_center = self.get_band_center_mhz(band)
             f_sweep_half = 0.3
             df_sweep = 0.002
             subband, offset = self.freq_to_subband(band, peak_freq*1e-6+band_center)
-            f_sweep = np.arange(offset - f_seep_half, offset + f_sweep_half, df_sweep)
+            f_sweep = np.arange(offset - f_sweep_half, offset + f_sweep_half, df_sweep)
             f, resp = self.fast_eta_scan(band, subband, f_sweep, 2, tone_power=12)
             f_slow, resp_slow, eta_slow = self.eta_estimator(band, subband, f, resp)
 
@@ -3797,6 +3798,7 @@ class SmurfTuneMixin(SmurfBase):
             input_res = self.freq_resp[band]['find_freq']['resonance']
 
         n_subbands = self.get_number_sub_bands(band)
+        n_channels = self.get_number_channels(band)
         digitizer_frequency_mhz = self.get_digitizer_frequency_mhz(band)
         subband_half_width = digitizer_frequency_mhz/\
             n_subbands
@@ -3811,9 +3813,14 @@ class SmurfTuneMixin(SmurfBase):
         n_res = len(input_res)
         for i, f in enumerate(input_res):
             self.log(f'freq {f:5.4f} - {i+1} of {n_res}')
+            # fillers for now
             f_min = f
             freq  = None
             resp  = None
+            eta   = 1
+            eta_scaled = 1
+            eta_phase_deg = 0
+            eta_mag = 1
 
             resonances[i] = {
                 'freq' : f_min,
@@ -3828,17 +3835,18 @@ class SmurfTuneMixin(SmurfBase):
                 'resp_eta_scan' : resp
             }
 
-
         subbands, channels, offsets = self.assign_channels(f, band=band,
             as_offset=False, min_offset=min_offset,
             new_master_assignment=new_master_assignment)
 
+        f_sweep = np.arange(-sweep_width, sweep_width, df_sweep)
+        n_step  = len(f_sweep)
+
         resp = np.zeros((n_channels, n_step), dtype=complex)
         freq = np.zeros((n_channels, n_step))
-        
-        f_sweep = np.arange(-f_sweep_half, f_sweep_half, df_sweep)
+
         for i, subband in enumerate(subbands):
-            freq[subband, :] = offsets[i] + f_sweep 
+            freq[subband, :] = offsets[i] + f_sweep
 
         self.set_eta_scan_freq(band, freq.flatten())
         self.set_eta_scan_amplitude(band, tone_power)
