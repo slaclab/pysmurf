@@ -2277,7 +2277,7 @@ class SmurfUtilMixin(SmurfBase):
         Returns
         -------
         subband_no : int
-            Subband (0..128) of the frequency within the band.
+            Subband (0..n_subbands-1) of the frequency within the band.
         offset : float
             Offset from subband center.
 
