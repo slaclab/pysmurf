@@ -3390,11 +3390,18 @@ class SmurfTuneMixin(SmurfBase):
         min_gap : int, optional, default 2
             Minimum number of samples between resonances.
         '''
+        band_center = self.get_band_center_mhz(band)
         if subband is None:
-            band_center = self.get_band_center_mhz(band)
             start_subband = self.freq_to_subband(band, band_center + start_freq)
             stop_subband = self.freq_to_subband(band, band_center + stop_freq)
-            subband = np.arange(start_subband, stop_subband+1)
+            step = 1
+            if stop_subband < start_subband:
+                step = -1
+            subband = np.arange(start_subband, stop_subband+1, step)
+        else:
+            sb, sbc = self.get_subband_centers(band)
+            start_freq = sbc[subband[0]]
+            stop_freq  = sbc[subband[-1]]
 
         # Turn off all tones in this band first.  May want to make
         # this only turn off tones in each sub-band before sweeping,
@@ -3406,7 +3413,7 @@ class SmurfTuneMixin(SmurfBase):
             self.log('No tone_power given. Using value in config ' +
                      f'file: {tone_power}')
 
-        self.log('Sweeping across frequencies')
+        self.log(f'Sweeping across frequencies {start_freq + band_center}MHz to {stop_freq + band_center}MHz')
         f, resp = self.full_band_ampl_sweep(band, subband, tone_power, n_read)
 
         timestamp = self.get_timestamp()
