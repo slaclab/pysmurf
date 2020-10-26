@@ -383,7 +383,7 @@ class SmurfUtilMixin(SmurfBase):
         self.set_ref_phase_delay_fine(band,refPhaseDelayFine)
 
         self.log('Running find_freq')
-        freq_dsp_corr,resp_dsp_corr=self.find_freq(band,dsp_subbands)
+        freq_dsp_corr,resp_dsp_corr=self.find_freq(band,subband=dsp_subbands)
 
         freq_dsp_corr_subset=[]
         resp_dsp_corr_subset=[]
