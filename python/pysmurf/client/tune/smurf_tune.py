@@ -3342,10 +3342,10 @@ class SmurfTuneMixin(SmurfBase):
             make_plot=make_plot, flux_ramp=False, **kwargs)
 
     @set_action()
-    def find_freq(self, band, start_freq=-250, stop_freq=250, subband=None, 
+    def find_freq(self, band, start_freq=-250, stop_freq=250, subband=None,
             tone_power=None, n_read=2, make_plot=False, save_plot=True,
-            plotname_append='', window=50, rolling_med=True, 
-            make_subband_plot=False, show_plot=False, grad_cut=.05, 
+            plotname_append='', window=50, rolling_med=True,
+            make_subband_plot=False, show_plot=False, grad_cut=.05,
             amp_cut=.25, pad=2, min_gap=2):
         '''
         Finds the resonances in a band (and specified subbands)
@@ -3354,8 +3354,10 @@ class SmurfTuneMixin(SmurfBase):
         ----
         band : int
             The band to search.
-        start_freq : start frequency in MHz (from band center, default -250)
-        stop_freq : stop frequency in MHz (from band center, default 250)
+        start_freq : float, optional, default -250
+            The scan start frequency in MHz (from band center)
+        stop_freq : float, optional, default 250
+            The scan stop frequency in MHz (from band center)
         subband : deprecated, use start_freq/stop_freq.
             numpy.ndarray of int or None, optional, default None
             An int array for the subbands.  If None, set to all
