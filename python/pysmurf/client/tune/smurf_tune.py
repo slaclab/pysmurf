@@ -3835,7 +3835,7 @@ class SmurfTuneMixin(SmurfBase):
                 'resp_eta_scan' : resp
             }
 
-        subbands, channels, offsets = self.assign_channels(f, band=band,
+        subbands, channels, offsets = self.assign_channels(input_res, band=band,
             as_offset=False, min_offset=min_offset,
             new_master_assignment=new_master_assignment)
 
@@ -3845,8 +3845,8 @@ class SmurfTuneMixin(SmurfBase):
         resp = np.zeros((n_channels, n_step), dtype=complex)
         freq = np.zeros((n_channels, n_step))
 
-        for i, subband in enumerate(subbands):
-            freq[subband, :] = offsets[i] + f_sweep
+        for i, ch in enumerate(channels):
+            freq[ch, :] = offsets[i] + f_sweep
 
         self.set_eta_scan_freq(band, freq.flatten())
         self.set_eta_scan_amplitude(band, tone_power)
@@ -3868,8 +3868,8 @@ class SmurfTuneMixin(SmurfBase):
 
         resp = I + 1j*Q
 
-        for i, subband in enumerate(subbands):
-            freq_s, resp_s, eta = self.eta_estimator(band, subband, freq[subband, :], resp[subband, :],
+        for i, channel in enumerate(channels):
+            freq_s, resp_s, eta = self.eta_estimator(band, subbands[i], freq[channel, :], resp[channel, :],
                 delta_freq=delta_freq, lock_max_derivative=lock_max_derivative)
             eta_phase_deg = np.angle(eta)*180/np.pi
             eta_mag = np.abs(eta)
