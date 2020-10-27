@@ -356,14 +356,17 @@ class SmurfUtilMixin(SmurfBase):
 
         # if refPhaseDelay0 or refPhaseDelayFine0 aren't zero, must add into
         # delay here
-        dsp_delay_us+=refPhaseDelay0/(subband_half_width_mhz/2.)
+        #dsp_delay_us+=refPhaseDelay0/(subband_half_width_mhz*2.)
+        dsp_delay_us+=refPhaseDelay0/(subband_half_width_mhz)
         dsp_delay_us-=refPhaseDelayFine0/(digitizer_frequency_mhz/2)
 
         ## compute refPhaseDelay and refPhaseDelayFine
         refPhaseDelay=int(np.ceil(dsp_delay_us*channel_frequency_mhz))
-        refPhaseDelayFine=int(np.round((digitizer_frequency_mhz/2/
-            (channel_frequency_mhz)*
-            (refPhaseDelay-dsp_delay_us*(subband_half_width_mhz/2.)))))
+        overCorrect = refPhaseDelay-dsp_delay_us*subband_half_width_mhz*2
+        refPhaseDelayFine = int(np.round((digitizer_frequency_mhz/2)/(subband_half_width_mhz*2) * overCorrect))
+        #refPhaseDelayFine=int(np.round((digitizer_frequency_mhz/2/
+        #    (channel_frequency_mhz)*
+        #    (refPhaseDelay-dsp_delay_us*(subband_half_width_mhz/2.)))))
         processing_delay_us=dsp_delay_us-cable_delay_us
 
         print('-------------------------------------------------------')
@@ -494,9 +497,11 @@ class SmurfUtilMixin(SmurfBase):
             if not show_plot:
                 plt.close()
 
+
         self.log('Setting attenuator values back to original values')
         self.log(f'UC Att: {uc_att0}')
         self.log(f'DC Att: {dc_att0}')
+
         self.set_att_uc(band, uc_att0, write_log=True)
         self.set_att_dc(band, dc_att0, write_log=True)
 
