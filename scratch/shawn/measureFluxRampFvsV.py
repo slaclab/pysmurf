@@ -21,18 +21,18 @@ amplitudes_and_uc_atts=[(None,None)]
 
 # needs to be nonzero, or won't track flux ramp well,
 # particularly when stepping flux ramp by large amounts
-lmsGain=6
+lmsGain=2
 hbInBay0=False
 relock=False 
-bands=[2,3]
+bands=[2]
 bias=None
 # no longer averaging as much or waiting as long between points in newer fw which has df filter
 wait_time=0.125
 Npts=3
 #bias_low=-0.432
 #bias_high=0.432
-bias_low=-0.60
-bias_high=0.60
+bias_low=-0.95
+bias_high=0.95
 Nsteps=500
 #Nsteps=25
 bias_step=np.abs(bias_high-bias_low)/float(Nsteps)
@@ -168,7 +168,7 @@ for (amplitude,uc_att) in amplitudes_and_uc_atts:
             #stack
             lfovsfr=np.dstack(fs[band])[0]
             raw_data[band][(amplitude,uc_att)]['lfovsfr']=lfovsfr
-            raw_data[band][(amplitude,uc_att)]['fvsfr']=np.array([arr/4.+fres for (arr,fres) in zip(lfovsfr,fres)]) + (2e3 if hbInBay0 else 0)
+            raw_data[band][(amplitude,uc_att)]['fvsfr']=np.array([arr+fres for (arr,fres) in zip(lfovsfr,fres)]) + (2e3 if hbInBay0 else 0)
 
     # save dataset for each iteration, just to make sure it gets
     # written to disk
