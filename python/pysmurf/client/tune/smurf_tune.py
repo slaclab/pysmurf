@@ -3570,12 +3570,14 @@ class SmurfTuneMixin(SmurfBase):
         Q /= 2**23
         Q = Q.reshape(n_subbands, n_step)
 
-        resp = I + 1j*Q
+        resp_m = I + 1j*Q
+        resp   = np.zeros_like(resp_m)
 
         for sb in subband:
             subchan    = first_channel_per_subband[sb]
-            freq[subchan,:] = scan_freq + \
+            freq[sb,:] = scan_freq + \
                 subband_centers[subband_nos.index(sb)]
+            resp[sb, :] = resp_m[subchan, :]
 
         return freq, resp
 
