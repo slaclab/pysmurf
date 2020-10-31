@@ -1540,6 +1540,25 @@ class SmurfCommandMixin(SmurfBase):
             self.app_core + self._stream_enable_reg,
             **kwargs)
 
+    _transmit_disable_reg = 'GCPTransmitter:Disable'
+
+    def set_transmit_enable(self, val, **kwargs):
+        """
+        Enable/disable transmission of data
+        """
+        disable = (not val)
+        self._caput(
+            self.app_core + self._transmit_disable_reg,
+            disable, **kwargs)
+
+    def get_transmit_enable(self, **kwargs):
+        """
+        Enable/disable transmission of data
+        """
+        return not self._caget(
+            self.app_core + self._transmit_disable_reg,
+            **kwargs)
+
     _rf_iq_stream_enable_reg = 'rfIQStreamEnable'
 
     def set_rf_iq_stream_enable(self, band, val, **kwargs):
