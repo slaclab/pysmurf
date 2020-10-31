@@ -14,6 +14,8 @@
 import argparse
 import os
 import sys
+import socket
+import struct
 import time
 
 import numpy as np
@@ -22,83 +24,44 @@ import pysmurf
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
 
-cfg_filename = 'experiment_k2umux.cfg'
-
-
-"""
-A function that mimics mce_cmd. This allows the user to run specific pysmurf
-commands from the command line.
-"""
-def make_runfile(output_dir, row_len=60, num_rows=60, data_rate=60,
-                 num_rows_reported=60):
+def send_runfile(S, host, port):
     """
-    Make the runfile
+    Send GCP the header information required at the begining of acquisition.
     """
-    #S.log('Making pysmurf object')
-    S = pysmurf.client.SmurfControl(cfg_file=os.path.join(os.path.dirname(__file__),
-        '..', 'cfg_files' , cfg_filename), smurf_cmd_mode=True, setup=False)
+    S.log('Sending Runfile')
 
-    S.log('Making Runfile')
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sock.connect(host, port)
 
-    # 20181119 dB, modified to use the correct format runfile.
-    #with open(os.path.join(os.path.dirname(__file__),"runfile/runfile_template.txt")) as f:
-    with open(os.path.join(os.path.dirname(__file__),
-            "runfile/runfile.default.bicep53")) as f:
-        lines = f.readlines()
-        line_holder = []
-        for line in lines:
-            # A bunch of replacements
-            if "ctime=<replace>" in line:
-                timestamp = S.get_timestamp()
-                S.log(f'Adding ctime {timestamp}')
-                line = line.replace("ctime=<replace>", f'ctime={timestamp}')
-            elif "Date:<replace>" in line:
-                time_string = time.strftime("%a %b %d %H:%M:%S %Y",
-                    time.localtime())
-                S.log(f'Adding date {time_string}')
-                line = line.replace('Date:<replace>', f'Date: {time_string}')
-            elif "row_len : <replace>" in line:
-                S.log(f"Adding row_len {row_len}")
-                line = line.replace('row_len : <replace>',
-                                    f'row_len : {row_len}')
-            elif "num_rows : <replace>" in line:
-                S.log(f"Adding num_rows {num_rows}")
-                line = line.replace('num_rows : <replace>',
-                                    f'num_rows : {num_rows}')
-            elif "num_rows_reported : <replace>" in line:
-                S.log(f"Adding num_rows_reported {num_rows_reported}")
-                line = line.replace('num_rows_reported : <replace>',
-                                    f'num_rows_reported : {num_rows_reported}')
-            elif "data_rate : <replace>" in line:
-                S.log(f"Adding data_rate {data_rate}")
-                line = line.replace('data_rate : <replace>',
-                                    f'data_rate : {data_rate}')
-            line_holder.append(line)
+    int_size = struct.calcsize('i')
+    char_size = struct.calcsize('B')
+    HEADER_SIZE = 2*int_size + 8*char_size
+    ofs = 0
+    buf = bytearray(HEADER_SIZE)
 
-    full_path = os.path.join(output_dir,
-                             f'smurf_status_{S.get_timestamp()}.txt')
+    # Fill in header
+    struct.pack_into('!i', ofs, S.get_crate_id())
+    ofs += int_size
+    struct.pack_into('!i', ofs, S.get_fpga_version())
+    ofs += int_size
+    commitish = S.get_fpga_git_hash()
+    struct.pack_into('!BBBBBBBB', ofs, *commitish[0:8].encode('ascii'))
+    ofs += char_size*8
 
-    #20181119 mod by dB to dump content of runfile, not path of runfile
-    #print(full_path)
-    for line in line_holder:
-        print(line)
-    with open(full_path, "w") as f1:
-        f1.writelines(line_holder)
+    sock.send(buf)
+    sock.close()
 
-    S.log(f"Writing to {full_path}")
-    sys.stdout.writelines(line_holder)
-
-def start_acq(S, num_rows, num_rows_reported, data_rate, row_len):
+def start_acq(S, host, port):
     """
     """
-    S.log('Setting PVs for streaming header')
-    S.set_num_rows(num_rows, write_log=True)
-    S.set_num_rows_reported(num_rows_reported, write_log=True)
-    S.set_data_rate(data_rate, write_log=True)
-    S.set_row_len(row_len, write_log=True)
-
+    send_runfile(S, host, port)
     S.log('Starting streaming data')
     S.set_smurf_to_gcp_stream(True, write_log=True)
+    S.set_transmit_enable(1)
+    # TODO: set_transmit_enable is asynchronous(?), so probably need a wait here.
+    if not S.get_transmit_enable():
+        # TODO: die
+        pass
     S.set_stream_enable(1, write_log=True)
 
 def stop_acq(S):
@@ -109,24 +72,7 @@ def stop_acq(S):
     #for b in bands:
     #    S.set_stream_enable(0)
     S.set_smurf_to_gcp_stream(False, write_log=True)
-
-def acq_n_frames(S, num_rows, num_rows_reported, data_rate,
-        row_len, n_frames):
-    """
-    Sends the amount of data requested by the user in units of n_frames.
-
-    Args
-    ----
-    n_frames : int
-        The number of frames to keep data streaming on.
-    """
-    start_acq(S, num_rows, num_rows_reported, data_rate, row_len)
-    make_runfile(S.output_dir, num_rows=num_rows, data_rate=data_rate,
-        row_len=row_len, num_rows_reported=num_rows_reported)
-    sample_rate = 50E6/num_rows/data_rate/row_len
-    wait_time = n_frames/sample_rate
-    time.sleep(wait_time)
-    stop_acq(S)
+    S.set_transmit_enable(0)
 
 
 if __name__ == "__main__":
@@ -208,11 +154,6 @@ if __name__ == "__main__":
         help='The variable to stuff into the runfile. See the MCE wiki')
     parser.add_argument('--data-rate', action='store', default=60, type=int,
         help='The variable to stuff into the runfile. See the MCE wiki')
-    parser.add_argument('--n-frames', action='store', default=-1, type=int,
-        help='The number of frames to acquire.')
-
-    parser.add_argument('--make-runfile', action='store_true', default=False,
-        help='Make a new runfile.')
 
     parser.add_argument('--status', action='store_true', default=False,
         help='Dump status to screen')
@@ -247,7 +188,7 @@ if __name__ == "__main__":
     n_cmds = (args.log is not None) + args.tes_bias + args.slow_iv + \
         args.plc + args.tune + args.start_acq + args.stop_acq + \
         args.last_tune + (args.use_tune is not None) + args.overbias_tes + \
-        args.bias_bump + args.soft_reset + args.make_runfile + args.setup + \
+        args.bias_bump + args.soft_reset + args.setup + \
         args.flux_ramp_off + args.all_off + args.check_lock + args.status
     if n_cmds > 1:
         sys.exit(0)
@@ -374,21 +315,10 @@ if __name__ == "__main__":
 
     ### Acquistion and resetting commands ###
     if args.start_acq:
-
-        if args.n_frames >= 1000000000:
-            args.n_frames = -1 # if it is a big number then just make it continuous
-
-        if args.n_frames > 0: # was this a typo? used to be <
-            acq_n_frames(S, args.num_rows, args.num_rows_reported,
-                args.data_rate, args.row_len, args.n_frames)
-        else:
-            S.log('Starting continuous acquisition')
-            start_acq(S, args.num_rows, args.num_rows_reported,
-                args.data_rate, args.row_len)
-            make_runfile(S.output_dir, num_rows=args.num_rows,
-                data_rate=args.data_rate, row_len=args.row_len,
-                num_rows_reported=args.num_rows_reported)
-            # why are we making a runfile though? do we intend to dump it?
+        S.log('Starting continuous acquisition')
+        GCP_BASE_PORT = 5474
+        port = S.slot_number*2 + GCP_BASE_PORT
+        start_acq(S, args.host, port)
 
     if args.stop_acq:
         stop_acq(S)
@@ -403,8 +333,3 @@ if __name__ == "__main__":
         S.log('Running setup')
         S.setup()
         # anything we need to do with setting up streaming?
-
-    if args.make_runfile:
-        make_runfile(S.output_dir, num_rows=args.num_rows,
-            data_rate=args.data_rate, row_len=args.row_len,
-            num_rows_reported=args.num_rows_reported)
