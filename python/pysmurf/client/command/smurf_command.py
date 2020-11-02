@@ -3631,8 +3631,7 @@ class SmurfCommandMixin(SmurfBase):
         """
         Toggles the cpld reset bit.
         """
-        self.set_cpld_reset(1, wait_done=True, **kwargs)
-        self.set_cpld_reset(0, wait_done=True, **kwargs)
+        self.reset_rtm(1, **kwargs)
 
     _k_relay_reg = 'KRelay'
 
