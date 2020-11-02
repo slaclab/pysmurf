@@ -587,9 +587,6 @@ class SmurfControl(SmurfCommandMixin,
             # C0, and wasn't ever really used.
             self.set_select_ramp(0x1, write_log=write_log)
 
-            self.set_cpld_reset(0, write_log=write_log)
-            self.cpld_toggle(write_log=write_log)
-
             # Make sure flux ramp starts off
             self.flux_ramp_off(write_log=write_log)
             self.flux_ramp_setup(self._reset_rate_khz,
