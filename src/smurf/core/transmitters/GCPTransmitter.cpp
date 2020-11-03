@@ -161,7 +161,8 @@ void sct::GCPTransmitter::dataTransmit(SmurfPacketROPtr sp)
     uint32_t syncNum = (uint32_t)
         ((sp->getHeader()->getUnixTime()/nsecSamplePeriod) % maxRecord);
 
-    std::size_t ofs = 0;
+    // ofs=0 is checksum. We fill that in last.
+    std::size_t ofs = 1;
 
     /* Form frame header */
     frameBuffer[ofs++] = syncNum;
@@ -180,9 +181,9 @@ void sct::GCPTransmitter::dataTransmit(SmurfPacketROPtr sp)
     uint32_t checksum = 0;
 
     // checksum is all fields XOR'd together, for symmetry with MAS
-    for (std::size_t i(0); i < bufferSize-1; ++i)
+    for (std::size_t i(1); i < bufferSize; ++i)
         checksum ^= frameBuffer[i];
-    frameBuffer[bufferSize-1] = checksum;
+    frameBuffer[0] = checksum;
 
     /* Send */
     // select, write. If time out, call disconnect()
