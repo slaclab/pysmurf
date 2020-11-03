@@ -23,6 +23,7 @@
 #include <utility>
 #include <boost/python.hpp>
 #include "smurf/core/transmitters/GCPTransmitter.h"
+#include "smurf/core/processors/SmurfProcessor.h"
 
 namespace bp = boost::python;
 namespace sct = smurf::core::transmitters;
@@ -32,15 +33,11 @@ sct::GCPTransmitter::GCPTransmitter(std::string gcpHost, unsigned gcpPort) :
     gcpHost(std::move(gcpHost)), gcpPort(gcpPort)
 {
     gcpFd = -1;
-    // TODO: frame definition
-    bufferSize = 10;
-    frameBuffer = new uint32_t[bufferSize];
 }
 
 sct::GCPTransmitter::~GCPTransmitter()
 {
     disconnect();
-    delete[] frameBuffer;
 }
 
 void sct::GCPTransmitter::disconnect()
@@ -102,16 +99,21 @@ void sct::GCPTransmitter::dataTransmit(SmurfPacketROPtr sp)
 {
     if (!gcpFd)
         return;
-    /*
-     * GCP needs:
-     *   sync_num
-     *   data
-     *   checksum?
-     */
+
+    // Number of channels can change, and we can't access max number of channels.
+    // So, just recompute buffer size from header info, and reallocate buffer as
+    // needed.
+    std::size_t numCh {sp->getHeader()->getNumberChannels()};
+    std::size_t bufferSize = 3; // sync_num, numCh, checksum
+    bufferSize += TesBiasArray<int>::TesBiasCount;
+    bufferSize += numCh;
+    if (frameBuffer.size() != bufferSize) {
+        frameBuffer.resize(bufferSize);
+    }
+
     // If the debug flag is enabled, print part of the SMuRF Packet
     if (debugData)
     {
-        std::size_t numCh {sp->getHeader()->getNumberChannels()};
 
         std::cout << "=====================================" << std::endl;
         std::cout << "Packet received" << std::endl;
@@ -150,6 +152,39 @@ void sct::GCPTransmitter::dataTransmit(SmurfPacketROPtr sp)
 
         std::cout << "=====================================" << std::endl;
     }
+
+    // Compute sync number
+    // TODO: move these statics somewhere better
+    static uint32_t sampleRate = 200;
+    static uint32_t maxRecord = 86400*sampleRate;
+    static uint64_t nsecSamplePeriod = 1E9/sampleRate;
+    uint32_t syncNum = (uint32_t)
+        ((sp->getHeader()->getUnixTime()/nsecSamplePeriod) % maxRecord);
+
+    std::size_t ofs = 0;
+
+    /* Form frame header */
+    frameBuffer[ofs++] = syncNum;
+    // Template parameter <int> doesn't make sense, but is also meaningless
+    std::size_t nBiases = TesBiasArray<int>::TesBiasCount;
+    for (std::size_t i(0); i < nBiases; ++i) {
+        frameBuffer[ofs++] = sp->getHeader()->getTESBias(i);
+    }
+
+    /* Insert data */
+    // TODO: Should make this a single copy operation.
+    for (std::size_t i(0); i < numCh; ++i)
+        frameBuffer[ofs++] = sp->getData(i);
+
+    /* Checksum */
+    uint32_t checksum = 0;
+
+    // checksum is all fields XOR'd together, for symmetry with MAS
+    for (std::size_t i(0); i < bufferSize-1; ++i)
+        checksum ^= frameBuffer[i];
+    frameBuffer[bufferSize-1] = checksum;
+
+    /* Send */
     // select, write. If time out, call disconnect()
     FD_ZERO(&fdset);
     FD_SET(gcpFd, &fdset);
@@ -167,7 +202,7 @@ void sct::GCPTransmitter::dataTransmit(SmurfPacketROPtr sp)
         disconnect();
         return;
     }
-    send(gcpFd, frameBuffer, bufferSize, 0);
+    send(gcpFd, &frameBuffer[0], bufferSize, 0);
 };
 
 void sct::GCPTransmitter::metaTransmit(std::string cfg)

@@ -64,8 +64,7 @@ namespace smurf::core::transmitters {
         bool debugMeta; // Debug flag, for metadata
         std::string gcpHost; // GCP host (usually localhost?)
         unsigned gcpPort; // GCP server port, as determined by slot number
-        size_t bufferSize;
-        uint32_t *frameBuffer; // Buffers frame to be sent to GCP
+        std::vector<uint32_t> frameBuffer; // Buffers frame to be sent to GCP
     };
 }
 #endif

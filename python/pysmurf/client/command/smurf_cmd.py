@@ -35,9 +35,9 @@ def send_runfile(S, host, port):
 
     int_size = struct.calcsize('i')
     char_size = struct.calcsize('B')
-    HEADER_SIZE = 2*int_size + 8*char_size
+    RUNFILE_SIZE = 2*int_size + 8*char_size
     ofs = 0
-    buf = bytearray(HEADER_SIZE)
+    buf = bytearray(RUNFILE_SIZE)
 
     # Fill in header
     struct.pack_into('!i', ofs, S.get_crate_id())
