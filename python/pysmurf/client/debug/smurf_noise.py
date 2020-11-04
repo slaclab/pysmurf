@@ -1323,11 +1323,12 @@ class SmurfNoiseMixin(SmurfBase):
             plt.yscale('log')
             plt.ylabel(f'NEP {ylabel_summary}' +
                 r' [$\mathrm{aW}/\sqrt{\mathrm{Hz}}$]')
+
             plt.title(basename +
-                      plt.title(basename +
-                                f": Band {np.unique(band)}, Group " +
-                                f"{fig_title_string.strip(',')}, {n_analyzed}" +
-                                "channels"))
+                f": Band {np.unique(band)}, Group " +
+                f"{fig_title_string.strip(',')}, {n_analyzed}" +
+                "channels")
+            
             plt.xticks(xtick_locs,xtick_labels)
             plt.xlabel('Commanded bias voltage [V]')
             plt.plot(xtick_locs,NEP_est_median_list, linestyle='--', marker='o',
