@@ -748,18 +748,21 @@ class SmurfNoiseMixin(SmurfBase):
         """
         self.log(f'Extracting IV data from {iv_data_filename}')
         iv_data = np.load(iv_data_filename, allow_pickle=True).item()
-        iv_band_data = iv_data[band]
-        iv_high_current_mode = iv_data['high_current_mode']
-        for ch in iv_band_data:
-            v_bias = iv_band_data[ch]['v_bias']
-            if iv_high_current_mode and not high_current_mode:
-                iv_band_data[ch]['v_bias'] = v_bias*self._high_low_current_ratio
-            elif not iv_high_current_mode and high_current_mode:
-                iv_band_data[ch]['v_bias'] = v_bias/self._high_low_current_ratio
+        iv_band_data = {}
+        band = np.ravel(np.array([band]).astype(int))  # cast as array for loop
+        for b in band:
+            iv_band_data[b] = iv_data[b]
+            iv_high_current_mode = iv_data['high_current_mode']
+            for ch in iv_band_data[b]:
+                v_bias = iv_band_data[b][ch]['v_bias']
+                if iv_high_current_mode and not high_current_mode:
+                    iv_band_data[b][ch]['v_bias'] = v_bias*self._high_low_current_ratio
+                elif not iv_high_current_mode and high_current_mode:
+                    iv_band_data[b][ch]['v_bias'] = v_bias/self._high_low_current_ratio
         return iv_band_data
 
 
-    def get_si_data(self, iv_band_data, ch):
+    def get_si_data(self, iv_band_data, b, ch):
         """
         Convenience function for getting the responsivitiy from the IV data.
 
@@ -777,10 +780,10 @@ class SmurfNoiseMixin(SmurfBase):
         si : float
             The responsivity.
         """
-        return iv_band_data[ch]['v_bias'], iv_band_data[ch]['si']
+        return iv_band_data[b][ch]['v_bias'], iv_band_data[b][ch]['si']
 
 
-    def NEI_to_NEP(self, iv_band_data, ch, v_bias):
+    def NEI_to_NEP(self, iv_band_data, b, ch, v_bias):
         """
         Takes NEI in pA/rtHz and converts to NEP in aW/rtHz.
 
@@ -788,6 +791,8 @@ class SmurfNoiseMixin(SmurfBase):
         ----
         iv_band_data : dict
             The IV dictionary.
+        b : int
+            The band number
         ch : int
             The channel to extract the data from.
         v_bias : float
@@ -798,7 +803,7 @@ class SmurfNoiseMixin(SmurfBase):
         float
             Noise-equivalent power in aW/rtHz.
         """
-        v_bias_array,si_array = self.get_si_data(iv_band_data, ch)
+        v_bias_array,si_array = self.get_si_data(iv_band_data, b, ch)
         si = np.interp(v_bias, v_bias_array[:-1], si_array)
         return 1./np.absolute(si)
 
@@ -813,6 +818,9 @@ class SmurfNoiseMixin(SmurfBase):
             unit_override=None):
         """ Analysis script associated with noise_vs_bias.
 
+        Must provide band, channel pairs of equal dimensions. Or both
+        band and channel inputs must be None.
+
         Args
         ----
         bias :float array
@@ -823,9 +831,11 @@ class SmurfNoiseMixin(SmurfBase):
             also pass an absolute path to a txt containing the names of the
             datafiles.
         channel : int array
-            The channels to analyze.
+            The channels to analyze. If provided, band must be provided as 
+            well. Default None.
         band : int
-            The band where the data is taken.
+            The band where the data is taken. If provided, channel must be provided as 
+            well. Default None.
         nperseg : int
             Passed to scipy.signal.welch. Number of elements per segment of the
             PSD.
@@ -871,6 +881,8 @@ class SmurfNoiseMixin(SmurfBase):
             self.log(f'Noise data files being read from {datafile}')
             datafile = self.get_datafiles_from_file(datafile)
 
+        if (band is not None and channel is None) or (band is None and channel is not None):
+            raise ValueError('band and channel must both be provided or both None.')
         if band is None and channel is None:
             mask = self.make_mask_lookup(datafile[0])
             band, channel = np.where(mask != -1)
@@ -880,7 +892,7 @@ class SmurfNoiseMixin(SmurfBase):
 
         # If an analyzed IV datafile is given, estimate NEP
         if iv_data_filename is not None and band is not None:
-            iv_band_data = self.get_iv_data(iv_data_filename, band,
+            iv_band_data = self.get_iv_data(iv_data_filename, np.unique(band),
                 high_current_mode=high_current_mode)
             self.log('IV data given. Estimating NEP. Skipping noise analysis'
                 ' for channels without responsivity estimates.')
@@ -956,7 +968,7 @@ class SmurfNoiseMixin(SmurfBase):
             ax_NEI = fig.add_subplot(gs[:h_NEI, :w_NEI])
             ax_NEIwl = fig.add_subplot(gs[:h_NEIwl, w_NEI:w_NEI+w_NEIwl])
             if est_NEP:
-                if ch not in iv_band_data:
+                if ch not in iv_band_data[b]:
                     self.log(f'Skipping channel {ch}: no responsivity data.')
                     continue
                 ax_NEPwl = fig.add_subplot(gs[h_NEIwl:h_NEIwl+h_NEPwl,
@@ -980,7 +992,7 @@ class SmurfNoiseMixin(SmurfBase):
                     f'_psd_b{b}ch{ch:03}.txt'))
                 if est_NEP:
                     print(f'Bias {bs}')
-                    NEI2NEP = self.NEI_to_NEP(iv_band_data, ch, bs)
+                    NEI2NEP = self.NEI_to_NEP(iv_band_data, b, ch, bs)
                     #NEP = Pxx*NEI2NEP
                 # smooth Pxx for plotting
                 if smooth_len >= 3:
@@ -1056,19 +1068,19 @@ class SmurfNoiseMixin(SmurfBase):
                 if est_NEP:
                     ax_NEPwl.plot(bs, NEP_est, color=color, marker='s',
                         linestyle='none')
-                    iv_bias, si = self.get_si_data(iv_band_data, ch)
+                    iv_bias, si = self.get_si_data(iv_band_data, b, ch)
                     iv_bias = iv_bias[:-1]
                     if i == 0:
                         ax_SI.plot(iv_bias, si)
-                        v_tes = iv_band_data[ch]['v_tes'][:-1]
+                        v_tes = iv_band_data[b][ch]['v_tes'][:-1]
                         si_etf = -1./v_tes
                         ax_SI.plot(iv_bias, si_etf, linestyle = '--',
                             label=r'$-1/V_\mathrm{TES}$')
-                        trans_idxs = iv_band_data[ch]['trans idxs']
+                        trans_idxs = iv_band_data[b][ch]['trans idxs']
                         sc_idx = trans_idxs[0]
                         nb_idx = trans_idxs[1]
-                        R = iv_band_data[ch]['R']
-                        R_n = iv_band_data[ch]['R_n']
+                        R = iv_band_data[b][ch]['R']
+                        R_n = iv_band_data[b][ch]['R_n']
                         R_frac_min = R[sc_idx]/R_n
                         R_frac_max = R[nb_idx]/R_n
                         for ax in [ax_NEIwl,ax_NEPwl,ax_SI]:
@@ -1133,16 +1145,17 @@ class SmurfNoiseMixin(SmurfBase):
                 ax_SI.set_ylabel(r'Estimated responsivity with $\beta = 0$'+
                     r'[$\mu\mathrm{V}^{-1}$]')
 
-                bottom_NEP = 0.95*min(NEP_est_list)
-                top_NEP_desired = 1.05*max(NEP_est_list)
+                bottom_NEP = 0.95 * np.nanmin(NEP_est_list)
+                top_NEP_desired = 1.05 * np.nanmax(NEP_est_list)
                 if NEP_ylim is not None:
-                    top_NEP = min(NEP_ylim[1], top_NEP_desired)
+                    top_NEP = np.nanmin([NEP_ylim[1], top_NEP_desired])
                 else:
                     top_NEP = top_NEP_desired
-                ax_NEPwl.set_ylim(bottom=bottom_NEP, top=top_NEP)
+                if not np.any(np.isnan([bottom_NEP, top_NEP])):
+                    ax_NEPwl.set_ylim(bottom=bottom_NEP, top=top_NEP)
 
                 ax_NEPwl.set_yscale('log')
-                v_tes_target = iv_band_data[ch]['v_tes_target']
+                v_tes_target = iv_band_data[b][ch]['v_tes_target']
                 ax_SI.set_ylim(-2./v_tes_target, 0.5/v_tes_target)
 
                 ax_NEPwl.grid()
@@ -1158,7 +1171,8 @@ class SmurfNoiseMixin(SmurfBase):
                 top_NET = NEPtoNET(top_NEP)
 
                 # labels and limits
-                ax_NET.set_ylim(bottom=bottom_NET, top=top_NET)
+                if not np.any(np.isnan([bottom_NET, top_NET])):
+                    ax_NET.set_ylim(bottom=bottom_NET, top=top_NET)
                 ax_NET.set_yscale('log')
                 ax_NET.set_ylabel(r'NET with opt. eff. = $100\%$ [$\mu\mathrm{K} \sqrt{\mathrm{s}}$]')
                 ax_SI.legend(loc='best')
