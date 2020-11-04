@@ -55,7 +55,7 @@ namespace smurf
             	// - callbackFunc : A pointer to a function to be called when new data is ready.
                 // - trheadname   : A name to be given to the txTransmit thread. Omitted if empty.
                 DualDataBuffer(std::function<void(T)> callbackFunc, const std::string& threadName);
-                ~DualDataBuffer() {};
+                ~DualDataBuffer();
 
                 // Factory method
                 static DualDataBufferPtr<T> create(std::function<void(T)> callbackFunc, const std::string& threadName);
