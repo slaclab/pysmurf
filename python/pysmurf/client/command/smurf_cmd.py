@@ -31,7 +31,7 @@ def send_runfile(S, host, port):
     S.log('Sending Runfile')
 
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    sock.connect(host, port)
+    sock.connect((host, port))
 
     int_size = struct.calcsize('i')
     char_size = struct.calcsize('B')
@@ -40,12 +40,12 @@ def send_runfile(S, host, port):
     buf = bytearray(RUNFILE_SIZE)
 
     # Fill in header
-    struct.pack_into('!i', ofs, S.get_crate_id())
+    struct.pack_into('!i', buf, ofs, S.get_crate_id())
     ofs += int_size
-    struct.pack_into('!i', ofs, S.get_fpga_version())
+    struct.pack_into('!i', buf, ofs, S.get_fpga_version())
     ofs += int_size
-    commitish = S.get_fpga_git_hash()
-    struct.pack_into('!BBBBBBBB', ofs, *commitish[0:8].encode('ascii'))
+    commitish = S.get_git_hash()
+    struct.pack_into('!BBBBBBBB', buf, ofs, *commitish[0:8].encode('ascii'))
     ofs += char_size*8
 
     sock.send(buf)
