@@ -854,19 +854,11 @@ class SmurfNoiseMixin(SmurfBase):
             also pass an absolute path to a txt containing the names of the
             datafiles.
         channel : int array
-<<<<<<< HEAD
-            The channels to analyze. If provided, band must be provided as 
-            well. Default None.
-        band : int
-            The band where the data is taken. If provided, channel must be provided as 
-            well. Default None.
-=======
             The channels to analyze. If provided, band must be provided as
             well. Default None.
         band : int
             The band where the data is taken. If provided, channel must be
             provided as well. Default None.
->>>>>>> main
         nperseg : int
             Passed to scipy.signal.welch. Number of elements per segment of the
             PSD.
@@ -1050,11 +1042,7 @@ class SmurfNoiseMixin(SmurfBase):
                 if est_NEP:
                     print(f'Bias {bs}')
                     NEI2NEP = self.NEI_to_NEP(iv_band_data, b, ch, bs)
-<<<<<<< HEAD
-                    #NEP = Pxx*NEI2NEP
-=======
 
->>>>>>> main
                 # smooth Pxx for plotting
                 if smooth_len >= 3:
                     window_len = smooth_len
@@ -1391,11 +1379,7 @@ class SmurfNoiseMixin(SmurfBase):
                 f": Band {np.unique(band)}, Group " +
                 f"{fig_title_string.strip(',')}, {n_analyzed}" +
                 "channels")
-<<<<<<< HEAD
-            
-=======
 
->>>>>>> main
             plt.xticks(xtick_locs,xtick_labels)
             plt.xlabel('Commanded bias voltage [V]')
             plt.plot(xtick_locs,NEP_est_median_list, linestyle='--', marker='o',
