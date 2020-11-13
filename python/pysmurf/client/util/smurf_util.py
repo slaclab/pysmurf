@@ -255,14 +255,14 @@ class SmurfUtilMixin(SmurfBase):
         refPhaseDelay0=1
         refPhaseDelayFine0=0
 
-        uc_att0=self.get_att_dc(band)
-        dc_att0=self.get_att_uc(band)
+        uc_att0 = self.get_att_uc(band)
+        dc_att0 = self.get_att_dc(band)
         if uc_att is None:
             uc_att = self.get_att_uc(band)
         if dc_att is None:
             dc_att = self.get_att_dc(band)
-        self.set_att_uc(band,uc_att, write_log=True)
-        self.set_att_dc(band,dc_att, write_log=True)
+        self.set_att_uc(band, uc_att, write_log=True)
+        self.set_att_dc(band, dc_att, write_log=True)
 
         # only loop over dsp subbands in requested frequency range (to
         # save time)
@@ -383,7 +383,7 @@ class SmurfUtilMixin(SmurfBase):
         self.set_ref_phase_delay_fine(band,refPhaseDelayFine)
 
         self.log('Running find_freq')
-        freq_dsp_corr,resp_dsp_corr=self.find_freq(band,dsp_subbands)
+        freq_dsp_corr,resp_dsp_corr=self.find_freq(band,subband=dsp_subbands)
 
         freq_dsp_corr_subset=[]
         resp_dsp_corr_subset=[]
@@ -494,8 +494,11 @@ class SmurfUtilMixin(SmurfBase):
             if not show_plot:
                 plt.close()
 
-        self.set_att_uc(band,uc_att0,write_log=True)
-        self.set_att_dc(band,dc_att0,write_log=True)
+        self.log('Setting attenuator values back to original values')
+        self.log(f'UC Att: {uc_att0}')
+        self.log(f'DC Att: {dc_att0}')
+        self.set_att_uc(band, uc_att0, write_log=True)
+        self.set_att_dc(band, dc_att0, write_log=True)
 
         return refPhaseDelay, refPhaseDelayFine, processing_delay_us, dsp_corr_delay_us
 
@@ -722,7 +725,7 @@ class SmurfUtilMixin(SmurfBase):
                          write_log=True, update_payload_size=True,
                          reset_unwrapper=True, reset_filter=True,
                          return_data=False, make_freq_mask=True,
-                         register_file=True):
+                         register_file=False):
         """
         Takes streaming data for a given amount of time
 
@@ -753,7 +756,7 @@ class SmurfUtilMixin(SmurfBase):
             path to the data.
         make_freq_mask : bool, optional, default True
             Whether to write a text file with resonator frequencies.
-        register_file : bool, optional, default True
+        register_file : bool, optional, default False
             Whether to register the data file with the pysmurf
             publisher.
 
@@ -1493,7 +1496,7 @@ class SmurfUtilMixin(SmurfBase):
         saturated : bool
            True if ADC is saturated, otherwise False.
         """
-        adc = self.read_adc_data(band, data_length=2**12, do_plot=False,
+        adc = self.read_adc_data(band, data_length=2**12, make_plot=False,
                   save_data=False, show_plot=False, save_plot=False)
         adc_max   = int(np.max((adc.real.max(), adc.imag.max())))
         adc_min   = int(np.min((adc.real.min(), adc.imag.min())))
@@ -1521,7 +1524,7 @@ class SmurfUtilMixin(SmurfBase):
         saturated : bool
             Flag if DAC is saturated.
         """
-        dac = self.read_dac_data(band, data_length=2**12, do_plot=False,
+        dac = self.read_dac_data(band, data_length=2**12, make_plot=False,
                   save_data=False, show_plot=False, save_plot=False)
         dac_max   = int(np.max((dac.real.max(), dac.imag.max())))
         dac_min   = int(np.min((dac.real.min(), dac.imag.min())))
@@ -1536,7 +1539,7 @@ class SmurfUtilMixin(SmurfBase):
 
     @set_action()
     def read_adc_data(self, band, data_length=2**19,
-                      hw_trigger=False, do_plot=False, save_data=True,
+                      hw_trigger=False, make_plot=False, save_data=True,
                       timestamp=None, show_plot=True, save_plot=True,
                       plot_ylimits=[None,None]):
         """
@@ -1551,7 +1554,7 @@ class SmurfUtilMixin(SmurfBase):
         hw_trigger : bool, optional, default False
             Whether to use the hardware trigger. If False, uses an
             internal trigger.
-        do_plot : bool, optional, default False
+        make_plot : bool, optional, default False
             Whether or not to plot.
         save_data : bool, optional, default True
             Whether or not to save the data in a time stamped file.
@@ -1583,7 +1586,7 @@ class SmurfUtilMixin(SmurfBase):
             hw_trigger=hw_trigger)
         dat = res[1] + 1.j * res[0]
 
-        if do_plot:
+        if make_plot:
             if show_plot:
                 plt.ion()
             else:
@@ -1640,7 +1643,7 @@ class SmurfUtilMixin(SmurfBase):
 
     @set_action()
     def read_dac_data(self, band, data_length=2**19,
-                      hw_trigger=False, do_plot=False, save_data=True,
+                      hw_trigger=False, make_plot=False, save_data=True,
                       timestamp=None, show_plot=True, save_plot=True,
                       plot_ylimits=[None,None]):
         """
@@ -1655,7 +1658,7 @@ class SmurfUtilMixin(SmurfBase):
         hw_trigger : bool, optional, default False
             Whether to use the hardware trigger. If False, uses an
             internal trigger.
-        do_plot : bool, optional, default False
+        make_plot : bool, optional, default False
             Whether or not to plot.
         save_data : bool, optional, default True
             Whether or not to save the data in a time stamped file.
@@ -1664,7 +1667,7 @@ class SmurfUtilMixin(SmurfBase):
             file).  If None, in which case it gets the time stamp
             right before acquiring data.
         show_plot : bool, optional, default True
-            If do_plot is True, whether or not to show the plot.
+            If make_plot is True, whether or not to show the plot.
         save_plot : bool, optional, default True
             Whether or not to save plot to file.
         plot_ylimits : list of float or list of None, optional, default [None,None]
@@ -1687,7 +1690,7 @@ class SmurfUtilMixin(SmurfBase):
         res = self.read_stream_data_daq(data_length, bay=bay, hw_trigger=hw_trigger)
         dat = res[1] + 1.j * res[0]
 
-        if do_plot:
+        if make_plot:
             if show_plot:
                 plt.ion()
             else:
@@ -2274,7 +2277,7 @@ class SmurfUtilMixin(SmurfBase):
         Returns
         -------
         subband_no : int
-            Subband (0..128) of the frequency within the band.
+            Subband (0..n_subbands-1) of the frequency within the band.
         offset : float
             Offset from subband center.
 
@@ -2556,13 +2559,13 @@ class SmurfUtilMixin(SmurfBase):
         Args
         ----
         bias_group : int
-            The bias group.
+           The bias group.
         volt : float
-            The TES bias to command in volts.
+           The TES bias to command in volts.
         do_enable : bool, optional, default True
-            Sets the enable bit. Only must be done once.
+           Sets the enable bit. Only must be done once.
         flip_polarity : bool, optional, default False
-            Sets the voltage to volt*-1.
+           Sets the voltage to volt*-1.
         """
 
         # Make sure the requested bias group is in the list of defined
@@ -2595,7 +2598,8 @@ class SmurfUtilMixin(SmurfBase):
         self.set_rtm_slow_dac_volt(dac_positive, volts_pos, **kwargs)
         self.set_rtm_slow_dac_volt(dac_negative, volts_neg, **kwargs)
 
-    def set_tes_bias_bipolar_array(self, bias_group_volt_array, do_enable=True, **kwargs):
+    def set_tes_bias_bipolar_array(self, bias_group_volt_array, do_enable=True,
+                                   **kwargs):
         """
         Set TES bipolar values for all DACs at once.  Set using a
         pyrogue array write, so should be much more efficient than
@@ -2710,13 +2714,20 @@ class SmurfUtilMixin(SmurfBase):
     def get_tes_bias_bipolar_array(self, return_raw=False, **kwargs):
         """
         Returns array of bias voltages per bias group in units of volts.
-        Currently hard coded to return the first 8 as (8,) array. I'm sorry -CY
 
         Args
         ----
         return_raw : bool, optional, default False
             If True, returns +/- terminal vals as separate arrays
             (pos, then negative)
+
+        Returns
+        -------
+        bias_vals : float, array
+            If return_raw is False, returns an array of size n_bias_group
+            with the TES bias in units of volts. If return_raw is True,
+            returns two arrays of size n_bias_group. The first is the positive
+            bias DAC and the second is the negative bias DAC.
         """
 
         bias_order = self.bias_group_to_pair[:,0]
@@ -4221,8 +4232,10 @@ class SmurfUtilMixin(SmurfBase):
         # atca monitor
         d['atca_temp_fpga']=self.get_board_temp_fpga
         d['atca_temp_rtm']=self.get_board_temp_rtm
-        d['atca_temp_amc0']=self.get_board_temp_amc0
-        d['atca_temp_amc2']=self.get_board_temp_amc2
+        d['atca_temp_amc0']=(
+            lambda:self.get_board_temp_amc(bay=0))
+        d['atca_temp_amc2']=(
+            lambda:self.get_board_temp_amc(bay=1))
         d['atca_jct_temp_fpga']=self.get_junction_temp_fpga
 
         # regulator
