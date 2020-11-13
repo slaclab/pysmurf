@@ -592,7 +592,7 @@ class SmurfUtilMixin(SmurfBase):
 
         # decode strobes
         strobes = np.floor(rawdata / (2**30))
-        data = rawdata - (2**30)*strobes
+        data = 0x00FFFFFF & rawdata
         ch0_strobe = np.remainder(strobes, 2)
         flux_ramp_strobe = np.floor((strobes - ch0_strobe) / 2)
 

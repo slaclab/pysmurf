@@ -841,6 +841,9 @@ class SmurfNoiseMixin(SmurfBase):
           2. Save summary values (the things plotted in the histograms) so
           they can be accessed later.
 
+        Must provide band, channel pairs of equal dimensions. Or both
+        band and channel inputs must be None.
+
         Args
         ----
         bias :float array
