@@ -33,7 +33,8 @@ class SmurfIVMixin(SmurfBase):
                make_plot=True, save_plot=True, plotname_append='',
                channels=None, band=None, high_current_mode=True,
                overbias_voltage=8., grid_on=True,
-               phase_excursion_min=3., bias_line_resistance=None):
+               phase_excursion_min=3., bias_line_resistance=None,
+               do_analysis=True):
         """Takes a slow IV
 
         Steps the TES bias down slowly. Starts at bias_high to
@@ -84,6 +85,8 @@ class SmurfIVMixin(SmurfBase):
         bias_line_resistance : float or None, optional, default None
             The resistance of the bias lines in Ohms. If None, loads value
             in config file
+        do_analysis: bool, optional, default True
+            Whether to do the pysmurf IV analysis
 
         Returns
         -------
@@ -158,11 +161,15 @@ class SmurfIVMixin(SmurfBase):
         self.pub.register_file(path, 'iv_raw', format='npy')
 
         R_sh=self._R_sh
-        self.analyze_iv_from_file(fn_iv_raw_data, make_plot=make_plot,
-            show_plot=show_plot, save_plot=save_plot,
-            plotname_append=plotname_append, R_sh=R_sh, grid_on=grid_on,
-            phase_excursion_min=phase_excursion_min, channel=channels,
-            band=band, bias_line_resistance=bias_line_resistance)
+
+        if do_analysis:
+            self.log('Analysis flag set to false.')
+            
+            self.analyze_iv_from_file(fn_iv_raw_data, make_plot=make_plot,
+                show_plot=show_plot, save_plot=save_plot,
+                plotname_append=plotname_append, R_sh=R_sh, grid_on=grid_on,
+                phase_excursion_min=phase_excursion_min, channel=channels,
+                band=band, bias_line_resistance=bias_line_resistance)
 
         return path
 
