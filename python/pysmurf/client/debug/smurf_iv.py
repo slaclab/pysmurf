@@ -163,7 +163,7 @@ class SmurfIVMixin(SmurfBase):
         R_sh=self._R_sh
 
         if do_analysis:
-            self.log('Analysis flag set to false.')
+            self.log(f'Analyzing IV (do_analysis={do_analysis}).')
 
             self.analyze_iv_from_file(fn_iv_raw_data, make_plot=make_plot,
                 show_plot=show_plot, save_plot=save_plot,
