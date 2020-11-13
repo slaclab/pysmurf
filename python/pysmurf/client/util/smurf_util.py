@@ -725,7 +725,7 @@ class SmurfUtilMixin(SmurfBase):
                          write_log=True, update_payload_size=True,
                          reset_unwrapper=True, reset_filter=True,
                          return_data=False, make_freq_mask=True,
-                         register_file=True):
+                         register_file=False):
         """
         Takes streaming data for a given amount of time
 
@@ -756,7 +756,7 @@ class SmurfUtilMixin(SmurfBase):
             path to the data.
         make_freq_mask : bool, optional, default True
             Whether to write a text file with resonator frequencies.
-        register_file : bool, optional, default True
+        register_file : bool, optional, default False
             Whether to register the data file with the pysmurf
             publisher.
 
