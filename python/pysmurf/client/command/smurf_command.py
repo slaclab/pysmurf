@@ -3866,19 +3866,17 @@ class SmurfCommandMixin(SmurfBase):
             of the valid range is provided (must be within [1,32]),
             will assert.
         val : int
-            Value to set the DAC enable to.  Power on default is 0xE,
-            enabled is 0x2.
+            Value to set the DAC enable to. enabled is 0x2, disabled is 0xE.
+            Power on default is 0xE.
         """
         assert (dac in range(1,33)),'dac must be an integer and in [1,32]'
 
-        # only ever set this to 0x2 or 0xE
+        # only ever set this to 0x2 or 0xE (enable or disable)
         if (val != 0x2) and (val != 0xE):
             val = 0x2
 
-        self._caput(
-            self.rtm_spi_max_root +
-            self._rtm_slow_dac_enable_reg.format(dac),
-            val, **kwargs)
+        self._caput(self.rtm_spi_max_root +
+            self._rtm_slow_dac_enable_reg.format(dac), val, **kwargs)
 
     def get_rtm_slow_dac_enable(self, dac, **kwargs):
         """
@@ -3922,7 +3920,7 @@ class SmurfCommandMixin(SmurfBase):
         val : int array
             Length 32, addresses the DACs in DAC ordering.  If
             provided array is not length 32, asserts. Power on
-            default is 0xE, enabled is 0x2.
+            default is 0xE, enabled is 0x2, disable is 0xE.
         """
         assert (len(val)==32),(
             'len(val) must be 32, the number of DACs in hardware.')
