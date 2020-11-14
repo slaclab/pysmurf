@@ -110,6 +110,7 @@ class Downsampler(pyrogue.Device):
             description='Output frame counter',
             mode='RO',
             value=0,
+            typeStr='UInt64',
             pollInterval=1,
             localGet=self.device.getDownsamplerCnt))
 
