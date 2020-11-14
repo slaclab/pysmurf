@@ -49,6 +49,7 @@ scp::SmurfProcessor::SmurfProcessor()
     factor(20),
     sampleCnt(0),
     downsamplerCnt(0),
+    prevExtTimeClk(0),
     headerCopy(SmurfHeader<std::vector<uint8_t>::iterator>::SmurfHeaderSize, 0),
     runTxThread(true),
     txDataReady(false),
@@ -457,7 +458,7 @@ void scp::SmurfProcessor::setDownsamplerFactor(std::size_t f)
 
     factor = f;
 
-    // When the factor is changed, reset the counter.
+    // When the factor is changed, reset the internal counter.
     resetDownsampler();
 }
 
@@ -728,7 +729,7 @@ void scp::SmurfProcessor::acceptFrame(ris::FramePtr frame)
         {
             // Use internal frame counter to trigger.
 
-            // Downsampler. If we haven't reached the factor counter, we don't do anything
+            // If we haven't reached the factor counter, we don't do anything
             // When we reach the factor counter, we send the resulting frame.
             if (++sampleCnt < factor)
                 return;

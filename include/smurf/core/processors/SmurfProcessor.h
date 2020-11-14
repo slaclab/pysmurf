@@ -87,7 +87,7 @@ namespace smurf
 
                 //** DOWNSAMLER METHODS **//
                 void                setDownsamplerDisable(bool d);        // Disable the processing block. The data
-                const bool          getDownsamplerDisable() const;        // will just pass through to the next slave
+                const bool          getDownsamplerDisable() const;        //   will just pass through to the next slave
                 void                setDownsamplerMode(std::size_t mode); // Set the trigger mode.
                 const std::size_t   getDownsamplerMode() const;           // Get the trigger mode.
                 void                setDownsamplerFactor(std::size_t f);  // Set the downsampling factor

@@ -116,11 +116,11 @@ class Downsampler(pyrogue.Device):
         # Add the downsampler factor variable
         self.add(pyrogue.LocalVariable(
             name='Factor',
-            description='Downsampling factor',
+            description='Downsampling factor (Internal mode only)',
             mode='RW',
             value=20,
-            localSet=lambda value : self.device.setFactor(value),
-            localGet=self.device.getFactor))
+            localSet=lambda value : self.device.setDownsamplerFactor(value),
+            localGet=self.device.getDownsamplerFactor))
 
         # Add the trigger mode variable
         self.add(pyrogue.LocalVariable(
