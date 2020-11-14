@@ -3872,7 +3872,7 @@ class SmurfCommandMixin(SmurfBase):
         assert (dac in range(1,33)),'dac must be an integer and in [1,32]'
 
         # only ever set this to 0x2 or 0xE
-        if (val != 0x2) or (val != 0xE):
+        if (val != 0x2) and (val != 0xE):
             val = 0x2
 
         self._caput(
