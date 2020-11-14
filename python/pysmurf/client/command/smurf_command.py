@@ -3852,7 +3852,7 @@ class SmurfCommandMixin(SmurfBase):
     # used to drive the amplifier gate.
     _rtm_slow_dac_enable_reg = 'TesBiasDacCtrlRegCh[{}]'
 
-    def set_rtm_slow_dac_enable(self, dac, val, **kwargs):
+    def set_rtm_slow_dac_enable(self, dac, val=2, **kwargs):
         """
         Set DacCtrlReg for this DAC, which configures the AD5790
         analog output for the requested DAC number.  Set to 0x2 to
@@ -3866,9 +3866,14 @@ class SmurfCommandMixin(SmurfBase):
             of the valid range is provided (must be within [1,32]),
             will assert.
         val : int
-            Value to set the DAC enable to.
+            Value to set the DAC enable to.  Power on default is 0xE,
+            enabled is 0x2.
         """
         assert (dac in range(1,33)),'dac must be an integer and in [1,32]'
+
+        # only ever set this to 0x2 or 0xE
+        if (val != 0x2) or (val != 0xE):
+            val = 0x2
 
         self._caput(
             self.rtm_spi_max_root +
@@ -3916,10 +3921,15 @@ class SmurfCommandMixin(SmurfBase):
         ----
         val : int array
             Length 32, addresses the DACs in DAC ordering.  If
-            provided array is not length 32, asserts.
+            provided array is not length 32, asserts. Power on
+            default is 0xE, enabled is 0x2.
         """
         assert (len(val)==32),(
             'len(val) must be 32, the number of DACs in hardware.')
+
+        # only ever set this to 0x2 or 0xE
+        val = [0x2 if v != 0x2 and v != 0xE else v for v in val]
+
         self._caput(
             self.rtm_spi_max_root +
             self._rtm_slow_dac_enable_array_reg,
