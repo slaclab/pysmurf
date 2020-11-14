@@ -47,6 +47,7 @@ scp::SmurfProcessor::SmurfProcessor()
     disableDownsampler(false),
     factor(20),
     sampleCnt(0),
+    downsamplerCnt(0),
     headerCopy(SmurfHeader<std::vector<uint8_t>::iterator>::SmurfHeaderSize, 0),
     runTxThread(true),
     txDataReady(false),
@@ -96,6 +97,8 @@ void scp::SmurfProcessor::setup_python()
         .def("getDownsamplerDisable",   &SmurfProcessor::getDownsamplerDisable)
         .def("setDownsamplerFactor",    &SmurfProcessor::setDownsamplerFactor)
         .def("getDownsamplerFactor",    &SmurfProcessor::getDownsamplerFactor)
+        .def("getDownsamplerCnt",       &SmurfProcessor::getDownsamplerCnt)
+        .def("clearDownsamplerCnt",     &SmurfProcessor::clearDownsamplerCnt)
     ;
     bp::implicitly_convertible< scp::SmurfProcessorPtr, ris::SlavePtr  >();
     bp::implicitly_convertible< scp::SmurfProcessorPtr, ris::MasterPtr >();
@@ -446,6 +449,16 @@ void scp::SmurfProcessor::resetDownsampler()
     sampleCnt = 0;
 }
 
+const std::size_t scp::SmurfProcessor::getDownsamplerCnt() const
+{
+    return downsamplerCnt;
+}
+
+void scp::SmurfProcessor::clearDownsamplerCnt()
+{
+    downsamplerCnt = 0;
+}
+
 void scp::SmurfProcessor::acceptFrame(ris::FramePtr frame)
 {
     // Release the GIL
@@ -676,6 +689,9 @@ void scp::SmurfProcessor::acceptFrame(ris::FramePtr frame)
 
         // Reset the downsampler
         resetDownsampler();
+
+        // Increase the output counter.
+        ++downsamplerCnt;
     }
 
     // Give the data to the Tx thread to be sent to the next slave.

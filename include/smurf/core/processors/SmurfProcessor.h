@@ -91,7 +91,8 @@ namespace smurf
                 void                setDownsamplerFactor(std::size_t f);  // Set the downsampling factor
                 const std::size_t   getDownsamplerFactor() const;         // Get the downsampling factor
                 void                resetDownsampler();                   // Reset the downsampler.
-
+                const std::size_t   getDownsamplerCnt() const;            // Get the output frame counter
+                void                clearDownsamplerCnt();                // Clear the output frame counter
 
                 // Accept new frames
                 void acceptFrame(ris::FramePtr frame);
@@ -139,7 +140,8 @@ namespace smurf
                 // Downsampler variables
                 bool                     disableDownsampler;    // Disable flag for the downsampler
                 std::size_t              factor;                // Downsample factor
-                std::size_t              sampleCnt;             // Sample counter
+                std::size_t              sampleCnt;             // Input frame counter
+                std::size_t              downsamplerCnt;        // Output frame counter
                 // Transmit thread
                 std::vector<uint8_t>     headerCopy;            // A copy of header to be send
                 bool                     txDataReady;           // Flag to indicate new data is ready t be sent
