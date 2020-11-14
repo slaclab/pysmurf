@@ -94,8 +94,8 @@ void scp::SmurfProcessor::setup_python()
         // Downsampler variables
         .def("setDownsamplerDisable",   &SmurfProcessor::setDownsamplerDisable)
         .def("getDownsamplerDisable",   &SmurfProcessor::getDownsamplerDisable)
-        .def("setFactor",               &SmurfProcessor::setFactor)
-        .def("getFactor",               &SmurfProcessor::getFactor)
+        .def("setDownsamplerFactor",    &SmurfProcessor::setDownsamplerFactor)
+        .def("getDownsamplerFactor",    &SmurfProcessor::getDownsamplerFactor)
     ;
     bp::implicitly_convertible< scp::SmurfProcessorPtr, ris::SlavePtr  >();
     bp::implicitly_convertible< scp::SmurfProcessorPtr, ris::MasterPtr >();
@@ -420,7 +420,7 @@ const bool scp::SmurfProcessor::getDownsamplerDisable() const
     return disableDownsampler;
 }
 
-void scp::SmurfProcessor::setFactor(std::size_t f)
+void scp::SmurfProcessor::setDownsamplerFactor(std::size_t f)
 {
     // Check if the factor is 0
     if (0 == f)
@@ -436,7 +436,7 @@ void scp::SmurfProcessor::setFactor(std::size_t f)
     resetDownsampler();
 }
 
-const std::size_t scp::SmurfProcessor::getFactor() const
+const std::size_t scp::SmurfProcessor::getDownsamplerFactor() const
 {
     return factor;
 }

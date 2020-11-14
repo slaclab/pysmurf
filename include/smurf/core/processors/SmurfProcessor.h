@@ -59,38 +59,38 @@ namespace smurf
                 static void setup_python();
 
                 //** CHANNEL MAPPING METHODS **//
-                const std::size_t   getNumCh() const;               // Get the number of mapped channels
-                const std::size_t   getPayloadSize() const;         // Get the payload size
-                void                setPayloadSize(std::size_t s);  // Set the payload size
-                void                setMask(bp::list m);            // Set the Channel mask vector
-                const bp::list      getMask() const;                // Get the Channel mask vector
-                void                updateNumCh();                  // Update the number of channels
+                const std::size_t   getNumCh() const;                     // Get the number of mapped channels
+                const std::size_t   getPayloadSize() const;               // Get the payload size
+                void                setPayloadSize(std::size_t s);        // Set the payload size
+                void                setMask(bp::list m);                  // Set the Channel mask vector
+                const bp::list      getMask() const;                      // Get the Channel mask vector
+                void                updateNumCh();                        // Update the number of channels
 
                 //** UNWRAPPER METHODS **//
                 void                setUnwrapperDisable(bool d);
                 const bool          getUnwrapperDisable() const;
-                void                resetUnwrapper();               // Resize and clear buffer
+                void                resetUnwrapper();                     // Resize and clear buffer
 
                 //** FILTER METHODS **//
-                void                setFilterDisable(bool d);       // Disable the processing block. The data
-                const bool          getFilterDisable() const;       // will just pass through to the next slave
-                void                setOrder(std::size_t o);        // Set the filter order
-                const std::size_t   getOrder() const;               // Get the filter order
-                void                setA(bp::list l);               // Set the filter a coefficients
-                const bp::list      getA() const;                   // Get the filter a coefficients
-                void                setB(bp::list l);               // Set the filter b coefficients
-                const bp::list      getB() const;                   // Get the filter b coefficients
-                void                setGain(double g);              // Set the filter gain
-                const double        getGain() const;                // Get the filter gain
-                void                resetFilter();                  // Reset the filter
-                void                resetFilterWithMutex();         // Reset the filter, but holding the mutex.
+                void                setFilterDisable(bool d);             // Disable the processing block. The data
+                const bool          getFilterDisable() const;             // will just pass through to the next slave
+                void                setOrder(std::size_t o);              // Set the filter order
+                const std::size_t   getOrder() const;                     // Get the filter order
+                void                setA(bp::list l);                     // Set the filter a coefficients
+                const bp::list      getA() const;                         // Get the filter a coefficients
+                void                setB(bp::list l);                     // Set the filter b coefficients
+                const bp::list      getB() const;                         // Get the filter b coefficients
+                void                setGain(double g);                    // Set the filter gain
+                const double        getGain() const;                      // Get the filter gain
+                void                resetFilter();                        // Reset the filter
+                void                resetFilterWithMutex();               // Reset the filter, but holding the mutex.
 
                 //** DOWNSAMLER METHODS **//
-                void                setDownsamplerDisable(bool d);  // Disable the processing block. The data
-                const bool          getDownsamplerDisable() const;  // will just pass through to the next slave
-                void                setFactor(std::size_t f);       // Set the downsampling factor
-                const std::size_t   getFactor() const;              // Get the downsampling factor
-                void                resetDownsampler();             // Reset the downsampler.
+                void                setDownsamplerDisable(bool d);        // Disable the processing block. The data
+                const bool          getDownsamplerDisable() const;        // will just pass through to the next slave
+                void                setDownsamplerFactor(std::size_t f);  // Set the downsampling factor
+                const std::size_t   getDownsamplerFactor() const;         // Get the downsampling factor
+                void                resetDownsampler();                   // Reset the downsampler.
 
 
                 // Accept new frames
