@@ -145,6 +145,7 @@ namespace smurf
                 std::size_t              factor;                // Downsample factor
                 std::size_t              sampleCnt;             // Input frame counter
                 std::size_t              downsamplerCnt;        // Output frame counter
+                std::size_t              prevExtTimeClk;        // Previous external timing clock word
                 // Transmit thread
                 std::vector<uint8_t>     headerCopy;            // A copy of header to be send
                 bool                     txDataReady;           // Flag to indicate new data is ready t be sent
