@@ -45,6 +45,7 @@ scp::SmurfProcessor::SmurfProcessor()
     y( ( order + 1 ) * numCh ),
     outData(numCh,0),
     disableDownsampler(false),
+    downsamplerMode(0),
     factor(20),
     sampleCnt(0),
     downsamplerCnt(0),
@@ -95,6 +96,8 @@ void scp::SmurfProcessor::setup_python()
         // Downsampler variables
         .def("setDownsamplerDisable",   &SmurfProcessor::setDownsamplerDisable)
         .def("getDownsamplerDisable",   &SmurfProcessor::getDownsamplerDisable)
+        .def("setDownsamplerMode",      &SmurfProcessor::setDownsamplerMode)
+        .def("getDownsamplerMode",      &SmurfProcessor::getDownsamplerMode)
         .def("setDownsamplerFactor",    &SmurfProcessor::setDownsamplerFactor)
         .def("getDownsamplerFactor",    &SmurfProcessor::getDownsamplerFactor)
         .def("getDownsamplerCnt",       &SmurfProcessor::getDownsamplerCnt)
@@ -423,6 +426,25 @@ const bool scp::SmurfProcessor::getDownsamplerDisable() const
     return disableDownsampler;
 }
 
+void scp::SmurfProcessor::setDownsamplerMode(std::size_t mode)
+{
+    if (mode > 1)
+    {
+        std::cerr << "Error: Invalid downsampler mode = " << mode << std::endl;
+       return;
+    }
+
+    downsamplerMode = mode;
+
+    // When the mode is changed, reset the internal counter
+    resetDownsampler();
+}
+
+const std::size_t scp::SmurfProcessor::getDownsamplerMode() const
+{
+    return downsamplerMode;
+}
+
 void scp::SmurfProcessor::setDownsamplerFactor(std::size_t f)
 {
     // Check if the factor is 0
@@ -682,13 +704,38 @@ void scp::SmurfProcessor::acceptFrame(ris::FramePtr frame)
     // Otherwise, the data will be send on each cycle.
     if (!disableDownsampler)
     {
-        // Downsampler. If we haven't reached the factor counter, we don't do anything
-        // When we reach the factor counter, we send the resulting frame.
-        if (++sampleCnt < factor)
-            return;
 
-        // Reset the downsampler
-        resetDownsampler();
+        // Check the trigger mode selected.
+        if (1 == downsamplerMode)
+        {
+            // Use external timing system, as done for BICEP
+
+            // Read the external time clock word from the header
+            std::size_t extTimeClk { header->getExternalTimeClock() };
+
+            // Check if the time clock word changed
+            bool extTimeClkChanged { extTimeClk != prevExtTimeClk };
+
+            // Save the current time clock word for the next cycle
+            prevExtTimeClk = extTimeClk;
+
+            // If the ext time word has not changed, we don't do anything.
+            // When the ext time change, we send the resulting frame.
+            if (!extTimeClkChanged)
+                return;
+        }
+        else
+        {
+            // Use internal frame counter to trigger.
+
+            // Downsampler. If we haven't reached the factor counter, we don't do anything
+            // When we reach the factor counter, we send the resulting frame.
+            if (++sampleCnt < factor)
+                return;
+
+            // Reset the downsampler
+            resetDownsampler();
+        }
 
         // Increase the output counter.
         ++downsamplerCnt;

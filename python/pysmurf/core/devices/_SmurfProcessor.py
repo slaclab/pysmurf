@@ -122,6 +122,16 @@ class Downsampler(pyrogue.Device):
             localSet=lambda value : self.device.setFactor(value),
             localGet=self.device.getFactor))
 
+        # Add the trigger mode variable
+        self.add(pyrogue.LocalVariable(
+            name='TriggerMode',
+            description='Trigger mode',
+            mode='RW',
+            enum={0:'Internal', 1:'Timing (BICEP)'},
+            value=0,
+            localSet=lambda value : self.device.setDownsamplerMode(value),
+            localGet=self.device.getDownsamplerMode))
+
         # Command to clear all the counters
         self.add(pyrogue.LocalCommand(
             name='clearCnt',

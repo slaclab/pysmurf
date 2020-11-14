@@ -88,6 +88,8 @@ namespace smurf
                 //** DOWNSAMLER METHODS **//
                 void                setDownsamplerDisable(bool d);        // Disable the processing block. The data
                 const bool          getDownsamplerDisable() const;        // will just pass through to the next slave
+                void                setDownsamplerMode(std::size_t mode); // Set the trigger mode.
+                const std::size_t   getDownsamplerMode() const;           // Get the trigger mode.
                 void                setDownsamplerFactor(std::size_t f);  // Set the downsampling factor
                 const std::size_t   getDownsamplerFactor() const;         // Get the downsampling factor
                 void                resetDownsampler();                   // Reset the downsampler.
@@ -139,6 +141,7 @@ namespace smurf
                 std::mutex               mutFilter;             // Mutex
                 // Downsampler variables
                 bool                     disableDownsampler;    // Disable flag for the downsampler
+                std::size_t              downsamplerMode;       // Set the downsampler trigger mode (0: internal, 1: Timing (BICEP))
                 std::size_t              factor;                // Downsample factor
                 std::size_t              sampleCnt;             // Input frame counter
                 std::size_t              downsamplerCnt;        // Output frame counter
