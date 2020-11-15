@@ -115,6 +115,11 @@ namespace smurf
                 const fw_t      lowerUnwrap = -0x6000;          // If we are below this and jump, assume a wrap
                 const unwrap_t   stepUnwrap = 0x10000;          // Wrap counter steps
 
+                // Downsampler related constants
+                const std::size_t DownsamplerModeInternal    = 0;   // Internal trigger mode
+                const std::size_t DownsamplerModeTimingBicep = 1;   // Timing (BICEP) trigger mode
+                const std::size_t DownsamplerModeMax         = 1;   // Max. index for the trigger mode
+
                 //** VARIABLES **//
                 // Channel mapping variables
                 std::size_t              numCh;                 // Number of channels being processed
