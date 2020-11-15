@@ -429,7 +429,7 @@ const bool scp::SmurfProcessor::getDownsamplerDisable() const
 
 void scp::SmurfProcessor::setDownsamplerMode(std::size_t mode)
 {
-    if (mode > DownsamplerModeMax)
+    if (mode > downsamplerModeMax)
     {
         std::cerr << "Error: Invalid downsampler mode = " << mode << std::endl;
        return;
@@ -707,7 +707,7 @@ void scp::SmurfProcessor::acceptFrame(ris::FramePtr frame)
     {
 
         // Check the trigger mode selected.
-        if (DownsamplerModeTimingBicep == downsamplerMode)
+        if (downsamplerModeTimingBicep == downsamplerMode)
         {
             // Use external timing system, as done for BICEP
 
