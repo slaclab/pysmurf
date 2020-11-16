@@ -5243,7 +5243,7 @@ class SmurfCommandMixin(SmurfBase):
         bool
             True for enabled, False for disabled.
         """
-        self._caget(
+        return self._caget(
             self.DBG.format(bay) + self._dbg_enable_reg,
             **kwargs)
 
