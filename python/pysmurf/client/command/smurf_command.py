@@ -5236,6 +5236,48 @@ class SmurfCommandMixin(SmurfBase):
             self._trigger_channel_reg_dest_sel_reg.format(chan),
             val, **kwargs)
 
+    _dbg_enable_reg = "enable"
+
+    def set_dbg_enable(self, bay, val, **kwargs):
+        r"""Enables/disables write access to DBG registers.
+
+        Args
+        ----
+        bay : int
+            Which bay [0 or 1].
+        val : bool
+            True for enable, False for disable.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caput` call.
+        """
+        self._caput(
+            self.DBG.format(bay) + self._dbg_enable_reg,
+            val, **kwargs)
+
+    def get_dbg_enable(self, bay, **kwargs):
+        r"""Whether or not write access is enabled for DBG registers.
+
+        If disabled (=False), user cannot write to any of the DBG
+        registers.
+
+        Args
+        ----
+        bay : int
+            Which bay [0 or 1].
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caget` call.
+
+        Returns
+        -------
+        bool
+            True for enabled, False for disabled.
+        """
+        self._caget(
+            self.DBG.format(bay) + self._dbg_enable_reg,
+            **kwargs)
+
     _dac_reset_reg = 'dacReset[{}]'
 
     def set_dac_reset(self, bay, dac, val, **kwargs):
