@@ -412,7 +412,7 @@ class SmurfControl(SmurfCommandMixin,
                 # In newer software versions, setDefaults disables
                 # DBG:enable after loading the defaults.yml.  This
                 # makes sure we can reset the RF DACs.
-                self.set_dbg_enable(True)
+                self.set_dbg_enable(bay, True)
 
                 # Reset all RF DACs in use.
                 for dac in dacs:
