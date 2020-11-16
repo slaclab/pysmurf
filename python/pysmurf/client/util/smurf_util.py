@@ -386,7 +386,7 @@ class SmurfUtilMixin(SmurfBase):
         self.set_ref_phase_delay_fine(band,refPhaseDelayFine)
 
         self.log('Running find_freq')
-        freq_dsp_corr,resp_dsp_corr=self.find_freq(band,dsp_subbands)
+        freq_dsp_corr,resp_dsp_corr=self.find_freq(band,subband=dsp_subbands)
 
         freq_dsp_corr_subset=[]
         resp_dsp_corr_subset=[]
@@ -597,7 +597,7 @@ class SmurfUtilMixin(SmurfBase):
 
         # decode strobes
         strobes = np.floor(rawdata / (2**30))
-        data = rawdata - (2**30)*strobes
+        data = 0x00FFFFFF & rawdata
         ch0_strobe = np.remainder(strobes, 2)
         flux_ramp_strobe = np.floor((strobes - ch0_strobe) / 2)
 
@@ -730,7 +730,7 @@ class SmurfUtilMixin(SmurfBase):
                          write_log=True, update_payload_size=True,
                          reset_unwrapper=True, reset_filter=True,
                          return_data=False, make_freq_mask=True,
-                         register_file=True):
+                         register_file=False):
         """
         Takes streaming data for a given amount of time
 
@@ -761,7 +761,7 @@ class SmurfUtilMixin(SmurfBase):
             path to the data.
         make_freq_mask : bool, optional, default True
             Whether to write a text file with resonator frequencies.
-        register_file : bool, optional, default True
+        register_file : bool, optional, default False
             Whether to register the data file with the pysmurf
             publisher.
 
@@ -2282,7 +2282,7 @@ class SmurfUtilMixin(SmurfBase):
         Returns
         -------
         subband_no : int
-            Subband (0..128) of the frequency within the band.
+            Subband (0..n_subbands-1) of the frequency within the band.
         offset : float
             Offset from subband center.
 

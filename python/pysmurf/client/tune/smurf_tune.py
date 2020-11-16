@@ -3340,10 +3340,11 @@ class SmurfTuneMixin(SmurfBase):
             make_plot=make_plot, flux_ramp=False, **kwargs)
 
     @set_action()
-    def find_freq(self, band, subband=None, tone_power=None,
-            n_read=2, make_plot=False, save_plot=True, plotname_append='',
-            window=50, rolling_med=True, make_subband_plot=False,
-            show_plot=False, grad_cut=.05, amp_cut=.25, pad=2, min_gap=2):
+    def find_freq(self, band, start_freq=-250, stop_freq=250, subband=None,
+            tone_power=None, n_read=2, make_plot=False, save_plot=True,
+            plotname_append='', window=50, rolling_med=True,
+            make_subband_plot=False, show_plot=False, grad_cut=.05,
+            amp_cut=.25, pad=2, min_gap=2):
         '''
         Finds the resonances in a band (and specified subbands)
 
@@ -3351,9 +3352,15 @@ class SmurfTuneMixin(SmurfBase):
         ----
         band : int
             The band to search.
-        subband : numpy.ndarray of int or None, optional, default None
+        start_freq : float, optional, default -250
+            The scan start frequency in MHz (from band center)
+        stop_freq : float, optional, default 250
+            The scan stop frequency in MHz (from band center)
+        subband : deprecated, use start_freq/stop_freq.
+            numpy.ndarray of int or None, optional, default None
             An int array for the subbands.  If None, set to all
             processed subbands =numpy.arange(13,115).
+            Takes precedent over start_freq/stop_freq.
         tone_power : int or None, optional, default None
             The drive amplitude.  If None, takes from cfg.
         n_read : int, optional, default 2
@@ -3381,8 +3388,18 @@ class SmurfTuneMixin(SmurfBase):
         min_gap : int, optional, default 2
             Minimum number of samples between resonances.
         '''
+        band_center = self.get_band_center_mhz(band)
         if subband is None:
-            subband=np.arange(self.get_number_sub_bands(band))
+            start_subband = self.freq_to_subband(band, band_center + start_freq)
+            stop_subband = self.freq_to_subband(band, band_center + stop_freq)
+            step = 1
+            if stop_subband < start_subband:
+                step = -1
+            subband = np.arange(start_subband, stop_subband+1, step)
+        else:
+            sb, sbc = self.get_subband_centers(band)
+            start_freq = sbc[subband[0]]
+            stop_freq  = sbc[subband[-1]]
 
         # Turn off all tones in this band first.  May want to make
         # this only turn off tones in each sub-band before sweeping,
@@ -3394,7 +3411,7 @@ class SmurfTuneMixin(SmurfBase):
             self.log('No tone_power given. Using value in config ' +
                      f'file: {tone_power}')
 
-        self.log('Sweeping across frequencies')
+        self.log(f'Sweeping across frequencies {start_freq + band_center}MHz to {stop_freq + band_center}MHz')
         f, resp = self.full_band_ampl_sweep(band, subband, tone_power, n_read)
 
         timestamp = self.get_timestamp()
