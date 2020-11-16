@@ -12,3 +12,7 @@ print('-> Setting DAC_In_H_d to 6V for HVd=0.53')
 S.set_rtm_slow_dac_volt(31,6) #corresponds to HVd->0.53
 
 print('Done running cryocard_c03_setup.py.')
+
+# Set the delay for new fw
+for band in [0,1,2,3]:
+    S._caput(f'smurf_server_s{S.slot_number}:AMCc:FpgaTopLevel:AppTop:AppCore:SysgenCryo:Base[{band}]:bandDelayUs',8.9)

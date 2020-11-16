@@ -27,13 +27,13 @@ relock=False
 bands=[2]
 bias=None
 # no longer averaging as much or waiting as long between points in newer fw which has df filter
-wait_time=0.125
+wait_time=0.250
 Npts=3
 #bias_low=-0.432
 #bias_high=0.432
-bias_low=-0.95
-bias_high=0.95
-Nsteps=500
+bias_low=-0.65
+bias_high=0.65
+Nsteps=800
 #Nsteps=25
 bias_step=np.abs(bias_high-bias_low)/float(Nsteps)
 channels=None
