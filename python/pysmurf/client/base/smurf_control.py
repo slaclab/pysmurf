@@ -594,6 +594,7 @@ class SmurfControl(SmurfCommandMixin,
 
             self.set_cpld_reset(0, write_log=write_log)
             self.cpld_toggle(write_log=write_log)
+            self.all_off()
 
             # Make sure flux ramp starts off
             self.flux_ramp_off(write_log=write_log)

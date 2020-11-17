@@ -3392,8 +3392,8 @@ class SmurfTuneMixin(SmurfBase):
         '''
         band_center = self.get_band_center_mhz(band)
         if subband is None:
-            start_subband = self.freq_to_subband(band, band_center + start_freq)
-            stop_subband = self.freq_to_subband(band, band_center + stop_freq)
+            start_subband = self.freq_to_subband(band, band_center + start_freq)[0]
+            stop_subband = self.freq_to_subband(band, band_center + stop_freq)[0]
             step = 1
             if stop_subband < start_subband:
                 step = -1
