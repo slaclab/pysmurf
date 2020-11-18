@@ -3927,7 +3927,7 @@ class SmurfCommandMixin(SmurfBase):
             'len(val) must be 32, the number of DACs in hardware.')
 
         # only ever set this to 0x2 or 0xE
-        if np.any(np.logical_or(val != 0x2 , val != 0xE)):
+        if np.any(np.logical_and(val != 0x2 , val != 0xE)):
             self.log("All values in val must be 0x2 or 0xE. " +
                 "Setting incorrect values to 0x2." )
 
