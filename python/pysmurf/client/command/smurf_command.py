@@ -3873,6 +3873,7 @@ class SmurfCommandMixin(SmurfBase):
 
         # only ever set this to 0x2 or 0xE (enable or disable)
         if (val != 0x2) and (val != 0xE):
+            self.log("RTM dac val must be 0x2 or 0xE. Setting to 0x2.")
             val = 0x2
 
         self._caput(self.rtm_spi_max_root +
@@ -3926,6 +3927,10 @@ class SmurfCommandMixin(SmurfBase):
             'len(val) must be 32, the number of DACs in hardware.')
 
         # only ever set this to 0x2 or 0xE
+        if np.any(np.logical_or(val != 0x2 , val != 0xE)):
+            self.log("All values in val must be 0x2 or 0xE. " +
+                "Setting incorrect values to 0x2." )
+
         val = [0x2 if v != 0x2 and v != 0xE else v for v in val]
 
         self._caput(
