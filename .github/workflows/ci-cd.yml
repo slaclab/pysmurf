@@ -59,3 +59,9 @@ jobs:
           python -m pip install -r requirements.txt
           python -m pip install .
           python -m pip install sphinx
+
+      # Try to build the documentation
+      - name: Build documentation
+        run: |
+          cd docs
+          make html SPHINXOPTS="-W --keep-going"
