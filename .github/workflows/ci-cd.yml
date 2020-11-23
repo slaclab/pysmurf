@@ -65,3 +65,83 @@ jobs:
         run: |
           cd docs
           make html SPHINXOPTS="-W --keep-going"
+
+  # Server tests
+  test-server:
+    name: Server Tests
+    runs-on: ubuntu-18.04
+    needs: checks   # Run only if checks passed
+    steps:
+      # Checkout the code
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      # Setup Docker build environment
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v1
+
+      # Build docker image
+      - name: Build Docker
+        uses: docker/build-push-action@v2
+        with:
+          file: ./docker/server/Dockerfile
+          push: false
+          tags: server_docker
+          build-args: branch=${{ github.head_ref }}
+
+      # Start the docker container
+      - name: Start Docker
+        run: |
+          docker run -dti --rm --name server \
+            --entrypoint bash \
+            server_docker
+
+      # Test docker image:
+      # - Try to import the smurf module in the server container
+      # - Try to import the pysmurf's SmurfProcessor module in the server container
+      - name: Test Docker
+        run: |
+          docker exec server \
+            /bin/bash -c "python3 -c 'import rogue; import smurf;'"
+          docker exec server \
+            /bin/bash -c "python3 -c 'import pysmurf.core.devices; \
+            s = pysmurf.core.devices.SmurfProcessor(name=\"\", description=\"\")'"
+
+  # Client tests
+  test-client:
+    name: Client Tests
+    runs-on: ubuntu-18.04
+    needs: checks   # Run only if checks passed
+    steps:
+      # Checkout the code
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      # Setup Docker build environment
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v1
+
+      # Build docker image
+      - name: Build Docker
+        uses: docker/build-push-action@v2
+        with:
+          file: ./docker/client/Dockerfile
+          push: false
+          tags: client_docker
+          build-args: branch=${{ github.head_ref }}
+
+      # Start the docker container
+      - name: Start Docker
+        run: |
+          docker run -dti --rm --name client \
+            --entrypoint bash \
+            client_docker
+
+      # Test docker image
+      # - Try to import the pysmurf.client module in the client container
+      #   Note: we need to disable the matplotlib graphics backend in order
+      #         to be able to run in the runner.
+      - name: Test Docker
+        run: |
+          docker exec client \
+            /bin/bash -c "python3 -c 'import matplotlib; matplotlib.use(\"Agg\"); import pysmurf.client'"
