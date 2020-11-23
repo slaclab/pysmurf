@@ -103,7 +103,7 @@ jobs:
       # Start the docker container
       - name: Start Docker
         run: |
-          docker run -dti --rm --name server \
+          docker container run -dti --rm --name server \
             --entrypoint bash \
             server_docker
 
@@ -112,9 +112,9 @@ jobs:
       # - Try to import the pysmurf's SmurfProcessor module in the server container
       - name: Test Docker
         run: |
-          docker exec server \
+          docker container exec server \
             /bin/bash -c "python3 -c 'import rogue; import smurf;'"
-          docker exec server \
+          docker container exec server \
             /bin/bash -c "python3 -c 'import pysmurf.core.devices; \
             s = pysmurf.core.devices.SmurfProcessor(name=\"\", description=\"\")'"
 
@@ -155,7 +155,7 @@ jobs:
       # Start the docker container
       - name: Start Docker
         run: |
-          docker run -dti --rm --name client \
+          docker container run -dti --rm --name client \
             --entrypoint bash \
             client_docker
 
@@ -165,5 +165,5 @@ jobs:
       #         to be able to run in the runner.
       - name: Test Docker
         run: |
-          docker exec client \
+          docker container exec client \
             /bin/bash -c "python3 -c 'import matplotlib; matplotlib.use(\"Agg\"); import pysmurf.client'"
