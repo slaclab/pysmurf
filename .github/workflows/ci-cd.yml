@@ -95,6 +95,7 @@ jobs:
       - name: Build Docker
         uses: docker/build-push-action@v2
         with:
+          context: ./docker/server
           file: ./docker/server/Dockerfile
           push: false
           tags: server_docker
@@ -147,6 +148,7 @@ jobs:
       - name: Build Docker
         uses: docker/build-push-action@v2
         with:
+          context: ./docker/client
           file: ./docker/client/Dockerfile
           push: false
           tags: client_docker
