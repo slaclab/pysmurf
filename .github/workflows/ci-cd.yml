@@ -98,7 +98,7 @@ jobs:
           file: ./docker/server/Dockerfile
           push: false
           tags: server_docker
-          build-args: branch=${{ steps.branch_name.branch }}
+          build-args: branch=${{ steps.branch_name.outputs.branch }}
 
       # Start the docker container
       - name: Start Docker
@@ -150,7 +150,7 @@ jobs:
           file: ./docker/client/Dockerfile
           push: false
           tags: client_docker
-          build-args: branch=${{ steps.branch_name.branch }}
+          build-args: branch=${{ steps.branch_name.outputs.branch }}
 
       # Start the docker container
       - name: Start Docker
