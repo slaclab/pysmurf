@@ -31,4 +31,7 @@ jobs:
 
       # Run Flake 8 tests
       - name: Flake8 Checks
-        run: flake8 --count python/
+        run: |
+          pwd
+          ls
+          flake8 --count python/
