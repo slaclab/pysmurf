@@ -93,13 +93,12 @@ jobs:
 
       # Build docker image
       - name: Build Docker
-        uses: docker/build-push-action@v2
-        with:
-          context: ./docker/server
-          file: ./docker/server/Dockerfile
-          push: false
-          tags: server_docker
-          build-args: branch=${{ steps.branch_name.outputs.branch }}
+        run: |
+          docker build \
+            --file ./docker/server/Dockerfile \
+            --build-arg branch=${{ steps.branch_name.outputs.branch }} \
+            --tag server_docker
+            ./docker/server
 
       # Start the docker container
       - name: Start Docker
@@ -146,13 +145,12 @@ jobs:
 
       # Build docker image
       - name: Build Docker
-        uses: docker/build-push-action@v2
-        with:
-          context: ./docker/client
-          file: ./docker/client/Dockerfile
-          push: false
-          tags: client_docker
-          build-args: branch=${{ steps.branch_name.outputs.branch }}
+        run: |
+          docker build \
+            --file ./docker/client/Dockerfile \
+            --build-arg branch=${{ steps.branch_name.outputs.branch }} \
+            --tag client_docker
+            ./docker/client
 
       # Start the docker container
       - name: Start Docker
