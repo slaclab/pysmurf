@@ -94,10 +94,10 @@ jobs:
       # Build docker image
       - name: Build Docker
         run: |
-          docker build \
+          docker image build \
             --file ./docker/server/Dockerfile \
             --build-arg branch=${{ steps.branch_name.outputs.branch }} \
-            --tag server_docker
+            --tag server_docker \
             ./docker/server
 
       # Start the docker container
@@ -146,10 +146,10 @@ jobs:
       # Build docker image
       - name: Build Docker
         run: |
-          docker build \
+          docker image build \
             --file ./docker/client/Dockerfile \
             --build-arg branch=${{ steps.branch_name.outputs.branch }} \
-            --tag client_docker
+            --tag client_docker \
             ./docker/client
 
       # Start the docker container
