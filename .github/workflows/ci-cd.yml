@@ -235,7 +235,7 @@ jobs:
           context: ./docker/server
           file: ./docker/server/Dockerfile
           push: true
-          tags: tidair/pysmurf-server-base:${{ steps.get_tag.outputs.tag }
+          tags: tidair/pysmurf-server-base:${{ steps.get_tag.outputs.tag }}
           build-args: branch=${{ steps.get_tag.outputs.tag }}
 
   # Client docker
@@ -273,5 +273,5 @@ jobs:
           context: ./docker/client
           file: ./docker/client/Dockerfile
           push: true
-          tags: tidair/pysmurf-client:${{ steps.get_tag.outputs.tag }
+          tags: tidair/pysmurf-client:${{ steps.get_tag.outputs.tag }}
           build-args: branch=${{ steps.get_tag.outputs.tag }}
