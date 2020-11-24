@@ -48,7 +48,7 @@ jobs:
         uses: actions/checkout@v2
 
       # Setup python 3.6
-      - name: setup python 3.6
+      - name: Setup python 3.6
         uses: actions/setup-python@v2
         with:
           python-version: 3.6
@@ -77,7 +77,7 @@ jobs:
         uses: actions/checkout@v2
 
       # Setup Docker build environment
-      - name: Set up Docker Buildx
+      - name: Set up docker build enviroment
         uses: docker/setup-buildx-action@v1
 
       # Extract the branch name.
@@ -92,7 +92,7 @@ jobs:
           echo ::set-output name=branch::"${BRANCH_NAME:-$(echo $GITHUB_REF | awk 'BEGIN { FS = "/" } ; { print $3 }')}"
 
       # Build docker image
-      - name: Build Docker
+      - name: Build docker image
         run: |
           docker image build \
             --file ./docker/server/Dockerfile \
@@ -101,7 +101,7 @@ jobs:
             ./docker/server
 
       # Start the docker container
-      - name: Start Docker
+      - name: Start docker container
         run: |
           docker container run -dti --rm --name server \
             --entrypoint bash \
@@ -110,7 +110,7 @@ jobs:
       # Test docker image:
       # - Try to import the smurf module in the server container
       # - Try to import the pysmurf's SmurfProcessor module in the server container
-      - name: Test Docker
+      - name: Test docker container
         run: |
           docker container exec server \
             /bin/bash -c "python3 -c 'import rogue; import smurf;'"
@@ -129,7 +129,7 @@ jobs:
         uses: actions/checkout@v2
 
       # Setup Docker build environment
-      - name: Set up Docker Buildx
+      - name: Set up docker build enviroment
         uses: docker/setup-buildx-action@v1
 
       # Extract the branch name.
@@ -144,7 +144,7 @@ jobs:
           echo ::set-output name=branch::"${BRANCH_NAME:-$(echo $GITHUB_REF | awk 'BEGIN { FS = "/" } ; { print $3 }')}"
 
       # Build docker image
-      - name: Build Docker
+      - name: Build docker Image
         run: |
           docker image build \
             --file ./docker/client/Dockerfile \
@@ -153,7 +153,7 @@ jobs:
             ./docker/client
 
       # Start the docker container
-      - name: Start Docker
+      - name: Start docker container
         run: |
           docker container run -dti --rm --name client \
             --entrypoint bash \
@@ -163,7 +163,7 @@ jobs:
       # - Try to import the pysmurf.client module in the client container
       #   Note: we need to disable the matplotlib graphics backend in order
       #         to be able to run in the runner.
-      - name: Test Docker
+      - name: Test docker container
         run: |
           docker container exec client \
             /bin/bash -c "python3 -c 'import matplotlib; matplotlib.use(\"Agg\"); import pysmurf.client'"
