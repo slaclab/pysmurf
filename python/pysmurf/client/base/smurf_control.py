@@ -407,6 +407,13 @@ class SmurfControl(SmurfCommandMixin,
         dacs = [0, 1]
         for val in [1, 0]:
             for bay in self.bays:
+
+                # In newer software versions, setDefaults disables
+                # DBG:enable after loading the defaults.yml.  This
+                # makes sure we can reset the RF DACs.
+                self.set_dbg_enable(bay, True)
+
+                # Reset all RF DACs in use.
                 for dac in dacs:
                     self.set_dac_reset(
                         bay, dac, val, write_log=write_log)
@@ -587,6 +594,7 @@ class SmurfControl(SmurfCommandMixin,
 
             self.set_cpld_reset(0, write_log=write_log)
             self.cpld_toggle(write_log=write_log)
+            self.all_off()
 
             # Make sure flux ramp starts off
             self.flux_ramp_off(write_log=write_log)
