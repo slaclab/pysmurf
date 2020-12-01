@@ -5,7 +5,7 @@
 name: verify-pr-label-action
 
 on:
-  pull_request:
+  pull_request_target:
    types: [opened, labeled, unlabeled, synchronize]
 
 jobs:
@@ -14,8 +14,9 @@ jobs:
     name: Verify that the PR has a valid label
     steps:
     - name: Verify Pull Request Labels
-      uses: jesusvasquez333/verify-pr-label-action@v1.1.0
+      uses: jesusvasquez333/verify-pr-label-action@v1.3.1
       id: verify-pr-label
       with:
-          github-token: "${{ secrets.GITHUB_TOKEN }}"
+          github-token: '${{ secrets.GITHUB_TOKEN }}'
           valid-labels: 'bug, enhancement, interface-change'
+          pull-request-number: '${{ github.event.pull_request.number }}'
