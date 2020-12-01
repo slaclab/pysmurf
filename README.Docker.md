@@ -8,7 +8,7 @@ The docker image for the server is called **pysmurf-server-base**, while the doc
 
 ## Building the image
 
-When a tag is pushed to this github repository, two new Docker images, one for the server and one for the client applications, are automatically built and push to their Dockehub repositories: [Dockerhub server repository](https://hub.docker.com/r/tidair/pysmurf-server-base) and [Dockerhub client repository](https://hub.docker.com/r/tidair/pysmurf-client) respectively, using travis.
+When a tag is pushed to this github repository, two new Docker images, one for the server and one for the client applications, are automatically built and push to their Dockehub repositories: [Dockerhub server repository](https://hub.docker.com/r/tidair/pysmurf-server-base) and [Dockerhub client repository](https://hub.docker.com/r/tidair/pysmurf-client) respectively, using GitHub Actions.
 
 The resulting docker images are tagged with the same git tag string (as returned by `git describe --tags --always`).
 

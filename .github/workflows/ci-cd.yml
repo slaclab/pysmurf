@@ -1,0 +1,277 @@
+name: CI/CD
+on: [push, pull_request]
+
+jobs:
+
+  ###################
+  # Check Jobs      #
+  ###################
+  # Flake8 checks
+  checks:
+    name: Flake8 Checks
+    runs-on: ubuntu-18.04
+    steps:
+      # Checkout the code
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      # Setup python 3.6
+      - name: setup python 3.6
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.6
+
+      # Install flake8 modules
+      - name: Install dependencies
+        run: |
+          python -m pip install \
+            flake8-rst-docstrings \
+            flake8-sfs \
+            flake8-import-order
+
+      # Run Flake 8 tests
+      - name: Flake8 Checks
+        run: flake8 --count python/
+
+
+  ###################
+  # Test jobs       #
+  ###################
+  # Documentation automatic build tests
+  test-docs:
+    name: Documentation Build Tests
+    runs-on: ubuntu-18.04
+    needs: checks   # Run only if checks passed
+    steps:
+      # Checkout the code
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      # Setup python 3.6
+      - name: Setup python 3.6
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.6
+
+      # Install requirements, pysmurf, and sphinx
+      - name: Install dependencies
+        run: |
+          python -m pip install -r requirements.txt
+          python -m pip install .
+          python -m pip install sphinx
+
+      # Try to build the documentation
+      - name: Build documentation
+        run: |
+          cd docs
+          make html SPHINXOPTS="-W --keep-going"
+
+  # Server tests
+  test-server:
+    name: Server Tests
+    runs-on: ubuntu-18.04
+    needs: checks   # Run only if checks passed
+    steps:
+      # Checkout the code
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      # Setup Docker build environment
+      - name: Set up docker build enviroment
+        uses: docker/setup-buildx-action@v1
+
+      # Extract the branch name.
+      # - For PR, the branch name is "github.head_ref"
+      # - For non-pull-request builds, the BRANCH_NAME env var will be empty.
+      #   Extract it from GITHUB_REF in the format of refs/heads/<branch-name>
+      - name: Get branch name
+        id: branch_name
+        env:
+          BRANCH_NAME: ${{ github.head_ref }}
+        run: |
+          echo ::set-output name=branch::"${BRANCH_NAME:-$(echo $GITHUB_REF | awk 'BEGIN { FS = "/" } ; { print $3 }')}"
+
+      # Build docker image
+      - name: Build docker image
+        run: |
+          docker image build \
+            --file ./docker/server/Dockerfile \
+            --build-arg branch=${{ steps.branch_name.outputs.branch }} \
+            --tag server_docker \
+            ./docker/server
+
+      # Start the docker container
+      - name: Start docker container
+        run: |
+          docker container run -dti --rm --name server \
+            --entrypoint bash \
+            server_docker
+
+      # Test docker image:
+      # - Try to import the smurf module in the server container
+      # - Try to import the pysmurf's SmurfProcessor module in the server container
+      - name: Test docker container
+        run: |
+          docker container exec server \
+            /bin/bash -c "python3 -c 'import rogue; import smurf;'"
+          docker container exec server \
+            /bin/bash -c "python3 -c 'import pysmurf.core.devices; \
+            s = pysmurf.core.devices.SmurfProcessor(name=\"\", description=\"\")'"
+
+  # Client tests
+  test-client:
+    name: Client Tests
+    runs-on: ubuntu-18.04
+    needs: checks   # Run only if checks passed
+    steps:
+      # Checkout the code
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      # Setup Docker build environment
+      - name: Set up docker build enviroment
+        uses: docker/setup-buildx-action@v1
+
+      # Extract the branch name.
+      # - For PR, the branch name is "github.head_ref"
+      # - For non-pull-request builds, the BRANCH_NAME env var will be empty.
+      #   Extract it from GITHUB_REF in the format of refs/heads/<branch-name>
+      - name: Get branch name
+        id: branch_name
+        env:
+          BRANCH_NAME: ${{ github.head_ref }}
+        run: |
+          echo ::set-output name=branch::"${BRANCH_NAME:-$(echo $GITHUB_REF | awk 'BEGIN { FS = "/" } ; { print $3 }')}"
+
+      # Build docker image
+      - name: Build docker Image
+        run: |
+          docker image build \
+            --file ./docker/client/Dockerfile \
+            --build-arg branch=${{ steps.branch_name.outputs.branch }} \
+            --tag client_docker \
+            ./docker/client
+
+      # Start the docker container
+      - name: Start docker container
+        run: |
+          docker container run -dti --rm --name client \
+            --entrypoint bash \
+            client_docker
+
+      # Test docker image
+      # - Try to import the pysmurf.client module in the client container
+      #   Note: we need to disable the matplotlib graphics backend in order
+      #         to be able to run in the runner.
+      - name: Test docker container
+        run: |
+          docker container exec client \
+            /bin/bash -c "python3 -c 'import matplotlib; matplotlib.use(\"Agg\"); import pysmurf.client'"
+
+
+  ###################
+  # Deployment jobs #
+  ###################
+  # Generate release notes
+  deploy-release-notes:
+    name: Generate Release Notes
+    runs-on: ubuntu-18.04
+    needs: [test-docs, test-server, test-client]  # Run only if all tests passed
+    if: startsWith(github.ref, 'refs/tags/')      # Run only on tagged releases
+    steps:
+      # Checkout the code
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      # Setup python 3.6
+      - name: Setup python 3.6
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.6
+
+      # Install dependencies of the releaseGen.py script
+      - name: Install dependencies
+        run: |
+          python -m pip install \
+            GitPython \
+            PyGithub
+
+      # Generate a release using the releaseGen.py script
+      - name: Generate release notes
+        run: python releaseGen.py
+
+  # Server docker
+  deploy-server:
+    name: Build Server Docker Image
+    runs-on: ubuntu-18.04
+    needs: [test-docs, test-server, test-client]  # Run only if all tests passed
+    if: startsWith(github.ref, 'refs/tags/')      # Run only on tagged releases
+    steps:
+      # Checkout the code
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      # Get the git tag from the environmental variables
+      # It will used to tag the docker image
+      - name: Get release tag
+        id: get_tag
+        run: echo ::set-output name=tag::"${GITHUB_REF#refs/tags/}"
+
+      # Setup docker build environment
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v1
+
+      # Login to Dockerhub
+      - name: Login to Dockerhub
+        uses: docker/login-action@v1
+        with:
+          username: tidair
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      # Build and push the docker image
+      - name: Build and push image to Dockerhub
+        uses: docker/build-push-action@v2
+        with:
+          context: ./docker/server
+          file: ./docker/server/Dockerfile
+          push: true
+          tags: tidair/pysmurf-server-base:${{ steps.get_tag.outputs.tag }}
+          build-args: branch=${{ steps.get_tag.outputs.tag }}
+
+  # Client docker
+  deploy-client:
+    name: Build Client Docker Image
+    runs-on: ubuntu-18.04
+    needs: [test-docs, test-server, test-client]  # Run only if all tests passed
+    if: startsWith(github.ref, 'refs/tags/')      # Run only on tagged releases
+    steps:
+      # Checkout the code
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      # Get the git tag from the environmental variables
+      # It will used to tag the docker image
+      - name: Get release tag
+        id: get_tag
+        run: echo ::set-output name=tag::"${GITHUB_REF#refs/tags/}"
+
+      # Setup Docker build environment
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v1
+
+      # Login to Dockerhub
+      - name: Login to Dockerhub
+        uses: docker/login-action@v1
+        with:
+          username: tidair
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      # Build and push the docker image
+      - name: Build and push image to Dockerhub
+        uses: docker/build-push-action@v2
+        with:
+          context: ./docker/client
+          file: ./docker/client/Dockerfile
+          push: true
+          tags: tidair/pysmurf-client:${{ steps.get_tag.outputs.tag }}
+          build-args: branch=${{ steps.get_tag.outputs.tag }}
