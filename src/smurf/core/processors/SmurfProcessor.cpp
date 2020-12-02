@@ -572,6 +572,9 @@ void scp::SmurfProcessor::acceptFrame(ris::FramePtr frame)
             // Acquire the lock while the filter parameters are used.
             std::lock_guard<std::mutex> lockParam(mutFilter);
 
+            // Acquire the lock for the unwrapper, as we are using the 'inputData' vector.
+            std::lock_guard<std::mutex> lockUnwrapper(mutUnwrapper);
+
             // The pass sample buffer x and y have the following structure:
             //
             //  |     .....    |     .....    |      ...     |     .....    |
@@ -687,6 +690,9 @@ void scp::SmurfProcessor::acceptFrame(ris::FramePtr frame)
         {
             // Hold the mutex while we copy the data
             std::lock_guard<std::mutex> lock(outDataMutex);
+
+            // Acquire the lock for the unwrapper, as we are using the 'inputData' vector.
+            std::lock_guard<std::mutex> lockUnwrapper(mutUnwrapper);
 
             // Check if the filter was disabled. If it was disabled, use the 'inputData' vector as source.
             // Otherwise, use the 'y' vector, applying the gain and casting.
