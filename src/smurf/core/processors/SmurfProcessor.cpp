@@ -509,6 +509,10 @@ void scp::SmurfProcessor::acceptFrame(ris::FramePtr frame)
 
     // Map and unwrap data at the same time
     {
+        // Acquire the lock while the unwrapper vectors are used.
+        // Acquire this lock outside the loop, to increase performance.
+        std::lock_guard<std::mutex> lock(mutUnwrapper);
+
         // Move the current data to the previous data
         previousData.swap(currentData);
 
@@ -520,10 +524,6 @@ void scp::SmurfProcessor::acceptFrame(ris::FramePtr frame)
         std::vector<fw_t>::iterator     previousIt { previousData.begin() };
         std::vector<unwrap_t>::iterator inputIt    { inputData.begin()    };
         std::vector<unwrap_t>::iterator wrapIt     { wrapCounter.begin()  };
-
-        // Acquire the lock while the unwrapper vectors are used.
-        // Acquire this lock outside the loop, to increase performance.
-        std::lock_guard<std::mutex> lock(mutUnwrapper);
 
         // Map and unwrap data in a single loop
         for(auto const& m : mask)
