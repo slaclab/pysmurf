@@ -1,3 +1,22 @@
+#-----------------------------------------------------------------------------
+# Title      : PySMuRF CI/CD GitHub Action Workflow
+#-----------------------------------------------------------------------------
+# File       : ci-cd.yml
+# Created    : 2020-11-23
+#-----------------------------------------------------------------------------
+# Description:
+#    GitHub Action Workflow for Continuous Integration and Continuous
+#    Deployment.
+#-----------------------------------------------------------------------------
+# This file is part of the smurf software platform. It is subject to
+# the license terms in the LICENSE.txt file found in the top-level directory
+# of this distribution and at:
+#    https://confluence.slac.stanford.edu/display/ppareg/LICENSE.html.
+# No part of the smurf software platform, including this file, may be
+# copied, modified, propagated, or distributed except according to the terms
+# contained in the LICENSE.txt file.
+#-----------------------------------------------------------------------------
+
 name: CI/CD
 on: [push, pull_request]
 
