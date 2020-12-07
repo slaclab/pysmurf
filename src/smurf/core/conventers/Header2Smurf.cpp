@@ -89,9 +89,6 @@ void scc::Header2Smurf::acceptFrame(ris::FramePtr frame)
         // Create a SmurfHeader object on the frame
         SmurfHeaderPtr<ris::FrameIterator> smurfHeaderOut(SmurfHeader<ris::FrameIterator>::create(frame));
 
-        // Stet he protocol version
-        smurfHeaderOut->setVersion(1);
-
         // Set the UNIX time
         smurfHeaderOut->setUnixTime(helpers::getTimeNS());
     }
