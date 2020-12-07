@@ -28,8 +28,6 @@ scc::Header2Smurf::Header2Smurf()
     ris::Slave(),
     ris::Master(),
     disable(false),
-    tesBias(TesBiasArray<std::vector<uint8_t>::iterator>::TesBiasBufferSize, 0),
-    tba(TesBiasArray<std::vector<uint8_t>::iterator>::create(tesBias.begin())),
     eLog_(rogue::Logging::create("pysmurf.Header2Smurf"))
 {
 }
@@ -48,7 +46,6 @@ void scc::Header2Smurf::setup_python()
                 ("Header2Smurf",bp::init<>())
         .def("setDisable", &Header2Smurf::setDisable)
         .def("getDisable", &Header2Smurf::getDisable)
-        .def("setTesBias", &Header2Smurf::setTesBias)
     ;
     bp::implicitly_convertible< scc::Header2SmurfPtr, ris::SlavePtr  >();
     bp::implicitly_convertible< scc::Header2SmurfPtr, ris::MasterPtr >();
@@ -62,14 +59,6 @@ void scc::Header2Smurf::setDisable(bool d)
 const bool scc::Header2Smurf::getDisable() const
 {
     return disable;
-}
-
-void scc::Header2Smurf::setTesBias(std::size_t index, int32_t value)
-{
-    // Hold the mutex while the data tesBias array is being written to.
-    std::lock_guard<std::mutex> lock(*tba->getMutex());
-
-    tba->setWord(index, value);
 }
 
 void scc::Header2Smurf::acceptFrame(ris::FramePtr frame)
@@ -102,14 +91,6 @@ void scc::Header2Smurf::acceptFrame(ris::FramePtr frame)
 
         // Stet he protocol version
         smurfHeaderOut->setVersion(1);
-
-        // Copy the TES Bias values
-        {
-            // Hold the mutex while the data tesBias array is being written to.
-            std::lock_guard<std::mutex> lock(*tba->getMutex());
-
-            smurfHeaderOut->copyTESBiasArrayFrom(tesBias);
-        }
 
         // Set the UNIX time
         smurfHeaderOut->setUnixTime(helpers::getTimeNS());
