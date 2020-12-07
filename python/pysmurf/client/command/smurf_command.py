@@ -3873,7 +3873,7 @@ class SmurfCommandMixin(SmurfBase):
 
         # only ever set this to 0x2 or 0xE (enable or disable)
         if (val != 0x2) and (val != 0xE):
-            self.log("RTM dac val must be 0x2 or 0xE. Setting to 0x2.")
+            self.log("RTM dac val must be 0x2 or 0xE. Setting to 0x2 (enabled).")
             val = 0x2
 
         self._caput(self.rtm_spi_max_root +
