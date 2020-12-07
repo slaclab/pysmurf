@@ -3929,7 +3929,7 @@ class SmurfCommandMixin(SmurfBase):
         # only ever set this to 0x2 or 0xE
         if np.any(np.logical_and(val != 0x2 , val != 0xE)):
             self.log("All values in val must be 0x2 or 0xE. " +
-                "Setting incorrect values to 0x2." )
+                "Setting incorrect values to 0x2 (enable)." )
 
         val = [0x2 if v != 0x2 and v != 0xE else v for v in val]
 
