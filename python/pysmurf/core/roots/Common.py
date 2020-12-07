@@ -246,7 +246,7 @@ class Common(pyrogue.Root):
         # Check if the 'AppTop.JesdHelath' command exist. The 'self._jesd_health_found'
         # flag will indicated if it was found, and if it was found, a reference to the
         # command will be available in 'self._jesd_health_cmd'.
-        c = self.FpgaTopLevel.AppTop.find(name='JesdHealth', recurse=False)
+        c = self.FpgaTopLevel.AppTop.find(name='^JesdHealth$', typ=pyrogue.Command, recurse=False)
         if c:
             self._jesd_health_found = True
             self._jesd_health_cmd = c[0]
