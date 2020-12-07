@@ -1,3 +1,22 @@
+#-----------------------------------------------------------------------------
+# Title      : PySMuRF CI/CD GitHub Action Workflow
+#-----------------------------------------------------------------------------
+# File       : ci-cd.yml
+# Created    : 2020-11-23
+#-----------------------------------------------------------------------------
+# Description:
+#    GitHub Action Workflow for Continuous Integration and Continuous
+#    Deployment.
+#-----------------------------------------------------------------------------
+# This file is part of the smurf software platform. It is subject to
+# the license terms in the LICENSE.txt file found in the top-level directory
+# of this distribution and at:
+#    https://confluence.slac.stanford.edu/display/ppareg/LICENSE.html.
+# No part of the smurf software platform, including this file, may be
+# copied, modified, propagated, or distributed except according to the terms
+# contained in the LICENSE.txt file.
+#-----------------------------------------------------------------------------
+
 name: CI/CD
 on: [push, pull_request]
 
@@ -183,6 +202,12 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v2
 
+      # Get the git tag from the environmental variables
+      # It will used to tag the docker image
+      - name: Get release tag
+        id: get_tag
+        run: echo ::set-output name=tag::"${GITHUB_REF#refs/tags/}"
+
       # Setup python 3.6
       - name: Setup python 3.6
         uses: actions/setup-python@v2
@@ -198,6 +223,10 @@ jobs:
 
       # Generate a release using the releaseGen.py script
       - name: Generate release notes
+        env:
+          REPO_SLUG: ${{ github.repository }}
+          GITHUB_TOKEN: ${{ secrets.SLACLAB_TOKEN }}
+          TAG: ${{ steps.get_tag.outputs.tag }}
         run: python releaseGen.py
 
   # Server docker
