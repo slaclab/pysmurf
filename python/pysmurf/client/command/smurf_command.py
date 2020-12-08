@@ -5394,9 +5394,10 @@ class SmurfCommandMixin(SmurfBase):
         int
             The frame count number
         """
-        return self._caget(
+        return int(self._caget(
             self.frame_rx_stats + self._frame_count_reg,
-            **kwargs)
+            as_string=True,
+            **kwargs))
 
     _frame_size_reg = 'FrameSize'
 
