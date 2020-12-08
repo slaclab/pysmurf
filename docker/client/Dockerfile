@@ -10,8 +10,14 @@ RUN apt-get update && \
     python3-matplotlib \
  && rm -rf /var/lib/apt/lists/*
 
-RUN pip3 install scipy pandas seaborn jupyter pytest GitPython \
-        schema==0.7.1
+RUN pip3 install \
+    scipy==1.5.2 \
+    pandas==1.1.0 \
+    seaborn==0.10.1 \
+    jupyter==1.0.0 \
+    pytest==6.0.1 \
+    GitPython==3.1.7 \
+    schema==0.7.1
 
 # Install pysmurf
 ARG branch
