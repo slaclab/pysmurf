@@ -303,9 +303,6 @@ class SmurfProcessor(pyrogue.Device):
             if root:
                 pyrogue.streamTap(root, self.transmitter.getMetaChannel())
 
-    def setTesBias(self, index, val):
-        self.smurf_header2smurf.setTesBias(index, val)
-
     def _getStreamSlave(self):
         """
         Method called by streamConnect, streamTap and streamConnectBiDir to access slave.

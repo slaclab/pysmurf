@@ -38,10 +38,6 @@ class Header2Smurf(pyrogue.Device):
             localSet=lambda value: self._header2smurf.setDisable(value),
             localGet=self._header2smurf.getDisable))
 
-    # Method to set TES Bias values
-    def setTesBias(self, index, value):
-        self._header2smurf.setTesBias(index, value)
-
     # Method called by streamConnect, streamTap and streamConnectBiDir to access slave
     def _getStreamSlave(self):
         return self._header2smurf

@@ -29,7 +29,6 @@
 #include <rogue/interfaces/stream/Master.h>
 #include <rogue/GilRelease.h>
 #include "smurf/core/common/SmurfHeader.h"
-#include "smurf/core/common/TesBiasArray.h"
 #include "smurf/core/common/Helpers.h"
 
 namespace bp  = boost::python;
@@ -60,16 +59,11 @@ namespace smurf
                 void       setDisable(bool d);
                 const bool getDisable() const;
 
-                // Receive the TesBias from pyrogue
-                void setTesBias(std::size_t index, int32_t value);
-
                 // Accept new frames
                 void acceptFrame(ris::FramePtr frame);
 
             private:
-                bool                                            disable; // Disable flag
-                std::vector<uint8_t>                            tesBias; // Buffer to hold the TES values
-                TesBiasArrayPtr<std::vector<uint8_t>::iterator> tba;     // TesBias interface object
+                bool    disable; // Disable flag
 
                 // Logger
                 std::shared_ptr<rogue::Logging> eLog_;

@@ -545,6 +545,10 @@ void scp::SmurfProcessor::acceptFrame(ris::FramePtr frame)
 
     // Map and unwrap data at the same time
     {
+        // Acquire the lock while the unwrapper vectors are used.
+        // Acquire this lock outside the loop, to increase performance.
+        std::lock_guard<std::mutex> lock(mutUnwrapper);
+
         // Move the current data to the previous data
         previousData.swap(currentData);
 
@@ -556,10 +560,6 @@ void scp::SmurfProcessor::acceptFrame(ris::FramePtr frame)
         std::vector<fw_t>::iterator     previousIt { previousData.begin() };
         std::vector<unwrap_t>::iterator inputIt    { inputData.begin()    };
         std::vector<unwrap_t>::iterator wrapIt     { wrapCounter.begin()  };
-
-        // Acquire the lock while the unwrapper vectors are used.
-        // Acquire this lock outside the loop, to increase performance.
-        std::lock_guard<std::mutex> lock(mutUnwrapper);
 
         // Map and unwrap data in a single loop
         for(auto const& m : mask)
@@ -607,6 +607,9 @@ void scp::SmurfProcessor::acceptFrame(ris::FramePtr frame)
         {
             // Acquire the lock while the filter parameters are used.
             std::lock_guard<std::mutex> lockParam(mutFilter);
+
+            // Acquire the lock for the unwrapper, as we are using the 'inputData' vector.
+            std::lock_guard<std::mutex> lockUnwrapper(mutUnwrapper);
 
             // The pass sample buffer x and y have the following structure:
             //
@@ -751,6 +754,9 @@ void scp::SmurfProcessor::acceptFrame(ris::FramePtr frame)
         {
             // Hold the mutex while we copy the data
             std::lock_guard<std::mutex> lock(outDataMutex);
+
+            // Acquire the lock for the unwrapper, as we are using the 'inputData' vector.
+            std::lock_guard<std::mutex> lockUnwrapper(mutUnwrapper);
 
             // Check if the filter was disabled. If it was disabled, use the 'inputData' vector as source.
             // Otherwise, use the 'y' vector, applying the gain and casting.

@@ -118,7 +118,7 @@ This module can be disabled; the incoming frame will just pass through to the ne
 
 ### Header2Smurf
 
-Adds the SMuRF header information to the incoming frame (see [here](README.SmurfPacket.md) for details).
+Adds some SMuRF header information to the incoming frame (see [here](README.SmurfPacket.md) for details). At the moment, the only value inserted is the Unix time.
 
 This module is not accessible from the pyrogue tree, as it doesn't have any configuration or status variables.
 
