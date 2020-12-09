@@ -41,10 +41,6 @@ if __name__ == "__main__":
                          server_port    = args['server_port'],
                          txDevice       = pysmurf.core.transmitters.BaseTransmitter(name='Transmitter')) as root:
 
-        # Add dummy TES bias values ([-8:7]), for testing purposes.
-        for i in range(16):
-            root._smurf_processor.setTesBias(index=i, val=(i-8))
-
         # Start the GUI
         import pyrogue.gui
         print("Starting GUI...\n")
