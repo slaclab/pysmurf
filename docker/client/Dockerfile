@@ -18,7 +18,8 @@ RUN pip3 install \
     jupyter==1.0.0 \
     pytest==6.0.1 \
     GitPython==3.1.7 \
-    schema==0.7.1
+    schema==0.7.1 \
+    jupyterlab==2.2.9
 
 # Install pysmurf
 ARG branch
