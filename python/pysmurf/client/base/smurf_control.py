@@ -310,7 +310,8 @@ class SmurfControl(SmurfCommandMixin,
         # initialize outputs cfg
         self.config.update('outputs', {})
 
-    def setup(self, write_log=True, payload_size=2048, **kwargs):
+    def setup(self, write_log=True, payload_size=2048,
+              set_defaults_max_timeout_sec=400, **kwargs):
         r"""Configures SMuRF system.
 
         TODO: NEED TO BE MORE DETAILED, CLEARER.
@@ -407,6 +408,13 @@ class SmurfControl(SmurfCommandMixin,
         dacs = [0, 1]
         for val in [1, 0]:
             for bay in self.bays:
+
+                # In newer software versions, setDefaults disables
+                # DBG:enable after loading the defaults.yml.  This
+                # makes sure we can reset the RF DACs.
+                self.set_dbg_enable(bay, True)
+
+                # Reset all RF DACs in use.
                 for dac in dacs:
                     self.set_dac_reset(
                         bay, dac, val, write_log=write_log)
@@ -414,7 +422,8 @@ class SmurfControl(SmurfCommandMixin,
         #
         # setDefaults
         self.set_read_all(write_log=write_log)
-        set_defaults_success = self.set_defaults_pv(write_log=write_log)
+        set_defaults_success = self.set_defaults_pv(write_log=write_log,
+            max_timeout_sec=set_defaults_max_timeout_sec)
 
         # Checking if setDefaults succeeded is only supported for
         # pysmurf core code versions >=4.1.0.  If it's not supported,
@@ -584,9 +593,6 @@ class SmurfControl(SmurfCommandMixin,
             # slow flux ramp only existed on the first rev of RTM boards,
             # C0, and wasn't ever really used.
             self.set_select_ramp(0x1, write_log=write_log)
-
-            self.set_cpld_reset(0, write_log=write_log)
-            self.cpld_toggle(write_log=write_log)
 
             # Make sure flux ramp starts off
             self.flux_ramp_off(write_log=write_log)

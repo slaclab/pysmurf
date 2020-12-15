@@ -1291,6 +1291,37 @@ class SmurfCommandMixin(SmurfBase):
             self._cryo_root(band) + self._eta_scan_dwell_reg,
             **kwargs)
 
+    _run_serial_find_freq_reg = 'runSerialFindFreq'
+
+    def set_run_serial_find_freq(self, band, val, sync_group=True, **kwargs):
+        """
+        Runs the eta scan. Set the channel using set_eta_scan_channel()
+
+        Args
+        ----
+        band : int
+            The band to eta scan.
+        val : bool
+            Start the eta scan.
+        """
+        self._caput(
+            self._cryo_root(band) + self._run_serial_find_freq_reg,
+            val, **kwargs)
+
+        monitorPV=(
+            self._cryo_root(band) + self._eta_scan_in_progress_reg)
+
+        inProgress = True
+        if sync_group:
+            while inProgress:
+                sg = SyncGroup([monitorPV], timeout=360)
+                sg.wait()
+                vals = sg.get_values()
+                inProgress = (vals[monitorPV] == 1)
+            self.log(
+                'serial find freq complete ; etaScanInProgress = ' +
+                f'{vals[monitorPV]}', self.LOG_USER)
+
     _run_eta_scan_reg = 'runEtaScan'
 
     def set_run_eta_scan(self, band, val, **kwargs):
@@ -3631,8 +3662,7 @@ class SmurfCommandMixin(SmurfBase):
         """
         Toggles the cpld reset bit.
         """
-        self.set_cpld_reset(1, wait_done=True, **kwargs)
-        self.set_cpld_reset(0, wait_done=True, **kwargs)
+        self.reset_rtm(**kwargs)
 
     _k_relay_reg = 'KRelay'
 
@@ -4666,12 +4696,11 @@ class SmurfCommandMixin(SmurfBase):
             The UltraScale+ FPGA temperature in degrees Celsius.
         """
         return self._caget(
-            self.epics_root +
             self.ultrascale +
             self._fpga_temperature_reg,
             **kwargs)
 
-    _fpga_vccint_reg = ":VccInt"
+    _fpga_vccint_reg = "VccInt"
 
     def get_fpga_vccint(self, **kwargs):
         """
@@ -4681,7 +4710,6 @@ class SmurfCommandMixin(SmurfBase):
             The UltraScale+ FPGA VccInt in Volts.
         """
         return self._caget(
-            self.epics_root +
             self.ultrascale +
             self._fpga_vccint_reg,
             **kwargs)
@@ -4696,7 +4724,6 @@ class SmurfCommandMixin(SmurfBase):
             The UltraScale+ FPGA VccAux in Volts.
         """
         return self._caget(
-            self.epics_root +
             self.ultrascale +
             self._fpga_vccaux_reg,
             **kwargs)
@@ -4711,7 +4738,6 @@ class SmurfCommandMixin(SmurfBase):
             The UltraScale+ FPGA VccBram in Volts.
         """
         return self._caget(
-            self.epics_root +
             self.ultrascale +
             self._fpga_vccbram_reg,
             **kwargs)
@@ -5209,6 +5235,48 @@ class SmurfCommandMixin(SmurfBase):
             self.trigger_root +
             self._trigger_channel_reg_dest_sel_reg.format(chan),
             val, **kwargs)
+
+    _dbg_enable_reg = "enable"
+
+    def set_dbg_enable(self, bay, val, **kwargs):
+        r"""Enables/disables write access to DBG registers.
+
+        Args
+        ----
+        bay : int
+            Which bay [0 or 1].
+        val : bool
+            True for enable, False for disable.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caput` call.
+        """
+        self._caput(
+            self.DBG.format(bay) + self._dbg_enable_reg,
+            val, **kwargs)
+
+    def get_dbg_enable(self, bay, **kwargs):
+        r"""Whether or not write access is enabled for DBG registers.
+
+        If disabled (=False), user cannot write to any of the DBG
+        registers.
+
+        Args
+        ----
+        bay : int
+            Which bay [0 or 1].
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caget` call.
+
+        Returns
+        -------
+        bool
+            True for enabled, False for disabled.
+        """
+        return self._caget(
+            self.DBG.format(bay) + self._dbg_enable_reg,
+            **kwargs)
 
     _dac_reset_reg = 'dacReset[{}]'
 
