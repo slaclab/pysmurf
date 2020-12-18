@@ -201,6 +201,8 @@ jobs:
       # Checkout the code
       - name: Checkout code
         uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
 
       # Get the git tag from the environmental variables
       # It will used to tag the docker image
@@ -225,7 +227,7 @@ jobs:
       - name: Generate release notes
         env:
           REPO_SLUG: ${{ github.repository }}
-          GITHUB_TOKEN: ${{ secrets.SLACLAB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG: ${{ steps.get_tag.outputs.tag }}
         run: python releaseGen.py
 
