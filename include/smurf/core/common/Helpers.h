@@ -67,11 +67,11 @@ namespace helpers
     };
 
     // Get the current time in nanoseconds.
-    // Use the steady clock which guarantees to be monotonically increasing.
+    // Use 'system_clock' which represents the system-wide real time wall clock.
     inline uint64_t getTimeNS()
     {
         return std::chrono::time_point_cast<std::chrono::nanoseconds>(
-            std::chrono::steady_clock::now()).time_since_epoch().count();
+            std::chrono::system_clock::now()).time_since_epoch().count();
     };
 }
 
