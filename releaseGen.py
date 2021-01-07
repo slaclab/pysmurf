@@ -15,18 +15,18 @@ from github import Github # PyGithub
 from collections import OrderedDict as odict
 import re
 
-ghRepo = os.environ.get('TRAVIS_REPO_SLUG')
+ghRepo = os.environ.get('REPO_SLUG')
 token  = os.environ.get('GITHUB_TOKEN')
-newTag = os.environ.get('TRAVIS_TAG')
+newTag = os.environ.get('TAG')
 
 if ghRepo is None:
-    exit("TRAVIS_REPO_SLUG not in environment.")
+    exit("REPO_SLUG not in environment.")
 
 if token is None:
     exit("GITHUB_TOKEN not in environment.")
 
 if newTag is None:
-    exit("TRAVIS_TAG not in environment.")
+    exit("TAG not in environment.")
 
 # Check tag to make sure it is a proper release: va.b.c
 vpat = re.compile('v\d+\.\d+\.\d+')

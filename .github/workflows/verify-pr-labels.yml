@@ -1,11 +1,29 @@
-# This workflow will verify that all pull requests have at least
-# one of these labels: 'bug', 'enhancement', 'interface-change'
-# before they can be merged
+#-----------------------------------------------------------------------------
+# Title      : PySMuRF Verify Labels GitHub Action Workflow
+#-----------------------------------------------------------------------------
+# File       : verify-pr-labels.yml
+# Created    : 2020-03-20
+#-----------------------------------------------------------------------------
+# Description:
+#    GitHub Action Workflow for verifying that all pull requests have at
+#    least one of these labels: 'bug', 'enhancement', 'interface-change',
+#    before they can be merged. For more information about the
+#    verify-pr-label-action action see:
+#    https://github.com/jesusvasquez333/verify-pr-label-action/blob/master/README.md
+#-----------------------------------------------------------------------------
+# This file is part of the smurf software platform. It is subject to
+# the license terms in the LICENSE.txt file found in the top-level directory
+# of this distribution and at:
+#    https://confluence.slac.stanford.edu/display/ppareg/LICENSE.html.
+# No part of the smurf software platform, including this file, may be
+# copied, modified, propagated, or distributed except according to the terms
+# contained in the LICENSE.txt file.
+#-----------------------------------------------------------------------------
 
 name: verify-pr-label-action
 
 on:
-  pull_request:
+  pull_request_target:
    types: [opened, labeled, unlabeled, synchronize]
 
 jobs:
@@ -14,8 +32,9 @@ jobs:
     name: Verify that the PR has a valid label
     steps:
     - name: Verify Pull Request Labels
-      uses: jesusvasquez333/verify-pr-label-action@v1.1.0
+      uses: jesusvasquez333/verify-pr-label-action@v1.3.1
       id: verify-pr-label
       with:
-          github-token: "${{ secrets.GITHUB_TOKEN }}"
+          github-token: '${{ secrets.GITHUB_TOKEN }}'
           valid-labels: 'bug, enhancement, interface-change'
+          pull-request-number: '${{ github.event.pull_request.number }}'

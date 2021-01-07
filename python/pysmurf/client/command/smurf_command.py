@@ -3883,7 +3883,7 @@ class SmurfCommandMixin(SmurfBase):
     # used to drive the amplifier gate.
     _rtm_slow_dac_enable_reg = 'TesBiasDacCtrlRegCh[{}]'
 
-    def set_rtm_slow_dac_enable(self, dac, val, **kwargs):
+    def set_rtm_slow_dac_enable(self, dac, val=2, **kwargs):
         """
         Set DacCtrlReg for this DAC, which configures the AD5790
         analog output for the requested DAC number.  Set to 0x2 to
@@ -3897,14 +3897,18 @@ class SmurfCommandMixin(SmurfBase):
             of the valid range is provided (must be within [1,32]),
             will assert.
         val : int
-            Value to set the DAC enable to.
+            Value to set the DAC enable to. enabled is 0x2, disabled is 0xE.
+            Power on default is 0xE.
         """
         assert (dac in range(1,33)),'dac must be an integer and in [1,32]'
 
-        self._caput(
-            self.rtm_spi_max_root +
-            self._rtm_slow_dac_enable_reg.format(dac),
-            val, **kwargs)
+        # only ever set this to 0x2 or 0xE (enable or disable)
+        if (val != 0x2) and (val != 0xE):
+            self.log("RTM dac val must be 0x2 or 0xE. Setting to 0x2 (enabled).")
+            val = 0x2
+
+        self._caput(self.rtm_spi_max_root +
+            self._rtm_slow_dac_enable_reg.format(dac), val, **kwargs)
 
     def get_rtm_slow_dac_enable(self, dac, **kwargs):
         """
@@ -3947,10 +3951,19 @@ class SmurfCommandMixin(SmurfBase):
         ----
         val : int array
             Length 32, addresses the DACs in DAC ordering.  If
-            provided array is not length 32, asserts.
+            provided array is not length 32, asserts. Power on
+            default is 0xE, enabled is 0x2, disable is 0xE.
         """
         assert (len(val)==32),(
             'len(val) must be 32, the number of DACs in hardware.')
+
+        # only ever set this to 0x2 or 0xE
+        if np.any(np.logical_and(val != 0x2 , val != 0xE)):
+            self.log("All values in val must be 0x2 or 0xE. " +
+                "Setting incorrect values to 0x2 (enable)." )
+
+        val = [0x2 if v != 0x2 and v != 0xE else v for v in val]
+
         self._caput(
             self.rtm_spi_max_root +
             self._rtm_slow_dac_enable_array_reg,
@@ -5425,9 +5438,10 @@ class SmurfCommandMixin(SmurfBase):
         int
             The frame count number
         """
-        return self._caget(
+        return int(self._caget(
             self.frame_rx_stats + self._frame_count_reg,
-            **kwargs)
+            as_string=True,
+            **kwargs))
 
     _frame_size_reg = 'FrameSize'
 
