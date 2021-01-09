@@ -5779,16 +5779,17 @@ class SmurfCommandMixin(SmurfBase):
             self.channel_mapper + self._payload_size_reg,
             **kwargs)
 
-    ### Data emulator code
-
+    ### Data emulator
 
     def set_predata_emulator_enable(self, val, **kwargs):
         """
+        Turns on and off the predata emulator.
         """
         self._caput(self._predata_emulator + 'enable', val, **kwargs)
 
     def get_predata_emulator_enable(self, **kwargs):
         """
+        Gets the enable bit for predata emulator.
         """
         return self._caget(self._predata_emulator + 'enable', **kwargs)
 
@@ -5796,12 +5797,24 @@ class SmurfCommandMixin(SmurfBase):
 
     def set_predata_emulator_type(self, val, **kwargs):
         """
+        Args:
+        -----
+        val : str
+            The data type. Choices are - Zeros, ChannelNumber, Random, Square,
+            Sawtooth, Triangle, Sine, and DropFrame
         """
         self._caput(self._predata_emulator + self._predata_emulator_type, val,
             **kwargs)
 
     def get_predata_emulator_type(self, **kwargs):
         """
+        Gets the predata emulator type.
+
+        Ret:
+        ----
+        type : int
+            0 - Zeros, 1 - ChannelNumber, 2 - Random, 3 - Square,
+            4 - Sawtooth, 5 - Triangle, 6 - Sine, 7 - DropFrame
         """
         return self._caget(self._predata_emulator + self._predata_emulator_type,
             **kwargs)
@@ -5811,14 +5824,14 @@ class SmurfCommandMixin(SmurfBase):
     def set_predata_emulator_amplitude(self, val, **kwargs):
         """
         """
-        self._caput(self._predata_emulator + self._predata_emulator_amplitude, val,
-            **kwargs)
+        self._caput(self._predata_emulator + self._predata_emulator_amplitude,
+            val, **kwargs)
 
     def get_predata_emulator_amplitude(self, **kwargs):
         """
         """
-        return self._caget(self._predata_emulator + self._predata_emulator_amplitude,
-            **kwargs)
+        return self._caget(self._predata_emulator +
+            self._predata_emulator_amplitude, **kwargs)
 
     _predata_emulator_offset = "Offset"
 
@@ -5831,8 +5844,8 @@ class SmurfCommandMixin(SmurfBase):
     def get_predata_emulator_offset(self, **kwargs):
         """
         """
-        return self._caget(self._predata_emulator + self._predata_emulator_offset,
-            **kwargs)
+        return self._caget(self._predata_emulator +
+            self._predata_emulator_offset, **kwargs)
 
     _predata_emulator_period = "Period"
 
@@ -5862,54 +5875,97 @@ class SmurfCommandMixin(SmurfBase):
 
     def set_postdata_emulator_type(self, val, **kwargs):
         """
+        Args:
+        -----
+        val : str
+            The data type. Choices are - Zeros, ChannelNumber, Random, Square,
+            Sawtooth, Triangle, Sine, and DropFrame
         """
         self._caput(self._postdata_emulator + self._postdata_emulator_type, val,
             **kwargs)
 
     def get_postdata_emulator_type(self, **kwargs):
         """
+        Gets the postdata emulator type.
+
+        Ret:
+        ----
+        type : int
+            0 - Zeros, 1 - ChannelNumber, 2 - Random, 3 - Square,
+            4 - Sawtooth, 5 - Triangle, 6 - Sine, 7 - DropFrame
         """
-        return self._caget(self._postdata_emulator + self._postdata_emulator_type,
-            **kwargs)
+        return self._caget(self._postdata_emulator +
+            self._postdata_emulator_type, **kwargs)
 
     _postdata_emulator_amplitude = "Amplitude"
 
     def set_postdata_emulator_amplitude(self, val, **kwargs):
         """
         """
-        self._caput(self._postdata_emulator + self._postdata_emulator_amplitude, val,
-            **kwargs)
+        self._caput(self._postdata_emulator + self._postdata_emulator_amplitude,
+            val, **kwargs)
 
     def get_postdata_emulator_amplitude(self, **kwargs):
         """
         """
-        return self._caget(self._postdata_emulator + self._postdata_emulator_amplitude,
-            **kwargs)
+        return self._caget(self._postdata_emulator +
+            self._postdata_emulator_amplitude, **kwargs)
 
     _postdata_emulator_offset = "Offset"
 
     def set_postdata_emulator_offset(self, val, **kwargs):
         """
         """
-        self._caput(self._postdata_emulator + self._postdata_emulator_offset, val,
-            **kwargs)
+        self._caput(self._postdata_emulator + self._postdata_emulator_offset,
+            val, **kwargs)
 
     def get_postdata_emulator_offset(self, **kwargs):
         """
         """
-        return self._caget(self._postdata_emulator + self._postdata_emulator_offset,
-            **kwargs)
+        return self._caget(self._postdata_emulator +
+            self._postdata_emulator_offset, **kwargs)
 
     _postdata_emulator_period = "Period"
 
     def set_postdata_emulator_period(self, val, **kwargs):
         """
         """
-        self._caput(self._postdata_emulator + self._postdata_emulator_period, val,
-            **kwargs)
+        self._caput(self._postdata_emulator + self._postdata_emulator_period,
+            val, **kwargs)
 
     def get_postdata_emulator_period(self, **kwargs):
         """
         """
-        return self._caget(self._postdata_emulator + self._postdata_emulator_period,
+        return self._caget(self._postdata_emulator +
+            self._postdata_emulator_period, **kwargs)
+
+    _stream_data_source_enable = "SourceEnable"
+
+    def set_stream_data_source_enable(self, val, **kwargs):
+        """
+        Sets the data stream enable bit. Must be set to True to stream data.
+        """
+        self._caput(self.stream_data_source + self._stream_data_source_enable,
+            val, **kwargs)
+
+    def get_stream_data_source_enable(self, **kwargs):
+        """
+        """
+        return self._caget(self.stream_data_source +
+            self._stream_data_source_enable, **kwargs)
+
+    _stream_data_period = "Period"
+
+    def set_stream_data_source_period(self, val, **kwargs):
+        """
+        Sets the data source period.
+        """
+        self._caput(self.stream_data_source + self._stream_data_period, val,
+            **kwargs)
+
+    def get_stream_data_source_period(self, **kwargs):
+        """
+        Gets the data source period.
+        """
+        return self._caget(self.stream_data_source + self._stream_data_period,
             **kwargs)
