@@ -5778,3 +5778,139 @@ class SmurfCommandMixin(SmurfBase):
         return self._caget(
             self.channel_mapper + self._payload_size_reg,
             **kwargs)
+
+    _predata_emulator = self.smurf_processor + 'PreDataEmulator'
+
+    def set_predata_emulator_enable(self, val, **kwargs):
+        """
+        """
+        self._caput(self._predata_emulator + 'enable', val, **kwargs)
+
+    def get_predata_emulator_enable(self, **kwargs):
+        """
+        """
+        return self._caget(self._predata_emulator + 'enable', **kwargs)
+
+    _predata_emulator_type = "Type"
+
+    def set_predata_emulator_type(self, val, **kwargs):
+        """
+        """
+        self._caput(self._predata_emulator + self._predata_emulator_type, val,
+            **kwargs)
+
+    def get_predata_emulator_type(self, **kwargs):
+        """
+        """
+        return self._cagt(self._predata_emulator + self._predata_emulator_type,
+            **kwargs)
+
+    _predata_emulator_amplitude = "Amplitude"
+
+    def set_predata_emulator_amplitude(self, val, **kwargs):
+        """
+        """
+        self._caput(self._predata_emulator + self._predata_emulator_amplitude, val,
+            **kwargs)
+
+    def get_predata_emulator_amplitude(self, **kwargs):
+        """
+        """
+        return self._cagt(self._predata_emulator + self._predata_emulator_amplitude,
+            **kwargs)
+
+    _predata_emulator_offset = "Offset"
+
+    def set_predata_emulator_offset(self, val, **kwargs):
+        """
+        """
+        self._caput(self._predata_emulator + self._predata_emulator_offset, val,
+            **kwargs)
+
+    def get_predata_emulator_offset(self, **kwargs):
+        """
+        """
+        return self._cagt(self._predata_emulator + self._predata_emulator_offset,
+            **kwargs)
+
+    _predata_emulator_period = "Period"
+
+    def set_predata_emulator_period(self, val, **kwargs):
+        """
+        """
+        self._caput(self._predata_emulator + self._predata_emulator_period, val,
+            **kwargs)
+
+    def get_predata_emulator_period(self, **kwargs):
+        """
+        """
+        return self._cagt(self.smurf_processor + self._predata_emulator_period,
+            **kwargs)
+
+    _postdata_emulator = self.smurf_processor + 'PostDataEmulator'
+
+    def set_postdata_emulator_enable(self, val, **kwargs):
+        """
+        """
+        self._caput(self._postdata_emulator + 'enable', val, **kwargs)
+
+    def get_postdata_emulator_enable(self, **kwargs):
+        """
+        """
+        return self._caget(self._postdata_emulator + 'enable', **kwargs)
+
+    _postdata_emulator_type = "Type"
+
+    def set_postdata_emulator_type(self, val, **kwargs):
+        """
+        """
+        self._caput(self._postdata_emulator + self._postdata_emulator_type, val,
+            **kwargs)
+
+    def get_postdata_emulator_type(self, **kwargs):
+        """
+        """
+        return self._cagt(self._postdata_emulator + self._postdata_emulator_type,
+            **kwargs)
+
+    _postdata_emulator_amplitude = "Amplitude"
+
+    def set_postdata_emulator_amplitude(self, val, **kwargs):
+        """
+        """
+        self._caput(self._postdata_emulator + self._postdata_emulator_amplitude, val,
+            **kwargs)
+
+    def get_postdata_emulator_amplitude(self, **kwargs):
+        """
+        """
+        return self._cagt(self._postdata_emulator + self._postdata_emulator_amplitude,
+            **kwargs)
+
+    _postdata_emulator_offset = "Offset"
+
+    def set_postdata_emulator_offset(self, val, **kwargs):
+        """
+        """
+        self._caput(self._postdata_emulator + self._postdata_emulator_offset, val,
+            **kwargs)
+
+    def get_postdata_emulator_offset(self, **kwargs):
+        """
+        """
+        return self._cagt(self._postdata_emulator + self._postdata_emulator_offset,
+            **kwargs)
+
+    _postdata_emulator_period = "Period"
+
+    def set_postdata_emulator_period(self, val, **kwargs):
+        """
+        """
+        self._caput(self._postdata_emulator + self._postdata_emulator_period, val,
+            **kwargs)
+
+    def get_postdata_emulator_period(self, **kwargs):
+        """
+        """
+        return self._cagt(self._postdata_emulator + self._postdata_emulator_period,
+            **kwargs)
