@@ -5803,7 +5803,7 @@ class SmurfCommandMixin(SmurfBase):
     def get_predata_emulator_type(self, **kwargs):
         """
         """
-        return self._cagt(self._predata_emulator + self._predata_emulator_type,
+        return self._caget(self._predata_emulator + self._predata_emulator_type,
             **kwargs)
 
     _predata_emulator_amplitude = "Amplitude"
@@ -5817,7 +5817,7 @@ class SmurfCommandMixin(SmurfBase):
     def get_predata_emulator_amplitude(self, **kwargs):
         """
         """
-        return self._cagt(self._predata_emulator + self._predata_emulator_amplitude,
+        return self._caget(self._predata_emulator + self._predata_emulator_amplitude,
             **kwargs)
 
     _predata_emulator_offset = "Offset"
@@ -5831,7 +5831,7 @@ class SmurfCommandMixin(SmurfBase):
     def get_predata_emulator_offset(self, **kwargs):
         """
         """
-        return self._cagt(self._predata_emulator + self._predata_emulator_offset,
+        return self._caget(self._predata_emulator + self._predata_emulator_offset,
             **kwargs)
 
     _predata_emulator_period = "Period"
@@ -5845,7 +5845,7 @@ class SmurfCommandMixin(SmurfBase):
     def get_predata_emulator_period(self, **kwargs):
         """
         """
-        return self._cagt(self.smurf_processor + self._predata_emulator_period,
+        return self._caget(self.smurf_processor + self._predata_emulator_period,
             **kwargs)
 
     def set_postdata_emulator_enable(self, val, **kwargs):
@@ -5869,7 +5869,7 @@ class SmurfCommandMixin(SmurfBase):
     def get_postdata_emulator_type(self, **kwargs):
         """
         """
-        return self._cagt(self._postdata_emulator + self._postdata_emulator_type,
+        return self._caget(self._postdata_emulator + self._postdata_emulator_type,
             **kwargs)
 
     _postdata_emulator_amplitude = "Amplitude"
@@ -5883,7 +5883,7 @@ class SmurfCommandMixin(SmurfBase):
     def get_postdata_emulator_amplitude(self, **kwargs):
         """
         """
-        return self._cagt(self._postdata_emulator + self._postdata_emulator_amplitude,
+        return self._caget(self._postdata_emulator + self._postdata_emulator_amplitude,
             **kwargs)
 
     _postdata_emulator_offset = "Offset"
@@ -5897,7 +5897,7 @@ class SmurfCommandMixin(SmurfBase):
     def get_postdata_emulator_offset(self, **kwargs):
         """
         """
-        return self._cagt(self._postdata_emulator + self._postdata_emulator_offset,
+        return self._caget(self._postdata_emulator + self._postdata_emulator_offset,
             **kwargs)
 
     _postdata_emulator_period = "Period"
@@ -5911,5 +5911,5 @@ class SmurfCommandMixin(SmurfBase):
     def get_postdata_emulator_period(self, **kwargs):
         """
         """
-        return self._cagt(self._postdata_emulator + self._postdata_emulator_period,
+        return self._caget(self._postdata_emulator + self._postdata_emulator_period,
             **kwargs)
