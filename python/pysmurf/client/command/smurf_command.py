@@ -5851,6 +5851,14 @@ class SmurfCommandMixin(SmurfBase):
 
     def set_predata_emulator_period(self, val, **kwargs):
         """
+        Expressed as the number of incoming frames. It must be greater that 2.
+        This period will be expressed in term of the period of the received
+        frames, which in turn is related to the flux ramp period.
+
+        Args:
+        -----
+        val : int
+            Number of frames that make up a period.
         """
         self._caput(self._predata_emulator + self._predata_emulator_period, val,
             **kwargs)
@@ -5929,6 +5937,14 @@ class SmurfCommandMixin(SmurfBase):
 
     def set_postdata_emulator_period(self, val, **kwargs):
         """
+        Expressed as the number of incoming frames. It must be greater that 2.
+        This period will be expressed in terms of the downsampler periods. Note
+        that this is different from the predata emulator.
+
+        Args:
+        -----
+        val : int
+            Number of frames that make up a period.
         """
         self._caput(self._postdata_emulator + self._postdata_emulator_period,
             val, **kwargs)
