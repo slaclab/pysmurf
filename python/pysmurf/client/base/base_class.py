@@ -93,7 +93,7 @@ class SmurfBase:
         self.smurf_application = self.amcc + 'SmurfApplication:'
 
         self.smurf_processor = self.amcc + 'SmurfProcessor:'
-        self.stream_data_source = self.amcc + 'StreamDataSource':
+        self.stream_data_source = self.amcc + 'StreamDataSource:'
         self.channel_mapper = self.smurf_processor + 'ChannelMapper:'
         self.frame_rx_stats = self.smurf_processor + 'FrameRxStats:'
 
