@@ -5779,7 +5779,8 @@ class SmurfCommandMixin(SmurfBase):
             self.channel_mapper + self._payload_size_reg,
             **kwargs)
 
-    _predata_emulator = self.smurf_processor + 'PreDataEmulator'
+    ### Data emulator code
+
 
     def set_predata_emulator_enable(self, val, **kwargs):
         """
@@ -5846,8 +5847,6 @@ class SmurfCommandMixin(SmurfBase):
         """
         return self._cagt(self.smurf_processor + self._predata_emulator_period,
             **kwargs)
-
-    _postdata_emulator = self.smurf_processor + 'PostDataEmulator'
 
     def set_postdata_emulator_enable(self, val, **kwargs):
         """
