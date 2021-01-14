@@ -683,6 +683,8 @@ void scp::SmurfProcessor::acceptFrame(ris::FramePtr frame)
 
     // Give the data to the Tx thread to be sent to the next slave.
     {
+        std::lock_guard<std::mutex> lock(txMutex);
+
         // Copy the header
         std::copy(frameAccessor.begin(), frameAccessor.begin() + SmurfHeader<std::vector<uint8_t>::iterator>::SmurfHeaderSize, headerCopy.begin());
 
@@ -720,11 +722,10 @@ void scp::SmurfProcessor::acceptFrame(ris::FramePtr frame)
             }
         }
 
-        // Notify the Tx thread that new data is ready
         txDataReady = true;
-        std::unique_lock<std::mutex> lock(txMutex);
-        txCV.notify_all();
     }
+    // Notify the Tx thread that new data is ready
+    txCV.notify_one();
 }
 
 void scp::SmurfProcessor::pktTansmitter()
