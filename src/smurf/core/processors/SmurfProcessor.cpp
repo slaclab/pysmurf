@@ -735,14 +735,9 @@ void scp::SmurfProcessor::pktTansmitter()
     // Infinite loop
     for(;;)
     {
-        // Check if new data is ready
-        if ( !txDataReady )
-        {
-            // Wait until data is ready, with a 10s timeout
-            std::unique_lock<std::mutex> lock(txMutex);
-            txCV.wait_for( lock, std::chrono::seconds(10) );
-        }
-        else
+        // Wait until data is ready, with a 10s timeout
+        std::unique_lock<std::mutex> lock(txMutex);
+        if(txCV.wait_for( lock, std::chrono::seconds(10), [this]{ return txDataReady; } ))
         {
             // Output frame size. Start with the size of the header
             std::size_t outFrameSize = SmurfHeaderRO<std::vector<uint8_t>::iterator>::SmurfHeaderSize;
