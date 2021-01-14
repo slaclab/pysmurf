@@ -683,6 +683,11 @@ void scp::SmurfProcessor::acceptFrame(ris::FramePtr frame)
 
     // Give the data to the Tx thread to be sent to the next slave.
     {
+        // Wait for the TX thread to finish sending the previous data.
+        std::unique_lock<std::mutex> lock(txMutex);
+        txCV.wait( lock, [this]{ return !txDataReady; } );
+    }
+    {
         std::lock_guard<std::mutex> lock(txMutex);
 
         // Copy the header
@@ -773,8 +778,12 @@ void scp::SmurfProcessor::pktTansmitter()
             // Send the frame to the next slave.
             sendFrame(outFrame);
 
-            // Clear the flag
+            // Notify the main thread that we can receive new data
+            // Manual unlocking is done before notifying, to avoid waking up
+            // the waiting thread only to block again (see notify_one for details)
             txDataReady = false;
+            lock.unlock();
+            txCV.notify_one();
         }
 
         // Check if we should stop the loop
