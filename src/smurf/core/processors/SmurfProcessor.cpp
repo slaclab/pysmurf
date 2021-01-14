@@ -770,9 +770,12 @@ void scp::SmurfProcessor::pktTansmitter()
             // Copy the data to the output frame
             {
                 std::lock_guard<std::mutex> lock(outDataMutex);
-                std::size_t i{0};
-                for(auto it = outData.begin(); it != outData.end(); ++it)
-                    helpers::setWord<filter_t>(outFrameIt, i++, *it);
+
+                // Get a pointer to the underlying bytes of the outData vector. In this way,
+                // we can memcopy the data to the output frame payload area, using a pointer as
+                // well) directly.
+                uint8_t *outDataPtr { reinterpret_cast< uint8_t* >( outData.data() ) };
+                std::memcpy(outFrameIt.ptr(), outDataPtr, outData.size()*sizeof(filter_t));
             }
 
             // Send the frame to the next slave.
