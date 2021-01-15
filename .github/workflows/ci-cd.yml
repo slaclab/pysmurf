@@ -129,7 +129,8 @@ jobs:
       # Test docker image:
       # - Try to import the smurf module in the server container
       # - Try to import the pysmurf's SmurfProcessor module in the server container
-      # - Run the 'validate_filter.py' script
+      # - Run the 'validate_filter.py' test script
+      # - Run the 'validate_unwrapper.py' test script
       - name: Test docker container
         run: |
           docker container exec server \
@@ -139,6 +140,8 @@ jobs:
             s = pysmurf.core.devices.SmurfProcessor(name=\"\", description=\"\")'"
           docker container exec server \
             /bin/bash -c "/usr/local/src/pysmurf/tests/core/validate_filter.py"
+          docker container exec server \
+            /bin/bash -c "/usr/local/src/pysmurf/tests/core/validate_unwrapper.py"
 
   # Client tests
   test-client:
