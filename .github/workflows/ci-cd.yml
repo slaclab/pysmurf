@@ -126,20 +126,29 @@ jobs:
             --entrypoint bash \
             server_docker
 
-      # Test docker image:
+      # Run tests in the server docker container:
       # - Try to import the smurf module in the server container
-      # - Try to import the pysmurf's SmurfProcessor module in the server container
-      # - Run the 'validate_filter.py' test script
-      # - Run the 'validate_unwrapper.py' test script
-      - name: Test docker container
+      - name: Test importing the smurf module
         run: |
           docker container exec server \
             /bin/bash -c "python3 -c 'import rogue; import smurf;'"
+
+      # - Try to instantiate the pysmurf's SmurfProcessor module in the server container
+      - name: Test instantiating the SmurfProcessor module
+        run: |
           docker container exec server \
             /bin/bash -c "python3 -c 'import pysmurf.core.devices; \
             s = pysmurf.core.devices.SmurfProcessor(name=\"\", description=\"\")'"
+
+      # - Run the 'validate_filter.py' test script
+      - name: Validate the SmurfProcessor filter
+        run: |
           docker container exec server \
             /bin/bash -c "/usr/local/src/pysmurf/tests/core/validate_filter.py"
+
+      # - Run the 'validate_unwrapper.py' test script
+      - name: Validate the SmurfProcessor unwrapper
+        run: |
           docker container exec server \
             /bin/bash -c "/usr/local/src/pysmurf/tests/core/validate_unwrapper.py"
 
