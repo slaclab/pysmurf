@@ -4,7 +4,7 @@
 *                       @swh76 @eyyoung24
 
 # @jesusvasquez333 and @slacrherbst owns the code related
-# to the core, dockers, startup scripts, and travis script.
+# to the core, dockers, and startup scripts.
 # Only them will be requested for review.
 /src/                   @jesusvasquez333 @slacrherbst
 /include/               @jesusvasquez333 @slacrherbst
@@ -12,7 +12,6 @@
 /docker/                @jesusvasquez333 @slacrherbst
 /server_scripts/        @jesusvasquez333 @slacrherbst
 /tests/core             @jesusvasquez333 @slacrherbst
-/.travis.yml            @jesusvasquez333 @slacrherbst
 /releaseGen.py          @jesusvasquez333 @slacrherbst
 /README.*.md            @jesusvasquez333 @slacrherbst
 
