@@ -5797,8 +5797,8 @@ class SmurfCommandMixin(SmurfBase):
 
     def set_predata_emulator_type(self, val, **kwargs):
         """
-        Args:
-        -----
+        Args
+        ----
         val : str
             The data type. Choices are - Zeros, ChannelNumber, Random, Square,
             Sawtooth, Triangle, Sine, and DropFrame
@@ -5810,8 +5810,8 @@ class SmurfCommandMixin(SmurfBase):
         """
         Gets the predata emulator type.
 
-        Ret:
-        ----
+        Ret
+        ---
         type : int
             0 - Zeros, 1 - ChannelNumber, 2 - Random, 3 - Square,
             4 - Sawtooth, 5 - Triangle, 6 - Sine, 7 - DropFrame
@@ -5855,8 +5855,8 @@ class SmurfCommandMixin(SmurfBase):
         This period will be expressed in term of the period of the received
         frames, which in turn is related to the flux ramp period.
 
-        Args:
-        -----
+        Args
+        ----
         val : int
             Number of frames that make up a period.
         """
@@ -5883,8 +5883,8 @@ class SmurfCommandMixin(SmurfBase):
 
     def set_postdata_emulator_type(self, val, **kwargs):
         """
-        Args:
-        -----
+        Args
+        ----
         val : str
             The data type. Choices are - Zeros, ChannelNumber, Random, Square,
             Sawtooth, Triangle, Sine, and DropFrame
@@ -5896,8 +5896,8 @@ class SmurfCommandMixin(SmurfBase):
         """
         Gets the postdata emulator type.
 
-        Ret:
-        ----
+        Ret
+        ---
         type : int
             0 - Zeros, 1 - ChannelNumber, 2 - Random, 3 - Square,
             4 - Sawtooth, 5 - Triangle, 6 - Sine, 7 - DropFrame
@@ -5941,7 +5941,7 @@ class SmurfCommandMixin(SmurfBase):
         This period will be expressed in terms of the downsampler periods. Note
         that this is different from the predata emulator.
 
-        Args:
+        Args
         -----
         val : int
             Number of frames that make up a period.
