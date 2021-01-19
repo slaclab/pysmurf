@@ -5810,8 +5810,8 @@ class SmurfCommandMixin(SmurfBase):
         """
         Gets the predata emulator type.
 
-        Ret
-        ---
+        Returns
+        -------
         type : int
             0 - Zeros, 1 - ChannelNumber, 2 - Random, 3 - Square,
             4 - Sawtooth, 5 - Triangle, 6 - Sine, 7 - DropFrame
@@ -5896,8 +5896,8 @@ class SmurfCommandMixin(SmurfBase):
         """
         Gets the postdata emulator type.
 
-        Ret
-        ---
+        Returns
+        -------
         type : int
             0 - Zeros, 1 - ChannelNumber, 2 - Random, 3 - Square,
             4 - Sawtooth, 5 - Triangle, 6 - Sine, 7 - DropFrame
