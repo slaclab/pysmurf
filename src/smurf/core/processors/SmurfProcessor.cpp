@@ -747,6 +747,13 @@ void scp::SmurfProcessor::acceptFrame(ris::FramePtr frame)
 
     // Give the data to the Tx thread to be sent to the next slave.
     {
+        // Wait for the TX thread to finish sending the previous data.
+        std::unique_lock<std::mutex> lock(txMutex);
+        txCV.wait( lock, [this]{ return !txDataReady; } );
+    }
+    {
+        std::lock_guard<std::mutex> lock(txMutex);
+
         // Copy the header
         std::copy(frameAccessor.begin(), frameAccessor.begin() + SmurfHeader<std::vector<uint8_t>::iterator>::SmurfHeaderSize, headerCopy.begin());
 
@@ -784,11 +791,10 @@ void scp::SmurfProcessor::acceptFrame(ris::FramePtr frame)
             }
         }
 
-        // Notify the Tx thread that new data is ready
         txDataReady = true;
-        std::unique_lock<std::mutex> lock(txMutex);
-        txCV.notify_all();
     }
+    // Notify the Tx thread that new data is ready
+    txCV.notify_one();
 }
 
 void scp::SmurfProcessor::pktTansmitter()
@@ -798,14 +804,9 @@ void scp::SmurfProcessor::pktTansmitter()
     // Infinite loop
     for(;;)
     {
-        // Check if new data is ready
-        if ( !txDataReady )
-        {
-            // Wait until data is ready, with a 10s timeout
-            std::unique_lock<std::mutex> lock(txMutex);
-            txCV.wait_for( lock, std::chrono::seconds(10) );
-        }
-        else
+        // Wait until data is ready, with a 10s timeout
+        std::unique_lock<std::mutex> lock(txMutex);
+        if(txCV.wait_for( lock, std::chrono::seconds(10), [this]{ return txDataReady; } ))
         {
             // Output frame size. Start with the size of the header
             std::size_t outFrameSize = SmurfHeaderRO<std::vector<uint8_t>::iterator>::SmurfHeaderSize;
@@ -833,16 +834,23 @@ void scp::SmurfProcessor::pktTansmitter()
             // Copy the data to the output frame
             {
                 std::lock_guard<std::mutex> lock(outDataMutex);
-                std::size_t i{0};
-                for(auto it = outData.begin(); it != outData.end(); ++it)
-                    helpers::setWord<filter_t>(outFrameIt, i++, *it);
+
+                // Get a pointer to the underlying bytes of the outData vector. In this way,
+                // we can memcopy the data to the output frame payload area, using a pointer as
+                // well) directly.
+                uint8_t *outDataPtr { reinterpret_cast< uint8_t* >( outData.data() ) };
+                std::memcpy(outFrameIt.ptr(), outDataPtr, outData.size()*sizeof(filter_t));
             }
 
             // Send the frame to the next slave.
             sendFrame(outFrame);
 
-            // Clear the flag
+            // Notify the main thread that we can receive new data
+            // Manual unlocking is done before notifying, to avoid waking up
+            // the waiting thread only to block again (see notify_one for details)
             txDataReady = false;
+            lock.unlock();
+            txCV.notify_one();
         }
 
         // Check if we should stop the loop
