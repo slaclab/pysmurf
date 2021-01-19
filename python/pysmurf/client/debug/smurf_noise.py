@@ -798,10 +798,10 @@ class SmurfNoiseMixin(SmurfBase):
 
     def get_NEI_to_NEP_factor(self, iv_band_data, b, ch, v_bias):
         """
-        Takes NEI in pA/rtHz and converts to NEP in aW/rtHz. This function
-        uses the IV curve to estimate dI/dP. It interpolates between IV points
-        to get the value at the desired v_bias. Returns the absolute value of
-        the responsivity.
+        This function uses the IV curve to estimate dI/dP. It interpolates
+        between IV points to get the value at the desired v_bias. Returns the
+        absolute value of the responsivity. To get NEP, just multiply
+        NEI x factor.
 
         Args
         ----
