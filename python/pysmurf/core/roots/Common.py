@@ -249,7 +249,7 @@ class Common(pyrogue.Root):
     # "False" otherwise.
     def _load_config(self):
         success = False
-        max_retries = 10
+        max_retries = 4
 
         for i in range(max_retries):
             print(f'Setting defaults from file {self._config_file} (try number {i})')
