@@ -168,8 +168,9 @@ def make_html(data_path):
     return html_path
 
 def run(band, epics_root, config_file, shelf_manager, setup, no_band_off=False,
-    no_find_freq=False, subband_low=13, subband_high=115,
-    no_setup_notches=False, reset_rate_khz=4, n_phi0=4, threading_test=False):
+        no_find_freq=False, subband_low=52, subband_high=460, loopback=False,
+        no_setup_notches=False, reset_rate_khz=4, n_phi0=4, threading_test=False,
+        c03_hack=False):
     """
     """
     # Storage dictionary
@@ -228,7 +229,8 @@ def run(band, epics_root, config_file, shelf_manager, setup, no_band_off=False,
     
     # Setup
     if setup:
-        status = execute(status, lambda: S.setup(set_defaults_max_timeout_sec=1200), 'setup')
+        status = execute(status, lambda: S.setup(set_defaults_max_timeout_sec=1200),
+                         'setup')
 
     # Band off
     if not no_band_off:
@@ -236,29 +238,49 @@ def run(band, epics_root, config_file, shelf_manager, setup, no_band_off=False,
         for b in bands:
             status = execute(status, lambda: S.band_off(b),
                              f'band_off_b{b}')
+    
+    # Hack in for C03 cryocard
+    if c03_hack:
+        S.log('-> Running cryocard_c03_setup.py ...')
 
+        # have to explicitly enable and set the Vd control DACs
+        S.log('-> Enabling RTM DAC32, which drives DAC_In_50k_d')
+        S.set_rtm_slow_dac_enable(32,2)
+
+        S.log('-> Setting DAC_In_50k_d to 0.65V for 50kVd=5.003')
+        S.set_rtm_slow_dac_volt(32,0.65) #corresponds to 50kVd->5.003
+        
+        S.log('-> Enabling RTM DAC31, which drives DAC_In_H_d')
+        S.set_rtm_slow_dac_enable(31,2)
+        
+        S.log('-> Setting DAC_In_H_d to 6V for HVd=0.53')
+        S.set_rtm_slow_dac_volt(31,6) #corresponds to HVd->0.53 
+            
     # amplifier biases
     status = execute(status, lambda: S.set_amplifier_bias(write_log=True),
         'set_amplifier_bias')
-    status = execute(status, lambda: S.set_cryo_card_ps_en(write_log=True),
-        'amplifier_enable')
+    #status = execute(status, lambda: S.set_cryo_card_ps_en(write_log=True),
+    #    'amplifier_enable')
+    status = execute(status, lambda: S.C.write_ps_en(11), 'amplifier_enable')
     status = execute(status, lambda: S.get_amplifier_bias(),
         'get_amplifier_bias')
+
 
     # full band response
     status = execute(status, lambda: S.full_band_resp(band, make_plot=True,
         save_plot=True, show_plot=False, return_plot_path=True),
         'full_band_resp')
-
-    S._caput(f'smurf_server_s5:AMCc:FpgaTopLevel:AppTop:AppCore:SysgenCryo:Base[{band}]:bandDelayUs', 8.9)
+    
+    status = execute(status, lambda: S.estimate_phase_delay(band),
+                     'estimate_phase_delay')
     
     # find_freq
     if not no_find_freq:
-        subband = np.arange(13, 115)
+        subband = np.arange(52, 460)
         if subband_low is not None and subband_high is not None:
             subband = np.arange(subband_low, subband_high)
         status['subband'] = subband
-        status = execute(status, lambda: S.find_freq(band, subband,
+        status = execute(status, lambda: S.find_freq(band, subband=subband,
             make_plot=True, save_plot=True), 'find_freq')
 
     # setup notches
@@ -299,10 +321,8 @@ def run(band, epics_root, config_file, shelf_manager, setup, no_band_off=False,
         make_plot=True, show_plot=False, save_plot=True, update_channel_assignment=True),
         'identify_bias_groups')
 
-
     # Save tuning
     status = execute(status, lambda: S.save_tune(), 'save_tune')
-
 
     # now take data using take_noise_psd and plot stuff
 
