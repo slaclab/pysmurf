@@ -446,37 +446,40 @@ class SmurfControl(SmurfCommandMixin,
                 self.LOG_ERROR)
             success = False
 
-        #
-        # setDefaults runs the JesdHealth check, so just need to poll
-        # status.
-        jesd_health_status = self.get_jesd_status(write_log=write_log)
+        # Only proceed with the rest of setup if the defaults were set
+        # correctly.
+        if success:
+            # setDefaults runs the JesdHealth check, so just need to poll
+            # status.
+            jesd_health_status = self.get_jesd_status(write_log=write_log)
 
-        # Checking if JesdHealth is Locked is only supported for Rogue
-        # ZIP file versions >=0.3.0 and pysmurf core code versions
-        # >=4.1.0.  If it's not supported, self.set_check_jesd will
-        # return None if the JesdHealth registers in SmurfApplication
-        # aren't present or 'Not found' if they are present but the
-        # JesdHealth method isn't implemented in the loaded Rogue ZIP
-        # file.  Overriding None with True to skip this check for
-        # older versions of pysmurf that don't support the JesdHealth
-        # check.  Log an error if the JesdHealth check reports that
-        # JESD is unlocked.
-        if ( jesd_health_status is not None and
-             jesd_health_status != 'Not found' and
-             jesd_health_status != 'Locked' ):
-            self.log(
-                'ERROR : JESD is not locked!  Do not proceed!'
-                ' Reboot or ask someone for help.  You are strongly'
-                ' encouraged to report this as an issue on the'
-                ' pysmurf github repo at'
-                ' https://github.com/slaclab/pysmurf/issues (please'
-                ' provide a state dump using the pysmurf'
-                ' set_read_all/save_state functions).',
-                self.LOG_ERROR)
-            success = False
+            # Checking if JesdHealth is Locked is only supported for Rogue
+            # ZIP file versions >=0.3.0 and pysmurf core code versions
+            # >=4.1.0.  If it's not supported, self.set_check_jesd will
+            # return None if the JesdHealth registers in SmurfApplication
+            # aren't present or 'Not found' if they are present but the
+            # JesdHealth method isn't implemented in the loaded Rogue ZIP
+            # file.  Overriding None with True to skip this check for
+            # older versions of pysmurf that don't support the JesdHealth
+            # check.  Log an error if the JesdHealth check reports that
+            # JESD is unlocked.
+            if ( jesd_health_status is not None and
+                 jesd_health_status != 'Not found' and
+                 jesd_health_status != 'Locked' ):
+                self.log(
+                    'ERROR : JESD is not locked!  Do not proceed!'
+                    ' Reboot or ask someone for help.  You are strongly'
+                    ' encouraged to report this as an issue on the'
+                    ' pysmurf github repo at'
+                    ' https://github.com/slaclab/pysmurf/issues (please'
+                    ' provide a state dump using the pysmurf'
+                    ' set_read_all/save_state functions).',
+                    self.LOG_ERROR)
+                success = False
 
-        # Only proceed with the rest of setup if basic system checks
-        # succeeded, otherwise we risk giving users false hope.
+        # Only proceed with the rest of setup if defaults were set
+        # correctly and basic system checks succeeded, otherwise we
+        # risk giving users false hope.
         if success:
             # The per band configs. May want to make available per-band
             # values.

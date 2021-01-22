@@ -232,6 +232,10 @@ def run(band, epics_root, config_file, shelf_manager, setup, no_band_off=False,
         status = execute(status, lambda: S.setup(set_defaults_max_timeout_sec=1200),
                          'setup')
 
+        # Check if setup succeeded
+        if not status['setup']['output']:
+            raise RuntimeError('Setup failed. Aborting test')
+
     # Band off
     if not no_band_off:
         bands = S.config.get('init').get('bands')
