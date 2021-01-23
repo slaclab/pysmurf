@@ -3280,6 +3280,9 @@ class SmurfTuneMixin(SmurfBase):
         self.pub.register_file(path, 'sweep_response', format='txt')
 
         # Place in dictionary - dictionary declared in smurf_control
+        if band not in self.freq_resp.keys():
+            self.freq_resp[band] = {}
+
         self.freq_resp[band]['find_freq'] = {}
         self.freq_resp[band]['find_freq']['subband'] = subband
         self.freq_resp[band]['find_freq']['f'] = f
