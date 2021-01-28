@@ -149,10 +149,17 @@ class SmurfPublisher(object):
             'type': msgtype,
         }
         self.seq_no += 1
-        # Add in the data and convert to json.
+        # Add in the data
         output['payload'] = data
-        jtext = json.dumps(output)
-        # Send.
+
+        # Convert to JSON, catching and logging exceptions
+        try:
+            jtext = json.dumps(output)
+        except Exception as e:
+            self.log(f'Exception "{e}", trying to convert "{output}" to JSON')
+            return
+
+        # Send, if the JSON conversion succeed
         self._backend(jtext)
 
     def log(self, message):
