@@ -179,6 +179,11 @@ class SmurfCommandMixin(SmurfBase):
                 while n_retry < max_retry and ret is None:
                     self.log(f'Retry attempt {n_retry+1} of {max_retry}')
                     ret = epics.caget(cmd, count=count, **kwargs)
+                    n_retry += 1
+
+            # After retries, raise error
+            if ret is None:
+                raise RunTimeError("epics failed to respond")
             if write_log:
                 self.log(ret)
         else:
