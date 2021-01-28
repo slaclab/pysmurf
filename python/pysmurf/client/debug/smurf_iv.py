@@ -906,10 +906,12 @@ class SmurfIVMixin(SmurfBase):
             vb_max = np.max(v_bias)
             vb_min = np.min(v_bias)
             delta_v = float(vb_max - vb_min)/n_ticks
-            axt.set_xticks(np.arange(ib_min, ib_max+delta, delta))
+            xticks = np.arange(ib_min, ib_max+delta, delta)[:n_ticks+1]
+            xticklabels = np.arange(vb_min, vb_max+delta_v, delta_v)[:n_ticks+1]
+
+            axt.set_xticks(xticks)
             axt.set_xticklabels(
-                [f'{x:.2f}' for x in
-                 np.arange(vb_min, vb_max+delta_v, delta_v)])
+                [f'{x:.2f}' for x in xticklabels])
             axt.set_xlabel(r'Commanded $V_b$ [V]')
 
             ax_si.plot(i_bias_bin[:-1],si,color=color_meas)
