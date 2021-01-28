@@ -22,6 +22,7 @@ import json
 import os
 import sys
 import time
+import numpy as np
 
 DEFAULT_ENV_ROOT = 'SMURFPUB_'
 DEFAULT_UDP_PORT = 8200
@@ -196,4 +197,18 @@ class SmurfPublisher(object):
         return self.publish(file_data, 'data_file')
 
     def _varListen(self, path, varVal):
-        self.publish(data=f'{path}={varVal.value}', msgtype='metadata')
+
+        # Extract the variable value
+        value = varVal.value
+
+        # Get the variable type, as a string
+        type_str = type(value).__name__
+
+        # In the variable is a numpy array, convert it to a list in
+        # order to be JSON serializable (but keeping the original type)
+        if isinstance(value, np.ndarray):
+            value = value.tolist()
+
+        # Publish the data, as a "metadata" type
+        self.publish(data={"path": path, "value": value, "type": type_str},
+            msgtype='metadata')
