@@ -183,7 +183,7 @@ class SmurfCommandMixin(SmurfBase):
 
             # After retries, raise error
             if ret is None:
-                raise RunTimeError("epics failed to respond")
+                raise RuntimeError("epics failed to respond")
             if write_log:
                 self.log(ret)
         else:
