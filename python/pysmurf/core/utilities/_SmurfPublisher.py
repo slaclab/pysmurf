@@ -22,6 +22,7 @@ import json
 import os
 import sys
 import time
+
 import numpy as np
 
 DEFAULT_ENV_ROOT = 'SMURFPUB_'
