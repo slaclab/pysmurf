@@ -5958,6 +5958,7 @@ class SmurfCommandMixin(SmurfBase):
         val : int
             Number of frames that make up a period.
         """
+        if not isinstance(val, str):
             val = str(val)
         self._caput(self._postdata_emulator + self._postdata_emulator_period,
             val, **kwargs)
