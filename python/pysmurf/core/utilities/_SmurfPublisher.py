@@ -197,7 +197,16 @@ class SmurfPublisher(object):
         return self.publish(file_data, 'data_file')
 
     def _varListen(self, path, varVal):
+        """
+        Callback function used to publish metadata.
 
+        Args
+        ----
+        path : str
+            Rogue register path.
+        varVal : pyrogue.VariableValue
+            Variable object.
+        """
         # Extract the variable value
         value = varVal.value
 
