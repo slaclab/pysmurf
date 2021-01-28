@@ -196,4 +196,4 @@ class SmurfPublisher(object):
         return self.publish(file_data, 'data_file')
 
     def _varListen(self, path, varVal):
-        self.publish(data=f'{path}={varVal.value}',msgtype='general')
+        self.publish(data=f'{path}={varVal.value}', msgtype='metadata')
