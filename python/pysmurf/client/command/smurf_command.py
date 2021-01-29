@@ -5860,14 +5860,26 @@ class SmurfCommandMixin(SmurfBase):
         val : int
             Number of frames that make up a period.
         """
+        # Cast as str
+        if not isinstance(val, str):
+            val = str(val)
         self._caput(self._predata_emulator + self._predata_emulator_period, val,
             **kwargs)
 
     def get_predata_emulator_period(self, **kwargs):
         """
+        Expressed as the number of incoming frames. It must be greater that 2.
+        This period will be expressed in term of the period of the received
+        frames, which in turn is related to the flux ramp period.
+
+        Returns
+        -------
+        period : int
+            Number of frames that make up a period
         """
-        return self._caget(self.smurf_processor + self._predata_emulator_period,
-            **kwargs)
+        # Get as string and then cast as int
+        return int(self._caget(self._predata_emulator +
+            self._predata_emulator_period, as_string=True, **kwargs))
 
     def set_postdata_emulator_enable(self, val, **kwargs):
         """
@@ -5946,14 +5958,20 @@ class SmurfCommandMixin(SmurfBase):
         val : int
             Number of frames that make up a period.
         """
+        if not isinstance(val, str):
+            val = str(val)
         self._caput(self._postdata_emulator + self._postdata_emulator_period,
             val, **kwargs)
 
     def get_postdata_emulator_period(self, **kwargs):
         """
+        Returns
+        -------
+        period : int
+            Number of frames that make up a period.
         """
-        return self._caget(self._postdata_emulator +
-            self._postdata_emulator_period, **kwargs)
+        return int(self._caget(self._postdata_emulator +
+            self._postdata_emulator_period, as_string=True, **kwargs))
 
     _stream_data_source_enable = "SourceEnable"
 
