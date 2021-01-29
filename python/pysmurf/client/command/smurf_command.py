@@ -112,7 +112,8 @@ class SmurfCommandMixin(SmurfBase):
 
     def _caget(self, cmd, write_log=False, execute=True, count=None,
                log_level=0, enable_poll=False, disable_poll=False,
-               new_epics_root=None, yml=None, **kwargs):
+               new_epics_root=None, yml=None, retry_on_fail=True,
+               max_retry=5, **kwargs):
         r"""Gets variables from epics.
 
         Wrapper around pyrogue lcaget. Gets variables from epics.
@@ -137,6 +138,10 @@ class SmurfCommandMixin(SmurfBase):
             Temporarily replaces current epics root with a new one.
         yml : str or None, optional, default None
             If not None, yaml file to parse for the result.
+        retry_on_fail : bool
+            Whether to retry the caget if it fails on first attempt
+        max_retry : int
+            The number of times to retry if caget fails the first time.
         \**kwargs
             Arbitrary keyword arguments.  Passed directly to the
             `epics.caget` call.
@@ -163,9 +168,22 @@ class SmurfCommandMixin(SmurfBase):
             if write_log:
                 self.log(f'Reading from yml file\n {cmd}')
             return tools.yaml_parse(yml, cmd)
-
+        # Get the data
         elif execute and not self.offline:
             ret = epics.caget(cmd, count=count, **kwargs)
+
+            # If epics doesn't respond in time, epics.caget returns None.
+            if ret is None and retry_on_fail:
+                self.log(f"Command failed: {cmd}")
+                n_retry = 0
+                while n_retry < max_retry and ret is None:
+                    self.log(f'Retry attempt {n_retry+1} of {max_retry}')
+                    ret = epics.caget(cmd, count=count, **kwargs)
+                    n_retry += 1
+
+            # After retries, raise error
+            if ret is None:
+                raise RuntimeError("epics failed to respond")
             if write_log:
                 self.log(ret)
         else:
