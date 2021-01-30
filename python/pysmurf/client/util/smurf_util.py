@@ -895,8 +895,8 @@ class SmurfUtilMixin(SmurfBase):
                                       write_log=write_log)
             else:
                 self.log('Warning : The payload size is smaller than ' +
-                         'the number of channels that are on. Only ' +
-                         f'writing the first {payload_size} channels. ')
+                    'the number of channels that are on. Only ' +
+                    f'writing the first {payload_size} channels. ')
 
 
         # Check if flux ramp is non-zero
@@ -909,7 +909,7 @@ class SmurfUtilMixin(SmurfBase):
             # read_ac_dc_relay_status() should be 0 in DC mode, 3 in
             # AC mode.  this check is only possible if you're using
             # one of the newer C02 cryostat cards.
-            flux_ramp_ac_dc_relay_status=self.C.read_ac_dc_relay_status()
+            flux_ramp_ac_dc_relay_status = self.C.read_ac_dc_relay_status()
             if flux_ramp_ac_dc_relay_status == 0:
                 if write_log:
                     self.log("FLUX RAMP IS DC COUPLED.", self.LOG_USER)
@@ -923,8 +923,7 @@ class SmurfUtilMixin(SmurfBase):
 
             # start streaming before opening file
             # to avoid transient filter step
-            self.set_stream_enable(1, write_log=False,
-                                   wait_done=True)
+            self.set_stream_enable(1, write_log=False, wait_done=True)
 
             if reset_unwrapper:
                 self.set_unwrapper_reset(write_log=write_log)
@@ -937,8 +936,7 @@ class SmurfUtilMixin(SmurfBase):
             # Make the data file
             timestamp = self.get_timestamp()
             if data_filename is None:
-                data_filename = os.path.join(self.output_dir,
-                                             timestamp+'.dat')
+                data_filename = os.path.join(self.output_dir, timestamp+'.dat')
 
             self.set_data_file_name(data_filename)
 
@@ -946,8 +944,8 @@ class SmurfUtilMixin(SmurfBase):
             if write_config:
                 config_filename=os.path.join(self.output_dir, timestamp+'.yml')
                 if write_log:
-                    self.log('Writing PyRogue configuration to file : '+
-                         f'{config_filename}', self.LOG_USER)
+                    self.log('Writing PyRogue configuration to file : ' +
+                        f'{config_filename}', self.LOG_USER)
                 self.write_config(config_filename)
 
                 # short wait
@@ -966,7 +964,8 @@ class SmurfUtilMixin(SmurfBase):
 
             # Save mask file as text file. Eventually this will be in the
             # raw data output
-            mask_fname = os.path.join(data_filename.replace('.dat', '_mask.txt'))
+            mask_fname = os.path.join(data_filename.replace('.dat',
+                '_mask.txt'))
             np.savetxt(mask_fname, output_mask, fmt='%i')
             self.pub.register_file(mask_fname, 'mask')
             self.log(mask_fname)
@@ -975,8 +974,8 @@ class SmurfUtilMixin(SmurfBase):
                 if write_log:
                     self.log("Writing frequency mask.")
                 freq_mask = self.make_freq_mask(output_mask)
-                np.savetxt(os.path.join(data_filename.replace('.dat', '_freq.txt')),
-                           freq_mask, fmt='%4.4f')
+                np.savetxt(os.path.join(data_filename.replace('.dat',
+                    '_freq.txt')), freq_mask, fmt='%4.4f')
                 self.pub.register_file(
                     os.path.join(data_filename.replace('.dat', '_freq.txt')),
                     'mask', format='txt')

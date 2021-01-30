@@ -1528,9 +1528,7 @@ class SmurfCommandMixin(SmurfBase):
         """
         Enable/disable streaming data, for all bands.
         """
-        self._caput(
-            self.app_core + self._stream_enable_reg,
-            val, **kwargs)
+        self._caput(self.app_core + self._stream_enable_reg, val, **kwargs)
 
     def get_stream_enable(self, **kwargs):
         """
@@ -5707,8 +5705,7 @@ class SmurfCommandMixin(SmurfBase):
         str
             The file name.
         """
-        return self._caget(
-            self.smurf_processor + self._data_file_name_reg,
+        return self._caget(self.smurf_processor + self._data_file_name_reg,
             **kwargs)
 
     _data_file_open_reg = 'FileWriter:Open'
@@ -5717,9 +5714,8 @@ class SmurfCommandMixin(SmurfBase):
         """
         Open the data file.
         """
-        self._caput(
-            self.smurf_processor + self._data_file_open_reg,
-            1, **kwargs)
+        self._caput(self.smurf_processor + self._data_file_open_reg, 1,
+            **kwargs)
 
     _data_file_close_reg = 'FileWriter:Close'
 
@@ -5727,9 +5723,8 @@ class SmurfCommandMixin(SmurfBase):
         """
         Close the data file.
         """
-        self._caput(
-            self.smurf_processor + self._data_file_close_reg,
-            1, **kwargs)
+        self._caput(self.smurf_processor + self._data_file_close_reg, 1,
+            **kwargs)
 
     _num_channels_reg = "NumChannels"
 
