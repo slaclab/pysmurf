@@ -597,10 +597,16 @@ class SmurfCommandMixin(SmurfBase):
                 # We successfully exit the loop when we are able to
                 # read the "ConfiguringInProgress" flag and it is set
                 # to "False".  Otherwise we keep trying.
-                if self.get_configuring_in_progress(
-                        timeout=caget_timeout_sec, **kwargs) is False:
-                    success=True
-                    break
+                # We disable the retry_on_fail feature and instead we catch any
+                # RuntimeError exception and keep trying.
+                try:
+                    if self.get_configuring_in_progress(
+                            timeout=caget_timeout_sec,
+                            retry_on_fail=False, **kwargs) is False:
+                        success=True
+                        break
+                except RuntimeError:
+                    pass
 
             # If after out maximum defined timeout, we weren't able to
             # read the "ConfiguringInProgress" flags as "False", we
