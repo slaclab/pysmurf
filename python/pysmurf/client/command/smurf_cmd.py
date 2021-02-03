@@ -18,12 +18,13 @@ import time
 
 import numpy as np
 
-import pysmurf
+import pysmurf.client
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
 
-cfg_filename = 'experiment_k2umux.cfg'
 
+cfg_filename = os.path.join('/usr/local/src/pysmurf/', 'cfg_files', 'stanford',
+                            'experiment_fp31_cc03-02_lbOnlyBay0.cfg')
 
 """
 A function that mimics mce_cmd. This allows the user to run specific pysmurf
@@ -34,8 +35,7 @@ def make_runfile(output_dir, row_len=60, num_rows=60, data_rate=60,
     """
     Make the runfile
     """
-    S = pysmurf.client.SmurfControl(cfg_file=os.path.join(os.path.dirname(__file__),
-        '..', 'cfg_files' , cfg_filename), smurf_cmd_mode=True, setup=False)
+    S = pysmurf.client.SmurfControl(cfg_file=cfg_filename, smurf_cmd_mode=True, setup=False)
 
     S.log('Making Runfile')
 
@@ -133,6 +133,9 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
 
+    parser.add_argument('--epics-prefix', help='The epics root',
+                        action='store', default=None, type=str)
+    
     # Offline mode
     parser.add_argument('--offline', help='For offline debugging',
         default=False, action='store_true')
@@ -252,9 +255,11 @@ if __name__ == "__main__":
     if n_cmds > 1:
         sys.exit(0)
 
-    S = pysmurf.client.SmurfControl(cfg_file=os.path.join(os.path.dirname(__file__),
-        '..', 'cfg_files' , cfg_filename), smurf_cmd_mode=True, setup=False,
-        offline=offline)
+    epics_prefix = args.epics_prefix
+        
+    S = pysmurf.client.SmurfControl(epics_root=epics_prefix,
+                                    cfg_file=cfg_filename, smurf_cmd_mode=True,
+                                    setup=False, offline=offline)
 
     if args.log is not None:
         S.log(args.log)
@@ -385,11 +390,13 @@ if __name__ == "__main__":
                 args.data_rate, args.row_len, args.n_frames)
         else:
             S.log('Starting continuous acquisition')
-            start_acq(S, args.num_rows, args.num_rows_reported,
-                args.data_rate, args.row_len)
-            make_runfile(S.output_dir, num_rows=args.num_rows,
-                data_rate=args.data_rate, row_len=args.row_len,
-                num_rows_reported=args.num_rows_reported)
+            start_acq(S)
+            # Don't make runfiles for now. Need to figure out
+
+            
+            #make_runfile(S.output_dir, num_rows=args.num_rows,
+            #    data_rate=args.data_rate, row_len=args.row_len,
+            #    num_rows_reported=args.num_rows_reported)
             # why are we making a runfile though? do we intend to dump it?
 
     if args.stop_acq:
