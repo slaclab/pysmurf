@@ -153,7 +153,7 @@ def set_port(S, slot, port):
         slots = np.append(slots, slot)
         ports = np.append(ports, port)
 
-    np.savetxt(slot_port_file, np.array([slots, ports]), fmt='%i %i')
+    np.savetxt(slot_port_file, np.array([slots, ports]).T, fmt='%i %i')
 
 
 def get_port(S, slot):
