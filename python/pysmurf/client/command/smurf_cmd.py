@@ -129,7 +129,7 @@ def acq_n_frames(S, n_frames):
     stop_acq(S)
 
 
-def specify_port(S, slot, port):
+def set_port(S, slot, port):
     """
     Define a port/slot pair.
 
@@ -295,6 +295,16 @@ if __name__ == "__main__":
     # CY 20181125
     parser.add_argument('--setup', action='store_true', default=False,
         help='Setup SMuRF and load defaults.')
+
+    # Defining slot/port paris
+    parser.add_arguments('--get-port', action='store_true', default=False,
+        help='Get the port number. Must define slot')
+    parser.add_arguement('--set-port', action='store_true', default=False,
+        help='Set the port number. Bust define slot and port')
+    parser.add_argument('--port' action='store', default=-1, type=int,
+        help='The port number for get/set port')
+    parser.add_argument('--slot', action='store', default=-1, type=int,
+        help='The slot number used for get/set port')
 
     # Extract inputs
     args = parser.parse_args()
@@ -469,3 +479,15 @@ if __name__ == "__main__":
         make_runfile(S.output_dir, num_rows=args.num_rows,
             data_rate=args.data_rate, row_len=args.row_len,
             num_rows_reported=args.num_rows_reported)
+
+    if args.get_port:
+        if slot < 0 :
+            raise ValueError("Must specify a slot. Use --slot")
+        get_port(S, args.slot)
+
+    if args.set_port:
+        if slot < 0 :
+            raise ValueError("Must specify a slot. Use --slot")
+        if port < 0 :
+            raise ValueError("Must specify a port. Use --port")
+        set_port(S, args.slot, args.port)
