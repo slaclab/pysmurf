@@ -129,13 +129,68 @@ def acq_n_frames(S, n_frames):
     stop_acq(S)
 
 
+def specify_port(S, slot, port):
+    """
+    Define a port/slot pair.
+
+    Args
+    ----
+    S : SmurfControl
+        The SmurfControl object used to issue commands
+    slot : int
+        The number of SMuRF slot
+    """
+    slot_port_file = os.path.join(S.output_dir, 'slot_port_def.txt')
+    slots, ports = np.loadtxt(slot_port_dir, dtype=int).T
+
+
+    if slot in slots:
+        # Change port number if it already exists
+        idx = np.where(slots == slot)[0][0]
+        ports[idx] = port
+    else:
+        # Append the slot/port pairs
+        slots = np.append(slots, slot)
+        ports = np.append(ports, port)
+
+    np.savetxt(slot_port_file, np.array([slots, ports]), fmt='%i %i')
+
+
+def get_port(S, slot):
+    """
+    Get the port number for streaming
+
+    Args
+    ----
+    S : SmurfControl
+        The SmurfControl object used to issue commands
+    slot : int
+        The number of SMuRF slot
+
+    Returns
+    -------
+    port : int
+        The port number associated with slot to stream data.
+    """
+    slot_port_file = os.path.join(S.output_dir, 'slot_port_def.txt')
+
+    # Load the data
+    slots, ports = np.loadtxt(slot_port_dir, dtype=int).T
+
+    idx = np.where(slots == slot)[0]
+    if len(idx) == 0:
+        raise ValueError("Slot is not in the port/slot defintion file. " +
+            "Update file with specify_port function.")
+
+    return ports[idx]
+
+
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
 
     parser.add_argument('--epics-prefix', help='The epics root',
                         action='store', default=None, type=str)
-    
     # Offline mode
     parser.add_argument('--offline', help='For offline debugging',
         default=False, action='store_true')
@@ -256,7 +311,6 @@ if __name__ == "__main__":
         sys.exit(0)
 
     epics_prefix = args.epics_prefix
-        
     S = pysmurf.client.SmurfControl(epics_root=epics_prefix,
                                     cfg_file=cfg_filename, smurf_cmd_mode=True,
                                     setup=False, offline=offline)
@@ -392,9 +446,7 @@ if __name__ == "__main__":
             S.log('Starting continuous acquisition')
             start_acq(S)
             # Don't make runfiles for now. Need to figure out
-
-            
-            #make_runfile(S.output_dir, num_rows=args.num_rows,
+            # make_runfile(S.output_dir, num_rows=args.num_rows,
             #    data_rate=args.data_rate, row_len=args.row_len,
             #    num_rows_reported=args.num_rows_reported)
             # why are we making a runfile though? do we intend to dump it?
