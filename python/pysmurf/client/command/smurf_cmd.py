@@ -182,7 +182,7 @@ def get_port(S, slot):
         raise ValueError("Slot is not in the port/slot defintion file. " +
             "Update file with specify_port function.")
 
-    return ports[idx]
+    return ports[idx][0]
 
 
 if __name__ == "__main__":
