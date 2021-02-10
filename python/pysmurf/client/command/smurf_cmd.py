@@ -141,7 +141,7 @@ def set_port(S, slot, port):
         The number of SMuRF slot
     """
     slot_port_file = os.path.join(S.output_dir, 'slot_port_def.txt')
-    slots, ports = np.loadtxt(slot_port_dir, dtype=int).T
+    slots, ports = np.loadtxt(slot_port_file, dtype=int).T
 
 
     if slot in slots:
@@ -175,7 +175,7 @@ def get_port(S, slot):
     slot_port_file = os.path.join(S.output_dir, 'slot_port_def.txt')
 
     # Load the data
-    slots, ports = np.loadtxt(slot_port_dir, dtype=int).T
+    slots, ports = np.loadtxt(slot_port_file, dtype=int).T
 
     idx = np.where(slots == slot)[0]
     if len(idx) == 0:
