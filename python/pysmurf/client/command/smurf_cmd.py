@@ -483,7 +483,9 @@ if __name__ == "__main__":
     if args.get_port:
         if args.slot < 0 :
             raise ValueError("Must specify a slot. Use --slot")
-        get_port(S, args.slot)
+        port = get_port(S, args.slot)
+        sys.stdout.write(port)
+        sys.exit(0)
 
     if args.set_port:
         if args.slot < 0 :
