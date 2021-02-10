@@ -481,13 +481,13 @@ if __name__ == "__main__":
             num_rows_reported=args.num_rows_reported)
 
     if args.get_port:
-        if slot < 0 :
+        if args.slot < 0 :
             raise ValueError("Must specify a slot. Use --slot")
         get_port(S, args.slot)
 
     if args.set_port:
-        if slot < 0 :
+        if args.slot < 0 :
             raise ValueError("Must specify a slot. Use --slot")
-        if port < 0 :
+        if args.port < 0 :
             raise ValueError("Must specify a port. Use --port")
         set_port(S, args.slot, args.port)
