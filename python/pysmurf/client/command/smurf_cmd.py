@@ -301,7 +301,7 @@ if __name__ == "__main__":
         help='Get the port number. Must define slot')
     parser.add_arguement('--set-port', action='store_true', default=False,
         help='Set the port number. Bust define slot and port')
-    parser.add_argument('--port' action='store', default=-1, type=int,
+    parser.add_argument('--port', action='store', default=-1, type=int,
         help='The port number for get/set port')
     parser.add_argument('--slot', action='store', default=-1, type=int,
         help='The slot number used for get/set port')
