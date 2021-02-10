@@ -297,9 +297,9 @@ if __name__ == "__main__":
         help='Setup SMuRF and load defaults.')
 
     # Defining slot/port paris
-    parser.add_arguments('--get-port', action='store_true', default=False,
+    parser.add_argument('--get-port', action='store_true', default=False,
         help='Get the port number. Must define slot')
-    parser.add_arguement('--set-port', action='store_true', default=False,
+    parser.add_argument('--set-port', action='store_true', default=False,
         help='Set the port number. Bust define slot and port')
     parser.add_argument('--port', action='store', default=-1, type=int,
         help='The port number for get/set port')
