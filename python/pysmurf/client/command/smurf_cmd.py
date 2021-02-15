@@ -35,7 +35,8 @@ def make_runfile(output_dir, row_len=60, num_rows=60, data_rate=60,
     """
     Make the runfile
     """
-    S = pysmurf.client.SmurfControl(cfg_file=cfg_filename, smurf_cmd_mode=True, setup=False)
+    S = pysmurf.client.SmurfControl(cfg_file=cfg_filename, smurf_cmd_mode=True, 
+        setup=False)
 
     S.log('Making Runfile')
 
@@ -306,6 +307,12 @@ if __name__ == "__main__":
     parser.add_argument('--slot', action='store', default=-1, type=int,
         help='The slot number used for get/set port')
 
+    # Configurations
+    parser.add_argument('--get-crate-id', action='store_true', default=False,
+        help='Get the ATCA crate ID')
+    parser.add_argument('--get-fpga-version', action='store_true', default=False,
+        help='Get the FPGA version number')
+
     # Extract inputs
     args = parser.parse_args()
 
@@ -322,8 +329,8 @@ if __name__ == "__main__":
 
     epics_prefix = args.epics_prefix
     S = pysmurf.client.SmurfControl(epics_root=epics_prefix,
-                                    cfg_file=cfg_filename, smurf_cmd_mode=True,
-                                    setup=False, offline=offline)
+        cfg_file=cfg_filename, smurf_cmd_mode=True, setup=False, 
+        offline=offline)
 
     if args.log is not None:
         S.log(args.log)
@@ -493,3 +500,13 @@ if __name__ == "__main__":
         if args.port < 0 :
             raise ValueError("Must specify a port. Use --port")
         set_port(S, args.slot, args.port)
+
+    if args.get_crate_id:
+        sys.stdout.write(f'{S.get_crate_id()}')
+        sys.exit(0)
+
+    if args.get_fpga_version:
+        sys.stdout.write(f'{S.get_fpga_version()}')
+        sys.exit(0)
+
+
