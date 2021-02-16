@@ -30,12 +30,11 @@ cfg_filename = os.path.join('/usr/local/src/pysmurf/', 'cfg_files', 'stanford',
 A function that mimics mce_cmd. This allows the user to run specific pysmurf
 commands from the command line.
 """
-def make_runfile(output_dir, row_len=60, num_rows=60, data_rate=60,
-    num_rows_reported=60):
+def make_runfile(output_dir, row_len=60, num_rows=60, data_rate=60, num_rows_reported=60):
     """
     Make the runfile
     """
-    S = pysmurf.client.SmurfControl(cfg_file=cfg_filename, smurf_cmd_mode=True, 
+    S = pysmurf.client.SmurfControl(cfg_file=cfg_filename, smurf_cmd_mode=True,
         setup=False)
 
     S.log('Making Runfile')
@@ -121,10 +120,16 @@ def acq_n_frames(S, n_frames):
     n_frames : int
         The number of frames to keep data streaming on.
     """
+    # Hard code some values. Will need to change this in the future
+    num_rows = 16
+    data_rate = 200
+    row_len = 42
+    num_rows_reported = num_rows
     start_acq(S)
     make_runfile(S.output_dir, num_rows=num_rows, data_rate=data_rate,
         row_len=row_len, num_rows_reported=num_rows_reported)
-    sample_rate = 50E6 / num_rows / data_rate / row_len
+    # sample_rate = 50E6 / num_rows / data_rate / row_len
+    sample_rate = data_rate
     wait_time = n_frames / sample_rate
     time.sleep(wait_time)
     stop_acq(S)
@@ -329,7 +334,7 @@ if __name__ == "__main__":
 
     epics_prefix = args.epics_prefix
     S = pysmurf.client.SmurfControl(epics_root=epics_prefix,
-        cfg_file=cfg_filename, smurf_cmd_mode=True, setup=False, 
+        cfg_file=cfg_filename, smurf_cmd_mode=True, setup=False,
         offline=offline)
 
     if args.log is not None:
@@ -508,5 +513,3 @@ if __name__ == "__main__":
     if args.get_fpga_version:
         sys.stdout.write(f'{S.get_fpga_version()}')
         sys.exit(0)
-
-
