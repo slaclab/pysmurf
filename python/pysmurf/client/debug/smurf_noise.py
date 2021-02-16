@@ -24,9 +24,11 @@ from scipy import signal
 
 from pysmurf.client.base import SmurfBase
 from pysmurf.client.util import tools
+from pysmurf.client.util.pub import set_action
 
 class SmurfNoiseMixin(SmurfBase):
 
+    @set_action()
     def take_noise_psd(self, meas_time,
                        channel=None, nperseg=2**12,
                        detrend='constant', fs=None,
@@ -239,6 +241,8 @@ class SmurfNoiseMixin(SmurfBase):
                     f'_noise_timestream_b{b}_ch{ch:03}{plotname_append}.png'
                 fig.savefig(os.path.join(self.plot_dir, plot_name),
                     bbox_inches='tight')
+                self.pub.register_file(os.path.join(self.plot_dir, plot_name),
+                                       'noise_timestream', plot=True)
 
                 # Close the individual channel plots - otherwise too many
                 # plots are brought to screen
@@ -267,6 +271,10 @@ class SmurfNoiseMixin(SmurfBase):
                     f'{l}_{h}_noise_hist{plotname_append}.png')
                 plt.savefig(os.path.join(self.plot_dir, plot_name),
                     bbox_inches='tight')
+                self.pub.register_file(
+                    os.path.join(self.plot_dir, plot_name),
+                    'noise_hist', plot=True
+                )
                 if show_plot:
                     plt.show()
                 else:
@@ -307,6 +315,10 @@ class SmurfNoiseMixin(SmurfBase):
                 plt.savefig(os.path.join(self.plot_dir,
                     noise_params_hist_fname),
                     bbox_inches='tight')
+                self.pub.register_file(
+                    os.path.join(self.plot_dir, noise_params_hist_fname),
+                    'noise_params', plot=True
+                )
 
                 if show_plot:
                     plt.show()
