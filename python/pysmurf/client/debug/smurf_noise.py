@@ -796,9 +796,12 @@ class SmurfNoiseMixin(SmurfBase):
         return iv_band_data[b][ch]['v_bias'], iv_band_data[b][ch]['si']
 
 
-    def NEI_to_NEP(self, iv_band_data, b, ch, v_bias):
+    def get_NEI_to_NEP_factor(self, iv_band_data, b, ch, v_bias):
         """
-        Takes NEI in pA/rtHz and converts to NEP in aW/rtHz.
+        This function uses the IV curve to estimate dI/dP. It interpolates
+        between IV points to get the value at the desired v_bias. Returns the
+        absolute value of the responsivity. To get NEP, just multiply
+        NEI x factor.
 
         Args
         ----
@@ -813,11 +816,15 @@ class SmurfNoiseMixin(SmurfBase):
 
         Returns
         -------
-        float
-            Noise-equivalent power in aW/rtHz.
+        factor : float
+            The conversion factor to multiply the NEI to get NEP.
         """
-        v_bias_array,si_array = self.get_si_data(iv_band_data, b, ch)
+        # Extract the responsivity data
+        v_bias_array, si_array = self.get_si_data(iv_band_data, b, ch)
+
+        # Interpolate to the desired V_bias
         si = np.interp(v_bias, v_bias_array[:-1], si_array)
+
         return 1./np.absolute(si)
 
 
@@ -1039,9 +1046,11 @@ class SmurfNoiseMixin(SmurfBase):
                 # Load the PSDs from file
                 f, Pxx =  np.loadtxt(os.path.join(psd_dir, basename +
                     f'_psd_b{b}ch{ch:03}.txt'))
+
+                # Convert NEI to NEP
                 if est_NEP:
                     print(f'Bias {bs}')
-                    NEI2NEP = self.NEI_to_NEP(iv_band_data, b, ch, bs)
+                    NEI2NEP = self.get_NEI_to_NEP_factor(iv_band_data, b, ch, bs)
 
                 # smooth Pxx for plotting
                 if smooth_len >= 3:
@@ -1100,6 +1109,7 @@ class SmurfNoiseMixin(SmurfBase):
                     noise_est = wl
                 noise_est_list.append(noise_est)
 
+                # Estimate NEP
                 if est_NEP:
                     self.log(f'abs(responsivity) = {1./NEI2NEP:.2f} uV^-1')
                     NEP_est = noise_est * NEI2NEP
@@ -1132,14 +1142,14 @@ class SmurfNoiseMixin(SmurfBase):
                         R_n = iv_band_data[b][ch]['R_n']
                         R_frac_min = R[sc_idx]/R_n
                         R_frac_max = R[nb_idx]/R_n
-                        for ax in [ax_NEIwl,ax_NEPwl,ax_SI]:
+                        for ax in [ax_NEIwl, ax_NEPwl, ax_SI]:
                             if ax == ax_SI:
                                 label_Rfrac = f'{R_frac_min:.2f}-{R_frac_max:.2f}' + \
                                     r'$R_\mathrm{N}$'
                             else:
                                 label_Rfrac = None
-                            ax.axvspan(iv_bias[sc_idx],iv_bias[nb_idx],
-                                       alpha=.15,label=label_Rfrac)
+                            ax.axvspan(iv_bias[sc_idx], iv_bias[nb_idx],
+                                       alpha=.15, label=label_Rfrac)
                     ax_SI.plot(bs, np.interp(bs, iv_bias, si), color=color,
                                marker='s', linestyle='none')
 
@@ -1368,7 +1378,7 @@ class SmurfNoiseMixin(SmurfBase):
                 NEP_est_median_list.append(np.median(NEP_est_data_bias[i]))
             X_NEP_hist,Y_NEP_hist = np.meshgrid(np.arange(len(bias),-1,-1),
                 bins_NEP_hist)
-            plt.pcolor(X_NEP_hist,Y_NEP_hist,hist_NEP_mat)
+            plt.pcolor(X_NEP_hist, Y_NEP_hist, hist_NEP_mat)
             cbar_NEP = plt.colorbar()
             cbar_NEP.set_label('Number of channels')
             plt.yscale('log')

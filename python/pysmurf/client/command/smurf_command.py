@@ -112,7 +112,8 @@ class SmurfCommandMixin(SmurfBase):
 
     def _caget(self, cmd, write_log=False, execute=True, count=None,
                log_level=0, enable_poll=False, disable_poll=False,
-               new_epics_root=None, yml=None, **kwargs):
+               new_epics_root=None, yml=None, retry_on_fail=True,
+               max_retry=5, **kwargs):
         r"""Gets variables from epics.
 
         Wrapper around pyrogue lcaget. Gets variables from epics.
@@ -137,6 +138,10 @@ class SmurfCommandMixin(SmurfBase):
             Temporarily replaces current epics root with a new one.
         yml : str or None, optional, default None
             If not None, yaml file to parse for the result.
+        retry_on_fail : bool
+            Whether to retry the caget if it fails on first attempt
+        max_retry : int
+            The number of times to retry if caget fails the first time.
         \**kwargs
             Arbitrary keyword arguments.  Passed directly to the
             `epics.caget` call.
@@ -163,9 +168,22 @@ class SmurfCommandMixin(SmurfBase):
             if write_log:
                 self.log(f'Reading from yml file\n {cmd}')
             return tools.yaml_parse(yml, cmd)
-
+        # Get the data
         elif execute and not self.offline:
             ret = epics.caget(cmd, count=count, **kwargs)
+
+            # If epics doesn't respond in time, epics.caget returns None.
+            if ret is None and retry_on_fail:
+                self.log(f"Command failed: {cmd}")
+                n_retry = 0
+                while n_retry < max_retry and ret is None:
+                    self.log(f'Retry attempt {n_retry+1} of {max_retry}')
+                    ret = epics.caget(cmd, count=count, **kwargs)
+                    n_retry += 1
+
+            # After retries, raise error
+            if ret is None:
+                raise RuntimeError("epics failed to respond")
             if write_log:
                 self.log(ret)
         else:
@@ -579,10 +597,16 @@ class SmurfCommandMixin(SmurfBase):
                 # We successfully exit the loop when we are able to
                 # read the "ConfiguringInProgress" flag and it is set
                 # to "False".  Otherwise we keep trying.
-                if self.get_configuring_in_progress(
-                        timeout=caget_timeout_sec, **kwargs) is False:
-                    success=True
-                    break
+                # We disable the retry_on_fail feature and instead we catch any
+                # RuntimeError exception and keep trying.
+                try:
+                    if self.get_configuring_in_progress(
+                            timeout=caget_timeout_sec,
+                            retry_on_fail=False, **kwargs) is False:
+                        success=True
+                        break
+                except RuntimeError:
+                    pass
 
             # If after out maximum defined timeout, we weren't able to
             # read the "ConfiguringInProgress" flags as "False", we
@@ -1528,9 +1552,7 @@ class SmurfCommandMixin(SmurfBase):
         """
         Enable/disable streaming data, for all bands.
         """
-        self._caput(
-            self.app_core + self._stream_enable_reg,
-            val, **kwargs)
+        self._caput(self.app_core + self._stream_enable_reg, val, **kwargs)
 
     def get_stream_enable(self, **kwargs):
         """
@@ -5707,8 +5729,7 @@ class SmurfCommandMixin(SmurfBase):
         str
             The file name.
         """
-        return self._caget(
-            self.smurf_processor + self._data_file_name_reg,
+        return self._caget(self.smurf_processor + self._data_file_name_reg,
             **kwargs)
 
     _data_file_open_reg = 'FileWriter:Open'
@@ -5717,9 +5738,8 @@ class SmurfCommandMixin(SmurfBase):
         """
         Open the data file.
         """
-        self._caput(
-            self.smurf_processor + self._data_file_open_reg,
-            1, **kwargs)
+        self._caput(self.smurf_processor + self._data_file_open_reg, 1,
+            **kwargs)
 
     _data_file_close_reg = 'FileWriter:Close'
 
@@ -5727,9 +5747,8 @@ class SmurfCommandMixin(SmurfBase):
         """
         Close the data file.
         """
-        self._caput(
-            self.smurf_processor + self._data_file_close_reg,
-            1, **kwargs)
+        self._caput(self.smurf_processor + self._data_file_close_reg, 1,
+            **kwargs)
 
     _num_channels_reg = "NumChannels"
 
@@ -5860,14 +5879,26 @@ class SmurfCommandMixin(SmurfBase):
         val : int
             Number of frames that make up a period.
         """
+        # Cast as str
+        if not isinstance(val, str):
+            val = str(val)
         self._caput(self._predata_emulator + self._predata_emulator_period, val,
             **kwargs)
 
     def get_predata_emulator_period(self, **kwargs):
         """
+        Expressed as the number of incoming frames. It must be greater that 2.
+        This period will be expressed in term of the period of the received
+        frames, which in turn is related to the flux ramp period.
+
+        Returns
+        -------
+        period : int
+            Number of frames that make up a period
         """
-        return self._caget(self.smurf_processor + self._predata_emulator_period,
-            **kwargs)
+        # Get as string and then cast as int
+        return int(self._caget(self._predata_emulator +
+            self._predata_emulator_period, as_string=True, **kwargs))
 
     def set_postdata_emulator_enable(self, val, **kwargs):
         """
@@ -5946,14 +5977,20 @@ class SmurfCommandMixin(SmurfBase):
         val : int
             Number of frames that make up a period.
         """
+        if not isinstance(val, str):
+            val = str(val)
         self._caput(self._postdata_emulator + self._postdata_emulator_period,
             val, **kwargs)
 
     def get_postdata_emulator_period(self, **kwargs):
         """
+        Returns
+        -------
+        period : int
+            Number of frames that make up a period.
         """
-        return self._caget(self._postdata_emulator +
-            self._postdata_emulator_period, **kwargs)
+        return int(self._caget(self._postdata_emulator +
+            self._postdata_emulator_period, as_string=True, **kwargs))
 
     _stream_data_source_enable = "SourceEnable"
 
