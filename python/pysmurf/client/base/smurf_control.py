@@ -245,58 +245,58 @@ class SmurfControl(SmurfCommandMixin,
             else:
                 self.log.set_logfile(None)
 
-            # Which bays were enabled on pysmurf server startup?
-            self.bays = self.which_bays()
+        # Which bays were enabled on pysmurf server startup?
+        self.bays = self.which_bays()
 
-            # Crate/carrier configuration details that won't change.
-            self.crate_id = self.get_crate_id()
-            self.slot_number = self.get_slot_number()
+        # Crate/carrier configuration details that won't change.
+        self.crate_id = self.get_crate_id()
+        self.slot_number = self.get_slot_number()
 
-            # Channel assignment files
-            self.channel_assignment_files = {}
-            if not no_dir:
-                for band in self._bands:
-                    all_channel_assignment_files = glob.glob(
-                        os.path.join(
-                            self.tune_dir,
-                            f'*channel_assignment_b{band}.txt'))
-                    if len(all_channel_assignment_files):
-                        self.channel_assignment_files[f'band_{band}'] = \
-                            np.sort(all_channel_assignment_files)[-1]
-
-            # Which bands are usable, based on which bays are enabled.
-            # Will use to check if pysmurf configuration file has unusable
-            # bands defined, or no definition for usable bands.
-            usable_bands=[]
-            for bay in self.bays:
-                # There are four bands per bay.  Bay 0 provides bands 0,
-                # 1, 2, and 3, and bay 1 provides bands 4, 5, 6 and 7.
-                usable_bands+=range(bay*4,4*(bay+1))
-
-            # Compare usable bands to bands defined in pysmurf
-            # configuration file.
-
-            # Check if an unusable band is defined in the pysmurf cfg
-            # file.
+        # Channel assignment files
+        self.channel_assignment_files = {}
+        if not no_dir:
             for band in self._bands:
-                if band not in usable_bands:
-                    self.log(f'ERROR : band {band} is present in ' +
-                             'pysmurf cfg file, but its bay is not ' +
-                             'enabled!', self.LOG_ERROR)
+                all_channel_assignment_files = glob.glob(
+                    os.path.join(
+                        self.tune_dir,
+                        f'*channel_assignment_b{band}.txt'))
+                if len(all_channel_assignment_files):
+                    self.channel_assignment_files[f'band_{band}'] = \
+                        np.sort(all_channel_assignment_files)[-1]
 
-            # Check if a usable band is not defined in the pysmurf cfg
-            # file.
-            for band in usable_bands:
-                if band not in self._bands:
-                    self.log(f'WARNING : band {band} bay is enabled, ' +
-                             'but no configuration information ' +
-                             'provided!', self.LOG_ERROR)
+        # Which bands are usable, based on which bays are enabled.
+        # Will use to check if pysmurf configuration file has unusable
+        # bands defined, or no definition for usable bands.
+        usable_bands=[]
+        for bay in self.bays:
+            # There are four bands per bay.  Bay 0 provides bands 0,
+            # 1, 2, and 3, and bay 1 provides bands 4, 5, 6 and 7.
+            usable_bands+=range(bay*4,4*(bay+1))
 
-            ## Make band dictionaries
-            self.freq_resp = {}
-            for band in self._bands:
-                self.freq_resp[band] = {}
-                self.freq_resp[band]['lock_status'] = {}
+        # Compare usable bands to bands defined in pysmurf
+        # configuration file.
+
+        # Check if an unusable band is defined in the pysmurf cfg
+        # file.
+        for band in self._bands:
+            if band not in usable_bands:
+                self.log(f'ERROR : band {band} is present in ' +
+                         'pysmurf cfg file, but its bay is not ' +
+                         'enabled!', self.LOG_ERROR)
+
+        # Check if a usable band is not defined in the pysmurf cfg
+        # file.
+        for band in usable_bands:
+            if band not in self._bands:
+                self.log(f'WARNING : band {band} bay is enabled, ' +
+                         'but no configuration information ' +
+                         'provided!', self.LOG_ERROR)
+
+        ## Make band dictionaries
+        self.freq_resp = {}
+        for band in self._bands:
+            self.freq_resp[band] = {}
+            self.freq_resp[band]['lock_status'] = {}
 
         if setup:
             success = self.setup(payload_size=payload_size, **kwargs)
