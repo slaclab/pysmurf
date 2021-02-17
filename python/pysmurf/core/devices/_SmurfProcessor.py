@@ -104,14 +104,40 @@ class Downsampler(pyrogue.Device):
             localSet=lambda value: self.device.setDownsamplerDisable(value),
             localGet=self.device.getDownsamplerDisable))
 
-        # Add the filter order variable
+        # Add the downsampler counter variable
+        self.add(pyrogue.LocalVariable(
+            name='FrameCnt',
+            description='Output frame counter',
+            mode='RO',
+            value=0,
+            typeStr='UInt64',
+            pollInterval=1,
+            localGet=self.device.getDownsamplerCnt))
+
+        # Add the downsampler factor variable
         self.add(pyrogue.LocalVariable(
             name='Factor',
-            description='Downsampling factor',
+            description='Downsampling factor (Internal mode only)',
             mode='RW',
             value=20,
-            localSet=lambda value : self.device.setFactor(value),
-            localGet=self.device.getFactor))
+            localSet=lambda value : self.device.setDownsamplerFactor(value),
+            localGet=self.device.getDownsamplerFactor))
+
+        # Add the trigger mode variable
+        self.add(pyrogue.LocalVariable(
+            name='TriggerMode',
+            description='Trigger mode',
+            mode='RW',
+            enum={0:'Internal', 1:'Timing (BICEP)'},
+            value=0,
+            localSet=lambda value : self.device.setDownsamplerMode(value),
+            localGet=self.device.getDownsamplerMode))
+
+        # Command to clear all the counters
+        self.add(pyrogue.LocalCommand(
+            name='clearCnt',
+            description='Clear all counters',
+            function=self.device.clearDownsamplerCnt))
 
 class GeneralAnalogFilter(pyrogue.Device):
     """

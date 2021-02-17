@@ -895,8 +895,8 @@ class SmurfUtilMixin(SmurfBase):
                                       write_log=write_log)
             else:
                 self.log('Warning : The payload size is smaller than ' +
-                         'the number of channels that are on. Only ' +
-                         f'writing the first {payload_size} channels. ')
+                    'the number of channels that are on. Only ' +
+                    f'writing the first {payload_size} channels. ')
 
 
         # Check if flux ramp is non-zero
@@ -909,7 +909,7 @@ class SmurfUtilMixin(SmurfBase):
             # read_ac_dc_relay_status() should be 0 in DC mode, 3 in
             # AC mode.  this check is only possible if you're using
             # one of the newer C02 cryostat cards.
-            flux_ramp_ac_dc_relay_status=self.C.read_ac_dc_relay_status()
+            flux_ramp_ac_dc_relay_status = self.C.read_ac_dc_relay_status()
             if flux_ramp_ac_dc_relay_status == 0:
                 if write_log:
                     self.log("FLUX RAMP IS DC COUPLED.", self.LOG_USER)
@@ -923,8 +923,7 @@ class SmurfUtilMixin(SmurfBase):
 
             # start streaming before opening file
             # to avoid transient filter step
-            self.set_stream_enable(1, write_log=False,
-                                   wait_done=True)
+            self.set_stream_enable(1, write_log=False, wait_done=True)
 
             if reset_unwrapper:
                 self.set_unwrapper_reset(write_log=write_log)
@@ -937,8 +936,7 @@ class SmurfUtilMixin(SmurfBase):
             # Make the data file
             timestamp = self.get_timestamp()
             if data_filename is None:
-                data_filename = os.path.join(self.output_dir,
-                                             timestamp+'.dat')
+                data_filename = os.path.join(self.output_dir, timestamp+'.dat')
 
             self.set_data_file_name(data_filename)
 
@@ -946,8 +944,8 @@ class SmurfUtilMixin(SmurfBase):
             if write_config:
                 config_filename=os.path.join(self.output_dir, timestamp+'.yml')
                 if write_log:
-                    self.log('Writing PyRogue configuration to file : '+
-                         f'{config_filename}', self.LOG_USER)
+                    self.log('Writing PyRogue configuration to file : ' +
+                        f'{config_filename}', self.LOG_USER)
                 self.write_config(config_filename)
 
                 # short wait
@@ -966,7 +964,8 @@ class SmurfUtilMixin(SmurfBase):
 
             # Save mask file as text file. Eventually this will be in the
             # raw data output
-            mask_fname = os.path.join(data_filename.replace('.dat', '_mask.txt'))
+            mask_fname = os.path.join(data_filename.replace('.dat',
+                '_mask.txt'))
             np.savetxt(mask_fname, output_mask, fmt='%i')
             self.pub.register_file(mask_fname, 'mask')
             self.log(mask_fname)
@@ -975,8 +974,8 @@ class SmurfUtilMixin(SmurfBase):
                 if write_log:
                     self.log("Writing frequency mask.")
                 freq_mask = self.make_freq_mask(output_mask)
-                np.savetxt(os.path.join(data_filename.replace('.dat', '_freq.txt')),
-                           freq_mask, fmt='%4.4f')
+                np.savetxt(os.path.join(data_filename.replace('.dat',
+                    '_freq.txt')), freq_mask, fmt='%4.4f')
                 self.pub.register_file(
                     os.path.join(data_filename.replace('.dat', '_freq.txt')),
                     'mask', format='txt')
@@ -4550,3 +4549,91 @@ class SmurfUtilMixin(SmurfBase):
             self.write_group_assignment(channels_dict)
 
         return channels_dict
+
+    def find_probe_tone_gap(self, band, n_tone=2, n_scan=5,
+                          make_plot=True,
+                          save_plot=True, show_plot=False):
+        """
+        This finds the larges n_tone gaps in the band. These
+        are used for finding gaps to put probe tones for checking
+        JESD skips.
+
+        Args
+        ----
+        band : int
+            The 500 MHz frequency band to find gaps.
+        n_tone : int, optional
+            The number of probe tones. Or the number of gaps
+            to find.
+        n_scan : int, optional
+            The number of times to measure the band using
+            full_band_resp.
+        make_plot : bool, optional, default True
+            Whether to make a plot.
+        save_plot : bool, optional, default True
+            Whether to save the plot.
+        show_plot : bool, optional, default False
+            Whether to show the plot
+
+        Returns
+        -------
+        gaps : float array
+            An array of size [n_tone, 2], indicating the start and
+            end of the gap. recomment using the middle value between
+            the two edges. You can calulate this quickly
+            with np.mean(gaps, axis=1).
+        """
+        timestamp = self.get_timestamp()
+
+        # Run full band response to measure transfer function
+        f, resp = self.full_band_resp(band, n_scan=n_scan,
+                                      make_plot=make_plot,
+                                      save_plot=save_plot,
+                                      show_plot=False,
+                                      timestamp=timestamp)
+
+        f *= 1.0E-6  # Mitch wants units of MHz
+
+        # Identify the resonator frequencies
+        res_freq = self.find_peak(f, resp,
+                                  make_plot=make_plot,
+                                  save_plot=save_plot,
+                                  show_plot=False)
+
+        # Throw out frequencies not in the band
+        res_freq = res_freq[np.logical_and(res_freq > -250,
+                                           res_freq < 250)]
+
+        df = np.diff(res_freq)
+        df_vals = np.sort(df)[-n_tone:] # find the largest gaps
+
+        # loop over gaps
+        gap_freq = np.zeros((n_tone, 2))
+        for i, dfv in enumerate(df_vals):
+            idx = np.ravel(np.where(df == dfv))[0]
+            gap_freq[i, 0] = res_freq[idx]
+            gap_freq[i, 1] = res_freq[idx+1]
+
+
+        if make_plot:
+            plt.figure(figsize=(8,4))
+            plt.plot(f, np.abs(resp))
+            for i in range(n_tone):
+                plt.axvspan(gap_freq[i,0], gap_freq[i,1], color='k', alpha=.1)
+
+            plt.title(f'{timestamp} - find probe tone gaps')
+            plt.ylabel(f'Band {band} resp')
+            plt.xlabel('Freq [MHz]')
+            plt.tight_layout()
+
+            if save_plot:
+                plt.savefig(os.path.join(self.plot_dir,
+                                         f'{timestamp}_probe_tone_gap.png'),
+                            bbox_inches='tight')
+
+            if show_plot:
+                plt.show()
+            else:
+                plt.close()
+
+        return gap_freq
