@@ -308,7 +308,7 @@ class SmurfIVMixin(SmurfBase):
                              phase_excursion_min=3., grid_on=False,
                              R_op_target=0.007, pA_per_phi0=None,
                              channel=None, band=None, datafile=None,
-                             plot_dir=None,
+                             output_dir = None, plot_dir=None,
                              bias_line_resistance=None):
         """
         Function to analyze a load curve from its raw file. Can be used to
@@ -347,6 +347,9 @@ class SmurfIVMixin(SmurfBase):
             where the data was copied to a new directory. The
             directory is usually loaded from the .npy file, and this
             overwrites it.
+        output_dir: str of None, optional, default None
+            The full path of where to save the output of the IV analysis.
+            Useful if the data has been moved from the original format.
         plot_dir : str or None, optional, default None
             The full path to the plot directory. This is usually
             loaded with the input numpy dictionary. This overwrites
@@ -373,7 +376,8 @@ class SmurfIVMixin(SmurfBase):
         bands, chans = np.where(mask != -1)
 
         basename = iv_raw_data['basename']
-        output_dir = iv_raw_data['output_dir']
+        if output_dir is None:
+            output_dir = iv_raw_data['output_dir']
 
         if plot_dir is None:
             plot_dir = iv_raw_data['plot_dir']
