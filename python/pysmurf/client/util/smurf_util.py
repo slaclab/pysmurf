@@ -3130,6 +3130,25 @@ class SmurfUtilMixin(SmurfBase):
         self.set_cryo_card_relays(new_relay, write_log=write_log)
         self.get_cryo_card_relays()
 
+    def get_tes_bias_high_current(self, bias_group):
+        """
+        Returns 1 if requested bias_group is in high_current_mode and 0
+        otherwise.
+
+        Args
+        ----
+        bias_group : int
+            The bias group to query
+        """
+        relay = self.get_cryo_card_relays()
+        relay = self.get_cryo_card_relays()  # querey twice to ensure update
+
+        if bias_group >= self._n_bias_groups:
+            raise ValueError("Biasgroup must be between 0 and {self._n_bias_groups}")
+
+        r = np.ravel(self._pic_to_bias_group[np.where(
+            self._pic_to_bias_group[:,1]==bias_group)])[0]
+        return (relay>>r) & 1
 
     def set_tes_bias_low_current(self, bias_group, write_log=False):
         """
