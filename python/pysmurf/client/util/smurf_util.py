@@ -1050,7 +1050,7 @@ class SmurfUtilMixin(SmurfBase):
         Ret:
         ----
         t (float array): The timestamp data
-        d (float array): The resonator data in units of phi0
+        d (float array): The resonator data in units of radians
         m (int array): The maskfile that maps smurf num to gcp num
         h (dict) : A dictionary with the header information.
         """
