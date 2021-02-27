@@ -1,4 +1,4 @@
-FROM tidair/smurf-rogue:R2.8.2
+FROM tidair/smurf-rogue:R2.8.3
 
 # Install the SMURF PCIe card repository
 WORKDIR /usr/local/src
