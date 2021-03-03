@@ -2468,7 +2468,7 @@ class SmurfTuneMixin(SmurfBase):
             eventually cause the tracking loop to go unstable.
         lms_gain : int or None, optional, default None
             ** Internal register dynamic range adjustment **
-            ** Use with caution **
+            ** Use with caution - you probably want feedback_gain**
             Select which bits to slice from accumulation over
             a flux ramp period.
             Tracking feedback parameters are integrated over a flux
@@ -2518,7 +2518,11 @@ class SmurfTuneMixin(SmurfBase):
         if lms_gain is None:
             lms_gain = 9 - np.ceil(np.log2(100/reset_rate_khz))
             if lms_gain > 7:
-               lms_gain = 7
+                lms_gain = 7
+        else:
+            self.log("Using LMS gain is now an advanced feature.")
+            self.log("Unless you are an expert, you probably want feedback_gain.")
+            self.log("See tracking_setup docstring.")
         if feedback_gain is None:
             feedback_gain = self._feedback_gain[band]
 
