@@ -32,7 +32,7 @@ commands from the command line.
 """
 
 def make_runfile(output_dir, row_len=60, num_rows=60, data_rate=60,
-    num_rows_reported=60):
+        num_rows_reported=60):
     """
     Make the runfile
     """
