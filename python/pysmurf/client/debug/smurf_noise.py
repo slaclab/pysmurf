@@ -97,11 +97,11 @@ class SmurfNoiseMixin(SmurfBase):
         if high_freq is None:
             high_freq=np.array([1., 10.])
         if datafile is None:
+            # Take the data if not given as input
             datafile = self.take_stream_data(meas_time,
-                                             downsample_factor=downsample_factor,
-                                             write_log=write_log,
-                                             reset_unwrapper=reset_unwrapper,
-                                             reset_filter=reset_filter)
+                downsample_factor=downsample_factor,
+                write_log=write_log, reset_unwrapper=reset_unwrapper,
+                reset_filter=reset_filter)
         else:
             self.log(f'Reading data from {datafile}')
 
@@ -116,12 +116,11 @@ class SmurfNoiseMixin(SmurfBase):
 
         phase *= self._pA_per_phi0/(2.*np.pi) # phase converted to pA
 
-        flux_ramp_freq = self.get_flux_ramp_freq() * 1.0E3
+        flux_ramp_freq = self.get_flux_ramp_freq() * 1.0E3  # convert to Hz
 
         if fs is None:
             if downsample_factor is None:
                 downsample_factor = self.get_downsample_factor()
-            # flux ramp rate returns in kHz
             fs = flux_ramp_freq/downsample_factor
 
         # Generate downsample transfer function - downsampling is at
@@ -146,9 +145,12 @@ class SmurfNoiseMixin(SmurfBase):
         f_knee_list = []
         n_list = []
 
-        plt.ion()
-        if not show_plot:
+        # Live plotting or not
+        if show_plot:
+            plt.ion()
+        else:
             plt.ioff()
+
         for c, (b, ch) in enumerate(zip(bands, channels)):
             if ch < 0:
                 continue
@@ -251,11 +253,19 @@ class SmurfNoiseMixin(SmurfBase):
         if save_data:
             for i, (l, h) in enumerate(zip(low_freq, high_freq)):
                 save_name = basename+f'_{l:3.2f}_{h:3.2f}.txt'
-                outfn = os.path.join(self.plot_dir, save_name)
+                # outfn = os.path.join(self.plot_dir, save_name)
+                outfn = os.path.join(self.output_dir, save_name)
 
-                np.savetxt(outfn, np.c_[res_freqs,noise_floors[i],f_knees])
+                np.savetxt(outfn, np.c_[res_freqs, noise_floors[i], f_knees])
                 # Publish the data
                 self.pub.register_file(outfn, 'noise_timestream', format='txt')
+
+                np.save(os.path.join(self.output_dir,
+                    f'{basename}_wl_list'), wl_list)
+                np.save(os.path.join(self.output_dir,
+                    f'{basename}_f_knee_list'), f_knee_list)
+                np.save(os.path.join(self.output_dir,
+                    f'{basename}_n_list'), n_list)
 
         if make_summary_plot:
             bins = np.arange(0,351,20)
@@ -326,7 +336,7 @@ class SmurfNoiseMixin(SmurfBase):
                     plt.close()
 
         if return_noise_params:
-            return datafile, (res_freqs, noise_floors, f_knees)
+            return datafile, (res_freqs, noise_floors, f_knees, wl_list, f_knee_list, n_list)
 
         else:
             return datafile
