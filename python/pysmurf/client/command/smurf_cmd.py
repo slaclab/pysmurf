@@ -122,6 +122,11 @@ def acq_n_frames(S, n_frames):
     n_frames : int
         The number of frames to keep data streaming on.
     """
+    # Hard code some values. Will need to change this in the future
+    num_rows = 16
+    data_rate = 200
+    row_len = 42
+    num_rows_reported = num_rows
 
     start_acq(S)
     make_runfile(S.output_dir, num_rows=num_rows, data_rate=data_rate,
