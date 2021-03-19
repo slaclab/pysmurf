@@ -30,12 +30,14 @@ cfg_filename = os.path.join('/usr/local/src/pysmurf/', 'cfg_files', 'stanford',
 A function that mimics mce_cmd. This allows the user to run specific pysmurf
 commands from the command line.
 """
+
 def make_runfile(output_dir, row_len=60, num_rows=60, data_rate=60,
     num_rows_reported=60):
     """
     Make the runfile
     """
     S = pysmurf.client.SmurfControl(cfg_file=cfg_filename, smurf_cmd_mode=True, setup=False)
+
 
     S.log('Making Runfile')
 
@@ -120,13 +122,71 @@ def acq_n_frames(S, n_frames):
     n_frames : int
         The number of frames to keep data streaming on.
     """
+
     start_acq(S)
     make_runfile(S.output_dir, num_rows=num_rows, data_rate=data_rate,
         row_len=row_len, num_rows_reported=num_rows_reported)
     sample_rate = 50E6 / num_rows / data_rate / row_len
+
     wait_time = n_frames / sample_rate
     time.sleep(wait_time)
     stop_acq(S)
+
+
+def set_port(S, slot, port):
+    """
+    Define a port/slot pair.
+
+    Args
+    ----
+    S : SmurfControl
+        The SmurfControl object used to issue commands
+    slot : int
+        The number of SMuRF slot
+    """
+    slot_port_file = os.path.join(S.output_dir, 'slot_port_def.txt')
+    slots, ports = np.loadtxt(slot_port_file, dtype=int).T
+
+
+    if slot in slots:
+        # Change port number if it already exists
+        idx = np.where(slots == slot)[0][0]
+        ports[idx] = port
+    else:
+        # Append the slot/port pairs
+        slots = np.append(slots, slot)
+        ports = np.append(ports, port)
+
+    np.savetxt(slot_port_file, np.array([slots, ports]).T, fmt='%i %i')
+
+
+def get_port(S, slot):
+    """
+    Get the port number for streaming
+
+    Args
+    ----
+    S : SmurfControl
+        The SmurfControl object used to issue commands
+    slot : int
+        The number of SMuRF slot
+
+    Returns
+    -------
+    port : int
+        The port number associated with slot to stream data.
+    """
+    slot_port_file = os.path.join(S.output_dir, 'slot_port_def.txt')
+
+    # Load the data
+    slots, ports = np.loadtxt(slot_port_file, dtype=int).T
+
+    idx = np.where(slots == slot)[0]
+    if len(idx) == 0:
+        raise ValueError("Slot is not in the port/slot defintion file. " +
+            "Update file with specify_port function.")
+
+    return ports[idx][0]
 
 
 if __name__ == "__main__":
@@ -135,7 +195,7 @@ if __name__ == "__main__":
 
     parser.add_argument('--epics-prefix', help='The epics root',
                         action='store', default=None, type=str)
-    
+
     # Offline mode
     parser.add_argument('--offline', help='For offline debugging',
         default=False, action='store_true')
@@ -241,6 +301,22 @@ if __name__ == "__main__":
     parser.add_argument('--setup', action='store_true', default=False,
         help='Setup SMuRF and load defaults.')
 
+    # Defining slot/port paris
+    parser.add_argument('--get-port', action='store_true', default=False,
+        help='Get the port number. Must define slot')
+    parser.add_argument('--set-port', action='store_true', default=False,
+        help='Set the port number. Bust define slot and port')
+    parser.add_argument('--port', action='store', default=-1, type=int,
+        help='The port number for get/set port')
+    parser.add_argument('--slot', action='store', default=-1, type=int,
+        help='The slot number used for get/set port')
+
+    # Configurations
+    parser.add_argument('--get-crate-id', action='store_true', default=False,
+        help='Get the ATCA crate ID')
+    parser.add_argument('--get-fpga-version', action='store_true', default=False,
+        help='Get the FPGA version number')
+
     # Extract inputs
     args = parser.parse_args()
 
@@ -256,10 +332,10 @@ if __name__ == "__main__":
         sys.exit(0)
 
     epics_prefix = args.epics_prefix
-        
+
     S = pysmurf.client.SmurfControl(epics_root=epics_prefix,
-                                    cfg_file=cfg_filename, smurf_cmd_mode=True,
-                                    setup=False, offline=offline)
+        cfg_file=cfg_filename, smurf_cmd_mode=True, setup=False,
+        offline=offline)
 
     if args.log is not None:
         S.log(args.log)
@@ -393,8 +469,7 @@ if __name__ == "__main__":
             start_acq(S)
             # Don't make runfiles for now. Need to figure out
 
-            
-            #make_runfile(S.output_dir, num_rows=args.num_rows,
+            # make_runfile(S.output_dir, num_rows=args.num_rows,
             #    data_rate=args.data_rate, row_len=args.row_len,
             #    num_rows_reported=args.num_rows_reported)
             # why are we making a runfile though? do we intend to dump it?
@@ -417,3 +492,25 @@ if __name__ == "__main__":
         make_runfile(S.output_dir, num_rows=args.num_rows,
             data_rate=args.data_rate, row_len=args.row_len,
             num_rows_reported=args.num_rows_reported)
+
+    if args.get_port:
+        if args.slot < 0 :
+            raise ValueError("Must specify a slot. Use --slot")
+        port = get_port(S, args.slot)
+        sys.stdout.write(f'{port}')
+        sys.exit(0)
+
+    if args.set_port:
+        if args.slot < 0 :
+            raise ValueError("Must specify a slot. Use --slot")
+        if args.port < 0 :
+            raise ValueError("Must specify a port. Use --port")
+        set_port(S, args.slot, args.port)
+
+    if args.get_crate_id:
+        sys.stdout.write(f'{S.get_crate_id()}')
+        sys.exit(0)
+
+    if args.get_fpga_version:
+        sys.stdout.write(f'{S.get_fpga_version()}')
+        sys.exit(0)

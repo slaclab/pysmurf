@@ -108,7 +108,11 @@ b, a = signal.butter(4, 2*63 / 4000.)
 
 ### Downsampler
 
-Perform a downsampling of the data in the incoming frame, by letting pass only 1 data point each `Factor` number of point.
+Perform a downsampling of the data in the incoming frame, by letting pass only factor of incoming frames.
+
+The modules provides two triggers mode, selectable by the variable `TriggerMode`:
+- `Internal`:  It uses an internal frame counter, and it releases a frame each `Factor` number of received frames.
+- `Timing (BICEP)`: It uses the information from an external timing system to decide when to release a frame. A new frame is release every time the "External real time clock from timing system" (word 96 in the [Smurf header](https://github.com/slaclab/pysmurf/blob/main/README.SmurfPacket.md)) changes. This is the mode used in by BICEP.
 
 This module can be disabled; the incoming frame will just pass through to the next block.
 
