@@ -2514,7 +2514,7 @@ class SmurfTuneMixin(SmurfBase):
         if reset_rate_khz is None:
             reset_rate_khz = self._reset_rate_khz
         if lms_gain is None:
-            lms_gain = 9 - np.ceil(np.log2(100/reset_rate_khz))
+            lms_gain = int(9 - np.ceil(np.log2(100/reset_rate_khz)))
             if lms_gain > 7:
                 lms_gain = 7
         else:
