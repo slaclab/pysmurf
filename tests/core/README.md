@@ -42,3 +42,7 @@ Finally, the script compares the original wrapped signal to the result at the ou
 This script can be used to profile different section of the SmurfProcessor. In order to get profile data, the SMuRF processor needs to be modified adding `TimerWithStats` object (available in [Timer.h](../../include/smurf/core/common/Timer.h)) in the appropriated places.
 
 The script creates local root devices which contains an instance of the [SmurfProcessor](../../python/pysmurf/core/devices/_SmurfProcessor.py) device, connected to a [StreamDataSource](../../python/pysmurf/core/emulators/_StreamDataSource.py) data source, and a [FrameStatistics](../../python/pysmurf/core/counters/_FrameStatistics.py) device. The script them enabled the data source and let it sends `100000` frames trough the [SmurfProcessor](../../python/pysmurf/core/devices/_SmurfProcessor.py).
+
+### validate_band_estimator.py
+
+This scripts validates the behavior of the BandParameterEstimator.
