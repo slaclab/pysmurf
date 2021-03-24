@@ -48,8 +48,12 @@ class BandToneModel():
             number of tones.
         """
         phase = np.empty(self._num_tones)
+
+        # We need to use the same tau_randn for all tones in the band
+        tau_randn = np.random.randn(1)
+
         for m, i in zip(self._tone_models, range(self._num_tones)):
-            phase[i] = m.get_sample()
+            phase[i] = m.get_sample(tau_randn=tau_randn)
 
         return phase
 
@@ -61,9 +65,9 @@ class BandToneModel():
 
             phase = tau(t) * 2*pi*freq + theta + n(t) + eta
 
-        The phase slope "tau(t)" change linearly respect to time:
+        The phase slope "tau(t)" does a random walk over time:
 
-            tau(t) = tau_m * t
+            tau(t) = tau_noise_power * randon(1) + tau(t-1)
 
         The phase offset "theta" is constant respect to time.
 
@@ -94,18 +98,14 @@ class BandToneModel():
             # Phase jump index. The
             self._jump_index = jump_index
 
-            # "theta" and "tau_m" parameters. It is a list with the values
-            # before (index 0) and after (index 1) the phase jump.
-            self._theta = [-0.02, 0.01]
-            self._tau_m = [4e-16, 2e-16]
+            # Tau parameters. The "_tau_jump" will be added to tau at the jump phase
+            self._tau_noise_power = 1e-13
+            self._tau_jump = 1e-11
+            self._prev_tau = 0
 
-            # Phase slope and offset before the phase jump
-            self._slope1 = 4e-16
-            self._offset1 = -0.02
-
-            # Phase slope and offset after the phase jump
-            self._slope2 = 2e-16
-            self._offset2 = 0.01
+            # Theta parameters. The _theta_jump will be added to theta at the jump phase
+            self._theta = -0.02
+            self._theta_jump = 0.03
 
             # Noise amplitude (constant across the phase jump)
             self.noise_ampl = 2e-3
@@ -116,11 +116,16 @@ class BandToneModel():
             # Phase correction factor
             self._eta = 0
 
-        def get_sample(self):
+        def get_sample(self, tau_randn):
             """
             Returns a phase sample from the model.
 
             It returns a phase sample from the model.
+
+            Args
+            ----
+            tau_randn : float
+                The random number used to update the tau parameter.
 
             Returns
             -------
@@ -128,26 +133,28 @@ class BandToneModel():
                 A new phase sample from the tone model.
             """
 
-            # Determine on which side of the phase jump we currently are
-            i = int(self._sample_index >= self._jump_index)
+            # Update Tau
+            tau = self._tau_noise_power * tau_randn + self._prev_tau
 
-            # Tau
-            tau = self._tau_m[i] * self._sample_index
-
-            # Theta
-            theta = self._theta[i]
+            # Phase jump
+            if (self._sample_index == self._jump_index):
+                tau += self._tau_jump
+                self._theta += self._theta_jump
 
             # Noise
             n = np.random.uniform(-self.noise_ampl, self.noise_ampl)
 
             # Phase
-            phase = tau * 2 * math.pi * self._freq + theta + n
+            phase = tau * 2 * math.pi * self._freq + self._theta + n
 
             # Apply the phase correction "eta"
             phase += self._eta
 
             # Increment the sample index
             self._sample_index += 1
+
+            # Save tau for the next cycle
+            self._prev_tau = tau
 
             # Return the generated phase sample
             return phase
