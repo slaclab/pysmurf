@@ -231,16 +231,6 @@ class SmurfUtilMixin(SmurfBase):
 
         Returns
         -------
-        refPhaseDelay : int
-           Estimated value for the `refPhaseDelay` firmware register
-           for this 500MHz band.  For more details on the
-           `refPhaseDelay` register, see
-           :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.set_ref_phase_delay`.
-        refPhaseDelayFine : int
-           Estimated value for the `refPhaseDelayFine` firmware
-           register for this 500MHz band.  For more details on the
-           `refPhaseDelayFine` register, see
-           :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.set_ref_phase_delay_fine`.
         processing_delay_us : float
            Estimated processing phase delay, in microseconds.
         dsp_corr_delay_us : float
@@ -249,11 +239,7 @@ class SmurfUtilMixin(SmurfBase):
 
         """
 
-        # For some reason, pyrogue flips out if you try to set refPhaseDelay
-        # to zero in 071150b0.  This allows an offset ; the offset just gets
-        # subtracted off the delay measurement with DSP after it's made.
-        refPhaseDelay0=1
-        refPhaseDelayFine0=0
+        self.set_band_delay_us(band, 0)
 
         uc_att0 = self.get_att_uc(band)
         dc_att0 = self.get_att_dc(band)
@@ -316,12 +302,7 @@ class SmurfUtilMixin(SmurfBase):
         #### done measuring cable delay
 
         #### start measuring dsp delay (cable+processing)
-        # Zero refPhaseDelay and refPhaseDelayFine to get uncorrected phase
-        # delay.
-        # max is 7
-        self.set_ref_phase_delay(band,refPhaseDelay0)
-        # max is 255
-        self.set_ref_phase_delay_fine(band,refPhaseDelayFine0)
+        self.set_band_delay_us(band, 0)
 
         self.log('Running find_freq')
         freq_dsp,resp_dsp=self.find_freq(band,subband=dsp_subbands)
@@ -354,36 +335,17 @@ class SmurfUtilMixin(SmurfBase):
         dsp_p = np.poly1d(dsp_z)
         dsp_delay_us=np.abs(1.e6*dsp_z[0]/2/np.pi)
 
-        # if refPhaseDelay0 or refPhaseDelayFine0 aren't zero, must add into
-        # delay here
-        #dsp_delay_us+=refPhaseDelay0/(subband_half_width_mhz*2.)
-        dsp_delay_us+=refPhaseDelay0/(subband_half_width_mhz)
-        dsp_delay_us-=refPhaseDelayFine0/(digitizer_frequency_mhz/2)
-
-        ## compute refPhaseDelay and refPhaseDelayFine
-        refPhaseDelay=int(np.ceil(dsp_delay_us*channel_frequency_mhz))
-        overCorrect = refPhaseDelay-dsp_delay_us*subband_half_width_mhz*2
-        refPhaseDelayFine = int(np.round((digitizer_frequency_mhz/2)/(subband_half_width_mhz*2) * overCorrect))
-        #refPhaseDelayFine=int(np.round((digitizer_frequency_mhz/2/
-        #    (channel_frequency_mhz)*
-        #    (refPhaseDelay-dsp_delay_us*(subband_half_width_mhz/2.)))))
         processing_delay_us=dsp_delay_us-cable_delay_us
 
         print('-------------------------------------------------------')
-        print(f'Estimated refPhaseDelay={refPhaseDelay}')
-        print(f'Estimated refPhaseDelayFine={refPhaseDelayFine}')
+        print(f'Estimated cable_delay_us={cable_delay_us}')
         print(f'Estimated processing_delay_us={processing_delay_us}')
         print('-------------------------------------------------------')
 
         #### done measuring dsp delay (cable+processing)
 
-        #### start measuring total (DSP) delay with estimated correction applied
-        # Zero refPhaseDelay and refPhaseDelayFine to get uncorrected phase
-        # delay.
-        # max is 7
-        self.set_ref_phase_delay(band,refPhaseDelay)
-        # max is 255
-        self.set_ref_phase_delay_fine(band,refPhaseDelayFine)
+        #### start measuring total (DSP + cable) delay with estimated correction applied
+        self.set_band_delay_us(band, dsp_delay_us)
 
         self.log('Running find_freq')
         freq_dsp_corr,resp_dsp_corr=self.find_freq(band,subband=dsp_subbands)
@@ -505,7 +467,7 @@ class SmurfUtilMixin(SmurfBase):
         self.set_att_uc(band, uc_att0, write_log=True)
         self.set_att_dc(band, dc_att0, write_log=True)
 
-        return refPhaseDelay, refPhaseDelayFine, processing_delay_us, dsp_corr_delay_us
+        return processing_delay_us, dsp_corr_delay_us
 
     def process_data(self, filename, dtype=np.uint32):
         """ Reads a file taken with take_debug_data and processes it into data
