@@ -704,11 +704,11 @@ class SmurfTuneMixin(SmurfBase):
             # Take PSDs of ADC, DAC, and cross
             fs = self.get_digitizer_frequency_mhz() * 1.0E6
             f, p_dac = signal.welch(dac, fs=fs, nperseg=nsamp/2,
-                                    return_onesided=True)
+                                    return_onesided=False)
             f, p_adc = signal.welch(adc, fs=fs, nperseg=nsamp/2,
-                                    return_onesided=True)
+                                    return_onesided=False)
             f, p_cross = signal.csd(dac, adc, fs=fs, nperseg=nsamp/2,
-                                    return_onesided=True)
+                                    return_onesided=False)
 
             # Sort frequencies
             idx = np.argsort(f)
