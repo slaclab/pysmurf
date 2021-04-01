@@ -420,7 +420,7 @@ class SmurfConfig:
                 # Global feedback gain (might no longer be used in dspv3).
                 "feedbackLimitkHz" : And(Use(float), lambda f: f > 0),
 
-## TODO remove refPhaseDelay and refPhaseDelayFine
+                ## TODO remove refPhaseDelay and refPhaseDelayFine
                 # refPhaseDelay and refPhaseDelayFine are deprected
                 # use bandDelayUs instead
 
@@ -446,7 +446,7 @@ class SmurfConfig:
                 And([Use(int)], list, lambda l: len(l) == 2 and
                     l[0] != l[1] and all(0 <= ll <= 9 for ll in l)),
 
-## TODO remove lmsDelay
+                ## TODO remove lmsDelay
                 # lmsDelay is deprected use bandDelayUs instead
 
                 # Matches system latency for LMS feedback (9.6 MHz

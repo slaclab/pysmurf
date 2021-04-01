@@ -2234,7 +2234,7 @@ class SmurfConfigPropertiesMixin:
     @property
     def ref_phase_delay_fine(self):
         """DEPRECATED
-        
+
         Fine adjust for (analog + digital) round-trip delay.
 
         Gets or sets fine adjustment for the total (analog + digital)
