@@ -254,7 +254,6 @@ class SmurfUtilMixin(SmurfBase):
         # save time)
         n_subbands = self.get_number_sub_bands(band)
         digitizer_frequency_mhz = self.get_digitizer_frequency_mhz(band)
-        channel_frequency_mhz = self.get_channel_frequency_mhz(band)
         subband_half_width_mhz = digitizer_frequency_mhz/\
             n_subbands
         subbands,subband_centers=self.get_subband_centers(band)
@@ -442,8 +441,7 @@ class SmurfUtilMixin(SmurfBase):
         cable_residuals=cable_phase-(cable_p(f_cable_plot*1.0E6))
         ax[2].plot(f_cable_plot,cable_residuals-np.median(cable_residuals),
             label='Cable (full_band_resp)',c='g')
-        dsp_residuals=dsp_phase-(dsp_p(f_dsp_plot*1.0E6))
-        ax[2].plot(f_dsp_plot,dsp_corr_phase-np.median(dsp_corr_phase),
+        ax[2].plot(f_dsp_corr_plot,dsp_corr_phase-np.median(dsp_corr_phase),
             label='DSP (find_freq)', c='c')
         ax[2].set_title(f'AMC in Bay {bay}, Band {band} Residuals'.format(bay,band))
         ax[2].set_ylabel("Residual [rad]")
