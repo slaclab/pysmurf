@@ -302,18 +302,27 @@ class SmurfUtilMixin(SmurfBase):
         #### done measuring cable delay
 
         #### start measuring dsp delay (cable+processing)
-        self.set_band_delay_us(band, 0)
+## FIXME -- should be able to scan with "0" delay, not working
+        self.set_band_delay_us(band, 1)
 
         self.log('Running find_freq')
+        #freq_dsp,resp_dsp=self.find_freq(band, start_freq=freq_min, stop_freq=freq_max)
         freq_dsp,resp_dsp=self.find_freq(band,subband=dsp_subbands)
 
         # only preserve data in the subband half width
         freq_dsp_subset=[]
         resp_dsp_subset=[]
+        est_delay=[]
         for sb,sbc in zip(subbands,subband_centers):
             freq_subband=freq_dsp[sb]-sbc
             idx = np.where( ( freq_subband > subband_freq_min ) &
                 (freq_subband < subband_freq_max) )
+            if len(idx[0]) > 0:
+                dsp_z = np.polyfit(freq_dsp[sb][idx]*1e6, np.unwrap(np.angle(resp_dsp[sb][idx])), 1)
+                dsp_p = np.poly1d(dsp_z)
+                dsp_delay_us=np.abs(1.e6*dsp_z[0]/2/np.pi)
+                dsp_delay_us=dsp_delay_us + self.get_band_delay_us(band)
+                est_delay.append(dsp_delay_us)
             freq_dsp_subset.extend(freq_dsp[sb][idx])
             resp_dsp_subset.extend(resp_dsp[sb][idx])
 
@@ -334,11 +343,14 @@ class SmurfUtilMixin(SmurfBase):
         dsp_z = np.polyfit(freq_dsp_subset, np.unwrap(np.angle(resp_dsp_subset)), 1)
         dsp_p = np.poly1d(dsp_z)
         dsp_delay_us=np.abs(1.e6*dsp_z[0]/2/np.pi)
+        dsp_delay_us=dsp_delay_us + self.get_band_delay_us(band)
+        dsp_delay_us=np.mean(est_delay)
 
         processing_delay_us=dsp_delay_us-cable_delay_us
 
         print('-------------------------------------------------------')
         print(f'Estimated cable_delay_us={cable_delay_us}')
+        print(f'Estimated dsp_delay_us={dsp_delay_us}')
         print(f'Estimated processing_delay_us={processing_delay_us}')
         print('-------------------------------------------------------')
 
@@ -352,9 +364,18 @@ class SmurfUtilMixin(SmurfBase):
 
         freq_dsp_corr_subset=[]
         resp_dsp_corr_subset=[]
+        first = True
         for sb,sbc in zip(subbands,subband_centers):
             freq_subband=freq_dsp_corr[sb]-sbc
             idx = np.where( ( freq_subband > subband_freq_min ) & (freq_subband < subband_freq_max) )
+            if len(idx[0]) > 0:
+                if not first:
+                    last_phase = np.angle(resp_dsp_corr_subset[-1])
+                    new_phase  = np.angle(resp_dsp_corr[sb][idx[0]])
+                    resp_dsp_corr[sb][idx] = resp_dsp_corr[sb][idx] * np.exp(1j*(last_phase - new_phase))
+
+                if first:
+                    first = False
             freq_dsp_corr_subset.extend(freq_dsp_corr[sb][idx])
             resp_dsp_corr_subset.extend(resp_dsp_corr[sb][idx])
 
@@ -422,21 +443,13 @@ class SmurfUtilMixin(SmurfBase):
         ax[2].plot(f_cable_plot,cable_residuals-np.median(cable_residuals),
             label='Cable (full_band_resp)',c='g')
         dsp_residuals=dsp_phase-(dsp_p(f_dsp_plot*1.0E6))
-        ax[2].plot(f_dsp_plot,dsp_residuals-np.median(dsp_residuals),
+        ax[2].plot(f_dsp_plot,dsp_corr_phase-np.median(dsp_corr_phase),
             label='DSP (find_freq)', c='c')
-        ax[2].plot(f_dsp_corr_plot,dsp_corr_phase-np.median(dsp_corr_phase),
-            label='DSP corrected (find_freq)', c='m')
         ax[2].set_title(f'AMC in Bay {bay}, Band {band} Residuals'.format(bay,band))
         ax[2].set_ylabel("Residual [rad]")
         ax[2].set_xlabel('Frequency offset from band center [MHz]')
         ax[2].set_ylim([-5,5])
 
-        ax[2].text(.97, .92, f'refPhaseDelay={refPhaseDelay}',
-                   transform=ax[2].transAxes, fontsize=8,
-                   bbox=bbox,horizontalalignment='right')
-        ax[2].text(.97, .84, f'refPhaseDelayFine={refPhaseDelayFine}',
-                   transform=ax[2].transAxes, fontsize=8,
-                   bbox=bbox,horizontalalignment='right')
         ax[2].text(.97, .76,
                    f'processing delay={processing_delay_us:.5f} us (fw={fw_abbrev_sha})',
                    transform=ax[2].transAxes, fontsize=8,
@@ -466,6 +479,9 @@ class SmurfUtilMixin(SmurfBase):
 
         self.set_att_uc(band, uc_att0, write_log=True)
         self.set_att_dc(band, dc_att0, write_log=True)
+
+        if show_plot:
+            plt.show()
 
         return processing_delay_us, dsp_corr_delay_us
 
