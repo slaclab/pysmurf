@@ -481,7 +481,7 @@ class SmurfUtilMixin(SmurfBase):
         if show_plot:
             plt.show()
 
-        return processing_delay_us, dsp_corr_delay_us
+        return dsp_delay_us, dsp_corr_delay_us
 
     def process_data(self, filename, dtype=np.uint32):
         """ Reads a file taken with take_debug_data and processes it into data
