@@ -33,7 +33,8 @@ class SmurfIVMixin(SmurfBase):
                make_plot=True, save_plot=True, plotname_append='',
                channels=None, band=None, high_current_mode=True,
                overbias_voltage=8., grid_on=True,
-               phase_excursion_min=3., bias_line_resistance=None):
+               phase_excursion_min=3., bias_line_resistance=None,
+               do_analysis=True):
         """Takes a slow IV
 
         Steps the TES bias down slowly. Starts at bias_high to
@@ -84,6 +85,8 @@ class SmurfIVMixin(SmurfBase):
         bias_line_resistance : float or None, optional, default None
             The resistance of the bias lines in Ohms. If None, loads value
             in config file
+        do_analysis: bool, optional, default True
+            Whether to do the pysmurf IV analysis
 
         Returns
         -------
@@ -158,11 +161,15 @@ class SmurfIVMixin(SmurfBase):
         self.pub.register_file(path, 'iv_raw', format='npy')
 
         R_sh=self._R_sh
-        self.analyze_iv_from_file(fn_iv_raw_data, make_plot=make_plot,
-            show_plot=show_plot, save_plot=save_plot,
-            plotname_append=plotname_append, R_sh=R_sh, grid_on=grid_on,
-            phase_excursion_min=phase_excursion_min, channel=channels,
-            band=band, bias_line_resistance=bias_line_resistance)
+
+        if do_analysis:
+            self.log(f'Analyzing IV (do_analysis={do_analysis}).')
+
+            self.analyze_iv_from_file(fn_iv_raw_data, make_plot=make_plot,
+                show_plot=show_plot, save_plot=save_plot,
+                plotname_append=plotname_append, R_sh=R_sh, grid_on=grid_on,
+                phase_excursion_min=phase_excursion_min, channel=channels,
+                band=band, bias_line_resistance=bias_line_resistance)
 
         return path
 
@@ -301,7 +308,7 @@ class SmurfIVMixin(SmurfBase):
                              phase_excursion_min=3., grid_on=False,
                              R_op_target=0.007, pA_per_phi0=None,
                              channel=None, band=None, datafile=None,
-                             plot_dir=None,
+                             output_dir = None, plot_dir=None,
                              bias_line_resistance=None):
         """
         Function to analyze a load curve from its raw file. Can be used to
@@ -340,6 +347,9 @@ class SmurfIVMixin(SmurfBase):
             where the data was copied to a new directory. The
             directory is usually loaded from the .npy file, and this
             overwrites it.
+        output_dir: str of None, optional, default None
+            The full path of where to save the output of the IV analysis.
+            Useful if the data has been moved from the original format.
         plot_dir : str or None, optional, default None
             The full path to the plot directory. This is usually
             loaded with the input numpy dictionary. This overwrites
@@ -366,7 +376,8 @@ class SmurfIVMixin(SmurfBase):
         bands, chans = np.where(mask != -1)
 
         basename = iv_raw_data['basename']
-        output_dir = iv_raw_data['output_dir']
+        if output_dir is None:
+            output_dir = iv_raw_data['output_dir']
 
         if plot_dir is None:
             plot_dir = iv_raw_data['plot_dir']
@@ -899,10 +910,12 @@ class SmurfIVMixin(SmurfBase):
             vb_max = np.max(v_bias)
             vb_min = np.min(v_bias)
             delta_v = float(vb_max - vb_min)/n_ticks
-            axt.set_xticks(np.arange(ib_min, ib_max+delta, delta))
+            xticks = np.arange(ib_min, ib_max+delta, delta)[:n_ticks+1]
+            xticklabels = np.arange(vb_min, vb_max+delta_v, delta_v)[:n_ticks+1]
+
+            axt.set_xticks(xticks)
             axt.set_xticklabels(
-                [f'{x:.2f}' for x in
-                 np.arange(vb_min, vb_max+delta_v, delta_v)])
+                [f'{x:.2f}' for x in xticklabels])
             axt.set_xlabel(r'Commanded $V_b$ [V]')
 
             ax_si.plot(i_bias_bin[:-1],si,color=color_meas)

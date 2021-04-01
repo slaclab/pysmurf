@@ -112,7 +112,8 @@ class SmurfCommandMixin(SmurfBase):
 
     def _caget(self, cmd, write_log=False, execute=True, count=None,
                log_level=0, enable_poll=False, disable_poll=False,
-               new_epics_root=None, yml=None, **kwargs):
+               new_epics_root=None, yml=None, retry_on_fail=True,
+               max_retry=5, **kwargs):
         r"""Gets variables from epics.
 
         Wrapper around pyrogue lcaget. Gets variables from epics.
@@ -137,6 +138,10 @@ class SmurfCommandMixin(SmurfBase):
             Temporarily replaces current epics root with a new one.
         yml : str or None, optional, default None
             If not None, yaml file to parse for the result.
+        retry_on_fail : bool
+            Whether to retry the caget if it fails on first attempt
+        max_retry : int
+            The number of times to retry if caget fails the first time.
         \**kwargs
             Arbitrary keyword arguments.  Passed directly to the
             `epics.caget` call.
@@ -163,9 +168,22 @@ class SmurfCommandMixin(SmurfBase):
             if write_log:
                 self.log(f'Reading from yml file\n {cmd}')
             return tools.yaml_parse(yml, cmd)
-
+        # Get the data
         elif execute and not self.offline:
             ret = epics.caget(cmd, count=count, **kwargs)
+
+            # If epics doesn't respond in time, epics.caget returns None.
+            if ret is None and retry_on_fail:
+                self.log(f"Command failed: {cmd}")
+                n_retry = 0
+                while n_retry < max_retry and ret is None:
+                    self.log(f'Retry attempt {n_retry+1} of {max_retry}')
+                    ret = epics.caget(cmd, count=count, **kwargs)
+                    n_retry += 1
+
+            # After retries, raise error
+            if ret is None:
+                raise RuntimeError("epics failed to respond")
             if write_log:
                 self.log(ret)
         else:
@@ -579,10 +597,16 @@ class SmurfCommandMixin(SmurfBase):
                 # We successfully exit the loop when we are able to
                 # read the "ConfiguringInProgress" flag and it is set
                 # to "False".  Otherwise we keep trying.
-                if self.get_configuring_in_progress(
-                        timeout=caget_timeout_sec, **kwargs) is False:
-                    success=True
-                    break
+                # We disable the retry_on_fail feature and instead we catch any
+                # RuntimeError exception and keep trying.
+                try:
+                    if self.get_configuring_in_progress(
+                            timeout=caget_timeout_sec,
+                            retry_on_fail=False, **kwargs) is False:
+                        success=True
+                        break
+                except RuntimeError:
+                    pass
 
             # If after out maximum defined timeout, we weren't able to
             # read the "ConfiguringInProgress" flags as "False", we
@@ -1291,6 +1315,37 @@ class SmurfCommandMixin(SmurfBase):
             self._cryo_root(band) + self._eta_scan_dwell_reg,
             **kwargs)
 
+    _run_serial_find_freq_reg = 'runSerialFindFreq'
+
+    def set_run_serial_find_freq(self, band, val, sync_group=True, **kwargs):
+        """
+        Runs the eta scan. Set the channel using set_eta_scan_channel()
+
+        Args
+        ----
+        band : int
+            The band to eta scan.
+        val : bool
+            Start the eta scan.
+        """
+        self._caput(
+            self._cryo_root(band) + self._run_serial_find_freq_reg,
+            val, **kwargs)
+
+        monitorPV=(
+            self._cryo_root(band) + self._eta_scan_in_progress_reg)
+
+        inProgress = True
+        if sync_group:
+            while inProgress:
+                sg = SyncGroup([monitorPV], timeout=360)
+                sg.wait()
+                vals = sg.get_values()
+                inProgress = (vals[monitorPV] == 1)
+            self.log(
+                'serial find freq complete ; etaScanInProgress = ' +
+                f'{vals[monitorPV]}', self.LOG_USER)
+
     _run_eta_scan_reg = 'runEtaScan'
 
     def set_run_eta_scan(self, band, val, **kwargs):
@@ -1528,9 +1583,7 @@ class SmurfCommandMixin(SmurfBase):
         """
         Enable/disable streaming data, for all bands.
         """
-        self._caput(
-            self.app_core + self._stream_enable_reg,
-            val, **kwargs)
+        self._caput(self.app_core + self._stream_enable_reg, val, **kwargs)
 
     def get_stream_enable(self, **kwargs):
         """
@@ -1676,8 +1729,7 @@ class SmurfCommandMixin(SmurfBase):
 
     def set_ref_phase_delay(self, band, val, **kwargs):
         """
-        Corrects for roundtrip cable delay freqError = IQ * etaMag,
-        rotated by etaPhase+refPhaseDelay
+        Deprecated.  Use set_band_delay_us instead.
         """
         self._caput(
             self._band_root(band) + self._ref_phase_delay_reg,
@@ -1685,8 +1737,7 @@ class SmurfCommandMixin(SmurfBase):
 
     def get_ref_phase_delay(self, band, **kwargs):
         """
-        Corrects for roundtrip cable delay freqError = IQ * etaMag,
-        rotated by etaPhase+refPhaseDelay
+        Deprecated.  Use get_band_delay_us instead.
         """
         return self._caget(
             self._band_root(band) + self._ref_phase_delay_reg,
@@ -1696,6 +1747,7 @@ class SmurfCommandMixin(SmurfBase):
 
     def set_ref_phase_delay_fine(self, band, val, **kwargs):
         """
+        Deprecated.  Use set_band_delay_us instead.
         """
         self._caput(
             self._band_root(band) + self._ref_phase_delay_fine_reg,
@@ -1703,9 +1755,31 @@ class SmurfCommandMixin(SmurfBase):
 
     def get_ref_phase_delay_fine(self, band, **kwargs):
         """
+        Deprecated.  Use get_band_delay_us instead.
         """
         return self._caget(
             self._band_root(band) + self._ref_phase_delay_fine_reg,
+            **kwargs)
+
+    _band_delay_us_reg = 'bandDelayUs'
+
+    def set_band_delay_us(self, band, val, **kwargs):
+        """
+        Set band delay compensation, microseconds.  Corrects
+        for total system delay (cable, DSP, etc.).  Internally
+        configures both ref_phase_delay and ref_phase_delay_fine
+        """
+        self._caput(
+            self._band_root(band) + self._band_delay_us_reg,
+            val, **kwargs)
+
+    def get_band_delay_us(self, band, **kwargs):
+        """
+        Get band delay compensation, microseconds.  Corrects
+        for total system delay (cable, DSP, etc.).
+        """
+        return self._caget(
+            self._band_root(band) + self._band_delay_us_reg,
             **kwargs)
 
     _tone_scale_reg = 'toneScale'
@@ -3631,8 +3705,7 @@ class SmurfCommandMixin(SmurfBase):
         """
         Toggles the cpld reset bit.
         """
-        self.set_cpld_reset(1, wait_done=True, **kwargs)
-        self.set_cpld_reset(0, wait_done=True, **kwargs)
+        self.reset_rtm(**kwargs)
 
     _k_relay_reg = 'KRelay'
 
@@ -3853,7 +3926,7 @@ class SmurfCommandMixin(SmurfBase):
     # used to drive the amplifier gate.
     _rtm_slow_dac_enable_reg = 'TesBiasDacCtrlRegCh[{}]'
 
-    def set_rtm_slow_dac_enable(self, dac, val, **kwargs):
+    def set_rtm_slow_dac_enable(self, dac, val=2, **kwargs):
         """
         Set DacCtrlReg for this DAC, which configures the AD5790
         analog output for the requested DAC number.  Set to 0x2 to
@@ -3867,14 +3940,18 @@ class SmurfCommandMixin(SmurfBase):
             of the valid range is provided (must be within [1,32]),
             will assert.
         val : int
-            Value to set the DAC enable to.
+            Value to set the DAC enable to. enabled is 0x2, disabled is 0xE.
+            Power on default is 0xE.
         """
         assert (dac in range(1,33)),'dac must be an integer and in [1,32]'
 
-        self._caput(
-            self.rtm_spi_max_root +
-            self._rtm_slow_dac_enable_reg.format(dac),
-            val, **kwargs)
+        # only ever set this to 0x2 or 0xE (enable or disable)
+        if (val != 0x2) and (val != 0xE):
+            self.log("RTM dac val must be 0x2 or 0xE. Setting to 0x2 (enabled).")
+            val = 0x2
+
+        self._caput(self.rtm_spi_max_root +
+            self._rtm_slow_dac_enable_reg.format(dac), val, **kwargs)
 
     def get_rtm_slow_dac_enable(self, dac, **kwargs):
         """
@@ -3917,10 +3994,19 @@ class SmurfCommandMixin(SmurfBase):
         ----
         val : int array
             Length 32, addresses the DACs in DAC ordering.  If
-            provided array is not length 32, asserts.
+            provided array is not length 32, asserts. Power on
+            default is 0xE, enabled is 0x2, disable is 0xE.
         """
         assert (len(val)==32),(
             'len(val) must be 32, the number of DACs in hardware.')
+
+        # only ever set this to 0x2 or 0xE
+        if np.any(np.logical_and(val != 0x2 , val != 0xE)):
+            self.log("All values in val must be 0x2 or 0xE. " +
+                "Setting incorrect values to 0x2 (enable)." )
+
+        val = [0x2 if v != 0x2 and v != 0xE else v for v in val]
+
         self._caput(
             self.rtm_spi_max_root +
             self._rtm_slow_dac_enable_array_reg,
@@ -4666,12 +4752,11 @@ class SmurfCommandMixin(SmurfBase):
             The UltraScale+ FPGA temperature in degrees Celsius.
         """
         return self._caget(
-            self.epics_root +
             self.ultrascale +
             self._fpga_temperature_reg,
             **kwargs)
 
-    _fpga_vccint_reg = ":VccInt"
+    _fpga_vccint_reg = "VccInt"
 
     def get_fpga_vccint(self, **kwargs):
         """
@@ -4681,7 +4766,6 @@ class SmurfCommandMixin(SmurfBase):
             The UltraScale+ FPGA VccInt in Volts.
         """
         return self._caget(
-            self.epics_root +
             self.ultrascale +
             self._fpga_vccint_reg,
             **kwargs)
@@ -4696,7 +4780,6 @@ class SmurfCommandMixin(SmurfBase):
             The UltraScale+ FPGA VccAux in Volts.
         """
         return self._caget(
-            self.epics_root +
             self.ultrascale +
             self._fpga_vccaux_reg,
             **kwargs)
@@ -4711,7 +4794,6 @@ class SmurfCommandMixin(SmurfBase):
             The UltraScale+ FPGA VccBram in Volts.
         """
         return self._caget(
-            self.epics_root +
             self.ultrascale +
             self._fpga_vccbram_reg,
             **kwargs)
@@ -5210,6 +5292,48 @@ class SmurfCommandMixin(SmurfBase):
             self._trigger_channel_reg_dest_sel_reg.format(chan),
             val, **kwargs)
 
+    _dbg_enable_reg = "enable"
+
+    def set_dbg_enable(self, bay, val, **kwargs):
+        r"""Enables/disables write access to DBG registers.
+
+        Args
+        ----
+        bay : int
+            Which bay [0 or 1].
+        val : bool
+            True for enable, False for disable.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caput` call.
+        """
+        self._caput(
+            self.DBG.format(bay) + self._dbg_enable_reg,
+            val, **kwargs)
+
+    def get_dbg_enable(self, bay, **kwargs):
+        r"""Whether or not write access is enabled for DBG registers.
+
+        If disabled (=False), user cannot write to any of the DBG
+        registers.
+
+        Args
+        ----
+        bay : int
+            Which bay [0 or 1].
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caget` call.
+
+        Returns
+        -------
+        bool
+            True for enabled, False for disabled.
+        """
+        return self._caget(
+            self.DBG.format(bay) + self._dbg_enable_reg,
+            **kwargs)
+
     _dac_reset_reg = 'dacReset[{}]'
 
     def set_dac_reset(self, bay, dac, val, **kwargs):
@@ -5357,9 +5481,10 @@ class SmurfCommandMixin(SmurfBase):
         int
             The frame count number
         """
-        return self._caget(
+        return int(self._caget(
             self.frame_rx_stats + self._frame_count_reg,
-            **kwargs)
+            as_string=True,
+            **kwargs))
 
     _frame_size_reg = 'FrameSize'
 
@@ -5656,8 +5781,7 @@ class SmurfCommandMixin(SmurfBase):
         str
             The file name.
         """
-        return self._caget(
-            self.smurf_processor + self._data_file_name_reg,
+        return self._caget(self.smurf_processor + self._data_file_name_reg,
             **kwargs)
 
     _data_file_open_reg = 'FileWriter:Open'
@@ -5666,9 +5790,8 @@ class SmurfCommandMixin(SmurfBase):
         """
         Open the data file.
         """
-        self._caput(
-            self.smurf_processor + self._data_file_open_reg,
-            1, **kwargs)
+        self._caput(self.smurf_processor + self._data_file_open_reg, 1,
+            **kwargs)
 
     _data_file_close_reg = 'FileWriter:Close'
 
@@ -5676,9 +5799,8 @@ class SmurfCommandMixin(SmurfBase):
         """
         Close the data file.
         """
-        self._caput(
-            self.smurf_processor + self._data_file_close_reg,
-            1, **kwargs)
+        self._caput(self.smurf_processor + self._data_file_close_reg, 1,
+            **kwargs)
 
     _num_channels_reg = "NumChannels"
 
@@ -5726,4 +5848,229 @@ class SmurfCommandMixin(SmurfBase):
         """
         return self._caget(
             self.channel_mapper + self._payload_size_reg,
+            **kwargs)
+
+    ### Data emulator
+
+    def set_predata_emulator_enable(self, val, **kwargs):
+        """
+        Turns on and off the predata emulator.
+        """
+        self._caput(self._predata_emulator + 'enable', val, **kwargs)
+
+    def get_predata_emulator_enable(self, **kwargs):
+        """
+        Gets the enable bit for predata emulator.
+        """
+        return self._caget(self._predata_emulator + 'enable', **kwargs)
+
+    _predata_emulator_type = "Type"
+
+    def set_predata_emulator_type(self, val, **kwargs):
+        """
+        Args
+        ----
+        val : str
+            The data type. Choices are - Zeros, ChannelNumber, Random, Square,
+            Sawtooth, Triangle, Sine, and DropFrame
+        """
+        self._caput(self._predata_emulator + self._predata_emulator_type, val,
+            **kwargs)
+
+    def get_predata_emulator_type(self, **kwargs):
+        """
+        Gets the predata emulator type.
+
+        Returns
+        -------
+        type : int
+            0 - Zeros, 1 - ChannelNumber, 2 - Random, 3 - Square,
+            4 - Sawtooth, 5 - Triangle, 6 - Sine, 7 - DropFrame
+        """
+        return self._caget(self._predata_emulator + self._predata_emulator_type,
+            **kwargs)
+
+    _predata_emulator_amplitude = "Amplitude"
+
+    def set_predata_emulator_amplitude(self, val, **kwargs):
+        """
+        """
+        self._caput(self._predata_emulator + self._predata_emulator_amplitude,
+            val, **kwargs)
+
+    def get_predata_emulator_amplitude(self, **kwargs):
+        """
+        """
+        return self._caget(self._predata_emulator +
+            self._predata_emulator_amplitude, **kwargs)
+
+    _predata_emulator_offset = "Offset"
+
+    def set_predata_emulator_offset(self, val, **kwargs):
+        """
+        """
+        self._caput(self._predata_emulator + self._predata_emulator_offset, val,
+            **kwargs)
+
+    def get_predata_emulator_offset(self, **kwargs):
+        """
+        """
+        return self._caget(self._predata_emulator +
+            self._predata_emulator_offset, **kwargs)
+
+    _predata_emulator_period = "Period"
+
+    def set_predata_emulator_period(self, val, **kwargs):
+        """
+        Expressed as the number of incoming frames. It must be greater that 2.
+        This period will be expressed in term of the period of the received
+        frames, which in turn is related to the flux ramp period.
+
+        Args
+        ----
+        val : int
+            Number of frames that make up a period.
+        """
+        # Cast as str
+        if not isinstance(val, str):
+            val = str(val)
+        self._caput(self._predata_emulator + self._predata_emulator_period, val,
+            **kwargs)
+
+    def get_predata_emulator_period(self, **kwargs):
+        """
+        Expressed as the number of incoming frames. It must be greater that 2.
+        This period will be expressed in term of the period of the received
+        frames, which in turn is related to the flux ramp period.
+
+        Returns
+        -------
+        period : int
+            Number of frames that make up a period
+        """
+        # Get as string and then cast as int
+        return int(self._caget(self._predata_emulator +
+            self._predata_emulator_period, as_string=True, **kwargs))
+
+    def set_postdata_emulator_enable(self, val, **kwargs):
+        """
+        """
+        self._caput(self._postdata_emulator + 'enable', val, **kwargs)
+
+    def get_postdata_emulator_enable(self, **kwargs):
+        """
+        """
+        return self._caget(self._postdata_emulator + 'enable', **kwargs)
+
+    _postdata_emulator_type = "Type"
+
+    def set_postdata_emulator_type(self, val, **kwargs):
+        """
+        Args
+        ----
+        val : str
+            The data type. Choices are - Zeros, ChannelNumber, Random, Square,
+            Sawtooth, Triangle, Sine, and DropFrame
+        """
+        self._caput(self._postdata_emulator + self._postdata_emulator_type, val,
+            **kwargs)
+
+    def get_postdata_emulator_type(self, **kwargs):
+        """
+        Gets the postdata emulator type.
+
+        Returns
+        -------
+        type : int
+            0 - Zeros, 1 - ChannelNumber, 2 - Random, 3 - Square,
+            4 - Sawtooth, 5 - Triangle, 6 - Sine, 7 - DropFrame
+        """
+        return self._caget(self._postdata_emulator +
+            self._postdata_emulator_type, **kwargs)
+
+    _postdata_emulator_amplitude = "Amplitude"
+
+    def set_postdata_emulator_amplitude(self, val, **kwargs):
+        """
+        """
+        self._caput(self._postdata_emulator + self._postdata_emulator_amplitude,
+            val, **kwargs)
+
+    def get_postdata_emulator_amplitude(self, **kwargs):
+        """
+        """
+        return self._caget(self._postdata_emulator +
+            self._postdata_emulator_amplitude, **kwargs)
+
+    _postdata_emulator_offset = "Offset"
+
+    def set_postdata_emulator_offset(self, val, **kwargs):
+        """
+        """
+        self._caput(self._postdata_emulator + self._postdata_emulator_offset,
+            val, **kwargs)
+
+    def get_postdata_emulator_offset(self, **kwargs):
+        """
+        """
+        return self._caget(self._postdata_emulator +
+            self._postdata_emulator_offset, **kwargs)
+
+    _postdata_emulator_period = "Period"
+
+    def set_postdata_emulator_period(self, val, **kwargs):
+        """
+        Expressed as the number of incoming frames. It must be greater that 2.
+        This period will be expressed in terms of the downsampler periods. Note
+        that this is different from the predata emulator.
+
+        Args
+        -----
+        val : int
+            Number of frames that make up a period.
+        """
+        if not isinstance(val, str):
+            val = str(val)
+        self._caput(self._postdata_emulator + self._postdata_emulator_period,
+            val, **kwargs)
+
+    def get_postdata_emulator_period(self, **kwargs):
+        """
+        Returns
+        -------
+        period : int
+            Number of frames that make up a period.
+        """
+        return int(self._caget(self._postdata_emulator +
+            self._postdata_emulator_period, as_string=True, **kwargs))
+
+    _stream_data_source_enable = "SourceEnable"
+
+    def set_stream_data_source_enable(self, val, **kwargs):
+        """
+        Sets the data stream enable bit. Must be set to True to stream data.
+        """
+        self._caput(self.stream_data_source + self._stream_data_source_enable,
+            val, **kwargs)
+
+    def get_stream_data_source_enable(self, **kwargs):
+        """
+        """
+        return self._caget(self.stream_data_source +
+            self._stream_data_source_enable, **kwargs)
+
+    _stream_data_period = "Period"
+
+    def set_stream_data_source_period(self, val, **kwargs):
+        """
+        Sets the data source period.
+        """
+        self._caput(self.stream_data_source + self._stream_data_period, val,
+            **kwargs)
+
+    def get_stream_data_source_period(self, **kwargs):
+        """
+        Gets the data source period.
+        """
+        return self._caget(self.stream_data_source + self._stream_data_period,
             **kwargs)

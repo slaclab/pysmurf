@@ -245,58 +245,58 @@ class SmurfControl(SmurfCommandMixin,
             else:
                 self.log.set_logfile(None)
 
-        # Which bays were enabled on pysmurf server startup?
-        self.bays = self.which_bays()
+            # Which bays were enabled on pysmurf server startup?
+            self.bays = self.which_bays()
 
-        # Crate/carrier configuration details that won't change.
-        self.crate_id = self.get_crate_id()
-        self.slot_number = self.get_slot_number()
+            # Crate/carrier configuration details that won't change.
+            self.crate_id = self.get_crate_id()
+            self.slot_number = self.get_slot_number()
 
-        # Channel assignment files
-        self.channel_assignment_files = {}
-        if not no_dir:
+            # Channel assignment files
+            self.channel_assignment_files = {}
+            if not no_dir:
+                for band in self._bands:
+                    all_channel_assignment_files = glob.glob(
+                        os.path.join(
+                            self.tune_dir,
+                            f'*channel_assignment_b{band}.txt'))
+                    if len(all_channel_assignment_files):
+                        self.channel_assignment_files[f'band_{band}'] = \
+                            np.sort(all_channel_assignment_files)[-1]
+
+            # Which bands are usable, based on which bays are enabled.
+            # Will use to check if pysmurf configuration file has unusable
+            # bands defined, or no definition for usable bands.
+            usable_bands=[]
+            for bay in self.bays:
+                # There are four bands per bay.  Bay 0 provides bands 0,
+                # 1, 2, and 3, and bay 1 provides bands 4, 5, 6 and 7.
+                usable_bands+=range(bay*4,4*(bay+1))
+
+            # Compare usable bands to bands defined in pysmurf
+            # configuration file.
+
+            # Check if an unusable band is defined in the pysmurf cfg
+            # file.
             for band in self._bands:
-                all_channel_assignment_files = glob.glob(
-                    os.path.join(
-                        self.tune_dir,
-                        f'*channel_assignment_b{band}.txt'))
-                if len(all_channel_assignment_files):
-                    self.channel_assignment_files[f'band_{band}'] = \
-                        np.sort(all_channel_assignment_files)[-1]
+                if band not in usable_bands:
+                    self.log(f'ERROR : band {band} is present in ' +
+                             'pysmurf cfg file, but its bay is not ' +
+                             'enabled!', self.LOG_ERROR)
 
-        # Which bands are usable, based on which bays are enabled.
-        # Will use to check if pysmurf configuration file has unusable
-        # bands defined, or no definition for usable bands.
-        usable_bands=[]
-        for bay in self.bays:
-            # There are four bands per bay.  Bay 0 provides bands 0,
-            # 1, 2, and 3, and bay 1 provides bands 4, 5, 6 and 7.
-            usable_bands+=range(bay*4,4*(bay+1))
+            # Check if a usable band is not defined in the pysmurf cfg
+            # file.
+            for band in usable_bands:
+                if band not in self._bands:
+                    self.log(f'WARNING : band {band} bay is enabled, ' +
+                             'but no configuration information ' +
+                             'provided!', self.LOG_ERROR)
 
-        # Compare usable bands to bands defined in pysmurf
-        # configuration file.
-
-        # Check if an unusable band is defined in the pysmurf cfg
-        # file.
-        for band in self._bands:
-            if band not in usable_bands:
-                self.log(f'ERROR : band {band} is present in ' +
-                         'pysmurf cfg file, but its bay is not ' +
-                         'enabled!', self.LOG_ERROR)
-
-        # Check if a usable band is not defined in the pysmurf cfg
-        # file.
-        for band in usable_bands:
-            if band not in self._bands:
-                self.log(f'WARNING : band {band} bay is enabled, ' +
-                         'but no configuration information ' +
-                         'provided!', self.LOG_ERROR)
-
-        ## Make band dictionaries
-        self.freq_resp = {}
-        for band in self._bands:
-            self.freq_resp[band] = {}
-            self.freq_resp[band]['lock_status'] = {}
+            ## Make band dictionaries
+            self.freq_resp = {}
+            for band in self._bands:
+                self.freq_resp[band] = {}
+                self.freq_resp[band]['lock_status'] = {}
 
         if setup:
             success = self.setup(payload_size=payload_size, **kwargs)
@@ -407,6 +407,13 @@ class SmurfControl(SmurfCommandMixin,
         dacs = [0, 1]
         for val in [1, 0]:
             for bay in self.bays:
+
+                # In newer software versions, setDefaults disables
+                # DBG:enable after loading the defaults.yml.  This
+                # makes sure we can reset the RF DACs.
+                self.set_dbg_enable(bay, True)
+
+                # Reset all RF DACs in use.
                 for dac in dacs:
                     self.set_dac_reset(
                         bay, dac, val, write_log=write_log)
@@ -437,37 +444,40 @@ class SmurfControl(SmurfCommandMixin,
                 self.LOG_ERROR)
             success = False
 
-        #
-        # setDefaults runs the JesdHealth check, so just need to poll
-        # status.
-        jesd_health_status = self.get_jesd_status(write_log=write_log)
+        # Only proceed with the rest of setup if the defaults were set
+        # correctly.
+        if success:
+            # setDefaults runs the JesdHealth check, so just need to poll
+            # status.
+            jesd_health_status = self.get_jesd_status(write_log=write_log)
 
-        # Checking if JesdHealth is Locked is only supported for Rogue
-        # ZIP file versions >=0.3.0 and pysmurf core code versions
-        # >=4.1.0.  If it's not supported, self.set_check_jesd will
-        # return None if the JesdHealth registers in SmurfApplication
-        # aren't present or 'Not found' if they are present but the
-        # JesdHealth method isn't implemented in the loaded Rogue ZIP
-        # file.  Overriding None with True to skip this check for
-        # older versions of pysmurf that don't support the JesdHealth
-        # check.  Log an error if the JesdHealth check reports that
-        # JESD is unlocked.
-        if ( jesd_health_status is not None and
-             jesd_health_status != 'Not found' and
-             jesd_health_status != 'Locked' ):
-            self.log(
-                'ERROR : JESD is not locked!  Do not proceed!'
-                ' Reboot or ask someone for help.  You are strongly'
-                ' encouraged to report this as an issue on the'
-                ' pysmurf github repo at'
-                ' https://github.com/slaclab/pysmurf/issues (please'
-                ' provide a state dump using the pysmurf'
-                ' set_read_all/save_state functions).',
-                self.LOG_ERROR)
-            success = False
+            # Checking if JesdHealth is Locked is only supported for Rogue
+            # ZIP file versions >=0.3.0 and pysmurf core code versions
+            # >=4.1.0.  If it's not supported, self.set_check_jesd will
+            # return None if the JesdHealth registers in SmurfApplication
+            # aren't present or 'Not found' if they are present but the
+            # JesdHealth method isn't implemented in the loaded Rogue ZIP
+            # file.  Overriding None with True to skip this check for
+            # older versions of pysmurf that don't support the JesdHealth
+            # check.  Log an error if the JesdHealth check reports that
+            # JESD is unlocked.
+            if ( jesd_health_status is not None and
+                 jesd_health_status != 'Not found' and
+                 jesd_health_status != 'Locked' ):
+                self.log(
+                    'ERROR : JESD is not locked!  Do not proceed!'
+                    ' Reboot or ask someone for help.  You are strongly'
+                    ' encouraged to report this as an issue on the'
+                    ' pysmurf github repo at'
+                    ' https://github.com/slaclab/pysmurf/issues (please'
+                    ' provide a state dump using the pysmurf'
+                    ' set_read_all/save_state functions).',
+                    self.LOG_ERROR)
+                success = False
 
-        # Only proceed with the rest of setup if basic system checks
-        # succeeded, otherwise we risk giving users false hope.
+        # Only proceed with the rest of setup if defaults were set
+        # correctly and basic system checks succeeded, otherwise we
+        # risk giving users false hope.
         if success:
             # The per band configs. May want to make available per-band
             # values.
@@ -477,26 +487,36 @@ class SmurfControl(SmurfCommandMixin,
                 self.set_iq_swap_out(band, self._iq_swap_out[band],
                                      write_log=write_log, **kwargs)
 
-                self.set_ref_phase_delay(
-                    band,
-                    self._ref_phase_delay[band],
-                    write_log=write_log, **kwargs)
-                self.set_ref_phase_delay_fine(
-                    band,
-                    self._ref_phase_delay_fine[band],
-                    write_log=write_log, **kwargs)
-
-                # in DSPv3, lmsDelay should be 4*refPhaseDelay (says
-                # Mitch).  If none provided in cfg, enforce that
-                # constraint.  If provided in cfg, override with provided
-                # value.
-                if self._lms_delay[band] is None:
-                    self.set_lms_delay(
-                        band, int(4*self._ref_phase_delay[band]),
+                if self._ref_phase_delay[band]:
+                    self.set_ref_phase_delay(
+                        band,
+                        self._ref_phase_delay[band],
                         write_log=write_log, **kwargs)
+                    self.set_ref_phase_delay_fine(
+                        band,
+                        self._ref_phase_delay_fine[band],
+                        write_log=write_log, **kwargs)
+
+                    # in DSPv3, lmsDelay should be 4*refPhaseDelay (says
+                    # Mitch).  If none provided in cfg, enforce that
+                    # constraint.  If provided in cfg, override with provided
+                    # value.
+                    if self._lms_delay[band] is None:
+                        self.set_lms_delay(
+                            band, int(4*self._ref_phase_delay[band]),
+                            write_log=write_log, **kwargs)
+                    else:
+                        self.set_lms_delay(
+                            band, self._lms_delay[band],
+                            write_log=write_log, **kwargs)
+                # we'll use the next band_delay_us
                 else:
-                    self.set_lms_delay(
-                        band, self._lms_delay[band],
+                    if self._band_delay_us[band] is None:
+                        raise RuntimeError("Must define either refPhaseDelay " +
+                                           "and refPhaseDelayFine or bandDelayUs")
+                    self.set_band_delay_us(
+                        band,
+                        self._band_delay_us[band],
                         write_log=write_log, **kwargs)
 
                 self.set_lms_gain(
@@ -587,6 +607,7 @@ class SmurfControl(SmurfCommandMixin,
 
             self.set_cpld_reset(0, write_log=write_log)
             self.cpld_toggle(write_log=write_log)
+            self.all_off()
 
             # Make sure flux ramp starts off
             self.flux_ramp_off(write_log=write_log)

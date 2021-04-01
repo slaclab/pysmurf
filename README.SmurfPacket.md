@@ -16,7 +16,7 @@ The header is 128-byte long and contains the following information:
 |                |       3           |         1         | Smurf timing Configuration                    | (clock lock / unlock), (external ref, fiber timing ref)
 |                |       4           |         4         | Number of channels of data                    | 32 bit word giving number channels of following data
 |       1        |       8           |        40         | TES DAC 0-15                                  | TES DAC values. 16X 20 bit in 10X32 bit words, or 5X 65 bit
-|       6        |      48           |         8         | 64 bit unix time                              | 64 bit unix time nanoseconds
+|       6        |      48           |         8         | 64-bit epoch UNIX time                        | 64-bit UNIX epoch time, in nanoseconds
 |       7        |      56           |         4         | Flux ramp increment                           | signed 32 bit integer for increment
 |                |      60           |         4         | Flux ramp offset                              | signed 32 it integer for offset
 |       8        |      64           |         4         | Counter 0, since last 1Hz marker              | 32 bit counter since last 1Hz marker

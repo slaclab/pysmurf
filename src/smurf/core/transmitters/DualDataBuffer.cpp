@@ -43,6 +43,13 @@ sct::DualDataBuffer<T>::DualDataBuffer(std::function<void(T)> callbackFunc, cons
 }
 
 template <typename T>
+sct::DualDataBuffer<T>::~DualDataBuffer()
+{
+    runTxThread = false;
+    txThread.join();
+}
+
+template <typename T>
 sct::DualDataBufferPtr<T> sct::DualDataBuffer<T>::create(std::function<void(T)> callbackFunc, const std::string& threadName)
 {
     return std::make_shared< DualDataBuffer<T> >(callbackFunc, threadName);
@@ -97,9 +104,9 @@ void sct::DualDataBuffer<T>::txTransmitter()
         // Check if new data is ready
         if ( !txDataReady )
         {
-            // Wait until data is ready, with a 10s timeout
+            // Wait until data is ready, with a 1s timeout
             std::unique_lock<std::mutex> lock(txMutex);
-            txCV.wait_for( lock, std::chrono::seconds(10) );
+            txCV.wait_for( lock, std::chrono::seconds(1) );
         }
         else
         {
