@@ -487,26 +487,36 @@ class SmurfControl(SmurfCommandMixin,
                 self.set_iq_swap_out(band, self._iq_swap_out[band],
                                      write_log=write_log, **kwargs)
 
-                self.set_ref_phase_delay(
-                    band,
-                    self._ref_phase_delay[band],
-                    write_log=write_log, **kwargs)
-                self.set_ref_phase_delay_fine(
-                    band,
-                    self._ref_phase_delay_fine[band],
-                    write_log=write_log, **kwargs)
-
-                # in DSPv3, lmsDelay should be 4*refPhaseDelay (says
-                # Mitch).  If none provided in cfg, enforce that
-                # constraint.  If provided in cfg, override with provided
-                # value.
-                if self._lms_delay[band] is None:
-                    self.set_lms_delay(
-                        band, int(4*self._ref_phase_delay[band]),
+                if self._ref_phase_delay[band]:
+                    self.set_ref_phase_delay(
+                        band,
+                        self._ref_phase_delay[band],
                         write_log=write_log, **kwargs)
+                    self.set_ref_phase_delay_fine(
+                        band,
+                        self._ref_phase_delay_fine[band],
+                        write_log=write_log, **kwargs)
+
+                    # in DSPv3, lmsDelay should be 4*refPhaseDelay (says
+                    # Mitch).  If none provided in cfg, enforce that
+                    # constraint.  If provided in cfg, override with provided
+                    # value.
+                    if self._lms_delay[band] is None:
+                        self.set_lms_delay(
+                            band, int(4*self._ref_phase_delay[band]),
+                            write_log=write_log, **kwargs)
+                    else:
+                        self.set_lms_delay(
+                            band, self._lms_delay[band],
+                            write_log=write_log, **kwargs)
+                # we'll use the next band_delay_us
                 else:
-                    self.set_lms_delay(
-                        band, self._lms_delay[band],
+                    if self._band_delay_us[band] is None:
+                        raise RuntimeError("Must define either refPhaseDelay " + 
+                                           "and refPhaseDelayFine or bandDelayUs")
+                    self.set_band_delay_us(
+                        band,
+                        self._band_delay_us[band],
                         write_log=write_log, **kwargs)
 
                 self.set_lms_gain(
