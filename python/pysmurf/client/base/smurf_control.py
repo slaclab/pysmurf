@@ -512,7 +512,7 @@ class SmurfControl(SmurfCommandMixin,
                 # we'll use the next band_delay_us
                 else:
                     if self._band_delay_us[band] is None:
-                        raise RuntimeError("Must define either refPhaseDelay " + 
+                        raise RuntimeError("Must define either refPhaseDelay " +
                                            "and refPhaseDelayFine or bandDelayUs")
                     self.set_band_delay_us(
                         band,
