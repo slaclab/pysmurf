@@ -2340,6 +2340,8 @@ class SmurfConfigPropertiesMixin:
     def band_delay_us(self, value):
         self._band_delay_us = value
 
+    ## End band_delay_us property definition
+    ###########################################################################
 
     ###########################################################################
     ## Start lms_delay property definition
