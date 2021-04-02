@@ -93,6 +93,7 @@ class BandPhaseFeedback(pyrogue.Device):
             description='The input parameters are valid',
             mode='RO',
             value=False,
+            pollInterval=1,
             localGet=self._BandPhaseFeedback.getDataValid))
 
         # Add the band phase slope estimation (tau).
