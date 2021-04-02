@@ -234,10 +234,10 @@ void scf::BandPhaseFeedback::checkDataValid()
     // - Both the toneCh and toneFreq must have the same size, and
     // - The maximum channel in 'toneCh' is not greater that the number of
     //   channels in the input frame.
-    if ( (toneCh.size() != toneFreq.size()) || (maxToneCh > numCh) )
-        dataValid = false;
-    else
+    if ( (toneCh.size() == toneFreq.size()) && (maxToneCh < numCh) )
         dataValid = true;
+    else
+        dataValid = false;
 }
 
 void scf::BandPhaseFeedback::acceptFrame(ris::FramePtr frame)
