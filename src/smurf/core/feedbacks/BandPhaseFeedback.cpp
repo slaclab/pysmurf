@@ -39,6 +39,9 @@ scf::BandPhaseFeedback::BandPhaseFeedback()
     dataValid(false),
     tau(0.0),
     theta(0.0),
+    freqMean(0.0),
+    freqDiffs(maxNumTones, 0),
+    freqVar(0.0),
     eLog_(rogue::Logging::create("pysmurf.BandPhaseFeedback"))
 {
 }
@@ -142,7 +145,7 @@ void scf::BandPhaseFeedback::setToneChannels(bp::list m)
     }
 
     // Take the mutex before changing the 'toneCh' vector
-    std::lock_guard<std::mutex> lock(mut);
+    std::lock_guard<std::mutex> lock { mut };
 
     // At this point, all element in the mask list are valid.
     // Update the 'toneCh' vector
@@ -192,11 +195,22 @@ void scf::BandPhaseFeedback::setToneFrequencies(bp::list m)
     }
 
     // Take the mutex before changing the 'toneCh' vector
-    std::lock_guard<std::mutex> lock(mut);
+    std::lock_guard<std::mutex> lock { mut };
 
     // At this point, all element in the mask list are valid.
     // Update the 'toneFreq' vector
     toneFreq.swap(temp);
+
+    // Update the frequency mean, deltas, and variance
+    freqMean = 2 * M_PI * std::accumulate(toneFreq.begin(), toneFreq.end(), 0.0) / toneFreq.size();
+    std::vector<double>().swap(freqDiffs);
+    freqVar = 0;
+    for (auto const &f : toneFreq)
+    {
+        double d { 2 * M_PI * f - freqMean };
+        freqDiffs.push_back(d);
+        freqVar += d*d;
+    }
 
     // Check if the input parameters are valid
     checkDataValid();
@@ -248,7 +262,7 @@ void scf::BandPhaseFeedback::acceptFrame(ris::FramePtr frame)
     if (!disable)
     {
         // Acquire lock on frame.
-        ris::FrameLockPtr lock { frame->lock() };
+        ris::FrameLockPtr frameLock { frame->lock() };
 
         // Check for errors in the frame:
 
@@ -283,12 +297,14 @@ void scf::BandPhaseFeedback::acceptFrame(ris::FramePtr frame)
         // Update the frame counter
         ++frameCnt;
 
-        // The frame has at least the header, so we can construct a (smart) pointer to
-        // the SMuRF header in the input frame (Read-only)
-        SmurfHeaderROPtr<ris::FrameIterator> smurfHeaderIn(SmurfHeaderRO<ris::FrameIterator>::create(frame));
+        // Construct a (smart) pointer to the SMuRF packet in the input frame (Read-only)
+        SmurfPacketROPtr sp { SmurfPacketRO::create(frame) };
 
         // Read the number of channel from the header
-        numCh = smurfHeaderIn->getNumberChannels();
+        numCh = sp->getHeader()->getNumberChannels();
+
+        // Take the mutex here, to avoid the tone parameters to change while they are used.
+        std::lock_guard<std::mutex> lock { mut };
 
         // Check if the input parameters are valid
         checkDataValid();
@@ -301,6 +317,37 @@ void scf::BandPhaseFeedback::acceptFrame(ris::FramePtr frame)
             theta = 0.0;
             return;
         }
+
+        // Extract the phase from the specified channels
+        std::vector<int32_t> phase;
+        for (auto const &c : toneCh)
+            phase.push_back(sp->getData(c));
+
+        // Estimate the band "tau" (slope) and "theta" (offset) parameters using least
+        // square solution:
+        //
+        //     tau = sum_i(f_i - f_mean)(p_i - p_mean)/sum_i(f_i - f_mean)^2
+        //
+        //     theta = y_mean - m * x_mean
+        //
+        // where:
+        //     f_i    : frequency points.
+        //     f_mean : mean frequency.
+        //     p_i    : phase points.
+        //     p_mean : mean phase.
+
+        // Calculate the mean phase
+        double phaseMean { std::accumulate(phase.begin(), phase.end(), 0.0) / phase.size() };
+
+        // Calculate tau (slope)
+        tau = 0;
+        for (std::size_t i {0}; i < phase.size(); ++i)
+            tau += freqDiffs[i] * (phase[i] - phaseMean);
+        tau /= freqVar;
+
+        // Calculate theta (offset)
+        theta = phaseMean - tau * freqMean;
+
     }
 
     // Send the frame to the next slave.

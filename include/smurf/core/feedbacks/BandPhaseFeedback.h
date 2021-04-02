@@ -24,13 +24,14 @@
 **/
 
 #include <iostream>
+#include <numeric>
 #include <rogue/interfaces/stream/Frame.h>
 #include <rogue/interfaces/stream/FrameLock.h>
 #include <rogue/interfaces/stream/FrameIterator.h>
 #include <rogue/interfaces/stream/Slave.h>
 #include <rogue/interfaces/stream/Master.h>
 #include <rogue/GilRelease.h>
-#include "smurf/core/common/SmurfHeader.h"
+#include "smurf/core/common/SmurfPacket.h"
 
 namespace bp  = boost::python;
 namespace ris = rogue::interfaces::stream;
@@ -110,6 +111,9 @@ namespace smurf
                 bool                        dataValid;      // Flag to indicate the the input parameters are valid.
                 double                      tau;            // Band phase slope estimation (tau).
                 double                      theta;          // Band phase offset estimation (theta).
+                double                      freqMean;       // Mean frequency
+                std::vector<double>         freqDiffs;      // Frequencies deltas respect to the mean value
+                double                      freqVar;        // Frequency variance
                 std::mutex                  mut;            // Mutex
 
                 // Logger
