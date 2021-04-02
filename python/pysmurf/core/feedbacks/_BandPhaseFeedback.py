@@ -57,6 +57,15 @@ class BandPhaseFeedback(pyrogue.Device):
             pollInterval=1,
             localGet=self._BandPhaseFeedback.getBadFrameCnt))
 
+        # Add the number of channels in the incoming frame
+        self.add(pyrogue.LocalVariable(
+            name='NumChannels',
+            description='Number of channels in the incoming frame',
+            mode='RO',
+            value=0,
+            pollInterval=1,
+            localGet=self._BandPhaseFeedback.getNumCh))
+
         # Command to clear all the counters
         self.add(pyrogue.LocalCommand(
             name='clearCnt',

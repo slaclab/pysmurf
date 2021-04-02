@@ -68,7 +68,7 @@ namespace smurf
                 // Clear all counter.
                 void clearCnt();
 
-                // Get the number of channel in the incoming frame
+                // Get the number of channels in the incoming frame
                 const std::size_t getNumCh() const;
 
                 // Set/Get the tone channels
