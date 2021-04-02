@@ -23,6 +23,7 @@ import rogue
 import pysmurf.core.counters
 import pysmurf.core.conventers
 import pysmurf.core.emulators
+import pysmurf.core.feedbacks
 import smurf
 import smurf.core.processors
 
@@ -279,6 +280,10 @@ class SmurfProcessor(pyrogue.Device):
         # downstream slaves. The frames will be tapped before the file writer.
         self.fifo = rogue.interfaces.stream.Fifo(100,0,False)
 
+        # Add the Band Phase Feedback device
+        self.band_phase_feedback = pysmurf.core.feedbacks.BandPhaseFeedback(name="BandPhaseFeedback")
+        self.add(self.band_phase_feedback)
+
         # Connect devices
         pyrogue.streamConnect(self.pre_data_emulator,  self.smurf_frame_stats)
         pyrogue.streamConnect(self.smurf_frame_stats,  self.smurf_processor)
@@ -286,6 +291,7 @@ class SmurfProcessor(pyrogue.Device):
         pyrogue.streamConnect(self.smurf_header2smurf, self.post_data_emulator)
         pyrogue.streamConnect(self.post_data_emulator, self.file_writer.getChannel(0))
         pyrogue.streamTap(    self.post_data_emulator, self.fifo)
+        pyrogue.streamTap(    self.post_data_emulator, self.band_phase_feedback)
 
         # If a root was defined, connect it to the file writer, on channel 1
         if root:
