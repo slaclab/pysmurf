@@ -65,6 +65,7 @@ void scf::BandPhaseFeedback::setup_python()
         .def("getToneFrequencies",  &BandPhaseFeedback::getToneFrequencies)
         .def("getTau",              &BandPhaseFeedback::getTau)
         .def("getTheta",            &BandPhaseFeedback::getTheta)
+        .def("getDataValid",        &BandPhaseFeedback::getDataValid)
     ;
     bp::implicitly_convertible< scf::BandPhaseFeedbackPtr, ris::SlavePtr  >();
     bp::implicitly_convertible< scf::BandPhaseFeedbackPtr, ris::MasterPtr >();
@@ -209,6 +210,11 @@ const double scf::BandPhaseFeedback::getTau() const
 const double scf::BandPhaseFeedback::getTheta() const
 {
     return theta;
+}
+
+const bool scf::BandPhaseFeedback::getDataValid() const
+{
+    return dataValid;
 }
 
 void scf::BandPhaseFeedback::checkDataValid()

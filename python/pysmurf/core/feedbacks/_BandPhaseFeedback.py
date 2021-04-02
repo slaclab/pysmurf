@@ -87,6 +87,14 @@ class BandPhaseFeedback(pyrogue.Device):
             localSet=lambda value: self._BandPhaseFeedback.setToneFrequencies(value),
             localGet=self._BandPhaseFeedback.getToneFrequencies))
 
+        # Add the data valid flag.
+        self.add(pyrogue.LocalVariable(
+            name='DataValid',
+            description='The input parameters are valid',
+            mode='RO',
+            value=False,
+            localGet=self._BandPhaseFeedback.getDataValid))
+
         # Add the band phase slope estimation (tau).
         self.add(pyrogue.LocalVariable(
             name='Tau',

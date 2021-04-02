@@ -80,6 +80,9 @@ namespace smurf
                 const double getTau()   const;
                 const double getTheta() const;
 
+                // Get the data valid flag
+                const bool getDataValid() const;
+
                 // Check if both input vectors are valid
                 void checkDataValid();
 
