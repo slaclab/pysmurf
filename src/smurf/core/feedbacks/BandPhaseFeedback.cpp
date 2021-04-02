@@ -176,7 +176,7 @@ void scf::BandPhaseFeedback::setToneFrequencies(bp::list m)
     {
         // No checks at the moment. Just push the data
 
-        temp.push_back(bp::extract<std::size_t>(m[i]));
+        temp.push_back(bp::extract<double>(m[i]));
     }
 
     // Take the mutex before changing the 'toneCh' vector

@@ -83,7 +83,7 @@ class BandPhaseFeedback(pyrogue.Device):
             name='toneFrequencies',
             description='Tone frequencies',
             mode='RW',
-            value= [0] * 10,
+            value= [0.0] * 10,
             localSet=lambda value: self._BandPhaseFeedback.setToneFrequencies(value),
             localGet=self._BandPhaseFeedback.getToneFrequencies))
 
@@ -92,7 +92,7 @@ class BandPhaseFeedback(pyrogue.Device):
             name='Tau',
             description='Band estimated phase slope',
             mode='RO',
-            value=0,
+            value=0.0,
             pollInterval=1,
             localGet=self._BandPhaseFeedback.getTau))
 
@@ -101,7 +101,7 @@ class BandPhaseFeedback(pyrogue.Device):
             name='Theta',
             description='Band estimated phase offset',
             mode='RO',
-            value=0,
+            value=0.0,
             pollInterval=1,
             localGet=self._BandPhaseFeedback.getTheta))
 
