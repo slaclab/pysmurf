@@ -32,8 +32,10 @@ scf::BandPhaseFeedback::BandPhaseFeedback()
     disable(false),
     frameCnt(0),
     badFrameCnt(0),
+    numCh(0),
     toneCh(maxNumTones, 0),
     toneFreq(maxNumTones, 0),
+    maxToneCh(0),
     dataValid(false),
     tau(0.0),
     theta(0.0),
@@ -59,6 +61,7 @@ void scf::BandPhaseFeedback::setup_python()
         .def("getFrameCnt",         &BandPhaseFeedback::getFrameCnt)
         .def("getBadFrameCnt",      &BandPhaseFeedback::getBadFrameCnt)
         .def("clearCnt",            &BandPhaseFeedback::clearCnt)
+        .def("getNumCh",            &BandPhaseFeedback::getNumCh)
         .def("setToneChannels",     &BandPhaseFeedback::setToneChannels)
         .def("getToneChannels",     &BandPhaseFeedback::getToneChannels)
         .def("setToneFrequencies",  &BandPhaseFeedback::setToneFrequencies)
@@ -97,6 +100,11 @@ void scf::BandPhaseFeedback::clearCnt()
     badFrameCnt = 0;
 }
 
+const std::size_t scf::BandPhaseFeedback::getNumCh() const
+{
+    return numCh;
+}
+
 void scf::BandPhaseFeedback::setToneChannels(bp::list m)
 {
     std::size_t listSize = len(m);
@@ -121,7 +129,7 @@ void scf::BandPhaseFeedback::setToneChannels(bp::list m)
 
         // Check if the channel index is not greater than the maximum
         // allowed channel index.
-        if (val > maxChIndex)
+        if (val > maxNumCh)
         {
             eLog_->error("Invalid channel number %zu at index %zu", val, i);
 
@@ -140,7 +148,10 @@ void scf::BandPhaseFeedback::setToneChannels(bp::list m)
     // Update the 'toneCh' vector
     toneCh.swap(temp);
 
-    // Check if both input vector are valid
+    // Update the maximum tone channel
+    maxToneCh = *std::max_element(toneCh.begin(), toneCh.end());
+
+    // Check if the input parameters are valid
     checkDataValid();
 }
 
@@ -187,7 +198,7 @@ void scf::BandPhaseFeedback::setToneFrequencies(bp::list m)
     // Update the 'toneFreq' vector
     toneFreq.swap(temp);
 
-    // Check if both input vector are valid
+    // Check if the input parameters are valid
     checkDataValid();
 }
 
@@ -219,12 +230,14 @@ const bool scf::BandPhaseFeedback::getDataValid() const
 
 void scf::BandPhaseFeedback::checkDataValid()
 {
-    // Check if both vectors has the same size
-    if ( toneCh.size() != toneFreq.size() )
+    // Check if the input parameters are valid, which has 2 conditions:
+    // - Both the toneCh and toneFreq must have the same size, and
+    // - The maximum channel in 'toneCh' is not greater that the number of
+    //   channels in the input frame.
+    if ( (toneCh.size() != toneFreq.size()) || (maxToneCh > numCh) )
         dataValid = false;
     else
         dataValid = true;
-
 }
 
 void scf::BandPhaseFeedback::acceptFrame(ris::FramePtr frame)
@@ -265,12 +278,29 @@ void scf::BandPhaseFeedback::acceptFrame(ris::FramePtr frame)
             return;
         }
 
-        // - The frame has at least the header, so we can construct a (smart) pointer to
-        //   the SMuRF header in the input frame (Read-only)
-        SmurfHeaderROPtr<ris::FrameIterator> smurfHeaderIn(SmurfHeaderRO<ris::FrameIterator>::create(frame));
+        // At this point the frame is valid
 
         // Update the frame counter
         ++frameCnt;
+
+        // The frame has at least the header, so we can construct a (smart) pointer to
+        // the SMuRF header in the input frame (Read-only)
+        SmurfHeaderROPtr<ris::FrameIterator> smurfHeaderIn(SmurfHeaderRO<ris::FrameIterator>::create(frame));
+
+        // Read the number of channel from the header
+        numCh = smurfHeaderIn->getNumberChannels();
+
+        // Check if the input parameters are valid
+        checkDataValid();
+
+        // If the input parameters are are not valid, we do not process the data.
+        // We also set the tau and theta estimation to 0.
+        if (!dataValid)
+        {
+            tau = 0.0;
+            theta = 0.0;
+            return;
+        }
     }
 
     // Send the frame to the next slave.

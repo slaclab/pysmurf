@@ -68,6 +68,9 @@ namespace smurf
                 // Clear all counter.
                 void clearCnt();
 
+                // Get the number of channel in the incoming frame
+                const std::size_t getNumCh() const;
+
                 // Set/Get the tone channels
                 void           setToneChannels(bp::list m);
                 const bp::list getToneChannels() const;
@@ -95,14 +98,16 @@ namespace smurf
                 static const std::size_t maxNumTones = 10;
 
                 // This is the maximum allowed channel index
-                static const std::size_t maxChIndex = 4096;
+                static const std::size_t maxNumCh = 4096;
 
                 bool                        disable;        // Disable flag
                 std::size_t                 frameCnt;       // Frame counter
                 std::size_t                 badFrameCnt;    // Number of frames with errors
+                std::size_t                 numCh;          // Number of channels in the incoming frame
                 std::vector<std::size_t>    toneCh;         // Tone channels
                 std::vector<double>         toneFreq;       // Tone Frequencies
-                bool                        dataValid;      // Flag to indicate the the inputs are valid.
+                std::size_t                 maxToneCh;      // Maximum channel in the 'toneCh' vector.
+                bool                        dataValid;      // Flag to indicate the the input parameters are valid.
                 double                      tau;            // Band phase slope estimation (tau).
                 double                      theta;          // Band phase offset estimation (theta).
                 std::mutex                  mut;            // Mutex
