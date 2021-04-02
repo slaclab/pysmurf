@@ -68,13 +68,41 @@ namespace smurf
                 // Clear all counter.
                 void clearCnt();
 
+                // Set/Get the tone channels
+                void           setToneChannels(bp::list m);
+                const bp::list getToneChannels() const;
+
+                // Set/Get the tone frequencies
+                void           setToneFrequencies(bp::list m);
+                const bp::list getToneFrequencies() const;
+
+                // Get the band phase parameters estimations
+                const double getTau()   const;
+                const double getTheta() const;
+
+                // Check if both input vectors are valid
+                void checkDataValid();
+
                 // Accept new frames
                 void acceptFrame(ris::FramePtr frame);
 
             private:
-                bool        disable;           // Disable flag
-                std::size_t frameCnt;          // Frame counter
-                std::size_t badFrameCnt;       // Number of frames with errors
+                // Minimum and maximum number of tones
+                static const std::size_t minNumTones =  2;
+                static const std::size_t maxNumTones = 10;
+
+                // This is the maximum allowed channel index
+                static const std::size_t maxChIndex = 4096;
+
+                bool                        disable;        // Disable flag
+                std::size_t                 frameCnt;       // Frame counter
+                std::size_t                 badFrameCnt;    // Number of frames with errors
+                std::vector<std::size_t>    toneCh;         // Tone channels
+                std::vector<double>         toneFreq;       // Tone Frequencies
+                bool                        dataValid;      // Flag to indicate the the inputs are valid.
+                double                      tau;            // Band phase slope estimation (tau).
+                double                      theta;          // Band phase offset estimation (theta).
+                std::mutex                  mut;            // Mutex
 
                 // Logger
                 std::shared_ptr<rogue::Logging> eLog_;

@@ -32,6 +32,11 @@ scf::BandPhaseFeedback::BandPhaseFeedback()
     disable(false),
     frameCnt(0),
     badFrameCnt(0),
+    toneCh(maxNumTones, 0),
+    toneFreq(maxNumTones, 0),
+    dataValid(false),
+    tau(0.0),
+    theta(0.0),
     eLog_(rogue::Logging::create("pysmurf.BandPhaseFeedback"))
 {
 }
@@ -54,6 +59,12 @@ void scf::BandPhaseFeedback::setup_python()
         .def("getFrameCnt",         &BandPhaseFeedback::getFrameCnt)
         .def("getBadFrameCnt",      &BandPhaseFeedback::getBadFrameCnt)
         .def("clearCnt",            &BandPhaseFeedback::clearCnt)
+        .def("setToneChannels",     &BandPhaseFeedback::setToneChannels)
+        .def("getToneChannels",     &BandPhaseFeedback::getToneChannels)
+        .def("setToneFrequencies",  &BandPhaseFeedback::setToneFrequencies)
+        .def("getToneFrequencies",  &BandPhaseFeedback::getToneFrequencies)
+        .def("getTau",              &BandPhaseFeedback::getTau)
+        .def("getTheta",            &BandPhaseFeedback::getTheta)
     ;
     bp::implicitly_convertible< scf::BandPhaseFeedbackPtr, ris::SlavePtr  >();
     bp::implicitly_convertible< scf::BandPhaseFeedbackPtr, ris::MasterPtr >();
@@ -83,6 +94,131 @@ void scf::BandPhaseFeedback::clearCnt()
 {
     frameCnt    = 0;
     badFrameCnt = 0;
+}
+
+void scf::BandPhaseFeedback::setToneChannels(bp::list m)
+{
+    std::size_t listSize = len(m);
+
+    // Check if the number of tone is valid
+    if ( (listSize > maxNumTones) || (listSize < maxNumTones) )
+    {
+        eLog_->error("Invalid number of tones = %zu", listSize);
+
+        // Do not update the 'toneCh' vector.
+        return;
+    }
+
+    // We will use a temporal vector to hold the new data.
+    // New data will be check as it is pushed to this vector. If there
+    // are not error, this vector will be swap with 'toneCh'.
+    std::vector<std::size_t> temp;
+
+    for (std::size_t i{0}; i < listSize; ++i)
+    {
+        std::size_t val = bp::extract<std::size_t>(m[i]);
+
+        // Check if the channel index is not greater than the maximum
+        // allowed channel index.
+        if (val > maxChIndex)
+        {
+            eLog_->error("Invalid channel number %zu at index %zu", val, i);
+
+            // Do not update the 'toneCh' vector.
+            return;
+        }
+
+        // A valid number was found. Add it to the temporal vector
+        temp.push_back(val);
+    }
+
+    // Take the mutex before changing the 'toneCh' vector
+    std::lock_guard<std::mutex> lock(mut);
+
+    // At this point, all element in the mask list are valid.
+    // Update the 'toneCh' vector
+    toneCh.swap(temp);
+
+    // Check if both input vector are valid
+    checkDataValid();
+}
+
+const bp::list scf::BandPhaseFeedback::getToneChannels() const
+{
+    bp::list temp;
+
+    for (auto const &v : toneCh)
+        temp.append(v);
+
+    return temp;
+}
+
+
+void scf::BandPhaseFeedback::setToneFrequencies(bp::list m)
+{
+   std::size_t listSize = len(m);
+
+    // Check if the number of tone is valid
+    if ( (listSize > maxNumTones) || (listSize < maxNumTones) )
+    {
+        eLog_->error("Invalid number of tones = %zu", listSize);
+
+        // Do not update the 'toneCh' vector.
+        return;
+    }
+
+    // We will use a temporal vector to hold the new data.
+    // New data will be check as it is pushed to this vector. If there
+    // are not error, this vector will be swap with 'toneFreq'.
+    std::vector<double> temp;
+
+    for (std::size_t i{0}; i < listSize; ++i)
+    {
+        // No checks at the moment. Just push the data
+
+        temp.push_back(bp::extract<std::size_t>(m[i]));
+    }
+
+    // Take the mutex before changing the 'toneCh' vector
+    std::lock_guard<std::mutex> lock(mut);
+
+    // At this point, all element in the mask list are valid.
+    // Update the 'toneFreq' vector
+    toneFreq.swap(temp);
+
+    // Check if both input vector are valid
+    checkDataValid();
+}
+
+const bp::list scf::BandPhaseFeedback::getToneFrequencies() const
+{
+    bp::list temp;
+
+    for (auto const &v : toneFreq)
+        temp.append(v);
+
+    return temp;
+}
+
+
+const double scf::BandPhaseFeedback::getTau() const
+{
+    return tau;
+}
+
+const double scf::BandPhaseFeedback::getTheta() const
+{
+    return theta;
+}
+
+void scf::BandPhaseFeedback::checkDataValid()
+{
+    // Check if both vectors has the same size
+    if ( toneCh.size() != toneFreq.size() )
+        dataValid = false;
+    else
+        dataValid = true;
+
 }
 
 void scf::BandPhaseFeedback::acceptFrame(ris::FramePtr frame)

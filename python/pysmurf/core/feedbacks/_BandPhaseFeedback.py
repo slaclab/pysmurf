@@ -63,6 +63,48 @@ class BandPhaseFeedback(pyrogue.Device):
             description='Clear all counters',
             function=self._BandPhaseFeedback.clearCnt))
 
+        # Tone channels
+        # Rogue doesn't allow to have an empty list here. Also, the EPICS PV is created
+        # with the initial size of this list, and can not be changed later, so we are doing
+        # it big enough at this point, using the maximum allowed number of tones.
+        self.add(pyrogue.LocalVariable(
+            name='toneChannels',
+            description='Tone channel numbers',
+            mode='RW',
+            value= [0] * 10,
+            localSet=lambda value: self._BandPhaseFeedback.setToneChannels(value),
+            localGet=self._BandPhaseFeedback.getToneChannels))
+
+        # Tone channels
+        # Rogue doesn't allow to have an empty list here. Also, the EPICS PV is created
+        # with the initial size of this list, and can not be changed later, so we are doing
+        # it big enough at this point, using the maximum allowed number of tones.
+        self.add(pyrogue.LocalVariable(
+            name='toneFrequencies',
+            description='Tone frequencies',
+            mode='RW',
+            value= [0] * 10,
+            localSet=lambda value: self._BandPhaseFeedback.setToneFrequencies(value),
+            localGet=self._BandPhaseFeedback.getToneFrequencies))
+
+        # Add the band phase slope estimation (tau).
+        self.add(pyrogue.LocalVariable(
+            name='Tau',
+            description='Band estimated phase slope',
+            mode='RO',
+            value=0,
+            pollInterval=1,
+            localGet=self._BandPhaseFeedback.getTau))
+
+        # Add the band phase offset estimation (theta).
+        self.add(pyrogue.LocalVariable(
+            name='Theta',
+            description='Band estimated phase offset',
+            mode='RO',
+            value=0,
+            pollInterval=1,
+            localGet=self._BandPhaseFeedback.getTheta))
+
     # Method called by streamConnect, streamTap and streamConnectBiDir to access slave
     def _getStreamSlave(self):
         return self._BandPhaseFeedback
