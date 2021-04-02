@@ -1,8 +1,8 @@
 # ----------------------------------------------------------------------------
-# Title      : SMURF CMAKE Control
+# Title      : SMuRF CMAKE Control
 # ----------------------------------------------------------------------------
 # File       : CMakeLists.txt
-# Created    : 2019-09-24
+# Created    : 2021-04-02
 # ----------------------------------------------------------------------------
 # This file is part of the smurf software package. It is subject to
 # the license terms in the LICENSE.txt file found in the top-level directory
@@ -13,13 +13,5 @@
 # contained in the LICENSE.txt file.
 # ----------------------------------------------------------------------------
 
-add_subdirectory(common)
-add_subdirectory(counters)
-add_subdirectory(conventers)
-add_subdirectory(processors)
-add_subdirectory(transmitters)
-add_subdirectory(emulators)
-add_subdirectory(engines)
-add_subdirectory(feedbacks)
-
+target_sources(smurf PRIVATE "${CMAKE_CURRENT_LIST_DIR}/BandPhaseFeedback.cpp")
 target_sources(smurf PRIVATE "${CMAKE_CURRENT_LIST_DIR}/module.cpp")

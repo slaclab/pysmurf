@@ -27,6 +27,7 @@
 #include "smurf/core/transmitters/module.h"
 #include "smurf/core/emulators/module.h"
 #include "smurf/core/engines/module.h"
+#include "smurf/core/feedbacks/module.h"
 
 namespace bp  = boost::python;
 namespace sc = smurf::core;
@@ -40,4 +41,5 @@ void sc::setup_module()
     sc::transmitters::setup_module();
     sc::emulators::setup_module();
     sc::engines::setup_module();
+    sc::feedbacks::setup_module();
 }
