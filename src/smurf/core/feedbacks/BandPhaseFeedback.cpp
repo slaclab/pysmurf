@@ -101,7 +101,7 @@ void scf::BandPhaseFeedback::setToneChannels(bp::list m)
     std::size_t listSize = len(m);
 
     // Check if the number of tone is valid
-    if ( (listSize > maxNumTones) || (listSize < maxNumTones) )
+    if ( (listSize > maxNumTones) || (listSize < minNumTones) )
     {
         eLog_->error("Invalid number of tones = %zu", listSize);
 
@@ -159,7 +159,7 @@ void scf::BandPhaseFeedback::setToneFrequencies(bp::list m)
    std::size_t listSize = len(m);
 
     // Check if the number of tone is valid
-    if ( (listSize > maxNumTones) || (listSize < maxNumTones) )
+    if ( (listSize > maxNumTones) || (listSize < minNumTones) )
     {
         eLog_->error("Invalid number of tones = %zu", listSize);
 
