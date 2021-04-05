@@ -36,14 +36,14 @@ scf::BandPhaseFeedback::BandPhaseFeedback(std::size_t band)
     frameCnt(0),
     badFrameCnt(0),
     numCh(0),
-    toneCh(maxNumTones, 0),
-    toneFreq(maxNumTones, 0),
+    toneCh(minNumTones, 0),
+    toneFreq(minNumTones, 0),
     maxToneCh(0),
     dataValid(false),
     tau(0.0),
     theta(0.0),
     freqMean(0.0),
-    freqDiffs(maxNumTones, 0),
+    freqDiffs(minNumTones, 0),
     freqVar(0.0),
     eLog_(rogue::Logging::create("pysmurf.BandPhaseFeedback"))
 {
@@ -125,7 +125,7 @@ void scf::BandPhaseFeedback::setToneChannels(bp::list m)
     std::size_t listSize = len(m);
 
     // Check if the number of tone is valid
-    if ( (listSize > maxNumTones) || (listSize < minNumTones) )
+    if (listSize < minNumTones)
     {
         eLog_->error("Invalid number of tones = %zu", listSize);
 
@@ -186,7 +186,7 @@ void scf::BandPhaseFeedback::setToneFrequencies(bp::list m)
    std::size_t listSize = len(m);
 
     // Check if the number of tone is valid
-    if ( (listSize > maxNumTones) || (listSize < minNumTones) )
+    if (listSize < minNumTones)
     {
         eLog_->error("Invalid number of tones = %zu", listSize);
 

@@ -97,9 +97,8 @@ namespace smurf
                 void acceptFrame(ris::FramePtr frame);
 
             private:
-                // Minimum and maximum number of tones
-                static const std::size_t minNumTones =  2;
-                static const std::size_t maxNumTones = 10;
+                // Minimum number of tones.
+                static const std::size_t minNumTones = 2;
 
                 // Maximum number of band.
                 // The minimum number is 0, and as this is a unsigned variable,
