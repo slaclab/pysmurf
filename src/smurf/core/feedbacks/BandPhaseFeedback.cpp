@@ -224,12 +224,12 @@ void scf::BandPhaseFeedback::setToneFrequencies(bp::list m)
     toneFreq.swap(temp);
 
     // Update the frequency mean, deltas, and variance
-    freqMean = 2 * M_PI * std::accumulate(toneFreq.begin(), toneFreq.end(), 0.0) / toneFreq.size();
+    freqMean = 2 * M_PI * 1e9 * std::accumulate(toneFreq.begin(), toneFreq.end(), 0.0) / toneFreq.size();
     std::vector<double>().swap(freqDiffs);
     freqVar = 0;
     for (auto const &f : toneFreq)
     {
-        double d { 2 * M_PI * f - freqMean };
+        double d { 2 * M_PI * 1e9 * f - freqMean };
         freqDiffs.push_back(d);
         freqVar += d*d;
     }
