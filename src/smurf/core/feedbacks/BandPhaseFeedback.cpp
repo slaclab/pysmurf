@@ -31,6 +31,8 @@ scf::BandPhaseFeedback::BandPhaseFeedback(std::size_t band)
     ris::Master(),
     disable(false),
     bandNum(band),
+    minToneFreq(4 + 0.5*bandNum),
+    maxToneFreq(minToneFreq + 0.5),
     frameCnt(0),
     badFrameCnt(0),
     numCh(0),
@@ -138,7 +140,7 @@ void scf::BandPhaseFeedback::setToneChannels(bp::list m)
 
     for (std::size_t i{0}; i < listSize; ++i)
     {
-        std::size_t val = bp::extract<std::size_t>(m[i]);
+        std::size_t val { bp::extract<std::size_t>(m[i]) };
 
         // Check if the channel index is not greater than the maximum
         // allowed channel index.
@@ -150,7 +152,7 @@ void scf::BandPhaseFeedback::setToneChannels(bp::list m)
             return;
         }
 
-        // A valid number was found. Add it to the temporal vector
+        // A valid number was found. Add it to the temporal vector.
         temp.push_back(val);
     }
 
@@ -199,9 +201,19 @@ void scf::BandPhaseFeedback::setToneFrequencies(bp::list m)
 
     for (std::size_t i{0}; i < listSize; ++i)
     {
-        // No checks at the moment. Just push the data
+        double val { bp::extract<double>(m[i]) };
+        // Check if the frequency is in range
+        if ( (val > maxToneFreq) || (val < minToneFreq) )
+        {
+            eLog_->error("Invalid tone frequency %f at index %zu", val, i);
 
-        temp.push_back(bp::extract<double>(m[i]));
+            // Do not update the 'toneFreq' vector.
+            return;
+
+        }
+
+        // The frequency is valid. Add it to the temporal vector.
+        temp.push_back(val);
     }
 
     // Take the mutex before changing the 'toneCh' vector

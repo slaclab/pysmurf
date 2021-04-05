@@ -111,6 +111,8 @@ namespace smurf
 
                 bool                        disable;        // Disable flag
                 const std::size_t           bandNum;        // Band number
+                const double                minToneFreq;    // Minimum tone frequency
+                const double                maxToneFreq;    // Maximum tone frequency
                 std::size_t                 frameCnt;       // Frame counter
                 std::size_t                 badFrameCnt;    // Number of frames with errors
                 std::size_t                 numCh;          // Number of channels in the incoming frame
