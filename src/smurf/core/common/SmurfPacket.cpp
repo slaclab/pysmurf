@@ -88,6 +88,14 @@ SmurfPacketZeroCopyRO::SmurfPacketZeroCopyRO(ris::FramePtr frame)
     headerPtr(SmurfHeaderRO<ris::FrameIterator>::create(frame)),
     dataSize(dataSize = headerPtr->getNumberChannels())
 {
+    // Verify that the frame data area is contained in a single buffer
+    ris::FrameIterator frameIt { _frame->beginRead() };
+    frameIt += SmurfHeaderRO<ris::FrameIterator>::SmurfHeaderSize;
+    if ( dataSize*sizeof(data_t) > frameIt.remBuffer() )
+        throw std::runtime_error("Trying to create a SmurfPacket object on a multi-buffer frame");
+
+    // Point the data pointer to the beginning of the frame data area
+    data = reinterpret_cast<data_t*>(frameIt.ptr());
 }
 
 SmurfPacketZeroCopyROPtr SmurfPacketZeroCopyRO::create(ris::FramePtr frame)
@@ -102,10 +110,9 @@ SmurfPacketZeroCopyRO::HeaderPtr SmurfPacketZeroCopyRO::getHeader() const
 
 const SmurfPacketZeroCopyRO::data_t SmurfPacketZeroCopyRO::getData(std::size_t index) const
 {
+    // Verify that the index in not out of the packet range
     if (index > dataSize)
         throw std::runtime_error("Trying to read data from a SmurfPacket with an index out of range.");
 
-    ris::FrameIterator frameIt { _frame->begin() + SmurfHeaderRO<ris::FrameIterator>::SmurfHeaderSize };
-    ris::FrameAccessor<int32_t> frameAccessor { frameIt, static_cast<uint32_t>(dataSize) };
-    return frameAccessor.at(index);
+    return data[index];
 }

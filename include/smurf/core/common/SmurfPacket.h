@@ -111,6 +111,7 @@ private:
     ris::FramePtr _frame;
     HeaderPtr     headerPtr; // SmurfHeader object (smart pointer)
     std::size_t   dataSize;  // Number of data values in the packet
+    data_t*       data;      // Pointer to the packet data area
 
 };
 
