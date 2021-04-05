@@ -25,11 +25,12 @@
 
 namespace scf = smurf::core::feedbacks;
 
-scf::BandPhaseFeedback::BandPhaseFeedback()
+scf::BandPhaseFeedback::BandPhaseFeedback(std::size_t band)
 :
     ris::Slave(),
     ris::Master(),
     disable(false),
+    bandNum(band),
     frameCnt(0),
     badFrameCnt(0),
     numCh(0),
@@ -44,11 +45,14 @@ scf::BandPhaseFeedback::BandPhaseFeedback()
     freqVar(0.0),
     eLog_(rogue::Logging::create("pysmurf.BandPhaseFeedback"))
 {
+    // Verify that the band number is valid
+    if (bandNum > maxBandNum)
+        throw std::runtime_error("BandPhaseFeedback: Band number out of range");
 }
 
-scf::BandPhaseFeedbackPtr scf::BandPhaseFeedback::create()
+scf::BandPhaseFeedbackPtr scf::BandPhaseFeedback::create(std::size_t band)
 {
-    return std::make_shared<BandPhaseFeedback>();
+    return std::make_shared<BandPhaseFeedback>(band);
 }
 
 // Setup Class in python
@@ -58,9 +62,10 @@ void scf::BandPhaseFeedback::setup_python()
                 scf::BandPhaseFeedbackPtr,
                 bp::bases<ris::Slave,ris::Master>,
                 boost::noncopyable >
-                ("BandPhaseFeedback", bp::init<>())
+                ("BandPhaseFeedback", bp::init<std::size_t>())
         .def("setDisable",          &BandPhaseFeedback::setDisable)
         .def("getDisable",          &BandPhaseFeedback::getDisable)
+        .def("getBand",             &BandPhaseFeedback::getBand)
         .def("getFrameCnt",         &BandPhaseFeedback::getFrameCnt)
         .def("getBadFrameCnt",      &BandPhaseFeedback::getBadFrameCnt)
         .def("clearCnt",            &BandPhaseFeedback::clearCnt)
@@ -85,6 +90,11 @@ void scf::BandPhaseFeedback::setDisable(bool d)
 const bool scf::BandPhaseFeedback::getDisable() const
 {
     return disable;
+}
+
+const std::size_t scf::BandPhaseFeedback::getBand() const
+{
+    return bandNum;
 }
 
 const std::size_t scf::BandPhaseFeedback::getFrameCnt() const

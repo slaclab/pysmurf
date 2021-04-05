@@ -48,10 +48,10 @@ namespace smurf
             class BandPhaseFeedback : public ris::Slave, public ris::Master
             {
             public:
-                BandPhaseFeedback();
+                BandPhaseFeedback(std::size_t band);
                 ~BandPhaseFeedback() {};
 
-                static BandPhaseFeedbackPtr create();
+                static BandPhaseFeedbackPtr create(std::size_t band);
 
                 static void setup_python();
 
@@ -59,6 +59,9 @@ namespace smurf
                 // will just pass through to the next slave
                 void       setDisable(bool d);
                 const bool getDisable() const;
+
+                // Get the band number
+                const std::size_t getBand() const;
 
                 // Get the frame counter
                 const std::size_t getFrameCnt() const;
@@ -98,10 +101,16 @@ namespace smurf
                 static const std::size_t minNumTones =  2;
                 static const std::size_t maxNumTones = 10;
 
+                // Maximum number of band.
+                // The minimum number is 0, and as this is a unsigned variable,
+                // we don't need to explicitly check it.
+                static const std::size_t maxBandNum = 7;
+
                 // This is the maximum allowed channel index
                 static const std::size_t maxNumCh = 4096;
 
                 bool                        disable;        // Disable flag
+                const std::size_t           bandNum;        // Band number
                 std::size_t                 frameCnt;       // Frame counter
                 std::size_t                 badFrameCnt;    // Number of frames with errors
                 std::size_t                 numCh;          // Number of channels in the incoming frame

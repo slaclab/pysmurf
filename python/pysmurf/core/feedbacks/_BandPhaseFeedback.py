@@ -24,9 +24,16 @@ import smurf
 class BandPhaseFeedback(pyrogue.Device):
     """
     SMuRF Band Phase Feedback Python Wrapper.
+
+    Args
+    ----
+    namd : string
+        Device name (must be unique).
+    band : int
+        Band number (0 to 7).
     """
-    def __init__(self, name, **kwargs):
-        self._BandPhaseFeedback = smurf.core.feedbacks.BandPhaseFeedback()
+    def __init__(self, name, band, **kwargs):
+        self._BandPhaseFeedback = smurf.core.feedbacks.BandPhaseFeedback(band)
         pyrogue.Device.__init__(self, name=name, description='SMuRF Band Phase Feedback', **kwargs)
 
         # Add "Disable" variable
@@ -37,6 +44,16 @@ class BandPhaseFeedback(pyrogue.Device):
             value=False,
             localSet=lambda value: self._BandPhaseFeedback.setDisable(value),
             localGet=self._BandPhaseFeedback.getDisable))
+
+        # Add the band number variable
+        self.add(pyrogue.LocalVariable(
+            name='Band',
+            description='Frame counter',
+            mode='RO',
+            value=0,
+            typeStr='UInt64',
+            pollInterval=1,
+            localGet=self._BandPhaseFeedback.getBand))
 
         # Add the frame counter variable
         self.add(pyrogue.LocalVariable(
