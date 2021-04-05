@@ -34,7 +34,7 @@ class BandPhaseFeedback(pyrogue.Device):
     """
     def __init__(self, name, band, **kwargs):
         self._BandPhaseFeedback = smurf.core.feedbacks.BandPhaseFeedback(band)
-        pyrogue.Device.__init__(self, name=name, description='SMuRF Band Phase Feedback', **kwargs)
+        pyrogue.Device.__init__(self, name=name, description=f'SMuRF Band Phase Feedback (band {band})', **kwargs)
 
         # Add "Disable" variable
         self.add(pyrogue.LocalVariable(
@@ -109,7 +109,7 @@ class BandPhaseFeedback(pyrogue.Device):
             name='toneFrequencies',
             description='Tone frequencies',
             mode='RW',
-            value= [0.0] * 10,
+            value= [4.0 + 0.5*band] * 10,
             units='GHz',
             localSet=lambda value: self._BandPhaseFeedback.setToneFrequencies(value),
             localGet=self._BandPhaseFeedback.getToneFrequencies))
