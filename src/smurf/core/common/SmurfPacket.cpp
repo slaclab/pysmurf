@@ -107,5 +107,5 @@ const SmurfPacketZeroCopyRO::data_t SmurfPacketZeroCopyRO::getData(std::size_t i
 
     ris::FrameIterator frameIt { _frame->begin() + SmurfHeaderRO<ris::FrameIterator>::SmurfHeaderSize };
     ris::FrameAccessor<int32_t> frameAccessor { frameIt, static_cast<uint32_t>(dataSize) };
-    frameAccessor.at(index);
+    return frameAccessor.at(index);
 }
