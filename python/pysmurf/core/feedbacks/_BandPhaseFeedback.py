@@ -41,7 +41,7 @@ class BandPhaseFeedback(pyrogue.Device):
             name='Disable',
             description='Disable the processing block. Data will just pass thorough to the next slave.',
             mode='RW',
-            value=False,
+            value=True,
             localSet=lambda value: self._BandPhaseFeedback.setDisable(value),
             localGet=self._BandPhaseFeedback.getDisable))
 
