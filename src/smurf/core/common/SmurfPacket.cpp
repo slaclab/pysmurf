@@ -20,6 +20,10 @@
 
 #include "smurf/core/common/SmurfPacket.h"
 
+//////////////////////////////////////////
+////// + SmurfPacketRO definitions ///////
+//////////////////////////////////////////
+
 SmurfPacketRO::SmurfPacketRO(ris::FramePtr frame)
 :
     dataSize(0),
@@ -74,3 +78,34 @@ const SmurfPacketRO::data_t SmurfPacketRO::getData(std::size_t index) const
     return data.at(index);
 }
 
+//////////////////////////////////////////////////
+////// + SmurfPacketZeroCopyRO definitions ///////
+//////////////////////////////////////////////////
+
+SmurfPacketZeroCopyRO::SmurfPacketZeroCopyRO(ris::FramePtr frame)
+:
+    _frame(frame),
+    headerPtr(SmurfHeaderRO<ris::FrameIterator>::create(frame)),
+    dataSize(dataSize = headerPtr->getNumberChannels())
+{
+}
+
+SmurfPacketZeroCopyROPtr SmurfPacketZeroCopyRO::create(ris::FramePtr frame)
+{
+    return std::make_shared<SmurfPacketZeroCopyRO>(frame);
+}
+
+SmurfPacketZeroCopyRO::HeaderPtr SmurfPacketZeroCopyRO::getHeader() const
+{
+    return headerPtr;
+}
+
+const SmurfPacketZeroCopyRO::data_t SmurfPacketZeroCopyRO::getData(std::size_t index) const
+{
+    if (index > dataSize)
+        throw std::runtime_error("Trying to read data from a SmurfPacket with an index out of range.");
+
+    ris::FrameIterator frameIt { _frame->begin() + SmurfHeaderRO<ris::FrameIterator>::SmurfHeaderSize };
+    ris::FrameAccessor<int32_t> frameAccessor { frameIt, static_cast<uint32_t>(dataSize) };
+    frameAccessor.at(index);
+}
