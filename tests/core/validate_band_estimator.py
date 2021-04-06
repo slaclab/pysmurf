@@ -46,16 +46,24 @@ class BandToneModel():
         phase : np.ndarray
             Phase sample for each tone. The dimension will be equal to the
             number of tones.
+        tau : np.ndarray
+            The tau parameter used in the model, for each tone. The dimension
+            will be equal to the number of tones.
+        theta : np.ndarray
+            the theta parameter used in the model, for each tone. The dimension
+            will be equal to the number of tones.
         """
         phase = np.empty(self._num_tones)
+        tau = np.empty(self._num_tones)
+        theta = np.empty(self._num_tones)
 
         # We need to use the same tau_randn for all tones in the band
         tau_randn = np.random.randn(1)
 
         for m, i in zip(self._tone_models, range(self._num_tones)):
-            phase[i] = m.get_sample(tau_randn=tau_randn)
+            phase[i], tau[i], theta[i] = m.get_sample(tau_randn=tau_randn)
 
-        return phase
+        return phase, tau, theta
 
     class _TonePhaseModel():
         """
@@ -75,7 +83,7 @@ class BandToneModel():
 
         The term "eta" is a phase correction parameter, set by the user.
 
-        Time is the index of the sample produced by the model. Everytime a new
+        Time is the index of the sample produced by the model. Every time a new
         sample is generated with the "get_sample()" method, the time index is
         incremented.
 
@@ -131,6 +139,10 @@ class BandToneModel():
             -------
             phase : float
                 A new phase sample from the tone model.
+            tau : float
+                The tau parameter used in the model.
+            theta : float
+                the theta parameter used in the model.
             """
 
             # Update Tau
@@ -157,7 +169,7 @@ class BandToneModel():
             self._prev_tau = tau
 
             # Return the generated phase sample
-            return phase
+            return phase, tau, self._theta
 
         def set_correction(self, eta):
             """
@@ -352,6 +364,8 @@ if __name__ == "__main__":
 
     # Arrays to hold the data
     phase = np.ndarray(shape=(num_samples, len(freq)))
+    tau_model = np.ndarray(shape=(num_samples, len(freq)))
+    theta_model = np.ndarray(shape=(num_samples, len(freq)))
     phase_filtered = np.ndarray(shape=(num_samples, len(freq)))
     estimation = np.ndarray(shape=(num_samples, 2))
 
@@ -365,8 +379,8 @@ if __name__ == "__main__":
     estimator = BandParameterEstimator(freq=freq)
 
     for i in range(num_samples):
-        # Generate a phase sample
-        phase[i] = band.get_sample()
+        # Generate a phase sample, and saved the tau and theta parameters from the model
+        phase[i], tau_model[i], theta_model[i] = band.get_sample()
 
         # Low-pass filter the data
         phase_filtered[i] = lpf.push(phase[i])
@@ -376,23 +390,22 @@ if __name__ == "__main__":
 
     # Plot the data
     plt.figure("Tone phase signal")
-    legend = []
     for i in range(len(freq)):
-        plt.plot(phase[:, i])
-        legend.append(f'Tone {i} phase')
-        plt.plot(phase_filtered[:, i])
-        legend.append(f'Tone {i} phase (low-pass filtered)')
+        plt.plot(phase[:, i], label=f'Tone {i} phase')
+        plt.plot(phase_filtered[:, i], label=f'Tone {i} phase (low-pass filtered)')
     plt.grid()
-    plt.legend(legend)
+    plt.legend()
 
-    plt.figure("Estimated phase slope (tau)")
-    plt.plot(estimation[:, 0])
+    plt.figure("Phase slope (tau)")
+    plt.plot(tau_model[:, 0], label="From model")
+    plt.plot(estimation[:, 0], label="Estimated")
     plt.grid()
-    plt.legend(["tau"])
+    plt.legend()
 
-    plt.figure("Estimate phase offset (theta)")
-    plt.plot(estimation[:, 1])
+    plt.figure("Phase offset (theta)")
+    plt.plot(theta_model[:, 0], label="From model")
+    plt.plot(estimation[:, 1], label="Estimated")
     plt.grid()
-    plt.legend(["theta"])
+    plt.legend()
 
     plt.show()
