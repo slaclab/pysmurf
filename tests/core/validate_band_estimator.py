@@ -388,6 +388,12 @@ if __name__ == "__main__":
         # Run the software feedback
         estimation[i] = estimator.push(phase_filtered[i])
 
+    # Calculate the RMSEs between the model and estimations
+    rmse_tau = np.sqrt(np.square(np.subtract(tau_model[:, 0],estimation[:, 0])).mean())
+    rmse_theta = np.sqrt(np.square(np.subtract(theta_model[:, 0],estimation[:, 1])).mean())
+    print(f"Tau RMSE = {rmse_tau}")
+    print(f"Theta RMSE = {rmse_theta}")
+
     # Plot the data
     plt.figure("Tone phase signal")
     for i in range(len(freq)):
