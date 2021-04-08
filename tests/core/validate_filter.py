@@ -165,6 +165,7 @@ if __name__ == "__main__":
         root.DataFromFile.SendData.call()
         print('Done.')
 
+        # Print the number of frames sent from the data file
         print(f'    Number of frame sent = {root.DataFromFile.FrameCnt.get()}')
 
         # Write the results
