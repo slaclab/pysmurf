@@ -24,11 +24,29 @@ import rogue.interfaces.stream
 
 class DataToFile(pyrogue.Device):
     """
-    Class to write data to a file
+    Class to write data to a file.
+
+    Extract data from a SMuRF frame and writes it to a file.
+
+    Args
+    ----
+    name : str
+        Device name.
+    description : str
+        Device description.
+    dataSize : int, optional, default 32
+        Data size in bits to use when reading the data from the frame.
+    numSamples : int, optional, default 1
+        Number of samples to extract from the frame.
     """
-    def __init__(self, name="DataToFile", description="Data to file writer", **kwargs):
+    def __init__(self,
+                 name="DataToFile",
+                 description="Data to file writer",
+                 dataSize=32,
+                 numSamples=1,
+                 **kwargs):
         pyrogue.Device.__init__(self, name=name, description=description, **kwargs)
-        self._data_slave = DataSlave()
+        self._data_slave = DataSlave(dataSize=dataSize, numSamples=numSamples)
         self._meta_slave = MetaSlave()
 
         self.add(pyrogue.LocalVariable(
@@ -63,19 +81,36 @@ class DataToFile(pyrogue.Device):
         """
         return self._meta_slave
 
+    def _getStreamSlave(self):
+        """
+        Method called by streamConnect, streamTap and streamConnectBiDir to access master.
+        """
+        return self._data_slave
+
 class DataSlave(rogue.interfaces.stream.Slave):
     """
     A Rogue slave device, used receive a stream of data and write it to disk.
+
+    Args
+    ----
+    dataSize : int
+        Data size in bits to use when reading the data from the frame.
+    numSamples : int
+        Number of samples to extract from the frame.
     """
-    def __init__(self):
+    def __init__(self, dataSize, numSamples):
         super().__init__()
         self._data = []
+        self._data_size = dataSize
+        self._num_samples = numSamples
 
     def write_data(self, file_name):
         """
         Method to write the data buffer to a text file. Writes the
         content of the data buffer (self._data) to the output file,
-        one data point on each line as text.
+        one value on each line as text.
+        Each value in the data buffer can contain multiple values,
+        separated by spaces.
 
         Args
         ----
@@ -91,7 +126,6 @@ class DataSlave(rogue.interfaces.stream.Slave):
                 for datum in self._data:
                     f.write(f'{str(datum)}\n')
 
-
         except IOError:
             print("Error trying to open {file_name}")
 
@@ -105,11 +139,29 @@ class DataSlave(rogue.interfaces.stream.Slave):
         frame : rogue.interfaces.stream.Frame
             A frame with SMuRF data.
         """
-        with frame.lock():
-            data = bytearray(4)
 
-            frame.read(data, 128)
-            self._data.append(int.from_bytes(bytes(data), byteorder=sys.byteorder, signed=True))
+        # Data byte in bytes
+        data_size_bytes = int(self._data_size / 8)
+
+        with frame.lock():
+            data = bytearray(data_size_bytes)
+
+            index = 128 # This is the start of the data area in a SMuRF frame
+            datum = ''  # This string will hold all the values extracted from the frame
+
+            # Extract all the values from the frame
+            for i in range(self._num_samples):
+                # Read a value
+                frame.read(data, index + i*data_size_bytes)
+
+                # Convert it to int
+                data_int = int.from_bytes(bytes(data), byteorder=sys.byteorder, signed=True)
+
+                # Append the value to the sting
+                datum = f'{datum} {data_int}'
+
+            # Write the resulting string to the data buffer
+            self._data.append(datum)
 
             #try:
             #    with open(self._file_name, 'a+') as f:
