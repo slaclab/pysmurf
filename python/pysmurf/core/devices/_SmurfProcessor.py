@@ -294,7 +294,7 @@ class SmurfProcessor(pyrogue.Device):
         pyrogue.streamConnect(self.post_data_emulator, self.file_writer.getChannel(0))
         pyrogue.streamTap(    self.post_data_emulator, self.fifo)
         for i in range(8):
-            pyrogue.streamTap(    self.post_data_emulator, self.band_phase_feedback[i])
+            pyrogue.streamTap(self.post_data_emulator, self.band_phase_feedback[i])
 
         # If a root was defined, connect it to the file writer, on channel 1
         if root:
