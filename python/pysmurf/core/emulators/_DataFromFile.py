@@ -26,10 +26,26 @@ import rogue.interfaces.stream
 class DataFromFile(pyrogue.Device):
     """
     Class to stream data from a test file.
+
+    Read data points from a file, and send them in SMuRF frames.
+
+    Args
+    ----
+    name : str
+        Device name.
+    description : str
+        Device description.
+    dataSize : int, optional, default 16
+        Data size in bits to use in the frame
     """
-    def __init__(self, name="DataFromFile", description="Data from file source", **kwargs):
+
+    def __init__(self,
+                 name="DataFromFile",
+                 description="Data from file source",
+                 dataSize=16,
+                 **kwargs):
         pyrogue.Device.__init__(self, name=name, description=description, **kwargs)
-        self._data_master = DataMaster()
+        self._data_master = DataMaster(dataSize=dataSize)
 
         self.add(pyrogue.LocalVariable(
             name='FileName',
@@ -67,10 +83,17 @@ class DataFromFile(pyrogue.Device):
 class DataMaster(rogue.interfaces.stream.Master):
     """
     A Rogue master device, used to stream the data.
+
+    Args
+    ----
+    dataSize : int
+        Data size in bits to use in the frame
     """
-    def __init__(self):
+
+    def __init__(self, dataSize):
         super().__init__()
         self._frame_cnt=0
+        self._data_size = dataSize
 
     def get_frame_cnt(self):
         """
@@ -81,11 +104,11 @@ class DataMaster(rogue.interfaces.stream.Master):
     def send_data(self, file_name):
         """
         Send all the data from a text file. The input data file,
-        must be a text file with data point on each line. The data
-        must be of type int16.
-        Each data point is read from the file, and then send on a
-        frame with the SMuRF header, with only the first channel
-        containing the data point.
+        must be a text file with data points on each line. The data
+        must be of size 'dataSize'.
+        Each line can have multiple values, separated by spaces. All
+        the values in each line are send on a frame with the SMuRF
+        header, with each values on a channel.
 
         Args
         ----
@@ -99,7 +122,7 @@ class DataMaster(rogue.interfaces.stream.Master):
         try:
             with open(file_name, 'r') as f:
                 for data in f:
-                    self.sendData(data=data)
+                    self.sendData(data=list(map(int, data.split())))
                     time.sleep(0.01)
 
         except IOError:
@@ -109,21 +132,24 @@ class DataMaster(rogue.interfaces.stream.Master):
     def sendData(self, data):
         """
         Send a Rogue Frame. The frame contains the SMuRF header and the
-        input data point in the first channel. The frame will contain only
-        one channel. The SMuRF header will be only partially filled, containing
-        only the number of channels, and a the frame counter words.
+        input data points in contiguous channels. The SMuRF header will
+        be only partially filled, containing only the number of channels,
+        and a the frame counter words.
 
         Args
         ----
-        data : int
-            Input data (must be of type int16).
+        data : list
+            Input data (must be of size 'dataSize').
         """
 
+        # Data size in bytes
+        data_size_bytes = int(self._data_size / 8)
+
         # Request a frame to hold an SMuRF frame
-        frame = self._reqFrame(128+2*4096, True)
+        frame = self._reqFrame(128+data_size_bytes*4096, True)
 
         # Fill the frame with zeros
-        frame.write( bytearray([0]*(128+2*4096)), 0 )
+        frame.write( bytearray([0]*(128+data_size_bytes*4096)), 0 )
 
         # Write the number of channels
         frame.write( bytearray((4096).to_bytes(4, sys.byteorder)), 4)
@@ -132,7 +158,10 @@ class DataMaster(rogue.interfaces.stream.Master):
         frame.write( bytearray(self._frame_cnt.to_bytes(4, sys.byteorder)), 84)
 
         # Write the data into the first channel
-        frame.write( bytearray(int(data).to_bytes(2, sys.byteorder, signed=True)), 128)
+        index = 128 # This is the start of the data area in a SMuRF frame
+        for d in data:
+            frame.write( bytearray(d.to_bytes(data_size_bytes, sys.byteorder, signed=True)), index)
+            index += data_size_bytes
 
         # Send the frame
         self._sendFrame(frame)
