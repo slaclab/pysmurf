@@ -17,7 +17,6 @@
 # contained in the LICENSE.txt file.
 #-----------------------------------------------------------------------------
 
-import sys
 import scipy.signal as signal
 import numpy as np
 import argparse
@@ -26,7 +25,6 @@ import pyrogue
 import pysmurf
 import pysmurf.core.devices
 import pysmurf.core.transmitters
-import pysmurf.core.server_scripts.Common as common
 
 # Input arguments
 parser = argparse.ArgumentParser(description='Test the SmurfProcessor Filter.')
@@ -127,7 +125,7 @@ if __name__ == "__main__":
 
     # Send the input data through the SmurfProcessor, disabling the unwrapper and
     # downsampling, and setting the filer with the generated coefficients.
-    print('Starting the SmurfProcessor, and filter the same data with it... ', end='')
+    print('Starting the SmurfProcessor, and filter the same data with it')
     with LocalRoot() as root:
         # Disable the unwrapper
         print('  Disabling data unwrapping... ', end='')
