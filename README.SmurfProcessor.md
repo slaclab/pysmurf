@@ -137,7 +137,19 @@ The estimator uses the following phase time delay (`tau`) and phase offset (`the
 phase(f) = tau * (2 * pi * f) + theta
 ```
 
-The estimator assumes that the `tau` and `theta` parameters are constant for all tones in the same 500MHz band, and uses the "least square solution" to find them reading the phase of 2 or more tones.
+The estimator assumes that the `tau` and `theta` parameters are constant for all tones in the same 500MHz band, and uses the "least square solution" to find them, by reading the phase of 2 or more tones:
+
+```
+tau = sum_i(f_i - f_mean)(p_i - p_mean)/sum_i(f_i - f_mean)^2
+
+theta = y_mean - m * x_mean
+
+where:
+    f_i    : frequency points.
+    f_mean : mean frequency.
+    p_i    : phase points.
+    p_mean : mean phase.
+```
 
 In order to use these devices, you need to, per each band:
 - configure at least 2 fixed tones, and assign them 2 two difference channels in the SMuRF packet,
