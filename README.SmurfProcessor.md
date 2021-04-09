@@ -42,12 +42,13 @@ The processing pipeline is describe in the following diagram:
 | PostDataEmulator |
 +--------+---------+
          |
-         +-------------------+
-         |                   |
-   +-----+------+      +-----+-------+
-   | FileWriter |      | Transmitter |
-   +------------+      | (optional)  |
-                       +-------------+
+         +------------------------+-----------------------+
+         |                        |                       |
+   +-----+------+      +----------+---------+       +-----+-------+
+   | FileWriter |      | BandPhaseFeedback  |       | Transmitter |
+   +------------+      | (x8, one per band) |       | (optional)  |
+                       +--------------------+       +-------------+
+
 ```
 
 Each module in the diagram perform the following operations:
@@ -125,6 +126,35 @@ This module is not accessible from the pyrogue tree, as it doesn't have any conf
 ### FileWriter
 
 Write the processed data to disk. See [here](README.DataFile.md) for details.
+
+### BandPhaseFeedbck
+
+There are 8 of these devices, one for each 500MHz band. Each device estimates and corrects changes in phase parameters for each band.
+
+The estimator uses the following phase time delay (`tau`) and phase offset (`theta`) model:
+
+```
+phase(f) = tau * (2 * pi * f) + theta
+```
+
+The estimator assumes that the `tau` and `theta` parameters are constant for all tones in the same 500MHz band, and uses the "least square solution" to find them reading the phase of 2 or more tones.
+
+In order to use these devices, you need to, per each band:
+- configure at least 2 fixed tones, and assign them 2 two difference channels in the SMuRF packet,
+- give the a list with the channel number and a list with the frequency (in GHz) of the fixed tone tone to this module using the variables `toneChannels` and `toneFrequencies`,,
+- enable the device bu setting `Disable` to `False`.
+
+The estimated values of `tau` and `theta` will be available in the variables `Tau` and `Theta`, respectively.
+
+**Notes:**
+- The variable `DataValid` indicates if all the device settings are correct. The conditions are:
+  - Both lists `toneChannels` and `toneFrequencies` must have the same size,
+  - The incoming SMuRF packets must have a number of channel equal or greater to the maximum channel defined in the `tonChannels` list.
+- Each device start disabled by default. It must be manually enabled by setting `Disable` to `False`.
+- The variable `Band` indicates which 500MHz band the device is working on, with and index going from 0 to 7.
+- The `toneFrequencies` frequency list only accepts frequencies inside the corresponding 500MHz band. The frequencies are expressed in GHz.
+- The variable `NumChannels` indicates how many channels the incoming SMuRF packets have.
+- The variable `FrameCnt` indicates how many valid packets has been received by the device; and the variable `BadFrameCnt` indicates how many bad frames has been rejected. Both counters can be clear using the `clearCnt` command.
 
 ### Transmitter
 
