@@ -540,7 +540,7 @@ if __name__ == "__main__":
             with open(input_data_file, 'r') as f_in, open(smurf_estimated_file, 'w') as f_out:
                 for data in f_in:
                     # Send a frame with a data set from the input file
-                    root.FrameGenerator.SendData.call(arg=data)
+                    root.FrameGenerator.SendData.call(arg=list(map(int, data.split())))
 
                     # Read the estimator results
                     tau = root.BandPhaseFeedback.Tau.get()

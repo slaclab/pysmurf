@@ -18,10 +18,9 @@
 # contained in the LICENSE.txt file.
 #-----------------------------------------------------------------------------
 
-import sys
-
 import pyrogue
-import rogue.interfaces.stream
+from pysmurf.core.emulators._DataMaster import DataMaster
+
 
 class FrameGenerator(pyrogue.Device):
     """
@@ -49,7 +48,7 @@ class FrameGenerator(pyrogue.Device):
          dataSize=16,
          **kwargs):
         pyrogue.Device.__init__(self, name=name, description=description, **kwargs)
-        self._data_master = self._DataMaster(dataSize=dataSize)
+        self._data_master = DataMaster(dataSize=dataSize)
 
         self.add(pyrogue.LocalVariable(
             name='FrameCnt',
@@ -70,63 +69,3 @@ class FrameGenerator(pyrogue.Device):
         the master device.
         """
         return self._data_master
-
-    class _DataMaster(rogue.interfaces.stream.Master):
-        """
-        A Rogue master device, used to stream the data.
-
-        Args
-        ----
-        dataSize : int
-            Data size in bits to use in the frame
-        """
-        def __init__(self, dataSize):
-            super().__init__()
-            self._frame_cnt = 0
-            self._data_size = dataSize
-
-        def get_frame_cnt(self):
-            """
-            Get the number of sent frames
-            """
-            return self._frame_cnt
-
-        def sendData(self, data):
-            """
-            Send a Rogue Frame. The frame contains the SMuRF header and the
-            input data points in contiguous channels. The SMuRF header will
-            be only partially filled, containing only the number of channels,
-            and a the frame counter words.
-
-            Args
-            ----
-            data : list
-                Input data (must be of size 'dataSize').
-            """
-
-            # Data size in bytes
-            data_size_bytes = int(self._data_size / 8)
-
-            # Request a frame to hold an SMuRF frame
-            frame = self._reqFrame(128+data_size_bytes*4096, True)
-
-            # Fill the frame with zeros
-            frame.write( bytearray([0]*(128+data_size_bytes*4096)), 0 )
-
-            # Write the number of channels
-            frame.write( bytearray((4096).to_bytes(4, sys.byteorder)), 4)
-
-            # Write the frame counter into the header
-            frame.write( bytearray(self._frame_cnt.to_bytes(4, sys.byteorder)), 84)
-
-            # Write the data into the first channel
-            index = 128 # This is the start of the data area in a SMuRF frame
-            for d in list(map(int, data.split())):
-                frame.write( bytearray(d.to_bytes(data_size_bytes, sys.byteorder, signed=True)), index)
-                index += data_size_bytes
-
-            # Send the frame
-            self._sendFrame(frame)
-
-            # Update the frame counter
-            self._frame_cnt =  self._frame_cnt + 1
