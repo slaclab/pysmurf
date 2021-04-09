@@ -161,7 +161,7 @@ The estimated values of `tau` and `theta` will be available in the variables `Ta
 **Notes:**
 - The variable `DataValid` indicates if all the device settings are correct. The conditions are:
   - Both lists `toneChannels` and `toneFrequencies` must have the same size,
-  - The incoming SMuRF packets must have a number of channel equal or greater to the maximum channel defined in the `tonChannels` list.
+  - The incoming SMuRF packets must have a number of channel equal or greater to the maximum channel defined in the `toneChannels` list.
 - Each device start disabled by default. It must be manually enabled by setting `Disable` to `False`.
 - The variable `Band` indicates which 500MHz band the device is working on, with and index going from 0 to 7.
 - The `toneFrequencies` frequency list only accepts frequencies inside the corresponding 500MHz band. The frequencies are expressed in GHz.
