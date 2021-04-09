@@ -499,24 +499,24 @@ if __name__ == "__main__":
             """
             Local root device.
 
-            It contains the BandPhaseFeedback device, connected to our LocalDataSource
-            data source. It will read the data from the input data file generated previously,
-            and send its contents through the BandPhaseEstimator device, while reading the
-            estimation result variables and save then into an output file, one data set at
+            It contains the BandPhaseFeedback device, connected to a FrameGenerator data source.
+            It will read the data from the input data file generated previously, and send its
+            contents through the BandPhaseEstimator device, while reading the estimation result
+            variables and save then into an output file, one data set at
             a time.
             """
             def __init__(self, **kwargs):
                 pyrogue.Root.__init__(self, name="AMCc", initRead=True, pollEn=True, **kwargs)
 
-                # Use the LocalDataSource device as a stream data source. We will use int32 data type.
-                self._streaming_stream = pysmurf.core.emulator.FrameGenerator(dataSize=32)
+                # Use a FrameGenerator device as a stream data source. We will use int32 data type.
+                self._streaming_stream = pysmurf.core.emulators.FrameGenerator(dataSize=32)
                 self.add(self._streaming_stream)
 
                 # Add a BandPhaseFeedback device
                 self._band_phase_feedback = pysmurf.core.feedbacks.BandPhaseFeedback(name="BandPhaseFeedback", band=0)
                 self.add(self._band_phase_feedback)
 
-                # Connect the LocalDataSource data source to the BandPhaseFeedback
+                # Connect the FrameGenerator data source to the BandPhaseFeedback
                 pyrogue.streamConnect(self._streaming_stream, self._band_phase_feedback)
 
         # Send the input data through the BandPhaseFeedback device.
@@ -540,7 +540,7 @@ if __name__ == "__main__":
             with open(input_data_file, 'r') as f_in, open(smurf_estimated_file, 'w') as f_out:
                 for data in f_in:
                     # Send a frame with a data set from the input file
-                    root.LocalDataSource.SendData.call(arg=data)
+                    root.FrameGenerator.SendData.call(arg=data)
 
                     # Read the estimator results
                     tau = root.BandPhaseFeedback.Tau.get()
