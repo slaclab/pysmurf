@@ -413,6 +413,9 @@ if __name__ == "__main__":
     python_estimated_file = f'{args.out_dir}/out_python.dat'
     smurf_estimated_file = f'{args.out_dir}/out_smurf.dat'
 
+    # Maximum RMSE error allowed
+    rmse_max = 1e-4
+
     # Phase jump index
     # We set it at the middle of the test
     jump_index = num_samples/2
@@ -475,6 +478,14 @@ if __name__ == "__main__":
     rmse_theta = np.sqrt(np.square(np.subtract(theta_model[:, 0], estimation[:, 1])).mean())
     print(f"Tau RMSE = {rmse_tau}")
     print(f"Theta RMSE = {rmse_theta}")
+
+
+    # Verify that the python estimator result are within error tolerance
+    if rmse_tau > rmse_max:
+        raise AssertionError(f'Tau RMSE value {rmse_tau} is greater than the allowed {rmse_max}')
+
+    if rmse_theta > rmse_max:
+        raise AssertionError(f'Theta RMSE value {rmse_theta} is greater than the allowed {rmse_max}')
 
     # Test the SMuRF device, if enabled
     if not no_rogue:
@@ -664,6 +675,13 @@ if __name__ == "__main__":
         print('RMSE between python and SMuRF estimators:')
         print(f'Tau = {rmse_tau}')
         print(f'Theta = {rmse_theta}')
+
+        # Verify that the SMuRF estimator result are within error tolerance
+        if rmse_tau > rmse_max:
+            raise AssertionError(f'Tau RMSE value {rmse_tau} is greater than the allowed {rmse_max}')
+
+        if rmse_theta > rmse_max:
+            raise AssertionError(f'Theta RMSE value {rmse_theta} is greater than the allowed {rmse_max}')
 
     # Plot the data, if enable
     if plot_data:
