@@ -152,6 +152,12 @@ jobs:
           docker container exec server \
             /bin/bash -c "/usr/local/src/pysmurf/tests/core/validate_unwrapper.py"
 
+      # - Run the 'validate_band_estimator.py' test script
+      - name: Validate the BandPhaseFeedback device
+        run: |
+          docker container exec server \
+            /bin/bash -c "/usr/local/src/pysmurf/tests/core/validate_band_estimator.py"
+
   # Client tests
   test-client:
     name: Client Tests
