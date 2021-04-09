@@ -19,6 +19,7 @@
 #-----------------------------------------------------------------------------
 
 import pyrogue
+
 from pysmurf.core.emulators._DataMaster import DataMaster
 
 

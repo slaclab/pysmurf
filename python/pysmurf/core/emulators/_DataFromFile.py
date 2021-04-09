@@ -20,6 +20,7 @@
 import time
 
 import pyrogue
+
 from pysmurf.core.emulators._DataMaster import DataMaster
 
 class DataFromFile(pyrogue.Device):
