@@ -53,7 +53,8 @@ class StreamDataEmulatorI16(pyrogue.Device):
                 4 : 'Sawtooth',
                 5 : 'Triangle',
                 6 : 'Sine',
-                7 : 'DropFrame',
+                7 : 'TonePhase',
+                8 : 'DropFrame',
             },
             localSet=lambda value: self._emulator.setType(value),
             localGet=self._emulator.getType))

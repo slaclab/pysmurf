@@ -55,6 +55,24 @@ A sine signal is generated with defined peak amplitude and period.
 
 All channels in the incoming frame are set to the same sine signal.
 
+### Tone phase
+
+Each channel will emulate the phase signal of a fixed tone. The tones from all 4096 channels are equally spaced in order to cover the full 4GHz to 8GHz band.
+
+The frequency of the tone on a specific channel ,`ch`, is defined by:
+```
+f(ch) = (4 + 4 * ch/4096)*1e9
+```
+
+and the phase signal for a tone with frequency `f` is then generated using this model:
+```
+phase(f) = tau * (2 * pi * f) + theta
+```
+
+where:
+- `tau` = `apmplitude`/1e6,
+- `theta` = `offset`
+
 ### Drop Frame
 
 When this mode is select, one frame will be dropped on each defined period.

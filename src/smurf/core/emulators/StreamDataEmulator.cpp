@@ -266,6 +266,9 @@ void sce::StreamDataEmulator<T>::acceptFrame(ris::FramePtr frame)
                 case SignalType::Sine:
                     genSinWave(dPtr);
                     break;
+               case SignalType::TonePhase:
+                   genTonePhaseWave(dPtr);
+                   break;
                 case SignalType::DropFrame:
                     genFrameDrop();
                     break;
@@ -399,6 +402,16 @@ void sce::StreamDataEmulator<T>::genSinWave(ris::FrameAccessor<T> &dPtr)
 
     // Set all channels to the same signal
     std::fill(dPtr.begin(), dPtr.end(), s);
+}
+
+template<typename T>
+void sce::StreamDataEmulator<T>::genTonePhaseWave(ris::FrameAccessor<T> &dPtr) const
+{
+    for (std::size_t i{0}; i < dPtr.size(); ++i)
+    {
+       double w { 2 * M_PI * (4.0 + 4.0 * static_cast<double>(i)/4096.0) * 1e9 };
+        dPtr.at(i) = static_cast<T>( static_cast<double>(amplitude_) / 1e6 * w + static_cast<double>(offset_) );
+    }
 }
 
 template <typename T>

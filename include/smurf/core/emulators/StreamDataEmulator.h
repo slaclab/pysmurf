@@ -93,7 +93,7 @@ namespace smurf
 
             private:
                 // Types of signal
-                enum class SignalType { Zeros, ChannelNumber, Random, Square, Sawtooth, Triangle, Sine, DropFrame, Size };
+                enum class SignalType { Zeros, ChannelNumber, Random, Square, Sawtooth, Triangle, Sine, TonePhase, DropFrame, Size };
 
                 // Maximum amplitude value
                 const uT_t maxAmplitude = std::numeric_limits<uT_t>::max();
@@ -101,6 +101,7 @@ namespace smurf
                 // Signal generator methods
                 void genZeroWave(ris::FrameAccessor<T> &dPtr)          const;
                 void genChannelNumberWave(ris::FrameAccessor<T> &dPtr) const;
+                void genTonePhaseWave(ris::FrameAccessor<T> &dPtr)     const;
                 void genRandomWave(ris::FrameAccessor<T> &dPtr);
                 void genSquareWave(ris::FrameAccessor<T> &dPtr);
                 void getSawtoothWave(ris::FrameAccessor<T> &dPtr);
