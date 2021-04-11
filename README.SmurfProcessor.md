@@ -156,10 +156,11 @@ In order to use these devices, you need to, per each band:
 - give the a list with the channel number and a list with the frequency (in GHz) of the fixed tone tone to this module using the variables `toneChannels` and `toneFrequencies`, and
 - enable the device by setting `Disable` to `False`.
 
-If all is configured correctly, you should see the variable `DataValid` set to `True`, and the estimated values of `tau` and `theta` will be presented in the variables `Tau` and `Theta`, respectively.
+If all is configured correctly, you should see the variable `Ready` set to `True`, and the estimated values of `tau` and `theta` will be presented in the variables `Tau` and `Theta`, respectively.
 
 ***Notes:***
-- The variable `DataValid` indicates if all the device settings are correct. The conditions are:
+- The variable `Ready` indicates if all the device settings are correct and it is ready to process data. The conditions are:
+  - The device is enabled,
   - Both lists `toneChannels` and `toneFrequencies` must have the same size,
   - The incoming SMuRF packets must have a number of channel equal or greater to the maximum channel defined in the `toneChannels` list.
 - Each device start disabled by default. It must be manually enabled by setting `Disable` to `False`.

@@ -39,7 +39,7 @@ scf::BandPhaseFeedback::BandPhaseFeedback(std::size_t band)
     toneCh(minNumTones, 0),
     toneFreq(minNumTones, 0),
     maxToneCh(0),
-    dataValid(false),
+    ready(false),
     tau(0.0),
     theta(0.0),
     freqMean(0.0),
@@ -78,7 +78,7 @@ void scf::BandPhaseFeedback::setup_python()
         .def("getToneFrequencies",  &BandPhaseFeedback::getToneFrequencies)
         .def("getTau",              &BandPhaseFeedback::getTau)
         .def("getTheta",            &BandPhaseFeedback::getTheta)
-        .def("getDataValid",        &BandPhaseFeedback::getDataValid)
+        .def("getReady",            &BandPhaseFeedback::getReady)
     ;
     bp::implicitly_convertible< scf::BandPhaseFeedbackPtr, ris::SlavePtr  >();
     bp::implicitly_convertible< scf::BandPhaseFeedbackPtr, ris::MasterPtr >();
@@ -166,8 +166,8 @@ void scf::BandPhaseFeedback::setToneChannels(bp::list m)
     // Update the maximum tone channel
     maxToneCh = *std::max_element(toneCh.begin(), toneCh.end());
 
-    // Check if the input parameters are valid
-    checkDataValid();
+    // Check if all conditions are valid
+    checkReady();
 }
 
 const bp::list scf::BandPhaseFeedback::getToneChannels() const
@@ -234,8 +234,8 @@ void scf::BandPhaseFeedback::setToneFrequencies(bp::list m)
         freqVar += d*d;
     }
 
-    // Check if the input parameters are valid
-    checkDataValid();
+    // Check if all condition are valid
+    checkReady();
 }
 
 const bp::list scf::BandPhaseFeedback::getToneFrequencies() const
@@ -259,21 +259,22 @@ const double scf::BandPhaseFeedback::getTheta() const
     return theta;
 }
 
-const bool scf::BandPhaseFeedback::getDataValid() const
+const bool scf::BandPhaseFeedback::getReady() const
 {
-    return dataValid;
+    return ready;
 }
 
-void scf::BandPhaseFeedback::checkDataValid()
+void scf::BandPhaseFeedback::checkReady()
 {
-    // Check if the input parameters are valid, which has 2 conditions:
+    // Check if all conditions are valid, which are:
+    // - The module is enabled,
     // - Both the toneCh and toneFreq must have the same size, and
     // - The maximum channel in 'toneCh' is not greater that the number of
     //   channels in the input frame.
-    if ( (toneCh.size() == toneFreq.size()) && (maxToneCh < numCh) )
-        dataValid = true;
+    if ( (!disable) && (toneCh.size() == toneFreq.size()) && (maxToneCh < numCh) )
+        ready = true;
     else
-        dataValid = false;
+        ready = false;
 }
 
 void scf::BandPhaseFeedback::acceptFrame(ris::FramePtr frame)
@@ -328,12 +329,12 @@ void scf::BandPhaseFeedback::acceptFrame(ris::FramePtr frame)
         // Take the mutex here, to avoid the tone parameters to change while they are used.
         std::lock_guard<std::mutex> lock { mut };
 
-        // Check if the input parameters are valid
-        checkDataValid();
+        // Check if all conditions are valid
+        checkReady();
 
         // If the input parameters are are not valid, we do not process the data.
         // We also set the tau and theta estimation to 0.
-        if (!dataValid)
+        if (!ready)
         {
             tau = 0.0;
             theta = 0.0;

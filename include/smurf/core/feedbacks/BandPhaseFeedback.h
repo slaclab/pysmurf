@@ -87,11 +87,11 @@ namespace smurf
                 const double getTau()   const;
                 const double getTheta() const;
 
-                // Get the data valid flag
-                const bool getDataValid() const;
+                // Get the ready flag
+                const bool getReady() const;
 
-                // Check if both input vectors are valid
-                void checkDataValid();
+                // Check if all settings are valid
+                void checkReady();
 
                 // Accept new frames
                 void acceptFrame(ris::FramePtr frame);
@@ -118,7 +118,7 @@ namespace smurf
                 std::vector<std::size_t>    toneCh;         // Tone channels
                 std::vector<double>         toneFreq;       // Tone Frequencies
                 std::size_t                 maxToneCh;      // Maximum channel in the 'toneCh' vector.
-                bool                        dataValid;      // Flag to indicate the the input parameters are valid.
+                bool                        ready;          // Flag to indicate that all conditions are valid
                 double                      tau;            // Band phase slope estimation (tau).
                 double                      theta;          // Band phase offset estimation (theta).
                 double                      freqMean;       // Mean frequency

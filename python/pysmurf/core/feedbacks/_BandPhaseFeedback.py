@@ -6,7 +6,7 @@
 # Created    : 2019-09-30
 #-----------------------------------------------------------------------------
 # Description:
-#    SMuRF Band Phase Feedback  Python Package
+#    SMuRF Band Phase Feedback Python Package
 #-----------------------------------------------------------------------------
 # This file is part of the smurf software platform. It is subject to
 # the license terms in the LICENSE.txt file found in the top-level directory
@@ -114,14 +114,14 @@ class BandPhaseFeedback(pyrogue.Device):
             localSet=lambda value: self._BandPhaseFeedback.setToneFrequencies(value),
             localGet=self._BandPhaseFeedback.getToneFrequencies))
 
-        # Add the data valid flag.
+        # Add the ready flag.
         self.add(pyrogue.LocalVariable(
-            name='DataValid',
-            description='The input parameters are valid',
+            name='Ready',
+            description='All conditions are valid',
             mode='RO',
             value=False,
             pollInterval=1,
-            localGet=self._BandPhaseFeedback.getDataValid))
+            localGet=self._BandPhaseFeedback.getReady))
 
         # Add the band phase slope estimation (tau).
         self.add(pyrogue.LocalVariable(
