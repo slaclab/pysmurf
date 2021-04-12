@@ -87,6 +87,9 @@ void scf::BandPhaseFeedback::setup_python()
 void scf::BandPhaseFeedback::setDisable(bool d)
 {
     disable = d;
+
+    // Check if all conditions are valid
+    checkReady();
 }
 
 const bool scf::BandPhaseFeedback::getDisable() const
