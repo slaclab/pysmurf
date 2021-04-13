@@ -5848,14 +5848,13 @@ class SmurfCommandMixin(SmurfBase):
     def set_predata_emulator_disable(self, val, **kwargs):
         """
         Sets the predata emulator disable status.
+        
         Args
         ----
-        val : int
-            0 to set to False
-            1 to set to True
+        val : bool
         """
-        self._caput(self._predata_emulator + self._predata_emulator_disable, val,
-                    **kwargs)
+        self._caput(self._predata_emulator + self._predata_emulator_disable,
+            val, **kwargs)
 
     def get_predata_emulator_disable(self, **kwargs):
         """
@@ -5863,11 +5862,10 @@ class SmurfCommandMixin(SmurfBase):
 
         Returns
         -------
-        int
-            0 - False, 1 - True
-            """
+        type : bool
+        """
         return self._caget(self._predata_emulator + self._predata_emulator_disable,
-                           **kwargs)
+            **kwargs)
 
     _predata_emulator_type = "Type"
 
