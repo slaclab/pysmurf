@@ -5848,7 +5848,7 @@ class SmurfCommandMixin(SmurfBase):
     def set_predata_emulator_disable(self, val, **kwargs):
         """
         Sets the predata emulator disable status.
-        
+
         Args
         ----
         val : bool
