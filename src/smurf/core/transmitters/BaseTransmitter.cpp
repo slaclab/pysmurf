@@ -28,14 +28,8 @@ namespace sct = smurf::core::transmitters;
 sct::BaseTransmitter::BaseTransmitter()
 :
     disable(false),
-    dataBuffer(sct::DualDataBuffer<SmurfPacketROPtr>::create(
-        std::bind(&BaseTransmitter::dataTransmit, this, std::placeholders::_1),
-        "SmurfDataTX")
-    ),
-    metaBuffer(sct::DualDataBuffer<std::string>::create(
-        std::bind(&BaseTransmitter::metaTransmit, this, std::placeholders::_1),
-        "SmurfMetaTX")
-    )
+    txDataFunc(std::bind(&BaseTransmitter::dataTransmit, this, std::placeholders::_1)),
+    txMetaFunc(std::bind(&BaseTransmitter::metaTransmit, this, std::placeholders::_1))
 {
 }
 
@@ -92,18 +86,17 @@ const bool sct::BaseTransmitter::getDisable() const
 
 void sct::BaseTransmitter::clearCnt()
 {
-    dataBuffer->clearCnt();
-    metaBuffer->clearCnt();
+
 }
 
 const std::size_t sct::BaseTransmitter::getMetaDropCnt() const
 {
-    return metaBuffer->getDropCnt();
+    return 0;
 }
 
 const std::size_t sct::BaseTransmitter::getDataDropCnt() const
 {
-    return dataBuffer->getDropCnt();
+    return 0;
 }
 
 void sct::BaseTransmitter::acceptDataFrame(ris::FramePtr frame)
@@ -119,8 +112,9 @@ void sct::BaseTransmitter::acceptDataFrame(ris::FramePtr frame)
     if ( frame->bufferCount() != 1 )
         return;
 
-    // Insert the new SmurfPacket into the buffer to be sent
-    dataBuffer->insertData(SmurfPacketRO::create(frame));
+    // Call the data TX callback method passing a SmurfPacketRO object
+    txDataFunc(SmurfPacketRO::create(frame));
+
     fLock->unlock();
 }
 
@@ -140,6 +134,6 @@ void sct::BaseTransmitter::acceptMetaFrame(ris::FramePtr frame)
     std::string cfg(reinterpret_cast<char const*>(frame->beginRead().ptr()), frame->getPayload());
     fLock->unlock();
 
-    // Insert the new metada packet into the buffer to be send
-    metaBuffer->insertData(cfg);
+    // Call the metadata TX callback function passing a string
+    txMetaFunc(cfg);
 }
