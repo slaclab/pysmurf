@@ -292,19 +292,28 @@ class SmurfProcessor(pyrogue.Device):
             self.add(self.transmitter)
 
             # Add a fifo for the data frames. It will hold up to 100 copies of processed frames,
-            # to be send to the transmitter device. The frames will be tapped after the data emulator,
-            # and before the file writer.
-            self.fifo = rogue.interfaces.stream.Fifo(100, 0, False)
+            # to be send to the transmitter device. If the fifo is full, new frames will be dropped.
+            # The frames will be tapped after the data emulator, and before the file writer.
+            self.fifo_data = rogue.interfaces.stream.Fifo(100, 0, False)
 
-            # Tap the data frames at the output of the post data emulator, and send it to transmitter'
+            # Tap the data frames at the output of the post data emulator, and send them to transmitter'
             # data channel, though the fifo.
-            pyrogue.streamTap(    self.post_data_emulator, self.fifo)
-            pyrogue.streamConnect(self.fifo,               self.transmitter.getDataChannel())
+            pyrogue.streamTap(    self.post_data_emulator, self.fifo_data)
+            pyrogue.streamConnect(self.fifo_data,          self.transmitter.getDataChannel())
 
             # If a root was defined, connect  it to the transmitter's meta data channel.
             # Use streamTap as it was already connected to the file writer.
             if root:
-                pyrogue.streamTap(root, self.transmitter.getMetaChannel())
+                # Add a fifo for the meta data frames. It will hold up to 100 copies of the input frames,
+                # to be send to the transmitter device. If the fifo is full, new frames will be dropped.
+                # The frames will be tapped from the root, as the root was already connected to the file
+                # writer.
+                self.fifo_meta = rogue.interfaces.stream.Fifo(100, 0, False)
+
+                # Tap the metadata frames from the root, and send them to the transmitter's meta data
+                # channel, through the fifo.
+                pyrogue.streamTap(    root,           self.fifo_meta)
+                pyrogue.streamConnect(self.fifo_meta, self.transmitter.getMetaChannel())
 
     def _getStreamSlave(self):
         """
