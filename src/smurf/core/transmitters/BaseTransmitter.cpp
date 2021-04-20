@@ -31,9 +31,7 @@ sct::BaseTransmitter::BaseTransmitter()
     dataFrameCnt(0),
     metaFrameCnt(0),
     dataDropFrameCnt(0),
-    metaDropFrameCnt(0),
-    txDataFunc(std::bind(&BaseTransmitter::dataTransmit, this, std::placeholders::_1)),
-    txMetaFunc(std::bind(&BaseTransmitter::metaTransmit, this, std::placeholders::_1))
+    metaDropFrameCnt(0)
 {
 }
 
@@ -149,8 +147,8 @@ void sct::BaseTransmitter::acceptDataFrame(ris::FramePtr frame)
     SmurfPacketROPtr pkt { SmurfPacketRO::create(frame) };
     fLock->unlock();
 
-    // Call the data TX callback method passing a SmurfPacketRO object
-    txDataFunc(pkt);
+    // Call the dataTransmit method
+    dataTransmit(pkt);
 }
 
 void sct::BaseTransmitter::acceptMetaFrame(ris::FramePtr frame)
@@ -184,6 +182,6 @@ void sct::BaseTransmitter::acceptMetaFrame(ris::FramePtr frame)
     std::string cfg ( reinterpret_cast<char const*>(frame->beginRead().ptr()), frame->getPayload() );
     fLock->unlock();
 
-    // Call the metadata TX callback function passing the string
-    txMetaFunc(cfg);
+    // Call the metaTransmit method
+    metaTransmit(cfg);
 }
