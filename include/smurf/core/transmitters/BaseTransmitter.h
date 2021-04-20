@@ -21,6 +21,7 @@
  *-----------------------------------------------------------------------------
 **/
 
+#include <functional>
 #include <rogue/interfaces/stream/Frame.h>
 #include <rogue/interfaces/stream/FrameLock.h>
 #include <rogue/interfaces/stream/FrameIterator.h>
@@ -29,7 +30,6 @@
 #include <rogue/GilRelease.h>
 #include "smurf/core/common/SmurfHeader.h"
 #include "smurf/core/common/SmurfPacket.h"
-#include "smurf/core/transmitters/DualDataBuffer.h"
 #include "smurf/core/transmitters/BaseTransmitterChannel.h"
 
 namespace bp  = boost::python;
@@ -43,6 +43,11 @@ namespace smurf
         {
             class BaseTransmitter;
             typedef std::shared_ptr<BaseTransmitter> BaseTransmitterPtr;
+
+            // TX callback function pointer.
+            // The function signature must be 'void(T)'
+            template <typename T>
+            using tx_func_t =  std::function<void(T)>;
 
             class BaseTransmitter: public std::enable_shared_from_this<smurf::core::transmitters::BaseTransmitter>
             {
@@ -96,10 +101,12 @@ namespace smurf
 
             private:
                 bool                                disable;     // Disable flag
-                DualDataBufferPtr<SmurfPacketROPtr> dataBuffer;  // Data buffer
-                DualDataBufferPtr<std::string>      metaBuffer;  // Metadata buffer
                 BaseTransmitterChannelPtr           dataChannel; // Data channel interface
                 BaseTransmitterChannelPtr           metaChannel; // Metadata channel interface
+
+                // TX callback functions.
+                tx_func_t<SmurfPacketROPtr> txDataFunc;
+                tx_func_t<std::string>      txMetaFunc;
             };
         }
     }
