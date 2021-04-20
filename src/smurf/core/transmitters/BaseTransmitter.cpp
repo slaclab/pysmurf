@@ -145,10 +145,12 @@ void sct::BaseTransmitter::acceptDataFrame(ris::FramePtr frame)
     // Increment the data frame counter
     ++dataFrameCnt;
 
-    // Call the data TX callback method passing a SmurfPacketRO object
-    txDataFunc(SmurfPacketRO::create(frame));
-
+    // Convert the frame to a SmurfPacketRO object
+    SmurfPacketROPtr pkt { SmurfPacketRO::create(frame) };
     fLock->unlock();
+
+    // Call the data TX callback method passing a SmurfPacketRO object
+    txDataFunc(pkt);
 }
 
 void sct::BaseTransmitter::acceptMetaFrame(ris::FramePtr frame)
@@ -178,9 +180,8 @@ void sct::BaseTransmitter::acceptMetaFrame(ris::FramePtr frame)
     // Increment the metadata frame counter
     ++metaFrameCnt;
 
-
     // Convert the frame payload to a string
-    std::string cfg(reinterpret_cast<char const*>(frame->beginRead().ptr()), frame->getPayload());
+    std::string cfg ( reinterpret_cast<char const*>(frame->beginRead().ptr()), frame->getPayload() );
     fLock->unlock();
 
     // Call the metadata TX callback function passing the string
