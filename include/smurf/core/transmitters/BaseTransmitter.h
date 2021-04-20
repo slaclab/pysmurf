@@ -44,6 +44,11 @@ namespace smurf
             class BaseTransmitter;
             typedef std::shared_ptr<BaseTransmitter> BaseTransmitterPtr;
 
+            // TX callback function pointer.
+            // The function signature must be 'void(T)'
+            template <typename T>
+            using tx_func_t =  std::function<void(T)>;
+
             class BaseTransmitter: public std::enable_shared_from_this<smurf::core::transmitters::BaseTransmitter>
             {
             public:
