@@ -275,30 +275,33 @@ class SmurfProcessor(pyrogue.Device):
         self.file_writer = pyrogue.utilities.fileio.StreamWriter(name='FileWriter')
         self.add(self.file_writer)
 
-        # Add a Fifo. It will hold up to 100 copies of processed frames, to be processed by
-        # downstream slaves. The frames will be tapped before the file writer.
-        self.fifo = rogue.interfaces.stream.Fifo(100,0,False)
-
         # Connect devices
         pyrogue.streamConnect(self.pre_data_emulator,  self.smurf_frame_stats)
         pyrogue.streamConnect(self.smurf_frame_stats,  self.smurf_processor)
         pyrogue.streamConnect(self.smurf_processor,    self.smurf_header2smurf)
         pyrogue.streamConnect(self.smurf_header2smurf, self.post_data_emulator)
         pyrogue.streamConnect(self.post_data_emulator, self.file_writer.getChannel(0))
-        pyrogue.streamTap(    self.post_data_emulator, self.fifo)
 
         # If a root was defined, connect it to the file writer, on channel 1
         if root:
             pyrogue.streamConnect(root, self.file_writer.getChannel(1))
 
-        # If a TX device was defined, add it to the tree
-        # and connect it to the chain, after the fifo
+        # If a transmitter device was defined, add it to the tree and connect it to the chain
         if txDevice:
             self.transmitter = txDevice
             self.add(self.transmitter)
-            # Connect the data channel to the FIFO.
-            pyrogue.streamConnect(self.fifo, self.transmitter.getDataChannel())
-            # If a root was defined, connect  it to the meta channel.
+
+            # Add a fifo for the data frames. It will hold up to 100 copies of processed frames,
+            # to be send to the transmitter device. The frames will be tapped after the data emulator,
+            # and before the file writer.
+            self.fifo = rogue.interfaces.stream.Fifo(100, 0, False)
+
+            # Tap the data frames at the output of the post data emulator, and send it to transmitter'
+            # data channel, though the fifo.
+            pyrogue.streamTap(    self.post_data_emulator, self.fifo)
+            pyrogue.streamConnect(self.fifo,               self.transmitter.getDataChannel())
+
+            # If a root was defined, connect  it to the transmitter's meta data channel.
             # Use streamTap as it was already connected to the file writer.
             if root:
                 pyrogue.streamTap(root, self.transmitter.getMetaChannel())
