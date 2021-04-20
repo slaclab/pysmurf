@@ -74,6 +74,12 @@ namespace smurf
                 void clearCnt();
 
                 // Get the data dropped counter
+                const std::size_t getDataFrameCnt() const;
+
+                // Get the metadata dropped counter
+                const std::size_t getMetaFrameCnt() const;
+
+                // Get the data dropped counter
                 const std::size_t getDataDropCnt() const;
 
                 // Get the metadata dropped counter
@@ -100,9 +106,13 @@ namespace smurf
                 virtual void metaTransmit(std::string cfg) {};
 
             private:
-                bool                                disable;     // Disable flag
-                BaseTransmitterChannelPtr           dataChannel; // Data channel interface
-                BaseTransmitterChannelPtr           metaChannel; // Metadata channel interface
+                bool                      disable;          // Disable flag
+                BaseTransmitterChannelPtr dataChannel;      // Data channel interface
+                BaseTransmitterChannelPtr metaChannel;      // Metadata channel interface
+                std::size_t               dataFrameCnt;     // Number of received data frames
+                std::size_t               metaFrameCnt;     // Number of received metadata frames
+                std::size_t               dataDropFrameCnt; // Number of dropped data frames
+                std::size_t               metaDropFrameCnt; // Number of dropped metadata frames
 
                 // TX callback functions.
                 tx_func_t<SmurfPacketROPtr> txDataFunc;
