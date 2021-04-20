@@ -44,11 +44,6 @@ namespace smurf
             class BaseTransmitter;
             typedef std::shared_ptr<BaseTransmitter> BaseTransmitterPtr;
 
-            // TX callback function pointer.
-            // The function signature must be 'void(T)'
-            template <typename T>
-            using tx_func_t =  std::function<void(T)>;
-
             class BaseTransmitter: public std::enable_shared_from_this<smurf::core::transmitters::BaseTransmitter>
             {
             public:
@@ -113,10 +108,6 @@ namespace smurf
                 std::size_t               metaFrameCnt;     // Number of received metadata frames
                 std::size_t               dataDropFrameCnt; // Number of dropped data frames
                 std::size_t               metaDropFrameCnt; // Number of dropped metadata frames
-
-                // TX callback functions.
-                tx_func_t<SmurfPacketROPtr> txDataFunc;
-                tx_func_t<std::string>      txMetaFunc;
             };
         }
     }
