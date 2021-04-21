@@ -18,6 +18,7 @@
 #-----------------------------------------------------------------------------
 import pyrogue
 import pyrogue.utilities.fileio
+import pyrogue.interfaces.stream
 import rogue
 
 import pysmurf.core.counters
@@ -289,12 +290,13 @@ class SmurfProcessor(pyrogue.Device):
         # If a transmitter device was defined, add it to the tree and connect it to the chain
         if txDevice:
             self.transmitter = txDevice
-            self.add(self.transmitter)
 
             # Add a fifo for the data frames. It will hold up to 100 processed frames, to be send
             # to the transmitter device. If the fifo is full, new frames will be dropped.
             # The frames will be tapped after the data emulator, and before the file writer.
-            self.fifo_data = rogue.interfaces.stream.Fifo(100, 0, True)
+            self.fifo_data = pyrogue.interfaces.stream.Fifo(
+                name='DataFifo', description="Data Fifo", maxDepth=100, trimSize=0, noCopy=True)
+            self.add(self.fifo_data)
 
             # Tap the data frames at the output of the post data emulator, and send them to transmitter'
             # data channel, though the fifo.
@@ -308,12 +310,18 @@ class SmurfProcessor(pyrogue.Device):
                 # to the transmitter device. If the fifo is full, new frames will be dropped.
                 # The frames will be tapped from the root, as the root was already connected to the
                 # file writer.
-                self.fifo_meta = rogue.interfaces.stream.Fifo(100, 0, True)
+                self.fifo_meta = pyrogue.interfaces.stream.Fifo(
+                    name='MetaFifo', description="Meta data Fifo", maxDepth=100, trimSize=0, noCopy=True)
+                self.add(self.fifo_meta)
 
                 # Tap the metadata frames from the root, and send them to the transmitter's meta data
                 # channel, through the fifo.
                 pyrogue.streamTap(    root,           self.fifo_meta)
                 pyrogue.streamConnect(self.fifo_meta, self.transmitter.getMetaChannel())
+
+            # Add the transmitter device to the root here, after adding the fifos, so that it appears
+            # in the correct order in the rogue tree.
+            self.add(self.transmitter)
 
     def _getStreamSlave(self):
         """
