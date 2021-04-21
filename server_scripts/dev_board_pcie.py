@@ -17,8 +17,6 @@
 # contained in the LICENSE.txt file.
 #-----------------------------------------------------------------------------
 
-import sys
-
 import pyrogue
 
 import pysmurf.core.devices
@@ -75,4 +73,3 @@ if __name__ == "__main__":
                 # Stop the server when Crtl+C is pressed
                 print("Running without GUI...")
                 pyrogue.waitCntrlC()
-
