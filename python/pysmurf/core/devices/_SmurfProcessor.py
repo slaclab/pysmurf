@@ -291,10 +291,10 @@ class SmurfProcessor(pyrogue.Device):
             self.transmitter = txDevice
             self.add(self.transmitter)
 
-            # Add a fifo for the data frames. It will hold up to 100 copies of processed frames,
-            # to be send to the transmitter device. If the fifo is full, new frames will be dropped.
+            # Add a fifo for the data frames. It will hold up to 100 processed frames, to be send
+            # to the transmitter device. If the fifo is full, new frames will be dropped.
             # The frames will be tapped after the data emulator, and before the file writer.
-            self.fifo_data = rogue.interfaces.stream.Fifo(100, 0, False)
+            self.fifo_data = rogue.interfaces.stream.Fifo(100, 0, True)
 
             # Tap the data frames at the output of the post data emulator, and send them to transmitter'
             # data channel, though the fifo.
@@ -304,11 +304,11 @@ class SmurfProcessor(pyrogue.Device):
             # If a root was defined, connect  it to the transmitter's meta data channel.
             # Use streamTap as it was already connected to the file writer.
             if root:
-                # Add a fifo for the meta data frames. It will hold up to 100 copies of the input frames,
-                # to be send to the transmitter device. If the fifo is full, new frames will be dropped.
-                # The frames will be tapped from the root, as the root was already connected to the file
-                # writer.
-                self.fifo_meta = rogue.interfaces.stream.Fifo(100, 0, False)
+                # Add a fifo for the meta data frames. It will hold up to 100 input frames, to be send
+                # to the transmitter device. If the fifo is full, new frames will be dropped.
+                # The frames will be tapped from the root, as the root was already connected to the
+                # file writer.
+                self.fifo_meta = rogue.interfaces.stream.Fifo(100, 0, True)
 
                 # Tap the metadata frames from the root, and send them to the transmitter's meta data
                 # channel, through the fifo.
