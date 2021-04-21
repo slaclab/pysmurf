@@ -3845,6 +3845,56 @@ class SmurfUtilMixin(SmurfBase):
         self.play_tes_bipolar_waveform(bias_group, sig)
 
 
+    def play_square_tes(self, bias_group, tone_amp, tone_freq, dc_amp=None):
+        """
+        Play a square wave on the bias group pair.
+
+        Tone file is in bias bit units. The bias is int20. The
+        inputs of this function are in units of bias dac output
+        voltage. The conversion from requested volts to bits
+        is calculated in this function.
+
+        Args
+        ----
+        bias_group : int
+            The bias group to play a square wave on.
+        tone_amp : float
+            The amplitude of the square wave in units of out TES bias in
+            volts.
+        tone_freq : float
+            The frequency of the tone in Hz.
+        dc_amp : float or None, optional, default None
+            The amplitude of the DC term of the square wave.  If None,
+            reads the current DC value and uses that.
+        """
+        if dc_amp is None:
+            dc_amp = self.get_tes_bias_bipolar(bias_group)
+            self.log(f"No dc_amp provided. Using current value: {dc_amp} V")
+
+        # The waveform is played on 2 DACs, so amp/2. Then convert
+        # to bits
+        dc_amp /= (2*self._rtm_slow_dac_bit_to_volt)
+        tone_amp /= (2*self._rtm_slow_dac_bit_to_volt)
+
+        # Handles issue where it won't play faster than ~7 Hz
+        freq_split = 5
+        scale = 1
+        if tone_freq > freq_split:
+            scale = np.ceil(tone_freq / freq_split)
+
+        # Make tone file. 2048 elements
+        n_tes_samp = 2048
+        sig = tone_amp * \
+            signal.square(2*np.pi*scale*np.arange(n_tes_samp)/n_tes_samp) + dc_amp
+
+        # Calculate frequency - 6.4ns * TimerSize between samples
+        ts = int((tone_freq * n_tes_samp * 6.4E-9)**-1)
+        ts *= scale
+        self.set_rtm_arb_waveform_timer_size(ts, wait_done=True)
+
+        self.play_tes_bipolar_waveform(bias_group, sig)
+
+
     def play_tone_file(self, band, tone_file=None, load_tone_file=True):
         """
         Plays the specified tone file on this band.  If no path provided
