@@ -19,7 +19,6 @@
 import pyrogue
 import pyrogue.utilities.fileio
 import pyrogue.interfaces.stream
-import rogue
 
 import pysmurf.core.counters
 import pysmurf.core.conventers
