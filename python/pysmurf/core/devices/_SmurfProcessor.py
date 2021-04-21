@@ -290,8 +290,8 @@ class SmurfProcessor(pyrogue.Device):
         if txDevice:
             self.transmitter = txDevice
 
-            # Add a fifo for the data frames. It will hold up to 100 copies of processed frames,
-            # to be send to the transmitter device. If the fifo is full, new frames will be dropped.
+            # Add a fifo for the data frames. It will hold up to 100 processed frames, to be send
+            # to the transmitter device. If the fifo is full, new frames will be dropped.
             # The frames will be tapped after the data emulator, and before the file writer.
             self.fifo_data = pyrogue.interfaces.stream.Fifo(
                 name='DataFifo', description="Data Fifo", maxDepth=100, trimSize=0, noCopy=False)
