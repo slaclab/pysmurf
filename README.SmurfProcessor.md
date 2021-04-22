@@ -37,17 +37,36 @@ The processing pipeline is describe in the following diagram:
  +-------+-------+
  | Header2Smurf  |
  +-------+-------+
-         |
-+--------+---------+
-| PostDataEmulator |
-+--------+---------+
-         |
-         +-------------------+
-         |                   |
-   +-----+------+      +-----+-------+
-   | FileWriter |      | Transmitter |
-   +------------+      | (optional)  |
-                       +-------------+
+         |                +------------+
++--------+---------+      |    Root    |
+| PostDataEmulator |      | (Metadata) |
++------------+-----+      +-+----------+
+             |              |
+             |              |
+             |              +------------------------------------+
+             |              |                                    |
+             +------------------------------+                    |
+             |              |               |                    |
+             |              |               |                    |
+         +---+--------------+---+           |                    |
+         |  (ch0)         (ch1) |           |                    |
+         |                      |           |                    |
+         |      FileWriter      |           |                    |
+         |                      |           |                    |
+         +----------------------+           |                    |
+                                 . . . . . .| . . . . . . . . . .|. . . . . .  <--- These blocks under here
+                                 v          |                    |          v       are optional and are only
+                                    +-------+-------+    +-------+-------+          instantiated if a custom
+                                    |   DataFifo    |    |   MetaFifo    |          transmitter device is
+                                    | (depth = 100) |    | (depth = 100) |          defined.
+                                    +-------+-------+    +-------+-------+
+                                            |                    |
+                                     +------+--------------------+------+
+                                     | (dataTransmit)    (metaTransmit) |
+                                     |                                  |
+                                     |           Transmitter            |
+                                     |          (user-defined)          |
+                                     +----------------------------------+
 ```
 
 Each module in the diagram perform the following operations:
@@ -129,3 +148,5 @@ Write the processed data to disk. See [here](README.DataFile.md) for details.
 ### Transmitter
 
 This is an optional block. It is intended for adding a custom block which will take the processed data and set it to a third party system. See [here](README.CustomDataTransmitter.md) for details.
+
+When this block is defined by the user, two Fifo devices will be instantiated as well, one for the processed data frames (called `DataFifo`), and one for the metadata frames (called `MetaFifo`). Each fifo will hold up to 100 frames.
