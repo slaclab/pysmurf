@@ -4123,6 +4123,7 @@ class SmurfTuneMixin(SmurfBase):
         self.pub.register_file(savedir, 'tune', format='npy')
 
         self.tune_file = savedir+'.npy'
+        self.set_tune_file_path(self.tune_file)
 
         return savedir + ".npy"
 
