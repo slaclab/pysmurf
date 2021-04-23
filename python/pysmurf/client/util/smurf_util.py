@@ -890,19 +890,7 @@ class SmurfUtilMixin(SmurfBase):
                      'value already in pyrogue:'+
                      f' {downsample_factor}')
 
-        # Check payload size
-        n_chan_in_mask = len(self.get_channel_mask())
-        payload_size = self.get_payload_size()
-        if n_chan_in_mask > payload_size:
-            if update_payload_size:
-                self.log('Updating payload size')
-                self.set_payload_size(n_chan_in_mask,
-                                      write_log=write_log)
-            else:
-                self.log('Warning : The payload size is smaller than ' +
-                    'the number of channels that are on. Only ' +
-                    f'writing the first {payload_size} channels. ')
-
+        self.set_payload_size(0)
 
         # Check if flux ramp is non-zero
         ramp_max_cnt = self.get_ramp_max_cnt()
