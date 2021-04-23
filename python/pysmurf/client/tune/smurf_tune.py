@@ -4164,6 +4164,8 @@ class SmurfTuneMixin(SmurfBase):
                 # differently to allow loading different tunes for
                 # different bands, etc.
                 self.tune_file = filename
+                #update the Rogue Tree
+                self.set_tune_file_path(filename)
             else:
                 # Load only the tune data for the requested band(s).
                 band=np.ravel(np.array(band))
