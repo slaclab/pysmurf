@@ -863,10 +863,9 @@ class SmurfUtilMixin(SmurfBase):
             Whether to write to the log file.
         update_payload_size : bool, optional, default True
             Whether to update the payload size (the number of channels
-            written to disk). If the number of channels on is greater
-            than the payload size, then only the first N channels are
-            written. This bool will update the payload size to be the
-            same as the number of channels on across all bands)
+            written to disk). If this is True, will set the payload size to
+            0, which tells rogue to automatically adjust it based on the
+            channel count.
         reset_filter : bool, optional, default True
             Whether to reset the filter before taking data.
         reset_unwrapper : bool, optional, default True
@@ -890,7 +889,8 @@ class SmurfUtilMixin(SmurfBase):
                      'value already in pyrogue:'+
                      f' {downsample_factor}')
 
-        self.set_payload_size(0)
+        if update_payload_size:
+            self.set_payload_size(0)
 
         # Check if flux ramp is non-zero
         ramp_max_cnt = self.get_ramp_max_cnt()
