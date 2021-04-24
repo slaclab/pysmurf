@@ -90,7 +90,6 @@ public:
 
 private:
     // Variables
-    std::size_t          dataSize;  // Number of data values in the packet
     std::vector<uint8_t> header;    // Buffer for the header
     std::vector<data_t>  data;      // Buffer for the data
     HeaderPtr            headerPtr; // SmurfHeader object (smart pointer)
