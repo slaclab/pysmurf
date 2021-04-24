@@ -47,6 +47,10 @@ namespace smurf
             class BaseTransmitter: public std::enable_shared_from_this<smurf::core::transmitters::BaseTransmitter>
             {
             public:
+                // Convenient typedefs
+                using SmurfPacketRO = SmurfPacketManagerRO<CopyCreator>;
+                using SmurfPacketROPtr = SmurfPacketManagerROPtr<CopyCreator>;
+
                 BaseTransmitter();
                 virtual ~BaseTransmitter() {};
 

@@ -40,10 +40,6 @@ class ZeroCopyCreator;
 template<typename CreationPolicy>
 using SmurfPacketManagerROPtr = std::shared_ptr< SmurfPacketManagerRO<CreationPolicy> >;
 
-// Convenient typedefs
-using SmurfPacketRO = SmurfPacketManagerRO<CopyCreator>;
-using SmurfPacketROPtr = SmurfPacketManagerROPtr<CopyCreator>;
-
 // Host class
 template<typename CreationPolicy>
 class SmurfPacketManagerRO : public CreationPolicy
