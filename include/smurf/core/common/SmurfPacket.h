@@ -33,12 +33,13 @@
 template<typename CreationPolicy>
 class SmurfPacketManagerRO;
 
+// Convenient typedef to a smart pointer to a SmurfPacketManagerRO.
+template<typename CreationPolicy>
+using SmurfPacketManagerROPtr = std::shared_ptr< SmurfPacketManagerRO<CreationPolicy> >;
+
 // Policy classes
 class CopyCreator;
 class ZeroCopyCreator;
-
-template<typename CreationPolicy>
-using SmurfPacketManagerROPtr = std::shared_ptr< SmurfPacketManagerRO<CreationPolicy> >;
 
 // Host class
 template<typename CreationPolicy>
