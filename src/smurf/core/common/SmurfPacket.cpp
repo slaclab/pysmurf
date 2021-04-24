@@ -41,7 +41,6 @@ SmurfPacketManagerROPtr<CreationPolicy> SmurfPacketManagerRO<CreationPolicy>::cr
 ///////////////////////////////////
 CopyCreator::CopyCreator(ris::FramePtr frame)
 :
-    dataSize(0),
     header(SmurfHeaderRO<std::vector<uint8_t>::iterator>::SmurfHeaderSize)
 {
     // Get the frame size
@@ -60,7 +59,7 @@ CopyCreator::CopyCreator(ris::FramePtr frame)
     headerPtr = SmurfHeaderRO< std::vector<uint8_t>::iterator >::create(header);
 
     // Get the number of data channels in the packet and reserve space in the data buffer
-    dataSize = headerPtr->getNumberChannels();
+    std::size_t dataSize { headerPtr->getNumberChannels() };
 
     // Check if the frame size is at least enough to hold the number of channels defined in this header.
     // Frame padded to increase its size are allowed.
