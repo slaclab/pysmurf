@@ -28,12 +28,48 @@
 #include <rogue/interfaces/stream/FrameIterator.h>
 #include "smurf/core/common/SmurfHeader.h"
 
-class SmurfPacketRO;
-
-typedef std::shared_ptr<SmurfPacketRO> SmurfPacketROPtr;
-
 // SMuRF packet class. This class give a read-only access
-class SmurfPacketRO
+// It is a host class with different creation policies.
+template<typename CreationPolicy>
+class SmurfPacketManagerRO;
+
+// Policy classes
+class CopyCreator;
+
+template<typename CreationPolicy>
+using SmurfPacketManagerROPtr = std::shared_ptr< SmurfPacketManagerRO<CreationPolicy> >;
+
+// Convenient typedefs
+using SmurfPacketRO = SmurfPacketManagerRO<CopyCreator>;
+using SmurfPacketROPtr = SmurfPacketManagerROPtr<CopyCreator>;
+
+// Host class
+template<typename CreationPolicy>
+class SmurfPacketManagerRO : public CreationPolicy
+{
+public:
+    // Constructor
+    SmurfPacketManagerRO(ris::FramePtr frame);
+
+    // Destructor
+    virtual ~SmurfPacketManagerRO() {};
+
+    // Factory method
+    static SmurfPacketManagerROPtr<CreationPolicy> create(ris::FramePtr frame);
+
+private:
+    // Prevent construction using the default or copy constructor.
+    // Prevent an SmurfHeaderRO object to be assigned as well.
+    SmurfPacketManagerRO();
+    SmurfPacketManagerRO(const SmurfPacketManagerRO&);
+    SmurfPacketManagerRO& operator=(const SmurfPacketManagerRO&);
+};
+
+// Policy classes to define the type of object creation.
+
+// Copy creator policy class: this class makes a full copy of the frame information into
+// local vectors.
+class CopyCreator
 {
 public:
     // Data types
@@ -41,13 +77,10 @@ public:
     typedef SmurfHeaderROPtr< std::vector<uint8_t>::iterator > HeaderPtr; // SmurfHeader pointer
 
     // Constructor
-    SmurfPacketRO(ris::FramePtr frame);
+    CopyCreator(ris::FramePtr frame);
 
     // Destructor
-    virtual ~SmurfPacketRO() {};
-
-    // Factory method
-    static SmurfPacketROPtr create(ris::FramePtr frame);
+    virtual ~CopyCreator() {};
 
     // Get a pointer to a header object
     HeaderPtr getHeader() const;
@@ -56,12 +89,6 @@ public:
     const data_t getData(std::size_t index) const;
 
 private:
-    // Prevent construction using the default or copy constructor.
-    // Prevent an SmurfHeaderRO object to be assigned as well.
-    SmurfPacketRO();
-    SmurfPacketRO(const SmurfPacketRO&);
-    SmurfPacketRO& operator=(const SmurfPacketRO&);
-
     // Variables
     std::size_t          dataSize;  // Number of data values in the packet
     std::vector<uint8_t> header;    // Buffer for the header

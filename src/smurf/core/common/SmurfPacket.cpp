@@ -20,7 +20,26 @@
 
 #include "smurf/core/common/SmurfPacket.h"
 
-SmurfPacketRO::SmurfPacketRO(ris::FramePtr frame)
+////////////////////////////////////////////
+// SmurfPacketManagerRO class definitions //
+////////////////////////////////////////////
+template<typename CreationPolicy>
+SmurfPacketManagerRO<CreationPolicy>::SmurfPacketManagerRO(ris::FramePtr frame)
+:
+    CreationPolicy(frame)
+{
+}
+
+template<typename CreationPolicy>
+SmurfPacketManagerROPtr<CreationPolicy> SmurfPacketManagerRO<CreationPolicy>::create(ris::FramePtr frame)
+{
+    return std::make_shared<SmurfPacketManagerRO>(frame);
+}
+
+///////////////////////////////////
+// CopyCreator class definitions //
+///////////////////////////////////
+CopyCreator::CopyCreator(ris::FramePtr frame)
 :
     dataSize(0),
     header(SmurfHeaderRO<std::vector<uint8_t>::iterator>::SmurfHeaderSize)
@@ -59,18 +78,15 @@ SmurfPacketRO::SmurfPacketRO(ris::FramePtr frame)
         data.push_back( *(reinterpret_cast<data_t*>( &(*(it + i * sizeof(data_t)) ) ) ) );
 }
 
-SmurfPacketROPtr SmurfPacketRO::create(ris::FramePtr frame)
-{
-    return std::make_shared<SmurfPacketRO>(frame);
-}
-
-SmurfPacketRO::HeaderPtr SmurfPacketRO::getHeader() const
+CopyCreator::HeaderPtr CopyCreator::getHeader() const
 {
     return headerPtr;
 }
 
-const SmurfPacketRO::data_t SmurfPacketRO::getData(std::size_t index) const
+const CopyCreator::data_t CopyCreator::getData(std::size_t index) const
 {
     return data.at(index);
 }
 
+// Explicit template instantiations
+template class SmurfPacketManagerRO<CopyCreator>;
