@@ -35,6 +35,7 @@ class SmurfPacketManagerRO;
 
 // Policy classes
 class CopyCreator;
+class ZeroCopyCreator;
 
 template<typename CreationPolicy>
 using SmurfPacketManagerROPtr = std::shared_ptr< SmurfPacketManagerRO<CreationPolicy> >;
@@ -93,6 +94,38 @@ private:
     std::vector<uint8_t> header;    // Buffer for the header
     std::vector<data_t>  data;      // Buffer for the data
     HeaderPtr            headerPtr; // SmurfHeader object (smart pointer)
+};
+
+// ZeroCopy creator policy: this class provides direct access to the underlaying frame,
+// without make any copy.
+// As the underlaying frame is accessed directly, you must create and hold a lock on the
+// frame for the while lifetime of the object.
+class ZeroCopyCreator
+{
+public:
+    // Data types
+    typedef int32_t                                data_t;    // Data type stored in the packet
+    typedef SmurfHeaderROPtr< ris::FrameIterator > HeaderPtr; // SmurfHeader pointer
+
+    // Constructor
+    ZeroCopyCreator(ris::FramePtr frame);
+
+    // Destructor
+    virtual ~ZeroCopyCreator() {};
+
+
+    // Get a pointer to a header object
+    HeaderPtr getHeader() const;
+
+    // Get a data value
+    const data_t getData(std::size_t index) const;
+
+private:
+    // Variables
+    ris::FramePtr framePtr;  // Frame pointer
+    HeaderPtr     headerPtr; // SmurfHeader object (smart pointer)
+    std::size_t   dataSize;  // Number of data values in the packet
+    data_t*       data;      // Pointer to the packet data area
 };
 
 #endif
