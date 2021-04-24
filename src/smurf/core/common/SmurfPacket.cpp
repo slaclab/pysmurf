@@ -87,5 +87,39 @@ const CopyCreator::data_t CopyCreator::getData(std::size_t index) const
     return data.at(index);
 }
 
+///////////////////////////////////////
+// ZeroCopyCreator class definitions //
+///////////////////////////////////////
+ZeroCopyCreator::ZeroCopyCreator(ris::FramePtr frame)
+:
+    framePtr(frame),
+    headerPtr(SmurfHeaderRO<ris::FrameIterator>::create(frame)),
+    dataSize(dataSize = headerPtr->getNumberChannels())
+{
+    // Verify that the frame data area is contained in a single buffer
+    ris::FrameIterator frameIt { framePtr->beginRead() };
+    frameIt += SmurfHeaderRO<ris::FrameIterator>::SmurfHeaderSize;
+    if ( dataSize*sizeof(data_t) > frameIt.remBuffer() )
+        throw std::runtime_error("Trying to create a SmurfPacket object on a multi-buffer frame");
+
+    // Point the data pointer to the beginning of the frame data area
+    data = reinterpret_cast<data_t*>(frameIt.ptr());
+}
+
+ZeroCopyCreator::HeaderPtr ZeroCopyCreator::getHeader() const
+{
+    return headerPtr;
+}
+
+const ZeroCopyCreator::data_t ZeroCopyCreator::getData(std::size_t index) const
+{
+    // Verify that the index in not out of the packet range
+    if (index >= dataSize)
+        throw std::runtime_error("Trying to read data from a SmurfPacket with an index out of range.");
+
+    return data[index];
+}
+
 // Explicit template instantiations
 template class SmurfPacketManagerRO<CopyCreator>;
+template class SmurfPacketManagerRO<ZeroCopyCreator>;
