@@ -143,12 +143,8 @@ void sct::BaseTransmitter::acceptDataFrame(ris::FramePtr frame)
     // Increment the data frame counter
     ++dataFrameCnt;
 
-    // Convert the frame to a SmurfPacketRO object
-    SmurfPacketROPtr pkt { SmurfPacketRO::create(frame) };
-    fLock->unlock();
-
-    // Call the dataTransmit method
-    dataTransmit(pkt);
+    // Call the dataTransmit method, passing a SmurfPacketRO object
+    dataTransmit( SmurfPacketRO::create(frame) );
 }
 
 void sct::BaseTransmitter::acceptMetaFrame(ris::FramePtr frame)
