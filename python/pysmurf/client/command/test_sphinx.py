@@ -1472,8 +1472,7 @@ class SmurfCommandMixin(SmurfBase):
 
     def set_ref_phase_delay(self, band, val, **kwargs):
         """
-        Corrects for roundtrip cable delay freqError = IQ * etaMag,
-        rotated by etaPhase+refPhaseDelay
+        Deprecated.  Use set_band_delay_us instead.
         """
         self._caput(
             self._band_root(band) + self._ref_phase_delay_reg,
@@ -1481,8 +1480,7 @@ class SmurfCommandMixin(SmurfBase):
 
     def get_ref_phase_delay(self, band, **kwargs):
         """
-        Corrects for roundtrip cable delay freqError = IQ * etaMag,
-        rotated by etaPhase+refPhaseDelay
+        Deprecated.  Use get_band_delay_us instead.
         """
         return self._caget(
             self._band_root(band) + self._ref_phase_delay_reg,
@@ -1492,6 +1490,7 @@ class SmurfCommandMixin(SmurfBase):
 
     def set_ref_phase_delay_fine(self, band, val, **kwargs):
         """
+        Deprecated.  Use set_band_delay_us instead.
         """
         self._caput(
             self._band_root(band) + self._ref_phase_delay_fine_reg,
@@ -1499,9 +1498,31 @@ class SmurfCommandMixin(SmurfBase):
 
     def get_ref_phase_delay_fine(self, band, **kwargs):
         """
+        Deprecated.  Use get_band_delay_us instead.
         """
         return self._caget(
             self._band_root(band) + self._ref_phase_delay_fine_reg,
+            **kwargs)
+
+    _band_delay_us_reg = 'bandDelayUs'
+
+    def set_band_delay_us(self, band, val, **kwargs):
+        """
+        Set band delay compensation, microseconds.  Corrects
+        for total system delay (cable, DSP, etc.).  Internally
+        configures both ref_phase_delay and ref_phase_delay_fine
+        """
+        self._caput(
+            self._band_root(band) + self._band_delay_us_reg,
+            val, **kwargs)
+
+    def get_band_delay_us(self, band, **kwargs):
+        """
+        Get band delay compensation, microseconds.  Corrects
+        for total system delay (cable, DSP, etc.).
+        """
+        return self._caget(
+            self._band_root(band) + self._band_delay_us_reg,
             **kwargs)
 
     _tone_scale_reg = 'toneScale'
