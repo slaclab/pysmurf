@@ -84,12 +84,13 @@ class SmurfTkidMixin(SmurfBase):
                     plt.axhline(0, color='k', linestyle=':', alpha=.5)
                     plt.axvline(0, color='k', linestyle=':', alpha=.5)
                     plt.scatter(I, Q, c=np.arange(len(freq_k)), s=3)
-                    label = r'$\eta/\eta_{mag}$' +
-                            f': {np.real(eta/eta_mag):4.3f}' +
+                    label = r'$\eta/\eta_{mag}$' + \
+                            f': {np.real(eta/eta_mag):4.3f}' + \
                             f'+{np.imag(eta/eta_mag):4.3f}\n'
                     label = label + r'$\eta_{mag}$' + f': {eta_mag:1.3e}' + '\n'
                     label = label + r'$\eta_{ang}$' + \
-                            f': {eta_phase_deg:3.2f}' + '\n'
+                            f': {eta_phase_deg:3.2f}' + \
+                            '\n'
                     bbox = dict(boxstyle="round", ec='w', fc='w', alpha=.65)
                     ax = plt.gca()
                     plt.text(.03, .81, label, transform=ax.transAxes, fontsize=10,
