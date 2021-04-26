@@ -145,6 +145,7 @@ class SmurfUtilMixin(SmurfBase):
         self.set_streamdatawriter_close(True)
 
         self.log('Done taking data', self.LOG_USER)
+        self.pub.register_file(data_filename, 'debug', format='dat')
 
         if rf_iq:
             self.set_rf_iq_stream_enable(band, 0)
