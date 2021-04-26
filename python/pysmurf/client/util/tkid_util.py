@@ -1,20 +1,20 @@
 #!/usr/bin/env python
 
-from contextlib import contextmanager
-import glob
+#from contextlib import contextmanager
+#import glob
 import os
-import threading
-import time
-import sys
+#import threading
+#import time
+#import sys
 
 import matplotlib.pyplot as plt
 import numpy as np
-from scipy import signal
+#from scipy import signal
 
 from pysmurf.client.base import SmurfBase
-from pysmurf.client.command.sync_group import SyncGroup as SyncGroup
-from pysmurf.client.util.SmurfFileReader import SmurfStreamReader
-from pysmurf.client.util.pub import set_action
+#from pysmurf.client.command.sync_group import SyncGroup as SyncGroup
+#from pysmurf.client.util.SmurfFileReader import SmurfStreamReader
+#from pysmurf.client.util.pub import set_action
 
 class SmurfTkidMixin(SmurfBase):
 
@@ -35,12 +35,11 @@ class SmurfTkidMixin(SmurfBase):
             Specifies the tone powers to loop through.
         nscan : int
             The number of scans done by find_freq.
-
-        Returns
-        -----
         '''
         # Estimate phase delay (in seconds)
         delay = self.estimate_phase_delay(band, show_plot=False)[0] * 1e-6
+        print('delay (in seconds): ')
+        print(delay)
 
         # Loop through different gain values
         for gain in tone_amplitude_array:
@@ -80,7 +79,7 @@ class SmurfTkidMixin(SmurfBase):
                     #plt.ioff() # TODO: Uncomment after testing
                     I = np.real(resp_k)
                     Q = np.imag(resp_k)
-                    fig = plt.figure(figsize=(9,4.5))
+                    plt.figure(figsize=(9,4.5))
                     plt.axhline(0, color='k', linestyle=':', alpha=.5)
                     plt.axvline(0, color='k', linestyle=':', alpha=.5)
                     plt.scatter(I, Q, c=np.arange(len(freq_k)), s=3)
@@ -88,9 +87,7 @@ class SmurfTkidMixin(SmurfBase):
                             f': {np.real(eta/eta_mag):4.3f}' + \
                             f'+{np.imag(eta/eta_mag):4.3f}\n'
                     label = label + r'$\eta_{mag}$' + f': {eta_mag:1.3e}' + '\n'
-                    label = label + r'$\eta_{ang}$' + \
-                            f': {eta_phase_deg:3.2f}' + \
-                            '\n'
+                    label = label + r'$\eta_{ang}$' + f': {eta_phase_deg:3.2f}' + '\n'
                     bbox = dict(boxstyle="round", ec='w', fc='w', alpha=.65)
                     ax = plt.gca()
                     plt.text(.03, .81, label, transform=ax.transAxes, fontsize=10,
@@ -107,16 +104,12 @@ class SmurfTkidMixin(SmurfBase):
                     plt.title(f'Channel {channel}')
                     plt.legend()
 
-                    '''
                     # Save the diagnostic plot
-                    save_name = f'{timestamp}_eta_b{band}_' +
-                                f'res{res_num:03}_dc.png'
+                    save_name = f'{timestamp}_eta_b{band}_res{res_num:03}_dc.png'
                     path = os.path.join(self.plot_dir, save_name)
                     plt.savefig(path, bbox_inches='tight')
                     plt.close()
-                    '''
-                    plt.show() # TODO: Get rid of this and uncomment above after testing
-
+                    #plt.show() # TODO: For testing, uncomment this and comment out above saving lines
 
                     # Set square wave
                     self.play_square_tes(bias_group, tone_amp=0.07, tone_freq=1, dc_amp=dc)
