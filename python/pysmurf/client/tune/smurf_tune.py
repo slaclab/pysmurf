@@ -1571,6 +1571,7 @@ class SmurfTuneMixin(SmurfBase):
             old_file=self.channel_assignment_files[f'band_{band}']
             self.log(f'Old master assignment file: {old_file}')
         self.channel_assignment_files[f'band_{band}'] = filename
+        self.freq_resp[band]['channel_assignment'] = filename
         self.log(f'New master assignment file: {filename}')
 
     @set_action()
