@@ -4124,6 +4124,7 @@ class SmurfTuneMixin(SmurfBase):
         self.pub.register_file(savedir, 'tune', format='npy')
 
         self.tune_file = savedir+'.npy'
+        self.set_tune_file_path(self.tune_file)
 
         return savedir + ".npy"
 
@@ -4165,6 +4166,8 @@ class SmurfTuneMixin(SmurfBase):
                 # differently to allow loading different tunes for
                 # different bands, etc.
                 self.tune_file = filename
+                #update the Rogue Tree
+                self.set_tune_file_path(filename)
             else:
                 # Load only the tune data for the requested band(s).
                 band=np.ravel(np.array(band))
