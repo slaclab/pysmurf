@@ -81,7 +81,7 @@ if __name__ == "__main__":
     # Send data trough a SmurfProcessor, with the base transmitter attached to it
     # and writing the data to an output file. We disable the downsample in order to send
     # all the samples to the transmitter and output file.
-    print('Starting the SmurfProcessor device and sending data through it... ', end='')
+    print('Starting the SmurfProcessor device and sending data through it... ')
     with LocalRoot() as root:
         # Disable the downsampler
         print('  Disabling data downsampling... ', end='')
@@ -95,7 +95,7 @@ if __name__ == "__main__":
         print('Done')
 
         # Send data for the specified amount of time
-        print(f'  Streaming data for {stream_time} seconds, at {stream_rate} Hz', end='')
+        print(f'  Streaming data for {stream_time} seconds, at {stream_rate} Hz... ', end='')
         root.StreamDataSource.SourceEnable.set(True)
         root.StreamDataSource.Period.set(1/stream_rate)
         time.sleep(stream_time)
