@@ -37,7 +37,7 @@ Finally, the script compares the original wrapped signal to the result at the ou
 
 ### profile_smurf_processor.py
 
-This script can be used to profile different section of the [SmurfProcessor](../../python/pysmurf/core/devices/_SmurfProcessor.py). In order to get profile data, the SMuRF processor needs to be modified by adding `TimerWithStats` objects (available in [Timer.h](../../include/smurf/core/common/Timer.h)) in the appropriated places.
+This script can be used to profile different section of the [SmurfProcessor](../../src/smurf/core/processors/SmurfProcessor.cpp) C++ device. In order to get profile data, the SMuRF processor needs to be modified by adding `TimerWithStats` objects (available in [Timer.h](../../include/smurf/core/common/Timer.h)) in the appropriated places.
 
 The script creates a local root devices which contains an instance of the [SmurfProcessor](../../python/pysmurf/core/devices/_SmurfProcessor.py) device, connected to a [StreamDataSource](../../python/pysmurf/core/emulators/_StreamDataSource.py) data source, and a [FrameStatistics](../../python/pysmurf/core/counters/_FrameStatistics.py) device. The script then enables the data source and let it send `100000` frames trough the [SmurfProcessor](../../python/pysmurf/core/devices/_SmurfProcessor.py).
 
