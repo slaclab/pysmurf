@@ -42,3 +42,9 @@ Finally, the script compares the original wrapped signal to the result at the ou
 This script can be used to profile different section of the SmurfProcessor. In order to get profile data, the SMuRF processor needs to be modified adding `TimerWithStats` object (available in [Timer.h](../../include/smurf/core/common/Timer.h)) in the appropriated places.
 
 The script creates local root devices which contains an instance of the [SmurfProcessor](../../python/pysmurf/core/devices/_SmurfProcessor.py) device, connected to a [StreamDataSource](../../python/pysmurf/core/emulators/_StreamDataSource.py) data source, and a [FrameStatistics](../../python/pysmurf/core/counters/_FrameStatistics.py) device. The script them enabled the data source and let it sends `100000` frames trough the [SmurfProcessor](../../python/pysmurf/core/devices/_SmurfProcessor.py).
+
+### validate_base_tx.py
+
+This scripts validates the behavior of the SmurfProcessor's BaseTransmitter.
+
+The script creates a local root device which contains an instance of the [SmurfProcessor](../../python/pysmurf/core/devices/_SmurfProcessor.py) device, with a [BaseTransmitter](../../python/pysmurf/core/trasnmitters/_BaseTransmitter.py) attach to it, and connected to a [StreamDataSource](../../python/pysmurf/core/emulators/_StreamDataSource.py) data source. The script opens the `FileWriter`'s data file, disables the `Downsampler`, and enables the data source at a configurable rate (default = 500 Hz)and for a configurable time period (default = 30 s). At the end of the test, it verifies that all received frames where send successfully to the transmitter, without dropping frames through the data path. It also verify that frames we written to the output files, and that metadata frames where sent to the the transmitter as well.
