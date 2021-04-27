@@ -41,6 +41,12 @@ using SmurfPacketManagerROPtr = std::shared_ptr< SmurfPacketManagerRO<CreationPo
 class CopyCreator;
 class ZeroCopyCreator;
 
+// Convenient typedefs.
+// The SmurfPacketRO (and therefore the SmurfPacketROPtr) is a typedef used in the BaseTransmitter class,
+// and can be used for other user-defined classes. We use the zero copy policy to create these objects.
+using SmurfPacketRO = SmurfPacketManagerRO<ZeroCopyCreator>;
+using SmurfPacketROPtr = SmurfPacketManagerROPtr<ZeroCopyCreator>;
+
 // Host class
 template<typename CreationPolicy>
 class SmurfPacketManagerRO : public CreationPolicy
