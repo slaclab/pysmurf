@@ -47,11 +47,6 @@ namespace smurf
             class BaseTransmitter: public std::enable_shared_from_this<smurf::core::transmitters::BaseTransmitter>
             {
             public:
-                // Convenient typedefs.
-                // We use the zero copy policy to create SmurfPacket objects.
-                using SmurfPacketRO = SmurfPacketManagerRO<ZeroCopyCreator>;
-                using SmurfPacketROPtr = SmurfPacketManagerROPtr<ZeroCopyCreator>;
-
                 BaseTransmitter();
                 virtual ~BaseTransmitter() {};
 
