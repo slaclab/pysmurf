@@ -9,7 +9,7 @@ import os
 
 import matplotlib.pyplot as plt
 import numpy as np
-#from scipy import signal
+from scipy import signal
 
 from pysmurf.client.base import SmurfBase
 #from pysmurf.client.command.sync_group import SyncGroup as SyncGroup
@@ -19,7 +19,7 @@ from pysmurf.client.base import SmurfBase
 class SmurfTkidMixin(SmurfBase):
 
     def heater_swipe_NEP_tkid(self, band, bias_group, n_detectors,
-                              tone_amplitude_array=[8,10,12], nscan=1):
+                              tone_amplitude_array=[8,10,12,14], grad_cut=5):
         '''
         Function for exracting the NEP of the TKIDs.
 
@@ -33,8 +33,8 @@ class SmurfTkidMixin(SmurfBase):
             The number of detectors.
         tone_amplitude_array : int array
             Specifies the tone powers to loop through.
-        nscan : int
-            The number of scans done by find_freq.
+        grad_cut: float
+            The value of the gradient of phase to look for resonances.
         '''
         # Estimate phase delay (in seconds)
         delay = self.estimate_phase_delay(band, show_plot=False)[0] * 1e-6
@@ -49,8 +49,9 @@ class SmurfTkidMixin(SmurfBase):
                 self.set_tes_bias_bipolar(bias_group, dc)
 
                 # Find frequencies and plot output
-                freq, resp = self.find_freq(band, start_freq=-45, stop_freq=25,
-                                            nscan=nscan, tone_power=gain,
+                freq, resp = self.find_freq(band, start_freq=-250, stop_freq=250,
+                                            grad_cut=grad_cut,
+                                            tone_power=gain,
                                             make_plot=True, save_plot=True)
 
                 # Get higher signal-to-noise of the resonator dip
@@ -66,23 +67,39 @@ class SmurfTkidMixin(SmurfBase):
                 for k in keys:
                     r = self.freq_resp[band]['resonances'][k]
                     channel = r['channel']
+                    res_freq = r['freq'] * 1e6
                     I_debug, Q_debug, sync = self.take_debug_data(band=band, channel=channel,
                                                                   rf_iq=True)
-                    # First plot I/Q circle from setup_notches
-                    freq_k = r['freq_eta_scan']
-                    resp_k = r['resp_eta_scan']
+                    # Filter to consider only 0.1 MHz around each noise acquisition
+                    channel_freq = self.get_channel_frequency_mhz(band) * 1.0e6  # Sampling frequency
+                    nyq = 0.5 * channel_freq
+                    low = (res_freq-0.05e6) / nyq
+                    high = (res_freq+0.05e6) / nyq
+                    b, a = signal.butter(N=4, Wn=[low,high], btype='bandpass', fs=channel_freq)
+                    I_debug = signal.filtfilt(b, a, I_debug, method='gust')
+                    Q_debug = signal.filtfilt(b, a, Q_debug, method='gust')
+                    # Scale by eta
                     eta = r['eta']
                     eta_mag = r['eta_mag']
                     eta_phase_deg = r['eta_phase']
+                    resp_debug = I_debug + 1j*Q_debug
+                    resp_debug_eta = resp_debug * eta_mag * np.exp(1j * eta_phase_deg * 2*np.pi/360)
+                    I_debug = np.real(resp_debug_eta)
+                    Q_debug = np.imag(resp_debug_eta)
+                    # Plot output of take_debug_data
+                    plt.figure(figsize=(9,4.5))
+                    plt.axhline(0, color='k', linestyle=':', alpha=.5)
+                    plt.axvline(0, color='k', linestyle=':', alpha=.5)
+                    plt.scatter(I_debug, Q_debug, color='b', s=3, label='Noise')
+                    # Then plot I/Q circle from setup_notches
+                    freq_k = r['freq_eta_scan']
+                    resp_k = r['resp_eta_scan']
                     res_num = k
                     timestamp = self.get_timestamp()
                     #plt.ioff() # TODO: Uncomment after testing
                     I = np.real(resp_k)
                     Q = np.imag(resp_k)
-                    plt.figure(figsize=(9,4.5))
-                    plt.axhline(0, color='k', linestyle=':', alpha=.5)
-                    plt.axvline(0, color='k', linestyle=':', alpha=.5)
-                    plt.scatter(I, Q, c=np.arange(len(freq_k)), s=3)
+                    plt.scatter(I, Q, color='r', s=3, label='IQ from setup_notches (before multiplying by eta)')
                     label = r'$\eta/\eta_{mag}$' + \
                             f': {np.real(eta/eta_mag):4.3f}' + \
                             f'+{np.imag(eta/eta_mag):4.3f}\n'
@@ -96,12 +113,10 @@ class SmurfTkidMixin(SmurfBase):
                     respp = eta * resp_k
                     Ip = np.real(respp)
                     Qp = np.imag(respp)
-                    plt.scatter(Ip, Qp, c=np.arange(len(freq_k)), cmap='inferno', s=3, label='IQ from setup_notches')
-                    # Then plot output of take_debug_data
-                    plt.scatter(I_debug, Q_debug, color='b', label='Noise')
-                    plt.set_xlabel('I')
-                    plt.set_ylabel('Q')
-                    plt.title(f'Channel {channel}')
+                    plt.scatter(Ip, Qp, c='g', s=3, label='IQ from setup_notches (after multiplying by eta)')
+                    plt.xlabel('I')
+                    plt.ylabel('Q')
+                    plt.title(f'Channel {channel}\n(considering only 0.1 MHz around each noise acquisition)')
                     plt.legend()
 
                     # Save the diagnostic plot
@@ -109,7 +124,6 @@ class SmurfTkidMixin(SmurfBase):
                     path = os.path.join(self.plot_dir, save_name)
                     plt.savefig(path, bbox_inches='tight')
                     plt.close()
-                    #plt.show() # TODO: For testing, uncomment this and comment out above saving lines
 
                     # Set square wave
                     self.play_square_tes(bias_group, tone_amp=0.07, tone_freq=1, dc_amp=dc)
