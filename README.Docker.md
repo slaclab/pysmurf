@@ -65,16 +65,18 @@ The `start_server.sh` script is in change of:
 You can address the target FPGA either using the card's ATCA shelfmanager's name and slot number (using arguments `-S` and `-N`), or by directly giving its IP address (using argument `-a`). If you use the shelfmanager name and slot number, the script will automatically detect the FPGA's IP address by reading the crate's ID and using the slot number, following the SLAC's convention: `IP address = 10.<crate's ID higher byte>.<crate's ID lower byte>.<100 + slot number>`. On the other hand, if you use the IP address, then the shelfmanager name and slot number arguments are ignored. The final IP address, either passed by the user or auto-detected by the script, is passed to the next startup script using the `-a` argument.
 
 #### Pyrogue ZIP file detection
-The script looks a pyrogue zip file to be present in `/tmp/fw/`. If found, the location of that file will be passed to the next startup script using the argument `-z`. If no zip file is found, the script will then look for a local checked out repository in the same location; if found, the python directories under it will be added to the PYTHONPATH environmental variable. The python directories must match these patterns:
+The script looks a pyrogue `zip` file to be present in `/tmp/fw/`. If found, the location of that file will be passed to the next startup script using the argument `-z`. If no zip file is found, the script will then look for a local checked out repository in the same location; if found, the python directories under it will be added to the PYTHONPATH environmental variable. The python directories must match these patterns:
 ```
 /tmp/fw/*/firmware/python/
 /tmp/fw/*/firmware/submodules/*/python/
 ```
 
-The docker images contains all these files in the `/tmp/fw/` directory. However, you can use a different version of these files by mounting a local copy from the host CPU inside the container as `/tmp/fw/`, which will replace the internal files.
+The docker images contains the `zip` file file in the `/tmp/fw/` directory. However, you can use a different version by mounting a local copy from the host CPU inside the container as `/tmp/fw/`, which will replace the internal files.
 
 #### Firmware version checking
-On the other hand, the scripts also looks for a MCS file in `/tmp/fw/`. The file name must include the short githash version of the firmware and an extension `mcs` or `mcs.gz`, following this expression: `*-<short-githash>.mcs[.gz]`. The script will also read the firmware short githash from the specified FPGA. If the version from the MCS file and the FPGA don't match, then the script will automatically load the MCS file into the FPGA. So, when starting the server you must have a local copy of this MCS file in the host CPU, and mount that directory inside the container as `/tmp/fw/`. This automatic version checking can be disabled either by passing the argument `-D|--no-check-fw`, or by addressing the FPGA by IP address instead of ATCA's shelfmanager_name/slot_number.
+On the other hand, the scripts also looks for a MCS file in `/tmp/fw/`. The file name must include the short githash version of the firmware and an extension `mcs` or `mcs.gz`, following this expression: `*-<short-githash>.mcs[.gz]`. The script will also read the firmware short githash from the specified FPGA. If the version from the MCS file and the FPGA don't match, then the script will automatically load the MCS file into the FPGA. This automatic version checking can be disabled either by passing the argument `-D|--no-check-fw`, or by addressing the FPGA by IP address instead of ATCA's shelfmanager_name/slot_number.
+
+The docker images contains the `mcs.gz` files in the `/tmp/fw/` directory. However, you can use a different version of these files by mounting a local copy from the host CPU inside the container as `/tmp/fw/`, which will replace the internal files.
 
 #### Hardware type auto-detection
 The script will try to auto-detect the type of carrier and AMC boards, and automatically generate server startup arguments based on the hardware type.
