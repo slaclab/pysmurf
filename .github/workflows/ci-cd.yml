@@ -72,7 +72,7 @@ jobs:
       - name: Validate the server definitions
         shell: bash
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.SLACLAB_TOKEN }}
         run: |
           cd docker/server/
           ./validate.sh
