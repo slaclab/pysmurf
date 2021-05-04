@@ -40,7 +40,7 @@ check_if_private_tag_exist()
     local repo=$(echo $1 | sed -e "s|https://github.com/|https://"${GITHUB_TOKEN}"@github.com/|g")
     local tag=$2
     echo ${repo}
-    git ls-remote --refs --tag ${repo} | grep -q refs/tags/${tag} > /dev/null
+    git ls-remote --refs --tag ${repo} | grep -q refs/tags/${tag}
 }
 
 # Check if a asset file exist on a tag version on a github private repository.
