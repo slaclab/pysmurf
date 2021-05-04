@@ -52,6 +52,23 @@ jobs:
       - name: Flake8 Checks
         run: flake8 --count python/
 
+  # Validate the server docker image definitions
+  docker-definitions:
+    name: Docker Definition Validation
+    runs-on: ubuntu-18.04
+    steps:
+      # Validate the server 'definitions.sh' file.
+      # Note about tokens: In this stage we need to use the SLACLAB TOKEN
+      # to be able to access the other private repositories (GITHUB_TOKEN
+      # only gives access to this repository).
+      - name: Validate the server definitions
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.SLACLAB_TOKEN }}
+        run: |
+          cd docker/server/
+          ./validate.sh
+          cd -
 
   ###################
   # Test jobs       #
