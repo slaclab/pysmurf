@@ -257,12 +257,6 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v2
 
-      # Get the git tag from the environmental variables
-      # It will used to tag the docker image
-      - name: Get release tag
-        id: get_tag
-        run: echo ::set-output name=tag::"${GITHUB_REF#refs/tags/}"
-
       # Setup docker build environment
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v1
@@ -275,14 +269,18 @@ jobs:
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       # Build and push the docker image
+      # Note about tokens: In this stage we need to use the SLACLAB TOKEN
+      # to be able to access the other private repositories (GITHUB_TOKEN
+      # only gives access to this repository).
       - name: Build and push image to Dockerhub
-        uses: docker/build-push-action@v2
-        with:
-          context: ./docker/server
-          file: ./docker/server/Dockerfile
-          push: true
-          tags: tidair/pysmurf-server-base:${{ steps.get_tag.outputs.tag }}
-          build-args: branch=${{ steps.get_tag.outputs.tag }}
+        id: build
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.SLACLAB_TOKEN }}
+        run: |
+          cd docker/server/
+          ./build.sh
+          cd -
 
   # Client docker
   deploy-client:
