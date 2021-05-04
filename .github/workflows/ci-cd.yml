@@ -57,6 +57,10 @@ jobs:
     name: Docker Definition Validation
     runs-on: ubuntu-18.04
     steps:
+      # Checkout the code
+      - name: Checkout code
+        uses: actions/checkout@v2
+
       # Validate the server 'definitions.sh' file.
       # Note about tokens: In this stage we need to use the SLACLAB TOKEN
       # to be able to access the other private repositories (GITHUB_TOKEN
