@@ -55,7 +55,7 @@ jobs:
   # Validate the server docker image definitions
   docker-definitions:
     name: Docker Definition Validation
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-latest
     steps:
       # Checkout the code.
       # We use ssh key authentication to be able to access other private
