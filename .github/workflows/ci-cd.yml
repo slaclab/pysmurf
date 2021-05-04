@@ -55,11 +55,15 @@ jobs:
   # Validate the server docker image definitions
   docker-definitions:
     name: Docker Definition Validation
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-18.04
     steps:
-      # Checkout the code
+      # Checkout the code.
+      # We use ssh key authentication to be able to access other private
+      # repositories.
       - name: Checkout code
         uses: actions/checkout@v2
+        with:
+          ssh-key: ${{ secrets.SLACLAB_KEY }}
 
       # Validate the server 'definitions.sh' file.
       # Note about tokens: In this stage we need to use the SLACLAB TOKEN
