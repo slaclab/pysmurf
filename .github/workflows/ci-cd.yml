@@ -81,7 +81,7 @@ jobs:
   test-docs:
     name: Documentation Build Tests
     runs-on: ubuntu-18.04
-    needs: checks   # Run only if checks passed
+    needs: [checks, docker-definitions]   # Run only if all checks passed
     steps:
       # Checkout the code
       - name: Checkout code
@@ -110,7 +110,7 @@ jobs:
   test-server:
     name: Server Tests
     runs-on: ubuntu-18.04
-    needs: checks   # Run only if checks passed
+    needs: [checks, docker-definitions]   # Run only if all checks passed
     steps:
       # Checkout the code
       - name: Checkout code
@@ -177,7 +177,7 @@ jobs:
   test-client:
     name: Client Tests
     runs-on: ubuntu-18.04
-    needs: checks   # Run only if checks passed
+    needs: [checks, docker-definitions]   # Run only if all checks passed
     steps:
       # Checkout the code
       - name: Checkout code
