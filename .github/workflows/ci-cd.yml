@@ -138,6 +138,7 @@ jobs:
       # Build docker image
       - name: Build docker image
         run: |
+          mkdir docker/server/local_files
           docker image build \
             --file ./docker/server/Dockerfile \
             --build-arg branch=${{ steps.branch_name.outputs.branch }} \
