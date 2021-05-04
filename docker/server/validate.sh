@@ -32,12 +32,12 @@ check_if_public_asset_exist()
 # Check if a tag exists on a github pivate repository.
 # It requires ssh key authentication.
 # Arguments:
-# - first: github private repository url,
+# - first: github private repository url (https),
 # - second: tag name
 check_if_private_tag_exist()
 {
     # Need to insert the token in the url
-    local repo=$(echo $1 | sed -e "s|https://github.com/|git@github.com:|g")
+    local repo=$(echo $1 | sed -e "s|https://github.com/|https://${GITHUB_TOKEN}@github.com/|g")
     local tag=$2
     git ls-remote --refs --tag ${repo} | grep -q refs/tags/${tag} > /dev/null
 }
@@ -45,7 +45,7 @@ check_if_private_tag_exist()
 # Check if a asset file exist on a tag version on a github private repository.
 # It requires the access token to be defined in $GITHUB_TOKEN.
 # Arguments:
-# - first: github private repository url,
+# - first: github private repository url (https),
 # - second: tag name,
 # - third: asset file name
 check_if_private_asset_exist()
@@ -65,7 +65,7 @@ check_if_private_asset_exist()
 # Download the asset file on a tagged version on a github private repository.
 # It requires the access token to be defined in $GITHUB_TOKEN.
 # Arguments:
-# - first: github private repository url,
+# - first: github private repository url (https),
 # - second: tag name,
 # - third: asset file name
 get_private_asset()
