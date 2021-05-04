@@ -1,5 +1,13 @@
 FROM tidair/smurf-rogue:R2.8.3
 
+# Copy all firmware related files, which are in the local_files directory
+# Note: we use a wild card here ([]) to avoid the docker image to failed
+# if the 'local_files' directory does not exist (which is the case for some
+# of our CI tests). But we use a wild card that will only match the exact
+# 'local_files' directory.
+RUN mkdir -p /tmp/fw/ && chmod -R a+rw /tmp/fw/
+COPY local_file[s] /tmp/fw/
+
 # Install the SMURF PCIe card repository
 WORKDIR /usr/local/src
 RUN git clone https://github.com/slaclab/smurf-pcie.git -b v2.0.0
@@ -26,4 +34,8 @@ RUN mkdir -p /usr/local/src/pysmurf_utilities
 ADD scripts/* /usr/local/src/pysmurf_utilities/
 ENV PATH /usr/local/src/pysmurf_utilities:${PATH}
 
+# Set the working directory to the root
+WORKDIR /
+
+# Define the entrypoint
 ENTRYPOINT ["start_server.sh"]
