@@ -420,18 +420,11 @@ class SmurfConfig:
                 # Global feedback gain (might no longer be used in dspv3).
                 "feedbackLimitkHz" : And(Use(float), lambda f: f > 0),
 
-                ## TODO remove refPhaseDelay and refPhaseDelayFine
-                # refPhaseDelay and refPhaseDelayFine are deprected
-                # use bandDelayUs instead
-
                 # Number of cycles to delay phase reference
-                Optional('refPhaseDelay', default=0): And(int, lambda n: 0 <= n < 2**5),
+                'refPhaseDelay': And(int, lambda n: 0 <= n < 2**5),
                 # Finer phase reference delay, 307.2MHz clock ticks.  This
                 # goes in the opposite direction as refPhaseDelay.
-                Optional('refPhaseDelayFine', default=0): And(int, lambda n: 0 <= n < 2**8),
-
-                # use bandDelayUs (microseconds) instead of refPhaseDelay(Fine)
-                Optional('bandDelayUs', default=None): And(Use(float), lambda n : 0 <= n < 30),
+                'refPhaseDelayFine': And(int, lambda n: 0 <= n < 2**8),
 
                 # RF attenuator on SMuRF output.  UC=up convert.  0.5dB steps.
                 'att_uc': And(int, lambda n: 0 <= n < 2**5),
@@ -445,9 +438,6 @@ class SmurfConfig:
                          default=default_data_out_mux_dict[band]) : \
                 And([Use(int)], list, lambda l: len(l) == 2 and
                     l[0] != l[1] and all(0 <= ll <= 9 for ll in l)),
-
-                ## TODO remove lmsDelay
-                # lmsDelay is deprected use bandDelayUs instead
 
                 # Matches system latency for LMS feedback (9.6 MHz
                 # ticks, use multiples of 52).  For dspv3 to adjust to
