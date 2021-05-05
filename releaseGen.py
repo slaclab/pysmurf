@@ -46,8 +46,8 @@ loginfo = git.Git('.').log(f"{oldTag}...{newTag}",'--grep','Merge pull request')
 
 # Grouping of recors
 records= odict({'Core':      odict({'Bug' : [], 'Enhancement':[], 'Interface-change':[], 'Firmware-change':[]}),
-                'Client':    odict({'Bug' : [], 'Enhancement':[], 'Interface-change':[]}),
-                'Other':     odict({'Bug' : [], 'Enhancement':[], 'Interface-change':[]}),
+                'Client':    odict({'Bug' : [], 'Enhancement':[], 'Interface-change':[], 'Firmware-change':[]}),
+                'Other':     odict({'Bug' : [], 'Enhancement':[], 'Interface-change':[], 'Firmware-change':[]}),
                 'Unlabeled': [] })
 
 details = []
