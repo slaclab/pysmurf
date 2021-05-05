@@ -21,8 +21,8 @@ config_repo=https://github.com/slaclab/smurf_cfg
 # define it here. On the other hand, the ZIP file follows this naming convention:
 # 'rogue_${fw_repo_tag}.zip', so you don't need to define it here.
 # The files will be downloaded from the release list of assets.
-fw_repo_tag=MicrowaveMuxBpEthGen2_v1.0.4
-mcs_file_name=MicrowaveMuxBpEthGen2-0x00000100-20210106214208-mdewart-e8c5d46.mcs.gz
+fw_repo_tag=MicrowaveMuxBpEthGen2_v1.0.5
+mcs_file_name=MicrowaveMuxBpEthGen2-0x00000100-20210504090351-jvasquez-8ccb67e.mcs.gz
 
 # Define the configuration version:
 # =================================
