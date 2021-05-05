@@ -4,11 +4,19 @@
 
 Docker images for both the server and client applications are built automatically from this repository.
 
+For the server application, two docker images are generated:
+- An **stable** version called **pysmurf-server**. This image contains, besides the pysmurf server application, the firmware and its configuration files in it. The versions of these files are defined in the [definition.sh file](docker/server/definitions.sh).
+- A **base** version called **pysmurf-server-base**. Historically, this image contained only the pysmurf server application (without any firmware-related file) and was used for testing development firmware images. However, now this image is exactly the same **estable** image described above; as you can mount an external directory with development firmware files on top of the directory contained in the stable docker image when starting the container, there is not really necessary to maintained two different images. Although this image is not really necessary, is still being published to maintain backward compatibility with existing scripts; although you should use the stable image instead as this images will be deprecated in the future.
+
+On the other hand,
 The docker image for the server is called **pysmurf-server-base**, while the docker image for the client is called **pysmurf-client**.
 
 ## Building the image
 
-When a tag is pushed to this github repository, two new Docker images, one for the server and one for the client applications, are automatically built and push to their Dockehub repositories: [Dockerhub server repository](https://hub.docker.com/r/tidair/pysmurf-server-base) and [Dockerhub client repository](https://hub.docker.com/r/tidair/pysmurf-client) respectively, using GitHub Actions.
+When a tag is pushed to this github repository, three new Docker images, two for the server and one for the client applications, are automatically built and push to their Dockerhub repositories using GitHub Actions. The three Dockerhub repositories are:
+- Stable server repository: https://hub.docker.com/r/tidair/pysmurf-server
+- Base server repository: https://hub.docker.com/r/tidair/pysmurf-server-base, and
+- Client repository: https://hub.docker.com/r/tidair/pysmurf-client
 
 The resulting docker images are tagged with the same git tag string (as returned by `git describe --tags --always`).
 
@@ -19,7 +27,7 @@ The files used to generate the docker images are located in the [docker/server] 
 To get the docker image, first you will need to install the docker engine in you host OS. Then you can pull a copy by running:
 
 ```
-docker pull tidair/pysmurf-server-base:<TAG>
+docker pull tidair/pysmurf-server:<TAG>
 ```
 
 for the server, and
@@ -57,15 +65,18 @@ The `start_server.sh` script is in change of:
 You can address the target FPGA either using the card's ATCA shelfmanager's name and slot number (using arguments `-S` and `-N`), or by directly giving its IP address (using argument `-a`). If you use the shelfmanager name and slot number, the script will automatically detect the FPGA's IP address by reading the crate's ID and using the slot number, following the SLAC's convention: `IP address = 10.<crate's ID higher byte>.<crate's ID lower byte>.<100 + slot number>`. On the other hand, if you use the IP address, then the shelfmanager name and slot number arguments are ignored. The final IP address, either passed by the user or auto-detected by the script, is passed to the next startup script using the `-a` argument.
 
 #### Pyrogue ZIP file detection
-The script looks a pyrogue zip file to be present in `/tmp/fw/`. If found, the location of that file will be passed to the next startup script using the argument `-z`. If no zip file is found, the script will then look for a local checked out repository in the same location; if found, the python directories under it will be added to the PYTHONPATH environmental variable. The python directories must match these patterns:
+The script looks a pyrogue `zip` file to be present in `/tmp/fw/`. If found, the location of that file will be passed to the next startup script using the argument `-z`. If no zip file is found, the script will then look for a local checked out repository in the same location; if found, the python directories under it will be added to the PYTHONPATH environmental variable. The python directories must match these patterns:
 ```
 /tmp/fw/*/firmware/python/
 /tmp/fw/*/firmware/submodules/*/python/
 ```
-So, when starting the container you must have either a local copy of a pyrogue zip file, or a local checked out repository, in the host CPU, and mount that directory inside the container as `/tmp/fw/`.
+
+The docker images contains the `zip` file file in the `/tmp/fw/` directory. However, you can use a different version by mounting a local copy from the host CPU inside the container as `/tmp/fw/`, which will replace the internal files.
 
 #### Firmware version checking
-On the other hand, the scripts also looks for a MCS file in `/tmp/fw/`. The file name must include the short githash version of the firmware and an extension `mcs` or `mcs.gz`, following this expression: `*-<short-githash>.mcs[.gz]`. The script will also read the firmware short githash from the specified FPGA. If the version from the MCS file and the FPGA don't match, then the script will automatically load the MCS file into the FPGA. So, when starting the server you must have a local copy of this MCS file in the host CPU, and mount that directory inside the container as `/tmp/fw/`. This automatic version checking can be disabled either by passing the argument `-D|--no-check-fw`, or by addressing the FPGA by IP address instead of ATCA's shelfmanager_name/slot_number.
+On the other hand, the scripts also looks for a MCS file in `/tmp/fw/`. The file name must include the short githash version of the firmware and an extension `mcs` or `mcs.gz`, following this expression: `*-<short-githash>.mcs[.gz]`. The script will also read the firmware short githash from the specified FPGA. If the version from the MCS file and the FPGA don't match, then the script will automatically load the MCS file into the FPGA. This automatic version checking can be disabled either by passing the argument `-D|--no-check-fw`, or by addressing the FPGA by IP address instead of ATCA's shelfmanager_name/slot_number.
+
+The docker images contains the `mcs.gz` files in the `/tmp/fw/` directory. However, you can use a different version of these files by mounting a local copy from the host CPU inside the container as `/tmp/fw/`, which will replace the internal files.
 
 #### Hardware type auto-detection
 The script will try to auto-detect the type of carrier and AMC boards, and automatically generate server startup arguments based on the hardware type.
@@ -174,16 +185,16 @@ With all that in mind, the command to run the container looks something like thi
 ```
 docker run -ti --rm \
     -v <local_data_dir>:/data \
-    -v <local_fw_files_dir>:/tmp/fw/ \
-    tidair/pysmurf-server-base:<TAG> \
+    tidair/pysmurf-server:<TAG> \
     <arguments>
 ```
 
 Where:
 - **local_data_dir**: is a local directory in the host CPU where the persistent data can be written to if needed,
-- **local_fw_files_dir**: is a local directory in the host CPU with the firmware's MCS and pyrogue zip files,
 - **TAG**: is the tagged version of the container your want to run,
 - **arguments**: are the arguments passed to start_server.sh.
+
+Optionally, you can add an argument `-v <local_fw_files_dir>:/tmp/fw/` to the command above, where **local_fw_files_dir** is a local directory in the host CPU with the firmware's MCS and pyrogue zip files, if you want to use a different version respect to the ones includes in the docker image.
 
 For example, to start the server using PCIe communication, on the carrier card located in slot 2 on a crate with shelfmanager node name `shm-smrf-sp01`, you will use the following arguments:
 
