@@ -52,6 +52,31 @@ jobs:
       - name: Flake8 Checks
         run: flake8 --count python/
 
+  # Validate the server docker image definitions
+  docker-definitions:
+    name: Docker Definition Validation
+    runs-on: ubuntu-18.04
+    steps:
+      # Checkout the code.
+      # We use ssh key authentication to be able to access other private
+      # repositories (like the firmware repository).
+      - name: Checkout code
+        uses: actions/checkout@v2
+        with:
+          ssh-key: ${{ secrets.SLACLAB_KEY }}
+
+      # Validate the server 'definitions.sh' file.
+      # Note about tokens: In this stage we need to use the SLACLAB TOKEN
+      # to be able to access the other private repositories (GITHUB_TOKEN
+      # only gives access to this repository).
+      - name: Validate the server definitions
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.SLACLAB_TOKEN }}
+        run: |
+          cd docker/server/
+          ./validate.sh
+          cd -
 
   ###################
   # Test jobs       #
@@ -60,7 +85,7 @@ jobs:
   test-docs:
     name: Documentation Build Tests
     runs-on: ubuntu-18.04
-    needs: checks   # Run only if checks passed
+    needs: [checks, docker-definitions]   # Run only if all checks passed
     steps:
       # Checkout the code
       - name: Checkout code
@@ -89,7 +114,7 @@ jobs:
   test-server:
     name: Server Tests
     runs-on: ubuntu-18.04
-    needs: checks   # Run only if checks passed
+    needs: [checks, docker-definitions]   # Run only if all checks passed
     steps:
       # Checkout the code
       - name: Checkout code
@@ -113,6 +138,7 @@ jobs:
       # Build docker image
       - name: Build docker image
         run: |
+          mkdir docker/server/local_files
           docker image build \
             --file ./docker/server/Dockerfile \
             --build-arg branch=${{ steps.branch_name.outputs.branch }} \
@@ -162,7 +188,7 @@ jobs:
   test-client:
     name: Client Tests
     runs-on: ubuntu-18.04
-    needs: checks   # Run only if checks passed
+    needs: [checks, docker-definitions]   # Run only if all checks passed
     steps:
       # Checkout the code
       - name: Checkout code
@@ -259,15 +285,13 @@ jobs:
     needs: [test-docs, test-server, test-client]  # Run only if all tests passed
     if: startsWith(github.ref, 'refs/tags/')      # Run only on tagged releases
     steps:
-      # Checkout the code
+      # Checkout the code.
+      # We use ssh key authentication to be able to access other private
+      # repositories (like the firmware repository).
       - name: Checkout code
         uses: actions/checkout@v2
-
-      # Get the git tag from the environmental variables
-      # It will used to tag the docker image
-      - name: Get release tag
-        id: get_tag
-        run: echo ::set-output name=tag::"${GITHUB_REF#refs/tags/}"
+        with:
+          ssh-key: ${{ secrets.SLACLAB_KEY }}
 
       # Setup docker build environment
       - name: Set up Docker Buildx
@@ -281,14 +305,18 @@ jobs:
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       # Build and push the docker image
+      # Note about tokens: In this stage we need to use the SLACLAB TOKEN
+      # to be able to access the other private repositories (GITHUB_TOKEN
+      # only gives access to this repository).
       - name: Build and push image to Dockerhub
-        uses: docker/build-push-action@v2
-        with:
-          context: ./docker/server
-          file: ./docker/server/Dockerfile
-          push: true
-          tags: tidair/pysmurf-server-base:${{ steps.get_tag.outputs.tag }}
-          build-args: branch=${{ steps.get_tag.outputs.tag }}
+        id: build
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.SLACLAB_TOKEN }}
+        run: |
+          cd docker/server/
+          ./build.sh
+          cd -
 
   # Client docker
   deploy-client:
