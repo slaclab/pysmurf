@@ -37,17 +37,36 @@ The processing pipeline is describe in the following diagram:
  +-------+-------+
  | Header2Smurf  |
  +-------+-------+
-         |
-+--------+---------+
-| PostDataEmulator |
-+--------+---------+
-         |
-         +-------------------+
-         |                   |
-   +-----+------+      +-----+-------+
-   | FileWriter |      | Transmitter |
-   +------------+      | (optional)  |
-                       +-------------+
+         |                +------------+
++--------+---------+      |    Root    |
+| PostDataEmulator |      | (Metadata) |
++------------+-----+      +-+----------+
+             |              |
+             |              |
+             |              +------------------------------------+
+             |              |                                    |
+             +------------------------------+                    |
+             |              |               |                    |
+             |              |               |                    |
+         +---+--------------+---+           |                    |
+         |  (ch0)         (ch1) |           |                    |
+         |                      |           |                    |
+         |      FileWriter      |           |                    |
+         |                      |           |                    |
+         +----------------------+           |                    |
+                                 . . . . . .| . . . . . . . . . .|. . . . . .  <--- These blocks under here
+                                 v          |                    |          v       are optional and are only
+                                    +-------+-------+    +-------+-------+          instantiated if a custom
+                                    |   DataFifo    |    |   MetaFifo    |          transmitter device is
+                                    | (depth = 100) |    | (depth = 100) |          defined.
+                                    +-------+-------+    +-------+-------+
+                                            |                    |
+                                     +------+--------------------+------+
+                                     | (dataTransmit)    (metaTransmit) |
+                                     |                                  |
+                                     |           Transmitter            |
+                                     |          (user-defined)          |
+                                     +----------------------------------+
 ```
 
 Each module in the diagram perform the following operations:
@@ -108,7 +127,11 @@ b, a = signal.butter(4, 2*63 / 4000.)
 
 ### Downsampler
 
-Perform a downsampling of the data in the incoming frame, by letting pass only 1 data point each `Factor` number of point.
+Perform a downsampling of the data in the incoming frame, by letting pass only factor of incoming frames.
+
+The modules provides two triggers mode, selectable by the variable `TriggerMode`:
+- `Internal`:  It uses an internal frame counter, and it releases a frame each `Factor` number of received frames.
+- `Timing (BICEP)`: It uses the information from an external timing system to decide when to release a frame. A new frame is release every time the "External real time clock from timing system" (word 96 in the [Smurf header](https://github.com/slaclab/pysmurf/blob/main/README.SmurfPacket.md)) changes. This is the mode used in by BICEP.
 
 This module can be disabled; the incoming frame will just pass through to the next block.
 
@@ -125,3 +148,5 @@ Write the processed data to disk. See [here](README.DataFile.md) for details.
 ### Transmitter
 
 This is an optional block. It is intended for adding a custom block which will take the processed data and set it to a third party system. See [here](README.CustomDataTransmitter.md) for details.
+
+When this block is defined by the user, two Fifo devices will be instantiated as well, one for the processed data frames (called `DataFifo`), and one for the metadata frames (called `MetaFifo`). Each fifo will hold up to 100 frames.

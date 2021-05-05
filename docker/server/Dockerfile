@@ -1,4 +1,8 @@
-FROM tidair/smurf-rogue:R2.8.2
+FROM tidair/smurf-rogue:R2.8.4
+
+# Copy all firmware related files, which are in the local_files directory
+RUN mkdir -p /tmp/fw/ && chmod -R a+rw /tmp/fw/
+COPY local_files /tmp/fw/
 
 # Install the SMURF PCIe card repository
 WORKDIR /usr/local/src
@@ -26,4 +30,8 @@ RUN mkdir -p /usr/local/src/pysmurf_utilities
 ADD scripts/* /usr/local/src/pysmurf_utilities/
 ENV PATH /usr/local/src/pysmurf_utilities:${PATH}
 
+# Set the working directory to the root
+WORKDIR /
+
+# Define the entrypoint
 ENTRYPOINT ["start_server.sh"]

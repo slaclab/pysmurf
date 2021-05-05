@@ -28,14 +28,10 @@ namespace sct = smurf::core::transmitters;
 sct::BaseTransmitter::BaseTransmitter()
 :
     disable(false),
-    dataBuffer(sct::DualDataBuffer<SmurfPacketROPtr>::create(
-        std::bind(&BaseTransmitter::dataTransmit, this, std::placeholders::_1),
-        "SmurfDataTX")
-    ),
-    metaBuffer(sct::DualDataBuffer<std::string>::create(
-        std::bind(&BaseTransmitter::metaTransmit, this, std::placeholders::_1),
-        "SmurfMetaTX")
-    )
+    dataFrameCnt(0),
+    metaFrameCnt(0),
+    dataDropFrameCnt(0),
+    metaDropFrameCnt(0)
 {
 }
 
@@ -50,13 +46,15 @@ void sct::BaseTransmitter::setup_python()
                 sct::BaseTransmitterPtr,
                 boost::noncopyable >
                 ("BaseTransmitter",bp::init<>())
-        .def("setDisable",     &BaseTransmitter::setDisable)
-        .def("getDisable",     &BaseTransmitter::getDisable)
-        .def("clearCnt",       &BaseTransmitter::clearCnt)
-        .def("getDataDropCnt", &BaseTransmitter::getDataDropCnt)
-        .def("getMetaDropCnt", &BaseTransmitter::getMetaDropCnt)
-        .def("getDataChannel", &BaseTransmitter::getDataChannel)
-        .def("getMetaChannel", &BaseTransmitter::getMetaChannel)
+        .def("setDisable",      &BaseTransmitter::setDisable)
+        .def("getDisable",      &BaseTransmitter::getDisable)
+        .def("clearCnt",        &BaseTransmitter::clearCnt)
+        .def("getDataFrameCnt", &BaseTransmitter::getDataFrameCnt)
+        .def("getMetaFrameCnt", &BaseTransmitter::getMetaFrameCnt)
+        .def("getDataDropCnt",  &BaseTransmitter::getDataDropCnt)
+        .def("getMetaDropCnt",  &BaseTransmitter::getMetaDropCnt)
+        .def("getDataChannel",  &BaseTransmitter::getDataChannel)
+        .def("getMetaChannel",  &BaseTransmitter::getMetaChannel)
     ;
 }
 
@@ -92,18 +90,30 @@ const bool sct::BaseTransmitter::getDisable() const
 
 void sct::BaseTransmitter::clearCnt()
 {
-    dataBuffer->clearCnt();
-    metaBuffer->clearCnt();
+    dataFrameCnt = 0;
+    metaFrameCnt = 0;
+    dataDropFrameCnt = 0;
+    metaDropFrameCnt = 0;
 }
 
-const std::size_t sct::BaseTransmitter::getMetaDropCnt() const
+const std::size_t sct::BaseTransmitter::getDataFrameCnt() const
 {
-    return metaBuffer->getDropCnt();
+    return dataFrameCnt;
+}
+
+const std::size_t sct::BaseTransmitter::getMetaFrameCnt() const
+{
+    return metaFrameCnt;
 }
 
 const std::size_t sct::BaseTransmitter::getDataDropCnt() const
 {
-    return dataBuffer->getDropCnt();
+    return dataDropFrameCnt;
+}
+
+const std::size_t sct::BaseTransmitter::getMetaDropCnt() const
+{
+    return metaDropFrameCnt;
 }
 
 void sct::BaseTransmitter::acceptDataFrame(ris::FramePtr frame)
@@ -114,14 +124,27 @@ void sct::BaseTransmitter::acceptDataFrame(ris::FramePtr frame)
     if (disable)
         return;
 
-    ris::FrameLockPtr fLock = frame->lock();
+    ris::FrameLockPtr fLock { frame->lock() };
 
+    // Only accept frames which are single buffer
     if ( frame->bufferCount() != 1 )
+    {
+        ++dataDropFrameCnt;
         return;
+    }
 
-    // Insert the new SmurfPacket into the buffer to be sent
-    dataBuffer->insertData(SmurfPacketRO::create(frame));
-    fLock->unlock();
+    // Reject frames with errors or flags
+    if ( frame->getError() || ( frame->getFlags() & 0x100 ) )
+    {
+        ++dataDropFrameCnt;
+        return;
+    }
+
+    // Increment the data frame counter
+    ++dataFrameCnt;
+
+    // Call the dataTransmit method, passing a SmurfPacketRO object
+    dataTransmit( SmurfPacketRO::create(frame) );
 }
 
 void sct::BaseTransmitter::acceptMetaFrame(ris::FramePtr frame)
@@ -132,14 +155,29 @@ void sct::BaseTransmitter::acceptMetaFrame(ris::FramePtr frame)
     if (disable)
         return;
 
-    ris::FrameLockPtr fLock = frame->lock();
+    ris::FrameLockPtr fLock { frame->lock() };
 
+    // Only accept frames which are single buffer
     if ( frame->bufferCount() != 1 )
+    {
+        ++metaDropFrameCnt;
         return;
+    }
 
-    std::string cfg(reinterpret_cast<char const*>(frame->beginRead().ptr()), frame->getPayload());
+    // Reject frames with errors or flags
+    if ( frame->getError() || ( frame->getFlags() & 0x100 ) )
+    {
+        ++metaDropFrameCnt;
+        return;
+    }
+
+    // Increment the metadata frame counter
+    ++metaFrameCnt;
+
+    // Convert the frame payload to a string
+    std::string cfg ( reinterpret_cast<char const*>(frame->beginRead().ptr()), frame->getPayload() );
     fLock->unlock();
 
-    // Insert the new metada packet into the buffer to be send
-    metaBuffer->insertData(cfg);
+    // Call the metaTransmit method
+    metaTransmit(cfg);
 }

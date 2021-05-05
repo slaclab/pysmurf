@@ -145,6 +145,7 @@ class SmurfUtilMixin(SmurfBase):
         self.set_streamdatawriter_close(True)
 
         self.log('Done taking data', self.LOG_USER)
+        self.pub.register_file(data_filename, 'debug', format='dat')
 
         if rf_iq:
             self.set_rf_iq_stream_enable(band, 0)
@@ -231,16 +232,6 @@ class SmurfUtilMixin(SmurfBase):
 
         Returns
         -------
-        refPhaseDelay : int
-           Estimated value for the `refPhaseDelay` firmware register
-           for this 500MHz band.  For more details on the
-           `refPhaseDelay` register, see
-           :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.set_ref_phase_delay`.
-        refPhaseDelayFine : int
-           Estimated value for the `refPhaseDelayFine` firmware
-           register for this 500MHz band.  For more details on the
-           `refPhaseDelayFine` register, see
-           :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.set_ref_phase_delay_fine`.
         processing_delay_us : float
            Estimated processing phase delay, in microseconds.
         dsp_corr_delay_us : float
@@ -249,11 +240,7 @@ class SmurfUtilMixin(SmurfBase):
 
         """
 
-        # For some reason, pyrogue flips out if you try to set refPhaseDelay
-        # to zero in 071150b0.  This allows an offset ; the offset just gets
-        # subtracted off the delay measurement with DSP after it's made.
-        refPhaseDelay0=1
-        refPhaseDelayFine0=0
+        self.set_band_delay_us(band, 0)
 
         uc_att0 = self.get_att_uc(band)
         dc_att0 = self.get_att_dc(band)
@@ -268,7 +255,6 @@ class SmurfUtilMixin(SmurfBase):
         # save time)
         n_subbands = self.get_number_sub_bands(band)
         digitizer_frequency_mhz = self.get_digitizer_frequency_mhz(band)
-        channel_frequency_mhz = self.get_channel_frequency_mhz(band)
         subband_half_width_mhz = digitizer_frequency_mhz/\
             n_subbands
         subbands,subband_centers=self.get_subband_centers(band)
@@ -316,23 +302,27 @@ class SmurfUtilMixin(SmurfBase):
         #### done measuring cable delay
 
         #### start measuring dsp delay (cable+processing)
-        # Zero refPhaseDelay and refPhaseDelayFine to get uncorrected phase
-        # delay.
-        # max is 7
-        self.set_ref_phase_delay(band,refPhaseDelay0)
-        # max is 255
-        self.set_ref_phase_delay_fine(band,refPhaseDelayFine0)
+## FIXME -- should be able to scan with "0" delay, not working
+        self.set_band_delay_us(band, 1)
 
         self.log('Running find_freq')
+        #freq_dsp,resp_dsp=self.find_freq(band, start_freq=freq_min, stop_freq=freq_max)
         freq_dsp,resp_dsp=self.find_freq(band,subband=dsp_subbands)
 
         # only preserve data in the subband half width
         freq_dsp_subset=[]
         resp_dsp_subset=[]
+        est_delay=[]
         for sb,sbc in zip(subbands,subband_centers):
             freq_subband=freq_dsp[sb]-sbc
             idx = np.where( ( freq_subband > subband_freq_min ) &
                 (freq_subband < subband_freq_max) )
+            if len(idx[0]) > 0:
+                dsp_z = np.polyfit(freq_dsp[sb][idx]*1e6, np.unwrap(np.angle(resp_dsp[sb][idx])), 1)
+                dsp_p = np.poly1d(dsp_z)
+                dsp_delay_us=np.abs(1.e6*dsp_z[0]/2/np.pi)
+                dsp_delay_us=dsp_delay_us + self.get_band_delay_us(band)
+                est_delay.append(dsp_delay_us)
             freq_dsp_subset.extend(freq_dsp[sb][idx])
             resp_dsp_subset.extend(resp_dsp[sb][idx])
 
@@ -353,46 +343,39 @@ class SmurfUtilMixin(SmurfBase):
         dsp_z = np.polyfit(freq_dsp_subset, np.unwrap(np.angle(resp_dsp_subset)), 1)
         dsp_p = np.poly1d(dsp_z)
         dsp_delay_us=np.abs(1.e6*dsp_z[0]/2/np.pi)
+        dsp_delay_us=dsp_delay_us + self.get_band_delay_us(band)
+        dsp_delay_us=np.mean(est_delay)
 
-        # if refPhaseDelay0 or refPhaseDelayFine0 aren't zero, must add into
-        # delay here
-        #dsp_delay_us+=refPhaseDelay0/(subband_half_width_mhz*2.)
-        dsp_delay_us+=refPhaseDelay0/(subband_half_width_mhz)
-        dsp_delay_us-=refPhaseDelayFine0/(digitizer_frequency_mhz/2)
-
-        ## compute refPhaseDelay and refPhaseDelayFine
-        refPhaseDelay=int(np.ceil(dsp_delay_us*channel_frequency_mhz))
-        overCorrect = refPhaseDelay-dsp_delay_us*subband_half_width_mhz*2
-        refPhaseDelayFine = int(np.round((digitizer_frequency_mhz/2)/(subband_half_width_mhz*2) * overCorrect))
-        #refPhaseDelayFine=int(np.round((digitizer_frequency_mhz/2/
-        #    (channel_frequency_mhz)*
-        #    (refPhaseDelay-dsp_delay_us*(subband_half_width_mhz/2.)))))
         processing_delay_us=dsp_delay_us-cable_delay_us
 
         print('-------------------------------------------------------')
-        print(f'Estimated refPhaseDelay={refPhaseDelay}')
-        print(f'Estimated refPhaseDelayFine={refPhaseDelayFine}')
+        print(f'Estimated cable_delay_us={cable_delay_us}')
+        print(f'Estimated dsp_delay_us={dsp_delay_us}')
         print(f'Estimated processing_delay_us={processing_delay_us}')
         print('-------------------------------------------------------')
 
         #### done measuring dsp delay (cable+processing)
 
-        #### start measuring total (DSP) delay with estimated correction applied
-        # Zero refPhaseDelay and refPhaseDelayFine to get uncorrected phase
-        # delay.
-        # max is 7
-        self.set_ref_phase_delay(band,refPhaseDelay)
-        # max is 255
-        self.set_ref_phase_delay_fine(band,refPhaseDelayFine)
+        #### start measuring total (DSP + cable) delay with estimated correction applied
+        self.set_band_delay_us(band, dsp_delay_us)
 
         self.log('Running find_freq')
         freq_dsp_corr,resp_dsp_corr=self.find_freq(band,subband=dsp_subbands)
 
         freq_dsp_corr_subset=[]
         resp_dsp_corr_subset=[]
+        first = True
         for sb,sbc in zip(subbands,subband_centers):
             freq_subband=freq_dsp_corr[sb]-sbc
             idx = np.where( ( freq_subband > subband_freq_min ) & (freq_subband < subband_freq_max) )
+            if len(idx[0]) > 0:
+                if not first:
+                    last_phase = np.angle(resp_dsp_corr_subset[-1])
+                    new_phase  = np.angle(resp_dsp_corr[sb][idx[0]])
+                    resp_dsp_corr[sb][idx] = resp_dsp_corr[sb][idx] * np.exp(1j*(last_phase - new_phase))
+
+                if first:
+                    first = False
             freq_dsp_corr_subset.extend(freq_dsp_corr[sb][idx])
             resp_dsp_corr_subset.extend(resp_dsp_corr[sb][idx])
 
@@ -459,22 +442,13 @@ class SmurfUtilMixin(SmurfBase):
         cable_residuals=cable_phase-(cable_p(f_cable_plot*1.0E6))
         ax[2].plot(f_cable_plot,cable_residuals-np.median(cable_residuals),
             label='Cable (full_band_resp)',c='g')
-        dsp_residuals=dsp_phase-(dsp_p(f_dsp_plot*1.0E6))
-        ax[2].plot(f_dsp_plot,dsp_residuals-np.median(dsp_residuals),
-            label='DSP (find_freq)', c='c')
         ax[2].plot(f_dsp_corr_plot,dsp_corr_phase-np.median(dsp_corr_phase),
-            label='DSP corrected (find_freq)', c='m')
+            label='DSP (find_freq)', c='c')
         ax[2].set_title(f'AMC in Bay {bay}, Band {band} Residuals'.format(bay,band))
         ax[2].set_ylabel("Residual [rad]")
         ax[2].set_xlabel('Frequency offset from band center [MHz]')
         ax[2].set_ylim([-5,5])
 
-        ax[2].text(.97, .92, f'refPhaseDelay={refPhaseDelay}',
-                   transform=ax[2].transAxes, fontsize=8,
-                   bbox=bbox,horizontalalignment='right')
-        ax[2].text(.97, .84, f'refPhaseDelayFine={refPhaseDelayFine}',
-                   transform=ax[2].transAxes, fontsize=8,
-                   bbox=bbox,horizontalalignment='right')
         ax[2].text(.97, .76,
                    f'processing delay={processing_delay_us:.5f} us (fw={fw_abbrev_sha})',
                    transform=ax[2].transAxes, fontsize=8,
@@ -505,7 +479,10 @@ class SmurfUtilMixin(SmurfBase):
         self.set_att_uc(band, uc_att0, write_log=True)
         self.set_att_dc(band, dc_att0, write_log=True)
 
-        return refPhaseDelay, refPhaseDelayFine, processing_delay_us, dsp_corr_delay_us
+        if show_plot:
+            plt.show()
+
+        return dsp_delay_us, dsp_corr_delay_us
 
     def process_data(self, filename, dtype=np.uint32):
         """ Reads a file taken with take_debug_data and processes it into data
@@ -863,10 +840,9 @@ class SmurfUtilMixin(SmurfBase):
             Whether to write to the log file.
         update_payload_size : bool, optional, default True
             Whether to update the payload size (the number of channels
-            written to disk). If the number of channels on is greater
-            than the payload size, then only the first N channels are
-            written. This bool will update the payload size to be the
-            same as the number of channels on across all bands)
+            written to disk). If this is True, will set the payload size to
+            0, which tells rogue to automatically adjust it based on the
+            channel count.
         reset_filter : bool, optional, default True
             Whether to reset the filter before taking data.
         reset_unwrapper : bool, optional, default True
@@ -890,19 +866,8 @@ class SmurfUtilMixin(SmurfBase):
                      'value already in pyrogue:'+
                      f' {downsample_factor}')
 
-        # Check payload size
-        n_chan_in_mask = len(self.get_channel_mask())
-        payload_size = self.get_payload_size()
-        if n_chan_in_mask > payload_size:
-            if update_payload_size:
-                self.log('Updating payload size')
-                self.set_payload_size(n_chan_in_mask,
-                                      write_log=write_log)
-            else:
-                self.log('Warning : The payload size is smaller than ' +
-                         'the number of channels that are on. Only ' +
-                         f'writing the first {payload_size} channels. ')
-
+        if update_payload_size:
+            self.set_payload_size(0)
 
         # Check if flux ramp is non-zero
         ramp_max_cnt = self.get_ramp_max_cnt()
@@ -914,7 +879,7 @@ class SmurfUtilMixin(SmurfBase):
             # read_ac_dc_relay_status() should be 0 in DC mode, 3 in
             # AC mode.  this check is only possible if you're using
             # one of the newer C02 cryostat cards.
-            flux_ramp_ac_dc_relay_status=self.C.read_ac_dc_relay_status()
+            flux_ramp_ac_dc_relay_status = self.C.read_ac_dc_relay_status()
             if flux_ramp_ac_dc_relay_status == 0:
                 if write_log:
                     self.log("FLUX RAMP IS DC COUPLED.", self.LOG_USER)
@@ -928,8 +893,7 @@ class SmurfUtilMixin(SmurfBase):
 
             # start streaming before opening file
             # to avoid transient filter step
-            self.set_stream_enable(1, write_log=False,
-                                   wait_done=True)
+            self.set_stream_enable(1, write_log=False, wait_done=True)
 
             if reset_unwrapper:
                 self.set_unwrapper_reset(write_log=write_log)
@@ -942,8 +906,7 @@ class SmurfUtilMixin(SmurfBase):
             # Make the data file
             timestamp = self.get_timestamp()
             if data_filename is None:
-                data_filename = os.path.join(self.output_dir,
-                                             timestamp+'.dat')
+                data_filename = os.path.join(self.output_dir, timestamp+'.dat')
 
             self.set_data_file_name(data_filename)
 
@@ -951,8 +914,8 @@ class SmurfUtilMixin(SmurfBase):
             if write_config:
                 config_filename=os.path.join(self.output_dir, timestamp+'.yml')
                 if write_log:
-                    self.log('Writing PyRogue configuration to file : '+
-                         f'{config_filename}', self.LOG_USER)
+                    self.log('Writing PyRogue configuration to file : ' +
+                        f'{config_filename}', self.LOG_USER)
                 self.write_config(config_filename)
 
                 # short wait
@@ -971,7 +934,8 @@ class SmurfUtilMixin(SmurfBase):
 
             # Save mask file as text file. Eventually this will be in the
             # raw data output
-            mask_fname = os.path.join(data_filename.replace('.dat', '_mask.txt'))
+            mask_fname = os.path.join(data_filename.replace('.dat',
+                '_mask.txt'))
             np.savetxt(mask_fname, output_mask, fmt='%i')
             self.pub.register_file(mask_fname, 'mask')
             self.log(mask_fname)
@@ -980,8 +944,8 @@ class SmurfUtilMixin(SmurfBase):
                 if write_log:
                     self.log("Writing frequency mask.")
                 freq_mask = self.make_freq_mask(output_mask)
-                np.savetxt(os.path.join(data_filename.replace('.dat', '_freq.txt')),
-                           freq_mask, fmt='%4.4f')
+                np.savetxt(os.path.join(data_filename.replace('.dat',
+                    '_freq.txt')), freq_mask, fmt='%4.4f')
                 self.pub.register_file(
                     os.path.join(data_filename.replace('.dat', '_freq.txt')),
                     'mask', format='txt')
@@ -1056,7 +1020,7 @@ class SmurfUtilMixin(SmurfBase):
         Ret:
         ----
         t (float array): The timestamp data
-        d (float array): The resonator data in units of phi0
+        d (float array): The resonator data in units of radians
         m (int array): The maskfile that maps smurf num to gcp num
         h (dict) : A dictionary with the header information.
         """
@@ -4574,3 +4538,91 @@ class SmurfUtilMixin(SmurfBase):
             self.write_group_assignment(channels_dict)
 
         return channels_dict
+
+    def find_probe_tone_gap(self, band, n_tone=2, n_scan=5,
+                          make_plot=True,
+                          save_plot=True, show_plot=False):
+        """
+        This finds the larges n_tone gaps in the band. These
+        are used for finding gaps to put probe tones for checking
+        JESD skips.
+
+        Args
+        ----
+        band : int
+            The 500 MHz frequency band to find gaps.
+        n_tone : int, optional
+            The number of probe tones. Or the number of gaps
+            to find.
+        n_scan : int, optional
+            The number of times to measure the band using
+            full_band_resp.
+        make_plot : bool, optional, default True
+            Whether to make a plot.
+        save_plot : bool, optional, default True
+            Whether to save the plot.
+        show_plot : bool, optional, default False
+            Whether to show the plot
+
+        Returns
+        -------
+        gaps : float array
+            An array of size [n_tone, 2], indicating the start and
+            end of the gap. recomment using the middle value between
+            the two edges. You can calulate this quickly
+            with np.mean(gaps, axis=1).
+        """
+        timestamp = self.get_timestamp()
+
+        # Run full band response to measure transfer function
+        f, resp = self.full_band_resp(band, n_scan=n_scan,
+                                      make_plot=make_plot,
+                                      save_plot=save_plot,
+                                      show_plot=False,
+                                      timestamp=timestamp)
+
+        f *= 1.0E-6  # Mitch wants units of MHz
+
+        # Identify the resonator frequencies
+        res_freq = self.find_peak(f, resp,
+                                  make_plot=make_plot,
+                                  save_plot=save_plot,
+                                  show_plot=False)
+
+        # Throw out frequencies not in the band
+        res_freq = res_freq[np.logical_and(res_freq > -250,
+                                           res_freq < 250)]
+
+        df = np.diff(res_freq)
+        df_vals = np.sort(df)[-n_tone:] # find the largest gaps
+
+        # loop over gaps
+        gap_freq = np.zeros((n_tone, 2))
+        for i, dfv in enumerate(df_vals):
+            idx = np.ravel(np.where(df == dfv))[0]
+            gap_freq[i, 0] = res_freq[idx]
+            gap_freq[i, 1] = res_freq[idx+1]
+
+
+        if make_plot:
+            plt.figure(figsize=(8,4))
+            plt.plot(f, np.abs(resp))
+            for i in range(n_tone):
+                plt.axvspan(gap_freq[i,0], gap_freq[i,1], color='k', alpha=.1)
+
+            plt.title(f'{timestamp} - find probe tone gaps')
+            plt.ylabel(f'Band {band} resp')
+            plt.xlabel('Freq [MHz]')
+            plt.tight_layout()
+
+            if save_plot:
+                plt.savefig(os.path.join(self.plot_dir,
+                                         f'{timestamp}_probe_tone_gap.png'),
+                            bbox_inches='tight')
+
+            if show_plot:
+                plt.show()
+            else:
+                plt.close()
+
+        return gap_freq

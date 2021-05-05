@@ -45,8 +45,11 @@ scp::SmurfProcessor::SmurfProcessor()
     y( ( order + 1 ) * numCh ),
     outData(numCh,0),
     disableDownsampler(false),
+    downsamplerMode(0),
     factor(20),
     sampleCnt(0),
+    downsamplerCnt(0),
+    prevExtTimeClk(0),
     headerCopy(SmurfHeader<std::vector<uint8_t>::iterator>::SmurfHeaderSize, 0),
     runTxThread(true),
     txDataReady(false),
@@ -94,8 +97,12 @@ void scp::SmurfProcessor::setup_python()
         // Downsampler variables
         .def("setDownsamplerDisable",   &SmurfProcessor::setDownsamplerDisable)
         .def("getDownsamplerDisable",   &SmurfProcessor::getDownsamplerDisable)
-        .def("setFactor",               &SmurfProcessor::setFactor)
-        .def("getFactor",               &SmurfProcessor::getFactor)
+        .def("setDownsamplerMode",      &SmurfProcessor::setDownsamplerMode)
+        .def("getDownsamplerMode",      &SmurfProcessor::getDownsamplerMode)
+        .def("setDownsamplerFactor",    &SmurfProcessor::setDownsamplerFactor)
+        .def("getDownsamplerFactor",    &SmurfProcessor::getDownsamplerFactor)
+        .def("getDownsamplerCnt",       &SmurfProcessor::getDownsamplerCnt)
+        .def("clearDownsamplerCnt",     &SmurfProcessor::clearDownsamplerCnt)
     ;
     bp::implicitly_convertible< scp::SmurfProcessorPtr, ris::SlavePtr  >();
     bp::implicitly_convertible< scp::SmurfProcessorPtr, ris::MasterPtr >();
@@ -420,7 +427,26 @@ const bool scp::SmurfProcessor::getDownsamplerDisable() const
     return disableDownsampler;
 }
 
-void scp::SmurfProcessor::setFactor(std::size_t f)
+void scp::SmurfProcessor::setDownsamplerMode(std::size_t mode)
+{
+    if (mode > downsamplerModeMax)
+    {
+        std::cerr << "Error: Invalid downsampler mode = " << mode << std::endl;
+       return;
+    }
+
+    downsamplerMode = mode;
+
+    // When the mode is changed, reset the internal counter
+    resetDownsampler();
+}
+
+const std::size_t scp::SmurfProcessor::getDownsamplerMode() const
+{
+    return downsamplerMode;
+}
+
+void scp::SmurfProcessor::setDownsamplerFactor(std::size_t f)
 {
     // Check if the factor is 0
     if (0 == f)
@@ -432,11 +458,11 @@ void scp::SmurfProcessor::setFactor(std::size_t f)
 
     factor = f;
 
-    // When the factor is changed, reset the counter.
+    // When the factor is changed, reset the internal counter.
     resetDownsampler();
 }
 
-const std::size_t scp::SmurfProcessor::getFactor() const
+const std::size_t scp::SmurfProcessor::getDownsamplerFactor() const
 {
     return factor;
 }
@@ -444,6 +470,16 @@ const std::size_t scp::SmurfProcessor::getFactor() const
 void scp::SmurfProcessor::resetDownsampler()
 {
     sampleCnt = 0;
+}
+
+const std::size_t scp::SmurfProcessor::getDownsamplerCnt() const
+{
+    return downsamplerCnt;
+}
+
+void scp::SmurfProcessor::clearDownsamplerCnt()
+{
+    downsamplerCnt = 0;
 }
 
 void scp::SmurfProcessor::acceptFrame(ris::FramePtr frame)
@@ -505,7 +541,7 @@ void scp::SmurfProcessor::acceptFrame(ris::FramePtr frame)
 
     // Acquire the channel mapper lock. We acquired here, so that is hold during the hold frame processing chain,
     // to avoid the 'numCh' parameter to be changed during that time.
-    std::lock_guard<std::mutex> lockParam(mutChMapper);
+    std::lock_guard<std::mutex> lockMapper(mutChMapper);
 
     // Map and unwrap data at the same time
     {
@@ -570,7 +606,7 @@ void scp::SmurfProcessor::acceptFrame(ris::FramePtr frame)
         if (!disableFilter)
         {
             // Acquire the lock while the filter parameters are used.
-            std::lock_guard<std::mutex> lockParam(mutFilter);
+            std::lock_guard<std::mutex> lockFilter(mutFilter);
 
             // Acquire the lock for the unwrapper, as we are using the 'inputData' vector.
             std::lock_guard<std::mutex> lockUnwrapper(mutUnwrapper);
@@ -672,13 +708,41 @@ void scp::SmurfProcessor::acceptFrame(ris::FramePtr frame)
     // Otherwise, the data will be send on each cycle.
     if (!disableDownsampler)
     {
-        // Downsampler. If we haven't reached the factor counter, we don't do anything
-        // When we reach the factor counter, we send the resulting frame.
-        if (++sampleCnt < factor)
-            return;
 
-        // Reset the downsampler
-        resetDownsampler();
+        // Check the trigger mode selected.
+        if (downsamplerModeTimingBicep == downsamplerMode)
+        {
+            // Use external timing system, as done for BICEP
+
+            // Read the external time clock word from the header
+            std::size_t extTimeClk { header->getExternalTimeClock() };
+
+            // Check if the time clock word changed
+            bool extTimeClkChanged { extTimeClk != prevExtTimeClk };
+
+            // Save the current time clock word for the next cycle
+            prevExtTimeClk = extTimeClk;
+
+            // If the ext time word has not changed, we don't do anything.
+            // When the ext time change, we send the resulting frame.
+            if (!extTimeClkChanged)
+                return;
+        }
+        else
+        {
+            // Use internal frame counter to trigger.
+
+            // If we haven't reached the factor counter, we don't do anything
+            // When we reach the factor counter, we send the resulting frame.
+            if (++sampleCnt < factor)
+                return;
+
+            // Reset the downsampler
+            resetDownsampler();
+        }
+
+        // Increase the output counter.
+        ++downsamplerCnt;
     }
 
     // Give the data to the Tx thread to be sent to the next slave.
@@ -696,7 +760,7 @@ void scp::SmurfProcessor::acceptFrame(ris::FramePtr frame)
         // Copy the data
         {
             // Hold the mutex while we copy the data
-            std::lock_guard<std::mutex> lock(outDataMutex);
+            std::lock_guard<std::mutex> lockData(outDataMutex);
 
             // Acquire the lock for the unwrapper, as we are using the 'inputData' vector.
             std::lock_guard<std::mutex> lockUnwrapper(mutUnwrapper);
@@ -769,7 +833,7 @@ void scp::SmurfProcessor::pktTansmitter()
 
             // Copy the data to the output frame
             {
-                std::lock_guard<std::mutex> lock(outDataMutex);
+                std::lock_guard<std::mutex> lockData(outDataMutex);
 
                 // Get a pointer to the underlying bytes of the outData vector. In this way,
                 // we can memcopy the data to the output frame payload area, using a pointer as

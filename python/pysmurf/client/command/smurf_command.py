@@ -597,10 +597,16 @@ class SmurfCommandMixin(SmurfBase):
                 # We successfully exit the loop when we are able to
                 # read the "ConfiguringInProgress" flag and it is set
                 # to "False".  Otherwise we keep trying.
-                if self.get_configuring_in_progress(
-                        timeout=caget_timeout_sec, **kwargs) is False:
-                    success=True
-                    break
+                # We disable the retry_on_fail feature and instead we catch any
+                # RuntimeError exception and keep trying.
+                try:
+                    if self.get_configuring_in_progress(
+                            timeout=caget_timeout_sec,
+                            retry_on_fail=False, **kwargs) is False:
+                        success=True
+                        break
+                except RuntimeError:
+                    pass
 
             # If after out maximum defined timeout, we weren't able to
             # read the "ConfiguringInProgress" flags as "False", we
@@ -1577,9 +1583,7 @@ class SmurfCommandMixin(SmurfBase):
         """
         Enable/disable streaming data, for all bands.
         """
-        self._caput(
-            self.app_core + self._stream_enable_reg,
-            val, **kwargs)
+        self._caput(self.app_core + self._stream_enable_reg, val, **kwargs)
 
     def get_stream_enable(self, **kwargs):
         """
@@ -1725,8 +1729,7 @@ class SmurfCommandMixin(SmurfBase):
 
     def set_ref_phase_delay(self, band, val, **kwargs):
         """
-        Corrects for roundtrip cable delay freqError = IQ * etaMag,
-        rotated by etaPhase+refPhaseDelay
+        Deprecated.  Use set_band_delay_us instead.
         """
         self._caput(
             self._band_root(band) + self._ref_phase_delay_reg,
@@ -1734,8 +1737,7 @@ class SmurfCommandMixin(SmurfBase):
 
     def get_ref_phase_delay(self, band, **kwargs):
         """
-        Corrects for roundtrip cable delay freqError = IQ * etaMag,
-        rotated by etaPhase+refPhaseDelay
+        Deprecated.  Use get_band_delay_us instead.
         """
         return self._caget(
             self._band_root(band) + self._ref_phase_delay_reg,
@@ -1745,6 +1747,7 @@ class SmurfCommandMixin(SmurfBase):
 
     def set_ref_phase_delay_fine(self, band, val, **kwargs):
         """
+        Deprecated.  Use set_band_delay_us instead.
         """
         self._caput(
             self._band_root(band) + self._ref_phase_delay_fine_reg,
@@ -1752,9 +1755,31 @@ class SmurfCommandMixin(SmurfBase):
 
     def get_ref_phase_delay_fine(self, band, **kwargs):
         """
+        Deprecated.  Use get_band_delay_us instead.
         """
         return self._caget(
             self._band_root(band) + self._ref_phase_delay_fine_reg,
+            **kwargs)
+
+    _band_delay_us_reg = 'bandDelayUs'
+
+    def set_band_delay_us(self, band, val, **kwargs):
+        """
+        Set band delay compensation, microseconds.  Corrects
+        for total system delay (cable, DSP, etc.).  Internally
+        configures both ref_phase_delay and ref_phase_delay_fine
+        """
+        self._caput(
+            self._band_root(band) + self._band_delay_us_reg,
+            val, **kwargs)
+
+    def get_band_delay_us(self, band, **kwargs):
+        """
+        Get band delay compensation, microseconds.  Corrects
+        for total system delay (cable, DSP, etc.).
+        """
+        return self._caget(
+            self._band_root(band) + self._band_delay_us_reg,
             **kwargs)
 
     _tone_scale_reg = 'toneScale'
@@ -5756,8 +5781,7 @@ class SmurfCommandMixin(SmurfBase):
         str
             The file name.
         """
-        return self._caget(
-            self.smurf_processor + self._data_file_name_reg,
+        return self._caget(self.smurf_processor + self._data_file_name_reg,
             **kwargs)
 
     _data_file_open_reg = 'FileWriter:Open'
@@ -5766,9 +5790,8 @@ class SmurfCommandMixin(SmurfBase):
         """
         Open the data file.
         """
-        self._caput(
-            self.smurf_processor + self._data_file_open_reg,
-            1, **kwargs)
+        self._caput(self.smurf_processor + self._data_file_open_reg, 1,
+            **kwargs)
 
     _data_file_close_reg = 'FileWriter:Close'
 
@@ -5776,9 +5799,8 @@ class SmurfCommandMixin(SmurfBase):
         """
         Close the data file.
         """
-        self._caput(
-            self.smurf_processor + self._data_file_close_reg,
-            1, **kwargs)
+        self._caput(self.smurf_processor + self._data_file_close_reg, 1,
+            **kwargs)
 
     _num_channels_reg = "NumChannels"
 
@@ -5841,6 +5863,30 @@ class SmurfCommandMixin(SmurfBase):
         Gets the enable bit for predata emulator.
         """
         return self._caget(self._predata_emulator + 'enable', **kwargs)
+
+    _predata_emulator_disable = "Disable"
+
+    def set_predata_emulator_disable(self, val, **kwargs):
+        """
+        Sets the predata emulator disable status.
+
+        Args
+        ----
+        val : bool
+        """
+        self._caput(self._predata_emulator + self._predata_emulator_disable,
+            val, **kwargs)
+
+    def get_predata_emulator_disable(self, **kwargs):
+        """
+        Gets the predata emulator disable status.
+
+        Returns
+        -------
+        type : bool
+        """
+        return self._caget(self._predata_emulator + self._predata_emulator_disable,
+            **kwargs)
 
     _predata_emulator_type = "Type"
 

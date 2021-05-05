@@ -704,11 +704,11 @@ class SmurfTuneMixin(SmurfBase):
             # Take PSDs of ADC, DAC, and cross
             fs = self.get_digitizer_frequency_mhz() * 1.0E6
             f, p_dac = signal.welch(dac, fs=fs, nperseg=nsamp/2,
-                                    return_onesided=True)
+                                    return_onesided=False)
             f, p_adc = signal.welch(adc, fs=fs, nperseg=nsamp/2,
-                                    return_onesided=True)
+                                    return_onesided=False)
             f, p_cross = signal.csd(dac, adc, fs=fs, nperseg=nsamp/2,
-                                    return_onesided=True)
+                                    return_onesided=False)
 
             # Sort frequencies
             idx = np.argsort(f)
@@ -1571,6 +1571,7 @@ class SmurfTuneMixin(SmurfBase):
             old_file=self.channel_assignment_files[f'band_{band}']
             self.log(f'Old master assignment file: {old_file}')
         self.channel_assignment_files[f'band_{band}'] = filename
+        self.freq_resp[band]['channel_assignment'] = filename
         self.log(f'New master assignment file: {filename}')
 
     @set_action()
@@ -2408,7 +2409,7 @@ class SmurfTuneMixin(SmurfBase):
             nsamp=2**19, lms_freq_hz=None, meas_lms_freq=False,
             meas_flux_ramp_amp=False, n_phi0=4, flux_ramp=True,
             fraction_full_scale=None, lms_enable1=True, lms_enable2=True,
-            lms_enable3=True, lms_gain=None, return_data=True,
+            lms_enable3=True, feedback_gain=None, lms_gain=None, return_data=True,
             new_epics_root=None, feedback_start_frac=None,
             feedback_end_frac=None, setup_flux_ramp=True, plotname_append=''):
         """
@@ -2455,9 +2456,45 @@ class SmurfTuneMixin(SmurfBase):
             Whether to use the second harmonic for tracking.
         lms_enable3 : bool, optional, default True
             Whether to use the third harmonic for tracking.
+        feedback_gain : Int16, optional, default None.
+            The tracking feedback gain parameter.
+            This is applied to all channels within a band.
+            1024 corresponds to approx 2kHz bandwidth.
+            2048 corresponds to approx 4kHz bandwidth.
+            Tune this parameter to track the demodulated band
+            of interest (0...2kHz for 4kHz flux ramp).
+            High gains may affect noise performance and will
+            eventually cause the tracking loop to go unstable.
         lms_gain : int or None, optional, default None
-            The tracking gain parameters. Default is the value in the
-            config table.
+            ** Internal register dynamic range adjustment **
+            ** Use with caution - you probably want feedback_gain**
+            Select which bits to slice from accumulation over
+            a flux ramp period.
+            Tracking feedback parameters are integrated over a flux
+            ramp period at 2.4MHz.  The internal register allows for up
+            to 9 bits of growth (from full scale).
+            lms_gain = 0 : select upper bits from accumulation register (9 bits growth)
+            lms_gain = 1 : select upper bits from accumulation register (8 bits growth)
+            lms_gain = 2 : select upper bits from accumulation register (7 bits growth)
+            lms_gain = 3 : select upper bits from accumulation register (6 bits growth)
+            lms_gain = 4 : select upper bits from accumulation register (5 bits growth)
+            lms_gain = 5 : select upper bits from accumulation register (4 bits growth)
+            lms_gain = 6 : select upper bits from accumulation register (3 bits growth)
+            lms_gain = 7 : select upper bits from accumulation register (2 bits growth)
+
+            The max bit gain is given by ceil(log2(2.4e6/FR_rate)).
+            For example a 4kHz FR can  accumulate ceil(log2(2.4e6/4e3)) = 10 bits
+            if the I/Q tracking parameters are at full scale (+/- 2.4MHz)
+            Typical SQUID frequency throws of 100kHz have a bit growth of
+            ceil(log2( (100e3/2.4e6)*(2.4e6/FR_rate) ))
+            So 100kHz SQUID throw at 4kHz has bit growth ceil(log2(100e3/4e3)) = 5 bits.
+            Try lms_gain = 4.
+
+            This should be approx 9 - ceil(log2(100/reset_rate_khz)) for CMB applications.
+
+            Too low of lms_gain will use only a small dynamic range of the streaming
+            registers and contribute to incrased noise.
+            Too high of lms_gain will overflow the register and greatly incrase noise.
         return_data : bool, optional, default True
             Whether or not to return f, df, sync.
         new_epics_root : str or None, optional, default None
@@ -2478,7 +2515,15 @@ class SmurfTuneMixin(SmurfBase):
         if reset_rate_khz is None:
             reset_rate_khz = self._reset_rate_khz
         if lms_gain is None:
-            lms_gain = self._lms_gain[band]
+            lms_gain = int(9 - np.ceil(np.log2(100/reset_rate_khz)))
+            if lms_gain > 7:
+                lms_gain = 7
+        else:
+            self.log("Using LMS gain is now an advanced feature.")
+            self.log("Unless you are an expert, you probably want feedback_gain.")
+            self.log("See tracking_setup docstring.")
+        if feedback_gain is None:
+            feedback_gain = self._feedback_gain[band]
 
         ##
         ## Load unprovided optional args from cfg
@@ -2566,6 +2611,7 @@ class SmurfTuneMixin(SmurfBase):
                      f"{lms_freq_hz:.0f} Hz",
                      self.LOG_USER)
 
+        self.set_feedback_gain(band, feedback_gain, write_log=write_log)
         self.set_lms_gain(band, lms_gain, write_log=write_log)
         self.set_lms_enable1(band, lms_enable1, write_log=write_log)
         self.set_lms_enable2(band, lms_enable2, write_log=write_log)
@@ -4078,6 +4124,7 @@ class SmurfTuneMixin(SmurfBase):
         self.pub.register_file(savedir, 'tune', format='npy')
 
         self.tune_file = savedir+'.npy'
+        self.set_tune_file_path(self.tune_file)
 
         return savedir + ".npy"
 
@@ -4119,6 +4166,8 @@ class SmurfTuneMixin(SmurfBase):
                 # differently to allow loading different tunes for
                 # different bands, etc.
                 self.tune_file = filename
+                #update the Rogue Tree
+                self.set_tune_file_path(filename)
             else:
                 # Load only the tune data for the requested band(s).
                 band=np.ravel(np.array(band))

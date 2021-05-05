@@ -45,9 +45,9 @@ oldTag = git.Git('.').describe('--abbrev=0','--tags',newTag + '^')
 loginfo = git.Git('.').log(f"{oldTag}...{newTag}",'--grep','Merge pull request')
 
 # Grouping of recors
-records= odict({'Core':      odict({'Bug' : [], 'Enhancement':[], 'Interface-change':[]}),
-                'Client':    odict({'Bug' : [], 'Enhancement':[], 'Interface-change':[]}),
-                'Other':     odict({'Bug' : [], 'Enhancement':[], 'Interface-change':[]}),
+records= odict({'Core':      odict({'Bug' : [], 'Enhancement':[], 'Interface-change':[], 'Firmware-change':[]}),
+                'Client':    odict({'Bug' : [], 'Enhancement':[], 'Interface-change':[], 'Firmware-change':[]}),
+                'Other':     odict({'Bug' : [], 'Enhancement':[], 'Interface-change':[], 'Firmware-change':[]}),
                 'Unlabeled': [] })
 
 details = []
@@ -112,13 +112,13 @@ for line in loginfo.splitlines():
         if entry['Labels'] is not None:
             # if the PR does not have a 'core' nor a 'client' label, add it to the 'Other' section
             if not any(x in entry['Labels'] for x in ['core', 'client']):
-                for label in ['Bug','Enhancement', 'Interface-change']:
+                for label in ['Bug','Enhancement', 'Interface-change', 'Firmware-change']:
                     if label.lower() in entry['Labels']:
                         records['Other'][label].append(entry)
                         found = True
             else:
                 for section in ['Client','Core']:
-                    for label in ['Bug','Enhancement', 'Interface-change']:
+                    for label in ['Bug','Enhancement', 'Interface-change', 'Firmware-change']:
                         if section.lower() in entry['Labels'] and label.lower() in entry['Labels']:
                             records[section][label].append(entry)
                             found = True
@@ -136,7 +136,7 @@ md = f'# Pull Requests Since {oldTag}\n'
 for section in ['Client','Core', 'Other']:
     subSec = ""
 
-    for label in ['Interface-change', 'Bug','Enhancement']:
+    for label in ['Firmware-change', 'Interface-change', 'Bug','Enhancement']:
         subLab = ""
         entries = sorted(records[section][label], key=lambda v : v['changes'], reverse=True)
         for entry in entries:

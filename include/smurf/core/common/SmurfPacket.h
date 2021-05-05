@@ -28,12 +28,52 @@
 #include <rogue/interfaces/stream/FrameIterator.h>
 #include "smurf/core/common/SmurfHeader.h"
 
-class SmurfPacketRO;
-
-typedef std::shared_ptr<SmurfPacketRO> SmurfPacketROPtr;
-
 // SMuRF packet class. This class give a read-only access
-class SmurfPacketRO
+// It is a host class with different creation policies.
+template<typename CreationPolicy>
+class SmurfPacketManagerRO;
+
+// Convenient typedef to a smart pointer to a SmurfPacketManagerRO.
+template<typename CreationPolicy>
+using SmurfPacketManagerROPtr = std::shared_ptr< SmurfPacketManagerRO<CreationPolicy> >;
+
+// Policy classes
+class CopyCreator;
+class ZeroCopyCreator;
+
+// Convenient typedefs.
+// The SmurfPacketRO (and therefore the SmurfPacketROPtr) is a typedef used in the BaseTransmitter class,
+// and can be used for other user-defined classes. We use the zero copy policy to create these objects.
+using SmurfPacketRO = SmurfPacketManagerRO<ZeroCopyCreator>;
+using SmurfPacketROPtr = SmurfPacketManagerROPtr<ZeroCopyCreator>;
+
+// Host class
+template<typename CreationPolicy>
+class SmurfPacketManagerRO : public CreationPolicy
+{
+public:
+    // Constructor
+    SmurfPacketManagerRO(ris::FramePtr frame);
+
+    // Destructor
+    virtual ~SmurfPacketManagerRO() {};
+
+    // Factory method
+    static SmurfPacketManagerROPtr<CreationPolicy> create(ris::FramePtr frame);
+
+private:
+    // Prevent construction using the default or copy constructor.
+    // Prevent an SmurfHeaderRO object to be assigned as well.
+    SmurfPacketManagerRO();
+    SmurfPacketManagerRO(const SmurfPacketManagerRO&);
+    SmurfPacketManagerRO& operator=(const SmurfPacketManagerRO&);
+};
+
+// Policy classes to define the type of object creation.
+
+// Copy creator policy class: this class makes a full copy of the frame information into
+// local vectors.
+class CopyCreator
 {
 public:
     // Data types
@@ -41,13 +81,10 @@ public:
     typedef SmurfHeaderROPtr< std::vector<uint8_t>::iterator > HeaderPtr; // SmurfHeader pointer
 
     // Constructor
-    SmurfPacketRO(ris::FramePtr frame);
+    CopyCreator(ris::FramePtr frame);
 
     // Destructor
-    virtual ~SmurfPacketRO() {};
-
-    // Factory method
-    static SmurfPacketROPtr create(ris::FramePtr frame);
+    virtual ~CopyCreator() {};
 
     // Get a pointer to a header object
     HeaderPtr getHeader() const;
@@ -56,17 +93,42 @@ public:
     const data_t getData(std::size_t index) const;
 
 private:
-    // Prevent construction using the default or copy constructor.
-    // Prevent an SmurfHeaderRO object to be assigned as well.
-    SmurfPacketRO();
-    SmurfPacketRO(const SmurfPacketRO&);
-    SmurfPacketRO& operator=(const SmurfPacketRO&);
-
     // Variables
-    std::size_t          dataSize;  // Number of data values in the packet
     std::vector<uint8_t> header;    // Buffer for the header
     std::vector<data_t>  data;      // Buffer for the data
     HeaderPtr            headerPtr; // SmurfHeader object (smart pointer)
+};
+
+// ZeroCopy creator policy: this class provides direct access to the underlaying frame,
+// without make any copy.
+// As the underlaying frame is accessed directly, you must create and hold a lock on the
+// frame for the while lifetime of the object.
+class ZeroCopyCreator
+{
+public:
+    // Data types
+    typedef int32_t                                data_t;    // Data type stored in the packet
+    typedef SmurfHeaderROPtr< ris::FrameIterator > HeaderPtr; // SmurfHeader pointer
+
+    // Constructor
+    ZeroCopyCreator(ris::FramePtr frame);
+
+    // Destructor
+    virtual ~ZeroCopyCreator() {};
+
+
+    // Get a pointer to a header object
+    HeaderPtr getHeader() const;
+
+    // Get a data value
+    const data_t getData(std::size_t index) const;
+
+private:
+    // Variables
+    ris::FramePtr framePtr;  // Frame pointer
+    HeaderPtr     headerPtr; // SmurfHeader object (smart pointer)
+    std::size_t   dataSize;  // Number of data values in the packet
+    data_t*       data;      // Pointer to the packet data area
 };
 
 #endif
