@@ -80,3 +80,4 @@ if __name__ == "__main__":
                 # Stop the server when Crtl+C is pressed
                 print("Running without GUI...")
                 pyrogue.waitCntrlC()
+

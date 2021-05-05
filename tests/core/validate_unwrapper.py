@@ -17,6 +17,7 @@
 # contained in the LICENSE.txt file.
 #-----------------------------------------------------------------------------
 
+import sys
 import scipy.signal as signal
 import numpy as np
 import argparse
@@ -25,6 +26,7 @@ import pyrogue
 import pysmurf
 import pysmurf.core.devices
 import pysmurf.core.transmitters
+import pysmurf.core.server_scripts.Common as common
 
 # Input arguments
 parser = argparse.ArgumentParser(description='Test the SmurfProcessor Unwrapper.')

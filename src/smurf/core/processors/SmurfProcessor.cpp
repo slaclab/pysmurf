@@ -541,7 +541,7 @@ void scp::SmurfProcessor::acceptFrame(ris::FramePtr frame)
 
     // Acquire the channel mapper lock. We acquired here, so that is hold during the hold frame processing chain,
     // to avoid the 'numCh' parameter to be changed during that time.
-    std::lock_guard<std::mutex> lockMapper(mutChMapper);
+    std::lock_guard<std::mutex> lockParam(mutChMapper);
 
     // Map and unwrap data at the same time
     {
@@ -606,7 +606,7 @@ void scp::SmurfProcessor::acceptFrame(ris::FramePtr frame)
         if (!disableFilter)
         {
             // Acquire the lock while the filter parameters are used.
-            std::lock_guard<std::mutex> lockFilter(mutFilter);
+            std::lock_guard<std::mutex> lockParam(mutFilter);
 
             // Acquire the lock for the unwrapper, as we are using the 'inputData' vector.
             std::lock_guard<std::mutex> lockUnwrapper(mutUnwrapper);
@@ -760,7 +760,7 @@ void scp::SmurfProcessor::acceptFrame(ris::FramePtr frame)
         // Copy the data
         {
             // Hold the mutex while we copy the data
-            std::lock_guard<std::mutex> lockData(outDataMutex);
+            std::lock_guard<std::mutex> lock(outDataMutex);
 
             // Acquire the lock for the unwrapper, as we are using the 'inputData' vector.
             std::lock_guard<std::mutex> lockUnwrapper(mutUnwrapper);
@@ -833,7 +833,7 @@ void scp::SmurfProcessor::pktTansmitter()
 
             // Copy the data to the output frame
             {
-                std::lock_guard<std::mutex> lockData(outDataMutex);
+                std::lock_guard<std::mutex> lock(outDataMutex);
 
                 // Get a pointer to the underlying bytes of the outData vector. In this way,
                 // we can memcopy the data to the output frame payload area, using a pointer as

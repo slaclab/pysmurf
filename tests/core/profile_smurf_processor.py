@@ -19,7 +19,9 @@
 # contained in the LICENSE.txt file.
 #-----------------------------------------------------------------------------
 
+import sys
 import time
+import rogue.interfaces.stream
 import pyrogue
 import smurf
 import pysmurf

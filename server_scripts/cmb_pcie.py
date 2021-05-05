@@ -17,6 +17,8 @@
 # contained in the LICENSE.txt file.
 #-----------------------------------------------------------------------------
 
+import sys
+
 import pyrogue
 
 import pysmurf.core.devices
