@@ -4,10 +4,6 @@ FROM tidair/smurf-rogue:R2.8.4
 RUN mkdir -p /tmp/fw/ && chmod -R a+rw /tmp/fw/
 COPY local_files /tmp/fw/
 
-# Copy all firmware related files, which are in the local_files directory
-RUN mkdir -p /tmp/fw/ && chmod -R a+rw /tmp/fw/
-COPY local_files /tmp/fw/
-
 # Install the SMURF PCIe card repository
 WORKDIR /usr/local/src
 RUN git clone https://github.com/slaclab/smurf-pcie.git -b v2.0.0
