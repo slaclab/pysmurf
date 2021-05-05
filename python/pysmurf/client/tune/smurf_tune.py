@@ -704,11 +704,11 @@ class SmurfTuneMixin(SmurfBase):
             # Take PSDs of ADC, DAC, and cross
             fs = self.get_digitizer_frequency_mhz() * 1.0E6
             f, p_dac = signal.welch(dac, fs=fs, nperseg=nsamp/2,
-                                    return_onesided=False)
+                                    return_onesided=True)
             f, p_adc = signal.welch(adc, fs=fs, nperseg=nsamp/2,
-                                    return_onesided=False)
+                                    return_onesided=True)
             f, p_cross = signal.csd(dac, adc, fs=fs, nperseg=nsamp/2,
-                                    return_onesided=False)
+                                    return_onesided=True)
 
             # Sort frequencies
             idx = np.argsort(f)
@@ -1571,7 +1571,6 @@ class SmurfTuneMixin(SmurfBase):
             old_file=self.channel_assignment_files[f'band_{band}']
             self.log(f'Old master assignment file: {old_file}')
         self.channel_assignment_files[f'band_{band}'] = filename
-        self.freq_resp[band]['channel_assignment'] = filename
         self.log(f'New master assignment file: {filename}')
 
     @set_action()
@@ -4124,7 +4123,6 @@ class SmurfTuneMixin(SmurfBase):
         self.pub.register_file(savedir, 'tune', format='npy')
 
         self.tune_file = savedir+'.npy'
-        self.set_tune_file_path(self.tune_file)
 
         return savedir + ".npy"
 
@@ -4166,8 +4164,6 @@ class SmurfTuneMixin(SmurfBase):
                 # differently to allow loading different tunes for
                 # different bands, etc.
                 self.tune_file = filename
-                #update the Rogue Tree
-                self.set_tune_file_path(filename)
             else:
                 # Load only the tune data for the requested band(s).
                 band=np.ravel(np.array(band))
