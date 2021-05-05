@@ -38,12 +38,34 @@ class BaseTransmitter(pyrogue.Device):
             localSet=lambda value: self._transmitter.setDisable(value),
             localGet=self._transmitter.getDisable))
 
+
+        # Add the data frame counter variable
+        self.add(pyrogue.LocalVariable(
+            name='dataFrameCnt',
+            description='Number of data frame received',
+            mode='RO',
+            value=0,
+            typeStr='UInt64',
+            pollInterval=1,
+            localGet=self._transmitter.getDataFrameCnt))
+
+        # Add the metaData frame counter variable
+        self.add(pyrogue.LocalVariable(
+            name='metaFrameCnt',
+            description='Number of metadata frame received',
+            mode='RO',
+            value=0,
+            typeStr='UInt64',
+            pollInterval=1,
+            localGet=self._transmitter.getMetaFrameCnt))
+
         # Add the data dropped counter variable
         self.add(pyrogue.LocalVariable(
             name='dataDropCnt',
             description='Number of data frame dropped',
             mode='RO',
             value=0,
+            typeStr='UInt64',
             pollInterval=1,
             localGet=self._transmitter.getDataDropCnt))
 
@@ -53,6 +75,7 @@ class BaseTransmitter(pyrogue.Device):
             description='Number of metadata frame dropped',
             mode='RO',
             value=0,
+            typeStr='UInt64',
             pollInterval=1,
             localGet=self._transmitter.getMetaDropCnt))
 

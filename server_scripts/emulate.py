@@ -45,4 +45,3 @@ if __name__ == "__main__":
         import pyrogue.gui
         print("Starting GUI...\n")
         pyrogue.gui.runGui(root=root)
-
