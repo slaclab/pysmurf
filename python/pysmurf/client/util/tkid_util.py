@@ -52,24 +52,25 @@ class SmurfTkidMixin(SmurfBase):
         NEP = defaultdict(lambda: defaultdict(dict))
         # Loop through different gain values
         for gain in tone_amplitude_array:
+            # TODO: Check that these don't need to be inside the other for loop (i.e. it doesn't lose track when heater changes)
+            # Find frequencies and plot output
+            freq, resp = self.find_freq(band, start_freq=-250, stop_freq=250,
+                                        tone_power=gain,
+                                        make_plot=True, save_plot=True)
+
+            # Get higher signal-to-noise of the resonator dip
+            self.setup_notches(band, tone_power=gain, new_master_assignment=True)
+
+            self.plot_tune_summary(band, eta_scan=True)
+            self.run_serial_gradient_descent(band)
+            self.run_serial_eta_scan(band)
+            # Turn on slow tracking
+            self.set_feedback_enable(band=band, val=1)
+
             # Loop through the power on the heaters
             for dc in dc_power_array:
                 # Set DC heater power, no square wave
                 self.set_tes_bias_bipolar(bias_group, dc)
-
-                # Find frequencies and plot output
-                freq, resp = self.find_freq(band, start_freq=-250, stop_freq=250,
-                                            tone_power=gain,
-                                            make_plot=True, save_plot=True)
-
-                # Get higher signal-to-noise of the resonator dip
-                self.setup_notches(band, tone_power=gain, new_master_assignment=True)
-
-                self.plot_tune_summary(band, eta_scan=True)
-                self.run_serial_gradient_descent(band)
-                self.run_serial_eta_scan(band)
-                # Turn on slow tracking
-                self.set_feedback_enable(band=band, val=1)
 
                 # TODO: Confirm that we don't need the vna_fit stuff; find_freqs does everything?
 
