@@ -129,7 +129,7 @@ class BandPhaseFeedback(pyrogue.Device):
             description='Band estimated phase slope',
             mode='RO',
             value=0.0,
-            unit='s',
+            units='s',
             pollInterval=1,
             localGet=self._BandPhaseFeedback.getTau))
 
@@ -139,7 +139,7 @@ class BandPhaseFeedback(pyrogue.Device):
             description='Band estimated phase offset',
             mode='RO',
             value=0.0,
-            unit='rad',
+            units='rad',
             pollInterval=1,
             localGet=self._BandPhaseFeedback.getTheta))
 
