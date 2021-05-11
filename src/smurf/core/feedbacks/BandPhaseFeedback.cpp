@@ -345,9 +345,9 @@ void scf::BandPhaseFeedback::acceptFrame(ris::FramePtr frame)
         }
 
         // Extract the phase from the specified channels
-        std::vector<int32_t> phase;
+        std::vector<double> phase;
         for (auto const &c : toneCh)
-            phase.push_back(sp->getData(c));
+            phase.push_back( (M_PI / 32768.0) * static_cast<double>(sp->getData(c)) );
 
         // Estimate the band "tau" (slope) and "theta" (offset) parameters using least
         // square solution:
