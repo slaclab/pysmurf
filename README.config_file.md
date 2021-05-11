@@ -7,8 +7,12 @@ The configuration files are stored in the `cfg_files` folder in the pysmurf git 
 # Quick Start
 
 1. If it does not exist, make a directory for your site. 
-2. Copy the default config file
-3. Check amplifier values
+2. Copy the template config file from `cfg_files/template/template.cfg` into your directory you created in step 1. 
+3. Update the amplifier values if needed.
+4. If you know it, update the `bias_line_resistance` and `R_sh` fields.
+5. Save
+
+You should be able to call this config file when you instantiate your `SmurfControl` object. One of the first steps you'll do is run `estimate_phase_delay`. You can save the outputs into your config file so you will not need to run it in the future. 
 
 # Important Variables
 
@@ -56,6 +60,8 @@ The TES bias uses a bipolar pair of DACs. This defines the pair of DACs that for
 - `pA_per_phi0` - The conversion between units oh phi0 and pA. This is number depends on the resonator/mulitplexing chips installed.
 
 ## timing
+
+This defines which timing master to use. The available values are "ext_ref" and "backplane". 
 
 ## Others
 
