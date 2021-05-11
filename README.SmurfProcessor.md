@@ -153,7 +153,7 @@ where:
 
 In order to use these devices, you need to, per each band:
 - configure at least 2 fixed tones, and assign them 2 two difference channels in the SMuRF packet,
-- give the a list with the channel number and a list with the frequency (in GHz) of the fixed tone tone to this module using the variables `toneChannels` and `toneFrequencies`, and
+- give the a list with the channel number and a list with the frequency (in `MHz`) of the fixed tone tone to this module using the variables `toneChannels` and `toneFrequencies`, and
 - enable the device by setting `Disable` to `False`.
 
 If all is configured correctly, you should see the variable `Ready` set to `True`, and the estimated values of `tau` and `theta` will be presented in the variables `Tau` and `Theta`, respectively.
@@ -165,7 +165,7 @@ If all is configured correctly, you should see the variable `Ready` set to `True
   - The incoming SMuRF packets must have a number of channel equal or greater to the maximum channel defined in the `toneChannels` list.
 - Each device start disabled by default. It must be manually enabled by setting `Disable` to `False`.
 - The variable `Band` indicates which 500MHz band the device is working on, with and index going from 0 to 7.
-- The `toneFrequencies` frequency list only accepts frequencies inside the corresponding 500MHz band. The frequencies are expressed in GHz.
+- The `toneFrequencies` frequency list only accepts frequencies inside the corresponding 500MHz band. The frequencies are expressed in `MHz`.
 - The variable `NumChannels` indicates how many channels the incoming SMuRF packets have.
 - The variable `FrameCnt` indicates how many valid packets has been received by the device; and the variable `BadFrameCnt` indicates how many bad frames has been rejected. Both counters can be clear using the `clearCnt` command.
 

@@ -31,8 +31,8 @@ scf::BandPhaseFeedback::BandPhaseFeedback(std::size_t band)
     ris::Master(),
     disable(false),
     bandNum(band),
-    minToneFreq(4 + 0.5*bandNum),
-    maxToneFreq(minToneFreq + 0.5),
+    minToneFreq(4000 + 500*bandNum),
+    maxToneFreq(minToneFreq + 500),
     frameCnt(0),
     badFrameCnt(0),
     numCh(0),
@@ -227,12 +227,12 @@ void scf::BandPhaseFeedback::setToneFrequencies(bp::list m)
     toneFreq.swap(temp);
 
     // Update the frequency mean, deltas, and variance
-    freqMean = 2 * M_PI * 1e9 * std::accumulate(toneFreq.begin(), toneFreq.end(), 0.0) / toneFreq.size();
+    freqMean = 2 * M_PI * 1e6 * std::accumulate(toneFreq.begin(), toneFreq.end(), 0.0) / toneFreq.size();
     std::vector<double>().swap(freqDiffs);
     freqVar = 0;
     for (auto const &f : toneFreq)
     {
-        double d { 2 * M_PI * 1e9 * f - freqMean };
+        double d { 2 * M_PI * 1e6 * f - freqMean };
         freqDiffs.push_back(d);
         freqVar += d*d;
     }

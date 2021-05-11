@@ -109,8 +109,8 @@ class BandPhaseFeedback(pyrogue.Device):
             name='toneFrequencies',
             description='Tone frequencies',
             mode='RW',
-            value= [4.0 + 0.5*band] * 10,
-            units='GHz',
+            value= [4000.0 + 500.0*band] * 10,
+            units='MHz',
             localSet=lambda value: self._BandPhaseFeedback.setToneFrequencies(value),
             localGet=self._BandPhaseFeedback.getToneFrequencies))
 
