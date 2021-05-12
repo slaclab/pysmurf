@@ -3673,10 +3673,9 @@ class SmurfTuneMixin(SmurfBase):
             window=500, grad_cut=0.05, amp_cut=0.25, freq_min=-2.5E8,
             flip_phase=False, grad_kernel_width=8,
             freq_max=2.5E8, make_plot=False, save_plot=True,
-            show_plot=False,
-            plotname_append='',
+            show_plot=False, plotname_append='',
             band=None, make_subband_plot=False, subband_plot_with_slow=False,
-                      timestamp=None, pad=2, min_gap=2, plot_phase=False):
+            timestamp=None, pad=2, min_gap=2, plot_phase=False):
         """
         find the peaks within each subband requested from a fullbandamplsweep
 
