@@ -876,7 +876,6 @@ class SmurfTuneMixin(SmurfBase):
         grad = np.convolve(angle, np.repeat([1,-1], grad_kernel_width),
             mode='same')
 
-
         amp = np.abs(resp)
 
         grad_loc = np.array(grad > grad_cut)
