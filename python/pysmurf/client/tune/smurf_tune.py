@@ -801,7 +801,7 @@ class SmurfTuneMixin(SmurfBase):
             band=None, subband=None, make_subband_plot=False,
             subband_plot_with_slow=False, timestamp=None, pad=50, min_gap=100,
             plot_title=None, grad_kernel_width=8, highlight_phase_slip=True,
-            amp_ylim=None):
+                  amp_ylim=None, flip_phase=False, plot_phase=False):
         """ Find the peaks within a given subband.
 
         Args
@@ -816,6 +816,9 @@ class SmurfTuneMixin(SmurfBase):
             Number of samples to window together for rolling med.
         grad_cut : float, optional, default 0.5
             The value of the gradient of phase to look for resonances.
+        flip_phase : bool, optional, default False
+            Whether to flip the sign of phase before
+            evaluating the gradient cut.
         amp_cut : float, optional, default 0.25
             The fractional distance from the median value to decide
             whether there is a resonance.
@@ -868,9 +871,12 @@ class SmurfTuneMixin(SmurfBase):
         x = np.arange(len(angle))
         p1 = np.poly1d(np.polyfit(x, angle, 1))
         angle -= p1(x)
+        if flip_phase:
+            angle *= -1
         grad = np.convolve(angle, np.repeat([1,-1], grad_kernel_width),
             mode='same')
-
+            
+        
         amp = np.abs(resp)
 
         grad_loc = np.array(grad > grad_cut)
@@ -896,6 +902,14 @@ class SmurfTuneMixin(SmurfBase):
                 if 1-amp[idx]/med_amp[idx] > amp_cut:
                     peak = np.append(peak, idx)
 
+        if plot_phase:
+            plt.figure()
+            plt.plot(freq, angle)
+            if show_plot:
+                plt.show()
+            else:
+                plt.close()
+                    
         # Make summary plot
         if make_plot:
             if show_plot:
@@ -929,9 +943,9 @@ class SmurfTuneMixin(SmurfBase):
             if highlight_phase_slip:
                 for s, e in zip(starts, ends):
                     ax[0].axvspan(plot_freq_mhz[s], plot_freq_mhz[e], color='k',
-                        alpha=.1)
+                                  alpha=.25)
                     ax[1].axvspan(plot_freq_mhz[s], plot_freq_mhz[e], color='k',
-                        alpha=.1)
+                                  alpha=.25)
 
             # set ylim
             if amp_ylim is not None:
@@ -3390,6 +3404,7 @@ class SmurfTuneMixin(SmurfBase):
             tone_power=None, n_read=2, make_plot=False, save_plot=True,
             plotname_append='', window=50, rolling_med=True,
             make_subband_plot=False, show_plot=False, grad_cut=.05,
+                  flip_phase=False, grad_kernel_width=8,
             amp_cut=.25, pad=2, min_gap=2):
         '''
         Finds the resonances in a band (and specified subbands)
@@ -3490,6 +3505,7 @@ class SmurfTuneMixin(SmurfBase):
             make_plot=make_plot, plotname_append=plotname_append, band=band,
             rolling_med=rolling_med, window=window,
             make_subband_plot=make_subband_plot, grad_cut=grad_cut,
+            flip_phase=flip_phase, grad_kernel_width=grad_kernel_width,
             amp_cut=amp_cut, pad=pad, min_gap=min_gap)
         self.freq_resp[band]['find_freq']['resonance'] = res_freq
 
@@ -3652,9 +3668,12 @@ class SmurfTuneMixin(SmurfBase):
     @set_action()
     def find_all_peak(self, freq, resp, subband=None, rolling_med=False,
             window=500, grad_cut=0.05, amp_cut=0.25, freq_min=-2.5E8,
-            freq_max=2.5E8, make_plot=False, save_plot=True, plotname_append='',
+            flip_phase=False, grad_kernel_width=8,
+            freq_max=2.5E8, make_plot=False, save_plot=True,
+            show_plot=False,
+            plotname_append='',
             band=None, make_subband_plot=False, subband_plot_with_slow=False,
-            timestamp=None, pad=2, min_gap=2):
+                      timestamp=None, pad=2, min_gap=2, plot_phase=False):
         """
         find the peaks within each subband requested from a fullbandamplsweep
 
@@ -3686,6 +3705,8 @@ class SmurfTuneMixin(SmurfBase):
             Whether to make a plot.
         save_plot : bool, optional, default True
             Whether to save the plot to self.plot_dir.
+        show_plot : bool, optional, defaullt False
+            Whether to show the plot to screen.
         plotname_append : str, optional, default ''
             Appended to the default plot filename.
         band : int or None, optional, default None
@@ -3728,7 +3749,8 @@ class SmurfTuneMixin(SmurfBase):
             plotname_append=plotname_append, band=band,
             make_subband_plot=make_subband_plot,
             subband_plot_with_slow=subband_plot_with_slow, timestamp=timestamp,
-            pad=pad, min_gap=min_gap)
+            pad=pad, min_gap=min_gap, show_plot=show_plot, plot_phase=plot_phase,
+                               flip_phase=flip_phase)
 
         return peaks
 
