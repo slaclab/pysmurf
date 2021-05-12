@@ -801,7 +801,7 @@ class SmurfTuneMixin(SmurfBase):
             band=None, subband=None, make_subband_plot=False,
             subband_plot_with_slow=False, timestamp=None, pad=50, min_gap=100,
             plot_title=None, grad_kernel_width=8, highlight_phase_slip=True,
-                  amp_ylim=None, flip_phase=False, plot_phase=False):
+            amp_ylim=None, flip_phase=False, plot_phase=False):
         """ Find the peaks within a given subband.
 
         Args
@@ -875,8 +875,8 @@ class SmurfTuneMixin(SmurfBase):
             angle *= -1
         grad = np.convolve(angle, np.repeat([1,-1], grad_kernel_width),
             mode='same')
-            
-        
+
+
         amp = np.abs(resp)
 
         grad_loc = np.array(grad > grad_cut)
@@ -909,7 +909,7 @@ class SmurfTuneMixin(SmurfBase):
                 plt.show()
             else:
                 plt.close()
-                    
+
         # Make summary plot
         if make_plot:
             if show_plot:
@@ -3404,7 +3404,7 @@ class SmurfTuneMixin(SmurfBase):
             tone_power=None, n_read=2, make_plot=False, save_plot=True,
             plotname_append='', window=50, rolling_med=True,
             make_subband_plot=False, show_plot=False, grad_cut=.05,
-                  flip_phase=False, grad_kernel_width=8,
+            flip_phase=False, grad_kernel_width=8,
             amp_cut=.25, pad=2, min_gap=2):
         '''
         Finds the resonances in a band (and specified subbands)
@@ -3440,6 +3440,9 @@ class SmurfTuneMixin(SmurfBase):
         grad_cut : float, optional, default 0.05
             The value of the gradient of phase to look for
             resonances.
+        flip_phase : bool, optional, default False
+            Whether to flip the sign of phase before
+            evaluating the gradient cut.
         amp_cut : float, optional, default 0.25
             The fractional distance from the median value to decide
             whether there is a resonance.
@@ -3695,6 +3698,9 @@ class SmurfTuneMixin(SmurfBase):
         amp_cut : float, optional, default 0.25
             The fractional distance from the median value to decide
             whether there is a resonance.
+        flip_phase : bool, optional, default False
+            Whether to flip the sign of phase before
+            evaluating the gradient cut.
         freq_min : float, optional, default -2.5e8
             The minimum frequency relative to the center of the band
             to look for resonances. Units of Hz.
@@ -3750,7 +3756,7 @@ class SmurfTuneMixin(SmurfBase):
             make_subband_plot=make_subband_plot,
             subband_plot_with_slow=subband_plot_with_slow, timestamp=timestamp,
             pad=pad, min_gap=min_gap, show_plot=show_plot, plot_phase=plot_phase,
-                               flip_phase=flip_phase)
+            flip_phase=flip_phase)
 
         return peaks
 
