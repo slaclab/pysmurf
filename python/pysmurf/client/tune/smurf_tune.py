@@ -3714,7 +3714,7 @@ class SmurfTuneMixin(SmurfBase):
             Whether to make a plot.
         save_plot : bool, optional, default True
             Whether to save the plot to self.plot_dir.
-        show_plot : bool, optional, defaullt False
+        show_plot : bool, optional, default False
             Whether to show the plot to screen.
         plotname_append : str, optional, default ''
             Appended to the default plot filename.
