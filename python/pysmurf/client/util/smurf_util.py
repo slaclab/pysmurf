@@ -4710,7 +4710,8 @@ class SmurfUtilMixin(SmurfBase):
         win_len : int
             Window length. This should be 2.4 MHz divided by the streaming rate.
         window_fn : function, optional, default Hamming
-            Window type.
+            Window type. See https://docs.scipy.org/doc/scipy-0.19.1/reference/signal.html#window-functions
+            for some common options.
 
         Returns
         -------
