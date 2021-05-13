@@ -6100,7 +6100,7 @@ class SmurfCommandMixin(SmurfBase):
         -------
         band : int
             The band.
-        
+
         Returns
         -------
         coef_fixed : float
@@ -6131,7 +6131,7 @@ class SmurfCommandMixin(SmurfBase):
         -------
         band : int
             The band.
-        
+
         Returns
         -------
         val : int
@@ -6162,7 +6162,7 @@ class SmurfCommandMixin(SmurfBase):
         -------
         band : int
             The band.
-        
+
         Returns
         -------
         win_fixed : float array
