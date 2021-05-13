@@ -6074,3 +6074,49 @@ class SmurfCommandMixin(SmurfBase):
         """
         return self._caget(self.stream_data_source + self._stream_data_period,
             **kwargs)
+
+    _boxcar_scale = "boxcarScale"
+
+    def set_boxcar_filter_coef_fixed(self, band, coef_fixed, **kwargs):
+        """
+        Sets the boxcar filter coefficient.
+        coef_fixed should be np.round(coef*2**15), where
+        coef is 1/length of the boxcar window (which is
+        2.4 MHz divided by the streaming rate).
+        We round our coefficient for Fix16_15 data type.
+        """
+        self._caput(self._band_root(band) + self._boxcar_scale, coef_fixed, **kwargs)
+
+    def get_boxcar_filter_coef_fixed(self, band, **kwargs):
+        """
+        Gets the boxcar filter coefficient.
+        """
+        return self._caget(self._band_root(band) + self._boxcar_scale, **kwargs)
+
+    _filt_select = "filtSel"
+
+    def set_filt_select(self, band, val, **kwargs):
+        """
+        Set programmable window.
+        """
+        self._caput(self._band_root(band) + self._filt_select, val, **kwargs)
+
+    def get_filt_select(self, band, **kwargs):
+        """
+        Get value for programmable window.
+        """
+        return self._caget(self._band_root(band) + self._filt_select, **kwargs)
+
+    _filt_select_array = "StreamingFilter:coefficientArray"
+
+    def set_filt_coefficient_array(self, band, win_fixed, **kwargs):
+        """
+        Program window.
+        """
+        self._caput(self._band_root(band) + self._filt_select_array, win_fixed, **kwargs)
+
+    def get_filt_coefficient_array(self, band, **kwargs):
+        """
+        Get window.
+        """
+        return self._caget(self._band_root(band) + self._filt_select_array, *kwargs)
