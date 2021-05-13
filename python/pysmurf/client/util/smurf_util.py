@@ -4704,7 +4704,7 @@ class SmurfUtilMixin(SmurfBase):
         The max length for the window is 2048 (1.2 kHz minimum streaming rate).
 
         Args
-        ------
+        -------
         band : int
             The band.
         win_len : int
@@ -4713,7 +4713,7 @@ class SmurfUtilMixin(SmurfBase):
             Window type.
 
         Returns
-        ------
+        -------
         win_fixed : float array
             Window for filtering, with the factor of 2**-15 put back.
         """
