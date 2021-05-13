@@ -819,6 +819,8 @@ class SmurfTuneMixin(SmurfBase):
         flip_phase : bool, optional, default False
             Whether to flip the sign of phase before
             evaluating the gradient cut.
+        plot_phase : bool, optional, default False
+            Whether to generate a plot showing just the phase information
         amp_cut : float, optional, default 0.25
             The fractional distance from the median value to decide
             whether there is a resonance.
@@ -901,6 +903,7 @@ class SmurfTuneMixin(SmurfBase):
                 if 1-amp[idx]/med_amp[idx] > amp_cut:
                     peak = np.append(peak, idx)
 
+        # Plot the phase information
         if plot_phase:
             plt.figure()
             plt.plot(freq, angle)
@@ -3699,6 +3702,8 @@ class SmurfTuneMixin(SmurfBase):
         flip_phase : bool, optional, default False
             Whether to flip the sign of phase before
             evaluating the gradient cut.
+        plot_phase : bool, optional, default False
+            Whether to generate a plot showing just the phase information
         freq_min : float, optional, default -2.5e8
             The minimum frequency relative to the center of the band
             to look for resonances. Units of Hz.
