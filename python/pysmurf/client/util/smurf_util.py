@@ -4668,3 +4668,74 @@ class SmurfUtilMixin(SmurfBase):
                 plt.close()
 
         return gap_freq
+
+    def set_boxcar_window(self, band, win_len):
+        """
+        Sets boxcar window for streaming data.
+
+        Args
+        ------
+        band : int
+            The band.
+        win_len : int
+            Window length. This should be 2.4 MHz divided by the streaming rate.
+        """
+        coef = 1./win_len
+        coef_fixed = np.round(coef*2**15) # Round our coefficient for Fix16_15 data type
+        self.set_boxcar_filter_coef_fixed(band, coef_fixed)
+
+    def get_filt_gain_boxcar(self, band, win_len):
+        """
+        Calculates the gain in the streaming data introduced by the boxcar filter.
+
+        Args
+        ------
+        band : int
+            The band.
+        win_len : int
+            Window length. This should be 2.4 MHz divided by the streaming rate.
+        """
+        coef_fixed = self.get_boxcar_filter_coef_fixed(band)
+        return (coef_fixed * win_len * 2**-15)
+
+    def program_window(self, band, win_len, window_fn=signal.hamming):
+        """
+        Programs window for streaming data.
+        The max length for the window is 2048 (1.2 kHz minimum streaming rate).
+
+        Args
+        -------
+        band : int
+            The band.
+        win_len : int
+            Window length. This should be 2.4 MHz divided by the streaming rate.
+        window_fn : function, optional, default Hamming
+            Window type. See https://docs.scipy.org/doc/scipy-0.19.1/reference/signal.html#window-functions
+            for some common options.
+
+        Returns
+        -------
+        win_fixed : float array
+            Window for filtering, with the factor of 2**-15 put back.
+        """
+        win = window_fn(win_len)
+        win = win/np.sum(win)
+        win_fixed = np.zeros(2048, dtype=np.int16)
+        win_fixed[:len(win)] = np.round(win*2**15) # For firmware Fix16_15 data type
+        # Select programmable window
+        self.set_filt_select(band, 1)
+        # Program window
+        self.set_filt_coefficient_array(band, win_fixed)
+        return win_fixed * 2**-15
+
+    def get_filt_gain_programmable_window(self, band):
+        """
+        Calculates the gain in the streaming data introduced by the programmable window filter.
+
+        Args
+        ------
+        band : int
+            The band.
+        """
+        win_fixed = self.get_filt_coefficient_array(band)
+        return np.sum(win_fixed * 2**-15)
