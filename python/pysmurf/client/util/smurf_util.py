@@ -3303,13 +3303,14 @@ class SmurfUtilMixin(SmurfBase):
             An array with frequencies associated with the mask file.
         """
         freqs = np.zeros(len(mask), dtype=float)
-        channels_per_band = self.get_number_channels()
+        bands = mask // 512
+        chans = mask % 512
 
-        # iterate over mask channels and find their freq
-        for i, mask_ch in enumerate(mask):
-            b = mask_ch // channels_per_band
-            ch = mask_ch % channels_per_band
-            freqs[i] = self.channel_to_freq(b, ch)
+        for b in range(8):
+            m = bands == b
+            if not m.any():
+                continue
+            freqs[m] = self.channel_to_freq(b, chans[m])
 
         return freqs
 
