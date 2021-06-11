@@ -2270,8 +2270,8 @@ class SmurfUtilMixin(SmurfBase):
         ----
         band : int
             The band the channel is in.
-        channel : int or None, optional, default none
-            The channel number.
+        channel : int, None, or array
+            If None, will return the channel freqs of all enabled channels
 
         Returns
         -------
@@ -2283,29 +2283,15 @@ class SmurfUtilMixin(SmurfBase):
         if band is None and channel is None:
             return None
 
-        # Get subband centers
-        _, sbc = self.get_subband_centers(band, as_offset=False, yml=yml)
+        band_center_mhz = self.get_band_center_mhz(band)
+        subband_offset = self.get_tone_frequency_offset(band)
+        channel_offset = self.get_center_frequency_array(band)
+        channel_freqs = band_center_mhz + subband_offset + channel_offset
 
-        # Convenience function for turning band, channel into freq
-        def _get_cf(band, ch):
-            subband = self.get_subband_from_channel(band, channel, yml=yml)
-            offset = float(self.get_center_frequency_mhz_channel(band, channel,
-                                                                 yml=yml))
-            return sbc[subband] + offset
-
-        # If channel is requested
-        if channel is not None:
-            return _get_cf(band, channel)
-
-        # Get all channels that are on
+        if channel is None:
+            return channel_freqs[self.which_on(band)]
         else:
-            channels = self.which_on(band)
-            cfs = np.zeros(len(channels))
-            for i, channel in enumerate(channels):
-                cfs[i] = _get_cf(band, channel)
-
-            return cfs
-
+            return channel_freqs[channel]
 
     def get_channel_order(self, band=None, channel_orderfile=None):
         """ produces order of channels from a user-supplied input file
