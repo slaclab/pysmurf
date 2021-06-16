@@ -1622,8 +1622,9 @@ class SmurfTuneMixin(SmurfBase):
         return freqs, subbands, channels, groups
 
     @set_action()
-    def assign_channels(self, freq, band=None, bandcenter=None,
-            channel_per_subband=4, as_offset=True, min_offset=0.1,
+    def assign_channels(self, freq, band=None, as_offset=True,
+            min_offset=0.1, edge_clearance_mhz=0.1,
+            subband_shuffle=True,
             new_master_assignment=False):
         """
         Figures out the subbands and channels to assign to resonators
@@ -1633,18 +1634,26 @@ class SmurfTuneMixin(SmurfBase):
         freq : float array
             The frequency of the resonators. This is not the same as
             the frequency output from full_band_resp. This is only
-            where the resonators are.
-
+            where the resonators are.  Units are MHz.
         band : int or None, optional, default None
             The band to assign channels.
-        band_center : float array or None, optional, default None
-            The frequency center of the band. Must supply band or
-            subband center.
-        channel_per_subband : int, optional, default 4
-            The number of channels to assign per subband.
+        as_offset : bool, optional, default True
+            If `True`, provided array of frequencies `freq` are
+            frequency offsets from the band center, otherwise
+            if `False` they are absolute resonator candidate
+            frequencies.
         min_offset : float, optional, default 0.1
             The minimum offset between two resonators in MHz.  If
             closer, then both are ignored.
+        edge_clearance_mhz : float, optional, default 0.1
+            Minimum distance a resonator must be from the edge of a
+            subband it can be assigned to.  Units MHz.
+        subband_shuffle : bool, optional, default True
+            ...
+        new_master_assignment : bool, optional, default False
+            Whether to create a new master assignment file. This file
+            defines the mapping between resonator frequency and
+            channel number.
 
         Returns
         -------
@@ -1655,14 +1664,15 @@ class SmurfTuneMixin(SmurfBase):
         offsets : float array
             The frequency offset from the subband center.
         """
-        freq = np.sort(freq)  # Just making sure its in sequential order
+        # Make sure it's an array, and that it's in sequential order.
+        freq = np.asarray(np.sort(freq)) 
 
-        if band is None and bandcenter is None:
-            self.log('Must have band or bandcenter', self.LOG_ERROR)
-            raise ValueError('Must have band or bandcenter')
+        if band is None:
+            self.log('Must provide a band', self.LOG_ERROR)
+            raise ValueError('Must provide a band')
 
         subbands = np.zeros(len(freq), dtype=int)
-        channels = -1 * np.ones(len(freq), dtype=int)
+        channels = np.full(len(freq), None)        
         offsets = np.zeros(len(freq))
 
         if not new_master_assignment:
@@ -1696,35 +1706,206 @@ class SmurfTuneMixin(SmurfBase):
                 f'No channel assignment for {n_unmatched} of {n_freqs}'+
                 ' resonances.')
         else:
-            d_freq = np.diff(freq)
-            close_idx = d_freq > min_offset
-            close_idx = np.logical_and(np.hstack((close_idx, True)),
-                                       np.hstack((True, close_idx)))
-            # Assign all frequencies to a subband
-            for idx in range(len(freq)):
-                subbands[idx] = self.get_closest_subband(freq[idx], band,
-                                                     as_offset=as_offset)
-                subband_center = self.get_subband_centers(band,
-                                          as_offset=as_offset)[1][subbands[idx]]
-                offsets[idx] = freq[idx] - subband_center
+            # Pick who lives and who dies!!!
+            n_subbands = self.get_number_sub_bands(band)
+            n_channels = self.get_number_channels(band)
+            n_chanpersubband = int(n_channels / n_subbands)
+            subband_half_width_mhz = self.get_digitizer_frequency_mhz(band) / n_subbands
+            all_subbands, all_subband_centers = self.get_subband_centers(band, as_offset=as_offset)
+            # Make sure all_subbands is a numpy array
+            all_subbands=np.asarray(all_subbands)
 
-            # Assign unique channel numbers
-            for unique_subband in set(subbands):
-                chans = self.get_channels_in_subband(band, int(unique_subband))
-                mask = np.where(subbands == unique_subband)[0]
-                if len(mask) > channel_per_subband:
-                    concat_mask = mask[:channel_per_subband]
-                else:
-                    concat_mask = mask[:]
+            # Each channel's subband candidates.
+            subband_candidates=[
+                set(all_subbands[
+                    (np.abs(fres-all_subband_centers)<(subband_half_width_mhz-edge_clearance_mhz))
+                ].astype(int)) for fres in freq]
+            
+            # Find the closest subbands
+            closest_subbands=all_subbands[
+                [np.argmin(np.abs(fres-all_subband_centers)) for fres in freq]].astype(int)
+            
+            # Start by assuming all tones are assigned to the subband
+            # whose center they're closest to.
+            subbands[:]=closest_subbands
+            
+            # Find any subbands with more than the allowed number of
+            # channels allocated to it.
+            subband_occupancies=np.unique(subbands,return_counts=True)
+            crowded_subbands=subband_occupancies[0][subband_occupancies[1]>n_chanpersubband]
 
-                chans = chans[:len(list(concat_mask))] #I am so sorry
+            if subband_shuffle:
+                # Work out which resonators will be in which subbands
+                # before doing channel assignments.
+                for cs in crowded_subbands:
+                    # What's the frequency center of the crowded subband?
+                    crowded_subband_center=all_subband_centers[np.where(all_subbands==cs)[0]][0]
 
-                channels[mask[:len(chans)]] = chans
+                    # Which resonators are currently in this crowded subband?
+                    crowded_idx=np.where(subbands == cs)[0]
+                    crowded_freqs=freq[crowded_idx]-crowded_subband_center
 
-            # Prune channels that are too close
-            channels[~close_idx] = -1
+                    # How many do we need to move out of this subband or
+                    # eliminate to meet occupancy?
+                    n_extra=(len(crowded_idx)-n_chanpersubband)
 
-            # write the channel assignments to file
+                    # Which resonators can move?
+                    can_move=[[] for _ in range(len(crowded_idx))]
+                    for idx,cidx in enumerate(crowded_idx):
+                        for sb in subband_candidates[cidx]:
+
+                            # Find occupancy of this candidate subband we
+                            # might shift a resonator over to.
+                            sbocc=0
+                            if sb in subband_occupancies[0]:
+                                sbocc=int(subband_occupancies[1][np.where(subband_occupancies[0]==sb)[0]])
+
+                            # Next neighbor subband occupancy ; assumes
+                            # subbands increment linearly with frequency.
+                            sb2=(sb-1 if sb<cs else sb+1)
+                            sbocc2=0
+                            if sb2 in subband_occupancies[0]:
+                                sbocc2=int(subband_occupancies[1][np.where(subband_occupancies[0]==sb2)[0]])
+
+                            sboff=crowded_freqs[idx]
+
+                            # Keep track of the subband we could move this
+                            # resonator to and its current occupancy.
+                            if sb != cs and sbocc<n_chanpersubband:
+                                can_move[idx].append((sb,cidx,sbocc,sbocc2,sboff))
+
+                    # Let's try to move n_extra tones out of this crowded
+                    # subband and into the neighboring subbands, if they
+                    # have occupancy.  There could be lots of different
+                    # options, so we need to decide what we prefer.  Let's
+                    # move tones such that we keep the occupancy in
+                    # adjacent subbands as low as possible, but if this
+                    # doesn't prefer one tone over another, we'll move
+                    # tones that are furthest from the crowded subband's
+                    # center frequency (and therefore closest to the
+                    # neighboring subband's center that we'll be moving
+                    # the tone into).  If you wanted to get fancy, you
+                    # could allow the user to specify a cost function for
+                    # deciding which resonators to move or cull
+                    # (e.g. based on resonator dip, or something).
+                    #
+                    # First check if we have enough occupancy available in
+                    # neighboring subbands to accomodate all tones.  If
+                    # not, will need to cull resonators until we do.
+
+                    # Which n_chanpersubband are we going to keep in this
+                    # subband, ie not allow to move?
+                    #
+                    # Hierarchial priority ;
+                    # - First by whether or not it can be moved at all.
+                    # - Next by frequency offset from subband center.
+                    tones=list(zip(range(len(crowded_idx)), # Index for manipulation
+                                   crowded_idx, # Where in bigger list this tone is
+                                   [len(cm) for cm in can_move], # How many subbands it can move to.
+                                   crowded_freqs)) # Frequency offset from subband center
+                    sorted_tones=tones.copy()
+                    sorted_tones.sort(
+                        key = lambda x: (x[2],np.abs(x[3])))
+
+                    # Remove first n_chanpersubband channels from list of channels
+                    # with available moves ; these will stay in the naively assigned
+                    # subband.
+                    for t in sorted_tones[:n_chanpersubband]:
+                        can_move[np.where(crowded_idx==t[1])[0][0]]=[]
+
+                    # All remaining available moves.
+                    available_moves=[x for xx in can_move for x in xx]
+                    # Append index to help manipulate.
+
+                    available_moves=[(idx,)+x for (idx,x) in enumerate(available_moves)]
+                    unavailable_moves=[]
+
+                    for _ in range(n_extra):
+                        # We need to move n_extra tones.  Move tones,
+                        # following the priority, until we run out of
+                        # moves.
+                        #
+                        # Hierarchial sort of moves ;
+                        # - First by candidate subband occupancy (lower
+                        #   the better).  This is x[3].
+                        # - Next by the candidate subband's other
+                        #   neighbor's occupancy (lower the better).  This
+                        #   is x[4].  The idea here is to try to keep the
+                        #   subbands adjacent to subbands which are full
+                        #   or crowded open if possible so tones can be
+                        #   shifted into them if needed.
+                        # - Break ties by prioritizing frequencies
+                        #   furthest from the crowded subband's center
+                        #   frequency.  x[5] is the frequency difference,
+                        #   so -np.abs(x[5]) sorts from biggest frequency
+                        #   difference to smallest.
+                        sorted_available_moves=available_moves.copy()
+                        sorted_available_moves.sort(
+                            key = lambda x: (x[3],x[4],-np.abs(x[5])))
+
+                        # We still have a move!  Make it and update arrays.
+                        if len(sorted_available_moves)>0:
+                            (idx,sb,cidx,sbocc,_,_)=sorted_available_moves[0]
+                            # Remove this move from the list of available moves
+                            available_moves=[a for a in available_moves if a[0]!=idx]
+                            # Move this tone to new subband.
+                            subbands[cidx]=sb
+                            # Update available move occupancies.  We only
+                            # have to update other available moves to this
+                            # subband we just moved a tone into.
+                            for idxa,a in enumerate(available_moves):
+                                if a[1]==sb:
+                                    available_moves[idxa]=(a[0],a[1],a[2],a[3]+1,a[4],a[5])
+
+                            # Remove any available moves to subbands which
+                            # we just filled by making a move.
+                            if sbocc+1>=n_chanpersubband:
+                                # Add moves that are no longer possible
+                                # due to the neighboring subband now being
+                                # at occupancy to the
+                                unavailable_moves.extend([a for a in available_moves if a[1]==sb])                
+                                # Remove this neighboring subband from the
+                                # list of possible moves.
+                                available_moves=[a for a in available_moves if a[1]!=sb]
+
+                            # On to the next move attempt!
+
+                        else:
+                            # No moves left!  Discard all tones we weren't
+                            # able to move.
+                            for u in unavailable_moves:
+                                channels[u[2]]=-1
+
+                            # Done!
+                            break
+
+            # We're done moving tones around in subbands, can compute
+            # offsets.  We'll compute them even for the channels we're
+            # not going to assign.
+            offsets = ( freq -
+                        np.array([
+                            all_subband_centers[np.where(all_subbands==s)][0] for s in subbands
+                        ]) )
+
+            # Perform channel assignments.  Only assign channels which
+            # weren't designated -1.  Assign channels such that
+            # channel number increments with increasing frequency.
+            # The algorithm should have ensured that no subband is
+            # filled higher than its occupancy by this point, but
+            # we'll check and throw a warning if something's gone
+            # wrong.  Go subband by subband.
+            for idx,sb in enumerate(subbands):
+                chans_in_sb=self.get_channels_in_subband(band, sb)
+                # Indices of channels which are not -1 and in this subband                
+                idx2=np.where((subbands==sb)&(channels!=-1))[0]
+                # Double check we're not trying to assign more channels than
+                # available in this subband.
+                idx2_sorted=[ii for _,ii in sorted(zip(offsets[idx2],idx2))]
+                channels[idx2_sorted[:len(chans_in_sb)]]=chans_in_sb
+                for idx3 in idx2_sorted[len(chans_in_sb):]:
+                    channels[idx3]=-1
+
+            # Write the channel assignments to file
             self.write_master_assignment(band, freq, subbands, channels)
 
         return subbands, channels, offsets
@@ -3835,7 +4016,7 @@ class SmurfTuneMixin(SmurfBase):
 
     @set_action()
     def setup_notches(self, band, resonance=None, tone_power=None,
-                      sweep_width=.3, df_sweep=.002, min_offset=0.1,
+                      sweep_half_width=.3, df_sweep=.002, min_offset=0.1,
                       delta_freq=None, new_master_assignment=False,
                       lock_max_derivative=False):
         """
@@ -3854,9 +4035,10 @@ class SmurfTuneMixin(SmurfBase):
             over the one in self.freq_resp.
         tone_power : int or None, optional, default None
             The power to drive the resonators. Default is defined in cfg file.
-        sweep_width : float, optional, default 0.3
-            The range to scan around the input resonance in units of
-            MHz.
+        sweep_half_width : float, optional, default 0.3
+            The half range to scan around the input resonance in units
+            of MHz.  The full range swept will be
+            [-sweep_half_width,+sweep_half_width].
         df_sweep : float, optional, default 0.002
             The sweep step size in MHz.
         min_offset : float, optional, default 0.1
@@ -3936,11 +4118,15 @@ class SmurfTuneMixin(SmurfBase):
                 'resp_eta_scan' : resp
             }
 
+        # Must set edge_clearance_mhz to the half width of the eta scan or else
+        # the eta scan will exceed subband bounds.
+        self.log('Assigning channels for eta scans')        
         subbands, channels, offsets = self.assign_channels(input_res, band=band,
             as_offset=False, min_offset=min_offset,
+            edge_clearance_mhz=sweep_half_width,
             new_master_assignment=new_master_assignment)
 
-        f_sweep = np.arange(-sweep_width, sweep_width, df_sweep)
+        f_sweep = np.arange(-sweep_half_width, sweep_half_width, df_sweep)
         n_step  = len(f_sweep)
 
         resp = np.zeros((n_channels, n_step), dtype=complex)
@@ -3969,6 +4155,9 @@ class SmurfTuneMixin(SmurfBase):
 
         resp = I + 1j*Q
 
+        print(f'subbands={repr(subbands)}')
+        print(f'channels={repr(channels)}')
+        print(f'offsets={repr(offsets)}')
         for i, channel in enumerate(channels):
             freq_s, resp_s, eta = self.eta_estimator(band, subbands[i], freq[channel, :], resp[channel, :],
                 delta_freq=delta_freq, lock_max_derivative=lock_max_derivative)
@@ -3979,7 +4168,35 @@ class SmurfTuneMixin(SmurfBase):
             abs_resp = np.abs(resp_s)
             idx = np.ravel(np.where(abs_resp == np.min(abs_resp)))[0]
 
-            f_min = freq_s[idx]
+            # Make sure the response minimum is not on the frequency
+            # boundary of the eta scan.  Due to noise, might not be
+            # enough to check just the outermost boundary samples.
+            boundary_width=3
+            on_boundary=False
+            boundary_idxs=( list(range(boundary_width)) +
+                            list(range(len(abs_resp)-boundary_width,len(abs_resp)))
+            )
+            # Incredibly unlikely that user will eta scan with a
+            # window width that has only 6 samples in it, but we'll
+            # guard against it anyway.
+            if ( len(abs_resp)>2*boundary_width and
+                 idx in boundary_idxs ):
+                on_boundary=True
+
+
+            # Starting frequency
+            sb = subbands[i]
+            sb_center = self.get_subband_centers(
+                band, as_offset=False)[1][sb]                
+            f_min = ( offsets[i] +
+                      sb_center )                
+
+            # Only adopt refined frequency estimate from eta scan if
+            # 1) the refined frequency is not on the boundary of the
+            # eta scan frequency range and 2) the channel was
+            # previously assigned based on rough frequency estimate.
+            if not on_boundary and channel!=-1:
+                f_min = freq_s[idx]
 
             resonances[i] = {
                 'freq' : f_min,
@@ -3994,13 +4211,13 @@ class SmurfTuneMixin(SmurfBase):
                 'resp_eta_scan' : resp_s
             }
 
-
         # Assign resonances to channels
-        self.log('Assigning channels')
+        self.log('Refining channel assignments based on eta scans')
         f = [resonances[k]['freq'] for k in resonances.keys()]
 
         subbands, channels, offsets = self.assign_channels(f, band=band,
             as_offset=False, min_offset=min_offset,
+            edge_clearance_mhz=sweep_half_width,                                                           
             new_master_assignment=new_master_assignment)
 
         for i, k in enumerate(resonances.keys()):
@@ -4011,7 +4228,7 @@ class SmurfTuneMixin(SmurfBase):
         self.freq_resp[band]['resonances'] = resonances
 
         self.save_tune()
-
+        
         self.relock(band)
 
 
