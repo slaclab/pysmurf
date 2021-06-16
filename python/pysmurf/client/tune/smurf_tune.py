@@ -4155,9 +4155,6 @@ class SmurfTuneMixin(SmurfBase):
 
         resp = I + 1j*Q
 
-        print(f'subbands={repr(subbands)}')
-        print(f'channels={repr(channels)}')
-        print(f'offsets={repr(offsets)}')
         for i, channel in enumerate(channels):
             freq_s, resp_s, eta = self.eta_estimator(band, subbands[i], freq[channel, :], resp[channel, :],
                 delta_freq=delta_freq, lock_max_derivative=lock_max_derivative)
