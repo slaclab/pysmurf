@@ -2284,7 +2284,7 @@ class SmurfUtilMixin(SmurfBase):
             return None
 
         band_center_mhz = self.get_band_center_mhz(band)
-        subband_offset = self.get_tone_frequency_offset(band)
+        subband_offset = self.get_tone_frequency_offset_mhz(band)
         channel_offset = self.get_center_frequency_array(band)
         channel_freqs = band_center_mhz + subband_offset + channel_offset
 
