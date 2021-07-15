@@ -142,6 +142,7 @@ void scf::BandPhaseFeedback::setToneChannels(bp::list m)
     // New data will be check as it is pushed to this vector. If there
     // are not error, this vector will be swap with 'toneCh'.
     std::vector<std::size_t> temp;
+    temp.reserve(listSize);
 
     for (std::size_t i{0}; i < listSize; ++i)
     {
@@ -203,6 +204,7 @@ void scf::BandPhaseFeedback::setToneFrequencies(bp::list m)
     // New data will be check as it is pushed to this vector. If there
     // are not error, this vector will be swap with 'toneFreq'.
     std::vector<double> temp;
+    temp.reserve(listSize);
 
     for (std::size_t i{0}; i < listSize; ++i)
     {
@@ -231,6 +233,7 @@ void scf::BandPhaseFeedback::setToneFrequencies(bp::list m)
     // Update the frequency mean, deltas, and variance
     freqMean = 2 * M_PI * 1e6 * std::accumulate(toneFreq.begin(), toneFreq.end(), 0.0) / toneFreq.size();
     std::vector<double>().swap(freqDiffs);
+    freqDiffs.reserve(toneFreq.size());
     freqVar = 0;
     for (auto const &f : toneFreq)
     {
@@ -360,6 +363,7 @@ void scf::BandPhaseFeedback::acceptFrame(ris::FramePtr frame)
 
         // Extract the phase from the specified channels
         std::vector<double> phase;
+        phase.reserve(toneCh.size());
         for (auto const &c : toneCh)
         {
             int32_t currentPhase { sp->getData(c) };
