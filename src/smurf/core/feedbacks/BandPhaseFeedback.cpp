@@ -371,11 +371,28 @@ void scf::BandPhaseFeedback::acceptFrame(ris::FramePtr frame)
         // Extract the phase from the specified channels
         std::vector<double> phase;
         phase.reserve(toneCh.size());
+        size_t i {0};
+        int32_t prevPhase;
         for (auto const &c : toneCh)
         {
             int32_t currentPhase { sp->getData(c) };
             tonePhase[i++] = currentPhase;
+
+           // Fix any 2*pi relative wraps in phases
+           // For each tone, we verify that its phase is lower than the previous tone at a lower
+           // frequency. If not, we wrap it down 2*pi.
+           if (i > 1)
+           {
+               int32_t phaseDiff { currentPhase - prevPhase };
+               if (phaseDiff >= 0)
+               {
+                   currentPhase -= ( (phaseDiff >> 16) + 1 ) * 65536;
+               }
+           }
+
             phase.push_back( (M_PI / 32768.0) * static_cast<double>(currentPhase) );
+
+            prevPhase = currentPhase;
         }
 
         // Estimate the band "tau" (slope) and "theta" (offset) parameters using least
