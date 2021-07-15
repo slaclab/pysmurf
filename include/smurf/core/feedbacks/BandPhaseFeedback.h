@@ -83,6 +83,9 @@ namespace smurf
                 void           setToneFrequencies(bp::list m);
                 const bp::list getToneFrequencies() const;
 
+                // Get the raw tone phases
+                const bp::list getTonePhase() const;
+
                 // Get the band phase parameters estimations
                 const double getTau()   const;
                 const double getTheta() const;
@@ -117,6 +120,7 @@ namespace smurf
                 std::size_t                 numCh;          // Number of channels in the incoming frame
                 std::vector<std::size_t>    toneCh;         // Tone channels
                 std::vector<double>         toneFreq;       // Tone Frequencies
+                std::vector<int32_t>        tonePhase;      // Tone raw phases
                 std::size_t                 maxToneCh;      // Maximum channel in the 'toneCh' vector.
                 bool                        ready;          // Flag to indicate that all conditions are valid
                 double                      tau;            // Band phase slope estimation (tau).

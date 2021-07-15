@@ -38,6 +38,7 @@ scf::BandPhaseFeedback::BandPhaseFeedback(std::size_t band)
     numCh(0),
     toneCh(minNumTones, 0),
     toneFreq(minNumTones, 0),
+    tonePhase(minNumTones, 0),
     maxToneCh(0),
     ready(false),
     tau(0.0),
@@ -76,6 +77,7 @@ void scf::BandPhaseFeedback::setup_python()
         .def("getToneChannels",     &BandPhaseFeedback::getToneChannels)
         .def("setToneFrequencies",  &BandPhaseFeedback::setToneFrequencies)
         .def("getToneFrequencies",  &BandPhaseFeedback::getToneFrequencies)
+        .def("getTonePhase",        &BandPhaseFeedback::getTonePhase)
         .def("getTau",              &BandPhaseFeedback::getTau)
         .def("getTheta",            &BandPhaseFeedback::getTheta)
         .def("getReady",            &BandPhaseFeedback::getReady)
@@ -237,6 +239,9 @@ void scf::BandPhaseFeedback::setToneFrequencies(bp::list m)
         freqVar += d*d;
     }
 
+    // Update the size of the tonePhase vector
+    std::vector<int32_t>(toneFreq.size(), 0).swap(tonePhase);
+
     // Check if all condition are valid
     checkReady();
 }
@@ -251,6 +256,15 @@ const bp::list scf::BandPhaseFeedback::getToneFrequencies() const
     return temp;
 }
 
+const bp::list scf::BandPhaseFeedback::getTonePhase() const
+{
+    bp::list temp;
+
+    for(auto const &v : tonePhase)
+        temp.append(v);
+
+    return temp;
+}
 
 const double scf::BandPhaseFeedback::getTau() const
 {
@@ -347,7 +361,11 @@ void scf::BandPhaseFeedback::acceptFrame(ris::FramePtr frame)
         // Extract the phase from the specified channels
         std::vector<double> phase;
         for (auto const &c : toneCh)
-            phase.push_back( (M_PI / 32768.0) * static_cast<double>(sp->getData(c)) );
+        {
+            int32_t currentPhase { sp->getData(c) };
+            tonePhase[i++] = currentPhase;
+            phase.push_back( (M_PI / 32768.0) * static_cast<double>(currentPhase) );
+        }
 
         // Estimate the band "tau" (slope) and "theta" (offset) parameters using least
         // square solution:

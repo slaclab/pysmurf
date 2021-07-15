@@ -114,6 +114,18 @@ class BandPhaseFeedback(pyrogue.Device):
             localSet=lambda value: self._BandPhaseFeedback.setToneFrequencies(value),
             localGet=self._BandPhaseFeedback.getToneFrequencies))
 
+        # Raw tone phases
+        # Rogue doesn't allow to have an empty list here. Also, the EPICS PV is created
+        # with the initial size of this list, and can not be changed later, so we are doing
+        # it big enough at this point, using the maximum allowed number of tones.
+        self.add(pyrogue.LocalVariable(
+            name='tonePhases',
+            description='Tone phases',
+            mode='RO',
+            value= [0] * 10,
+            pollInterval=1,
+            localGet=self._BandPhaseFeedback.getTonePhase))
+
         # Add the ready flag.
         self.add(pyrogue.LocalVariable(
             name='Ready',
