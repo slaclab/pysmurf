@@ -27,7 +27,7 @@ class BandPhaseFeedback(pyrogue.Device):
 
     Args
     ----
-    namd : string
+    name : string
         Device name (must be unique).
     band : int
         Band number (0 to 7).
