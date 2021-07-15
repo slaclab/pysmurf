@@ -414,7 +414,7 @@ if __name__ == "__main__":
     smurf_estimated_file = f'{args.out_dir}/out_smurf.dat'
 
     # Maximum RMSE error allowed
-    rmse_max = 1e-4
+    rmse_max = 1e-2
 
     # Phase jump index
     # We set it at the middle of the test
