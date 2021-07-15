@@ -43,6 +43,7 @@ scf::BandPhaseFeedback::BandPhaseFeedback(std::size_t band)
     ready(false),
     tau(0.0),
     theta(0.0),
+    R2(0.0),
     freqMean(0.0),
     freqDiffs(minNumTones, 0),
     freqVar(0.0),
@@ -80,6 +81,7 @@ void scf::BandPhaseFeedback::setup_python()
         .def("getTonePhase",        &BandPhaseFeedback::getTonePhase)
         .def("getTau",              &BandPhaseFeedback::getTau)
         .def("getTheta",            &BandPhaseFeedback::getTheta)
+        .def("getR2",               &BandPhaseFeedback::getR2)
         .def("getReady",            &BandPhaseFeedback::getReady)
     ;
     bp::implicitly_convertible< scf::BandPhaseFeedbackPtr, ris::SlavePtr  >();
@@ -279,6 +281,11 @@ const double scf::BandPhaseFeedback::getTheta() const
     return theta;
 }
 
+const double scf::BandPhaseFeedback::getR2() const
+{
+    return R2;
+}
+
 const bool scf::BandPhaseFeedback::getReady() const
 {
     return ready;
@@ -396,6 +403,26 @@ void scf::BandPhaseFeedback::acceptFrame(ris::FramePtr frame)
         // Calculate theta (offset)
         theta = phaseMean - tau * freqMean;
 
+        // Calculate the coefficient of determination (R^2)
+        //
+        //     R^2 = 1 - sum_i( (p_i - p_i_est)^2 ) / sum_i( (p_i - p_mean)^2 )
+        //
+        // where:
+        //     p_i     : phase points.
+        //     p_i_est : estimated phase ( = tau * f_i + theta)
+        //     p_mean  : mean phase.
+
+        // Calculate the sum of square of residuals (SSRes), and the total sum of square (SSTot)
+        double SSRes { 0.0 };
+        double SSTot { 0.0 };
+        for (std::size_t i {0}; i < phase.size(); ++i)
+        {
+            SSRes += std::pow(phase[i] - (2 * M_PI * 1e6 * toneFreq[i] * tau + theta), 2);
+            SSTot += std::pow(phase[i] - phaseMean, 2);
+        }
+
+        // Calculate the coefficient of determination
+        R2 = 1 - SSRes / SSTot;
     }
 
     // Send the frame to the next slave.

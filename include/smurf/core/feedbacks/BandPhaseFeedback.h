@@ -90,6 +90,9 @@ namespace smurf
                 const double getTau()   const;
                 const double getTheta() const;
 
+                // Get the estimation coefficient of determination
+                const double getR2() const;
+
                 // Get the ready flag
                 const bool getReady() const;
 
@@ -125,6 +128,7 @@ namespace smurf
                 bool                        ready;          // Flag to indicate that all conditions are valid
                 double                      tau;            // Band phase slope estimation (tau).
                 double                      theta;          // Band phase offset estimation (theta).
+                double                      R2;             // Coefficient of determination of the estimation
                 double                      freqMean;       // Mean frequency
                 std::vector<double>         freqDiffs;      // Frequencies deltas respect to the mean value
                 double                      freqVar;        // Frequency variance

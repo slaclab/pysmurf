@@ -155,6 +155,16 @@ class BandPhaseFeedback(pyrogue.Device):
             pollInterval=1,
             localGet=self._BandPhaseFeedback.getTheta))
 
+        # Add the estimation coefficient of determination
+        self.add(pyrogue.LocalVariable(
+            name='R2',
+            description='Coefficient of determination',
+            mode='RO',
+            value=0.0,
+            units='',
+            pollInterval=1,
+            localGet=self._BandPhaseFeedback.getR2))
+
     # Method called by streamConnect, streamTap and streamConnectBiDir to access slave
     def _getStreamSlave(self):
         return self._BandPhaseFeedback
