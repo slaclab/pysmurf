@@ -378,6 +378,11 @@ void scf::BandPhaseFeedback::acceptFrame(ris::FramePtr frame)
             int32_t currentPhase { sp->getData(c) };
             tonePhase[i++] = currentPhase;
 
+            // Remove 2*pi wraps
+            // We shouldn't need this, assuming the phase changes are slow enough for the
+            // unwrapper module to detect them and correct them.
+            //currentPhase -= ((currentPhase + 32768) >> 16 + int(currentPhase < 0)) << 16;
+
             // Fix any 2*pi relative wraps in phases
             // For each tone, we verify that its phase is lower than the previous tone at a lower
             // frequency. If not, we wrap it down 2*pi.
