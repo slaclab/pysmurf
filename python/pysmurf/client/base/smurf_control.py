@@ -186,7 +186,7 @@ class SmurfControl(SmurfCommandMixin,
               paths to avoid possible collisions between multiple smurf
               instances running simultaneously. For instance, if set to
               ``crate1slot2`` the outputs directory will be::
-                  ``<data_dir>/<date>/crate1slot2/<ctime>/outputs``
+              ``<data_dir>/<date>/crate1slot2/<ctime>/outputs``
 
         See Also
         --------
