@@ -2270,7 +2270,7 @@ class SmurfUtilMixin(SmurfBase):
         ----
         band : int
             The band the channel is in.
-        channel : int, None, or array
+        channel : int, None, or array, optional, default None
             If None, will return the channel freqs of all enabled channels
 
         Returns
