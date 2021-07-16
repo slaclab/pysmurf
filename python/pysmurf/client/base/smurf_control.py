@@ -181,7 +181,7 @@ class SmurfControl(SmurfCommandMixin,
               Whether to send messages to the OCS publisher.
         payload_size : int, optional, default 2048
               The payload size to set on setup.
-        data_path_id : str, optional
+        data_path_id : str, optional, default None
               If set, this will add the path-id to the output and plot dir
               paths to avoid possible collisions between multiple smurf
               instances running simultaneously. For instance, if set to
