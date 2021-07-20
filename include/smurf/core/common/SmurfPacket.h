@@ -26,7 +26,6 @@
 #include <rogue/interfaces/stream/Frame.h>
 #include <rogue/interfaces/stream/FrameLock.h>
 #include <rogue/interfaces/stream/FrameIterator.h>
-#include <rogue/interfaces/stream/FrameAccessor.h>
 #include "smurf/core/common/SmurfHeader.h"
 
 // SMuRF packet class. This class give a read-only access

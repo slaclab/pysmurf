@@ -1,6 +1,5 @@
 import time
 import epics
-import matplotlib.pyplot as plt
 import pysmurf
 import pysmurf.client
 
@@ -51,4 +50,3 @@ else:
 
 # Stop the data stream
 S.stream_data_off()
-
