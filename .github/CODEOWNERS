@@ -1,7 +1,7 @@
-# @swh76 and @eyyoung24 will be the default owners for everything.
-# Unless a later match takes precedence, they will be requested
+# @swh76 will be the default owners for everything. Unless
+# a later match takes precedence, they will be requested
 # for review when someone opens a pull request.
-*                       @swh76 @eyyoung24
+*                       @swh76
 
 # @jesusvasquez333 and @slacrherbst owns the code related
 # to the core, dockers, and startup scripts.
@@ -15,7 +15,7 @@
 /releaseGen.py          @jesusvasquez333 @slacrherbst
 /README.*.md            @jesusvasquez333 @slacrherbst
 
-# @swh76, @eyyoung24, @jesusvasquez333 and @slacrherbst owns
-# the github related scripts.
-# All of them will be requested for review.
-/.github/               @swh76 @eyyoung24 @jesusvasquez333 @slacrherbst
+# @swh76, @jesusvasquez333 and @slacrherbst owns the
+# github related scripts. All of them will be requested
+# for review.
+/.github/               @swh76 @jesusvasquez333 @slacrherbst

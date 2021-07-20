@@ -21,6 +21,7 @@
  *-----------------------------------------------------------------------------
 **/
 
+#include <functional>
 #include <rogue/interfaces/stream/Frame.h>
 #include <rogue/interfaces/stream/FrameLock.h>
 #include <rogue/interfaces/stream/FrameIterator.h>
@@ -29,7 +30,6 @@
 #include <rogue/GilRelease.h>
 #include "smurf/core/common/SmurfHeader.h"
 #include "smurf/core/common/SmurfPacket.h"
-#include "smurf/core/transmitters/DualDataBuffer.h"
 #include "smurf/core/transmitters/BaseTransmitterChannel.h"
 
 namespace bp  = boost::python;
@@ -69,6 +69,12 @@ namespace smurf
                 void clearCnt();
 
                 // Get the data dropped counter
+                const std::size_t getDataFrameCnt() const;
+
+                // Get the metadata dropped counter
+                const std::size_t getMetaFrameCnt() const;
+
+                // Get the data dropped counter
                 const std::size_t getDataDropCnt() const;
 
                 // Get the metadata dropped counter
@@ -95,11 +101,13 @@ namespace smurf
                 virtual void metaTransmit(std::string cfg) {};
 
             private:
-                bool                                disable;     // Disable flag
-                DualDataBufferPtr<SmurfPacketROPtr> dataBuffer;  // Data buffer
-                DualDataBufferPtr<std::string>      metaBuffer;  // Metadata buffer
-                BaseTransmitterChannelPtr           dataChannel; // Data channel interface
-                BaseTransmitterChannelPtr           metaChannel; // Metadata channel interface
+                bool                      disable;          // Disable flag
+                BaseTransmitterChannelPtr dataChannel;      // Data channel interface
+                BaseTransmitterChannelPtr metaChannel;      // Metadata channel interface
+                std::size_t               dataFrameCnt;     // Number of received data frames
+                std::size_t               metaFrameCnt;     // Number of received metadata frames
+                std::size_t               dataDropFrameCnt; // Number of dropped data frames
+                std::size_t               metaDropFrameCnt; // Number of dropped metadata frames
             };
         }
     }

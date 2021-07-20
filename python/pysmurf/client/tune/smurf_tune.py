@@ -1285,8 +1285,12 @@ class SmurfTuneMixin(SmurfBase):
 
         if use_slow_eta:
             band_center = self.get_band_center_mhz(band)
-            f_slow, resp_slow, eta_slow = self.eta_estimator(band,
-                peak_freq*1.0E-6+band_center)
+            f_sweep_half = 0.3
+            df_sweep = 0.002
+            subband, offset = self.freq_to_subband(band, peak_freq*1e-6+band_center)
+            f_sweep = np.arange(offset - f_sweep_half, offset + f_sweep_half, df_sweep)
+            f, resp = self.fast_eta_scan(band, subband, f_sweep, 2, tone_power=12)
+            f_slow, resp_slow, eta_slow = self.eta_estimator(band, subband, f, resp)
 
         # Get eta parameters
         latency = (np.unwrap(np.angle(resp))[-1] -
@@ -2147,8 +2151,7 @@ class SmurfTuneMixin(SmurfBase):
         return self._get_eta_scan_result_from_key(band, 'offset')
 
 
-    def eta_estimator(self, band, freq, tone_power=12, f_sweep_half=.3,
-                      df_sweep=.002, delta_freq=.01,
+    def eta_estimator(self, band, subband, freq, resp, delta_freq=.01,
                       lock_max_derivative=False):
         """
         Estimates eta parameters using the slow eta_scan.
@@ -2157,19 +2160,14 @@ class SmurfTuneMixin(SmurfBase):
         ----
         band : int
             The band.
-        freq : float
-            The frequency to scan.
-        tone_power : int, optional, default 12
-            The tone amplitude.
-        f_sweep_half : float, optional, default 0.3
-            The frequency to sweep.
-        df_sweep : float, optional, default 0.002
-            The frequency step size.
+        subband : int
+            The subband.
+        freq : float array
+            Frequencies of scan.
+        resp : float array
+            Response from scan.
         """
-        subband, offset = self.freq_to_subband(band, freq)
-        f_sweep = np.arange(offset-f_sweep_half, offset+f_sweep_half, df_sweep)
-        f, resp = self.fast_eta_scan(band, subband, f_sweep, 2, tone_power)
-        # resp = rr + 1.j*ii
+        f_sweep = freq
 
         a_resp = np.abs(resp)
         if lock_max_derivative:
@@ -2516,7 +2514,7 @@ class SmurfTuneMixin(SmurfBase):
         if reset_rate_khz is None:
             reset_rate_khz = self._reset_rate_khz
         if lms_gain is None:
-            lms_gain = 9 - np.ceil(np.log2(100/reset_rate_khz))
+            lms_gain = int(9 - np.ceil(np.log2(100/reset_rate_khz)))
             if lms_gain > 7:
                 lms_gain = 7
         else:
@@ -3572,7 +3570,7 @@ class SmurfTuneMixin(SmurfBase):
                 plt.close()
 
     @set_action()
-    def full_band_ampl_sweep(self, band, subband, tone_power, n_read, n_step=121):
+    def full_band_ampl_sweep(self, band, subband, tone_power, n_read, n_step=31):
         """sweep a full band in amplitude, for finding frequencies
 
         Args
@@ -3595,23 +3593,58 @@ class SmurfTuneMixin(SmurfBase):
         """
         digitizer_freq = self.get_digitizer_frequency_mhz(band)  # in MHz
         n_subbands = self.get_number_sub_bands(band)
+        if n_subbands == 128:
+            n_step = 121
+
+        n_channels = self.get_number_channels(band)
 
         scan_freq = (digitizer_freq/n_subbands/2)*np.linspace(-1,1,n_step)
 
-        resp = np.zeros((n_subbands, np.shape(scan_freq)[0]), dtype=complex)
-        freq = np.zeros((n_subbands, np.shape(scan_freq)[0]))
+        channel_order = self.get_channel_order(band)
+
+        channels_per_subband = int(n_channels / n_subbands)
+        first_channel_per_subband = channel_order[0::channels_per_subband]
+        subchan = first_channel_per_subband[subband]
+
+        resp_scan = np.zeros((n_channels, n_step), dtype=complex)
+        freq_scan = np.zeros((n_channels, n_step))
+
+        resp = np.zeros((n_channels, n_step), dtype=complex)
+        freq = np.zeros((n_channels, n_step))
+
 
         subband_nos, subband_centers = self.get_subband_centers(band)
 
         self.log(f'Working on band {band}')
         for sb in subband:
-            self.log(f'Sweeping subband no: {sb}')
-            f, r = self.fast_eta_scan(band, sb, scan_freq, n_read,
-                                      tone_power)
-            resp[sb,:] = r
-            freq[sb,:] = f
+            subchan          = first_channel_per_subband[sb]
+            freq_scan[subchan, :] = scan_freq
+        #
+        self.set_eta_scan_freq(band, freq_scan.flatten())
+        self.set_eta_scan_amplitude(band, tone_power)
+        self.set_run_serial_find_freq(band, 1)
+
+        I = self.get_eta_scan_results_real(band, count=n_step*n_channels)
+        I = np.asarray(I)
+        idx = np.where( I > 2**23 )
+        I[idx] = I[idx] - 2**24
+        I /= 2**23
+        I = I.reshape(n_channels, n_step)
+
+        Q = self.get_eta_scan_results_imag(band, count=n_step*n_channels)
+        Q = np.asarray(Q)
+        idx = np.where( Q > 2**23 )
+        Q[idx] = Q[idx] - 2**24
+        Q /= 2**23
+        Q = Q.reshape(n_channels, n_step)
+
+        resp_scan = I + 1j*Q
+
+        for sb in subband:
+            subchan    = first_channel_per_subband[sb]
             freq[sb,:] = scan_freq + \
                 subband_centers[subband_nos.index(sb)]
+            resp[sb, :] = resp_scan[subchan, :]
 
         return freq, resp
 
@@ -3834,6 +3867,7 @@ class SmurfTuneMixin(SmurfBase):
             input_res = self.freq_resp[band]['find_freq']['resonance']
 
         n_subbands = self.get_number_sub_bands(band)
+        n_channels = self.get_number_channels(band)
         digitizer_frequency_mhz = self.get_digitizer_frequency_mhz(band)
         subband_half_width = digitizer_frequency_mhz/\
             n_subbands
@@ -3848,17 +3882,14 @@ class SmurfTuneMixin(SmurfBase):
         n_res = len(input_res)
         for i, f in enumerate(input_res):
             self.log(f'freq {f:5.4f} - {i+1} of {n_res}')
-            freq, resp, eta = self.eta_estimator(band, f, tone_power,
-                f_sweep_half=sweep_width, df_sweep=df_sweep,
-                delta_freq=delta_freq, lock_max_derivative=lock_max_derivative)
-            eta_phase_deg = np.angle(eta)*180/np.pi
-            eta_mag = np.abs(eta)
-            eta_scaled = eta_mag / subband_half_width
-
-            abs_resp = np.abs(resp)
-            idx = np.ravel(np.where(abs_resp == np.min(abs_resp)))[0]
-
-            f_min = freq[idx]
+            # fillers for now
+            f_min = f
+            freq  = None
+            resp  = None
+            eta   = 1
+            eta_scaled = 1
+            eta_phase_deg = 0
+            eta_mag = 1
 
             resonances[i] = {
                 'freq' : f_min,
@@ -3871,6 +3902,64 @@ class SmurfTuneMixin(SmurfBase):
                 'Q' : 1,  # This is also also BS
                 'freq_eta_scan' : freq,
                 'resp_eta_scan' : resp
+            }
+
+        subbands, channels, offsets = self.assign_channels(input_res, band=band,
+            as_offset=False, min_offset=min_offset,
+            new_master_assignment=new_master_assignment)
+
+        f_sweep = np.arange(-sweep_width, sweep_width, df_sweep)
+        n_step  = len(f_sweep)
+
+        resp = np.zeros((n_channels, n_step), dtype=complex)
+        freq = np.zeros((n_channels, n_step))
+
+        for i, ch in enumerate(channels):
+            freq[ch, :] = offsets[i] + f_sweep
+
+        self.set_eta_scan_freq(band, freq.flatten())
+        self.set_eta_scan_amplitude(band, tone_power)
+        self.set_run_serial_find_freq(band, 1)
+
+        I = self.get_eta_scan_results_real(band, count=n_step*n_channels)
+        I = np.asarray(I)
+        idx = np.where( I > 2**23 )
+        I[idx] = I[idx] - 2**24
+        I /= 2**23
+        I = I.reshape(n_channels, n_step)
+
+        Q = self.get_eta_scan_results_imag(band, count=n_step*n_channels)
+        Q = np.asarray(Q)
+        idx = np.where( Q > 2**23 )
+        Q[idx] = Q[idx] - 2**24
+        Q /= 2**23
+        Q = Q.reshape(n_channels, n_step)
+
+        resp = I + 1j*Q
+
+        for i, channel in enumerate(channels):
+            freq_s, resp_s, eta = self.eta_estimator(band, subbands[i], freq[channel, :], resp[channel, :],
+                delta_freq=delta_freq, lock_max_derivative=lock_max_derivative)
+            eta_phase_deg = np.angle(eta)*180/np.pi
+            eta_mag = np.abs(eta)
+            eta_scaled = eta_mag / subband_half_width
+
+            abs_resp = np.abs(resp_s)
+            idx = np.ravel(np.where(abs_resp == np.min(abs_resp)))[0]
+
+            f_min = freq_s[idx]
+
+            resonances[i] = {
+                'freq' : f_min,
+                'eta' : eta,
+                'eta_scaled' : eta_scaled,
+                'eta_phase' : eta_phase_deg,
+                'r2' : 1,  # This is BS
+                'eta_mag' : eta_mag,
+                'latency': 0,  # This is also BS
+                'Q' : 1,  # This is also also BS
+                'freq_eta_scan' : freq_s,
+                'resp_eta_scan' : resp_s
             }
 
 
