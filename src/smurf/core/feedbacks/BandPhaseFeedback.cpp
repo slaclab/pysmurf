@@ -348,7 +348,7 @@ void scf::BandPhaseFeedback::acceptFrame(ris::FramePtr frame)
         ++frameCnt;
 
         // Construct a (smart) pointer to the SMuRF packet in the input frame (Read-only)
-        SmurfPacketZeroCopyROPtr sp { SmurfPacketZeroCopyRO::create(frame) };
+        SmurfPacketROPtr sp { SmurfPacketRO::create(frame) };
 
         // Read the number of channel from the header
         numCh = sp->getHeader()->getNumberChannels();
