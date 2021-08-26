@@ -2270,8 +2270,8 @@ class SmurfUtilMixin(SmurfBase):
         ----
         band : int
             The band the channel is in.
-        channel : int or None, optional, default none
-            The channel number.
+        channel : int, None, or array, optional, default None
+            If None, will return the channel freqs of all enabled channels
 
         Returns
         -------
@@ -2283,29 +2283,15 @@ class SmurfUtilMixin(SmurfBase):
         if band is None and channel is None:
             return None
 
-        # Get subband centers
-        _, sbc = self.get_subband_centers(band, as_offset=False, yml=yml)
+        band_center_mhz = self.get_band_center_mhz(band)
+        subband_offset = self.get_tone_frequency_offset_mhz(band)
+        channel_offset = self.get_center_frequency_array(band)
+        channel_freqs = band_center_mhz + subband_offset + channel_offset
 
-        # Convenience function for turning band, channel into freq
-        def _get_cf(band, ch):
-            subband = self.get_subband_from_channel(band, channel, yml=yml)
-            offset = float(self.get_center_frequency_mhz_channel(band, channel,
-                                                                 yml=yml))
-            return sbc[subband] + offset
-
-        # If channel is requested
-        if channel is not None:
-            return _get_cf(band, channel)
-
-        # Get all channels that are on
+        if channel is None:
+            return channel_freqs[self.which_on(band)]
         else:
-            channels = self.which_on(band)
-            cfs = np.zeros(len(channels))
-            for i, channel in enumerate(channels):
-                cfs[i] = _get_cf(band, channel)
-
-            return cfs
-
+            return channel_freqs[channel]
 
     def get_channel_order(self, band=None, channel_orderfile=None):
         """ produces order of channels from a user-supplied input file
@@ -3336,13 +3322,14 @@ class SmurfUtilMixin(SmurfBase):
             An array with frequencies associated with the mask file.
         """
         freqs = np.zeros(len(mask), dtype=float)
-        channels_per_band = self.get_number_channels()
+        bands = mask // 512
+        chans = mask % 512
 
-        # iterate over mask channels and find their freq
-        for i, mask_ch in enumerate(mask):
-            b = mask_ch // channels_per_band
-            ch = mask_ch % channels_per_band
-            freqs[i] = self.channel_to_freq(b, ch)
+        for b in range(8):
+            m = bands == b
+            if not m.any():
+                continue
+            freqs[m] = self.channel_to_freq(b, chans[m])
 
         return freqs
 
