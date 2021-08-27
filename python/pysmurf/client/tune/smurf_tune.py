@@ -566,12 +566,12 @@ class SmurfTuneMixin(SmurfBase):
                             self.log(f'Eta plot for channel {channel}')
                     else:
                         self.log(f'Eta plot {k+1} of {n_keys}')
-                        self.plot_eta_fit(r['freq_eta_scan'], r['resp_eta_scan'],
-                            eta=r['eta'], eta_mag=r['eta_mag'],
-                            eta_phase_deg=r['eta_phase'], band=band, res_num=k,
-                            timestamp=timestamp, save_plot=save_plot,
-                            show_plot=show_plot, peak_freq=r['freq'],
-                            channel=channel, plotname_append=plotname_append)
+                    self.plot_eta_fit(r['freq_eta_scan'], r['resp_eta_scan'],
+                        eta=r['eta'], eta_mag=r['eta_mag'],
+                        eta_phase_deg=r['eta_phase'], band=band, res_num=k,
+                        timestamp=timestamp, save_plot=save_plot,
+                        show_plot=show_plot, peak_freq=r['freq'],
+                        channel=channel, plotname_append=plotname_append)
 
     @set_action()
     def full_band_resp(self, band, n_scan=1, nsamp=2**19, make_plot=False,
