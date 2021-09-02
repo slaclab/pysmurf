@@ -14,6 +14,7 @@ RUN pip3 install \
     scipy==1.5.2 \
     pandas==1.1.0 \
     PyYAML==5.3.1 \
+    pillow==6.2.2 \
     seaborn==0.11.2 \
     jupyter==1.0.0 \
     pytest==6.0.1 \
