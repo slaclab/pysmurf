@@ -845,7 +845,9 @@ class SmurfUtilMixin(SmurfBase):
     def stream_data_on(self, write_config=False, data_filename=None,
                        downsample_factor=None, write_log=True,
                        update_payload_size=True, reset_filter=True,
-                       reset_unwrapper=True, make_freq_mask=True):
+                       reset_unwrapper=True, make_freq_mask=True,
+                       channel_mask=None, make_datafile=True,
+                       filter_wait_time=0.1):
         """
         Turns on streaming data.
 
@@ -873,6 +875,15 @@ class SmurfUtilMixin(SmurfBase):
             Whether to reset the unwrapper before taking data.
         make_freq_mask : bool, optional, default True
             Whether to write a text file with resonator frequencies.
+        channel_mask : list or None, optional, default None
+            Channel mask to set before streamig data. This should be an array
+            of absolute smurf channels between 0 and
+            ``nbands * chans_per_band``. If None will create the channel mask
+            containing all channels with a non-zero tone amplitude.
+        make_datafile : bool, optional, default True
+            Whether to create a datafile.
+        filter_wait_time : float, optional, default 0.1
+            Time in seconds to wait after filter reset.
 
         Returns
         -------
@@ -926,6 +937,21 @@ class SmurfUtilMixin(SmurfBase):
                          f"{flux_ramp_ac_dc_relay_status} " +
                          "- NOT A VALID STATE.", self.LOG_ERROR)
 
+            if channel_mask is None:
+                # Creates a channel mask with all channels that have enabled
+                # tones
+                smurf_chans = {}
+                for b in bands:
+                    smurf_chans[b] = self.which_on(b)
+
+                channel_mask = self.make_channel_mask(bands, smurf_chans)
+                self.set_channel_mask(channel_mask)
+            else:
+                channel_mask = np.atleast_1d(channel_mask)
+                self.set_channel_mask(channel_mask)
+
+            time.sleep(0.5)
+
             # start streaming before opening file
             # to avoid transient filter step
             self.set_stream_enable(1, write_log=False, wait_done=True)
@@ -935,15 +961,15 @@ class SmurfUtilMixin(SmurfBase):
             if reset_filter:
                 self.set_filter_reset(write_log=write_log)
             if reset_unwrapper or reset_filter:
-                time.sleep(.1)
-
+                time.sleep(filter_wait_time)
 
             # Make the data file
             timestamp = self.get_timestamp()
             if data_filename is None:
                 data_filename = os.path.join(self.output_dir, timestamp+'.dat')
 
-            self.set_data_file_name(data_filename)
+            if make_datafile:
+                self.set_data_file_name(data_filename)
 
             # Optionally write PyRogue configuration
             if write_config:
@@ -959,33 +985,27 @@ class SmurfUtilMixin(SmurfBase):
                 self.log(f'Writing to file : {data_filename}',
                          self.LOG_USER)
 
-            # Dictionary with all channels on in each band
-            smurf_chans = {}
-            for b in bands:
-                smurf_chans[b] = self.which_on(b)
-
-            output_mask = self.make_channel_mask(bands, smurf_chans)
-            self.set_channel_mask(output_mask)
 
             # Save mask file as text file. Eventually this will be in the
             # raw data output
             mask_fname = os.path.join(data_filename.replace('.dat',
                 '_mask.txt'))
-            np.savetxt(mask_fname, output_mask, fmt='%i')
+            np.savetxt(mask_fname, channel_mask, fmt='%i')
             self.pub.register_file(mask_fname, 'mask')
             self.log(mask_fname)
 
             if make_freq_mask:
                 if write_log:
                     self.log("Writing frequency mask.")
-                freq_mask = self.make_freq_mask(output_mask)
+                freq_mask = self.make_freq_mask(channel_mask)
                 np.savetxt(os.path.join(data_filename.replace('.dat',
                     '_freq.txt')), freq_mask, fmt='%4.4f')
                 self.pub.register_file(
                     os.path.join(data_filename.replace('.dat', '_freq.txt')),
                     'mask', format='txt')
 
-            self.open_data_file(write_log=write_log)
+            if make_datafile:
+                self.open_data_file(write_log=write_log)
 
             return data_filename
 
