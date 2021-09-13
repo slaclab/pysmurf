@@ -36,11 +36,13 @@ class SmurfChannelMapper(pyrogue.Device):
 
         # Add the number of enabled channels  variable
         self.add(pyrogue.LocalVariable(
+            # NumChannels is defined here and accessible from pysmurf.
             name='NumChannels',
             description='Number enabled channels',
             mode='RO',
             value=0,
             pollInterval=1,
+            # getNumCh is defined in SmurfProcessor.cpp.
             localGet=self.device.getNumCh))
 
         # Add "payloadSize" variable
@@ -104,40 +106,42 @@ class Downsampler(pyrogue.Device):
             localSet=lambda value: self.device.setDownsamplerDisable(value),
             localGet=self.device.getDownsamplerDisable))
 
-        # Add the downsampler counter variable
-        self.add(pyrogue.LocalVariable(
-            name='FrameCnt',
-            description='Output frame counter',
-            mode='RO',
-            value=0,
-            typeStr='UInt64',
-            pollInterval=1,
-            localGet=self.device.getDownsamplerCnt))
-
-        # Add the downsampler factor variable
-        self.add(pyrogue.LocalVariable(
-            name='Factor',
-            description='Downsampling factor (Internal mode only)',
-            mode='RW',
-            value=20,
-            localSet=lambda value : self.device.setDownsamplerFactor(value),
-            localGet=self.device.getDownsamplerFactor))
-
         # Add the trigger mode variable
         self.add(pyrogue.LocalVariable(
-            name='TriggerMode',
-            description='Trigger mode',
+            name='DownsamplerMode',
+            description='Mode for the downsampler.',
             mode='RW',
-            enum={0:'Internal', 1:'Timing (BICEP)'},
+            enum={0:'Internal', 1:'External'},
             value=0,
             localSet=lambda value : self.device.setDownsamplerMode(value),
             localGet=self.device.getDownsamplerMode))
 
-        # Command to clear all the counters
-        self.add(pyrogue.LocalCommand(
-            name='clearCnt',
-            description='Clear all counters',
-            function=self.device.clearDownsamplerCnt))
+        self.add(pyrogue.LocalVariable(
+            name='InternalFactor',
+            description='When on internal mode, of incoming frames to ignore.',
+            mode='RW',
+            value=20,
+            localSet=lambda value : self.device.setDownsamplerInternalFactor(value),
+            localGet=self.device.getDownsamplerInternalFactor))
+
+        self.add(pyrogue.LocalVariable(
+            name='ExternalBitmask',
+            description='Mask for the external timing bits, size 18. First 10 are fixed rates from 1 to 15 kHz, last 18 are custom rates. 0 means never trigger.',
+            mode='RW',
+            value=0,
+            localSet=lambda value : self.device.setDownsamplerExternalBitmask(value),
+            localGet=self.device.getDownsamplerExternalBitmask))
+
+        self.add(pyrogue.LocalVariable(
+            name='outgoingCount',
+            description='Outgoing number of frames from the downsampler.',
+            mode='RO',
+            value=0,
+            typeStr='UInt64',
+            pollInterval=1,
+            localGet=self.device.getDownsamplerOutgoingCount))
+
+
 
 class GeneralAnalogFilter(pyrogue.Device):
     """
@@ -245,9 +249,13 @@ class SmurfProcessor(pyrogue.Device):
         self.smurf_frame_stats = pysmurf.core.counters.FrameStatistics(name="FrameRxStats")
         self.add(self.smurf_frame_stats)
 
-        # Add the SmurfProcessor C++ device. This module implements: channel mapping,
-        # data unwrapping, filter, and downsampling. Python wrapper for these functions
-        # are added here to give the same tree structure as the modular version.
+        # Add the SmurfProcessor C++ object. This is the .so file
+        # compiled by make, and Python finds it via PYTHONPATH. This
+        # module implements: channel mapping, data unwrapping, filter,
+        # and downsampling. Python wrapper for these functions are
+        # added here to give the same tree structure as the modular
+        # version. The functions are defined in setup_python in
+        # SmurfProcessor.cpp.
         self.smurf_processor = smurf.core.processors.SmurfProcessor()
 
         self.smurf_mapper = SmurfChannelMapper(name="ChannelMapper", device=self.smurf_processor)

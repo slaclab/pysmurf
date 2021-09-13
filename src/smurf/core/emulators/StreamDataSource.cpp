@@ -156,7 +156,7 @@ void sce::StreamDataSource::runThread() {
             header->setCounter0(0);                    // Set 32 bit counter since last 1Hz marker
             header->setCounter1(0);                    // Set 32 bit counter since last external input
             header->setCounter2(0);                    // Set 64 bit timestamp
-            header->setAveragingResetBits(0);          // Set up to 32 bits of average reset from timing system
+            header->setTimingBits(0);                  // Set 32 bits that represent the timing markers
             header->setFrameCounter(frameCounter_);    // Set locally genreate frame counter 32 bit
             header->setTESRelaySetting(0);             // Set TES and flux ramp relays, 17bits in use now
             header->setExternalTimeClock(0);           // Set Syncword from mce for mce based systems (40 bit including header)

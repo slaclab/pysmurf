@@ -90,11 +90,13 @@ namespace smurf
                 const bool          getDownsamplerDisable() const;        //   will just pass through to the next slave
                 void                setDownsamplerMode(std::size_t mode); // Set the trigger mode.
                 const std::size_t   getDownsamplerMode() const;           // Get the trigger mode.
-                void                setDownsamplerFactor(std::size_t f);  // Set the downsampling factor
-                const std::size_t   getDownsamplerFactor() const;         // Get the downsampling factor
-                void                resetDownsampler();                   // Reset the downsampler.
-                const std::size_t   getDownsamplerCnt() const;            // Get the output frame counter
-                void                clearDownsamplerCnt();                // Clear the output frame counter
+                void                setDownsamplerInternalFactor(std::size_t f);  // Set the downsampling factor
+                const std::size_t   getDownsamplerInternalFactor() const;         // Get the downsampling factor
+	        void                setDownsamplerInternalCount(std::size_t c);      // set the counter for internal downsampling
+	        const std::size_t   getDownsamplerInternalCount() const;
+                void                setDownsamplerExternalBitmask(std::size_t m); // Set external timing marker bitmask
+                const std::size_t   getDownsamplerExternalBitmask() const;        // Get external timing marker bitmask
+	        const std::size_t   getDownsamplerOutgoingCount() const;       // Get the output frame counter
 
                 // Accept new frames
                 void acceptFrame(ris::FramePtr frame);
@@ -115,10 +117,9 @@ namespace smurf
                 const fw_t      lowerUnwrap = -0x6000;          // If we are below this and jump, assume a wrap
                 const unwrap_t   stepUnwrap = 0x10000;          // Wrap counter steps
 
-                // Downsampler related constants
-                const std::size_t downsamplerModeInternal    = 0;   // Internal trigger mode
-                const std::size_t downsamplerModeTimingBicep = 1;   // Timing (BICEP) trigger mode
-                const std::size_t downsamplerModeMax         = 1;   // Max. index for the trigger mode
+                // Downsampler constants
+                const std::size_t downsamplerModeInternal     = 0;   // Downsample given internal downsampling factor
+                const std::size_t downsamplerModeExternal     = 1;   // Downsample given external timing marker bits
 
                 //** VARIABLES **//
                 // Channel mapping variables
@@ -146,20 +147,20 @@ namespace smurf
                 std::mutex               mutFilter;             // Mutex
                 // Downsampler variables
                 bool                     disableDownsampler;    // Disable flag for the downsampler
-                std::size_t              downsamplerMode;       // Set the downsampler trigger mode (0: internal, 1: Timing (BICEP))
-                std::size_t              factor;                // Downsample factor
-                std::size_t              sampleCnt;             // Input frame counter
-                std::size_t              downsamplerCnt;        // Output frame counter
-                std::size_t              prevExtTimeClk;        // Previous external timing clock word
+                std::size_t              downsamplerMode;       // Set the downsampler mode (0: internal, 1: external)
+                std::size_t              factor;                // When internal, number of frames to ignore before sending.
+	        std::size_t              downsamplerInternalCount; // When internal, number of frames that count up to factor.
+                std::size_t              externalBitmask;       // When external, 28-bit bitmask for external timing markers
+	        std::size_t              downsamplerOutgoingCount;   // When both external and internal, number of frames sent out the downsampler
                 // Transmit thread
-                std::vector<uint8_t>     headerCopy;            // A copy of header to be send
+                std::vector<uint8_t>     headerCopy;            // 128-byte header to construct
                 bool                     txDataReady;           // Flag to indicate new data is ready t be sent
                 std::atomic<bool>        runTxThread;           // Flag used to stop the thread
                 std::condition_variable  txCV;                  // Variable to notify the thread new data is ready
                 std::mutex               txMutex;               // Mutex used for accessing the conditional variable
                 std::mutex               outDataMutex;          // Mutex used to access the data in the transition method
                 std::thread              pktTransmitterThread;  // Thread to send the data to the next slave
-
+	      
                 //** METHOD **//
                 void                    pktTansmitter();        // Send frame to the next slave
 
