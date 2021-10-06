@@ -108,7 +108,7 @@ jobs:
       - name: Build documentation
         run: |
           cd docs
-          make html SPHINXOPTS="-W --keep-going"
+          make html
 
   # Server tests
   test-server:
