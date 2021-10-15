@@ -4283,8 +4283,6 @@ class SmurfUtilMixin(SmurfBase):
         self.set_dac_axil_addr(0, dac_positive)
         self.set_dac_axil_addr(1, dac_negative)
 
-        # Enable waveform generation (3=on both DACs)
-        self.set_rtm_arb_waveform_enable(3)
 
         # Must enable the DACs (if not enabled already)
         if do_enable:
@@ -4295,6 +4293,9 @@ class SmurfUtilMixin(SmurfBase):
         # they combine coherently
         self.set_rtm_arb_waveform_lut_table(0, waveform)
         self.set_rtm_arb_waveform_lut_table(1, -waveform)
+
+        # Enable waveform generation (3=on both DACs)
+        self.set_rtm_arb_waveform_enable(3)
 
         # Continous mode to play the waveform continuously
         if continuous:
@@ -4321,8 +4322,9 @@ class SmurfUtilMixin(SmurfBase):
         # Enable waveform generation (3=on both DACs)
         self.set_rtm_arb_waveform_enable(0)
 
-        # Zero TES biases on this bias group
-        self.set_tes_bias_bipolar(bias_group, 0)
+        # Resets TES bias to original value
+        self.set_tes_bias_bipolar(bias_group,
+                                  self.get_tes_bias_bipolar(bias_group))
 
     @set_action()
     def get_sample_frequency(self):
