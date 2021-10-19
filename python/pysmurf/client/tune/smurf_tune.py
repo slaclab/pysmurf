@@ -566,12 +566,12 @@ class SmurfTuneMixin(SmurfBase):
                             self.log(f'Eta plot for channel {channel}')
                     else:
                         self.log(f'Eta plot {k+1} of {n_keys}')
-                        self.plot_eta_fit(r['freq_eta_scan'], r['resp_eta_scan'],
-                            eta=r['eta'], eta_mag=r['eta_mag'],
-                            eta_phase_deg=r['eta_phase'], band=band, res_num=k,
-                            timestamp=timestamp, save_plot=save_plot,
-                            show_plot=show_plot, peak_freq=r['freq'],
-                            channel=channel, plotname_append=plotname_append)
+                    self.plot_eta_fit(r['freq_eta_scan'], r['resp_eta_scan'],
+                        eta=r['eta'], eta_mag=r['eta_mag'],
+                        eta_phase_deg=r['eta_phase'], band=band, res_num=k,
+                        timestamp=timestamp, save_plot=save_plot,
+                        show_plot=show_plot, peak_freq=r['freq'],
+                        channel=channel, plotname_append=plotname_append)
 
     @set_action()
     def full_band_resp(self, band, n_scan=1, nsamp=2**19, make_plot=False,
@@ -704,11 +704,11 @@ class SmurfTuneMixin(SmurfBase):
             # Take PSDs of ADC, DAC, and cross
             fs = self.get_digitizer_frequency_mhz() * 1.0E6
             f, p_dac = signal.welch(dac, fs=fs, nperseg=nsamp/2,
-                                    return_onesided=True)
+                                    return_onesided=False)
             f, p_adc = signal.welch(adc, fs=fs, nperseg=nsamp/2,
-                                    return_onesided=True)
+                                    return_onesided=False)
             f, p_cross = signal.csd(dac, adc, fs=fs, nperseg=nsamp/2,
-                                    return_onesided=True)
+                                    return_onesided=False)
 
             # Sort frequencies
             idx = np.argsort(f)
@@ -801,7 +801,7 @@ class SmurfTuneMixin(SmurfBase):
             band=None, subband=None, make_subband_plot=False,
             subband_plot_with_slow=False, timestamp=None, pad=50, min_gap=100,
             plot_title=None, grad_kernel_width=8, highlight_phase_slip=True,
-            amp_ylim=None):
+            amp_ylim=None, flip_phase=False, plot_phase=False):
         """ Find the peaks within a given subband.
 
         Args
@@ -816,6 +816,11 @@ class SmurfTuneMixin(SmurfBase):
             Number of samples to window together for rolling med.
         grad_cut : float, optional, default 0.5
             The value of the gradient of phase to look for resonances.
+        flip_phase : bool, optional, default False
+            Whether to flip the sign of phase before
+            evaluating the gradient cut.
+        plot_phase : bool, optional, default False
+            Whether to generate a plot showing just the phase information
         amp_cut : float, optional, default 0.25
             The fractional distance from the median value to decide
             whether there is a resonance.
@@ -868,6 +873,8 @@ class SmurfTuneMixin(SmurfBase):
         x = np.arange(len(angle))
         p1 = np.poly1d(np.polyfit(x, angle, 1))
         angle -= p1(x)
+        if flip_phase:
+            angle *= -1
         grad = np.convolve(angle, np.repeat([1,-1], grad_kernel_width),
             mode='same')
 
@@ -895,6 +902,15 @@ class SmurfTuneMixin(SmurfBase):
                 idx += s
                 if 1-amp[idx]/med_amp[idx] > amp_cut:
                     peak = np.append(peak, idx)
+
+        # Plot the phase information
+        if plot_phase:
+            plt.figure()
+            plt.plot(freq, angle)
+            if show_plot:
+                plt.show()
+            else:
+                plt.close()
 
         # Make summary plot
         if make_plot:
@@ -929,9 +945,9 @@ class SmurfTuneMixin(SmurfBase):
             if highlight_phase_slip:
                 for s, e in zip(starts, ends):
                     ax[0].axvspan(plot_freq_mhz[s], plot_freq_mhz[e], color='k',
-                        alpha=.1)
+                                  alpha=.25)
                     ax[1].axvspan(plot_freq_mhz[s], plot_freq_mhz[e], color='k',
-                        alpha=.1)
+                                  alpha=.25)
 
             # set ylim
             if amp_ylim is not None:
@@ -1571,6 +1587,7 @@ class SmurfTuneMixin(SmurfBase):
             old_file=self.channel_assignment_files[f'band_{band}']
             self.log(f'Old master assignment file: {old_file}')
         self.channel_assignment_files[f'band_{band}'] = filename
+        self.freq_resp[band]['channel_assignment'] = filename
         self.log(f'New master assignment file: {filename}')
 
     @set_action()
@@ -3389,6 +3406,7 @@ class SmurfTuneMixin(SmurfBase):
             tone_power=None, n_read=2, make_plot=False, save_plot=True,
             plotname_append='', window=50, rolling_med=True,
             make_subband_plot=False, show_plot=False, grad_cut=.05,
+            flip_phase=False, grad_kernel_width=8,
             amp_cut=.25, pad=2, min_gap=2):
         '''
         Finds the resonances in a band (and specified subbands)
@@ -3424,6 +3442,9 @@ class SmurfTuneMixin(SmurfBase):
         grad_cut : float, optional, default 0.05
             The value of the gradient of phase to look for
             resonances.
+        flip_phase : bool, optional, default False
+            Whether to flip the sign of phase before
+            evaluating the gradient cut.
         amp_cut : float, optional, default 0.25
             The fractional distance from the median value to decide
             whether there is a resonance.
@@ -3489,6 +3510,7 @@ class SmurfTuneMixin(SmurfBase):
             make_plot=make_plot, plotname_append=plotname_append, band=band,
             rolling_med=rolling_med, window=window,
             make_subband_plot=make_subband_plot, grad_cut=grad_cut,
+            flip_phase=flip_phase, grad_kernel_width=grad_kernel_width,
             amp_cut=amp_cut, pad=pad, min_gap=min_gap)
         self.freq_resp[band]['find_freq']['resonance'] = res_freq
 
@@ -3651,9 +3673,11 @@ class SmurfTuneMixin(SmurfBase):
     @set_action()
     def find_all_peak(self, freq, resp, subband=None, rolling_med=False,
             window=500, grad_cut=0.05, amp_cut=0.25, freq_min=-2.5E8,
-            freq_max=2.5E8, make_plot=False, save_plot=True, plotname_append='',
+            flip_phase=False, grad_kernel_width=8,
+            freq_max=2.5E8, make_plot=False, save_plot=True,
+            show_plot=False, plotname_append='',
             band=None, make_subband_plot=False, subband_plot_with_slow=False,
-            timestamp=None, pad=2, min_gap=2):
+            timestamp=None, pad=2, min_gap=2, plot_phase=False):
         """
         find the peaks within each subband requested from a fullbandamplsweep
 
@@ -3675,6 +3699,11 @@ class SmurfTuneMixin(SmurfBase):
         amp_cut : float, optional, default 0.25
             The fractional distance from the median value to decide
             whether there is a resonance.
+        flip_phase : bool, optional, default False
+            Whether to flip the sign of phase before
+            evaluating the gradient cut.
+        plot_phase : bool, optional, default False
+            Whether to generate a plot showing just the phase information
         freq_min : float, optional, default -2.5e8
             The minimum frequency relative to the center of the band
             to look for resonances. Units of Hz.
@@ -3685,6 +3714,8 @@ class SmurfTuneMixin(SmurfBase):
             Whether to make a plot.
         save_plot : bool, optional, default True
             Whether to save the plot to self.plot_dir.
+        show_plot : bool, optional, default False
+            Whether to show the plot to screen.
         plotname_append : str, optional, default ''
             Appended to the default plot filename.
         band : int or None, optional, default None
@@ -3727,7 +3758,8 @@ class SmurfTuneMixin(SmurfBase):
             plotname_append=plotname_append, band=band,
             make_subband_plot=make_subband_plot,
             subband_plot_with_slow=subband_plot_with_slow, timestamp=timestamp,
-            pad=pad, min_gap=min_gap)
+            pad=pad, min_gap=min_gap, show_plot=show_plot, plot_phase=plot_phase,
+            flip_phase=flip_phase)
 
         return peaks
 
@@ -4123,6 +4155,7 @@ class SmurfTuneMixin(SmurfBase):
         self.pub.register_file(savedir, 'tune', format='npy')
 
         self.tune_file = savedir+'.npy'
+        self.set_tune_file_path(self.tune_file)
 
         return savedir + ".npy"
 
@@ -4164,6 +4197,8 @@ class SmurfTuneMixin(SmurfBase):
                 # differently to allow loading different tunes for
                 # different bands, etc.
                 self.tune_file = filename
+                #update the Rogue Tree
+                self.set_tune_file_path(filename)
             else:
                 # Load only the tune data for the requested band(s).
                 band=np.ravel(np.array(band))

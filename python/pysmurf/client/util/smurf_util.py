@@ -145,6 +145,7 @@ class SmurfUtilMixin(SmurfBase):
         self.set_streamdatawriter_close(True)
 
         self.log('Done taking data', self.LOG_USER)
+        self.pub.register_file(data_filename, 'debug', format='dat')
 
         if rf_iq:
             self.set_rf_iq_stream_enable(band, 0)
@@ -231,16 +232,6 @@ class SmurfUtilMixin(SmurfBase):
 
         Returns
         -------
-        refPhaseDelay : int
-           Estimated value for the `refPhaseDelay` firmware register
-           for this 500MHz band.  For more details on the
-           `refPhaseDelay` register, see
-           :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.set_ref_phase_delay`.
-        refPhaseDelayFine : int
-           Estimated value for the `refPhaseDelayFine` firmware
-           register for this 500MHz band.  For more details on the
-           `refPhaseDelayFine` register, see
-           :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.set_ref_phase_delay_fine`.
         processing_delay_us : float
            Estimated processing phase delay, in microseconds.
         dsp_corr_delay_us : float
@@ -249,11 +240,7 @@ class SmurfUtilMixin(SmurfBase):
 
         """
 
-        # For some reason, pyrogue flips out if you try to set refPhaseDelay
-        # to zero in 071150b0.  This allows an offset ; the offset just gets
-        # subtracted off the delay measurement with DSP after it's made.
-        refPhaseDelay0=1
-        refPhaseDelayFine0=0
+        self.set_band_delay_us(band, 0)
 
         uc_att0 = self.get_att_uc(band)
         dc_att0 = self.get_att_dc(band)
@@ -268,7 +255,6 @@ class SmurfUtilMixin(SmurfBase):
         # save time)
         n_subbands = self.get_number_sub_bands(band)
         digitizer_frequency_mhz = self.get_digitizer_frequency_mhz(band)
-        channel_frequency_mhz = self.get_channel_frequency_mhz(band)
         subband_half_width_mhz = digitizer_frequency_mhz/\
             n_subbands
         subbands,subband_centers=self.get_subband_centers(band)
@@ -316,23 +302,27 @@ class SmurfUtilMixin(SmurfBase):
         #### done measuring cable delay
 
         #### start measuring dsp delay (cable+processing)
-        # Zero refPhaseDelay and refPhaseDelayFine to get uncorrected phase
-        # delay.
-        # max is 7
-        self.set_ref_phase_delay(band,refPhaseDelay0)
-        # max is 255
-        self.set_ref_phase_delay_fine(band,refPhaseDelayFine0)
+## FIXME -- should be able to scan with "0" delay, not working
+        self.set_band_delay_us(band, 1)
 
         self.log('Running find_freq')
+        #freq_dsp,resp_dsp=self.find_freq(band, start_freq=freq_min, stop_freq=freq_max)
         freq_dsp,resp_dsp=self.find_freq(band,subband=dsp_subbands)
 
         # only preserve data in the subband half width
         freq_dsp_subset=[]
         resp_dsp_subset=[]
+        est_delay=[]
         for sb,sbc in zip(subbands,subband_centers):
             freq_subband=freq_dsp[sb]-sbc
             idx = np.where( ( freq_subband > subband_freq_min ) &
                 (freq_subband < subband_freq_max) )
+            if len(idx[0]) > 0:
+                dsp_z = np.polyfit(freq_dsp[sb][idx]*1e6, np.unwrap(np.angle(resp_dsp[sb][idx])), 1)
+                dsp_p = np.poly1d(dsp_z)
+                dsp_delay_us=np.abs(1.e6*dsp_z[0]/2/np.pi)
+                dsp_delay_us=dsp_delay_us + self.get_band_delay_us(band)
+                est_delay.append(dsp_delay_us)
             freq_dsp_subset.extend(freq_dsp[sb][idx])
             resp_dsp_subset.extend(resp_dsp[sb][idx])
 
@@ -353,46 +343,39 @@ class SmurfUtilMixin(SmurfBase):
         dsp_z = np.polyfit(freq_dsp_subset, np.unwrap(np.angle(resp_dsp_subset)), 1)
         dsp_p = np.poly1d(dsp_z)
         dsp_delay_us=np.abs(1.e6*dsp_z[0]/2/np.pi)
+        dsp_delay_us=dsp_delay_us + self.get_band_delay_us(band)
+        dsp_delay_us=np.mean(est_delay)
 
-        # if refPhaseDelay0 or refPhaseDelayFine0 aren't zero, must add into
-        # delay here
-        #dsp_delay_us+=refPhaseDelay0/(subband_half_width_mhz*2.)
-        dsp_delay_us+=refPhaseDelay0/(subband_half_width_mhz)
-        dsp_delay_us-=refPhaseDelayFine0/(digitizer_frequency_mhz/2)
-
-        ## compute refPhaseDelay and refPhaseDelayFine
-        refPhaseDelay=int(np.ceil(dsp_delay_us*channel_frequency_mhz))
-        overCorrect = refPhaseDelay-dsp_delay_us*subband_half_width_mhz*2
-        refPhaseDelayFine = int(np.round((digitizer_frequency_mhz/2)/(subband_half_width_mhz*2) * overCorrect))
-        #refPhaseDelayFine=int(np.round((digitizer_frequency_mhz/2/
-        #    (channel_frequency_mhz)*
-        #    (refPhaseDelay-dsp_delay_us*(subband_half_width_mhz/2.)))))
         processing_delay_us=dsp_delay_us-cable_delay_us
 
         print('-------------------------------------------------------')
-        print(f'Estimated refPhaseDelay={refPhaseDelay}')
-        print(f'Estimated refPhaseDelayFine={refPhaseDelayFine}')
+        print(f'Estimated cable_delay_us={cable_delay_us}')
+        print(f'Estimated dsp_delay_us={dsp_delay_us}')
         print(f'Estimated processing_delay_us={processing_delay_us}')
         print('-------------------------------------------------------')
 
         #### done measuring dsp delay (cable+processing)
 
-        #### start measuring total (DSP) delay with estimated correction applied
-        # Zero refPhaseDelay and refPhaseDelayFine to get uncorrected phase
-        # delay.
-        # max is 7
-        self.set_ref_phase_delay(band,refPhaseDelay)
-        # max is 255
-        self.set_ref_phase_delay_fine(band,refPhaseDelayFine)
+        #### start measuring total (DSP + cable) delay with estimated correction applied
+        self.set_band_delay_us(band, dsp_delay_us)
 
         self.log('Running find_freq')
         freq_dsp_corr,resp_dsp_corr=self.find_freq(band,subband=dsp_subbands)
 
         freq_dsp_corr_subset=[]
         resp_dsp_corr_subset=[]
+        first = True
         for sb,sbc in zip(subbands,subband_centers):
             freq_subband=freq_dsp_corr[sb]-sbc
             idx = np.where( ( freq_subband > subband_freq_min ) & (freq_subband < subband_freq_max) )
+            if len(idx[0]) > 0:
+                if not first:
+                    last_phase = np.angle(resp_dsp_corr_subset[-1])
+                    new_phase  = np.angle(resp_dsp_corr[sb][idx[0]])
+                    resp_dsp_corr[sb][idx] = resp_dsp_corr[sb][idx] * np.exp(1j*(last_phase - new_phase))
+
+                if first:
+                    first = False
             freq_dsp_corr_subset.extend(freq_dsp_corr[sb][idx])
             resp_dsp_corr_subset.extend(resp_dsp_corr[sb][idx])
 
@@ -459,22 +442,13 @@ class SmurfUtilMixin(SmurfBase):
         cable_residuals=cable_phase-(cable_p(f_cable_plot*1.0E6))
         ax[2].plot(f_cable_plot,cable_residuals-np.median(cable_residuals),
             label='Cable (full_band_resp)',c='g')
-        dsp_residuals=dsp_phase-(dsp_p(f_dsp_plot*1.0E6))
-        ax[2].plot(f_dsp_plot,dsp_residuals-np.median(dsp_residuals),
-            label='DSP (find_freq)', c='c')
         ax[2].plot(f_dsp_corr_plot,dsp_corr_phase-np.median(dsp_corr_phase),
-            label='DSP corrected (find_freq)', c='m')
+            label='DSP (find_freq)', c='c')
         ax[2].set_title(f'AMC in Bay {bay}, Band {band} Residuals'.format(bay,band))
         ax[2].set_ylabel("Residual [rad]")
         ax[2].set_xlabel('Frequency offset from band center [MHz]')
         ax[2].set_ylim([-5,5])
 
-        ax[2].text(.97, .92, f'refPhaseDelay={refPhaseDelay}',
-                   transform=ax[2].transAxes, fontsize=8,
-                   bbox=bbox,horizontalalignment='right')
-        ax[2].text(.97, .84, f'refPhaseDelayFine={refPhaseDelayFine}',
-                   transform=ax[2].transAxes, fontsize=8,
-                   bbox=bbox,horizontalalignment='right')
         ax[2].text(.97, .76,
                    f'processing delay={processing_delay_us:.5f} us (fw={fw_abbrev_sha})',
                    transform=ax[2].transAxes, fontsize=8,
@@ -505,7 +479,10 @@ class SmurfUtilMixin(SmurfBase):
         self.set_att_uc(band, uc_att0, write_log=True)
         self.set_att_dc(band, dc_att0, write_log=True)
 
-        return refPhaseDelay, refPhaseDelayFine, processing_delay_us, dsp_corr_delay_us
+        if show_plot:
+            plt.show()
+
+        return dsp_delay_us, dsp_corr_delay_us
 
     def process_data(self, filename, dtype=np.uint32):
         """ Reads a file taken with take_debug_data and processes it into data
@@ -845,7 +822,9 @@ class SmurfUtilMixin(SmurfBase):
     def stream_data_on(self, write_config=False, data_filename=None,
                        downsample_factor=None, write_log=True,
                        update_payload_size=True, reset_filter=True,
-                       reset_unwrapper=True, make_freq_mask=True):
+                       reset_unwrapper=True, make_freq_mask=True,
+                       channel_mask=None, make_datafile=True,
+                       filter_wait_time=0.1):
         """
         Turns on streaming data.
 
@@ -863,16 +842,24 @@ class SmurfUtilMixin(SmurfBase):
             Whether to write to the log file.
         update_payload_size : bool, optional, default True
             Whether to update the payload size (the number of channels
-            written to disk). If the number of channels on is greater
-            than the payload size, then only the first N channels are
-            written. This bool will update the payload size to be the
-            same as the number of channels on across all bands)
+            written to disk). If this is True, will set the payload size to
+            0, which tells rogue to automatically adjust it based on the
+            channel count.
         reset_filter : bool, optional, default True
             Whether to reset the filter before taking data.
         reset_unwrapper : bool, optional, default True
             Whether to reset the unwrapper before taking data.
         make_freq_mask : bool, optional, default True
             Whether to write a text file with resonator frequencies.
+        channel_mask : list or None, optional, default None
+            Channel mask to set before streamig data. This should be an array
+            of absolute smurf channels between 0 and
+            ``nbands * chans_per_band``. If None will create the channel mask
+            containing all channels with a non-zero tone amplitude.
+        make_datafile : bool, optional, default True
+            Whether to create a datafile.
+        filter_wait_time : float, optional, default 0.1
+            Time in seconds to wait after filter reset.
 
         Returns
         -------
@@ -890,19 +877,8 @@ class SmurfUtilMixin(SmurfBase):
                      'value already in pyrogue:'+
                      f' {downsample_factor}')
 
-        # Check payload size
-        n_chan_in_mask = len(self.get_channel_mask())
-        payload_size = self.get_payload_size()
-        if n_chan_in_mask > payload_size:
-            if update_payload_size:
-                self.log('Updating payload size')
-                self.set_payload_size(n_chan_in_mask,
-                                      write_log=write_log)
-            else:
-                self.log('Warning : The payload size is smaller than ' +
-                    'the number of channels that are on. Only ' +
-                    f'writing the first {payload_size} channels. ')
-
+        if update_payload_size:
+            self.set_payload_size(0)
 
         # Check if flux ramp is non-zero
         ramp_max_cnt = self.get_ramp_max_cnt()
@@ -926,6 +902,21 @@ class SmurfUtilMixin(SmurfBase):
                          f"{flux_ramp_ac_dc_relay_status} " +
                          "- NOT A VALID STATE.", self.LOG_ERROR)
 
+            if channel_mask is None:
+                # Creates a channel mask with all channels that have enabled
+                # tones
+                smurf_chans = {}
+                for b in bands:
+                    smurf_chans[b] = self.which_on(b)
+
+                channel_mask = self.make_channel_mask(bands, smurf_chans)
+                self.set_channel_mask(channel_mask)
+            else:
+                channel_mask = np.atleast_1d(channel_mask)
+                self.set_channel_mask(channel_mask)
+
+            time.sleep(0.5)
+
             # start streaming before opening file
             # to avoid transient filter step
             self.set_stream_enable(1, write_log=False, wait_done=True)
@@ -935,15 +926,15 @@ class SmurfUtilMixin(SmurfBase):
             if reset_filter:
                 self.set_filter_reset(write_log=write_log)
             if reset_unwrapper or reset_filter:
-                time.sleep(.1)
-
+                time.sleep(filter_wait_time)
 
             # Make the data file
             timestamp = self.get_timestamp()
             if data_filename is None:
                 data_filename = os.path.join(self.output_dir, timestamp+'.dat')
 
-            self.set_data_file_name(data_filename)
+            if make_datafile:
+                self.set_data_file_name(data_filename)
 
             # Optionally write PyRogue configuration
             if write_config:
@@ -959,33 +950,27 @@ class SmurfUtilMixin(SmurfBase):
                 self.log(f'Writing to file : {data_filename}',
                          self.LOG_USER)
 
-            # Dictionary with all channels on in each band
-            smurf_chans = {}
-            for b in bands:
-                smurf_chans[b] = self.which_on(b)
-
-            output_mask = self.make_channel_mask(bands, smurf_chans)
-            self.set_channel_mask(output_mask)
 
             # Save mask file as text file. Eventually this will be in the
             # raw data output
             mask_fname = os.path.join(data_filename.replace('.dat',
                 '_mask.txt'))
-            np.savetxt(mask_fname, output_mask, fmt='%i')
+            np.savetxt(mask_fname, channel_mask, fmt='%i')
             self.pub.register_file(mask_fname, 'mask')
             self.log(mask_fname)
 
             if make_freq_mask:
                 if write_log:
                     self.log("Writing frequency mask.")
-                freq_mask = self.make_freq_mask(output_mask)
+                freq_mask = self.make_freq_mask(channel_mask)
                 np.savetxt(os.path.join(data_filename.replace('.dat',
                     '_freq.txt')), freq_mask, fmt='%4.4f')
                 self.pub.register_file(
                     os.path.join(data_filename.replace('.dat', '_freq.txt')),
                     'mask', format='txt')
 
-            self.open_data_file(write_log=write_log)
+            if make_datafile:
+                self.open_data_file(write_log=write_log)
 
             return data_filename
 
@@ -2305,8 +2290,8 @@ class SmurfUtilMixin(SmurfBase):
         ----
         band : int
             The band the channel is in.
-        channel : int or None, optional, default none
-            The channel number.
+        channel : int, None, or array, optional, default None
+            If None, will return the channel freqs of all enabled channels
 
         Returns
         -------
@@ -2318,29 +2303,15 @@ class SmurfUtilMixin(SmurfBase):
         if band is None and channel is None:
             return None
 
-        # Get subband centers
-        _, sbc = self.get_subband_centers(band, as_offset=False, yml=yml)
+        band_center_mhz = self.get_band_center_mhz(band)
+        subband_offset = self.get_tone_frequency_offset_mhz(band)
+        channel_offset = self.get_center_frequency_array(band)
+        channel_freqs = band_center_mhz + subband_offset + channel_offset
 
-        # Convenience function for turning band, channel into freq
-        def _get_cf(band, ch):
-            subband = self.get_subband_from_channel(band, channel, yml=yml)
-            offset = float(self.get_center_frequency_mhz_channel(band, channel,
-                                                                 yml=yml))
-            return sbc[subband] + offset
-
-        # If channel is requested
-        if channel is not None:
-            return _get_cf(band, channel)
-
-        # Get all channels that are on
+        if channel is None:
+            return channel_freqs[self.which_on(band)]
         else:
-            channels = self.which_on(band)
-            cfs = np.zeros(len(channels))
-            for i, channel in enumerate(channels):
-                cfs[i] = _get_cf(band, channel)
-
-            return cfs
-
+            return channel_freqs[channel]
 
     def get_channel_order(self, band=None, channel_orderfile=None):
         """ produces order of channels from a user-supplied input file
@@ -3129,6 +3100,25 @@ class SmurfUtilMixin(SmurfBase):
         self.set_cryo_card_relays(new_relay, write_log=write_log)
         self.get_cryo_card_relays()
 
+    def get_tes_bias_high_current(self, bias_group):
+        """
+        Returns 1 if requested bias_group is in high_current_mode and 0
+        otherwise.
+
+        Args
+        ----
+        bias_group : int
+            The bias group to query
+        """
+        relay = self.get_cryo_card_relays()
+        relay = self.get_cryo_card_relays()  # querey twice to ensure update
+
+        if bias_group >= self._n_bias_groups:
+            raise ValueError("Biasgroup must be between 0 and {self._n_bias_groups}")
+
+        r = np.ravel(self._pic_to_bias_group[np.where(
+            self._pic_to_bias_group[:,1]==bias_group)])[0]
+        return (relay>>r) & 1
 
     def set_tes_bias_low_current(self, bias_group, write_log=False):
         """
@@ -3352,13 +3342,14 @@ class SmurfUtilMixin(SmurfBase):
             An array with frequencies associated with the mask file.
         """
         freqs = np.zeros(len(mask), dtype=float)
-        channels_per_band = self.get_number_channels()
+        bands = mask // 512
+        chans = mask % 512
 
-        # iterate over mask channels and find their freq
-        for i, mask_ch in enumerate(mask):
-            b = mask_ch // channels_per_band
-            ch = mask_ch % channels_per_band
-            freqs[i] = self.channel_to_freq(b, ch)
+        for b in range(8):
+            m = bands == b
+            if not m.any():
+                continue
+            freqs[m] = self.channel_to_freq(b, chans[m])
 
         return freqs
 

@@ -123,6 +123,9 @@ public:
     // Get a data value
     const data_t getData(std::size_t index) const;
 
+    // Get all data as a vector
+    std::vector<data_t> getAllData() const;
+
 private:
     // Variables
     ris::FramePtr framePtr;  // Frame pointer
