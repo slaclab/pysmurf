@@ -5,6 +5,9 @@ import numpy as np
 import sys
 import os
 import matplotlib.pylab as plt
+
+print("Inside full_band_response.py. Starting.")
+
 plt.ion()
 
 n_scan_per_band=5

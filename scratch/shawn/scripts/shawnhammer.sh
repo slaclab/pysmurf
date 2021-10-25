@@ -111,6 +111,8 @@ if [ "$set_crate_fans_to_full" = true ] ; then
     sleep 2
 fi
 
+echo "3"
+
 # use tmux instead
 # https://www.peterdebelak.com/blog/tmux-scripting/
 

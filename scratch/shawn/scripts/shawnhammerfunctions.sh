@@ -301,6 +301,7 @@ is_rogue_server_up(){
     timeout_sec=10
     dockercmd="docker exec -it smurf_utils caget -w 1.0 -t smurf_server_s${slot}:AMCc:LocalTime -S"
     localtime=`${dockercmd}`
+    echo $localtime
     epochtime=`date "+%s" -d "$localtime" 2> /dev/null`
     
     if [ "$?" -eq "0" ]; then
