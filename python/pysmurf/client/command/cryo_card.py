@@ -33,6 +33,7 @@ class CryoCard():
     def __init__(self, readpv_in, writepv_in):
         self.readpv = readpv_in
         self.writepv = writepv_in
+        self.fw_version_address = 0x0
         self.relay_address = 0x2
         self.hemt_bias_address = 0x3
         self.a50K_bias_address = 0x4
@@ -154,6 +155,56 @@ class CryoCard():
         data = self.do_read(self.ac_dc_status_address)
         return(cmd_data(data))
 
+    def read_fw_version(self):
+        """Read cryostat card PIC firmware version.
+        Read the version of the firmware currently loaded on the
+        cryostat card PIC.  The cryostat card PIC fw code is version
+        controlled on github and details on each firmware version is
+        listed there under "Releases" [#ccfw]_.
+        TODO : add note about what's returned for versions in which we
+        weren't yet using this register to return the fw version, and
+        a note about what's returned if no cryostat card is connected
+        (if anything - maybe it just stalls?).
+        Warning
+        -------
+        The firmware version register is only available in PIC
+        firmware versions R1.1.0+.  Will return None if the firmware
+        register is not available.
+        Returns
+        -------
+        str or None
+           Cryostat card PIC firmware version, e.g. 'R2.3.1'.  The
+           firmware version is not available for firmware versions
+           preceeding R1.1.0, in which case returns None.
+        References
+        ----------
+        .. [#ccfw] https://github.com/slaclab/smurfc/releases
+        """
+        # Raw data is the firmware version, coded in HEX in three
+        # bytes, one byte per version digit.  For example: Version
+        # R2.3.1 is coded as 0x020301.
+        data = cmd_data(self.do_read(self.fw_version_address))
+
+        hexstr = f'{data:06x}'
+
+        # The firmware version is only avaiable at register address
+        # 0x00 in PIC firmware versions R1.1.0+.  All previous
+        # versions of the code will return 0xABCDE in this register.
+        if data == 0xABCDE:
+            print('Cryostat card PIC firmware version read returned\n'
+                  '0xABCDE, which means the firmware version number\n'
+                  'wasn\'t loaded into the register at address 0x0\n'
+                  'for this firmware version.  The firmware version\n'
+                  'should be available in firmware releases\n'
+                  'R1.1.0+, so the current firmware likely predates\n'
+                  'R1.1.0.  Returning None.\n')
+            return None
+
+        patch = int(hexstr[-2:],16)
+        minor = int(hexstr[-4:-2],16)
+        major = int(hexstr[-6:-4],16)
+
+        return(f'R{major}.{minor}.{patch}')
 
 # low level data conversion
 
