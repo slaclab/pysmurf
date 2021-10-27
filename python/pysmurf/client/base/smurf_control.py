@@ -100,7 +100,7 @@ class SmurfControl(SmurfCommandMixin,
                  cfg_file=None, data_dir=None, name=None, make_logfile=True,
                  setup=False, offline=False, smurf_cmd_mode=False,
                  no_dir=False, shelf_manager='shm-smrf-sp01',
-                 validate_config=True, **kwargs):
+                 validate_config=True, data_path_id=None, **kwargs):
         """Constructor for the SmurfControl class.
 
         See the SmurfControl class docstring for more details.
@@ -148,12 +148,13 @@ class SmurfControl(SmurfCommandMixin,
             self.initialize(data_dir=data_dir,
                 name=name, make_logfile=make_logfile, setup=setup,
                 smurf_cmd_mode=smurf_cmd_mode, no_dir=no_dir,
-                **kwargs)
+                data_path_id=data_path_id, **kwargs)
 
     def initialize(self, data_dir=None, name=None,
                    make_logfile=True, setup=False,
                    smurf_cmd_mode=False, no_dir=False, publish=False,
-                   payload_size=2048, **kwargs):
+                   payload_size=2048, data_path_id=None,
+                   **kwargs):
         """Initializes SMuRF system.
 
         Longer description of initialize routine here.
@@ -180,6 +181,12 @@ class SmurfControl(SmurfCommandMixin,
               Whether to send messages to the OCS publisher.
         payload_size : int, optional, default 2048
               The payload size to set on setup.
+        data_path_id : str, optional, default None
+              If set, this will add the path-id to the output and plot dir
+              paths to avoid possible collisions between multiple smurf
+              instances running simultaneously. For instance, if set to
+              ``crate1slot2`` the outputs directory will be::
+              ``<data_dir>/<date>/crate1slot2/<ctime>/outputs``
 
         See Also
         --------
@@ -228,10 +235,22 @@ class SmurfControl(SmurfCommandMixin,
             self.base_dir = os.path.abspath(self.data_dir)
 
             # create output and plot directories
-            self.output_dir = os.path.join(self.base_dir, self.date, name,
-                'outputs')
+            if data_path_id is None:
+                self.output_dir = os.path.join(self.base_dir, self.date, name,
+                    'outputs')
+            else:
+                self.output_dir = os.path.join(self.base_dir, self.date,
+                                               data_path_id, name, 'outputs')
+
             self.tune_dir = self._tune_dir
-            self.plot_dir = os.path.join(self.base_dir, self.date, name, 'plots')
+
+            if data_path_id is None:
+                self.plot_dir = os.path.join(self.base_dir, self.date, name,
+                                             'plots')
+            else:
+                self.plot_dir = os.path.join(self.base_dir, self.date,
+                                             data_path_id, name, 'plots')
+
             self.status_dir = self._status_dir
             self.make_dir(self.output_dir)
             self.make_dir(self.tune_dir)
@@ -487,26 +506,36 @@ class SmurfControl(SmurfCommandMixin,
                 self.set_iq_swap_out(band, self._iq_swap_out[band],
                                      write_log=write_log, **kwargs)
 
-                self.set_ref_phase_delay(
-                    band,
-                    self._ref_phase_delay[band],
-                    write_log=write_log, **kwargs)
-                self.set_ref_phase_delay_fine(
-                    band,
-                    self._ref_phase_delay_fine[band],
-                    write_log=write_log, **kwargs)
-
-                # in DSPv3, lmsDelay should be 4*refPhaseDelay (says
-                # Mitch).  If none provided in cfg, enforce that
-                # constraint.  If provided in cfg, override with provided
-                # value.
-                if self._lms_delay[band] is None:
-                    self.set_lms_delay(
-                        band, int(4*self._ref_phase_delay[band]),
+                if self._ref_phase_delay[band]:
+                    self.set_ref_phase_delay(
+                        band,
+                        self._ref_phase_delay[band],
                         write_log=write_log, **kwargs)
+                    self.set_ref_phase_delay_fine(
+                        band,
+                        self._ref_phase_delay_fine[band],
+                        write_log=write_log, **kwargs)
+
+                    # in DSPv3, lmsDelay should be 4*refPhaseDelay (says
+                    # Mitch).  If none provided in cfg, enforce that
+                    # constraint.  If provided in cfg, override with provided
+                    # value.
+                    if self._lms_delay[band] is None:
+                        self.set_lms_delay(
+                            band, int(4*self._ref_phase_delay[band]),
+                            write_log=write_log, **kwargs)
+                    else:
+                        self.set_lms_delay(
+                            band, self._lms_delay[band],
+                            write_log=write_log, **kwargs)
+                # we'll use the next band_delay_us
                 else:
-                    self.set_lms_delay(
-                        band, self._lms_delay[band],
+                    if self._band_delay_us[band] is None:
+                        raise RuntimeError("Must define either refPhaseDelay " +
+                                           "and refPhaseDelayFine or bandDelayUs")
+                    self.set_band_delay_us(
+                        band,
+                        self._band_delay_us[band],
                         write_log=write_log, **kwargs)
 
                 self.set_lms_gain(
