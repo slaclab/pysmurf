@@ -156,30 +156,6 @@ class CryoCard():
         return(cmd_data(data))
 
     def read_fw_version(self):
-        """Read cryostat card PIC firmware version.
-        Read the version of the firmware currently loaded on the
-        cryostat card PIC.  The cryostat card PIC fw code is version
-        controlled on github and details on each firmware version is
-        listed there under "Releases" [#ccfw]_.
-        TODO : add note about what's returned for versions in which we
-        weren't yet using this register to return the fw version, and
-        a note about what's returned if no cryostat card is connected
-        (if anything - maybe it just stalls?).
-        Warning
-        -------
-        The firmware version register is only available in PIC
-        firmware versions R1.1.0+.  Will return None if the firmware
-        register is not available.
-        Returns
-        -------
-        str or None
-        References
-        ----------
-        .. [#ccfw] https://github.com/slaclab/smurfc/releases
-        """
-        # Raw data is the firmware version, coded in HEX in three
-        # bytes, one byte per version digit.  For example: Version
-        # R2.3.1 is coded as 0x020301.
         data = cmd_data(self.do_read(self.fw_version_address))
 
         hexstr = f'{data:06x}'
