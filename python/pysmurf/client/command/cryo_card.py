@@ -173,9 +173,6 @@ class CryoCard():
         Returns
         -------
         str or None
-           Cryostat card PIC firmware version, e.g. 'R2.3.1'.  The
-           firmware version is not available for firmware versions
-           preceeding R1.1.0, in which case returns None.
         References
         ----------
         .. [#ccfw] https://github.com/slaclab/smurfc/releases
