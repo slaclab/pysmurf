@@ -33,6 +33,7 @@ class CryoCard():
     def __init__(self, readpv_in, writepv_in):
         self.readpv = readpv_in
         self.writepv = writepv_in
+        self.fw_version_address = 0x0
         self.relay_address = 0x2
         self.hemt_bias_address = 0x3
         self.a50K_bias_address = 0x4
@@ -154,6 +155,29 @@ class CryoCard():
         data = self.do_read(self.ac_dc_status_address)
         return(cmd_data(data))
 
+    def read_fw_version(self):
+        data = cmd_data(self.do_read(self.fw_version_address))
+
+        hexstr = f'{data:06x}'
+
+        # The firmware version is only avaiable at register address
+        # 0x00 in PIC firmware versions R1.1.0+.  All previous
+        # versions of the code will return 0xABCDE in this register.
+        if data == 0xABCDE:
+            print('Cryostat card PIC firmware version read returned\n'
+                  '0xABCDE, which means the firmware version number\n'
+                  'wasn\'t loaded into the register at address 0x0\n'
+                  'for this firmware version.  The firmware version\n'
+                  'should be available in firmware releases\n'
+                  'R1.1.0+, so the current firmware likely predates\n'
+                  'R1.1.0.  Returning None.\n')
+            return None
+
+        patch = int(hexstr[-2:],16)
+        minor = int(hexstr[-4:-2],16)
+        major = int(hexstr[-6:-4],16)
+
+        return(f'R{major}.{minor}.{patch}')
 
 # low level data conversion
 
