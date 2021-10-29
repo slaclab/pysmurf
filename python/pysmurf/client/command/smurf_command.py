@@ -4477,28 +4477,6 @@ class SmurfCommandMixin(SmurfBase):
             self.rtm_cryo_det_root + self._select_ramp_reg,
             **kwargs)
 
-    _enable_ramp_reg = 'EnableRamp'
-
-    def set_enable_ramp(self, val, **kwargs):
-        """
-        Select Ramp to the CPLD
-        0x1 = Fast flux Ramp
-        0x0 = Slow flux ramp
-        """
-        self._caput(
-            self.rtm_cryo_det_root + self._enable_ramp_reg,
-            val, **kwargs)
-
-    def get_enable_ramp(self, **kwargs):
-        """
-        Select Ramp to the CPLD
-        0x1 = Fast flux Ramp
-        0x0 = Slow flux ramp
-        """
-        return self._caget(
-            self.rtm_cryo_det_root + self._enable_ramp_reg,
-            **kwargs)
-
     _ramp_start_mode_reg = 'RampStartMode'
 
     def set_ramp_start_mode(self, val, **kwargs):
