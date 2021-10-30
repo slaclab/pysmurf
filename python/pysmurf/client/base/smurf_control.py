@@ -634,9 +634,6 @@ class SmurfControl(SmurfCommandMixin,
                                  self._fraction_full_scale,
                                  write_log=write_log)
 
-            # Turn on stream enable for all bands
-            self.set_stream_enable(1, write_log=write_log)
-
             # Set payload size and mask to a single channel
             self.set_payload_size(payload_size)
             self.set_channel_mask([0])
