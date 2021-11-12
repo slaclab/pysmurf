@@ -5265,7 +5265,7 @@ class SmurfCommandMixin(SmurfBase):
     def set_evr_trigger_dest_type(self, channel, value, **kwargs):
         """
         Set the destination type of this trigger's channel. This is notably
-        used when turning on the flux ramps triggered by the fiber or 
+        used when turning on the flux ramps triggered by the fiber or
         backplane.
         """
         self._caput(
