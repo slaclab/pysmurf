@@ -114,6 +114,13 @@ class SmurfConfigPropertiesMixin:
         self._fiftyk_amp_Vd_series_resistor = None
         self._fiftyk_Id_offset = None
 
+        ## 50K2 LNA
+        self._fiftyk2_Vg = None
+        self._fiftyk2_dac_num = None
+        self._fiftyk2_bit_to_V = None
+        self._fiftyk2_amp_Vd_series_resistor = None
+        self._fiftyk2_Id_offset = None
+
         ## Tuning parameters
         self._default_tune = None
         self._gradient_descent_gain = None
@@ -213,7 +220,7 @@ class SmurfConfigPropertiesMixin:
         ## Cold amplifier biases
         amp_cfg = config.get('amplifier')
 
-        # 4K HEMT
+        # HEMT
         self.hemt_Vg = amp_cfg['hemt_Vg']
         self.hemt_bit_to_V = amp_cfg['bit_to_V_hemt']
         self.hemt_Vd_series_resistor = amp_cfg['hemt_Vd_series_resistor']
@@ -221,12 +228,19 @@ class SmurfConfigPropertiesMixin:
         self.hemt_gate_min_voltage = amp_cfg['hemt_gate_min_voltage']
         self.hemt_gate_max_voltage = amp_cfg['hemt_gate_max_voltage']
 
-        # 50K HEMT
+        # 50K or 50K1
         self.fiftyk_Vg = amp_cfg['LNA_Vg']
         self.fiftyk_dac_num = amp_cfg['dac_num_50k']
         self.fiftyk_bit_to_V = amp_cfg['bit_to_V_50k']
         self.fiftyk_amp_Vd_series_resistor = amp_cfg['50K_amp_Vd_series_resistor']
         self.fiftyk_Id_offset = amp_cfg['50k_Id_offset']
+
+        # 50K2
+        self.fiftyk2_Vg = amp_cfg['LNA2_Vg']
+        self.fiftyk2_dac_num = amp_cfg['dac_num_50k2']
+        self.fiftyk2_bit_to_V = amp_cfg['bit_to_V_50k2']
+        self.fiftyk2_amp_Vd_series_resistor = amp_cfg['50K2_amp_Vd_series_resistor']
+        self.fiftyk2_Id_offset = amp_cfg['50k2_Id_offset']
 
         ## Tune parameters
         tune_band_cfg = config.get('tune_band')
@@ -886,6 +900,204 @@ class SmurfConfigPropertiesMixin:
         self._fiftyk_Id_offset = value
 
     ## End fiftyk_Id_offset property definition
+    ###########################################################################
+
+    ###########################################################################
+    ## Start fiftyk2_Vg property definition
+
+    # Getter
+    @property
+    def fiftyk2_Vg(self):
+        """50K2 LNA Gate Voltage.
+
+        Gets or sets the desired value for the 50K2 LNA Gate voltage at
+        the output of the cryostat card.  Units are Volts.
+
+        Specified in the pysmurf configuration file as
+        `amplifier:LNA2_Vg`.
+
+        Returns
+        -------
+        float
+           50K2 LNA gate voltage in Volts.
+
+        See Also
+        --------
+        :func:`~pysmurf.client.util.smurf_util.SmurfUtilMixin.set_amplifier_bias`
+
+        """
+        return self._fiftyk2_Vg
+
+    # Setter
+    @fiftyk2_Vg.setter
+    def fiftyk2_Vg(self, value):
+        self._fiftyk2_Vg = value
+
+    ## End fiftyk2_Vg property definition
+    ###########################################################################
+
+    ###########################################################################
+    ## Start fiftyk2_dac_num property definition
+
+    # Getter
+    @property
+    def fiftyk2_dac_num(self):
+        """RTM DAC number wired to the 50K LNA gate.
+
+        Gets or sets the DAC number of the DAC on the RTM that is
+        wired to the 50K2 LNA gate.  Must be an integer between 1 and
+        32.
+
+        Specified in the pysmurf configuration file as
+        `amplifier:dac_num_50k2`.
+
+        Returns
+        -------
+        int
+           DAC number of RTM DAC wired to the 50K2 LNA gate.
+
+        See Also
+        --------
+        :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.set_50k2_amp_gate_voltage`,
+        :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.get_50k2_amp_gate_voltage`,
+        :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.set_50k2_amp_enable`
+
+        """
+        return self._fiftyk2_dac_num
+
+    # Setter
+    @fiftyk2_dac_num.setter
+    def fiftyk2_dac_num(self, value):
+        self._fiftyk2_dac_num = value
+
+    ## End fiftyk2_dac_num property definition
+    ###########################################################################
+
+    ###########################################################################
+    ## Start fiftyk2_bit_to_V property definition
+
+    # Getter
+    @property
+    def fiftyk2_bit_to_V(self):
+        """Bit to volts conversion for 50K2 LNA gate DAC.
+
+        Gets or set the conversion from bits (the digital value the
+        RTM DAC is set to) to Volts for the 50K2 LNA gate (specified at
+        the output of the cryostat card).  An important dependency is
+        the voltage division on the cryostat card, which can be
+        different from cryostat card to cryostat card.  Units are
+        Volts/bit.
+
+        Specified in the pysmurf configuration file as
+        `amplifier:bit_to_V_50k2`.
+
+        Returns
+        -------
+        float
+           Conversion factor from bits to volts for the 50K LNA gate
+           in Volts/bit.
+
+        See Also
+        --------
+        :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.set_50k2_amp_gate_voltage`,
+        :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.get_50k2_amp_gate_voltage`
+
+        """
+        return self._fiftyk2_bit_to_V
+
+    # Setter
+    @fiftyk2_bit_to_V.setter
+    def fiftyk2_bit_to_V(self, value):
+        self._fiftyk2_bit_to_V = value
+
+    ## End fiftyk2_bit_to_V property definition
+    ###########################################################################
+
+    ###########################################################################
+    ## Start fiftyk2_amp_Vd_series_resistor property definition
+
+    # Getter
+    @property
+    def fiftyk2_amp_Vd_series_resistor(self):
+        """50K2 LNA drain current measurement resistor in Ohms.
+
+        Gets or sets the resistance of the resistor that is inline
+        with the 50K2 LNA drain voltage source which is used to infer
+        the 50K2 RF amplifier drain current.  This resistor is inline
+        with but before the regulator that steps the main RF6.0V
+        supply down to the lower 50K2 LNA drain voltage, so the current
+        flowing through this resistor includes both the drain current
+        drawn by the 50K2 RF amplifier and any additional current drawn
+        by the DC/DC regulator.  The default value of 10 Ohm is the
+        standard value loaded onto cryostat card revision C02
+        (PC-248-103-02-C02).  The resistor on that revision of the
+        cryostat card is R54.  Units are Ohms.
+
+        Specified in the pysmurf configuration file as
+        `amplifier:50K2_amp_Vd_series_resistor`.
+
+        Returns
+        -------
+        float
+           Resistance in Ohms of the inline resistor used to measure
+           the 50K2 LNA drain current.
+
+        See Also
+        --------
+        :func:`~pysmurf.client.util.smurf_util.SmurfUtilMixin.get_50k2_amp_drain_current`
+
+        """
+        return self._fiftyk2_amp_Vd_series_resistor
+
+    # Setter
+    @fiftyk2_amp_Vd_series_resistor.setter
+    def fiftyk2_amp_Vd_series_resistor(self, value):
+        self._fiftyk2_amp_Vd_series_resistor = value
+
+    ## End fiftyk2_amp_Vd_series_resistor property definition
+    ###########################################################################
+
+    ###########################################################################
+    ## Start fiftyk2_Id_offset property definition
+
+    # Getter
+    @property
+    def fiftyk2_Id_offset(self):
+        """50K2 amplifier drain current offset in mA.
+
+        Gets or sets the 50K RF amplifier drain current is measured
+        before the regulator that steps the main RF6.0V supply down to
+        the lower 50K RF amplifier drain voltage using an inline
+        resistor (see :func:`fiftyk2_amp_Vd_series_resistor`), so the
+        total measured current through the series resistor includes
+        both the drain current drawn by the 50K RF amplifier and any
+        additional current drawn by the DC/DC regulator.  An accurate
+        measurement of the 50K amplifier drain current requires
+        subtracting the current drawn by that regulator from the
+        measured total current.  This is the offset to subtract off
+        the measured value.  Units are milliamperes.
+
+        Specified in the pysmurf configuration file as
+        `amplifier:50k2_Id_offset`.
+
+        Returns
+        -------
+        float
+           50K2 LNA drain current offset in milliamperes.
+
+        See Also
+        --------
+        :func:`~pysmurf.client.util.smurf_util.SmurfUtilMixin.get_50k2_amp_drain_current`
+
+        """
+        return self._fiftyk2_Id_offset
+
+    # Setter
+    @fiftyk2_Id_offset.setter
+    def fiftyk2_Id_offset(self, value):
+        self._fiftyk2_Id_offset = value
+
+    ## End fiftyk2_Id_offset property definition
     ###########################################################################
 
     ###########################################################################

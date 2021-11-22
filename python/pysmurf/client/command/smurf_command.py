@@ -4221,6 +4221,8 @@ class SmurfCommandMixin(SmurfBase):
         return (self._rtm_slow_dac_bit_to_volt *
                 self.get_rtm_slow_dac_data_array(**kwargs))
 
+    # 50k:
+
     def set_50k_amp_gate_voltage(self, voltage, override=False, **kwargs):
         """
         Sets the 50K amplifier gate votlage.
@@ -4250,6 +4252,16 @@ class SmurfCommandMixin(SmurfBase):
             self.get_rtm_slow_dac_data(self._fiftyk_dac_num,
                                        **kwargs))
 
+    def get_50k_amp_enable(self):
+        """
+        Get if the 50k LNA is enabled.
+
+        """
+        bit = self._caget(self.rtm_spi_max_root +
+                          self._rtm_slow_dac_data_reg.format(self._fiftyk_dac_num))
+
+        return bit == 2
+
     def set_50k_amp_enable(self, disable=False, **kwargs):
         """
         Sets the 50K amp bit to 2 for enable and 0 for disable.
@@ -4265,6 +4277,63 @@ class SmurfCommandMixin(SmurfBase):
         else:
             self.set_rtm_slow_dac_enable(
                 self._fiftyk_dac_num, 2, **kwargs)
+
+    # 50k2:
+
+    def set_50k2_amp_gate_voltage(self, voltage, override=False, **kwargs):
+        """
+        Sets the 50K amplifier gate votlage.
+
+        Args
+        ----
+        voltage : float
+            The amplifier gate voltage between 0 and -1.
+        override : bool, optional, default False
+            Whether to override the software limit on the gate
+            voltage. This allows you to go outside the range of 0 and
+            -1.
+        """
+        if (voltage > 0 or voltage < -1.) and not override:
+            self.log('Voltage must be between -1 and 0. Doing nothing.')
+        else:
+            self.set_rtm_slow_dac_data(
+                self._fiftyk2_dac_num,
+                voltage/self._fiftyk_bit_to_V,
+                **kwargs)
+
+    def get_50k2_amp_gate_voltage(self, **kwargs):
+        """
+        """
+        return (
+            self._fiftyk_bit_to_V *
+            self.get_rtm_slow_dac_data(self._fiftyk2_dac_num,
+                                       **kwargs))
+
+    def get_50k2_amp_enable(self):
+        """
+        Get if the 50k LNA is enabled.
+
+        """
+        bit = self._caget(self.rtm_spi_max_root +
+                          self._rtm_slow_dac_data_reg.format(self._fiftyk2_dac_num))
+
+        return bit == 2
+
+    def set_50k2_amp_enable(self, disable=False, **kwargs):
+        """
+        Sets the 50K2 amp bit to 2 for enable and 0 for disable.
+
+        Args
+        ----
+        disable : bool, optional, default False
+            Disable the 50K2 amplifier.
+        """
+        if disable:
+            self.set_rtm_slow_dac_enable(
+                self._fiftyk2_dac_num, 0, **kwargs)
+        else:
+            self.set_rtm_slow_dac_enable(
+                self._fiftyk2_dac_num, 2, **kwargs)
 
     def flux_ramp_on(self, **kwargs):
         """
@@ -4523,13 +4592,13 @@ class SmurfCommandMixin(SmurfBase):
             self.rtm_cryo_det_root + self._pulse_width_reg,
             **kwargs)
 
-    # can't write a get for this right now because read back isn't implemented
-    # I think...
     _hemt_v_enable_reg = 'HemtBiasDacCtrlRegCh[33]'
 
     def set_hemt_enable(self, disable=False, **kwargs):
         """
-        Sets bit to 2 for enable and 0 for disable.
+        Enable or disable the HEMT control register. This
+        applies to both HEMT1 and HEMT2 circuits. 2 is enable,
+        and 0 is disable.
 
         Args
         ----
@@ -4544,6 +4613,51 @@ class SmurfCommandMixin(SmurfBase):
             self._caput(
                 self.rtm_spi_max_root + self._hemt_v_enable_reg,
                 2, **kwargs)
+
+    _hemt_v_reg = 'HemtBiasDacDataRegCh[33]'
+
+    def set_hemt_bias(self, val, override=False, **kwargs):
+        """
+        Sets the HEMT voltage in units of bits. This applies
+        to both HEMT1 and HEMT2 because there is only one register
+        to set the bias with, HemtBiasDacDataRegCh[33].
+
+        There is a hardcoded maximum value. If exceeded, no voltage is
+        set. This check can be ignored using the override optional
+        argument.
+
+        Args
+        ----
+        val : int
+            The voltage in bits.
+        override : bool, optional, default False
+            Allows exceeding the hardcoded limit. Default False.
+        """
+        if val > 350E3 and not override:
+            self.log('Input voltage too high. Not doing anything.' +
+                ' If you really want it higher, use the override optinal arg.')
+        else:
+            self._caput(
+                self.rtm_spi_max_root + self._hemt_v_reg,
+                val, **kwargs)
+
+    def get_hemt_bias(self, **kwargs):
+        """
+        Returns the HEMT voltage in bits. This applies
+        to both HEMT1 and HEMT2 because there is only one register
+        to set the bias with, HemtBiasDacDataRegCh[33].
+        """
+        return self._caget(
+            self.rtm_spi_max_root + self._hemt_v_reg,
+            **kwargs)
+
+    def get_hemt_gate_voltage(self, **kwargs):
+        """
+        Returns the HEMT voltage in bits. This applies
+        to both HEMT1 and HEMT2 because there is only one register
+        to set the bias with, HemtBiasDacDataRegCh[33].
+        """
+        return self._hemt_bit_to_V*(self.get_hemt_bias(**kwargs))
 
     def set_hemt_gate_voltage(self, voltage, override=False,
                               **kwargs):
@@ -4568,46 +4682,6 @@ class SmurfCommandMixin(SmurfBase):
         else:
             self.set_hemt_bias(int(voltage/self._hemt_bit_to_V),
                 override=override, **kwargs)
-
-    _hemt_v_reg = 'HemtBiasDacDataRegCh[33]'
-
-    def set_hemt_bias(self, val, override=False, **kwargs):
-        """
-        Sets the HEMT voltage in units of bits. Need to figure out the
-        conversion into real units.
-
-        There is a hardcoded maximum value. If exceeded, no voltage is
-        set. This check can be ignored using the override optional
-        argument.
-
-        Args
-        ----
-        val : int
-            The voltage in bits.
-        override : bool, optional, default False
-            Allows exceeding the hardcoded limit. Default False.
-        """
-        if val > 350E3 and not override:
-            self.log('Input voltage too high. Not doing anything.' +
-                ' If you really want it higher, use the override optinal arg.')
-        else:
-            self._caput(
-                self.rtm_spi_max_root + self._hemt_v_reg,
-                val, **kwargs)
-
-    def get_hemt_bias(self, **kwargs):
-        """
-        Returns the HEMT voltage in bits.
-        """
-        return self._caget(
-            self.rtm_spi_max_root + self._hemt_v_reg,
-            **kwargs)
-
-    def get_hemt_gate_voltage(self, **kwargs):
-        """
-        Returns the HEMT voltage in bits.
-        """
-        return self._hemt_bit_to_V*(self.get_hemt_bias(**kwargs))
 
     _stream_datafile_reg = 'dataFile'
 
