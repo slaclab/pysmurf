@@ -5260,6 +5260,19 @@ class SmurfCommandMixin(SmurfBase):
             self._trigger_channel_reg_count_reg.format(chan),
             **kwargs)
 
+    _evr_trigger_dest_type_reg = 'EvrV2ChannelReg[{}]:DestType'
+
+    def set_evr_trigger_dest_type(self, channel, value, **kwargs):
+        """
+        Set the destination type of this trigger's channel. This is notably
+        used when turning on the flux ramps triggered by the fiber or
+        backplane.
+        """
+        self._caput(
+            self.trigger_root +
+            self._evr_trigger_dest_type_reg.format(channel),
+            value, **kwargs)
+
     _trigger_channel_reg_dest_sel_reg = 'EvrV2ChannelReg[{}]:DestSel'
 
     def set_evr_trigger_channel_reg_dest_sel(self, chan, val, **kwargs):
