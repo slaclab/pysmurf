@@ -647,13 +647,17 @@ class SmurfControl(SmurfCommandMixin,
             # also read the temperature of the CC
             self.log(f"Cryocard temperature = {self.C.read_temperature()}")
 
-            # if no timing section present, assumes your defaults.yml
-            # has set you up...good luck.
+            # Setup how this slot handles timing. To take science data, each
+            # SMuRF slot should receive timing from the backplane or RTM fiber
+            # cable. Otherwise, the front panel external reference may also
+            # receive timing. If from fiber, assume that we're on slot 2, and
+            # distribute across the backplane. If from backplane, assume we're
+            # not on slot 2, and receive timing from backplane. If external,
+            # receive external reference from the front of the panel.
             if self._timing_reference is not None:
                 timing_reference = self._timing_reference
 
-                # check if supported
-                timing_options = ['ext_ref', 'backplane']
+                timing_options = ['ext_ref', 'backplane', 'fiber']
                 assert (timing_reference in timing_options), (
                     'timing_reference in cfg file ' +
                     f'(={timing_reference}) not in ' +
@@ -665,30 +669,63 @@ class SmurfControl(SmurfCommandMixin,
 
                 if timing_reference == 'ext_ref':
                     for bay in self.bays:
-                        self.log(f'Select external reference for bay {bay}')
+                        self.log(f'Select external reference for bay {bay}' +
+                                'or free running if there is no reference.')
                         self.sel_ext_ref(bay)
 
-                    # make sure RTM knows there's no timing system
+                    # Ramp on the internal clock.
                     self.set_ramp_start_mode(0, write_log=write_log)
 
+                # The expected setup is that this slot is slot 2, and it
+                # should distribute its fiber timing to the carrier's
+                # backplane. Order does not matter.
+                if timing_reference == 'fiber':
+                    # FPGA_TIMING_OUT to RTM Timing In 0
+                    self.set_crossbar_output_config(1, 0x0)
+                    # Backplane DIST0 to RTM Timing In 0
+                    self.set_crossbar_output_config(2, 0x0)
+                    # Backplane Dist1 to RTM Timing In 0
+                    self.set_crossbar_output_config(3, 0x0)
+
+                    # EvrV2CoreTriggers EvrV2ChannelReg[0] EnableReg True
+                    self.set_evr_channel_reg_enable(0, True)
+
+                    # EvrV2CoreTriggers EvrV2ChannelReg[0] DestType All
+                    self.set_evr_trigger_dest_type(0, 0)
+
+                    # EvrV2CoreTriggers EVrV2TriggerReg[0] Enable Trig True
+                    self.set_trigger_enable(0, True)
+
+                    # RtmCryoDet RampStartMode 0x1
+                    self.set_ramp_start_mode(1, write_log=write_log)
+
+                    # MicrowaveMuxCore[0] LMK LmkReg_0x0147 0xA
+                    for bay in self.bays:
+                        self.log(f'Configuring bay {bay} LMK to lock to the timing system')
+                        self.set_lmk_reg(bay, 0x147, 0xA)
+
                 # https://confluence.slac.stanford.edu/display/SMuRF/Timing+Carrier#TimingCarrier-Howtoconfiguretodistributeoverbackplanefromslot2
+
+                # Take timing from the backplane. The expected setup is
+                # that this carrier is not in slot 2, and slot 2 is
+                # distributing timing to the backplane. The order of these
+                # commands does not matter.
                 if timing_reference == 'backplane':
-                    # Set SMuRF carrier crossbar to use the backplane
-                    # distributed timing.
+                    self.log('The cfg file requests backplane timing.')
                     # OutputConfig[1] = 0x2 configures the SMuRF carrier's
                     # FPGA to take the timing signals from the backplane
                     # (TO_FPGA = FROM_BACKPLANE)
                     self.log('Setting crossbar OutputConfig[1]=0x2 (TO_FPGA=FROM_BACKPLANE)')
                     self.set_crossbar_output_config(1, 2)
 
-                    self.log('Waiting 1 sec for timing up-link...')
-                    time.sleep(1)
+                    # EvrV2CoreTriggers EvrV2ChannelReg[0] EnableReg True
+                    self.set_evr_channel_reg_enable(0, True)
 
-                    # Check if link is up - just printing status to
-                    # screen, not currently taking any action if it's not.
-                    timing_rx_link_up = self.get_timing_link_up()
-                    self.log(f'Timing RxLinkUp = {timing_rx_link_up}', self.LOG_USER if
-                             timing_rx_link_up else self.LOG_ERROR)
+                    # EvrV2CoreTriggers EvrV2ChannelReg[0] DestType All
+                    self.set_evr_trigger_dest_type(0, 0)
+
+                    # EvrV2CoreTriggers EVrV2TriggerReg[0] Enable Trig True
+                    self.set_trigger_enable(0, True)
 
                     # Set LMK to use timing system as reference
                     for bay in self.bays:
