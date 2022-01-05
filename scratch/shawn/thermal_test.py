@@ -234,7 +234,7 @@ def record_hardware_state(slots,atca_yml,server_ymls,amcc_dump_file,shelfmanager
 ctime=time.time()
 #output_dir='/data/smurf_data/westpak_thermal_testing_Jan2020'
 #output_dir='/data/smurf_data/simonsobs_first10carriers_thermal_testing_Feb2020'
-output_dir='/data/smurf_data/simonsobs_6carrier_long_thermal_test_Aug2020'
+output_dir='/data/smurf_data/simonsobs_production_thermal_testing_Jan22'
 if not os.path.exists(output_dir):
     os.makedirs(output_dir)
 hardware_logfile=os.path.join(output_dir,'{}_hwlog.dat'.format(int(ctime)))
