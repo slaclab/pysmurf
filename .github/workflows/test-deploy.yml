@@ -1,12 +1,11 @@
 #-----------------------------------------------------------------------------
-# Title      : PySMuRF CI/CD GitHub Action Workflow
+# Title      : Test Deploy
 #-----------------------------------------------------------------------------
-# File       : ci-cd.yml
+# File       : test-deploy.yml
 # Created    : 2020-11-23
 #-----------------------------------------------------------------------------
 # Description:
-#    GitHub Action Workflow for Continuous Integration and Continuous
-#    Deployment.
+#    Test and deploy releases of pysmurf using GitHub Actions.
 #-----------------------------------------------------------------------------
 # This file is part of the smurf software platform. It is subject to
 # the license terms in the LICENSE.txt file found in the top-level directory
@@ -17,14 +16,13 @@
 # contained in the LICENSE.txt file.
 #-----------------------------------------------------------------------------
 
-name: CI/CD
+name: Test Deploy
 on: [push, pull_request]
 
 jobs:
 
-  ###################
-  # Check Jobs      #
-  ###################
+  # Tests
+
   # Flake8 checks
   checks:
     name: Flake8 Checks
@@ -78,9 +76,6 @@ jobs:
           ./validate.sh
           cd -
 
-  ###################
-  # Test jobs       #
-  ###################
   # Documentation automatic build tests
   test-docs:
     name: Documentation Build Tests
@@ -235,10 +230,9 @@ jobs:
             /bin/bash -c "python3 -c 'import matplotlib; matplotlib.use(\"Agg\"); import pysmurf.client'"
 
 
-  ###################
-  # Deployment jobs #
-  ###################
-  # Generate release notes
+  # Deploy
+
+  # Deploy new release notes to GitHub
   deploy-release-notes:
     name: Generate Release Notes
     runs-on: ubuntu-18.04
