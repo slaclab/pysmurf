@@ -645,7 +645,7 @@ class SmurfConfig:
             #   flux_ramp_start_mode=0
             # "backplane" : takes timing from timing master through
             #   backplane.  Also sets flux_ramp_start_mode=1.
-            "timing_reference" : And(str, lambda s: s in ('ext_ref', 'backplane'))
+            "timing_reference" : And(str, lambda s: s in ('ext_ref', 'backplane', 'fiber'))
         }
         #### Done specifying timing-related schema
 

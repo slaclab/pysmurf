@@ -422,6 +422,8 @@ class SmurfCommandMixin(SmurfBase):
 
     def get_enable(self, **kwargs):
         """
+        No description
+
         Returns
         -------
         str
@@ -1158,6 +1160,8 @@ class SmurfCommandMixin(SmurfBase):
 
     def get_eta_scan_freq(self, band, **kwargs):
         """
+        No description
+
         Args
         ----
         band : int
@@ -3004,6 +3008,8 @@ class SmurfCommandMixin(SmurfBase):
 
     def get_fpga_uptime(self, **kwargs):
         """
+        No description
+
         Returns
         -------
         uptime : float
@@ -3017,6 +3023,8 @@ class SmurfCommandMixin(SmurfBase):
 
     def get_fpga_version(self, **kwargs):
         """
+        No description
+
         Returns
         -------
         version : str
@@ -3130,6 +3138,8 @@ class SmurfCommandMixin(SmurfBase):
 
     def set_waveform_start_addr(self, bay, engine, val, convert=True, **kwargs):
         """
+        No description
+
         Args
         ----
         bay : int
@@ -3151,6 +3161,8 @@ class SmurfCommandMixin(SmurfBase):
 
     def get_waveform_start_addr(self, bay, engine, convert=True, **kwargs):
         """
+        No description
+
         Args
         ----
         bay : int
@@ -3175,6 +3187,8 @@ class SmurfCommandMixin(SmurfBase):
 
     def set_waveform_end_addr(self, bay, engine, val, convert=True, **kwargs):
         """
+        No description
+
         Args
         ----
         bay : int
@@ -3195,6 +3209,8 @@ class SmurfCommandMixin(SmurfBase):
 
     def get_waveform_end_addr(self, bay, engine, convert=True, **kwargs):
         """
+        No description
+
         Args
         ----
         bay : int
@@ -3224,6 +3240,8 @@ class SmurfCommandMixin(SmurfBase):
 
     def set_waveform_wr_addr(self, bay, engine, val, convert=True, **kwargs):
         """
+        No description
+
         Args
         ----
         bay : int
@@ -3244,6 +3262,8 @@ class SmurfCommandMixin(SmurfBase):
 
     def get_waveform_wr_addr(self, bay, engine, convert=True, **kwargs):
         """
+        No description
+
         Args
         ----
         bay : int
@@ -3273,6 +3293,8 @@ class SmurfCommandMixin(SmurfBase):
 
     def set_waveform_empty(self, bay, engine, val, **kwargs):
         """
+        No description
+
         Args
         ----
         bay : int
@@ -3289,6 +3311,8 @@ class SmurfCommandMixin(SmurfBase):
 
     def get_waveform_empty(self, bay, engine, **kwargs):
         """
+        No description
+
         Args
         ----
         bay : int
@@ -3685,6 +3709,8 @@ class SmurfCommandMixin(SmurfBase):
 
     def set_cpld_reset(self, val, **kwargs):
         """
+        No description
+
         Args
         ----
         val : int
@@ -4738,6 +4764,8 @@ class SmurfCommandMixin(SmurfBase):
 
     def get_fpga_vccint(self, **kwargs):
         """
+        No description
+
         Returns
         -------
         val : float
@@ -4752,6 +4780,8 @@ class SmurfCommandMixin(SmurfBase):
 
     def get_fpga_vccaux(self, **kwargs):
         """
+        No description
+
         Returns
         -------
         val : float
@@ -4766,6 +4796,8 @@ class SmurfCommandMixin(SmurfBase):
 
     def get_fpga_vccbram(self, **kwargs):
         """
+        No description
+
         Returns
         -------
         val : float
@@ -4781,6 +4813,8 @@ class SmurfCommandMixin(SmurfBase):
 
     def get_regulator_iout(self, **kwargs):
         """
+        No description
+
         Returns
         -------
         value : float
@@ -4795,6 +4829,8 @@ class SmurfCommandMixin(SmurfBase):
 
     def get_regulator_temp1(self, **kwargs):
         """
+        No description
+
         Returns
         -------
         value : float
@@ -4809,6 +4845,8 @@ class SmurfCommandMixin(SmurfBase):
 
     def get_regulator_temp2(self, **kwargs):
         """
+        No description
+
         Returns
         -------
         value : float
@@ -4822,6 +4860,8 @@ class SmurfCommandMixin(SmurfBase):
     # Cryo card comands
     def get_cryo_card_temp(self, enable_poll=False, disable_poll=False):
         """
+        No description
+
         Returns
         -------
         temp : float
@@ -4844,6 +4884,8 @@ class SmurfCommandMixin(SmurfBase):
 
     def get_cryo_card_hemt_bias(self, enable_poll=False, disable_poll=False):
         """
+        No description
+
         Returns
         -------
         bias : float
@@ -4865,6 +4907,8 @@ class SmurfCommandMixin(SmurfBase):
 
     def get_cryo_card_50k_bias(self, enable_poll=False, disable_poll=False):
         """
+        No description
+
         Returns
         -------
         bias : float
@@ -4887,6 +4931,8 @@ class SmurfCommandMixin(SmurfBase):
     def get_cryo_card_cycle_count(self, enable_poll=False,
                                   disable_poll=False):
         """
+        No description
+
         Returns
         -------
         cycle_count : float
@@ -4900,6 +4946,8 @@ class SmurfCommandMixin(SmurfBase):
     def get_cryo_card_relays(self, enable_poll=False,
                              disable_poll=False):
         """
+        No description
+
         Returns
         -------
         relays : hex
@@ -5259,6 +5307,19 @@ class SmurfCommandMixin(SmurfBase):
             self.trigger_root +
             self._trigger_channel_reg_count_reg.format(chan),
             **kwargs)
+
+    _evr_trigger_dest_type_reg = 'EvrV2ChannelReg[{}]:DestType'
+
+    def set_evr_trigger_dest_type(self, channel, value, **kwargs):
+        """
+        Set the destination type of this trigger's channel. This is notably
+        used when turning on the flux ramps triggered by the fiber or
+        backplane.
+        """
+        self._caput(
+            self.trigger_root +
+            self._evr_trigger_dest_type_reg.format(channel),
+            value, **kwargs)
 
     _trigger_channel_reg_dest_sel_reg = 'EvrV2ChannelReg[{}]:DestSel'
 
@@ -5870,6 +5931,8 @@ class SmurfCommandMixin(SmurfBase):
 
     def set_predata_emulator_type(self, val, **kwargs):
         """
+        No description
+
         Args
         ----
         val : str
@@ -5968,6 +6031,8 @@ class SmurfCommandMixin(SmurfBase):
 
     def set_postdata_emulator_type(self, val, **kwargs):
         """
+        No description
+
         Args
         ----
         val : str
@@ -6038,6 +6103,8 @@ class SmurfCommandMixin(SmurfBase):
 
     def get_postdata_emulator_period(self, **kwargs):
         """
+        No description
+
         Returns
         -------
         period : int

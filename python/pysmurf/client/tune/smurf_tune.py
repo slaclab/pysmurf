@@ -3014,6 +3014,8 @@ class SmurfTuneMixin(SmurfBase):
     def set_fixed_flux_ramp_bias(self,fractionFullScale,debug=True,
             do_config=True):
         """
+        No description
+
         Args
         -----
         fractionFullScale : float

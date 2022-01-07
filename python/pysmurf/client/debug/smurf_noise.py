@@ -534,6 +534,8 @@ class SmurfNoiseMixin(SmurfBase):
             channel=None, nperseg=2**13, detrend='constant', fs=None,
             show_plot=False, make_timestream_plot=False, psd_ylim=None):
         """
+        No description
+
         Args
         ----
         band : int
