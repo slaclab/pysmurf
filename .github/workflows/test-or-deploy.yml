@@ -1,11 +1,11 @@
 #-----------------------------------------------------------------------------
-# Title      : Test Deploy
+# Title      : test-or-deploy
 #-----------------------------------------------------------------------------
-# File       : test-deploy.yml
+# File       : test-or-deploy.yml
 # Created    : 2020-11-23
 #-----------------------------------------------------------------------------
 # Description:
-#    Test and deploy releases of pysmurf using GitHub Actions.
+#    Test or deploy releases of pysmurf using GitHub Actions.
 #-----------------------------------------------------------------------------
 # This file is part of the smurf software platform. It is subject to
 # the license terms in the LICENSE.txt file found in the top-level directory
@@ -16,16 +16,16 @@
 # contained in the LICENSE.txt file.
 #-----------------------------------------------------------------------------
 
-name: Test Deploy
+name: test-or-deploy
 on: [push, pull_request]
 
 jobs:
 
   # Tests
 
-  # Flake8 checks
-  checks:
-    name: Flake8 Checks
+  # Run flake8 on all .py files. Should block deploys to Read The Docs.
+  flake8:
+    name: Flake8 Tests
     runs-on: ubuntu-18.04
     steps:
       # Checkout the code
@@ -47,12 +47,12 @@ jobs:
             flake8-import-order
 
       # Run Flake 8 tests
-      - name: Flake8 Checks
+      - name: Flake8
         run: flake8 --count python/
 
   # Validate the server docker image definitions
   docker-definitions:
-    name: Docker Definition Validation
+    name: Docker Definition Tests
     runs-on: ubuntu-18.04
     steps:
       # Checkout the code.
@@ -80,7 +80,7 @@ jobs:
   test-docs:
     name: Documentation Build Tests
     runs-on: ubuntu-18.04
-    needs: [checks, docker-definitions]   # Run only if all checks passed
+    needs: [flake8, docker-definitions]   # Run only if all checks passed
     steps:
       # Checkout the code
       - name: Checkout code
@@ -109,7 +109,7 @@ jobs:
   test-server:
     name: Server Tests
     runs-on: ubuntu-18.04
-    needs: [checks, docker-definitions]   # Run only if all checks passed
+    needs: [flake8, docker-definitions]   # Run only if all checks passed
     steps:
       # Checkout the code
       - name: Checkout code
@@ -183,7 +183,7 @@ jobs:
   test-client:
     name: Client Tests
     runs-on: ubuntu-18.04
-    needs: [checks, docker-definitions]   # Run only if all checks passed
+    needs: [flake8, docker-definitions]   # Run only if all checks passed
     steps:
       # Checkout the code
       - name: Checkout code
