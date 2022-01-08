@@ -262,7 +262,7 @@ class SmurfStreamReader(object):
             self._currCount = 0
 
             self.log_function(f"Processing data records from {self._currFName}")
-            
+
             with open(fn,'rb') as f:
                 self._currFile = f
 
