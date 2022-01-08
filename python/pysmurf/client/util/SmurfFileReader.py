@@ -104,7 +104,7 @@ class SmurfHeader(SmurfHeaderTuple):
 
 class SmurfStreamReader(object):
 
-    def __init__(self, files, *, isRogue=True, metaEnable=False, chanCount=None):
+    def __init__(self, files, *, isRogue=True, metaEnable=False, chanCount=None, log_function):
         self._isRogue    = isRogue
         self._metaEnable = metaEnable
         self._chanCount  = chanCount
@@ -161,7 +161,7 @@ class SmurfStreamReader(object):
 
                 # Not enough data left in the file
                 if (self._fileSize - self._currFile.tell()) < RogueHeaderSize:
-                    print(f"Waring: File under run reading {self._currFName}")
+                    log_function(f"Warning: Not enough data left in {self._currFName}")
                     return False
 
                 # Read in Rogue header data
@@ -173,7 +173,7 @@ class SmurfStreamReader(object):
 
                 # Sanity check
                 if recEnd > self._fileSize:
-                    print(f"Waring: File under run reading {self._currFName}")
+                    log_function(f"Waring: Next frame position is larger than {self._currFName}")
                     return False
 
                 # If this is a data channel, break
@@ -261,6 +261,7 @@ class SmurfStreamReader(object):
             self._currCount = 0
 
             print(f"Processing data records from {self._currFName}")
+            
             with open(fn,'rb') as f:
                 self._currFile = f
 

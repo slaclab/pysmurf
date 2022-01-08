@@ -348,11 +348,9 @@ class SmurfUtilMixin(SmurfBase):
 
         processing_delay_us=dsp_delay_us-cable_delay_us
 
-        print('-------------------------------------------------------')
-        print(f'Estimated cable_delay_us={cable_delay_us}')
-        print(f'Estimated dsp_delay_us={dsp_delay_us}')
-        print(f'Estimated processing_delay_us={processing_delay_us}')
-        print('-------------------------------------------------------')
+        self.log(f'Estimated cable_delay_us={cable_delay_us}')
+        self.log(f'Estimated dsp_delay_us={dsp_delay_us}')
+        self.log(f'Estimated processing_delay_us={processing_delay_us}')
 
         #### done measuring dsp delay (cable+processing)
 
@@ -1065,7 +1063,7 @@ class SmurfUtilMixin(SmurfBase):
         # data structures will be build based on that
         first_read = True
         with SmurfStreamReader(datafile,
-                isRogue=True, metaEnable=True) as file:
+                               isRogue=True, metaEnable=True, self.log) as file:
             for header, data in file.records():
                 if first_read:
                     # Update flag, so that we don't do this code again
