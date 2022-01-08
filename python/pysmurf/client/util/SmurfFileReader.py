@@ -116,6 +116,7 @@ class SmurfStreamReader(object):
         self._config     = {}
         self._currCount  = 0
         self._totCount   = 0
+        self._log_function = log_function
 
         if isinstance(files,list):
             self._fileList = files
@@ -161,7 +162,7 @@ class SmurfStreamReader(object):
 
                 # Not enough data left in the file
                 if (self._fileSize - self._currFile.tell()) < RogueHeaderSize:
-                    log_function(f"Warning: Not enough data left in {self._currFName}")
+                    self.log_function(f"Warning: Not enough data left in {self._currFName}")
                     return False
 
                 # Read in Rogue header data
@@ -173,7 +174,7 @@ class SmurfStreamReader(object):
 
                 # Sanity check
                 if recEnd > self._fileSize:
-                    log_function(f"Waring: Next frame position is larger than {self._currFName}")
+                    self.log_function(f"Waring: Next frame position is larger than {self._currFName}")
                     return False
 
                 # If this is a data channel, break
@@ -260,7 +261,7 @@ class SmurfStreamReader(object):
             self._currFName = fn
             self._currCount = 0
 
-            print(f"Processing data records from {self._currFName}")
+            self.log_function(f"Processing data records from {self._currFName}")
             
             with open(fn,'rb') as f:
                 self._currFile = f
@@ -268,9 +269,9 @@ class SmurfStreamReader(object):
                 while self._nextRecord():
                     yield (self._header, self._data)
 
-            print(f"Processed {self._currCount} data records from {self._currFName}")
+            self.log_function(f"Processed {self._currCount} data records from {self._currFName}")
 
-        print(f"Processed a total of {self._totCount} data records")
+        self.log_function(f"Processed a total of {self._totCount} data records")
 
     @property
     def currCount(self):

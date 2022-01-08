@@ -1062,8 +1062,8 @@ class SmurfUtilMixin(SmurfBase):
         # The number of channel will be extracted from the first frame and the
         # data structures will be build based on that
         first_read = True
-        with SmurfStreamReader(datafile,
-                               isRogue=True, metaEnable=True, self.log) as file:
+        with SmurfStreamReader(datafile, self.log,
+                               isRogue=True, metaEnable=True) as file:
             for header, data in file.records():
                 if first_read:
                     # Update flag, so that we don't do this code again
