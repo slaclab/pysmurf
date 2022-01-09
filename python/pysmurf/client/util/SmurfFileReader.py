@@ -186,7 +186,7 @@ class SmurfStreamReader(object):
                     try:
                         yamlUpdate(self._config, self._currFile.read(roguePayload).decode('utf-8'))
                     except Exception as e:
-                        print(f"Waring: Error processing meta data in {self._currFName}: {e}")
+                        self.log_function(f"Waring: Error processing meta data in {self._currFName}: {e}")
 
                 # Skip over meta data
                 else:
@@ -194,12 +194,12 @@ class SmurfStreamReader(object):
 
             # Check if there is enough room for the Smurf header
             if SmurfHeaderSize > roguePayload:
-                print(f"Waring: SMURF header overruns remaining record size in {self._currFName}")
+                self.log_function(f"Waring: SMURF header overruns remaining record size in {self._currFName}")
                 return False
 
         # Non Rogue file, verify there is enough room in the file for the smurf header
         elif SmurfHeaderSize + self._currFile.tell() > self._fileSize:
-            print(f"Warning: SMURF header overruns remaining file size in {self._currFName}")
+            self.log_function(f"Warning: SMURF header overruns remaining file size in {self._currFName}")
             return None
 
         # Unpack header into named tuple
@@ -229,12 +229,12 @@ class SmurfStreamReader(object):
 
             # File overrun
             if recEnd > self._fileSize:
-                print(f"SMURF data overruns remaining file size in {self._currFName}")
+                self.log_function(f"SMURF data overruns remaining file size in {self._currFName}")
                 return False
 
         # Verify sizing
         if dataSize > rawDataSize:
-            print(f"Warning: SMURF read data size overruns raw data size in {self._currFName}")
+            self.log_function(f"Warning: SMURF read data size overruns raw data size in {self._currFName}")
             return False
 
         # Read record data
