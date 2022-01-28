@@ -11,8 +11,7 @@ formats: all
 
 build:
   tools:
-    python:
-      version: 3.7
+    python: "3.7"
 
 python:
   install:
