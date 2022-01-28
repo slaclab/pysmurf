@@ -422,6 +422,8 @@ class SmurfCommandMixin(SmurfBase):
 
     def get_enable(self, **kwargs):
         """
+        No description
+
         Returns
         -------
         str
@@ -1158,6 +1160,8 @@ class SmurfCommandMixin(SmurfBase):
 
     def get_eta_scan_freq(self, band, **kwargs):
         """
+        No description
+
         Args
         ----
         band : int
@@ -1729,8 +1733,7 @@ class SmurfCommandMixin(SmurfBase):
 
     def set_ref_phase_delay(self, band, val, **kwargs):
         """
-        Corrects for roundtrip cable delay freqError = IQ * etaMag,
-        rotated by etaPhase+refPhaseDelay
+        Deprecated.  Use set_band_delay_us instead.
         """
         self._caput(
             self._band_root(band) + self._ref_phase_delay_reg,
@@ -1738,8 +1741,7 @@ class SmurfCommandMixin(SmurfBase):
 
     def get_ref_phase_delay(self, band, **kwargs):
         """
-        Corrects for roundtrip cable delay freqError = IQ * etaMag,
-        rotated by etaPhase+refPhaseDelay
+        Deprecated.  Use get_band_delay_us instead.
         """
         return self._caget(
             self._band_root(band) + self._ref_phase_delay_reg,
@@ -1749,6 +1751,7 @@ class SmurfCommandMixin(SmurfBase):
 
     def set_ref_phase_delay_fine(self, band, val, **kwargs):
         """
+        Deprecated.  Use set_band_delay_us instead.
         """
         self._caput(
             self._band_root(band) + self._ref_phase_delay_fine_reg,
@@ -1756,9 +1759,31 @@ class SmurfCommandMixin(SmurfBase):
 
     def get_ref_phase_delay_fine(self, band, **kwargs):
         """
+        Deprecated.  Use get_band_delay_us instead.
         """
         return self._caget(
             self._band_root(band) + self._ref_phase_delay_fine_reg,
+            **kwargs)
+
+    _band_delay_us_reg = 'bandDelayUs'
+
+    def set_band_delay_us(self, band, val, **kwargs):
+        """
+        Set band delay compensation, microseconds.  Corrects
+        for total system delay (cable, DSP, etc.).  Internally
+        configures both ref_phase_delay and ref_phase_delay_fine
+        """
+        self._caput(
+            self._band_root(band) + self._band_delay_us_reg,
+            val, **kwargs)
+
+    def get_band_delay_us(self, band, **kwargs):
+        """
+        Get band delay compensation, microseconds.  Corrects
+        for total system delay (cable, DSP, etc.).
+        """
+        return self._caget(
+            self._band_root(band) + self._band_delay_us_reg,
             **kwargs)
 
     _tone_scale_reg = 'toneScale'
@@ -2983,6 +3008,8 @@ class SmurfCommandMixin(SmurfBase):
 
     def get_fpga_uptime(self, **kwargs):
         """
+        No description
+
         Returns
         -------
         uptime : float
@@ -2996,6 +3023,8 @@ class SmurfCommandMixin(SmurfBase):
 
     def get_fpga_version(self, **kwargs):
         """
+        No description
+
         Returns
         -------
         version : str
@@ -3109,6 +3138,8 @@ class SmurfCommandMixin(SmurfBase):
 
     def set_waveform_start_addr(self, bay, engine, val, convert=True, **kwargs):
         """
+        No description
+
         Args
         ----
         bay : int
@@ -3130,6 +3161,8 @@ class SmurfCommandMixin(SmurfBase):
 
     def get_waveform_start_addr(self, bay, engine, convert=True, **kwargs):
         """
+        No description
+
         Args
         ----
         bay : int
@@ -3154,6 +3187,8 @@ class SmurfCommandMixin(SmurfBase):
 
     def set_waveform_end_addr(self, bay, engine, val, convert=True, **kwargs):
         """
+        No description
+
         Args
         ----
         bay : int
@@ -3174,6 +3209,8 @@ class SmurfCommandMixin(SmurfBase):
 
     def get_waveform_end_addr(self, bay, engine, convert=True, **kwargs):
         """
+        No description
+
         Args
         ----
         bay : int
@@ -3203,6 +3240,8 @@ class SmurfCommandMixin(SmurfBase):
 
     def set_waveform_wr_addr(self, bay, engine, val, convert=True, **kwargs):
         """
+        No description
+
         Args
         ----
         bay : int
@@ -3223,6 +3262,8 @@ class SmurfCommandMixin(SmurfBase):
 
     def get_waveform_wr_addr(self, bay, engine, convert=True, **kwargs):
         """
+        No description
+
         Args
         ----
         bay : int
@@ -3252,6 +3293,8 @@ class SmurfCommandMixin(SmurfBase):
 
     def set_waveform_empty(self, bay, engine, val, **kwargs):
         """
+        No description
+
         Args
         ----
         bay : int
@@ -3268,6 +3311,8 @@ class SmurfCommandMixin(SmurfBase):
 
     def get_waveform_empty(self, bay, engine, **kwargs):
         """
+        No description
+
         Args
         ----
         bay : int
@@ -3664,6 +3709,8 @@ class SmurfCommandMixin(SmurfBase):
 
     def set_cpld_reset(self, val, **kwargs):
         """
+        No description
+
         Args
         ----
         val : int
@@ -4456,28 +4503,6 @@ class SmurfCommandMixin(SmurfBase):
             self.rtm_cryo_det_root + self._select_ramp_reg,
             **kwargs)
 
-    _enable_ramp_reg = 'EnableRamp'
-
-    def set_enable_ramp(self, val, **kwargs):
-        """
-        Select Ramp to the CPLD
-        0x1 = Fast flux Ramp
-        0x0 = Slow flux ramp
-        """
-        self._caput(
-            self.rtm_cryo_det_root + self._enable_ramp_reg,
-            val, **kwargs)
-
-    def get_enable_ramp(self, **kwargs):
-        """
-        Select Ramp to the CPLD
-        0x1 = Fast flux Ramp
-        0x0 = Slow flux ramp
-        """
-        return self._caget(
-            self.rtm_cryo_det_root + self._enable_ramp_reg,
-            **kwargs)
-
     _ramp_start_mode_reg = 'RampStartMode'
 
     def set_ramp_start_mode(self, val, **kwargs):
@@ -4739,6 +4764,8 @@ class SmurfCommandMixin(SmurfBase):
 
     def get_fpga_vccint(self, **kwargs):
         """
+        No description
+
         Returns
         -------
         val : float
@@ -4753,6 +4780,8 @@ class SmurfCommandMixin(SmurfBase):
 
     def get_fpga_vccaux(self, **kwargs):
         """
+        No description
+
         Returns
         -------
         val : float
@@ -4767,6 +4796,8 @@ class SmurfCommandMixin(SmurfBase):
 
     def get_fpga_vccbram(self, **kwargs):
         """
+        No description
+
         Returns
         -------
         val : float
@@ -4782,6 +4813,8 @@ class SmurfCommandMixin(SmurfBase):
 
     def get_regulator_iout(self, **kwargs):
         """
+        No description
+
         Returns
         -------
         value : float
@@ -4796,6 +4829,8 @@ class SmurfCommandMixin(SmurfBase):
 
     def get_regulator_temp1(self, **kwargs):
         """
+        No description
+
         Returns
         -------
         value : float
@@ -4810,6 +4845,8 @@ class SmurfCommandMixin(SmurfBase):
 
     def get_regulator_temp2(self, **kwargs):
         """
+        No description
+
         Returns
         -------
         value : float
@@ -4823,6 +4860,8 @@ class SmurfCommandMixin(SmurfBase):
     # Cryo card comands
     def get_cryo_card_temp(self, enable_poll=False, disable_poll=False):
         """
+        No description
+
         Returns
         -------
         temp : float
@@ -4845,6 +4884,8 @@ class SmurfCommandMixin(SmurfBase):
 
     def get_cryo_card_hemt_bias(self, enable_poll=False, disable_poll=False):
         """
+        No description
+
         Returns
         -------
         bias : float
@@ -4866,6 +4907,8 @@ class SmurfCommandMixin(SmurfBase):
 
     def get_cryo_card_50k_bias(self, enable_poll=False, disable_poll=False):
         """
+        No description
+
         Returns
         -------
         bias : float
@@ -4888,6 +4931,8 @@ class SmurfCommandMixin(SmurfBase):
     def get_cryo_card_cycle_count(self, enable_poll=False,
                                   disable_poll=False):
         """
+        No description
+
         Returns
         -------
         cycle_count : float
@@ -4901,6 +4946,8 @@ class SmurfCommandMixin(SmurfBase):
     def get_cryo_card_relays(self, enable_poll=False,
                              disable_poll=False):
         """
+        No description
+
         Returns
         -------
         relays : hex
@@ -5260,6 +5307,19 @@ class SmurfCommandMixin(SmurfBase):
             self.trigger_root +
             self._trigger_channel_reg_count_reg.format(chan),
             **kwargs)
+
+    _evr_trigger_dest_type_reg = 'EvrV2ChannelReg[{}]:DestType'
+
+    def set_evr_trigger_dest_type(self, channel, value, **kwargs):
+        """
+        Set the destination type of this trigger's channel. This is notably
+        used when turning on the flux ramps triggered by the fiber or
+        backplane.
+        """
+        self._caput(
+            self.trigger_root +
+            self._evr_trigger_dest_type_reg.format(channel),
+            value, **kwargs)
 
     _trigger_channel_reg_dest_sel_reg = 'EvrV2ChannelReg[{}]:DestSel'
 
@@ -5843,10 +5903,36 @@ class SmurfCommandMixin(SmurfBase):
         """
         return self._caget(self._predata_emulator + 'enable', **kwargs)
 
+    _predata_emulator_disable = "Disable"
+
+    def set_predata_emulator_disable(self, val, **kwargs):
+        """
+        Sets the predata emulator disable status.
+
+        Args
+        ----
+        val : bool
+        """
+        self._caput(self._predata_emulator + self._predata_emulator_disable,
+            val, **kwargs)
+
+    def get_predata_emulator_disable(self, **kwargs):
+        """
+        Gets the predata emulator disable status.
+
+        Returns
+        -------
+        type : bool
+        """
+        return self._caget(self._predata_emulator + self._predata_emulator_disable,
+            **kwargs)
+
     _predata_emulator_type = "Type"
 
     def set_predata_emulator_type(self, val, **kwargs):
         """
+        No description
+
         Args
         ----
         val : str
@@ -5945,6 +6031,8 @@ class SmurfCommandMixin(SmurfBase):
 
     def set_postdata_emulator_type(self, val, **kwargs):
         """
+        No description
+
         Args
         ----
         val : str
@@ -6015,6 +6103,8 @@ class SmurfCommandMixin(SmurfBase):
 
     def get_postdata_emulator_period(self, **kwargs):
         """
+        No description
+
         Returns
         -------
         period : int

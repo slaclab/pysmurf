@@ -1,0 +1,20 @@
+# .readthedocs.yaml
+# Read The Docs will parse this to update readthedocs.org/projects/pysmurf
+# Ref https://docs.readthedocs.io/en/stable/config-file/v2.html
+
+version: 2
+
+sphinx:
+  configuration: docs/conf.py
+
+formats: all
+
+build:
+  tools:
+    python:
+      version: 3.7
+
+python:
+  install:
+    - requirements: docs/requirements.txt
+    - requirements: requirements.txt
