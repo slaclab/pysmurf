@@ -73,7 +73,9 @@ jobs:
         shell: bash
         env:
           GITHUB_TOKEN: ${{ secrets.SLACLAB_TOKEN }}
+        if: "${{ env.GITHUB_TOKEN != '' }}"
         run: |
+          echo "hello $GITHUB_TOKEN"
           cd docker/server/
           ./validate.sh
           cd -
