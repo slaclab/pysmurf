@@ -1,4 +1,11 @@
-# If these files are modified, tag only those users.
+# @swh76 will be the default owners for everything. Unless
+# a later match takes precedence, they will be requested
+# for review when someone opens a pull request.
+* @aer7 @swh76
+
+# @aer7 and @slacrherbst owns the code related
+# to the core, dockers, and startup scripts.
+# Only them will be requested for review.
 /src/                   @aer7 @slacrherbst
 /include/               @aer7 @slacrherbst
 /python/pysmurf/core/   @aer7 @slacrherbst
@@ -7,7 +14,8 @@
 /tests/core             @aer7 @slacrherbst
 /releaseGen.py          @aer7 @slacrherbst
 /README.*.md            @aer7 @slacrherbst
-/.github/               @swh76 @aer7 @slacrherbst
 
-# If no match, tag these.
-* @aer7 @swh76
+# @swh76, @aer7 and @slacrherbst owns the
+# github related scripts. All of them will be requested
+# for review.
+/.github/               @swh76 @aer7 @slacrherbst

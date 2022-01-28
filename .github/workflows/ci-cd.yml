@@ -1,11 +1,12 @@
 #-----------------------------------------------------------------------------
-# Title      : test-or-deploy
+# Title      : PySMuRF CI/CD GitHub Action Workflow
 #-----------------------------------------------------------------------------
-# File       : test-or-deploy.yml
+# File       : ci-cd.yml
 # Created    : 2020-11-23
 #-----------------------------------------------------------------------------
 # Description:
-#    Test or deploy releases of pysmurf using GitHub Actions.
+#    GitHub Action Workflow for Continuous Integration and Continuous
+#    Deployment.
 #-----------------------------------------------------------------------------
 # This file is part of the smurf software platform. It is subject to
 # the license terms in the LICENSE.txt file found in the top-level directory
@@ -16,16 +17,17 @@
 # contained in the LICENSE.txt file.
 #-----------------------------------------------------------------------------
 
-name: test-or-deploy
+name: CI/CD
 on: [push, pull_request]
 
 jobs:
 
-  # Tests
-
-  # Run flake8 on all .py files. Should block deploys to Read The Docs.
-  flake8:
-    name: Flake8 Tests
+  ###################
+  # Check Jobs      #
+  ###################
+  # Flake8 checks
+  checks:
+    name: Flake8 Checks
     runs-on: ubuntu-18.04
     steps:
       # Checkout the code
@@ -47,12 +49,12 @@ jobs:
             flake8-import-order
 
       # Run Flake 8 tests
-      - name: Flake8
+      - name: Flake8 Checks
         run: flake8 --count python/
 
   # Validate the server docker image definitions
   docker-definitions:
-    name: Docker Definition Tests
+    name: Docker Definition Validation
     runs-on: ubuntu-18.04
     steps:
       # Checkout the code.
@@ -76,11 +78,14 @@ jobs:
           ./validate.sh
           cd -
 
+  ###################
+  # Test jobs       #
+  ###################
   # Documentation automatic build tests
   test-docs:
     name: Documentation Build Tests
     runs-on: ubuntu-18.04
-    needs: [flake8, docker-definitions]   # Run only if all checks passed
+    needs: [checks, docker-definitions]   # Run only if all checks passed
     steps:
       # Checkout the code
       - name: Checkout code
@@ -109,7 +114,7 @@ jobs:
   test-server:
     name: Server Tests
     runs-on: ubuntu-18.04
-    needs: [flake8, docker-definitions]   # Run only if all checks passed
+    needs: [checks, docker-definitions]   # Run only if all checks passed
     steps:
       # Checkout the code
       - name: Checkout code
@@ -183,7 +188,7 @@ jobs:
   test-client:
     name: Client Tests
     runs-on: ubuntu-18.04
-    needs: [flake8, docker-definitions]   # Run only if all checks passed
+    needs: [checks, docker-definitions]   # Run only if all checks passed
     steps:
       # Checkout the code
       - name: Checkout code
@@ -230,9 +235,10 @@ jobs:
             /bin/bash -c "python3 -c 'import matplotlib; matplotlib.use(\"Agg\"); import pysmurf.client'"
 
 
-  # Deploy
-
-  # Deploy new release notes to GitHub
+  ###################
+  # Deployment jobs #
+  ###################
+  # Generate release notes
   deploy-release-notes:
     name: Generate Release Notes
     runs-on: ubuntu-18.04
