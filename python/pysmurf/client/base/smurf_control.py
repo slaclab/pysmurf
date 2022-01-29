@@ -730,7 +730,7 @@ class SmurfControl(SmurfCommandMixin,
                     # EvrV2CoreTriggers EVrV2TriggerReg[0] Enable Trig True
                     self.set_trigger_enable(0, True)
 
-                    # Set the bay AMC LMK to CLKin0 
+                    # Set the bay AMC LMK to CLKin0
                     for bay in self.bays:
                         self.set_lmk_enable(bay, 1)
                         self.log(f'Setting Bay {bay} LMK 0x146 to 0x08')
