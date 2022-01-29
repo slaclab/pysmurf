@@ -5465,10 +5465,40 @@ class SmurfCommandMixin(SmurfBase):
 
     def get_timing_link_up(self, **kwargs):
         """
+        Return the value of RxLinkUp. This tells you if the FPGA recovered
+        clock is receiving timing from somewhere, either the backplane or
+        fiber. This doesn't directly tell you anything about the AMCs, JESDs,
+        or LMKs.
         """
         return self._caget(
             self.timing_status + self._timing_link_up_reg,
             **kwargs)
+
+    def set_lmk_enable(self, bay, val):
+        """
+        Enable the AMC LMK in bay 0. On boot, the LMK is enabled, however once
+        the DACS are reset on SmurfControl.setup the LMK is disabled. If you
+        need to modify LMK values, this value must be 1.
+
+        Args
+        ----
+        bay : int
+            0 ot 1.
+        val : int
+            0 or 1.
+        """
+        self._caput(self.lmk.format(bay) + 'enable', val)
+
+    def get_lmk_enable(self, bay):
+        """
+        Set the LMK:Enable bit.
+
+        Args
+        ----
+        bay : int
+            0 or 1.
+        """
+        self._caget(self.lmk.format(bay) + 'Enable')
 
     # assumes it's handed the decimal equivalent
     _lmk_reg = "LmkReg_0x{:04X}"
