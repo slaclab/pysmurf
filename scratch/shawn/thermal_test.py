@@ -5,6 +5,9 @@ import fcntl
 import sys
 import epics
 
+import subprocess
+from subprocess import Popen
+
 shelfmanager='shm-smrf-sp01'
 
 def get_crate_mfr(shelfmanager,timeout=5):
@@ -174,8 +177,6 @@ def tracking_setup_band(slot_number,band,reset_rate_khz):
     tmux_cmd(slot_number,cmd)    
 
 def get_last_line_tmux(slot_number,tmux_session_name='smurf',offset=0):
-    import subprocess
-    from subprocess import Popen
     p1 = subprocess.Popen(['tmux','capture-pane','-pt','{}:{}'.format(tmux_session_name,slot_number)], stdout=subprocess.PIPE)
     p2 = subprocess.Popen(['tail','-n','%d'%(1-offset)], stdin=p1.stdout, stdout=subprocess.PIPE)
     result=p2.communicate()[0].decode('UTF-8')
@@ -435,6 +436,10 @@ if restrict_fan_level:
 # done restricting fan ; re-enable fan policy
 print(f'-> Done restricting fan speeds, re-enabling the fan policy...')
 enable_fan_policy(shelfmanager,fan_frus)
+
+# print line from data file just before #endrestrictfandwell tag
+print('-> Thermal test results (please confirm numbers match what you see in plot) :')
+subprocess.call(f'./pysmurf/scratch/shawn/get_thermal_test_result.sh {hardware_logfile}',shell=True)
 
 ############################################################
 # Measure full band response at the end
