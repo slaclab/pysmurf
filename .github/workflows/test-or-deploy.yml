@@ -70,7 +70,7 @@ jobs:
       - name: Validate the server definitions
         shell: bash
         env:
-          GITHUB_TOKEN: ${{ secrets.SLACLAB_TOKEN }}
+          AER7_TOKEN: ${{ secrets.AER7_TOKEN }}
         run: |
           cd docker/server/
           ./validate.sh
@@ -306,7 +306,7 @@ jobs:
         id: build
         shell: bash
         env:
-          GITHUB_TOKEN: ${{ secrets.SLACLAB_TOKEN }}
+          AER7_TOKEN: ${{ secrets.AER7_TOKEN }}
         run: |
           cd docker/server/
           ./build.sh
