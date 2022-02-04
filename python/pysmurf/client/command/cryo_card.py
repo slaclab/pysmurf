@@ -87,6 +87,80 @@ class CryoCard():
                 time.sleep(0.1) # wait for relays to move
         return(80000) # busy flag still set
 
+    def set_relay_bit(self, bit, value):
+        """
+        Set the relay bit on the cryocard to either 0 or 1. Bits 0-15 set the
+        actual TES relays, and bit 16 sets the AC/DC coupling mode. Use
+        set_ac_dc_delay and get_ac_dc_relay for convenience.
+
+        Args
+        ----
+        bit (int) : 0-16 inclusive.
+        value (int) : 0 or 1.
+
+        Returns
+        -------
+        None
+        """
+
+        assert (bit in range(17)), ('bit must be in [0,...,16]')
+        assert (value in [0,1]), ('value must be either 0 or 1')
+        currentRelay = self.read_relays()
+        nextRelay = currentRelay & ~(1<<bit)
+        nextRelay = nextRelay | (value<<bit)
+        self.write_relays(nextRelay)
+
+    def get_relay_bit(self, bit):
+        """
+        Get the n-th bit from the relay address on the PIC. Bits 0-15 are the
+        actual TES relays, where 1 is delatch mode, and 0 is not delatch mode.
+        Bit 16 is the status of the flux ramp coupling, either AC mode (1) or
+        DC mode (0).
+
+        Args
+        ----
+        bit (int) : Which bit to read. 0-16.
+
+        Returns
+        -------
+        (int) : The value of the bit, either 0 or 1.
+        """
+        relays = self.read_relays()
+
+        if relays & 1 << bit > 0:
+            return 1
+
+        return 0
+
+    def set_ac_dc_relay(self, value):
+        """
+        Set the AC/DC relay bit. 1 is AC coupled, and 0 is DC coupled.
+
+        Args
+        ----
+        value (int) : 0 or 1.
+
+        Returns
+        -------
+        None
+        """
+        assert (value in [0,1]), ('value must be either 0 or 1')
+
+        self.set_relay_bit(16, value)
+
+    def get_ac_dc_relay(self):
+        """
+        Read the flux ramp coupling status, either AC mode or DC mode.
+
+        Args
+        ----
+        None
+
+        Returns
+        -------
+        (int): 0 is DC coupled, 1 is AC coupled.
+        """
+        return self.get_relay_bit(16)
 
     def delatch_bit(self, bit): # bit is the pattern for the desired relay, eg 0x4 for 100
         current_relay = self.read_relays()
@@ -150,31 +224,23 @@ class CryoCard():
         data = self.do_read(self.ps_en_address)
         return(cmd_data(data))
 
-    def read_ac_dc_relay_status(self):
+    def get_fw_version(self):
         """
-        Read the AC/DC mode relays readback status
-
-        Args
-        ----
-        None
+        Return the firmware version string from the Cryocard PIC controller.
+        This can be used to check communication with the PIC is OK, and crudely
+        proxy if this cryocard is of type C04 or C02. Addendum, the firmware
+        version is only avaiable at register address 0x00 in PIC firmware
+        versions R1.1.0+.  All previous versions of the code will return
+        0xABCDE in this register.
 
         Returns
         -------
-        status (int): 2-bit number with the readback relay status
-            Bit 0: Status of FRN_RLY
-            Bit 1: Status of FRP_RLY
+        (string) : Firmware version string from the Cryocard.
         """
-        data = self.do_read(self.ac_dc_status_address)
-        return(cmd_data(data))
-
-    def read_fw_version(self):
         data = cmd_data(self.do_read(self.fw_version_address))
 
         hexstr = f'{data:06x}'
 
-        # The firmware version is only avaiable at register address
-        # 0x00 in PIC firmware versions R1.1.0+.  All previous
-        # versions of the code will return 0xABCDE in this register.
         if data == 0xABCDE:
             print('Cryostat card PIC firmware version read returned\n'
                   '0xABCDE, which means the firmware version number\n'
