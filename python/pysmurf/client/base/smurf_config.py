@@ -496,11 +496,18 @@ class SmurfConfig:
         schema_dict["amplifier"] = {
             # 4K amplifier gate voltage, in volts.
             "hemt_Vg" : Use(float),
+
             # Conversion from bits (the digital value the RTM DAC is set to)
             # to volts for the 4K amplifier gate.  Units are volts/bit.  An
             # important dependency is the voltage division on the cryostat
             # card, which can be different from cryostat card to cryostat card
             "bit_to_V_hemt" : And(Use(float), lambda f: f > 0),
+            # The 4K amplifier drain current is measured before a voltage
+            # regulator, which also draws current.  An accurate measurement of
+            # the 4K drain current requires subtracting the current drawn by
+            # that regulator.  This is the offset to subtract off the measured
+            # value, in mA.
+            "hemt_Id_offset" : Use(float),
             # The resistance, in Ohm, of the resistor that is inline
             # with the 4K HEMT amplifier drain voltage source which is
             # used to infer the 4K HEMT amplifier drain current.  The
@@ -509,56 +516,48 @@ class SmurfConfig:
             # The resistor on that revision of the cryostat card is
             # R44.
             Optional('hemt_Vd_series_resistor', default=200.0): And(float, lambda f: f > 0),
-            # The 4K amplifier drain current is measured before a voltage
-            # regulator, which also draws current.  An accurate measurement of
-            # the 4K drain current requires subtracting the current drawn by
-            # that regulator.  This is the offset to subtract off the measured
-            # value, in mA.
-            "hemt_Id_offset" : Use(float),
             # Software limit on the minimum gate voltage that can be set for the 4K amplifier.
             "hemt_gate_min_voltage" : Use(float),
             # Software limit on the maximum gate voltage that can be set for the 4K amplifier.
             "hemt_gate_max_voltage" :  Use(float),
 
+            # 50K
+            # https://confluence.slac.stanford.edu/display/AIRTRACK/PC-248-103-02-CXX
             # 50K amplifier gate voltage, in volts.
             "LNA_Vg" : Use(float),
-            # Which RTM DAC is wired to the gate of the 50K amplifier.
-            # Authoritative:
-            # https://confluence.slac.stanford.edu/display/AIRTRACK/PC-248-103-02-CXX
-            "dac_num_50k" : And(int, lambda n: 1 <= n <= 32),
+            # See: hemt_Id_offset
+            "50k_Id_offset" : Use(float),
+            # The resistance, in Ohm, of the resistor that is inline
+            # with the 50K amplifier drain voltage source which is
+            # used to infer the 50K amplifier drain current.  The
+            # default value of 10 Ohm is the standard value in the BOM
+            # for cryostat card revision C02 (PC-248-103-02-C02).
+            # C02: R54: 10 Ohm
+            # C04: R54: 1 Ohm
+            Optional('50K_amp_Vd_series_resistor', default=10.0): And(float, lambda f: f > 0),
             # Conversion from bits (the digital value the RTM DAC is set to)
             # to volts for the 50K amplifier gate.  Units are volts/bit.  An
             # important dependency is the voltage division on the cryostat
             # card, which can be different from cryostat card to cryostat card
             "bit_to_V_50k" : And(Use(float), lambda f: f > 0),
-            # The resistance, in Ohm, of the resistor that is inline
-            # with the 50K amplifier drain voltage source which is
-            # used to infer the 50K amplifier drain current.  The
-            # default value of 10 Ohm is the standard value in the BOM
-            # for cryostat card revision C02 (PC-248-103-02-C02).  The
-            # resistor on that revision of the cryostat card is R54.
-            Optional('50K_amp_Vd_series_resistor', default=10.0): And(float, lambda f: f > 0),
-            # Undocumented
-            "50k_Id_offset" : Use(float),
+            # The DAC number to the 50K gate. Different between the C02 and C04.
+            "dac_num_50k" : And(int, lambda n: 1 <= n <= 32),
 
-            # 50K2 amplifier gate voltage, in volts.
-            "LNA2_Vg" : Use(float),
-            # Which RTM DAC is wired to the gate of the 50K amplifier.
-            # Authoritative:
+            # 50K2
             # https://confluence.slac.stanford.edu/display/AIRTRACK/PC-248-103-02-CXX
-            "dac_num_50k2" : And(int, lambda n: 1 <= n <= 32),
+            # 50K2 amplifier gate voltage, in volts.
+            Optional("50k2_Vg") : Use(float),
+            # See: hemt_Id_offset
+            Optional("50k2_Id_offset") : Use(float),
+            # R61 on the C04 50K2.
+            Optional('50k2_amp_Vd_series_resistor', default=1.0): And(float, lambda f: f > 0),
             # Conversion from bits (the digital value the RTM DAC is set to)
-            # to volts for the 50K2 amplifier gate.  Units are volts/bit.  An
+            # to volts for the 50K amplifier gate.  Units are volts/bit.  An
             # important dependency is the voltage division on the cryostat
             # card, which can be different from cryostat card to cryostat card
-            "bit_to_V_50k2" : And(Use(float), lambda f: f > 0),
-            # The resistance, in Ohm, of the resistor that is inline
-            # with the 50K2 amplifier drain voltage source which is
-            # used to infer the 50K2 amplifier drain current. Not sure
-            # which resistor specifically is on the C04 50k2.
-            Optional('50K2_amp_Vd_series_resistor', default=10.0): And(float, lambda f: f > 0),
-            # Undocumented
-            "50k2_Id_offset" : Use(float)
+            Optional("50k2_bit_to_V") : And(Use(float), lambda f: f > 0),
+            # The DAC number to the 50K2_G.
+            Optional("50k2_dac_num", default=26) : And(int, lambda n: 1 <= n <= 32),
         }
         #### Done specifiying amplifier
 

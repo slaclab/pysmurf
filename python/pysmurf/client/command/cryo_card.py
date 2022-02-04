@@ -31,12 +31,21 @@ def write_csv(filename, header, line):
 
 class CryoCard():
     def __init__(self, readpv_in, writepv_in):
+        """
+        Interact with the cryocard via the PIC. To interact via the RTM, use SmurfCommandMixin.
+        Needs to be compatible with the C02 and C04 cryocards.
+
+        Ref https://github.com/slaclab/smurfc/blob/C02/firmware/src/ccard.h
+        Ref https://github.com/slaclab/smurfc/blob/C04/firmware/src/ccard.h
+        """
+
         self.readpv = readpv_in
         self.writepv = writepv_in
         self.fw_version_address = 0x0
         self.relay_address = 0x2
         self.hemt_bias_address = 0x3
         self.a50K_bias_address = 0x4
+        self.a50k2_bias_address = 0x0B
         self.temperature_address = 0x5
         self.cycle_count_address = 0x6  # used for testing
         self.ps_en_address = 0x7 # PS enable (HEMT: bit 0, 50k: bit 1)
@@ -89,6 +98,10 @@ class CryoCard():
 
     def read_50k_bias(self):
         data = self.do_read(self.a50K_bias_address)
+        return((data& 0xFFFFF) * self.bias_scale * self.adc_scale)
+
+    def get_50k2_bias(self):
+        data = self.do_read(self.a50k2_bias_address)
         return((data& 0xFFFFF) * self.bias_scale * self.adc_scale)
 
     def read_temperature(self):

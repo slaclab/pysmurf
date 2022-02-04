@@ -2,6 +2,7 @@
 *.py~
 *.dat
 *.png
+*.swp
 
 # Distribution / packaging
 .Python

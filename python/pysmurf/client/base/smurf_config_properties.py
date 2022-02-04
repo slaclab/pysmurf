@@ -114,13 +114,6 @@ class SmurfConfigPropertiesMixin:
         self._fiftyk_amp_Vd_series_resistor = None
         self._fiftyk_Id_offset = None
 
-        ## 50K2 LNA
-        self._fiftyk2_Vg = None
-        self._fiftyk2_dac_num = None
-        self._fiftyk2_bit_to_V = None
-        self._fiftyk2_amp_Vd_series_resistor = None
-        self._fiftyk2_Id_offset = None
-
         ## Tuning parameters
         self._default_tune = None
         self._gradient_descent_gain = None
@@ -220,7 +213,7 @@ class SmurfConfigPropertiesMixin:
         ## Cold amplifier biases
         amp_cfg = config.get('amplifier')
 
-        # HEMT
+        # 4K HEMT
         self.hemt_Vg = amp_cfg['hemt_Vg']
         self.hemt_bit_to_V = amp_cfg['bit_to_V_hemt']
         self.hemt_Vd_series_resistor = amp_cfg['hemt_Vd_series_resistor']
@@ -228,7 +221,7 @@ class SmurfConfigPropertiesMixin:
         self.hemt_gate_min_voltage = amp_cfg['hemt_gate_min_voltage']
         self.hemt_gate_max_voltage = amp_cfg['hemt_gate_max_voltage']
 
-        # 50K or 50K1
+        # 50K HEMT
         self.fiftyk_Vg = amp_cfg['LNA_Vg']
         self.fiftyk_dac_num = amp_cfg['dac_num_50k']
         self.fiftyk_bit_to_V = amp_cfg['bit_to_V_50k']
@@ -236,10 +229,10 @@ class SmurfConfigPropertiesMixin:
         self.fiftyk_Id_offset = amp_cfg['50k_Id_offset']
 
         # 50K2
-        self.fiftyk2_Vg = amp_cfg['LNA2_Vg']
-        self.fiftyk2_dac_num = amp_cfg['dac_num_50k2']
-        self.fiftyk2_bit_to_V = amp_cfg['bit_to_V_50k2']
-        self.fiftyk2_amp_Vd_series_resistor = amp_cfg['50K2_amp_Vd_series_resistor']
+        self.fiftyk2_Vg = amp_cfg['50k2_Vg']
+        self.fiftyk2_dac_num = amp_cfg['50k2_dac_num']
+        self.fiftyk2_bit_to_V = amp_cfg['50k2_bit_to_V']
+        self.fiftyk2_amp_Vd_series_resistor = amp_cfg['50k2_amp_Vd_series_resistor']
         self.fiftyk2_Id_offset = amp_cfg['50k2_Id_offset']
 
         ## Tune parameters
@@ -1034,7 +1027,7 @@ class SmurfConfigPropertiesMixin:
         cryostat card is R54.  Units are Ohms.
 
         Specified in the pysmurf configuration file as
-        `amplifier:50K2_amp_Vd_series_resistor`.
+        `amplifier:50k2_amp_Vd_series_resistor`.
 
         Returns
         -------
