@@ -4275,9 +4275,9 @@ class SmurfCommandMixin(SmurfBase):
 
         return (en_value & 0x2 == 0x2)
 
-    def set_cryo_card_50k_ps_en(self, enable, write_log=False):
+    def set_cryo_card_50k2_ps_en(self, enable, write_log=False):
         """
-        Set the cryo card 50k power supply enable.
+        Set the cryo card 50k2 power supply enable.
 
         Args
         ----
