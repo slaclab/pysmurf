@@ -701,8 +701,11 @@ class SmurfControl(SmurfCommandMixin,
 
                     # MicrowaveMuxCore[0] LMK LmkReg_0x0147 0xA
                     for bay in self.bays:
-                        self.log(f'Configuring bay {bay} LMK to lock to the timing system')
-                        self.set_lmk_reg(bay, 0x147, 0xA)
+                        self.set_lmk_enable(bay, 1)
+                        self.log(f'Setting Bay {bay} LMK 0x146 to 0x08')
+                        self.set_lmk_reg(bay, 0x146, 0x08)
+                        self.log(f'Setting Bay {bay} LMK 0x147 to 0x0A')
+                        self.set_lmk_reg(bay, 0x147, 0x0A)
 
                 # https://confluence.slac.stanford.edu/display/SMuRF/Timing+Carrier#TimingCarrier-Howtoconfiguretodistributeoverbackplanefromslot2
 
@@ -727,10 +730,13 @@ class SmurfControl(SmurfCommandMixin,
                     # EvrV2CoreTriggers EVrV2TriggerReg[0] Enable Trig True
                     self.set_trigger_enable(0, True)
 
-                    # Set LMK to use timing system as reference
+                    # Set the bay AMC LMK to CLKin0
                     for bay in self.bays:
-                        self.log(f'Configuring bay {bay} LMK to lock to the timing system')
-                        self.set_lmk_reg(bay, 0x147, 0xA)
+                        self.set_lmk_enable(bay, 1)
+                        self.log(f'Setting Bay {bay} LMK 0x146 to 0x08')
+                        self.set_lmk_reg(bay, 0x146, 0x08)
+                        self.log(f'Setting Bay {bay} LMK 0x147 to 0x0A')
+                        self.set_lmk_reg(bay, 0x147, 0x0A)
 
                     # Configure RTM to trigger off of the timing system
                     self.set_ramp_start_mode(1, write_log=write_log)

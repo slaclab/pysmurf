@@ -50,6 +50,7 @@ class CryoCard():
         self.cycle_count_address = 0x6  # used for testing
         self.ps_en_address = 0x7 # PS enable (HEMT: bit 0, 50k: bit 1)
         self.ac_dc_status_address = 0x8 # AC/DC mode status (bit 0: FRN_RLY, bit 1: FRP_RLY)
+        self.optical_address = 0x0D # Optical transmitter. Bit 0: TX1, Bit 1: TX2
         self.adc_scale = 3.3/(1024.0 * 5)
         self.temperature_scale = 1/.028 # was 100
         self.temperature_offset =.25
@@ -70,6 +71,17 @@ class CryoCard():
         return(0)
 
         return (epics.caget(self.readpv))
+
+    def do_write(self, address, value):
+        """Write the given value directly to the address on the PIC. Make sure
+        you know if the value should be base-16, base-10, or base-2. There are
+        higher abstractions that might be more useful for what you're trying to
+        do.
+
+        :param address the address on the PIC (e.g. 0x2)
+        :returns the response from caput
+        """
+        return epics.caput(self.writepv, cmd_make(0, address, value))
 
     def write_relays(self, relay):  # relay is the bit partern to set
         epics.caput(self.writepv, cmd_make(0, self.relay_address, relay))
@@ -191,6 +203,27 @@ class CryoCard():
         major = int(hexstr[-6:-4],16)
 
         return(f'R{major}.{minor}.{patch}')
+
+    def read_optical(self):
+        """
+        Read the state of both optical transmitters..
+
+        Args
+        ----
+        None
+
+        Returns
+        -------
+        (int): 2-bit number with the readback relay status
+            Bit 0: If TX1 is enabled
+            Bit 1: If Tx2 is enabled
+        """
+        return self.do_read(self.optical_address)
+
+    def write_optical(self, value):
+        """
+        """
+        return self.do_write(self.optical_address, value)
 
 # low level data conversion
 
