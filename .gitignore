@@ -1,10 +1,13 @@
 *.pyc
-*.py~
 *.dat
 *.png
+
+# Editor
+*~
+.idea/
 *.swp
 
-# Distribution / packaging
+# Wheels
 .Python
 env/
 build/
@@ -22,5 +25,3 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
-
-.idea/
