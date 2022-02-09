@@ -45,7 +45,7 @@ class CryoCard():
         self.relay_address = 0x2
         self.hemt_bias_address = 0x3
         self.a50K_bias_address = 0x4
-        self.a50k2_bias_address = 0x0B
+        self.fiftyk2_drain_current_address = 0x0B
         self.temperature_address = 0x5
         self.cycle_count_address = 0x6  # used for testing
         self.ps_en_address = 0x7 # PS enable (HEMT: bit 0, 50k: bit 1)
@@ -93,15 +93,26 @@ class CryoCard():
         self.write_relays(current_relay) # return to original state
 
     def read_hemt_bias(self):
+        """
+        See read_50k_bias.
+        """
         data = self.do_read(self.hemt_bias_address)
         return((data& 0xFFFFF) * self.bias_scale * self.adc_scale)
 
     def read_50k_bias(self):
+        """
+        Get the drain current from the 50k.
+
+        """
         data = self.do_read(self.a50K_bias_address)
         return((data& 0xFFFFF) * self.bias_scale * self.adc_scale)
 
-    def get_50k2_bias(self):
-        data = self.do_read(self.a50k2_bias_address)
+    def get_50k2_drain_current(self):
+        """
+        Get the drain current from the 50k2.
+        See also: smurfc/firmware/src/ccard.h.
+        """
+        data = self.do_read(self.fiftyk2_drain_current_address)
         return((data& 0xFFFFF) * self.bias_scale * self.adc_scale)
 
     def read_temperature(self):

@@ -4260,6 +4260,22 @@ class SmurfCommandMixin(SmurfBase):
 
         return bit == 2
 
+    def set_50k_amp_enable(self, disable=False, **kwargs):
+        """
+        Sets the 50K amp bit to 2 for enable and 0 for disable.
+
+        Args
+        ----
+        disable : bool, optional, default False
+            Disable the 50K amplifier.
+        """
+        if disable:
+            self.set_rtm_slow_dac_enable(
+                self._fiftyk_dac_num, 0, **kwargs)
+        else:
+            self.set_rtm_slow_dac_enable(
+                self._fiftyk_dac_num, 2, **kwargs)
+
     def get_cryo_card_50k2_ps_en(self):
         """
         Set the cryo card 50k2 power supply enable.
@@ -4273,7 +4289,7 @@ class SmurfCommandMixin(SmurfBase):
         # Read the power supply enable word and extract the status of bit 1
         en_value = self.C.read_ps_en()
 
-        return (en_value & 0x2 == 0x2)
+        return (en_value & 0x4 == 0x2)
 
     def set_cryo_card_50k2_ps_en(self, enable, write_log=False):
         """
@@ -4302,52 +4318,33 @@ class SmurfCommandMixin(SmurfBase):
 
     def get_50k2_amp_enable(self):
         """
-        Get if the 50k LNA is enabled.
-
+        Get if the 50k2 amplifier is enabled.
         """
-        bit = self._caget(self.rtm_spi_max_root +
-                          self._rtm_slow_dac_data_reg.format(self._fiftyk2_dac_num))
+        val = self.get_rtm_slow_dac_data(self._fiftyk2_gate_dac_num)
 
-        return bit == 2
+        return val == 2
 
-    def set_50k2_amp_enable(self, disable=False, **kwargs):
+    def set_50k2_amp_enable(self, val, **kwargs):
         """
-        Sets the 50K2 amp bit to 2 for enable and 0 for disable.
+        Sets the 50k2 gate DAC to enable or disable.
 
         Args
         ----
-        disable : bool, optional, default False
-            Disable the 50K2 amplifier.
-        """
-        if disable:
-            self.set_rtm_slow_dac_enable(
-                self._fiftyk2_dac_num, 0, **kwargs)
-        else:
-            self.set_rtm_slow_dac_enable(
-                self._fiftyk2_dac_num, 2, **kwargs)
+        val: int
+            The value. 0 for disabled, 2 for enabled.
 
-    def set_50k_amp_enable(self, disable=False, **kwargs):
         """
-        Sets the 50K amp bit to 2 for enable and 0 for disable.
+        assert (val == 0 or val == 2), ('Error. Set to int 0 for disable, or 2 for enable.')
 
-        Args
-        ----
-        disable : bool, optional, default False
-            Disable the 50K amplifier.
-        """
-        if disable:
-            self.set_rtm_slow_dac_enable(
-                self._fiftyk_dac_num, 0, **kwargs)
-        else:
-            self.set_rtm_slow_dac_enable(
-                self._fiftyk_dac_num, 2, **kwargs)
+        self.set_rtm_slow_dac_enable(self._fiftyk2_gate_dac_num, val, **kwargs)
+
 
     def get_50k2_amp_gate_voltage(self, **kwargs):
         """
         """
         return (
             self._fiftyk_bit_to_V *
-            self.get_rtm_slow_dac_data(self._fiftyk2_dac_num, **kwargs))
+            self.get_rtm_slow_dac_data(self._fiftyk2_gate_dac_num, **kwargs))
 
     def set_50k2_amp_gate_voltage(self, voltage, override=False, **kwargs):
         """
@@ -4366,7 +4363,7 @@ class SmurfCommandMixin(SmurfBase):
             self.log('Voltage must be between -1 and 0. Doing nothing.')
         else:
             self.set_rtm_slow_dac_data(
-                self._fiftyk2_dac_num,
+                self._fiftyk2_gate_dac_num,
                 voltage/self._fiftyk2_bit_to_V,
                 **kwargs)
 

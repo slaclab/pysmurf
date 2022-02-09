@@ -544,20 +544,19 @@ class SmurfConfig:
             "dac_num_50k" : And(int, lambda n: 1 <= n <= 32),
 
             # 50K2
-            # https://confluence.slac.stanford.edu/display/AIRTRACK/PC-248-103-02-CXX
             # 50K2 amplifier gate voltage, in volts.
-            Optional("50k2_Vg") : Use(float),
+            Optional("fiftyk2_Vg", default=-0.75) : Use(float),
+            # The DAC number to the 50K2_G.
+            Optional("fiftyk2_gate_dac_num", default=26) : And(int, lambda n: 1 <= n <= 32),
             # See: hemt_Id_offset
-            Optional("50k2_Id_offset") : Use(float),
+            Optional("fiftyk2_Id_offset", default=0) : Use(float),
             # R61 on the C04 50K2.
-            Optional('50k2_amp_Vd_series_resistor', default=1.0): And(float, lambda f: f > 0),
+            Optional('fiftyk2_amp_Vd_series_resistor', default=1.0): And(float, lambda f: f > 0),
             # Conversion from bits (the digital value the RTM DAC is set to)
             # to volts for the 50K amplifier gate.  Units are volts/bit.  An
             # important dependency is the voltage division on the cryostat
             # card, which can be different from cryostat card to cryostat card
-            Optional("50k2_bit_to_V") : And(Use(float), lambda f: f > 0),
-            # The DAC number to the 50K2_G.
-            Optional("50k2_dac_num", default=26) : And(int, lambda n: 1 <= n <= 32),
+            Optional("fiftyk2_bit_to_V", default=3.88e-6) : And(Use(float), lambda f: f > 0)
         }
         #### Done specifiying amplifier
 
