@@ -4697,9 +4697,8 @@ class SmurfCommandMixin(SmurfBase):
 
     def set_hemt_bias(self, val, override=False, **kwargs):
         """
-        Sets the HEMT voltage in units of bits. This applies
-        to both HEMT1 and HEMT2 because there is only one register
-        to set the bias with, HemtBiasDacDataRegCh[33].
+        Sets the HEMT voltage in units of bits. Need to figure out the
+        conversion into real units.
 
         There is a hardcoded maximum value. If exceeded, no voltage is
         set. This check can be ignored using the override optional
