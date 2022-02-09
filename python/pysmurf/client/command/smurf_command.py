@@ -4722,9 +4722,7 @@ class SmurfCommandMixin(SmurfBase):
 
     def get_hemt_bias(self, **kwargs):
         """
-        Returns the HEMT voltage in bits. This applies
-        to both HEMT1 and HEMT2 because there is only one register
-        to set the bias with, HemtBiasDacDataRegCh[33].
+        Returns the HEMT voltage in bits.
         """
         return self._caget(
             self.rtm_spi_max_root + self._hemt_v_reg,
@@ -4732,9 +4730,7 @@ class SmurfCommandMixin(SmurfBase):
 
     def get_hemt_gate_voltage(self, **kwargs):
         """
-        Returns the HEMT voltage in bits. This applies
-        to both HEMT1 and HEMT2 because there is only one register
-        to set the bias with, HemtBiasDacDataRegCh[33].
+        Returns the HEMT voltage in bits.
         """
         return self._hemt_bit_to_V*(self.get_hemt_bias(**kwargs))
 
