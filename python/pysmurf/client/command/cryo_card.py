@@ -105,17 +105,10 @@ class CryoCard():
         self.write_relays(current_relay) # return to original state
 
     def read_hemt_bias(self):
-        """
-        See read_50k_bias.
-        """
         data = self.do_read(self.hemt_bias_address)
         return((data& 0xFFFFF) * self.bias_scale * self.adc_scale)
 
     def read_50k_bias(self):
-        """
-        Get the drain current from the 50k.
-
-        """
         data = self.do_read(self.a50K_bias_address)
         return((data& 0xFFFFF) * self.bias_scale * self.adc_scale)
 
