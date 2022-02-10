@@ -4302,100 +4302,56 @@ class SmurfCommandMixin(SmurfBase):
             self.set_rtm_slow_dac_enable(
                 self._fiftyk_dac_num, 2, **kwargs)
 
-    def get_cryo_card_50k2_ps_en(self):
+    def get_50k2_ps_en(self):
         """
-        Set the cryo card 50k2 power supply enable.
+        Get if the 50k2 power supply is on.
 
         Returns
         -------
-        enable : bool
-            Power supply enable (True = enable, False = disable).
+        on : bool
+            True = on, False = off
         """
 
-        # Read the power supply enable word and extract the status of bit 1
-        en_value = self.C.read_ps_en()
+        # e.g. 0b1101, 50k2, HEMT2, and HEMT1 are on.
+        ps_en = self.C.read_ps_en()
 
-        return (en_value & 0x4 == 0x2)
+        # e.g. 0b1000
+        masked = ps_en & 0b1000
 
-    def set_cryo_card_50k2_ps_en(self, enable, write_log=False):
+        # e.g. 0b1000 > 0 = True
+        return masked > 0
+
+    def set_50k2_ps_en(self, enable, write_log=False):
         """
-        Set the cryo card 50k2 power supply enable.
+        Turn on or off the cryo card 50k2 power supply.
 
         Args
         ----
         enable : bool
             Power supply enable (True = enable, False = disable).
         """
-        if write_log:
-            self.log('Writing 50k PS enable using cryo_card object '+
-                f'to {enable}')
+        self.log(f'Setting 50k2 ps_en, given enable = {enable}')
 
-        # Read the current enable word and merge this bit in position 1
+        # read_ps_en returns int(0bNNNN). write_ps_en literally
+        # receives the int NNNN. e.g. To turn on only the 50k2, start
+        # with read_ps_en 0, then write_ps_en(1000), then read_ps_en
+        # is 8.
+
         current_en_value = self.C.read_ps_en()
-        if (enable):
-            # Set bit 2
-            new_en_value = current_en_value | 0x2
+        if enable:
+            # Set bit 4
+            new_en_value = current_en_value | 0b1000
         else:
-            # Clear bit 1
-            new_en_value = current_en_value & 0x1
+            # Clear bit 4
+            new_en_value = current_en_value & ~0b1000
 
         # Write back the new value
         self.C.write_ps_en(new_en_value)
 
-    def get_50k2_amp_enable(self):
+    def get_50k2_bias(self, enable_poll=False, disable_poll=False):
         """
-        Get if the 50k2 amplifier is enabled.
-        """
-        val = self.get_rtm_slow_dac_data(self._fiftyk2_gate_dac_num)
-
-        return val == 2
-
-    def set_50k2_amp_enable(self, val, **kwargs):
-        """
-        Sets the 50k2 gate DAC to enable or disable.
-
-        Args
-        ----
-        val: int
-            The value. 0 for disabled, 2 for enabled.
-
-        """
-        assert (val == 0 or val == 2), ('Error. Set to int 0 for disable, or 2 for enable.')
-
-        self.set_rtm_slow_dac_enable(self._fiftyk2_gate_dac_num, val, **kwargs)
-
-
-    def get_50k2_amp_gate_voltage(self, **kwargs):
-        """
-        """
-        return (
-            self._fiftyk_bit_to_V *
-            self.get_rtm_slow_dac_data(self._fiftyk2_gate_dac_num, **kwargs))
-
-    def set_50k2_amp_gate_voltage(self, voltage, override=False, **kwargs):
-        """
-        Sets the 50K amplifier gate votlage.
-
-        Args
-        ----
-        voltage : float
-            The amplifier gate voltage between 0 and -1.
-        override : bool, optional, default False
-            Whether to override the software limit on the gate
-            voltage. This allows you to go outside the range of 0 and
-            -1.
-        """
-        if (voltage > 0 or voltage < -1.) and not override:
-            self.log('Voltage must be between -1 and 0. Doing nothing.')
-        else:
-            self.set_rtm_slow_dac_data(
-                self._fiftyk2_gate_dac_num,
-                voltage/self._fiftyk2_bit_to_V,
-                **kwargs)
-
-    def get_cryo_card_50k2_bias(self, enable_poll=False, disable_poll=False):
-        """
-        No description
+        Get the voltage measured from the 50K2 PIC address 0x0B. This
+        value read-only so does not have any setter.
 
         Returns
         -------
@@ -4415,6 +4371,114 @@ class SmurfCommandMixin(SmurfBase):
                 False)
 
         return bias
+
+    def get_50k2_gate_enable(self):
+        """
+        Get if the RTM DAC 50k2 Gate is enabled.
+        """
+        val = self.get_rtm_slow_dac_enable(self.fiftyk2_gate_dac_num)
+
+        return val == 2
+
+    def set_50k2_gate_enable(self, val):
+        """
+        Turn on or off the 50k2 gate DAC.
+
+        Args
+        ----
+        val: bool
+        """
+        assert (isinstance(val, bool)), ('Pass True or False.')
+
+        val2 = 0xE
+
+        if val:
+            val2 = 0x2
+
+        self.set_rtm_slow_dac_enable(self.fiftyk2_gate_dac_num, val2)
+
+    def get_50k2_gate_voltage(self, **kwargs):
+        """
+        Get the voltage measured from the RTM 50K2 Gate DAC.
+        """
+        return (
+            self.fiftyk2_gate_bit_to_V *
+            self.get_rtm_slow_dac_data(self.fiftyk2_gate_dac_num, **kwargs))
+
+    def set_50k2_gate_voltage(self, voltage, override=False, **kwargs):
+        """
+        Set the voltage on the RTM 50K2 Gate DAC.
+
+        Args
+        ----
+        voltage : float
+            The amplifier gate voltage between 0 and -1.
+        override : bool, optional, default False
+            Whether to override the software limit on the gate
+            voltage. This allows you to go outside the range of 0 and
+            -1.
+        """
+        if (voltage > 0 or voltage < -1) and not override:
+            self.log('Voltage must be between -1 and 0. Doing nothing.')
+        else:
+            self.set_rtm_slow_dac_data(
+                self.fiftyk2_gate_dac_num,
+                voltage/self.fiftyk2_gate_bit_to_V,
+                **kwargs)
+
+    def get_50k2_drain_enable(self):
+        """
+        Get if the RTM DAC 50k2 Drain is enabled.
+        """
+        val = self.get_rtm_slow_dac_enable(self.fiftyk2_drain_dac_num)
+
+        return val == 0x2
+
+    def set_50k2_drain_enable(self, val):
+        """
+        Sets the RTM DAC 50k2 Drain to enable or disable.
+
+        Args
+        ----
+        val: bool
+            True for enable, False for disable.
+        """
+        assert (isinstance(val, bool)), ('Must be bool.')
+
+        val2 = 0xE
+
+        if val:
+            val2 = 0x2
+
+        self.set_rtm_slow_dac_enable(self.fiftyk2_drain_dac_num, val2)
+
+    def get_50k2_drain_voltage(self, **kwargs):
+        """
+        Get the voltage measured from the RTM 50K2 Drain DAC.
+        """
+        return (
+            self.fiftyk2_drain_bit_to_V *
+            self.get_rtm_slow_dac_data(self.fiftyk2_drain_dac_num, **kwargs))
+
+    def set_50k2_drain_voltage(self, voltage, override=False, **kwargs):
+        """
+        Set the voltage on the RTM 50k2 Drain DAC.
+
+        Args
+        ----
+        voltage : float
+            The amplifier gate voltage between 3.75 and 5.5.
+        override : bool, optional, default False
+            Whether to override the software limit on the drain.
+        """
+        if override:
+            assert isinstance(voltage, float), ('With override, voltage should still be float.')
+        else:
+            assert (voltage <= 5.5 and voltage >= 3.75), "Drain voltage out of bounds."
+
+        self.set_rtm_slow_dac_data(self.fiftyk2_drain_dac_num,
+                voltage/self.fiftyk2_drain_bit_to_V,
+                **kwargs)
 
     def flux_ramp_on(self, **kwargs):
         """

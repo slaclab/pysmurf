@@ -119,10 +119,11 @@ class CryoCard():
         data = self.do_read(self.a50K_bias_address)
         return((data& 0xFFFFF) * self.bias_scale * self.adc_scale)
 
-    def get_50k2_drain_current(self):
+    def get_50k2_bias(self):
         """
-        Get the drain current from the 50k2.
-        See also: smurfc/firmware/src/ccard.h.
+        Measure the 50K2_I voltage into the PIC, then convert
+        from bits to volts, then to amps.
+
         """
         data = self.do_read(self.fiftyk2_drain_current_address)
         return((data& 0xFFFFF) * self.bias_scale * self.adc_scale)

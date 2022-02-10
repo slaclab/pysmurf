@@ -231,8 +231,10 @@ class SmurfConfigPropertiesMixin:
         # 50k2
         self.fiftyk2_Vg = amp_cfg['fiftyk2_Vg']
         self.fiftyk2_gate_dac_num = amp_cfg['fiftyk2_gate_dac_num']
+        self.fiftyk2_drain_dac_num = amp_cfg['fiftyk2_drain_dac_num']
         self.fiftyk2_Id_offset = amp_cfg['fiftyk2_Id_offset']
-        self.fiftyk2_bit_to_V = amp_cfg['fiftyk2_bit_to_V']
+        self.fiftyk2_gate_bit_to_V = amp_cfg['fiftyk2_gate_bit_to_V']
+        self.fiftyk2_drain_bit_to_V = amp_cfg['fiftyk2_drain_bit_to_V']
         self.fiftyk2_amp_Vd_series_resistor = amp_cfg['fiftyk2_amp_Vd_series_resistor']
 
         ## Tune parameters
@@ -895,7 +897,7 @@ class SmurfConfigPropertiesMixin:
     ## End fiftyk_Id_offset property definition
     ###########################################################################
 
-    # Start fiftyk2 properties.
+    # 50k2
 
     @property
     def fiftyk2_Vg(self):
@@ -952,7 +954,7 @@ class SmurfConfigPropertiesMixin:
         self._fiftyk2_gate_dac_num = value
 
     @property
-    def fiftyk2_bit_to_V(self):
+    def fiftyk2_gate_bit_to_V(self):
         """Bit to volts conversion for 50K2 LNA gate DAC.
 
         Gets or set the conversion from bits (the digital value the
@@ -977,11 +979,54 @@ class SmurfConfigPropertiesMixin:
         :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.get_fiftyk2_amp_gate_voltage`
 
         """
-        return self._fiftyk2_bit_to_V
+        return self._fiftyk2_gate_bit_to_V
 
-    @fiftyk2_bit_to_V.setter
-    def fiftyk2_bit_to_V(self, value):
-        self._fiftyk2_bit_to_V = value
+    @fiftyk2_gate_bit_to_V.setter
+    def fiftyk2_gate_bit_to_V(self, value):
+        self._fiftyk2_gate_bit_to_V = value
+
+    @property
+    def fiftyk2_drain_dac_num(self):
+        """RTM DAC for the 50k2 drain
+
+        Returns
+        -------
+        int
+           DAC number.
+        """
+        return self._fiftyk2_drain_dac_num
+
+    @fiftyk2_drain_dac_num.setter
+    def fiftyk2_drain_dac_num(self, value):
+        self._fiftyk2_drain_dac_num = value
+
+    @property
+    def fiftyk2_drain_bit_to_V(self):
+        """Bit to volts conversion for 50k2 drain DAC.
+
+        Gets or set the conversion from bits (the digital value the
+        RTM DAC is set to) to Volts for the 50K2 drain (specified at
+        the output of the cryostat card).  An important dependency is
+        the voltage division on the cryostat card, which can be
+        different from cryostat card to cryostat card.  Units are
+        Volts/bit.
+
+        Returns
+        -------
+        float
+           Conversion factor from bits to volts
+
+        See Also
+        --------
+        :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.set_fiftyk2_amp_gate_voltage`,
+        :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.get_fiftyk2_amp_gate_voltage`
+
+        """
+        return self._fiftyk2_drain_bit_to_V
+
+    @fiftyk2_drain_bit_to_V.setter
+    def fiftyk2_drain_bit_to_V(self, value):
+        self._fiftyk2_drain_bit_to_V = value
 
     @property
     def fiftyk2_amp_Vd_series_resistor(self):
@@ -1053,8 +1098,6 @@ class SmurfConfigPropertiesMixin:
     @fiftyk2_Id_offset.setter
     def fiftyk2_Id_offset(self, value):
         self._fiftyk2_Id_offset = value
-
-    # End fiftyk2 properties.
 
     ## Start attenuator property definition
 

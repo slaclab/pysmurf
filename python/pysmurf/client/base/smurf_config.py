@@ -546,8 +546,10 @@ class SmurfConfig:
             # 50K2
             # 50K2 amplifier gate voltage, in volts.
             Optional("fiftyk2_Vg", default=-0.75) : Use(float),
-            # The DAC number to the 50K2_G.
+            # The DAC number to 50K2_G.
             Optional("fiftyk2_gate_dac_num", default=26) : And(int, lambda n: 1 <= n <= 32),
+            # The DAC number to 50K2_D.
+            Optional("fiftyk2_drain_dac_num", default=28) : And(int, lambda n: 1 <= n <= 32),
             # See: hemt_Id_offset
             Optional("fiftyk2_Id_offset", default=0) : Use(float),
             # R61 on the C04 50K2.
@@ -556,7 +558,10 @@ class SmurfConfig:
             # to volts for the 50K amplifier gate.  Units are volts/bit.  An
             # important dependency is the voltage division on the cryostat
             # card, which can be different from cryostat card to cryostat card
-            Optional("fiftyk2_bit_to_V", default=3.88e-6) : And(Use(float), lambda f: f > 0)
+            Optional("fiftyk2_gate_bit_to_V", default=3.88e-6) : And(Use(float), lambda f: f > 0),
+            # See fiftyk2_gate_bit_to_V
+            Optional("fiftyk2_drain_bit_to_V", default=3.88e-6) : And(Use(float), lambda f: f > 0),
+
         }
         #### Done specifiying amplifier
 
