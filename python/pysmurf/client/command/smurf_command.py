@@ -4433,8 +4433,7 @@ class SmurfCommandMixin(SmurfBase):
         ----
         voltage : float
         """
-        self.set_rtm_slow_dac_data(
-                self.fiftyk2_gate_dac_num,
+        self.set_rtm_slow_dac_data(self.fiftyk2_gate_dac_num,
                 voltage/self.fiftyk2_gate_bit_to_V)
 
     def get_50k2_drain_enable(self):
