@@ -114,12 +114,12 @@ class CryoCard():
 
     def get_50k2_bias(self):
         """
-        Measure the 50K2_I voltage into the PIC, then convert
-        from bits to volts, then to amps.
-
+        Measure bits from 50K2_I, then convert those bits to voltage,
+        then return. Other pysmurf commands will then convert this to
+        current.
         """
         data = self.do_read(self.fiftyk2_drain_current_address)
-        return((data& 0xFFFFF) * self.bias_scale * self.adc_scale)
+        return (data & 0xFFFFF) * self.bias_scale * self.adc_scale
 
     def read_temperature(self):
         data = self.do_read(self.temperature_address)

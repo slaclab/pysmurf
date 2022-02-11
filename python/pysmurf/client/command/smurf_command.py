@@ -4350,8 +4350,8 @@ class SmurfCommandMixin(SmurfBase):
 
     def get_50k2_bias(self, enable_poll=False, disable_poll=False):
         """
-        Get the voltage measured from the 50K2 PIC address 0x0B. This
-        value read-only so does not have any setter.
+        Get the voltage measured from the C04 50K2 PIC address 0x0B.
+        This value read-only so does not have any setter.
 
         Returns
         -------
@@ -4371,6 +4371,26 @@ class SmurfCommandMixin(SmurfBase):
                 False)
 
         return bias
+
+    def get_50k2_drain_milliamps(self):
+        """
+        Get the 50K2_I voltage from get_50k2_bias, divide by the opamp gain,
+        multiple by the weird circuit factor of 2, then convert to milliamps
+        using the resistor value fiftyk2_amp_Vd_series_resistor, then offset by
+        fiftyk2_Id_offset milliamps.
+
+        This guesses the current going out the 50k2 drain. The actual
+        quantity is 50K2_D_OUT. The current offset can compensate for
+        the regular in between the resistor and the PIC which
+        contributes to the voltage measured, but doesn't contribute to
+        the actual current going out the card.
+        """
+        volts = self.get_50k2_bias()
+        amps = ((volts / self.fiftyk2_opamp_gain) * 2) / self.fiftyk2_amp_Vd_series_resistor
+        milliamps = amps * 1000
+        milliamps_offset = milliamps - self.fiftyk2_Id_offset
+
+        return milliamps_offset
 
     def get_50k2_gate_enable(self):
         """
@@ -4454,31 +4474,18 @@ class SmurfCommandMixin(SmurfBase):
 
     def get_50k2_drain_voltage(self, **kwargs):
         """
-        Get the voltage measured from the RTM 50K2 Drain DAC.
+        Get the voltage out of the RTM 50K2 Drain DAC.
         """
-        return (
-            self.fiftyk2_drain_bit_to_V *
-            self.get_rtm_slow_dac_data(self.fiftyk2_drain_dac_num, **kwargs))
+        return self.get_rtm_slow_dac_volt(self.fiftyk2_drain_dac_num)
 
     def set_50k2_drain_voltage(self, voltage, override=False, **kwargs):
         """
-        Set the voltage on the RTM 50k2 Drain DAC.
+        Set the voltage out of the RTM 50k2 Drain DAC.
 
         Args
         ----
-        voltage : float
-            The amplifier gate voltage between 3.75 and 5.5.
-        override : bool, optional, default False
-            Whether to override the software limit on the drain.
         """
-        if override:
-            assert isinstance(voltage, float), ('With override, voltage should still be float.')
-        else:
-            assert (voltage <= 5.5 and voltage >= 3.75), "Drain voltage out of bounds."
-
-        self.set_rtm_slow_dac_data(self.fiftyk2_drain_dac_num,
-                voltage/self.fiftyk2_drain_bit_to_V,
-                **kwargs)
+        self.set_rtm_slow_dac_volt(self.fiftyk2_drain_dac_num, voltage)
 
     def flux_ramp_on(self, **kwargs):
         """

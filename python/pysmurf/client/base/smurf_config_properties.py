@@ -232,9 +232,9 @@ class SmurfConfigPropertiesMixin:
         self.fiftyk2_Vg = amp_cfg['fiftyk2_Vg']
         self.fiftyk2_gate_dac_num = amp_cfg['fiftyk2_gate_dac_num']
         self.fiftyk2_drain_dac_num = amp_cfg['fiftyk2_drain_dac_num']
+        self.fiftyk2_opamp_gain = amp_cfg['fiftyk2_opamp_gain']
         self.fiftyk2_Id_offset = amp_cfg['fiftyk2_Id_offset']
         self.fiftyk2_gate_bit_to_V = amp_cfg['fiftyk2_gate_bit_to_V']
-        self.fiftyk2_drain_bit_to_V = amp_cfg['fiftyk2_drain_bit_to_V']
         self.fiftyk2_amp_Vd_series_resistor = amp_cfg['fiftyk2_amp_Vd_series_resistor']
 
         ## Tune parameters
@@ -1001,34 +1001,6 @@ class SmurfConfigPropertiesMixin:
         self._fiftyk2_drain_dac_num = value
 
     @property
-    def fiftyk2_drain_bit_to_V(self):
-        """Bit to volts conversion for 50k2 drain DAC.
-
-        Gets or set the conversion from bits (the digital value the
-        RTM DAC is set to) to Volts for the 50K2 drain (specified at
-        the output of the cryostat card).  An important dependency is
-        the voltage division on the cryostat card, which can be
-        different from cryostat card to cryostat card.  Units are
-        Volts/bit.
-
-        Returns
-        -------
-        float
-           Conversion factor from bits to volts
-
-        See Also
-        --------
-        :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.set_fiftyk2_amp_gate_voltage`,
-        :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.get_fiftyk2_amp_gate_voltage`
-
-        """
-        return self._fiftyk2_drain_bit_to_V
-
-    @fiftyk2_drain_bit_to_V.setter
-    def fiftyk2_drain_bit_to_V(self, value):
-        self._fiftyk2_drain_bit_to_V = value
-
-    @property
     def fiftyk2_amp_Vd_series_resistor(self):
         """50K2 LNA drain current measurement resistor in Ohms.
 
@@ -1098,6 +1070,14 @@ class SmurfConfigPropertiesMixin:
     @fiftyk2_Id_offset.setter
     def fiftyk2_Id_offset(self, value):
         self._fiftyk2_Id_offset = value
+
+    @property
+    def fiftyk2_opamp_gain(self):
+        return self._fiftyk2_opamp_gain
+
+    @fiftyk2_opamp_gain.setter
+    def fiftyk2_opamp_gain(self, value):
+        self._fiftyk2_opamp_gain = value
 
     ## Start attenuator property definition
 

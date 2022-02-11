@@ -553,15 +553,17 @@ class SmurfConfig:
             # See: hemt_Id_offset
             Optional("fiftyk2_Id_offset", default=0) : Use(float),
             # R61 on the C04 50K2.
-            Optional('fiftyk2_amp_Vd_series_resistor', default=1.0): And(float, lambda f: f > 0),
+            Optional('fiftyk2_amp_Vd_series_resistor', default=12.0): And(float, lambda f: f > 0),
+            # The opamp gain. This is necessary to convert from 50K2_I
+            # Volts to milliamps.
+            Optional('fiftyk2_opamp_gain', default = 9.929): Use(float),
             # Conversion from bits (the digital value the RTM DAC is set to)
             # to volts for the 50K amplifier gate.  Units are volts/bit.  An
             # important dependency is the voltage division on the cryostat
             # card, which can be different from cryostat card to cryostat card
             Optional("fiftyk2_gate_bit_to_V", default=3.88e-6) : And(Use(float), lambda f: f > 0),
-            # See fiftyk2_gate_bit_to_V
-            Optional("fiftyk2_drain_bit_to_V", default=3.88e-6) : And(Use(float), lambda f: f > 0),
-
+            # No fiftyk2_drain_bit_to_V, just use the bit_to_V for
+            # the generic get_rtm_slow_dac_volt command.
         }
         #### Done specifiying amplifier
 
