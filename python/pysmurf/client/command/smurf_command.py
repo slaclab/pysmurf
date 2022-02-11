@@ -4408,7 +4408,7 @@ class SmurfCommandMixin(SmurfBase):
         ----
         val: bool
         """
-        assert (isinstance(val, bool)), ('Pass True or False.')
+        assert (isinstance(val, bool)), ('Should be True or False.')
 
         val2 = 0xE
 
@@ -4425,26 +4425,17 @@ class SmurfCommandMixin(SmurfBase):
             self.fiftyk2_gate_bit_to_V *
             self.get_rtm_slow_dac_data(self.fiftyk2_gate_dac_num, **kwargs))
 
-    def set_50k2_gate_voltage(self, voltage, override=False, **kwargs):
+    def set_50k2_gate_voltage(self, voltage):
         """
         Set the voltage on the RTM 50K2 Gate DAC.
 
         Args
         ----
         voltage : float
-            The amplifier gate voltage between 0 and -1.
-        override : bool, optional, default False
-            Whether to override the software limit on the gate
-            voltage. This allows you to go outside the range of 0 and
-            -1.
         """
-        if (voltage > 0 or voltage < -1) and not override:
-            self.log('Voltage must be between -1 and 0. Doing nothing.')
-        else:
-            self.set_rtm_slow_dac_data(
+        self.set_rtm_slow_dac_data(
                 self.fiftyk2_gate_dac_num,
-                voltage/self.fiftyk2_gate_bit_to_V,
-                **kwargs)
+                voltage/self.fiftyk2_gate_bit_to_V)
 
     def get_50k2_drain_enable(self):
         """
