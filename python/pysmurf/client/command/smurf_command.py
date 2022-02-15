@@ -4321,7 +4321,7 @@ class SmurfCommandMixin(SmurfBase):
         # e.g. 0b1000 > 0 = True
         return masked > 0
 
-    def set_50k2_ps_en(self, enable, write_log=False):
+    def set_50k2_ps_en(self, enable):
         """
         Turn on or off the cryo card 50k2 power supply.
 
@@ -4330,8 +4330,6 @@ class SmurfCommandMixin(SmurfBase):
         enable : bool
             Power supply enable (True = enable, False = disable).
         """
-        self.log(f'Setting 50k2 ps_en, given enable = {enable}')
-
         # read_ps_en returns int(0bNNNN). write_ps_en literally
         # receives the int NNNN. e.g. To turn on only the 50k2, start
         # with read_ps_en 0, then write_ps_en(1000), then read_ps_en
@@ -4339,10 +4337,8 @@ class SmurfCommandMixin(SmurfBase):
 
         current_en_value = self.C.read_ps_en()
         if enable:
-            # Set bit 4
             new_en_value = current_en_value | 0b1000
         else:
-            # Clear bit 4
             new_en_value = current_en_value & ~0b1000
 
         # Write back the new value
@@ -4379,10 +4375,9 @@ class SmurfCommandMixin(SmurfBase):
         using the resistor value fiftyk2_amp_Vd_series_resistor, then offset by
         fiftyk2_Id_offset milliamps.
 
-        This guesses the current going out the 50k2 drain. The actual
-        quantity is 50K2_D_OUT. The current offset can compensate for
-        the regular in between the resistor and the PIC which
-        contributes to the voltage measured, but doesn't contribute to
+        This guesses the current going out of 50K2_D_OUT. The current offset
+        can compensate for the regulator in between the resistor and the PIC
+        which contributes to the voltage measured, but doesn't contribute to
         the actual current going out the card.
         """
         volts = self.get_50k2_bias()
@@ -4417,17 +4412,22 @@ class SmurfCommandMixin(SmurfBase):
 
         self.set_rtm_slow_dac_enable(self.fiftyk2_gate_dac_num, val2)
 
-    def get_50k2_gate_voltage(self, **kwargs):
+    def get_50k2_gate_voltage(self):
         """
-        Get the voltage measured from the RTM 50K2 Gate DAC.
+        Get the 50k2 gate DAC data, then convert to 50K2_G_OUT volts using
+        fiftyk2_gate_bit_to_V.  This estimates the voltage going out of the
+        cryocard 50k2 gate to the cryostat. If you want the voltage going out
+        of the RTM DAC, then use get_rtm_slow_dac_volt.
         """
         return (
             self.fiftyk2_gate_bit_to_V *
-            self.get_rtm_slow_dac_data(self.fiftyk2_gate_dac_num, **kwargs))
+            self.get_rtm_slow_dac_data(self.fiftyk2_gate_dac_num))
 
     def set_50k2_gate_voltage(self, voltage):
         """
-        Set the voltage on the RTM 50K2 Gate DAC.
+        Set the RTM 50k2 Gate DAC, 50K2_G, such that 50K2_G_OUT is the given
+        voltage. This sets the voltage going out of the 50k2 gate to the
+        cryostat.
 
         Args
         ----
@@ -4438,7 +4438,7 @@ class SmurfCommandMixin(SmurfBase):
 
     def get_50k2_drain_enable(self):
         """
-        Get if the RTM DAC 50k2 Drain is enabled.
+        Get if the RTM DAC for the 50k2 drain is enabled.
         """
         val = self.get_rtm_slow_dac_enable(self.fiftyk2_drain_dac_num)
 
@@ -4446,7 +4446,7 @@ class SmurfCommandMixin(SmurfBase):
 
     def set_50k2_drain_enable(self, val):
         """
-        Sets the RTM DAC 50k2 Drain to enable or disable.
+        Enable the RTM DAC for the 50k2 drain =.
 
         Args
         ----
@@ -4464,18 +4464,44 @@ class SmurfCommandMixin(SmurfBase):
 
     def get_50k2_drain_voltage(self, **kwargs):
         """
-        Get the voltage out of the RTM 50K2 Drain DAC.
+        Get the RTM 50k2 drain DAC, then convert it to 50K2_D_OUT volts from
+        empirical data. This is the expected voltage going out the 50k2 drain
+        on the cryocard. Similarly, get_50k2_gate_voltage gives the expected
+        voltage going out the 50k2 gate. The voltage from the RTM 50k2 drain
+        DAC is well known, however, the voltage out of 50K2_D_OUT is determined
+        empirically.
+
+        To measure this empirical data, set the gate voltage to 10 with
+        set_50k2_gate_voltage(10), turn on the power supply with
+        set_50k2_ps_en, then measure the 50K2_D_INT touch point as function of
+        set_50k2_drain_voltage from -10 to 10 Volts.
         """
-        return self.get_rtm_slow_dac_volt(self.fiftyk2_drain_dac_num)
+        m = -0.22
+        x_offset = -1
+        b = 5.36
+
+        dac_voltage = self.get_rtm_slow_dac_volt(self.fiftyk2_drain_dac_num)
+        fiftyk2_d_out_voltage = m * (dac_voltage + x_offset) + b
+
+        return fiftyk2_d_out_voltage
 
     def set_50k2_drain_voltage(self, voltage, override=False, **kwargs):
         """
-        Set the voltage out of the RTM 50k2 Drain DAC.
+        Given the desired voltage out of the 50k2 drain, set the 50k2 drain DAC
+        out of the RTM accordingly. This is the inverse of the empirical fit in
+        get_50k2_drain_voltage.
 
         Args
         ----
+        voltage : float
+            The desired voltage out of the 50k2 drain 50K2_D_OUT.
         """
-        self.set_rtm_slow_dac_volt(self.fiftyk2_drain_dac_num, voltage)
+        m = -0.22
+        x_offset = -1
+        b = 5.36
+
+        dac_voltage = (voltage - b)/m - x_offset
+        self.set_rtm_slow_dac_volt(self.fiftyk2_drain_dac_num, dac_voltage)
 
     def flux_ramp_on(self, **kwargs):
         """
