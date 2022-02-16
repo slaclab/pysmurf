@@ -148,9 +148,9 @@ class CryoCard():
 
         self.set_relay_bit(16, value)
 
-    def get_ac_dc_relay(self):
+    def read_ac_dc_relay_status(self):
         """
-        Read the flux ramp coupling status, either AC mode or DC mode.
+        Read the relay for the flux ramp coupling mode, which is either AC or DC.
 
         Args
         ----
