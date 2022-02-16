@@ -236,6 +236,8 @@ class SmurfConfigPropertiesMixin:
         self.fiftyk2_Id_offset = amp_cfg['fiftyk2_Id_offset']
         self.fiftyk2_gate_bit_to_V = amp_cfg['fiftyk2_gate_bit_to_V']
         self.fiftyk2_amp_Vd_series_resistor = amp_cfg['fiftyk2_amp_Vd_series_resistor']
+        self.fiftyk2_drain_conversion_m = amp_cfg['fiftyk2_drain_conversion_m']
+        self.fiftyk2_drain_conversion_b = amp_cfg['fiftyk2_drain_conversion_b']
 
         ## Tune parameters
         tune_band_cfg = config.get('tune_band')
@@ -1078,6 +1080,22 @@ class SmurfConfigPropertiesMixin:
     @fiftyk2_opamp_gain.setter
     def fiftyk2_opamp_gain(self, value):
         self._fiftyk2_opamp_gain = value
+
+    @property
+    def fiftyk2_drain_conversion_m(self):
+        return self._fiftyk2_drain_conversion_m
+
+    @fiftyk2_drain_conversion_m.setter
+    def fiftyk2_drain_conversion_m(self, value):
+        self._fiftyk2_drain_conversion_m = value
+
+    @property
+    def fiftyk2_drain_conversion_b(self):
+        return self._fiftyk2_drain_conversion_b
+
+    @fiftyk2_drain_conversion_b.setter
+    def fiftyk2_drain_conversion_b(self, value):
+        self._fiftyk2_drain_conversion_b = value
 
     ## Start attenuator property definition
 

@@ -562,8 +562,10 @@ class SmurfConfig:
             # important dependency is the voltage division on the cryostat
             # card, which can be different from cryostat card to cryostat card
             Optional("fiftyk2_gate_bit_to_V", default=3.88e-6) : And(Use(float), lambda f: f > 0),
-            # No fiftyk2_drain_bit_to_V, just use the bit_to_V for
-            # the generic get_rtm_slow_dac_volt command.
+            # Used by: set_50k2_drain_voltage, get_50k2_drain_voltage
+            # See also: smurf_config_properties.py, smurf_command.py
+            Optional("fiftyk2_drain_conversion_m", default=-0.224968): Use(float),
+            Optional("fiftyk2_drain_conversion_b", default=5.59815): Use(float)
         }
         #### Done specifiying amplifier
 

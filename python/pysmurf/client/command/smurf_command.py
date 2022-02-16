@@ -4464,43 +4464,43 @@ class SmurfCommandMixin(SmurfBase):
 
     def get_50k2_drain_voltage(self, **kwargs):
         """
-        Get the RTM 50k2 drain DAC, then convert it to 50K2_D_OUT volts from
-        empirical data. This is the expected voltage going out the 50k2 drain
-        on the cryocard. Similarly, get_50k2_gate_voltage gives the expected
-        voltage going out the 50k2 gate. The voltage from the RTM 50k2 drain
-        DAC is well known, however, the voltage out of 50K2_D_OUT is determined
+        Get the RTM 50k2 drain DAC, then convert it to 50K2_D_OUT
+        volts from empirical data. This is the expected voltage going
+        out the 50k2 drain on the cryocard. Similarly,
+        get_50k2_gate_voltage gives the expected voltage going out the
+        50k2 gate. The voltage from the RTM 50k2 drain DAC is well
+        known, however, the voltage out of 50K2_D_OUT is determined
         empirically.
 
-        To measure this empirical data, set the gate voltage to 10 with
-        set_50k2_gate_voltage(10), turn on the power supply with
-        set_50k2_ps_en, then measure the 50K2_D_INT touch point as function of
-        set_50k2_drain_voltage from -10 to 10 Volts.
-        """
-        m = -0.22
-        x_offset = -1
-        b = 5.36
+        To measure this empirical data, set the gate voltage to 10
+        with set_50k2_gate_voltage(10), turn on the power supply with
+        set_50k2_ps_en, then measure the 50K2_D_INT touch point as
+        function of set_50k2_drain_voltage from -10 to 10 Volts.
 
+        See also: smurf_config.py
+
+        """
         dac_voltage = self.get_rtm_slow_dac_volt(self.fiftyk2_drain_dac_num)
-        fiftyk2_d_out_voltage = m * (dac_voltage + x_offset) + b
+        m = self.fiftyk2_drain_conversion_m
+        b = self.fiftyk2_drain_conversion_b
+        fiftyk2_d_out_voltage = m * dac_voltage + b
 
         return fiftyk2_d_out_voltage
 
     def set_50k2_drain_voltage(self, voltage, override=False, **kwargs):
         """
-        Given the desired voltage out of the 50k2 drain, set the 50k2 drain DAC
-        out of the RTM accordingly. This is the inverse of the empirical fit in
-        get_50k2_drain_voltage.
+        Given the desired voltage out of the 50k2 drain, set the 50k2
+        drain DAC out of the RTM accordingly.
 
         Args
         ----
         voltage : float
             The desired voltage out of the 50k2 drain 50K2_D_OUT.
         """
-        m = -0.22
-        x_offset = -1
-        b = 5.36
-
-        dac_voltage = (voltage - b)/m - x_offset
+        # y=mx+b, solve for x
+        m = self.fiftyk2_drain_conversion_m
+        b = self.fiftyk2_drain_conversion_b
+        dac_voltage = (voltage - b)/m
         self.set_rtm_slow_dac_volt(self.fiftyk2_drain_dac_num, dac_voltage)
 
     def flux_ramp_on(self, **kwargs):
