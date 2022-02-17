@@ -508,7 +508,6 @@ class SmurfConfig:
             # that regulator.  This is the offset to subtract off the measured
             # value, in mA.
             "hemt_Id_offset" : Use(float),
-            "50k_Id_offset" : Use(float),
             # The resistance, in Ohm, of the resistor that is inline
             # with the 4K HEMT amplifier drain voltage source which is
             # used to infer the 4K HEMT amplifier drain current.  The
@@ -517,26 +516,56 @@ class SmurfConfig:
             # The resistor on that revision of the cryostat card is
             # R44.
             Optional('hemt_Vd_series_resistor', default=200.0): And(float, lambda f: f > 0),
+            # Software limit on the minimum gate voltage that can be set for the 4K amplifier.
+            "hemt_gate_min_voltage" : Use(float),
+            # Software limit on the maximum gate voltage that can be set for the 4K amplifier.
+            "hemt_gate_max_voltage" :  Use(float),
+
+            # 50K
+            # https://confluence.slac.stanford.edu/display/AIRTRACK/PC-248-103-02-CXX
+            # 50K amplifier gate voltage, in volts.
+            "LNA_Vg" : Use(float),
+            # See: hemt_Id_offset
+            "50k_Id_offset" : Use(float),
             # The resistance, in Ohm, of the resistor that is inline
             # with the 50K amplifier drain voltage source which is
             # used to infer the 50K amplifier drain current.  The
             # default value of 10 Ohm is the standard value in the BOM
-            # for cryostat card revision C02 (PC-248-103-02-C02).  The
-            # resistor on that revision of the cryostat card is R54.
+            # for cryostat card revision C02 (PC-248-103-02-C02).
+            # C02: R54: 10 Ohm
+            # C04: R54: 1 Ohm
             Optional('50K_amp_Vd_series_resistor', default=10.0): And(float, lambda f: f > 0),
-            # 50K amplifier gate voltage, in volts.
-            "LNA_Vg" : Use(float),
-            # Which RTM DAC is wired to the gate of the 50K amplifier.
-            "dac_num_50k" : And(int, lambda n: 1 <= n <= 32),
             # Conversion from bits (the digital value the RTM DAC is set to)
             # to volts for the 50K amplifier gate.  Units are volts/bit.  An
             # important dependency is the voltage division on the cryostat
             # card, which can be different from cryostat card to cryostat card
             "bit_to_V_50k" : And(Use(float), lambda f: f > 0),
-            # Software limit on the minimum gate voltage that can be set for the 4K amplifier.
-            "hemt_gate_min_voltage" : Use(float),
-            # Software limit on the maximum gate voltage that can be set for the 4K amplifier.
-            "hemt_gate_max_voltage" :  Use(float)
+            # The DAC number to the 50K gate. Different between the C02 and C04.
+            "dac_num_50k" : And(int, lambda n: 1 <= n <= 32),
+
+            # 50K2
+            # 50K2 amplifier gate voltage, in volts.
+            Optional("fiftyk2_Vg", default=-0.75) : Use(float),
+            # The DAC number to 50K2_G.
+            Optional("fiftyk2_gate_dac_num", default=26) : And(int, lambda n: 1 <= n <= 32),
+            # The DAC number to 50K2_D.
+            Optional("fiftyk2_drain_dac_num", default=28) : And(int, lambda n: 1 <= n <= 32),
+            # See: hemt_Id_offset
+            Optional("fiftyk2_Id_offset", default=0) : Use(float),
+            # R61 on the C04 50K2.
+            Optional('fiftyk2_amp_Vd_series_resistor', default=12.0): And(float, lambda f: f > 0),
+            # The opamp gain. This is necessary to convert from 50K2_I
+            # Volts to milliamps.
+            Optional('fiftyk2_opamp_gain', default = 9.929): Use(float),
+            # Conversion from bits (the digital value the RTM DAC is set to)
+            # to volts for the 50K amplifier gate.  Units are volts/bit.  An
+            # important dependency is the voltage division on the cryostat
+            # card, which can be different from cryostat card to cryostat card
+            Optional("fiftyk2_gate_bit_to_V", default=3.88e-6) : And(Use(float), lambda f: f > 0),
+            # Used by: set_50k2_drain_voltage, get_50k2_drain_voltage
+            # See also: smurf_config_properties.py, smurf_command.py
+            Optional("fiftyk2_drain_conversion_m", default=-0.224968): Use(float),
+            Optional("fiftyk2_drain_conversion_b", default=5.59815): Use(float)
         }
         #### Done specifiying amplifier
 

@@ -4276,6 +4276,16 @@ class SmurfCommandMixin(SmurfBase):
             self.get_rtm_slow_dac_data(self._fiftyk_dac_num,
                                        **kwargs))
 
+    def get_50k_amp_enable(self):
+        """
+        Get if the 50k LNA is enabled.
+
+        """
+        bit = self._caget(self.rtm_spi_max_root +
+                          self._rtm_slow_dac_data_reg.format(self._fiftyk_dac_num))
+
+        return bit == 2
+
     def set_50k_amp_enable(self, disable=False, **kwargs):
         """
         Sets the 50K amp bit to 2 for enable and 0 for disable.
@@ -4291,6 +4301,207 @@ class SmurfCommandMixin(SmurfBase):
         else:
             self.set_rtm_slow_dac_enable(
                 self._fiftyk_dac_num, 2, **kwargs)
+
+    def get_50k2_ps_en(self):
+        """
+        Get if the 50k2 power supply is on.
+
+        Returns
+        -------
+        on : bool
+            True = on, False = off
+        """
+
+        # e.g. 0b1101, 50k2, HEMT2, and HEMT1 are on.
+        ps_en = self.C.read_ps_en()
+
+        # e.g. 0b1000
+        masked = ps_en & 0b1000
+
+        # e.g. 0b1000 > 0 = True
+        return masked > 0
+
+    def set_50k2_ps_en(self, enable):
+        """
+        Turn on or off the cryo card 50k2 power supply.
+
+        Args
+        ----
+        enable : bool
+            Power supply enable (True = enable, False = disable).
+        """
+        # read_ps_en returns int(0bNNNN). write_ps_en literally
+        # receives the int NNNN. e.g. To turn on only the 50k2, start
+        # with read_ps_en 0, then write_ps_en(1000), then read_ps_en
+        # is 8.
+
+        current_en_value = self.C.read_ps_en()
+        if enable:
+            new_en_value = current_en_value | 0b1000
+        else:
+            new_en_value = current_en_value & ~0b1000
+
+        # Write back the new value
+        self.C.write_ps_en(new_en_value)
+
+    def get_50k2_bias(self, enable_poll=False, disable_poll=False):
+        """
+        Get the voltage measured from the C04 50K2 PIC address 0x0B.
+        This value read-only so does not have any setter.
+
+        Returns
+        -------
+        bias : float
+            The 50K2 bias in volts.
+        """
+        if enable_poll:
+            epics.caput(
+                self.epics_root + self._global_poll_enable_reg,
+                True)
+
+        bias = self.C.get_50k2_bias()
+
+        if disable_poll:
+            epics.caput(
+                self.epics_root + self._global_poll_enable_reg,
+                False)
+
+        return bias
+
+    def get_50k2_drain_milliamps(self):
+        """
+        Get the 50K2_I voltage from get_50k2_bias, divide by the opamp gain,
+        multiple by the weird circuit factor of 2, then convert to milliamps
+        using the resistor value fiftyk2_amp_Vd_series_resistor, then offset by
+        fiftyk2_Id_offset milliamps.
+
+        This guesses the current going out of 50K2_D_OUT. The current offset
+        can compensate for the regulator in between the resistor and the PIC
+        which contributes to the voltage measured, but doesn't contribute to
+        the actual current going out the card.
+        """
+        volts = self.get_50k2_bias()
+        amps = ((volts / self.fiftyk2_opamp_gain) * 2) / self.fiftyk2_amp_Vd_series_resistor
+        milliamps = amps * 1000
+        milliamps_offset = milliamps - self.fiftyk2_Id_offset
+
+        return milliamps_offset
+
+    def get_50k2_gate_enable(self):
+        """
+        Get if the RTM DAC 50k2 Gate is enabled.
+        """
+        val = self.get_rtm_slow_dac_enable(self.fiftyk2_gate_dac_num)
+
+        return val == 2
+
+    def set_50k2_gate_enable(self, val):
+        """
+        Turn on or off the 50k2 gate DAC.
+
+        Args
+        ----
+        val: bool
+        """
+        assert (isinstance(val, bool)), ('Should be True or False.')
+
+        val2 = 0xE
+
+        if val:
+            val2 = 0x2
+
+        self.set_rtm_slow_dac_enable(self.fiftyk2_gate_dac_num, val2)
+
+    def get_50k2_gate_voltage(self):
+        """
+        Get the 50k2 gate DAC data, then convert to 50K2_G_OUT volts using
+        fiftyk2_gate_bit_to_V.  This estimates the voltage going out of the
+        cryocard 50k2 gate to the cryostat. If you want the voltage going out
+        of the RTM DAC, then use get_rtm_slow_dac_volt.
+        """
+        return (
+            self.fiftyk2_gate_bit_to_V *
+            self.get_rtm_slow_dac_data(self.fiftyk2_gate_dac_num))
+
+    def set_50k2_gate_voltage(self, voltage):
+        """
+        Set the RTM 50k2 Gate DAC, 50K2_G, such that 50K2_G_OUT is the given
+        voltage. This sets the voltage going out of the 50k2 gate to the
+        cryostat.
+
+        Args
+        ----
+        voltage : float
+        """
+        self.set_rtm_slow_dac_data(self.fiftyk2_gate_dac_num,
+                voltage/self.fiftyk2_gate_bit_to_V)
+
+    def get_50k2_drain_enable(self):
+        """
+        Get if the RTM DAC for the 50k2 drain is enabled.
+        """
+        val = self.get_rtm_slow_dac_enable(self.fiftyk2_drain_dac_num)
+
+        return val == 0x2
+
+    def set_50k2_drain_enable(self, val):
+        """
+        Enable the RTM DAC for the 50k2 drain =.
+
+        Args
+        ----
+        val: bool
+            True for enable, False for disable.
+        """
+        assert (isinstance(val, bool)), ('Must be bool.')
+
+        val2 = 0xE
+
+        if val:
+            val2 = 0x2
+
+        self.set_rtm_slow_dac_enable(self.fiftyk2_drain_dac_num, val2)
+
+    def get_50k2_drain_voltage(self, **kwargs):
+        """
+        Get the RTM 50k2 drain DAC, then convert it to 50K2_D_OUT
+        volts from empirical data. This is the expected voltage going
+        out the 50k2 drain on the cryocard. Similarly,
+        get_50k2_gate_voltage gives the expected voltage going out the
+        50k2 gate. The voltage from the RTM 50k2 drain DAC is well
+        known, however, the voltage out of 50K2_D_OUT is determined
+        empirically.
+
+        To measure this empirical data, set the gate voltage to 10
+        with set_50k2_gate_voltage(10), turn on the power supply with
+        set_50k2_ps_en, then measure the 50K2_D_INT touch point as
+        function of set_50k2_drain_voltage from -10 to 10 Volts.
+
+        See also: smurf_config.py
+
+        """
+        dac_voltage = self.get_rtm_slow_dac_volt(self.fiftyk2_drain_dac_num)
+        m = self.fiftyk2_drain_conversion_m
+        b = self.fiftyk2_drain_conversion_b
+        fiftyk2_d_out_voltage = m * dac_voltage + b
+
+        return fiftyk2_d_out_voltage
+
+    def set_50k2_drain_voltage(self, voltage, override=False, **kwargs):
+        """
+        Given the desired voltage out of the 50k2 drain, set the 50k2
+        drain DAC out of the RTM accordingly.
+
+        Args
+        ----
+        voltage : float
+            The desired voltage out of the 50k2 drain 50K2_D_OUT.
+        """
+        # y=mx+b, solve for x
+        m = self.fiftyk2_drain_conversion_m
+        b = self.fiftyk2_drain_conversion_b
+        dac_voltage = (voltage - b)/m
+        self.set_rtm_slow_dac_volt(self.fiftyk2_drain_dac_num, dac_voltage)
 
     def flux_ramp_on(self, **kwargs):
         """
@@ -4549,8 +4760,6 @@ class SmurfCommandMixin(SmurfBase):
             self.rtm_cryo_det_root + self._pulse_width_reg,
             **kwargs)
 
-    # can't write a get for this right now because read back isn't implemented
-    # I think...
     _hemt_v_enable_reg = 'HemtBiasDacCtrlRegCh[33]'
 
     def set_hemt_enable(self, disable=False, **kwargs):
@@ -4570,30 +4779,6 @@ class SmurfCommandMixin(SmurfBase):
             self._caput(
                 self.rtm_spi_max_root + self._hemt_v_enable_reg,
                 2, **kwargs)
-
-    def set_hemt_gate_voltage(self, voltage, override=False,
-                              **kwargs):
-        """
-        Sets the HEMT gate voltage in units of volts.
-
-        Args
-        ----
-        voltage : float
-            The voltage applied to the HEMT gate. Must be between 0
-            and .75.
-        override bool, optional, default False
-            Override thee limits on HEMT gate voltage.
-        """
-        self.set_hemt_enable()
-        if (voltage > self._hemt_gate_max_voltage or voltage <
-                self._hemt_gate_min_voltage ) and not override:
-            self.log(
-                'Input voltage too high. Not doing anything.' +
-                ' If you really want it higher, use the ' +
-                'override optional arg.')
-        else:
-            self.set_hemt_bias(int(voltage/self._hemt_bit_to_V),
-                override=override, **kwargs)
 
     _hemt_v_reg = 'HemtBiasDacDataRegCh[33]'
 
@@ -4634,6 +4819,30 @@ class SmurfCommandMixin(SmurfBase):
         Returns the HEMT voltage in bits.
         """
         return self._hemt_bit_to_V*(self.get_hemt_bias(**kwargs))
+
+    def set_hemt_gate_voltage(self, voltage, override=False,
+                              **kwargs):
+        """
+        Sets the HEMT gate voltage in units of volts.
+
+        Args
+        ----
+        voltage : float
+            The voltage applied to the HEMT gate. Must be between 0
+            and .75.
+        override bool, optional, default False
+            Override thee limits on HEMT gate voltage.
+        """
+        self.set_hemt_enable()
+        if (voltage > self._hemt_gate_max_voltage or voltage <
+                self._hemt_gate_min_voltage ) and not override:
+            self.log(
+                'Input voltage too high. Not doing anything.' +
+                ' If you really want it higher, use the ' +
+                'override optional arg.')
+        else:
+            self.set_hemt_bias(int(voltage/self._hemt_bit_to_V),
+                override=override, **kwargs)
 
     _stream_datafile_reg = 'dataFile'
 

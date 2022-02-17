@@ -5,6 +5,7 @@
 # Editor
 *~
 .idea/
+*.swp
 
 # Wheels
 .Python
