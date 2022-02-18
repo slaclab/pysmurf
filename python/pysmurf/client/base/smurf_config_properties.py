@@ -99,21 +99,6 @@ class SmurfConfigPropertiesMixin:
         self._timing_reference = None
 
         # Amplifiers
-        ## 4K HEMT
-        self._hemt_Vg = None
-        self._hemt_bit_to_V = None
-        self._hemt_Vd_series_resistor = None
-        self._hemt_Id_offset = None
-        self._hemt_gate_min_voltage = None
-        self._hemt_gate_max_voltage = None
-
-        ## 50K LNA
-        self._fiftyk_Vg = None
-        self._fiftyk_dac_num = None
-        self._fiftyk_bit_to_V = None
-        self._fiftyk_amp_Vd_series_resistor = None
-        self._fiftyk_Id_offset = None
-
         ## Tuning parameters
         self._default_tune = None
         self._gradient_descent_gain = None
@@ -209,35 +194,6 @@ class SmurfConfigPropertiesMixin:
         ## Timing
         timing_cfg = config.get('timing')
         self.timing_reference = timing_cfg['timing_reference']
-
-        ## Cold amplifier biases
-        amp_cfg = config.get('amplifier')
-
-        # 4K HEMT
-        self.hemt_Vg = amp_cfg['hemt_Vg']
-        self.hemt_bit_to_V = amp_cfg['bit_to_V_hemt']
-        self.hemt_Vd_series_resistor = amp_cfg['hemt_Vd_series_resistor']
-        self.hemt_Id_offset = amp_cfg['hemt_Id_offset']
-        self.hemt_gate_min_voltage = amp_cfg['hemt_gate_min_voltage']
-        self.hemt_gate_max_voltage = amp_cfg['hemt_gate_max_voltage']
-
-        # 50K HEMT
-        self.fiftyk_Vg = amp_cfg['LNA_Vg']
-        self.fiftyk_dac_num = amp_cfg['dac_num_50k']
-        self.fiftyk_bit_to_V = amp_cfg['bit_to_V_50k']
-        self.fiftyk_amp_Vd_series_resistor = amp_cfg['50K_amp_Vd_series_resistor']
-        self.fiftyk_Id_offset = amp_cfg['50k_Id_offset']
-
-        # 50k2
-        self.fiftyk2_Vg = amp_cfg['fiftyk2_Vg']
-        self.fiftyk2_gate_dac_num = amp_cfg['fiftyk2_gate_dac_num']
-        self.fiftyk2_drain_dac_num = amp_cfg['fiftyk2_drain_dac_num']
-        self.fiftyk2_opamp_gain = amp_cfg['fiftyk2_opamp_gain']
-        self.fiftyk2_Id_offset = amp_cfg['fiftyk2_Id_offset']
-        self.fiftyk2_gate_bit_to_V = amp_cfg['fiftyk2_gate_bit_to_V']
-        self.fiftyk2_amp_Vd_series_resistor = amp_cfg['fiftyk2_amp_Vd_series_resistor']
-        self.fiftyk2_drain_conversion_m = amp_cfg['fiftyk2_drain_conversion_m']
-        self.fiftyk2_drain_conversion_b = amp_cfg['fiftyk2_drain_conversion_b']
 
         ## Tune parameters
         tune_band_cfg = config.get('tune_band')
@@ -461,10 +417,9 @@ class SmurfConfigPropertiesMixin:
     def hemt_Vg(self):
         """4K HEMT gate voltage in volts.
 
-        Gets or sets the desired value for the 4K HEMT gate voltage at
-        the output of the cryostat card.  Units are Volts.
-
-        Specified in the pysmurf configuration file as
+        Used by set_amplifier_biases to set the desired value for
+        the 4K HEMT gate voltage at the output of the cryostat
+        card. Specified in the pysmurf configuration file as
         `amplifier:hemt_Vg`.
 
         Returns
@@ -694,6 +649,72 @@ class SmurfConfigPropertiesMixin:
     ## End hemt_gate_max_voltage property definition
     ###########################################################################
 
+    @property
+    def hemt_gate_dac_num(self):
+        """RTM DAC Number to the HEMT gate. Compatible with C02 and C04.
+        """
+        return self._hemt_gate_dac_num
+
+    @hemt_gate_dac_num.setter
+    def hemt_gate_dac_num(self, value):
+        self._hemt_gate_dac_num = value
+
+    @property
+    def hemt_drain_dac_num(self):
+        """RTM DAC Number to the HEMT drain. Compatible with C02 and C04.
+        """
+        return self._hemt_drain_dac_num
+
+    @hemt_drain_dac_num.setter
+    def hemt_drain_dac_num(self, value):
+        self._hemt_drain_dac_num = value
+
+    @property
+    def hemt_opamp_gain(self):
+        """Gain of the C02 HEMT opamp, equal to the C04 HEMT1 opamp. This is
+        used to estimate the current going out the cryocard HEMT drain.
+        """
+        return self._hemt_opamp_gain
+
+    @hemt_opamp_gain.setter
+    def hemt_opamp_gain(self, value):
+        self._hemt_opamp_gain = value
+
+    @property
+    def hemt_drain_conversion_m(self):
+        """On the C02, the HEMT drain is set manually, so this is not relevant
+        to the C02. On the C04, the user can specify the voltage going out of
+        the HEMT drain. However this can only be set indirectly by setting the
+        RTM DAC voltage. This converts the RTM DAC voltage to the HEMT voltage
+        going out the C04 cryocard. If you precision voltage going out of the
+        HEMT drain to order 0.0001 V, use set_rtm_slow_dac_volt and measure
+        HEMT_D_OUT touch point with multimeter.
+
+        To measure the converison factor, set HEMT_G to max with
+        set_rtm_slow_dac_volt(S.hemt_gate_dac_num, 10), turn on the power
+        supply with set_hemt_ps_en, then measure the HEMT_D_OUT touch point as
+        function of set_rtm_slow_dac_volt(S.hemt_drain_dac_num, ...) from -10
+        to 10 Volts. Fit with y=mx+b, plug in here, then the functions
+        set_hemt_drain_voltage and get_hemt_drain_voltage are calibrated.
+        """
+
+        return self._hemt_drain_conversion_m
+
+    @hemt_drain_conversion_m.setter
+    def hemt_drain_conversion_m(self, value):
+        self._hemt_drain_conversion_m = value
+
+    @property
+    def hemt_drain_conversion_b(self):
+        """See hemt_drain_conversion_m.
+        """
+
+        return self._hemt_drain_conversion_b
+
+    @hemt_drain_conversion_b.setter
+    def hemt_drain_conversion_b(self, value):
+        self._hemt_drain_conversion_b = value
+
     ###########################################################################
     ## Start fiftyk_Vg property definition
 
@@ -707,6 +728,8 @@ class SmurfConfigPropertiesMixin:
 
         Specified in the pysmurf configuration file as
         `amplifier:LNA_Vg`.
+
+        See also https://confluence.slac.stanford.edu/display/AIRTRACK/PC-248-103-02-CXX.
 
         Returns
         -------
@@ -1096,6 +1119,101 @@ class SmurfConfigPropertiesMixin:
     @fiftyk2_drain_conversion_b.setter
     def fiftyk2_drain_conversion_b(self, value):
         self._fiftyk2_drain_conversion_b = value
+
+    # hemt2
+
+    @property
+    def hemt2_gate_dac_num(self):
+        """
+        RTM DAC number wired to the HEMT2 gate.
+        """
+        return self._hemt2_gate_dac_num
+
+    @hemt2_gate_dac_num.setter
+    def hemt2_gate_dac_num(self, value):
+        self._hemt2_gate_dac_num = value
+
+    @property
+    def hemt2_drain_dac_num(self):
+        """RTM DAC number wired to the HEMT2 drain.
+        """
+        return self._hemt2_drain_dac_num
+
+    @hemt2_drain_dac_num.setter
+    def hemt2_drain_dac_num(self, value):
+        self._hemt2_drain_dac_num = value
+
+    @property
+    def hemt2_gate_bit_to_V(self):
+        """Given the bit measurement from the RTM HEMT2 Gate DAC, multiply it
+        by this number to get HEMT2_G_OUT Volts. This allows the user to set or
+        get the HEMT2 Gate Voltage going out of the cryocard.
+
+        HEMT2_G_OUT = 20 Volts * R19/(R19+R16) * 2^(-20) [Volt]
+        """
+        return self._hemt2_gate_bit_to_V
+
+    @hemt2_gate_bit_to_V.setter
+    def hemt2_gate_bit_to_V(self, value):
+        self._hemt2_gate_bit_to_V = value
+
+    @property
+    def hemt2_amp_Vd_series_resistor(self):
+        """The R54 resistor in the cryocard, Ohms. This is used to convert
+        HEMT2_I volts to HEMT2_I milliamps.
+        """
+        return self._hemt2_amp_Vd_series_resistor
+
+    @hemt2_amp_Vd_series_resistor.setter
+    def hemt2_amp_Vd_series_resistor(self, value):
+        self._hemt2_amp_Vd_series_resistor = value
+
+    @property
+    def hemt2_Id_offset(self):
+        """Analogous to 50k2_Id_offset, for the HEMT2 circuit.
+        """
+        return self._hemt2_Id_offset
+
+    @hemt2_Id_offset.setter
+    def hemt2_Id_offset(self, value):
+        self._hemt2_Id_offset = value
+
+    @property
+    def hemt2_opamp_gain(self):
+        """The gain of the HEMT2 opamp. Used to convert HEMT2_I volts to
+        HEMET2_I milliamps.
+        """
+        return self._hemt2_opamp_gain
+
+    @hemt2_opamp_gain.setter
+    def hemt2_opamp_gain(self, value):
+        self._hemt2_opamp_gain = value
+
+    @property
+    def hemt2_drain_conversion_m(self):
+        """The slope of the linear fit that converts HEMT2_D volts to
+        HEMT2_D_OUT volts.
+
+        See also: hemt2_drain_conversion_b
+        """
+        return self._hemt2_drain_conversion_m
+
+    @hemt2_drain_conversion_m.setter
+    def hemt2_drain_conversion_m(self, value):
+        self._hemt2_drain_conversion_m = value
+
+    @property
+    def hemt2_drain_conversion_b(self):
+        """The y-offset of the linear fit that converts HEMT2_D volts
+        to HEMT2_D_OUT volts.
+
+        See also: hemt2_drain_conversion_m
+        """
+        return self._hemt2_drain_conversion_b
+
+    @hemt2_drain_conversion_b.setter
+    def hemt2_drain_conversion_b(self, value):
+        self._hemt2_drain_conversion_b = value
 
     ## Start attenuator property definition
 

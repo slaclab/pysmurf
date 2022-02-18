@@ -494,78 +494,126 @@ class SmurfConfig:
 
         #### Start specifiying amplifier
         schema_dict["amplifier"] = {
-            # 4K amplifier gate voltage, in volts.
-            "hemt_Vg" : Use(float),
 
-            # Conversion from bits (the digital value the RTM DAC is set to)
-            # to volts for the 4K amplifier gate.  Units are volts/bit.  An
-            # important dependency is the voltage division on the cryostat
-            # card, which can be different from cryostat card to cryostat card
-            "bit_to_V_hemt" : And(Use(float), lambda f: f > 0),
-            # The 4K amplifier drain current is measured before a voltage
-            # regulator, which also draws current.  An accurate measurement of
-            # the 4K drain current requires subtracting the current drawn by
-            # that regulator.  This is the offset to subtract off the measured
-            # value, in mA.
-            "hemt_Id_offset" : Use(float),
-            # The resistance, in Ohm, of the resistor that is inline
-            # with the 4K HEMT amplifier drain voltage source which is
-            # used to infer the 4K HEMT amplifier drain current.  The
-            # default value of 200 Ohm is the standard value in the
-            # BOM for cryostat card revision C02 (PC-248-103-02-C02).
-            # The resistor on that revision of the cryostat card is
-            # R44.
-            Optional('hemt_Vd_series_resistor', default=200.0): And(float, lambda f: f > 0),
-            # Software limit on the minimum gate voltage that can be set for the 4K amplifier.
-            "hemt_gate_min_voltage" : Use(float),
-            # Software limit on the maximum gate voltage that can be set for the 4K amplifier.
-            "hemt_gate_max_voltage" :  Use(float),
+            Optional('hemt', default = {
+                'drain_offset': 0.2643,
+                'drain_pic_address': 0x3,
+                'drain_resistor': 200.0,
+                'gate_bit_to_volt': 1.92661e-6,
+                'gate_dac_num': 33,
+                'gate_volt_default': 0,
+                'gate_volt_min': 0,
+                'gate_volt_max': 2.03,
+                'opamp_gain': 1,
+                'power_bitmask': 0b1,
+                'power_default': False
+            }): {
+                'gate_dac_num': Use(int)
+            },
 
-            # 50K
-            # https://confluence.slac.stanford.edu/display/AIRTRACK/PC-248-103-02-CXX
-            # 50K amplifier gate voltage, in volts.
-            "LNA_Vg" : Use(float),
-            # See: hemt_Id_offset
-            "50k_Id_offset" : Use(float),
-            # The resistance, in Ohm, of the resistor that is inline
-            # with the 50K amplifier drain voltage source which is
-            # used to infer the 50K amplifier drain current.  The
-            # default value of 10 Ohm is the standard value in the BOM
-            # for cryostat card revision C02 (PC-248-103-02-C02).
-            # C02: R54: 10 Ohm
-            # C04: R54: 1 Ohm
-            Optional('50K_amp_Vd_series_resistor', default=10.0): And(float, lambda f: f > 0),
-            # Conversion from bits (the digital value the RTM DAC is set to)
-            # to volts for the 50K amplifier gate.  Units are volts/bit.  An
-            # important dependency is the voltage division on the cryostat
-            # card, which can be different from cryostat card to cryostat card
-            "bit_to_V_50k" : And(Use(float), lambda f: f > 0),
-            # The DAC number to the 50K gate. Different between the C02 and C04.
-            "dac_num_50k" : And(int, lambda n: 1 <= n <= 32),
+            Optional('50k', default = {
+                'drain_offset': 0.2643,
+                'drain_pic_address': 0x4,
+                'drain_resistor': 10.0,
+                'gate_bit_to_volt': 3.86936e-6,
+                'gate_dac_num': 32,
+                'gate_volt_default': 0,
+                'gate_volt_min': 0,
+                'gate_volt_max': 2.03,
+                'opamp_gain': 1,
+                'power_bitmask': 0b10,
+                'power_default': False
+            }): {
+                'gate_dac_num': Use(int)
+            },
 
-            # 50K2
-            # 50K2 amplifier gate voltage, in volts.
-            Optional("fiftyk2_Vg", default=-0.75) : Use(float),
-            # The DAC number to 50K2_G.
-            Optional("fiftyk2_gate_dac_num", default=26) : And(int, lambda n: 1 <= n <= 32),
-            # The DAC number to 50K2_D.
-            Optional("fiftyk2_drain_dac_num", default=28) : And(int, lambda n: 1 <= n <= 32),
-            # See: hemt_Id_offset
-            Optional("fiftyk2_Id_offset", default=0) : Use(float),
-            # R61 on the C04 50K2.
-            Optional('fiftyk2_amp_Vd_series_resistor', default=12.0): And(float, lambda f: f > 0),
-            # The opamp gain. This is necessary to convert from 50K2_I
-            # Volts to milliamps.
-            Optional('fiftyk2_opamp_gain', default = 9.929): Use(float),
-            # Conversion from bits (the digital value the RTM DAC is set to)
-            # to volts for the 50K amplifier gate.  Units are volts/bit.  An
-            # important dependency is the voltage division on the cryostat
-            # card, which can be different from cryostat card to cryostat card
-            Optional("fiftyk2_gate_bit_to_V", default=3.88e-6) : And(Use(float), lambda f: f > 0),
-            # Used by: set_50k2_drain_voltage, get_50k2_drain_voltage
-            # See also: smurf_config_properties.py, smurf_command.py
-            Optional("fiftyk2_drain_conversion_m", default=-0.224968): Use(float),
-            Optional("fiftyk2_drain_conversion_b", default=5.59815): Use(float)
+            Optional('hemt1', default = {
+                'drain_conversion_b': 1.74185,
+                'drain_conversion_m': -0.259491,
+                'drain_dac_num': 31,
+                'drain_offset': 0,
+                'drain_pic_address': 0x3,
+                'drain_resistor': 50.0,
+                'drain_volt_default': 0,
+                'drain_volt_min': 0,
+                'drain_volt_max': 2,
+                'gate_bit_to_volt': 3.86936e-6,
+                'gate_dac_num': 33,
+                'gate_volt_default': 0,
+                'gate_volt_min': 0,
+                'gate_volt_max': 2.03,
+                'opamp_gain': 3.874,
+                'power_bitmask': 0b1,
+                'power_default': False
+            }): {
+                'gate_dac_num': Use(int)
+            },
+
+            Optional('hemt2', default = {
+                'drain_conversion_b': 1.74185,
+                'drain_conversion_m': -0.259491,
+                'drain_dac_num': 29,
+                'drain_offset': 0,
+                'drain_pic_address': 0x0a,
+                'drain_resistor': 50.0,
+                'drain_volt_default': 0,
+                'drain_volt_min': 0,
+                'drain_volt_max': 2,
+                'gate_bit_to_volt': 3.86936e-6,
+                'gate_dac_num': 27,
+                'gate_volt_default': 0,
+                'gate_volt_min': 0,
+                'gate_volt_max': 2.03,
+                'opamp_gain': 3.874,
+                'power_bitmask': 0b100,
+                'power_default': False
+            }): {
+                'gate_dac_num': Use(int)
+            },
+
+            Optional('50k1', default = {
+                'drain_conversion_b': 5.59815,
+                'drain_conversion_m': -0.224968,
+                'drain_dac_num': 32,
+                'drain_offset': 0,
+                'drain_pic_address': 0x04,
+                'drain_resistor': 10.0,
+                'drain_volt_default': 3.5,
+                'drain_volt_min': 3.5,
+                'drain_volt_max': 5.5,
+                'gate_bit_to_volt': 3.86936e-6,
+                'gate_dac_num': 30,
+                'gate_volt_default': 0,
+                'gate_volt_min': 0,
+                'gate_volt_max': 2.03,
+                'opamp_gain': 9.929,
+                'power_bitmask': 0b10,
+                'power_default': False
+            }): {
+                'gate_dac_num': Use(int)
+            },
+
+            Optional('50k2', default = {
+                'drain_conversion_b': 5.59815,
+                'drain_conversion_m': -0.224968,
+                'drain_dac_num': 28,
+                'drain_offset': 0,
+                'drain_pic_address': 0x0b,
+                'drain_resistor': 10.0,
+                'drain_volt_default': 3.5,
+                'drain_volt_min': 3.5,
+                'drain_volt_max': 5.5,
+                'gate_bit_to_volt': 3.86936e-6,
+                'gate_dac_num': 26,
+                'gate_volt_default': 0,
+                'gate_volt_min': 0,
+                'gate_volt_max': 2.03,
+                'opamp_gain': 9.929,
+                'power_bitmask': 0b1000,
+                'power_default': False
+            }): {
+                'gate_dac_num': Use(int)
+            },
         }
         #### Done specifiying amplifier
 
@@ -738,23 +786,6 @@ class SmurfConfig:
                 len(tes_bias_group_dacs)), (
                     'Configuration failed - DACs may not be ' +
                     'assigned to multiple TES bias groups.')
-
-        # Check that the DAC specified as the 50K gate driver
-        # isn't also defined as one of the DACs in a TES bias group
-        # pair.
-        dac_num_50k = validated_config['amplifier']['dac_num_50k']
-        # Taking the first element works because we already required
-        # that no DAC show up in more than one TES bias group
-        # definition.
-        if dac_num_50k in tes_bias_group_dacs:
-            # which TES bias group is defined as using the requested
-            # DAC for biasing the 50K amplifier?
-            bias_group = int([bg2p[0] for bg2p in
-                              bias_group_to_pair.items() if
-                              dac_num_50k in bg2p[1]][0])
-            assert False, 'Configuration failed - DAC requested ' + \
-                f'for driving 50K amplifier gate, {dac_num_50k}, is ' + \
-                f'also assigned to TES bias group {bias_group}.'
 
         ##### Done with higher level/composite validation.
         ###################################################
