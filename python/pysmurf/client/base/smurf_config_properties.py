@@ -1107,12 +1107,12 @@ class SmurfConfigPropertiesMixin:
     def fiftyk2_drain_conversion_b(self, value):
         self._fiftyk2_drain_conversion_b = value
 
-
     # hemt2
 
     @property
     def hemt2_gate_dac_num(self):
-        """RTM DAC number wired to the HEMT2 gate.
+        """
+        RTM DAC number wired to the HEMT2 gate.
         """
         return self._hemt2_gate_dac_num
 
