@@ -4503,6 +4503,181 @@ class SmurfCommandMixin(SmurfBase):
         dac_voltage = (voltage - b)/m
         self.set_rtm_slow_dac_volt(self.fiftyk2_drain_dac_num, dac_voltage)
 
+    # hemt2
+
+    def get_hemt2_ps_en(self):
+        """
+        Get if the hemt2 power supply is on.
+        """
+
+        # e.g. 0b1101, 50k2, hemt2, and hemt1 are on
+        ps_en = self.C.read_ps_en()
+
+        # e.g. 0b0100
+        masked = ps_en & 0b0100
+
+        # e.g. 0b0100 > 0 = True
+        return masked > 0
+
+    def set_hemt2_ps_en(self, enable):
+        """
+        Turn on or off the cryo card hemt2 power supply.
+
+        Args
+        ----
+        enable : bool
+        """
+        # read_ps_en returns int(0bNNNN). write_ps_en literally
+        # receives the int NNNN. e.g. To turn on only the hemt2, start
+        # with read_ps_en 0, then write_ps_en(0100), then read_ps_en
+        # is 4.
+
+        current_en_value = self.C.read_ps_en()
+        if enable:
+            new_en_value = current_en_value | 0b0100
+        else:
+            new_en_value = current_en_value & ~0b0100
+
+        self.C.write_ps_en(new_en_value)
+
+    def get_hemt2_bias(self):
+        """
+        Get the voltage measured from the C04 HEMT2 PIC address 0x0A.
+        This value read-only so does not have any setter.
+        """
+        bias = self.C.get_hemt2_i_voltage()
+
+        return bias
+
+    def get_hemt2_drain_milliamps(self):
+        """
+        Get the HEMT2_I voltage from get_hemt2_bias, divide by the opamp gain,
+        multiply by the weird circuit factor of 2, then convert to milliamps
+        using the resistor value hemt2_amp_Vd_series_resistor, then offset by
+        hemt2_Id_offset milliamps.
+
+        This guesses the current going out of HEMT2_D_OUT. The current offset
+        can compensate for the regulator in between the resistor and the PIC
+        which contributes to the voltage measured, but doesn't contribute to
+        the actual current going out the card.
+        """
+        volts = self.C.get_hemt2_i_voltage()
+        amps = ((volts / self.hemt2_opamp_gain) * 2) / self.hemt2_amp_Vd_series_resistor
+        milliamps = amps * 1000
+        milliamps_offset = milliamps - self.hemt2_Id_offset
+
+        return milliamps_offset
+
+    def get_hemt2_gate_enable(self):
+        """
+        Get if the RTM DAC hemt2 Gate is enabled.
+        """
+        val = self.get_rtm_slow_dac_enable(self.hemt2_gate_dac_num)
+
+        return val == 2
+
+    def set_hemt2_gate_enable(self, val):
+        """
+        Turn on or off the hemt2 gate DAC.
+
+        Args
+        ----
+        val: bool
+        """
+        assert (isinstance(val, bool)), ('Should be True or False.')
+
+        val2 = 0xE
+
+        if val:
+            val2 = 0x2
+
+        self.set_rtm_slow_dac_enable(self.hemt2_gate_dac_num, val2)
+
+    def get_hemt2_gate_voltage(self):
+        """
+        Get the hemt2 gate DAC data, then convert to 50K2_G_OUT volts using
+        hemt2_gate_bit_to_V.  This estimates the voltage going out of the
+        cryocard hemt2 gate to the cryostat. If you want the voltage going out
+        of the RTM DAC, then use get_rtm_slow_dac_volt.
+        """
+        bits = self.get_rtm_slow_dac_data(self.hemt2_gate_dac_num)
+        volts = bits * self.hemt2_gate_bit_to_V
+
+        return volts
+
+    def set_hemt2_gate_voltage(self, volts):
+        """
+        Set the RTM hemt2 Gate DAC, 50K2_G, such that 50K2_G_OUT is the given
+        voltage. This sets the voltage going out of the hemt2 gate to the
+        cryostat.
+        """
+        bits = volts / self.hemt2_gate_bit_to_V
+
+        self.set_rtm_slow_dac_data(self.hemt2_gate_dac_num, bits)
+
+    def get_hemt2_drain_enable(self):
+        """
+        Get if the RTM DAC for the hemt2 drain is enabled.
+        """
+        val = self.get_rtm_slow_dac_enable(self.hemt2_drain_dac_num)
+
+        return val == 0x2
+
+    def set_hemt2_drain_enable(self, val):
+        """
+        Enable the RTM DAC for the hemt2 drain.
+        """
+        assert (isinstance(val, bool)), ('Must be bool.')
+
+        val2 = 0xE
+
+        if val:
+            val2 = 0x2
+
+        self.set_rtm_slow_dac_enable(self.hemt2_drain_dac_num, val2)
+
+    def get_hemt2_drain_voltage(self):
+        """
+        Get the RTM hemt2 drain DAC, then convert it to HEMT2_D_OUT
+        volts from empirical data. This is the expected voltage going
+        out the hemt2 drain on the cryocard. Similarly,
+        get_hemt2_gate_voltage gets the expected voltage going out the
+        hemt2 gate. The voltage from the RTM hemt2 drain DAC is well
+        known, however, the voltage out of HEMT2_D_OUT is determined
+        empirically.
+
+        To measure this empirical data, set the gate voltage to 10 with
+        set_hemt2_gate_voltage(10), turn on the power supply with
+        set_hemt2_ps_en, then measure the HEMT2_D_INT touch point as function
+        of set_hemt2_drain_voltage from -10 to 10 Volts, fit it linearly, then
+        plug in the parameters into hemt2_drain_conversion_m and
+        hemt2_drain_conversion_b.
+
+        See also: smurf_config.py
+        """
+        dac_voltage = self.get_rtm_slow_dac_volt(self.hemt2_drain_dac_num)
+        m = self.hemt2_drain_conversion_m
+        b = self.hemt2_drain_conversion_b
+        hemt2_d_out_voltage = m * dac_voltage + b
+
+        return hemt2_d_out_voltage
+
+    def set_hemt2_drain_voltage(self, voltage):
+        """
+        Given the desired voltage out of the hemt2 drain, set the hemt2
+        drain DAC out of the RTM accordingly.
+
+        Args
+        ----
+        voltage : float
+            The desired voltage out of the hemt2 drain HEMT2_D_OUT.
+        """
+        # y=mx+b, solve for x
+        m = self.hemt2_drain_conversion_m
+        b = self.hemt2_drain_conversion_b
+        dac_voltage = (voltage - b)/m
+        self.set_rtm_slow_dac_volt(self.hemt2_drain_dac_num, dac_voltage)
+
     def flux_ramp_on(self, **kwargs):
         """
         Turns on the flux ramp - a useful wrapper for set_cfg_reg_ena_bit

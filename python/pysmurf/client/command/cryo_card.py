@@ -46,6 +46,7 @@ class CryoCard():
         self.hemt_bias_address = 0x3
         self.a50K_bias_address = 0x4
         self.fiftyk2_drain_current_address = 0x0B
+        self.hemt2_i_address = 0x0A
         self.temperature_address = 0x5
         self.cycle_count_address = 0x6  # used for testing
         self.ps_en_address = 0x7 # PS enable (HEMT: bit 0, 50k: bit 1)
@@ -185,6 +186,17 @@ class CryoCard():
     def read_50k_bias(self):
         data = self.do_read(self.a50K_bias_address)
         return((data& 0xFFFFF) * self.bias_scale * self.adc_scale)
+
+    def get_hemt2_i_voltage(self):
+        """
+        Measure bits from HEMT2_I, convert those bits to voltage. This is
+        called the hemt2 "bias."
+
+        See also: get_hemt2_bias
+        """
+        data = self.do_read(self.hemt2_i_address)
+        volts = (data & 0xFFFFF) * self.bias_scale * self.adc_scale
+        return volts
 
     def get_50k2_bias(self):
         """

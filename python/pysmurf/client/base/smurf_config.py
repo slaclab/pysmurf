@@ -565,7 +565,17 @@ class SmurfConfig:
             # Used by: set_50k2_drain_voltage, get_50k2_drain_voltage
             # See also: smurf_config_properties.py, smurf_command.py
             Optional("fiftyk2_drain_conversion_m", default=-0.224968): Use(float),
-            Optional("fiftyk2_drain_conversion_b", default=5.59815): Use(float)
+            Optional("fiftyk2_drain_conversion_b", default=5.59815): Use(float),
+
+            # HEMT2
+            Optional("hemt2_gate_dac_num", default=27) : Use(int),
+            Optional("hemt2_drain_dac_num", default=29) : Use(int),
+            Optional("hemt2_Id_offset", default=0) : Use(float),
+            Optional('hemt2_amp_Vd_series_resistor', default=50.0): And(float, lambda f: f > 0),
+            Optional('hemt2_opamp_gain', default = 3.874): Use(float),
+            Optional("hemt2_gate_bit_to_V", default=3.869e-6) : And(Use(float), lambda f: f > 0),
+            Optional("hemt2_drain_conversion_m", default=-0.259491): Use(float),
+            Optional("hemt2_drain_conversion_b", default=1.74185): Use(float)
         }
         #### Done specifiying amplifier
 
