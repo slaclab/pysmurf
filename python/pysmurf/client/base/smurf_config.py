@@ -494,32 +494,21 @@ class SmurfConfig:
 
         #### Start specifiying amplifier
         schema_dict["amplifier"] = {
-            # 4K amplifier gate voltage, in volts.
-            "hemt_Vg" : Use(float),
 
-            # Conversion from bits (the digital value the RTM DAC is set to)
-            # to volts for the 4K amplifier gate.  Units are volts/bit.  An
-            # important dependency is the voltage division on the cryostat
-            # card, which can be different from cryostat card to cryostat card
+            # See smurf_config_properties.py.
+
+            # HEMT
+            "hemt_Vg" : Use(float),
             "bit_to_V_hemt" : And(Use(float), lambda f: f > 0),
-            # The 4K amplifier drain current is measured before a voltage
-            # regulator, which also draws current.  An accurate measurement of
-            # the 4K drain current requires subtracting the current drawn by
-            # that regulator.  This is the offset to subtract off the measured
-            # value, in mA.
             "hemt_Id_offset" : Use(float),
-            # The resistance, in Ohm, of the resistor that is inline
-            # with the 4K HEMT amplifier drain voltage source which is
-            # used to infer the 4K HEMT amplifier drain current.  The
-            # default value of 200 Ohm is the standard value in the
-            # BOM for cryostat card revision C02 (PC-248-103-02-C02).
-            # The resistor on that revision of the cryostat card is
-            # R44.
             Optional('hemt_Vd_series_resistor', default=200.0): And(float, lambda f: f > 0),
-            # Software limit on the minimum gate voltage that can be set for the 4K amplifier.
             "hemt_gate_min_voltage" : Use(float),
-            # Software limit on the maximum gate voltage that can be set for the 4K amplifier.
-            "hemt_gate_max_voltage" :  Use(float),
+            "hemt_gate_max_voltage" : Use(float),
+            Optional("hemt_gate_dac_num", default = 3): Use(int),
+            Optional("hemt_drain_dac_num", default = 31): Use(float),
+            Optional('hemt_opamp_gain', default = 3.874): Use(float),
+            Optional("hemt_drain_conversion_m", default=-0.259491): Use(float),
+            Optional("hemt_drain_conversion_b", default=1.74185): Use(float),
 
             # 50K
             # https://confluence.slac.stanford.edu/display/AIRTRACK/PC-248-103-02-CXX

@@ -5021,6 +5021,62 @@ class SmurfCommandMixin(SmurfBase):
 
     _stream_datafile_reg = 'dataFile'
 
+    def get_hemt_drain_enable(self):
+        """
+        C04 only. Get if the RTM HEMT Drain DAC is enabled.
+        """
+
+        val = self.get_rtm_slow_dac_enable(self.hemt_drain_dac_num)
+        return val == 0x2
+
+    def set_hemt_drain_enable(self, val):
+        """
+        C04 only. Enable the RTM HEMT Drain DAC.
+
+        Args
+        ----
+        val: bool
+            True for enable, False for disable.
+        """
+        assert (isinstance(val, bool)), ('Must be bool.')
+
+        val2 = 0xE
+
+        if val:
+            val2 = 0x2
+
+        self.set_rtm_slow_dac_enable(self.hemt_drain_dac_num, val2)
+
+    def get_hemt_drain_voltage(self):
+        """
+        C04 only. Get HEMT_D volts using get_rtm_slow_dac_volt, then
+        convert to HEMT_D_OUT volts. This estimates the volts going
+        out of the cryocard HEMT drain. The conversion is based on the
+        y=mx+b fit from  hemt_drain_conversion_m and
+        hemt_drain_conversion_b.
+        """
+
+        dac_voltage = self.get_rtm_slow_dac_volt(self.hemt_drain_dac_num)
+        m = self.hemt_drain_conversion_m
+        b = self.hemt_drain_conversion_b
+        hemt_d_out_volt = m * dac_voltage + b
+
+        return hemt_d_out_volt
+
+    def set_hemt_drain_voltage(self, volts):
+        """
+        Given the desired voltage out the HEMT drain, i.e. HEMT_D_OUT,
+        set the RTM HEMT DAC accordingly.
+
+        See hemt_drain_conversion_m.
+        """
+        # y=mx+b, solve for x
+        m = self.hemt_drain_conversion_m
+        b = self.hemt_drain_conversion_b
+        dac_volts = (volts - b)/m
+
+        self.set_rtm_slow_dac_volt(self.hemt_drain_dac_num, dac_volts)
+
     def set_streaming_datafile(self, datafile, as_string=True,
                                **kwargs):
         """

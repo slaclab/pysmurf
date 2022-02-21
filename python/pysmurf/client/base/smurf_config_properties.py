@@ -213,15 +213,20 @@ class SmurfConfigPropertiesMixin:
         ## Cold amplifier biases
         amp_cfg = config.get('amplifier')
 
-        # 4K HEMT
+        # HEMT
         self.hemt_Vg = amp_cfg['hemt_Vg']
         self.hemt_bit_to_V = amp_cfg['bit_to_V_hemt']
         self.hemt_Vd_series_resistor = amp_cfg['hemt_Vd_series_resistor']
         self.hemt_Id_offset = amp_cfg['hemt_Id_offset']
         self.hemt_gate_min_voltage = amp_cfg['hemt_gate_min_voltage']
         self.hemt_gate_max_voltage = amp_cfg['hemt_gate_max_voltage']
+        self.hemt_gate_dac_num = amp_cfg['hemt_gate_dac_num']
+        self.hemt_drain_dac_num = amp_cfg['hemt_drain_dac_num']
+        self.hemt_opamp_gain = amp_cfg['hemt_opamp_gain']
+        self.hemt_drain_conversion_m = amp_cfg['hemt_drain_conversion_m']
+        self.hemt_drain_conversion_b = amp_cfg['hemt_drain_conversion_b']
 
-        # 50K HEMT
+        # 50K
         self.fiftyk_Vg = amp_cfg['LNA_Vg']
         self.fiftyk_dac_num = amp_cfg['dac_num_50k']
         self.fiftyk_bit_to_V = amp_cfg['bit_to_V_50k']
@@ -471,10 +476,9 @@ class SmurfConfigPropertiesMixin:
     def hemt_Vg(self):
         """4K HEMT gate voltage in volts.
 
-        Gets or sets the desired value for the 4K HEMT gate voltage at
-        the output of the cryostat card.  Units are Volts.
-
-        Specified in the pysmurf configuration file as
+        Used by set_amplifier_biases to set the desired value for
+        the 4K HEMT gate voltage at the output of the cryostat
+        card. Specified in the pysmurf configuration file as
         `amplifier:hemt_Vg`.
 
         Returns
@@ -703,6 +707,72 @@ class SmurfConfigPropertiesMixin:
 
     ## End hemt_gate_max_voltage property definition
     ###########################################################################
+
+    @property
+    def hemt_gate_dac_num(self):
+        """RTM DAC Number to the HEMT gate. Compatible with C02 and C04.
+        """
+        return self._hemt_gate_dac_num
+
+    @hemt_gate_dac_num.setter
+    def hemt_gate_dac_num(self, value):
+        self._hemt_gate_dac_num = value
+
+    @property
+    def hemt_drain_dac_num(self):
+        """RTM DAC Number to the HEMT drain. Compatible with C02 and C04.
+        """
+        return self._hemt_drain_dac_num
+
+    @hemt_drain_dac_num.setter
+    def hemt_drain_dac_num(self, value):
+        self._hemt_drain_dac_num = value
+
+    @property
+    def hemt_opamp_gain(self):
+        """Gain of the C02 HEMT opamp, equal to the C04 HEMT1 opamp. This is
+        used to estimate the current going out the cryocard HEMT drain.
+        """
+        return self._hemt_opamp_gain
+
+    @hemt_opamp_gain.setter
+    def hemt_opamp_gain(self, value):
+        self._hemt_opamp_gain = value
+
+    @property
+    def hemt_drain_conversion_m(self):
+        """On the C02, the HEMT drain is set manually, so this is not relevant
+        to the C02. On the C04, the user can specify the voltage going out of
+        the HEMT drain. However this can only be set indirectly by setting the
+        RTM DAC voltage. This converts the RTM DAC voltage to the HEMT voltage
+        going out the C04 cryocard. If you precision voltage going out of the
+        HEMT drain to order 0.0001 V, use set_rtm_slow_dac_volt and measure
+        HEMT_D_OUT touch point with multimeter.
+
+        To measure the converison factor, set HEMT_G to max with
+        set_rtm_slow_dac_volt(S.hemt_gate_dac_num, 10), turn on the power
+        supply with set_hemt_ps_en, then measure the HEMT_D_OUT touch point as
+        function of set_rtm_slow_dac_volt(S.hemt_drain_dac_num, ...) from -10
+        to 10 Volts. Fit with y=mx+b, plug in here, then the functions
+        set_hemt_drain_voltage and get_hemt_drain_voltage are calibrated.
+        """
+
+        return self._hemt_drain_conversion_m
+
+    @hemt_drain_conversion_m.setter
+    def hemt_drain_conversion_m(self, value):
+        self._hemt_drain_conversion_m = value
+
+    @property
+    def hemt_drain_conversion_b(self):
+        """See hemt_drain_conversion_m.
+        """
+
+        return self._hemt_drain_conversion_b
+
+    @hemt_drain_conversion_b.setter
+    def hemt_drain_conversion_b(self, value):
+        self._hemt_drain_conversion_b = value
 
     ###########################################################################
     ## Start fiftyk_Vg property definition
