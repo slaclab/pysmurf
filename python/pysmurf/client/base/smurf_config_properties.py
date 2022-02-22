@@ -788,6 +788,8 @@ class SmurfConfigPropertiesMixin:
         Specified in the pysmurf configuration file as
         `amplifier:LNA_Vg`.
 
+        See also https://confluence.slac.stanford.edu/display/AIRTRACK/PC-248-103-02-CXX.
+
         Returns
         -------
         float

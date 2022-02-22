@@ -511,26 +511,16 @@ class SmurfConfig:
             Optional("hemt_drain_conversion_b", default=1.74185): Use(float),
 
             # 50K
-            # https://confluence.slac.stanford.edu/display/AIRTRACK/PC-248-103-02-CXX
-            # 50K amplifier gate voltage, in volts.
             "LNA_Vg" : Use(float),
-            # See: hemt_Id_offset
             "50k_Id_offset" : Use(float),
-            # The resistance, in Ohm, of the resistor that is inline
-            # with the 50K amplifier drain voltage source which is
-            # used to infer the 50K amplifier drain current.  The
-            # default value of 10 Ohm is the standard value in the BOM
-            # for cryostat card revision C02 (PC-248-103-02-C02).
-            # C02: R54: 10 Ohm
-            # C04: R54: 1 Ohm
-            Optional('50K_amp_Vd_series_resistor', default=10.0): And(float, lambda f: f > 0),
-            # Conversion from bits (the digital value the RTM DAC is set to)
-            # to volts for the 50K amplifier gate.  Units are volts/bit.  An
-            # important dependency is the voltage division on the cryostat
-            # card, which can be different from cryostat card to cryostat card
-            "bit_to_V_50k" : And(Use(float), lambda f: f > 0),
-            # The DAC number to the 50K gate. Different between the C02 and C04.
             "dac_num_50k" : And(int, lambda n: 1 <= n <= 32),
+            Optional('50K_amp_Vd_series_resistor', default=10.0): And(float, lambda f: f > 0),
+            "bit_to_V_50k" : And(Use(float), lambda f: f > 0),
+            Optional("50k_gate_dac_num", default = 3): Use(int),
+            Optional("50k_drain_dac_num", default = 31): Use(float),
+            Optional('50k_opamp_gain', default = 3.874): Use(float),
+            Optional("50k_drain_conversion_m", default=-0.259491): Use(float),
+            Optional("50k_drain_conversion_b", default=1.74185): Use(float),
 
             # 50K2
             # 50K2 amplifier gate voltage, in volts.
