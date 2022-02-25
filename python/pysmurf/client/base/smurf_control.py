@@ -641,8 +641,9 @@ class SmurfControl(SmurfCommandMixin,
             self.set_payload_size(payload_size)
             self.set_channel_mask([0])
 
-            self.set_amplifier_bias(write_log=write_log)
-            self.get_amplifier_bias()
+            self.set_amp_enable_default()
+            self.set_amp_gate_voltage_default()
+            self.set_amp_drain_voltage_default()
 
             # also read the temperature of the CC
             self.log(f"Cryocard temperature = {self.C.read_temperature()}")

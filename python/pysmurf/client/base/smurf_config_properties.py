@@ -99,21 +99,6 @@ class SmurfConfigPropertiesMixin:
         self._timing_reference = None
 
         # Amplifiers
-        ## 4K HEMT
-        self._hemt_Vg = None
-        self._hemt_bit_to_V = None
-        self._hemt_Vd_series_resistor = None
-        self._hemt_Id_offset = None
-        self._hemt_gate_min_voltage = None
-        self._hemt_gate_max_voltage = None
-
-        ## 50K LNA
-        self._fiftyk_Vg = None
-        self._fiftyk_dac_num = None
-        self._fiftyk_bit_to_V = None
-        self._fiftyk_amp_Vd_series_resistor = None
-        self._fiftyk_Id_offset = None
-
         ## Tuning parameters
         self._default_tune = None
         self._gradient_descent_gain = None
@@ -209,50 +194,6 @@ class SmurfConfigPropertiesMixin:
         ## Timing
         timing_cfg = config.get('timing')
         self.timing_reference = timing_cfg['timing_reference']
-
-        ## Cold amplifier biases
-        amp_cfg = config.get('amplifier')
-
-        # HEMT
-        self.hemt_Vg = amp_cfg['hemt_Vg']
-        self.hemt_bit_to_V = amp_cfg['bit_to_V_hemt']
-        self.hemt_Vd_series_resistor = amp_cfg['hemt_Vd_series_resistor']
-        self.hemt_Id_offset = amp_cfg['hemt_Id_offset']
-        self.hemt_gate_min_voltage = amp_cfg['hemt_gate_min_voltage']
-        self.hemt_gate_max_voltage = amp_cfg['hemt_gate_max_voltage']
-        self.hemt_gate_dac_num = amp_cfg['hemt_gate_dac_num']
-        self.hemt_drain_dac_num = amp_cfg['hemt_drain_dac_num']
-        self.hemt_opamp_gain = amp_cfg['hemt_opamp_gain']
-        self.hemt_drain_conversion_m = amp_cfg['hemt_drain_conversion_m']
-        self.hemt_drain_conversion_b = amp_cfg['hemt_drain_conversion_b']
-
-        # 50K
-        self.fiftyk_Vg = amp_cfg['LNA_Vg']
-        self.fiftyk_dac_num = amp_cfg['dac_num_50k']
-        self.fiftyk_bit_to_V = amp_cfg['bit_to_V_50k']
-        self.fiftyk_amp_Vd_series_resistor = amp_cfg['50K_amp_Vd_series_resistor']
-        self.fiftyk_Id_offset = amp_cfg['50k_Id_offset']
-
-        # 50k2
-        self.fiftyk2_Vg = amp_cfg['fiftyk2_Vg']
-        self.fiftyk2_gate_dac_num = amp_cfg['fiftyk2_gate_dac_num']
-        self.fiftyk2_drain_dac_num = amp_cfg['fiftyk2_drain_dac_num']
-        self.fiftyk2_opamp_gain = amp_cfg['fiftyk2_opamp_gain']
-        self.fiftyk2_Id_offset = amp_cfg['fiftyk2_Id_offset']
-        self.fiftyk2_gate_bit_to_V = amp_cfg['fiftyk2_gate_bit_to_V']
-        self.fiftyk2_amp_Vd_series_resistor = amp_cfg['fiftyk2_amp_Vd_series_resistor']
-        self.fiftyk2_drain_conversion_m = amp_cfg['fiftyk2_drain_conversion_m']
-        self.fiftyk2_drain_conversion_b = amp_cfg['fiftyk2_drain_conversion_b']
-
-        # hemt2
-        self.hemt2_gate_dac_num = amp_cfg['hemt2_gate_dac_num']
-        self.hemt2_drain_dac_num = amp_cfg['hemt2_drain_dac_num']
-        self.hemt2_opamp_gain = amp_cfg['hemt2_opamp_gain']
-        self.hemt2_Id_offset = amp_cfg['hemt2_Id_offset']
-        self.hemt2_gate_bit_to_V = amp_cfg['hemt2_gate_bit_to_V']
-        self.hemt2_amp_Vd_series_resistor = amp_cfg['hemt2_amp_Vd_series_resistor']
-        self.hemt2_drain_conversion_m = amp_cfg['hemt2_drain_conversion_m']
-        self.hemt2_drain_conversion_b = amp_cfg['hemt2_drain_conversion_b']
 
         ## Tune parameters
         tune_band_cfg = config.get('tune_band')
