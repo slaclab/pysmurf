@@ -4604,6 +4604,30 @@ class SmurfCommandMixin(SmurfBase):
         self.log(f'get_hemt_bias: Deprecated. Calling get_amp_gate_voltage("hemt")')
         self.get_amp_gate_voltage('hemt')
 
+    def set_amplifier_bias(self, bias_hemt = None, bias_50k = None):
+        self.log(f'set_amplifier_bias: Deprecated. Calling set_amp_gate_voltage')
+        if bias_hemt is not None:
+            self.set_amp_gate_voltage('hemt', bias_hemt)
+
+        if bias_50k is not None:
+            self.set_amp_gate_voltage('50k', bias_50k)
+
+    def get_amplifier_biases(self):
+        self.log(f'get_amplifier_biases: Deprecated. Calling get_amp_gate_voltage_dict')
+        self.get_amp_gate_voltage_dict()
+
+    def get_amplifier_bias(self):
+        self.log(f'get_amplifier_bias: Deprecated. Calling get_amp_gate_voltage_dict')
+        self.get_amp_gate_voltage_dict()
+
+    def get_hemt_drain_current(self):
+        self.log(f'get_hemt_drain_current: Deprecated. Calling get_amp_drain_current("hemt")')
+        self.get_amp_drain_current("hemt")
+
+    def get_50k_amp_drain_current(self):
+        self.log(f'get_50k_amp_drain_current: Deprecated. Calling get_amp_drain_current("50k")')
+        self.get_amp_drain_current("50k")
+
     def flux_ramp_on(self, **kwargs):
         """
         Turns on the flux ramp - a useful wrapper for set_cfg_reg_ena_bit
