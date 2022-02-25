@@ -497,14 +497,14 @@ class SmurfConfig:
 
             Optional('hemt', default = {
                 'drain_offset': 0.2643,
+                'drain_opamp_gain': 1,
                 'drain_pic_address': 0x3,
                 'drain_resistor': 200.0,
-                'gate_bit_to_volt': 1.92661e-6,
+                'gate_bit_to_volt': 3.86936e-6,
                 'gate_dac_num': 33,
                 'gate_volt_default': 0,
                 'gate_volt_min': 0,
                 'gate_volt_max': 2.03,
-                'opamp_gain': 1,
                 'power_bitmask': 0b1,
                 'power_default': False
             }): {
@@ -513,6 +513,7 @@ class SmurfConfig:
 
             Optional('50k', default = {
                 'drain_offset': 0.2643,
+                'drain_opamp_gain': 1,
                 'drain_pic_address': 0x4,
                 'drain_resistor': 10.0,
                 'gate_bit_to_volt': 3.86936e-6,
@@ -520,7 +521,6 @@ class SmurfConfig:
                 'gate_volt_default': 0,
                 'gate_volt_min': 0,
                 'gate_volt_max': 2.03,
-                'opamp_gain': 1,
                 'power_bitmask': 0b10,
                 'power_default': False
             }): {
@@ -532,6 +532,7 @@ class SmurfConfig:
                 'drain_conversion_m': -0.259491,
                 'drain_dac_num': 31,
                 'drain_offset': 0,
+                'drain_opamp_gain': 3.874,
                 'drain_pic_address': 0x3,
                 'drain_resistor': 50.0,
                 'drain_volt_default': 0,
@@ -542,7 +543,6 @@ class SmurfConfig:
                 'gate_volt_default': 0,
                 'gate_volt_min': 0,
                 'gate_volt_max': 2.03,
-                'opamp_gain': 3.874,
                 'power_bitmask': 0b1,
                 'power_default': False
             }): {
@@ -554,6 +554,7 @@ class SmurfConfig:
                 'drain_conversion_m': -0.259491,
                 'drain_dac_num': 29,
                 'drain_offset': 0,
+                'drain_opamp_gain': 3.874,
                 'drain_pic_address': 0x0a,
                 'drain_resistor': 50.0,
                 'drain_volt_default': 0,
@@ -564,7 +565,6 @@ class SmurfConfig:
                 'gate_volt_default': 0,
                 'gate_volt_min': 0,
                 'gate_volt_max': 2.03,
-                'opamp_gain': 3.874,
                 'power_bitmask': 0b100,
                 'power_default': False
             }): {
@@ -576,6 +576,7 @@ class SmurfConfig:
                 'drain_conversion_m': -0.224968,
                 'drain_dac_num': 32,
                 'drain_offset': 0,
+                'drain_opamp_gain': 9.929,
                 'drain_pic_address': 0x04,
                 'drain_resistor': 10.0,
                 'drain_volt_default': 3.5,
@@ -586,7 +587,6 @@ class SmurfConfig:
                 'gate_volt_default': 0,
                 'gate_volt_min': 0,
                 'gate_volt_max': 2.03,
-                'opamp_gain': 9.929,
                 'power_bitmask': 0b10,
                 'power_default': False
             }): {
@@ -598,6 +598,7 @@ class SmurfConfig:
                 'drain_conversion_m': -0.224968,
                 'drain_dac_num': 28,
                 'drain_offset': 0,
+                'drain_opamp_gain': 9.929,
                 'drain_pic_address': 0x0b,
                 'drain_resistor': 10.0,
                 'drain_volt_default': 3.5,
@@ -608,7 +609,6 @@ class SmurfConfig:
                 'gate_volt_default': 0,
                 'gate_volt_min': 0,
                 'gate_volt_max': 2.03,
-                'opamp_gain': 9.929,
                 'power_bitmask': 0b1000,
                 'power_default': False
             }): {

@@ -4298,7 +4298,7 @@ class SmurfCommandMixin(SmurfBase):
         if major == 4:
             for amp in self.C.list_of_c04_amps:
                 enable_dict[amp] = self.get_amp_enable(amp)
-        else:
+        elif major == 1:
             for amp in self.C.list_of_c02_amps:
                 enable_dict[amp] = self.get_amp_enable(amp)
 
@@ -4312,9 +4312,7 @@ class SmurfCommandMixin(SmurfBase):
         the gate or drain, and disabled if not. When enable is
         False, the drain voltage is zeroed, because of bug
         ESCRYODET-851.
-        :wa
         """
-
         self.C.assert_amps_match_this_cryocard(list(amp))
 
         dac_enable_val = 0xE
@@ -4346,22 +4344,28 @@ class SmurfCommandMixin(SmurfBase):
 
         self.C.write_ps_en(power_masked)
 
-    def set_amp_enable_default(self):
+    def set_amp_defaults(self):
         """
-        Use the configuration values in smurf_config.py or in the overriding
-        cfg file to turn on or off the power supplies to the amplifiers.
+        The pysmurf cfg file specifies the default power state, default gate
+        voltage for the C02 amplifiers HEMT and 50K. Additionally it
+        specifies the default drain voltage for the C04 hemt1, 50k1, hemt2,
+        50k2. Read these values, then set them according to if the card is
+        connected or not. See smurf_config.py.
         """
         major, minor, patch = self.C.get_fw_version()
 
+        if major == 1 or major == 4:
+            for amp in self.C.list_of_c02_amps:
+                power = self.config.get('amplifier')[amp]['power_default']
+                self.set_amp_enable(amp, power)
+
+                gate = self.config.get('amplifier')[amp]['gate_volt_default']
+                self.set_amp_gate_voltage(amp, gate)
+
         if major == 4:
             for amp in self.C.list_of_c04_amps:
-                default = self.config.get('amplifier')[amp]['power_default']
-                self.set_amp_enable(amp, default)
-
-        else:
-            for amp in self.C.list_of_c02_amps:
-                default = self.config.get('amplifier')[amp]['power_default']
-                self.set_amp_enable(amp, default)
+                drain = self.config.get('amplifier')[amp]['drain_volt_default']
+                self.set_amp_drain_voltage(amp, drain)
 
     # There are actually 33 RTM DACs but the 33rd is strange.  It's the HEMT
     # Gate on the C02, and HEMT1 Gate on the C04. Eventually please remove
@@ -4399,7 +4403,7 @@ class SmurfCommandMixin(SmurfBase):
                 voltage = self.get_amp_gate_voltage(amp)
                 amp_gate_voltage_dict[amp] = voltage
 
-        else:
+        elif major == 1:
             for amp in self.C.list_of_c02_amps:
                 voltage = self.get_amp_gate_voltage(amp)
                 amp_gate_voltage_dict[amp] = voltage
@@ -4454,22 +4458,6 @@ class SmurfCommandMixin(SmurfBase):
         else:
             self.set_rtm_slow_dac_data(gate_dac_num, bits)
 
-    def set_amp_gate_voltage_default(self):
-        """
-        Use the configuration values in smurf_config.py or in the overriding
-        cfg file to set the gate voltages on for this type of card.
-        """
-        major, minor, patch = self.C.get_fw_version()
-
-        if major == 4:
-            for amp in self.C.list_of_c04_amps:
-                volt = self.config.get('amplifier')[amp]['gate_volt_default']
-                self.set_amp_gate_voltage(amp, volt)
-        else:
-            for amp in self.C.list_of_c02_amps:
-                volt = self.config.get('amplifier')[amp]['gate_volt_default']
-                self.set_amp_gate_voltage(amp, volt)
-
     def get_amp_drain_voltage(self, amp):
 
         self.C.assert_amps_match_this_cryocard(list(amp))
@@ -4484,20 +4472,14 @@ class SmurfCommandMixin(SmurfBase):
 
     def get_amp_drain_voltage_dict(self):
         """
-        Return dictionary of all drain voltages. This will return two drain
-        voltages if working on the C02, and four drain voltages if working on
-        the C04.
+        Return dictionary of all drain voltages. Applicable to the C04
+        cryocards only.
         """
         amp_drain_voltage_dict = dict()
         major, minor, patch = self.C.get_fw_version()
 
         if major == 4:
             for amp in self.C.list_of_c04_amps:
-                voltage = self.get_amp_drain_voltage(amp)
-                amp_drain_voltage_dict[amp] = voltage
-
-        else:
-            for amp in self.C.list_of_c02_amps:
                 voltage = self.get_amp_drain_voltage(amp)
                 amp_drain_voltage_dict[amp] = voltage
 
@@ -4519,21 +4501,6 @@ class SmurfCommandMixin(SmurfBase):
 
         self.set_rtm_slow_dac_volt(dac_num, dac_volt)
 
-    def set_amp_drain_voltage_default(self):
-        """
-        Use the configuration values in smurf_config.py or in the overriding
-        cfg file to set the drain voltages on for this type of card.
-        """
-        major, minor, patch = self.C.get_fw_version()
-
-        if major == 4:
-            for amp in self.C.list_of_c04_amps:
-                volt = self.config.get('amplifier')[amp]['drain_volt_default']
-                self.set_amp_drain_voltage(amp, volt)
-
-        else:
-            self.log('set_amp_drain_voltage_default: No C04 card detected. Not doing anything.')
-
     def get_amp_drain_current(self, amp):
         """
         There is no set_amp_drain_current because it doesn't correlate with
@@ -4542,12 +4509,12 @@ class SmurfCommandMixin(SmurfBase):
         self.C.assert_amps_match_this_cryocard(list(amp))
 
         address = self.config.get('amplifier')[amp]['drain_pic_address']
-        opamp_gain = self.config.get('amplifier')[amp]['opamp_gain']
+        drain_opamp_gain = self.config.get('amplifier')[amp]['drain_opamp_gain']
         drain_resistor = self.config.get('amplifier')[amp]['drain_resistor']
         drain_offset = self.config.get('amplifier')[amp]['drain_offset']
 
         volt = self.C.get_volt(address)
-        amp = 2 * (volt / opamp_gain) / drain_resistor
+        amp = 2 * (volt / drain_opamp_gain) / drain_resistor
         out_milliamp = 1000 * amp
         out_milliamp_offset = out_milliamp - drain_offset
 
@@ -4567,7 +4534,7 @@ class SmurfCommandMixin(SmurfBase):
                 current = self.get_amp_drain_current(amp)
                 amp_gate_currents[amp] = current
 
-        else:
+        elif major == 1:
             for amp in self.C.list_of_c02_amps:
                 current = self.get_amp_drain_current(amp)
                 amp_gate_currents[amp] = current
@@ -4602,7 +4569,7 @@ class SmurfCommandMixin(SmurfBase):
 
     def get_hemt_bias(self):
         self.log(f'get_hemt_bias: Deprecated. Calling get_amp_gate_voltage("hemt")')
-        self.get_amp_gate_voltage('hemt')
+        return self.get_amp_gate_voltage('hemt')
 
     def set_amplifier_bias(self, bias_hemt = None, bias_50k = None):
         self.log(f'set_amplifier_bias: Deprecated. Calling set_amp_gate_voltage')
@@ -4614,19 +4581,19 @@ class SmurfCommandMixin(SmurfBase):
 
     def get_amplifier_biases(self):
         self.log(f'get_amplifier_biases: Deprecated. Calling get_amp_gate_voltage_dict')
-        self.get_amp_gate_voltage_dict()
+        return self.get_amp_gate_voltage_dict()
 
     def get_amplifier_bias(self):
         self.log(f'get_amplifier_bias: Deprecated. Calling get_amp_gate_voltage_dict')
-        self.get_amp_gate_voltage_dict()
+        return self.get_amp_gate_voltage_dict()
 
     def get_hemt_drain_current(self):
         self.log(f'get_hemt_drain_current: Deprecated. Calling get_amp_drain_current("hemt")')
-        self.get_amp_drain_current("hemt")
+        return self.get_amp_drain_current("hemt")
 
     def get_50k_amp_drain_current(self):
         self.log(f'get_50k_amp_drain_current: Deprecated. Calling get_amp_drain_current("50k")')
-        self.get_amp_drain_current("50k")
+        return self.get_amp_drain_current("50k")
 
     def flux_ramp_on(self, **kwargs):
         """

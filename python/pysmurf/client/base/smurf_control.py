@@ -641,9 +641,10 @@ class SmurfControl(SmurfCommandMixin,
             self.set_payload_size(payload_size)
             self.set_channel_mask([0])
 
-            self.set_amp_enable_default()
-            self.set_amp_gate_voltage_default()
-            self.set_amp_drain_voltage_default()
+            # Check if any cryocard is connected and get its type. If type
+            # C02, set its default gate voltage and power state. If type
+            # C04, also set the default drain voltage.
+            self.set_amp_defaults()
 
             # also read the temperature of the CC
             self.log(f"Cryocard temperature = {self.C.read_temperature()}")
