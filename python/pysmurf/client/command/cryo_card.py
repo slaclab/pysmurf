@@ -227,13 +227,17 @@ class CryoCard():
 
     def get_fw_version(self):
         """
-        Return the firmware version values from the Cryocard PIC controller.
-        This can be used to check communication with the PIC is OK, and
-        crudely proxy if this cryocard is of type C04, C02, or C01. Type C01
-        cryocards return major A, C02 cryocards are major 1, and C04
-        cryocards are major 4, and no response is major 0.
+        Return the firmware version values from the Cryocard
+        PIC controller.  This can be used to check
+        communication with the PIC is OK, and crudely proxy if
+        this cryocard is of type C04, C02, or C01. Type C01
+        cryocards are major A, C02 cryocards are major 1, and
+        C04 cryocards are major 4. Typically this code assumes
+        cryocards with non-4 majors are C02s.
         """
         data = cmd_data(self.do_read(self.fw_version_address))
+
+        assert data != 0, 'get_fw_version: No cryocard detected.'
 
         hexstr = f'{data:06x}'
 
@@ -279,7 +283,7 @@ class CryoCard():
 
     def assert_amps_match_this_cryocard(self, list_of_amps):
         """
-        Assert that the given list of amplifiers are match this type of
+        Assert the given list of amplifiers match this type of
         cryocard.
         """
         major, minor, patch = self.get_fw_version()
