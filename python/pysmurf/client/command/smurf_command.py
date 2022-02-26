@@ -4413,11 +4413,9 @@ class SmurfCommandMixin(SmurfBase):
     def set_amp_gate_voltage(self, amp, voltage, override = False):
         """
         Set the voltage out one of the RTM DACs, into the cryocard,
-        such that the voltage out the cryocard is the given voltage. To
-        do this, the conversion factors "gate_bit_to_volt" or
-        "drain_conversion_m" and "drain_conversion_b" are used. The
-        gate conversion is computed analytically while the drain
-        conversion is computed empirically.
+        such that the voltage out the cryocard is the given voltage.
+        To do this, use the conversion factors "gate_bit_to_volt". The
+        gate conversion is computed analytically.
 
         The DACs do not respond unless their DAC enable register is
         0x2, enabled.  The DACs still output voltage even if their
