@@ -7,7 +7,7 @@ import random
 
 band=int(sys.argv[1])
 
-amplitude=10
+amplitude=12
 freq_std_khz=100
 freq_std_mhz=freq_std_khz/1000.
 one_subband_at_a_time=False
@@ -17,7 +17,7 @@ wait_btw_subbands_sec=0.1
 # to N.  Otherwise you'll get the max possible,
 # if None.  Only used if one_subband_at_a_time is False
 restrict_nper_band=None
-#restrict_nper_band=231
+restrict_nper_band=250
 
 print('filling bands %s'%str(band))
 

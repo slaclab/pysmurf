@@ -1,3 +1,4 @@
+import numpy as np
 import os
 import subprocess
 import datetime
@@ -24,9 +25,14 @@ def command_over_ssh(COMMAND,HOST="cryo@pc98970.slac.stanford.edu"):
 ctime=int(time.time())
 print(f'ctime={ctime}')
 
-carrier_slot=2
-dacno=31
-dac_voltages=[0]
+carrier_slot=4
+# 4K1
+#dacno=31
+# 4K2
+#dacno=29
+# 50K1
+dacno=32
+dac_voltages=np.linspace(-9.999,9.999,101)
 wait_after_set_sec=1.
 
 outfilename=f'{ctime}_drain_vs_dac{dacno}.dat'
