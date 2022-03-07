@@ -516,7 +516,7 @@ class SmurfConfig:
                 'drain_opamp_gain': 1,
                 'drain_pic_address': 0x4,
                 'drain_resistor': 10.0,
-                'gate_bit_to_volt': 3.86936e-6,
+                'gate_bit_to_volt': 3.38e-06,
                 'gate_dac_num': 32,
                 'gate_volt_default': 0,
                 'gate_volt_min': 0,
