@@ -4298,7 +4298,7 @@ class SmurfCommandMixin(SmurfBase):
         if major == 4:
             for amp in self.C.list_of_c04_amps:
                 enable_dict[amp] = self.get_amp_enable(amp)
-        elif major == 1:
+        elif major == 1 or major == 10:
             for amp in self.C.list_of_c02_amps:
                 enable_dict[amp] = self.get_amp_enable(amp)
 
@@ -4354,7 +4354,7 @@ class SmurfCommandMixin(SmurfBase):
         """
         major, minor, patch = self.C.get_fw_version()
 
-        if major == 1 or major == 4:
+        if major == 1 or major == 4 or major == 10:
             for amp in self.C.list_of_c02_amps:
                 power = self.config.get('amplifier')[amp]['power_default']
                 self.set_amp_enable(amp, power)
@@ -4403,7 +4403,7 @@ class SmurfCommandMixin(SmurfBase):
                 voltage = self.get_amp_gate_voltage(amp)
                 amp_gate_voltage_dict[amp] = voltage
 
-        elif major == 1:
+        elif major == 1 or major == 10:
             for amp in self.C.list_of_c02_amps:
                 voltage = self.get_amp_gate_voltage(amp)
                 amp_gate_voltage_dict[amp] = voltage
@@ -4532,7 +4532,7 @@ class SmurfCommandMixin(SmurfBase):
                 current = self.get_amp_drain_current(amp)
                 amp_gate_currents[amp] = current
 
-        elif major == 1:
+        elif major == 1 or major == 10:
             for amp in self.C.list_of_c02_amps:
                 current = self.get_amp_drain_current(amp)
                 amp_gate_currents[amp] = current
