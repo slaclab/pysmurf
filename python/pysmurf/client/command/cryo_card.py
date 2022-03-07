@@ -158,19 +158,20 @@ class CryoCard():
         self.set_relay_bit(16, value)
 
 
-        def read_ac_dc_relay_status(self):
-        """Read the relay for the flux ramp coupling mode, which is either AC
+    def read_ac_dc_relay_status(self):
+        """
+        Read the relay for the flux ramp coupling mode, which is either AC
         or DC. 3 is DC coupled, 0 is AC coupled. This is historical,
         the better response might be the string 'AC' or 'DC' or
         whatever.
-
         """
+
         # 1 is DC coupled, 0 is AC coupled.
         bit = self.get_relay_bit(16)
 
         if bit == 1:
             return 3
-        
+
         return 0
 
     def delatch_bit(self, bit): # bit is the pattern for the desired relay, eg 0x4 for 100
