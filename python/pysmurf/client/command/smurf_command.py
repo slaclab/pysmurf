@@ -4346,7 +4346,9 @@ class SmurfCommandMixin(SmurfBase):
         voltage for the C02 amplifiers HEMT and 50K. Additionally it
         specifies the default drain voltage for the C04 hemt1, 50k1, hemt2,
         50k2. Read these values, then set them according to if the card is
-        connected or not. See smurf_config.py.
+        connected or not. See smurf_config.py. This assumes the gate and drain
+        DAC are enabled but not properly set. Always set the gate voltage,
+        and always zero the drain voltage.
         """
         major, minor, patch = self.C.get_fw_version()
 
@@ -4357,7 +4359,8 @@ class SmurfCommandMixin(SmurfBase):
 
         if major == 4:
             for amp in self.C.list_of_c04_amps:
-                self.set_amp_drain_voltage(amp, 0)
+                drain_dac = self.config.get('amplifier')[amp]['drain_dac_num']
+                self.set_rtm_slow_dac_volt(drain_dac, 0)
 
     # There are actually 33 RTM DACs but the 33rd is strange.  It's the HEMT
     # Gate on the C02, and HEMT1 Gate on the C04. Eventually please remove
