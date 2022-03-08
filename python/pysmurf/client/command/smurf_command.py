@@ -4320,20 +4320,6 @@ class SmurfCommandMixin(SmurfBase):
         if enable:
             dac_enable_val = 0x2
 
-        gate_dac = self.config.get('amplifier')[amp]['gate_dac_num']
-
-        if gate_dac == 33:
-            self._caput(self.rtm_spi_max_root + self._rtm_33_ctrl_reg, dac_enable_val)
-        else:
-            self.set_rtm_slow_dac_enable(gate_dac, dac_enable_val)
-
-        if amp in self.C.list_of_c04_amps:
-            drain_dac = self.config.get('amplifier')[amp]['drain_dac_num']
-            self.set_rtm_slow_dac_enable(drain_dac, dac_enable_val)
-
-            if not enable:
-                self.set_rtm_slow_dac_volt(drain_dac, 0)
-
         power_bitmask = self.config.get('amplifier')[amp]['power_bitmask']
         power = self.C.read_ps_en()
 
@@ -4343,6 +4329,16 @@ class SmurfCommandMixin(SmurfBase):
             power_masked = power | power_bitmask
 
         self.C.write_ps_en(power_masked)
+
+        if amp in self.C.list_of_c04_amps:
+            drain_dac = self.config.get('amplifier')[amp]['drain_dac_num']
+            self.set_rtm_slow_dac_enable(drain_dac, dac_enable_val)
+
+            if enable:
+                drain_voltage = self.config.get('amplifier')[amp]['drain_volt_default']
+                self.set_amp_drain_volt(drain_dac, drain_voltage)
+            else:
+                self.set_amp_drain_volt(amp, 0)
 
     def set_amp_defaults(self):
         """
@@ -4356,16 +4352,12 @@ class SmurfCommandMixin(SmurfBase):
 
         if major == 1 or major == 4 or major == 10:
             for amp in self.C.list_of_c02_amps:
-                power = self.config.get('amplifier')[amp]['power_default']
-                self.set_amp_enable(amp, power)
-
                 gate = self.config.get('amplifier')[amp]['gate_volt_default']
                 self.set_amp_gate_voltage(amp, gate)
 
         if major == 4:
             for amp in self.C.list_of_c04_amps:
-                drain = self.config.get('amplifier')[amp]['drain_volt_default']
-                self.set_amp_drain_voltage(amp, drain)
+                self.set_amp_drain_voltage(amp, 0)
 
     # There are actually 33 RTM DACs but the 33rd is strange.  It's the HEMT
     # Gate on the C02, and HEMT1 Gate on the C04. Eventually please remove
