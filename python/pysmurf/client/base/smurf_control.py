@@ -641,9 +641,8 @@ class SmurfControl(SmurfCommandMixin,
             self.set_payload_size(payload_size)
             self.set_channel_mask([0])
 
-            # Check if any cryocard is connected and get its type.
-            # If C02, set the gate voltage to the default.
-            # If C04, also set the drain voltage to zero.
+            # If C02, set the gate voltages to the default.
+            # If C04, also set the drain voltages to zero.
             self.set_amp_defaults()
 
             # also read the temperature of the CC
