@@ -5137,6 +5137,7 @@ class SmurfCommandMixin(SmurfBase):
                 self.epics_root + self._global_poll_enable_reg,
                 True)
 
+
     def set_cryo_card_delatch_bit(self, bit, write_log=False, enable_poll=False,
                                   disable_poll=False):
         """

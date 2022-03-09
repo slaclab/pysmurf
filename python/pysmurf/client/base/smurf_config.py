@@ -779,6 +779,23 @@ class SmurfConfig:
                     'Configuration failed - DACs may not be ' +
                     'assigned to multiple TES bias groups.')
 
+        # Check that the DAC specified as the 50K gate driver
+        # isn't also defined as one of the DACs in a TES bias group
+        # pair.
+        dac_num_50k = validated_config['amplifier']['dac_num_50k']
+        # Taking the first element works because we already required
+        # that no DAC show up in more than one TES bias group
+        # definition.
+        if dac_num_50k in tes_bias_group_dacs:
+            # which TES bias group is defined as using the requested
+            # DAC for biasing the 50K amplifier?
+            bias_group = int([bg2p[0] for bg2p in
+                              bias_group_to_pair.items() if
+                              dac_num_50k in bg2p[1]][0])
+            assert False, 'Configuration failed - DAC requested ' + \
+                f'for driving 50K amplifier gate, {dac_num_50k}, is ' + \
+                f'also assigned to TES bias group {bias_group}.'
+
         ##### Done with higher level/composite validation.
         ###################################################
 
