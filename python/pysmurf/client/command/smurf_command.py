@@ -4358,10 +4358,6 @@ class SmurfCommandMixin(SmurfBase):
             bits = voltage / bit_to_volt
             nbits = self._rtm_slow_dac_nbits
 
-            self.log(bit_to_volt)
-            self.log(bits)
-            self.log(nbits)
-
             if bits > 2**(nbits-1)-1:
                 self.log(f'{amp} voltage overflowed high, setting to max.')
                 bits = 2**(nbits-1)-1
