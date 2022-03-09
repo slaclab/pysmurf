@@ -495,34 +495,30 @@ class SmurfConfig:
         #### Start specifiying amplifier
         schema_dict["amplifier"] = {
 
+            "50k_Id_offset" : Use(float),
+            "LNA_Vg" : Use(float),
+            "bit_to_V_50k" : And(Use(float), lambda f: f > 0),
+            "bit_to_V_hemt" : And(Use(float), lambda f: f > 0),
+            "dac_num_50k" : And(int, lambda n: 1 <= n <= 32),
+            "hemt_Id_offset" : Use(float),
+            "hemt_Vg" : Use(float),
+            "hemt_gate_max_voltage" :  Use(float),
+            "hemt_gate_min_voltage" : Use(float),
+            Optional('50K_amp_Vd_series_resistor', default=10.0): And(float, lambda f: f > 0),
+            Optional('hemt_Vd_series_resistor', default=200.0): And(float, lambda f: f > 0),
+
             Optional('hemt', default = {
-                'drain_offset': 0.9668,
                 'drain_opamp_gain': 1,
                 'drain_pic_address': 0x3,
-                'drain_resistor': 200.0,
-                'gate_bit_to_volt': 1.93e-06,
-                'gate_dac_num': 33,
-                'gate_volt_default': 0.265,
-                'gate_volt_min': 0,
-                'gate_volt_max': 2.03,
                 'power_bitmask': 0b1,
-                'power_default': False
             }): {
                 'gate_dac_num': Use(int)
             },
 
             Optional('50k', default = {
-                'drain_offset': 0.2643,
                 'drain_opamp_gain': 1,
                 'drain_pic_address': 0x4,
-                'drain_resistor': 10.0,
-                'gate_bit_to_volt': 3.38e-06,
-                'gate_dac_num': 32,
-                'gate_volt_default': 0,
-                'gate_volt_min': 0,
-                'gate_volt_max': 2.03,
                 'power_bitmask': 0b10,
-                'power_default': False
             }): {
                 'gate_dac_num': Use(int)
             },
@@ -544,7 +540,6 @@ class SmurfConfig:
                 'gate_volt_min': 0,
                 'gate_volt_max': 2.03,
                 'power_bitmask': 0b1,
-                'power_default': False
             }): {
                 'gate_dac_num': Use(int)
             },
@@ -566,14 +561,13 @@ class SmurfConfig:
                 'gate_volt_max': 2.03,
                 'gate_volt_min': 0,
                 'power_bitmask': 0b100,
-                'power_default': False
             }): {
                 'gate_dac_num': Use(int)
             },
 
             Optional('50k1', default = {
                 'drain_conversion_m': -0.224968,
-                'drain_conversion_b': 1.74185,
+                'drain_conversion_b': 5.59815,
                 'drain_dac_num': 32,
                 'drain_offset': 0.2643,
                 'drain_opamp_gain': 9.929,
@@ -588,7 +582,6 @@ class SmurfConfig:
                 'gate_volt_max': 2.03,
                 'gate_volt_min': 0,
                 'power_bitmask': 0b10,
-                'power_default': False
             }): {
                 'gate_dac_num': Use(int)
             },
@@ -610,7 +603,6 @@ class SmurfConfig:
                 'gate_volt_max': 2.03,
                 'gate_volt_min': 0,
                 'power_bitmask': 0b1000,
-                'power_default': False
             }): {
                 'gate_dac_num': Use(int)
             },

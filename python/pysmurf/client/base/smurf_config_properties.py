@@ -83,6 +83,8 @@ class SmurfConfigPropertiesMixin:
 
     def __init__(self, *args, **kwargs):
         """SmurfConfigPropertiesMixin constructor."""
+        # This init should not be necessary at all.
+
         # EPICS
         self._epics_root = None
 
@@ -164,10 +166,10 @@ class SmurfConfigPropertiesMixin:
         self._bad_mask = None
 
     def copy_config_to_properties(self, config):
-        """Copy values from SmurfConfig instance to properties.
-
-        MORE EXPLANATION HERE. USES PROPERTY SETTERS IN CASE WE EVER
-        WANT TO IMPOSE ANY CONDITIONS IN THEM.
+        """Many SMuRF functions expect certain configuration variables as
+        members, for example, self.hemt_Vg should return the
+        initialized gate voltage of the C02 HEMT. This function copies
+        over the given SmurfConfig into python members.
 
         Args
         ----
