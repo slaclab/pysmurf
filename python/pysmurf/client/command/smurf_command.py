@@ -4254,48 +4254,6 @@ class SmurfCommandMixin(SmurfBase):
         return (self._rtm_slow_dac_bit_to_volt *
                 self.get_rtm_slow_dac_data_array(**kwargs))
 
-    def get_amp_drain_enable(self, amp):
-        """Get if power supply are enabled for this cryocard amplifier. The
-        drain will output voltage even if the power register is zero
-        (ESCRYODET-851).
-
-        """
-        self.C.assert_amps_match_this_cryocard(list(amp))
-
-        power_bitmask = self.config.get('amplifier')[amp]['power_bitmask']
-        power = self.C.read_ps_en()
-        power_masked = power & power_bitmask
-
-        return power_masked > 0
-
-    def set_amp_drain_enable(self, amp, enable):
-        """Turn on the drain power supply for the given amplifier
-        circuit. This should be enabled if you want any voltage going
-        out the drain. When enable True, the drain voltage is set to
-        default, and when False, the RTM DAC voltage is literally
-        zeroed, because of bug ESCRYODET-851.
-
-        """
-        self.C.assert_amps_match_this_cryocard(list(amp))
-
-        power_bitmask = self.config.get('amplifier')[amp]['power_bitmask']
-        power = self.C.read_ps_en()
-
-        power_masked = power & ~power_bitmask
-
-        if enable:
-            power_masked = power | power_bitmask
-
-        self.C.write_ps_en(power_masked)
-
-        if amp in self.C.list_of_c04_amps:
-            if enable:
-                drain_voltage = self.config.get('amplifier')[amp]['drain_volt_default']
-                self.set_amp_drain_voltage(amp, drain_voltage)
-            else:
-                dac_num = self.config.config['amplifier'][amp]['drain_dac_num']
-                self.set_rtm_slow_dac_volt(dac_num, 0)
-
     # There are actually 33 RTM DACs but the 33rd is hacked in.  It's
     # the HEMT Gate on the C02, and HEMT1 Gate on the C04. Eventually
     # please remove this register and add index 33 to
@@ -4397,6 +4355,10 @@ class SmurfCommandMixin(SmurfBase):
         """
         self.C.assert_amps_match_this_cryocard(list(amp))
 
+        if not self.get_amp_drain_enable(amp):
+            self.log(f'get_amp_drain_voltage: The power supply for amp {amp} is off, therefore returning 0.0.')
+            return 0.0
+
         dac_num = self.config.get('amplifier')[amp]['drain_dac_num']
         m = self.config.get('amplifier')[amp]['drain_conversion_m']
         b = self.config.get('amplifier')[amp]['drain_conversion_b']
@@ -4405,28 +4367,74 @@ class SmurfCommandMixin(SmurfBase):
 
         return out_volt
 
+    def get_amp_drain_enable(self, amp):
+        """Don't use directly, use get_amp_drain_voltage. Get if power supply
+        are enabled for this cryocard amplifier. The drain will output
+        voltage even if the power register is zero (ESCRYODET-851).
+
+        """
+        self.C.assert_amps_match_this_cryocard(list(amp))
+
+        power_bitmask = self.config.get('amplifier')[amp]['power_bitmask']
+        power = self.C.read_ps_en()
+        power_masked = power & power_bitmask
+
+        return power_masked > 0
+
+    def set_amp_drain_enable(self, amp, enable):
+        """Don't use directly, use set_amp_drain_voltage. Turns on the drain
+        power supply for the given amplifier circuit. This should be
+        enabled if you want any voltage going out the drain. It is
+        very important that this is on only when you want voltage
+        going out the drain. See bug ESCRYODET-851.
+
+        """
+        self.C.assert_amps_match_this_cryocard(list(amp))
+
+        power_bitmask = self.config.get('amplifier')[amp]['power_bitmask']
+        power = self.C.read_ps_en()
+
+        power_masked = power & ~power_bitmask
+
+        if enable:
+            power_masked = power | power_bitmask
+
+        self.C.write_ps_en(power_masked)
+
     def set_amp_drain_voltage(self, amp, volt, override = False):
         """C04 only.
         """
         self.C.assert_amps_match_this_cryocard(list(amp))
 
-        min = self.config.get('amplifier')[amp]['drain_volt_min']
-        max = self.config.get('amplifier')[amp]['drain_volt_max']
+        if volt == 0 or volt == 0.0:
+            self.log(f'set_amp_drain_voltage: zero requested, turning off drain power supply and directly setting RTM DAC to zero volts.')
+            self.set_amp_drain_enable(amp, False)
+            dac_num = self.config.config['amplifier'][amp]['drain_dac_num']
+            self.set_rtm_slow_dac_volt(dac_num, 0)
 
-        if not override:
-            assert volt >= min and volt <= max, f'Voltage {volt} for amp {amp} out of bounds, {min}, {max}'
+        else:
+            min = self.config.get('amplifier')[amp]['drain_volt_min']
+            max = self.config.get('amplifier')[amp]['drain_volt_max']
 
-        dac_num = self.config.get('amplifier')[amp]['drain_dac_num']
-        m = self.config.get('amplifier')[amp]['drain_conversion_m']
-        b = self.config.get('amplifier')[amp]['drain_conversion_b']
-        dac_volt = (volt - b)/m
+            if not override:
+                assert volt >= min and volt <= max, f'Voltage {volt} for amp {amp} out of bounds, {min}, {max}'
 
-        self.set_rtm_slow_dac_volt(dac_num, dac_volt)
+            if not self.get_amp_drain_enable(amp):
+                self.log(f'set_amp_drain_voltage: nonzero requested, turning on cryocard drain power supply once. Voltage and amps are going out of the {amp} cryocard drain and into the amplifiers.')
+                self.set_amp_drain_enable(amp, True)
+
+            dac_num = self.config.get('amplifier')[amp]['drain_dac_num']
+            m = self.config.get('amplifier')[amp]['drain_conversion_m']
+            b = self.config.get('amplifier')[amp]['drain_conversion_b']
+            dac_volt = (volt - b)/m
+            self.set_rtm_slow_dac_volt(dac_num, dac_volt)
 
     def get_amp_drain_current(self, amp):
-        """
-        There is no set_amp_drain_current because it doesn't correlate with
-        anything.
+        """Guess the current going out of the given amp by measuring the
+        another voltage on the cryocard, for example 50K2_I. This
+        function has high jitter, 1 mA at least. There is no
+        set_amp_drain_current.
+
         """
         self.C.assert_amps_match_this_cryocard(list(amp))
 
@@ -4462,15 +4470,15 @@ class SmurfCommandMixin(SmurfBase):
         power supplies are disabled. Always set the gate voltage, and
         always zero the drain DAC voltage, which implies the drain
         voltage going out the cryocard is zero, and the drain current
-        is zero.
+        is zero. Also, send enable, 0x2, to all gate voltages and
+        drain voltages, otherwise they cannot be controlled, even if
+        the current register reports that they are supposedly enabled,
+        0x2.
 
         """
-        # During initialization, also enable the 33rd DAC, because
-        # its weird and different from the other 32 which are enabled
-        # by now.
-        self._caput(self.rtm_spi_max_root + self._rtm_33_ctrl_reg, 0x2)
-
         major, minor, patch = self.C.get_fw_version()
+
+        self._caput(self.rtm_spi_max_root + self._rtm_33_ctrl_reg, 0x2)
 
         if major == 1 or major == 10:
             volt = self.config.get('amplifier')['LNA_Vg']
@@ -4479,12 +4487,24 @@ class SmurfCommandMixin(SmurfBase):
             volt = self.config.get('amplifier')['hemt_Vg']
             self.set_amp_gate_voltage('hemt', volt)
 
+            # Even though the enable DAC reports 0x2, send 0x2 again, otherwise
+            # no voltages can be changed.
+            dac_num = self.config.config['amplifier']['dac_num_50k']
+            self.set_rtm_slow_dac_enable(dac_num, 0x2)
+
         if major == 4:
             for amp in self.C.list_of_c04_amps:
                 gate_volt_default = self.config.config['amplifier'][amp]['gate_volt_default']
                 self.set_amp_gate_voltage(amp, gate_volt_default)
-
                 self.set_amp_drain_enable(amp, False)
+
+                if amp != 'hemt1':
+                    # The hemt1 was already enabled above.
+                    dac_num = self.config.config['amplifier'][amp]['gate_dac_num']
+                    self.set_rtm_slow_dac_enable(dac_num, 0x2)
+
+                dac_num = self.config.config['amplifier'][amp]['drain_dac_num']
+                self.set_rtm_slow_dac_enable(dac_num, 0x2)
 
     def get_amplifier_biases(self):
         """For the C00, C01 and C02, return dictionary of all gate voltages,
