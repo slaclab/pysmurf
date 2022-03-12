@@ -4402,12 +4402,20 @@ class SmurfCommandMixin(SmurfBase):
         self.C.write_ps_en(power_masked)
 
     def set_amp_drain_voltage(self, amp, volt, override = False):
-        """C04 only.
+        """C04, C05 only. Set the drain voltage going out of the given
+        amplifier circuit, either 50k1, 50k2, hemt1, hemt2. The HEMT
+        drain voltage range is different from the 50K voltage range,
+        set the range limits in smurf_config.py. If given 0 volts,
+        turn off the power supply entirely to avoid bug
+        ESCRYODET-851. In more detail, we cannot set the drain voltage
+        directly, instead we can only set the RTM DAC voltage
+        directly.
+
         """
         self.C.assert_amps_match_this_cryocard(list(amp))
 
         if volt == 0 or volt == 0.0:
-            self.log(f'set_amp_drain_voltage: zero requested, turning off drain power supply and directly setting RTM DAC to zero volts.')
+            self.log(f'set_amp_drain_voltage: zero requested, turning off {amp} drain power supply and directly setting RTM DAC to zero volts.')
             self.set_amp_drain_enable(amp, False)
             dac_num = self.config.config['amplifier'][amp]['drain_dac_num']
             self.set_rtm_slow_dac_volt(dac_num, 0)
@@ -4460,6 +4468,27 @@ class SmurfCommandMixin(SmurfBase):
 
         return out_milliamp_offset
 
+    def get_amp_drain_current_dict(self):
+        """
+        Return dictionary of all drain currents. This will return two drain
+        currents if working on the C02, and four drain currents if working on
+        the C04.
+        """
+        amp_gate_currents = dict()
+        major, minor, patch = self.C.get_fw_version()
+
+        if major == 4:
+            for amp in self.C.list_of_c04_amps:
+                current = self.get_amp_drain_current(amp)
+                amp_gate_currents[amp] = current
+
+        elif major == 1 or major == 10:
+            for amp in self.C.list_of_c02_amps:
+                current = self.get_amp_drain_current(amp)
+                amp_gate_currents[amp] = current
+
+        return amp_gate_currents
+
     def set_amp_defaults(self):
         """The pysmurf cfg file specifies the default power state, default
         gate voltage for the C02 amplifiers HEMT and 50K. Additionally
@@ -4478,6 +4507,8 @@ class SmurfCommandMixin(SmurfBase):
         """
         major, minor, patch = self.C.get_fw_version()
 
+        # Even though this register is 0x2, send it again, otherwise
+        # the HEMT1 and HEMT voltages cannot be controlled.
         self._caput(self.rtm_spi_max_root + self._rtm_33_ctrl_reg, 0x2)
 
         if major == 1 or major == 10:
@@ -4487,8 +4518,8 @@ class SmurfCommandMixin(SmurfBase):
             volt = self.config.get('amplifier')['hemt_Vg']
             self.set_amp_gate_voltage('hemt', volt)
 
-            # Even though the enable DAC reports 0x2, send 0x2 again, otherwise
-            # no voltages can be changed.
+            # Even though the enable DAC is 0x2 here, send 0x2 again,
+            # otherwise no voltages can be changed.
             dac_num = self.config.config['amplifier']['dac_num_50k']
             self.set_rtm_slow_dac_enable(dac_num, 0x2)
 
@@ -4496,7 +4527,6 @@ class SmurfCommandMixin(SmurfBase):
             for amp in self.C.list_of_c04_amps:
                 gate_volt_default = self.config.config['amplifier'][amp]['gate_volt_default']
                 self.set_amp_gate_voltage(amp, gate_volt_default)
-                self.set_amp_drain_enable(amp, False)
 
                 if amp != 'hemt1':
                     # The hemt1 was already enabled above.
