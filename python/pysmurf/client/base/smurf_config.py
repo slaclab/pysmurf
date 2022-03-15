@@ -358,7 +358,7 @@ class SmurfConfig:
 
         """
         # Import useful schema objects
-        from schema import Schema, And, Use, Optional, Regex
+        from schema import Schema, And, Use, Optional, Regex, Or
 
         # Start with an extremely limited validation to figure out
         # things that we need to validate the entire configuration
@@ -529,7 +529,7 @@ class SmurfConfig:
                 'drain_dac_num': 31,
                 'drain_offset': 0,
                 'drain_opamp_gain': 3.874,
-                'drain_pic_address': 0x3,
+                'drain_pic_address': 3,
                 'drain_resistor': 50.0,
                 'drain_volt_default': 0.5,
                 'drain_volt_min': 0,
@@ -540,7 +540,21 @@ class SmurfConfig:
                 'gate_volt_max': 2.03,
                 'power_bitmask': 0b1,
             }): {
-                'gate_dac_num': Use(int)
+                'drain_conversion_b': Use(float),
+                'drain_conversion_m': Use(float),
+                'drain_dac_num': Use(int),
+                'drain_offset': Use(float),
+                'drain_opamp_gain': Use(float),
+                'drain_pic_address': Use(int),
+                'drain_resistor': Use(float),
+                'drain_volt_default': Use(float),
+                'drain_volt_min': Use(float),
+                'drain_volt_max': Use(float),
+                'gate_bit_to_volt': Use(float),
+                'gate_volt_default': Use(float),
+                'gate_volt_min': Use(float),
+                'gate_volt_max': Use(float),
+                'power_bitmask': Use(int)
             },
 
             Optional('hemt2', default = {
@@ -561,7 +575,22 @@ class SmurfConfig:
                 'gate_volt_min': 0,
                 'power_bitmask': 0b100,
             }): {
-                'gate_dac_num': Use(int)
+                'drain_conversion_b': Use(float),
+                'drain_conversion_m': Use(float),
+                'drain_dac_num': Use(int),
+                'drain_offset': Use(float),
+                'drain_opamp_gain': Use(float),
+                'drain_pic_address': Use(int),
+                'drain_resistor': Use(float),
+                'drain_volt_default': Use(float),
+                'drain_volt_min': Use(float),
+                'drain_volt_max': Use(float),
+                'gate_bit_to_volt': Use(float),
+                'gate_dac_num': Use(int),
+                'gate_volt_default': Use(float),
+                'gate_volt_min': Use(float),
+                'gate_volt_max': Use(float),
+                'power_bitmask': Use(int)
             },
 
             Optional('50k1', default = {
@@ -582,7 +611,22 @@ class SmurfConfig:
                 'gate_volt_min': 0,
                 'power_bitmask': 0b10,
             }): {
-                'gate_dac_num': Use(int)
+                'drain_conversion_b': Use(float),
+                'drain_conversion_m': Use(float),
+                'drain_dac_num': Use(int),
+                'drain_offset': Use(float),
+                'drain_opamp_gain': Use(float),
+                'drain_pic_address': Use(int),
+                'drain_resistor': Use(float),
+                'drain_volt_default': Use(float),
+                'drain_volt_min': Use(float),
+                'drain_volt_max': Use(float),
+                'gate_bit_to_volt': Use(float),
+                'gate_dac_num': Use(int),
+                'gate_volt_default': Use(float),
+                'gate_volt_min': Use(float),
+                'gate_volt_max': Use(float),
+                'power_bitmask': Use(int)
             },
 
             Optional('50k2', default = {
@@ -603,7 +647,22 @@ class SmurfConfig:
                 'gate_volt_min': 0,
                 'power_bitmask': 0b1000,
             }): {
-                'gate_dac_num': Use(int)
+                'drain_conversion_b': Use(float),
+                'drain_conversion_m': Use(float),
+                'drain_dac_num': Use(int),
+                'drain_offset': Use(float),
+                'drain_opamp_gain': Use(float),
+                'drain_pic_address': Use(int),
+                'drain_resistor': Use(float),
+                'drain_volt_default': Use(float),
+                'drain_volt_min': Use(float),
+                'drain_volt_max': Use(float),
+                'gate_bit_to_volt': Use(float),
+                'gate_dac_num': Use(int),
+                'gate_volt_default': Use(float),
+                'gate_volt_min': Use(float),
+                'gate_volt_max': Use(float),
+                'power_bitmask': Use(int)
             },
         }
         #### Done specifiying amplifier
