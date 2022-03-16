@@ -4324,6 +4324,7 @@ class SmurfCommandMixin(SmurfBase):
                 self.log(f'{amp} voltage overflowed low, setting to min.')
                 bits = -2**(nbits-1)
 
+            self.log(f'Setting hemt or hemt1 gate to {bits} bits given {voltage} volts.')
             self._caput(self.rtm_spi_max_root + self._rtm_33_data_reg, bits)
 
         elif amp == '50k':
@@ -4342,6 +4343,7 @@ class SmurfCommandMixin(SmurfBase):
             dac_num = self.config.get('amplifier')[amp]['gate_dac_num']
             bit_to_volt = self.config.get('amplifier')[amp]['gate_bit_to_volt']
             bits = voltage / bit_to_volt
+            self.log(f'Setting {amp} to {bits} via DAC {dac_num}, conversion {bit_to_volt}, given {voltage} Volts')
             self.set_rtm_slow_dac_data(dac_num, bits)
 
     def get_amp_drain_voltage(self, amp):
