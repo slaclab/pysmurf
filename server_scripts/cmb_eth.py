@@ -18,6 +18,7 @@
 #-----------------------------------------------------------------------------
 
 import sys
+import os
 
 import pyrogue
 
@@ -64,19 +65,19 @@ if __name__ == "__main__":
                      VariableGroups = VariableGroups) as root:
 
             if args['use_gui']:
-                # Start the GUI
-                print("Starting GUI...\n")
+                print('cmb_eth: Done, passing to pyrogue GUI....')
 
-                if args['use_qt']:
-                    # Start the QT GUI, is selected by the user
-                    import pyrogue.gui
-                    pyrogue.gui.runGui(root=root,title=args['windows_title'])
+                if 'DISPLAY' not in os.environ:
+                    print('cmb_eth: Env DISPLAY not found, passing to pyrogue CLI...')
+                    pyrogue.waitCntrlC()
                 else:
-                    # Otherwise, start the PyDM GUI
-                    import pyrogue.pydm
-                    pyrogue.pydm.runPyDM(root=root, title=args['windows_title'])
+                    if args['use_qt']:
+                        import pyrogue.gui
+                        pyrogue.gui.runGui(root=root,title=args['windows_title'])
+                    else:
+                        import pyrogue.pydm
+                        pyrogue.pydm.runPyDM(root=root, title=args['windows_title'])
 
             else:
-                # Stop the server when Crtl+C is pressed
-                print("Running without GUI...")
+                print('cmb_eth: Done, passing to pyrogue CLI...')
                 pyrogue.waitCntrlC()
