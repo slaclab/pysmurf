@@ -756,7 +756,7 @@ class SmurfIVMixin(SmurfBase):
                 i_R_op = i
                 break
         i_op_target = i_bias_bin[i_R_op]
-        v_bias_target = v_bias[i_R_op]
+        v_bias_target = v_bias_bin[i_R_op]
         v_tes_target = v_tes[i_R_op]
         p_trans_median = np.median(p_tes[sc_idx:nb_idx])
 
