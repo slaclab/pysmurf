@@ -43,9 +43,6 @@ class CryoCard():
         self.writepv = writepv_in
         self.fw_version_address = 0x0
         self.relay_address = 0x2
-        self.hemt_bias_address = 0x3
-        self.a50K_bias_address = 0x4
-        self.fiftyk2_drain_current_address = 0x0B
         self.temperature_address = 0x5
         self.cycle_count_address = 0x6  # used for testing
         self.ps_en_address = 0x7 # PS enable (HEMT: bit 0, 50k: bit 1)
@@ -58,6 +55,9 @@ class CryoCard():
         self.max_retries = 5 #number of re-tries waiting for response
         self.retry = 0 # counts nubmer of retries
         self.busy_retry = 0  # counts number of retries due to relay busy status
+        self.list_of_c02_amps = ['50k', 'hemt']
+        self.list_of_c04_amps = ['50k1', '50k2', 'hemt1', 'hemt2']
+        self.list_of_c02_and_c04_amps = self.list_of_c02_amps + self.list_of_c04_amps
 
     def do_read(self, address):
         #need double write to make sure buffer is updated
@@ -157,19 +157,24 @@ class CryoCard():
 
         self.set_relay_bit(16, value)
 
+
     def read_ac_dc_relay_status(self):
         """
-        Read the relay for the flux ramp coupling mode, which is either AC or DC.
-
-        Args
-        ----
-        None
-
-        Returns
-        -------
-        (int): 0 is DC coupled, 1 is AC coupled.
+        Read the relay for the flux ramp coupling mode, which is either AC
+        or DC. 0 is DC coupled, 3 is AC coupled. This is historical.
         """
-        return self.get_relay_bit(16)
+
+        # 1 is DC coupled, 0 is AC coupled.
+        bit = self.get_relay_bit(16)
+
+        # For backwards compatibility,
+        # return 0 for DC coupled
+        # return 3 for AC coupled
+
+        if bit == 1:
+            return 0
+        elif bit == 0:
+            return 3
 
     def delatch_bit(self, bit): # bit is the pattern for the desired relay, eg 0x4 for 100
         current_relay = self.read_relays()
@@ -177,23 +182,6 @@ class CryoCard():
         self.write_relays(set_relay)
         time.sleep(0.1)
         self.write_relays(current_relay) # return to original state
-
-    def read_hemt_bias(self):
-        data = self.do_read(self.hemt_bias_address)
-        return((data& 0xFFFFF) * self.bias_scale * self.adc_scale)
-
-    def read_50k_bias(self):
-        data = self.do_read(self.a50K_bias_address)
-        return((data& 0xFFFFF) * self.bias_scale * self.adc_scale)
-
-    def get_50k2_bias(self):
-        """
-        Measure bits from 50K2_I, then convert those bits to voltage,
-        then return. Other pysmurf commands will then convert this to
-        current.
-        """
-        data = self.do_read(self.fiftyk2_drain_current_address)
-        return (data & 0xFFFFF) * self.bias_scale * self.adc_scale
 
     def read_temperature(self):
         data = self.do_read(self.temperature_address)
@@ -244,36 +232,22 @@ class CryoCard():
 
     def get_fw_version(self):
         """
-        Return the firmware version string from the Cryocard PIC controller.
-        This can be used to check communication with the PIC is OK, and crudely
-        proxy if this cryocard is of type C04 or C02. Addendum, the firmware
-        version is only avaiable at register address 0x00 in PIC firmware
-        versions R1.1.0+.  All previous versions of the code will return
-        0xABCDE in this register.
-
-        Returns
-        -------
-        (string) : Firmware version string from the Cryocard.
+        Return the firmware version values from the Cryocard PIC controller.
+        This can be used to check communication with the PIC is OK, and
+        crudely proxy if this cryocard is of type C04, C02, or C01. Type C01
+        cryocards are major A, C02 cryocards are major 1, and C04 cryocards
+        are major 4. Typically this code assumes cryocards with non-4 majors
+        are C02s. If no card is connected then all values are 0.
         """
         data = cmd_data(self.do_read(self.fw_version_address))
 
         hexstr = f'{data:06x}'
 
-        if data == 0xABCDE:
-            print('Cryostat card PIC firmware version read returned\n'
-                  '0xABCDE, which means the firmware version number\n'
-                  'wasn\'t loaded into the register at address 0x0\n'
-                  'for this firmware version.  The firmware version\n'
-                  'should be available in firmware releases\n'
-                  'R1.1.0+, so the current firmware likely predates\n'
-                  'R1.1.0.  Returning None.\n')
-            return None
-
-        patch = int(hexstr[-2:],16)
-        minor = int(hexstr[-4:-2],16)
         major = int(hexstr[-6:-4],16)
+        minor = int(hexstr[-4:-2],16)
+        patch = int(hexstr[-2:],16)
 
-        return(f'R{major}.{minor}.{patch}')
+        return major, minor, patch
 
     def read_optical(self):
         """
@@ -295,6 +269,35 @@ class CryoCard():
         """
         """
         return self.do_write(self.optical_address, value)
+
+    def get_volt(self, address):
+        """
+        Given some address on the PIC, read that address,
+        convert to volts. Not all addresses on the PIC are
+        volt measurements, so you should know what you're
+        doing.
+        """
+
+        bits = self.do_read(address)
+        volts = (bits & 0xfffff) * self.bias_scale * self.adc_scale
+
+        return volts
+
+    def assert_amps_match_this_cryocard(self, list_of_amps):
+        """
+        Assert the given list of amplifiers match this type of
+        cryocard.
+        """
+        major, minor, patch = self.get_fw_version()
+
+        if major == 4:
+            for amp in list_of_amps:
+                assert amp not in self.list_of_c02_amps, 'Contradiction, given C02 amplifiers but the cryocard is not type C02.'
+
+        else:
+            for amp in list_of_amps:
+                assert amp not in self.list_of_c04_amps, 'Contradiction, given C04 amplifiers but the cryocard is not type C04.'
+
 
 # low level data conversion
 

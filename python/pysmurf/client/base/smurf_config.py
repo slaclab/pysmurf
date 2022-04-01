@@ -494,78 +494,176 @@ class SmurfConfig:
 
         #### Start specifiying amplifier
         schema_dict["amplifier"] = {
-            # 4K amplifier gate voltage, in volts.
-            "hemt_Vg" : Use(float),
 
-            # Conversion from bits (the digital value the RTM DAC is set to)
-            # to volts for the 4K amplifier gate.  Units are volts/bit.  An
-            # important dependency is the voltage division on the cryostat
-            # card, which can be different from cryostat card to cryostat card
-            "bit_to_V_hemt" : And(Use(float), lambda f: f > 0),
-            # The 4K amplifier drain current is measured before a voltage
-            # regulator, which also draws current.  An accurate measurement of
-            # the 4K drain current requires subtracting the current drawn by
-            # that regulator.  This is the offset to subtract off the measured
-            # value, in mA.
-            "hemt_Id_offset" : Use(float),
-            # The resistance, in Ohm, of the resistor that is inline
-            # with the 4K HEMT amplifier drain voltage source which is
-            # used to infer the 4K HEMT amplifier drain current.  The
-            # default value of 200 Ohm is the standard value in the
-            # BOM for cryostat card revision C02 (PC-248-103-02-C02).
-            # The resistor on that revision of the cryostat card is
-            # R44.
-            Optional('hemt_Vd_series_resistor', default=200.0): And(float, lambda f: f > 0),
-            # Software limit on the minimum gate voltage that can be set for the 4K amplifier.
-            "hemt_gate_min_voltage" : Use(float),
-            # Software limit on the maximum gate voltage that can be set for the 4K amplifier.
-            "hemt_gate_max_voltage" :  Use(float),
-
-            # 50K
-            # https://confluence.slac.stanford.edu/display/AIRTRACK/PC-248-103-02-CXX
-            # 50K amplifier gate voltage, in volts.
-            "LNA_Vg" : Use(float),
-            # See: hemt_Id_offset
             "50k_Id_offset" : Use(float),
-            # The resistance, in Ohm, of the resistor that is inline
-            # with the 50K amplifier drain voltage source which is
-            # used to infer the 50K amplifier drain current.  The
-            # default value of 10 Ohm is the standard value in the BOM
-            # for cryostat card revision C02 (PC-248-103-02-C02).
-            # C02: R54: 10 Ohm
-            # C04: R54: 1 Ohm
-            Optional('50K_amp_Vd_series_resistor', default=10.0): And(float, lambda f: f > 0),
-            # Conversion from bits (the digital value the RTM DAC is set to)
-            # to volts for the 50K amplifier gate.  Units are volts/bit.  An
-            # important dependency is the voltage division on the cryostat
-            # card, which can be different from cryostat card to cryostat card
+            "LNA_Vg" : Use(float),
             "bit_to_V_50k" : And(Use(float), lambda f: f > 0),
-            # The DAC number to the 50K gate. Different between the C02 and C04.
+            "bit_to_V_hemt" : And(Use(float), lambda f: f > 0),
             "dac_num_50k" : And(int, lambda n: 1 <= n <= 32),
+            "hemt_Id_offset" : Use(float),
+            "hemt_Vg" : Use(float),
+            "hemt_gate_max_voltage" :  Use(float),
+            "hemt_gate_min_voltage" : Use(float),
+            Optional('50K_amp_Vd_series_resistor', default=10.0): And(float, lambda f: f > 0),
+            Optional('hemt_Vd_series_resistor', default=200.0): And(float, lambda f: f > 0),
 
-            # 50K2
-            # 50K2 amplifier gate voltage, in volts.
-            Optional("fiftyk2_Vg", default=-0.75) : Use(float),
-            # The DAC number to 50K2_G.
-            Optional("fiftyk2_gate_dac_num", default=26) : And(int, lambda n: 1 <= n <= 32),
-            # The DAC number to 50K2_D.
-            Optional("fiftyk2_drain_dac_num", default=28) : And(int, lambda n: 1 <= n <= 32),
-            # See: hemt_Id_offset
-            Optional("fiftyk2_Id_offset", default=0) : Use(float),
-            # R61 on the C04 50K2.
-            Optional('fiftyk2_amp_Vd_series_resistor', default=12.0): And(float, lambda f: f > 0),
-            # The opamp gain. This is necessary to convert from 50K2_I
-            # Volts to milliamps.
-            Optional('fiftyk2_opamp_gain', default = 9.929): Use(float),
-            # Conversion from bits (the digital value the RTM DAC is set to)
-            # to volts for the 50K amplifier gate.  Units are volts/bit.  An
-            # important dependency is the voltage division on the cryostat
-            # card, which can be different from cryostat card to cryostat card
-            Optional("fiftyk2_gate_bit_to_V", default=3.88e-6) : And(Use(float), lambda f: f > 0),
-            # Used by: set_50k2_drain_voltage, get_50k2_drain_voltage
-            # See also: smurf_config_properties.py, smurf_command.py
-            Optional("fiftyk2_drain_conversion_m", default=-0.224968): Use(float),
-            Optional("fiftyk2_drain_conversion_b", default=5.59815): Use(float)
+            Optional('hemt', default = {
+                'drain_opamp_gain': 1,
+                'drain_pic_address': 0x3,
+                'power_bitmask': 0b1,
+            }): {
+                'gate_dac_num': Use(int)
+            },
+
+            Optional('50k', default = {
+                'drain_opamp_gain': 1,
+                'drain_pic_address': 0x4,
+                'power_bitmask': 0b10,
+            }): {
+                'gate_dac_num': Use(int)
+            },
+
+            Optional('hemt1', default = {
+                'drain_conversion_b': 1.74185,
+                'drain_conversion_m': -0.259491,
+                'drain_dac_num': 31,
+                'drain_offset': 0,
+                'drain_opamp_gain': 3.874,
+                'drain_pic_address': 3,
+                'drain_resistor': 50.0,
+                'drain_volt_default': 0.5,
+                'drain_volt_min': 0,
+                'drain_volt_max': 2,
+                'gate_bit_to_volt': 3.86936e-6,
+                'gate_volt_default': 0.265,
+                'gate_volt_min': 0,
+                'gate_volt_max': 2.03,
+                'power_bitmask': 0b1,
+            }): {
+                'drain_conversion_b': Use(float),
+                'drain_conversion_m': Use(float),
+                'drain_dac_num': Use(int),
+                'drain_offset': Use(float),
+                'drain_opamp_gain': Use(float),
+                'drain_pic_address': Use(int),
+                'drain_resistor': Use(float),
+                'drain_volt_default': Use(float),
+                'drain_volt_min': Use(float),
+                'drain_volt_max': Use(float),
+                'gate_bit_to_volt': Use(float),
+                'gate_volt_default': Use(float),
+                'gate_volt_min': Use(float),
+                'gate_volt_max': Use(float),
+                'power_bitmask': Use(int)
+            },
+
+            Optional('hemt2', default = {
+                'drain_conversion_m': -0.259491,
+                'drain_conversion_b': 1.74185,
+                'drain_dac_num': 29,
+                'drain_offset': 0,
+                'drain_opamp_gain': 3.874,
+                'drain_pic_address': 0x0a,
+                'drain_resistor': 50.0,
+                'drain_volt_default': 0.5,
+                'drain_volt_max': 2,
+                'drain_volt_min': 0,
+                'gate_bit_to_volt': 3.86936e-6,
+                'gate_dac_num': 27,
+                'gate_volt_default': 0.265,
+                'gate_volt_max': 2.03,
+                'gate_volt_min': 0,
+                'power_bitmask': 0b100,
+            }): {
+                'drain_conversion_b': Use(float),
+                'drain_conversion_m': Use(float),
+                'drain_dac_num': Use(int),
+                'drain_offset': Use(float),
+                'drain_opamp_gain': Use(float),
+                'drain_pic_address': Use(int),
+                'drain_resistor': Use(float),
+                'drain_volt_default': Use(float),
+                'drain_volt_min': Use(float),
+                'drain_volt_max': Use(float),
+                'gate_bit_to_volt': Use(float),
+                'gate_dac_num': Use(int),
+                'gate_volt_default': Use(float),
+                'gate_volt_min': Use(float),
+                'gate_volt_max': Use(float),
+                'power_bitmask': Use(int)
+            },
+
+            Optional('50k1', default = {
+                'drain_conversion_m': -0.224968,
+                'drain_conversion_b': 5.59815,
+                'drain_dac_num': 32,
+                'drain_offset': 0,
+                'drain_opamp_gain': 9.929,
+                'drain_pic_address': 0x04,
+                'drain_resistor': 12.0,
+                'drain_volt_default': 5.0,
+                'drain_volt_max': 5.5,
+                'drain_volt_min': 3.5,
+                'gate_bit_to_volt': 3.86936e-6,
+                'gate_dac_num': 30,
+                'gate_volt_default': 0.26,
+                'gate_volt_max': 2.03,
+                'gate_volt_min': 0,
+                'power_bitmask': 0b10,
+            }): {
+                'drain_conversion_b': Use(float),
+                'drain_conversion_m': Use(float),
+                'drain_dac_num': Use(int),
+                'drain_offset': Use(float),
+                'drain_opamp_gain': Use(float),
+                'drain_pic_address': Use(int),
+                'drain_resistor': Use(float),
+                'drain_volt_default': Use(float),
+                'drain_volt_min': Use(float),
+                'drain_volt_max': Use(float),
+                'gate_bit_to_volt': Use(float),
+                'gate_dac_num': Use(int),
+                'gate_volt_default': Use(float),
+                'gate_volt_min': Use(float),
+                'gate_volt_max': Use(float),
+                'power_bitmask': Use(int)
+            },
+
+            Optional('50k2', default = {
+                'drain_conversion_m': -0.224968,
+                'drain_conversion_b': 5.59815,
+                'drain_dac_num': 28,
+                'drain_offset': 0,
+                'drain_opamp_gain': 9.929,
+                'drain_pic_address': 0x0b,
+                'drain_resistor': 12.0,
+                'drain_volt_default': 5.0,
+                'drain_volt_max': 5.5,
+                'drain_volt_min': 3.5,
+                'gate_bit_to_volt': 3.86936e-6,
+                'gate_dac_num': 26,
+                'gate_volt_default': 0.26,
+                'gate_volt_max': 2.03,
+                'gate_volt_min': 0,
+                'power_bitmask': 0b1000,
+            }): {
+                'drain_conversion_b': Use(float),
+                'drain_conversion_m': Use(float),
+                'drain_dac_num': Use(int),
+                'drain_offset': Use(float),
+                'drain_opamp_gain': Use(float),
+                'drain_pic_address': Use(int),
+                'drain_resistor': Use(float),
+                'drain_volt_default': Use(float),
+                'drain_volt_min': Use(float),
+                'drain_volt_max': Use(float),
+                'gate_bit_to_volt': Use(float),
+                'gate_dac_num': Use(int),
+                'gate_volt_default': Use(float),
+                'gate_volt_min': Use(float),
+                'gate_volt_max': Use(float),
+                'power_bitmask': Use(int)
+            },
         }
         #### Done specifiying amplifier
 
