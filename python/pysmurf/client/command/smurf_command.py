@@ -4419,7 +4419,7 @@ class SmurfCommandMixin(SmurfBase):
         dac_num = self.config.config['amplifier'][amp]['drain_dac_num']
 
         if volt == 0 or volt == 0.0:
-            if self.get_amp_drain_enable(amp):            
+            if self.get_amp_drain_enable(amp):
                 self.log(f'set_amp_drain_voltage: {amp}: zero requested ; setting control DAC{dac_num} to 10V, disabling LDO, and then setting control DAC{dac_num} to 0V.  In the brief time for which the control DAC is set to 10V and the LDO is disabled, the cryocard will put out a small, load dependent voltage.')
                 self.set_rtm_slow_dac_volt(dac_num, 9.999)
                 self.set_amp_drain_enable(amp, False)
@@ -4430,14 +4430,14 @@ class SmurfCommandMixin(SmurfBase):
                 # check if control DAC is nonzero - it shouldn't be if DAC is already disabled.
                 if self.get_rtm_slow_dac_volt(dac_num)!=0.0:
                     self.log(f'set_amp_drain_voltage: {amp}: drain is disabled but control DAC{dac_num} is nonzero.  Setting to zero.')
-                    self.set_rtm_slow_dac_volt(dac_num, 0.0)                
+                    self.set_rtm_slow_dac_volt(dac_num, 0.0)
         else:
             min = self.config.get('amplifier')[amp]['drain_volt_min']
             max = self.config.get('amplifier')[amp]['drain_volt_max']
 
             if not override:
                 assert volt >= min and volt <= max, f'Voltage {volt} for amp {amp} out of bounds, {min}, {max}'
-                
+
             # Set the voltage out the RTM Drain DACs to 10 V, which
             # implies that the voltage going out the cryocard drains
             # is minimized. See
@@ -4451,8 +4451,8 @@ class SmurfCommandMixin(SmurfBase):
             #self.log('Continuing.')
 
             if not self.get_amp_drain_enable(amp):
-                self.log(f'set_amp_drain_voltage: {amp}: this drain is currently disabled ; setting control DAC{dac_num} to 10V, enabling LDO, and then setting control DAC{dac_num} to voltage required to achieve desired drain voltage.  In the brief time for which the control DAC is set to 10V and the LDO is disabled, the cryocard will put out a small, load dependent voltage.')                
-                self.set_rtm_slow_dac_volt(dac_num, 9.999)                                
+                self.log(f'set_amp_drain_voltage: {amp}: this drain is currently disabled ; setting control DAC{dac_num} to 10V, enabling LDO, and then setting control DAC{dac_num} to voltage required to achieve desired drain voltage.  In the brief time for which the control DAC is set to 10V and the LDO is disabled, the cryocard will put out a small, load dependent voltage.')
+                self.set_rtm_slow_dac_volt(dac_num, 9.999)
                 self.set_amp_drain_enable(amp, True)
 
             m = self.config.get('amplifier')[amp]['drain_conversion_m']
@@ -4549,7 +4549,7 @@ class SmurfCommandMixin(SmurfBase):
             for amp in self.C.list_of_c04_amps:
 
                 # Set the gates to their defaults.
-                
+
                 gate_volt_default = self.config.config['amplifier'][amp]['gate_volt_default']
                 self.set_amp_gate_voltage(amp, gate_volt_default)
 
