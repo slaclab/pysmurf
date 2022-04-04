@@ -147,6 +147,7 @@ class SmurfConfigPropertiesMixin:
         self._iq_swap_out = None
         self._ref_phase_delay = None
         self._ref_phase_delay_fine = None
+        self._band_delay_us = None
         self._att_uc = None
         self._att_dc = None
         self._trigger_reset_delay = None
@@ -226,7 +227,6 @@ class SmurfConfigPropertiesMixin:
         self.fiftyk_bit_to_V = amp_cfg['bit_to_V_50k']
         self.fiftyk_amp_Vd_series_resistor = amp_cfg['50K_amp_Vd_series_resistor']
         self.fiftyk_Id_offset = amp_cfg['50k_Id_offset']
-
         ## Tune parameters
         tune_band_cfg = config.get('tune_band')
         self.default_tune = tune_band_cfg['default_tune']
@@ -303,6 +303,9 @@ class SmurfConfigPropertiesMixin:
             for band in bands}
         self.ref_phase_delay_fine = {
             band:smurf_init_config[f'band_{band}']['refPhaseDelayFine']
+            for band in bands}
+        self.band_delay_us = {
+            band:smurf_init_config[f'band_{band}']['bandDelayUs']
             for band in bands}
         self.att_uc = {
             band:smurf_init_config[f'band_{band}']['att_uc']
@@ -883,10 +886,6 @@ class SmurfConfigPropertiesMixin:
 
     ## End fiftyk_Id_offset property definition
     ###########################################################################
-
-    ###########################################################################
-    ## Start attenuator property definition
-
     # Getter
     @property
     def attenuator(self):
@@ -2142,7 +2141,8 @@ class SmurfConfigPropertiesMixin:
     # Getter
     @property
     def ref_phase_delay(self):
-        """Coarse (analog + digital) round-trip delay.
+        """DEPRECATED
+        Coarse (analog + digital) round-trip delay.
 
         Gets or sets the coarse (analog + digital) round-trip delay.
         This is the total time it takes a tone to traverse the
@@ -2228,7 +2228,9 @@ class SmurfConfigPropertiesMixin:
     # Getter
     @property
     def ref_phase_delay_fine(self):
-        """Fine adjust for (analog + digital) round-trip delay.
+        """DEPRECATED
+
+        Fine adjust for (analog + digital) round-trip delay.
 
         Gets or sets fine adjustment for the total (analog + digital)
         round-trip delay.  This allows for fine adjustment of the
@@ -2307,12 +2309,44 @@ class SmurfConfigPropertiesMixin:
     ###########################################################################
 
     ###########################################################################
+    ## Start band_delay_us property definition
+
+    # Getter
+    @property
+    def band_delay_us(self):
+        """Total compensation for system latency - cable, ADC/DAC, and DSP
+
+        Returns
+        -------
+        double
+           Adjustment for (analog + digital) round-trip delay in
+           micro seconds.
+
+        See Also
+        --------
+        :func:`~pysmurf.client.util.smurf_util.SmurfUtilMixin.estimate_phase_delay` :
+              Measures `band_delay_us`.
+
+        """
+        return self._band_delay_us
+
+    # Setter
+    @band_delay_us.setter
+    def band_delay_us(self, value):
+        self._band_delay_us = value
+
+    ## End band_delay_us property definition
+    ###########################################################################
+
+    ###########################################################################
     ## Start lms_delay property definition
 
     # Getter
     @property
     def lms_delay(self):
-        """Short description.
+        """DEPRECATED
+
+        Short description.
 
         Gets or sets ?.
         Units are ?.

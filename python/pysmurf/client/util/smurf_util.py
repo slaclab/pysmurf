@@ -145,6 +145,7 @@ class SmurfUtilMixin(SmurfBase):
         self.set_streamdatawriter_close(True)
 
         self.log('Done taking data', self.LOG_USER)
+        self.pub.register_file(data_filename, 'debug', format='dat')
 
         if rf_iq:
             self.set_rf_iq_stream_enable(band, 0)
@@ -231,16 +232,6 @@ class SmurfUtilMixin(SmurfBase):
 
         Returns
         -------
-        refPhaseDelay : int
-           Estimated value for the `refPhaseDelay` firmware register
-           for this 500MHz band.  For more details on the
-           `refPhaseDelay` register, see
-           :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.set_ref_phase_delay`.
-        refPhaseDelayFine : int
-           Estimated value for the `refPhaseDelayFine` firmware
-           register for this 500MHz band.  For more details on the
-           `refPhaseDelayFine` register, see
-           :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.set_ref_phase_delay_fine`.
         processing_delay_us : float
            Estimated processing phase delay, in microseconds.
         dsp_corr_delay_us : float
@@ -249,11 +240,7 @@ class SmurfUtilMixin(SmurfBase):
 
         """
 
-        # For some reason, pyrogue flips out if you try to set refPhaseDelay
-        # to zero in 071150b0.  This allows an offset ; the offset just gets
-        # subtracted off the delay measurement with DSP after it's made.
-        refPhaseDelay0=1
-        refPhaseDelayFine0=0
+        self.set_band_delay_us(band, 0)
 
         uc_att0 = self.get_att_uc(band)
         dc_att0 = self.get_att_dc(band)
@@ -268,7 +255,6 @@ class SmurfUtilMixin(SmurfBase):
         # save time)
         n_subbands = self.get_number_sub_bands(band)
         digitizer_frequency_mhz = self.get_digitizer_frequency_mhz(band)
-        channel_frequency_mhz = self.get_channel_frequency_mhz(band)
         subband_half_width_mhz = digitizer_frequency_mhz/\
             n_subbands
         subbands,subband_centers=self.get_subband_centers(band)
@@ -316,23 +302,27 @@ class SmurfUtilMixin(SmurfBase):
         #### done measuring cable delay
 
         #### start measuring dsp delay (cable+processing)
-        # Zero refPhaseDelay and refPhaseDelayFine to get uncorrected phase
-        # delay.
-        # max is 7
-        self.set_ref_phase_delay(band,refPhaseDelay0)
-        # max is 255
-        self.set_ref_phase_delay_fine(band,refPhaseDelayFine0)
+## FIXME -- should be able to scan with "0" delay, not working
+        self.set_band_delay_us(band, 1)
 
         self.log('Running find_freq')
+        #freq_dsp,resp_dsp=self.find_freq(band, start_freq=freq_min, stop_freq=freq_max)
         freq_dsp,resp_dsp=self.find_freq(band,subband=dsp_subbands)
 
         # only preserve data in the subband half width
         freq_dsp_subset=[]
         resp_dsp_subset=[]
+        est_delay=[]
         for sb,sbc in zip(subbands,subband_centers):
             freq_subband=freq_dsp[sb]-sbc
             idx = np.where( ( freq_subband > subband_freq_min ) &
                 (freq_subband < subband_freq_max) )
+            if len(idx[0]) > 0:
+                dsp_z = np.polyfit(freq_dsp[sb][idx]*1e6, np.unwrap(np.angle(resp_dsp[sb][idx])), 1)
+                dsp_p = np.poly1d(dsp_z)
+                dsp_delay_us=np.abs(1.e6*dsp_z[0]/2/np.pi)
+                dsp_delay_us=dsp_delay_us + self.get_band_delay_us(band)
+                est_delay.append(dsp_delay_us)
             freq_dsp_subset.extend(freq_dsp[sb][idx])
             resp_dsp_subset.extend(resp_dsp[sb][idx])
 
@@ -353,46 +343,39 @@ class SmurfUtilMixin(SmurfBase):
         dsp_z = np.polyfit(freq_dsp_subset, np.unwrap(np.angle(resp_dsp_subset)), 1)
         dsp_p = np.poly1d(dsp_z)
         dsp_delay_us=np.abs(1.e6*dsp_z[0]/2/np.pi)
+        dsp_delay_us=dsp_delay_us + self.get_band_delay_us(band)
+        dsp_delay_us=np.mean(est_delay)
 
-        # if refPhaseDelay0 or refPhaseDelayFine0 aren't zero, must add into
-        # delay here
-        #dsp_delay_us+=refPhaseDelay0/(subband_half_width_mhz*2.)
-        dsp_delay_us+=refPhaseDelay0/(subband_half_width_mhz)
-        dsp_delay_us-=refPhaseDelayFine0/(digitizer_frequency_mhz/2)
-
-        ## compute refPhaseDelay and refPhaseDelayFine
-        refPhaseDelay=int(np.ceil(dsp_delay_us*channel_frequency_mhz))
-        overCorrect = refPhaseDelay-dsp_delay_us*subband_half_width_mhz*2
-        refPhaseDelayFine = int(np.round((digitizer_frequency_mhz/2)/(subband_half_width_mhz*2) * overCorrect))
-        #refPhaseDelayFine=int(np.round((digitizer_frequency_mhz/2/
-        #    (channel_frequency_mhz)*
-        #    (refPhaseDelay-dsp_delay_us*(subband_half_width_mhz/2.)))))
         processing_delay_us=dsp_delay_us-cable_delay_us
 
         print('-------------------------------------------------------')
-        print(f'Estimated refPhaseDelay={refPhaseDelay}')
-        print(f'Estimated refPhaseDelayFine={refPhaseDelayFine}')
+        print(f'Estimated cable_delay_us={cable_delay_us}')
+        print(f'Estimated dsp_delay_us={dsp_delay_us}')
         print(f'Estimated processing_delay_us={processing_delay_us}')
         print('-------------------------------------------------------')
 
         #### done measuring dsp delay (cable+processing)
 
-        #### start measuring total (DSP) delay with estimated correction applied
-        # Zero refPhaseDelay and refPhaseDelayFine to get uncorrected phase
-        # delay.
-        # max is 7
-        self.set_ref_phase_delay(band,refPhaseDelay)
-        # max is 255
-        self.set_ref_phase_delay_fine(band,refPhaseDelayFine)
+        #### start measuring total (DSP + cable) delay with estimated correction applied
+        self.set_band_delay_us(band, dsp_delay_us)
 
         self.log('Running find_freq')
         freq_dsp_corr,resp_dsp_corr=self.find_freq(band,subband=dsp_subbands)
 
         freq_dsp_corr_subset=[]
         resp_dsp_corr_subset=[]
+        first = True
         for sb,sbc in zip(subbands,subband_centers):
             freq_subband=freq_dsp_corr[sb]-sbc
             idx = np.where( ( freq_subband > subband_freq_min ) & (freq_subband < subband_freq_max) )
+            if len(idx[0]) > 0:
+                if not first:
+                    last_phase = np.angle(resp_dsp_corr_subset[-1])
+                    new_phase  = np.angle(resp_dsp_corr[sb][idx[0]])
+                    resp_dsp_corr[sb][idx] = resp_dsp_corr[sb][idx] * np.exp(1j*(last_phase - new_phase))
+
+                if first:
+                    first = False
             freq_dsp_corr_subset.extend(freq_dsp_corr[sb][idx])
             resp_dsp_corr_subset.extend(resp_dsp_corr[sb][idx])
 
@@ -459,22 +442,13 @@ class SmurfUtilMixin(SmurfBase):
         cable_residuals=cable_phase-(cable_p(f_cable_plot*1.0E6))
         ax[2].plot(f_cable_plot,cable_residuals-np.median(cable_residuals),
             label='Cable (full_band_resp)',c='g')
-        dsp_residuals=dsp_phase-(dsp_p(f_dsp_plot*1.0E6))
-        ax[2].plot(f_dsp_plot,dsp_residuals-np.median(dsp_residuals),
-            label='DSP (find_freq)', c='c')
         ax[2].plot(f_dsp_corr_plot,dsp_corr_phase-np.median(dsp_corr_phase),
-            label='DSP corrected (find_freq)', c='m')
+            label='DSP (find_freq)', c='c')
         ax[2].set_title(f'AMC in Bay {bay}, Band {band} Residuals'.format(bay,band))
         ax[2].set_ylabel("Residual [rad]")
         ax[2].set_xlabel('Frequency offset from band center [MHz]')
         ax[2].set_ylim([-5,5])
 
-        ax[2].text(.97, .92, f'refPhaseDelay={refPhaseDelay}',
-                   transform=ax[2].transAxes, fontsize=8,
-                   bbox=bbox,horizontalalignment='right')
-        ax[2].text(.97, .84, f'refPhaseDelayFine={refPhaseDelayFine}',
-                   transform=ax[2].transAxes, fontsize=8,
-                   bbox=bbox,horizontalalignment='right')
         ax[2].text(.97, .76,
                    f'processing delay={processing_delay_us:.5f} us (fw={fw_abbrev_sha})',
                    transform=ax[2].transAxes, fontsize=8,
@@ -505,7 +479,10 @@ class SmurfUtilMixin(SmurfBase):
         self.set_att_uc(band, uc_att0, write_log=True)
         self.set_att_dc(band, dc_att0, write_log=True)
 
-        return refPhaseDelay, refPhaseDelayFine, processing_delay_us, dsp_corr_delay_us
+        if show_plot:
+            plt.show()
+
+        return dsp_delay_us, dsp_corr_delay_us
 
     def process_data(self, filename, dtype=np.uint32):
         """ Reads a file taken with take_debug_data and processes it into data
@@ -865,10 +842,9 @@ class SmurfUtilMixin(SmurfBase):
             Whether to write to the log file.
         update_payload_size : bool, optional, default True
             Whether to update the payload size (the number of channels
-            written to disk). If the number of channels on is greater
-            than the payload size, then only the first N channels are
-            written. This bool will update the payload size to be the
-            same as the number of channels on across all bands)
+            written to disk). If this is True, will set the payload size to
+            0, which tells rogue to automatically adjust it based on the
+            channel count.
         reset_filter : bool, optional, default True
             Whether to reset the filter before taking data.
         reset_unwrapper : bool, optional, default True
@@ -901,19 +877,8 @@ class SmurfUtilMixin(SmurfBase):
                      'value already in pyrogue:'+
                      f' {downsample_factor}')
 
-        # Check payload size
-        n_chan_in_mask = len(self.get_channel_mask())
-        payload_size = self.get_payload_size()
-        if n_chan_in_mask > payload_size:
-            if update_payload_size:
-                self.log('Updating payload size')
-                self.set_payload_size(n_chan_in_mask,
-                                      write_log=write_log)
-            else:
-                self.log('Warning : The payload size is smaller than ' +
-                    'the number of channels that are on. Only ' +
-                    f'writing the first {payload_size} channels. ')
-
+        if update_payload_size:
+            self.set_payload_size(0)
 
         # Check if flux ramp is non-zero
         ramp_max_cnt = self.get_ramp_max_cnt()
@@ -2325,8 +2290,8 @@ class SmurfUtilMixin(SmurfBase):
         ----
         band : int
             The band the channel is in.
-        channel : int or None, optional, default none
-            The channel number.
+        channel : int, None, or array, optional, default None
+            If None, will return the channel freqs of all enabled channels
 
         Returns
         -------
@@ -2338,29 +2303,15 @@ class SmurfUtilMixin(SmurfBase):
         if band is None and channel is None:
             return None
 
-        # Get subband centers
-        _, sbc = self.get_subband_centers(band, as_offset=False, yml=yml)
+        band_center_mhz = self.get_band_center_mhz(band)
+        subband_offset = self.get_tone_frequency_offset_mhz(band)
+        channel_offset = self.get_center_frequency_array(band)
+        channel_freqs = band_center_mhz + subband_offset + channel_offset
 
-        # Convenience function for turning band, channel into freq
-        def _get_cf(band, ch):
-            subband = self.get_subband_from_channel(band, channel, yml=yml)
-            offset = float(self.get_center_frequency_mhz_channel(band, channel,
-                                                                 yml=yml))
-            return sbc[subband] + offset
-
-        # If channel is requested
-        if channel is not None:
-            return _get_cf(band, channel)
-
-        # Get all channels that are on
+        if channel is None:
+            return channel_freqs[self.which_on(band)]
         else:
-            channels = self.which_on(band)
-            cfs = np.zeros(len(channels))
-            for i, channel in enumerate(channels):
-                cfs[i] = _get_cf(band, channel)
-
-            return cfs
-
+            return channel_freqs[channel]
 
     def get_channel_order(self, band=None, channel_orderfile=None):
         """ produces order of channels from a user-supplied input file
@@ -2778,207 +2729,6 @@ class SmurfUtilMixin(SmurfBase):
         else:
             return bias_vals_pos - bias_vals_neg
 
-    def set_amplifier_bias(self, bias_hemt=None, bias_50k=None, **kwargs):
-        """
-        Sets the HEMT and 50 K amp (if present) voltages.  If no
-        arguments given, looks for default biases in cfg
-        (amplifier:hemt_Vg and amplifier:LNA_Vg).  If nothing found in
-        cfg file, does nothing to either bias.  Enable is written to
-        both amplifier bias DACs regardless of whether or not they are
-        set to new values - need to check that this is ok.  If user
-        specifies values those override cfg file defaults.  Prints
-        resulting amplifier biases at the end with a short wait in
-        case there's latency between setting and reading.
-
-        Args
-        ----
-        bias_hemt : float or None, optional default None
-            The HEMT bias voltage in units of volts.
-        bias_50k : float or None, optional, default None
-            The 50K bias voltage in units of volts.
-        """
-
-        ########################################################################
-        ### 4K HEMT
-        self.set_hemt_enable(**kwargs)
-        # if nothing specified take default from cfg file, if
-        # it's specified there
-        bias_hemt_from_cfg=False
-        if bias_hemt is None and hasattr(self,'_hemt_Vg'):
-            bias_hemt = self._hemt_Vg
-            bias_hemt_from_cfg = True
-        # if user gave a value or value was found in cfg file,
-        # set it and tell the user
-        if bias_hemt is not None:
-            if bias_hemt_from_cfg:
-                self.log('Setting HEMT LNA Vg from config file to ' +
-                         f'Vg={bias_hemt:.3f}',
-                         self.LOG_USER)
-            else:
-                self.log('Setting HEMT LNA Vg to requested ' +
-                         f'Vg={bias_hemt:.3f}',
-                         self.LOG_USER)
-
-            self.set_hemt_gate_voltage(bias_hemt, override=True, **kwargs)
-
-        # otherwise do nothing and warn the user
-        else:
-            self.log("No value specified for 4K HEMT Vg and " +
-                     "didn't find a default in cfg " +
-                     "(amplifier['hemt_Vg']).",
-                     self.LOG_ERROR)
-        ### done with 4K HEMT
-        ########################################################################
-
-        ########################################################################
-        ### 50K LNA (if present - could make this smarter and more general)
-        self.set_50k_amp_enable(**kwargs)
-        # if nothing specified take default from cfg file, if
-        # it's specified there
-        bias_50k_from_cfg=False
-        if bias_50k is None and hasattr(self,'_fiftyk_Vg'):
-            bias_50k=self._fiftyk_Vg
-            bias_50k_from_cfg=True
-        # if user gave a value or value was found in cfg file,
-        # set it and tell the user
-        if bias_50k is not None:
-            if bias_50k_from_cfg:
-                self.log('Setting 50K LNA Vg from config file to ' +
-                         f'Vg={bias_50k:.3f}',
-                         self.LOG_USER)
-            else:
-                self.log('Setting 50K LNA Vg to requested '+
-                         f'Vg={bias_50k:.3f}',
-                         self.LOG_USER)
-
-            self.set_50k_amp_gate_voltage(bias_50k, **kwargs)
-
-        # otherwise do nothing and warn the user
-        else:
-            self.log("No value specified for 50K LNA Vg and " +
-                     "didn't find a default in cfg " +
-                     "(amplifier['LNA_Vg']).",
-                     self.LOG_ERROR)
-        ### done with 50K LNA
-        ########################################################################
-
-        # add some latency in case PIC needs it
-        time.sleep(1)
-        # print amplifier biases after setting Vgs
-        self.get_amplifier_biases()
-
-    def get_amplifier_biases(self, write_log=True):
-        """
-        Queries the amplifier biases
-
-        Args
-        ----
-        write_log : bool, optional, default True
-            Whether to write to the log.
-
-        Returns
-        -------
-        amplifier_bias : dict
-            Returns a dict with the hemt and 50K gate voltage and
-            drain current.
-        """
-        # 4K
-        hemt_Id_mA=self.get_hemt_drain_current()
-        hemt_gate_bias_volts=self.get_hemt_gate_voltage()
-
-        # 50K
-        fiftyk_Id_mA=self.get_50k_amp_drain_current()
-        fiftyk_amp_gate_bias_volts=self.get_50k_amp_gate_voltage()
-
-        ret = {
-            'hemt_Vg' : hemt_gate_bias_volts,
-            'hemt_Id' : hemt_Id_mA,
-            '50K_Vg' : fiftyk_amp_gate_bias_volts,
-            '50K_Id' : fiftyk_Id_mA
-        }
-
-        if write_log:
-            self.log(ret)
-
-        return ret
-
-    # alias
-    get_amplifier_bias = get_amplifier_biases
-
-    def get_hemt_drain_current(self):
-        """Reports the inferred 4K HEMT amplifier drain current in mA,
-        inferred by measuring the voltage across a resistor in series
-        with the applied drain voltage (before the regulator) by the
-        PIC on the cryostat card.  The conversion from the measured
-        PIC ADC voltage to drain current assumes the circuit topology
-        on the rev C2 cryostat card (SLAC board PC-248-103-02-C02, see
-        schematic sheet 3).  The series resistor in that schematic is
-        component R44.  The value of R54 can be specified in the
-        pysmurf configuration file (as hemt_Vd_series_resistor in the
-        amplifier block).  If not explicitly specified, pysmurf
-        assumes the default in the C2 cryostat card BOM of 200 Ohm.
-
-        Because the series resistor is before the regulator that drops
-        the RF6.0V from the RTM down to the drain voltage set by
-        manually adjusting a potentiometer on the cryostat card, the
-        drain current inferred from just naively dividing the measured
-        voltage across the series resistor by its resistance includes
-        any additional current drawn by the regulator.  This
-        additional current contribution must also be provided in
-        pysmurf configuration file - pysmurf will not assume a default
-        value for this offset (see hemt_Id_offset in the amplifier
-        block).
-
-        Returns
-        -------
-        cur : float
-            4K HEMT amplifier drain current in mA.
-        """
-        # assumes circuit topology on rev C2 cryostat card
-        # (PC-248-103-02-C02, sheet 3)
-        hemt_Id_mA=2.*1000.*(self.get_cryo_card_hemt_bias())/self._hemt_Vd_series_resistor - self._hemt_Id_offset
-
-        return hemt_Id_mA
-
-
-    def get_50k_amp_drain_current(self):
-        """Reports the inferred 50K amplifier drain current in mA,
-        inferred by measuring the voltage across a resistor in series
-        with the applied drain voltage (before the regulator) by the
-        PIC on the cryostat card.  The conversion from the measured
-        PIC ADC voltage to drain current assumes the circuit topology
-        on the rev C2 cryostat card (SLAC board PC-248-103-02-C02, see
-        schematic sheet 3).  The series resistor in that schematic is
-        component R54.  The value of R54 can be specified in the
-        pysmurf configuration file (as 50K_amp_Vd_series_resistor in
-        the amplifier block).  If not explicitly specified, pysmurf
-        assumes the default in the C2 cryostat card BOM of 10 Ohm.
-
-        Because the series resistor is before the regulator that drops
-        the RF6.0V from the RTM down to the drain voltage set by
-        manually adjusting a potentiometer on the cryostat card, the
-        drain current inferred from just naively dividing the measured
-        voltage across the series resistor by its resistance includes
-        any additional current drawn by the regulator.  This
-        additional current contribution must also be provided in
-        pysmurf configuration file - pysmurf will not assume a default
-        value for this offset (see 50k_Id_offset in the amplifier
-        block).
-
-        Returns
-        -------
-        cur : float
-            50K amplifier drain current in mA.
-        """
-
-        # assumes circuit topology on rev C2 cryostat card
-        # (PC-248-103-02-C02, sheet 3)
-        fiftyk_amp_Id_mA=2.*1000.*(self.get_cryo_card_50k_bias()/
-                                   self._fiftyk_amp_Vd_series_resistor) - self._fiftyk_Id_offset
-
-        return fiftyk_amp_Id_mA
-
-
     def overbias_tes(self, bias_group, overbias_voltage=19.9, overbias_wait=1.,
                      tes_bias=19.9, cool_wait=20., high_current_mode=False,
                      flip_polarity=False, actually_overbias=True):
@@ -3149,6 +2899,25 @@ class SmurfUtilMixin(SmurfBase):
         self.set_cryo_card_relays(new_relay, write_log=write_log)
         self.get_cryo_card_relays()
 
+    def get_tes_bias_high_current(self, bias_group):
+        """
+        Returns 1 if requested bias_group is in high_current_mode and 0
+        otherwise.
+
+        Args
+        ----
+        bias_group : int
+            The bias group to query
+        """
+        relay = self.get_cryo_card_relays()
+        relay = self.get_cryo_card_relays()  # querey twice to ensure update
+
+        if bias_group >= self._n_bias_groups:
+            raise ValueError("Biasgroup must be between 0 and {self._n_bias_groups}")
+
+        r = np.ravel(self._pic_to_bias_group[np.where(
+            self._pic_to_bias_group[:,1]==bias_group)])[0]
+        return (relay>>r) & 1
 
     def set_tes_bias_low_current(self, bias_group, write_log=False):
         """
@@ -3372,13 +3141,14 @@ class SmurfUtilMixin(SmurfBase):
             An array with frequencies associated with the mask file.
         """
         freqs = np.zeros(len(mask), dtype=float)
-        channels_per_band = self.get_number_channels()
+        bands = mask // 512
+        chans = mask % 512
 
-        # iterate over mask channels and find their freq
-        for i, mask_ch in enumerate(mask):
-            b = mask_ch // channels_per_band
-            ch = mask_ch % channels_per_band
-            freqs[i] = self.channel_to_freq(b, ch)
+        for b in range(8):
+            m = bands == b
+            if not m.any():
+                continue
+            freqs[m] = self.channel_to_freq(b, chans[m])
 
         return freqs
 
