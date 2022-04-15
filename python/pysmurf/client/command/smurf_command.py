@@ -5597,23 +5597,48 @@ class SmurfCommandMixin(SmurfBase):
 
     def get_crossbar_output_config(self, index, **kwargs):
         """
+        This is the timing crossbar, which determins how the SMuRF carrier
+        receives its timing signal, and how the backplane receives its
+        timing signal.
         """
         return self._caget(
             self.crossbar + self._output_config_reg.format(index),
             **kwargs)
 
-    _timing_link_up_reg = "RxLinkUp"
+    def get_timing_link_up(self):
+        """
+        Get RxLinkUp. Used by get_timing_fiber_status and
+        get_timing_backplane_status.
+        """
+        rxlinkup_reg = self.timing_status + "RxLinkUp"
+        rxlinkup_val = self._caget(rxlinkup_reg)
+        if rxlinkup_val == 0:
+            self.log('RxLinkUp is 0. If using fiber or backplane, this should be 1.')
+            return False
 
-    def get_timing_link_up(self, **kwargs):
+        return True
+
+    def get_timing_fiber_status(self):
         """
-        Return the value of RxLinkUp. This tells you if the FPGA recovered
-        clock is receiving timing from somewhere, either the backplane or
-        fiber. This doesn't directly tell you anything about the AMCs, JESDs,
-        or LMKs.
+        Determine if this slot is correctly receiving fiber data and also
+        distributing it to the rest of the crate, in other words if
+        the 'timing': 'fiber' configuration in the SMuRF .cfg file is
+        working correctly. We can make this more robust by taking
+        some frame data for one second and seeing if errors increment.
+
+        Ref. https://confluence.slac.stanford.edu/display/ppareg/Timing+Core+Programming
+
+        Ref. https://confluence.slac.stanford.edu/display/SMuRF/Timing+Firmware
         """
-        return self._caget(
-            self.timing_status + self._timing_link_up_reg,
-            **kwargs)
+        status = self.get_timing_link_up()
+
+        for i in range(4):
+            output = self.get_crossbar_output_config(i)
+            if output != 0:
+                self.log(f'Crossbar {i} is {output} but should be 0.')
+                status = False
+
+        return status
 
     def set_lmk_enable(self, bay, val):
         """
