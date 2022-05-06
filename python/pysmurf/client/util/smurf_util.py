@@ -869,9 +869,9 @@ class SmurfUtilMixin(SmurfBase):
         bands = self._bands
 
         if downsample_factor is not None:
-            self.set_downsample_internal_factor(downsample_factor)
+            self.set_downsample_factor(downsample_factor)
         else:
-            downsample_factor = self.get_downsampler_internal_factor()
+            downsample_factor = self.get_downsample_factor()
             if write_log:
                 self.log('Input downsample factor is None. Using '+
                      'value already in pyrogue:'+
@@ -3197,7 +3197,7 @@ class SmurfUtilMixin(SmurfBase):
         # Get filter order, gain, and averages
         filter_order = self.get_filter_order()
         filter_gain = self.get_filter_gain()
-        num_averages = self.get_downsampler_internal_factor()
+        num_averages = self.get_downsample_factor()
 
         # Get filter order, gain, and averages
 
@@ -3354,7 +3354,7 @@ class SmurfUtilMixin(SmurfBase):
 
         # Calculate sampling frequency
         # flux_ramp_freq = self.get_flux_ramp_freq() * 1.0E3
-        # fs = flux_ramp_freq * self.get_downsampler_internal_factor()
+        # fs = flux_ramp_freq * self.get_downsample_factor()
 
         # Cast the bias group as an array
         bias_group = np.ravel(np.array(bias_group))
@@ -4133,7 +4133,7 @@ class SmurfUtilMixin(SmurfBase):
             The data sample rate in Hz.
         """
         flux_ramp_freq = self.get_flux_ramp_freq() * 1.0E3
-        downsample_factor = self.get_downsampler_internal_factor()
+        downsample_factor = self.get_downsample_factor()
 
         return flux_ramp_freq / downsample_factor
 
@@ -4181,7 +4181,7 @@ class SmurfUtilMixin(SmurfBase):
         """
         # Check if probe frequency is too high
         flux_ramp_freq = self.get_flux_ramp_freq() * 1.0E3
-        fs = flux_ramp_freq * self.get_downsampler_internal_factor()
+        fs = flux_ramp_freq * self.get_downsample_factor()
 
         # Calculate downsample filter transfer function
         filter_params = self.get_filter_params()
