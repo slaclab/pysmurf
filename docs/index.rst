@@ -3,25 +3,11 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Welcome to pysmurf's documentation!
-===================================
-
-The python control software for SMuRF. Includes scripts to do low
-level commands as well as higher level analysis.
+Pysmurf
+=======
 
 .. User guide modeled after
 .. https://github.com/simonsobs/ocs/tree/master/docs/user
-.. toctree::
-   :maxdepth: 3
-   :caption: User Guide
-
-   user/intro
-   user/dependencies
-   user/installation
-   user/quickstart
-   user/configuration
-   user/developer
-
 
 .. toctree::
    :maxdepth: 3
