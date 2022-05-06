@@ -139,9 +139,9 @@ const uint64_t SmurfHeaderRO<T>::getCounter2() const
 }
 
 template<typename T>
-const uint32_t SmurfHeaderRO<T>::getAveragingResetBits() const
+const uint32_t SmurfHeaderRO<T>::getTimingBits() const
 {
-    return getU32Word(headerAveragingResetBitsOffset);
+    return getU32Word(headerTimingBitsOffset);
 }
 
 template<typename T>
@@ -409,9 +409,9 @@ void SmurfHeader<T>::setCounter2(uint64_t value) const
 }
 
 template<typename T>
-void SmurfHeader<T>::setAveragingResetBits(uint32_t value) const
+void SmurfHeader<T>::setTimingBits(uint32_t value) const
 {
-    setU32Word(this->headerAveragingResetBitsOffset, value);
+    setU32Word(this->headerTimingBitsOffset, value);
 }
 
 template<typename T>

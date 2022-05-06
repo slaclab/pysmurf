@@ -5905,9 +5905,45 @@ class SmurfCommandMixin(SmurfBase):
             self.smurf_processor + self._filter_gain_reg,
             **kwargs)
 
-    _downsampler_factor_reg = 'Downsampler:Factor'
+    _downsampler_mode_reg = 'Downsampler:DownsamplerMode'
 
-    def set_downsample_factor(self, factor, **kwargs):
+    def set_downsampler_mode(self, mode):
+        """
+        Set the downsampler mode. 0 is internal, 1 is external.
+
+        Ref. SmurfHeader.h, SmurfHeader.cpp, _SmurfProcessor.py
+        Ref. https://confluence.slac.stanford.edu/display/SMuRF/SMuRF+Processor
+        """
+        if mode == 'internal':
+            self._caput(self.smurf_processor + self._downsampler_mode_reg, 0)
+        if mode == 'external':
+            self._caput(self.smurf_processor + self._downsampler_mode_reg, 1)
+        else:
+            self.log(f'set_downsampler_mode: Unknown mode {mode}')
+
+    def get_downsampler_mode(self):
+        """
+        Get the downsampler mode. 0 is internal, 1 is external.
+
+        Ref. SmurfHeader.h, SmurfHeader.cpp, _SmurfProcessor.py
+        Ref. https://confluence.slac.stanford.edu/display/SMuRF/SMuRF+Processor
+        """
+        mode = self._caget(self.smurf_processor + self._downsampler_mode_reg)
+
+        ret = 'Unknown'
+
+        if mode == 0:
+            ret = 'internal'
+        elif mode == 1:
+            ret = 'external'
+        else:
+            self.log(f'get_downsampler_mode: Unknown mode {mode}')
+
+        return ret
+
+    _downsampler_internal_factor_reg = 'Downsampler:InternalFactor'
+
+    def set_downsampler_internal_factor(self, factor, **kwargs):
         """
         Set the smurf processor down-sampling factor.
 
@@ -5917,10 +5953,10 @@ class SmurfCommandMixin(SmurfBase):
             The down-sampling factor.
         """
         self._caput(
-            self.smurf_processor + self._downsampler_factor_reg,
+            self.smurf_processor + self._downsampler_internal_factor_reg,
             factor, **kwargs)
 
-    def get_downsample_factor(self, **kwargs):
+    def get_downsampler_internal_factor(self, **kwargs):
         """
         Get the smurf processor down-sampling factor.
 
@@ -5929,13 +5965,32 @@ class SmurfCommandMixin(SmurfBase):
         int
             The down-sampling factor.
         """
-        if self.offline:  # FIX ME - STUPID HARD CODE
+        if self.offline:
+            self.log("get_downsampler_internal_factor: offline is True, returning something anyway.")
             return 20
 
-        else:
-            return self._caget(
-                self.smurf_processor + self._downsampler_factor_reg,
-                **kwargs)
+        if self.get_downsampler_mode() == 'external':
+            self.log('get_downsampler_internal_factor: get_downsampler_mode is external, the factor is not used')
+
+        return self._caget(self.smurf_processor + self._downsampler_internal_factor_reg, **kwargs)
+
+    _downsampler_external_bitmask_reg = 'Downsampler:ExternalBitmask'
+
+    def set_downsampler_external_bitmask(self, bitmask):
+        """
+        Set the downsampler external bitmask.
+
+        Ref. https://confluence.slac.stanford.edu/display/SMuRF/SMuRF+Processor
+        """
+        self._caput(self.smurf_processor + self._downsampler_external_bitmask_reg, bitmask)
+
+    def get_downsampler_external_bitmask(self):
+        """
+        Get the downsampler external bitmask.
+
+        Ref. https://confluence.slac.stanford.edu/display/SMuRF/SMuRF+Processor
+        """
+        return self._caget(self.smurf_processor + self._downsampler_external_bitmask_reg)
 
     _filter_disable_reg = "Filter:Disable"
 

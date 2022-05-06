@@ -66,7 +66,7 @@ public:
     const uint32_t getCounter0()                  const;                   // Get 32 bit counter since last 1Hz marker
     const uint32_t getCounter1()                  const;                   // Get 32 bit counter since last external input
     const uint64_t getCounter2()                  const;                   // Get 64 bit timestamp
-    const uint32_t getAveragingResetBits()        const;                   // Get up to 32 bits of average reset from timing system
+    const uint32_t getTimingBits()                const;                   // Get 32 bits of the timing marker
     const uint32_t getFrameCounter()              const;                   // Get locally genreate frame counter 32 bit
     const uint32_t getTESRelaySetting()           const;                   // Get TES and flux ramp relays, 17bits in use now
     const uint64_t getExternalTimeClock()         const;                   // Get Syncword from mce for mce based systems (40 bit including header)
@@ -87,7 +87,15 @@ public:
     static const std::size_t SmurfHeaderSize                 = 128;
 
 protected:
-    // Header word offsets (in bytes)
+    // Header word offsets (in bytes). This is the number of bytes
+    // until the start of some portion of the header data. Compare
+    // this with AxisSysgenProcDataFramer.vhd to check that it is
+    // accurate. Example with headerCounter0Offset: Convert 64 bytes
+    // to bits, which is 512 bits. Divide 512 bits by 64, which is 8.
+    // v.header(8) is the start of the counter0, and its 32 bits
+    // large, so v.header(8)(31 downto 0) is the line in the firmware
+    // that determines the location of counter0 in the header.
+  
     static const std::size_t headerVersionOffset              = 0;
     static const std::size_t headerCrateIDOffset              = 1;
     static const std::size_t headerSlotNumberOffset           = 2;
@@ -100,7 +108,11 @@ protected:
     static const std::size_t headerCounter0Offset             = 64;
     static const std::size_t headerCounter1Offset             = 68;
     static const std::size_t headerCounter2Offset             = 72;
-    static const std::size_t headerAveragingResetBitsOffset   = 80;
+    static const std::size_t headerTimingBitsOffset           = 80;
+    // Data format for headerTimingBitsOffset:
+    // 9 downto 0: fixed rate markers: 1 2 3 4 5 6 8 10 12 15 kHz
+    // 27 downto 10: sequencer markers: sequencer number 0, 1, ... 18
+    // The easiest way to view the sequencer markers is with the TPG GUI
     static const std::size_t headerFrameCounterOffset         = 84;
     static const std::size_t headerTESRelaySettingOffset      = 88;
     static const std::size_t headerExternalTimeClockOffset    = 96;
@@ -163,7 +175,7 @@ public:
     void setCounter0(uint32_t value) const;                              // Set 32 bit counter since last 1Hz marker
     void setCounter1(uint32_t value) const;                              // Set 32 bit counter since last external input
     void setCounter2(uint64_t value) const;                              // Set 64 bit timestamp
-    void setAveragingResetBits(uint32_t value) const;                    // Set up to 32 bits of average reset from timing system
+    void setTimingBits(uint32_t value) const;                            // Set 32 bits of the timing markers
     void setFrameCounter(uint32_t value) const;                          // Set locally genreate frame counter 32 bit
     void setTESRelaySetting(uint32_t value) const;                       // Set TES and flux ramp relays, 17bits in use now
     void setExternalTimeClock(uint64_t value) const;                     // Set Syncword from mce for mce based systems (40 bit including header)

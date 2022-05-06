@@ -20,9 +20,21 @@
 
 #include <boost/python.hpp>
 #include "smurf/core/processors/SmurfProcessor.h"
+#include <iostream>
+#include <string>
 
 namespace scp = smurf::core::processors;
 
+// This is the init function for the SmurfProcessor. These functions
+// are exposed by setup_python below, and the whole class is
+// instantiated by the SmurfProcessor python class which inherits the
+// pyrogue Device type. Typically either CmbEth.py or CmbPcie.py will
+// intantiate the SmurfProcessor object. To be clear, it's Rogue that
+// starts the SMuRF C++ code.
+
+// SmurfProcessor: https://github.com/slaclab/pysmurf/blob/c4b191d1bf49f49d137f8771dbfe70d0a50a11c0/python/pysmurf/core/devices/_SmurfProcessor.py
+// Examples: https://slaclab.github.io/rogue/custom_module/wrapper.html
+// CmbEth: https://github.com/slaclab/pysmurf/blob/c4b191d1bf49f49d137f8771dbfe70d0a50a11c0/python/pysmurf/core/roots/CmbEth.py
 scp::SmurfProcessor::SmurfProcessor()
 :
     ris::Slave(),
@@ -47,9 +59,9 @@ scp::SmurfProcessor::SmurfProcessor()
     disableDownsampler(false),
     downsamplerMode(0),
     factor(20),
-    sampleCnt(0),
-    downsamplerCnt(0),
-    prevExtTimeClk(0),
+    downsamplerInternalCount(0),
+    externalBitmask(0),
+    downsamplerOutgoingCount(0),
     headerCopy(SmurfHeader<std::vector<uint8_t>::iterator>::SmurfHeaderSize, 0),
     runTxThread(true),
     txDataReady(false),
@@ -65,6 +77,8 @@ scp::SmurfProcessorPtr scp::SmurfProcessor::create()
     return std::make_shared<SmurfProcessor>();
 }
 
+// This defines the functions exposed to SmurfProcessor.py.
+// See the Rogue documentation for details.
 void scp::SmurfProcessor::setup_python()
 {
     bp::class_< scp::SmurfProcessor,
@@ -99,10 +113,11 @@ void scp::SmurfProcessor::setup_python()
         .def("getDownsamplerDisable",   &SmurfProcessor::getDownsamplerDisable)
         .def("setDownsamplerMode",      &SmurfProcessor::setDownsamplerMode)
         .def("getDownsamplerMode",      &SmurfProcessor::getDownsamplerMode)
-        .def("setDownsamplerFactor",    &SmurfProcessor::setDownsamplerFactor)
-        .def("getDownsamplerFactor",    &SmurfProcessor::getDownsamplerFactor)
-        .def("getDownsamplerCnt",       &SmurfProcessor::getDownsamplerCnt)
-        .def("clearDownsamplerCnt",     &SmurfProcessor::clearDownsamplerCnt)
+        .def("setDownsamplerInternalFactor",    &SmurfProcessor::setDownsamplerInternalFactor)
+        .def("getDownsamplerInternalFactor",    &SmurfProcessor::getDownsamplerInternalFactor)
+        .def("getDownsamplerExternalBitmask", &SmurfProcessor::getDownsamplerExternalBitmask)
+        .def("setDownsamplerExternalBitmask", &SmurfProcessor::setDownsamplerExternalBitmask)
+        .def("getDownsamplerOutgoingCount", &SmurfProcessor::getDownsamplerOutgoingCount)
     ;
     bp::implicitly_convertible< scp::SmurfProcessorPtr, ris::SlavePtr  >();
     bp::implicitly_convertible< scp::SmurfProcessorPtr, ris::MasterPtr >();
@@ -427,18 +442,12 @@ const bool scp::SmurfProcessor::getDownsamplerDisable() const
     return disableDownsampler;
 }
 
-void scp::SmurfProcessor::setDownsamplerMode(std::size_t mode)
-{
-    if (mode > downsamplerModeMax)
-    {
-        std::cerr << "Error: Invalid downsampler mode = " << mode << std::endl;
-       return;
-    }
+void scp::SmurfProcessor::setDownsamplerMode(std::size_t mode) {
+  downsamplerMode = mode;
 
-    downsamplerMode = mode;
-
-    // When the mode is changed, reset the internal counter
-    resetDownsampler();
+  if (mode == downsamplerModeInternal) {
+    setDownsamplerInternalCount(0);
+  }
 }
 
 const std::size_t scp::SmurfProcessor::getDownsamplerMode() const
@@ -446,7 +455,7 @@ const std::size_t scp::SmurfProcessor::getDownsamplerMode() const
     return downsamplerMode;
 }
 
-void scp::SmurfProcessor::setDownsamplerFactor(std::size_t f)
+void scp::SmurfProcessor::setDownsamplerInternalFactor(std::size_t f)
 {
     // Check if the factor is 0
     if (0 == f)
@@ -459,27 +468,35 @@ void scp::SmurfProcessor::setDownsamplerFactor(std::size_t f)
     factor = f;
 
     // When the factor is changed, reset the internal counter.
-    resetDownsampler();
+    setDownsamplerInternalCount(0);
 }
 
-const std::size_t scp::SmurfProcessor::getDownsamplerFactor() const
-{
+const std::size_t scp::SmurfProcessor::getDownsamplerInternalFactor() const {
     return factor;
 }
 
-void scp::SmurfProcessor::resetDownsampler()
+void scp::SmurfProcessor::setDownsamplerInternalCount(std::size_t c)
 {
-    sampleCnt = 0;
+    downsamplerInternalCount = c;
 }
 
-const std::size_t scp::SmurfProcessor::getDownsamplerCnt() const
-{
-    return downsamplerCnt;
+const std::size_t scp::SmurfProcessor::getDownsamplerInternalCount() const {
+  return downsamplerInternalCount;
 }
 
-void scp::SmurfProcessor::clearDownsamplerCnt()
+void scp::SmurfProcessor::setDownsamplerExternalBitmask(std::size_t m)
 {
-    downsamplerCnt = 0;
+    externalBitmask = m;
+}
+
+const std::size_t scp::SmurfProcessor::getDownsamplerExternalBitmask() const
+{
+    return externalBitmask;
+}
+
+const std::size_t scp::SmurfProcessor::getDownsamplerOutgoingCount() const
+{
+    return downsamplerOutgoingCount;
 }
 
 void scp::SmurfProcessor::acceptFrame(ris::FramePtr frame)
@@ -709,40 +726,34 @@ void scp::SmurfProcessor::acceptFrame(ris::FramePtr frame)
     if (!disableDownsampler)
     {
 
-        // Check the trigger mode selected.
-        if (downsamplerModeTimingBicep == downsamplerMode)
-        {
-            // Use external timing system, as done for BICEP
+        if (downsamplerMode == downsamplerModeExternal) {
+            // Read the averaging reeset bits from the header.  The
+	    // first 10 bits are fixed rate markers, the next 18 are
+	    // sequence markers.
+            std::size_t externalBits { header->getTimingBits() };
 
-            // Read the external time clock word from the header
-            std::size_t extTimeClk { header->getExternalTimeClock() };
+	    // Mask it. E.g. If the mask is 2, then externalBits is 2
+	    // for only one frame, which might for example trigger at
+	    // 2 kHz.
+            externalBits &= externalBitmask;
 
-            // Check if the time clock word changed
-            bool extTimeClkChanged { extTimeClk != prevExtTimeClk };
-
-            // Save the current time clock word for the next cycle
-            prevExtTimeClk = extTimeClk;
-
-            // If the ext time word has not changed, we don't do anything.
-            // When the ext time change, we send the resulting frame.
-            if (!extTimeClkChanged)
-                return;
-        }
-        else
-        {
-            // Use internal frame counter to trigger.
-
-            // If we haven't reached the factor counter, we don't do anything
-            // When we reach the factor counter, we send the resulting frame.
-            if (++sampleCnt < factor)
+	    // Ignore frames where the masked bits are all 0.
+            if (externalBits == 0)
                 return;
 
-            // Reset the downsampler
-            resetDownsampler();
+        } else if (downsamplerMode == downsamplerModeInternal) {
+            // Use the counter in this program to trigger.
+	    ++downsamplerInternalCount;
+	  
+            if (downsamplerInternalCount < factor)
+                return;
+
+            // Set the counter to 0.
+	    setDownsamplerInternalCount(0);
         }
 
-        // Increase the output counter.
-        ++downsamplerCnt;
+        // Increase until the next trigger.
+        ++downsamplerOutgoingCount;
     }
 
     // Give the data to the Tx thread to be sent to the next slave.
