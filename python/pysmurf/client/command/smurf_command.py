@@ -5969,8 +5969,8 @@ class SmurfCommandMixin(SmurfBase):
             self.log("get_downsampler_internal_factor: offline is True, returning something anyway.")
             return 20
 
-        if self.get_downsampler_mode() != 'External':
-            self.log('get_downsampler_internal_factor: get_downsampler_mode is External, the factor is not used')
+        if self.get_downsampler_mode() == 'external':
+            self.log('get_downsampler_internal_factor: get_downsampler_mode is external, the factor is not used')
 
         return self._caget(self.smurf_processor + self._downsampler_internal_factor_reg, **kwargs)
 
@@ -5982,15 +5982,15 @@ class SmurfCommandMixin(SmurfBase):
 
         Ref. https://confluence.slac.stanford.edu/display/SMuRF/SMuRF+Processor
         """
-        self._caput(self.smurf_processor + self.downsampler_external_bitmask_reg, bitmask)
+        self._caput(self.smurf_processor + self._downsampler_external_bitmask_reg, bitmask)
 
-    def get_downsampler_external_bitmask_reg(self):
+    def get_downsampler_external_bitmask(self):
         """
         Get the downsampler external bitmask.
 
         Ref. https://confluence.slac.stanford.edu/display/SMuRF/SMuRF+Processor
         """
-        self._caget(self.smurf_processor + self._downsampler_external_bitmask_reg)
+        return self._caget(self.smurf_processor + self._downsampler_external_bitmask_reg)
 
     _filter_disable_reg = "Filter:Disable"
 
