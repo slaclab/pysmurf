@@ -1446,6 +1446,7 @@ class SmurfTuneMixin(SmurfBase):
         ax2.axvline(0, color='k', linestyle=':', alpha=.5)
 
         ax2.scatter(I, Q, c=np.arange(len(freq)), s=3)
+        ax2.plot(I[zero_idx], Q[zero_idx], 'x', color='b')
         ax2.set_xlabel('I')
         ax2.set_ylabel('Q')
 
@@ -1485,6 +1486,7 @@ class SmurfTuneMixin(SmurfBase):
             Ip = np.real(respp)
             Qp = np.imag(respp)
             ax2.scatter(Ip, Qp, c=np.arange(len(freq)), cmap='inferno', s=3)
+            ax2.plot(Ip[zero_idx], Qp[zero_idx], 'x', color='r')
 
         if f_slow is not None and resp_slow is not None:
             self.log('Adding slow eta scan')
