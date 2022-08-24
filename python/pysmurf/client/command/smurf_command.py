@@ -5129,7 +5129,9 @@ class SmurfCommandMixin(SmurfBase):
     # Cryo card comands
     def get_cryo_card_temp(self, enable_poll=False, disable_poll=False):
         """
-        No description
+        Get the self-reported temperature of the cryocard. This value is typically
+        around 20 Celcius. Anything higher than 30 would indicate a problem. Anything
+        below 0 C indicates the board is not connected.
 
         Returns
         -------
@@ -5142,6 +5144,9 @@ class SmurfCommandMixin(SmurfBase):
                 True)
 
         T = self.C.read_temperature()
+
+        if T < 0:
+            self.log(f'get_cryo_card_temp: Temperature is below 0 C, is it connected?')
 
         if disable_poll:
             epics.caput(
@@ -5597,6 +5602,9 @@ class SmurfCommandMixin(SmurfBase):
 
     def get_crossbar_output_config(self, index, **kwargs):
         """
+        This is the timing crossbar, which determins how the SMuRF carrier
+        receives its timing signal, and how the backplane receives its
+        timing signal.
         """
         return self._caget(
             self.crossbar + self._output_config_reg.format(index),
@@ -5614,6 +5622,26 @@ class SmurfCommandMixin(SmurfBase):
         return self._caget(
             self.timing_status + self._timing_link_up_reg,
             **kwargs)
+
+    def get_timing_fiber_status(self):
+        """
+        Determine if this slot is correctly receiving fiber data and also
+        distributing it to the rest of the crate, in other words if
+        the 'timing': 'fiber' configuration in the SMuRF .cfg file is
+        working correctly. We can make this more robust by taking
+        some frame data for one second and seeing if errors increment.
+        Ref. https://confluence.slac.stanford.edu/display/ppareg/Timing+Core+Programming
+        Ref. https://confluence.slac.stanford.edu/display/SMuRF/Timing+Firmware
+        """
+        status = self.get_timing_link_up()
+
+        for i in range(4):
+            output = self.get_crossbar_output_config(i)
+            if output != 0:
+                self.log(f'Crossbar {i} is {output} but should be 0.')
+                status = False
+
+        return status
 
     def set_lmk_enable(self, bay, val):
         """
@@ -5941,9 +5969,9 @@ class SmurfCommandMixin(SmurfBase):
 
         return ret
 
-    _downsampler_internal_factor_reg = 'Downsampler:InternalFactor'
+    _downsampler_factor_reg = 'Downsampler:InternalFactor'
 
-    def set_downsampler_internal_factor(self, factor, **kwargs):
+    def set_downsampler_factor(self, factor, **kwargs):
         """
         Set the smurf processor down-sampling factor.
 
@@ -5953,12 +5981,16 @@ class SmurfCommandMixin(SmurfBase):
             The down-sampling factor.
         """
         self._caput(
-            self.smurf_processor + self._downsampler_internal_factor_reg,
+            self.smurf_processor + self._downsampler_factor_reg,
             factor, **kwargs)
 
-    def get_downsampler_internal_factor(self, **kwargs):
+    def get_downsample_factor(self, **kwargs):
         """
-        Get the smurf processor down-sampling factor.
+        Get the smurf processor down-sampling factor. This is only used
+        when the downsampling mode is internal.  When the downsampling
+        mode is internal, the server will receive frames, place them
+        through SmurfProcessor.cpp, but it will not release any data
+        to be saved until it has counted up to this factor.
 
         Returns
         -------
@@ -5966,13 +5998,13 @@ class SmurfCommandMixin(SmurfBase):
             The down-sampling factor.
         """
         if self.offline:
-            self.log("get_downsampler_internal_factor: offline is True, returning something anyway.")
+            self.log("get_downsample_factor: offline is True, SmurfProcessor.cpp is not running..")
             return 20
 
         if self.get_downsampler_mode() == 'external':
-            self.log('get_downsampler_internal_factor: get_downsampler_mode is external, the factor is not used')
+            self.log('get_downsample_factor: get_downsampler_mode is external, the factor is not used')
 
-        return self._caget(self.smurf_processor + self._downsampler_internal_factor_reg, **kwargs)
+        return self._caget(self.smurf_processor + self._downsampler_factor_reg, **kwargs)
 
     _downsampler_external_bitmask_reg = 'Downsampler:ExternalBitmask'
 
@@ -5986,7 +6018,12 @@ class SmurfCommandMixin(SmurfBase):
 
     def get_downsampler_external_bitmask(self):
         """
-        Get the downsampler external bitmask.
+        Get the downsampler external bitmask. This bitmask is only used
+        when get_downsampler_mode is external. For example, 0 means
+        never trigger, 1 means trigger on the first bit, 2 will
+        trigger on the second bit, 4 will trigger on the third bit. By
+        bit, we mean when the bit flips in one direction, because the
+        bit will flip back on the next incoming data stream.
 
         Ref. https://confluence.slac.stanford.edu/display/SMuRF/SMuRF+Processor
         """
@@ -5996,8 +6033,9 @@ class SmurfCommandMixin(SmurfBase):
 
     def set_filter_disable(self, disable_status, **kwargs):
         """
-        If Disable is set to True, then the downsampling filter is
-        off.
+        If Disable is set to True, then the filter is off. Incoming data
+        to SmurfProcessor.cpp may still be downsampled, however,
+        filtering would not be applied.
 
         Args
         ----
