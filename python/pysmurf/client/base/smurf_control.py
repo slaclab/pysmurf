@@ -242,7 +242,10 @@ class SmurfControl(SmurfCommandMixin,
                 self.output_dir = os.path.join(self.base_dir, self.date,
                                                data_path_id, name, 'outputs')
 
-            self.tune_dir = self._tune_dir
+            if data_path_id is None:
+                self.tune_dir = self._tune_dir
+            else:
+                self.tune_dir = os.path.join(self._tune_dir, data_path_id)
 
             if data_path_id is None:
                 self.plot_dir = os.path.join(self.base_dir, self.date, name,
