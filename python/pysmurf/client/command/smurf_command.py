@@ -225,6 +225,9 @@ class SmurfCommandMixin(SmurfBase):
 
     _smurf_directory_reg = 'SmurfDirectory'
 
+    def get_pysmurf_compatibility(self):
+        print("Looks good to me.")
+
     def get_pysmurf_directory(self, **kwargs):
         r"""Returns path to the pysmurf python files.
 
