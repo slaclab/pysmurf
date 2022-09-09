@@ -15,9 +15,12 @@
 #-----------------------------------------------------------------------------
 import os
 import time
+import subprocess
+import re
 
 import numpy as np
 from packaging import version
+import yaml
 
 from pysmurf.client.base import SmurfBase
 from pysmurf.client.command.sync_group import SyncGroup as SyncGroup
@@ -226,7 +229,56 @@ class SmurfCommandMixin(SmurfBase):
     _smurf_directory_reg = 'SmurfDirectory'
 
     def get_pysmurf_compatibility(self):
-        print("Looks good to me.")
+        versions_file_path = os.path.join(os.path.dirname(__file__), 'versions.yaml')
+        versions_file = open(versions_file_path, 'r')
+        versions = {}
+        print('Reading versions.yml from', versions_file_path)
+        
+        try:
+            versions = yaml.safe_load(versions_file)
+        
+        except yaml.YAMLError as exc:
+            print("Error while parsing YAML file:")
+            
+            if hasattr(exc, 'problem_mark'):
+                if exc.context != None:
+                    print('  parser says\n' + str(exc.problem_mark) + '\n  ' +
+                           str(exc.problem) + ' ' + str(exc.context) +
+                           '\nPlease correct data and retry.')
+                else:
+                    print('  parser says\n' + str(exc.problem_mark) + '\n  ' +
+                           str(exc.problem) + '\nPlease correct data and retry.')
+            else:
+                print("Something went wrong while parsing yaml file")
+        
+        amc_revision_required = versions['hardware']['amc_revision']
+
+        hostname = 'shm-smrf-sp01'
+        slot_number = 4
+        cba_command = f'cba_amc_init --dump {hostname}/{slot_number}'
+        process = subprocess.Popen(cba_command, shell = True,
+                                   stdout = subprocess.PIPE,
+                                   stderr = subprocess.PIPE)
+        stdout, stderr = process.communicate()
+
+        if process.returncode != 0:
+            print('Could not get AMC slot info.')
+
+        amc_revision_lines = stdout.split(b'\n')
+        amc_revision_measured = 'Unknown'
+
+        for line in amc_revision_lines:
+            if 'Product Version' in str(line):
+                print('Got AMC slot info.')
+                amc_revision_measured = line[-3:].decode('ascii')
+
+        if amc_revision_required != amc_revision_measured:
+            print('Incorrect AMC connected. Required', amc_revision_required, 'but found', amc_revision_measured)
+            print('Diagnostic AMC Info:')
+            print(stdout)
+        else:
+            print('AMC Revision OK.')
+        
 
     def get_pysmurf_directory(self, **kwargs):
         r"""Returns path to the pysmurf python files.

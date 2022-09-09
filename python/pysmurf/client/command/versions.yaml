@@ -1,0 +1,60 @@
+  hardware:
+    # carrier: the revision, assembly, and serial labels of the carrier, separated by dashes
+    # goodCarrier: [C03-A01-20, C03-A01-15, C03-A01-10]
+
+    # revision, assembly, and serial labels of the functioning AMC boards 
+    amc_pc: PC-379-396-30
+    amc_revision: C03
+
+    # the revision numbers of each working cryostat board
+    cryostat_board: [C02, C03, C04, C05]
+
+    # slac board id
+    rtm: PC-379-396-32
+
+    # the slac board id for the timing board
+    timing_carrier: PC_379_396_01_C06
+
+    # timing amc card
+    timing_amc: PC_379_396_14_C00
+
+    # timing fanout board
+    timing_fanout_board: PC_379_396_18_C04.
+
+    # vadatech network switch
+    vadatech: idk
+
+    # shelf manager ?
+    shelf_manager: idk
+
+    firmware:
+
+      carrier_firmware_hash: 02ed52a2b851a030d95daf10a55ca4299b04b050
+      carrier_firmware_string: "MicrowaveMuxBpEthGen2: Vivado v2020.2, rdsrv317 (x86_64), Built Tue 28 Sep 2021 12:39:41 PM PDT by ruckman"
+      carrier_firmware_filename: MicrowaveMuxBpEthGen2-0x00000100-20210504090351-jvasquez-8ccb67e.mcs.gz
+
+      pcie_firmware_hash: 7aa0ea1a0ae6890e9e594a3d8a37476183075ed5
+      pcie_firmware_string: "SmurfKcu1500RssiOffload10GbE: Vivado v2019.2, rdsrv302 (x86_64), Built Tue 12 May 2020 01:44:23 PM PDT by ruckman"
+      pcie_firmware_version: 0x203
+
+      timing_carrier_firmware_string: 92d97fee9e63d4f9fdd8c21faa1fc7b673a9c396
+      timing_carrier_string: "AmcCarrierTimingGeneratorSouthPole: Vivado v2021.2, rdsrv300 (Ubuntu 20.04.1 LTS), Built Tue 12 Apr 2022 03:38:43 PM PDT by weaver"
+
+      cryostat_board_firmware_version: v4.0.7
+      
+      software:
+
+        pcie_kernel_driver_version:
+
+          pysmurf_client: v7.0.0
+          pysmurf_server: v7.0.0
+
+          rogue_zip_filename: rogue_MicrowaveMuxBpEthGen2_v1.0.6.zip
+
+          # this is important
+          smurf_cfg_version: idk
+
+          # release system
+          release_script_version: R3.10.2
+
+          pcie_kernel_driver_version: idk
