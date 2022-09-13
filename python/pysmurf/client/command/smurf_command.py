@@ -228,7 +228,7 @@ class SmurfCommandMixin(SmurfBase):
 
     _smurf_directory_reg = 'SmurfDirectory'
 
-    def get_pysmurf_compatibility(self):
+    def get_pysmurf_compatibility(self, hostname, self.slot_number):
         versions_file_path = os.path.join(os.path.dirname(__file__), 'versions.yaml')
         versions_file = open(versions_file_path, 'r')
         versions = {}
@@ -255,7 +255,7 @@ class SmurfCommandMixin(SmurfBase):
 
         hostname = 'shm-smrf-sp01'
         slot_number = 4
-        cba_command = f'cba_amc_init --dump {hostname}/{slot_number}'
+        cba_command = f'cba_amc_init --dump {hostname}/{S.slot_number}'
         process = subprocess.Popen(cba_command, shell = True,
                                    stdout = subprocess.PIPE,
                                    stderr = subprocess.PIPE)
