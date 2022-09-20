@@ -5336,13 +5336,13 @@ class SmurfCommandMixin(SmurfBase):
         # Both bit
         if status == 0x0:
             # When both readbacks are '0' we are in DC mode
-            return("DC")
+            return ("DC")
         elif status == 0x3:
             # When both readback are '1' we are in AC mode
-            return("AC")
+            return ("AC")
         else:
             # Anything else is an error
-            return("ERROR")
+            return ("ERROR")
 
 
     _smurf_to_gcp_stream_reg = 'userConfig[0]'  # bit for streaming

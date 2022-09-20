@@ -61,19 +61,19 @@ class CryoCard():
 
     def do_read(self, address, use_monitor=False):
         r"""Writes query to cryostat card PIC and reads reply.
-                                                                                
-        Args                                                                    
+
+        Args
         ----
         address : int
             Address of PIC register to read.
-        use_monitor : bool, optional, default False                             
-            Passed directly to the underlying pyepics `epics.caget`             
-            function call.  This was added to maintain default                  
-            behavior because this option was changed from default               
+        use_monitor : bool, optional, default False
+            Passed directly to the underlying pyepics `epics.caget`
+            function call.  This was added to maintain default
+            behavior because this option was changed from default
             `False` to default `True` in later versions of pyepics.
-        
-        Returns                                                                 
-        -------                                                                 
+
+        Returns
+        -------
         ret : int or 0
             The requested value.  Returns 0 if no reply (which
             typically means no cryostat card is connected).
@@ -85,8 +85,8 @@ class CryoCard():
             data = epics.caget(self.readpv, use_monitor=use_monitor)
             addrrb = cmd_address(data)
             if (addrrb == address):
-                return(data)
-        return(0)
+                return (data)
+        return (0)
 
         return (epics.caget(self.readpv, use_monitor=use_monitor))
 
@@ -110,9 +110,9 @@ class CryoCard():
         for self.busy_retry in range(0, self.max_retries):
             data = self.do_read(self.relay_address)
             if ~(data & 0x80000):  # check that not moving
-                return(data & 0x7FFFF)
+                return (data & 0x7FFFF)
                 time.sleep(0.1) # wait for relays to move
-        return(80000) # busy flag still set
+        return (80000) # busy flag still set
 
     def set_relay_bit(self, bit, value):
         """
@@ -204,11 +204,11 @@ class CryoCard():
     def read_temperature(self):
         data = self.do_read(self.temperature_address)
         volts = (data & 0xFFFFF) * self.adc_scale
-        return((volts - self.temperature_offset) * self.temperature_scale)
+        return ((volts - self.temperature_offset) * self.temperature_scale)
 
     def read_cycle_count(self):
         data = self.do_read(self.count_address)
-        return( cmd_data(data))  # do we have the right addres
+        return (cmd_data(data))  # do we have the right addres
 
     def write_ps_en(self, enables):
         """
@@ -246,7 +246,7 @@ class CryoCard():
            Bit set to 0 means the power supply is disabled.
         """
         data = self.do_read(self.ps_en_address)
-        return(cmd_data(data))
+        return (cmd_data(data))
 
     def get_fw_version(self):
         """
@@ -320,13 +320,13 @@ class CryoCard():
 # low level data conversion
 
 def cmd_read(data):  # checks for a read bit set in data
-    return( (data & 0x80000000) != 0)
+    return ((data & 0x80000000) != 0)
 
 def cmd_address(data): # returns address data
-    return((data & 0x7FFF0000) >> 20)
+    return ((data & 0x7FFF0000) >> 20)
 
 def cmd_data(data):  # returns data
-    return(data & 0xFFFFF)
+    return (data & 0xFFFFF)
 
 def cmd_make(read, address, data):
-    return((read << 31) | ((address << 20) & 0x7FFF00000) | (data & 0xFFFFF))
+    return ((read << 31) | ((address << 20) & 0x7FFF00000) | (data & 0xFFFFF))
