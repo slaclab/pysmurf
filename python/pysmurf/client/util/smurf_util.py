@@ -3081,7 +3081,7 @@ class SmurfUtilMixin(SmurfBase):
 
         aph = np.random.choice(aphorisms)
         self.log(aph)
-        return(aph)
+        return (aph)
 
     def make_channel_mask(self, band=None, smurf_chans=None):
         """

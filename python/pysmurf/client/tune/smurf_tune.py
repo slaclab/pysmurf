@@ -4712,7 +4712,7 @@ class SmurfTuneMixin(SmurfBase):
 
         fmod_array = []
         for n in range(0, num_channels):
-            if(result[n] > 0):
+            if (result[n] > 0):
                 fmod_array.append(result[n])
         mod_median = np.median(fmod_array)
         return mod_median

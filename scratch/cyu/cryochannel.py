@@ -32,9 +32,9 @@ def config_cryo_channel(smurfCfg, bandNo, channelNo, frequencyMhz, ampl, \
     epicsRoot = root + CryoChannels + 'CryoChannel[{0}]:'.format(channelNo)
 
     n_subband = epics.caget(root + SysgenCryo + bandStr +  \
-            'numberSubBands') # should be 128
+            'numberSubBands', use_monitor=False) # should be 128
     band = epics.caget(root + SysgenCryo + bandStr + \
-            'digitizerFrequencyMHz') # 614.4 MHz
+            'digitizerFrequencyMHz', use_monitor=False) # 614.4 MHz
     sub_band = band / (n_subband/2) # width of each subband
 
     ## some checks to make sure we put in values within the correct ranges
@@ -184,8 +184,8 @@ def get_subband_from_channel(root, bandNo, channelorderfile, channel):
     """
 
     base_root = root + ":" + SysgenCryo + "Base[{0}]:".format(bandNo)
-    n_subbands = epics.caget(base_root, 'numberSubBands')
-    n_channels = epics.caget(base_root, 'numberChannels')
+    n_subbands = epics.caget(base_root, 'numberSubBands', use_monitor=False)
+    n_channels = epics.caget(base_root, 'numberChannels', use_monitor=False)
     #n_subbands = 128 # just for testing while not hooked up to epics server
     #n_channels = 512
     n_chanpersubband = n_channels / n_subbands
@@ -214,9 +214,9 @@ def get_subband_centers(root, bandNo, asOffset = False):
     """
 
     base_root = root + ":" + SysgenCryo + "Base[{0}]:".format(bandNo)
-    digitizerFrequencyMHz = epics.caget(base_root + 'digitizerFrequencyMHz')
-    bandCenterMHz = epics.caget(base_root + 'bandCenterMHz')
-    n_subbands = epics.caget(base_root + 'numberSubBands')
+    digitizerFrequencyMHz = epics.caget(base_root + 'digitizerFrequencyMHz', use_monitor=False)
+    bandCenterMHz = epics.caget(base_root + 'bandCenterMHz', use_monitor=False)
+    n_subbands = epics.caget(base_root + 'numberSubBands', use_monitor=False)
 
     subband_width_MHz = 2 * digitizerFrequencyMHz / n_subbands
 
@@ -235,8 +235,8 @@ def get_channels_in_subband(root, bandNo, channelorderfile, subband):
     """
 
     base_root = root + ":" + SysgenCryo + "Base[{0}]:".format(bandNo)
-    n_subbands = epics.caget(base_root + 'numberSubBands')
-    n_channels = epics.caget(base_root + 'numberChannels')
+    n_subbands = epics.caget(base_root + 'numberSubBands', use_monitor=False)
+    n_channels = epics.caget(base_root + 'numberChannels', use_monitor=False)
     n_chanpersubband = n_channels / n_subbands
 
     if subband > n_subbands:
@@ -269,7 +269,7 @@ def parallel_scan(root, bandNo, scanchans, Adrive = 10, scanfreqs = None):
     base_root = root + ":" + SysgenCryo + "Base[{0}]:".format(bandNo)
     cryochannels_root = base_root + "CryoChannels:"
 
-    n_channels = epics.caget(base_root + 'numberChannels')
+    n_channels = epics.caget(base_root + 'numberChannels', use_monitor=False)
 
     if scanfreqs is None:
         # default to scanning -3 to 3 about channel center
@@ -294,7 +294,7 @@ def parallel_scan(root, bandNo, scanchans, Adrive = 10, scanfreqs = None):
             epics.caput(cryochannels_root + 'centerFrequencyArray', \
                     scanfreqs[freq, :])
             freq_error[freq, :] = freq_error[freq, :] + realImag[x] * \
-                    epics.caget(cryochannels_root + 'frequencyErrorArray')
+                    epics.caget(cryochannels_root + 'frequencyErrorArray', use_monitor=False)
 
     return freq_error
 
