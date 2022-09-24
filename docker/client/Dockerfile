@@ -16,7 +16,7 @@ RUN pip3 install \
     PyYAML==5.3.1 \
     pillow==6.2.2 \
     seaborn==0.11.2 \
-    argon2-cffi=21.3.0 \
+    argon2-cffi==21.3.0 \
     jupyter==1.0.0 \
     pytest==6.0.1 \
     GitPython==3.1.7 \
