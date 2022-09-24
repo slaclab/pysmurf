@@ -11,7 +11,6 @@ RUN apt-get update && \
  && rm -rf /var/lib/apt/lists/*
 
 RUN pip3 install \
-    setuptools \
     scipy==1.5.2 \
     pandas==1.1.0 \
     PyYAML==5.3.1 \
