@@ -227,7 +227,6 @@ class SmurfConfigPropertiesMixin:
         self.fiftyk_bit_to_V = amp_cfg['bit_to_V_50k']
         self.fiftyk_amp_Vd_series_resistor = amp_cfg['50K_amp_Vd_series_resistor']
         self.fiftyk_Id_offset = amp_cfg['50k_Id_offset']
-
         ## Tune parameters
         tune_band_cfg = config.get('tune_band')
         self.default_tune = tune_band_cfg['default_tune']
@@ -887,10 +886,6 @@ class SmurfConfigPropertiesMixin:
 
     ## End fiftyk_Id_offset property definition
     ###########################################################################
-
-    ###########################################################################
-    ## Start attenuator property definition
-
     # Getter
     @property
     def attenuator(self):
