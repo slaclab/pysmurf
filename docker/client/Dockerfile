@@ -10,6 +10,8 @@ RUN apt-get update && \
     python3-matplotlib \
  && rm -rf /var/lib/apt/lists/*
 
+RUN pip3 install --upgrade pip
+
 RUN pip3 install \
     scipy==1.5.2 \
     pandas==1.1.0 \
