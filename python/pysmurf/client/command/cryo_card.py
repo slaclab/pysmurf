@@ -212,7 +212,8 @@ class CryoCard():
 
     def write_ps_en(self, enables):
         """
-        Write the power supply enable signals.
+        Write the bits that turn on the drain LDOs. Do not use this
+        directly. Instead, use set_amp_drain_voltage.
 
         Args
         ----
