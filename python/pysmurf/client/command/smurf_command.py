@@ -5152,7 +5152,7 @@ class SmurfCommandMixin(SmurfBase):
         T = self.C.read_temperature()
 
         if T < 0:
-            self.log(f'get_cryo_card_temp: Temperature is below 0 C, is it connected?')
+            self.log('get_cryo_card_temp: Temperature is below 0 C, is it connected?')
 
         if disable_poll:
             epics.caput(
