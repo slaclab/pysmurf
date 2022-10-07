@@ -869,7 +869,7 @@ class SmurfUtilMixin(SmurfBase):
         bands = self._bands
 
         if downsample_factor is not None:
-            self.set_downsampler_factor(downsample_factor)
+            self.set_downsample_factor(downsample_factor)
         else:
             downsample_factor = self.get_downsample_factor()
             if write_log:

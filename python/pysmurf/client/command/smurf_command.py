@@ -5941,7 +5941,7 @@ class SmurfCommandMixin(SmurfBase):
 
     _downsampler_mode_reg = 'Downsampler:DownsamplerMode'
 
-    def set_downsampler_mode(self, mode):
+    def set_downsample_mode(self, mode):
         """
         Set the downsampler mode. 0 is internal, 1 is external.
 
@@ -5953,9 +5953,9 @@ class SmurfCommandMixin(SmurfBase):
         if mode == 'external':
             self._caput(self.smurf_processor + self._downsampler_mode_reg, 1)
         else:
-            self.log(f'set_downsampler_mode: Unknown mode {mode}')
+            self.log(f'set_downsample_mode: Unknown mode {mode}')
 
-    def get_downsampler_mode(self):
+    def get_downsample_mode(self):
         """
         Get the downsampler mode. 0 is internal, 1 is external.
 
@@ -5971,13 +5971,13 @@ class SmurfCommandMixin(SmurfBase):
         elif mode == 1:
             ret = 'external'
         else:
-            self.log(f'get_downsampler_mode: Unknown mode {mode}')
+            self.log(f'get_downsample_mode: Unknown mode {mode}')
 
         return ret
 
     _downsampler_factor_reg = 'Downsampler:InternalFactor'
 
-    def set_downsampler_factor(self, factor, **kwargs):
+    def set_downsample_factor(self, factor, **kwargs):
         """
         Set the smurf processor down-sampling factor.
 
@@ -6007,14 +6007,14 @@ class SmurfCommandMixin(SmurfBase):
             self.log("get_downsample_factor: offline is True, SmurfProcessor.cpp is not running..")
             return 20
 
-        if self.get_downsampler_mode() == 'external':
-            self.log('get_downsample_factor: get_downsampler_mode is external, the factor is not used')
+        if self.get_downsample_mode() == 'external':
+            self.log('get_downsample_factor: get_downsample_mode is external, the factor is not used')
 
         return self._caget(self.smurf_processor + self._downsampler_factor_reg, **kwargs)
 
     _downsampler_external_bitmask_reg = 'Downsampler:ExternalBitmask'
 
-    def set_downsampler_external_bitmask(self, bitmask):
+    def set_downsample_external_bitmask(self, bitmask):
         """
         Set the downsampler external bitmask.
 
@@ -6022,10 +6022,10 @@ class SmurfCommandMixin(SmurfBase):
         """
         self._caput(self.smurf_processor + self._downsampler_external_bitmask_reg, bitmask)
 
-    def get_downsampler_external_bitmask(self):
+    def get_downsample_external_bitmask(self):
         """
         Get the downsampler external bitmask. This bitmask is only used
-        when get_downsampler_mode is external. For example, 0 means
+        when get_downsample_mode is external. For example, 0 means
         never trigger, 1 means trigger on the first bit, 2 will
         trigger on the second bit, 4 will trigger on the third bit. By
         bit, we mean when the bit flips in one direction, because the
