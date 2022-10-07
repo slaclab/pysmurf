@@ -737,8 +737,8 @@ void scp::SmurfProcessor::acceptFrame(ris::FramePtr frame)
 	    // 2 kHz.
             externalBits &= externalBitmask;
 
-	    // Ignore frames where the masked bits are all 0.
-            if (externalBits == 0)
+	    // Ignore frames where the masked bits aren't equal to the mask.
+            if (externalBits != externalBitmask)
                 return;
 
         } else if (downsamplerMode == downsamplerModeInternal) {
