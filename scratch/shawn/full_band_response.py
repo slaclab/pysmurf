@@ -31,7 +31,11 @@ for band in bands:
 
 fig, ax = plt.subplots(2, figsize=(6,7.5), sharex=True)
 
-plt.suptitle(f'slot={S.slot_number} AMC0={S.get_amc_asset_tag(0)} AMC2={S.get_amc_asset_tag(1)}')
+try:
+    plt.suptitle(f'slot={S.slot_number} AMC0={S.get_amc_asset_tag(0,max_retry=1)} AMC2={S.get_amc_asset_tag(1,max_retry=1)}')
+except:
+    plt.suptitle(f'slot={S.slot_number}')
+    print("!!! AMC asset tags not accessible - atca-monitor docker probably down!")
 
 ax[0].set_title(f'Full band response {timestamp}')
 last_angle=None

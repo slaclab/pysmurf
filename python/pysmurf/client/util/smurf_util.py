@@ -1941,6 +1941,9 @@ class SmurfUtilMixin(SmurfBase):
         band : int
             The band that is to be turned off.
         """
+        # Warning ; you might think using the
+        # set_amplitude_scale_array function would be fast than this
+        # but it is apparently not!
         self.set_amplitude_scales(band, 0, **kwargs)
         n_channels = self.get_number_channels(band)
         self.set_feedback_enable_array(
