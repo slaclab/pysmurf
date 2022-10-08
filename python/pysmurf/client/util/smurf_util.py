@@ -4435,3 +4435,121 @@ class SmurfUtilMixin(SmurfBase):
                 plt.close()
 
         return gap_freq
+    
+    def check_full_band_resp(self,
+                             n_scan_per_band=5,
+                             make_plot=True,
+                             save_plot=True,
+                             show_plot=False,
+                             save_results=True,
+                             **kwargs):
+        r"""
+        Measures RF transfer function for all configured AMCs.  This
+        function is based on scratch/shawn/full_band_response.py.
+        Usually we run this function with the AMCs connected in
+        loopback with a short RF cable to verify that they are
+        working.
+
+        Args
+        ----
+        n_scan : int, optional, default 5
+            The number of times to measure each band using
+            full_band_resp.
+        make_plot : bool, optional, default True
+            Whether to make a plot.
+        save_plot : bool, optional, default True
+            Whether to save the plot.
+        show_plot : bool, optional, default False
+            Whether to show the plot
+        save_results : bool, optional, default True
+            Whether or not to save the results.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `full_band_resp` call.
+
+        Returns
+        -------
+        results : dict
+            Dictionary with results.
+
+        """
+        timestamp = self.get_timestamp()
+        # Take which bands are configured from pysmurf configuration
+        # file.
+        bands = self._bands
+
+        results_dict={}
+        results_dict['kwargs']=kwargs
+        for band in bands:
+            print(' ')
+            print(' ')
+            print(f'Band {band}')
+            print(' ')
+            print(' ')
+            results_dict[band]={}
+            results_dict[band]['fc']=self.get_band_center_mhz(band)
+
+            f,resp=self.full_band_resp(band=band, make_plot=False, show_plot=False, n_scan=n_scan_per_band, timestamp=timestamp, save_data=False, **kwargs)
+            results_dict[band]['f']=f
+            results_dict[band]['resp']=resp
+
+            # Also record the UC and DC attenuator settings for this
+            # band
+            results_dict[band]['uc_att']=self.get_att_uc(band)
+            results_dict[band]['dc_att']=self.get_att_dc(band)
+
+        # Plot results (if desired)
+        fig, ax = plt.subplots(2, figsize=(6,7.5), sharex=True)
+        try:
+            plt.suptitle(f'slot={self.slot_number} AMC0={self.get_amc_sn(0,use_shell=True)} AMC2={self.get_amc_sn(1,use_shell=True)}')
+        except:
+            # For some reason, FRU info wasn't accessible.  Give up.
+            plt.suptitle(f'slot={self.slot_number}')
+
+        save_name = f'{timestamp}_full_band_resp_all.png'
+        ax[0].set_title(save_name)        
+
+        # Compute unwrapped phase for each band
+        last_angle=None
+        for band in bands:
+            f_plot=results_dict[band]['f']/1e6
+            resp_plot=results_dict[band]['resp']
+            plot_idx = np.where(np.logical_and(f_plot>-250, f_plot<250))
+            ax[0].plot(f_plot[plot_idx]+results_dict[band]['fc'], np.log10(np.abs(resp_plot[plot_idx])),label=f'b{band}')
+            angle = np.unwrap(np.angle(resp_plot))
+            if last_angle is not None:
+                angle-=(angle[0]-last_angle)
+            ax[1].plot(f_plot[plot_idx]+results_dict[band]['fc'], angle[plot_idx],label=f'b{band}')
+            results_dict[band]['phase']=angle[plot_idx]
+            last_angle=angle[plot_idx][-1]
+
+        ax[0].legend(loc='lower left',fontsize=8)
+        ax[0].set_ylabel("log10(abs(Response))")
+        ax[0].set_xlabel('Frequency [MHz]')
+
+        ax[1].legend(loc='lower left',fontsize=8)
+        ax[1].set_ylabel("Phase [rad]")
+        ax[1].set_xlabel('Frequency [MHz]')
+
+        plt.tight_layout()
+
+        if save_plot:
+            save_path = os.path.join(self.plot_dir, save_name)
+            print(f'Saving plot to {save_path}.')
+            plt.savefig(save_path,
+                        bbox_inches='tight')
+            self.pub.register_file(save_path, 'fbr_plot', plot=True)
+
+            if not show_plot:
+                plt.close()
+                
+        if save_results:
+            save_path = os.path.join(self.output_dir,f'{timestamp}_full_band_resp_all.npy')
+            print(f'Saving data to {save_path}.')
+            np.save(save_path,results_dict)
+            self.pub.register_file(save_path, 'fbr_results', format='npy')
+
+        if show_plot:
+            plt.show()
+            
+        return results_dict

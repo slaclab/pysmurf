@@ -17,16 +17,16 @@ colors = ['r','y','g','c','b','m','k']
 Z = 0 #for use with the response plots
 z = 0 #for use with the attenuation plots
 
-print('Getting Asset Tag for Bay 0')
-lhsbay=S.get_amc_asset_tag(0)
+print('Getting Serial Number for AMC in Bay 0')
+lhsbay=S.get_amc_sn(0,use_shell=True)
 if re.split('-|_',lhsbay)[1] == 'A02':
    LBoardType = 'high'
 
 else:
    LBoardType = 'low'
 
-print('Getting Asset Tag for Bay 1')   
-rhsbay=S.get_amc_asset_tag(1)
+print('Getting Serial Number for AMC in Bay 1')   
+rhsbay=S.get_amc_sn(1,use_shell=True)
 if re.split('-|_',rhsbay)[1] == 'A02':
    RBoardType = 'high'
 else:
