@@ -226,26 +226,21 @@ class SmurfAtcaMonitorMixin(SmurfBase):
             f'{shelf_manager}:Crate:Sensors:Slots:{slot_number}:' +
             self._board_temp_amc_reg.format(bay*2),**kwargs)
 
-    _amc_asset_tag_reg = 'Product_Asset_Tag'
-
+    _amc_product_asset_tag_reg = 'Product_Asset_Tag'
+    _amc_product_version_reg = 'Product_Version'
     def get_amc_sn(
             self, bay, slot_number=None,
             atca_epics_root=None,
             shelf_manager=None,
             use_shell=False,
             **kwargs):
-        r"""Returns the AMC serial number.
+        r"""Returns the SMuRF AMC base board serial number.
 
         The AMC serial number is the combination of its 'Product
         Version' and 'Product Asset Tag' from its FRU data.  A common
         example (the production AMCs built for Simons Observatory) is
         'Product Version'=C03 and 'Product Asset Tag'=A01-11', which
         combine to make the full AMC serial number C03-A01-11.
-
-        By default, will try to get the serial number by querying the
-        ATCA monitor EPICS server.  If you're not runing the ATCA
-        monitor, can still get the AMC serial number more slowly via
-        the shell by providing use_shell=True.
 
         C03 refers to the hardware revision of the AMC base board.
         The A## refers to the specific AMC baseboard loading.  The two
@@ -254,6 +249,11 @@ class SmurfAtcaMonitorMixin(SmurfBase):
         AMCs.  The final number in the full serial number is the
         unique id assigned to each AMC base board which shares the
         same hardware revision and loading.  
+
+        By default, will try to get the serial number by querying the
+        ATCA monitor EPICS server.  If you're not running the ATCA
+        monitor, you can still get the AMC serial number more slowly
+        via the shell by providing use_shell=True.
 
         Typical SMuRF AMC assemblies are composed of two connected
         boards, an AMC base board and an AMC RF daughter board.  The
@@ -303,13 +303,13 @@ class SmurfAtcaMonitorMixin(SmurfBase):
         Returns
         -------
         str or None
-            AMC asset tag for the requested bay *e.g.* 'C03-A01-01'.
-            If None, either the EPICS query timed out or the
-            atca_monitor server isn't running, or if running with
-            use_shell=True, the shell command failed.  Also
+            AMC serial number for the requested bay *e.g.*
+            'C03-A01-01'.  If None, either the EPICS query timed out
+            or the atca_monitor server isn't running, or if running
+            with use_shell=True, the shell command failed.  Also
             returns None if there's no AMC in the requested bay if
-            use_shell=True or if use_shell=True and the
-            `cba_amc_init` command used to poll the AMC FRU fails.
+            use_shell=True or if use_shell=True and the shell command
+            used to poll the AMC FRU fails.
         """
         if slot_number is None:
             slot_number=self.slot_number
@@ -318,21 +318,139 @@ class SmurfAtcaMonitorMixin(SmurfBase):
         if shelf_manager is None:
             shelf_manager=self.shelf_manager            
         if use_shell:
-            amc_desc_dict = self.cba_amc_init(bay)
-            if amc_desc_dict is not None and amc_desc_dict.keys()>={'Product Version', 'Product Asset Tag'}:
-                return f'{amc_desc_dict["Product Version"]}-{amc_desc_dict["Product Asset Tag"]}'
+            amc_fru_dict = self.get_fru_info(board='amc',
+                                             bay=bay,
+                                             slot_number=slot_number,
+                                             shelf_manager=shelf_manager)
+            if amc_fru_dict is not None and amc_fru_dict.keys()>={'Product Version', 'Product Asset Tag'}:
+                return f'{amc_fru_dict["Product Version"]}-{amc_fru_dict["Product Asset Tag"]}'
             else:
-                self.log('cba_amc_init response missing "Product Version" and/or "Product Asset Tag" fields.  Returning None.',
-                         self.LOG_ERROR)                
+                self.log('ERROR : AMC FRU information incomplete or missing "Product Version" and/or "Product Asset Tag" fields.  Returning None.',
+                         self.LOG_ERROR)
                 return None
         else:
             # For some reason, the bay 0 AMC is at AMC[0] and the bay 1
             # AMC is at AMC[2], hence the bay*2.
-            return self._caget(
-                f'{atca_epics_root}:Crate:Sensors:Slots:{slot_number}:' +
-                f'AMCInfo:{bay*2}:' +
-                self._amc_asset_tag_reg, as_string=True,
-                **kwargs)
+            atca_epics_path=f'{atca_epics_root}:Crate:Sensors:Slots:{slot_number}:' + f'AMCInfo:{bay*2}:'
+            amc_product_asset_tag=self._caget(atca_epics_path +
+                                              self._amc_product_asset_tag_reg, as_string=True,
+                                              **kwargs)
+            amc_product_version=self._caget(atca_epics_path +
+                                            self._amc_product_version_reg, as_string=True,
+                                            **kwargs)
+            return f'{amc_product_version}-{amc_product_asset_tag}'
+
+    _carrier_product_asset_tag_reg = 'asset_tag'
+    _carrier_product_version_reg = 'version'
+    def get_carrier_sn(
+            self, slot_number=None,
+            atca_epics_root=None,
+            shelf_manager=None,
+            use_shell=False,
+            **kwargs):
+        r"""Returns the SMuRF carrier serial number.
+
+        The carrier serial number is the combination of its 'Product
+        Version' and 'Product Asset Tag' from its FRU data.  A common
+        example (the production carriers built for Simons Observatory) is
+        'Product Version'=C03 and 'Product Asset Tag'=A04-50', which
+        combine to make the full AMC serial number C03-A04-50.
+
+        C03 refers to the hardware revision of the carrier board.  The
+        A## refers to the specific carrier board loading.  The final
+        number in the full serial number is the unique id assigned to
+        each carrier board which shares the same hardware revision and
+        loading.
+
+        By default, will try to get the serial number by querying the
+        ATCA monitor EPICS server.  If you're not running the ATCA
+        monitor, can still get the carrier serial number more slowly
+        via the shell by providing use_shell=True.
+
+        Args
+        ----
+        slot_number : int or None, optional, default None
+            The crate slot number that the AMC is installed into.  If
+            None, defaults to the
+            :class:`~pysmurf.client.base.smurf_control.SmurfControl`
+            class attribute
+            :attr:`~pysmurf.client.base.smurf_control.SmurfControl.slot_number`.
+        atca_epics_root : str or None, optional, default None
+            ATCA monitor server application EPICS root.  If None,
+            defaults to the
+            :class:`~pysmurf.client.base.smurf_control.SmurfControl`
+            class attribute
+            :attr:`~pysmurf.client.base.smurf_control.SmurfControl.shelf_manager`.
+            For typical systems, atca_epics_root is the name of the
+            shelf manager which for default systems is
+            'shm-smrf-sp01'.
+        use_shell : bool, optional, default False
+            If False, polls the ATCA monitor EPICs server ; if True,
+            runs slower shell command to poll this attribute.  This
+            will be slower but provides an alternative if user is not
+            running the ATCA monitor as part of their workflow, or if
+            the ATCA monitor is down.
+        shelf_manager : str or None, optional, default None
+            Only used if use_shell=True.  If None, defaults to
+            the
+            :class:`~pysmurf.client.base.smurf_control.SmurfControl`
+            class attribute
+            :attr:`~pysmurf.client.base.smurf_control.SmurfControl.shelf_manager`.
+            For typical systems the default name of the shelf manager
+            is 'shm-smrf-sp01'.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caget` call.
+
+        Returns
+        -------
+        str or None
+            Carrier serial number *e.g.* 'C03-A04-50'.  If None,
+            either the EPICS query timed out or the atca_monitor
+            server isn't running, or if running with use_shell=True,
+            the shell command failed.  Also returns None if there's no
+            carrier in the requested slot if use_shell=True or if
+            use_shell=True and the shell command used to poll the
+            carrier FRU fails.
+        """
+        if slot_number is None:
+            slot_number=self.slot_number
+        if atca_epics_root is None:
+            atca_epics_root=self.shelf_manager
+        if shelf_manager is None:
+            shelf_manager=self.shelf_manager            
+        if use_shell:
+            carrier_fru_dict = self.get_fru_info(board='carrier',
+                                             slot_number=slot_number,
+                                             shelf_manager=shelf_manager)
+            if carrier_fru_dict is not None and carrier_fru_dict.keys()>={'Product Version', 'Product Asset Tag'}:
+                carrier_product_version=f'{carrier_fru_dict["Product Version"]}'
+                carrier_product_asset_tag=f'{carrier_fru_dict["Product Asset Tag"]}'
+                
+                # Carrier frus can be a little hit or miss ...
+                carrier_product_version=carrier_product_version.replace('_','-')
+                carrier_product_asset_tag=carrier_product_asset_tag.split('-')[-1]
+
+                return f'{carrier_product_version}-{carrier_product_asset_tag}'
+
+            else:
+                self.log('ERROR : Carrier FRU information incomplete or missing "Product Version" and/or "Product Asset Tag" fields.  Returning None.',
+                         self.LOG_ERROR)
+                return None
+        else:
+            atca_epics_path=f'{atca_epics_root}:Crate:Sensors:Slots:{slot_number}:' + f'CarrierInfo:'
+            carrier_product_asset_tag=self._caget(atca_epics_path +
+                                              self._carrier_product_asset_tag_reg, as_string=True,
+                                              **kwargs)
+            carrier_product_version=self._caget(atca_epics_path +
+                                            self._carrier_product_version_reg, as_string=True,
+                                            **kwargs)
+
+            # Carrier frus can be a little hit or miss ...
+            carrier_product_version=carrier_product_version.replace('_','-')
+            carrier_product_asset_tag=carrier_product_asset_tag.split('-')[-1]
+            
+            return f'{carrier_product_version}-{carrier_product_asset_tag}'
 
     def shell_command(self,cmd,**kwargs):
         r"""Runs command on shell and returns code, stdout, & stderr.
@@ -357,16 +475,21 @@ class SmurfAtcaMonitorMixin(SmurfBase):
 
         return result.stdout.decode(),result.stderr.decode()
 
-    def cba_amc_init(self,bay,slot_number=None,shelf_manager=None):
-        r"""Returns AMC FRU info for requested bay
+    def get_fru_info(self,board,bay=None,slot_number=None,shelf_manager=None):
+        r"""Returns FRU information for SMuRF board.
 
-        Wrapper for dumping the FRU information for the AMC in the
-        requested bay using the cba_amc_init shell command.
+        Wrapper for dumping the FRU information for SMuRF boards using
+        shell commands.
 
         Args
         ----
-        bay : int
-            Which bay to return the AMC FRU information for.
+        board : str
+            Which board to return FRU informationf for.  Valid options
+            include 'amc', 'carrier', or 'rtm'.  If 'amc', must also
+            provide the bay argument.
+        bay : int, optional, default None
+            Which bay to return the AMC FRU information for.  Used
+            only if board='amc'.
         slot_number : int or None, optional, default None
             The crate slot number that the AMC is installed into.  If
             None, defaults to the
@@ -383,36 +506,66 @@ class SmurfAtcaMonitorMixin(SmurfBase):
 
         Returns
         -------
-        amc_desc_dict : dict
-            Dictionary of AMC FRU information for requested bay.
-            Returns None if slot not present in shelf, or if no AMC is
-            up in the requested bay.
+        fru_info_dict : dict
+            Dictionary of requested FRU information.  Returns None if
+            board not a valid option, board not present in slot, slot
+            not present in shelf, or if no AMC is up in the requested
+            bay.
         """
         if slot_number is None:
             slot_number=self.slot_number
         if shelf_manager is None:
-            shelf_manager=self.shelf_manager            
-        
-        stdout,stderr=self.shell_command(f'cba_amc_init -d {shelf_manager}/{slot_number}/{bay*2}')
-        # Parse for AMC asset tag for this bay
+            shelf_manager=self.shelf_manager
+
+        valid_board_options=['amc','rtm','carrier']
+        if board not in valid_board_options:
+            self.log(f'ERROR : {board} not in list of valid board options {valid_board_options}.  Returning None.',self.LOG_ERROR)
+            return None
+
+        shell_cmd=''
+        shell_cmd_prefix=None
+        if board=='amc':
+            shell_cmd_prefix='amc'
+            # require bay argument
+            if bay is None:
+                self.log(f'ERROR : Must provide AMC bay.  Returning None.',self.LOG_ERROR)
+                return None
+            if bay not in [0,1]:
+                self.log(f'ERROR : bay argument can only be 0 or 1.  Returning None.',self.LOG_ERROR)
+                return None
+            shell_cmd+=f'/{bay*2}'
+        elif board=='rtm':
+            # require bay argument
+            shell_cmd_prefix='rtm'
+        else: # only carrier left
+            shell_cmd_prefix='fru'
+
+        shell_cmd=f'cba_{shell_cmd_prefix}_init -d {shelf_manager}/{slot_number}'+shell_cmd
+        stdout,stderr=self.shell_command(shell_cmd)
+
+        # Error handling
         if 'AMC not present in bay' in stdout:
-            self.log('ERROR : AMC not present in bay!',
+            self.log('ERROR : AMC not present in bay!  Returning None.',
                      self.LOG_ERROR)
             return None
         if 'Slot not present in shelf' in stdout:
-            self.log('ERROR : Slot not present in shelf!',
+            self.log('ERROR : Slot not present in shelf!  Returning None.',
                      self.LOG_ERROR)
-            return None                
-        else: # return full AMC asset tag
+            return None
+        if 'Board not present in slot' in stdout:
+            self.log('ERROR : Board not present in slot!  Returning None.',
+                     self.LOG_ERROR)
+            return None                        
+        else: # parse and return fru information for this board
             stdout=stdout.split('\n')
-            amc_desc_dict={}
+            fru_info_dict={}
             for line in stdout:
                 if ':' in line:
                     splitline=line.split(':')
                     if len(splitline)==2:
-                        amcc_desc_key=splitline[0].lstrip().rstrip()
-                        amcc_desc_value=splitline[1].lstrip().rstrip()
-                        if len(amcc_desc_value)>0: # skip header
-                            amc_desc_dict[amcc_desc_key]=amcc_desc_value
+                        fru_key=splitline[0].lstrip().rstrip()
+                        fru_value=splitline[1].lstrip().rstrip()
+                        if len(fru_value)>0: # skip header
+                            fru_info_dict[fru_key]=fru_value
 
-        return amc_desc_dict
+        return fru_info_dict
