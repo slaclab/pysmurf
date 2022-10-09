@@ -15,7 +15,6 @@
 #-----------------------------------------------------------------------------
 """Defines the :class:`SmurfAtcaMonitorMixin` class."""
 from pysmurf.client.base import SmurfBase
-import subprocess
 
 class SmurfAtcaMonitorMixin(SmurfBase):
     """Mixin providing interface with the atca_monitor server.
@@ -228,6 +227,7 @@ class SmurfAtcaMonitorMixin(SmurfBase):
 
     _amc_product_asset_tag_reg = 'Product_Asset_Tag'
     _amc_product_version_reg = 'Product_Version'
+
     def get_amc_sn(
             self, bay, slot_number=None,
             atca_epics_root=None,
@@ -248,7 +248,7 @@ class SmurfAtcaMonitorMixin(SmurfBase):
         corresponding to low band (4-6 GHz) and high band (6-8 GHz)
         AMCs.  The final number in the full serial number is the
         unique id assigned to each AMC base board which shares the
-        same hardware revision and loading.  
+        same hardware revision and loading.
 
         By default, will try to get the serial number by querying the
         ATCA monitor EPICS server.  If you're not running the ATCA
@@ -316,7 +316,7 @@ class SmurfAtcaMonitorMixin(SmurfBase):
         if atca_epics_root is None:
             atca_epics_root=self.shelf_manager
         if shelf_manager is None:
-            shelf_manager=self.shelf_manager            
+            shelf_manager=self.shelf_manager
         if use_shell:
             amc_fru_dict = self.get_fru_info(board='amc',
                                              bay=bay,
@@ -342,6 +342,7 @@ class SmurfAtcaMonitorMixin(SmurfBase):
 
     _carrier_product_asset_tag_reg = 'asset_tag'
     _carrier_product_version_reg = 'version'
+
     def get_carrier_sn(
             self, slot_number=None,
             atca_epics_root=None,
@@ -418,7 +419,7 @@ class SmurfAtcaMonitorMixin(SmurfBase):
         if atca_epics_root is None:
             atca_epics_root=self.shelf_manager
         if shelf_manager is None:
-            shelf_manager=self.shelf_manager            
+            shelf_manager=self.shelf_manager
         if use_shell:
             carrier_fru_dict = self.get_fru_info(board='carrier',
                                              slot_number=slot_number,
@@ -426,7 +427,6 @@ class SmurfAtcaMonitorMixin(SmurfBase):
             if carrier_fru_dict is not None and carrier_fru_dict.keys()>={'Product Version', 'Product Asset Tag'}:
                 carrier_product_version=f'{carrier_fru_dict["Product Version"]}'
                 carrier_product_asset_tag=f'{carrier_fru_dict["Product Asset Tag"]}'
-                
                 # Carrier frus can be a little hit or miss ...
                 carrier_product_version=carrier_product_version.replace('_','-')
                 carrier_product_asset_tag=carrier_product_asset_tag.split('-')[-1]
@@ -438,10 +438,10 @@ class SmurfAtcaMonitorMixin(SmurfBase):
                          self.LOG_ERROR)
                 return None
         else:
-            atca_epics_path=f'{atca_epics_root}:Crate:Sensors:Slots:{slot_number}:' + f'CarrierInfo:'
+            atca_epics_path=f'{atca_epics_root}:Crate:Sensors:Slots:{slot_number}:CarrierInfo:'
             carrier_product_asset_tag=self._caget(atca_epics_path +
-                                              self._carrier_product_asset_tag_reg, as_string=True,
-                                              **kwargs)
+                                                  self._carrier_product_asset_tag_reg, as_string=True,
+                                                  **kwargs)
             carrier_product_version=self._caget(atca_epics_path +
                                             self._carrier_product_version_reg, as_string=True,
                                             **kwargs)
@@ -449,11 +449,12 @@ class SmurfAtcaMonitorMixin(SmurfBase):
             # Carrier frus can be a little hit or miss ...
             carrier_product_version=carrier_product_version.replace('_','-')
             carrier_product_asset_tag=carrier_product_asset_tag.split('-')[-1]
-            
+
             return f'{carrier_product_version}-{carrier_product_asset_tag}'
 
     _rtm_product_asset_tag_reg = 'asset_tag'
     _rtm_product_version_reg = 'version'
+
     def get_rtm_sn(
             self, slot_number=None,
             atca_epics_root=None,
@@ -529,7 +530,7 @@ class SmurfAtcaMonitorMixin(SmurfBase):
         if atca_epics_root is None:
             atca_epics_root=self.shelf_manager
         if shelf_manager is None:
-            shelf_manager=self.shelf_manager            
+            shelf_manager=self.shelf_manager
         if use_shell:
             rtm_fru_dict = self.get_fru_info(board='rtm',
                                              slot_number=slot_number,
@@ -544,129 +545,11 @@ class SmurfAtcaMonitorMixin(SmurfBase):
                          self.LOG_ERROR)
                 return None
         else:
-            atca_epics_path=f'{atca_epics_root}:Crate:Sensors:Slots:{slot_number}:' + f'RTMInfo:'
+            atca_epics_path=f'{atca_epics_root}:Crate:Sensors:Slots:{slot_number}:RTMInfo:'
             rtm_product_asset_tag=self._caget(atca_epics_path +
                                               self._rtm_product_asset_tag_reg, as_string=True,
                                               **kwargs)
             rtm_product_version=self._caget(atca_epics_path +
                                             self._rtm_product_version_reg, as_string=True,
                                             **kwargs)
-            return f'{rtm_product_version}-{rtm_product_asset_tag}'        
-
-    def shell_command(self,cmd,**kwargs):
-        r"""Runs command on shell and returns code, stdout, & stderr.
-
-        Args
-        ----
-        cmd : str
-            Command to run on shell.
-        \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `subprocess.run` call.
-
-        Returns
-        -------
-        (stdout, stderr)
-            stdout and stderr returned as str
-        """
-        result = subprocess.run(
-            cmd.split(), stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE, shell=False, **kwargs
-        )
-
-        return result.stdout.decode(),result.stderr.decode()
-
-    def get_fru_info(self,board,bay=None,slot_number=None,shelf_manager=None):
-        r"""Returns FRU information for SMuRF board.
-
-        Wrapper for dumping the FRU information for SMuRF boards using
-        shell commands.
-
-        Args
-        ----
-        board : str
-            Which board to return FRU informationf for.  Valid options
-            include 'amc', 'carrier', or 'rtm'.  If 'amc', must also
-            provide the bay argument.
-        bay : int, optional, default None
-            Which bay to return the AMC FRU information for.  Used
-            only if board='amc'.
-        slot_number : int or None, optional, default None
-            The crate slot number that the AMC is installed into.  If
-            None, defaults to the
-            :class:`~pysmurf.client.base.smurf_control.SmurfControl`
-            class attribute
-            :attr:`~pysmurf.client.base.smurf_control.SmurfControl.slot_number`.
-        shelf_manager : str or None, optional, default None
-            Shelf manager ip address.  If None, defaults to the
-            :class:`~pysmurf.client.base.smurf_control.SmurfControl`
-            class attribute
-            :attr:`~pysmurf.client.base.smurf_control.SmurfControl.shelf_manager`.
-            For typical systems the default name of the shelf manager
-            is 'shm-smrf-sp01'.
-
-        Returns
-        -------
-        fru_info_dict : dict
-            Dictionary of requested FRU information.  Returns None if
-            board not a valid option, board not present in slot, slot
-            not present in shelf, or if no AMC is up in the requested
-            bay.
-        """
-        if slot_number is None:
-            slot_number=self.slot_number
-        if shelf_manager is None:
-            shelf_manager=self.shelf_manager
-
-        valid_board_options=['amc','rtm','carrier']
-        if board not in valid_board_options:
-            self.log(f'ERROR : {board} not in list of valid board options {valid_board_options}.  Returning None.',self.LOG_ERROR)
-            return None
-
-        shell_cmd=''
-        shell_cmd_prefix=None
-        if board=='amc':
-            shell_cmd_prefix='amc'
-            # require bay argument
-            if bay is None:
-                self.log(f'ERROR : Must provide AMC bay.  Returning None.',self.LOG_ERROR)
-                return None
-            if bay not in [0,1]:
-                self.log(f'ERROR : bay argument can only be 0 or 1.  Returning None.',self.LOG_ERROR)
-                return None
-            shell_cmd+=f'/{bay*2}'
-        elif board=='rtm':
-            # require bay argument
-            shell_cmd_prefix='rtm'
-        else: # only carrier left
-            shell_cmd_prefix='fru'
-
-        shell_cmd=f'cba_{shell_cmd_prefix}_init -d {shelf_manager}/{slot_number}'+shell_cmd
-        stdout,stderr=self.shell_command(shell_cmd)
-
-        # Error handling
-        if 'AMC not present in bay' in stdout:
-            self.log('ERROR : AMC not present in bay!  Returning None.',
-                     self.LOG_ERROR)
-            return None
-        if 'Slot not present in shelf' in stdout:
-            self.log('ERROR : Slot not present in shelf!  Returning None.',
-                     self.LOG_ERROR)
-            return None
-        if 'Board not present in slot' in stdout:
-            self.log('ERROR : Board not present in slot!  Returning None.',
-                     self.LOG_ERROR)
-            return None                        
-        else: # parse and return fru information for this board
-            stdout=stdout.split('\n')
-            fru_info_dict={}
-            for line in stdout:
-                if ':' in line:
-                    splitline=line.split(':')
-                    if len(splitline)==2:
-                        fru_key=splitline[0].lstrip().rstrip()
-                        fru_value=splitline[1].lstrip().rstrip()
-                        if len(fru_value)>0: # skip header
-                            fru_info_dict[fru_key]=fru_value
-
-        return fru_info_dict
+            return f'{rtm_product_version}-{rtm_product_asset_tag}'
