@@ -237,7 +237,7 @@ class SmurfAtcaMonitorMixin(SmurfBase):
         r"""Returns the SMuRF AMC base board serial number.
 
         The AMC serial number is the combination of its 'Product
-        Version' and 'Product Asset Tag' from its FRU data.  A common
+        Version' and 'Product Asset Tag' from its FRU data.  An
         example (the production AMCs built for Simons Observatory) is
         'Product Version'=C03 and 'Product Asset Tag'=A01-11', which
         combine to make the full AMC serial number C03-A01-11.
@@ -268,8 +268,8 @@ class SmurfAtcaMonitorMixin(SmurfBase):
         bay : int
             Which AMC bay (0 or 1).
         slot_number : int or None, optional, default None
-            The crate slot number that the AMC is installed into.  If
-            None, defaults to the
+            The crate slot number of the carrier that the AMC is
+            installed into.  If None, defaults to the
             :class:`~pysmurf.client.base.smurf_control.SmurfControl`
             class attribute
             :attr:`~pysmurf.client.base.smurf_control.SmurfControl.slot_number`.
@@ -351,7 +351,7 @@ class SmurfAtcaMonitorMixin(SmurfBase):
         r"""Returns the SMuRF carrier serial number.
 
         The carrier serial number is the combination of its 'Product
-        Version' and 'Product Asset Tag' from its FRU data.  A common
+        Version' and 'Product Asset Tag' from its FRU data.  An
         example (the production carriers built for Simons Observatory) is
         'Product Version'=C03 and 'Product Asset Tag'=A04-50', which
         combine to make the full AMC serial number C03-A04-50.
@@ -370,7 +370,7 @@ class SmurfAtcaMonitorMixin(SmurfBase):
         Args
         ----
         slot_number : int or None, optional, default None
-            The crate slot number that the AMC is installed into.  If
+            The crate slot number that the carrier is installed into.  If
             None, defaults to the
             :class:`~pysmurf.client.base.smurf_control.SmurfControl`
             class attribute
@@ -451,6 +451,107 @@ class SmurfAtcaMonitorMixin(SmurfBase):
             carrier_product_asset_tag=carrier_product_asset_tag.split('-')[-1]
             
             return f'{carrier_product_version}-{carrier_product_asset_tag}'
+
+    _rtm_product_asset_tag_reg = 'asset_tag'
+    _rtm_product_version_reg = 'version'
+    def get_rtm_sn(
+            self, slot_number=None,
+            atca_epics_root=None,
+            shelf_manager=None,
+            use_shell=False,
+            **kwargs):
+        r"""Returns the SMuRF carrier serial number.
+
+        The RTM serial number is the combination of its 'Product
+        Version' and 'Product Asset Tag' from its FRU data.  An
+        example (the production RTM built for Simons Observatory) is
+        'Product Version'=C01 and 'Product Asset Tag'=A01-02', which
+        combine to make the full RTM serial number C01-A01-02.
+
+        C01 refers to the hardware revision of the RTM board.  The A##
+        refers to the specific RTM board loading.  The final number in
+        the full serial number is the unique id assigned to each RTM
+        board which shares the same hardware revision and loading.
+
+        By default, will try to get the serial number by querying the
+        ATCA monitor EPICS server.  If you're not running the ATCA
+        monitor, can still get the RTM serial number more slowly
+        via the shell by providing use_shell=True.
+
+        Args
+        ----
+        slot_number : int or None, optional, default None
+            The crate slot number that the RTM is installed into.  If
+            None, defaults to the
+            :class:`~pysmurf.client.base.smurf_control.SmurfControl`
+            class attribute
+            :attr:`~pysmurf.client.base.smurf_control.SmurfControl.slot_number`.
+        atca_epics_root : str or None, optional, default None
+            ATCA monitor server application EPICS root.  If None,
+            defaults to the
+            :class:`~pysmurf.client.base.smurf_control.SmurfControl`
+            class attribute
+            :attr:`~pysmurf.client.base.smurf_control.SmurfControl.shelf_manager`.
+            For typical systems, atca_epics_root is the name of the
+            shelf manager which for default systems is
+            'shm-smrf-sp01'.
+        use_shell : bool, optional, default False
+            If False, polls the ATCA monitor EPICs server ; if True,
+            runs slower shell command to poll this attribute.  This
+            will be slower but provides an alternative if user is not
+            running the ATCA monitor as part of their workflow, or if
+            the ATCA monitor is down.
+        shelf_manager : str or None, optional, default None
+            Only used if use_shell=True.  If None, defaults to
+            the
+            :class:`~pysmurf.client.base.smurf_control.SmurfControl`
+            class attribute
+            :attr:`~pysmurf.client.base.smurf_control.SmurfControl.shelf_manager`.
+            For typical systems the default name of the shelf manager
+            is 'shm-smrf-sp01'.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caget` call.
+
+        Returns
+        -------
+        str or None
+            RTM serial number *e.g.* 'C01-A01-02'.  If None, either
+            the EPICS query timed out or the atca_monitor server isn't
+            running, or if running with use_shell=True, the shell
+            command failed.  Also returns None if there's no RTM
+            in the requested slot if use_shell=True or if
+            use_shell=True and the shell command used to poll the
+            RTM FRU fails.
+        """
+        if slot_number is None:
+            slot_number=self.slot_number
+        if atca_epics_root is None:
+            atca_epics_root=self.shelf_manager
+        if shelf_manager is None:
+            shelf_manager=self.shelf_manager            
+        if use_shell:
+            rtm_fru_dict = self.get_fru_info(board='rtm',
+                                             slot_number=slot_number,
+                                             shelf_manager=shelf_manager)
+            if rtm_fru_dict is not None and rtm_fru_dict.keys()>={'Product Version', 'Product Asset Tag'}:
+                rtm_product_version=f'{rtm_fru_dict["Product Version"]}'
+                rtm_product_asset_tag=f'{rtm_fru_dict["Product Asset Tag"]}'
+                return f'{rtm_product_version}-{rtm_product_asset_tag}'
+
+            else:
+                self.log('ERROR : RTM FRU information incomplete or missing "Product Version" and/or "Product Asset Tag" fields.  Returning None.',
+                         self.LOG_ERROR)
+                return None
+        else:
+            atca_epics_path=f'{atca_epics_root}:Crate:Sensors:Slots:{slot_number}:' + f'RTMInfo:'
+            rtm_product_asset_tag=self._caget(atca_epics_path +
+                                              self._rtm_product_asset_tag_reg, as_string=True,
+                                              **kwargs)
+            rtm_product_version=self._caget(atca_epics_path +
+                                            self._rtm_product_version_reg, as_string=True,
+                                            **kwargs)
+            return f'{rtm_product_version}-{rtm_product_asset_tag}'        
 
     def shell_command(self,cmd,**kwargs):
         r"""Runs command on shell and returns code, stdout, & stderr.
