@@ -4790,8 +4790,7 @@ class SmurfTuneMixin(SmurfBase):
         freq_dict : dict
             Resonance dictionary like the one that comes out of
             find_freqs You probably want to assign it to the right
-            place, as in S.freq_resp = S.fake_resonance_dict(freqs,
-            bands)
+            place, as in S.freq_resp = S.fake_resonance_dict(freqs).
         """
 
         bands = self._bands
