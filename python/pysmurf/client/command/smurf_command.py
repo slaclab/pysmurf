@@ -5951,7 +5951,7 @@ class SmurfCommandMixin(SmurfBase):
         """
         if mode == 'internal':
             self._caput(self.smurf_processor + self._downsampler_mode_reg, 0)
-        if mode == 'external':
+        elif mode == 'external':
             self._caput(self.smurf_processor + self._downsampler_mode_reg, 1)
         else:
             self.log(f'set_downsample_mode: Unknown mode {mode}')
