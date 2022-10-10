@@ -120,7 +120,7 @@ class SmurfNoiseMixin(SmurfBase):
 
         if fs is None:
             if downsample_factor is None:
-                downsample_factor = self.get_downsampler_internal_factor()
+                downsample_factor = self.get_downsample_factor()
             fs = flux_ramp_freq/downsample_factor
 
         # Generate downsample transfer function - downsampling is at

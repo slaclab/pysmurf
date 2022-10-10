@@ -869,9 +869,9 @@ class SmurfUtilMixin(SmurfBase):
         bands = self._bands
 
         if downsample_factor is not None:
-            self.set_downsampler_internal_factor(downsample_factor)
+            self.set_downsample_factor(downsample_factor)
         else:
-            downsample_factor = self.get_downsampler_internal_factor()
+            downsample_factor = self.get_downsample_factor()
             if write_log:
                 self.log('Input downsample factor is None. Using '+
                      'value already in pyrogue:'+
@@ -1941,6 +1941,9 @@ class SmurfUtilMixin(SmurfBase):
         band : int
             The band that is to be turned off.
         """
+        # Warning ; you might think using the
+        # set_amplitude_scale_array function would be fast than this
+        # but it is apparently not!
         self.set_amplitude_scales(band, 0, **kwargs)
         n_channels = self.get_number_channels(band)
         self.set_feedback_enable_array(
@@ -3197,7 +3200,7 @@ class SmurfUtilMixin(SmurfBase):
         # Get filter order, gain, and averages
         filter_order = self.get_filter_order()
         filter_gain = self.get_filter_gain()
-        num_averages = self.get_downsampler_internal_factor()
+        num_averages = self.get_downsample_factor()
 
         # Get filter order, gain, and averages
 
@@ -3354,7 +3357,7 @@ class SmurfUtilMixin(SmurfBase):
 
         # Calculate sampling frequency
         # flux_ramp_freq = self.get_flux_ramp_freq() * 1.0E3
-        # fs = flux_ramp_freq * self.get_downsampler_internal_factor()
+        # fs = flux_ramp_freq * self.get_downsample_factor()
 
         # Cast the bias group as an array
         bias_group = np.ravel(np.array(bias_group))
@@ -4133,7 +4136,7 @@ class SmurfUtilMixin(SmurfBase):
             The data sample rate in Hz.
         """
         flux_ramp_freq = self.get_flux_ramp_freq() * 1.0E3
-        downsample_factor = self.get_downsampler_internal_factor()
+        downsample_factor = self.get_downsample_factor()
 
         return flux_ramp_freq / downsample_factor
 
@@ -4181,7 +4184,7 @@ class SmurfUtilMixin(SmurfBase):
         """
         # Check if probe frequency is too high
         flux_ramp_freq = self.get_flux_ramp_freq() * 1.0E3
-        fs = flux_ramp_freq * self.get_downsampler_internal_factor()
+        fs = flux_ramp_freq * self.get_downsample_factor()
 
         # Calculate downsample filter transfer function
         filter_params = self.get_filter_params()
@@ -4432,3 +4435,143 @@ class SmurfUtilMixin(SmurfBase):
                 plt.close()
 
         return gap_freq
+
+    def check_full_band_resp(self,
+                             n_scan_per_band=5,
+                             amc_auto_detect=True,
+                             make_plot=True,
+                             save_plot=True,
+                             show_plot=False,
+                             save_results=True,
+                             **kwargs):
+        r"""
+        Measures RF transfer function for all configured AMCs.  This
+        function is based on scratch/shawn/full_band_response.py.
+        Usually we run this function with the AMCs connected in
+        loopback with a short RF cable to verify that they are
+        working.
+
+        Args
+        ----
+        n_scan : int, optional, default 5
+            The number of times to measure each band using
+            full_band_resp.
+        amc_auto_detect : bool, optional, default True
+            If True, determines AMC RF bands from serial number.
+            Otherwise, uses `get_band_center_mhz`.
+        make_plot : bool, optional, default True
+            Whether to make a plot.
+        save_plot : bool, optional, default True
+            Whether to save the plot.
+        show_plot : bool, optional, default False
+            Whether to show the plot
+        save_results : bool, optional, default True
+            Whether or not to save the results.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `full_band_resp` call.
+
+        Returns
+        -------
+        results : dict
+            Dictionary with results.
+
+        """
+        timestamp = self.get_timestamp()
+        # Take which bands are configured from pysmurf configuration
+        # file.
+        bands=self._bands
+
+        carrier_sn=self.get_carrier_sn(use_shell=True)
+
+        results_dict={}
+        results_dict['n_scan_per_band']=n_scan_per_band
+        results_dict['amc_auto_detect']=amc_auto_detect
+        results_dict['kwargs']=kwargs
+        for bay in self.bays:
+            results_dict[bay]={}
+            bands=range(4*bay,4*(bay+1))
+            for band in bands:
+                print(' ')
+                print(' ')
+                print(f'Band {band}')
+                print(' ')
+                print(' ')
+                results_dict[bay][band%4]={}
+                amc_sn=self.get_amc_sn(bay=bay,use_shell=True)
+                results_dict[bay]['amc_sn']=amc_sn
+                amc_type=amc_sn.split('-')[1]
+
+                # Sometimes the rogue zip files don't properly set the
+                # correct band center frequency if e.g. a LB is
+                # plugged into bay 1.
+                if amc_auto_detect and amc_type in ['A01','A02']:
+                    if amc_type=='A01': #LB
+                        results_dict[bay][band%4]['fc']=4250.+500.*(band%4)
+                    if amc_type=='A02': #HB
+                        results_dict[bay][band%4]['fc']=6250.+500.*(band%4)
+
+                else:
+                    results_dict[bay][band%4]['fc']=self.get_band_center_mhz(band)
+
+                f,resp=self.full_band_resp(band=band, make_plot=False, show_plot=False, n_scan=n_scan_per_band, timestamp=timestamp, save_data=False, **kwargs)
+                results_dict[bay][band%4]['f']=f
+                results_dict[bay][band%4]['resp']=resp
+
+                # Also record the UC and DC attenuator settings for this
+                # band
+                results_dict[bay][band%4]['uc_att']=self.get_att_uc(band)
+                results_dict[bay][band%4]['dc_att']=self.get_att_dc(band)
+
+            # Plot results (if desired)
+            fig, ax = plt.subplots(2, figsize=(6,7.5), sharex=True)
+            plt.suptitle(f'slot={self.slot_number} / Carrier={carrier_sn} / AMC{bay*2}={amc_sn}')
+
+            save_name = f'{timestamp}_full_band_resp_all_amc{bay*2}.png'
+            ax[0].set_title(save_name)
+
+            # Compute unwrapped phase for each band
+            last_angle=None
+            for band in bands:
+                f_plot=results_dict[bay][band%4]['f']/1e6
+                resp_plot=results_dict[bay][band%4]['resp']
+                plot_idx = np.where(np.logical_and(f_plot>-250, f_plot<250))
+                ax[0].plot(f_plot[plot_idx]+results_dict[bay][band%4]['fc'], np.log10(np.abs(resp_plot[plot_idx])),label=f'b{band%4}')
+                angle = np.unwrap(np.angle(resp_plot))
+                if last_angle is not None:
+                    angle-=(angle[0]-last_angle)
+                ax[1].plot(f_plot[plot_idx]+results_dict[bay][band%4]['fc'], angle[plot_idx],label=f'b{band%4}')
+                results_dict[bay][band%4]['phase']=angle[plot_idx]
+                last_angle=angle[plot_idx][-1]
+
+            ax[0].legend(loc='lower left',fontsize=8)
+            ax[0].set_ylabel("log10(abs(Response))")
+            ax[0].set_xlabel('Frequency [MHz]')
+            ax[0].set_ylim(-0.5,1.25)
+
+            ax[1].legend(loc='lower left',fontsize=8)
+            ax[1].set_ylabel("Phase [rad]")
+            ax[1].set_xlabel('Frequency [MHz]')
+
+            plt.tight_layout()
+
+            if save_plot:
+                save_path = os.path.join(self.plot_dir, save_name)
+                print(f'Saving plot to {save_path}.')
+                plt.savefig(save_path,
+                            bbox_inches='tight')
+                self.pub.register_file(save_path, f'fbr{bay*2}_plot', plot=True)
+
+                if not show_plot:
+                    plt.close()
+
+        if save_results:
+            save_path = os.path.join(self.output_dir,f'{timestamp}_full_band_resp_all.npy')
+            print(f'Saving data to {save_path}.')
+            np.save(save_path,results_dict)
+            self.pub.register_file(save_path, 'fbr_results', format='npy')
+
+        if show_plot:
+            plt.show()
+
+        return results_dict

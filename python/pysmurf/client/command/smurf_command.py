@@ -15,6 +15,7 @@
 #-----------------------------------------------------------------------------
 import os
 import time
+import subprocess
 
 import numpy as np
 from packaging import version
@@ -5135,7 +5136,9 @@ class SmurfCommandMixin(SmurfBase):
     # Cryo card comands
     def get_cryo_card_temp(self, enable_poll=False, disable_poll=False):
         """
-        No description
+        Get the self-reported temperature of the cryocard. This value is typically
+        around 20 Celcius. Anything higher than 30 would indicate a problem. Anything
+        below 0 C indicates the board is not connected.
 
         Returns
         -------
@@ -5148,6 +5151,9 @@ class SmurfCommandMixin(SmurfBase):
                 True)
 
         T = self.C.read_temperature()
+
+        if T < 0:
+            self.log('get_cryo_card_temp: Temperature is below 0 C, is it connected?')
 
         if disable_poll:
             epics.caput(
@@ -5603,6 +5609,9 @@ class SmurfCommandMixin(SmurfBase):
 
     def get_crossbar_output_config(self, index, **kwargs):
         """
+        This is the timing crossbar, which determins how the SMuRF carrier
+        receives its timing signal, and how the backplane receives its
+        timing signal.
         """
         return self._caget(
             self.crossbar + self._output_config_reg.format(index),
@@ -5620,6 +5629,26 @@ class SmurfCommandMixin(SmurfBase):
         return self._caget(
             self.timing_status + self._timing_link_up_reg,
             **kwargs)
+
+    def get_timing_fiber_status(self):
+        """
+        Determine if this slot is correctly receiving fiber data and also
+        distributing it to the rest of the crate, in other words if
+        the 'timing': 'fiber' configuration in the SMuRF .cfg file is
+        working correctly. We can make this more robust by taking
+        some frame data for one second and seeing if errors increment.
+        Ref. https://confluence.slac.stanford.edu/display/ppareg/Timing+Core+Programming
+        Ref. https://confluence.slac.stanford.edu/display/SMuRF/Timing+Firmware
+        """
+        status = self.get_timing_link_up()
+
+        for i in range(4):
+            output = self.get_crossbar_output_config(i)
+            if output != 0:
+                self.log(f'Crossbar {i} is {output} but should be 0.')
+                status = False
+
+        return status
 
     def set_lmk_enable(self, bay, val):
         """
@@ -5913,7 +5942,7 @@ class SmurfCommandMixin(SmurfBase):
 
     _downsampler_mode_reg = 'Downsampler:DownsamplerMode'
 
-    def set_downsampler_mode(self, mode):
+    def set_downsample_mode(self, mode):
         """
         Set the downsampler mode. 0 is internal, 1 is external.
 
@@ -5922,12 +5951,12 @@ class SmurfCommandMixin(SmurfBase):
         """
         if mode == 'internal':
             self._caput(self.smurf_processor + self._downsampler_mode_reg, 0)
-        if mode == 'external':
+        elif mode == 'external':
             self._caput(self.smurf_processor + self._downsampler_mode_reg, 1)
         else:
-            self.log(f'set_downsampler_mode: Unknown mode {mode}')
+            self.log(f'set_downsample_mode: Unknown mode {mode}')
 
-    def get_downsampler_mode(self):
+    def get_downsample_mode(self):
         """
         Get the downsampler mode. 0 is internal, 1 is external.
 
@@ -5943,13 +5972,13 @@ class SmurfCommandMixin(SmurfBase):
         elif mode == 1:
             ret = 'external'
         else:
-            self.log(f'get_downsampler_mode: Unknown mode {mode}')
+            self.log(f'get_downsample_mode: Unknown mode {mode}')
 
         return ret
 
-    _downsampler_internal_factor_reg = 'Downsampler:InternalFactor'
+    _downsampler_factor_reg = 'Downsampler:InternalFactor'
 
-    def set_downsampler_internal_factor(self, factor, **kwargs):
+    def set_downsample_factor(self, factor, **kwargs):
         """
         Set the smurf processor down-sampling factor.
 
@@ -5959,12 +5988,16 @@ class SmurfCommandMixin(SmurfBase):
             The down-sampling factor.
         """
         self._caput(
-            self.smurf_processor + self._downsampler_internal_factor_reg,
+            self.smurf_processor + self._downsampler_factor_reg,
             factor, **kwargs)
 
-    def get_downsampler_internal_factor(self, **kwargs):
+    def get_downsample_factor(self, **kwargs):
         """
-        Get the smurf processor down-sampling factor.
+        Get the smurf processor down-sampling factor. This is only used
+        when the downsampling mode is internal.  When the downsampling
+        mode is internal, the server will receive frames, place them
+        through SmurfProcessor.cpp, but it will not release any data
+        to be saved until it has counted up to this factor.
 
         Returns
         -------
@@ -5972,17 +6005,17 @@ class SmurfCommandMixin(SmurfBase):
             The down-sampling factor.
         """
         if self.offline:
-            self.log("get_downsampler_internal_factor: offline is True, returning something anyway.")
+            self.log("get_downsample_factor: offline is True, SmurfProcessor.cpp is not running..")
             return 20
 
-        if self.get_downsampler_mode() == 'external':
-            self.log('get_downsampler_internal_factor: get_downsampler_mode is external, the factor is not used')
+        if self.get_downsample_mode() == 'external':
+            self.log('get_downsample_factor: get_downsample_mode is external, the factor is not used')
 
-        return self._caget(self.smurf_processor + self._downsampler_internal_factor_reg, **kwargs)
+        return self._caget(self.smurf_processor + self._downsampler_factor_reg, **kwargs)
 
     _downsampler_external_bitmask_reg = 'Downsampler:ExternalBitmask'
 
-    def set_downsampler_external_bitmask(self, bitmask):
+    def set_downsample_external_bitmask(self, bitmask):
         """
         Set the downsampler external bitmask.
 
@@ -5990,9 +6023,14 @@ class SmurfCommandMixin(SmurfBase):
         """
         self._caput(self.smurf_processor + self._downsampler_external_bitmask_reg, bitmask)
 
-    def get_downsampler_external_bitmask(self):
+    def get_downsample_external_bitmask(self):
         """
-        Get the downsampler external bitmask.
+        Get the downsampler external bitmask. This bitmask is only used
+        when get_downsample_mode is external. For example, 0 means
+        never trigger, 1 means trigger on the first bit, 2 will
+        trigger on the second bit, 4 will trigger on the third bit. By
+        bit, we mean when the bit flips in one direction, because the
+        bit will flip back on the next incoming data stream.
 
         Ref. https://confluence.slac.stanford.edu/display/SMuRF/SMuRF+Processor
         """
@@ -6002,8 +6040,9 @@ class SmurfCommandMixin(SmurfBase):
 
     def set_filter_disable(self, disable_status, **kwargs):
         """
-        If Disable is set to True, then the downsampling filter is
-        off.
+        If Disable is set to True, then the filter is off. Incoming data
+        to SmurfProcessor.cpp may still be downsampled, however,
+        filtering would not be applied.
 
         Args
         ----
@@ -6375,3 +6414,121 @@ class SmurfCommandMixin(SmurfBase):
         """
         return self._caget(self.stream_data_source + self._stream_data_period,
             **kwargs)
+
+    def shell_command(self,cmd,**kwargs):
+        r"""Runs command on shell and returns code, stdout, & stderr.
+
+        Args
+        ----
+        cmd : str
+            Command to run on shell.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `subprocess.run` call.
+
+        Returns
+        -------
+        (stdout, stderr)
+            stdout and stderr returned as str
+        """
+        result = subprocess.run(
+            cmd.split(), stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE, shell=False, **kwargs
+        )
+
+        return result.stdout.decode(),result.stderr.decode()
+
+    def get_fru_info(self,board,bay=None,slot_number=None,shelf_manager=None):
+        r"""Returns FRU information for SMuRF board.
+
+        Wrapper for dumping the FRU information for SMuRF boards using
+        shell commands.
+
+        Args
+        ----
+        board : str
+            Which board to return FRU informationf for.  Valid options
+            include 'amc', 'carrier', or 'rtm'.  If 'amc', must also
+            provide the bay argument.
+        bay : int, optional, default None
+            Which bay to return the AMC FRU information for.  Used
+            only if board='amc'.
+        slot_number : int or None, optional, default None
+            The crate slot number that the AMC is installed into.  If
+            None, defaults to the
+            :class:`~pysmurf.client.base.smurf_control.SmurfControl`
+            class attribute
+            :attr:`~pysmurf.client.base.smurf_control.SmurfControl.slot_number`.
+        shelf_manager : str or None, optional, default None
+            Shelf manager ip address.  If None, defaults to the
+            :class:`~pysmurf.client.base.smurf_control.SmurfControl`
+            class attribute
+            :attr:`~pysmurf.client.base.smurf_control.SmurfControl.shelf_manager`.
+            For typical systems the default name of the shelf manager
+            is 'shm-smrf-sp01'.
+
+        Returns
+        -------
+        fru_info_dict : dict
+            Dictionary of requested FRU information.  Returns None if
+            board not a valid option, board not present in slot, slot
+            not present in shelf, or if no AMC is up in the requested
+            bay.
+        """
+        if slot_number is None:
+            slot_number=self.slot_number
+        if shelf_manager is None:
+            shelf_manager=self.shelf_manager
+
+        valid_board_options=['amc','rtm','carrier']
+        if board not in valid_board_options:
+            self.log(f'ERROR : {board} not in list of valid board options {valid_board_options}.  Returning None.',self.LOG_ERROR)
+            return None
+
+        shell_cmd=''
+        shell_cmd_prefix=None
+        if board=='amc':
+            shell_cmd_prefix='amc'
+            # require bay argument
+            if bay is None:
+                self.log('ERROR : Must provide AMC bay.  Returning None.',self.LOG_ERROR)
+                return None
+            if bay not in [0,1]:
+                self.log('ERROR : bay argument can only be 0 or 1.  Returning None.',self.LOG_ERROR)
+                return None
+            shell_cmd+=f'/{bay*2}'
+        elif board=='rtm':
+            # require bay argument
+            shell_cmd_prefix='rtm'
+        else: # only carrier left
+            shell_cmd_prefix='fru'
+
+        shell_cmd=f'cba_{shell_cmd_prefix}_init -d {shelf_manager}/{slot_number}'+shell_cmd
+        stdout,stderr=self.shell_command(shell_cmd)
+
+        # Error handling
+        if 'AMC not present in bay' in stdout:
+            self.log('ERROR : AMC not present in bay!  Returning None.',
+                     self.LOG_ERROR)
+            return None
+        if 'Slot not present in shelf' in stdout:
+            self.log('ERROR : Slot not present in shelf!  Returning None.',
+                     self.LOG_ERROR)
+            return None
+        if 'Board not present in slot' in stdout:
+            self.log('ERROR : Board not present in slot!  Returning None.',
+                     self.LOG_ERROR)
+            return None
+        else: # parse and return fru information for this board
+            stdout=stdout.split('\n')
+            fru_info_dict={}
+            for line in stdout:
+                if ':' in line:
+                    splitline=line.split(':')
+                    if len(splitline)==2:
+                        fru_key=splitline[0].lstrip().rstrip()
+                        fru_value=splitline[1].lstrip().rstrip()
+                        if len(fru_value)>0: # skip header
+                            fru_info_dict[fru_key]=fru_value
+
+        return fru_info_dict
