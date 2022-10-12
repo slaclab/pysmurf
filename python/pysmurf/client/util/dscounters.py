@@ -180,7 +180,7 @@ def plot_all_configs():
             mask = ds.get_mask(n, str)
             print(f'{n:6} : {mask}')
             if mask is not None:
-                assert(ds.period_from_mask(mask) == n)
+                assert (ds.period_from_mask(mask) == n)
         print()
 
         # Measure performance for readout freqs from 1 Hz to f_ramp/2
@@ -197,11 +197,10 @@ def plot_all_configs():
         print('plotting')
         pl.semilogx(f_test, error * 100,
                     ls='none', marker='o', markersize=1, alpha=.4)
-        pl.title('Downsampling of %.1f kHz ramps' % (f_ramp/1e3))
+        pl.title(f'Downsampling of {(f_ramp/1e3):.1f} kHz ramps')
         pl.xlabel('Target readout frequency (Hz)')
         pl.ylabel('Readout freq error (%)')
         pl.savefig(f'{name}.png')
         pl.clf()
-        
-        print('\n')
 
+        print('\n')
