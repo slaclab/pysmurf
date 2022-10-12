@@ -44,7 +44,7 @@ class DownsampleCounters:
 
         """
         mask = []
-        #periods = [p**pwr for 
+        #periods = [p**pwr for
         for p, (lo, hi) in self.config:
             powers = list(range(hi, lo - 1, -1))
             while len(powers):
@@ -170,7 +170,7 @@ def plot_all_configs():
     import numpy as np
     for name, config in configs.items():
         print(f'Testing {name}')
-        print(f'------------------------')
+        print('------------------------')
         ds = DownsampleCounters(config)
         periods = ds.get_periods()
         print(f'There are {len(periods)} counter periods; LSB to MSB:\n  {periods}')
@@ -178,7 +178,7 @@ def plot_all_configs():
         print('Test cases:')
         for n in [1024, 1000, 200, 20, 65536, 1023]:
             mask = ds.get_mask(n, str)
-            print('%6i : %s' % (n, mask))
+            print(f'{n:6} : {mask}')
             if mask is not None:
                 assert(ds.period_from_mask(mask) == n)
         print()
