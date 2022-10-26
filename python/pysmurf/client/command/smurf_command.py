@@ -5430,6 +5430,13 @@ class SmurfCommandMixin(SmurfBase):
             self.trigger_root + self._trigger_enable_reg.format(chan),
             val, **kwargs)
 
+    def get_trigger_enable(self, chan, **kwargs):
+        """
+        """
+        return self._caget(
+            self.trigger_root + self._trigger_enable_reg.format(chan),
+            **kwargs)        
+
     _trigger_channel_reg_enable_reg = 'EvrV2ChannelReg[{}]:EnableReg'
 
     def set_evr_channel_reg_enable(self, chan, val, **kwargs):
@@ -5439,6 +5446,14 @@ class SmurfCommandMixin(SmurfBase):
             self.trigger_root +
             self._trigger_channel_reg_enable_reg.format(chan),
             val, **kwargs)
+
+    def get_evr_channel_reg_enable(self, chan, **kwargs):
+        """
+        """
+        return self._caget(
+            self.trigger_root +
+            self._trigger_channel_reg_enable_reg.format(chan),
+            **kwargs)        
 
     # Crashing in rogue 4, and not clear it's ever needed.
     _trigger_reg_enable_reg = 'EvrV2TriggerReg[{}]:enable'
@@ -5473,6 +5488,17 @@ class SmurfCommandMixin(SmurfBase):
             self.trigger_root +
             self._evr_trigger_dest_type_reg.format(channel),
             value, **kwargs)
+
+    def get_evr_trigger_dest_type(self, channel, **kwargs):
+        """
+        Get the destination type of this trigger's channel. This is notably
+        used when turning on the flux ramps triggered by the fiber or
+        backplane.
+        """
+        return self._caget(
+            self.trigger_root +
+            self._evr_trigger_dest_type_reg.format(channel),
+            **kwargs)        
 
     _trigger_channel_reg_dest_sel_reg = 'EvrV2ChannelReg[{}]:DestSel'
 
@@ -5649,6 +5675,56 @@ class SmurfCommandMixin(SmurfBase):
                 status = False
 
         return status
+
+    def get_timing_mode(self):
+        """
+        """
+        ## Poll all registers needed to determine which timing mode we're in.
+
+        # Crossbar
+        cbar = [self.get_crossbar_output_config(i) for i in range(4)]
+
+        # RTM
+        rsm = self.get_ramp_start_mode()
+
+        # Timing triggers (only used with external timing system)
+        ecre = self.get_evr_channel_reg_enable(0)
+        etdt = self.get_evr_trigger_dest_type(0)
+        te = self.get_trigger_enable(0)
+
+        # LMKs
+        lmks={}
+        for bay in self.bays:
+            lmks[bay]={}
+            for reg in [0x146,0x147]:
+                lmks[bay][reg]=self.get_lmk_reg(bay,reg)
+
+        ## Check polled register values against known timing
+        ## configurations
+
+        # External reference timing mode configuration
+        if ( cbar == [0x0, 0x0, 0x1, 0x1] and
+             rsm == 0 and
+             all([lmks[bay][0x146]==0x10 for bay in self.bays]) and
+             all([lmks[bay][0x147]==0x1a for bay in self.bays]) ):
+            return 'ext_ref'
+        
+        # Fiber or backplane timing mode configurations
+        if ( rsm == 1 and
+             ( ecre == 1 and etdt == 0 and te == 1 ) and
+             all([lmks[bay][0x146]==0x8 for bay in self.bays]) and
+             all([lmks[bay][0x147]==0xa for bay in self.bays]) ):
+
+            # Fiber timing mode configuration
+            if ( cbar == [0x0, 0x0, 0x0, 0x0] ):
+                return 'fiber'
+
+            # Backplane timing mode configuration
+            if ( cbar == [0x0, 0x2, 0x1, 0x1] ):            
+                return 'backplane'
+
+        # Timing configuration not recognized, return None
+        return None
 
     def set_lmk_enable(self, bay, val):
         """
