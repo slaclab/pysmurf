@@ -46,7 +46,6 @@ class DownsampleCounters:
 
         """
         mask = []
-        #periods = [p**pwr for 
         for p, (lo, hi) in self.config:
             powers = list(range(hi, lo - 1, -1))
             while len(powers):
@@ -204,5 +203,5 @@ def plot_all_configs():
         pl.ylabel('Readout freq error (%)')
         pl.savefig(f'{name}.png')
         pl.clf()
-        
+ 
         print('\n')
