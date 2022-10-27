@@ -4740,7 +4740,7 @@ class SmurfUtilMixin(SmurfBase):
 
         current_timing_mode = self.get_timing_mode()
         if mode == current_timing_mode:
-            self.log(f'System already configure for {mode} timing, doing nothing.',self.LOG_USER)
+            self.log(f'System already configured for {mode} timing, doing nothing.',self.LOG_USER)
             return
 
         self.log(f'System configured for {current_timing_mode} timing.  Reconfiguring slot {self.slot_number} for {mode} timing.',self.LOG_USER)

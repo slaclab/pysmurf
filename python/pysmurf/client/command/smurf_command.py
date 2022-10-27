@@ -5441,7 +5441,29 @@ class SmurfCommandMixin(SmurfBase):
     _trigger_channel_reg_enable_reg = 'EvrV2ChannelReg[{}]:EnableReg'
 
     def set_evr_channel_reg_enable(self, chan, val, **kwargs):
-        """
+        r"""Set trigger channel enable.
+
+        The triggering firmware is broken into two parts: (1) the
+        event selection logic "Channel", and (2) the trigger pulse
+        generation "Trigger".  Trigger pulse generation has several
+        required inputs including which "Channel" to listen to.
+        Setting this "Enable" register turns on the event selection
+        logic for the requested channel.
+
+        Args
+        ----
+        chan : int
+            Which trigger event selection logic channel to enable or
+            disable.
+        val : int
+            1 to enable, 0 to disable.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caput` call.
+
+        See Also
+        --------
+        :func:`get_evr_channel_reg_enable` : Get trigger channel enable.
         """
         self._caput(
             self.trigger_root +
@@ -5449,14 +5471,38 @@ class SmurfCommandMixin(SmurfBase):
             val, **kwargs)
 
     def get_evr_channel_reg_enable(self, chan, **kwargs):
-        """
+        r"""Get trigger channel enable.
+
+        The triggering firmware is broken into two parts: (1) the
+        event selection logic "Channel", and (2) the trigger pulse
+        generation "Trigger".  Trigger pulse generation has several
+        required inputs including which "Channel" to listen to.  This
+        "Enable" register controls whether or not the event selection
+        logic for the requested channel is on.
+
+        Args
+        ----
+        chan : int
+            Which trigger event selection logic channel to enable or
+            disable.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caget` call.
+
+        Returns
+        -------
+        int
+            1 if trigger channel is enabled, 0 if disabled.
+
+        See Also
+        --------
+        :func:`set_evr_channel_reg_enable` : Get trigger channel enable.
         """
         return self._caget(
             self.trigger_root +
             self._trigger_channel_reg_enable_reg.format(chan),
             **kwargs)
 
-    # Crashing in rogue 4, and not clear it's ever needed.
     _trigger_reg_enable_reg = 'EvrV2TriggerReg[{}]:enable'
 
     def set_evr_trigger_reg_enable(self, chan, val, **kwargs):
@@ -5479,26 +5525,84 @@ class SmurfCommandMixin(SmurfBase):
 
     _evr_trigger_dest_type_reg = 'EvrV2ChannelReg[{}]:DestType'
 
-    def set_evr_trigger_dest_type(self, channel, value, **kwargs):
-        """
-        Set the destination type of this trigger's channel. This is notably
-        used when turning on the flux ramps triggered by the fiber or
-        backplane.
+    def set_evr_trigger_dest_type(self, chan, value, **kwargs):
+        r"""Set trigger channel destination type.
+
+        The triggering firmware is broken into two parts: (1) the
+        event selection logic "Channel", and (2) the trigger pulse
+        generation "Trigger".  Trigger pulse generation has several
+        required inputs including which "Channel" to listen to.  The
+        channel destination type, or DestType, is an optional logic
+        selection (logical AND of) on the presence of a beam where
+        this logic is also used for LCLS-2 on the accelerator.  For
+        SMuRF we always use destination 0 (="All" if you're looking at
+        the SMuRF Rogue gui) which tells the trigger channel logic to
+        ignore all beam logic (a better name for "All" would be
+        "DontCare".
+
+        Args
+        ----
+        chan : int
+            Which trigger event selection logic channel's destination
+            type to set.
+        val : int
+            Destination type to set.  Although valid options are 0, 1,
+            2 or 3, for SMuRF we always use 0 corresponding to "All"
+            in the Rogue gui which instructs the channel to ignore any
+            selection on the presence of beam.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caput` call.
+
+        See Also
+        --------
+        :func:`get_evr_trigger_dest_type` : Get trigger channel destination type.
         """
         self._caput(
             self.trigger_root +
-            self._evr_trigger_dest_type_reg.format(channel),
+            self._evr_trigger_dest_type_reg.format(chan),
             value, **kwargs)
 
-    def get_evr_trigger_dest_type(self, channel, **kwargs):
-        """
-        Get the destination type of this trigger's channel. This is notably
-        used when turning on the flux ramps triggered by the fiber or
-        backplane.
+    def get_evr_trigger_dest_type(self, chan, **kwargs):
+        r"""Get trigger channel destination type.
+
+        The triggering firmware is broken into two parts: (1) the
+        event selection logic "Channel", and (2) the trigger pulse
+        generation "Trigger".  Trigger pulse generation has several
+        required inputs including which "Channel" to listen to.  The
+        channel destination type, or DestType, is an optional logic
+        selection (logical AND of) on the presence of a beam where
+        this logic is also used for LCLS-2 on the accelerator.  For
+        SMuRF we always use destination 0 (="All" if you're looking at
+        the SMuRF Rogue gui) which tells the trigger channel logic to
+        ignore all beam logic (a better name for "All" would be
+        "DontCare".
+
+        Args
+        ----
+        chan : int
+            Which trigger event selection logic channel's destination
+            type to get.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caget` call.
+
+        Returns
+        -------
+        int
+            Channel destination type of the requested channel.
+            Although valid options are 0, 1, 2, and 3, SMuRF should
+            always use 0 corresponding to "All" in the Rogue gui which
+            instructs the channel to ignore any selection on the
+            presence of beam for LCLS-2.
+
+        See Also
+        --------
+        :func:`set_evr_trigger_dest_type` : Set trigger channel destination type.
         """
         return self._caget(
             self.trigger_root +
-            self._evr_trigger_dest_type_reg.format(channel),
+            self._evr_trigger_dest_type_reg.format(chan),
             **kwargs)
 
     _trigger_channel_reg_dest_sel_reg = 'EvrV2ChannelReg[{}]:DestSel'
@@ -5647,11 +5751,23 @@ class SmurfCommandMixin(SmurfBase):
     _timing_link_up_reg = "RxLinkUp"
 
     def get_timing_link_up(self, **kwargs):
-        """
-        Return the value of RxLinkUp. This tells you if the FPGA recovered
-        clock is receiving timing from somewhere, either the backplane or
-        fiber. This doesn't directly tell you anything about the AMCs, JESDs,
-        or LMKs.
+        r"""Return external timing link status.
+
+        Return the value of RxLinkUp. This tells you if the FPGA
+        recovered clock is receiving timing from somewhere, either the
+        backplane or fiber. This doesn't directly tell you anything
+        about the AMCs, JESDs, or LMKs.
+
+        Args
+        ----
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caget` call.
+
+        Returns
+        -------
+        int
+            1 if link is up, 0 if link is down.
         """
         return self._caget(
             self.timing_status + self._timing_link_up_reg,
