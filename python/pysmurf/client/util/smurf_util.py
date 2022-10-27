@@ -4577,7 +4577,7 @@ class SmurfUtilMixin(SmurfBase):
         return results_dict
 
     def get_timing_mode(self):
-        r"""Determines current timing mode.
+        r"""Determines timing mode configuration.
 
         Returns the current timing mode configuration, or None if the
         system is not in one of these three known configurations:
@@ -4598,7 +4598,7 @@ class SmurfUtilMixin(SmurfBase):
           over the backplane.
 
         The timing mode configuration is determined by polling the
-        configuration of the crossbar, LMKs, triggers, and RTM.
+        configuration of the crossbar [#crossbar]_, LMKs, triggers, and RTM.
 
         For systems configured in "fiber" or "backplane" modes, a
         warning is printed if no external timing data is being
@@ -4609,12 +4609,16 @@ class SmurfUtilMixin(SmurfBase):
         mode : str or None
            Current timing mode configuration.  Returns None if system
            not in one of the three recognized configurations :
-           ext_ref, backplane, or fiber.
+           "ext_ref", "backplane", or "fiber".
 
         See Also
         --------
         :func:`set_timing_mode` : Can be used to set the timing mode.
         :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.get_timing_link_up` : Is external timing data being received?
+
+        References
+        ----------
+        .. [#crossbar] https://confluence.slac.stanford.edu/display/ppareg/How+to+configure+the+timing+crossbar
         """
         ## Poll all registers needed to determine which timing mode we're in.
 
