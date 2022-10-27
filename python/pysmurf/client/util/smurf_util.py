@@ -4711,7 +4711,7 @@ class SmurfUtilMixin(SmurfBase):
         the timing crossbar.
 
         Before changing the timing configuration, the current
-        configuration is polled via `get_timing_mode` and if the
+        configuration is polled via :func:`get_timing_mode` and if the
         system is already in the requested mode, the function prints a
         message and does nothing.
 
