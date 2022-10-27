@@ -4575,3 +4575,166 @@ class SmurfUtilMixin(SmurfBase):
             plt.show()
 
         return results_dict
+
+    def get_timing_mode(self):
+        """
+        """
+        ## Poll all registers needed to determine which timing mode we're in.
+
+        # Crossbar
+        cbar = [self.get_crossbar_output_config(i) for i in range(4)]
+
+        # RTM
+        rsm = self.get_ramp_start_mode()
+
+        # Timing triggers (only used with external timing system)
+        ecre = self.get_evr_channel_reg_enable(0)
+        etdt = self.get_evr_trigger_dest_type(0)
+        te = self.get_trigger_enable(0)
+
+        # LMKs
+        lmks={}
+        for bay in self.bays:
+            lmks[bay]={}
+            for reg in [0x146,0x147]:
+                lmks[bay][reg]=self.get_lmk_reg(bay,reg)
+
+        ## Check polled register values against known timing
+        ## configurations
+
+        # External reference timing mode configuration
+        if ( cbar == [0x0, 0x0, 0x1, 0x1] and
+             rsm == 0 and
+             all([lmks[bay][0x146]==0x10 for bay in self.bays]) and
+             all([lmks[bay][0x147]==0x1a for bay in self.bays]) ):
+            return 'ext_ref'
+        
+        # Fiber or backplane timing mode configurations
+        if ( rsm == 1 and
+             ( ecre == 1 and etdt == 0 and te == 1 ) and
+             all([lmks[bay][0x146]==0x8 for bay in self.bays]) and
+             all([lmks[bay][0x147]==0xa for bay in self.bays]) ):
+
+            # Fiber timing mode configuration
+            if ( cbar == [0x0, 0x0, 0x0, 0x0] ):
+                mode = 'fiber'
+
+            # Backplane timing mode configuration
+            if ( cbar == [0x0, 0x2, 0x1, 0x1] ):            
+                mode = 'backplane'
+
+            # Check if receiving timing.  Checks if FPGA recovered
+            # clock is receiving timing data.  Warn if we're
+            # configured for backplane or fiber timing but not
+            # receiving any external timing data.
+            status = self.get_timing_link_up()
+            if status != 1:
+                self.log(f'\033[91mConfigured for {mode} timing but not receiving external timing data.\033[0m',
+                         self.LOG_ERROR) # color red
+
+            return mode
+
+        # Timing configuration not recognized, return None
+        return None
+
+    def set_timing_mode(self,mode,write_log=False):
+        """
+        """
+        valid_timing_modes = ['ext_ref','backplane','fiber']
+        assert (mode in valid_timing_modes), f'\033[91mRequested timing mode={mode} unknown.\033[0m'
+
+        current_timing_mode = self.get_timing_mode()
+        if mode == current_timing_mode:
+            self.log(f'System already configure for {mode} timing, doing nothing.',self.LOG_USER)
+            return
+        
+        self.log(f'System configured for {current_timing_mode} timing.  Reconfiguring slot {self.slot_number} for {mode} timing.',self.LOG_USER)
+
+        # Make sure we can write to the LMK regs
+        for bay in self.bays:
+            self.set_lmk_enable(bay, 1, write_log=write_log)
+        
+        if mode == 'backplane' and self.slot_number == 2:
+            # Complain if backplane timing mode is requested for a
+            # carrier in slot 2 and configure for ext_ref timing
+            # instead.  In backplane timing mode, the system must
+            # receive timing through the backplane from a system in
+            # slot 2 configured in fiber mode.
+            self.log(f'\033[91mSystem is in slot 2, which cannot be configured for backplane timing.  Will configure for fiber timing instead.\033[0m',
+                     self.LOG_ERROR) # color red
+            mode = 'fiber'
+
+        if mode == 'fiber' and self.slot_number != 2:
+            # Warn user if fiber timing mode is requested for a
+            # carrier not in slot 2.  In fiber timing mode, the system
+            # should be receiving timing through its RTM timing input, 
+            # and fanning it out through the backplane to the other
+            # carriers in slots 3+.
+            self.log(f'\033[91mOnly systems in slot 2 can be configured for fiber timing.  Will configure for backplane timing instead.\033[0m',
+                     self.LOG_ERROR) # color red
+            mode = 'backplane'
+        
+        if mode == 'ext_ref':
+            # Configure crossbar for ext_ref timing
+            self.set_crossbar_output_config(0, 0x0, write_log=write_log)
+            self.set_crossbar_output_config(1, 0x0, write_log=write_log)
+            self.set_crossbar_output_config(2, 0x1, write_log=write_log)
+            self.set_crossbar_output_config(3, 0x1, write_log=write_log)
+
+            # Configure LMK
+            for bay in self.bays:
+                self.log(f'Select external reference for bay {bay}' +
+                         ' or free running if there is no reference.')
+                for bay in self.bays:
+                    self.set_lmk_reg(bay, 0x146, 0x10, write_log=write_log)
+                    self.set_lmk_reg(bay, 0x147, 0x1a, write_log=write_log)
+            
+            # Select internal flux ramp trigger source
+            self.set_ramp_start_mode(0, write_log=write_log)
+
+        if mode in ['backplane','fiber']:
+            
+            if mode == 'backplane':
+                # Configure crossbar for backplane timing
+                self.set_crossbar_output_config(0, 0x0, write_log=write_log)
+                # OutputConfig[1] = 0x2 configures the SMuRF carrier's
+                # FPGA to take the timing signals from the backplane
+                # (TO_FPGA = FROM_BACKPLANE)
+                self.set_crossbar_output_config(1, 0x2, write_log=write_log)
+                self.set_crossbar_output_config(2, 0x1, write_log=write_log)
+                self.set_crossbar_output_config(3, 0x1, write_log=write_log)
+
+            if mode == 'fiber':                
+                # Configure crossbar for fiber timing
+                self.set_crossbar_output_config(0, 0x0, write_log=write_log)
+                self.set_crossbar_output_config(1, 0x0, write_log=write_log)
+                self.set_crossbar_output_config(2, 0x0, write_log=write_log)
+                self.set_crossbar_output_config(3, 0x0, write_log=write_log)
+
+            # Configure triggering
+            #  EvrV2CoreTriggers EvrV2ChannelReg[0] EnableReg True
+            self.set_evr_channel_reg_enable(0, True, write_log=write_log)
+            #  EvrV2CoreTriggers EvrV2ChannelReg[0] DestType All
+            self.set_evr_trigger_dest_type(0, 0, write_log=write_log)
+            #  EvrV2CoreTriggers EVrV2TriggerReg[0] Enable Trig True
+            self.set_trigger_enable(0, True, write_log=write_log)
+
+            # Select external flux ramp trigger source
+            self.set_ramp_start_mode(1, write_log=write_log)
+
+            # Configure LMK
+            for bay in self.bays:
+                self.set_lmk_reg(bay, 0x146, 0x08, write_log=write_log)
+                self.set_lmk_reg(bay, 0x147, 0x0A, write_log=write_log)  
+
+            # Check if receiving timing.  Checks if FPGA recovered
+            # clock is receiving timing data.  Warn if we've just
+            # configured the system for backplane or fiber timing but
+            # not receiving any external timing data.  Have to wait a
+            # second for timing to come in after crossbar
+            # configuration change.
+            time.sleep(1)
+            status = self.get_timing_link_up()
+            if status != 1:
+                self.log(f'\033[91mConfigured for {mode} timing but not receiving external timing data after waiting 1 second.\033[0m',
+                         self.LOG_ERROR) # color red    

@@ -1,3 +1,4 @@
+
 #!/usr/bin/env python
 #-----------------------------------------------------------------------------
 # Title      : pysmurf command module - SmurfCommandMixin class
@@ -5656,77 +5657,7 @@ class SmurfCommandMixin(SmurfBase):
             self.timing_status + self._timing_link_up_reg,
             **kwargs)
 
-    def get_timing_fiber_status(self):
-        """
-        Determine if this slot is correctly receiving fiber data and also
-        distributing it to the rest of the crate, in other words if
-        the 'timing': 'fiber' configuration in the SMuRF .cfg file is
-        working correctly. We can make this more robust by taking
-        some frame data for one second and seeing if errors increment.
-        Ref. https://confluence.slac.stanford.edu/display/ppareg/Timing+Core+Programming
-        Ref. https://confluence.slac.stanford.edu/display/SMuRF/Timing+Firmware
-        """
-        status = self.get_timing_link_up()
-
-        for i in range(4):
-            output = self.get_crossbar_output_config(i)
-            if output != 0:
-                self.log(f'Crossbar {i} is {output} but should be 0.')
-                status = False
-
-        return status
-
-    def get_timing_mode(self):
-        """
-        """
-        ## Poll all registers needed to determine which timing mode we're in.
-
-        # Crossbar
-        cbar = [self.get_crossbar_output_config(i) for i in range(4)]
-
-        # RTM
-        rsm = self.get_ramp_start_mode()
-
-        # Timing triggers (only used with external timing system)
-        ecre = self.get_evr_channel_reg_enable(0)
-        etdt = self.get_evr_trigger_dest_type(0)
-        te = self.get_trigger_enable(0)
-
-        # LMKs
-        lmks={}
-        for bay in self.bays:
-            lmks[bay]={}
-            for reg in [0x146,0x147]:
-                lmks[bay][reg]=self.get_lmk_reg(bay,reg)
-
-        ## Check polled register values against known timing
-        ## configurations
-
-        # External reference timing mode configuration
-        if ( cbar == [0x0, 0x0, 0x1, 0x1] and
-             rsm == 0 and
-             all([lmks[bay][0x146]==0x10 for bay in self.bays]) and
-             all([lmks[bay][0x147]==0x1a for bay in self.bays]) ):
-            return 'ext_ref'
-        
-        # Fiber or backplane timing mode configurations
-        if ( rsm == 1 and
-             ( ecre == 1 and etdt == 0 and te == 1 ) and
-             all([lmks[bay][0x146]==0x8 for bay in self.bays]) and
-             all([lmks[bay][0x147]==0xa for bay in self.bays]) ):
-
-            # Fiber timing mode configuration
-            if ( cbar == [0x0, 0x0, 0x0, 0x0] ):
-                return 'fiber'
-
-            # Backplane timing mode configuration
-            if ( cbar == [0x0, 0x2, 0x1, 0x1] ):            
-                return 'backplane'
-
-        # Timing configuration not recognized, return None
-        return None
-
-    def set_lmk_enable(self, bay, val):
+    def set_lmk_enable(self, bay, val, **kwargs):
         """
         Enable the AMC LMK in bay 0. On boot, the LMK is enabled, however once
         the DACS are reset on SmurfControl.setup the LMK is disabled. If you
@@ -5738,8 +5669,11 @@ class SmurfCommandMixin(SmurfBase):
             0 ot 1.
         val : int
             0 or 1.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `epics.caput` call.
         """
-        self._caput(self.lmk.format(bay) + 'enable', val)
+        self._caput(self.lmk.format(bay) + 'enable', val, **kwargs)
 
     def get_lmk_enable(self, bay):
         """
@@ -5749,8 +5683,11 @@ class SmurfCommandMixin(SmurfBase):
         ----
         bay : int
             0 or 1.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `epics.caget` call.
         """
-        self._caget(self.lmk.format(bay) + 'Enable')
+        self._caget(self.lmk.format(bay) + 'Enable', **kwargs)
 
     # assumes it's handed the decimal equivalent
     _lmk_reg = "LmkReg_0x{:04X}"
