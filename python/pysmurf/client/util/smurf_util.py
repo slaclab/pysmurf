@@ -4577,7 +4577,44 @@ class SmurfUtilMixin(SmurfBase):
         return results_dict
 
     def get_timing_mode(self):
-        """
+        r"""Determines current timing mode.
+
+        Returns the current timing mode configuration, or None if the
+        system is not in one of these three known configurations:
+
+        - "ext_ref" : locked to an external reference, or free running
+          if an external reference is absent.
+        - "backplane" : locked to external timing signals distributed
+          over the crate backplane by a carrier receiving timing on
+          its RTM's timing input.  Only carriers in slot 2 of typical
+          crates can distribute timing to other carriers through the
+          crate backplane, so carriers configured in "backplane"
+          timing mode must be in slots 3 or higher.
+        - "fiber" : locked to external timing input from the carrier's
+          RTM timing input.  Configuring a carrier in this mode
+          assumes the carrier is installed in slot 2 of a crate with a
+          dual-start backplane, as it configures the crossbar to
+          distribute external timing to all oter carriers in the crate
+          over the backplane.
+
+        The timing mode configuration is determined by polling the
+        configuration of the crossbar, LMKs, triggers, and RTM.
+
+        For systems configured in "fiber" or "backplane" modes, a
+        warning is printed if no external timing data is being
+        received.
+
+        Returns
+        -------
+        mode : str or None
+           Current timing mode configuration.  Returns None if system
+           not in one of the three recognized configurations :
+           ext_ref, backplane, or fiber.
+
+        See Also
+        --------
+        :func:`set_timing_mode` : Can be used to set the timing mode.
+        :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.get_timing_link_up` : Is external timing data being received?
         """
         ## Poll all registers needed to determine which timing mode we're in.
 
@@ -4637,7 +4674,7 @@ class SmurfUtilMixin(SmurfBase):
         # Timing configuration not recognized, return None
         return None
 
-    def set_timing_mode(self,mode,write_log=False):
+    def set_timing_mode(self, mode, write_log=False):
         """
         """
         valid_timing_modes = ['ext_ref','backplane','fiber']
