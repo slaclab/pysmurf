@@ -203,5 +203,5 @@ def plot_all_configs():
         pl.ylabel('Readout freq error (%)')
         pl.savefig(f'{name}.png')
         pl.clf()
- 
+
         print('\n')
