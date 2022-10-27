@@ -172,7 +172,7 @@ def plot_all_configs():
     import numpy as np
     for name, config in configs.items():
         print(f'Testing {name}')
-        print(f'------------------------')
+        print('------------------------')
         ds = DownsampleCounters(config)
         periods = ds.get_periods()
         print(f'There are {len(periods)} counter periods; LSB to MSB:\n  {periods}')
@@ -180,9 +180,9 @@ def plot_all_configs():
         print('Test cases:')
         for n in [1024, 1000, 200, 20, 65536, 1023]:
             mask = ds.get_mask(n, str)
-            print('%6i : %s' % (n, mask))
+            print(f'{n:6} : {mask}')
             if mask is not None:
-                assert(ds.period_from_mask(mask) == n)
+                assert (ds.period_from_mask(mask) == n)
         print()
 
         # Measure performance for readout freqs from 1 Hz to f_ramp/2
@@ -199,11 +199,10 @@ def plot_all_configs():
         print('plotting')
         pl.semilogx(f_test, error * 100,
                     ls='none', marker='o', markersize=1, alpha=.4)
-        pl.title('Downsampling of %.1f kHz ramps' % (f_ramp/1e3))
+        pl.title(f'Downsampling of {(f_ramp/1e3):.1f} kHz ramps')
         pl.xlabel('Target readout frequency (Hz)')
         pl.ylabel('Readout freq error (%)')
         pl.savefig(f'{name}.png')
         pl.clf()
         
         print('\n')
-
