@@ -4723,6 +4723,17 @@ class SmurfUtilMixin(SmurfBase):
            configures the system for "fiber" timing.  This may or may
            not be what was desired.
 
+        Args
+        ----
+        mode : str
+            The timing mode to configure the system with.  Currently
+            valid options are "ext_ref", "backplane", or "fiber".
+        write_log : bool, optional, default False
+            Whether or not to print all EPICS calls, for logging or
+            debugging purposes.  Passed through all register set calls
+            to the underlying `epics.caput` calls.
+
+
         See Also
         --------
         :func:`get_timing_mode` : Can be used to set the timing mode.
