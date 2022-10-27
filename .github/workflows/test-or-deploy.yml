@@ -128,7 +128,7 @@ jobs:
         env:
           BRANCH_NAME: ${{ github.head_ref }}
         run: |
-          echo ::set-output name=branch::"${BRANCH_NAME:-$(echo $GITHUB_REF | awk 'BEGIN { FS = "/" } ; { $1=$2=""; sub("  ", ""); sub(" ","/"); print }')}"
+          echo ::set-output name=branch::"${BRANCH_NAME:-$(echo $GITHUB_REF | awk 'BEGIN { FS = "/" } ; { $1=$2=""; sub("  ",""); gsub(" ","/"); print }')}"
 
       # Build docker image
       - name: Build docker image
@@ -202,7 +202,7 @@ jobs:
         env:
           BRANCH_NAME: ${{ github.head_ref }}
         run: |
-          echo ::set-output name=branch::"${BRANCH_NAME:-$(echo $GITHUB_REF | awk 'BEGIN { FS = "/" } ; { $1=$2=""; sub("  ", ""); sub(" ","/"); print }')}"
+          echo ::set-output name=branch::"${BRANCH_NAME:-$(echo $GITHUB_REF | awk 'BEGIN { FS = "/" } ; { $1=$2=""; sub("  ",""); gsub(" ","/"); print }')}"
 
       # Build docker image
       - name: Build docker Image
