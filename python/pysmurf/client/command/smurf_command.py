@@ -23,7 +23,7 @@ from packaging import version
 
 from pysmurf.client.base import SmurfBase
 from pysmurf.client.command.sync_group import SyncGroup as SyncGroup
-from pysmurf.client.util import tools
+from pysmurf.client.util import tools, dscounters
 
 try:
     import epics
@@ -6153,7 +6153,7 @@ class SmurfCommandMixin(SmurfBase):
 
     _downsampler_factor_reg = 'Downsampler:InternalFactor'
 
-    def set_downsample_factor(self, factor, **kwargs):
+    def set_downsample_factor(self, factor, get_nearby=False, desperation=2, **kwargs):
         """
         Set the smurf processor down-sampling factor.
 
@@ -6161,10 +6161,35 @@ class SmurfCommandMixin(SmurfBase):
         ----
         int
             The down-sampling factor.
+        get_nearby: bool
+            If True, will try to find a bitmask close to the specified
+            downsample factor if the given factor cannot be expressed
+        desperation: int
+            Desparation factor used when finding nearby ds-factors. This limits
+            how far the ds-factor can be from the one requested
         """
-        self._caput(
-            self.smurf_processor + self._downsampler_factor_reg,
-            factor, **kwargs)
+        mode = self.get_downsample_mode()
+        if mode == 'external':
+            dsc = dscounters.DownsampleCounters(dscounters.configs['v3'])
+            if get_nearby:
+                bmask = dsc.get_nearby(factor, desperation=desperation)
+            else:
+                bmask = dsc.get_mask(factor)
+
+            if bmask is None:
+                raise ValueError(f"Could not create bitmask for factor {factor}")
+
+            # The bitmask is shifted 10 bits to the left because the
+            # first 10 bits of the timing system counters are the higher rate
+            # FIXEDDIV counters.
+            bmask = bmask << 10
+            self.set_downsample_external_bitmask(bmask)
+
+            return
+        else:
+            self._caput(
+                self.smurf_processor + self._downsampler_factor_reg,
+                factor, **kwargs)
 
     def get_downsample_factor(self, **kwargs):
         """
