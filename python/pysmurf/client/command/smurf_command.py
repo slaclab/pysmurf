@@ -372,6 +372,14 @@ class SmurfCommandMixin(SmurfBase):
         :func:`set_defaults_pv`) and all tests pass, this flag is set
         to `True` when the rogue `setDefaults` method exits.
 
+        .. warning::
+           The register used to check if the system has been
+           configured, AMCc:SmurfApplication:SystemConfigured, is a
+           software register, and does not persist if the Rogue server
+           is restarted.  So this function will only tell you if the
+           system has been successfully configured at any point during
+           the current Rogue server session.
+
         Args
         ----
         \**kwargs
@@ -4722,8 +4730,7 @@ class SmurfCommandMixin(SmurfBase):
            reports the flux ramp reset rate that will actually be
            programmed.
 
-        Warning
-        -------
+        .. warning::
            If `RampMaxCnt` is set too low, then it will invert and
            produce a train of pulses 1x or 2x 307.2 MHz ticks wide,
            but it will be mostly high.
