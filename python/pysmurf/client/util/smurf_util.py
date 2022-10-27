@@ -4807,6 +4807,23 @@ class SmurfUtilMixin(SmurfBase):
                 self.set_crossbar_output_config(3, 0x0, write_log=write_log)
 
             # Configure triggering
+            #
+            # From Matt Weaver : The triggering firmware is broken
+            # into two parts: (1) the event selection logic "Channel",
+            # and (2) the trigger pulse generation "Trigger".  The
+            # event selection logic consists of two parts: (1)
+            # choosing either a rate marker or sequence bit, and (2)
+            # optionally including (logical AND of) a selection on the
+            # presence of beam (irrelevant for you).  The DestType is
+            # this optional selection on presence of beam (to a
+            # destination), and you are selecting "All" which is
+            # better described as "DontCare". [The other options
+            # should be "Inclusive" and "Exclusive"] The trigger pulse
+            # generation has configuration of which "Channel" to
+            # listen to, the delay, width, and polarity of the trigger
+            # to generate.  The "Enable" registers just turn on each
+            # of these two components.
+
             #  EvrV2CoreTriggers EvrV2ChannelReg[0] EnableReg True
             self.set_evr_channel_reg_enable(0, True, write_log=write_log)
             #  EvrV2CoreTriggers EvrV2ChannelReg[0] DestType All

@@ -5425,14 +5425,60 @@ class SmurfCommandMixin(SmurfBase):
     _trigger_enable_reg = 'EvrV2TriggerReg[{}]:EnableTrig'
 
     def set_trigger_enable(self, chan, val, **kwargs):
-        """
+        r"""Set trigger pulse generation enable for requested channel.
+
+        The triggering firmware is broken into two parts: (1) the
+        event selection logic "Channel", and (2) the trigger pulse
+        generation "Trigger".  This enables or disables the "Trigger"
+        component for the requested channel.
+
+        Args
+        ----
+        chan : int
+            Which trigger pulse generator channel to enable or
+            disable.
+        val : int
+            1 to enable, 0 to disable.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caput` call.
+
+        See Also
+        --------
+        :func:`get_trigger_enable` : Get trigger pulse generation
+        enable for requested channel.
         """
         self._caput(
             self.trigger_root + self._trigger_enable_reg.format(chan),
             val, **kwargs)
 
     def get_trigger_enable(self, chan, **kwargs):
-        """
+        r"""Get trigger pulse generation enable for requested channel.
+
+        The triggering firmware is broken into two parts: (1) the
+        event selection logic "Channel", and (2) the trigger pulse
+        generation "Trigger".  This returns whether or not the
+        "Trigger" component for the requested channel is enabled or
+        disabled.
+
+        Args
+        ----
+        chan : int
+            Return the enable for this trigger pulse generator
+            channel.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caget` call.
+
+        Returns
+        -------
+        int
+            1 if trigger for this channel is enabled, 0 if disabled.
+
+        See Also
+        --------
+        :func:`set_trigger_enable` : Set trigger pulse generation
+        enable for requested channel.
         """
         return self._caget(
             self.trigger_root + self._trigger_enable_reg.format(chan),
