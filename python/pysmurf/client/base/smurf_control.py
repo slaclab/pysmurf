@@ -334,14 +334,14 @@ class SmurfControl(SmurfCommandMixin,
 
     def setup(self, write_log=True, payload_size=2048, force_configure=False, **kwargs):
         r"""Configures SMuRF system.
-        
+
         Sets up the SMuRF system by first loading hardware register
         defaults followed by overriding the hardware default register
         values with defaults from the pysmurf configuration file.
 
         Setup steps (in order of execution):
 
-        - Disables hardware logging if it’s active (to avoid register
+        - Disables hardware logging if it's active (to avoid register
           access collisions).
         - Sets FPGA OT limit (if one is specified in pysmurf cfg).
         - Resets the RF DACs on AMCs in use.
