@@ -17,4 +17,15 @@ setup(name='pysmurf',
       packages=find_packages(where='python'),
       package_dir={'': 'python'},
       version=versioneer.get_version(),
-      cmdclass=versioneer.get_cmdclass())
+      cmdclass=versioneer.get_cmdclass(),
+      install_requires=[
+          'matplotlib',
+          'numpy',
+          'packaging',
+          'pyepics',
+          'pyyaml',
+          'schema',
+          'scipy',
+          'seaborn',
+      ]
+)

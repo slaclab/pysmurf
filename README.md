@@ -11,7 +11,6 @@ To install pysmurf clone this repository and install using pip:
 ```
 git clone https://github.com/slaclab/pysmurf.git
 cd pysmurf/
-pip3 install -r requirements.txt
 pip3 install .
 ```
 
