@@ -5436,7 +5436,7 @@ class SmurfCommandMixin(SmurfBase):
         """
         return self._caget(
             self.trigger_root + self._trigger_enable_reg.format(chan),
-            **kwargs)        
+            **kwargs)
 
     _trigger_channel_reg_enable_reg = 'EvrV2ChannelReg[{}]:EnableReg'
 
@@ -5454,7 +5454,7 @@ class SmurfCommandMixin(SmurfBase):
         return self._caget(
             self.trigger_root +
             self._trigger_channel_reg_enable_reg.format(chan),
-            **kwargs)        
+            **kwargs)
 
     # Crashing in rogue 4, and not clear it's ever needed.
     _trigger_reg_enable_reg = 'EvrV2TriggerReg[{}]:enable'
@@ -5499,7 +5499,7 @@ class SmurfCommandMixin(SmurfBase):
         return self._caget(
             self.trigger_root +
             self._evr_trigger_dest_type_reg.format(channel),
-            **kwargs)        
+            **kwargs)
 
     _trigger_channel_reg_dest_sel_reg = 'EvrV2ChannelReg[{}]:DestSel'
 
@@ -5658,7 +5658,7 @@ class SmurfCommandMixin(SmurfBase):
             **kwargs)
 
     def set_lmk_enable(self, bay, val, **kwargs):
-        """
+        r"""
         Enable the AMC LMK in bay 0. On boot, the LMK is enabled, however once
         the DACS are reset on SmurfControl.setup the LMK is disabled. If you
         need to modify LMK values, this value must be 1.
@@ -5675,8 +5675,8 @@ class SmurfCommandMixin(SmurfBase):
         """
         self._caput(self.lmk.format(bay) + 'enable', val, **kwargs)
 
-    def get_lmk_enable(self, bay):
-        """
+    def get_lmk_enable(self, bay, **kwargs):
+        r"""
         Set the LMK:Enable bit.
 
         Args

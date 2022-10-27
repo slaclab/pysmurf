@@ -4585,17 +4585,19 @@ class SmurfUtilMixin(SmurfBase):
         * "ext_ref" : locked to an external reference, or free running
           if an external reference is absent.
         * "backplane" : locked to external timing signals distributed
-          over the crate backplane by a carrier receiving timing on
-          its RTM's timing input.  Only carriers in slot 2 of typical
-          crates can distribute timing to other carriers through the
-          crate backplane, so carriers configured in "backplane"
-          timing mode must be in slots 3 or higher.
+          over the crate backplane by a carrier in slot 2 of this
+          carrier's crate receiving timing on its RTM's timing input.
+          Only carriers in slot 2 of typical crates can distribute
+          timing to other carriers through the crate backplane, so
+          carriers configured in "backplane" timing mode must be in
+          slots 3 or higher.
         * "fiber" : locked to external timing input from the carrier's
-          RTM timing input.  Configuring a carrier in this mode
-          assumes the carrier is installed in slot 2 of a crate with a
-          dual-start backplane, as it configures the timing crossbar to
-          distribute external timing to all oter carriers in the crate
-          over the backplane.
+          RTM timing input and distributing timing over the crate
+          backplane.  Configuring a carrier in this mode assumes the
+          carrier is installed in slot 2 of a crate with a dual-start
+          backplane, as it configures the timing crossbar to
+          distribute external timing to all other carriers in the
+          crate over the backplane.
 
         The timing mode configuration is determined by polling the
         configuration of the timing crossbar [#crossbar]_, LMKs,
@@ -4650,7 +4652,7 @@ class SmurfUtilMixin(SmurfBase):
              all([lmks[bay][0x146]==0x10 for bay in self.bays]) and
              all([lmks[bay][0x147]==0x1a for bay in self.bays]) ):
             return 'ext_ref'
-        
+
         # Fiber or backplane timing mode configurations
         if ( rsm == 1 and
              ( ecre == 1 and etdt == 0 and te == 1 ) and
@@ -4662,7 +4664,7 @@ class SmurfUtilMixin(SmurfBase):
                 mode = 'fiber'
 
             # Backplane timing mode configuration
-            if ( cbar == [0x0, 0x2, 0x1, 0x1] ):            
+            if ( cbar == [0x0, 0x2, 0x1, 0x1] ):
                 mode = 'backplane'
 
             # Check if receiving timing.  Checks if FPGA recovered
@@ -4680,7 +4682,55 @@ class SmurfUtilMixin(SmurfBase):
         return None
 
     def set_timing_mode(self, mode, write_log=False):
-        """
+        r"""Sets timing mode.
+
+        Use this function to configure the system's timing mode.  The
+        currently supported configurations are:
+
+        * "ext_ref" : lock system to an external reference, or free
+          run if an external reference is absent.
+        * "backplane" : lock system to external timing signals
+          distributed over the crate backplane by a carrier receiving
+          timing on its RTM's timing input in slot 2 running in
+          "fiber" timing mode.  Only carriers in slots 3 or higher can
+          lock to backplane distributed timing.
+        * "fiber" : lock to external timing input from the carrier's
+          RTM timing input and distribute the timing signals to all
+          other carriers in the crate's backplane.  Configuring a
+          carrier in this mode assumes the carrier is installed in
+          slot 2 of a crate with a dual-start backplane, as it
+          configures the timing crossbar to distribute external timing
+          to all other carriers in the crate over the backplane.
+
+        The timing mode configuration adjusts the configuration of the
+        timing crossbar [#crossbar]_, LMKs, triggers, and RTM.
+
+        For systems configured in "fiber" or "backplane" modes, after
+        configuration a warning is printed if no external timing data
+        is being received after a one second wait after configuring
+        the timing crossbar.
+
+        Before changing the timing configuration, the current
+        configuration is polled via `get_timing_mode` and if the
+        system is already in the requested mode, the function prints a
+        message and does nothing.
+
+        .. warning::
+           If "fiber" timing mode is requested for system that's not
+           in slot 2, `set_timing_mode` instead configures the system
+           for "backplane" timing.  Likewise, if "backplane" mode is
+           requested for a slot 2 system, `set_timing_mode` instead
+           configures the system for "fiber" timing.  This may or may
+           not be what was desired.
+
+        See Also
+        --------
+        :func:`get_timing_mode` : Can be used to set the timing mode.
+        :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.get_timing_link_up` : Is external timing data being received?
+
+        References
+        ----------
+        .. [#crossbar] https://confluence.slac.stanford.edu/display/ppareg/How+to+configure+the+timing+crossbar
         """
         valid_timing_modes = ['ext_ref','backplane','fiber']
         assert (mode in valid_timing_modes), f'\033[91mRequested timing mode={mode} unknown.\033[0m'
@@ -4689,33 +4739,33 @@ class SmurfUtilMixin(SmurfBase):
         if mode == current_timing_mode:
             self.log(f'System already configure for {mode} timing, doing nothing.',self.LOG_USER)
             return
-        
+
         self.log(f'System configured for {current_timing_mode} timing.  Reconfiguring slot {self.slot_number} for {mode} timing.',self.LOG_USER)
 
         # Make sure we can write to the LMK regs
         for bay in self.bays:
             self.set_lmk_enable(bay, 1, write_log=write_log)
-        
+
         if mode == 'backplane' and self.slot_number == 2:
             # Complain if backplane timing mode is requested for a
             # carrier in slot 2 and configure for ext_ref timing
             # instead.  In backplane timing mode, the system must
             # receive timing through the backplane from a system in
             # slot 2 configured in fiber mode.
-            self.log(f'\033[91mSystem is in slot 2, which cannot be configured for backplane timing.  Will configure for fiber timing instead.\033[0m',
+            self.log('\033[91mSystem is in slot 2, which cannot be configured for backplane timing.  Will configure for fiber timing instead.\033[0m',
                      self.LOG_ERROR) # color red
             mode = 'fiber'
 
         if mode == 'fiber' and self.slot_number != 2:
             # Warn user if fiber timing mode is requested for a
             # carrier not in slot 2.  In fiber timing mode, the system
-            # should be receiving timing through its RTM timing input, 
+            # should be receiving timing through its RTM timing input,
             # and fanning it out through the backplane to the other
             # carriers in slots 3+.
-            self.log(f'\033[91mOnly systems in slot 2 can be configured for fiber timing.  Will configure for backplane timing instead.\033[0m',
+            self.log('\033[91mOnly systems in slot 2 can be configured for fiber timing.  Will configure for backplane timing instead.\033[0m',
                      self.LOG_ERROR) # color red
             mode = 'backplane'
-        
+
         if mode == 'ext_ref':
             # Configure crossbar for ext_ref timing
             self.set_crossbar_output_config(0, 0x0, write_log=write_log)
@@ -4730,12 +4780,12 @@ class SmurfUtilMixin(SmurfBase):
                 for bay in self.bays:
                     self.set_lmk_reg(bay, 0x146, 0x10, write_log=write_log)
                     self.set_lmk_reg(bay, 0x147, 0x1a, write_log=write_log)
-            
+
             # Select internal flux ramp trigger source
             self.set_ramp_start_mode(0, write_log=write_log)
 
         if mode in ['backplane','fiber']:
-            
+
             if mode == 'backplane':
                 # Configure crossbar for backplane timing
                 self.set_crossbar_output_config(0, 0x0, write_log=write_log)
@@ -4746,7 +4796,7 @@ class SmurfUtilMixin(SmurfBase):
                 self.set_crossbar_output_config(2, 0x1, write_log=write_log)
                 self.set_crossbar_output_config(3, 0x1, write_log=write_log)
 
-            if mode == 'fiber':                
+            if mode == 'fiber':
                 # Configure crossbar for fiber timing
                 self.set_crossbar_output_config(0, 0x0, write_log=write_log)
                 self.set_crossbar_output_config(1, 0x0, write_log=write_log)
@@ -4767,7 +4817,7 @@ class SmurfUtilMixin(SmurfBase):
             # Configure LMK
             for bay in self.bays:
                 self.set_lmk_reg(bay, 0x146, 0x08, write_log=write_log)
-                self.set_lmk_reg(bay, 0x147, 0x0A, write_log=write_log)  
+                self.set_lmk_reg(bay, 0x147, 0x0A, write_log=write_log)
 
             # Check if receiving timing.  Checks if FPGA recovered
             # clock is receiving timing data.  Warn if we've just
@@ -4779,4 +4829,4 @@ class SmurfUtilMixin(SmurfBase):
             status = self.get_timing_link_up()
             if status != 1:
                 self.log(f'\033[91mConfigured for {mode} timing but not receiving external timing data after waiting 1 second.\033[0m',
-                         self.LOG_ERROR) # color red    
+                         self.LOG_ERROR) # color red
