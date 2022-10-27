@@ -671,79 +671,8 @@ class SmurfControl(SmurfCommandMixin,
                     'Configuring the system to take timing ' +
                     f'from {timing_reference}')
 
-                if timing_reference == 'ext_ref':
-                    for bay in self.bays:
-                        self.log(f'Select external reference for bay {bay}' +
-                                'or free running if there is no reference.')
-                        self.sel_ext_ref(bay)
-
-                    # Ramp on the internal clock.
-                    self.set_ramp_start_mode(0, write_log=write_log)
-
-                # The expected setup is that this slot is slot 2, and it
-                # should distribute its fiber timing to the carrier's
-                # backplane. Order does not matter.
-                if timing_reference == 'fiber':
-                    # FPGA_TIMING_OUT to RTM Timing In 0
-                    self.set_crossbar_output_config(1, 0x0)
-                    # Backplane DIST0 to RTM Timing In 0
-                    self.set_crossbar_output_config(2, 0x0)
-                    # Backplane Dist1 to RTM Timing In 0
-                    self.set_crossbar_output_config(3, 0x0)
-
-                    # EvrV2CoreTriggers EvrV2ChannelReg[0] EnableReg True
-                    self.set_evr_channel_reg_enable(0, True)
-
-                    # EvrV2CoreTriggers EvrV2ChannelReg[0] DestType All
-                    self.set_evr_trigger_dest_type(0, 0)
-
-                    # EvrV2CoreTriggers EVrV2TriggerReg[0] Enable Trig True
-                    self.set_trigger_enable(0, True)
-
-                    # RtmCryoDet RampStartMode 0x1
-                    self.set_ramp_start_mode(1, write_log=write_log)
-
-                    # MicrowaveMuxCore[0] LMK LmkReg_0x0147 0xA
-                    for bay in self.bays:
-                        self.set_lmk_enable(bay, 1)
-                        self.log(f'Setting Bay {bay} LMK 0x146 to 0x08')
-                        self.set_lmk_reg(bay, 0x146, 0x08)
-                        self.log(f'Setting Bay {bay} LMK 0x147 to 0x0A')
-                        self.set_lmk_reg(bay, 0x147, 0x0A)
-
-                # https://confluence.slac.stanford.edu/display/SMuRF/Timing+Carrier#TimingCarrier-Howtoconfiguretodistributeoverbackplanefromslot2
-
-                # Take timing from the backplane. The expected setup is
-                # that this carrier is not in slot 2, and slot 2 is
-                # distributing timing to the backplane. The order of these
-                # commands does not matter.
-                if timing_reference == 'backplane':
-                    self.log('The cfg file requests backplane timing.')
-                    # OutputConfig[1] = 0x2 configures the SMuRF carrier's
-                    # FPGA to take the timing signals from the backplane
-                    # (TO_FPGA = FROM_BACKPLANE)
-                    self.log('Setting crossbar OutputConfig[1]=0x2 (TO_FPGA=FROM_BACKPLANE)')
-                    self.set_crossbar_output_config(1, 2)
-
-                    # EvrV2CoreTriggers EvrV2ChannelReg[0] EnableReg True
-                    self.set_evr_channel_reg_enable(0, True)
-
-                    # EvrV2CoreTriggers EvrV2ChannelReg[0] DestType All
-                    self.set_evr_trigger_dest_type(0, 0)
-
-                    # EvrV2CoreTriggers EVrV2TriggerReg[0] Enable Trig True
-                    self.set_trigger_enable(0, True)
-
-                    # Set the bay AMC LMK to CLKin0
-                    for bay in self.bays:
-                        self.set_lmk_enable(bay, 1)
-                        self.log(f'Setting Bay {bay} LMK 0x146 to 0x08')
-                        self.set_lmk_reg(bay, 0x146, 0x08)
-                        self.log(f'Setting Bay {bay} LMK 0x147 to 0x0A')
-                        self.set_lmk_reg(bay, 0x147, 0x0A)
-
-                    # Configure RTM to trigger off of the timing system
-                    self.set_ramp_start_mode(1, write_log=write_log)
+                # Configure timing
+                self.set_timing_mode(timing_reference)
 
             self.log('Done with setup.', self.LOG_USER)
         else:
