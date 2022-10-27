@@ -4600,7 +4600,7 @@ class SmurfUtilMixin(SmurfBase):
           crate over the backplane.
 
         The timing mode configuration is determined by polling the
-        configuration of the timing crossbar [#crossbar]_, LMKs,
+        configuration of the timing crossbar, LMKs,
         triggers, and RTM.
 
         For systems configured in "fiber" or "backplane" modes, a
@@ -4618,10 +4618,6 @@ class SmurfUtilMixin(SmurfBase):
         --------
         :func:`set_timing_mode` : Can be used to set the timing mode.
         :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.get_timing_link_up` : Is external timing data being received?
-
-        References
-        ----------
-        .. [#crossbar] https://confluence.slac.stanford.edu/display/ppareg/How+to+configure+the+timing+crossbar
         """
         ## Poll all registers needed to determine which timing mode we're in.
 
@@ -4703,7 +4699,7 @@ class SmurfUtilMixin(SmurfBase):
           to all other carriers in the crate over the backplane.
 
         The timing mode configuration adjusts the configuration of the
-        timing crossbar [#crossbar]_, LMKs, triggers, and RTM.
+        timing crossbar, LMKs, triggers, and RTM.
 
         For systems configured in "fiber" or "backplane" modes, after
         configuration a warning is printed if no external timing data
@@ -4738,10 +4734,6 @@ class SmurfUtilMixin(SmurfBase):
         --------
         :func:`get_timing_mode` : Can be used to set the timing mode.
         :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.get_timing_link_up` : Is external timing data being received?
-
-        References
-        ----------
-        .. [#crossbar] https://confluence.slac.stanford.edu/display/ppareg/How+to+configure+the+timing+crossbar
         """
         valid_timing_modes = ['ext_ref','backplane','fiber']
         assert (mode in valid_timing_modes), f'\033[91mRequested timing mode={mode} unknown.\033[0m'
