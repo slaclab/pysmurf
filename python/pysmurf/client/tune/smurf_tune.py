@@ -94,7 +94,7 @@ class SmurfTuneMixin(SmurfBase):
                 self.log(f'Loading default tune file: {tune_file}')
             self.load_tune(tune_file)
 
-        # Runs find_freq and setup_notches. This takes forever.
+        # Runs find_freq and setup_notches.
         else:
             for band in bands:
                 tone_power = self._amplitude_scale[band]
@@ -2220,20 +2220,17 @@ class SmurfTuneMixin(SmurfBase):
         if len(self.which_on(band)):
             self.band_off(band, write_log=write_log)
 
-        n_subband = self.get_number_sub_bands(band)
-        n_channel = self.get_number_channels(band)
-        channel_order = self.get_channel_order(band)
-        first_channel = channel_order[::n_channel//n_subband]
+        first_channel = self.get_channels_in_subband(band,subband)[0]
 
-        self.set_eta_scan_channel(band, first_channel[subband],
+        self.set_eta_scan_channel(band, first_channel,
                                   write_log=write_log)
         self.set_eta_scan_amplitude(band, tone_power, write_log=write_log)
         self.set_eta_scan_freq(band, freq, write_log=write_log)
         self.set_eta_scan_dwell(band, 0, write_log=write_log)
 
         self.set_run_eta_scan(band, 1, wait_done=False, write_log=write_log)
-        pvs = [self._cryo_root(band) + self._eta_scan_results_real,
-               self._cryo_root(band) + self._eta_scan_results_imag]
+        pvs = [self._cryo_root(band) + self._eta_scan_results_real_reg,
+               self._cryo_root(band) + self._eta_scan_results_imag_reg]
 
         if sync_group:
             sg = SyncGroup(pvs, skip_first=False)
@@ -2243,10 +2240,10 @@ class SmurfTuneMixin(SmurfBase):
             rr = vals[pvs[0]]
             ii = vals[pvs[1]]
         else:
-            rr = self.get_eta_scan_results_real(2, len(freq))
-            ii = self.get_eta_scan_results_imag(2, len(freq))
+            rr = self.get_eta_scan_results_real(band, len(freq))
+            ii = self.get_eta_scan_results_imag(band, len(freq))
 
-        self.set_amplitude_scale_channel(band, first_channel[subband], 0)
+        self.set_amplitude_scale_channel(band, first_channel, 0)
 
         return rr, ii
 
@@ -3839,7 +3836,8 @@ class SmurfTuneMixin(SmurfBase):
     def setup_notches(self, band, resonance=None, tone_power=None,
                       sweep_width=.3, df_sweep=.002, min_offset=0.1,
                       delta_freq=None, new_master_assignment=False,
-                      lock_max_derivative=False):
+                      lock_max_derivative=False,
+                      scan_unassigned=False):
         """
         Does a fine sweep over the resonances found in find_freq. This
         information is used for placing tones onto resonators. It is
@@ -3872,6 +3870,10 @@ class SmurfTuneMixin(SmurfBase):
             Whether to create a new master assignment file. This file
             defines the mapping between resonator frequency and
             channel number.
+        scan_unassigned : bool, optional, default False
+            Whether or not to scan unassigned channels.  Unassigned
+            channels are scanned serially after the much faster
+            assigned channel scans.
         """
         # Turn off all tones in this band first
         self.band_off(band)
@@ -3929,8 +3931,8 @@ class SmurfTuneMixin(SmurfBase):
                 'freq' : f_min,
                 'eta' : eta,
                 'eta_scaled' : eta_scaled,
-                'eta_phase' : eta_phase_deg,
-                'r2' : 1,  # This is BS
+                'eta_phase' : eta_phase_deg,                
+                'r2': 1, # This is BS
                 'eta_mag' : eta_mag,
                 'latency': 0,  # This is also BS
                 'Q' : 1,  # This is also also BS
@@ -3972,30 +3974,98 @@ class SmurfTuneMixin(SmurfBase):
         resp = I + 1j*Q
 
         for i, channel in enumerate(channels):
-            freq_s, resp_s, eta = self.eta_estimator(band, subbands[i], freq[channel, :], resp[channel, :],
-                delta_freq=delta_freq, lock_max_derivative=lock_max_derivative)
-            eta_phase_deg = np.angle(eta)*180/np.pi
-            eta_mag = np.abs(eta)
-            eta_scaled = eta_mag / subband_half_width
+            # the fast eta scan sweep only returns valid data for
+            # assigned channels.
+            if channel!=-1:
+                freq_s, resp_s, eta = self.eta_estimator(band,
+                                                         subbands[i],
+                                                         freq[channel, :],
+                                                         resp[channel, :],
+                                                         delta_freq=delta_freq,
+                                                         lock_max_derivative=lock_max_derivative)
+                eta_phase_deg = np.angle(eta)*180/np.pi
+                eta_mag = np.abs(eta)
+                eta_scaled = eta_mag / subband_half_width
+                
+                abs_resp = np.abs(resp_s)
+                idx = np.ravel(np.where(abs_resp == np.min(abs_resp)))[0]
+                
+                f_min = freq_s[idx]
+                
+                resonances[i] = {
+                    'freq' : f_min,
+                    'eta' : eta,
+                    'eta_scaled' : eta_scaled,
+                    'eta_phase' : eta_phase_deg,
+                    'r2' : 1,  # This is BS
+                    'eta_mag' : eta_mag,
+                    'latency': 0,  # This is also BS
+                    'Q' : 1,  # This is also also BS
+                    'freq_eta_scan' : freq_s,
+                    'resp_eta_scan' : resp_s
+                }
 
-            abs_resp = np.abs(resp_s)
-            idx = np.ravel(np.where(abs_resp == np.min(abs_resp)))[0]
+            elif channel==-1 and scan_unassigned:
+                self.log(
+                    f'scan_unassiged=True : Scanning unassigned frequency at {input_res[i]:.3f} MHz.',self.LOG_USER)
+                
+                # Unassigned channels aren't scanned in the time
+                # optimized assigned channel scans above.  This could
+                # be sped up.  For now, just inefficiently running
+                # same function used for assigned channels, just to be
+                # sure we're computing everything the same way.
 
-            f_min = freq_s[idx]
+                # Run single eta scan on just this channel.
+                # "u" for unassigned
+                frequ = offsets[i] + f_sweep
+                Iu,Qu = self.eta_scan(band,
+                                      subbands[i],
+                                      frequ,
+                                      tone_power)
 
-            resonances[i] = {
-                'freq' : f_min,
-                'eta' : eta,
-                'eta_scaled' : eta_scaled,
-                'eta_phase' : eta_phase_deg,
-                'r2' : 1,  # This is BS
-                'eta_mag' : eta_mag,
-                'latency': 0,  # This is also BS
-                'Q' : 1,  # This is also also BS
-                'freq_eta_scan' : freq_s,
-                'resp_eta_scan' : resp_s
-            }
+                idx = np.where( Iu > 2**23 )
+                Iu[idx] = Iu[idx] - 2**24
+                Iu /= 2**23
+                
+                idx = np.where( Qu > 2**23 )
+                Qu[idx] = Qu[idx] - 2**24
+                Qu /= 2**23
 
+                # The eta_scan has a different convention for
+                # inphase/quadrature.  This remaps it to match the
+                # convention used by serialFindFreq, which we use for
+                # assigned channels.
+                respu = Qu - 1j*Iu
+
+                # estimate eta from response
+                frequ_s, respu_s, etau = self.eta_estimator(band,
+                                                            subbands[i],
+                                                            frequ,
+                                                            respu,
+                                                            delta_freq=delta_freq,
+                                                            lock_max_derivative=lock_max_derivative)
+                
+                eta_phase_degu = np.angle(etau)*180/np.pi
+                eta_magu = np.abs(etau)
+                eta_scaledu = eta_magu / subband_half_width
+                
+                abs_respu = np.abs(respu_s)
+                idx = np.ravel(np.where(abs_respu == np.min(abs_respu)))[0]
+                
+                f_minu = frequ_s[idx]
+                
+                resonances[i] = {
+                    'freq' : f_minu,
+                    'eta' : etau,
+                    'eta_scaled' : eta_scaledu,
+                    'eta_phase' : eta_phase_degu,
+                    'r2' : 1,  # This is BS
+                    'eta_mag' : eta_magu,
+                    'latency': 0,  # This is also BS
+                    'Q' : 1,  # This is also also BS
+                    'freq_eta_scan' : frequ_s,
+                    'resp_eta_scan' : respu_s
+                }                
 
         # Assign resonances to channels
         self.log('Assigning channels')
