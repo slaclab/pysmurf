@@ -3931,7 +3931,7 @@ class SmurfTuneMixin(SmurfBase):
                 'freq' : f_min,
                 'eta' : eta,
                 'eta_scaled' : eta_scaled,
-                'eta_phase' : eta_phase_deg,                
+                'eta_phase' : eta_phase_deg,
                 'r2': 1, # This is BS
                 'eta_mag' : eta_mag,
                 'latency': 0,  # This is also BS
@@ -3986,12 +3986,12 @@ class SmurfTuneMixin(SmurfBase):
                 eta_phase_deg = np.angle(eta)*180/np.pi
                 eta_mag = np.abs(eta)
                 eta_scaled = eta_mag / subband_half_width
-                
+
                 abs_resp = np.abs(resp_s)
                 idx = np.ravel(np.where(abs_resp == np.min(abs_resp)))[0]
-                
+
                 f_min = freq_s[idx]
-                
+
                 resonances[i] = {
                     'freq' : f_min,
                     'eta' : eta,
@@ -4008,7 +4008,7 @@ class SmurfTuneMixin(SmurfBase):
             elif channel==-1 and scan_unassigned:
                 self.log(
                     f'scan_unassiged=True : Scanning unassigned frequency at {input_res[i]:.3f} MHz.',self.LOG_USER)
-                
+
                 # Unassigned channels aren't scanned in the time
                 # optimized assigned channel scans above.  This could
                 # be sped up.  For now, just inefficiently running
@@ -4026,7 +4026,7 @@ class SmurfTuneMixin(SmurfBase):
                 idx = np.where( Iu > 2**23 )
                 Iu[idx] = Iu[idx] - 2**24
                 Iu /= 2**23
-                
+
                 idx = np.where( Qu > 2**23 )
                 Qu[idx] = Qu[idx] - 2**24
                 Qu /= 2**23
@@ -4044,16 +4044,16 @@ class SmurfTuneMixin(SmurfBase):
                                                             respu,
                                                             delta_freq=delta_freq,
                                                             lock_max_derivative=lock_max_derivative)
-                
+
                 eta_phase_degu = np.angle(etau)*180/np.pi
                 eta_magu = np.abs(etau)
                 eta_scaledu = eta_magu / subband_half_width
-                
+
                 abs_respu = np.abs(respu_s)
                 idx = np.ravel(np.where(abs_respu == np.min(abs_respu)))[0]
-                
+
                 f_minu = frequ_s[idx]
-                
+
                 resonances[i] = {
                     'freq' : f_minu,
                     'eta' : etau,
@@ -4065,7 +4065,7 @@ class SmurfTuneMixin(SmurfBase):
                     'Q' : 1,  # This is also also BS
                     'freq_eta_scan' : frequ_s,
                     'resp_eta_scan' : respu_s
-                }                
+                }
 
         # Assign resonances to channels
         self.log('Assigning channels')

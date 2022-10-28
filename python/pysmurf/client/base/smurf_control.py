@@ -411,10 +411,10 @@ class SmurfControl(SmurfCommandMixin,
             if force_configure:
                 self.log(f'System already configured, but will configure again since force_configure={force_configure}.', self.LOG_USER)
             else:
-                self.log(f'\033[91mSystem already configured once while this Rogue server has been up.\033[00m', self.LOG_ERROR) # color red)
-                self.log(f'\033[91mIf you really want to configure again, run setup with force_configure=True.\033[00m', self.LOG_ERROR) # color red            
+                self.log('\033[91mSystem already configured once while this Rogue server has been up.\033[00m', self.LOG_ERROR) # color red
+                self.log('\033[91mIf you really want to configure again, run setup with force_configure=True.\033[00m', self.LOG_ERROR) # color red
                 return False
-        
+
         success=True
         self.log('Setting up...', (self.LOG_USER))
 
