@@ -5,25 +5,24 @@ import sys
 slots=[2,3]
 cadence_sec=5
 
-def get_timing_packet_stats(slot,timeout=5):
-    sofCountPV=PV(f'smurf_server_s{slot}:AMCc:FpgaTopLevel:AmcCarrierCore:AmcCarrierTiming:TimingFrameRx:sofCount')
-    eofCountPV=PV(f'smurf_server_s{slot}:AMCc:FpgaTopLevel:AmcCarrierCore:AmcCarrierTiming:TimingFrameRx:eofCount')
-    fidCountPV=PV(f'smurf_server_s{slot}:AMCc:FpgaTopLevel:AmcCarrierCore:AmcCarrierTiming:TimingFrameRx:FidCount')
-    rxClkCountPV=PV(f'smurf_server_s{slot}:AMCc:FpgaTopLevel:AmcCarrierCore:AmcCarrierTiming:TimingFrameRx:RxClkCount')
-    rxRstCountPV=PV(f'smurf_server_s{slot}:AMCc:FpgaTopLevel:AmcCarrierCore:AmcCarrierTiming:TimingFrameRx:RxRstCount')            
-    crcErrCountPV=PV(f'smurf_server_s{slot}:AMCc:FpgaTopLevel:AmcCarrierCore:AmcCarrierTiming:TimingFrameRx:CrcErrCount')
-    rxDecErrCountPV=PV(f'smurf_server_s{slot}:AMCc:FpgaTopLevel:AmcCarrierCore:AmcCarrierTiming:TimingFrameRx:RxDecErrCount')
-    rxDspErrCountPV=PV(f'smurf_server_s{slot}:AMCc:FpgaTopLevel:AmcCarrierCore:AmcCarrierTiming:TimingFrameRx:RxDspErrCount')
-    rxLinkUpPV=PV(f'smurf_server_s{slot}:AMCc:FpgaTopLevel:AmcCarrierCore:AmcCarrierTiming:TimingFrameRx:RxLinkUp')    
-    return (sofCountPV.get(timeout=timeout,as_string=False),
-            eofCountPV.get(timeout=timeout,as_string=False),
-            fidCountPV.get(timeout=timeout,as_string=False),
-            rxClkCountPV.get(timeout=timeout,as_string=False),
-            rxRstCountPV.get(timeout=timeout,as_string=False),
-            crcErrCountPV.get(timeout=timeout,as_string=False),
-            rxDecErrCountPV.get(timeout=timeout,as_string=False),
-            rxDspErrCountPV.get(timeout=timeout,as_string=False),
-            rxLinkUpPV.get(timeout=timeout,as_string=False),)
+pvs = {}
+for slot in slots:
+    pvs[slot]={}
+    pvs[slot]['sofCount'] = PV(f'smurf_server_s{slot}:AMCc:FpgaTopLevel:AmcCarrierCore:AmcCarrierTiming:TimingFrameRx:sofCount')
+    pvs[slot]['eofCount'] = PV(f'smurf_server_s{slot}:AMCc:FpgaTopLevel:AmcCarrierCore:AmcCarrierTiming:TimingFrameRx:eofCount')
+    pvs[slot]['fidCount'] = PV(f'smurf_server_s{slot}:AMCc:FpgaTopLevel:AmcCarrierCore:AmcCarrierTiming:TimingFrameRx:FidCount')
+    pvs[slot]['rxClkCount'] = PV(f'smurf_server_s{slot}:AMCc:FpgaTopLevel:AmcCarrierCore:AmcCarrierTiming:TimingFrameRx:RxClkCount')
+    pvs[slot]['rxRstCount'] = PV(f'smurf_server_s{slot}:AMCc:FpgaTopLevel:AmcCarrierCore:AmcCarrierTiming:TimingFrameRx:RxRstCount')
+    pvs[slot]['crcErrCount'] = PV(f'smurf_server_s{slot}:AMCc:FpgaTopLevel:AmcCarrierCore:AmcCarrierTiming:TimingFrameRx:CrcErrCount')
+    pvs[slot]['rxDecErrCount'] = PV(f'smurf_server_s{slot}:AMCc:FpgaTopLevel:AmcCarrierCore:AmcCarrierTiming:TimingFrameRx:RxDecErrCount')
+    pvs[slot]['rxDspErrCount'] = PV(f'smurf_server_s{slot}:AMCc:FpgaTopLevel:AmcCarrierCore:AmcCarrierTiming:TimingFrameRx:RxDspErrCount')
+    pvs[slot]['rxLinkUp'] = PV(f'smurf_server_s{slot}:AMCc:FpgaTopLevel:AmcCarrierCore:AmcCarrierTiming:TimingFrameRx:RxLinkUp')
+    
+def get_timing_packet_stats(pvs,timeout=5):
+    result = {}
+    for k in pvs.keys():
+        result[k]=pvs[k].get()
+    return result
 
 import time
 ctime0=int(time.time())
@@ -56,23 +55,22 @@ while True:
         for slot in slots:
             ctime=int(time.time())
 
-            (sofCount,eofCount,fidCount,rxClkCount,rxRstCount,crcErrCount,rxDecErrCount,rxDspErrCount,rxLinkUp)=(None,None,None,None,None,None,None,None,None)
             try:
-                (sofCount,eofCount,fidCount,rxClkCount,rxRstCount,crcErrCount,rxDecErrCount,rxDspErrCount,rxLinkUp)=get_timing_packet_stats(slot)
+                result=get_timing_packet_stats(pvs[slot])
+                entry=fmt.format([f'smurf_server_s{slot}',
+                                  ctime,
+                                  result['crcErrCount'],
+                                  result['rxDecErrCount'],
+                                  result['rxDspErrCount'],
+                                  result['sofCount'],
+                                  result['eofCount'],
+                                  result['fidCount'],
+                                  result['rxClkCount'],
+                                  result['rxRstCount'],
+                                  result['rxLinkUp']])
+                print(entry)
+                logf.write(entry)                
             except:
                 print("Cagets stalled!")
                 
-            entry=fmt.format([f'smurf_server_s{slot}',
-                              ctime,
-                              crcErrCount,
-                              rxDecErrCount,
-                              rxDspErrCount,
-                              sofCount,
-                              eofCount,
-                              fidCount,
-                              rxClkCount,
-                              rxRstCount,
-                              rxLinkUp])
-            print(entry)
-            logf.write(entry)
         time.sleep(cadence_sec)
