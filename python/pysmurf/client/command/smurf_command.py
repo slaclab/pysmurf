@@ -6216,7 +6216,9 @@ class SmurfCommandMixin(SmurfBase):
             return 20
 
         if self.get_downsample_mode() == 'external':
-            self.log('get_downsample_factor: get_downsample_mode is external, the factor is not used')
+            dsc = dscounters.DownsampleCounters(dscounters.configs['v3'])
+            bmask = self.get_downsample_external_bitmask() >> 10
+            return dsc.period_from_mask(bmask)
 
         return self._caget(self.smurf_processor + self._downsampler_factor_reg, **kwargs)
 
