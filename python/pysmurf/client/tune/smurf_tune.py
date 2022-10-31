@@ -2224,6 +2224,17 @@ class SmurfTuneMixin(SmurfBase):
         scan, sets the channel amplitude to zero.  Returns the real
         and imaginary components of the response.
 
+        .. warning::
+           This function uses a different convention for the real and
+           imaginary quadratures than e.g. :func:`setup_notches`.  To
+           convert data returned by this function to the convention
+           used by :func:`setup_notches`, you can use the following
+           transformation to scale the returned rr and ii arrays from
+           this function to match the convention used in
+           :func:`setup_notches`
+
+           ii - 1j*rr
+
         Args
         ----
         band : int
@@ -2241,15 +2252,6 @@ class SmurfTuneMixin(SmurfBase):
         sync_group : bool, optional, default True
             Whether not to wait for register change using
             :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.SyncGroup`.
-
-        .. warning::
-           This function uses a different convention for the real and
-           imaginary quadratures than e.g. :func:`setup_notches`.  To
-           convert data returned by this function to the convention
-           used by :func:`setup_notches`, you can use the following
-           transformation to scale the returned rr and ii arrays from
-           this function to match the convention used in
-           :func:`setup_notches`
 
         Returns
         -------
