@@ -2249,22 +2249,7 @@ class SmurfTuneMixin(SmurfBase):
            used by :func:`setup_notches`, you can use the following
            transformation to scale the returned rr and ii arrays from
            this function to match the convention used in
-           :func:`setup_notches` :
-
-           ii - 1j*rr
-
-        .. warning::
-           For historical reasons, you should perform this scaling on the data returned by this function (which returns the results from :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.get_eta_scan_results_real` and :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.get_eta_scan_results_imag` before using it:
-
-           rr = np.asarray(rr)
-           idx = np.where( rr > 2**23 )
-           rr[idx] = rr[idx] - 2**24
-           rr /= 2**23
-
-           ii = np.asarray(ii)
-           idx = np.where( ii > 2**23 )
-           ii[idx] = ii[idx] - 2**24
-           ii /= 2**23
+           :func:`setup_notches`
 
         Returns
         -------
