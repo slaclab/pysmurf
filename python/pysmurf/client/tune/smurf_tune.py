@@ -2248,7 +2248,7 @@ class SmurfTuneMixin(SmurfBase):
            | idx = np.where( rr > 2**23 )
            | rr[idx] = rr[idx] - 2**24
            | rr /= 2**23
-           | 
+           |
            | ii = np.asarray(ii)
            | idx = np.where( ii > 2**23 )
            | ii[idx] = ii[idx] - 2**24
