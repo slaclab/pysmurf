@@ -2246,10 +2246,10 @@ class SmurfTuneMixin(SmurfBase):
            This function uses a different convention for the real and
            imaginary quadratures than e.g. :func:`setup_notches`.  To
            convert data returned by this function to the convention
-           used by :func:`setup_notches, you can use the following
+           used by :func:`setup_notches`, you can use the following
            transformation to scale the returned rr and ii arrays from
            this function to match the convention used in
-           :func:`setup_notches`:
+           :func:`setup_notches` :
 
            ii - 1j*rr
 
@@ -2268,7 +2268,7 @@ class SmurfTuneMixin(SmurfBase):
 
         Returns
         -------
-        rr, ii : :py:class:`numpy.ndarray`,:py:class:`numpy.ndarray` 
+        rr, ii : :py:class:`numpy.ndarray`,:py:class:`numpy.ndarray`
             Real (=rr) and imaginary (=ii) response from the sweep.
             The real part is obtained from
             :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.get_eta_scan_results_real`,
@@ -2280,7 +2280,7 @@ class SmurfTuneMixin(SmurfBase):
         See Also
         --------
         :func:`setup_notches` : Faster eta scan on many channels.
-        
+
         """
         if len(self.which_on(band)):
             self.band_off(band, write_log=write_log)
