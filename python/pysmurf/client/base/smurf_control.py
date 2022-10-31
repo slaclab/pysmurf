@@ -332,10 +332,8 @@ class SmurfControl(SmurfCommandMixin,
         # initialize outputs cfg
         self.config.update('outputs', {})
 
-    def setup(self, write_log=True, payload_size=2048, **kwargs):
+    def setup(self, write_log=True, payload_size=2048, force_configure=False, **kwargs):
         r"""Configures SMuRF system.
-
-        TODO: NEED TO BE MORE DETAILED, CLEARER.
 
         Sets up the SMuRF system by first loading hardware register
         defaults followed by overriding the hardware default register
@@ -343,7 +341,7 @@ class SmurfControl(SmurfCommandMixin,
 
         Setup steps (in order of execution):
 
-        - Disables hardware logging if it’s active (to avoid register
+        - Disables hardware logging if it's active (to avoid register
           access collisions).
         - Sets FPGA OT limit (if one is specified in pysmurf cfg).
         - Resets the RF DACs on AMCs in use.
@@ -382,6 +380,10 @@ class SmurfControl(SmurfCommandMixin,
             Whether to write to the log file.
         payload_size : int, optional, default 2048
             The starting size of the payload.
+        force_configure : bool, optional, default False
+            Whether or not to force configure if system has already
+            been configured once by the currently running Rogue
+            server.
         \**kwargs
             Arbitrary keyword arguments.  Passed to many, but not all,
             of the `_caput` calls.
@@ -390,14 +392,29 @@ class SmurfControl(SmurfCommandMixin,
         -------
         success : bool
            Returns `True` if system setup succeeded, otherwise
-           `False`.
+           `False`.  Also returns False if system has already been
+           configured by the currently running Rogue server and
+           force_configure=False.
 
         See Also
         --------
         :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.set_defaults_pv` :
               Loads the hardware defaults.
-
         """
+
+        # Check if system is already configured.  Be aware this checks
+        # a software register which does not persist on restart of the
+        # Rogue server, so it really only checks if the system has
+        # been successfully configured at any point while this Rogue
+        # server has been up.
+        if self.get_system_configured():
+            if force_configure:
+                self.log(f'System already configured, but will configure again since force_configure={force_configure}.', self.LOG_USER)
+            else:
+                self.log('\033[91mSystem already configured once while this Rogue server has been up.\033[00m', self.LOG_ERROR) # color red
+                self.log('\033[91mIf you really want to configure again, run setup with force_configure=True.\033[00m', self.LOG_ERROR) # color red
+                return False
+
         success=True
         self.log('Setting up...', (self.LOG_USER))
 
