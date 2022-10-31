@@ -38,7 +38,7 @@ class SmurfCommandMixin(SmurfBase):
     _pv_cache = {}
     _global_poll_enable_reg = ':AMCc:enable'
 
-    def _caput(self, cmd, val, write_log=False, execute=True,
+    def _caput(self, pvname, val, write_log=False, execute=True,
             wait_before=None, wait_after=None, wait_done=True,
             log_level=0, enable_poll=False, disable_poll=False,
             new_epics_root=None, **kwargs):
@@ -48,8 +48,8 @@ class SmurfCommandMixin(SmurfBase):
 
         Args
         ----
-        cmd : str
-            The pyrogue command to be executed.
+        pvname : str
+            The EPICs path of the PV to get.
         val: any
             The value to put into epics
         write_log : bool, optional, default False
@@ -80,10 +80,16 @@ class SmurfCommandMixin(SmurfBase):
             self.log(f'Temporarily using new epics root: {new_epics_root}')
             old_epics_root = self.epics_root
             self.epics_root = new_epics_root
-            cmd = cmd.replace(old_epics_root, self.epics_root)
+            pvname = pvname.replace(old_epics_root, self.epics_root)
+
+        if enable_poll or disable_poll:
+            global_poll_pv=self.epics_root+ self._global_poll_enable_reg
+            if global_poll_pv not in self._pv_cache.keys():
+                self._pv_cache[global_poll_pv] = epics.PV(global_poll_pv)
 
         if enable_poll:
-            epics.caput(self.epics_root + self._global_poll_enable_reg, True)
+            #epics.caput(self.epics_root + self._global_poll_enable_reg, True)
+            self._pv_cache[global_poll_pv].put(True)
 
         if wait_before is not None:
             if write_log:
@@ -92,13 +98,18 @@ class SmurfCommandMixin(SmurfBase):
             time.sleep(wait_before)
 
         if write_log:
-            log_str = 'caput ' + cmd + ' ' + str(val)
+            log_str = 'caput ' + pvname + ' ' + str(val)
             if self.offline:
                 log_str = 'OFFLINE - ' + log_str
             self.log(log_str, log_level)
 
         if execute and not self.offline:
-            epics.caput(cmd, val, wait=wait_done, **kwargs)
+            #epics.caput(pvname, val, wait=wait_done, **kwargs)
+            if pvname not in self._pv_cache.keys():
+                self._pv_cache[pvname] = epics.PV(pvname)
+            self._pv_cache[pvname].put(val,
+                                       wait=wait_done,
+                                       **kwargs)
 
         if wait_after is not None:
             if write_log:
@@ -109,7 +120,8 @@ class SmurfCommandMixin(SmurfBase):
                 self.log('Done waiting.', self.LOG_USER)
 
         if disable_poll:
-            epics.caput(self.epics_root + self._global_poll_enable_reg, False)
+            #epics.caput(self.epics_root + self._global_poll_enable_reg, False)
+            self._pv_cache[global_poll_pv].put(False)
 
         if new_epics_root is not None:
             self.epics_root = old_epics_root
@@ -169,12 +181,14 @@ class SmurfCommandMixin(SmurfBase):
             self.epics_root = new_epics_root
             pvname = pvname.replace(old_epics_root, self.epics_root)
 
+        if enable_poll or disable_poll:
+            global_poll_pv=self.epics_root+ self._global_poll_enable_reg
+            if global_poll_pv not in self._pv_cache.keys():
+                self._pv_cache[global_poll_pv] = epics.PV(global_poll_pv)
+
         if enable_poll:
             #epics.caput(self.epics_root+ self._global_poll_enable_reg, True)
-            pvname=self.epics_root+ self._global_poll_enable_reg
-            if pvname not in self._pv_cache.keys():
-                self._pv_cache[pvname] = epics.PV(pvname)
-            self._pv_cache[pvname].put(True)
+            self._pv_cache[global_poll_pv].put(True)
 
         if write_log:
             self.log('caget ' + pvname, log_level)
@@ -215,10 +229,7 @@ class SmurfCommandMixin(SmurfBase):
 
         if disable_poll:
             #epics.caput(self.epics_root+ self._global_poll_enable_reg, False)
-            pvname=self.epics_root+ self._global_poll_enable_reg
-            if pvname not in self._pv_cache.keys():
-                self._pv_cache[pvname] = epics.PV(pvname)
-            self._pv_cache[pvname].put(False)
+            self._pv_cache[global_poll_pv].put(False)
 
         if new_epics_root is not None:
             self.epics_root = old_epics_root
