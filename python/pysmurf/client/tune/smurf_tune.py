@@ -2214,8 +2214,73 @@ class SmurfTuneMixin(SmurfBase):
     @set_action()
     def eta_scan(self, band, subband, freq, tone_power, write_log=False,
                  sync_group=True):
-        """
-        Same as slow eta scans
+        """Slow eta scan on one subband.
+
+        Runs a slow eta scan on one channel.  Uses the first channel
+        (ordered by channel number) in the subband.  Starts by turning
+        off every channel in the requested `band` if there are any
+        channels currently on in that band, then runs the eta scan on
+        the first channel in the requested subband.  At the end of the
+        scan, sets the channel amplitude to zero.  Returns the real
+        and imaginary components of the response.
+
+        Args
+        ----
+        band : int
+            Which band.
+        subband : int
+            Which subband.
+        freq : numpy.ndarray or list
+            Frequencies to scan in subband, with respect to subband
+            center, in MHz.
+        tone_power : int
+            The drive amplitude to eta scan with.  For most SMuRF
+            firmware versions this is an integer in [0,15].
+        write_log : bool, optional, default False
+            Whether to write log messages.
+        sync_group : bool, optional, default True
+            Whether not to wait for register change using
+            :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.SyncGroup`.
+
+        .. warning::
+           This function uses a different convention for the real and
+           imaginary quadratures than e.g. :func:`setup_notches`.  To
+           convert data returned by this function to the convention
+           used by :func:`setup_notches, you can use the following
+           transformation to scale the returned rr and ii arrays from
+           this function to match the convention used in
+           :func:`setup_notches`:
+
+           ii - 1j*rr
+
+        .. warning::
+           For historical reasons, you should perform this scaling on the data returned by this function (which returns the results from :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.get_eta_scan_results_real` and :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.get_eta_scan_results_imag` before using it:
+
+           rr = np.asarray(rr)
+           idx = np.where( rr > 2**23 )
+           rr[idx] = rr[idx] - 2**24
+           rr /= 2**23
+
+           ii = np.asarray(ii)
+           idx = np.where( ii > 2**23 )
+           ii[idx] = ii[idx] - 2**24
+           ii /= 2**23
+
+        Returns
+        -------
+        rr, ii : :py:class:`numpy.ndarray`,:py:class:`numpy.ndarray` 
+            Real (=rr) and imaginary (=ii) response from the sweep.
+            The real part is obtained from
+            :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.get_eta_scan_results_real`,
+            and the imaginary part from
+            :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.get_eta_scan_results_imag`.
+            Note that the convention does not match that used by the
+            :func:`setup_notches` routine!
+
+        See Also
+        --------
+        :func:`setup_notches` : Faster eta scan on many channels.
+        
         """
         if len(self.which_on(band)):
             self.band_off(band, write_log=write_log)
