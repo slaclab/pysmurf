@@ -170,7 +170,7 @@ class SmurfCommandMixin(SmurfBase):
             pvname = pvname.replace(old_epics_root, self.epics_root)
 
         if enable_poll:
-            #epics.caput(self.epics_root+ self._global_poll_enable_reg, True)            
+            #epics.caput(self.epics_root+ self._global_poll_enable_reg, True)
             pvname=self.epics_root+ self._global_poll_enable_reg
             if pvname not in self._pv_cache.keys():
                 self._pv_cache[pvname] = epics.PV(pvname)
@@ -202,7 +202,7 @@ class SmurfCommandMixin(SmurfBase):
                     #ret = epics.caget(pvname, count=count, use_monitor=use_monitor, **kwargs)
                     ret = self._pv_cache[pvname].get(count=count,
                                                      use_monitor=use_monitor,
-                                                     **kwargs)             
+                                                     **kwargs)
                     n_retry += 1
 
             # After retries, raise error
@@ -213,12 +213,12 @@ class SmurfCommandMixin(SmurfBase):
         else:
             ret = None
 
-        if disable_poll:            
+        if disable_poll:
             #epics.caput(self.epics_root+ self._global_poll_enable_reg, False)
             pvname=self.epics_root+ self._global_poll_enable_reg
             if pvname not in self._pv_cache.keys():
                 self._pv_cache[pvname] = epics.PV(pvname)
-            self._pv_cache[pvname].put(False) 
+            self._pv_cache[pvname].put(False)
 
         if new_epics_root is not None:
             self.epics_root = old_epics_root
