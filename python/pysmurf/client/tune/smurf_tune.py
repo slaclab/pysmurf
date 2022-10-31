@@ -2233,7 +2233,7 @@ class SmurfTuneMixin(SmurfBase):
            this function to match the convention used in
            :func:`setup_notches`:
 
-           ii - 1j*rr
+           | ii - 1j*rr
 
         .. warning::
            For historical reasons, you should perform this scaling on
@@ -2244,15 +2244,15 @@ class SmurfTuneMixin(SmurfBase):
            :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.get_eta_scan_results_imag`
            before using it:
 
-           rr = np.asarray(rr)
-           idx = np.where( rr > 2**23 )
-           rr[idx] = rr[idx] - 2**24
-           rr /= 2**23
-
-           ii = np.asarray(ii)
-           idx = np.where( ii > 2**23 )
-           ii[idx] = ii[idx] - 2**24
-           ii /= 2**23
+           | rr = np.asarray(rr)
+           | idx = np.where( rr > 2**23 )
+           | rr[idx] = rr[idx] - 2**24
+           | rr /= 2**23
+           | 
+           | ii = np.asarray(ii)
+           | idx = np.where( ii > 2**23 )
+           | ii[idx] = ii[idx] - 2**24
+           | ii /= 2**23
 
         Args
         ----
