@@ -3829,7 +3829,7 @@ class SmurfTuneMixin(SmurfBase):
             make_subband_plot=make_subband_plot,
             subband_plot_with_slow=subband_plot_with_slow, timestamp=timestamp,
             pad=pad, min_gap=min_gap, show_plot=show_plot, plot_phase=plot_phase,
-            flip_phase=flip_phase)
+            flip_phase=flip_phase, grad_kernel_width=grad_kernel_width)
 
         return peaks
 
