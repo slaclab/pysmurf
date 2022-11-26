@@ -32,10 +32,6 @@ except ModuleNotFoundError:
 
 class SmurfCommandMixin(SmurfBase):
 
-    # PV cache.  Used to just caget or caput every reg but this is not
-    # efficient.  See
-    # https://cars9.uchicago.edu/software/python/pyepics3/advanced.html.
-    _pv_cache = {}
     _global_poll_enable_reg = ':AMCc:enable'
 
     def _caput(self, pvname, val, write_log=False, execute=True,
@@ -5185,9 +5181,8 @@ class SmurfCommandMixin(SmurfBase):
             Temperature of the cryostat card in Celsius.
         """
         if enable_poll:
-            epics.caput(
-                self.epics_root + self._global_poll_enable_reg,
-                True)
+            self._caput(self.epics_root + self._global_poll_enable_reg,
+                        True)
 
         T = self.C.read_temperature()
 
@@ -5195,9 +5190,8 @@ class SmurfCommandMixin(SmurfBase):
             self.log('get_cryo_card_temp: Temperature is below 0 C, is it connected?')
 
         if disable_poll:
-            epics.caput(
-                self.epics_root + self._global_poll_enable_reg,
-                False)
+            self._caput(self.epics_root + self._global_poll_enable_reg,
+                        False)
 
         return T
 
@@ -5227,16 +5221,14 @@ class SmurfCommandMixin(SmurfBase):
             The cryo card relays value.
         """
         if enable_poll:
-            epics.caput(
-                self.epics_root + self._global_poll_enable_reg,
-                True)
+            self._caput(self.epics_root + self._global_poll_enable_reg,
+                        True)
 
         relay = self.C.read_relays()
 
         if disable_poll:
-            epics.caput(
-                self.epics_root + self._global_poll_enable_reg,
-                False)
+            self._caput(self.epics_root + self._global_poll_enable_reg,
+                        False)
 
         return relay
 
@@ -5277,17 +5269,14 @@ class SmurfCommandMixin(SmurfBase):
             self.log(f'Writing relay using cryo_card object. {relay}')
 
         if enable_poll:
-            epics.caput(
-                self.epics_root + self._global_poll_enable_reg,
-                True)
+            self._caput(self.epics_root + self._global_poll_enable_reg,
+                        True)
 
         self.C.write_relays(relay)
 
         if disable_poll:
-            epics.caput(
-                self.epics_root + self._global_poll_enable_reg,
-                True)
-
+            self._caput(self.epics_root + self._global_poll_enable_reg,
+                        False)
 
     def set_cryo_card_delatch_bit(self, bit, write_log=False, enable_poll=False,
                                   disable_poll=False):
@@ -5300,9 +5289,8 @@ class SmurfCommandMixin(SmurfBase):
             The bit to temporarily delatch.
         """
         if enable_poll:
-            epics.caput(
-                self.epics_root + self._global_poll_enable_reg,
-                True)
+            self._caput(self.epics_root + self._global_poll_enable_reg,
+                        True)
 
         if write_log:
             self.log('Setting delatch bit using cryo_card ' +
@@ -5310,9 +5298,8 @@ class SmurfCommandMixin(SmurfBase):
         self.C.delatch_bit(bit)
 
         if disable_poll:
-            epics.caput(
-                self.epics_root + self._global_poll_enable_reg,
-                False)
+            self._caput(self.epics_root + self._global_poll_enable_reg,
+                        False)
 
     def set_cryo_card_ps_en(self, enable=3, write_log=False):
         """
