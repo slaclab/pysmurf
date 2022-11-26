@@ -2233,7 +2233,7 @@ class SmurfTuneMixin(SmurfBase):
            this function to match the convention used in
            :func:`setup_notches`:
 
-           ii - 1j*rr
+           | ii - 1j*rr
 
         .. warning::
            For historical reasons, you should perform this scaling on
@@ -2244,15 +2244,15 @@ class SmurfTuneMixin(SmurfBase):
            :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.get_eta_scan_results_imag`
            before using it:
 
-           rr = np.asarray(rr)
-           idx = np.where( rr > 2**23 )
-           rr[idx] = rr[idx] - 2**24
-           rr /= 2**23
-
-           ii = np.asarray(ii)
-           idx = np.where( ii > 2**23 )
-           ii[idx] = ii[idx] - 2**24
-           ii /= 2**23
+           | rr = np.asarray(rr)
+           | idx = np.where( rr > 2**23 )
+           | rr[idx] = rr[idx] - 2**24
+           | rr /= 2**23
+           |
+           | ii = np.asarray(ii)
+           | idx = np.where( ii > 2**23 )
+           | ii[idx] = ii[idx] - 2**24
+           | ii /= 2**23
 
         Args
         ----
@@ -3577,7 +3577,8 @@ class SmurfTuneMixin(SmurfBase):
         # Find resonator peaks
         res_freq = self.find_all_peak(self.freq_resp[band]['find_freq']['f'],
             self.freq_resp[band]['find_freq']['resp'], subband,
-            make_plot=make_plot, plotname_append=plotname_append, band=band,
+            make_plot=make_plot, save_plot=save_plot, show_plot=show_plot,
+            plotname_append=plotname_append, band=band,
             rolling_med=rolling_med, window=window,
             make_subband_plot=make_subband_plot, grad_cut=grad_cut,
             flip_phase=flip_phase, grad_kernel_width=grad_kernel_width,
@@ -3829,7 +3830,7 @@ class SmurfTuneMixin(SmurfBase):
             make_subband_plot=make_subband_plot,
             subband_plot_with_slow=subband_plot_with_slow, timestamp=timestamp,
             pad=pad, min_gap=min_gap, show_plot=show_plot, plot_phase=plot_phase,
-            flip_phase=flip_phase)
+            flip_phase=flip_phase, grad_kernel_width=grad_kernel_width)
 
         return peaks
 
