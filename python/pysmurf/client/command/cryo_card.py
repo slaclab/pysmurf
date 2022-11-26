@@ -208,7 +208,7 @@ class CryoCard():
         return ((volts - self.temperature_offset) * self.temperature_scale)
 
     def read_cycle_count(self):
-        data = self.do_read(self.count_address)
+        data = self.do_read(self.cycle_count_address)
         return (cmd_data(data))  # do we have the right addres
 
     def write_ps_en(self, enables):
