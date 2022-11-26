@@ -5851,6 +5851,11 @@ class SmurfCommandMixin(SmurfBase):
         of 2.45 Gbps (requiring 10G SFPs and compatible fiber links
         between the external timing system and the SMuRF system(s)),
         and timing frames are transmitted and received at 480 kHz.
+        The protocol used for communcation between the external timing
+        and SMuRF system(s) is a serial 8B/10B encoding using the
+        K-character symbols for byte and frame alignment.  The
+        encoding/decoding and byte alignment is supporte by common
+        Xilinx IP.
 
         .. warning::
            An increment in any of the timing system error counters
@@ -5878,14 +5883,11 @@ class SmurfCommandMixin(SmurfBase):
 
         See Also
         --------
-        :func:`get_timing_crc_err_cnt` : Gets CRC error counter for
-        received timing frames.
+        :func:`get_timing_rx_dec_err_cnt` : Gets decode error
+        counter for received timing characters.
 
-        :func:`get_timing_rx_dec_err_cnt` : Gets disparity error
-        counter for received timing frames.
-
-        :func:`get_timing_rx_dsp_err_cnt` : Gets decode error counter
-        for received timing frames.
+        :func:`get_timing_rx_dsp_err_cnt` : Gets disparity error counter
+        for received timing characters.
 
         :func:`get_timing_rx_rst_cnt` : Gets timing data link reset
         counter.
@@ -5897,7 +5899,7 @@ class SmurfCommandMixin(SmurfBase):
     _timing_rx_dec_err_cnt = "RxDecErrCount"
 
     def get_timing_rx_dec_err_cnt(self, **kwargs):
-        r"""???
+        r"""Gets decode error counter for received timing characters.
 
         ???
 
@@ -5911,6 +5913,17 @@ class SmurfCommandMixin(SmurfBase):
         -------
         int
             ???.
+
+        See Also
+        --------
+        :func:`get_timing_crc_err_cnt` : Gets CRC error counter for
+        received timing frames.
+
+        :func:`get_timing_rx_dsp_err_cnt` : Gets disparity error counter
+        for received timing characters.
+
+        :func:`get_timing_rx_rst_cnt` : Gets timing data link reset
+        counter.
         """
         return self._caget(
             self.timing_status + self._timing_rx_dec_err_cnt,
@@ -5919,7 +5932,7 @@ class SmurfCommandMixin(SmurfBase):
     _timing_rx_dsp_err_cnt = "RxDspErrCount"
 
     def get_timing_rx_dsp_err_cnt(self, **kwargs):
-        r"""???
+        r"""Gets disparity error counter for received timing characters.
 
         ???
 
@@ -5933,6 +5946,17 @@ class SmurfCommandMixin(SmurfBase):
         -------
         int
             ???.
+
+        See Also
+        --------
+        :func:`get_timing_crc_err_cnt` : Gets CRC error counter for
+        received timing frames.
+
+        :func:`get_timing_rx_dec_err_cnt` : Gets decode error
+        counter for received timing characters.
+
+        :func:`get_timing_rx_rst_cnt` : Gets timing data link reset
+        counter.
         """
         return self._caget(
             self.timing_status + self._timing_rx_dsp_err_cnt,
@@ -5941,7 +5965,7 @@ class SmurfCommandMixin(SmurfBase):
     _timing_rx_rst_cnt = "RxRstCount"
 
     def get_timing_rx_rst_cnt(self, **kwargs):
-        r"""???
+        r"""Gets timing data link reset counter
 
         ???
 
@@ -5955,6 +5979,17 @@ class SmurfCommandMixin(SmurfBase):
         -------
         int
             ???.
+
+        See Also
+        --------
+        :func:`get_timing_crc_err_cnt` : Gets CRC error counter for
+        received timing frames.
+
+        :func:`get_timing_rx_dec_err_cnt` : Gets decode error
+        counter for received timing characters.
+
+        :func:`get_timing_rx_dsp_err_cnt` : Gets disparity error counter
+        for received timing characters.
         """
         return self._caget(
             self.timing_status + self._timing_rx_rst_cnt,
