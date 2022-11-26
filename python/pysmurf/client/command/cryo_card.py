@@ -39,8 +39,9 @@ class CryoCard():
         Ref https://github.com/slaclab/smurfc/blob/C04/firmware/src/ccard.h
         """
 
-        self.readpv = readpv_in
-        self.writepv = writepv_in
+        self.readpv = epics.PV(readpv_in)
+        self.writepv = epics.PV(writepv_in)
+
         self.fw_version_address = 0x0
         self.relay_address = 0x2
         self.temperature_address = 0x5
@@ -79,16 +80,16 @@ class CryoCard():
             typically means no cryostat card is connected).
         """
         #need double write to make sure buffer is updated
-        epics.caput(self.writepv, cmd_make(1, address, 0))
+        self.writepv.put(cmd_make(1, address, 0))
         for self.retry in range(0, self.max_retries):
-            epics.caput(self.writepv, cmd_make(1, address, 0))
-            data = epics.caget(self.readpv, use_monitor=use_monitor)
+            self.writepv.put(cmd_make(1, address, 0))
+            data = self.readpv.get(use_monitor=use_monitor)
             addrrb = cmd_address(data)
             if (addrrb == address):
                 return (data)
         return (0)
 
-        return (epics.caget(self.readpv, use_monitor=use_monitor))
+        return (self.readpv.get(use_monitor=use_monitor))
 
     def do_write(self, address, value):
         """Write the given value directly to the address on the PIC. Make sure
@@ -99,12 +100,12 @@ class CryoCard():
         :param address the address on the PIC (e.g. 0x2)
         :returns the response from caput
         """
-        return epics.caput(self.writepv, cmd_make(0, address, value))
+        return self.writepv.put(cmd_make(0, address, value))
 
     def write_relays(self, relay):  # relay is the bit partern to set
-        epics.caput(self.writepv, cmd_make(0, self.relay_address, relay))
+        self.writepv.put(cmd_make(0, self.relay_address, relay))
         time.sleep(0.1)
-        epics.caput(self.writepv, cmd_make(0, self.relay_address, relay))
+        self.writepv.put(cmd_make(0, self.relay_address, relay))
 
     def read_relays(self):
         for self.busy_retry in range(0, self.max_retries):
@@ -227,7 +228,7 @@ class CryoCard():
         -------
         Nothing
         """
-        epics.caput(self.writepv, cmd_make(0, self.ps_en_address, enables))
+        self.writepv.put(cmd_make(0, self.ps_en_address, enables))
 
     def read_ps_en(self):
         """
