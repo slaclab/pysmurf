@@ -209,6 +209,8 @@ tmux select-pane -t 0
 
 if [ "$reboot" = true ] ; then
 
+    echo "Rebooting."
+
     # deactivate carriers
     deactivatecmd=""
     activatecmd=""    
@@ -328,6 +330,8 @@ else
 	echo "-> Waiting for ethernet on carrier in slot ${slot} to come up ..."
 	cd $cpwd
 	ping_carrier 10.0.${crate_id}.$((${slot}+100))
+
+	echo "Starting serial slot ${slot} with pyrogue ${pyrogue} with config ${pysmurf_cfg}"
 	
 	start_slot_tmux_serial ${slot} ${pyrogue} ${pysmurf_cfg}
 	

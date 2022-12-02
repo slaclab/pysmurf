@@ -67,6 +67,8 @@ is_slot_server_up() {
 }
 
 pysmurf_init() {
+    echo "Start of pysmurf_init"
+
     slot_number=$1
     pysmurf_cfg=$2
 
@@ -86,6 +88,7 @@ pysmurf_init() {
 	    exit 1	    
 	fi
     else
+	echo "Making temporary init script"
 	tmp_pysmurf_init_script=/tmp/psmurf_init_`date +%s`.py
 
 	# load pysmurf.client
