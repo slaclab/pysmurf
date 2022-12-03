@@ -94,7 +94,7 @@ class SmurfTuneMixin(SmurfBase):
                 self.log(f'Loading default tune file: {tune_file}')
             self.load_tune(tune_file)
 
-        # Runs find_freq and setup_notches. This takes forever.
+        # Runs find_freq and setup_notches.
         else:
             for band in bands:
                 tone_power = self._amplitude_scale[band]
@@ -566,12 +566,12 @@ class SmurfTuneMixin(SmurfBase):
                             self.log(f'Eta plot for channel {channel}')
                     else:
                         self.log(f'Eta plot {k+1} of {n_keys}')
-                        self.plot_eta_fit(r['freq_eta_scan'], r['resp_eta_scan'],
-                            eta=r['eta'], eta_mag=r['eta_mag'],
-                            eta_phase_deg=r['eta_phase'], band=band, res_num=k,
-                            timestamp=timestamp, save_plot=save_plot,
-                            show_plot=show_plot, peak_freq=r['freq'],
-                            channel=channel, plotname_append=plotname_append)
+                    self.plot_eta_fit(r['freq_eta_scan'], r['resp_eta_scan'],
+                        eta=r['eta'], eta_mag=r['eta_mag'],
+                        eta_phase_deg=r['eta_phase'], band=band, res_num=k,
+                        timestamp=timestamp, save_plot=save_plot,
+                        show_plot=show_plot, peak_freq=r['freq'],
+                        channel=channel, plotname_append=plotname_append)
 
     @set_action()
     def full_band_resp(self, band, n_scan=1, nsamp=2**19, make_plot=False,
@@ -704,11 +704,11 @@ class SmurfTuneMixin(SmurfBase):
             # Take PSDs of ADC, DAC, and cross
             fs = self.get_digitizer_frequency_mhz() * 1.0E6
             f, p_dac = signal.welch(dac, fs=fs, nperseg=nsamp/2,
-                                    return_onesided=True)
+                                    return_onesided=False)
             f, p_adc = signal.welch(adc, fs=fs, nperseg=nsamp/2,
-                                    return_onesided=True)
+                                    return_onesided=False)
             f, p_cross = signal.csd(dac, adc, fs=fs, nperseg=nsamp/2,
-                                    return_onesided=True)
+                                    return_onesided=False)
 
             # Sort frequencies
             idx = np.argsort(f)
@@ -801,7 +801,7 @@ class SmurfTuneMixin(SmurfBase):
             band=None, subband=None, make_subband_plot=False,
             subband_plot_with_slow=False, timestamp=None, pad=50, min_gap=100,
             plot_title=None, grad_kernel_width=8, highlight_phase_slip=True,
-            amp_ylim=None):
+            amp_ylim=None, flip_phase=False, plot_phase=False):
         """ Find the peaks within a given subband.
 
         Args
@@ -816,6 +816,11 @@ class SmurfTuneMixin(SmurfBase):
             Number of samples to window together for rolling med.
         grad_cut : float, optional, default 0.5
             The value of the gradient of phase to look for resonances.
+        flip_phase : bool, optional, default False
+            Whether to flip the sign of phase before
+            evaluating the gradient cut.
+        plot_phase : bool, optional, default False
+            Whether to generate a plot showing just the phase information
         amp_cut : float, optional, default 0.25
             The fractional distance from the median value to decide
             whether there is a resonance.
@@ -868,6 +873,8 @@ class SmurfTuneMixin(SmurfBase):
         x = np.arange(len(angle))
         p1 = np.poly1d(np.polyfit(x, angle, 1))
         angle -= p1(x)
+        if flip_phase:
+            angle *= -1
         grad = np.convolve(angle, np.repeat([1,-1], grad_kernel_width),
             mode='same')
 
@@ -895,6 +902,15 @@ class SmurfTuneMixin(SmurfBase):
                 idx += s
                 if 1-amp[idx]/med_amp[idx] > amp_cut:
                     peak = np.append(peak, idx)
+
+        # Plot the phase information
+        if plot_phase:
+            plt.figure()
+            plt.plot(freq, angle)
+            if show_plot:
+                plt.show()
+            else:
+                plt.close()
 
         # Make summary plot
         if make_plot:
@@ -929,9 +945,9 @@ class SmurfTuneMixin(SmurfBase):
             if highlight_phase_slip:
                 for s, e in zip(starts, ends):
                     ax[0].axvspan(plot_freq_mhz[s], plot_freq_mhz[e], color='k',
-                        alpha=.1)
+                                  alpha=.25)
                     ax[1].axvspan(plot_freq_mhz[s], plot_freq_mhz[e], color='k',
-                        alpha=.1)
+                                  alpha=.25)
 
             # set ylim
             if amp_ylim is not None:
@@ -1571,6 +1587,7 @@ class SmurfTuneMixin(SmurfBase):
             old_file=self.channel_assignment_files[f'band_{band}']
             self.log(f'Old master assignment file: {old_file}')
         self.channel_assignment_files[f'band_{band}'] = filename
+        self.freq_resp[band]['channel_assignment'] = filename
         self.log(f'New master assignment file: {filename}')
 
     @set_action()
@@ -2197,26 +2214,94 @@ class SmurfTuneMixin(SmurfBase):
     @set_action()
     def eta_scan(self, band, subband, freq, tone_power, write_log=False,
                  sync_group=True):
-        """
-        Same as slow eta scans
+        """Slow eta scan on one subband.
+
+        Runs a slow eta scan on one channel.  Uses the first channel
+        (ordered by channel number) in the subband.  Starts by turning
+        off every channel in the requested `band` if there are any
+        channels currently on in that band, then runs the eta scan on
+        the first channel in the requested subband.  At the end of the
+        scan, sets the channel amplitude to zero.  Returns the real
+        and imaginary components of the response.
+
+        .. warning::
+           This function uses a different convention for the real and
+           imaginary quadratures than e.g. :func:`setup_notches`.  To
+           convert data returned by this function to the convention
+           used by :func:`setup_notches`, you can use the following
+           transformation to scale the returned rr and ii arrays from
+           this function to match the convention used in
+           :func:`setup_notches`:
+
+           | ii - 1j*rr
+
+        .. warning::
+           For historical reasons, you should perform this scaling on
+           the data returned by this function (which returns the
+           results from
+           :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.get_eta_scan_results_real`
+           and
+           :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.get_eta_scan_results_imag`
+           before using it:
+
+           | rr = np.asarray(rr)
+           | idx = np.where( rr > 2**23 )
+           | rr[idx] = rr[idx] - 2**24
+           | rr /= 2**23
+           |
+           | ii = np.asarray(ii)
+           | idx = np.where( ii > 2**23 )
+           | ii[idx] = ii[idx] - 2**24
+           | ii /= 2**23
+
+        Args
+        ----
+        band : int
+            Which band.
+        subband : int
+            Which subband.
+        freq : numpy.ndarray or list
+            Frequencies to scan in subband, with respect to subband
+            center, in MHz.
+        tone_power : int
+            The drive amplitude to eta scan with.  For most SMuRF
+            firmware versions this is an integer in [0,15].
+        write_log : bool, optional, default False
+            Whether to write log messages.
+        sync_group : bool, optional, default True
+            Whether not to wait for register change using
+            :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.SyncGroup`.
+
+        Returns
+        -------
+        rr, ii : :py:class:`numpy.ndarray`,:py:class:`numpy.ndarray`
+            Real (=rr) and imaginary (=ii) response from the sweep.
+            The real part is obtained from
+            :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.get_eta_scan_results_real`,
+            and the imaginary part from
+            :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.get_eta_scan_results_imag`.
+            Note that the convention does not match that used by the
+            :func:`setup_notches` routine!
+
+        See Also
+        --------
+        :func:`setup_notches` : Faster eta scan on many channels.
+
         """
         if len(self.which_on(band)):
             self.band_off(band, write_log=write_log)
 
-        n_subband = self.get_number_sub_bands(band)
-        n_channel = self.get_number_channels(band)
-        channel_order = self.get_channel_order(band)
-        first_channel = channel_order[::n_channel//n_subband]
+        first_channel = self.get_channels_in_subband(band,subband)[0]
 
-        self.set_eta_scan_channel(band, first_channel[subband],
+        self.set_eta_scan_channel(band, first_channel,
                                   write_log=write_log)
         self.set_eta_scan_amplitude(band, tone_power, write_log=write_log)
         self.set_eta_scan_freq(band, freq, write_log=write_log)
         self.set_eta_scan_dwell(band, 0, write_log=write_log)
 
         self.set_run_eta_scan(band, 1, wait_done=False, write_log=write_log)
-        pvs = [self._cryo_root(band) + self._eta_scan_results_real,
-               self._cryo_root(band) + self._eta_scan_results_imag]
+        pvs = [self._cryo_root(band) + self._eta_scan_results_real_reg,
+               self._cryo_root(band) + self._eta_scan_results_imag_reg]
 
         if sync_group:
             sg = SyncGroup(pvs, skip_first=False)
@@ -2226,10 +2311,10 @@ class SmurfTuneMixin(SmurfBase):
             rr = vals[pvs[0]]
             ii = vals[pvs[1]]
         else:
-            rr = self.get_eta_scan_results_real(2, len(freq))
-            ii = self.get_eta_scan_results_imag(2, len(freq))
+            rr = self.get_eta_scan_results_real(band, len(freq))
+            ii = self.get_eta_scan_results_imag(band, len(freq))
 
-        self.set_amplitude_scale_channel(band, first_channel[subband], 0)
+        self.set_amplitude_scale_channel(band, first_channel, 0)
 
         return rr, ii
 
@@ -2997,6 +3082,8 @@ class SmurfTuneMixin(SmurfBase):
     def set_fixed_flux_ramp_bias(self,fractionFullScale,debug=True,
             do_config=True):
         """
+        No description
+
         Args
         -----
         fractionFullScale : float
@@ -3389,6 +3476,7 @@ class SmurfTuneMixin(SmurfBase):
             tone_power=None, n_read=2, make_plot=False, save_plot=True,
             plotname_append='', window=50, rolling_med=True,
             make_subband_plot=False, show_plot=False, grad_cut=.05,
+            flip_phase=False, grad_kernel_width=8,
             amp_cut=.25, pad=2, min_gap=2):
         '''
         Finds the resonances in a band (and specified subbands)
@@ -3424,6 +3512,9 @@ class SmurfTuneMixin(SmurfBase):
         grad_cut : float, optional, default 0.05
             The value of the gradient of phase to look for
             resonances.
+        flip_phase : bool, optional, default False
+            Whether to flip the sign of phase before
+            evaluating the gradient cut.
         amp_cut : float, optional, default 0.25
             The fractional distance from the median value to decide
             whether there is a resonance.
@@ -3486,9 +3577,11 @@ class SmurfTuneMixin(SmurfBase):
         # Find resonator peaks
         res_freq = self.find_all_peak(self.freq_resp[band]['find_freq']['f'],
             self.freq_resp[band]['find_freq']['resp'], subband,
-            make_plot=make_plot, plotname_append=plotname_append, band=band,
+            make_plot=make_plot, save_plot=save_plot, show_plot=show_plot,
+            plotname_append=plotname_append, band=band,
             rolling_med=rolling_med, window=window,
             make_subband_plot=make_subband_plot, grad_cut=grad_cut,
+            flip_phase=flip_phase, grad_kernel_width=grad_kernel_width,
             amp_cut=amp_cut, pad=pad, min_gap=min_gap)
         self.freq_resp[band]['find_freq']['resonance'] = res_freq
 
@@ -3651,9 +3744,11 @@ class SmurfTuneMixin(SmurfBase):
     @set_action()
     def find_all_peak(self, freq, resp, subband=None, rolling_med=False,
             window=500, grad_cut=0.05, amp_cut=0.25, freq_min=-2.5E8,
-            freq_max=2.5E8, make_plot=False, save_plot=True, plotname_append='',
+            flip_phase=False, grad_kernel_width=8,
+            freq_max=2.5E8, make_plot=False, save_plot=True,
+            show_plot=False, plotname_append='',
             band=None, make_subband_plot=False, subband_plot_with_slow=False,
-            timestamp=None, pad=2, min_gap=2):
+            timestamp=None, pad=2, min_gap=2, plot_phase=False):
         """
         find the peaks within each subband requested from a fullbandamplsweep
 
@@ -3675,6 +3770,11 @@ class SmurfTuneMixin(SmurfBase):
         amp_cut : float, optional, default 0.25
             The fractional distance from the median value to decide
             whether there is a resonance.
+        flip_phase : bool, optional, default False
+            Whether to flip the sign of phase before
+            evaluating the gradient cut.
+        plot_phase : bool, optional, default False
+            Whether to generate a plot showing just the phase information
         freq_min : float, optional, default -2.5e8
             The minimum frequency relative to the center of the band
             to look for resonances. Units of Hz.
@@ -3685,6 +3785,8 @@ class SmurfTuneMixin(SmurfBase):
             Whether to make a plot.
         save_plot : bool, optional, default True
             Whether to save the plot to self.plot_dir.
+        show_plot : bool, optional, default False
+            Whether to show the plot to screen.
         plotname_append : str, optional, default ''
             Appended to the default plot filename.
         band : int or None, optional, default None
@@ -3727,7 +3829,8 @@ class SmurfTuneMixin(SmurfBase):
             plotname_append=plotname_append, band=band,
             make_subband_plot=make_subband_plot,
             subband_plot_with_slow=subband_plot_with_slow, timestamp=timestamp,
-            pad=pad, min_gap=min_gap)
+            pad=pad, min_gap=min_gap, show_plot=show_plot, plot_phase=plot_phase,
+            flip_phase=flip_phase, grad_kernel_width=grad_kernel_width)
 
         return peaks
 
@@ -3805,7 +3908,8 @@ class SmurfTuneMixin(SmurfBase):
     def setup_notches(self, band, resonance=None, tone_power=None,
                       sweep_width=.3, df_sweep=.002, min_offset=0.1,
                       delta_freq=None, new_master_assignment=False,
-                      lock_max_derivative=False):
+                      lock_max_derivative=False,
+                      scan_unassigned=False):
         """
         Does a fine sweep over the resonances found in find_freq. This
         information is used for placing tones onto resonators. It is
@@ -3838,6 +3942,10 @@ class SmurfTuneMixin(SmurfBase):
             Whether to create a new master assignment file. This file
             defines the mapping between resonator frequency and
             channel number.
+        scan_unassigned : bool, optional, default False
+            Whether or not to scan unassigned channels.  Unassigned
+            channels are scanned serially after the much faster
+            assigned channel scans.
         """
         # Turn off all tones in this band first
         self.band_off(band)
@@ -3896,7 +4004,7 @@ class SmurfTuneMixin(SmurfBase):
                 'eta' : eta,
                 'eta_scaled' : eta_scaled,
                 'eta_phase' : eta_phase_deg,
-                'r2' : 1,  # This is BS
+                'r2': 1, # This is BS
                 'eta_mag' : eta_mag,
                 'latency': 0,  # This is also BS
                 'Q' : 1,  # This is also also BS
@@ -3938,30 +4046,98 @@ class SmurfTuneMixin(SmurfBase):
         resp = I + 1j*Q
 
         for i, channel in enumerate(channels):
-            freq_s, resp_s, eta = self.eta_estimator(band, subbands[i], freq[channel, :], resp[channel, :],
-                delta_freq=delta_freq, lock_max_derivative=lock_max_derivative)
-            eta_phase_deg = np.angle(eta)*180/np.pi
-            eta_mag = np.abs(eta)
-            eta_scaled = eta_mag / subband_half_width
+            # the fast eta scan sweep only returns valid data for
+            # assigned channels.
+            if channel!=-1:
+                freq_s, resp_s, eta = self.eta_estimator(band,
+                                                         subbands[i],
+                                                         freq[channel, :],
+                                                         resp[channel, :],
+                                                         delta_freq=delta_freq,
+                                                         lock_max_derivative=lock_max_derivative)
+                eta_phase_deg = np.angle(eta)*180/np.pi
+                eta_mag = np.abs(eta)
+                eta_scaled = eta_mag / subband_half_width
 
-            abs_resp = np.abs(resp_s)
-            idx = np.ravel(np.where(abs_resp == np.min(abs_resp)))[0]
+                abs_resp = np.abs(resp_s)
+                idx = np.ravel(np.where(abs_resp == np.min(abs_resp)))[0]
 
-            f_min = freq_s[idx]
+                f_min = freq_s[idx]
 
-            resonances[i] = {
-                'freq' : f_min,
-                'eta' : eta,
-                'eta_scaled' : eta_scaled,
-                'eta_phase' : eta_phase_deg,
-                'r2' : 1,  # This is BS
-                'eta_mag' : eta_mag,
-                'latency': 0,  # This is also BS
-                'Q' : 1,  # This is also also BS
-                'freq_eta_scan' : freq_s,
-                'resp_eta_scan' : resp_s
-            }
+                resonances[i] = {
+                    'freq' : f_min,
+                    'eta' : eta,
+                    'eta_scaled' : eta_scaled,
+                    'eta_phase' : eta_phase_deg,
+                    'r2' : 1,  # This is BS
+                    'eta_mag' : eta_mag,
+                    'latency': 0,  # This is also BS
+                    'Q' : 1,  # This is also also BS
+                    'freq_eta_scan' : freq_s,
+                    'resp_eta_scan' : resp_s
+                }
 
+            elif channel==-1 and scan_unassigned:
+                self.log(
+                    f'scan_unassiged=True : Scanning unassigned frequency at {input_res[i]:.3f} MHz.',self.LOG_USER)
+
+                # Unassigned channels aren't scanned in the time
+                # optimized assigned channel scans above.  This could
+                # be sped up.  For now, just inefficiently running
+                # same function used for assigned channels, just to be
+                # sure we're computing everything the same way.
+
+                # Run single eta scan on just this channel.
+                # "u" for unassigned
+                frequ = offsets[i] + f_sweep
+                Iu,Qu = self.eta_scan(band,
+                                      subbands[i],
+                                      frequ,
+                                      tone_power)
+
+                idx = np.where( Iu > 2**23 )
+                Iu[idx] = Iu[idx] - 2**24
+                Iu /= 2**23
+
+                idx = np.where( Qu > 2**23 )
+                Qu[idx] = Qu[idx] - 2**24
+                Qu /= 2**23
+
+                # The eta_scan has a different convention for
+                # inphase/quadrature.  This remaps it to match the
+                # convention used by serialFindFreq, which we use for
+                # assigned channels.
+                respu = Qu - 1j*Iu
+
+                # estimate eta from response
+                frequ_s, respu_s, etau = self.eta_estimator(band,
+                                                            subbands[i],
+                                                            frequ,
+                                                            respu,
+                                                            delta_freq=delta_freq,
+                                                            lock_max_derivative=lock_max_derivative)
+
+                eta_phase_degu = np.angle(etau)*180/np.pi
+                eta_magu = np.abs(etau)
+                eta_scaledu = eta_magu / subband_half_width
+
+                abs_respu = np.abs(respu_s)
+                idx = np.ravel(np.where(abs_respu == np.min(abs_respu)))[0]
+
+                f_minu = frequ_s[idx]
+
+                resonances[i] = {
+                    'freq' : f_minu,
+                    'eta' : etau,
+                    'eta_scaled' : eta_scaledu,
+                    'eta_phase' : eta_phase_degu,
+                    'r2' : 1,  # This is BS
+                    'eta_mag' : eta_magu,
+                    'latency': 0,  # This is also BS
+                    'Q' : 1,  # This is also also BS
+                    'freq_eta_scan' : frequ_s,
+                    'resp_eta_scan' : respu_s
+                }
 
         # Assign resonances to channels
         self.log('Assigning channels')
@@ -4123,6 +4299,7 @@ class SmurfTuneMixin(SmurfBase):
         self.pub.register_file(savedir, 'tune', format='npy')
 
         self.tune_file = savedir+'.npy'
+        self.set_tune_file_path(self.tune_file)
 
         return savedir + ".npy"
 
@@ -4164,6 +4341,8 @@ class SmurfTuneMixin(SmurfBase):
                 # differently to allow loading different tunes for
                 # different bands, etc.
                 self.tune_file = filename
+                #update the Rogue Tree
+                self.set_tune_file_path(filename)
             else:
                 # Load only the tune data for the requested band(s).
                 band=np.ravel(np.array(band))
@@ -4675,7 +4854,7 @@ class SmurfTuneMixin(SmurfBase):
 
         fmod_array = []
         for n in range(0, num_channels):
-            if(result[n] > 0):
+            if (result[n] > 0):
                 fmod_array.append(result[n])
         mod_median = np.median(fmod_array)
         return mod_median
@@ -4753,8 +4932,7 @@ class SmurfTuneMixin(SmurfBase):
         freq_dict : dict
             Resonance dictionary like the one that comes out of
             find_freqs You probably want to assign it to the right
-            place, as in S.freq_resp = S.fake_resonance_dict(freqs,
-            bands)
+            place, as in S.freq_resp = S.fake_resonance_dict(freqs).
         """
 
         bands = self._bands

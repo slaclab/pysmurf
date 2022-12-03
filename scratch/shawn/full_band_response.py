@@ -34,7 +34,11 @@ for band in bands:
 
 fig, ax = plt.subplots(2, figsize=(6,7.5), sharex=True)
 
-plt.suptitle(f'slot={S.slot_number} AMC0={S.get_amc_asset_tag(0)} AMC2={S.get_amc_asset_tag(1)}')
+try:
+    plt.suptitle(f'slot={S.slot_number} AMC0={S.get_amc_sn(0,use_shell=True)} AMC2={S.get_amc_sn(1,use_shell=True)}')
+except:
+    plt.suptitle(f'slot={S.slot_number}')
+    print("!!! AMC FRU information not accessible!")
 
 ax[0].set_title(f'Full band response {timestamp}')
 last_angle=None

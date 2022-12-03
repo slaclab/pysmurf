@@ -5,6 +5,12 @@
 #############
 # FUNCTIONS #
 #############
+
+function error {
+	echo "Error: $1"
+	exit 1
+}
+
 # Check if a tag exists on a github public repository
 # Arguments:
 # - first: github public repository url,
@@ -36,14 +42,33 @@ check_if_public_asset_exist()
 # - second: tag name
 check_if_private_tag_exist()
 {
-    # Need to insert the token in the url
-    local repo=$(echo $1 | sed -e "s|https://github.com/|git@github.com:|g")
+    # e.g. https://github.com/slaclab/cryo-det turns into
+    # https://api.github.com/repos/slaclab/cryo-det/tags. Because cryo-det is
+    # private, you need some authentication that can read the repository.
+
+    local api_url=$(echo $1 | sed -e "s|github.com/|api.github.com/repos/|g")/tags
     local tag=$2
-    git ls-remote --refs --tag ${repo} | grep -q refs/tags/${tag} > /dev/null
+
+    echo "Searching for tag ${tag} in repo $1 with API URL ${api_url} ..."
+
+    # Big blob of JSON with the tags in it.
+    local tags=$(curl \
+      --url $api_url \
+      --header "Authorization: token ${AER7_TOKEN}" \
+      --fail)
+
+    # e.g. 0 if no match
+    local grep_count=$(echo "$tags" | grep -c "$tag")
+
+    if [ "$grep_count" -eq 0 ]; then
+	    error "Tag ${tag} doesn't exist using API URL ${api_url} for repo $1"
+    else
+	    echo "Found."
+    fi
 }
 
 # Check if a asset file exist on a tag version on a github private repository.
-# It requires the access token to be defined in $GITHUB_TOKEN.
+# It requires the access token to be defined in $AER7_TOKEN.
 # Arguments:
 # - first: github private repository url (https),
 # - second: tag name,
@@ -55,7 +80,7 @@ check_if_private_asset_exist()
     local file=$3
 
     # Search the asset ID in the specified release
-    local r=$(curl --silent --header "Authorization: token ${GITHUB_TOKEN}" "${repo}/releases/tags/${tag}")
+    local r=$(curl --silent --header "Authorization: token ${AER7_TOKEN}" "${repo}/releases/tags/${tag}")
     eval $(echo "${r}" | grep -C3 "name.:.\+${file}" | grep -w id | tr : = | tr -cd '[[:alnum:]]=')
 
     # return is the asset tag was found
@@ -63,7 +88,7 @@ check_if_private_asset_exist()
 }
 
 # Download the asset file on a tagged version on a github private repository.
-# It requires the access token to be defined in $GITHUB_TOKEN.
+# It requires the access token to be defined in $AER7_TOKEN.
 # Arguments:
 # - first: github private repository url (https),
 # - second: tag name,
@@ -81,7 +106,7 @@ get_private_asset()
 
     # Try to download the asset
     curl --fail --location --remote-header-name --remote-name --progress-bar \
-         --header "Authorization: token ${GITHUB_TOKEN}" \
+         --header "Authorization: token ${AER7_TOKEN}" \
          --header "Accept: application/octet-stream" \
          "${repo}/releases/assets/${id}"
 }
@@ -176,15 +201,7 @@ if [ -z ${mcs_file_name} ]; then
 fi
 echo "${mcs_file_name}"
 
-printf "Checking if release exist...                        "
 check_if_private_tag_exist ${fw_repo} ${fw_repo_tag}
-if [ $? != 0 ]; then
-    echo "Failed!"
-    echo
-    echo "Release '${fw_repo_tag}' does not exist in repository '${fw_repo}'!"
-    exit_on_error
-fi
-echo "Release exist!"
 
 printf "Checking if MCS file is in the list of assets...    "
 check_if_private_asset_exist ${fw_repo} ${fw_repo_tag} ${mcs_file_name}

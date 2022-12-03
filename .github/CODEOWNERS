@@ -1,21 +1,13 @@
-# @swh76 and @eyyoung24 will be the default owners for everything.
-# Unless a later match takes precedence, they will be requested
-# for review when someone opens a pull request.
-*                       @swh76 @eyyoung24
+# If these files are modified, tag only those users.
+/src/                   @aer7 @slacrherbst
+/include/               @aer7 @slacrherbst
+/python/pysmurf/core/   @aer7 @slacrherbst
+/docker/                @aer7 @slacrherbst
+/server_scripts/        @aer7 @slacrherbst
+/tests/core             @aer7 @slacrherbst
+/releaseGen.py          @aer7 @slacrherbst
+/README.*.md            @aer7 @slacrherbst
+/.github/               @swh76 @aer7 @slacrherbst
 
-# @jesusvasquez333 and @slacrherbst owns the code related
-# to the core, dockers, and startup scripts.
-# Only them will be requested for review.
-/src/                   @jesusvasquez333 @slacrherbst
-/include/               @jesusvasquez333 @slacrherbst
-/python/pysmurf/core/   @jesusvasquez333 @slacrherbst
-/docker/                @jesusvasquez333 @slacrherbst
-/server_scripts/        @jesusvasquez333 @slacrherbst
-/tests/core             @jesusvasquez333 @slacrherbst
-/releaseGen.py          @jesusvasquez333 @slacrherbst
-/README.*.md            @jesusvasquez333 @slacrherbst
-
-# @swh76, @eyyoung24, @jesusvasquez333 and @slacrherbst owns
-# the github related scripts.
-# All of them will be requested for review.
-/.github/               @swh76 @eyyoung24 @jesusvasquez333 @slacrherbst
+# If no match, tag these.
+* @aer7 @swh76

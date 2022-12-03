@@ -23,10 +23,10 @@ print(f'firmware: {S.get_rogue_version()}')
 print(f'fpga: {S.get_fpga_version()}, {S.get_fpga_build_stamp()}')
 print(f'Start time: {timestamp}')
 
-lhsbay=S.get_amc_asset_tag(0)
+lhsbay=S.get_amc_sn(0,use_shell=True)
 print(f'Bay 0 Asset Tag: {lhsbay}')
 
-rhsbay=S.get_amc_asset_tag(1)
+rhsbay=S.get_amc_sn(1,use_shell=True)
 print(f'Bay 1 Asset Tag: {rhsbay}')
 
 print('Getting board types...')

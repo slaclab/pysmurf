@@ -1,3 +1,4 @@
+
 #!/usr/bin/env python
 #-----------------------------------------------------------------------------
 # Title      : pysmurf command module - SmurfCommandMixin class
@@ -15,13 +16,14 @@
 #-----------------------------------------------------------------------------
 import os
 import time
+import subprocess
 
 import numpy as np
 from packaging import version
 
 from pysmurf.client.base import SmurfBase
 from pysmurf.client.command.sync_group import SyncGroup as SyncGroup
-from pysmurf.client.util import tools
+from pysmurf.client.util import tools, dscounters
 
 try:
     import epics
@@ -113,6 +115,7 @@ class SmurfCommandMixin(SmurfBase):
     def _caget(self, cmd, write_log=False, execute=True, count=None,
                log_level=0, enable_poll=False, disable_poll=False,
                new_epics_root=None, yml=None, retry_on_fail=True,
+               use_monitor=False,
                max_retry=5, **kwargs):
         r"""Gets variables from epics.
 
@@ -140,6 +143,11 @@ class SmurfCommandMixin(SmurfBase):
             If not None, yaml file to parse for the result.
         retry_on_fail : bool
             Whether to retry the caget if it fails on first attempt
+        use_monitor : bool, optional, default False
+            Passed directly to the underlying pyepics `epics.caget`
+            function call.  This was added to maintain default
+            behavior because this option was changed from default
+            `False` to default `True` in later versions of pyepics.
         max_retry : int
             The number of times to retry if caget fails the first time.
         \**kwargs
@@ -170,7 +178,7 @@ class SmurfCommandMixin(SmurfBase):
             return tools.yaml_parse(yml, cmd)
         # Get the data
         elif execute and not self.offline:
-            ret = epics.caget(cmd, count=count, **kwargs)
+            ret = epics.caget(cmd, count=count, use_monitor=use_monitor, **kwargs)
 
             # If epics doesn't respond in time, epics.caget returns None.
             if ret is None and retry_on_fail:
@@ -178,7 +186,7 @@ class SmurfCommandMixin(SmurfBase):
                 n_retry = 0
                 while n_retry < max_retry and ret is None:
                     self.log(f'Retry attempt {n_retry+1} of {max_retry}')
-                    ret = epics.caget(cmd, count=count, **kwargs)
+                    ret = epics.caget(cmd, count=count, use_monitor=use_monitor, **kwargs)
                     n_retry += 1
 
             # After retries, raise error
@@ -364,6 +372,14 @@ class SmurfCommandMixin(SmurfBase):
         :func:`set_defaults_pv`) and all tests pass, this flag is set
         to `True` when the rogue `setDefaults` method exits.
 
+        .. warning::
+           The register used to check if the system has been
+           configured, AMCc:SmurfApplication:SystemConfigured, is a
+           software register, and does not persist if the Rogue server
+           is restarted.  So this function will only tell you if the
+           system has been successfully configured at any point during
+           the current Rogue server session.
+
         Args
         ----
         \**kwargs
@@ -422,6 +438,8 @@ class SmurfCommandMixin(SmurfBase):
 
     def get_enable(self, **kwargs):
         """
+        No description
+
         Returns
         -------
         str
@@ -1158,6 +1176,8 @@ class SmurfCommandMixin(SmurfBase):
 
     def get_eta_scan_freq(self, band, **kwargs):
         """
+        No description
+
         Args
         ----
         band : int
@@ -1729,8 +1749,7 @@ class SmurfCommandMixin(SmurfBase):
 
     def set_ref_phase_delay(self, band, val, **kwargs):
         """
-        Corrects for roundtrip cable delay freqError = IQ * etaMag,
-        rotated by etaPhase+refPhaseDelay
+        Deprecated.  Use set_band_delay_us instead.
         """
         self._caput(
             self._band_root(band) + self._ref_phase_delay_reg,
@@ -1738,8 +1757,7 @@ class SmurfCommandMixin(SmurfBase):
 
     def get_ref_phase_delay(self, band, **kwargs):
         """
-        Corrects for roundtrip cable delay freqError = IQ * etaMag,
-        rotated by etaPhase+refPhaseDelay
+        Deprecated.  Use get_band_delay_us instead.
         """
         return self._caget(
             self._band_root(band) + self._ref_phase_delay_reg,
@@ -1749,6 +1767,7 @@ class SmurfCommandMixin(SmurfBase):
 
     def set_ref_phase_delay_fine(self, band, val, **kwargs):
         """
+        Deprecated.  Use set_band_delay_us instead.
         """
         self._caput(
             self._band_root(band) + self._ref_phase_delay_fine_reg,
@@ -1756,9 +1775,31 @@ class SmurfCommandMixin(SmurfBase):
 
     def get_ref_phase_delay_fine(self, band, **kwargs):
         """
+        Deprecated.  Use get_band_delay_us instead.
         """
         return self._caget(
             self._band_root(band) + self._ref_phase_delay_fine_reg,
+            **kwargs)
+
+    _band_delay_us_reg = 'bandDelayUs'
+
+    def set_band_delay_us(self, band, val, **kwargs):
+        """
+        Set band delay compensation, microseconds.  Corrects
+        for total system delay (cable, DSP, etc.).  Internally
+        configures both ref_phase_delay and ref_phase_delay_fine
+        """
+        self._caput(
+            self._band_root(band) + self._band_delay_us_reg,
+            val, **kwargs)
+
+    def get_band_delay_us(self, band, **kwargs):
+        """
+        Get band delay compensation, microseconds.  Corrects
+        for total system delay (cable, DSP, etc.).
+        """
+        return self._caget(
+            self._band_root(band) + self._band_delay_us_reg,
             **kwargs)
 
     _tone_scale_reg = 'toneScale'
@@ -2983,6 +3024,8 @@ class SmurfCommandMixin(SmurfBase):
 
     def get_fpga_uptime(self, **kwargs):
         """
+        No description
+
         Returns
         -------
         uptime : float
@@ -2996,6 +3039,8 @@ class SmurfCommandMixin(SmurfBase):
 
     def get_fpga_version(self, **kwargs):
         """
+        No description
+
         Returns
         -------
         version : str
@@ -3109,6 +3154,8 @@ class SmurfCommandMixin(SmurfBase):
 
     def set_waveform_start_addr(self, bay, engine, val, convert=True, **kwargs):
         """
+        No description
+
         Args
         ----
         bay : int
@@ -3130,6 +3177,8 @@ class SmurfCommandMixin(SmurfBase):
 
     def get_waveform_start_addr(self, bay, engine, convert=True, **kwargs):
         """
+        No description
+
         Args
         ----
         bay : int
@@ -3154,6 +3203,8 @@ class SmurfCommandMixin(SmurfBase):
 
     def set_waveform_end_addr(self, bay, engine, val, convert=True, **kwargs):
         """
+        No description
+
         Args
         ----
         bay : int
@@ -3174,6 +3225,8 @@ class SmurfCommandMixin(SmurfBase):
 
     def get_waveform_end_addr(self, bay, engine, convert=True, **kwargs):
         """
+        No description
+
         Args
         ----
         bay : int
@@ -3203,6 +3256,8 @@ class SmurfCommandMixin(SmurfBase):
 
     def set_waveform_wr_addr(self, bay, engine, val, convert=True, **kwargs):
         """
+        No description
+
         Args
         ----
         bay : int
@@ -3223,6 +3278,8 @@ class SmurfCommandMixin(SmurfBase):
 
     def get_waveform_wr_addr(self, bay, engine, convert=True, **kwargs):
         """
+        No description
+
         Args
         ----
         bay : int
@@ -3252,6 +3309,8 @@ class SmurfCommandMixin(SmurfBase):
 
     def set_waveform_empty(self, bay, engine, val, **kwargs):
         """
+        No description
+
         Args
         ----
         bay : int
@@ -3268,6 +3327,8 @@ class SmurfCommandMixin(SmurfBase):
 
     def get_waveform_empty(self, bay, engine, **kwargs):
         """
+        No description
+
         Args
         ----
         bay : int
@@ -3664,6 +3725,8 @@ class SmurfCommandMixin(SmurfBase):
 
     def set_cpld_reset(self, val, **kwargs):
         """
+        No description
+
         Args
         ----
         val : int
@@ -4159,9 +4222,16 @@ class SmurfCommandMixin(SmurfBase):
             The DAC voltage in volts.
         """
         assert (dac in range(1,33)),'dac must be an integer and in [1,32]'
-        return (
-            self._rtm_slow_dac_bit_to_volt *
-            self.get_rtm_slow_dac_data(dac, **kwargs))
+
+        volt = self._rtm_slow_dac_bit_to_volt * self.get_rtm_slow_dac_data(dac, **kwargs)
+
+        if volt > 9.9:
+            self.log(f'Looks like DAC {dac} is close to max +10V output, {volt}V.')
+
+        if volt < -9.9:
+            self.log(f'Looks like DAC {dac} is close to min -10V output, {volt}V.')
+
+        return volt
 
     def set_rtm_slow_dac_volt_array(self, val, **kwargs):
         """
@@ -4200,50 +4270,397 @@ class SmurfCommandMixin(SmurfBase):
         return (self._rtm_slow_dac_bit_to_volt *
                 self.get_rtm_slow_dac_data_array(**kwargs))
 
-    def set_50k_amp_gate_voltage(self, voltage, override=False, **kwargs):
+    # There are actually 33 RTM DACs but the 33rd is hacked in.  It's
+    # the HEMT Gate on the C02, and HEMT1 Gate on the C04. Eventually
+    # please remove this register and add index 33 to
+    # TesBiasDacCtrlRegCh.
+    _rtm_33_ctrl_reg = 'HemtBiasDacCtrlRegCh[33]'
+    _rtm_33_data_reg = 'HemtBiasDacDataRegCh[33]'
+
+    def get_amp_gate_voltage(self, amp):
+        self.C.assert_amps_match_this_cryocard(list(amp))
+
+        if amp == 'hemt' or amp =='hemt1':
+            if amp == 'hemt':
+                bit_to_volt = self.config.config['amplifier']['bit_to_V_hemt']
+            else:
+                bit_to_volt = self.config.config['amplifier']['hemt1']['gate_bit_to_volt']
+
+            bits = self._caget(self.rtm_spi_max_root + self._rtm_33_data_reg)
+
+        elif amp == '50k':
+            dac_num = self.config.config['amplifier']['dac_num_50k']
+            bit_to_volt = self.config.config['amplifier']['bit_to_V_50k']
+            bits = self.get_rtm_slow_dac_data(dac_num)
+
+        else:
+            dac_num = self.config.config['amplifier'][amp]['gate_dac_num']
+            bit_to_volt = self.config.config['amplifier'][amp]['gate_bit_to_volt']
+            bits = self.get_rtm_slow_dac_data(dac_num)
+
+        volts = bit_to_volt * bits
+        return volts
+
+    def set_amp_gate_voltage(self, amp, voltage, override = False):
         """
-        Sets the 50K amplifier gate votlage.
+        Set the voltage out one of the RTM DACs, into the cryocard,
+        such that the voltage out the cryocard is the given voltage.
+        To do this, use the conversion factors "gate_bit_to_volt". The
+        gate conversion is computed analytically.
+
+        The DACs do not respond unless their DAC enable register is
+        0x2, enabled.  The DACs still output voltage even if their
+        enable register is 0xe, disabled.
+
+        Params
+        ------
+        amp: str
+            Use '50k' and 'hemt' for the C02 amps, and '50k1',
+            '50k2', 'hemt1' and 'hemt2' for the C04 amps.
+
+        voltage: float
+            The desired voltage going out the cryocard amp.
+        """
+        self.C.assert_amps_match_this_cryocard(list(amp))
+
+        if amp == 'hemt' or amp == 'hemt1':
+            if amp == 'hemt':
+                bit_to_volt = self.config.config['amplifier']['bit_to_V_hemt']
+            else:
+                bit_to_volt = self.config.config['amplifier']['hemt1']['gate_bit_to_volt']
+
+            bits = voltage / bit_to_volt
+            nbits = self._rtm_slow_dac_nbits
+
+            if bits > 2**(nbits-1)-1:
+                self.log(f'{amp} voltage overflowed high, setting to max.')
+                bits = 2**(nbits-1)-1
+
+            elif bits < -2**(nbits-1):
+                self.log(f'{amp} voltage overflowed low, setting to min.')
+                bits = -2**(nbits-1)
+
+            self.log(f'Setting hemt or hemt1 gate to {bits} bits given {voltage} volts.')
+            self._caput(self.rtm_spi_max_root + self._rtm_33_data_reg, bits)
+
+        elif amp == '50k':
+            dac_num = self.config.config['amplifier']['dac_num_50k']
+            bit_to_volt = self.config.config['amplifier']['bit_to_V_50k']
+            bits = voltage / bit_to_volt
+            self.set_rtm_slow_dac_data(dac_num, bits)
+
+        else:
+            min = self.config.get('amplifier')[amp]['gate_volt_min']
+            max = self.config.get('amplifier')[amp]['gate_volt_max']
+
+            if not override:
+                assert voltage >= min and voltage <= max, f'Voltage {voltage} for amp {amp} out of bounds, {min}, {max}'
+
+            dac_num = self.config.get('amplifier')[amp]['gate_dac_num']
+            bit_to_volt = self.config.get('amplifier')[amp]['gate_bit_to_volt']
+            bits = voltage / bit_to_volt
+            self.log(f'Setting {amp} gate to {bits} via DAC {dac_num}, given {voltage} Volts')
+            self.set_rtm_slow_dac_data(dac_num, bits)
+
+    def get_amp_drain_voltage(self, amp):
+        """
+        C04 only.
 
         Args
         ----
-        voltage : float
-            The amplifier gate voltage between 0 and -1.
-        override : bool, optional, default False
-            Whether to override the software limit on the gate
-            voltage. This allows you to go outside the range of 0 and
-            -1.
+        amp: str
+          Choose '50k' or 'hemt' for the C00, C01, C02, and '50k1', '50k2', 'hemt1', 'hemt2' for the C04.
         """
-        if (voltage > 0 or voltage < -1.) and not override:
-            self.log('Voltage must be between -1 and 0. Doing nothing.')
+        self.C.assert_amps_match_this_cryocard(list(amp))
+
+        if not self.get_amp_drain_enable(amp):
+            self.log(f'get_amp_drain_voltage: The power supply for amp {amp} is off, therefore returning 0.0.')
+            return 0.0
+
+        dac_num = self.config.get('amplifier')[amp]['drain_dac_num']
+        m = self.config.get('amplifier')[amp]['drain_conversion_m']
+        b = self.config.get('amplifier')[amp]['drain_conversion_b']
+        dac_volt = self.get_rtm_slow_dac_volt(dac_num)
+        out_volt = m * dac_volt + b
+
+        return out_volt
+
+    def get_amp_drain_enable(self, amp):
+        """Don't use directly, use get_amp_drain_voltage. Get if power supply
+        are enabled for this cryocard amplifier. The drain will output
+        voltage even if the power register is zero (ESCRYODET-851).
+
+        """
+        self.C.assert_amps_match_this_cryocard(list(amp))
+
+        power_bitmask = self.config.get('amplifier')[amp]['power_bitmask']
+        power = self.C.read_ps_en()
+        power_masked = power & power_bitmask
+
+        return power_masked > 0
+
+    def set_amp_drain_enable(self, amp, enable):
+        """
+        Enable the drain power supply. If C04, set_amp_drain_voltage sets
+        this automatically. It is very important that this is on only
+        when you want voltage going out the drain. See bug
+        ESCRYODET-851. There are two drain outputs on the C02, and
+        four drain outputs on the C04.
+        """
+        self.C.assert_amps_match_this_cryocard(list(amp))
+
+        power_bitmask = self.config.get('amplifier')[amp]['power_bitmask']
+        power = self.C.read_ps_en()
+
+        power_masked = power & ~power_bitmask
+
+        if enable:
+            power_masked = power | power_bitmask
+
+        self.C.write_ps_en(power_masked)
+
+    def set_amp_drain_voltage(self, amp, volt, override = False):
+        """
+        C04 only. Set the drain voltage going out of the given amplifier
+        circuit, either 50k1, 50k2, hemt1, hemt2. The HEMT drain
+        voltage range is different from the 50K voltage range, set the
+        range limits in the SMuRF .cfg file. If given 0 volts, turn
+        turn off the power supply entirely to avoid bug
+        ESCRYODET-851. We cannot set the drain voltage directly,
+        instead we can only set the RTM DAC voltage directly which
+        approximately sets the drain voltage..
+        """
+        self.C.assert_amps_match_this_cryocard(list(amp))
+
+        dac_num = self.config.config['amplifier'][amp]['drain_dac_num']
+
+        if volt == 0 or volt == 0.0:
+            if self.get_amp_drain_enable(amp):
+                self.log(f'set_amp_drain_voltage: {amp}: zero requested ; setting control DAC{dac_num} to 10V, disabling LDO, and then setting control DAC{dac_num} to 0V.  In the brief time for which the control DAC is set to 10V and the LDO is disabled, the cryocard will put out a small, load dependent voltage.')
+                self.set_rtm_slow_dac_volt(dac_num, 9.999)
+                self.set_amp_drain_enable(amp, False)
+                self.set_rtm_slow_dac_volt(dac_num, 0.0)
+            else:
+                # just make sure control DAC is set to zero
+                self.log(f'set_amp_drain_voltage: {amp}: drain already disabled.')
+                # check if control DAC is nonzero - it shouldn't be if DAC is already disabled.
+                if self.get_rtm_slow_dac_volt(dac_num)!=0.0:
+                    self.log(f'set_amp_drain_voltage: {amp}: drain is disabled but control DAC{dac_num} is nonzero.  Setting to zero.')
+                    self.set_rtm_slow_dac_volt(dac_num, 0.0)
         else:
-            self.set_rtm_slow_dac_data(
-                self._fiftyk_dac_num,
-                voltage/self._fiftyk_bit_to_V,
-                **kwargs)
+            min = self.config.get('amplifier')[amp]['drain_volt_min']
+            max = self.config.get('amplifier')[amp]['drain_volt_max']
 
-    def get_50k_amp_gate_voltage(self, **kwargs):
-        """
-        """
-        return (
-            self._fiftyk_bit_to_V *
-            self.get_rtm_slow_dac_data(self._fiftyk_dac_num,
-                                       **kwargs))
+            if not override:
+                assert volt >= min and volt <= max, f'Voltage {volt} for amp {amp} out of bounds, {min}, {max}'
 
-    def set_50k_amp_enable(self, disable=False, **kwargs):
-        """
-        Sets the 50K amp bit to 2 for enable and 0 for disable.
+            # Set the voltage out the RTM Drain DACs to 10 V, which
+            # implies that the voltage going out the cryocard drains
+            # is minimized. See
+            # https://confluence.slac.stanford.edu/display/SMuRF/Cryostat+board
 
-        Args
-        ----
-        disable : bool, optional, default False
-            Disable the 50K amplifier.
+            if not self.get_rtm_slow_dac_enable(dac_num) == 0x2:
+                self.log(f'set_amp_drain_voltage: {amp}: DAC {dac_num} is not enabled, enabling it (0x2).')
+                self.set_rtm_slow_dac_enable(dac_num, 0x2)
+
+
+            #self.log('Continuing.')
+
+            if not self.get_amp_drain_enable(amp):
+                self.log(f'set_amp_drain_voltage: {amp}: this drain is currently disabled ; setting control DAC{dac_num} to 10V, enabling LDO, and then setting control DAC{dac_num} to voltage required to achieve desired drain voltage.  In the brief time for which the control DAC is set to 10V and the LDO is disabled, the cryocard will put out a small, load dependent voltage.')
+                self.set_rtm_slow_dac_volt(dac_num, 9.999)
+                self.set_amp_drain_enable(amp, True)
+
+            m = self.config.get('amplifier')[amp]['drain_conversion_m']
+            b = self.config.get('amplifier')[amp]['drain_conversion_b']
+            dac_volt = (volt - b)/m
+            self.set_rtm_slow_dac_volt(dac_num, dac_volt)
+
+    def get_amp_drain_current(self, amp):
+        """Guess the current going out of the given amp by measuring the
+        another voltage on the cryocard, for example 50K2_I. This
+        function has high jitter, 1 mA at least. There is no
+        set_amp_drain_current.
+
         """
-        if disable:
-            self.set_rtm_slow_dac_enable(
-                self._fiftyk_dac_num, 0, **kwargs)
+        self.C.assert_amps_match_this_cryocard(list(amp))
+
+        address = self.config.get('amplifier')[amp]['drain_pic_address']
+        drain_opamp_gain = self.config.get('amplifier')[amp]['drain_opamp_gain']
+
+        if amp == 'hemt':
+            drain_resistor = self.config.config['amplifier']['hemt_Vd_series_resistor']
+            drain_offset = self.config.config['amplifier']['hemt_Id_offset']
+
+        elif amp == '50k':
+            drain_resistor = self.config.config['amplifier']['50K_amp_Vd_series_resistor']
+            drain_offset = self.config.config['amplifier']['50k_Id_offset']
+
         else:
-            self.set_rtm_slow_dac_enable(
-                self._fiftyk_dac_num, 2, **kwargs)
+            drain_resistor = self.config.get('amplifier')[amp]['drain_resistor']
+            drain_offset = self.config.get('amplifier')[amp]['drain_offset']
+
+        volt = self.C.get_volt(address)
+        amp = 2 * (volt / drain_opamp_gain) / drain_resistor
+        out_milliamp = 1000 * amp
+        out_milliamp_offset = out_milliamp - drain_offset
+
+        return out_milliamp_offset
+
+    def get_amp_drain_current_dict(self):
+        """
+        Return dictionary of all drain currents. This will return two drain
+        currents if working on the C02, and four drain currents if working on
+        the C04.
+        """
+        amp_gate_currents = dict()
+        major, minor, patch = self.C.get_fw_version()
+
+        if major == 4:
+            for amp in self.C.list_of_c04_amps:
+                current = self.get_amp_drain_current(amp)
+                amp_gate_currents[amp] = current
+
+        elif major == 1 or major == 10:
+            for amp in self.C.list_of_c02_amps:
+                current = self.get_amp_drain_current(amp)
+                amp_gate_currents[amp] = current
+
+        return amp_gate_currents
+
+    def set_amp_defaults(self):
+        """The pysmurf cfg file specifies the default power state, default
+        gate voltage for the C02 amplifiers HEMT and 50K. Additionally
+        it specifies the default drain voltage for the C04 hemt1,
+        50k1, hemt2, 50k2. Read these values, then set them according
+        to if the card is connected or not. See smurf_config.py. This
+        assumes the gate and drain DAC are enabled, and the drain
+        power supplies are disabled. Always set the gate voltage, and
+        always zero the drain DAC voltage, which implies the drain
+        voltage going out the cryocard is zero, and the drain current
+        is zero. Also, send enable, 0x2, to all gate voltages and
+        drain voltages, otherwise they cannot be controlled, even if
+        the current register reports that they are supposedly enabled,
+        0x2.
+
+        """
+        major, minor, patch = self.C.get_fw_version()
+
+        # Enable the HEMT gate DAC on the C02, or HEMT1 gate DAC on the C04.
+        self._caput(self.rtm_spi_max_root + self._rtm_33_ctrl_reg, 0x2)
+
+        if major == 1 or major == 10:
+            volt = self.config.get('amplifier')['LNA_Vg']
+            self.set_amp_gate_voltage('50k', volt)
+
+            volt = self.config.get('amplifier')['hemt_Vg']
+            self.set_amp_gate_voltage('hemt', volt)
+
+            # Even though the enable DAC is 0x2 here, send 0x2 again,
+            # otherwise no voltages can be changed.
+            gate_dac_num = self.config.config['amplifier']['dac_num_50k']
+            self.set_rtm_slow_dac_enable(gate_dac_num, 0x2)
+
+        if major == 4:
+            for amp in self.C.list_of_c04_amps:
+
+                # Set the gates to their defaults.
+
+                gate_volt_default = self.config.config['amplifier'][amp]['gate_volt_default']
+                self.set_amp_gate_voltage(amp, gate_volt_default)
+
+                if amp != 'hemt1':
+                    gate_dac_num = self.config.config['amplifier'][amp]['gate_dac_num']
+                    self.set_rtm_slow_dac_enable(gate_dac_num, 0x2)
+
+                drain_dac_num = self.config.config['amplifier'][amp]['drain_dac_num']
+                self.set_rtm_slow_dac_enable(drain_dac_num, 0x2)
+
+    def get_amplifier_biases(self):
+        """For the C00, C01 and C02, return dictionary of all gate voltages,
+        drain currents, and drain power supply states. For the C04,
+        also return all drain voltages.
+        """
+
+        amp_dict = dict()
+        major, minor, patch = self.C.get_fw_version()
+
+        if major == 1 or major == 10:
+            for amp in self.C.list_of_c02_amps:
+                voltage = self.get_amp_gate_voltage(amp)
+                amp_dict[amp + '_gate_volt'] = voltage
+
+                current = self.get_amp_drain_current(amp)
+                amp_dict[amp + '_drain_current'] = current
+
+                enable = self.get_amp_drain_enable(amp)
+                amp_dict[amp + '_enable'] = enable
+
+        if major == 4:
+            for amp in self.C.list_of_c04_amps:
+                voltage = self.get_amp_gate_voltage(amp)
+                amp_dict[amp + '_gate_volt'] = voltage
+
+                voltage = self.get_amp_drain_voltage(amp)
+                amp_dict[amp + '_drain_volt'] = voltage
+
+                current = self.get_amp_drain_current(amp)
+                amp_dict[amp + '_drain_current'] = current
+
+                enable = self.get_amp_drain_enable(amp)
+                amp_dict[amp + '_enable'] = enable
+
+        return amp_dict
+
+    def set_hemt_enable(self, disable=False):
+        enable = not disable
+        self.log(f'set_hemt_enable: Deprecated. Calling set_amp_drain_enable("hemt", {enable}')
+        self.set_amp_drain_enable('hemt', enable)
+
+    def set_50k_amp_enable(self, disable=False):
+        enable = not disable
+        self.log(f'set_50k_enable: Deprecated. Calling set_amp_drain_enable("50k", {enable}')
+        self.set_amp_drain_enable('50k', enable)
+
+    def get_50k_amp_gate_voltage(self):
+        self.log('get_50k_gate_voltage: Deprecated. Calling get_amp_gate_voltage("50k")')
+        self.get_amp_get_voltage('50k')
+
+    def set_50k_amp_gate_voltage(self, voltage, override=False):
+        self.log(f'set_50k_gate_voltage: Deprecated. Calling set_amp_gate_voltage("50k", {voltage}, override={override})')
+        self.set_amp_gate_voltage('50k', voltage, override)
+
+    def set_hemt_gate_voltage(self, voltage, override=False):
+        self.log(f'set_hemt_gate_voltage: Deprecated. Calling set_amp_gate_voltage("hemt", {voltage}, override={override})')
+        self.set_amp_gate_voltage('hemt', voltage, override)
+
+    def set_hemt_bias(self, voltage, override=False):
+        self.log(f'set_hemt_bias: Deprecated. Calling set_amp_gate_voltage("hemt", {voltage}, override={override})')
+        self.get_amp_get_voltage('hemt', voltage, override)
+
+    def get_hemt_bias(self):
+        self.log('get_hemt_bias: Deprecated. Calling get_amp_gate_voltage("hemt")')
+        return self.get_amp_gate_voltage('hemt')
+
+    def set_amplifier_bias(self, bias_hemt = None, bias_50k = None):
+        self.log('set_amplifier_bias: Deprecated. Calling set_amp_gate_voltage')
+        if bias_hemt is not None:
+            self.set_amp_gate_voltage('hemt', bias_hemt)
+
+        if bias_50k is not None:
+            self.set_amp_gate_voltage('50k', bias_50k)
+
+    def get_amplifier_bias(self):
+        self.log('get_amplifier_bias: Deprecated. Calling get_amplifier_biases')
+        return self.get_amplifier_biases()
+
+    def get_hemt_drain_current(self):
+        self.log('get_hemt_drain_current: Deprecated. Calling get_amp_drain_current("hemt")')
+        return self.get_amp_drain_current("hemt")
+
+    def get_50k_amp_drain_current(self):
+        self.log('get_50k_amp_drain_current: Deprecated. Calling get_amp_drain_current("50k")')
+        return self.get_amp_drain_current("50k")
 
     def flux_ramp_on(self, **kwargs):
         """
@@ -4313,8 +4730,7 @@ class SmurfCommandMixin(SmurfBase):
            reports the flux ramp reset rate that will actually be
            programmed.
 
-        Warning
-        -------
+        .. warning::
            If `RampMaxCnt` is set too low, then it will invert and
            produce a train of pulses 1x or 2x 307.2 MHz ticks wide,
            but it will be mostly high.
@@ -4456,28 +4872,6 @@ class SmurfCommandMixin(SmurfBase):
             self.rtm_cryo_det_root + self._select_ramp_reg,
             **kwargs)
 
-    _enable_ramp_reg = 'EnableRamp'
-
-    def set_enable_ramp(self, val, **kwargs):
-        """
-        Select Ramp to the CPLD
-        0x1 = Fast flux Ramp
-        0x0 = Slow flux ramp
-        """
-        self._caput(
-            self.rtm_cryo_det_root + self._enable_ramp_reg,
-            val, **kwargs)
-
-    def get_enable_ramp(self, **kwargs):
-        """
-        Select Ramp to the CPLD
-        0x1 = Fast flux Ramp
-        0x0 = Slow flux ramp
-        """
-        return self._caget(
-            self.rtm_cryo_det_root + self._enable_ramp_reg,
-            **kwargs)
-
     _ramp_start_mode_reg = 'RampStartMode'
 
     def set_ramp_start_mode(self, val, **kwargs):
@@ -4524,91 +4918,6 @@ class SmurfCommandMixin(SmurfBase):
             self.rtm_cryo_det_root + self._pulse_width_reg,
             **kwargs)
 
-    # can't write a get for this right now because read back isn't implemented
-    # I think...
-    _hemt_v_enable_reg = 'HemtBiasDacCtrlRegCh[33]'
-
-    def set_hemt_enable(self, disable=False, **kwargs):
-        """
-        Sets bit to 2 for enable and 0 for disable.
-
-        Args
-        ----
-        disable : bool, optional, default False
-            If True, sets the HEMT enable bit to 0.
-        """
-        if disable:
-            self._caput(
-                self.rtm_spi_max_root + self._hemt_v_enable_reg,
-                0, **kwargs)
-        else:
-            self._caput(
-                self.rtm_spi_max_root + self._hemt_v_enable_reg,
-                2, **kwargs)
-
-    def set_hemt_gate_voltage(self, voltage, override=False,
-                              **kwargs):
-        """
-        Sets the HEMT gate voltage in units of volts.
-
-        Args
-        ----
-        voltage : float
-            The voltage applied to the HEMT gate. Must be between 0
-            and .75.
-        override bool, optional, default False
-            Override thee limits on HEMT gate voltage.
-        """
-        self.set_hemt_enable()
-        if (voltage > self._hemt_gate_max_voltage or voltage <
-                self._hemt_gate_min_voltage ) and not override:
-            self.log(
-                'Input voltage too high. Not doing anything.' +
-                ' If you really want it higher, use the ' +
-                'override optional arg.')
-        else:
-            self.set_hemt_bias(int(voltage/self._hemt_bit_to_V),
-                override=override, **kwargs)
-
-    _hemt_v_reg = 'HemtBiasDacDataRegCh[33]'
-
-    def set_hemt_bias(self, val, override=False, **kwargs):
-        """
-        Sets the HEMT voltage in units of bits. Need to figure out the
-        conversion into real units.
-
-        There is a hardcoded maximum value. If exceeded, no voltage is
-        set. This check can be ignored using the override optional
-        argument.
-
-        Args
-        ----
-        val : int
-            The voltage in bits.
-        override : bool, optional, default False
-            Allows exceeding the hardcoded limit. Default False.
-        """
-        if val > 350E3 and not override:
-            self.log('Input voltage too high. Not doing anything.' +
-                ' If you really want it higher, use the override optinal arg.')
-        else:
-            self._caput(
-                self.rtm_spi_max_root + self._hemt_v_reg,
-                val, **kwargs)
-
-    def get_hemt_bias(self, **kwargs):
-        """
-        Returns the HEMT voltage in bits.
-        """
-        return self._caget(
-            self.rtm_spi_max_root + self._hemt_v_reg,
-            **kwargs)
-
-    def get_hemt_gate_voltage(self, **kwargs):
-        """
-        Returns the HEMT voltage in bits.
-        """
-        return self._hemt_bit_to_V*(self.get_hemt_bias(**kwargs))
 
     _stream_datafile_reg = 'dataFile'
 
@@ -4739,6 +5048,8 @@ class SmurfCommandMixin(SmurfBase):
 
     def get_fpga_vccint(self, **kwargs):
         """
+        No description
+
         Returns
         -------
         val : float
@@ -4753,6 +5064,8 @@ class SmurfCommandMixin(SmurfBase):
 
     def get_fpga_vccaux(self, **kwargs):
         """
+        No description
+
         Returns
         -------
         val : float
@@ -4767,6 +5080,8 @@ class SmurfCommandMixin(SmurfBase):
 
     def get_fpga_vccbram(self, **kwargs):
         """
+        No description
+
         Returns
         -------
         val : float
@@ -4782,6 +5097,8 @@ class SmurfCommandMixin(SmurfBase):
 
     def get_regulator_iout(self, **kwargs):
         """
+        No description
+
         Returns
         -------
         value : float
@@ -4796,6 +5113,8 @@ class SmurfCommandMixin(SmurfBase):
 
     def get_regulator_temp1(self, **kwargs):
         """
+        No description
+
         Returns
         -------
         value : float
@@ -4810,6 +5129,8 @@ class SmurfCommandMixin(SmurfBase):
 
     def get_regulator_temp2(self, **kwargs):
         """
+        No description
+
         Returns
         -------
         value : float
@@ -4823,6 +5144,10 @@ class SmurfCommandMixin(SmurfBase):
     # Cryo card comands
     def get_cryo_card_temp(self, enable_poll=False, disable_poll=False):
         """
+        Get the self-reported temperature of the cryocard. This value is typically
+        around 20 Celcius. Anything higher than 30 would indicate a problem. Anything
+        below 0 C indicates the board is not connected.
+
         Returns
         -------
         temp : float
@@ -4835,6 +5160,9 @@ class SmurfCommandMixin(SmurfBase):
 
         T = self.C.read_temperature()
 
+        if T < 0:
+            self.log('get_cryo_card_temp: Temperature is below 0 C, is it connected?')
+
         if disable_poll:
             epics.caput(
                 self.epics_root + self._global_poll_enable_reg,
@@ -4842,52 +5170,11 @@ class SmurfCommandMixin(SmurfBase):
 
         return T
 
-
-    def get_cryo_card_hemt_bias(self, enable_poll=False, disable_poll=False):
-        """
-        Returns
-        -------
-        bias : float
-            The HEMT bias in volts.
-        """
-        if enable_poll:
-            epics.caput(
-                self.epics_root + self._global_poll_enable_reg,
-                True)
-
-        hemt_bias = self.C.read_hemt_bias()
-
-        if disable_poll:
-            epics.caput(
-                self.epics_root + self._global_poll_enable_reg,
-                False)
-
-        return hemt_bias
-
-    def get_cryo_card_50k_bias(self, enable_poll=False, disable_poll=False):
-        """
-        Returns
-        -------
-        bias : float
-            The 50K bias in volts.
-        """
-        if enable_poll:
-            epics.caput(
-                self.epics_root + self._global_poll_enable_reg,
-                True)
-
-        bias = self.C.read_50k_bias()
-
-        if disable_poll:
-            epics.caput(
-                self.epics_root + self._global_poll_enable_reg,
-                False)
-
-        return bias
-
     def get_cryo_card_cycle_count(self, enable_poll=False,
                                   disable_poll=False):
         """
+        No description
+
         Returns
         -------
         cycle_count : float
@@ -4901,6 +5188,8 @@ class SmurfCommandMixin(SmurfBase):
     def get_cryo_card_relays(self, enable_poll=False,
                              disable_poll=False):
         """
+        No description
+
         Returns
         -------
         relays : hex
@@ -4994,56 +5283,6 @@ class SmurfCommandMixin(SmurfBase):
                 self.epics_root + self._global_poll_enable_reg,
                 False)
 
-    def set_cryo_card_hemt_ps_en(self, enable, write_log=False):
-        """
-        Set the cryo card HEMT power supply enable.
-
-        Args
-        ----
-        enable : bool
-            Power supply enable (True = enable, False = disable).
-        """
-        if write_log:
-            self.log('Writing HEMT PS enable using cryo_card object '+
-                f'to {enable}')
-
-        # Read the current enable word and merge this bit in position 0
-        current_en_value = self.C.read_ps_en()
-        if (enable):
-            # Set bit 0
-            new_en_value = current_en_value | 0x1
-        else:
-            # Clear bit 0
-            new_en_value = current_en_value & 0x2
-
-        # Write back the new value
-        self.C.write_ps_en(new_en_value)
-
-    def set_cryo_card_50k_ps_en(self, enable, write_log=False):
-        """
-        Set the cryo card 50k power supply enable.
-
-        Args
-        ----
-        enable : bool
-            Power supply enable (True = enable, False = disable).
-        """
-        if write_log:
-            self.log('Writing 50k PS enable using cryo_card object '+
-                f'to {enable}')
-
-        # Read the current enable word and merge this bit in position 1
-        current_en_value = self.C.read_ps_en()
-        if (enable):
-            # Set bit 2
-            new_en_value = current_en_value | 0x2
-        else:
-            # Clear bit 1
-            new_en_value = current_en_value & 0x1
-
-        # Write back the new value
-        self.C.write_ps_en(new_en_value)
-
     def set_cryo_card_ps_en(self, enable=3, write_log=False):
         """
         Write the cryo card power supply enables. Can use this to set both
@@ -5094,37 +5333,6 @@ class SmurfCommandMixin(SmurfBase):
         en_value = self.C.read_ps_en()
         return en_value
 
-
-    def get_cryo_card_hemt_ps_en(self):
-        """
-        Get the cryo card HEMT power supply enable.
-
-        Returns
-        -------
-        enable : bool
-            Power supply enable (True = enable, False = disable).
-        """
-
-        # Read the power supply enable word and extract the status of bit 0
-        en_value = self.C.read_ps_en()
-
-        return (en_value & 0x1 == 0x1)
-
-    def get_cryo_card_50k_ps_en(self):
-        """
-        Set the cryo card HEMT power supply enable.
-
-        Returns
-        -------
-        enable : bool
-            Power supply enable (True = enable, False = disable).
-        """
-
-        # Read the power supply enable word and extract the status of bit 1
-        en_value = self.C.read_ps_en()
-
-        return (en_value & 0x2 == 0x2)
-
     def get_cryo_card_ac_dc_mode(self):
         """
         Get the operation mode, AC or DC, based on the readback of the relays.
@@ -5142,13 +5350,13 @@ class SmurfCommandMixin(SmurfBase):
         # Both bit
         if status == 0x0:
             # When both readbacks are '0' we are in DC mode
-            return("DC")
+            return ("DC")
         elif status == 0x3:
             # When both readback are '1' we are in AC mode
-            return("AC")
+            return ("AC")
         else:
             # Anything else is an error
-            return("ERROR")
+            return ("ERROR")
 
 
     _smurf_to_gcp_stream_reg = 'userConfig[0]'  # bit for streaming
@@ -5224,23 +5432,130 @@ class SmurfCommandMixin(SmurfBase):
     _trigger_enable_reg = 'EvrV2TriggerReg[{}]:EnableTrig'
 
     def set_trigger_enable(self, chan, val, **kwargs):
-        """
+        r"""Set trigger pulse generation enable for requested channel.
+
+        The triggering firmware is broken into two parts: (1) the
+        event selection logic "Channel", and (2) the trigger pulse
+        generation "Trigger".  This enables or disables the "Trigger"
+        component for the requested channel.
+
+        Args
+        ----
+        chan : int
+            Which trigger pulse generator channel to enable or
+            disable.
+        val : int
+            1 to enable, 0 to disable.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caput` call.
+
+        See Also
+        --------
+        :func:`get_trigger_enable` : Get trigger pulse generation
+        enable for requested channel.
         """
         self._caput(
             self.trigger_root + self._trigger_enable_reg.format(chan),
             val, **kwargs)
 
+    def get_trigger_enable(self, chan, **kwargs):
+        r"""Get trigger pulse generation enable for requested channel.
+
+        The triggering firmware is broken into two parts: (1) the
+        event selection logic "Channel", and (2) the trigger pulse
+        generation "Trigger".  This returns whether or not the
+        "Trigger" component for the requested channel is enabled or
+        disabled.
+
+        Args
+        ----
+        chan : int
+            Return the enable for this trigger pulse generator
+            channel.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caget` call.
+
+        Returns
+        -------
+        int
+            1 if trigger for this channel is enabled, 0 if disabled.
+
+        See Also
+        --------
+        :func:`set_trigger_enable` : Set trigger pulse generation
+        enable for requested channel.
+        """
+        return self._caget(
+            self.trigger_root + self._trigger_enable_reg.format(chan),
+            **kwargs)
+
     _trigger_channel_reg_enable_reg = 'EvrV2ChannelReg[{}]:EnableReg'
 
     def set_evr_channel_reg_enable(self, chan, val, **kwargs):
-        """
+        r"""Set trigger channel enable.
+
+        The triggering firmware is broken into two parts: (1) the
+        event selection logic "Channel", and (2) the trigger pulse
+        generation "Trigger".  Trigger pulse generation has several
+        required inputs including which "Channel" to listen to.
+        Setting this "Enable" register turns on the event selection
+        logic for the requested channel.
+
+        Args
+        ----
+        chan : int
+            Which trigger event selection logic channel to enable or
+            disable.
+        val : int
+            1 to enable, 0 to disable.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caput` call.
+
+        See Also
+        --------
+        :func:`get_evr_channel_reg_enable` : Get trigger channel enable.
         """
         self._caput(
             self.trigger_root +
             self._trigger_channel_reg_enable_reg.format(chan),
             val, **kwargs)
 
-    # Crashing in rogue 4, and not clear it's ever needed.
+    def get_evr_channel_reg_enable(self, chan, **kwargs):
+        r"""Get trigger channel enable.
+
+        The triggering firmware is broken into two parts: (1) the
+        event selection logic "Channel", and (2) the trigger pulse
+        generation "Trigger".  Trigger pulse generation has several
+        required inputs including which "Channel" to listen to.  This
+        "Enable" register controls whether or not the event selection
+        logic for the requested channel is on.
+
+        Args
+        ----
+        chan : int
+            Which trigger event selection logic channel to enable or
+            disable.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caget` call.
+
+        Returns
+        -------
+        int
+            1 if trigger channel is enabled, 0 if disabled.
+
+        See Also
+        --------
+        :func:`set_evr_channel_reg_enable` : Get trigger channel enable.
+        """
+        return self._caget(
+            self.trigger_root +
+            self._trigger_channel_reg_enable_reg.format(chan),
+            **kwargs)
+
     _trigger_reg_enable_reg = 'EvrV2TriggerReg[{}]:enable'
 
     def set_evr_trigger_reg_enable(self, chan, val, **kwargs):
@@ -5259,6 +5574,88 @@ class SmurfCommandMixin(SmurfBase):
         return self._caget(
             self.trigger_root +
             self._trigger_channel_reg_count_reg.format(chan),
+            **kwargs)
+
+    _evr_trigger_dest_type_reg = 'EvrV2ChannelReg[{}]:DestType'
+
+    def set_evr_trigger_dest_type(self, chan, value, **kwargs):
+        r"""Set trigger channel destination type.
+
+        The triggering firmware is broken into two parts: (1) the
+        event selection logic "Channel", and (2) the trigger pulse
+        generation "Trigger".  Trigger pulse generation has several
+        required inputs including which "Channel" to listen to.  The
+        channel destination type, or DestType, is an optional logic
+        selection (logical AND of) on the presence of a beam where
+        this logic is also used for LCLS-2 on the accelerator.  For
+        SMuRF we always use destination 0 (="All" if you're looking at
+        the SMuRF Rogue gui) which tells the trigger channel logic to
+        ignore all beam logic (a better name for "All" would be
+        "DontCare".
+
+        Args
+        ----
+        chan : int
+            Which trigger event selection logic channel's destination
+            type to set.
+        val : int
+            Destination type to set.  Although valid options are 0, 1,
+            2 or 3, for SMuRF we always use 0 corresponding to "All"
+            in the Rogue gui which instructs the channel to ignore any
+            selection on the presence of beam.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caput` call.
+
+        See Also
+        --------
+        :func:`get_evr_trigger_dest_type` : Get trigger channel destination type.
+        """
+        self._caput(
+            self.trigger_root +
+            self._evr_trigger_dest_type_reg.format(chan),
+            value, **kwargs)
+
+    def get_evr_trigger_dest_type(self, chan, **kwargs):
+        r"""Get trigger channel destination type.
+
+        The triggering firmware is broken into two parts: (1) the
+        event selection logic "Channel", and (2) the trigger pulse
+        generation "Trigger".  Trigger pulse generation has several
+        required inputs including which "Channel" to listen to.  The
+        channel destination type, or DestType, is an optional logic
+        selection (logical AND of) on the presence of a beam where
+        this logic is also used for LCLS-2 on the accelerator.  For
+        SMuRF we always use destination 0 (="All" if you're looking at
+        the SMuRF Rogue gui) which tells the trigger channel logic to
+        ignore all beam logic (a better name for "All" would be
+        "DontCare".
+
+        Args
+        ----
+        chan : int
+            Which trigger event selection logic channel's destination
+            type to get.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caget` call.
+
+        Returns
+        -------
+        int
+            Channel destination type of the requested channel.
+            Although valid options are 0, 1, 2, and 3, SMuRF should
+            always use 0 corresponding to "All" in the Rogue gui which
+            instructs the channel to ignore any selection on the
+            presence of beam for LCLS-2.
+
+        See Also
+        --------
+        :func:`set_evr_trigger_dest_type` : Set trigger channel destination type.
+        """
+        return self._caget(
+            self.trigger_root +
+            self._evr_trigger_dest_type_reg.format(chan),
             **kwargs)
 
     _trigger_channel_reg_dest_sel_reg = 'EvrV2ChannelReg[{}]:DestSel'
@@ -5396,6 +5793,9 @@ class SmurfCommandMixin(SmurfBase):
 
     def get_crossbar_output_config(self, index, **kwargs):
         """
+        This is the timing crossbar, which determins how the SMuRF carrier
+        receives its timing signal, and how the backplane receives its
+        timing signal.
         """
         return self._caget(
             self.crossbar + self._output_config_reg.format(index),
@@ -5404,11 +5804,59 @@ class SmurfCommandMixin(SmurfBase):
     _timing_link_up_reg = "RxLinkUp"
 
     def get_timing_link_up(self, **kwargs):
-        """
+        r"""Return external timing link status.
+
+        Return the value of RxLinkUp. This tells you if the FPGA
+        recovered clock is receiving timing from somewhere, either the
+        backplane or fiber. This doesn't directly tell you anything
+        about the AMCs, JESDs, or LMKs.
+
+        Args
+        ----
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caget` call.
+
+        Returns
+        -------
+        int
+            1 if link is up, 0 if link is down.
         """
         return self._caget(
             self.timing_status + self._timing_link_up_reg,
             **kwargs)
+
+    def set_lmk_enable(self, bay, val, **kwargs):
+        r"""
+        Enable the AMC LMK in bay 0. On boot, the LMK is enabled, however once
+        the DACS are reset on SmurfControl.setup the LMK is disabled. If you
+        need to modify LMK values, this value must be 1.
+
+        Args
+        ----
+        bay : int
+            0 ot 1.
+        val : int
+            0 or 1.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `epics.caput` call.
+        """
+        self._caput(self.lmk.format(bay) + 'enable', val, **kwargs)
+
+    def get_lmk_enable(self, bay, **kwargs):
+        r"""
+        Set the LMK:Enable bit.
+
+        Args
+        ----
+        bay : int
+            0 or 1.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `epics.caget` call.
+        """
+        self._caget(self.lmk.format(bay) + 'Enable', **kwargs)
 
     # assumes it's handed the decimal equivalent
     _lmk_reg = "LmkReg_0x{:04X}"
@@ -5674,9 +6122,45 @@ class SmurfCommandMixin(SmurfBase):
             self.smurf_processor + self._filter_gain_reg,
             **kwargs)
 
-    _downsampler_factor_reg = 'Downsampler:Factor'
+    _downsampler_mode_reg = 'Downsampler:DownsamplerMode'
 
-    def set_downsample_factor(self, factor, **kwargs):
+    def set_downsample_mode(self, mode):
+        """
+        Set the downsampler mode. 0 is internal, 1 is external.
+
+        Ref. SmurfHeader.h, SmurfHeader.cpp, _SmurfProcessor.py
+        Ref. https://confluence.slac.stanford.edu/display/SMuRF/SMuRF+Processor
+        """
+        if mode == 'internal':
+            self._caput(self.smurf_processor + self._downsampler_mode_reg, 0)
+        elif mode == 'external':
+            self._caput(self.smurf_processor + self._downsampler_mode_reg, 1)
+        else:
+            self.log(f'set_downsample_mode: Unknown mode {mode}')
+
+    def get_downsample_mode(self):
+        """
+        Get the downsampler mode. 0 is internal, 1 is external.
+
+        Ref. SmurfHeader.h, SmurfHeader.cpp, _SmurfProcessor.py
+        Ref. https://confluence.slac.stanford.edu/display/SMuRF/SMuRF+Processor
+        """
+        mode = self._caget(self.smurf_processor + self._downsampler_mode_reg)
+
+        ret = 'Unknown'
+
+        if mode == 0:
+            ret = 'internal'
+        elif mode == 1:
+            ret = 'external'
+        else:
+            self.log(f'get_downsample_mode: Unknown mode {mode}')
+
+        return ret
+
+    _downsampler_factor_reg = 'Downsampler:InternalFactor'
+
+    def set_downsample_factor(self, factor, get_nearby=False, desperation=2, **kwargs):
         """
         Set the smurf processor down-sampling factor.
 
@@ -5684,34 +6168,90 @@ class SmurfCommandMixin(SmurfBase):
         ----
         int
             The down-sampling factor.
+        get_nearby: bool
+            If True, will try to find a bitmask close to the specified
+            downsample factor if the given factor cannot be expressed
+        desperation: int
+            Desparation factor used when finding nearby ds-factors. This limits
+            how far the ds-factor can be from the one requested
         """
-        self._caput(
-            self.smurf_processor + self._downsampler_factor_reg,
-            factor, **kwargs)
+        mode = self.get_downsample_mode()
+        if mode == 'external':
+            dsc = dscounters.DownsampleCounters(dscounters.configs['v3'])
+            if get_nearby:
+                bmask = dsc.get_nearby(factor, desperation=desperation)
+            else:
+                bmask = dsc.get_mask(factor)
+
+            if bmask is None:
+                raise ValueError(f"Could not create bitmask for factor {factor}")
+
+            # The bitmask is shifted 10 bits to the left because the
+            # first 10 bits of the timing system counters are the higher rate
+            # FIXEDDIV counters.
+            bmask = bmask << 10
+            self.set_downsample_external_bitmask(bmask)
+
+            return
+        else:
+            self._caput(
+                self.smurf_processor + self._downsampler_factor_reg,
+                factor, **kwargs)
 
     def get_downsample_factor(self, **kwargs):
         """
-        Get the smurf processor down-sampling factor.
+        Get the smurf processor down-sampling factor. This is only used
+        when the downsampling mode is internal.  When the downsampling
+        mode is internal, the server will receive frames, place them
+        through SmurfProcessor.cpp, but it will not release any data
+        to be saved until it has counted up to this factor.
 
         Returns
         -------
         int
             The down-sampling factor.
         """
-        if self.offline:  # FIX ME - STUPID HARD CODE
+        if self.offline:
+            self.log("get_downsample_factor: offline is True, SmurfProcessor.cpp is not running..")
             return 20
 
-        else:
-            return self._caget(
-                self.smurf_processor + self._downsampler_factor_reg,
-                **kwargs)
+        if self.get_downsample_mode() == 'external':
+            dsc = dscounters.DownsampleCounters(dscounters.configs['v3'])
+            bmask = self.get_downsample_external_bitmask() >> 10
+            return dsc.period_from_mask(bmask)
+
+        return self._caget(self.smurf_processor + self._downsampler_factor_reg, **kwargs)
+
+    _downsampler_external_bitmask_reg = 'Downsampler:ExternalBitmask'
+
+    def set_downsample_external_bitmask(self, bitmask):
+        """
+        Set the downsampler external bitmask.
+
+        Ref. https://confluence.slac.stanford.edu/display/SMuRF/SMuRF+Processor
+        """
+        self._caput(self.smurf_processor + self._downsampler_external_bitmask_reg, bitmask)
+
+    def get_downsample_external_bitmask(self):
+        """
+        Get the downsampler external bitmask. This bitmask is only used
+        when get_downsample_mode is external. For example, 0 means
+        never trigger, 1 means trigger on the first bit, 2 will
+        trigger on the second bit, 4 will trigger on the third bit. By
+        bit, we mean when the bit flips in one direction, because the
+        bit will flip back on the next incoming data stream.
+
+        Ref. https://confluence.slac.stanford.edu/display/SMuRF/SMuRF+Processor
+        """
+        return self._caget(self.smurf_processor + self._downsampler_external_bitmask_reg)
 
     _filter_disable_reg = "Filter:Disable"
 
     def set_filter_disable(self, disable_status, **kwargs):
         """
-        If Disable is set to True, then the downsampling filter is
-        off.
+        If Disable is set to True, then the filter is off. Incoming data
+        to SmurfProcessor.cpp may still be downsampled, however,
+        filtering would not be applied.
 
         Args
         ----
@@ -5843,10 +6383,36 @@ class SmurfCommandMixin(SmurfBase):
         """
         return self._caget(self._predata_emulator + 'enable', **kwargs)
 
+    _predata_emulator_disable = "Disable"
+
+    def set_predata_emulator_disable(self, val, **kwargs):
+        """
+        Sets the predata emulator disable status.
+
+        Args
+        ----
+        val : bool
+        """
+        self._caput(self._predata_emulator + self._predata_emulator_disable,
+            val, **kwargs)
+
+    def get_predata_emulator_disable(self, **kwargs):
+        """
+        Gets the predata emulator disable status.
+
+        Returns
+        -------
+        type : bool
+        """
+        return self._caget(self._predata_emulator + self._predata_emulator_disable,
+            **kwargs)
+
     _predata_emulator_type = "Type"
 
     def set_predata_emulator_type(self, val, **kwargs):
         """
+        No description
+
         Args
         ----
         val : str
@@ -5945,6 +6511,8 @@ class SmurfCommandMixin(SmurfBase):
 
     def set_postdata_emulator_type(self, val, **kwargs):
         """
+        No description
+
         Args
         ----
         val : str
@@ -6015,6 +6583,8 @@ class SmurfCommandMixin(SmurfBase):
 
     def get_postdata_emulator_period(self, **kwargs):
         """
+        No description
+
         Returns
         -------
         period : int
@@ -6053,3 +6623,121 @@ class SmurfCommandMixin(SmurfBase):
         """
         return self._caget(self.stream_data_source + self._stream_data_period,
             **kwargs)
+
+    def shell_command(self,cmd,**kwargs):
+        r"""Runs command on shell and returns code, stdout, & stderr.
+
+        Args
+        ----
+        cmd : str
+            Command to run on shell.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `subprocess.run` call.
+
+        Returns
+        -------
+        (stdout, stderr)
+            stdout and stderr returned as str
+        """
+        result = subprocess.run(
+            cmd.split(), stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE, shell=False, **kwargs
+        )
+
+        return result.stdout.decode(),result.stderr.decode()
+
+    def get_fru_info(self,board,bay=None,slot_number=None,shelf_manager=None):
+        r"""Returns FRU information for SMuRF board.
+
+        Wrapper for dumping the FRU information for SMuRF boards using
+        shell commands.
+
+        Args
+        ----
+        board : str
+            Which board to return FRU informationf for.  Valid options
+            include 'amc', 'carrier', or 'rtm'.  If 'amc', must also
+            provide the bay argument.
+        bay : int, optional, default None
+            Which bay to return the AMC FRU information for.  Used
+            only if board='amc'.
+        slot_number : int or None, optional, default None
+            The crate slot number that the AMC is installed into.  If
+            None, defaults to the
+            :class:`~pysmurf.client.base.smurf_control.SmurfControl`
+            class attribute
+            :attr:`~pysmurf.client.base.smurf_control.SmurfControl.slot_number`.
+        shelf_manager : str or None, optional, default None
+            Shelf manager ip address.  If None, defaults to the
+            :class:`~pysmurf.client.base.smurf_control.SmurfControl`
+            class attribute
+            :attr:`~pysmurf.client.base.smurf_control.SmurfControl.shelf_manager`.
+            For typical systems the default name of the shelf manager
+            is 'shm-smrf-sp01'.
+
+        Returns
+        -------
+        fru_info_dict : dict
+            Dictionary of requested FRU information.  Returns None if
+            board not a valid option, board not present in slot, slot
+            not present in shelf, or if no AMC is up in the requested
+            bay.
+        """
+        if slot_number is None:
+            slot_number=self.slot_number
+        if shelf_manager is None:
+            shelf_manager=self.shelf_manager
+
+        valid_board_options=['amc','rtm','carrier']
+        if board not in valid_board_options:
+            self.log(f'ERROR : {board} not in list of valid board options {valid_board_options}.  Returning None.',self.LOG_ERROR)
+            return None
+
+        shell_cmd=''
+        shell_cmd_prefix=None
+        if board=='amc':
+            shell_cmd_prefix='amc'
+            # require bay argument
+            if bay is None:
+                self.log('ERROR : Must provide AMC bay.  Returning None.',self.LOG_ERROR)
+                return None
+            if bay not in [0,1]:
+                self.log('ERROR : bay argument can only be 0 or 1.  Returning None.',self.LOG_ERROR)
+                return None
+            shell_cmd+=f'/{bay*2}'
+        elif board=='rtm':
+            # require bay argument
+            shell_cmd_prefix='rtm'
+        else: # only carrier left
+            shell_cmd_prefix='fru'
+
+        shell_cmd=f'cba_{shell_cmd_prefix}_init -d {shelf_manager}/{slot_number}'+shell_cmd
+        stdout,stderr=self.shell_command(shell_cmd)
+
+        # Error handling
+        if 'AMC not present in bay' in stdout:
+            self.log('ERROR : AMC not present in bay!  Returning None.',
+                     self.LOG_ERROR)
+            return None
+        if 'Slot not present in shelf' in stdout:
+            self.log('ERROR : Slot not present in shelf!  Returning None.',
+                     self.LOG_ERROR)
+            return None
+        if 'Board not present in slot' in stdout:
+            self.log('ERROR : Board not present in slot!  Returning None.',
+                     self.LOG_ERROR)
+            return None
+        else: # parse and return fru information for this board
+            stdout=stdout.split('\n')
+            fru_info_dict={}
+            for line in stdout:
+                if ':' in line:
+                    splitline=line.split(':')
+                    if len(splitline)==2:
+                        fru_key=splitline[0].lstrip().rstrip()
+                        fru_value=splitline[1].lstrip().rstrip()
+                        if len(fru_value)>0: # skip header
+                            fru_info_dict[fru_key]=fru_value
+
+        return fru_info_dict

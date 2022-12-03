@@ -9,7 +9,7 @@ shelfmanager='shm-smrf-sp01'
 
 def get_crate_mfr(shelfmanager,timeout=5):
     print(f'{shelfmanager}:Crate:Sensors:Crate:CrateInfo:manufacturer')
-    crate_mfr=epics.caget(f'{shelfmanager}:Crate:Sensors:Crate:CrateInfo:manufacturer',as_string=True,timeout=5)
+    crate_mfr=epics.caget(f'{shelfmanager}:Crate:Sensors:Crate:CrateInfo:manufacturer',as_string=True,timeout=5, use_monitor=False)
     return crate_mfr
 
 # atca_monitor not working right now, have to hardcode.

@@ -120,6 +120,11 @@ const ZeroCopyCreator::data_t ZeroCopyCreator::getData(std::size_t index) const
     return data[index];
 }
 
+std::vector<ZeroCopyCreator::data_t> ZeroCopyCreator::getAllData() const
+{
+    return std::vector<data_t>(data, data+dataSize);
+}
+
 // Explicit template instantiations
 template class SmurfPacketManagerRO<CopyCreator>;
 template class SmurfPacketManagerRO<ZeroCopyCreator>;
