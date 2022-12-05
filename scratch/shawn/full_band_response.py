@@ -72,7 +72,7 @@ plt.savefig(os.path.join(S.plot_dir, save_name),
             bbox_inches='tight')
 plt.show()
 
-save_name = '{}_full_band_resp_all.npy'.format(timestamp)
+save_name = os.path.join(S.output_dir,'{}_full_band_resp_all.npy'.format(timestamp))
 print(f'Saving data to {os.path.join(S.output_dir, save_name)}')
 np.save(save_name,resp_dict)
 

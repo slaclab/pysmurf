@@ -10,8 +10,8 @@ plt.ion()
 print('Beginning Attenuation Test')
 n_scan_per_band=1
 wait_btw_bands_sec=.5
-fig, Lax = plt.subplots(nrows=2, ncols=2) #one plot per Bay, per converter set
-fig, Rax = plt.subplots(nrows=2, ncols=2) #one plot per Bay, per converter set
+fig, Lax = plt.subplots(nrows=2, ncols=2, figsize=(12,9)) #one plot per Bay, per converter set
+fig, Rax = plt.subplots(nrows=2, ncols=2, figsize=(12,9)) #one plot per Bay, per converter set
 colors = ['r','y','g','c','b','m','k']
 Z = 0 #for use with the response plots
 z = 0 #for use with the attenuation plots
@@ -213,6 +213,8 @@ Rax[1,1].set_xlabel('Attenuation Setpoint')
 save_name = '{}_full_band_resp_atten.png'.format(timestamp)
 
 fig.suptitle(save_name)
+
+plt.tight_layout()
 
 print(f'Saving plot to {os.path.join(S.plot_dir, save_name)}')
 plt.savefig(os.path.join(S.plot_dir, save_name),
