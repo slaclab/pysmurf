@@ -5,6 +5,9 @@ import numpy as np
 import sys
 import os
 import matplotlib.pylab as plt
+
+print("Inside full_band_response.py. Starting.")
+
 plt.ion()
 
 n_scan_per_band=5
@@ -69,7 +72,7 @@ plt.savefig(os.path.join(S.plot_dir, save_name),
             bbox_inches='tight')
 plt.show()
 
-save_name = '{}_full_band_resp_all.npy'.format(timestamp)
+save_name = os.path.join(S.output_dir,'{}_full_band_resp_all.npy'.format(timestamp))
 print(f'Saving data to {os.path.join(S.output_dir, save_name)}')
 np.save(save_name,resp_dict)
 

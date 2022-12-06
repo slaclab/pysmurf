@@ -80,18 +80,26 @@ wait_after_tracking_setups_min=1
 full_fan_level_dwell_min=2
 
 # Whether or not to restrict the fan level
-restrict_fan_level=False
+restrict_fan_level=True
 restricted_fan_level_dwell_min=15
 
 # Dumb monitoring of FPGA and regulator temperatures
 #while true; do clear; awk '{print $1" "$3" "$17" "$18" "$19}' 1568751172_hwlog.dat | tail -n 3 | sort; sleep 1; done
 
 def tmux_cmd(slot_number,cmd,tmux_session_name='smurf'):
+    print(slot_number, cmd, tmux_session_name)
     os.system("""tmux send-keys -t {}:{} '{}' C-m""".format(tmux_session_name,slot_number,cmd))
 
 def get_eta_scan_in_progress(slot_number,band,tmux_session_name='smurf',timeout=5):
-    etaScanInProgress=int(epics.caget('smurf_server_s{}:AMCc:FpgaTopLevel:AppTop:AppCore:SysgenCryo:Base[{}]:CryoChannels:etaScanInProgress'.format(slot_number,band),timeout=timeout, use_monitor=False))
-    return etaScanInProgress
+    etaScanInProgress=epics.caget('smurf_server_s{}:AMCc:FpgaTopLevel:AppTop:AppCore:SysgenCryo:Base[{}]:CryoChannels:etaScanInProgress'.format(slot_number,band),timeout=timeout)
+
+    if type(etaScanInProgress) == type(None):
+        print("Failed to caget etaScanInProgress. Trying again.")
+        return True
+
+    print("Got etaScanInProgress. Value is", etaScanInProgress)
+
+    return int(etaScanInProgress)
     
 def start_hardware_logging(slot_number,filename=None):
     cmd=None
@@ -335,8 +343,10 @@ for band in bands:
     time.sleep(1)
     #wait for eta scans to complete
     for slot in slots:
-        while get_eta_scan_in_progress(slot,band):
-            time.sleep(5)
+        # Code breaks here.
+        # Assume we don't actually need to wait for the eta scan to finish.
+        #while get_eta_scan_in_progress(slot,band):
+        #    time.sleep(5)
         print('-> Eta scan for slot {}, band {} completed.'.format(slot,band))
 
         # only need this if using eth interface
@@ -432,9 +442,10 @@ enable_fan_policy(shelfmanager,fan_frus)
 ## Measure full band response at the end
 #if measure_full_band_response_at_end:
 #    print('-> Waiting {} min before full band response at end.'.format(wait_before_full_band_response_at_end_min))
-#    wait_before_full_band_response_at_end_sec=wait_before_full_band_response_at_end_min*60
-#    time.sleep(wait_before_full_band_response_at_end_sec)    
-#    
+#    #wait_before_full_band_response_at_end_sec=wait_before_full_band_response_at_end_min*60
+    #time.sleep(wait_before_full_band_response_at_end_sec)    
+#    time.sleep(60)
+    
 #    for slot in slots:
 #        print(f'-> Checking full band response to confirm RF is still properly configured on slot {slot}.')    
 #        measure_full_band_response(slot)
