@@ -8,31 +8,43 @@ import matplotlib.pylab as plt
 import re
 plt.ion()
 print('Beginning Attenuation Test')
-timestamp = S.get_timestamp()
 n_scan_per_band=1
 wait_btw_bands_sec=.5
-fig, Lax = plt.subplots(nrows=2, ncols=2) #one plot per Bay, per converter set
-fig, Rax = plt.subplots(nrows=2, ncols=2) #one plot per Bay, per converter set
+fig, Lax = plt.subplots(nrows=2, ncols=2, figsize=(12,9)) #one plot per Bay, per converter set
+fig, Rax = plt.subplots(nrows=2, ncols=2, figsize=(12,9)) #one plot per Bay, per converter set
 colors = ['r','y','g','c','b','m','k']
 Z = 0 #for use with the response plots
 z = 0 #for use with the attenuation plots
 
-print('Getting Serial Number for AMC in Bay 0')
+timestamp = S.get_timestamp()
+print('Beginning Attenuation Test')
+print(f'software: {S.get_pysmurf_version()}')
+print(f'firmware: {S.get_rogue_version()}')
+print(f'fpga: {S.get_fpga_version()}, {S.get_fpga_build_stamp()}')
+print(f'Start time: {timestamp}')
+
 lhsbay=S.get_amc_sn(0,use_shell=True)
+print(f'Bay 0 Asset Tag: {lhsbay}')
+
+rhsbay=S.get_amc_sn(1,use_shell=True)
+print(f'Bay 1 Asset Tag: {rhsbay}')
+
+print('Getting board types...')
+
 if re.split('-|_',lhsbay)[1] == 'A02':
    LBoardType = 'high'
 
 else:
    LBoardType = 'low'
 
-print('Getting Serial Number for AMC in Bay 1')   
-rhsbay=S.get_amc_sn(1,use_shell=True)
 if re.split('-|_',rhsbay)[1] == 'A02':
    RBoardType = 'high'
 else:
    RBoardType = 'low'
    
-print(f'{lhsbay},{rhsbay}')
+print(f'Bay 0 board type: {LBoardType}')
+print(f'Bay 1 board type: {RBoardType}')
+
 att=[0,1,2,4,8,16,31]
 
 uattplt = [[0 for x in range(len(att))] for y in range(8)]
@@ -201,6 +213,8 @@ Rax[1,1].set_xlabel('Attenuation Setpoint')
 save_name = '{}_full_band_resp_atten.png'.format(timestamp)
 
 fig.suptitle(save_name)
+
+plt.tight_layout()
 
 print(f'Saving plot to {os.path.join(S.plot_dir, save_name)}')
 plt.savefig(os.path.join(S.plot_dir, save_name),
