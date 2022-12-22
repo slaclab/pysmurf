@@ -5902,13 +5902,13 @@ class SmurfCommandMixin(SmurfBase):
         See Also
         --------
         :func:`get_timing_rx_dec_err_cnt` : Gets decode error
-        counter for received timing characters.
+            counter for received timing characters.
 
         :func:`get_timing_rx_dsp_err_cnt` : Gets disparity error counter
-        for received timing characters.
+            for received timing characters.
 
         :func:`get_timing_rx_rst_cnt` : Gets timing data link reset
-        counter.
+            counter.
         """
         return self._caget(
             self.timing_status + self._timing_crc_err_cnt,
@@ -5968,13 +5968,13 @@ class SmurfCommandMixin(SmurfBase):
         See Also
         --------
         :func:`get_timing_crc_err_cnt` : Gets CRC error counter for
-        received timing frames.
+            received timing frames.
 
         :func:`get_timing_rx_dsp_err_cnt` : Gets disparity error counter
-        for received timing characters.
+            for received timing characters.
 
         :func:`get_timing_rx_rst_cnt` : Gets timing data link reset
-        counter.
+            counter.
         """
         return self._caget(
             self.timing_status + self._timing_rx_dec_err_cnt,
@@ -6039,13 +6039,13 @@ class SmurfCommandMixin(SmurfBase):
         See Also
         --------
         :func:`get_timing_crc_err_cnt` : Gets CRC error counter for
-        received timing frames.
+            received timing frames.
 
         :func:`get_timing_rx_dec_err_cnt` : Gets decode error
-        counter for received timing characters.
+            counter for received timing characters.
 
         :func:`get_timing_rx_rst_cnt` : Gets timing data link reset
-        counter.
+            counter.
         """
         return self._caget(
             self.timing_status + self._timing_rx_dsp_err_cnt,
@@ -6098,13 +6098,13 @@ class SmurfCommandMixin(SmurfBase):
         See Also
         --------
         :func:`get_timing_crc_err_cnt` : Gets CRC error counter for
-        received timing frames.
+            received timing frames.
 
         :func:`get_timing_rx_dec_err_cnt` : Gets decode error
-        counter for received timing characters.
+            counter for received timing characters.
 
         :func:`get_timing_rx_dsp_err_cnt` : Gets disparity error counter
-        for received timing characters.
+            for received timing characters.
         """
         return self._caget(
             self.timing_status + self._timing_rx_rst_cnt,
