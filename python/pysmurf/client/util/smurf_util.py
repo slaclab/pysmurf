@@ -4592,12 +4592,9 @@ class SmurfUtilMixin(SmurfBase):
           carriers configured in "backplane" timing mode must be in
           slots 3 or higher.
         * "fiber" : locked to external timing input from the carrier's
-          RTM timing input and distributing timing over the crate
-          backplane.  Configuring a carrier in this mode assumes the
-          carrier is installed in slot 2 of a crate with a dual-start
-          backplane, as it configures the timing crossbar to
-          distribute external timing to all other carriers in the
-          crate over the backplane.
+          RTM timing input and if the carrier is in slot 2 of a crate
+          with a dual-start backplane, distributing the timing signals
+          to all other carriers in the crate's backplane.
 
         The timing mode configuration is determined by polling the
         configuration of the timing crossbar, LMKs,
@@ -4691,12 +4688,9 @@ class SmurfUtilMixin(SmurfBase):
           "fiber" timing mode.  Only carriers in slots 3 or higher can
           lock to backplane distributed timing.
         * "fiber" : lock to external timing input from the carrier's
-          RTM timing input and distribute the timing signals to all
-          other carriers in the crate's backplane.  Configuring a
-          carrier in this mode assumes the carrier is installed in
-          slot 2 of a crate with a dual-start backplane, as it
-          configures the timing crossbar to distribute external timing
-          to all other carriers in the crate over the backplane.
+          RTM timing input and if the carrier is in slot 2 of a crate
+          with a dual-start backplane, distribute the timing signals
+          to all other carriers in the crate's backplane.
 
         The timing mode configuration adjusts the configuration of the
         timing crossbar, LMKs, triggers, and RTM.
@@ -4712,12 +4706,9 @@ class SmurfUtilMixin(SmurfBase):
         message and does nothing.
 
         .. warning::
-           If "fiber" timing mode is requested for system that's not
-           in slot 2, `set_timing_mode` instead configures the system
-           for "backplane" timing.  Likewise, if "backplane" mode is
-           requested for a slot 2 system, `set_timing_mode` instead
-           configures the system for "fiber" timing.  This may or may
-           not be what was desired.
+           If "backplane" mode is requested for a slot 2 system,
+           `set_timing_mode` instead configures the system for "fiber"
+           timing.  This may or may not be what was desired.
 
         Args
         ----
@@ -4758,16 +4749,6 @@ class SmurfUtilMixin(SmurfBase):
             self.log('\033[91mSystem is in slot 2, which cannot be configured for backplane timing.  Will configure for fiber timing instead.\033[0m',
                      self.LOG_ERROR) # color red
             mode = 'fiber'
-
-        if mode == 'fiber' and self.slot_number != 2:
-            # Warn user if fiber timing mode is requested for a
-            # carrier not in slot 2.  In fiber timing mode, the system
-            # should be receiving timing through its RTM timing input,
-            # and fanning it out through the backplane to the other
-            # carriers in slots 3+.
-            self.log('\033[91mOnly systems in slot 2 can be configured for fiber timing.  Will configure for backplane timing instead.\033[0m',
-                     self.LOG_ERROR) # color red
-            mode = 'backplane'
 
         if mode == 'ext_ref':
             # Configure crossbar for ext_ref timing

@@ -1,3 +1,5 @@
+import numpy as np
+
 # Written by Matthew Hasselfield to compute DS counter bitmasks for
 # Simons Observatory
 class DownsampleCounters:
@@ -44,7 +46,6 @@ class DownsampleCounters:
 
         """
         mask = []
-        #periods = [p**pwr for
         for p, (lo, hi) in self.config:
             powers = list(range(hi, lo - 1, -1))
             while len(powers):
@@ -97,14 +98,14 @@ class DownsampleCounters:
             mask = [(mask >> i) & 1 for i in range(len(self))]
         else:
             mask = list(mask)  # copy
-        n = 1
-        for p, (lo, hi) in self.config:
-            powers = list(range(hi, lo - 1, -1))
-            while len(powers) and len(mask):
-                f = p ** powers.pop(0)
-                if mask.pop(0):
-                    n *= f
-        return n
+
+        mask = np.array(mask, dtype=bool)
+        periods = np.array(self.get_periods())
+
+        if not mask.any():
+            return 0
+
+        return int(np.lcm.reduce(periods[mask]))
 
 # Some trial configs -- v1 is better.
 configs = {
