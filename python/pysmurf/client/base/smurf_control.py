@@ -106,6 +106,12 @@ class SmurfControl(SmurfCommandMixin,
         See the SmurfControl class docstring for more details.
         """
 
+        # PV cache.  Used to just caget or caput every reg but this is not
+        # efficient.  See
+        # https://cars9.uchicago.edu/software/python/pyepics3/advanced.html.
+        # Used in smurf_command _caput and _caget subroutines.
+        self._pv_cache = {}
+
         # Class attributes
         self.config = None
         self.output_dir = None

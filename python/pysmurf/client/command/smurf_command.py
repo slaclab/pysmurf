@@ -34,7 +34,7 @@ class SmurfCommandMixin(SmurfBase):
 
     _global_poll_enable_reg = ':AMCc:enable'
 
-    def _caput(self, cmd, val, write_log=False, execute=True,
+    def _caput(self, pvname, val, write_log=False, execute=True,
             wait_before=None, wait_after=None, wait_done=True,
             log_level=0, enable_poll=False, disable_poll=False,
             new_epics_root=None, **kwargs):
@@ -44,8 +44,8 @@ class SmurfCommandMixin(SmurfBase):
 
         Args
         ----
-        cmd : str
-            The pyrogue command to be executed.
+        pvname : str
+            The EPICs path of the PV to get.
         val: any
             The value to put into epics
         write_log : bool, optional, default False
@@ -76,10 +76,16 @@ class SmurfCommandMixin(SmurfBase):
             self.log(f'Temporarily using new epics root: {new_epics_root}')
             old_epics_root = self.epics_root
             self.epics_root = new_epics_root
-            cmd = cmd.replace(old_epics_root, self.epics_root)
+            pvname = pvname.replace(old_epics_root, self.epics_root)
+
+        if enable_poll or disable_poll:
+            global_poll_pv=self.epics_root+ self._global_poll_enable_reg
+            if global_poll_pv not in self._pv_cache.keys():
+                self._pv_cache[global_poll_pv] = epics.PV(global_poll_pv)
 
         if enable_poll:
-            epics.caput(self.epics_root + self._global_poll_enable_reg, True)
+            #epics.caput(self.epics_root + self._global_poll_enable_reg, True)
+            self._pv_cache[global_poll_pv].put(True)
 
         if wait_before is not None:
             if write_log:
@@ -88,13 +94,18 @@ class SmurfCommandMixin(SmurfBase):
             time.sleep(wait_before)
 
         if write_log:
-            log_str = 'caput ' + cmd + ' ' + str(val)
+            log_str = 'caput ' + pvname + ' ' + str(val)
             if self.offline:
                 log_str = 'OFFLINE - ' + log_str
             self.log(log_str, log_level)
 
         if execute and not self.offline:
-            epics.caput(cmd, val, wait=wait_done, **kwargs)
+            #epics.caput(pvname, val, wait=wait_done, **kwargs)
+            if pvname not in self._pv_cache.keys():
+                self._pv_cache[pvname] = epics.PV(pvname)
+            self._pv_cache[pvname].put(val,
+                                       wait=wait_done,
+                                       **kwargs)
 
         if wait_after is not None:
             if write_log:
@@ -105,14 +116,15 @@ class SmurfCommandMixin(SmurfBase):
                 self.log('Done waiting.', self.LOG_USER)
 
         if disable_poll:
-            epics.caput(self.epics_root + self._global_poll_enable_reg, False)
+            #epics.caput(self.epics_root + self._global_poll_enable_reg, False)
+            self._pv_cache[global_poll_pv].put(False)
 
         if new_epics_root is not None:
             self.epics_root = old_epics_root
             self.log('Returning back to original epics root'+
                      f' : {self.epics_root}')
 
-    def _caget(self, cmd, write_log=False, execute=True, count=None,
+    def _caget(self, pvname, write_log=False, execute=True, count=None,
                log_level=0, enable_poll=False, disable_poll=False,
                new_epics_root=None, yml=None, retry_on_fail=True,
                use_monitor=False,
@@ -123,8 +135,8 @@ class SmurfCommandMixin(SmurfBase):
 
         Args
         ----
-        cmd : str
-            The pyrogue command to be executed.
+        pvname : str
+            The EPICs path of the PV to get.
         write_log : bool, optional, default False
             Whether to log the data or not.
         execute : bool, optional, default True
@@ -163,30 +175,44 @@ class SmurfCommandMixin(SmurfBase):
             self.log(f'Temporarily using new epics root: {new_epics_root}')
             old_epics_root = self.epics_root
             self.epics_root = new_epics_root
-            cmd = cmd.replace(old_epics_root, self.epics_root)
+            pvname = pvname.replace(old_epics_root, self.epics_root)
+
+        if enable_poll or disable_poll:
+            global_poll_pv=self.epics_root+ self._global_poll_enable_reg
+            if global_poll_pv not in self._pv_cache.keys():
+                self._pv_cache[global_poll_pv] = epics.PV(global_poll_pv)
 
         if enable_poll:
-            epics.caput(self.epics_root+ self._global_poll_enable_reg, True)
+            #epics.caput(self.epics_root+ self._global_poll_enable_reg, True)
+            self._pv_cache[global_poll_pv].put(True)
 
         if write_log:
-            self.log('caget ' + cmd, log_level)
+            self.log('caget ' + pvname, log_level)
 
         # load the data from yml file if provided
         if yml is not None:
             if write_log:
-                self.log(f'Reading from yml file\n {cmd}')
-            return tools.yaml_parse(yml, cmd)
+                self.log(f'Reading from yml file\n {pvname}')
+            return tools.yaml_parse(yml, pvname)
         # Get the data
         elif execute and not self.offline:
-            ret = epics.caget(cmd, count=count, use_monitor=use_monitor, **kwargs)
+            #ret = epics.caget(pvname, count=count, use_monitor=use_monitor, **kwargs)
+            if pvname not in self._pv_cache.keys():
+                self._pv_cache[pvname] = epics.PV(pvname)
+            ret = self._pv_cache[pvname].get(count=count,
+                                             use_monitor=use_monitor,
+                                             **kwargs)
 
             # If epics doesn't respond in time, epics.caget returns None.
             if ret is None and retry_on_fail:
-                self.log(f"Command failed: {cmd}")
+                self.log(f"Command failed: {pvname}")
                 n_retry = 0
                 while n_retry < max_retry and ret is None:
                     self.log(f'Retry attempt {n_retry+1} of {max_retry}')
-                    ret = epics.caget(cmd, count=count, use_monitor=use_monitor, **kwargs)
+                    #ret = epics.caget(pvname, count=count, use_monitor=use_monitor, **kwargs)
+                    ret = self._pv_cache[pvname].get(count=count,
+                                                     use_monitor=use_monitor,
+                                                     **kwargs)
                     n_retry += 1
 
             # After retries, raise error
@@ -198,7 +224,8 @@ class SmurfCommandMixin(SmurfBase):
             ret = None
 
         if disable_poll:
-            epics.caput(self.epics_root+ self._global_poll_enable_reg, False)
+            #epics.caput(self.epics_root+ self._global_poll_enable_reg, False)
+            self._pv_cache[global_poll_pv].put(False)
 
         if new_epics_root is not None:
             self.epics_root = old_epics_root
@@ -5154,9 +5181,8 @@ class SmurfCommandMixin(SmurfBase):
             Temperature of the cryostat card in Celsius.
         """
         if enable_poll:
-            epics.caput(
-                self.epics_root + self._global_poll_enable_reg,
-                True)
+            self._caput(self.epics_root + self._global_poll_enable_reg,
+                        True)
 
         T = self.C.read_temperature()
 
@@ -5164,9 +5190,8 @@ class SmurfCommandMixin(SmurfBase):
             self.log('get_cryo_card_temp: Temperature is below 0 C, is it connected?')
 
         if disable_poll:
-            epics.caput(
-                self.epics_root + self._global_poll_enable_reg,
-                False)
+            self._caput(self.epics_root + self._global_poll_enable_reg,
+                        False)
 
         return T
 
@@ -5196,16 +5221,14 @@ class SmurfCommandMixin(SmurfBase):
             The cryo card relays value.
         """
         if enable_poll:
-            epics.caput(
-                self.epics_root + self._global_poll_enable_reg,
-                True)
+            self._caput(self.epics_root + self._global_poll_enable_reg,
+                        True)
 
         relay = self.C.read_relays()
 
         if disable_poll:
-            epics.caput(
-                self.epics_root + self._global_poll_enable_reg,
-                False)
+            self._caput(self.epics_root + self._global_poll_enable_reg,
+                        False)
 
         return relay
 
@@ -5246,17 +5269,14 @@ class SmurfCommandMixin(SmurfBase):
             self.log(f'Writing relay using cryo_card object. {relay}')
 
         if enable_poll:
-            epics.caput(
-                self.epics_root + self._global_poll_enable_reg,
-                True)
+            self._caput(self.epics_root + self._global_poll_enable_reg,
+                        True)
 
         self.C.write_relays(relay)
 
         if disable_poll:
-            epics.caput(
-                self.epics_root + self._global_poll_enable_reg,
-                True)
-
+            self._caput(self.epics_root + self._global_poll_enable_reg,
+                        False)
 
     def set_cryo_card_delatch_bit(self, bit, write_log=False, enable_poll=False,
                                   disable_poll=False):
@@ -5269,9 +5289,8 @@ class SmurfCommandMixin(SmurfBase):
             The bit to temporarily delatch.
         """
         if enable_poll:
-            epics.caput(
-                self.epics_root + self._global_poll_enable_reg,
-                True)
+            self._caput(self.epics_root + self._global_poll_enable_reg,
+                        True)
 
         if write_log:
             self.log('Setting delatch bit using cryo_card ' +
@@ -5279,9 +5298,8 @@ class SmurfCommandMixin(SmurfBase):
         self.C.delatch_bit(bit)
 
         if disable_poll:
-            epics.caput(
-                self.epics_root + self._global_poll_enable_reg,
-                False)
+            self._caput(self.epics_root + self._global_poll_enable_reg,
+                        False)
 
     def set_cryo_card_ps_en(self, enable=3, write_log=False):
         """
