@@ -5832,6 +5832,272 @@ class SmurfCommandMixin(SmurfBase):
             self.timing_status + self._timing_link_up_reg,
             **kwargs)
 
+    _timing_crc_err_cnt = "CrcErrCount"
+
+    def get_timing_crc_err_cnt(self, **kwargs):
+        r"""Gets CRC error counter for received timing frames.
+
+        This counter increments every time a cyclical redundancy check
+        (=CRC) fails for a received timing packet.  The content of
+        timing frames has a CRC on it which is a running sum for each
+        packet.  Data transmitted on the timing link includes a lot of
+        idle characters - unlike the counters returned by
+        :func:`get_timing_rx_dec_err_cnt` and
+        :func:`get_timing_rx_dsp_err_cnt` which increment for any
+        errors detected for any received timing data, the CRC is only
+        performed on actual timing frames.
+
+        Common causes of timing system error counter increments
+        include bad network connections between the external timing
+        system and the SMuRF system) and providing the wrong frequency
+        or amplitude 122.88 MHz clock reference signal to the timing
+        system.
+
+        Timing data is transmitted and received at a total data rate
+        of 2.45 Gbps (requiring 10G SFPs and compatible fiber links
+        between the external timing system and the SMuRF system(s)),
+        and timing frames are transmitted and received at 480 kHz.
+        The protocol used for communcation between the external timing
+        and SMuRF system(s) is a serial 8B/10B encoding using the
+        K-character symbols for byte and frame alignment.  The
+        encoding/decoding and byte alignment is supporte by common
+        Xilinx IP.
+
+        .. warning::
+           An increment in any of the timing system error counters
+           (obtainable through :func:`get_timing_crc_err_cnt`,
+           :func:`get_timing_rx_dec_err_cnt`, and
+           :func:`get_timing_rx_dsp_err_cnt`) will cause a SMuRF
+           timing firmware reset, resulting in a ~msec dropout of
+           received timing data, including external triggers.  The
+           :func:`get_timing_rx_rst_cnt` returns the value of the
+           counter that increments everytime there is a reset.  In
+           streamed data triggering on external timing, this will look
+           like jumps in time without corresponding dropped frames.
+
+        Args
+        ----
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caget` call.
+
+        Returns
+        -------
+        int
+            32-bit counter which increments every time the cyclical
+            redundancy check fails for a received timing packet.
+
+        See Also
+        --------
+        :func:`get_timing_rx_dec_err_cnt` : Gets decode error
+            counter for received timing characters.
+
+        :func:`get_timing_rx_dsp_err_cnt` : Gets disparity error counter
+            for received timing characters.
+
+        :func:`get_timing_rx_rst_cnt` : Gets timing data link reset
+            counter.
+        """
+        return self._caget(
+            self.timing_status + self._timing_crc_err_cnt,
+            **kwargs)
+
+    _timing_rx_dec_err_cnt = "RxDecErrCount"
+
+    def get_timing_rx_dec_err_cnt(self, **kwargs):
+        r"""Gets decode error counter for received timing characters.
+
+        This counter increments every time the SMuRF carrier firmware
+        tries to decode a 10-bit timing word but fails, implying the
+        data must have gotten corrupted after transmission by the
+        timing system.
+
+        Common causes of timing system error counter increments
+        include bad network connections between the external timing
+        system and the SMuRF system) and providing the wrong frequency
+        or amplitude 122.88 MHz clock reference signal to the timing
+        system.
+
+        Timing data is transmitted and received at a total data rate
+        of 2.45 Gbps (requiring 10G SFPs and compatible fiber links
+        between the external timing system and the SMuRF system(s)),
+        and timing frames are transmitted and received at 480 kHz.
+        The protocol used for communcation between the external timing
+        and SMuRF system(s) is a serial 8B/10B encoding using the
+        K-character symbols for byte and frame alignment.  The
+        encoding/decoding and byte alignment is supporte by common
+        Xilinx IP.
+
+        .. warning::
+           An increment in any of the timing system error counters
+           (obtainable through :func:`get_timing_crc_err_cnt`,
+           :func:`get_timing_rx_dec_err_cnt`, and
+           :func:`get_timing_rx_dsp_err_cnt`) will cause a SMuRF
+           timing firmware reset, resulting in a ~msec dropout of
+           received timing data, including external triggers.  The
+           :func:`get_timing_rx_rst_cnt` returns the value of the
+           counter that increments everytime there is a reset.  In
+           streamed data triggering on external timing, this will look
+           like jumps in time without corresponding dropped frames.
+
+        Args
+        ----
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caget` call.
+
+        Returns
+        -------
+        int
+            32-bit counter which increments every time the SMuRF
+            carrier firmware fails to decode a 10-bit timing
+            system word.
+
+        See Also
+        --------
+        :func:`get_timing_crc_err_cnt` : Gets CRC error counter for
+            received timing frames.
+
+        :func:`get_timing_rx_dsp_err_cnt` : Gets disparity error counter
+            for received timing characters.
+
+        :func:`get_timing_rx_rst_cnt` : Gets timing data link reset
+            counter.
+        """
+        return self._caget(
+            self.timing_status + self._timing_rx_dec_err_cnt,
+            **kwargs)
+
+    _timing_rx_dsp_err_cnt = "RxDspErrCount"
+
+    def get_timing_rx_dsp_err_cnt(self, **kwargs):
+        r"""Gets disparity error counter for received timing characters.
+
+        When the timing system sends out a character it has the choice
+        of two to send ; each valid character has a dedicated on/off
+        bit.  The timing system toggles this on/off bit every other
+        character.  The SMuRF carrier then keeps a running sum of how
+        many on vs off bits it receives from the timing system.  This
+        disparity error counter increments every time the SMuRF
+        carrier firmware detects too many "on" or "off" bits,
+        registering that a timing character transmitted by the timing
+        system must have gotten dropped.
+
+        Common causes of timing system error counter increments
+        include bad network connections between the external timing
+        system and the SMuRF system) and providing the wrong frequency
+        or amplitude 122.88 MHz clock reference signal to the timing
+        system.
+
+        Timing data is transmitted and received at a total data rate
+        of 2.45 Gbps (requiring 10G SFPs and compatible fiber links
+        between the external timing system and the SMuRF system(s)),
+        and timing frames are transmitted and received at 480 kHz.
+        The protocol used for communcation between the external timing
+        and SMuRF system(s) is a serial 8B/10B encoding using the
+        K-character symbols for byte and frame alignment.  The
+        encoding/decoding and byte alignment is supporte by common
+        Xilinx IP.
+
+        .. warning::
+           An increment in any of the timing system error counters
+           (obtainable through :func:`get_timing_crc_err_cnt`,
+           :func:`get_timing_rx_dec_err_cnt`, and
+           :func:`get_timing_rx_dsp_err_cnt`) will cause a SMuRF
+           timing firmware reset, resulting in a ~msec dropout of
+           received timing data, including external triggers.  The
+           :func:`get_timing_rx_rst_cnt` returns the value of the
+           counter that increments everytime there is a reset.  In
+           streamed data triggering on external timing, this will look
+           like jumps in time without corresponding dropped frames.
+
+        Args
+        ----
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caget` call.
+
+        Returns
+        -------
+        int
+            32-bit counter which increments every time the SMuRF
+            system detects a disparity error in the stream of decoded
+            timing characters.
+
+        See Also
+        --------
+        :func:`get_timing_crc_err_cnt` : Gets CRC error counter for
+            received timing frames.
+
+        :func:`get_timing_rx_dec_err_cnt` : Gets decode error
+            counter for received timing characters.
+
+        :func:`get_timing_rx_rst_cnt` : Gets timing data link reset
+            counter.
+        """
+        return self._caget(
+            self.timing_status + self._timing_rx_dsp_err_cnt,
+            **kwargs)
+
+    _timing_rx_rst_cnt = "RxRstCount"
+
+    def get_timing_rx_rst_cnt(self, **kwargs):
+        r"""Gets timing data link reset counter.
+
+        An increment in any of the timing system error counters
+        (obtainable through :func:`get_timing_crc_err_cnt`,
+        :func:`get_timing_rx_dec_err_cnt`, and
+        :func:`get_timing_rx_dsp_err_cnt`) will cause a SMuRF timing
+        firmware reset, resulting in a ~msec dropout of received
+        timing data, including external triggers.  This function
+        returns the value of the counter that increments everytime
+        there is a reset.  In streamed data triggering on external
+        timing, this will look like jumps in time without
+        corresponding dropped frames.
+
+        Common causes of timing system error counter increments which
+        trigger timing data link resets include bad network
+        connections between the external timing system and the SMuRF
+        system) and providing the wrong frequency or amplitude 122.88
+        MHz clock reference signal to the timing system.
+
+        Timing data is transmitted and received at a total data rate
+        of 2.45 Gbps (requiring 10G SFPs and compatible fiber links
+        between the external timing system and the SMuRF system(s)),
+        and timing frames are transmitted and received at 480 kHz.
+        The protocol used for communcation between the external timing
+        and SMuRF system(s) is a serial 8B/10B encoding using the
+        K-character symbols for byte and frame alignment.  The
+        encoding/decoding and byte alignment is supporte by common
+        Xilinx IP.
+
+        Args
+        ----
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caget` call.
+
+        Returns
+        -------
+        int
+            32-bit counter which increments every time there is a
+            timing data link reset.
+
+        See Also
+        --------
+        :func:`get_timing_crc_err_cnt` : Gets CRC error counter for
+            received timing frames.
+
+        :func:`get_timing_rx_dec_err_cnt` : Gets decode error
+            counter for received timing characters.
+
+        :func:`get_timing_rx_dsp_err_cnt` : Gets disparity error counter
+            for received timing characters.
+        """
+        return self._caget(
+            self.timing_status + self._timing_rx_rst_cnt,
+            **kwargs)
+
     def set_lmk_enable(self, bay, val, **kwargs):
         r"""
         Enable the AMC LMK in bay 0. On boot, the LMK is enabled, however once
