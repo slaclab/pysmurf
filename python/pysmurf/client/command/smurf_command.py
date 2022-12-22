@@ -4461,7 +4461,7 @@ class SmurfCommandMixin(SmurfBase):
 
             if not self.get_rtm_slow_dac_enable(dac_num) == 0x2:
                 self.log(f'set_amp_drain_voltage: {amp}: DAC {dac_num} is not enabled, enabling it (0x2).')
-                self.set_rtm_slow_dac_enable(dac_num, 0x2)
+#                self.set_rtm_slow_dac_enable(dac_num, 0x2)
 
 
             #self.log('Continuing.')
@@ -4559,7 +4559,7 @@ class SmurfCommandMixin(SmurfBase):
             # Even though the enable DAC is 0x2 here, send 0x2 again,
             # otherwise no voltages can be changed.
             gate_dac_num = self.config.config['amplifier']['dac_num_50k']
-            self.set_rtm_slow_dac_enable(gate_dac_num, 0x2)
+#            self.set_rtm_slow_dac_enable(gat_dac_num, 0x2)
 
         if major == 4:
             for amp in self.C.list_of_c04_amps:
@@ -4571,10 +4571,10 @@ class SmurfCommandMixin(SmurfBase):
 
                 if amp != 'hemt1':
                     gate_dac_num = self.config.config['amplifier'][amp]['gate_dac_num']
-                    self.set_rtm_slow_dac_enable(gate_dac_num, 0x2)
+#                    self.set_rtm_slow_dac_enable(gate_dac_num, 0x2)
 
                 drain_dac_num = self.config.config['amplifier'][amp]['drain_dac_num']
-                self.set_rtm_slow_dac_enable(drain_dac_num, 0x2)
+#                self.set_rtm_slow_dac_enable(drain_dac_num, 0x2)
 
     def get_amplifier_biases(self):
         """For the C00, C01 and C02, return dictionary of all gate voltages,

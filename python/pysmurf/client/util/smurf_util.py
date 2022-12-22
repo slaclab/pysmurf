@@ -2525,7 +2525,7 @@ class SmurfUtilMixin(SmurfBase):
         return s
 
 
-    def set_tes_bias_bipolar(self, bias_group, volt, do_enable=True,
+    def set_tes_bias_bipolar(self, bias_group, volt, do_enable=False,
             flip_polarity=False, **kwargs):
         """
         Set an individual TES bias group to the specified voltage, in
@@ -2576,7 +2576,7 @@ class SmurfUtilMixin(SmurfBase):
         self.set_rtm_slow_dac_volt(dac_positive, volts_pos, **kwargs)
         self.set_rtm_slow_dac_volt(dac_negative, volts_neg, **kwargs)
 
-    def set_tes_bias_bipolar_array(self, bias_group_volt_array, do_enable=True,
+    def set_tes_bias_bipolar_array(self, bias_group_volt_array, do_enable=False,
                                    **kwargs):
         """
         Set TES bipolar values for all DACs at once.  Set using a
@@ -4055,7 +4055,7 @@ class SmurfUtilMixin(SmurfBase):
         row=fmt.format(columns)
         return hdr,row
 
-    def play_tes_bipolar_waveform(self, bias_group, waveform, do_enable=True,
+    def play_tes_bipolar_waveform(self, bias_group, waveform, do_enable=False,
             continuous=True, **kwargs):
         """ Play a bipolar waveform on the bias group.
 
