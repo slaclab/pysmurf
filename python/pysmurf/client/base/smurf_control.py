@@ -106,6 +106,12 @@ class SmurfControl(SmurfCommandMixin,
         See the SmurfControl class docstring for more details.
         """
 
+        # PV cache.  Used to just caget or caput every reg but this is not
+        # efficient.  See
+        # https://cars9.uchicago.edu/software/python/pyepics3/advanced.html.
+        # Used in smurf_command _caput and _caget subroutines.
+        self._pv_cache = {}
+
         # Class attributes
         self.config = None
         self.output_dir = None
@@ -242,7 +248,10 @@ class SmurfControl(SmurfCommandMixin,
                 self.output_dir = os.path.join(self.base_dir, self.date,
                                                data_path_id, name, 'outputs')
 
-            self.tune_dir = self._tune_dir
+            if data_path_id is None:
+                self.tune_dir = self._tune_dir
+            else:
+                self.tune_dir = os.path.join(self._tune_dir, data_path_id)
 
             if data_path_id is None:
                 self.plot_dir = os.path.join(self.base_dir, self.date, name,
@@ -329,10 +338,8 @@ class SmurfControl(SmurfCommandMixin,
         # initialize outputs cfg
         self.config.update('outputs', {})
 
-    def setup(self, write_log=True, payload_size=2048, **kwargs):
+    def setup(self, write_log=True, payload_size=2048, force_configure=False, **kwargs):
         r"""Configures SMuRF system.
-
-        TODO: NEED TO BE MORE DETAILED, CLEARER.
 
         Sets up the SMuRF system by first loading hardware register
         defaults followed by overriding the hardware default register
@@ -340,7 +347,7 @@ class SmurfControl(SmurfCommandMixin,
 
         Setup steps (in order of execution):
 
-        - Disables hardware logging if it’s active (to avoid register
+        - Disables hardware logging if it's active (to avoid register
           access collisions).
         - Sets FPGA OT limit (if one is specified in pysmurf cfg).
         - Resets the RF DACs on AMCs in use.
@@ -379,6 +386,10 @@ class SmurfControl(SmurfCommandMixin,
             Whether to write to the log file.
         payload_size : int, optional, default 2048
             The starting size of the payload.
+        force_configure : bool, optional, default False
+            Whether or not to force configure if system has already
+            been configured once by the currently running Rogue
+            server.
         \**kwargs
             Arbitrary keyword arguments.  Passed to many, but not all,
             of the `_caput` calls.
@@ -387,14 +398,29 @@ class SmurfControl(SmurfCommandMixin,
         -------
         success : bool
            Returns `True` if system setup succeeded, otherwise
-           `False`.
+           `False`.  Also returns False if system has already been
+           configured by the currently running Rogue server and
+           force_configure=False.
 
         See Also
         --------
         :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.set_defaults_pv` :
               Loads the hardware defaults.
-
         """
+
+        # Check if system is already configured.  Be aware this checks
+        # a software register which does not persist on restart of the
+        # Rogue server, so it really only checks if the system has
+        # been successfully configured at any point while this Rogue
+        # server has been up.
+        if self.get_system_configured():
+            if force_configure:
+                self.log(f'System already configured, but will configure again since force_configure={force_configure}.', self.LOG_USER)
+            else:
+                self.log('\033[91mSystem already configured once while this Rogue server has been up.\033[00m', self.LOG_ERROR) # color red
+                self.log('\033[91mIf you really want to configure again, run setup with force_configure=True.\033[00m', self.LOG_ERROR) # color red
+                return False
+
         success=True
         self.log('Setting up...', (self.LOG_USER))
 
@@ -668,79 +694,8 @@ class SmurfControl(SmurfCommandMixin,
                     'Configuring the system to take timing ' +
                     f'from {timing_reference}')
 
-                if timing_reference == 'ext_ref':
-                    for bay in self.bays:
-                        self.log(f'Select external reference for bay {bay}' +
-                                'or free running if there is no reference.')
-                        self.sel_ext_ref(bay)
-
-                    # Ramp on the internal clock.
-                    self.set_ramp_start_mode(0, write_log=write_log)
-
-                # The expected setup is that this slot is slot 2, and it
-                # should distribute its fiber timing to the carrier's
-                # backplane. Order does not matter.
-                if timing_reference == 'fiber':
-                    # FPGA_TIMING_OUT to RTM Timing In 0
-                    self.set_crossbar_output_config(1, 0x0)
-                    # Backplane DIST0 to RTM Timing In 0
-                    self.set_crossbar_output_config(2, 0x0)
-                    # Backplane Dist1 to RTM Timing In 0
-                    self.set_crossbar_output_config(3, 0x0)
-
-                    # EvrV2CoreTriggers EvrV2ChannelReg[0] EnableReg True
-                    self.set_evr_channel_reg_enable(0, True)
-
-                    # EvrV2CoreTriggers EvrV2ChannelReg[0] DestType All
-                    self.set_evr_trigger_dest_type(0, 0)
-
-                    # EvrV2CoreTriggers EVrV2TriggerReg[0] Enable Trig True
-                    self.set_trigger_enable(0, True)
-
-                    # RtmCryoDet RampStartMode 0x1
-                    self.set_ramp_start_mode(1, write_log=write_log)
-
-                    # MicrowaveMuxCore[0] LMK LmkReg_0x0147 0xA
-                    for bay in self.bays:
-                        self.set_lmk_enable(bay, 1)
-                        self.log(f'Setting Bay {bay} LMK 0x146 to 0x08')
-                        self.set_lmk_reg(bay, 0x146, 0x08)
-                        self.log(f'Setting Bay {bay} LMK 0x147 to 0x0A')
-                        self.set_lmk_reg(bay, 0x147, 0x0A)
-
-                # https://confluence.slac.stanford.edu/display/SMuRF/Timing+Carrier#TimingCarrier-Howtoconfiguretodistributeoverbackplanefromslot2
-
-                # Take timing from the backplane. The expected setup is
-                # that this carrier is not in slot 2, and slot 2 is
-                # distributing timing to the backplane. The order of these
-                # commands does not matter.
-                if timing_reference == 'backplane':
-                    self.log('The cfg file requests backplane timing.')
-                    # OutputConfig[1] = 0x2 configures the SMuRF carrier's
-                    # FPGA to take the timing signals from the backplane
-                    # (TO_FPGA = FROM_BACKPLANE)
-                    self.log('Setting crossbar OutputConfig[1]=0x2 (TO_FPGA=FROM_BACKPLANE)')
-                    self.set_crossbar_output_config(1, 2)
-
-                    # EvrV2CoreTriggers EvrV2ChannelReg[0] EnableReg True
-                    self.set_evr_channel_reg_enable(0, True)
-
-                    # EvrV2CoreTriggers EvrV2ChannelReg[0] DestType All
-                    self.set_evr_trigger_dest_type(0, 0)
-
-                    # EvrV2CoreTriggers EVrV2TriggerReg[0] Enable Trig True
-                    self.set_trigger_enable(0, True)
-
-                    # Set the bay AMC LMK to CLKin0
-                    for bay in self.bays:
-                        self.set_lmk_enable(bay, 1)
-                        self.log(f'Setting Bay {bay} LMK 0x146 to 0x08')
-                        self.set_lmk_reg(bay, 0x146, 0x08)
-                        self.log(f'Setting Bay {bay} LMK 0x147 to 0x0A')
-                        self.set_lmk_reg(bay, 0x147, 0x0A)
-
-                    # Configure RTM to trigger off of the timing system
-                    self.set_ramp_start_mode(1, write_log=write_log)
+                # Configure timing
+                self.set_timing_mode(timing_reference)
 
             self.log('Done with setup.', self.LOG_USER)
         else:

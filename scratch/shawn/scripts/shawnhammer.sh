@@ -111,6 +111,8 @@ if [ "$set_crate_fans_to_full" = true ] ; then
     sleep 2
 fi
 
+echo "3"
+
 # use tmux instead
 # https://www.peterdebelak.com/blog/tmux-scripting/
 
@@ -206,6 +208,8 @@ tmux select-window -t utils
 tmux select-pane -t 0
 
 if [ "$reboot" = true ] ; then
+
+    echo "Rebooting."
 
     # deactivate carriers
     deactivatecmd=""
@@ -326,6 +330,8 @@ else
 	echo "-> Waiting for ethernet on carrier in slot ${slot} to come up ..."
 	cd $cpwd
 	ping_carrier 10.0.${crate_id}.$((${slot}+100))
+
+	echo "Starting serial slot ${slot} with pyrogue ${pyrogue} with config ${pysmurf_cfg}"
 	
 	start_slot_tmux_serial ${slot} ${pyrogue} ${pysmurf_cfg}
 	

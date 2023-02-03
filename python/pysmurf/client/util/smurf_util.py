@@ -1941,6 +1941,9 @@ class SmurfUtilMixin(SmurfBase):
         band : int
             The band that is to be turned off.
         """
+        # Warning ; you might think using the
+        # set_amplitude_scale_array function would be fast than this
+        # but it is apparently not!
         self.set_amplitude_scales(band, 0, **kwargs)
         n_channels = self.get_number_channels(band)
         self.set_feedback_enable_array(
@@ -2522,7 +2525,7 @@ class SmurfUtilMixin(SmurfBase):
         return s
 
 
-    def set_tes_bias_bipolar(self, bias_group, volt, do_enable=True,
+    def set_tes_bias_bipolar(self, bias_group, volt, do_enable=False,
             flip_polarity=False, **kwargs):
         """
         Set an individual TES bias group to the specified voltage, in
@@ -2573,7 +2576,7 @@ class SmurfUtilMixin(SmurfBase):
         self.set_rtm_slow_dac_volt(dac_positive, volts_pos, **kwargs)
         self.set_rtm_slow_dac_volt(dac_negative, volts_neg, **kwargs)
 
-    def set_tes_bias_bipolar_array(self, bias_group_volt_array, do_enable=True,
+    def set_tes_bias_bipolar_array(self, bias_group_volt_array, do_enable=False,
                                    **kwargs):
         """
         Set TES bipolar values for all DACs at once.  Set using a
@@ -3081,7 +3084,7 @@ class SmurfUtilMixin(SmurfBase):
 
         aph = np.random.choice(aphorisms)
         self.log(aph)
-        return(aph)
+        return (aph)
 
     def make_channel_mask(self, band=None, smurf_chans=None):
         """
@@ -4052,7 +4055,7 @@ class SmurfUtilMixin(SmurfBase):
         row=fmt.format(columns)
         return hdr,row
 
-    def play_tes_bipolar_waveform(self, bias_group, waveform, do_enable=True,
+    def play_tes_bipolar_waveform(self, bias_group, waveform, do_enable=False,
             continuous=True, **kwargs):
         """ Play a bipolar waveform on the bias group.
 
@@ -4432,3 +4435,399 @@ class SmurfUtilMixin(SmurfBase):
                 plt.close()
 
         return gap_freq
+
+    def check_full_band_resp(self,
+                             n_scan_per_band=5,
+                             amc_auto_detect=True,
+                             make_plot=True,
+                             save_plot=True,
+                             show_plot=False,
+                             save_results=True,
+                             **kwargs):
+        r"""
+        Measures RF transfer function for all configured AMCs.  This
+        function is based on scratch/shawn/full_band_response.py.
+        Usually we run this function with the AMCs connected in
+        loopback with a short RF cable to verify that they are
+        working.
+
+        Args
+        ----
+        n_scan : int, optional, default 5
+            The number of times to measure each band using
+            full_band_resp.
+        amc_auto_detect : bool, optional, default True
+            If True, determines AMC RF bands from serial number.
+            Otherwise, uses `get_band_center_mhz`.
+        make_plot : bool, optional, default True
+            Whether to make a plot.
+        save_plot : bool, optional, default True
+            Whether to save the plot.
+        show_plot : bool, optional, default False
+            Whether to show the plot
+        save_results : bool, optional, default True
+            Whether or not to save the results.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `full_band_resp` call.
+
+        Returns
+        -------
+        results : dict
+            Dictionary with results.
+
+        """
+        timestamp = self.get_timestamp()
+        # Take which bands are configured from pysmurf configuration
+        # file.
+        bands=self._bands
+
+        carrier_sn=self.get_carrier_sn(use_shell=True)
+
+        results_dict={}
+        results_dict['n_scan_per_band']=n_scan_per_band
+        results_dict['amc_auto_detect']=amc_auto_detect
+        results_dict['kwargs']=kwargs
+        for bay in self.bays:
+            results_dict[bay]={}
+            bands=range(4*bay,4*(bay+1))
+            for band in bands:
+                print(' ')
+                print(' ')
+                print(f'Band {band}')
+                print(' ')
+                print(' ')
+                results_dict[bay][band%4]={}
+                amc_sn=self.get_amc_sn(bay=bay,use_shell=True)
+                results_dict[bay]['amc_sn']=amc_sn
+                amc_type=amc_sn.split('-')[1]
+
+                # Sometimes the rogue zip files don't properly set the
+                # correct band center frequency if e.g. a LB is
+                # plugged into bay 1.
+                if amc_auto_detect and amc_type in ['A01','A02']:
+                    if amc_type=='A01': #LB
+                        results_dict[bay][band%4]['fc']=4250.+500.*(band%4)
+                    if amc_type=='A02': #HB
+                        results_dict[bay][band%4]['fc']=6250.+500.*(band%4)
+
+                else:
+                    results_dict[bay][band%4]['fc']=self.get_band_center_mhz(band)
+
+                f,resp=self.full_band_resp(band=band, make_plot=False, show_plot=False, n_scan=n_scan_per_band, timestamp=timestamp, save_data=False, **kwargs)
+                results_dict[bay][band%4]['f']=f
+                results_dict[bay][band%4]['resp']=resp
+
+                # Also record the UC and DC attenuator settings for this
+                # band
+                results_dict[bay][band%4]['uc_att']=self.get_att_uc(band)
+                results_dict[bay][band%4]['dc_att']=self.get_att_dc(band)
+
+            # Plot results (if desired)
+            fig, ax = plt.subplots(2, figsize=(6,7.5), sharex=True)
+            plt.suptitle(f'slot={self.slot_number} / Carrier={carrier_sn} / AMC{bay*2}={amc_sn}')
+
+            save_name = f'{timestamp}_full_band_resp_all_amc{bay*2}.png'
+            ax[0].set_title(save_name)
+
+            # Compute unwrapped phase for each band
+            last_angle=None
+            for band in bands:
+                f_plot=results_dict[bay][band%4]['f']/1e6
+                resp_plot=results_dict[bay][band%4]['resp']
+                plot_idx = np.where(np.logical_and(f_plot>-250, f_plot<250))
+                ax[0].plot(f_plot[plot_idx]+results_dict[bay][band%4]['fc'], np.log10(np.abs(resp_plot[plot_idx])),label=f'b{band%4}')
+                angle = np.unwrap(np.angle(resp_plot))
+                if last_angle is not None:
+                    angle-=(angle[0]-last_angle)
+                ax[1].plot(f_plot[plot_idx]+results_dict[bay][band%4]['fc'], angle[plot_idx],label=f'b{band%4}')
+                results_dict[bay][band%4]['phase']=angle[plot_idx]
+                last_angle=angle[plot_idx][-1]
+
+            ax[0].legend(loc='lower left',fontsize=8)
+            ax[0].set_ylabel("log10(abs(Response))")
+            ax[0].set_xlabel('Frequency [MHz]')
+            ax[0].set_ylim(-0.5,1.25)
+
+            ax[1].legend(loc='lower left',fontsize=8)
+            ax[1].set_ylabel("Phase [rad]")
+            ax[1].set_xlabel('Frequency [MHz]')
+
+            plt.tight_layout()
+
+            if save_plot:
+                save_path = os.path.join(self.plot_dir, save_name)
+                print(f'Saving plot to {save_path}.')
+                plt.savefig(save_path,
+                            bbox_inches='tight')
+                self.pub.register_file(save_path, f'fbr{bay*2}_plot', plot=True)
+
+                if not show_plot:
+                    plt.close()
+
+        if save_results:
+            save_path = os.path.join(self.output_dir,f'{timestamp}_full_band_resp_all.npy')
+            print(f'Saving data to {save_path}.')
+            np.save(save_path,results_dict)
+            self.pub.register_file(save_path, 'fbr_results', format='npy')
+
+        if show_plot:
+            plt.show()
+
+        return results_dict
+
+    def get_timing_mode(self):
+        r"""Determines timing mode configuration.
+
+        Returns the current timing mode configuration, or None if the
+        system is not in one of these three known configurations:
+
+        * "ext_ref" : locked to an external reference, or free running
+          if an external reference is absent.
+        * "backplane" : locked to external timing signals distributed
+          over the crate backplane by a carrier in slot 2 of this
+          carrier's crate receiving timing on its RTM's timing input.
+          Only carriers in slot 2 of typical crates can distribute
+          timing to other carriers through the crate backplane, so
+          carriers configured in "backplane" timing mode must be in
+          slots 3 or higher.
+        * "fiber" : locked to external timing input from the carrier's
+          RTM timing input and if the carrier is in slot 2 of a crate
+          with a dual-start backplane, distributing the timing signals
+          to all other carriers in the crate's backplane.
+
+        The timing mode configuration is determined by polling the
+        configuration of the timing crossbar, LMKs,
+        triggers, and RTM.
+
+        For systems configured in "fiber" or "backplane" modes, a
+        warning is printed if no external timing data is being
+        received.
+
+        Returns
+        -------
+        mode : str or None
+           Current timing mode configuration.  Returns None if system
+           not in one of the three recognized configurations :
+           "ext_ref", "backplane", or "fiber".
+
+        See Also
+        --------
+        :func:`set_timing_mode` : Can be used to set the timing mode.
+        :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.get_timing_link_up` : Is external timing data being received?
+        """
+        ## Poll all registers needed to determine which timing mode we're in.
+
+        # Crossbar
+        cbar = [self.get_crossbar_output_config(i) for i in range(4)]
+
+        # RTM
+        rsm = self.get_ramp_start_mode()
+
+        # Timing triggers (only used with external timing system)
+        ecre = self.get_evr_channel_reg_enable(0)
+        etdt = self.get_evr_trigger_dest_type(0)
+        te = self.get_trigger_enable(0)
+
+        # LMKs
+        lmks={}
+        for bay in self.bays:
+            lmks[bay]={}
+            for reg in [0x146,0x147]:
+                lmks[bay][reg]=self.get_lmk_reg(bay,reg)
+
+        ## Check polled register values against known timing
+        ## configurations
+
+        # External reference timing mode configuration
+        if ( cbar == [0x0, 0x0, 0x1, 0x1] and
+             rsm == 0 and
+             all([lmks[bay][0x146]==0x10 for bay in self.bays]) and
+             all([lmks[bay][0x147]==0x1a for bay in self.bays]) ):
+            return 'ext_ref'
+
+        # Fiber or backplane timing mode configurations
+        if ( rsm == 1 and
+             ( ecre == 1 and etdt == 0 and te == 1 ) and
+             all([lmks[bay][0x146]==0x8 for bay in self.bays]) and
+             all([lmks[bay][0x147]==0xa for bay in self.bays]) ):
+
+            # Fiber timing mode configuration
+            if ( cbar == [0x0, 0x0, 0x0, 0x0] ):
+                mode = 'fiber'
+
+            # Backplane timing mode configuration
+            if ( cbar == [0x0, 0x2, 0x1, 0x1] ):
+                mode = 'backplane'
+
+            # Check if receiving timing.  Checks if FPGA recovered
+            # clock is receiving timing data.  Warn if we're
+            # configured for backplane or fiber timing but not
+            # receiving any external timing data.
+            status = self.get_timing_link_up()
+            if status != 1:
+                self.log(f'\033[91mConfigured for {mode} timing but not receiving external timing data.\033[0m',
+                         self.LOG_ERROR) # color red
+
+            return mode
+
+        # Timing configuration not recognized, return None
+        return None
+
+    def set_timing_mode(self, mode, write_log=False):
+        r"""Sets timing mode.
+
+        Use this function to configure the system's timing mode.  The
+        currently supported configurations are:
+
+        * "ext_ref" : lock system to an external reference, or free
+          run if an external reference is absent.
+        * "backplane" : lock system to external timing signals
+          distributed over the crate backplane by a carrier receiving
+          timing on its RTM's timing input in slot 2 running in
+          "fiber" timing mode.  Only carriers in slots 3 or higher can
+          lock to backplane distributed timing.
+        * "fiber" : lock to external timing input from the carrier's
+          RTM timing input and if the carrier is in slot 2 of a crate
+          with a dual-start backplane, distribute the timing signals
+          to all other carriers in the crate's backplane.
+
+        The timing mode configuration adjusts the configuration of the
+        timing crossbar, LMKs, triggers, and RTM.
+
+        For systems configured in "fiber" or "backplane" modes, after
+        configuration a warning is printed if no external timing data
+        is being received after a one second wait after configuring
+        the timing crossbar.
+
+        Before changing the timing configuration, the current
+        configuration is polled via :func:`get_timing_mode` and if the
+        system is already in the requested mode, the function prints a
+        message and does nothing.
+
+        .. warning::
+           If "backplane" mode is requested for a slot 2 system,
+           `set_timing_mode` instead configures the system for "fiber"
+           timing.  This may or may not be what was desired.
+
+        Args
+        ----
+        mode : str
+            The timing mode to configure the system with.  Currently
+            valid options are "ext_ref", "backplane", or "fiber".
+        write_log : bool, optional, default False
+            Whether or not to print all EPICS calls, for logging or
+            debugging purposes.  Passed through all register set calls
+            to the underlying `epics.caput` calls.
+
+
+        See Also
+        --------
+        :func:`get_timing_mode` : Can be used to set the timing mode.
+        :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.get_timing_link_up` : Is external timing data being received?
+        """
+        valid_timing_modes = ['ext_ref','backplane','fiber']
+        assert (mode in valid_timing_modes), f'\033[91mRequested timing mode={mode} unknown.\033[0m'
+
+        current_timing_mode = self.get_timing_mode()
+        if mode == current_timing_mode:
+            self.log(f'System already configured for {mode} timing, doing nothing.',self.LOG_USER)
+            return
+
+        self.log(f'System configured for {current_timing_mode} timing.  Reconfiguring slot {self.slot_number} for {mode} timing.',self.LOG_USER)
+
+        # Make sure we can write to the LMK regs
+        for bay in self.bays:
+            self.set_lmk_enable(bay, 1, write_log=write_log)
+
+        if mode == 'backplane' and self.slot_number == 2:
+            # Complain if backplane timing mode is requested for a
+            # carrier in slot 2 and configure for ext_ref timing
+            # instead.  In backplane timing mode, the system must
+            # receive timing through the backplane from a system in
+            # slot 2 configured in fiber mode.
+            self.log('\033[91mSystem is in slot 2, which cannot be configured for backplane timing.  Will configure for fiber timing instead.\033[0m',
+                     self.LOG_ERROR) # color red
+            mode = 'fiber'
+
+        if mode == 'ext_ref':
+            # Configure crossbar for ext_ref timing
+            self.set_crossbar_output_config(0, 0x0, write_log=write_log)
+            self.set_crossbar_output_config(1, 0x0, write_log=write_log)
+            self.set_crossbar_output_config(2, 0x1, write_log=write_log)
+            self.set_crossbar_output_config(3, 0x1, write_log=write_log)
+
+            # Configure LMK
+            for bay in self.bays:
+                self.log(f'Select external reference for bay {bay}' +
+                         ' or free running if there is no reference.')
+                for bay in self.bays:
+                    self.set_lmk_reg(bay, 0x146, 0x10, write_log=write_log)
+                    self.set_lmk_reg(bay, 0x147, 0x1a, write_log=write_log)
+
+            # Select internal flux ramp trigger source
+            self.set_ramp_start_mode(0, write_log=write_log)
+
+        if mode in ['backplane','fiber']:
+
+            if mode == 'backplane':
+                # Configure crossbar for backplane timing
+                self.set_crossbar_output_config(0, 0x0, write_log=write_log)
+                # OutputConfig[1] = 0x2 configures the SMuRF carrier's
+                # FPGA to take the timing signals from the backplane
+                # (TO_FPGA = FROM_BACKPLANE)
+                self.set_crossbar_output_config(1, 0x2, write_log=write_log)
+                self.set_crossbar_output_config(2, 0x1, write_log=write_log)
+                self.set_crossbar_output_config(3, 0x1, write_log=write_log)
+
+            if mode == 'fiber':
+                # Configure crossbar for fiber timing
+                self.set_crossbar_output_config(0, 0x0, write_log=write_log)
+                self.set_crossbar_output_config(1, 0x0, write_log=write_log)
+                self.set_crossbar_output_config(2, 0x0, write_log=write_log)
+                self.set_crossbar_output_config(3, 0x0, write_log=write_log)
+
+            # Configure triggering
+            #
+            # From Matt Weaver : The triggering firmware is broken
+            # into two parts: (1) the event selection logic "Channel",
+            # and (2) the trigger pulse generation "Trigger".  The
+            # event selection logic consists of two parts: (1)
+            # choosing either a rate marker or sequence bit, and (2)
+            # optionally including (logical AND of) a selection on the
+            # presence of beam (irrelevant for you).  The DestType is
+            # this optional selection on presence of beam (to a
+            # destination), and you are selecting "All" which is
+            # better described as "DontCare". [The other options
+            # should be "Inclusive" and "Exclusive"] The trigger pulse
+            # generation has configuration of which "Channel" to
+            # listen to, the delay, width, and polarity of the trigger
+            # to generate.  The "Enable" registers just turn on each
+            # of these two components.
+
+            #  EvrV2CoreTriggers EvrV2ChannelReg[0] EnableReg True
+            self.set_evr_channel_reg_enable(0, True, write_log=write_log)
+            #  EvrV2CoreTriggers EvrV2ChannelReg[0] DestType All
+            self.set_evr_trigger_dest_type(0, 0, write_log=write_log)
+            #  EvrV2CoreTriggers EVrV2TriggerReg[0] Enable Trig True
+            self.set_trigger_enable(0, True, write_log=write_log)
+
+            # Select external flux ramp trigger source
+            self.set_ramp_start_mode(1, write_log=write_log)
+
+            # Configure LMK
+            for bay in self.bays:
+                self.set_lmk_reg(bay, 0x146, 0x08, write_log=write_log)
+                self.set_lmk_reg(bay, 0x147, 0x0A, write_log=write_log)
+
+            # Check if receiving timing.  Checks if FPGA recovered
+            # clock is receiving timing data.  Warn if we've just
+            # configured the system for backplane or fiber timing but
+            # not receiving any external timing data.  Have to wait a
+            # second for timing to come in after crossbar
+            # configuration change.
+            time.sleep(1)
+            status = self.get_timing_link_up()
+            if status != 1:
+                self.log(f'\033[91mConfigured for {mode} timing but not receiving external timing data after waiting 1 second.\033[0m',
+                         self.LOG_ERROR) # color red

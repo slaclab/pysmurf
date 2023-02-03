@@ -7,13 +7,6 @@ import glob
 
 slot = S.slot_number
 
-wait_before_setup_min=1
-print('-> Waiting {} min before setup.'.format(wait_before_setup_min))
-wait_before_setup_sec=wait_before_setup_min*60
-time.sleep(wait_before_setup_sec)    
-
-S.setup()
-
 wait_after_setup_min=1
 print('-> Waiting {} min after setup.'.format(wait_after_setup_min))
 wait_after_setup_sec=wait_after_setup_min*60
