@@ -18,6 +18,7 @@ import glob
 import os
 import threading
 import time
+import re
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -1162,9 +1163,17 @@ class SmurfUtilMixin(SmurfBase):
                 " function again with gcp_mode=True")
 
         # make a mask from mask file
+        #  regexp pattern to match any filename which ends in a
+        #  . followed by a number, as occurs when MaxFileSize is
+        #  nonzero and rogue rolls over files by appending an
+        #  increasing number at the end after a .
+        extpattern=re.compile('(.+?).dat.([0-9]|[1-9][0-9]+)$')
+        extmatch=extpattern.match(datafile)
         if ".dat.part" in datafile:
             mask = self.make_mask_lookup(datafile.split(".dat.part")[0] +
                 "_mask.txt")
+        elif extmatch is not None:
+            mask = self.make_mask_lookup(extmatch[1]+"_mask.txt")            
         else:
             mask = self.make_mask_lookup(datafile.replace('.dat', '_mask.txt'),
                                          make_freq_mask=make_freq_mask)
