@@ -965,7 +965,7 @@ class SmurfUtilMixin(SmurfBase):
                     self.log("Writing frequency mask.")
                 freq_mask = self.make_freq_mask(channel_mask)
                 np.savetxt(os.path.join(data_filename.replace('.dat',
-                    '_freq.txt')), freq_mask, fmt='%4.4f')
+                    '_freq.txt')), freq_mask, fmt='%4.12f')
                 self.pub.register_file(
                     os.path.join(data_filename.replace('.dat', '_freq.txt')),
                     'mask', format='txt')
