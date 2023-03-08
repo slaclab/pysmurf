@@ -1004,7 +1004,7 @@ class SmurfUtilMixin(SmurfBase):
                          return_header=False,
                          return_tes_bias=False, write_log=True,
                          n_max=2048, make_freq_mask=False,
-                         gcp_mode=False):
+                         gcp_mode=False,use_glob=True):
         """
         Loads data taken with the function stream_data_on.
         Gives back the resonator data in units of phase. Also
@@ -1050,10 +1050,13 @@ class SmurfUtilMixin(SmurfBase):
             return self.read_stream_data_gcp_save(datafile, channel=channel,
                 unwrap=True, downsample=1, nsamp=nsamp)
 
-        try:
-            datafile = glob.glob(datafile+'*')[-1]
-        except BaseException:
-            self.log(f'datafile={datafile}')
+        # Why were we globbing here?
+        #try:
+        #    datafile = glob.glob(datafile+'*')[-1]
+        #except BaseException:
+        #    self.log(f'datafile={datafile}')
+        if not os.path.isfile(datafile):
+            raise FileNotFoundError(f'datafile={datafile}')
 
         if write_log:
             self.log(f'Reading {datafile}')
