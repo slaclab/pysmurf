@@ -6589,8 +6589,8 @@ class SmurfCommandMixin(SmurfBase):
         """
         return self._caget(
             self.smurf_processor + self._max_file_size_reg,
-            as_string=True, **kwargs)            
-    
+            as_string=True, **kwargs)
+
     _data_file_name_reg = 'FileWriter:DataFile'
 
     def set_data_file_name(self, name, **kwargs):
