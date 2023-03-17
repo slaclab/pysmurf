@@ -6548,6 +6548,49 @@ class SmurfCommandMixin(SmurfBase):
             self.smurf_processor + self._filter_disable_reg,
             **kwargs)
 
+    _max_file_size_reg = 'FileWriter:MaxFileSize'
+
+    def set_max_file_size(self, size, **kwargs):
+        """Set maximum file size for streamed data.
+
+        If nonzero, when streaming data to disk, will split data over
+        files of this size, in bytes.  Files have the usual name but
+        with an incrementing integer appended at the end, e.g. .dat.1,
+        .dat.2, etc..
+
+        Args
+        ----
+        size : int
+            Number of bytes to limit the size of each file streamed to
+            disk to before rolling over into a new file.  If zero, no
+            limit.
+
+        See Also
+        --------
+        :func:`get_max_file_size` : Get maximum file size for streamed data.
+
+        """
+        self._caput(
+            self.smurf_processor + self._max_file_size_reg,
+            str(size), **kwargs)
+
+    def get_max_file_size(self, **kwargs):
+        """Get maximum file size for streamed data.
+
+        If nonzero, when streaming data to disk, will split data over
+        files of this size, in bytes.  Files have the usual name but
+        with an incrementing integer appended at the end, e.g. .dat.1,
+        .dat.2, etc..
+
+        See Also
+        --------
+        :func:`set_max_file_size` : Get maximum file size for streamed data.
+
+        """
+        return self._caget(
+            self.smurf_processor + self._max_file_size_reg,
+            as_string=True, **kwargs)            
+    
     _data_file_name_reg = 'FileWriter:DataFile'
 
     def set_data_file_name(self, name, **kwargs):
