@@ -530,7 +530,6 @@ class SmurfTuneMixin(SmurfBase):
         # Plot individual eta scan
         if eta_scan:
             keys = self.freq_resp[band]['resonances'].keys()
-            n_keys = len(keys)            
             # If using full band response as input
             if 'full_band_resp' in self.freq_resp[band]:
                 freq = self.freq_resp[band]['full_band_resp']['freq']
