@@ -530,7 +530,7 @@ class SmurfTuneMixin(SmurfBase):
         # Plot individual eta scan
         if eta_scan:
             keys = self.freq_resp[band]['resonances'].keys()
-            n_keys = len(keys)
+            n_keys = len(keys)            
             # If using full band response as input
             if 'full_band_resp' in self.freq_resp[band]:
                 freq = self.freq_resp[band]['full_band_resp']['freq']
@@ -554,7 +554,11 @@ class SmurfTuneMixin(SmurfBase):
                         peak_freq=center_freq, channel=channel, plotname_append=plotname_append)
             # This is for data from find_freq/setup_notches
             else:
-                for k in keys:
+                # For setup_notches plotting, only count & plot existing data;
+                # e.g. unassigned channels may not be scanned.
+                scanned_keys=np.array([k for k in keys if self.freq_resp[band]['resonances'][k]['resp_eta_scan'] is not None])
+                n_scanned_keys=len(scanned_keys)
+                for skidx,k in enumerate(scanned_keys):
                     r = self.freq_resp[band]['resonances'][k]
                     channel=r['channel']
                     # If user provides a channel restriction list, only
@@ -565,7 +569,7 @@ class SmurfTuneMixin(SmurfBase):
                         else:
                             self.log(f'Eta plot for channel {channel}')
                     else:
-                        self.log(f'Eta plot {k+1} of {n_keys}')
+                        self.log(f'Eta plot {skidx+1} of {n_scanned_keys}')
                     self.plot_eta_fit(r['freq_eta_scan'], r['resp_eta_scan'],
                         eta=r['eta'], eta_mag=r['eta_mag'],
                         eta_phase_deg=r['eta_phase'], band=band, res_num=k,
