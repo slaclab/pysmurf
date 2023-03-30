@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+
+<head>
+    <meta charset="utf-8">
+    <title></title>
+    <link rel="stylesheet" type="text/css" href="style.css">
+    <!-- Load up MathJax for math notation -->
+    <script type="text/x-mathjax-config">
+        MathJax.Hub.Config({
+            TeX: { equationNumbers: { autoNumber: "AMS" } }
+        });
+    </script>
+    <script type="text/javascript"
+        src="../mathjax/MathJax.js?config=TeX-AMS-MML_HTMLorMML">
+    </script>
+</head>
+
+<body>
+<!-- Add my custom pager script -->
+<script type="text/javascript" src="scripts/pager.js"></script>
+<link rel="stylesheet" type="text/css" href="scripts/pager.css">
+
+<header>
+    <h1>Band [[BAND]] Loopback Test Summary</h1>
+    <time datetime=[[DATETIME]] class="published updated">
+        [[DATETIME]]
+    </time>
+</header>
+
+<hr>
+
+<p>This run is a loopback test for band [[BAND]].</p>
+
+<hr>
+
+<section><h2>Test Summary</h2>
+  [[SUMMARY]]
+</section>
+
+<section><h2>Full Band Response</h2>
+    <figure>
+        <img alt="full_band_resp" src="[[FULL_BAND_RESP]]" width="1000"/>
+        <figcaption>
+            Full band response on band [[BAND]] for multiple combinations of attenuator values.
+        </figcaption>
+    </figure>
+</section>
+
+<section><h2>Find Frequencies</h2>
+    <figure>
+        <img alt="find_freq" id="find_freq" src="#" width="1000"/>
+        <figcaption>
+	    The result of find_freq.
+        </figcaption>
+        <script type="text/javascript">
+	  opts = {
+          'uc/dc values|uc_dc': [[FIND_FREQ_LIST]]
+	  } 
+          pager.link("#find_freq", opts, function(p) {
+	            return '../plots/' + [[FIND_FREQ_PATH]]
+                });
+            pager.setparams(
+	  {'uc_dc': [[UC_DC_0]]}
+                );
+        </script>
+    </figure>
+</section>
+
+<section><h2>Take Debug Data</h2>
+    <figure>
+        <img alt="take_debug_data" src="[[TAKE_DEBUG_DATA]]" width="1000"/>
+        <figcaption>
+            Data stream for channel 0.
+        </figcaption>
+    </figure>
+</section>
+
+<section><h2>Timing</h2>
+  <p>This is the timing summary to the nearest second.</p>
+  [[TIMING]]  
+</section>
+
+</body>

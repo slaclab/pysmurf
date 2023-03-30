@@ -1176,7 +1176,7 @@ class SmurfUtilMixin(SmurfBase):
             mask = self.make_mask_lookup(datafile.split(".dat.part")[0] +
                 "_mask.txt")
         elif extmatch is not None:
-            mask = self.make_mask_lookup(extmatch[1]+"_mask.txt")            
+            mask = self.make_mask_lookup(extmatch[1]+"_mask.txt")
         else:
             mask = self.make_mask_lookup(datafile.replace('.dat', '_mask.txt'),
                                          make_freq_mask=make_freq_mask)
@@ -3674,6 +3674,56 @@ class SmurfUtilMixin(SmurfBase):
         self.play_tes_bipolar_waveform(bias_group, sig)
 
 
+    def play_square_tes(self, bias_group, tone_amp, tone_freq, dc_amp=None):
+        """
+        Play a square wave on the bias group pair.
+
+        Tone file is in bias bit units. The bias is int20. The
+        inputs of this function are in units of bias dac output
+        voltage. The conversion from requested volts to bits
+        is calculated in this function.
+
+        Args
+        ----
+        bias_group : int
+            The bias group to play a square wave on.
+        tone_amp : float
+            The amplitude of the square wave in units of out TES bias in
+            volts.
+        tone_freq : float
+            The frequency of the tone in Hz.
+        dc_amp : float or None, optional, default None
+            The amplitude of the DC term of the square wave.  If None,
+            reads the current DC value and uses that.
+        """
+        if dc_amp is None:
+            dc_amp = self.get_tes_bias_bipolar(bias_group)
+            self.log(f"No dc_amp provided. Using current value: {dc_amp} V")
+
+        # The waveform is played on 2 DACs, so amp/2. Then convert
+        # to bits
+        dc_amp /= (2*self._rtm_slow_dac_bit_to_volt)
+        tone_amp /= (2*self._rtm_slow_dac_bit_to_volt)
+
+        # Handles issue where it won't play faster than ~7 Hz
+        freq_split = 5
+        scale = 1
+        if tone_freq > freq_split:
+            scale = np.ceil(tone_freq / freq_split)
+
+        # Make tone file. 2048 elements
+        n_tes_samp = 2048
+        sig = tone_amp * \
+            signal.square(2*np.pi*scale*np.arange(n_tes_samp)/n_tes_samp) + dc_amp
+
+        # Calculate frequency - 6.4ns * TimerSize between samples
+        ts = int((tone_freq * n_tes_samp * 6.4E-9)**-1)
+        ts *= scale
+        self.set_rtm_arb_waveform_timer_size(ts, wait_done=True)
+
+        self.play_tes_bipolar_waveform(bias_group, sig)
+
+
     def play_tone_file(self, band, tone_file=None, load_tone_file=True):
         """
         Plays the specified tone file on this band.  If no path provided
@@ -4843,3 +4893,74 @@ class SmurfUtilMixin(SmurfBase):
             if status != 1:
                 self.log(f'\033[91mConfigured for {mode} timing but not receiving external timing data after waiting 1 second.\033[0m',
                          self.LOG_ERROR) # color red
+
+    def set_boxcar_window(self, band, win_len):
+        """
+        Sets boxcar window for streaming data.
+
+        Args
+        ------
+        band : int
+            The band.
+        win_len : int
+            Window length. This should be 2.4 MHz divided by the streaming rate.
+        """
+        coef = 1./win_len
+        coef_fixed = np.round(coef*2**15) # Round our coefficient for Fix16_15 data type
+        self.set_boxcar_filter_coef_fixed(band, coef_fixed)
+
+    def get_filt_gain_boxcar(self, band, win_len):
+        """
+        Calculates the gain in the streaming data introduced by the boxcar filter.
+
+        Args
+        ------
+        band : int
+            The band.
+        win_len : int
+            Window length. This should be 2.4 MHz divided by the streaming rate.
+        """
+        coef_fixed = self.get_boxcar_filter_coef_fixed(band)
+        return (coef_fixed * win_len * 2**-15)
+
+    def program_window(self, band, win_len, window_fn=signal.hamming):
+        """
+        Programs window for streaming data.
+        The max length for the window is 2048 (1.2 kHz minimum streaming rate).
+
+        Args
+        -------
+        band : int
+            The band.
+        win_len : int
+            Window length. This should be 2.4 MHz divided by the streaming rate.
+        window_fn : function, optional, default Hamming
+            Window type. See https://docs.scipy.org/doc/scipy-0.19.1/reference/signal.html#window-functions
+            for some common options.
+
+        Returns
+        -------
+        win_fixed : float array
+            Window for filtering, with the factor of 2**-15 put back.
+        """
+        win = window_fn(win_len)
+        win = win/np.sum(win)
+        win_fixed = np.zeros(2048, dtype=np.int16)
+        win_fixed[:len(win)] = np.round(win*2**15) # For firmware Fix16_15 data type
+        # Select programmable window
+        self.set_filt_select(band, 1)
+        # Program window
+        self.set_filt_coefficient_array(band, win_fixed)
+        return win_fixed * 2**-15
+
+    def get_filt_gain_programmable_window(self, band):
+        """
+        Calculates the gain in the streaming data introduced by the programmable window filter.
+
+        Args
+        ------
+        band : int
+            The band.
+        """
+        win_fixed = self.get_filt_coefficient_array(band)
+        return np.sum(win_fixed * 2**-15)

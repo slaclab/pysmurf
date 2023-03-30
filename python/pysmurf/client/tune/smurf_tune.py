@@ -3494,8 +3494,7 @@ class SmurfTuneMixin(SmurfBase):
         subband : deprecated, use start_freq/stop_freq.
             numpy.ndarray of int or None, optional, default None
             An int array for the subbands.  If None, set to all
-            processed subbands =numpy.arange(13,115).
-            Takes precedent over start_freq/stop_freq.
+            processed subbands =numpy.arange(number_subbands).
         tone_power : int or None, optional, default None
             The drive amplitude.  If None, takes from cfg.
         n_read : int, optional, default 2
