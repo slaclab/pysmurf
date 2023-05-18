@@ -58,6 +58,10 @@ if [[ "$enable_tmux_logging" = true && ! -d "/home/cryo/tmux-logging" ]] ; then
     enable_tmux_logging=false
 fi
 
+#
+# Load AMC carrier SMuRF configurations
+#
+
 # must confirm a slot configuration has been provided.  If not
 # then for backwards compatilibity, take current
 if [ -z "$slot_cfgs" ]; then
@@ -82,7 +86,11 @@ if [ -z "$slot_cfgs" ]; then
 	fi
     else
 	echo "Neither slot_cfgs nor slots_in_configure_order defined in $startup_cfg." 1>&2
-	exit 1
+
+	if [ -z "$rfsoc_cfgs" ]; then
+	    echo "No rfsoc_cfgs defined in $startup_cfg either - nothing to do!  Exiting." 1>&2
+	    exit 1
+	fi
     fi
 else
     if [ -v "slots_in_configure_order" ]; then
@@ -101,17 +109,30 @@ else
     pysmurf_cfgs=( $(awk '{print $3}' <<< "$slot_cfgs") )
 fi
 
+#
+# Load RFSoC SMuRF configurations
+#
+
+if [ ! -z "$rfsoc_cfgs" ]; then
+    echo "Taking RFSoC configurations from rfsoc_cfgs." 1>&2    
+    ## extract configuration arrays
+    # first column is the slot numbers, in slot configure order.
+    rfsoc_slots=( $(awk '{print $1}' <<< "$rfsoc_cfgs") )
+    # second column is the pyrogue directories, in slot configure order    
+    rfsoc_pyrogues=( $(awk '{print $2}' <<< "$rfsoc_cfgs") )
+    # third (optional) column is the pysmurf experiment.cfg
+    rfsoc_pysmurf_cfgs=( $(awk '{print $3}' <<< "$rfsoc_cfgs") )
+fi
+
 source shawnhammerfunctions
 
 ctime=`date +%s`
 
-# If true, forces crate fans to full speed
-if [ "$set_crate_fans_to_full" = true ] ; then
+# If true, forces crate fans to full speed (if there are any AMC carrier SMuRFs)
+if [ ${#slots[@]} -gt 0 ] && [ "$set_crate_fans_to_full" = true ] ; then
     ssh root@${shelfmanager} "clia minfanlevel ${max_fan_level}; clia setfanlevel all ${max_fan_level}"
     sleep 2
 fi
-
-echo "3"
 
 # use tmux instead
 # https://www.peterdebelak.com/blog/tmux-scripting/
@@ -132,29 +153,36 @@ if [[ "$enable_tmux_logging" = true ]]; then
     tmux set -g @logging-path "/data/smurf_data/tmux_logs"
 fi
 
-# stop pyrogue servers on all carriers
+# stop pyrogue servers on all AMC carriers
 for ((i=0; i<${#slots[@]}; ++i)); do
     slot=${slots[i]}
     pyrogue=${pyrogues[i]} 
     stop_pyrogue $slot $pyrogue
 done
+
+# stop pyrogue servers on all RFSoCs
+for ((i=0; i<${#rfsoc_slots[@]}; ++i)); do
+    slot=${rfsoc_slots[i]}
+    pyrogue=${rfsoc_pyrogues[i]} 
+    stop_pyrogue $slot $pyrogue
+done
 cd $cpwd
 
-# stop all pysmurf dockers
-matching_dockers pysmurf
-if [ "$?" = "1" ]; then
-    echo "-> Stopping all running stable pysmurf dockers."
-    # this stops all pysmurf dockers
-    #docker rm -f $(docker ps | grep pysmurf | awk '{print $1}')
-    docker rm -f $(docker ps -q -f name=pysmurf | awk '{print $1}')
-fi
-
-# stop all smurf-streamer dockers
-matching_dockers smurf-streamer
-if [ "$?" = "1" ]; then
-    echo "-> Stopping all running smurf-streamer dockers."
-    docker rm -f $(docker ps -q -f name=smurf-streamer | awk '{print $1}')
-fi
+# # stop all pysmurf dockers
+# matching_dockers pysmurf
+# if [ "$?" = "1" ]; then
+#     echo "-> Stopping all running stable pysmurf dockers."
+#     # this stops all pysmurf dockers
+#     #docker rm -f $(docker ps | grep pysmurf | awk '{print $1}')
+#     docker rm -f $(docker ps -q -f name=pysmurf | awk '{print $1}')
+# fi
+# 
+# # stop all smurf-streamer dockers
+# matching_dockers smurf-streamer
+# if [ "$?" = "1" ]; then
+#     echo "-> Stopping all running smurf-streamer dockers."
+#     docker rm -f $(docker ps -q -f name=smurf-streamer | awk '{print $1}')
+# fi
 
 # if using a timing master, check that timing docker is running,
 # or else nothing will work.
@@ -211,28 +239,42 @@ if [ "$reboot" = true ] ; then
 
     echo "Rebooting."
 
-    # deactivate carriers
-    deactivatecmd=""
-    activatecmd=""    
-    for slot in ${slots[@]}; do
-	deactivatecmd="$deactivatecmd clia deactivate board ${slot};"
-	activatecmd="$activatecmd clia activate board ${slot};"	
-    done
+    # Reboot AMC carriers
+    if [ ! -z "$slot_cfgs" ]; then
+	# deactivate carriers
+	deactivatecmd=""
+	activatecmd=""    
+	for slot in ${slots[@]}; do
+	    deactivatecmd="$deactivatecmd clia deactivate board ${slot};"
+	    activatecmd="$activatecmd clia activate board ${slot};"	
+	done
+	
+	# deactivate carriers
+	echo "-> Deactivating carrier(s) ${slots[@]}"    
+	ssh root@${shelfmanager} "$deactivatecmd"
+	
+	echo "-> Waiting 5 sec before re-activating carrier(s)"
+	sleep 5
+	
+	# activate carriers
+	echo "-> Activating carrier(s) ${slots[@]}"    
+	ssh root@${shelfmanager} "$activatecmd"
+    fi
 
-    # deactivate carriers
-    echo "-> Deactivating carrier(s) ${slots[@]}"    
-    ssh root@${shelfmanager} "$deactivatecmd"
-    
-    echo "-> Waiting 5 sec before re-activating carrier(s)"
-    sleep 5
-
-    # activate carriers
-    echo "-> Activating carrier(s) ${slots[@]}"    
-    ssh root@${shelfmanager} "$activatecmd"    
+    # Reboot RFSoCs
+    if [ ! -z "$rfsoc_cfgs" ]; then
+       echo "Rebooting RFSoCs not yet supported."
+    fi
+       
 fi
 
 ################################################################################
-### Configure carriers
+### Configure carriers and RFSoCs
+
+# AMC carriers + RFSoCs
+all_slots=("${slots[@]}" "${rfsoc_slots[@]}")
+all_pyrogues=("${pyrogues[@]}" "${rfsoc_pyrogues[@]}")
+all_pysmurf_cfgs=("${pysmurf_cfgs[@]}" "${rfsoc_pysmurf_cfgs[@]}")
 
 if [ "$parallel_setup" = true ] ; then
     ## start parallel method
@@ -241,13 +283,14 @@ if [ "$parallel_setup" = true ] ; then
     # 1 = carrier eth responds to ping.
     setup_complete=false
     completion_status=7
-    declare -a slot_status=( $(for slot in ${slots[@]}; do echo 0; done) )
+    # AMC carriers, then RFSoCs.
+    declare -a slot_status=( $(for slot in ${slots[@]}; do echo 0; done) $(for rfsoc_slot in ${rfsoc_slots[@]}; do echo 0; done) )
     setup_loop_cadence_sec=1
     while [[ "${setup_complete}" = false ]] ; do
-	for ((slot_idx=0; slot_idx<${#slots[@]}; ++slot_idx)); do
-	    slot=${slots[slot_idx]}
-	    pyrogue=${pyrogues[slot_idx]}
-	    pysmurf_cfg=${pysmurf_cfgs[slot_idx]}
+	for ((slot_idx=0; slot_idx<${#all_slots[@]}; ++slot_idx)); do
+	    slot=${all_slots[slot_idx]}
+	    pyrogue=${all_pyrogues[slot_idx]}
+	    pysmurf_cfg=${all_pysmurf_cfgs[slot_idx]}
 
 	    if [ "${slot_status[${slot_idx}]}" = "0" ]; then
 		# make sure ethernet is up on carrier
@@ -321,10 +364,10 @@ if [ "$parallel_setup" = true ] ; then
     done
 else
     ##  older serial method
-    for ((i=0; i<${#slots[@]}; ++i)); do
-	slot=${slots[i]}
-	pyrogue=${pyrogues[i]}
-	pysmurf_cfg=${pysmurf_cfgs[i]} 	
+    for ((i=0; i<${#all_slots[@]}; ++i)); do
+	slot=${all_slots[i]}
+	pyrogue=${all_pyrogues[i]}
+	pysmurf_cfg=${all_pysmurf_cfgs[i]} 	
 
 	# make sure ethernet is up on carrier
 	echo "-> Waiting for ethernet on carrier in slot ${slot} to come up ..."
