@@ -1,4 +1,4 @@
-FROM tidair/smurf-base:R1.1.1
+FROM tidair/smurf-base:R2.0.0
 
 RUN apt-get update && \
     DEBIAN_FRONTEND=noninteractive \
