@@ -6570,6 +6570,8 @@ class SmurfCommandMixin(SmurfBase):
         :func:`get_max_file_size` : Get maximum file size for streamed data.
 
         """
+        assert (isinstance(size,int)),f'size={size} should be type int, doing nothing'
+        assert (size>=0),f'size={size} must be greater than zero, doing nothing'
         self._caput(
             self.smurf_processor + self._max_file_size_reg,
             str(size), **kwargs)
@@ -6582,14 +6584,21 @@ class SmurfCommandMixin(SmurfBase):
         with an incrementing integer appended at the end, e.g. .dat.1,
         .dat.2, etc..
 
+
+        Returns
+        -------
+        int
+            Maximum file size for streamed data in bytes.  Returns
+            zero if there's no limit in place.
+
         See Also
         --------
         :func:`set_max_file_size` : Get maximum file size for streamed data.
 
         """
-        return self._caget(
+        return int(self._caget(
             self.smurf_processor + self._max_file_size_reg,
-            as_string=True, **kwargs)
+            as_string=True, **kwargs))
 
     _data_file_name_reg = 'FileWriter:DataFile'
 
