@@ -32,11 +32,11 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v2
 
-      # Setup python 3.6
-      - name: setup python 3.6
+      # Setup python3
+      - name: setup python 3.8.10
         uses: actions/setup-python@v2
         with:
-          python-version: 3.6
+          python-version: 3.8.10
 
       # Install flake8 modules
       - name: Install dependencies
@@ -86,11 +86,11 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v2
 
-      # Setup python 3.6
-      - name: Setup python 3.6
+      # Setup python 3.8.10
+      - name: Setup python 3.8.10
         uses: actions/setup-python@v2
         with:
-          python-version: 3.6
+          python-version: 3.8.10
 
       # Install requirements, pysmurf, and sphinx
       - name: Install dependencies
@@ -251,11 +251,11 @@ jobs:
         id: get_tag
         run: echo ::set-output name=tag::"${GITHUB_REF#refs/tags/}"
 
-      # Setup python 3.6
-      - name: Setup python 3.6
+      # Setup python3
+      - name: Setup python 3.8.10
         uses: actions/setup-python@v2
         with:
-          python-version: 3.6
+          python-version: 3.8.10
 
       # Install dependencies of the releaseGen.py script
       - name: Install dependencies
