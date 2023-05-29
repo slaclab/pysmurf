@@ -2508,10 +2508,10 @@ class SmurfUtilMixin(SmurfBase):
 
         Returns
         -------
-        i : numpy.int
+        i : numpy.int64
            The 64 bit int.
         """
-        return np.int(''.join([chr(x) for x in s]),0)
+        return np.int64(int(''.join([chr(x) for x in s]),0))
 
 
     def int_to_hex_string(self, i):
