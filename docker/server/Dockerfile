@@ -17,7 +17,6 @@ ENV PYTHONPATH /usr/local/src/smurf-pcie/firmware/submodules/axi-pcie-core/pytho
 ARG branch
 WORKDIR /usr/local/src
 RUN git clone https://github.com/slaclab/pysmurf.git -b ${branch}
-RUN git config --global --add safe.directory /usr/local/src/pysmurf
 WORKDIR pysmurf
 RUN mkdir build
 WORKDIR build
