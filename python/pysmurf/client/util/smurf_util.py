@@ -3091,10 +3091,8 @@ class SmurfUtilMixin(SmurfBase):
         Why not?
         """
         util_dir = os.path.dirname(__file__)
-        aphorisms = np.loadtxt(os.path.join(util_dir, 'aphorism.txt'),
-            dtype='str', delimiter='\n')
-
-        aph = np.random.choice(aphorisms)
+        aphorisms = open(os.path.join(util_dir, 'aphorism.txt'),'r').readlines()
+        aph = np.random.choice(aphorisms).rstrip()
         self.log(aph)
         return (aph)
 
