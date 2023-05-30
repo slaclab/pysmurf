@@ -4328,7 +4328,7 @@ class SmurfCommandMixin(SmurfBase):
         volts = bit_to_volt * bits
         return volts
 
-    def set_amp_gate_voltage(self, amp, voltage, override = False):
+    def set_amp_gate_voltage(self, amp, voltage, override = False, **kwargs):
         """
         Set the voltage out one of the RTM DACs, into the cryocard,
         such that the voltage out the cryocard is the given voltage.
@@ -4368,13 +4368,13 @@ class SmurfCommandMixin(SmurfBase):
                 bits = -2**(nbits-1)
 
             self.log(f'Setting hemt or hemt1 gate to {bits} bits given {voltage} volts.')
-            self._caput(self.rtm_spi_max_root + self._rtm_33_data_reg, bits)
+            self._caput(self.rtm_spi_max_root + self._rtm_33_data_reg, bits, **kwargs)
 
         elif amp == '50k':
             dac_num = self.config.config['amplifier']['dac_num_50k']
             bit_to_volt = self.config.config['amplifier']['bit_to_V_50k']
             bits = voltage / bit_to_volt
-            self.set_rtm_slow_dac_data(dac_num, bits)
+            self.set_rtm_slow_dac_data(dac_num, bits, **kwargs)
 
         else:
             min = self.config.get('amplifier')[amp]['gate_volt_min']
@@ -4387,7 +4387,7 @@ class SmurfCommandMixin(SmurfBase):
             bit_to_volt = self.config.get('amplifier')[amp]['gate_bit_to_volt']
             bits = voltage / bit_to_volt
             self.log(f'Setting {amp} gate to {bits} via DAC {dac_num}, given {voltage} Volts')
-            self.set_rtm_slow_dac_data(dac_num, bits)
+            self.set_rtm_slow_dac_data(dac_num, bits, **kwargs)
 
     def get_amp_drain_voltage(self, amp):
         """
@@ -4657,13 +4657,13 @@ class SmurfCommandMixin(SmurfBase):
         self.log('get_hemt_bias: Deprecated. Calling get_amp_gate_voltage("hemt")')
         return self.get_amp_gate_voltage('hemt')
 
-    def set_amplifier_bias(self, bias_hemt = None, bias_50k = None):
+    def set_amplifier_bias(self, bias_hemt = None, bias_50k = None, **kwargs):
         self.log('set_amplifier_bias: Deprecated. Calling set_amp_gate_voltage')
         if bias_hemt is not None:
-            self.set_amp_gate_voltage('hemt', bias_hemt)
+            self.set_amp_gate_voltage('hemt', bias_hemt, **kwargs)
 
         if bias_50k is not None:
-            self.set_amp_gate_voltage('50k', bias_50k)
+            self.set_amp_gate_voltage('50k', bias_50k, **kwargs)
 
     def get_amplifier_bias(self):
         self.log('get_amplifier_bias: Deprecated. Calling get_amplifier_biases')
