@@ -56,11 +56,11 @@ echo "Building docker image..."
 docker image build --build-arg branch=${tag} -t docker_image . || exit 1
 
 # Tag and push the image to the stable dockerhub repository
-docker image tag docker_image ${dockerhub_org_name}/${dockerhub_repo_stable}:${tag}
-docker image push ${dockerhub_org_name}/${dockerhub_repo_stable}:${tag}
-echo "Docker image '${dockerhub_org_name}/${dockerhub_repo_stable}:${tag}' pushed"
+#docker image tag docker_image ${dockerhub_org_name}/${dockerhub_repo_stable}:${tag}
+#docker image push ${dockerhub_org_name}/${dockerhub_repo_stable}:${tag}
+#echo "Docker image '${dockerhub_org_name}/${dockerhub_repo_stable}:${tag}' pushed"
 
 # Tag and push the image to the stable dockerhub repository
-docker image tag docker_image ${dockerhub_org_name}/${dockerhub_repo_base}:${tag}
-docker image push ${dockerhub_org_name}/${dockerhub_repo_base}:${tag}
-echo "Docker image '${dockerhub_org_name}/${dockerhub_repo_base}:${tag}' pushed"
+#docker image tag docker_image ${dockerhub_org_name}/${dockerhub_repo_base}:${tag}
+#docker image push ${dockerhub_org_name}/${dockerhub_repo_base}:${tag}
+#echo "Docker image '${dockerhub_org_name}/${dockerhub_repo_base}:${tag}' pushed"
