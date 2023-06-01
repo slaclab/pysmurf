@@ -57,7 +57,7 @@ set_target_properties(smurf PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${PROJECT_SOURCE
 set_target_properties(smurf PROPERTIES PREFIX "")
 
 # Link to rogue core
-TARGET_LINK_LIBRARIES(smurf LINK_PUBLIC ${ROGUE_LIBRARIES})
+TARGET_LINK_LIBRARIES(smurf PUBLIC ${ROGUE_LIBRARIES})
 
 # Setup configuration file
 set(CONF_INCLUDE_DIRS ${PROJECT_SOURCE_DIR}/include)
