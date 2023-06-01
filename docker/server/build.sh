@@ -31,7 +31,8 @@ dockerhub_repo_base='pysmurf-server-base'
 
 # Get the git tag, which will be used to tag the docker image.
 # At the moment, this script runs only on tagged releases.
-tag=`git describe --tags --always`
+#tag=`git describe --tags --always`
+tag='rogue_v6'
 
 # Create temporal local file directory to hold firmware and configuration
 # files which will later be copied to the docker image
