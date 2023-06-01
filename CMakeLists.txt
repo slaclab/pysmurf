@@ -49,16 +49,15 @@ include_directories(${PROJECT_SOURCE_DIR}/include/)
 include_directories(/usr/local/include/)
 
 # Create rogue python library
-add_library(ucsc_hn_lib SHARED "")
-
-add_subdirectory(src)
+AUX_SOURCE_DIRECTORY(src SRC_FILES)
+add_library(smurf SHARED ${SRC_FILES})
 
 # Set output to TOP/lib, remove lib prefix
-set_target_properties(smurf PROPERTIES PREFIX "" SUFFIX ".so")
 set_target_properties(smurf PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/lib)
+set_target_properties(smurf PROPERTIES PREFIX "")
 
 # Link to rogue core
-TARGET_LINK_LIBRARIES(smurf PUBLIC ${ROGUE_LIBRARIES})
+TARGET_LINK_LIBRARIES(smurf LINK_PUBLIC ${ROGUE_LIBRARIES})
 
 # Setup configuration file
 set(CONF_INCLUDE_DIRS ${PROJECT_SOURCE_DIR}/include)
