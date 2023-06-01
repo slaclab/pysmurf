@@ -20,7 +20,7 @@ if (DEFINED ENV{CONDA_PREFIX})
 endif()
 
 # Check cmake version
-cmake_minimum_required(VERSION 2.8)
+cmake_minimum_required(VERSION 3.5)
 include(InstallRequiredSystemLibraries)
 
 # Project name
@@ -28,7 +28,7 @@ project (smurf)
 
 # C/C++
 enable_language(CXX)
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++0x")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++0x -Wno-deprecated")
 
 #####################################
 # Find Rogue & Support Libraries
@@ -38,7 +38,7 @@ if (DEFINED ENV{ROGUE_DIR})
 else()
    set(Rogue_DIR ${CMAKE_PREFIX_PATH}/lib)
 endif()
-find_package(Rogue)
+find_package(Rogue REQUIRED)
 
 #####################################
 # Setup build
@@ -49,15 +49,16 @@ include_directories(${PROJECT_SOURCE_DIR}/include/)
 include_directories(/usr/local/include/)
 
 # Create rogue python library
-AUX_SOURCE_DIRECTORY(src SRC_FILES)
-add_library(smurf SHARED ${SRC_FILES})
+add_library(ucsc_hn_lib SHARED "")
+
+add_subdirectory(src)
 
 # Set output to TOP/lib, remove lib prefix
+set_target_properties(smurf PROPERTIES PREFIX "" SUFFIX ".so")
 set_target_properties(smurf PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/lib)
-set_target_properties(smurf PROPERTIES PREFIX "")
 
 # Link to rogue core
-TARGET_LINK_LIBRARIES(smurf LINK_PUBLIC ${ROGUE_LIBRARIES})
+TARGET_LINK_LIBRARIES(smurf PUBLIC ${ROGUE_LIBRARIES})
 
 # Setup configuration file
 set(CONF_INCLUDE_DIRS ${PROJECT_SOURCE_DIR}/include)
