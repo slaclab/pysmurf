@@ -67,4 +67,3 @@ set(CONF_LIBRARIES    ${PROJECT_SOURCE_DIR}/lib/smurf.so)
 # Create the config file
 configure_file(smurfConfig.cmake.in ${PROJECT_SOURCE_DIR}/lib/smurfConfig.cmake @ONLY)
 
-add_subdirectory(src)
