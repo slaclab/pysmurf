@@ -18,6 +18,7 @@ import glob
 import os
 import threading
 import time
+import re
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -1049,10 +1050,13 @@ class SmurfUtilMixin(SmurfBase):
             return self.read_stream_data_gcp_save(datafile, channel=channel,
                 unwrap=True, downsample=1, nsamp=nsamp)
 
-        try:
-            datafile = glob.glob(datafile+'*')[-1]
-        except BaseException:
-            self.log(f'datafile={datafile}')
+        # Why were we globbing here?
+        #try:
+        #    datafile = glob.glob(datafile+'*')[-1]
+        #except BaseException:
+        #    self.log(f'datafile={datafile}')
+        if not os.path.isfile(datafile):
+            raise FileNotFoundError(f'datafile={datafile}')
 
         if write_log:
             self.log(f'Reading {datafile}')
@@ -1162,9 +1166,17 @@ class SmurfUtilMixin(SmurfBase):
                 " function again with gcp_mode=True")
 
         # make a mask from mask file
+        #  regexp pattern to match any filename which ends in a
+        #  . followed by a number, as occurs when MaxFileSize is
+        #  nonzero and rogue rolls over files by appending an
+        #  increasing number at the end after a .
+        extpattern=re.compile('(.+?).dat.([0-9]|[1-9][0-9]+)$')
+        extmatch=extpattern.match(datafile)
         if ".dat.part" in datafile:
             mask = self.make_mask_lookup(datafile.split(".dat.part")[0] +
                 "_mask.txt")
+        elif extmatch is not None:
+            mask = self.make_mask_lookup(extmatch[1]+"_mask.txt")
         else:
             mask = self.make_mask_lookup(datafile.replace('.dat', '_mask.txt'),
                                          make_freq_mask=make_freq_mask)
@@ -2496,10 +2508,10 @@ class SmurfUtilMixin(SmurfBase):
 
         Returns
         -------
-        i : numpy.int
+        i : numpy.int64
            The 64 bit int.
         """
-        return np.int(''.join([chr(x) for x in s]),0)
+        return np.int64(int(''.join([chr(x) for x in s]),0))
 
 
     def int_to_hex_string(self, i):
@@ -3079,10 +3091,8 @@ class SmurfUtilMixin(SmurfBase):
         Why not?
         """
         util_dir = os.path.dirname(__file__)
-        aphorisms = np.loadtxt(os.path.join(util_dir, 'aphorism.txt'),
-            dtype='str', delimiter='\n')
-
-        aph = np.random.choice(aphorisms)
+        aphorisms = open(os.path.join(util_dir, 'aphorism.txt'),'r').readlines()
+        aph = np.random.choice(aphorisms).rstrip()
         self.log(aph)
         return (aph)
 

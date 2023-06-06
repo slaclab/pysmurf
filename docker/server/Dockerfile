@@ -1,4 +1,4 @@
-FROM tidair/smurf-rogue:R2.8.8
+FROM tidair/smurf-rogue:R2.9.2
 
 # Copy all firmware related files, which are in the local_files directory
 RUN mkdir -p /tmp/fw/ && chmod -R a+rw /tmp/fw/
@@ -17,6 +17,11 @@ ENV PYTHONPATH /usr/local/src/smurf-pcie/firmware/submodules/axi-pcie-core/pytho
 ARG branch
 WORKDIR /usr/local/src
 RUN git clone https://github.com/slaclab/pysmurf.git -b ${branch}
+# Must add to safe directories for cryo user in order for the core
+# pysmurf instance to be able to resolve its version using git.
+USER cryo
+RUN git config --global --add safe.directory /usr/local/src/pysmurf
+USER root
 WORKDIR pysmurf
 RUN mkdir build
 WORKDIR build

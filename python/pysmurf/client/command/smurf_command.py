@@ -4328,7 +4328,7 @@ class SmurfCommandMixin(SmurfBase):
         volts = bit_to_volt * bits
         return volts
 
-    def set_amp_gate_voltage(self, amp, voltage, override = False):
+    def set_amp_gate_voltage(self, amp, voltage, override = False, **kwargs):
         """
         Set the voltage out one of the RTM DACs, into the cryocard,
         such that the voltage out the cryocard is the given voltage.
@@ -4368,13 +4368,13 @@ class SmurfCommandMixin(SmurfBase):
                 bits = -2**(nbits-1)
 
             self.log(f'Setting hemt or hemt1 gate to {bits} bits given {voltage} volts.')
-            self._caput(self.rtm_spi_max_root + self._rtm_33_data_reg, bits)
+            self._caput(self.rtm_spi_max_root + self._rtm_33_data_reg, bits, **kwargs)
 
         elif amp == '50k':
             dac_num = self.config.config['amplifier']['dac_num_50k']
             bit_to_volt = self.config.config['amplifier']['bit_to_V_50k']
             bits = voltage / bit_to_volt
-            self.set_rtm_slow_dac_data(dac_num, bits)
+            self.set_rtm_slow_dac_data(dac_num, bits, **kwargs)
 
         else:
             min = self.config.get('amplifier')[amp]['gate_volt_min']
@@ -4387,7 +4387,7 @@ class SmurfCommandMixin(SmurfBase):
             bit_to_volt = self.config.get('amplifier')[amp]['gate_bit_to_volt']
             bits = voltage / bit_to_volt
             self.log(f'Setting {amp} gate to {bits} via DAC {dac_num}, given {voltage} Volts')
-            self.set_rtm_slow_dac_data(dac_num, bits)
+            self.set_rtm_slow_dac_data(dac_num, bits, **kwargs)
 
     def get_amp_drain_voltage(self, amp):
         """
@@ -4657,13 +4657,13 @@ class SmurfCommandMixin(SmurfBase):
         self.log('get_hemt_bias: Deprecated. Calling get_amp_gate_voltage("hemt")')
         return self.get_amp_gate_voltage('hemt')
 
-    def set_amplifier_bias(self, bias_hemt = None, bias_50k = None):
+    def set_amplifier_bias(self, bias_hemt = None, bias_50k = None, **kwargs):
         self.log('set_amplifier_bias: Deprecated. Calling set_amp_gate_voltage')
         if bias_hemt is not None:
-            self.set_amp_gate_voltage('hemt', bias_hemt)
+            self.set_amp_gate_voltage('hemt', bias_hemt, **kwargs)
 
         if bias_50k is not None:
-            self.set_amp_gate_voltage('50k', bias_50k)
+            self.set_amp_gate_voltage('50k', bias_50k, **kwargs)
 
     def get_amplifier_bias(self):
         self.log('get_amplifier_bias: Deprecated. Calling get_amplifier_biases')
@@ -6547,6 +6547,58 @@ class SmurfCommandMixin(SmurfBase):
         return self._caget(
             self.smurf_processor + self._filter_disable_reg,
             **kwargs)
+
+    _max_file_size_reg = 'FileWriter:MaxFileSize'
+
+    def set_max_file_size(self, size, **kwargs):
+        """Set maximum file size for streamed data.
+
+        If nonzero, when streaming data to disk, will split data over
+        files of this size, in bytes.  Files have the usual name but
+        with an incrementing integer appended at the end, e.g. .dat.1,
+        .dat.2, etc..
+
+        Args
+        ----
+        size : int
+            Number of bytes to limit the size of each file streamed to
+            disk to before rolling over into a new file.  If zero, no
+            limit.
+
+        See Also
+        --------
+        :func:`get_max_file_size` : Get maximum file size for streamed data.
+
+        """
+        assert (isinstance(size,int)),f'size={size} should be type int, doing nothing'
+        assert (size>=0),f'size={size} must be greater than zero, doing nothing'
+        self._caput(
+            self.smurf_processor + self._max_file_size_reg,
+            str(size), **kwargs)
+
+    def get_max_file_size(self, **kwargs):
+        """Get maximum file size for streamed data.
+
+        If nonzero, when streaming data to disk, will split data over
+        files of this size, in bytes.  Files have the usual name but
+        with an incrementing integer appended at the end, e.g. .dat.1,
+        .dat.2, etc..
+
+
+        Returns
+        -------
+        int
+            Maximum file size for streamed data in bytes.  Returns
+            zero if there's no limit in place.
+
+        See Also
+        --------
+        :func:`set_max_file_size` : Get maximum file size for streamed data.
+
+        """
+        return int(self._caget(
+            self.smurf_processor + self._max_file_size_reg,
+            as_string=True, **kwargs))
 
     _data_file_name_reg = 'FileWriter:DataFile'
 
