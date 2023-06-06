@@ -25,6 +25,8 @@ class SmurfBase:
     ----
     log : log file or None, optional, default None
         The log file to write to. If None, creates a new log file.
+    server_port: int or None, optional, default 9099
+        The server port on the server to connect to
     epics_root : str or None, optional, default None
         The name of the epics root. For example "test_epics".
     offline : bool, optional, default False
@@ -58,7 +60,7 @@ class SmurfBase:
     Overall progress on a task
     """
 
-    def __init__(self, log=None, epics_root=None, offline=False,
+    def __init__(self, log=None, server_port=9099, epics_root=None, offline=False,
                  pub_root=None, script_id=None, **kwargs):
         """
         """
