@@ -4563,7 +4563,7 @@ class SmurfUtilMixin(SmurfBase):
             ax[1].set_ylabel("Phase [rad]")
             ax[1].set_xlabel('Frequency [MHz]')
 
-            plt.tight_layout()
+            plt.tight_layout(rect=[0, 0.03, 1, 0.95])
 
             if save_plot:
                 save_path = os.path.join(self.plot_dir, save_name)
