@@ -128,10 +128,12 @@ class SmurfCommandMixin(SmurfBase):
                log_level=0, enable_poll=False, disable_poll=False,
                new_epics_root=None, yml=None, retry_on_fail=True,
                use_monitor=False,
-               max_retry=5, **kwargs):
+               max_retry=5,
+               timeout=5,
+               **kwargs):
         r"""Gets variables from epics.
 
-        Wrapper around pyrogue lcaget. Gets variables from epics.
+        Wrapper around pyepics lcaget. Gets variables from epics.
 
         Args
         ----
@@ -156,15 +158,19 @@ class SmurfCommandMixin(SmurfBase):
         retry_on_fail : bool
             Whether to retry the caget if it fails on first attempt
         use_monitor : bool, optional, default False
-            Passed directly to the underlying pyepics `epics.caget`
+            Passed directly to the underlying pyepics `epics.PV.caget`
             function call.  This was added to maintain default
             behavior because this option was changed from default
             `False` to default `True` in later versions of pyepics.
         max_retry : int
-            The number of times to retry if caget fails the first time.
+            The number of times to retry if `epics.PV.caget` fails the
+            first time.
+        timeout : float or None
+            Maximum time to wait for each `epics.PV.get` call in
+            seconds.
         \**kwargs
             Arbitrary keyword arguments.  Passed directly to the
-            `epics.caget` call.
+            `epics.PV.caget` call.
 
         Returns
         -------
@@ -201,6 +207,7 @@ class SmurfCommandMixin(SmurfBase):
                 self._pv_cache[pvname] = epics.PV(pvname)
             ret = self._pv_cache[pvname].get(count=count,
                                              use_monitor=use_monitor,
+                                             timeout=timeout,
                                              **kwargs)
 
             # If epics doesn't respond in time, epics.caget returns None.
@@ -212,6 +219,7 @@ class SmurfCommandMixin(SmurfBase):
                     #ret = epics.caget(pvname, count=count, use_monitor=use_monitor, **kwargs)
                     ret = self._pv_cache[pvname].get(count=count,
                                                      use_monitor=use_monitor,
+                                                     timeout=timeout,
                                                      **kwargs)
                     n_retry += 1
 
