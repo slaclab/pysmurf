@@ -80,7 +80,7 @@ class SmurfCommandMixin(SmurfBase):
     def _caget(self, pvname, atca=False, **kwargs):
         """Gets variables from epics.
 
-        Wrapper around pyrogue lcaget. Gets variables from epics.
+        Wrapper around pyepics lcaget. Gets variables from epics.
 
         Args
         ----
