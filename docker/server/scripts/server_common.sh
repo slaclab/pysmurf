@@ -649,6 +649,9 @@ detect_amc_board()
             elif [ ${type_str} == "A02" ]; then
                 echo "This is a HB board."
                 band_bay[$i]="hb"
+            elif [ ${type_str} == "A03" ]; then
+                echo "This is a TKID board."
+                band_bay[$i]="tkid"		
             else
                 echo "Board type not supported."
                 echo
