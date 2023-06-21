@@ -69,7 +69,7 @@ check_if_private_tag_exist()
 }
 
 # Check if a asset file exist on a tag version on a github private repository.
-# It requires the access token to be defined in $AER7_TOKEN.
+# It requires the access token to be defined in $SWH76_TOKEN.
 # Arguments:
 # - first: github private repository url (https),
 # - second: tag name,
@@ -89,7 +89,7 @@ check_if_private_asset_exist()
 }
 
 # Download the asset file on a tagged version on a github private repository.
-# It requires the access token to be defined in $AER7_TOKEN.
+# It requires the access token to be defined in $SWH76_TOKEN.
 # Arguments:
 # - first: github private repository url (https),
 # - second: tag name,
