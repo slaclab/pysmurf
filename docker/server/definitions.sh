@@ -29,4 +29,4 @@ mcs_file_name=MicrowaveMuxBpEthGen2-0x01010000-20210928123941-ruckman-02ed52a.mc
 # Define the YML configuration version to use. This is were you define which
 # configuration version to include in the docker image.
 # - 'yml_repo_tag': Set this variable to the tag version you want to use.
-config_repo_tag=v2.0.0
+config_repo_tag=v2.1.0
