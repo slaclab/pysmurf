@@ -54,7 +54,7 @@ check_if_private_tag_exist()
     # Big blob of JSON with the tags in it.
     local tags=$(curl \
       --url $api_url \
-      --header "Authorization: token ${AER7_TOKEN}" \
+      --header "Authorization: token ${SWH76_TOKEN}" \
       --fail)
 
     # e.g. 0 if no match
@@ -68,7 +68,7 @@ check_if_private_tag_exist()
 }
 
 # Check if a asset file exist on a tag version on a github private repository.
-# It requires the access token to be defined in $AER7_TOKEN.
+# It requires the access token to be defined in $SWH76_TOKEN.
 # Arguments:
 # - first: github private repository url (https),
 # - second: tag name,
@@ -80,7 +80,7 @@ check_if_private_asset_exist()
     local file=$3
 
     # Search the asset ID in the specified release
-    local r=$(curl --silent --header "Authorization: token ${AER7_TOKEN}" "${repo}/releases/tags/${tag}")
+    local r=$(curl --silent --header "Authorization: token ${SWH76_TOKEN}" "${repo}/releases/tags/${tag}")
     eval $(echo "${r}" | grep -C3 "name.:.\+${file}" | grep -w id | tr : = | tr -cd '[[:alnum:]]=')
 
     # return is the asset tag was found
@@ -88,7 +88,7 @@ check_if_private_asset_exist()
 }
 
 # Download the asset file on a tagged version on a github private repository.
-# It requires the access token to be defined in $AER7_TOKEN.
+# It requires the access token to be defined in $SWH76_TOKEN.
 # Arguments:
 # - first: github private repository url (https),
 # - second: tag name,
@@ -106,7 +106,7 @@ get_private_asset()
 
     # Try to download the asset
     curl --fail --location --remote-header-name --remote-name --progress-bar \
-         --header "Authorization: token ${AER7_TOKEN}" \
+         --header "Authorization: token ${SWH76_TOKEN}" \
          --header "Accept: application/octet-stream" \
          "${repo}/releases/assets/${id}"
 }
