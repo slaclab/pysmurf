@@ -151,26 +151,36 @@ exit_on_success()
 
 # Extra definitions, generated from the user definitions
 zip_file_name=rogue_${fw_repo_tag}.zip
+tkid_zip_file_name=rogue_${tkid_fw_repo_tag}.zip
 
 # Validate if repositories were defined
 echo "======================================================================================"
 echo "Repository names validation"
 echo "======================================================================================"
 
-printf "Checking if firmware repository was defined...      "
+printf "Checking if uMUX firmware repository was defined...      "
 if [ -z ${fw_repo} ]; then
     echo "Failed!"
     echo
-    echo "Firmware repository not define! Please check that the variable 'fw_repo' is defined in the 'definitions.sh' file."
+    echo "Firmware repository not defined! Please check that the variable 'fw_repo' is defined in the 'definitions.sh' file."
     exit_on_error
 fi
 echo "${fw_repo}"
+
+printf "Checking if TKID firmware repository was defined...      "
+if [ -z ${tkid_fw_repo} ]; then
+    echo "Failed!"
+    echo
+    echo "TKID firmware repository not defined! Please check that the variable 'tkid_fw_repo' is defined in the 'definitions.sh' file."
+    exit_on_error
+fi
+echo "${tkid_fw_repo}"
 
 printf "Checking if configuration repository was defined... "
 if [ -z ${config_repo} ]; then
     echo "Failed!"
     echo
-    echo "Configuration repository not define! Please check that the variable 'config_repo' is defined in the 'definitions.sh' file."
+    echo "Configuration repository not defined! Please check that the variable 'config_repo' is defined in the 'definitions.sh' file."
     exit_on_error
 fi
 echo "${config_repo}"
@@ -181,7 +191,7 @@ echo
 
 # Validate the firmware version
 echo "======================================================================================"
-echo "Firmware version validation"
+echo "uMUX firmware version validation"
 echo "======================================================================================"
 
 printf "Checking if the tag version was defined...          "
@@ -227,6 +237,56 @@ echo "File exist!"
 # At this points all the definition of the firmware version are correct.
 echo "Done! A correct firmware version was defined"
 echo
+
+# Validate TKID firmware version
+echo "======================================================================================"
+echo "TKID firmware version validation"
+echo "======================================================================================"
+
+printf "Checking if the tag version was defined...          "
+if [ -z ${tkid_fw_repo_tag} ]; then
+    echo "Failed!"
+    echo
+    echo "Firmware tag version not defined! Please check that the variable 'tkid_fw_repo_tag' is defined in the 'definitions.sh' file."
+    exit_on_error
+fi
+echo "${tkid_fw_repo_tag}"
+
+printf "Checking if MCS file name was defined...            "
+if [ -z ${tkid_mcs_file_name} ]; then
+    echo "Failed!"
+    echo
+    echo "MCS file name not defined! Please check that the variable 'tkid_mcs_file_name' is defined in the 'definitions.sh' file."
+    exit_on_error
+fi
+echo "${tkid_mcs_file_name}"
+
+check_if_private_tag_exist ${tkid_fw_repo} ${tkid_fw_repo_tag}
+
+printf "Checking if MCS file is in the list of assets...    "
+check_if_private_asset_exist ${tkid_fw_repo} ${tkid_fw_repo_tag} ${tkid_mcs_file_name}
+if [ $? != 0 ]; then
+    echo "Failed!"
+    echo
+    echo "File '${tkid_mcs_file_name}' does not exist in the assets list of release '${tkid_fw_repo_tag}'!"
+    exit_on_error
+fi
+echo "File exists!"
+
+printf "Checking if ZIP file is in the list of assets...    "
+check_if_private_asset_exist ${tkid_fw_repo} ${tkid_fw_repo_tag} ${tkid_zip_file_name}
+if [ $? != 0 ]; then
+    echo "Failed!"
+    echo
+    echo "File '${tkid_zip_file_name}' does not exist in the assets list of release '${tkid_fw_repo_tag}'!"
+    exit_on_error
+fi
+echo "File exists!"
+
+# At this points all the definition of the firmware version are correct.
+echo "Done! A correct firmware version was defined"
+echo
+### Done validating TKID fw
 
 
 # Validate the configuration version
