@@ -32,6 +32,7 @@ level commands as well as higher level analysis.
    client/debug
    client/tune
    client/util
+   client/tuning optimizatiion
 
 .. toctree::
    :maxdepth: 3
