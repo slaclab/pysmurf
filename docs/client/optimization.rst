@@ -6,7 +6,7 @@ tuning optimization
 serial_gradient_descent
 -----------------------
 .. automodule:: pysmurf.client.command.smurf_command
-		:members:
+		:run_serial_gradient_descent:
 
 - Gradient Descent
 
