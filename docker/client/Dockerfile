@@ -1,4 +1,4 @@
-FROM tidair/smurf-roguev6:R3.0.0
+FROM tidair/smurf-roguev6:R3.0.1
 
 RUN apt-get update && \
     DEBIAN_FRONTEND=noninteractive \
