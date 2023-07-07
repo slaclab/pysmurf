@@ -1,4 +1,4 @@
-FROM ghcr.io/slaclab/smurf-base:R2.1.0
+FROM tidair/smurf-roguev6:R3.0.1
 
 RUN apt-get update && \
     DEBIAN_FRONTEND=noninteractive \
