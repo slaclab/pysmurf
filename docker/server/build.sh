@@ -38,12 +38,14 @@ tag=`git describe --tags --always`
 rm -rf local_files && mkdir local_files
 
 # Get the  MCS file from the assets
-echo "Downloading MCS file..."
+echo "Downloading MCS files..."
 (cd local_files && get_private_asset ${fw_repo} ${fw_repo_tag} ${mcs_file_name}) || exit 1
+(cd local_files && get_private_asset ${tkid_fw_repo} ${tkid_fw_repo_tag} ${tkid_mcs_file_name}) || exit 1
 
 # Get the ZIP file from the assets
 echo "Downloading ZIP file..."
 (cd local_files && get_private_asset ${fw_repo} ${fw_repo_tag} ${zip_file_name}) || exit 1
+(cd local_files && get_private_asset ${tkid_fw_repo} ${tkid_fw_repo_tag} ${tkid_zip_file_name}) || exit 1
 
 #  Get the configuration files. We clone the whole repository
 echo "Downloading configuration files..."
