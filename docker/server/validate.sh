@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 
 # Validate definitions.sh
+# RTH: Replaced AER7_TOKEN with GITHUB_TOKEN
 
 #############
 # FUNCTIONS #
@@ -54,7 +55,7 @@ check_if_private_tag_exist()
     # Big blob of JSON with the tags in it.
     local tags=$(curl \
       --url $api_url \
-      --header "Authorization: token ${SWH76_TOKEN}" \
+      --header "Authorization: token ${GITHUB_TOKEN}" \
       --fail)
 
     # e.g. 0 if no match
@@ -80,7 +81,7 @@ check_if_private_asset_exist()
     local file=$3
 
     # Search the asset ID in the specified release
-    local r=$(curl --silent --header "Authorization: token ${SWH76_TOKEN}" "${repo}/releases/tags/${tag}")
+    local r=$(curl --silent --header "Authorization: token ${GITHUB_TOKEN}" "${repo}/releases/tags/${tag}")
     eval $(echo "${r}" | grep -C3 "name.:.\+${file}" | grep -w id | tr : = | tr -cd '[[:alnum:]]=')
 
     # return is the asset tag was found
@@ -106,7 +107,7 @@ get_private_asset()
 
     # Try to download the asset
     curl --fail --location --remote-header-name --remote-name --progress-bar \
-         --header "Authorization: token ${SWH76_TOKEN}" \
+         --header "Authorization: token ${GITHUB_TOKEN}" \
          --header "Accept: application/octet-stream" \
          "${repo}/releases/assets/${id}"
 }
