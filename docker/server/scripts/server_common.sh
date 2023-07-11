@@ -356,8 +356,15 @@ checkFW()
     # Check if the firmware checking is disabled
     if [ -z ${no_check_fw+x} ]; then
 
+	fwstr=
+	if [ $1 = "umux" ]; then
+	    fwstr="MicrowaveMuxBpEthGen2"
+	elif [ $1 = "tkid" ]; then
+	    fwstr="CryoDetKid"
+	fi
+
         printf "Looking for mcs file...                           "
-        mcs_file=$(find ${fw_top_dir} -maxdepth 1 -name *mcs*)
+        mcs_file=$(find ${fw_top_dir} -maxdepth 1 -name *${fwstr}*mcs*)
         if [ ! -f "${mcs_file}" ]; then
             echo "MCS file not found!."
             exit 1
@@ -431,9 +438,16 @@ hardBoot()
 # out python directories.
 findPyrogueFiles()
 {
+    fwstr=
+    if [ $1 = "umux" ]; then
+	fwstr="MicrowaveMuxBpEthGen2"
+    elif [ $1 = "tkid" ]; then
+	fwstr="CryoDetKid"
+    fi
+
     # Look for a pyrogue zip file
     printf "Looking for pyrogue zip file...                   "
-    pyrogue_file=$(find ${fw_top_dir} -maxdepth 1 -name *zip)
+    pyrogue_file=$(find ${fw_top_dir} -maxdepth 1 -name *${fwstr}*zip)
     if [ ! -f "$pyrogue_file" ]; then
         echo "Pyrogue zip file not found!."
 
@@ -558,6 +572,7 @@ detect_amc_board()
 
         # The first argument points to a variable name to store the resulting argument list
         local __result_args=$1
+	local -n system_type=$2
 
         # Definitions
         ## SMuRF AMC board part number
@@ -646,12 +661,15 @@ detect_amc_board()
             if [ ${type_str} == "A01" ]; then
                 echo "This is a LB board."
                 band_bay[$i]="lb"
+		system_type="umux"
             elif [ ${type_str} == "A02" ]; then
                 echo "This is a HB board."
                 band_bay[$i]="hb"
+		system_type="umux"
             elif [ ${type_str} == "A03" ]; then
                 echo "This is a TKID board."
                 band_bay[$i]="tkid"
+		system_type="tkid"
             else
                 echo "Board type not supported."
                 echo
@@ -733,7 +751,6 @@ detect_amc_board()
             args+="-d ${defaults_file_name}"
         fi
 
-
         # Print the final list of auto-generated arguments
         echo "Final list of generated arguments:                '${args}'."
         echo "Done!."
@@ -765,20 +782,12 @@ initialize()
     # Get FPGA IP address
     getFpgaIpAddr
 
-    # Look for pyrogue files
-    findPyrogueFiles
-
-    # Firmware version checking
-    checkFW
-
-    # Do a hard boot, if requested
-    hardBoot
-
     # Auto-detect hardware type
     ## Detect type of AMCs, and get specific server startup arguments
     ## for each specific type and add them to the list of arguments
     local __extra_amcs_args
-    detect_amc_board __extra_amcs_args
+    local __system_type
+    detect_amc_board __extra_amcs_args __system_type
     __extra_args+=" ${__extra_amcs_args}"
 
     ## Detect type of carrier, and get specific server startup arguments
@@ -786,6 +795,15 @@ initialize()
     local __extra_carrier_args
     detect_carrier_board __extra_carrier_args
     __extra_args+=" ${__extra_carrier_args}"
+
+    # Look for pyrogue files
+    findPyrogueFiles ${__system_type}
+
+    # Firmware version checking
+    checkFW ${__system_type}
+
+    # Do a hard boot, if requested
+    hardBoot
 
     # Write the result to the defined output variable
     eval $__result_args="'${__extra_args}'"
