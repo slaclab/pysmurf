@@ -30,6 +30,9 @@ echo
 if [ ${comm_type} == 'eth' ]; then
     echo "Staring the server using Ethernet communication..."
     cmd="/usr/local/src/pysmurf/server_scripts/cmb_eth.py  ${args}"
+elif [ ${comm_type} == 'emu' ]; then
+    echo "Staring the server using Emulation..."
+    cmd="/usr/local/src/pysmurf/server_scripts/emulate.py  ${args}"
 else
     echo "Staring the server using PCIe communication..."
     cmd="/usr/local/src/pysmurf/server_scripts/cmb_pcie.py ${args}"
