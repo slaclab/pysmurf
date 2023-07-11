@@ -31,6 +31,7 @@ dockerhub_repo_base='pysmurf-server-base'
 
 # Get the git tag, which will be used to tag the docker image.
 # At the moment, this script runs only on tagged releases.
+# RTH: For local offline testing
 #tag=`git describe --tags --always`
 tag='rogue_v6'
 
@@ -52,8 +53,9 @@ git -C local_files clone -c advice.detachedHead=false ${config_repo} -b ${config
 
 # Build the docker image. This same image will be pushed to both the stable
 # and the base dockerhub repositories.
+# RTH: Changed the name for now
 echo "Building docker image..."
-docker image build --build-arg branch=${tag} -t docker_image . || exit 1
+docker image build --build-arg branch=${tag} -t smurf_docker_server . || exit 1
 
 # Tag and push the image to the stable dockerhub repository
 #docker image tag docker_image ${dockerhub_org_name}/${dockerhub_repo_stable}:${tag}
