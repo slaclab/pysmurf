@@ -52,7 +52,7 @@ class Common(pyrogue.Root):
         # self._fpga = Top level FPGA
 
         # Add ZMQ Server
-        self.zmqServer = pyrogue.interfaces.ZmqServer(root=self, addr='*', incGroups='stream', port=server_port)
+        self.zmqServer = pyrogue.interfaces.ZmqServer(root=self, addr='*', port=server_port)
         self.addInterface(self.zmqServer)
 
         # Add streamer
