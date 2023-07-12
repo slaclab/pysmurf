@@ -51,7 +51,7 @@ if __name__ == "__main__":
         root.saveVariableList("varlist.txt")
 
         # Start the GUI
-        import pyrogue.pydm
         print("Starting GUI...\n")
-        pyrogue.pydm.runPyDM(root=root)
+        import pyrogue.pydm
+        pyrogue.pydm.runPyDM(serverList=root.zmqServer.address, title=args['windows_title'])
 
