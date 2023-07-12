@@ -57,7 +57,7 @@ git -C local_files clone -c advice.detachedHead=false ${config_repo} -b ${config
 # and the base dockerhub repositories.
 # RTH: Changed the name for now
 echo "Building docker image..."
-docker image build --build-arg branch=${tag} -t smurf_docker_server . || exit 1
+docker image build --build-arg branch=${tag} -t roguev6_docker_server . || exit 1
 
 # Tag and push the image to the stable dockerhub repository
 #docker image tag docker_image ${dockerhub_org_name}/${dockerhub_repo_stable}:${tag}
