@@ -87,13 +87,11 @@ class CmbEth(Common):
         # Setup base class
         Common.__init__(self,
                         config_file    = config_file,
-                        epics_prefix   = epics_prefix,
                         polling_en     = polling_en,
                         pv_dump_file   = pv_dump_file,
                         txDevice       = txDevice,
                         configure      = configure,
                         VariableGroups = VariableGroups,
-                        server_port    = server_port,
                         disable_bay0   = disable_bay0,
                         disable_bay1   = disable_bay1,
                         **kwargs)
