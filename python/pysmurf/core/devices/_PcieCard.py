@@ -42,7 +42,7 @@ class PcieDev():
     def __init__(self, dev, name, description):
         import rogue.hardware.axi
         import SmurfKcu1500RssiOffload as fpga
-        self._root = pyrogue.Root(name=name,description=description, serverPort=None, pollEn='False',initRead='True')
+        self._root = pyrogue.Root(name=name,description=description, pollEn='False',initRead='True')
         self._memMap = rogue.hardware.axi.AxiMemMap(dev)
         self._root.add(fpga.Core(memBase=self._memMap))
         self._root.start()
@@ -225,25 +225,25 @@ class PcieCard():
 
         # Get system status:
 
+        # Check if we use the PCIe for communication
+        if 'pcie-' in comm_type:
+            self._use_pcie = True
+        else:
+            self._use_pcie = False
+
         # Check if the PCIe card for RSSI is present in the system
-        if Path(dev_rssi).exists():
+        if self._use_pcie and Path(dev_rssi).exists():
             self._pcie_rssi_present = True
             self._pcie_rssi = PcieDev(dev=dev_rssi, name='pcie_rssi', description='PCIe for RSSI')
         else:
             self._pcie_rssi_present = False
 
         # Check if the PCIe card for DATA is present in the system
-        if Path(dev_data).exists():
+        if self._use_pcie and Path(dev_data).exists():
             self._pcie_data_present = True
             self._pcie_data = PcieDev(dev=dev_data, name='pcie_data', description='PCIe for DATA')
         else:
             self._pcie_data_present = False
-
-        # Check if we use the PCIe for communication
-        if 'pcie-' in comm_type:
-            self._use_pcie = True
-        else:
-            self._use_pcie = False
 
         # We need the IP address when the PCIe card is present, but not in used too.
         # If the PCIe card is present, this value could be updated later.
