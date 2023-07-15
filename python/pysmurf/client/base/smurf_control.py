@@ -690,7 +690,7 @@ class SmurfControl(SmurfCommandMixin,
             # distribute across the backplane. If from backplane, assume we're
             # not on slot 2, and receive timing from backplane. If external,
             # receive external reference from the front of the panel.
-            if self._timing_reference is not None and not self.is_rfsoc:
+            if self._timing_reference is not None:
                 timing_reference = self._timing_reference
 
                 timing_options = ['ext_ref', 'backplane', 'fiber']
