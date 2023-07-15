@@ -171,10 +171,10 @@ def make_html(data_path, loopback=False):
 
     return html_path
 
-def run(epics_root, config_file, shelf_manager, setup,
-    no_find_freq=False, bands=np.arange(8), subband_low=13, subband_high=115,
-    no_setup_notches=False, reset_rate_khz=4, n_phi0=4, threading_test=False,
-    loopback=False):
+def run(epics_root, config_file, shelf_manager, setup, no_band_off=False,
+        no_find_freq=False, bands=np.arange(8), subband_low=52, subband_high=46,
+        no_setup_notches=False, reset_rate_khz=4, n_phi0=4, threading_test=False,
+        loopback=False):
     """
     """
     # Storage dictionary
@@ -245,7 +245,6 @@ def run(epics_root, config_file, shelf_manager, setup,
     if setup:
         status = execute(status, lambda: S.setup(), 'setup')
 
-
     # amplifier biases
     status = execute(status, lambda: S.set_amplifier_bias(write_log=True),
         'set_amplifier_bias')
@@ -268,7 +267,7 @@ def run(epics_root, config_file, shelf_manager, setup,
 
     # find_freq
     if not no_find_freq:
-        subband = np.arange(13, 115)
+        subband = np.arange(subband_low, subband_high)
         if subband_low is not None and subband_high is not None:
             subband = np.arange(subband_low, subband_high)
         status['subband'] = subband

@@ -2,7 +2,7 @@ from epics import PV
 import os
 import sys
 
-slots=[2,3]
+slots=[2,3,4]
 cadence_sec=5
 
 pvs = {}

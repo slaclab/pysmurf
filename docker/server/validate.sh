@@ -54,7 +54,7 @@ check_if_private_tag_exist()
     # Big blob of JSON with the tags in it.
     local tags=$(curl \
       --url $api_url \
-      --header "Authorization: token ${AER7_TOKEN}" \
+      --header "Authorization: token ${SWH76_TOKEN}" \
       --fail)
 
     # e.g. 0 if no match
@@ -68,7 +68,7 @@ check_if_private_tag_exist()
 }
 
 # Check if a asset file exist on a tag version on a github private repository.
-# It requires the access token to be defined in $AER7_TOKEN.
+# It requires the access token to be defined in $SWH76_TOKEN.
 # Arguments:
 # - first: github private repository url (https),
 # - second: tag name,
@@ -80,7 +80,7 @@ check_if_private_asset_exist()
     local file=$3
 
     # Search the asset ID in the specified release
-    local r=$(curl --silent --header "Authorization: token ${AER7_TOKEN}" "${repo}/releases/tags/${tag}")
+    local r=$(curl --silent --header "Authorization: token ${SWH76_TOKEN}" "${repo}/releases/tags/${tag}")
     eval $(echo "${r}" | grep -C3 "name.:.\+${file}" | grep -w id | tr : = | tr -cd '[[:alnum:]]=')
 
     # return is the asset tag was found
@@ -88,7 +88,7 @@ check_if_private_asset_exist()
 }
 
 # Download the asset file on a tagged version on a github private repository.
-# It requires the access token to be defined in $AER7_TOKEN.
+# It requires the access token to be defined in $SWH76_TOKEN.
 # Arguments:
 # - first: github private repository url (https),
 # - second: tag name,
@@ -106,7 +106,7 @@ get_private_asset()
 
     # Try to download the asset
     curl --fail --location --remote-header-name --remote-name --progress-bar \
-         --header "Authorization: token ${AER7_TOKEN}" \
+         --header "Authorization: token ${SWH76_TOKEN}" \
          --header "Accept: application/octet-stream" \
          "${repo}/releases/assets/${id}"
 }
@@ -150,26 +150,36 @@ exit_on_success()
 
 # Extra definitions, generated from the user definitions
 zip_file_name=rogue_${fw_repo_tag}.zip
+tkid_zip_file_name=rogue_${tkid_fw_repo_tag}.zip
 
 # Validate if repositories were defined
 echo "======================================================================================"
 echo "Repository names validation"
 echo "======================================================================================"
 
-printf "Checking if firmware repository was defined...      "
+printf "Checking if uMUX firmware repository was defined...      "
 if [ -z ${fw_repo} ]; then
     echo "Failed!"
     echo
-    echo "Firmware repository not define! Please check that the variable 'fw_repo' is defined in the 'definitions.sh' file."
+    echo "Firmware repository not defined! Please check that the variable 'fw_repo' is defined in the 'definitions.sh' file."
     exit_on_error
 fi
 echo "${fw_repo}"
+
+printf "Checking if TKID firmware repository was defined...      "
+if [ -z ${tkid_fw_repo} ]; then
+    echo "Failed!"
+    echo
+    echo "TKID firmware repository not defined! Please check that the variable 'tkid_fw_repo' is defined in the 'definitions.sh' file."
+    exit_on_error
+fi
+echo "${tkid_fw_repo}"
 
 printf "Checking if configuration repository was defined... "
 if [ -z ${config_repo} ]; then
     echo "Failed!"
     echo
-    echo "Configuration repository not define! Please check that the variable 'config_repo' is defined in the 'definitions.sh' file."
+    echo "Configuration repository not defined! Please check that the variable 'config_repo' is defined in the 'definitions.sh' file."
     exit_on_error
 fi
 echo "${config_repo}"
@@ -180,7 +190,7 @@ echo
 
 # Validate the firmware version
 echo "======================================================================================"
-echo "Firmware version validation"
+echo "uMUX firmware version validation"
 echo "======================================================================================"
 
 printf "Checking if the tag version was defined...          "
@@ -226,6 +236,56 @@ echo "File exist!"
 # At this points all the definition of the firmware version are correct.
 echo "Done! A correct firmware version was defined"
 echo
+
+# Validate TKID firmware version
+echo "======================================================================================"
+echo "TKID firmware version validation"
+echo "======================================================================================"
+
+printf "Checking if the tag version was defined...          "
+if [ -z ${tkid_fw_repo_tag} ]; then
+    echo "Failed!"
+    echo
+    echo "Firmware tag version not defined! Please check that the variable 'tkid_fw_repo_tag' is defined in the 'definitions.sh' file."
+    exit_on_error
+fi
+echo "${tkid_fw_repo_tag}"
+
+printf "Checking if MCS file name was defined...            "
+if [ -z ${tkid_mcs_file_name} ]; then
+    echo "Failed!"
+    echo
+    echo "MCS file name not defined! Please check that the variable 'tkid_mcs_file_name' is defined in the 'definitions.sh' file."
+    exit_on_error
+fi
+echo "${tkid_mcs_file_name}"
+
+check_if_private_tag_exist ${tkid_fw_repo} ${tkid_fw_repo_tag}
+
+printf "Checking if MCS file is in the list of assets...    "
+check_if_private_asset_exist ${tkid_fw_repo} ${tkid_fw_repo_tag} ${tkid_mcs_file_name}
+if [ $? != 0 ]; then
+    echo "Failed!"
+    echo
+    echo "File '${tkid_mcs_file_name}' does not exist in the assets list of release '${tkid_fw_repo_tag}'!"
+    exit_on_error
+fi
+echo "File exists!"
+
+printf "Checking if ZIP file is in the list of assets...    "
+check_if_private_asset_exist ${tkid_fw_repo} ${tkid_fw_repo_tag} ${tkid_zip_file_name}
+if [ $? != 0 ]; then
+    echo "Failed!"
+    echo
+    echo "File '${tkid_zip_file_name}' does not exist in the assets list of release '${tkid_fw_repo_tag}'!"
+    exit_on_error
+fi
+echo "File exists!"
+
+# At this points all the definition of the firmware version are correct.
+echo "Done! A correct firmware version was defined"
+echo
+### Done validating TKID fw
 
 
 # Validate the configuration version
