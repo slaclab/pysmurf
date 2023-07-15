@@ -1718,7 +1718,7 @@ class SmurfUtilMixin(SmurfBase):
             ax1.set_ylim((-2**15, 2**15))
             ax2 = plt.subplot(212)
             ax2.plot(f_plot, 10*np.log10(p_dac))
-            ax2.set_ylabel(f'ADC{band}')
+            ax2.set_ylabel(f'DAC{band}')
             ax2.set_xlabel('Frequency [MHz]')
             ax2.set_title(f'{timestamp} Spectrum')
             plt.grid(which='both')
@@ -4563,7 +4563,7 @@ class SmurfUtilMixin(SmurfBase):
             ax[1].set_ylabel("Phase [rad]")
             ax[1].set_xlabel('Frequency [MHz]')
 
-            plt.tight_layout()
+            plt.tight_layout(rect=[0, 0.03, 1, 0.95])
 
             if save_plot:
                 save_path = os.path.join(self.plot_dir, save_name)
