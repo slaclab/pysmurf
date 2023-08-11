@@ -29,7 +29,7 @@ class SmurfCommandMixin(SmurfBase):
 
     _global_poll_enable_reg = 'AMCc:enable'
 
-    def _caput(self, pvname, val, *args, **kwargs):
+    def _caput(self, pvname, val, **kwargs):
         """Puts variables into epics.
 
         Wrapper around pyrogue lcaput. Puts variables into epics.
@@ -41,19 +41,14 @@ class SmurfCommandMixin(SmurfBase):
         val: any
             The value to put into epics
         """
+        err = False
+        for k,v in kwargs.items():
 
-        if len(args) != 0 or len(kwargs) != 0:
-            print("-------------------------------------------------")
-            print("Unexpected args:")
+            if v is not None:
+                print(f"Unexpected kwargs: {k} = {v}")
+                err=True
 
-            for a in args:
-                print(f"   {a}")
-
-            print("Unexpected kwargs:")
-
-            for k,v in kwargs.items():
-                print(f"   {k} = {v}")
-
+        if err:
             raise Exception("Bad args passed to caput")
 
         var = self._vr.getNode(pvname)
@@ -77,19 +72,14 @@ class SmurfCommandMixin(SmurfBase):
         ret : str
             The requested value.
         """
+        err = False
+        for k,v in kwargs.items():
 
-        if len(args) != 0 or len(kwargs) != 0:
-            print("-------------------------------------------------")
-            print("Unexpected args:")
+            if v is not None:
+                print(f"Unexpected kwargs: {k} = {v}")
+                err=True
 
-            for a in args:
-                print(f"   {a}")
-
-            print("Unexpected kwargs:")
-
-            for k,v in kwargs.items():
-                print(f"   {k} = {v}")
-
+        if err:
             raise Exception("Bad args passed to caput")
 
         var = self._vr.getNode(pvname)
