@@ -1457,11 +1457,11 @@ class SmurfUtilMixin(SmurfBase):
         """
         # Ask mitch why this is what it is...
         if bay == 0:
-            stream0 = self.epics_root + ":AMCc:Stream0"
-            stream1 = self.epics_root + ":AMCc:Stream1"
+            stream0 = "AMCc.Stream0"
+            stream1 = "AMCc.Stream1"
         else:
-            stream0 = self.epics_root + ":AMCc:Stream2"
-            stream1 = self.epics_root + ":AMCc:Stream3"
+            stream0 = "AMCc.Stream2"
+            stream1 = "AMCc.Stream3"
 
         pvs = [stream0, stream1]
         sg  = SyncGroup(pvs, skip_first=True)
