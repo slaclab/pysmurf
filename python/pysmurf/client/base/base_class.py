@@ -87,100 +87,97 @@ class SmurfBase:
         # do this than just hardcoding paths? This needs to be cleaned
         # up somehow
 
-        if epics_root is not None:
-            self.epics_root = epics_root
+        self.amcc = 'AMCc.'
 
-        self.amcc = self.epics_root + ':AMCc:'
+        self.smurf_application = self.amcc + 'SmurfApplication.'
 
-        self.smurf_application = self.amcc + 'SmurfApplication:'
+        self.smurf_processor = self.amcc + 'SmurfProcessor.'
+        self._predata_emulator = self.smurf_processor + 'PreDataEmulator.'
+        self._postdata_emulator = self.smurf_processor + 'PostDataEmulator.'
+        self.stream_data_source = self.amcc + 'StreamDataSource.'
+        self.channel_mapper = self.smurf_processor + 'ChannelMapper.'
+        self.frame_rx_stats = self.smurf_processor + 'FrameRxStats.'
 
-        self.smurf_processor = self.amcc + 'SmurfProcessor:'
-        self._predata_emulator = self.smurf_processor + 'PreDataEmulator:'
-        self._postdata_emulator = self.smurf_processor + 'PostDataEmulator:'
-        self.stream_data_source = self.amcc + 'StreamDataSource:'
-        self.channel_mapper = self.smurf_processor + 'ChannelMapper:'
-        self.frame_rx_stats = self.smurf_processor + 'FrameRxStats:'
-
-        self.fpga_top_level = self.amcc + 'FpgaTopLevel:'
-        self.app_top = self.fpga_top_level + 'AppTop:'
-        self.app_core = self.app_top + 'AppCore:'
+        self.fpga_top_level = self.amcc + 'FpgaTopLevel.'
+        self.app_top = self.fpga_top_level + 'AppTop.'
+        self.app_core = self.app_top + 'AppCore.'
 
         # AppTop
-        self.dac_sig_gen = self.app_top + 'DacSigGen[{}]:'
+        self.dac_sig_gen = self.app_top + 'DacSigGen[{}].'
 
         # AppCore
-        self.microwave_mux_core = self.app_core + 'MicrowaveMuxCore[{}]:'
-        self.sysgencryo = self.app_core + 'SysgenCryo:'
-        self.timing_header = self.app_core + 'TimingHeader:'
+        self.microwave_mux_core = self.app_core + 'MicrowaveMuxCore[{}].'
+        self.sysgencryo = self.app_core + 'SysgenCryo.'
+        self.timing_header = self.app_core + 'TimingHeader.'
 
         # MicrowaveMuxCore[#]
-        self.DBG = self.microwave_mux_core + 'DBG:'
-        self.dac_root = self.microwave_mux_core + 'DAC[{}]:'
-        self.att_root = self.microwave_mux_core + 'ATT:'
+        self.DBG = self.microwave_mux_core + 'DBG.'
+        self.dac_root = self.microwave_mux_core + 'DAC[{}].'
+        self.att_root = self.microwave_mux_core + 'ATT.'
 
         # LMK
-        self.lmk = self.microwave_mux_core + 'LMK:'
+        self.lmk = self.microwave_mux_core + 'LMK.'
 
         # SysgenCryo
-        self.band_root = self.sysgencryo + 'Base[{}]:'
-        self.adc_root = self.sysgencryo + 'CryoAdcMux:'
+        self.band_root = self.sysgencryo + 'Base[{}].'
+        self.adc_root = self.sysgencryo + 'CryoAdcMux.'
 
-        self.cryo_root = self.band_root + 'CryoChannels:'
-        self.channel_root = self.cryo_root + 'CryoChannel[{}]:'
+        self.cryo_root = self.band_root + 'CryoChannels.'
+        self.channel_root = self.cryo_root + 'CryoChannel[{}].'
 
-        self.streaming_root = self.amcc + 'streamingInterface:'
+        self.streaming_root = self.amcc + 'streamingInterface.'
 
         # FpgaTopLevel
-        self.fpgatl = self.amcc + 'FpgaTopLevel:'
+        self.fpgatl = self.amcc + 'FpgaTopLevel.'
 
         # AppTop
-        self.apptop = self.fpgatl + 'AppTop:'
+        self.apptop = self.fpgatl + 'AppTop.'
 
         # AppCore
-        self.appcore = self.apptop + 'AppCore:'
+        self.appcore = self.apptop + 'AppCore.'
 
         # AmcCarrierCore
-        self.amccc = self.fpgatl + 'AmcCarrierCore:'
+        self.amccc = self.fpgatl + 'AmcCarrierCore.'
 
         # Crossbar
-        self.crossbar = self.amccc + 'AxiSy56040:'
+        self.crossbar = self.amccc + 'AxiSy56040.'
 
         # Regulator
-        self.regulator = self.amccc + 'EM22xx:'
+        self.regulator = self.amccc + 'EM22xx.'
 
         # CarrierBsi
-        self.amc_carrier_bsi = self.amccc + 'AmcCarrierBsi:'
+        self.amc_carrier_bsi = self.amccc + 'AmcCarrierBsi.'
 
         # FPGA
-        self.ultrascale = self.amccc + 'AxiSysMonUltraScale:'
+        self.ultrascale = self.amccc + 'AxiSysMonUltraScale.'
 
         # Tx -> DAC , Rx <- ADC
-        self.axi_version = self.amccc + 'AxiVersion:'
+        self.axi_version = self.amccc + 'AxiVersion.'
         self.waveform_engine_buffers_root = self.amccc + \
-            'AmcCarrierBsa:BsaWaveformEngine[{}]:' + \
-            'WaveformEngineBuffers:'
-        self.stream_data_writer_root = self.amcc + 'streamDataWriter:'
-        self.jesd_tx_root = self.apptop + 'AppTopJesd[{}]:JesdTx:'
-        self.jesd_rx_root = self.apptop + 'AppTopJesd[{}]:JesdRx:'
-        self.daq_mux_root = self.apptop + 'DaqMuxV2[{}]:'
+            'AmcCarrierBsa:BsaWaveformEngine[{}].' + \
+            'WaveformEngineBuffers.'
+        self.stream_data_writer_root = self.amcc + 'streamDataWriter.'
+        self.jesd_tx_root = self.apptop + 'AppTopJesd[{}].JesdTx.'
+        self.jesd_rx_root = self.apptop + 'AppTopJesd[{}].JesdRx.'
+        self.daq_mux_root = self.apptop + 'DaqMuxV2[{}].'
 
         # RTM paths
-        self.rtm_cryo_det_root = self.appcore + 'RtmCryoDet:'
+        self.rtm_cryo_det_root = self.appcore + 'RtmCryoDet.'
         self.rtm_spi_root = self.rtm_cryo_det_root + \
-            'RtmSpiSr:'
+            'RtmSpiSr.'
         self.rtm_spi_max_root = self.rtm_cryo_det_root + \
-            'RtmSpiMax:'
+            'RtmSpiMax.'
         self.rtm_spi_cryo_root = self.rtm_cryo_det_root + \
-            'SpiCryo:'
+            'SpiCryo.'
         self.rtm_lut_ctrl_root = self.rtm_cryo_det_root + \
-            'LutCtrl:'
+            'LutCtrl.'
         self.rtm_lut_ctrl = self.rtm_lut_ctrl_root + \
-            'Ctrl:'
+            'Ctrl.'
 
         # Timing paths
-        self.amctiming = self.amccc + 'AmcCarrierTiming:'
-        self.trigger_root = self.amctiming + 'EvrV2CoreTriggers:'
-        self.timing_status = self.amctiming + 'TimingFrameRx:'
+        self.amctiming = self.amccc + 'AmcCarrierTiming.'
+        self.trigger_root = self.amctiming + 'EvrV2CoreTriggers.'
+        self.timing_status = self.amctiming + 'TimingFrameRx.'
 
         self.C = CryoCard(self.rtm_spi_cryo_root + 'read',
                           self.rtm_spi_cryo_root + 'write')
