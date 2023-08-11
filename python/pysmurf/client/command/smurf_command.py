@@ -25,20 +25,12 @@ from pysmurf.client.base import SmurfBase
 from pysmurf.client.command.sync_group import SyncGroup as SyncGroup
 from pysmurf.client.util import tools, dscounters
 
-try:
-    import epics
-except ModuleNotFoundError:
-    print("smurf_command.py - epics not found.")
-
 class SmurfCommandMixin(SmurfBase):
 
-    _global_poll_enable_reg = ':AMCc:enable'
+    _global_poll_enable_reg = 'AMCc:enable'
 
-    def _caput(self, pvname, val, write_log=False, execute=True,
-            wait_before=None, wait_after=None, wait_done=True,
-            log_level=0, enable_poll=False, disable_poll=False,
-            new_epics_root=None, **kwargs):
-        r"""Puts variables into epics.
+    def _caput(self, pvname, val, *args, **kwargs):
+        """Puts variables into epics.
 
         Wrapper around pyrogue lcaput. Puts variables into epics.
 
@@ -48,88 +40,30 @@ class SmurfCommandMixin(SmurfBase):
             The EPICs path of the PV to get.
         val: any
             The value to put into epics
-        write_log : bool, optional, default False
-            Whether to log the data or not.
-        execute : bool, optional, default True
-            Whether to actually execute the command.
-        wait_before : int, optional, default None
-            If not None, the number of seconds to wait before issuing
-            the command.
-        wait_after : int, optional, default None
-            If not None, the number of seconds to wait after issuing
-            the command.
-        wait_done : bool, optional, default True
-            Wait for the command to be finished before returning.
-        log_level : int, optional, default 0
-            Log level.
-        enable_poll : bool, optional, default False
-            Allows requests of all PVs.
-        disable_poll : bool, optional, default False
-            Disables requests of all PVs after issueing command.
-        new_epics_root : str, optional, default None
-            Temporarily replaces current epics root with a new one.
-        \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `epics.caput` call.
         """
-        if new_epics_root is not None:
-            self.log(f'Temporarily using new epics root: {new_epics_root}')
-            old_epics_root = self.epics_root
-            self.epics_root = new_epics_root
-            pvname = pvname.replace(old_epics_root, self.epics_root)
 
-        if enable_poll or disable_poll:
-            global_poll_pv=self.epics_root+ self._global_poll_enable_reg
-            if global_poll_pv not in self._pv_cache.keys():
-                self._pv_cache[global_poll_pv] = epics.PV(global_poll_pv)
+        if len(args) != 0 or len(kwargs) != 0:
+            print("-------------------------------------------------")
+            print("Unexpected args:")
 
-        if enable_poll:
-            #epics.caput(self.epics_root + self._global_poll_enable_reg, True)
-            self._pv_cache[global_poll_pv].put(True)
+            for a in args:
+                print(f"   {a}")
 
-        if wait_before is not None:
-            if write_log:
-                self.log(f'Waiting {wait_before:3.2f} seconds before...',
-                         self.LOG_USER)
-            time.sleep(wait_before)
+            print("Unexpected kwargs:")
 
-        if write_log:
-            log_str = 'caput ' + pvname + ' ' + str(val)
-            if self.offline:
-                log_str = 'OFFLINE - ' + log_str
-            self.log(log_str, log_level)
+            for k,v in kwargs.items():
+                print(f"   {k} = {v}")
 
-        if execute and not self.offline:
-            #epics.caput(pvname, val, wait=wait_done, **kwargs)
-            if pvname not in self._pv_cache.keys():
-                self._pv_cache[pvname] = epics.PV(pvname)
-            self._pv_cache[pvname].put(val,
-                                       wait=wait_done,
-                                       **kwargs)
+            raise Exception("Bad args passed to caput")
 
-        if wait_after is not None:
-            if write_log:
-                self.log(f'Waiting {wait_after:3.2f} seconds after...',
-                    self.LOG_USER)
-            time.sleep(wait_after)
-            if write_log:
-                self.log('Done waiting.', self.LOG_USER)
+        var = self._vr.getNode(pvname)
 
-        if disable_poll:
-            #epics.caput(self.epics_root + self._global_poll_enable_reg, False)
-            self._pv_cache[global_poll_pv].put(False)
+        if var == None:
+            raise Exception(f"Invalid node: {pvname}")
 
-        if new_epics_root is not None:
-            self.epics_root = old_epics_root
-            self.log('Returning back to original epics root'+
-                     f' : {self.epics_root}')
+        var.set(val)
 
-    def _caget(self, pvname, write_log=False, execute=True, count=None,
-               log_level=0, enable_poll=False, disable_poll=False,
-               new_epics_root=None, yml=None, retry_on_fail=True,
-               use_monitor=False,
-               max_retry=5, **kwargs):
-        r"""Gets variables from epics.
+        """Gets variables from epics.
 
         Wrapper around pyrogue lcaget. Gets variables from epics.
 
@@ -137,103 +71,33 @@ class SmurfCommandMixin(SmurfBase):
         ----
         pvname : str
             The EPICs path of the PV to get.
-        write_log : bool, optional, default False
-            Whether to log the data or not.
-        execute : bool, optional, default True
-            Whether to actually execute the command.
-        count : int or None, optional, default None
-            Number of elements to return for array data.
-        log_level : int, optional, default 0
-            Log level.
-        enable_poll : bool, optional, default False
-            Allows requests of all PVs.
-        disable_poll : bool, optional, default False
-            Disables requests of all PVs after issueing command.
-        new_epics_root : str or None, optional, default None
-            Temporarily replaces current epics root with a new one.
-        yml : str or None, optional, default None
-            If not None, yaml file to parse for the result.
-        retry_on_fail : bool
-            Whether to retry the caget if it fails on first attempt
-        use_monitor : bool, optional, default False
-            Passed directly to the underlying pyepics `epics.caget`
-            function call.  This was added to maintain default
-            behavior because this option was changed from default
-            `False` to default `True` in later versions of pyepics.
-        max_retry : int
-            The number of times to retry if caget fails the first time.
-        \**kwargs
-            Arbitrary keyword arguments.  Passed directly to the
-            `epics.caget` call.
 
         Returns
         -------
         ret : str
             The requested value.
         """
-        if new_epics_root is not None:
-            self.log(f'Temporarily using new epics root: {new_epics_root}')
-            old_epics_root = self.epics_root
-            self.epics_root = new_epics_root
-            pvname = pvname.replace(old_epics_root, self.epics_root)
 
-        if enable_poll or disable_poll:
-            global_poll_pv=self.epics_root+ self._global_poll_enable_reg
-            if global_poll_pv not in self._pv_cache.keys():
-                self._pv_cache[global_poll_pv] = epics.PV(global_poll_pv)
+        if len(args) != 0 or len(kwargs) != 0:
+            print("-------------------------------------------------")
+            print("Unexpected args:")
 
-        if enable_poll:
-            #epics.caput(self.epics_root+ self._global_poll_enable_reg, True)
-            self._pv_cache[global_poll_pv].put(True)
+            for a in args:
+                print(f"   {a}")
 
-        if write_log:
-            self.log('caget ' + pvname, log_level)
+            print("Unexpected kwargs:")
 
-        # load the data from yml file if provided
-        if yml is not None:
-            if write_log:
-                self.log(f'Reading from yml file\n {pvname}')
-            return tools.yaml_parse(yml, pvname)
-        # Get the data
-        elif execute and not self.offline:
-            #ret = epics.caget(pvname, count=count, use_monitor=use_monitor, **kwargs)
-            if pvname not in self._pv_cache.keys():
-                self._pv_cache[pvname] = epics.PV(pvname)
-            ret = self._pv_cache[pvname].get(count=count,
-                                             use_monitor=use_monitor,
-                                             **kwargs)
+            for k,v in kwargs.items():
+                print(f"   {k} = {v}")
 
-            # If epics doesn't respond in time, epics.caget returns None.
-            if ret is None and retry_on_fail:
-                self.log(f"Command failed: {pvname}")
-                n_retry = 0
-                while n_retry < max_retry and ret is None:
-                    self.log(f'Retry attempt {n_retry+1} of {max_retry}')
-                    #ret = epics.caget(pvname, count=count, use_monitor=use_monitor, **kwargs)
-                    ret = self._pv_cache[pvname].get(count=count,
-                                                     use_monitor=use_monitor,
-                                                     **kwargs)
-                    n_retry += 1
+            raise Exception("Bad args passed to caput")
 
-            # After retries, raise error
-            if ret is None:
-                raise RuntimeError("epics failed to respond")
-            if write_log:
-                self.log(ret)
-        else:
-            ret = None
+        var = self._vr.getNode(pvname)
 
-        if disable_poll:
-            #epics.caput(self.epics_root+ self._global_poll_enable_reg, False)
-            self._pv_cache[global_poll_pv].put(False)
+        if var == None:
+            raise Exception(f"Invalid node: {pvname}")
 
-        if new_epics_root is not None:
-            self.epics_root = old_epics_root
-            self.log('Returning back to original epics root'+
-                     f' : {self.epics_root}')
-
-        return ret
-
+        return var.get()
 
     #### Start SmurfApplication gets/sets
     _smurf_version_reg = 'SmurfVersion'
@@ -470,12 +334,11 @@ class SmurfCommandMixin(SmurfBase):
         Returns
         -------
         str
-            The status of the global poll bit epics_root:AMCc:enable.
+            The status of the global poll bit AMCc.enable.
             If False, pyrogue is not currently polling the server. PVs
             will not be updating.
         """
-        return self._caget(self.epics_root + self._global_poll_enable_reg,
-                           enable_poll=False, disable_poll=False, **kwargs)
+        return self._caget(self._global_poll_enable_reg, **kwargs)
 
 
     _number_sub_bands_reg = 'numberSubBands'
@@ -626,9 +489,7 @@ class SmurfCommandMixin(SmurfBase):
             # Start by calling the 'setDefaults' command. Set the 'wait' flag
             # to wait for the command to finish, although the server usually
             # gets unresponsive during setup and the connection is lost.
-            self._caput(
-                self.epics_root + ':AMCc:setDefaults', 1,
-                wait_done=True, **kwargs)
+            self._caput('AMCc.setDefaults', 1, **kwargs)
 
             # Now let's wait until the process is finished. We define a maximum
             # time we will wait, 400 seconds in this case, divided in smaller
@@ -683,9 +544,7 @@ class SmurfCommandMixin(SmurfBase):
             return success
 
         else:
-            self._caput(
-                self.epics_root + ':AMCc:setDefaults', 1,
-                wait_after=wait_after_sec, **kwargs)
+            self._caput('AMCc.setDefaults', 1, **kwargs)
             return None
 
     def set_read_all(self, **kwargs):
@@ -694,8 +553,7 @@ class SmurfCommandMixin(SmurfBase):
         Registers must updated in order to PVs to update.
         This call is necessary to read register with pollIntervale=0.
         """
-        self._caput(self.epics_root + ':AMCc:ReadAll', 1, wait_after=20,
-            **kwargs)
+        self._caput('AMCc.ReadAll', 1, **kwargs)
         self.log('ReadAll sent', self.LOG_INFO)
 
     def run_pwr_up_sys_ref(self,bay, **kwargs):
@@ -973,7 +831,7 @@ class SmurfCommandMixin(SmurfBase):
 
     # name changed in Rogue 4 from WriteState to SaveState.  Keeping
     # the write_state function for backwards compatibilty.
-    _save_state_reg = ":AMCc:SaveState"
+    _save_state_reg = "AMCc.SaveState"
 
     def save_state(self, val, **kwargs):
         """
@@ -984,15 +842,14 @@ class SmurfCommandMixin(SmurfBase):
         val : str
             The path (including file name) to write the yml file to.
         """
-        self._caput(self.epics_root + self._save_state_reg,
-                    val, **kwargs)
+        self._caput(self._save_state_reg, val, **kwargs)
 
     # alias older rogue 3 write_state function to save_state
     write_state = save_state
 
     # name changed in Rogue 4 from WriteConfig to SaveConfig.  Keeping
     # the write_config function for backwards compatibilty.
-    _save_config_reg = ":AMCc:SaveConfig"
+    _save_config_reg = "AMCc.SaveConfig"
 
     def save_config(self, val, **kwargs):
         """
@@ -1003,8 +860,7 @@ class SmurfCommandMixin(SmurfBase):
         val : str
             The path (including file name) to write the yml file to.
         """
-        self._caput(self.epics_root + self._save_config_reg,
-                    val, **kwargs)
+        self._caput(self._save_config_reg, val, **kwargs)
 
     # alias older rogue 3 write_config function to save_config
     write_config = save_config
@@ -2936,9 +2792,7 @@ class SmurfCommandMixin(SmurfBase):
 
             # If the command exists, then start by calling the `CheckJesd`
             # wrapper command.
-            self._caput(
-                self.epics_root + ':AMCc:SmurfApplication:CheckJesd', 1,
-                wait_done=True, **kwargs)
+            self._caput('AMCc.SmurfApplication:CheckJesd', 1, **kwargs)
 
             # Now let's wait for it to finish.
             num_retries = int(max_timeout_sec/caget_timeout_sec)
@@ -3792,8 +3646,8 @@ class SmurfCommandMixin(SmurfBase):
             self.rtm_cryo_det_root + self._k_relay_reg,
             **kwargs)
 
-    _timing_crate_root_reg = ":AMCc:FpgaTopLevel:AmcCarrierCore:AmcCarrierTiming:EvrV2CoreTriggers"
-    _trigger_rate_sel_reg = ":EvrV2ChannelReg[0]:RateSel"
+    _timing_crate_root_reg = "AMCc.FpgaTopLevel.AmcCarrierCore.AmcCarrierTiming.EvrV2CoreTriggers"
+    _trigger_rate_sel_reg = ".EvrV2ChannelReg[0].RateSel"
 
     def set_ramp_rate(self, val, **kwargs):
         """
@@ -3806,7 +3660,6 @@ class SmurfCommandMixin(SmurfBase):
 
         if rate_sel is not None:
             self._caput(
-                self.epics_root +
                 self._timing_crate_root_reg +
                 self._trigger_rate_sel_reg,
                 rate_sel, **kwargs)
@@ -3822,7 +3675,6 @@ class SmurfCommandMixin(SmurfBase):
         """
 
         rate_sel = self._caget(
-            self.epics_root +
             self._timing_crate_root_reg +
             self._trigger_rate_sel_reg,
             **kwargs)
@@ -3831,7 +3683,7 @@ class SmurfCommandMixin(SmurfBase):
 
         return reset_rate
 
-    _trigger_delay_reg = ":EvrV2TriggerReg[0]:Delay"
+    _trigger_delay_reg = "EvrV2TriggerReg[0].Delay"
 
     def set_trigger_delay(self, val, **kwargs):
         """
@@ -3841,7 +3693,6 @@ class SmurfCommandMixin(SmurfBase):
         ticks.
         """
         self._caput(
-            self.epics_root +
             self._timing_crate_root_reg +
             self._trigger_delay_reg,
             val, **kwargs)
@@ -3854,7 +3705,6 @@ class SmurfCommandMixin(SmurfBase):
         """
 
         trigger_delay = self._caget(
-            self.epics_root +
             self._timing_crate_root_reg +
             self._trigger_delay_reg,
             **kwargs)
@@ -5169,8 +5019,7 @@ class SmurfCommandMixin(SmurfBase):
             Temperature of the cryostat card in Celsius.
         """
         if enable_poll:
-            self._caput(self.epics_root + self._global_poll_enable_reg,
-                        True)
+            self._caput(self._global_poll_enable_reg, True)
 
         T = self.C.read_temperature()
 
@@ -5178,8 +5027,7 @@ class SmurfCommandMixin(SmurfBase):
             self.log('get_cryo_card_temp: Temperature is below 0 C, is it connected?')
 
         if disable_poll:
-            self._caput(self.epics_root + self._global_poll_enable_reg,
-                        False)
+            self._caput(self._global_poll_enable_reg, False)
 
         return T
 
@@ -5209,14 +5057,12 @@ class SmurfCommandMixin(SmurfBase):
             The cryo card relays value.
         """
         if enable_poll:
-            self._caput(self.epics_root + self._global_poll_enable_reg,
-                        True)
+            self._caput(self._global_poll_enable_reg, True)
 
         relay = self.C.read_relays()
 
         if disable_poll:
-            self._caput(self.epics_root + self._global_poll_enable_reg,
-                        False)
+            self._caput(self._global_poll_enable_reg, False)
 
         return relay
 
@@ -5257,14 +5103,12 @@ class SmurfCommandMixin(SmurfBase):
             self.log(f'Writing relay using cryo_card object. {relay}')
 
         if enable_poll:
-            self._caput(self.epics_root + self._global_poll_enable_reg,
-                        True)
+            self._caput(self._global_poll_enable_reg, True)
 
         self.C.write_relays(relay)
 
         if disable_poll:
-            self._caput(self.epics_root + self._global_poll_enable_reg,
-                        False)
+            self._caput(self._global_poll_enable_reg, False)
 
     def set_cryo_card_delatch_bit(self, bit, write_log=False, enable_poll=False,
                                   disable_poll=False):
@@ -5277,8 +5121,7 @@ class SmurfCommandMixin(SmurfBase):
             The bit to temporarily delatch.
         """
         if enable_poll:
-            self._caput(self.epics_root + self._global_poll_enable_reg,
-                        True)
+            self._caput(self._global_poll_enable_reg, True)
 
         if write_log:
             self.log('Setting delatch bit using cryo_card ' +
@@ -5286,8 +5129,7 @@ class SmurfCommandMixin(SmurfBase):
         self.C.delatch_bit(bit)
 
         if disable_poll:
-            self._caput(self.epics_root + self._global_poll_enable_reg,
-                        False)
+            self._caput(self._global_poll_enable_reg, False)
 
     def set_cryo_card_ps_en(self, enable=3, write_log=False):
         """
@@ -6151,7 +5993,7 @@ class SmurfCommandMixin(SmurfBase):
             self.lmk.format(bay) + self._lmk_reg.format(reg),
             **kwargs)
 
-    _mcetransmit_debug_reg = ':AMCc:mcetransmitDebug'
+    _mcetransmit_debug_reg = 'AMCc:mcetransmitDebug'
 
     def set_mcetransmit_debug(self, val, **kwargs):
         """
@@ -6163,9 +6005,7 @@ class SmurfCommandMixin(SmurfBase):
         val : int
             0 or 1 for the debug bit.
         """
-        self._caput(
-            self.epics_root + self._mcetransmit_debug_reg,
-            val, **kwargs)
+        self._caput(self._mcetransmit_debug_reg, val, **kwargs)
 
     _frame_count_reg = 'FrameCnt'
 
@@ -6260,7 +6100,7 @@ class SmurfCommandMixin(SmurfBase):
             self.smurf_processor + self._unwrapper_reset_reg,
             1, **kwargs)
 
-    _filter_reset_reg = 'Filter:reset'
+    _filter_reset_reg = 'Filter.reset'
 
     def set_filter_reset(self, **kwargs):
         """
@@ -6270,7 +6110,7 @@ class SmurfCommandMixin(SmurfBase):
             self.smurf_processor + self._filter_reset_reg,
             1, **kwargs)
 
-    _filter_a_reg = 'Filter:A'
+    _filter_a_reg = 'Filter.A'
 
     def set_filter_a(self, coef, **kwargs):
         """
@@ -6304,7 +6144,7 @@ class SmurfCommandMixin(SmurfBase):
             self.smurf_processor + self._filter_a_reg,
             **kwargs)
 
-    _filter_b_reg = 'Filter:B'
+    _filter_b_reg = 'Filter.B'
 
     def set_filter_b(self, coef, **kwargs):
         """
@@ -6338,7 +6178,7 @@ class SmurfCommandMixin(SmurfBase):
             self.smurf_processor + self._filter_b_reg,
             **kwargs)
 
-    _filter_order_reg = 'Filter:Order'
+    _filter_order_reg = 'Filter.Order'
 
     def set_filter_order(self, order, **kwargs):
         """
@@ -6366,7 +6206,7 @@ class SmurfCommandMixin(SmurfBase):
             self.smurf_processor + self._filter_order_reg,
             **kwargs)
 
-    _filter_gain_reg = 'Filter:Gain'
+    _filter_gain_reg = 'Filter.Gain'
 
     def set_filter_gain(self, gain, **kwargs):
         """
@@ -6517,7 +6357,7 @@ class SmurfCommandMixin(SmurfBase):
         """
         return self._caget(self.smurf_processor + self._downsampler_external_bitmask_reg)
 
-    _filter_disable_reg = "Filter:Disable"
+    _filter_disable_reg = "Filter.Disable"
 
     def set_filter_disable(self, disable_status, **kwargs):
         """
