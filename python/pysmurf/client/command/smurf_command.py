@@ -29,7 +29,7 @@ class SmurfCommandMixin(SmurfBase):
 
     _global_poll_enable_reg = 'AMCc:enable'
 
-    def _caput(self, pvname, val, **kwargs):
+    def _caput(self, pvname, val, atca=False, **kwargs):
         """Puts variables into epics.
 
         Wrapper around pyrogue lcaput. Puts variables into epics.
@@ -51,14 +51,17 @@ class SmurfCommandMixin(SmurfBase):
         if err:
             raise Exception("Bad args passed to caput")
 
-        var = self._vr.getNode(pvname)
+        if atca:
+            var = self._atca.root.getNode(pvname)
+        else:
+            var = self._client.root.getNode(pvname)
 
         if var == None:
             raise Exception(f"Invalid node: {pvname}")
 
         var.set(val)
 
-    def _caget(self, pvname, **kwargs):
+    def _caget(self, pvname, atca=False, **kwargs):
         """Gets variables from epics.
 
         Wrapper around pyepics lcaget. Gets variables from epics.
@@ -83,7 +86,10 @@ class SmurfCommandMixin(SmurfBase):
         if err:
             raise Exception("Bad args passed to caput")
 
-        var = self._vr.getNode(pvname)
+        if atca:
+            var = self._atca.root.getNode(pvname)
+        else:
+            var = self._client.root.getNode(pvname)
 
         if var == None:
             raise Exception(f"Invalid node: {pvname}")

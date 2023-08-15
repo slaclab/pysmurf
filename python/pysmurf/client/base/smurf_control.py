@@ -50,8 +50,6 @@ class SmurfControl(SmurfCommandMixin,
 
     Args
     ----
-    epics_root : str, optional, default None
-       The epics root to be used.
     cfg_file : str, optional, default None
        Config file path.  Must be provided if not on offline mode.
     data_dir : str, optional, default None
@@ -72,10 +70,6 @@ class SmurfControl(SmurfCommandMixin,
        implemented here are in smurf_cmd.py.
     no_dir :  bool, optional, default False
        Whether to make a skip making a directory.
-    shelf_manager : str, optional, default 'shm-smrf-sp01'
-       Shelf manager ip or network name.  Usually each SMuRF server is
-       connected one-to-one with a SMuRF crate, and the default shelf
-       manager name is configured to be 'shm-smrf-sp01'
     validate_config : bool, optional, default True
        Whether to check if the input config file is correct.
 
@@ -96,11 +90,9 @@ class SmurfControl(SmurfCommandMixin,
     initialize
     """
 
-    def __init__(self, epics_root=None,
-                 cfg_file=None, data_dir=None, name=None, make_logfile=True,
+    def __init__(self, cfg_file=None, data_dir=None, name=None, make_logfile=True,
                  setup=False, offline=False, smurf_cmd_mode=False,
-                 no_dir=False, shelf_manager='shm-smrf-sp01',
-                 validate_config=True, data_path_id=None, **kwargs):
+                 no_dir=False, validate_config=True, data_path_id=None, **kwargs):
         """Constructor for the SmurfControl class.
 
         See the SmurfControl class docstring for more details.
@@ -127,26 +119,6 @@ class SmurfControl(SmurfCommandMixin,
             # Populate SmurfConfigPropertiesMixin properties with
             # values from loaded pysmurf configuration file.
             self.copy_config_to_properties(self.config)
-
-        # Save shelf manager - Should this be in the config?
-        self.shelf_manager = shelf_manager
-
-        # Setting epics_root
-        #
-        # self.epics_root is already populated by the above call to
-        # copy_config_to_properties() from the pysmurf configuration
-        # file (if a configuration file is provided).
-        #
-        # Override epics_root from pysmurf configuration file if user
-        # provides a different one.
-        if epics_root is not None:
-            # If user provides an epics root, override whatever's in
-            # the pysmurf cfg file with it.
-            self.epics_root = epics_root
-        # In offline mode, epics root is not needed.
-        if offline:
-            self.epics_root = ''
-        # Done setting epics_root
 
         super().__init__(offline=offline, **kwargs)
 

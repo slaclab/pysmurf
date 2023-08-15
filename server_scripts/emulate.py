@@ -36,7 +36,6 @@ if __name__ == "__main__":
     from pysmurf.core.roots.EmulationRoot import EmulationRoot
 
     with EmulationRoot ( config_file    = args['config_file'],
-                         epics_prefix   = args['epics_prefix'],
                          polling_en     = args['polling_en'],
                          pv_dump_file   = args['pv_dump_file'],
                          disable_bay0   = args['disable_bay0'],
