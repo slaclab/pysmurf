@@ -27,7 +27,6 @@ class CmbEth(Common):
     def __init__(self, *,
                  ip_addr        = "",
                  config_file    = None,
-                 epics_prefix   = "EpicsPrefix",
                  polling_en     = True,
                  pv_dump_file   = "",
                  disable_bay0   = False,

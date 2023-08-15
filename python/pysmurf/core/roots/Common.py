@@ -35,7 +35,6 @@ class Common(pyrogue.Root):
                  stream_pv_size = 2**19,    # Not sub-classed
                  stream_pv_type = 'Int16',  # Not sub-classed
                  configure      = False,
-                 epics_prefix   = None,
                  VariableGroups = None,
                  server_port    = 0,
                  disable_bay0   = False,

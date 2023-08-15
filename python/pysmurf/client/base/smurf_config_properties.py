@@ -83,8 +83,6 @@ class SmurfConfigPropertiesMixin:
 
     def __init__(self, *args, **kwargs):
         """SmurfConfigPropertiesMixin constructor."""
-        # EPICS
-        self._epics_root = None
 
         # Directories
         self._smurf_cmd_dir = None
@@ -193,9 +191,6 @@ class SmurfConfigPropertiesMixin:
               instance.
 
         """
-        ## EPICS
-        self.epics_root = config.get('epics_root')
-
         ## Directories
         self.smurf_cmd_dir = config.get('smurf_cmd_dir')
         self.tune_dir = config.get('tune_dir')
@@ -1785,35 +1780,6 @@ class SmurfConfigPropertiesMixin:
         self._default_tune = value
 
     ## End default_tune property definition
-    ###########################################################################
-
-    ###########################################################################
-    ## Start epics_root property definition
-
-    # Getter
-    @property
-    def epics_root(self):
-        """Short description.
-
-        Gets or sets ?.
-        Units are ?.
-
-        Specified in the pysmurf configuration file as
-        `smurf_to_mce:epics_root`.
-
-        See Also
-        --------
-        ?
-
-        """
-        return self._epics_root
-
-    # Setter
-    @epics_root.setter
-    def epics_root(self, value):
-        self._epics_root = value
-
-    ## End epics_root property definition
     ###########################################################################
 
     ###########################################################################

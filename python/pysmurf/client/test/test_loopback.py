@@ -18,9 +18,9 @@ import pysmurf.client
 
 @pytest.fixture(scope='session')
 def smurf_control(request):
-    epics_prefix = request.config.getoption("--epics")
+    server_port = request.config.getoption("--port")
     config_file = request.config.getoption("--config")
-    S = pysmurf.client.SmurfControl(epics_root=epics_prefix,
+    S = pysmurf.client.SmurfControl(server_port=server_port,
                                     cfg_file=config_file,
                                     setup=request.param,
                                     make_logfile=False,

@@ -48,7 +48,6 @@ if __name__ == "__main__":
                                         dev_data  = args['pcie_dev_data']):
 
         with DevBoardPcie( config_file    = args['config_file'],
-                           epics_prefix   = args['epics_prefix'],
                            polling_en     = args['polling_en'],
                            pcie_rssi_lane = args['pcie_rssi_lane'],
                            pv_dump_file   = args['pv_dump_file'],

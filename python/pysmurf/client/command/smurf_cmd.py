@@ -198,7 +198,7 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('--epics-prefix', help='The epics root',
+    parser.add_argument('--server-port', help='The Server Port',
                         action='store', default=None, type=str)
 
     # Offline mode
@@ -336,9 +336,9 @@ if __name__ == "__main__":
     if n_cmds > 1:
         sys.exit(0)
 
-    epics_prefix = args.epics_prefix
+    server_port = args.server_port
 
-    S = pysmurf.client.SmurfControl(epics_root=epics_prefix,
+    S = pysmurf.client.SmurfControl(server_port=server_port,
         cfg_file=cfg_filename, smurf_cmd_mode=True, setup=False,
         offline=offline)
 
