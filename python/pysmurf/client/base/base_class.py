@@ -25,10 +25,10 @@ class SmurfBase:
     ----
     log : log file or None, optional, default None
         The log file to write to. If None, creates a new log file.
-    server_port: int or None, optional, default 9099
+    server_addr: str or None
+        The server address
+    server_port: int, optional, default 9000
         The server port on the server to connect to
-    epics_root : str or None, optional, default None
-        The name of the epics root. For example "test_epics".
     offline : bool, optional, default False
         Whether to run in offline mode (no rogue) or not. This
         will break many things. Default is False.
@@ -60,10 +60,17 @@ class SmurfBase:
     Overall progress on a task
     """
 
-    def __init__(self, log=None, server_port=9099, epics_root=None, offline=False,
-                 pub_root=None, script_id=None, **kwargs):
+    def __init__(self, log=None, server_addr="localhost", server_port=9000, atca_port=9100, offline=False, pub_root=None, script_id=None, **kwargs):
         """
         """
+
+        self._server_addr = server_addr
+        self._server_port = server_port
+        self._atca_port = atca_port
+
+        self._client = pyrogue.interfaces.VirtualClient(addr=self._server_addr, port=self._server_port)
+
+        self._atca = pyrogue.interfaces.VirtualClient(addr=self._server_addr, port=self._atca_port)
 
         # Set up logging
         self.log = log
@@ -87,7 +94,7 @@ class SmurfBase:
         # do this than just hardcoding paths? This needs to be cleaned
         # up somehow
 
-        self.amcc = 'AMCc.'
+        self.amcc = 'AMCc'
 
         self.smurf_application = self.amcc + 'SmurfApplication.'
 
