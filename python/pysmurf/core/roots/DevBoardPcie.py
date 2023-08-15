@@ -29,7 +29,6 @@ class DevBoardPcie(Common):
                  pcie_dev_rssi  = "/dev/datadev_0",
                  pcie_dev_data  = "/dev/datadev_1",
                  config_file    = None,
-                 epics_prefix   = "EpicsPrefix",
                  polling_en     = True,
                  pv_dump_file   = "",
                  disable_bay0   = False,
@@ -68,7 +67,6 @@ class DevBoardPcie(Common):
         # Setup base class
         Common.__init__(self,
                         config_file    = config_file,
-                        epics_prefix   = epics_prefix,
                         polling_en     = polling_en,
                         pv_dump_file   = pv_dump_file,
                         txDevice       = txDevice,

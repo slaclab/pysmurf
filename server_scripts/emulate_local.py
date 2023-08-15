@@ -42,7 +42,6 @@ from pysmurf.core.roots.EmulationRoot import EmulationRoot
 if __name__ == "__main__":
 
     with EmulationRoot ( config_file    = "",
-                         epics_prefix   = "Test",
                          polling_en     = True,
                          pv_dump_file   = "epics_dump.txt",
                          disable_bay0   = False,
