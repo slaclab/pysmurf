@@ -22,7 +22,7 @@ import numpy as np
 from packaging import version
 
 from pysmurf.client.base import SmurfBase
-from pysmurf.client.command.sync_group import SyncGroup as SyncGroup
+#from pysmurf.client.command.sync_group import SyncGroup as SyncGroup
 from pysmurf.client.util import tools, dscounters
 
 class SmurfCommandMixin(SmurfBase):
@@ -708,6 +708,10 @@ class SmurfCommandMixin(SmurfBase):
         self.log(f'{triggerPV} sent', self.LOG_USER)
 
         if sync_group:
+
+            varList = [self._client.root.getNode(monitorPV)
+
+
             sg = SyncGroup([monitorPV])
             sg.wait()
             vals = sg.get_values()
