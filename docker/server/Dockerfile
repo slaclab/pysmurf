@@ -8,7 +8,6 @@ COPY local_files /tmp/fw/
 WORKDIR /usr/local/src
 RUN git clone https://github.com/slaclab/smurf-pcie.git -b v3.1.0
 WORKDIR smurf-pcie
-RUN sed -i -e 's|git@github.com:|https://github.com/|g' .gitmodules
 RUN git submodule sync && git submodule update --init --recursive
 ENV PYTHONPATH /usr/local/src/smurf-pcie/software/python:${PYTHONPATH}
 ENV PYTHONPATH /usr/local/src/smurf-pcie/firmware/python:${PYTHONPATH}
