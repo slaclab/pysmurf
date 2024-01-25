@@ -15,6 +15,7 @@
 #-----------------------------------------------------------------------------
 from pysmurf.client.command.cryo_card import CryoCard
 from pysmurf.client.util.pub import Publisher
+import pyrogue
 from .logger import SmurfLogger
 
 class SmurfBase:
