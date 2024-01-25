@@ -709,7 +709,7 @@ class SmurfCommandMixin(SmurfBase):
 
         if sync_group:
 
-            varList = [self._client.root.getNode(monitorPV)
+            varList = [self._client.root.getNode(monitorPV)]
 
 
             sg = SyncGroup([monitorPV])
