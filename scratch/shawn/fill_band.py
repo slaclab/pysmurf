@@ -17,7 +17,7 @@ wait_btw_subbands_sec=0.1
 # to N.  Otherwise you'll get the max possible,
 # if None.  Only used if one_subband_at_a_time is False
 #restrict_nper_band=None
-restrict_nper_band=None#231
+restrict_nper_band=231
 
 print('filling bands %s'%str(band))
 
