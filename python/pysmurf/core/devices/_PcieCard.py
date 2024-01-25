@@ -41,7 +41,7 @@ class PcieDev():
     """
     def __init__(self, dev, name, description):
         import rogue.hardware.axi
-        from SmurfPcie import SmurfKcu1500RssiOffload10GbE as fpga
+        import SmurfKcu1500RssiOffload as fpga
         self._root = pyrogue.Root(name=name,description=description, pollEn='False',initRead='True')
         self._memMap = rogue.hardware.axi.AxiMemMap(dev)
         self._root.add(fpga.Core(memBase=self._memMap))
