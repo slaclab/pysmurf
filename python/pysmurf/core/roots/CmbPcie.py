@@ -40,6 +40,9 @@ class CmbPcie(Common):
                  server_port    = 0,
                  **kwargs):
 
+        # Set this once, before creating any instances
+        rogue.hardware.axi.AxiStreamDma.zeroCopyDisable(pcie_dev_rssi)
+
         # TDEST 0 routed to streamr0 (SRPv3)
         self._srpStream = rogue.hardware.axi.AxiStreamDma(pcie_dev_rssi,(pcie_rssi_lane*0x100 + 0),True)
 
@@ -71,7 +74,6 @@ class CmbPcie(Common):
         # channels 0, 1, 4, 5.
         for i in [0, 1, 4, 5]:
             tmp = rogue.hardware.axi.AxiStreamDma(pcie_dev_rssi,(pcie_rssi_lane*0x100 + 0x80 + i), True)
-            tmp.setZeroCopyEn(False)
             self._ddr_streams.append(tmp)
 
         # Streaming interface stream
