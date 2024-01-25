@@ -4627,6 +4627,7 @@ class SmurfUtilMixin(SmurfBase):
         :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.get_timing_link_up` : Is external timing data being received?
         """
         ## Poll all registers needed to determine which timing mode we're in.
+        mode=None
 
         # Crossbar
         cbar = [self.get_crossbar_output_config(i) for i in range(4)]
