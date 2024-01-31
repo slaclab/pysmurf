@@ -59,7 +59,11 @@ class SmurfCommandMixin(SmurfBase):
         if var == None:
             raise Exception(f"Invalid node: {pvname}")
 
-        var.set(val)
+        # For the ATCA EPICS interface, a command is called with .set
+        if not atca and var.isCommand:
+            var.call(val)
+        else:
+            var.set(val)
 
     def _caget(self, pvname, atca=False, **kwargs):
         """Gets variables from epics.
