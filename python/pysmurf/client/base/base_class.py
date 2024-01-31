@@ -95,7 +95,7 @@ class SmurfBase:
         # do this than just hardcoding paths? This needs to be cleaned
         # up somehow
 
-        self.amcc = 'AMCc'
+        self.amcc = 'AMCc.'
 
         self.smurf_application = self.amcc + 'SmurfApplication.'
 
