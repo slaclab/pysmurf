@@ -76,6 +76,7 @@ class SmurfCommandMixin(SmurfBase):
         ret : str
             The requested value.
         """
+        as_string = kwargs.pop("as_string", False)
         err = False
         for k,v in kwargs.items():
 
@@ -94,7 +95,10 @@ class SmurfCommandMixin(SmurfBase):
         if var == None:
             raise Exception(f"Invalid node: {pvname}")
 
-        return var.get()
+        if as_string:
+            return var.getDisp()
+        else:
+            return var.get()
 
     #### Start SmurfApplication gets/sets
     _smurf_version_reg = 'SmurfVersion'
