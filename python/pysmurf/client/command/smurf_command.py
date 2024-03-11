@@ -4088,7 +4088,7 @@ class SmurfCommandMixin(SmurfBase):
         """
         assert (dac in range(1,33)),'dac must be an integer and in [1,32]'
         self.set_rtm_slow_dac_data(
-            dac, val/self._rtm_slow_dac_bit_to_volt, **kwargs)
+            dac, int(val/self._rtm_slow_dac_bit_to_volt), **kwargs)
 
 
     def get_rtm_slow_dac_volt(self, dac, **kwargs):
