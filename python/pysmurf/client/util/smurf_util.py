@@ -1959,7 +1959,7 @@ class SmurfUtilMixin(SmurfBase):
         self.set_amplitude_scales(band, 0, **kwargs)
         n_channels = self.get_number_channels(band)
         self.set_feedback_enable_array(
-            band, np.zeros(n_channels, dtype=int), **kwargs)
+            band, np.zeros(n_channels, dtype=np.uint32), **kwargs)
         self.set_cfg_reg_ena_bit(0, wait_after=.2, **kwargs)
 
     def channel_off(self, band, channel, **kwargs):
@@ -2000,8 +2000,8 @@ class SmurfUtilMixin(SmurfBase):
         if desired_feedback_limit_mhz > subband_bandwidth/2:
             desired_feedback_limit_mhz = subband_bandwidth/2
 
-        desired_feedback_limit_dec = np.floor(desired_feedback_limit_mhz/
-            (subband_bandwidth/2**16.))
+        desired_feedback_limit_dec = int(np.floor(desired_feedback_limit_mhz/
+            (subband_bandwidth/2**16.)))
 
         self.set_feedback_limit(band, desired_feedback_limit_dec, **kwargs)
 
