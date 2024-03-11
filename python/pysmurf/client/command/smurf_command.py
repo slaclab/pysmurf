@@ -27,7 +27,7 @@ from pysmurf.client.util import tools, dscounters
 
 class SmurfCommandMixin(SmurfBase):
 
-    _global_poll_enable_reg = 'AMCc:enable'
+    _global_poll_enable_reg = 'AMCc.enable'
 
     def _caput(self, pvname, val, atca=False, **kwargs):
         """Puts variables into epics.
@@ -3346,7 +3346,7 @@ class SmurfCommandMixin(SmurfBase):
     #########################################################
     ## start rtm arbitrary waveform
 
-    _rtm_arb_waveform_lut_table_reg = 'Lut[{}]:MemArray'
+    _rtm_arb_waveform_lut_table_reg = 'Lut[{}].MemArray'
 
     def set_rtm_arb_waveform_lut_table(self, reg, arr, pad=0, **kwargs):
         """
@@ -5276,7 +5276,7 @@ class SmurfCommandMixin(SmurfBase):
                  f'(userConfig[0]={uc0}).',self.LOG_USER)
 
     # Triggering commands
-    _trigger_width_reg = 'EvrV2TriggerReg[{}]:Width'
+    _trigger_width_reg = 'EvrV2TriggerReg[{}].Width'
 
     def set_trigger_width(self, chan, val, **kwargs):
         """
@@ -5286,7 +5286,7 @@ class SmurfCommandMixin(SmurfBase):
             self.trigger_root + self._trigger_width_reg.format(chan),
             val, **kwargs)
 
-    _trigger_enable_reg = 'EvrV2TriggerReg[{}]:EnableTrig'
+    _trigger_enable_reg = 'EvrV2TriggerReg[{}].EnableTrig'
 
     def set_trigger_enable(self, chan, val, **kwargs):
         r"""Set trigger pulse generation enable for requested channel.
@@ -5348,7 +5348,7 @@ class SmurfCommandMixin(SmurfBase):
             self.trigger_root + self._trigger_enable_reg.format(chan),
             **kwargs)
 
-    _trigger_channel_reg_enable_reg = 'EvrV2ChannelReg[{}]:EnableReg'
+    _trigger_channel_reg_enable_reg = 'EvrV2ChannelReg[{}].EnableReg'
 
     def set_evr_channel_reg_enable(self, chan, val, **kwargs):
         r"""Set trigger channel enable.
@@ -5413,7 +5413,7 @@ class SmurfCommandMixin(SmurfBase):
             self._trigger_channel_reg_enable_reg.format(chan),
             **kwargs)
 
-    _trigger_reg_enable_reg = 'EvrV2TriggerReg[{}]:enable'
+    _trigger_reg_enable_reg = 'EvrV2TriggerReg[{}].enable'
 
     def set_evr_trigger_reg_enable(self, chan, val, **kwargs):
         """
@@ -5423,7 +5423,7 @@ class SmurfCommandMixin(SmurfBase):
             self._trigger_reg_enable_reg.format(chan),
             val, **kwargs)
 
-    _trigger_channel_reg_count_reg = 'EvrV2ChannelReg[{}]:Count'
+    _trigger_channel_reg_count_reg = 'EvrV2ChannelReg[{}].Count'
 
     def get_evr_channel_reg_count(self, chan, **kwargs):
         """
@@ -5433,7 +5433,7 @@ class SmurfCommandMixin(SmurfBase):
             self._trigger_channel_reg_count_reg.format(chan),
             **kwargs)
 
-    _evr_trigger_dest_type_reg = 'EvrV2ChannelReg[{}]:DestType'
+    _evr_trigger_dest_type_reg = 'EvrV2ChannelReg[{}].DestType'
 
     def set_evr_trigger_dest_type(self, chan, value, **kwargs):
         r"""Set trigger channel destination type.
@@ -5515,7 +5515,7 @@ class SmurfCommandMixin(SmurfBase):
             self._evr_trigger_dest_type_reg.format(chan),
             **kwargs)
 
-    _trigger_channel_reg_dest_sel_reg = 'EvrV2ChannelReg[{}]:DestSel'
+    _trigger_channel_reg_dest_sel_reg = 'EvrV2ChannelReg[{}].DestSel'
 
     def set_evr_trigger_channel_reg_dest_sel(self, chan, val, **kwargs):
         """
@@ -6002,7 +6002,7 @@ class SmurfCommandMixin(SmurfBase):
             self.lmk.format(bay) + self._lmk_reg.format(reg),
             **kwargs)
 
-    _mcetransmit_debug_reg = 'AMCc:mcetransmitDebug'
+    _mcetransmit_debug_reg = 'AMCc.mcetransmitDebug'
 
     def set_mcetransmit_debug(self, val, **kwargs):
         """
@@ -6069,7 +6069,7 @@ class SmurfCommandMixin(SmurfBase):
             self.frame_rx_stats + self._frame_out_order_count_reg,
             **kwargs)
 
-    _channel_mask_reg = 'ChannelMapper:Mask'
+    _channel_mask_reg = 'ChannelMapper.Mask'
 
     def set_channel_mask(self, mask, **kwargs):
         """
@@ -6098,7 +6098,7 @@ class SmurfCommandMixin(SmurfBase):
             self.smurf_processor + self._channel_mask_reg,
             **kwargs)
 
-    _unwrapper_reset_reg = 'Unwrapper:reset'
+    _unwrapper_reset_reg = 'Unwrapper.reset'
 
     def set_unwrapper_reset(self, **kwargs):
         """
@@ -6243,7 +6243,7 @@ class SmurfCommandMixin(SmurfBase):
             self.smurf_processor + self._filter_gain_reg,
             **kwargs)
 
-    _downsampler_mode_reg = 'Downsampler:DownsamplerMode'
+    _downsampler_mode_reg = 'Downsampler.DownsamplerMode'
 
     def set_downsample_mode(self, mode):
         """
@@ -6279,7 +6279,7 @@ class SmurfCommandMixin(SmurfBase):
 
         return ret
 
-    _downsampler_factor_reg = 'Downsampler:InternalFactor'
+    _downsampler_factor_reg = 'Downsampler.InternalFactor'
 
     def set_downsample_factor(self, factor, get_nearby=False, desperation=2, **kwargs):
         """
@@ -6343,7 +6343,7 @@ class SmurfCommandMixin(SmurfBase):
 
         return self._caget(self.smurf_processor + self._downsampler_factor_reg, **kwargs)
 
-    _downsampler_external_bitmask_reg = 'Downsampler:ExternalBitmask'
+    _downsampler_external_bitmask_reg = 'Downsampler.ExternalBitmask'
 
     def set_downsample_external_bitmask(self, bitmask):
         """
@@ -6397,7 +6397,7 @@ class SmurfCommandMixin(SmurfBase):
             self.smurf_processor + self._filter_disable_reg,
             **kwargs)
 
-    _max_file_size_reg = 'FileWriter:MaxFileSize'
+    _max_file_size_reg = 'FileWriter.MaxFileSize'
 
     def set_max_file_size(self, size, **kwargs):
         """Set maximum file size for streamed data.
@@ -6449,7 +6449,7 @@ class SmurfCommandMixin(SmurfBase):
             self.smurf_processor + self._max_file_size_reg,
             as_string=True, **kwargs))
 
-    _data_file_name_reg = 'FileWriter:DataFile'
+    _data_file_name_reg = 'FileWriter.DataFile'
 
     def set_data_file_name(self, name, **kwargs):
         """
@@ -6476,7 +6476,7 @@ class SmurfCommandMixin(SmurfBase):
         return self._caget(self.smurf_processor + self._data_file_name_reg,
             **kwargs)
 
-    _data_file_open_reg = 'FileWriter:Open'
+    _data_file_open_reg = 'FileWriter.Open'
 
     def open_data_file(self, **kwargs):
         """
@@ -6485,7 +6485,7 @@ class SmurfCommandMixin(SmurfBase):
         self._caput(self.smurf_processor + self._data_file_open_reg, 1,
             **kwargs)
 
-    _data_file_close_reg = 'FileWriter:Close'
+    _data_file_close_reg = 'FileWriter.Close'
 
     def close_data_file(self, **kwargs):
         """
