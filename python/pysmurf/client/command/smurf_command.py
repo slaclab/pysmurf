@@ -25,11 +25,12 @@ from pysmurf.client.base import SmurfBase
 #from pysmurf.client.command.sync_group import SyncGroup as SyncGroup
 from pysmurf.client.util import tools, dscounters
 
+
 class SmurfCommandMixin(SmurfBase):
 
     _global_poll_enable_reg = 'AMCc.enable'
 
-    def _caput(self, pvname, val, atca=False, **kwargs):
+    def _caput(self, pvname, val, atca=False, cast_type=True, **kwargs):
         """Puts variables into epics.
 
         Wrapper around pyrogue lcaput. Puts variables into epics.
@@ -62,7 +63,19 @@ class SmurfCommandMixin(SmurfBase):
         # For the ATCA EPICS interface, a command is called with .set
         if not atca and var.isCommand:
             var.call(val)
+        elif var.enum != None:
+            # setDisp handles enum keys
+            var.setDisp(val)
         else:
+            if not atca and cast_type:
+                # python types are better handled by rogue
+                if isinstance(val, np.ndarray):
+                    val = [i.item() for i in val]
+                elif isinstance(val, np.generic):
+                    val = val.item()
+                # also check that the type matches variable type
+                var_type = type(var.value())
+                val = var_type(val)
             var.set(val)
 
     def _caget(self, pvname, atca=False, **kwargs):
