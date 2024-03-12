@@ -18,11 +18,7 @@ import time
 import os
 
 from ..base.logger import SmurfLogger
-
-try:
-    import epics
-except ModuleNotFoundError:
-    print("cryo_card.py - epics not found.")
+import pyrogue
 
 def write_csv(filename, header, line):
     should_write_header = os.path.exists(filename)
@@ -32,7 +28,7 @@ def write_csv(filename, header, line):
         f.write(line+'\n')
 
 class CryoCard():
-    def __init__(self, readpv_in, writepv_in, log=None):
+    def __init__(self, readpv_in, writepv_in, log=None, server_addr="localhost", server_port=9000):
         """
         Interact with the cryocard via the PIC. To interact via the RTM, use SmurfCommandMixin.
         Needs to be compatible with the C02 and C04 cryocards.
@@ -41,8 +37,9 @@ class CryoCard():
         Ref https://github.com/slaclab/smurfc/blob/C04/firmware/src/ccard.h
         """
 
-        self.readpv = epics.PV(readpv_in)
-        self.writepv = epics.PV(writepv_in)
+        self._client = pyrogue.interfaces.VirtualClient(addr=server_addr, port=server_port)
+        self.readpv = self._client.root.getNode(readpv_in)
+        self.writepv = self._client.root.getNode(writepv_in)
 
         self.fw_version_address = 0x0
         self.relay_address = 0x2
@@ -56,7 +53,6 @@ class CryoCard():
         self.temperature_offset =.25
         self.bias_scale = 1.0
         self.max_retries = 5 #number of re-tries waiting for response
-        self.timeout = 5  # timeout in between retries
         self.retry = 0 # counts nubmer of retries
         self.busy_retry = 0  # counts number of retries due to relay busy status
         self.list_of_c02_amps = ['50k', 'hemt']
@@ -66,18 +62,13 @@ class CryoCard():
         # basic logging capacity
         self.log = SmurfLogger() if log is None else log
 
-    def do_read(self, address, use_monitor=False):
+    def do_read(self, address):
         r"""Writes query to cryostat card PIC and reads reply.
 
         Args
         ----
         address : int
             Address of PIC register to read.
-        use_monitor : bool, optional, default False
-            Passed directly to the underlying pyepics `epics.caget`
-            function call.  This was added to maintain default
-            behavior because this option was changed from default
-            `False` to default `True` in later versions of pyepics.
 
         Returns
         -------
@@ -86,12 +77,12 @@ class CryoCard():
             typically means no cryostat card is connected).
         """
         #need double write to make sure buffer is updated
-        self.writepv.put(cmd_make(1, address, 0))
+        self.writepv.set(cmd_make(1, address, 0))
         for self.retry in range(0, self.max_retries):
-            self.writepv.put(cmd_make(1, address, 0))
-            data = self.readpv.get(use_monitor=use_monitor, timeout=self.timeout)
+            self.writepv.set(cmd_make(1, address, 0))
+            data = self.readpv.get()
             if data is None:
-                self.log(f"CryoCard.do_read: EPICS PV timed out after {self.timeout}s.")
+                self.log(f"CryoCard.do_read failed get a response.")
             else:
                 addrrb = cmd_address(data)
                 if (addrrb == address):
@@ -100,7 +91,7 @@ class CryoCard():
                 f"CryoCard.do_read failed, retry {self.retry + 1} / {self.max_retries}."
             )
 
-        raise Exception(f"Failed to read address 0x{address:X} after {self.max_retries} attempts.")
+        return (self.readpv.get())
 
     def do_write(self, address, value):
         """Write the given value directly to the address on the PIC. Make sure
@@ -111,12 +102,12 @@ class CryoCard():
         :param address the address on the PIC (e.g. 0x2)
         :returns the response from caput
         """
-        return self.writepv.put(cmd_make(0, address, value))
+        return self.writepv.set(cmd_make(0, address, value))
 
     def write_relays(self, relay):  # relay is the bit partern to set
-        self.writepv.put(cmd_make(0, self.relay_address, relay))
+        self.writepv.set(cmd_make(0, self.relay_address, relay))
         time.sleep(0.1)
-        self.writepv.put(cmd_make(0, self.relay_address, relay))
+        self.writepv.set(cmd_make(0, self.relay_address, relay))
 
     def read_relays(self):
         for self.busy_retry in range(0, self.max_retries):
@@ -239,7 +230,7 @@ class CryoCard():
         -------
         Nothing
         """
-        self.writepv.put(cmd_make(0, self.ps_en_address, enables))
+        self.writepv.set(cmd_make(0, self.ps_en_address, enables))
 
     def read_ps_en(self):
         """
