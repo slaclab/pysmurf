@@ -514,13 +514,30 @@ class SmurfControl(SmurfCommandMixin,
                         self._ref_phase_delay_fine[band],
                         write_log=write_log, **kwargs)
 
-                    # in DSPv3, lmsDelay should be 4*refPhaseDelay (says
-                    # Mitch).  If none provided in cfg, enforce that
-                    # constraint.  If provided in cfg, override with provided
-                    # value.
+                    # The lmsDelay register matches the system latency
+                    # for LMS feedback.  The readout has both actuator
+                    # and sensor delay, so this delay is needed to
+                    # compensate the feedback.
+                    #
+                    # actuator being the delay from DSP -> synthesis
+                    # filter bank -> JESD -> DAC -> RF tracked freq
+                    # out
+                    #
+                    # sensor delay being RF in resonator -> ADC input
+                    # -> JESD -> filter bank -> demod (edited)
+                    #
+                    # The delay is needed because we are playing out a
+                    # FM waveform on the RF DACs and it takes ~us to
+                    # get the results.
+                    #
+                    # In production SMuRF firmware, lmsDelay should be
+                    # set equal to refPhaseDelay, and both are
+                    # integers that count 2.4 MHz ticks.  If none
+                    # provided in cfg, enforce that constraint.  If
+                    # provided in cfg, override with provided value.
                     if self._lms_delay[band] is None:
                         self.set_lms_delay(
-                            band, int(4*self._ref_phase_delay[band]),
+                            band, int(self._ref_phase_delay[band]),
                             write_log=write_log, **kwargs)
                     else:
                         self.set_lms_delay(
