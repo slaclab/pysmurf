@@ -47,7 +47,7 @@ class SmurfCommandMixin(SmurfBase):
 
             if v is not None:
                 print(f"Unexpected kwargs: {k} = {v}")
-                err=True
+                #err=True
 
         if err:
             raise Exception("Bad args passed to caput")
@@ -99,7 +99,7 @@ class SmurfCommandMixin(SmurfBase):
 
             if v is not None:
                 print(f"Unexpected kwargs: {k} = {v}")
-                err=True
+                #err=True
 
         if err:
             raise Exception("Bad args passed to caput")
