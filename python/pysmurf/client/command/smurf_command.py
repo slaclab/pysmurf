@@ -22,7 +22,7 @@ import numpy as np
 from packaging import version
 
 from pysmurf.client.base import SmurfBase
-#from pysmurf.client.command.sync_group import SyncGroup as SyncGroup
+from pysmurf.client.command.sync_group import SyncGroup as SyncGroup
 from pysmurf.client.util import tools, dscounters
 
 
@@ -733,7 +733,7 @@ class SmurfCommandMixin(SmurfBase):
             varList = [self._client.root.getNode(monitorPV)]
 
 
-            sg = SyncGroup([monitorPV])
+            sg = SyncGroup([monitorPV], self._client)
             sg.wait()
             vals = sg.get_values()
             self.log(
@@ -768,7 +768,7 @@ class SmurfCommandMixin(SmurfBase):
         self._caput(triggerPV, 1, wait_after=5, **kwargs)
 
         if sync_group:
-            sg = SyncGroup([monitorPV], timeout=timeout)
+            sg = SyncGroup([monitorPV], self._client, timeout=timeout)
             sg.wait()
             sg.get_values()
 
@@ -797,7 +797,7 @@ class SmurfCommandMixin(SmurfBase):
 
         self._caput(triggerPV, 1, wait_after=5, **kwargs)
         if sync_group:
-            sg = SyncGroup([monitorPV], timeout=timeout)
+            sg = SyncGroup([monitorPV], self._client, timeout=timeout)
             sg.wait()
             sg.get_values()
 
@@ -828,7 +828,7 @@ class SmurfCommandMixin(SmurfBase):
         self._caput(triggerPV, 1, wait_after=5, **kwargs)
 
         if sync_group:
-            sg = SyncGroup([monitorPV], timeout=timeout)
+            sg = SyncGroup([monitorPV], self._client, timeout=timeout)
             sg.wait()
             sg.get_values()
 
@@ -1263,7 +1263,7 @@ class SmurfCommandMixin(SmurfBase):
         inProgress = True
         if sync_group:
             while inProgress:
-                sg = SyncGroup([monitorPV], timeout=360)
+                sg = SyncGroup([monitorPV], self._client, timeout=360)
                 sg.wait()
                 vals = sg.get_values()
                 inProgress = (vals[monitorPV] == 1)
@@ -5250,7 +5250,7 @@ class SmurfCommandMixin(SmurfBase):
             val, **kwargs)
 
 
-    def clear_unwrapping_and_averages(self, epics_poll=True, **kwargs):
+    def clear_unwrapping_and_averages(self, **kwargs):
         """
         Resets unwrapping and averaging for all channels, in all bands.
         """
@@ -5261,15 +5261,15 @@ class SmurfCommandMixin(SmurfBase):
             self.timing_header + self._smurf_to_gcp_stream_reg)
 
         # Toggle using SyncGroup so we can confirm state as we toggle.
-        sg=SyncGroup([user_config0_pv])
+        sg=SyncGroup([user_config0_pv], self._client)
 
         # what is it now?
-        sg.wait(epics_poll=epics_poll) # wait for value
+        sg.wait() # wait for value
         uc0=sg.get_values()[user_config0_pv]
 
         # set bit high, keeping all other bits the same
         self.set_user_config0(uc0 | (1 << 0))
-        sg.wait(epics_poll=epics_poll) # wait for change
+        sg.wait() # wait for change
         uc0=sg.get_values()[user_config0_pv]
         assert ( ( uc0 >> 0) & 1 ),(
             'Failed to set averaging/clear bit high ' +
@@ -5277,7 +5277,7 @@ class SmurfCommandMixin(SmurfBase):
 
         # toggle bit back to low, keeping all other bits the same
         self.set_user_config0(uc0 & ~(1 << 0))
-        sg.wait(epics_poll=epics_poll) # wait for change
+        sg.wait() # wait for change
         uc0=sg.get_values()[user_config0_pv]
         assert ( ~( uc0 >> 0) & 1 ),(
             'Failed to set averaging/clear bit low after setting ' +
