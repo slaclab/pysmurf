@@ -162,7 +162,7 @@ class SmurfBase:
         # Tx -> DAC , Rx <- ADC
         self.axi_version = self.amccc + 'AxiVersion.'
         self.waveform_engine_buffers_root = self.amccc + \
-            'AmcCarrierBsa:BsaWaveformEngine[{}].' + \
+            'AmcCarrierBsa.BsaWaveformEngine[{}].' + \
             'WaveformEngineBuffers.'
         self.stream_data_writer_root = self.amcc + 'streamDataWriter.'
         self.jesd_tx_root = self.apptop + 'AppTopJesd[{}].JesdTx.'
