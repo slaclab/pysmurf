@@ -1464,7 +1464,7 @@ class SmurfUtilMixin(SmurfBase):
             stream1 = "AMCc.Stream3"
 
         pvs = [stream0, stream1]
-        sg  = SyncGroup(pvs, skip_first=True)
+        sg  = SyncGroup(pvs, self._client)
 
         # trigger PV
         if not hw_trigger:
