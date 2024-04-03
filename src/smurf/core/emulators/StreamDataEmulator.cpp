@@ -195,7 +195,7 @@ void sce::StreamDataEmulator<T>::acceptFrame(ris::FramePtr frame)
             ris::FrameLockPtr fLock = frame->lock();
 
             // Make sure the frame is a single buffer, copy if necessary
-            if ( ! this->ensureSingleBuffer(frame,true) )
+            if ( ! ris::Slave::ensureSingleBuffer(frame,true) )
             {
                 eLog_->error("Failed to copy frame to single buffer. Check downstream slave types, maybe add a FIFO?");
                 return;
