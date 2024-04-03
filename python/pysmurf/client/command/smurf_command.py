@@ -3055,7 +3055,7 @@ class SmurfCommandMixin(SmurfBase):
     # Waveform engine commands
     _start_addr_reg = 'StartAddr[{}]'
 
-    def set_waveform_start_addr(self, bay, engine, val, convert=True, **kwargs):
+    def set_waveform_start_addr(self, bay, engine, val, **kwargs):
         """
         No description
 
@@ -3067,12 +3067,9 @@ class SmurfCommandMixin(SmurfBase):
             Which waveform engine.
         val : int or str
             What value to set.
-        convert : bool, optional, default True
-            Convert the input from an integer to a string of hex
-            values before setting.
         """
-        if convert:
-            val = self.int_to_hex_string(val)
+        if isinstance(val, str):
+            val = int(val, 16)
         self._caput(
             self.waveform_engine_buffers_root.format(bay) +
             self._start_addr_reg.format(engine),
@@ -3095,16 +3092,17 @@ class SmurfCommandMixin(SmurfBase):
         val = self._caget(
             self.waveform_engine_buffers_root.format(bay) +
             self._start_addr_reg.format(engine),
+            as_string=True,
             **kwargs)
 
         if convert:
-            return self.hex_string_to_int(val)
+            return int(val, 16)
         else:
             return val
 
     _end_addr_reg = 'EndAddr[{}]'
 
-    def set_waveform_end_addr(self, bay, engine, val, convert=True, **kwargs):
+    def set_waveform_end_addr(self, bay, engine, val, **kwargs):
         """
         No description
 
@@ -3116,11 +3114,9 @@ class SmurfCommandMixin(SmurfBase):
             Which waveform engine.
         val : int
             What val to set.
-        convert : bool, optional, default True
-            Convert the output from a string of hex values to an int.
         """
-        if convert:
-            val = self.int_to_hex_string(val)
+        if isinstance(val, str):
+            val = int(val, 16)
         self._caput(
             self.waveform_engine_buffers_root.format(bay) +
             self._end_addr_reg.format(engine),
@@ -3148,10 +3144,11 @@ class SmurfCommandMixin(SmurfBase):
         val = self._caget(
             self.waveform_engine_buffers_root.format(bay) +
             self._end_addr_reg.format(engine),
+            as_string=True,
             **kwargs)
 
         if convert:
-            return self.hex_string_to_int(val)
+            return int(val, 16)
         else:
             return val
 
@@ -3172,8 +3169,8 @@ class SmurfCommandMixin(SmurfBase):
         convert : bool, optional, default True
             Convert the output from a string of hex values to an int.
         """
-        if convert:
-            val = self.int_to_hex_string(val)
+        if isinstance(val, str):
+            val = int(val, 16)
         self._caput(
             self.waveform_engine_buffers_root.format(bay) +
             self._wr_addr_reg.format(engine),
@@ -3201,10 +3198,11 @@ class SmurfCommandMixin(SmurfBase):
         val = self._caget(
             self.waveform_engine_buffers_root.format(bay) +
             self._wr_addr_reg.format(engine),
+            as_string=True,
             **kwargs)
 
         if convert:
-            return self.hex_string_to_int(val)
+            return int(val, 16)
         else:
             return val
 
