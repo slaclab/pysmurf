@@ -74,5 +74,7 @@ if [ ! -z ${config_file+x} ]; then
     fi
 fi
 
-echo "Starting the ipython session"
-ipython3 -i /usr/local/src/pysmurf_utilities/pysmurf_startup.py
+#echo "Starting the ipython session"
+#ipython3 -i /usr/local/src/pysmurf_utilities/pysmurf_startup.py
+echo "Starting the jupyter notebook"
+jupyter notebook --ip 0.0.0.0 --port 8888 --no-browser --notebook-dir /data/notebooks/
