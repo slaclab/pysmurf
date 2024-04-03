@@ -2307,7 +2307,7 @@ class SmurfTuneMixin(SmurfBase):
                self._cryo_root(band) + self._eta_scan_results_imag_reg]
 
         if sync_group:
-            sg = SyncGroup(pvs, skip_first=False)
+            sg = SyncGroup(pvs, self._client)
 
             sg.wait()
             vals = sg.get_values()
