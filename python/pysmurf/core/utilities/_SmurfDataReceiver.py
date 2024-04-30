@@ -20,24 +20,24 @@
 import pyrogue as pr
 import numpy as np
 
-class SmurfDataReceiver(py.DataReceiver):
+class SmurfDataReceiver(pr.DataReceiver):
 
     def __init__(self, rxSize, rxType, **kwargs):
 
         if rxType == 'Int16':
             typeStr='Int16[np]'
-            value=numpy.zeros(shape=rxSize, dtype=numpy.int16, order='C'),
-            self._func = self._process15
+            value=np.zeros(shape=rxSize, dtype=np.int16, order='C'),
+            self._func = self._process16
 
         elif rxType == 'Int8':
             typeStr='Int8[np]'
-            value=numpy.zeros(shape=rxSize, dtype=numpy.int8, order='C'),
+            value=np.zeros(shape=rxSize, dtype=np.int8, order='C'),
             self._func = self._process8
 
         else:
             raise pr.VariableError(f"Invalid rxType: {rxType} passed")
 
-        pr.DataReceiver(self, typeStr=typeStr, hideData=True, value=value, enableOnStart=True, **kwargs)
+        super().__init__(typeStr=typeStr, hideData=True, value=value, enableOnStart=True, **kwargs)
 
     def _process16(self,frame):
 
