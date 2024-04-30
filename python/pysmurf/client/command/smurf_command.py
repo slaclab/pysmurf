@@ -2814,7 +2814,7 @@ class SmurfCommandMixin(SmurfBase):
 
             # If the command exists, then start by calling the `CheckJesd`
             # wrapper command.
-            self._caput('AMCc.SmurfApplication:CheckJesd', 1, **kwargs)
+            self._caput('AMCc.SmurfApplication.CheckJesd', 1, **kwargs)
 
             # Now let's wait for it to finish.
             num_retries = int(max_timeout_sec/caget_timeout_sec)

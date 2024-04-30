@@ -23,7 +23,12 @@ class SyncGroup(object):
     def __init__(self, pvs, client, timeout=30.0):
         self.pvnames = pvs
         self.timeout = timeout
-        self.pvs = [client.root.getNode(pvname) for pvname in pvs]
+        self.pvs = []
+        for pvname in pvs:
+            node = client.root.getNode(pvname)
+            if node is None:
+                raise ValueError(f"Failed to get node {pvname}")
+            self.pvs.append(node)
 
     def get_values(self):
         return {self.pvnames[i]: self.pvs[i].get() for i in range(len(self.pvs))}
