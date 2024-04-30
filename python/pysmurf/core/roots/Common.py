@@ -133,9 +133,9 @@ class Common(pyrogue.Root):
             self._stream_fifos  = []
             self._stream_slaves = []
             for i in range(4):
-                strm = self._stream_slaves.append(pysmurf.core.SmurfDataReceiver(name=f"AMCc:Stream{i}", 
-                                                                                 rxSize=stream_pv_size, 
-                                                                                 rxType=stream_pv_type))
+                strm = pysmurf.core.utilities.SmurfDataReceiver(name=f"Stream{i}",
+                                                                rxSize=stream_pv_size,
+                                                                rxType=stream_pv_type)
                 self._stream_slaves.append(strm)
                 self.add(strm)
 
