@@ -181,7 +181,8 @@ class SmurfBase:
         self.timing_status = self.amctiming + 'TimingFrameRx:'
 
         self.C = CryoCard(self.rtm_spi_cryo_root + 'read',
-                          self.rtm_spi_cryo_root + 'write')
+                          self.rtm_spi_cryo_root + 'write',
+                          log=self.log)
         self.freq_resp = {}
 
         # RTM slow DAC parameters (used, e.g., for TES biasing). The
