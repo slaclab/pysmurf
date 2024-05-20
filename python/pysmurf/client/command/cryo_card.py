@@ -99,7 +99,8 @@ class CryoCard():
             self.log(
                 f"CryoCard.do_read failed, retry {self.retry + 1} / {self.max_retries}."
             )
-        return (0)
+
+        raise Exception(f"Failed to read address 0x{address:X} after {self.max_retries} attempts.")
 
     def do_write(self, address, value):
         """Write the given value directly to the address on the PIC. Make sure
