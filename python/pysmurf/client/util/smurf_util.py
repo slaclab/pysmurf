@@ -1586,8 +1586,8 @@ class SmurfUtilMixin(SmurfBase):
 
         vals = sg.get_values()
 
-        r0 = vals[pvs[0]][0]
-        r1 = vals[pvs[1]][0]
+        r0 = vals[pvs[0]]
+        r1 = vals[pvs[1]]
 
         return r0, r1
 
