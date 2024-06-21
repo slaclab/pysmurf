@@ -68,14 +68,13 @@ class SmurfCommandMixin(SmurfBase):
             var.setDisp(val)
         else:
             if not atca and cast_type:
-                # python types are better handled by rogue
                 if isinstance(val, np.ndarray):
-                    val = [i.item() for i in val]
-                elif isinstance(val, np.generic):
-                    val = val.item()
-                # also check that the type matches variable type
-                var_type = type(var.value())
-                val = var_type(val)
+                    val = val.astype(var.value().dtype)
+                else:
+                    if isinstance(val, np.generic):
+                        val = val.item()
+                    var_type = type(var.value())
+                    val = var_type(val)
             var.set(val)
 
     def _caget(self, pvname, atca=False, **kwargs):
