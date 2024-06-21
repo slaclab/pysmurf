@@ -1366,7 +1366,7 @@ class SmurfCommandMixin(SmurfBase):
             self._cryo_root(band) + self._amplitude_scales_reg,
             **kwargs)
 
-    _amplitude_scale_array_reg = 'amplitudeScaleArray'
+    _amplitude_scale_array_reg = 'amplitudeScale'
 
     def set_amplitude_scale_array(self, band, val, **kwargs):
         """
@@ -1414,7 +1414,7 @@ class SmurfCommandMixin(SmurfBase):
         new_amp[np.where(old_amp!=0)] = tone_power
         self.set_amplitude_scale_array(self, new_amp, **kwargs)
 
-    _feedback_enable_array_reg = 'feedbackEnableArray'
+    _feedback_enable_array_reg = 'feedbackEnable'
 
     def set_feedback_enable_array(self, band, val, **kwargs):
         """
@@ -1815,7 +1815,7 @@ class SmurfCommandMixin(SmurfBase):
             self._band_root(band) + self._feedback_enable_reg,
             **kwargs)
 
-    _loop_filter_output_array_reg = 'loopFilterOutputArray'
+    _loop_filter_output_array_reg = 'loopFilterOutput'
 
     def get_loop_filter_output_array(self, band, **kwargs):
         """
@@ -1843,7 +1843,7 @@ class SmurfCommandMixin(SmurfBase):
             self._tone_frequency_offset_mhz_reg,
             **kwargs)
 
-    _center_frequency_array_reg = 'centerFrequencyArray'
+    _center_frequency_array_reg = 'centerFrequency'
 
     def set_center_frequency_array(self, band, val, **kwargs):
         """
@@ -1876,7 +1876,7 @@ class SmurfCommandMixin(SmurfBase):
             self._band_root(band) + self._feedback_gain_reg,
             **kwargs)
 
-    _eta_phase_array_reg = 'etaPhaseArray'
+    _eta_phase_array_reg = 'etaPhase'
 
     def set_eta_phase_array(self, band, val, **kwargs):
         """
@@ -1892,7 +1892,7 @@ class SmurfCommandMixin(SmurfBase):
             self._cryo_root(band) + self._eta_phase_array_reg,
             **kwargs)
 
-    _frequency_error_array_reg = 'frequencyErrorArray'
+    _frequency_error_array_reg = 'frequencyError'
 
     def set_frequency_error_array(self, band, val, **kwargs):
         """
@@ -1908,7 +1908,7 @@ class SmurfCommandMixin(SmurfBase):
             self._cryo_root(band) + self._frequency_error_array_reg,
             **kwargs)
 
-    _eta_mag_array_reg = 'etaMagArray'
+    _eta_mag_array_reg = 'etaMag'
 
     def set_eta_mag_array(self, band, val, **kwargs):
         """
