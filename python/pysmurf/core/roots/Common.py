@@ -123,29 +123,30 @@ class Common(pyrogue.Root):
         # Variable groups
         self._VariableGroups = VariableGroups
 
-        # RTH: To be replaced with DataReceivers
-        #    if stream_pv_size:
-        #        print(
-        #            "Enabling stream data on PVs " +
-        #            f"(buffer size = {stream_pv_size} points, " +
-        #            f"data type = {stream_pv_type})")
+        if stream_pv_size:
+            print(
+                "Enabling stream data on PVs " +
+                f"(buffer size = {stream_pv_size} points, " +
+                f"data type = {stream_pv_type})")
 
-        #        self._stream_fifos  = []
-        #        self._stream_slaves = []
-        #        for i in range(4):
-        #            self._stream_slaves.append(self._epics.createSlave(name=f"AMCc:Stream{i}",
-        #                                                               maxSize=stream_pv_size,
-        #                                                               type=stream_pv_type))
+            self._stream_fifos  = []
+            self._stream_slaves = []
+            for i in range(4):
+                strm = pysmurf.core.utilities.SmurfDataReceiver(name=f"Stream{i}",
+                                                                rxSize=stream_pv_size,
+                                                                rxType=stream_pv_type)
+                self._stream_slaves.append(strm)
+                self.add(strm)
 
-        #            # Calculate number of bytes needed on the fifo
-        #            if '16' in stream_pv_type:
-        #                fifo_size = stream_pv_size * 2
-        #            else:
-        #                fifo_size = stream_pv_size * 4
+                # Calculate number of bytes needed on the fifo
+                if '16' in stream_pv_type:
+                    fifo_size = stream_pv_size * 2
+                else:
+                    fifo_size = stream_pv_size * 4
 
-        #            self._stream_fifos.append(rogue.interfaces.stream.Fifo(1000, fifo_size, True)) # changes
-        #            pyrogue.streamConnect(self._stream_fifos[i],self._stream_slaves[i])
-        #            pyrogue.streamTap(self._ddr_streams[i], self._stream_fifos[i])
+                self._stream_fifos.append(rogue.interfaces.stream.Fifo(1000, fifo_size, True)) # changes
+                pyrogue.streamConnect(self._stream_fifos[i], self._stream_slaves[i])
+                pyrogue.streamConnect(self._ddr_streams[i], self._stream_fifos[i])
 
 
         # Update SaveState to not read before saving
