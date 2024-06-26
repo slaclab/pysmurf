@@ -1,4 +1,4 @@
-FROM tidair/smurf-roguev6:R3.0.11
+FROM tidair/smurf-roguev6:R3.0.12
 
 # Copy all firmware related files, which are in the local_files directory
 RUN mkdir -p /tmp/fw/ && chmod -R a+rw /tmp/fw/
