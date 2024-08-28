@@ -1581,7 +1581,6 @@ class SmurfUtilMixin(SmurfBase):
         else:
             self.set_arm_hw_trigger(bay, 1, write_log=write_log)
 
-        time.sleep(.1)
         sg.wait()
 
         vals = sg.get_values()
