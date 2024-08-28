@@ -46,7 +46,7 @@ class SmurfDataReceiver(pr.DataReceiver):
         datRaw = frame.getNumpy(0,fl)  # uint8
 
         # Convert to 16-bit signed numpy
-        dat = np.array(datRaw, np.int16)
+        dat = datRaw.view(np.int16)
 
         # Update data
         self.Data.set(dat,write=True)
@@ -60,7 +60,7 @@ class SmurfDataReceiver(pr.DataReceiver):
         datRaw = frame.getNumpy(0,fl)  # uint8
 
         # Convert to 8-bit signed numpy
-        dat = np.array(datRaw, np.int8)
+        dat = datRaw.view(np.int8)
 
         # Update data
         self.Data.set(dat,write=True)
