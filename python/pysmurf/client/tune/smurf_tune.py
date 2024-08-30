@@ -3722,16 +3722,10 @@ class SmurfTuneMixin(SmurfBase):
 
         I = self.get_eta_scan_results_real(band, count=n_step*n_channels)
         I = np.asarray(I)
-        idx = np.where( I > 2**23 )
-        I[idx] = I[idx] - 2**24
-        I /= 2**23
         I = I.reshape(n_channels, n_step)
 
         Q = self.get_eta_scan_results_imag(band, count=n_step*n_channels)
         Q = np.asarray(Q)
-        idx = np.where( Q > 2**23 )
-        Q[idx] = Q[idx] - 2**24
-        Q /= 2**23
         Q = Q.reshape(n_channels, n_step)
 
         resp_scan = I + 1j*Q
