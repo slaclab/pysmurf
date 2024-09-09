@@ -3844,6 +3844,19 @@ class SmurfUtilMixin(SmurfBase):
     # set by array, not by channel
         self.set_amplitude_scale_array(band,new_amplitude_scale_array)
 
+    def turn_on_fixed_tones(self, band, channels, tone_power=None):
+        if tone_power is None:
+            tone_power = self._amplitude_scale[band]
+
+        amp = self.get_amplitude_scale_array(band)
+        feedback = self.get_feedback_enable_array(band)
+
+        amp[channels] = tone_power
+        feedback[channels] = 0
+
+        self.set_amplitude_scale_array(band, amp)
+        self.set_feedback_enable_array(band, amp)
+
     __hardware_logging_pause_event=None
 
     def pause_hardware_logging(self):
