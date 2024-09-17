@@ -22,7 +22,7 @@ import numpy as np
 from packaging import version
 
 from pysmurf.client.base import SmurfBase
-from pysmurf.client.command.sync_group import SyncGroup as SyncGroup
+from pysmurf.client.command.sync_group import SyncGroup, AsyncGroup
 from pysmurf.client.util import tools, dscounters
 
 try:
@@ -1400,6 +1400,36 @@ class SmurfCommandMixin(SmurfBase):
             self.log(
                 'serial find freq complete ; etaScanInProgress = ' +
                 f'{vals[monitorPV]}', self.LOG_USER)
+
+    async def async_run_serial_find_freq(self, band, val, **kwargs):
+        """
+        Runs the eta scan. Set the channel using set_eta_scan_channel()
+
+        Args
+        ----
+        band : int
+            The band to eta scan.
+        val : bool
+            Start the eta scan.
+        """
+        # send the command to start
+        self._caput(
+            self._cryo_root(band) + self._run_serial_find_freq_reg,
+            val, **kwargs
+        )
+
+        # asynchronously wait until done
+        monitorPV = self._cryo_root(band) + self._eta_scan_in_progress_reg
+        sg = AsyncGroup([monitorPV])
+        res = await sg.wait(timeout=360.0)
+        self.log(
+            'serial find freq complete ; etaScanInProgress = ' +
+            f'{res}', self.LOG_USER
+        )
+
+        # this means the wait is not working
+        if res[0]:
+            raise Exception("find_freq is not done running...")
 
     _run_eta_scan_reg = 'runEtaScan'
 
