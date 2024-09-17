@@ -15,6 +15,7 @@
 # contained in the LICENSE.txt file.
 #-----------------------------------------------------------------------------
 import time
+import asyncio
 try:
     import epics
 except ModuleNotFoundError:
@@ -67,3 +68,37 @@ class SyncGroup(object):
                 time.sleep(.001)
             if time.time() - t0 > self.timeout:
                 raise Exception('Timeout waiting for PVs to update.')
+
+
+class FuturePV(object):
+    def __init__(self, loop, skip_first=True):
+        self.future = loop.create_future()
+        self.first = skip_first
+
+    def callback(self, pvname, value, *args, **kwargs):
+        # don't fill on initial connection
+        if self.first:
+            self.first = False
+            return
+        self.future.set_result(value)
+
+
+class AsyncGroup(object):
+    def __init__(self, pvs, skip_first=True):
+        self.pvnames = pvs
+        self.values = dict()
+        self.futures = []
+        self.skip_first = skip_first
+
+    async def wait(self, timeout=30.0):
+        # set up async callbacks
+        loop = asyncio.get_running_loop()
+        pvs = []
+        self.futures = []
+        for pv in self.pvnames:
+            future = FuturePV(loop, self.skip_first)
+            pvs.append(epics.PV(pv, callback=future.callback, auto_monitor=True))
+            self.futures.append(future)
+
+        async with asyncio.timeout(timeout):
+            return [await f.future for f in self.futures]
