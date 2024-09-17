@@ -17,6 +17,7 @@ from collections import Counter
 import glob
 import os
 import time
+import asyncio
 
 import matplotlib.pyplot as plt
 from matplotlib.gridspec import GridSpec
@@ -3527,6 +3528,20 @@ class SmurfTuneMixin(SmurfBase):
         min_gap : int, optional, default 2
             Minimum number of samples between resonances.
         '''
+        return asyncio.run(
+            self._async_find_freq(
+                band, start_freq, stop_freq, subband, tone_power, n_read, make_plot,
+                save_plot, plotname_append, window, rolling_med, make_subband_plot, show_plot,
+                grad_cut, flip_phase, grad_kernel_width, amp_cut, pad, min_gap
+            )
+        )
+
+    async def _async_find_freq(self, band, start_freq=-250, stop_freq=250, subband=None,
+            tone_power=None, n_read=2, make_plot=False, save_plot=True,
+            plotname_append='', window=50, rolling_med=True,
+            make_subband_plot=False, show_plot=False, grad_cut=.05,
+            flip_phase=False, grad_kernel_width=8,
+            amp_cut=.25, pad=2, min_gap=2):
         band_center = self.get_band_center_mhz(band)
         if subband is None:
             start_subband = self.freq_to_subband(band, band_center + start_freq)[0]
@@ -3551,7 +3566,7 @@ class SmurfTuneMixin(SmurfBase):
                      f'file: {tone_power}')
 
         self.log(f'Sweeping across frequencies {start_freq + band_center}MHz to {stop_freq + band_center}MHz')
-        f, resp = self.full_band_ampl_sweep(band, subband, tone_power, n_read)
+        f, resp = await self._async_full_band_ampl_sweep(band, subband, tone_power, n_read)
 
         timestamp = self.get_timestamp()
 
@@ -3666,7 +3681,10 @@ class SmurfTuneMixin(SmurfBase):
                 plt.close()
 
     @set_action()
-    def full_band_ampl_sweep(self, band, subband, tone_power, n_read, n_step=31):
+    def full_band_ampl_sweep(self, band, subband, tone_power, n_step=31):
+        return asyncio.run(self._async_full_band_ampl_sweep(band, subband, tone_power, n_step))
+
+    async def _async_full_band_ampl_sweep(self, band, subband, tone_power, n_step=31):
         """sweep a full band in amplitude, for finding frequencies
 
         Args
@@ -3677,8 +3695,8 @@ class SmurfTuneMixin(SmurfBase):
             Which subbands to sweep.
         tone_power : int
             Drive power.
-        n_read : int
-            Numbers of times to sweep.
+        n_step : int
+            Numbers of frequency steps to scan within a subband.
 
         Returns
         -------
@@ -3718,7 +3736,7 @@ class SmurfTuneMixin(SmurfBase):
         #
         self.set_eta_scan_freq(band, freq_scan.flatten())
         self.set_eta_scan_amplitude(band, tone_power)
-        self.set_run_serial_find_freq(band, 1)
+        await self.set_run_serial_find_freq(band, 1)
 
         I = self.get_eta_scan_results_real(band, count=n_step*n_channels)
         I = np.asarray(I)
