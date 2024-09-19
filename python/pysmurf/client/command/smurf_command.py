@@ -1290,7 +1290,7 @@ class SmurfCommandMixin(SmurfBase):
         # asynchronously wait until done
         monitorPV = self._cryo_root(band) + self._eta_scan_in_progress_reg
         sg = AsyncGroup([monitorPV])
-        res = await sg.wait(timeout=360.0)
+        res = await sg.wait(check_value=0, timeout=360.0)
         self.log(
             'serial find freq complete ; etaScanInProgress = ' +
             f'{res}', self.LOG_USER
@@ -1298,7 +1298,7 @@ class SmurfCommandMixin(SmurfBase):
 
         # this means the wait is not working
         if res[0]:
-            raise Exception("find_freq is not done running...")
+            raise Exception(f"find_freq was not done running: res = {res[0]}")
 
     _run_eta_scan_reg = 'runEtaScan'
 
