@@ -3536,6 +3536,25 @@ class SmurfTuneMixin(SmurfBase):
             )
         )
 
+    def parallel_find_freq(self, bands, *args, **kwargs):
+        freq = {b: [] for b in bands}
+        resp = {b: [] for b in bands}
+
+        # coroutine for a single band
+        async def do_band(b):
+            f, r = await self._async_find_freq(b, *args, **kwargs)
+            freq[b] = f
+            resp[b] = r
+
+        # runner for concurrent coroutines
+        async def do_all():
+            await asyncio.gather(*[do_band(b) for b in bands])
+
+        # blocking call to run all bands concurrently
+        asyncio.run(do_all())
+
+        return freq, resp
+
     async def _async_find_freq(self, band, start_freq=-250, stop_freq=250, subband=None,
             tone_power=None, n_read=2, make_plot=False, save_plot=True,
             plotname_append='', window=50, rolling_med=True,
