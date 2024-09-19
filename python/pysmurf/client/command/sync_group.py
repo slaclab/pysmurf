@@ -71,34 +71,44 @@ class SyncGroup(object):
 
 
 class FuturePV(object):
-    def __init__(self, loop, skip_first=True):
+    def __init__(self, loop, check_value=None, skip_first=True):
         self.future = loop.create_future()
         self.first = skip_first
+        self.val = check_value
+        self.pv = epics.PV(pv, callback=self.callback, auto_monitor=True)
 
     def callback(self, pvname, value, *args, **kwargs):
         # don't fill on initial connection
         if self.first:
+            print("skipping first callback")
             self.first = False
-            return
-        self.future.set_result(value)
+        elif (self.val is not None) and (value != self.val):
+            print(f"not done yet: val = {value}")
+            print(f"              type(val) = {type(value)}")
+        else:
+            print(f"callback: setting value: {value}")
+            self.future.set_result(value)
 
 
 class AsyncGroup(object):
     def __init__(self, pvs, skip_first=True):
         self.pvnames = pvs
-        self.values = dict()
-        self.futures = []
         self.skip_first = skip_first
 
-    async def wait(self, timeout=30.0):
+    async def wait(self, check_value=None, timeout=30.0):
         # set up async callbacks
         loop = asyncio.get_running_loop()
-        pvs = []
-        self.futures = []
+        futures = []
         for pv in self.pvnames:
-            future = FuturePV(loop, self.skip_first)
-            pvs.append(epics.PV(pv, callback=future.callback, auto_monitor=True))
-            self.futures.append(future)
+            futures.append(FuturePV(loop, skip_first=self.skip_first, check_value=check_value))
 
-        async with asyncio.timeout(timeout):
-            return [await f.future for f in self.futures]
+        try:
+            # for some reason the future is not finishing and this times out
+            done, pending = await asyncio.wait([f.future for f in futures], timeout=timeout)
+            if len(pending) > 0:
+                raise Exception(f"Timed out after {timeout}s.")
+            res = [f.result() for f in done]
+            return res
+        finally:
+            # TODO check that this effectively removes callback
+            del futures
