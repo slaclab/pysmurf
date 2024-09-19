@@ -3736,7 +3736,7 @@ class SmurfTuneMixin(SmurfBase):
         #
         self.set_eta_scan_freq(band, freq_scan.flatten())
         self.set_eta_scan_amplitude(band, tone_power)
-        await self.set_run_serial_find_freq(band, 1)
+        await self.async_run_serial_find_freq(band, 1)
 
         I = self.get_eta_scan_results_real(band, count=n_step*n_channels)
         I = np.asarray(I)
