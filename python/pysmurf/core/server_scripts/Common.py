@@ -23,6 +23,7 @@ import socket
 import subprocess
 import sys
 import zipfile
+import logging
 
 import pyrogue
 
@@ -47,6 +48,16 @@ def process_args(args):
         args.config_file. Also set the server port to  a default values
         if it was not defined.
     """
+
+    # Setup logging
+    logger = logging.getLogger()
+    logger.setLevel(args.log_level)
+    # set up a handler with timestamps
+    handler = logging.StreamHandler()
+    handler.setLevel(args.log_level)
+    formatter = logging.Formatter("[%(asctime)s] %(levelname)s:%(name)s: %(msg)s")
+    handler.setFormatter(formatter)
+    logger.addHandler(handler)
 
     # Verify if the zip file was specified
     if args.zip_file:
@@ -203,6 +214,10 @@ def make_parser(parser=None):
                        )
     group.add_argument('--use-qt', action='store_true', dest='use_qt',
                        default=False, help="Use the QT ."
+                       )
+    group.add_argument('--log-level', type=str.upper, help="Set the logging level.",
+                       choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
+                       default="WARNING"
                        )
 
     return parser
