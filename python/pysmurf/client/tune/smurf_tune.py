@@ -3530,9 +3530,12 @@ class SmurfTuneMixin(SmurfBase):
         '''
         return asyncio.run(
             self._async_find_freq(
-                band, start_freq, stop_freq, subband, tone_power, n_read, make_plot,
-                save_plot, plotname_append, window, rolling_med, make_subband_plot, show_plot,
-                grad_cut, flip_phase, grad_kernel_width, amp_cut, pad, min_gap
+                band, start_freq=-250, stop_freq=250, subband=None,
+                tone_power=None, n_read=2, make_plot=False, save_plot=True,
+                plotname_append='', window=50, rolling_med=True,
+                make_subband_plot=False, show_plot=False, grad_cut=.05,
+                flip_phase=False, grad_kernel_width=8,
+                amp_cut=.25, pad=2, min_gap=2
             )
         )
 

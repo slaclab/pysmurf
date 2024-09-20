@@ -22,7 +22,7 @@ import numpy as np
 from packaging import version
 
 from pysmurf.client.base import SmurfBase
-from pysmurf.client.command.sync_group import SyncGroup, AsyncGroup
+from pysmurf.client.command.sync_group import SyncGroup, AsyncPVWait
 from pysmurf.client.util import tools, dscounters
 
 
@@ -1289,16 +1289,17 @@ class SmurfCommandMixin(SmurfBase):
 
         # asynchronously wait until done
         monitorPV = self._cryo_root(band) + self._eta_scan_in_progress_reg
-        sg = AsyncGroup([monitorPV])
-        res = await sg.wait(check_value=0, timeout=360.0)
+        sg = AsyncPVWait(monitorPV, self._client, check_val=0, timeout=360.0)
+        await sg.async_wait()
+        res = self._caget(monitorPV)
         self.log(
             'serial find freq complete ; etaScanInProgress = ' +
             f'{res}', self.LOG_USER
         )
 
         # this means the wait is not working
-        if res[0]:
-            raise Exception(f"find_freq was not done running: res = {res[0]}")
+        if res:
+            raise Exception(f"find_freq was not done running: res = {res}")
 
     _run_eta_scan_reg = 'runEtaScan'
 

@@ -55,50 +55,41 @@ class SyncGroup(object):
         while not done() and ((time.time() - start) < self.timeout):
             continue
 
+class AsyncPVWait(object):
+    """Asynchronously wait for a PV to update to a given value."""
 
-class FuturePV(object):
-    def __init__(self, pv, loop, check_value=None, skip_first=True):
-        self.loop = loop
-        self.future = loop.create_future()
-        self.first = skip_first
-        self.val = check_value
-        self.pv = epics.PV(pv, auto_monitor=True)
-        self._cb_id = self.pv.add_callback(self.callback)
+    def __init__(self, pv, client, check_val=None, timeout=30.0):
+        self.client = client
+        self.pvname = pv
+        self.check_val = check_val
+        self.timeout = timeout
+        self.updated = False
 
-    def callback(self, pvname, value, *args, **kwargs):
-        # don't fill on initial connection
-        if self.first:
-            print("skipping first callback")
-            self.first = False
-        elif (self.val is not None) and (value != self.val):
-            print(f"not done yet: val = {value}")
-            print(f"              type(val) = {type(value)}")
-        else:
-            print(f"callback: setting value: {value}")
-            # must be careful because callback is being called from another thread
-            self.loop.call_soon_threadsafe(self.future.set_result, value)
-            self.pv.remove_callback(self._cb_id)
+        self.task = asyncio.Event()  # will signal to async wait
+        self.loop = asyncio.get_running_loop()
 
+        # set up listener
+        node = client.root.getNode(pv)
+        if node is None:
+            raise ValueError(f"Failed to get node {pv}")
+        node.addListener(self._receive_update)
 
-class AsyncGroup(object):
-    def __init__(self, pvs, skip_first=True):
-        self.pvnames = pvs
-        self.skip_first = skip_first
+    def _receive_update(self, path, val, *args, **kwargs):
+        if path != self.pvname:
+            self.log(f"Received an update for an unexpected PV: {path}.")
+            return
 
-    async def wait(self, check_value=None, timeout=30.0):
-        # set up async callbacks
-        loop = asyncio.get_running_loop()
-        futures = []
-        for pv in self.pvnames:
-            futures.append(FuturePV(pv, loop, skip_first=self.skip_first, check_value=check_value))
+        if (self.check_val is None) or (val.value == self.check_val):
+            self.updated = True
+            # this is probably being called by the PV on another thread
+            self.loop.call_soon_threadsafe(self.task.set)
 
+            # remove references to callback
+            node = self.client.root.getNode(path)
+            node.delListener(self._receive_update)
+
+    async def async_wait(self):
         try:
-            # for some reason the future is not finishing and this times out
-            done, pending = await asyncio.wait([f.future for f in futures], timeout=timeout)
-            if len(pending) > 0:
-                raise Exception(f"Timed out after {timeout}s.")
-            res = [f.result() for f in done]
-            return res
-        finally:
-            # TODO check that this effectively removes callback
-            del futures
+            await asyncio.wait_for(self.task.wait(), self.timeout)
+        except TimeoutError:
+            raise TimeoutError(f"Timed out after waiting {self.timeout}s.")
