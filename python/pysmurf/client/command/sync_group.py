@@ -71,11 +71,13 @@ class SyncGroup(object):
 
 
 class FuturePV(object):
-    def __init__(self, loop, check_value=None, skip_first=True):
+    def __init__(self, pv, loop, check_value=None, skip_first=True):
+        self.loop = loop
         self.future = loop.create_future()
         self.first = skip_first
         self.val = check_value
-        self.pv = epics.PV(pv, callback=self.callback, auto_monitor=True)
+        self.pv = epics.PV(pv, auto_monitor=True)
+        self._cb_id = self.pv.add_callback(self.callback)
 
     def callback(self, pvname, value, *args, **kwargs):
         # don't fill on initial connection
@@ -87,7 +89,9 @@ class FuturePV(object):
             print(f"              type(val) = {type(value)}")
         else:
             print(f"callback: setting value: {value}")
-            self.future.set_result(value)
+            # must be careful because callback is being called from another thread
+            self.loop.call_soon_threadsafe(self.future.set_result, value)
+            self.pv.remove_callback(self._cb_id)
 
 
 class AsyncGroup(object):
@@ -100,7 +104,7 @@ class AsyncGroup(object):
         loop = asyncio.get_running_loop()
         futures = []
         for pv in self.pvnames:
-            futures.append(FuturePV(loop, skip_first=self.skip_first, check_value=check_value))
+            futures.append(FuturePV(pv, loop, skip_first=self.skip_first, check_value=check_value))
 
         try:
             # for some reason the future is not finishing and this times out
