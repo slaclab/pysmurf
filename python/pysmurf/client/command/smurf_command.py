@@ -46,7 +46,7 @@ class SmurfCommandMixin(SmurfBase):
         for k,v in kwargs.items():
 
             if v is not None:
-                print(f"Unexpected kwargs: {k} = {v}")
+                self.log(f"Unexpected kwargs: {k} = {v}", self.LOG_INFO)
                 #err=True
 
         if err:
