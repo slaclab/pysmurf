@@ -32,8 +32,8 @@ fw_repo_tag=MicrowaveMuxBpEthGen2_v1.3.0
 mcs_file_name=MicrowaveMuxBpEthGen2-0x01030000-20240913132239-ruckman-1feb01f.mcs.gz
 
 # Firmware version for TKID systems
-tkid_fw_repo_tag=CryoDetKid_v2.0.0
-tkid_mcs_file_name=CryoDetKid-0x00000101-20230620224002-bareese-e3253bd.mcs.gz
+tkid_fw_repo_tag=v2.1.0
+tkid_mcs_file_name=CryoDetKid-0x02010000-20240920083819-ruckman-ec69acf.mcs.gz
 
 # Define the configuration version:
 # =================================

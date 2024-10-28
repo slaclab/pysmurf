@@ -442,7 +442,7 @@ class SmurfConfig:
 
                 # data_out_mux
                 Optional("data_out_mux",
-                         default=default_data_out_mux_dict[band]) : \
+                         default=default_data_out_mux_dict[band]) :
                 And([Use(int)], list, lambda l: len(l) == 2 and
                     l[0] != l[1] and all(0 <= ll <= 9 for ll in l)),
 
