@@ -3540,23 +3540,34 @@ class SmurfTuneMixin(SmurfBase):
         )
 
     def parallel_find_freq(self, bands, *args, **kwargs):
-        freq = {b: [] for b in bands}
-        resp = {b: [] for b in bands}
 
         # coroutine for a single band
         async def do_band(b):
             f, r = await self._async_find_freq(b, *args, **kwargs)
-            freq[b] = f
-            resp[b] = r
+            return (b, f, r)
 
         # runner for concurrent coroutines
         async def do_all():
-            await asyncio.gather(*[do_band(b) for b in bands])
+            # wait for all coroutines to complete
+            res = await asyncio.gather(*[do_band(b) for b in bands])
+
+            # pack the results
+            freq = {b: [] for b in bands}
+            resp = freq.copy()
+            for r in res:
+                freq[r[0]] = r[1]
+                resp[r[0]] = r[2]
+            return freq, resp
 
         # blocking call to run all bands concurrently
-        asyncio.run(do_all())
-
-        return freq, resp
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            # there is no runnning loop, create one
+            return asyncio.run(do_all())
+        else:
+            # return the coroutine if we are in a running loop
+            return do_all()
 
     async def _async_find_freq(self, band, start_freq=-250, stop_freq=250, subband=None,
             tone_power=None, n_read=2, make_plot=False, save_plot=True,
