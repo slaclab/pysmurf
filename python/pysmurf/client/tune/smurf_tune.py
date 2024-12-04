@@ -3476,6 +3476,7 @@ class SmurfTuneMixin(SmurfBase):
             make_plot=make_plot, flux_ramp=False, **kwargs)
 
     @set_action()
+    @tools.async_or_sync
     def find_freq(self, band, start_freq=-250, stop_freq=250, subband=None,
             tone_power=None, n_read=2, make_plot=False, save_plot=True,
             plotname_append='', window=50, rolling_med=True,
@@ -3528,15 +3529,13 @@ class SmurfTuneMixin(SmurfBase):
         min_gap : int, optional, default 2
             Minimum number of samples between resonances.
         '''
-        return asyncio.run(
-            self._async_find_freq(
-                band, start_freq=-250, stop_freq=250, subband=None,
-                tone_power=None, n_read=2, make_plot=False, save_plot=True,
-                plotname_append='', window=50, rolling_med=True,
-                make_subband_plot=False, show_plot=False, grad_cut=.05,
-                flip_phase=False, grad_kernel_width=8,
-                amp_cut=.25, pad=2, min_gap=2
-            )
+        return self._async_find_freq(
+            band, start_freq=-250, stop_freq=250, subband=None,
+            tone_power=None, n_read=2, make_plot=False, save_plot=True,
+            plotname_append='', window=50, rolling_med=True,
+            make_subband_plot=False, show_plot=False, grad_cut=.05,
+            flip_phase=False, grad_kernel_width=8,
+            amp_cut=.25, pad=2, min_gap=2
         )
 
     def parallel_find_freq(self, bands, *args, **kwargs):
@@ -3714,8 +3713,9 @@ class SmurfTuneMixin(SmurfBase):
                 plt.close()
 
     @set_action()
+    @tools.async_or_sync
     def full_band_ampl_sweep(self, band, subband, tone_power, n_step=31):
-        return asyncio.run(self._async_full_band_ampl_sweep(band, subband, tone_power, n_step))
+        return self._async_full_band_ampl_sweep(band, subband, tone_power, n_step)
 
     async def _async_full_band_ampl_sweep(self, band, subband, tone_power, n_step=31):
         """sweep a full band in amplitude, for finding frequencies

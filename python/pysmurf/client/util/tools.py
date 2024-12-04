@@ -15,6 +15,8 @@
 #-----------------------------------------------------------------------------
 import numpy as np
 from scipy.optimize import curve_fit
+import functools
+import asyncio
 
 def skewed_lorentzian(x, bkg, bkg_slp, skw, mintrans, res_f, Q):
     """ Skewed Lorentzian model.
@@ -232,3 +234,24 @@ def utf8_to_str(d):
         The string associated with input d.
     """
     return ''.join([str(s, encoding='UTF-8') for s in d])
+
+
+def async_or_sync(func):
+    """
+    Decorator for a functions that wraps asynchronous code.
+    We need to check if an asyncio event loop is running and
+    create one if not.
+    """
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        try:
+            loop = asyncio.get_running_loop()
+            if loop.is_running():
+                # just return the coroutine
+                return func(*args, **kwargs)
+            else:
+                raise RuntimeError("Event loop is not running")
+        except RuntimeError:
+            # no event loop is running, create one
+            return asyncio.run(func(*args, **kwargs))
+    return wrapper
