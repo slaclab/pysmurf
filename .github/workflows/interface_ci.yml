@@ -1,0 +1,15 @@
+
+name: interface-ci
+on: [pull_request]
+
+jobs:
+  check-so-interface:
+    runs-on: ubuntu-latest
+    defaults:
+        run:
+          working-directory: ./tests/ci
+      steps:
+        - name: Check out the repository to the runner
+          uses: actions/checkout@v4
+        - name: Check SO interface spec
+          run: python ./check_so_interface.py
