@@ -708,7 +708,7 @@ class SmurfUtilMixin(SmurfBase):
                          write_log=True, update_payload_size=True,
                          reset_unwrapper=True, reset_filter=True,
                          return_data=False, make_freq_mask=True,
-                         register_file=False):
+                         register_file=False, IQ_mode=False):
         """
         Takes streaming data for a given amount of time
 
@@ -742,6 +742,9 @@ class SmurfUtilMixin(SmurfBase):
         register_file : bool, optional, default False
             Whether to register the data file with the pysmurf
             publisher.
+        IQ_mode : bool, optional, default to False
+            Whether or not you want to take data in IQ streaming mode. 
+            You must have S._caget(f'{S.app_core}modeStream')=1.
 
 
         Returns
@@ -754,7 +757,7 @@ class SmurfUtilMixin(SmurfBase):
         data_filename = self.stream_data_on(downsample_factor=downsample_factor,
             update_payload_size=update_payload_size, write_log=write_log,
             reset_unwrapper=reset_unwrapper, reset_filter=reset_filter,
-            make_freq_mask=make_freq_mask)
+            make_freq_mask=make_freq_mask, IQ_mode=IQ_mode)
 
         # Sleep for the full measurement time
         time.sleep(meas_time)
@@ -766,7 +769,7 @@ class SmurfUtilMixin(SmurfBase):
             self.log('Done taking data.', self.LOG_USER)
 
         if return_data:
-            t, d, m = self.read_stream_data(data_filename)
+            t, d, m = self.read_stream_data(data_filename,IQ_mode=IQ_mode)
             return t, d, m
         else:
             return data_filename
@@ -825,7 +828,7 @@ class SmurfUtilMixin(SmurfBase):
                        update_payload_size=True, reset_filter=True,
                        reset_unwrapper=True, make_freq_mask=True,
                        channel_mask=None, make_datafile=True,
-                       filter_wait_time=0.1):
+                       filter_wait_time=0.1,IQ_mode=False):
         """
         Turns on streaming data.
 
@@ -861,7 +864,8 @@ class SmurfUtilMixin(SmurfBase):
             Whether to create a datafile.
         filter_wait_time : float, optional, default 0.1
             Time in seconds to wait after filter reset.
-
+        IQ_mode : bool, optional, defaulte False
+            Whether to take data in IQ streaming mode. Need S._caget(f'{S.app_core}modeStream')=1
         Returns
         -------
         data_filename : str
@@ -910,7 +914,7 @@ class SmurfUtilMixin(SmurfBase):
                 for b in bands:
                     smurf_chans[b] = self.which_on(b)
 
-                channel_mask = self.make_channel_mask(bands, smurf_chans)
+                channel_mask = self.make_channel_mask(bands, smurf_chans, IQ_mode=IQ_mode)
                 self.set_channel_mask(channel_mask)
             else:
                 channel_mask = np.atleast_1d(channel_mask)
@@ -1004,7 +1008,7 @@ class SmurfUtilMixin(SmurfBase):
                          return_header=False,
                          return_tes_bias=False, write_log=True,
                          n_max=2048, make_freq_mask=False,
-                         gcp_mode=False):
+                         gcp_mode=False, IQ_mode=True):
         """
         Loads data taken with the function stream_data_on.
         Gives back the resonator data in units of phase. Also
@@ -1037,6 +1041,8 @@ class SmurfUtilMixin(SmurfBase):
             Whether to write a text file with resonator frequencies.
         gcp_mode (bool) : Indicates that the data was written in GCP mode. This
             is the legacy data mode which was depracatetd in Rogue 4.
+        IQ_mode : bool, optional, default False
+            Whether data was taken with IQ stream mode:  S._caget(f'{S.app_core}modeStream')=1 
 
         Ret:
         ----
@@ -1089,10 +1095,24 @@ class SmurfUtilMixin(SmurfBase):
 
                     #initialize data structure
                     phase=list()
-                    for _,_ in enumerate(channel):
-                        phase.append(list())
-                    for i,_ in enumerate(channel):
-                        phase[i].append(data[i])
+                    if IQ_mode:
+                        if n_chan % 2 != 0:
+                            self.log("WARNING: it seems unlikely this dataset was taken in IQ streaming mode: there are an odd number of channels stored.")
+                            self.log("removing last channel")
+                            channel = channel[:-1]
+                        for _,_ in enumerate(channel[::2]):
+                            phase.append(list())
+                        ## IQ mode will log consecutive channels,
+                        ## with channel A & channel A+1 corresponding to I and Q
+                        ## want to condense those 2 channels into the original IQ data.
+                        for i,j in enumerate(channel[::2]):
+                            phase[i].append(data[j]+1j*data[j+1])
+                    else:
+                        for _,_ in enumerate(channel):
+                            phase.append(list())
+                        for i,_ in enumerate(channel):
+                            phase[i].append(data[i])
+
                     t = [header.timestamp]
                     if return_header or return_tes_bias:
                         tmp_tes_bias = np.array(header.tesBias)
@@ -1112,8 +1132,13 @@ class SmurfUtilMixin(SmurfBase):
                     # Already loaded 1 element
                     counter = 1
                 else:
-                    for i in range(n_chan):
-                        phase[i].append(data[i])
+                    if IQ_mode:
+                        for i,j in enumerate(channel[::2]):
+                            phase[i].append(data[j]+1j*data[j+1])
+                    else:
+                        for i in range(n_chan):
+                            phase[i].append(data[i])
+
                     t.append(header.timestamp)
 
                     if return_header or return_tes_bias:
@@ -1158,7 +1183,8 @@ class SmurfUtilMixin(SmurfBase):
             tes_bias = np.transpose(tes_bias)
 
         # rotate and transform to phase
-        phase = phase.astype(float) / 2**15 * np.pi
+        if not IQ_mode:
+            phase = phase.astype(float) / 2**15 * np.pi
 
         if np.size(phase) == 0:
             self.log("Only 1 element in datafile. This is often an indication" +
@@ -3096,7 +3122,7 @@ class SmurfUtilMixin(SmurfBase):
         self.log(aph)
         return (aph)
 
-    def make_channel_mask(self, band=None, smurf_chans=None):
+    def make_channel_mask(self, band=None, smurf_chans=None, IQ_mode=False):
         """
         Makes the channel mask. Only the channels in the
         mask will be streamed or written to disk.
@@ -3113,6 +3139,8 @@ class SmurfUtilMixin(SmurfBase):
         smurf_chans : int_array or None, optional, default None
             An array of SMuRF channel numbers.  Must be the same
             length as band.
+        IQ_mode : Bool, optiona, default False
+            Applies to IQ stream mode with S._caget(f'{S.app_core}modeStream')=1 
 
         Returns
         -------
@@ -3127,14 +3155,22 @@ class SmurfUtilMixin(SmurfBase):
             n_chan = self.get_number_channels(band)
             output_chans = np.arange(n_chan) + n_chan*band
         # Take user inputs and make the channel map
-        elif smurf_chans is not None:
+        elif smurf_chans is not None and not IQ_mode:
             keys = smurf_chans.keys()  # the band numbers
             for k in keys:
                 n_chan = self.get_number_channels(k)
                 for ch in smurf_chans[k]:
                     output_chans = np.append(output_chans,
                                              ch + n_chan*k)
-
+        elif smurf_chans is not None and IQ_mode == True:
+            keys = smurf_chans.keys() # the band numbers
+            for k in keys:
+                n_chan = self.get_number_channels(k)
+                new_n_bands = 4 # len(self._bands)//2 ? 
+                for ch in smurf_chans[k]:
+                    output_chans = np.append(output_chans, (k % new_n_bands) * 2*n_chan  + 2 * ch)
+                    output_chans = np.append(output_chans, (k % new_n_bands) * 2*n_chan  + 2 * ch + 1)
+        
         return output_chans
 
 
