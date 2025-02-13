@@ -442,19 +442,19 @@ class SmurfConfig:
 
                 # data_out_mux
                 Optional("data_out_mux",
-                         default=default_data_out_mux_dict[band]) : \
+                         default=default_data_out_mux_dict[band]) :
                 And([Use(int)], list, lambda l: len(l) == 2 and
                     l[0] != l[1] and all(0 <= ll <= 9 for ll in l)),
 
                 ## TODO remove lmsDelay
                 # lmsDelay is deprected use bandDelayUs instead
 
-                # Matches system latency for LMS feedback (9.6 MHz
-                # ticks, use multiples of 52).  For dspv3 to adjust to
-                # match refPhaseDelay*4 (ignore refPhaseDelayFine for
-                # this).  If not provided and lmsDelay=None, sets to
-                # lmsDelay = 4 x refPhaseDelay.
-                Optional('lmsDelay', default=None) : And(int, lambda n: 0 <= n < 2**5),
+                # Matches system latency for LMS feedback (2.4 MHz
+                # ticks).  For production SMuRF firmware, should set
+                # equal to refPhaseDelay.  (ignore refPhaseDelayFine
+                # for this).  If not provided and lmsDelay=None, sets
+                # to lmsDelay = refPhaseDelay.
+                Optional('lmsDelay', default=None) : And(int, lambda n: 0 <= n < 2**6),
 
                 # Adjust trigRstDly such that the ramp resets at the flux ramp
                 # glitch.  2.4 MHz ticks.
