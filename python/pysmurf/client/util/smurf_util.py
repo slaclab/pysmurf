@@ -158,6 +158,57 @@ class SmurfUtilMixin(SmurfBase):
 
         return f, df, sync
 
+    def set_debug_data_filter_cutoff(self,fcut):
+        r"""Sets the debug data filter cut-off frequency in Hz.
+
+        Args
+        ----
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caget` call.
+        """
+
+    def get_debug_data_filter_cutoff(band,self):
+        r"""Returns the debug data filter cut-off frequency in Hz.
+
+        The debug data filter is implemented as digital exponential
+        averager.  Find information about the filter implementation
+        here -
+        https://confluence.slac.stanford.edu/display/SMuRF/SMuRF+firmware#SMuRFfirmware-Datamodes.
+        From https://www.dsprelated.com/showarticle/182.php, the
+        analytic expression for computing the f3dB of the filter from
+        the alpha parameter is
+
+        .. math::
+           {\alpha} = \cos( 2 \pi f_c / f_s ) -1 + \sqrt{\cos^2 ( 2 \pi f_c / f_s ) - 4 \cos( ( 2 \pi f_c / f_s  ) + 3}
+
+        The debug
+        data filter is applied in normal readout and
+        singleChannelReadout(Opt1).
+
+        Args
+        ----
+        band : int
+            Which band.
+
+        Returns
+        -------
+        fcut : float
+            Debug data filter cut-off (=f3dB) in Hz.
+
+        See Also
+        --------
+        :func:`set_filter_alpha` : Set the digital coefficient for the debug data low pass filter.
+        :func:`get_filter_alpha` : Get the digital coefficient for the debug data low pass filter.
+        :func:`take_debug_data` : Takes raw debugging data.
+        """
+        from scipy.optimize import root_scalar
+        alpha_int = self.get_filter_alpha(band)
+        alpha_float = (alpha_int*0.5/(float(0x8000)))
+        fs_hz = self.get_digitizer_frequency_mhz(band)*1.e6
+        sol = root_scalar(lambda fc_hz : alpha_float-compute_exp_avg_alpha(fc_hz,fs_hz), bracket=[0, fs_hz/2.])
+        return sol.root
+    
     # the JesdWatchdog will check if an instance of the JesdWatchdog is already
     # running and kill itself if there is
     def start_jesd_watchdog(self):
@@ -240,6 +291,7 @@ class SmurfUtilMixin(SmurfBase):
            and `refPhaseDelayFine`.
 
         """
+
 
         self.set_band_delay_us(band, 0)
 
