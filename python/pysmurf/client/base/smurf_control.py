@@ -688,8 +688,13 @@ class SmurfControl(SmurfCommandMixin,
             # If C04, also set the drain voltages to zero.
             self.set_amp_defaults()
 
-            # also read the temperature of the CC
-            self.log(f"Cryocard temperature = {self.C.read_temperature()}")
+            ## Removed this because better error handling for cc
+            ## communication in
+            ## https://github.com/slaclab/pysmurf/pull/794 Causes this
+            ## command to stall and error out on systems with no
+            ## cryostat card connected.
+            ## also read the temperature of the CC
+            #self.log(f"Cryocard temperature = {self.C.read_temperature()}")
 
             # Setup how this slot handles timing. To take science data, each
             # SMuRF slot should receive timing from the backplane or RTM fiber
