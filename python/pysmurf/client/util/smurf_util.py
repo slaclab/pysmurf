@@ -72,7 +72,7 @@ class SmurfUtilMixin(SmurfBase):
         if channel is not None:
             if rf_iq:
                 IQstream = False
-                #single_channel_readout = 2
+                # single_channel_readout = 2
                 self.set_rf_iq_stream_enable(band, 1)
 
             if single_channel_readout == 1:
