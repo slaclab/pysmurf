@@ -684,17 +684,22 @@ class SmurfControl(SmurfCommandMixin,
             self.set_payload_size(payload_size)
             self.set_channel_mask([0])
 
-            # If C02, set the gate voltages to the default.
-            # If C04, also set the drain voltages to zero.
-            self.set_amp_defaults()
+            try:
+                ## Removed this because better error handling for cc
+                ## communication in
+                ## https://github.com/slaclab/pysmurf/pull/794 Causes this
+                ## command to stall and error out on systems with no
+                ## cryostat card connected.
+                ## also read the temperature of the CC
+                self.log(f"Cryocard temperature = {self.C.read_temperature()}")
 
-            ## Removed this because better error handling for cc
-            ## communication in
-            ## https://github.com/slaclab/pysmurf/pull/794 Causes this
-            ## command to stall and error out on systems with no
-            ## cryostat card connected.
-            ## also read the temperature of the CC
-            #self.log(f"Cryocard temperature = {self.C.read_temperature()}")
+                # If C02, set the gate voltages to the default.
+                # If C04, also set the drain voltages to zero.
+                self.set_amp_defaults()
+            except Exception:
+                self.log("Attempts to communicate with a cryocard "
+                         "failed!  Will assume no cryostat card is"
+                         " connected and skip cryocard setup steps.")
 
             # Setup how this slot handles timing. To take science data, each
             # SMuRF slot should receive timing from the backplane or RTM fiber
