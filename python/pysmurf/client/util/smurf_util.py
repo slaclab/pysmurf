@@ -166,7 +166,7 @@ class SmurfUtilMixin(SmurfBase):
         exponential moving average filter.
 
         .. math::
-           {\alpha} = \cos( 2 \pi f_c / f_s ) -1 + \sqrt{\cos^2 ( 2 \pi f_c / f_s ) - 4 \cos( ( 2 \pi f_c / f_s  ) + 3}
+           {\alpha} = \cos( 2 \pi f_c / f_s ) -1 + \sqrt{\cos^2 ( 2 \pi f_c / f_s ) - 4 \cos( 2 \pi f_c / f_s  ) + 3}
 
         It doesn't matter what units the arguments `fc` and `fs` are
         as long as they have the same units.
@@ -174,7 +174,7 @@ class SmurfUtilMixin(SmurfBase):
         Args
         ----
         fc : float
-           Cut-off frequency for digital exponential moving average
+           Desired cut-off frequency for digital exponential moving average
            filter (=F3dB).
         fs : float
            Digital sampling rate.
@@ -215,8 +215,6 @@ class SmurfUtilMixin(SmurfBase):
 
         See Also
         --------
-        :func:`set_filter_alpha` : Set the digital coefficient for the debug data low pass filter.
-        :func:`get_filter_alpha` : Get the digital coefficient for the debug data low pass filter.
         :func:`take_debug_data` : Takes raw debugging data.
         :func:`compute_exp_avg_alpha` : Computes alpha parameter for exponential moving average filter.
         :func:`get_debug_data_filter_cutoff` : Gets the debug data filter cut-off frequency in Hz.
@@ -254,8 +252,6 @@ class SmurfUtilMixin(SmurfBase):
 
         See Also
         --------
-        :func:`set_filter_alpha` : Set the digital coefficient for the debug data low pass filter.
-        :func:`get_filter_alpha` : Get the digital coefficient for the debug data low pass filter.
         :func:`take_debug_data` : Takes raw debugging data.
         :func:`compute_exp_avg_alpha` : Computes alpha parameter for exponential moving average filter.
         :func:`set_debug_data_filter_cutoff` : Sets the debug data filter cut-off frequency in Hz.
