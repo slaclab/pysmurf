@@ -72,7 +72,7 @@ class SmurfUtilMixin(SmurfBase):
         if channel is not None:
             if rf_iq:
                 IQstream = False
-                #single_channel_readout = 2
+                # single_channel_readout = 2
                 self.set_rf_iq_stream_enable(band, 1)
 
             if single_channel_readout == 1:
@@ -158,6 +158,114 @@ class SmurfUtilMixin(SmurfBase):
 
         return f, df, sync
 
+    def compute_exp_avg_alpha(self,fc,fs):
+        r"""Returns alpha parameter for exponential moving average filter to achieve desired cut-off frequency.
+
+        From https://www.dsprelated.com/showarticle/182.php, this is
+        the analytic expression for computing the f3dB of an
+        exponential moving average filter.
+
+        .. math::
+           {\alpha} = \cos( 2 \pi f_c / f_s ) -1 + \sqrt{\cos^2 ( 2 \pi f_c / f_s ) - 4 \cos( 2 \pi f_c / f_s  ) + 3}
+
+        It doesn't matter what units the arguments `fc` and `fs` are
+        as long as they have the same units.
+
+        Args
+        ----
+        fc : float
+           Desired cut-off frequency for digital exponential moving average
+           filter (=F3dB).
+        fs : float
+           Digital sampling rate.
+
+        Returns
+        -------
+        alpha : float
+            Alpha weighting factor for exponential moving average
+            filter with cut-off frequency fc for sampling rate fs.
+        """
+        thetac=2*np.pi*(fc/fs)
+        alpha=np.cos(thetac)-1.+np.sqrt(np.cos(thetac)**2-4.*np.cos(thetac)+3.)
+        return alpha
+
+    def set_debug_data_filter_cutoff(self,band,fcut_hz):
+        r"""Sets the debug data filter cut-off frequency in Hz.
+
+        The debug data filter is implemented as digital exponential
+        averager.  Find information about the filter implementation
+        here -
+        https://confluence.slac.stanford.edu/display/SMuRF/SMuRF+firmware#SMuRFfirmware-Datamodes.
+
+        The debug
+        data filter is applied in normal readout and
+        singleChannelReadout(Opt1).
+
+        Args
+        ----
+        band : int
+            Which band.
+        fcut_hz : float
+            Desired filter cut-off frequency in Hz.
+
+        Returns
+        -------
+        fcut : float
+            Debug data filter cut-off (=f3dB) in Hz.
+
+        See Also
+        --------
+        :func:`take_debug_data` : Takes raw debugging data.
+        :func:`compute_exp_avg_alpha` : Computes alpha parameter for exponential moving average filter.
+        :func:`get_debug_data_filter_cutoff` : Gets the debug data filter cut-off frequency in Hz.
+        """
+        fs_hz = self.get_channel_frequency_mhz(band)*1.e6
+        alpha_int = int(((0x8000/0.5)*self.compute_exp_avg_alpha(fcut_hz,fs_hz)))
+        self.set_filter_alpha(band,alpha_int)
+
+        # Tell user how off they are due to rounding
+        fcut_hz_set = self.get_debug_data_filter_cutoff(band)
+        if fcut_hz_set!=fcut_hz:
+            self.log(f'Asked for a filter cut-off of {fcut_hz:.3f} Hz but got a cut-off of {fcut_hz_set:.3f} Hz due to rounding')
+
+    def get_debug_data_filter_cutoff(self,band):
+        r"""Returns the debug data filter cut-off frequency in Hz.
+
+        The debug data filter is implemented as digital exponential
+        averager.  Find information about the filter implementation
+        here -
+        https://confluence.slac.stanford.edu/display/SMuRF/SMuRF+firmware#SMuRFfirmware-Datamodes.
+
+        The debug
+        data filter is applied in normal readout and
+        singleChannelReadout(Opt1).
+
+        Args
+        ----
+        band : int
+            Which band.
+
+        Returns
+        -------
+        fcut : float
+            Debug data filter cut-off (=f3dB) in Hz.
+
+        See Also
+        --------
+        :func:`take_debug_data` : Takes raw debugging data.
+        :func:`compute_exp_avg_alpha` : Computes alpha parameter for exponential moving average filter.
+        :func:`set_debug_data_filter_cutoff` : Sets the debug data filter cut-off frequency in Hz.
+        """
+        from scipy.optimize import root_scalar
+        alpha_int = self.get_filter_alpha(band)
+        # alphaFilter is a 16-bit reg, for which 0x8000 is 0.5
+        alpha_float = (alpha_int*0.5/(float(0x8000)))
+        fs_hz = self.get_channel_frequency_mhz(band)*1.e6
+        # backsolve because the equation for alpha in terms of fc is
+        # transcendental
+        sol = root_scalar(lambda fc_hz : alpha_float-self.compute_exp_avg_alpha(fc_hz,fs_hz), bracket=[0, fs_hz/2.])
+        return sol.root
+
     # the JesdWatchdog will check if an instance of the JesdWatchdog is already
     # running and kill itself if there is
     def start_jesd_watchdog(self):
@@ -240,6 +348,7 @@ class SmurfUtilMixin(SmurfBase):
            and `refPhaseDelayFine`.
 
         """
+
 
         self.set_band_delay_us(band, 0)
 
