@@ -431,7 +431,7 @@ class SmurfTuneMixin(SmurfBase):
         self.log('Done with serial tuning')
 
     @set_action()
-    def plot_tune_summary(self, band, eta_scan=False, show_plot=False,
+    def plot_tune_summar(self, band, eta_scan=False, show_plot=False,
             save_plot=True, eta_width=.3, channels=None,
             plot_summary=True, plotname_append=''):
         """
