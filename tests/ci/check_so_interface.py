@@ -1,8 +1,10 @@
 import ast
+import os
 # functions and their arguments to check
 # specified here: https://www.overleaf.com/project/5e837cac9659910001e5f71e
+script_dir = os.path.dirname(os.path.abspath(__file__))
 interface = {
-    "pysmurf/python/pysmurf/client/tune/smurf_tune.py": {  # file
+    os.path.join(script_dir, '../../python/pysmurf/client/tune/smurf_tune.py'): {  # file
         "SmurfTuneMixin": {                        # class
             "plot_tune_summary": {                 # function and args
                 "args": [
@@ -54,7 +56,7 @@ interface = {
             }
         }
     },
-    "pysmurf/python/pysmurf/client/command/smurf_command.py": {
+    os.path.join(script_dir, '../../python/pysmurf/client/command/smurf_command.py'): {
         "SmurfCommandMixin": {
             "run_serial_eta_scan": {
                 "args": [
@@ -104,7 +106,7 @@ interface = {
             }
         }
     },
-    "pysmurf/python/pysmurf/client/util/smurf_util.py": {
+    os.path.join(script_dir, '../../python/pysmurf/client/util/smurf_util.py'): {
         "SmurfUtilMixin": {
             "take_stream_data": {
                 "args": [
@@ -193,7 +195,7 @@ interface = {
             }
         }
     },
-    "pysmurf/python/pysmurf/client/debug/smurf_iv.py": {
+    os.path.join(script_dir, '../../python/pysmurf/client/debug/smurf_iv.py'): {
         "SmurfIVMixin": {
             "run_iv": {
                 "args": [
@@ -213,7 +215,7 @@ interface = {
             }
         }
     },
-    "pysmurf/python/pysmurf/client/debug/smurf_noise.py": {
+    os.path.join(script_dir, '../../python/pysmurf/client/debug/smurf_noise.py'): {
         "SmurfNoiseMixin": {
             "take_noise_psd": {
                 "args": [
