@@ -30,91 +30,144 @@ class SmurfCommandMixin(SmurfBase):
 
     _global_poll_enable_reg = 'AMCc.enable'
 
-    def _caput(self, pvname, val, atca=False, cast_type=True, **kwargs):
-        """Puts variables into epics.
-
-        Wrapper around pyrogue lcaput. Puts variables into epics.
+    def _caput(self, pvname, val, cast_type=True, write_log=False, log_level=0,
+               execute=True, wait_before=None, wait_after=None, wait_done=True):
+        """Sets to rogue variables in the root.
 
         Args
         ----
         pvname : str
-            The EPICs path of the PV to get.
+            The path of the PV to set to.
         val: any
-            The value to put into epics
+            The value to set.
+        cast_type: bool, default True
+            Check the type of val and cast to that expected for the rogue
+            variable.
+        write_log : bool, optional, default False
+            Whether to log the data or not.
+        execute : bool, optional, default True
+            Whether to actually execute the command.
+        wait_before : float, optional, default None
+            If not None, the number of seconds to wait before issuing
+            the command.
+        wait_after : float, optional, default None
+            If not None, the number of seconds to wait after issuing
+            the command.
+        wait_done : bool, optional, default True
+            Wait for the command to be finished before returning.
+        log_level : int, optional, default 0
+            Log level.
         """
-        err = False
-        for k,v in kwargs.items():
 
-            if v is not None:
-                self.log(f"Unexpected kwargs: {k} = {v}", self.LOG_INFO)
-                #err=True
+        if wait_before is not None:
+            if write_log:
+                self.log(f'Waiting {wait_before:3.2f} seconds before...',
+                         self.LOG_USER)
+            time.sleep(wait_before)
 
-        if err:
-            raise Exception("Bad args passed to caput")
+        if write_log:
+            log_str = 'caput ' + pvname + ' ' + str(val)
+            if self.offline:
+                log_str = 'OFFLINE - ' + log_str
+            self.log(log_str, log_level)
 
-        if atca:
-            var = self._atca.root.getNode(pvname)
-        else:
+        # execute the set
+        if not execute or self.offline:
+            # NB this used to support getting the _atca root, but I can't
+            # find any instances of this actually being used
             var = self._client.root.getNode(pvname)
+            if var is None:
+                raise ValueError(f"Invalid node: {pvname}")
 
-        if var == None:
-            raise Exception(f"Invalid node: {pvname}")
-
-        # For the ATCA EPICS interface, a command is called with .set
-        if not atca and var.isCommand:
-            var.call(val)
-        elif var.enum != None:
-            # setDisp handles enum keys
-            var.setDisp(val)
-        else:
-            if not atca and cast_type:
+            # handle different uses of `put`
+            if var.isCommand:
+                # a command is blocking so wait_done is moot
+                var.call(val)
+            elif var.enum is not None:
+                # setDisp handles enum keys
+                var.setDisp(val)
+            elif cast_type:
+                # rogue is strict about variable types for arrays
                 if isinstance(val, np.ndarray):
                     val = val.astype(var.value().dtype)
                 else:
+                    # handle numpy scalar types
                     if isinstance(val, np.generic):
                         val = val.item()
                     var_type = type(var.value())
                     val = var_type(val)
-            var.set(val)
+                var.set(val, check=wait_done)
+            else:
+                var.set(val, check=wait_done)
 
-    def _caget(self, pvname, atca=False, **kwargs):
-        """Gets variables from epics.
+        if wait_after is not None:
+            if write_log:
+                self.log(f'Waiting {wait_after:3.2f} seconds after...',
+                    self.LOG_USER)
+            time.sleep(wait_after)
+            if write_log:
+                self.log('Done waiting.', self.LOG_USER)
 
-        Wrapper around pyepics lcaget. Gets variables from epics.
+
+    def _caget(self, pvname, write_log=False, log_level=0, execute=True,
+               as_string=False, count=None, yml=None):
+        """Gets variables from rogue root.
 
         Args
         ----
         pvname : str
-            The EPICs path of the PV to get.
+            The path of the PV to get.
+        as_string : bool, default False
+            Return the string provided by getDisp.
+        write_log : bool, optional, default False
+            Whether to log the data or not.
+        log_level : int, optional, default 0
+            Log level.
+        execute : bool, optional, default True
+            Whether to actually execute the command.
+        count : int or None, optional, default None
+            Number of elements to return for array data.
+        yml : str or None, optional, default None
+            If not None, yaml file to parse for the result.
 
         Returns
         -------
-        ret : str
+        ret : any
             The requested value.
         """
-        as_string = kwargs.pop("as_string", False)
-        err = False
-        for k,v in kwargs.items():
+        # load the data from yml file if provided
+        if yml is not None:
+            if write_log:
+                self.log(f'Reading from yml file\n {pvname}', log_level)
+            ret = tools.yaml_parse(yml, pvname)
+            if write_log:
+                self.log(ret, log_level)
+            return ret
 
-            if v is not None:
-                self.log(f"Unexpected kwargs: {k} = {v}", self.LOG_INFO)
-                #err=True
+        var = self._client.root.getNode(pvname)
+        if var is None:
+            raise ValueError(f"Invalid node: {pvname}")
 
-        if err:
-            raise Exception("Bad args passed to caput")
+        if write_log:
+            self.log('caget ' + pvname, log_level)
 
-        if atca:
-            var = self._atca.root.getNode(pvname)
-        else:
-            var = self._client.root.getNode(pvname)
-
-        if var == None:
-            raise Exception(f"Invalid node: {pvname}")
-
+        if not execute or self.offline:
+            # don't perform the read
+            return None
+        # Get the data
         if as_string:
-            return var.getDisp()
+            ret = var.getDisp()
         else:
-            return var.get()
+            ret = var.get()
+
+        if count is not None:
+            # this will fail if the variable is not iterable
+            ret = ret[:count]
+
+        if write_log:
+            self.log(ret, log_level)
+
+        return ret
 
     #### Start SmurfApplication gets/sets
     _smurf_version_reg = 'SmurfVersion'
