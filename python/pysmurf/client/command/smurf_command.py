@@ -21,6 +21,8 @@ import subprocess
 import numpy as np
 from packaging import version
 
+from pyrogue import VariableWait
+
 from pysmurf.client.base import SmurfBase
 from pysmurf.client.command.sync_group import SyncGroup as SyncGroup
 from pysmurf.client.util import tools, dscounters
@@ -168,6 +170,32 @@ class SmurfCommandMixin(SmurfBase):
             self.log(ret, log_level)
 
         return ret
+
+
+    def _wait_for(self, pvname, condition, timeout=None):
+        """Wait for a variable to satisfy a certain condition.
+
+        Args
+        ----
+        pvname : str
+            The path of the PV to get.
+        condition : function
+            Returns True if the given variable value is such that we
+            should stop waiting, False otherwise.
+        timeout : float
+            Timeout in seconds. Default is None.
+        """
+        var = self._client.root.getNode(pvname)
+        if var is None:
+            raise ValueError(f"Invalid node: {pvname}")
+
+        if timeout is None:
+            timeout = 0
+
+        ret = VariableWait([var], lambda vals: condition(vals[0].value), timeout)
+        if not ret:
+            raise TimeoutError(f"Timed out after {timeout}s on PV {pvname}.")
+
 
     #### Start SmurfApplication gets/sets
     _smurf_version_reg = 'SmurfVersion'
@@ -322,6 +350,23 @@ class SmurfCommandMixin(SmurfBase):
             return False
         else:
             return None
+
+    def wait_configuring_in_progress(self, timeout=None):
+        """Wait until the system is no longer configuring.
+
+        Wait until either the system configuring in progress flag is
+        set to False or the timeout is reached.
+
+        Args
+        ----
+        timeout : float
+            Time in seconds to wait before raising a TimeoutError.
+        """
+        self._wait_for(
+            self.smurf_application + self._configuring_in_progress_reg,
+            lambda x: not x,  # condition for success is value of False
+            timeout=timeout
+        )
 
     _system_configured_reg = 'SystemConfigured'
 
@@ -497,9 +542,7 @@ class SmurfCommandMixin(SmurfBase):
         n_processed_channels=int(0.8125*n_channels)
         return n_processed_channels
 
-    def set_defaults_pv(self, wait_after_sec=30.0,
-                        max_timeout_sec=400.0, caget_timeout_sec=10.0,
-                        **kwargs):
+    def set_defaults_pv(self, max_timeout_sec=400.0, **kwargs):
         r"""Loads the default configuration.
 
         Calls the rogue `setDefaults` command, which loads the default
@@ -512,17 +555,9 @@ class SmurfCommandMixin(SmurfBase):
 
         Args
         ----
-        wait_after_sec : float or None, optional, default 30.0
-            If not None, the number of seconds to wait after
-            triggering the rogue `setDefaults` command.
         max_timeout_sec : float, optional, default 400.0
             Seconds to wait for system to configure before giving up.
             Only used for pysmurf core code versions >= 4.1.0.
-        caget_timeout_sec : float, optional, default 10.0
-            Seconds to wait for each poll of the configuration process
-            status registers (see :func:`get_configuring_in_progress`
-            and :func:`get_system_configured`).  Only used for pysmurf
-            core code versions >= 4.1.0.
         \**kwargs
             Arbitrary keyword arguments.  Passed directly to
             all `_caget` calls.
@@ -562,32 +597,10 @@ class SmurfCommandMixin(SmurfBase):
             self._caput('AMCc.setDefaults', 1, **kwargs)
 
             # Now let's wait until the process is finished. We define a maximum
-            # time we will wait, 400 seconds in this case, divided in smaller
-            # tries of 10 second each
-            num_retries = int(max_timeout_sec/caget_timeout_sec)
-            success = False
-            for _ in range(num_retries):
-                # Try to read the status of the
-                # "ConfiguringInProgress" flag.
-                #
-                # We successfully exit the loop when we are able to
-                # read the "ConfiguringInProgress" flag and it is set
-                # to "False".  Otherwise we keep trying.
-                # We disable the retry_on_fail feature and instead we catch any
-                # RuntimeError exception and keep trying.
-                try:
-                    if self.get_configuring_in_progress(
-                            timeout=caget_timeout_sec,
-                            retry_on_fail=False, **kwargs) is False:
-                        success=True
-                        break
-                except RuntimeError:
-                    pass
-
-            # If after out maximum defined timeout, we weren't able to
-            # read the "ConfiguringInProgress" flags as "False", we
-            # error on error.
-            if not success:
+            # time we will wait, 400 seconds in this case
+            try:
+                self.wait_configuring_in_progress(max_timeout_sec)
+            except TimeoutError:
                 self.log(
                     'The system configuration did not finish after'
                     f' {max_timeout_sec} seconds.', self.LOG_ERROR)
@@ -599,8 +612,7 @@ class SmurfCommandMixin(SmurfBase):
             # The final status of the configuration sequence is
             # available in the "SystemConfigured" flag.
             # So, let's read it and use it as out return value.
-            success = self.get_system_configured(
-                timeout=caget_timeout_sec, **kwargs)
+            success = self.get_system_configured(**kwargs)
 
             # Measure how long the process take
             end_time = time.time()
