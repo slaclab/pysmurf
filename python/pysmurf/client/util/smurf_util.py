@@ -2201,8 +2201,7 @@ class SmurfUtilMixin(SmurfBase):
 
         return jesd_decorator_function
 
-    def check_jesd(self, bay, silent_if_valid=False,
-                   max_timeout_sec=60, get_timeout_sec=5):
+    def check_jesd(self, bay, silent_if_valid=False, max_timeout_sec=60):
         """Checks JESD status for requested bay.
 
         Queries the Jesd tx and rx and compares the data_valid and
@@ -2218,12 +2217,6 @@ class SmurfUtilMixin(SmurfBase):
         max_timeout_sec : float, optional, default 60.0
             Seconds to wait for JESD health check to complete before
             giving up.  Passed to
-            :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.set_check_jesd`
-        caget_timeout_sec : float, optional, default 5.0
-            Seconds to wait for each poll of the JESD health check
-            status register (see
-            :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.get_jesd_status`).
-            Passed to
             :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.set_check_jesd`
 
         Returns
@@ -2267,7 +2260,7 @@ class SmurfUtilMixin(SmurfBase):
                 self.log("JESD Rx Okay", self.LOG_USER)
 
         # New checks introduced
-        status = self.set_check_jesd()
+        status = self.set_check_jesd(max_timeout_sec)
 
         return (jesd_tx_ok, jesd_rx_ok, status)
 

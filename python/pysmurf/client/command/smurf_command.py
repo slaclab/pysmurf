@@ -2806,8 +2806,7 @@ class SmurfCommandMixin(SmurfBase):
             self._jesd_tx_status_valid_cnt_reg + f'[{num}]',
             **kwargs)
 
-    def set_check_jesd(self, max_timeout_sec=60.0,
-                       caget_timeout_sec=5.0, **kwargs):
+    def set_check_jesd(self, max_timeout_sec=60.0, **kwargs):
         r"""Runs JESD health check and returns status.
 
         Toggles the pysmurf core code `SmurfApplication:CheckJesd`
@@ -2830,9 +2829,6 @@ class SmurfCommandMixin(SmurfBase):
         max_timeout_sec : float, optional, default 60.0
             Seconds to wait for JESD health check to complete before
             giving up.
-        caget_timeout_sec : float, optional, default 5.0
-            Seconds to wait for each poll of the JESD health check
-            status register (see :func:`get_jesd_status`).
         \**kwargs
             Arbitrary keyword arguments.  Passed directly to
             all `_caget` calls.
@@ -2881,25 +2877,21 @@ class SmurfCommandMixin(SmurfBase):
             self._caput('AMCc.SmurfApplication.CheckJesd', 1, **kwargs)
 
             # Now let's wait for it to finish.
-            num_retries = int(max_timeout_sec/caget_timeout_sec)
-            success = False
-            status = None
-            for _ in range(num_retries):
-                # Try to read the status register.
-                status = self.get_jesd_status(timeout=caget_timeout_sec, **kwargs)
-
-                if status not in [None, 'Checking']:
-                    success = True
-                    break
-
-            # If after out maximum defined timeout, we weren't able to
-            # read the "JesdStatus" status register with a valid status,
-            # then we exit on error.
-            if not success:
+            try:
+                self._wait_for(
+                    self.smurf_application + self._jesd_status_reg,
+                    lambda status: status not in [None, 'Checking'],
+                    timeout=max_timeout_sec
+                )
+                status = self.get_jesd_status()
+            except TimeoutError:
+                # If after out maximum defined timeout, we weren't able to
+                # read the "JesdStatus" status register with a valid status,
+                # then we exit on error.
                 self.log(
                     'JESD health check did not finish after'
                     f' {max_timeout_sec} seconds.', self.LOG_ERROR)
-                return status
+                return self.get_jesd_status()
 
             # Measure how long the process take
             end_time = time.time()
