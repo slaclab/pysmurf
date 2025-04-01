@@ -2238,25 +2238,6 @@ class SmurfTuneMixin(SmurfBase):
 
            | ii - 1j*rr
 
-        .. warning::
-           For historical reasons, you should perform this scaling on
-           the data returned by this function (which returns the
-           results from
-           :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.get_eta_scan_results_real`
-           and
-           :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.get_eta_scan_results_imag`
-           before using it:
-
-           | rr = np.asarray(rr)
-           | idx = np.where( rr > 2**23 )
-           | rr[idx] = rr[idx] - 2**24
-           | rr /= 2**23
-           |
-           | ii = np.asarray(ii)
-           | idx = np.where( ii > 2**23 )
-           | ii[idx] = ii[idx] - 2**24
-           | ii /= 2**23
-
         Args
         ----
         band : int
@@ -3857,13 +3838,6 @@ class SmurfTuneMixin(SmurfBase):
         for index in range(len(freq)):
             Ielem = I[index]
             Qelem = Q[index]
-            if Ielem > 2**23:
-                Ielem = Ielem - 2**24
-            if Qelem > 2**23:
-                Qelem = Qelem - 2**24
-
-            Ielem /= 2**23
-            Qelem /= 2**23
 
             response[index] = Ielem + 1j*Qelem
 
@@ -4000,16 +3974,10 @@ class SmurfTuneMixin(SmurfBase):
 
         I = self.get_eta_scan_results_real(band, count=n_step*n_channels)
         I = np.asarray(I)
-        idx = np.where( I > 2**23 )
-        I[idx] = I[idx] - 2**24
-        I /= 2**23
         I = I.reshape(n_channels, n_step)
 
         Q = self.get_eta_scan_results_imag(band, count=n_step*n_channels)
         Q = np.asarray(Q)
-        idx = np.where( Q > 2**23 )
-        Q[idx] = Q[idx] - 2**24
-        Q /= 2**23
         Q = Q.reshape(n_channels, n_step)
 
         resp = I + 1j*Q
@@ -4063,14 +4031,6 @@ class SmurfTuneMixin(SmurfBase):
                                       subbands[i],
                                       frequ,
                                       tone_power)
-
-                idx = np.where( Iu > 2**23 )
-                Iu[idx] = Iu[idx] - 2**24
-                Iu /= 2**23
-
-                idx = np.where( Qu > 2**23 )
-                Qu[idx] = Qu[idx] - 2**24
-                Qu /= 2**23
 
                 # The eta_scan has a different convention for
                 # inphase/quadrature.  This remaps it to match the
