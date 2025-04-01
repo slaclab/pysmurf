@@ -2497,7 +2497,7 @@ class SmurfTuneMixin(SmurfBase):
             meas_flux_ramp_amp=False, n_phi0=4, flux_ramp=True,
             fraction_full_scale=None, lms_enable1=True, lms_enable2=True,
             lms_enable3=True, feedback_gain=None, lms_gain=None, return_data=True,
-            new_epics_root=None, feedback_start_frac=None,
+            feedback_start_frac=None,
             feedback_end_frac=None, setup_flux_ramp=True, plotname_append=''):
         """
         The function to start tracking. Starts the flux ramp and if requested
@@ -2584,8 +2584,6 @@ class SmurfTuneMixin(SmurfBase):
             Too high of lms_gain will overflow the register and greatly incrase noise.
         return_data : bool, optional, default True
             Whether or not to return f, df, sync.
-        new_epics_root : str or None, optional, default None
-            Override the original epics root.
         feedback_start_frac : float or None, optional, default None
             The fraction of the full flux ramp at which to stop
             applying feedback in each flux ramp cycle.  Must be in
@@ -2710,7 +2708,7 @@ class SmurfTuneMixin(SmurfBase):
 
         if setup_flux_ramp:
             self.flux_ramp_setup(reset_rate_khz, fraction_full_scale,
-                             write_log=write_log, new_epics_root=new_epics_root)
+                             write_log=write_log)
         else:
             self.log("Not changing flux ramp status. Use setup_flux_ramp " +
                      "boolean to run flux_ramp_setup")
@@ -2731,7 +2729,7 @@ class SmurfTuneMixin(SmurfBase):
                 f"feedbackEnd={feedback_end})", self.LOG_USER)
 
         if flux_ramp:
-            self.flux_ramp_on(write_log=write_log, new_epics_root=new_epics_root)
+            self.flux_ramp_on(write_log=write_log)
 
         # take one dataset with all channels
         if return_data or make_plot:
@@ -3148,7 +3146,7 @@ class SmurfTuneMixin(SmurfBase):
 
     @set_action()
     def flux_ramp_setup(self, reset_rate_khz, fraction_full_scale, df_range=.1,
-            band=2, write_log=False, new_epics_root=None):
+            band=2, write_log=False):
         """
         Set flux ramp sawtooth rate and amplitude.
 
@@ -3183,8 +3181,6 @@ class SmurfTuneMixin(SmurfBase):
            The band to setup the flux ramp on.
         write_log : bool, optional, default False
            Whether to write output to the log.
-        new_epics_root : str or None, optional, default None
-           Override the original epics root.  If None, does nothing.
 
         Raises
         ------
@@ -3197,11 +3193,9 @@ class SmurfTuneMixin(SmurfBase):
         """
 
         # Disable flux ramp
-        self.flux_ramp_off(new_epics_root=new_epics_root,
-                           write_log=write_log)
+        self.flux_ramp_off(write_log=write_log)
 
-        digitizerFrequencyMHz = self.get_digitizer_frequency_mhz(band,
-            new_epics_root=new_epics_root)
+        digitizerFrequencyMHz = self.get_digitizer_frequency_mhz(band)
         dspClockFrequencyMHz=digitizerFrequencyMHz/2
 
         desiredRampMaxCnt = ((dspClockFrequencyMHz*1e3)/
@@ -3265,56 +3259,34 @@ class SmurfTuneMixin(SmurfBase):
         ModeControl = 0
         EnableRampTrigger = 1
 
-        self.set_low_cycle(LowCycle, new_epics_root=new_epics_root,
-            write_log=write_log)
-        self.set_high_cycle(HighCycle, new_epics_root=new_epics_root,
-            write_log=write_log)
-        self.set_k_relay(KRelay, new_epics_root=new_epics_root,
-            write_log=write_log)
-        self.set_ramp_max_cnt(rampMaxCnt, new_epics_root=new_epics_root,
-            write_log=write_log)
-        self.set_pulse_width(PulseWidth, new_epics_root=new_epics_root,
-            write_log=write_log)
-        self.set_debounce_width(DebounceWidth, new_epics_root=new_epics_root,
-            write_log=write_log)
-        self.set_ramp_slope(RampSlope, new_epics_root=new_epics_root,
-            write_log=write_log)
-        self.set_mode_control(ModeControl, new_epics_root=new_epics_root,
-            write_log=write_log)
-        self.set_fast_slow_step_size(FastSlowStepSize,
-            new_epics_root=new_epics_root,
-            write_log=write_log)
-        self.set_fast_slow_rst_value(FastSlowRstValue,
-            new_epics_root=new_epics_root,
-            write_log=write_log)
-        self.set_enable_ramp_trigger(EnableRampTrigger,
-            new_epics_root=new_epics_root,
-            write_log=write_log)
+        self.set_low_cycle(LowCycle, write_log=write_log)
+        self.set_high_cycle(HighCycle, write_log=write_log)
+        self.set_k_relay(KRelay, write_log=write_log)
+        self.set_ramp_max_cnt(rampMaxCnt, write_log=write_log)
+        self.set_pulse_width(PulseWidth, write_log=write_log)
+        self.set_debounce_width(DebounceWidth, write_log=write_log)
+        self.set_ramp_slope(RampSlope, write_log=write_log)
+        self.set_mode_control(ModeControl, write_log=write_log)
+        self.set_fast_slow_step_size(FastSlowStepSize, write_log=write_log)
+        self.set_fast_slow_rst_value(FastSlowRstValue, write_log=write_log)
+        self.set_enable_ramp_trigger(EnableRampTrigger, write_log=write_log)
         # If RampStartMode is 0x1, using timing system, which
         # overrides internal triggering.  Must select one of the
         # available ramp rates programmed into the timing system using
         # the set_ramp_rate routine.
         if self.get_ramp_start_mode() == 1:
-            self.set_ramp_rate(
-                reset_rate_khz, new_epics_root=new_epics_root,
-                write_log=write_log)
+            self.set_ramp_rate(reset_rate_khz, write_log=write_log)
 
-    def get_fraction_full_scale(self, new_epics_root=None):
+    def get_fraction_full_scale(self):
         """
         Returns the fraction_full_scale.
-
-        Args
-        ----
-        new_epics_root : str or None, optional, default None
-            Overrides the initialized epics root.
 
         Returns
         -------
         fraction_full_scale : float
             The fraction of the flux ramp amplitude.
         """
-        return 1-2*(self.get_fast_slow_rst_value(new_epics_root=new_epics_root)/
-                    2**self._num_flux_ramp_counter_bits)
+        return 1-2*(self.get_fast_slow_rst_value()/2**self._num_flux_ramp_counter_bits)
 
     @set_action()
     def check_lock(self, band, f_min=.015, f_max=.2, df_max=.03,
@@ -4506,7 +4478,7 @@ class SmurfTuneMixin(SmurfBase):
     @set_action()
     def estimate_lms_freq(self, band, reset_rate_khz,
                           fraction_full_scale=None,
-                          new_epics_root=None, channel=None,
+                          channel=None,
                           make_plot=False):
         """
         Attempts to estimate the carrier (phi0) rate for all channels
@@ -4524,10 +4496,6 @@ class SmurfTuneMixin(SmurfBase):
             Passed on to the internal tracking_setup call - the
             fraction of full scale exercised by the flux ramp.
             Defaults to value in cfg.
-        new_epics_root : str or None, optional, default None
-            Passed on to internal tracking_setup call ; If using a
-            different RTM to flux ramp, the epics root of the pyrogue
-            server controlling that RTM.
         channel : int array or None, optional, default None
             Passed on to the internal flux_mod2 call.  Which channels
             (if any) to plot.
@@ -4547,8 +4515,7 @@ class SmurfTuneMixin(SmurfBase):
         self.set_feedback_enable(band, 0)
         f, df, sync = self.tracking_setup(band, 0, make_plot=False,
             flux_ramp=True, fraction_full_scale=fraction_full_scale,
-            reset_rate_khz=reset_rate_khz, lms_freq_hz=0,
-            new_epics_root=new_epics_root)
+            reset_rate_khz=reset_rate_khz, lms_freq_hz=0)
 
         s = self.flux_mod2(band, df, sync,
                            make_plot=make_plot, channel=channel)
@@ -4558,8 +4525,7 @@ class SmurfTuneMixin(SmurfBase):
 
     @set_action()
     def estimate_flux_ramp_amp(self, band, n_phi0, write_log=True,
-                               reset_rate_khz=None,
-                               new_epics_root=None, channel=None):
+                               reset_rate_khz=None, channel=None):
         """
         This is like estimate_lms_freq, except it changes the
         flux ramp amplitude instead of the flux ramp frequency.
@@ -4595,8 +4561,7 @@ class SmurfTuneMixin(SmurfBase):
 
         f, df, sync = self.tracking_setup(band, 0, make_plot=False,
             flux_ramp=True, fraction_full_scale=start_fraction_full_scale,
-            reset_rate_khz=reset_rate_khz, lms_freq_hz=0,
-            new_epics_root=new_epics_root)
+            reset_rate_khz=reset_rate_khz, lms_freq_hz=0)
 
         # Set feedback to original value
         self.set_feedback_enable(band, old_feedback)
