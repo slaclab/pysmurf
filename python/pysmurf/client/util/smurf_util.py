@@ -4116,7 +4116,6 @@ class SmurfUtilMixin(SmurfBase):
         start_hardware_logging : Starts hardware logging thread.
         """
         d={}
-        d['epics_root']=lambda:self.epics_root
         d['ctime']=self.get_timestamp
         d['fpga_temp']=self.get_fpga_temp
         d['fpgca_vccint']=self.get_fpga_vccint
