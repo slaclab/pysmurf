@@ -357,9 +357,9 @@ checkFW()
     if [ -z ${no_check_fw+x} ]; then
 
 	fwstr=
-	if [ $1 = "umux" ]; then
+	if [[ $1 = "umux" ]]; then
 	    fwstr="MicrowaveMuxBpEthGen2"
-	elif [ $1 = "tkid" ]; then
+	elif [[ $1 = "tkid" ]]; then
 	    fwstr="CryoDetKid"
 	fi
 
@@ -439,9 +439,9 @@ hardBoot()
 findPyrogueFiles()
 {
     fwstr=
-    if [ $1 = "umux" ]; then
+    if [[ $1 = "umux" ]]; then
 	fwstr="MicrowaveMuxBpEthGen2"
-    elif [ $1 = "tkid" ]; then
+    elif [[ $1 = "tkid" ]]; then
 	fwstr="CryoDetKid"
     fi
 
