@@ -1,14 +1,14 @@
 """
 This script runs on a pull request to the GitHub repository and uses an
-Abstract Syntax Tree (AST) to checks that certain "frozen" functions have 
-not had their arguments, names, or paths changed from how they are specified 
-in the interface dictionary at the top of this script, as well as checking 
+Abstract Syntax Tree (AST) to checks that certain "frozen" functions have
+not had their arguments, names, or paths changed from how they are specified
+in the interface dictionary at the top of this script, as well as checking
 that the respective classes of those frozen functions have not had their
 name changed or their path changed.
 The interface dictionary contains nested dictionaries of the structure
 -->interface[File path][Class name][Function name][list of arguments, list of defaults]
-This script will only check the files, classes, and functions specified 
-in the interface dictionary, but more files/classes/functions can be checked 
+This script will only check the files, classes, and functions specified
+in the interface dictionary, but more files/classes/functions can be checked
 by adding the specified attributes that need to be frozen to the interface dictionary.
 """
 import ast
@@ -333,19 +333,19 @@ def compare_args(node, intdict):
     has_kwargs = node.args.kwarg is not None #check for kwargs
     #Check for varargs
     if has_varargs:
-        raise NotImplementedError("This code doesn't currently have the functionality to support varargs, " + (node.name) + " has vararg")     
+        raise NotImplementedError("This code doesn't currently have the functionality to support varargs, " + (node.name) + " has vararg")
     #If kwargs detected but kwargs not expected
     if has_kwargs and intdict.get('kwarg') == None:
         raise Exception("Kwarg expected to be found in "+ (node.name) + " but kwarg not found")
     #If kwargs not detected but kwargs expected
     if not has_kwargs and not intdict.get('kwarg') == None:
-        raise Exception("Kwarg not expected to be found in " + (node.name) + " but kwarg detected")     
+        raise Exception("Kwarg not expected to be found in " + (node.name) + " but kwarg detected")
     # Compare arguments to specified arguments in interface dict
     if found_args != spec_args:
         print(f"Mismatch in arguments for function {node.name}")
         print(f"Found: {found_args}")
         print(f"Expected: {spec_args}")
-        return "incorrectargs"        
+        return "incorrectargs"
     # Compare default values to specified defaults in interface dict
     if found_defaults != spec_defaults:
         print(f"Mismatch in default values for function {node.name}")

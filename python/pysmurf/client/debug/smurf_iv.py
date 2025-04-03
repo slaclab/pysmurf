@@ -27,10 +27,10 @@ from pysmurf.client.util.pub import set_action
 class SmurfIVMixin(SmurfBase):
 
     @set_action()
-    def run_iv(self, ias_groups=None, wait_time=.1, bias=None,
+    def run_iv(self, bias_groups=None, wait_time=.1, bias=None,
                bias_high=1.5, bias_low=0, bias_step=.005,
                show_plot=False, overbias_wait=2., cool_wait=30,
-               make_plot=True, ave_plot=True, plotname_append='',
+               make_plot=True, save_plot=True, plotname_append='',
                channels=None, band=None, high_current_mode=True,
                overbias_voltage=8., grid_on=True,
                phase_excursion_min=3., bias_line_resistance=None,
