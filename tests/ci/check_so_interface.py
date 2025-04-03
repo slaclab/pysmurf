@@ -1,3 +1,16 @@
+"""
+This script runs on a pull request to the GitHub repository and uses an
+Abstract Syntax Tree (AST) to checks that certain "frozen" functions have 
+not had their arguments, names, or paths changed from how they are specified 
+in the interface dictionary at the top of this script, as well as checking 
+that the respective classes of those frozen functions have not had their
+name changed or their path changed.
+The interface dictionary contains nested dictionaries of the structure
+-->interface[File path][Class name][Function name][list of arguments, list of defaults]
+This script will only check the files, classes, and functions specified 
+in the interface dictionary, but more files/classes/functions can be checked 
+by adding the specified attributes that need to be frozen to the interface dictionary.
+"""
 import ast
 import os
 # functions and their arguments to check
@@ -310,62 +323,74 @@ def compare_args(node, intdict):
     -------
     Boolean, or raises an error
     """
-    #check function
-    if isinstance(node, ast.FunctionDef):
-        spec_args = intdict['args']
-        spec_defaults = intdict['defaults']
-        # Extract function arguments from the AST node
-        found_args = [arg.arg for arg in node.args.args]
-        found_defaults = [ast.unparse(d) if d else None for d in node.args.defaults]
-        has_varargs = node.args.vararg is not None #check for varargs
-        has_kwargs = node.args.kwarg is not None #check for kwargs
-        #Check for varargs
-        if has_varargs:
-            raise NotImplementedError("This code doesn't currently have the functionality to support varargs, " + (node.name) + " has vararg")     
-        #If kwargs detected but kwargs not expected
-        if has_kwargs and intdict.get('kwarg') == None:
-            raise Exception("Kwarg expected to be found in "+ (node.name) + " but kwarg not found")
-        #If kwargs not detected but kwargs expected
-        if not has_kwargs and not intdict.get('kwarg') == None:
-            raise Exception("Kwarg not expected to be found in " + (node.name) + " but kwarg detected")     
-        # Compare arguments to specified arguments in interface dict
-        if found_args != spec_args:
-            print(f"Mismatch in arguments for function {node.name}")
-            print(f"Found: {found_args}")
-            print(f"Expected: {spec_args}")
-            return False        
-        # Compare default values to specified defaults in interface dict
-        if found_defaults != spec_defaults:
-            print(f"Mismatch in default values for function {node.name}")
-            print(f"Found: {found_defaults}")
-            print(f"Expected: {spec_defaults}")
-            return False  
+    #getting specified args and defaults from interface
+    spec_args = intdict['args']
+    spec_defaults = intdict['defaults']
+    # Extract function arguments from the AST node
+    found_args = [arg.arg for arg in node.args.args]
+    found_defaults = [ast.unparse(d) if d else None for d in node.args.defaults]
+    has_varargs = node.args.vararg is not None #check for varargs
+    has_kwargs = node.args.kwarg is not None #check for kwargs
+    #Check for varargs
+    if has_varargs:
+        raise NotImplementedError("This code doesn't currently have the functionality to support varargs, " + (node.name) + " has vararg")     
+    #If kwargs detected but kwargs not expected
+    if has_kwargs and intdict.get('kwarg') == None:
+        raise Exception("Kwarg expected to be found in "+ (node.name) + " but kwarg not found")
+    #If kwargs not detected but kwargs expected
+    if not has_kwargs and not intdict.get('kwarg') == None:
+        raise Exception("Kwarg not expected to be found in " + (node.name) + " but kwarg detected")     
+    # Compare arguments to specified arguments in interface dict
+    if found_args != spec_args:
+        print(f"Mismatch in arguments for function {node.name}")
+        print(f"Found: {found_args}")
+        print(f"Expected: {spec_args}")
+        return "incorrectargs"        
+    # Compare default values to specified defaults in interface dict
+    if found_defaults != spec_defaults:
+        print(f"Mismatch in default values for function {node.name}")
+        print(f"Found: {found_defaults}")
+        print(f"Expected: {spec_defaults}")
+        return "incorrectdefaults"
     return True
 
 if __name__ == "__main__":   #if this is the main thing being run
-    setspecclass = set()
-    setspecfunc = set()
+    setspecclass = set() #iterate over dict
+    setspecfunc = set() #iterate over dict
     foundclass = set()
     foundfunc = set()
     for fname in interface.keys():   #loop over file names "fname" as keys in dictionary called "interface"
+        for specclass in interface[fname].keys():
+            setspecclass.add(specclass)
+            for specfunc in interface[fname][specclass].keys():
+                setspecfunc.add(specfunc)
         with open(fname, 'r') as fh:   #opens file "fname", in read mode 'r', to be used in code as "fh"
             tree = ast.parse(fh.read()) #parsing contents of file into abstract syntax tree
-        for classname in interface[fname].keys():
-            setspecclass.add(classname)
-            for node in ast.walk(tree):
-                if isinstance(node, ast.ClassDef):
-                    if node.name == classname:
-                        intdict = interface[fname][classname]
-                        assert compare_args(node, intdict)
-                        foundclass.add(classname)
-                for specfunc in interface[fname][classname].keys():
-                    setspecfunc.add(specfunc)
-                    if isinstance(node, ast.FunctionDef) and node.name == specfunc:
-                        intdict = interface[fname][classname][specfunc]
-                        assert compare_args(node, intdict)
-                        foundfunc.add(specfunc)
+        for node in ast.walk(tree):
+            if isinstance(node, ast.ClassDef):
+                # check if this class is in our spec
+                if node.name in interface[fname]:
+                    # check the class
+                    foundclass.add(node.name)
+                    for child in node.body:
+                        if isinstance(child, ast.FunctionDef) and child.name in interface[fname][node.name]:
+                            check = compare_args(child, interface[fname][node.name][child.name])
+                            if check == "incorrectargs":
+                                raise Exception("Mismatch for args in function "+child.name+" occurred in file: "+fname)
+                            if check == "incorrectdefaults":
+                                raise Exception("Mismatch for defaults in function "+child.name+" occurred in file: "+fname)
+                            foundfunc.add(child.name)
+            elif isinstance(node, ast.FunctionDef):
+                # in principle, we could have functions defined in the body (though I don't think we do in this case)
+                if node.name in interface[fname]:
+                    check = compare_args(node, interface[fname][node.name])
+                    if check == "incorrectargs":
+                        raise Exception("Mismatch for args in function "+node.name+" occurred in file: "+fname)
+                    if check == "incorrectdefaults":
+                        raise Exception("Mismatch for defaults in function "+node.name+" occurred in file: "+fname)
+                    foundfunc.add(node.name)
     if setspecclass != foundclass:
-        print(setspecclass-foundclass)
+        raise Exception("The following classes from the specified classes in the interface were not found:\n"+setspecclass-foundclass)
     if setspecfunc != foundfunc:
-        print(setspecfunc-foundfunc)
+        raise Exception("The following functions from the specified functions in the interface were not found:\n"+setspecfunc-foundfunc)
 pass
