@@ -304,7 +304,7 @@ def compare_args(node, intdict):
     """
     Uses intdict to compare the expected 'args', 'defaults', and 'kwargs' 
     values for certain frozen function specified by node.name to those 
-    values extracted from node, raising an exception on failure or 
+    values extracted from node, raising an exception on failure or
     returning true if no differences detected.
 
     Args
