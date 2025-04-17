@@ -33,7 +33,7 @@ class SmurfCommandMixin(SmurfBase):
     _global_poll_enable_reg = 'AMCc.enable'
 
     def _caput(self, pvname, val, cast_type=True, write_log=False, log_level=0,
-               execute=True, wait_before=None, wait_after=None, wait_done=True):
+               execute=True, wait_before=None, wait_after=None, wait_done=True, **kwargs):
         """Sets to rogue variables in the root.
 
         Args
@@ -60,6 +60,10 @@ class SmurfCommandMixin(SmurfBase):
         log_level : int, optional, default 0
             Log level.
         """
+
+        if kwargs:
+            for k in kwargs:
+                self.log(f"caput unexpected kwarg: {k}: {kwargs[k]}")
 
         if wait_before is not None:
             if write_log:
@@ -112,7 +116,7 @@ class SmurfCommandMixin(SmurfBase):
 
 
     def _caget(self, pvname, write_log=False, log_level=0, execute=True,
-               as_string=False, count=None, yml=None):
+               as_string=False, count=None, yml=None, **kwargs):
         """Gets variables from rogue root.
 
         Args
@@ -137,6 +141,11 @@ class SmurfCommandMixin(SmurfBase):
         ret : any
             The requested value.
         """
+
+        if kwargs:
+            for k in kwargs:
+                self.log(f"caget unexpected kwarg: {k}: {kwargs[k]}")
+
         # load the data from yml file if provided
         if yml is not None:
             if write_log:
