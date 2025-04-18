@@ -36,7 +36,7 @@ jobs:
       - name: setup python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.8.10'
+          python-version: '3.8.12'
 
       # Install flake8 modules
       - name: Install dependencies
@@ -90,7 +90,7 @@ jobs:
       - name: Setup python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.8.10'
+          python-version: '3.8.12'
 
       # Install requirements, pysmurf, and sphinx
       - name: Install dependencies
@@ -255,7 +255,7 @@ jobs:
       - name: Setup python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.8.10'
+          python-version: '3.8.12'
 
       # Install dependencies of the releaseGen.py script
       - name: Install dependencies
