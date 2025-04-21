@@ -38,6 +38,7 @@ class CmbEth(Common):
                  configure      = False,
                  VariableGroups = None,
                  server_port    = 0,
+                 pcie           = None,
                  **kwargs):
 
 
@@ -83,4 +84,5 @@ class CmbEth(Common):
                         configure      = configure,
                         VariableGroups = VariableGroups,
                         server_port    = server_port,
+                        pcie           = pcie,
                         **kwargs)

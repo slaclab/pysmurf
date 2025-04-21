@@ -37,6 +37,7 @@ class Common(pyrogue.Root):
                  configure      = False,
                  VariableGroups = None,
                  server_port    = 0,
+                 pcie           = None,
                  **kwargs):
 
         pyrogue.Root.__init__(self, name="AMCc", initRead=True, pollEn=polling_en,
@@ -184,6 +185,13 @@ class Common(pyrogue.Root):
                                                                   autoPrefix='config',
                                                                   autoCompress=False))
 
+        self._pcie = pcie
+
+        if self._pcie:
+            self.add(pyrogue.LocalCommand(
+                name='RestartRssi',
+                description='Restart RSSI Link',
+                function=lambda : self._pcie.restart_rssi))
 
     def start(self):
         pyrogue.Root.start(self)
