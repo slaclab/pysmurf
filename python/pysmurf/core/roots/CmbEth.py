@@ -37,7 +37,6 @@ class CmbEth(Common):
                  configure      = False,
                  VariableGroups = None,
                  server_port    = 0,
-                 pcie           = None,
                  **kwargs):
 
 
