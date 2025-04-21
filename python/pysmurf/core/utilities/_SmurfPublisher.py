@@ -23,6 +23,8 @@ import os
 import sys
 import time
 
+import numpy as np
+
 DEFAULT_ENV_ROOT = 'SMURFPUB_'
 DEFAULT_UDP_PORT = 8200
 UDP_MAX_BYTES = 64000
@@ -41,7 +43,7 @@ class SmurfPublisher(object):
         """The Publisher should normally be instantiated with just the
         script_id, e.g.:
 
-          pub = Publisher('tuning_script')
+        >>> pub = Publisher('tuning_script')
 
         Configuration options - these should be set in the options
         dictionary, or through environment variables using the
@@ -86,8 +88,10 @@ class SmurfPublisher(object):
             self._backend = self._backend_udp
 
         else:
-            sys.stderr.write('%s: no backend for "%s", selecting null Publisher.\n' %
-                             (self.__class__, backend))
+            sys.stderr.write(
+                f'{self.__class__}: no backend for "{backend}", ' +
+                'selecting null Publisher.\n')
+
             self._backend = self._backend_null
 
         # ###########################
@@ -124,8 +128,10 @@ class SmurfPublisher(object):
         payload = bytes(json_msg, 'utf_8')
         if len(payload) > UDP_MAX_BYTES:
             # Can't send this; write to stderr and notify consumer.
-            error = 'Backend error: dropped large UDP packet (%i bytes).' % len(payload)
-            sys.stderr.write('%s %s' % (self, error))
+            error = (
+                'Backend error: dropped large UDP packet ' +
+                f'({len(payload)} bytes).')
+            sys.stderr.write(f'{self} {error}')
             self.publish({'message': error}, 'backend_error')
             return
         self.udp_sock.sendto(payload, (self.udp_ip, self.udp_port))
@@ -143,10 +149,17 @@ class SmurfPublisher(object):
             'type': msgtype,
         }
         self.seq_no += 1
-        # Add in the data and convert to json.
+        # Add in the data
         output['payload'] = data
-        jtext = json.dumps(output)
-        # Send.
+
+        # Convert to JSON, catching and logging exceptions
+        try:
+            jtext = json.dumps(output)
+        except Exception as e:
+            self.log(f'Exception "{e}", trying to convert "{output}" to JSON')
+            return
+
+        # Send, if the JSON conversion succeed
         self._backend(jtext)
 
     def log(self, message):
@@ -164,17 +177,17 @@ class SmurfPublisher(object):
         """
         Publishes file info so it can be picked up by the pysmurf-archiver.
 
-        Args:
-        -----
-        path (str):
-            full path to file.
-        type (str):
+        Args
+        ----
+        path : str
+            Full path to file.
+        type : str
             Type of data file, e.g. "tuning" or "config_snapshot"
-        format (str):
+        format : str, optional, default ''
             File extension. E.g. "npy" or "txt"
-        timestamp (float):
+        timestamp : float or None, optional, default None
             Unix timestamp when file was created.
-        plot (bool):
+        plot : bool, optional, default False
             True if file is a plot
         """
         if timestamp is None:
@@ -192,4 +205,27 @@ class SmurfPublisher(object):
         return self.publish(file_data, 'data_file')
 
     def _varListen(self, path, varVal):
-        self.publish(data=f'{path}={varVal.value}',msgtype='general')
+        """
+        Callback function used to publish metadata.
+
+        Args
+        ----
+        path : str
+            Rogue register path.
+        varVal : pyrogue.VariableValue
+            Variable object.
+        """
+        # Extract the variable value
+        value = varVal.value
+
+        # Get the variable type, as a string
+        type_str = type(value).__name__
+
+        # In the variable is a numpy array, convert it to a list in
+        # order to be JSON serializable (but keeping the original type)
+        if isinstance(value, np.ndarray):
+            value = value.tolist()
+
+        # Publish the data, as a "metadata" type
+        self.publish(data={"path": path, "value": value, "type": type_str},
+            msgtype='metadata')

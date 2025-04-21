@@ -16,14 +16,12 @@
 # copied, modified, propagated, or distributed except according to the terms
 # contained in the LICENSE.txt file.
 #-----------------------------------------------------------------------------
-
+from CryoDet._MicrowaveMuxBpEthGen2 import FpgaTopLevel
 import pyrogue
 import rogue.hardware.axi
 import rogue.protocols.srp
 
 from pysmurf.core.roots.Common import Common
-
-from CryoDet._MicrowaveMuxBpEthGen2 import FpgaTopLevel
 
 class CmbPcie(Common):
     def __init__(self, *,
@@ -36,6 +34,7 @@ class CmbPcie(Common):
                  pv_dump_file   = "",
                  disable_bay0   = False,
                  disable_bay1   = False,
+                 enable_pwri2c  = False,
                  txDevice       = None,
                  configure      = False,
                  VariableGroups = None,
@@ -50,9 +49,21 @@ class CmbPcie(Common):
         pyrogue.streamConnectBiDir(self._srp, self._srpStream)
 
         # Instantiate Fpga top level
-        self._fpga = FpgaTopLevel( memBase      = self._srp,
-                                   disableBay0  = disable_bay0,
-                                   disableBay1  = disable_bay1)
+        # In order to be backwards compatible for now, also support
+        # FpgaTopLevel which doesn't have the enablePwrI2C argument.
+        try:
+            self._fpga = FpgaTopLevel( memBase      = self._srp,
+                                       disableBay0  = disable_bay0,
+                                       disableBay1  = disable_bay1,
+                                       enablePwrI2C = enable_pwri2c)
+        except TypeError as e:
+            print(f"TypeError calling FpgaTopLevel: {e}")
+            print("This FpgaTopLevel does not support the option 'enablePwrI2C'.")
+            print("Please use a pyrogue zip file which is up to date.")
+            print("Staring the server without using the 'enablePwrI2C' option.")
+            self._fpga = FpgaTopLevel( memBase      = self._srp,
+                                       disableBay0  = disable_bay0,
+                                       disableBay1  = disable_bay1)
 
         # Create stream interfaces
         self._ddr_streams = []
@@ -60,8 +71,9 @@ class CmbPcie(Common):
         # DDR streams. We are only using the first 2 channel of each AMC daughter card, i.e.
         # channels 0, 1, 4, 5.
         for i in [0, 1, 4, 5]:
-            self._ddr_streams.append(
-                rogue.hardware.axi.AxiStreamDma(pcie_dev_rssi,(pcie_rssi_lane*0x100 + 0x80 + i), True))
+            tmp = rogue.hardware.axi.AxiStreamDma(pcie_dev_rssi,(pcie_rssi_lane*0x100 + 0x80 + i), True)
+            tmp.setZeroCopyEn(False)
+            self._ddr_streams.append(tmp)
 
         # Streaming interface stream
         self._streaming_stream = \
@@ -77,4 +89,6 @@ class CmbPcie(Common):
                         configure      = configure,
                         VariableGroups = VariableGroups,
                         server_port    = server_port,
+                        disable_bay0   = disable_bay0,
+                        disable_bay1   = disable_bay1,
                         **kwargs)

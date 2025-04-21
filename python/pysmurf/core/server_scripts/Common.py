@@ -17,13 +17,15 @@
 # contained in the LICENSE.txt file.
 #-----------------------------------------------------------------------------
 
-import sys
-import pyrogue
+import argparse
+import os
 import socket
 import subprocess
-import os
+import sys
 import zipfile
-import argparse
+import logging
+
+import pyrogue
 
 # Name of the TopRoguePackage in the ZIP file
 top_rogue_package_name="CryoDet"
@@ -43,8 +45,19 @@ def get_args():
 def process_args(args):
     """
         Processes args from argparse. Unzips zip_file and finds/sets the
-        args.config_file
+        args.config_file. Also set the server port to  a default values
+        if it was not defined.
     """
+
+    # Setup logging
+    logger = logging.getLogger()
+    logger.setLevel(args.log_level)
+    # set up a handler with timestamps
+    handler = logging.StreamHandler()
+    handler.setLevel(args.log_level)
+    formatter = logging.Formatter("[%(asctime)s] %(levelname)s:%(name)s: %(msg)s")
+    handler.setFormatter(formatter)
+    logger.addHandler(handler)
 
     # Verify if the zip file was specified
     if args.zip_file:
@@ -86,15 +99,21 @@ def process_args(args):
         else:
             print("Invalid zip file. Omitting it.")
 
-    # If the server port was not defined, set it to  (9000 + 2 * slot_number)
+    # If the server port was not defined, set it to a default value
     if args.server_port is None:
-        # Either the IP address or the RSSI lane number must be defined.
+        # When using a real target (AMC carrier or dev board), set the server port to
+        # (9000 + 2 * slot_number). Either the IP address or the RSSI lane number
+        # must be defined, so calculate the slot number based on those two cases
         if args.pcie_rssi_lane:
             # If the RSSI lane number was defined, get the slot number from it
             args.server_port = 9000 + 2 * ( args.pcie_rssi_lane + 2 )
-        else:
+        elif args.ip_addr:
             # Otherwise, get th slot number from the last digit of the IP address
             args.server_port = 9000 + 2 * int(args.ip_addr[-1:])
+        # Otherwise, for the emulator target set the server port to 9000.
+        # This target doesn't require IP address nor RSSI lane.
+        else:
+            args.server_port = 9000
 
     return args
 
@@ -175,6 +194,9 @@ def make_parser(parser=None):
     group.add_argument('--disable-bay1', action='store_true',
                        help="Disable the instantiation of devices for Bay 1"
                        )
+    group.add_argument('--enable-em22xx', action='store_true',
+                       help="Enable the EM22xx power monitor"
+                       )
     group.add_argument('--windows-title', '-w', default=None,
                        help="Sets the GUI windows title. Defaults to name of this script. "
                             "This value will be ignored when running in server mode."
@@ -192,6 +214,10 @@ def make_parser(parser=None):
                        )
     group.add_argument('--use-qt', action='store_true', dest='use_qt',
                        default=False, help="Use the QT ."
+                       )
+    group.add_argument('--log-level', type=str.upper, help="Set the logging level.",
+                       choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
+                       default="WARNING"
                        )
 
     return parser

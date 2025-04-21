@@ -16,8 +16,8 @@ wait_btw_subbands_sec=0.1
 # if you want only N tones per band, set this
 # to N.  Otherwise you'll get the max possible,
 # if None.  Only used if one_subband_at_a_time is False
-restrict_nper_band=None
-#restrict_nper_band=231
+#restrict_nper_band=None
+restrict_nper_band=231
 
 print('filling bands %s'%str(band))
 
@@ -29,14 +29,13 @@ n_channels_per_subband=int(S.get_number_channels()/S.get_number_sub_bands())
 tone_spacing=subband_half_width/float(n_channels_per_subband)
 foffs=np.array([ch*tone_spacing for ch in range(n_channels_per_subband)])
 foffs-=np.max(foffs)/2.
- 
+
 asa0=S.get_amplitude_scale_array(band)
 cfa0=S.get_center_frequency_array(band)
 asa=np.empty_like(asa0)
 cfa=np.empty_like(cfa0)
 cfa[:]=cfa0
 asa[:]=asa0
-
 
 subbands=np.arange(S.get_number_sub_bands())
 processed_channels = S.get_processed_channels()
@@ -57,10 +56,10 @@ for sb in subbands:
         if one_subband_at_a_time:
             print('-> Setting band {}, subband {}.'.format(band,sb))
             S.set_center_frequency_array(band,cfa)
-            S.set_amplitude_scale_array(band,asa)        
+            S.set_amplitude_scale_array(band,asa)
             time.sleep(wait_btw_subbands_sec)
             #input('Press return to continue to next subband...')
-        
+
 if not one_subband_at_a_time:
     if restrict_nper_band is not None:
         print('-> Restricting nchan to %d.'%restrict_nper_band)
@@ -71,6 +70,6 @@ if not one_subband_at_a_time:
         channels2kill=random.sample(list(assigned_channels),n2kill)
         cfa[channels2kill]=0
         asa[channels2kill]=0
-    
+
     S.set_center_frequency_array(band,cfa)
     S.set_amplitude_scale_array(band,asa)

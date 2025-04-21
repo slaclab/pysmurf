@@ -13,15 +13,30 @@
 # copied, modified, propagated, or distributed except according to the terms
 # contained in the LICENSE.txt file.
 #-----------------------------------------------------------------------------
-from .logger import SmurfLogger
 from pysmurf.client.command.cryo_card import CryoCard
-
 from pysmurf.client.util.pub import Publisher
+from .logger import SmurfLogger
 
-class SmurfBase(object):
-    '''
+class SmurfBase:
+    """
     Base class for common things
-    '''
+
+    Args
+    ----
+    log : log file or None, optional, default None
+        The log file to write to. If None, creates a new log file.
+    epics_root : str or None, optional, default None
+        The name of the epics root. For example "test_epics".
+    offline : bool, optional, default False
+        Whether to run in offline mode (no rogue) or not. This
+        will break many things. Default is False.
+    pub_root : str or None, optional, default None
+        Root of environment vars to set publisher options. If
+        None, the default root will be `SMURFPUB_`.
+    script_id : str or None, optional, default None
+        Script id included with publisher messages. For example,
+        the script or operation name.
+    """
 
     _base_args = ['verbose', 'logfile', 'log_timestamp', 'log_prefix',
                   'load_configs', 'log', 'layout']
@@ -46,20 +61,8 @@ class SmurfBase(object):
     def __init__(self, log=None, epics_root=None, offline=False,
                  pub_root=None, script_id=None, **kwargs):
         """
-        Opt Arguments
-        --------------
-        log (log file) : The log file to write to. If None, creates a new log
-            file.
-        epics_root (str) : The name of the epics root. For example "test_epics".
-        offline (bool) : Whether to run in offline mode (no rogue) or not. This
-            will break many things. Default is False.
-        pub_root (str):
-            Root of environment vars to set publisher options. If None, the
-            default root will be "SMURFPUB_".
-        script_id (str):
-            Script id included with publisher messages. For example, the
-            script or operation name.
         """
+
         # Set up logging
         self.log = log
         if self.log is None:
@@ -78,13 +81,21 @@ class SmurfBase(object):
             self.log('Offline mode')
 
 
-        # Setting paths for easier commands - Is there a better way to do this
-        # than just hardcoding paths? This needs to be cleaned up somehow
+        # Setting paths for easier commands - Is there a better way to
+        # do this than just hardcoding paths? This needs to be cleaned
+        # up somehow
 
-        self.epics_root = epics_root
+        if epics_root is not None:
+            self.epics_root = epics_root
 
         self.amcc = self.epics_root + ':AMCc:'
+
+        self.smurf_application = self.amcc + 'SmurfApplication:'
+
         self.smurf_processor = self.amcc + 'SmurfProcessor:'
+        self._predata_emulator = self.smurf_processor + 'PreDataEmulator:'
+        self._postdata_emulator = self.smurf_processor + 'PostDataEmulator:'
+        self.stream_data_source = self.amcc + 'StreamDataSource:'
         self.channel_mapper = self.smurf_processor + 'ChannelMapper:'
         self.frame_rx_stats = self.smurf_processor + 'FrameRxStats:'
 
@@ -133,7 +144,7 @@ class SmurfBase(object):
         self.crossbar = self.amccc + 'AxiSy56040:'
 
         # Regulator
-        self.regulator = self.amccc + 'IntelEnpirion:'
+        self.regulator = self.amccc + 'EM22xx:'
 
         # CarrierBsi
         self.amc_carrier_bsi = self.amccc + 'AmcCarrierBsi:'
@@ -166,33 +177,34 @@ class SmurfBase(object):
 
         # Timing paths
         self.amctiming = self.amccc + 'AmcCarrierTiming:'
-        self.trigger_root =  self.amctiming + 'EvrV2CoreTriggers:'
+        self.trigger_root = self.amctiming + 'EvrV2CoreTriggers:'
         self.timing_status = self.amctiming + 'TimingFrameRx:'
 
         self.C = CryoCard(self.rtm_spi_cryo_root + 'read',
-            self.rtm_spi_cryo_root + 'write')
+                          self.rtm_spi_cryo_root + 'write',
+                          log=self.log)
         self.freq_resp = {}
 
         # RTM slow DAC parameters (used, e.g., for TES biasing). The
         # DACs are AD5790 chips
-        self._rtm_slow_dac_max_volt=10. # Max unipolar DAC voltage,
+        self._rtm_slow_dac_max_volt = 10. # Max unipolar DAC voltage,
                                         # in Volts
-        self._rtm_slow_dac_nbits=20
+        self._rtm_slow_dac_nbits = 20
         # x2 because _rtm_slow_dac_max_volt is the maximum *unipolar*
         # voltage.  Units of Volt/bit
-        self._rtm_slow_dac_bit_to_volt=( 2*self._rtm_slow_dac_max_volt /
-                                         ( 2**( self._rtm_slow_dac_nbits ) ) )
+        self._rtm_slow_dac_bit_to_volt = (2*self._rtm_slow_dac_max_volt/
+                                          (2**(self._rtm_slow_dac_nbits)))
 
         # LUT table length for arbitrary waveform generation
-        self._lut_table_array_length=2048
+        self._lut_table_array_length = 2048
 
     def init_log(self, verbose=0, logger=SmurfLogger, logfile=None,
                  log_timestamp=True, log_prefix=None, **kwargs):
         """
         Initialize the logger from the input keyword arguments.
 
-        Arguments
-        ---------
+        Args
+        ----
         logger : logging class, optional
             Class to initialize, should be a subclass of SmurfLogger
             or equivalent.
@@ -247,12 +259,12 @@ class SmurfBase(object):
         '''
         Helper function that returns the epics path to a band.
 
-        Args:
-        -----
+        Args
+        ----
         band (int): The band to access
 
-        Returns:
-        --------
+        Returns
+        -------
         path (string) : The string to be passed to caget/caput to access
             the input band.
         '''
@@ -262,12 +274,12 @@ class SmurfBase(object):
         '''
         Helper function that returns the epics path to cryoroot.
 
-        Args:
-        -----
+        Args
+        ----
         band (int): The band to access
 
-        Returns:
-        --------
+        Returns
+        -------
         path (string) : The string to be passed to caget/caput to access
             the input band.
         '''
@@ -277,13 +289,13 @@ class SmurfBase(object):
         """
         Helper function that returns the epics path to channel root.
 
-        Args:
-        -----
+        Args
+        ----
         band (int) : The band to access
         channel (int) : The channel to access.
 
-        Returns:
-        --------
+        Returns
+        -------
         path (string) : The string to be passed to caget/caput to access
             the input band.
         """

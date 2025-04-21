@@ -16,3 +16,6 @@
 # copied, modified, propagated, or distributed except according to the terms
 # contained in the LICENSE.txt file.
 #-----------------------------------------------------------------------------
+
+from . import _version
+__version__ = _version.get_versions()['version']

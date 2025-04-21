@@ -1,4 +1,8 @@
-numpy
-scipy
-pyepics
 matplotlib
+numpy
+packaging
+pyepics
+pyyaml
+schema
+scipy
+seaborn

@@ -16,16 +16,15 @@
 # copied, modified, propagated, or distributed except according to the terms
 # contained in the LICENSE.txt file.
 #-----------------------------------------------------------------------------
-
-import rogue
 import pyrogue
 import pyrogue.utilities.fileio
+import pyrogue.interfaces.stream
 
-import smurf
-import smurf.core.processors
 import pysmurf.core.counters
 import pysmurf.core.conventers
 import pysmurf.core.emulators
+import smurf
+import smurf.core.processors
 
 class SmurfChannelMapper(pyrogue.Device):
     """
@@ -37,11 +36,13 @@ class SmurfChannelMapper(pyrogue.Device):
 
         # Add the number of enabled channels  variable
         self.add(pyrogue.LocalVariable(
+            # NumChannels is defined here and accessible from pysmurf.
             name='NumChannels',
             description='Number enabled channels',
             mode='RO',
             value=0,
             pollInterval=1,
+            # getNumCh is defined in SmurfProcessor.cpp.
             localGet=self.device.getNumCh))
 
         # Add "payloadSize" variable
@@ -105,14 +106,42 @@ class Downsampler(pyrogue.Device):
             localSet=lambda value: self.device.setDownsamplerDisable(value),
             localGet=self.device.getDownsamplerDisable))
 
-        # Add the filter order variable
+        # Add the trigger mode variable
         self.add(pyrogue.LocalVariable(
-            name='Factor',
-            description='Downsampling factor',
+            name='DownsamplerMode',
+            description='Mode for the downsampler.',
+            mode='RW',
+            enum={0:'Internal', 1:'External'},
+            value=0,
+            localSet=lambda value : self.device.setDownsamplerMode(value),
+            localGet=self.device.getDownsamplerMode))
+
+        self.add(pyrogue.LocalVariable(
+            name='InternalFactor',
+            description='When on internal mode, of incoming frames to ignore.',
             mode='RW',
             value=20,
-            localSet=lambda value : self.device.setFactor(value),
-            localGet=self.device.getFactor))
+            localSet=lambda value : self.device.setDownsamplerInternalFactor(value),
+            localGet=self.device.getDownsamplerInternalFactor))
+
+        self.add(pyrogue.LocalVariable(
+            name='ExternalBitmask',
+            description='Mask for the external timing bits, size 18. First 10 are fixed rates from 1 to 15 kHz, last 18 are custom rates. 0 means never trigger.',
+            mode='RW',
+            value=0,
+            localSet=lambda value : self.device.setDownsamplerExternalBitmask(value),
+            localGet=self.device.getDownsamplerExternalBitmask))
+
+        self.add(pyrogue.LocalVariable(
+            name='outgoingCount',
+            description='Outgoing number of frames from the downsampler.',
+            mode='RO',
+            value=0,
+            typeStr='UInt64',
+            pollInterval=1,
+            localGet=self.device.getDownsamplerOutgoingCount))
+
+
 
 class GeneralAnalogFilter(pyrogue.Device):
     """
@@ -199,11 +228,15 @@ class SmurfProcessor(pyrogue.Device):
 
     Args
     ----
-    name        (str)            : Name of the device
-    description (str)            : Description of the device
-    root        (pyrogue.Root)   : The pyrogue root. The configuration status of
-                                   this root will go to the data file as metadata.
-    txDevice    (pyrogue.Device) : A packet transmitter device
+    name : str
+        Name of the device.
+    description : str
+        Description of the device.
+    root : pyrogue.Root or None, optional, default None
+        The pyrogue root. The configuration status of this root will
+        go to the data file as metadata.
+    txDevice : pyrogue.Device or None, optional, default None
+        A packet transmitter device.
     """
     def __init__(self, name, description, root=None, txDevice=None, **kwargs):
         pyrogue.Device.__init__(self, name=name, description=description, **kwargs)
@@ -216,9 +249,13 @@ class SmurfProcessor(pyrogue.Device):
         self.smurf_frame_stats = pysmurf.core.counters.FrameStatistics(name="FrameRxStats")
         self.add(self.smurf_frame_stats)
 
-        # Add the SmurfProcessor C++ device. This module implements: channel mapping,
-        # data unwrapping, filter, and downsampling. Python wrapper for these functions
-        # are added here to give the same tree structure as the modular version.
+        # Add the SmurfProcessor C++ object. This is the .so file
+        # compiled by make, and Python finds it via PYTHONPATH. This
+        # module implements: channel mapping, data unwrapping, filter,
+        # and downsampling. Python wrapper for these functions are
+        # added here to give the same tree structure as the modular
+        # version. The functions are defined in setup_python in
+        # SmurfProcessor.cpp.
         self.smurf_processor = smurf.core.processors.SmurfProcessor()
 
         self.smurf_mapper = SmurfChannelMapper(name="ChannelMapper", device=self.smurf_processor)
@@ -246,36 +283,52 @@ class SmurfProcessor(pyrogue.Device):
         self.file_writer = pyrogue.utilities.fileio.StreamWriter(name='FileWriter')
         self.add(self.file_writer)
 
-        # Add a Fifo. It will hold up to 100 copies of processed frames, to be processed by
-        # downstream slaves. The frames will be tapped before the file writer.
-        self.fifo = rogue.interfaces.stream.Fifo(100,0,False)
-
         # Connect devices
         pyrogue.streamConnect(self.pre_data_emulator,  self.smurf_frame_stats)
         pyrogue.streamConnect(self.smurf_frame_stats,  self.smurf_processor)
         pyrogue.streamConnect(self.smurf_processor,    self.smurf_header2smurf)
         pyrogue.streamConnect(self.smurf_header2smurf, self.post_data_emulator)
         pyrogue.streamConnect(self.post_data_emulator, self.file_writer.getChannel(0))
-        pyrogue.streamTap(    self.post_data_emulator, self.fifo)
 
         # If a root was defined, connect it to the file writer, on channel 1
         if root:
             pyrogue.streamConnect(root, self.file_writer.getChannel(1))
 
-        # If a TX device was defined, add it to the tree
-        # and connect it to the chain, after the fifo
+        # If a transmitter device was defined, add it to the tree and connect it to the chain
         if txDevice:
             self.transmitter = txDevice
-            self.add(self.transmitter)
-            # Connect the data channel to the FIFO.
-            pyrogue.streamConnect(self.fifo, self.transmitter.getDataChannel())
-            # If a root was defined, connect  it to the meta channel.
+
+            # Add a fifo for the data frames. It will hold up to 100 copies of processed frames,
+            # to be send to the transmitter device. If the fifo is full, new frames will be dropped.
+            # The frames will be tapped after the data emulator, and before the file writer.
+            self.fifo_data = pyrogue.interfaces.stream.Fifo(
+                name='DataFifo', description="Data Fifo", maxDepth=100, trimSize=0, noCopy=False)
+            self.add(self.fifo_data)
+
+            # Tap the data frames at the output of the post data emulator, and send them to transmitter'
+            # data channel, though the fifo.
+            pyrogue.streamTap(    self.post_data_emulator, self.fifo_data)
+            pyrogue.streamConnect(self.fifo_data,          self.transmitter.getDataChannel())
+
+            # If a root was defined, connect  it to the transmitter's meta data channel.
             # Use streamTap as it was already connected to the file writer.
             if root:
-                pyrogue.streamTap(root, self.transmitter.getMetaChannel())
+                # Add a fifo for the meta data frames. It will hold up to 100 copies of the input frames,
+                # to be send to the transmitter device. If the fifo is full, new frames will be dropped.
+                # The frames will be tapped from the root, as the root was already connected to the file
+                # writer.
+                self.fifo_meta = pyrogue.interfaces.stream.Fifo(
+                    name='MetaFifo', description="Meta data Fifo", maxDepth=100, trimSize=0, noCopy=False)
+                self.add(self.fifo_meta)
 
-    def setTesBias(self, index, val):
-        self.smurf_header2smurf.setTesBias(index, val)
+                # Tap the metadata frames from the root, and send them to the transmitter's meta data
+                # channel, through the fifo.
+                pyrogue.streamTap(    root,           self.fifo_meta)
+                pyrogue.streamConnect(self.fifo_meta, self.transmitter.getMetaChannel())
+
+            # Add the transmitter device to the root here, after adding the fifos, so that it appears
+            # in the correct order in the rogue tree.
+            self.add(self.transmitter)
 
     def _getStreamSlave(self):
         """

@@ -5,16 +5,59 @@
 
 # From here: https://github.com/mhasself/stdpub/blob/master/pub.py
 
-import socket
+from functools import wraps
 import json
 import os
+import socket
 import sys
 import time
+
 import pysmurf
 
 DEFAULT_ENV_ROOT = 'SMURFPUB_'
 DEFAULT_UDP_PORT = 8200
 UDP_MAX_BYTES = 64000
+
+
+def set_action(action=None):
+    """
+        Decorator to set the publisher action string and action timestamp. This
+        provides a way to group all outputs/plots from a single function call
+        together. This decorator is to handle nested function calls, so even
+        if the `tune` function calls `find_freq`, all output will be grouped
+        in a single directory `<action_ts>_tune`.
+    """
+    def dec(func):
+
+        @wraps(func)
+        def wrapper(S, *args, pub_action=None, **kwargs):
+            nonlocal action
+
+            is_top = False
+            try:
+                if S.pub._action is None:
+                    is_top = True
+
+                    if pub_action:
+                        S.pub._action = pub_action
+                    elif action:
+                        S.pub._action = action
+                    else:
+                        S.pub._action = func.__name__
+
+                    S.pub._action_ts = S.get_timestamp()
+
+                rv = func(S, *args, **kwargs)
+
+            finally:
+                if is_top:
+                    S.pub._action = None
+                    S.pub._action_ts = None
+
+            return rv
+        return wrapper
+    return dec
+
 
 class Publisher:
     seq_no = 0
@@ -72,9 +115,12 @@ class Publisher:
             self._backend = self._backend_udp
 
         else:
-            sys.stderr.write('%s: no backend for "%s", selecting null Publisher.\n' %
-                             (self.__class__, backend))
+            sys.stderr.write(f'{self.__class__}: no backend for ' +
+                             f'"{backend}", selecting null Publisher.\n')
             self._backend = self._backend_null
+
+        self._action = None
+        self._action_ts = None
 
         # Issue the start message.
         self.log_start()
@@ -102,8 +148,8 @@ class Publisher:
         payload = bytes(json_msg, 'utf_8')
         if len(payload) > UDP_MAX_BYTES:
             # Can't send this; write to stderr and notify consumer.
-            error = 'Backend error: dropped large UDP packet (%i bytes).' % len(payload)
-            sys.stderr.write('%s %s' % (self, error))
+            error = f'Backend error: dropped large UDP packet ({len(payload)} bytes).'
+            sys.stderr.write(f'{self} {error}')
             self.publish({'message': error}, 'backend_error')
             return
         self.udp_sock.sendto(payload, (self.udp_ip, self.udp_port))
@@ -142,17 +188,17 @@ class Publisher:
         """
         Publishes file info so it can be picked up by the pysmurf-archiver.
 
-        Args:
-        -----
-        path (str):
-            full path to file.
-        type (str):
-            Type of data file, e.g. "tuning" or "config_snapshot"
-        format (str):
-            File extension. E.g. "npy" or "txt"
-        timestamp (float):
+        Args
+        ----
+        path : str
+            Full path to file.
+        type : str
+            Type of data file, e.g. "tuning" or "config_snapshot".
+        format : str
+            File extension. E.g. "npy" or "txt".
+        timestamp : float or None, optional, default None
             Unix timestamp when file was created.
-        plot (bool):
+        plot : bool, optional, default False
             True if file is a plot
         """
         if timestamp is None:
@@ -163,8 +209,10 @@ class Publisher:
             'type': type,
             'format': format,
             'timestamp': timestamp,
+            'action': self._action,
+            'action_ts': self._action_ts,
             'plot': plot,
-            'pysmurf_version': pysmurf.client.__version__
+            'pysmurf_version': pysmurf.__version__
         }
 
         return self.publish(file_data, 'data_file')

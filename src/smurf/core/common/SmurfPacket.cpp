@@ -20,9 +20,27 @@
 
 #include "smurf/core/common/SmurfPacket.h"
 
-SmurfPacketRO::SmurfPacketRO(ris::FramePtr frame)
+////////////////////////////////////////////
+// SmurfPacketManagerRO class definitions //
+////////////////////////////////////////////
+template<typename CreationPolicy>
+SmurfPacketManagerRO<CreationPolicy>::SmurfPacketManagerRO(ris::FramePtr frame)
 :
-    dataSize(0),
+    CreationPolicy(frame)
+{
+}
+
+template<typename CreationPolicy>
+SmurfPacketManagerROPtr<CreationPolicy> SmurfPacketManagerRO<CreationPolicy>::create(ris::FramePtr frame)
+{
+    return std::make_shared<SmurfPacketManagerRO>(frame);
+}
+
+///////////////////////////////////
+// CopyCreator class definitions //
+///////////////////////////////////
+CopyCreator::CopyCreator(ris::FramePtr frame)
+:
     header(SmurfHeaderRO<std::vector<uint8_t>::iterator>::SmurfHeaderSize)
 {
     // Get the frame size
@@ -41,7 +59,7 @@ SmurfPacketRO::SmurfPacketRO(ris::FramePtr frame)
     headerPtr = SmurfHeaderRO< std::vector<uint8_t>::iterator >::create(header);
 
     // Get the number of data channels in the packet and reserve space in the data buffer
-    dataSize = headerPtr->getNumberChannels();
+    std::size_t dataSize { headerPtr->getNumberChannels() };
 
     // Check if the frame size is at least enough to hold the number of channels defined in this header.
     // Frame padded to increase its size are allowed.
@@ -59,18 +77,54 @@ SmurfPacketRO::SmurfPacketRO(ris::FramePtr frame)
         data.push_back( *(reinterpret_cast<data_t*>( &(*(it + i * sizeof(data_t)) ) ) ) );
 }
 
-SmurfPacketROPtr SmurfPacketRO::create(ris::FramePtr frame)
-{
-    return std::make_shared<SmurfPacketRO>(frame);
-}
-
-SmurfPacketRO::HeaderPtr SmurfPacketRO::getHeader() const
+CopyCreator::HeaderPtr CopyCreator::getHeader() const
 {
     return headerPtr;
 }
 
-const SmurfPacketRO::data_t SmurfPacketRO::getData(std::size_t index) const
+const CopyCreator::data_t CopyCreator::getData(std::size_t index) const
 {
     return data.at(index);
 }
 
+///////////////////////////////////////
+// ZeroCopyCreator class definitions //
+///////////////////////////////////////
+ZeroCopyCreator::ZeroCopyCreator(ris::FramePtr frame)
+:
+    framePtr(frame),
+    headerPtr(SmurfHeaderRO<ris::FrameIterator>::create(frame)),
+    dataSize(dataSize = headerPtr->getNumberChannels())
+{
+    // Verify that the frame data area is contained in a single buffer
+    ris::FrameIterator frameIt { framePtr->beginRead() };
+    frameIt += SmurfHeaderRO<ris::FrameIterator>::SmurfHeaderSize;
+    if ( dataSize*sizeof(data_t) > frameIt.remBuffer() )
+        throw std::runtime_error("Trying to create a SmurfPacket object on a multi-buffer frame");
+
+    // Point the data pointer to the beginning of the frame data area
+    data = reinterpret_cast<data_t*>(frameIt.ptr());
+}
+
+ZeroCopyCreator::HeaderPtr ZeroCopyCreator::getHeader() const
+{
+    return headerPtr;
+}
+
+const ZeroCopyCreator::data_t ZeroCopyCreator::getData(std::size_t index) const
+{
+    // Verify that the index in not out of the packet range
+    if (index >= dataSize)
+        throw std::runtime_error("Trying to read data from a SmurfPacket with an index out of range.");
+
+    return data[index];
+}
+
+std::vector<ZeroCopyCreator::data_t> ZeroCopyCreator::getAllData() const
+{
+    return std::vector<data_t>(data, data+dataSize);
+}
+
+// Explicit template instantiations
+template class SmurfPacketManagerRO<CopyCreator>;
+template class SmurfPacketManagerRO<ZeroCopyCreator>;

@@ -16,11 +16,11 @@
 # copied, modified, propagated, or distributed except according to the terms
 # contained in the LICENSE.txt file.
 #-----------------------------------------------------------------------------
-
-import time
 import threading
-import rogue
+import time
+
 import pyrogue
+import rogue
 
 class KeepAlive(rogue.interfaces.stream.Master, threading.Thread):
     """

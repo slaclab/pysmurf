@@ -42,8 +42,8 @@ def eta_scan(epics_path, subchan, freqs, drive):
     #epics.camonitor(epics_path + "etaScanResultsReal", writer=None, on_change)
     epics.caput(epics_path + "runEtaScan", 1)
 
-    I = epics.caget(epics_path + "etaScanResultsReal", count = len(freqs))
-    Q = epics.caget(epics_path + "etaScanResultsImag", count = len(freqs))
+    I = epics.caget(epics_path + "etaScanResultsReal", count = len(freqs), use_monitor=False)
+    Q = epics.caget(epics_path + "etaScanResultsImag", count = len(freqs), use_monitor=False)
 
     epics.camonitor_clear(epics_path + "etaScanResultsReal")
 
@@ -152,14 +152,14 @@ class etaParams(SmurfStage):
 
         off(self.bandNo)
 
-        bandCenterMHz = epics.caget(baseRootPath + 'bandCenterMHz')
-        n_channels = epics.caget(baseRootPath + 'numberChannels')
-        n_subbands = epics.caget(baseRootPath + 'numberSubBands')
+        bandCenterMHz = epics.caget(baseRootPath + 'bandCenterMHz', use_monitor=False)
+        n_channels = epics.caget(baseRootPath + 'numberChannels', use_monitor=False)
+        n_subbands = epics.caget(baseRootPath + 'numberSubBands', use_monitor=False)
 
         n_channelspersubband = n_channels // n_subbands
         max_channelspersubband = n_channelspersubband # not sure how long we need this constraint
 
-        digitizerFreqMHz = epics.caget(baseRootPath, 'digitizerFrequencyMHz')
+        digitizerFreqMHz = epics.caget(baseRootPath, 'digitizerFrequencyMHz', use_monitor=False)
         subBandHalfWidthMHz = digitizerFreqMHz / n_subbands
 
         subbandchans = np.zeros((1, n_subbands))
@@ -175,9 +175,9 @@ class etaParams(SmurfStage):
 
     def run_old(self):
         n_channels = epics.caget(self.epics_root + SysgenCryo \
-                + "numberChannels") # should be 512 for a 500MHz band
+                + "numberChannels", use_monitor=False) # should be 512 for a 500MHz band
         n_subbands = epics.caget(self.epics_root + SysgenCryo \
-                + "numberSubBands") # is 32 right now
+                + "numberSubBands", use_monitor=False) # is 32 right now
 
         n_subchannels = n_channels / n_subbands # 16
 
@@ -201,9 +201,9 @@ class etaParams(SmurfStage):
             sweep_df = 0.005 # default to 5 kHz
 
         band_center = epics.caget(self.epics_root + SysgenCryo \
-                + "bandCenterMHz") 
+                + "bandCenterMHz", use_monitor=False) 
         subband_order = epics.caget(self.epics_root + SysgenCryo \
-                + "subBandOrder")
+                + "subBandOrder", use_monitor=False)
 
         results = np.zeros((len(freqs), 7))
 

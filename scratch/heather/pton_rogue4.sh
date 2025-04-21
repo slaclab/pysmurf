@@ -2,7 +2,8 @@
 # Drop into rogue 3 configuration 
 wd=$PWD
 PYSMURF=R4-rc1
-PYROGUE=dev_fw/v4.0.0-rc7
+#PYROGUE=dev_fw/v4.0.0-rc15
+PYROGUE=dev_fw/slotN/v4.0.0-rc21
 STARTUP_CFG=pton/pton_smurf_startup.cfg
 PYSMURF_CFG=pton/experiment_pd009_cc02-01_lbOnlyBay0_r4.cfg
 

@@ -1,4 +1,4 @@
-FROM tidair/smurf-base:R1.0.0
+FROM tidair/smurf-base:R2.0.0
 
 RUN apt-get update && \
     DEBIAN_FRONTEND=noninteractive \
@@ -10,7 +10,18 @@ RUN apt-get update && \
     python3-matplotlib \
  && rm -rf /var/lib/apt/lists/*
 
-RUN pip3 install scipy pandas pyyaml seaborn jupyter pytest
+RUN pip3 install --upgrade pip
+
+RUN pip3 install \
+    scipy==1.5.2 \
+    pandas==1.1.0 \
+    PyYAML==5.3.1 \
+    pillow==6.2.2 \
+    seaborn==0.11.2 \
+    jupyter==1.0.0 \
+    pytest==6.0.1 \
+    GitPython==3.1.7 \
+    schema==0.7.1
 
 # Install pysmurf
 ARG branch

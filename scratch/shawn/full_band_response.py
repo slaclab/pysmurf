@@ -3,6 +3,12 @@
 import time
 import numpy as np
 import sys
+import os
+import matplotlib.pylab as plt
+
+print("Inside full_band_response.py. Starting.")
+
+plt.ion()
 
 n_scan_per_band=5
 wait_btw_bands_sec=5
@@ -20,13 +26,19 @@ for band in bands:
     resp_dict[band]={}
     resp_dict[band]['fc']=S.get_band_center_mhz(band)
 
-    f,resp=S.full_band_resp(band=band, make_plot=False, show_plot=False, n_scan=n_scan_per_band, timestamp=timestamp)
+    f,resp=S.full_band_resp(band=band, make_plot=False, show_plot=False, n_scan=n_scan_per_band, timestamp=timestamp, save_data=True)
     resp_dict[band]['f']=f
     resp_dict[band]['resp']=resp
     
     time.sleep(wait_btw_bands_sec)
 
 fig, ax = plt.subplots(2, figsize=(6,7.5), sharex=True)
+
+try:
+    plt.suptitle(f'slot={S.slot_number} AMC0={S.get_amc_sn(0,use_shell=True)} AMC2={S.get_amc_sn(1,use_shell=True)}')
+except:
+    plt.suptitle(f'slot={S.slot_number}')
+    print("!!! AMC FRU information not accessible!")
 
 ax[0].set_title(f'Full band response {timestamp}')
 last_angle=None
@@ -50,15 +62,22 @@ ax[1].legend(loc='lower left',fontsize=8)
 ax[1].set_ylabel("phase [rad]")
 ax[1].set_xlabel('Frequency [MHz]')
     
-plt.tight_layout()
 save_name = '{}_full_band_resp_all.png'.format(timestamp)
+plt.title(save_name)
+
+plt.tight_layout()
+
 print(f'Saving plot to {os.path.join(S.plot_dir, save_name)}')
 plt.savefig(os.path.join(S.plot_dir, save_name), 
             bbox_inches='tight')
-#plt.show()
+plt.show()
+
+save_name = os.path.join(S.output_dir,'{}_full_band_resp_all.npy'.format(timestamp))
+print(f'Saving data to {os.path.join(S.output_dir, save_name)}')
+np.save(save_name,resp_dict)
 
 # log plot file
-logf=open('scratch/shawn/scripts/loop_full_band_resps.txt','a+')
+logf=open('/data/smurf_data/smurf_loop.log','a+')
 logf.write(f'{os.path.join(S.plot_dir, save_name)}'+'\n')
 logf.close()
 

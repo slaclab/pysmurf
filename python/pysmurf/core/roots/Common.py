@@ -18,10 +18,11 @@
 #-----------------------------------------------------------------------------
 
 import pyrogue
-import pysmurf
 import rogue.hardware.axi
 import rogue.protocols.srp
 
+import pysmurf
+import pysmurf.core.devices
 import pysmurf.core.utilities
 
 class Common(pyrogue.Root):
@@ -38,10 +39,12 @@ class Common(pyrogue.Root):
                  VariableGroups = None,
                  server_port    = 0,
                  pcie           = None,
+                 disable_bay0   = False,
+                 disable_bay1   = False,
                  **kwargs):
 
         pyrogue.Root.__init__(self, name="AMCc", initRead=True, pollEn=polling_en,
-            streamIncGroups='stream', serverPort=server_port, **kwargs)
+            timeout=5.0, streamIncGroups='stream', serverPort=server_port, **kwargs)
 
         #########################################################################################
         # The following interfaces are expected to be defined at this point by a sub-class
@@ -85,27 +88,6 @@ class Common(pyrogue.Root):
         # so we need to tapping it to the data writer.
         pyrogue.streamTap(self._streaming_stream, self._stm_interface_writer.getChannel(0))
 
-        # TES Bias Update Function
-        # smurf_processor bias index 0 = TesBiasDacDataRegCh[2] - TesBiasDacDataRegCh[1]
-        # smurf_processor bias index l = TesBiasDacDataRegCh[4] - TesBiasDacDataRegCh[3]
-        def _update_tes_bias(idx):
-            v1 = self.FpgaTopLevel.AppTop.AppCore.RtmCryoDet.RtmSpiMax.node(f'TesBiasDacDataRegCh[{(2*idx)+2}]').value()
-            v2 = self.FpgaTopLevel.AppTop.AppCore.RtmCryoDet.RtmSpiMax.node(f'TesBiasDacDataRegCh[{(2*idx)+1}]').value()
-            val = (v1 - v2) // 2
-
-            # Pass to data processor
-            self._smurf_processor.setTesBias(index=idx, val=val)
-
-        # Register TesBias values configuration to update stream processor
-        # Bias values are ranged 1 - 32, matching tes bias indexes 0 - 16
-        for i in range(1,33):
-            idx = (i-1) // 2
-            try:
-                v = self.FpgaTopLevel.AppTop.AppCore.RtmCryoDet.RtmSpiMax.node(f'TesBiasDacDataRegCh[{i}]')
-                v.addListener(lambda path, value, lidx=idx: _update_tes_bias(lidx))
-            except Exception:
-                print(f"TesBiasDacDataRegCh[{i}] not found... Skipping!")
-
         # Run control for streaming interfaces
         self.add(pyrogue.RunControl(
             name='streamRunControl',
@@ -139,20 +121,23 @@ class Common(pyrogue.Root):
         # Add epics interface
         self._epics = None
         if epics_prefix:
-            print("Starting EPICS server using prefix \"{}\"".format(epics_prefix))
-            self._epics = pyrogue.protocols.epics.EpicsCaServer(base=epics_prefix, root=self)
+            print(f"Starting EPICS server using prefix \"{epics_prefix}\"")
+            from pyrogue.protocols import epics
+            self._epics = epics.EpicsCaServer(base=epics_prefix, root=self)
             self._pv_dump_file = pv_dump_file
 
             # PVs for stream data
             # This should be replaced with DataReceiver objects
             if stream_pv_size:
-                print("Enabling stream data on PVs (buffer size = {} points, data type = {})"
-                    .format(stream_pv_size,stream_pv_type))
+                print(
+                    "Enabling stream data on PVs " +
+                    f"(buffer size = {stream_pv_size} points, " +
+                    f"data type = {stream_pv_type})")
 
                 self._stream_fifos  = []
                 self._stream_slaves = []
                 for i in range(4):
-                    self._stream_slaves.append(self._epics.createSlave(name="AMCc:Stream{}".format(i),
+                    self._stream_slaves.append(self._epics.createSlave(name=f"AMCc:Stream{i}",
                                                                        maxSize=stream_pv_size,
                                                                        type=stream_pv_type))
 
@@ -193,6 +178,9 @@ class Common(pyrogue.Root):
                 description='Restart RSSI Link',
                 function=lambda : self._pcie.restart_rssi))
 
+        # List of enabled bays
+        self._enabled_bays = [i for i,e in enumerate([disable_bay0, disable_bay1]) if not e]
+
     def start(self):
         pyrogue.Root.start(self)
 
@@ -204,14 +192,17 @@ class Common(pyrogue.Root):
             print("")
             print("FPGA image build information:")
             print("===================================")
-            print("BuildStamp              : {}"
-                .format(self.FpgaTopLevel.AmcCarrierCore.AxiVersion.BuildStamp.get()))
-            print("FPGA Version            : 0x{:x}"
-                .format(self.FpgaTopLevel.AmcCarrierCore.AxiVersion.FpgaVersion.get()))
-            print("Git hash                : 0x{:x}"
-                .format(self.FpgaTopLevel.AmcCarrierCore.AxiVersion.GitHash.get()))
+            print(
+                "BuildStamp              : " +
+                f"{self.FpgaTopLevel.AmcCarrierCore.AxiVersion.BuildStamp.get()}")
+            print(
+                "FPGA Version            : 0x" +
+                f"{self.FpgaTopLevel.AmcCarrierCore.AxiVersion.FpgaVersion.get():x}")
+            print(
+                "Git hash                : 0x" +
+                f"{self.FpgaTopLevel.AmcCarrierCore.AxiVersion.GitHash.get():x}")
         except AttributeError as attr_error:
-            print("Attibute error: {}".format(attr_error))
+            print(f"Attibute error: {attr_error}")
         print("")
 
         # Start epics
@@ -229,7 +220,28 @@ class Common(pyrogue.Root):
         if self._configure:
             self.setDefaults.call()
 
+        # Update the 'EnabledBays' variable with the correct list of enabled bays.
+        self.SmurfApplication.EnabledBays.set(self._enabled_bays)
 
+        # Workaround: Set the Mask value to '[0]' by default when the server starts.
+        # This is needed because the pysmurf-client by default stat data streaming
+        # @4kHz without setting this mask, which by default has a value of '[0]*4096'.
+        # Under these conditions, the software processing block is not able to keep
+        # up, eventually making the PCIe card's buffer to get full, and that triggers
+        # some known issues in the PCIe FW.
+        self.SmurfProcessor.ChannelMapper.Mask.set([0])
+
+        # Check if the 'AppTop.JesdHelath' command exist. The 'self._jesd_health_found'
+        # flag will indicated if it was found, and if it was found, a reference to the
+        # command will be available in 'self._jesd_health_cmd'.
+        c = self.FpgaTopLevel.AppTop.find(name='^JesdHealth$', typ=pyrogue.Command, recurse=False)
+        if c:
+            self._jesd_health_found = True
+            self._jesd_health_cmd = c[0]
+        else:
+            self._jesd_health_found = False
+            # Set the status register to 'Not found'.
+            self.SmurfApplication.JesdStatus.set(3)
 
     def stop(self):
         print("Stopping servers...")
@@ -239,12 +251,150 @@ class Common(pyrogue.Root):
         print("Stopping root...")
         pyrogue.Root.stop(self)
 
+    # Method to load the configuration file, catching exceptions and checking the
+    # return value of "LoadConfig", and trying if there were errors, up to
+    # "max_retries" times.
+    # This method returns "True" if the configuration file was load correctly, or
+    # "False" otherwise.
+    def _load_config(self):
+        success = False
+        max_retries = 4
+
+        for i in range(max_retries):
+            print(f'Setting defaults from file {self._config_file} (try number {i})')
+
+            try:
+                # Try to load the defaults file
+                ret = self.LoadConfig(self._config_file)
+
+                # Check the return value from 'LoadConfig'.
+                if not ret:
+                    print(f'\nSetting defaults try number {i} failed. "LoadConfig" returned "False"\n')
+                else:
+                    success = True
+                    break
+            except Exception as e:
+                print(f'\nERROR: Setting defaults try number {i} failed with: {e}\n')
+
+        # Check if we could load the defaults before 'max_retries' retires.
+        if success:
+            print('Defaults were set correctly!')
+            return True
+        else:
+            print(f'\nERROR: Failed to set defaults after {max_retries} retries. Aborting!\n')
+            return False
+
+    # Method to check the status of the elastic buffers. It must be called after
+    # loading configuration. If the test fails, it will retry to reload the configuration
+    # up to "max_retries" times.
+    # This method returns "True" if the check passed, or "False" otherwise.
+    def _check_elastic_buffers(self):
+        success = False
+        max_retries = 10
+
+        for k in range(max_retries):
+            print(f'Check elastic buffers (try number {k})...')
+            retry_load_config = False
+
+            # Check the buffers in all the enabled bays
+            for i in self._enabled_bays:
+                # Workaround: Reading the individual registers does not work. So, we need to read
+                # the whole device, and then use the 'value()' method to get the register values.
+                self.FpgaTopLevel.AppTop.AppTopJesd[i].JesdRx.ReadDevice()
+
+                for j in range(10):
+                    # Check if the latency values are correct. The latency values should be:
+                    # - 13 or 14, for lanes = 0:1,4:9
+                    # - 255, for lanes 2:3
+                    latency = self.FpgaTopLevel.AppTop.AppTopJesd[i].JesdRx.ElBuffLatency[j].value()
+                    latency_ok = False
+
+                    if j in [2,3]:
+                        if latency == 255:
+                            latency_ok = True
+                    else:
+                        if latency in [13,14]:
+                            latency_ok = True
+
+                    if latency_ok:
+                        print(f'  OK - JesdRx[{i}].ElBuffLatency[{j}] = {latency}')
+                    else:
+                        print(f'  Test failed. JesdRx[{i}].ElBuffLatency[{j}] = {latency}')
+                        retry_load_config = True
+
+            # If the check failed, try to reload the configuration again
+            if retry_load_config:
+                # Not need to reload defaults if the last iteration test fails
+                if k < max_retries - 1:
+                    print('Check failed. Trying to reload the configuration again...\n')
+                    if not self._load_config():
+                        break
+            else:
+                success = True
+                break
+
+        # Check if the test passed before 'max_retries' retries
+        if success:
+            print('Elastic buffer check passed!')
+            return True
+        else:
+            print(f'\nERROR: Elastic buffer check failed {max_retries} times')
+            return False
+
     # Function for setting a default configuration.
+    # It returns "True" if the configuration was set correctly, or
+    # "False" otherwise
     def _set_defaults_cmd(self):
+
+        # Set the "ConfiguringInProgress" flag to "True" to indicate
+        # the start of the system configuration sequence.
+        self.SmurfApplication.ConfiguringInProgress.set(True)
+
+        # Set the "SystemConfigured" flag to "False". It will set to "True"
+        # at the end of this method, if the setup success.
+        self.SmurfApplication.SystemConfigured.set(False)
+
+        # Flag to indicate the final state of the system
+        # configuration sequence (True = success)
+        success = True
+
         # Check if a default configuration file has been defined
         if self._config_file is None:
-            print('No default configuration file was specified...')
-            return
+            print('\nERROR: No default configuration file was specified. Aborting!\n')
+            success = False
 
-        print('Setting defaults from file {}'.format(self._config_file))
-        self.LoadConfig(self._config_file)
+        # Try to load the configuration file, if the file was defined
+        if success:
+            if not self._load_config():
+                print('Aborting!\n')
+                success = False
+
+        # After loading defaults successfully, check the status of the elastic buffers
+        if success:
+            if not self._check_elastic_buffers():
+                print('Aborting!\n')
+                success = False
+
+        # Set the "SystemConfigured" flag to the final state of the
+        # configuration sequence.
+        self.SmurfApplication.SystemConfigured.set(success)
+
+        # If the 'AppTop.JesdHelath' was found, update the JESD status register as well
+        # as 'AppTop.JesdHelth' is called as part of the configuration process
+        if self._jesd_health_found:
+            self.SmurfApplication.JesdStatus.set(success)
+
+        # Set the "ConfiguringInProgress" flag to "False" to indicate
+        # the end of the system configuration sequence
+        self.SmurfApplication.ConfiguringInProgress.set(False)
+
+    # Function to call the 'AppTop.JesdHelth' command and, based on its returned value,
+    # set the appropriate value in the status register 'SmurfApplication.JesdStatus'
+    def _check_jesd_health(self):
+        # Check if the 'AppTop.JesdHelath' was found. Otherwise do not do anything.
+        if self._jesd_health_found:
+            # Set the status to "Checking"
+            self.SmurfApplication.JesdStatus.set(2)
+            # Call the command and set the status to the returned value
+            # False = 'Unlocked', True: 'Locked'
+            self.SmurfApplication.JesdStatus.set(self._jesd_health_cmd.call())

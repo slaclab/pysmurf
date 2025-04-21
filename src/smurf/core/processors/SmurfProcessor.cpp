@@ -20,14 +20,25 @@
 
 #include <boost/python.hpp>
 #include "smurf/core/processors/SmurfProcessor.h"
+#include <iostream>
+#include <string>
 
 namespace scp = smurf::core::processors;
 
+// This is the init function for the SmurfProcessor. These functions
+// are exposed by setup_python below, and the whole class is
+// instantiated by the SmurfProcessor python class which inherits the
+// pyrogue Device type. Typically either CmbEth.py or CmbPcie.py will
+// intantiate the SmurfProcessor object. To be clear, it's Rogue that
+// starts the SMuRF C++ code.
+
+// SmurfProcessor: https://github.com/slaclab/pysmurf/blob/c4b191d1bf49f49d137f8771dbfe70d0a50a11c0/python/pysmurf/core/devices/_SmurfProcessor.py
+// Examples: https://slaclab.github.io/rogue/custom_module/wrapper.html
+// CmbEth: https://github.com/slaclab/pysmurf/blob/c4b191d1bf49f49d137f8771dbfe70d0a50a11c0/python/pysmurf/core/roots/CmbEth.py
 scp::SmurfProcessor::SmurfProcessor()
 :
     ris::Slave(),
     ris::Master(),
-    frameBuffer(SmurfHeader<std::vector<uint8_t>::iterator>::SmurfHeaderSize + maxNumCh * sizeof(fw_t),0),
     numCh(maxNumCh),
     payloadSize(0),
     mask(numCh,0),
@@ -41,13 +52,16 @@ scp::SmurfProcessor::SmurfProcessor()
     gain(1),
     a( order + 1 ,1 ),
     b( order + 1, 1 ),
-    currentBlockIndex(order),
-    x( (order +1) * numCh ),
-    y( (order +1) * numCh ),
+    currentIndex(0),
+    x( ( order + 1 ) * numCh ),
+    y( ( order + 1 ) * numCh ),
     outData(numCh,0),
     disableDownsampler(false),
+    downsamplerMode(0),
     factor(20),
-    sampleCnt(0),
+    downsamplerInternalCount(0),
+    externalBitmask(0),
+    downsamplerOutgoingCount(0),
     headerCopy(SmurfHeader<std::vector<uint8_t>::iterator>::SmurfHeaderSize, 0),
     runTxThread(true),
     txDataReady(false),
@@ -63,6 +77,8 @@ scp::SmurfProcessorPtr scp::SmurfProcessor::create()
     return std::make_shared<SmurfProcessor>();
 }
 
+// This defines the functions exposed to SmurfProcessor.py.
+// See the Rogue documentation for details.
 void scp::SmurfProcessor::setup_python()
 {
     bp::class_< scp::SmurfProcessor,
@@ -95,8 +111,13 @@ void scp::SmurfProcessor::setup_python()
         // Downsampler variables
         .def("setDownsamplerDisable",   &SmurfProcessor::setDownsamplerDisable)
         .def("getDownsamplerDisable",   &SmurfProcessor::getDownsamplerDisable)
-        .def("setFactor",               &SmurfProcessor::setFactor)
-        .def("getFactor",               &SmurfProcessor::getFactor)
+        .def("setDownsamplerMode",      &SmurfProcessor::setDownsamplerMode)
+        .def("getDownsamplerMode",      &SmurfProcessor::getDownsamplerMode)
+        .def("setDownsamplerInternalFactor",    &SmurfProcessor::setDownsamplerInternalFactor)
+        .def("getDownsamplerInternalFactor",    &SmurfProcessor::getDownsamplerInternalFactor)
+        .def("getDownsamplerExternalBitmask", &SmurfProcessor::getDownsamplerExternalBitmask)
+        .def("setDownsamplerExternalBitmask", &SmurfProcessor::setDownsamplerExternalBitmask)
+        .def("getDownsamplerOutgoingCount", &SmurfProcessor::getDownsamplerOutgoingCount)
     ;
     bp::implicitly_convertible< scp::SmurfProcessorPtr, ris::SlavePtr  >();
     bp::implicitly_convertible< scp::SmurfProcessorPtr, ris::MasterPtr >();
@@ -377,8 +398,8 @@ const double scp::SmurfProcessor::getGain() const
 void scp::SmurfProcessor::resetFilter()
 {
     // Resize and re-initialize the data buffer
-    std::vector<double>( (order + 1) * numCh ).swap(x);
-    std::vector<double>( (order + 1) * numCh ).swap(y);
+    std::vector<double>( ( order + 1 ) * numCh ).swap(x);
+    std::vector<double>( ( order + 1 ) * numCh ).swap(y);
 
     // Use the mutex to update the outData buffer
     {
@@ -397,7 +418,7 @@ void scp::SmurfProcessor::resetFilter()
         b.resize(order +  1, 0);
 
     // Reset the index of the older point in the buffer
-    currentBlockIndex = 0;
+    currentIndex = 0;
 }
 
 // Reset the filter but holding the mutex. This is need when reseting the
@@ -421,7 +442,20 @@ const bool scp::SmurfProcessor::getDownsamplerDisable() const
     return disableDownsampler;
 }
 
-void scp::SmurfProcessor::setFactor(std::size_t f)
+void scp::SmurfProcessor::setDownsamplerMode(std::size_t mode) {
+  downsamplerMode = mode;
+
+  if (mode == downsamplerModeInternal) {
+    setDownsamplerInternalCount(0);
+  }
+}
+
+const std::size_t scp::SmurfProcessor::getDownsamplerMode() const
+{
+    return downsamplerMode;
+}
+
+void scp::SmurfProcessor::setDownsamplerInternalFactor(std::size_t f)
 {
     // Check if the factor is 0
     if (0 == f)
@@ -433,56 +467,73 @@ void scp::SmurfProcessor::setFactor(std::size_t f)
 
     factor = f;
 
-    // When the factor is changed, reset the counter.
-    resetDownsampler();
+    // When the factor is changed, reset the internal counter.
+    setDownsamplerInternalCount(0);
 }
 
-const std::size_t scp::SmurfProcessor::getFactor() const
-{
+const std::size_t scp::SmurfProcessor::getDownsamplerInternalFactor() const {
     return factor;
 }
 
-void scp::SmurfProcessor::resetDownsampler()
+void scp::SmurfProcessor::setDownsamplerInternalCount(std::size_t c)
 {
-    sampleCnt = 0;
+    downsamplerInternalCount = c;
+}
+
+const std::size_t scp::SmurfProcessor::getDownsamplerInternalCount() const {
+  return downsamplerInternalCount;
+}
+
+void scp::SmurfProcessor::setDownsamplerExternalBitmask(std::size_t m)
+{
+    externalBitmask = m;
+}
+
+const std::size_t scp::SmurfProcessor::getDownsamplerExternalBitmask() const
+{
+    return externalBitmask;
+}
+
+const std::size_t scp::SmurfProcessor::getDownsamplerOutgoingCount() const
+{
+    return downsamplerOutgoingCount;
 }
 
 void scp::SmurfProcessor::acceptFrame(ris::FramePtr frame)
 {
+    // Release the GIL
+    rogue::GilRelease noGil;
+
     std::size_t frameSize;
 
-    // Copy the frame into a STL container
+    // Hold the frame lock
+    ris::FrameLockPtr lockFrame{frame->lock()};
+
+    // Check for frames with errors or flags
+    if ( frame->getError() || ( frame->getFlags() & 0x100 ) )
     {
-        // Hold the frame lock
-        ris::FrameLockPtr lockFrame{frame->lock()};
-
-        // Check for frames with errors or flags
-        if ( frame->getError() || ( frame->getFlags() & 0x100 ) )
-        {
-            eLog_->error("Received frame with errors and/or flags");
-            return;
-        }
-
-        // Get the frame size
-        frameSize = frame->getPayload();
-
-        // Check if the frame size is lower than the header size
-        if ( frameSize < SmurfHeader<std::vector<uint8_t>::iterator>::SmurfHeaderSize )
-        {
-            eLog_->error("Received frame with size lower than the header size. Received frame size=%zu, expected header size=%zu",
-                frameSize, SmurfHeader<std::vector<uint8_t>::iterator>::SmurfHeaderSize);
-            return;
-        }
-
-        // Copy using BufferIterators in combination with std::copy for performance reasons
-        std::vector<uint8_t>::iterator outIt(frameBuffer.begin());
-        for (ris::Frame::BufferIterator inIt=frame->beginBuffer(); inIt != frame->endBuffer(); ++inIt)
-            outIt = std::copy((*inIt)->begin(), (*inIt)->endPayload(), outIt);
+        eLog_->error("Received frame with errors and/or flags");
+        return;
     }
+
+    // Get the frame size
+    frameSize = frame->getPayload();
+
+    // Check if the frame size is lower than the header size
+    if ( frameSize < SmurfHeader<std::vector<uint8_t>::iterator>::SmurfHeaderSize )
+    {
+        eLog_->error("Received frame with size lower than the header size. Received frame size=%zu, expected header size=%zu",
+            frameSize, SmurfHeader<std::vector<uint8_t>::iterator>::SmurfHeaderSize);
+        return;
+    }
+
+    // Create a FrameAccessor object to access the frame data.
+    ris::FrameIterator frameIt { frame->begin() };
+    ris::FrameAccessor<uint8_t> frameAccessor { frameIt, static_cast<uint32_t>(frameSize) };
 
     // Do sanity checks on the incoming frame
     // - The frame has at least the header, so we can construct a (smart) pointer to it
-    SmurfHeaderPtr<std::vector<uint8_t>::iterator> header { SmurfHeader<std::vector<uint8_t>::iterator>::create(frameBuffer) };
+    SmurfHeaderPtr<ris::FrameIterator> header { SmurfHeader<ris::FrameIterator>::create(frame) };
 
     // - Read the number of channel from the header
     uint32_t numChannels { header->getNumberChannels() };
@@ -507,52 +558,59 @@ void scp::SmurfProcessor::acceptFrame(ris::FramePtr frame)
 
     // Acquire the channel mapper lock. We acquired here, so that is hold during the hold frame processing chain,
     // to avoid the 'numCh' parameter to be changed during that time.
-    std::lock_guard<std::mutex> lockParam(mutChMapper);
+    std::lock_guard<std::mutex> lockMapper(mutChMapper);
 
     // Map and unwrap data at the same time
     {
+        // Acquire the lock while the unwrapper vectors are used.
+        // Acquire this lock outside the loop, to increase performance.
+        std::lock_guard<std::mutex> lock(mutUnwrapper);
+
         // Move the current data to the previous data
         previousData.swap(currentData);
 
-        // Begining of the data area in the frameBuffer
-        std::vector<uint8_t>::iterator inIt(frameBuffer.begin() + SmurfHeader<std::vector<uint8_t>::iterator>::SmurfHeaderSize);
+        // Beginning of the data area in the frame, using the FrameAccessor
+        std::vector<uint8_t>::const_iterator inIt(frameAccessor.begin() + SmurfHeader<std::vector<uint8_t>::iterator>::SmurfHeaderSize);
 
-        // Output channel index
-        std::size_t i{0};
+        // Build iterator to the data vectors
+        std::vector<fw_t>::iterator     currentIt  { currentData.begin()  };
+        std::vector<fw_t>::iterator     previousIt { previousData.begin() };
+        std::vector<unwrap_t>::iterator inputIt    { inputData.begin()    };
+        std::vector<unwrap_t>::iterator wrapIt     { wrapCounter.begin()  };
 
         // Map and unwrap data in a single loop
         for(auto const& m : mask)
         {
             // Get the mapped value from the framweBuffer and cast it
-            // Reinterpret the bytes from the frameBuffer to 'fw_t' values. And the cast that value to 'unwrap_t' values
-            currentData.at(i) = *(reinterpret_cast<fw_t*>(&(*( inIt + m * sizeof(fw_t) ))));
-            inputData.at(i) = static_cast<unwrap_t>(currentData.at(i));
+            // Reinterpret the bytes from the frame to 'fw_t' values. And the cast that value to 'unwrap_t' values
+            *currentIt = *(reinterpret_cast<const fw_t*>(&(*( inIt + m * sizeof(fw_t) ))));
+            *inputIt = static_cast<unwrap_t>(*currentIt);
 
             // Unwrap the value is the unwrapper is not disabled.
             // If it is disabled, don't do anything to the data
             if (!disableUnwrapper)
             {
-                // Acquire the lock while the unwrapper vectors are used
-                std::lock_guard<std::mutex> lock(mutUnwrapper);
-
                 // Check if the value wrapped
-                if ((currentData.at(i) > upperUnwrap) && (previousData.at(i) < lowerUnwrap))
+                if ((*currentIt > upperUnwrap) && (*previousIt < lowerUnwrap))
                 {
                     // Decrement wrap counter
-                    wrapCounter.at(i) -= stepUnwrap;
+                    *wrapIt -= stepUnwrap;
                 }
-                else if ((currentData.at(i) < lowerUnwrap) && (previousData.at(i) > upperUnwrap))
+                else if ((*currentIt < lowerUnwrap) && (*previousIt > upperUnwrap))
                 {
                     // Increment wrap counter
-                    wrapCounter.at(i) += stepUnwrap;
+                    *wrapIt += stepUnwrap;
                 }
 
                 // Add the wrap counter to the value
-                inputData.at(i) += wrapCounter.at(i);
+                *inputIt += *wrapIt;
             }
 
             // increase output channel index
-            ++i;
+            ++currentIt;
+            ++previousIt;
+            ++inputIt;
+            ++wrapIt;
         }
 
         // Update the number of channels in the header
@@ -565,77 +623,158 @@ void scp::SmurfProcessor::acceptFrame(ris::FramePtr frame)
         if (!disableFilter)
         {
             // Acquire the lock while the filter parameters are used.
-            std::lock_guard<std::mutex> lockParam(mutFilter);
+            std::lock_guard<std::mutex> lockFilter(mutFilter);
 
-            // Update the 'current' index to the oldest slot in the buffer
-            currentBlockIndex = (currentBlockIndex + 1) % (order + 1);
+            // Acquire the lock for the unwrapper, as we are using the 'inputData' vector.
+            std::lock_guard<std::mutex> lockUnwrapper(mutUnwrapper);
 
-            // Get index to the current data block
-            std::size_t currentBlockPointer{currentBlockIndex * numCh};
+            // The pass sample buffer x and y have the following structure:
+            //
+            //  |     .....    |     .....    |      ...     |     .....    |
+            //  ^              ^              ^              ^              ^
+            //  |--------------|--------------|              |--------------|
+            //     (order + 1)    (order + 1)                  (order + 1)
+            //    Pass samples   Pass samples                  Pass samples
+            //    of channel 0   of channel 1                  of channel (numCh-1)
+            //  ^                                                           ^
+            //  |-----------------------------------------------------------|
+            //                    ( ( order + 1 ) * numCh )
+            //
+            // Each block of (order + 1) values container the current values plus the pass
+            // (order) values of each channel, as a circular buffer.
+            // The 'currentIndex' variable contains the index of the current sample (time = 0).
+            // The value at index (currentIndex - 1) will be the sample at time = -1.
+            // The value at index (currentIndex + 1) will be the sample at time = -order.
+
+            // Copy the 'order' value to a local variable. This improve the performance of this function.
+            std::size_t order_copy { order };
+
+            // Move the 'currentIndex' index to the oldest slot in the buffer
+            if (currentIndex == order_copy)
+                currentIndex = 0;
+            else
+                ++currentIndex;
 
             // Create iterators
-            auto xIt(x.begin());
-            auto yIt(y.begin());
-            auto aIt(a.begin());
-            auto bIt(b.begin());
-            auto dataIt(inputData.begin());
+            std::vector<double>::iterator         xCh    { x.begin() + currentIndex };  // Current X value, first channel
+            std::vector<double>::iterator         yCh    { y.begin() + currentIndex };  // Current Y value, first channel
+            std::vector<double>::const_iterator   aIt    { a.begin()                };  // A coefficients
+            std::vector<double>::const_iterator   bIt    { b.begin()                };  // B coefficients
+            std::vector<unwrap_t>::const_iterator dataIt { inputData.begin()        };  // Input data
 
-            // Iterate over the channel samples
-            for (std::size_t ch{0}; ch < numCh; ++ch)
+            // First, update the first points in the x and y buffers for all channels.
+
+            // On each cycle, move the iterators to the next channel, which is in the
+            // next block of size (order + 1)
+            for (std::size_t ch{0}; ch < numCh; ++ch, xCh += order_copy + 1, yCh += order_copy + 1)
             {
-                // Cast the input value to double into the output buffer
-                *(xIt + currentBlockPointer) = static_cast<double>( *dataIt );
+                // New input value
+                *xCh = static_cast<double>(*dataIt++);
 
-                // Start computing the output value
-                *(yIt + currentBlockPointer) = *bIt * *(xIt + currentBlockPointer);
+                // Stat computing the output value
+                *yCh= *bIt * *xCh;
+            }
 
-                // Iterate over the pass samples
-                for (std::size_t t{1}; t < order + 1; ++t)
+            // Now calculate the output value based on previous values from time -1 to -order
+            // for all channels.
+
+            // Index to the previous sample. It will be updated inside the loop
+            std::size_t previousIndex { currentIndex };
+
+            // Create iterator
+            std::vector<double>::const_iterator xChPrev; // Previous X value, first channel
+            std::vector<double>::const_iterator yChPrev; // Previous Y value, first channel
+
+            // We first iterate over all the previous samples.
+            for (std::size_t t{1}; t < order + 1; ++t)
+            {
+                // Get the index to the previous sample
+                if (previousIndex == 0)
+                    previousIndex = order_copy;
+                else
+                    --previousIndex;
+
+                // Update the iterators each time we move to a previous sample
+                yCh     = y.begin() + currentIndex;  // Go back to first channel
+                xChPrev = x.begin() + previousIndex; // Go back to first channel
+                yChPrev = y.begin() + previousIndex; // Go back to first channel
+                ++aIt;                               // Go the next coefficient
+                ++bIt;                               // Go the next coefficient
+
+                // Update the output value for all channels. On each cycle, move the iterators
+                // to the next channel, which is in the next block of size (order + 1)
+                for (std::size_t ch{0}; ch < numCh; ++ch, yCh += order_copy + 1, xChPrev += order_copy + 1, yChPrev += order_copy + 1)
                 {
-                    // Compute the correct index in the 'circular' buffer
-                    std::size_t passBlockIndex{ ( ( order + currentBlockIndex - t + 1 ) % (order + 1) ) * numCh };
-
-                    *(yIt + currentBlockPointer) += *(bIt + t) * *(xIt + passBlockIndex)
-                        - *(aIt + t) * *(yIt + passBlockIndex);
+                    *yCh += *bIt * *xChPrev - *aIt * *yChPrev;
                 }
+            }
 
-                // Divide the resulting value by the first a coefficient
-                *(yIt + currentBlockPointer) /= *(aIt);
+            // Finally, divide the results for all channels by the coefficient a[0].
 
-                //Move to the next channel sample
-                ++xIt;
-                ++yIt;
-                ++dataIt;
+            // On each cycle, move the iterator to the next channel, which is in
+            // the next block of size (order + 1)
+            yCh = y.begin() + currentIndex;     // Go back to the first channel
+            for (std::size_t ch{0}; ch < numCh; ++ch, yCh += order_copy + 1)
+            {
+                *yCh /= a[0];
             }
         }
-
     } // filter parameter lock scope
 
     // Downsample the data, if the downsampler is not disabled.
     // Otherwise, the data will be send on each cycle.
     if (!disableDownsampler)
     {
-        // Downsampler. If we haven't reached the factor counter, we don't do anything
-        // When we reach the factor counter, we send the resulting frame.
-        if (++sampleCnt < factor)
-            return;
 
-        // Reset the downsampler
-        resetDownsampler();
+        if (downsamplerMode == downsamplerModeExternal) {
+            // Read the averaging reeset bits from the header.  The
+	    // first 10 bits are fixed rate markers, the next 18 are
+	    // sequence markers.
+            std::size_t externalBits { header->getTimingBits() };
+
+	    // Mask it. E.g. If the mask is 2, then externalBits is 2
+	    // for only one frame, which might for example trigger at
+	    // 2 kHz.
+            externalBits &= externalBitmask;
+
+	    // Ignore frames where the masked bits aren't equal to the mask.
+            if (externalBits != externalBitmask)
+                return;
+
+        } else if (downsamplerMode == downsamplerModeInternal) {
+            // Use the counter in this program to trigger.
+	    ++downsamplerInternalCount;
+	  
+            if (downsamplerInternalCount < factor)
+                return;
+
+            // Set the counter to 0.
+	    setDownsamplerInternalCount(0);
+        }
+
+        // Increase until the next trigger.
+        ++downsamplerOutgoingCount;
     }
 
     // Give the data to the Tx thread to be sent to the next slave.
     {
+        // Wait for the TX thread to finish sending the previous data.
+        std::unique_lock<std::mutex> lock(txMutex);
+        txCV.wait( lock, [this]{ return !txDataReady; } );
+    }
+    {
+        std::lock_guard<std::mutex> lock(txMutex);
+
         // Copy the header
-        std::copy(frameBuffer.begin(), frameBuffer.begin() + SmurfHeader<std::vector<uint8_t>::iterator>::SmurfHeaderSize, headerCopy.begin());
+        std::copy(frameAccessor.begin(), frameAccessor.begin() + SmurfHeader<std::vector<uint8_t>::iterator>::SmurfHeaderSize, headerCopy.begin());
 
         // Copy the data
         {
-            // Iterator to the current output buffer
-            auto yIt(y.begin() + currentBlockIndex * numCh);
-
             // Hold the mutex while we copy the data
-            std::lock_guard<std::mutex> lock(outDataMutex);
+            std::lock_guard<std::mutex> lockData(outDataMutex);
+
+            // Acquire the lock for the unwrapper, as we are using the 'inputData' vector.
+            std::lock_guard<std::mutex> lockUnwrapper(mutUnwrapper);
 
             // Check if the filter was disabled. If it was disabled, use the 'inputData' vector as source.
             // Otherwise, use the 'y' vector, applying the gain and casting.
@@ -647,20 +786,26 @@ void scp::SmurfProcessor::acceptFrame(ris::FramePtr frame)
             }
             else
             {
+                // Create iterators
+                std::vector<double>::const_iterator yCh(y.begin() + currentIndex); // Filtered value, first channel
+                std::vector<filter_t>::iterator     outIt(outData.begin());        // Destination
+
                 // Multiply the values by the gain, and cast the result
-                // to 'filter_t' into he outData buffer
-                std::transform( y.begin() + currentBlockIndex * numCh,
-                    y.begin() + currentBlockIndex * numCh + numCh,
-                    outData.begin(),
-                    [this](const double& v) -> filter_t { return static_cast<filter_t>(v * gain); });
+                // to 'filter_t' into he outData buffer.
+                // The current filtered values for each channel will be located at steps of (order+1) in the 'y' buffer.
+                // On each cycle, move the iterator to the next channel, which is in
+                // the next block of size (order + 1)
+                for (std::size_t ch{0}; ch < numCh; ++ch, yCh += order + 1)
+                {
+                    *outIt++ = static_cast<filter_t>(*yCh * gain);
+                }
             }
         }
 
-        // Notify the Tx thread that new data is ready
         txDataReady = true;
-        std::unique_lock<std::mutex> lock(txMutex);
-        txCV.notify_all();
     }
+    // Notify the Tx thread that new data is ready
+    txCV.notify_one();
 }
 
 void scp::SmurfProcessor::pktTansmitter()
@@ -670,14 +815,9 @@ void scp::SmurfProcessor::pktTansmitter()
     // Infinite loop
     for(;;)
     {
-        // Check if new data is ready
-        if ( !txDataReady )
-        {
-            // Wait until data is ready, with a 10s timeout
-            std::unique_lock<std::mutex> lock(txMutex);
-            txCV.wait_for( lock, std::chrono::seconds(10) );
-        }
-        else
+        // Wait until data is ready, with a 10s timeout
+        std::unique_lock<std::mutex> lock(txMutex);
+        if(txCV.wait_for( lock, std::chrono::seconds(10), [this]{ return txDataReady; } ))
         {
             // Output frame size. Start with the size of the header
             std::size_t outFrameSize = SmurfHeaderRO<std::vector<uint8_t>::iterator>::SmurfHeaderSize;
@@ -704,17 +844,24 @@ void scp::SmurfProcessor::pktTansmitter()
 
             // Copy the data to the output frame
             {
-                std::lock_guard<std::mutex> lock(outDataMutex);
-                std::size_t i{0};
-                for(auto it = outData.begin(); it != outData.end(); ++it)
-                    helpers::setWord<filter_t>(outFrameIt, i++, *it);
+                std::lock_guard<std::mutex> lockData(outDataMutex);
+
+                // Get a pointer to the underlying bytes of the outData vector. In this way,
+                // we can memcopy the data to the output frame payload area, using a pointer as
+                // well) directly.
+                uint8_t *outDataPtr { reinterpret_cast< uint8_t* >( outData.data() ) };
+                std::memcpy(outFrameIt.ptr(), outDataPtr, outData.size()*sizeof(filter_t));
             }
 
             // Send the frame to the next slave.
             sendFrame(outFrame);
 
-            // Clear the flag
+            // Notify the main thread that we can receive new data
+            // Manual unlocking is done before notifying, to avoid waking up
+            // the waiting thread only to block again (see notify_one for details)
             txDataReady = false;
+            lock.unlock();
+            txCV.notify_one();
         }
 
         // Check if we should stop the loop

@@ -18,6 +18,7 @@
 #-----------------------------------------------------------------------------
 
 import pyrogue
+
 import smurf
 
 class FrameStatistics(pyrogue.Device):
@@ -43,6 +44,7 @@ class FrameStatistics(pyrogue.Device):
             description='Frame counter',
             mode='RO',
             value=0,
+            typeStr='UInt64',
             pollInterval=1,
             localGet=self._FrameStatistics.getFrameCnt))
 

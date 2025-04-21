@@ -38,14 +38,10 @@ if __name__ == "__main__":
                          pv_dump_file   = args['pv_dump_file'],
                          disable_bay0   = args['disable_bay0'],
                          disable_bay1   = args['disable_bay1'],
+                         server_port    = args['server_port'],
                          txDevice       = pysmurf.core.transmitters.BaseTransmitter(name='Transmitter')) as root:
-
-        # Add dummy TES bias values ([-8:7]), for testing purposes.
-        for i in range(16):
-            root._smurf_processor.setTesBias(index=i, val=(i-8))
 
         # Start the GUI
         import pyrogue.gui
         print("Starting GUI...\n")
         pyrogue.gui.runGui(root=root)
-

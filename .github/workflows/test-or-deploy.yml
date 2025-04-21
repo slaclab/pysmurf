@@ -1,0 +1,351 @@
+#-----------------------------------------------------------------------------
+# Title      : test-or-deploy
+#-----------------------------------------------------------------------------
+# File       : test-or-deploy.yml
+# Created    : 2020-11-23
+#-----------------------------------------------------------------------------
+# Description:
+#    Test or deploy releases of pysmurf using GitHub Actions.
+#-----------------------------------------------------------------------------
+# This file is part of the smurf software platform. It is subject to
+# the license terms in the LICENSE.txt file found in the top-level directory
+# of this distribution and at:
+#    https://confluence.slac.stanford.edu/display/ppareg/LICENSE.html.
+# No part of the smurf software platform, including this file, may be
+# copied, modified, propagated, or distributed except according to the terms
+# contained in the LICENSE.txt file.
+#-----------------------------------------------------------------------------
+
+name: test-or-deploy
+on: [push, pull_request]
+
+jobs:
+
+  # Tests
+
+  # Run flake8 on all .py files. Should block deploys to Read The Docs.
+  flake8:
+    name: Flake8 Tests
+    runs-on: ubuntu-20.04
+    steps:
+      # Checkout the code
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      # Setup python3
+      - name: setup python 3.8.10
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.8.10
+
+      # Install flake8 modules
+      - name: Install dependencies
+        run: |
+          python -m pip install \
+            flake8-rst-docstrings \
+            flake8-sfs \
+            flake8-import-order
+
+      # Run Flake 8 tests
+      - name: Flake8
+        run: flake8 --count python/
+
+  # Validate the server docker image definitions
+  docker-definitions:
+    name: Docker Definition Tests
+    runs-on: ubuntu-20.04
+    steps:
+      # Checkout the code.
+      # We use ssh key authentication to be able to access other private
+      # repositories (like the firmware repository).
+      - name: Checkout code
+        uses: actions/checkout@v2
+        with:
+          ssh-key: ${{ secrets.SLACLAB_KEY }}
+
+      # Validate the server 'definitions.sh' file.
+      # Note about tokens: In this stage we need to use the SLACLAB TOKEN
+      # to be able to access the other private repositories (GITHUB_TOKEN
+      # only gives access to this repository).
+      - name: Validate the server definitions
+        shell: bash
+        env:
+          SWH76_TOKEN: ${{ secrets.SWH76_TOKEN }}
+        run: |
+          cd docker/server/
+          ./validate.sh
+          cd -
+
+  # Documentation automatic build tests
+  test-docs:
+    name: Documentation Build Tests
+    runs-on: ubuntu-20.04
+    needs: [flake8, docker-definitions]   # Run only if all checks passed
+    steps:
+      # Checkout the code
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      # Setup python 3.8.10
+      - name: Setup python 3.8.10
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.8.10
+
+      # Install requirements, pysmurf, and sphinx
+      - name: Install dependencies
+        run: |
+          python -m pip install -r requirements.txt
+          python -m pip install .
+          python -m pip install sphinx
+
+      # Try to build the documentation
+      - name: Build documentation
+        run: |
+          cd docs
+          make html
+
+  # Server tests
+  test-server:
+    name: Server Tests
+    runs-on: ubuntu-20.04
+    needs: [flake8, docker-definitions]   # Run only if all checks passed
+    steps:
+      # Checkout the code
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      # Setup Docker build environment
+      - name: Set up docker build enviroment
+        uses: docker/setup-buildx-action@v1
+
+      # Extract the branch name.
+      # - For PR, the branch name is "github.head_ref"
+      # - For non-pull-request builds, the BRANCH_NAME env var will be empty.
+      #   Extract it from GITHUB_REF in the format of refs/heads/<branch-name>
+      - name: Get branch name
+        id: branch_name
+        env:
+          BRANCH_NAME: ${{ github.head_ref }}
+        run: |
+          echo ::set-output name=branch::"${BRANCH_NAME:-$(echo $GITHUB_REF | awk 'BEGIN { FS = "/" } ; { $1=$2=""; sub("  ",""); gsub(" ","/"); print }')}"
+
+      # Build docker image
+      - name: Build docker image
+        run: |
+          mkdir docker/server/local_files
+          docker image build \
+            --file ./docker/server/Dockerfile \
+            --build-arg branch=${{ steps.branch_name.outputs.branch }} \
+            --tag server_docker \
+            ./docker/server
+
+      # Start the docker container
+      - name: Start docker container
+        run: |
+          docker container run -dti --rm --name server \
+            --entrypoint bash \
+            server_docker
+
+      # Run tests in the server docker container:
+      # - Try to import the smurf module in the server container
+      - name: Test importing the smurf module
+        run: |
+          docker container exec server \
+            /bin/bash -c "python3 -c 'import rogue; import smurf;'"
+
+      # - Try to instantiate the pysmurf's SmurfProcessor module in the server container
+      - name: Test instantiating the SmurfProcessor module
+        run: |
+          docker container exec server \
+            /bin/bash -c "python3 -c 'import pysmurf.core.devices; \
+            s = pysmurf.core.devices.SmurfProcessor(name=\"\", description=\"\")'"
+
+      # - Run the 'validate_filter.py' test script
+      - name: Validate the SmurfProcessor filter
+        run: |
+          docker container exec server \
+            /bin/bash -c "/usr/local/src/pysmurf/tests/core/validate_filter.py"
+
+      # - Run the 'validate_unwrapper.py' test script
+      - name: Validate the SmurfProcessor unwrapper
+        run: |
+          docker container exec server \
+            /bin/bash -c "/usr/local/src/pysmurf/tests/core/validate_unwrapper.py"
+
+      # - Run the 'validate_base_tx.py' test script
+      - name: Validate the SmurfProcessor base transmitter
+        run: |
+          docker container exec server \
+            /bin/bash -c "/usr/local/src/pysmurf/tests/core/validate_base_tx.py"
+
+  # Client tests
+  test-client:
+    name: Client Tests
+    runs-on: ubuntu-20.04
+    needs: [flake8, docker-definitions]   # Run only if all checks passed
+    steps:
+      # Checkout the code
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      # Setup Docker build environment
+      - name: Set up docker build enviroment
+        uses: docker/setup-buildx-action@v1
+
+      # Extract the branch name.
+      # - For PR, the branch name is "github.head_ref"
+      # - For non-pull-request builds, the BRANCH_NAME env var will be empty.
+      #   Extract it from GITHUB_REF in the format of refs/heads/<branch-name>
+      - name: Get branch name
+        id: branch_name
+        env:
+          BRANCH_NAME: ${{ github.head_ref }}
+        run: |
+          echo ::set-output name=branch::"${BRANCH_NAME:-$(echo $GITHUB_REF | awk 'BEGIN { FS = "/" } ; { $1=$2=""; sub("  ",""); gsub(" ","/"); print }')}"
+
+      # Build docker image
+      - name: Build docker Image
+        run: |
+          docker image build \
+            --file ./docker/client/Dockerfile \
+            --build-arg branch=${{ steps.branch_name.outputs.branch }} \
+            --tag client_docker \
+            ./docker/client
+
+      # Start the docker container
+      - name: Start docker container
+        run: |
+          docker container run -dti --rm --name client \
+            --entrypoint bash \
+            client_docker
+
+      # Test docker image
+      # - Try to import the pysmurf.client module in the client container
+      #   Note: we need to disable the matplotlib graphics backend in order
+      #         to be able to run in the runner.
+      - name: Test docker container
+        run: |
+          docker container exec client \
+            /bin/bash -c "python3 -c 'import matplotlib; matplotlib.use(\"Agg\"); import pysmurf.client'"
+
+
+  # Deploy
+
+  # Deploy new release notes to GitHub
+  deploy-release-notes:
+    name: Generate Release Notes
+    runs-on: ubuntu-20.04
+    needs: [test-docs, test-server, test-client]  # Run only if all tests passed
+    if: startsWith(github.ref, 'refs/tags/')      # Run only on tagged releases
+    steps:
+      # Checkout the code
+      - name: Checkout code
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+
+      # Get the git tag from the environmental variables
+      # It will used to tag the docker image
+      - name: Get release tag
+        id: get_tag
+        run: echo ::set-output name=tag::"${GITHUB_REF#refs/tags/}"
+
+      # Setup python3
+      - name: Setup python 3.8.10
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.8.10
+
+      # Install dependencies of the releaseGen.py script
+      - name: Install dependencies
+        run: |
+          python -m pip install \
+            GitPython \
+            PyGithub
+
+      # Generate a release using the releaseGen.py script
+      - name: Generate release notes
+        env:
+          REPO_SLUG: ${{ github.repository }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.get_tag.outputs.tag }}
+        run: python releaseGen.py
+
+  # Server docker
+  deploy-server:
+    name: Build Server Docker Image
+    runs-on: ubuntu-20.04
+    needs: [test-docs, test-server, test-client]  # Run only if all tests passed
+    if: startsWith(github.ref, 'refs/tags/')      # Run only on tagged releases
+    steps:
+      # Checkout the code.
+      # We use ssh key authentication to be able to access other private
+      # repositories (like the firmware repository).
+      - name: Checkout code
+        uses: actions/checkout@v2
+        with:
+          ssh-key: ${{ secrets.SLACLAB_KEY }}
+
+      # Setup docker build environment
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v1
+
+      # Login to Dockerhub
+      - name: Login to Dockerhub
+        uses: docker/login-action@v1
+        with:
+          username: tidair
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      # Build and push the docker image
+      # Note about tokens: In this stage we need to use the SLACLAB TOKEN
+      # to be able to access the other private repositories (GITHUB_TOKEN
+      # only gives access to this repository).
+      - name: Build and push image to Dockerhub
+        id: build
+        shell: bash
+        env:
+          SWH76_TOKEN: ${{ secrets.SWH76_TOKEN }}
+        run: |
+          cd docker/server/
+          ./build.sh
+          cd -
+
+  # Client docker
+  deploy-client:
+    name: Build Client Docker Image
+    runs-on: ubuntu-20.04
+    needs: [test-docs, test-server, test-client]  # Run only if all tests passed
+    if: startsWith(github.ref, 'refs/tags/')      # Run only on tagged releases
+    steps:
+      # Checkout the code
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      # Get the git tag from the environmental variables
+      # It will used to tag the docker image
+      - name: Get release tag
+        id: get_tag
+        run: echo ::set-output name=tag::"${GITHUB_REF#refs/tags/}"
+
+      # Setup Docker build environment
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v1
+
+      # Login to Dockerhub
+      - name: Login to Dockerhub
+        uses: docker/login-action@v1
+        with:
+          username: tidair
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      # Build and push the docker image
+      - name: Build and push image to Dockerhub
+        uses: docker/build-push-action@v2
+        with:
+          context: ./docker/client
+          file: ./docker/client/Dockerfile
+          push: true
+          tags: tidair/pysmurf-client:${{ steps.get_tag.outputs.tag }}
+          build-args: branch=${{ steps.get_tag.outputs.tag }}

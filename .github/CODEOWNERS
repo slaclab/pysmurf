@@ -1,0 +1,13 @@
+# If these files are modified, tag only those users.
+/src/                   @aer7 @slacrherbst
+/include/               @aer7 @slacrherbst
+/python/pysmurf/core/   @aer7 @slacrherbst
+/docker/                @aer7 @slacrherbst
+/server_scripts/        @aer7 @slacrherbst
+/tests/core             @aer7 @slacrherbst
+/releaseGen.py          @aer7 @slacrherbst
+/README.*.md            @aer7 @slacrherbst
+/.github/               @swh76 @aer7 @slacrherbst
+
+# If no match, tag these.
+* @aer7 @swh76

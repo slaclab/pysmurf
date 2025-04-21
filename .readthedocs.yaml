@@ -1,0 +1,23 @@
+# .readthedocs.yaml
+# Read The Docs will parse this to update readthedocs.org/projects/pysmurf
+# Ref https://docs.readthedocs.io/en/stable/config-file/v2.html
+
+version: 2
+
+# Set the OS, Python version and other tools you might need
+build:
+  os: ubuntu-22.04
+  tools:
+    python: "3.12"
+
+sphinx:
+  configuration: docs/conf.py
+
+formats: all
+
+python:
+  install:
+    - method: pip
+      path: .
+    - requirements: docs/requirements.txt
+    - requirements: requirements.txt
