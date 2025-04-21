@@ -58,7 +58,7 @@ if __name__ == "__main__":
                       pcie_dev_data  = args['pcie_dev_data'],
                       configure      = args['configure'],
                       server_port    = args['server_port'],
-                      VariableGroups = VariableGroups
+                      VariableGroups = VariableGroups,
                       pcie           = pcie) as root:
 
             if args['use_gui']:
