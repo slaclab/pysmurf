@@ -603,7 +603,7 @@ class SmurfCommandMixin(SmurfBase):
             # Start by calling the 'setDefaults' command. Set the 'wait' flag
             # to wait for the command to finish, although the server usually
             # gets unresponsive during setup and the connection is lost.
-            self._caput('AMCc.setDefaults', 1, **kwargs)
+            self._caput('AMCc.setDefaults', 1, wait_done=True, **kwargs)
 
             # Now let's wait until the process is finished. We define a maximum
             # time we will wait, 400 seconds in this case
@@ -644,7 +644,7 @@ class SmurfCommandMixin(SmurfBase):
         Registers must updated in order to PVs to update.
         This call is necessary to read register with pollIntervale=0.
         """
-        self._caput('AMCc.ReadAll', 1, **kwargs)
+        self._caput('AMCc.ReadAll', 1, wait_after=20, **kwargs)
         self.log('ReadAll sent', self.LOG_INFO)
 
     def run_pwr_up_sys_ref(self,bay, **kwargs):
