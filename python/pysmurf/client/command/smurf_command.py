@@ -94,8 +94,8 @@ class SmurfCommandMixin(SmurfBase):
                 var.setDisp(val)
             elif cast_type:
                 # rogue is strict about variable types for arrays
-                if isinstance(val, np.ndarray):
-                    val = val.astype(var.value().dtype)
+                if isinstance(var.value(), np.ndarray):
+                    val = np.array(val).astype(var.value().dtype)
                 else:
                     # handle numpy scalar types
                     if isinstance(val, np.generic):
