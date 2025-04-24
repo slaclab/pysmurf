@@ -6156,6 +6156,8 @@ class SmurfCommandMixin(SmurfBase):
         mask : list
             The channel mask.
         """
+        # Smurf Processor stricly requires a python list
+        mask = [int(i) for i in mask]
         self._caput(
             self.smurf_processor + self._channel_mask_reg,
             mask, **kwargs)
