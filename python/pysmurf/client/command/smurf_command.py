@@ -78,7 +78,7 @@ class SmurfCommandMixin(SmurfBase):
             self.log(log_str, log_level)
 
         # execute the set
-        if not execute or self.offline:
+        if execute and not self.offline:
             # NB this used to support getting the _atca root, but I can't
             # find any instances of this actually being used
             var = self._client.root.getNode(pvname)
