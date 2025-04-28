@@ -379,6 +379,6 @@ if __name__ == "__main__":
                         raise Exception("Function check failed in file: " + fname) from e
                     foundfunc.add(node.name)
     if setspecclass != foundclass:
-        raise Exception("The following classes from the specified classes in the interface were not found:\n"+setspecclass-foundclass)
+        raise Exception(f"The following classes from the specified classes in the interface were not found:\n{setspecclass-foundclass}")
     if setspecfunc != foundfunc:
-        raise Exception("The following functions from the specified functions in the interface were not found:\n"+setspecfunc-foundfunc)
+        raise Exception(f"The following functions from the specified functions in the interface were not found:\n{setspecfunc-foundfunc}")
