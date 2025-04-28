@@ -1,0 +1,384 @@
+"""
+This script runs on a pull request to the GitHub repository and uses an
+Abstract Syntax Tree (AST) to checks that certain "frozen" functions have
+not had their arguments, names, or paths changed from how they are specified
+in the interface dictionary at the top of this script, as well as checking
+that the respective classes of those frozen functions have not had their
+name changed or their path changed.
+The interface dictionary contains nested dictionaries of the structure
+-->interface[File path][Class name][Function name][list of arguments, list of defaults]
+This script will only check the files, classes, and functions specified
+in the interface dictionary, but more files/classes/functions can be checked
+by adding the specified attributes that need to be frozen to the interface dictionary.
+"""
+import ast
+import os
+# functions and their arguments to check
+# specified here: https://www.overleaf.com/project/5e837cac9659910001e5f71e
+script_dir = os.path.dirname(os.path.abspath(__file__))
+interface = {
+    os.path.join(script_dir, '../../python/pysmurf/client/tune/smurf_tune.py'): {  # file
+        "SmurfTuneMixin": {                        # class
+            "plot_tune_summary": {                 # function and args
+                "args": [
+                    'self', 'band', 'eta_scan', 'show_plot', 'save_plot', 'eta_width', 'channels', 'plot_summary', 'plotname_append'
+                ],
+                "defaults": [
+                    'False', 'False', 'True', '0.3', 'None', 'True', "''"
+                ]
+            },
+            "full_band_resp": {
+                "args": [
+                    'self', 'band', 'n_scan', 'nsamp', 'make_plot', 'save_plot', 'show_plot', 'save_data', 'timestamp', 'save_raw_data', 'correct_att', 'swap', 'hw_trigger', 'write_log', 'return_plot_path', 'check_if_adc_is_saturated'
+                ],
+                "defaults": [
+                    '1', '2 ** 19', 'False', 'True', 'False', 'False', 'None', 'False', 'True', 'False', 'True', 'False', 'False', 'True'
+                ]
+            },
+            "tracking_setup": {
+                "args": [
+                    'self', 'band', 'channel', 'reset_rate_khz', 'write_log', 'make_plot', 'save_plot', 'show_plot', 'nsamp', 'lms_freq_hz', 'meas_lms_freq', 'meas_flux_ramp_amp', 'n_phi0', 'flux_ramp', 'fraction_full_scale', 'lms_enable1', 'lms_enable2', 'lms_enable3', 'feedback_gain', 'lms_gain', 'return_data', 'new_epics_root', 'feedback_start_frac', 'feedback_end_frac', 'setup_flux_ramp', 'plotname_append'
+                ],
+                "defaults": [
+                    'None', 'None', 'False', 'False', 'True', 'True', '2 ** 19', 'None', 'False', 'False', '4', 'True', 'None', 'True', 'True', 'True', 'None', 'None', 'True', 'None', 'None', 'None', 'True', "''"
+                ]
+            },
+            "flux_ramp_setup": {
+                "args": [
+                    'self', 'reset_rate_khz', 'fraction_full_scale', 'df_range', 'band', 'write_log', 'new_epics_root'
+                ],
+                "defaults": [
+                    '0.1', '2', 'False', 'None'
+                ]
+            },
+            "find_freq": {
+                "args": [
+                    'self', 'band', 'start_freq', 'stop_freq', 'subband', 'tone_power', 'n_read', 'make_plot', 'save_plot', 'plotname_append', 'window', 'rolling_med', 'make_subband_plot', 'show_plot', 'grad_cut', 'flip_phase', 'grad_kernel_width', 'amp_cut', 'pad', 'min_gap'
+                ],
+                "defaults": [
+                    '-250', '250', 'None', 'None', '2', 'False', 'True', "''", '50', 'True', 'False', 'False', '0.05', 'False', '8', '0.25', '2', '2'
+                ]
+            },
+            "setup_notches": {
+               "args": [
+                    'self', 'band', 'resonance', 'tone_power', 'sweep_width', 'df_sweep', 'min_offset', 'delta_freq', 'new_master_assignment', 'lock_max_derivative', 'scan_unassigned'
+                ],
+                "defaults": [
+                    'None', 'None', '0.3', '0.002', '0.1', 'None', 'False', 'False', 'False'
+                ] 
+            }
+        }
+    },
+    os.path.join(script_dir, '../../python/pysmurf/client/command/smurf_command.py'): {
+        "SmurfCommandMixin": {
+            "run_serial_eta_scan": {
+                "args": [
+                    'self', 'band', 'sync_group', 'timeout'
+                ],
+                "defaults": [
+                    'True', '240'
+                ],
+                "kwarg": 'True'
+            },
+            "run_serial_gradient_descent": {
+                "args": [
+                    'self', 'band', 'sync_group', 'timeout'
+                ],
+                "defaults": [
+                    'True', '240'
+                ],
+                "kwarg": 'True'
+            },
+            "set_amplitude_scale_array": {
+                "args": [
+                    'self', 'band', 'val'
+                ],
+                "defaults": [
+                ],
+                "kwarg": 'True'
+            },
+            "set_stream_enable": {
+                "args": [
+                    'self', 'val'
+                ],
+                "defaults": [
+                ],
+                "kwarg": 'True'
+            },
+            "set_amplifier_bias": {
+                "args": [
+                    'self', 'bias_hemt', 'bias_50k'
+                ],
+                "defaults": [
+                    'None', 'None'
+                ],
+                "kwarg": 'True'
+            },
+            "set_cryo_card_ps_en": {
+                "args": [
+                    'self', 'enable', 'write_log'
+                ],
+                "defaults": [
+                    '3', 'False'
+                ]
+            }
+        }
+    },
+    os.path.join(script_dir, '../../python/pysmurf/client/util/smurf_util.py'): {
+        "SmurfUtilMixin": {
+            "take_stream_data": {
+                "args": [
+                    'self', 'meas_time', 'downsample_factor', 'write_log', 'update_payload_size', 'reset_unwrapper', 'reset_filter', 'return_data', 'make_freq_mask', 'register_file'
+                ],
+                "defaults": [
+                    'None', 'True', 'True', 'True', 'True', 'False', 'True', 'False'
+                ]
+            },
+            "stream_data_on": {
+                "args": [
+                    'self', 'write_config', 'data_filename', 'downsample_factor', 'write_log', 'update_payload_size', 'reset_filter', 'reset_unwrapper', 'make_freq_mask', 'channel_mask', 'make_datafile', 'filter_wait_time'
+                ],
+                "defaults": [
+                    'False', 'None', 'None', 'True', 'True', 'True', 'True', 'True', 'None', 'True', '0.1'
+                ]
+            },
+            "stream_data_off": {
+                "args": [
+                    'self', 'write_log', 'register_file'
+                ],
+                "defaults": [
+                    'True', 'False'
+                ]
+            },
+            "read_stream_data": {
+                "args": [
+                    'self', 'datafile', 'channel', 'nsamp', 'array_size', 'return_header', 'return_tes_bias', 'write_log', 'n_max', 'make_freq_mask', 'gcp_mode'
+                ],
+                "defaults": [
+                    'None', 'None', 'None', 'False', 'False', 'True', '2048', 'False', 'False'
+                ]
+            },
+            "which_on": {
+                "args": [
+                    'self', 'band'
+                ],
+                "defaults": [
+                ]
+            },
+            "band_off": {
+                "args": [
+                    'self', 'band'
+                ],
+                "defaults": [
+                ],
+                "kwarg": 'True'
+            },
+            "channel_off": {
+                "args": [
+                    'self', 'band', 'channel'
+                ],
+                "defaults": [
+                ],
+                "kwarg": 'True'
+            },
+            "set_tes_bias_bipolar_array": {
+                "args": [
+                    'self', 'bias_group_volt_array', 'do_enable'
+                ],
+                "defaults": [
+                    'False'
+                ],
+                "kwarg": 'True'
+            },
+            "set_tes_bias_high_current": {
+                "args": [
+                    'self', 'bias_group', 'write_log'
+                ],
+                "defaults": [
+                    'False'
+                ]
+            },
+            "set_tes_bias_low_current": {
+                "args": [
+                    'self', 'bias_group', 'write_log'
+                ],
+                "defaults": [
+                    'False'
+                ]
+            },
+            "set_downsample_filter": {
+                "args": [
+                    'self', 'filter_order', 'cutoff_freq', 'write_log'
+                ],
+                "defaults": [
+                    'False'
+                ]
+            }
+        }
+    },
+    os.path.join(script_dir, '../../python/pysmurf/client/debug/smurf_iv.py'): {
+        "SmurfIVMixin": {
+            "run_iv": {
+                "args": [
+                    'self', 'bias_groups', 'wait_time', 'bias', 'bias_high', 'bias_low', 'bias_step', 'show_plot', 'overbias_wait', 'cool_wait', 'make_plot', 'save_plot', 'plotname_append', 'channels', 'band', 'high_current_mode', 'overbias_voltage', 'grid_on', 'phase_excursion_min', 'bias_line_resistance', 'do_analysis'
+                ],
+                "defaults": [
+                    'None', '0.1', 'None', '1.5', '0', '0.005', 'False', '2.0', '30', 'True', 'True', "''", 'None', 'None', 'True', '8.0', 'True', '3.0', 'None', 'True'
+                ]
+            },
+            "analyze_iv": {
+                "args": [
+                    'self', 'v_bias', 'resp', 'make_plot', 'show_plot', 'save_plot', 'basename', 'band', 'channel', 'R_sh', 'plot_dir', 'high_current_mode', 'bias_group', 'grid_on', 'R_op_target', 'pA_per_phi0', 'bias_line_resistance', 'plotname_append'
+                ],
+                "defaults": [
+                    'True', 'False', 'True', 'None', 'None', 'None', 'None', 'None', 'False', 'None', 'False', '0.007', 'None', 'None', "''"
+                ],
+                "kwarg": 'True'
+            }
+        }
+    },
+    os.path.join(script_dir, '../../python/pysmurf/client/debug/smurf_noise.py'): {
+        "SmurfNoiseMixin": {
+            "take_noise_psd": {
+                "args": [
+                    'self', 'meas_time', 'channel', 'nperseg', 'detrend', 'fs', 'low_freq', 'high_freq', 'make_channel_plot', 'make_summary_plot', 'save_data', 'show_plot', 'grid_on', 'datafile', 'downsample_factor', 'write_log', 'reset_filter', 'reset_unwrapper', 'return_noise_params', 'plotname_append'
+                ],
+                "defaults": [
+                    'None', '2 ** 12', "'constant'", 'None', 'None', 'None', 'True', 'True', 'False', 'False', 'False', 'None', 'None', 'True', 'True', 'True', 'False', "''"
+                ]
+            }
+        },
+    }
+}
+
+"""
+Frozen Functions:
+
+SETUP FUNCTIONS
+setup
+set_amplifier_bias #smurf_command
+set_cryo_card_ps_en #smurf_command
+which_on #smurf_util
+band_off #smurf_util
+channel_off #smurf_util
+
+TUNING FUNCTIONS
+full_band_resp #smurf_tune.py
+find_freq #smurf_tune.py
+setup_notches #smurf_tune.py
+run_serial_gradient_descent #smurf_command
+run_serial_eta_scan #smurf_command
+plot_tune_summary #smurf_tune.py
+tracking_setup #smurf_tune.py
+set_amplitude_scale_array #smurf_command
+
+TES/FLUX RAMP FUNCTIONS
+set_tes_bias_bipolar_array #smurf_util
+set_tes_bias_high_current #smurf_util
+set_tes_bias_low_current #smurf_util
+set_mode_dc #smurf_util
+set_mode_ac #smurf_util
+flux_ramp_setup #smurf_tune.py
+
+DATA ACQUISITION FUNCTIONS
+set_stream_enable #smurf_command
+take_stream_data #smurf_util
+take_noise_psd #smurf_noise
+stream_data_on #smurf_util
+stream_data_off #surf_util
+read_stream_data #smurf_util
+set_downsample_filter #smurf_util
+
+IV FUNCTIONS
+run_iv #smurf_iv
+analyze_iv #smurf_iv
+
+DATA OUTPUTS TO DISK
+tune files generated when new resonators are found
+channel mapping file format
+.dat noise files - generated by take_stream_data
+iv_files - generated by run_iv"
+"""
+
+def compare_args(node, intdict):
+    """
+    Uses intdict to compare the expected 'args', 'defaults', and 'kwargs' 
+    values for certain frozen function specified by node.name to those 
+    values extracted from node, raising an exception on failure or
+    returning true if no differences detected.
+
+    Args
+    ---
+    node : an AST tree node
+        Node from the AST tree that pairs with a 
+        given function from the interface dictionary.
+    intdict : A dictionary
+        Dictionary that contains values for 'args',
+        'defaults' and 'kwargs' for a given function
+
+    Returns
+    -------
+    True, or raises exception
+    """
+    # getting specified args and defaults from interface
+    spec_args = intdict['args']
+    spec_defaults = intdict['defaults']
+    # extract function arguments from the AST node
+    found_args = [arg.arg for arg in node.args.args]
+    found_defaults = [ast.unparse(d) if d else None for d in node.args.defaults]
+    has_varargs = node.args.vararg is not None # check for varargs
+    has_kwargs = node.args.kwarg is not None # check for kwargs
+    # check for varargs
+    if has_varargs:
+        raise NotImplementedError("This code doesn't currently have the functionality to support varargs, " + (node.name) + " has vararg")
+    # if kwargs not but kwargs expected
+    if not has_kwargs and intdict.get('kwarg') is not None:
+        raise Exception("Kwarg expected to be found in "+ (node.name) + " but kwarg not found")
+    # if kwargs detected but kwargs not expected
+    if has_kwargs and intdict.get('kwarg') is None:
+        raise Exception("Kwarg not expected to be found in " + (node.name) + " but kwarg detected")
+    # compare arguments to specified arguments in interface dict
+    if found_args != spec_args:
+        raise Exception(f"Mismatch in arguments for function {node.name}\nFound: {found_args}\nExpected: {spec_args}")
+    # compare default values to specified defaults in interface dict
+    if found_defaults != spec_defaults:
+        raise Exception(f"Mismatch in default values for function {node.name}\nFound: {found_defaults}\nExpected: {spec_defaults}")
+    return True
+
+if __name__ == "__main__":
+    setspecclass = set()
+    setspecfunc = set()
+    foundclass = set()
+    foundfunc = set()
+    for fname in interface.keys():   # loop over file names "fname" in interface dictionary
+        for specclass in interface[fname].keys():
+            setspecclass.add(specclass)
+            for specfunc in interface[fname][specclass].keys():
+                setspecfunc.add(specfunc)
+        with open(fname, 'r') as fh:
+            tree = ast.parse(fh.read()) # parsing contents of file into abstract syntax tree
+        for node in tree.body:
+            if isinstance(node, ast.ClassDef):
+                # check if this class is in our spec
+                if node.name in interface[fname]:
+                    # check the class
+                    foundclass.add(node.name)
+                    for child in node.body:
+                        if isinstance(child, ast.FunctionDef) and child.name in interface[fname][node.name]:
+                            try:
+                                assert compare_args(child, interface[fname][node.name][child.name])
+                            except Exception as e:
+                                raise Exception("Function check failed in file: " + fname) from e
+                            foundfunc.add(child.name)
+            elif isinstance(node, ast.FunctionDef):
+                # in principle, we could have functions defined in the body (though I don't think we do in this case)
+                if node.name in interface[fname]:
+                    try:
+                        assert compare_args(child, interface[fname][node.name])
+                    except Exception as e:
+                        raise Exception("Function check failed in file: " + fname) from e
+                    foundfunc.add(node.name)
+    if setspecclass != foundclass:
+        raise Exception(f"The following classes from the specified classes in the interface were not found:\n{setspecclass-foundclass}")
+    if setspecfunc != foundfunc:
+        raise Exception(f"The following functions from the specified functions in the interface were not found:\n{setspecfunc-foundfunc}")
