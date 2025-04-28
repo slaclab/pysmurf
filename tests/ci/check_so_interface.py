@@ -374,7 +374,7 @@ if __name__ == "__main__":
                 # in principle, we could have functions defined in the body (though I don't think we do in this case)
                 if node.name in interface[fname]:
                     try:
-                        assert compare_args(child, interface[fname][node.name][node.name])
+                        assert compare_args(child, interface[fname][node.name])
                     except Exception as e:
                         raise Exception("Function check failed in file: " + fname) from e
                     foundfunc.add(node.name)
