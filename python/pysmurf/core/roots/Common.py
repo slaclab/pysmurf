@@ -176,7 +176,7 @@ class Common(pyrogue.Root):
             self.add(pyrogue.LocalCommand(
                 name='RestartRssi',
                 description='Restart RSSI Link',
-                function=lambda : self._pcie.restart_rssi))
+                function=lambda : self._pcie.restart_rssi()))
 
         # List of enabled bays
         self._enabled_bays = [i for i,e in enumerate([disable_bay0, disable_bay1]) if not e]
