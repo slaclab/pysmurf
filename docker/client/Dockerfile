@@ -13,7 +13,7 @@ RUN apt-get update && \
 RUN pip3 install --upgrade pip
 
 RUN pip3 install \
-    scipy==1.5.2 \
+    scipy==1.7.0 \
     pandas==1.1.0 \
     PyYAML==5.3.1 \
     pillow==6.2.2 \
