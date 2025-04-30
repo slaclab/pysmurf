@@ -415,4 +415,3 @@ class PcieCard():
                 with self._pcie_rssi as pcie:
                     pcie.close_lane(self._lane)
                     pcie.open_lane(lane=self._lane, ip=self._ip_addr)
-
