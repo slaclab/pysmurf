@@ -408,3 +408,10 @@ class PcieCard():
                         print("")
                 print("  Done!")
                 print("")
+
+    def restart_rssi(self):
+        if self._pcie_rssi_present:
+            if self._use_pcie:
+                with self._pcie_rssi as pcie:
+                    pcie.close_lane(self._lane)
+                    pcie.open_lane(lane=self._lane, ip=self._ip_addr)

@@ -38,6 +38,7 @@ class Common(pyrogue.Root):
                  configure      = False,
                  VariableGroups = None,
                  server_port    = 0,
+                 pcie           = None,
                  disable_bay0   = False,
                  disable_bay1   = False,
                  **kwargs):
@@ -168,6 +169,14 @@ class Common(pyrogue.Root):
                                                                   excGroups='NoConfig',
                                                                   autoPrefix='config',
                                                                   autoCompress=False))
+
+        self._pcie = pcie
+
+        if self._pcie:
+            self.add(pyrogue.LocalCommand(
+                name='RestartRssi',
+                description='Restart RSSI Link',
+                function=lambda : self._pcie.restart_rssi()))
 
         # List of enabled bays
         self._enabled_bays = [i for i,e in enumerate([disable_bay0, disable_bay1]) if not e]
