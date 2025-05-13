@@ -1,4 +1,4 @@
-FROM tidair/smurf-roguev6:R3.0.10
+FROM tidair/smurf-roguev6:R3.1.4
 
 # RTH: Allowing ubuntu to update generates an error related to the git-lfs repo.
 
