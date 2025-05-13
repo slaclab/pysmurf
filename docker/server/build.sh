@@ -25,7 +25,7 @@
 . validate.sh
 
 # Dockerhub repositories definitions
-dockerhub_org_name='tidair'
+dockerhub_org_name='ghcr.io/slaclab'
 dockerhub_repo_stable='pysmurf-server'
 dockerhub_repo_base='pysmurf-server-base'
 
