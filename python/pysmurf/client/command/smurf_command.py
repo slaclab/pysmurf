@@ -4869,7 +4869,7 @@ class SmurfCommandMixin(SmurfBase):
             **kwargs)
 
 
-    _stream_datafile_reg = 'dataFile'
+    _stream_datafile_reg = 'DataFile'
 
     def set_streaming_datafile(self, datafile, as_string=True,
                                **kwargs):
@@ -4881,27 +4881,17 @@ class SmurfCommandMixin(SmurfBase):
         datafile : str or length 300 int array
             The name of the datafile.
         as_string : bool, optional, default True
-            The input data is a string. If False, the input data must
-            be a length 300 character int.
+            DEPRECATED: Raises an error if set to False.
         """
-        if as_string:
-            datafile = [ord(x) for x in datafile]
-            # must be exactly 300 elements long. Pad with trailing zeros
-            datafile = np.append(
-                datafile, np.zeros(300-len(datafile), dtype=int))
+        if not as_string:
+            raise ValueError("Passing an int is deprecated.")
         self._caput(
             self.streaming_root + self._stream_datafile_reg,
             datafile, **kwargs)
 
-    def get_streaming_datafile(self, as_string=True, **kwargs):
+    def get_streaming_datafile(self, **kwargs):
         """
         Gets the datafile that streaming data is written to.
-
-        Args
-        ----
-        as_string : bool, optional, default True
-            The output data returns as a string. If False, the input
-            data must be a length 300 character int.
 
         Returns
         -------
@@ -4911,8 +4901,6 @@ class SmurfCommandMixin(SmurfBase):
         datafile = self._caget(
             self.streaming_root + self._stream_datafile_reg,
             **kwargs)
-        if as_string:
-            datafile = ''.join([chr(x) for x in datafile])
         return datafile
 
     _streaming_file_open_reg = 'open'
