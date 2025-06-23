@@ -111,12 +111,8 @@ class SmurfUtilMixin(SmurfBase):
         dchannel = 0 # I don't really know what this means and I'm sorry -CY
         self.setup_daq_mux(dtype, dchannel, nsamp, band=band, debug=debug)
         self.log('Data acquisition in progress...', self.LOG_USER)
-        char_array = [ord(c) for c in data_filename] # convert to ascii
-        write_data = np.zeros(300, dtype=int)
-        for j in np.arange(len(char_array)):
-            write_data[j] = char_array[j]
 
-        self.set_streamdatawriter_datafile(write_data) # write this
+        self.set_streamdatawriter_datafile(data_filename)
 
         #self.set_streamdatawriter_open('True') # str and not bool
         self.set_streamdatawriter_open(True)
