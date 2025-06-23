@@ -2281,9 +2281,6 @@ class SmurfUtilMixin(SmurfBase):
         git_hash = self.get_fpga_git_hash()
         build_stamp = self.get_fpga_build_stamp()
 
-        git_hash = ''.join([chr(y) for y in git_hash]) # convert from int to ascii
-        build_stamp = ''.join([chr(y) for y in build_stamp])
-
         self.log("Build stamp: " + str(build_stamp), self.LOG_USER)
         self.log("FPGA version: Ox" + str(fpga_version), self.LOG_USER)
         self.log("FPGA uptime: " + str(uptime), self.LOG_USER)
