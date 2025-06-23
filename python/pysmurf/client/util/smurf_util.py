@@ -2281,19 +2281,24 @@ class SmurfUtilMixin(SmurfBase):
         self.log("FPGA version: Ox" + str(fpga_version), self.LOG_USER)
         self.log("FPGA uptime: " + str(uptime), self.LOG_USER)
 
-        jesd_tx_enable = self.get_jesd_tx_enable()
-        jesd_tx_valid = self.get_jesd_tx_data_valid()
-        if jesd_tx_enable != jesd_tx_valid:
-            self.log("JESD Tx DOWN", self.LOG_USER)
-        else:
-            self.log("JESD Tx Okay", self.LOG_USER)
+        jesd_tx_enable = [False, False]
+        jesd_tx_valid = [False, False]
+        jesd_rx_enable = [False, False]
+        jesd_rx_valid = [False, False]
+        for bay in range(2):
+            jesd_tx_enable[bay] = self.get_jesd_tx_enable(bay)
+            jesd_tx_valid[bay] = self.get_jesd_tx_data_valid(bay)
+            if jesd_tx_enable[bay] != jesd_tx_valid[bay]:
+                self.log(f"JESD Tx DOWN on BAY {bay}", self.LOG_USER)
+            else:
+                self.log(f"JESD Tx Okay on BAY {bay}", self.LOG_USER)
 
-        jesd_rx_enable = self.get_jesd_rx_enable()
-        jesd_rx_valid = self.get_jesd_rx_data_valid()
-        if jesd_rx_enable != jesd_rx_valid:
-            self.log("JESD Rx DOWN", self.LOG_USER)
-        else:
-            self.log("JESD Rx Okay", self.LOG_USER)
+            jesd_rx_enable[bay] = self.get_jesd_rx_enable(bay)
+            jesd_rx_valid[bay] = self.get_jesd_rx_data_valid(bay)
+            if jesd_rx_enable[bay] != jesd_rx_valid[bay]:
+                self.log(f"JESD Rx DOWN on BAY {bay}", self.LOG_USER)
+            else:
+                self.log(f"JESD Rx Okay on BAY {bay}", self.LOG_USER)
 
         # dict containing all values
         ret = {
