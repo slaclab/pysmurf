@@ -1876,7 +1876,7 @@ class SmurfCommandMixin(SmurfBase):
             self._tone_frequency_offset_mhz_reg,
             **kwargs)
 
-    _center_frequency_array_reg = 'centerFrequency'
+    _center_frequency_array_reg = 'centerFrequencyMHz'
 
     def set_center_frequency_array(self, band, val, **kwargs):
         """
