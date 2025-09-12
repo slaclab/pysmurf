@@ -96,16 +96,12 @@ class SmurfCommandMixin(SmurfBase):
                 var.setDisp(val, index=index)
             elif cast_type:
                 # rogue is strict about variable types for arrays
-                if isinstance(var.value(), np.ndarray):
-                    val = np.array(val).astype(var.value().dtype)
-                    if index != -1:
-                        raise ValueError(f"Cannot assign an array to index {index}.")
+                var_val = var.value()  # like get(read=False)
+                if isinstance(var_val, np.ndarray):
+                    var_type = var_val.dtype.type
                 else:
-                    # handle numpy scalar types
-                    if isinstance(val, np.generic):
-                        val = val.item()
-                    var_type = type(var.value())
-                    val = var_type(val)
+                    var_type = type(var_val)
+                val = var_type(val)
                 var.set(val, check=wait_done, index=index)
             else:
                 var.set(val, check=wait_done, index=index)
