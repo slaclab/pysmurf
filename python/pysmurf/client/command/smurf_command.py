@@ -178,8 +178,13 @@ class SmurfCommandMixin(SmurfBase):
             ret = var.get(index=index)
 
         if count is not None:
-            # this will fail if the variable is not iterable
-            ret = ret[:count]
+            try:
+                ret = ret[:count]
+            except (TypeError, IndexError):
+                raise ValueError(
+                    "Argument 'count' is present but cannot slice "
+                    f"non-iterable variable of type {type(ret)}."
+                )
 
         if write_log:
             self.log(ret, log_level)
