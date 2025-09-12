@@ -32,7 +32,7 @@ class SmurfCommandMixin(SmurfBase):
 
     _global_poll_enable_reg = 'AMCc.enable'
 
-    def _caput(self, pvname, val, cast_type=True, write_log=False, log_level=0,
+    def _caput(self, pvname, val, index=-1, cast_type=True, write_log=False, log_level=0,
                execute=True, wait_before=None, wait_after=None, wait_done=True, **kwargs):
         """Sets to rogue variables in the root.
 
@@ -42,6 +42,8 @@ class SmurfCommandMixin(SmurfBase):
             The path of the PV to set to.
         val: any
             The value to set.
+        index: int
+            Index into an array variable. Ignored if variable is scalar.
         cast_type: bool, default True
             Check the type of val and cast to that expected for the rogue
             variable.
@@ -91,20 +93,22 @@ class SmurfCommandMixin(SmurfBase):
                 var.call(val)
             elif var.enum is not None:
                 # setDisp handles enum keys
-                var.setDisp(val)
+                var.setDisp(val, index=index)
             elif cast_type:
                 # rogue is strict about variable types for arrays
                 if isinstance(var.value(), np.ndarray):
                     val = np.array(val).astype(var.value().dtype)
+                    if index != -1:
+                        raise ValueError(f"Cannot assign an array to index {index}.")
                 else:
                     # handle numpy scalar types
                     if isinstance(val, np.generic):
                         val = val.item()
                     var_type = type(var.value())
                     val = var_type(val)
-                var.set(val, check=wait_done)
+                var.set(val, check=wait_done, index=index)
             else:
-                var.set(val, check=wait_done)
+                var.set(val, check=wait_done, index=index)
 
         if wait_after is not None:
             if write_log:
@@ -115,7 +119,7 @@ class SmurfCommandMixin(SmurfBase):
                 self.log('Done waiting.', self.LOG_USER)
 
 
-    def _caget(self, pvname, write_log=False, log_level=0, execute=True,
+    def _caget(self, pvname, index=-1, write_log=False, log_level=0, execute=True,
                as_string=False, count=None, yml=None, **kwargs):
         """Gets variables from rogue root.
 
@@ -123,6 +127,8 @@ class SmurfCommandMixin(SmurfBase):
         ----
         pvname : str
             The path of the PV to get.
+        index: int
+            Index into an array variable. Ignored if variable is scalar.
         as_string : bool, default False
             Return the string provided by getDisp.
         write_log : bool, optional, default False
@@ -167,9 +173,9 @@ class SmurfCommandMixin(SmurfBase):
             return None
         # Get the data
         if as_string:
-            ret = var.getDisp()
+            ret = var.getDisp(index=index)
         else:
-            ret = var.get()
+            ret = var.get(index=index)
 
         if count is not None:
             # this will fail if the variable is not iterable
