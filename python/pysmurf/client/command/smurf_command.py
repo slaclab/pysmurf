@@ -562,7 +562,7 @@ class SmurfCommandMixin(SmurfBase):
         n_processed_channels=int(0.8125*n_channels)
         return n_processed_channels
 
-    def set_defaults_pv(self, max_timeout_sec=400.0, **kwargs):
+    def set_defaults_pv(self, max_timeout_sec=60.0, **kwargs):
         r"""Loads the default configuration.
 
         Calls the rogue `setDefaults` command, which loads the default
