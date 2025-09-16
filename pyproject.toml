@@ -17,7 +17,6 @@ name = "pysmurf"
 dynamic = ["version"]
 description = "The python control software for SMuRF"
 readme = "README.md"
-license-files = ["LICEN[CS]E.*"]
 dependencies = [
     "matplotlib",
     "numpy",
