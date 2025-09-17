@@ -35,15 +35,6 @@ RUN mkdir -p /usr/local/src/pysmurf_utilities
 ADD scripts/* /usr/local/src/pysmurf_utilities/
 ENV PATH=/usr/local/src/pysmurf_utilities:${PATH}
 
-# By default EPICS is configured with 'EPICS_CA_AUTO_ADDR_LIST=YES'
-# which will cause problems is we have multiple NIC, so let's set it
-# to use localhost only for now
-ENV EPICS_CA_AUTO_ADDR_LIST=NO
-ENV EPICS_CA_ADDR_LIST=localhost
-
-# Default EPICS prefix value
-ENV EPICS_PREFIX="smurf_server"
-
 # Set GTK3Agg as the matplotlib backend
 ENV MPLBACKEND=GTK3Agg
 
