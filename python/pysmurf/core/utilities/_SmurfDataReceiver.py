@@ -68,4 +68,3 @@ class SmurfDataReceiver(pr.DataReceiver):
 
     def process(self,frame):
         self._func(frame)
-

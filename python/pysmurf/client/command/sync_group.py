@@ -14,7 +14,6 @@
 # copied, modified, propagated, or distributed except according to the terms
 # contained in the LICENSE.txt file.
 #-----------------------------------------------------------------------------
-from pyrogue import VariableWait
 from time import time
 
 """
@@ -49,7 +48,8 @@ class SyncGroup(object):
 
     # blocking wait for all to complete
     def wait(self):
-        done = lambda: all(self.updated.values())
+        def done():
+            all(self.updated.values())
         start = time()
-        while not done() and ((time() - start) < self.timeout): 
+        while not done() and ((time() - start) < self.timeout):
             continue

@@ -17,8 +17,9 @@
 import time
 import os
 
-from ..base.logger import SmurfLogger
 import pyrogue
+
+from ..base.logger import SmurfLogger
 
 def write_csv(filename, header, line):
     should_write_header = os.path.exists(filename)
@@ -82,7 +83,7 @@ class CryoCard():
             self.writepv.set(cmd_make(1, address, 0))
             data = self.readpv.get()
             if data is None:
-                self.log(f"CryoCard.do_read failed get a response.")
+                self.log("CryoCard.do_read failed get a response.")
             else:
                 addrrb = cmd_address(data)
                 if (addrrb == address):

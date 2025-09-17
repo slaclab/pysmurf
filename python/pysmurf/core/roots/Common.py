@@ -386,4 +386,3 @@ class Common(pyrogue.Root):
             # Call the command and set the status to the returned value
             # False = 'Unlocked', True: 'Locked'
             self.SmurfApplication.JesdStatus.set(self._jesd_health_cmd.call())
-
