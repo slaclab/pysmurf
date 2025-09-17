@@ -71,7 +71,7 @@ jobs:
       - name: Validate the server definitions
         shell: bash
         env:
-          SWH76_TOKEN: ${{ secrets.SWH76_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.SWH76_TOKEN }}
         run: |
           cd docker/server/
           ./validate.sh
@@ -346,7 +346,7 @@ jobs:
         id: build
         shell: bash
         env:
-          SWH76_TOKEN: ${{ secrets.SWH76_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.SWH76_TOKEN }}
         run: |
           cd docker/server/
           ./build.sh
