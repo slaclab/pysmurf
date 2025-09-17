@@ -20,11 +20,10 @@ import subprocess
 
 import numpy as np
 from packaging import version
-
 from pyrogue import VariableWait
 
 from pysmurf.client.base import SmurfBase
-from pysmurf.client.command.sync_group import SyncGroup as SyncGroup
+from pysmurf.client.command.sync_group import SyncGroup
 from pysmurf.client.util import tools, dscounters
 
 
