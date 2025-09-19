@@ -54,6 +54,12 @@ class LocalRoot(pyrogue.Root):
     def __init__(self, **kwargs):
         pyrogue.Root.__init__(self, name="AMCc", initRead=True, pollEn=True, **kwargs)
 
+        # Add streamer
+        self.stream = pyrogue.interfaces.stream.Variable(root=self, incGroups='stream')
+
+        # Add a variable to produce metadata
+        self.add(pyrogue.LocalVariable(name="testMeta", value=1, groups="stream"))
+
         # Use the DataFromFile as a stream data source
         self._streaming_stream =  pysmurf.core.emulators.StreamDataSource()
         self.add(self._streaming_stream)
