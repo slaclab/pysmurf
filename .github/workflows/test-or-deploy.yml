@@ -295,8 +295,9 @@ jobs:
       - name: Login to Dockerhub
         uses: docker/login-action@v1
         with:
-          username: tidair
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          registry: ghcr.io
+          username: slacrherbst
+          password: ${{ secrets.GH_TOKEN }}
 
       # Build and push the docker image
       # Note about tokens: In this stage we need to use the SLACLAB TOKEN
@@ -337,8 +338,9 @@ jobs:
       - name: Login to Dockerhub
         uses: docker/login-action@v1
         with:
-          username: tidair
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          registry: ghcr.io
+          username: slacrherbst
+          password: ${{ secrets.GH_TOKEN }}
 
       # Build and push the docker image
       - name: Build and push image to Dockerhub
@@ -347,5 +349,5 @@ jobs:
           context: ./docker/client
           file: ./docker/client/Dockerfile
           push: true
-          tags: tidair/pysmurf-client:${{ steps.get_tag.outputs.tag }}
+          tags: ghcr.io/slaclab/pysmurf-client:${{ steps.get_tag.outputs.tag }}
           build-args: branch=${{ steps.get_tag.outputs.tag }}
