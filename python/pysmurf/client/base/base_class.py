@@ -191,8 +191,8 @@ class SmurfBase:
         self.C = CryoCard(
             self.rtm_spi_cryo_root + 'read',
             self.rtm_spi_cryo_root + 'write',
-            self._server_addr,
-            self._server_port
+            server_addr=self._server_addr,
+            server_port=self._server_port
         )
         self.freq_resp = {}
 
