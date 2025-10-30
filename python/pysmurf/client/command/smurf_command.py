@@ -3897,7 +3897,7 @@ class SmurfCommandMixin(SmurfBase):
     # but pysmurf doesn't only use them as TES biases - e.g. in
     # systems using a 50K follow-on amplifier, one of these DACs is
     # used to drive the amplifier gate.
-    _rtm_slow_dac_enable_reg = 'TesBiasDacCtrlRegCh[{}]'
+    _rtm_slow_dac_enable_reg = 'TesBiasDacCtrlRegCh'
 
     def set_rtm_slow_dac_enable(self, dac, val=2, **kwargs):
         """
@@ -3924,7 +3924,7 @@ class SmurfCommandMixin(SmurfBase):
             val = 0x2
 
         self._caput(self.rtm_spi_max_root +
-            self._rtm_slow_dac_enable_reg.format(dac), val, **kwargs)
+            self._rtm_slow_dac_enable_reg, val, index=dac - 1, **kwargs)
 
     def get_rtm_slow_dac_enable(self, dac, **kwargs):
         """
@@ -3948,10 +3948,8 @@ class SmurfCommandMixin(SmurfBase):
 
         return self._caget(
             self.rtm_spi_max_root +
-            self._rtm_slow_dac_enable_reg.format(dac),
+            self._rtm_slow_dac_enable_reg, index=dac - 1,
             **kwargs)
-
-    _rtm_slow_dac_enable_array_reg = 'TesBiasDacCtrlRegChArray'
 
     def set_rtm_slow_dac_enable_array(self, val, **kwargs):
         """
@@ -3982,7 +3980,7 @@ class SmurfCommandMixin(SmurfBase):
 
         self._caput(
             self.rtm_spi_max_root +
-            self._rtm_slow_dac_enable_array_reg,
+            self._rtm_slow_dac_enable_reg,
             val, **kwargs)
 
     def get_rtm_slow_dac_enable_array(self, **kwargs):
@@ -4004,10 +4002,10 @@ class SmurfCommandMixin(SmurfBase):
         """
         return self._caget(
             self.rtm_spi_max_root +
-            self._rtm_slow_dac_enable_array_reg,
+            self._rtm_slow_dac_enable_reg,
             **kwargs)
 
-    _rtm_slow_dac_data_reg = 'TesBiasDacDataRegCh[{}]'
+    _rtm_slow_dac_data_reg = 'TesBiasDacDataRegCh'
 
     def set_rtm_slow_dac_data(self, dac, val, **kwargs):
         """
@@ -4038,8 +4036,8 @@ class SmurfCommandMixin(SmurfBase):
                      'Setting to min value', self.LOG_ERROR)
         self._caput(
             self.rtm_spi_max_root +
-            self._rtm_slow_dac_data_reg.format(dac),
-            val, **kwargs)
+            self._rtm_slow_dac_data_reg, val, index=dac - 1,
+            **kwargs)
 
     def get_rtm_slow_dac_data(self, dac, **kwargs):
         """
@@ -4063,10 +4061,8 @@ class SmurfCommandMixin(SmurfBase):
         assert (dac in range(1,33)),'dac must be an integer and in [1,32]'
         return self._caget(
             self.rtm_spi_max_root +
-            self._rtm_slow_dac_data_reg.format(dac),
+            self._rtm_slow_dac_data_reg, index=dac - 1,
             **kwargs)
-
-    _rtm_slow_dac_data_array_reg = 'TesBiasDacDataRegChArray'
 
     def set_rtm_slow_dac_data_array(self, val, **kwargs):
         """
@@ -4099,7 +4095,7 @@ class SmurfCommandMixin(SmurfBase):
         val[np.ravel(np.where(val < - 2**(nbits-1)))] = -2**(nbits-1)
 
         self._caput(
-            self.rtm_spi_max_root + self._rtm_slow_dac_data_array_reg,
+            self.rtm_spi_max_root + self._rtm_slow_dac_data_reg,
             val, **kwargs)
 
     def get_rtm_slow_dac_data_array(self, **kwargs):
@@ -4115,7 +4111,7 @@ class SmurfCommandMixin(SmurfBase):
             of these registers set the output voltages of the DACs.
         """
         return self._caget(
-            self.rtm_spi_max_root + self._rtm_slow_dac_data_array_reg,
+            self.rtm_spi_max_root + self._rtm_slow_dac_data_reg,
             **kwargs)
 
     def set_rtm_slow_dac_volt(self, dac, val, **kwargs):
@@ -4205,8 +4201,8 @@ class SmurfCommandMixin(SmurfBase):
     # the HEMT Gate on the C02, and HEMT1 Gate on the C04. Eventually
     # please remove this register and add index 33 to
     # TesBiasDacCtrlRegCh.
-    _rtm_33_ctrl_reg = 'HemtBiasDacCtrlRegCh[33]'
-    _rtm_33_data_reg = 'HemtBiasDacDataRegCh[33]'
+    _rtm_33_ctrl_reg = 'HemtBiasDacCtrlRegCh'
+    _rtm_33_data_reg = 'HemtBiasDacDataRegCh'
 
     def get_amp_gate_voltage(self, amp):
         self.C.assert_amps_match_this_cryocard(list(amp))
