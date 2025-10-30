@@ -78,6 +78,9 @@ class SmurfCommandMixin(SmurfBase):
                 log_str = 'OFFLINE - ' + log_str
             self.log(log_str, log_level)
 
+        # only python integer type will be accepted by rogue
+        index = int(index)
+
         # execute the set
         if execute and not self.offline:
             # NB this used to support getting the _atca root, but I can't
