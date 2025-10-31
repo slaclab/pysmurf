@@ -1,9 +1,6 @@
 FROM ghcr.io/slaclab/smurf-roguev6:R3.1.4
 
-# RTH: Allowing ubuntu to update generates an error related to the git-lfs repo.
-
-#RUN apt-get update && \
-#    DEBIAN_FRONTEND=noninteractive \
+RUN apt-get update
 RUN apt-get install -y \
     python3-gi \
     python3-gi-cairo \
@@ -13,17 +10,6 @@ RUN apt-get install -y \
  && rm -rf /var/lib/apt/lists/*
 
 RUN pip3 install --upgrade pip
-
-#RUN pip3 install \
-#    scipy==1.5.2 \
-#    pandas==1.1.0 \
-#    PyYAML==5.3.1 \
-#    pillow==6.2.2 \
-#    seaborn==0.11.2 \
-#    jupyter==1.0.0 \
-#    pytest==6.0.1 \
-#    GitPython==3.1.7 \
-#    schema==0.7.1
 
 RUN pip3 install \
     scipy \
