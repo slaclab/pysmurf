@@ -31,9 +31,7 @@ dockerhub_repo_base='pysmurf-server-base'
 
 # Get the git tag, which will be used to tag the docker image.
 # At the moment, this script runs only on tagged releases.
-# RTH: For local offline testing
-#tag=`git describe --tags --always`
-tag='rogue_v6'
+tag=`git describe --tags --always`
 
 # Create temporal local file directory to hold firmware and configuration
 # files which will later be copied to the docker image
@@ -55,16 +53,15 @@ git -C local_files clone -c advice.detachedHead=false ${config_repo} -b ${config
 
 # Build the docker image. This same image will be pushed to both the stable
 # and the base dockerhub repositories.
-# RTH: Changed the name for now
 echo "Building docker image..."
-docker image build --build-arg branch=${tag} -t roguev6_docker_server . || exit 1
+docker image build --build-arg branch=${tag} -t pysmurf_server . || exit 1
 
 # Tag and push the image to the stable dockerhub repository
-#docker image tag docker_image ${dockerhub_org_name}/${dockerhub_repo_stable}:${tag}
-#docker image push ${dockerhub_org_name}/${dockerhub_repo_stable}:${tag}
-#echo "Docker image '${dockerhub_org_name}/${dockerhub_repo_stable}:${tag}' pushed"
+docker image tag pysmurf_server ${dockerhub_org_name}/${dockerhub_repo_stable}:${tag}
+docker image push ${dockerhub_org_name}/${dockerhub_repo_stable}:${tag}
+echo "Docker image '${dockerhub_org_name}/${dockerhub_repo_stable}:${tag}' pushed"
 
 # Tag and push the image to the stable dockerhub repository
-#docker image tag docker_image ${dockerhub_org_name}/${dockerhub_repo_base}:${tag}
-#docker image push ${dockerhub_org_name}/${dockerhub_repo_base}:${tag}
-#echo "Docker image '${dockerhub_org_name}/${dockerhub_repo_base}:${tag}' pushed"
+docker image tag pysmurf_server ${dockerhub_org_name}/${dockerhub_repo_base}:${tag}
+docker image push ${dockerhub_org_name}/${dockerhub_repo_base}:${tag}
+echo "Docker image '${dockerhub_org_name}/${dockerhub_repo_base}:${tag}' pushed"
