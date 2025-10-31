@@ -111,12 +111,8 @@ class SmurfUtilMixin(SmurfBase):
         dchannel = 0 # I don't really know what this means and I'm sorry -CY
         self.setup_daq_mux(dtype, dchannel, nsamp, band=band, debug=debug)
         self.log('Data acquisition in progress...', self.LOG_USER)
-        char_array = [ord(c) for c in data_filename] # convert to ascii
-        write_data = np.zeros(300, dtype=int)
-        for j in np.arange(len(char_array)):
-            write_data[j] = char_array[j]
 
-        self.set_streamdatawriter_datafile(write_data) # write this
+        self.set_streamdatawriter_datafile(data_filename)
 
         #self.set_streamdatawriter_open('True') # str and not bool
         self.set_streamdatawriter_open(True)
@@ -1177,6 +1173,8 @@ class SmurfUtilMixin(SmurfBase):
         # The number of channel will be extracted from the first frame and the
         # data structures will be build based on that
         first_read = True
+        phase = []
+        t = []
         with SmurfStreamReader(datafile,
                 isRogue=True, metaEnable=True) as file:
             for header, data in file.records():
@@ -1566,14 +1564,14 @@ class SmurfUtilMixin(SmurfBase):
         """
         # Ask mitch why this is what it is...
         if bay == 0:
-            stream0 = self.epics_root + ":AMCc:Stream0"
-            stream1 = self.epics_root + ":AMCc:Stream1"
+            stream0 = "AMCc.Stream0.Data"
+            stream1 = "AMCc.Stream1.Data"
         else:
-            stream0 = self.epics_root + ":AMCc:Stream2"
-            stream1 = self.epics_root + ":AMCc:Stream3"
+            stream0 = "AMCc.Stream2.Data"
+            stream1 = "AMCc.Stream3.Data"
 
         pvs = [stream0, stream1]
-        sg  = SyncGroup(pvs, skip_first=True)
+        sg  = SyncGroup(pvs, self._client)
 
         # trigger PV
         if not hw_trigger:
@@ -1581,7 +1579,6 @@ class SmurfUtilMixin(SmurfBase):
         else:
             self.set_arm_hw_trigger(bay, 1, write_log=write_log)
 
-        time.sleep(.1)
         sg.wait()
 
         vals = sg.get_values()
@@ -2068,7 +2065,7 @@ class SmurfUtilMixin(SmurfBase):
         self.set_amplitude_scales(band, 0, **kwargs)
         n_channels = self.get_number_channels(band)
         self.set_feedback_enable_array(
-            band, np.zeros(n_channels, dtype=int), **kwargs)
+            band, np.zeros(n_channels, dtype=np.uint32), **kwargs)
         self.set_cfg_reg_ena_bit(0, wait_after=.2, **kwargs)
 
     def channel_off(self, band, channel, **kwargs):
@@ -2109,8 +2106,8 @@ class SmurfUtilMixin(SmurfBase):
         if desired_feedback_limit_mhz > subband_bandwidth/2:
             desired_feedback_limit_mhz = subband_bandwidth/2
 
-        desired_feedback_limit_dec = np.floor(desired_feedback_limit_mhz/
-            (subband_bandwidth/2**16.))
+        desired_feedback_limit_dec = int(np.floor(desired_feedback_limit_mhz/
+            (subband_bandwidth/2**16.)))
 
         self.set_feedback_limit(band, desired_feedback_limit_dec, **kwargs)
 
@@ -2202,8 +2199,7 @@ class SmurfUtilMixin(SmurfBase):
 
         return jesd_decorator_function
 
-    def check_jesd(self, bay, silent_if_valid=False,
-                   max_timeout_sec=60, get_timeout_sec=5):
+    def check_jesd(self, bay, silent_if_valid=False, max_timeout_sec=60):
         """Checks JESD status for requested bay.
 
         Queries the Jesd tx and rx and compares the data_valid and
@@ -2219,12 +2215,6 @@ class SmurfUtilMixin(SmurfBase):
         max_timeout_sec : float, optional, default 60.0
             Seconds to wait for JESD health check to complete before
             giving up.  Passed to
-            :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.set_check_jesd`
-        caget_timeout_sec : float, optional, default 5.0
-            Seconds to wait for each poll of the JESD health check
-            status register (see
-            :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.get_jesd_status`).
-            Passed to
             :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.set_check_jesd`
 
         Returns
@@ -2268,7 +2258,7 @@ class SmurfUtilMixin(SmurfBase):
                 self.log("JESD Rx Okay", self.LOG_USER)
 
         # New checks introduced
-        status = self.set_check_jesd()
+        status = self.set_check_jesd(max_timeout_sec)
 
         return (jesd_tx_ok, jesd_rx_ok, status)
 
@@ -2287,26 +2277,28 @@ class SmurfUtilMixin(SmurfBase):
         git_hash = self.get_fpga_git_hash()
         build_stamp = self.get_fpga_build_stamp()
 
-        git_hash = ''.join([chr(y) for y in git_hash]) # convert from int to ascii
-        build_stamp = ''.join([chr(y) for y in build_stamp])
-
         self.log("Build stamp: " + str(build_stamp), self.LOG_USER)
         self.log("FPGA version: Ox" + str(fpga_version), self.LOG_USER)
         self.log("FPGA uptime: " + str(uptime), self.LOG_USER)
 
-        jesd_tx_enable = self.get_jesd_tx_enable()
-        jesd_tx_valid = self.get_jesd_tx_data_valid()
-        if jesd_tx_enable != jesd_tx_valid:
-            self.log("JESD Tx DOWN", self.LOG_USER)
-        else:
-            self.log("JESD Tx Okay", self.LOG_USER)
+        jesd_tx_enable = [False, False]
+        jesd_tx_valid = [False, False]
+        jesd_rx_enable = [False, False]
+        jesd_rx_valid = [False, False]
+        for bay in range(2):
+            jesd_tx_enable[bay] = self.get_jesd_tx_enable(bay)
+            jesd_tx_valid[bay] = self.get_jesd_tx_data_valid(bay)
+            if jesd_tx_enable[bay] != jesd_tx_valid[bay]:
+                self.log(f"JESD Tx DOWN on BAY {bay}", self.LOG_USER)
+            else:
+                self.log(f"JESD Tx Okay on BAY {bay}", self.LOG_USER)
 
-        jesd_rx_enable = self.get_jesd_rx_enable()
-        jesd_rx_valid = self.get_jesd_rx_data_valid()
-        if jesd_rx_enable != jesd_rx_valid:
-            self.log("JESD Rx DOWN", self.LOG_USER)
-        else:
-            self.log("JESD Rx Okay", self.LOG_USER)
+            jesd_rx_enable[bay] = self.get_jesd_rx_enable(bay)
+            jesd_rx_valid[bay] = self.get_jesd_rx_data_valid(bay)
+            if jesd_rx_enable[bay] != jesd_rx_valid[bay]:
+                self.log(f"JESD Rx DOWN on BAY {bay}", self.LOG_USER)
+            else:
+                self.log(f"JESD Rx Okay on BAY {bay}", self.LOG_USER)
 
         # dict containing all values
         ret = {
@@ -4124,7 +4116,6 @@ class SmurfUtilMixin(SmurfBase):
         start_hardware_logging : Starts hardware logging thread.
         """
         d={}
-        d['epics_root']=lambda:self.epics_root
         d['ctime']=self.get_timestamp
         d['fpga_temp']=self.get_fpga_temp
         d['fpgca_vccint']=self.get_fpga_vccint

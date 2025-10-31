@@ -1,6 +1,4 @@
 def pytest_addoption(parser):
-    parser.addoption("--epics", action="store", required=True,
-                     help="The target pysmurf server's epics prefix")
 
     parser.addoption("--config", action="store",
                      default="/usr/local/src/pysmurf/cfg_files/stanford/"
