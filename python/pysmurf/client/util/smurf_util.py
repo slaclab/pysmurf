@@ -1608,12 +1608,12 @@ class SmurfUtilMixin(SmurfBase):
         adc_max   = int(np.max((adc.real.max(), adc.imag.max())))
         adc_min   = int(np.min((adc.real.min(), adc.imag.min())))
         saturated = ((adc_max > 31000) | (adc_min < -31000))
-        self.log(f'ADC{band} max count: {adc_max}')
-        self.log(f'ADC{band} min count: {adc_min}')
+        self.log(f'ADC{band} max count: {adc_max}', self.LOG_INFO)
+        self.log(f'ADC{band} min count: {adc_min}', self.LOG_INFO)
         if saturated:
             self.log(f'\033[91mADC{band} saturated\033[00m') # color red
         else:
-            self.log(f'\033[92mADC{band} not saturated\033[00m') # color green
+            self.log(f'\033[92mADC{band} not saturated\033[00m', self.LOG_INFO) # color green
         return saturated
 
     @set_action()
@@ -1636,12 +1636,12 @@ class SmurfUtilMixin(SmurfBase):
         dac_max   = int(np.max((dac.real.max(), dac.imag.max())))
         dac_min   = int(np.min((dac.real.min(), dac.imag.min())))
         saturated = ((dac_max > 31000) | (dac_min < -31000))
-        self.log(f'DAC{band} max count: {dac_max}')
-        self.log(f'DAC{band} min count: {dac_min}')
+        self.log(f'DAC{band} max count: {dac_max}', self.LOG_INFO)
+        self.log(f'DAC{band} min count: {dac_min}', self.LOG_INFO)
         if saturated:
             self.log(f'\033[91mDAC{band} saturated\033[00m') # color red
         else:
-            self.log(f'\033[92mDAC{band} not saturated\033[00m') # color green
+            self.log(f'\033[92mDAC{band} not saturated\033[00m', self.LOG_INFO) # color green
         return saturated
 
     @set_action()
