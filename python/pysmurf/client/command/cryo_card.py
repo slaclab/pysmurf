@@ -90,10 +90,11 @@ class CryoCard():
                 if (addrrb == address):
                     return (data)
             self.log(
-                f"CryoCard.do_read failed, retry {self.retry + 1} / {self.max_retries}."
+                f"CryoCard.do_read failed, retry {self.retry + 1} / {self.max_retries}.",
+                self.log.levels["info"]
             )
 
-        return (self.readpv.get())
+        raise RuntimeError(f"CryoCard.do_read reached max retries on address {address}.")
 
     def do_write(self, address, value, read=0):
         """Write the given value directly to the address on the PIC. Make sure
