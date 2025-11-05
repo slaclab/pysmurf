@@ -192,7 +192,8 @@ class SmurfBase:
             self.rtm_spi_cryo_root + 'read',
             self.rtm_spi_cryo_root + 'write',
             server_addr=self._server_addr,
-            server_port=self._server_port
+            server_port=self._server_port,
+            log=self.log,
         )
         self.freq_resp = {}
 
