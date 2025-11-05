@@ -1911,10 +1911,9 @@ class SmurfUtilMixin(SmurfBase):
         self.set_data_buffer_size(bay, size, write_log=True)
         for daq_num in np.arange(2):
             s = self.get_waveform_start_addr(bay, daq_num, convert=True,
-                write_log=debug)
+                write_log=write_log)
             e = s + 4*size
-            self.set_waveform_end_addr(bay, daq_num, e, convert=True,
-                write_log=debug)
+            self.set_waveform_end_addr(bay, daq_num, e, write_log=write_log)
             if debug:
                 self.log(f'DAQ number {daq_num}: start {s} - end {e}')
 
