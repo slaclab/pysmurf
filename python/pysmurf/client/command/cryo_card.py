@@ -16,6 +16,7 @@
 #-----------------------------------------------------------------------------
 import time
 import os
+import numpy as np
 
 import pyrogue
 
@@ -78,9 +79,9 @@ class CryoCard():
             typically means no cryostat card is connected).
         """
         #need double write to make sure buffer is updated
-        self.writepv.set(cmd_make(1, address, 0))
+        self.do_write(address, 0, read=1)
         for self.retry in range(0, self.max_retries):
-            self.writepv.set(cmd_make(1, address, 0))
+            self.do_write(address, 0, read=1)
             data = self.readpv.get()
             if data is None:
                 self.log("CryoCard.do_read failed get a response.")
@@ -94,7 +95,7 @@ class CryoCard():
 
         return (self.readpv.get())
 
-    def do_write(self, address, value):
+    def do_write(self, address, value, read=0):
         """Write the given value directly to the address on the PIC. Make sure
         you know if the value should be base-16, base-10, or base-2. There are
         higher abstractions that might be more useful for what you're trying to
@@ -103,12 +104,13 @@ class CryoCard():
         :param address the address on the PIC (e.g. 0x2)
         :returns the response from caput
         """
-        return self.writepv.set(cmd_make(0, address, value))
+        # not all integer types are accepted
+        return self.writepv.set(np.uint32(cmd_make(read, address, value)))
 
     def write_relays(self, relay):  # relay is the bit partern to set
-        self.writepv.set(cmd_make(0, self.relay_address, relay))
+        self.do_write(self.relay_address, relay)
         time.sleep(0.1)
-        self.writepv.set(cmd_make(0, self.relay_address, relay))
+        self.do_write(self.relay_address, relay)
 
     def read_relays(self):
         for self.busy_retry in range(0, self.max_retries):
@@ -231,7 +233,7 @@ class CryoCard():
         -------
         Nothing
         """
-        self.writepv.set(cmd_make(0, self.ps_en_address, enables))
+        self.do_write(self.ps_en_address, enables)
 
     def read_ps_en(self):
         """
@@ -334,4 +336,4 @@ def cmd_data(data):  # returns data
     return (data & 0xFFFFF)
 
 def cmd_make(read, address, data):
-    return ((read << 31) | ((address << 20) & 0x7FFF00000) | (data & 0xFFFFF))
+    return (read << 31) | ((address << 20) & 0x7FFF00000) | (data & 0xFFFFF)
