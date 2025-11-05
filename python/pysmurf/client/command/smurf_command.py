@@ -3545,7 +3545,7 @@ class SmurfCommandMixin(SmurfBase):
         assert (reg in range(2)), 'reg must be in [0,1]'
         self._caput(
             self.rtm_lut_ctrl + self._dac_axil_addr_reg.format(reg),
-            val, **kwargs)
+            f"Dac[{val:d}]", **kwargs)
 
     def get_dac_axil_addr(self, reg, **kwargs):
         """
