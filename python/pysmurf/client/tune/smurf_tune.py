@@ -3932,7 +3932,7 @@ class SmurfTuneMixin(SmurfBase):
 
         n_res = len(input_res)
         for i, f in enumerate(input_res):
-            self.log(f'freq {f:5.4f} - {i+1} of {n_res}')
+            self.log(f'freq {f:5.4f} - {i+1} of {n_res}', self.LOG_INFO)
             # fillers for now
             f_min = f
             freq  = None
