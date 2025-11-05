@@ -31,7 +31,7 @@ class SmurfCommandMixin(SmurfBase):
 
     _global_poll_enable_reg = 'AMCc.enable'
 
-    def _caput(self, pvname, val, index=-1, cast_type=True, write_log=False, log_level=0,
+    def _caput(self, pvname, val, index=-1, cast_type=True, write_log=False, log_level=None,
                execute=True, wait_before=None, wait_after=None, wait_done=True, **kwargs):
         """Sets to rogue variables in the root.
 
@@ -58,13 +58,16 @@ class SmurfCommandMixin(SmurfBase):
             the command.
         wait_done : bool, optional, default True
             Wait for the command to be finished before returning.
-        log_level : int, optional, default 0
+        log_level : int, optional, default to INFO
             Log level.
         """
 
+        if log_level is None:
+            log_level = self.LOG_INFO
+
         if kwargs:
             for k in kwargs:
-                self.log(f"caput unexpected kwarg: {k}: {kwargs[k]}")
+                self.log(f"caput unexpected kwarg: {k}: {kwargs[k]}", self.LOG_ERROR)
 
         if wait_before is not None:
             if write_log:
@@ -117,7 +120,7 @@ class SmurfCommandMixin(SmurfBase):
                 self.log('Done waiting.', self.LOG_USER)
 
 
-    def _caget(self, pvname, index=-1, write_log=False, log_level=0, execute=True,
+    def _caget(self, pvname, index=-1, write_log=False, log_level=None, execute=True,
                as_string=False, count=None, yml=None, **kwargs):
         """Gets variables from rogue root.
 
@@ -131,7 +134,7 @@ class SmurfCommandMixin(SmurfBase):
             Return the string provided by getDisp.
         write_log : bool, optional, default False
             Whether to log the data or not.
-        log_level : int, optional, default 0
+        log_level : int, optional, default INFO
             Log level.
         execute : bool, optional, default True
             Whether to actually execute the command.
@@ -145,6 +148,9 @@ class SmurfCommandMixin(SmurfBase):
         ret : any
             The requested value.
         """
+
+        if log_level is None:
+            log_level = self.LOG_INFO
 
         if kwargs:
             for k in kwargs:
