@@ -70,10 +70,6 @@ class SmurfBase:
         self._server_port = server_port
         self._atca_port = atca_port
 
-        self._client = pyrogue.interfaces.VirtualClient(addr=self._server_addr, port=self._server_port)
-
-        self._atca = pyrogue.interfaces.VirtualClient(addr=self._server_addr, port=self._atca_port)
-
         # Set up logging
         self.log = log
         if self.log is None:
@@ -209,6 +205,21 @@ class SmurfBase:
 
         # LUT table length for arbitrary waveform generation
         self._lut_table_array_length = 2048
+
+    # wrap the ZMQ clients to ensure they shut down correctly
+    @property
+    def _client(self):
+        with pyrogue.interfaces.VirtualClient(
+            addr=self._server_addr, port=self._server_port
+            ) as client:
+            return client
+
+    @property
+    def _atca(self):
+        with pyrogue.interfaces.VirtualClient(
+            addr=self._server_addr, port=self._atca_port
+        ) as client:
+            return client
 
     def init_log(self, verbose=0, logger=SmurfLogger, logfile=None,
                  log_timestamp=True, log_prefix=None, **kwargs):
