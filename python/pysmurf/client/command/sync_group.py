@@ -37,6 +37,11 @@ class SyncGroup(object):
                 self.updated[pvname] = False
                 node.addListener(self._receive_update)
 
+    def __del__(self):
+        with self.cond:
+            for node in self.pvs.values():
+                node.delListener(self._receive_update)
+
     def _receive_update(self, path, val):
         with self.cond:
             if path in self.pvs:
