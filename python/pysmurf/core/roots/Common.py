@@ -179,6 +179,12 @@ class Common(pyrogue.Root):
         # List of enabled bays
         self._enabled_bays = [i for i,e in enumerate([disable_bay0, disable_bay1]) if not e]
 
+        # Add a variable to indicate when the server has finished starting up
+        self.add(pyrogue.LocalVariable(
+            name="Ready",
+            description="Server has finished initialisation",
+            value=False))
+
     def start(self):
         pyrogue.Root.start(self)
 
@@ -232,6 +238,8 @@ class Common(pyrogue.Root):
             self._jesd_health_found = False
             # Set the status register to 'Not found'.
             self.SmurfApplication.JesdStatus.set(3)
+
+        self.Ready.set(True)
 
     def stop(self):
         print("Stopping servers...")
