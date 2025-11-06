@@ -299,7 +299,7 @@ class SmurfControl(SmurfCommandMixin,
                 self.freq_resp[band]['lock_status'] = {}
 
         if setup:
-            success = self.setup(payload_size=payload_size, **kwargs)
+            success = self.setup(payload_size=payload_size)
             # Log an error if system setup failed.
             if not success:
                 self.log(
