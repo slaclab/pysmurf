@@ -6418,7 +6418,7 @@ class SmurfCommandMixin(SmurfBase):
         """
         self._caput(
             self.smurf_processor + self._filter_disable_reg,
-            disable_status, **kwargs)
+            bool(disable_status), **kwargs)
 
     def get_filter_disable(self, **kwargs):
         """
