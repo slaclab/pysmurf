@@ -26,12 +26,12 @@ class SmurfDataReceiver(pr.DataReceiver):
 
         if rxType == 'Int16':
             typeStr='Int16[np]'
-            value=np.zeros(shape=rxSize, dtype=np.int16, order='C'),
+            value=np.zeros(shape=rxSize, dtype=np.int16, order='C')
             self._func = self._process16
 
         elif rxType == 'Int8':
             typeStr='Int8[np]'
-            value=np.zeros(shape=rxSize, dtype=np.int8, order='C'),
+            value=np.zeros(shape=rxSize, dtype=np.int8, order='C')
             self._func = self._process8
 
         else:
