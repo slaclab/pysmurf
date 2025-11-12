@@ -31,7 +31,7 @@ class SmurfAtcaMonitorMixin(SmurfBase):
 
     """
 
-    _write_atca_monitor_state_reg = ":Crate:SaveState"
+    _write_atca_monitor_state_reg = "Crate.SaveState"
 
     def write_atca_monitor_state(self, val, **kwargs):
         """Writes atca_monitor state to yml file.
@@ -44,14 +44,11 @@ class SmurfAtcaMonitorMixin(SmurfBase):
            The path (including file name) to write the yml file to.
 
         """
-        self._caput(
-            self.shelf_manager + self._write_atca_monitor_state_reg,
-            val, **kwargs)
+        self._caput( self._write_atca_monitor_state_reg, val, **kwargs)
 
-    _board_temp_fpga_reg = 'BoardTemp:FPGA'
+    _board_temp_fpga_reg = 'BoardTemp.FPGA'
 
-    def get_board_temp_fpga(
-            self, slot_number=None, atca_epics_root=None, **kwargs):
+    def get_board_temp_fpga(self, slot_number=None, **kwargs):
         r"""Returns the AMC carrier board temperature.
 
         Args
@@ -62,15 +59,6 @@ class SmurfAtcaMonitorMixin(SmurfBase):
             :class:`~pysmurf.client.base.smurf_control.SmurfControl`
             class attribute
             :attr:`~pysmurf.client.base.smurf_control.SmurfControl.slot_number`.
-        atca_epics_root : str or None, optional, default None
-            ATCA monitor server application EPICS root.  If None,
-            defaults to the
-            :class:`~pysmurf.client.base.smurf_control.SmurfControl`
-            class attribute
-            :attr:`~pysmurf.client.base.smurf_control.SmurfControl.shelf_manager`.
-            For typical systems, atca_epics_root is the name of the
-            shelf manager which for default systems is
-            'shm-smrf-sp01'.
         \**kwargs
             Arbitrary keyword arguments.  Passed directly to the
             `_caget` call.
@@ -84,16 +72,13 @@ class SmurfAtcaMonitorMixin(SmurfBase):
         """
         if slot_number is None:
             slot_number=self.slot_number
-        if atca_epics_root is None:
-            shelf_manager=self.shelf_manager
         return self._caget(
-            f'{shelf_manager}:Crate:Sensors:Slots:{slot_number}:' +
+            f'Crate.Sensors.Slots.{slot_number}.' +
             self._board_temp_fpga_reg,**kwargs)
 
-    _board_temp_rtm_reg = 'BoardTemp:RTM'
+    _board_temp_rtm_reg = 'BoardTemp.RTM'
 
-    def get_board_temp_rtm(
-            self, slot_number=None, atca_epics_root=None, **kwargs):
+    def get_board_temp_rtm( self, slot_number=None, **kwargs):
         r"""Returns the RTM board temperature.
 
         Args
@@ -104,15 +89,6 @@ class SmurfAtcaMonitorMixin(SmurfBase):
             :class:`~pysmurf.client.base.smurf_control.SmurfControl`
             class attribute
             :attr:`~pysmurf.client.base.smurf_control.SmurfControl.slot_number`.
-        atca_epics_root : str or None, optional, default None
-            ATCA monitor server application EPICS root.  If None,
-            defaults to the
-            :class:`~pysmurf.client.base.smurf_control.SmurfControl`
-            class attribute
-            :attr:`~pysmurf.client.base.smurf_control.SmurfControl.shelf_manager`.
-            For typical systems, atca_epics_root is the name of the
-            shelf manager which for default systems is
-            'shm-smrf-sp01'.
         \**kwargs
             Arbitrary keyword arguments.  Passed directly to the
             `_caget` call.
@@ -126,16 +102,13 @@ class SmurfAtcaMonitorMixin(SmurfBase):
         """
         if slot_number is None:
             slot_number=self.slot_number
-        if atca_epics_root is None:
-            shelf_manager=self.shelf_manager
         return self._caget(
-            f'{shelf_manager}:Crate:Sensors:Slots:{slot_number}:' +
+            f'Crate.Sensors.Slots.{slot_number}.' +
             self._board_temp_rtm_reg,**kwargs)
 
-    _junction_temp_fpga_reg = 'JunctionTemp:FPG'
+    _junction_temp_fpga_reg = 'JunctionTemp.FPG'
 
-    def get_junction_temp_fpga(
-            self, slot_number=None, atca_epics_root=None, **kwargs):
+    def get_junction_temp_fpga( self, slot_number=None, **kwargs):
         r"""Returns FPGA junction temperature.
 
         FPGA die temperature - probably from a sensor on the FPGA.  If
@@ -151,15 +124,6 @@ class SmurfAtcaMonitorMixin(SmurfBase):
             :class:`~pysmurf.client.base.smurf_control.SmurfControl`
             class attribute
             :attr:`~pysmurf.client.base.smurf_control.SmurfControl.slot_number`.
-        atca_epics_root : str or None, optional, default None
-            ATCA monitor server application EPICS root.  If None,
-            defaults to the
-            :class:`~pysmurf.client.base.smurf_control.SmurfControl`
-            class attribute
-            :attr:`~pysmurf.client.base.smurf_control.SmurfControl.shelf_manager`.
-            For typical systems, atca_epics_root is the name of the
-            shelf manager which for default systems is
-            'shm-smrf-sp01'.
         \**kwargs
             Arbitrary keyword arguments.  Passed directly to the
             `_caget` call.
@@ -173,16 +137,11 @@ class SmurfAtcaMonitorMixin(SmurfBase):
         """
         if slot_number is None:
             slot_number=self.slot_number
-        if atca_epics_root is None:
-            shelf_manager=self.shelf_manager
-        return self._caget(
-            f'{shelf_manager}:Crate:Sensors:Slots:{slot_number}:' +
-            self._junction_temp_fpga_reg,**kwargs)
+        return self._caget( f'Crate.Sensors.Slots.{slot_number}.' + self._junction_temp_fpga_reg,**kwargs)
 
-    _board_temp_amc_reg = 'BoardTemp:AMC{}'
+    _board_temp_amc_reg = 'BoardTemp.AMC{}'
 
-    def get_board_temp_amc(self, bay, slot_number=None,
-                           atca_epics_root=None, **kwargs):
+    def get_board_temp_amc(self, bay, slot_number=None, **kwargs):
         r"""Returns the AMC board temperature.
 
         Args
@@ -195,15 +154,6 @@ class SmurfAtcaMonitorMixin(SmurfBase):
             :class:`~pysmurf.client.base.smurf_control.SmurfControl`
             class attribute
             :attr:`~pysmurf.client.base.smurf_control.SmurfControl.slot_number`.
-        atca_epics_root : str or None, optional, default None
-            ATCA monitor server application EPICS root.  If None,
-            defaults to the
-            :class:`~pysmurf.client.base.smurf_control.SmurfControl`
-            class attribute
-            :attr:`~pysmurf.client.base.smurf_control.SmurfControl.shelf_manager`.
-            For typical systems, atca_epics_root is the name of the
-            shelf manager which for default systems is
-            'shm-smrf-sp01'.
         \**kwargs
             Arbitrary keyword arguments.  Passed directly to the
             `_caget` call.
@@ -217,20 +167,15 @@ class SmurfAtcaMonitorMixin(SmurfBase):
         """
         if slot_number is None:
             slot_number=self.slot_number
-        if atca_epics_root is None:
-            shelf_manager=self.shelf_manager
         # For some reason, the bay 0 AMC is at AMC[0] and the bay 1
         # AMC is at AMC[2], hence the bay*2.
-        return self._caget(
-            f'{shelf_manager}:Crate:Sensors:Slots:{slot_number}:' +
-            self._board_temp_amc_reg.format(bay*2),**kwargs)
+        return self._caget( f'Crate.Sensors.Slots.{slot_number}.' + self._board_temp_amc_reg.format(bay*2),**kwargs)
 
     _amc_product_asset_tag_reg = 'Product_Asset_Tag'
     _amc_product_version_reg = 'Product_Version'
 
     def get_amc_sn(
             self, bay, slot_number=None,
-            atca_epics_root=None,
             shelf_manager=None,
             use_shell=False,
             **kwargs):
@@ -273,15 +218,6 @@ class SmurfAtcaMonitorMixin(SmurfBase):
             :class:`~pysmurf.client.base.smurf_control.SmurfControl`
             class attribute
             :attr:`~pysmurf.client.base.smurf_control.SmurfControl.slot_number`.
-        atca_epics_root : str or None, optional, default None
-            ATCA monitor server application EPICS root.  If None,
-            defaults to the
-            :class:`~pysmurf.client.base.smurf_control.SmurfControl`
-            class attribute
-            :attr:`~pysmurf.client.base.smurf_control.SmurfControl.shelf_manager`.
-            For typical systems, atca_epics_root is the name of the
-            shelf manager which for default systems is
-            'shm-smrf-sp01'.
         use_shell : bool, optional, default False
             If False, polls the ATCA monitor EPICs server ; if True,
             runs slower shell command to poll this attribute.  This
@@ -313,8 +249,6 @@ class SmurfAtcaMonitorMixin(SmurfBase):
         """
         if slot_number is None:
             slot_number=self.slot_number
-        if atca_epics_root is None:
-            atca_epics_root=self.shelf_manager
         if shelf_manager is None:
             shelf_manager=self.shelf_manager
         if use_shell:
@@ -331,7 +265,7 @@ class SmurfAtcaMonitorMixin(SmurfBase):
         else:
             # For some reason, the bay 0 AMC is at AMC[0] and the bay 1
             # AMC is at AMC[2], hence the bay*2.
-            atca_epics_path=f'{atca_epics_root}:Crate:Sensors:Slots:{slot_number}:' + f'AMCInfo:{bay*2}:'
+            atca_epics_path=f'Crate.Sensors.Slots.{slot_number}.' + f'AMCInfo.{bay*2}.'
             amc_product_asset_tag=self._caget(atca_epics_path +
                                               self._amc_product_asset_tag_reg, as_string=True,
                                               **kwargs)
@@ -345,7 +279,6 @@ class SmurfAtcaMonitorMixin(SmurfBase):
 
     def get_carrier_sn(
             self, slot_number=None,
-            atca_epics_root=None,
             shelf_manager=None,
             use_shell=False,
             **kwargs):
@@ -376,15 +309,6 @@ class SmurfAtcaMonitorMixin(SmurfBase):
             :class:`~pysmurf.client.base.smurf_control.SmurfControl`
             class attribute
             :attr:`~pysmurf.client.base.smurf_control.SmurfControl.slot_number`.
-        atca_epics_root : str or None, optional, default None
-            ATCA monitor server application EPICS root.  If None,
-            defaults to the
-            :class:`~pysmurf.client.base.smurf_control.SmurfControl`
-            class attribute
-            :attr:`~pysmurf.client.base.smurf_control.SmurfControl.shelf_manager`.
-            For typical systems, atca_epics_root is the name of the
-            shelf manager which for default systems is
-            'shm-smrf-sp01'.
         use_shell : bool, optional, default False
             If False, polls the ATCA monitor EPICs server ; if True,
             runs slower shell command to poll this attribute.  This
@@ -416,8 +340,6 @@ class SmurfAtcaMonitorMixin(SmurfBase):
         """
         if slot_number is None:
             slot_number=self.slot_number
-        if atca_epics_root is None:
-            atca_epics_root=self.shelf_manager
         if shelf_manager is None:
             shelf_manager=self.shelf_manager
         if use_shell:
@@ -438,7 +360,7 @@ class SmurfAtcaMonitorMixin(SmurfBase):
                          self.LOG_ERROR)
                 return None
         else:
-            atca_epics_path=f'{atca_epics_root}:Crate:Sensors:Slots:{slot_number}:CarrierInfo:'
+            atca_epics_path=f'Crate.Sensors.Slots.{slot_number}.CarrierInfo.'
             carrier_product_asset_tag=self._caget(atca_epics_path +
                                                   self._carrier_product_asset_tag_reg, as_string=True,
                                                   **kwargs)
@@ -457,7 +379,6 @@ class SmurfAtcaMonitorMixin(SmurfBase):
 
     def get_rtm_sn(
             self, slot_number=None,
-            atca_epics_root=None,
             shelf_manager=None,
             use_shell=False,
             **kwargs):
@@ -487,15 +408,6 @@ class SmurfAtcaMonitorMixin(SmurfBase):
             :class:`~pysmurf.client.base.smurf_control.SmurfControl`
             class attribute
             :attr:`~pysmurf.client.base.smurf_control.SmurfControl.slot_number`.
-        atca_epics_root : str or None, optional, default None
-            ATCA monitor server application EPICS root.  If None,
-            defaults to the
-            :class:`~pysmurf.client.base.smurf_control.SmurfControl`
-            class attribute
-            :attr:`~pysmurf.client.base.smurf_control.SmurfControl.shelf_manager`.
-            For typical systems, atca_epics_root is the name of the
-            shelf manager which for default systems is
-            'shm-smrf-sp01'.
         use_shell : bool, optional, default False
             If False, polls the ATCA monitor EPICs server ; if True,
             runs slower shell command to poll this attribute.  This
@@ -527,8 +439,6 @@ class SmurfAtcaMonitorMixin(SmurfBase):
         """
         if slot_number is None:
             slot_number=self.slot_number
-        if atca_epics_root is None:
-            atca_epics_root=self.shelf_manager
         if shelf_manager is None:
             shelf_manager=self.shelf_manager
         if use_shell:
@@ -545,7 +455,7 @@ class SmurfAtcaMonitorMixin(SmurfBase):
                          self.LOG_ERROR)
                 return None
         else:
-            atca_epics_path=f'{atca_epics_root}:Crate:Sensors:Slots:{slot_number}:RTMInfo:'
+            atca_epics_path=f'Crate.Sensors.Slots.{slot_number}.RTMInfo.'
             rtm_product_asset_tag=self._caget(atca_epics_path +
                                               self._rtm_product_asset_tag_reg, as_string=True,
                                               **kwargs)

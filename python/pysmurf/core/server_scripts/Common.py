@@ -173,9 +173,6 @@ def make_parser(parser=None):
     group.add_argument('--configure', '-c', action='store_true',
                        help="Load the default configuration at startup."
                        )
-    group.add_argument('--epics', '-e', dest='epics_prefix', default="",
-                       help="Start an EPICS server with PV name prefix \"EPICS_PREFIX\"."
-                       )
     group.add_argument('--gui', '-g', action='store_true', dest='use_gui',
                        help="Starts the server with a gui."
                        )
