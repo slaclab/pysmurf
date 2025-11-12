@@ -15,7 +15,7 @@
 # contained in the LICENSE.txt file.
 #-----------------------------------------------------------------------------
 from time import time
-import threading
+from pyrogue import VariableWaitClass
 
 """
 Wait for a group of PVs to be updated before reading their values.
@@ -23,46 +23,24 @@ Wait for a group of PVs to be updated before reading their values.
 class SyncGroup(object):
     def __init__(self, pvs, client, timeout=30.0):
         self.pvnames = pvs
-        self.timeout = timeout
         self.pvs = {}
-        self.updated = {}
-        # thread condition for listener to update
-        self.cond = threading.Condition()
         for pvname in pvs:
             node = client.root.getNode(pvname)
             if node is None:
                 raise ValueError(f"Failed to get node {pvname}")
-            with self.cond:
-                self.pvs[pvname] = node
-                self.updated[pvname] = False
-                node.addListener(self._receive_update)
+            self.pvs[pvname] = node
+        self._vw = VariableWaitClass(
+                list(self.pvs.values()), timeout=timeout)
+        self._vw.arm()  # adds listeners to variables
 
-    def __del__(self):
-        with self.cond:
-            for node in self.pvs.values():
-                node.delListener(self._receive_update)
-
-    def _receive_update(self, path, val):
-        with self.cond:
-            if path in self.pvs:
-                self.updated[path] = True
-                # notify waiting thread
-                self.cond.notify()
-
-    def get_values(self, read=False):
-        return {k: self.pvs[k].get() for k in self.pvs}
+    def get_values(self):
+        return {k: self.pvs[k].value() for k in self.pvs}
 
     # blocking wait for all to complete
     def wait(self):
-        with self.cond:
-            def done():
-                return all(self.updated.values())
-            start = time()
-            while not done() and ((time() - start) < self.timeout):
-                self.cond.wait(0.5)
-                continue
-        if not done():
+        done = self._vw.wait()
+        if not done:
             raise TimeoutError(
-                f"Timed out after {self.timeout}s for variables "
+                f"Timed out after {self._vw._timeout}s for variables "
                 f"{self.pvnames} to update."
             )
