@@ -211,7 +211,7 @@ class SmurfBase:
     def _client(self):
         with pyrogue.interfaces.VirtualClient(
             addr=self._server_addr, port=self._server_port
-            ) as client:
+        ) as client:
             return client
 
     @property

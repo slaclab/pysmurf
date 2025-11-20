@@ -16,8 +16,8 @@
 #-----------------------------------------------------------------------------
 import time
 import os
-import numpy as np
 
+import numpy as np
 import pyrogue
 
 from ..base.logger import SmurfLogger

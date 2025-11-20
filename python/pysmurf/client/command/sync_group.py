@@ -14,7 +14,6 @@
 # copied, modified, propagated, or distributed except according to the terms
 # contained in the LICENSE.txt file.
 #-----------------------------------------------------------------------------
-from time import time
 from pyrogue import VariableWaitClass
 
 """
@@ -30,7 +29,8 @@ class SyncGroup(object):
                 raise ValueError(f"Failed to get node {pvname}")
             self.pvs[pvname] = node
         self._vw = VariableWaitClass(
-                list(self.pvs.values()), timeout=timeout)
+            list(self.pvs.values()), timeout=timeout
+        )
         self._vw.arm()  # adds listeners to variables
 
     def get_values(self):
