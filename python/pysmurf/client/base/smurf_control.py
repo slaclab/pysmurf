@@ -92,7 +92,8 @@ class SmurfControl(SmurfCommandMixin,
 
     def __init__(self, cfg_file=None, data_dir=None, name=None, make_logfile=True,
                  setup=False, offline=False, smurf_cmd_mode=False,
-                 no_dir=False, validate_config=True, data_path_id=None, **kwargs):
+                 shelf_manager='shm-smrf-sp01', no_dir=False, validate_config=True,
+                 data_path_id=None, **kwargs):
         """Constructor for the SmurfControl class.
 
         See the SmurfControl class docstring for more details.
@@ -119,6 +120,9 @@ class SmurfControl(SmurfCommandMixin,
             # Populate SmurfConfigPropertiesMixin properties with
             # values from loaded pysmurf configuration file.
             self.copy_config_to_properties(self.config)
+
+        # Save shelf manager - Should this be in the config?
+        self.shelf_manager = shelf_manager
 
         super().__init__(offline=offline, **kwargs)
 
