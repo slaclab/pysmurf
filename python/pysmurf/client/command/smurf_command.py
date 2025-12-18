@@ -6014,7 +6014,7 @@ class SmurfCommandMixin(SmurfBase):
             Arbitrary keyword arguments.  Passed directly to the
             `epics.caget` call.
         """
-        self._caget(self.lmk.format(bay) + 'Enable', **kwargs)
+        self._caget(self.lmk.format(bay) + 'enable', **kwargs)
 
     # assumes it's handed the decimal equivalent
     _lmk_reg = "LmkReg_0x{:04X}"
