@@ -3743,7 +3743,7 @@ class SmurfCommandMixin(SmurfBase):
 
         return reset_rate
 
-    _trigger_delay_reg = "EvrV2TriggerReg[0].Delay"
+    _trigger_delay_reg = ".EvrV2TriggerReg[0].Delay"
 
     def set_trigger_delay(self, val, **kwargs):
         """
