@@ -4735,7 +4735,7 @@ class SmurfUtilMixin(SmurfBase):
 
         # Timing triggers (only used with external timing system)
         ecre = self.get_evr_channel_reg_enable(0)
-        etdt = self.get_evr_trigger_dest_type(0)
+        etdt = self.get_evr_trigger_dest_type(0, as_string=True)
         te = self.get_trigger_enable(0)
 
         # LMKs
@@ -4757,7 +4757,7 @@ class SmurfUtilMixin(SmurfBase):
 
         # Fiber or backplane timing mode configurations
         if ( rsm == 1 and
-             ( ecre == 1 and etdt == 0 and te == 1 ) and
+             ( ecre == 1 and etdt == "All" and te == 1 ) and
              all([lmks[bay][0x146]==0x8 for bay in self.bays]) and
              all([lmks[bay][0x147]==0xa for bay in self.bays]) ):
 
@@ -4913,11 +4913,17 @@ class SmurfUtilMixin(SmurfBase):
             # listen to, the delay, width, and polarity of the trigger
             # to generate.  The "Enable" registers just turn on each
             # of these two components.
+            #
+            # From Tristan PM: In rogue 4, EPICS was incorrectly parsing
+            # the EvrV2ChannelReg.DestType enum field which resulted in
+            # All being mapped to 0. It is actually defined to correspond
+            # to 2. This appears as a subtle issue when using rogue 6 to
+            # communicate with the server.
 
             #  EvrV2CoreTriggers EvrV2ChannelReg[0] EnableReg True
             self.set_evr_channel_reg_enable(0, True, write_log=write_log)
             #  EvrV2CoreTriggers EvrV2ChannelReg[0] DestType All
-            self.set_evr_trigger_dest_type(0, 0, write_log=write_log)
+            self.set_evr_trigger_dest_type(0, "All", write_log=write_log)
             #  EvrV2CoreTriggers EVrV2TriggerReg[0] Enable Trig True
             self.set_trigger_enable(0, True, write_log=write_log)
 

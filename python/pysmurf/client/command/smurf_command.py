@@ -5503,6 +5503,11 @@ class SmurfCommandMixin(SmurfBase):
         --------
         :func:`get_evr_trigger_dest_type` : Get trigger channel destination type.
         """
+        if not isinstance(value, str):
+            self.log("set_evr_trigger_dest_type: "
+                     "Use caution setting DestType to an int. enum mapping was "
+                     "incorrect in previous code, and behaviour may have changed.",
+                     self.LOG_ERROR)
         self._caput(
             self.trigger_root +
             self._evr_trigger_dest_type_reg.format(chan),
