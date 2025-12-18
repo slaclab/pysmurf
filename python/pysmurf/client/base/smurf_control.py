@@ -631,7 +631,9 @@ class SmurfControl(SmurfCommandMixin,
             self.set_trigger_enable(0, 1, write_log=write_log)
             ## only sets enable, but is initialized to True already by
             ## default, and crashing for unknown reasons in rogue 4.
-            self.set_evr_trigger_dest_type(0, 2, write_log=write_log)
+
+            # setting to All ignores other flags not relevant to this application
+            self.set_evr_trigger_dest_type(0, "All", write_log=write_log)
             self.set_evr_trigger_channel_reg_dest_sel(0,
                                                       0x0,
                                                       write_log=write_log)
