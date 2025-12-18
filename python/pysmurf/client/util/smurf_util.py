@@ -2058,14 +2058,10 @@ class SmurfUtilMixin(SmurfBase):
         band : int
             The band that is to be turned off.
         """
-        # Warning ; you might think using the
-        # set_amplitude_scale_array function would be fast than this
-        # but it is apparently not!
-        self.set_amplitude_scales(band, 0, **kwargs)
         n_channels = self.get_number_channels(band)
-        self.set_feedback_enable_array(
-            band, np.zeros(n_channels, dtype=np.uint32), **kwargs)
-        self.set_cfg_reg_ena_bit(0, wait_after=.2, **kwargs)
+        zeros = np.zeros(n_channels, dtype=np.uint32)
+        self.set_amplitude_scale_array(band, zeros, **kwargs)
+        self.set_feedback_enable_array(band, zeros, **kwargs)
 
     def channel_off(self, band, channel, **kwargs):
         """
