@@ -66,17 +66,6 @@ class SmurfBase:
         """
         """
 
-        self._server_addr = server_addr
-        self._server_port = server_port
-        self._atca_port = atca_port
-
-        # connect to rogue servers
-        self._client = pyrogue.interfaces.VirtualClient(addr=self._server_addr, port=self._server_port)
-        self._atca = pyrogue.interfaces.VirtualClient(addr=self._server_addr, port=self._atca_port)
-        # but disable monitor thread to avoid issues on exit. Socket remains open
-        self._client.stop()
-        self._atca.stop()
-
         # Set up logging
         self.log = log
         if self.log is None:
@@ -86,6 +75,19 @@ class SmurfBase:
             if verb is not None:
                 self.set_verbose(verb)
 
+        self._server_addr = server_addr
+        self._server_port = server_port
+        self._atca_port = atca_port
+
+        # connect to rogue servers
+        self._client = pyrogue.interfaces.VirtualClient(addr=self._server_addr, port=self._server_port)
+        self._atca = pyrogue.interfaces.VirtualClient(addr=self._server_addr, port=self._atca_port)
+        if self._atca.root is None:
+            self.log(f"Could not connect to ATCA monitor at port {self._atca_port}.")
+        # but disable monitor thread to avoid issues on exit. Socket remains open
+        self._client.stop()
+        self._atca.stop()
+
         # If <pub_root>BACKEND environment variable is not set to 'udp', all
         # publish calls will be no-ops.
         self.pub = Publisher(env_root=pub_root, script_id=script_id)
@@ -93,7 +95,6 @@ class SmurfBase:
         self.offline = offline
         if self.offline is True:
             self.log('Offline mode')
-
 
         # Setting paths for easier commands - Is there a better way to
         # do this than just hardcoding paths? This needs to be cleaned
