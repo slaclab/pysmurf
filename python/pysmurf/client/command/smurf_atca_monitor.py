@@ -31,6 +31,35 @@ class SmurfAtcaMonitorMixin(SmurfBase):
 
     """
 
+    def _atca_caput(self, name, val, **kwargs):
+        if kwargs:
+            self.log(f"_atca_caput ignoring kwargs: {kwargs}")
+        if self._atca.root is None:
+            raise ConnectionError("ATCA monitor is not connected")
+
+        node = self._atca.root.getNode(name)
+        if node is None:
+            raise ValueError(f"Could not access ATCA monitor node {name}")
+
+        node.set(val)
+
+    def _atca_caget(self, name, **kwargs):
+        if kwargs:
+            self.log(f"_atca_caget ignoring kwargs: {kwargs}")
+        if self._atca.root is None:
+            raise ConnectionError("ATCA monitor is not connected")
+
+        node = self._atca.root.getNode(name)
+        if node is None:
+            raise ValueError(f"Could not access ATCA monitor node {name}")
+        val = node.get()
+
+        if isinstance(val, str):
+            # some strings are fixed width (?)
+            val = val.strip("\x00")
+
+        return val
+
     _write_atca_monitor_state_reg = "Crate.SaveState"
 
     def write_atca_monitor_state(self, val, **kwargs):
@@ -44,9 +73,9 @@ class SmurfAtcaMonitorMixin(SmurfBase):
            The path (including file name) to write the yml file to.
 
         """
-        self._caput( self._write_atca_monitor_state_reg, val, **kwargs)
+        self._atca_caput(self._write_atca_monitor_state_reg, val, **kwargs)
 
-    _board_temp_fpga_reg = 'BoardTemp.FPGA'
+    _board_temp_fpga_reg = 'BoardTemp:FPGA'
 
     def get_board_temp_fpga(self, slot_number=None, **kwargs):
         r"""Returns the AMC carrier board temperature.
@@ -72,11 +101,11 @@ class SmurfAtcaMonitorMixin(SmurfBase):
         """
         if slot_number is None:
             slot_number=self.slot_number
-        return self._caget(
+        return self._atca_caget(
             f'Crate.Sensors.Slots.{slot_number}.' +
             self._board_temp_fpga_reg,**kwargs)
 
-    _board_temp_rtm_reg = 'BoardTemp.RTM'
+    _board_temp_rtm_reg = 'BoardTemp:RTM'
 
     def get_board_temp_rtm( self, slot_number=None, **kwargs):
         r"""Returns the RTM board temperature.
@@ -102,11 +131,11 @@ class SmurfAtcaMonitorMixin(SmurfBase):
         """
         if slot_number is None:
             slot_number=self.slot_number
-        return self._caget(
+        return self._atca_caget(
             f'Crate.Sensors.Slots.{slot_number}.' +
             self._board_temp_rtm_reg,**kwargs)
 
-    _junction_temp_fpga_reg = 'JunctionTemp.FPG'
+    _junction_temp_fpga_reg = 'JunctionTemp:FPG'
 
     def get_junction_temp_fpga( self, slot_number=None, **kwargs):
         r"""Returns FPGA junction temperature.
@@ -137,9 +166,9 @@ class SmurfAtcaMonitorMixin(SmurfBase):
         """
         if slot_number is None:
             slot_number=self.slot_number
-        return self._caget( f'Crate.Sensors.Slots.{slot_number}.' + self._junction_temp_fpga_reg,**kwargs)
+        return self._atca_caget( f'Crate.Sensors.Slots.{slot_number}.' + self._junction_temp_fpga_reg,**kwargs)
 
-    _board_temp_amc_reg = 'BoardTemp.AMC{}'
+    _board_temp_amc_reg = 'BoardTemp:AMC{}'
 
     def get_board_temp_amc(self, bay, slot_number=None, **kwargs):
         r"""Returns the AMC board temperature.
@@ -169,7 +198,7 @@ class SmurfAtcaMonitorMixin(SmurfBase):
             slot_number=self.slot_number
         # For some reason, the bay 0 AMC is at AMC[0] and the bay 1
         # AMC is at AMC[2], hence the bay*2.
-        return self._caget( f'Crate.Sensors.Slots.{slot_number}.' + self._board_temp_amc_reg.format(bay*2),**kwargs)
+        return self._atca_caget( f'Crate.Sensors.Slots.{slot_number}.' + self._board_temp_amc_reg.format(bay*2),**kwargs)
 
     _amc_product_asset_tag_reg = 'Product_Asset_Tag'
     _amc_product_version_reg = 'Product_Version'
@@ -266,10 +295,10 @@ class SmurfAtcaMonitorMixin(SmurfBase):
             # For some reason, the bay 0 AMC is at AMC[0] and the bay 1
             # AMC is at AMC[2], hence the bay*2.
             atca_epics_path=f'Crate.Sensors.Slots.{slot_number}.' + f'AMCInfo.{bay*2}.'
-            amc_product_asset_tag=self._caget(atca_epics_path +
+            amc_product_asset_tag=self._atca_caget(atca_epics_path +
                                               self._amc_product_asset_tag_reg, as_string=True,
                                               **kwargs)
-            amc_product_version=self._caget(atca_epics_path +
+            amc_product_version=self._atca_caget(atca_epics_path +
                                             self._amc_product_version_reg, as_string=True,
                                             **kwargs)
             return f'{amc_product_version}-{amc_product_asset_tag}'
@@ -361,10 +390,10 @@ class SmurfAtcaMonitorMixin(SmurfBase):
                 return None
         else:
             atca_epics_path=f'Crate.Sensors.Slots.{slot_number}.CarrierInfo.'
-            carrier_product_asset_tag=self._caget(atca_epics_path +
+            carrier_product_asset_tag=self._atca_caget(atca_epics_path +
                                                   self._carrier_product_asset_tag_reg, as_string=True,
                                                   **kwargs)
-            carrier_product_version=self._caget(atca_epics_path +
+            carrier_product_version=self._atca_caget(atca_epics_path +
                                             self._carrier_product_version_reg, as_string=True,
                                             **kwargs)
 
@@ -456,10 +485,10 @@ class SmurfAtcaMonitorMixin(SmurfBase):
                 return None
         else:
             atca_epics_path=f'Crate.Sensors.Slots.{slot_number}.RTMInfo.'
-            rtm_product_asset_tag=self._caget(atca_epics_path +
+            rtm_product_asset_tag=self._atca_caget(atca_epics_path +
                                               self._rtm_product_asset_tag_reg, as_string=True,
                                               **kwargs)
-            rtm_product_version=self._caget(atca_epics_path +
+            rtm_product_version=self._atca_caget(atca_epics_path +
                                             self._rtm_product_version_reg, as_string=True,
                                             **kwargs)
             return f'{rtm_product_version}-{rtm_product_asset_tag}'
