@@ -6,7 +6,7 @@ COPY local_files /tmp/fw/
 
 # Install the SMURF PCIe card repository
 WORKDIR /usr/local/src
-RUN git clone https://github.com/slaclab/smurf-pcie.git -b v3.1.0
+RUN git clone https://github.com/slaclab/smurf-pcie.git -b v3.1.1
 WORKDIR smurf-pcie
 RUN git submodule sync && git submodule update --init --recursive
 ENV PYTHONPATH /usr/local/src/smurf-pcie/software/python:${PYTHONPATH}
