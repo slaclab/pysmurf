@@ -1000,7 +1000,12 @@ class SmurfUtilMixin(SmurfBase):
             # read_ac_dc_relay_status() should be 0 in DC mode, 3 in
             # AC mode.  this check is only possible if you're using
             # one of the newer C02 cryostat cards.
-            flux_ramp_ac_dc_relay_status = self.C.read_ac_dc_relay_status()
+            try:
+                flux_ramp_ac_dc_relay_status = self.C.read_ac_dc_relay_status()
+            except Exception:
+                flux_ramp_ac_dc_relay_status = None
+                self.log("flux_ramp_ac_dc_relay status: "
+                         "Failed to read from cryo card.", self.LOG_ERROR)
             if flux_ramp_ac_dc_relay_status == 0:
                 if write_log:
                     self.log("FLUX RAMP IS DC COUPLED.", self.LOG_USER)
