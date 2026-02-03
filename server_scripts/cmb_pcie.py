@@ -44,7 +44,7 @@ if __name__ == "__main__":
                                         comm_type = "pcie-rssi-interleaved",
                                         ip_addr   = args['ip_addr'],
                                         dev_rssi  = args['pcie_dev_rssi'],
-                                        dev_data  = args['pcie_dev_data']):
+                                        dev_data  = args['pcie_dev_data']) as pcie:
 
         with CmbPcie( config_file    = args['config_file'],
                       epics_prefix   = args['epics_prefix'],
@@ -58,7 +58,8 @@ if __name__ == "__main__":
                       pcie_dev_data  = args['pcie_dev_data'],
                       configure      = args['configure'],
                       server_port    = args['server_port'],
-                      VariableGroups = VariableGroups) as root:
+                      VariableGroups = VariableGroups,
+                      pcie           = pcie) as root:
 
             if args['use_gui']:
                 # Start the GUI

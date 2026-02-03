@@ -1,4 +1,4 @@
-FROM tidair/smurf-base:R2.0.0
+FROM ghcr.io/slaclab/smurf-base:R3.0.3
 
 RUN apt-get update && \
     DEBIAN_FRONTEND=noninteractive \
@@ -13,15 +13,15 @@ RUN apt-get update && \
 RUN pip3 install --upgrade pip
 
 RUN pip3 install \
-    scipy==1.5.2 \
-    pandas==1.1.0 \
-    PyYAML==5.3.1 \
-    pillow==6.2.2 \
-    seaborn==0.11.2 \
-    jupyter==1.0.0 \
-    pytest==6.0.1 \
-    GitPython==3.1.7 \
-    schema==0.7.1
+    scipy==1.8.1 \
+    pandas \
+    PyYAML \
+    pillow \
+    seaborn \
+    jupyter \
+    pytest \
+    GitPython \
+    schema
 
 # Install pysmurf
 ARG branch
