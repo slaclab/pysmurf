@@ -229,6 +229,44 @@ jobs:
           docker container exec client \
             /bin/bash -c "python3 -c 'import matplotlib; matplotlib.use(\"Agg\"); import pysmurf.client'"
 
+  # Build
+
+  # Build wheel
+  build-wheel:
+    name: Build Wheel
+    runs-on: ubuntu-22.04
+    needs: [test-docs, test-server, test-client]  # Run only if all tests passed
+    steps:
+      - name: setup python 3.8
+        uses: actions/setup-python@v6
+        with:
+          python-version: 3.8
+
+      - name: Checkout code
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0  # fetch all tags
+
+      - name: install build dependencies
+        run: |
+          python -m pip install --upgrade build
+
+      - name: build wheel
+        run: |
+          python -m build
+
+      - name: install wheel
+        run: |
+          python -m pip install dist/pysmurf*.whl
+
+      - name: test import
+        run: |
+          python -c 'import pysmurf'
+
+      - name: upload dist
+        uses: actions/upload-artifact@v6
+        with:
+          path: ./dist/
 
   # Deploy
 
