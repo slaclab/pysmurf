@@ -284,7 +284,9 @@ if [ "$parallel_setup" = true ] ; then
     setup_complete=false
     completion_status=7
     # AMC carriers, then RFSoCs.
-    declare -a slot_status=( $(for slot in ${slots[@]}; do echo 0; done) $(for rfsoc_slot in ${rfsoc_slots[@]}; do echo 0; done) )
+    # change echo 1 to echo 0 to re-enable ethernet check
+    echo "HERE!"
+    declare -a slot_status=( $(for slot in ${slots[@]}; do echo 0; done) $(for rfsoc_slot in ${rfsoc_slots[@]}; do echo 1; done) )
     setup_loop_cadence_sec=1
     while [[ "${setup_complete}" = false ]] ; do
 	for ((slot_idx=0; slot_idx<${#all_slots[@]}; ++slot_idx)); do

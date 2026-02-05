@@ -1,0 +1,1 @@
+Splendaq:AWG_params [{'channel': 1, 'type': 'Pulse', 'frequency': 0.5, 'amplitude': 5.4, 'offset': 2.7, 'pulse_width': 1.2e-05, 'edge_time': 2e-09, 'phase': 0.0}, {'channel': 2, 'type': 'Pulse', 'frequency': 2, 'amplitude': 3.0, 'offset': 1.5, 'pulse_width': 1.2e-05, 'edge_time': 2e-09, 'phase': 0.0}], temp=0.0099485

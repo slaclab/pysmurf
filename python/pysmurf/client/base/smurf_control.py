@@ -96,6 +96,14 @@ class SmurfControl(SmurfCommandMixin,
     initialize
     """
 
+    def _skipifrfsoc(func):
+        def skipper(*args,**kwargs):
+            print(f'Function {func.__name__} called, but not implemented on RFSoC.  Skipping call and returning None!')
+            result = None
+            if not self.is_rfsoc:
+                result  = func(*args,**kwargs)
+            return result
+    
     def __init__(self, epics_root=None,
                  cfg_file=None, data_dir=None, name=None, make_logfile=True,
                  setup=False, offline=False, smurf_cmd_mode=False,
