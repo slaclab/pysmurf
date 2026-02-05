@@ -31,5 +31,8 @@ dependencies = [
 [tool.setuptools.packages.find]
 where = ["python"]
 
+[tool.setuptools.package-data]
+"*" = ["*.txt"]
+
 [tool.setuptools.dynamic]
 version = {attr = "pysmurf.__version__"}
