@@ -31,7 +31,6 @@ def set_action(action=None):
 
         @wraps(func)
         def wrapper(S, *args, pub_action=None, **kwargs):
-            nonlocal action
 
             is_top = False
             try:
