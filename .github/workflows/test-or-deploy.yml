@@ -389,3 +389,23 @@ jobs:
           push: true
           tags: ghcr.io/slaclab/pysmurf-client:${{ steps.get_tag.outputs.tag }}
           build-args: branch=${{ steps.get_tag.outputs.tag }}
+
+  # Deploy wheel to PyPI
+  deploy-wheel:
+    name: Publish to PyPI
+    needs: [build-wheel]                          # Run only if wheel builds
+    if: startsWith(github.ref, 'refs/tags/')      # Run only on tagged releases
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      #url: https://pypi.org/p/<PACKAGE NAME>
+    permissions:
+      id-token: write  # required for trusted publishing
+    steps:
+    - name: download dist
+      uses: actions/download-artifact@v5
+      with:
+        path: dist
+
+    - name: publish package distributions to PyPI
+      uses: pypa/gh-action-pypi-publish@release/v1
