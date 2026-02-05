@@ -2,7 +2,7 @@
 
 [DOE Code](https://www.osti.gov/doecode/biblio/75053)
 
-[![Build Status](https://github.com/slaclab/pysmurf/workflows/CI/CD/badge.svg)](https://github.com/slaclab/pysmurf/actions?query=workflow%3ACI%2FCD) [![Documentation Status](https://readthedocs.org/projects/pysmurf/badge/?version=main)](https://pysmurf.readthedocs.io/en/main/?badge=main)
+[![test-or-deploy](https://img.shields.io/github/actions/workflow/status/slaclab/pysmurf/test-or-deploy.yml)](https://github.com/slaclab/pysmurf/actions/workflows/test-or-deploy.yml) [![Documentation Status](https://readthedocs.org/projects/pysmurf/badge/?version=main)](https://pysmurf.readthedocs.io/en/main/?badge=main)
 
 The python control software for SMuRF. Includes scripts to do low level
 commands as well as higher level analysis.
