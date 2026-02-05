@@ -17,8 +17,11 @@ name = "pysmurf"
 dynamic = ["version"]
 description = "The python control software for SMuRF"
 readme = "README.md"
-license = "Stanford"
-license-files = ["LICEN[CS]E*"]
+# Note: This is the older identifier format, which is needed to build on Python 3.8.
+license = {file = "LICENSE.txt"}
+# When updating to build on a more recent version, use the below identifiers.
+#license = "Stanford"
+#license-files = ["LICEN[CS]E*"]
 requires-python = ">=3.8"
 classifiers = [
     "Intended Audience :: Science/Research",
