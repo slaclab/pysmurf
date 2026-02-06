@@ -13,7 +13,7 @@ requires = ["setuptools"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "pysmurf"
+name = "pysmurf-slac"
 dynamic = ["version"]
 description = "The python control software for SMuRF"
 readme = "README.md"
