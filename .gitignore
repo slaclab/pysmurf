@@ -25,3 +25,5 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
+
+*/.ipynb_checkpoints/
