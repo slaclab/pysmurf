@@ -9,8 +9,11 @@
 #-----------------------------------------------------------------------------
 
 [build-system]
-requires = ["setuptools"]
-build-backend = "setuptools.build_meta"
+requires = [
+    "hatch-vcs",
+    "hatchling",
+]
+build-backend = "hatchling.build"
 
 [project]
 name = "pysmurf-slac"
@@ -50,11 +53,23 @@ Documentation = "https://pysmurf.readthedocs.io"
 Homepage = "https://github.com/slaclab/pysmurf"
 "Source Code" = "https://github.com/slaclab/pysmurf"
 
-[tool.setuptools.packages.find]
-where = ["python"]
+[tool.hatch.version]
+source = "vcs"
 
-[tool.setuptools.package-data]
-"*" = ["*.txt"]
+# closest scheme to versioneer behavior, avoids auto-incremented version number
+# https://setuptools-scm.readthedocs.io/en/latest/usage/#default-versioning-scheme
+[tool.hatch.version.raw-options]
+version_scheme = "no-guess-dev"
 
-[tool.setuptools.dynamic]
-version = {attr = "pysmurf.__version__"}
+[tool.hatch.build.hooks.vcs]
+version-file = "python/pysmurf/_version.py"
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "/python",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = [
+    "/python/pysmurf",
+]
