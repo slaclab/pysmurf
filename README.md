@@ -8,7 +8,13 @@ The python control software for SMuRF. Includes scripts to do low level
 commands as well as higher level analysis.
 
 ## Installation
-To install pysmurf clone this repository and install using pip:
+Install pysmurf using pip:
+```
+pip3 install pysmurf-slac
+```
+
+### Installing from Source
+To install from source clone this repository and install using pip:
 
 ```
 git clone https://github.com/slaclab/pysmurf.git
