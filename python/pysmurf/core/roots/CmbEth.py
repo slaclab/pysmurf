@@ -93,4 +93,5 @@ class CmbEth(Common):
                         VariableGroups = VariableGroups,
                         disable_bay0   = disable_bay0,
                         disable_bay1   = disable_bay1,
+                        server_port    = server_port,
                         **kwargs)
