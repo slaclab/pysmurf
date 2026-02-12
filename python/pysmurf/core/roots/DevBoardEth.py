@@ -28,7 +28,6 @@ class DevBoardEth(Common):
     def __init__(self, *,
                  ip_addr        = "",
                  config_file    = None,
-                 epics_prefix   = "EpicsPrefix",
                  polling_en     = True,
                  pv_dump_file   = "",
                  disable_bay0   = False,
@@ -68,7 +67,6 @@ class DevBoardEth(Common):
         # Setup base class
         Common.__init__(self,
                         config_file    = config_file,
-                        epics_prefix   = epics_prefix,
                         polling_en     = polling_en,
                         pv_dump_file   = pv_dump_file,
                         txDevice       = txDevice,

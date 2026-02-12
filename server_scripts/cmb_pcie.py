@@ -47,7 +47,6 @@ if __name__ == "__main__":
                                         dev_data  = args['pcie_dev_data']) as pcie:
 
         with CmbPcie( config_file    = args['config_file'],
-                      epics_prefix   = args['epics_prefix'],
                       polling_en     = args['polling_en'],
                       pv_dump_file   = args['pv_dump_file'],
                       disable_bay0   = args['disable_bay0'],
@@ -64,15 +63,8 @@ if __name__ == "__main__":
             if args['use_gui']:
                 # Start the GUI
                 print("Starting GUI...\n")
-
-                if args['use_qt']:
-                    # Start the QT GUI, is selected by the user
-                    import pyrogue.gui
-                    pyrogue.gui.runGui(root=root,title=args['windows_title'])
-                else:
-                    # Otherwise, start the PyDM GUI
-                    import pyrogue.pydm
-                    pyrogue.pydm.runPyDM(root=root, title=args['windows_title'])
+                import pyrogue.pydm
+                pyrogue.pydm.runPyDM(serverList=root.zmqServer.address, title=args['windows_title'])
 
             else:
                 # Stop the server when Crtl+C is pressed

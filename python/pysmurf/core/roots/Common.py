@@ -28,7 +28,6 @@ import pysmurf.core.utilities
 class Common(pyrogue.Root):
     def __init__(self, *,
                  config_file    = None,
-                 epics_prefix   = "EpicsPrefix",
                  polling_en     = True,
                  pv_dump_file   = None,
                  txDevice       = None,
@@ -44,13 +43,20 @@ class Common(pyrogue.Root):
                  **kwargs):
 
         pyrogue.Root.__init__(self, name="AMCc", initRead=True, pollEn=polling_en,
-            timeout=5.0, streamIncGroups='stream', serverPort=server_port, **kwargs)
+            timeout=5.0, **kwargs)
 
         #########################################################################################
         # The following interfaces are expected to be defined at this point by a sub-class
         # self._streaming_stream # Data stream interface
         # self._ddr_streams # 4 DDR Interface Streams
         # self._fpga = Top level FPGA
+
+        # Add ZMQ Server
+        self.zmqServer = pyrogue.interfaces.ZmqServer(root=self, addr='*', port=server_port)
+        self.addInterface(self.zmqServer)
+
+        # Add streamer
+        self.stream = pyrogue.interfaces.stream.Variable(root=self, incGroups='stream')
 
         # Add PySmurf Application Block
         self.add(pysmurf.core.devices.SmurfApplication())
@@ -86,7 +92,7 @@ class Common(pyrogue.Root):
         ## Streaming interface streams
         # We have already connected TDEST 0xC1 to the smurf_processor receiver,
         # so we need to tapping it to the data writer.
-        pyrogue.streamTap(self._streaming_stream, self._stm_interface_writer.getChannel(0))
+        pyrogue.streamConnect(self._streaming_stream, self._stm_interface_writer.getChannel(0))
 
         # Run control for streaming interfaces
         self.add(pyrogue.RunControl(
@@ -118,38 +124,30 @@ class Common(pyrogue.Root):
         # Variable groups
         self._VariableGroups = VariableGroups
 
-        # Add epics interface
-        self._epics = None
-        if epics_prefix:
-            print(f"Starting EPICS server using prefix \"{epics_prefix}\"")
-            from pyrogue.protocols import epics
-            self._epics = epics.EpicsCaServer(base=epics_prefix, root=self)
-            self._pv_dump_file = pv_dump_file
+        if stream_pv_size:
+            print(
+                "Enabling stream data on PVs " +
+                f"(buffer size = {stream_pv_size} points, " +
+                f"data type = {stream_pv_type})")
 
-            # PVs for stream data
-            # This should be replaced with DataReceiver objects
-            if stream_pv_size:
-                print(
-                    "Enabling stream data on PVs " +
-                    f"(buffer size = {stream_pv_size} points, " +
-                    f"data type = {stream_pv_type})")
+            self._stream_fifos  = []
+            self._stream_slaves = []
+            for i in range(4):
+                strm = pysmurf.core.utilities.SmurfDataReceiver(name=f"Stream{i}",
+                                                                rxSize=stream_pv_size,
+                                                                rxType=stream_pv_type)
+                self._stream_slaves.append(strm)
+                self.add(strm)
 
-                self._stream_fifos  = []
-                self._stream_slaves = []
-                for i in range(4):
-                    self._stream_slaves.append(self._epics.createSlave(name=f"AMCc:Stream{i}",
-                                                                       maxSize=stream_pv_size,
-                                                                       type=stream_pv_type))
+                # Calculate number of bytes needed on the fifo
+                if '16' in stream_pv_type:
+                    fifo_size = stream_pv_size * 2
+                else:
+                    fifo_size = stream_pv_size * 4
 
-                    # Calculate number of bytes needed on the fifo
-                    if '16' in stream_pv_type:
-                        fifo_size = stream_pv_size * 2
-                    else:
-                        fifo_size = stream_pv_size * 4
-
-                    self._stream_fifos.append(rogue.interfaces.stream.Fifo(1000, fifo_size, True)) # changes
-                    pyrogue.streamConnect(self._stream_fifos[i],self._stream_slaves[i])
-                    pyrogue.streamTap(self._ddr_streams[i], self._stream_fifos[i])
+                self._stream_fifos.append(rogue.interfaces.stream.Fifo(1000, fifo_size, True)) # changes
+                pyrogue.streamConnect(self._stream_fifos[i], self._stream_slaves[i])
+                pyrogue.streamConnect(self._ddr_streams[i], self._stream_fifos[i])
 
 
         # Update SaveState to not read before saving
@@ -181,6 +179,12 @@ class Common(pyrogue.Root):
         # List of enabled bays
         self._enabled_bays = [i for i,e in enumerate([disable_bay0, disable_bay1]) if not e]
 
+        # Add a variable to indicate when the server has finished starting up
+        self.add(pyrogue.LocalVariable(
+            name="Ready",
+            description="Server has finished initialisation",
+            value=False))
+
     def start(self):
         pyrogue.Root.start(self)
 
@@ -204,14 +208,6 @@ class Common(pyrogue.Root):
         except AttributeError as attr_error:
             print(f"Attibute error: {attr_error}")
         print("")
-
-        # Start epics
-        if self._epics:
-            self._epics.start()
-
-            # Dump the PV list to the expecified file
-            if self._pv_dump_file:
-                self._epics.dump(self._pv_dump_file)
 
         # Add publisher, pub_root & script_id need to be updated
         self._pub = pysmurf.core.utilities.SmurfPublisher(root=self)
@@ -243,10 +239,10 @@ class Common(pyrogue.Root):
             # Set the status register to 'Not found'.
             self.SmurfApplication.JesdStatus.set(3)
 
+        self.Ready.set(True)
+
     def stop(self):
         print("Stopping servers...")
-        if self._epics:
-            self._epics.stop()
 
         print("Stopping root...")
         pyrogue.Root.stop(self)

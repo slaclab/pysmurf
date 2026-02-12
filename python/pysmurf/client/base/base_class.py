@@ -13,6 +13,8 @@
 # copied, modified, propagated, or distributed except according to the terms
 # contained in the LICENSE.txt file.
 #-----------------------------------------------------------------------------
+import pyrogue
+
 from pysmurf.client.command.cryo_card import CryoCard
 from pysmurf.client.util.pub import Publisher
 from .logger import SmurfLogger
@@ -25,8 +27,10 @@ class SmurfBase:
     ----
     log : log file or None, optional, default None
         The log file to write to. If None, creates a new log file.
-    epics_root : str or None, optional, default None
-        The name of the epics root. For example "test_epics".
+    server_addr: str or None
+        The server address
+    server_port: int, optional, default 9000
+        The server port on the server to connect to
     offline : bool, optional, default False
         Whether to run in offline mode (no rogue) or not. This
         will break many things. Default is False.
@@ -58,8 +62,7 @@ class SmurfBase:
     Overall progress on a task
     """
 
-    def __init__(self, log=None, epics_root=None, offline=False,
-                 pub_root=None, script_id=None, **kwargs):
+    def __init__(self, log=None, server_addr="localhost", server_port=9000, atca_port=9100, offline=False, pub_root=None, script_id=None, **kwargs):
         """
         """
 
@@ -72,6 +75,19 @@ class SmurfBase:
             if verb is not None:
                 self.set_verbose(verb)
 
+        self._server_addr = server_addr
+        self._server_port = server_port
+        self._atca_port = atca_port
+
+        # connect to rogue servers
+        self._client = pyrogue.interfaces.VirtualClient(addr=self._server_addr, port=self._server_port)
+        self._atca = pyrogue.interfaces.VirtualClient(addr=self._server_addr, port=self._atca_port)
+        if self._atca.root is None:
+            self.log(f"Could not connect to ATCA monitor at port {self._atca_port}.")
+        # but disable monitor thread to avoid issues on exit. Socket remains open
+        self._client.stop()
+        self._atca.stop()
+
         # If <pub_root>BACKEND environment variable is not set to 'udp', all
         # publish calls will be no-ops.
         self.pub = Publisher(env_root=pub_root, script_id=script_id)
@@ -80,109 +96,109 @@ class SmurfBase:
         if self.offline is True:
             self.log('Offline mode')
 
-
         # Setting paths for easier commands - Is there a better way to
         # do this than just hardcoding paths? This needs to be cleaned
         # up somehow
 
-        if epics_root is not None:
-            self.epics_root = epics_root
+        self.amcc = 'AMCc.'
 
-        self.amcc = self.epics_root + ':AMCc:'
+        self.smurf_application = self.amcc + 'SmurfApplication.'
 
-        self.smurf_application = self.amcc + 'SmurfApplication:'
+        self.smurf_processor = self.amcc + 'SmurfProcessor.'
+        self._predata_emulator = self.smurf_processor + 'PreDataEmulator.'
+        self._postdata_emulator = self.smurf_processor + 'PostDataEmulator.'
+        self.stream_data_source = self.amcc + 'StreamDataSource.'
+        self.channel_mapper = self.smurf_processor + 'ChannelMapper.'
+        self.frame_rx_stats = self.smurf_processor + 'FrameRxStats.'
 
-        self.smurf_processor = self.amcc + 'SmurfProcessor:'
-        self._predata_emulator = self.smurf_processor + 'PreDataEmulator:'
-        self._postdata_emulator = self.smurf_processor + 'PostDataEmulator:'
-        self.stream_data_source = self.amcc + 'StreamDataSource:'
-        self.channel_mapper = self.smurf_processor + 'ChannelMapper:'
-        self.frame_rx_stats = self.smurf_processor + 'FrameRxStats:'
-
-        self.fpga_top_level = self.amcc + 'FpgaTopLevel:'
-        self.app_top = self.fpga_top_level + 'AppTop:'
-        self.app_core = self.app_top + 'AppCore:'
+        self.fpga_top_level = self.amcc + 'FpgaTopLevel.'
+        self.app_top = self.fpga_top_level + 'AppTop.'
+        self.app_core = self.app_top + 'AppCore.'
 
         # AppTop
-        self.dac_sig_gen = self.app_top + 'DacSigGen[{}]:'
+        self.dac_sig_gen = self.app_top + 'DacSigGen[{}].'
 
         # AppCore
-        self.microwave_mux_core = self.app_core + 'MicrowaveMuxCore[{}]:'
-        self.sysgencryo = self.app_core + 'SysgenCryo:'
-        self.timing_header = self.app_core + 'TimingHeader:'
+        self.microwave_mux_core = self.app_core + 'MicrowaveMuxCore[{}].'
+        self.sysgencryo = self.app_core + 'SysgenCryo.'
+        self.timing_header = self.app_core + 'TimingHeader.'
 
         # MicrowaveMuxCore[#]
-        self.DBG = self.microwave_mux_core + 'DBG:'
-        self.dac_root = self.microwave_mux_core + 'DAC[{}]:'
-        self.att_root = self.microwave_mux_core + 'ATT:'
+        self.DBG = self.microwave_mux_core + 'DBG.'
+        self.dac_root = self.microwave_mux_core + 'DAC[{}].'
+        self.att_root = self.microwave_mux_core + 'ATT.'
 
         # LMK
-        self.lmk = self.microwave_mux_core + 'LMK:'
+        self.lmk = self.microwave_mux_core + 'LMK.'
 
         # SysgenCryo
-        self.band_root = self.sysgencryo + 'Base[{}]:'
-        self.adc_root = self.sysgencryo + 'CryoAdcMux:'
+        self.band_root = self.sysgencryo + 'Base[{}].'
+        self.adc_root = self.sysgencryo + 'CryoAdcMux.'
 
-        self.cryo_root = self.band_root + 'CryoChannels:'
-        self.channel_root = self.cryo_root + 'CryoChannel[{}]:'
+        self.cryo_root = self.band_root + 'CryoChannels.'
+        self.channel_root = self.cryo_root + 'CryoChannel[{}].'
 
-        self.streaming_root = self.amcc + 'streamingInterface:'
+        self.streaming_root = self.amcc + 'streamingInterface.'
 
         # FpgaTopLevel
-        self.fpgatl = self.amcc + 'FpgaTopLevel:'
+        self.fpgatl = self.amcc + 'FpgaTopLevel.'
 
         # AppTop
-        self.apptop = self.fpgatl + 'AppTop:'
+        self.apptop = self.fpgatl + 'AppTop.'
 
         # AppCore
-        self.appcore = self.apptop + 'AppCore:'
+        self.appcore = self.apptop + 'AppCore.'
 
         # AmcCarrierCore
-        self.amccc = self.fpgatl + 'AmcCarrierCore:'
+        self.amccc = self.fpgatl + 'AmcCarrierCore.'
 
         # Crossbar
-        self.crossbar = self.amccc + 'AxiSy56040:'
+        self.crossbar = self.amccc + 'AxiSy56040.'
 
         # Regulator
-        self.regulator = self.amccc + 'EM22xx:'
+        self.regulator = self.amccc + 'EM22xx.'
 
         # CarrierBsi
-        self.amc_carrier_bsi = self.amccc + 'AmcCarrierBsi:'
+        self.amc_carrier_bsi = self.amccc + 'AmcCarrierBsi.'
 
         # FPGA
-        self.ultrascale = self.amccc + 'AxiSysMonUltraScale:'
+        self.ultrascale = self.amccc + 'AxiSysMonUltraScale.'
 
         # Tx -> DAC , Rx <- ADC
-        self.axi_version = self.amccc + 'AxiVersion:'
+        self.axi_version = self.amccc + 'AxiVersion.'
         self.waveform_engine_buffers_root = self.amccc + \
-            'AmcCarrierBsa:BsaWaveformEngine[{}]:' + \
-            'WaveformEngineBuffers:'
-        self.stream_data_writer_root = self.amcc + 'streamDataWriter:'
-        self.jesd_tx_root = self.apptop + 'AppTopJesd[{}]:JesdTx:'
-        self.jesd_rx_root = self.apptop + 'AppTopJesd[{}]:JesdRx:'
-        self.daq_mux_root = self.apptop + 'DaqMuxV2[{}]:'
+            'AmcCarrierBsa.BsaWaveformEngine[{}].' + \
+            'WaveformEngineBuffers.'
+        self.stream_data_writer_root = self.amcc + 'streamDataWriter.'
+        self.jesd_tx_root = self.apptop + 'AppTopJesd[{}].JesdTx.'
+        self.jesd_rx_root = self.apptop + 'AppTopJesd[{}].JesdRx.'
+        self.daq_mux_root = self.apptop + 'DaqMuxV2[{}].'
 
         # RTM paths
-        self.rtm_cryo_det_root = self.appcore + 'RtmCryoDet:'
+        self.rtm_cryo_det_root = self.appcore + 'RtmCryoDet.'
         self.rtm_spi_root = self.rtm_cryo_det_root + \
-            'RtmSpiSr:'
+            'RtmSpiSr.'
         self.rtm_spi_max_root = self.rtm_cryo_det_root + \
-            'RtmSpiMax:'
+            'RtmSpiMax.'
         self.rtm_spi_cryo_root = self.rtm_cryo_det_root + \
-            'SpiCryo:'
+            'SpiCryo.'
         self.rtm_lut_ctrl_root = self.rtm_cryo_det_root + \
-            'LutCtrl:'
+            'LutCtrl.'
         self.rtm_lut_ctrl = self.rtm_lut_ctrl_root + \
-            'Ctrl:'
+            'Ctrl.'
 
         # Timing paths
-        self.amctiming = self.amccc + 'AmcCarrierTiming:'
-        self.trigger_root = self.amctiming + 'EvrV2CoreTriggers:'
-        self.timing_status = self.amctiming + 'TimingFrameRx:'
+        self.amctiming = self.amccc + 'AmcCarrierTiming.'
+        self.trigger_root = self.amctiming + 'EvrV2CoreTriggers.'
+        self.timing_status = self.amctiming + 'TimingFrameRx.'
 
-        self.C = CryoCard(self.rtm_spi_cryo_root + 'read',
-                          self.rtm_spi_cryo_root + 'write',
-                          log=self.log)
+        self.C = CryoCard(
+            self.rtm_spi_cryo_root + 'read',
+            self.rtm_spi_cryo_root + 'write',
+            server_addr=self._server_addr,
+            server_port=self._server_port,
+            log=self.log,
+        )
         self.freq_resp = {}
 
         # RTM slow DAC parameters (used, e.g., for TES biasing). The

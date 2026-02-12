@@ -292,7 +292,7 @@ class SmurfProcessor(pyrogue.Device):
 
         # If a root was defined, connect it to the file writer, on channel 1
         if root:
-            pyrogue.streamConnect(root, self.file_writer.getChannel(1))
+            pyrogue.streamConnect(root.stream, self.file_writer.getChannel(1))
 
         # If a transmitter device was defined, add it to the tree and connect it to the chain
         if txDevice:
@@ -307,11 +307,10 @@ class SmurfProcessor(pyrogue.Device):
 
             # Tap the data frames at the output of the post data emulator, and send them to transmitter'
             # data channel, though the fifo.
-            pyrogue.streamTap(    self.post_data_emulator, self.fifo_data)
+            pyrogue.streamConnect(self.post_data_emulator, self.fifo_data)
             pyrogue.streamConnect(self.fifo_data,          self.transmitter.getDataChannel())
 
             # If a root was defined, connect  it to the transmitter's meta data channel.
-            # Use streamTap as it was already connected to the file writer.
             if root:
                 # Add a fifo for the meta data frames. It will hold up to 100 copies of the input frames,
                 # to be send to the transmitter device. If the fifo is full, new frames will be dropped.
@@ -323,7 +322,7 @@ class SmurfProcessor(pyrogue.Device):
 
                 # Tap the metadata frames from the root, and send them to the transmitter's meta data
                 # channel, through the fifo.
-                pyrogue.streamTap(    root,           self.fifo_meta)
+                pyrogue.streamConnect(root.stream, self.fifo_meta)
                 pyrogue.streamConnect(self.fifo_meta, self.transmitter.getMetaChannel())
 
             # Add the transmitter device to the root here, after adding the fifos, so that it appears
@@ -332,7 +331,7 @@ class SmurfProcessor(pyrogue.Device):
 
     def _getStreamSlave(self):
         """
-        Method called by streamConnect, streamTap and streamConnectBiDir to access slave.
+        Method called by streamConnect and streamConnectBiDir to access slave.
         We will pass a reference to the smurf device of the first element in the chain,
         which is the 'FrameStatistics'.
         """

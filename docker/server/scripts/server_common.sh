@@ -406,7 +406,7 @@ validateCommType()
         comm_type='eth'
     else
         # Check if the communication type is invalid
-        if [ ${comm_type} != 'eth' ] && [ ${comm_type} != 'pcie' ]; then
+        if [ ${comm_type} != 'eth' ] && [ ${comm_type} != 'pcie' ] && [ ${comm_type} != 'emu' ]; then
             echo "Invalid communication type!."
             usage
         fi
@@ -665,11 +665,9 @@ detect_amc_board()
             elif [ ${type_str} == "A02" ]; then
                 echo "This is a HB board."
                 band_bay[$i]="hb"
-		system_type="umux"
             elif [ ${type_str} == "A03" ]; then
                 echo "This is a TKID board."
                 band_bay[$i]="tkid"
-		system_type="tkid"
             else
                 echo "Board type not supported."
                 echo

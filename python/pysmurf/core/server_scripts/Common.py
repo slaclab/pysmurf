@@ -102,14 +102,14 @@ def process_args(args):
     # If the server port was not defined, set it to a default value
     if args.server_port is None:
         # When using a real target (AMC carrier or dev board), set the server port to
-        # (9000 + 2 * slot_number). Either the IP address or the RSSI lane number
+        # (9000 + 3 * slot_number). Either the IP address or the RSSI lane number
         # must be defined, so calculate the slot number based on those two cases
         if args.pcie_rssi_lane:
             # If the RSSI lane number was defined, get the slot number from it
-            args.server_port = 9000 + 2 * ( args.pcie_rssi_lane + 2 )
+            args.server_port = 9000 + 3 * ( args.pcie_rssi_lane + 2 )
         elif args.ip_addr:
             # Otherwise, get th slot number from the last digit of the IP address
-            args.server_port = 9000 + 2 * int(args.ip_addr[-1:])
+            args.server_port = 9000 + 3 * int(args.ip_addr[-1:])
         # Otherwise, for the emulator target set the server port to 9000.
         # This target doesn't require IP address nor RSSI lane.
         else:
@@ -172,9 +172,6 @@ def make_parser(parser=None):
                        )
     group.add_argument('--configure', '-c', action='store_true',
                        help="Load the default configuration at startup."
-                       )
-    group.add_argument('--epics', '-e', dest='epics_prefix', default="",
-                       help="Start an EPICS server with PV name prefix \"EPICS_PREFIX\"."
                        )
     group.add_argument('--gui', '-g', action='store_true', dest='use_gui',
                        help="Starts the server with a gui."
