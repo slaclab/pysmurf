@@ -22,11 +22,11 @@ USER cryo
 RUN git config --global --add safe.directory /usr/local/src/pysmurf
 USER root
 WORKDIR pysmurf
+RUN python3 -m pip install .
 RUN mkdir build
 WORKDIR build
 RUN cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo .. && make -j4
 ENV PYTHONPATH /usr/local/src/pysmurf/lib:${PYTHONPATH}
-ENV PYTHONPATH /usr/local/src/pysmurf/python:${PYTHONPATH}
 ENV SMURF_DIR /usr/local/src/pysmurf
 
 # Add utilities

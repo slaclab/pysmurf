@@ -1,3 +1,6 @@
+# dynamic package version
+python/pysmurf/_version.py
+
 *.pyc
 *.dat
 *.png
