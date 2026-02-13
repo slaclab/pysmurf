@@ -54,6 +54,7 @@ jobs:
   docker-definitions:
     name: Docker Definition Tests
     runs-on: ubuntu-22.04
+    if: github.actor != 'dependabot[bot]'
     steps:
       # Checkout the code.
       # We use ssh key authentication to be able to access other private
