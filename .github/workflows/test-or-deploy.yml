@@ -34,7 +34,7 @@ jobs:
 
       # Setup python3
       - name: setup python 3.8.12
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v6
         with:
           python-version: 3.8.12
 
@@ -89,7 +89,7 @@ jobs:
 
       # Setup python 3.8.12
       - name: Setup python 3.8.12
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v6
         with:
           python-version: 3.8.12
 
@@ -292,7 +292,7 @@ jobs:
 
       # Setup python3
       - name: Setup python 3.8.12
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v6
         with:
           python-version: 3.8.12
 
