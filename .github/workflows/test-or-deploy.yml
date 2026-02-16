@@ -383,7 +383,7 @@ jobs:
 
       # Build and push the docker image
       - name: Build and push image to Dockerhub
-        uses: docker/build-push-action@v2
+        uses: docker/build-push-action@v6
         with:
           context: ./docker/client
           file: ./docker/client/Dockerfile
