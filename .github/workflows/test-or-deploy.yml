@@ -30,7 +30,7 @@ jobs:
     steps:
       # Checkout the code
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v6
 
       # Setup python3
       - name: setup python 3.8.12
@@ -60,7 +60,7 @@ jobs:
       # We use ssh key authentication to be able to access other private
       # repositories (like the firmware repository).
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v6
         #with:
         #  ssh-key: ${{ secrets.SLACLAB_KEY }}
 
@@ -85,7 +85,7 @@ jobs:
     steps:
       # Checkout the code
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v6
 
       # Setup python 3.8.12
       - name: Setup python 3.8.12
@@ -114,7 +114,7 @@ jobs:
     steps:
       # Checkout the code
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v6
 
       # Setup Docker build environment
       - name: Set up docker build enviroment
@@ -188,7 +188,7 @@ jobs:
     steps:
       # Checkout the code
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v6
 
       # Setup Docker build environment
       - name: Set up docker build enviroment
@@ -244,7 +244,7 @@ jobs:
           python-version: 3.8
 
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0  # fetch all tags
 
@@ -280,7 +280,7 @@ jobs:
     steps:
       # Checkout the code
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
@@ -322,7 +322,7 @@ jobs:
       # We use ssh key authentication to be able to access other private
       # repositories (like the firmware repository).
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v6
         #with:
         #  ssh-key: ${{ secrets.SLACLAB_KEY }}
 
@@ -361,7 +361,7 @@ jobs:
     steps:
       # Checkout the code
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v6
 
       # Get the git tag from the environmental variables
       # It will used to tag the docker image
