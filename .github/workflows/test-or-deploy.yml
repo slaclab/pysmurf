@@ -288,7 +288,7 @@ jobs:
       # It will used to tag the docker image
       - name: Get release tag
         id: get_tag
-	run: echo "tag=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
+        run: echo "tag=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
 
       # Setup python3
       - name: Setup python 3.8.12
@@ -367,7 +367,7 @@ jobs:
       # It will used to tag the docker image
       - name: Get release tag
         id: get_tag
-	run: echo "tag=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
+        run: echo "tag=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
 
       # Setup Docker build environment
       - name: Set up Docker Buildx
