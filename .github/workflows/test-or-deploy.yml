@@ -129,7 +129,7 @@ jobs:
         env:
           BRANCH_NAME: ${{ github.head_ref }}
         run: |
-          echo ::set-output name=branch::"${BRANCH_NAME:-$(echo $GITHUB_REF | awk 'BEGIN { FS = "/" } ; { $1=$2=""; sub("  ",""); gsub(" ","/"); print }')}"
+          echo "branch=${BRANCH_NAME:-$(echo "$GITHUB_REF" | awk 'BEGIN { FS = "/" } ; { $1=$2=""; sub("  ",""); gsub(" ","/"); print }')}" >> "$GITHUB_OUTPUT"
 
       # Build docker image
       - name: Build docker image
@@ -203,7 +203,7 @@ jobs:
         env:
           BRANCH_NAME: ${{ github.head_ref }}
         run: |
-          echo ::set-output name=branch::"${BRANCH_NAME:-$(echo $GITHUB_REF | awk 'BEGIN { FS = "/" } ; { $1=$2=""; sub("  ",""); gsub(" ","/"); print }')}"
+          echo "branch=${BRANCH_NAME:-$(echo "$GITHUB_REF" | awk 'BEGIN { FS = "/" } ; { $1=$2=""; sub("  ",""); gsub(" ","/"); print }')}" >> "$GITHUB_OUTPUT"	
 
       # Build docker image
       - name: Build docker Image
@@ -288,7 +288,7 @@ jobs:
       # It will used to tag the docker image
       - name: Get release tag
         id: get_tag
-        run: echo ::set-output name=tag::"${GITHUB_REF#refs/tags/}"
+	run: echo "tag=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
 
       # Setup python3
       - name: Setup python 3.8.12
@@ -367,7 +367,7 @@ jobs:
       # It will used to tag the docker image
       - name: Get release tag
         id: get_tag
-        run: echo ::set-output name=tag::"${GITHUB_REF#refs/tags/}"
+	run: echo "tag=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
 
       # Setup Docker build environment
       - name: Set up Docker Buildx
