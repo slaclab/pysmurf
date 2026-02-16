@@ -323,8 +323,8 @@ jobs:
       # repositories (like the firmware repository).
       - name: Checkout code
         uses: actions/checkout@v2
-        with:
-          ssh-key: ${{ secrets.SLACLAB_KEY }}
+        #with:
+        #  ssh-key: ${{ secrets.SLACLAB_KEY }}
 
       # Setup docker build environment
       - name: Set up Docker Buildx
