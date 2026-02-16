@@ -118,7 +118,7 @@ jobs:
 
       # Setup Docker build environment
       - name: Set up docker build enviroment
-        uses: docker/setup-buildx-action@v1
+        uses: docker/setup-buildx-action@v3
 
       # Extract the branch name.
       # - For PR, the branch name is "github.head_ref"
@@ -192,7 +192,7 @@ jobs:
 
       # Setup Docker build environment
       - name: Set up docker build enviroment
-        uses: docker/setup-buildx-action@v1
+        uses: docker/setup-buildx-action@v3
 
       # Extract the branch name.
       # - For PR, the branch name is "github.head_ref"
@@ -328,7 +328,7 @@ jobs:
 
       # Setup docker build environment
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v1
+        uses: docker/setup-buildx-action@v3
 
       # Login to Dockerhub
       - name: Login to Dockerhub
@@ -371,7 +371,7 @@ jobs:
 
       # Setup Docker build environment
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v1
+        uses: docker/setup-buildx-action@v3
 
       # Login to Dockerhub
       - name: Login to Dockerhub
