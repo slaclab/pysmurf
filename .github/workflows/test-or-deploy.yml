@@ -26,7 +26,7 @@ jobs:
   # Run flake8 on all .py files. Should block deploys to Read The Docs.
   flake8:
     name: Flake8 Tests
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
       # Checkout the code
       - name: Checkout code
@@ -53,7 +53,7 @@ jobs:
   # Validate the server docker image definitions
   docker-definitions:
     name: Docker Definition Tests
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     if: github.actor != 'dependabot[bot]'
     steps:
       # Checkout the code.
@@ -80,7 +80,7 @@ jobs:
   # Documentation automatic build tests
   test-docs:
     name: Documentation Build Tests
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     needs: [flake8, docker-definitions]   # Run only if all checks passed
     steps:
       # Checkout the code
@@ -109,7 +109,7 @@ jobs:
   # Server tests
   test-server:
     name: Server Tests
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     needs: [flake8, docker-definitions]   # Run only if all checks passed
     steps:
       # Checkout the code
@@ -183,7 +183,7 @@ jobs:
   # Client tests
   test-client:
     name: Client Tests
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     needs: [flake8, docker-definitions]   # Run only if all checks passed
     steps:
       # Checkout the code
@@ -235,7 +235,7 @@ jobs:
   # Build wheel
   build-wheel:
     name: Build Wheel
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     needs: [test-docs, test-server, test-client]  # Run only if all tests passed
     steps:
       - name: setup python 3.8
@@ -274,7 +274,7 @@ jobs:
   # Deploy new release notes to GitHub
   deploy-release-notes:
     name: Generate Release Notes
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     needs: [test-docs, test-server, test-client]  # Run only if all tests passed
     if: startsWith(github.ref, 'refs/tags/')      # Run only on tagged releases
     steps:
@@ -314,7 +314,7 @@ jobs:
   # Server docker
   deploy-server:
     name: Build Server Docker Image
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     needs: [test-docs, test-server, test-client]  # Run only if all tests passed
     if: startsWith(github.ref, 'refs/tags/')      # Run only on tagged releases
     steps:
@@ -355,7 +355,7 @@ jobs:
   # Client docker
   deploy-client:
     name: Build Client Docker Image
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     needs: [test-docs, test-server, test-client]  # Run only if all tests passed
     if: startsWith(github.ref, 'refs/tags/')      # Run only on tagged releases
     steps:

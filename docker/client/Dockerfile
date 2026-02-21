@@ -1,4 +1,4 @@
-FROM ghcr.io/slaclab/smurf-base:R3.0.3
+FROM ghcr.io/slaclab/smurf-base:R4.0.2
 
 RUN apt-get update && \
     DEBIAN_FRONTEND=noninteractive \
@@ -13,7 +13,7 @@ RUN apt-get update && \
 RUN pip3 install --upgrade pip
 
 RUN pip3 install \
-    scipy==1.8.1 \
+    scipy \
     pandas \
     PyYAML \
     pillow \
