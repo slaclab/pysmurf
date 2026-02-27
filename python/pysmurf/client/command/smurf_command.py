@@ -7073,3 +7073,35 @@ class SmurfCommandMixin(SmurfBase):
                             fru_info_dict[fru_key]=fru_value
 
         return fru_info_dict
+
+    _readout_delay_reg = "readoutDelay"
+
+    def get_readout_delay(self, **kwargs):
+        """
+        Get the value of a programmable delay between the startRamp pulse and when
+        the readout FSM is triggered.
+
+        The delay step is based on the AXI-Lite clock and its frequency is 156.25MHz (1/6.4ns)
+
+        https://github.com/slaclab/cryo-det/blob/main/firmware/common/shared/rtl/CryoStream.vhd#L36
+        https://github.com/slaclab/cryo-det/blob/main/firmware/common/DspCoreLib/CryoDetCmbHcd/rtl/DspCoreWrapper.vhd#L234
+        https://github.com/slaclab/cryo-det/blob/main/firmware/common/DspCoreLib/CryoDetCmbHcd/rtl/DspCoreWrapper.vhd#L44
+        https://github.com/slaclab/cryo-det/blob/main/firmware/common/MicrowaveMuxApp/AppCore/hdl/AppCore.vhd#L317
+        https://github.com/slaclab/cryo-det/blob/main/firmware/common/MicrowaveMuxApp/AppCore/hdl/AppCore.vhd#L222
+        """
+        return self._caget(f"{self.app_core}{self._readout_delay_reg}", **kwargs)
+
+    def set_readout_delay(self, delay, **kwargs):
+        """
+        Set the value of a programmable delay between the startRamp pulse and when
+        the readout FSM is triggered.
+
+        The delay step is based on the AXI-Lite clock and its frequency is 156.25MHz (1/6.4ns)
+
+        https://github.com/slaclab/cryo-det/blob/main/firmware/common/shared/rtl/CryoStream.vhd#L36
+        https://github.com/slaclab/cryo-det/blob/main/firmware/common/DspCoreLib/CryoDetCmbHcd/rtl/DspCoreWrapper.vhd#L234
+        https://github.com/slaclab/cryo-det/blob/main/firmware/common/DspCoreLib/CryoDetCmbHcd/rtl/DspCoreWrapper.vhd#L44
+        https://github.com/slaclab/cryo-det/blob/main/firmware/common/MicrowaveMuxApp/AppCore/hdl/AppCore.vhd#L317
+        https://github.com/slaclab/cryo-det/blob/main/firmware/common/MicrowaveMuxApp/AppCore/hdl/AppCore.vhd#L222
+        """
+        return self._caput(f"{self.app_core}{self._readout_delay_reg}", delay, **kwargs)
