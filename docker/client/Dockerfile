@@ -28,7 +28,7 @@ ARG branch
 WORKDIR /usr/local/src
 RUN git clone https://github.com/slaclab/pysmurf.git -b ${branch}
 WORKDIR /usr/local/src/pysmurf
-RUN pip3 install .
+RUN pip3 install -e ./
 ENV PYSMURF_TOP=/usr/local/src/pysmurf
 
 RUN mkdir -p /usr/local/src/pysmurf_utilities
