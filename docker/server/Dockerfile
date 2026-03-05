@@ -22,7 +22,7 @@ USER cryo
 RUN git config --global --add safe.directory /usr/local/src/pysmurf
 USER root
 WORKDIR pysmurf
-RUN python3 -m pip install .
+RUN pip3 install -e ./
 RUN mkdir build
 WORKDIR build
 RUN cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo .. && make -j4
