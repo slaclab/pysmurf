@@ -97,7 +97,10 @@ class SmurfCommandMixin(SmurfBase):
                 # a command is blocking so wait_done is moot
                 var.call(val)
             elif var.enum is not None:
-                # setDisp handles enum keys
+                # handle numpy type
+                if isinstance(val, np.generic):
+                    val = val.item()
+                # setDisp handles enum values
                 var.setDisp(val, index=index)
             elif cast_type:
                 # rogue is strict about variable types for arrays
