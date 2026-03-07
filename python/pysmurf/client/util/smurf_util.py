@@ -975,6 +975,7 @@ class SmurfUtilMixin(SmurfBase):
             Time in seconds to wait after filter reset.
         IQ_mode : bool, optional, defaulte False
             Whether to take data in IQ streaming mode. Need S._caget(f'{S.app_core}modeStream')=1
+
         Returns
         -------
         data_filename : str
