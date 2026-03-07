@@ -852,7 +852,7 @@ class SmurfUtilMixin(SmurfBase):
             Whether to register the data file with the pysmurf
             publisher.
         IQ_mode : bool, optional, default to False
-            Whether or not you want to take data in IQ streaming mode. 
+            Whether or not you want to take data in IQ streaming mode.
             You must have S._caget(f'{S.app_core}modeStream')=1.
 
 
@@ -1156,7 +1156,7 @@ class SmurfUtilMixin(SmurfBase):
         gcp_mode (bool) : Indicates that the data was written in GCP mode. This
             is the legacy data mode which was depracatetd in Rogue 4.
         IQ_mode : bool, optional, default False
-            Whether data was taken with IQ stream mode:  S._caget(f'{S.app_core}modeStream')=1 
+            Whether data was taken with IQ stream mode:  S._caget(f'{S.app_core}modeStream')=1
 
         Ret:
         ----
@@ -3254,7 +3254,7 @@ class SmurfUtilMixin(SmurfBase):
             An array of SMuRF channel numbers.  Must be the same
             length as band.
         IQ_mode : Bool, optiona, default False
-            Applies to IQ stream mode with S._caget(f'{S.app_core}modeStream')=1 
+            Applies to IQ stream mode with S._caget(f'{S.app_core}modeStream')=1
 
         Returns
         -------
@@ -3276,15 +3276,15 @@ class SmurfUtilMixin(SmurfBase):
                 for ch in smurf_chans[k]:
                     output_chans = np.append(output_chans,
                                              ch + n_chan*k)
-        elif smurf_chans is not None and IQ_mode == True:
+        elif smurf_chans is not None and IQ_mode:
             keys = smurf_chans.keys() # the band numbers
             for k in keys:
                 n_chan = self.get_number_channels(k)
-                new_n_bands = 4 # len(self._bands)//2 ? 
+                new_n_bands = 4 # len(self._bands)//2 ?
                 for ch in smurf_chans[k]:
                     output_chans = np.append(output_chans, (k % new_n_bands) * 2*n_chan  + 2 * ch)
                     output_chans = np.append(output_chans, (k % new_n_bands) * 2*n_chan  + 2 * ch + 1)
-        
+
         return output_chans
 
 
