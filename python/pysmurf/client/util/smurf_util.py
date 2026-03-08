@@ -1123,7 +1123,7 @@ class SmurfUtilMixin(SmurfBase):
                          return_header=False,
                          return_tes_bias=False, write_log=True,
                          n_max=2048, make_freq_mask=False,
-                         gcp_mode=False, IQ_mode=True):
+                         gcp_mode=False, IQ_mode=False):
         """
         Loads data taken with the function stream_data_on.
         Gives back the resonator data in units of phase. Also
