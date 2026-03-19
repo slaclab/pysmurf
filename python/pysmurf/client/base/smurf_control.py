@@ -717,7 +717,6 @@ class SmurfControl(SmurfCommandMixin,
                 self.log("Attempts to communicate with a cryocard "
                          "failed!  Will assume no cryostat card is"
                          " connected and skip cryocard setup steps.")
->>>>>>> origin/main
 
             # Setup how this slot handles timing. To take science data, each
             # SMuRF slot should receive timing from the backplane or RTM fiber
