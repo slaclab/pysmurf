@@ -1,27 +1,33 @@
 # Add label 'core' to any change to the core-related
 # parts of the code
 core:
-  - src/**/*                    # All C++ source file (currently contains only core code)
-  - include/**/*                # All C++ header files (currently contains only core code)
-  - python/pysmurf/*            # The files in python/pysmurf (not recursively), common to core and client
-  - python/pysmurf/core/**/*    # All python code under pysmurf/core
-  - docker/server/**/*          # The pysmurf server docker files
-  - server_scripts/**/*         # The server startup scripts
-  - tests/**/*                  # This currently contains tests only related to the core
-  - README.*.md                 # All the README.*.md files are related to the core functionality
-  - smurfConfig.cmake.in        # This file is related to the core code
-  - CMakeLists.txt              # This file is related to the core code
+  - changed-files:
+      - any-glob-to-any-file:
+          - src/**/*                    # All C++ source file (currently contains only core code)
+          - include/**/*                # All C++ header files (currently contains only core code)
+          - python/pysmurf/*            # The files in python/pysmurf (not recursively), common to core and client
+          - python/pysmurf/core/**/*    # All python code under pysmurf/core
+          - docker/server/**/*          # The pysmurf server docker files
+          - server_scripts/**/*         # The server startup scripts
+          - tests/**/*                  # This currently contains tests only related to the core
+          - README.*.md                 # All the README.*.md files are related to the core functionality
+          - smurfConfig.cmake.in        # This file is related to the core code
+          - CMakeLists.txt              # This file is related to the core code
 
 # Add label 'client' to any change to the client-related
 # parts of the code
 client:
-  - python/pysmurf/*            # The files in python/pysmurf (not recursively), common to core and client
-  - python/pysmurf/client/**/*  # All the python code under pysmurf/client
-  - docker/client/**/*          # The pysmurf client docker files
-  - cfg_files/**/*              # All the configuration files
-  - scratch/**/*                # All the file in the scratch area
-  - docs/**/*                   # This contains documentation only for the client code
+  - changed-files:
+      - any-glob-to-any-file:
+          - python/pysmurf/*            # The files in python/pysmurf (not recursively), common to core and client
+          - python/pysmurf/client/**/*  # All the python code under pysmurf/client
+          - docker/client/**/*          # The pysmurf client docker files
+          - cfg_files/**/*              # All the configuration files
+          - scratch/**/*                # All the file in the scratch area
+          - docs/**/*                   # This contains documentation only for the client code
 
 # Add label 'firmware-change' to any change to the docker server definition file
 firmware-change:
-  - docker/server/definitions.sh # The docker server definition file
+  - changed-files:
+      - any-glob-to-any-file:
+          - docker/server/definitions.sh # The docker server definition file

@@ -1,4 +1,4 @@
-FROM ghcr.io/slaclab/smurf-rogue:R3.10.5
+FROM ghcr.io/slaclab/smurf-rogue:R2.9.4
 
 # Copy all firmware related files, which are in the local_files directory
 RUN mkdir -p /tmp/fw/ && chmod -R a+rw /tmp/fw/
@@ -9,8 +9,8 @@ WORKDIR /usr/local/src
 RUN git clone https://github.com/slaclab/smurf-pcie.git -b v2.0.0.1
 WORKDIR smurf-pcie
 RUN git submodule sync && git submodule update --init --recursive
-ENV PYTHONPATH /usr/local/src/smurf-pcie/software/python:${PYTHONPATH}
-ENV PYTHONPATH /usr/local/src/smurf-pcie/firmware/submodules/axi-pcie-core/python:${PYTHONPATH}
+ENV PYTHONPATH=/usr/local/src/smurf-pcie/software/python:${PYTHONPATH}
+ENV PYTHONPATH=/usr/local/src/smurf-pcie/firmware/submodules/axi-pcie-core/python:${PYTHONPATH}
 
 # Install pysmurf
 ARG branch
@@ -22,17 +22,17 @@ USER cryo
 RUN git config --global --add safe.directory /usr/local/src/pysmurf
 USER root
 WORKDIR pysmurf
+RUN python3 -m pip install .
 RUN mkdir build
 WORKDIR build
 RUN cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo .. && make -j4
-ENV PYTHONPATH /usr/local/src/pysmurf/lib:${PYTHONPATH}
-ENV PYTHONPATH /usr/local/src/pysmurf/python:${PYTHONPATH}
-ENV SMURF_DIR /usr/local/src/pysmurf
+ENV PYTHONPATH=/usr/local/src/pysmurf/lib:${PYTHONPATH}
+ENV SMURF_DIR=/usr/local/src/pysmurf
 
 # Add utilities
 RUN mkdir -p /usr/local/src/pysmurf_utilities
 ADD scripts/* /usr/local/src/pysmurf_utilities/
-ENV PATH /usr/local/src/pysmurf_utilities:${PATH}
+ENV PATH=/usr/local/src/pysmurf_utilities:${PATH}
 
 # Set the working directory to the root
 WORKDIR /

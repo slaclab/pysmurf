@@ -28,8 +28,8 @@ config_repo=https://github.com/slaclab/smurf_cfg
 # The files will be downloaded from the release list of assets.
 
 # Firmware version for uMUX systems
-fw_repo_tag=MicrowaveMuxBpEthGen2_v1.3.0
-mcs_file_name=MicrowaveMuxBpEthGen2-0x01030000-20240913132239-ruckman-1feb01f.mcs.gz
+fw_repo_tag=MicrowaveMuxBpEthGen2_v1.4.0
+mcs_file_name=MicrowaveMuxBpEthGen2-0x01040000-20251015075530-ruckman-b616c48.mcs
 
 # Firmware version for TKID systems
 tkid_fw_repo_tag=v2.1.0
