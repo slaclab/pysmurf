@@ -26,19 +26,20 @@ RUN pip3 install \
 ARG branch
 WORKDIR /usr/local/src
 RUN git clone https://github.com/slaclab/pysmurf.git -b ${branch}
-ENV PYTHONPATH /usr/local/src/pysmurf/python:${PYTHONPATH}
-ENV PYSMURF_TOP /usr/local/src/pysmurf
+WORKDIR /usr/local/src/pysmurf
+RUN pip3 install -e .
+ENV PYSMURF_TOP=/usr/local/src/pysmurf
 
 RUN mkdir -p /usr/local/src/pysmurf_utilities
 ADD scripts/* /usr/local/src/pysmurf_utilities/
-ENV PATH /usr/local/src/pysmurf_utilities:${PATH}
+ENV PATH=/usr/local/src/pysmurf_utilities:${PATH}
 
 # Set GTK3Agg as the matplotlib backend
-ENV MPLBACKEND GTK3Agg
+ENV MPLBACKEND=GTK3Agg
 
 # Set jupyter config stuff
 COPY jupyter /.jupyter
 RUN chown cryo:smurf -R /.jupyter
-ENV JUPYTER_CONFIG_DIR /.jupyter
+ENV JUPYTER_CONFIG_DIR=/.jupyter
 
 ENTRYPOINT ["start_client.sh"]
