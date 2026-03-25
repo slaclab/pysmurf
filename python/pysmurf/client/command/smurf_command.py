@@ -7105,3 +7105,127 @@ class SmurfCommandMixin(SmurfBase):
         https://github.com/slaclab/cryo-det/blob/main/firmware/common/MicrowaveMuxApp/AppCore/hdl/AppCore.vhd#L222
         """
         return self._caput(f"{self.app_core}{self._readout_delay_reg}", delay, **kwargs)
+
+    _debug_timing_override_reg = "DebugTimingOverrideBay{}Ch{}"
+
+    def get_debug_timing_override(self, bay, ch, **kwargs):
+        """
+        Get the value of the debug timing override register for a given bay and
+        channel.
+
+        If this register is enabled, the value of Counter0 will be substituted
+        for one of the data channels (e.g. I/Q or f/df). This is useful for
+        debugging timing issues in the system, as it allows you to see the value
+        of Counter0 in the data stream.
+
+        Counter0 increments at 480kHz and is reset by the PPS signal to the
+        timing system.
+
+        Args
+        ----
+        bay : int
+            The bay number (0 or 1).
+        ch : int
+            The channel (0 or 1).
+        """
+        return self._caget(self.app_core + self._debug_timing_override_reg.format(bay, ch), **kwargs)
+
+    def set_debug_timing_override(self, bay, ch, val, **kwargs):
+        """
+        Set the value of the debug timing override register for a given bay and
+        channel.
+
+        If this register is enabled, the value of Counter0 will be substituted
+        for one of the data channels (e.g. I/Q or f/df). This is useful for
+        debugging timing issues in the system, as it allows you to see the value
+        of Counter0 in the data stream.
+
+        Counter0 increments at 480kHz and is reset by the PPS signal to the
+        timing system.
+
+        Args
+        ----
+        bay : int
+            The bay number (0 or 1).
+        ch : int
+            The channel (0 or 1).
+        val : int
+            Value to set (0 or 1).
+        """
+        return self._caput(self.app_core + self._debug_timing_override_reg.format(bay, ch), val, **kwargs)
+
+    _counter_select_reg = "counterSelect"
+
+    def get_counter_select(self, band, **kwargs):
+        """
+        Get the value of the counterSelect register for a given band.
+
+        If this register is enabled, the value of I and Q will be substituted
+        with the flux ramp frame counter. This makes it possible to see what
+        frame the data belongs to, which is useful for debugging timing issues
+        in the system.
+
+        WARNING: If the counter-substituted IQ streams are allowed to go through
+        phase estimation and downstream filtering, they will be hard to
+        interpret. You can disable those steps with the following code::
+
+            # disable downstream filtering
+            S.set_filter_disable(True)
+            S.set_downsample_factor(1)
+            S._caput(S.smurf_processor + "Unwrapper:Disable",1)
+
+            # select IQ streaming mode
+            # bypasses CORDIC, send I and Q over both bays
+            # in this case we select bands corresponding to bay 0
+            S._caput(f'{S.app_core}baySelStream', 0, write_log=True)
+            S._caput(f'{S.app_core}modeStream', 1, write_log=True)
+
+        Args
+        ----
+        band : int
+            The band number.
+
+        Returns
+        -------
+        int
+            The value of the counter select register.
+        """
+        return self._caget(self.band_root.format(band) + self._counter_select_reg, **kwargs)
+
+    def set_counter_select(self, band, val, **kwargs):
+        """
+        Set the value of the counterSelect register for a given band.
+
+        If this register is enabled, the value of I and Q will be substituted
+        with the flux ramp frame counter. This makes it possible to see what
+        frame the data belongs to, which is useful for debugging timing issues
+        in the system.
+
+        WARNING: If the counter-substituted IQ streams are allowed to go through
+        phase estimation and downstream filtering, they will be hard to
+        interpret. You can disable those steps with the following code::
+
+            # disable downstream filtering
+            S.set_filter_disable(True)
+            S.set_downsample_factor(1)
+            S._caput(S.smurf_processor + "Unwrapper:Disable",1)
+
+            # select IQ streaming mode
+            # bypasses CORDIC, send I and Q over both bays
+            # in this case we select bands corresponding to bay 0
+            S._caput(f'{S.app_core}baySelStream', 0, write_log=True)
+            S._caput(f'{S.app_core}modeStream', 1, write_log=True)
+
+        Args
+        ----
+        band : int
+            The band number.
+        val : int
+            The value to set (0 or 1).
+
+        Returns
+        -------
+        int
+            The value of the counter select register.
+        """
+        return self._caput(self.band_root.format(band) + self._counter_select_reg, val, **kwargs)
