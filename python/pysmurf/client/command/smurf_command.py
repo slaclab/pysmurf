@@ -1659,10 +1659,11 @@ class SmurfCommandMixin(SmurfBase):
         the raw RF I and Q values will be streamed for each channel.
 
         When the mode is set to 1 (I/Q streaming mode), the
-        `bay_sel_stream` parameter determines which AMC bay's I/Q data
-        is streamed. If `bay_sel_stream` is 0, the I/Q data from bay 0
-        is streamed, and if it is 1, the I/Q data from bay 1 is
-        streamed.
+        `baySelStream` register, which can be set using the
+        :func:`set_bay_sel_stream` routine, determines which bay's
+        I/Q data is streamed. If `baySelStream` is 0, the I/Q data
+        from bay 0 is streamed, and if it is 1, the I/Q data from bay
+        1 is streamed.
 
         In I/Q streaming mode (modeSelStream=1), the I/Q data is
         truncated by a separate register, `lmsGain`, which can be set
@@ -1704,7 +1705,7 @@ class SmurfCommandMixin(SmurfBase):
         streamed for each channel. If the mode is 1, the raw RF I and
         Q values are being streamed for each channel.
 
-        See the docstring for :func:`get_mode_stream` for more
+        See the docstring for :func:`set_mode_stream` for more
         details.
 
         Args
