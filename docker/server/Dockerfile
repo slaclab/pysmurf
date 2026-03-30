@@ -12,6 +12,12 @@ RUN git submodule sync && git submodule update --init --recursive
 ENV PYTHONPATH=/usr/local/src/smurf-pcie/software/python:${PYTHONPATH}
 ENV PYTHONPATH=/usr/local/src/smurf-pcie/firmware/submodules/axi-pcie-core/python:${PYTHONPATH}
 
+# Upgrade pip - need this right now so can do an editable install of
+#  pysmurf, which fixes Issue 848.  In principle, this would be better
+#  to do in the base docker, but we're going to retire the base docker
+#  soon.
+RUN pip3 install --upgrade pip
+
 # Install pysmurf
 ARG branch
 WORKDIR /usr/local/src
@@ -22,7 +28,7 @@ USER cryo
 RUN git config --global --add safe.directory /usr/local/src/pysmurf
 USER root
 WORKDIR pysmurf
-RUN pip3 install -e ./
+RUN python3 -m pip install -e .
 RUN mkdir build
 WORKDIR build
 RUN cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo .. && make -j4
