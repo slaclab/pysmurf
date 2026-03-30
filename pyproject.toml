@@ -12,6 +12,9 @@
 requires = [
     "hatch-vcs",
     "hatchling",
+    "hatch-cython",
+    "Cython>=0.29.0",
+    "numpy>=1.19.0",
 ]
 build-backend = "hatchling.build"
 
@@ -73,3 +76,9 @@ include = [
 packages = [
     "/python/pysmurf",
 ]
+
+[tool.hatch.build.hooks.cython]
+include_numpy = true
+
+# Cython compiler directives
+directives = { boundscheck = false, wraparound = false, nonecheck = false, language_level = 3 }
