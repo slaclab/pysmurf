@@ -57,13 +57,6 @@ echo "Building docker image..."
 docker image build --build-arg branch=${tag} -t docker_image . || exit 1
 
 if [ "$1" != "--local" ] && [ "$1" != "-l" ]; then
-    # Tag stable image locally only.
-    docker image tag docker_image ${dockerhub_repo_stable}:${tag}
-    echo "Stable docker image tagged locally as '${dockerhub_repo_stable}:${tag}'"
-
-    docker image tag docker_image ${dockerhub_repo_stable}:${tag}
-    echo "Base docker image tagged locally as '${dockerhub_repo_base}:${tag}'"
-else
     # Tag and push the image to the stable dockerhub repository
     docker image tag docker_image ${dockerhub_org_name}/${dockerhub_repo_stable}:${tag}
     docker image push ${dockerhub_org_name}/${dockerhub_repo_stable}:${tag}
@@ -72,5 +65,12 @@ else
     # Tag and push the image to the stable dockerhub repository
     docker image tag docker_image ${dockerhub_org_name}/${dockerhub_repo_base}:${tag}
     docker image push ${dockerhub_org_name}/${dockerhub_repo_base}:${tag}
-    echo "Docker image '${dockerhub_org_name}/${dockerhub_repo_base}:${tag}' pushed"
+    echo "Docker image '${dockerhub_org_name}/${dockerhub_repo_base}:${tag}' pushed"    
+else # local build only
+    # Tag images locally only.
+    docker image tag docker_image ${dockerhub_repo_stable}:${tag}
+    echo "Stable docker image tagged locally as '${dockerhub_repo_stable}:${tag}'"
+
+    docker image tag docker_image ${dockerhub_repo_stable}:${tag}
+    echo "Base docker image tagged locally as '${dockerhub_repo_base}:${tag}'"    
 fi
