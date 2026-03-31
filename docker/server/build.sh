@@ -64,4 +64,4 @@ echo "Docker image '${dockerhub_org_name}/${dockerhub_repo_stable}:${tag}' pushe
 # Tag and push the image to the stable dockerhub repository
 docker image tag docker_image ${dockerhub_org_name}/${dockerhub_repo_base}:${tag}
 docker image push ${dockerhub_org_name}/${dockerhub_repo_base}:${tag}
-echo "Docker image '${dockerhub_org_name}/${dockerhub_repo_base}:${tag}' pushed"
+echo "Docker image '${dockerhub_org_name}/${dockerhub_repo_base}:${tag}' pushed"    

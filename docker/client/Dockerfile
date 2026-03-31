@@ -10,9 +10,9 @@ RUN apt-get update && \
     python3-matplotlib \
  && rm -rf /var/lib/apt/lists/*
 
-RUN pip3 install --upgrade pip
+RUN pip3 install --no-cache-dir --upgrade pip
 
-RUN pip3 install \
+RUN pip3 install --no-cache-dir \
     scipy \
     pandas \
     PyYAML \
@@ -21,14 +21,20 @@ RUN pip3 install \
     jupyter \
     pytest \
     GitPython \
-    schema
+    schema \
+    setuptools_scm
 
 # Install pysmurf
 ARG branch
 WORKDIR /usr/local/src
 RUN git clone https://github.com/slaclab/pysmurf.git -b ${branch}
+# Must add to safe directories for cryo user in order for the core
+# pysmurf instance to be able to resolve its version using git.
+USER cryo
+RUN git config --global --add safe.directory /usr/local/src/pysmurf
+USER root
 WORKDIR /usr/local/src/pysmurf
-RUN pip3 install .
+RUN pip3 install -e ./
 ENV PYSMURF_TOP=/usr/local/src/pysmurf
 
 RUN mkdir -p /usr/local/src/pysmurf_utilities
