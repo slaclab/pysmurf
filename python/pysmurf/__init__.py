@@ -44,3 +44,6 @@ except (ImportError, LookupError):
             exec(open(version_file).read(), globals())
         else:
             __version__ = 'unknown'
+
+# strip leading v
+__version__ = __version__.lstrip('v')
