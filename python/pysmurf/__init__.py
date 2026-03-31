@@ -17,9 +17,9 @@
 # contained in the LICENSE.txt file.
 #-----------------------------------------------------------------------------
 
-# Define the variable '__version__':
-# This has the closest behavior to versioneer that I could find
-# https://github.com/maresb/hatch-vcs-footgun-example
+import os
+import subprocess
+
 try:
     # If setuptools_scm is installed (e.g. in a development environment with
     # an editable install), then use it to determine the version dynamically.
@@ -29,13 +29,18 @@ try:
     # editable mode or if Git is not installed.
     __version__ = get_version(root="..", relative_to=__file__, version_scheme="no-guess-dev")
 except (ImportError, LookupError):
-    # As a fallback, use the version that is hard-coded in the file.
+    # As a fallback, try to get the version from Git directly
     try:
-        from pysmurf._version import __version__  # noqa: F401
-    except ModuleNotFoundError:
-        # The user is probably trying to run this without having installed
-        # the package, so complain.
-        raise RuntimeError(
-            "pysmurf is not correctly installed. "
-            "Please install it with pip."
-        )
+        git_describe = subprocess.check_output(['git', 'describe', '--tags', '--dirty', '--always'], universal_newlines=True).strip()
+        version_parts = git_describe.split('-')
+        if len(version_parts) == 1:
+            __version__ = version_parts[0]
+        else:
+            __version__ = '-'.join(version_parts[:-2]) + '+' + version_parts[-2] + '.' + version_parts[-1]
+    except (subprocess.CalledProcessError, OSError):
+        # Fallback to a version file
+        version_file = os.path.join(os.path.dirname(__file__), '_version.py')
+        if os.path.exists(version_file):
+            exec(open(version_file).read(), globals())
+        else:
+            __version__ = 'unknown'
