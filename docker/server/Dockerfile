@@ -18,6 +18,9 @@ ENV PYTHONPATH=/usr/local/src/smurf-pcie/firmware/submodules/axi-pcie-core/pytho
 #  soon.
 RUN pip3 install --upgrade pip
 
+RUN pip3 install \
+    setuptools_scm
+
 # Install pysmurf
 ARG branch
 WORKDIR /usr/local/src
