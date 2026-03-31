@@ -21,7 +21,8 @@ RUN pip3 install \
     jupyter \
     pytest \
     GitPython \
-    schema
+    schema \
+    setuptools_scm
 
 # Install pysmurf
 ARG branch
