@@ -10,9 +10,9 @@ RUN apt-get update && \
     python3-matplotlib \
  && rm -rf /var/lib/apt/lists/*
 
-RUN pip3 install --upgrade pip
+RUN pip3 install --no-cache-dir --upgrade pip
 
-RUN pip3 install \
+RUN pip3 install --no-cache-dir \
     scipy \
     pandas \
     PyYAML \

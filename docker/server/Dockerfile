@@ -16,9 +16,9 @@ ENV PYTHONPATH=/usr/local/src/smurf-pcie/firmware/submodules/axi-pcie-core/pytho
 #  pysmurf, which fixes Issue 848.  In principle, this would be better
 #  to do in the base docker, but we're going to retire the base docker
 #  soon.
-RUN pip3 install --upgrade pip
+RUN pip3 install --no-cache-dir --upgrade pip
 
-RUN pip3 install \
+RUN pip3 install --no-cache-dir \
     setuptools_scm
 
 # Install pysmurf
