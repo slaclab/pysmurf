@@ -1569,6 +1569,156 @@ class SmurfCommandMixin(SmurfBase):
             self.app_core + self._stream_enable_reg,
             **kwargs)
 
+    _mode_stream_reg = 'modeStream'
+
+    def set_mode_stream(self, val, **kwargs):
+        r"""Set the mode for data streaming.
+
+        This function sets the mode for data streaming. If the mode is
+        set to 0 (the default mode), the demodulated flux ramp phase
+        will be streamed for each channel. If the mode is set to 1,
+        the raw RF I and Q values will be streamed for each channel.
+
+        When the mode is set to 1 (I/Q streaming mode), the
+        `baySelStream` register, which can be set using the
+        :func:`set_bay_sel_stream` routine, determines which bay's
+        I/Q data is streamed. If `baySelStream` is 0, the I/Q data
+        from bay 0 is streamed, and if it is 1, the I/Q data from bay
+        1 is streamed.
+
+        In I/Q streaming mode (modeSelStream=1), the I/Q data is
+        truncated by a separate register, `lmsGain`, which can be set
+        and retrieved using the `set_lms_gain` and `get_lms_gain`
+        functions.
+
+        When using the :func:`take_stream_data` and the
+        :func:`read_stream_data` routines in I/Q streaming mode
+        (modeSelStream=1), the `IQ_mode` input keyword must be set to
+        `True` to account for the different channel mapping.
+
+        Args
+        ----
+        val : int
+            The mode to set, either 0 (default mode) or 1 (I/Q
+            streaming mode).
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caput` call.
+
+        See Also
+        --------
+        :func:`get_mode_stream` : Get the current data streaming mode.
+        :func:`get_lms_gain` : Gets the current value of the `lmsGain` register.
+        :func:`set_lms_gain` : Sets the value of the `lmsGain` register.
+        :func:`read_stream_data` : Loads data taken with the `take_stream_data` function.
+        :func:`take_stream_data` : Takes streaming data for a given amount of time.
+        :func:`set_bay_sel_stream` : Set the bay selection for I/Q data streaming.
+        :func:`get_bay_sel_stream` : Get the current bay selection for I/Q data streaming.
+        """
+        self._caput(self.app_core + self._mode_stream_reg, val, **kwargs)
+
+
+    def get_mode_stream(self, **kwargs):
+        r"""Get the current data streaming mode.
+
+        This function returns the current mode for data streaming. If
+        the mode is 0, the demodulated flux ramp phase is being
+        streamed for each channel. If the mode is 1, the raw RF I and
+        Q values are being streamed for each channel.
+
+        See the docstring for :func:`set_mode_stream` for more
+        details.
+
+        Args
+        ----
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caget` call.
+
+        Returns
+        -------
+        val : int
+            The current mode for data streaming, either 0 (default
+            mode) or 1 (I/Q streaming mode).
+
+        See Also
+        --------
+        :func:`set_mode_stream` : Set the data streaming mode.
+        :func:`get_lms_gain` : Gets the current value of the `lmsGain` register.
+        :func:`set_lms_gain` : Sets the value of the `lmsGain` register.
+        :func:`read_stream_data` : Loads data taken with the `take_stream_data` function.
+        :func:`take_stream_data` : Takes streaming data for a given amount of time.
+        :func:`set_bay_sel_stream` : Set the bay selection for I/Q data streaming.
+        :func:`get_bay_sel_stream` : Get the current bay selection for I/Q data streaming.
+        """
+        return self._caget(
+            self.app_core + self._mode_stream_reg,
+            **kwargs)
+
+    _bay_sel_stream_reg = 'baySelStream'
+
+    def set_bay_sel_stream(self, val, **kwargs):
+        r"""Set the bay selection for I/Q data streaming.
+
+        This function sets the bay selection for I/Q data
+        streaming. When the `modeStream` register (set with
+        :func:`set_mode_stream` routine) is set to 1 (I/Q streaming
+        mode), this parameter determines which bay's I/Q data is
+        streamed.
+
+        If set to 0, the I/Q data from bay 0 is streamed, and if it is
+        1, the I/Q data from bay 1 is streamed instead.
+
+        Args
+        ----
+        val : int
+            The AMC bay to select for I/Q data streaming, either 0 or 1.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caput` call.
+
+        See Also
+        --------
+        :func:`get_bay_sel_stream` : Get the current bay selection for I/Q data streaming.
+        :func:`get_mode_stream` : Get the current data streaming mode.
+        :func:`set_mode_stream` : Set the data streaming mode.
+        """
+        self._caput(self.app_core + self._bay_sel_stream_reg, val, **kwargs)
+
+    def get_bay_sel_stream(self, **kwargs):
+        r"""Get the current bay selection for I/Q data streaming.
+
+        This function returns the current bay selection for I/Q data
+        streaming.  When the `modeStream` register (set with
+        :func:`set_mode_stream` routine) is set to 1 (I/Q streaming
+        mode), this parameter determines which bay's I/Q data is
+        streamed.
+
+        If the returned value is 0, the I/Q data from bay 0 is being
+        streamed, and if it is 1, the I/Q data from bay 1 is being
+        streamed.
+
+        Args
+        ----
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caget` call.
+
+        Returns
+        -------
+        val: int
+            The current bay selection for I/Q data streaming, either 0 or 1.
+
+        See Also
+        --------
+        :func:`set_bay_sel_stream` : Set the bay selection for I/Q data streaming.
+        :func:`get_mode_stream` : Get the current data streaming mode.
+        :func:`set_mode_stream` : Set the data streaming mode.
+        """
+        return self._caget(
+            self.app_core + self._bay_sel_stream_reg,
+            **kwargs)
+
     _rf_iq_stream_enable_reg = 'rfIQStreamEnable'
 
     def set_rf_iq_stream_enable(self, band, val, **kwargs):
@@ -6991,3 +7141,127 @@ class SmurfCommandMixin(SmurfBase):
         https://github.com/slaclab/cryo-det/blob/main/firmware/common/MicrowaveMuxApp/AppCore/hdl/AppCore.vhd#L222
         """
         return self._caput(f"{self.app_core}{self._readout_delay_reg}", delay, **kwargs)
+
+    _debug_timing_override_reg = "DebugTimingOverrideBay{}Ch{}"
+
+    def get_debug_timing_override(self, bay, ch, **kwargs):
+        """
+        Get the value of the debug timing override register for a given bay and
+        channel.
+
+        If this register is enabled, the value of Counter0 will be substituted
+        for one of the data channels (e.g. I/Q or f/df). This is useful for
+        debugging timing issues in the system, as it allows you to see the value
+        of Counter0 in the data stream.
+
+        Counter0 increments at 480kHz and is reset by the PPS signal to the
+        timing system.
+
+        Args
+        ----
+        bay : int
+            The bay number (0 or 1).
+        ch : int
+            The channel (0 or 1).
+        """
+        return self._caget(self.app_core + self._debug_timing_override_reg.format(bay, ch), **kwargs)
+
+    def set_debug_timing_override(self, bay, ch, val, **kwargs):
+        """
+        Set the value of the debug timing override register for a given bay and
+        channel.
+
+        If this register is enabled, the value of Counter0 will be substituted
+        for one of the data channels (e.g. I/Q or f/df). This is useful for
+        debugging timing issues in the system, as it allows you to see the value
+        of Counter0 in the data stream.
+
+        Counter0 increments at 480kHz and is reset by the PPS signal to the
+        timing system.
+
+        Args
+        ----
+        bay : int
+            The bay number (0 or 1).
+        ch : int
+            The channel (0 or 1).
+        val : int
+            Value to set (0 or 1).
+        """
+        return self._caput(self.app_core + self._debug_timing_override_reg.format(bay, ch), val, **kwargs)
+
+    _counter_select_reg = "counterSelect"
+
+    def get_counter_select(self, band, **kwargs):
+        """
+        Get the value of the counterSelect register for a given band.
+
+        If this register is enabled, the value of I and Q will be substituted
+        with the flux ramp frame counter. This makes it possible to see what
+        frame the data belongs to, which is useful for debugging timing issues
+        in the system.
+
+        WARNING: If the counter-substituted IQ streams are allowed to go through
+        phase estimation and downstream filtering, they will be hard to
+        interpret. You can disable those steps with the following code::
+
+            # disable downstream filtering
+            S.set_filter_disable(True)
+            S.set_downsample_factor(1)
+            S._caput(S.smurf_processor + "Unwrapper:Disable",1)
+
+            # select IQ streaming mode
+            # bypasses CORDIC, send I and Q over both bays
+            # in this case we select bands corresponding to bay 0
+            S._caput(f'{S.app_core}baySelStream', 0, write_log=True)
+            S._caput(f'{S.app_core}modeStream', 1, write_log=True)
+
+        Args
+        ----
+        band : int
+            The band number.
+
+        Returns
+        -------
+        int
+            The value of the counter select register.
+        """
+        return self._caget(self.band_root.format(band) + self._counter_select_reg, **kwargs)
+
+    def set_counter_select(self, band, val, **kwargs):
+        """
+        Set the value of the counterSelect register for a given band.
+
+        If this register is enabled, the value of I and Q will be substituted
+        with the flux ramp frame counter. This makes it possible to see what
+        frame the data belongs to, which is useful for debugging timing issues
+        in the system.
+
+        WARNING: If the counter-substituted IQ streams are allowed to go through
+        phase estimation and downstream filtering, they will be hard to
+        interpret. You can disable those steps with the following code::
+
+            # disable downstream filtering
+            S.set_filter_disable(True)
+            S.set_downsample_factor(1)
+            S._caput(S.smurf_processor + "Unwrapper:Disable",1)
+
+            # select IQ streaming mode
+            # bypasses CORDIC, send I and Q over both bays
+            # in this case we select bands corresponding to bay 0
+            S._caput(f'{S.app_core}baySelStream', 0, write_log=True)
+            S._caput(f'{S.app_core}modeStream', 1, write_log=True)
+
+        Args
+        ----
+        band : int
+            The band number.
+        val : int
+            The value to set (0 or 1).
+
+        Returns
+        -------
+        int
+            The value of the counter select register.
+        """
+        return self._caput(self.band_root.format(band) + self._counter_select_reg, val, **kwargs)
