@@ -191,6 +191,12 @@ def make_parser(parser=None):
     group.add_argument('--disable-bay1', action='store_true',
                        help="Disable the instantiation of devices for Bay 1"
                        )
+    group.add_argument('--is-rfsoc', action='store_true',
+                       help="Hardware is RFSoC."
+                       )
+    group.add_argument('--is-prespectra', action='store_true',
+                       help="Running PreSpectra firmware."
+                       )    
     group.add_argument('--enable-em22xx', action='store_true',
                        help="Enable the EM22xx power monitor"
                        )

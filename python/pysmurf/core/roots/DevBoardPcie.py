@@ -33,6 +33,8 @@ class DevBoardPcie(Common):
                  pv_dump_file   = "",
                  disable_bay0   = False,
                  disable_bay1   = False,
+                 isRFSOC        = False,
+                 isPreSpectra   = False,
                  txDevice       = None,
                  configure      = False,
                  server_port    = 0,
@@ -49,7 +51,9 @@ class DevBoardPcie(Common):
                                    commType     = "pcie-rssi-interleaved",
                                    pcieRssiLink = pcie_rssi_lane,
                                    disableBay0  = disable_bay0,
-                                   disableBay1  = disable_bay1)
+                                   disableBay1  = disable_bay1,
+                                   isRFSOC      = is_rfsoc,
+                                   isPreSpectra = is_prespectra)
 
         # Create stream interfaces
         self._ddr_streams = []

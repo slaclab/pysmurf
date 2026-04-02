@@ -58,6 +58,8 @@ if __name__ == "__main__":
                            pv_dump_file   = args['pv_dump_file'],
                            disable_bay0   = args['disable_bay0'],
                            disable_bay1   = args['disable_bay1'],
+                           is_rfsoc       = args['is_rfsoc'],
+                           is_prespectra  = args['is_prespectra],
                            configure      = args['configure'],
                            server_port    = args['server_port'],
                            VariableGroups = VariableGroups,

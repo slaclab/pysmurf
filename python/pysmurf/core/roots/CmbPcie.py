@@ -33,6 +33,8 @@ class CmbPcie(Common):
                  pv_dump_file   = "",
                  disable_bay0   = False,
                  disable_bay1   = False,
+                 is_rfsoc       = False,
+                 is_prespectra  = False,
                  enable_pwri2c  = False,
                  txDevice       = None,
                  configure      = False,
@@ -57,6 +59,8 @@ class CmbPcie(Common):
             self._fpga = FpgaTopLevel( memBase      = self._srp,
                                        disableBay0  = disable_bay0,
                                        disableBay1  = disable_bay1,
+                                       isRFSOC      = is_rfsoc,
+                                       isPreSpectra = is_prespectra,
                                        enablePwrI2C = enable_pwri2c)
         except TypeError as e:
             print(f"TypeError calling FpgaTopLevel: {e}")
@@ -65,7 +69,9 @@ class CmbPcie(Common):
             print("Staring the server without using the 'enablePwrI2C' option.")
             self._fpga = FpgaTopLevel( memBase      = self._srp,
                                        disableBay0  = disable_bay0,
-                                       disableBay1  = disable_bay1)
+                                       disableBay1  = disable_bay1,
+                                       isRFSOC      = is_rfsoc,
+                                       isPreSpectra = is_prespectra)
 
         # Create stream interfaces
         self._ddr_streams = []
@@ -91,4 +97,6 @@ class CmbPcie(Common):
                         server_port    = server_port,
                         disable_bay0   = disable_bay0,
                         disable_bay1   = disable_bay1,
+                        is_rfsoc       = is_rfsoc,
+                        is_prespectra  = is_prespectra,
                         **kwargs)
