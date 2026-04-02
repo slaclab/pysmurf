@@ -18,7 +18,7 @@
 #-----------------------------------------------------------------------------
 
 from CryoDet._MicrowaveMuxBpEthGen2 import FpgaTopLevel
-import pyrogue
+import pyrogue.interfaces
 import rogue.protocols.srp
 
 import pysmurf
