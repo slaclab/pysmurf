@@ -271,7 +271,8 @@ updatePythonPath()
     # Look for the python directories that match the patterns
     local python_dirs=( $(find ${fw_top_dir} -type d \
                           -regex "^${fw_top_dir}/[^/]+/firmware/python" -o \
-                          -regex "^${fw_top_dir}/[^/]+/firmware/submodules/[^/]+/python") )
+                          -regex "^${fw_top_dir}/[^/]+/firmware/submodules/[^/]+/python" -o \
+                          -regex "^${fw_top_dir}/[^/]+/firmware/submodules/[^/]+/firmware/python") )    
 
     # Check if any directory was found
     if [ ${#python_dirs[@]} -eq 0 ]; then

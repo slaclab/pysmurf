@@ -29,6 +29,16 @@ from pysmurf.client.util import tools, dscounters
 
 class SmurfCommandMixin(SmurfBase):
 
+    def _skipifrfsoc(self, func):
+        def skipper(self, *args,**kwargs):
+            result = None
+            if not self.is_rfsoc:
+                result  = func(*args,**kwargs)
+            else:
+                print(f'Function {func.__name__} called, but not implemented on RFSoC.  Skipping call and returning None!')
+            return result
+        return skipper
+
     _global_poll_enable_reg = 'AMCc.enable'
 
     def _caput(self, pvname, val, index=-1, cast_type=True, write_log=False, log_level=None,
@@ -2700,6 +2710,7 @@ class SmurfCommandMixin(SmurfBase):
     # Attenuator
     _uc_reg = 'UC[{}]'
 
+    @_skipifrfsoc
     def set_att_uc(self, b, val, **kwargs):
         """
         Set the upconverter attenuator
@@ -2717,6 +2728,7 @@ class SmurfCommandMixin(SmurfBase):
             self.att_root.format(bay) + self._uc_reg.format(att),
             val, **kwargs)
 
+    @_skipifrfsoc
     def get_att_uc(self, b, **kwargs):
         """
         Get the upconverter attenuator value
@@ -2735,6 +2747,7 @@ class SmurfCommandMixin(SmurfBase):
 
     _dc_reg = 'DC[{}]'
 
+    @_skipifrfsoc
     def set_att_dc(self, b, val, **kwargs):
         """
         Set the down-converter attenuator
@@ -2752,6 +2765,7 @@ class SmurfCommandMixin(SmurfBase):
             self.att_root.format(bay) + self._dc_reg.format(att),
             val, **kwargs)
 
+    @_skipifrfsoc
     def get_att_dc(self, b, **kwargs):
         """
         Get the down-converter attenuator value
