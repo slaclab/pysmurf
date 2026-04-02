@@ -54,7 +54,7 @@ def setupGroups(root, VariableGroups):
 
                 # Update poll interval if provided.
                 if v['pollInterval'] is not None and n.isinstance(pyrogue.BaseVariable):
-                    n.pollInterval = v['pollInterval']
+                    n.setPollInterval(v['pollInterval'])
 
             else:
                 print(f"setupGroups: Warning: {k} not found!")

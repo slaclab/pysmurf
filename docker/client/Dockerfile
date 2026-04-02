@@ -1,8 +1,7 @@
-FROM ghcr.io/slaclab/smurf-base:R2.1.0
+FROM ghcr.io/slaclab/smurf-rogue:R5.0.0
 
-RUN apt-get update && \
-    DEBIAN_FRONTEND=noninteractive \
-    apt-get install -y \
+RUN apt-get update
+RUN apt-get install -y \
     python3-gi \
     python3-gi-cairo \
     python3-cairocffi \
@@ -34,21 +33,12 @@ USER cryo
 RUN git config --global --add safe.directory /usr/local/src/pysmurf
 USER root
 WORKDIR /usr/local/src/pysmurf
-RUN pip3 install -e ./
+RUN pip3 install -e .
 ENV PYSMURF_TOP=/usr/local/src/pysmurf
 
 RUN mkdir -p /usr/local/src/pysmurf_utilities
 ADD scripts/* /usr/local/src/pysmurf_utilities/
 ENV PATH=/usr/local/src/pysmurf_utilities:${PATH}
-
-# By default EPICS is configured with 'EPICS_CA_AUTO_ADDR_LIST=YES'
-# which will cause problems is we have multiple NIC, so let's set it
-# to use localhost only for now
-ENV EPICS_CA_AUTO_ADDR_LIST=NO
-ENV EPICS_CA_ADDR_LIST=localhost
-
-# Default EPICS prefix value
-ENV EPICS_PREFIX="smurf_server"
 
 # Set GTK3Agg as the matplotlib backend
 ENV MPLBACKEND=GTK3Agg

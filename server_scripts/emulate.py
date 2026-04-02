@@ -23,6 +23,9 @@ import pysmurf.core.devices
 import pysmurf.core.transmitters
 import pysmurf.core.server_scripts.Common as common
 
+def varListener(path, value):
+    print(f"Got var update: {path} = {value}")
+
 # Main body
 if __name__ == "__main__":
 
@@ -33,7 +36,6 @@ if __name__ == "__main__":
     from pysmurf.core.roots.EmulationRoot import EmulationRoot
 
     with EmulationRoot ( config_file    = args['config_file'],
-                         epics_prefix   = args['epics_prefix'],
                          polling_en     = args['polling_en'],
                          pv_dump_file   = args['pv_dump_file'],
                          disable_bay0   = args['disable_bay0'],
@@ -41,7 +43,10 @@ if __name__ == "__main__":
                          server_port    = args['server_port'],
                          txDevice       = pysmurf.core.transmitters.BaseTransmitter(name='Transmitter')) as root:
 
+
+        #root.addVarListener(varListener)
+
         # Start the GUI
-        import pyrogue.gui
         print("Starting GUI...\n")
-        pyrogue.gui.runGui(root=root)
+        import pyrogue.pydm
+        pyrogue.pydm.runPyDM(serverList=root.zmqServer.address, title=args['windows_title'])

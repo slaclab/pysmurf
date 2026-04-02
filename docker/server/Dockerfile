@@ -1,4 +1,4 @@
-FROM ghcr.io/slaclab/smurf-rogue:R2.9.4
+FROM ghcr.io/slaclab/smurf-rogue:R5.0.0
 
 # Copy all firmware related files, which are in the local_files directory
 RUN mkdir -p /tmp/fw/ && chmod -R a+rw /tmp/fw/
@@ -6,10 +6,11 @@ COPY local_files /tmp/fw/
 
 # Install the SMURF PCIe card repository
 WORKDIR /usr/local/src
-RUN git clone https://github.com/slaclab/smurf-pcie.git -b v2.0.0.1
+RUN git clone https://github.com/slaclab/smurf-pcie.git -b v3.1.1
 WORKDIR smurf-pcie
 RUN git submodule sync && git submodule update --init --recursive
 ENV PYTHONPATH=/usr/local/src/smurf-pcie/software/python:${PYTHONPATH}
+ENV PYTHONPATH=/usr/local/src/smurf-pcie/firmware/python:${PYTHONPATH}
 ENV PYTHONPATH=/usr/local/src/smurf-pcie/firmware/submodules/axi-pcie-core/python:${PYTHONPATH}
 
 # Upgrade pip - need this right now so can do an editable install of
@@ -34,7 +35,7 @@ WORKDIR pysmurf
 RUN pip3 install -e ./
 RUN mkdir build
 WORKDIR build
-RUN cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo .. && make -j4
+RUN cmake -DCMAKE_PREFIX_PATH=/usr/local/lib .. && make -j4
 ENV PYTHONPATH=/usr/local/src/pysmurf/lib:${PYTHONPATH}
 ENV SMURF_DIR=/usr/local/src/pysmurf
 
