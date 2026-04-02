@@ -33,7 +33,6 @@ class CmbEth(Common):
                  disable_bay1   = False,
                  is_rfsoc       = False,
                  is_prespectra  = False,
-                 isRFSOC        = False,
                  enable_pwri2c  = False,
                  txDevice       = None,
                  configure      = False,
