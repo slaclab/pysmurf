@@ -18,7 +18,7 @@ import time
 import os
 
 import numpy as np
-import pyrogue
+import pyrogue.interfaces
 
 from ..base.logger import SmurfLogger
 
