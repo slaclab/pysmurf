@@ -73,3 +73,7 @@ class DevBoardEth(Common):
                         configure      = configure,
                         server_port    = server_port,
                         **kwargs)
+
+        # Add the RSSI interface to the device tree so that its _start()
+        # method is called during Root.start(), opening the RSSI link.
+        self.add(self._stream)
