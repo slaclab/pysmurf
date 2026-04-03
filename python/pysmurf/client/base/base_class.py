@@ -79,8 +79,15 @@ class SmurfBase:
         self._server_port = server_port
         self._atca_port = atca_port
 
+        # suppress client logging errors
+        # this doesn't work because rogue filters only can lower the level...
+        #rogue.Logging.setFilter('pyrogue.ZmqClient', rogue.Logging.Critical)
+
         # connect to rogue servers
         self._client = pyrogue.interfaces.VirtualClient(addr=self._server_addr, port=self._server_port)
+        # set the timeout to supress spam in logs. Retries forever anyway
+        # certain calls take long to complete
+        self._client.setTimeout(10000, True)  # ms
         self._atca = pyrogue.interfaces.VirtualClient(addr=self._server_addr, port=self._atca_port)
         if self._atca.root is None:
             self.log(f"Could not connect to ATCA monitor at port {self._atca_port}.")
