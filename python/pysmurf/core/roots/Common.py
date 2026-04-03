@@ -18,6 +18,8 @@
 #-----------------------------------------------------------------------------
 
 import pyrogue
+import pyrogue.interfaces
+import pyrogue.utilities
 import rogue.hardware.axi
 import rogue.protocols.srp
 
