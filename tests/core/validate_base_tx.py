@@ -108,13 +108,18 @@ if __name__ == "__main__":
         root.StreamDataSource.SourceEnable.set(False)
         print('Done')
 
+        # Wait for the pipeline to drain: poll until the FileWriter
+        # has received at least as many frames as entered the pipeline.
+        print('  Waiting for pipeline to drain... ', end='')
+        rx_in = root.SmurfProcessor.FrameRxStats.FrameCnt.get()
+        while root.SmurfProcessor.FileWriter.FrameCount.get() < rx_in:
+            time.sleep(0.1)
+        print('Done')
+
         # Close the output file
         print('  Closing the FileWriter output file... ', end='')
         root.SmurfProcessor.FileWriter.Close()
         print('Done')
-
-        # Delay to make sure all counters are up-to-date
-        time.sleep(2)
 
         # Read all the frame counters
         print('  Reading counters... ', end='')
