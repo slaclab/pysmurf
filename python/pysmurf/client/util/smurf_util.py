@@ -3671,9 +3671,7 @@ class SmurfUtilMixin(SmurfBase):
         self.flux_ramp_off()
 
         self.log('Turning off all TES biases')
-        n_bias_groups = self._n_bias_groups
-        for bg in np.arange(n_bias_groups):
-            self.set_tes_bias_bipolar(bg, 0)
+        self.set_tes_bias_off()
 
 
     def mask_num_to_gcp_num(self, mask_num):
