@@ -1106,7 +1106,7 @@ class SmurfUtilMixin(SmurfBase):
         self.close_data_file(write_log=write_log)
 
         if register_file:
-            datafile = self.get_data_file_name().tostring().decode()
+            datafile = self.get_data_file_name()
             if datafile:
                 self.log(f"Registering File {datafile}")
                 self.pub.register_file(datafile, 'data', format='dat')
