@@ -31,7 +31,7 @@ from pysmurf.client.util.pub import set_action
 
 # Try to import optimized Cython version, fall back to pure Python if not available
 try:
-    from pysmurf.client.util.stream_data_reader import read_stream_data_cython
+    from pysmurf.client.util.stream_data_reader import read_stream_data_cython, parse_tes_bias_from_headers
     CYTHON_AVAILABLE = True
 except ImportError:
     CYTHON_AVAILABLE = False
@@ -1126,7 +1126,7 @@ class SmurfUtilMixin(SmurfBase):
                          return_header=False,
                          return_tes_bias=False, write_log=True,
                          n_max=2048, make_freq_mask=False,
-                         gcp_mode=False, IQ_mode=False):
+                         gcp_mode=False, IQ_mode=False, fast_reader=False):
         """
         Loads data taken with the function stream_data_on.
         Gives back the resonator data in units of phase. Also
@@ -1189,29 +1189,29 @@ class SmurfUtilMixin(SmurfBase):
             self.log(f'Only reading channel {channel}')
 
         # Use fully Cython-optimized version if available
-        if CYTHON_AVAILABLE:
-            if write_log:
-                self.log('Using Cython-optimized data reader (full C implementation)')
+        if CYTHON_AVAILABLE and fast_reader:
 
             # This version does ALL file I/O in C
             t, phase, headers = read_stream_data_cython(
                 datafile,
                 channel=channel,
                 IQ_mode=IQ_mode,
-                return_header=return_header,
-                return_tes_bias=return_tes_bias,
-                write_log=write_log
             )
             header_dict = {}
             if return_header:
-                for k in headers[0].keys():
-                    header_dict[k] = np.array([h[k] for h in headers])
+                # parse into dict for backwards compatibility
+                for k in headers.dtype.fields:
+                    if k[:8] != "_padding":
+                        header_dict[k] = headers[k]
+            tes_bias = parse_tes_bias_from_headers(headers)
 
         # Pure Python fallback
         else:
-            if write_log:
-                self.log('Using pure Python data reader (Cython not available)')
-            # Fall back to original Python implementation
+            if fast_reader:
+                self.log(
+                    'Fast Cython reader not available. Falling back on slow reader.',
+                    self.LOG_ERROR
+                )
             # Flag to indicate we are about the read the fist frame from the disk
             # The number of channel will be extracted from the first frame and the
             # data structures will be build based on that
@@ -1313,19 +1313,19 @@ class SmurfUtilMixin(SmurfBase):
             phase=np.array(phase)
             t=np.array(t)
 
-        if return_header:
+        if return_header and not fast_reader:
             for k in header_dict.keys():
                 header_dict[k] = np.append(header_dict[k],
                     tmp_header_dict[k])
             tes_bias = np.vstack((tes_bias, tmp_tes_bias))
             tes_bias = np.transpose(tes_bias)
-
-        elif return_tes_bias:
+        elif return_tes_bias and not fast_reader:
             tes_bias = np.vstack((tes_bias, tmp_tes_bias))
             tes_bias = np.transpose(tes_bias)
 
         # rotate and transform to phase
-        if not IQ_mode:
+        # the cython reader handles this already
+        if not IQ_mode and not fast_reader:
             phase = phase.astype(float) / 2**15 * np.pi
 
         if np.size(phase) == 0:
