@@ -10,6 +10,7 @@ This module provides high-performance data reading for SMuRF stream data.
 All file I/O and binary parsing is done in C for maximum performance.
 """
 
+import yaml
 import numpy as np
 cimport numpy as cnp
 from libc.stdlib cimport malloc, free
@@ -116,7 +117,7 @@ cdef class FastSmurfReader:
             fclose(self.file_ptr)
             self.file_ptr = NULL
 
-    def read_all_records(self, channel=None):
+    def read_all_records(self, channel=None, skip_meta=True):
         """
         Read all records from file and return as numpy arrays
         This is the main high-performance function
@@ -125,6 +126,8 @@ cdef class FastSmurfReader:
         ---------
         channel : array-like or None
             Channels to read (if None, reads all)
+        skip_meta : bool, optional, default True
+            Whether to skip metadata parsing
 
         Returns
         -------
@@ -136,10 +139,13 @@ cdef class FastSmurfReader:
             Structured array of SMuRF headers with dtype SMURF_HEADER_DTYPE
             Access fields like: headers['timestamp'], headers['frame_counter']
             Individual headers: headers[i] returns a single header record
+        metadata : dict
+            Dictionary of metadata read from Rogue headers (if skip_meta=False)
         """
         # Pre-allocate with estimates
         cdef bytearray header_bytes = bytearray()
         cdef list data_list = []
+        cdef list meta_list = []
 
         cdef RogueHeader rogue_hdr
         cdef cnp.ndarray[cnp.int32_t, ndim=1] channel_data
@@ -160,7 +166,7 @@ cdef class FastSmurfReader:
             if ftell(self.file_ptr) >= self.file_size:
                 break
 
-            # Process Rogue header if needed
+            # Read Rogue headers to find data channel
             if self.is_rogue:
                 found_data = False
                 while not found_data:
@@ -178,16 +184,19 @@ cdef class FastSmurfReader:
                         parse_rogue_header(self.rogue_buffer, &rogue_hdr)
 
                     rogue_payload = rogue_hdr.size - 4
-                    rec_end = ftell(self.file_ptr) + rogue_payload
 
                     # If data channel, process it
                     if rogue_hdr.channel == 0:
                         found_data = True
                         break
                     else:
-                        # TODO support reading metadata channels
-                        # Skip non-data channels
-                        fseek(self.file_ptr, rec_end, SEEK_SET)
+                        # read into metadata buffer
+                        if skip_meta:
+                            fseek(self.file_ptr, rogue_payload, SEEK_CUR)
+                        else:
+                            meta_buffer = bytearray(rogue_payload)
+                            fread(<char*>meta_buffer, 1, rogue_payload, self.file_ptr)
+                            meta_list.append((self.records_read, meta_buffer.decode('utf-8')))
 
                 if not found_data:
                     break
@@ -238,10 +247,13 @@ cdef class FastSmurfReader:
         timestamps_array = headers_array['timestamp']
         data_array = np.array(data_list, dtype=np.int32)
 
-        return timestamps_array, data_array, headers_array
+        # parse metadata stream from YAML
+        metadata = {i: yaml.safe_load(m) for i, m in meta_list}
+
+        return timestamps_array, data_array, headers_array, metadata
 
 
-def read_stream_data_cython(str datafile, channel=None, bint IQ_mode=False):
+def read_stream_data_cython(str datafile, channel=None, bint IQ_mode=False, bint skip_meta=True):
     """
     Ultra-fast Cython implementation that reads entire file in C.
     This completely replaces the Python loop over SmurfStreamReader.records()
@@ -254,6 +266,8 @@ def read_stream_data_cython(str datafile, channel=None, bint IQ_mode=False):
         Channels to read (if None, reads all)
     IQ_mode : bool
         Whether data is in IQ streaming mode
+    skip_meta : bool, optional, default True
+        Whether to skip metadata parsing
 
     Returns
     -------
@@ -263,6 +277,8 @@ def read_stream_data_cython(str datafile, channel=None, bint IQ_mode=False):
         Phase data (or IQ data if in IQ mode)
     headers : list
         SMuRF headers.
+    meta : dict
+        Metadata read from file. dict keys are the corresponding data index.
     """
     cdef:
         FastSmurfReader reader
@@ -276,7 +292,9 @@ def read_stream_data_cython(str datafile, channel=None, bint IQ_mode=False):
 
     # Open file and read all records in C
     with FastSmurfReader(datafile, is_rogue=True) as reader:
-        timestamps, data_array, headers = reader.read_all_records(channel=channel)
+        timestamps, data_array, headers, meta = reader.read_all_records(
+            skip_meta=skip_meta, channel=channel
+        )
 
     n_records = len(timestamps)
     n_chan = data_array.shape[1]
@@ -296,7 +314,7 @@ def read_stream_data_cython(str datafile, channel=None, bint IQ_mode=False):
 
         phase = data_array.T / (2.0**15) * pi
 
-        return timestamps, phase, headers
+        return timestamps, phase, headers, meta
 
 def parse_tes_bias_from_headers(headers):
     """

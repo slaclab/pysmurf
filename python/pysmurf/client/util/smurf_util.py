@@ -1192,7 +1192,7 @@ class SmurfUtilMixin(SmurfBase):
         if CYTHON_AVAILABLE and fast_reader:
 
             # This version does ALL file I/O in C
-            t, phase, headers = read_stream_data_cython(
+            t, phase, headers, _meta = read_stream_data_cython(
                 datafile,
                 channel=channel,
                 IQ_mode=IQ_mode,
@@ -1313,6 +1313,7 @@ class SmurfUtilMixin(SmurfBase):
             phase=np.array(phase)
             t=np.array(t)
 
+        # These are handled earlier in the Cython reader
         if return_header and not fast_reader:
             for k in header_dict.keys():
                 header_dict[k] = np.append(header_dict[k],
