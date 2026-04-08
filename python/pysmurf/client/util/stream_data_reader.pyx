@@ -117,6 +117,48 @@ cdef class FastSmurfReader:
             fclose(self.file_ptr)
             self.file_ptr = NULL
 
+    cdef _get_dimensions(self, int32_t* n_chan, int32_t* n_record):
+        cdef uint32_t rogue_payload
+        cdef RogueHeader rogue_hdr
+        n_chan[0] = -1
+
+        # set file pointer back to beginning
+        fseek(self.file_ptr, 0, SEEK_SET)
+
+        # Read records
+        while True:
+            # Check if at end of file
+            if ftell(self.file_ptr) >= self.file_size:
+                break
+
+            # Check for EOF
+            if ftell(self.file_ptr) >= self.file_size:
+                break
+
+            # Read Rogue header
+            bytes_read = fread(self.rogue_buffer, 1, ROGUE_HEADER_SIZE, self.file_ptr)
+            if bytes_read != ROGUE_HEADER_SIZE:
+                break
+
+            # Parse header
+            parse_rogue_header(self.rogue_buffer, &rogue_hdr)
+
+            rogue_payload = rogue_hdr.size - 4
+
+            # If data channel, increment counter
+            if rogue_hdr.channel == 0:
+                n_record[0] += 1
+
+                # read number of channels once
+                if n_chan[0] == -1:
+                    bytes_read = fread(self.header_buffer, 1, SMURF_HEADER_SIZE, self.file_ptr)
+                    if bytes_read != SMURF_HEADER_SIZE:
+                        break
+                    n_chan[0] = (<uint32_t*>&self.header_buffer[4])[0]
+
+            # advance file pointer
+            fseek(self.file_ptr, rogue_payload, SEEK_CUR)
+
     def read_all_records(self, channel=None, skip_meta=True):
         """
         Read all records from file and return as numpy arrays
@@ -142,25 +184,45 @@ cdef class FastSmurfReader:
         metadata : dict
             Dictionary of metadata read from Rogue headers (if skip_meta=False)
         """
-        # Pre-allocate with estimates
         cdef bytearray header_bytes = bytearray()
-        cdef list data_list = []
+        cdef int32_t[:, :] data_view
+        cdef int32_t[:] channel_data
         cdef list meta_list = []
 
         cdef RogueHeader rogue_hdr
-        cdef cnp.ndarray[cnp.int32_t, ndim=1] channel_data
         cdef size_t bytes_read
-        cdef long rec_end
         cdef uint32_t rogue_payload
-        cdef int n_channels = -1
+        cdef int32_t n_channels, n_records
         cdef uint32_t current_num_channels
         cdef bint found_data
+        cdef int32_t i, j, ch
+
+        print("reading file dimensions")
+        # first pass over file to get dimensions
+        self._get_dimensions(&n_channels, &n_records)
+        print(f"File has {n_channels} channels and {n_records} records")
+
+        # allocate data buffer for reading from disk
+        channel_data_array = np.zeros(n_channels, dtype=np.int32)
+        channel_data = channel_data_array
 
         # only save requested channels to memory
         if channel is not None:
             channel = np.atleast_1d(np.asarray(channel, dtype=np.int64))
+        else:
+            channel = np.arange(n_channels)
+
+        # allocate data array for storing in memory
+        data_array = np.empty((n_records, channel.size), dtype=np.int32)
+        data_view = data_array
+
+        print("reading from file")
+
+        # set file pointer back to beginning
+        fseek(self.file_ptr, 0, SEEK_SET)
 
         # Read records
+        i = 0
         while True:
             # Check if at end of file
             if ftell(self.file_ptr) >= self.file_size:
@@ -195,7 +257,9 @@ cdef class FastSmurfReader:
                             fseek(self.file_ptr, rogue_payload, SEEK_CUR)
                         else:
                             meta_buffer = bytearray(rogue_payload)
-                            fread(<char*>meta_buffer, 1, rogue_payload, self.file_ptr)
+                            bytes_read = fread(<char*>meta_buffer, 1, rogue_payload, self.file_ptr)
+                            if bytes_read != rogue_payload:
+                                break
                             meta_list.append((self.records_read, meta_buffer.decode('utf-8')))
 
                 if not found_data:
@@ -219,23 +283,23 @@ cdef class FastSmurfReader:
                     f"Channel count mismatch: previous frame had {n_channels}, got {current_num_channels}"
                 )
 
-            # Read channel data using numpy fromfile for efficiency
-            channel_data = np.fromfile(self.filename,
-                                      dtype=SMURF_DATA_DTYPE,
-                                      count=n_channels,
-                                      offset=ftell(self.file_ptr))
+            # read all channels into buffer
+            bytes_read = fread(&channel_data[0], 4, n_channels, self.file_ptr)
+            if bytes_read != n_channels:
+                print("Failed to read data from file")
+                print(f"read {bytes_read} bytes. Expected {n_channels * 4}.")
+                break
 
-            # subset if requested
-            if channel is not None:
-                channel_data = channel_data[channel]
-
-            # Advance file pointer
-            fseek(self.file_ptr, n_channels * SMURF_DATA_DTYPE.itemsize, SEEK_CUR)
-
-            # Store data
-            data_list.append(channel_data)
+            # copy into array with subsetting
+            for j in range(channel.size):
+                ch = channel[j]
+                data_view[i, j] = channel_data[ch]
 
             self.records_read += 1
+            i += 1
+
+        print("done reading")
+        print("converting into arrays")
 
         # Parse all headers at once from collected bytes
         headers_array = np.frombuffer(header_bytes, dtype=SMURF_HEADER_DTYPE)
@@ -245,10 +309,10 @@ cdef class FastSmurfReader:
 
         # Convert other data to numpy arrays
         timestamps_array = headers_array['timestamp']
-        data_array = np.array(data_list, dtype=np.int32)
 
         # parse metadata stream from YAML
         metadata = {i: yaml.safe_load(m) for i, m in meta_list}
+        print("returning")
 
         return timestamps_array, data_array, headers_array, metadata
 
