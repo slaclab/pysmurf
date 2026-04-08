@@ -34,6 +34,7 @@ class CythonHook(BuildHookInterface):
         # point to root of python source
         # this will place the compiled extension where editable installs can find it
         cmd.build_lib = "python"
+        cmd.build_temp = "build_cython"
         cmd.finalize_options()
         cmd.run()
 
