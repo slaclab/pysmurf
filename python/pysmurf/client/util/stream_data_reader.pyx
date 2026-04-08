@@ -25,8 +25,6 @@ cnp.import_array()
 # Frame Format Constants
 cdef int SMURF_HEADER_SIZE = 128
 cdef int ROGUE_HEADER_SIZE = 8
-cdef int SMURF_CHANNEL_SIZE = 4
-SMURF_DATA_DTYPE = np.dtype(np.int32)
 
 # SMuRF Header as NumPy structured dtype
 SMURF_HEADER_DTYPE = np.dtype([
@@ -117,10 +115,11 @@ cdef class FastSmurfReader:
             fclose(self.file_ptr)
             self.file_ptr = NULL
 
-    cdef _get_dimensions(self, int32_t* n_chan, int32_t* n_record):
-        cdef uint32_t rogue_payload
+    cdef void _get_dimensions(self, int32_t* n_chan, int32_t* n_record):
+        cdef uint32_t rogue_payload, bytes_read
         cdef RogueHeader rogue_hdr
         n_chan[0] = -1
+        n_record[0] = 0
 
         # set file pointer back to beginning
         fseek(self.file_ptr, 0, SEEK_SET)
@@ -128,10 +127,6 @@ cdef class FastSmurfReader:
         # Read records
         while True:
             # Check if at end of file
-            if ftell(self.file_ptr) >= self.file_size:
-                break
-
-            # Check for EOF
             if ftell(self.file_ptr) >= self.file_size:
                 break
 
@@ -155,6 +150,9 @@ cdef class FastSmurfReader:
                     if bytes_read != SMURF_HEADER_SIZE:
                         break
                     n_chan[0] = (<uint32_t*>&self.header_buffer[4])[0]
+                    # Adjust seek since we read the header
+                    fseek(self.file_ptr, rogue_payload - SMURF_HEADER_SIZE, SEEK_CUR)
+                    continue  # Skip the normal seek below
 
             # advance file pointer
             fseek(self.file_ptr, rogue_payload, SEEK_CUR)
@@ -184,11 +182,14 @@ cdef class FastSmurfReader:
         metadata : dict
             Dictionary of metadata read from Rogue headers (if skip_meta=False)
         """
-        cdef bytearray header_bytes = bytearray()
+        # declare memory views for storing data
         cdef int32_t[:, :] data_view
         cdef int32_t[:] channel_data
+        cdef char[:] headers_view
+        # just use a list for yaml metadata
         cdef list meta_list = []
 
+        # variables for controlling read loop
         cdef RogueHeader rogue_hdr
         cdef size_t bytes_read
         cdef uint32_t rogue_payload
@@ -197,26 +198,31 @@ cdef class FastSmurfReader:
         cdef bint found_data
         cdef int32_t i, j, ch
 
-        print("reading file dimensions")
         # first pass over file to get dimensions
         self._get_dimensions(&n_channels, &n_records)
-        print(f"File has {n_channels} channels and {n_records} records")
 
         # allocate data buffer for reading from disk
         channel_data_array = np.zeros(n_channels, dtype=np.int32)
         channel_data = channel_data_array
 
+        # allocate buffer for headers
+        headers_array = np.zeros(n_records, dtype=SMURF_HEADER_DTYPE)
+        headers_view = headers_array.view(np.int8)
+        cdef int header_offset = 0
+
         # only save requested channels to memory
         if channel is not None:
-            channel = np.atleast_1d(np.asarray(channel, dtype=np.int64))
+            channel = np.atleast_1d(np.asarray(channel, dtype=np.int32))
         else:
-            channel = np.arange(n_channels)
+            channel = np.arange(n_channels, dtype=np.int32)
+
+        # Cache size and create memory view
+        cdef int32_t n_sel_channels = channel.size
+        cdef int32_t[:] channel_view = channel
 
         # allocate data array for storing in memory
-        data_array = np.empty((n_records, channel.size), dtype=np.int32)
+        data_array = np.empty((n_records, n_sel_channels), dtype=np.int32)
         data_view = data_array
-
-        print("reading from file")
 
         # set file pointer back to beginning
         fseek(self.file_ptr, 0, SEEK_SET)
@@ -271,7 +277,8 @@ cdef class FastSmurfReader:
                 break
 
             # Store raw header bytes for later parsing
-            header_bytes.extend(self.header_buffer[:SMURF_HEADER_SIZE])
+            memcpy(&headers_view[header_offset], self.header_buffer, SMURF_HEADER_SIZE)
+            header_offset += SMURF_HEADER_SIZE
 
             # Read number_of_channels directly from buffer for validation
             current_num_channels = (<uint32_t*>&self.header_buffer[4])[0]
@@ -286,33 +293,23 @@ cdef class FastSmurfReader:
             # read all channels into buffer
             bytes_read = fread(&channel_data[0], 4, n_channels, self.file_ptr)
             if bytes_read != n_channels:
-                print("Failed to read data from file")
-                print(f"read {bytes_read} bytes. Expected {n_channels * 4}.")
                 break
 
             # copy into array with subsetting
-            for j in range(channel.size):
-                ch = channel[j]
+            for j in range(n_sel_channels):
+                ch = channel_view[j]
                 data_view[i, j] = channel_data[ch]
 
             self.records_read += 1
             i += 1
 
-        print("done reading")
-        print("converting into arrays")
-
-        # Parse all headers at once from collected bytes
-        headers_array = np.frombuffer(header_bytes, dtype=SMURF_HEADER_DTYPE)
-
         # Mask external_time_raw to 5 bytes (40 bits)
         headers_array['external_time_raw'] &= 0xFFFFFFFFFF
 
-        # Convert other data to numpy arrays
         timestamps_array = headers_array['timestamp']
 
         # parse metadata stream from YAML
         metadata = {i: yaml.safe_load(m) for i, m in meta_list}
-        print("returning")
 
         return timestamps_array, data_array, headers_array, metadata
 
