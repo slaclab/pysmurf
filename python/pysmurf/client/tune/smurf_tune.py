@@ -4256,6 +4256,12 @@ class SmurfTuneMixin(SmurfBase):
         elif filename is not None and last_tune:
             self.log('filename explicitly given. Overriding last_tune bool in load_tune.')
 
+        if filename is None or not os.path.exists(filename):
+            self.log(
+                f'Tune file {filename} not found. Skipping load.',
+                self.LOG_ERROR)
+            return None
+
         fs = np.load(filename, allow_pickle=True).item()
         self.log('Done loading tuning')
 
@@ -4286,10 +4292,17 @@ class SmurfTuneMixin(SmurfBase):
     @set_action()
     def last_tune(self):
         """
-        Returns the full path to the most recent tuning file.
+        Returns the full path to the most recent tuning file, or None
+        if no tune files are found.
         """
-        return np.sort(glob.glob(os.path.join(self.tune_dir,
-                                              '*_tune.npy')))[-1]
+        tune_files = glob.glob(os.path.join(self.tune_dir,
+                                            '*_tune.npy'))
+        if len(tune_files) == 0:
+            self.log(
+                f'No tune files found in {self.tune_dir}',
+                self.LOG_ERROR)
+            return None
+        return np.sort(tune_files)[-1]
 
     @set_action()
     def optimize_lms_delay(self, band, lms_delays=None,
