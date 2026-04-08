@@ -347,18 +347,18 @@ def read_stream_data_cython(str datafile, channel=None, bint IQ_mode=False, bint
     cdef:
         FastSmurfReader reader
         cnp.ndarray[cnp.uint64_t, ndim=1] timestamps
-        cnp.ndarray[cnp.int32_t, ndim=2] data_array
-        cnp.ndarray[cnp.float64_t, ndim=2] phase
-        cnp.ndarray[cnp.complex128_t, ndim=2] iq_data
-        int n_channels, n_records
-        int i, j, chan_idx
-        cnp.ndarray[cnp.int64_t, ndim=1] channel_indices
+        cnp.int32_t[:, :] data_view
+        cnp.float64_t[:, :] phase_view
+        cnp.complex128_t[:, :] iq_data_view
+        int n_chan, n_records
+        int i, j
 
     # Open file and read all records in C
     with FastSmurfReader(datafile, is_rogue=True) as reader:
         timestamps, data_array, headers, meta = reader.read_all_records(
             skip_meta=skip_meta, channel=channel
         )
+    data_view = data_array  # point memory view to array
 
     n_records = len(timestamps)
     n_chan = data_array.shape[1]
@@ -368,15 +368,23 @@ def read_stream_data_cython(str datafile, channel=None, bint IQ_mode=False, bint
         # IQ mode: pair consecutive channels
         if n_chan % 2 != 0:
             raise ValueError(f"In IQ mode, number of channels should be even. Found {n_chan}.")
+
         iq_data = np.empty((n_chan // 2, n_records), dtype=np.complex128)
-        iq_data = (data_array[:, ::2] + 1j * data_array[:, 1::2]).T
+        iq_data_view = iq_data  # point memory view to array
+
+        for i in range(n_records):
+            for j in range(n_chan // 2):
+                iq_data_view[j, i] = (data_view[i, 2 * j] + 1j * data_view[i, 2 * j + 1])
 
         return timestamps, iq_data, headers
     else:
         # Normal mode: convert to phase
         phase = np.empty((n_chan, n_records), dtype=np.float64)
+        phase_view = phase  # point memory view to array
 
-        phase = data_array.T / (2.0**15) * pi
+        for i in range(n_records):
+            for j in range(n_chan):
+                phase_view[j, i] =  data_view[i, j] / (2.0**15) * pi
 
         return timestamps, phase, headers, meta
 
