@@ -80,14 +80,12 @@ cdef class FastSmurfReader:
     cdef FILE* file_ptr
     cdef bytes filename
     cdef long file_size
-    cdef bint is_rogue
     cdef long records_read
     cdef uint8_t header_buffer[128]
     cdef uint8_t rogue_buffer[8]
 
-    def __cinit__(self, str filename, bint is_rogue=True):
+    def __cinit__(self, str filename):
         self.filename = filename.encode('utf-8')
-        self.is_rogue = is_rogue
         self.records_read = 0
         self.file_ptr = NULL
 
@@ -235,41 +233,40 @@ cdef class FastSmurfReader:
                 break
 
             # Read Rogue headers to find data channel
-            if self.is_rogue:
-                found_data = False
-                while not found_data:
-                    # Check for EOF
-                    if ftell(self.file_ptr) >= self.file_size:
-                        break
-
-                    # Read Rogue header
-                    bytes_read = fread(self.rogue_buffer, 1, ROGUE_HEADER_SIZE, self.file_ptr)
-                    if bytes_read != ROGUE_HEADER_SIZE:
-                        break
-
-                    # Parse header
-                    with nogil:
-                        parse_rogue_header(self.rogue_buffer, &rogue_hdr)
-
-                    rogue_payload = rogue_hdr.size - 4
-
-                    # If data channel, process it
-                    if rogue_hdr.channel == 0:
-                        found_data = True
-                        break
-                    else:
-                        # read into metadata buffer
-                        if skip_meta:
-                            fseek(self.file_ptr, rogue_payload, SEEK_CUR)
-                        else:
-                            meta_buffer = bytearray(rogue_payload)
-                            bytes_read = fread(<char*>meta_buffer, 1, rogue_payload, self.file_ptr)
-                            if bytes_read != rogue_payload:
-                                break
-                            meta_list.append((self.records_read, meta_buffer.decode('utf-8')))
-
-                if not found_data:
+            found_data = False
+            while not found_data:
+                # Check for EOF
+                if ftell(self.file_ptr) >= self.file_size:
                     break
+
+                # Read Rogue header
+                bytes_read = fread(self.rogue_buffer, 1, ROGUE_HEADER_SIZE, self.file_ptr)
+                if bytes_read != ROGUE_HEADER_SIZE:
+                    break
+
+                # Parse header
+                with nogil:
+                    parse_rogue_header(self.rogue_buffer, &rogue_hdr)
+
+                rogue_payload = rogue_hdr.size - 4
+
+                # If data channel, process it
+                if rogue_hdr.channel == 0:
+                    found_data = True
+                    break
+                else:
+                    # read into metadata buffer
+                    if skip_meta:
+                        fseek(self.file_ptr, rogue_payload, SEEK_CUR)
+                    else:
+                        meta_buffer = bytearray(rogue_payload)
+                        bytes_read = fread(<char*>meta_buffer, 1, rogue_payload, self.file_ptr)
+                        if bytes_read != rogue_payload:
+                            break
+                        meta_list.append((self.records_read, meta_buffer.decode('utf-8')))
+
+            if not found_data:
+                break
 
             # Read SMURF header
             bytes_read = fread(self.header_buffer, 1, SMURF_HEADER_SIZE, self.file_ptr)
@@ -351,7 +348,7 @@ def read_stream_data_cython(str datafile, channel=None, bint IQ_mode=False, bint
         int i, j
 
     # Open file and read all records in C
-    with FastSmurfReader(datafile, is_rogue=True) as reader:
+    with FastSmurfReader(datafile) as reader:
         timestamps, data_array, headers, meta = reader.read_all_records(
             skip_meta=skip_meta, channel=channel
         )
