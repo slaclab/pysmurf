@@ -13,11 +13,25 @@
 # copied, modified, propagated, or distributed except according to the terms
 # contained in the LICENSE.txt file.
 #-----------------------------------------------------------------------------
-import pyrogue.interfaces
+try:
+    import pyrogue.interfaces
+except ModuleNotFoundError:
+    import warnings
+    warnings.warn("Could not import pyrogue. Can only use offline mode.")
 
 from pysmurf.client.command.cryo_card import CryoCard
 from pysmurf.client.util.pub import Publisher
 from .logger import SmurfLogger
+
+class _DummyClient:
+    """Dummy client to raise informative error messages
+    when trying to access clients in offline mode."""
+    def __init__(self, name=None):
+        self.name = name
+
+    def __getattr__(self, name):
+        raise AttributeError(f"{self.name} not available.")
+
 
 class SmurfBase:
     """
@@ -62,7 +76,8 @@ class SmurfBase:
     Overall progress on a task
     """
 
-    def __init__(self, log=None, server_addr="localhost", server_port=9000, atca_port=9100, offline=False, pub_root=None, script_id=None, **kwargs):
+    def __init__(self, log=None, server_addr="localhost", server_port=9000, atca_port=9100,
+                 atca_monitor=False, offline=False, pub_root=None, script_id=None, **kwargs):
         """
         """
 
@@ -84,16 +99,23 @@ class SmurfBase:
         #rogue.Logging.setFilter('pyrogue.ZmqClient', rogue.Logging.Critical)
 
         # connect to rogue servers
-        self._client = pyrogue.interfaces.VirtualClient(addr=self._server_addr, port=self._server_port)
-        # set the timeout to supress spam in logs. Retries forever anyway
-        # certain calls take long to complete
-        self._client.setTimeout(10000, True)  # ms
-        self._atca = pyrogue.interfaces.VirtualClient(addr=self._server_addr, port=self._atca_port)
-        if self._atca.root is None:
-            self.log(f"Could not connect to ATCA monitor at port {self._atca_port}.")
-        # but disable monitor thread to avoid issues on exit. Socket remains open
-        self._client.stop()
-        self._atca.stop()
+        if not offline:
+            self._client = pyrogue.interfaces.VirtualClient(addr=self._server_addr, port=self._server_port)
+            # set the timeout to supress spam in logs. Retries forever anyway
+            # certain calls take long to complete
+            self._client.setTimeout(10000, True)  # ms
+            # but disable monitor thread to avoid issues on exit. Socket remains open
+            self._client.stop()
+            if atca_monitor:
+                self._atca = pyrogue.interfaces.VirtualClient(addr=self._server_addr, port=self._atca_port)
+                if self._atca.root is None:
+                    self.log(f"Could not connect to ATCA monitor at port {self._atca_port}.")
+                self._atca.stop()
+            else:
+                self._atca = _DummyClient("ATCA monitor client")
+        else:
+            self._client = _DummyClient("OFFLINE: Server client")
+            self._atca = _DummyClient("OFFLINE: ATCA monitor client")
 
         # If <pub_root>BACKEND environment variable is not set to 'udp', all
         # publish calls will be no-ops.
@@ -199,13 +221,18 @@ class SmurfBase:
         self.trigger_root = self.amctiming + 'EvrV2CoreTriggers.'
         self.timing_status = self.amctiming + 'TimingFrameRx.'
 
-        self.C = CryoCard(
-            self.rtm_spi_cryo_root + 'read',
-            self.rtm_spi_cryo_root + 'write',
-            server_addr=self._server_addr,
-            server_port=self._server_port,
-            log=self.log,
-        )
+        if offline:
+            self.log('Offline mode, skipping CryoCard initialization')
+            self.C = _DummyClient("OFFLINE: CryoCard client")
+        else:
+            self.C = CryoCard(
+                self.rtm_spi_cryo_root + 'read',
+                self.rtm_spi_cryo_root + 'write',
+                server_addr=self._server_addr,
+                server_port=self._server_port,
+                log=self.log,
+            )
+
         self.freq_resp = {}
 
         # RTM slow DAC parameters (used, e.g., for TES biasing). The
