@@ -1317,6 +1317,12 @@ class SmurfTuneMixin(SmurfBase):
         eta_mag = np.abs(eta)
         eta_angle = np.angle(eta)
         eta_scaled = eta_mag / subband_half_width
+        if eta_scaled > 1:
+            self.log(f"eta_fit: Measured eta {eta_scaled} > 1. Clipping to 1.")
+            eta_scaled = 1
+            eta /= eta_mag
+            eta *= subband_half_width
+            eta_mag = subband_half_width
         eta_phase_deg = eta_angle * 180 / np.pi
 
 
@@ -3995,6 +4001,12 @@ class SmurfTuneMixin(SmurfBase):
                 eta_phase_deg = np.angle(eta)*180/np.pi
                 eta_mag = np.abs(eta)
                 eta_scaled = eta_mag / subband_half_width
+                if eta_scaled > 1:
+                    self.log(f"setup_notches: Measured eta {eta_scaled} > 1. Clipping to 1.")
+                    eta_scaled = 1
+                    eta /= eta_mag
+                    eta *= subband_half_width
+                    eta_mag = subband_half_width
 
                 abs_resp = np.abs(resp_s)
                 idx = np.ravel(np.where(abs_resp == np.min(abs_resp)))[0]
@@ -4049,6 +4061,12 @@ class SmurfTuneMixin(SmurfBase):
                 eta_phase_degu = np.angle(etau)*180/np.pi
                 eta_magu = np.abs(etau)
                 eta_scaledu = eta_magu / subband_half_width
+                if eta_scaledu > 1:
+                    self.log(f"setup_notches: Measured eta {eta_scaledu} > 1. Clipping to 1.")
+                    eta_scaledu = 1
+                    etau /= eta_magu
+                    etau *= subband_half_width
+                    eta_magu = subband_half_width
 
                 abs_respu = np.abs(respu_s)
                 idx = np.ravel(np.where(abs_respu == np.min(abs_respu)))[0]
