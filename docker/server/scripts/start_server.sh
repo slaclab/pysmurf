@@ -30,11 +30,11 @@ echo
 if echo "${args}" | grep -qE '(^|\s)(-g|--gui)(\s|$)'; then
     if [ -z "${DISPLAY}" ] || ! xdpyinfo -display "${DISPLAY}" >/dev/null 2>&1; then
         echo "No working display found. Starting Xvfb..."
-        Xvfb :0 -screen 0 1920x1080x24 &
-        export DISPLAY=:0
+        Xvfb :99 -screen 0 1920x1080x24 &
+        export DISPLAY=:99
         # Wait for Xvfb to be ready
         for i in $(seq 1 10); do
-            if xdpyinfo -display :0 >/dev/null 2>&1; then
+            if xdpyinfo -display :99 >/dev/null 2>&1; then
                 break
             fi
             sleep 0.5
