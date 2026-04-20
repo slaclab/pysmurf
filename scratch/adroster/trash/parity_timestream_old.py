@@ -86,7 +86,7 @@ class ParityTimestream:
     Init Args:
     :param filepath: Global path to where the data is stored.
     :param filename: String name of the data file.
-    :param DAQ_method: S21 readout technique. One of: ['VNA']
+    :param DAQ_method: S21 readout technique. One of: ['RS_VNA', 'CM_VNA', 'SMURF']
     :param channel_num: SMURF channel number
     :param hist_bins: Number of bins with which histograms of the S21 and rotated S21 timestreams are generated.
     ----------
@@ -192,7 +192,7 @@ class ParityTimestream:
             self.data['amps'] = data_reformated[channel_num_str]['amps']
             self.data['phases'] = data_reformated[channel_num_str]['phases']
             self.data['times_ms'] = match_times(d, h) * 1e3
-        
+            
         else:
             raise TypeError('Error: DAQ method not recognized')
 
@@ -323,10 +323,10 @@ class ParityTimestream:
                 f'Power at device = {self.metadata.get("device_power", "N/A")} dBm',            
             ])
             metadata_string = '\n'.join([meta_str0, meta_str1])
-        
+
         elif self.metadata['DAQ_method'] == 'SMURF':
             metadata_string = self.metadata['DAQ_method'] + ' channel' + str(self.metadata['channel_num'])
-            
+        
         return metadata_string
 
     def write_to_file(self, expt_path=None, verbose=True):
@@ -593,7 +593,7 @@ class ParityTimestream:
             if fit_to_corrected_function:
                 F_guess = 0.9
                 delta_t = (self.data['times_ms'][1] - self.data['times_ms'][0]) / 1e3
-                
+
                 if self.metadata['DAQ_method'] == 'SMURF':
                     sample_rate_hz = self.metadata['sample_rate']
                     delta_t = 1 / sample_rate_hz
