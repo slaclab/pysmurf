@@ -2547,6 +2547,10 @@ class SmurfUtilMixin(SmurfBase):
         chanOrder = self.get_channel_order(band,channelorderfile)
         idx = np.where(chanOrder == channel)[0]
 
+        if len(idx) != 1:
+            raise ValueError(f"Did not find exactly one channel index. Found {idx}.")
+        idx = idx[0]
+
         subband = idx // n_chanpersubband
 
         return int(subband)
@@ -2699,8 +2703,12 @@ class SmurfUtilMixin(SmurfBase):
 
         dac_idx = np.ravel(np.where(bias_order == bias_group))
 
-        dac_positive = dac_positives[dac_idx][0]
-        dac_negative = dac_negatives[dac_idx][0]
+        if len(dac_idx) != 1:
+            raise ValueError(f"Did not find exactly one DAC index. Found {dac_idx}.")
+        dac_idx = dac_idx[0]
+
+        dac_positive = dac_positives[dac_idx]
+        dac_negative = dac_negatives[dac_idx]
 
         volts_pos = volt / 2
         volts_neg = - volt / 2
@@ -2757,8 +2765,12 @@ class SmurfUtilMixin(SmurfBase):
 
                 bias_group_idx = np.ravel(np.where(bias_order == bg))
 
-                dac_positive = dac_positives[bias_group_idx][0] - 1 # freakin Mitch
-                dac_negative = dac_negatives[bias_group_idx][0] - 1 # 1 vs 0 indexing
+                if len(bias_group_idx) != 1:
+                    raise ValueError(f"Did not find exactly one bias group index. Found {bias_group_idx}.")
+                bias_group_idx = bias_group_idx[0]
+
+                dac_positive = dac_positives[bias_group_idx] - 1 # freakin Mitch
+                dac_negative = dac_negatives[bias_group_idx] - 1 # 1 vs 0 indexing
 
                 volts_pos = bias_group_volt_array[bg] / 2
                 volts_neg = - bias_group_volt_array[bg] / 2
@@ -2816,8 +2828,13 @@ class SmurfUtilMixin(SmurfBase):
         dac_negatives = self.bias_group_to_pair[:,2]
 
         dac_idx = np.ravel(np.where(bias_order == bias_group))
-        dac_positive = dac_positives[dac_idx][0]-1
-        dac_negative = dac_negatives[dac_idx][0]-1
+
+        if len(dac_idx) != 1:
+            raise ValueError(f"Did not find exactly one DAC index. Found {dac_idx}.")
+        dac_idx = dac_idx[0]
+
+        dac_positive = dac_positives[dac_idx]-1
+        dac_negative = dac_negatives[dac_idx]-1
 
         volt_array = self.get_rtm_slow_dac_volt_array(**kwargs)
         volts_pos = volt_array[dac_positive]
@@ -2861,8 +2878,13 @@ class SmurfUtilMixin(SmurfBase):
 
         for idx in np.arange(n_bias_groups):
             dac_idx = np.ravel(np.where(bias_order == idx))
-            dac_positive = dac_positives[dac_idx][0] - 1
-            dac_negative = dac_negatives[dac_idx][0] - 1
+
+            if len(dac_idx) != 1:
+                raise ValueError(f"Did not find exactly one DAC index. Found {dac_idx}.")
+            dac_idx = dac_idx[0]
+
+            dac_positive = dac_positives[dac_idx] - 1
+            dac_negative = dac_negatives[dac_idx] - 1
 
             bias_vals_pos[idx] = volts_array[dac_positive]
             bias_vals_neg[idx] = volts_array[dac_negative]
@@ -4222,8 +4244,12 @@ class SmurfUtilMixin(SmurfBase):
 
         dac_idx = np.ravel(np.where(bias_order == bias_group))
 
-        dac_positive = dac_positives[dac_idx][0]
-        dac_negative = dac_negatives[dac_idx][0]
+        if len(dac_idx) != 1:
+            raise ValueError(f"Did not find exactly one DAC index. Found {dac_idx}.")
+        dac_idx = dac_idx[0]
+
+        dac_positive = dac_positives[dac_idx]
+        dac_negative = dac_negatives[dac_idx]
 
         # https://confluence.slac.stanford.edu/display/SMuRF/SMuRF+firmware#SMuRFfirmware-RTMDACarbitrarywaveforms
         # Target the two bipolar DACs assigned to this bias group:
