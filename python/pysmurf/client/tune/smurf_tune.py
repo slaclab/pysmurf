@@ -3515,13 +3515,13 @@ class SmurfTuneMixin(SmurfBase):
         timestamp = self.get_timestamp()
 
         # Save data
-        save_name = '{}_amp_sweep_{}.txt'
+        save_name = '{}_b{:d}_amp_sweep_{}.txt'
 
-        path = os.path.join(self.output_dir, save_name.format(timestamp, 'freq'))
+        path = os.path.join(self.output_dir, save_name.format(timestamp, band, 'freq'))
         np.savetxt(path, f)
         self.pub.register_file(path, 'sweep_response', format='txt')
 
-        path = os.path.join(self.output_dir, save_name.format(timestamp, 'resp'))
+        path = os.path.join(self.output_dir, save_name.format(timestamp, band, 'resp'))
         np.savetxt(path, resp)
         self.pub.register_file(path, 'sweep_response', format='txt')
 
@@ -3549,7 +3549,7 @@ class SmurfTuneMixin(SmurfBase):
 
         # Save resonances
         path = os.path.join(self.output_dir,
-            save_name.format(timestamp, 'resonance'))
+            save_name.format(timestamp, band, 'resonance'))
         np.savetxt(path, self.freq_resp[band]['find_freq']['resonance'])
         self.pub.register_file(path, 'resonances', format='txt')
 
