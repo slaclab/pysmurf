@@ -13,6 +13,8 @@
 # copied, modified, propagated, or distributed except according to the terms
 # contained in the LICENSE.txt file.
 #-----------------------------------------------------------------------------
+import os
+
 import numpy as np
 from scipy.optimize import curve_fit
 
@@ -232,3 +234,23 @@ def utf8_to_str(d):
         The string associated with input d.
     """
     return ''.join([str(s, encoding='UTF-8') for s in d])
+
+def save_to_txt(path: str, data: np.ndarray, overwrite: bool = False, **kwargs):
+    """
+    Saves data to a txt file. Raises and exception if the file
+    already exists unless overwrite is set to True.
+
+    Args
+    ----
+    path : str
+        The full path to the txt file to save to.
+    data : array-like
+        The data to save to the txt file.
+    overwrite : bool
+        If True, overwrite the file if it exists. Default is False.
+    `**kwargs` : dict
+        Additional keyword arguments to pass to np.savetxt (e.g., fmt, delimiter, etc.)
+    """
+    if os.path.exists(path) and not overwrite:
+        raise FileExistsError(f'File {path} already exists and overwrite is False.')
+    np.savetxt(path, data, **kwargs)

@@ -28,6 +28,7 @@ from pysmurf.client.base import SmurfBase
 from pysmurf.client.command.sync_group import SyncGroup as SyncGroup
 from pysmurf.client.util.SmurfFileReader import SmurfStreamReader
 from pysmurf.client.util.pub import set_action
+from pysmurf.client.util import tools
 
 class SmurfUtilMixin(SmurfBase):
 
@@ -1071,7 +1072,7 @@ class SmurfUtilMixin(SmurfBase):
             # raw data output
             mask_fname = os.path.join(data_filename.replace('.dat',
                 '_mask.txt'))
-            np.savetxt(mask_fname, channel_mask, fmt='%i')
+            tools.save_to_txt(mask_fname, channel_mask, fmt='%i')
             self.pub.register_file(mask_fname, 'mask')
             self.log(mask_fname)
 
@@ -1079,7 +1080,7 @@ class SmurfUtilMixin(SmurfBase):
                 if write_log:
                     self.log("Writing frequency mask.")
                 freq_mask = self.make_freq_mask(channel_mask)
-                np.savetxt(os.path.join(data_filename.replace('.dat',
+                tools.save_to_txt(os.path.join(data_filename.replace('.dat',
                     '_freq.txt')), freq_mask, fmt='%4.4f')
                 self.pub.register_file(
                     os.path.join(data_filename.replace('.dat', '_freq.txt')),
@@ -3443,7 +3444,7 @@ class SmurfUtilMixin(SmurfBase):
         self.log(f'Generating gcp mask file. {len(gcp_chans)} ' +
                  'channels added')
 
-        np.savetxt(self.smurf_to_mce_mask_file, gcp_chans, fmt='%i')
+        tools.save_to_txt(self.smurf_to_mce_mask_file, gcp_chans, overwrite=True, fmt='%i')
 
         if read_gcp_mask:
             self.read_smurf_to_gcp_config()

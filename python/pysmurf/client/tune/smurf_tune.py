@@ -28,6 +28,7 @@ import seaborn as sns
 from pysmurf.client.base import SmurfBase
 from pysmurf.client.command.sync_group import SyncGroup as SyncGroup
 from pysmurf.client.util.pub import set_action
+from pysmurf.client.util.tools import save_to_txt
 from ..util import tools
 
 class SmurfTuneMixin(SmurfBase):
@@ -781,15 +782,15 @@ class SmurfTuneMixin(SmurfBase):
             save_name = timestamp + '_{}_full_band_resp.txt'
 
             path = os.path.join(self.output_dir, save_name.format('freq'))
-            np.savetxt(path, f)
+            save_to_txt(path, f)
             self.pub.register_file(path, 'full_band_resp', format='txt')
 
             path = os.path.join(self.output_dir, save_name.format('real'))
-            np.savetxt(path, np.real(resp))
+            save_to_txt(path, np.real(resp))
             self.pub.register_file(path, 'full_band_resp', format='txt')
 
             path = os.path.join(self.output_dir, save_name.format('imag'))
-            np.savetxt(path, np.imag(resp))
+            save_to_txt(path, np.imag(resp))
             self.pub.register_file(path, 'full_band_resp', format='txt')
 
         if return_plot_path:
@@ -3518,11 +3519,12 @@ class SmurfTuneMixin(SmurfBase):
         save_name = '{}_b{:d}_amp_sweep_{}.txt'
 
         path = os.path.join(self.output_dir, save_name.format(timestamp, band, 'freq'))
-        np.savetxt(path, f)
+        # will raise an error if the file already exists
+        save_to_txt(path, f)
         self.pub.register_file(path, 'sweep_response', format='txt')
 
         path = os.path.join(self.output_dir, save_name.format(timestamp, band, 'resp'))
-        np.savetxt(path, resp)
+        save_to_txt(path, resp)
         self.pub.register_file(path, 'sweep_response', format='txt')
 
         # Place in dictionary - dictionary declared in smurf_control
@@ -3550,7 +3552,7 @@ class SmurfTuneMixin(SmurfBase):
         # Save resonances
         path = os.path.join(self.output_dir,
             save_name.format(timestamp, band, 'resonance'))
-        np.savetxt(path, self.freq_resp[band]['find_freq']['resonance'])
+        save_to_txt(path, self.freq_resp[band]['find_freq']['resonance'])
         self.pub.register_file(path, 'resonances', format='txt')
 
         # Call plotting
@@ -4927,7 +4929,7 @@ class SmurfTuneMixin(SmurfBase):
 
                 path = os.path.join(self.output_dir,
                     save_name.format(timestamp, str(band),'resonance'))
-                np.savetxt(path, freq_dict[band]['find_freq']['resonance'])
+                save_to_txt(path, freq_dict[band]['find_freq']['resonance'])
                 self.pub.register_file(path, 'resonances', format='txt')
 
         return freq_dict
