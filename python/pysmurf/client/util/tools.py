@@ -237,8 +237,9 @@ def utf8_to_str(d):
 
 def save_to_txt(path: str, data: np.ndarray, overwrite: bool = False, **kwargs):
     """
-    Saves data to a txt file. Raises and exception if the file
-    already exists unless overwrite is set to True.
+    Saves data to a txt file. If a file already exists at the given path and
+    overwrite is False, it will generate a new path by appending a number to
+    the filename.
 
     Args
     ----
@@ -252,5 +253,34 @@ def save_to_txt(path: str, data: np.ndarray, overwrite: bool = False, **kwargs):
         Additional keyword arguments to pass to np.savetxt (e.g., fmt, delimiter, etc.)
     """
     if os.path.exists(path) and not overwrite:
-        raise FileExistsError(f'File {path} already exists and overwrite is False.')
+        orig_path = path
+        path = _make_unique_path(path)
+        import warnings
+        warnings.warn(
+            f"File {orig_path} already exists and overwrite is False."
+            f"Will write to {path} instead."
+        )
     np.savetxt(path, data, **kwargs)
+
+def _make_unique_path(path: str) -> str:
+    """
+    If a file already exists at the given path, this function generates a new path by appending
+    a number to the filename.
+
+    Args
+    ----
+    path : str
+        The original file path.
+
+    Returns
+    -------
+    str
+        A unique file path that does not already exist.
+    """
+    base, ext = os.path.splitext(path)
+    i = 1
+    new_path = f"{base}_{i}{ext}"
+    while os.path.exists(new_path):
+        i += 1
+        new_path = f"{base}_{i}{ext}"
+    return new_path
