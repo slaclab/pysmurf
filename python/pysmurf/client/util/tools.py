@@ -16,6 +16,67 @@
 import numpy as np
 from scipy.optimize import curve_fit
 
+
+TYPEMAP = {
+    'UInt8':   np.uint8,
+    'UInt16':  np.uint16,
+    'UInt32':  np.uint32,
+    'UInt64':  np.uint64,
+    'Int8':    np.int8,
+    'Int16':   np.int16,
+    'Int32':   np.int32,
+    'Int64':   np.int64,
+    'Float32': np.float32,
+    'Double':  np.float64,
+    'Bool':    bool,
+    'String':  str,
+}
+
+
+def coerce_value_for_var(var, val):
+    """Coerce val to the type expected by a Rogue 6 variable.
+
+    Uses var.typeStr metadata to determine the expected type without
+    performing a register read.  Handles scalar registers, array registers
+    identified by the '[np]' typeStr suffix, and raises TypeError for any
+    unrecognized typeStr.
+
+    Parameters
+    ----------
+    var : pyrogue.Variable
+        The rogue variable node that will receive the value.
+    val : any
+        The value to coerce.
+
+    Returns
+    -------
+    any
+        val cast to the type expected by var.  For scalar registers, returns
+        TYPEMAP[var.typeStr](val).  For array registers (typeStr ending in
+        '[np]'), returns np.asarray(val, dtype=element_dtype), which is a
+        zero-copy passthrough when the dtype already matches (ARRY-02).
+
+    Raises
+    ------
+    TypeError
+        If var.typeStr is not recognized.  The exception message includes
+        both the variable path (var.path) and the unrecognized typeStr.
+    """
+    ts = var.typeStr
+    if ts.endswith('[np]'):
+        base = ts[:-4]
+        if base not in TYPEMAP:
+            raise TypeError(
+                f"Unrecognized typeStr '{ts}' for variable '{var.path}'"
+            )
+        return np.asarray(val, dtype=TYPEMAP[base])
+    if ts not in TYPEMAP:
+        raise TypeError(
+            f"Unrecognized typeStr '{ts}' for variable '{var.path}'"
+        )
+    return TYPEMAP[ts](val)
+
+
 def skewed_lorentzian(x, bkg, bkg_slp, skw, mintrans, res_f, Q):
     """ Skewed Lorentzian model.
 
