@@ -29,6 +29,13 @@ from pysmurf.client.command.sync_group import SyncGroup as SyncGroup
 from pysmurf.client.util.SmurfFileReader import SmurfStreamReader
 from pysmurf.client.util.pub import set_action
 
+# Try to import optimized Cython version, fall back to pure Python if not available
+try:
+    from pysmurf.client.util.stream_data_reader import read_stream_data_cython, parse_tes_bias_from_headers
+    CYTHON_AVAILABLE = True
+except ImportError:
+    CYTHON_AVAILABLE = False
+
 class SmurfUtilMixin(SmurfBase):
 
     @set_action()
@@ -1119,7 +1126,7 @@ class SmurfUtilMixin(SmurfBase):
                          return_header=False,
                          return_tes_bias=False, write_log=True,
                          n_max=2048, make_freq_mask=False,
-                         gcp_mode=False, IQ_mode=False):
+                         gcp_mode=False, IQ_mode=False, fast_reader=False):
         """
         Loads data taken with the function stream_data_on.
         Gives back the resonator data in units of phase. Also
@@ -1181,122 +1188,145 @@ class SmurfUtilMixin(SmurfBase):
         if channel is not None:
             self.log(f'Only reading channel {channel}')
 
-        # Flag to indicate we are about the read the fist frame from the disk
-        # The number of channel will be extracted from the first frame and the
-        # data structures will be build based on that
-        first_read = True
-        phase = []
-        t = []
-        with SmurfStreamReader(datafile,
-                isRogue=True, metaEnable=True) as file:
-            for header, data in file.records():
-                if first_read:
-                    # Update flag, so that we don't do this code again
-                    first_read = False
+        # Use fully Cython-optimized version if available
+        if CYTHON_AVAILABLE and fast_reader:
 
-                    # Read in all used channels by default
-                    if channel is None:
-                        channel = np.arange(header.number_of_channels)
+            # This version does ALL file I/O in C
+            t, phase, headers, _meta = read_stream_data_cython(
+                datafile,
+                channel=channel,
+                IQ_mode=IQ_mode,
+            )
+            header_dict = {}
+            if return_header:
+                # parse into dict for backwards compatibility
+                for k in headers.dtype.fields:
+                    if k[:8] != "_padding":
+                        header_dict[k] = headers[k]
+            tes_bias = parse_tes_bias_from_headers(headers)
 
-                    channel = np.ravel(np.asarray(channel))
-                    n_chan = len(channel)
+        # Pure Python fallback
+        else:
+            if fast_reader:
+                self.log(
+                    'Fast Cython reader not available. Falling back on slow reader.',
+                    self.LOG_ERROR
+                )
+            # Flag to indicate we are about the read the fist frame from the disk
+            # The number of channel will be extracted from the first frame and the
+            # data structures will be build based on that
+            first_read = True
+            with SmurfStreamReader(datafile,
+                    isRogue=True, metaEnable=True) as file:
+                for header, data in file.records():
+                    if first_read:
+                        # Update flag, so that we don't do this code again
+                        first_read = False
 
-                    # Indexes for input channels
-                    channel_mask = np.zeros(n_chan, dtype=int)
-                    for i, c in enumerate(channel):
-                        channel_mask[i] = c
+                        # Read in all used channels by default
+                        if channel is None:
+                            channel = np.arange(header.number_of_channels)
 
-                    #initialize data structure
-                    phase=list()
-                    if IQ_mode:
-                        if n_chan % 2 != 0:
-                            self.log("WARNING: it seems unlikely this dataset was taken in IQ streaming mode: there are an odd number of channels stored.")
-                            self.log("removing last channel")
-                            channel = channel[:-1]
-                        for _,_ in enumerate(channel[::2]):
-                            phase.append(list())
-                        ## IQ mode will log consecutive channels,
-                        ## with channel A & channel A+1 corresponding to I and Q
-                        ## want to condense those 2 channels into the original IQ data.
-                        for i,j in enumerate(channel[::2]):
-                            phase[i].append(data[j]+1j*data[j+1])
+                        channel = np.ravel(np.asarray(channel))
+                        n_chan = len(channel)
+
+                        # Indexes for input channels
+                        channel_mask = np.zeros(n_chan, dtype=int)
+                        for i, c in enumerate(channel):
+                            channel_mask[i] = c
+
+                        #initialize data structure
+                        phase=list()
+                        if IQ_mode:
+                            if n_chan % 2 != 0:
+                                self.log("WARNING: it seems unlikely this dataset was taken in IQ streaming mode: there are an odd number of channels stored.")
+                                self.log("removing last channel")
+                                channel = channel[:-1]
+                            for _,_ in enumerate(channel[::2]):
+                                phase.append(list())
+                            ## IQ mode will log consecutive channels,
+                            ## with channel A & channel A+1 corresponding to I and Q
+                            ## want to condense those 2 channels into the original IQ data.
+                            for i,j in enumerate(channel[::2]):
+                                phase[i].append(data[j]+1j*data[j+1])
+                        else:
+                            for _,_ in enumerate(channel):
+                                phase.append(list())
+                            for i,_ in enumerate(channel):
+                                phase[i].append(data[i])
+
+                        t = [header.timestamp]
+                        if return_header or return_tes_bias:
+                            tmp_tes_bias = np.array(header.tesBias)
+                            tes_bias = np.zeros((0,16))
+
+                        # Get header values if requested
+                        if return_header or return_tes_bias:
+                            tmp_header_dict = {}
+                            header_dict = {}
+                            for i, h in enumerate(header._fields):
+                                tmp_header_dict[h] = np.array(header[i])
+                                header_dict[h] = np.array([],
+                                                          dtype=type(header[i]))
+                            tmp_header_dict['tes_bias'] = np.array([header.tesBias])
+
+
+                        # Already loaded 1 element
+                        counter = 1
                     else:
-                        for _,_ in enumerate(channel):
-                            phase.append(list())
-                        for i,_ in enumerate(channel):
-                            phase[i].append(data[i])
+                        if IQ_mode:
+                            for i,j in enumerate(channel[::2]):
+                                phase[i].append(data[j]+1j*data[j+1])
+                        else:
+                            for i in range(n_chan):
+                                phase[i].append(data[i])
 
-                    t = [header.timestamp]
-                    if return_header or return_tes_bias:
-                        tmp_tes_bias = np.array(header.tesBias)
-                        tes_bias = np.zeros((0,16))
+                        t.append(header.timestamp)
 
-                    # Get header values if requested
-                    if return_header or return_tes_bias:
-                        tmp_header_dict = {}
-                        header_dict = {}
-                        for i, h in enumerate(header._fields):
-                            tmp_header_dict[h] = np.array(header[i])
-                            header_dict[h] = np.array([],
-                                                      dtype=type(header[i]))
-                        tmp_header_dict['tes_bias'] = np.array([header.tesBias])
+                        if return_header or return_tes_bias:
+                            for i, h in enumerate(header._fields):
+                                tmp_header_dict[h] = np.append(tmp_header_dict[h],
+                                                           header[i])
+                            tmp_tes_bias = np.vstack((tmp_tes_bias, header.tesBias))
 
+                        if counter % n_max == n_max - 1:
+                            if write_log:
+                                self.log(f'{counter+1} elements loaded')
 
-                    # Already loaded 1 element
-                    counter = 1
-                else:
-                    if IQ_mode:
-                        for i,j in enumerate(channel[::2]):
-                            phase[i].append(data[j]+1j*data[j+1])
-                    else:
-                        for i in range(n_chan):
-                            phase[i].append(data[i])
+                            if return_header:
+                                for k in header_dict.keys():
+                                    header_dict[k] = np.append(header_dict[k],
+                                                               tmp_header_dict[k])
+                                    tmp_header_dict[k] = \
+                                        np.array([],
+                                                 dtype=type(header_dict[k][0]))
+                                print(np.shape(tes_bias), np.shape(tmp_tes_bias))
+                                tes_bias = np.vstack((tes_bias, tmp_tes_bias))
+                                tmp_tes_bias = np.zeros((0, 16))
 
-                    t.append(header.timestamp)
+                            elif return_tes_bias:
+                                tes_bias = np.vstack((tes_bias, tmp_tes_bias))
+                                tmp_tes_bias = np.zeros((0, 16))
 
-                    if return_header or return_tes_bias:
-                        for i, h in enumerate(header._fields):
-                            tmp_header_dict[h] = np.append(tmp_header_dict[h],
-                                                       header[i])
-                        tmp_tes_bias = np.vstack((tmp_tes_bias, header.tesBias))
+                        counter += 1
 
-                    if counter % n_max == n_max - 1:
-                        if write_log:
-                            self.log(f'{counter+1} elements loaded')
+            phase=np.array(phase)
+            t=np.array(t)
 
-                        if return_header:
-                            for k in header_dict.keys():
-                                header_dict[k] = np.append(header_dict[k],
-                                                           tmp_header_dict[k])
-                                tmp_header_dict[k] = \
-                                    np.array([],
-                                             dtype=type(header_dict[k][0]))
-                            print(np.shape(tes_bias), np.shape(tmp_tes_bias))
-                            tes_bias = np.vstack((tes_bias, tmp_tes_bias))
-                            tmp_tes_bias = np.zeros((0, 16))
-
-                        elif return_tes_bias:
-                            tes_bias = np.vstack((tes_bias, tmp_tes_bias))
-                            tmp_tes_bias = np.zeros((0, 16))
-
-                    counter += 1
-
-        phase=np.array(phase)
-        t=np.array(t)
-
-        if return_header:
+        # These are handled earlier in the Cython reader
+        if return_header and not fast_reader:
             for k in header_dict.keys():
                 header_dict[k] = np.append(header_dict[k],
                     tmp_header_dict[k])
             tes_bias = np.vstack((tes_bias, tmp_tes_bias))
             tes_bias = np.transpose(tes_bias)
-
-        elif return_tes_bias:
+        elif return_tes_bias and not fast_reader:
             tes_bias = np.vstack((tes_bias, tmp_tes_bias))
             tes_bias = np.transpose(tes_bias)
 
         # rotate and transform to phase
-        if not IQ_mode:
+        # the cython reader handles this already
+        if not IQ_mode and not fast_reader:
             phase = phase.astype(float) / 2**15 * np.pi
 
         if np.size(phase) == 0:
