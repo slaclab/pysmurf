@@ -1126,7 +1126,7 @@ class SmurfUtilMixin(SmurfBase):
                          return_header=False,
                          return_tes_bias=False, write_log=True,
                          n_max=2048, make_freq_mask=False,
-                         gcp_mode=False, IQ_mode=False, fast_reader=False):
+                         gcp_mode=False, IQ_mode=False, fast_reader=True):
         """
         Loads data taken with the function stream_data_on.
         Gives back the resonator data in units of phase. Also
@@ -1161,6 +1161,9 @@ class SmurfUtilMixin(SmurfBase):
             is the legacy data mode which was depracatetd in Rogue 4.
         IQ_mode : bool, optional, default False
             Whether data was taken with IQ stream mode:  S._caget(f'{S.app_core}modeStream')=1
+        fast_reader : bool, optional, default True
+            Use a cython-optimized file reader. Will fallback on python reader if cython
+            is not available, but this is much slower.
 
         Ret:
         ----
