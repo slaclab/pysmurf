@@ -4674,8 +4674,7 @@ class SmurfCommandMixin(SmurfBase):
 
                 enable = self.get_amp_drain_enable(amp)
                 amp_dict[amp + '_enable'] = enable
-
-        if major == 4:
+        elif major == 4:
             for amp in self.C.list_of_c04_amps:
                 voltage = self.get_amp_gate_voltage(amp)
                 amp_dict[amp + '_gate_volt'] = voltage
@@ -4688,6 +4687,11 @@ class SmurfCommandMixin(SmurfBase):
 
                 enable = self.get_amp_drain_enable(amp)
                 amp_dict[amp + '_enable'] = enable
+        else:
+            raise ValueError(
+                f"Did not recognize cryo-card major version {major}. "
+                f"Read version {major}.{minor}.{patch} from CC."
+            )
 
         return amp_dict
 
