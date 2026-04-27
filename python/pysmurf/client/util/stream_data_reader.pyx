@@ -370,7 +370,7 @@ def read_stream_data_cython(str datafile, channel=None, bint IQ_mode=False, bint
             for j in range(n_chan // 2):
                 iq_data_view[j, i] = (data_view[i, 2 * j] + 1j * data_view[i, 2 * j + 1])
 
-        return timestamps, iq_data, headers
+        return timestamps, iq_data, headers, meta
     else:
         # Normal mode: convert to phase
         phase = np.empty((n_chan, n_records), dtype=np.float64)
