@@ -3562,7 +3562,7 @@ class SmurfTuneMixin(SmurfBase):
                 subband=np.arange(self.get_number_sub_bands(band)),
                 save_plot=save_plot,
                 show_plot=show_plot,
-                save_name=save_name.replace('.txt', plotname_append +
+                save_name=save_name.replace('_{}.txt', plotname_append +
                                             '.png').format(timestamp, band))
 
 
