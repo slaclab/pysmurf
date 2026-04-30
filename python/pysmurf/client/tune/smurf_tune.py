@@ -2544,7 +2544,8 @@ class SmurfTuneMixin(SmurfBase):
             ** Internal register dynamic range adjustment **
             ** Use with caution - you probably want feedback_gain**
             Select which bits to slice from accumulation over
-            a flux ramp period.
+            a flux ramp period.  If None, defaults to the per-band
+            ``lmsGain`` value from the config file (cf. issue #660).
             Tracking feedback parameters are integrated over a flux
             ramp period at 2.4MHz.  The internal register allows for up
             to 9 bits of growth (from full scale).
@@ -2564,8 +2565,6 @@ class SmurfTuneMixin(SmurfBase):
             ceil(log2( (100e3/2.4e6)*(2.4e6/FR_rate) ))
             So 100kHz SQUID throw at 4kHz has bit growth ceil(log2(100e3/4e3)) = 5 bits.
             Try lms_gain = 4.
-
-            This should be approx 9 - ceil(log2(100/reset_rate_khz)) for CMB applications.
 
             Too low of lms_gain will use only a small dynamic range of the streaming
             registers and contribute to incrased noise.
@@ -2588,9 +2587,7 @@ class SmurfTuneMixin(SmurfBase):
         if reset_rate_khz is None:
             reset_rate_khz = self._reset_rate_khz
         if lms_gain is None:
-            lms_gain = int(9 - np.ceil(np.log2(100/reset_rate_khz)))
-            if lms_gain > 7:
-                lms_gain = 7
+            lms_gain = self._lms_gain[band]
         else:
             self.log("Using LMS gain is now an advanced feature.")
             self.log("Unless you are an expert, you probably want feedback_gain.")
