@@ -249,12 +249,20 @@ class SmurfControl(SmurfCommandMixin,
             else:
                 self.log.set_logfile(None)
 
-            # Which bays were enabled on pysmurf server startup?
-            self.bays = self.which_bays()
+            if not self.offline:
+                # Which bays were enabled on pysmurf server startup?
+                self.bays = self.which_bays()
 
-            # Crate/carrier configuration details that won't change.
-            self.crate_id = self.get_crate_id()
-            self.slot_number = self.get_slot_number()
+                # Crate/carrier configuration details that won't change.
+                self.crate_id = self.get_crate_id()
+                self.slot_number = self.get_slot_number()
+            else:
+                # Offline: no hardware to query. Derive bays from the
+                # config-defined bands so downstream band/bay validation
+                # is consistent.
+                self.bays = sorted({b // 4 for b in self._bands})
+                self.crate_id = None
+                self.slot_number = None
 
             # Channel assignment files
             self.channel_assignment_files = {}
