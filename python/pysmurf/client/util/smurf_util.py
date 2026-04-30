@@ -2375,6 +2375,244 @@ class SmurfUtilMixin(SmurfBase):
 
         return ret
 
+    @set_action()
+    def health_check(self, bands=None, bays=None,
+                     check_saturation=False, use_atca_monitor=False,
+                     jesd_max_timeout_sec=60):
+        r"""Aggregate system sanity check.
+
+        Composes the existing per-component checks into a single status
+        report.  By default the method is read-mostly and idempotent
+        (safe to call from a running session); the more invasive checks
+        are opt-in.
+
+        Components checked:
+
+        * FPGA version, uptime, and temperature
+          (:func:`get_fpga_status`, :func:`get_fpga_temp`).
+        * JESD link status per enabled bay
+          (:func:`check_jesd`).
+        * Cryocard connection, firmware version, temperature, and
+          amplifier biases
+          (:func:`~pysmurf.client.command.cryo_card.CryoCard.get_fw_version`,
+          :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.get_cryo_card_temp`,
+          :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.get_amplifier_biases`).
+        * Per-band DAC and ADC saturation, if `check_saturation=True`
+          (:func:`check_dac_saturation`, :func:`check_adc_saturation`).
+          Off by default because these calls reconfigure the DAQ MUX
+          and can disturb a running acquisition.
+        * AMC, RTM, and carrier serial numbers via the atca_monitor
+          IPMI server, if `use_atca_monitor=True`
+          (:func:`~pysmurf.client.command.smurf_atca_monitor.SmurfAtcaMonitorMixin.get_amc_sn`,
+          :func:`~pysmurf.client.command.smurf_atca_monitor.SmurfAtcaMonitorMixin.get_carrier_sn`,
+          :func:`~pysmurf.client.command.smurf_atca_monitor.SmurfAtcaMonitorMixin.get_rtm_sn`).
+          Off by default because the atca_monitor Rogue server is not
+          always running.
+
+        Note: the firmware overflow flags (analysisOverflow,
+        synthesisOverflow) requested in
+        https://github.com/slaclab/pysmurf/issues/528 are not yet
+        exposed by pysmurf; extend `health_check` to include them once
+        the Rogue YAML accessors land.
+
+        Args
+        ----
+        bands : list of int or None, optional, default None
+            Bands to check for saturation.  If None, defaults to
+            :func:`which_bands`.  Ignored if `check_saturation=False`.
+        bays : list of int or None, optional, default None
+            Bays to JESD-check (and for which to look up AMC serial
+            numbers).  If None, defaults to :func:`which_bays`.
+        check_saturation : bool, optional, default False
+            If True, runs :func:`check_dac_saturation` and
+            :func:`check_adc_saturation` on every band.  These calls
+            reconfigure the DAQ MUX, so leave False during an active
+            acquisition.
+        use_atca_monitor : bool, optional, default False
+            If True, queries the atca_monitor IPMI server for AMC, RTM,
+            and carrier serial numbers.  Requires the atca_monitor
+            Rogue server to be running.
+        jesd_max_timeout_sec : float, optional, default 60.0
+            Passed to :func:`check_jesd` for each bay.
+
+        Returns
+        -------
+        result : dict
+            Keys: 'ok' (bool), 'fpga' (dict), 'jesd' (dict keyed by
+            bay), 'cryocard' (dict), 'saturation' (dict keyed by band
+            or None if skipped), 'atca' (dict or None if skipped).
+            'ok' is True iff all required checks pass.  ATCA results
+            are informational and do not contribute to 'ok'.
+
+        See Also
+        --------
+        :func:`check_jesd`, :func:`check_adc_saturation`,
+        :func:`check_dac_saturation`, :func:`get_fpga_status`,
+        :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.get_amplifier_biases`
+        """
+        if bays is None:
+            bays = self.which_bays()
+        if bands is None:
+            bands = self.which_bands()
+
+        result = {
+            'ok': True,
+            'fpga': None,
+            'jesd': {},
+            'cryocard': None,
+            'saturation': None,
+            'atca': None,
+        }
+
+        self.log("=== pysmurf health_check ===", self.LOG_USER)
+
+        # FPGA status + temperature.
+        fpga = self.get_fpga_status()
+        try:
+            fpga['temp_C'] = self.get_fpga_temp()
+        except Exception as e:
+            fpga['temp_C'] = None
+            fpga['temp_error'] = str(e)
+        result['fpga'] = fpga
+
+        # JESD per bay.
+        for bay in bays:
+            tx_ok, rx_ok, status = self.check_jesd(
+                bay, silent_if_valid=True,
+                max_timeout_sec=jesd_max_timeout_sec)
+            result['jesd'][bay] = {
+                'tx_ok': bool(tx_ok),
+                'rx_ok': bool(rx_ok),
+                'status': status,
+            }
+            if not (tx_ok and rx_ok):
+                result['ok'] = False
+
+        # Cryocard.
+        try:
+            major, minor, patch = self.C.get_fw_version()
+            T = self.get_cryo_card_temp()
+            connected = (major, minor, patch) != (0, 0, 0) and T >= 0
+            cryo = {
+                'connected': connected,
+                'fw_version': (major, minor, patch),
+                'temp_C': T,
+                'amplifier_biases': None,
+                'amplifier_error': None,
+            }
+            if connected:
+                try:
+                    cryo['amplifier_biases'] = self.get_amplifier_biases()
+                except ValueError as ve:
+                    cryo['amplifier_error'] = str(ve)
+            else:
+                result['ok'] = False
+            result['cryocard'] = cryo
+        except Exception as e:
+            self.log(
+                f'health_check: cryocard probe failed: {e}',
+                self.LOG_ERROR)
+            result['cryocard'] = {'connected': False, 'error': str(e)}
+            result['ok'] = False
+
+        # DAC/ADC saturation per band (opt-in).
+        if check_saturation:
+            sat = {}
+            for band in bands:
+                dac_sat = bool(self.check_dac_saturation(band))
+                adc_sat = bool(self.check_adc_saturation(band))
+                sat[band] = {'dac': dac_sat, 'adc': adc_sat}
+                if dac_sat or adc_sat:
+                    result['ok'] = False
+            result['saturation'] = sat
+
+        # ATCA monitor IPMI (opt-in).
+        if use_atca_monitor:
+            try:
+                result['atca'] = {
+                    'available': True,
+                    'carrier_sn': self.get_carrier_sn(),
+                    'rtm_sn': self.get_rtm_sn(),
+                    'amc_sn': {bay: self.get_amc_sn(bay) for bay in bays},
+                }
+            except (ConnectionError, ValueError) as e:
+                self.log(
+                    f'health_check: atca_monitor query failed: {e}',
+                    self.LOG_ERROR)
+                result['atca'] = {'available': False, 'error': str(e)}
+
+        self._log_health_check_summary(result, check_saturation,
+                                       use_atca_monitor)
+
+        return result
+
+    def _log_health_check_summary(self, result, check_saturation,
+                                  use_atca_monitor):
+        """Emit a colored one-line-per-component summary of `health_check`."""
+        green = lambda s: f'\033[92m{s}\033[00m'  # noqa: E731
+        red = lambda s: f'\033[91m{s}\033[00m'    # noqa: E731
+        ok_tag = lambda b: green('[OK]') if b else red('[FAIL]')  # noqa: E731
+
+        fpga = result['fpga']
+        self.log(
+            f"FPGA       : version 0x{fpga.get('fpga_version')}  "
+            f"uptime {fpga.get('uptime')}  "
+            f"temp {fpga.get('temp_C')} C",
+            self.LOG_USER)
+
+        for bay, j in result['jesd'].items():
+            tx = green('OK') if j['tx_ok'] else red('DOWN')
+            rx = green('OK') if j['rx_ok'] else red('DOWN')
+            self.log(
+                f"JESD bay {bay} : tx {tx}  rx {rx}  "
+                f"status={j['status']}  {ok_tag(j['tx_ok'] and j['rx_ok'])}",
+                self.LOG_USER)
+
+        cryo = result['cryocard']
+        if cryo.get('connected'):
+            fw = '.'.join(str(x) for x in cryo['fw_version'])
+            amp_str = ('amps OK' if cryo.get('amplifier_error') is None
+                       else f"amp error: {cryo['amplifier_error']}")
+            self.log(
+                f"Cryocard   : connected, fw {fw}, "
+                f"T={cryo['temp_C']} C, {amp_str}  {ok_tag(True)}",
+                self.LOG_USER)
+        else:
+            err = cryo.get('error', 'not connected')
+            self.log(
+                f"Cryocard   : {err}  {ok_tag(False)}",
+                self.LOG_USER)
+
+        if check_saturation:
+            for band, s in result['saturation'].items():
+                dac = red('SAT') if s['dac'] else green('OK')
+                adc = red('SAT') if s['adc'] else green('OK')
+                self.log(
+                    f"Band {band}    : DAC {dac}  ADC {adc}  "
+                    f"{ok_tag(not (s['dac'] or s['adc']))}",
+                    self.LOG_USER)
+        else:
+            self.log("Saturation : skipped (check_saturation=False)",
+                     self.LOG_USER)
+
+        if use_atca_monitor:
+            atca = result['atca']
+            if atca.get('available'):
+                self.log(
+                    f"ATCA mon   : carrier={atca['carrier_sn']}  "
+                    f"rtm={atca['rtm_sn']}  amc={atca['amc_sn']}",
+                    self.LOG_USER)
+            else:
+                self.log(
+                    f"ATCA mon   : unavailable ({atca.get('error')})",
+                    self.LOG_USER)
+        else:
+            self.log("ATCA mon   : skipped (use_atca_monitor=False)",
+                     self.LOG_USER)
+
+        overall = green('PASS') if result['ok'] else red('FAIL')
+        self.log(f"Overall    : {overall}", self.LOG_USER)
+
     def which_bays(self):
         r"""Which carrier AMC bays are enabled.
 
