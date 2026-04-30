@@ -3872,7 +3872,9 @@ class SmurfCommandMixin(SmurfBase):
         flux ramp sawtooth reset rate in kHz
 
         If using timing system, the allowed rates are: 1, 2, 3, 4, 5,
-        6, 8, 10, 12, 15kHz (hardcoded by timing)
+        6, 8, 10, 12 kHz (hardcoded by timing).  15 kHz is excluded
+        because it does not integer-divide 25.6 MHz, which produces
+        malformed flux ramp signals (see slaclab/pysmurf#712).
         """
         rate_sel = self.flux_ramp_rate_to_PV(val)
 
@@ -3885,7 +3887,7 @@ class SmurfCommandMixin(SmurfBase):
             print(
                 "Rate requested is not allowed by timing" +
                 "triggers. Allowed rates are 1, 2, 3, 4, 5, 6, 8, 10," +
-                "12, 15kHz only")
+                "12 kHz only")
 
     def get_ramp_rate(self, **kwargs):
         """
