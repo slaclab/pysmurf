@@ -45,35 +45,71 @@ class SmurfUtilMixin(SmurfBase):
             write_log=True):
         """Takes raw debugging data.
 
+        Supports three acquisition modes, selected by the ``IQstream`` and
+        ``rf_iq`` arguments. The two arguments map to two distinct firmware
+        registers (``iqStreamEnable`` and ``rfIQStreamEnable``) that route
+        data from different points in the DSP chain:
+
+        - ``IQstream=0``, ``rf_iq=False`` -- f / df mode. Returns the
+          tracking-loop output: resonator frequency and frequency error
+          per processed channel.
+        - ``IQstream=1``, ``rf_iq=False`` (default) -- demodulated I/Q
+          mode. Returns the post-tracking demodulated in-phase and
+          quadrature components. The first two return values are then I
+          and Q rather than f and df.
+        - ``rf_iq=True`` -- RF I/Q mode. Returns the undemodulated RF
+          baseband I/Q stream for a single channel, taken upstream of
+          the tracking loop. Use this when you need the raw resonator
+          response (e.g. eta scans, noise vs. flux-ramp-frequency
+          studies). Requires ``channel`` to be specified; ``IQstream``
+          is forced to ``False`` internally and the ``rfIQStreamEnable``
+          register is toggled around the acquisition.
+
         Args
         ----
         band : int
             The band to take data on.
         channel : int or None, optional, default None
-            The channel to take debug data on in single_channel_mode.
+            The channel to take debug data on. Required for
+            ``rf_iq=True`` and for either ``single_channel_readout``
+            mode. If ``None``, single-channel readout is disabled.
         nsamp : int, optional, default 2**19
             The number of samples to take.
         filename : str or None, optional, default None
             The name of the file to save to.
         IQstream : int, optional, default 1
-            Whether to take the raw IQ stream.
+            Selects the ``iqStreamEnable`` mode for the demodulated
+            datapath. ``1`` returns demodulated I/Q; ``0`` returns
+            f/df. Ignored when ``rf_iq=True`` (forced to ``0``).
         single_channel_readout : int, optional, default 1
-            Whether to look at one channel.
+            Single-channel readout option (``1`` or ``2``) when
+            ``channel`` is provided. Selects between the two
+            single-channel readout firmware paths.
         debug : bool, optional, default False
             Whether to take data in debug mode.
         rf_iq : bool, optional, default False
-            Return the RF IQ. Must provide channel.
+            If ``True``, enable the ``rfIQStreamEnable`` datapath and
+            return undemodulated RF baseband I/Q for ``channel``. Must
+            provide ``channel``. Mutually exclusive with ``IQstream``;
+            when ``True`` the supplied ``IQstream`` value is overridden
+            to ``False``.
         write_log : bool, optional, default True
             Whether to write low-level commands to the log file.
 
         Returns
         -------
         f : float array
-            The frequency response.
+            First data stream. Tracking frequency if
+            ``IQstream=0`` and ``rf_iq=False``; demodulated in-phase
+            component (I) if ``IQstream=1`` and ``rf_iq=False``;
+            RF baseband in-phase component (I) if ``rf_iq=True``.
         df : float array
-            The frequency error.
+            Second data stream. Tracking frequency error if
+            ``IQstream=0`` and ``rf_iq=False``; demodulated quadrature
+            component (Q) if ``IQstream=1`` and ``rf_iq=False``;
+            RF baseband quadrature component (Q) if ``rf_iq=True``.
         sync : float array
-            The sync count.
+            The sync (flux-ramp strobe) count.
 
         """
         # Set proper single channel readout
