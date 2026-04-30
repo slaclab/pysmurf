@@ -612,7 +612,13 @@ class SmurfCommandMixin(SmurfBase):
         """
         # strip any commit info off the end of the pysmurf version
         # string
-        pysmurf_version = self.get_pysmurf_version(**kwargs).split('+')[0]
+        pysmurf_version = self.get_pysmurf_version(**kwargs)
+        if pysmurf_version is None:
+            self.log(
+                'Could not read the pysmurf version register; skipping'
+                ' setDefaults configuration validation.', self.LOG_ERROR)
+            return False
+        pysmurf_version = pysmurf_version.split('+')[0]
 
         # Extra registers allow confirmation of successful
         # configuration for pysmurf versions >=4.1.0.
@@ -2992,7 +2998,13 @@ class SmurfCommandMixin(SmurfBase):
         """
         # strip any commit info off the end of the pysmurf version
         # string
-        pysmurf_version = self.get_pysmurf_version(**kwargs).split('+')[0]
+        pysmurf_version = self.get_pysmurf_version(**kwargs)
+        if pysmurf_version is None:
+            self.log(
+                'Could not read the pysmurf version register; skipping JESD'
+                ' health check.', self.LOG_ERROR)
+            return None
+        pysmurf_version = pysmurf_version.split('+')[0]
 
         # Extra registers allow confirmation of JESD lock for pysmurf
         # versions >=4.1.0 and Rogue ZIP file versions >=0.3.0.  see
@@ -3095,7 +3107,13 @@ class SmurfCommandMixin(SmurfBase):
         """
         # strip any commit info off the end of the pysmurf version
         # string
-        pysmurf_version = self.get_pysmurf_version(**kwargs).split('+')[0]
+        pysmurf_version = self.get_pysmurf_version(**kwargs)
+        if pysmurf_version is None:
+            self.log(
+                'Could not read the pysmurf version register; cannot'
+                ' determine JESD status.', self.LOG_ERROR)
+            return None
+        pysmurf_version = pysmurf_version.split('+')[0]
 
         # Extra registers were added to allow confirmation of JESD
         # lock for pysmurf versions >=4.1.0.
