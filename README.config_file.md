@@ -12,7 +12,7 @@ The configuration files are stored in the `cfg_files` folder in the pysmurf git 
 4. If you know it, update the `bias_line_resistance` and `R_sh` fields.
 5. Save
 
-You should be able to call this config file when you instantiate your `SmurfControl` object. One of the first steps you'll do is run `estimate_phase_delay`. You can save the outputs into your config file so you will not need to run it in the future. 
+You should be able to call this config file when you instantiate your `SmurfControl` object. One of the first steps you'll do is run `estimate_phase_delay`. You can save the outputs into your config file so you will not need to run it in the future. For best results on detector arrays whose resonator placement is known, populate `phaseDelaySubbands` per band with subbands free of resonators before running it.
 
 # Important Variables
 
@@ -20,8 +20,10 @@ You should be able to call this config file when you instantiate your `SmurfCont
 
 ### band_#
 
-- `refPhaseDelay` - The phase delay parameter. Solve for this using the function `S.estimate_phase_delay(band)`
-- `refPhaseDelayFine` - The fine phase delay parameter. Solve for this using the function `S.estimate_phase_delay(band)`
+- `refPhaseDelay` - DEPRECATED. The phase delay parameter. Solve for this using the function `S.estimate_phase_delay(band)`. Use `bandDelayUs` instead.
+- `refPhaseDelayFine` - DEPRECATED. The fine phase delay parameter. Solve for this using the function `S.estimate_phase_delay(band)`. Use `bandDelayUs` instead.
+- `bandDelayUs` - Total band-level latency compensation in microseconds (analog + DSP). Solve for this using `S.estimate_phase_delay(band)`. Supersedes `refPhaseDelay`/`refPhaseDelayFine`.
+- `phaseDelaySubbands` - Optional list of DSP subband indices that are known to contain no resonators on this hardware. When set, `estimate_phase_delay()` uses these subbands for the DSP latency fit instead of geometrically selecting from its `freq_min`/`freq_max` arguments, avoiding the bias that resonator phase response would otherwise introduce into the linear phase-vs-frequency polyfit. Determining the right subbands is per-array hardware characterization — typically by inspecting a `find_freq` over the full band before tuning.
 - `att_uc` - The upconverter (DAC) attenuator
 - `att_dc` - The downconverter (ADC) attenuator
 - `amplitude_scale` - The probe tone power.
