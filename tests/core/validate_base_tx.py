@@ -108,11 +108,14 @@ if __name__ == "__main__":
         root.StreamDataSource.SourceEnable.set(False)
         print('Done')
 
-        # Wait for the pipeline to drain: poll until the FileWriter
-        # has received at least as many frames as entered the pipeline.
+        # Wait for the pipeline to drain: poll until both downstream
+        # fanouts (FileWriter and Transmitter) have received at least as
+        # many frames as entered the pipeline. The Transmitter is a
+        # parallel sink and can lag the FileWriter by a frame or two.
         print('  Waiting for pipeline to drain... ', end='')
         rx_in = root.SmurfProcessor.FrameRxStats.FrameCnt.get()
-        while root.SmurfProcessor.FileWriter.FrameCount.get() < rx_in:
+        while (root.SmurfProcessor.FileWriter.FrameCount.get() < rx_in or
+               root.SmurfProcessor.Transmitter.dataFrameCnt.get() < rx_in):
             time.sleep(0.1)
         print('Done')
 
