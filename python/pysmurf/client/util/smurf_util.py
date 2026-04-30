@@ -2149,26 +2149,36 @@ class SmurfUtilMixin(SmurfBase):
 
     def set_feedback_limit_khz(self, band, feedback_limit_khz, **kwargs):
         """
-        Sets the feedback limit
+        Sets the feedback limit, which clamps the magnitude of the
+        per-channel tracked-tone deviation before the loop saturates.
+
+        The 16-bit ``feedbackLimit`` register encodes the limit as a
+        fraction of the per-subband half-width (the same convention as
+        ``eta_mag``). Requests larger than the half-width are clamped,
+        and the integer is clamped to ``2**16 - 1`` so an input equal
+        to the half-width does not wrap to zero in firmware.
 
         Args
         ----
         band : int
-            The band that is to be turned off.
+            The 500 MHz band whose feedback limit will be set.
         feedback_limit_khz : float
-            The feedback rate in units of kHz.
+            Maximum permitted tracked-tone deviation, in kHz.
         """
         digitizer_freq_mhz = self.get_digitizer_frequency_mhz(band)
         n_subband = self.get_number_sub_bands(band)
 
-        subband_bandwidth = 2 * digitizer_freq_mhz / n_subband
-        desired_feedback_limit_mhz = feedback_limit_khz/1000.
+        subband_half_width_mhz = digitizer_freq_mhz / n_subband
+        desired_feedback_limit_mhz = feedback_limit_khz / 1000.
 
-        if desired_feedback_limit_mhz > subband_bandwidth/2:
-            desired_feedback_limit_mhz = subband_bandwidth/2
+        if desired_feedback_limit_mhz > subband_half_width_mhz:
+            desired_feedback_limit_mhz = subband_half_width_mhz
 
-        desired_feedback_limit_dec = int(np.floor(desired_feedback_limit_mhz/
-            (subband_bandwidth/2**16.)))
+        desired_feedback_limit_dec = int(np.floor(
+            desired_feedback_limit_mhz / (subband_half_width_mhz / 2**16.)))
+
+        if desired_feedback_limit_dec >= 2**16:
+            desired_feedback_limit_dec = 2**16 - 1
 
         self.set_feedback_limit(band, desired_feedback_limit_dec, **kwargs)
 
