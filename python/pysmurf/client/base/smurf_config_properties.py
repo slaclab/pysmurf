@@ -149,6 +149,7 @@ class SmurfConfigPropertiesMixin:
         self._att_uc = None
         self._att_dc = None
         self._trigger_reset_delay = None
+        self._dac_dither = None
 
         # RTM
         self._num_flux_ramp_counter_bits = None
@@ -277,6 +278,7 @@ class SmurfConfigPropertiesMixin:
         ## Carrier
         self.dsp_enable = smurf_init_config['dspEnable']
         self.ultrascale_temperature_limit_degC = config.get('ultrascale_temperature_limit_degC')
+        self.dac_dither = config.get('dac_dither')
         self.data_out_mux = {
             band:smurf_init_config[f'band_{band}']['data_out_mux']
             for band in bands}
@@ -753,6 +755,46 @@ class SmurfConfigPropertiesMixin:
         self._fiftyk_dac_num = value
 
     ## End fiftyk_dac_num property definition
+    ###########################################################################
+
+    ###########################################################################
+    ## Start dac_dither property definition
+
+    # Getter
+    @property
+    def dac_dither(self):
+        """Optional 16-bit DAC dither configuration register value.
+
+        If set, the value is written to ``DacReg[38]`` (chip address
+        0x26) for every DAC in every bay during
+        :func:`~pysmurf.client.base.smurf_control.SmurfControl.setup`.
+        Bit fields: ``dither_ena[15:12]``, ``dither_mixer_ena[11:8]``,
+        ``dither_sra_sel[7:4]``, ``dither_zero[0]``.
+
+        Specified in the pysmurf configuration file as the optional
+        top-level key ``dac_dither``.  When omitted (or ``None``),
+        ``setup()`` leaves the register at its firmware default.
+
+        Returns
+        -------
+        int or None
+            16-bit unsigned register value, or ``None`` if no dither
+            value is configured.
+
+        See Also
+        --------
+        :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.set_dac_dither`,
+        :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.get_dac_dither`
+
+        """
+        return self._dac_dither
+
+    # Setter
+    @dac_dither.setter
+    def dac_dither(self, value):
+        self._dac_dither = value
+
+    ## End dac_dither property definition
     ###########################################################################
 
     ###########################################################################

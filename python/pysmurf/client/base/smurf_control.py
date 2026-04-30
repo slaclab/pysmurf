@@ -622,6 +622,20 @@ class SmurfControl(SmurfCommandMixin,
                     band, self._att_dc[band],
                     write_log=write_log)
 
+            # Apply DAC dithering if configured (issue #582).  Optional
+            # cfg key `dac_dither`: 16-bit unsigned register value
+            # written to DacReg[38] for every DAC in every bay.  Must
+            # run after setDefaults so the defaults don't overwrite us.
+            if self._dac_dither is not None:
+                self.log(
+                    f'Setting DAC dither to 0x{self._dac_dither:04X}',
+                    self.LOG_USER)
+                for bay in self.bays:
+                    for dac in dacs:
+                        self.set_dac_dither(
+                            bay, dac, self._dac_dither,
+                            write_log=write_log)
+
             # Things that have to be done for both AMC bays, regardless of whether or not an AMC
             # is plugged in there.
             for bay in [0, 1]:
