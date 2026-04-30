@@ -1634,7 +1634,7 @@ class SmurfTuneMixin(SmurfBase):
     @set_action()
     def assign_channels(self, freq, band=None, bandcenter=None,
             channel_per_subband=4, as_offset=True, min_offset=0.1,
-            new_master_assignment=False):
+            new_master_assignment=False, save_master_assignment=True):
         """
         Figures out the subbands and channels to assign to resonators
 
@@ -1655,6 +1655,12 @@ class SmurfTuneMixin(SmurfBase):
         min_offset : float, optional, default 0.1
             The minimum offset between two resonators in MHz.  If
             closer, then both are ignored.
+        save_master_assignment : bool, optional, default True
+            Whether to write the new master assignment to disk.  Only
+            meaningful when ``new_master_assignment=True``.  Set to
+            False to compute the assignment without persisting a
+            channel_assignment file (used by ``setup_notches`` for its
+            pre-eta-scan call to avoid producing a redundant file).
 
         Returns
         -------
@@ -1735,7 +1741,8 @@ class SmurfTuneMixin(SmurfBase):
             channels[~close_idx] = -1
 
             # write the channel assignments to file
-            self.write_master_assignment(band, freq, subbands, channels)
+            if save_master_assignment:
+                self.write_master_assignment(band, freq, subbands, channels)
 
         return subbands, channels, offsets
 
@@ -3965,7 +3972,8 @@ class SmurfTuneMixin(SmurfBase):
 
         subbands, channels, offsets = self.assign_channels(input_res, band=band,
             as_offset=False, min_offset=min_offset,
-            new_master_assignment=new_master_assignment)
+            new_master_assignment=new_master_assignment,
+            save_master_assignment=False)
 
         f_sweep = np.arange(-sweep_width, sweep_width, df_sweep)
         n_step  = len(f_sweep)
