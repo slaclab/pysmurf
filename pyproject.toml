@@ -12,6 +12,9 @@
 requires = [
     "hatch-vcs",
     "hatchling",
+    "Cython>=0.29.0",
+    "numpy>=1.19.0",
+    "setuptools",
 ]
 build-backend = "hatchling.build"
 
@@ -45,6 +48,7 @@ dependencies = [
     "schema",
     "scipy",
     "seaborn",
+    "Cython",
 ]
 
 [project.urls]
@@ -73,3 +77,12 @@ include = [
 packages = [
     "/python/pysmurf",
 ]
+# include cython extensions
+artifacts = [
+    "python/pysmurf/**/*.so",
+    "python/pysmurf/**/*.pyd",
+]
+
+# build cython extensions
+[tool.hatch.build.hooks.custom]
+path = "hatch_build.py"

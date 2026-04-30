@@ -42,7 +42,7 @@ class PcieDev():
     def __init__(self, dev, name, description):
         import rogue.hardware.axi
         from SmurfPcie import SmurfKcu1500RssiOffload10GbE as fpga
-        self._root = pyrogue.Root(name=name,description=description, pollEn='False',initRead='True')
+        self._root = pyrogue.Root(name=name,description=description, pollEn=False,initRead=True)
         self._memMap = rogue.hardware.axi.AxiMemMap(dev)
         self._root.add(fpga.Core(memBase=self._memMap))
         self._root.start()
@@ -231,19 +231,22 @@ class PcieCard():
         else:
             self._use_pcie = False
 
-        # Check if the PCIe card for RSSI is present in the system
-        if self._use_pcie and Path(dev_rssi).exists():
+        # Check if the PCIe card for RSSI is present in the system.
+        # Always detect the RSSI card regardless of comm_type so that
+        # __close_all_rssi() can shut down any PCIe RSSI lanes that
+        # target the same IP address — otherwise the PCIe firmware
+        # intercepts the UDP traffic and the software UdpRssiPack
+        # running over the standard NIC can never establish its link.
+        if Path(dev_rssi).exists():
             self._pcie_rssi_present = True
             self._pcie_rssi = PcieDev(dev=dev_rssi, name='pcie_rssi', description='PCIe for RSSI')
         else:
             self._pcie_rssi_present = False
 
         # Check if the PCIe card for DATA is present in the system
-        if self._use_pcie and Path(dev_data).exists():
-            self._pcie_data_present = True
+        self._pcie_data_present = Path(dev_data).exists()
+        if self._use_pcie and self._pcie_data_present:
             self._pcie_data = PcieDev(dev=dev_data, name='pcie_data', description='PCIe for DATA')
-        else:
-            self._pcie_data_present = False
 
         # We need the IP address when the PCIe card is present, but not in used too.
         # If the PCIe card is present, this value could be updated later.

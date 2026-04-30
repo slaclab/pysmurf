@@ -5,6 +5,12 @@ python/pysmurf/_version.py
 *.dat
 *.png
 
+# Cython build artifacts
+*.c
+*.cpp
+*.so
+*.html
+
 # Editor
 *~
 \#*

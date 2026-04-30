@@ -18,7 +18,11 @@ import time
 import os
 
 import numpy as np
-import pyrogue.interfaces
+try:
+    import pyrogue.interfaces
+    ROGUE_AVAILABLE  = True
+except ModuleNotFoundError:
+    ROGUE_AVAILABLE  = False
 
 from ..base.logger import SmurfLogger
 
@@ -39,6 +43,10 @@ class CryoCard():
         Ref https://github.com/slaclab/smurfc/blob/C04/firmware/src/ccard.h
         """
 
+        if not ROGUE_AVAILABLE:
+            raise ImportError(
+                "pyrogue is required to use the CryoCard class. Use offline mode or install pyrogue."
+            )
         self._client = pyrogue.interfaces.VirtualClient(addr=server_addr, port=server_port)
         self.readpv = self._client.root.getNode(readpv_in)
         self.writepv = self._client.root.getNode(writepv_in)

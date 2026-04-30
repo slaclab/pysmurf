@@ -1,5 +1,11 @@
 FROM ghcr.io/slaclab/smurf-rogue:R5.0.1
 
+# Install Xvfb for virtual display support when running with GUI (-g)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    xvfb \
+    x11-utils \
+ && rm -rf /var/lib/apt/lists/*
+
 # Copy all firmware related files, which are in the local_files directory
 RUN mkdir -p /tmp/fw/ && chmod -R a+rw /tmp/fw/
 COPY local_files /tmp/fw/

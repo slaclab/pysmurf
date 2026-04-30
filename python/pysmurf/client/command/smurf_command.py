@@ -20,7 +20,11 @@ import subprocess
 
 import numpy as np
 from packaging import version
-from pyrogue import VariableWait
+try:
+    from pyrogue import VariableWait
+except ModuleNotFoundError:
+    # there will be warnings elsewhere
+    pass
 
 from pysmurf.client.base import SmurfBase
 from pysmurf.client.command.sync_group import SyncGroup
@@ -162,16 +166,17 @@ class SmurfCommandMixin(SmurfBase):
                 self.log(ret, log_level)
             return ret
 
+        if not execute or self.offline:
+            self.log(f"Not executing caget for {pvname} (execute={execute}, offline={self.offline})", log_level)
+            # don't perform the read
+            return None
+
         var = self._client.root.getNode(pvname)
         if var is None:
             raise ValueError(f"Invalid node: {pvname}")
 
         if write_log:
             self.log('caget ' + pvname, log_level)
-
-        if not execute or self.offline:
-            # don't perform the read
-            return None
         # Get the data
         if as_string:
             ret = var.getDisp(index=index)
@@ -4663,8 +4668,7 @@ class SmurfCommandMixin(SmurfBase):
 
                 enable = self.get_amp_drain_enable(amp)
                 amp_dict[amp + '_enable'] = enable
-
-        if major == 4:
+        elif major == 4:
             for amp in self.C.list_of_c04_amps:
                 voltage = self.get_amp_gate_voltage(amp)
                 amp_dict[amp + '_gate_volt'] = voltage
@@ -4677,6 +4681,11 @@ class SmurfCommandMixin(SmurfBase):
 
                 enable = self.get_amp_drain_enable(amp)
                 amp_dict[amp + '_enable'] = enable
+        else:
+            raise ValueError(
+                f"Did not recognize cryo-card major version {major}. "
+                f"Read version {major}.{minor}.{patch} from CC."
+            )
 
         return amp_dict
 
