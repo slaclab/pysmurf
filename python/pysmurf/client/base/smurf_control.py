@@ -662,18 +662,24 @@ class SmurfControl(SmurfCommandMixin,
             self.set_payload_size(payload_size)
             self.set_channel_mask([0])
 
+            # Detect cryostat card via the SPI cycle-count register
+            # (0x06). The PIC increments this counter on every SPI
+            # read, so a pair of reads must be strictly increasing if
+            # the card is alive. See slaclab/pysmurf#522.
             try:
-                ## Removed this because better error handling for cc
-                ## communication in
-                ## https://github.com/slaclab/pysmurf/pull/794 Causes this
-                ## command to stall and error out on systems with no
-                ## cryostat card connected.
-                ## also read the temperature of the CC
-                self.log(f"Cryocard temperature = {self.C.read_temperature()}")
-
-                # If C02, set the gate voltages to the default.
-                # If C04, also set the drain voltages to zero.
-                self.set_amp_defaults()
+                if self.C.is_present():
+                    self.log(
+                        "Cryocard detected. Temperature = "
+                        f"{self.C.read_temperature()}")
+                    # If C02, set the gate voltages to the default.
+                    # If C04, also set the drain voltages to zero.
+                    self.set_amp_defaults()
+                else:
+                    self.log(
+                        "No cryostat card detected (cycle-count "
+                        "register 0x06 did not increment); skipping "
+                        "cryocard setup steps.",
+                        self.LOG_USER)
             except Exception:
                 self.log("Attempts to communicate with a cryocard "
                          "failed!  Will assume no cryostat card is"
