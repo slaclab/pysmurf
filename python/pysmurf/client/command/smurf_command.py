@@ -685,6 +685,15 @@ class SmurfCommandMixin(SmurfBase):
         return self._caget(self._cryo_root(band) + self._eta_scan_in_progress_reg,
                     **kwargs)
 
+    def set_eta_scan_in_progress(self, band, val, **kwargs):
+        """
+        Force-write the etaScanInProgress flag. Intended for recovery only:
+        if a serial eta scan / gradient descent / min search aborts in
+        firmware, this flag can be left at 1 and block subsequent scans.
+        """
+        self._caput(self._cryo_root(band) + self._eta_scan_in_progress_reg,
+                    val, **kwargs)
+
     _gradient_descent_max_iters_reg = 'gradientDescentMaxIters'
 
     def set_gradient_descent_max_iters(self, band, val, **kwargs):
@@ -828,6 +837,30 @@ class SmurfCommandMixin(SmurfBase):
 
     _run_serial_eta_scan_reg = 'runSerialEtaScan'
 
+    def _wait_for_eta_scan_in_progress(self, band, op_name, timeout):
+        """
+        Wait for the band's etaScanInProgress flag to clear. On timeout,
+        log an error and best-effort force the flag back to 0 so subsequent
+        eta-scan / gradient-descent / min-search commands are not blocked
+        by a stuck flag (firmware can leave it stuck at 1 if the rogue
+        process raises). Re-raises the TimeoutError so the caller knows
+        the operation did not complete (see issue #722).
+        """
+        monitorPV = self._cryo_root(band) + self._eta_scan_in_progress_reg
+        try:
+            self._wait_for(monitorPV, lambda x: x == 0, timeout=timeout)
+        except TimeoutError:
+            self.log(
+                f'{op_name} on band {band} did not finish within {timeout}s. '
+                f'Check the rogue server logs for firmware errors. Forcing '
+                f'etaScanInProgress=0 so subsequent eta-scan commands can '
+                f'run.', self.LOG_ERROR)
+            try:
+                self.set_eta_scan_in_progress(band, 0)
+            except Exception:
+                pass
+            raise
+
     def run_serial_eta_scan(self, band, timeout=240, **kwargs):
         """
         Does an eta scan serially across the entire band. You must
@@ -846,10 +879,10 @@ class SmurfCommandMixin(SmurfBase):
         self.flux_ramp_off()
 
         triggerPV = self._cryo_root(band) + self._run_serial_eta_scan_reg
-        monitorPV = self._cryo_root(band) + self._eta_scan_in_progress_reg
 
         self._caput(triggerPV, 1, **kwargs)
-        self._wait_for(monitorPV, lambda x: x == 0, timeout=timeout)
+        self._wait_for_eta_scan_in_progress(
+            band, 'run_serial_eta_scan', timeout)
 
 
     _run_serial_min_search_reg = 'runSerialMinSearch'
@@ -868,11 +901,10 @@ class SmurfCommandMixin(SmurfBase):
         """
         triggerPV = (
             self._cryo_root(band) + self._run_serial_min_search_reg)
-        monitorPV = (
-            self._cryo_root(band) + self._eta_scan_in_progress_reg)
 
         self._caput(triggerPV, 1, **kwargs)
-        self._wait_for(monitorPV, lambda x: x == 0, timeout=timeout)
+        self._wait_for_eta_scan_in_progress(
+            band, 'run_serial_min_search', timeout)
 
 
     _run_serial_gradient_descent_reg = 'runSerialGradientDescent'
@@ -893,10 +925,10 @@ class SmurfCommandMixin(SmurfBase):
         self.flux_ramp_off()
 
         triggerPV = self._cryo_root(band) + self._run_serial_gradient_descent_reg
-        monitorPV = self._cryo_root(band) + self._eta_scan_in_progress_reg
 
         self._caput(triggerPV, 1, **kwargs)
-        self._wait_for(monitorPV, lambda x: x == 0, timeout=timeout)
+        self._wait_for_eta_scan_in_progress(
+            band, 'run_serial_gradient_descent', timeout)
 
 
     _sel_ext_ref_reg = "SelExtRef"
