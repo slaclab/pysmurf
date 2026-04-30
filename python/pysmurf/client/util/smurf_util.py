@@ -3930,11 +3930,8 @@ class SmurfUtilMixin(SmurfBase):
         """
         ret = {}
         ret['averages'] = self.get_gradient_descent_averages(band)
-        ret['beta'] = self.get_gradient_descent_beta(band)
         ret['converge_hz'] = self.get_gradient_descent_converge_hz(band)
-        ret['gain'] = self.get_gradient_descent_gain(band)
         ret['max_iters'] = self.get_gradient_descent_max_iters(band)
-        ret['momentum'] = self.get_gradient_descent_momentum(band)
         ret['step_hz'] = self.get_gradient_descent_step_hz(band)
 
         return ret

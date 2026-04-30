@@ -588,9 +588,6 @@ class SmurfControl(SmurfCommandMixin,
                     write_log=write_log, **kwargs)
 
                 # Tuning defaults
-                self.set_gradient_descent_gain(
-                    band, self._gradient_descent_gain[band],
-                    write_log=write_log, **kwargs)
                 self.set_gradient_descent_averages(
                     band, self._gradient_descent_averages[band],
                     write_log=write_log, **kwargs)
@@ -599,12 +596,6 @@ class SmurfControl(SmurfCommandMixin,
                     write_log=write_log, **kwargs)
                 self.set_gradient_descent_step_hz(
                     band, self._gradient_descent_step_hz[band],
-                    write_log=write_log, **kwargs)
-                self.set_gradient_descent_momentum(
-                    band, self._gradient_descent_momentum[band],
-                    write_log=write_log, **kwargs)
-                self.set_gradient_descent_beta(
-                    band, self._gradient_descent_beta[band],
                     write_log=write_log, **kwargs)
                 self.set_eta_scan_averages(
                     band, self._eta_scan_averages[band],
