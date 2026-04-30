@@ -3717,6 +3717,13 @@ class SmurfUtilMixin(SmurfBase):
     def all_off(self):
         """
         Turns off everything. Does band off, flux ramp off, then TES bias off.
+
+        Passes ``do_enable=True`` to ``set_tes_bias_off`` so the AD5790
+        control register is re-asserted to 0x2 (enable, normal operation)
+        before zeroing the data register. This recovers DACs that have
+        gotten into an indeterminate state (pinned full-scale negative);
+        writing the data register alone is not always sufficient to
+        unstick them. See issue #545.
         """
         self.log('Turning off tones')
         bands = self._bands
@@ -3727,7 +3734,7 @@ class SmurfUtilMixin(SmurfBase):
         self.flux_ramp_off()
 
         self.log('Turning off all TES biases')
-        self.set_tes_bias_off()
+        self.set_tes_bias_off(do_enable=True)
 
 
     def mask_num_to_gcp_num(self, mask_num):
