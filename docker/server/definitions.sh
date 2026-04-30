@@ -2,42 +2,62 @@
 
 # Define repositories:
 # ====================
-# These variables define the firmware and YML configuration repositories URLs.
-# Under normal conditions, you should not have to change these definitions.
-# - fw_repo: points to the firmware repository, which contains both the
-#   MCS and the ZIP files.
-# - config_repo: points to the configuration repository, which contains the
-#   the YML files.
+# - config_repo: points to the configuration repository, which contains the YML files.
+# - FW_SYSTEMS: array of firmware system definitions. Each entry is a pipe-separated tuple:
+#     name|repo_url|tag|fw_files[|zip_file]
+#
+#   - name:     short identifier used in log messages and file lookups (no spaces)
+#   - repo_url: GitHub HTTPS URL for the firmware repository
+#   - tag:      release tag to pull assets from
+#   - fw_files: semicolon-separated list of firmware asset filenames to download from that release.
+#               For ATCA/PCIe systems this is the MCS file (e.g. MyFirmware-hash.mcs).
+#               For RFSoC systems these are the linux.tar.gz images (one per FPGA target variant).
+#               check_rfsoc_firmware.sh auto-selects the correct image at runtime based on what
+#               is actually loaded on the board.
+#   - zip_file: (optional) pyrogue ZIP to use. Three forms are accepted:
+#               - Omitted: defaults to rogue_<tag>.zip (the ruckus Primary:True naming convention).
+#               - Filename only (e.g. rogue_MicrowaveMuxBpEthGen2_v2.3.1.zip): fetched from the
+#                 GitHub release assets (ruckus Primary:False naming convention).
+#               - Absolute path (e.g. /path/to/rogue_MicrowaveMuxZcu208_v3.2.0.zip): copied from
+#                 local disk. Useful when the zip has been built locally before the docker image.
+#
+# To add a new system, append a new entry to FW_SYSTEMS.
+# To disable a system, comment out its entry.
 
-# Firmware repo for uMUX systems
-fw_repo=https://github.com/slaclab/cryo-det
-# Firmware repo for TKID systems
-tkid_fw_repo=https://github.com/slaclab/cryo-det-kid
-# Repo for defaults.ymls
+# Repo for defaults YMLs
 config_repo=https://github.com/slaclab/smurf_cfg
 
-# Define the firmware version:
-# ============================
-# Define the firmware version to use. This is were you define which firmware
-# version to include in the docker image.
-# - fw_repo_tag: Set this variable to the tag version you want to use.
-# - mcs_file_name: Set this variable to the MCS file name.
-# The name of the MCS file is independent from the tag name, so you need to
-# define it here. On the other hand, the ZIP file follows this naming convention:
-# 'rogue_${fw_repo_tag}.zip', so you don't need to define it here.
-# The files will be downloaded from the release list of assets.
+# Firmware system definitions
+# Format: "name|repo_url|tag|fw_files[|zip_file]"  (fw_files is semicolon-separated)
+FW_SYSTEMS=(
+    # uMUX (standard microwave multiplexer) systems
+    # Uses Primary:False naming -> rogue_MicrowaveMuxBpEthGen2_<tag>.zip
+    "umux|https://github.com/slaclab/cryo-det|MicrowaveMuxBpEthGen2_v2.3.1|MicrowaveMuxBpEthGen2-0x02030000-20260320150539-ruckman-7d7e8a25.mcs|rogue_MicrowaveMuxBpEthGen2_v2.3.1.zip"
 
-# Firmware version for uMUX systems
-fw_repo_tag=MicrowaveMuxBpEthGen2_v2.3.1
-mcs_file_name=MicrowaveMuxBpEthGen2-0x02030000-20260320150539-ruckman-7d7e8a25.mcs
+    # TKID (transition-edge sensor kinetic inductance detector) systems
+    "tkid|https://github.com/slaclab/cryo-det-kid|v2.1.0|CryoDetKid-0x02010000-20240920083819-ruckman-ec69acf.mcs.gz"
 
-# Firmware version for TKID systems
-tkid_fw_repo_tag=v2.1.0
-tkid_mcs_file_name=CryoDetKid-0x02010000-20240920083819-ruckman-ec69acf.mcs.gz
+    # RFSoC systems (ZCU208).
+    # fw_files is a semicolon-separated list of linux.tar.gz images, one per FPGA target variant
+    # (e.g. BaseBand, HighOrderNyquist). All listed images are downloaded into the docker image.
+    # At runtime, checkRFSoCFW() reads the target name from the board via axiversiondump and
+    # selects the matching image automatically -- so adding a new variant here is all that is
+    # needed to support it. A single pyrogue ZIP covers all RFSoC target variants.
+    # Currently only BaseBand is deployed. When HighOrderNyquist is ready, append it like so:
+    #   ...66895bd.linux.tar.gz;MicrowaveMuxZcu208_HighOrderNyquist-0x0XXXXXXX-date-ruckman-hash.linux.tar.gz
+    #
+    # zip_file: the rfsoc zip follows rogue_MicrowaveMuxZcu208_<ver>.zip naming (not rogue_<tag>.zip),
+    # so it must be specified explicitly. If the zip has already been built locally it can be given
+    # as an absolute path (e.g. /tmp/rogue_MicrowaveMuxZcu208_v3.2.0.zip) and will be copied from
+    # disk instead of downloaded. Otherwise give just the filename and it will be fetched from the
+    # GitHub release assets.
+    "rfsoc|https://github.com/slaclab/zcu208-cryo-det|v3.2.0|MicrowaveMuxZcu208_BaseBand-0x03020000-20260408094535-ruckman-66895bd.linux.tar.gz|/home/cryo/rogue_MicrowaveMuxZcu208_v3.2.0.zip"
+
+    # Add additional systems below, one per line:
+    # "mysystem|https://github.com/slaclab/my-repo|v1.2.3|MyFirmware-0x01020300-date-hash.mcs"
+)
 
 # Define the configuration version:
-# =================================
-# Define the YML configuration version to use. This is were you define which
-# configuration version to include in the docker image.
-# - 'yml_repo_tag': Set this variable to the tag version you want to use.
+# ==================================
+# - config_repo_tag: tag version of the YML configuration repo to include.
 config_repo_tag=v2.1.0

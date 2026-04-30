@@ -33,6 +33,9 @@ usage()
     echo "    -D|--no-check-fw                      : Disable FPGA version checking."
     echo "    -E|--disable-hw-detect                : Disable hardware type auto detection."
     echo "    -H|--hard-boot                        : Do a hard boot: reboot the FPGA and load default configuration."
+    echo "    --is-rfsoc                             : System uses an RFSoC instead of ATCA hardware."
+    echo "    --rfsoc-mgmt-ip        <RFSOC_MGMT_IP>     : RFSoC embedded-processor management IP (default: 10.0.1.200)."
+    echo "                                            Only relevant when --is-rfsoc is set."
     echo "    -h|--help                             : Show this message."
     echo "    <pyrogue_server_args> are passed to the SMuRF pyrogue server. "
     echo ""
@@ -42,6 +45,10 @@ usage()
     echo "The script will by default check if the firmware githash read from the FPGA via IPMI is the same of the found in the MCS file name."
     echo "If they don't match, then the MCS file will be loaded into the FPGA. If this happens, the FPGA will be rebooted."
     echo "This checking can be disabled with -D. The checking will also be disabled if -a is used instead of -S and -N."
+    echo
+    echo "For RFSoC systems (--is-rfsoc), firmware checking compares the git hash running on the RFSoC embedded processor"
+    echo "against the linux.tar.gz files present in ${fw_top_dir}. If they don't match, the new image is copied to the"
+    echo "RFSoC over SSH and the board is rebooted. Disable this check with -D|--no-check-fw or --disable-hw-detect."
     echo
     echo "The script will try to auto-detect the type of hardware, and automatically generate server startup arguments based on the hardware type."
     echo "Currently, this script only detects the type of carrier board, and uses the '--enable-em22xx' option when the carrier is a Gen2, version >= C03."
@@ -109,6 +116,17 @@ arg_parser()
             hard_boot=1
             shift
             ;;
+            --is-rfsoc)
+            is_rfsoc=1
+            # Also pass through to pysmurf server args
+            __extra_args="${__extra_args} --is-rfsoc"
+            ;;
+            --rfsoc-mgmt-ip)
+            rfsoc_ip="$2"
+            # Also pass through to pysmurf server args
+            __extra_args="${__extra_args} --rfsoc-mgmt-ip $2"
+            shift
+            ;;
             -h|--help)
             usage
             ;;
@@ -128,8 +146,6 @@ getGitHashFW()
     local gh_inv
     local gh
 
-    # Long githash (inverted)
-    #gh_inv=$(ipmitool -I lan -H $shelfmanager -t $ipmb -b 0 -A NONE raw 0x34 0x04 0xd0 0x14  2> /dev/null)
     # Short githash (inverted)
     gh_inv=$(ipmitool -I lan -H $shelfmanager -t $ipmb -b 0 -A NONE raw 0x34 0x04 0xe0 0x04  2> /dev/null)
 
@@ -351,7 +367,7 @@ validateSlotNumber()
     fi
 }
 
-# Check if firmware in FPGA matches MCS file
+# Check if firmware in FPGA matches MCS file (ATCA/PCIe systems)
 checkFW()
 {
     # Check if the firmware checking is disabled
@@ -398,6 +414,210 @@ checkFW()
     fi
 }
 
+# Wait for the RFSoC embedded processor to go offline and come back online after a reboot.
+# Arguments: rfsoc_mgmt_ip
+_rfsoc_wait_for_reboot()
+{
+    local ip=$1
+    local timeout=90
+
+    echo "Waiting for the RFSoC to reboot..."
+    local start_time=$(date +%s)
+    local is_off=0
+
+    while true; do
+        local current_time=$(date +%s)
+        local elapsed=$((current_time - start_time))
+
+        ping -c 1 -W 1 "${ip}" &>/dev/null
+        local ping_status=$?
+
+        if [ ${is_off} -eq 0 ] && [ ${ping_status} -ne 0 ]; then
+            is_off=1
+            echo "RFSoC embedded processor offline. Waiting for it to come back online..."
+        fi
+
+        if [ ${is_off} -eq 1 ]; then
+            if [ ${ping_status} -eq 0 ]; then
+                printf "\r\033[K"
+                echo "RFSoC embedded processor is back online."
+                break
+            else
+                printf "\r\033[K"
+                printf "%d sec (usually takes ~60 sec)" "${elapsed}"
+            fi
+        fi
+
+        if [ ${elapsed} -gt ${timeout} ]; then
+            echo ""
+            echo "Error: Timeout waiting for RFSoC to reboot. Aborting."
+            kill -s TERM ${top_pid}
+        fi
+
+        sleep 1
+    done
+}
+
+# Run axiversiondump on the RFSoC over SSH, retrying for up to 60 seconds if it
+# fails or returns empty output (the board may not have fully initialized even
+# though ping is already up). Prints the output to stdout on success.
+# Calls kill/TERM on the top-level PID and returns non-zero on timeout.
+# Arguments: rfsoc_mgmt_ip
+_rfsoc_axiversiondump()
+{
+    local ip=$1
+    local timeout=60
+    local start_time
+    start_time=$(date +%s)
+
+    echo "Waiting for axiversiondump to respond on ${ip}..."
+    while true; do
+        local current_time
+        current_time=$(date +%s)
+        local elapsed=$((current_time - start_time))
+
+        local output
+        output=$(ssh "root@${ip}" 'axiversiondump' 2>/dev/null)
+        # Consider the call successful only if it exited cleanly AND produced
+        # a non-empty FwTarget line (guards against a partially-booted state
+        # where axiversiondump runs but returns blank fields).
+        if [ $? -eq 0 ] && echo "${output}" | grep -q "FwTarget"; then
+            echo "${output}"
+            return 0
+        fi
+
+        if [ ${elapsed} -ge ${timeout} ]; then
+            echo ""
+            echo "Error: axiversiondump did not respond on ${ip} within ${timeout} seconds. Aborting."
+            kill -s TERM ${top_pid}
+            return 1
+        fi
+
+        printf "\r\033[K"
+        printf "  %d sec elapsed, retrying..." "${elapsed}"
+        sleep 2
+    done
+}
+
+# Reprogram the RFSoC by copying a new linux.tar.gz image over SSH and rebooting.
+# After reboot, verifies the new git hash matches what was just flashed.
+# Arguments: rfsoc_mgmt_ip fw_image_path
+_rfsoc_reprogram()
+{
+    local ip=$1
+    local fw_image=$2
+
+    echo "Reprogramming RFSoC with: ${fw_image}"
+
+    # Extract firmware archive into a temp directory
+    local tmp_dir
+    tmp_dir=$(mktemp -d /tmp/rfsoc_fw_XXXXXX)
+    tar zxf "${fw_image}" -C "${tmp_dir}"
+
+    if [ ! -f "${tmp_dir}/linux/system.bit" ]; then
+        echo "Error: system.bit not found in firmware archive. Aborting."
+        rm -rf "${tmp_dir}"
+        kill -s TERM ${top_pid}
+    fi
+
+    # Upload the bitfile and reboot
+    echo "Copying system.bit to RFSoC..."
+    scp "${tmp_dir}/linux/system.bit" "root@${ip}:/boot/system.bit"
+    if [ $? -ne 0 ]; then
+        echo "Error: SCP failed. Aborting."
+        rm -rf "${tmp_dir}"
+        kill -s TERM ${top_pid}
+    fi
+
+    echo "Rebooting RFSoC..."
+    ssh "root@${ip}" '/bin/sync; /sbin/reboot'
+
+    # Clean up the temp directory
+    rm -rf "${tmp_dir}"
+
+    # Wait for the board to reboot
+    _rfsoc_wait_for_reboot "${ip}"
+
+    # Verify the new firmware by reading the git hash back from the board,
+    # retrying until axiversiondump is ready (board may need a moment after ping).
+    local expected_hash
+    expected_hash=$(basename "${fw_image}" | grep -oE '[a-f0-9]{7}\.linux\.tar\.gz' | sed 's/\.linux\.tar\.gz//')
+
+    local new_fw_info
+    new_fw_info=$(_rfsoc_axiversiondump "${ip}")
+    local new_long_hash
+    new_long_hash=$(echo "${new_fw_info}" | grep "GitHash" | awk -F'= ' '{print $2}')
+    local new_short_hash="${new_long_hash:0:7}"
+
+    if [ "${new_short_hash}" == "${expected_hash}" ]; then
+        echo "Firmware reprogramming verified successfully (hash: ${new_short_hash})."
+    else
+        echo "Warning: post-reboot git hash '${new_short_hash}' does not match expected '${expected_hash}'."
+        echo "The board may not have loaded the new firmware correctly."
+    fi
+}
+
+# Check the firmware running on the RFSoC and reprogram if it doesn't match
+# the linux.tar.gz images in ${fw_top_dir}.
+# This mirrors the behaviour of checkFW() for ATCA systems.
+# Arguments: rfsoc_mgmt_ip
+checkRFSoCFW()
+{
+    local ip=$1
+
+    # Skip if firmware checking is disabled
+    if [ -n "${no_check_fw+x}" ]; then
+        echo "RFSoC firmware check disabled."
+        return
+    fi
+
+    echo "Checking RFSoC firmware at ${ip}..."
+
+    # Verify the board is reachable before trying SSH
+    if ! ping -c 1 -W 1 "${ip}" &>/dev/null; then
+        echo "Error: Unable to reach RFSoC at ${ip}. Aborting."
+        kill -s TERM ${top_pid}
+    fi
+
+    # Read firmware info from the running board, retrying until axiversiondump
+    # is ready (may lag behind ping coming up during normal boot).
+    local fw_info
+    fw_info=$(_rfsoc_axiversiondump "${ip}")
+
+    local fw_target
+    fw_target=$(echo "${fw_info}" | grep "FwTarget" | awk -F'= ' '{print $2}')
+    local long_hash
+    long_hash=$(echo "${fw_info}" | grep "GitHash" | awk -F'= ' '{print $2}')
+    local short_hash="${long_hash:0:7}"
+
+    echo "  Running firmware target : ${fw_target}"
+    echo "  Running firmware hash   : ${short_hash}"
+
+    # Find the linux.tar.gz for this target in the firmware directory
+    local fw_file
+    fw_file=$(find "${fw_top_dir}" -maxdepth 1 -name "${fw_target}-*.linux.tar.gz" -print -quit)
+
+    if [ -z "${fw_file}" ]; then
+        echo "Error: No linux.tar.gz found for target '${fw_target}' in ${fw_top_dir}. Aborting."
+        kill -s TERM ${top_pid}
+    fi
+
+    local expected_hash
+    expected_hash=$(basename "${fw_file}" | grep -oE '[a-f0-9]{7}\.linux\.tar\.gz' | sed 's/\.linux\.tar\.gz//')
+
+    echo "  Expected firmware file  : $(basename ${fw_file})"
+    echo "  Expected firmware hash  : ${expected_hash}"
+
+    if [ "${short_hash}" == "${expected_hash}" ]; then
+        echo "Firmware matches. No reprogramming needed."
+    else
+        echo "Firmware mismatch. Reprogramming RFSoC..."
+        _rfsoc_reprogram "${ip}" "${fw_file}"
+        # Set a flag so hardBoot() knows the board was already rebooted
+        mcs_loaded=1
+    fi
+}
+
 # Validate the communication type selected
 validateCommType()
 {
@@ -439,11 +659,13 @@ hardBoot()
 # out python directories.
 findPyrogueFiles()
 {
-    fwstr=
+    local fwstr=
     if [[ $1 = "umux" ]]; then
 	fwstr="MicrowaveMuxBpEthGen2"
     elif [[ $1 = "tkid" ]]; then
 	fwstr="CryoDetKid"
+    elif [[ $1 = "rfsoc" ]]; then
+        fwstr="MicrowaveMuxZcu208"
     fi
 
     # Look for a pyrogue zip file
@@ -778,32 +1000,53 @@ initialize()
     # Validate the selected slot number
     validateSlotNumber
 
-    # Get FPGA IP address
-    getFpgaIpAddr
+    # RFSoC path: different initialization sequence from ATCA
+    if [ -n "${is_rfsoc+x}" ]; then
 
-    # Auto-detect hardware type
-    ## Detect type of AMCs, and get specific server startup arguments
-    ## for each specific type and add them to the list of arguments
-    local __extra_amcs_args
-    local __system_type
-    detect_amc_board __extra_amcs_args __system_type
-    __extra_args+=" ${__extra_amcs_args}"
+        # Apply default management IP if not specified by the user
+        if [ -z "${rfsoc_ip+x}" ]; then
+            rfsoc_ip="10.0.1.200"
+        fi
+        echo "RFSoC mode: management IP = ${rfsoc_ip}"
 
-    ## Detect type of carrier, and get specific server startup arguments
-    ## for each specific type and add them to the list of arguments
-    local __extra_carrier_args
-    detect_carrier_board __extra_carrier_args
-    __extra_args+=" ${__extra_carrier_args}"
+        # Check and (if needed) reprogram the RFSoC firmware
+        checkRFSoCFW "${rfsoc_ip}"
 
-    # Look for pyrogue files
-    findPyrogueFiles ${__system_type}
+        # Look for the zcu208-cryo-det pyrogue zip
+        findPyrogueFiles "rfsoc"
 
-    # Firmware version checking
-    checkFW ${__system_type}
+    else
 
-    # Do a hard boot, if requested
-    hardBoot
-    
+        # ATCA path: get IP, auto-detect boards, check ATCA firmware
+
+        # Get FPGA IP address
+        getFpgaIpAddr
+
+        # Auto-detect hardware type
+        ## Detect type of AMCs, and get specific server startup arguments
+        ## for each specific type and add them to the list of arguments
+        local __extra_amcs_args
+        local __system_type
+        detect_amc_board __extra_amcs_args __system_type
+        __extra_args+=" ${__extra_amcs_args}"
+
+        ## Detect type of carrier, and get specific server startup arguments
+        ## for each specific type and add them to the list of arguments
+        local __extra_carrier_args
+        detect_carrier_board __extra_carrier_args
+        __extra_args+=" ${__extra_carrier_args}"
+
+        # Look for pyrogue files for the detected system type
+        findPyrogueFiles ${__system_type}
+
+        # Firmware version checking
+        checkFW ${__system_type}
+
+        # Do a hard boot, if requested
+        hardBoot
+
+    fi
+
     # Write the result to the defined output variable
     eval $__result_args="'${__extra_args}'"
 }

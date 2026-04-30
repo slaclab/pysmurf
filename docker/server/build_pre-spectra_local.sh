@@ -1,22 +1,8 @@
 #!/usr/bin/env bash
 
-# This script builds the stable pysmurf server docker image, which includes the firmware and
-# configuration files, as well as pysmurf.
-#
-# The firmware and configuration files versions are defined in the 'definitions.sh' file, while the
-# version of pysmurf is extracted from this copy of the repository (using the  `git describe --tags
-# --always' command).
-#
-# This scripts downloads the firmware and configuration files into a temporal directory called
-# 'local_files' which is then used by the Dockerfile to generate the final docker image.
-# Finally, the docker image is pushed to Dockerhub, to the repository defined by the variables
-# ${dockerhub_org_name} and ${dockerhub_repo_stable}.
-#
-# A 'base' pysmurf server image is not longer generated, but in order to be backward compatible
-# with scripts that use that image, the same stable image is pushed to the Dockerhub repository
-# defined by ${dockerhub_org_name} and ${dockerhub_repo_base} as well; this image can be used as
-# base image as well, just like previous images. Finally, the docker images are tag with the same
-# tag from this repository.
+# This script builds a local pre-spectra pysmurf server docker image for development/testing.
+# Unlike build.sh, it does not push to any registry, and tags the image as ':latest'
+# using the current branch name rather than a release tag.
 
 # Load the user definitions
 . definitions.sh
@@ -25,39 +11,45 @@
 . validate.sh
 
 # Dockerhub repositories definitions
-dockerhub_org_name='ghcr.io/slaclab'
 dockerhub_repo_stable='pre-spectra-server'
 dockerhub_repo_base='pre-spectra-server-base'
 
-# Get the git tag, which will be used to tag the docker image.
-# At the moment, this script runs only on tagged releases.
-tag=`git describe --tags --always`
-
-# Create temporal local file directory to hold firmware and configuration
+# Create temporary local file directory to hold firmware and configuration
 # files which will later be copied to the docker image
 rm -rf local_files && mkdir local_files
 
-# Get the  MCS file from the assets
-echo "Downloading MCS files..."
-(cd local_files && get_private_asset ${fw_repo} ${fw_repo_tag} ${mcs_file_name}) || exit 1
-(cd local_files && get_private_asset ${tkid_fw_repo} ${tkid_fw_repo_tag} ${tkid_mcs_file_name}) || exit 1
+# Download firmware and ZIP assets for each defined system
+echo "Downloading firmware files..."
+for entry in "${FW_SYSTEMS[@]}"; do
+    IFS='|' read -r sys_name sys_repo sys_tag sys_fw_files sys_zip <<< "${entry}"
+    # Fall back to rogue_<tag>.zip if no explicit zip filename was specified
+    sys_zip="${sys_zip:-rogue_${sys_tag}.zip}"
 
-# Get the ZIP file from the assets
-echo "Downloading ZIP file..."
-(cd local_files && get_private_asset ${fw_repo} ${fw_repo_tag} ${zip_file_name}) || exit 1
-(cd local_files && get_private_asset ${tkid_fw_repo} ${tkid_fw_repo_tag} ${tkid_zip_file_name}) || exit 1
+    # Download each firmware file (semicolon-separated)
+    IFS=';' read -ra fw_file_list <<< "${sys_fw_files}"
+    for fw_file in "${fw_file_list[@]}"; do
+        echo "  [${sys_name}] Downloading firmware: ${fw_file}"
+        (cd local_files && get_private_asset "${sys_repo}" "${sys_tag}" "${fw_file}") || exit 1
+    done
 
-#  Get the configuration files. We clone the whole repository
+    # Install the ZIP: copy from disk if an absolute path was given, otherwise download
+    if [[ "${sys_zip}" = /* ]]; then
+        echo "  [${sys_name}] Copying ZIP from disk: ${sys_zip}"
+        cp "${sys_zip}" local_files/ || exit 1
+    else
+        echo "  [${sys_name}] Downloading ZIP: ${sys_zip}"
+        (cd local_files && get_private_asset "${sys_repo}" "${sys_tag}" "${sys_zip}") || exit 1
+    fi
+done
+
+# Get the configuration files. We clone the whole repository.
 echo "Downloading configuration files..."
 git -C local_files clone -c advice.detachedHead=false ${config_repo} -b ${config_repo_tag} || exit 1
 
-# Build the docker image. This same image will be pushed to both the stable
-# and the base dockerhub repositories.
+# Build the docker image using the current branch name
 echo "Building docker image..."
 docker image build --build-arg branch=$(git rev-parse --abbrev-ref HEAD) -t pysmurf_server . || exit 1
 
-# Tag and push the image to the stable dockerhub repository
+# Tag the image locally (no push for local builds)
 docker image tag pysmurf_server ${dockerhub_repo_stable}:latest
-
-# Tag and push the image to the stable dockerhub repository
 docker image tag pysmurf_server ${dockerhub_repo_base}:latest
