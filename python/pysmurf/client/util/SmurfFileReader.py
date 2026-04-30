@@ -104,7 +104,8 @@ class SmurfHeader(SmurfHeaderTuple):
 
 class SmurfStreamReader(object):
 
-    def __init__(self, files, *, isRogue=True, metaEnable=False, chanCount=None):
+    def __init__(self, files, *, isRogue=True, metaEnable=False, chanCount=None,
+                 log_callback=print):
         self._isRogue    = isRogue
         self._metaEnable = metaEnable
         self._chanCount  = chanCount
@@ -116,6 +117,7 @@ class SmurfStreamReader(object):
         self._config     = {}
         self._currCount  = 0
         self._totCount   = 0
+        self._log        = log_callback
 
         if isinstance(files,list):
             self._fileList = files
@@ -260,16 +262,16 @@ class SmurfStreamReader(object):
             self._currFName = fn
             self._currCount = 0
 
-            print(f"Processing data records from {self._currFName}")
+            self._log(f"Processing data records from {self._currFName}")
             with open(fn,'rb') as f:
                 self._currFile = f
 
                 while self._nextRecord():
                     yield (self._header, self._data)
 
-            print(f"Processed {self._currCount} data records from {self._currFName}")
+            self._log(f"Processed {self._currCount} data records from {self._currFName}")
 
-        print(f"Processed a total of {self._totCount} data records")
+        self._log(f"Processed a total of {self._totCount} data records")
 
     @property
     def currCount(self):
