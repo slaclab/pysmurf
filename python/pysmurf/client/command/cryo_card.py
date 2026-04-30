@@ -225,6 +225,30 @@ class CryoCard():
         data = self.do_read(self.cycle_count_address)
         return (cmd_data(data))  # do we have the right addres
 
+    def is_present(self):
+        """Probe whether a cryostat card is connected and responding.
+
+        Reads the SPI cycle-count register (0x06) twice. The PIC
+        increments this counter on every SPI read, so a strictly
+        increasing pair of values proves the card is alive and the
+        SPI bus is healthy. Any communication error (e.g. ``do_read``
+        exhausting its retries because no card is wired up) is treated
+        as "not present" rather than propagated.
+
+        Returns
+        -------
+        bool
+            True if the second cycle-count read exceeds the first;
+            False on any communication error or non-incrementing reply.
+        """
+        try:
+            first = self.read_cycle_count()
+            second = self.read_cycle_count()
+        except Exception as e:
+            self.log(f"CryoCard.is_present probe failed: {e}")
+            return False
+        return second > first
+
     def write_ps_en(self, enables):
         """
         Write the bits that turn on the drain LDOs. Do not use this

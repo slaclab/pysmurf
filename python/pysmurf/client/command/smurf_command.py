@@ -5239,18 +5239,19 @@ class SmurfCommandMixin(SmurfBase):
 
     def get_cryo_card_cycle_count(self, enable_poll=False,
                                   disable_poll=False):
-        """
-        No description
+        """Return the cryostat card's SPI cycle-count register (0x06).
+
+        The PIC increments this counter on every SPI read, so successive
+        calls must return strictly increasing values when a cryocard is
+        present and responding. Used by :func:`~pysmurf.client.base.\
+smurf_control.SmurfControl.setup` for cryocard detection.
 
         Returns
         -------
-        cycle_count : float
-            The cycle count.
+        cycle_count : int
+            Number of SPI reads the PIC has serviced.
         """
-        self.log(
-            'Not doing anything because not implemented in '
-            'cryo_card.py')
-        # return self.C.read_cycle_count()
+        return self.C.read_cycle_count()
 
     def get_cryo_card_relays(self, enable_poll=False,
                              disable_poll=False):
