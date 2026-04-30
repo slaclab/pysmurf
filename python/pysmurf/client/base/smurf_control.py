@@ -337,7 +337,10 @@ class SmurfControl(SmurfCommandMixin,
         - Turns off flux ramp, but configures based on values for
           reset rate and fraction full scale provided in pysmurf
           configuration file.
-        - Enables data streaming.
+        - Briefly enables data streaming during configuration, then
+          disables it before returning.  Callers that want to take
+          data should use ``stream_data_on()`` / ``stream_data_off()``
+          (see slaclab/pysmurf#652).
         - Sets mask and payload size to a single channel.
         - Sets RF amplifier biases (without enabling drain voltages).
         - Configures timing based on pysmurf configuration file settings.
@@ -701,6 +704,13 @@ class SmurfControl(SmurfCommandMixin,
 
                 # Configure timing
                 self.set_timing_mode(timing_reference)
+
+            # Issue #652: setup() is a configuration routine, not a
+            # data acquisition routine. Disable streaming before
+            # returning so data is not written indefinitely. Callers
+            # that want to take data should use stream_data_on() /
+            # stream_data_off().
+            self.set_stream_enable(0, write_log=write_log)
 
             self.log('Done with setup.', self.LOG_USER)
         else:
