@@ -4113,8 +4113,9 @@ class SmurfTuneMixin(SmurfBase):
             method='gust', make_plot=True, show_plot=False, save_plot=True,
             subtract_median=True, update_eta_phase=True):
         """
-        Takes I and Q data at attempts to calculate the eta parameters by
-        maximizing the noise in Q. This uses SVD to calculate the rotation.
+        Takes simultaneously sampled I and Q data via rf_iq streaming and
+        calculates the eta rotation by maximizing the noise in Q. Uses SVD
+        on the (Q, I) matrix to extract the rotation angle.
 
         Args
         ----
@@ -4158,20 +4159,12 @@ class SmurfTuneMixin(SmurfBase):
         freq = self.channel_to_freq(band, channel)
         channel_freq = self.get_channel_frequency_mhz(band) * 1.0E6  # Sampling freq
 
-        # Take data at default eta value
+        # Take simultaneously sampled I and Q via rf_iq streaming.
+        # rf_iq=True forces IQstream off internally (smurf_util.take_debug_data).
         timestamp = self.get_timestamp()
-        filename = f'{timestamp}_fast_dat_Q'
-        fQ, dfQ, syncQ = self.take_debug_data(band, channel=channel,
-            IQstream=False, single_channel_readout=2,
-            nsamp=nsamp, filename=filename)
-
-        # Rotate 90 degrees and take data
-        eta_phase_rot = tools.limit_phase_deg(eta_phase + 90)
-        self.set_eta_phase_degree_channel(band, channel, eta_phase_rot)
-        timestamp = self.get_timestamp()
-        filename = f'{timestamp}_fast_data_I'
-        fI, dfI, syncI = self.take_debug_data(band, channel=channel,
-            IQstream=False, single_channel_readout=2,
+        filename = f'{timestamp}_fast_dat_IQ_b{band}ch{channel:03}'
+        dfI, dfQ, sync = self.take_debug_data(band=band, channel=channel,
+            rf_iq=True, single_channel_readout=2,
             nsamp=nsamp, filename=filename)
 
         if filter:
@@ -4189,11 +4182,9 @@ class SmurfTuneMixin(SmurfBase):
         ang = np.angle(U[1,0] + 1.j*U[1,1], deg=True) - 90
         ang_rad = np.deg2rad(ang)
 
-        # Update phase - either new eta or return to original
+        # Update phase only if requested; original phase was never disturbed.
         if update_eta_phase:
             self.set_eta_phase_degree_channel(band, channel, eta_phase+ang)
-        else:
-            self.set_eta_phase_degree_channel(band, channel, eta_phase)
 
         if make_plot:
             # Calculate the limits of the plot
@@ -4216,8 +4207,7 @@ class SmurfTuneMixin(SmurfBase):
             # Text labels with useful values
             text = f'b{band}ch{channel:03}' + '\n' + \
                 f'{freq:4.2f} MHz' + '\n' + \
-                r'$\eta_Q$' + f' {eta_phase:3.1f} deg' + '\n' + \
-                r'$\eta_I$' + f' {eta_phase_rot:3.1f} deg' + '\n' +\
+                r'$\eta$' + f' {eta_phase:3.1f} deg' + '\n' + \
                 r'Ang ' + f'{ang:3.2f} deg'
             h.ax_joint.text(.02, .98, text, transform=h.ax_joint.transAxes,
                 va='top', ha='left')
