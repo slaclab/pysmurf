@@ -420,7 +420,7 @@ class SmurfConfigPropertiesMixin:
         :func:`~pysmurf.client.debug.smurf_iv.SmurfIVMixin.analyze_iv`,
         :func:`~pysmurf.client.debug.smurf_noise.SmurfNoiseMixin.analyze_noise_all_vs_noise_solo`,
         :func:`~pysmurf.client.debug.smurf_noise.SmurfNoiseMixin.analyze_noise_vs_bias`,
-        :func:`~pysmurf.client.debug.smurf_noise.SmurfNoiseMixin.analyze_noise_vs_tone`,
+        :func:`~pysmurf.client.debug.smurf_noise.SmurfNoiseMixin.analyze_noise_vs_amplitude`,
         :func:`~pysmurf.client.debug.smurf_noise.SmurfNoiseMixin.take_noise_psd`,
         :func:`~pysmurf.client.util.smurf_util.SmurfUtilMixin.bias_bump`,
         :func:`~pysmurf.client.util.smurf_util.SmurfUtilMixin.identify_bias_groups`
