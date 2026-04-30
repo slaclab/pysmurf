@@ -114,12 +114,9 @@ class SmurfConfigPropertiesMixin:
 
         ## Tuning parameters
         self._default_tune = None
-        self._gradient_descent_gain = None
         self._gradient_descent_averages = None
         self._gradient_descent_converge_hz = None
         self._gradient_descent_step_hz = None
-        self._gradient_descent_momentum = None
-        self._gradient_descent_beta = None
         self._feedback_start_frac = None
         self._feedback_end_frac = None
         self._eta_scan_del_f = None
@@ -225,9 +222,6 @@ class SmurfConfigPropertiesMixin:
         ## Tune parameters
         tune_band_cfg = config.get('tune_band')
         self.default_tune = tune_band_cfg['default_tune']
-        self.gradient_descent_gain = {
-            int(band):v for (band,v) in
-            tune_band_cfg['gradient_descent_gain'].items()}
         self.gradient_descent_averages = {
             int(band):v for (band,v) in
             tune_band_cfg['gradient_descent_averages'].items()}
@@ -237,12 +231,6 @@ class SmurfConfigPropertiesMixin:
         self.gradient_descent_step_hz = {
             int(band):v for (band,v) in
             tune_band_cfg['gradient_descent_step_hz'].items()}
-        self.gradient_descent_momentum = {
-            int(band):v for (band,v) in
-            tune_band_cfg['gradient_descent_momentum'].items()}
-        self.gradient_descent_beta = {
-            int(band):v for (band,v) in
-            tune_band_cfg['gradient_descent_beta'].items()}
         self.feedback_start_frac = {
             int(band):v for (band,v) in
             tune_band_cfg['feedback_start_frac'].items()}
@@ -1464,35 +1452,6 @@ class SmurfConfigPropertiesMixin:
     ###########################################################################
 
     ###########################################################################
-    ## Start gradient_descent_gain property definition
-
-    # Getter
-    @property
-    def gradient_descent_gain(self):
-        """Short description.
-
-        Gets or sets ?.
-        Units are ?.
-
-        Specified in the pysmurf configuration file as
-        `tune_band:gradient_descent_gain`.
-
-        See Also
-        --------
-        ?
-
-        """
-        return self._gradient_descent_gain
-
-    # Setter
-    @gradient_descent_gain.setter
-    def gradient_descent_gain(self, value):
-        self._gradient_descent_gain = value
-
-    ## End gradient_descent_gain property definition
-    ###########################################################################
-
-    ###########################################################################
     ## Start gradient_descent_averages property definition
 
     # Getter
@@ -1577,64 +1536,6 @@ class SmurfConfigPropertiesMixin:
         self._gradient_descent_step_hz = value
 
     ## End gradient_descent_step_hz property definition
-    ###########################################################################
-
-    ###########################################################################
-    ## Start gradient_descent_momentum property definition
-
-    # Getter
-    @property
-    def gradient_descent_momentum(self):
-        """Short description.
-
-        Gets or sets ?.
-        Units are ?.
-
-        Specified in the pysmurf configuration file as
-        `tune_band:gradient_descent_momentum`.
-
-        See Also
-        --------
-        ?
-
-        """
-        return self._gradient_descent_momentum
-
-    # Setter
-    @gradient_descent_momentum.setter
-    def gradient_descent_momentum(self, value):
-        self._gradient_descent_momentum = value
-
-    ## End gradient_descent_momentum property definition
-    ###########################################################################
-
-    ###########################################################################
-    ## Start gradient_descent_beta property definition
-
-    # Getter
-    @property
-    def gradient_descent_beta(self):
-        """Short description.
-
-        Gets or sets ?.
-        Units are ?.
-
-        Specified in the pysmurf configuration file as
-        `tune_band:gradient_descent_beta`.
-
-        See Also
-        --------
-        ?
-
-        """
-        return self._gradient_descent_beta
-
-    # Setter
-    @gradient_descent_beta.setter
-    def gradient_descent_beta(self, value):
-        self._gradient_descent_beta = value
-
-    ## End gradient_descent_beta property definition
     ###########################################################################
 
     ###########################################################################

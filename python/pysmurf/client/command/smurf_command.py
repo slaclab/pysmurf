@@ -721,24 +721,6 @@ class SmurfCommandMixin(SmurfBase):
             self._gradient_descent_averages_reg,
             **kwargs)
 
-    _gradient_descent_gain_reg = 'gradientDescentGain'
-
-    def set_gradient_descent_gain(self, band, val, **kwargs):
-        """
-        """
-        self._caput(
-            self._cryo_root(band) +
-            self._gradient_descent_gain_reg,
-            val, **kwargs)
-
-    def get_gradient_descent_gain(self, band, **kwargs):
-        """
-        """
-        return self._caget(
-            self._cryo_root(band) +
-            self._gradient_descent_gain_reg,
-            **kwargs)
-
     _gradient_descent_converge_hz_reg = 'gradientDescentConvergeHz'
 
     def set_gradient_descent_converge_hz(self, band, val, **kwargs):
@@ -774,43 +756,6 @@ class SmurfCommandMixin(SmurfBase):
         return self._caget(
             self._cryo_root(band) +
             self._gradient_descent_step_hz_reg,
-            **kwargs)
-
-    _gradient_descent_momentum_reg = 'gradientDescentMomentum'
-
-    def set_gradient_descent_momentum(self, band, val, **kwargs):
-        """
-        Sets the momentum term of the gradient descent
-        """
-        self._caput(
-            self._cryo_root(band) +
-            self._gradient_descent_momentum_reg,
-            val, **kwargs)
-
-    def get_gradient_descent_momentum(self, band, **kwargs):
-        """
-        """
-        return self._caget(
-            self._cryo_root(band) +
-            self._gradient_descent_momentum_reg,
-            **kwargs)
-
-    _gradient_descent_beta_reg = 'gradientDescentBeta'
-
-    def set_gradient_descent_beta(self, band, val, **kwargs):
-        """
-        """
-        self._caput(
-            self._cryo_root(band) +
-            self._gradient_descent_beta_reg,
-            val, **kwargs)
-
-    def get_gradient_descent_beta(self, band, **kwargs):
-        """
-        """
-        return self._caget(
-            self._cryo_root(band) +
-            self._gradient_descent_beta_reg,
             **kwargs)
 
     def run_parallel_eta_scan(self, band, **kwargs):
