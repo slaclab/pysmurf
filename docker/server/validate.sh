@@ -52,11 +52,24 @@ check_if_private_tag_exist()
 
     echo "Searching for tag ${tag} in repo $1 with API URL ${api_url} ..."
 
-    # Big blob of JSON with the tags in it.
-    local tags=$(curl \
-      --url $api_url \
+    # Big blob of JSON with the tags in it. Retry on transient errors (e.g.
+    # 5xx, connection resets) so a flaky GitHub API doesn't fail the build.
+    local tags
+    local curl_rc
+    tags=$(curl \
+      --silent \
+      --show-error \
+      --fail \
+      --retry 5 \
+      --retry-delay 5 \
+      --retry-all-errors \
       --header "Authorization: token ${GITHUB_TOKEN}" \
-      --fail)
+      --url $api_url)
+    curl_rc=$?
+
+    if [ "$curl_rc" -ne 0 ]; then
+        error "Failed to query API URL ${api_url} (curl exit ${curl_rc}) for repo $1"
+    fi
 
     # e.g. 0 if no match
     local grep_count=$(echo "$tags" | grep -c "$tag")
@@ -80,8 +93,15 @@ check_if_private_asset_exist()
     local tag=$2
     local file=$3
 
-    # Search the asset ID in the specified release
-    local r=$(curl --silent --header "Authorization: token ${GITHUB_TOKEN}" "${repo}/releases/tags/${tag}")
+    # Search the asset ID in the specified release. Retry on transient
+    # errors so a flaky GitHub API doesn't produce a false "asset missing".
+    local r=$(curl \
+        --silent \
+        --retry 5 \
+        --retry-delay 5 \
+        --retry-all-errors \
+        --header "Authorization: token ${GITHUB_TOKEN}" \
+        "${repo}/releases/tags/${tag}")
     eval $(echo "${r}" | grep -C3 "name.:.\+${file}" | grep -w id | tr : = | tr -cd '[[:alnum:]]=')
 
     # return is the asset tag was found
