@@ -761,6 +761,19 @@ class SmurfConfig:
                                           lambda f: 0 <= f <= 99)
         #### Done specifying thermal schema
 
+        #### Start DAC dither schema (issue #582)
+        # Optional 16-bit unsigned DAC dither configuration register
+        # value applied during setup() to DacReg[38] (chip address
+        # 0x26) for every DAC in every bay.  Bit fields:
+        # dither_ena[15:12], dither_mixer_ena[11:8],
+        # dither_sra_sel[7:4], dither_zero[0].  Omit to leave the
+        # register at its firmware default.
+        schema_dict[
+            Optional('dac_dither',
+                     default=None)] = And(Use(int),
+                                          lambda v: 0 <= v <= 0xFFFF)
+        #### Done specifying DAC dither schema
+
         #### Start specifying timing-related schema
         schema_dict["timing"] = {
             # "ext_ref" : internal oscillator locked to an external

@@ -2835,6 +2835,44 @@ class SmurfCommandMixin(SmurfBase):
             self.dac_root.format(bay,dac) + self._dac_enable_reg,
             **kwargs)
 
+    _dac_dither_reg = "DacReg[38]"
+
+    def set_dac_dither(self, bay, dac, val, **kwargs):
+        """
+        Sets the DAC dither configuration register (DacReg[38], chip
+        address 0x26).  Bit fields: dither_ena[15:12],
+        dither_mixer_ena[11:8], dither_sra_sel[7:4], dither_zero[0].
+
+        Args
+        ----
+        bay : int
+            Which bay [0 or 1].
+        dac : int
+            Which DAC no. [0 or 1].
+        val : int
+            16-bit unsigned register value, e.g. 0xF010 to enable all
+            four dithers with dither_sra_sel = 1.
+        """
+        self._caput(
+            self.dac_root.format(bay,dac) + self._dac_dither_reg,
+            val, **kwargs)
+
+    def get_dac_dither(self, bay, dac, **kwargs):
+        """
+        Returns the current value of the DAC dither configuration
+        register (DacReg[38]) for the specified bay/DAC.
+
+        Args
+        ----
+        bay : int
+            Which bay [0 or 1].
+        dac : int
+            Which DAC no. [0 or 1].
+        """
+        return self._caget(
+            self.dac_root.format(bay,dac) + self._dac_dither_reg,
+            **kwargs)
+
     # Jesd commands
     _data_out_mux_reg = 'dataOutMux[{}]'
 
