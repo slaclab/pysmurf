@@ -4290,9 +4290,6 @@ class SmurfUtilMixin(SmurfBase):
         self.set_dac_axil_addr(0, dac_positive)
         self.set_dac_axil_addr(1, dac_negative)
 
-        # Enable waveform generation (3=on both DACs)
-        self.set_rtm_arb_waveform_enable(3)
-
         # Must enable the DACs (if not enabled already)
         if do_enable:
             self.set_rtm_slow_dac_enable(dac_positive, 2, **kwargs)
@@ -4308,6 +4305,12 @@ class SmurfUtilMixin(SmurfBase):
             self.set_rtm_arb_waveform_continuous(1)
         else:
             self.set_rtm_arb_waveform_continuous(0)
+
+        # Enable waveform generation (3=on both DACs).  Must be last so
+        # the LUTs and continuous-mode setting are valid before the DACs
+        # start sourcing from the waveform engine, otherwise the bias
+        # lines can briefly drop to zero and latch detectors (issue #678).
+        self.set_rtm_arb_waveform_enable(3)
 
     # Readback on which DACs are selected is broken right now,
     # so has to be specified.
