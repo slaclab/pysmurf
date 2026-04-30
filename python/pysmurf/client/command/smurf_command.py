@@ -4316,11 +4316,14 @@ class SmurfCommandMixin(SmurfBase):
 
         volt = self._rtm_slow_dac_bit_to_volt * self.get_rtm_slow_dac_data(dac, **kwargs)
 
-        if volt > 9.9:
-            self.log(f'Looks like DAC {dac} is close to max +10V output, {volt}V.')
+        warn_thresh = 0.99 * self._rtm_slow_dac_max_volt
+        if volt > warn_thresh:
+            self.log(f'Looks like DAC {dac} is close to max '
+                     f'+{self._rtm_slow_dac_max_volt}V output, {volt}V.')
 
-        if volt < -9.9:
-            self.log(f'Looks like DAC {dac} is close to min -10V output, {volt}V.')
+        if volt < -warn_thresh:
+            self.log(f'Looks like DAC {dac} is close to min '
+                     f'-{self._rtm_slow_dac_max_volt}V output, {volt}V.')
 
         return volt
 

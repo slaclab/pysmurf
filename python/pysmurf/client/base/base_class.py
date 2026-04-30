@@ -235,15 +235,22 @@ class SmurfBase:
 
         self.freq_resp = {}
 
-        # RTM slow DAC parameters (used, e.g., for TES biasing). The
-        # DACs are AD5790 chips
-        self._rtm_slow_dac_max_volt = 10. # Max unipolar DAC voltage,
-                                        # in Volts
-        self._rtm_slow_dac_nbits = 20
+        # RTM slow DAC parameters (used, e.g., for TES biasing).
+        # Defaults match the AD5790 chips on standard RTMs with a
+        # 10V reference voltage.  Override via the `rtm_slow_dac`
+        # section of the pysmurf configuration file for boards that
+        # use a different DAC chip or reference voltage.  Values may
+        # have already been set by SmurfConfigPropertiesMixin from
+        # the cfg file, in which case those win.
+        if getattr(self, '_rtm_slow_dac_max_volt', None) is None:
+            self._rtm_slow_dac_max_volt = 10.
+        if getattr(self, '_rtm_slow_dac_nbits', None) is None:
+            self._rtm_slow_dac_nbits = 20
         # x2 because _rtm_slow_dac_max_volt is the maximum *unipolar*
         # voltage.  Units of Volt/bit
-        self._rtm_slow_dac_bit_to_volt = (2*self._rtm_slow_dac_max_volt/
-                                          (2**(self._rtm_slow_dac_nbits)))
+        self._rtm_slow_dac_bit_to_volt = (
+            2 * self._rtm_slow_dac_max_volt /
+            (2 ** self._rtm_slow_dac_nbits))
 
         # LUT table length for arbitrary waveform generation
         self._lut_table_array_length = 2048
