@@ -282,7 +282,8 @@ class SmurfUtilMixin(SmurfBase):
     @set_action()
     def estimate_phase_delay(self, band, nsamp=2**19, make_plot=True,
             show_plot=True, save_plot=True, save_data=True, n_scan=5,
-            timestamp=None, uc_att=None, dc_att=None, freq_min=-2.4E6, freq_max=2.4E6):
+            timestamp=None, uc_att=None, dc_att=None, freq_min=-2.4E6,
+            freq_max=2.4E6, subband=None):
         """Estimates total system latency for requested band.
 
         Measures the analog and digital (=processing) phase delay (or
@@ -342,14 +343,17 @@ class SmurfUtilMixin(SmurfBase):
         freq_max : float, optional, default 2.4E6
            Upper bound of the frequency interval used to estimate the
            phase delay, in Hz.  From the center of the 500 MHz band.
-
-        Returns
-        -------
-        processing_delay_us : float
-           Estimated processing phase delay, in microseconds.
-        dsp_corr_delay_us : float
-           Residual total phase delay, for estimated `refPhaseDelay`
-           and `refPhaseDelayFine`.
+        subband : list of int or None, optional, default None
+           Explicit list of DSP subband indices to use for the DSP
+           latency fit.  Use this to restrict the fit to subbands
+           known to be free of resonators on this hardware (resonator
+           phase response would otherwise bias the linear
+           phase-vs-frequency polyfit).  When `None`, falls back to
+           ``self.phase_delay_subbands[band]`` from the configuration
+           file; when that is also `None`, falls back to geometric
+           selection from `freq_min`/`freq_max`.  When in use, the
+           `freq_min`/`freq_max` window is bypassed for the DSP fit
+           (it still bounds the cable-delay fit).
 
         """
 
@@ -365,8 +369,6 @@ class SmurfUtilMixin(SmurfBase):
         self.set_att_uc(band, uc_att, write_log=True)
         self.set_att_dc(band, dc_att, write_log=True)
 
-        # only loop over dsp subbands in requested frequency range (to
-        # save time)
         n_subbands = self.get_number_sub_bands(band)
         digitizer_frequency_mhz = self.get_digitizer_frequency_mhz(band)
         subband_half_width_mhz = digitizer_frequency_mhz/\
@@ -374,16 +376,46 @@ class SmurfUtilMixin(SmurfBase):
         subbands,subband_centers=self.get_subband_centers(band)
         subband_freq_min=-subband_half_width_mhz/2.
         subband_freq_max=subband_half_width_mhz/2.
-        dsp_subbands=[]
-        for sb,sbc in zip(subbands,subband_centers):
-            # ignore unprocessed sub-bands
-            if sb not in subbands:
-                continue
-            lower_sb_freq=sbc+subband_freq_min
-            upper_sb_freq=sbc+subband_freq_max
-            if lower_sb_freq>=(freq_min/1.e6-subband_half_width_mhz) and \
-                    upper_sb_freq<=(freq_max/1.e6+subband_half_width_mhz):
-                dsp_subbands.append(sb)
+
+        # Resolve which DSP subbands to use for the DSP-delay fit.
+        # Precedence: explicit subband arg > per-band config
+        # (phase_delay_subbands) > geometric selection from
+        # freq_min/freq_max.
+        if subband is None and self.phase_delay_subbands is not None:
+            subband = self.phase_delay_subbands.get(band, None)
+
+        explicit_subbands = subband is not None
+        if explicit_subbands:
+            processed_subbands = set(subbands)
+            dsp_subbands = [sb for sb in subband if sb in processed_subbands]
+            skipped = [sb for sb in subband if sb not in processed_subbands]
+            if skipped:
+                self.log(
+                    f'estimate_phase_delay: ignoring phaseDelaySubbands '
+                    f'not in this band\'s processed subbands: {skipped}',
+                    self.LOG_USER)
+            if len(dsp_subbands) == 0:
+                raise ValueError(
+                    f'estimate_phase_delay: phaseDelaySubbands for band '
+                    f'{band} resolved to an empty set of processed '
+                    f'subbands; cannot fit DSP latency.')
+            self.log(
+                f'estimate_phase_delay: using {len(dsp_subbands)} '
+                f'user-specified resonator-free subband(s) for band '
+                f'{band}: {dsp_subbands}', self.LOG_USER)
+        else:
+            # only loop over dsp subbands in requested frequency
+            # range (to save time)
+            dsp_subbands=[]
+            for sb,sbc in zip(subbands,subband_centers):
+                # ignore unprocessed sub-bands
+                if sb not in subbands:
+                    continue
+                lower_sb_freq=sbc+subband_freq_min
+                upper_sb_freq=sbc+subband_freq_max
+                if lower_sb_freq>=(freq_min/1.e6-subband_half_width_mhz) and \
+                        upper_sb_freq<=(freq_max/1.e6+subband_half_width_mhz):
+                    dsp_subbands.append(sb)
 
         if timestamp is None:
             timestamp = self.get_timestamp()
@@ -443,12 +475,17 @@ class SmurfUtilMixin(SmurfBase):
         freq_dsp_subset=np.array(freq_dsp_subset)
         resp_dsp_subset=np.array(resp_dsp_subset)
 
-        idx_dsp = np.where( (freq_dsp_subset > freq_min) &
-            (freq_dsp_subset < freq_max) )
+        # When using user-specified resonator-free subbands, do not
+        # cull samples outside the freq_min/freq_max window — the
+        # user picked the subbands explicitly and wants the full
+        # subband content in the fit.
+        if not explicit_subbands:
+            idx_dsp = np.where( (freq_dsp_subset > freq_min) &
+                (freq_dsp_subset < freq_max) )
 
-        # restrict to requested frequencies only
-        freq_dsp_subset=freq_dsp_subset[idx_dsp]
-        resp_dsp_subset=resp_dsp_subset[idx_dsp]
+            # restrict to requested frequencies only
+            freq_dsp_subset=freq_dsp_subset[idx_dsp]
+            resp_dsp_subset=resp_dsp_subset[idx_dsp]
 
         # to Hz
         freq_dsp_subset=(freq_dsp_subset)*1.0E6
@@ -496,12 +533,15 @@ class SmurfUtilMixin(SmurfBase):
         freq_dsp_corr_subset=np.array(freq_dsp_corr_subset)
         resp_dsp_corr_subset=np.array(resp_dsp_corr_subset)
 
-        # restrict to requested frequency subset
-        idx_dsp_corr = np.where( (freq_dsp_corr_subset > freq_min) & (freq_dsp_corr_subset < freq_max) )
+        # restrict to requested frequency subset (skip when the
+        # user supplied an explicit resonator-free subband list)
+        if not explicit_subbands:
+            idx_dsp_corr = np.where( (freq_dsp_corr_subset > freq_min) &
+                (freq_dsp_corr_subset < freq_max) )
 
-        # restrict to requested frequencies only
-        freq_dsp_corr_subset=freq_dsp_corr_subset[idx_dsp_corr]
-        resp_dsp_corr_subset=resp_dsp_corr_subset[idx_dsp_corr]
+            # restrict to requested frequencies only
+            freq_dsp_corr_subset=freq_dsp_corr_subset[idx_dsp_corr]
+            resp_dsp_corr_subset=resp_dsp_corr_subset[idx_dsp_corr]
 
         # to Hz
         freq_dsp_corr_subset=(freq_dsp_corr_subset)*1.0E6
