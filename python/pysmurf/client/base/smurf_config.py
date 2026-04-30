@@ -733,6 +733,25 @@ class SmurfConfig:
         }
         #### Done specifying flux-ramp related
 
+        #### Start specifying RTM slow DAC schema
+        # Defaults match the AD5790 DAC chips on standard RTMs with
+        # a 10V reference voltage.  Override only on RTMs that use
+        # a different DAC chip or reference voltage.
+        rtm_slow_dac_defaults = {
+            'rtm_slow_dac_max_volt': 10.,
+            'rtm_slow_dac_nbits': 20,
+        }
+        rsd_key = Optional('rtm_slow_dac', default=rtm_slow_dac_defaults)
+        schema_dict[rsd_key] = {
+            Optional('rtm_slow_dac_max_volt',
+                     default=rtm_slow_dac_defaults['rtm_slow_dac_max_volt']):
+                And(Use(float), lambda f: f > 0),
+            Optional('rtm_slow_dac_nbits',
+                     default=rtm_slow_dac_defaults['rtm_slow_dac_nbits']):
+                And(int, lambda n: n > 0),
+        }
+        #### Done specifying RTM slow DAC schema
+
         #### Start specifying constants schema
         # If all of a schema dictionary's keys are optional, must specify
         # them both in the schema key for that dictionary, and in the

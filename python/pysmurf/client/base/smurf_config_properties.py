@@ -155,6 +155,11 @@ class SmurfConfigPropertiesMixin:
         self._fraction_full_scale = None
         self._reset_rate_khz = None
 
+        # RTM slow DAC (AD5790 by default)
+        self._rtm_slow_dac_max_volt = None
+        self._rtm_slow_dac_nbits = None
+        self._rtm_slow_dac_bit_to_volt = None
+
         # Cryocard
         self._bias_line_resistance = None
         self._high_low_current_ratio = None
@@ -328,6 +333,11 @@ class SmurfConfigPropertiesMixin:
         self.num_flux_ramp_counter_bits = flux_ramp_cfg['num_flux_ramp_counter_bits']
         self.reset_rate_khz = tune_band_cfg.get('reset_rate_khz')
         self.fraction_full_scale = tune_band_cfg.get('fraction_full_scale')
+
+        ## RTM slow DAC
+        rtm_slow_dac_cfg = config.get('rtm_slow_dac') or {}
+        self.rtm_slow_dac_max_volt = rtm_slow_dac_cfg.get('rtm_slow_dac_max_volt')
+        self.rtm_slow_dac_nbits = rtm_slow_dac_cfg.get('rtm_slow_dac_nbits')
 
         ## Cryocard
         self.bias_line_resistance = config.get('bias_line_resistance')
@@ -1403,6 +1413,98 @@ class SmurfConfigPropertiesMixin:
         self._reset_rate_khz = value
 
     ## End reset_rate_khz property definition
+    ###########################################################################
+
+    ###########################################################################
+    ## Start RTM slow DAC property definitions
+
+    def _recompute_rtm_slow_dac_bit_to_volt(self):
+        """Recompute the bit-to-volt scaling when both inputs are set."""
+        if (self._rtm_slow_dac_max_volt is not None and
+                self._rtm_slow_dac_nbits is not None):
+            # x2 because _rtm_slow_dac_max_volt is the maximum *unipolar*
+            # voltage.  Units of Volt/bit.
+            self._rtm_slow_dac_bit_to_volt = (
+                2 * self._rtm_slow_dac_max_volt /
+                (2 ** self._rtm_slow_dac_nbits))
+
+    @property
+    def rtm_slow_dac_max_volt(self):
+        """Maximum unipolar voltage of the RTM slow DAC chips, in Volts.
+
+        Gets or sets the maximum unipolar output voltage of the RTM
+        slow DACs (used, e.g., for TES biasing).  The DAC range is
+        bipolar: ``[-rtm_slow_dac_max_volt, +rtm_slow_dac_max_volt]``.
+        Default is 10 V, which corresponds to the AD5790 chips on
+        standard RTMs with a 10 V reference voltage.
+
+        Setting this property automatically recomputes
+        :attr:`rtm_slow_dac_bit_to_volt`.
+
+        Specified in the pysmurf configuration file as
+        `rtm_slow_dac:rtm_slow_dac_max_volt`.
+
+        Returns
+        -------
+        float
+           Maximum unipolar RTM slow DAC voltage in Volts.
+
+        """
+        return self._rtm_slow_dac_max_volt
+
+    @rtm_slow_dac_max_volt.setter
+    def rtm_slow_dac_max_volt(self, value):
+        self._rtm_slow_dac_max_volt = value
+        self._recompute_rtm_slow_dac_bit_to_volt()
+
+    @property
+    def rtm_slow_dac_nbits(self):
+        """Number of bits of the RTM slow DAC chips.
+
+        Gets or sets the bit depth of the RTM slow DACs.  Default is
+        20, the resolution of the AD5790 chip on standard RTMs.
+
+        Setting this property automatically recomputes
+        :attr:`rtm_slow_dac_bit_to_volt`.
+
+        Specified in the pysmurf configuration file as
+        `rtm_slow_dac:rtm_slow_dac_nbits`.
+
+        Returns
+        -------
+        int
+           RTM slow DAC bit depth.
+
+        """
+        return self._rtm_slow_dac_nbits
+
+    @rtm_slow_dac_nbits.setter
+    def rtm_slow_dac_nbits(self, value):
+        self._rtm_slow_dac_nbits = value
+        self._recompute_rtm_slow_dac_bit_to_volt()
+
+    @property
+    def rtm_slow_dac_bit_to_volt(self):
+        """Bits-to-Volts conversion factor for the RTM slow DACs.
+
+        Derived from :attr:`rtm_slow_dac_max_volt` and
+        :attr:`rtm_slow_dac_nbits` as
+        ``2 * rtm_slow_dac_max_volt / 2**rtm_slow_dac_nbits``.
+        Units are Volts/bit.
+
+        Returns
+        -------
+        float
+           RTM slow DAC bit-to-volt conversion factor in V/bit.
+
+        """
+        return self._rtm_slow_dac_bit_to_volt
+
+    @rtm_slow_dac_bit_to_volt.setter
+    def rtm_slow_dac_bit_to_volt(self, value):
+        self._rtm_slow_dac_bit_to_volt = value
+
+    ## End RTM slow DAC property definitions
     ###########################################################################
 
     ###########################################################################
