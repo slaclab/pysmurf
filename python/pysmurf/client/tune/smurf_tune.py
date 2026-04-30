@@ -3679,6 +3679,10 @@ class SmurfTuneMixin(SmurfBase):
         #
         self.set_eta_scan_freq(band, freq_scan.flatten())
         self.set_eta_scan_amplitude(band, tone_power)
+
+        # SerialFindFreq overwrites per-channel centerFrequencyMHz while
+        # sweeping; snapshot it so we can restore tuned channels (issue #723).
+        center_freq_pre = self.get_center_frequency_array(band)
         self.set_run_serial_find_freq(band, 1)
 
         I = self.get_eta_scan_results_real(band, count=n_step*n_channels)
@@ -3688,6 +3692,8 @@ class SmurfTuneMixin(SmurfBase):
         Q = self.get_eta_scan_results_imag(band, count=n_step*n_channels)
         Q = np.asarray(Q)
         Q = Q.reshape(n_channels, n_step)
+
+        self.set_center_frequency_array(band, center_freq_pre)
 
         resp_scan = I + 1j*Q
 
