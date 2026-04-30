@@ -14,9 +14,106 @@
 # contained in the LICENSE.txt file.
 #-----------------------------------------------------------------------------
 import os
+import re
 
 import numpy as np
 from scipy.optimize import curve_fit
+
+
+TYPEMAP = {
+    'UInt8':   np.uint8,
+    'UInt16':  np.uint16,
+    'UInt32':  np.uint32,
+    'UInt64':  np.uint64,
+    'Int8':    np.int8,
+    'Int16':   np.int16,
+    'Int32':   np.int32,
+    'Int64':   np.int64,
+    'Float32': np.float32,
+    'Double':  np.float64,
+    'Bool':    bool,
+    'String':  str,
+}
+
+# Matches arbitrary-width Rogue scalar typeStr like 'UInt6' or 'Float64'.
+_WIDTH_TYPESTR_RE = re.compile(r'^(UInt|Int|Float)(\d+)$')
+
+
+def _resolve_typestr_dtype(ts):
+    """Return the Python/numpy type backing a Rogue scalar typeStr, or None.
+
+    Looks up the canonical 12-entry TYPEMAP first, then falls back to the
+    arbitrary-width pattern that Rogue uses for non-power-of-2 integer
+    fields (e.g. 'UInt1', 'UInt6') and the 'Float64' alias for 'Double'.
+    Non-native widths round up to the next native numpy width, matching
+    what rogue itself caches.
+    """
+    dtype = TYPEMAP.get(ts)
+    if dtype is not None:
+        return dtype
+    m = _WIDTH_TYPESTR_RE.match(ts)
+    if m is None:
+        return None
+    kind, width = m.group(1), int(m.group(2))
+    if kind in ('UInt', 'Int') and 1 <= width <= 64:
+        if width <= 8:
+            native = 8
+        elif width <= 16:
+            native = 16
+        elif width <= 32:
+            native = 32
+        else:
+            native = 64
+        return TYPEMAP[f'{kind}{native}']
+    if kind == 'Float' and width in (32, 64):
+        return np.float32 if width == 32 else np.float64
+    return None
+
+
+def coerce_value_for_var(var, val):
+    """Coerce val to the type expected by a Rogue 6 variable.
+
+    Uses var.typeStr metadata to determine the expected type without
+    performing a register read.  Handles scalar registers, array registers
+    identified by the '[np]' typeStr suffix, the 12 canonical TYPEMAP
+    entries, and the arbitrary-width 'UInt<N>'/'Int<N>'/'Float<N>' forms
+    that Rogue emits for non-power-of-2 fields.  Raises TypeError for any
+    typeStr that does not resolve.
+
+    Parameters
+    ----------
+    var : pyrogue.Variable
+        The rogue variable node that will receive the value.
+    val : any
+        The value to coerce.
+
+    Returns
+    -------
+    any
+        val cast to the type expected by var.  For scalar registers, returns
+        dtype(val).  For array registers (typeStr ending in '[np]'), returns
+        np.asarray(val, dtype=element_dtype), which is a zero-copy
+        passthrough when the dtype already matches (ARRY-02).
+
+    Raises
+    ------
+    TypeError
+        If var.typeStr does not resolve to a known dtype.  The exception
+        message includes both the variable path (var.path) and the
+        unrecognized typeStr.
+    """
+    ts = var.typeStr
+    is_array = ts.endswith('[np]')
+    base = ts[:-4] if is_array else ts
+    dtype = _resolve_typestr_dtype(base)
+    if dtype is None:
+        raise TypeError(
+            f"Unrecognized typeStr '{ts}' for variable '{var.path}'"
+        )
+    if is_array:
+        return np.asarray(val, dtype=dtype)
+    return dtype(val)
+
 
 def skewed_lorentzian(x, bkg, bkg_slp, skw, mintrans, res_f, Q):
     """ Skewed Lorentzian model.
