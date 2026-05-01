@@ -3868,11 +3868,43 @@ class SmurfCommandMixin(SmurfBase):
     _trigger_rate_sel_reg = ".EvrV2ChannelReg[0].RateSel"
 
     def set_ramp_rate(self, val, **kwargs):
-        """
-        flux ramp sawtooth reset rate in kHz
+        r"""Set the EVR timing-trigger flux ramp reset rate, in kHz.
 
-        If using timing system, the allowed rates are: 1, 2, 3, 4, 5,
-        6, 8, 10, 12, 15kHz (hardcoded by timing)
+        .. warning::
+           This routine **only takes effect when the carrier is
+           configured to use the timing system trigger**, i.e. when
+           :func:`get_ramp_start_mode` returns ``0x1``.  In internal
+           (``0x0``) or external (``0x2``) trigger modes the flux ramp
+           reset rate is set by :func:`flux_ramp_setup` via
+           :func:`set_ramp_max_cnt`, and calling this routine has no
+           effect on the actual ramp rate.
+
+        The rate is selected from a small set of values hardcoded into
+        the timing system firmware (not pysmurf).  Allowed rates in
+        kHz are: 1, 2, 3, 4, 5, 6, 8, 10, 12, 15.  The conversion from
+        rate to ``RateSel`` PV index is done by
+        :func:`flux_ramp_rate_to_PV`; requesting any other value logs
+        a warning and is a no-op.
+
+        Args
+        ----
+        val : int
+            Desired flux ramp reset rate in kHz.  Must be one of the
+            allowed values listed above.
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to the
+            `_caput` call.
+
+        See Also
+        --------
+        :func:`get_ramp_rate` : Read back the EVR timing-trigger ramp rate.
+
+        :func:`get_ramp_start_mode` : Check whether the timing system
+                trigger is selected.
+
+        :func:`flux_ramp_setup` : Configure flux ramp; this routine
+                is invoked only when ``get_ramp_start_mode() == 0x1``.
+
         """
         rate_sel = self.flux_ramp_rate_to_PV(val)
 
@@ -3888,8 +3920,32 @@ class SmurfCommandMixin(SmurfBase):
                 "12, 15kHz only")
 
     def get_ramp_rate(self, **kwargs):
-        """
-        flux ramp sawtooth reset rate in kHz
+        r"""Get the EVR timing-trigger flux ramp reset rate, in kHz.
+
+        .. warning::
+           The value returned here is the rate programmed into the
+           timing system trigger (EVR ``RateSel``).  It is the
+           **actual** flux ramp reset rate **only when the carrier is
+           using the timing system trigger** (i.e. when
+           :func:`get_ramp_start_mode` returns ``0x1``).  In internal
+           or external trigger modes the actual reset rate is
+           determined by :func:`get_ramp_max_cnt` and the DSP clock,
+           not by this register.
+
+        Returns
+        -------
+        int
+            Flux ramp reset rate in kHz, decoded from the EVR
+            ``RateSel`` PV via :func:`flux_ramp_PV_to_rate`.  One of
+            1, 2, 3, 4, 5, 6, 8, 10, 12, 15.
+
+        See Also
+        --------
+        :func:`set_ramp_rate` : Program the EVR timing-trigger ramp rate.
+
+        :func:`get_ramp_start_mode` : Check whether the timing system
+                trigger is selected.
+
         """
 
         rate_sel = self._caget(
