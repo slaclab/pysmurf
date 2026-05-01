@@ -33,7 +33,46 @@ from ..util import tools
 
 class SmurfTuneMixin(SmurfBase):
     """
-    This contains all the tuning scripts
+    Mixin containing the SMuRF resonator-tuning pipeline.
+
+    The canonical full-tune sequence is:
+
+    1. :meth:`find_freq` -- coarse amplitude sweep across each 500 MHz
+       band to locate resonator frequencies.  Results are stored in
+       ``self.freq_resp[band]['find_freq']``.  **Channels are not yet
+       assigned at this step.**
+
+    2. :meth:`setup_notches` -- fine sweep around each frequency from
+       :meth:`find_freq` to compute eta parameters.  **This is where
+       channels are first assigned**, via the internal
+       :meth:`assign_channels` call.  Results are stored in
+       ``self.freq_resp[band]['resonances']``.
+
+    3. :meth:`run_serial_gradient_descent` followed by
+       :meth:`run_serial_eta_scan` (typically wrapped by
+       :meth:`tune_band_serial`) -- refine each tone's center frequency
+       and eta parameters in firmware.
+
+    4. :meth:`relock` -- push the (frequency offset, tone power,
+       eta_phase, eta_mag, feedback_enable) values for every assigned
+       channel into the per-band hardware register arrays.
+       Out-of-spec resonators are masked off here.
+
+    5. :meth:`tracking_setup` -- turn on the flux ramp and start the
+       LMS tracking loop on all enabled channels.
+
+    6. :meth:`check_lock` -- prune channels whose tracked frequency
+       swing does not fall within (``f_min``, ``f_max``) MHz or whose
+       ``df`` standard deviation exceeds ``df_max`` MHz.
+
+    :meth:`tune` is the convenience top-level entry point that wires
+    the steps above together (or loads a saved tune file via
+    :meth:`load_tune`).  :meth:`track_and_check` wraps steps 5-6.
+
+    The legacy single-shot path :meth:`tune_band` performs steps 1, 2
+    and 4 in one call using :meth:`full_band_resp` (broadband-noise
+    injection) instead of the firmware sweep; :meth:`tune_band_serial`
+    is preferred on modern firmware.
     """
     @set_action()
     def tune(self, load_tune=True, tune_file=None, last_tune=False,
@@ -79,6 +118,32 @@ class SmurfTuneMixin(SmurfBase):
             resonators at a given frequency to a given channel.
         track_and_check : bool, optional, default True
             Whether or not after tuning to run track and check.
+
+        Notes
+        -----
+        Top-level convenience entry point that dispatches across the
+        steps documented in :class:`SmurfTuneMixin`.  In order:
+
+        1. If ``load_tune`` is True, hand off to :meth:`load_tune` for
+           the requested ``tune_file`` (resolved from ``last_tune``,
+           the explicit ``tune_file`` argument, or the cfg default in
+           that order).  No new channel assignment occurs on this
+           branch -- the loaded file already carries the
+           ``(subband, channel, offset)`` triple per resonator.
+        2. Otherwise, loop over ``self._bands`` calling
+           :meth:`find_freq` and then :meth:`setup_notches` per band.
+           **Channels are assigned during the** :meth:`setup_notches`
+           **call** (via :meth:`assign_channels` with
+           ``new_master_assignment`` forwarded from this argument).
+        3. If ``retune`` is True, loop :meth:`tune_band_serial` per
+           band to re-refine each tone's center frequency and eta
+           parameters in firmware.
+        4. If ``track_and_check`` is True, loop :meth:`track_and_check`
+           per band; that method runs :meth:`tracking_setup` followed
+           by :meth:`check_lock` to prune channels that fail the
+           ``f_min``/``f_max``/``df_max`` cuts.
+
+        On return the system is ready to take data.
         """
         bands = self._bands
 
@@ -184,6 +249,30 @@ class SmurfTuneMixin(SmurfBase):
         resonances : dict
             A dictionary with resonance frequency, eta, eta_phase,
             R^2, and amplitude.
+
+        Notes
+        -----
+        Legacy single-shot tuning path -- collapses steps 1, 2 and 4
+        of the pipeline documented in :class:`SmurfTuneMixin` into one
+        call.  In order:
+
+        1. :meth:`full_band_resp` injects a known broadband waveform
+           and records the band response (skipped if the caller passes
+           ``freq`` and ``resp`` arrays).
+        2. :meth:`find_peak` locates resonators in the response.
+        3. :meth:`eta_fit` fits the complex circle for each peak and
+           fills the per-resonance dict with eta, eta_scaled,
+           eta_phase, r2, eta_mag, latency and Q.
+        4. :meth:`assign_channels` is called -- **this is where
+           channels are assigned in the** :meth:`tune_band` **path** --
+           and the resulting ``(subband, channel, offset)`` triple is
+           merged back into each resonance entry.
+        5. The tuning dict is persisted via :meth:`save_tune`, then
+           :meth:`relock` is called to push the assigned channels into
+           the hardware register arrays.
+
+        :meth:`tune_band_serial` is the preferred path on modern
+        firmware; this method is kept for compatibility.
         """
         timestamp = self.get_timestamp()
 
@@ -309,6 +398,31 @@ class SmurfTuneMixin(SmurfBase):
             Whether to highlight the phase slip.
         amp_ylim : float or None, optional, default None
             The ylim for the amplitude plot. If None, does nothing.
+
+        Notes
+        -----
+        Implements step 3 of the pipeline documented in
+        :class:`SmurfTuneMixin` (and step 1 + step 2 + step 3 when
+        ``from_old_tune`` is False).  Two execution branches:
+
+        * ``from_old_tune=True`` -- :meth:`load_tune` reads the
+          previous resonance dict for this ``band`` from ``old_tune``
+          (or the cfg default).  Channels are **only** reassigned if
+          ``new_master_assignment`` is True; otherwise the previously
+          stored ``(subband, channel, offset)`` triples are reused as
+          starting points for the firmware refinement below.
+        * ``from_old_tune=False`` (default) -- temporarily zero the
+          upconverter attenuation, run :meth:`full_band_resp` to
+          collect the band response, restore the attenuation, then
+          :meth:`find_peak` to locate resonators.  **Channels are
+          (re)assigned here** by :meth:`assign_channels`.
+
+        After either branch, :meth:`run_serial_gradient_descent` is
+        called per band to refine each tone's center frequency, then
+        :meth:`run_serial_eta_scan` to refine the eta parameters in
+        firmware.  The final result is written to
+        ``self.freq_resp[band]['resonances']`` and persisted via
+        :meth:`save_tune`.
         """
         timestamp = self.get_timestamp()
         center_freq = self.get_band_center_mhz(band)
@@ -1664,6 +1778,29 @@ class SmurfTuneMixin(SmurfBase):
             An array of channel numbers to assign resonators.
         offsets : float array
             The frequency offset from the subband center.
+
+        Notes
+        -----
+        Workhorse for channel assignment.  Called from
+        :meth:`setup_notches`, :meth:`tune_band` and
+        :meth:`tune_band_serial`; output is consumed downstream by
+        :meth:`relock` (steps 2-4 of the :class:`SmurfTuneMixin`
+        pipeline).  Two execution modes:
+
+        * ``new_master_assignment=False`` (default) -- match every
+          input frequency against the master channel-assignment file
+          loaded by :meth:`get_master_assignment`.  Frequencies within
+          ``min_offset`` MHz of a master entry inherit that master
+          entry's subband, channel and group; unmatched frequencies
+          are dropped (their channel stays at -1).  Use this mode to
+          keep a stable channel-to-resonator mapping across retunes.
+        * ``new_master_assignment=True`` -- ignore any prior master
+          assignment.  Each frequency is bound to the closest subband
+          via :meth:`get_closest_subband`; channel numbers within each
+          subband are then handed out by :meth:`get_channels_in_subband`,
+          up to ``channel_per_subband`` channels per subband.
+          Resonators within ``min_offset`` MHz of another resonator
+          are dropped to avoid collisions.
         """
         freq = np.sort(freq)  # Just making sure its in sequential order
 
@@ -1928,6 +2065,38 @@ class SmurfTuneMixin(SmurfBase):
             Whether to check r2 and Q values.
         min_gap : float or None, optional, default None
             The minimum distance between resonators.
+
+        Notes
+        -----
+        Step 4 of the pipeline documented in :class:`SmurfTuneMixin`.
+        Consumes channel assignments left in
+        ``self.freq_resp[band]['resonances'][k]['channel']`` by an
+        earlier :meth:`assign_channels` call (typically inside
+        :meth:`setup_notches`, :meth:`tune_band` or
+        :meth:`tune_band_serial`); this function does not assign
+        channels itself.
+
+        For every resonator the following cuts are applied in order
+        and the first one that fails skips the resonator:
+
+        1. The resonator frequency falls inside any ``self._bad_mask``
+           range -- forced to channel -1.
+        2. ``channel`` is negative (no master-list match).
+        3. The closest neighbouring resonator is within ``min_gap``
+           MHz (when ``min_gap`` is not None).
+        4. ``r2 > r2_max`` (only when ``check_vals=True``).
+        5. ``Q`` outside ``[q_min, q_max]`` (only when
+           ``check_vals=True``).
+        6. Index ``k`` is not in the optional ``res_num`` list.
+
+        Resonators that pass all cuts have their per-channel registers
+        populated -- ``center_freq`` set to the subband offset,
+        ``amplitude_scale`` set to ``tone_power``, ``feedback_enable``
+        set to 1, and ``eta_phase`` / ``eta_mag`` (= ``eta_scaled``)
+        copied in -- via the ``set_*_array`` band registers.
+        Resonators that fail are left disabled
+        (``amplitude_scale=0``, ``feedback_enable=0``).  After this
+        call the band is ready for :meth:`tracking_setup`.
         """
         n_channels = self.get_number_channels(band)
 
@@ -2584,6 +2753,35 @@ class SmurfTuneMixin(SmurfBase):
             Whether to setup the flux ramp.
         plotname_append : str, optional, default ''
             Optional string to append plots with.
+
+        Notes
+        -----
+        Step 5 of the pipeline documented in :class:`SmurfTuneMixin`.
+        Assumes :meth:`relock` has already populated the per-channel
+        ``center_freq``, ``amplitude_scale``, ``eta_phase``,
+        ``eta_mag`` and ``feedback_enable`` register arrays for this
+        ``band``.  In order:
+
+        1. If ``lms_freq_hz`` is None, it is either measured (using
+           :meth:`estimate_lms_freq` when ``meas_lms_freq=True``, or
+           :meth:`estimate_flux_ramp_amp` when
+           ``meas_flux_ramp_amp=True``) or loaded from the cfg file.
+        2. ``feedback_gain`` and the per-band ``lms_*`` registers are
+           written to firmware.
+        3. When ``setup_flux_ramp=True``, :meth:`flux_ramp_setup`
+           configures the flux-ramp generator at the requested
+           ``reset_rate_khz`` and ``fraction_full_scale``.
+        4. ``feedback_start`` and ``feedback_end`` are derived from
+           the flux-ramp settings and the requested fractions and
+           written to firmware.
+        5. When ``return_data=True`` (and/or ``make_plot=True``),
+           :meth:`take_debug_data` records the per-channel ``f``,
+           ``df`` and ``sync`` streams which are returned to the
+           caller and optionally plotted for the requested
+           ``channel`` list.
+
+        :meth:`check_lock` (step 6) uses these returned arrays to
+        decide which channels lock cleanly and which to disable.
         """
         if reset_rate_khz is None:
             reset_rate_khz = self._reset_rate_khz
@@ -2917,6 +3115,18 @@ class SmurfTuneMixin(SmurfBase):
             Defaults to whatever's in the cfg file.
         setup_flux_ramp : bool, optional, default True
             Whether to setup the flux ramp at the end.
+
+        Notes
+        -----
+        Glues steps 5 and 6 of the pipeline documented in
+        :class:`SmurfTuneMixin` together: optionally re-runs
+        :meth:`relock`, then :meth:`tracking_setup` (with
+        ``return_data=False``) to start the LMS loop, then briefly
+        toggles the band-level ``feedbackEnable`` and the per-band
+        ``lms_enable`` flags to recover from any bad-state exit, and
+        finally :meth:`check_lock` to disable channels that fail the
+        ``f_min``/``f_max``/``df_max`` cuts.  Used as the final step
+        of :meth:`tune` after channel assignment and refinement.
         """
         if reset_rate_khz is None:
             reset_rate_khz = self._reset_rate_khz
@@ -3333,6 +3543,29 @@ class SmurfTuneMixin(SmurfBase):
         \**kwargs
             Arbitrary keyword arguments.  Passed to some register sets
             and gets.
+
+        Notes
+        -----
+        Step 6 of the pipeline documented in :class:`SmurfTuneMixin`.
+        Assumes the LMS loop is already running (:meth:`tracking_setup`
+        has been called for this ``band``).  In order:
+
+        1. Snapshot the per-channel ``f`` and ``df`` streams via
+           :meth:`tracking_setup` with ``return_data=True``.
+        2. For each channel currently on (:meth:`which_on`), compute
+           the peak-to-peak frequency swing of ``f`` and the standard
+           deviation of ``df``.
+        3. Disable any channel whose swing is outside
+           (``f_min``, ``f_max``) MHz or whose ``df`` standard
+           deviation is greater than or equal to ``df_max`` MHz.
+           Disabled channels have their ``amplitude_scale`` and
+           ``feedback_enable`` cleared via the same ``set_*_array``
+           registers that :meth:`relock` writes.
+        4. Persist a bool mask of survivors to
+           ``self.freq_resp[band]['lock_status']``.
+
+        After this call only channels with clean tracking remain
+        enabled and the band is ready for data taking.
         """
         self.log(f'Checking lock on band {band}')
 
@@ -3486,6 +3719,32 @@ class SmurfTuneMixin(SmurfBase):
             search window
         min_gap : int, optional, default 2
             Minimum number of samples between resonances.
+
+        Notes
+        -----
+        Step 1 of the pipeline documented in :class:`SmurfTuneMixin`.
+        In order:
+
+        1. Translate ``start_freq`` / ``stop_freq`` (or the deprecated
+           ``subband`` argument) into the list of subbands to scan.
+        2. :meth:`band_off` clears any tones already on this band.
+        3. :meth:`full_band_ampl_sweep` plays one tone per subband at
+           ``tone_power`` and records the amplitude response,
+           averaging ``n_read`` sweeps.
+        4. The frequency axis ``f`` and complex response ``resp`` are
+           saved to disk and stored in
+           ``self.freq_resp[band]['find_freq']`` together with the
+           list of scanned subbands.
+        5. :meth:`find_peak` is run on the sweep to identify
+           resonator candidates; the resulting peak frequencies are
+           stored under
+           ``self.freq_resp[band]['find_freq']['resonance']`` for
+           consumption by :meth:`setup_notches`.
+
+        **Channels are NOT assigned at this step** -- the assignment
+        happens later, inside the :meth:`setup_notches` call (or
+        inside :meth:`tune_band` / :meth:`tune_band_serial` on the
+        legacy paths).
         '''
         band_center = self.get_band_center_mhz(band)
         if subband is None:
@@ -3897,6 +4156,36 @@ class SmurfTuneMixin(SmurfBase):
             Whether or not to scan unassigned channels.  Unassigned
             channels are scanned serially after the much faster
             assigned channel scans.
+
+        Notes
+        -----
+        Step 2 of the pipeline documented in :class:`SmurfTuneMixin`.
+        In order:
+
+        1. :meth:`band_off` clears any tones already on this band.
+        2. Read the resonator-frequency list either from the
+           ``resonance`` argument or from
+           ``self.freq_resp[band]['find_freq']['resonance']`` (set
+           earlier by :meth:`find_freq`).
+        3. Build a placeholder resonances dict for every input
+           frequency.
+        4. **Call** :meth:`assign_channels` **with** ``as_offset=False``
+           **and the requested** ``new_master_assignment`` **flag --
+           this is where channels are first assigned on the standard
+           tune path.**  The returned ``(subband, channel, offset)``
+           triples populate the resonances dict.
+        5. For every channel that received an assignment, drive a
+           fine sweep across ``+/- sweep_width`` MHz in steps of
+           ``df_sweep`` MHz around the resonator and run
+           :meth:`eta_estimator` (using ``delta_freq`` as the offset
+           at which to measure the complex transmission) to refine
+           ``eta``, ``eta_scaled``, ``eta_phase_deg``, ``eta_mag``,
+           ``r2`` and ``Q`` for that resonator.
+        6. The fully-populated dict is written to
+           ``self.freq_resp[band]['resonances']``.
+
+        The recommended follow-up is :meth:`run_serial_gradient_descent`
+        (step 3) and then :meth:`relock` (step 4).
         """
         # Turn off all tones in this band first
         self.band_off(band)
