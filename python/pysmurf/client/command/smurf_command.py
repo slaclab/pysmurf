@@ -29,7 +29,7 @@ from pysmurf.client.util import tools, dscounters
 
 class SmurfCommandMixin(SmurfBase):
 
-    def _skipifrfsoc(self, func):
+    def _skipifrfsoc(func):
         def skipper(self, *args,**kwargs):
             result = None
             if not self.is_rfsoc:

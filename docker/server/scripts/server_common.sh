@@ -34,7 +34,10 @@ usage()
     echo "    -E|--disable-hw-detect                : Disable hardware type auto detection."
     echo "    -H|--hard-boot                        : Do a hard boot: reboot the FPGA and load default configuration."
     echo "    --is-rfsoc                             : System uses an RFSoC instead of ATCA hardware."
-    echo "    --rfsoc-mgmt-ip        <RFSOC_MGMT_IP>     : RFSoC embedded-processor management IP (default: 10.0.1.200)."
+    echo "                                            Automatically adds --disable-bay0 and --disable-bay1."
+    echo "    --is-prespectra                        : System uses pre-Spectra RFSoC firmware."
+    echo "                                            Implies --is-rfsoc, --disable-bay0, and --disable-bay1."
+    echo "    --rfsoc-mgmt-ip   <RFSOC_MGMT_IP>     : RFSoC embedded-processor management IP (default: 10.0.1.200)."
     echo "                                            Only relevant when --is-rfsoc is set."
     echo "    -h|--help                             : Show this message."
     echo "    <pyrogue_server_args> are passed to the SMuRF pyrogue server. "
@@ -118,13 +121,17 @@ arg_parser()
             ;;
             --is-rfsoc)
             is_rfsoc=1
-            # Also pass through to pysmurf server args
-            __extra_args="${__extra_args} --is-rfsoc"
+            ;;
+            --is-prespectra)
+            is_prespectra=1
             ;;
             --rfsoc-mgmt-ip)
             rfsoc_ip="$2"
-            # Also pass through to pysmurf server args
-            __extra_args="${__extra_args} --rfsoc-mgmt-ip $2"
+            shift
+            ;;
+            -d|--defaults)
+            user_defaults="$2"
+            __extra_args="${__extra_args} -d $2"
             shift
             ;;
             -h|--help)
@@ -136,6 +143,24 @@ arg_parser()
         esac
         shift
     done
+
+    # --is-prespectra implies --is-rfsoc
+    if [ -n "${is_prespectra+x}" ]; then
+        is_rfsoc=1
+    fi
+
+    # --is-rfsoc (whether set directly or implied by --is-prespectra) implies
+    # --disable-bay0 and --disable-bay1, since RFSoC systems have no AMC bays.
+    # Pass all implied flags through to the pysmurf server args.
+    if [ -n "${is_rfsoc+x}" ]; then
+        __extra_args="${__extra_args} --is-rfsoc --disable-bay0 --disable-bay1"
+    fi
+    if [ -n "${is_prespectra+x}" ]; then
+        __extra_args="${__extra_args} --is-prespectra"
+    fi
+    if [ -n "${rfsoc_ip+x}" ]; then
+        __extra_args="${__extra_args} --rfsoc-mgmt-ip ${rfsoc_ip}"
+    fi
 
     # Write the result to the defined output variable
     eval $__result_args="'${__extra_args}'"
@@ -477,7 +502,7 @@ _rfsoc_axiversiondump()
         local elapsed=$((current_time - start_time))
 
         local output
-        output=$(ssh "root@${ip}" 'axiversiondump' 2>/dev/null)
+        output=$(ssh -o StrictHostKeyChecking=no -o BatchMode=yes "root@${ip}" 'axiversiondump' 2>/dev/null)
         # Consider the call successful only if it exited cleanly AND produced
         # a non-empty FwTarget line (guards against a partially-booted state
         # where axiversiondump runs but returns blank fields).
@@ -522,7 +547,7 @@ _rfsoc_reprogram()
 
     # Upload the bitfile and reboot
     echo "Copying system.bit to RFSoC..."
-    scp "${tmp_dir}/linux/system.bit" "root@${ip}:/boot/system.bit"
+    scp -o StrictHostKeyChecking=no -o BatchMode=yes "${tmp_dir}/linux/system.bit" "root@${ip}:/boot/system.bit"
     if [ $? -ne 0 ]; then
         echo "Error: SCP failed. Aborting."
         rm -rf "${tmp_dir}"
@@ -530,7 +555,7 @@ _rfsoc_reprogram()
     fi
 
     echo "Rebooting RFSoC..."
-    ssh "root@${ip}" '/bin/sync; /sbin/reboot'
+    ssh -o StrictHostKeyChecking=no -o BatchMode=yes "root@${ip}" '/bin/sync; /sbin/reboot'
 
     # Clean up the temp directory
     rm -rf "${tmp_dir}"
@@ -593,13 +618,30 @@ checkRFSoCFW()
     echo "  Running firmware target : ${fw_target}"
     echo "  Running firmware hash   : ${short_hash}"
 
-    # Find the linux.tar.gz for this target in the firmware directory
+    # Find the desired linux.tar.gz in the firmware directory.
+    # Strategy: first try to match on the board's reported target name (handles the
+    # multi-image case where e.g. both BaseBand and HighOrderNyquist are present).
+    # If no match is found by target name, fall back to the only file present -- this
+    # handles the case where the board is running a different target variant than what
+    # we want to flash (e.g. first-time programming from factory firmware).
     local fw_file
     fw_file=$(find "${fw_top_dir}" -maxdepth 1 -name "${fw_target}-*.linux.tar.gz" -print -quit)
 
     if [ -z "${fw_file}" ]; then
-        echo "Error: No linux.tar.gz found for target '${fw_target}' in ${fw_top_dir}. Aborting."
-        kill -s TERM ${top_pid}
+        # No target-name match -- check if there is exactly one linux.tar.gz available
+        local fw_files_found
+        fw_files_found=$(find "${fw_top_dir}" -maxdepth 1 -name "*.linux.tar.gz" | wc -l)
+        if [ "${fw_files_found}" -eq 1 ]; then
+            fw_file=$(find "${fw_top_dir}" -maxdepth 1 -name "*.linux.tar.gz" -print -quit)
+            echo "  No file for target '${fw_target}' found; will flash the only available image."
+        elif [ "${fw_files_found}" -eq 0 ]; then
+            echo "Error: No linux.tar.gz files found in ${fw_top_dir}. Aborting."
+            kill -s TERM ${top_pid}
+        else
+            echo "Error: No linux.tar.gz found for target '${fw_target}' in ${fw_top_dir}"
+            echo "       and multiple images are present so cannot pick one automatically. Aborting."
+            kill -s TERM ${top_pid}
+        fi
     fi
 
     local expected_hash
@@ -1014,6 +1056,19 @@ initialize()
 
         # Look for the zcu208-cryo-det pyrogue zip
         findPyrogueFiles "rfsoc"
+
+        # Use the RFSoC defaults file unless the user already passed -d/--defaults
+        local rfsoc_defaults="${fw_top_dir}/smurf_cfg/defaults/defaults_rfsoc_zcu208.yml"
+        if [ -n "${user_defaults+x}" ]; then
+            echo "Using user-specified defaults file: ${user_defaults}"
+        else
+            if [ ! -f "${rfsoc_defaults}" ]; then
+                echo "Error: RFSoC defaults file not found at ${rfsoc_defaults}. Aborting."
+                kill -s TERM ${top_pid}
+            fi
+            echo "Using RFSoC defaults file: ${rfsoc_defaults}"
+            __extra_args="${__extra_args} -d ${rfsoc_defaults}"
+        fi
 
     else
 
