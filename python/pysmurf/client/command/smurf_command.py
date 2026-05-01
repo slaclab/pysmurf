@@ -668,7 +668,7 @@ class SmurfCommandMixin(SmurfBase):
         This call is necessary to read register with pollIntervale=0.
         """
         self._caput('AMCc.ReadAll', 1, wait_after=20, **kwargs)
-        self.log('ReadAll sent', self.LOG_INFO)
+        self.log('ReadAll sent', self.LOG_USER)
 
     def run_pwr_up_sys_ref(self,bay, **kwargs):
         """
