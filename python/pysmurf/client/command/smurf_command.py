@@ -2805,6 +2805,10 @@ class SmurfCommandMixin(SmurfBase):
 
     def set_dac_enable(self, bay, dac, val, **kwargs):
         """
+        Low-level function.  The RF DAC enable is configured
+        automatically during ``setup()``; users should not normally
+        need to call this directly.
+
         Enables DAC
 
         Args
@@ -2822,6 +2826,10 @@ class SmurfCommandMixin(SmurfBase):
 
     def get_dac_enable(self, bay, dac, **kwargs):
         """
+        Low-level function.  The RF DAC enable is configured
+        automatically during ``setup()``; users should not normally
+        need to call this directly.
+
         Gets enable status of DAC
 
         Args
@@ -3698,6 +3706,11 @@ class SmurfCommandMixin(SmurfBase):
 
     def set_dac_axil_addr(self, reg, val, **kwargs):
         """
+        Low-level function.  Used internally by
+        ``set_tes_bias_bipolar`` and ``set_tes_bias_bipolar_array`` to
+        route the RTM LUT to the correct DAC pair; users should not
+        normally need to call this directly.
+
         Sets the DacAxilAddr[#] registers.
         """
         assert (reg in range(2)), 'reg must be in [0,1]'
@@ -3707,6 +3720,9 @@ class SmurfCommandMixin(SmurfBase):
 
     def get_dac_axil_addr(self, reg, **kwargs):
         """
+        Low-level function.  Used internally by the bipolar TES-bias
+        path; users should not normally need to call this directly.
+
         Gets the DacAxilAddr[#] registers.
         """
         assert (reg in range(2)), 'reg must be in [0,1]'
@@ -5773,6 +5789,11 @@ class SmurfCommandMixin(SmurfBase):
 
     def set_dac_reset(self, bay, dac, val, **kwargs):
         """
+        Low-level function.  Called from ``SmurfControl.setup()`` to
+        issue the physical reset to the RF DACs after
+        ``setDefaults``; users should not normally need to call this
+        directly.
+
         Toggles the physical reset line to DAC. Set to 1 then 0
 
         Args
@@ -5788,6 +5809,10 @@ class SmurfCommandMixin(SmurfBase):
 
     def get_dac_reset(self, bay, dac, **kwargs):
         """
+        Low-level function.  The DAC reset line is exercised by
+        ``SmurfControl.setup()``; users should not normally need to
+        call this directly.
+
         Reads the physical reset DAC register.  Will be either 0 or 1.
 
         Args
