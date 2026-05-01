@@ -2485,7 +2485,7 @@ class SmurfTuneMixin(SmurfBase):
             meas_flux_ramp_amp=False, n_phi0=4, flux_ramp=True,
             fraction_full_scale=None, lms_enable1=True, lms_enable2=True,
             lms_enable3=True, feedback_gain=None, lms_gain=None, return_data=True,
-            feedback_start_frac=None,
+            save_data=False, feedback_start_frac=None,
             feedback_end_frac=None, setup_flux_ramp=True, plotname_append=''):
         """
         The function to start tracking. Starts the flux ramp and if requested
@@ -2572,6 +2572,10 @@ class SmurfTuneMixin(SmurfBase):
             Too high of lms_gain will overflow the register and greatly incrase noise.
         return_data : bool, optional, default True
             Whether or not to return f, df, sync.
+        save_data : bool, optional, default False
+            Whether to save the f, df, and sync arrays to
+            ``self.output_dir`` as ``.npy`` files. Files are named
+            ``{timestamp}_b{band}_tracking_{f,df,sync}.npy``.
         feedback_start_frac : float or None, optional, default None
             The fraction of the full flux ramp at which to stop
             applying feedback in each flux ramp cycle.  Must be in
@@ -2720,7 +2724,7 @@ class SmurfTuneMixin(SmurfBase):
             self.flux_ramp_on(write_log=write_log)
 
         # take one dataset with all channels
-        if return_data or make_plot:
+        if return_data or make_plot or save_data:
             f, df, sync = self.take_debug_data(band, IQstream=iq_stream_enable,
                 single_channel_readout=0, nsamp=nsamp)
 
@@ -2737,9 +2741,10 @@ class SmurfTuneMixin(SmurfBase):
 
             f_span = np.max(f,0) - np.min(f,0)
 
-        if make_plot:
+        if make_plot or save_data:
             timestamp = self.get_timestamp()
 
+        if make_plot:
             fig,ax = plt.subplots(1,3, figsize=(12,5))
             fig.suptitle(f'{timestamp} Band {band}')
 
@@ -2845,6 +2850,16 @@ class SmurfTuneMixin(SmurfBase):
 
                     if not show_plot:
                         plt.close()
+
+        if save_data:
+            self.log(f'Saving tracking data to {self.output_dir}',
+                     self.LOG_USER)
+            for name, arr in (('f', f), ('df', df), ('sync', sync)):
+                path = os.path.join(
+                    self.output_dir,
+                    f'{timestamp}_b{band}_tracking_{name}')
+                np.save(path, arr)
+                self.pub.register_file(path, f'tracking_{name}', format='npy')
 
         self.set_iq_stream_enable(band, 1, write_log=write_log)
 
