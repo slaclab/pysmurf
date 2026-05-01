@@ -48,6 +48,12 @@ class SmurfBase:
     offline : bool, optional, default False
         Whether to run in offline mode (no rogue) or not. This
         will break many things. Default is False.
+    state_file : str or None, optional, default None
+        Path to a rogue ``SaveState`` YAML dump (``.yml`` or
+        ``.yml.gz``) to back ``_caget`` calls in offline mode.  Only
+        consulted when ``offline`` is True.  When loaded, recorded
+        register values take precedence over the per-method offline
+        hard-coded fallbacks; missing keys yield ``None``.
     pub_root : str or None, optional, default None
         Root of environment vars to set publisher options. If
         None, the default root will be `SMURFPUB_`.
@@ -77,7 +83,8 @@ class SmurfBase:
     """
 
     def __init__(self, log=None, server_addr="localhost", server_port=9000, atca_port=9100,
-                 atca_monitor=False, offline=False, pub_root=None, script_id=None, **kwargs):
+                 atca_monitor=False, offline=False, state_file=None, pub_root=None,
+                 script_id=None, **kwargs):
         """
         """
 
@@ -124,6 +131,15 @@ class SmurfBase:
         self.offline = offline
         if self.offline is True:
             self.log('Offline mode')
+
+        # Optional rogue SaveState YAML dump used to back _caget calls
+        # in offline mode.  Populated either here from the state_file
+        # constructor argument, or later via SmurfCommandMixin.load_state().
+        self._offline_state = None
+        if offline and state_file is not None:
+            from pysmurf.client.util import tools
+            self._offline_state = tools.load_state_yaml(state_file)
+            self.log(f'Offline state loaded from {state_file}')
 
         # Setting paths for easier commands - Is there a better way to
         # do this than just hardcoding paths? This needs to be cleaned

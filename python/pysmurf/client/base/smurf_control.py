@@ -64,6 +64,10 @@ class SmurfControl(SmurfCommandMixin,
        Whether to run the setup step.
     offline : bool, optional, default False
        Whether or not to instantiate in offline mode.
+    state_file : str, optional, default None
+       Path to a rogue ``SaveState`` YAML dump (``.yml`` or ``.yml.gz``)
+       to back ``_caget`` calls in offline mode.  Only consulted when
+       ``offline`` is True.  See :class:`SmurfBase` for details.
     smurf_cmd_mode : bool, optional, default False
        This mode tells the system that the input is coming in from the
        command line (rather than a python session).  Everything
@@ -91,7 +95,7 @@ class SmurfControl(SmurfCommandMixin,
     """
 
     def __init__(self, cfg_file=None, data_dir=None, name=None, make_logfile=True,
-                 setup=False, offline=False, smurf_cmd_mode=False,
+                 setup=False, offline=False, state_file=None, smurf_cmd_mode=False,
                  shelf_manager='shm-smrf-sp01', no_dir=False, validate_config=True,
                  data_path_id=None, **kwargs):
         """Constructor for the SmurfControl class.
@@ -124,7 +128,7 @@ class SmurfControl(SmurfCommandMixin,
         # Save shelf manager - Should this be in the config?
         self.shelf_manager = shelf_manager
 
-        super().__init__(offline=offline, **kwargs)
+        super().__init__(offline=offline, state_file=state_file, **kwargs)
 
         if cfg_file is not None or data_dir is not None:
             self.initialize(data_dir=data_dir,
