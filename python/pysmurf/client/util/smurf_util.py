@@ -365,238 +365,249 @@ class SmurfUtilMixin(SmurfBase):
         self.set_att_uc(band, uc_att, write_log=True)
         self.set_att_dc(band, dc_att, write_log=True)
 
-        # only loop over dsp subbands in requested frequency range (to
-        # save time)
-        n_subbands = self.get_number_sub_bands(band)
-        digitizer_frequency_mhz = self.get_digitizer_frequency_mhz(band)
-        subband_half_width_mhz = digitizer_frequency_mhz/\
-            n_subbands
-        subbands,subband_centers=self.get_subband_centers(band)
-        subband_freq_min=-subband_half_width_mhz/2.
-        subband_freq_max=subband_half_width_mhz/2.
-        dsp_subbands=[]
-        for sb,sbc in zip(subbands,subband_centers):
-            # ignore unprocessed sub-bands
-            if sb not in subbands:
-                continue
-            lower_sb_freq=sbc+subband_freq_min
-            upper_sb_freq=sbc+subband_freq_max
-            if lower_sb_freq>=(freq_min/1.e6-subband_half_width_mhz) and \
-                    upper_sb_freq<=(freq_max/1.e6+subband_half_width_mhz):
-                dsp_subbands.append(sb)
+        try:
+            # only loop over dsp subbands in requested frequency range (to
+            # save time)
+            n_subbands = self.get_number_sub_bands(band)
+            digitizer_frequency_mhz = self.get_digitizer_frequency_mhz(band)
+            subband_half_width_mhz = digitizer_frequency_mhz/\
+                n_subbands
+            subbands,subband_centers=self.get_subband_centers(band)
+            subband_freq_min=-subband_half_width_mhz/2.
+            subband_freq_max=subband_half_width_mhz/2.
+            dsp_subbands=[]
+            for sb,sbc in zip(subbands,subband_centers):
+                # ignore unprocessed sub-bands
+                if sb not in subbands:
+                    continue
+                lower_sb_freq=sbc+subband_freq_min
+                upper_sb_freq=sbc+subband_freq_max
+                if lower_sb_freq>=(freq_min/1.e6-subband_half_width_mhz) and \
+                        upper_sb_freq<=(freq_max/1.e6+subband_half_width_mhz):
+                    dsp_subbands.append(sb)
 
-        if timestamp is None:
-            timestamp = self.get_timestamp()
+            if timestamp is None:
+                timestamp = self.get_timestamp()
 
-        if make_plot:
-            if show_plot:
-                plt.ion()
-            else:
-                plt.ioff()
+            if make_plot:
+                if show_plot:
+                    plt.ion()
+                else:
+                    plt.ioff()
 
-        bay=int(band/4)
-        fw_abbrev_sha=self.get_fpga_git_hash_short()
+            bay=int(band/4)
+            fw_abbrev_sha=self.get_fpga_git_hash_short()
 
-        self.band_off(band)
-        self.flux_ramp_off()
+            self.band_off(band)
+            self.flux_ramp_off()
 
-        self.log('Running full band resp')
-        freq_cable, resp_cable = self.full_band_resp(
-            band, nsamp=nsamp, make_plot=make_plot,
-            save_data=save_data, n_scan=n_scan)
+            self.log('Running full band resp')
+            freq_cable, resp_cable = self.full_band_resp(
+                band, nsamp=nsamp, make_plot=make_plot,
+                save_data=save_data, n_scan=n_scan)
 
-        idx_cable = np.where( (freq_cable > freq_min) & (freq_cable < freq_max) )
+            idx_cable = np.where( (freq_cable > freq_min) & (freq_cable < freq_max) )
 
-        cable_z = np.polyfit(freq_cable[idx_cable], np.unwrap(np.angle(resp_cable[idx_cable])), 1)
-        cable_p = np.poly1d(cable_z)
-        cable_delay_us=np.abs(1.e6*cable_z[0]/2/np.pi)
+            cable_z = np.polyfit(freq_cable[idx_cable], np.unwrap(np.angle(resp_cable[idx_cable])), 1)
+            cable_p = np.poly1d(cable_z)
+            cable_delay_us=np.abs(1.e6*cable_z[0]/2/np.pi)
 
-        freq_cable_subset=freq_cable[idx_cable]
-        resp_cable_subset=resp_cable[idx_cable]
-        #### done measuring cable delay
+            freq_cable_subset=freq_cable[idx_cable]
+            resp_cable_subset=resp_cable[idx_cable]
+            #### done measuring cable delay
 
-        #### start measuring dsp delay (cable+processing)
+            #### start measuring dsp delay (cable+processing)
 ## FIXME -- should be able to scan with "0" delay, not working
-        self.set_band_delay_us(band, 1)
+            self.set_band_delay_us(band, 1)
 
-        self.log('Running find_freq')
-        #freq_dsp,resp_dsp=self.find_freq(band, start_freq=freq_min, stop_freq=freq_max)
-        freq_dsp,resp_dsp=self.find_freq(band,subband=dsp_subbands)
+            self.log('Running find_freq')
+            #freq_dsp,resp_dsp=self.find_freq(band, start_freq=freq_min, stop_freq=freq_max)
+            freq_dsp,resp_dsp=self.find_freq(band,subband=dsp_subbands)
 
-        # only preserve data in the subband half width
-        freq_dsp_subset=[]
-        resp_dsp_subset=[]
-        est_delay=[]
-        for sb,sbc in zip(subbands,subband_centers):
-            freq_subband=freq_dsp[sb]-sbc
-            idx = np.where( ( freq_subband > subband_freq_min ) &
-                (freq_subband < subband_freq_max) )
-            if len(idx[0]) > 0:
-                dsp_z = np.polyfit(freq_dsp[sb][idx]*1e6, np.unwrap(np.angle(resp_dsp[sb][idx])), 1)
-                dsp_p = np.poly1d(dsp_z)
-                dsp_delay_us=np.abs(1.e6*dsp_z[0]/2/np.pi)
-                dsp_delay_us=dsp_delay_us + self.get_band_delay_us(band)
-                est_delay.append(dsp_delay_us)
-            freq_dsp_subset.extend(freq_dsp[sb][idx])
-            resp_dsp_subset.extend(resp_dsp[sb][idx])
+            # only preserve data in the subband half width
+            freq_dsp_subset=[]
+            resp_dsp_subset=[]
+            est_delay=[]
+            first = True
+            for sb,sbc in zip(subbands,subband_centers):
+                freq_subband=freq_dsp[sb]-sbc
+                idx = np.where( ( freq_subband > subband_freq_min ) &
+                    (freq_subband < subband_freq_max) )
+                if len(idx[0]) > 0:
+                    dsp_z = np.polyfit(freq_dsp[sb][idx]*1e6, np.unwrap(np.angle(resp_dsp[sb][idx])), 1)
+                    dsp_p = np.poly1d(dsp_z)
+                    dsp_delay_us=np.abs(1.e6*dsp_z[0]/2/np.pi)
+                    dsp_delay_us=dsp_delay_us + self.get_band_delay_us(band)
+                    est_delay.append(dsp_delay_us)
 
-        freq_dsp_subset=np.array(freq_dsp_subset)
-        resp_dsp_subset=np.array(resp_dsp_subset)
-
-        idx_dsp = np.where( (freq_dsp_subset > freq_min) &
-            (freq_dsp_subset < freq_max) )
-
-        # restrict to requested frequencies only
-        freq_dsp_subset=freq_dsp_subset[idx_dsp]
-        resp_dsp_subset=resp_dsp_subset[idx_dsp]
-
-        # to Hz
-        freq_dsp_subset=(freq_dsp_subset)*1.0E6
-
-        # fit
-        dsp_z = np.polyfit(freq_dsp_subset, np.unwrap(np.angle(resp_dsp_subset)), 1)
-        dsp_p = np.poly1d(dsp_z)
-        dsp_delay_us=np.abs(1.e6*dsp_z[0]/2/np.pi)
-        dsp_delay_us=dsp_delay_us + self.get_band_delay_us(band)
-        dsp_delay_us=np.mean(est_delay)
-
-        processing_delay_us=dsp_delay_us-cable_delay_us
-
-        print('-------------------------------------------------------')
-        print(f'Estimated cable_delay_us={cable_delay_us}')
-        print(f'Estimated dsp_delay_us={dsp_delay_us}')
-        print(f'Estimated processing_delay_us={processing_delay_us}')
-        print('-------------------------------------------------------')
-
-        #### done measuring dsp delay (cable+processing)
-
-        #### start measuring total (DSP + cable) delay with estimated correction applied
-        self.set_band_delay_us(band, dsp_delay_us)
-
-        self.log('Running find_freq')
-        freq_dsp_corr,resp_dsp_corr=self.find_freq(band,subband=dsp_subbands)
-
-        freq_dsp_corr_subset=[]
-        resp_dsp_corr_subset=[]
-        first = True
-        for sb,sbc in zip(subbands,subband_centers):
-            freq_subband=freq_dsp_corr[sb]-sbc
-            idx = np.where( ( freq_subband > subband_freq_min ) & (freq_subband < subband_freq_max) )
-            if len(idx[0]) > 0:
-                if not first:
-                    last_phase = np.angle(resp_dsp_corr_subset[-1])
-                    new_phase  = np.angle(resp_dsp_corr[sb][idx[0]])
-                    resp_dsp_corr[sb][idx] = resp_dsp_corr[sb][idx] * np.exp(1j*(last_phase - new_phase))
-
-                if first:
+                    # Rotate this subband so its first sample lines up with the
+                    # last accumulated sample, otherwise np.unwrap on the
+                    # concatenated array (used for the plot and the global
+                    # polyfit below) trips on subband-boundary phase jumps.
+                    if not first:
+                        last_phase = np.angle(resp_dsp_subset[-1])
+                        new_phase = np.angle(resp_dsp[sb][idx[0][0]])
+                        resp_dsp[sb][idx] = resp_dsp[sb][idx] * np.exp(1j*(last_phase - new_phase))
                     first = False
-            freq_dsp_corr_subset.extend(freq_dsp_corr[sb][idx])
-            resp_dsp_corr_subset.extend(resp_dsp_corr[sb][idx])
+                freq_dsp_subset.extend(freq_dsp[sb][idx])
+                resp_dsp_subset.extend(resp_dsp[sb][idx])
 
-        freq_dsp_corr_subset=np.array(freq_dsp_corr_subset)
-        resp_dsp_corr_subset=np.array(resp_dsp_corr_subset)
+            freq_dsp_subset=np.array(freq_dsp_subset)
+            resp_dsp_subset=np.array(resp_dsp_subset)
 
-        # restrict to requested frequency subset
-        idx_dsp_corr = np.where( (freq_dsp_corr_subset > freq_min) & (freq_dsp_corr_subset < freq_max) )
+            idx_dsp = np.where( (freq_dsp_subset > freq_min) &
+                (freq_dsp_subset < freq_max) )
 
-        # restrict to requested frequencies only
-        freq_dsp_corr_subset=freq_dsp_corr_subset[idx_dsp_corr]
-        resp_dsp_corr_subset=resp_dsp_corr_subset[idx_dsp_corr]
+            # restrict to requested frequencies only
+            freq_dsp_subset=freq_dsp_subset[idx_dsp]
+            resp_dsp_subset=resp_dsp_subset[idx_dsp]
 
-        # to Hz
-        freq_dsp_corr_subset=(freq_dsp_corr_subset)*1.0E6
+            # to Hz
+            freq_dsp_subset=(freq_dsp_subset)*1.0E6
 
-        # fit
-        dsp_corr_z = np.polyfit(freq_dsp_corr_subset, np.unwrap(np.angle(resp_dsp_corr_subset)), 1)
-        dsp_corr_delay_us=np.abs(1.e6*dsp_corr_z[0]/2/np.pi)
-        #### done measuring total (DSP) delay with estimated correction applied
+            # fit
+            dsp_z = np.polyfit(freq_dsp_subset, np.unwrap(np.angle(resp_dsp_subset)), 1)
+            dsp_p = np.poly1d(dsp_z)
+            dsp_delay_us=np.abs(1.e6*dsp_z[0]/2/np.pi)
+            dsp_delay_us=dsp_delay_us + self.get_band_delay_us(band)
+            dsp_delay_us=np.mean(est_delay)
 
-        # plot unwraped phase in top panel, subtracted in bottom
+            processing_delay_us=dsp_delay_us-cable_delay_us
 
-        fig, ax = plt.subplots(3, figsize=(6,7.5), sharex=True)
+            print('-------------------------------------------------------')
+            print(f'Estimated cable_delay_us={cable_delay_us}')
+            print(f'Estimated dsp_delay_us={dsp_delay_us}')
+            print(f'Estimated processing_delay_us={processing_delay_us}')
+            print('-------------------------------------------------------')
 
-        f_cable_plot = (freq_cable_subset) / 1.0E6
-        cable_phase = np.unwrap(np.angle(resp_cable_subset))
+            #### done measuring dsp delay (cable+processing)
 
-        f_dsp_plot = (freq_dsp_subset) / 1.0E6
-        dsp_phase = np.unwrap(np.angle(resp_dsp_subset))
+            #### start measuring total (DSP + cable) delay with estimated correction applied
+            self.set_band_delay_us(band, dsp_delay_us)
 
-        f_dsp_corr_plot = (freq_dsp_corr_subset) / 1.0E6
-        dsp_corr_phase = np.unwrap(np.angle(resp_dsp_corr_subset))
+            self.log('Running find_freq')
+            freq_dsp_corr,resp_dsp_corr=self.find_freq(band,subband=dsp_subbands)
 
-        ax[0].set_title(f'AMC in Bay {bay}, Band {band} Cable Delay')
-        ax[0].plot(f_cable_plot,cable_phase,label='Cable (full_band_resp)',
-            c='g', lw=3)
-        ax[0].plot(f_cable_plot,cable_p(f_cable_plot*1.0E6),'m--',
-            label='Cable delay fit',lw=3)
+            freq_dsp_corr_subset=[]
+            resp_dsp_corr_subset=[]
+            first = True
+            for sb,sbc in zip(subbands,subband_centers):
+                freq_subband=freq_dsp_corr[sb]-sbc
+                idx = np.where( ( freq_subband > subband_freq_min ) & (freq_subband < subband_freq_max) )
+                if len(idx[0]) > 0:
+                    if not first:
+                        last_phase = np.angle(resp_dsp_corr_subset[-1])
+                        new_phase  = np.angle(resp_dsp_corr[sb][idx[0][0]])
+                        resp_dsp_corr[sb][idx] = resp_dsp_corr[sb][idx] * np.exp(1j*(last_phase - new_phase))
 
-        ax[1].set_title(f'AMC in Bay {bay}, Band {band} DSP Delay')
-        ax[1].plot(f_dsp_plot,dsp_phase,label='DSP (find_freq)',c='c',lw=3)
-        ax[1].plot(f_dsp_plot,dsp_p(f_dsp_plot*1.0E6), c='orange', ls='--',
-                   label='DSP delay fit', lw=3)
+                    if first:
+                        first = False
+                freq_dsp_corr_subset.extend(freq_dsp_corr[sb][idx])
+                resp_dsp_corr_subset.extend(resp_dsp_corr[sb][idx])
 
-        ax[0].set_ylabel("Phase [rad]")
-        ax[0].set_xlabel('Frequency offset from band center [MHz]')
+            freq_dsp_corr_subset=np.array(freq_dsp_corr_subset)
+            resp_dsp_corr_subset=np.array(resp_dsp_corr_subset)
 
-        ax[1].set_ylabel("Phase [rad]")
-        ax[1].set_xlabel('Frequency offset from band center [MHz]')
+            # restrict to requested frequency subset
+            idx_dsp_corr = np.where( (freq_dsp_corr_subset > freq_min) & (freq_dsp_corr_subset < freq_max) )
 
-        ax[0].legend(loc='lower left',fontsize=8)
-        ax[1].legend(loc='lower left',fontsize=8)
+            # restrict to requested frequencies only
+            freq_dsp_corr_subset=freq_dsp_corr_subset[idx_dsp_corr]
+            resp_dsp_corr_subset=resp_dsp_corr_subset[idx_dsp_corr]
 
-        bbox = dict(boxstyle="round", ec='w', fc='w', alpha=.65)
-        ax[0].text(.97, .90, f'cable delay={cable_delay_us:.5f} us',
-                   transform=ax[0].transAxes, fontsize=10,
-                   bbox=bbox,horizontalalignment='right')
+            # to Hz
+            freq_dsp_corr_subset=(freq_dsp_corr_subset)*1.0E6
 
-        ax[1].text(.97, .90, f'dsp delay={dsp_delay_us:.5f} us',
-                   transform=ax[1].transAxes, fontsize=10,
-                   bbox=bbox,horizontalalignment='right')
+            # fit
+            dsp_corr_z = np.polyfit(freq_dsp_corr_subset, np.unwrap(np.angle(resp_dsp_corr_subset)), 1)
+            dsp_corr_delay_us=np.abs(1.e6*dsp_corr_z[0]/2/np.pi)
+            #### done measuring total (DSP) delay with estimated correction applied
 
-        cable_residuals=cable_phase-(cable_p(f_cable_plot*1.0E6))
-        ax[2].plot(f_cable_plot,cable_residuals-np.median(cable_residuals),
-            label='Cable (full_band_resp)',c='g')
-        ax[2].plot(f_dsp_corr_plot,dsp_corr_phase-np.median(dsp_corr_phase),
-            label='DSP (find_freq)', c='c')
-        ax[2].set_title(f'AMC in Bay {bay}, Band {band} Residuals'.format(bay,band))
-        ax[2].set_ylabel("Residual [rad]")
-        ax[2].set_xlabel('Frequency offset from band center [MHz]')
-        ax[2].set_ylim([-5,5])
+            # plot unwraped phase in top panel, subtracted in bottom
 
-        ax[2].text(.97, .76,
-                   f'processing delay={processing_delay_us:.5f} us (fw={fw_abbrev_sha})',
-                   transform=ax[2].transAxes, fontsize=8,
-                   bbox=bbox,horizontalalignment='right')
-        ax[2].text(.97, .68, f'delay post-correction={dsp_corr_delay_us*1000.:.3f} ns',
-                   transform=ax[2].transAxes, fontsize=8,
-                bbox=bbox,horizontalalignment='right')
+            fig, ax = plt.subplots(3, figsize=(6,7.5), sharex=True)
 
-        ax[2].legend(loc='upper left',fontsize=8)
+            f_cable_plot = (freq_cable_subset) / 1.0E6
+            cable_phase = np.unwrap(np.angle(resp_cable_subset))
 
-        plt.tight_layout()
+            f_dsp_plot = (freq_dsp_subset) / 1.0E6
+            dsp_phase = np.unwrap(np.angle(resp_dsp_subset))
 
-        if save_plot:
-            save_name = f'{timestamp}_b{band}_delay.png'
+            f_dsp_corr_plot = (freq_dsp_corr_subset) / 1.0E6
+            dsp_corr_phase = np.unwrap(np.angle(resp_dsp_corr_subset))
 
-            path = os.path.join(self.plot_dir, save_name)
-            plt.savefig(path,bbox_inches='tight')
-            self.pub.register_file(path, 'delay', plot=True)
+            ax[0].set_title(f'AMC in Bay {bay}, Band {band} Cable Delay')
+            ax[0].plot(f_cable_plot,cable_phase,label='Cable (full_band_resp)',
+                c='g', lw=3)
+            ax[0].plot(f_cable_plot,cable_p(f_cable_plot*1.0E6),'m--',
+                label='Cable delay fit',lw=3)
 
-            if not show_plot:
-                plt.close()
+            ax[1].set_title(f'AMC in Bay {bay}, Band {band} DSP Delay')
+            ax[1].plot(f_dsp_plot,dsp_phase,label='DSP (find_freq)',c='c',lw=3)
+            ax[1].plot(f_dsp_plot,dsp_p(f_dsp_plot*1.0E6), c='orange', ls='--',
+                       label='DSP delay fit', lw=3)
 
+            ax[0].set_ylabel("Phase [rad]")
+            ax[0].set_xlabel('Frequency offset from band center [MHz]')
 
-        self.log('Setting attenuator values back to original values')
-        self.log(f'UC Att: {uc_att0}')
-        self.log(f'DC Att: {dc_att0}')
+            ax[1].set_ylabel("Phase [rad]")
+            ax[1].set_xlabel('Frequency offset from band center [MHz]')
 
-        self.set_att_uc(band, uc_att0, write_log=True)
-        self.set_att_dc(band, dc_att0, write_log=True)
+            ax[0].legend(loc='lower left',fontsize=8)
+            ax[1].legend(loc='lower left',fontsize=8)
 
-        if show_plot:
-            plt.show()
+            bbox = dict(boxstyle="round", ec='w', fc='w', alpha=.65)
+            ax[0].text(.97, .90, f'cable delay={cable_delay_us:.5f} us',
+                       transform=ax[0].transAxes, fontsize=10,
+                       bbox=bbox,horizontalalignment='right')
 
-        return dsp_delay_us, dsp_corr_delay_us
+            ax[1].text(.97, .90, f'dsp delay={dsp_delay_us:.5f} us',
+                       transform=ax[1].transAxes, fontsize=10,
+                       bbox=bbox,horizontalalignment='right')
+
+            cable_residuals=cable_phase-(cable_p(f_cable_plot*1.0E6))
+            ax[2].plot(f_cable_plot,cable_residuals-np.median(cable_residuals),
+                label='Cable (full_band_resp)',c='g')
+            ax[2].plot(f_dsp_corr_plot,dsp_corr_phase-np.median(dsp_corr_phase),
+                label='DSP (find_freq)', c='c')
+            ax[2].set_title(f'AMC in Bay {bay}, Band {band} Residuals'.format(bay,band))
+            ax[2].set_ylabel("Residual [rad]")
+            ax[2].set_xlabel('Frequency offset from band center [MHz]')
+            ax[2].set_ylim([-5,5])
+
+            ax[2].text(.97, .76,
+                       f'processing delay={processing_delay_us:.5f} us (fw={fw_abbrev_sha})',
+                       transform=ax[2].transAxes, fontsize=8,
+                       bbox=bbox,horizontalalignment='right')
+            ax[2].text(.97, .68, f'delay post-correction={dsp_corr_delay_us*1000.:.3f} ns',
+                       transform=ax[2].transAxes, fontsize=8,
+                    bbox=bbox,horizontalalignment='right')
+
+            ax[2].legend(loc='upper left',fontsize=8)
+
+            plt.tight_layout()
+
+            if save_plot:
+                save_name = f'{timestamp}_b{band}_delay.png'
+
+                path = os.path.join(self.plot_dir, save_name)
+                plt.savefig(path,bbox_inches='tight')
+                self.pub.register_file(path, 'delay', plot=True)
+
+                if not show_plot:
+                    plt.close()
+
+            if show_plot:
+                plt.show()
+
+            return dsp_delay_us, dsp_corr_delay_us
+        finally:
+            self.log('Setting attenuator values back to original values')
+            self.log(f'UC Att: {uc_att0}')
+            self.log(f'DC Att: {dc_att0}')
+
+            self.set_att_uc(band, uc_att0, write_log=True)
+            self.set_att_dc(band, dc_att0, write_log=True)
 
     def process_data(self, filename, dtype=np.uint32):
         """ Reads a file taken with take_debug_data and processes it into data
