@@ -34,8 +34,9 @@ FW_SYSTEMS=(
     # Uses Primary:False naming -> rogue_MicrowaveMuxBpEthGen2_<tag>.zip
     "umux|https://github.com/slaclab/cryo-det|MicrowaveMuxBpEthGen2_v2.3.1|MicrowaveMuxBpEthGen2-0x02030000-20260320150539-ruckman-7d7e8a25.mcs|rogue_MicrowaveMuxBpEthGen2_v2.3.1.zip"
 
-    # TKID (transition-edge sensor kinetic inductance detector) systems
-    "tkid|https://github.com/slaclab/cryo-det-kid|v2.1.0|CryoDetKid-0x02010000-20240920083819-ruckman-ec69acf.mcs.gz"
+    # NO LONGER BEING DEVELOPED
+    ## TKID (transition-edge sensor kinetic inductance detector) systems
+    ##"tkid|https://github.com/slaclab/cryo-det-kid|v2.1.0|CryoDetKid-0x02010000-20240920083819-ruckman-ec69acf.mcs.gz"
 
     # RFSoC systems (ZCU208).
     # fw_files is a semicolon-separated list of linux.tar.gz images, one per FPGA target variant
