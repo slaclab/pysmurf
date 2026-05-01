@@ -1670,7 +1670,8 @@ class SmurfUtilMixin(SmurfBase):
            True if ADC is saturated, otherwise False.
         """
         adc = self.read_adc_data(band, data_length=2**12, make_plot=False,
-                  save_data=False, show_plot=False, save_plot=False)
+                  save_data=False, show_plot=False, save_plot=False,
+                  check_if_adc_is_saturated=False)
         adc_max   = int(np.max((adc.real.max(), adc.imag.max())))
         adc_min   = int(np.min((adc.real.min(), adc.imag.min())))
         saturated = ((adc_max > 31000) | (adc_min < -31000))
@@ -1714,7 +1715,8 @@ class SmurfUtilMixin(SmurfBase):
     def read_adc_data(self, band, data_length=2**19,
                       hw_trigger=False, make_plot=False, save_data=True,
                       timestamp=None, show_plot=True, save_plot=True,
-                      plot_ylimits=[None,None]):
+                      plot_ylimits=[None,None],
+                      check_if_adc_is_saturated=True):
         """
         Reads data directly off the ADC.
 
@@ -1741,6 +1743,15 @@ class SmurfUtilMixin(SmurfBase):
             Whether or not to save plot to file.
         plot_ylimits : [float or None, float or None], optional, default [None,None]
             y-axis limit (amplitude) to restrict plotting over.
+        check_if_adc_is_saturated : bool, optional, default True
+            After reading, inspect the I/Q samples and log a red
+            ``LOG_ERROR`` warning if any sample is at the rail
+            (max > 31000 or min < -31000, i.e. within ~5% of the
+            +/-2**15 16-bit ADC limits).  Warns rather than raises
+            so the returned data remains available for diagnostic
+            inspection.  Set to False to suppress the in-line check
+            (e.g. when the caller already runs its own saturation
+            logic).
 
         Returns
         -------
@@ -1758,6 +1769,16 @@ class SmurfUtilMixin(SmurfBase):
         res = self.read_stream_data_daq(data_length, bay=bay,
             hw_trigger=hw_trigger)
         dat = res[1] + 1.j * res[0]
+
+        if check_if_adc_is_saturated:
+            adc_max = int(np.max((dat.real.max(), dat.imag.max())))
+            adc_min = int(np.min((dat.real.min(), dat.imag.min())))
+            if (adc_max > 31000) or (adc_min < -31000):
+                self.log(
+                    f'\033[91mADC{band} is railing '
+                    f'(max={adc_max}, min={adc_min}).  Try increasing '
+                    f'the DC attenuation for this band.\033[00m',
+                    self.LOG_ERROR)
 
         if make_plot:
             if show_plot:
