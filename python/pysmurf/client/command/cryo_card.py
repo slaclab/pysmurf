@@ -15,7 +15,6 @@
 # contained in the LICENSE.txt file.
 #-----------------------------------------------------------------------------
 import time
-import os
 
 import numpy as np
 try:
@@ -26,12 +25,6 @@ except ModuleNotFoundError:
 
 from ..base.logger import SmurfLogger
 
-def write_csv(filename, header, line):
-    should_write_header = os.path.exists(filename)
-    with open(filename, 'a+') as f:
-        if not should_write_header:
-            f.write(header+'\n')
-        f.write(line+'\n')
 
 class CryoCard():
     def __init__(self, readpv_in, writepv_in, log=None, server_addr="localhost", server_port=9000):
@@ -94,7 +87,7 @@ class CryoCard():
             if data is None:
                 self.log("CryoCard.do_read failed get a response.")
             else:
-                addrrb = cmd_address(data)
+                addrrb = self._cmd_address(data)
                 if (addrrb == address):
                     return (data)
             self.log(
@@ -114,7 +107,7 @@ class CryoCard():
         :returns the response from caput
         """
         # not all integer types are accepted
-        return self.writepv.set(np.uint32(cmd_make(read, address, value)))
+        return self.writepv.set(np.uint32(self._cmd_make(read, address, value)))
 
     def write_relays(self, relay):  # relay is the bit partern to set
         self.do_write(self.relay_address, relay)
@@ -223,7 +216,7 @@ class CryoCard():
 
     def read_cycle_count(self):
         data = self.do_read(self.cycle_count_address)
-        return (cmd_data(data))  # do we have the right addres
+        return (self._cmd_data(data))  # do we have the right addres
 
     def write_ps_en(self, enables):
         """
@@ -262,7 +255,7 @@ class CryoCard():
            Bit set to 0 means the power supply is disabled.
         """
         data = self.do_read(self.ps_en_address)
-        return (cmd_data(data))
+        return (self._cmd_data(data))
 
     def get_fw_version(self):
         """
@@ -273,7 +266,7 @@ class CryoCard():
         are major 4. Typically this code assumes cryocards with non-4 majors
         are C02s. If no card is connected then all values are 0.
         """
-        data = cmd_data(self.do_read(self.fw_version_address))
+        data = self._cmd_data(self.do_read(self.fw_version_address))
 
         hexstr = f'{data:06x}'
 
@@ -332,17 +325,17 @@ class CryoCard():
             for amp in list_of_amps:
                 assert amp not in self.list_of_c04_amps, 'Contradiction, given C04 amplifiers but the cryocard is not type C04.'
 
+    # low level data conversion
+    # 32-bit cmd word: bit 31 = read flag, bits 20-30 = address (11), bits 0-19 = data (20)
 
-# low level data conversion
+    @staticmethod
+    def _cmd_address(data):
+        return ((data & 0x7FF00000) >> 20)
 
-def cmd_read(data):  # checks for a read bit set in data
-    return ((data & 0x80000000) != 0)
+    @staticmethod
+    def _cmd_data(data):
+        return (data & 0xFFFFF)
 
-def cmd_address(data): # returns address data
-    return ((data & 0x7FFF0000) >> 20)
-
-def cmd_data(data):  # returns data
-    return (data & 0xFFFFF)
-
-def cmd_make(read, address, data):
-    return (read << 31) | ((address << 20) & 0x7FFF00000) | (data & 0xFFFFF)
+    @staticmethod
+    def _cmd_make(read, address, data):
+        return (read << 31) | ((address << 20) & 0x7FF00000) | (data & 0xFFFFF)
