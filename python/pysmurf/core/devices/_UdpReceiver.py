@@ -26,13 +26,12 @@ class KeepAlive(rogue.interfaces.stream.Master, threading.Thread):
     """
     Class used to keep alive the streaming data UDP connection.
 
-    It is a Rogue Master device, which will be connected to the
-    UDP Client slave.
+    It is a Rogue ``Master`` connected to the UDP client ``Slave``.
 
     It will run a thread which will send an UDP packet every
     5 seconds to avoid the connection to be closed. After
     instantiate an object of this class, and connect it to the
-    UDP Client slave, its 'start()' method must be called to
+    UDP client, its 'start()' method must be called to
     start the thread itself.
     """
     def __init__(self):
@@ -43,11 +42,11 @@ class KeepAlive(rogue.interfaces.stream.Master, threading.Thread):
         # soon as the main program exits.
         self.daemon = True
 
-        # Request a 1-byte frame from the slave.
+        # Request a 1-byte frame from the downstream receiver.
         self.frame = self._reqFrame(1, True)
 
         # Create a 1-byte element to be sent to the
-        # slave. The content of the packet is not
+        # downstream receiver. The content of the packet is not
         # important.
         self.ba = bytearray(1)
 
@@ -69,8 +68,7 @@ class UdpReceiver(pyrogue.Device):
     Class used to receive SMuRF streaming data over UDP,
     without RSSI, and with a keep alive mechanism.
 
-    It is a Rogue master device, which will connected to the
-    smurf-processor.
+    It is a Rogue ``Master`` connected to the smurf-processor.
     """
     def __init__(self, ip_addr, port):
         super().__init__()
