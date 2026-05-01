@@ -4236,13 +4236,50 @@ class SmurfTuneMixin(SmurfBase):
         return ang
 
 
+    def _tune_band_suffix(self):
+        """
+        Hex bitmask (e.g. 'b01', 'b91', 'bFF') of the bands that hold real
+        tune data in self.freq_resp.  A band counts as tuned only when its
+        entry has a populated 'resonances' key, since self.freq_resp is
+        pre-seeded for every configured band at init time.
+        """
+        mask = 0
+        for band, entry in self.freq_resp.items():
+            if isinstance(entry, dict) and 'resonances' in entry:
+                mask |= (1 << int(band))
+        return f'b{mask:02X}'
+
+    def _mask_from_tune_path(self, path):
+        """
+        Parse the ``_tune_b{XX}`` suffix from a tune filename and return its
+        integer bitmask.  Returns 0 for legacy ``*_tune.npy`` files that have
+        no band suffix.
+        """
+        base = os.path.basename(path)
+        if not base.endswith('.npy'):
+            return 0
+        stem = base[:-len('.npy')]
+        marker = '_tune_b'
+        idx = stem.rfind(marker)
+        if idx < 0:
+            return 0
+        try:
+            return int(stem[idx + len(marker):], 16)
+        except ValueError:
+            return 0
+
     @set_action()
     def save_tune(self, update_last_tune=True):
         """
-        Saves the tuning information (self.freq_resp) to tuning directory
+        Saves the tuning information (self.freq_resp) to tuning directory.
+        The output filename encodes which bands hold tune data as a hex
+        bitmask suffix, e.g. ``..._tune_b01.npy`` (band 0 only) or
+        ``..._tune_bFF.npy`` (all 8 bands).  See :func:`last_tune` for the
+        band-aware lookup that consumes this naming scheme.
         """
         timestamp = self.get_timestamp()
-        savedir = os.path.join(self.tune_dir, timestamp+"_tune")
+        band_suffix = self._tune_band_suffix()
+        savedir = os.path.join(self.tune_dir, f'{timestamp}_tune_{band_suffix}')
         self.log(f'Saving to : {savedir}.npy')
         np.save(savedir, self.freq_resp)
         self.pub.register_file(savedir, 'tune', format='npy')
@@ -4310,13 +4347,35 @@ class SmurfTuneMixin(SmurfBase):
             return fs
 
     @set_action()
-    def last_tune(self):
+    def last_tune(self, band=None):
         """
         Returns the full path to the most recent tuning file, or None
         if no tune files are found.
+
+        Args
+        ----
+        band : int, int array, or None, optional, default None
+            If given, only return the most recent tune file whose
+            ``_b{XX}`` hex bitmask suffix indicates it contains tune data
+            for every band requested.  Legacy ``*_tune.npy`` files (no
+            suffix) carry unknown band content and are excluded when a
+            band filter is supplied.  When ``band`` is ``None`` (the
+            default), legacy and band-tagged files are both considered.
         """
-        tune_files = glob.glob(os.path.join(self.tune_dir,
-                                            '*_tune.npy'))
+        tune_files = (
+            glob.glob(os.path.join(self.tune_dir, '*_tune.npy')) +
+            glob.glob(os.path.join(self.tune_dir, '*_tune_b*.npy'))
+        )
+        if band is not None:
+            wanted = 0
+            for b in np.ravel(np.array(band)):
+                wanted |= (1 << int(b))
+            filtered = []
+            for f in tune_files:
+                mask = self._mask_from_tune_path(f)
+                if mask != 0 and (mask & wanted) == wanted:
+                    filtered.append(f)
+            tune_files = filtered
         if len(tune_files) == 0:
             self.log(
                 f'No tune files found in {self.tune_dir}',
