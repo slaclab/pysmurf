@@ -413,7 +413,7 @@ class SmurfIVMixin(SmurfBase):
             self.log(f'Analyzing band {b} channel {ch}')
 
             ch_idx = mask[b, ch]
-            phase = phase_all[ch_idx]
+            phase = np.unwrap(phase_all[ch_idx])
 
             phase_excursion = max(phase) - min(phase)
 
