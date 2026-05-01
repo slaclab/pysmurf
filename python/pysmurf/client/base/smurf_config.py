@@ -773,9 +773,49 @@ class SmurfConfig:
         }
         #### Done specifying timing-related schema
 
-        #### Start specifying smurf2mce
+        #### Start specifying processor
         # System should be smart enough to determine fs on the fly.
         schema_dict["fs"] = And(Use(float), lambda f: f > 0)
+
+        # Rogue4 SmurfProcessor: downsampling-filter and unwrapper settings.
+        # All fields optional with defaults that match firmware behavior, so
+        # cfgs without a "processor" block load identically to before.  The
+        # legacy "smurf_to_mce" block is parsed-but-ignored (extra keys).
+        processor_default_dict = {
+            'filter_disable' : False,
+            'filter_freq' : 63.0,
+            'filter_order' : 4,
+            'filter_gain' : 1.0,
+            'downsample_mode' : 'internal',
+            'downsample_factor' : 20,
+            'downsample_external_bitmask' : 0,
+            'unwrapper_disable' : False,
+        }
+        pdd_key = Optional("processor", default=processor_default_dict)
+        schema_dict[pdd_key] = {
+            Optional('filter_disable',
+                     default=processor_default_dict['filter_disable']): bool,
+            Optional('filter_freq',
+                     default=processor_default_dict['filter_freq']):
+                And(Use(float), lambda f: f > 0),
+            Optional('filter_order',
+                     default=processor_default_dict['filter_order']):
+                And(int, lambda n: 1 <= n <= 15),
+            Optional('filter_gain',
+                     default=processor_default_dict['filter_gain']):
+                And(Use(float), lambda f: f > 0),
+            Optional('downsample_mode',
+                     default=processor_default_dict['downsample_mode']):
+                And(str, lambda s: s in ('internal', 'external')),
+            Optional('downsample_factor',
+                     default=processor_default_dict['downsample_factor']):
+                And(int, lambda n: n >= 1),
+            Optional('downsample_external_bitmask',
+                     default=processor_default_dict['downsample_external_bitmask']):
+                And(int, lambda n: n >= 0),
+            Optional('unwrapper_disable',
+                     default=processor_default_dict['unwrapper_disable']): bool,
+        }
 
         def user_has_write_access(dirpath):
             return os.access(dirpath, os.W_OK)

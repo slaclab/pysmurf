@@ -6313,6 +6313,36 @@ class SmurfCommandMixin(SmurfBase):
             self.smurf_processor + self._unwrapper_reset_reg,
             1, **kwargs)
 
+    _unwrapper_disable_reg = 'Unwrapper.Disable'
+
+    def set_unwrapper_disable(self, disable_status, **kwargs):
+        """
+        If Disable is set to True, then the unwrapper is bypassed and
+        incoming data passes through to the next processing block
+        unchanged.
+
+        Args
+        ----
+        bool
+            The status of the Disable bit.
+        """
+        self._caput(
+            self.smurf_processor + self._unwrapper_disable_reg,
+            bool(disable_status), **kwargs)
+
+    def get_unwrapper_disable(self, **kwargs):
+        """
+        If Disable is set to True, then the unwrapper is bypassed.
+
+        Returns
+        -------
+        bool
+            The status of the Disable bit.
+        """
+        return self._caget(
+            self.smurf_processor + self._unwrapper_disable_reg,
+            **kwargs)
+
     _filter_reset_reg = 'Filter.reset'
 
     def set_filter_reset(self, **kwargs):
@@ -7217,7 +7247,7 @@ class SmurfCommandMixin(SmurfBase):
             # disable downstream filtering
             S.set_filter_disable(True)
             S.set_downsample_factor(1)
-            S._caput(S.smurf_processor + "Unwrapper:Disable",1)
+            S.set_unwrapper_disable(True)
 
             # select IQ streaming mode
             # bypasses CORDIC, send I and Q over both bays
@@ -7253,7 +7283,7 @@ class SmurfCommandMixin(SmurfBase):
             # disable downstream filtering
             S.set_filter_disable(True)
             S.set_downsample_factor(1)
-            S._caput(S.smurf_processor + "Unwrapper:Disable",1)
+            S.set_unwrapper_disable(True)
 
             # select IQ streaming mode
             # bypasses CORDIC, send I and Q over both bays
