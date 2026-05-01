@@ -820,6 +820,7 @@ class SmurfUtilMixin(SmurfBase):
     def take_stream_data(self, meas_time, downsample_factor=None,
                          write_log=True, update_payload_size=True,
                          reset_unwrapper=True, reset_filter=True,
+                         reset_phase_offsets=True,
                          return_data=False, make_freq_mask=True,
                          register_file=False, IQ_mode=False):
         """
@@ -847,6 +848,10 @@ class SmurfUtilMixin(SmurfBase):
             Whether to reset the unwrapper before taking data.
         reset_filter : bool, optional, default True
             Whether to reset the filter before taking data.
+        reset_phase_offsets : bool, optional, default True
+            Whether to clear firmware per-channel phase-offset unwrap
+            counters / averages before taking data. See
+            :func:`stream_data_on` for details.  See slaclab/pysmurf#93.
         return_data : bool, optional, default False
             Whether to return the data. If False, returns the full
             path to the data.
@@ -870,6 +875,7 @@ class SmurfUtilMixin(SmurfBase):
         data_filename = self.stream_data_on(downsample_factor=downsample_factor,
             update_payload_size=update_payload_size, write_log=write_log,
             reset_unwrapper=reset_unwrapper, reset_filter=reset_filter,
+            reset_phase_offsets=reset_phase_offsets,
             make_freq_mask=make_freq_mask, IQ_mode=IQ_mode)
 
         # Sleep for the full measurement time
@@ -917,6 +923,10 @@ class SmurfUtilMixin(SmurfBase):
             Whether to reset the filter before taking data.
         reset_unwrapper : bool, optional, default True
             Whether to reset the unwrapper before taking data.
+        reset_phase_offsets : bool, optional, default True
+            Whether to clear firmware per-channel phase-offset unwrap
+            counters / averages before taking data. See
+            :func:`stream_data_on` for details.  See slaclab/pysmurf#93.
         make_freq_mask : bool, optional, default True
             Whether to write a text file with resonator frequencies.
         register_file : bool, optional, default False
@@ -939,7 +949,8 @@ class SmurfUtilMixin(SmurfBase):
     def stream_data_on(self, write_config=False, data_filename=None,
                        downsample_factor=None, write_log=True,
                        update_payload_size=True, reset_filter=True,
-                       reset_unwrapper=True, make_freq_mask=True,
+                       reset_unwrapper=True, reset_phase_offsets=True,
+                       make_freq_mask=True,
                        channel_mask=None, make_datafile=True,
                        filter_wait_time=0.1,IQ_mode=False):
         """
@@ -966,6 +977,13 @@ class SmurfUtilMixin(SmurfBase):
             Whether to reset the filter before taking data.
         reset_unwrapper : bool, optional, default True
             Whether to reset the unwrapper before taking data.
+        reset_phase_offsets : bool, optional, default True
+            Whether to clear the firmware per-channel phase-offset
+            unwrap counters and channel averages by toggling bit 0 of
+            ``AMCc.AppCore.TimingHeader.userConfig[0]`` high then low.
+            Prevents accumulated wrap counts from approaching the
+            32-bit limit, where double-precision filter math loses
+            resolution.  See slaclab/pysmurf#93.
         make_freq_mask : bool, optional, default True
             Whether to write a text file with resonator frequencies.
         channel_mask : list or None, optional, default None
@@ -1044,6 +1062,18 @@ class SmurfUtilMixin(SmurfBase):
             # start streaming before opening file
             # to avoid transient filter step
             self.set_stream_enable(1, write_log=False, wait_done=True)
+
+            if reset_phase_offsets:
+                # Clear firmware per-channel unwrap counters and
+                # averages before the software unwrapper/filter latch
+                # state. See slaclab/pysmurf#93.
+                try:
+                    self.clear_unwrapping_and_averages()
+                except Exception as e:
+                    self.log(
+                        'clear_unwrapping_and_averages() failed; '
+                        'continuing without firmware phase-offset '
+                        f'reset. ({e})', self.LOG_ERROR)
 
             if reset_unwrapper:
                 self.set_unwrapper_reset(write_log=write_log)
