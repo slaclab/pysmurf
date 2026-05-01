@@ -272,11 +272,25 @@ class SmurfUtilMixin(SmurfBase):
 
     # the JesdWatchdog will check if an instance of the JesdWatchdog is already
     # running and kill itself if there is
-    def start_jesd_watchdog(self):
+    def start_jesd_watchdog(self, epics_prefix, bays=None):
+        """Start the JesdWatchdog subprocess monitoring the given bays.
+
+        Args
+        ----
+        epics_prefix : str
+            EPICS prefix of the running rogue server (e.g. ``'smurf_server_s5'``).
+        bays : list of int, optional
+            Bay indices to monitor. Defaults to ``self.bays`` (the bays
+            detected at server startup).
+        """
         import pysmurf.client.watchdog.JesdWatchdog as JesdWatchdog
         import subprocess
         import sys
-        subprocess.Popen([sys.executable,JesdWatchdog.__file__])
+        if bays is None:
+            bays = self.bays
+        args = [sys.executable, JesdWatchdog.__file__, epics_prefix]
+        args += [str(b) for b in bays]
+        subprocess.Popen(args)
 
     # Shawn needs to make this better and add documentation.
     @set_action()
