@@ -4630,9 +4630,10 @@ class SmurfUtilMixin(SmurfBase):
             plt.tight_layout()
 
             if save_plot:
-                plt.savefig(os.path.join(self.plot_dir,
-                                         f'{timestamp}_probe_tone_gap.png'),
-                            bbox_inches='tight')
+                path = os.path.join(self.plot_dir,
+                                    f'{timestamp}_probe_tone_gap.png')
+                plt.savefig(path, bbox_inches='tight')
+                self.pub.register_file(path, 'probe_tone_gap', plot=True)
 
             if show_plot:
                 plt.show()
