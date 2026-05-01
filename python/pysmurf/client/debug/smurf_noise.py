@@ -2050,6 +2050,201 @@ class SmurfNoiseMixin(SmurfBase):
         return ff, pxx
 
 
+    def estimate_ip3(self, freq_mhz_a, freq_mhz_b, tone_power,
+                     data_length=2**19, search_window_khz=10.0,
+                     make_plot=True, show_plot=False, save_plot=True,
+                     save_data=False, write_log=False):
+        """
+        Two-tone third-order intercept (IIP3) estimate, in dB
+        amplitude-scale units.
+
+        Plays equal-amplitude fixed tones at ``freq_mhz_a`` and
+        ``freq_mhz_b`` (which must fall in the same 500 MHz band),
+        captures raw ADC data, and computes IIP3 from the ratio of the
+        average fundamental power to the average 3rd-order
+        intermodulation product power:
+
+            IIP3 [dB amp_scale] = 20*log10(tone_power)
+                                  + (P_fund_dB - P_IM3_dB) / 2
+
+        The two allocated channels are returned to amplitude 0 on exit
+        (including on failure), so any pre-existing fixed tones the
+        caller had set are left untouched.
+
+        Args
+        ----
+        freq_mhz_a : float
+            First tone frequency in MHz (absolute).
+        freq_mhz_b : float
+            Second tone frequency in MHz (absolute). Must differ from
+            ``freq_mhz_a`` and lie in the same 500 MHz band.
+        tone_power : int
+            Amplitude scale (0-15) used for both tones. Must be > 0.
+        data_length : int, optional, default 2**19
+            ADC sample count, forwarded to ``read_adc_data``.
+        search_window_khz : float, optional, default 10.0
+            Half-width (kHz) around each expected line for peak search,
+            to absorb FFT-bin quantization.
+        make_plot : bool, optional, default True
+            Whether to generate the annotated PSD plot.
+        show_plot : bool, optional, default False
+            Whether to display the plot interactively.
+        save_plot : bool, optional, default True
+            Whether to save the PSD plot PNG to ``plot_dir``.
+        save_data : bool, optional, default False
+            If True, save raw ADC capture (via ``read_adc_data``) and a
+            ``.npz`` of (f, p, result) to ``output_dir``.
+        write_log : bool, optional, default False
+            Whether to log the underlying ``set_fixed_tone`` calls.
+
+        Returns
+        -------
+        result : dict
+            ``iip3_amp_scale_db`` : float, the IIP3 estimate.
+            ``p_fund_db`` : tuple of two floats, fundamental powers in dB
+                at (f_lo, f_hi).
+            ``p_im3_db`` : tuple of two floats, IM3 powers in dB at
+                (2*f_lo - f_hi, 2*f_hi - f_lo).
+            ``freq_mhz_fund`` : tuple of two floats, (f_lo, f_hi).
+            ``freq_mhz_im3`` : tuple of two floats, the IM3 frequencies.
+            ``tone_power`` : int.
+            ``band`` : int, the band the tones were placed in.
+            ``channels`` : tuple of two ints, the channels used.
+            ``timestamp`` : str.
+        """
+        assert freq_mhz_a != freq_mhz_b, \
+            '! freq_mhz_a and freq_mhz_b must differ.'
+        assert tone_power > 0, \
+            '! tone_power must be > 0 to compute IIP3.'
+
+        f_lo, f_hi = sorted([float(freq_mhz_a), float(freq_mhz_b)])
+        f_im_lo = 2.0 * f_lo - f_hi
+        f_im_hi = 2.0 * f_hi - f_lo
+
+        # Pick the band by closest band center, mirroring set_fixed_tone.
+        band_centers_mhz = [self.get_band_center_mhz(b)
+                            for b in self.which_bands()]
+        bc = min(band_centers_mhz, key=lambda c: abs(c - f_lo))
+
+        # All four lines (two fundamentals + two IM3 products) must
+        # land inside the chosen 500 MHz band.
+        for label, fmhz in (('freq_mhz_a', f_lo), ('freq_mhz_b', f_hi),
+                            ('2*f_lo - f_hi', f_im_lo),
+                            ('2*f_hi - f_lo', f_im_hi)):
+            assert abs(fmhz - bc) < 250, \
+                f'! {label} (={fmhz:0.3f} MHz) is outside the 500 MHz ' \
+                f'band centered at {bc:0.0f} MHz. Pick tones closer ' \
+                f'together or further from band edge.'
+
+        timestamp = self.get_timestamp()
+        search_window_mhz = search_window_khz / 1.0e3
+
+        band_a, ch_a = self.set_fixed_tone(f_lo, tone_power,
+                                           write_log=write_log)
+        ch_b = None
+        try:
+            band_b, ch_b = self.set_fixed_tone(f_hi, tone_power,
+                                               write_log=write_log)
+            assert band_a == band_b, \
+                '! Tones unexpectedly landed in different bands ' \
+                f'({band_a} vs {band_b}).'
+
+            dat = self.read_adc_data(band_a, data_length=data_length,
+                                     make_plot=False, save_data=save_data,
+                                     show_plot=False, save_plot=False,
+                                     timestamp=timestamp)
+        finally:
+            self.set_amplitude_scale_channel(band_a, ch_a, 0)
+            if ch_b is not None:
+                self.set_amplitude_scale_channel(band_a, ch_b, 0)
+
+        fs = self.get_digitizer_frequency_mhz()
+        f, p = signal.welch(dat, fs=fs, nperseg=data_length // 2,
+                            return_onesided=False, detrend=False)
+        idx = np.argsort(f)
+        f = f[idx]
+        p = p[idx]
+
+        def peak_db(f_target_abs_mhz):
+            f_bb = f_target_abs_mhz - bc
+            mask = ((f >= f_bb - search_window_mhz) &
+                    (f <= f_bb + search_window_mhz))
+            assert mask.any(), \
+                f'! No PSD bins within +/-{search_window_khz:0.1f} kHz ' \
+                f'of {f_target_abs_mhz:0.3f} MHz.'
+            return 10.0 * np.log10(np.max(p[mask]))
+
+        p_fund_db = (peak_db(f_lo), peak_db(f_hi))
+        p_im3_db = (peak_db(f_im_lo), peak_db(f_im_hi))
+        p_in_db = 20.0 * np.log10(tone_power)
+        iip3_db = p_in_db + (np.mean(p_fund_db) - np.mean(p_im3_db)) / 2.0
+
+        result = {
+            'iip3_amp_scale_db': float(iip3_db),
+            'p_fund_db': p_fund_db,
+            'p_im3_db': p_im3_db,
+            'freq_mhz_fund': (f_lo, f_hi),
+            'freq_mhz_im3': (f_im_lo, f_im_hi),
+            'tone_power': int(tone_power),
+            'band': int(band_a),
+            'channels': (int(ch_a), int(ch_b)),
+            'timestamp': timestamp,
+        }
+
+        self.log(f'IIP3 estimate = {iip3_db:0.2f} dB amp_scale ' +
+                 f'(tone_power={tone_power}, band={band_a}, ' +
+                 f'f_lo={f_lo:0.3f} MHz, f_hi={f_hi:0.3f} MHz)',
+                 self.LOG_USER)
+
+        if make_plot:
+            if show_plot:
+                plt.ion()
+            else:
+                plt.ioff()
+
+            f_abs = f + bc
+            fig, ax = plt.subplots(figsize=(9, 5))
+            ax.plot(f_abs, 10.0 * np.log10(p), color='k', linewidth=0.7)
+            for ff_mark, lbl in ((f_lo, 'f1'), (f_hi, 'f2')):
+                ax.axvline(ff_mark, color='C0', linestyle='--',
+                           linewidth=0.8)
+                ax.text(ff_mark, ax.get_ylim()[1], lbl,
+                        color='C0', va='top', ha='center')
+            for ff_mark, lbl in ((f_im_lo, '2f1-f2'),
+                                 (f_im_hi, '2f2-f1')):
+                ax.axvline(ff_mark, color='C3', linestyle='--',
+                           linewidth=0.8)
+                ax.text(ff_mark, ax.get_ylim()[1], lbl,
+                        color='C3', va='top', ha='center')
+            ax.set_xlabel('Frequency [MHz]')
+            ax.set_ylabel(f'ADC{band_a} PSD [dB]')
+            ax.set_title(f'{timestamp} IP3 band {band_a}, ' +
+                         f'tone_power={tone_power}, ' +
+                         f'IIP3={iip3_db:0.2f} dB amp_scale')
+            ax.grid(which='both')
+            plt.tight_layout()
+
+            if save_plot:
+                plot_fn = os.path.join(self.plot_dir,
+                                       f'{timestamp}_ip3_b{band_a}.png')
+                plt.savefig(plot_fn, bbox_inches='tight')
+                self.pub.register_file(plot_fn, 'ip3', plot=True)
+                self.log(f'IP3 plot saved to {plot_fn}')
+            if show_plot:
+                plt.show()
+            else:
+                plt.close()
+
+        if save_data:
+            outfn = os.path.join(self.output_dir,
+                                 f'{timestamp}_ip3_b{band_a}.npz')
+            np.savez(outfn, f=f + bc, p=p, **result)
+            self.pub.register_file(outfn, 'ip3', format='npz')
+            self.log(f'IP3 PSD saved to {outfn}')
+
+        return result
+
+
     def noise_svd(self, d, mask, mean_subtract=True):
         """
         Calculates the SVD modes of the input data.
