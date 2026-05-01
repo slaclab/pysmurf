@@ -386,11 +386,11 @@ class SmurfTuneMixin(SmurfBase):
         if tone_power is None:
             tone_power = self._amplitude_scale[band]
         self.freq_resp[band]['tone_power'] = tone_power
-        self.freq_resp[band]['full_band_resp'] = {}
-        if freq is not None:
-            self.freq_resp[band]['full_band_resp']['freq'] = freq * 1.0E-6 + center_freq
-        if resp is not None:
-            self.freq_resp[band]['full_band_resp']['resp'] = resp
+        if freq is not None and resp is not None:
+            self.freq_resp[band]['full_band_resp'] = {
+                'freq': freq * 1.0E-6 + center_freq,
+                'resp': resp,
+            }
         self.freq_resp[band]['timestamp'] = timestamp
 
 
@@ -531,10 +531,14 @@ class SmurfTuneMixin(SmurfBase):
         # Plot individual eta scan
         if eta_scan:
             keys = self.freq_resp[band]['resonances'].keys()
-            # If using full band response as input
-            if 'full_band_resp' in self.freq_resp[band]:
-                freq = self.freq_resp[band]['full_band_resp']['freq']
-                resp = self.freq_resp[band]['full_band_resp']['resp']
+            # If using full band response as input. Older tune files
+            # may have an empty full_band_resp dict (e.g. saved by
+            # tune_band_serial(from_old_tune=True)) -- require both
+            # 'freq' and 'resp' subkeys before taking this branch.
+            fbr = self.freq_resp[band].get('full_band_resp') or {}
+            if 'freq' in fbr and 'resp' in fbr:
+                freq = fbr['freq']
+                resp = fbr['resp']
                 for k in keys:
                     r = self.freq_resp[band]['resonances'][k]
                     channel=r['channel']
