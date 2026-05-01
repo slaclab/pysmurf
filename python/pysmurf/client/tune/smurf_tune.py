@@ -1944,7 +1944,7 @@ class SmurfTuneMixin(SmurfBase):
         center_freq = np.zeros(n_channels)
         feedback_enable = np.zeros(n_channels)
         eta_phase = np.zeros(n_channels)
-        eta_mag = np.zeros(n_channels)
+        eta_mag_scaled = np.zeros(n_channels)
 
         # Extract frequencies from dictionary
         f = [self.freq_resp[band]['resonances'][k]['freq']
@@ -1985,7 +1985,7 @@ class SmurfTuneMixin(SmurfBase):
                 amplitude_scale[ch] = tone_power
                 feedback_enable[ch] = 1
                 eta_phase[ch] = self.freq_resp[band]['resonances'][k]['eta_phase']
-                eta_mag[ch] = self.freq_resp[band]['resonances'][k]['eta_scaled']
+                eta_mag_scaled[ch] = self.freq_resp[band]['resonances'][k]['eta_scaled']
                 counter += 1
 
         # Set the actual variables
@@ -1997,7 +1997,7 @@ class SmurfTuneMixin(SmurfBase):
             write_log=write_log, log_level=self.LOG_INFO)
         self.set_eta_phase_array(band, eta_phase, write_log=write_log,
             log_level=self.LOG_INFO)
-        self.set_eta_mag_array(band, eta_mag, write_log=write_log,
+        self.set_eta_mag_array(band, eta_mag_scaled, write_log=write_log,
             log_level=self.LOG_INFO)
 
         self.log(
