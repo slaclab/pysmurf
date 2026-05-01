@@ -20,6 +20,7 @@ import os
 import time
 
 import numpy as np
+import scipy.signal as signal
 
 from pysmurf.client.base.smurf_config import SmurfConfig
 from pysmurf.client.base.smurf_config_properties import SmurfConfigPropertiesMixin
@@ -661,6 +662,55 @@ class SmurfControl(SmurfCommandMixin,
             # Set payload size and mask to a single channel
             self.set_payload_size(payload_size)
             self.set_channel_mask([0])
+
+            # Configure the rogue4 SmurfProcessor (filter + downsampler +
+            # unwrapper).  Each property is None when no `processor` cfg
+            # block is loaded (e.g. SmurfControl was constructed without a
+            # cfg file); skip those so we leave the firmware defaults in
+            # place.
+            if self._unwrapper_disable is not None:
+                self.set_unwrapper_disable(self._unwrapper_disable,
+                                           write_log=write_log)
+            if self._filter_disable is not None:
+                self.set_filter_disable(self._filter_disable,
+                                        write_log=write_log)
+            if self._filter_order is not None:
+                self.set_filter_order(self._filter_order,
+                                      write_log=write_log)
+            if self._filter_gain is not None:
+                self.set_filter_gain(self._filter_gain,
+                                     write_log=write_log)
+            if (self._filter_freq is not None and
+                    self._filter_order is not None and
+                    self._reset_rate_khz is not None):
+                # The SmurfProcessor IIR filter sees one sample per
+                # channel per flux-ramp reset, so its input sample rate
+                # equals the flux ramp rate.  scipy.signal.butter takes
+                # cutoff normalized to Nyquist (= fs/2), hence the
+                # 2*freq/fs scaling.  Coefficient arrays are padded out
+                # to the firmware register length of 16 with zeros
+                # (matches the rogue4 GeneralAnalogFilter shape).  Same
+                # math as SmurfUtilMixin.set_filter_params at
+                # python/pysmurf/client/util/smurf_util.py:3380.
+                filter_input_rate = self._reset_rate_khz * 1.0e3
+                b, a = signal.butter(
+                    self._filter_order,
+                    2 * self._filter_freq / filter_input_rate)
+                a_padded = list(a) + [0.0] * (16 - len(a))
+                b_padded = list(b) + [0.0] * (16 - len(b))
+                self.set_filter_a(a_padded, write_log=write_log)
+                self.set_filter_b(b_padded, write_log=write_log)
+            if self._downsample_mode is not None:
+                self.set_downsample_mode(self._downsample_mode)
+                if self._downsample_mode == 'internal':
+                    if self._downsample_factor is not None:
+                        self.set_downsample_factor(
+                            self._downsample_factor,
+                            write_log=write_log)
+                elif self._downsample_mode == 'external':
+                    if self._downsample_external_bitmask is not None:
+                        self.set_downsample_external_bitmask(
+                            self._downsample_external_bitmask)
 
             try:
                 ## Removed this because better error handling for cc
