@@ -14,6 +14,7 @@
 # contained in the LICENSE.txt file.
 #-----------------------------------------------------------------------------
 import os
+import subprocess
 
 import numpy as np
 from scipy.optimize import curve_fit
@@ -234,6 +235,46 @@ def utf8_to_str(d):
         The string associated with input d.
     """
     return ''.join([str(s, encoding='UTF-8') for s in d])
+
+def fix_tmux_display():
+    """Sync ``DISPLAY`` from the current tmux session.
+
+    Inside a tmux pane, ``$DISPLAY`` is the value captured when the tmux
+    session was first started. After detaching and reattaching from a
+    different SSH session, ``$DISPLAY`` in existing panes (and in any
+    Python process already running there) is stale, so interactive
+    matplotlib figures are routed to the original X display. This helper
+    queries ``tmux show-environment DISPLAY`` and updates
+    ``os.environ['DISPLAY']`` so subsequent ``plt.show()`` calls open on
+    the current SSH/X11 display. No-op outside tmux, when ``tmux`` is not
+    on ``PATH``, or when tmux has no ``DISPLAY`` recorded.
+
+    Returns
+    -------
+    str or None
+        New ``DISPLAY`` value if updated, otherwise ``None``.
+
+    Notes
+    -----
+    Addresses https://github.com/slaclab/pysmurf/issues/126 .
+    Equivalent shell-side remedy is to add
+    ``set-option -g update-environment " DISPLAY"`` to ``~/.tmux.conf``
+    so newly opened panes inherit the refreshed value.
+    """
+    if 'TMUX' not in os.environ:
+        return None
+    try:
+        out = subprocess.check_output(
+            ['tmux', 'show-environment', 'DISPLAY'],
+            stderr=subprocess.DEVNULL,
+        ).decode().strip()
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        return None
+    if not out.startswith('DISPLAY='):
+        return None
+    new_display = out.split('=', 1)[1]
+    os.environ['DISPLAY'] = new_display
+    return new_display
 
 def save_to_txt(path: str, data: np.ndarray, overwrite: bool = False, **kwargs):
     """
