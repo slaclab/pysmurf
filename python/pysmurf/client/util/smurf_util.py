@@ -37,6 +37,10 @@ try:
 except ImportError:
     CYTHON_AVAILABLE = False
 
+# Number of TES bias DACs encoded in each SMuRF stream header.
+# Firmware-defined: 40-byte tes_bias field = 16 x 20-bit signed values.
+N_TES_BIASES = 16
+
 class SmurfUtilMixin(SmurfBase):
 
     @set_action()
@@ -1262,7 +1266,7 @@ class SmurfUtilMixin(SmurfBase):
                         t = [header.timestamp]
                         if return_header or return_tes_bias:
                             tmp_tes_bias = np.array(header.tesBias)
-                            tes_bias = np.zeros((0,16))
+                            tes_bias = np.zeros((0, N_TES_BIASES))
 
                         # Get header values if requested
                         if return_header or return_tes_bias:
@@ -1306,11 +1310,11 @@ class SmurfUtilMixin(SmurfBase):
                                                  dtype=type(header_dict[k][0]))
                                 print(np.shape(tes_bias), np.shape(tmp_tes_bias))
                                 tes_bias = np.vstack((tes_bias, tmp_tes_bias))
-                                tmp_tes_bias = np.zeros((0, 16))
+                                tmp_tes_bias = np.zeros((0, N_TES_BIASES))
 
                             elif return_tes_bias:
                                 tes_bias = np.vstack((tes_bias, tmp_tes_bias))
-                                tmp_tes_bias = np.zeros((0, 16))
+                                tmp_tes_bias = np.zeros((0, N_TES_BIASES))
 
                         counter += 1
 
