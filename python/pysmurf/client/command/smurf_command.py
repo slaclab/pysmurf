@@ -1518,7 +1518,7 @@ class SmurfCommandMixin(SmurfBase):
         n_channels=self.get_number_channels(band)
         new_amp = np.zeros((n_channels,),dtype=np.uint)
         new_amp[np.where(old_amp!=0)] = tone_power
-        self.set_amplitude_scale_array(self, new_amp, **kwargs)
+        self.set_amplitude_scale_array(band, new_amp, **kwargs)
 
     _feedback_enable_array_reg = 'feedbackEnable'
 
