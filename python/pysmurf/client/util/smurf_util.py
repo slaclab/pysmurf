@@ -21,6 +21,7 @@ import time
 import re
 
 import matplotlib.pyplot as plt
+from matplotlib.gridspec import GridSpec
 import numpy as np
 from scipy import signal
 
@@ -4330,6 +4331,302 @@ class SmurfUtilMixin(SmurfBase):
 
         # Zero TES biases on this bias group
         self.set_tes_bias_bipolar(bias_group, 0)
+
+    def measure_tes_transfer(self, band, bias_group, probe_freq=None,
+            probe_amp=.002, n_cycle=5, min_probe_time=2,
+            overbias_tes=False, tes_bias=None,
+            overbias_wait=None, cool_wait=None, overbias_voltage=19.9,
+            analyze=True, high_current_mode=False, make_plot=False,
+            save_plot=True, show_plot=False):
+        """
+        Measure the TES bias-line transfer function by sweeping a sine
+        wave on the TES bias DAC and recording the SQUID phase response
+        at each probe frequency.
+
+        Plays a sine wave at each frequency in ``probe_freq`` on top of
+        the DC TES bias for the specified bias group, takes a stream of
+        data, and (optionally) hands the resulting datafiles to
+        :func:`analyze_measure_tes_transfer` to compute the response
+        amplitude vs. frequency.
+
+        Args
+        ----
+        band : int
+            The 500 MHz band to take data on.
+        bias_group : int
+            The TES bias group to drive with the sine wave.
+        probe_freq : float array or None, optional, default None
+            The probe frequencies in Hz. If None, defaults to
+            ``10**np.arange(0, 3, 0.5)`` (~1 Hz to ~316 Hz).
+        probe_amp : float, optional, default 0.002
+            The amplitude of the sine wave drive in TES bias volts.
+        n_cycle : int, optional, default 5
+            The minimum number of cycles of the probe tone to acquire
+            at each frequency.
+        min_probe_time : float, optional, default 2
+            Minimum probe time in seconds at each frequency. The actual
+            probe time is ``max(min_probe_time, n_cycle/probe_freq)``.
+        overbias_tes : bool, optional, default False
+            Whether to overbias the TES before the sweep.
+        tes_bias : float or None, optional, default None
+            The DC TES bias to apply, in volts. Required if
+            ``overbias_tes`` is True.
+        overbias_wait : float or None, optional, default None
+            The time to stay in high current mode during overbiasing,
+            in seconds. Required if ``overbias_tes`` is True.
+        cool_wait : float or None, optional, default None
+            The time to wait after dropping back to low current mode,
+            in seconds. Required if ``overbias_tes`` is True.
+        overbias_voltage : float, optional, default 19.9
+            The TES bias to apply during the high-current overbias step,
+            in volts.
+        analyze : bool, optional, default True
+            Whether to run :func:`analyze_measure_tes_transfer` on the
+            acquired data and return the amplitude array.
+        high_current_mode : bool, optional, default False
+            Whether to drive the TES bias in high current mode.
+        make_plot : bool, optional, default False
+            Whether to make per-channel diagnostic plots in the analyze
+            step.
+        save_plot : bool, optional, default True
+            Whether to save the plots to ``self.plot_dir``.
+        show_plot : bool, optional, default False
+            Whether to display the plots interactively.
+
+        Returns
+        -------
+        amp : numpy.ndarray
+            If ``analyze`` is True: the response amplitude in pA, shape
+            ``(n_freq, n_det)``.
+        datafile : numpy.ndarray
+            If ``analyze`` is False: the array of stream-data filenames,
+            one per probe frequency.
+        """
+        f, sb, ch, bg = self.get_master_assignment(band)
+
+        timestamp = self.get_timestamp()
+
+        # Default probe frequency
+        if probe_freq is None:
+            probe_freq = 10**np.arange(0, 3, .5)
+
+        # Overbias the TES
+        if overbias_tes:
+            if tes_bias is None:
+                raise ValueError('Must supply tes_bias')
+            elif overbias_wait is None:
+                raise ValueError('Must supply overbias_wait')
+            else:
+                self.overbias_tes_all(bias_groups=np.array([bias_group]),
+                    overbias_voltage=overbias_voltage, tes_bias=tes_bias,
+                    overbias_wait=overbias_wait, cool_wait=cool_wait,
+                    high_current_mode=high_current_mode)
+        else:
+            if high_current_mode:
+                self.set_tes_bias_high_current(bias_group)
+            else:
+                self.set_tes_bias_low_current(bias_group)
+
+        # Read back the actual DC TES bias voltage
+        tes_bias = self.get_tes_bias_bipolar(bias_group)
+
+        # Loop over probe frequencies and take data
+        datafile = np.array([], dtype='str')
+        for pf in probe_freq:
+            self.log(f'Playing tone at {pf} Hz')
+
+            # Play the TES tone on top of the DC bias
+            self.play_sine_tes(bias_group, probe_amp, pf, dc_amp=tes_bias)
+            probe_time = np.max([min_probe_time, n_cycle/pf])
+
+            # Take data; skip the freq mask for speed
+            df = self.take_stream_data(probe_time, make_freq_mask=False)
+            datafile = np.append(datafile, df)
+
+            # Turn off the tone before stepping to the next frequency
+            self.stop_tes_bipolar_waveform(bias_group)
+
+        if analyze:
+            # Sample frequency in Hz
+            fs = self.get_flux_ramp_freq() * 1.0E3 / self.get_downsample_factor()
+
+            amp = self.analyze_measure_tes_transfer(datafile, probe_freq,
+                probe_amp, band=band, bias_group=bias_group,
+                channel=ch[bg == bias_group],
+                high_current_mode=high_current_mode,
+                fs=fs, make_plot=make_plot, save_plot=save_plot,
+                show_plot=show_plot, timestamp=timestamp, tes_bias=tes_bias)
+
+            return amp
+
+        return datafile
+
+    def analyze_measure_tes_transfer(self, datafile, probe_freq,
+            probe_amp, band=None, bias_group=None, channel=None, fs=None,
+            high_current_mode=False, tes_bias=None, make_plot=False,
+            save_plot=True, show_plot=False, timestamp=None):
+        """
+        Analyze the data acquired by :func:`measure_tes_transfer`.
+
+        For each probe frequency, the corresponding stream-data file is
+        loaded, converted from phase to pA via ``_pA_per_phi0``,
+        mean-subtracted, and decomposed into sine and cosine templates
+        at the probe frequency. The response amplitude is the quadrature
+        sum of those two coefficients.
+
+        Args
+        ----
+        datafile : array-like of str
+            One stream-data filename per probe frequency, as returned
+            by :func:`measure_tes_transfer` with ``analyze=False``.
+        probe_freq : float array
+            The probe frequencies in Hz that were used to acquire
+            ``datafile``.
+        probe_amp : float
+            The amplitude of the sine wave drive in TES bias volts.
+            Used to compute the bias-line input current for the
+            normalized transfer function plot.
+        band : int or None, optional, default None
+            The 500 MHz band the channels live on. Required for
+            indexing into the channel mask.
+        bias_group : int or None, optional, default None
+            The TES bias group that was driven. Used as a label in
+            the plots and saved-file names.
+        channel : int array or None, optional, default None
+            The channels to analyze. If None, uses
+            ``self.which_on(band)``.
+        fs : float or None, optional, default None
+            The sample frequency in Hz. If None, derived from the
+            current flux ramp frequency and downsample factor.
+        high_current_mode : bool, optional, default False
+            Whether the data was taken in high current mode. Sets the
+            effective bias-line resistance for normalization.
+        tes_bias : float or None, optional, default None
+            The DC TES bias in volts. Used only as a label in the
+            plot annotation.
+        make_plot : bool, optional, default False
+            Whether to make per-channel diagnostic plots.
+        save_plot : bool, optional, default True
+            Whether to save the plots to ``self.plot_dir``.
+        show_plot : bool, optional, default False
+            Whether to display the plots interactively.
+        timestamp : str or None, optional, default None
+            Timestamp string used in the figure title and filename.
+            If None, the current timestamp is used.
+
+        Returns
+        -------
+        amp : numpy.ndarray
+            The response amplitude in pA, shape ``(n_freq, n_det)``.
+        """
+        if fs is None:
+            fs = self.get_flux_ramp_freq() * 1.0E3 / self.get_downsample_factor()
+
+        if channel is None:
+            channel = self.which_on(band)
+        n_det = len(channel)
+        n_freq = len(probe_freq)
+
+        if timestamp is None:
+            timestamp = self.get_timestamp()
+
+        if show_plot:
+            plt.ion()
+        else:
+            plt.ioff()
+
+        # Effective bias-line resistance and bias-line input current in pA
+        if high_current_mode:
+            r_inline = self.bias_line_resistance / self.high_low_current_ratio
+        else:
+            r_inline = self.bias_line_resistance
+        i_bias = probe_amp / r_inline * 1.0E12
+
+        sa = np.zeros((n_freq, n_det))
+        ca = np.zeros((n_freq, n_det))
+        dd = {}
+        mask = {}
+        for i, pf in enumerate(probe_freq):
+            # Load data and convert phase to pA, then mean-subtract
+            _, d, m = self.read_stream_data(datafile[i])
+            d *= (self._pA_per_phi0/2/np.pi)
+            d = np.transpose(d.T - np.mean(d.T, axis=0))
+
+            _, n_samp = np.shape(d)
+
+            # Sine/cosine decomposition templates at the probe frequency
+            s = np.sin(2*np.pi*np.arange(n_samp) / fs * pf)
+            c = np.cos(2*np.pi*np.arange(n_samp) / fs * pf)
+            s /= np.sum(s**2)
+            c /= np.sum(c**2)
+
+            for j, c_ch in enumerate(channel):
+                idx = m[band, c_ch]
+                sa[i, j] = np.dot(d[idx], s)
+                ca[i, j] = np.dot(d[idx], c)
+
+            # Stash the timestreams if making plots
+            if make_plot:
+                dd[i] = d
+                mask[i] = m
+
+        amp = np.sqrt(sa**2 + ca**2)
+        norm_amp = amp/i_bias
+
+        if make_plot:
+            bbox = dict(boxstyle="round", ec='w', fc='w', alpha=.65)
+            ax = {}
+            for j, c_ch in enumerate(channel):
+                fig = plt.figure(figsize=(9, 5.5))
+                gs = GridSpec(n_freq, 2, width_ratios=[2, 1])
+
+                # Time-series subplot per probe frequency
+                for i, pf in enumerate(probe_freq):
+                    ax[i] = plt.subplot(gs[i, 0])
+                    if i > 0:
+                        ax[i].get_shared_x_axes().join(ax[i], ax[i-1])
+
+                    idx = mask[i][band, c_ch]
+
+                    tt = np.arange(len(dd[i][idx])) / fs
+                    ax[i].plot(tt, dd[i][idx])
+                    ax[i].text(.98, .96, f'{pf:0.2f} Hz',
+                        transform=ax[i].transAxes,
+                        va='top', ha='right', bbox=bbox)
+
+                    if i < len(probe_freq) - 1:
+                        ax[i].axes.xaxis.set_ticklabels([])
+
+                ax[len(probe_freq)-1].set_xlabel('Time [s]')
+
+                # Summary amplitude vs. probe-frequency subplot
+                axsm = plt.subplot(gs[:, 1])
+                axsm.semilogx(probe_freq, norm_amp[:, j], '.')
+                axsm.set_ylabel(r'$dI_{TES}/dI_{b}$')
+                axsm.set_xlabel('Probe Freq [Hz]')
+
+                text = ''
+                text += r'$f_{s}$: ' + f'{fs:0.1f}' + '\n'
+                if tes_bias is not None:
+                    text += r'$I_b$: ' + f'{tes_bias:1.2f}' + '\n'
+                text += f'high bias: {high_current_mode}\n'
+                axsm.text(.02, .02, text, transform=axsm.transAxes,
+                    va='bottom', ha='left', bbox=bbox)
+
+                fig.suptitle(f'{timestamp} b{band}ch{c_ch:03} BG{bias_group}')
+                fig.tight_layout(rect=[0, 0.03, 1, 0.95])
+
+                if save_plot:
+                    savename = (f'{timestamp}_tes_transfer_b{band}'
+                        f'ch{c_ch:03}bg{bias_group}.png')
+                    plt.savefig(os.path.join(self.plot_dir, savename))
+
+                if show_plot:
+                    plt.show()
+                else:
+                    plt.close()
+
+        return amp
 
     @set_action()
     def get_sample_frequency(self):
