@@ -561,6 +561,22 @@ class SmurfControl(SmurfCommandMixin,
                     band, self._lms_gain[band],
                     write_log=write_log, **kwargs)
 
+                # Optional DSP scale overrides (issue #67).  When
+                # omitted from the cfg, leave whatever value
+                # defaults.yml programmed in place.
+                if self._tone_scale[band] is not None:
+                    self.set_tone_scale(
+                        band, self._tone_scale[band],
+                        write_log=write_log, **kwargs)
+                if self._analysis_scale[band] is not None:
+                    self.set_analysis_scale(
+                        band, self._analysis_scale[band],
+                        write_log=write_log, **kwargs)
+                if self._synthesis_scale[band] is not None:
+                    self.set_synthesis_scale(
+                        band, self._synthesis_scale[band],
+                        write_log=write_log, **kwargs)
+
                 self.set_trigger_reset_delay(
                     band, self._trigger_reset_delay[band],
                     write_log=write_log, **kwargs)
