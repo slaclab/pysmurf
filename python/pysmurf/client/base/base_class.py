@@ -83,6 +83,10 @@ class SmurfBase:
 
         # Set up logging
         self.log = log
+        # Track whether caller explicitly supplied a logger or logfile path.
+        # Subclasses (e.g., SmurfControl) consult this to avoid overriding
+        # user-supplied log destinations. See pysmurf issue #188.
+        self._log_user_supplied = (log is not None) or ('logfile' in kwargs)
         if self.log is None:
             self.log = self.init_log(**kwargs)
         else:
