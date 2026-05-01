@@ -196,7 +196,14 @@ start_slot_tmux_serial () {
 
 run_pysmurf_setup () {
     slot_number=$1
-    tmux send-keys -t ${tmux_session_name}:${slot_number} 'S.setup()' C-m
+    # If enable_amp_drain=true is set in the startup cfg, ask pysmurf to
+    # bring up the 50K/HEMT drain voltages as part of setup.
+    if [ "$enable_amp_drain" = true ] ; then
+	setup_call='S.setup(enable_amp_drain=True)'
+    else
+	setup_call='S.setup()'
+    fi
+    tmux send-keys -t ${tmux_session_name}:${slot_number} "${setup_call}" C-m
 }
 
 is_slot_pysmurf_setup_complete() {
@@ -219,9 +226,17 @@ is_slot_pysmurf_setup_complete() {
 config_pysmurf_serial () {
     slot_number=$1
     pysmurf_docker=$2
-    
-    tmux send-keys -t ${tmux_session_name}:${slot_number} 'S.setup()' C-m    
-    
+
+    # If enable_amp_drain=true is set in the startup cfg, ask pysmurf to
+    # bring up the 50K/HEMT drain voltages as part of setup.
+    if [ "$enable_amp_drain" = true ] ; then
+	setup_call='S.setup(enable_amp_drain=True)'
+    else
+	setup_call='S.setup()'
+    fi
+
+    tmux send-keys -t ${tmux_session_name}:${slot_number} "${setup_call}" C-m
+
     # wait for setup to complete
     echo "-> Waiting for carrier setup (watching pysmurf docker ${pysmurf_docker})"
 
@@ -236,12 +251,12 @@ config_pysmurf_serial () {
 	echo '-> Carrier failed to configure.  Attach using `tmux a` to view errors.'
 	exit 1
     fi
-    
+
     echo "-> Carrier is configured."
-    
+
     if [ "$double_setup" = true ] ; then
-	sleep 2    
-	tmux send-keys -t ${tmux_session_name}:${slot_number} 'S.setup()' C-m    
+	sleep 2
+	tmux send-keys -t ${tmux_session_name}:${slot_number} "${setup_call}" C-m
 	sleep 5
 	
 	# wait for setup to complete

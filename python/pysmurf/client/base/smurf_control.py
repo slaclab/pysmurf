@@ -314,7 +314,8 @@ class SmurfControl(SmurfCommandMixin,
         # initialize outputs cfg
         self.config.update('outputs', {})
 
-    def setup(self, write_log=True, payload_size=2048, force_configure=False, **kwargs):
+    def setup(self, write_log=True, payload_size=2048, force_configure=False,
+              enable_amp_drain=False, **kwargs):
         r"""Configures SMuRF system.
 
         Sets up the SMuRF system by first loading hardware register
@@ -339,7 +340,9 @@ class SmurfControl(SmurfCommandMixin,
           configuration file.
         - Enables data streaming.
         - Sets mask and payload size to a single channel.
-        - Sets RF amplifier biases (without enabling drain voltages).
+        - Sets RF amplifier biases.  By default the drain voltages are
+          left disabled; pass ``enable_amp_drain=True`` to also enable
+          the 50K and HEMT drain voltages from the cfg defaults.
         - Configures timing based on pysmurf configuration file settings.
         - Resumes hardware logging if it was active at beginning.
 
@@ -366,6 +369,14 @@ class SmurfControl(SmurfCommandMixin,
             Whether or not to force configure if system has already
             been configured once by the currently running Rogue
             server.
+        enable_amp_drain : bool, optional, default False
+            If True, also enable the cryocard amplifier drain
+            voltages after setting the gate defaults.  For C02 this
+            enables the HEMT and 50K drain power supplies; for C04
+            this sets each amp's drain voltage to its
+            ``drain_volt_default`` from the cfg file (which
+            automatically enables the LDO).  If False (default), the
+            drains are left disabled and must be enabled manually.
         \**kwargs
             Arbitrary keyword arguments.  Passed to many, but not all,
             of the `_caput` calls.
@@ -673,7 +684,9 @@ class SmurfControl(SmurfCommandMixin,
 
                 # If C02, set the gate voltages to the default.
                 # If C04, also set the drain voltages to zero.
-                self.set_amp_defaults()
+                # If enable_amp_drain=True, also bring the drain
+                # voltages up from the cfg defaults.
+                self.set_amp_defaults(enable_drain=enable_amp_drain)
             except Exception:
                 self.log("Attempts to communicate with a cryocard "
                          "failed!  Will assume no cryostat card is"
