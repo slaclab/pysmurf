@@ -4619,7 +4619,7 @@ class SmurfCommandMixin(SmurfBase):
 
         return amp_gate_currents
 
-    def set_amp_defaults(self):
+    def set_amp_defaults(self, enable_drain=False):
         """The pysmurf cfg file specifies the default power state, default
         gate voltage for the C02 amplifiers HEMT and 50K. Additionally
         it specifies the default drain voltage for the C04 hemt1,
@@ -4634,6 +4634,16 @@ class SmurfCommandMixin(SmurfBase):
         the current register reports that they are supposedly enabled,
         0x2.
 
+        Args
+        ----
+        enable_drain : bool, optional, default False
+            If True, also enable the amplifier drain voltages after
+            setting the gate defaults.  For C02, this enables the
+            HEMT and 50K drain power supplies.  For C04, this sets
+            each amp's drain voltage to its ``drain_volt_default``
+            from the cfg file (which automatically enables the LDO).
+            If False (default), drains are left disabled and the
+            user must enable them manually.
         """
         major, minor, patch = self.C.get_fw_version()
 
@@ -4647,6 +4657,10 @@ class SmurfCommandMixin(SmurfBase):
             volt = self.config.get('amplifier')['hemt_Vg']
             self.set_amp_gate_voltage('hemt', volt)
 
+            if enable_drain:
+                for amp in self.C.list_of_c02_amps:
+                    self.set_amp_drain_enable(amp, True)
+
         if major == 4:
             for amp in self.C.list_of_c04_amps:
 
@@ -4654,6 +4668,11 @@ class SmurfCommandMixin(SmurfBase):
 
                 gate_volt_default = self.config.config['amplifier'][amp]['gate_volt_default']
                 self.set_amp_gate_voltage(amp, gate_volt_default)
+
+            if enable_drain:
+                for amp in self.C.list_of_c04_amps:
+                    drain_volt_default = self.config.config['amplifier'][amp]['drain_volt_default']
+                    self.set_amp_drain_voltage(amp, drain_volt_default)
 
     def get_amplifier_biases(self):
         """For the C00, C01 and C02, return dictionary of all gate voltages,
