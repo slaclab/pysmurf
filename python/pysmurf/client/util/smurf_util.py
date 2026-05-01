@@ -1093,6 +1093,17 @@ class SmurfUtilMixin(SmurfBase):
                     os.path.join(data_filename.replace('.dat', '_freq.txt')),
                     'mask', format='txt')
 
+            # Record the loaded tune file alongside the data so users can
+            # identify which tune was in use without relying on last_tune()
+            # (which is wrong if a previous tune was load_tune()'d). See #52.
+            tune_fname = data_filename.replace('.dat', '_tune.txt')
+            tune_path = getattr(self, 'tune_file', None)
+            with open(tune_fname, 'w') as f:
+                f.write(f'{tune_path}\n')
+            self.pub.register_file(tune_fname, 'tune_link', format='txt')
+            if write_log:
+                self.log(f'Tune file in use: {tune_path}', self.LOG_USER)
+
             if make_datafile:
                 self.open_data_file(write_log=write_log)
 
