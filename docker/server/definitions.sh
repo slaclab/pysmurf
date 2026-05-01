@@ -51,7 +51,9 @@ FW_SYSTEMS=(
     # as an absolute path (e.g. /tmp/rogue_MicrowaveMuxZcu208_v3.2.0.zip) and will be copied from
     # disk instead of downloaded. Otherwise give just the filename and it will be fetched from the
     # GitHub release assets.
-    "rfsoc|https://github.com/slaclab/zcu208-cryo-det|v3.2.0|MicrowaveMuxZcu208_BaseBand-0x03020000-20260408094535-ruckman-66895bd.linux.tar.gz|/home/cryo/rogue_MicrowaveMuxZcu208_v3.2.0.zip"
+    "rfsoc|https://github.com/slaclab/zcu208-cryo-det|MicrowaveMuxZcu208_v3.2.1|MicrowaveMuxZcu208_BaseBand-0x03020000-20260408094535-ruckman-66895bd.linux.tar.gz|rogue_MicrowaveMuxZcu208_v3.2.1.zip"
+    # Pre-Spectra
+    "rfsoc|https://github.com/slaclab/zcu208-cryo-det-pre-spectra|MicrowaveMuxZcu208_PreSpectra_v2.1.1|MicrowaveMuxZcu208_PreSpectra-0x02010000-20260416123535-ruckman-7d4fca8.linux.tar.gz|rogue_MicrowaveMuxZcu208_PreSpectra_v2.1.1.zip"
 
     # Add additional systems below, one per line:
     # "mysystem|https://github.com/slaclab/my-repo|v1.2.3|MyFirmware-0x01020300-date-hash.mcs"
