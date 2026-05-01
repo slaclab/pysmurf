@@ -52,7 +52,11 @@ class SmurfUtilMixin(SmurfBase):
         channel : int or None, optional, default None
             The channel to take debug data on in single_channel_mode.
         nsamp : int, optional, default 2**19
-            The number of samples to take.
+            The number of samples to take. Must not exceed the
+            per-engine BSA waveform buffer size, which is determined
+            at runtime from the firmware's ``StartAddr[0]`` and
+            ``StartAddr[1]`` registers (4 bytes per sample). A
+            ``ValueError`` is raised if this limit is exceeded.
         filename : str or None, optional, default None
             The name of the file to save to.
         IQstream : int, optional, default 1
@@ -74,6 +78,13 @@ class SmurfUtilMixin(SmurfBase):
             The frequency error.
         sync : float array
             The sync count.
+
+        Raises
+        ------
+        ValueError
+            If ``nsamp`` exceeds the per-engine BSA waveform buffer
+            size determined from the firmware's start-address
+            registers.
 
         """
         # Set proper single channel readout
@@ -117,6 +128,27 @@ class SmurfUtilMixin(SmurfBase):
 
         dtype = 'debug'
         dchannel = 0 # I don't really know what this means and I'm sorry -CY
+
+        # Bounds-check nsamp against the per-engine BSA waveform region.
+        # The two BSA waveform engines are placed back-to-back in DDR;
+        # engine 0's region runs from StartAddr[0] to StartAddr[1] (4
+        # bytes per sample). Writing more samples than fit overflows
+        # engine 0 into engine 1's region and crashes firmware. See
+        # pysmurf issue #127.
+        bay = self.band_to_bay(band)
+        start0 = self.get_waveform_start_addr(bay, 0, convert=True,
+            write_log=write_log)
+        start1 = self.get_waveform_start_addr(bay, 1, convert=True,
+            write_log=write_log)
+        max_nsamp = (start1 - start0) // 4
+        if nsamp > max_nsamp:
+            msg = (f'Requested nsamp={nsamp} exceeds the per-engine BSA '
+                f'waveform buffer limit of {max_nsamp} samples for bay '
+                f'{bay} (StartAddr[0]=0x{start0:x}, '
+                f'StartAddr[1]=0x{start1:x}).')
+            self.log(msg, self.LOG_ERROR)
+            raise ValueError(msg)
+
         self.setup_daq_mux(dtype, dchannel, nsamp, band=band, debug=debug)
         self.log('Data acquisition in progress...', self.LOG_USER)
 
@@ -125,7 +157,6 @@ class SmurfUtilMixin(SmurfBase):
         #self.set_streamdatawriter_open('True') # str and not bool
         self.set_streamdatawriter_open(True)
 
-        bay=self.band_to_bay(band)
         self.set_trigger_daq(bay, 1, write_log=True) # this seems to = TriggerDM
 
         time.sleep(.1) # maybe unnecessary
