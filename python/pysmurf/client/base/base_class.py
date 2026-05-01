@@ -54,6 +54,14 @@ class SmurfBase:
     script_id : str or None, optional, default None
         Script id included with publisher messages. For example,
         the script or operation name.
+    batch_mode : bool, optional, default False
+        Foolproof non-interactive plotting mode (issue #51). When
+        True, switches the matplotlib backend to ``Agg`` and turns
+        off interactive mode, so plots will never pop up regardless
+        of any per-call ``show_plot`` argument or ambient
+        ``plt.ion()`` state. ``save_plot=True`` continues to work
+        for writing PNGs to disk. Once switched to Agg the backend
+        cannot be switched back without restarting Python.
     """
 
     _base_args = ['verbose', 'logfile', 'log_timestamp', 'log_prefix',
@@ -77,7 +85,8 @@ class SmurfBase:
     """
 
     def __init__(self, log=None, server_addr="localhost", server_port=9000, atca_port=9100,
-                 atca_monitor=False, offline=False, pub_root=None, script_id=None, **kwargs):
+                 atca_monitor=False, offline=False, pub_root=None, script_id=None,
+                 batch_mode=False, **kwargs):
         """
         """
 
@@ -89,6 +98,12 @@ class SmurfBase:
             verb = kwargs.pop('verbose', None)
             if verb is not None:
                 self.set_verbose(verb)
+
+        # Foolproof non-interactive plotting (issue #51).  Apply the
+        # backend switch before any pysmurf method has a chance to
+        # create a figure.
+        self._batch_mode = False
+        self.set_batch_mode(batch_mode)
 
         self._server_addr = server_addr
         self._server_port = server_port
@@ -247,6 +262,39 @@ class SmurfBase:
 
         # LUT table length for arbitrary waveform generation
         self._lut_table_array_length = 2048
+
+    def set_batch_mode(self, value):
+        """Enable or disable foolproof non-interactive plotting (issue #51).
+
+        When enabled, switches the matplotlib backend to ``Agg`` and
+        disables interactive mode.  ``plt.show()`` becomes a no-op
+        and figures cannot be displayed by any pysmurf routine,
+        regardless of any per-call ``show_plot`` argument.
+        ``save_plot=True`` continues to work for writing PNGs.
+
+        Note
+        ----
+        Switching to ``Agg`` is one-way for the life of the Python
+        process.  ``set_batch_mode(False)`` clears the flag but does
+        not restore a GUI backend.  Restart Python without
+        ``batch_mode=True`` to re-enable interactive plotting.
+
+        Args
+        ----
+        value : bool
+            True to enable batch mode, False to disable the flag.
+        """
+        value = bool(value)
+        self._batch_mode = value
+        if value:
+            import matplotlib.pyplot as plt
+            plt.switch_backend('Agg')
+            plt.ioff()
+            plt.close('all')
+
+    def get_batch_mode(self):
+        """Return True if batch_mode is enabled (no interactive plots)."""
+        return self._batch_mode
 
     def init_log(self, verbose=0, logger=SmurfLogger, logfile=None,
                  log_timestamp=True, log_prefix=None, **kwargs):

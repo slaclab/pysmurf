@@ -72,6 +72,13 @@ class SmurfControl(SmurfCommandMixin,
        Whether to make a skip making a directory.
     validate_config : bool, optional, default True
        Whether to check if the input config file is correct.
+    batch_mode : bool, optional, default False
+       Foolproof non-interactive plotting mode (issue #51).  When
+       True, switches the matplotlib backend to ``Agg`` and turns
+       off interactive mode, so plots will never pop up regardless
+       of any per-call ``show_plot`` argument.  ``save_plot=True``
+       continues to work for writing PNGs to disk.  May also be
+       toggled later via ``set_batch_mode``.
 
     Attributes
     ----------
@@ -93,7 +100,7 @@ class SmurfControl(SmurfCommandMixin,
     def __init__(self, cfg_file=None, data_dir=None, name=None, make_logfile=True,
                  setup=False, offline=False, smurf_cmd_mode=False,
                  shelf_manager='shm-smrf-sp01', no_dir=False, validate_config=True,
-                 data_path_id=None, **kwargs):
+                 data_path_id=None, batch_mode=False, **kwargs):
         """Constructor for the SmurfControl class.
 
         See the SmurfControl class docstring for more details.
@@ -124,7 +131,7 @@ class SmurfControl(SmurfCommandMixin,
         # Save shelf manager - Should this be in the config?
         self.shelf_manager = shelf_manager
 
-        super().__init__(offline=offline, **kwargs)
+        super().__init__(offline=offline, batch_mode=batch_mode, **kwargs)
 
         if cfg_file is not None or data_dir is not None:
             self.initialize(data_dir=data_dir,
