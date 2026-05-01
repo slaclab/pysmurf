@@ -26,6 +26,10 @@ cnp.import_array()
 cdef int SMURF_HEADER_SIZE = 128
 cdef int ROGUE_HEADER_SIZE = 8
 
+# Number of TES bias DACs encoded in each SMuRF stream header.
+# Firmware-defined: 40-byte tes_bias field = 16 x 20-bit signed values.
+cdef int N_TES_BIASES = 16
+
 # SMuRF Header as NumPy structured dtype
 SMURF_HEADER_DTYPE = np.dtype([
     ('protocol_version', np.uint8),       # Offset 0
@@ -384,10 +388,10 @@ def read_stream_data_cython(str datafile, channel=None, bint IQ_mode=False, bint
 
 def parse_tes_bias_from_headers(headers):
     """
-    Extract TES bias data from headers and parse into 16 TES bias values.
+    Extract TES bias data from headers and parse into N_TES_BIASES TES bias values.
 
-    The tes_bias field contains 40 bytes encoding 16 TES bias values as 20-bit
-    signed integers. Each pair of values fits in 5 bytes:
+    The tes_bias field contains 40 bytes encoding N_TES_BIASES TES bias values as
+    20-bit signed integers. Each pair of values fits in 5 bytes:
     - Even index (0, 2, 4, ...): bytes 0-2, lower 20 bits
     - Odd index (1, 3, 5, ...): bytes 2-4, upper 20 bits (shifted right 4)
 
@@ -398,12 +402,12 @@ def parse_tes_bias_from_headers(headers):
 
     Returns
     -------
-    tes_bias_array : ndarray (int32, shape=[16, n_headers])
-        Parsed TES bias values, 16 values per header
+    tes_bias_array : ndarray (int32, shape=[N_TES_BIASES, n_headers])
+        Parsed TES bias values, N_TES_BIASES values per header
     """
     cdef int n_headers = len(headers)
     cdef int i, j, b
-    cdef cnp.ndarray[cnp.int32_t, ndim=2] tes_bias_array = np.empty((16, n_headers), dtype=np.int32)
+    cdef cnp.ndarray[cnp.int32_t, ndim=2] tes_bias_array = np.empty((N_TES_BIASES, n_headers), dtype=np.int32)
     cdef cnp.ndarray[cnp.uint8_t, ndim=1] raw_bytes
     cdef uint32_t tmp
 
@@ -411,8 +415,8 @@ def parse_tes_bias_from_headers(headers):
     for j in range(n_headers):
         raw_bytes = headers['tes_bias'][j]
 
-        # Parse 16 TES bias values from 40 bytes
-        for i in range(16):
+        # Parse N_TES_BIASES TES bias values from 40 bytes
+        for i in range(N_TES_BIASES):
             b = i // 2  # Which 5-byte group (0-7)
 
             # 2 TES values fit in 5 bytes
