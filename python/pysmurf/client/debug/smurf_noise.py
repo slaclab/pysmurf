@@ -68,7 +68,11 @@ class SmurfNoiseMixin(SmurfBase):
         make_summary_plot : bool, optional, default True
             Whether to make the summary plots.
         save_data : bool, optional, default False
-            Whether to save the band averaged data as a text file.
+            Whether to save the per-channel summary as a text file. The
+            file has one row per channel and five columns:
+            ``res_freq[MHz]``, ``noise_floor[pA/rtHz]``, ``f_knee[Hz]``,
+            ``wl[pA/rtHz]``, ``n``. Channels for which the noise-model
+            fit was rejected are NaN in the fitted columns.
         show_plot : bool, optional, default False
             Show the plot on the screen.
         datafile : str or None, optional, default None
@@ -140,6 +144,8 @@ class SmurfNoiseMixin(SmurfBase):
         noise_floors = np.full((len(low_freq), n_channel), np.nan)
         f_knees = np.full(n_channel,np.nan)
         res_freqs = np.full(n_channel,np.nan)
+        wls = np.full(n_channel,np.nan)
+        ns = np.full(n_channel,np.nan)
 
         wl_list = []
         f_knee_list = []
@@ -172,6 +178,8 @@ class SmurfNoiseMixin(SmurfBase):
                     f_knee_list.append(f_knee)
                     f_knees[c]=f_knee
                     n_list.append(n)
+                    wls[c]=wl
+                    ns[c]=n
                     good_fit = True
                 if write_log:
                     self.log(f'{c+1}. b{b}ch{ch:03}:' +
@@ -256,7 +264,11 @@ class SmurfNoiseMixin(SmurfBase):
                 # outfn = os.path.join(self.plot_dir, save_name)
                 outfn = os.path.join(self.output_dir, save_name)
 
-                tools.save_to_txt(outfn, np.c_[res_freqs, noise_floors[i], f_knees])
+                tools.save_to_txt(
+                    outfn,
+                    np.c_[res_freqs, noise_floors[i], f_knees, wls, ns],
+                    header=('res_freq[MHz]  noise_floor[pA/rtHz]  '
+                            'f_knee[Hz]  wl[pA/rtHz]  n'))
                 # Publish the data
                 self.pub.register_file(outfn, 'noise_timestream', format='txt')
 
