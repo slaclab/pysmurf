@@ -2146,6 +2146,81 @@ class SmurfUtilMixin(SmurfBase):
         self.set_amplitude_scale_channel(band, channel, 0, **kwargs)
         self.set_feedback_enable_channel(band, channel, 0, **kwargs)
 
+    @set_action()
+    def keep_channels_subset(self, band, subbands=None, freq_min_mhz=None,
+                             freq_max_mhz=None, channels_to_keep=None,
+                             **kwargs):
+        """
+        Drops on-channels in a band to the subset matching all supplied
+        criteria. Channels currently on (per :func:`which_on`) that fail
+        any supplied filter are disabled with :func:`channel_off`. With
+        no filters supplied, this is a no-op.
+
+        Filters combine with logical AND. See
+        :func:`turn_off_noisy_channels` and :func:`check_lock` for
+        related criterion-based disable helpers.
+
+        Args
+        ----
+        band : int
+            The band whose on-channels to filter.
+        subbands : iterable of int, optional, default None
+            Keep only on-channels whose subband is in this iterable.
+            Example: ``range(13, 16)`` for subbands 13-15.
+        freq_min_mhz : float, optional, default None
+            Keep only on-channels with resonator frequency >= this
+            value, in MHz.
+        freq_max_mhz : float, optional, default None
+            Keep only on-channels with resonator frequency <= this
+            value, in MHz.
+        channels_to_keep : iterable of int, optional, default None
+            Explicit channel allow-list. Useful for passing the
+            surviving channels of an external analysis (e.g. the
+            TES-like channels identified from :func:`analyze_iv`).
+
+        Returns
+        -------
+        dropped : np.ndarray
+            Channels that were turned off.
+        """
+        on_channels = self.which_on(band)
+        if (subbands is None and freq_min_mhz is None and
+                freq_max_mhz is None and channels_to_keep is None):
+            return np.array([], dtype=int)
+
+        keep = np.ones(len(on_channels), dtype=bool)
+
+        if subbands is not None:
+            subbands_set = {int(s) for s in subbands}
+            ch_subbands = np.array([
+                self.get_subband_from_channel(band, int(ch))
+                for ch in on_channels
+            ])
+            keep &= np.array([sb in subbands_set for sb in ch_subbands])
+
+        if freq_min_mhz is not None or freq_max_mhz is not None:
+            freqs = self.channel_to_freq(band)
+            if freq_min_mhz is not None:
+                keep &= (freqs >= freq_min_mhz)
+            if freq_max_mhz is not None:
+                keep &= (freqs <= freq_max_mhz)
+
+        if channels_to_keep is not None:
+            allow = {int(c) for c in channels_to_keep}
+            keep &= np.array([int(ch) in allow for ch in on_channels])
+
+        dropped = on_channels[~keep]
+        for ch in dropped:
+            self.channel_off(band, int(ch), **kwargs)
+
+        self.log(
+            f'keep_channels_subset(band={band}): kept '
+            f'{int(keep.sum())} of {len(on_channels)} channels, '
+            f'dropped {len(dropped)}.',
+            self.LOG_USER,
+        )
+        return dropped
+
 
     def set_feedback_limit_khz(self, band, feedback_limit_khz, **kwargs):
         """
