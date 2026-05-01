@@ -2050,6 +2050,317 @@ class SmurfNoiseMixin(SmurfBase):
         return ff, pxx
 
 
+    def take_offline_demod(self, band, channel, order=3, make_plot=True,
+            show_plot=False, save_plot=True, make_debug_plot=False,
+            nsamp=2**23, single_channel_readout=2, gain=1./32,
+            nperseg=2**15, feedback_start_frac=.25, feedback_end_frac=.98,
+            return_alpha_mat=False, mask_samples_psd=2500):
+        """
+        Capture a single-channel timestream with firmware tracking
+        disabled and demodulate the flux ramp in Python.
+
+        This is the entry point for offline demodulation of non-tracking
+        flux-ramp (FR) data: it temporarily disables firmware feedback
+        on the requested band, runs ``take_debug_data`` to capture a
+        raw frequency-vs-time stream while the flux ramp is running,
+        restores the previous feedback state, and delegates the
+        demodulation to ``offline_demod``. The flux ramp must already
+        be running (e.g. via a prior ``flux_ramp_setup`` /
+        ``tracking_setup``) and ``lms_freq_hz`` must be programmed.
+
+        Args
+        ----
+        band : int
+            The 500 MHz band number.
+        channel : int
+            The channel in the 500 MHz band to demodulate.
+        order : int, optional, default 3
+            Number of harmonics of ``lms_freq_hz`` to fit.
+        make_plot : bool, optional, default True
+            Whether to make the diagnostic plot.
+        show_plot : bool, optional, default False
+            Whether to show the plot.
+        save_plot : bool, optional, default True
+            Whether to save the plot to ``plot_dir``.
+        make_debug_plot : bool, optional, default False
+            Whether to save a flux-ramp-cycle overlay plot showing the
+            raw timestream and the cosine basis used by the demodulator.
+        nsamp : int, optional, default 2**23
+            The number of samples to capture.
+        single_channel_readout : int, optional, default 2
+            Single-channel readout mode passed to ``take_debug_data``.
+            ``1`` enables the firmware single-pole filter at 600 kHz;
+            ``2`` bypasses the filter and streams at 2.4 MHz (the
+            default and natural input for offline demodulation).
+        gain : float, optional, default 1/32
+            LMS adaptation gain for the offline demodulator.
+        nperseg : int, optional, default 2**15
+            ``scipy.signal.welch`` segment length for PSD plots.
+        feedback_start_frac : float, optional, default 0.25
+            Fraction into each flux-ramp period at which the LMS
+            adaptation begins. Samples before this within each period
+            are masked out so the demodulator does not adapt during
+            the flux-ramp reset transient.
+        feedback_end_frac : float, optional, default 0.98
+            Fraction into each flux-ramp period at which the LMS
+            adaptation stops.
+        return_alpha_mat : bool, optional, default False
+            If True, return the full ``(nsamp, 2*order+1)`` matrix of
+            sin/cos/DC coefficients instead of the unwrapped phase.
+        mask_samples_psd : int, optional, default 2500
+            Number of leading samples to discard from the phase array
+            before computing PSDs and plotting (drops the LMS
+            convergence transient).
+
+        Returns
+        -------
+        phase : float array, shape ``(nsamp, order)``
+            Per-harmonic unwrapped phase, when ``return_alpha_mat`` is
+            False.
+        alpha_mat : float array, shape ``(nsamp, 2*order+1)``
+            Full LMS coefficient matrix, when ``return_alpha_mat`` is
+            True. Columns are
+            ``[cos1, sin1, cos2, sin2, ..., cosN, sinN, DC]``.
+
+        See Also
+        --------
+        offline_demod : Underlying demodulation routine.
+        take_debug_data : Raw single-channel data capture.
+        """
+        timestamp = self.get_timestamp()
+
+        feedback_status = self.get_feedback_enable(band)
+        try:
+            self.set_feedback_enable(band, False)
+            dat = self.take_debug_data(band, channel=channel,
+                single_channel_readout=single_channel_readout,
+                IQstream=False, debug=True, write_log=False, nsamp=nsamp)
+        finally:
+            self.set_feedback_enable(band, feedback_status)
+
+        if single_channel_readout == 1:
+            fs = self.get_channel_frequency_mhz(band) * 1.0E6 / 4
+        elif single_channel_readout == 2:
+            fs = self.get_channel_frequency_mhz(band) * 1.0E6
+        else:
+            raise ValueError('single_channel_readout must be 1 or 2')
+
+        lms_freq_hz = self.get_lms_freq_hz(band)
+
+        return self.offline_demod(dat, lms_freq_hz=lms_freq_hz, fs=fs,
+            order=order, timestamp=timestamp, make_plot=make_plot,
+            show_plot=show_plot, save_plot=save_plot, nperseg=nperseg,
+            make_debug_plot=make_debug_plot, gain=gain,
+            feedback_start_frac=feedback_start_frac,
+            feedback_end_frac=feedback_end_frac,
+            return_alpha_mat=return_alpha_mat, band=band, channel=channel,
+            mask_samples_psd=mask_samples_psd)
+
+
+    def offline_demod(self, dat, lms_freq_hz=None, fs=None, order=3,
+            gain=1./32, make_plot=True, show_plot=False, save_plot=True,
+            timestamp=None, make_debug_plot=False, single_channel_readout=2,
+            nperseg=2**15, feedback_start_frac=.25, feedback_end_frac=.98,
+            return_alpha_mat=False, band=None, channel=None,
+            mask_samples_psd=2500):
+        """
+        Demodulate a captured non-tracking flux-ramp timestream.
+
+        Implements an adaptive LMS demodulator that fits the first
+        ``order`` harmonics of ``lms_freq_hz`` plus a DC term to the
+        captured frequency-error timestream. The fit coefficients are
+        updated sample-by-sample only within ``feedback_start_frac`` to
+        ``feedback_end_frac`` of each flux-ramp period (so the fit is
+        not perturbed by the flux-ramp reset). Per-harmonic SQUID phase
+        is then extracted via ``arctan2`` of the sin/cos coefficient
+        pair and unwrapped.
+
+        Args
+        ----
+        dat : tuple of float arrays
+            ``(f, df, sync)`` as returned by
+            ``take_debug_data(..., IQstream=False, single_channel_readout=2)``.
+            Demodulation is performed on ``df``; ``sync[:, 1]`` is
+            used to find flux-ramp boundaries (column 1 is the
+            single-channel strobe; column 0 is the multi-channel
+            strobe used elsewhere by ``make_sync_flag``).
+        lms_freq_hz : float or None, optional, default None
+            Demodulation frequency in Hz. If None, falls back to
+            ``self.get_lms_freq_hz(band)``.
+        fs : float or None, optional, default None
+            Sample rate in Hz. If None, derived from
+            ``get_channel_frequency_mhz(band)`` and
+            ``single_channel_readout``.
+        order : int, optional, default 3
+            Number of harmonics of ``lms_freq_hz`` to fit.
+        gain : float, optional, default 1/32
+            LMS adaptation gain.
+        make_plot : bool, optional, default True
+            Whether to make the diagnostic plot.
+        show_plot : bool, optional, default False
+            Whether to show the plot.
+        save_plot : bool, optional, default True
+            Whether to save the plot.
+        timestamp : str or None, optional, default None
+            Timestamp prefix for plot filenames; auto-generated if None.
+        make_debug_plot : bool, optional, default False
+            Whether to save the flux-ramp-cycle overlay plot.
+        single_channel_readout : int, optional, default 2
+            Used only for ``fs`` inference when ``fs`` is None.
+        nperseg : int, optional, default 2**15
+            ``scipy.signal.welch`` segment length.
+        feedback_start_frac : float, optional, default 0.25
+            Per-FR-cycle window start, in [0, 1].
+        feedback_end_frac : float, optional, default 0.98
+            Per-FR-cycle window end, in [0, 1].
+        return_alpha_mat : bool, optional, default False
+            See ``take_offline_demod``.
+        band, channel : int or None, optional
+            Used only for plot annotations; safe to leave as None.
+        mask_samples_psd : int, optional, default 2500
+            Leading samples to drop before PSD/plot.
+
+        Returns
+        -------
+        phase : float array, shape ``(nsamp, order)``
+            Per-harmonic unwrapped phase, when ``return_alpha_mat`` is
+            False.
+        alpha_mat : float array, shape ``(nsamp, 2*order+1)``
+            Full LMS coefficient matrix, when ``return_alpha_mat`` is
+            True.
+        """
+        if timestamp is None:
+            timestamp = self.get_timestamp()
+
+        if fs is None:
+            if single_channel_readout == 1:
+                fs = self.get_channel_frequency_mhz(band) * 1.0E6 / 4
+            elif single_channel_readout == 2:
+                fs = self.get_channel_frequency_mhz(band) * 1.0E6
+            else:
+                raise ValueError('single_channel_readout must be 1 or 2')
+
+        if lms_freq_hz is None:
+            lms_freq_hz = self.get_lms_freq_hz(band)
+
+        _, d, sync = dat
+        nsamp = len(d)
+
+        # sync[:, 1] is the single-channel flux-ramp strobe.
+        # (sync[:, 0] is the multi-channel strobe used by make_sync_flag.)
+        sync_flag, _ = self.find_flag_blocks(sync[:, 1])
+        frac_mask = np.zeros(nsamp, dtype=bool)
+        for i in np.arange(len(sync_flag)-1):
+            n_samp_frac = sync_flag[i+1] - sync_flag[i]
+            start = int(sync_flag[i] + feedback_start_frac*n_samp_frac)
+            end = int(sync_flag[i] + feedback_end_frac*n_samp_frac)
+            frac_mask[start:end] = True
+
+        H = np.zeros((nsamp, order*2 + 1))
+        t = np.arange(nsamp) / fs
+        for i in np.arange(order):
+            o = i + 1
+            H[:, 2*i] = np.cos(2*np.pi*t*lms_freq_hz*o)
+            H[:, 2*i+1] = np.sin(2*np.pi*t*lms_freq_hz*o)
+        H[:, -1] = np.ones(nsamp)
+
+        # Sample-by-sample LMS update. Sequential by construction:
+        # alpha[i] depends on alpha[i-1].
+        y_hat = np.zeros(nsamp)
+        alpha_mat = np.zeros((nsamp, 2*order + 1))
+        alpha_mat[0] = np.ones(2*order + 1) * .01
+        for i in np.arange(1, nsamp):
+            y_hat[i] = np.dot(H[i], alpha_mat[i-1])
+            if frac_mask[i]:
+                err = d[i] - y_hat[i]
+            else:
+                err = 0
+            alpha_mat[i] = alpha_mat[i-1] + gain * err * H[i]
+
+        phase = np.zeros((nsamp, order))
+        for i in np.arange(order):
+            phase[:, i] = np.unwrap(np.arctan2(alpha_mat[:, 2*i+1],
+                alpha_mat[:, 2*i]))
+
+        if make_plot:
+            cm = plt.get_cmap('viridis')
+            fig = plt.figure(figsize=(10, (order+1)*2))
+            gs = fig.add_gridspec(order+1, 2)
+            ax = {}
+            ax_psd = fig.add_subplot(gs[:, 1])
+            for i in np.arange(order):
+                color = cm(i/order)
+                ax[i] = fig.add_subplot(gs[i, 0])
+                ax[i].plot(t[mask_samples_psd:], phase[mask_samples_psd:, i],
+                    color=color)
+                ax[i].set_ylabel(f'Order {i+1}')
+
+                f, pxx = signal.welch(phase[mask_samples_psd:, i], fs=fs,
+                    nperseg=nperseg)
+                ax_psd.loglog(f, np.sqrt(pxx), color=color,
+                    label=f'Order {i+1}')
+            ax_psd.legend(loc='lower left')
+            ax[order] = fig.add_subplot(gs[order, 0])
+            ax[order].plot(t[mask_samples_psd:],
+                alpha_mat[mask_samples_psd:, -1])
+            ax[order].set_ylabel('DC')
+            ax_psd.set_xlabel('Freq [Hz]')
+            ax_psd.set_ylabel('Amp [rad/rtHz]')
+            if band is not None and channel is not None:
+                ax_psd.text(.98, .98, f'b{band}ch{channel:03}',
+                    transform=ax_psd.transAxes, va='top', ha='right')
+
+            plt.tight_layout()
+
+            if save_plot:
+                plt.savefig(os.path.join(self.plot_dir,
+                    f'{timestamp}_offline_demod.png'), bbox_inches='tight')
+
+            if show_plot:
+                plt.show()
+            else:
+                plt.close()
+
+        if make_debug_plot:
+            n_flux_ramp_cycle = 5
+            end_sync_idx = sync_flag[n_flux_ramp_cycle]
+            t_small = t[:end_sync_idx] * 1.0E6
+
+            amp = (np.max(d[:end_sync_idx]) - np.min(d[:end_sync_idx])) / 2
+
+            fig, ax = plt.subplots(1)
+            ax.plot(t_small, d[:end_sync_idx], color='k')
+
+            for o in np.arange(order):
+                ax.plot(t_small, amp*H[:end_sync_idx, 2*o], color='b',
+                    label=f'cos {o+1}')
+
+            ax.legend()
+
+            for i in np.arange(n_flux_ramp_cycle):
+                ax.axvline(t_small[sync_flag[i]], color='k', linestyle=':',
+                    alpha=.5)
+
+            ax.set_xlabel(r'Time [$\mu$s]')
+
+            plt.tight_layout()
+
+            if save_plot:
+                plt.savefig(os.path.join(self.plot_dir,
+                    f'{timestamp}_offline_demod_debug.png'),
+                    bbox_inches='tight')
+
+            if show_plot:
+                plt.show()
+            else:
+                plt.close()
+
+        if return_alpha_mat:
+            return alpha_mat
+        else:
+            return phase
+
+
     def noise_svd(self, d, mask, mean_subtract=True):
         """
         Calculates the SVD modes of the input data.
