@@ -3864,7 +3864,7 @@ class SmurfUtilMixin(SmurfBase):
         self.play_tes_bipolar_waveform(bias_group, sig)
 
 
-    def play_tone_file(self, band, tone_file=None, load_tone_file=True):
+    def play_tone_file(self, band, tone_file=None, load_tone_file=True, write_log=False):
         """
         Plays the specified tone file on this band.  If no path provided
         for tone file, assumes the path to the correct tone file has
@@ -3887,12 +3887,12 @@ class SmurfUtilMixin(SmurfBase):
 
         # load the tone file
         if load_tone_file:
-            self.load_tone_file(bay,tone_file)
+            self.load_tone_file(bay,tone_file,write_log=write_log)
 
         # play it!
         self.log(f'Playing tone file {tone_file} on band {band}',
                  self.LOG_USER)
-        self.set_waveform_select(band, 1)
+        self.set_waveform_select(band, 1, write_log=write_log)
 
 
     def stop_tone_file(self, band):
@@ -4822,6 +4822,7 @@ class SmurfUtilMixin(SmurfBase):
         :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.get_timing_link_up` : Is external timing data being received?
         """
         ## Poll all registers needed to determine which timing mode we're in.
+        mode=None
 
         # Crossbar
         cbar = [self.get_crossbar_output_config(i) for i in range(4)]

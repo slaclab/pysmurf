@@ -681,11 +681,11 @@ class SmurfTuneMixin(SmurfBase):
                 att_dc = self.get_att_dc(band)
                 self.log(f'UC (DAC) att: {att_uc}', self.LOG_INFO)
                 self.log(f'DC (ADC) att: {att_dc}', self.LOG_INFO)
-                if att_uc > 0:
+                if att_uc is not None and att_uc > 0:
                     scale = (10**(-att_uc/2/20))
                     self.log(f'UC attenuator > 0. Scaling by {scale:4.3f}', self.LOG_INFO)
                     dac *= scale
-                if att_dc > 0:
+                if att_dc is not None and att_dc > 0:
                     scale = (10**(att_dc/2/20))
                     self.log(f'DC attenuator > 0. Scaling by {scale:4.3f}', self.LOG_INFO)
                     adc *= scale

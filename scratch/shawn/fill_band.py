@@ -7,8 +7,8 @@ import random
 
 band=int(sys.argv[1])
 
-amplitude=10
-freq_std_khz=100
+amplitude=12
+freq_std_khz=10
 freq_std_mhz=freq_std_khz/1000.
 one_subband_at_a_time=False
 wait_btw_subbands_sec=0.1
