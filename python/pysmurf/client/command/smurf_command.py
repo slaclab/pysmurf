@@ -4818,6 +4818,11 @@ class SmurfCommandMixin(SmurfBase):
            produce a train of pulses 1x or 2x 307.2 MHz ticks wide,
            but it will be mostly high.
 
+        Returns
+        -------
+        int
+            The integer ``RampMaxCnt`` value programmed (after rounding).
+
         See Also
         --------
         get_flux_ramp_freq : Gets the flux ramp reset rate.
@@ -4846,6 +4851,7 @@ class SmurfCommandMixin(SmurfBase):
                 f' reset rate to {val_rounded} kHz instead.',
                 self.LOG_ERROR)
         self.set_ramp_max_cnt(cnt_rounded, **kwargs)
+        return cnt_rounded
 
     def get_flux_ramp_freq(self, **kwargs):
         r"""Returns flux ramp reset rate in kHz.

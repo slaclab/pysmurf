@@ -3186,9 +3186,10 @@ class SmurfTuneMixin(SmurfBase):
         digitizerFrequencyMHz = self.get_digitizer_frequency_mhz(band)
         dspClockFrequencyMHz=digitizerFrequencyMHz/2
 
-        desiredRampMaxCnt = ((dspClockFrequencyMHz*1e3)/
-            (reset_rate_khz)) - 1
-        rampMaxCnt = np.floor(desiredRampMaxCnt)
+        # Program the flux ramp reset rate via the dedicated setter so the
+        # rounding/precision/warning logic lives in one place (issue #453).
+        rampMaxCnt = self.set_flux_ramp_freq(reset_rate_khz,
+            write_log=write_log)
 
         resetRate = (dspClockFrequencyMHz * 1e6) / (rampMaxCnt + 1)
 
@@ -3250,7 +3251,6 @@ class SmurfTuneMixin(SmurfBase):
         self.set_low_cycle(LowCycle, write_log=write_log)
         self.set_high_cycle(HighCycle, write_log=write_log)
         self.set_k_relay(KRelay, write_log=write_log)
-        self.set_ramp_max_cnt(rampMaxCnt, write_log=write_log)
         self.set_pulse_width(PulseWidth, write_log=write_log)
         self.set_debounce_width(DebounceWidth, write_log=write_log)
         self.set_ramp_slope(RampSlope, write_log=write_log)
