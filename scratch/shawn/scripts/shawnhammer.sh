@@ -1,5 +1,15 @@
 #!/bin/bash
 
+# Refuse to run from inside an existing tmux session.  This script kills and
+# recreates its own tmux session below; if it is launched from inside that
+# (or any) tmux session, the surrounding shell gets torn down and the script
+# silently dies with no obvious error.  See pysmurf issue #78.
+if [ -n "$TMUX" ]; then
+    echo "ERROR: shawnhammer cannot be run from inside a tmux session." 1>&2
+    echo "       Detach from tmux first (Ctrl-b d), then re-run from a regular shell." 1>&2
+    exit 1
+fi
+
 # stalls sometimes for some reason...
 #xhost +
 
