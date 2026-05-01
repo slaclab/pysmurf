@@ -109,6 +109,7 @@ arg_parser()
             ;;
             -a|--addr)
             fpga_ip="$2"
+            __extra_args="${__extra_args} -a $2"
             shift
             ;;
             -c|--comm-type)
@@ -361,6 +362,9 @@ getFpgaIpAddr()
         fpga_ip=$(getFpgaIp)
         echo "FPGA IP: ${fpga_ip}."
 
+        # IP was calculated, not passed by user, so add it to args now
+        args="${args} -a ${fpga_ip}"
+
     else
         # We  need the shelfmanager and slot number in order to get information
         # via IPMI, which we do to get the FW version and to auto detect the HW type.
@@ -370,10 +374,8 @@ getFpgaIpAddr()
         echo
         no_check_fw=1
         disable_hw_detect=1
+        # IP was passed by user via -a and is already in args via arg_parser
     fi
-
-    # Add the IP address to the SMuRF arguments
-    args="${args} -a ${fpga_ip}"
 }
 
 # Validate the selected slot number
@@ -618,30 +620,31 @@ checkRFSoCFW()
     echo "  Running firmware target : ${fw_target}"
     echo "  Running firmware hash   : ${short_hash}"
 
-    # Find the desired linux.tar.gz in the firmware directory.
-    # Strategy: first try to match on the board's reported target name (handles the
-    # multi-image case where e.g. both BaseBand and HighOrderNyquist are present).
-    # If no match is found by target name, fall back to the only file present -- this
-    # handles the case where the board is running a different target variant than what
-    # we want to flash (e.g. first-time programming from factory firmware).
+    # Determine the expected firmware target name based on the requested mode.
+    # --is-prespectra expects MicrowaveMuxZcu208_PreSpectra; plain --is-rfsoc expects
+    # MicrowaveMuxZcu208_BaseBand (or HighOrderNyquist when that variant is added).
+    # If the board is running the wrong target it must be reprogrammed regardless of hash.
+    local expected_target
+    if [ -n "${is_prespectra+x}" ]; then
+        expected_target="MicrowaveMuxZcu208_PreSpectra"
+    else
+        expected_target="MicrowaveMuxZcu208_BaseBand"
+    fi
+
+    # Find the linux.tar.gz for the expected target in the firmware directory.
     local fw_file
-    fw_file=$(find "${fw_top_dir}" -maxdepth 1 -name "${fw_target}-*.linux.tar.gz" -print -quit)
+    fw_file=$(find "${fw_top_dir}" -maxdepth 1 -name "${expected_target}-*.linux.tar.gz" -print -quit)
 
     if [ -z "${fw_file}" ]; then
-        # No target-name match -- check if there is exactly one linux.tar.gz available
-        local fw_files_found
-        fw_files_found=$(find "${fw_top_dir}" -maxdepth 1 -name "*.linux.tar.gz" | wc -l)
-        if [ "${fw_files_found}" -eq 1 ]; then
-            fw_file=$(find "${fw_top_dir}" -maxdepth 1 -name "*.linux.tar.gz" -print -quit)
-            echo "  No file for target '${fw_target}' found; will flash the only available image."
-        elif [ "${fw_files_found}" -eq 0 ]; then
-            echo "Error: No linux.tar.gz files found in ${fw_top_dir}. Aborting."
-            kill -s TERM ${top_pid}
-        else
-            echo "Error: No linux.tar.gz found for target '${fw_target}' in ${fw_top_dir}"
-            echo "       and multiple images are present so cannot pick one automatically. Aborting."
-            kill -s TERM ${top_pid}
-        fi
+        echo "Error: No linux.tar.gz found for expected target '${expected_target}' in ${fw_top_dir}. Aborting."
+        kill -s TERM ${top_pid}
+    fi
+
+    # If the board is running a different target entirely, force a reprogram
+    # regardless of hash -- the hash comparison below will catch this since the
+    # hashes will differ, but log it explicitly for clarity.
+    if [ "${fw_target}" != "${expected_target}" ]; then
+        echo "  Target mismatch: board has '${fw_target}', expected '${expected_target}'. Will reprogram."
     fi
 
     local expected_hash
@@ -707,7 +710,14 @@ findPyrogueFiles()
     elif [[ $1 = "tkid" ]]; then
 	fwstr="CryoDetKid"
     elif [[ $1 = "rfsoc" ]]; then
-        fwstr="MicrowaveMuxZcu208"
+        # Use the PreSpectra zip if --is-prespectra was set, otherwise the plain ZCU208 zip.
+        # Both share the MicrowaveMuxZcu208 prefix, so we must be specific enough to avoid
+        # matching both when find returns results.
+        if [ -n "${is_prespectra+x}" ]; then
+            fwstr="MicrowaveMuxZcu208_PreSpectra"
+        else
+            fwstr="MicrowaveMuxZcu208_v"
+        fi
     fi
 
     # Look for a pyrogue zip file
