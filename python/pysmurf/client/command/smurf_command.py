@@ -828,7 +828,8 @@ class SmurfCommandMixin(SmurfBase):
 
     _run_serial_eta_scan_reg = 'runSerialEtaScan'
 
-    def run_serial_eta_scan(self, band, timeout=240, **kwargs):
+    def run_serial_eta_scan(self, band, timeout=240,
+            use_tracked_freq=False, nsamp=2**18, **kwargs):
         """
         Does an eta scan serially across the entire band. You must
         already be tuned close to the resontor dip. Use
@@ -840,7 +841,24 @@ class SmurfCommandMixin(SmurfBase):
             The band to eta scan.
         timeout : float, optional, default 240
             The maximum amount of time to wait for the PV.
+        use_tracked_freq : bool, optional, default False
+            If True, calls
+            :func:`~pysmurf.client.util.smurf_util.SmurfUtilMixin.update_centers_from_tracked_freq`
+            before turning the flux ramp off, so the scan starts from
+            the bias-shifted resonator frequencies measured by the
+            tracking algorithm rather than the originally programmed
+            centers. Requires the flux ramp to be running and tracking
+            to be set up. Default False preserves legacy behavior.
+        nsamp : int, optional, default 2**18
+            Number of samples used by
+            ``update_centers_from_tracked_freq`` when
+            ``use_tracked_freq`` is True. Ignored otherwise.
         """
+
+        if use_tracked_freq:
+            self.update_centers_from_tracked_freq(
+                band, nsamp=nsamp,
+                write_log=kwargs.get('write_log', False))
 
         # need flux ramp off for this - enforce
         self.flux_ramp_off()
@@ -877,7 +895,8 @@ class SmurfCommandMixin(SmurfBase):
 
     _run_serial_gradient_descent_reg = 'runSerialGradientDescent'
 
-    def run_serial_gradient_descent(self, band, timeout=240, **kwargs):
+    def run_serial_gradient_descent(self, band, timeout=240,
+            use_tracked_freq=False, nsamp=2**18, **kwargs):
         """
         Does a gradient descent search for the minimum.
 
@@ -887,7 +906,27 @@ class SmurfCommandMixin(SmurfBase):
             The band to run serial gradient descent on.
         timeout : float, optional, default 240
             The maximum amount of time to wait for the PV.
+        use_tracked_freq : bool, optional, default False
+            If True, calls
+            :func:`~pysmurf.client.util.smurf_util.SmurfUtilMixin.update_centers_from_tracked_freq`
+            before turning the flux ramp off, so the descent starts from
+            the bias-shifted resonator frequencies measured by the
+            tracking algorithm rather than the originally programmed
+            centers. Required when TESs are biased -- a SQUID-induced
+            phase shift of order 100 kHz will otherwise place the search
+            outside the gradient-descent capture range. Requires the
+            flux ramp to be running and tracking to be set up. Default
+            False preserves legacy behavior.
+        nsamp : int, optional, default 2**18
+            Number of samples used by
+            ``update_centers_from_tracked_freq`` when
+            ``use_tracked_freq`` is True. Ignored otherwise.
         """
+
+        if use_tracked_freq:
+            self.update_centers_from_tracked_freq(
+                band, nsamp=nsamp,
+                write_log=kwargs.get('write_log', False))
 
         # need flux ramp off for this - enforce
         self.flux_ramp_off()
