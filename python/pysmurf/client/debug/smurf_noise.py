@@ -2100,17 +2100,20 @@ class SmurfNoiseMixin(SmurfBase):
         Returns
         -------
         result : dict
-            ``iip3_amp_scale_db`` : float, the IIP3 estimate.
-            ``p_fund_db`` : tuple of two floats, fundamental powers in dB
-                at (f_lo, f_hi).
-            ``p_im3_db`` : tuple of two floats, IM3 powers in dB at
-                (2*f_lo - f_hi, 2*f_hi - f_lo).
-            ``freq_mhz_fund`` : tuple of two floats, (f_lo, f_hi).
-            ``freq_mhz_im3`` : tuple of two floats, the IM3 frequencies.
-            ``tone_power`` : int.
-            ``band`` : int, the band the tones were placed in.
-            ``channels`` : tuple of two ints, the channels used.
-            ``timestamp`` : str.
+            Dictionary with the following keys:
+
+            - ``iip3_amp_scale_db`` (float): the IIP3 estimate.
+            - ``p_fund_db`` (tuple of two floats): fundamental powers
+              in dB at (f_lo, f_hi).
+            - ``p_im3_db`` (tuple of two floats): IM3 powers in dB at
+              (2*f_lo - f_hi, 2*f_hi - f_lo).
+            - ``freq_mhz_fund`` (tuple of two floats): (f_lo, f_hi).
+            - ``freq_mhz_im3`` (tuple of two floats): the IM3
+              frequencies.
+            - ``tone_power`` (int).
+            - ``band`` (int): the band the tones were placed in.
+            - ``channels`` (tuple of two ints): the channels used.
+            - ``timestamp`` (str).
         """
         assert freq_mhz_a != freq_mhz_b, \
             '! freq_mhz_a and freq_mhz_b must differ.'
