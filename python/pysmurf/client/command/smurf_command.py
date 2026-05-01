@@ -1468,9 +1468,14 @@ class SmurfCommandMixin(SmurfBase):
             Per-channel tone amplitudes in [0, 15], length
             ``get_number_channels(band)``.
         """
+        arr = np.array(val).astype(np.uint)
+        if np.any(arr > 12):
+            self.log(
+                f'WARNING: amplitudeScale max={int(arr.max())} > 12 on '
+                f'band {band}.  DAC may rail with many simultaneous tones.')
         self._caput(
             self._cryo_root(band) + self._amplitude_scale_array_reg,
-            np.array(val).astype(np.uint), **kwargs)
+            arr, **kwargs)
 
     def get_amplitude_scale_array(self, band, **kwargs):
         """
@@ -2698,6 +2703,11 @@ class SmurfCommandMixin(SmurfBase):
         val : int
             Tone amplitude scale in [0, 15].
         """
+        if int(val) > 12:
+            self.log(
+                f'WARNING: amplitudeScale={int(val)} > 12 on '
+                f'band {band} channel {channel}.  '
+                f'DAC may rail with many simultaneous tones.')
         self._caput(
             self._channel_root(band, channel) +
             self._amplitude_scale_channel_reg,
