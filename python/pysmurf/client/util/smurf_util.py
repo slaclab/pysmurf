@@ -2548,6 +2548,32 @@ class SmurfUtilMixin(SmurfBase):
         return np.sort(self.get_channel_order(
             channel_orderfile=channel_orderfile)[n_cut:-n_cut])
 
+    def get_processed_subbands(self, band):
+        """
+        Returns the subband indices that are actually processed by
+        the firmware (i.e. not trimmed at the band edges).  The cut
+        count is derived from get_number_processed_channels so the
+        result tracks any firmware variant (128- or 512-subband
+        bands).
+
+        Args
+        ----
+        band : int
+            Which band.
+
+        Returns
+        -------
+        processed_subbands : numpy.ndarray of int
+            Sorted array of processed subband indices.
+        """
+        n_subbands = self.get_number_sub_bands(band)
+        n_channels = self.get_number_channels(band)
+        n_proc_channels = self.get_number_processed_channels(band)
+        channels_per_subband = n_channels // n_subbands
+        n_cut_per_side = (
+            ((n_channels - n_proc_channels) // 2) // channels_per_subband)
+        return np.arange(n_cut_per_side, n_subbands - n_cut_per_side)
+
     def get_subband_from_channel(self, band, channel, channelorderfile=None,
             yml=None):
         """Returns subband number given a channel number

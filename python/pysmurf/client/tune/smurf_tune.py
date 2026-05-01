@@ -3452,11 +3452,11 @@ class SmurfTuneMixin(SmurfBase):
             The scan start frequency in MHz (from band center)
         stop_freq : float, optional, default 250
             The scan stop frequency in MHz (from band center)
-        subband : deprecated, use start_freq/stop_freq.
-            numpy.ndarray of int or None, optional, default None
-            An int array for the subbands.  If None, set to all
-            processed subbands =numpy.arange(13,115).
-            Takes precedent over start_freq/stop_freq.
+        subband : numpy.ndarray of int or None, optional, default None
+            An int array of subbands to sweep.  If None, defaults to
+            the intersection of the start_freq/stop_freq range with
+            the firmware's processed subbands (see
+            get_processed_subbands).
         tone_power : int or None, optional, default None
             The drive amplitude.  If None, takes from cfg.
         n_read : int, optional, default 2
@@ -3495,6 +3495,11 @@ class SmurfTuneMixin(SmurfBase):
             if stop_subband < start_subband:
                 step = -1
             subband = np.arange(start_subband, stop_subband+1, step)
+            # Restrict to subbands the firmware actually processes (#482).
+            processed = self.get_processed_subbands(band)
+            subband = np.intersect1d(subband, processed)
+            if step == -1:
+                subband = subband[::-1]
         else:
             sb, sbc = self.get_subband_centers(band)
             start_freq = sbc[subband[0]]
