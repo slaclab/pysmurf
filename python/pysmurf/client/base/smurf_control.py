@@ -679,6 +679,22 @@ class SmurfControl(SmurfCommandMixin,
                          "failed!  Will assume no cryostat card is"
                          " connected and skip cryocard setup steps.")
 
+            # Apply user-specified flux ramp AC/DC coupling mode if given.
+            # Issue #510. If the cfg did not specify a mode, leave the
+            # cryocard relay in whatever state it is in.
+            if self._flux_ramp_ac_dc_mode is not None:
+                try:
+                    ac_dc = self._flux_ramp_ac_dc_mode
+                    self.C.set_ac_dc_relay(1 if ac_dc == 'AC' else 0)
+                    self.log(
+                        f"Set flux ramp coupling to {ac_dc}.",
+                        self.LOG_USER)
+                except Exception:
+                    self.log(
+                        "Failed to set flux ramp AC/DC coupling - "
+                        "cryocard may not be connected.",
+                        self.LOG_USER)
+
             # Setup how this slot handles timing. To take science data, each
             # SMuRF slot should receive timing from the backplane or RTM fiber
             # cable. Otherwise, the front panel external reference may also
