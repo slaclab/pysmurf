@@ -42,7 +42,7 @@ class SmurfUtilMixin(SmurfBase):
     @set_action()
     def take_debug_data(self, band, channel=None, nsamp=2**19, filename=None,
             IQstream=1, single_channel_readout=1, debug=False, rf_iq=False,
-            write_log=True):
+            match_setup_notches=False, write_log=True):
         """Takes raw debugging data.
 
         Args
@@ -63,6 +63,14 @@ class SmurfUtilMixin(SmurfBase):
             Whether to take data in debug mode.
         rf_iq : bool, optional, default False
             Return the RF IQ. Must provide channel.
+        match_setup_notches : bool, optional, default False
+            Only used when ``rf_iq=True``.  When True, scale the returned
+            I and Q so that ``I + 1j*Q`` matches the convention of the
+            ``resp_eta_scan`` arrays produced by
+            :func:`~pysmurf.client.tune.smurf_tune.SmurfTuneMixin.setup_notches`:
+            divides both quadratures by the PFB subband half-width
+            (``digitizer_frequency_mhz / n_subbands``) and flips the sign
+            of Q.  See pysmurf issue #761.
         write_log : bool, optional, default True
             Whether to write low-level commands to the log file.
 
@@ -159,6 +167,16 @@ class SmurfUtilMixin(SmurfBase):
             f, df, sync = self.decode_single_channel(data_filename)
         else:
             f, df, sync = self.decode_data(data_filename)
+
+        if rf_iq and match_setup_notches:
+            # Convert rf_iq I/Q to the setup_notches resp_eta_scan
+            # convention: I_setup = I_rfiq / subband_half_width_mhz,
+            # Q_setup = -Q_rfiq / subband_half_width_mhz.  See issue #761.
+            n_subbands = self.get_number_sub_bands()
+            digitizer_frequency_mhz = self.get_digitizer_frequency_mhz()
+            subband_half_width_mhz = digitizer_frequency_mhz / n_subbands
+            f = f / subband_half_width_mhz
+            df = -df / subband_half_width_mhz
 
         return f, df, sync
 
