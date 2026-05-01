@@ -1634,9 +1634,16 @@ class SmurfTuneMixin(SmurfBase):
     @set_action()
     def assign_channels(self, freq, band=None, bandcenter=None,
             channel_per_subband=4, as_offset=True, min_offset=0.1,
-            new_master_assignment=False):
+            new_master_assignment=False, max_alt_subbands=5):
         """
         Figures out the subbands and channels to assign to resonators
+
+        When ``new_master_assignment=True``, each resonator is placed in
+        its closest subband with available capacity.  If the closest
+        subband is already full, the algorithm falls back to the next
+        closest, up to ``max_alt_subbands`` candidates total.  This
+        prevents silently dropping the higher-frequency resonator when
+        two resonances land in the same subband (issue #658).
 
         Args
         ----
@@ -1655,6 +1662,11 @@ class SmurfTuneMixin(SmurfBase):
         min_offset : float, optional, default 0.1
             The minimum offset between two resonators in MHz.  If
             closer, then both are ignored.
+        max_alt_subbands : int, optional, default 5
+            Maximum number of subbands to try when the closest one is
+            full.  Bounds how far a resonator can drift from its
+            preferred subband when collisions occur.  Only used when
+            ``new_master_assignment=True``.
 
         Returns
         -------
@@ -1710,26 +1722,41 @@ class SmurfTuneMixin(SmurfBase):
             close_idx = d_freq > min_offset
             close_idx = np.logical_and(np.hstack((close_idx, True)),
                                        np.hstack((True, close_idx)))
-            # Assign all frequencies to a subband
+
+            sb_centers = np.asarray(
+                self.get_subband_centers(band, as_offset=as_offset)[1])
+
+            chans_cache = {}
+            sb_used = {}
+
             for idx in range(len(freq)):
-                subbands[idx] = self.get_closest_subband(freq[idx], band,
-                                                     as_offset=as_offset)
-                subband_center = self.get_subband_centers(band,
-                                          as_offset=as_offset)[1][subbands[idx]]
-                offsets[idx] = freq[idx] - subband_center
+                f = freq[idx]
+                sb_order = np.argsort(np.abs(sb_centers - f))
 
-            # Assign unique channel numbers
-            for unique_subband in set(subbands):
-                chans = self.get_channels_in_subband(band, int(unique_subband))
-                mask = np.where(subbands == unique_subband)[0]
-                if len(mask) > channel_per_subband:
-                    concat_mask = mask[:channel_per_subband]
-                else:
-                    concat_mask = mask[:]
+                placed = False
+                for sb in sb_order[:max_alt_subbands]:
+                    sb = int(sb)
+                    if sb not in chans_cache:
+                        chans_cache[sb] = list(
+                            self.get_channels_in_subband(band, sb))
+                        sb_used[sb] = 0
+                    capacity = min(channel_per_subband, len(chans_cache[sb]))
+                    if sb_used[sb] < capacity:
+                        ch = int(chans_cache[sb][sb_used[sb]])
+                        sb_used[sb] += 1
+                        subbands[idx] = sb
+                        channels[idx] = ch
+                        offsets[idx] = f - sb_centers[sb]
+                        placed = True
+                        break
 
-                chans = chans[:len(list(concat_mask))] #I am so sorry
-
-                channels[mask[:len(chans)]] = chans
+                if not placed:
+                    sb = int(sb_order[0])
+                    subbands[idx] = sb
+                    offsets[idx] = f - sb_centers[sb]
+                    self.log(
+                        f'No subband capacity within {max_alt_subbands} '
+                        f'of closest for {f:.2f} MHz; leaving unassigned.')
 
             # Prune channels that are too close
             channels[~close_idx] = -1
