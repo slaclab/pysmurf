@@ -3834,20 +3834,18 @@ class SmurfTuneMixin(SmurfBase):
         self.set_eta_scan_channel(band, subchan)
         self.set_eta_scan_dwell(band, 0)
 
-        self.set_run_eta_scan(band, 1)
+        resp_accum = np.zeros((int(n_read), len(freq)), dtype=complex)
+        for n in range(int(n_read)):
+            self.set_run_eta_scan(band, 1)
 
-        I = self.get_eta_scan_results_real(band, count=len(freq))
-        Q = self.get_eta_scan_results_imag(band, count=len(freq))
+            I = self.get_eta_scan_results_real(band, count=len(freq))
+            Q = self.get_eta_scan_results_imag(band, count=len(freq))
+
+            resp_accum[n] = np.asarray(I) + 1j*np.asarray(Q)
+
+        response = np.mean(resp_accum, axis=0)
 
         self.band_off(band)
-
-        response = np.zeros((len(freq), ), dtype=complex)
-
-        for index in range(len(freq)):
-            Ielem = I[index]
-            Qelem = Q[index]
-
-            response[index] = Ielem + 1j*Qelem
 
         if make_plot:
             # To do : make plotting
