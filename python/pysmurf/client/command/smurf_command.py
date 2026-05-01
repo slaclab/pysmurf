@@ -2118,6 +2118,11 @@ class SmurfCommandMixin(SmurfBase):
 
     def set_eta_mag_array(self, band, val, **kwargs):
         """
+        Sets the band-array etaMag firmware register. Despite the name,
+        this register holds *scaled* etaMag values, i.e.
+        eta_mag / subband_half_width, where
+        subband_half_width = digitizer_frequency_mhz / n_subbands.
+        Pass eta_mag_scaled values, not unscaled eta_mag.
         """
         self._caput(
             self._cryo_root(band) + self._eta_mag_array_reg,
@@ -2125,6 +2130,11 @@ class SmurfCommandMixin(SmurfBase):
 
     def get_eta_mag_array(self, band, **kwargs):
         """
+        Returns the band-array etaMag firmware register. Despite the name,
+        the values returned are *scaled* etaMag values, i.e.
+        eta_mag / subband_half_width, where
+        subband_half_width = digitizer_frequency_mhz / n_subbands.
+        Recover unscaled eta_mag by multiplying by subband_half_width.
         """
         return self._caget(
             self._cryo_root(band) + self._eta_mag_array_reg,
