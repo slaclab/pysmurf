@@ -35,6 +35,13 @@ class SmurfTuneMixin(SmurfBase):
     """
     This contains all the tuning scripts
     """
+    # ADC interleaving spur centers in MHz, relative to band center.
+    # Each band has two spurs that look like resonances; find_freq()
+    # filters resonance candidates within +/- ADC_SPUR_EXCLUSION_MHZ
+    # of any spur. See issue slaclab/pysmurf#28.
+    ADC_SPURS_MHZ = (-134.4, 172.8)
+    ADC_SPUR_EXCLUSION_MHZ = 0.2
+
     @set_action()
     def tune(self, load_tune=True, tune_file=None, last_tune=False,
              retune=False, f_min=.02, f_max=.3, df_max=.03,
@@ -3440,7 +3447,8 @@ class SmurfTuneMixin(SmurfBase):
             plotname_append='', window=50, rolling_med=True,
             make_subband_plot=False, show_plot=False, grad_cut=.05,
             flip_phase=False, grad_kernel_width=8,
-            amp_cut=.25, pad=2, min_gap=2):
+            amp_cut=.25, pad=2, min_gap=2,
+            adc_spurs_mhz=None, adc_spur_exclusion_mhz=None):
         '''
         Finds the resonances in a band (and specified subbands)
 
@@ -3486,8 +3494,23 @@ class SmurfTuneMixin(SmurfBase):
             search window
         min_gap : int, optional, default 2
             Minimum number of samples between resonances.
+        adc_spurs_mhz : iterable of float or None, optional, default None
+            ADC interleaving spur centers in MHz, relative to band
+            center.  Resonance candidates within
+            +/- adc_spur_exclusion_mhz of any spur are filtered out and
+            a warning is logged.  ``None`` uses the class default
+            (``self.ADC_SPURS_MHZ``).  Pass an empty list to disable
+            the filter (for diagnostic use).
+        adc_spur_exclusion_mhz : float or None, optional, default None
+            Half-width of the exclusion window around each spur, in
+            MHz.  ``None`` uses the class default
+            (``self.ADC_SPUR_EXCLUSION_MHZ``).
         '''
         band_center = self.get_band_center_mhz(band)
+        if adc_spurs_mhz is None:
+            adc_spurs_mhz = self.ADC_SPURS_MHZ
+        if adc_spur_exclusion_mhz is None:
+            adc_spur_exclusion_mhz = self.ADC_SPUR_EXCLUSION_MHZ
         if subband is None:
             start_subband = self.freq_to_subband(band, band_center + start_freq)[0]
             stop_subband = self.freq_to_subband(band, band_center + stop_freq)[0]
@@ -3547,6 +3570,8 @@ class SmurfTuneMixin(SmurfBase):
             make_subband_plot=make_subband_plot, grad_cut=grad_cut,
             flip_phase=flip_phase, grad_kernel_width=grad_kernel_width,
             amp_cut=amp_cut, pad=pad, min_gap=min_gap)
+        res_freq = self._exclude_adc_spurs(
+            res_freq, adc_spurs_mhz, adc_spur_exclusion_mhz, band)
         self.freq_resp[band]['find_freq']['resonance'] = res_freq
 
         # Save resonances
@@ -3567,6 +3592,58 @@ class SmurfTuneMixin(SmurfBase):
 
 
         return f, resp
+
+    def _exclude_adc_spurs(self, res_freq, spurs_mhz, exclusion_mhz, band):
+        """
+        Drop resonance candidates that fall within +/- exclusion_mhz of
+        any ADC interleaving spur center.
+
+        Args
+        ----
+        res_freq : numpy.ndarray
+            Resonance frequencies in MHz, relative to band center.
+        spurs_mhz : iterable of float
+            Spur centers in MHz, relative to band center.  Empty
+            disables the filter.
+        exclusion_mhz : float
+            Half-width of the exclusion window around each spur, in
+            MHz.
+        band : int
+            Band number, for log messages only.
+
+        Returns
+        -------
+        numpy.ndarray
+            Filtered resonance frequencies (MHz, relative to band
+            center).
+        """
+        if res_freq is None or len(res_freq) == 0:
+            return res_freq
+        if not spurs_mhz:
+            self.log(
+                f'ADC spur filter disabled for band {band} '
+                '(adc_spurs_mhz is empty).', self.LOG_INFO)
+            return res_freq
+
+        res_freq = np.asarray(res_freq)
+        keep = np.ones(res_freq.shape, dtype=bool)
+        for spur in spurs_mhz:
+            hit = np.abs(res_freq - spur) <= exclusion_mhz
+            for f in res_freq[hit]:
+                self.log(
+                    f'WARNING: band {band} resonance candidate at '
+                    f'{f:+.4f} MHz (band-center-relative) is within '
+                    f'{exclusion_mhz:.4f} MHz of ADC interleaving '
+                    f'spur at {spur:+.4f} MHz; excluding.')
+            keep &= ~hit
+
+        n_excluded = int((~keep).sum())
+        if n_excluded > 0:
+            self.log(
+                f'WARNING: excluded {n_excluded} resonance '
+                f'candidate(s) in band {band} as ADC interleaving '
+                'spurs.')
+        return res_freq[keep]
 
     @set_action()
     def plot_find_freq(self, f=None, resp=None, subband=None, filename=None,
