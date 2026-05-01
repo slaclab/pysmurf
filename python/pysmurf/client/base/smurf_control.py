@@ -135,7 +135,7 @@ class SmurfControl(SmurfCommandMixin,
     def initialize(self, data_dir=None, name=None,
                    make_logfile=True, setup=False,
                    smurf_cmd_mode=False, no_dir=False, publish=False,
-                   payload_size=2048, data_path_id=None,
+                   payload_size=None, data_path_id=None,
                    **kwargs):
         """Initializes SMuRF system.
 
@@ -161,8 +161,11 @@ class SmurfControl(SmurfCommandMixin,
               Whether to make a skip making a directory.
         publish : bool, optional, default False
               Whether to send messages to the OCS publisher.
-        payload_size : int, optional, default 2048
-              The payload size to set on setup.
+        payload_size : int or None, optional, default None
+              The payload size to set on setup.  If `None`, the value
+              of the top-level `payload_size` key from the pysmurf
+              configuration file is used; if that key is also absent,
+              :func:`setup` falls back to 2048.  See issue #299.
         data_path_id : str, optional, default None
               If set, this will add the path-id to the output and plot dir
               paths to avoid possible collisions between multiple smurf
@@ -314,7 +317,7 @@ class SmurfControl(SmurfCommandMixin,
         # initialize outputs cfg
         self.config.update('outputs', {})
 
-    def setup(self, write_log=True, payload_size=2048, force_configure=False, **kwargs):
+    def setup(self, write_log=True, payload_size=None, force_configure=False, **kwargs):
         r"""Configures SMuRF system.
 
         Sets up the SMuRF system by first loading hardware register
@@ -360,8 +363,12 @@ class SmurfControl(SmurfCommandMixin,
         ----
         write_log : bool, optional, default True
             Whether to write to the log file.
-        payload_size : int, optional, default 2048
-            The starting size of the payload.
+        payload_size : int or None, optional, default None
+            The starting size of the payload.  If `None`, the value of
+            the top-level `payload_size` key from the pysmurf
+            configuration file is used; if that key is also absent,
+            falls back to 2048.  An explicit value always overrides
+            the configuration file.  See issue #299.
         force_configure : bool, optional, default False
             Whether or not to force configure if system has already
             been configured once by the currently running Rogue
@@ -399,6 +406,14 @@ class SmurfControl(SmurfCommandMixin,
 
         success=True
         self.log('Setting up...', (self.LOG_USER))
+
+        # Resolve payload_size precedence: explicit kwarg > pysmurf
+        # config file > built-in fallback of 2048.  See issue #299.
+        if payload_size is None:
+            if self._payload_size is not None:
+                payload_size = self._payload_size
+            else:
+                payload_size = 2048
 
         # If active, disable hardware logging while doing setup.
         if self._hardware_logging_thread is not None:
