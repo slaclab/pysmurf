@@ -7,7 +7,7 @@
 # Description:
 #    GitHub Action Workflow for applying labels to pull requests based on the
 #    file path that are modified. For more information about the labeler
-#    action see: https://github.com/actions/labeler/blob/master/README.md
+#    action see: https://github.com/actions/labeler/blob/main/README.md
 #-----------------------------------------------------------------------------
 # This file is part of the smurf software platform. It is subject to
 # the license terms in the LICENSE.txt file found in the top-level directory

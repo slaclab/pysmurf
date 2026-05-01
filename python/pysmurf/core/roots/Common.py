@@ -133,12 +133,12 @@ class Common(pyrogue.Root):
                 f"data type = {stream_pv_type})")
 
             self._stream_fifos  = []
-            self._stream_slaves = []
+            self._stream_sinks = []
             for i in range(4):
                 strm = pysmurf.core.utilities.SmurfDataReceiver(name=f"Stream{i}",
                                                                 rxSize=stream_pv_size,
                                                                 rxType=stream_pv_type)
-                self._stream_slaves.append(strm)
+                self._stream_sinks.append(strm)
                 self.add(strm)
 
                 # Calculate number of bytes needed on the fifo
@@ -148,7 +148,7 @@ class Common(pyrogue.Root):
                     fifo_size = stream_pv_size * 4
 
                 self._stream_fifos.append(rogue.interfaces.stream.Fifo(1000, fifo_size, True)) # changes
-                pyrogue.streamConnect(self._stream_fifos[i], self._stream_slaves[i])
+                pyrogue.streamConnect(self._stream_fifos[i], self._stream_sinks[i])
                 pyrogue.streamConnect(self._ddr_streams[i], self._stream_fifos[i])
 
 

@@ -32,7 +32,7 @@ class Header2Smurf(pyrogue.Device):
         # Add "Disable" variable
         self.add(pyrogue.LocalVariable(
             name='Disable',
-            description='Disable the processing block. Data will just pass thorough to the next slave.',
+            description='Disable the processing block. Data will just pass through to the next stage.',
             mode='RW',
             value=False,
             localSet=lambda value: self._header2smurf.setDisable(value),

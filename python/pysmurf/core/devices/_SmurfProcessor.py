@@ -77,7 +77,7 @@ class Unwrapper(pyrogue.Device):
         # Add "Disable" variable
         self.add(pyrogue.LocalVariable(
             name='Disable',
-            description='Disable the processing block. Data will just pass thorough to the next slave.',
+            description='Disable the processing block. Data will just pass through to the next stage.',
             mode='RW',
             value=False,
             localSet=lambda value: self.device.setUnwrapperDisable(value),
@@ -100,7 +100,7 @@ class Downsampler(pyrogue.Device):
         # Add "Disable" variable
         self.add(pyrogue.LocalVariable(
             name='Disable',
-            description='Disable the processing block. Data will just pass thorough to the next slave.',
+            description='Disable the processing block. Data will just pass through to the next stage.',
             mode='RW',
             value=False,
             localSet=lambda value: self.device.setDownsamplerDisable(value),
@@ -154,7 +154,7 @@ class GeneralAnalogFilter(pyrogue.Device):
         # Add "Disable" variable
         self.add(pyrogue.LocalVariable(
             name='Disable',
-            description='Disable the processing block. Data will just pass thorough to the next slave.',
+            description='Disable the processing block. Data will just pass through to the next stage.',
             mode='RW',
             value=False,
             localSet=lambda value: self.device.setFilterDisable(value),
@@ -221,7 +221,7 @@ class SmurfProcessor(pyrogue.Device):
     """
     SMuRF Processor device.
 
-    This is a slave device that accepts a raw SMuRF Streaming data
+    This is a downstream device that accepts a raw SMuRF Streaming data
     stream from the FW application, and process it by doing channel
     mapping, data unwrapping, filtering and downsampling in a
     monolithic C++ module.

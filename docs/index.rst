@@ -1,4 +1,4 @@
-.. pysmurf documentation master file, created by
+.. pysmurf documentation root file, created by
    sphinx-quickstart on Tue Feb 19 15:17:07 2019.
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
@@ -10,7 +10,7 @@ The python control software for SMuRF. Includes scripts to do low
 level commands as well as higher level analysis.
 
 .. User guide modeled after
-.. https://github.com/simonsobs/ocs/tree/master/docs/user
+.. https://github.com/simonsobs/ocs/tree/main/docs/user
 .. toctree::
    :maxdepth: 3
    :caption: User Guide

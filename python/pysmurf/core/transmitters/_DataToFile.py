@@ -28,8 +28,8 @@ class DataToFile(pyrogue.Device):
     """
     def __init__(self, name="DataToFile", description="Data to file writer", **kwargs):
         pyrogue.Device.__init__(self, name=name, description=description, **kwargs)
-        self._data_slave = DataSlave()
-        self._meta_slave = MetaSlave()
+        self._data_sink = DataSink()
+        self._meta_sink = MetaSink()
 
         self.add(pyrogue.LocalVariable(
             name='FileName',
@@ -47,25 +47,25 @@ class DataToFile(pyrogue.Device):
         Method to write the data to the specified text file.
         """
         file_name = self.FileName.get()
-        self._data_slave.write_data(file_name=file_name)
+        self._data_sink.write_data(file_name=file_name)
 
     def getDataChannel(self):
         """
         Method called by streamConnect, streamTap and streamConnectBiDir to access slave.
         This is method is called to request the data channel.
         """
-        return self._data_slave
+        return self._data_sink
 
     def getMetaChannel(self):
         """
         Method called by streamConnect, streamTap and streamConnectBiDir to access slave.
         This is method is called to request the metadata channel.
         """
-        return self._meta_slave
+        return self._meta_sink
 
-class DataSlave(rogue.interfaces.stream.Slave):
+class DataSink(rogue.interfaces.stream.Slave):
     """
-    A Rogue slave device, used receive a stream of data and write it to disk.
+    A Rogue ``Slave`` subclass that receives a stream of data and writes it to disk.
     """
     def __init__(self):
         super().__init__()
@@ -118,9 +118,9 @@ class DataSlave(rogue.interfaces.stream.Slave):
             #    pass
 
 
-class MetaSlave(rogue.interfaces.stream.Slave):
+class MetaSink(rogue.interfaces.stream.Slave):
     """
-    A Rogue slave device, used to connect to the metadata channel.
+    A Rogue ``Slave`` subclass that connects to the metadata channel.
     """
     def __init__(self):
         super().__init__()

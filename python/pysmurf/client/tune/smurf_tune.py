@@ -17,6 +17,7 @@ from collections import Counter
 import glob
 import os
 import time
+import warnings
 
 import matplotlib.pyplot as plt
 from matplotlib.gridspec import GridSpec
@@ -40,7 +41,8 @@ class SmurfTuneMixin(SmurfBase):
              retune=False, f_min=.02, f_max=.3, df_max=.03,
              fraction_full_scale=None, make_plot=False,
              save_plot=True, show_plot=False,
-             new_master_assignment=False, track_and_check=True):
+             new_channel_assignment=False, track_and_check=True,
+             new_master_assignment=None):
         """
         This runs a tuning, does tracking setup, and prunes bad
         channels using check lock. When this is done, we should
@@ -74,12 +76,21 @@ class SmurfTuneMixin(SmurfBase):
             If making plots, whether to save them.
         show_plot : bool, optional, default False
             Whether to display the plots to screen.
-        new_master_assignment : bool, optional, default False
-            Whether to make a new master assignment which forces
+        new_channel_assignment : bool, optional, default False
+            Whether to write a new channel assignment which forces
             resonators at a given frequency to a given channel.
         track_and_check : bool, optional, default True
             Whether or not after tuning to run track and check.
+        new_master_assignment : bool, optional, default None
+            Deprecated alias for ``new_channel_assignment``.
         """
+        if new_master_assignment is not None:
+            warnings.warn(
+                "new_master_assignment is deprecated; "
+                "use new_channel_assignment",
+                DeprecationWarning, stacklevel=2)
+            new_channel_assignment = new_master_assignment
+
         bands = self._bands
 
         # Load fraction_full_scale from file if not given
@@ -103,7 +114,7 @@ class SmurfTuneMixin(SmurfBase):
                     band, tone_power=tone_power)
                 self.setup_notches(
                     band, tone_power=tone_power,
-                    new_master_assignment=new_master_assignment)
+                    new_channel_assignment=new_channel_assignment)
 
         # Runs tune_band_serial to re-estimate eta params
         if retune:
@@ -113,7 +124,7 @@ class SmurfTuneMixin(SmurfBase):
                     band, from_old_tune=load_tune, old_tune=tune_file,
                     make_plot=make_plot, show_plot=show_plot,
                     save_plot=save_plot,
-                    new_master_assignment=new_master_assignment)
+                    new_channel_assignment=new_channel_assignment)
 
         # Starts tracking and runs check_lock to prune bad resonators
         if track_and_check:
@@ -271,9 +282,10 @@ class SmurfTuneMixin(SmurfBase):
             subband_plot_with_slow=False, window=5000,
             rolling_med=True, grad_cut=.03, freq_min=-2.5E8,
             freq_max=2.5E8, amp_cut=.25, del_f=.005, tone_power=None,
-            new_master_assignment=False, from_old_tune=False,
+            new_channel_assignment=False, from_old_tune=False,
             old_tune=None, pad=50, min_gap=50,
-            highlight_phase_slip=True, amp_ylim=None):
+            highlight_phase_slip=True, amp_ylim=None,
+            new_master_assignment=None):
         """Tunes band using serial_gradient_descent and then
         serial_eta_scan.  This requires an initial guess, which this
         function gets by either loading an old tune or by using the
@@ -297,8 +309,8 @@ class SmurfTuneMixin(SmurfBase):
             If make_plot is True, whether to display the plots to screen.
         make_subband_plot : bool, optional, default False
             Whether to make a plot per subband. This is very slow.
-        new_master_assignment : bool, optional, default False
-            Whether to overwrite the previous master_assignment list.
+        new_channel_assignment : bool, optional, default False
+            Whether to overwrite the previous channel-assignment list.
         from_old_tune : bool, optional, default False
             Whether to use an old tuning file. This will load a tuning
             file and use its peak frequencies as a starting point for
@@ -309,7 +321,16 @@ class SmurfTuneMixin(SmurfBase):
             Whether to highlight the phase slip.
         amp_ylim : float or None, optional, default None
             The ylim for the amplitude plot. If None, does nothing.
+        new_master_assignment : bool, optional, default None
+            Deprecated alias for ``new_channel_assignment``.
         """
+        if new_master_assignment is not None:
+            warnings.warn(
+                "new_master_assignment is deprecated; "
+                "use new_channel_assignment",
+                DeprecationWarning, stacklevel=2)
+            new_channel_assignment = new_master_assignment
+
         timestamp = self.get_timestamp()
         center_freq = self.get_band_center_mhz(band)
 
@@ -325,11 +346,11 @@ class SmurfTuneMixin(SmurfBase):
 
             resonances = np.copy(self.freq_resp[band]['resonances']).item()
 
-            if new_master_assignment:
+            if new_channel_assignment:
                 f = np.array([resonances[k]['freq'] for k in resonances.keys()])
                 # f += self.get_band_center_mhz(band)
                 subbands, channels, offsets = self.assign_channels(f, band=band,
-                    as_offset=False, new_master_assignment=new_master_assignment)
+                    as_offset=False, new_channel_assignment=new_channel_assignment)
 
                 for i, k in enumerate(resonances.keys()):
                     resonances[k].update({'subband': subbands[i]})
@@ -375,7 +396,7 @@ class SmurfTuneMixin(SmurfBase):
             self.log('Assigning channels')
             f = np.array([resonances[k]['freq'] for k in resonances.keys()])
             subbands, channels, offsets = self.assign_channels(f, band=band,
-                as_offset=False, new_master_assignment=new_master_assignment)
+                as_offset=False, new_channel_assignment=new_channel_assignment)
 
             for i, k in enumerate(resonances.keys()):
                 resonances[k].update({'subband': subbands[i]})
@@ -1580,30 +1601,38 @@ class SmurfTuneMixin(SmurfBase):
             return True
 
     @set_action()
-    def load_master_assignment(self, band, filename):
+    def load_channel_assignment(self, band, filename):
         """
-        By default, pysmurf loads the most recent master assignment.
+        By default, pysmurf loads the most recent channel assignment.
         Use this function to overwrite the default one.
 
         Args
         ----
         band : int
-            The band for the master assignment file.
+            The band for the channel assignment file.
         filename : str
-            The full path to the new master assignment file. Should be
+            The full path to the new channel assignment file. Should be
             in self.tune_dir.
         """
         if f'band_{band}' in self.channel_assignment_files.keys():
             old_file=self.channel_assignment_files[f'band_{band}']
-            self.log(f'Old master assignment file: {old_file}')
+            self.log(f'Old channel assignment file: {old_file}')
         self.channel_assignment_files[f'band_{band}'] = filename
         self.freq_resp[band]['channel_assignment'] = filename
-        self.log(f'New master assignment file: {filename}')
+        self.log(f'New channel assignment file: {filename}')
 
     @set_action()
-    def get_master_assignment(self, band):
+    def load_master_assignment(self, band, filename):
+        """Deprecated: use :func:`load_channel_assignment`."""
+        warnings.warn(
+            "load_master_assignment is deprecated; use load_channel_assignment",
+            DeprecationWarning, stacklevel=2)
+        return self.load_channel_assignment(band, filename)
+
+    @set_action()
+    def get_channel_assignment(self, band):
         """
-        Returns the master assignment list.
+        Returns the channel assignment list.
 
         Args
         ----
@@ -1632,9 +1661,17 @@ class SmurfTuneMixin(SmurfBase):
         return freqs, subbands, channels, groups
 
     @set_action()
+    def get_master_assignment(self, band):
+        """Deprecated: use :func:`get_channel_assignment`."""
+        warnings.warn(
+            "get_master_assignment is deprecated; use get_channel_assignment",
+            DeprecationWarning, stacklevel=2)
+        return self.get_channel_assignment(band)
+
+    @set_action()
     def assign_channels(self, freq, band=None, bandcenter=None,
             channel_per_subband=4, as_offset=True, min_offset=0.1,
-            new_master_assignment=False):
+            new_channel_assignment=False, new_master_assignment=None):
         """
         Figures out the subbands and channels to assign to resonators
 
@@ -1655,6 +1692,11 @@ class SmurfTuneMixin(SmurfBase):
         min_offset : float, optional, default 0.1
             The minimum offset between two resonators in MHz.  If
             closer, then both are ignored.
+        new_channel_assignment : bool, optional, default False
+            Whether to write a new channel assignment file (overwriting
+            any existing one for this band).
+        new_master_assignment : bool, optional, default None
+            Deprecated alias for ``new_channel_assignment``.
 
         Returns
         -------
@@ -1665,6 +1707,13 @@ class SmurfTuneMixin(SmurfBase):
         offsets : float array
             The frequency offset from the subband center.
         """
+        if new_master_assignment is not None:
+            warnings.warn(
+                "new_master_assignment is deprecated; "
+                "use new_channel_assignment",
+                DeprecationWarning, stacklevel=2)
+            new_channel_assignment = new_master_assignment
+
         freq = np.sort(freq)  # Just making sure its in sequential order
 
         if band is None and bandcenter is None:
@@ -1675,27 +1724,27 @@ class SmurfTuneMixin(SmurfBase):
         channels = -1 * np.ones(len(freq), dtype=int)
         offsets = np.zeros(len(freq))
 
-        if not new_master_assignment:
-            freq_master,subbands_master,channels_master,groups_master = \
-                self.get_master_assignment(band)
+        if not new_channel_assignment:
+            freq_ref,subbands_ref,channels_ref,groups_ref = \
+                self.get_channel_assignment(band)
             n_freqs = len(freq)
             n_unmatched = 0
             for idx in range(n_freqs):
                 f = freq[idx]
                 found_match = False
-                for i in range(len(freq_master)):
-                    f_master = freq_master[i]
-                    if np.absolute(f-f_master) < min_offset:
-                        ch = channels_master[i]
+                for i in range(len(freq_ref)):
+                    f_ref = freq_ref[i]
+                    if np.absolute(f-f_ref) < min_offset:
+                        ch = channels_ref[i]
                         channels[idx] = ch
-                        sb =  subbands_master[i]
+                        sb =  subbands_ref[i]
                         subbands[idx] = sb
-                        g = groups_master[i]
+                        g = groups_ref[i]
                         sb_center = self.get_subband_centers(band,
                             as_offset=as_offset)[1][sb]
                         offsets[idx] = f-sb_center
-                        self.log(f'Matching {f:.2f} MHz to {f_master:.2f} MHz' +
-                            ' in master channel list: assigning to ' +
+                        self.log(f'Matching {f:.2f} MHz to {f_ref:.2f} MHz' +
+                            ' in reference channel list: assigning to ' +
                             f'subband {sb}, ch. {ch}, group {g}')
                         found_match = True
                         break
@@ -1735,12 +1784,12 @@ class SmurfTuneMixin(SmurfBase):
             channels[~close_idx] = -1
 
             # write the channel assignments to file
-            self.write_master_assignment(band, freq, subbands, channels)
+            self.write_channel_assignment(band, freq, subbands, channels)
 
         return subbands, channels, offsets
 
     @set_action()
-    def write_master_assignment(self, band, freqs, subbands, channels,
+    def write_channel_assignment(self, band, freqs, subbands, channels,
             bias_groups=None):
         '''
         Writes a comma-separated list in the form band, freq (MHz), subband,
@@ -1777,22 +1826,32 @@ class SmurfTuneMixin(SmurfBase):
                 f'{bias_groups[i]}'+
                 '\n')
         f.close()
+        # Stable archiver tag — pysmurf-archiver consumes 'master_assignment'.
         self.pub.register_file(fn, 'master_assignment', format='txt')
 
-        self.load_master_assignment(band, fn)
+        self.load_channel_assignment(band, fn)
 
     @set_action()
-    def make_master_assignment_from_file(self, band, tuning_filename):
+    def write_master_assignment(self, band, freqs, subbands, channels,
+            bias_groups=None):
+        """Deprecated: use :func:`write_channel_assignment`."""
+        warnings.warn(
+            "write_master_assignment is deprecated; use write_channel_assignment",
+            DeprecationWarning, stacklevel=2)
+        return self.write_channel_assignment(band, freqs, subbands, channels,
+            bias_groups=bias_groups)
+
+    @set_action()
+    def make_channel_assignment_from_file(self, band, tuning_filename):
         """
-        Makes a master assignment file
+        Makes a channel assignment file from a tuning file.
 
         Args
         ----
         band : int
             The band number.
         tuning_filename : str
-            The tuning file to use for generating the
-            master_assignment.
+            The tuning file to use for generating the channel assignment.
         """
         self.log(
             f'Drawing band-{band} tuning data from {tuning_filename}')
@@ -1809,7 +1868,16 @@ class SmurfTuneMixin(SmurfBase):
             subbands.append(d[i]['subband'])
             channels.append(d[i]['channel'])
 
-        self.write_master_assignment(band, freqs, subbands, channels)
+        self.write_channel_assignment(band, freqs, subbands, channels)
+
+    @set_action()
+    def make_master_assignment_from_file(self, band, tuning_filename):
+        """Deprecated: use :func:`make_channel_assignment_from_file`."""
+        warnings.warn(
+            "make_master_assignment_from_file is deprecated; "
+            "use make_channel_assignment_from_file",
+            DeprecationWarning, stacklevel=2)
+        return self.make_channel_assignment_from_file(band, tuning_filename)
 
     @set_action()
     def get_group_list(self, band, group):
@@ -1830,7 +1898,7 @@ class SmurfTuneMixin(SmurfBase):
         bias_group_list : int array
             The list of channels that are in the band and bias group.
         """
-        _, _, channels, groups = self.get_master_assignment(band)
+        _, _, channels, groups = self.get_channel_assignment(band)
         chs_in_group = []
         for i in range(len(channels)):
             if groups[i] == group:
@@ -1841,7 +1909,7 @@ class SmurfTuneMixin(SmurfBase):
     def get_group_number(self, band, ch):
         """
         Gets the bias group number of a band, channel pair. The
-        master_channel_assignment must be filled.
+        channel assignment file must be filled.
 
         Args
         ----
@@ -1855,7 +1923,7 @@ class SmurfTuneMixin(SmurfBase):
         bias_group : int
             The bias group number.
         """
-        _, _, channels,groups = self.get_master_assignment(band)
+        _, _, channels,groups = self.get_channel_assignment(band)
         for i in range(len(channels)):
             if channels[i] == ch:
                 return groups[i]
@@ -1864,8 +1932,9 @@ class SmurfTuneMixin(SmurfBase):
     @set_action()
     def write_group_assignment(self, bias_group_dict):
         '''
-        Combs master channel assignment and assigns group number to all channels
-        in ch_list. Does not affect other channels in the master file.
+        Combs the existing channel assignment and assigns group number
+        to all channels in ch_list. Does not affect other channels in
+        the file.
 
         Args
         ----
@@ -1883,8 +1952,8 @@ class SmurfTuneMixin(SmurfBase):
 
         for b in bands:
             # Load previous channel assignment
-            freqs_master, subbands_master, channels_master, \
-                groups_master = self.get_master_assignment(b)
+            freqs_ref, subbands_ref, channels_ref, \
+                groups_ref = self.get_channel_assignment(b)
             for bg in bias_groups:
                 for i in np.arange(len(bias_group_dict[bg]['channel'])):
                     ch = bias_group_dict[bg]['channel'][i]
@@ -1892,15 +1961,15 @@ class SmurfTuneMixin(SmurfBase):
 
                     # First check they are in the same band
                     if bb == b:
-                        idx = np.ravel(np.where(channels_master == ch))
+                        idx = np.ravel(np.where(channels_ref == ch))
                         if len(idx) == 1:
-                            groups_master[idx] = bg
+                            groups_ref[idx] = bg
 
-            # Save the new master channel assignment
-            self.write_master_assignment(b, freqs_master,
-                                         subbands_master,
-                                         channels_master,
-                                         bias_groups=groups_master)
+            # Save the updated channel assignment
+            self.write_channel_assignment(b, freqs_ref,
+                                          subbands_ref,
+                                          channels_ref,
+                                          bias_groups=groups_ref)
 
     @set_action()
     def relock(self, band, res_num=None, tone_power=None, r2_max=.08,
@@ -3858,9 +3927,10 @@ class SmurfTuneMixin(SmurfBase):
     @set_action()
     def setup_notches(self, band, resonance=None, tone_power=None,
                       sweep_width=.3, df_sweep=.002, min_offset=0.1,
-                      delta_freq=None, new_master_assignment=False,
+                      delta_freq=None, new_channel_assignment=False,
                       lock_max_derivative=False,
-                      scan_unassigned=False):
+                      scan_unassigned=False,
+                      new_master_assignment=None):
         """
         Does a fine sweep over the resonances found in find_freq. This
         information is used for placing tones onto resonators. It is
@@ -3889,15 +3959,24 @@ class SmurfTuneMixin(SmurfBase):
             transmission to compute the eta parameters.  Passed to
             eta_estimator.  Units are MHz.  If None, takes value in
             config file.
-        new_master_assignment : bool, optional, default False
-            Whether to create a new master assignment file. This file
+        new_channel_assignment : bool, optional, default False
+            Whether to create a new channel assignment file. This file
             defines the mapping between resonator frequency and
             channel number.
         scan_unassigned : bool, optional, default False
             Whether or not to scan unassigned channels.  Unassigned
             channels are scanned serially after the much faster
             assigned channel scans.
+        new_master_assignment : bool, optional, default None
+            Deprecated alias for ``new_channel_assignment``.
         """
+        if new_master_assignment is not None:
+            warnings.warn(
+                "new_master_assignment is deprecated; "
+                "use new_channel_assignment",
+                DeprecationWarning, stacklevel=2)
+            new_channel_assignment = new_master_assignment
+
         # Turn off all tones in this band first
         self.band_off(band)
 
@@ -3965,7 +4044,7 @@ class SmurfTuneMixin(SmurfBase):
 
         subbands, channels, offsets = self.assign_channels(input_res, band=band,
             as_offset=False, min_offset=min_offset,
-            new_master_assignment=new_master_assignment)
+            new_channel_assignment=new_channel_assignment)
 
         f_sweep = np.arange(-sweep_width, sweep_width, df_sweep)
         n_step  = len(f_sweep)
@@ -4094,7 +4173,7 @@ class SmurfTuneMixin(SmurfBase):
 
         subbands, channels, offsets = self.assign_channels(f, band=band,
             as_offset=False, min_offset=min_offset,
-            new_master_assignment=new_master_assignment)
+            new_channel_assignment=new_channel_assignment)
 
         for i, k in enumerate(resonances.keys()):
             resonances[k].update({'subband': subbands[i]})

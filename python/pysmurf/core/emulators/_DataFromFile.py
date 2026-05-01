@@ -29,7 +29,7 @@ class DataFromFile(pyrogue.Device):
     """
     def __init__(self, name="DataFromFile", description="Data from file source", **kwargs):
         pyrogue.Device.__init__(self, name=name, description=description, **kwargs)
-        self._data_master = DataMaster()
+        self._data_source = DataSource()
 
         self.add(pyrogue.LocalVariable(
             name='FileName',
@@ -42,7 +42,7 @@ class DataFromFile(pyrogue.Device):
             description='Number of sent frames',
             mode='RO',
             value=0,
-            localGet = self._data_master.get_frame_cnt))
+            localGet = self._data_source.get_frame_cnt))
 
         self.add(pyrogue.LocalCommand(
             name='SendData',
@@ -54,19 +54,19 @@ class DataFromFile(pyrogue.Device):
         Method to send data from the specified text file.
         """
         file_name = self.FileName.get()
-        self._data_master.send_data(file_name=file_name)
+        self._data_source.send_data(file_name=file_name)
 
     def _getStreamMaster(self):
         """
         Method called by streamConnect, streamTap and streamConnectBiDir to access master.
         """
-        return self._data_master
+        return self._data_source
 
 
 
-class DataMaster(rogue.interfaces.stream.Master):
+class DataSource(rogue.interfaces.stream.Master):
     """
-    A Rogue master device, used to stream the data.
+    A Rogue ``Master`` subclass that streams frames into the pyrogue tree.
     """
     def __init__(self):
         super().__init__()
