@@ -25,6 +25,9 @@ You should be able to call this config file when you instantiate your `SmurfCont
 - `att_uc` - The upconverter (DAC) attenuator
 - `att_dc` - The downconverter (ADC) attenuator
 - `amplitude_scale` - The probe tone power.
+- `toneScale` *(optional)* - Override of the DSP `toneScale` register. Omit to keep the value programmed by `defaults.yml`.
+- `analysisScale` *(optional)* - Override of the DSP `analysisScale` register. Omit to keep the value programmed by `defaults.yml`.
+- `synthesisScale` *(optional)* - Override of the DSP `synthesisScale` register. Omit to keep the value programmed by `defaults.yml`.
 
 ## bad_mask
 

@@ -170,6 +170,12 @@ class SmurfConfigPropertiesMixin:
         self._feedback_limit_khz = None
         self._feedback_polarity = None
 
+        # Optional DSP scale overrides (issue #67).  None means "leave
+        # whatever defaults.yml programmed alone".
+        self._tone_scale = None
+        self._analysis_scale = None
+        self._synthesis_scale = None
+
         # Mappings
         self._all_groups = None
         self._n_bias_groups = None
@@ -364,6 +370,18 @@ class SmurfConfigPropertiesMixin:
             for band in bands}
         self.feedback_polarity = {
             band:smurf_init_config[f'band_{band}']['feedbackPolarity']
+            for band in bands}
+
+        # Optional DSP scale overrides (issue #67).  Use .get() because
+        # these are Optional in the schema with default=None.
+        self.tone_scale = {
+            band:smurf_init_config[f'band_{band}'].get('toneScale')
+            for band in bands}
+        self.analysis_scale = {
+            band:smurf_init_config[f'band_{band}'].get('analysisScale')
+            for band in bands}
+        self.synthesis_scale = {
+            band:smurf_init_config[f'band_{band}'].get('synthesisScale')
             for band in bands}
 
         ## Mappings
@@ -2478,6 +2496,96 @@ class SmurfConfigPropertiesMixin:
         self._feedback_polarity = value
 
     ## End feedback_polarity property definition
+    ###########################################################################
+
+    ###########################################################################
+    ## Start tone_scale property definition
+
+    # Getter
+    @property
+    def tone_scale(self):
+        """Per-band toneScale DSP register override.
+
+        Optional override of the toneScale firmware register set in
+        defaults.yml.  None means do not touch the register during
+        setup.
+
+        Specified per band in the pysmurf configuration file as
+        `init.band_#.toneScale`.
+
+        See Also
+        --------
+        analysis_scale, synthesis_scale
+
+        """
+        return self._tone_scale
+
+    # Setter
+    @tone_scale.setter
+    def tone_scale(self, value):
+        self._tone_scale = value
+
+    ## End tone_scale property definition
+    ###########################################################################
+
+    ###########################################################################
+    ## Start analysis_scale property definition
+
+    # Getter
+    @property
+    def analysis_scale(self):
+        """Per-band analysisScale DSP register override.
+
+        Optional override of the analysisScale firmware register set
+        in defaults.yml.  None means do not touch the register during
+        setup.
+
+        Specified per band in the pysmurf configuration file as
+        `init.band_#.analysisScale`.
+
+        See Also
+        --------
+        tone_scale, synthesis_scale
+
+        """
+        return self._analysis_scale
+
+    # Setter
+    @analysis_scale.setter
+    def analysis_scale(self, value):
+        self._analysis_scale = value
+
+    ## End analysis_scale property definition
+    ###########################################################################
+
+    ###########################################################################
+    ## Start synthesis_scale property definition
+
+    # Getter
+    @property
+    def synthesis_scale(self):
+        """Per-band synthesisScale DSP register override.
+
+        Optional override of the synthesisScale firmware register set
+        in defaults.yml.  None means do not touch the register during
+        setup.
+
+        Specified per band in the pysmurf configuration file as
+        `init.band_#.synthesisScale`.
+
+        See Also
+        --------
+        tone_scale, analysis_scale
+
+        """
+        return self._synthesis_scale
+
+    # Setter
+    @synthesis_scale.setter
+    def synthesis_scale(self, value):
+        self._synthesis_scale = value
+
+    ## End synthesis_scale property definition
     ###########################################################################
 
     ###########################################################################
