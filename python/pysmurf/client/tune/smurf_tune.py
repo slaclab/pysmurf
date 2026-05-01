@@ -2571,7 +2571,11 @@ class SmurfTuneMixin(SmurfBase):
             registers and contribute to incrased noise.
             Too high of lms_gain will overflow the register and greatly incrase noise.
         return_data : bool, optional, default True
-            Whether or not to return f, df, sync.
+            If True, take debug data (via take_debug_data) and
+            return (f, df, sync).  If False AND make_plot is also
+            False, the debug data acquisition is skipped entirely,
+            saving time.  Used internally by track_and_check, which
+            does not need the returned arrays.
         feedback_start_frac : float or None, optional, default None
             The fraction of the full flux ramp at which to stop
             applying feedback in each flux ramp cycle.  Must be in
@@ -2584,6 +2588,23 @@ class SmurfTuneMixin(SmurfBase):
             Whether to setup the flux ramp.
         plotname_append : str, optional, default ''
             Optional string to append plots with.
+
+        Returns
+        -------
+        f : float array or None
+            The frequency response per channel from take_debug_data.
+            Only returned when return_data=True.  None on the early
+            error path (both meas_lms_freq and meas_flux_ramp_amp
+            requested).
+        df : float array or None
+            The frequency error per channel.  Same conditions as f.
+        sync : float array or None
+            The sync count from the flux ramp.  Same conditions as f.
+
+        Notes
+        -----
+        When return_data=False this function returns None (no
+        tuple).
         """
         if reset_rate_khz is None:
             reset_rate_khz = self._reset_rate_khz
