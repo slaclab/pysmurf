@@ -198,7 +198,8 @@ class SmurfControl(SmurfCommandMixin,
             datestr = time.strftime('%y%m%d_', time.gmtime())
             self.log_file = os.path.join(self.output_dir, 'logs', datestr +
                 'smurf_cmd.log')
-            self.log.set_logfile(self.log_file)
+            if not self._log_user_supplied:
+                self.log.set_logfile(self.log_file)
         else:
             # define data dir
             if data_dir is not None:
@@ -245,8 +246,9 @@ class SmurfControl(SmurfCommandMixin,
             # name the logfile and create flags for it
             if make_logfile:
                 self.log_file = os.path.join(self.output_dir, name + '.log')
-                self.log.set_logfile(self.log_file)
-            else:
+                if not self._log_user_supplied:
+                    self.log.set_logfile(self.log_file)
+            elif not self._log_user_supplied:
                 self.log.set_logfile(None)
 
             # Which bays were enabled on pysmurf server startup?
