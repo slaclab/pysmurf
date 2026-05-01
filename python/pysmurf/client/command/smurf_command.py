@@ -2706,15 +2706,35 @@ class SmurfCommandMixin(SmurfBase):
     _uc_reg = 'UC[{}]'
 
     def set_att_uc(self, b, val, **kwargs):
-        """
-        Set the upconverter attenuator
+        """Set the up-converter (UC) RF attenuator for a 500 MHz band.
+
+        The UC attenuator sits on the SMuRF RF output (DAC -> cryostat)
+        path and is used to set the tone power driven into the
+        resonators.  This call resolves the band-to-attenuator mapping
+        with :func:`band_to_att` and writes the rogue register
+        ``MicrowaveMuxCore[bay].ATT.UC[n]``.
 
         Args
         ----
         b : int
-            The band number.
+            SMuRF 500 MHz band index, 0-7.  Bands 0-3 live on bay 0
+            (low-band AMC), bands 4-7 on bay 1 (high-band AMC).
         val : int
-            The attenuator value.
+            Attenuator setting in 0.5 dB steps; valid integer range is
+            0-31 (i.e. 0 dB to 15.5 dB of attenuation).  E.g. ``val=10``
+            requests 5.0 dB of UC attenuation.
+
+        See Also
+        --------
+        :func:`get_att_uc`
+        :func:`set_att_dc`
+        :func:`~pysmurf.client.util.smurf_util.SmurfUtilMixin.band_to_att`
+
+        Notes
+        -----
+        The default UC attenuator setting per band is taken from the
+        ``att_uc`` field of the per-band block in the pysmurf
+        configuration file and is applied during :func:`setup`.
         """
         att = int(self.band_to_att(b))
         bay = self.band_to_bay(b)
@@ -2723,13 +2743,29 @@ class SmurfCommandMixin(SmurfBase):
             val, **kwargs)
 
     def get_att_uc(self, b, **kwargs):
-        """
-        Get the upconverter attenuator value
+        """Get the current up-converter (UC) RF attenuator setting for a band.
+
+        Reads the rogue register
+        ``MicrowaveMuxCore[bay].ATT.UC[n]`` for the attenuator that
+        :func:`band_to_att` maps band ``b`` onto.
 
         Args
         ----
         b : int
-            The band number.
+            SMuRF 500 MHz band index, 0-7.  Bands 0-3 live on bay 0
+            (low-band AMC), bands 4-7 on bay 1 (high-band AMC).
+
+        Returns
+        -------
+        val : int
+            Current UC attenuator setting in 0.5 dB steps, integer
+            0-31 (i.e. 0 dB to 15.5 dB of attenuation).
+
+        See Also
+        --------
+        :func:`set_att_uc`
+        :func:`get_att_dc`
+        :func:`~pysmurf.client.util.smurf_util.SmurfUtilMixin.band_to_att`
         """
         att = int(self.band_to_att(b))
         bay = self.band_to_bay(b)
@@ -2741,15 +2777,35 @@ class SmurfCommandMixin(SmurfBase):
     _dc_reg = 'DC[{}]'
 
     def set_att_dc(self, b, val, **kwargs):
-        """
-        Set the down-converter attenuator
+        """Set the down-converter (DC) RF attenuator for a 500 MHz band.
+
+        The DC attenuator sits on the SMuRF RF input (cryostat -> ADC)
+        path and is used to attenuate the returning tone power before
+        digitization.  This call resolves the band-to-attenuator
+        mapping with :func:`band_to_att` and writes the rogue register
+        ``MicrowaveMuxCore[bay].ATT.DC[n]``.
 
         Args
         ----
         b : int
-            The band number.
+            SMuRF 500 MHz band index, 0-7.  Bands 0-3 live on bay 0
+            (low-band AMC), bands 4-7 on bay 1 (high-band AMC).
         val : int
-            The attenuator value
+            Attenuator setting in 0.5 dB steps; valid integer range is
+            0-31 (i.e. 0 dB to 15.5 dB of attenuation).  E.g. ``val=10``
+            requests 5.0 dB of DC attenuation.
+
+        See Also
+        --------
+        :func:`get_att_dc`
+        :func:`set_att_uc`
+        :func:`~pysmurf.client.util.smurf_util.SmurfUtilMixin.band_to_att`
+
+        Notes
+        -----
+        The default DC attenuator setting per band is taken from the
+        ``att_dc`` field of the per-band block in the pysmurf
+        configuration file and is applied during :func:`setup`.
         """
         att = int(self.band_to_att(b))
         bay = self.band_to_bay(b)
@@ -2758,13 +2814,29 @@ class SmurfCommandMixin(SmurfBase):
             val, **kwargs)
 
     def get_att_dc(self, b, **kwargs):
-        """
-        Get the down-converter attenuator value
+        """Get the current down-converter (DC) RF attenuator setting for a band.
+
+        Reads the rogue register
+        ``MicrowaveMuxCore[bay].ATT.DC[n]`` for the attenuator that
+        :func:`band_to_att` maps band ``b`` onto.
 
         Args
         ----
         b : int
-            The band number.
+            SMuRF 500 MHz band index, 0-7.  Bands 0-3 live on bay 0
+            (low-band AMC), bands 4-7 on bay 1 (high-band AMC).
+
+        Returns
+        -------
+        val : int
+            Current DC attenuator setting in 0.5 dB steps, integer
+            0-31 (i.e. 0 dB to 15.5 dB of attenuation).
+
+        See Also
+        --------
+        :func:`set_att_dc`
+        :func:`get_att_uc`
+        :func:`~pysmurf.client.util.smurf_util.SmurfUtilMixin.band_to_att`
         """
         att = int(self.band_to_att(b))
         bay = self.band_to_bay(b)
