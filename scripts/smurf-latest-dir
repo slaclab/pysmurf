@@ -1,0 +1,55 @@
+#!/usr/bin/env bash
+#
+# smurf-latest-dir - print the path to the most recent pysmurf session subdir.
+#
+# pysmurf lays sessions out as
+#     <data_dir>/<YYYYMMDD>/[<data_path_id>/]<session>/{outputs,plots,tune}
+# (see python/pysmurf/client/base/smurf_control.py). This helper finds the
+# most recently modified <session> dir and prints the requested subdir, so
+# users can `cd "$(smurf-latest-dir)"` without hunting through timestamps.
+#
+# Usage:
+#     smurf-latest-dir [plots|outputs|tune] [--data-dir DIR] [--data-path-id ID]
+#
+# Defaults: subdir=plots, data_dir=/data/smurf_data (matches every cfg in
+# cfg_files/). Exits non-zero if no session is found.
+
+set -euo pipefail
+
+usage() {
+    sed -n '3,15p' "$0" | sed 's/^# \{0,1\}//'
+}
+
+data_dir="/data/smurf_data"
+data_path_id=""
+subdir="plots"
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --data-dir)      data_dir="$2";      shift 2 ;;
+        --data-path-id)  data_path_id="$2";  shift 2 ;;
+        plots|outputs|tune) subdir="$1";     shift ;;
+        -h|--help)       usage; exit 0 ;;
+        *) echo "smurf-latest-dir: unknown argument: $1" >&2; usage >&2; exit 2 ;;
+    esac
+done
+
+# Glob: <data_dir>/<8-digit-date>/[<data_path_id>/]<session>
+date_glob='[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]'
+if [[ -n "$data_path_id" ]]; then
+    pattern="$data_dir/$date_glob/$data_path_id/*"
+else
+    pattern="$data_dir/$date_glob/*"
+fi
+
+# shellcheck disable=SC2086  # intentional word-splitting on $pattern
+# `|| true` keeps `set -e -o pipefail` from aborting when the glob has no
+# matches; the empty-result case is handled explicitly below.
+latest=$(ls -1dt $pattern 2>/dev/null | head -n1 || true)
+
+if [[ -z "$latest" || ! -d "$latest" ]]; then
+    echo "smurf-latest-dir: no session found under $data_dir" >&2
+    exit 1
+fi
+
+echo "$latest/$subdir"

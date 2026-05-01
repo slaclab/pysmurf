@@ -38,3 +38,25 @@ documentation by opening `_build/html/index.html` in the browser of your choice.
 The documentation is also updated to readthedocs here: https://pysmurf.readthedocs.io/en/main/
 
 [1]: https://sphinxcontrib-napoleon.readthedocs.io/en/latest/example_numpy.html
+
+## Navigating to the latest pysmurf session
+
+Each pysmurf client run drops outputs under
+`<default_data_dir>/<YYYYMMDD>/[<data_path_id>/]<session>/{outputs,plots,tune}`.
+`scripts/smurf-latest-dir` prints the path of the most recently modified
+session's `plots` (default), `outputs`, or `tune` subdir so you can `cd`
+straight in:
+
+```
+cd "$(scripts/smurf-latest-dir)"             # latest plots/
+cd "$(scripts/smurf-latest-dir outputs)"     # latest outputs/
+scripts/smurf-latest-dir --data-dir /custom/path --data-path-id crate1slot2
+```
+
+Defaults to `--data-dir /data/smurf_data`, which matches every cfg under
+`cfg_files/`. Handy aliases for `~/.bashrc`:
+
+```
+alias cdplots='cd "$(scripts/smurf-latest-dir)"'
+alias cdouts='cd "$(scripts/smurf-latest-dir outputs)"'
+```
