@@ -434,7 +434,8 @@ class SmurfTuneMixin(SmurfBase):
     @set_action()
     def plot_tune_summary(self, band, eta_scan=False, show_plot=False,
             save_plot=True, eta_width=.3, channels=None,
-            plot_summary=True, plotname_append=''):
+            plot_summary=True, plotname_append='',
+            rerun_eta_scans=False, sweep_width=.3, df_sweep=.002):
         """
         Plots summary of tuning. Requires self.freq_resp to be filled.
         In other words, you must run find_freq and setup_notches
@@ -463,7 +464,29 @@ class SmurfTuneMixin(SmurfBase):
             Plot summary.
         plotname_append : str, optional, default ''
             Appended to the default plot filename.
+        rerun_eta_scans : bool, optional, default False
+            If True, refresh eta scans for the channels currently on
+            (via :func:`eta_scan_on_channels`) before plotting and
+            restrict the per-channel eta plots to those on-channels.
+            Implies ``eta_scan=True``.  Use this to see how resonance
+            shapes are evolving after small power/temperature steps
+            without rerunning :func:`find_freq` / :func:`setup_notches`.
+        sweep_width : float, optional, default 0.3
+            Half-range of the sweep around each on-channel tone in MHz,
+            forwarded to :func:`eta_scan_on_channels`.  Only used when
+            ``rerun_eta_scans=True``.
+        df_sweep : float, optional, default 0.002
+            Sweep step size in MHz, forwarded to
+            :func:`eta_scan_on_channels`.  Only used when
+            ``rerun_eta_scans=True``.
         """
+        if rerun_eta_scans:
+            on_channels = self.eta_scan_on_channels(
+                band, sweep_width=sweep_width, df_sweep=df_sweep)
+            if channels is None:
+                channels = [int(ch) for ch in on_channels]
+            eta_scan = True
+
         if show_plot:
             plt.ion()
         else:
@@ -4106,6 +4129,162 @@ class SmurfTuneMixin(SmurfBase):
         self.save_tune()
 
         self.relock(band)
+
+
+    @set_action()
+    def eta_scan_on_channels(self, band, sweep_width=.3, df_sweep=.002,
+            delta_freq=None, lock_max_derivative=False, save=True):
+        """Re-runs eta scans on the channels currently on, without
+        rerunning find_freq, setup_notches, or relock.
+
+        Intended for tracking how resonance shape changes with small
+        power or temperature steps.  After re-tuning the resonance
+        center with :func:`run_serial_gradient_descent` and
+        :func:`run_serial_eta_scan`, this method sweeps each on-channel
+        around its current tone frequency and refreshes the
+        ``freq_eta_scan`` and ``resp_eta_scan`` arrays in
+        ``self.freq_resp[band]['resonances']``.  This makes the fresh
+        I/Q traces available to :func:`plot_tune_summary` (with
+        ``eta_scan=True``) without the cost of a full
+        :func:`setup_notches`.
+
+        Reuses the same firmware-driven serial sweep mechanism used by
+        :func:`setup_notches`, but only populates the eta-scan freq
+        register for the on-channels (others left at zero).  Tones for
+        the on-channels remain on; channel assignment, master
+        assignment, and the firmware eta parameters are not modified.
+
+        Args
+        ----
+        band : int
+            The 500 MHz band to re-scan.
+        sweep_width : float, optional, default 0.3
+            Half-range of the sweep around each on-channel tone in MHz.
+        df_sweep : float, optional, default 0.002
+            Sweep step size in MHz.
+        delta_freq : float or None, optional, default None
+            Frequency offset at which to estimate eta.  Passed to
+            :func:`eta_estimator`.  If None, takes the value from the
+            config file via ``self._delta_freq[band]``.
+        lock_max_derivative : bool, optional, default False
+            Forwarded to :func:`eta_estimator`.
+        save : bool, optional, default True
+            If True, write the refreshed tune to disk via
+            :func:`save_tune`.
+
+        Returns
+        -------
+        on_channels : :py:class:`numpy.ndarray`
+            Channels that were re-scanned (i.e. the result of
+            :func:`which_on` for this band).
+
+        See Also
+        --------
+        :func:`setup_notches`, :func:`plot_tune_summary`,
+        :func:`which_on`
+        """
+        on_channels = self.which_on(band)
+        if len(on_channels) == 0:
+            self.log(f'No channels on for band {band}; nothing to scan.',
+                     self.LOG_USER)
+            return on_channels
+
+        if 'resonances' not in self.freq_resp[band]:
+            self.log(
+                f'No resonances stored for band {band}.  Run setup_notches '
+                'before eta_scan_on_channels.', self.LOG_ERROR)
+            return on_channels
+
+        # Map channel number -> resonance key in freq_resp.
+        channel_to_key = {
+            r['channel']: k
+            for k, r in self.freq_resp[band]['resonances'].items()
+            if r.get('channel', -1) != -1
+        }
+        missing = [int(ch) for ch in on_channels if ch not in channel_to_key]
+        if missing:
+            self.log(
+                f'On-channels {missing} not in freq_resp for band {band}; '
+                'they will be skipped.', self.LOG_USER)
+
+        if delta_freq is None:
+            delta_freq = self._delta_freq[band]
+
+        tone_power = self.freq_resp[band].get(
+            'tone_power', self._amplitude_scale[band])
+
+        n_channels = self.get_number_channels(band)
+        n_subbands = self.get_number_sub_bands(band)
+        digitizer_frequency_mhz = self.get_digitizer_frequency_mhz(band)
+        subband_half_width = digitizer_frequency_mhz / n_subbands
+
+        # Subband centers, in absolute MHz, used to convert each on-channel
+        # tone frequency to the offset convention expected by the eta-scan
+        # freq register.
+        _, sb_centers_abs = self.get_subband_centers(band, as_offset=False)
+
+        f_sweep = np.arange(-sweep_width, sweep_width, df_sweep)
+        n_step = len(f_sweep)
+
+        freq = np.zeros((n_channels, n_step))
+        for ch in on_channels:
+            if ch not in channel_to_key:
+                continue
+            sb = self.get_subband_from_channel(band, int(ch))
+            tone_abs = self.channel_to_freq(band, int(ch))
+            offset = tone_abs - sb_centers_abs[sb]
+            freq[ch, :] = offset + f_sweep
+
+        self.set_eta_scan_freq(band, freq.flatten())
+        self.set_eta_scan_amplitude(band, tone_power)
+        self.set_run_serial_find_freq(band, 1)
+
+        I = self.get_eta_scan_results_real(band, count=n_step*n_channels)
+        I = np.asarray(I).reshape(n_channels, n_step)
+        Q = self.get_eta_scan_results_imag(band, count=n_step*n_channels)
+        Q = np.asarray(Q).reshape(n_channels, n_step)
+        resp = I + 1j*Q
+
+        for ch in on_channels:
+            if ch not in channel_to_key:
+                continue
+            k = channel_to_key[ch]
+            sb = self.get_subband_from_channel(band, int(ch))
+            freq_s, resp_s, eta = self.eta_estimator(
+                band, sb, freq[ch, :], resp[ch, :],
+                delta_freq=delta_freq,
+                lock_max_derivative=lock_max_derivative)
+
+            eta_phase_deg = np.angle(eta)*180/np.pi
+            eta_mag = np.abs(eta)
+            eta_scaled = eta_mag / subband_half_width
+            if eta_scaled > 1:
+                self.log(
+                    f'eta_scan_on_channels: Measured eta {eta_scaled} > 1. '
+                    'Clipping to 1.')
+                eta_scaled = 1
+                eta /= eta_mag
+                eta *= subband_half_width
+                eta_mag = subband_half_width
+
+            abs_resp = np.abs(resp_s)
+            idx = np.ravel(np.where(abs_resp == np.min(abs_resp)))[0]
+            f_min = freq_s[idx]
+
+            self.freq_resp[band]['resonances'][k].update({
+                'freq' : f_min,
+                'eta' : eta,
+                'eta_scaled' : eta_scaled,
+                'eta_phase' : eta_phase_deg,
+                'eta_mag' : eta_mag,
+                'freq_eta_scan' : freq_s,
+                'resp_eta_scan' : resp_s,
+            })
+
+        if save:
+            self.save_tune()
+
+        return on_channels
 
 
     def calculate_eta_svd(self, band, channel,
