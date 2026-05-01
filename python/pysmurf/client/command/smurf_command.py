@@ -7119,6 +7119,53 @@ class SmurfCommandMixin(SmurfBase):
 
         return fru_info_dict
 
+    def check_amc_rtm_handles(self, bays=None, slot_number=None,
+                              shelf_manager=None):
+        r"""Check that AMC and RTM handles are fully engaged.
+
+        A disengaged handle leaves the FRU electrically dead but
+        mechanically present, which `setup()` would otherwise miss.
+        Probes each AMC bay in `bays` plus the RTM via
+        :func:`get_fru_info`; a `None` return means the shelf manager
+        could not see the FRU (handle open, not seated, or shelf
+        wiring fault).
+
+        Args
+        ----
+        bays : list of int or None, optional, default None
+            AMC bays to probe.  If None, defaults to
+            :attr:`~pysmurf.client.base.smurf_control.SmurfControl.bays`.
+        slot_number : int or None, optional, default None
+            The crate slot number to probe.  If None, defaults to the
+            :class:`~pysmurf.client.base.smurf_control.SmurfControl`
+            class attribute
+            :attr:`~pysmurf.client.base.smurf_control.SmurfControl.slot_number`.
+        shelf_manager : str or None, optional, default None
+            Shelf manager ip address.  If None, defaults to the
+            :class:`~pysmurf.client.base.smurf_control.SmurfControl`
+            class attribute
+            :attr:`~pysmurf.client.base.smurf_control.SmurfControl.shelf_manager`.
+
+        Returns
+        -------
+        disengaged : list of str
+            Human-readable identifiers of FRUs whose handle/seating
+            check failed (e.g. ``['AMC bay 0', 'RTM']``).  Empty list
+            means all probed FRUs responded.
+        """
+        if bays is None:
+            bays = self.bays
+        disengaged = []
+        for bay in bays:
+            if self.get_fru_info('amc', bay=bay,
+                                 slot_number=slot_number,
+                                 shelf_manager=shelf_manager) is None:
+                disengaged.append(f'AMC bay {bay}')
+        if self.get_fru_info('rtm', slot_number=slot_number,
+                             shelf_manager=shelf_manager) is None:
+            disengaged.append('RTM')
+        return disengaged
+
     _readout_delay_reg = "readoutDelay"
 
     def get_readout_delay(self, **kwargs):

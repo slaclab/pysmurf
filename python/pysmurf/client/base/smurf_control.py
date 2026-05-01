@@ -496,6 +496,21 @@ class SmurfControl(SmurfCommandMixin,
                     self.LOG_ERROR)
                 success = False
 
+        # Verify AMC and RTM handles are fully engaged before
+        # touching per-band hardware.  A disengaged handle leaves the
+        # FRU mechanically present but electrically dead; setup would
+        # otherwise complete and only fail later in obscure ways.
+        # Issue #177.
+        if success:
+            disengaged = self.check_amc_rtm_handles()
+            if disengaged:
+                raise RuntimeError(
+                    'Hardware handle(s) not properly engaged: '
+                    f'{", ".join(disengaged)}.  Reseat the listed '
+                    'module(s) (push handle fully closed until it '
+                    'latches) and re-run setup.  See pysmurf issue '
+                    '#177.')
+
         # Only proceed with the rest of setup if defaults were set
         # correctly and basic system checks succeeded, otherwise we
         # risk giving users false hope.
