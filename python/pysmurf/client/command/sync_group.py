@@ -14,7 +14,11 @@
 # copied, modified, propagated, or distributed except according to the terms
 # contained in the LICENSE.txt file.
 #-----------------------------------------------------------------------------
-from pyrogue import VariableWaitClass
+try:
+    from pyrogue import VariableWaitClass
+except ModuleNotFoundError:
+    # there will be warnings elsewhere
+    pass
 
 """
 Wait for a group of PVs to be updated before reading their values.

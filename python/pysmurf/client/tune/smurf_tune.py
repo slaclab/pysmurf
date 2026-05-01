@@ -28,6 +28,7 @@ import seaborn as sns
 from pysmurf.client.base import SmurfBase
 from pysmurf.client.command.sync_group import SyncGroup as SyncGroup
 from pysmurf.client.util.pub import set_action
+from pysmurf.client.util.tools import save_to_txt
 from ..util import tools
 
 class SmurfTuneMixin(SmurfBase):
@@ -781,15 +782,15 @@ class SmurfTuneMixin(SmurfBase):
             save_name = timestamp + '_{}_full_band_resp.txt'
 
             path = os.path.join(self.output_dir, save_name.format('freq'))
-            np.savetxt(path, f)
+            save_to_txt(path, f)
             self.pub.register_file(path, 'full_band_resp', format='txt')
 
             path = os.path.join(self.output_dir, save_name.format('real'))
-            np.savetxt(path, np.real(resp))
+            save_to_txt(path, np.real(resp))
             self.pub.register_file(path, 'full_band_resp', format='txt')
 
             path = os.path.join(self.output_dir, save_name.format('imag'))
-            np.savetxt(path, np.imag(resp))
+            save_to_txt(path, np.imag(resp))
             self.pub.register_file(path, 'full_band_resp', format='txt')
 
         if return_plot_path:
@@ -1317,6 +1318,12 @@ class SmurfTuneMixin(SmurfBase):
         eta_mag = np.abs(eta)
         eta_angle = np.angle(eta)
         eta_scaled = eta_mag / subband_half_width
+        if eta_scaled > 1:
+            self.log(f"eta_fit: Measured eta {eta_scaled} > 1. Clipping to 1.")
+            eta_scaled = 1
+            eta /= eta_mag
+            eta *= subband_half_width
+            eta_mag = subband_half_width
         eta_phase_deg = eta_angle * 180 / np.pi
 
 
@@ -3509,14 +3516,15 @@ class SmurfTuneMixin(SmurfBase):
         timestamp = self.get_timestamp()
 
         # Save data
-        save_name = '{}_amp_sweep_{}.txt'
+        save_name = '{}_b{:d}_amp_sweep_{}.txt'
 
-        path = os.path.join(self.output_dir, save_name.format(timestamp, 'freq'))
-        np.savetxt(path, f)
+        path = os.path.join(self.output_dir, save_name.format(timestamp, band, 'freq'))
+        # will raise an error if the file already exists
+        save_to_txt(path, f)
         self.pub.register_file(path, 'sweep_response', format='txt')
 
-        path = os.path.join(self.output_dir, save_name.format(timestamp, 'resp'))
-        np.savetxt(path, resp)
+        path = os.path.join(self.output_dir, save_name.format(timestamp, band, 'resp'))
+        save_to_txt(path, resp)
         self.pub.register_file(path, 'sweep_response', format='txt')
 
         # Place in dictionary - dictionary declared in smurf_control
@@ -3543,8 +3551,8 @@ class SmurfTuneMixin(SmurfBase):
 
         # Save resonances
         path = os.path.join(self.output_dir,
-            save_name.format(timestamp, 'resonance'))
-        np.savetxt(path, self.freq_resp[band]['find_freq']['resonance'])
+            save_name.format(timestamp, band, 'resonance'))
+        save_to_txt(path, self.freq_resp[band]['find_freq']['resonance'])
         self.pub.register_file(path, 'resonances', format='txt')
 
         # Call plotting
@@ -3554,7 +3562,7 @@ class SmurfTuneMixin(SmurfBase):
                 subband=np.arange(self.get_number_sub_bands(band)),
                 save_plot=save_plot,
                 show_plot=show_plot,
-                save_name=save_name.replace('.txt', plotname_append +
+                save_name=save_name.replace('_{}.txt', plotname_append +
                                             '.png').format(timestamp, band))
 
 
@@ -3995,6 +4003,12 @@ class SmurfTuneMixin(SmurfBase):
                 eta_phase_deg = np.angle(eta)*180/np.pi
                 eta_mag = np.abs(eta)
                 eta_scaled = eta_mag / subband_half_width
+                if eta_scaled > 1:
+                    self.log(f"setup_notches: Measured eta {eta_scaled} > 1. Clipping to 1.")
+                    eta_scaled = 1
+                    eta /= eta_mag
+                    eta *= subband_half_width
+                    eta_mag = subband_half_width
 
                 abs_resp = np.abs(resp_s)
                 idx = np.ravel(np.where(abs_resp == np.min(abs_resp)))[0]
@@ -4049,6 +4063,12 @@ class SmurfTuneMixin(SmurfBase):
                 eta_phase_degu = np.angle(etau)*180/np.pi
                 eta_magu = np.abs(etau)
                 eta_scaledu = eta_magu / subband_half_width
+                if eta_scaledu > 1:
+                    self.log(f"setup_notches: Measured eta {eta_scaledu} > 1. Clipping to 1.")
+                    eta_scaledu = 1
+                    etau /= eta_magu
+                    etau *= subband_half_width
+                    eta_magu = subband_half_width
 
                 abs_respu = np.abs(respu_s)
                 idx = np.ravel(np.where(abs_respu == np.min(abs_respu)))[0]
@@ -4256,6 +4276,12 @@ class SmurfTuneMixin(SmurfBase):
         elif filename is not None and last_tune:
             self.log('filename explicitly given. Overriding last_tune bool in load_tune.')
 
+        if filename is None or not os.path.exists(filename):
+            self.log(
+                f'Tune file {filename} not found. Skipping load.',
+                self.LOG_ERROR)
+            return None
+
         fs = np.load(filename, allow_pickle=True).item()
         self.log('Done loading tuning')
 
@@ -4286,10 +4312,17 @@ class SmurfTuneMixin(SmurfBase):
     @set_action()
     def last_tune(self):
         """
-        Returns the full path to the most recent tuning file.
+        Returns the full path to the most recent tuning file, or None
+        if no tune files are found.
         """
-        return np.sort(glob.glob(os.path.join(self.tune_dir,
-                                              '*_tune.npy')))[-1]
+        tune_files = glob.glob(os.path.join(self.tune_dir,
+                                            '*_tune.npy'))
+        if len(tune_files) == 0:
+            self.log(
+                f'No tune files found in {self.tune_dir}',
+                self.LOG_ERROR)
+            return None
+        return np.sort(tune_files)[-1]
 
     @set_action()
     def optimize_lms_delay(self, band, lms_delays=None,
@@ -4896,7 +4929,7 @@ class SmurfTuneMixin(SmurfBase):
 
                 path = os.path.join(self.output_dir,
                     save_name.format(timestamp, str(band),'resonance'))
-                np.savetxt(path, freq_dict[band]['find_freq']['resonance'])
+                save_to_txt(path, freq_dict[band]['find_freq']['resonance'])
                 self.pub.register_file(path, 'resonances', format='txt')
 
         return freq_dict

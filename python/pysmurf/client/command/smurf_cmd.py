@@ -19,6 +19,7 @@ import time
 import numpy as np
 
 import pysmurf.client
+from pysmurf.client.util import tools
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
 
@@ -162,7 +163,7 @@ def set_port(S, slot, port):
         slots = np.append(slots, slot)
         ports = np.append(ports, port)
 
-    np.savetxt(slot_port_file, np.array([slots, ports]).T, fmt='%i %i')
+    tools.save_to_txt(slot_port_file, np.array([slots, ports]).T, overwrite=True, fmt='%i %i')
 
 
 def get_port(S, slot):
