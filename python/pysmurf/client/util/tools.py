@@ -217,6 +217,84 @@ def yaml_parse(yml, cmd):
     return get_val(yml, cmd)
 
 
+def load_state_yaml(filename):
+    """Load a rogue ``SaveState`` YAML dump into a nested dict.
+
+    Transparently handles both plain ``.yml`` files and gzip-compressed
+    ``.yml.gz`` files (rogue's default ``saveYaml`` output uses
+    ``autoCompress=True``).
+
+    Args
+    ----
+    filename : str
+        Path to the YAML file produced by ``S.save_state(...)`` or
+        equivalently by rogue's ``AMCc.SaveState`` command.
+
+    Returns
+    -------
+    dict
+        Nested dict mirroring the rogue tree.
+    """
+    import gzip
+    import yaml
+
+    opener = gzip.open if filename.endswith('.gz') else open
+    with opener(filename, 'rt') as f:
+        return yaml.safe_load(f)
+
+
+def state_lookup(state, pvname, default=None):
+    """Walk a dot-separated rogue PV path through a nested state dict.
+
+    Indexed segments such as ``Base[0]`` are matched first against a
+    literal ``Base[0]`` dict key (rogue's typical ``saveYaml`` form),
+    and otherwise fall back to descending into a ``Base`` dict followed
+    by either ``[0]`` as a string key or index 0 of a list.
+
+    Args
+    ----
+    state : dict or None
+        Nested state dict from :func:`load_state_yaml`.  ``None`` is
+        accepted and yields ``default``.
+    pvname : str
+        Dot-separated rogue path, e.g.
+        ``AMCc.FpgaTopLevel.AppTop.AppCore.SysgenCryo.Base[0].digitizerFrequencyMHz``.
+    default : any, optional
+        Value returned when any segment is missing.  Defaults to
+        ``None`` to match the existing offline ``_caget`` contract.
+
+    Returns
+    -------
+    any
+        The looked-up value, or ``default`` if any segment is missing.
+    """
+    import re
+
+    if state is None:
+        return default
+    node = state
+    for seg in pvname.split('.'):
+        if not isinstance(node, dict):
+            return default
+        if seg in node:
+            node = node[seg]
+            continue
+        m = re.match(r'^([^\[]+)\[(\d+)\]$', seg)
+        if not m or m.group(1) not in node:
+            return default
+        node = node[m.group(1)]
+        idx = int(m.group(2))
+        if isinstance(node, list):
+            if idx >= len(node):
+                return default
+            node = node[idx]
+        elif isinstance(node, dict) and f'[{idx}]' in node:
+            node = node[f'[{idx}]']
+        else:
+            return default
+    return node
+
+
 def utf8_to_str(d):
     """
     Many of the rogue variables are returned as UTF8 formatted byte

@@ -173,6 +173,12 @@ class SmurfCommandMixin(SmurfBase):
             return ret
 
         if not execute or self.offline:
+            if self.offline and self._offline_state is not None:
+                val = tools.state_lookup(self._offline_state, pvname)
+                if val is not None:
+                    if write_log:
+                        self.log(f'OFFLINE state-dump caget {pvname} = {val}', log_level)
+                    return val
             self.log(f"Not executing caget for {pvname} (execute={execute}, offline={self.offline})", log_level)
             # don't perform the read
             return None
@@ -508,7 +514,7 @@ class SmurfCommandMixin(SmurfBase):
         int
             The number of subbands in the band.
         """
-        if self.offline:
+        if self.offline and self._offline_state is None:
             return 128
 
         if band is None:
@@ -540,7 +546,7 @@ class SmurfCommandMixin(SmurfBase):
         int
             The number of channels in the band.
         """
-        if self.offline:
+        if self.offline and self._offline_state is None:
             return 512  # Hard coded offline mode 512
 
         if band is None:
@@ -934,6 +940,24 @@ class SmurfCommandMixin(SmurfBase):
 
     # alias older rogue 3 write_state function to save_state
     write_state = save_state
+
+    def load_state(self, filename):
+        """Load a rogue ``SaveState`` YAML dump for offline reads.
+
+        Replaces any previously loaded dump.  Only effective when
+        ``self.offline`` is True; the loaded state backs subsequent
+        ``_caget`` calls so they return recorded register values
+        instead of ``None`` or per-method hard-coded fallbacks.
+
+        Args
+        ----
+        filename : str
+            Path to the YAML file produced by :func:`save_state` or
+            equivalently by rogue's ``AMCc.SaveState`` command.  Both
+            ``.yml`` and ``.yml.gz`` are accepted.
+        """
+        self._offline_state = tools.load_state_yaml(filename)
+        self.log(f'Offline state loaded from {filename}')
 
     # name changed in Rogue 4 from WriteConfig to SaveConfig.  Keeping
     # the write_config function for backwards compatibilty.
@@ -2463,7 +2487,7 @@ class SmurfCommandMixin(SmurfBase):
         """
         Returns the center frequency of the band in MHz
         """
-        if self.offline:
+        if self.offline and self._offline_state is None:
             bc = (4250 + band*500)
             return bc
         else:
@@ -2499,7 +2523,7 @@ class SmurfCommandMixin(SmurfBase):
             # list of bands specified in experiment.cfg.
             band = self._bands[0]
 
-        if self.offline:
+        if self.offline and self._offline_state is None:
             return 2.4
         else:
             return self._caget(
@@ -2526,7 +2550,7 @@ class SmurfCommandMixin(SmurfBase):
         float
             The digitizer frequency for this band in MHz.
         """
-        if self.offline:
+        if self.offline and self._offline_state is None:
             return 614.4
 
         if band is None:
@@ -4873,7 +4897,7 @@ class SmurfCommandMixin(SmurfBase):
         set_flux_ramp_freq : Sets the flux ramp reset rate.
         get_ramp_max_cnt : Gets the flux ramp trigger repetition rate.
         """
-        if self.offline: # FIX ME - this is a stupid hard code
+        if self.offline and self._offline_state is None: # FIX ME - this is a stupid hard code
             return 4.0
         else:
             # the digitizer frequency is 2x the default fw rate
@@ -6348,7 +6372,7 @@ class SmurfCommandMixin(SmurfBase):
         coef : list
             The filter A coefficients.
         """
-        if self.offline:  # FIX ME - STUPPID HARDCODE
+        if self.offline and self._offline_state is None:  # FIX ME - STUPPID HARDCODE
             return np.array(
                 [ 1., -3.74145562,  5.25726624,
                   -3.28776591, 0.77203984])
@@ -6382,7 +6406,7 @@ class SmurfCommandMixin(SmurfBase):
         coef : list
             The filter B coefficients.
         """
-        if self.offline:
+        if self.offline and self._offline_state is None:
             return np.array(
                 [5.28396689e-06, 2.11358676e-05, 3.17038014e-05,
                  2.11358676e-05, 5.28396689e-06])
@@ -6536,7 +6560,7 @@ class SmurfCommandMixin(SmurfBase):
         int
             The down-sampling factor.
         """
-        if self.offline:
+        if self.offline and self._offline_state is None:
             self.log("get_downsample_factor: offline is True, SmurfProcessor.cpp is not running..")
             return 20
 
