@@ -2063,6 +2063,91 @@ class SmurfUtilMixin(SmurfBase):
         return np.ravel(np.where(amps != 0))
 
     @set_action()
+    def update_centers_from_tracked_freq(self, band, nsamp=2**18,
+            write_log=False):
+        """Re-anchors ``centerFrequencyMHz`` to the bias-shifted resonator
+        frequencies measured by the tracking algorithm.
+
+        When TESs are biased, SQUID-induced phase shifts the resonators
+        by of order 100 kHz away from the tone frequencies originally
+        written to ``centerFrequencyMHz``. The serial gradient-descent
+        and serial eta-scan firmware routines start their search at
+        ``centerFrequencyMHz`` and converge poorly (or not at all) when
+        the true resonator has moved that far.
+
+        This helper takes one ``take_debug_data`` acquisition with
+        ``IQstream=0`` and ``single_channel_readout=0``, averages the
+        per-sample tracked frequency offset over the full record, and
+        adds that mean offset (in MHz) to the existing centerFrequency
+        for every channel in :func:`which_on`. The new centers are
+        written back to the firmware register. Channels that are not on
+        are left untouched. ``setIQStreamEnable`` is restored to 1 on
+        exit, matching the convention used in
+        :func:`~pysmurf.client.tune.smurf_tune.SmurfTuneMixin.tracking_setup`.
+
+        Intended to be called immediately before
+        :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.run_serial_gradient_descent`
+        or
+        :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.run_serial_eta_scan`,
+        while the flux ramp is running and tracking is active. The
+        tracked frequency ``f`` returned by ``take_debug_data`` is only
+        meaningful when tracking is on.
+
+        Args
+        ----
+        band : int
+            The band whose center frequencies will be updated.
+        nsamp : int, optional, default 2**18
+            Number of samples to take in the ``take_debug_data`` call
+            used to measure the tracked frequency.
+        write_log : bool, optional, default False
+            Whether to write low-level commands to the log file.
+
+        Returns
+        -------
+        new_centers : numpy.ndarray
+            The full 512-element ``centerFrequencyMHz`` array as written
+            back to the firmware. If no channels are on, the array is
+            returned unchanged.
+        """
+        active = self.which_on(band)
+        centers = np.array(self.get_center_frequency_array(band),
+                           dtype=float)
+
+        if len(active) == 0:
+            self.log(
+                'update_centers_from_tracked_freq: no channels on for '
+                f'band {band}; centerFrequencyMHz left unchanged.',
+                self.LOG_USER)
+            return centers
+
+        f, _df, _sync = self.take_debug_data(
+            band, IQstream=0, single_channel_readout=0, nsamp=nsamp,
+            write_log=write_log)
+
+        # f has shape (n_samp, n_channels); mean over samples gives the
+        # per-channel offset (MHz) of the tracked resonator from the
+        # currently programmed center.
+        offsets = np.mean(f, axis=0)
+        centers[active] = centers[active] + offsets[active]
+
+        self.set_center_frequency_array(band, centers, write_log=write_log)
+
+        # take_debug_data leaves IQstream disabled when called with
+        # IQstream=0; restore it the same way tracking_setup does.
+        self.set_iq_stream_enable(band, 1, write_log=write_log)
+
+        if write_log:
+            max_shift_khz = float(np.max(np.abs(offsets[active]))) * 1e3
+            self.log(
+                'update_centers_from_tracked_freq: updated '
+                f'{len(active)} channel(s) on band {band}; '
+                f'max |shift| = {max_shift_khz:.1f} kHz.',
+                self.LOG_USER)
+
+        return centers
+
+    @set_action()
     def toggle_feedback(self, band, **kwargs):
         """
         Toggles feedbackEnable (->0->1) and lmsEnables1-3 (->0->1) for
