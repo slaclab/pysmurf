@@ -136,7 +136,7 @@ class SmurfControl(SmurfCommandMixin,
                    make_logfile=True, setup=False,
                    smurf_cmd_mode=False, no_dir=False, publish=False,
                    payload_size=2048, data_path_id=None,
-                   **kwargs):
+                   dump_config=True, **kwargs):
         """Initializes SMuRF system.
 
         Longer description of initialize routine here.
@@ -169,6 +169,13 @@ class SmurfControl(SmurfCommandMixin,
               instances running simultaneously. For instance, if set to
               ``crate1slot2`` the outputs directory will be::
               ``<data_dir>/<date>/crate1slot2/<ctime>/outputs``
+        dump_config : bool, optional, default True
+              Whether to write a copy of the loaded pysmurf
+              configuration into the new output directory at startup.
+              The dumped file is named
+              ``<start_time>_startup_pysmurf_cfg.cfg`` and can be fed
+              back to :class:`SmurfConfig` to reconstruct the pysmurf
+              instance used to take a given dataset.
 
         See Also
         --------
@@ -193,6 +200,14 @@ class SmurfControl(SmurfCommandMixin,
             self.make_dir(self.tune_dir)
             self.make_dir(self.plot_dir)
             self.make_dir(self.status_dir)
+
+            # Dump loaded pysmurf cfg into the new output dir so that
+            # the config used to produce data in this dir can be
+            # recovered later.  See issue #286.
+            if dump_config and self.config is not None:
+                self.config.write(os.path.join(
+                    self.output_dir,
+                    f'{self.start_time}_startup_pysmurf_cfg.cfg'))
 
             # Set logfile
             datestr = time.strftime('%y%m%d_', time.gmtime())
@@ -241,6 +256,14 @@ class SmurfControl(SmurfCommandMixin,
             self.make_dir(self.tune_dir)
             self.make_dir(self.plot_dir)
             self.make_dir(self.status_dir)
+
+            # Dump loaded pysmurf cfg into the new output dir so that
+            # the config used to produce data in this dir can be
+            # recovered later.  See issue #286.
+            if dump_config and self.config is not None:
+                self.config.write(os.path.join(
+                    self.output_dir,
+                    f'{self.start_time}_startup_pysmurf_cfg.cfg'))
 
             # name the logfile and create flags for it
             if make_logfile:
