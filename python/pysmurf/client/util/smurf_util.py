@@ -1627,6 +1627,16 @@ class SmurfUtilMixin(SmurfBase):
             hardware trigger.
         write_log : bool, optional, default False
             Whether to write outputs to log.
+
+        Raises
+        ------
+        ValueError
+            If the streaming PV returns fewer samples than ``data_length``.
+            The streaming waveform PVs are sized at rogue-server startup
+            via the ``-b`` flag (typically ``-b 524288`` = ``2**19``); a
+            larger request is silently truncated by EPICS, so this check
+            surfaces the truncation rather than letting callers consume a
+            short array.
         """
         # Ask mitch why this is what it is...
         if bay == 0:
@@ -1651,6 +1661,20 @@ class SmurfUtilMixin(SmurfBase):
 
         r0 = vals[pvs[0]]
         r1 = vals[pvs[1]]
+
+        got = min(len(r0), len(r1))
+        if got < data_length:
+            msg = (
+                f'Requested data_length={data_length} samples but the '
+                f'streaming PVs ({stream0}, {stream1}) returned only '
+                f'{got}. These waveform PVs are sized at rogue-server '
+                f'startup via the `-b` flag (typically `-b 524288` = '
+                f'2**19). To capture more samples, restart the rogue '
+                f'server with a larger `-b` value, or request fewer '
+                f'samples.'
+            )
+            self.log(msg, self.LOG_ERROR)
+            raise ValueError(msg)
 
         return r0, r1
 
