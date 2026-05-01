@@ -90,9 +90,14 @@ class SmurfUtilMixin(SmurfBase):
                 self.set_single_channel_readout(band, 0)
                 self.set_single_channel_readout_opt2(band, 1)
             else:
-                self.log('single_channel_readout must be 1 or 2',
-                    self.LOG_ERROR)
-                raise ValueError('single_channel_readout must be 1 or 2')
+                msg = (
+                    f'single_channel_readout must be 1 or 2 when channel '
+                    f'is specified (got channel={channel}, '
+                    f'single_channel_readout={single_channel_readout}). '
+                    f'Pass channel=None to disable single-channel readout.'
+                )
+                self.log(msg, self.LOG_ERROR)
+                raise ValueError(msg)
             self.set_readout_channel_select(band, channel, write_log=write_log)
         else: # exit single channel otherwise
             self.set_single_channel_readout(band, 0, write_log=write_log)
