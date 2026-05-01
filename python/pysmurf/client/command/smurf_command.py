@@ -2785,6 +2785,98 @@ class SmurfCommandMixin(SmurfBase):
                 'integer in [0,1,2,3,4,5,6,7] ...'
         return bay
 
+    @staticmethod
+    def tone_power_to_db(val):
+        """
+        Converts a raw amplitudeScale code to dB relative to the
+        conventional full-scale value of 12.  3 dB per LSB.
+
+        Args
+        ----
+        val : int
+            Raw amplitudeScale code in [0, 15].
+
+        Returns
+        -------
+        db : float
+            Tone power in dB relative to amplitudeScale = 12.  Negative
+            values are below conventional full scale; positive values
+            risk railing the DAC.
+        """
+        return 3.0 * (int(val) - 12)
+
+    @staticmethod
+    def tone_power_from_db(db):
+        """
+        Inverse of :func:`tone_power_to_db`.  Rounds to the nearest raw
+        amplitudeScale code.
+
+        Args
+        ----
+        db : float
+            Tone power in dB relative to amplitudeScale = 12.
+
+        Returns
+        -------
+        val : int
+            Raw amplitudeScale code in [0, 15].
+
+        Raises
+        ------
+        ValueError
+            If the rounded result falls outside [0, 15].
+        """
+        val = int(round(12 + db / 3.0))
+        if val < 0 or val > 15:
+            raise ValueError(
+                f'tone_power_from_db({db}) -> {val} out of [0, 15].')
+        return val
+
+    @staticmethod
+    def att_to_db(val):
+        """
+        Converts a raw 5-bit UC/DC attenuator code to dB of attenuation
+        relative to no attenuation.  0.5 dB per LSB.
+
+        Args
+        ----
+        val : int
+            Raw attenuator code in [0, 31].
+
+        Returns
+        -------
+        db : float
+            Attenuation in dB.  0 dB = no attenuation.
+        """
+        return 0.5 * int(val)
+
+    @staticmethod
+    def att_from_db(db):
+        """
+        Inverse of :func:`att_to_db`.  Rounds to the nearest raw 5-bit
+        attenuator code.
+
+        Args
+        ----
+        db : float
+            Attenuation in dB, relative to no attenuation.
+
+        Returns
+        -------
+        val : int
+            Raw attenuator code in [0, 31].
+
+        Raises
+        ------
+        ValueError
+            If the rounded result falls outside [0, 31].
+        """
+        val = int(round(db / 0.5))
+        if val < 0 or val > 31:
+            raise ValueError(
+                f'att_from_db({db}) -> {val} out of [0, 31].')
+        return val
+
     # Attenuator
     _uc_reg = 'UC[{}]'
 
