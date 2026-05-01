@@ -4257,7 +4257,7 @@ class SmurfUtilMixin(SmurfBase):
         return hdr,row
 
     def play_tes_bipolar_waveform(self, bias_group, waveform, do_enable=False,
-            continuous=True, **kwargs):
+            continuous=True, dc_amp=None, **kwargs):
         """ Play a bipolar waveform on the bias group.
 
         Args
@@ -4271,6 +4271,13 @@ class SmurfUtilMixin(SmurfBase):
             for TES bias).
         continuous : bool, optional, default True
             Whether to play the TES waveform continuously.
+        dc_amp : float or None, optional, default None
+            DC voltage added to every sample of ``waveform`` before the
+            LUTs are loaded, so the waveform plays on top of an offset
+            instead of being centered on 0 V. ``None`` (the default)
+            leaves ``waveform`` untouched. To play on top of the bias
+            group's existing DC bias (issue #184), pass
+            ``dc_amp=S.get_tes_bias_bipolar(bias_group)``.
         """
         bias_order = self.bias_group_to_pair[:,0]
         dac_positives = self.bias_group_to_pair[:,1]
@@ -4297,6 +4304,9 @@ class SmurfUtilMixin(SmurfBase):
         if do_enable:
             self.set_rtm_slow_dac_enable(dac_positive, 2, **kwargs)
             self.set_rtm_slow_dac_enable(dac_negative, 2, **kwargs)
+
+        if dc_amp is not None:
+            waveform = np.asarray(waveform) + dc_amp
 
         # Load waveform into each DAC's LUT table.  Opposite sign so
         # they combine coherently
