@@ -39,3 +39,11 @@ wheels/
 # Jupyter Notebook checkpoints
 .ipynb_checkpoints/
 */.ipynb_checkpoints/
+
+# Other cleanup
+.DS_Store
+\#*#
+*~
+scratch/untitled.txt
+scratch/*/trash/
+scratch/talk2splendaq/
