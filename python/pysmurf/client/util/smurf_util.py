@@ -4285,6 +4285,16 @@ class SmurfUtilMixin(SmurfBase):
         dac_positive = dac_positives[dac_idx]
         dac_negative = dac_negatives[dac_idx]
 
+        # Cache the pre-waveform TES bias before the DAC is disturbed so
+        # stop_tes_bipolar_waveform can restore it (issue #425). Only cache
+        # if no entry exists, so back-to-back play() calls without an
+        # intervening stop() preserve the original pre-play value.
+        if not hasattr(self, '_tes_bipolar_pre_waveform_bias'):
+            self._tes_bipolar_pre_waveform_bias = {}
+        if bias_group not in self._tes_bipolar_pre_waveform_bias:
+            self._tes_bipolar_pre_waveform_bias[bias_group] = \
+                self.get_tes_bias_bipolar(bias_group)
+
         # https://confluence.slac.stanford.edu/display/SMuRF/SMuRF+firmware#SMuRFfirmware-RTMDACarbitrarywaveforms
         # Target the two bipolar DACs assigned to this bias group:
         self.set_dac_axil_addr(0, dac_positive)
@@ -4328,8 +4338,11 @@ class SmurfUtilMixin(SmurfBase):
         # Enable waveform generation (3=on both DACs)
         self.set_rtm_arb_waveform_enable(0)
 
-        # Zero TES biases on this bias group
-        self.set_tes_bias_bipolar(bias_group, 0)
+        # Restore the TES bias to its pre-waveform value (issue #425).
+        # Falls back to 0V when no cached value exists (e.g. stop()
+        # called without a prior play() this session).
+        cache = getattr(self, '_tes_bipolar_pre_waveform_bias', {})
+        self.set_tes_bias_bipolar(bias_group, cache.pop(bias_group, 0))
 
     @set_action()
     def get_sample_frequency(self):
