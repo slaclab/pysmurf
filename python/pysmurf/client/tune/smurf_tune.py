@@ -4472,11 +4472,19 @@ class SmurfTuneMixin(SmurfBase):
     def estimate_lms_freq(self, band, reset_rate_khz,
                           fraction_full_scale=None,
                           channel=None,
-                          make_plot=False):
+                          make_plot=False, save_plot=True,
+                          show_plot=False):
         """
         Attempts to estimate the carrier (phi0) rate for all channels
         on in the requested 500 MHz band (0..7) using the flux_mod2
         routine.
+
+        Always logs band-level summary statistics (channel count,
+        median / mean / std of per-channel lms_freq_hz) and a warning
+        when the per-channel distribution is multi-modal -- e.g. a
+        sub-population locked on a half- or double-period correlation
+        peak.  When `make_plot=True`, also writes a 2-panel diagnostic
+        (histogram + per-channel scatter) to `self.plot_dir`.
 
         Args
         ----
@@ -4494,6 +4502,12 @@ class SmurfTuneMixin(SmurfBase):
             (if any) to plot.
         make_plot : bool, optional, default False
             Whether or not to make plots.
+        save_plot : bool, optional, default True
+            When `make_plot` is True, whether to save the diagnostic
+            plot under `self.plot_dir`.
+        show_plot : bool, optional, default False
+            When `make_plot` is True, whether to display the diagnostic
+            plot interactively.
 
         Returns
         -------
@@ -4510,11 +4524,121 @@ class SmurfTuneMixin(SmurfBase):
             flux_ramp=True, fraction_full_scale=fraction_full_scale,
             reset_rate_khz=reset_rate_khz, lms_freq_hz=0)
 
-        s = self.flux_mod2(band, df, sync,
-                           make_plot=make_plot, channel=channel)
+        s, peaks, max_len = self.flux_mod2(band, df, sync,
+            make_plot=make_plot, channel=channel, return_peaks=True)
 
         self.set_feedback_enable(band, old_feedback)
-        return reset_rate_khz * s * 1000  # convert to Hz
+
+        lms_freq_hz = reset_rate_khz * s * 1000  # convert to Hz
+
+        # Per-channel lms_freq_hz from the flux_mod2 peaks array.  NaN
+        # for channels that were off, sub-min_scale, or had no peak.
+        with np.errstate(divide='ignore', invalid='ignore'):
+            per_ch_lms_freq_hz = (max_len / peaks) * reset_rate_khz * 1000.0
+
+        finite_mask = np.isfinite(per_ch_lms_freq_hz)
+        finite_vals = per_ch_lms_freq_hz[finite_mask]
+        n_valid = int(finite_vals.size)
+
+        if n_valid == 0:
+            self.log(
+                f'estimate_lms_freq band={band}: '
+                'no channels produced a valid phi0 period estimate.',
+                self.LOG_ERROR)
+            return lms_freq_hz
+
+        median_hz = float(np.median(finite_vals))
+        mean_hz = float(np.mean(finite_vals))
+        std_hz = float(np.std(finite_vals))
+
+        self.log(
+            f'estimate_lms_freq band={band}: '
+            f'n_chan={n_valid}, '
+            f'median={median_hz:.0f} Hz, '
+            f'mean={mean_hz:.0f} Hz, '
+            f'std={std_hz:.0f} Hz')
+
+        # Multi-population check: count peaks of a smoothed histogram
+        # of per-channel lms_freq_hz.  Bin width is ~1% of the median
+        # (clamped to a minimum span), which makes a fundamental vs
+        # half-period split show up as two well-separated bins.
+        peak_centers_hz = []
+        if n_valid >= 4:
+            span_hz = max(np.ptp(finite_vals), abs(median_hz) * 0.05)
+            bin_width = max(span_hz / 30.0, abs(median_hz) * 0.01, 1.0)
+            n_bins = max(int(np.ceil(span_hz / bin_width)) + 4, 8)
+            hist_range = (
+                float(np.min(finite_vals)) - 2 * bin_width,
+                float(np.max(finite_vals)) + 2 * bin_width,
+            )
+            counts, edges = np.histogram(
+                finite_vals, bins=n_bins, range=hist_range)
+            # 3-bin boxcar smoothing to avoid empty-bin artifacts.
+            smoothed = np.convolve(
+                counts.astype(float), np.ones(3) / 3.0, mode='same')
+            if smoothed.max() > 0:
+                pk_idx, _ = signal.find_peaks(
+                    smoothed, prominence=0.2 * smoothed.max())
+                centers = 0.5 * (edges[:-1] + edges[1:])
+                peak_centers_hz = [float(centers[i]) for i in pk_idx]
+                if len(peak_centers_hz) > 1:
+                    self.log(
+                        'WARNING: estimate_lms_freq found multiple '
+                        f'lms_freq_hz populations on band={band} '
+                        f'(n_peaks={len(peak_centers_hz)}): '
+                        'peak centers ' +
+                        ', '.join(f'{c:.0f} Hz' for c in peak_centers_hz),
+                        self.LOG_USER)
+
+        if make_plot:
+            if show_plot:
+                plt.ion()
+            else:
+                plt.ioff()
+
+            timestamp = self.get_timestamp()
+            fig, ax = plt.subplots(2, 1, figsize=(7, 6))
+
+            ax[0].hist(finite_vals, bins=max(n_valid // 2, 8),
+                       color='C0', edgecolor='k', alpha=0.7)
+            ax[0].axvline(median_hz, color='k', linestyle='--',
+                          label=f'median = {median_hz:.0f} Hz')
+            for c in peak_centers_hz:
+                ax[0].axvline(c, color='r', linestyle=':',
+                              alpha=0.8)
+            ax[0].set_xlabel('per-channel lms_freq_hz [Hz]')
+            ax[0].set_ylabel('channel count')
+            multi_tag = (f', n_peaks={len(peak_centers_hz)}'
+                         if len(peak_centers_hz) > 1 else '')
+            ax[0].set_title(
+                f'estimate_lms_freq band={band} '
+                f'reset_rate={reset_rate_khz:g} kHz '
+                f'(n={n_valid}, std={std_hz:.0f} Hz{multi_tag})')
+            ax[0].legend(loc='best', fontsize=8)
+
+            ch_idx = np.where(finite_mask)[0]
+            ax[1].plot(ch_idx, finite_vals, 'o', markersize=3,
+                       color='C0')
+            ax[1].axhline(median_hz, color='k', linestyle='--')
+            for c in peak_centers_hz:
+                ax[1].axhline(c, color='r', linestyle=':', alpha=0.8)
+            ax[1].set_xlabel('SMuRF channel')
+            ax[1].set_ylabel('lms_freq_hz [Hz]')
+            ax[1].set_title(timestamp)
+
+            plt.tight_layout()
+
+            if save_plot:
+                path = os.path.join(
+                    self.plot_dir,
+                    f'{timestamp}_b{band}_estimate_lms_freq.png')
+                plt.savefig(path, bbox_inches='tight')
+                self.pub.register_file(path, 'estimate_lms_freq',
+                                       plot=True)
+                if not show_plot:
+                    plt.close(fig)
+
+        return lms_freq_hz
 
     @set_action()
     def estimate_flux_ramp_amp(self, band, n_phi0, write_log=True,
@@ -4575,10 +4699,29 @@ class SmurfTuneMixin(SmurfBase):
 
     @set_action()
     def flux_mod2(self, band, df, sync, min_scale=0, make_plot=False,
-            channel=None, threshold=.5):
+            channel=None, threshold=.5, return_peaks=False):
         """
         Attempts to find the number of phi0s in a tracking_setup.
         Takes df and sync from a tracking_setup with feedback off.
+
+        Algorithm (per channel):
+
+        1. Slice df into n_sync flux-ramp cycles using the sync edges
+           from `make_sync_flag`. Right-pad short tail blocks so every
+           cycle has the same length `max_len` samples.
+        2. Average across cycles to build a per-channel template of one
+           flux-ramp period's df, DC-subtract, and z-score so that
+           `threshold` is independent of df units.
+        3. For each candidate period i in [1, max_len/2), tile the
+           template's first i samples across max_len and inner-product
+           with the template.  The first i where the normalized
+           correlation crosses `threshold` and stays above it identifies
+           the phi0 period in samples.  The integer peak is then refined
+           by a 3-point parabolic polyfit around the maximum of that
+           block.
+        4. The band-level result is `max_len / median(peaks)` = number
+           of phi0 cycles per flux-ramp cycle.  Multiply by the flux
+           ramp reset rate to convert to lms_freq_hz.
 
         Args
         ----
@@ -4598,16 +4741,34 @@ class SmurfTuneMixin(SmurfBase):
             The channels to plot.
         threshold : float, optional, default 0.5
             The minimum convolution amplitude to consider a peak.
+        return_peaks : bool, optional, default False
+            If True, also return the per-channel period array and the
+            flux-ramp cycle length.  Used by `estimate_lms_freq` to
+            build per-channel statistics and the multi-population
+            diagnostic plot.  Default preserves the legacy scalar
+            return.
 
         Returns
         -------
         n : float
             The number of phi0 swept out per sync. To get lms_freq_hz,
             multiply by the flux ramp frequency.
+        peaks : float array, optional
+            Only returned when `return_peaks=True`.  Per-channel period
+            of the phi0 modulation in samples (NaN for channels that
+            are off, sub-`min_scale`, or had no correlation peak above
+            threshold).  Length `n_chan`.
+        max_len : int, optional
+            Only returned when `return_peaks=True`.  Length of one
+            flux-ramp cycle in samples.  Combined with `peaks` gives
+            the per-channel n_phi0_per_cycle =
+            `max_len / peaks[ch]`.
         """
         sync_flag = self.make_sync_flag(sync)
 
-        # The longest time between resets
+        # max_len = samples per flux-ramp cycle.  The last partial cycle
+        # is shorter, but using max_len lets us right-pad each cycle to a
+        # uniform shape for averaging.
         max_len = np.max(np.diff(sync_flag))
         n_sync = len(sync_flag) - 1
         nsamp, n_chan = np.shape(df)
@@ -4615,44 +4776,51 @@ class SmurfTuneMixin(SmurfBase):
         # Only for plotting
         channel = np.ravel(np.array(channel))
 
+        # peaks[ch] = phi0 period of channel ch in samples, NaN if not
+        # estimated for that channel (off, sub-min_scale, or no peak).
         peaks = np.zeros(n_chan)*np.nan
 
         band_chans=list(self.which_on(band))
         for ch in np.arange(n_chan):
             if ch in band_chans and np.std(df[:,ch]) > min_scale:
-                # Holds the data for all flux ramps
+                # flux_resp[i, :] is df for cycle i, padded to max_len.
                 flux_resp = np.zeros((n_sync, max_len)) * np.nan
                 for i in np.arange(n_sync):
                     df_tmp = df[sync_flag[i]:sync_flag[i+1],ch]
 
-                    # Some blocks are 1 sample shorter. This appends the block
-                    # by 1 sample.
+                    # Some blocks are 1 sample shorter. Right-pad with
+                    # the last value so every row has length max_len.
                     if len(df_tmp) < max_len:
                         df_tmp = np.append(df_tmp,
                             df_tmp[-1]*np.ones(max_len - len(df_tmp)))
                     flux_resp[i] = df_tmp
 
-                # Average over all the flux ramp sweeps to generate template
+                # Cycle-average to suppress noise; what's left is one
+                # flux-ramp period's worth of df.  DC-subtract before
+                # z-scoring.
                 template = np.nanmean(flux_resp, axis=0)
                 template_mean = np.mean(template)
                 template -= template_mean
 
-                # Normalize template so thresholding can be
-                # independent of the units of this crap
+                # Normalize template so the correlation amplitude is
+                # bounded independently of df units; lets `threshold`
+                # be a unit-less constant.
                 if np.std(template)!=0:
                     template = template/np.std(template)
 
-                # Multiply the matrix with the first element, then array
-                # of first two elements, then array of first three...etc...
-                # The array that maximizes this tells you the frequency
+                # Self-correlation against tiled prefixes: corr_amp[i]
+                # is the inner product of template against the first
+                # i samples of itself, tiled across max_len.  i = phi0
+                # period (in samples) maximizes this.  Normalized by
+                # max_len so the peak comes out near unity.
                 corr_amp = np.zeros(max_len//2)
                 for i in np.arange(1, max_len//2):
                     x = np.tile(template[:i], max_len//i+1)
-                    # Normalize by elements in sum so that the
-                    # correlation comes out something like unity at
-                    # max
                     corr_amp[i] = np.sum(x[:max_len]*template)/max_len
 
+                # Take the first contiguous block above threshold; the
+                # argmax inside that block is the integer period
+                # estimate.
                 s, e = self.find_flag_blocks(corr_amp > threshold, min_gap=4)
                 if len(s) == 0:
                     peaks[ch] = np.nan
@@ -4661,7 +4829,8 @@ class SmurfTuneMixin(SmurfBase):
                 else:
                     peaks[ch] = np.argmax(corr_amp[s[0]:e[0]]) + s[0]
 
-                    #polyfit
+                    # Parabolic polyfit around the integer peak gives
+                    # sub-sample period refinement.
                     Xf = [-1, 0, 1]
                     Yf = [corr_amp[int(peaks[ch]-1)],corr_amp[int(peaks[ch])],
                         corr_amp[int(peaks[ch]+1)]]
@@ -4682,7 +4851,10 @@ class SmurfTuneMixin(SmurfBase):
                     ax[1].plot(peaks[ch], corr_amp[int(peaks[ch])], 'x' ,
                         color='k')
 
-        return max_len/np.nanmedian(peaks)
+        n_phi0 = max_len/np.nanmedian(peaks)
+        if return_peaks:
+            return n_phi0, peaks, max_len
+        return n_phi0
 
     @set_action()
     def make_sync_flag(self, sync):
