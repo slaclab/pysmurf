@@ -16,6 +16,7 @@
 from contextlib import contextmanager
 import glob
 import os
+import shlex
 import threading
 import time
 import re
@@ -24,6 +25,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy import signal
 
+import pysmurf
 from pysmurf.client.base import SmurfBase
 from pysmurf.client.command.sync_group import SyncGroup as SyncGroup
 from pysmurf.client.util.SmurfFileReader import SmurfStreamReader
@@ -2374,6 +2376,173 @@ class SmurfUtilMixin(SmurfBase):
         }
 
         return ret
+
+    def get_versions(self):
+        r"""Aggregate version and identity info into one snapshot.
+
+        Composes the existing version-and-identity getters into a
+        single read-only call so users can capture a configuration
+        snapshot in one shot (closes
+        https://github.com/slaclab/pysmurf/issues/492).  Each component
+        is fetched in its own try/except so a single failed PV (e.g.
+        offline mode, server timeout) records `None` instead of
+        aborting the whole dump.
+
+        Includes both the local pysmurf version (`pysmurf.__version__`,
+        from this Python process) and the server-published pysmurf
+        version (from the `SmurfApplication:SmurfVersion` PV) so
+        client/server skew is detectable.
+
+        The firmware bundle (rogue zipfile, sometimes called the
+        "docker") is parsed out of the server's startup arguments by
+        looking for the `-z` / `--zip` token, reproducing the recipe
+        from the issue thread.
+
+        Returns
+        -------
+        ret : dict
+            ``{'pysmurf': {'client_version', 'server_version',
+            'directory'}, 'rogue': {'version'}, 'fpga': {'version',
+            'uptime', 'git_hash', 'git_hash_short', 'build_stamp'},
+            'startup': {'script', 'args', 'zipfile'}, 'cryocard':
+            {'fw_version'}, 'system': {'enabled_bays',
+            'system_configured'}}``.  Any field that could not be read
+            is ``None``.
+
+        See Also
+        --------
+        :func:`get_fpga_status` : Aggregates FPGA + JESD status.
+        :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.get_pysmurf_version`
+        :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.get_rogue_version`
+        :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.get_smurf_startup_args`
+        """
+        def _safe(label, fn, *args, **kwargs):
+            try:
+                return fn(*args, **kwargs)
+            except Exception as e:
+                self.log(
+                    f'get_versions: {label} failed: {e}',
+                    self.LOG_ERROR)
+                return None
+
+        ret = {
+            'pysmurf':  {},
+            'rogue':    {},
+            'fpga':     {},
+            'startup':  {},
+            'cryocard': {},
+            'system':   {},
+        }
+
+        # --- pysmurf (client) and pysmurf (server, via PV) ---
+        ret['pysmurf']['client_version'] = getattr(
+            pysmurf, '__version__', None)
+        ret['pysmurf']['server_version'] = _safe(
+            'get_pysmurf_version', self.get_pysmurf_version)
+        ret['pysmurf']['directory'] = _safe(
+            'get_pysmurf_directory', self.get_pysmurf_directory)
+
+        # --- rogue ---
+        ret['rogue']['version'] = _safe(
+            'get_rogue_version', self.get_rogue_version)
+
+        # --- FPGA firmware identity ---
+        ret['fpga']['version'] = _safe(
+            'get_fpga_version', self.get_fpga_version)
+        ret['fpga']['uptime'] = _safe(
+            'get_fpga_uptime', self.get_fpga_uptime)
+        ret['fpga']['git_hash'] = _safe(
+            'get_fpga_git_hash', self.get_fpga_git_hash)
+        ret['fpga']['git_hash_short'] = _safe(
+            'get_fpga_git_hash_short', self.get_fpga_git_hash_short)
+        ret['fpga']['build_stamp'] = _safe(
+            'get_fpga_build_stamp', self.get_fpga_build_stamp)
+
+        # --- Server startup script + args + extracted zipfile ---
+        startup_script = _safe(
+            'get_smurf_startup_script', self.get_smurf_startup_script)
+        startup_args = _safe(
+            'get_smurf_startup_args', self.get_smurf_startup_args)
+        ret['startup']['script'] = startup_script
+        ret['startup']['args'] = startup_args
+        ret['startup']['zipfile'] = self._extract_zipfile_from_args(
+            startup_args)
+
+        # --- Cryocard firmware version (skip in offline mode) ---
+        if self.offline:
+            ret['cryocard']['fw_version'] = None
+        else:
+            ret['cryocard']['fw_version'] = _safe(
+                'cryocard.get_fw_version', self.C.get_fw_version)
+
+        # --- System configuration ---
+        ret['system']['enabled_bays'] = _safe(
+            'get_enabled_bays', self.get_enabled_bays)
+        ret['system']['system_configured'] = _safe(
+            'get_system_configured', self.get_system_configured)
+
+        self._log_versions_summary(ret)
+        return ret
+
+    @staticmethod
+    def _extract_zipfile_from_args(args):
+        """Pull the basename of the rogue zipfile out of startup args.
+
+        Looks for ``-z <path>``, ``--zip <path>``, or ``--zip=<path>``
+        (the long/short forms registered in
+        ``python/pysmurf/core/server_scripts/Common.py``).  Returns
+        ``None`` if `args` is falsy or no zip token is present.
+        """
+        if not args:
+            return None
+        try:
+            tokens = shlex.split(args)
+        except ValueError:
+            return None
+        for i, tok in enumerate(tokens):
+            if tok in ('-z', '--zip') and i + 1 < len(tokens):
+                return os.path.basename(tokens[i + 1])
+            if tok.startswith('--zip='):
+                return os.path.basename(tok.split('=', 1)[1])
+        return None
+
+    def _log_versions_summary(self, ret):
+        """Emit a one-line-per-component summary of `get_versions`."""
+        py = ret['pysmurf']
+        self.log(
+            f"pysmurf    : client={py.get('client_version')}  "
+            f"server={py.get('server_version')}",
+            self.LOG_USER)
+        self.log(
+            f"rogue      : {ret['rogue'].get('version')}",
+            self.LOG_USER)
+        fpga = ret['fpga']
+        self.log(
+            f"FPGA       : version=0x{fpga.get('version')}  "
+            f"uptime={fpga.get('uptime')}  "
+            f"git={fpga.get('git_hash_short')}",
+            self.LOG_USER)
+        self.log(
+            f"FPGA build : {fpga.get('build_stamp')}",
+            self.LOG_USER)
+        startup = ret['startup']
+        self.log(
+            f"zipfile    : {startup.get('zipfile')}",
+            self.LOG_USER)
+        self.log(
+            f"startup    : {startup.get('script')} {startup.get('args')}",
+            self.LOG_USER)
+        cc_fw = ret['cryocard'].get('fw_version')
+        cc_str = ('.'.join(str(x) for x in cc_fw)
+                  if cc_fw is not None else 'unavailable')
+        self.log(
+            f"cryocard fw: {cc_str}",
+            self.LOG_USER)
+        sysd = ret['system']
+        self.log(
+            f"system     : enabled_bays={sysd.get('enabled_bays')}  "
+            f"configured={sysd.get('system_configured')}",
+            self.LOG_USER)
 
     def which_bays(self):
         r"""Which carrier AMC bays are enabled.
