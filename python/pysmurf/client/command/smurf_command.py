@@ -1410,6 +1410,20 @@ class SmurfCommandMixin(SmurfBase):
 
     def set_amplitude_scales(self, band, val, **kwargs):
         """
+        Sets the per-band scalar tone amplitude (``setAmplitudeScales``).
+        This is a single 4-bit unsigned integer in [0, 15] applied to every
+        channel of ``band``.  The conventional value is 12, which is full
+        scale with ~3 dB of headroom; each LSB is ~3 dB.  Values above 12
+        risk railing the DAC, especially with many simultaneous tones.
+        See :func:`tone_power_to_db` for the dB conversion.
+
+        Args
+        ----
+        band : int
+            The band to set.
+        val : int
+            Tone amplitude scale in [0, 15].  12 is the conventional
+            full-scale value.
         """
         self._caput(
             self._cryo_root(band) + self._amplitude_scales_reg,
@@ -1417,6 +1431,18 @@ class SmurfCommandMixin(SmurfBase):
 
     def get_amplitude_scales(self, band, **kwargs):
         """
+        Gets the per-band scalar tone amplitude.  See
+        :func:`set_amplitude_scales` for units and range.
+
+        Args
+        ----
+        band : int
+            The band to query.
+
+        Returns
+        -------
+        val : int
+            Tone amplitude scale in [0, 15].
         """
         return self._caget(
             self._cryo_root(band) + self._amplitude_scales_reg,
@@ -1426,6 +1452,21 @@ class SmurfCommandMixin(SmurfBase):
 
     def set_amplitude_scale_array(self, band, val, **kwargs):
         """
+        Sets the per-channel tone amplitude array (``amplitudeScale``) for
+        ``band``.  Each element is a 4-bit unsigned integer in [0, 15] with
+        ~3 dB per LSB; the conventional full-scale value is 12.  A value of
+        0 turns the channel off.  Values above 12 risk railing the DAC,
+        especially with many simultaneous tones, so a warning is logged
+        when any element exceeds 12.  See :func:`tone_power_to_db` for the
+        dB conversion.
+
+        Args
+        ----
+        band : int
+            The band to set.
+        val : int array
+            Per-channel tone amplitudes in [0, 15], length
+            ``get_number_channels(band)``.
         """
         self._caput(
             self._cryo_root(band) + self._amplitude_scale_array_reg,
@@ -1433,17 +1474,18 @@ class SmurfCommandMixin(SmurfBase):
 
     def get_amplitude_scale_array(self, band, **kwargs):
         """
-        Gets the array of amplitudes
+        Gets the per-channel tone amplitude array.  See
+        :func:`set_amplitude_scale_array` for units and range.
 
         Args
         ----
         band : int
-            The band to search.
+            The band to query.
 
         Returns
         -------
-        amplitudes : array
-            The tone amplitudes.
+        amplitudes : int array
+            Per-channel tone amplitudes in [0, 15].
         """
         return self._caget(
             self._cryo_root(band) + self._amplitude_scale_array_reg,
@@ -1452,16 +1494,19 @@ class SmurfCommandMixin(SmurfBase):
     def set_amplitude_scale_array_currentchans(self, band, tone_power,
                                                **kwargs):
         """
-        Set only the currently on channels to a new drive power. Essentially
-        a more convenient wrapper for set_amplitude_scale_array to only change
-        the channels that are on.
+        Sets only the currently on channels to a new drive power.  A
+        convenience wrapper around :func:`set_amplitude_scale_array` that
+        preserves which channels are off (amplitude 0) and rewrites the
+        rest with ``tone_power``.
 
         Args
         ----
         band : int
             The band to change.
         tone_power : int
-            Tone power to change to.
+            Tone amplitude scale in [0, 15] to write to every on-channel.
+            12 is the conventional full-scale value; values > 12 risk
+            railing the DAC.  See :func:`set_amplitude_scale_array`.
         """
 
         old_amp = self.get_amplitude_scale_array(band, **kwargs)
@@ -2638,6 +2683,20 @@ class SmurfCommandMixin(SmurfBase):
     def set_amplitude_scale_channel(self, band, channel, val,
                                     **kwargs):
         """
+        Sets the tone amplitude (``amplitudeScale``) on a single channel.
+        The value is a 4-bit unsigned integer in [0, 15] with ~3 dB per
+        LSB; the conventional full-scale value is 12.  A value of 0 turns
+        the channel off.  Values above 12 risk railing the DAC and trigger
+        a warning.  See :func:`tone_power_to_db` for the dB conversion.
+
+        Args
+        ----
+        band : int
+            The band the channel belongs to.
+        channel : int
+            The channel index within ``band``.
+        val : int
+            Tone amplitude scale in [0, 15].
         """
         self._caput(
             self._channel_root(band, channel) +
@@ -2646,6 +2705,20 @@ class SmurfCommandMixin(SmurfBase):
 
     def get_amplitude_scale_channel(self, band, channel, **kwargs):
         """
+        Gets the tone amplitude on a single channel.  See
+        :func:`set_amplitude_scale_channel` for units and range.
+
+        Args
+        ----
+        band : int
+            The band the channel belongs to.
+        channel : int
+            The channel index within ``band``.
+
+        Returns
+        -------
+        val : int
+            Tone amplitude scale in [0, 15].
         """
         return self._caget(
             self._channel_root(band, channel) +
@@ -2707,14 +2780,17 @@ class SmurfCommandMixin(SmurfBase):
 
     def set_att_uc(self, b, val, **kwargs):
         """
-        Set the upconverter attenuator
+        Sets the up-converter (DAC-side) RF attenuator for ``b``.  The
+        value is a 5-bit unsigned integer in [0, 31] with 0.5 dB per LSB,
+        so 0 = no attenuation and 31 = 15.5 dB of attenuation.  See
+        :func:`att_to_db` for the dB conversion.
 
         Args
         ----
         b : int
             The band number.
         val : int
-            The attenuator value.
+            UC attenuator code in [0, 31].
         """
         att = int(self.band_to_att(b))
         bay = self.band_to_bay(b)
@@ -2724,12 +2800,18 @@ class SmurfCommandMixin(SmurfBase):
 
     def get_att_uc(self, b, **kwargs):
         """
-        Get the upconverter attenuator value
+        Gets the up-converter RF attenuator code for ``b``.  See
+        :func:`set_att_uc` for units and range.
 
         Args
         ----
         b : int
             The band number.
+
+        Returns
+        -------
+        val : int
+            UC attenuator code in [0, 31].
         """
         att = int(self.band_to_att(b))
         bay = self.band_to_bay(b)
@@ -2742,14 +2824,17 @@ class SmurfCommandMixin(SmurfBase):
 
     def set_att_dc(self, b, val, **kwargs):
         """
-        Set the down-converter attenuator
+        Sets the down-converter (ADC-side) RF attenuator for ``b``.  The
+        value is a 5-bit unsigned integer in [0, 31] with 0.5 dB per LSB,
+        so 0 = no attenuation and 31 = 15.5 dB of attenuation.  See
+        :func:`att_to_db` for the dB conversion.
 
         Args
         ----
         b : int
             The band number.
         val : int
-            The attenuator value
+            DC attenuator code in [0, 31].
         """
         att = int(self.band_to_att(b))
         bay = self.band_to_bay(b)
@@ -2759,12 +2844,18 @@ class SmurfCommandMixin(SmurfBase):
 
     def get_att_dc(self, b, **kwargs):
         """
-        Get the down-converter attenuator value
+        Gets the down-converter RF attenuator code for ``b``.  See
+        :func:`set_att_dc` for units and range.
 
         Args
         ----
         b : int
             The band number.
+
+        Returns
+        -------
+        val : int
+            DC attenuator code in [0, 31].
         """
         att = int(self.band_to_att(b))
         bay = self.band_to_bay(b)
