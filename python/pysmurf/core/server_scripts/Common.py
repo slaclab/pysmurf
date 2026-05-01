@@ -200,7 +200,7 @@ def make_parser(parser=None):
                        )
     group.add_argument('--is-prespectra', action='store_true',
                        help="Running PreSpectra firmware."
-                       )    
+                       )
     group.add_argument('--enable-em22xx', action='store_true',
                        help="Enable the EM22xx power monitor"
                        )

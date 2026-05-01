@@ -16,6 +16,13 @@
 # copied, modified, propagated, or distributed except according to the terms
 # contained in the LICENSE.txt file.
 #-----------------------------------------------------------------------------
+import pyrogue
+import rogue.hardware.axi
+import rogue.protocols.srp
+
+from pysmurf.core.roots.Common import Common
+
+
 # For RFSoC systems the FpgaTopLevel subclass that defaults isRFSOC=True is used.
 # For standard ATCA systems the BpEthGen2 class is used directly.
 # The import is deferred to a function so the correct zip/PYTHONPATH is already
@@ -26,11 +33,6 @@ def _import_fpga_top_level(is_rfsoc=False):
     else:
         from CryoDet._MicrowaveMuxBpEthGen2 import FpgaTopLevel
     return FpgaTopLevel
-import pyrogue
-import rogue.hardware.axi
-import rogue.protocols.srp
-
-from pysmurf.core.roots.Common import Common
 
 class CmbPcie(Common):
     def __init__(self, *,
