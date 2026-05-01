@@ -4011,8 +4011,120 @@ class SmurfUtilMixin(SmurfBase):
 
         return band, channel
 
-    # SHOULD MAKE A GET FIXED TONE CHANNELS FUNCTION - WOULD MAKE IT
-    # EASIER TO CHANGE THINGS FAST USING THE ARRAY GET/SETS
+    def set_fixed_tones(self, freqs_mhz, tone_power, write_log=False):
+        """
+        Places fixed tones at every requested frequency, using the bulk
+        array set/get registers so the EPICS write count is independent
+        of the number of tones.  For ``N`` tones spanning ``M`` bands,
+        the call issues exactly ``3*M`` array writes (vs ``3*N``
+        per-channel writes for a loop over `set_fixed_tone`).
+
+        Each frequency is placed on the band whose center is closest to
+        it, using the lowest unallocated channel in that frequency's
+        subband (a channel is "allocated" if it has non-zero amplitude
+        or has been claimed earlier in this same call).  Failure
+        semantics match `set_fixed_tone`: asserts (and writes nothing)
+        if any frequency falls outside a usable 500 MHz band, or if
+        the target subband has no unallocated channels.
+
+        Args
+        ----
+        freqs_mhz : array-like of float
+            The frequencies in MHz at which to place fixed tones.
+        tone_power : int
+            The amplitude for the fixed tones (0-15 in recent fw
+            revisions).  Applied to every tone.
+        write_log : bool, optional, default False
+            Whether to write low-level commands to the log file.
+
+        Returns
+        -------
+        bands : numpy.ndarray of int
+            The band number used for each requested frequency, parallel
+            to `freqs_mhz`.
+        channels : numpy.ndarray of int
+            The channel number used for each requested frequency,
+            parallel to `freqs_mhz`.
+
+        See Also
+        --------
+        set_fixed_tone : Single-frequency variant; calling ``set_fixed_tones([f], p)`` produces the same placement as ``set_fixed_tone(f, p)``.
+        turn_off_fixed_tones : Disables all fixed tones in a band.
+        """
+        freqs_mhz = np.atleast_1d(np.asarray(freqs_mhz, dtype=float))
+        n_req = len(freqs_mhz)
+
+        bands_out = np.full(n_req, -1, dtype=int)
+        channels_out = np.full(n_req, -1, dtype=int)
+
+        if n_req == 0:
+            return bands_out, channels_out
+
+        # Resolve band geometry once.
+        bands = self.which_bands()
+        band_centers_mhz = np.array(
+            [self.get_band_center_mhz(b) for b in bands])
+
+        # Group input indices by target band, asserting on any
+        # out-of-band frequency before we touch hardware.
+        per_band_requests = {}
+        for i, freq_mhz in enumerate(freqs_mhz):
+            band_idx = int(np.argmin(np.abs(band_centers_mhz - freq_mhz)))
+            band = bands[band_idx]
+            band_center_mhz = band_centers_mhz[band_idx]
+            assert (np.abs(freq_mhz - band_center_mhz) < 250), \
+                f'! Requested frequency (={freq_mhz:0.1f} MHz) outside ' + \
+                'of the 500 MHz band with the closest band center ' + \
+                f'(={band_center_mhz:0.0f} MHz). Doing nothing!'
+            per_band_requests.setdefault(band, []).append((i, freq_mhz))
+
+        # For each band, read state once, plan the placement, then
+        # write back with three bulk array writes.  Reads complete
+        # before any writes so a downstream assertion cannot leave
+        # hardware in a half-updated state.
+        plans = []
+        for band, requests in per_band_requests.items():
+            amp_scale = self.get_amplitude_scale_array(band).copy()
+            feedback = self.get_feedback_enable_array(band).copy()
+            center_freq = self.get_center_frequency_array(band).copy()
+
+            allocated = set(np.ravel(np.where(amp_scale != 0)).tolist())
+
+            for i, freq_mhz in requests:
+                subband, foff = self.freq_to_subband(band, freq_mhz)
+                subband_chans = self.get_channels_in_subband(band, subband)
+                free = [c for c in sorted(subband_chans)
+                        if c not in allocated]
+                assert len(free), \
+                    '! No unallocated channels available in subband ' + \
+                    f'(={subband:d}) of band (={band:d}) for ' + \
+                    f'requested frequency (={freq_mhz:0.1f} MHz). ' + \
+                    'Doing nothing!'
+                channel = free[0]
+                allocated.add(channel)
+
+                center_freq[channel] = foff
+                amp_scale[channel] = tone_power
+                feedback[channel] = 0
+
+                bands_out[i] = band
+                channels_out[i] = channel
+
+            plans.append((band, center_freq, amp_scale, feedback))
+
+        # All planning succeeded; commit with bulk writes (3 per band).
+        for band, center_freq, amp_scale, feedback in plans:
+            self.set_center_frequency_array(band, center_freq)
+            self.set_amplitude_scale_array(band, amp_scale)
+            self.set_feedback_enable_array(band, feedback)
+
+        if write_log:
+            for band, requests in per_band_requests.items():
+                self.log(
+                    f'Set {len(requests)} fixed tone(s) in band {band} ' +
+                    f'at amplitude {tone_power}', self.LOG_USER)
+
+        return bands_out, channels_out
 
     def turn_off_fixed_tones(self,band):
         """
