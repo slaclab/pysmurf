@@ -16,7 +16,16 @@
 # copied, modified, propagated, or distributed except according to the terms
 # contained in the LICENSE.txt file.
 #-----------------------------------------------------------------------------
-from CryoDet._MicrowaveMuxBpEthGen2 import FpgaTopLevel
+# For RFSoC systems the FpgaTopLevel subclass that defaults isRFSOC=True is used.
+# For standard ATCA systems the BpEthGen2 class is used directly.
+# The import is deferred to a function so the correct zip/PYTHONPATH is already
+# in place before the import is attempted.
+def _import_fpga_top_level(is_rfsoc=False):
+    if is_rfsoc:
+        from CryoDet._MicrowaveMuxZcu208 import FpgaTopLevel
+    else:
+        from CryoDet._MicrowaveMuxBpEthGen2 import FpgaTopLevel
+    return FpgaTopLevel
 import pyrogue
 import rogue.hardware.axi
 import rogue.protocols.srp
@@ -52,7 +61,12 @@ class CmbPcie(Common):
         self._srp = rogue.protocols.srp.SrpV3()
         pyrogue.streamConnectBiDir(self._srp, self._srpStream)
 
-        # Instantiate Fpga top level
+        # Instantiate Fpga top level. Import is deferred until here so that the
+        # correct pyrogue zip is already on sys.path before the import is attempted.
+        # For RFSoC systems this resolves to CryoDet._MicrowaveMuxZcu208.FpgaTopLevel
+        # (which defaults isRFSOC=True); for ATCA systems to _MicrowaveMuxBpEthGen2.
+        FpgaTopLevel = _import_fpga_top_level(is_rfsoc)
+
         # In order to be backwards compatible for now, also support
         # FpgaTopLevel which doesn't have the enablePwrI2C argument.
         try:
