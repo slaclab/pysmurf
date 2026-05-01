@@ -2710,7 +2710,13 @@ class SmurfUtilMixin(SmurfBase):
         volts.  Asserts if the requested bias group is not defined in
         the pysmurf configuration file.  The positive DAC in the bias
         group is set to +volt/2, while the negative DAC in the bias
-        group is set to -volt/2.
+        group is set to -volt/2.  The +/- DAC pair is updated using a
+        single pyrogue array write so both DACs land in one register
+        transaction (one SPI burst), eliminating the latency between
+        the positive and negative DAC settles.  Only the two DACs
+        assigned to the requested TES bias group are touched; the
+        enable status and output voltage of all other DACs are
+        maintained.
 
         Args
         ----
@@ -2751,12 +2757,20 @@ class SmurfUtilMixin(SmurfBase):
             volts_pos *= -1
             volts_neg *= -1
 
-        if do_enable:
-            self.set_rtm_slow_dac_enable(dac_positive, 2, **kwargs)
-            self.set_rtm_slow_dac_enable(dac_negative, 2, **kwargs)
+        # Read-modify-write the full 32-DAC array so the +/- pair is
+        # written in a single block transaction.  DAC IDs in
+        # bias_group_to_pair are 1-indexed; the array is 0-indexed.
+        dac_volt_array = self.get_rtm_slow_dac_volt_array()
+        dac_volt_array[dac_positive - 1] = volts_pos
+        dac_volt_array[dac_negative - 1] = volts_neg
 
-        self.set_rtm_slow_dac_volt(dac_positive, volts_pos, **kwargs)
-        self.set_rtm_slow_dac_volt(dac_negative, volts_neg, **kwargs)
+        if do_enable:
+            dac_enable_array = self.get_rtm_slow_dac_enable_array()
+            dac_enable_array[dac_positive - 1] = 2
+            dac_enable_array[dac_negative - 1] = 2
+            self.set_rtm_slow_dac_enable_array(dac_enable_array, **kwargs)
+
+        self.set_rtm_slow_dac_volt_array(dac_volt_array, **kwargs)
 
     def set_tes_bias_bipolar_array(self, bias_group_volt_array, do_enable=False,
                                    **kwargs):
