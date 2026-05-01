@@ -34,7 +34,7 @@ class SmurfIVMixin(SmurfBase):
                channels=None, band=None, high_current_mode=True,
                overbias_voltage=8., grid_on=True,
                phase_excursion_min=3., bias_line_resistance=None,
-               do_analysis=True):
+               do_analysis=True, **kwargs):
         """Takes a slow IV
 
         Steps the TES bias down slowly. Starts at bias_high to
@@ -177,7 +177,7 @@ class SmurfIVMixin(SmurfBase):
     def partial_load_curve_all(self, bias_high_array, bias_low_array=None,
             wait_time=0.1, bias_step=0.1, show_plot=False, analyze=True,
             make_plot=True, save_plot=True, channels=None, overbias_voltage=None,
-            overbias_wait=1.0, phase_excursion_min=1.):
+            overbias_wait=1.0, phase_excursion_min=1., **kwargs):
         """
         Take a partial load curve on all bias groups. Function will step
         up to bias_high value, then step down. Will NOT change TES bias
@@ -309,7 +309,7 @@ class SmurfIVMixin(SmurfBase):
                              R_op_target=0.007, pA_per_phi0=None,
                              channel=None, band=None, datafile=None,
                              output_dir = None, plot_dir=None,
-                             bias_line_resistance=None):
+                             bias_line_resistance=None, **kwargs):
         """
         Function to analyze a load curve from its raw file. Can be used to
           analyze IV's/generate plots separately from issuing commands.
@@ -971,7 +971,7 @@ class SmurfIVMixin(SmurfBase):
     @set_action()
     def analyze_plc_from_file(self, fn_plc_raw_data, make_plot=True,
             show_plot=False, save_plot=True, R_sh=None,
-            phase_excursion_min=1., channels=None):
+            phase_excursion_min=1., channels=None, **kwargs):
         """
         Function to analyze a partial load curve from its raw
         file. Basically the same as the run_iv analysis but without
@@ -1060,7 +1060,7 @@ class SmurfIVMixin(SmurfBase):
 
     @set_action()
     def estimate_opt_eff(self, iv_fn_hot, iv_fn_cold,t_hot=293.,t_cold=77.,
-            channels = None, dPdT_lim=(0.,0.5)):
+            channels = None, dPdT_lim=(0.,0.5), **kwargs):
         """
         Estimate optical efficiency between two sets of load curves. Returns
           per-channel plots and a histogram.
@@ -1187,7 +1187,7 @@ class SmurfIVMixin(SmurfBase):
                               normal_resistance=None,
                               normal_resistance_frac=.25,
                               show_plot=False, save_plot=True,
-                              make_plot=True):
+                              make_plot=True, **kwargs):
         """
         Attempts to estimate the bias point per bias group. You must run
         identify_bias_group first (or manually input which channels are in

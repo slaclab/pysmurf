@@ -42,7 +42,7 @@ class SmurfUtilMixin(SmurfBase):
     @set_action()
     def take_debug_data(self, band, channel=None, nsamp=2**19, filename=None,
             IQstream=1, single_channel_readout=1, debug=False, rf_iq=False,
-            write_log=True):
+            write_log=True, **kwargs):
         """Takes raw debugging data.
 
         Args
@@ -193,7 +193,7 @@ class SmurfUtilMixin(SmurfBase):
         alpha=np.cos(thetac)-1.+np.sqrt(np.cos(thetac)**2-4.*np.cos(thetac)+3.)
         return alpha
 
-    def set_debug_data_filter_cutoff(self,band,fcut_hz):
+    def set_debug_data_filter_cutoff(self,band,fcut_hz, **kwargs):
         r"""Sets the debug data filter cut-off frequency in Hz.
 
         The debug data filter is implemented as digital exponential
@@ -282,7 +282,7 @@ class SmurfUtilMixin(SmurfBase):
     @set_action()
     def estimate_phase_delay(self, band, nsamp=2**19, make_plot=True,
             show_plot=True, save_plot=True, save_data=True, n_scan=5,
-            timestamp=None, uc_att=None, dc_att=None, freq_min=-2.4E6, freq_max=2.4E6):
+            timestamp=None, uc_att=None, dc_att=None, freq_min=-2.4E6, freq_max=2.4E6, **kwargs):
         """Estimates total system latency for requested band.
 
         Measures the analog and digital (=processing) phase delay (or
@@ -598,7 +598,7 @@ class SmurfUtilMixin(SmurfBase):
 
         return dsp_delay_us, dsp_corr_delay_us
 
-    def process_data(self, filename, dtype=np.uint32):
+    def process_data(self, filename, dtype=np.uint32, **kwargs):
         """ Reads a file taken with take_debug_data and processes it into data
         and header.
 
@@ -648,7 +648,7 @@ class SmurfUtilMixin(SmurfBase):
         return header, data
 
     @set_action()
-    def decode_data(self, filename, swapFdF=False, recast=True, truncate=True):
+    def decode_data(self, filename, swapFdF=False, recast=True, truncate=True, **kwargs):
         """ Take a dataset from take_debug_data and spit out results.
 
         Args
@@ -760,7 +760,7 @@ class SmurfUtilMixin(SmurfBase):
         return f, df, flux_ramp_strobe
 
     @set_action()
-    def decode_single_channel(self, filename, swapFdF=False):
+    def decode_single_channel(self, filename, swapFdF=False, **kwargs):
         """
         decode take_debug_data file if in singlechannel mode
 
@@ -821,7 +821,7 @@ class SmurfUtilMixin(SmurfBase):
                          write_log=True, update_payload_size=True,
                          reset_unwrapper=True, reset_filter=True,
                          return_data=False, make_freq_mask=True,
-                         register_file=False, IQ_mode=False):
+                         register_file=False, IQ_mode=False, **kwargs):
         """
         Takes streaming data for a given amount of time
 
@@ -941,7 +941,7 @@ class SmurfUtilMixin(SmurfBase):
                        update_payload_size=True, reset_filter=True,
                        reset_unwrapper=True, make_freq_mask=True,
                        channel_mask=None, make_datafile=True,
-                       filter_wait_time=0.1,IQ_mode=False):
+                       filter_wait_time=0.1,IQ_mode=False, **kwargs):
         """
         Turns on streaming data.
 
@@ -1099,7 +1099,7 @@ class SmurfUtilMixin(SmurfBase):
             return data_filename
 
     @set_action()
-    def stream_data_off(self, write_log=True, register_file=False):
+    def stream_data_off(self, write_log=True, register_file=False, **kwargs):
         """
         Turns off streaming data.
 
@@ -1127,7 +1127,7 @@ class SmurfUtilMixin(SmurfBase):
                          return_header=False,
                          return_tes_bias=False, write_log=True,
                          n_max=2048, make_freq_mask=False,
-                         gcp_mode=False, IQ_mode=False, fast_reader=True):
+                         gcp_mode=False, IQ_mode=False, fast_reader=True, **kwargs):
         """
         Loads data taken with the function stream_data_on.
         Gives back the resonator data in units of phase. Also
@@ -1368,7 +1368,7 @@ class SmurfUtilMixin(SmurfBase):
 
     @set_action()
     def read_stream_data_gcp_save(self, datafile, channel=None,
-            unwrap=True, downsample=1, nsamp=None):
+            unwrap=True, downsample=1, nsamp=None, **kwargs):
         """
         Reads the special data that is designed to be a copy of the GCP data.
         This was the most common data writing mode until the Rogue 4 update.
@@ -1493,7 +1493,7 @@ class SmurfUtilMixin(SmurfBase):
 
     @set_action()
     def header_to_tes_bias(self, header, as_volt=True,
-                           n_tes_bias=15):
+                           n_tes_bias=15, **kwargs):
         """
         Takes the SmurfHeader returned from read_stream_data
         and turns it to a TES bias. The header is a 20 field,
@@ -1556,7 +1556,7 @@ class SmurfUtilMixin(SmurfBase):
         return bias
 
     @set_action()
-    def make_mask_lookup(self, mask_file, make_freq_mask=False):
+    def make_mask_lookup(self, mask_file, make_freq_mask=False, **kwargs):
         """ Makes an n_band x n_channel array where the elements correspond
         to the smurf_to_mce mask number. In other words, mask[band, channel]
         returns the GCP index in the mask that corresonds to band, channel.
@@ -1612,7 +1612,7 @@ class SmurfUtilMixin(SmurfBase):
 
     @set_action()
     def read_stream_data_daq(self, data_length, bay=0, hw_trigger=False,
-            write_log=False):
+            write_log=False, **kwargs):
         """
         Reads the stream data from the DAQ.
 
@@ -1714,7 +1714,7 @@ class SmurfUtilMixin(SmurfBase):
     def read_adc_data(self, band, data_length=2**19,
                       hw_trigger=False, make_plot=False, save_data=True,
                       timestamp=None, show_plot=True, save_plot=True,
-                      plot_ylimits=[None,None]):
+                      plot_ylimits=[None,None], **kwargs):
         """
         Reads data directly off the ADC.
 
@@ -1818,7 +1818,7 @@ class SmurfUtilMixin(SmurfBase):
     def read_dac_data(self, band, data_length=2**19,
                       hw_trigger=False, make_plot=False, save_data=True,
                       timestamp=None, show_plot=True, save_plot=True,
-                      plot_ylimits=[None,None]):
+                      plot_ylimits=[None,None], **kwargs):
         """
         Read the data directly off the DAC.
 
@@ -1917,7 +1917,7 @@ class SmurfUtilMixin(SmurfBase):
 
     @set_action()
     def setup_daq_mux(self, converter, converter_number, data_length,
-                      band=0, debug=False, write_log=False):
+                      band=0, debug=False, write_log=False, **kwargs):
         """
         Sets up for either ADC or DAC data taking.
 
@@ -1962,7 +1962,7 @@ class SmurfUtilMixin(SmurfBase):
 
     @set_action()
     def set_buffer_size(self, bay, size, debug=False,
-                        write_log=False):
+                        write_log=False, **kwargs):
         """
         Sets the buffer size for reading and writing DAQs
 
@@ -1985,7 +1985,7 @@ class SmurfUtilMixin(SmurfBase):
 
     @set_action()
     def config_cryo_channel(self, band, channel, frequencyMHz, amplitude,
-            feedback_enable, eta_phase, eta_mag):
+            feedback_enable, eta_phase, eta_mag, **kwargs):
         """
         Set parameters on a single cryo channel
 
@@ -2173,7 +2173,7 @@ class SmurfUtilMixin(SmurfBase):
         self.set_feedback_limit(band, desired_feedback_limit_dec, **kwargs)
 
     # if no guidance given, tries to reset both
-    def recover_jesd(self, bay, recover_jesd_rx=True, recover_jesd_tx=True):
+    def recover_jesd(self, bay, recover_jesd_rx=True, recover_jesd_tx=True, **kwargs):
         """
         Attempts to recover the JESDs
 
@@ -2260,7 +2260,7 @@ class SmurfUtilMixin(SmurfBase):
 
         return jesd_decorator_function
 
-    def check_jesd(self, bay, silent_if_valid=False, max_timeout_sec=60):
+    def check_jesd(self, bay, silent_if_valid=False, max_timeout_sec=60, **kwargs):
         """Checks JESD status for requested bay.
 
         Queries the Jesd tx and rx and compares the data_valid and
@@ -2490,7 +2490,7 @@ class SmurfUtilMixin(SmurfBase):
         else:
             return channel_freqs[channel]
 
-    def get_channel_order(self, band=None, channel_orderfile=None):
+    def get_channel_order(self, band=None, channel_orderfile=None, **kwargs):
         """ produces order of channels from a user-supplied input file
 
         Args
@@ -2549,7 +2549,7 @@ class SmurfUtilMixin(SmurfBase):
             channel_orderfile=channel_orderfile)[n_cut:-n_cut])
 
     def get_subband_from_channel(self, band, channel, channelorderfile=None,
-            yml=None):
+            yml=None, **kwargs):
         """Returns subband number given a channel number
 
         Args
@@ -2590,7 +2590,7 @@ class SmurfUtilMixin(SmurfBase):
         return int(subband)
 
     def get_subband_centers(self, band, as_offset=True, hardcode=False,
-            yml=None):
+            yml=None, **kwargs):
         """ returns frequency in MHz of subband centers
 
         Args
@@ -2621,7 +2621,7 @@ class SmurfUtilMixin(SmurfBase):
 
         return subbands, subband_centers
 
-    def get_channels_in_subband(self, band, subband, channelorderfile=None):
+    def get_channels_in_subband(self, band, subband, channelorderfile=None, **kwargs):
         """
         Returns channels in subband
 
@@ -2930,7 +2930,7 @@ class SmurfUtilMixin(SmurfBase):
 
     def overbias_tes(self, bias_group, overbias_voltage=19.9, overbias_wait=1.,
                      tes_bias=19.9, cool_wait=20., high_current_mode=False,
-                     flip_polarity=False, actually_overbias=True):
+                     flip_polarity=False, actually_overbias=True, **kwargs):
         """
         Overbiases requested bias group at overbias_voltage in high current mode
         for overbias_wait seconds. If high_current_mode=False,
@@ -2991,7 +2991,7 @@ class SmurfUtilMixin(SmurfBase):
 
     def overbias_tes_all(self, bias_groups=None, overbias_voltage=19.9,
             overbias_wait=1.0, tes_bias=19.9, cool_wait=20.,
-            high_current_mode=False, actually_overbias=True):
+            high_current_mode=False, actually_overbias=True, **kwargs):
         """
         Overbiases all requested bias groups (specified by the
         bias_groups array) at overbias_voltage in high current mode
@@ -3067,7 +3067,7 @@ class SmurfUtilMixin(SmurfBase):
         self.log('Done waiting.', self.LOG_USER)
 
 
-    def set_tes_bias_high_current(self, bias_group, write_log=False):
+    def set_tes_bias_high_current(self, bias_group, write_log=False, **kwargs):
         """
         Sets all bias groups to high current mode. Note that the bias group
         number is not the same as the relay number. It also does not matter,
@@ -3118,7 +3118,7 @@ class SmurfUtilMixin(SmurfBase):
             self._pic_to_bias_group[:,1]==bias_group)])[0]
         return (relay>>r) & 1
 
-    def set_tes_bias_low_current(self, bias_group, write_log=False):
+    def set_tes_bias_low_current(self, bias_group, write_log=False, **kwargs):
         """
         Sets all bias groups to low current mode. Note that the bias group
         number is not the same as the relay number. It also does not matter,
@@ -3280,7 +3280,7 @@ class SmurfUtilMixin(SmurfBase):
         self.log(aph)
         return (aph)
 
-    def make_channel_mask(self, band=None, smurf_chans=None, IQ_mode=False):
+    def make_channel_mask(self, band=None, smurf_chans=None, IQ_mode=False, **kwargs):
         """
         Makes the channel mask. Only the channels in the
         mask will be streamed or written to disk.
@@ -3360,7 +3360,7 @@ class SmurfUtilMixin(SmurfBase):
         return freqs
 
 
-    def set_downsample_filter(self, filter_order, cutoff_freq, write_log=False):
+    def set_downsample_filter(self, filter_order, cutoff_freq, write_log=False, **kwargs):
         """
         Sets the downsample filter. This is anti-alias filter
         that filters data at the flux_ramp reset rate, which is
@@ -3429,7 +3429,7 @@ class SmurfUtilMixin(SmurfBase):
 
     @set_action()
     def make_gcp_mask(self, band=None, smurf_chans=None,
-                      gcp_chans=None, read_gcp_mask=True):
+                      gcp_chans=None, read_gcp_mask=True, **kwargs):
         """
         THIS FUNCTION WAS USED FOR BKUMUX DATA ACQUISITION.  IT'S
         COMPLETELY BROKEN NOW, POST ROGUE4 MIGRATION.
@@ -3490,7 +3490,7 @@ class SmurfUtilMixin(SmurfBase):
                   skip_samp_start=10, high_current_mode=True,
                   skip_samp_end=10, plot_channels=None,
                   gcp_mode=False, gcp_wait=0.5, gcp_between=1.0,
-                  dat_file=None, offset_percentile=2):
+                  dat_file=None, offset_percentile=2, **kwargs):
         """
         Toggles the TES bias high and back to its original state. From this, it
         calculates the electrical responsivity (sib), the optical responsivity (siq),
@@ -3766,7 +3766,7 @@ class SmurfUtilMixin(SmurfBase):
         return (gcp_num*16)%528 + gcp_num//33
 
 
-    def smurf_channel_to_gcp_num(self, band, channel):
+    def smurf_channel_to_gcp_num(self, band, channel, **kwargs):
         """
         Converts from smurf channel (band and channel) to a gcp number
 
@@ -3814,7 +3814,7 @@ class SmurfUtilMixin(SmurfBase):
         return int(mask[mask_num]//n_channels), int(mask[mask_num]%n_channels)
 
 
-    def play_sine_tes(self, bias_group, tone_amp, tone_freq, dc_amp=None):
+    def play_sine_tes(self, bias_group, tone_amp, tone_freq, dc_amp=None, **kwargs):
         """
         Play a sine wave on the bias group pair.
 
@@ -3864,7 +3864,7 @@ class SmurfUtilMixin(SmurfBase):
         self.play_tes_bipolar_waveform(bias_group, sig)
 
 
-    def play_tone_file(self, band, tone_file=None, load_tone_file=True):
+    def play_tone_file(self, band, tone_file=None, load_tone_file=True, **kwargs):
         """
         Plays the specified tone file on this band.  If no path provided
         for tone file, assumes the path to the correct tone file has
@@ -3940,7 +3940,7 @@ class SmurfUtilMixin(SmurfBase):
         return ret
 
 
-    def set_fixed_tone(self, freq_mhz, tone_power, write_log=False):
+    def set_fixed_tone(self, freq_mhz, tone_power, write_log=False, **kwargs):
         """
         Places a fixed tone at the requested frequency.  Asserts
         without doing anything if the requested resonator frequency
@@ -4080,7 +4080,7 @@ class SmurfUtilMixin(SmurfBase):
     _hardware_logging_thread=None
     __hardware_logging_stop_event=None
 
-    def start_hardware_logging(self,filename=None,wait_btw_sec=5.0):
+    def start_hardware_logging(self,filename=None,wait_btw_sec=5.0, **kwargs):
         """Starts hardware logging in external thread.
 
         Args
@@ -4348,7 +4348,7 @@ class SmurfUtilMixin(SmurfBase):
     def identify_bias_groups(self, bias_groups=None,
             probe_freq=2.5, probe_time=3, probe_amp=.1, make_plot=False,
             show_plot=False, save_plot=True, cutoff_frac=.05,
-            update_channel_assignment=True, high_current_mode=True):
+            update_channel_assignment=True, high_current_mode=True, **kwargs):
         """ Identify bias groups of all the channels that are on. Plays
         a sine wave on a bias group and looks for a response. Does
         this with the TESs superconducting so it can look for an
@@ -4555,7 +4555,7 @@ class SmurfUtilMixin(SmurfBase):
 
     def find_probe_tone_gap(self, band, n_tone=2, n_scan=5,
                           make_plot=True,
-                          save_plot=True, show_plot=False):
+                          save_plot=True, show_plot=False, **kwargs):
         """
         This finds the larges n_tone gaps in the band. These
         are used for finding gaps to put probe tones for checking
@@ -4879,7 +4879,7 @@ class SmurfUtilMixin(SmurfBase):
         # Timing configuration not recognized, return None
         return None
 
-    def set_timing_mode(self, mode, write_log=False):
+    def set_timing_mode(self, mode, write_log=False, **kwargs):
         r"""Sets timing mode.
 
         Use this function to configure the system's timing mode.  The

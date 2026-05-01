@@ -42,7 +42,7 @@ class SmurfNoiseMixin(SmurfBase):
                        write_log=True, reset_filter=True,
                        reset_unwrapper=True,
                        return_noise_params=False,
-                       plotname_append=''):
+                       plotname_append='', **kwargs):
         """
         Takes a timestream of noise and calculates its PSD. It also
         attempts to fit a white noise and 1/f component to the data.
@@ -341,7 +341,7 @@ class SmurfNoiseMixin(SmurfBase):
         else:
             return datafile
 
-    def turn_off_noisy_channels(self, band, noise, cutoff=150):
+    def turn_off_noisy_channels(self, band, noise, cutoff=150, **kwargs):
         """
         Turns off channels with noise level above a cutoff.
 
@@ -366,7 +366,7 @@ class SmurfNoiseMixin(SmurfBase):
                       fraction_full_scale=.72, meas_flux_ramp_amp=False,
                       n_phi0=4, make_timestream_plot=True,
                       new_master_assignment=True, from_old_tune=False,
-                      old_tune=None):
+                      old_tune=None, **kwargs):
         """Takes timestream noise at various tone powers.
 
         Operates on one band at a time because it needs to retune
@@ -468,7 +468,7 @@ class SmurfNoiseMixin(SmurfBase):
             overbias_voltage=9., meas_time=30., analyze=False, nperseg=2**13,
             detrend='constant', fs=None, show_plot=False, cool_wait=30.,
             psd_ylim=(10.,1000.), make_timestream_plot=False,
-            only_overbias_once=False, overbias_wait=1):
+            only_overbias_once=False, overbias_wait=1, **kwargs):
         """ This ramps the TES voltage from bias_high to bias_low and takes noise
         measurements. You can make it analyze the data and make plots with the
         optional argument analyze=True. Note that the analysis is a little
@@ -532,7 +532,7 @@ class SmurfNoiseMixin(SmurfBase):
     def noise_vs_amplitude(self, band, amplitude_high=11, amplitude_low=9,
             step_size=1, amplitudes=None, meas_time=30., analyze=False,
             channel=None, nperseg=2**13, detrend='constant', fs=None,
-            show_plot=False, make_timestream_plot=False, psd_ylim=None):
+            show_plot=False, make_timestream_plot=False, psd_ylim=None, **kwargs):
         """
         No description
 
@@ -721,7 +721,7 @@ class SmurfNoiseMixin(SmurfBase):
         return datafiles
 
 
-    def get_biases_from_file(self, fn_biases, dtype=float):
+    def get_biases_from_file(self, fn_biases, dtype=float, **kwargs):
         """
         For, e.g., noise_vs_bias, the list of commanded bias voltages
         is recorded in a txt file. This function simply extracts those
@@ -749,7 +749,7 @@ class SmurfNoiseMixin(SmurfBase):
         return biases
 
 
-    def get_iv_data(self, iv_data_filename, band, high_current_mode=False):
+    def get_iv_data(self, iv_data_filename, band, high_current_mode=False, **kwargs):
         """
         Takes IV data and extracts responsivities as a function of commanded
         bias voltage.
@@ -797,7 +797,7 @@ class SmurfNoiseMixin(SmurfBase):
         return iv_band_data
 
 
-    def get_si_data(self, iv_band_data, b, ch):
+    def get_si_data(self, iv_band_data, b, ch, **kwargs):
         """
         Convenience function for getting the responsivitiy from the IV data.
 
@@ -820,7 +820,7 @@ class SmurfNoiseMixin(SmurfBase):
         return iv_band_data[b][ch]['v_bias'], iv_band_data[b][ch]['si']
 
 
-    def get_NEI_to_NEP_factor(self, iv_band_data, b, ch, v_bias):
+    def get_NEI_to_NEP_factor(self, iv_band_data, b, ch, v_bias, **kwargs):
         """
         This function uses the IV curve to estimate dI/dP. It interpolates
         between IV points to get the value at the desired v_bias. Returns the
@@ -859,7 +859,7 @@ class SmurfNoiseMixin(SmurfBase):
             show_legend=True, freq_range_summary=None, R_sh=None,
             high_current_mode=True, iv_data_filename=None, NEP_ylim=(10.,1000.),
             f_center_GHz=150., bw_GHz=32., xlabel_override=None,
-            unit_override=None):
+            unit_override=None, **kwargs):
         """ Analysis script associated with noise_vs_bias. Will convert to NEP
         if an IV curve is given (use optional argument iv_data_filename).
 
@@ -1436,7 +1436,7 @@ class SmurfNoiseMixin(SmurfBase):
 
     def analyze_psd(
             self, f, Pxx, fs=None, p0=None, flux_ramp_freq=None,
-            filter_a=None, filter_b=None):
+            filter_a=None, filter_b=None, **kwargs):
         """
         Return model fit for a PSD.
         p0 (float array): initial guesses for model fitting: [white-noise level
@@ -1482,7 +1482,7 @@ class SmurfNoiseMixin(SmurfBase):
         if fs is None:
             fs = self.get_sample_frequency()
 
-        def noise_model(freq, wl, n, f_knee):
+        def noise_model(freq, wl, n, f_knee, **kwargs):
             """
             Crude model for noise modeling.
 
@@ -1526,7 +1526,7 @@ class SmurfNoiseMixin(SmurfBase):
         return popt, pcov, f_fit, Pxx_fit
 
 
-    def noise_all_vs_noise_solo(self, band, meas_time=10.0):
+    def noise_all_vs_noise_solo(self, band, meas_time=10.0, **kwargs):
         """
         Measures the noise with all the resonators on, then measures
         every channel individually.
@@ -1566,7 +1566,7 @@ class SmurfNoiseMixin(SmurfBase):
         return ret
 
     def analyze_noise_all_vs_noise_solo(self, ret, fs=None, nperseg=2**10,
-            make_channel_plot=False):
+            make_channel_plot=False, **kwargs):
         """
         Analyzes the data from noise_all_vs_noise_solo
 
@@ -1619,7 +1619,7 @@ class SmurfNoiseMixin(SmurfBase):
 
 
     def NET_CMB(self, NEI, V_b, R_tes, opt_eff, f_center=150e9, bw=32e9,
-            R_sh=None, high_current_mode=False):
+            R_sh=None, high_current_mode=False, **kwargs):
         """
         Converts current spectral noise density to NET in uK rt(s). Assumes NEI
         is white-noise level.
@@ -1668,7 +1668,7 @@ class SmurfNoiseMixin(SmurfBase):
             nperseg=2**13, detrend='constant', fs=None, save_plot=True,
             show_plot=False, make_timestream_plot=False, data_timestamp=None,
             psd_ylim=(10.,1000.), bias_group=None, smooth_len=11,
-            show_legend=True, freq_range_summary=None):
+            show_legend=True, freq_range_summary=None, **kwargs):
         """ Analysis script associated with noise_vs_tone. Writes outputs
         and plots to output_dir and plot_dir respectively.
 
@@ -1917,7 +1917,7 @@ class SmurfNoiseMixin(SmurfBase):
             tone_power=None, nsamp=2**25, nperseg=2**18, make_plot=True,
             show_plot=False, save_plot=True, band_off=True,
             run_serial_gradient_descent=True, run_serial_eta_scan=True,
-            save_psd=False):
+            save_psd=False, **kwargs):
         """
         This script is shamelessly stolen from Max. This tunes up a single
         resonator and takes data in single_channel_readout mode, with is 2.4 MHz.
@@ -2050,7 +2050,7 @@ class SmurfNoiseMixin(SmurfBase):
         return ff, pxx
 
 
-    def noise_svd(self, d, mask, mean_subtract=True):
+    def noise_svd(self, d, mask, mean_subtract=True, **kwargs):
         """
         Calculates the SVD modes of the input data.
         Only uses the data called out by the mask
@@ -2083,7 +2083,7 @@ class SmurfNoiseMixin(SmurfBase):
 
 
     def plot_svd_summary(self, u, s, save_plot=False,
-            save_name=None, show_plot=False):
+            save_name=None, show_plot=False, **kwargs):
         """
         Requires seaborn to be installed. Plots a heatmap
         of the coefficients and the log10 of the amplitudes.
@@ -2141,7 +2141,7 @@ class SmurfNoiseMixin(SmurfBase):
 
 
     def plot_svd_modes(self, vh, n_row=4, n_col=5, figsize=(10,7.5),
-            save_plot=False, save_name=None, show_plot=False, sharey=True):
+            save_plot=False, save_name=None, show_plot=False, sharey=True, **kwargs):
         """
         Plots the first N modes where N is n_row x n_col.
 
@@ -2198,7 +2198,7 @@ class SmurfNoiseMixin(SmurfBase):
             plt.close()
 
 
-    def remove_svd(self, d, mask, u, s, vh, modes=3):
+    def remove_svd(self, d, mask, u, s, vh, modes=3, **kwargs):
         """
         Removes the requsted SVD modes
 
