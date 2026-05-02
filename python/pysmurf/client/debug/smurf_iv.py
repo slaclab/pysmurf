@@ -1317,8 +1317,10 @@ class SmurfIVMixin(SmurfBase):
                            ha='right', va='top')
 
                 plt.tight_layout()
-                plt.savefig(os.path.join(self.plot_dir, iv_raw_dat['basename'] +
-                    f'_estimate_bias_bg{bg}.png'), bbox_inches='tight')
+                path = os.path.join(self.plot_dir, iv_raw_dat['basename'] +
+                    f'_estimate_bias_bg{bg}.png')
+                plt.savefig(path, bbox_inches='tight')
+                self.pub.register_file(path, 'iv_estimate_bias', plot=True)
 
             if not show_plot:
                 plt.close(fig)

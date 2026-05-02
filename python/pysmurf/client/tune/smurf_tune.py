@@ -4225,9 +4225,10 @@ class SmurfTuneMixin(SmurfBase):
             plt.tight_layout()
             if save_plot:
                 timestamp = self.get_timestamp()
-                plt.savefig(os.path.join(self.plot_dir,
-                    f'{timestamp}_IQ_svd_b{band}ch{channel:03}.png'),
-                    bbox_inches='tight')
+                path = os.path.join(self.plot_dir,
+                    f'{timestamp}_IQ_svd_b{band}ch{channel:03}.png')
+                plt.savefig(path, bbox_inches='tight')
+                self.pub.register_file(path, 'iq_svd', plot=True)
             if show_plot:
                 plt.show()
             else:
@@ -4457,9 +4458,10 @@ class SmurfTuneMixin(SmurfBase):
             plt.tight_layout()
 
             if save_plot:
-                plt.savefig(os.path.join(self.plot_dir,
-                    f'{timestamp}_optimize_lms_delay_b{band}.png'),
-                    bbox_inches='tight')
+                path = os.path.join(self.plot_dir,
+                    f'{timestamp}_optimize_lms_delay_b{band}.png')
+                plt.savefig(path, bbox_inches='tight')
+                self.pub.register_file(path, 'optimize_lms_delay', plot=True)
             if show_plot:
                 plt.show()
             else:
