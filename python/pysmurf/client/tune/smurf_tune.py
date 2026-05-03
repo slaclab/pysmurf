@@ -2783,7 +2783,7 @@ class SmurfTuneMixin(SmurfBase):
 
             if save_plot:
                 path = os.path.join(self.plot_dir,
-                    timestamp + '_FR_amp_v_err' + plotname_append + '.png')
+                    f'{timestamp}_b{band}_FR_amp_v_err{plotname_append}.png')
                 plt.savefig(path, bbox_inches='tight')
                 self.pub.register_file(path, 'amp_vs_err', plot=True)
 
