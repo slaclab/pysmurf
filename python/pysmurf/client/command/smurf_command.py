@@ -37,7 +37,7 @@ class SmurfCommandMixin(SmurfBase):
         def skipper(self, *args,**kwargs):
             result = None
             if not self.is_rfsoc:
-                result  = func(*args,**kwargs)
+                result  = func(self, *args,**kwargs)
             else:
                 print(f'Function {func.__name__} called, but not implemented on RFSoC.  Skipping call and returning None!')
             return result
