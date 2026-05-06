@@ -32,7 +32,7 @@ config_repo=https://github.com/slaclab/smurf_cfg
 FW_SYSTEMS=(
     # uMUX (standard microwave multiplexer) systems
     # Uses Primary:False naming -> rogue_MicrowaveMuxBpEthGen2_<tag>.zip
-    "umux|https://github.com/slaclab/cryo-det|MicrowaveMuxBpEthGen2_v2.3.1|MicrowaveMuxBpEthGen2-0x02030000-20260320150539-ruckman-7d7e8a25.mcs|rogue_MicrowaveMuxBpEthGen2_v2.3.1.zip"
+    "umux|https://github.com/slaclab/cryo-det|MicrowaveMuxBpEthGen2_v2.4.0|MicrowaveMuxBpEthGen2-0x02040000-20260414104316-ruckman-33885cfb.mcs|rogue_MicrowaveMuxBpEthGen2_v2.4.0.zip"
 
     # NO LONGER BEING DEVELOPED
     ## TKID (transition-edge sensor kinetic inductance detector) systems
