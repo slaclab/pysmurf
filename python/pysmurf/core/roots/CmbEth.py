@@ -99,8 +99,6 @@ class CmbEth(Common):
                         VariableGroups = VariableGroups,
                         disable_bay0   = disable_bay0,
                         disable_bay1   = disable_bay1,
-                        is_rfsoc       = is_rfsoc,
-                        is_prespectra  = is_prespectra,
                         server_port    = server_port,
                         **kwargs)
 

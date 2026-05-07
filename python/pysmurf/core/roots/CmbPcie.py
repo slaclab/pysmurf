@@ -113,6 +113,4 @@ class CmbPcie(Common):
                         server_port    = server_port,
                         disable_bay0   = disable_bay0,
                         disable_bay1   = disable_bay1,
-                        is_rfsoc       = is_rfsoc,
-                        is_prespectra  = is_prespectra,
                         **kwargs)
