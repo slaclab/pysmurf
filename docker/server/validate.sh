@@ -34,13 +34,15 @@ check_if_private_tag_exist()
 
     while true; do
         local api_url="${api_base}?per_page=100&page=${page}"
-        local tags=$(curl \
+        local tags
+        tags=$(curl \
           --silent \
           --url "${api_url}" \
           --header "Authorization: token ${GITHUB_TOKEN}" \
           --fail)
+        rc=$?
 
-        if [ $? -ne 0 ]; then
+        if [ $rc -ne 0 ]; then
             error "API request failed for ${api_url}"
         fi
 
