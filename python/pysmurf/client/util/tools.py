@@ -15,6 +15,7 @@
 #-----------------------------------------------------------------------------
 import os
 import re
+import builtins
 
 import numpy as np
 from scipy.optimize import curve_fit
@@ -37,6 +38,8 @@ TYPEMAP = {
 
 # Matches arbitrary-width Rogue scalar typeStr like 'UInt6' or 'Float64'.
 _WIDTH_TYPESTR_RE = re.compile(r'^(UInt|Int|Float)(\d+)$')
+# Matches {val}{val.shape} format used in pyrogue
+_ARRAY_TYPESTR_RE = re.compile(r'^([\d|\w]+)(\(.*\))?(\[np\])?$')
 
 
 def _resolve_typestr_dtype(ts):
@@ -45,28 +48,40 @@ def _resolve_typestr_dtype(ts):
     Looks up the canonical 12-entry TYPEMAP first, then falls back to the
     arbitrary-width pattern that Rogue uses for non-power-of-2 integer
     fields (e.g. 'UInt1', 'UInt6') and the 'Float64' alias for 'Double'.
+    Finally attempts to parse built-in types and numpy dtypes.
     Non-native widths round up to the next native numpy width, matching
     what rogue itself caches.
     """
+    # check for canonical types first
     dtype = TYPEMAP.get(ts)
     if dtype is not None:
         return dtype
+    # check for arbitrary-width types
     m = _WIDTH_TYPESTR_RE.match(ts)
-    if m is None:
-        return None
-    kind, width = m.group(1), int(m.group(2))
-    if kind in ('UInt', 'Int') and 1 <= width <= 64:
-        if width <= 8:
-            native = 8
-        elif width <= 16:
-            native = 16
-        elif width <= 32:
-            native = 32
-        else:
-            native = 64
-        return TYPEMAP[f'{kind}{native}']
-    if kind == 'Float' and width in (32, 64):
-        return np.float32 if width == 32 else np.float64
+    if m is not None:
+        kind, width = m.group(1), int(m.group(2))
+        if kind in ('UInt', 'Int') and 1 <= width <= 64:
+            if width <= 8:
+                native = 8
+            elif width <= 16:
+                native = 16
+            elif width <= 32:
+                native = 32
+            else:
+                native = 64
+            return TYPEMAP[f'{kind}{native}']
+        if kind == 'Float' and width in (32, 64):
+            return np.float32 if width == 32 else np.float64
+    # parse built-in types
+    try:
+        return getattr(builtins, ts)
+    except AttributeError:
+        pass
+    # and finally see if numpy can parse
+    try:
+        return np.dtype(ts).type
+    except TypeError:
+        pass
     return None
 
 
@@ -77,7 +92,8 @@ def coerce_value_for_var(var, val):
     performing a register read.  Handles scalar registers, array registers
     identified by the '[np]' typeStr suffix, the 12 canonical TYPEMAP
     entries, and the arbitrary-width 'UInt<N>'/'Int<N>'/'Float<N>' forms
-    that Rogue emits for non-power-of-2 fields.  Raises TypeError for any
+    that Rogue emits for non-power-of-2 fields. Will attempt to parse built-in
+    types and numpy dtypes as a final resort. Raises TypeError for any
     typeStr that does not resolve.
 
     Parameters
@@ -102,10 +118,15 @@ def coerce_value_for_var(var, val):
         message includes both the variable path (var.path) and the
         unrecognized typeStr.
     """
+    dtype = None
+    is_array = False
     ts = var.typeStr
-    is_array = ts.endswith('[np]')
-    base = ts[:-4] if is_array else ts
-    dtype = _resolve_typestr_dtype(base)
+    # first, split base and array markers
+    m = _ARRAY_TYPESTR_RE.match(ts)
+    if m is not None:
+        base, shape, np_suffix = m.group(1), m.group(2), m.group(3)
+        is_array = (shape is not None or np_suffix is not None)
+        dtype = _resolve_typestr_dtype(base)
     if dtype is None:
         raise TypeError(
             f"Unrecognized typeStr '{ts}' for variable '{var.path}'"
