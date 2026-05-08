@@ -90,6 +90,8 @@ class SmurfControl(SmurfCommandMixin,
     initialize
     """
 
+
+
     def __init__(self, cfg_file=None, data_dir=None, name=None, make_logfile=True,
                  setup=False, offline=False, smurf_cmd_mode=False,
                  shelf_manager='shm-smrf-sp01', no_dir=False, validate_config=True,
@@ -248,6 +250,9 @@ class SmurfControl(SmurfCommandMixin,
                 self.log.set_logfile(self.log_file)
             else:
                 self.log.set_logfile(None)
+
+            # Is this an RFSoC?
+            self.is_rfsoc = (True if 'Zcu' in self.get_fpga_build_stamp() else False)
 
             # Which bays were enabled on pysmurf server startup?
             self.bays = self.which_bays()
@@ -421,23 +426,24 @@ class SmurfControl(SmurfCommandMixin,
         # Which bands are we configuring?
         bands = self._bands
 
-        # Right now, resetting both DACs in both MicrowaveMuxCore blocks,
-        # but may want to determine at runtime which are actually needed and
-        # only reset the DAC in those.
-        self.log('Toggling DACs')
-        dacs = [0, 1]
-        for val in [1, 0]:
-            for bay in self.bays:
+        if not self.is_rfsoc:
+            # Right now, resetting both DACs in both MicrowaveMuxCore blocks,
+            # but may want to determine at runtime which are actually needed and
+            # only reset the DAC in those.
+            self.log('Toggling DACs')
+            dacs = [0, 1]
+            for val in [1, 0]:
+                for bay in self.bays:
 
-                # In newer software versions, setDefaults disables
-                # DBG:enable after loading the defaults.yml.  This
-                # makes sure we can reset the RF DACs.
-                self.set_dbg_enable(bay, True)
+                    # In newer software versions, setDefaults disables
+                    # DBG:enable after loading the defaults.yml.  This
+                    # makes sure we can reset the RF DACs.
+                    self.set_dbg_enable(bay, True)
 
-                # Reset all RF DACs in use.
-                for dac in dacs:
-                    self.set_dac_reset(
-                        bay, dac, val, write_log=write_log)
+                    # Reset all RF DACs in use.
+                    for dac in dacs:
+                        self.set_dac_reset(
+                            bay, dac, val, write_log=write_log)
 
         #
         # setDefaults
@@ -467,7 +473,7 @@ class SmurfControl(SmurfCommandMixin,
 
         # Only proceed with the rest of setup if the defaults were set
         # correctly.
-        if success:
+        if success and not self.is_rfsoc:
             # setDefaults runs the JesdHealth check, so just need to poll
             # status.
             jesd_health_status = self.get_jesd_status(write_log=write_log)
@@ -578,10 +584,11 @@ class SmurfControl(SmurfCommandMixin,
                     band, self._feedback_polarity[band],
                     write_log=write_log, **kwargs)
 
-                for dmx in np.array(self._data_out_mux[band]):
-                    self.set_data_out_mux(
-                        int(self.band_to_bay(band)), int(dmx),
-                        "UserData", write_log=write_log, **kwargs)
+                if not self.is_rfsoc:
+                    for dmx in np.array(self._data_out_mux[band]):
+                        self.set_data_out_mux(
+                            int(self.band_to_bay(band)), int(dmx),
+                            "UserData", write_log=write_log, **kwargs)
 
                 self.set_dsp_enable(
                     band, self._dsp_enable,
@@ -614,18 +621,19 @@ class SmurfControl(SmurfCommandMixin,
                     write_log=write_log, **kwargs)
 
             # Set UC and DC attenuators
-            for band in bands:
-                self.set_att_uc(
-                    band, self._att_uc[band],
-                    write_log=write_log)
-                self.set_att_dc(
-                    band, self._att_dc[band],
-                    write_log=write_log)
+            if not self.is_rfsoc:
+                for band in bands:
+                    self.set_att_uc(
+                        band, self._att_uc[band],
+                        write_log=write_log)
+                    self.set_att_dc(
+                        band, self._att_dc[band],
+                        write_log=write_log)
 
-            # Things that have to be done for both AMC bays, regardless of whether or not an AMC
-            # is plugged in there.
-            for bay in [0, 1]:
-                self.set_trigger_hw_arm(bay, 0, write_log=write_log)
+                # Things that have to be done for both AMC bays, regardless of whether or not an AMC
+                # is plugged in there.
+                for bay in [0, 1]:
+                    self.set_trigger_hw_arm(bay, 0, write_log=write_log)
 
             self.set_trigger_width(0, 10, write_log=write_log)  # mystery bit that makes triggering work
             self.set_trigger_enable(0, 1, write_log=write_log)
@@ -640,13 +648,15 @@ class SmurfControl(SmurfCommandMixin,
 
             self.set_enable_ramp_trigger(1, write_log=write_log)
 
-            # 0x1 selects fast flux ramp, 0x0 selects slow flux ramp.  The
-            # slow flux ramp only existed on the first rev of RTM boards,
-            # C0, and wasn't ever really used.
-            self.set_select_ramp(0x1, write_log=write_log)
+            if not self.is_rfsoc:
+                # 0x1 selects fast flux ramp, 0x0 selects slow flux ramp.  The
+                # slow flux ramp only existed on the first rev of RTM boards,
+                # C0, and wasn't ever really used.
+                self.set_select_ramp(0x1, write_log=write_log)
 
-            self.set_cpld_reset(0, write_log=write_log)
-            self.cpld_toggle(write_log=write_log)
+                self.set_cpld_reset(0, write_log=write_log)
+                self.cpld_toggle(write_log=write_log)
+
             self.all_off()
 
             # Make sure flux ramp starts off
@@ -663,17 +673,18 @@ class SmurfControl(SmurfCommandMixin,
             self.set_channel_mask([0])
 
             try:
-                ## Removed this because better error handling for cc
-                ## communication in
-                ## https://github.com/slaclab/pysmurf/pull/794 Causes this
-                ## command to stall and error out on systems with no
-                ## cryostat card connected.
-                ## also read the temperature of the CC
-                self.log(f"Cryocard temperature = {self.C.read_temperature()}")
+                if not self.is_rfsoc:
+                    ## Removed this because better error handling for cc
+                    ## communication in
+                    ## https://github.com/slaclab/pysmurf/pull/794 Causes this
+                    ## command to stall and error out on systems with no
+                    ## cryostat card connected.
+                    ## also read the temperature of the CC
+                    self.log(f"Cryocard temperature = {self.C.read_temperature()}")
 
-                # If C02, set the gate voltages to the default.
-                # If C04, also set the drain voltages to zero.
-                self.set_amp_defaults()
+                    # If C02, set the gate voltages to the default.
+                    # If C04, also set the drain voltages to zero.
+                    self.set_amp_defaults()
             except Exception:
                 self.log("Attempts to communicate with a cryocard "
                          "failed!  Will assume no cryostat card is"
