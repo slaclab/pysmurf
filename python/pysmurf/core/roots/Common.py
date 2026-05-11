@@ -60,6 +60,14 @@ class Common(pyrogue.Root):
         # Add streamer
         self.stream = pyrogue.interfaces.stream.Variable(root=self, incGroups='stream')
 
+        # Command to dump all polled variables to stream
+        # Will be used by SO streamer at the start of a session
+        self.add(pyrogue.LocalCommand(
+            name='dumpStatusStream',
+            description='Update all polled variables to stream',
+            function=lambda : self.stream.streamYaml()
+        ))
+
         # Add PySmurf Application Block
         self.add(pysmurf.core.devices.SmurfApplication())
 

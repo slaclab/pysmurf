@@ -680,6 +680,13 @@ class SmurfCommandMixin(SmurfBase):
         self._caput('AMCc.ReadAll', 1, wait_after=20, **kwargs)
         self.log('ReadAll sent', self.LOG_INFO)
 
+    def dump_status_to_stream(self, **kwargs):
+        """
+        Triggers an update of all polled PVs to the stream.
+        Calls stream.streamYaml().
+        """
+        self._caput('AMCc.dumpStatusStream', 1, **kwargs)
+
     def run_pwr_up_sys_ref(self,bay, **kwargs):
         """
         """
