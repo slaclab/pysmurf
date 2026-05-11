@@ -2020,17 +2020,29 @@ class SmurfConfigPropertiesMixin:
     # Getter
     @property
     def amplitude_scale(self):
-        """Short description.
+        """Default per-band tone amplitude scale.
 
-        Gets or sets ?.
-        Units are ?.
+        Gets or sets the default tone amplitude scale used when a tuning
+        routine (:func:`find_freq`, :func:`setup_notches`,
+        :func:`tune_band_serial`, :func:`full_band_resp`, ...) is called
+        without an explicit ``tone_power``.  Indexed by band number, with
+        each entry a 4-bit unsigned integer in [0, 15].
+
+        Units are raw amplitudeScale codes with ~3 dB per LSB.  The
+        conventional full-scale value is 12, which leaves ~3 dB of DAC
+        headroom for the worst-case tone sum.  Values above 12 risk
+        railing the DAC, especially with many simultaneous tones.
 
         Specified in the pysmurf configuration file as
-        `amplitude_scale`.
+        ``amplitude_scale``, per band, under each ``band_N`` block.  The
+        config schema enforces the [0, 15] range; the firmware write
+        paths additionally log a warning when the value exceeds 12.
 
         See Also
         --------
-        ?
+        :func:`SmurfCommandMixin.set_amplitude_scale_array`
+        :func:`SmurfCommandMixin.set_amplitude_scale_channel`
+        :func:`SmurfCommandMixin.tone_power_to_db`
 
         """
         return self._amplitude_scale
