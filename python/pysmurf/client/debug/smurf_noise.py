@@ -363,7 +363,7 @@ class SmurfNoiseMixin(SmurfBase):
 
     def noise_vs_tone(self, band, tones=None, meas_time=30,
                       analyze=False, bias_group=None, lms_freq_hz=None,
-                      fraction_full_scale=.72, meas_flux_ramp_amp=False,
+                      fraction_full_scale=None, meas_flux_ramp_amp=False,
                       n_phi0=4, make_timestream_plot=True,
                       new_master_assignment=True, from_old_tune=False,
                       old_tune=None):
@@ -387,8 +387,10 @@ class SmurfNoiseMixin(SmurfBase):
         lms_freq_hz : float or None, optional, default None
             The tracking frequency in Hz. If None, measures the
             tracking frequency.
-        fraction_full_scale : float, optional, default 0.72
-            The amplitude of the flux ramp.
+        fraction_full_scale : float or None, optional, default None
+            The amplitude of the flux ramp. If None, defaults to the
+            cfg value ``tune_band:fraction_full_scale`` (via
+            ``tracking_setup``).
         meas_flux_ramp_amp : bool or None, optional, default False
             Whether to measure the flux ramp amplitude.
         n_phi0 : float, optional, default 4.0
