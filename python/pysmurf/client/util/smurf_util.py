@@ -3242,13 +3242,24 @@ class SmurfUtilMixin(SmurfBase):
         for the timing triggers.
 
         Hardcoded somewhere that we can't access; this is just a lookup table
-        Allowed reset rates (kHz): 1, 2, 3, 4, 5, 6, 8, 10, 12, 15
+        Allowed reset rates (kHz): 1, 2, 3, 4, 5, 6, 8, 10, 12
+
+        15 kHz is intentionally excluded because it does not integer-divide
+        the 25.6 MHz internal rate, which produces malformed flux ramp
+        signals (see slaclab/pysmurf#712).
 
         Returns:
         rate_sel (int): the rate sel PV for the timing trigger
         """
 
         rates_kHz = np.array([15, 12, 10, 8, 6, 5, 4, 3, 2, 1])
+
+        if val == 15:
+            self.log(
+                "Reset rate of 15 kHz is not allowed because it does not"
+                " integer-divide 25.6 MHz. Allowed rates are 1, 2, 3, 4,"
+                " 5, 6, 8, 10, 12 kHz.")
+            return
 
         try:
             idx = np.where(rates_kHz == val)[0][0] # weird numpy thing sorry
