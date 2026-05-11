@@ -68,7 +68,45 @@ This defines which timing master to use. The available values are "ext_ref" and 
 These are other variables that are in the top level of the config table. Several of these should probably be moved, but for now just know they exist.
 
 - `R_sh` - The resistance of the shunt resistor in Ohms
-- `bias_line_resistance`- The resistance of cabling from cryocard to the TES.
+- `bias_line_resistance`- The total round-trip TES bias-line resistance in low-current mode, in Ohms.  Includes both the inline resistance on the cryostat card and the cryocable resistance.  May be supplied directly (legacy single-value path) or derived from `Rcable` plus the cryostat-card resistance loaded from a card cfg file (see [Cryostat-card cfg files](#cryostat-card-cfg-files) below).  An explicitly set `bias_line_resistance` always takes precedence.
+- `Rcable` - Optional.  Round-trip TES bias-cable resistance plus any cold resistors, in Ohms, with the cryostat-card resistance excluded.  When paired with a cryostat-card cfg that supplies `R_cryostat_card`, the loader sets `bias_line_resistance = Rcable + R_cryostat_card` automatically.  Ignored if `bias_line_resistance` is set explicitly.
+- `cryostat_card_config_file` - Optional.  Path to a separate JSON cfg file holding cryostat-card-specific values (`R_cryostat_card`, `high_low_current_ratio`, `pic_to_bias_group`, `bias_group_to_pair`).  Resolved relative to the main cfg's directory if not absolute.  See [Cryostat-card cfg files](#cryostat-card-cfg-files) below.
 - `tune_dir`- The directory where the tuning files are stored. Tuning files define the resonator frequencies and the channel assignments
 - `default_data_dir`- The directory where the output data is stored. Output data can include anything from eta-scans to tracked resonator timestreams
 - `high_low_current_ratio` - The ratio between the high current mode (no filtering) and low current mode (with lowpass filter)
+
+# Cryostat-card cfg files
+
+Cryostat-card-specific values can live in a separate cfg file shared
+across experiment cfgs that use the same physical card.  Reference one
+from the main cfg via `cryostat_card_config_file`:
+
+```jsonc
+{
+    "cryostat_card_config_file" : "../cryostat_cards/cc02-06.cfg",
+    "Rcable" : 29.1,
+    "R_sh"   : 750e-6
+    // bias_line_resistance, high_low_current_ratio, pic_to_bias_group,
+    // and bias_group_to_pair are loaded from the card cfg.
+}
+```
+
+The card cfg encodes the resistors loaded onto the card and the card's
+PIC-to-bias-group / bias-group-to-DAC-pair maps:
+
+```jsonc
+{
+    "card_id"                : "cc02-06",
+    "R_cryostat_card"        : 16505.0,
+    "high_low_current_ratio" : 8.084,
+    "pic_to_bias_group"      : { "0": 0, "1": 1, "...": "..." },
+    "bias_group_to_pair"     : { "0": [1, 2], "1": [3, 4], "...": "..." }
+}
+```
+
+Two example card cfgs ship in `cfg_files/cryostat_cards/`.  See
+`cfg_files/cryostat_cards/README.md` for full merge semantics.
+
+If both the main cfg and the card cfg set the same key, the main cfg
+wins (explicit override) and a notice is printed.  This makes it easy
+to start from a card cfg and tweak a single value per deployment.

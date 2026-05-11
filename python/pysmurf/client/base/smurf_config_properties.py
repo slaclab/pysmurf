@@ -157,6 +157,7 @@ class SmurfConfigPropertiesMixin:
 
         # Cryocard
         self._bias_line_resistance = None
+        self._Rcable = None
         self._high_low_current_ratio = None
         self._high_current_mode_bool = None
         self._pic_to_bias_group = None
@@ -331,6 +332,7 @@ class SmurfConfigPropertiesMixin:
 
         ## Cryocard
         self.bias_line_resistance = config.get('bias_line_resistance')
+        self.Rcable = config.get('Rcable')
         self.high_low_current_ratio = config.get('high_low_current_ratio')
         self.high_current_mode_bool = config.get('high_current_mode_bool')
         # Mapping from peripheral interface controller (PIC) to bias group
@@ -1132,6 +1134,44 @@ class SmurfConfigPropertiesMixin:
         self._bias_line_resistance = value
 
     ## End bias_line_resistance property definition
+    ###########################################################################
+
+    ###########################################################################
+    ## Start Rcable property definition
+
+    # Getter
+    @property
+    def Rcable(self):
+        """TES bias cable-only round-trip resistance.
+
+        Gets or sets the round-trip TES bias cable resistance,
+        excluding the inline resistance on the cryostat card.  The
+        cryostat-card resistance is supplied separately via
+        ``R_cryostat_card`` (typically loaded from a cryostat-card cfg
+        file referenced by ``cryostat_card_config_file``).  When both
+        are provided and ``bias_line_resistance`` is not set
+        explicitly, the loader computes ``bias_line_resistance =
+        Rcable + R_cryostat_card``.  Units are Ohms.
+
+        ``None`` if the user supplied ``bias_line_resistance``
+        directly (the legacy single-value path).
+
+        Specified in the pysmurf configuration file as ``Rcable``.
+
+        Returns
+        -------
+        float or None
+            Round-trip TES bias cable resistance in Ohms, or ``None``
+            if not specified.
+        """
+        return self._Rcable
+
+    # Setter
+    @Rcable.setter
+    def Rcable(self, value):
+        self._Rcable = value
+
+    ## End Rcable property definition
     ###########################################################################
 
     ###########################################################################

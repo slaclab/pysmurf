@@ -143,6 +143,67 @@ class SmurfConfig:
         loaded_config = json.loads('\n'.join(no_comments))
         return loaded_config
 
+    @staticmethod
+    def _merge_cryostat_card_config(loaded_config, parent_filename=None):
+        """Merge a referenced cryostat-card config file into ``loaded_config``.
+
+        If ``loaded_config`` sets the optional top-level
+        ``cryostat_card_config_file`` key, reads that file (path
+        resolved relative to ``parent_filename``'s directory if not
+        absolute) and merges its values into ``loaded_config``.  For
+        each of the keys ``R_cryostat_card``, ``high_low_current_ratio``,
+        ``pic_to_bias_group``, and ``bias_group_to_pair``, the card-cfg
+        value is used only if the key is absent from the main config;
+        if the key is set in both, the main config wins (explicit
+        override) and a notice is printed.
+
+        Additionally, if ``bias_line_resistance`` is not set in the
+        main config but both ``Rcable`` and ``R_cryostat_card`` are
+        resolved, sets ``bias_line_resistance = Rcable + R_cryostat_card``.
+        An explicitly set ``bias_line_resistance`` is always honored
+        (the legacy override path), independent of ``Rcable``.
+
+        Args
+        ----
+        loaded_config : dict
+            Configuration dictionary as loaded from the main pysmurf
+            cfg file.  Modified in place and also returned.
+        parent_filename : str or None, optional, default None
+            Path to the main pysmurf cfg file; used to resolve a
+            relative ``cryostat_card_config_file`` path.  If None, only
+            absolute paths can be resolved.
+
+        Returns
+        -------
+        loaded_config : dict
+            The same dictionary, with merged-in card cfg values and a
+            computed ``bias_line_resistance`` if applicable.
+        """
+        card_path = loaded_config.get('cryostat_card_config_file')
+        if card_path is not None:
+            if not os.path.isabs(card_path) and parent_filename is not None:
+                card_path = os.path.join(
+                    os.path.dirname(os.path.abspath(parent_filename)),
+                    card_path)
+            card_config = SmurfConfig.read_json(card_path)
+            for key in ('R_cryostat_card', 'high_low_current_ratio',
+                        'pic_to_bias_group', 'bias_group_to_pair'):
+                if key in card_config:
+                    if key in loaded_config:
+                        print(f'cryostat_card_config_file: main config '
+                              f'overrides card cfg key {key!r}')
+                    else:
+                        loaded_config[key] = card_config[key]
+
+        if ('bias_line_resistance' not in loaded_config and
+                'Rcable' in loaded_config and
+                'R_cryostat_card' in loaded_config):
+            loaded_config['bias_line_resistance'] = (
+                float(loaded_config['Rcable']) +
+                float(loaded_config['R_cryostat_card']))
+
+        return loaded_config
+
     def read(self, update=False, validate=True):
         """Read config file and update the config dictionary.
 
@@ -182,6 +243,12 @@ class SmurfConfig:
             dictionary.
         """
         config = self.read_json(self.filename)
+
+        # Merge in a referenced cryostat-card config file, if any, and
+        # derive bias_line_resistance from Rcable + R_cryostat_card if
+        # the user supplied them instead of bias_line_resistance.
+        config = self._merge_cryostat_card_config(
+            config, parent_filename=self.filename)
 
         # validate
         if validate:
@@ -475,15 +542,24 @@ class SmurfConfig:
         #### Done specifying attenuator schema
 
         #### Start specifying cryostat card schema
-        ## SHOULD MAKE IT SO THAT WE JUST LOAD AND VALIDATE A SEPARATE,
-        ## HARDWARE SPECIFIC CRYOSTAT CARD CONFIG FILE.  FOR NOW, JUST DO
-        ## SOME VERY BASIC VALIDATION.
+        # `pic_to_bias_group` and `bias_group_to_pair` are
+        # cryostat-card-specific.  They may be supplied either inline
+        # in the main pysmurf cfg or in a separate cryostat-card cfg
+        # file referenced via the optional `cryostat_card_config_file`
+        # top-level key (see `_merge_cryostat_card_config`).  The merge
+        # pass runs before schema validation, so by this point both
+        # keys are required to be present in the merged dict.
         def represents_int(string):
             try:
                 int(string)
                 return True
             except ValueError:
                 return False
+
+        # Optional path to a cryostat-card cfg file.  When set, the
+        # merge pass copies card-specific keys from that file into the
+        # main config before validation.
+        schema_dict[Optional("cryostat_card_config_file")] = str
 
         schema_dict["pic_to_bias_group"] = {And(str, represents_int) : int}
         schema_dict["bias_group_to_pair"] = {And(str, represents_int) : [int, int]}
@@ -710,8 +786,17 @@ class SmurfConfig:
         schema_dict["R_sh"] = And(Use(float), lambda f: f > 0)
 
         # Round-trip resistance on TES bias lines, in low current mode.
-        # Includes the resistance on the cryostat cards, and cable resistance.
+        # Includes the resistance on the cryostat cards, and cable
+        # resistance.  May be supplied directly (legacy path) or
+        # derived in `_merge_cryostat_card_config` from `Rcable` plus
+        # the cryostat-card `R_cryostat_card`.
         schema_dict["bias_line_resistance"] = And(Use(float), lambda f: f > 0)
+
+        # Round-trip resistance of the TES bias cable plus any in-line
+        # cold resistors, with the cryostat-card resistance excluded.
+        # Optional; only consulted if `bias_line_resistance` is not
+        # set explicitly.  See `_merge_cryostat_card_config`.
+        schema_dict[Optional("Rcable")] = And(Use(float), lambda f: f > 0)
 
         # Ratio between the current per DAC unit in high current mode to the
         # current in low current mode.  Constained to be greater than or equal
