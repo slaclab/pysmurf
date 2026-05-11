@@ -152,6 +152,7 @@ class SmurfConfigPropertiesMixin:
 
         # RTM
         self._num_flux_ramp_counter_bits = None
+        self._flux_ramp_ac_dc_mode = None
         self._fraction_full_scale = None
         self._reset_rate_khz = None
 
@@ -326,6 +327,7 @@ class SmurfConfigPropertiesMixin:
         ## RTM
         flux_ramp_cfg = config.get('flux_ramp')
         self.num_flux_ramp_counter_bits = flux_ramp_cfg['num_flux_ramp_counter_bits']
+        self.flux_ramp_ac_dc_mode = flux_ramp_cfg.get('ac_dc_mode')
         self.reset_rate_khz = tune_band_cfg.get('reset_rate_khz')
         self.fraction_full_scale = tune_band_cfg.get('fraction_full_scale')
 
@@ -970,6 +972,39 @@ class SmurfConfigPropertiesMixin:
         self._num_flux_ramp_counter_bits = value
 
     ## End num_flux_ramp_counter_bits property definition
+    ###########################################################################
+
+    ###########################################################################
+    ## Start flux_ramp_ac_dc_mode property definition
+
+    # Getter
+    @property
+    def flux_ramp_ac_dc_mode(self):
+        """Cryocard flux-ramp coupling mode.
+
+        Returns ``"AC"`` or ``"DC"`` if the user specified a value in the
+        pysmurf configuration file, otherwise ``None`` (in which case
+        :func:`setup` leaves the cryocard relay alone). See issue #510.
+
+        Specified in the pysmurf configuration file as
+        ``flux_ramp:ac_dc_mode``.
+
+        See Also
+        --------
+        :func:`get_cryo_card_ac_dc_mode`,
+        :func:`CryoCard.set_ac_dc_relay`
+        """
+        return self._flux_ramp_ac_dc_mode
+
+    # Setter
+    @flux_ramp_ac_dc_mode.setter
+    def flux_ramp_ac_dc_mode(self, value):
+        if value is None:
+            self._flux_ramp_ac_dc_mode = None
+        else:
+            self._flux_ramp_ac_dc_mode = value.upper()
+
+    ## End flux_ramp_ac_dc_mode property definition
     ###########################################################################
 
     ###########################################################################
