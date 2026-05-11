@@ -1422,8 +1422,8 @@ class SmurfTuneMixin(SmurfBase):
         ax0 = fig.add_subplot(gs[0,0])
         ax1 = fig.add_subplot(gs[1,0], sharex=ax0)
         ax2 = fig.add_subplot(gs[:,1:])
-        ax0.plot(plot_freq, I, label='I', linestyle=':', color='k')
-        ax0.plot(plot_freq, Q, label='Q', linestyle='--', color='k')
+        ax0.plot(plot_freq, I, label='Q', linestyle=':', color='k')
+        ax0.plot(plot_freq, Q, label='I', linestyle='--', color='k')
         ax0.scatter(plot_freq, amp, c=np.arange(len(freq)), s=3,
             label='amp')
         zero_idx = np.ravel(np.where(plot_freq == 0))[0]
@@ -1456,8 +1456,8 @@ class SmurfTuneMixin(SmurfBase):
         ax2.axvline(0, color='k', linestyle=':', alpha=.5)
 
         ax2.scatter(I, Q, c=np.arange(len(freq)), s=3)
-        ax2.set_xlabel('I')
-        ax2.set_ylabel('Q')
+        ax2.set_xlabel('Q')
+        ax2.set_ylabel('I')
 
         if peak_freq is not None:
             ax0.text(.03, .9, f'{peak_freq:5.2f} MHz',
@@ -4201,8 +4201,8 @@ class SmurfTuneMixin(SmurfBase):
                 np.max(dfQ)]))
             h = sns.jointplot(dfQ, dfI, alpha=.1, edgecolors='none',
                 xlim=(-lims, lims), ylim=(-lims, lims))
-            h.ax_joint.set_xlabel('Q')
-            h.ax_joint.set_ylabel('I')
+            h.ax_joint.set_xlabel('I')
+            h.ax_joint.set_ylabel('Q')
 
             # Draw guiding lines
             h.ax_joint.axhline(0 ,color='k', linestyle=':')
