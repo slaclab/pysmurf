@@ -2735,6 +2735,20 @@ class SmurfTuneMixin(SmurfBase):
             self.log("Number of channels on with flux ramp "+
                 f"response : {len(channels_on)}", self.LOG_USER)
 
+            # Issue #38: avoid crashing in the make_plot block (np.max on
+            # an empty array) and surface a clear error when there is
+            # nothing to analyze in this band.
+            if len(channels_on) == 0:
+                self.log(
+                    f"No channels in band {band} have flux ramp response "
+                    "(either no channels are on, or none responded). "
+                    "Skipping tracking_setup analysis.",
+                    self.LOG_ERROR)
+                self.set_iq_stream_enable(band, 1, write_log=write_log)
+                if return_data:
+                    return f, df, sync
+                return
+
             f_span = np.max(f,0) - np.min(f,0)
 
         if make_plot:
