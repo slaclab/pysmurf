@@ -22,6 +22,28 @@ cd pysmurf/
 pip3 install .
 ```
 
+## Configuration
+
+pysmurf is driven by a per-hardware-setup configuration (`.cfg`) file. Site
+configs live under [`cfg_files/<site>/`](cfg_files); start from
+[`cfg_files/template/template.cfg`](cfg_files/template/template.cfg) when
+adding a new setup.
+
+- See [README.config_file.md](README.config_file.md) for the cfg file format,
+  the per-band `init` block, `bad_mask`, `amplifier`, `pic_to_bias_group`,
+  `bias_group_to_pair`, and the other top-level fields.
+- See [README.Docker.md](README.Docker.md) for running the server/client
+  containers; the cfg file is passed to the client via `-c <config_file>` and
+  the host data directory is mounted with `-v <local_data_dir>:/data`.
+
+Some sites (SLAC, NIST, Princeton) use `shawnhammer`-style deploy scripts
+under [`scratch/shawn/scripts/`](scratch/shawn/scripts) that symlink the
+chosen cfg files into fixed locations
+(`/data/smurf_startup_cfg/smurf_startup.cfg`,
+`/data/pysmurf_cfg/<experiment>.cfg`) and the firmware docker into
+`/home/cryo/docker/smurf/current`. These are deployment conventions, not a
+required pysmurf layout — see those scripts for examples.
+
 ## Documentation
 Documentation is built using Sphinx, and follows the [NumPy Style
 Docstrings][1] convention. To build the documentation first install
