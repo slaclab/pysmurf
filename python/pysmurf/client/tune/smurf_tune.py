@@ -3679,17 +3679,20 @@ class SmurfTuneMixin(SmurfBase):
         #
         self.set_eta_scan_freq(band, freq_scan.flatten())
         self.set_eta_scan_amplitude(band, tone_power)
-        self.set_run_serial_find_freq(band, 1)
 
-        I = self.get_eta_scan_results_real(band, count=n_step*n_channels)
-        I = np.asarray(I)
-        I = I.reshape(n_channels, n_step)
+        resp_accum = np.zeros((int(n_read), n_channels, n_step), dtype=complex)
+        for n in range(int(n_read)):
+            self.set_run_serial_find_freq(band, 1)
 
-        Q = self.get_eta_scan_results_imag(band, count=n_step*n_channels)
-        Q = np.asarray(Q)
-        Q = Q.reshape(n_channels, n_step)
+            I = self.get_eta_scan_results_real(band, count=n_step*n_channels)
+            I = np.asarray(I).reshape(n_channels, n_step)
 
-        resp_scan = I + 1j*Q
+            Q = self.get_eta_scan_results_imag(band, count=n_step*n_channels)
+            Q = np.asarray(Q).reshape(n_channels, n_step)
+
+            resp_accum[n] = I + 1j*Q
+
+        resp_scan = np.mean(resp_accum, axis=0)
 
         for sb in subband:
             subchan    = first_channel_per_subband[sb]
