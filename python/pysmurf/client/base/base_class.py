@@ -105,12 +105,12 @@ class SmurfBase:
             # certain calls take long to complete
             self._client.setTimeout(10000, True)  # ms
             # but disable monitor thread to avoid issues on exit. Socket remains open
-            self._client.stop()
+            self._client._monEnable = False
             if atca_monitor:
                 self._atca = pyrogue.interfaces.VirtualClient(addr=self._server_addr, port=self._atca_port)
                 if self._atca.root is None:
                     self.log(f"Could not connect to ATCA monitor at port {self._atca_port}.")
-                self._atca.stop()
+                self._atca._monEnable = False
             else:
                 self._atca = _DummyClient("ATCA monitor client")
         else:
