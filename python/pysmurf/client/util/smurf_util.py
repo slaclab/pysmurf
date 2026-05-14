@@ -2548,8 +2548,9 @@ class SmurfUtilMixin(SmurfBase):
         channelorderfile : str or None, optional, default None
             Path to a file that contains one channel per line.
         """
-        n_proc = self.get_number_processed_channels()
-        tone_freq_offset = self.get_tone_frequency_offset_mhz()
+        band = self._bands[0]
+        n_proc = self.get_number_processed_channels(band)
+        tone_freq_offset = self.get_tone_frequency_offset_mhz(band)
         # Select the n_proc channels nearest to DC. Tie-break:
         # firmware uses -Fdsp/2 <= freq < Fdsp/2, so at equal |freq|
         # the negative frequency is included and positive excluded.

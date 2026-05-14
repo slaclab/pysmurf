@@ -26,7 +26,7 @@ Usage:
 import numpy as np
 import time
 
-PROBE_FIRMWARE = False  # Set True to empirically probe each channel
+PROBE_FIRMWARE = True  # Set True to empirically probe each channel
 
 
 def get_firmware_processed_empirical(S, band, nsamp=2**12):
