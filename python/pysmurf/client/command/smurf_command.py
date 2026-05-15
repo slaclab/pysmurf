@@ -4433,13 +4433,13 @@ class SmurfCommandMixin(SmurfBase):
         0x2, enabled.  The DACs still output voltage even if their
         enable register is 0xe, disabled.
 
-        Params
-        ------
-        amp: str
+        Parameters
+        ----------
+        amp : str
             Use '50k' and 'hemt' for the C02 amps, and '50k1',
             '50k2', 'hemt1' and 'hemt2' for the C04 amps.
 
-        voltage: float
+        voltage : float
             The desired voltage going out the cryocard amp.
         """
         self.C.assert_amps_match_this_cryocard(list(amp))
