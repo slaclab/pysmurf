@@ -2537,16 +2537,25 @@ class SmurfUtilMixin(SmurfBase):
         tracking_setup only returns data for the processed
         channels. Therefore every channel is not returned.
 
+        The firmware processes the channels nearest to DC within its
+        DSP bandwidth. When two channels are equidistant from DC
+        (at the bandwidth boundary), the firmware includes the negative
+        frequency and excludes the positive (asymmetric: lower bound
+        inclusive, upper bound exclusive).
+
         Args
         ----
         channelorderfile : str or None, optional, default None
             Path to a file that contains one channel per line.
         """
-        n_proc = self.get_number_processed_channels()
-        n_chan = self.get_number_channels()
-        n_cut = (n_chan - n_proc)//2
-        return np.sort(self.get_channel_order(
-            channel_orderfile=channel_orderfile)[n_cut:-n_cut])
+        band = self._bands[0]
+        n_proc = self.get_number_processed_channels(band)
+        tone_freq_offset = self.get_tone_frequency_offset_mhz(band)
+        # Select the n_proc channels nearest to DC. Tie-break:
+        # firmware uses -Fdsp/2 <= freq < Fdsp/2, so at equal |freq|
+        # the negative frequency is included and positive excluded.
+        sort_key = np.abs(tone_freq_offset) + (tone_freq_offset > 0) * 1e-10
+        return np.sort(np.argsort(sort_key)[:n_proc])
 
     def get_subband_from_channel(self, band, channel, channelorderfile=None,
             yml=None):
