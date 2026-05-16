@@ -3440,7 +3440,8 @@ class SmurfTuneMixin(SmurfBase):
             plotname_append='', window=50, rolling_med=True,
             make_subband_plot=False, show_plot=False, grad_cut=.05,
             flip_phase=False, grad_kernel_width=8,
-            amp_cut=.25, pad=2, min_gap=2):
+            amp_cut=.25, pad=2, min_gap=2,
+            check_if_adc_is_saturated=True):
         '''
         Finds the resonances in a band (and specified subbands)
 
@@ -3486,6 +3487,13 @@ class SmurfTuneMixin(SmurfBase):
             search window
         min_gap : int, optional, default 2
             Minimum number of samples between resonances.
+        check_if_adc_is_saturated : bool, optional, default True
+            After the amplitude sweep, inspect each subband's
+            normalized response magnitude.  If any sample is at or
+            above 0.95 the ADC was likely railing on that subband;
+            log a warning naming the affected subbands.  The list is
+            also stored in
+            ``self.freq_resp[band]['find_freq']['railed_subbands']``.
         '''
         band_center = self.get_band_center_mhz(band)
         if subband is None:
@@ -3537,6 +3545,25 @@ class SmurfTuneMixin(SmurfBase):
                 np.append(self.freq_resp[band]['find_freq']['timestamp'], timestamp)
         else:
             self.freq_resp[band]['find_freq']['timestamp'] = np.array([timestamp])
+
+        # Issue #511: find_freq returns normalized response magnitudes
+        # (~[0, 1]).  When the ADC rails the magnitude flat-tops near
+        # 1.0; flag any subband that crosses the threshold so the user
+        # knows to attenuate further.
+        if check_if_adc_is_saturated:
+            rail_threshold = 0.95
+            abs_resp = np.abs(resp)
+            railed_subbands = [int(sb) for sb in subband
+                if np.any(abs_resp[sb] >= rail_threshold)]
+            self.freq_resp[band]['find_freq']['railed_subbands'] = \
+                railed_subbands
+            if railed_subbands:
+                self.log(
+                    f'\033[91mfind_freq: ADC may be railing on band '
+                    f'{band} subbands {railed_subbands} '
+                    f'(|resp| >= {rail_threshold}).  Try increasing '
+                    f'the DC attenuation for this band.\033[00m',
+                    self.LOG_ERROR)
 
         # Find resonator peaks
         res_freq = self.find_all_peak(self.freq_resp[band]['find_freq']['f'],
