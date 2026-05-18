@@ -108,11 +108,17 @@ if __name__ == "__main__":
         root.StreamDataSource.SourceEnable.set(False)
         print('Done')
 
-        # Wait for the pipeline to drain: poll until the FileWriter
-        # has received at least as many frames as entered the pipeline.
+        # Wait for the pipeline to drain: poll until both the FileWriter
+        # and the Transmitter's data branch have received at least as many
+        # frames as entered the pipeline.  FileWriter.FrameCount sums data
+        # and metadata, so an early testMeta frame can satisfy that check
+        # while a data frame is still queued in fifo_data for the
+        # Transmitter -- waiting on Transmitter.dataFrameCnt closes that
+        # race.
         print('  Waiting for pipeline to drain... ', end='')
         rx_in = root.SmurfProcessor.FrameRxStats.FrameCnt.get()
-        while root.SmurfProcessor.FileWriter.FrameCount.get() < rx_in:
+        while (root.SmurfProcessor.FileWriter.FrameCount.get() < rx_in or
+               root.SmurfProcessor.Transmitter.dataFrameCnt.get() < rx_in):
             time.sleep(0.1)
         print('Done')
 
