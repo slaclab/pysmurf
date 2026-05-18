@@ -3240,7 +3240,6 @@ class SmurfTuneMixin(SmurfBase):
         FastSlowRstValue = np.floor((2**self._num_flux_ramp_counter_bits) *
             (1 - fractionFullScale)/2)
 
-        KRelay = 3 #where do these values come from
         PulseWidth = 64
         DebounceWidth = 255
         RampSlope = 0
@@ -3249,7 +3248,6 @@ class SmurfTuneMixin(SmurfBase):
 
         self.set_low_cycle(LowCycle, write_log=write_log)
         self.set_high_cycle(HighCycle, write_log=write_log)
-        self.set_k_relay(KRelay, write_log=write_log)
         self.set_ramp_max_cnt(rampMaxCnt, write_log=write_log)
         self.set_pulse_width(PulseWidth, write_log=write_log)
         self.set_debounce_width(DebounceWidth, write_log=write_log)
