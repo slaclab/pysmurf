@@ -238,36 +238,31 @@ jobs:
     runs-on: ubuntu-24.04
     needs: [test-docs, test-server, test-client]  # Run only if all tests passed
     steps:
-      - name: setup python 3.8
-        uses: actions/setup-python@v6
-        with:
-          python-version: 3.8
-
       - name: Checkout code
         uses: actions/checkout@v6
         with:
           fetch-depth: 0  # fetch all tags
 
-      - name: install build dependencies
+      - name: Build sdist
         run: |
-          python -m pip install --upgrade build
+          python -m pip install --upgrade build hatch-vcs hatchling
+          python -m build --sdist
 
-      - name: build wheel
-        run: |
-          python -m build
+      - name: Build wheel
+        uses: pypa/cibuildwheel@v2.19.0
+        env:
+          CIBW_BUILD: cp38-manylinux_x86_64
+          CIBW_MANYLINUX_X86_64_IMAGE: manylinux2014
+          CIBW_BEFORE_BUILD: pip install hatch-vcs hatchling Cython numpy setuptools
 
-      - name: install wheel
-        run: |
-          python -m pip install dist/pysmurf*.whl
+      - name: Collect dist files
+        run: cp wheelhouse/*.whl dist/
 
-      - name: test import
-        run: |
-          python -c 'import pysmurf'
-
-      - name: upload dist
+      - name: Upload dist
         uses: actions/upload-artifact@v7
         with:
-          path: ./dist/
+          name: dist
+          path: dist/
 
   # Deploy
 
@@ -406,7 +401,8 @@ jobs:
     - name: download dist
       uses: actions/download-artifact@v8
       with:
-        path: dist
+        name: dist
+        path: dist/
 
     - name: publish package distributions to PyPI
       uses: pypa/gh-action-pypi-publish@release/v1
