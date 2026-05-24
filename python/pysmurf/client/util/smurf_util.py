@@ -4857,17 +4857,17 @@ class SmurfUtilMixin(SmurfBase):
         # External reference timing mode configuration
         if ( cbar == [0x0, 0x0, 0x1, 0x1] and
              rsm == 0 and
-             len(self.bays) > 0 and
-             all([lmks[bay][0x146]==0x10 for bay in self.bays]) and
-             all([lmks[bay][0x147]==0x1a for bay in self.bays]) ):
+             (len(self.bays) == 0 or
+              (all([lmks[bay][0x146]==0x10 for bay in self.bays]) and
+               all([lmks[bay][0x147]==0x1a for bay in self.bays]))) ):
             return 'ext_ref'
 
         # Fiber or backplane timing mode configurations
         if ( rsm == 1 and
              ( ecre == 1 and etdt == "All" and te == 1 ) and
-             len(self.bays) > 0 and
-             all([lmks[bay][0x146]==0x8 for bay in self.bays]) and
-             all([lmks[bay][0x147]==0xa for bay in self.bays]) ):
+             (len(self.bays) == 0 or
+              (all([lmks[bay][0x146]==0x8 for bay in self.bays]) and
+               all([lmks[bay][0x147]==0xa for bay in self.bays]))) ):
 
             # Fiber timing mode configuration
             if ( cbar == [0x0, 0x0, 0x0, 0x0] ):
@@ -4968,6 +4968,15 @@ class SmurfUtilMixin(SmurfBase):
             mode = 'fiber'
 
         if mode == 'ext_ref':
+            # Force crossbar and ramp_start_mode writes to reach
+            # hardware by first writing non-target values.  Pyrogue6
+            # deduplicates writes when values match its cache from
+            # initRead; the toggle ensures the hardware sees the
+            # transaction.
+            self.set_crossbar_output_config(2, 0x0, write_log=write_log)
+            self.set_crossbar_output_config(3, 0x0, write_log=write_log)
+            self.set_ramp_start_mode(1, write_log=write_log)
+
             # Configure crossbar for ext_ref timing
             self.set_crossbar_output_config(0, 0x0, write_log=write_log)
             self.set_crossbar_output_config(1, 0x0, write_log=write_log)

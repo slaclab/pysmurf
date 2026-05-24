@@ -258,6 +258,12 @@ class Common(pyrogue.Root):
         success = False
         max_retries = 4
 
+        # Force all register writes to hardware even if values match
+        # the cached state from initRead.  Firmware state machines may
+        # require the write transaction itself to initialize properly
+        # after power-on or Init().
+        self.ForceWrite.set(True)
+
         for i in range(max_retries):
             print(f'Setting defaults from file {self._config_file} (try number {i})')
 
