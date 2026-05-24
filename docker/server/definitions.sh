@@ -24,9 +24,6 @@
 # To add a new system, append a new entry to FW_SYSTEMS.
 # To disable a system, comment out its entry.
 
-# Repo for defaults YMLs
-config_repo=https://github.com/slaclab/smurf_cfg
-
 # Firmware system definitions
 # Format: "name|repo_url|tag|fw_files[|zip_file]"  (fw_files is semicolon-separated)
 FW_SYSTEMS=(
@@ -60,7 +57,10 @@ FW_SYSTEMS=(
     # "mysystem|https://github.com/slaclab/my-repo|v1.2.3|MyFirmware-0x01020300-date-hash.mcs"
 )
 
+# Repo for defaults YMLs
+config_repo=https://github.com/slaclab/smurf_cfg
+
 # Define the configuration version:
 # ==================================
 # - config_repo_tag: tag version of the YML configuration repo to include.
-config_repo_tag=v2.1.0
+config_repo_tag=v3.1.0
