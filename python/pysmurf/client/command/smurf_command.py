@@ -677,7 +677,7 @@ class SmurfCommandMixin(SmurfBase):
         Registers must updated in order to PVs to update.
         This call is necessary to read register with pollIntervale=0.
         """
-        self._caput('AMCc.ReadAll', 1, wait_after=20, **kwargs)
+        self._caput('AMCc.ReadAll', 1, **kwargs)
         self.log('ReadAll sent', self.LOG_INFO)
 
     def run_pwr_up_sys_ref(self,bay, **kwargs):
