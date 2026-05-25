@@ -63,4 +63,4 @@ config_repo=https://github.com/slaclab/smurf_cfg
 # Define the configuration version:
 # ==================================
 # - config_repo_tag: tag version of the YML configuration repo to include.
-config_repo_tag=v3.1.0
+config_repo_tag=v3.2.0
