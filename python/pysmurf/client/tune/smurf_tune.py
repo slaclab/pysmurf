@@ -2288,7 +2288,6 @@ class SmurfTuneMixin(SmurfBase):
                                   write_log=write_log)
         self.set_eta_scan_amplitude(band, tone_power, write_log=write_log)
         self.set_eta_scan_freq(band, freq, write_log=write_log)
-        self.set_eta_scan_dwell(band, 0, write_log=write_log)
 
         self.set_run_eta_scan(band, 1, wait_done=False, write_log=write_log)
         pvs = [self._cryo_root(band) + self._eta_scan_results_real_reg,
@@ -3830,8 +3829,6 @@ class SmurfTuneMixin(SmurfBase):
         self.set_eta_scan_freq(band, freq)
         self.set_eta_scan_amplitude(band, tone_power)
         self.set_eta_scan_channel(band, subchan)
-        self.set_eta_scan_dwell(band, 0)
-
         self.set_run_eta_scan(band, 1)
 
         I = self.get_eta_scan_results_real(band, count=len(freq))
