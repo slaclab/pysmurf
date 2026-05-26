@@ -116,18 +116,54 @@ class CryoCard():
         # not all integer types are accepted
         return self.writepv.set(np.uint32(cmd_make(read, address, value)))
 
-    def write_relays(self, relay):  # relay is the bit partern to set
+    def write_relays(self, relay):
+        """Writes the relay bit pattern to the cryostat card.
+
+        Writes the pattern twice with a 100 ms delay to ensure the
+        PIC processes the command reliably.
+
+        Args
+        ----
+        relay : int
+            Relay bit pattern.  Bits [11:0] (C04/C05) or [15:0]
+            (C02) control TES bias relays, bit 16 controls AC/DC
+            flux ramp coupling.  The PIC masks the value to valid
+            bits for the connected card.
+
+        See Also
+        --------
+        :func:`read_relays` : Read back the relay state.
+        :func:`set_relay_bit` : Set a single relay bit.
+        """
         self.do_write(self.relay_address, relay)
         time.sleep(0.1)
         self.do_write(self.relay_address, relay)
 
     def read_relays(self):
+        """Reads the current relay state from the cryostat card.
+
+        Polls the PIC relay register, retrying up to max_retries
+        times if the busy flag (bit 19) is set, indicating relays
+        are still moving.
+
+        Returns
+        -------
+        int
+            Relay bit pattern (19-bit, bits [18:0]).  Returns 80000
+            if relays are still busy after all retries.
+
+        See Also
+        --------
+        :func:`write_relays` : Write the relay state.
+        :func:`get_relay_bit` : Read a single relay bit.
+        """
         for self.busy_retry in range(0, self.max_retries):
             data = self.do_read(self.relay_address)
             if ~(data & 0x80000):  # check that not moving
                 return (data & 0x7FFFF)
-                time.sleep(0.1) # wait for relays to move
-        return (80000) # busy flag still set
+            else:
+                time.sleep(0.1)  # wait for relays to move
+        return (80000)  # busy flag still set
 
     def set_relay_bit(self, bit, value):
         """
@@ -192,9 +228,16 @@ class CryoCard():
 
 
     def read_ac_dc_relay_status(self):
-        """
-        Read the relay for the flux ramp coupling mode, which is either AC
-        or DC. 0 is DC coupled, 3 is AC coupled. This is historical.
+        """Reads the flux ramp AC/DC coupling relay state.
+
+        Returns
+        -------
+        int
+            0 for DC coupled, 3 for AC coupled (legacy convention).
+
+        See Also
+        --------
+        :func:`set_ac_dc_relay` : Set the coupling mode.
         """
 
         # 1 is DC coupled, 0 is AC coupled.
@@ -209,21 +252,58 @@ class CryoCard():
         elif bit == 0:
             return 3
 
-    def delatch_bit(self, bit): # bit is the pattern for the desired relay, eg 0x4 for 100
+    def delatch_bit(self, bit):
+        """Pulses a relay bit to delatch a TES bias relay.
+
+        Momentarily sets the specified bit(s) high for 100 ms, then
+        restores the original relay state.  Used to trigger the
+        delatching coil on latching TES bias relays.
+
+        Args
+        ----
+        bit : int
+            Bit pattern to OR into the current relay state
+            (e.g. 0x4 to pulse bit 2).
+
+        See Also
+        --------
+        :func:`set_relay_bit` : Set a relay bit persistently.
+        """
         current_relay = self.read_relays()
         set_relay = current_relay + bit
         self.write_relays(set_relay)
         time.sleep(0.1)
-        self.write_relays(current_relay) # return to original state
+        self.write_relays(current_relay)
 
     def read_temperature(self):
+        """Reads the cryostat card board temperature.
+
+        Reads the PIC ADC channel connected to the on-board
+        temperature sensor and converts to degrees Celsius.
+
+        Returns
+        -------
+        float
+            Board temperature in degrees C.
+        """
         data = self.do_read(self.temperature_address)
         volts = (data & 0xFFFFF) * self.adc_scale
         return ((volts - self.temperature_offset) * self.temperature_scale)
 
     def read_cycle_count(self):
+        """Reads the PIC SPI transaction counter.
+
+        A diagnostic counter that increments each time the cryostat
+        card PIC processes an SPI command from the FPGA.  Useful for
+        verifying communication with the PIC is working.
+
+        Returns
+        -------
+        int
+            Transaction count (20-bit).
+        """
         data = self.do_read(self.cycle_count_address)
-        return (cmd_data(data))  # do we have the right addres
+        return (cmd_data(data))
 
     def write_ps_en(self, enables):
         """
@@ -300,16 +380,36 @@ class CryoCard():
         return self.do_read(self.optical_address)
 
     def write_optical(self, value):
-        """
+        """Sets the optical transmitter enable bits on the cryostat card.
+
+        Args
+        ----
+        value : int
+            2-bit bitmask.  Bit 0 enables TX1, bit 1 enables TX2.
+
+        See Also
+        --------
+        :func:`read_optical` : Read the current enable state.
         """
         return self.do_write(self.optical_address, value)
 
     def get_volt(self, address):
-        """
-        Given some address on the PIC, read that address,
-        convert to volts. Not all addresses on the PIC are
-        volt measurements, so you should know what you're
-        doing.
+        """Reads a PIC ADC address and converts to volts.
+
+        Low-level function used internally by amplifier current
+        measurement functions.  Not all PIC addresses are ADC
+        readings — only call with addresses that return raw ADC
+        values.
+
+        Args
+        ----
+        address : int
+            PIC register address to read.
+
+        Returns
+        -------
+        float
+            Voltage in volts.
         """
 
         bits = self.do_read(address)
@@ -318,9 +418,16 @@ class CryoCard():
         return volts
 
     def assert_amps_match_this_cryocard(self, list_of_amps):
-        """
-        Assert the given list of amplifiers match this type of
-        cryocard.
+        """Asserts amplifier names are valid for the connected cryostat card.
+
+        Raises AssertionError if any amplifier name in the list
+        belongs to a different card revision than the one connected
+        (e.g. passing 'hemt1' when a C02 card is detected).
+
+        Args
+        ----
+        list_of_amps : list of str
+            Amplifier names to validate.
         """
         major, minor, patch = self.get_fw_version()
 
