@@ -22,6 +22,29 @@ from libc.stdint cimport uint8_t, uint16_t, uint32_t, uint64_t, int32_t
 
 cnp.import_array()
 
+
+class _CommaFloatSafeLoader(yaml.SafeLoader):
+    """SafeLoader that handles comma-separated digit groups in floats."""
+    pass
+
+def _construct_yaml_float_comma(loader, node):
+    value = loader.construct_scalar(node)
+    value = value.replace(',', '').replace('_', '').lower()
+    sign = +1
+    if value[0] == '-':
+        sign = -1
+    if value[0] in '+-':
+        value = value[1:]
+    if value == '.inf':
+        return sign * float('inf')
+    elif value == '.nan':
+        return float('nan')
+    return sign * float(value)
+
+_CommaFloatSafeLoader.add_constructor(
+    'tag:yaml.org,2002:float', _construct_yaml_float_comma)
+
+
 # Frame Format Constants
 cdef int SMURF_HEADER_SIZE = 128
 cdef int ROGUE_HEADER_SIZE = 8
@@ -305,8 +328,11 @@ cdef class FastSmurfReader:
 
         timestamps_array = headers_array['timestamp']
 
-        # parse metadata stream from YAML
-        metadata = {i: yaml.safe_load(m) for i, m in meta_list}
+        # parse metadata stream from YAML using a loader that handles
+        # comma-separated digit groups (YAML 1.1 allows them but PyYAML's
+        # float constructor does not strip them)
+        metadata = {i: yaml.load(m, Loader=_CommaFloatSafeLoader)
+                    for i, m in meta_list}
 
         return timestamps_array, data_array, headers_array, metadata
 
