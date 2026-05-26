@@ -54,16 +54,25 @@ class SmurfUtilMixin(SmurfBase):
           tracking-loop output: resonator frequency and frequency error
           per processed channel.
         - ``IQstream=1``, ``rf_iq=False`` (default) -- demodulated I/Q
-          mode. Returns the post-tracking demodulated in-phase and
-          quadrature components. The first two return values are then I
-          and Q rather than f and df.
-        - ``rf_iq=True`` -- RF I/Q mode. Returns the undemodulated RF
-          baseband I/Q stream for a single channel, taken upstream of
-          the tracking loop. Use this when you need the raw resonator
-          response (e.g. eta scans, noise vs. flux-ramp-frequency
-          studies). Requires ``channel`` to be specified; ``IQstream``
-          is forced to ``False`` internally and the ``rfIQStreamEnable``
-          register is toggled around the acquisition.
+          mode. Returns the channelized baseband in-phase and
+          quadrature components (after the DDS mixer and CIC, at the
+          tracking-loop input). The first two return values are then
+          I and Q rather than f and df.
+        - ``rf_iq=True`` -- RF I/Q mode. Returns the channelized
+          baseband I/Q for a single channel before the per-channel DDS
+          correction (i.e. the analysis filterbank output). Use this
+          when you need the raw resonator response (e.g. eta scans,
+          noise vs. flux-ramp-frequency studies). Requires ``channel``
+          to be specified; ``IQstream`` is forced to ``False``
+          internally and the ``rfIQStreamEnable`` register is toggled
+          around the acquisition.
+
+        The debug data path also has an exponential-average low-pass
+        filter (see :func:`set_debug_data_filter_cutoff`) applied in
+        normal and singleChannelReadout(Opt1) modes, and optional
+        counter-substitution registers that replace data channels with
+        timing diagnostics (see :func:`set_debug_timing_override`,
+        :func:`set_counter_select`).
 
         Args
         ----
@@ -110,6 +119,15 @@ class SmurfUtilMixin(SmurfBase):
             RF baseband quadrature component (Q) if ``rf_iq=True``.
         sync : float array
             The sync (flux-ramp strobe) count.
+
+        See Also
+        --------
+        :func:`decode_data` : Decodes take_debug_data output in multi-channel mode.
+        :func:`decode_single_channel` : Decodes take_debug_data output in single-channel mode.
+        :func:`set_debug_data_filter_cutoff` : Controls the low-pass filter on the debug datapath.
+        :func:`set_decimation` : Sets the debug-path decimation rate (affects sample rate in multi-channel mode).
+        :func:`set_debug_timing_override` : Substitutes Counter0 into a data channel for timing debug.
+        :func:`set_counter_select` : Substitutes flux-ramp frame counter into I/Q for timing debug.
 
         """
         # Set proper single channel readout
