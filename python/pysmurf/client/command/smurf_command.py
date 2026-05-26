@@ -33,6 +33,16 @@ from pysmurf.client.util import tools, dscounters
 
 class SmurfCommandMixin(SmurfBase):
 
+    def _skipifrfsoc(func):
+        def skipper(self, *args,**kwargs):
+            result = None
+            if not self.is_rfsoc:
+                result  = func(self, *args,**kwargs)
+            else:
+                print(f'Function {func.__name__} called, but not implemented on RFSoC.  Skipping call and returning None!')
+            return result
+        return skipper
+
     _global_poll_enable_reg = 'AMCc.enable'
 
     def _caput(self, pvname, val, index=-1, cast_type=True, write_log=False, log_level=None,
@@ -667,7 +677,7 @@ class SmurfCommandMixin(SmurfBase):
         Registers must updated in order to PVs to update.
         This call is necessary to read register with pollIntervale=0.
         """
-        self._caput('AMCc.ReadAll', 1, wait_after=20, **kwargs)
+        self._caput('AMCc.ReadAll', 1, **kwargs)
         self.log('ReadAll sent', self.LOG_INFO)
 
     def run_pwr_up_sys_ref(self,bay, **kwargs):
@@ -2705,6 +2715,7 @@ class SmurfCommandMixin(SmurfBase):
     # Attenuator
     _uc_reg = 'UC[{}]'
 
+    @_skipifrfsoc
     def set_att_uc(self, b, val, **kwargs):
         """
         Set the upconverter attenuator
@@ -2722,6 +2733,7 @@ class SmurfCommandMixin(SmurfBase):
             self.att_root.format(bay) + self._uc_reg.format(att),
             val, **kwargs)
 
+    @_skipifrfsoc
     def get_att_uc(self, b, **kwargs):
         """
         Get the upconverter attenuator value
@@ -2740,6 +2752,7 @@ class SmurfCommandMixin(SmurfBase):
 
     _dc_reg = 'DC[{}]'
 
+    @_skipifrfsoc
     def set_att_dc(self, b, val, **kwargs):
         """
         Set the down-converter attenuator
@@ -2757,6 +2770,7 @@ class SmurfCommandMixin(SmurfBase):
             self.att_root.format(bay) + self._dc_reg.format(att),
             val, **kwargs)
 
+    @_skipifrfsoc
     def get_att_dc(self, b, **kwargs):
         """
         Get the down-converter attenuator value
@@ -4419,13 +4433,13 @@ class SmurfCommandMixin(SmurfBase):
         0x2, enabled.  The DACs still output voltage even if their
         enable register is 0xe, disabled.
 
-        Params
-        ------
-        amp: str
+        Parameters
+        ----------
+        amp : str
             Use '50k' and 'hemt' for the C02 amps, and '50k1',
             '50k2', 'hemt1' and 'hemt2' for the C04 amps.
 
-        voltage: float
+        voltage : float
             The desired voltage going out the cryocard amp.
         """
         self.C.assert_amps_match_this_cryocard(list(amp))

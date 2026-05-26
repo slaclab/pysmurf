@@ -2573,16 +2573,25 @@ class SmurfUtilMixin(SmurfBase):
         tracking_setup only returns data for the processed
         channels. Therefore every channel is not returned.
 
+        The firmware processes the channels nearest to DC within its
+        DSP bandwidth. When two channels are equidistant from DC
+        (at the bandwidth boundary), the firmware includes the negative
+        frequency and excludes the positive (asymmetric: lower bound
+        inclusive, upper bound exclusive).
+
         Args
         ----
         channelorderfile : str or None, optional, default None
             Path to a file that contains one channel per line.
         """
-        n_proc = self.get_number_processed_channels()
-        n_chan = self.get_number_channels()
-        n_cut = (n_chan - n_proc)//2
-        return np.sort(self.get_channel_order(
-            channel_orderfile=channel_orderfile)[n_cut:-n_cut])
+        band = self._bands[0]
+        n_proc = self.get_number_processed_channels(band)
+        tone_freq_offset = self.get_tone_frequency_offset_mhz(band)
+        # Select the n_proc channels nearest to DC. Tie-break:
+        # firmware uses -Fdsp/2 <= freq < Fdsp/2, so at equal |freq|
+        # the negative frequency is included and positive excluded.
+        sort_key = np.abs(tone_freq_offset) + (tone_freq_offset > 0) * 1e-10
+        return np.sort(np.argsort(sort_key)[:n_proc])
 
     def get_subband_from_channel(self, band, channel, channelorderfile=None,
             yml=None):
@@ -3900,7 +3909,7 @@ class SmurfUtilMixin(SmurfBase):
         self.play_tes_bipolar_waveform(bias_group, sig)
 
 
-    def play_tone_file(self, band, tone_file=None, load_tone_file=True):
+    def play_tone_file(self, band, tone_file=None, load_tone_file=True, write_log=False):
         """
         Plays the specified tone file on this band.  If no path provided
         for tone file, assumes the path to the correct tone file has
@@ -3923,12 +3932,12 @@ class SmurfUtilMixin(SmurfBase):
 
         # load the tone file
         if load_tone_file:
-            self.load_tone_file(bay,tone_file)
+            self.load_tone_file(bay,tone_file,write_log=write_log)
 
         # play it!
         self.log(f'Playing tone file {tone_file} on band {band}',
                  self.LOG_USER)
-        self.set_waveform_select(band, 1)
+        self.set_waveform_select(band, 1, write_log=write_log)
 
 
     def stop_tone_file(self, band):
@@ -4858,6 +4867,7 @@ class SmurfUtilMixin(SmurfBase):
         :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.get_timing_link_up` : Is external timing data being received?
         """
         ## Poll all registers needed to determine which timing mode we're in.
+        mode=None
 
         # Crossbar
         cbar = [self.get_crossbar_output_config(i) for i in range(4)]
@@ -4883,15 +4893,17 @@ class SmurfUtilMixin(SmurfBase):
         # External reference timing mode configuration
         if ( cbar == [0x0, 0x0, 0x1, 0x1] and
              rsm == 0 and
-             all([lmks[bay][0x146]==0x10 for bay in self.bays]) and
-             all([lmks[bay][0x147]==0x1a for bay in self.bays]) ):
+             (len(self.bays) == 0 or
+              (all([lmks[bay][0x146]==0x10 for bay in self.bays]) and
+               all([lmks[bay][0x147]==0x1a for bay in self.bays]))) ):
             return 'ext_ref'
 
         # Fiber or backplane timing mode configurations
         if ( rsm == 1 and
              ( ecre == 1 and etdt == "All" and te == 1 ) and
-             all([lmks[bay][0x146]==0x8 for bay in self.bays]) and
-             all([lmks[bay][0x147]==0xa for bay in self.bays]) ):
+             (len(self.bays) == 0 or
+              (all([lmks[bay][0x146]==0x8 for bay in self.bays]) and
+               all([lmks[bay][0x147]==0xa for bay in self.bays]))) ):
 
             # Fiber timing mode configuration
             if ( cbar == [0x0, 0x0, 0x0, 0x0] ):

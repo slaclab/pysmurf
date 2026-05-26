@@ -45,7 +45,9 @@ if __name__ == "__main__":
                          polling_en     = True,
                          pv_dump_file   = "epics_dump.txt",
                          disable_bay0   = False,
-                         disable_bay1   = False) as root:
+                         disable_bay1   = False,
+                         is_rfsoc       = False,
+                         is_prespectra  = False) as root:
 
         root.saveVariableList("varlist.txt")
 
