@@ -45,35 +45,89 @@ class SmurfUtilMixin(SmurfBase):
             write_log=True):
         """Takes raw debugging data.
 
+        Supports three acquisition modes, selected by the ``IQstream`` and
+        ``rf_iq`` arguments. The two arguments map to two distinct firmware
+        registers (``iqStreamEnable`` and ``rfIQStreamEnable``) that route
+        data from different points in the DSP chain:
+
+        - ``IQstream=0``, ``rf_iq=False`` -- f / df mode. Returns the
+          tracking-loop output: resonator frequency and frequency error
+          per processed channel.
+        - ``IQstream=1``, ``rf_iq=False`` (default) -- demodulated I/Q
+          mode. Returns the channelized baseband in-phase and
+          quadrature components (after the DDS mixer and CIC, at the
+          tracking-loop input). The first two return values are then
+          I and Q rather than f and df.
+        - ``rf_iq=True`` -- RF I/Q mode. Returns the channelized
+          baseband I/Q for a single channel before the per-channel DDS
+          correction (i.e. the analysis filterbank output). Use this
+          when you need the raw resonator response (e.g. eta scans,
+          noise vs. flux-ramp-frequency studies). Requires ``channel``
+          to be specified; ``IQstream`` is forced to ``False``
+          internally and the ``rfIQStreamEnable`` register is toggled
+          around the acquisition.
+
+        The debug data path also has an exponential-average low-pass
+        filter (see :func:`set_debug_data_filter_cutoff`) applied in
+        normal and singleChannelReadout(Opt1) modes, and optional
+        counter-substitution registers that replace data channels with
+        timing diagnostics (see :func:`set_debug_timing_override`,
+        :func:`set_counter_select`).
+
         Args
         ----
         band : int
             The band to take data on.
         channel : int or None, optional, default None
-            The channel to take debug data on in single_channel_mode.
+            The channel to take debug data on. Required for
+            ``rf_iq=True`` and for either ``single_channel_readout``
+            mode. If ``None``, single-channel readout is disabled.
         nsamp : int, optional, default 2**19
             The number of samples to take.
         filename : str or None, optional, default None
             The name of the file to save to.
         IQstream : int, optional, default 1
-            Whether to take the raw IQ stream.
+            Selects the ``iqStreamEnable`` mode for the demodulated
+            datapath. ``1`` returns demodulated I/Q; ``0`` returns
+            f/df. Ignored when ``rf_iq=True`` (forced to ``0``).
         single_channel_readout : int, optional, default 1
-            Whether to look at one channel.
+            Single-channel readout option (``1`` or ``2``) when
+            ``channel`` is provided. Selects between the two
+            single-channel readout firmware paths.
         debug : bool, optional, default False
             Whether to take data in debug mode.
         rf_iq : bool, optional, default False
-            Return the RF IQ. Must provide channel.
+            If ``True``, enable the ``rfIQStreamEnable`` datapath and
+            return undemodulated RF baseband I/Q for ``channel``. Must
+            provide ``channel``. Mutually exclusive with ``IQstream``;
+            when ``True`` the supplied ``IQstream`` value is overridden
+            to ``False``.
         write_log : bool, optional, default True
             Whether to write low-level commands to the log file.
 
         Returns
         -------
         f : float array
-            The frequency response.
+            First data stream. Tracking frequency if
+            ``IQstream=0`` and ``rf_iq=False``; demodulated in-phase
+            component (I) if ``IQstream=1`` and ``rf_iq=False``;
+            RF baseband in-phase component (I) if ``rf_iq=True``.
         df : float array
-            The frequency error.
+            Second data stream. Tracking frequency error if
+            ``IQstream=0`` and ``rf_iq=False``; demodulated quadrature
+            component (Q) if ``IQstream=1`` and ``rf_iq=False``;
+            RF baseband quadrature component (Q) if ``rf_iq=True``.
         sync : float array
-            The sync count.
+            The sync (flux-ramp strobe) count.
+
+        See Also
+        --------
+        :func:`decode_data` : Decodes take_debug_data output in multi-channel mode.
+        :func:`decode_single_channel` : Decodes take_debug_data output in single-channel mode.
+        :func:`set_debug_data_filter_cutoff` : Controls the low-pass filter on the debug datapath.
+        :func:`set_decimation` : Sets the debug-path decimation rate (affects sample rate in multi-channel mode).
+        :func:`set_debug_timing_override` : Substitutes Counter0 into a data channel for timing debug.
+        :func:`set_counter_select` : Substitutes flux-ramp frame counter into I/Q for timing debug.
 
         """
         # Set proper single channel readout
@@ -1026,9 +1080,20 @@ class SmurfUtilMixin(SmurfBase):
 
                 channel_mask = self.make_channel_mask(bands, smurf_chans, IQ_mode=IQ_mode)
                 self.set_channel_mask(channel_mask)
+
+                # In IQ mode, build the original channel list for the
+                # mask/freq files (one entry per physical channel).  The
+                # IQ stream indices sent to the ChannelMapper are an
+                # internal detail and should not be written to disk.
+                if IQ_mode:
+                    file_mask = self.make_channel_mask(bands, smurf_chans,
+                                                      IQ_mode=False)
+                else:
+                    file_mask = channel_mask
             else:
                 channel_mask = np.atleast_1d(channel_mask)
                 self.set_channel_mask(channel_mask)
+                file_mask = channel_mask
 
             time.sleep(0.5)
 
@@ -1067,17 +1132,19 @@ class SmurfUtilMixin(SmurfBase):
 
 
             # Save mask file as text file. Eventually this will be in the
-            # raw data output
+            # raw data output.  In IQ mode, file_mask contains the original
+            # absolute channel numbers (band*n_chan + ch) rather than the
+            # IQ stream indices used by the ChannelMapper.
             mask_fname = os.path.join(data_filename.replace('.dat',
                 '_mask.txt'))
-            tools.save_to_txt(mask_fname, channel_mask, fmt='%i')
+            tools.save_to_txt(mask_fname, file_mask, fmt='%i')
             self.pub.register_file(mask_fname, 'mask')
             self.log(mask_fname)
 
             if make_freq_mask:
                 if write_log:
                     self.log("Writing frequency mask.")
-                freq_mask = self.make_freq_mask(channel_mask)
+                freq_mask = self.make_freq_mask(file_mask)
                 tools.save_to_txt(os.path.join(data_filename.replace('.dat',
                     '_freq.txt')), freq_mask, fmt='%4.4f')
                 self.pub.register_file(

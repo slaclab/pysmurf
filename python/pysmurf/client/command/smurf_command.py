@@ -1550,7 +1550,7 @@ class SmurfCommandMixin(SmurfBase):
         """
         self._caput(
             self._cryo_root(band) + self._eta_scan_amplitude_reg,
-            np.uint(val), **kwargs)
+            np.uint32(val), **kwargs)
 
     def get_eta_scan_amplitude(self, band, **kwargs):
         r"""Gets the tone amplitude used during eta scan or find-freq.
@@ -1864,7 +1864,7 @@ class SmurfCommandMixin(SmurfBase):
         """
         self._caput(
             self._cryo_root(band) + self._amplitude_scale_array_reg,
-            np.array(val).astype(np.uint), **kwargs)
+            np.array(val).astype(np.uint32), **kwargs)
 
     def get_amplitude_scale_array(self, band, **kwargs):
         r"""Gets the tone amplitude for all channels in a band.
@@ -1909,7 +1909,7 @@ class SmurfCommandMixin(SmurfBase):
 
         old_amp = self.get_amplitude_scale_array(band, **kwargs)
         n_channels=self.get_number_channels(band)
-        new_amp = np.zeros((n_channels,),dtype=np.uint)
+        new_amp = np.zeros((n_channels,),dtype=np.uint32)
         new_amp[np.where(old_amp!=0)] = tone_power
         self.set_amplitude_scale_array(self, new_amp, **kwargs)
 
@@ -4697,7 +4697,7 @@ class SmurfCommandMixin(SmurfBase):
         self._caput(
             self._channel_root(band, channel) +
             self._amplitude_scale_channel_reg,
-            np.uint(val), **kwargs)
+            np.uint32(val), **kwargs)
 
     def get_amplitude_scale_channel(self, band, channel, **kwargs):
         r"""Gets the tone amplitude for a single channel.
