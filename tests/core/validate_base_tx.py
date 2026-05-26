@@ -179,8 +179,8 @@ if __name__ == "__main__":
         raise AssertionError(f'Meatadata frames dropped in the transmitter: {tx_meta_drop_cnt}')
 
     ## All Rx frames should have been sent to the transmitter
-    if rx_cnt != tx_data_cnt:
-        raise AssertionError(f'Missing RX frames in the transmitter: {rx_cnt - tx_data_cnt}')
+    if rx_cnt != tx_data_cnt + tx_meta_cnt:
+        raise AssertionError(f'Missing RX frames in the transmitter: {rx_cnt - tx_data_cnt - tx_meta_cnt}')
 
     ## The transmitter should have received some metadata frames
     if tx_meta_cnt == 0:
