@@ -1035,9 +1035,20 @@ class SmurfUtilMixin(SmurfBase):
 
                 channel_mask = self.make_channel_mask(bands, smurf_chans, IQ_mode=IQ_mode)
                 self.set_channel_mask(channel_mask)
+
+                # In IQ mode, build the original channel list for the
+                # mask/freq files (one entry per physical channel).  The
+                # IQ stream indices sent to the ChannelMapper are an
+                # internal detail and should not be written to disk.
+                if IQ_mode:
+                    file_mask = self.make_channel_mask(bands, smurf_chans,
+                                                      IQ_mode=False)
+                else:
+                    file_mask = channel_mask
             else:
                 channel_mask = np.atleast_1d(channel_mask)
                 self.set_channel_mask(channel_mask)
+                file_mask = channel_mask
 
             time.sleep(0.5)
 
@@ -1076,17 +1087,19 @@ class SmurfUtilMixin(SmurfBase):
 
 
             # Save mask file as text file. Eventually this will be in the
-            # raw data output
+            # raw data output.  In IQ mode, file_mask contains the original
+            # absolute channel numbers (band*n_chan + ch) rather than the
+            # IQ stream indices used by the ChannelMapper.
             mask_fname = os.path.join(data_filename.replace('.dat',
                 '_mask.txt'))
-            tools.save_to_txt(mask_fname, channel_mask, fmt='%i')
+            tools.save_to_txt(mask_fname, file_mask, fmt='%i')
             self.pub.register_file(mask_fname, 'mask')
             self.log(mask_fname)
 
             if make_freq_mask:
                 if write_log:
                     self.log("Writing frequency mask.")
-                freq_mask = self.make_freq_mask(channel_mask)
+                freq_mask = self.make_freq_mask(file_mask)
                 tools.save_to_txt(os.path.join(data_filename.replace('.dat',
                     '_freq.txt')), freq_mask, fmt='%4.4f')
                 self.pub.register_file(
