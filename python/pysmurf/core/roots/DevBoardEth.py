@@ -32,6 +32,8 @@ class DevBoardEth(Common):
                  pv_dump_file   = "",
                  disable_bay0   = False,
                  disable_bay1   = False,
+                 is_rfsoc       = False,
+                 is_prespectra  = False,
                  txDevice       = None,
                  configure      = False,
                  server_port    = 0,
@@ -50,7 +52,9 @@ class DevBoardEth(Common):
                                    commType     = "eth-rssi-interleaved",
                                    pcieRssiLink = 0, # Not needed
                                    disableBay0  = disable_bay0,
-                                   disableBay1  = disable_bay1)
+                                   disableBay1  = disable_bay1,
+                                   isRFSOC      = is_rfsoc,
+                                   isPreSpectra = is_prespectra)
 
         # Create stream interfaces
         self._ddr_streams = []

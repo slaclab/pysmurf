@@ -45,35 +45,89 @@ class SmurfUtilMixin(SmurfBase):
             write_log=True):
         """Takes raw debugging data.
 
+        Supports three acquisition modes, selected by the ``IQstream`` and
+        ``rf_iq`` arguments. The two arguments map to two distinct firmware
+        registers (``iqStreamEnable`` and ``rfIQStreamEnable``) that route
+        data from different points in the DSP chain:
+
+        - ``IQstream=0``, ``rf_iq=False`` -- f / df mode. Returns the
+          tracking-loop output: resonator frequency and frequency error
+          per processed channel.
+        - ``IQstream=1``, ``rf_iq=False`` (default) -- demodulated I/Q
+          mode. Returns the channelized baseband in-phase and
+          quadrature components (after the DDS mixer and CIC, at the
+          tracking-loop input). The first two return values are then
+          I and Q rather than f and df.
+        - ``rf_iq=True`` -- RF I/Q mode. Returns the channelized
+          baseband I/Q for a single channel before the per-channel DDS
+          correction (i.e. the analysis filterbank output). Use this
+          when you need the raw resonator response (e.g. eta scans,
+          noise vs. flux-ramp-frequency studies). Requires ``channel``
+          to be specified; ``IQstream`` is forced to ``False``
+          internally and the ``rfIQStreamEnable`` register is toggled
+          around the acquisition.
+
+        The debug data path also has an exponential-average low-pass
+        filter (see :func:`set_debug_data_filter_cutoff`) applied in
+        normal and singleChannelReadout(Opt1) modes, and optional
+        counter-substitution registers that replace data channels with
+        timing diagnostics (see :func:`set_debug_timing_override`,
+        :func:`set_counter_select`).
+
         Args
         ----
         band : int
             The band to take data on.
         channel : int or None, optional, default None
-            The channel to take debug data on in single_channel_mode.
+            The channel to take debug data on. Required for
+            ``rf_iq=True`` and for either ``single_channel_readout``
+            mode. If ``None``, single-channel readout is disabled.
         nsamp : int, optional, default 2**19
             The number of samples to take.
         filename : str or None, optional, default None
             The name of the file to save to.
         IQstream : int, optional, default 1
-            Whether to take the raw IQ stream.
+            Selects the ``iqStreamEnable`` mode for the demodulated
+            datapath. ``1`` returns demodulated I/Q; ``0`` returns
+            f/df. Ignored when ``rf_iq=True`` (forced to ``0``).
         single_channel_readout : int, optional, default 1
-            Whether to look at one channel.
+            Single-channel readout option (``1`` or ``2``) when
+            ``channel`` is provided. Selects between the two
+            single-channel readout firmware paths.
         debug : bool, optional, default False
             Whether to take data in debug mode.
         rf_iq : bool, optional, default False
-            Return the RF IQ. Must provide channel.
+            If ``True``, enable the ``rfIQStreamEnable`` datapath and
+            return undemodulated RF baseband I/Q for ``channel``. Must
+            provide ``channel``. Mutually exclusive with ``IQstream``;
+            when ``True`` the supplied ``IQstream`` value is overridden
+            to ``False``.
         write_log : bool, optional, default True
             Whether to write low-level commands to the log file.
 
         Returns
         -------
         f : float array
-            The frequency response.
+            First data stream. Tracking frequency if
+            ``IQstream=0`` and ``rf_iq=False``; demodulated in-phase
+            component (I) if ``IQstream=1`` and ``rf_iq=False``;
+            RF baseband in-phase component (I) if ``rf_iq=True``.
         df : float array
-            The frequency error.
+            Second data stream. Tracking frequency error if
+            ``IQstream=0`` and ``rf_iq=False``; demodulated quadrature
+            component (Q) if ``IQstream=1`` and ``rf_iq=False``;
+            RF baseband quadrature component (Q) if ``rf_iq=True``.
         sync : float array
-            The sync count.
+            The sync (flux-ramp strobe) count.
+
+        See Also
+        --------
+        :func:`decode_data` : Decodes take_debug_data output in multi-channel mode.
+        :func:`decode_single_channel` : Decodes take_debug_data output in single-channel mode.
+        :func:`set_debug_data_filter_cutoff` : Controls the low-pass filter on the debug datapath.
+        :func:`set_decimation` : Sets the debug-path decimation rate (affects sample rate in multi-channel mode).
+        :func:`set_debug_timing_override` : Substitutes Counter0 into a data channel for timing debug.
+        :func:`set_counter_select` : Substitutes flux-ramp frame counter into I/Q for timing debug.
 
         """
         # Set proper single channel readout
@@ -270,15 +324,6 @@ class SmurfUtilMixin(SmurfBase):
         sol = root_scalar(lambda fc_hz : alpha_float-self.compute_exp_avg_alpha(fc_hz,fs_hz), bracket=[0, fs_hz/2.])
         return sol.root
 
-    # the JesdWatchdog will check if an instance of the JesdWatchdog is already
-    # running and kill itself if there is
-    def start_jesd_watchdog(self):
-        import pysmurf.client.watchdog.JesdWatchdog as JesdWatchdog
-        import subprocess
-        import sys
-        subprocess.Popen([sys.executable,JesdWatchdog.__file__])
-
-    # Shawn needs to make this better and add documentation.
     @set_action()
     def estimate_phase_delay(self, band, nsamp=2**19, make_plot=True,
             show_plot=True, save_plot=True, save_data=True, n_scan=5,
@@ -1035,9 +1080,20 @@ class SmurfUtilMixin(SmurfBase):
 
                 channel_mask = self.make_channel_mask(bands, smurf_chans, IQ_mode=IQ_mode)
                 self.set_channel_mask(channel_mask)
+
+                # In IQ mode, build the original channel list for the
+                # mask/freq files (one entry per physical channel).  The
+                # IQ stream indices sent to the ChannelMapper are an
+                # internal detail and should not be written to disk.
+                if IQ_mode:
+                    file_mask = self.make_channel_mask(bands, smurf_chans,
+                                                      IQ_mode=False)
+                else:
+                    file_mask = channel_mask
             else:
                 channel_mask = np.atleast_1d(channel_mask)
                 self.set_channel_mask(channel_mask)
+                file_mask = channel_mask
 
             time.sleep(0.5)
 
@@ -1076,17 +1132,19 @@ class SmurfUtilMixin(SmurfBase):
 
 
             # Save mask file as text file. Eventually this will be in the
-            # raw data output
+            # raw data output.  In IQ mode, file_mask contains the original
+            # absolute channel numbers (band*n_chan + ch) rather than the
+            # IQ stream indices used by the ChannelMapper.
             mask_fname = os.path.join(data_filename.replace('.dat',
                 '_mask.txt'))
-            tools.save_to_txt(mask_fname, channel_mask, fmt='%i')
+            tools.save_to_txt(mask_fname, file_mask, fmt='%i')
             self.pub.register_file(mask_fname, 'mask')
             self.log(mask_fname)
 
             if make_freq_mask:
                 if write_log:
                     self.log("Writing frequency mask.")
-                freq_mask = self.make_freq_mask(channel_mask)
+                freq_mask = self.make_freq_mask(file_mask)
                 tools.save_to_txt(os.path.join(data_filename.replace('.dat',
                     '_freq.txt')), freq_mask, fmt='%4.4f')
                 self.pub.register_file(
@@ -2228,38 +2286,6 @@ class SmurfUtilMixin(SmurfBase):
             raise ValueError(which_jesd_down)
 
 
-    def jesd_decorator(decorated):
-        def jesd_decorator_function(self):
-            # check JESDs
-            (jesd_tx_ok0, jesd_rx_ok0, jesd_status) = self.check_jesd(silent_if_valid=True)
-
-            # if either JESD is down, try to fix
-            if not (jesd_rx_ok0 and jesd_tx_ok0):
-                which_jesd_down0='Jesd Rx and Tx are both down'
-                if (jesd_rx_ok0 or jesd_tx_ok0):
-                    which_jesd_down0 = ('Jesd Rx is down' if
-                        jesd_tx_ok0 else 'Jesd Tx is down')
-
-                self.log(f'{which_jesd_down0} ... will attempt to recover.',
-                         self.LOG_ERROR)
-
-                # attempt to recover ; if it fails it will assert
-                self.recover_jesd(recover_jesd_rx=(not jesd_rx_ok0),
-                    recover_jesd_tx=(not jesd_tx_ok0))
-
-                # rely on recover to assert if it failed
-                self.log('Successfully recovered Jesd but may need to redo' +
-                    ' some setup ... rerun command at your own risk.',
-                    self.LOG_USER)
-
-            # don't continue running the desired command by default.
-            # just because Jesds are back doesn't mean we're in a sane
-            # state.  User may need to relock/etc.
-            if (jesd_rx_ok0 and jesd_tx_ok0):
-                decorated()
-
-        return jesd_decorator_function
-
     def check_jesd(self, bay, silent_if_valid=False, max_timeout_sec=60):
         """Checks JESD status for requested bay.
 
@@ -2537,16 +2563,25 @@ class SmurfUtilMixin(SmurfBase):
         tracking_setup only returns data for the processed
         channels. Therefore every channel is not returned.
 
+        The firmware processes the channels nearest to DC within its
+        DSP bandwidth. When two channels are equidistant from DC
+        (at the bandwidth boundary), the firmware includes the negative
+        frequency and excludes the positive (asymmetric: lower bound
+        inclusive, upper bound exclusive).
+
         Args
         ----
         channelorderfile : str or None, optional, default None
             Path to a file that contains one channel per line.
         """
-        n_proc = self.get_number_processed_channels()
-        n_chan = self.get_number_channels()
-        n_cut = (n_chan - n_proc)//2
-        return np.sort(self.get_channel_order(
-            channel_orderfile=channel_orderfile)[n_cut:-n_cut])
+        band = self._bands[0]
+        n_proc = self.get_number_processed_channels(band)
+        tone_freq_offset = self.get_tone_frequency_offset_mhz(band)
+        # Select the n_proc channels nearest to DC. Tie-break:
+        # firmware uses -Fdsp/2 <= freq < Fdsp/2, so at equal |freq|
+        # the negative frequency is included and positive excluded.
+        sort_key = np.abs(tone_freq_offset) + (tone_freq_offset > 0) * 1e-10
+        return np.sort(np.argsort(sort_key)[:n_proc])
 
     def get_subband_from_channel(self, band, channel, channelorderfile=None,
             yml=None):
@@ -2657,8 +2692,19 @@ class SmurfUtilMixin(SmurfBase):
         return subband_chans
 
     def iq_to_phase(self, i, q):
-        """
-        Changes IQ to phase
+        """Converts I/Q data to unwrapped phase.
+
+        Args
+        ----
+        i : array-like
+            In-phase component.
+        q : array-like
+            Quadrature component.
+
+        Returns
+        -------
+        numpy.ndarray
+            Unwrapped phase in radians.
         """
         return np.unwrap(np.arctan2(q, i))
 
@@ -2823,9 +2869,18 @@ class SmurfUtilMixin(SmurfBase):
 
 
     def set_tes_bias_off(self, **kwargs):
-        """
-        Turns off all of the DACs assigned to a TES bias group in the
-        pysmurf configuration file.
+        r"""Sets all TES bias groups to zero volts.
+
+        Args
+        ----
+        \**kwargs
+            Arbitrary keyword arguments.  Passed directly to
+            :func:`set_tes_bias_bipolar_array`.
+
+        See Also
+        --------
+        :func:`set_tes_bias_bipolar_array` : Set individual group voltages.
+        :func:`all_off` : Turn off biases, tones, and flux ramp.
         """
         self.set_tes_bias_bipolar_array(np.zeros(self._n_bias_groups), **kwargs)
 
@@ -3715,8 +3770,15 @@ class SmurfUtilMixin(SmurfBase):
 
 
     def all_off(self):
-        """
-        Turns off everything. Does band off, flux ramp off, then TES bias off.
+        """Turns off all output: tones, flux ramp, and TES biases.
+
+        Calls :func:`band_off` for each band, :func:`flux_ramp_off`,
+        then :func:`set_tes_bias_off`.
+
+        See Also
+        --------
+        :func:`set_tes_bias_off` : Zero TES biases only.
+        :func:`flux_ramp_off` : Disable flux ramp only.
         """
         self.log('Turning off tones')
         bands = self._bands
@@ -3864,7 +3926,7 @@ class SmurfUtilMixin(SmurfBase):
         self.play_tes_bipolar_waveform(bias_group, sig)
 
 
-    def play_tone_file(self, band, tone_file=None, load_tone_file=True):
+    def play_tone_file(self, band, tone_file=None, load_tone_file=True, write_log=False):
         """
         Plays the specified tone file on this band.  If no path provided
         for tone file, assumes the path to the correct tone file has
@@ -3887,12 +3949,12 @@ class SmurfUtilMixin(SmurfBase):
 
         # load the tone file
         if load_tone_file:
-            self.load_tone_file(bay,tone_file)
+            self.load_tone_file(bay,tone_file,write_log=write_log)
 
         # play it!
         self.log(f'Playing tone file {tone_file} on band {band}',
                  self.LOG_USER)
-        self.set_waveform_select(band, 1)
+        self.set_waveform_select(band, 1, write_log=write_log)
 
 
     def stop_tone_file(self, band):
@@ -4822,6 +4884,7 @@ class SmurfUtilMixin(SmurfBase):
         :func:`~pysmurf.client.command.smurf_command.SmurfCommandMixin.get_timing_link_up` : Is external timing data being received?
         """
         ## Poll all registers needed to determine which timing mode we're in.
+        mode=None
 
         # Crossbar
         cbar = [self.get_crossbar_output_config(i) for i in range(4)]
@@ -4847,15 +4910,17 @@ class SmurfUtilMixin(SmurfBase):
         # External reference timing mode configuration
         if ( cbar == [0x0, 0x0, 0x1, 0x1] and
              rsm == 0 and
-             all([lmks[bay][0x146]==0x10 for bay in self.bays]) and
-             all([lmks[bay][0x147]==0x1a for bay in self.bays]) ):
+             (len(self.bays) == 0 or
+              (all([lmks[bay][0x146]==0x10 for bay in self.bays]) and
+               all([lmks[bay][0x147]==0x1a for bay in self.bays]))) ):
             return 'ext_ref'
 
         # Fiber or backplane timing mode configurations
         if ( rsm == 1 and
              ( ecre == 1 and etdt == "All" and te == 1 ) and
-             all([lmks[bay][0x146]==0x8 for bay in self.bays]) and
-             all([lmks[bay][0x147]==0xa for bay in self.bays]) ):
+             (len(self.bays) == 0 or
+              (all([lmks[bay][0x146]==0x8 for bay in self.bays]) and
+               all([lmks[bay][0x147]==0xa for bay in self.bays]))) ):
 
             # Fiber timing mode configuration
             if ( cbar == [0x0, 0x0, 0x0, 0x0] ):
