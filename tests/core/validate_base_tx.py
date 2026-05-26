@@ -109,10 +109,13 @@ if __name__ == "__main__":
         print('Done')
 
         # Wait for the pipeline to drain: poll until the FileWriter
-        # has received at least as many frames as entered the pipeline.
+        # and Transmitter have received at least as many frames as
+        # entered the pipeline.
         print('  Waiting for pipeline to drain... ', end='')
         rx_in = root.SmurfProcessor.FrameRxStats.FrameCnt.get()
         while root.SmurfProcessor.FileWriter.FrameCount.get() < rx_in:
+            time.sleep(0.1)
+        while root.SmurfProcessor.Transmitter.dataFrameCnt.get() < rx_in:
             time.sleep(0.1)
         print('Done')
 
@@ -179,8 +182,8 @@ if __name__ == "__main__":
         raise AssertionError(f'Meatadata frames dropped in the transmitter: {tx_meta_drop_cnt}')
 
     ## All Rx frames should have been sent to the transmitter
-    if rx_cnt != tx_data_cnt + tx_meta_cnt:
-        raise AssertionError(f'Missing RX frames in the transmitter: {rx_cnt - tx_data_cnt - tx_meta_cnt}')
+    if rx_cnt != tx_data_cnt:
+        raise AssertionError(f'Missing RX frames in the transmitter: {rx_cnt - tx_data_cnt}')
 
     ## The transmitter should have received some metadata frames
     if tx_meta_cnt == 0:
