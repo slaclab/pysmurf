@@ -4843,15 +4843,17 @@ class SmurfUtilMixin(SmurfBase):
         # External reference timing mode configuration
         if ( cbar == [0x0, 0x0, 0x1, 0x1] and
              rsm == 0 and
-             all([lmks[bay][0x146]==0x10 for bay in self.bays]) and
-             all([lmks[bay][0x147]==0x1a for bay in self.bays]) ):
+             (len(self.bays) == 0 or
+              (all([lmks[bay][0x146]==0x10 for bay in self.bays]) and
+               all([lmks[bay][0x147]==0x1a for bay in self.bays]))) ):
             return 'ext_ref'
 
         # Fiber or backplane timing mode configurations
         if ( rsm == 1 and
              ( ecre == 1 and etdt == "All" and te == 1 ) and
-             all([lmks[bay][0x146]==0x8 for bay in self.bays]) and
-             all([lmks[bay][0x147]==0xa for bay in self.bays]) ):
+             (len(self.bays) == 0 or
+              (all([lmks[bay][0x146]==0x8 for bay in self.bays]) and
+               all([lmks[bay][0x147]==0xa for bay in self.bays]))) ):
 
             # Fiber timing mode configuration
             if ( cbar == [0x0, 0x0, 0x0, 0x0] ):

@@ -684,7 +684,7 @@ class SmurfCommandMixin(SmurfBase):
             Arbitrary keyword arguments.  Passed directly to the
             `_caput` call.
         """
-        self._caput('AMCc.ReadAll', 1, wait_after=20, **kwargs)
+        self._caput('AMCc.ReadAll', 1, **kwargs)
         self.log('ReadAll sent', self.LOG_INFO)
 
     def run_pwr_up_sys_ref(self, bay, **kwargs):
