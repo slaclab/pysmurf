@@ -6,7 +6,6 @@ RUN apt-get install -y \
     python3-gi-cairo \
     python3-cairocffi \
     gir1.2-gtk-3.0 \
-    python3-matplotlib \
  && rm -rf /var/lib/apt/lists/*
 
 RUN pip3 install --no-cache-dir --upgrade pip
