@@ -101,8 +101,8 @@ class SmurfBase:
         # connect to rogue servers
         if not offline:
             self._client = pyrogue.interfaces.VirtualClient(addr=self._server_addr, port=self._server_port)
-            # Set a 10s timeout, retry up to 6 times for a total of 60s
-            self._client.setTimeout(10000, True, 6)  # ms
+            # Set a 10s timeout, retry up to 9 times for a total of 90s
+            self._client.setTimeout(10000, True, 9)  # ms
             if atca_monitor:
                 self._atca = pyrogue.interfaces.VirtualClient(addr=self._server_addr, port=self._atca_port)
                 if self._atca.root is None:
