@@ -2206,23 +2206,31 @@ class SmurfUtilMixin(SmurfBase):
 
 
     def set_feedback_limit_khz(self, band, feedback_limit_khz, **kwargs):
-        """
-        Sets the tracking feedback frequency limit in kHz.
+        """Sets the tracking feedback frequency limit in kHz.
 
         The feedback limit bounds the magnitude of the tracking-loop
-        frequency deviation from each channel's subband center frequency.
-        For a tone at frequency ``freq`` with subband center
-        ``centerFreq``, the feedback loop enforces::
+        frequency offset from each channel's programmed tone center.
+        The firmware applies a symmetric clamp on the loop filter
+        accumulator::
 
-            freq = centerFreq + feedbackFreq
-            abs(feedbackFreq) < feedbackLimit
+            -feedbackLimit <= feedbackFreq <= +feedbackLimit
 
-        Internally this method converts ``feedback_limit_khz`` to MHz,
-        clamps it to half the subband bandwidth (the maximum meaningful
-        deviation, since adjacent subbands meet at that boundary), and
-        encodes it as a 16-bit decimal value relative to half the
-        subband bandwidth before writing to the ``feedbackLimit``
-        register via :func:`set_feedback_limit`.
+        where ``feedbackFreq`` is the frequency adjustment applied by
+        the tracking loop, in units of the subband bandwidth (2.4 MHz
+        for the standard 614.4 MHz / 512-subband configuration).
+
+        Internally this method converts ``feedback_limit_khz`` to a
+        UFix_16_16 register value representing a fraction of the full
+        subband bandwidth.  The conversion is::
+
+            register = floor(limit_mhz / (subband_bw / 2^16))
+
+        Values are clamped to half the subband bandwidth (1.2 MHz),
+        since that is the maximum meaningful deviation before aliasing
+        into an adjacent subband.
+
+        Example: ``set_feedback_limit_khz(band, 75)`` writes 0x800,
+        limiting tone tracking to +/-75 kHz from center.
 
         Args
         ----
@@ -2230,8 +2238,8 @@ class SmurfUtilMixin(SmurfBase):
             The 500 MHz band whose feedback limit is being set.
         feedback_limit_khz : float
             The desired tracking feedback frequency limit, in kHz.
-            Values larger than half the subband bandwidth are silently
-            clamped to that maximum.
+            Values larger than half the subband bandwidth (1.2 MHz)
+            are silently clamped to that maximum.
 
         See Also
         --------
