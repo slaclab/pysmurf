@@ -337,6 +337,21 @@ def yamlToData(stream):
         loader.flatten_mapping(node)
         return odict(loader.construct_pairs(node))
 
+    def construct_yaml_float(loader, node):
+        value = loader.construct_scalar(node)
+        value = value.replace(',', '').replace('_', '').lower()
+        sign = +1
+        if value[0] == '-':
+            sign = -1
+        if value[0] in '+-':
+            value = value[1:]
+        if value == '.inf':
+            return sign * float('inf')
+        elif value == '.nan':
+            return float('nan')
+        return sign * float(value)
+
     PyrogueLoader.add_constructor(yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG,construct_mapping)
+    PyrogueLoader.add_constructor('tag:yaml.org,2002:float', construct_yaml_float)
 
     return yaml.load(stream, Loader=PyrogueLoader)
